@@ -80,7 +80,7 @@ summary { cursor: pointer; font-weight: 600; }
 </tr>
 </tbody>
 </table></div>
-<p>See the <a href="https://github.com/Fzkuji/OpenProgram/tree/main/scripts/docs_site">builder source</a> and <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/server/openprogram_server/_webui/routes/docs.py">serving implementation</a>.</p>
+<p>See the <a href="https://github.com/fzkuji-neo/OpenProgram/tree/main/scripts/docs_site">builder source</a> and <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/server/openprogram_server/_webui/routes/docs.py">serving implementation</a>.</p>
 <h2 id="reading-and-visual-design">Reading and visual design<a class="header-anchor" href="#reading-and-visual-design">#</a></h2>
 <p>Start with the document's question, audience, scope and implementation boundary. Explain the public entry and data/state flow before implementation details. Use a source map for ownership, a diagram for control or data flow, and a final implementation-status section for remaining work and evidence gaps.</p>
 <p>Use the existing <code>--bg</code>, <code>--bg-code</code>, <code>--tx</code>, <code>--tx-soft</code>, <code>--acc</code> and <code>--bd</code> theme variables in fragments. The site uses the Web application's warm neutral palette and orange accent. Do not repeat a fixed light-only palette inside an article.</p>
@@ -99,7 +99,7 @@ python<span class="w"> </span>-m<span class="w"> </span>scripts.docs_site.checkl
 python<span class="w"> </span>-m<span class="w"> </span>scripts.docs_site.checklang
 python<span class="w"> </span>-m<span class="w"> </span>scripts.docs_site.check_landing
 </code></pre>
-<p>Run these commands from the repository root with the documentation dependencies available. The <a href="https://github.com/Fzkuji/OpenProgram/blob/main/.github/CONTRIBUTING.md">contributor guide</a> lists the <code>uv run</code> environment. The link checker reads built HTML, so rebuild before checking.</p>
+<p>Run these commands from the repository root with the documentation dependencies available. The <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/.github/CONTRIBUTING.md">contributor guide</a> lists the <code>uv run</code> environment. The link checker reads built HTML, so rebuild before checking.</p>
 <p><code>checklang</code> currently checks default product Markdown only; it excludes the design directory and does not scan HTML sources. A pass does not establish bilingual compliance for all design pages. Review the language and counterpart of revised HTML separately.</p>
 <p>The build regenerates code-derived CLI/config/provider reference pages, writes <code>docs/_site.tmp/</code>, and replaces <code>docs/_site/</code> after successful rendering. <code>docs/_site/</code> is ignored by Git. Files under <code>docs/_static_root/</code> are published at the site root without entering navigation or search.</p>
 <p>A source checkout serves its <code>docs/_site/</code>. An installed runtime can serve bundled documentation under the Server's <code>_frontend/docs/</code>; rebuilding a different checkout does not update that bundle. Compare the served page with the expected output before claiming local acceptance. Default local verification uses <code>http://localhost:18100/docs/</code>. Completed application updates use <code>scripts/refresh-local-app.sh</code> under the repository's local-App rules.</p>

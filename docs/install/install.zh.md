@@ -12,7 +12,7 @@ OpenProgram 分别提供桌面 release 安装和 CLI/server release 安装。所
 | Windows x86_64 / arm64 | release 附带时提供带签名 EXE | 支持 | 本地或远程 |
 | iOS / Android / iPadOS | 无原生应用 | 不适用 | 可以连接受支持的远程主机；不承诺移动端布局 |
 
-只有发布在 [GitHub Release](https://github.com/Fzkuji/OpenProgram/releases) 中的产物才属于 release 安装。CI artifact 和 source checkout 构建不属于 stable release。
+只有发布在 [GitHub Release](https://github.com/fzkuji-neo/OpenProgram/releases) 中的产物才属于 release 安装。CI artifact 和 source checkout 构建不属于 stable release。
 
 ## 桌面安装
 
@@ -104,7 +104,7 @@ GUI Agent、Research Agent 和 Wiki Agent 属于每个受支持的 release 安�
 贡献者使用 source checkout：
 
 ```bash
-git clone https://github.com/Fzkuji/OpenProgram.git
+git clone https://github.com/fzkuji-neo/OpenProgram.git
 cd OpenProgram
 ./scripts/install.sh
 ```
@@ -112,7 +112,7 @@ cd OpenProgram
 Windows 使用 PowerShell：
 
 ```powershell
-git clone https://github.com/Fzkuji/OpenProgram.git
+git clone https://github.com/fzkuji-neo/OpenProgram.git
 Set-Location OpenProgram
 .\scripts\install.ps1 -Yes
 ```

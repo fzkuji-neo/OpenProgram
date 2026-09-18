@@ -32,7 +32,7 @@ const release = {
   prerelease: false,
   published_at: "2026-08-15T00:00:00Z",
   body: "Release notes",
-  html_url: "https://github.com/Fzkuji/OpenProgram/releases/tag/v0.6.7",
+  html_url: "https://github.com/fzkuji-neo/OpenProgram/releases/tag/v0.6.7",
   assets: [
     { name: "release-manifest.json", size: 100 },
     { name: "OpenProgram-0.6.7-mac-arm64-unsigned.dmg", size: 123 },
@@ -128,7 +128,7 @@ assert.throws(
 
 for (const url of [
   "https://api.github.com/repos/Fzkuji/OpenProgram/releases/latest",
-  "https://github.com/Fzkuji/OpenProgram/releases/download/v0.6.7/release-manifest.json",
+  "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.6.7/release-manifest.json",
   "https://release-assets.githubusercontent.com/github-production-release-asset/1/file",
 ]) validateUpdateUrl(url);
 assert.throws(() => validateUpdateUrl("http://github.com/file"), /HTTPS/);
@@ -326,7 +326,7 @@ async function checkNetworkBoundaries() {
   };
   const response = await requestWithRedirects(
     allowedFetch,
-    "https://github.com/Fzkuji/OpenProgram/releases/download/v0.6.7/file",
+    "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.6.7/file",
   );
   assert.equal(await response.text(), "ok");
   assert.equal(allowedCalls.length, 2);
@@ -353,7 +353,7 @@ async function checkNetworkBoundaries() {
         }
         return new Response("ok", { status: 200 });
       },
-      "https://github.com/Fzkuji/OpenProgram/releases/download/v0.7.1/release-manifest.json",
+      "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.7.1/release-manifest.json",
     );
     assert.equal(await hop.text(), "ok");
     const manual = await desktopUpdateFetch(`http://127.0.0.1:${address.port}/start`, {
@@ -372,21 +372,21 @@ async function checkNetworkBoundaries() {
   await assert.rejects(
     requestWithRedirects(
       async () => new Response(null, { status: 302, headers: { location: "https://example.com/file" } }),
-      "https://github.com/Fzkuji/OpenProgram/releases/download/v0.6.7/file",
+      "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.6.7/file",
     ),
     /host/,
   );
   await assert.rejects(
     requestWithRedirects(
       async () => new Response(null, { status: 302, headers: { location: "http://github.com/file" } }),
-      "https://github.com/Fzkuji/OpenProgram/releases/download/v0.6.7/file",
+      "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.6.7/file",
     ),
     /HTTPS/,
   );
   await assert.rejects(
     requestWithRedirects(
       async () => new Response(null, { status: 302, headers: { location: "/next" } }),
-      "https://github.com/Fzkuji/OpenProgram/releases/download/v0.6.7/file",
+      "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.6.7/file",
     ),
     /limit/,
   );
@@ -397,7 +397,7 @@ async function checkNetworkBoundaries() {
         options.signal.addEventListener("abort", () => { httpErrorAborted = true; });
         return new Response("error", { status: 500 });
       },
-      "https://github.com/Fzkuji/OpenProgram/releases/download/v0.6.7/file",
+      "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.6.7/file",
     ),
     /HTTP 500/,
   );
@@ -460,7 +460,7 @@ async function checkNetworkBoundaries() {
     const bytes = Buffer.from("verified update");
     const target = path.join(root, "update.dmg");
     const asset = {
-      url: "https://github.com/Fzkuji/OpenProgram/releases/download/v0.6.7/update.dmg",
+      url: "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.6.7/update.dmg",
       bytes: bytes.length,
       sha256: require("node:crypto").createHash("sha256").update(bytes).digest("hex"),
     };

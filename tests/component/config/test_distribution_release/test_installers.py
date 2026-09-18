@@ -594,7 +594,7 @@ done
 printf '%s\n' "$url" >> "$FAKE_CURL_LOG"
 case "$url" in
   */releases/latest)
-    printf 'https://github.com/Fzkuji/OpenProgram/releases/tag/v0.6.1'
+    printf 'https://github.com/fzkuji-neo/OpenProgram/releases/tag/v0.6.1'
     ;;
   */v*/scripts/install-release.sh)
     cp "$FAKE_INSTALLER" "$output"
@@ -623,7 +623,7 @@ esac
     subprocess.run(["sh", str(bootstrap)], check=True, env=env)
     assert result.read_text(encoding="utf-8") == "0.6.1|Fzkuji/OpenProgram\n"
     assert curl_log.read_text(encoding="utf-8").splitlines() == [
-        "https://github.com/Fzkuji/OpenProgram/releases/latest",
+        "https://github.com/fzkuji-neo/OpenProgram/releases/latest",
         "https://raw.githubusercontent.com/Fzkuji/OpenProgram/v0.6.1/scripts/install-release.sh",
     ]
 

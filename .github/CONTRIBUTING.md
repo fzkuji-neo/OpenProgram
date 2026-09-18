@@ -6,14 +6,14 @@ programs are welcome.
 
 ## Before opening an issue
 
-- Ask usage and design questions in [GitHub Discussions](https://github.com/Fzkuji/OpenProgram/discussions).
-- Search [existing issues](https://github.com/Fzkuji/OpenProgram/issues) before reporting a duplicate.
-- Report vulnerabilities privately through the repository's [Security Advisories](https://github.com/Fzkuji/OpenProgram/security/advisories/new), not in a public issue.
+- Ask usage and design questions in [GitHub Discussions](https://github.com/fzkuji-neo/OpenProgram/discussions).
+- Search [existing issues](https://github.com/fzkuji-neo/OpenProgram/issues) before reporting a duplicate.
+- Report vulnerabilities privately through the repository's [Security Advisories](https://github.com/fzkuji-neo/OpenProgram/security/advisories/new), not in a public issue.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/Fzkuji/OpenProgram.git
+git clone https://github.com/fzkuji-neo/OpenProgram.git
 cd OpenProgram
 uv sync --locked --extra dev
 ```
