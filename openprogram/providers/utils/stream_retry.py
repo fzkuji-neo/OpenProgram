@@ -227,6 +227,25 @@ def read_retry_after(headers: Any) -> Optional[float]:
     return parse_retry_after(headers)
 
 
+
+async def _sleep_unless_aborted(sleep_s: float, abort_check: Callable[[], bool] | None) -> None:
+    """Sleep in short slices so cancel mid-backoff does not start another attempt."""
+    if sleep_s <= 0:
+        return
+    end = asyncio.get_running_loop().time() + sleep_s
+    while True:
+        if abort_check is not None and abort_check():
+            raise ExecInterrupt("cancelled")
+        from .recovery import current_recovery
+        state = current_recovery.get()
+        if state is not None and state.phase == "cancelled":
+            raise ExecInterrupt("cancelled")
+        remaining = end - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            return
+        await asyncio.sleep(min(0.05, remaining))
+
+
 async def retry_stream(
     attempt_fn: Callable[[], Awaitable[None]],
     *,
@@ -234,6 +253,7 @@ async def retry_stream(
     max_attempts: int = PROVIDER_STREAM_MAX_ATTEMPTS,
     label: str = "stream",
     provider: Optional[str] = None,
+    abort_check: Callable[[], bool] | None = None,
 ) -> None:
     """Run ``attempt_fn`` repeatedly until success or non-retryable failure.
 
@@ -311,7 +331,12 @@ async def retry_stream(
                 _mark_exhausted(last_exc)
             raise last_exc
 
+        if abort_check is not None and abort_check():
+            raise ExecInterrupt("cancelled")
         from .recovery import reserve_recovery, current_recovery
+        state = current_recovery.get()
+        if state is not None and state.phase == "cancelled":
+            raise ExecInterrupt("cancelled")
         if not reserve_recovery("transport"):
             raise _mark_exhausted(last_exc)
         recovery = current_recovery.get()
@@ -330,7 +355,7 @@ async def retry_stream(
             f"after {sleep_s:.1f}s — {last_exc}",
             flush=True,
         )
-        await asyncio.sleep(sleep_s)
+        await _sleep_unless_aborted(sleep_s, abort_check)
 
 
 __all__ = [
@@ -340,4 +365,5 @@ __all__ = [
     "read_retry_after",
     "retry_stream",
     "stream_backoff_seconds",
+    "_sleep_unless_aborted",
 ]
