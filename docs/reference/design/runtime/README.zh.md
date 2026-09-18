@@ -13,7 +13,7 @@ Agent 执行运行时 —— 运行循环、worktree、异步任务、流式传�
 - [`operations/file-management.html`](operations/file-management.html) — 文件归因、Review、Undo、Restore、分支对齐和多 agent 所有权的权威设计
 - [`overview.md`](overview.md)
 - [`session/`](session/) — Session 子系统：数据模型、存储、命名、列举、生命周期、广播
-- [`agentic-llm-streaming.zh.html`](agentic-llm-streaming.zh.html) — **完整设计**：嵌套 `llm()` / RuntimeBlock 按节点 token 流（协议、FE 缓冲、落盘、取消/重连、in-process+subprocess）
+- [嵌套 `llm()` 流式设计](https://github.com/fzkuji-neo/OpenProgram/blob/main/docs/reference/design/runtime/agentic-llm-streaming.zh.html) — **完整设计**：RuntimeBlock 按节点 token 流（协议、FE 缓冲、落盘、取消/重连、in-process+subprocess）
 - [`operations/streaming-resume.md`](operations/streaming-resume.md)
 - [`operations/user-input-requests.md`](operations/user-input-requests.md) — 暂停正在运行的函数以向用户提问(`runtime.ask`/`confirm`),问题注册表 + WS/REST 协议 + 子进程桥接
 - [`agent-collaboration.md`](agent-collaboration.md) — **权威**：agent 协作收敛成一个分支间通信原语 —— 四个域、工具面、三个预算（[工具面图示](agent-collab-architecture.html)、[八家参考实现对照](agent-collab-comparison.html)）
