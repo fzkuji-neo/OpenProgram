@@ -98,7 +98,7 @@ assert.equal(available.status, "available");
 assert.equal(available.latestVersion, "0.6.7");
 assert.equal(available.asset.bytes, 123);
 assert.equal(available.asset.sha256, "a".repeat(64));
-assert.match(available.asset.url, /github\.com\/Fzkuji\/OpenProgram\/releases\/download\/v0\.6\.7/);
+assert.match(available.asset.url, /github\.com\/fzkuji-neo\/OpenProgram\/releases\/download\/v0\.6\.7/);
 
 assert.equal(
   resolveDesktopRelease(release, manifest, "0.6.7", "arm64").status,
@@ -127,7 +127,7 @@ assert.throws(
 );
 
 for (const url of [
-  "https://api.github.com/repos/Fzkuji/OpenProgram/releases/latest",
+  "https://api.github.com/repos/fzkuji-neo/OpenProgram/releases/latest",
   "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.6.7/release-manifest.json",
   "https://release-assets.githubusercontent.com/github-production-release-asset/1/file",
 ]) validateUpdateUrl(url);

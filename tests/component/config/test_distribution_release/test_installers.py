@@ -621,10 +621,10 @@ esac
         "FAKE_CURL_LOG": str(curl_log),
     }
     subprocess.run(["sh", str(bootstrap)], check=True, env=env)
-    assert result.read_text(encoding="utf-8") == "0.6.1|Fzkuji/OpenProgram\n"
+    assert result.read_text(encoding="utf-8") == "0.6.1|fzkuji-neo/OpenProgram\n"
     assert curl_log.read_text(encoding="utf-8").splitlines() == [
         "https://github.com/fzkuji-neo/OpenProgram/releases/latest",
-        "https://raw.githubusercontent.com/Fzkuji/OpenProgram/v0.6.1/scripts/install-release.sh",
+        "https://raw.githubusercontent.com/fzkuji-neo/OpenProgram/v0.6.1/scripts/install-release.sh",
     ]
 
     result.unlink()
@@ -634,9 +634,9 @@ esac
         check=True,
         env=env | {"OPENPROGRAM_VERSION": "1.2.3"},
     )
-    assert result.read_text(encoding="utf-8") == "1.2.3|Fzkuji/OpenProgram\n"
+    assert result.read_text(encoding="utf-8") == "1.2.3|fzkuji-neo/OpenProgram\n"
     assert curl_log.read_text(encoding="utf-8").splitlines() == [
-        "https://raw.githubusercontent.com/Fzkuji/OpenProgram/v1.2.3/scripts/install-release.sh"
+        "https://raw.githubusercontent.com/fzkuji-neo/OpenProgram/v1.2.3/scripts/install-release.sh"
     ]
 
 
