@@ -311,6 +311,12 @@ async def retry_stream(
                 _mark_exhausted(last_exc)
             raise last_exc
 
+        from .recovery import reserve_recovery, current_recovery
+        if not reserve_recovery("transport"):
+            raise _mark_exhausted(last_exc)
+        recovery = current_recovery.get()
+        if recovery is not None:
+            recovery.started(provider=provider, retry_reason="transport")
         retry_after = getattr(last_exc, "retry_after_s", None)
         sleep_s = stream_backoff_seconds(attempt, retry_after)
         # Don't sleep past the caller's deadline — if the backoff alone

@@ -151,7 +151,7 @@ def test_transport_retry_does_not_refresh_validation_retry_budget(monkeypatch):
     runtime = Runtime(call=call, model="dummy", max_retries=4)
     runtime.on_stream = events.append
     with pytest.raises(StructuredOutputValidationError):
-        runtime.exec("question", response_format=SCHEMA)
+        runtime.exec("question", response_format={"type": "json_schema", "schema": SCHEMA, "max_validation_retries": 1})
 
     assert len(calls) == 3
     assert [
@@ -472,7 +472,7 @@ def test_async_transport_retry_does_not_refresh_validation_retry_budget(monkeypa
     runtime = Runtime(call=call, model="dummy", max_retries=4)
     runtime.on_stream = events.append
     with pytest.raises(StructuredOutputValidationError):
-        asyncio.run(runtime.async_exec("question", response_format=SCHEMA))
+        asyncio.run(runtime.async_exec("question", response_format={"type": "json_schema", "schema": SCHEMA, "max_validation_retries": 1}))
 
     assert len(calls) == 3
     assert [

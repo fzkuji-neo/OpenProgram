@@ -33,7 +33,7 @@ def build_base_options(
     from openprogram.providers.types import StreamOptions
     return StreamOptions(
         temperature=options.temperature if options else None,
-        max_tokens=(options.max_tokens if options and options.max_tokens else None) or min(model.max_tokens, 32000),
+        max_tokens=(options.max_tokens if options and options.max_tokens else None) or model.max_tokens,
         signal=options.signal if options else None,
         api_key=api_key or (options.api_key if options else None),
         cache_retention=options.cache_retention if options else None,
@@ -77,8 +77,8 @@ def adjust_max_tokens_for_thinking(
     level = clamp_reasoning(reasoning_level) or "low"
     thinking_budget: int = budgets.get(level, budgets["low"])  # type: ignore[assignment]
 
-    max_tokens = min(base_max_tokens + thinking_budget, model_max_tokens)
-    if max_tokens <= thinking_budget:
-        thinking_budget = max(0, max_tokens - MIN_OUTPUT_TOKENS)
+    max_tokens = base_max_tokens or model_max_tokens
+    if max_tokens > model_max_tokens or max_tokens <= thinking_budget:
+        raise ValueError("Output token limit must exceed the thinking budget and fit model capacity")
 
     return max_tokens, thinking_budget
