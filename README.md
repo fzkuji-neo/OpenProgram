@@ -12,11 +12,11 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2606.15874"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2606.15874-b31b1b?style=flat-square"></a>
-  <a href="https://github.com/Fzkuji/OpenProgram/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Fzkuji/OpenProgram?style=flat-square&color=blue"></a>
-  <a href="https://github.com/Fzkuji/OpenProgram/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-green?style=flat-square"></a>
+  <a href="https://github.com/fzkuji-neo/OpenProgram/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/fzkuji-neo/OpenProgram?style=flat-square&color=blue"></a>
+  <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-green?style=flat-square"></a>
   <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square">
-  <a href="https://github.com/Fzkuji/OpenProgram/actions/workflows/ci.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/Fzkuji/OpenProgram/ci.yml?branch=main&style=flat-square&label=build"></a>
+  <a href="https://github.com/fzkuji-neo/OpenProgram/actions/workflows/ci.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/fzkuji-neo/OpenProgram/ci.yml?branch=main&style=flat-square&label=build"></a>
 </p>
 
 <p align="center">
@@ -65,7 +65,7 @@ irm https://openprogram.io/install.ps1 | iex
 
 If the selected release has no Windows runtime ZIP and checksum, use the [Windows source-development installation](docs/install/install.md#development-checkout).
 
-Desktop: macOS releases use the signed and notarized DMG; Windows uses a signed `win-x64.exe` or `win-arm64.exe` when that artifact is attached to the [GitHub Release](https://github.com/Fzkuji/OpenProgram/releases). Linux and Windows without that EXE use the complete CLI/server runtime and Web UI.
+Desktop: macOS releases use the signed and notarized DMG; Windows uses a signed `win-x64.exe` or `win-arm64.exe` when that artifact is attached to the [GitHub Release](https://github.com/fzkuji-neo/OpenProgram/releases). Linux and Windows without that EXE use the complete CLI/server runtime and Web UI.
 
 Platform matrix, PATH, `openprogram doctor`, and source-checkout install: **[Installation](docs/install/install.md)**.
 
@@ -278,7 +278,7 @@ reproductions, tests, documentation, reviews, and suggestions.
 
 <!-- contributors-avatars -->
 <p>
-<a href="https://github.com/Fzkuji"><img src="https://github.com/Fzkuji.png?size=48" width="24" height="24" alt="Fzkuji" /></a>
+<a href="https://github.com/fzkuji-neo"><img src="https://github.com/fzkuji-neo.png?size=48" width="24" height="24" alt="fzkuji-neo" /></a>
 <a href="https://github.com/Qi202"><img src="https://github.com/Qi202.png?size=48" width="24" height="24" alt="Qi202" /></a>
 <a href="https://github.com/GithungDang"><img src="https://github.com/GithungDang.png?size=48" width="24" height="24" alt="GithungDang" /></a>
 <a href="https://github.com/basil-k-aji-dev"><img src="https://github.com/basil-k-aji-dev.png?size=48" width="24" height="24" alt="basil-k-aji-dev" /></a>
@@ -287,5 +287,5 @@ reproductions, tests, documentation, reviews, and suggestions.
 <!-- /contributors-avatars -->
 
 Thank you also to everyone who helps through
-[issues](https://github.com/Fzkuji/OpenProgram/issues?q=is%3Aissue) and
-[pull requests](https://github.com/Fzkuji/OpenProgram/pulls?q=is%3Apr).
+[issues](https://github.com/fzkuji-neo/OpenProgram/issues?q=is%3Aissue) and
+[pull requests](https://github.com/fzkuji-neo/OpenProgram/pulls?q=is%3Apr).
