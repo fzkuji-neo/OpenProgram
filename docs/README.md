@@ -13,11 +13,11 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2606.15874"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2606.15874-b31b1b?style=flat-square"></a>
-  <a href="https://github.com/Fzkuji/OpenProgram/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Fzkuji/OpenProgram?style=flat-square&color=blue"></a>
-  <a href="https://github.com/Fzkuji/OpenProgram/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-green?style=flat-square"></a>
+  <a href="https://github.com/fzkuji-neo/OpenProgram"><img alt="Version" src="https://img.shields.io/badge/version-0.9.8-blue?style=flat-square"></a>
+  <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-green?style=flat-square"></a>
   <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square">
-  <a href="https://github.com/Fzkuji/OpenProgram/actions/workflows/ci.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/Fzkuji/OpenProgram/ci.yml?branch=main&style=flat-square&label=build"></a>
+  <a href="https://github.com/fzkuji-neo/OpenProgram/actions/workflows/ci.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/fzkuji-neo/OpenProgram/ci.yml?branch=main&style=flat-square&label=build"></a>
 </p>
 
 <p align="center">
@@ -65,7 +65,7 @@ Windows x86_64 CLI/server:
 irm https://openprogram.io/install.ps1 | iex
 ```
 
-Desktop: macOS releases use the signed and notarized DMG; Windows uses a signed `win-x64.exe` when that artifact is attached to the [GitHub Release](https://github.com/Fzkuji/OpenProgram/releases). Linux and Windows without that EXE use the complete CLI/server runtime and Web UI.
+Desktop: macOS releases use the signed and notarized DMG; Windows uses a signed `win-x64.exe` when that artifact is attached to the [GitHub Release](https://github.com/fzkuji-neo/OpenProgram/releases). Linux and Windows without that EXE use the complete CLI/server runtime and Web UI.
 
 Platform matrix, PATH, `openprogram doctor`, and source-checkout install: **[Installation](install/install.md)**.
 
@@ -177,4 +177,4 @@ Using OpenProgram in your work, or building on the code? Please cite our paper �
 
 ## License
 
-[AGPL-3.0](https://github.com/Fzkuji/OpenProgram/blob/main/LICENSE) © 2026 Fzkuji. Free to use, study, modify, and share — but any derivative you distribute **or run as a network service** must also be released under the AGPL, with attribution preserved.
+[AGPL-3.0](https://github.com/fzkuji-neo/OpenProgram/blob/main/LICENSE) © 2026 Fzkuji. Free to use, study, modify, and share — but any derivative you distribute **or run as a network service** must also be released under the AGPL, with attribution preserved.

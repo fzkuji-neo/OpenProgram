@@ -6,7 +6,7 @@
 
 - [Website](https://openprogram.io/): Product overview and quick start
 - [Documentation](https://openprogram.io/docs/): Complete documentation index
-- [Repository](https://github.com/Fzkuji/OpenProgram): Source code, issues, and discussions
+- [Repository](https://github.com/fzkuji-neo/OpenProgram): Source code, issues, and discussions
 - [Installation](https://openprogram.io/#quick-start): Install and run OpenProgram
 
 ## Core concepts
@@ -24,4 +24,4 @@
 
 ## Optional
 
-- [GitHub Discussions](https://github.com/Fzkuji/OpenProgram/discussions): Announcements and community questions
+- [GitHub Discussions](https://github.com/fzkuji-neo/OpenProgram/discussions): Announcements and community questions

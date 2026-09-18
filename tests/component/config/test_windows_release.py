@@ -115,7 +115,7 @@ def test_windows_versioned_installer_uses_immutable_tag(monkeypatch) -> None:
         "1.2.3", script_name="install-release.ps1"
     ) == installer
     assert seen == [
-        "https://raw.githubusercontent.com/Fzkuji/OpenProgram/"
+        "https://raw.githubusercontent.com/fzkuji-neo/OpenProgram/"
         "v1.2.3/scripts/install-release.ps1"
     ]
 
@@ -396,7 +396,7 @@ def test_windows_release_install_upgrade_and_failed_upgrade_keep_active_launcher
         "OPENPROGRAM_RUNTIME_SHA256": checksum,
         "OPENPROGRAM_STATE_DIR": str(state),
         "OPENPROGRAM_BIN_DIR": str(bin_dir),
-        "OPENPROGRAM_REPOSITORY": "Fzkuji/OpenProgram",
+        "OPENPROGRAM_REPOSITORY": "fzkuji-neo/OpenProgram",
     }
     first_version = importlib.metadata.version("openprogram")
     first_env = {**base_env, "OPENPROGRAM_VERSION": first_version}

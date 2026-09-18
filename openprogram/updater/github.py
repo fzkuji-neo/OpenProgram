@@ -14,7 +14,7 @@ from openprogram.security.url_policy import URLPolicyError
 
 
 HTTP_TIMEOUT = 5.0
-DEFAULT_OWNER = "Fzkuji"
+DEFAULT_OWNER = "fzkuji-neo"
 DEFAULT_REPO = "OpenProgram"
 _VERSION_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 _RELEASE_HOSTS = {

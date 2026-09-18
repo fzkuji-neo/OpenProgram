@@ -348,7 +348,7 @@ function Publish-CliLaunchers {
 }
 
 $Version = if ($env:OPENPROGRAM_VERSION) { $env:OPENPROGRAM_VERSION } else { "0.9.8" }
-$Repository = if ($env:OPENPROGRAM_REPOSITORY) { $env:OPENPROGRAM_REPOSITORY } else { "Fzkuji/OpenProgram" }
+$Repository = if ($env:OPENPROGRAM_REPOSITORY) { $env:OPENPROGRAM_REPOSITORY } else { "fzkuji-neo/OpenProgram" }
 if ($Version -notmatch "^\d+\.\d+\.\d+$") {
     throw "invalid OpenProgram version: $Version"
 }

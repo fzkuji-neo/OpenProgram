@@ -6,7 +6,7 @@
 # contributors and source development, not stable release installation. See
 # docs/install/install.md for the macOS DMG and managed CLI installation.
 # It can still be run straight off the web for a development checkout:
-#   curl -fsSL https://raw.githubusercontent.com/Fzkuji/OpenProgram/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/fzkuji-neo/OpenProgram/main/scripts/install.sh | bash
 # It clones OpenProgram to ~/OpenProgram (override with --target DIR), then
 # hands off to the cloned copy. Already inside a checkout? It skips the clone
 # and installs in place.
@@ -51,7 +51,7 @@ warn() { printf "${c_yellow}  !!${c_reset} %s\n" "$*" >&2; }
 die()  { printf "${c_red}ERROR${c_reset} %s\n" "$*" >&2; exit 1; }
 
 OS="$(uname -s)"
-REPO_URL="https://github.com/Fzkuji/OpenProgram.git"
+REPO_URL="https://github.com/fzkuji-neo/OpenProgram.git"
 
 # Every /dev/tty prompt reads with this timeout so an agent driving the default
 # command inside a pty (and never answering) can't hang forever — on expiry we

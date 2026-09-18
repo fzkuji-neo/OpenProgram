@@ -238,7 +238,7 @@ bootstrap, release selection, checksum failure, and signature failure.
 ## Windows local refresh publication
 
 The native publication primitive lives in
-[`windows-refresh-transaction.ps1`](https://github.com/Fzkuji/OpenProgram/blob/main/scripts/release/windows-refresh-transaction.ps1).
+[`windows-refresh-transaction.ps1`](https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/release/windows-refresh-transaction.ps1).
 Loading it has no installation or process side effects. The caller supplies an
 ordered set of already-verified sibling source/destination pairs for the App,
 independent CLI runtime and launchers. Paths must not overlap; drive-relative

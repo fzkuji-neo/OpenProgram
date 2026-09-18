@@ -471,7 +471,7 @@ def _discord_headers(token: str) -> dict[str, str]:
     return {
         "Authorization": f"Bot {token}",
         "Content-Type": "application/json",
-        "User-Agent": "OpenProgram (https://github.com/Fzkuji/OpenProgram, 0.1)",
+        "User-Agent": "OpenProgram (https://github.com/fzkuji-neo/OpenProgram, 0.1)",
     }
 
 

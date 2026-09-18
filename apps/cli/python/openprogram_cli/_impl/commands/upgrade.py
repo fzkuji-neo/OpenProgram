@@ -24,7 +24,7 @@ CHANNELS: dict[str, tuple[str, str]] = {
 
 DEFAULT_CHANNEL = "stable"
 CONFIG_KEY = "update.channel"
-PRODUCT_REPOSITORY = "Fzkuji/OpenProgram"
+PRODUCT_REPOSITORY = "fzkuji-neo/OpenProgram"
 _VERSION = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 
 

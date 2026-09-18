@@ -4,7 +4,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const REPOSITORY = "Fzkuji/OpenProgram";
+const REPOSITORY = "fzkuji-neo/OpenProgram";
 const LATEST_URL = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
 const ALLOWED_HOSTS = new Set([
   "api.github.com",

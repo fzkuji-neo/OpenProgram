@@ -16,7 +16,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-REPO = os.environ.get("OPENPROGRAM_GITHUB_REPO", "Fzkuji/OpenProgram")
+REPO = os.environ.get("OPENPROGRAM_GITHUB_REPO", "fzkuji-neo/OpenProgram")
 CONTRIBUTORS_URL = f"https://api.github.com/repos/{REPO}/contributors?per_page=100"
 README_PATH = Path(__file__).resolve().parents[1] / "README.md"
 START = "<!-- contributors-avatars -->"

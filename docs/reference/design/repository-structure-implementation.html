@@ -74,9 +74,9 @@ review output are available in Git history; they are not current acceptance resu
 </tr>
 </tbody>
 </table></div>
-<p>Source: <a href="https://github.com/Fzkuji/OpenProgram/tree/main/apps">application workspaces</a>,
-<a href="https://github.com/Fzkuji/OpenProgram/tree/main/openprogram">core</a>, and
-<a href="https://github.com/Fzkuji/OpenProgram/tree/main/scripts">maintenance scripts</a>.</p>
+<p>Source: <a href="https://github.com/fzkuji-neo/OpenProgram/tree/main/apps">application workspaces</a>,
+<a href="https://github.com/fzkuji-neo/OpenProgram/tree/main/openprogram">core</a>, and
+<a href="https://github.com/fzkuji-neo/OpenProgram/tree/main/scripts">maintenance scripts</a>.</p>
 <h2 id="compatibility-and-remaining-ownership">Compatibility and remaining ownership<a class="header-anchor" href="#compatibility-and-remaining-ownership">#</a></h2>
 <p><code>openprogram/cli/__init__.py</code> resolves the canonical CLI application in a checkout
 or installed package and rejects an already-loaded foreign canonical package.
@@ -93,7 +93,7 @@ separate lock file or dependency installation below each application.</p>
 acceptance uses <code>/Applications/OpenProgram.app</code>; repository layout changes must
 preserve packaging and installed imports as well as source-checkout execution.</p>
 <h2 id="verification">Verification<a class="header-anchor" href="#verification">#</a></h2>
-<p>The <a href="https://github.com/Fzkuji/OpenProgram/blob/main/tests/contracts/repository/test_repository_layout.py">repository contracts</a>
+<p>The <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/tests/contracts/repository/test_repository_layout.py">repository contracts</a>
 check directory ownership, application locations and compatibility requirements.
 Run the existing contract from the repository root:</p>
 <pre><code class="language-sh">uv<span class="w"> </span>run<span class="w"> </span>--locked<span class="w"> </span>--extra<span class="w"> </span>dev<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>-q<span class="w"> </span>tests/contracts/repository/test_repository_layout.py
@@ -101,7 +101,7 @@ Run the existing contract from the repository root:</p>
 <p>A layout contract alone does not verify runtime behavior. For an implementation
 change, also exercise the affected public CLI or HTTP/WebSocket entry, build a
 wheel and check imports outside the checkout, and verify affected application
-packaging. Use the <a href="https://github.com/Fzkuji/OpenProgram/blob/main/.github/CONTRIBUTING.md">contributor checks</a>
+packaging. Use the <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/.github/CONTRIBUTING.md">contributor checks</a>
 and <a href="testing/test-system.html">test-system design</a> to select the required gates.</p>
 <p>For documentation changes, rebuild before checking links; the checker reads
 <code>docs/_site/</code>, not source Markdown:</p>
