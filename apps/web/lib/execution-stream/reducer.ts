@@ -140,22 +140,30 @@ function upsertBlock(
 ): StreamAttempt {
   const blocks = attempt.blocks.slice();
   const idx = blocks.findIndex((b) => b.block_id === patch.block_id);
+  // Drop undefined so finish events do not wipe tool_ref metadata.
+  const clean = Object.fromEntries(
+    Object.entries(patch).filter(([, v]) => v !== undefined),
+  ) as Partial<StreamBlock> & { block_id: string };
   if (idx < 0) {
     blocks.push({
-      block_id: patch.block_id,
-      message_id: patch.message_id || attempt.message_id || "",
-      block_index: patch.block_index ?? blocks.length,
-      kind: patch.kind || "unsupported",
-      visibility: patch.visibility || "visible",
-      retention: patch.retention || "persist",
-      content: patch.content || "",
-      status: patch.status || "running",
-      finish_reason: patch.finish_reason,
-      omitted_by_policy: patch.omitted_by_policy,
-      truncated: patch.truncated,
+      block_id: clean.block_id,
+      message_id: clean.message_id || attempt.message_id || "",
+      block_index: clean.block_index ?? blocks.length,
+      kind: clean.kind || "unsupported",
+      visibility: clean.visibility || "visible",
+      retention: clean.retention || "persist",
+      content: clean.content || "",
+      status: clean.status || "running",
+      finish_reason: clean.finish_reason,
+      omitted_by_policy: clean.omitted_by_policy,
+      truncated: clean.truncated,
+      tool_call_id: clean.tool_call_id,
+      ref_node_id: clean.ref_node_id,
+      tool_name: clean.tool_name,
+      group_id: clean.group_id,
     });
   } else {
-    blocks[idx] = { ...blocks[idx], ...patch };
+    blocks[idx] = { ...blocks[idx], ...clean };
   }
   return { ...attempt, blocks };
 }
@@ -335,12 +343,16 @@ export function applyExecutionStreamEvent(
         attempts[idx] = upsertBlock(attempts[idx], {
           block_id: event.block_id || `block_${rev}`,
           message_id: event.message_id || attempts[idx].message_id || "",
-          block_index: event.block_index,
+          block_index: event.block_index ?? attempts[idx].blocks.length,
           kind: event.kind || "unsupported",
           visibility: event.visibility,
           retention: event.retention,
           content: "",
-          status: "running",
+          status: event.status || "running",
+          tool_call_id: event.tool_call_id,
+          ref_node_id: event.ref_node_id,
+          tool_name: event.tool_name,
+          group_id: event.group_id,
         });
       }
       next = { ...next, attempts };
@@ -386,6 +398,10 @@ export function applyExecutionStreamEvent(
         block_id: bid,
         status: "finished",
         finish_reason: event.finish_reason,
+        tool_call_id: event.tool_call_id,
+        ref_node_id: event.ref_node_id,
+        tool_name: event.tool_name,
+        group_id: event.group_id,
       });
       next = { ...next, attempts };
       break;

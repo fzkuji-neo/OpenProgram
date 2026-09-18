@@ -96,3 +96,73 @@ def test_envelope_schema():
     assert data["session_id"] == "sess"
     assert data["execution_id"] == "exec"
     assert data["node_id"] == "node"
+
+
+def test_tool_ref_emits_started_and_preserves_metadata():
+    st, emitted = _state()
+    st.start_attempt()
+    bid = st.add_tool_ref(
+        tool_call_id="call_1",
+        tool_name="search",
+        ref_node_id="node/search#1",
+    )
+    assert bid
+    started = [e["data"] for e in emitted if e["data"]["op"] == "block_started"]
+    assert started
+    last = started[-1]
+    assert last["kind"] == "tool_ref"
+    assert last["tool_call_id"] == "call_1"
+    assert last["tool_name"] == "search"
+    assert last["ref_node_id"] == "node/search#1"
+    # text preview ignores tool_ref
+    assert st.text_preview() == ""
+
+
+def test_tool_ref_idempotent_and_finish_sets_ref():
+    st, emitted = _state()
+    st.start_attempt()
+    b1 = st.add_tool_ref(tool_call_id="call_2", tool_name="read")
+    b2 = st.add_tool_ref(tool_call_id="call_2", ref_node_id="node/read#1")
+    assert b1 == b2
+    refs = [
+        blk
+        for aid in st.attempt_order
+        for blk in st.attempts[aid].blocks.values()
+        if blk.kind == "tool_ref"
+    ]
+    assert len(refs) == 1
+    assert refs[0].ref_node_id == "node/read#1"
+    st.finish_tool_ref("call_2", ref_node_id="node/read#1")
+    assert refs[0].status == "finished"
+    finished = [e["data"] for e in emitted if e["data"]["op"] == "block_finished"]
+    assert finished
+    assert finished[-1]["tool_call_id"] == "call_2"
+    assert finished[-1]["ref_node_id"] == "node/read#1"
+
+
+def test_consecutive_tool_refs_share_auto_group_id():
+    st, _ = _state()
+    st.start_attempt()
+    st.add_tool_ref(tool_call_id="a", tool_name="t1")
+    st.add_tool_ref(tool_call_id="b", tool_name="t2")
+    refs = [
+        blk
+        for aid in st.attempt_order
+        for blk in st.attempts[aid].blocks.values()
+        if blk.kind == "tool_ref"
+    ]
+    assert len(refs) == 2
+    assert refs[0].group_id
+    assert refs[0].group_id == refs[1].group_id
+    # intervening text breaks the parallel group
+    st.append_delta(kind="text", delta="mid")
+    st.add_tool_ref(tool_call_id="c", tool_name="t3")
+    refs2 = [
+        blk
+        for aid in st.attempt_order
+        for blk in st.attempts[aid].blocks.values()
+        if blk.kind == "tool_ref"
+    ]
+    assert refs2[2].group_id != refs[0].group_id or refs2[2].group_id is None or True
+    # third should not share first group (new group or none after text)
+    assert refs2[2].group_id != refs[0].group_id
