@@ -44,6 +44,11 @@ class _BlockState:
     content: str = ""
     status: str = "running"  # running | finished
     finish_reason: str = ""
+    # tool_ref / parallel_group metadata (empty for text/reasoning)
+    tool_call_id: str = ""
+    ref_node_id: str = ""
+    tool_name: str = ""
+    group_id: str = ""
 
 
 @dataclass
@@ -298,6 +303,146 @@ class CallStreamState:
                 }
             )
             return bid
+
+
+    def add_tool_ref(
+        self,
+        *,
+        tool_call_id: str,
+        tool_name: str = "",
+        ref_node_id: str = "",
+        group_id: str = "",
+        status: str = "running",
+    ) -> Optional[str]:
+        """Insert a tool_ref block that points at a real DAG tool node.
+
+        Does not embed tool args/results — those live on the referenced node.
+        Reuses an existing block with the same tool_call_id (idempotent).
+        Consecutive tool_refs share a group_id when the caller passes one, or
+        when the previous block is also a running/finished tool_ref without an
+        intervening text/reasoning block (parallel batch).
+        """
+        with self._lock:
+            if self._closed or not self._accepting:
+                return None
+            self._flush_pending_delta()
+            aid = self.current_attempt_id
+            if not aid or aid not in self.attempts:
+                aid = self.start_attempt()
+            attempt = self.attempts[aid]
+            # Idempotent: same tool_call_id → update ref only
+            for bid in attempt.block_order:
+                blk = attempt.blocks[bid]
+                if blk.kind == "tool_ref" and blk.tool_call_id == tool_call_id:
+                    if ref_node_id and not blk.ref_node_id:
+                        blk.ref_node_id = ref_node_id
+                    if tool_name and not blk.tool_name:
+                        blk.tool_name = tool_name
+                    if status:
+                        blk.status = status
+                    base, rev = self._advance()
+                    self._emit(
+                        {
+                            **self._base_fields(),
+                            "op": "block_finished" if status == "finished" else "block_started",
+                            "base_revision": base,
+                            "revision": rev,
+                            "attempt_id": aid,
+                            "message_id": attempt.message_id,
+                            "block_id": blk.block_id,
+                            "block_index": blk.block_index,
+                            "kind": "tool_ref",
+                            "tool_call_id": tool_call_id,
+                            "ref_node_id": blk.ref_node_id,
+                            "tool_name": blk.tool_name,
+                            "group_id": blk.group_id or None,
+                            "status": blk.status,
+                        }
+                    )
+                    return blk.block_id
+            # Auto parallel group: consecutive tool_refs
+            gid = group_id
+            if not gid and attempt.block_order:
+                prev = attempt.blocks[attempt.block_order[-1]]
+                if prev.kind == "tool_ref":
+                    gid = prev.group_id or f"par_{uuid.uuid4().hex[:10]}"
+                    if not prev.group_id:
+                        prev.group_id = gid
+            bid = f"block_{uuid.uuid4().hex[:12]}"
+            index = len(attempt.block_order)
+            blk = _BlockState(
+                block_id=bid,
+                message_id=attempt.message_id,
+                attempt_id=aid,
+                block_index=index,
+                kind="tool_ref",
+                content="",
+                status=status,
+                tool_call_id=tool_call_id or "",
+                ref_node_id=ref_node_id or "",
+                tool_name=tool_name or "",
+                group_id=gid or "",
+            )
+            attempt.blocks[bid] = blk
+            attempt.block_order.append(bid)
+            base, rev = self._advance()
+            self._emit(
+                {
+                    **self._base_fields(),
+                    "op": "block_started",
+                    "base_revision": base,
+                    "revision": rev,
+                    "attempt_id": aid,
+                    "message_id": attempt.message_id,
+                    "block_id": bid,
+                    "block_index": index,
+                    "kind": "tool_ref",
+                    "tool_call_id": blk.tool_call_id,
+                    "ref_node_id": blk.ref_node_id,
+                    "tool_name": blk.tool_name,
+                    "group_id": blk.group_id or None,
+                    "status": blk.status,
+                    "visibility": "visible",
+                    "retention": "persist",
+                }
+            )
+            return bid
+
+    def finish_tool_ref(self, tool_call_id: str, *, ref_node_id: str = "") -> None:
+        with self._lock:
+            if self._closed:
+                return
+            aid = self.current_attempt_id
+            attempt = self.attempts.get(aid) if aid else None
+            if attempt is None:
+                return
+            for bid in attempt.block_order:
+                blk = attempt.blocks[bid]
+                if blk.kind == "tool_ref" and blk.tool_call_id == tool_call_id:
+                    blk.status = "finished"
+                    if ref_node_id:
+                        blk.ref_node_id = ref_node_id
+                    base, rev = self._advance()
+                    self._emit(
+                        {
+                            **self._base_fields(),
+                            "op": "block_finished",
+                            "base_revision": base,
+                            "revision": rev,
+                            "attempt_id": aid,
+                            "message_id": attempt.message_id,
+                            "block_id": blk.block_id,
+                            "block_index": blk.block_index,
+                            "kind": "tool_ref",
+                            "tool_call_id": tool_call_id,
+                            "ref_node_id": blk.ref_node_id,
+                            "tool_name": blk.tool_name,
+                            "group_id": blk.group_id or None,
+                            "status": "finished",
+                            "finish_reason": "tool_result",
+                        }
+                    )
+                    return
 
     def append_delta(
         self,
@@ -667,8 +812,7 @@ class CallStreamState:
                     truncated = True
                 else:
                     truncated = False
-                blocks.append(
-                    {
+                entry = {
                         "block_id": b.block_id,
                         "message_id": b.message_id,
                         "block_index": b.block_index,
@@ -682,7 +826,14 @@ class CallStreamState:
                         or (b.visibility == "opaque"),
                         "truncated": truncated,
                     }
-                )
+                if b.kind == "tool_ref":
+                    entry.update({
+                        "tool_call_id": b.tool_call_id,
+                        "ref_node_id": b.ref_node_id,
+                        "tool_name": b.tool_name,
+                        "group_id": b.group_id or None,
+                    })
+                blocks.append(entry)
             attempts.append(
                 {
                     "attempt_id": a.attempt_id,

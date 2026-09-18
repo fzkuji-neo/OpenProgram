@@ -278,7 +278,7 @@ reproductions, tests, documentation, reviews, and suggestions.
 
 <!-- contributors-avatars -->
 <p>
-<a href="https://github.com/fzkuji-neo"><img src="https://github.com/fzkuji-neo.png?size=48" width="24" height="24" alt="Fzkuji" /> Fzkuji</a>
+<a href="https://github.com/fzkuji-neo"><img src="https://avatars.githubusercontent.com/u/331005172?v=4&amp;s=48" width="24" height="24" alt="Maintainer" /></a>
 <a href="https://github.com/Qi202"><img src="https://github.com/Qi202.png?size=48" width="24" height="24" alt="Qi202" /></a>
 <a href="https://github.com/GithungDang"><img src="https://github.com/GithungDang.png?size=48" width="24" height="24" alt="GithungDang" /></a>
 <a href="https://github.com/basil-k-aji-dev"><img src="https://github.com/basil-k-aji-dev.png?size=48" width="24" height="24" alt="basil-k-aji-dev" /></a>
