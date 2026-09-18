@@ -349,7 +349,7 @@ def test_structured_retry_records_v2_calls_and_replays_same_typed_result(
         "description": None,
         "strict": True,
         "fallback": "auto",
-        "max_validation_retries": 1,
+        "max_validation_retries": 2,
         "type": "json_schema",
     }
     assert not any(

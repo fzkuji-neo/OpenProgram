@@ -27,7 +27,7 @@ def request_output_limit(model, requested: int | None) -> int:
     """Resolve the default only; never silently reduce an explicit output cap."""
     if requested is not None:
         return requested
-    return min(model.max_tokens, DEFAULT_OUTPUT_RESERVE, max(1, real_context_window(model) // 4))
+    return model.max_tokens
 
 
 class RequestCompactor:
@@ -38,7 +38,11 @@ class RequestCompactor:
 
     async def prepare(self, context: Context, model, options: SimpleStreamOptions, *, get_api_key=None) -> Context:
         window = real_context_window(model)
-        reserve = request_output_limit(model, options.max_tokens)
+        requested = options.max_tokens
+        reserve = (requested if requested is not None else
+                   min(model.max_tokens, DEFAULT_OUTPUT_RESERVE, max(1, window // 4)))
+        if requested is not None and (requested <= 0 or requested > model.max_tokens):
+            raise ValueError('Explicit output limit exceeds model capacity or is not positive')
         margin = max(256, window // 20)
         budget = BudgetAllocator().allocate(
             context_window=window, system_prompt=context.system_prompt or '',
@@ -50,6 +54,13 @@ class RequestCompactor:
             schema_tokens = _text_tokens(json.dumps(
                 options.response_format.schema, ensure_ascii=False, default=str)) + 32
         limit = window - reserve - margin - budget.system_prompt - budget.tools_schema - schema_tokens
+        def prepared(messages):
+            # Reservation controls compaction only. The provider may use all
+            # remaining capacity, subject to the model's actual output limit.
+            available = window - margin - budget.system_prompt - budget.tools_schema - schema_tokens - estimate_history_tokens(messages)
+            options.max_tokens = requested if requested is not None else min(model.max_tokens, max(1, available))
+            return context.model_copy(update={'messages': messages})
+
         messages = list(context.messages)
         fingerprint = hashlib.sha256(model.model_dump_json().encode()).hexdigest()
         keys = {}
@@ -61,7 +72,7 @@ class RequestCompactor:
             if key in self._cache:
                 messages[i] = self._replace(message, self._cache[key])
         if estimate_history_tokens(messages) <= limit:
-            return context.model_copy(update={'messages': messages})
+            return prepared(messages)
         # All summary calls share one deadline and a bounded request count.
         async with asyncio.timeout(60):
             summary_options = options
@@ -87,7 +98,7 @@ class RequestCompactor:
                 if len(self._cache) > 128:
                     del self._cache[next(iter(self._cache))]
                 if estimate_history_tokens(messages) <= limit:
-                    return context.model_copy(update={'messages': messages})
+                    return prepared(messages)
         raise ValueError('Protected request content exceeds the model input budget')
 
     @staticmethod
