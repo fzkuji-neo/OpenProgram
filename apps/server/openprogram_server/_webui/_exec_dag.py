@@ -99,6 +99,16 @@ def _exec_tnode(n, kids: dict[str, list]) -> dict:
             tn["stream_phase"] = stream.get("phase")
             tn["stream_preview"] = stream.get("preview_text") or ""
             tn["stream_reasoning"] = stream.get("preview_reasoning") or ""
+            snapshot = stream.get("snapshot")
+            if isinstance(snapshot, dict):
+                attempts = snapshot.get("attempts")
+                if isinstance(attempts, list):
+                    tn["stream_attempts"] = attempts
+                tn["stream_snapshot"] = snapshot
+            elif isinstance(stream.get("attempts"), list):
+                # Older checkpoints only had attempt summaries. Keep them so
+                # the UI can label the fallback rather than inventing blocks.
+                tn["stream_attempts"] = stream.get("attempts")
             if (
                 status == "running"
                 and not (tn.get("output") or "").strip()
@@ -107,6 +117,11 @@ def _exec_tnode(n, kids: dict[str, list]) -> dict:
                 # Placeholder for clients that have not subscribed to
                 # execution_stream yet — full fidelity still via reducer.
                 tn["raw_reply"] = tn["stream_preview"]
+        # Before execution_stream.v1, exec nodes persisted an ordered block
+        # projection directly on metadata. Preserve it as a legacy fallback;
+        # the frontend normalizes it into one attempt and keeps tool refs.
+        if isinstance(meta.get("blocks"), list):
+            tn["stream_blocks"] = meta["blocks"]
     else:
         if isinstance(n.input, dict):
             tn["params"] = {k: v for k, v in n.input.items()

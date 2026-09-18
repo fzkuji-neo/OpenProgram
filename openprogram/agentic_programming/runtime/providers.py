@@ -461,9 +461,13 @@ class ProvidersOperations:
                 try:
                     if t == "turn_end":
                         _agent_iteration_count["value"] += 1
-                        # Each agent iteration is a new provider attempt.
+                        # A turn that produced tool results continues the same
+                        # logical attempt. Only a provider turn with no tool
+                        # results closes the attempt; explicit repair and
+                        # transport retry paths create attempts themselves.
+                        tool_results = getattr(ev, "tool_results", None) or []
                         st = _call_stream()
-                        if st is not None:
+                        if st is not None and not tool_results:
                             try:
                                 st.finish_attempt(
                                     status="completed", validation="pending"
@@ -535,22 +539,44 @@ class ProvidersOperations:
                                 cb(think_ev)
                     elif t == "tool_execution_start":
                         call_id = getattr(ev, "tool_call_id", "") or ""
+                        occurrence_id = getattr(ev, "occurrence_id", None) or call_id
                         tool_name = getattr(ev, "tool_name", "?") or "?"
-                        input_str = str(getattr(ev, "args", "") or "")
-                        _tool_index[call_id] = {
+                        raw_args = getattr(ev, "args", "") or ""
+                        input_str = str(raw_args)
+                        group_id = getattr(ev, "group_id", None) or ""
+                        expose = getattr(ev, "expose", None) or "full"
+                        parent_node_id = getattr(self, "_active_llm_node_id", None) or ""
+                        ref_node_id = self._ensure_nested_tool_node(
+                            parent_node_id=parent_node_id,
+                            tool_call_id=call_id,
+                            occurrence_id=occurrence_id,
+                            tool_name=tool_name,
+                            arguments=raw_args,
+                            expose=expose,
+                        )
+                        _tool_index[occurrence_id] = {
                             "type": "tool",
                             "tool_call_id": call_id,
+                            "occurrence_id": occurrence_id,
                             "tool": tool_name,
-                            "input": input_str,
+                            "input": "" if expose == "hidden" else input_str,
+                            "expose": expose,
                             "result": "",
                             "is_error": False,
+                            "ref_node_id": ref_node_id,
+                            "group_id": group_id,
                             "elapsed": _elapsed(),
                         }
                         tool_ev = {
                             "type": "tool_use",
                             "tool_call_id": call_id,
+                            "occurrence_id": occurrence_id,
                             "tool": tool_name,
-                            "input": input_str,
+                            "input": "" if expose == "hidden" else input_str,
+                            "expose": expose,
+                            "node_id": ref_node_id,
+                            "ref_node_id": ref_node_id,
+                            "group_id": group_id,
                             "elapsed": _elapsed(),
                         }
                         _project(tool_ev)
@@ -565,18 +591,46 @@ class ProvidersOperations:
                         except Exception:
                             result_str = ""
                         call_id = getattr(ev, "tool_call_id", "") or ""
+                        occurrence_id = getattr(ev, "occurrence_id", None) or call_id
                         is_error = bool(getattr(ev, "is_error", False))
-                        block = _tool_index.get(call_id)
+                        block = _tool_index.get(occurrence_id)
+                        event_expose = (block or {}).get("expose") or getattr(ev, "expose", None) or "full"
                         if block is not None:
-                            block["result"] = result_str
+                            block["result"] = "" if event_expose == "hidden" else result_str
                             block["is_error"] = is_error
                             block["elapsed_end"] = _elapsed()
+                        parent_node_id = getattr(self, "_active_llm_node_id", None) or ""
+                        ref_node_id = (block or {}).get("ref_node_id", "")
+                        if not ref_node_id:
+                            ref_node_id = self._ensure_nested_tool_node(
+                                parent_node_id=parent_node_id,
+                                tool_call_id=call_id,
+                                occurrence_id=occurrence_id,
+                                tool_name=getattr(ev, "tool_name", "?") or "?",
+                                arguments=None,
+                                expose=event_expose,
+                            )
+                        self._finish_nested_tool_node(
+                            parent_node_id=parent_node_id,
+                            tool_call_id=call_id,
+                            occurrence_id=occurrence_id,
+                            node_id=ref_node_id,
+                            result="" if event_expose == "hidden" else result_str,
+                            is_error=is_error,
+                            outcome=getattr(ev, "outcome", None),
+                        )
+                        group_id = (block or {}).get("group_id", "")
                         result_ev = {
                             "type": "tool_result",
                             "tool_call_id": call_id,
+                            "occurrence_id": occurrence_id,
                             "tool": getattr(ev, "tool_name", "?") or "?",
-                            "result": result_str,
+                            "result": "" if event_expose == "hidden" else result_str,
+                            "expose": event_expose,
                             "is_error": is_error,
+                            "node_id": ref_node_id,
+                            "ref_node_id": ref_node_id,
+                            "group_id": group_id,
                             "elapsed": _elapsed(),
                         }
                         _project(result_ev)
@@ -706,4 +760,3 @@ class ProvidersOperations:
             "No async LLM provider configured. Either pass an async `call` to Runtime(), "
             "or subclass Runtime and override _async_call()."
         )
-

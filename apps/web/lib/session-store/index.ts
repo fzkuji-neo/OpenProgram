@@ -363,6 +363,8 @@ export interface DetailNode {
   render?: string;
   compress?: boolean;
   attempts?: unknown[];
+  /** Shared execution tree for resolving nested LLM tool_ref rows. */
+  tree_root?: unknown;
 }
 
 const RIGHT_LS_OPEN = "rightSidebarOpen";
