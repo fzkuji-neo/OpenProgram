@@ -4,6 +4,21 @@ import pytest
 from openprogram.resource_interface import ResourceProvider, ResourceRegistry
 
 
+@pytest.fixture(autouse=True)
+def _standalone_resource_tool_policy():
+    """Resource aliases run outside a resolved agent turn in these tests."""
+    from openprogram.programs._runtime import _allowed_tool_names
+
+    token = _allowed_tool_names.set(None)
+    try:
+        yield
+    finally:
+        _allowed_tool_names.reset(token)
+        # A prior test may have left a turn policy in this worker context.
+        # Never carry it into the next resource-interface test.
+        _allowed_tool_names.set(None)
+
+
 def test_declared_operation_is_dispatched_without_rewriting_identity():
     calls = []
     registry = ResourceRegistry()
