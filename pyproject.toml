@@ -51,7 +51,7 @@ dependencies = [
     # Was previously a lazy import that raised a missing-dependency hint at
     # login time — moved into base deps so the
     # ChatGPT subscription flow works out of the box.
-    "aiohttp>=3.9.0",
+    "aiohttp>=3.14.3",
     # Model Context Protocol Python SDK. ``webui/routes/mcp.py`` does
     # ``from mcp.types import ...`` at module top, which is reached
     # during FastAPI app construction. Without this dep,
