@@ -148,6 +148,98 @@ def test_embedding_search_without_sentence_transformers_is_unavailable(
     assert embedding.default_model_is_available() is False
 
 
+def test_embedding_search_reports_intel_macos_limitation(tmp_path, monkeypatch):
+    import platform
+    import sys
+
+    from openprogram.memory.management.transaction import TransactionError
+    from openprogram.memory.retrieval import embedding, inspect
+    from openprogram.memory.retrieval.bm25 import MemoryEvent
+
+    event = MemoryEvent(
+        event_id="ev_one", path="topics/one.md", line=1,
+        headings=["One"], date="2026-08-16", dates=["2026-08-16"],
+        content="remember this", refs=[],
+    )
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(embedding, "_default_encoder", None)
+    monkeypatch.setattr(
+        embedding.MemoryEmbeddingIndex, "_events", lambda _self: [event],
+    )
+    inspect._clear_search_index_cache_for_tests()
+
+    with pytest.raises(TransactionError) as error:
+        inspect.search(tmp_path, "remember", method="embedding")
+    assert error.value.code == "EMBEDDING_UNAVAILABLE"
+    assert "Intel macOS" in error.value.message
+    assert "use BM25" in error.value.message
+    assert inspect.search(tmp_path, "remember", method="bm25")["method"] == "bm25"
+
+
+@pytest.mark.parametrize("cached", [True, False])
+def test_intel_macos_embedding_status_ignores_model_cache(monkeypatch, cached):
+    import platform
+    import sys
+
+    from openprogram.memory.retrieval import embedding_model, inspect
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(
+        embedding_model, "default_model_is_cached", lambda: cached,
+    )
+
+    assert inspect.embedding_is_available() is False
+
+
+def test_intel_macos_cache_probe_and_install_skip_network(monkeypatch):
+    import platform
+    import sys
+    from types import SimpleNamespace
+
+    from openprogram.memory.retrieval import embedding_model
+
+    calls = []
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub",
+        SimpleNamespace(
+            snapshot_download=lambda *args, **kwargs: calls.append(
+                (args, kwargs)
+            ),
+        ),
+    )
+
+    assert embedding_model.default_model_is_cached() is False
+    with pytest.raises(RuntimeError, match="use BM25"):
+        embedding_model.install_default_model()
+    assert calls == []
+
+
+def test_memory_embedding_setting_reports_intel_macos_limitation(monkeypatch):
+    import platform
+    import sys
+
+    from openprogram.config_schema import set_setting
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(
+        "openprogram.setup.update_config",
+        lambda _mutator: (_ for _ in ()).throw(
+            AssertionError("an unavailable embedding method must not persist")
+        ),
+    )
+
+    result = set_setting("memory.retrieval.method", "embedding")
+
+    assert "Intel macOS" in result["error"]
+    assert "use BM25" in result["error"]
+
+
 def test_embedding_status_checks_local_snapshot_without_loading_encoder(monkeypatch):
     from openprogram.memory.retrieval import embedding, embedding_model, inspect
 

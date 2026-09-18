@@ -196,6 +196,29 @@ def test_settings_status_skips_complete_workspace_inspection(
     }
 
 
+@pytest.mark.parametrize("cached", [True, False])
+def test_settings_status_reports_intel_macos_unavailable(
+    client, monkeypatch, memory, cached,
+):
+    import platform
+    import sys
+
+    from openprogram.memory import store
+    from openprogram.memory.retrieval import embedding_model
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(store, "root", lambda: memory)
+    monkeypatch.setattr(
+        embedding_model, "default_model_is_cached", lambda: cached,
+    )
+
+    response = client.get("/api/memory/status?settings=true")
+
+    assert response.status_code == 200
+    assert response.json()["embedding_available"] is False
+
+
 def test_embedding_install_downloads_snapshot_without_loading_encoder(
     client, monkeypatch,
 ):
@@ -239,6 +262,33 @@ def test_embedding_install_downloads_snapshot_without_loading_encoder(
     assert response.status_code == 200
     assert response.json() == {"embedding_available": True}
     assert calls == [("install", True), ("verify", True)]
+
+
+def test_embedding_install_rejects_intel_macos_before_download(
+    client, monkeypatch,
+):
+    import platform
+    import sys
+
+    from openprogram.memory.retrieval import embedding_model
+
+    calls = []
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(
+        embedding_model, "install_default_model", lambda: calls.append("install"),
+    )
+    monkeypatch.setattr(
+        embedding_model, "default_model_is_cached", lambda: True,
+    )
+
+    response = client.post("/api/memory/embedding/install")
+
+    assert response.status_code == 502
+    assert response.json()["embedding_available"] is False
+    assert "Intel macOS" in response.json()["error"]
+    assert "use BM25" in response.json()["error"]
+    assert calls == []
 
 
 def test_embedding_install_returns_a_retryable_error(client, monkeypatch):

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=78.1.1,<84", "wheel"]
+requires = ["setuptools>=83,<85", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -41,7 +41,7 @@ dependencies = [
     # include it. The TUI itself needs no Python
     # dep: it is the Ink renderer (cli/, TypeScript) with a Rich-based
     # REPL fallback.
-    "fastapi>=0.110.0",
+    "fastapi>=0.141.1,<1",
     "uvicorn[standard]>=0.29.0",
     "websockets>=12.0",
     # PKCE OAuth login (used by `openprogram providers login` against
@@ -51,7 +51,7 @@ dependencies = [
     # Was previously a lazy import that raised a missing-dependency hint at
     # login time — moved into base deps so the
     # ChatGPT subscription flow works out of the box.
-    "aiohttp>=3.9.0",
+    "aiohttp>=3.14.3,<4",
     # Model Context Protocol Python SDK. ``webui/routes/mcp.py`` does
     # ``from mcp.types import ...`` at module top, which is reached
     # during FastAPI app construction. Without this dep,
@@ -65,6 +65,10 @@ dependencies = [
     # ``PersistentOAuthProvider`` (see openprogram/mcp/token_storage.py).
     # Lift the cap once that module is ported to the 2.x auth API.
     "mcp>=1.0.0,<2.0.0",
+    # AnyIO is imported by the MCP server and is also the async substrate for
+    # FastAPI/provider paths. Keep the transitive dependency on its patched
+    # security line instead of relying on a stale lock selection.
+    "anyio>=4.14.2,<5",
     # ── LLM provider SDKs ─────────────────────────────────────────
     # The transport for every provider routes through just these three
     # wire SDKs: Anthropic Messages (anthropic — used by anthropic AND
@@ -137,13 +141,13 @@ dev = [
     "pip>=24",
     # test_wheel_contains_both_runtime_shims builds with --no-isolation, so
     # the backend must be importable in the dev env (not bundled on 3.12+)
-    "setuptools>=78.1.1,<84",
+    "setuptools>=83,<85",
     "pytest-timeout>=2.3",
     # full-suite runs go 126s -> 27s with -n auto; keep serial default so
     # single-file debugging stays overhead-free
     "pytest-xdist>=3.5",
     "coverage>=7.6",
-    "cryptography>=42",
+    "cryptography>=50.0.0,<51",
     "trio>=0.30",
     "ruff>=0.16",
 ]
@@ -159,7 +163,13 @@ search = ["semble>=0.5.3"]
 # Semantic memory recall. Pulls torch via sentence-transformers; product
 # runtimes omit this extra and keep BM25. Source checkouts that need it:
 #   uv sync --extra embedding
-embedding = ["sentence-transformers>=3.4,<4"]
+embedding = [
+    # Intel macOS keeps the core runtime and BM25, but deliberately omits
+    # semantic embeddings because PyPI has no patched torch wheel for it.
+    # The runtime reports this limitation instead of installing torch 2.2.2.
+    "sentence-transformers>=6.1,<7; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "torch>=2.13,<3; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+]
 # NOTE: the agentic *programs* (gui / research / wiki harnesses) no
 # longer have extras here. Each harness is self-describing — its own
 # pyproject.toml declares its third-party deps, and ``openprogram
@@ -221,9 +231,9 @@ Changelog = "https://github.com/fzkuji-neo/OpenProgram/releases"
 Discussions = "https://github.com/fzkuji-neo/OpenProgram/discussions"
 Paper = "https://arxiv.org/abs/2606.15874"
 
-# The optional embedding extra pulls torch. Current torch builds omit
-# macOS x86_64 wheels unless the resolver is told that environment is
-# required, so `uv sync --extra embedding` still locks Intel Mac.
+# The optional embedding extra pulls torch on supported platforms. Intel
+# macOS remains a core/BM25 environment; its embedding extra is excluded
+# because no patched torch wheel is published for that platform.
 [tool.uv]
 required-environments = [
     "sys_platform == 'darwin' and platform_machine == 'x86_64'",

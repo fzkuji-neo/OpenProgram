@@ -273,7 +273,10 @@ def test_product_runtime_installs_complete_default_capabilities() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     main_deps = pyproject.split("[project.optional-dependencies]")[0]
     assert "sentence-transformers" not in main_deps
-    assert 'embedding = ["sentence-transformers>=3.4,<4"]' in pyproject
+    assert (
+        '"sentence-transformers>=6.1,<7; sys_platform != \'darwin\' '
+        "or platform_machine != 'x86_64'" in pyproject
+    )
     assert '"pypdf>=5.0"' in pyproject
     assert '"rich>=13.0"' in pyproject
     assert '"sentence_transformers"' not in verifier
@@ -507,11 +510,17 @@ def test_search_runtime_dependency_supports_macos_x64() -> None:
 
 
 
-def test_memory_runtime_dependency_supports_macos_x64() -> None:
+def test_memory_runtime_keeps_macos_x64_core_without_embedding_torch() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     lock = (ROOT / "uv.lock").read_text(encoding="utf-8")
     assert "sys_platform == 'darwin' and platform_machine == 'x86_64'" in pyproject
-    assert re.search(r"torch-[^-]+-.*macosx_[^-]+_x86_64\.whl", lock)
+    assert (
+        'sentence-transformers>=6.1,<7; sys_platform != \'darwin\' '
+        "or platform_machine != 'x86_64'" in pyproject
+    )
+    assert "torch==2.2.2" not in pyproject
+    assert "torch-2.2.2" not in lock
+    assert not re.search(r"torch-[^-]+-.*macosx_[^-]+_x86_64\.whl", lock)
 
 
 
@@ -760,4 +769,3 @@ def test_package_cli_preserves_legacy_location_for_upgrade_and_uninstall(tmp_pat
     assert _programs.owner_controlled_program_sources() == []
     if symlink:
         assert (target / ".git").is_dir()
-
