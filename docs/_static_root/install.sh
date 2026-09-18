@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-repository="${OPENPROGRAM_REPOSITORY:-Fzkuji/OpenProgram}"
+repository="${OPENPROGRAM_REPOSITORY:-fzkuji-neo/OpenProgram}"
 version="${OPENPROGRAM_VERSION:-}"
 
 if [ -z "$version" ]; then
