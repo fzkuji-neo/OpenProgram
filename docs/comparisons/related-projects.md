@@ -50,4 +50,4 @@ discussions, alternative implementations in other languages, use cases that
 validate or challenge the approach, and bug reports.
 
 Setup, tests, and pull-request expectations live in
-[CONTRIBUTING.md](https://github.com/Fzkuji/OpenProgram/blob/main/.github/CONTRIBUTING.md).
+[CONTRIBUTING.md](https://github.com/fzkuji-neo/OpenProgram/blob/main/.github/CONTRIBUTING.md).

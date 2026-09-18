@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+// Next 15 + output:"export" requires an explicit static marker on metadata routes.
+export const dynamic = "force-static";
+
 /**
  * PWA manifest — lets the user "Install app" from Chrome's address bar so
  * OpenProgram opens in its OWN window with no tab strip and no address bar

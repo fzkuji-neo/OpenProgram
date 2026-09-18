@@ -32,7 +32,7 @@ SITE_DESCRIPTION = (
     "context, and multi-agent collaboration."
 )
 SOCIAL_IMAGE = "https://openprogram.io/docs/images/openprogram-social-card.png"
-RELEASE_FEED = "https://github.com/Fzkuji/OpenProgram/releases.atom"
+RELEASE_FEED = "https://github.com/fzkuji-neo/OpenProgram/releases.atom"
 
 
 class LandingParser(HTMLParser):
@@ -347,7 +347,7 @@ def main() -> int:
             "docs hero differs from the product title", failures)
     require("<b>OpenProgram：自编程 AI Agent 框架</b>" in docs_readme_zh,
             "Chinese docs hero differs from the product positioning", failures)
-    release_url = "https://github.com/Fzkuji/OpenProgram/releases"
+    release_url = "https://github.com/fzkuji-neo/OpenProgram/releases"
     for name, document in (("README", readme), ("docs README", docs_readme),
                            ("Chinese docs README", docs_readme_zh)):
         require(release_url in document,
@@ -359,7 +359,7 @@ def main() -> int:
             "package homepage is not the canonical website", failures)
     require(project_urls.get("Documentation") == "https://openprogram.io/docs/",
             "package documentation URL is not canonical", failures)
-    require(project_urls.get("Repository") == "https://github.com/Fzkuji/OpenProgram",
+    require(project_urls.get("Repository") == "https://github.com/fzkuji-neo/OpenProgram",
             "package repository URL is not canonical", failures)
     software = next((item for item in page.structured_data
                      if item.get("@type") == "SoftwareSourceCode"), None)
@@ -392,8 +392,8 @@ def main() -> int:
         require(harness_url in page.anchors,
                 f"missing harness link {harness_url}", failures)
     for community_url in (
-        "https://github.com/Fzkuji/OpenProgram/discussions",
-        "https://github.com/Fzkuji/OpenProgram/blob/main/.github/CONTRIBUTING.md",
+        "https://github.com/fzkuji-neo/OpenProgram/discussions",
+        "https://github.com/fzkuji-neo/OpenProgram/blob/main/.github/CONTRIBUTING.md",
     ):
         require(community_url in page.anchors,
                 f"missing community link {community_url}", failures)
@@ -542,7 +542,7 @@ def main() -> int:
         for url in (
             "https://openprogram.io/",
             "https://openprogram.io/docs/",
-            "https://github.com/Fzkuji/OpenProgram",
+            "https://github.com/fzkuji-neo/OpenProgram",
             "https://openprogram.io/docs/capabilities/agentic-programming/self-programming-ai-agents.html",
             "https://openprogram.io/docs/comparisons/ai-agent-frameworks.html",
         ):

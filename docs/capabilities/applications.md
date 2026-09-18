@@ -40,9 +40,9 @@ saved bindings opens a project chooser, which also accepts a new folder.
 Global applications share one instance for the current owner. Project instances
 have separate business data.
 
-See the [calculator](https://github.com/Fzkuji/OpenProgram/tree/main/examples/applications/calculator),
-[paper reader](https://github.com/Fzkuji/OpenProgram/tree/main/examples/applications/reader)
-and [file analysis](https://github.com/Fzkuji/OpenProgram/tree/main/examples/applications/file-analysis)
+See the [calculator](https://github.com/fzkuji-neo/OpenProgram/tree/main/examples/applications/calculator),
+[paper reader](https://github.com/fzkuji-neo/OpenProgram/tree/main/examples/applications/reader)
+and [file analysis](https://github.com/fzkuji-neo/OpenProgram/tree/main/examples/applications/file-analysis)
 examples. The reader uses your configured model only when Summarize is clicked.
 Saving notes does not require a model.
 

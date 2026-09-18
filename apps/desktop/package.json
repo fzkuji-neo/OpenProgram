@@ -6,7 +6,7 @@
   "author": "Fzkuji",
   "license": "AGPL-3.0-or-later",
   "homepage": "https://openprogram.io/",
-  "repository": "https://github.com/Fzkuji/OpenProgram",
+  "repository": "https://github.com/fzkuji-neo/OpenProgram",
   "main": "main.js",
   "desktopName": "ai.openprogram.OpenProgram.desktop",
   "scripts": {
@@ -40,7 +40,7 @@
     "dist:win:arm64": "npm run prepare:runtime:win && electron-builder --win nsis --arm64"
   },
   "devDependencies": {
-    "electron": "37.10.3",
+    "electron": "39.8.10",
     "electron-builder": "^26.0.12"
   },
   "build": {

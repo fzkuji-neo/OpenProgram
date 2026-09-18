@@ -553,7 +553,7 @@ test("LLM tree rows show and copy replies from legacy and current projections", 
         })));
         assert.match(host.textContent, /实际回复/);
         await act(async () => host.querySelector("button").click());
-        assert.equal(JSON.parse(copied).output, "实际回复");
+        assert.equal(copied, "实际回复");
       } finally { await act(async () => root.unmount()); host.remove(); }
     }
   } finally {
