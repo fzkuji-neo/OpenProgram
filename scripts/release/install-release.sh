@@ -2,7 +2,7 @@
 set -eu
 
 OPENPROGRAM_VERSION="${OPENPROGRAM_VERSION:-0.9.8}"
-OPENPROGRAM_REPOSITORY="${OPENPROGRAM_REPOSITORY:-Fzkuji/OpenProgram}"
+OPENPROGRAM_REPOSITORY="${OPENPROGRAM_REPOSITORY:-fzkuji-neo/OpenProgram}"
 state_root="${OPENPROGRAM_STATE_DIR:-$HOME/.openprogram}"
 runtime_root="$state_root/runtime/cli"
 release_dir="$runtime_root/releases/$OPENPROGRAM_VERSION"

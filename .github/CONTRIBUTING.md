@@ -109,7 +109,7 @@ behavior, verification performed, and any compatibility or migration impact.
 - Follow the patterns in the surrounding module before introducing a new abstraction.
 - Use type hints and document public APIs.
 - Keep documentation examples executable and use canonical `openprogram.io` and
-  `github.com/Fzkuji/OpenProgram` links.
+  `github.com/fzkuji-neo/OpenProgram` links.
 - Do not commit credentials, private logs, generated build directories, or local paths.
 
 By participating, you agree that your contribution is licensed under the

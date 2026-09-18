@@ -31,7 +31,7 @@
  Re-runnable: every step is idempotent.
 
  Run it straight off the web - no clone needed:
-   iwr -useb https://raw.githubusercontent.com/Fzkuji/OpenProgram/main/scripts/install.ps1 | iex
+   iwr -useb https://raw.githubusercontent.com/fzkuji-neo/OpenProgram/main/scripts/install.ps1 | iex
  It clones OpenProgram to $HOME\OpenProgram (override with -Target DIR), then
  hands off to the cloned copy and offers a menu to pick which agentic programs
  (GUI / Research / Wiki) to install.

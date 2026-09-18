@@ -69,7 +69,7 @@ def test_release_workflow_publishes_structured_release_notes() -> None:
         "## 🔄 Upgrade guide",
     ):
         assert section in notes
-    download_urls = re.findall(r"\]\((https://github\.com/Fzkuji/OpenProgram/releases/download/[^)]+)\)", notes)
+    download_urls = re.findall(r"\]\((https://github\.com/fzkuji-neo/OpenProgram/releases/download/[^)]+)\)", notes)
     release_prefix = f"https://github.com/fzkuji-neo/OpenProgram/releases/download/v{version}/"
     assert download_urls
     assert all(url.startswith(release_prefix) for url in download_urls)
