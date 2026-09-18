@@ -46,6 +46,7 @@ class _BlockState:
     finish_reason: str = ""
     # tool_ref / parallel_group metadata (empty for text/reasoning)
     tool_call_id: str = ""
+    occurrence_id: str = ""
     ref_node_id: str = ""
     tool_name: str = ""
     group_id: str = ""
@@ -309,6 +310,7 @@ class CallStreamState:
         self,
         *,
         tool_call_id: str,
+        occurrence_id: str = "",
         tool_name: str = "",
         ref_node_id: str = "",
         group_id: str = "",
@@ -317,10 +319,12 @@ class CallStreamState:
         """Insert a tool_ref block that points at a real DAG tool node.
 
         Does not embed tool args/results — those live on the referenced node.
-        Reuses an existing block with the same tool_call_id (idempotent).
-        Consecutive tool_refs share a group_id when the caller passes one, or
-        when the previous block is also a running/finished tool_ref without an
-        intervening text/reasoning block (parallel batch).
+        Reuses an existing block with the same qualified occurrence identity
+        (or raw tool_call_id for legacy events).
+        A parallel group is valid only when the caller supplies its explicit
+        ``group_id``. The stream cannot infer parallelism from adjacency:
+        sequential tool calls may also be adjacent, and assigning a group to
+        an already-emitted block would require an out-of-order update.
         """
         with self._lock:
             if self._closed or not self._accepting:
@@ -333,13 +337,31 @@ class CallStreamState:
             # Idempotent: same tool_call_id → update ref only
             for bid in attempt.block_order:
                 blk = attempt.blocks[bid]
-                if blk.kind == "tool_ref" and blk.tool_call_id == tool_call_id:
-                    if ref_node_id and not blk.ref_node_id:
+                if blk.kind == "tool_ref" and (
+                    blk.occurrence_id == (occurrence_id or tool_call_id)
+                    or (
+                        not occurrence_id
+                        and not blk.occurrence_id
+                        and blk.tool_call_id == tool_call_id
+                    )
+                ):
+                    changed = False
+                    if ref_node_id and ref_node_id != blk.ref_node_id:
                         blk.ref_node_id = ref_node_id
-                    if tool_name and not blk.tool_name:
+                        changed = True
+                    if tool_name and tool_name != blk.tool_name:
                         blk.tool_name = tool_name
-                    if status:
+                        changed = True
+                    if group_id and group_id != blk.group_id:
+                        blk.group_id = group_id
+                        changed = True
+                    if status and status != blk.status and not (
+                        blk.status == "finished" and status == "running"
+                    ):
                         blk.status = status
+                        changed = True
+                    if not changed:
+                        return blk.block_id
                     base, rev = self._advance()
                     self._emit(
                         {
@@ -353,6 +375,7 @@ class CallStreamState:
                             "block_index": blk.block_index,
                             "kind": "tool_ref",
                             "tool_call_id": tool_call_id,
+                            "occurrence_id": blk.occurrence_id or None,
                             "ref_node_id": blk.ref_node_id,
                             "tool_name": blk.tool_name,
                             "group_id": blk.group_id or None,
@@ -360,14 +383,25 @@ class CallStreamState:
                         }
                     )
                     return blk.block_id
-            # Auto parallel group: consecutive tool_refs
-            gid = group_id
-            if not gid and attempt.block_order:
-                prev = attempt.blocks[attempt.block_order[-1]]
-                if prev.kind == "tool_ref":
-                    gid = prev.group_id or f"par_{uuid.uuid4().hex[:10]}"
-                    if not prev.group_id:
-                        prev.group_id = gid
+            # A tool call is a hard content boundary. Close an open text or
+            # thinking block before inserting the tool_ref so continuation
+            # text gets a new block after the tool row instead of appending to
+            # the earlier Markdown block.
+            for bid in reversed(attempt.block_order):
+                previous = attempt.blocks[bid]
+                if previous.kind not in {"text", "reasoning_summary", "refusal"}:
+                    continue
+                if previous.status == "running":
+                    self.finish_block(
+                        block_id=previous.block_id,
+                        attempt_id=aid,
+                        finish_reason="tool_call",
+                    )
+                break
+            # Parallel membership comes from the provider/agent batch. Never
+            # infer it from neighboring blocks: a sequential tool call can be
+            # adjacent to another tool call.
+            gid = group_id or ""
             bid = f"block_{uuid.uuid4().hex[:12]}"
             index = len(attempt.block_order)
             blk = _BlockState(
@@ -379,6 +413,7 @@ class CallStreamState:
                 content="",
                 status=status,
                 tool_call_id=tool_call_id or "",
+                occurrence_id=occurrence_id or tool_call_id or "",
                 ref_node_id=ref_node_id or "",
                 tool_name=tool_name or "",
                 group_id=gid or "",
@@ -398,6 +433,7 @@ class CallStreamState:
                     "block_index": index,
                     "kind": "tool_ref",
                     "tool_call_id": blk.tool_call_id,
+                    "occurrence_id": blk.occurrence_id or None,
                     "ref_node_id": blk.ref_node_id,
                     "tool_name": blk.tool_name,
                     "group_id": blk.group_id or None,
@@ -408,7 +444,13 @@ class CallStreamState:
             )
             return bid
 
-    def finish_tool_ref(self, tool_call_id: str, *, ref_node_id: str = "") -> None:
+    def finish_tool_ref(
+        self,
+        tool_call_id: str,
+        *,
+        occurrence_id: str = "",
+        ref_node_id: str = "",
+    ) -> None:
         with self._lock:
             if self._closed:
                 return
@@ -418,10 +460,21 @@ class CallStreamState:
                 return
             for bid in attempt.block_order:
                 blk = attempt.blocks[bid]
-                if blk.kind == "tool_ref" and blk.tool_call_id == tool_call_id:
-                    blk.status = "finished"
-                    if ref_node_id:
+                if blk.kind == "tool_ref" and (
+                    blk.occurrence_id == (occurrence_id or tool_call_id)
+                    or (
+                        not occurrence_id
+                        and not blk.occurrence_id
+                        and blk.tool_call_id == tool_call_id
+                    )
+                ):
+                    changed = blk.status != "finished"
+                    if ref_node_id and ref_node_id != blk.ref_node_id:
                         blk.ref_node_id = ref_node_id
+                        changed = True
+                    if not changed:
+                        return
+                    blk.status = "finished"
                     base, rev = self._advance()
                     self._emit(
                         {
@@ -435,6 +488,7 @@ class CallStreamState:
                             "block_index": blk.block_index,
                             "kind": "tool_ref",
                             "tool_call_id": tool_call_id,
+                            "occurrence_id": blk.occurrence_id or None,
                             "ref_node_id": blk.ref_node_id,
                             "tool_name": blk.tool_name,
                             "group_id": blk.group_id or None,
@@ -732,7 +786,13 @@ class CallStreamState:
         with self._lock:
             return self._text_preview_unlocked(kind=kind, limit=limit)
 
-    def _text_preview_unlocked(self, *, kind: str = "text", limit: int = 4000) -> str:
+    def _text_preview_unlocked(
+        self,
+        *,
+        kind: str = "text",
+        limit: int = 4000,
+        include_memory_only: bool = True,
+    ) -> str:
         aid = self.current_attempt_id or (
             self.attempt_order[-1] if self.attempt_order else None
         )
@@ -744,7 +804,11 @@ class CallStreamState:
         parts: list[str] = []
         for bid in attempt.block_order:
             blk = attempt.blocks[bid]
-            if blk.kind == kind and blk.visibility == "visible":
+            if (
+                blk.kind == kind
+                and blk.visibility == "visible"
+                and (include_memory_only or blk.retention != "memory_only")
+            ):
                 parts.append(blk.content)
         text = "".join(parts)
         if len(text) > limit:
@@ -771,10 +835,20 @@ class CallStreamState:
                     "model": a.model,
                 }
             )
-        preview = self._text_preview_unlocked(kind="text", limit=MAX_INLINE_PREVIEW_BYTES)
-        reasoning = self._text_preview_unlocked(
-            kind="reasoning_summary", limit=min(4000, MAX_INLINE_PREVIEW_BYTES)
+        preview = self._text_preview_unlocked(
+            kind="text",
+            limit=MAX_INLINE_PREVIEW_BYTES,
+            include_memory_only=False,
         )
+        reasoning = self._text_preview_unlocked(
+            kind="reasoning_summary",
+            limit=min(4000, MAX_INLINE_PREVIEW_BYTES),
+            include_memory_only=False,
+        )
+        # Checkpoints must retain the complete ordered content needed by a
+        # reconnect after the live owner is gone. Keep the summary fields for
+        # legacy readers, and expose the durable snapshot for current readers.
+        snapshot = self._snapshot_dict_unlocked(durability="durable")
         return {
             "schema_version": SCHEMA_VERSION,
             "generation": self.identity.generation,
@@ -785,6 +859,7 @@ class CallStreamState:
             "current_attempt_id": self.current_attempt_id,
             "selected_attempt_id": self.selected_attempt_id,
             "attempts": attempts_summary,
+            "snapshot": snapshot,
             "preview_text": preview,
             "preview_reasoning": reasoning,
             "ephemeral": self.identity.ephemeral,
@@ -805,13 +880,12 @@ class CallStreamState:
                     omitted = True
                 else:
                     omitted = False
-                if len(content.encode("utf-8")) > MAX_INLINE_PREVIEW_BYTES:
-                    content = content[
-                        -MAX_INLINE_PREVIEW_BYTES:
-                    ]
-                    truncated = True
-                else:
-                    truncated = False
+                # Every snapshot is a reconnect source. Keep the complete
+                # visible block for live refresh as well as durable recovery;
+                # only the legacy preview fields remain bounded. Otherwise a
+                # live snapshot would silently discard the beginning of a
+                # Markdown reply when it replaces client state.
+                truncated = False
                 entry = {
                         "block_id": b.block_id,
                         "message_id": b.message_id,
@@ -829,6 +903,7 @@ class CallStreamState:
                 if b.kind == "tool_ref":
                     entry.update({
                         "tool_call_id": b.tool_call_id,
+                        "occurrence_id": b.occurrence_id or None,
                         "ref_node_id": b.ref_node_id,
                         "tool_name": b.tool_name,
                         "group_id": b.group_id or None,
@@ -859,9 +934,13 @@ class CallStreamState:
             "selected_attempt_id": self.selected_attempt_id,
             "result": self.result if durability == "durable" else None,
             "attempts": attempts,
-            "preview_text": self._text_preview_unlocked(),
+            "preview_text": self._text_preview_unlocked(
+                include_memory_only=durability != "durable",
+            ),
             "preview_reasoning": self._text_preview_unlocked(
-                kind="reasoning_summary", limit=4000
+                kind="reasoning_summary",
+                limit=4000,
+                include_memory_only=durability != "durable",
             ),
             "recovered_from_checkpoint": self.recovered_from_checkpoint,
             "source_checkpoint": self.source_checkpoint,

@@ -5,6 +5,7 @@ import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { renderMarkdown, useMarkdownReady } from "../chat/messages/markdown";
 import { LlmNodeContent } from "../chat/messages/llm-node-content";
+import type { TNode } from "../chat/messages/tree-types";
 
 export const VIEW_DETAIL = "detail";
 export const VIEW_CONTEXT = "context";
@@ -180,6 +181,7 @@ export function DetailPanel() {
             <div className="detail-section-title">Content</div>
             <LlmNodeContent
               nodeId={node.path}
+              treeRoot={node.tree_root as TNode | undefined}
               fallbackText={node.raw_reply ?? (typeof node.output === "string" ? node.output : null)}
               fallbackThinking={node.thinking ?? null}
             />

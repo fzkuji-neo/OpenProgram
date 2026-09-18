@@ -800,6 +800,7 @@ async def _run_loop_with_recovery(
                     config.get_steering_messages,
                     repeat_failures,
                     config.safe_point_hook,
+                    round_id=f"turn:{inner_iterations}",
                 )
                 tool_results.extend(execution["tool_results"])
                 steering_after_tools = execution.get("steering_messages")
@@ -1290,6 +1291,7 @@ async def _execute_tool_calls(
     safe_point_hook: Any | None = None,
     *,
     start_index: int = 0,
+    round_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Execute tool calls from an assistant message.
@@ -1304,11 +1306,39 @@ async def _execute_tool_calls(
     if repeat_failures is None:
         repeat_failures = {}
 
+    # This dispatcher executes the list serially. It deliberately emits no
+    # parallel group; a future concurrent dispatcher must provide an explicit
+    # group id instead of making the UI infer concurrency from adjacency.
+    import hashlib
+    if round_id is None:
+        round_id = "msg_" + hashlib.sha256(
+            json.dumps(
+                _durable_message(assistant_message),
+                sort_keys=True,
+                ensure_ascii=False,
+                default=str,
+            ).encode("utf-8")
+        ).hexdigest()[:16]
+
+    def _occurrence_id(index: int, call: ToolCall) -> str:
+        payload = {
+            "round": round_id,
+            "index": index,
+            "tool_call_id": str(call.id),
+            "tool_name": call.name,
+            "arguments": call.arguments,
+        }
+        return "occ_" + hashlib.sha256(
+            json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str).encode("utf-8")
+        ).hexdigest()[:24]
+
     from openprogram.context.cache_aware_microcompact import increment_tool_calls
     increment_tool_calls(len(tool_calls))
 
     for index, tool_call in enumerate(tool_calls[start_index:], start=start_index):
         tool = next((t for t in (tools or []) if t.name == tool_call.name), None)
+        occurrence_id = _occurrence_id(index, tool_call)
+        dag_expose = getattr(tool, "_dag_expose", None) or "full"
         from openprogram.providers.types import Tool as AiTool, ToolCall as AiToolCall
         validated_args = tool_call.arguments
         validation_error = None
@@ -1326,6 +1356,8 @@ async def _execute_tool_calls(
             tool_call_id=tool_call.id,
             tool_name=tool_call.name,
             args=tool_call.arguments,
+            occurrence_id=occurrence_id,
+            expose=dag_expose,
         ))
         preflight = getattr(tool, "_permission_preflight", None)
         if callable(preflight) and streak < 2 and validation_error is None:
@@ -1405,6 +1437,8 @@ async def _execute_tool_calls(
                 is_error=True,
             )
         execution_token = current_execution.set(execution)
+        occurrence_token = None
+        identity_consumed_token = None
         try:
             if skipped_repeat:
                 raise _SkipExecute()
@@ -1430,6 +1464,16 @@ async def _execute_tool_calls(
             _record_job_activity("operation_start")
             timeout = _job_operation_timeout(None)
             preapproved_wait_id = getattr(tool, "_preapproved_wait_id", None)
+            try:
+                from openprogram.programs._runtime import (
+                    _current_tool_call_occurrence_id,
+                    _tool_call_identity_consumed,
+                )
+
+                occurrence_token = _current_tool_call_occurrence_id.set(occurrence_id)
+                identity_consumed_token = _tool_call_identity_consumed.set(False)
+            except Exception:
+                occurrence_token = None
             if preapproved_wait_id:
                 from openprogram.agent.run_control import (
                     reset_preapproved_wait_id, set_preapproved_wait_id,
@@ -1493,9 +1537,25 @@ async def _execute_tool_calls(
                 tool_name=tool_call.name,
                 result=result,
                 is_error=True,
+                occurrence_id=occurrence_id,
+                expose=dag_expose,
             ))
             raise
         finally:
+            if occurrence_token is not None:
+                try:
+                    from openprogram.programs._runtime import _current_tool_call_occurrence_id
+
+                    _current_tool_call_occurrence_id.reset(occurrence_token)
+                except Exception:
+                    pass
+            if identity_consumed_token is not None:
+                try:
+                    from openprogram.programs._runtime import _tool_call_identity_consumed
+
+                    _tool_call_identity_consumed.reset(identity_consumed_token)
+                except Exception:
+                    pass
             current_execution.reset(execution_token)
             with RUNNING_TOOL_CALLS_LOCK:
                 RUNNING_TOOL_CALLS.pop(tool_call.id, None)
@@ -1514,6 +1574,8 @@ async def _execute_tool_calls(
             result=result,
             is_error=result.is_error,
             outcome=outcome,
+            occurrence_id=occurrence_id,
+            expose=dag_expose,
         ))
         emit_safe("tool.after", "tool", {
             "tool": tool_call.name,

@@ -49,6 +49,8 @@ export interface StreamBlock {
   truncated?: boolean;
   /** tool_ref: stable tool call id */
   tool_call_id?: string;
+  /** qualified occurrence id; raw ids may repeat across provider turns */
+  occurrence_id?: string;
   /** tool_ref: DAG tool node path/id */
   ref_node_id?: string;
   tool_name?: string;
@@ -112,6 +114,7 @@ export interface ExecutionStreamEvent {
   block_index?: number;
   kind?: string;
   tool_call_id?: string;
+  occurrence_id?: string;
   ref_node_id?: string;
   tool_name?: string;
   group_id?: string | null;

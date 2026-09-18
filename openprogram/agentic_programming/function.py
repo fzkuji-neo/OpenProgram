@@ -202,6 +202,46 @@ def current_call_id() -> str:
         return ""
 
 
+def current_tool_call_id() -> str:
+    """Provider tool-call id currently executing in this context, if any."""
+    try:
+        from openprogram.programs._runtime import current_tool_call_id as _current
+
+        return _current() or ""
+    except Exception:
+        return ""
+
+
+def current_tool_call_occurrence_id() -> str:
+    """Qualified provider tool-call occurrence currently executing."""
+    try:
+        from openprogram.programs._runtime import current_tool_call_occurrence_id as _current
+
+        return _current() or ""
+    except Exception:
+        return ""
+
+
+def tool_call_identity_consumed() -> bool:
+    """Whether the current provider identity was consumed by a wrapper."""
+    try:
+        from openprogram.programs._runtime import tool_call_identity_consumed as _consumed
+
+        return bool(_consumed())
+    except Exception:
+        return False
+
+
+def tool_node_id(parent_id: str, tool_call_identity: str) -> str:
+    """Return the stable DAG id for a qualified tool occurrence."""
+    import hashlib
+
+    digest = hashlib.sha256(
+        f"{parent_id}\0{tool_call_identity}".encode("utf-8")
+    ).hexdigest()[:20]
+    return f"tool_{digest}"
+
+
 _VALID_EXPOSE = ("io", "llm", "full", "hidden")
 
 
@@ -286,6 +326,13 @@ def create_pending_call_node(
         "expose": expose,
         "status": "running",
     }
+    active_tool_call_id = current_tool_call_id()
+    active_occurrence_id = current_tool_call_occurrence_id()
+    if active_occurrence_id:
+        # Lets recovery and stream projections identify the same node even
+        # when the wrapper is entered after the provider event was emitted.
+        meta["tool_call_id"] = active_tool_call_id
+        meta["tool_call_occurrence_id"] = active_occurrence_id
     if retry_of:
         meta["retry_of"] = retry_of
     if render_range:
@@ -1004,6 +1051,18 @@ class agentic_function:
             cancel_token = (
                 _current_cancel.set(cancel) if cancel is not None else None
             )
+            tool_call_token = None
+            identity_consumed_token = None
+            try:
+                from openprogram.programs._runtime import (
+                    _current_tool_call_id,
+                    _tool_call_identity_consumed,
+                )
+
+                tool_call_token = _current_tool_call_id.set(call_id)
+                identity_consumed_token = _tool_call_identity_consumed.set(False)
+            except Exception:
+                pass
 
             try:
                 if use_cache:
@@ -1042,6 +1101,16 @@ class agentic_function:
                         )
                     return timeout_tool_result(name, exec_timeout)
             finally:
+                if tool_call_token is not None:
+                    try:
+                        _current_tool_call_id.reset(tool_call_token)
+                    except Exception:
+                        pass
+                if identity_consumed_token is not None:
+                    try:
+                        _tool_call_identity_consumed.reset(identity_consumed_token)
+                    except Exception:
+                        pass
                 if cancel_token is not None:
                     _current_cancel.reset(cancel_token)
 
@@ -1084,6 +1153,7 @@ class agentic_function:
             setattr(self._agent_tool, "_is_agentic", True)
             setattr(self._agent_tool, "_resumable", self.resumable)
             setattr(self._agent_tool, "_source_module", self._fn.__module__)
+            setattr(self._agent_tool, "_dag_expose", self.expose)
         except Exception:
             pass
 
@@ -1116,7 +1186,16 @@ class agentic_function:
             # top-level run (no enclosing @agentic_function) — a nested
             # sub-call must mint its own id, never claim the parent card.
             _forced_nid = _forced_node_id.get()
-            if _forced_nid and not (_call_id.get() or ""):
+            _tool_call_id = current_tool_call_id()
+            _tool_occurrence_id = current_tool_call_occurrence_id()
+            _parent_id = _call_id.get() or ""
+            _identity_id = (
+                _tool_occurrence_id
+                or (_tool_call_id if not tool_call_identity_consumed() else "")
+            )
+            if _identity_id and _parent_id:
+                _pending_call_id = tool_node_id(_parent_id, _identity_id)
+            elif _forced_nid and not _parent_id:
                 _pending_call_id = _forced_nid
             else:
                 _pending_call_id = _uuid.uuid4().hex[:12]
@@ -1145,6 +1224,21 @@ class agentic_function:
                     _current_runtime.reset(runtime_token)
                 _close_owned_runtime(owned_runtime)
                 raise
+            # The provider occurrence belongs to this wrapper only. Keep it
+            # available while the placeholder is created, then consume the
+            # qualified identity so nested/sibling calls mint fresh ids.
+            if _tool_occurrence_id or _tool_call_id:
+                try:
+                    from openprogram.programs._runtime import (
+                        _current_tool_call_occurrence_id,
+                        _tool_call_identity_consumed,
+                    )
+
+                    if _tool_occurrence_id:
+                        _current_tool_call_occurrence_id.set(None)
+                    _tool_call_identity_consumed.set(True)
+                except Exception:
+                    pass
             # Stamp ``_call_id`` so anything further down the call
             # tree (rt.exec → ModelCall.caller, ask_user → user
             # Call.caller) attributes its writes to this invocation.
@@ -1245,7 +1339,16 @@ class agentic_function:
             # async wrapper's matching note) so head / predecessor stay
             # stamped once and the exit update targets the on-disk node.
             _forced_nid = _forced_node_id.get()
-            if _forced_nid and not (_call_id.get() or ""):
+            _tool_call_id = current_tool_call_id()
+            _tool_occurrence_id = current_tool_call_occurrence_id()
+            _parent_id = _call_id.get() or ""
+            _identity_id = (
+                _tool_occurrence_id
+                or (_tool_call_id if not tool_call_identity_consumed() else "")
+            )
+            if _identity_id and _parent_id:
+                _pending_call_id = tool_node_id(_parent_id, _identity_id)
+            elif _forced_nid and not _parent_id:
                 _pending_call_id = _forced_nid
             else:
                 from .continuation import current_function_node_id
@@ -1275,6 +1378,18 @@ class agentic_function:
                     _current_runtime.reset(runtime_token)
                 _close_owned_runtime(owned_runtime)
                 raise
+            if _tool_occurrence_id or _tool_call_id:
+                try:
+                    from openprogram.programs._runtime import (
+                        _current_tool_call_occurrence_id,
+                        _tool_call_identity_consumed,
+                    )
+
+                    if _tool_occurrence_id:
+                        _current_tool_call_occurrence_id.set(None)
+                    _tool_call_identity_consumed.set(True)
+                except Exception:
+                    pass
             _call_token = _call_id.set(_pending_call_id)
             # Apply the decorator's system= onto the injected runtime(s)
             # for the duration of this call so nested runtime.exec()

@@ -5,6 +5,12 @@ from openprogram.agentic_programming.runtime.execution_stream.state import (
     CallStreamState,
     StreamIdentity,
 )
+from openprogram.agentic_programming.runtime.execution_stream.adapter import (
+    project_provider_event,
+)
+from openprogram.agentic_programming.runtime.execution_stream.protocol import (
+    MAX_INLINE_PREVIEW_BYTES,
+)
 
 
 def _state(**kwargs):
@@ -133,6 +139,9 @@ def test_tool_ref_idempotent_and_finish_sets_ref():
     assert len(refs) == 1
     assert refs[0].ref_node_id == "node/read#1"
     st.finish_tool_ref("call_2", ref_node_id="node/read#1")
+    emitted_count = len(emitted)
+    st.finish_tool_ref("call_2", ref_node_id="node/read#1")
+    assert len(emitted) == emitted_count
     assert refs[0].status == "finished"
     finished = [e["data"] for e in emitted if e["data"]["op"] == "block_finished"]
     assert finished
@@ -140,11 +149,11 @@ def test_tool_ref_idempotent_and_finish_sets_ref():
     assert finished[-1]["ref_node_id"] == "node/read#1"
 
 
-def test_consecutive_tool_refs_share_auto_group_id():
+def test_parallel_group_requires_explicit_group_id():
     st, _ = _state()
     st.start_attempt()
-    st.add_tool_ref(tool_call_id="a", tool_name="t1")
-    st.add_tool_ref(tool_call_id="b", tool_name="t2")
+    st.add_tool_ref(tool_call_id="a", tool_name="t1", group_id="parallel-1")
+    st.add_tool_ref(tool_call_id="b", tool_name="t2", group_id="parallel-1")
     refs = [
         blk
         for aid in st.attempt_order
@@ -154,15 +163,129 @@ def test_consecutive_tool_refs_share_auto_group_id():
     assert len(refs) == 2
     assert refs[0].group_id
     assert refs[0].group_id == refs[1].group_id
-    # intervening text breaks the parallel group
+    # Adjacent calls without an explicit batch id remain sequential.
+    st.add_tool_ref(tool_call_id="sequential", tool_name="t3")
+    assert refs[1].group_id == "parallel-1"
+    assert st.attempts[st.attempt_order[0]].blocks[st.attempts[st.attempt_order[0]].block_order[-1]].group_id == ""
+
+    # An intervening text block does not cause a later call to inherit the
+    # previous group's identity either.
     st.append_delta(kind="text", delta="mid")
-    st.add_tool_ref(tool_call_id="c", tool_name="t3")
+    st.add_tool_ref(tool_call_id="c", tool_name="t4")
     refs2 = [
         blk
         for aid in st.attempt_order
         for blk in st.attempts[aid].blocks.values()
         if blk.kind == "tool_ref"
     ]
-    assert refs2[2].group_id != refs[0].group_id or refs2[2].group_id is None or True
-    # third should not share first group (new group or none after text)
-    assert refs2[2].group_id != refs[0].group_id
+    assert refs2[2].group_id == ""
+    assert refs2[3].group_id == ""
+
+
+def test_durable_snapshot_contains_ordered_blocks_and_full_text():
+    st, _ = _state()
+    st.start_attempt()
+    st.append_delta(kind="text", delta="before")
+    st.add_tool_ref(
+        tool_call_id="call-a",
+        tool_name="search",
+        ref_node_id="tool-a",
+        group_id="parallel-1",
+    )
+    st.append_delta(kind="text", delta="after")
+    metadata = st.stream_metadata()
+    attempts = metadata["snapshot"]["attempts"]
+    blocks = attempts[0]["blocks"]
+    assert [block["kind"] for block in blocks] == ["text", "tool_ref", "text"]
+    assert blocks[1]["ref_node_id"] == "tool-a"
+    assert "before" in blocks[0]["content"]
+    assert "after" in blocks[2]["content"]
+
+
+def test_durable_snapshot_omits_memory_only_and_opaque_content():
+    st, _ = _state()
+    st.start_attempt()
+    st.start_block(kind="text", retention="memory_only")
+    st.append_delta(kind="text", delta="private")
+    st.start_block(kind="reasoning_summary", visibility="opaque")
+    st.append_delta(kind="reasoning_summary", delta="signature")
+    snap = st._snapshot_dict_unlocked(durability="durable")
+    blocks = snap["attempts"][0]["blocks"]
+    assert blocks[0]["content"] == ""
+    assert blocks[0]["omitted_by_policy"] is True
+    assert blocks[1]["content"] == ""
+    assert blocks[1]["omitted_by_policy"] is True
+    assert snap["preview_text"] == ""
+    assert snap["preview_reasoning"] == ""
+
+
+def test_durable_snapshot_does_not_replace_long_content_with_preview():
+    st, _ = _state()
+    st.start_attempt()
+    long_text = "x" * (MAX_INLINE_PREVIEW_BYTES + 128)
+    st.append_delta(kind="text", delta=long_text)
+    snap = st._snapshot_dict_unlocked(durability="durable")
+    block = snap["attempts"][0]["blocks"][0]
+    assert block["content"] == long_text
+    assert block["truncated"] is False
+
+
+def test_live_snapshot_keeps_long_content_for_refresh_replacement():
+    st, emitted = _state()
+    st.start_attempt()
+    long_text = "prefix-" + ("x" * (MAX_INLINE_PREVIEW_BYTES + 128)) + "-suffix"
+    st.append_delta(kind="text", delta=long_text)
+    snap = st._snapshot_dict_unlocked(durability="live")
+    block = snap["attempts"][0]["blocks"][0]
+    assert block["content"] == long_text
+    assert block["content"].startswith("prefix-")
+    assert block["content"].endswith("-suffix")
+    assert block["truncated"] is False
+    st.emit_snapshot(durability="live")
+    streamed = [e["data"] for e in emitted if e["data"]["op"] == "snapshot"][-1]
+    assert streamed["snapshot"]["attempts"][0]["blocks"][0]["content"] == long_text
+
+
+def test_reused_raw_call_id_gets_distinct_occurrence_blocks():
+    st, _ = _state()
+    st.start_attempt()
+    first = st.add_tool_ref(
+        tool_call_id="call_1",
+        occurrence_id="occ_round_1",
+        tool_name="search",
+    )
+    second = st.add_tool_ref(
+        tool_call_id="call_1",
+        occurrence_id="occ_round_2",
+        tool_name="search",
+    )
+    assert first != second
+    blocks = st._snapshot_dict_unlocked(durability="durable")["attempts"][0]["blocks"]
+    assert [block["occurrence_id"] for block in blocks] == ["occ_round_1", "occ_round_2"]
+    # Replaying the exact occurrence remains idempotent.
+    assert st.add_tool_ref(
+        tool_call_id="call_1",
+        occurrence_id="occ_round_2",
+        tool_name="search",
+    ) == second
+
+
+def test_tool_result_continuation_stays_in_same_attempt():
+    st, _ = _state()
+    st.start_attempt()
+    project_provider_event(st, {
+        "type": "tool_use",
+        "tool_call_id": "call-a",
+        "tool": "search",
+        "node_id": "tool-a",
+        "group_id": "parallel-1",
+    })
+    project_provider_event(st, {
+        "type": "tool_result",
+        "tool_call_id": "call-a",
+        "node_id": "tool-a",
+    })
+    project_provider_event(st, {"type": "text", "text": "continued"})
+    assert len(st.attempt_order) == 1
+    blocks = st._snapshot_dict_unlocked(durability="durable")["attempts"][0]["blocks"]
+    assert [block["kind"] for block in blocks] == ["tool_ref", "text"]
