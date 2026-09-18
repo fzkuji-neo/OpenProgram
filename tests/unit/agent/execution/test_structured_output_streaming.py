@@ -371,3 +371,131 @@ def test_truncation_and_validation_share_recovery_allowance():
     with pytest.raises(StructuredOutputValidationError):
         asyncio.run(_run([_message('{"answer":', stop_reason='length'),
                           _message('{"answer":"bad"}')], retries=1))
+
+
+@pytest.mark.parametrize('partial', [False, True])
+def test_eof_recovers_to_complete_value(partial):
+    calls = []
+    async def provider(model, context, options):
+        calls.append(context)
+        if len(calls) == 1:
+            if partial:
+                yield EventStart(partial=_message('{"answer":'))
+            return
+        message = _message('{"answer":7}')
+        yield EventDone(reason='stop', message=message)
+    async def run():
+        stream = agent_loop([UserMessage(content='answer', timestamp=1)],
+                            AgentContext(tools=[], memory_prefetch=''), _config(retries=2),
+                            stream_fn=provider)
+        async for _ in stream:
+            pass
+        return await stream.result()
+    result = asyncio.run(run())
+    assert result[-1].structured_output == {'answer': 7}
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize('ending', ['length', 'eof', 'invalid'])
+def test_exhausted_recovery_is_paused(ending):
+    from openprogram.providers.utils.recovery import RecoveryState, current_recovery
+    state = RecoveryState(limit=2)
+    calls = []
+    async def provider(model, context, options):
+        calls.append(1)
+        if ending == 'eof':
+            return
+        message = _message('{' if ending == 'length' else '{"answer":"bad"}',
+                           stop_reason='length' if ending == 'length' else 'stop')
+        yield EventDone(reason=message.stop_reason, message=message)
+    async def run():
+        token = current_recovery.set(state)
+        try:
+            stream = agent_loop([UserMessage(content='answer', timestamp=1)],
+                                AgentContext(tools=[], memory_prefetch=''), _config(retries=2),
+                                stream_fn=provider)
+            with pytest.raises((StructuredOutputGenerationError, StructuredOutputValidationError)):
+                async for _ in stream:
+                    pass
+        finally:
+            current_recovery.reset(token)
+    asyncio.run(run())
+    assert len(calls) == 3
+    assert state.used == 2
+    assert state.phase == 'paused'
+
+
+def test_eof_preserves_completed_tool_and_never_executes_partial_tool():
+    from openprogram.agent.types import AgentTool, AgentToolResult
+    from openprogram.providers.types import ToolCall
+    calls, executed = [], []
+    async def execute(call_id, arguments, *_args):
+        executed.append(call_id)
+        return AgentToolResult(content=[TextContent(text='saved evidence')])
+    async def provider(model, context, options):
+        calls.append(context)
+        if len(calls) == 1:
+            message = _message('').model_copy(update={'content': [ToolCall(id='complete', name='read', arguments={})], 'stop_reason': 'toolUse'})
+            yield EventDone(reason='toolUse', message=message)
+        elif len(calls) == 2:
+            yield EventStart(partial=_message('').model_copy(update={'content': [ToolCall(id='partial', name='read', arguments={})]}))
+        else:
+            assert any(m.role == 'toolResult' and m.tool_call_id == 'complete' for m in context.messages)
+            yield EventDone(reason='stop', message=_message('{"answer":7}'))
+    async def run():
+        tool = AgentTool(name='read', label='read', description='read', parameters={'type': 'object'}, execute=execute)
+        stream = agent_loop([UserMessage(content='answer', timestamp=1)],
+                            AgentContext(tools=[tool], memory_prefetch=''), _config(retries=2), stream_fn=provider)
+        async for _ in stream:
+            pass
+        return await stream.result()
+    result = asyncio.run(run())
+    assert result[-1].structured_output == {'answer': 7}
+    assert executed == ['complete']
+    assert len(calls) == 3
+
+
+def test_cancelled_eof_does_not_retry_and_marks_cancelled():
+    from openprogram.providers.utils.recovery import RecoveryState, current_recovery
+    state = RecoveryState(limit=2)
+    calls = []
+    async def run():
+        cancel = asyncio.Event()
+        async def provider(model, context, options):
+            calls.append(1)
+            cancel.set()
+            if False:
+                yield
+        token = current_recovery.set(state)
+        try:
+            stream = agent_loop([UserMessage(content='answer', timestamp=1)],
+                                AgentContext(tools=[], memory_prefetch=''), _config(retries=2),
+                                cancel_event=cancel, stream_fn=provider)
+            async for _ in stream:
+                pass
+            await stream.result()
+        finally:
+            current_recovery.reset(token)
+    asyncio.run(run())
+    assert calls == [1]
+    assert state.phase == 'cancelled'
+
+
+def test_returned_provider_error_is_not_marked_completed():
+    from openprogram.providers.utils.recovery import RecoveryState, current_recovery
+    state = RecoveryState(limit=2)
+    message = _message('', stop_reason='error').model_copy(update={'error_message': 'network failed'})
+    async def run():
+        token = current_recovery.set(state)
+        try:
+            stream = agent_loop([UserMessage(content='answer', timestamp=1)],
+                                AgentContext(tools=[], memory_prefetch=''), _config(retries=2),
+                                stream_fn=_stream([message], []))
+            async for _ in stream:
+                pass
+            result = await stream.result()
+            assert result[-1].stop_reason == 'error'
+        finally:
+            current_recovery.reset(token)
+    asyncio.run(run())
+    assert state.phase != 'completed'

@@ -415,8 +415,18 @@ async def _run_loop(current_context, new_messages, config, cancel_event, ev_stre
     if current_recovery.get() is None:
         limit = config.response_format.max_validation_retries if config.response_format else 2
         token = current_recovery.set(RecoveryState(limit=limit))
+    from openprogram.providers.structured_output import StructuredOutputError
+    from openprogram.providers.utils.errors import ExecInterrupt
+
+    state = current_recovery.get()
     try:
         await _run_loop_with_recovery(current_context, new_messages, config, cancel_event, ev_stream, stream_fn)
+    except (ExecInterrupt, asyncio.CancelledError):
+        state.mark_cancelled()
+        raise
+    except StructuredOutputError:
+        state.mark_paused()
+        raise
     finally:
         if token is not None:
             current_recovery.reset(token)
@@ -576,16 +586,31 @@ async def _run_loop_with_recovery(
                 pending_messages = []
 
             # Stream assistant response
-            message = await _stream_assistant_response(
-                current_context,
-                config,
-                cancel_event,
-                ev_stream,
-                stream_fn,
-                structured_plan,
-                provider_snapshot,
-                structured_attempt if structured_plan is not None else None,
-            )
+            from openprogram.providers.structured_output import StructuredOutputGenerationError
+            try:
+                message = await _stream_assistant_response(
+                    current_context,
+                    config,
+                    cancel_event,
+                    ev_stream,
+                    stream_fn,
+                    structured_plan,
+                    provider_snapshot,
+                    structured_attempt if structured_plan is not None else None,
+                )
+            except StructuredOutputGenerationError as error:
+                if error.code != "incomplete" or structured_plan is None:
+                    raise
+                # EOF is a failed response, not a valid partial assistant turn.
+                # Retain earlier completed tool rounds and discard this candidate.
+                candidate = AssistantMessage(
+                    content=[], api=config.model.api, provider=config.model.provider,
+                    model=config.model.id, stop_reason="error", error_message=str(error),
+                    timestamp=int(time.time() * 1000),
+                )
+                if await schedule_structured_repair(error, candidate):
+                    continue
+                raise
 
             if message.stop_reason in ("error", "aborted") or (
                 structured_plan is not None and message.stop_reason == "length"
@@ -1214,6 +1239,7 @@ async def _stream_assistant_response(
             raise StructuredOutputGenerationError(
                 "Structured output stream ended without a terminal event",
                 code="incomplete",
+                issues=[{"code": "incomplete", "message": "Stream ended without a terminal event", "path": ""}],
             )
 
         # Ordinary text mode preserves the legacy partial-message fallback.
