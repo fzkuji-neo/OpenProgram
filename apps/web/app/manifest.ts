@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
 
-// Next 15 + output:"export" requires an explicit static marker on metadata routes.
 export const dynamic = "force-static";
 
 /**
