@@ -9,7 +9,7 @@ from openprogram.context.tokens import estimate_history_tokens
 from openprogram.providers.types import AssistantMessage, EventDone, Model, TextContent, ToolCall, UserMessage
 
 
-@pytest.mark.parametrize('requested,expected', [(None, 250), (100, 100), (900, None)])
+@pytest.mark.parametrize('requested,expected', [(None, 739), (100, 100), (900, None)])
 def test_small_window_default_matches_provider_output_limit(requested, expected):
     model = Model(id='small', name='small', api='openai-completions', provider='openai',
                   base_url='https://example.invalid', context_window=1000, max_tokens=8192)
@@ -214,7 +214,7 @@ def test_cancelled_summary_never_changes_raw_messages(monkeypatch, mode):
     assert len(calls) == 1
 
 
-@pytest.mark.parametrize('requested,expected', [(None, [3000, 250]), (100, [100, 100])])
+@pytest.mark.parametrize('requested,expected', [(None, [8192, 739]), (100, [100, 100])])
 def test_fallback_resolves_its_own_default_output_cap(monkeypatch, requested, expected):
     from types import SimpleNamespace
     import importlib
@@ -269,3 +269,37 @@ def test_fallback_rechecks_actual_model_window(monkeypatch):
             await events.result()
     asyncio.run(run())
     assert dispatched == ['primary']
+
+
+def test_default_output_uses_model_capacity_without_compacting_short_input():
+    from openprogram.context.request_compaction import RequestCompactor
+    from openprogram.providers.types import Context, SimpleStreamOptions
+    model = Model(id='large', name='large', api='openai-completions', provider='openai',
+                  base_url='https://example.invalid', context_window=200000, max_tokens=64000)
+    context = Context(messages=[UserMessage(content='hello', timestamp=0)])
+    options = SimpleStreamOptions()
+    result = asyncio.run(RequestCompactor().prepare(context, model, options))
+    assert options.max_tokens == 64000
+    assert result.messages == context.messages
+
+
+@pytest.mark.parametrize('requested', [None, 2000])
+def test_bedrock_thinking_cannot_expand_resolved_total_limit(monkeypatch, requested):
+    from openprogram.context.request_compaction import RequestCompactor
+    from openprogram.providers.types import Context, SimpleStreamOptions
+    from openprogram.providers.amazon_bedrock import amazon_bedrock
+    model = Model(id='anthropic.claude-3-7-sonnet', name='Claude', api='bedrock-converse-stream',
+                  provider='amazon-bedrock', base_url='https://example.invalid',
+                  context_window=10000, max_tokens=20000)
+    context = Context(messages=[UserMessage(content='hello', timestamp=0)])
+    options = SimpleStreamOptions(max_tokens=requested, reasoning='medium')
+    result = asyncio.run(RequestCompactor().prepare(context, model, options))
+    captured = []
+    monkeypatch.setattr(amazon_bedrock, 'stream_bedrock', lambda m, c, opts: captured.append(opts))
+    if requested:
+        with pytest.raises(ValueError, match='thinking budget'):
+            amazon_bedrock.stream_simple_bedrock(model, result, options)
+        assert not captured
+    else:
+        amazon_bedrock.stream_simple_bedrock(model, result, options)
+        assert captured[0]['max_tokens'] == options.max_tokens < model.context_window

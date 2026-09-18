@@ -291,6 +291,12 @@ class HistoryOperations:
                 "provider_request_count": provider_request_count,
                 "agent_iteration_count": agent_iteration_count,
             }
+            from openprogram.providers.utils.recovery import current_recovery
+            recovery = current_recovery.get()
+            if recovery is not None:
+                meta["recovery"] = recovery.snapshot()
+                if recovery.requests:
+                    meta["provider_request_count"] = recovery.requests
             if _usage:
                 meta["usage"] = _usage
             if _blocks:

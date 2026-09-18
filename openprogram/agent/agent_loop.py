@@ -408,7 +408,21 @@ def agent_loop_resume(
     return ev_stream
 
 
-async def _run_loop(
+async def _run_loop(current_context, new_messages, config, cancel_event, ev_stream, stream_fn):
+    from openprogram.providers.utils.recovery import RecoveryState, current_recovery
+
+    token = None
+    if current_recovery.get() is None:
+        limit = config.response_format.max_validation_retries if config.response_format else 2
+        token = current_recovery.set(RecoveryState(limit=limit))
+    try:
+        await _run_loop_with_recovery(current_context, new_messages, config, cancel_event, ev_stream, stream_fn)
+    finally:
+        if token is not None:
+            current_recovery.reset(token)
+
+
+async def _run_loop_with_recovery(
     current_context: AgentContext,
     new_messages: list[AgentMessage],
     config: AgentLoopConfig,
@@ -461,19 +475,32 @@ async def _run_loop(
         candidate: AssistantMessage,
     ) -> bool:
         nonlocal structured_attempt, has_more_tool_calls, pending_validation_error
-        await finish_provider_response(candidate)
+        if candidate.stop_reason != "length":
+            await finish_provider_response(candidate)
         if structured_plan is None or config.response_format is None:
             return False
         from openprogram.providers.structured_output import (
             StructuredOutputValidationError,
+            StructuredOutputGenerationError,
             build_repair_prompt,
         )
 
-        if not isinstance(error, StructuredOutputValidationError):
+        incomplete = isinstance(error, StructuredOutputGenerationError) and error.code == "incomplete"
+        if not isinstance(error, StructuredOutputValidationError) and not incomplete:
             return False
+        if cancel_event is not None and cancel_event.is_set():
+            from openprogram.providers.utils.errors import ExecInterrupt
+            from openprogram.providers.utils.recovery import current_recovery
+            state = current_recovery.get()
+            if state is not None:
+                state.mark_cancelled()
+            raise ExecInterrupt("cancelled")
         if structured_attempt > config.response_format.max_validation_retries:
             return False
         if iteration_cap is not None and inner_iterations >= iteration_cap:
+            return False
+        from openprogram.providers.utils.recovery import reserve_recovery
+        if not reserve_recovery(error.code):
             return False
         next_attempt = structured_attempt + 1
         ev_stream.push(AgentEventMessageUpdate(
@@ -484,13 +511,20 @@ async def _run_loop(
                 issues=error.issues,
             ),
         ))
-        current_context.messages.extend([
-            candidate,
-            UserMessage(
-                content=build_repair_prompt(error),
-                timestamp=int(time.time() * 1000),
+        # A truncated tool call is not a valid assistant protocol turn.
+        # Keep completed tools in context, but never include partial arguments.
+        if not incomplete:
+            current_context.messages.append(candidate)
+        current_context.messages.append(UserMessage(
+            content=(
+                "The previous generation was incomplete. Generate the complete required "
+                "JSON value from the existing evidence. Do not continue a partial JSON "
+                "prefix or repeat completed tool operations. Avoid redundant explanation; "
+                "preserve all required facts and fields."
+                if incomplete else build_repair_prompt(error)
             ),
-        ])
+            timestamp=int(time.time() * 1000),
+        ))
         structured_attempt = next_attempt
         pending_validation_error = error
         has_more_tool_calls = True
@@ -580,10 +614,14 @@ async def _run_loop(
                         ev_stream.end(new_messages)
                         return
                 code = "incomplete" if message.stop_reason == "length" else "refusal"
-                raise StructuredOutputGenerationError(
+                error = StructuredOutputGenerationError(
                     "Structured output generation did not produce a complete value",
                     code=code,
+                    issues=[{"code": code, "message": "Provider stopped before a complete value", "path": ""}],
                 )
+                if code == "incomplete" and await schedule_structured_repair(error, message):
+                    continue
+                raise error
 
             if message.stop_reason in ("error", "aborted"):
                 commit_assistant(message)
@@ -881,7 +919,7 @@ async def _stream_assistant_response(
 
         async def snapshot_stream(candidate, candidate_context, candidate_options):
             candidate_options = candidate_options.model_copy(update={
-                "max_tokens": request_output_limit(candidate, config.max_tokens),
+                "max_tokens": config.max_tokens,
             })
             snapshot = dispatch_snapshots.get(id(candidate))
             provider = snapshot.provider if snapshot is not None else None
@@ -1003,7 +1041,7 @@ async def _stream_assistant_response(
         )
 
     from openprogram.providers import SimpleStreamOptions
-    from openprogram.context.request_compaction import RequestCompactor, request_output_limit
+    from openprogram.context.request_compaction import RequestCompactor
     # ``thinking_levels`` is the model's request-body capability contract.
     # A stale session/agent preference can outlive a model switch, so never
     # forward it to a model whose list is empty: OpenAI-compatible upstreams
@@ -1015,7 +1053,7 @@ async def _stream_assistant_response(
         reasoning=reasoning,
         thinking_budgets=config.thinking_budgets,
         temperature=config.temperature,
-        max_tokens=request_output_limit(config.model, config.max_tokens),
+        max_tokens=config.max_tokens,
         signal=cancel_event,
         api_key=resolved_api_key,
         transport=config.transport,
@@ -1090,6 +1128,14 @@ async def _stream_assistant_response(
     _record_job_activity("operation_start")
     from .provider_lifecycle import provider_response
 
+    from openprogram.providers.utils.recovery import current_recovery
+    recovery = current_recovery.get()
+    receipt = recovery.started(
+        provider=config.model.provider, model=config.model.id,
+        max_tokens=stream_opts.max_tokens,
+        output_limit_source="explicit" if config.max_tokens is not None else "model_capacity",
+        reasoning=stream_opts.reasoning,
+    ) if recovery is not None else None
     with provider_response(emit_safe) as response:
         response_stream = fn(config.model, llm_context, stream_opts)
 
@@ -1143,6 +1189,9 @@ async def _stream_assistant_response(
                     "cancelled" if event.error.stop_reason == "aborted" else "failed"
                 )
                 final_message = event.message if event.type == "done" else event.error
+                if receipt is not None:
+                    receipt.update(stop_reason=final_message.stop_reason,
+                                   usage=_durable_message(final_message.usage))
                 if structured_plan is not None:
                     if partial_message is None:
                         ev_stream.push(AgentEventMessageStart(message=final_message))

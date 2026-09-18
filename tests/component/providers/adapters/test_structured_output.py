@@ -71,7 +71,7 @@ def test_normalize_envelope_and_reject_invalid_schema_before_request():
     ("strict", "yes"),
     ("fallback", "silent"),
     ("max_validation_retries", True),
-    ("max_validation_retries", 2),
+    ("max_validation_retries", 3),
 ])
 def test_normalize_rejects_invalid_control_fields(field, value):
     envelope = {"type": "json_schema", "schema": SCHEMA, field: value}
