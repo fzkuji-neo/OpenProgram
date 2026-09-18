@@ -671,7 +671,7 @@ async def stream_simple(
     )
     system = _build_system(transformed_context, is_oauth=is_oauth, cache_control=cache_control)
 
-    max_tokens = opts.max_tokens or (model.max_tokens // 3 if model.max_tokens else 4096)
+    max_tokens = opts.max_tokens if opts.max_tokens is not None else (model.max_tokens or 4096)
 
     params: dict[str, Any] = {
         # Strip the [1m] opt-in suffix — it's our marker, not a real id; the
@@ -732,7 +732,7 @@ async def stream_simple(
                     budget = custom
             params["thinking"] = {"type": "enabled", "budget_tokens": budget}
             if budget and max_tokens <= budget:
-                params["max_tokens"] = budget + max_tokens
+                raise ValueError("Output token limit must exceed the thinking budget")
 
     if opts.response_format is not None:
         params.setdefault("output_config", {})["format"] = {

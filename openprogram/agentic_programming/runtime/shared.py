@@ -96,9 +96,9 @@ def _default_max_retries() -> int:
     total ≈46s of sleeping at the default backoff base).
     """
     try:
-        v = int(os.environ.get("OPENPROGRAM_MAX_RETRIES", "6"))
+        v = int(os.environ.get("OPENPROGRAM_MAX_RETRIES", "3"))
     except ValueError:
-        v = 6
+        v = 3
     return max(1, v)
 
 

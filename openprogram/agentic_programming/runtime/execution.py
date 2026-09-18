@@ -269,6 +269,14 @@ class ExecutionOperations:
                 }
             )
         _deadline_token = _dl.set_deadline(_deadline)
+        from openprogram.providers.utils.recovery import (
+            RecoveryState,
+            current_recovery,
+            recovery_limit_from_max_retries,
+        )
+        _recovery_token = current_recovery.set(
+            RecoveryState(limit=recovery_limit_from_max_retries(self.max_retries))
+        )
         _exec_token = _current_exec_state.set(_ExecCallState())
         _llm_node_id = None
         _llm_closed = False
@@ -334,6 +342,8 @@ class ExecutionOperations:
                 try:
                     attempts_used += 1
                     if attempts_used > 1:
+                        if not current_recovery.get().reserve("transport"):
+                            raise RuntimeError("Model recovery attempts exhausted")
                         try:
                             from openprogram.agentic_programming.runtime.execution_stream.adapter import (
                                 note_transport_retry,
@@ -489,6 +499,7 @@ class ExecutionOperations:
                     ),
                     error=_exc if _st == "error" else None,
                 )
+            current_recovery.reset(_recovery_token)
             self._active_llm_node_id = None
             self._publish_exec_state()
             try:
@@ -638,6 +649,14 @@ class ExecutionOperations:
                 }
             )
         _deadline_token = _dl.set_deadline(_deadline)
+        from openprogram.providers.utils.recovery import (
+            RecoveryState,
+            current_recovery,
+            recovery_limit_from_max_retries,
+        )
+        _recovery_token = current_recovery.set(
+            RecoveryState(limit=recovery_limit_from_max_retries(self.max_retries))
+        )
         _exec_token = _current_exec_state.set(_ExecCallState())
         _llm_node_id = None
         _llm_closed = False
@@ -695,6 +714,8 @@ class ExecutionOperations:
                 try:
                     attempts_used += 1
                     if attempts_used > 1:
+                        if not current_recovery.get().reserve("transport"):
+                            raise RuntimeError("Model recovery attempts exhausted")
                         try:
                             from openprogram.agentic_programming.runtime.execution_stream.adapter import (
                                 note_transport_retry,
@@ -814,6 +835,7 @@ class ExecutionOperations:
                     status=_st,
                     error=_exc if _st == "error" else None,
                 )
+            current_recovery.reset(_recovery_token)
             self._active_llm_node_id = None
             self._publish_exec_state()
             try:

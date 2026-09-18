@@ -277,7 +277,6 @@ def test_retry_event_and_prompt_do_not_copy_invalid_candidate_value():
 @pytest.mark.parametrize(
     ("stop_reason", "error_type", "code"),
     [
-        ("length", StructuredOutputGenerationError, "incomplete"),
         ("error", StructuredOutputGenerationError, "refusal"),
         ("aborted", ExecInterrupt, None),
     ],
@@ -354,3 +353,21 @@ def test_structured_repair_requests_have_distinct_balanced_identities(monkeypatc
     assert seen[0][1]["request_id"] == seen[1][1]["request_id"]
     assert seen[2][1]["request_id"] == seen[3][1]["request_id"]
     assert seen[0][1]["request_id"] != seen[2][1]["request_id"]
+
+
+def test_truncated_value_is_regenerated_without_partial_candidate():
+    messages, events, contexts = asyncio.run(_run([
+        _message('{"answer":', stop_reason='length'), _message('{"answer":7}')
+    ]))
+    assert messages[-1].structured_output == {'answer': 7}
+    retry = next(e for e in _assistant_events(events) if e.type == 'structured_output_retry')
+    assert retry.issues[0]['code'] == 'incomplete'
+    assert len(contexts) == 2
+    assert not any(m.role == 'assistant' and m.content == [TextContent(text='{"answer":')]
+                   for m in contexts[1].messages)
+
+
+def test_truncation_and_validation_share_recovery_allowance():
+    with pytest.raises(StructuredOutputValidationError):
+        asyncio.run(_run([_message('{"answer":', stop_reason='length'),
+                          _message('{"answer":"bad"}')], retries=1))

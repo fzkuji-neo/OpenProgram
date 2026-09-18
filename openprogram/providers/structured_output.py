@@ -46,7 +46,7 @@ class JsonSchemaOutput:
     description: str | None = None
     strict: bool = True
     fallback: Literal["auto", "none", "prompt"] = "auto"
-    max_validation_retries: Literal[0, 1] = 1
+    max_validation_retries: Literal[0, 1, 2] = 2
     type: Literal["json_schema"] = "json_schema"
 
 
@@ -152,9 +152,9 @@ def normalize_response_format(value: dict[str, Any] | JsonSchemaOutput) -> JsonS
         raise StructuredOutputSchemaError("strict must be a boolean", code="invalid_schema")
     if output.fallback not in ("auto", "none", "prompt"):
         raise StructuredOutputSchemaError("Invalid structured output fallback", code="invalid_schema")
-    if type(output.max_validation_retries) is not int or output.max_validation_retries not in (0, 1):
+    if type(output.max_validation_retries) is not int or output.max_validation_retries not in (0, 1, 2):
         raise StructuredOutputSchemaError(
-            "max_validation_retries must be 0 or 1", code="invalid_schema"
+            "max_validation_retries must be 0, 1 or 2", code="invalid_schema"
         )
     try:
         validator_cls = validators.validator_for(output.schema)

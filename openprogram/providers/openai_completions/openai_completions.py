@@ -638,6 +638,13 @@ async def stream_simple(
                     or _user_cancelled()
                 ):
                     raise
+                from ..utils.recovery import reserve_recovery, current_recovery
+                if not reserve_recovery("transport"):
+                    e.transport_exhausted = True
+                    raise
+                recovery = current_recovery.get()
+                if recovery is not None:
+                    recovery.started(provider=model.provider, model=model.id, retry_reason="transport")
                 # Reset per-attempt stream state so the retry starts clean.
                 content_blocks = []
                 text_index = -1
