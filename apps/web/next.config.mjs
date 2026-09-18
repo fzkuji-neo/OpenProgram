@@ -10,11 +10,10 @@ const nextConfig = {
   // Required for `output: "export"` on Next 15 (no Image Optimization server).
   images: { unoptimized: true },
   reactStrictMode: false,
-  // Lint is a dev-time gate (`next lint` / editor), not a build blocker.
+  // Lint is a dev-time gate (`npm run lint` / editor), not a build blocker.
   // A stray unused-var or `<img>` warning must not fail the production
   // build the worker depends on (it was, silently breaking the build →
   // the frontend never came up while `next dev` masked it).
-  eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   webpack(config) {
     // Webpack must invalidate cached CSS when our local PostCSS plugin changes.

@@ -40,7 +40,7 @@
     "dist:win:arm64": "npm run prepare:runtime:win && electron-builder --win nsis --arm64"
   },
   "devDependencies": {
-    "electron": "39.8.10",
+    "electron": "44.4.3",
     "electron-builder": "^26.0.12"
   },
   "build": {
