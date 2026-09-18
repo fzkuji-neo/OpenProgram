@@ -1107,7 +1107,13 @@ def set_setting(key: str, value: Any) -> dict:
         from openprogram.memory.retrieval.embedding import (
             default_model_is_available,
         )
+        from openprogram.memory.retrieval.embedding_model import (
+            platform_unavailable_reason,
+        )
 
+        reason = platform_unavailable_reason()
+        if reason is not None:
+            return {"error": f"{spec.label}: {reason}"}
         if not default_model_is_available():
             return {
                 "error": (

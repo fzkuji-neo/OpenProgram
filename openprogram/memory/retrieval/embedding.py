@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import platform
-import sys
 import threading
 from pathlib import Path
 from typing import Any
@@ -25,6 +23,7 @@ from .embedding_model import (
     MODEL_ID,
     default_model_is_cached,
     install_default_model,
+    platform_unavailable_reason,
 )
 _default_encoder: Any | None = None
 _default_encoder_lock = threading.RLock()
@@ -36,16 +35,9 @@ def load_default_encoder(*, local_files_only: bool = True) -> Any:
     if _default_encoder is None:
         with _default_encoder_lock:
             if _default_encoder is None:
-                if (
-                    sys.platform == "darwin"
-                    and platform.machine() == "x86_64"
-                ):
-                    raise ImportError(
-                        "semantic memory embeddings are unavailable on Intel "
-                        "macOS because no patched PyPI torch wheel is "
-                        "available; use BM25 on Intel macOS or run embeddings "
-                        "on macOS arm64/Linux"
-                    )
+                reason = platform_unavailable_reason()
+                if reason is not None:
+                    raise ImportError(reason)
                 try:
                     from sentence_transformers import SentenceTransformer
                 except ImportError as exc:
