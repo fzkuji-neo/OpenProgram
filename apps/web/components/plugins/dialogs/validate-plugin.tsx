@@ -1,0 +1,62 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import styles from "../plugins.module.css";
+import { usePluginsStore } from "@/lib/abilities/plugins-store";
+import { useTranslation } from "@/lib/i18n";
+import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
+
+interface Check {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+interface Props {
+  name: string;
+  onClose: () => void;
+}
+
+export function ValidatePluginDialog({ name, onClose }: Props) {
+  const { text } = useTranslation();
+  const validate = usePluginsStore((s) => s.validate);
+  const [checks, setChecks] = useState<Check[] | null>(null);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    validate(name)
+      .then((r) => setChecks(r.checks))
+      .catch((e) => setErr(String(e)));
+  }, [name, validate]);
+
+  // Escape / Tab-trap / focus restore for this hand-rolled panel.
+  const modal = useModalA11y(onClose, text(`Validate ${name}`, `校验 ${name}`));
+
+  return (
+    <div className={styles.dialogBackdrop} onClick={onClose}>
+      <div
+        {...modal}
+        className={styles.dialog}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.dialogTitle}>{text(`Validate ${name}`, `校验 ${name}`)}</div>
+        <div className={styles.dialogBody}>
+          {err && <div style={{ color: "#ef4444" }}>{err}</div>}
+          {!checks && !err && <div className={styles.empty}>{text("Validating...", "正在校验...")}</div>}
+          {checks?.map((c) => (
+            <div key={c.name} className={styles.checkRow}>
+              <span className={c.ok ? styles.checkOk : styles.checkFail}>
+                {c.ok ? "✓" : "✗"}
+              </span>
+              <span style={{ fontWeight: 600 }}>{c.name}</span>
+              <span style={{ color: "var(--text-dim)" }}>{c.detail}</span>
+            </div>
+          ))}
+        </div>
+        <div className={styles.dialogActions}>
+          <button className={styles.btn} onClick={onClose}>{text("Close", "关闭")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}

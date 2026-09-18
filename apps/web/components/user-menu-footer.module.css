@@ -1,0 +1,172 @@
+/* Footer "..." menu — replaces legacy .sidebar-footer / .user-menu rules
+   in 02-sidebar.css. Visual parity with the old design. */
+
+.footer {
+  position: relative;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* 1:1 mirror of Claude.ai's user-menu footer (measured live):
+     btn          h=64px  padding=32px 16px  gap=0  text-align=left
+     avatar box   36x36   border-radius=9999px  border=none
+     avatar svg   36x36
+     name         14/20   weight 510   bright text color
+     subtitle     12/16   weight 400   muted text color
+     chevron      14x14   color = bright text (same as name)
+   We keep avatar/text physically adjacent (gap:0) and rely on the
+   text wrapper's left margin for visual separation. */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  /* Claude footer: fixed 64px height with padding 32/16. Padding eats
+     the content box (height - padding = 0), so the 36px avatar visually
+     centers via flex alignment rather than physically fitting in
+     content. Looks like a 64px-tall row with a 36px circle in it.
+
+     Horizontal padding uses a clamp tied to the trigger's own width
+     (which mirrors sidebar width). At full width (288): padding-left
+     resolves to 16. As sidebar collapses and width approaches 52
+     (avatar 36 + 16 padding), padding-left smoothly drops toward 6
+     (the centered position in a 49-wide rail). So the avatar stays
+     at x=16 during most of the collapse and only slides left in the
+     final few pixels — no teleport, no early move. */
+  height: 64px;
+  padding-top: 32px;
+  padding-bottom: 32px;
+  padding-left: max(6px, min(16px, calc(100% - 47px)));
+  padding-right: max(6px, min(16px, calc(100% - 47px)));
+  box-sizing: border-box;
+  border-radius: 0;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-primary);
+  transition: background 0.15s ease;
+  overflow: hidden;
+}
+.trigger:hover { background: var(--bg-hover); }
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--primary-foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease;
+}
+.trigger:hover .avatar {
+  opacity: 0.92;
+}
+
+.info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-left: 12px;
+  padding-right: 4px;
+}
+.name {
+  width: 100%;
+  /* Claude rgb(195,194,183) = #c3c2b7 = our --text-primary exactly. */
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 510;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.subtitle {
+  width: 100%;
+  /* Claude rgb(151,149,140) = #97958c = our --text-secondary exactly. */
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Trailing chevron-up-down — Claude colors it the same as name (primary). */
+.chevron {
+  flex-shrink: 0;
+  color: var(--text-primary);
+  margin-left: 8px;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+.trigger:hover .chevron { opacity: 1; }
+
+/* Popover anchored above the trigger. Gap below matches left/right
+   8px so the menu floats with even breathing room. */
+.menu {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  background: var(--bg-tertiary, var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover);
+  padding: 4px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+
+.item {
+  display: flex;
+  align-items: center;
+  /* Match `.conv-item` in the Recents list above so the menu's rows
+     are the same visual rhythm as the chat list: 32px row, 6px/8px
+     padding, 14px text, 12px gap, no oversized line-height. */
+  gap: 12px;
+  padding: 6px 8px;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  box-sizing: border-box;
+  line-height: 20px;
+  border-radius: var(--ui-list-radius);
+  font-size: 14px;
+  color: var(--text-primary);
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.item:hover { background: var(--bg-hover); color: var(--text-bright); }
+.item svg { color: var(--text-muted); flex-shrink: 0; }
+.item:hover svg { color: var(--text-primary); }
+
+.sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* Collapsed-sidebar rules live in app/styles/02-sidebar.css and
+   target stable companion classes (`user-menu-footer-*`) so the
+   legacy CSS can match them without going through CSS-module hashes. */

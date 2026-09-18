@@ -1,0 +1,561 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Every checkout publishes to the same default App and dependency directories.
+# Keep the lock in the parent until the complete build/install/restart finishes.
+if test "${OPENPROGRAM_REFRESH_LOCK_HELD:-}" != "1"; then
+  exec python3 - "$0" "$@" <<'PYLOCK'
+import fcntl, os, subprocess, sys, tempfile
+lock_path = os.path.join(tempfile.gettempdir(), f"openprogram-refresh-{os.getuid()}.lock")
+# Leave the calling worker session before taking the lock. Conversational
+# refresh stops that worker, and a child still in its process group is
+# killed with it (`Cancelled: worker_stopping`).
+if os.environ.get("OPENPROGRAM_REFRESH_DETACHED") != "1":
+    env = {**os.environ, "OPENPROGRAM_REFRESH_DETACHED": "1"}
+    log_path = os.path.join(tempfile.gettempdir(), f"openprogram-refresh-{os.getuid()}.log")
+    log = open(log_path, "ab", buffering=0)
+    child = subprocess.Popen(
+        ["bash", sys.argv[1], *sys.argv[2:]],
+        stdin=subprocess.DEVNULL,
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        env=env,
+        close_fds=True,
+    )
+    print(f"detached refresh pid {child.pid}; log {log_path}", flush=True)
+    # A chat-path refresh stops this worker. Waiting here would just
+    # get SIGTERM with the session. Return once the child owns the work.
+    if os.environ.get("OPENPROGRAM_SESSION_ID"):
+        raise SystemExit(0)
+    raise SystemExit(child.wait())
+with open(lock_path, "a") as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    result = subprocess.run(["bash", sys.argv[1], *sys.argv[2:]],
+                            env={**os.environ, "OPENPROGRAM_REFRESH_LOCK_HELD": "1"})
+    raise SystemExit(result.returncode)
+PYLOCK
+fi
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+gui_harness_default="$repo_root/openprogram/programs/packages/gui_harness"
+if [[ ! -d "$gui_harness_default" ]]; then
+  gui_harness_default="$repo_root/openprogram/programs/applications/gui_harness"
+fi
+gui_harness_repo="${OPENPROGRAM_GUI_HARNESS_REPO:-$gui_harness_default}"
+app_path="${OPENPROGRAM_APP_PATH:-/Applications/OpenProgram.app}"
+runtime_root="$app_path/Contents/Resources/runtime"
+manifest="$runtime_root/runtime-manifest.json"
+product_runtime_config="$repo_root/scripts/release/product-runtime.json"
+installed_product_runtime="$runtime_root/product-runtime.json"
+installed_asar="$app_path/Contents/Resources/app.asar"
+uv_bin="${OPENPROGRAM_UV_BIN:-$(command -v uv || true)}"
+
+# The default App is shared by every worktree. Refuse to replace it from a
+# checkout that predates the latest locally fetched main: otherwise an older
+# feature branch can silently restore already-fixed server or UI behavior.
+# A caller deliberately validating historical code must use a separate
+# OPENPROGRAM_APP_PATH, not replace the user's normal App.
+if test "$app_path" = "/Applications/OpenProgram.app"; then
+  for protected_ref in refs/heads/main refs/remotes/origin/main; do
+    if git -C "$repo_root" rev-parse --verify --quiet "$protected_ref" >/dev/null && \
+      ! git -C "$repo_root" merge-base --is-ancestor "$protected_ref" HEAD; then
+      printf '%s\n' "refusing to refresh the default App from a checkout behind $protected_ref" >&2
+      exit 1
+    fi
+  done
+fi
+
+if test -n "${OPENPROGRAM_LOCAL_PYTHON:-}"; then
+  local_python="$OPENPROGRAM_LOCAL_PYTHON"
+else
+  openprogram_bin="$(command -v openprogram || true)"
+  local_python=""
+  if test -n "$openprogram_bin"; then
+    local_python="$(sed -n '1s/^#!//p' "$openprogram_bin")"
+  fi
+  if test -z "$local_python"; then
+    local_python="$(command -v python3 || true)"
+  fi
+fi
+
+test -n "$uv_bin" && test -x "$uv_bin" || {
+  printf 'uv is required to refresh the local App\n' >&2
+  exit 1
+}
+test -n "$local_python" && test -x "$local_python" || {
+  printf 'the local OpenProgram Python executable was not found: %s\n' \
+    "$local_python" >&2
+  exit 1
+}
+test -f "$manifest" || {
+  printf 'the installed App runtime manifest was not found: %s\n' "$manifest" >&2
+  exit 1
+}
+test -f "$installed_asar" || {
+  printf 'the installed App archive was not found: %s\n' "$installed_asar" >&2
+  exit 1
+}
+
+# Reject foreign signatures and prepare the persistent local identity before
+# any installed-App mutation. Never replace a Developer ID distribution here.
+"$local_python" "$repo_root/scripts/release/local-macos-signing.py" prepare --app "$app_path"
+sync_gui_harness=0
+if test "$(git -C "$gui_harness_repo" rev-parse --is-inside-work-tree 2>/dev/null || :)" = true; then
+  sync_gui_harness=1
+fi
+
+"$local_python" "$repo_root/scripts/release/verify-release-version.py" \
+  --installed-app "$app_path" --require-source-match
+
+app_python_relative="$("$local_python" - "$manifest" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    print(json.load(stream)["python"])
+PY
+)"
+app_python="$runtime_root/$app_python_relative"
+case "$app_python" in
+  "$runtime_root"/*) ;;
+  *) printf 'the App Python path escapes its runtime: %s\n' "$app_python" >&2; exit 1 ;;
+esac
+test -x "$app_python" || {
+  printf 'the App Python executable was not found: %s\n' "$app_python" >&2
+  exit 1
+}
+
+remove_stale_package_tree() {
+  local python_executable="$1"
+  "$python_executable" -I \
+    "$repo_root/scripts/release/remove-stale-openprogram-packages.py" \
+    "$python_executable"
+}
+
+validate_stale_package_tree() {
+  local python_executable="$1"
+  "$python_executable" -I \
+    "$repo_root/scripts/release/remove-stale-openprogram-packages.py" \
+    "$python_executable" --check
+}
+
+hydrate_wheel_dependencies() {
+  local python_executable="$1"
+  "$python_executable" -I -m pip install --disable-pip-version-check \
+    --break-system-packages "$wheel"
+}
+
+wheel_dir="$(mktemp -d "${TMPDIR:-/tmp}/openprogram-local-wheel.XXXXXX")"
+install_lock_file="$(dirname -- "$app_path")/.openprogram-app-install.lock"
+install_lock_owned=0
+acquire_pid_lock() {
+  local path="$1"
+  if test -x /usr/bin/shlock; then
+    /usr/bin/shlock -p "$$" -f "$path"
+  else
+    (set -o noclobber; printf '%s\n' "$$" > "$path") 2>/dev/null
+  fi
+}
+release_install_lock() {
+  if test "$install_lock_owned" = 1 && \
+    test "$(sed -n '1p' "$install_lock_file" 2>/dev/null || :)" = "$$"; then
+    rm -f "$install_lock_file" || :
+  fi
+}
+cleanup() {
+  rm -rf "$wheel_dir"
+  release_install_lock
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+asar_cli="$repo_root/node_modules/@electron/asar/bin/asar.js"
+if ! test -f "$asar_cli"; then
+  (cd "$repo_root" && npm ci --ignore-scripts)
+fi
+test -f "$asar_cli" || {
+  printf 'the Electron asar tool was not installed: %s\n' "$asar_cli" >&2
+  exit 1
+}
+
+# Copy every relative file named in apps/desktop/package.json build.files.
+# Do not duplicate that list by hand — that is how window-lifecycle.js
+# was omitted from the packaged asar.
+desktop_files="$(
+  "$local_python" - "$repo_root/apps/desktop/package.json" <<'PY'
+import json
+import sys
+from pathlib import PurePosixPath
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    files = json.load(stream)["build"]["files"]
+for name in files:
+    if not isinstance(name, str) or not name:
+        raise SystemExit("build.files must contain relative file paths")
+    path = PurePosixPath(name)
+    if path.is_absolute() or ".." in path.parts or any(char in name for char in "*?[]!\\\n\r"):
+        raise SystemExit(f"unsupported desktop module path: {name!r}")
+    print(name)
+PY
+)"
+test -n "$desktop_files" || {
+  printf 'apps/desktop/package.json build.files listed no modules\n' >&2
+  exit 1
+}
+
+attempt=0
+while true; do
+  attempt=$((attempt + 1))
+  build_revision="$(git -C "$repo_root" rev-parse HEAD)"
+  gui_harness_revision=""
+  attempt_dir="$wheel_dir/attempt-$attempt"
+  mkdir -p "$attempt_dir"
+  product_runtime_stage="$attempt_dir/product-runtime.json"
+
+  gui_harness_stage="$attempt_dir/gui-harness"
+  if test "$sync_gui_harness" = 1; then
+    cp "$product_runtime_config" "$product_runtime_stage"
+    gui_harness_revision="$(git -C "$gui_harness_repo" rev-parse HEAD)"
+    gui_harness_pin="$("$local_python" - "$product_runtime_stage" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    print(json.load(stream)["programs"]["gui"]["commit"])
+PY
+)"
+    test "$gui_harness_revision" = "$gui_harness_pin" || {
+      printf 'GUI Harness checkout %s does not match product runtime pin %s\n' \
+        "$gui_harness_revision" "$gui_harness_pin" >&2
+      exit 1
+    }
+    gui_harness_archive="$attempt_dir/gui-harness.tar"
+    mkdir -p "$gui_harness_stage"
+    git -C "$gui_harness_repo" archive --format=tar \
+      --output="$gui_harness_archive" "$gui_harness_revision"
+    tar -C "$gui_harness_stage" -xf "$gui_harness_archive"
+    test -f "$gui_harness_stage/pyproject.toml" || {
+      printf 'the committed GUI Harness snapshot is incomplete\n' >&2
+      exit 1
+    }
+  fi
+
+  rm -rf "$repo_root/apps/desktop/dist"
+  "$repo_root/scripts/release/stage-release-assets.sh"
+  # Freeze the runtime assets with the wheel, including additions required by
+  # newer Desktop capability checks when refreshing an older installed App.
+  runtime_assets_stage="$attempt_dir/runtime-assets"
+  mkdir -p "$runtime_assets_stage"
+  cp "$repo_root/apps/cli/dist/index-standalone.cjs" "$runtime_assets_stage/index.cjs"
+  node_candidates=()
+  if test -n "${OPENPROGRAM_NODE_BIN:-}"; then
+    node_candidates+=("$OPENPROGRAM_NODE_BIN")
+  else
+    node_candidates+=("$runtime_root/bin/node")
+    path_node="$(command -v node || true)"
+    test -z "$path_node" || node_candidates+=("$path_node")
+  fi
+  relocated_node_ok=0
+  for node_candidate in "${node_candidates[@]}"; do
+    test -x "$node_candidate" || continue
+    cp "$node_candidate" "$runtime_assets_stage/node"
+    if "$runtime_assets_stage/node" "$runtime_assets_stage/index.cjs" --probe >/dev/null 2>&1; then
+      relocated_node_ok=1
+      break
+    fi
+  done
+  test "$relocated_node_ok" = 1 || {
+    printf 'bundled Node cannot run after relocation; set OPENPROGRAM_NODE_BIN to a standalone Node executable\n' >&2
+    exit 1
+  }
+  cp "$repo_root/uv.lock" "$runtime_assets_stage/product-uv.lock"
+  cp "$repo_root/scripts/release/verify-product-runtime.py" "$runtime_assets_stage/verify-product-runtime.py"
+  cp "$repo_root/scripts/release/build-macos-runtime-app.py" "$runtime_assets_stage/build-macos-runtime-app.py"
+  cp "$repo_root/scripts/release/mac-runtime-main.c" "$runtime_assets_stage/mac-runtime-main.c"
+  cp "$repo_root/apps/desktop/build/icon.icns" "$runtime_assets_stage/icon.icns"
+
+  cp "$product_runtime_config" "$runtime_assets_stage/product-runtime.json"
+  rm -rf "$repo_root/build"
+  "$uv_bin" build --wheel --out-dir "$attempt_dir" "$repo_root"
+  wheel="$(find "$attempt_dir" -maxdepth 1 -type f \
+    -name 'openprogram-*.whl' -print -quit)"
+  test -n "$wheel" || {
+    printf 'OpenProgram wheel was not built\n' >&2
+    exit 1
+  }
+  "$local_python" - "$wheel" <<'PY'
+import re
+import sys
+import zipfile
+
+wheel = sys.argv[1]
+with zipfile.ZipFile(wheel) as archive:
+    names = [name for name in archive.namelist() if name.endswith("_frontend/chat.html")]
+    if not names:
+        raise SystemExit(f"wheel is missing chat.html: {wheel}")
+    html = archive.read(names[0]).decode("utf-8")
+if 'aria-label="Authenticating"' in html:
+    raise SystemExit(f"wheel chat.html still ships Authenticating: {wheel}")
+start = html.lower().find("<body")
+body = html[start:] if start >= 0 else html
+match = re.search(r"<script[\s>]", body, flags=re.I)
+paint = body[: match.start()] if match else body
+if 'id="sidebar"' not in paint:
+    raise SystemExit(f"wheel chat.html first-paint lacks id=\"sidebar\": {wheel}")
+PY
+
+  desktop_stage="$attempt_dir/desktop"
+  desktop_asar="$attempt_dir/app.asar"
+  node "$asar_cli" extract "$installed_asar" "$desktop_stage"
+  "$local_python" "$repo_root/scripts/release/restore-asar-permissions.py" \
+    "$installed_asar" "$desktop_stage"
+  while IFS= read -r desktop_file; do
+    test -n "$desktop_file" || continue
+    source_file="$repo_root/apps/desktop/$desktop_file"
+    test -f "$source_file" || {
+      printf 'desktop module listed in build.files is missing: %s\n' \
+        "$desktop_file" >&2
+      exit 1
+    }
+    mkdir -p "$(dirname "$desktop_stage/$desktop_file")"
+    cp "$source_file" "$desktop_stage/$desktop_file"
+  done <<<"$desktop_files"
+  rm -f "$desktop_stage/browser-extension-manager.js" \
+    "$desktop_stage/self-update-ui-test-object.js"
+  for obsolete_extension_module in \
+    extract-zip debug ms get-stream pump end-of-stream once wrappy \
+    yauzl fd-slicer pend buffer-crc32; do
+    rm -rf "$desktop_stage/node_modules/$obsolete_extension_module"
+  done
+  node "$asar_cli" pack "$desktop_stage" "$desktop_asar" \
+    --unpack-dir node_modules/node-pty
+
+  gui_harness_head_changed=0
+  if test "$sync_gui_harness" = 1 && \
+    test "$(git -C "$gui_harness_repo" rev-parse HEAD)" != \
+      "$gui_harness_revision"; then
+    gui_harness_head_changed=1
+  fi
+  test "$(git -C "$repo_root" rev-parse HEAD)" = "$build_revision" && \
+    test "$gui_harness_head_changed" = 0 && break
+  printf 'HEAD changed during packaging; rebuilding the current checkout\n'
+done
+
+if ! acquire_pid_lock "$install_lock_file"; then
+  lock_pid="$(sed -n '1p' "$install_lock_file" 2>/dev/null || :)"
+  printf 'another OpenProgram App installation is running%s\n' \
+    "${lock_pid:+ (pid $lock_pid)}" >&2
+  exit 1
+fi
+install_lock_owned=1
+
+# Re-read all mutable version sources under the same lock as the canonical App
+# installer. The wheel is the immutable payload used by both pip operations.
+"$local_python" "$repo_root/scripts/release/verify-release-version.py" \
+  --installed-app "$app_path" --require-source-match --wheel "$wheel"
+
+# Freeze the installer with this build before stopping the App. A new runtime
+# must not snapshot an obsolete installer on its next conversational update.
+installer_stage="$attempt_dir/install-app.sh"
+test ! -L "$app_path/Contents/Resources/update" && \
+  test ! -L "$app_path/Contents/Resources/update/install-app.sh" || {
+  printf 'the installed update resources must not be symlinks\n' >&2
+  exit 1
+}
+cp "$repo_root/apps/desktop/scripts/install-app.sh" "$installer_stage"
+
+if pgrep -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1; then
+  osascript -e 'tell application id "ai.openprogram.desktop" to quit' >/dev/null 2>&1 || true
+  for _ in {1..50}; do
+    pgrep -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1 || break
+    sleep 0.2
+  done
+  if pgrep -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1; then
+    pkill -TERM -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)"
+    for _ in {1..50}; do
+      pgrep -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1 || break
+      sleep 0.2
+    done
+  fi
+  pgrep -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1 && {
+    printf 'OpenProgram did not quit before the refresh\n' >&2
+    exit 1
+  }
+fi
+"$local_python" -m openprogram worker stop >/dev/null 2>&1 || true
+
+# A wheel reinstall does not remove files left by an older package layout.
+# Validate both runtimes before deleting either, then remove only OpenProgram's
+# validated package directories before reinstalling.
+validate_stale_package_tree "$local_python"
+validate_stale_package_tree "$app_python"
+# The embedded runtime may predate a newly declared production dependency.
+# Ask pip to resolve the wheel once before replacing the same-version package;
+# the second no-deps install below still performs the exact source refresh.
+hydrate_wheel_dependencies "$app_python"
+hydrate_wheel_dependencies "$local_python"
+remove_stale_package_tree "$local_python"
+remove_stale_package_tree "$app_python"
+"$local_python" -m pip install --disable-pip-version-check \
+  --no-deps --force-reinstall "$wheel"
+"$app_python" -I -m pip install --disable-pip-version-check \
+  --break-system-packages --no-deps --force-reinstall "$wheel"
+if test "$sync_gui_harness" = 1; then
+  "$local_python" -m pip install --disable-pip-version-check \
+    --no-deps --force-reinstall "$gui_harness_stage"
+  "$app_python" -I -m pip install --disable-pip-version-check \
+    --break-system-packages --no-deps --force-reinstall "$gui_harness_stage"
+fi
+if test "$(uname -s)" = Darwin; then
+  "$app_python" -I -c \
+    'import AppKit, ApplicationServices, Quartz, ScreenCaptureKit'
+  if test "$sync_gui_harness" = 1; then
+    "$app_python" -I -c \
+      'from gui_harness.adapters.mac_window import window_support'
+  fi
+fi
+if test "$sync_gui_harness" = 1; then
+  cp "$product_runtime_stage" "$installed_product_runtime"
+else
+  cp "$runtime_assets_stage/product-runtime.json" "$installed_product_runtime"
+fi
+mkdir -p "$runtime_root/bin" "$runtime_root/assets/tui"
+# Office installations live in the user cache and are preserved across App refreshes.
+rm -rf "$runtime_root/assets/office"
+
+install -m 755 "$runtime_assets_stage/node" "$runtime_root/bin/node"
+cp "$runtime_assets_stage/index.cjs" "$runtime_root/assets/tui/index.cjs"
+cp "$runtime_assets_stage/product-uv.lock" "$runtime_root/product-uv.lock"
+cp "$runtime_assets_stage/verify-product-runtime.py" "$runtime_root/bin/verify-product-runtime.py"
+if test ! -e "$runtime_root/bin/python" && test ! -L "$runtime_root/bin/python"; then
+  ln -s "../$app_python_relative" "$runtime_root/bin/python"
+fi
+"$app_python" -I "$runtime_assets_stage/build-macos-runtime-app.py" \
+  "$runtime_root" --python "$app_python" --icon "$runtime_assets_stage/icon.icns"
+runtime_version="$("$app_python" -I -c 'from importlib.metadata import version; print(version("openprogram"))')"
+runtime_uv_version="$("$runtime_root/bin/uv" --version | awk '{print $2}')"
+# The verifier probes every capability before writing its manifest. Never
+# retain an old manifest or mark a newly required capability verified by fiat.
+"$app_python" -I "$runtime_root/bin/verify-product-runtime.py" "$runtime_root" \
+  --write --python-relative "$app_python_relative" \
+  --openprogram-version "$runtime_version" --uv-version "$runtime_uv_version"
+cp "$desktop_asar" "$installed_asar"
+if test -d "$desktop_asar.unpacked"; then
+  rsync -a --delete "$desktop_asar.unpacked/" \
+    "$app_path/Contents/Resources/app.asar.unpacked/"
+fi
+mkdir -p "$app_path/Contents/Resources/update"
+cp "$installer_stage" "$app_path/Contents/Resources/update/install-app.sh"
+node "$repo_root/apps/desktop/scripts/write-reopen-protocol.cjs" \
+  --resources "$app_path/Contents/Resources"
+
+revision="$build_revision"
+if test -n "$(git -C "$repo_root" status --porcelain --untracked-files=no)"; then
+  revision="$revision-dirty"
+fi
+printf '%s\n' "$revision" > \
+  "$app_path/Contents/Resources/openprogram-source-revision"
+
+# Repair only invalid nested Framework/App bundles, deepest paths first.
+# Do not recurse into valid code or touch the separately signed runtime helper.
+while IFS= read -r -d '' inner_bundle; do
+  if ! codesign --verify --strict "$inner_bundle" >/dev/null 2>&1; then
+    inner_signature="$(codesign --display --verbose=4 "$inner_bundle" 2>&1 || true)"
+    if grep -Eq '^Authority=' <<<"$inner_signature"; then
+      printf '%s\n' "refusing to replace a non-ad-hoc nested signature: $inner_bundle" >&2
+      exit 1
+    fi
+    printf 'repairing invalid nested signature: %s\n' "$inner_bundle" >&2
+    codesign --force --sign - --timestamp=none \
+      --preserve-metadata=entitlements,requirements,flags "$inner_bundle"
+    codesign --verify --strict "$inner_bundle"
+  fi
+done < <(find "$app_path/Contents/Frameworks" -depth -type d \
+  \( -name '*.framework' -o -name '*.app' \) -print0)
+
+# Resource/source-marker writes happen after packaging. Reuse the same local
+# certificate for the managed runtime and its TCC-responsible containing App.
+"$local_python" "$repo_root/scripts/release/local-macos-signing.py" sign --app "$app_path"
+codesign --verify --strict "$app_path"
+codesign --verify --strict \
+  "$runtime_root/OpenProgram.app"
+codesign --verify --deep --strict "$app_path"
+
+# A KeepAlive launchd service can restart the worker while the wheel is still
+# being replaced. Stop that interim process after installation so the next
+# worker necessarily imports the refreshed runtime.
+# Rebind an existing launchd service to the same embedded interpreter used by
+# the App. A detached fallback must use it too, never the PATH installation.
+# Bind this source catalog once; individual Programs retain relative identities.
+"$app_python" -I -B - "$repo_root/openprogram/programs" <<'PYTHON'
+import sys
+from openprogram.programs._programs import bind_program_catalog, migrate_program_source_paths
+
+bind_program_catalog(sys.argv[1], preserve_existing=True)
+migrate_program_source_paths()
+PYTHON
+
+if test -f "$HOME/Library/LaunchAgents/ai.openprogram.worker.plist"; then
+  "$app_python" -I -B -m openprogram worker install
+else
+  "$app_python" -I -B -m openprogram worker stop >/dev/null 2>&1
+fi
+
+for _ in {1..50}; do
+  curl -fsS http://127.0.0.1:18100/healthz >/dev/null 2>&1 && break
+  "$app_python" -I -B -m openprogram worker start >/dev/null 2>&1 || true
+  sleep 0.2
+done
+curl -fsS http://127.0.0.1:18100/healthz >/dev/null
+# A healthy endpoint or matching package revision cannot prove which Python
+# won startup. Verify the actual owner process before declaring refresh done.
+"$app_python" -I -B - "$app_python" <<'PYTHON'
+import subprocess
+import sys
+from pathlib import Path
+from openprogram.worker.lifecycle import current_worker_pid, worker_executable
+
+pid = current_worker_pid()
+if pid is None:
+    raise SystemExit("refreshed worker has no live owner")
+command = subprocess.check_output(
+    ["ps", "-p", str(pid), "-o", "command="], text=True,
+).strip()
+executable = subprocess.check_output(
+    ["ps", "-p", str(pid), "-o", "comm="], text=True,
+).strip()
+if (
+    Path(executable).resolve() != Path(worker_executable()).resolve()
+    or not command.endswith(" -I -B -u -m openprogram worker run")
+):
+    raise SystemExit(f"refreshed worker {pid} does not use the embedded App interpreter")
+print(f"verified embedded App worker PID {pid}")
+PYTHON
+# Quit happens earlier so the asar/runtime can be replaced. Always reopen the
+# App afterwards and wait until Launch Services actually has a process —
+# `open` returning is not enough, and a cancelled refresh previously left the
+# App closed.
+if test "${OPENPROGRAM_REFRESH_BACKGROUND:-0}" = 1; then
+  open -g -a "$app_path"
+else
+  open -a "$app_path"
+fi
+app_running=0
+for _ in {1..50}; do
+  if pgrep -f "^${app_path}/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1; then
+    app_running=1
+    break
+  fi
+  sleep 0.2
+done
+if test "$app_running" != 1; then
+  printf 'OpenProgram did not reopen after the refresh\n' >&2
+  exit 1
+fi
+
+cleanup
+trap - EXIT HUP INT TERM
+printf 'refreshed %s from %s\n' "$app_path" "$revision"

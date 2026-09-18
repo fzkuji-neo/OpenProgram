@@ -1,0 +1,123 @@
+/* Context-commit timeline — Context tab.
+
+   Expanded popout panel adopts the slash-command-palette aesthetic
+   (mirrors composer.module.css .slashMenu): rounded popout card
+   with the items as block rows that hover-highlight, mono label on
+   top, muted description below. The slash menu rolls UP out of the
+   composer; this one rolls DOWN out of the commit meta row, so
+   the radius lives on the bottom corners and the open animation
+   slides from above. */
+
+/* Popout is a floating rounded card sitting below the active
+   context-commit row. Narrower than the row (horizontal margin) and
+   separated by a small vertical gap, so the commit row stays the
+   structural element and the popout reads as a detail flyout —
+   same vocabulary as the composer's slash-command menu (image
+   reference from the user).
+
+   .popoutClip clips the rolling animation so the popout slides
+   out from above; the visible card is .popout. */
+/* The grid-template-rows 0fr↔1fr trick animates auto-sized height
+   smoothly. While the wrapper's height transitions, anything below
+   (next commit row, etc.) is naturally pushed down — no jump. The
+   transition runs in both directions, so collapse also slides up. */
+.popoutWrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin: 0 8px;
+  transition: grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1),
+              margin-bottom 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.popoutWrap.open {
+  grid-template-rows: 1fr;
+  margin-bottom: 8px;
+}
+.popoutClip {
+  overflow: hidden;
+  min-height: 0;
+  border-radius: 0 0 14px 14px;
+}
+.popout {
+  background: var(--bg-tertiary);
+  border-radius: 0 0 14px 14px;
+  padding: 8px;
+}
+
+@keyframes popoutOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+.item {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+.item:hover {
+  background: var(--bg-hover);
+}
+.itemOpen {
+  background: var(--bg-hover);
+}
+
+.itemHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.itemLabel {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  color: var(--text-bright);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.itemPreview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.itemTokens {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.itemBody {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+.itemChips {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.itemText {
+  color: var(--text-bright);
+  line-height: 1.45;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.empty {
+  padding: 10px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}

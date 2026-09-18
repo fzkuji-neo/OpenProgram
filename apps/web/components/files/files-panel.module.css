@@ -1,0 +1,676 @@
+/* File tree (right sidebar) + file viewer (center file tab) styles.
+   Same token vocabulary as skills-page.module.css: var(--border),
+   var(--bg-*), var(--text-*). The v1 files-panel shell is gone; the
+   tab strip / toolbar styles live in center-tabs.module.css. */
+
+.viewerScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px;
+}
+
+.viewerHint {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 24px;
+  text-align: center;
+}
+
+/* ---- Text / code rendering --------------------------------------- */
+
+.code {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.codeLine {
+  display: flex;
+  white-space: pre;
+}
+.codeLine:hover { background: var(--bg-hover); }
+
+.lineNo {
+  flex-shrink: 0;
+  width: 42px;
+  padding-right: 12px;
+  text-align: right;
+  color: var(--text-dim);
+  opacity: 0.6;
+  user-select: none;
+}
+
+.lineText {
+  white-space: pre;
+}
+
+.mdBody {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.truncatedNote {
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--accent-yellow);
+}
+
+.binaryCard {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.binaryName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+  word-break: break-all;
+}
+
+.binaryMeta {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.downloadLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent-orange);
+  text-decoration: none;
+}
+.downloadLink:hover { text-decoration: underline; }
+
+/* ---- PDF (browser built-in viewer in an iframe) -------------------- */
+
+.pdfFrame {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  background: var(--bg-primary);
+}
+
+/* ---- Editor (default text body of a file tab, see FileTabPane) -----
+   Gutter and textarea MUST share font/size/line-height/top-padding so
+   line numbers stay pixel-aligned with their lines; the gutter scrolls
+   by mirroring the textarea's scrollTop. */
+
+.editorWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.editorGutter {
+  flex-shrink: 0;
+  width: 54px;
+  box-sizing: border-box;
+  overflow: hidden;
+  /* Extra bottom padding: the textarea's horizontal scrollbar adds to
+     its max scrollTop; without this slack the gutter clamps early and
+     drifts on the last lines. */
+  padding: 12px 12px 40px 0;
+  text-align: right;
+  white-space: pre;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  opacity: 0.6;
+  user-select: none;
+}
+
+.editorTextarea {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 12px 14px 12px 12px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+
+.editSaveBtn {
+  flex-shrink: 0;
+  padding: 3px 12px;
+  font-size: 12px;
+  border: 1px solid var(--accent-orange);
+  border-radius: 6px;
+  background: var(--accent-orange);
+  color: var(--bg-primary);
+  cursor: pointer;
+}
+.editSaveBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.editCancelBtn {
+  flex-shrink: 0;
+  padding: 3px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.editCancelBtn:hover {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+
+.conflictNote {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--accent-yellow);
+  border-bottom: 1px solid var(--border);
+}
+
+.conflictReload {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-tertiary);
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.conflictReload:hover { background: var(--bg-hover); }
+
+/* ---- File tree (fills the right sidebar) --------------------------- */
+
+.treeCol {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+}
+
+.treeHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 6px 8px;
+  min-height: 48px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.treeCol > .treeHeader { border-bottom: 0; }
+
+.treeRootPath {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 36px;
+  letter-spacing: 0;
+}
+.treeRootLabel {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  overflow: hidden;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+.treeRootLabel:focus-visible {
+  color: var(--text-bright);
+  outline: 1px solid color-mix(in srgb, var(--accent-blue) 60%, transparent);
+  outline-offset: 2px;
+}
+.treeRootFullPath {
+  display: none;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 450;
+  line-height: 1.35;
+  user-select: text;
+}
+.treeRootCopy {
+  display: none;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ui-list-radius);
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+.treeRootCopy:hover:not(:disabled) {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+.treeRootCopy:disabled { opacity: .45; cursor: default; }
+.treeRootCopy svg { width: 15px; height: 15px; }
+.treeToolbarExpanded {
+  height: 52px;
+}
+.treeToolbarExpanded .treeRootPath {
+  height: 52px;
+  gap: 8px;
+}
+.treeToolbarExpanded .treeRootLabel,
+.treeToolbarExpanded .treeToolbarActions {
+  display: none;
+}
+.treeToolbarExpanded .treeRootFullPath,
+.treeToolbarExpanded .treeRootCopy {
+  display: grid;
+}
+.treeRootIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.treeToolbar {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: height 160ms ease;
+}
+
+.treeToolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.treeToolbarActionsOnly {
+  margin-left: auto;
+}
+
+.treeSearchPanel {
+  width: 100%;
+  min-width: 0;
+  height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: height 180ms ease, margin-top 180ms ease, opacity 120ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+.treeSearchPanelOpen {
+  height: 64px;
+  margin-top: 4px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.treeSearchRow {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: var(--ui-button-h);
+  display: flex;
+  align-items: center;
+}
+.treeSearchLeading {
+  position: absolute;
+  left: 9px;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+.treeSearchInput {
+  width: 100%;
+  height: var(--ui-button-h);
+  padding: 0 128px 0 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-button-radius);
+  outline: none;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  font-size: 13px;
+}
+.treeSearchInput:focus {
+  border-color: color-mix(in srgb, var(--accent-blue) 65%, var(--border));
+}
+.treeSearchInput::placeholder { color: var(--text-dim); }
+.treeSearchActions {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.treeSearchCount {
+  min-width: 38px;
+  padding: 0 3px;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.treeSearchAction {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ui-list-radius);
+  color: var(--text-dim);
+  background: transparent;
+  cursor: pointer;
+}
+.treeSearchAction:hover:not(:disabled) {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+.treeSearchAction:disabled { opacity: .32; cursor: default; }
+.treeSearchAction svg { width: 13px; height: 13px; }
+.treeSearchOptions {
+  height: 28px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.treeSearchMode {
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-list-radius);
+  background: color-mix(in srgb, var(--bg-input) 76%, transparent);
+}
+.treeSearchOption {
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--ui-list-radius);
+  color: var(--text-dim);
+  background: transparent;
+  font-size: 11px;
+  cursor: pointer;
+}
+.treeSearchOption:hover { color: var(--text-primary); }
+.treeSearchOption[aria-pressed="true"] {
+  color: var(--text-bright);
+  background: var(--bg-tertiary);
+}
+.treeSearchOption svg { width: 12px; height: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .treeSearchPanel,
+  .treeToolbar { transition-duration: .01ms; }
+}
+
+
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: var(--ui-list-radius);
+  cursor: pointer;
+}
+.iconBtn svg { width: 15px; height: 15px; }
+.iconBtn:hover {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+.iconBtnActive {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+.iconBtn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.treeBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* No horizontal inset: rows span edge to edge (VS Code explorer). */
+  padding: 0;
+  scrollbar-width: thin;
+}
+
+/* Compact two-column tree row: the folder glyph is also the disclosure
+   control, so there is no separate arrow column. */
+.treeNode {
+  position: relative;
+}
+
+.treeRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 17px minmax(0, 1fr);
+  align-items: center;
+  height: 30px;
+  padding: 0 8px 0 0; /* nested depth is added inline */
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.treeRow:hover {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+.treeRowActive {
+  color: var(--text-bright);
+  background: var(--bg-tertiary);
+  box-shadow: inset 2px 0 0 var(--accent-orange);
+}
+.treeRowDim { opacity: 0.45; }
+
+/* Row selected via click / right-click (targets the header's New
+   File/Folder buttons) — bg only, no accent bar (that marks the
+   active file tab). */
+.treeRowSelected {
+  color: var(--text-bright);
+  background: var(--bg-tertiary);
+}
+
+/* One-shot flash after "reveal in file tree" scrolls a row into view. */
+.treeRowFlash {
+  animation: treeRowFlash 1.2s ease-out;
+}
+@keyframes treeRowFlash {
+  0%, 45% { background: color-mix(in srgb, var(--accent-orange) 22%, transparent); }
+  100% { background: var(--bg-tertiary); }
+}
+
+/* Inline create/rename editor sitting in a 22px row. */
+.treeInput {
+  width: auto;
+  min-width: 0;
+  margin-left: 12px;
+  height: 18px;
+  padding: 0 3px;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-input);
+  border: 1px solid var(--accent-orange);
+  border-radius: var(--ui-list-radius);
+  outline: none;
+}
+
+.treeIcon {
+  justify-self: center;
+  color: var(--text-dim);
+}
+
+/* Folders get the editor-conventional warm tint (filled) so directory
+   structure reads at a glance against the mono file glyphs. */
+.treeIconFolder {
+  justify-self: center;
+  color: var(--accent-yellow);
+  fill: color-mix(in srgb, var(--accent-yellow) 30%, transparent);
+}
+
+/* Command-line tree structure. Each direct child owns one vertical
+   segment on its parent's icon axis. The last child stops that segment
+   at its row midpoint; the short horizontal stroke meets the child
+   glyph without adding another disclosure control. */
+.treeKids {
+  position: relative;
+}
+.treeKids > .treeNode::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: var(--guide-x);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--text-muted) 60%, transparent);
+  pointer-events: none;
+}
+.treeKids > .treeNode:last-child::before {
+  bottom: auto;
+  height: 15px;
+}
+.treeKids > .treeNode > .treeRow::before {
+  content: "";
+  position: absolute;
+  left: var(--guide-x);
+  top: 50%;
+  width: 20px;
+  height: 1px;
+  background: color-mix(in srgb, var(--text-muted) 60%, transparent);
+  pointer-events: none;
+}
+
+.treeName,
+.treePath {
+  min-width: 0;
+  margin-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.treePath { font-size: 12px; }
+
+.treeNameMatch {
+  border-radius: 2px;
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--accent-yellow) 22%, transparent);
+}
+
+.treeNameMatchCurrent {
+  background: color-mix(in srgb, var(--accent-orange) 28%, transparent);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--accent-orange) 78%, transparent);
+}
+
+.treeHint {
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Files retains the shared Explorer controls, with a separate path row. */
+.filePathRow { display: flex; align-items: center; min-width: 0; min-height: 30px; gap: 4px; }
+.fileBreadcrumb { position: relative; display: flex; align-items: center; min-width: 0; flex: 1; gap: 0; overflow: hidden; font-size: 14px; color: var(--text-dim); }
+.fileBreadcrumb button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 32px; padding: 6px 8px; background: transparent; border: 0; border-radius: var(--ui-list-radius); cursor: pointer; }
+.fileBreadcrumb > button { flex: 0 0 auto; max-width: 40%; }
+.fileBreadcrumb button:hover, .fileCrumbMenu button:hover { background: var(--bg-hover); }
+.fileBreadcrumb svg { width: 12px; height: 12px; margin-inline: -4px; flex-shrink: 0; pointer-events: none; }
+.fileCrumbPart { display: flex; align-items: center; gap: 0; min-width: 0; flex-shrink: 0; }
+.fileCrumbPart:last-child { color: var(--text-primary); flex: 0 1 auto; }
+.fileCrumbMenu { width: max-content; min-width: 140px; max-width: min(300px, calc(100vw - 24px)); }
+.fileCrumbMenu button { width: 100%; text-align: left; padding: 6px 10px; overflow-wrap: anywhere; }
+.fileCrumbMenu button:focus-visible { outline: none; background: var(--bg-hover); color: var(--text-bright); }
+
+.treeRowWithSize { grid-template-columns: 17px minmax(0, 1fr) auto; }
+.folderSize { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text-dim); padding-left: 8px; white-space: nowrap; }
+.fileDetails { background: var(--bg-primary); color: var(--text-primary); width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 40px); overflow-y: auto; border-radius: 12px; }
+.fileDetails dl { display: grid; gap: 10px; font-size: 12px; }
+.fileDetails dl > div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; }
+.fileDetails dt { color: var(--text-dim); }
+.fileDetails dd { overflow-wrap: anywhere; }
+.folderSizeDetails { display: grid; gap: 6px; font-size: 12px; }
+.fileDetailActions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.fileDetailActions button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 10px; border-radius: 6px; background: var(--bg-hover); }
+.fileDetailActions button:disabled { opacity: .45; }
+.treeWithDetails { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: auto minmax(0, 1fr); }
+.treeWithDetails > .treeHeader { grid-column: 1; grid-row: 1; }
+.treeWithDetails > .treeBody { grid-column: 1; grid-row: 2; }
+.fileDetailsInline { grid-column: 2; grid-row: 1 / 3; border-left: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; color: var(--text-primary); }
+.fileDetailsInline dl { display: grid; gap: 12px; font-size: 12px; }
+.fileDetailsInline dt { color: var(--text-dim); margin-bottom: 3px; }
+.fileDetailsInline dd { overflow-wrap: anywhere; }
+.fileDetailHeading { display: flex; align-items: center; justify-content: space-between; }
+
+.fileBreadcrumbMeasure { position: absolute; visibility: hidden; pointer-events: none; display: flex; width: max-content; height: 0; overflow: hidden; }
+.fileBreadcrumbMeasure > span { display: inline-block; flex: none; padding: 6px 8px; white-space: nowrap; }
+
+.folderSizeScanning { color: var(--text-tertiary); animation: folder-size-pulse 1.8s ease-in-out infinite; }
+@keyframes folder-size-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .folderSizeScanning { animation: none; } }
