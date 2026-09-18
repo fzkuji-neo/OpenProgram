@@ -344,12 +344,12 @@ class NativeRasterEditor {
 
   startCrop(): void {
     this.setMode("crop");
-    this.cropRect = { left: 0, top: 0, width: this.canvas.width, height: this.canvas.height };
+    this.cropRect = null;
     this.drawCropOverlay();
   }
 
-  getCropRect(): Crop {
-    return this.cropRect ?? { left: 0, top: 0, width: this.canvas.width, height: this.canvas.height };
+  getCropRect(): Crop | null {
+    return this.cropRect;
   }
 
   async crop(value: Crop): Promise<void> {
@@ -591,6 +591,7 @@ export async function createBoundRasterEditor(options: {
     rotate: () => run(() => editor.rotate()),
     crop: (value) => run(async () => {
       const current = editor.getCropRect();
+      if (!current) throw new Error("Select a crop area before applying crop.");
       if (![value.left, value.top, value.width, value.height].every(Number.isFinite) || value.left < 0 || value.top < 0 || value.width < 1 || value.height < 1 || value.left + value.width > current.left + current.width || value.top + value.height > current.top + current.height)
         throw new Error("The crop must be inside the current image.");
       await editor.crop(value);
@@ -609,7 +610,11 @@ export async function createBoundRasterEditor(options: {
       editor.startCrop();
       return Promise.resolve();
     },
-    applyCrop: () => instance.crop({ ...editor.getCropRect() }),
+    applyCrop: () => {
+      const value = editor.getCropRect();
+      if (!value) return Promise.reject(new Error("Select a crop area before applying crop."));
+      return instance.crop({ ...value });
+    },
     cancelTool: () => {
       if (readonly || !enabled || destroyed) return Promise.reject(new Error("Raster editor is read-only."));
       editor.cancelTool();

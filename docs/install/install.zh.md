@@ -121,7 +121,7 @@ Windows 开发 installer 会创建隔离的 `.venv`，按 npm lockfile 安装 fr
 workspaces，构建浏览器 UI 与完整 Ink 终端 UI，并安装可选的 Browser 和 Channel 依赖。它还会创建
 `%LOCALAPPDATA%\OpenProgram\bin` 下的 `openprogram.cmd` 与 `openprogram.ps1`，并把该目录加入用户 `PATH`，
 因此新的 PowerShell 无需激活 checkout 环境就能运行 `openprogram`。经过验证的
-版本是 Node.js 22 LTS。`-Minimal` 只安装 Python CLI/server，不安装或构建 frontend
+要求 Node.js 22.12 或更高版本；经过验证的主版本是 Node.js 22 LTS。`-Minimal` 只安装 Python CLI/server，不安装或构建 frontend
 依赖。
 
 该开发 installer 安装 editable CLI/server source 与浏览器 UI。Windows Desktop
