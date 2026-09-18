@@ -27,6 +27,7 @@ import {
 } from "@/lib/execution-stream";
 import { fetchFullToolOutput } from "@/lib/net/tool-output";
 import { getSocket } from "@/lib/runtime-bridge/state";
+import { LlmNodeContent } from "./llm-node-content";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import {
   BotIcon,
@@ -551,6 +552,14 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
   if (isLlm && !out && !running && !isError) {
     noteParts.push(text("No text output", "无文本输出"));
   }
+  const contentBody = isLlm ? (
+    <LlmNodeContent
+      nodeId={node.path}
+      treeRoot={node}
+      fallbackText={out || null}
+      fallbackThinking={reasoning || null}
+    />
+  ) : undefined;
   return (
     <StepRow
       icon={isLlm ? "llm" : "function"}
@@ -559,11 +568,12 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
       error={isError}
       running={running}
       actions={actions}
-      copyText={JSON.stringify(
+      copyText={isLlm ? (out || "") : JSON.stringify(
         { name: node.name, params: node.params, output: node.output ?? node.raw_reply, error: node.error },
         null, 2)}
       detail={detail}
-      subSteps={kids.length > 0
+      inlineBody={contentBody}
+      subSteps={!isLlm && kids.length > 0
         ? kids.map((c, i) => (
             <TreeStep key={c.path || i} node={c} />
           ))

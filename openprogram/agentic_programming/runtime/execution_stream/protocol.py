@@ -7,7 +7,7 @@ SCHEMA_VERSION: Final[int] = 1
 PROTOCOL_NAME: Final[str] = "execution_stream.v1"
 
 # Visible block kinds (design §4). Opaque signatures never use these.
-BlockKind = str  # text | reasoning_summary | tool_arguments | refusal | unsupported
+BlockKind = str  # text | reasoning_summary | tool_ref | tool_arguments | parallel_group | refusal | unsupported
 
 STREAM_OPS: Final[frozenset[str]] = frozenset(
     {

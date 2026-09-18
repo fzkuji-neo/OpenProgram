@@ -143,14 +143,25 @@ def project_provider_event(state: CallStreamState, event: dict[str, Any]) -> Non
             )
             state.finish_block(kind="refusal", finish_reason="refusal")
         elif etype == "tool_use":
-            # Tool argument streaming belongs on the tool node; record a
-            # bounded descriptor on the LLM attempt for timeline only.
-            args = event.get("input")
-            text = args if isinstance(args, str) else ""
+            # Ordered timeline: tool_ref points at the DAG tool node.
+            # Args/results stay on that node — do not duplicate here.
+            state.add_tool_ref(
+                tool_call_id=str(event.get("tool_call_id") or ""),
+                tool_name=str(event.get("tool") or event.get("tool_name") or ""),
+                ref_node_id=str(event.get("node_id") or event.get("ref_node_id") or ""),
+                group_id=str(event.get("group_id") or ""),
+                status="running",
+            )
+        elif etype == "tool_result":
+            state.finish_tool_ref(
+                str(event.get("tool_call_id") or ""),
+                ref_node_id=str(event.get("node_id") or event.get("ref_node_id") or ""),
+            )
+        # tool args streaming (optional preview) — still allowed but not required
+        elif etype == "tool_arguments":
+            text = event.get("input") if isinstance(event.get("input"), str) else str(event.get("text") or "")
             if text:
                 state.append_delta(kind="tool_arguments", delta=text)
-                state.finish_block(kind="tool_arguments", finish_reason="tool_use")
-        # tool_result: design — tool results stay on tool nodes, not LLM text.
     except Exception:
         _log.debug("project_provider_event failed", exc_info=True)
 

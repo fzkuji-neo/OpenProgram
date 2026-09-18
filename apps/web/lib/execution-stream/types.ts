@@ -15,7 +15,9 @@ export type StreamOp =
 export type BlockKind =
   | "text"
   | "reasoning_summary"
+  | "tool_ref"
   | "tool_arguments"
+  | "parallel_group"
   | "refusal"
   | "unsupported";
 
@@ -45,6 +47,12 @@ export interface StreamBlock {
   finish_reason?: string;
   omitted_by_policy?: boolean;
   truncated?: boolean;
+  /** tool_ref: stable tool call id */
+  tool_call_id?: string;
+  /** tool_ref: DAG tool node path/id */
+  ref_node_id?: string;
+  tool_name?: string;
+  group_id?: string | null;
 }
 
 export interface StreamAttempt {
@@ -103,6 +111,10 @@ export interface ExecutionStreamEvent {
   block_id?: string;
   block_index?: number;
   kind?: string;
+  tool_call_id?: string;
+  ref_node_id?: string;
+  tool_name?: string;
+  group_id?: string | null;
   visibility?: string;
   retention?: string;
   delta?: string;

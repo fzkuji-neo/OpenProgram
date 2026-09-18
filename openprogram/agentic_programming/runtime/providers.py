@@ -571,17 +571,17 @@ class ProvidersOperations:
                             block["result"] = result_str
                             block["is_error"] = is_error
                             block["elapsed_end"] = _elapsed()
+                        result_ev = {
+                            "type": "tool_result",
+                            "tool_call_id": call_id,
+                            "tool": getattr(ev, "tool_name", "?") or "?",
+                            "result": result_str,
+                            "is_error": is_error,
+                            "elapsed": _elapsed(),
+                        }
+                        _project(result_ev)
                         if cb:
-                            cb(
-                                {
-                                    "type": "tool_result",
-                                    "tool_call_id": call_id,
-                                    "tool": getattr(ev, "tool_name", "?") or "?",
-                                    "result": result_str,
-                                    "is_error": is_error,
-                                    "elapsed": _elapsed(),
-                                }
-                            )
+                            cb(result_ev)
                 except Exception:
                     pass
 

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { renderMarkdown, useMarkdownReady } from "../chat/messages/markdown";
+import { LlmNodeContent } from "../chat/messages/llm-node-content";
 
 export const VIEW_DETAIL = "detail";
 export const VIEW_CONTEXT = "context";
@@ -160,7 +161,9 @@ export function DetailPanel() {
             : null
         }
       />
-      <DetailBlock title="Output" value={node.output ?? null} />
+      {node.node_type !== "exec" ? (
+        <DetailBlock title="Output" value={node.output ?? null} />
+      ) : null}
       <DetailBlock title="Error" value={node.error || null} danger />
 
       {node.node_type === "exec" ? (
@@ -173,16 +176,16 @@ export function DetailPanel() {
                 : null
             }
           />
-          <DetailBlock title="LLM Reply" value={node.raw_reply ?? null} />
-          {/* Visible reasoning_summary only; opaque signatures never land here. */}
-          <DetailBlock
-            title="Reasoning"
-            value={node.thinking ?? null}
-          />
+          <div className="detail-section">
+            <div className="detail-section-title">Content</div>
+            <LlmNodeContent
+              nodeId={node.path}
+              fallbackText={node.raw_reply ?? (typeof node.output === "string" ? node.output : null)}
+              fallbackThinking={node.thinking ?? null}
+            />
+          </div>
         </>
-      ) : (
-        <DetailBlock title="Raw LLM Reply" value={node.raw_reply ?? null} />
-      )}
+      ) : null}
 
       <DetailBlock
         title={`Attempts (${node.attempts?.length || 0})`}
