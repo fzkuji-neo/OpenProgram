@@ -108,12 +108,16 @@ def register(app):
         if settings:
             from openprogram.memory.retrieval.embedding_model import (
                 default_model_is_cached,
+                platform_unavailable_reason,
             )
 
             root = store.root()
             return JSONResponse(content={
                 "workspace_path": str(root.resolve()),
-                "embedding_available": default_model_is_cached(),
+                "embedding_available": (
+                    platform_unavailable_reason() is None
+                    and default_model_is_cached()
+                ),
             })
 
         from openprogram.memory.retrieval import inspect
@@ -130,7 +134,15 @@ def register(app):
         from openprogram.memory.retrieval.embedding_model import (
             default_model_is_cached,
             install_default_model,
+            platform_unavailable_reason,
         )
+
+        reason = platform_unavailable_reason()
+        if reason is not None:
+            return JSONResponse(content={
+                "embedding_available": False,
+                "error": reason,
+            }, status_code=502)
 
         def install_and_verify() -> bool:
             install_default_model()

@@ -159,8 +159,13 @@ def status(
 
 def embedding_is_available() -> bool:
     try:
-        from .embedding_model import default_model_is_cached
+        from .embedding_model import (
+            default_model_is_cached,
+            platform_unavailable_reason,
+        )
     except Exception:
+        return False
+    if platform_unavailable_reason() is not None:
         return False
     return default_model_is_cached()
 

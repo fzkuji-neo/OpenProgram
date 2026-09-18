@@ -84,6 +84,33 @@ def test_settings_route_rejects_unavailable_embedding_method(monkeypatch):
     assert saved == [("validate", True)]
 
 
+def test_settings_route_reports_intel_macos_embedding_limitation(monkeypatch):
+    import platform
+    import sys
+
+    from openprogram.webui.routes.settings.config import register
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(
+        "openprogram.setup.update_config",
+        lambda _mutator: (_ for _ in ()).throw(
+            AssertionError("an unavailable embedding method must not persist")
+        ),
+    )
+    app = FastAPI()
+    register(app)
+
+    response = TestClient(app).post(
+        "/api/settings",
+        json={"key": "memory.retrieval.method", "value": "hybrid"},
+    )
+
+    assert response.status_code == 400
+    assert "Intel macOS" in response.json()["error"]
+    assert "use BM25" in response.json()["error"]
+
+
 def test_settings_route_accepts_agent_recall_without_embedding(monkeypatch):
     from openprogram.webui.routes.settings.config import register
 

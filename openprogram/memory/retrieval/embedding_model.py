@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import platform
+import sys
 from pathlib import Path
 
 
@@ -19,6 +21,19 @@ MODEL_FILES = (
     "vocab.txt",
 )
 
+_INTEL_MACOS_UNAVAILABLE = (
+    "semantic memory embeddings are unavailable on Intel macOS because no "
+    "patched PyPI torch wheel is available; use BM25 on Intel macOS or run "
+    "embeddings on macOS arm64/Linux"
+)
+
+
+def platform_unavailable_reason() -> str | None:
+    """Return the embedding platform limitation, or ``None`` if supported."""
+    if sys.platform == "darwin" and platform.machine() == "x86_64":
+        return _INTEL_MACOS_UNAVAILABLE
+    return None
+
 
 def _snapshot_is_complete(snapshot: str | Path) -> bool:
     root = Path(snapshot)
@@ -30,6 +45,8 @@ def _snapshot_is_complete(snapshot: str | Path) -> bool:
 
 def default_model_is_cached() -> bool:
     """Whether every required file exists without loading model code."""
+    if platform_unavailable_reason() is not None:
+        return False
     try:
         from huggingface_hub import snapshot_download
 
@@ -45,6 +62,9 @@ def default_model_is_cached() -> bool:
 
 def install_default_model() -> None:
     """Download and verify the fixed encoder snapshot."""
+    reason = platform_unavailable_reason()
+    if reason is not None:
+        raise RuntimeError(reason)
     from huggingface_hub import snapshot_download
 
     snapshot = snapshot_download(MODEL_ID, allow_patterns=MODEL_FILES)
