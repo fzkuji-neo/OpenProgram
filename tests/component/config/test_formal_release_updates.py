@@ -171,8 +171,8 @@ def test_automatic_update_design_is_one_accessible_review_page():
         'data-update-state="available"',
         'data-update-state="error"',
         'prefers-reduced-motion',
-        'https://github.com/Fzkuji/OpenProgram/blob/main/apps/desktop/update-service.js',
-        'https://github.com/Fzkuji/OpenProgram/blob/main/apps/cli/python/openprogram_cli/_impl/commands/upgrade.py',
+        'https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/desktop/update-service.js',
+        'https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/cli/python/openprogram_cli/_impl/commands/upgrade.py',
     ):
         assert contract in design
 
@@ -568,6 +568,6 @@ def test_release_download_accepts_only_allowed_redirect_chain(monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     assert github._curl_release_bytes(
-        "https://github.com/Fzkuji/OpenProgram/releases/download/v0.6.7/release-manifest.json"
+        "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.6.7/release-manifest.json"
     ) == b'{"schema": 1}'
     assert len(calls) == 2

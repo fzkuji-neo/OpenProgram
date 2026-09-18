@@ -13,11 +13,11 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2606.15874"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2606.15874-b31b1b?style=flat-square"></a>
-  <a href="https://github.com/Fzkuji/OpenProgram/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Fzkuji/OpenProgram?style=flat-square&color=blue"></a>
-  <a href="https://github.com/Fzkuji/OpenProgram/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-green?style=flat-square"></a>
+  <a href="https://github.com/fzkuji-neo/OpenProgram/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/Fzkuji/OpenProgram?style=flat-square&color=blue"></a>
+  <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-green?style=flat-square"></a>
   <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square">
-  <a href="https://github.com/Fzkuji/OpenProgram/actions/workflows/ci.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/Fzkuji/OpenProgram/ci.yml?branch=main&style=flat-square&label=build"></a>
+  <a href="https://github.com/fzkuji-neo/OpenProgram/actions/workflows/ci.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/Fzkuji/OpenProgram/ci.yml?branch=main&style=flat-square&label=build"></a>
 </p>
 
 <p align="center">
@@ -63,7 +63,7 @@ Windows x86_64 CLI/server：
 irm https://openprogram.io/install.ps1 | iex
 ```
 
-Desktop：macOS release 使用已签名并公证的 DMG；Windows 在 [GitHub Release](https://github.com/Fzkuji/OpenProgram/releases) 附带该产物时使用带签名的 `win-x64.exe`。Linux 与没有该 EXE 的 Windows 版本使用完整 CLI/server runtime 和 Web UI。
+Desktop：macOS release 使用已签名并公证的 DMG；Windows 在 [GitHub Release](https://github.com/fzkuji-neo/OpenProgram/releases) 附带该产物时使用带签名的 `win-x64.exe`。Linux 与没有该 EXE 的 Windows 版本使用完整 CLI/server runtime 和 Web UI。
 
 平台矩阵、PATH、`openprogram doctor`、source checkout 见 **[安装](install/install.zh.md)**。
 
@@ -175,4 +175,4 @@ OpenProgram 支持 macOS、Linux、原生 Windows x86_64 CLI/server、多 provid
 
 ## 许可证
 
-[AGPL-3.0](https://github.com/Fzkuji/OpenProgram/blob/main/LICENSE) © 2026 Fzkuji。可自由使用、研究、修改、分享——但任何你分发**或作为联网服务运行**的衍生作品也必须以 AGPL 发布,并保留署名。
+[AGPL-3.0](https://github.com/fzkuji-neo/OpenProgram/blob/main/LICENSE) © 2026 Fzkuji。可自由使用、研究、修改、分享——但任何你分发**或作为联网服务运行**的衍生作品也必须以 AGPL 发布,并保留署名。

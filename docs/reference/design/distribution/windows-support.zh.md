@@ -183,7 +183,7 @@ release 选择、checksum 失败和签名失败。
 ## Windows 本地刷新发布
 
 原生发布基础函数位于
-[`windows-refresh-transaction.ps1`](https://github.com/Fzkuji/OpenProgram/blob/main/scripts/release/windows-refresh-transaction.ps1)。
+[`windows-refresh-transaction.ps1`](https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/release/windows-refresh-transaction.ps1)。
 加载脚本不会修改安装或启动进程。调用方提供已经验证、按顺序排列的同级源与目标路径，
 用于 App、独立 CLI runtime 和启动器。路径不得重叠，拒绝驱动器相对路径和重定向祖先。
 文件及目录移动使用 Windows 扩展长度路径，不修改 ACL 或机器设置。

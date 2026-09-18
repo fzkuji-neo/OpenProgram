@@ -12,7 +12,7 @@ OpenProgram has separate release installations for desktop users and CLI/server 
 | Windows x86_64 / arm64 | Signed EXE when attached to the release | Supported | Local or remote |
 | iOS / Android / iPadOS | No native app | Not applicable | May connect to a supported remote host; mobile layout is not a support commitment |
 
-Only artifacts attached to a published [GitHub Release](https://github.com/Fzkuji/OpenProgram/releases) are release installations. CI artifacts and source-checkout builds are not stable releases.
+Only artifacts attached to a published [GitHub Release](https://github.com/fzkuji-neo/OpenProgram/releases) are release installations. CI artifacts and source-checkout builds are not stable releases.
 
 ## Desktop installation
 
@@ -110,7 +110,7 @@ Third-party Programs are additional user-selected functionality and are stored s
 Contributors use a source checkout:
 
 ```bash
-git clone https://github.com/Fzkuji/OpenProgram.git
+git clone https://github.com/fzkuji-neo/OpenProgram.git
 cd OpenProgram
 ./scripts/install.sh
 ```
@@ -118,7 +118,7 @@ cd OpenProgram
 On Windows, use PowerShell instead:
 
 ```powershell
-git clone https://github.com/Fzkuji/OpenProgram.git
+git clone https://github.com/fzkuji-neo/OpenProgram.git
 Set-Location OpenProgram
 .\scripts\install.ps1 -Yes
 ```

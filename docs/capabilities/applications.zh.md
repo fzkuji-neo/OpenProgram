@@ -25,7 +25,7 @@ openprogram apps install /absolute/path/to/application --trust
 
 新标签页获得焦点时和每十秒刷新应用列表。项目级应用在打开时绑定当前选中的项目，之后切换对话项目不会改变已经打开的实例。没有当前项目时会复用唯一的已有绑定；首次使用或有多个绑定时提供项目选择，也可以选择新文件夹。全局应用使用当前 owner 的同一个实例；不同项目的实例独立保存业务数据。
 
-仓库包含[计算器](https://github.com/Fzkuji/OpenProgram/tree/main/examples/applications/calculator)、[论文阅读器](https://github.com/Fzkuji/OpenProgram/tree/main/examples/applications/reader)和[文件分析](https://github.com/Fzkuji/OpenProgram/tree/main/examples/applications/file-analysis)样例。阅读器只在点击生成摘要时调用配置的模型，保存笔记不需要模型。
+仓库包含[计算器](https://github.com/fzkuji-neo/OpenProgram/tree/main/examples/applications/calculator)、[论文阅读器](https://github.com/fzkuji-neo/OpenProgram/tree/main/examples/applications/reader)和[文件分析](https://github.com/fzkuji-neo/OpenProgram/tree/main/examples/applications/file-analysis)样例。阅读器只在点击生成摘要时调用配置的模型，保存笔记不需要模型。
 
 ## 应用定义与接口
 

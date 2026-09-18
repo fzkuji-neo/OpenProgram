@@ -15,7 +15,7 @@ from openprogram.office_assets import (
     prepared_office_cache, validate_prepared_office_pack,
 )
 
-OFFICE_DOWNLOAD_URL = "https://github.com/Fzkuji/OpenProgram/releases/download/v0.9.0/OfficeAssets-d15d12b-dc31dd9d.zip"
+OFFICE_DOWNLOAD_URL = "https://github.com/fzkuji-neo/OpenProgram/releases/download/v0.9.0/OfficeAssets-d15d12b-dc31dd9d.zip"
 OFFICE_ARCHIVE_SHA256 = "6367f66bb618e1c1ddfa27fffbb7ebcf084b652c8484d8923d42492ed0b5447d"
 OFFICE_DOWNLOAD_BYTES = 732695641
 MAX_EXTRACTED_BYTES = 4 * 1024**3

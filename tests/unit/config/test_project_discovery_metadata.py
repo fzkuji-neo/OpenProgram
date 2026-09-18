@@ -9,9 +9,9 @@ def test_package_metadata_exposes_discovery_links_and_keywords() -> None:
     project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
 
     assert {
-        "Issues": "https://github.com/Fzkuji/OpenProgram/issues",
-        "Changelog": "https://github.com/Fzkuji/OpenProgram/releases",
-        "Discussions": "https://github.com/Fzkuji/OpenProgram/discussions",
+        "Issues": "https://github.com/fzkuji-neo/OpenProgram/issues",
+        "Changelog": "https://github.com/fzkuji-neo/OpenProgram/releases",
+        "Discussions": "https://github.com/fzkuji-neo/OpenProgram/discussions",
         "Paper": "https://arxiv.org/abs/2606.15874",
     }.items() <= project["urls"].items()
     assert {

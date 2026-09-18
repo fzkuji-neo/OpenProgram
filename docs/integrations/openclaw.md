@@ -17,7 +17,7 @@ They compose naturally: OpenClaw's skills can use agentic functions internally.
 cd ~/.openclaw/workspace
 
 # Clone OpenProgram
-git clone https://github.com/Fzkuji/OpenProgram.git
+git clone https://github.com/fzkuji-neo/OpenProgram.git
 
 # Prepare the source checkout
 cd OpenProgram

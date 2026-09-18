@@ -43,4 +43,4 @@ OpenProgram 站在前人的肩膀上。工具框架、provider 抽象和若干�
 这是一个**范式提案**，附带参考实现。欢迎讨论、其他语言的替代实现、验证或挑战此方法的用例，以及 bug 报告。
 
 环境、测试和 pull request 约定见
-[CONTRIBUTING.md](https://github.com/Fzkuji/OpenProgram/blob/main/.github/CONTRIBUTING.md)。
+[CONTRIBUTING.md](https://github.com/fzkuji-neo/OpenProgram/blob/main/.github/CONTRIBUTING.md)。

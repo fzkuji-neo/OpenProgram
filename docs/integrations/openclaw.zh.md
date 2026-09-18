@@ -17,7 +17,7 @@ Agentic Programming 和 OpenClaw 解决不同的问题：
 cd ~/.openclaw/workspace
 
 # 克隆 OpenProgram
-git clone https://github.com/Fzkuji/OpenProgram.git
+git clone https://github.com/fzkuji-neo/OpenProgram.git
 
 # 准备源码环境
 cd OpenProgram
