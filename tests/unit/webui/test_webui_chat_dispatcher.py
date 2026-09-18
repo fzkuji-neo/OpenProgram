@@ -312,7 +312,7 @@ def test_structured_query_error_is_typed_and_does_not_expose_candidate(env) -> N
 
     errors = [c["payload"] for c in captured if c["payload"].get("type") == "error"]
     assert errors[-1]["code"] == "validation_failed"
-    assert errors[-1]["attempts"] == 2
+    assert errors[-1]["attempts"] == 3  # Initial request plus two default repairs.
     assert errors[-1]["issues"][0]["code"] == "schema_violation"
     assert "secret candidate" not in str(errors[-1])
 
