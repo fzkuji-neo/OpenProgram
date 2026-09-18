@@ -108,6 +108,11 @@ def project_provider_event(state: CallStreamState, event: dict[str, Any]) -> Non
         return
     etype = event.get("type")
     try:
+        # ``hidden`` is a lifecycle policy, not a redacted visible row. The
+        # provider projection must discard it before CallStreamState can
+        # create a tool_ref with a leaked name or empty DAG reference.
+        if event.get("expose") == "hidden" and etype in {"tool_use", "tool_result", "tool_arguments"}:
+            return
         if etype == "text":
             state.append_delta(kind="text", delta=str(event.get("text") or ""))
         elif etype == "thinking":

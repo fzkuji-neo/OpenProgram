@@ -289,3 +289,34 @@ def test_tool_result_continuation_stays_in_same_attempt():
     assert len(st.attempt_order) == 1
     blocks = st._snapshot_dict_unlocked(durability="durable")["attempts"][0]["blocks"]
     assert [block["kind"] for block in blocks] == ["tool_ref", "text"]
+
+
+def test_hidden_tool_events_are_not_projected_into_visible_blocks():
+    st, emitted = _state()
+    st.start_attempt()
+    project_provider_event(st, {
+        "type": "tool_use",
+        "tool_call_id": "secret-call",
+        "tool": "secret_tool",
+        "node_id": "",
+        "expose": "hidden",
+    })
+    project_provider_event(st, {
+        "type": "tool_arguments",
+        "tool_call_id": "secret-call",
+        "input": '{"secret": true}',
+        "expose": "hidden",
+    })
+    project_provider_event(st, {
+        "type": "tool_result",
+        "tool_call_id": "secret-call",
+        "node_id": "",
+        "expose": "hidden",
+    })
+    blocks = st._snapshot_dict_unlocked(durability="durable")["attempts"][0]["blocks"]
+    assert blocks == []
+    assert not any(
+        e["data"].get("tool_name") == "secret_tool"
+        for e in emitted
+        if isinstance(e.get("data"), dict)
+    )

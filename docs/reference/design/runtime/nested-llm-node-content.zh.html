@@ -152,8 +152,9 @@ a{color:#9db8ff}
     <ul>
       <li>允许递归：函数展开后可见内层 LLM 的同一内容组件。</li>
       <li>默认：当前选中 LLM 展开；内部函数只显示摘要行；用户展开后再进子内容。</li>
-      <li>深层用「在详情中查看」，避免缩进塌缩。</li>
-      <li>展开状态按 <code>node_id</code>（+ block_id）持久在会话 UI 状态；流式更新不重置。</li>
+      <li>深层达到递归上限时显示明确边界，并提供「在详情中查看」入口；详情面板从该 DAG 节点重新以根节点渲染内容。</li>
+      <li>展开状态按 <code>node_id</code>、<code>attempt_id</code>、<code>block_id</code> 持久在会话 UI 状态；流式更新和重新挂载不重置。</li>
+      <li>递归内容最多渲染 8 层；达到上限只隐藏后续内嵌内容，不改变执行树、工具状态或历史数据。</li>
       <li>普通代码函数：参数/状态/日志/返回值；仅当内部有模型调用才嵌套模型内容。</li>
     </ul>
   </section>
@@ -260,6 +261,7 @@ a{color:#9db8ff}
       <tr><th>范围</th><th>状态</th><th>证据边界</th></tr>
       <tr><td>协议与状态合并</td><td>已实现</td><td><code>CallStreamState</code>、execution-stream reducer 与协议测试覆盖有序 blocks、tool_ref、attempt 和版本恢复。</td></tr>
       <tr><td>统一节点内容组件</td><td>已实现</td><td>卡片展开和右侧详情使用 <code>LlmNodeContent</code>；Markdown、思考折叠、工具引用和 earlier attempt 使用同一渲染路径。</td></tr>
+      <tr><td>权限边界、展开状态与递归详情</td><td>已实现</td><td>隐藏节点在投影前丢弃；<code>io/llm</code> 仅显示允许的后代；节点/attempt/block 展开状态持久化；递归超过 8 层显示详情入口。</td></tr>
       <tr><td>工具身份、正常续写、并行事件一致性</td><td>本任务修复</td><td>以真实 DAG 节点映射、同一 attempt 续写和显式并行批次为验收边界。</td></tr>
       <tr><td>owner 消失 / worker 重启后的完整恢复</td><td>本任务修复</td><td>以持久化 snapshot 和历史读取接口的可观测结果为准；真实模型长任务仍需现场验收。</td></tr>
       <tr><td>真实模型与默认 App 验收</td><td>待现场执行</td><td>需要在默认 profile、端口 <code>18100</code>、现有 App 中执行确定性 nested tool 场景；本页不把单元测试当作现场验收。</td></tr>

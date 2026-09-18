@@ -13,6 +13,15 @@ import { useSessionStore, type DetailNode } from "@/lib/session-store";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import type { TNode } from "./tree-types";
 
+const MAX_LLM_CONTENT_DEPTH = 8;
+
+function usePersistentOpen(key: string, defaultOpen = false) {
+  const saved = useSessionStore((s) => s.llmContentOpen[key]);
+  const setOpen = useSessionStore((s) => s.setLlmContentOpen);
+  const open = saved === undefined ? defaultOpen : saved;
+  return [open, (next: boolean) => setOpen(key, next)] as const;
+}
+
 export function findExecutionNode(root: TNode | undefined, id: string | undefined): TNode | undefined {
   if (!root || !id) return undefined;
   const stack: TNode[] = [root];
@@ -38,14 +47,34 @@ function MarkdownBody({ text, running }: { text: string; running?: boolean }) {
   );
 }
 
-function ThinkingFold({ text, running }: { text: string; running?: boolean }) {
+function ThinkingFold({
+  text,
+  running,
+  stateKey = "",
+}: {
+  text: string;
+  running?: boolean;
+  stateKey?: string;
+}) {
   const { text: tr } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = usePersistentOpen(stateKey, false);
+  const open = stateKey ? savedOpen : localOpen;
+  const toggle = () => {
+    const next = !open;
+    if (stateKey) setSavedOpen(next);
+    else setLocalOpen(next);
+  };
   if (!text) return null;
   const preview = text.trim().split("\n").filter(Boolean).slice(-1)[0] || text;
   return (
     <div className="llm-nc-think">
-      <button type="button" className="llm-nc-think-h" onClick={() => setOpen((v) => !v)}>
+      <button
+        type="button"
+        className="llm-nc-think-h"
+        onClick={toggle}
+        aria-expanded={open}
+      >
         <span>{tr("Thinking", "思考摘要")}</span>
         <span className="llm-nc-muted">
           {running ? tr("streaming…", "生成中…") : open ? "▾" : "▸"}
@@ -60,15 +89,54 @@ function ThinkingFold({ text, running }: { text: string; running?: boolean }) {
   );
 }
 
+function DepthBoundary({ node }: { node: TNode }) {
+  const { text: tr } = useTranslation();
+  const openDetail = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    const output = node.output == null
+      ? node.raw_reply
+      : typeof node.output === "string"
+        ? node.output
+        : JSON.stringify(node.output);
+    useSessionStore.getState().showDetail({
+      path: node.path || node.name || "nested-llm",
+      name: node.name || node.node_type || "LLM",
+      status: node.status || "completed",
+      params: node.params,
+      output,
+      error: node.error,
+      node_type: node.node_type,
+      duration_ms: node.duration_ms,
+      tree_root: node,
+    });
+  };
+  return (
+    <div className="llm-nc-muted" role="note">
+      {tr("Nested content depth limit reached", "已达到嵌套内容深度限制")}
+      {node.path ? (
+        <button type="button" className="llm-nc-link" onClick={openDetail}>
+          {tr("View in details", "在详情中查看")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function ToolRefRow({
   block,
   treeRoot,
+  depth = 0,
 }: {
   block: StreamBlock;
   treeRoot?: TNode;
+  depth?: number;
 }) {
   const { text: tr } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const stateKey = treeRoot?.path
+    ? `${treeRoot.path}:tool:${block.block_id}` : "";
+  const [savedOpen, setSavedOpen] = usePersistentOpen(stateKey, false);
+  const open = stateKey ? savedOpen : localOpen;
   const child = findExecutionNode(treeRoot, block.ref_node_id)
     || findExecutionNode(treeRoot, block.tool_call_id);
   const name = block.tool_name || child?.name || block.tool_call_id || "tool";
@@ -95,33 +163,55 @@ function ToolRefRow({
           ? "running"
           : "completed";
   const err = status === "error" || status === "cancelled";
+  const childChildren = child?.children || [];
+  const visibleChildren = child?.expose === "io"
+    ? []
+    : child?.expose === "llm"
+      ? childChildren.filter((c) => c.node_type === "exec" || c.name === "LLM")
+      : childChildren;
+  const toggle = () => {
+    const next = !open;
+    if (stateKey) setSavedOpen(next);
+    else setLocalOpen(next);
+  };
 
-  function openDetail(e: React.MouseEvent) {
+  function openDetailFor(target: TNode | undefined, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!child && !block.ref_node_id) return;
+    if (!target && !block.ref_node_id) return;
+    const detailNode = target || child;
+    const detailStatus = detailNode?.status || (target ? "completed" : status);
     const detail: DetailNode = {
-      path: child?.path || block.ref_node_id || block.tool_call_id || name,
-      name,
-      status: status || "completed",
-      params: child?.params,
-      output: child?.output == null
-        ? child?.raw_reply
-        : typeof child.output === "string"
-          ? child.output
-          : JSON.stringify(child.output),
-      error: child?.error || (unresolvedStatus
+      path: detailNode?.path || block.ref_node_id || block.tool_call_id || name,
+      name: detailNode?.name || name,
+      status: detailStatus,
+      params: detailNode?.params,
+      output: detailNode?.output == null
+        ? detailNode?.raw_reply
+        : typeof detailNode.output === "string"
+          ? detailNode.output
+          : JSON.stringify(detailNode.output),
+      error: detailNode?.error || (!target && unresolvedStatus
         ? tr("Execution node unavailable", "执行节点暂不可用") : undefined),
-      node_type: child?.node_type,
-      duration_ms: child?.duration_ms,
-      tree_root: treeRoot,
+      node_type: detailNode?.node_type,
+      duration_ms: detailNode?.duration_ms,
+      tree_root: detailNode || treeRoot,
     };
     useSessionStore.getState().showDetail(detail);
+  }
+
+  function openDetail(e: React.MouseEvent) {
+    openDetailFor(child, e);
   }
 
   return (
     <div className={"llm-nc-tool" + (err ? " is-error" : "")}>
       <div className="llm-nc-tool-h">
-        <button type="button" className="llm-nc-tool-toggle" onClick={() => setOpen((v) => !v)}>
+        <button
+          type="button"
+          className="llm-nc-tool-toggle"
+          onClick={toggle}
+          aria-expanded={open}
+        >
           <span className="llm-nc-tool-name">{open ? "▾" : "▸"} {name}</span>
         </button>
         <button type="button" className="llm-nc-link" onClick={openDetail}>
@@ -162,10 +252,14 @@ function ToolRefRow({
               {tr("Execution node is unavailable after recovery.", "恢复后暂时找不到执行节点。")}
             </div>
           ) : null}
-          {(child?.children || []).map((c, i) => (
+          {visibleChildren.map((c, i) => (
             <div key={c.path || i} className="llm-nc-nested">
               {(c.node_type === "exec" || c.name === "LLM") ? (
-                <LlmNodeContent nodeId={c.path} treeRoot={c} compact />
+                depth + 1 >= MAX_LLM_CONTENT_DEPTH ? (
+                  <DepthBoundary node={c} />
+                ) : (
+                  <LlmNodeContent nodeId={c.path} treeRoot={c} compact depth={depth + 1} />
+                )
               ) : (
                 <div className="llm-nc-muted">{c.name || c.node_type}</div>
               )}
@@ -177,8 +271,13 @@ function ToolRefRow({
   );
 }
 
-function LegacyChildren({ treeRoot }: { treeRoot: TNode }) {
-  const children = treeRoot.children || [];
+function LegacyChildren({ treeRoot, depth = 0 }: { treeRoot: TNode; depth?: number }) {
+  const allChildren = treeRoot.children || [];
+  const children = treeRoot.expose === "io"
+    ? []
+    : treeRoot.expose === "llm"
+      ? allChildren.filter((child) => child.node_type === "exec" || child.name === "LLM")
+      : allChildren;
   if (!children.length) return null;
   const { text: tr } = useTranslation();
   return (
@@ -191,6 +290,13 @@ function LegacyChildren({ treeRoot }: { treeRoot: TNode }) {
       {children.map((child, index) => {
         const isLlm = child.node_type === "exec" || child.name === "LLM";
         if (isLlm) {
+          if (depth + 1 >= MAX_LLM_CONTENT_DEPTH) {
+            return (
+              <div key={child.path || index}>
+                <DepthBoundary node={child} />
+              </div>
+            );
+          }
           return (
             <div key={child.path || index} className="llm-nc-nested">
               <LlmNodeContent
@@ -200,6 +306,7 @@ function LegacyChildren({ treeRoot }: { treeRoot: TNode }) {
                   || (typeof child.output === "string" ? child.output : null)}
                 fallbackThinking={child.stream_reasoning || null}
                 compact
+                depth={depth + 1}
               />
             </div>
           );
@@ -221,6 +328,7 @@ function LegacyChildren({ treeRoot }: { treeRoot: TNode }) {
               tool_name: child.name,
             }}
             treeRoot={treeRoot}
+            depth={depth}
           />
         );
       })}
@@ -307,9 +415,13 @@ function groupBlocks(blocks: StreamBlock[]): Array<
 function AttemptBody({
   attempt,
   treeRoot,
+  nodeKey,
+  depth = 0,
 }: {
   attempt: StreamAttempt;
   treeRoot?: TNode;
+  nodeKey?: string;
+  depth?: number;
 }) {
   const { text: tr } = useTranslation();
   const blocks = [...(attempt.blocks || [])].sort(
@@ -329,7 +441,7 @@ function AttemptBody({
                 {tr("Parallel calls", "并行调用")} · {item.blocks.length}
               </div>
               {item.blocks.map((b) => (
-                <ToolRefRow key={b.block_id} block={b} treeRoot={treeRoot} />
+                <ToolRefRow key={b.block_id} block={b} treeRoot={treeRoot} depth={depth} />
               ))}
             </div>
           );
@@ -350,6 +462,7 @@ function AttemptBody({
               key={b.block_id}
               text={b.content || ""}
               running={b.status === "running"}
+              stateKey={nodeKey ? `${nodeKey}:block:${b.block_id}` : ""}
             />
           );
         }
@@ -363,7 +476,7 @@ function AttemptBody({
           );
         }
         if (b.kind === "tool_ref") {
-          return <ToolRefRow key={b.block_id} block={b} treeRoot={treeRoot} />;
+          return <ToolRefRow key={b.block_id} block={b} treeRoot={treeRoot} depth={depth} />;
         }
         if (b.kind === "refusal") {
           return (
@@ -391,23 +504,57 @@ function AttemptBody({
   );
 }
 
+function AttemptFold({
+  attempt,
+  treeRoot,
+  nodeKey,
+  depth,
+}: {
+  attempt: StreamAttempt;
+  treeRoot?: TNode;
+  nodeKey: string;
+  depth: number;
+}) {
+  const { text: tr } = useTranslation();
+  const [open, setOpen] = usePersistentOpen(
+    `${nodeKey}:attempt:${attempt.attempt_id}`,
+    false,
+  );
+  return (
+    <details
+      open={open}
+      className="llm-nc-old"
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>
+        {tr("Earlier attempt", "更早尝试")} #{attempt.attempt_index + 1}
+        {attempt.reason ? ` · ${attempt.reason}` : ""} · {attempt.status}
+      </summary>
+      <AttemptBody attempt={attempt} treeRoot={treeRoot} nodeKey={nodeKey} depth={depth} />
+    </details>
+  );
+}
+
 export const LlmNodeContent = memo(function LlmNodeContent({
   nodeId,
   treeRoot,
   fallbackText,
   fallbackThinking,
   compact,
+  depth = 0,
 }: {
   nodeId?: string;
   treeRoot?: TNode;
   fallbackText?: string | null;
   fallbackThinking?: string | null;
   compact?: boolean;
+  depth?: number;
 }) {
   const { text: tr } = useTranslation();
   const stream = useExecutionStreamStore((s) =>
     nodeId ? s.getByNodeId(nodeId) : undefined,
   );
+  const nodeKey = nodeId || treeRoot?.path || "llm";
 
   const persistedAttempts = useMemo(() => {
     if (treeRoot?.stream_attempts?.length) return treeRoot.stream_attempts;
@@ -447,17 +594,27 @@ export const LlmNodeContent = memo(function LlmNodeContent({
     (block) => block.kind === "reasoning_summary" && !!block.content,
   );
 
+  if (depth >= MAX_LLM_CONTENT_DEPTH) {
+    return (
+      <div className={"llm-nc" + (compact ? " is-compact" : "")}>
+        <div className="llm-nc-muted" role="note">
+          {tr("Nested content depth limit reached", "已达到嵌套内容深度限制")}
+        </div>
+      </div>
+    );
+  }
+
   if (!selected || selected.blocks.length === 0) {
     // Fallback for nodes without live stream (closed before protocol / legacy).
     return (
       <div className={"llm-nc" + (compact ? " is-compact" : "")}>
-        {fallbackThinking ? <ThinkingFold text={fallbackThinking} /> : null}
+        {fallbackThinking ? <ThinkingFold text={fallbackThinking} stateKey={`${nodeKey}:fallback-thinking`} /> : null}
         {fallbackText ? <MarkdownBody text={fallbackText} /> : (
           !fallbackThinking ? (
             <div className="llm-nc-muted">{tr("No text output", "无文本输出")}</div>
           ) : null
         )}
-        {treeRoot ? <LegacyChildren treeRoot={treeRoot} /> : null}
+        {treeRoot ? <LegacyChildren treeRoot={treeRoot} depth={depth} /> : null}
       </div>
     );
   }
@@ -465,19 +622,19 @@ export const LlmNodeContent = memo(function LlmNodeContent({
   return (
     <div className={"llm-nc" + (compact ? " is-compact" : "")}>
       {older.map((a) => (
-        <details key={a.attempt_id} className="llm-nc-old">
-          <summary>
-            {tr("Earlier attempt", "更早尝试")} #{a.attempt_index + 1}
-            {a.reason ? ` · ${a.reason}` : ""} · {a.status}
-          </summary>
-          <AttemptBody attempt={a} treeRoot={treeRoot} />
-        </details>
+        <AttemptFold
+          key={a.attempt_id}
+          attempt={a}
+          treeRoot={treeRoot}
+          nodeKey={nodeKey}
+          depth={depth}
+        />
       ))}
       {!selectedHasThinking && fallbackThinking
-        ? <ThinkingFold text={fallbackThinking} /> : null}
+        ? <ThinkingFold text={fallbackThinking} stateKey={`${nodeKey}:fallback-thinking`} /> : null}
       {!selectedHasText && fallbackText
         ? <MarkdownBody text={fallbackText} /> : null}
-      <AttemptBody attempt={selected} treeRoot={treeRoot} />
+      <AttemptBody attempt={selected} treeRoot={treeRoot} nodeKey={nodeKey} depth={depth} />
     </div>
   );
 });

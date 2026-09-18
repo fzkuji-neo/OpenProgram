@@ -335,7 +335,10 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
             messageId: b.message_id,
             nodeId: b.node_id,
             isError: !!b.is_error,
-            status: b.outcome === "not_started" || b.outcome === "unknown" || b.is_error ? "error" : "done",
+            status: b.outcome === "cancelled"
+              ? "cancelled"
+              : b.outcome === "not_started" || b.outcome === "unknown" || b.is_error
+                ? "error" : "done",
           });
         }
       });

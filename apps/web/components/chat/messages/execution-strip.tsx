@@ -205,6 +205,7 @@ export function StepRow({
   inlineBody,
   subSteps,
   defaultKidsOpen,
+  stateKey,
   dataMsgId,
   dataHeadId,
 }: {
@@ -221,6 +222,8 @@ export function StepRow({
   subSteps?: React.ReactNode;
   /** 仅当前行的直接子树初始展开。 */
   defaultKidsOpen?: boolean;
+  /** Optional persistent key for the inline LLM node expansion state. */
+  stateKey?: string;
   dataMsgId?: string;
   dataHeadId?: string;
 }) {
@@ -228,8 +231,14 @@ export function StepRow({
   const [kidsOpen, setKidsOpen] = useState(!!defaultKidsOpen);
   const [copied, setCopied] = useState(false);
   const { text } = useTranslation();
+  const persistedOpen = useSessionStore((state) =>
+    stateKey ? state.llmContentOpen[stateKey] : undefined,
+  );
+  const setPersistedOpen = useSessionStore((state) => state.setLlmContentOpen);
   const toggleable = !!subSteps || !!inlineBody;
-  const expanded = subSteps ? kidsOpen : open;
+  const expanded = subSteps ? kidsOpen : stateKey
+    ? (persistedOpen ?? false)
+    : open;
   const copyValue = copyText ?? [title, note].filter(Boolean).join(" · ");
   useEffect(() => {
     // Update the selected snapshot without changing the dock or its active tab.
@@ -252,7 +261,11 @@ export function StepRow({
   }
   function toggle() {
     if (subSteps) setKidsOpen((v) => !v);
-    else if (inlineBody) setOpen((v) => !v);
+    else if (inlineBody) {
+      const next = !expanded;
+      if (stateKey) setPersistedOpen(stateKey, next);
+      else setOpen(next);
+    }
   }
   function openDetail(e: React.MouseEvent) {
     if (!detail) return;
@@ -315,7 +328,7 @@ export function StepRow({
         </span>
       </div>
       {inlineBody ? (
-        <Collapse open={open}>
+        <Collapse open={expanded}>
           <div className="tl-step-body">{inlineBody}</div>
         </Collapse>
       ) : null}
@@ -391,10 +404,13 @@ export function FunctionStep({
   const { text } = useTranslation();
   const isError = !!block.is_error;
   const outcome = block.outcome;
+  const cancelled = outcome === "cancelled";
   const name = block.tool || "?";
   const kids = tree?.children || [];
   const result = fullResult ?? block.result;
-  const detailStatus = running || loadingFull
+  const detailStatus = cancelled
+    ? "cancelled"
+    : running || loadingFull
     ? "running"
     : outcome === "waiting"
       ? "running"
@@ -465,7 +481,7 @@ export function FunctionStep({
       note={`${name}${block.input ? " · " + short(block.input, 60) : ""}${
         result !== undefined && result !== null && result !== ""
           ? " → " + short(String(result), 60) : ""}`}
-      error={isError}
+      error={isError || cancelled}
       running={running || loadingFull}
       copyText={JSON.stringify(
         { tool: name, input: block.input, result }, null, 2)}
@@ -498,7 +514,8 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
     && stream.phase !== "completed"
     && stream.phase !== "cancelled"
     && stream.phase !== "failed";
-  const isError = node.status === "error" || !!node.error
+  const cancelled = node.status === "cancelled" || stream.phase === "cancelled";
+  const isError = node.status === "error" || !!node.error || cancelled
     || stream.phase === "failed";
   const noteParts: string[] = [];
   const params = node.params
@@ -515,6 +532,7 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
     noteParts.push(short(params, 70));
   }
   if (node.duration_ms) noteParts.push(`${Math.round(node.duration_ms)}ms`);
+  if (cancelled) noteParts.push(text("cancelled", "已取消"));
   if (stream.syncing) noteParts.push(text("resyncing…", "重新同步"));
   if (stream.attemptLabel) {
     noteParts.push(
@@ -574,6 +592,7 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
         null, 2)}
       detail={detail}
       inlineBody={contentBody}
+      stateKey={node.path ? `llm:${node.path}` : undefined}
       subSteps={!isLlm && kids.length > 0
         ? kids.map((c, i) => (
             <TreeStep key={c.path || i} node={c} />

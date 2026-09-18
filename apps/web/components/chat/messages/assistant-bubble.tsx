@@ -175,7 +175,9 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
     ...(msg.thinking ? [{ type: "thinking" as const, text: msg.thinking }] : []),
     ...tools.map((tool): AssistantBlock => ({
       type: "tool", tool: tool.tool, tool_call_id: tool.id,
-      input: tool.input, result: tool.result, is_error: tool.isError || tool.status === "error",
+      input: tool.input, result: tool.result,
+      is_error: tool.isError || tool.status === "error" || tool.status === "cancelled",
+      outcome: tool.status === "cancelled" ? "cancelled" : undefined,
       truncated: tool.truncated, total_bytes: tool.totalBytes,
       message_id: tool.messageId, node_id: tool.nodeId,
     })),

@@ -1537,6 +1537,7 @@ async def _execute_tool_calls(
                 tool_name=tool_call.name,
                 result=result,
                 is_error=True,
+                outcome="cancelled",
                 occurrence_id=occurrence_id,
                 expose=dag_expose,
             ))

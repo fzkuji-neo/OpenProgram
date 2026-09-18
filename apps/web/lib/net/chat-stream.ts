@@ -881,7 +881,8 @@ function applyStreamEvent(sid: string, rid: string, evt: StreamEvent): void {
               ...t,
               result: evt.result ?? "",
               isError: !!evt.is_error,
-              status: evt.is_error ? "error" : "done",
+              status: evt.outcome === "cancelled"
+                ? "cancelled" : evt.is_error ? "error" : "done",
             }
           : t,
       );
@@ -1002,8 +1003,10 @@ function finalize(sid: string, rid: string, d: ChatResponseData): void {
   // Any tool still "running" at terminal time gets closed out — no
   // tool_result will arrive after the turn ends.
   if (cur.tools?.some((t) => t.status === "running")) {
+    const terminalToolStatus: ChatToolCall["status"] =
+      status === "cancelled" ? "cancelled" : "done";
     patch.tools = cur.tools.map((t): ChatToolCall =>
-      t.status === "running" ? { ...t, status: "done" } : t,
+      t.status === "running" ? { ...t, status: terminalToolStatus } : t,
     );
   }
 

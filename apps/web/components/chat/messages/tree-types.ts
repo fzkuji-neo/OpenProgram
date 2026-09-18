@@ -10,6 +10,8 @@ export interface TNode {
   name?: string;
   status?: string;
   node_type?: string;
+  /** Visibility policy for descendants in nested content. */
+  expose?: "full" | "llm" | "io" | "hidden" | string;
   params?: Record<string, unknown>;
   output?: unknown;
   raw_reply?: string;

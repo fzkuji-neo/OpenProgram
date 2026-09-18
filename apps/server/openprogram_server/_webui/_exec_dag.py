@@ -43,7 +43,7 @@ def _without_control_subtrees(nodes: list) -> list:
 
 # Tree reconstruction
 
-def _exec_tnode(n, kids: dict[str, list]) -> dict:
+def _exec_tnode(n, kids: dict[str, list]) -> dict | None:
     """Turn one DAG node into the TNode dict the Execution DAG renders,
     recursing into its ``kids`` (children grouped by ``caller`` —
     the sub-call edge, which is what nesting means here).
@@ -53,11 +53,18 @@ def _exec_tnode(n, kids: dict[str, list]) -> dict:
     both produce byte-identical tree shapes.
     """
     meta = n.metadata or {}
+    expose = str(meta.get("expose") or "full")
+    # Older records can contain a hidden node even though current writers do
+    # not create one. Suppress it at the projection boundary as a second
+    # protection against exposing its name or lifecycle state.
+    if expose == "hidden":
+        return None
     status = meta.get("status") or "completed"
     tn: dict = {
         "path": n.id,
         "name": n.name or (n.role or "node"),
         "status": status,
+        "expose": expose,
     }
     dur = meta.get("duration_seconds")
     if dur is not None:
@@ -130,8 +137,17 @@ def _exec_tnode(n, kids: dict[str, list]) -> dict:
         tn["output"] = (out if isinstance(out, str)
                         else json.dumps(out, default=str,
                                         ensure_ascii=False))
-    children = [_exec_tnode(c, kids)
-                for c in sorted(kids.get(n.id, []), key=lambda x: x.seq)]
+    child_nodes = sorted(kids.get(n.id, []), key=lambda x: x.seq)
+    if n.is_code():
+        if expose == "io":
+            child_nodes = []
+        elif expose == "llm":
+            child_nodes = [c for c in child_nodes if c.is_llm()]
+    children = []
+    for child in child_nodes:
+        projected = _exec_tnode(child, kids)
+        if projected is not None:
+            children.append(projected)
     if children:
         tn["children"] = children
     return tn
@@ -223,8 +239,11 @@ def build_exec_dag(session_id: str, func_name: str,
     ]
     if not orphan_children:
         return None
-    children = [_exec_tnode(c, kids)
-                for c in sorted(orphan_children, key=lambda x: x.seq)]
+    children = []
+    for child in sorted(orphan_children, key=lambda x: x.seq):
+        projected = _exec_tnode(child, kids)
+        if projected is not None:
+            children.append(projected)
     return {
         "path": user_turn_id + "_run",
         "name": func_name,
