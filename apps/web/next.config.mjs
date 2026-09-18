@@ -7,6 +7,8 @@ const nextConfig = {
   // docs/reference/design/cli/single-port.md). No rewrites, no baked
   // backend port: the app talks to its own origin (/api, /ws) at runtime.
   output: "export",
+  // Required for `output: "export"` on Next 15 (no Image Optimization server).
+  images: { unoptimized: true },
   reactStrictMode: false,
   // Lint is a dev-time gate (`next lint` / editor), not a build blocker.
   // A stray unused-var or `<img>` warning must not fail the production
