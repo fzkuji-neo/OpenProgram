@@ -569,7 +569,7 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
       error={isError}
       running={running}
       actions={actions}
-      copyText={isLlm ? JSON.stringify({ output: out || "" }, null, 2) : JSON.stringify(
+      copyText={isLlm ? (out || "") : JSON.stringify(
         { name: node.name, params: node.params, output: node.output ?? node.raw_reply, error: node.error },
         null, 2)}
       detail={detail}
