@@ -1524,3 +1524,25 @@ def test_exposure_disabled_via_monkeypatch(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(F, "_exposed_set", lambda: None)
     # Filter disabled → even an expose=False tool resolves.
     assert F.get_agent_tool("probe_hidden_expose_false") is not None
+
+
+@pytest.mark.parametrize("expose", ["hidden", "io", "llm", "full"])
+@pytest.mark.parametrize("live_permission", [True, False])
+def test_dispatcher_wrappers_preserve_tool_dag_exposure(expose, live_permission):
+    from openprogram.agent.dispatcher.runtime_attach import _wrap_agentic_runtime_block
+    from openprogram.agent.dispatcher.types import TurnRequest
+    from openprogram.agent.permissions.approval import wrap_with_approval
+    from openprogram.agent.types import AgentTool
+
+    async def execute(call_id, args, cancel, on_update):
+        raise AssertionError("Wrapping must not execute the tool")
+
+    tool = AgentTool(name="private_probe", description="probe", label="probe",
+                     parameters={"type": "object", "properties": {}}, execute=execute)
+    tool._is_agentic = True
+    tool._dag_expose = expose
+    request = TurnRequest(session_id="exposure", user_text="", agent_id="main", source="web")
+    approved = wrap_with_approval(tool, request, lambda event: None, _live=live_permission)
+    wrapped = _wrap_agentic_runtime_block(approved, request, lambda event: None, "assistant")
+    assert getattr(approved, "_dag_expose", None) == expose
+    assert getattr(wrapped, "_dag_expose", None) == expose

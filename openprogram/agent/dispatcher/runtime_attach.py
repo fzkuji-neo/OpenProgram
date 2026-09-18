@@ -517,7 +517,7 @@ def _wrap_agentic_runtime_block(
         execute=_runtime_block_execute,
     )
     for _attr in (
-        "_is_agentic", "_defer", "_run_in_worker", "_mcp_server",
+        "_is_agentic", "_dag_expose", "_defer", "_run_in_worker", "_mcp_server",
         "_runtime_implementation", "_requires_approval", "_accept_edits_safe",
         "_permission_preflight", "_permission_managed", "_permission_visible",
     ):
