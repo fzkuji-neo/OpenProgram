@@ -147,6 +147,7 @@ def project_provider_event(state: CallStreamState, event: dict[str, Any]) -> Non
             # Args/results stay on that node — do not duplicate here.
             state.add_tool_ref(
                 tool_call_id=str(event.get("tool_call_id") or ""),
+                occurrence_id=str(event.get("occurrence_id") or ""),
                 tool_name=str(event.get("tool") or event.get("tool_name") or ""),
                 ref_node_id=str(event.get("node_id") or event.get("ref_node_id") or ""),
                 group_id=str(event.get("group_id") or ""),
@@ -155,6 +156,7 @@ def project_provider_event(state: CallStreamState, event: dict[str, Any]) -> Non
         elif etype == "tool_result":
             state.finish_tool_ref(
                 str(event.get("tool_call_id") or ""),
+                occurrence_id=str(event.get("occurrence_id") or ""),
                 ref_node_id=str(event.get("node_id") or event.get("ref_node_id") or ""),
             )
         # tool args streaming (optional preview) — still allowed but not required

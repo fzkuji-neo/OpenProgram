@@ -212,6 +212,19 @@ def build_session_graph(
             "attach_embed_count": aembed_n,
             "attach_embed_tokens": aembed_tok,
         }
+        stream = m.get("stream")
+        if isinstance(stream, dict):
+            snapshot = stream.get("snapshot")
+            if isinstance(snapshot, dict):
+                if isinstance(snapshot.get("attempts"), list):
+                    row["stream_attempts"] = snapshot["attempts"]
+                row["stream_snapshot"] = snapshot
+            elif isinstance(stream.get("attempts"), list):
+                row["stream_attempts"] = stream["attempts"]
+            row["stream_preview"] = stream.get("preview_text") or ""
+            row["stream_reasoning"] = stream.get("preview_reasoning") or ""
+        if isinstance(m.get("blocks"), list):
+            row["stream_blocks"] = m["blocks"]
         if mid in covers_ids:
             row["covers_ids"] = covers_ids[mid]
         if mid in superseded:

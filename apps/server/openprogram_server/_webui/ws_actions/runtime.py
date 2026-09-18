@@ -1059,6 +1059,7 @@ async def handle_subscribe_execution_stream(ws, cmd: dict):
             continue
         # Checkpoint fallback from DAG metadata.
         stream_meta = None
+        node = None
         try:
             from openprogram.agent.session_db import default_db
             node = next(
@@ -1088,20 +1089,45 @@ async def handle_subscribe_execution_stream(ws, cmd: dict):
             continue
         gen = int(stream_meta.get("generation") or 1)
         rev = int(stream_meta.get("revision") or 0)
-        snap = {
-            "revision": rev,
-            "checkpoint_revision": stream_meta.get("checkpoint_revision", rev),
-            "generation": gen,
-            "phase": stream_meta.get("phase") or "running",
-            "durability": "checkpoint",
-            "current_attempt_id": stream_meta.get("current_attempt_id"),
-            "selected_attempt_id": stream_meta.get("selected_attempt_id"),
-            "attempts": [],
-            "preview_text": stream_meta.get("preview_text") or "",
-            "preview_reasoning": stream_meta.get("preview_reasoning") or "",
-            "recovered_from_checkpoint": True,
-            "source_checkpoint": {"generation": gen, "revision": rev},
-        }
+        stored_snapshot = stream_meta.get("snapshot")
+        if isinstance(stored_snapshot, dict):
+            # The durable snapshot already contains the ordered attempts and
+            # blocks. Mark the copy as a checkpoint so the client can expose
+            # owner-gone recovery without treating it as a live stream.
+            snap = dict(stored_snapshot)
+            snap["durability"] = "checkpoint"
+            snap["recovered_from_checkpoint"] = True
+            snap["source_checkpoint"] = {"generation": gen, "revision": rev}
+        else:
+            # Legacy records had only summaries and metadata.blocks. Keep the
+            # old data visible as one attempt rather than dropping tool rows.
+            legacy_blocks = (node.metadata or {}).get("blocks") if node else None
+            attempts = stream_meta.get("attempts")
+            if not isinstance(attempts, list):
+                attempts = []
+            if isinstance(legacy_blocks, list) and legacy_blocks:
+                attempts = [{
+                    "attempt_id": stream_meta.get("current_attempt_id") or "legacy",
+                    "attempt_index": 0,
+                    "reason": "legacy",
+                    "status": "completed" if not stream_meta.get("partial") else "running",
+                    "validation": "pending",
+                    "blocks": legacy_blocks,
+                }]
+            snap = {
+                "revision": rev,
+                "checkpoint_revision": stream_meta.get("checkpoint_revision", rev),
+                "generation": gen,
+                "phase": stream_meta.get("phase") or "running",
+                "durability": "checkpoint",
+                "current_attempt_id": stream_meta.get("current_attempt_id"),
+                "selected_attempt_id": stream_meta.get("selected_attempt_id"),
+                "attempts": attempts,
+                "preview_text": stream_meta.get("preview_text") or "",
+                "preview_reasoning": stream_meta.get("preview_reasoning") or "",
+                "recovered_from_checkpoint": True,
+                "source_checkpoint": {"generation": gen, "revision": rev},
+            }
         payload = {
             "type": "execution_stream",
             "schema_version": SCHEMA_VERSION,
@@ -1111,9 +1137,9 @@ async def handle_subscribe_execution_stream(ws, cmd: dict):
             "generation": gen,
             "op": "snapshot",
             "revision": rev,
-            "checkpoint_revision": snap["checkpoint_revision"],
+            "checkpoint_revision": snap.get("checkpoint_revision", rev),
             "durability": "checkpoint",
-            "phase": snap["phase"],
+            "phase": snap.get("phase") or stream_meta.get("phase") or "running",
             "snapshot": snap,
             "subscription_id": subscription_id,
         }

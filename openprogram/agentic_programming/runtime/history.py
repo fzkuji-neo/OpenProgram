@@ -1,6 +1,7 @@
 """Agentic runtime: history."""
 from __future__ import annotations
 
+import time
 
 
 
@@ -20,6 +21,131 @@ from .shared import (
 )
 
 class HistoryOperations:
+    def _ensure_nested_tool_node(
+        self,
+        *,
+        parent_node_id: str,
+        tool_call_id: str,
+        occurrence_id: str = "",
+        tool_name: str,
+        arguments=None,
+        expose: str | None = None,
+    ) -> str:
+        """Create or find the DAG node referenced by a streamed tool block.
+
+        Provider events arrive before the tool body returns. The node is
+        therefore created here as a normal ``code`` Call, with the same stable
+        id that an ``@agentic_function`` wrapper uses when it is the tool.
+        This keeps ``tool_ref.ref_node_id`` valid during live rendering and
+        after a reload without copying tool payloads into the stream.
+        """
+        if not parent_node_id or not tool_call_id:
+            return ""
+        try:
+            from openprogram.store import _store
+            from openprogram.context.nodes import Call, ROLE_CODE
+            from openprogram.agentic_programming.function import tool_node_id
+
+            # ``hidden`` means no DAG node and therefore no persisted input or
+            # output. This decision is made before loading or appending so a
+            # stream event cannot create a full-exposure placeholder first.
+            dag_expose = str(expose or "full")
+            if dag_expose == "hidden":
+                return ""
+            identity = str(occurrence_id or tool_call_id)
+
+            store = _store.get()
+            if store is None:
+                return ""
+            graph = store.load()
+            for node in graph.nodes.values():
+                metadata = node.metadata or {}
+                if (
+                    node.caller == parent_node_id
+                    and (
+                        metadata.get("tool_call_occurrence_id") == identity
+                        if occurrence_id
+                        else metadata.get("tool_call_id") == tool_call_id
+                    )
+                ):
+                    return node.id
+            node_id = tool_node_id(parent_node_id, identity)
+            if node_id in graph.nodes:
+                return node_id
+            args = arguments if arguments is not None else {}
+            store.append(
+                Call(
+                    id=node_id,
+                    role=ROLE_CODE,
+                    name=tool_name or "tool",
+                    input=args,
+                    output=None,
+                    caller=parent_node_id,
+                    metadata={
+                        "status": "running",
+                        "expose": dag_expose,
+                        "tool_call_id": tool_call_id,
+                        "tool_call_occurrence_id": identity,
+                        "source": "nested_llm_tool",
+                        "started_at": time.time(),
+                    },
+                )
+            )
+            return node_id
+        except Exception:
+            return ""
+
+    def _finish_nested_tool_node(
+        self,
+        *,
+        parent_node_id: str,
+        tool_call_id: str,
+        occurrence_id: str = "",
+        node_id: str = "",
+        result=None,
+        is_error: bool = False,
+        outcome: str | None = None,
+    ) -> None:
+        """Persist the terminal state of a streamed nested tool node."""
+        if not parent_node_id or not tool_call_id:
+            return
+        try:
+            from openprogram.store import _store
+            from openprogram.agentic_programming.function import tool_node_id
+
+            store = _store.get()
+            if store is None:
+                return
+            identity = str(occurrence_id or tool_call_id)
+            resolved_id = node_id or tool_node_id(parent_node_id, identity)
+            node = store.load().nodes.get(resolved_id)
+            if node is None:
+                return
+            current = node.metadata or {}
+            current_status = current.get("status")
+            # An @agentic_function wrapper may have already recorded the
+            # actual return value. Do not replace it with the provider's
+            # envelope after it became terminal.
+            if current_status in {"completed", "error", "cancelled"}:
+                return
+            status = (
+                "error" if is_error or outcome == "failed"
+                else "pending" if outcome == "not_started"
+                else "completed"
+            )
+            output = result if status != "pending" else None
+            metadata = {
+                "status": status,
+                "tool_call_id": tool_call_id,
+                "tool_call_occurrence_id": identity,
+                "outcome": outcome or status,
+                "is_error": bool(is_error),
+                "ended_at": time.time(),
+            }
+            store.update(resolved_id, output=output, metadata=metadata)
+        except Exception:
+            return
+
     def _skills_key(self) -> object:
         """Normalize the constructor's ``skills`` argument into a cache key.
 
@@ -352,4 +478,3 @@ class HistoryOperations:
             store.update(node_id, output=reply, metadata=meta)
         except Exception:
             pass
-

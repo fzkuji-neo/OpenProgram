@@ -223,6 +223,16 @@ class AgentEventToolStart(BaseModel):
     tool_call_id: str
     tool_name: str
     args: Any
+    # Qualified occurrence identity. Providers may reuse a raw call id across
+    # turns; stream/DAG consumers use this value for idempotency and lookup.
+    occurrence_id: str | None = None
+    # DAG visibility policy of the decorated tool. Hidden tools still emit
+    # lifecycle events, but their arguments/results are never persisted.
+    expose: str | None = None
+    # Only an actual concurrent dispatcher supplies this id. The sequential
+    # Python tool loop leaves it empty; consumers must not infer groups from
+    # adjacency.
+    group_id: str | None = None
 
 
 class AgentEventToolUpdate(BaseModel):
@@ -240,6 +250,9 @@ class AgentEventToolEnd(BaseModel):
     tool_name: str
     result: Any
     is_error: bool
+    occurrence_id: str | None = None
+    expose: str | None = None
+    group_id: str | None = None
 
 
 AgentEvent = Union[
