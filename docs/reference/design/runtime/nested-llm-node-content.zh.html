@@ -86,11 +86,11 @@ a{color:#9db8ff}
 <main>
   <div class="eyebrow">OpenProgram · Design · Runtime / UI</div>
   <h1>嵌套 LLM 节点内容：聊天式有序块</h1>
-  <p class="lede">展开 LLM 节点后，按<strong>执行顺序</strong>显示完整可展示内容：Markdown 正文、思考摘要、函数引用、并行组、重试边界。复用聊天窗口组件。取消固定的「LLM Reply / Reasoning」分区；底层仍区分内容类型。<b>本页是目标契约，不等于已实现。</b></p>
+  <p class="lede">展开 LLM 节点后，按<strong>执行顺序</strong>显示完整可展示内容：Markdown 正文、思考摘要、函数引用、并行组、重试边界。复用聊天窗口组件。取消固定的「LLM Reply / Reasoning」分区；底层仍区分内容类型。本页定义当前协议、持久化和 UI 语义。</p>
   <div class="meta">
-    <span class="pill acc">权威草案 · 2026-09-19</span>
+    <span class="pill acc">权威设计</span>
     <span class="pill ok">扩展 execution_stream.v1，不另起聊天协议</span>
-    <span class="pill warn">先协议+持久化，再统一内容组件</span>
+    <span class="pill warn">流式、DAG 与持久化使用同一身份</span>
     <span class="pill">对照：agentic-llm-streaming.zh.html</span>
   </div>
 
@@ -111,13 +111,13 @@ a{color:#9db8ff}
   <section id="s0">
     <h2>0. 现状复核（对照最新代码）</h2>
     <div class="scroll"><table>
-      <tr><th>能力</th><th>现状</th><th>与本设计差距</th></tr>
-      <tr><td>execution_stream.v1</td><td>已有 <code>attempt_*</code> / <code>block_*</code> / <code>snapshot</code>；块种类含 <code>text</code>、<code>reasoning_summary</code>、<code>tool_arguments</code>、<code>refusal</code></td><td>缺<strong>函数引用块</strong>（指向真实 <code>node_id</code>）、缺<strong>并行组</strong>；UI 仍用 preview_text/reasoning 拼接</td></tr>
-      <tr><td>DAG / tree_update</td><td>工具调用挂在 LLM 节点子节点；TreeStep 递归画函数行</td><td>树与节点内容未统一为「引用同一节点」；详情仍是 Reply/Reasoning 分区</td></tr>
-      <tr><td>顶层 chat</td><td><code>msg.blocks</code> 有序；ThinkingStep / FunctionStep / Markdown 交织</td><td>嵌套 LLM 未复用同一内容组件</td></tr>
-      <tr><td>providers.last_blocks</td><td>关节点写入 <code>metadata.blocks</code>（thinking/text/tool）</td><td>需升级为带稳定 <code>block_id</code>、<code>tool_call_id→node_id</code>、并行组与 attempt 边界的持久化序列</td></tr>
+      <tr><th>能力</th><th>实现边界</th><th>必须保持的约束</th></tr>
+      <tr><td>execution_stream.v1</td><td>每个嵌套 LLM 节点维护 attempt 与有序 blocks；块包含 <code>text</code>、<code>reasoning_summary</code>、<code>tool_ref</code>、<code>tool_arguments</code>、<code>refusal</code> 等类型。</td><td>所有增量和 snapshot 都使用相同的 <code>block_id</code>、<code>block_index</code>；前端不根据 WS 到达时间重排。</td></tr>
+      <tr><td>DAG / tool identity</td><td>工具节点的 metadata 保存原始 <code>tool_call_id</code> 与 qualified <code>tool_call_occurrence_id</code>；<code>tool_ref</code> 只保存引用的 <code>ref_node_id</code>、名称和 occurrence。</td><td>同一个 occurrence 只能对应一个工具行；provider 重新使用原始 call id 时，按 round/message-qualified occurrence 建立新行。参数、进度、结果和错误从该 DAG 节点读取，不能在 stream 中复制第二份终态数据。</td></tr>
+      <tr><td>attempt 语义</td><td>正常工具结果后的模型请求仍属于当前 attempt；传输失败、结构化输出失败等真正恢复才创建新 attempt。</td><td><code>turn_end</code> 只表示一次 provider round 结束，不自动创建 attempt 边界；新 attempt 必须有明确失败原因。</td></tr>
+      <tr><td>持久化</td><td>checkpoint、<code>metadata.stream</code>、live snapshot 和 terminal snapshot 都包含完整可展示 attempts/blocks（受 retention 策略约束）；legacy preview 字段仍可截断。</td><td>owner 消失或 worker 重启后，历史读取接口只凭持久化 snapshot 恢复顺序、引用和终态，不重新调用模型。live snapshot 也不能静默丢失 Markdown 前缀。</td></tr>
     </table></div>
-    <div class="callout ok"><b>关于「是否必须新增工具事件」</b>：不必重复传输工具参数/结果全文。执行树已有工具节点身份与状态时，流式协议只需在内容序列中插入 <code>tool_ref</code>（及可选 <code>parallel_group</code>）占位，携带 <code>tool_call_id</code> + <code>node_id</code>。参数/进度/结果<strong>只读树节点</strong>。若某路径尚未把 <code>tool_call_id</code> 打到代码节点，应补齐挂载，而不是在 stream 里再复制一份结果。</div>
+    <div class="callout ok"><b>工具引用身份</b>：不重复传输工具参数/结果全文。工具执行入口在创建或发现 DAG 工具节点时写入原始 <code>tool_call_id</code> 和 qualified occurrence，stream 再通过 <code>occurrence_id → ref_node_id</code> 发布引用。映射未及时可见时先发布带稳定 occurrence 的占位行，随后用同一 <code>block_id</code> 补齐 <code>ref_node_id</code>；不能改成第二行或伪造完成状态。</div>
     <div class="callout warn">现有 <code>tool_arguments</code> 块适合「参数仍在生成」的瞬时预览；终态展示以树节点为准，避免双源真相。</div>
   </section>
 
@@ -161,8 +161,9 @@ a{color:#9db8ff}
   <section id="s4">
     <h2>4. 并行函数</h2>
     <ul>
-      <li>同一次模型输出中并发的多个 tool_call → 一个 <code>parallel_group</code> 块。</li>
+      <li>只有执行端实际启动并发批次并明确知道其成员时，多个 tool_call → 一个 <code>parallel_group</code> 块。当前 Python dispatcher 按顺序执行多个 tool_call，因此不发布 group_id。</li>
       <li>组内顺序 = <b>发起顺序</b>，稳定；完成先后只改状态，不重排。</li>
+      <li>每个组成员从第一次发布开始就带同一个 <code>group_id</code>；如果组 id 在第二个成员到达时才生成，必须为此前所有成员发布带新组 id 的更新事件。前端不能通过“相邻工具行”推断并行。</li>
       <li>各函数行独立更新；禁止因某函数先完成而挪到正文前。</li>
     </ul>
   </section>
@@ -174,9 +175,9 @@ a{color:#9db8ff}
       <tr><th>块 kind</th><th>必要字段</th><th>说明</th></tr>
       <tr><td><code>text</code></td><td><code>block_id</code>, content, status</td><td>Markdown 正文；流式 delta</td></tr>
       <tr><td><code>reasoning_summary</code></td><td><code>block_id</code>, content, status, retention</td><td>可展示思考；策略可省略持久化</td></tr>
-      <tr><td><code>tool_ref</code></td><td><code>block_id</code>, <code>tool_call_id</code>, <code>node_id</code>, optional group_id</td><td>引用树节点；不内嵌结果全文</td></tr>
+      <tr><td><code>tool_ref</code></td><td><code>block_id</code>, <code>tool_call_id</code>, <code>occurrence_id</code>, <code>node_id</code>, optional group_id</td><td>引用树节点；不内嵌结果全文。occurrence 缺失时仅兼容旧记录。</td></tr>
       <tr><td><code>tool_arguments</code></td><td>（可保留）</td><td>参数流式预览；终态以树为准</td></tr>
-      <tr><td><code>parallel_group</code></td><td><code>group_id</code>, ordered <code>tool_ref</code> ids</td><td>并行外壳；子引用保持发起序</td></tr>
+      <tr><td><code>parallel_group</code></td><td><code>group_id</code>, ordered <code>tool_ref</code> ids</td><td>并行外壳；组 id 由执行端产生；子引用保持发起序。没有明确并发批次时不得创建。</td></tr>
       <tr><td><code>attempt_boundary</code></td><td><code>attempt_id</code>, reason, status</td><td>失败重试边界；旧 attempt 折叠保留</td></tr>
       <tr><td><code>refusal</code> / <code>unsupported</code></td><td>已有</td><td>保持</td></tr>
     </table></div>
@@ -184,8 +185,9 @@ a{color:#9db8ff}
     <ul>
       <li><b>正常工具后继续</b>：同一 attempt 内接着追加 text / tool_ref。</li>
       <li><b>失败重试</b>：新 attempt；UI 显示边界；新输出不得拼到上一段半截 Markdown。</li>
-      <li>重复事件：同一 <code>tool_call_id</code> 不生成第二行。</li>
+      <li>重复事件：同一 qualified <code>occurrence_id</code> 不生成第二行；原始 <code>tool_call_id</code> 可在不同 provider round 中重复。</li>
       <li>工具节点晚到：先占位 <code>tool_ref</code>（稳定 id），再补齐树数据。</li>
+      <li>一次 provider round 结束后，如果产生了工具结果，下一次模型请求继续写入同一个 attempt；只有恢复策略显式调用 <code>start_attempt(reason=...)</code> 才产生新的 attempt。</li>
     </ul>
 <pre>{
   "type": "execution_stream",
@@ -197,6 +199,7 @@ a{color:#9db8ff}
   "block_index": 4,
   "kind": "tool_ref",
   "tool_call_id": "call_abc",
+  "occurrence_id": "occ_7e4c",
   "ref_node_id": "exec_read_file_01",
   "group_id": "par_1"
 }</pre>
@@ -222,6 +225,8 @@ a{color:#9db8ff}
       <li>未完成正文保留，并标明中断/取消/失败。</li>
       <li>未持久化的思考显示「此内容未保存」，不伪造空白成功。</li>
       <li>恢复用 snapshot，禁止为了显示再调模型。</li>
+      <li>live snapshot 与 durable snapshot 都保留完整可展示 block 内容；只有兼容用的短 preview 字段允许受限。</li>
+      <li>历史读取优先取 <code>metadata.stream.snapshot</code>；兼容旧记录时从 <code>metadata.blocks</code> 构造单一 legacy attempt，并保留已持久化的工具块。无法解析引用时显示未解析状态，并保留 <code>tool_call_id</code>。</li>
     </ul>
   </section>
 
@@ -245,7 +250,20 @@ a{color:#9db8ff}
       <li>并行组内顺序不因完成先后重排。</li>
       <li>重试出现 attempt 边界，半截 Markdown 不拼接。</li>
       <li>tool_ref 与树节点一一对应，无重复结果副本。</li>
+      <li>owner 消失后从历史接口恢复同一 blocks 顺序；恢复的工具状态来自持久化 DAG 节点。</li>
     </ul>
+  </section>
+
+  <section id="status">
+    <h2>实现状态</h2>
+    <div class="scroll"><table>
+      <tr><th>范围</th><th>状态</th><th>证据边界</th></tr>
+      <tr><td>协议与状态合并</td><td>已实现</td><td><code>CallStreamState</code>、execution-stream reducer 与协议测试覆盖有序 blocks、tool_ref、attempt 和版本恢复。</td></tr>
+      <tr><td>统一节点内容组件</td><td>已实现</td><td>卡片展开和右侧详情使用 <code>LlmNodeContent</code>；Markdown、思考折叠、工具引用和 earlier attempt 使用同一渲染路径。</td></tr>
+      <tr><td>工具身份、正常续写、并行事件一致性</td><td>本任务修复</td><td>以真实 DAG 节点映射、同一 attempt 续写和显式并行批次为验收边界。</td></tr>
+      <tr><td>owner 消失 / worker 重启后的完整恢复</td><td>本任务修复</td><td>以持久化 snapshot 和历史读取接口的可观测结果为准；真实模型长任务仍需现场验收。</td></tr>
+      <tr><td>真实模型与默认 App 验收</td><td>待现场执行</td><td>需要在默认 profile、端口 <code>18100</code>、现有 App 中执行确定性 nested tool 场景；本页不把单元测试当作现场验收。</td></tr>
+    </table></div>
   </section>
 
   <section id="demo">
@@ -257,7 +275,7 @@ a{color:#9db8ff}
     <div class="mock" id="mock" aria-live="polite"></div>
   </section>
 
-  <footer>OpenProgram design · nested-llm-node-content · 本地文档，待拍板后实现</footer>
+  <footer>OpenProgram design · nested-llm-node-content</footer>
 </main>
 <script>
 (function(){

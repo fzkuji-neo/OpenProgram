@@ -132,3 +132,43 @@ def test_bash_description_changes_do_not_reset_repeat_detection():
             )
     asyncio.run(run())
     assert len(calls) == 2
+
+
+def test_serial_tool_batch_has_no_parallel_group_and_reused_raw_id_is_qualified():
+    async def execute(call_id, args, cancel, on_update):
+        return AgentToolResult(content=[TextContent(text=args["value"])], details={})
+
+    tool = AgentTool(
+        name="echo",
+        description="echo",
+        parameters={"type": "object", "properties": {"value": {"type": "string"}}},
+        label="echo",
+        execute=execute,
+    )
+    assistant = AssistantMessage(
+        content=[
+            ToolCall(id="call_1", name="echo", arguments={"value": "a"}),
+            ToolCall(id="call_2", name="echo", arguments={"value": "b"}),
+        ],
+        api="openai-completions", provider="openai", model="fake",
+        stop_reason="toolUse", timestamp=int(time.time() * 1000),
+    )
+    ev = EventStream()
+
+    async def run():
+        await _execute_tool_calls(
+            [tool], assistant, None, ev, round_id="round-1",
+        )
+        await _execute_tool_calls(
+            [tool],
+            _asst("call_1", "echo", {"value": "next"}),
+            None,
+            ev,
+            round_id="round-2",
+        )
+
+    asyncio.run(run())
+    starts = [item for item in list(ev._queue._queue) if getattr(item, "type", None) == "tool_execution_start"]
+    assert len(starts) == 3
+    assert all(item.group_id is None for item in starts)
+    assert starts[0].occurrence_id != starts[2].occurrence_id

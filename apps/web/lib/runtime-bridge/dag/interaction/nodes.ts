@@ -38,6 +38,8 @@ import {
   forkAndEditNode,
   showNodeMenu,
 } from "../render/inspector";
+import { _buildTree } from "../layout/build-tree";
+import type { TNode } from "@/components/chat/messages/tree-types";
 
 export function _chatBubbleFor(msgId: string): Element | null {
   if (!msgId) return null;
@@ -105,6 +107,34 @@ function _graphNode(id: string): GNode | null {
 }
 
 /**
+ * The DAG interaction cache is flat while the chat execution renderer needs
+ * caller children to resolve a tool_ref. Build the same caller tree used by
+ * the SVG layout and normalize ids to TNode.path so the detail panel can use
+ * the shared LlmNodeContent lookup after a DAG node click.
+ */
+function _detailTreeNode(node: GNode): TNode {
+  const isLlm = node.role === "llm" || node.role === "assistant"
+    || node.node_type === "exec";
+  const raw = node.output ?? node.content ?? node.preview ?? "";
+  const params = node.params && typeof node.params === "object"
+    ? node.params as Record<string, unknown>
+    : node.input && typeof node.input === "object" && !Array.isArray(node.input)
+      ? node.input as Record<string, unknown>
+      : undefined;
+  return {
+    ...node,
+    path: String(node.id),
+    name: node.name || node.function || node.role || "node",
+    node_type: isLlm
+      ? "exec"
+      : node.node_type || (node.role === "tool" ? "tool" : String(node.role || "")),
+    params,
+    raw_reply: typeof raw === "string" ? raw : String(raw),
+    children: (node.children || []).map(_detailTreeNode),
+  } as TNode;
+}
+
+/**
  * Build the right-rail DetailNode for a DAG node.
  *
  * Field accessors mirror ``dag/interaction/tooltip.ts`` (``preview ?? content ??
@@ -132,6 +162,22 @@ function _detailFor(node: GNode): DetailNode {
     (isTool && typeof node.name === "string" && node.name ? node.name : "") ||
     (typeof node.function === "string" ? node.function : "") ||
     (typeof node.role === "string" ? node.role : "node");
+  const isLlm = node.role === "llm" || node.role === "assistant"
+    || node.node_type === "exec";
+  const layoutNode = _lastGraph
+    ? _buildTree(_lastGraph).byId[String(node.id)] || node
+    : node;
+  const treeRoot = isLlm
+    ? _detailTreeNode({
+        ...layoutNode,
+        // Keep the selected row's authoritative content fields when the
+        // layout pass supplied a shallow copy from an older graph revision.
+        stream_attempts: node.stream_attempts,
+        stream_blocks: node.stream_blocks,
+        stream_snapshot: node.stream_snapshot,
+        raw_reply: out,
+      })
+    : undefined;
   return {
     path: String(node.id),
     name,
@@ -139,7 +185,11 @@ function _detailFor(node: GNode): DetailNode {
     params: Object.keys(params).length ? params : undefined,
     output: node.is_error ? undefined : out || undefined,
     error: node.is_error ? out || "error" : undefined,
-    node_type: isTool ? "tool" : String(node.role || ""),
+    // DetailPanel selects the content renderer by this normalized type. Graph
+    // rows can carry `role: assistant` while their execution payload is still
+    // an LLM node, so preserve that fact instead of forcing the generic view.
+    node_type: isLlm ? "exec" : isTool ? "tool" : String(node.role || ""),
+    tree_root: treeRoot,
   };
 }
 

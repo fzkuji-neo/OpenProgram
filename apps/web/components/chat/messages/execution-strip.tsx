@@ -541,6 +541,7 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
     duration_ms: node.duration_ms,
     node_type: node.node_type,
     raw_reply: out || node.raw_reply,
+    tree_root: node,
     // Foldable reasoning — opaque signatures never included in stream.reasoning.
     ...(reasoning ? { thinking: reasoning } : {}),
   };
@@ -568,7 +569,7 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
       error={isError}
       running={running}
       actions={actions}
-      copyText={isLlm ? (out || "") : JSON.stringify(
+      copyText={isLlm ? JSON.stringify({ output: out || "" }, null, 2) : JSON.stringify(
         { name: node.name, params: node.params, output: node.output ?? node.raw_reply, error: node.error },
         null, 2)}
       detail={detail}

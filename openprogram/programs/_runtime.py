@@ -130,10 +130,30 @@ _current_tool_call_id: contextvars.ContextVar[Optional[str]] = contextvars.Conte
     "_current_tool_call_id", default=None,
 )
 
+# A provider may reuse its wire ``tool_call_id`` in a later assistant turn.
+# The dispatcher binds this qualified occurrence for DAG identity while the
+# raw id remains available to tools that correlate provider messages.
+_current_tool_call_occurrence_id: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "_current_tool_call_occurrence_id", default=None,
+)
+_tool_call_identity_consumed: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_tool_call_identity_consumed", default=False,
+)
+
 
 def current_tool_call_id() -> Optional[str]:
     """The tool_call_id of the in-flight tool call, or None outside one."""
     return _current_tool_call_id.get()
+
+
+def current_tool_call_occurrence_id() -> Optional[str]:
+    """The qualified occurrence id of the in-flight provider tool call."""
+    return _current_tool_call_occurrence_id.get()
+
+
+def tool_call_identity_consumed() -> bool:
+    """Whether the current agentic wrapper already consumed its occurrence."""
+    return bool(_tool_call_identity_consumed.get())
 
 
 _registry: dict[str, AgentTool] = {}
@@ -828,15 +848,17 @@ def function(
         and (timeout_min is not None or timeout_max is not None)
     )
 
-    async def _execute(call_id: str,
-                        args: dict[str, Any],
-                        cancel_event,        # asyncio.Event | None
-                        on_update_cb) -> AgentToolResult:        # callable | None
-        # Bind before anything else so every early return below (cache
-        # hit, timeout, error) still ran with the id bound, and so the
-        # ``copy_context()`` in ``_invoke`` carries it into the executor
-        # thread where sync tool bodies run.
-        _current_tool_call_id.set(call_id)
+    async def _execute_bound(call_id: str,
+                              args: dict[str, Any],
+                              cancel_event,        # asyncio.Event | None
+                              on_update_cb) -> AgentToolResult:  # callable | None
+        # The public wrapper below binds the id for the complete operation.
+        # Keeping the binding outside this body also covers exceptions raised
+        # by setup, cache handling, or user code before a normal return.
+        def _clear_tool_call(value):
+            # Kept as a local identity helper for the early-return branches;
+            # cleanup is centralized in the wrapper's finally block.
+            return value
         passable_kwargs = dict(args)
         from openprogram.agent.job.runner import (
             current_job_operation_timeout,
@@ -890,11 +912,11 @@ def function(
             )
         except Exception as exc:
             if getattr(exc, "reason_code", None) == "error.nonpreemptible_operation":
-                return AgentToolResult(
+                return _clear_tool_call(AgentToolResult(
                     content=[TextContent(text=f"[error] {exc}")],
                     details={"reason_code": exc.reason_code},
                     is_error=True,
-                )
+                ))
             raise
         record_current_job_activity("operation_start")
 
@@ -903,14 +925,14 @@ def function(
             path_params=path_params, url_params=url_params,
         )
         if denial is not None:
-            return denial
+            return _clear_tool_call(denial)
 
         # Cache check (after timeout clamp — clamp is part of the cache key).
         if cache:
             key = _cache_key(actual_name, args)
             hit = _cache_get(key)
             if hit is not None:
-                return hit
+                return _clear_tool_call(hit)
 
         try:
             raw = await invoke_callable(
@@ -920,21 +942,22 @@ def function(
             )
         except asyncio.TimeoutError:
             reason_code = current_job_operation_timeout_reason(effective_timeout)
-            return timeout_tool_result(
+            return _clear_tool_call(timeout_tool_result(
                 actual_name, effective_timeout,
                 details={
                     "timeout": True,
                     "reason_code": reason_code or "error.operation_timeout",
                 },
-            )
+            ))
         except asyncio.CancelledError:
+            _clear_tool_call(None)
             raise
         except Exception as e:
-            return AgentToolResult(
+            return _clear_tool_call(AgentToolResult(
                 content=[TextContent(text=f"[error] {type(e).__name__}: {e}")],
                 details={"trace": traceback.format_exc()[:2000]},
                 is_error=True,
-            )
+            ))
 
         # Dynamic per-call ceiling — shrinks in small-context models.
         result = _normalize_result(
@@ -947,7 +970,20 @@ def function(
         if cache and not result.is_error:
             _cache_set(_cache_key(actual_name, args), result, cache_ttl)
 
-        return result
+        return _clear_tool_call(result)
+
+    async def _execute(call_id: str,
+                       args: dict[str, Any],
+                       cancel_event,        # asyncio.Event | None
+                       on_update_cb) -> AgentToolResult:  # callable | None
+        """Bind the provider id for the whole tool call and always clear it."""
+        tool_call_token = _current_tool_call_id.set(call_id)
+        identity_token = _tool_call_identity_consumed.set(False)
+        try:
+            return await _execute_bound(call_id, args, cancel_event, on_update_cb)
+        finally:
+            _current_tool_call_id.reset(tool_call_token)
+            _tool_call_identity_consumed.reset(identity_token)
 
     agent_tool = _build_and_register_tool(
         name=actual_name,
@@ -1020,6 +1056,11 @@ def _build_and_register_tool(
     setattr(agent_tool, "_check_fn", check_fn)
     setattr(agent_tool, "_requires_env", tuple(requires_env))
     setattr(agent_tool, "_can_use", can_use)
+    # Stream/DAG projections need the function's visibility policy before the
+    # body enters. ``@function`` only has a boolean tool exposure switch;
+    # false means no persisted node, while the agentic decorator overwrites
+    # this with its richer io/llm/full/hidden policy below.
+    setattr(agent_tool, "_dag_expose", "full" if expose else "hidden")
     # Layer 6 — read by ``split_tools_for_dispatch`` to decide whether
     # to ship the full schema in the provider tools array or leave it
     # to be loaded later via ``tool_search``.

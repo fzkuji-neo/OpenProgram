@@ -12,6 +12,10 @@ registerHooks({
     if (specifier.endsWith(".module.css")) return {
       url: "data:text/javascript,export default {}", shortCircuit: true,
     };
+    if (specifier === "@/components/animated-icons") return {
+      url: "data:text/javascript,export const ActivityIcon=()=>null;export const AlignLeftIcon=()=>null;export const ArrowUpRightIcon=()=>null;export const AtomIcon=()=>null;export const BicepsFlexedIcon=()=>null;export const BlocksIcon=()=>null;export const BookTextIcon=()=>null;export const BookmarkIcon=()=>null;export const BotIcon=()=>null;export const BoxIcon=()=>null;export const BoxesIcon=()=>null;export const BrainIcon=()=>null;export const CalendarCogIcon=()=>null;export const CalendarDaysIcon=()=>null;export const ChartColumnIncreasingIcon=()=>null;export const CheckIcon=()=>null;export const ChevronDownIcon=()=>null;export const ChevronRightIcon=()=>null;export const ChevronsUpDownIcon=()=>null;export const ChromeIcon=()=>null;export const CircleHelpIcon=()=>null;export const ClockIcon=()=>null;export const CompassIcon=()=>null;export const CopyIcon=()=>null;export const CpuIcon=()=>null;export const CursorClickIcon=()=>null;export const EarthIcon=()=>null;export const EyeIcon=()=>null;export const FeatherIcon=()=>null;export const FileTextIcon=()=>null;export const FingerprintIcon=()=>null;export const FlameIcon=()=>null;export const FolderCodeIcon=()=>null;export const FolderOpenIcon=()=>null;export const FolderPlusIcon=()=>null;export const FoldersIcon=()=>null;export const FrameIcon=()=>null;export const GalleryVerticalEndIcon=()=>null;export const GaugeIcon=()=>null;export const GitBranchIcon=()=>null;export const GitGraphIcon=()=>null;export const GraduationCapIcon=()=>null;export const HammerIcon=()=>null;export const HeartIcon=()=>null;export const HistoryIcon=()=>null;export const KeyIcon=()=>null;export const LanguagesIcon=()=>null;export const LayersIcon=()=>null;export const MessageCircleIcon=()=>null;export const MicIcon=()=>null;export const MonitorCheckIcon=()=>null;export const MonitorIcon=()=>null;export const PanelLeftCloseIcon=()=>null;export const PanelLeftOpenIcon=()=>null;export const PenToolIcon=()=>null;export const PinIcon=()=>null;export const PlugZapIcon=()=>null;export const PlusIcon=()=>null;export const RefreshCwIcon=()=>null;export const RocketIcon=()=>null;export const RouteIcon=()=>null;export const SatelliteDishIcon=()=>null;export const ScanTextIcon=()=>null;export const SearchIcon=()=>null;export const SettingsIcon=()=>null;export const ShieldCheckIcon=()=>null;export const SlidersHorizontalIcon=()=>null;export const SparklesIcon=()=>null;export const SquarePenIcon=()=>null;export const TelescopeIcon=()=>null;export const TerminalIcon=()=>null;export const TimerIcon=()=>null;export const UndoIcon=()=>null;export const WorkflowIcon=()=>null;export const WrenchIcon=()=>null;export const XIcon=()=>null;export const ZapIcon=()=>null;",
+      shortCircuit: true,
+    };
     const base = specifier.startsWith("@/")
       ? new URL(specifier.slice(2), webRoot).href
       : specifier.startsWith(".") && !/\.[a-z]+$/i.test(specifier)
@@ -559,6 +563,166 @@ test("LLM tree rows show and copy replies from legacy and current projections", 
   } finally {
     if (oldNavigator) Object.defineProperty(globalThis, "navigator", oldNavigator);
     else delete globalThis.navigator;
+  }
+});
+
+test("nested LLM content keeps Markdown, parallel refs, continuation and recursion in order", async () => {
+  const { LlmNodeContent } = await import("../../components/chat/messages/llm-node-content.tsx");
+  const node = {
+    path: "llm-root",
+    name: "LLM",
+    node_type: "exec",
+    status: "completed",
+    stream_attempts: [
+      {
+        attempt_id: "attempt-0",
+        attempt_index: 0,
+        reason: "initial",
+        status: "failed",
+        blocks: [{
+          block_id: "old-text", message_id: "m0", block_index: 0,
+          kind: "text", content: "Old partial", status: "finished",
+        }],
+      },
+      {
+        attempt_id: "attempt-1",
+        attempt_index: 1,
+        reason: "structured_output_repair",
+        status: "completed",
+        blocks: [
+          {
+            block_id: "before", message_id: "m1", block_index: 0,
+            kind: "text", content: "Before **tools**", status: "finished",
+          },
+          {
+            block_id: "tool-a", message_id: "m1", block_index: 1,
+            kind: "tool_ref", tool_call_id: "call-a", ref_node_id: "tool-a",
+            tool_name: "search", group_id: "parallel-1", status: "finished",
+          },
+          {
+            block_id: "tool-b", message_id: "m1", block_index: 2,
+            kind: "tool_ref", tool_call_id: "call-b", ref_node_id: "tool-b",
+            tool_name: "lookup", group_id: "parallel-1", status: "finished",
+          },
+          {
+            block_id: "missing", message_id: "m1", block_index: 3,
+            kind: "tool_ref", tool_call_id: "call-missing", ref_node_id: "gone",
+            tool_name: "gone_tool", status: "finished",
+          },
+          {
+            block_id: "after", message_id: "m1", block_index: 4,
+            kind: "text", content: "After tools", status: "finished",
+          },
+        ],
+      },
+    ],
+    children: [
+      {
+        path: "tool-a", name: "search", status: "completed",
+        params: { q: "nested" }, output: "search result",
+        children: [{
+          path: "inner-llm", name: "LLM", node_type: "exec", status: "completed",
+          stream_attempts: [{
+            attempt_id: "inner", attempt_index: 0, status: "completed",
+            blocks: [{
+              block_id: "inner-text", message_id: "mi", block_index: 0,
+              kind: "text", content: "Inner Markdown", status: "finished",
+            }],
+          }],
+        }],
+      },
+      { path: "tool-b", name: "lookup", status: "completed", output: "lookup result" },
+    ],
+  };
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(LlmNodeContent, {
+      nodeId: "llm-root", treeRoot: node,
+    })));
+    const content = host.textContent;
+    assert.match(content, /Before tools/);
+    assert.match(content, /Parallel calls · 2/);
+    assert.match(content, /search/);
+    assert.match(content, /lookup/);
+    assert.match(content, /unresolved/);
+    assert.match(content, /Earlier attempt/);
+    assert.ok(content.indexOf("Before") < content.indexOf("search"));
+    assert.ok(content.indexOf("search") < content.indexOf("After tools"));
+    const toolToggle = host.querySelector(".llm-nc-tool-toggle");
+    assert.ok(toolToggle, "tool row should be expandable");
+    await act(async () => toolToggle.click());
+    assert.match(host.textContent, /Inner Markdown/);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+test("legacy LLM projections retain child tools and explicit unsupported blocks", async () => {
+  const { LlmNodeContent } = await import("../../components/chat/messages/llm-node-content.tsx");
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(LlmNodeContent, {
+      nodeId: "legacy-llm",
+      treeRoot: {
+        path: "legacy-llm",
+        name: "LLM",
+        node_type: "exec",
+        output: "Legacy **Markdown**",
+        stream_blocks: [
+          {
+            block_id: "legacy-tool",
+            kind: "tool_ref",
+            tool_call_id: "legacy-call",
+            ref_node_id: "legacy-tool-node",
+            tool_name: "read_file",
+            status: "finished",
+          },
+          {
+            block_id: "legacy-unknown",
+            kind: "future_block",
+            content: "preserve this marker",
+            status: "finished",
+          },
+        ],
+        children: [{
+          path: "legacy-tool-node",
+          name: "read_file",
+          status: "cancelled",
+          error: "cancelled by owner",
+        }],
+      },
+      fallbackText: "Legacy **Markdown**",
+    })));
+    assert.match(host.textContent, /read_file/);
+    assert.match(host.textContent, /cancelled/);
+    assert.match(host.textContent, /Unsupported content block/);
+    assert.match(host.textContent, /future_block/);
+    assert.match(host.textContent, /Legacy Markdown/);
+    await act(async () => root.render(createElement(LlmNodeContent, {
+      nodeId: "archived-llm",
+      treeRoot: {
+        path: "archived-llm",
+        name: "LLM",
+        node_type: "exec",
+        children: [{
+          path: "archived-tool-node",
+          name: "read_file",
+          status: "completed",
+          output: "archived result",
+        }],
+      },
+      fallbackText: "Archived reply",
+    })));
+    assert.match(host.textContent, /Recovered execution nodes/);
+    assert.match(host.textContent, /read_file/);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
   }
 });
 
