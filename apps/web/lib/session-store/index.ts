@@ -345,6 +345,9 @@ interface ConvState {
    *  that paints #detailBody itself. Gates the Detail/Context switch. */
   nodeSelected: boolean;
   setNodeSelected: (selected: boolean) => void;
+  /** Expanded nested-LLM blocks, keyed by node_id + block/attempt id. */
+  llmContentOpen: Record<string, boolean>;
+  setLlmContentOpen: (key: string, open: boolean) => void;
 }
 
 export interface DetailNode {
@@ -409,6 +412,33 @@ function persistRightDock(state: { open: boolean; view: string }) {
     }
   } catch {
     /* ignore */
+  }
+}
+
+const LLM_CONTENT_OPEN_LS = "nestedLlmContentOpen";
+
+function readLlmContentOpen(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(LLM_CONTENT_OPEN_LS);
+    const parsed = raw ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const result: Record<string, boolean> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === "boolean") result[key] = value;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function persistLlmContentOpen(state: Record<string, boolean>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(LLM_CONTENT_OPEN_LS, JSON.stringify(state));
+  } catch {
+    /* ignore unavailable storage */
   }
 }
 
@@ -1025,6 +1055,14 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
     set({ detailNode: null, nodeSelected: false }),
   nodeSelected: false,
   setNodeSelected: (selected) => set({ nodeSelected: selected }),
+  llmContentOpen: readLlmContentOpen(),
+  setLlmContentOpen: (key, open) =>
+    set((state) => {
+      if (!key || state.llmContentOpen[key] === open) return {};
+      const next = { ...state.llmContentOpen, [key]: open };
+      persistLlmContentOpen(next);
+      return { llmContentOpen: next };
+    }),
 }));
 
 // A scope store's setters update its own instance first (so the pane repaints

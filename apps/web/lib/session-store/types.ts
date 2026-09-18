@@ -56,7 +56,7 @@ export interface ChatToolCall {
   messageId?: string;
   nodeId?: string;
   isError?: boolean;
-  status: "running" | "done" | "error";
+  status: "running" | "done" | "error" | "cancelled";
 }
 
 /** A "system needs a decision" request surfaced in the composer — the
@@ -317,7 +317,7 @@ export interface AssistantBlock {
   message_id?: string;
   node_id?: string;
   is_error?: boolean;
-  outcome?: "not_started" | "failed" | "completed" | "unknown" | "waiting" | "recovered";
+  outcome?: "not_started" | "failed" | "cancelled" | "completed" | "unknown" | "waiting" | "recovered";
 }
 
 export interface ConvSummary {

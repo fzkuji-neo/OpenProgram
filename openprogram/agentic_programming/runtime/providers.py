@@ -428,6 +428,7 @@ class ProvidersOperations:
         self.last_blocks = []
         _thinking_buf = {"text": ""}
         _tool_index = {}
+        _hidden_tool_occurrences: set[str] = set()
         _agent_iteration_count = {"value": 0}
         # Subscribe even if on_stream is None so persistence accumulation
         # still runs (callers that reload history want thinking/tool blocks
@@ -515,6 +516,7 @@ class ProvidersOperations:
                                     model_call_budget["validation_repairs_used"] += 1
                                 _thinking_buf["text"] = ""
                                 _tool_index.clear()
+                                _hidden_tool_occurrences.clear()
                             if forward_structured_event:
                                 dumped = inner.model_dump(exclude_none=True)
                                 _project(dumped)
@@ -545,6 +547,13 @@ class ProvidersOperations:
                         input_str = str(raw_args)
                         group_id = getattr(ev, "group_id", None) or ""
                         expose = getattr(ev, "expose", None) or "full"
+                        # Hidden tools have no user-visible execution row. Do
+                        # this before creating the index or projecting the
+                        # event so the name/status cannot escape as an empty
+                        # ref_node_id placeholder.
+                        if expose == "hidden":
+                            _hidden_tool_occurrences.add(occurrence_id)
+                            return
                         parent_node_id = getattr(self, "_active_llm_node_id", None) or ""
                         ref_node_id = self._ensure_nested_tool_node(
                             parent_node_id=parent_node_id,
@@ -592,9 +601,14 @@ class ProvidersOperations:
                             result_str = ""
                         call_id = getattr(ev, "tool_call_id", "") or ""
                         occurrence_id = getattr(ev, "occurrence_id", None) or call_id
+                        if occurrence_id in _hidden_tool_occurrences:
+                            _hidden_tool_occurrences.discard(occurrence_id)
+                            return
                         is_error = bool(getattr(ev, "is_error", False))
                         block = _tool_index.get(occurrence_id)
                         event_expose = (block or {}).get("expose") or getattr(ev, "expose", None) or "full"
+                        if event_expose == "hidden":
+                            return
                         if block is not None:
                             block["result"] = "" if event_expose == "hidden" else result_str
                             block["is_error"] = is_error
@@ -628,6 +642,7 @@ class ProvidersOperations:
                             "result": "" if event_expose == "hidden" else result_str,
                             "expose": event_expose,
                             "is_error": is_error,
+                            "outcome": getattr(ev, "outcome", None),
                             "node_id": ref_node_id,
                             "ref_node_id": ref_node_id,
                             "group_id": group_id,

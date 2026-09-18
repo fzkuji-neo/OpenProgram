@@ -234,3 +234,76 @@ def test_hidden_nested_tool_does_not_precreate_or_persist_payload(tmp_path):
         store_var.reset(token)
     assert ref == ""
     assert all(n.name != "secret_tool" for n in writer.load().nodes.values())
+
+
+def test_cancelled_nested_tool_keeps_cancelled_terminal_status(tmp_path):
+    from openprogram.agentic_programming.runtime.history import HistoryOperations
+    from openprogram.store import _store as store_var
+
+    store = SessionStore(tmp_path / "sessions-cancelled")
+    store.create_session("cancelled", "main")
+    writer = SessionNodeWriter(store, "cancelled")
+    parent = Call(id="llm-cancelled", role=ROLE_LLM, output="", metadata={"status": "running"})
+    writer.append(parent)
+    token = store_var.set(writer)
+    try:
+        node_id = HistoryOperations()._ensure_nested_tool_node(
+            parent_node_id=parent.id,
+            tool_call_id="call-cancelled",
+            occurrence_id="occ-cancelled",
+            tool_name="slow_tool",
+            arguments={"path": "a"},
+        )
+        HistoryOperations()._finish_nested_tool_node(
+            parent_node_id=parent.id,
+            tool_call_id="call-cancelled",
+            occurrence_id="occ-cancelled",
+            node_id=node_id,
+            result="Cancelled: user requested stop",
+            is_error=True,
+            outcome="cancelled",
+        )
+    finally:
+        store_var.reset(token)
+    child = writer.load().nodes[node_id]
+    assert child.metadata["status"] == "cancelled"
+    assert child.metadata["outcome"] == "cancelled"
+
+
+def test_exposure_policy_filters_code_descendants_in_tree_projection(tmp_path, monkeypatch):
+    store = SessionStore(tmp_path / "sessions-exposure")
+    store.create_session("exposure", "main")
+    writer = SessionNodeWriter(store, "exposure")
+    root = Call(id="root", role=ROLE_CODE, name="workflow", output="done")
+    writer.append(root)
+    io_node = Call(
+        id="io", role=ROLE_CODE, name="io_tool", caller=root.id, output="done",
+        metadata={"status": "completed", "expose": "io"},
+    )
+    writer.append(io_node)
+    io_child = Call(
+        id="io-child", role=ROLE_LLM, name="hidden-model", caller=io_node.id,
+        output="should not be nested",
+    )
+    writer.append(io_child)
+    llm_node = Call(
+        id="llm", role=ROLE_CODE, name="llm_tool", caller=root.id, output="done",
+        metadata={"status": "completed", "expose": "llm"},
+    )
+    writer.append(llm_node)
+    llm_child = Call(
+        id="llm-child", role=ROLE_LLM, name="visible-model", caller=llm_node.id,
+        output="visible",
+    )
+    writer.append(llm_child)
+    code_child = Call(
+        id="llm-code-child", role=ROLE_CODE, name="implementation", caller=llm_node.id,
+        output="should not be nested",
+    )
+    writer.append(code_child)
+    monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: store)
+
+    tree = build_exec_dag_by_id("exposure", root.id)
+    io_projected, llm_projected = tree["children"]
+    assert "children" not in io_projected
+    assert [child["path"] for child in llm_projected["children"]] == [llm_child.id]

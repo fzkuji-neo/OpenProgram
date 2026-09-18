@@ -129,7 +129,8 @@ class HistoryOperations:
             if current_status in {"completed", "error", "cancelled"}:
                 return
             status = (
-                "error" if is_error or outcome == "failed"
+                "cancelled" if outcome == "cancelled"
+                else "error" if is_error or outcome == "failed"
                 else "pending" if outcome == "not_started"
                 else "completed"
             )
