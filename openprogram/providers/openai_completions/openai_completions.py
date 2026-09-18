@@ -664,7 +664,8 @@ async def stream_simple(
                     f"{PROVIDER_STREAM_MAX_ATTEMPTS} after {sleep_s:.1f}s — {e}",
                     flush=True,
                 )
-                await asyncio.sleep(sleep_s)
+                from ..utils.stream_retry import _sleep_unless_aborted
+                await _sleep_unless_aborted(sleep_s, _user_cancelled)
 
         # Build final message
         stop_reason_map = {"stop": "stop", "length": "length", "tool_calls": "toolUse"}
