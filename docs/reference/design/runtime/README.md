@@ -13,7 +13,7 @@ Agent execution runtime — the run loop, worktrees, async tasks, streaming/resu
 - [`operations/file-management.html`](operations/file-management.html) — authoritative file attribution, Review, Undo, Restore, branch alignment, and multi-agent ownership
 - [`overview.md`](overview.md)
 - [`session/`](session/) — the session subsystem: data model, storage, naming, listing, lifecycle, broadcast
-- [`agentic-llm-streaming.zh.html`](agentic-llm-streaming.zh.html) — **Full design** (zh): nested `llm()` per-node token streaming (protocol, FE buffer, persistence, cancel/reconnect, in-process+subprocess)
+- [Nested `llm()` streaming design](https://github.com/fzkuji-neo/OpenProgram/blob/main/docs/reference/design/runtime/agentic-llm-streaming.zh.html) — **Full design** (zh): per-node token streaming (protocol, FE buffer, persistence, cancel/reconnect, in-process+subprocess)
 - [`operations/streaming-resume.md`](operations/streaming-resume.md)
 - [`operations/user-input-requests.md`](operations/user-input-requests.md) — pause a running function to ask the user (`runtime.ask`/`confirm`), question registry + WS/REST protocol + subprocess bridge
 - [`agent-collaboration.md`](agent-collaboration.md) — **authoritative**: agent collaboration as one cross-branch communication primitive — the four domains, the tool surface, the three budgets ([the tool surface rendered](agent-collab-architecture.html), [the eight reference implementations compared](agent-collab-comparison.html))
