@@ -207,7 +207,7 @@ def _resolve_node() -> str:
     node = shutil.which("node")
     if not node:
         raise RuntimeError(
-            "node binary not found in PATH. Install Node.js (>=20) to use the TUI."
+            "node binary not found in PATH. Install Node.js (>=22.12) to use the TUI."
         )
     return node
 

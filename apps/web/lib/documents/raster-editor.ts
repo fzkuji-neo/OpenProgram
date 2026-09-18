@@ -110,7 +110,7 @@ class NativeRasterEditor {
   }
 
   private readonly handlePointerDown = (event: PointerEvent): void => {
-    if (this.destroyed || !this.interactive || this.mode === "idle") return;
+    if (this.destroyed || this.restoring || !this.interactive || this.mode === "idle") return;
     event.preventDefault();
     this.overlay.setPointerCapture(event.pointerId);
     const point = this.pointFromEvent(event);
@@ -128,7 +128,7 @@ class NativeRasterEditor {
   };
 
   private readonly handlePointerMove = (event: PointerEvent): void => {
-    if (!this.pointerStart || this.destroyed || !this.interactive) return;
+    if (!this.pointerStart || this.destroyed || this.restoring || !this.interactive) return;
     event.preventDefault();
     const point = this.pointFromEvent(event);
     if (this.mode === "crop") {
@@ -145,6 +145,13 @@ class NativeRasterEditor {
     if (!this.pointerStart) return;
     event.preventDefault();
     if (this.overlay.hasPointerCapture(event.pointerId)) this.overlay.releasePointerCapture(event.pointerId);
+    if (this.restoring) {
+      this.pointerStart = null;
+      this.lastPoint = null;
+      this.drawSnapshot = null;
+      this.drew = false;
+      return;
+    }
     if (this.mode === "draw" && this.drew && this.drawSnapshot) {
       const snapshot = this.drawSnapshot;
       const pending = (this.pendingDrawing ?? Promise.resolve())
@@ -169,6 +176,21 @@ class NativeRasterEditor {
 
   private readonly handlePointerCancel = (event: PointerEvent): void => {
     if (this.overlay.hasPointerCapture(event.pointerId)) this.overlay.releasePointerCapture(event.pointerId);
+    if (!this.restoring && this.mode === "draw" && this.drew && this.drawSnapshot) {
+      const snapshot = this.drawSnapshot;
+      const pending = (this.pendingDrawing ?? Promise.resolve())
+        .then(() => snapshot)
+        .then((before) => this.restore(before))
+        .finally(() => {
+          if (this.pendingDrawing === pending) this.pendingDrawing = null;
+        });
+      this.pendingDrawing = pending;
+      void pending;
+    }
+    if (this.mode === "crop") {
+      this.cropRect = null;
+      this.drawCropOverlay();
+    }
     this.pointerStart = null;
     this.lastPoint = null;
     this.drawSnapshot = null;
@@ -202,7 +224,7 @@ class NativeRasterEditor {
   };
 
   private setAnnotationInput(): void {
-    const enabled = this.interactive && !this.destroyed && this.mode === "idle";
+    const enabled = this.interactive && !this.destroyed && !this.restoring && this.mode === "idle";
     this.annotationCanvas.selection = enabled;
     for (const object of this.annotationCanvas.getObjects()) {
       object.selectable = enabled;
@@ -224,6 +246,7 @@ class NativeRasterEditor {
   }
 
   private clearAnnotations(): void {
+    const wasRestoring = this.restoring;
     this.restoring = true;
     try {
       this.annotationCanvas.discardActiveObject();
@@ -231,7 +254,7 @@ class NativeRasterEditor {
       this.annotationCanvas.setDimensions({ width: this.canvas.width, height: this.canvas.height });
       this.annotationCanvas.requestRenderAll();
     } finally {
-      this.restoring = false;
+      this.restoring = wasRestoring;
       this.setAnnotationInput();
     }
   }
@@ -297,8 +320,12 @@ class NativeRasterEditor {
   }
 
   private async restore(snapshot: Snapshot): Promise<void> {
-    const image = await createImageBitmap(snapshot.blob);
+    this.restoring = true;
+    this.overlay.style.pointerEvents = "none";
+    this.setAnnotationInput();
+    let image: ImageBitmap | null = null;
     try {
+      image = await createImageBitmap(snapshot.blob);
       this.clearAnnotations();
       this.canvas.width = snapshot.width;
       this.canvas.height = snapshot.height;
@@ -313,7 +340,10 @@ class NativeRasterEditor {
       this.drawCropOverlay();
       this.layout();
     } finally {
-      image.close();
+      image?.close();
+      this.restoring = false;
+      this.overlay.style.pointerEvents = this.interactive && !this.destroyed && this.mode !== "idle" ? "auto" : "none";
+      this.setAnnotationInput();
     }
   }
 
@@ -332,13 +362,13 @@ class NativeRasterEditor {
 
   setInteractive(value: boolean): void {
     this.interactive = value;
-    this.overlay.style.pointerEvents = value && this.mode !== "idle" ? "auto" : "none";
+    this.overlay.style.pointerEvents = value && !this.restoring && this.mode !== "idle" ? "auto" : "none";
     this.setAnnotationInput();
   }
 
   setMode(mode: "idle" | "crop" | "draw"): void {
     this.mode = mode;
-    this.overlay.style.pointerEvents = this.interactive && mode !== "idle" ? "auto" : "none";
+    this.overlay.style.pointerEvents = this.interactive && !this.restoring && mode !== "idle" ? "auto" : "none";
     this.setAnnotationInput();
   }
 
@@ -555,6 +585,15 @@ export async function createBoundRasterEditor(options: {
     commands = task.catch(() => undefined);
     return task;
   };
+  const toolRun = (operation: () => void): Promise<void> => {
+    if (readonly || !enabled || destroyed) return Promise.reject(new Error("Raster editor is read-only."));
+    const task = commands.then(() => {
+      if (destroyed) throw new Error("The image editor was closed.");
+      operation();
+    });
+    commands = task.catch(() => undefined);
+    return task;
+  };
   const exportFile = async () => {
     await editor.waitForPendingDrawing();
     await commands;
@@ -598,28 +637,18 @@ export async function createBoundRasterEditor(options: {
     }, false),
     addText: (text) => run(() => editor.addText(text)),
     addShape: (type) => run(() => editor.addShape(type)),
-    draw: () => {
-      if (readonly || !enabled || destroyed) return Promise.reject(new Error("Raster editor is read-only."));
+    draw: () => toolRun(() => {
       editor.cancelTool();
       editor.setMode("draw");
       syncInput();
-      return Promise.resolve();
-    },
-    startCrop: () => {
-      if (readonly || !enabled || destroyed) return Promise.reject(new Error("Raster editor is read-only."));
-      editor.startCrop();
-      return Promise.resolve();
-    },
+    }),
+    startCrop: () => toolRun(() => editor.startCrop()),
     applyCrop: () => {
       const value = editor.getCropRect();
       if (!value) return Promise.reject(new Error("Select a crop area before applying crop."));
       return instance.crop({ ...value });
     },
-    cancelTool: () => {
-      if (readonly || !enabled || destroyed) return Promise.reject(new Error("Raster editor is read-only."));
-      editor.cancelTool();
-      return Promise.resolve();
-    },
+    cancelTool: () => toolRun(() => editor.cancelTool()),
     undo: () => historyRun(async () => { if (!await editor.undo()) throw new Error("Nothing to undo."); }),
     redo: () => historyRun(async () => { if (!await editor.redo()) throw new Error("Nothing to redo."); }),
   };
