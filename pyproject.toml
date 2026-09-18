@@ -143,7 +143,7 @@ dev = [
     # single-file debugging stays overhead-free
     "pytest-xdist>=3.5",
     "coverage>=7.6",
-    "cryptography>=42",
+    "cryptography>=50.0.0",
     "trio>=0.30",
     "ruff>=0.16",
 ]
