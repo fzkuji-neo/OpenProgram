@@ -6,7 +6,7 @@
  and packaged release installer. This legacy script remains the editable
  source-development workflow.
  Brings up the OpenProgram HOST so `openprogram` just works:
-   1. Verify (or winget-install) the system toolchain: Python 3.11+, Node 20+, git
+   1. Verify (or winget-install) the system toolchain: Python 3.11+, Node 22.12+, git
    2. Python env (creates/reuses .\.venv unless -Python is supplied)
    3. OpenProgram (editable) + its deps
    4. Web + terminal UI: builds apps/web and the full Ink TUI in apps/cli
@@ -156,15 +156,17 @@ if (-not $Bootstrapped -and -not (Test-OpenProgramCheckout $HostRoot)) {
   & $child @forward
   exit $LASTEXITCODE
 }
-Step "checking system toolchain (python3.11+, node20+, git)"
+Step "checking system toolchain (python3.11+, node22.12+, git)"
 if (-not (Have git))  { Step "installing git";    Winget-Install "Git.Git" }
 if (Have git)  { Ok "git: $(git --version)" } else { Die "git missing after installation; open a new PowerShell and run this installer again" }
 if (-not $Minimal -and -not (Have node)) { Step "installing Node.js"; Winget-Install "OpenJS.NodeJS.LTS" }
 if (Have node) {
+  $nodeVersion = (node -p "process.versions.node") 2>$null
   $nodeMajor = [int]((node -p "process.versions.node.split('.')[0]") 2>$null)
-  if ($nodeMajor -ge 20 -and $nodeMajor -le 22) { Ok "node: $(node --version)" }
+  $nodeMinor = [int]((node -p "process.versions.node.split('.')[1]") 2>$null)
+  if ($nodeMajor -eq 22 -and $nodeMinor -ge 12) { Ok "node: $(node --version)" }
   elseif ($nodeMajor -gt 22) { Warn "node $(node --version) is newer than the validated Node 22 LTS; continuing with workspace-scoped installs" }
-  else { Die "node $(node --version) < 20 - upgrade to Node 20+ (Node 22 LTS recommended)" }
+  else { Die "node $nodeVersion < 22.12 - upgrade to Node 22.12+ (Node 22 LTS recommended)" }
 } elseif (-not $Minimal) { Die "node not found after installation; open a new PowerShell and run this installer again" }
 else { Warn "node not found (allowed by -Minimal)" }
 

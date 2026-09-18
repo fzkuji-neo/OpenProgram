@@ -128,7 +128,7 @@ frontend workspaces from the npm lockfile, builds the browser UI and full Ink
 terminal UI, and installs the optional browser and Channel dependencies. It also creates
 `openprogram.cmd` and `openprogram.ps1` under `%LOCALAPPDATA%\OpenProgram\bin` and adds that directory to the
 user `PATH`, so a new PowerShell can invoke `openprogram` without activating
-the checkout environment. Node.js 22 LTS is the validated version. `-Minimal`
+the checkout environment. Node.js 22.12 or newer is required; Node.js 22 LTS is the validated major version. `-Minimal`
 installs only the Python CLI/server and does not install or build frontend
 dependencies.
 

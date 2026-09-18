@@ -12,7 +12,7 @@
 # and installs in place.
 #
 # The default install brings up EVERYTHING `openprogram` ships with:
-#   1. System toolchain: Python 3.11+, Node 20+, git (installed if missing)
+#   1. System toolchain: Python 3.11+, Node 22.12+, git (installed if missing)
 #   2. Python env (uses an active venv/conda, else creates ./.venv)
 #   3. OpenProgram (editable) + its deps
 #   4. Web UI:   apps/web/ -> npm install && npm run build  (served on :18100)
@@ -160,19 +160,25 @@ pm_install() {  # best-effort cross-distro package install
 }
 sudo_run() { if [ "$(id -u)" = "0" ]; then "$@"; elif command -v sudo >/dev/null 2>&1; then sudo "$@"; else warn "no sudo — run as root: $*"; return 1; fi; }
 
-step "checking system toolchain (python3.11+, node20+, git)"
+step "checking system toolchain (python3.11+, node22.12+, git)"
 command -v git >/dev/null 2>&1 || { step "installing git"; pm_install git; }
 command -v git >/dev/null 2>&1 && ok "git: $(git --version)" || warn "git missing"
 if ! command -v node >/dev/null 2>&1; then
   step "installing Node.js"
   if [ "$OS" = "Darwin" ]; then pm_install node
-  else pm_install nodejs npm || warn "install Node 20+ from https://nodejs.org"; fi
+  else pm_install nodejs npm || warn "install Node 22.12+ from https://nodejs.org"; fi
 fi
 if command -v node >/dev/null 2>&1; then
+  NODE_VERSION="$(node -p 'process.versions.node' 2>/dev/null || echo 0.0.0)"
   NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
-  [ "$NODE_MAJOR" -ge 20 ] && ok "node: $(node --version)" || warn "node $(node --version) < 20 — web/TUI may fail; upgrade to Node 20+"
+  NODE_MINOR="$(node -p 'process.versions.node.split(".")[1]' 2>/dev/null || echo 0)"
+  if [ "$NODE_MAJOR" -gt 22 ] || { [ "$NODE_MAJOR" -eq 22 ] && [ "$NODE_MINOR" -ge 12 ]; }; then
+    ok "node: v$NODE_VERSION"
+  else
+    die "node v$NODE_VERSION < 22.12 — upgrade to Node 22.12+ (https://nodejs.org)"
+  fi
 else
-  warn "node not found — the web UI and TUI need Node 20+ (https://nodejs.org)"
+  die "node not found — the web UI and TUI need Node 22.12+ (https://nodejs.org)"
 fi
 
 # ---- 2. Python env ----------------------------------------------------------
