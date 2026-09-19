@@ -195,7 +195,21 @@ class AgentSession:
             if not is_retryable_error(last, context_window):
                 return
 
-            if not self._retry.enabled or attempt >= self._retry.max_retries:
+            # Runtime owns a shared allowance across transport and format
+            # repair. Reserve here before continuing this same session so
+            # completed tools remain in context and retries are counted once.
+            from openprogram.providers.utils.recovery import current_recovery
+
+            recovery = current_recovery.get()
+            shared_exhausted = False
+            if self._retry.enabled and attempt < self._retry.max_retries and recovery is not None:
+                shared_exhausted = not recovery.reserve("transport")
+                if shared_exhausted:
+                    # Keep the actual provider error; stop Runtime from
+                    # restarting the invocation with a fresh tool context.
+                    last.error_transport_exhausted = True
+
+            if not self._retry.enabled or attempt >= self._retry.max_retries or shared_exhausted:
                 self._emit({
                     "type": "auto_retry_end",
                     "success": False,
