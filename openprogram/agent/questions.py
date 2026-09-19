@@ -21,6 +21,8 @@ import asyncio
 import threading
 import time
 import uuid
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
@@ -40,6 +42,19 @@ class DurableWaitSafePointRequired(RuntimeError):
 
     def __init__(self, message: str):
         super().__init__(f"{self.code}: {message}")
+
+
+_live_workflow_owner = ContextVar("live_workflow_question_owner", default=None)
+
+
+@contextmanager
+def live_workflow_questions(*, execution_id, attempt_id, generation, producer_id):
+    """Process-runner binding; does not make a Python frame restartable."""
+    token = _live_workflow_owner.set((execution_id, attempt_id, generation, producer_id))
+    try:
+        yield
+    finally:
+        _live_workflow_owner.reset(token)
 
 
 @dataclass
@@ -88,9 +103,8 @@ class QuestionRegistry:
     def register(self, q: PendingQuestion) -> threading.Event:
         """Register only a local wake notification for an existing wait.
 
-        Opening a wait is an execution-control transaction at a declared
-        Agent safe point.  The registry is never allowed to create one from a
-        live Python frame because that would leave an unfenced owner running.
+        Opening a wait belongs to execution control or an exactly owned live
+        Workflow. The registry never creates lifecycle state itself.
         """
         from openprogram.execution import default_store
         from openprogram.execution.waits import DurableWaitStore
@@ -247,11 +261,7 @@ class QueueTransport(QuestionTransport):
         self._queue = queue
 
     def publish(self, data: dict) -> None:
-        try:
-            self._queue.put({"__op_question__": True, "data": data},
-                            block=False)
-        except Exception:
-            pass
+        self._queue.put({"__op_question__": True, "data": data}, block=False)
 
     def retract(self, qid: str) -> None:
         # 子进程超时无需自己收回前端卡片：父进程在子进程退出时（finally 的
@@ -301,16 +311,47 @@ def open_question(
     等同一个 Event，互不阻塞各自的执行模型。on_asked(PendingQuestion) 负责把
     问题送出去（经 transport / 事件层）。
     """
-    del request_metadata, policy_snapshot, timeout
     from openprogram.agent.run_control import get_preapproved_wait_id
     from openprogram.execution import default_store
     from openprogram.execution.waits import DurableWaitStore, WaitStatus
 
     wait_id = get_preapproved_wait_id()
     if not wait_id:
-        raise DurableWaitSafePointRequired(
-            "runtime.ask/form/confirm requires a declared pre-wait safe point"
+        owner = _live_workflow_owner.get()
+        if owner is None:
+            raise DurableWaitSafePointRequired(
+                "runtime.ask/form/confirm requires a declared pre-wait safe point or live Workflow owner"
+            )
+        execution_id, attempt_id, generation, producer_id = owner
+        store = default_store()
+        execution = store.get_execution(execution_id)
+        if execution is None or execution.session_id != session_id:
+            raise DurableWaitSafePointRequired("live Workflow question belongs to another session")
+        if kind not in {"ask", "ask_many", "confirm", "form"}:
+            raise DurableWaitSafePointRequired("live Workflow questions cannot grant tool permissions")
+        if type(timeout) not in {int, float} or timeout <= 0:
+            raise ValueError("question timeout must be positive")
+        wait = DurableWaitStore(store).open_wait(
+            execution_id=execution_id, attempt_id=attempt_id, generation=generation,
+            kind=kind, request={
+                "prompt": prompt, "options": list(options or []), "multi": multi,
+                "allow_custom": allow_custom, "detail": detail,
+                "schema": dict(schema or {}), "questions": list(questions or []),
+            }, policy_snapshot={"version": 1, "mode": "live", "producer_id": producer_id},
+            expires_at=time.time() + timeout,
         )
+        q = _pending_from_wait(wait)
+        event = get_question_registry().register(q)
+        try:
+            on_asked(q)
+        except BaseException:
+            DurableWaitStore(store).cancel_live_waits(
+                execution_id=execution_id, attempt_id=attempt_id,
+                generation=generation, producer_id=producer_id,
+            )
+            get_question_registry().consume(q.id)
+            raise
+        return q, event
     wait = DurableWaitStore(default_store()).get_wait(wait_id)
     if wait is None or wait.kind != kind:
         raise DurableWaitSafePointRequired(

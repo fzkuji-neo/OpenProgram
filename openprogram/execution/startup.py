@@ -68,6 +68,7 @@ def recover_execution_startup(
 
     waits = DurableWaitStore(control_service.executions)
     canonical = tuple(control_service.recover_startup())
+    waits.cancel_live_waits()
     waits_reclaimed = (
         waits.reclaim_expired_claims()
         + waits.reclaim_orphaned_claims()

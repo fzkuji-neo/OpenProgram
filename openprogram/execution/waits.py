@@ -97,6 +97,54 @@ class DurableWaitStore:
             raise ExecutionConflict("wait_payload_too_large", f"{field} exceeds its size limit")
         return encoded
 
+    def _live_owner_valid(self, connection, execution_id, attempt_id, generation):
+        execution = self.executions._require_execution(connection, execution_id)
+        attempt = connection.execute(
+            "SELECT status, lease_expires_at FROM attempts WHERE attempt_id = ?",
+            (attempt_id,),
+        ).fetchone()
+        return (
+            execution.status is ExecutionStatus.RUNNING
+            and execution.current_attempt_id == attempt_id
+            and execution.owner_lease.get("generation") == generation
+            and attempt is not None and attempt["status"] == "active"
+            and float(attempt["lease_expires_at"]) > time.time()
+        )
+
+    def cancel_live_waits(self, *, execution_id=None, attempt_id=None,
+                          generation=None, producer_id=None):
+        """Close one exited producer's waits, or all orphaned live waits."""
+        closed = []
+        now = time.time()
+        with self.executions._transaction() as connection:
+            rows = connection.execute(
+                "SELECT * FROM execution_waits WHERE status IN ('open', 'claimed')"
+            ).fetchall()
+            for row in rows:
+                policy = self._decode_ref(row["execution_id"], row["policy_snapshot_ref"])
+                if policy.get("mode") != "live":
+                    continue
+                if producer_id is not None:
+                    if (row["execution_id"] != execution_id or row["attempt_id"] != attempt_id
+                            or int(row["generation"]) != generation
+                            or policy.get("producer_id") != producer_id):
+                        continue
+                elif self._live_owner_valid(connection, row["execution_id"], row["attempt_id"], int(row["generation"])):
+                    continue
+                connection.execute(
+                    "UPDATE execution_waits SET status = 'cancelled', outcome = 'cancelled', "
+                    "claim_owner = NULL, claim_expires_at = NULL, resolved_at = ?, updated_at = ? WHERE wait_id = ?",
+                    (now, now, row["wait_id"]),
+                )
+                execution = self.executions._require_execution(connection, row["execution_id"])
+                self.executions._append_event(
+                    connection, execution_id=row["execution_id"],
+                    execution_version=execution.status_version, kind="execution.wait.cancelled",
+                    payload={"wait_id": row["wait_id"], "reason": "live_owner_ended"}, created_at=now,
+                )
+                closed.append(row["wait_id"])
+        return tuple(closed)
+
     def open_wait(
         self,
         *,
@@ -176,6 +224,10 @@ class DurableWaitStore:
         ).fetchone()
         if attempt is None or attempt["execution_id"] != execution_id or int(attempt["generation"]) != generation or attempt["status"] != "active":
             raise ExecutionConflict("stale_attempt", "wait attempt is no longer active")
+        if policy_snapshot.get("mode") == "live":
+            if (checkpoint_id is not None or not policy_snapshot.get("producer_id")
+                    or not self._live_owner_valid(connection, execution_id, attempt_id, generation)):
+                raise ExecutionConflict("stale_live_owner", "live Workflow question requires its current leased owner")
         if checkpoint_id is not None:
             checkpoint = connection.execute(
                 "SELECT execution_id FROM checkpoints WHERE checkpoint_id = ?", (checkpoint_id,)
@@ -570,6 +622,10 @@ class DurableWaitStore:
                     policy_value = self._decode_ref(execution_id, str(row["policy_snapshot_ref"]))
                     if not isinstance(request_value, Mapping) or not isinstance(policy_value, Mapping):
                         raise ExecutionConflict("wait_payload_invalid", "wait request and policy must be objects")
+                    if policy_value.get("mode") == "live" and not self._live_owner_valid(
+                        connection, execution_id, row["attempt_id"], int(row["generation"]),
+                    ):
+                        raise ExecutionConflict("stale_live_owner", "live Workflow question owner has ended")
                     if kind is CommandKind.WAIT_ANSWER:
                         self._validate_answer(
                             kind=str(row["kind"]), request=request_value,
