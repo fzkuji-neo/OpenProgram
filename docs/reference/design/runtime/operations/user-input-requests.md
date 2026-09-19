@@ -54,6 +54,6 @@ Agent tool interactions with a declared pre-wait still use the checkpoint transa
 
 Tests exercise public `ask_user` with the real Runtime, canonical wait commands, same-call continuation, cancellation, invalid owner/session, transport failure and producer cleanup. Native acceptance requires a question in the installed App, browser refresh and an answer that lets the Workflow finish. A returned `WAITING_USER` object is not evidence that the UI interaction worked.
 
-## Implementation status
+## Scope
 
-The live Workflow binding and failure propagation are under verification. Workflow restart recovery is outside this contract.
+Workflow restart recovery is outside this contract. A live question retains its request and answer, not the Workflow execution state.
