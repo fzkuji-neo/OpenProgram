@@ -202,14 +202,15 @@ class AgentSession:
 
             recovery = current_recovery.get()
             shared_exhausted = False
-            if self._retry.enabled and attempt < self._retry.max_retries and recovery is not None:
+            local_exhausted = recovery is None and attempt >= self._retry.max_retries
+            if self._retry.enabled and recovery is not None:
                 shared_exhausted = not recovery.reserve("transport")
                 if shared_exhausted:
                     # Keep the actual provider error; stop Runtime from
                     # restarting the invocation with a fresh tool context.
                     last.error_transport_exhausted = True
 
-            if not self._retry.enabled or attempt >= self._retry.max_retries or shared_exhausted:
+            if not self._retry.enabled or local_exhausted or shared_exhausted:
                 self._emit({
                     "type": "auto_retry_end",
                     "success": False,
@@ -225,7 +226,7 @@ class AgentSession:
             self._emit({
                 "type": "auto_retry_start",
                 "attempt": attempt,
-                "max_attempts": self._retry.max_retries,
+                "max_attempts": recovery.limit if recovery is not None else self._retry.max_retries,
                 "delay_ms": delay_ms,
                 "error_message": getattr(last, "error_message", "Unknown error"),
             })
