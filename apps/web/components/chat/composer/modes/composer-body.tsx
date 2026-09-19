@@ -3,9 +3,8 @@
 /**
  * Input-area body per composer mode.
  *
- * 按当前 mode 渲染输入区主体。所有「问用户」的形态（ask/confirm/approval/
- * form/ask_many）都由唯一的 QuestionMode 承接，不再分组件；fn-form 走
- * FunctionForm；其余走普通聊天的 ChatInputRow。
+ * Function forms use FunctionForm; ordinary chat uses ChatInputRow.
+ * User decisions are rendered in the conversation output.
  *
  * The outgoing fn-form crossfade layer rides along here because it must be
  * a sibling rendered AFTER the live form (see the comment at its JSX).
@@ -13,7 +12,6 @@
 import React from "react";
 
 import { FunctionForm } from "./fn-form/fn-form";
-import { QuestionMode } from "./question/question-mode";
 import { ChatInputRow } from "../input/chat-input-row";
 import type { useFnFormState } from "./fn-form/use-fn-form-state";
 import type { useFileMention } from "../attach/use-file-mention";
@@ -24,14 +22,10 @@ import styles from "../composer.module.css";
 const noop = () => {};
 
 type FnFormFn = React.ComponentProps<typeof FunctionForm>["fn"];
-type Decision = React.ComponentProps<typeof QuestionMode>["decision"];
 
 export interface ComposerBodyProps {
   bound: string | null;
   composerMode: string;
-  activeDecision: Decision | null;
-  dequeueDecision(id: string): void;
-  onChatAbout(feedback: string): void | Promise<void>;
   fnFormFunction: FnFormFn | null;
   fnForm: ReturnType<typeof useFnFormState>;
   handleFnFormClose(): void;
@@ -54,9 +48,6 @@ export interface ComposerBodyProps {
 export function ComposerBody({
   bound,
   composerMode,
-  activeDecision,
-  dequeueDecision,
-  onChatAbout,
   fnFormFunction,
   fnForm,
   handleFnFormClose,
@@ -77,16 +68,7 @@ export function ComposerBody({
 }: ComposerBodyProps) {
   return (
     <>
-        {/* 按当前 mode 渲染输入区主体。所有「问用户」的形态（ask/confirm/
-            approval/form/ask_many）都由唯一的 QuestionMode 承接，不再分组件。 */}
-        {activeDecision ? (
-          <QuestionMode
-            key={activeDecision.id}
-            decision={activeDecision}
-            onResolve={dequeueDecision}
-            onChatAbout={onChatAbout}
-          />
-        ) : composerMode === "fn-form" && fnFormFunction ? (
+        {composerMode === "fn-form" && fnFormFunction ? (
           <FunctionForm
             // `key` ties to fn name so React re-mounts on every
             // switch — the freshly mounted header/body run their own

@@ -38,6 +38,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useChatAreaStick } from "./messages/use-chat-area-stick";
 import { useMessageViewport } from "./messages/use-message-viewport";
 import { useHistoryWindow } from "./messages/use-history-window";
+import { DecisionOutputs } from "./messages/decision-output";
 import { MessageRow, RecyclableRow } from "./messages/message-list";
 
 export function PeerSessionPane({
@@ -240,6 +241,7 @@ export function PeerSessionPane({
               )
             ))
           )}
+          <DecisionOutputs key={sessionId} sessionId={sessionId} />
         </div>
       </div>
       {/* Full composer, scoped to this pane's session. The scope is what the

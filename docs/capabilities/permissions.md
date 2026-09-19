@@ -12,6 +12,8 @@ Use the permission menu in Web or the installed App, or `/permissions` in the te
 
 Bypass does not override explicit deny or ask rules, mandatory plan-exit or self-update approval, plugin restrictions, identity capabilities, or Sandbox.
 
+Questions and approvals appear as independent cards in the conversation. Answer inside the card; the main message box remains available for ordinary messages. The card shows the submitted answer, delivery progress and a confirmation or retry state. Confirmed receipts remain visible until the page is reloaded; pending requests are restored on reconnect.
+
 Tool approvals show the current operation and two actions: Allow once and Deny.
 Clicking either submits that decision directly. The request closes only after
 server confirmation; an unconfirmed answer can retry the same decision.

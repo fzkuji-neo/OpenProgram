@@ -33,7 +33,6 @@ import { useTranslation } from "@/lib/i18n";
 // Session-scope chips relocated from the dismantled 48px topbar row —
 // each carries its own popover menu (project-menu / agent-selector /
 // permission-menu submodules under ../top-bar).
-import { CircleHelp } from "lucide-react";
 import { visibleParams } from "./modes/fn-form/fn-form";
 import { resolveComposerMode } from "./modes/resolve-mode";
 import { SendIcon, StopIcon } from "./icons";
@@ -65,9 +64,6 @@ import { useComposerInputEffects } from "./input/use-composer-input-effects";
 import { EnvironmentRow } from "./environment-row/environment-row";
 import { ScopedDropOverlay } from "./attach/scoped-drop-overlay";
 import { ComposerBody } from "./modes/composer-body";
-import { useWaitAnswer } from "./modes/question/use-wait-answer";
-import { useDecisionDiscussion } from "./modes/question/use-decision-discussion";
-import { QuestionPanel } from "./modes/question/question-panel";
 import styles from "./composer.module.css";
 
 /* Single shared WebSocket, owned by `lib/net/use-ws.ts` and reached
@@ -163,57 +159,15 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   const closeFnFormStore = useSessionStore((s) => s.closeFnForm);
   const setFnFormClosing = useSessionStore((s) => s.setFnFormClosing);
   const setCurrentConv = useSessionStore((s) => s.setCurrentConv);
-  // 系统等用户决定（runtime.ask / confirm / approval）的 FIFO 队列；队首占据
-  // 输入区呈现为 question mode（docs/design/ui/composer-interaction-modes.md）。
-  // 输入框状态跟会话走：只认「属于当前会话」的提问，切到别的会话就不显示
-  // （也就不会误把答案发到别的会话上）。
-  const pendingDecisions = useSessionStore((s) => s.pendingDecisions);
-  const dequeueDecision = useSessionStore((s) => s.dequeueDecision);
-  const pendingDecision =
-    pendingDecisions.find((d) => d.sessionId === currentSessionId) ?? null;
-
-  // ask/confirm（含 ask_user_question）走输入框顶部的 QuestionPanel。
-  // Goal 的问题是异步队列，只在 Goal 详情面板回答，不占用 composer。
-  const askDecision =
-    pendingDecision &&
-    (pendingDecision.kind === "ask" || pendingDecision.kind === "confirm")
-      ? pendingDecision
-      : null;
-  const activeDecision = askDecision ? null : pendingDecision;
   const send = wsSend;
-  const { sendAnswer: sendWaitCommand, answerPending, answerLocked } = useWaitAnswer(askDecision, dequeueDecision);
-
   const isRunning = runningTask !== null;
   const isCancelling = Boolean(runningTask?.cancelling);
   const fnFormActive = fnFormFunction !== null;
-  // 右下角圆按钮是否该显示红色停止 ■：仅当任务真在跑、且当前没有 decision
-  // 占据输入区。decision 在场时函数虽“运行”着，但它在等用户答题——此刻这个
-  // 按钮要当“提交”用，不能变停止键（否则点了是中断函数，不是交答案）。
-  // 跑着的时候输入框里有字 = 用户在写下一条消息（占位符就是这么提示的），
-  // 此刻圆钮必须是发送（送进队列）：显示成停止键的话，点下去杀的是任务
-  // 本身，写好的那句话一个字都没送出去。空输入才是停止键。
-  // askDecision（顶部面板在等答案）时同理：圆钮要当「提交答案」用，不能变
-  // 停止键。
-  const showStop =
-    isRunning && activeDecision === null && askDecision === null && !input.trim();
-
-  // 输入框当前处于哪个 mode —— 一个显式的派生值（含优先级），渲染时按它
-  // switch，不再散在 JSX 里嵌套三元。idle / fn-form / question / approval。
-  const composerMode = resolveComposerMode(activeDecision, fnFormFunction);
-  // 任何"输入框变形"态（fn-form / question / approval / form）都用 fn-form
-  // 那套容器样式（header/body 两段式 + 分割线定位），所以 wrapper 的 mode
-  // 类不只在 fn-form 时加。
+  // Decisions have their own output cards. Chat text always sends or queues
+  // a message, and an empty running composer retains its Stop action.
+  const showStop = isRunning && !fnFormActive && !input.trim();
+  const composerMode = resolveComposerMode(fnFormFunction);
   const morphed = composerMode !== "idle";
-
-  // 冲突规则（docs/design/ui/composer-interaction-modes.md）：系统决定
-  // （runtime.ask / approval）撞上用户主动开的 fn-form → 取消 fn-form，让
-  // 系统决定占住输入区。用户主动开的东西丢弃无所谓；系统决定之间则由
-  // pendingDecisions 的 FIFO 队列天然排队（队首占据，答完出下一个）。
-  useEffect(() => {
-    if ((activeDecision || askDecision) && fnFormFunction) {
-      closeFnFormStore();
-    }
-  }, [activeDecision, askDecision, fnFormFunction, closeFnFormStore]);
 
   // @file mention — state + debounced /api/file-search + popover
   // positioning + picker all live in ./use-file-mention now. The hook
@@ -314,10 +268,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       setFnFormClosingLocal(false);
     }, [closeFnFormStore, setFnFormClosingLocal]),
     wrapperRef,
-    // A system decision uses the same morphed container — drive the same
-    // wrapper-grow + button-glide-to-bottom for it. Its id keys the
-    // open-transition so each new decision re-pins the button.
-    decisionKey: activeDecision?.id ?? null,
   });
 
   const inputAreaRef = useComposerInputEffects({
@@ -407,32 +357,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     dispatchFunction,
   });
 
-  // 顶部 ask / confirm 面板在场时，输入文本作为 PendingQuestion 的答案。
-  const submitWithPanel = useCallback(async () => {
-    const trimmed = input.trim();
-    if (askDecision && trimmed && askDecision.allow_custom) {
-      if (await sendWaitCommand("execution.wait.answer", askDecision.multi ? [trimmed] : trimmed) && !answerLocked) {
-        const draftKey = activeChatKey ?? currentSessionId;
-        if (draftKey && useSessionStore.getState().composerDrafts[draftKey] === input) {
-          setComposerInputFor(draftKey, "");
-        }
-      }
-      return;
-    }
-    await submit();
-  }, [
-    input,
-    askDecision,
-    sendWaitCommand,
-    answerLocked,
-    send,
-    dequeueDecision,
-    setComposerInputFor,
-    activeChatKey,
-    currentSessionId,
-    submit,
-  ]);
-
   // Pick a slash command. Commands with a REQUIRED argument (an
   // `<angle-bracket>` placeholder in `args`) fill the input so the
   // user can type it. Everything else — no args, or only optional
@@ -457,7 +381,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     historyRecall,
     slash,
     selectSlashCommand,
-    submit: submitWithPanel,
+    submit,
   });
 
   function onMenuItemClick(cmd: SlashCommand) {
@@ -487,35 +411,8 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     handleFnFormClose,
   });
 
-  // decision 在场时右下角是 mode 自己的 navButtons 按钮组（见 JSX），不走
-  // 这个圆形按钮，所以这里只管 fn-form / 普通聊天两种。
-  const onSendButtonClick = fnFormActive ? submitFnForm : submitWithPanel;
+  const onSendButtonClick = fnFormActive ? submitFnForm : submit;
 
-  const rejectDecision = useDecisionDiscussion({
-    decision: activeDecision,
-    thinking,
-    dequeue: dequeueDecision,
-  });
-
-  // 顶部提问面板的内容（真 ask 优先；morphed 时不叠面板 —— approval/form
-  // 占着输入区，答完再出）。点 pill = 立即提交（点击即时反馈）。
-  const panel = askDecision
-    ? {
-        badge: (
-          <>
-            <CircleHelp size={13} strokeWidth={2} />
-            <span>{text("Your input is needed", "需要你的输入")}</span>
-          </>
-        ),
-        prompt: askDecision.prompt,
-        options: answerLocked ? [{ label: text("Retry previous answer", "重试原答复") }]
-          : askDecision.options.map((label) => ({ label })),
-        disabled: answerPending,
-        onPick: (label: string) => {
-          void sendWaitCommand("execution.wait.answer", askDecision.multi ? [label] : label);
-        },
-      }
-    : null;
   // In chat mode: disabled when textarea is empty OR when a paste
   //   token references content that was lost (chip is red). Submitting
   //   in the "lost" state would silently strip the token — see the
@@ -567,7 +464,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   // Controls cluster — permission / plus menu / tool chips on the
   // left; model texts + effort pill + context ring on the right.
   // Always rendered in the detached .controlsRow below the wrapper, in
-  // every mode — opening a fn-form / question only grows the wrapper
+  // every mode — opening a fn-form only grows the wrapper
   // above it, the controls row itself never moves or restyles.
   const controlsCluster = (
     <ControlsCluster
@@ -614,7 +511,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       ref={inputAreaRef}
       className={styles.inputArea}
       data-composer-input-area
-      data-pending-decision-id={activeDecision?.id || askDecision?.id || undefined}
     >
       {/* Drop overlay scoped to the chat main column (#chatArea) —
           covers the conversation surface but lets the sidebars stay
@@ -662,17 +558,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         }}
         className={`${styles.inputWrapper} ${morphed ? styles.morphed : ""}`}
       >
-        {/* 提问面板 —— wrapper 顶部向上生长的附加区（ask / confirm）。
-            下面的 textarea / 底栏 / 圆形发送按钮全部原样。 */}
-        {panel && (
-          <QuestionPanel
-            badge={panel.badge}
-            prompt={panel.prompt}
-            options={panel.options}
-            onPick={panel.onPick}
-            disabled={panel.disabled}
-          />
-        )}
         <AttachmentStrip
           pendingImages={pendingImages}
           pendingDocs={pendingDocs}
@@ -687,9 +572,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         <ComposerBody
           bound={bound}
           composerMode={composerMode}
-          activeDecision={activeDecision}
-          dequeueDecision={dequeueDecision}
-          onChatAbout={rejectDecision}
           fnFormFunction={fnFormFunction}
           fnForm={fnForm}
           handleFnFormClose={handleFnFormClose}
@@ -716,48 +598,39 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           removePaste={removePaste}
         />
 
-        {/* Single send/stop button anchored at the wrapper level — the
-            same 24px square in every mode. Chat mode: right edge of the
-            single-line input row. fn-form: the header right, beside the
-            close ✕ (`.morphed .actionBtn`). Decisions render nothing
-            here — QuestionMode lays its own nav buttons out as the last
-            row of its body.
-            decision 在场时（即便函数正“运行”——它其实在等用户答题）绝不能
-            显示成红色停止 ■：用户此刻要的是交答案，不是中断函数。 */}
-        {!activeDecision && (
-          <button
-            className={`${styles.actionBtn} ${showStop ? styles.stopBtn : styles.sendBtn}`}
-            onClick={showStop ? stop : onSendButtonClick}
-            disabled={isCancelling || (!showStop && sendDisabled)}
-            data-fn-missing={
-              !showStop && fnFormActive && missingFnParams.length > 0
-                ? "true"
-                : undefined
-            }
-            onMouseEnter={() => sendIconRef.current?.startAnimation?.()}
-            onMouseLeave={() => sendIconRef.current?.stopAnimation?.()}
-            title={
-              isCancelling
-                ? text("Cancelling…", "正在取消")
-                : showStop
-                  ? text("Cancel execution", "取消运行")
-                  : sendTitle
-            }
-            aria-label={
-              isCancelling
-                ? text("Cancelling…", "正在取消")
-                : showStop
-                  ? text("Cancel execution", "取消运行")
-                  : sendTitle
-            }
-            type="button"
-          >
-            {showStop ? <StopIcon /> : <SendIcon ref={sendIconRef} />}
-          </button>
-        )}
+        {/* Chat and function-form actions stay independent of decision cards. */}
+        <button
+          className={`${styles.actionBtn} ${showStop ? styles.stopBtn : styles.sendBtn}`}
+          onClick={showStop ? stop : onSendButtonClick}
+          disabled={isCancelling || (!showStop && sendDisabled)}
+          data-fn-missing={
+            !showStop && fnFormActive && missingFnParams.length > 0
+              ? "true"
+              : undefined
+          }
+          onMouseEnter={() => sendIconRef.current?.startAnimation?.()}
+          onMouseLeave={() => sendIconRef.current?.stopAnimation?.()}
+          title={
+            isCancelling
+              ? text("Cancelling…", "正在取消")
+              : showStop
+                ? text("Cancel execution", "取消运行")
+                : sendTitle
+          }
+          aria-label={
+            isCancelling
+              ? text("Cancelling…", "正在取消")
+              : showStop
+                ? text("Cancel execution", "取消运行")
+                : sendTitle
+          }
+          type="button"
+        >
+          {showStop ? <StopIcon /> : <SendIcon ref={sendIconRef} />}
+        </button>
 
-        {/* Function-form close stays in the header; decisions own their footer. */}
-        {!activeDecision && fnFormActive && !fnForm.closing && (
+        {/* Function-form close stays in the header. */}
+        {fnFormActive && !fnForm.closing && (
           <button
             className={styles.closeBtn}
             type="button"

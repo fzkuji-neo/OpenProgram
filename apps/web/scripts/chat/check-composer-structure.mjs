@@ -14,8 +14,8 @@ const expected = [
   "components/chat/composer/submit/use-chat-submit.ts",
   "components/chat/composer/submit/send-chat-message.ts",
   "components/chat/composer/modes/composer-body.tsx",
-  "components/chat/composer/modes/question/question-panel.tsx",
-  "components/chat/composer/modes/question/question-panel.module.css",
+  "components/chat/messages/decision-output.tsx",
+  "components/chat/messages/decision-output.module.css",
   "components/chat/composer/state/use-composer-settings.ts",
   "components/chat/composer/controls/use-model-availability.ts",
   "components/chat/composer/controls/use-tool-profiles.ts",
@@ -61,7 +61,7 @@ assert.match(composer, /\.\/input\/use-history-recall/);
 assert.match(composer, /\.\/submit\/use-chat-submit/);
 assert.match(composer, /\.\/submit\/send-chat-message/);
 assert.match(composer, /\.\/modes\/composer-body/);
-assert.match(composer, /\.\/modes\/question\/question-panel/);
+assert.doesNotMatch(composer, /useWaitAnswer|QuestionPanel|QuestionMode/);
 assert.match(composer, /\.\/attach\/scoped-drop-overlay/);
 assert.doesNotMatch(
   composerCss,

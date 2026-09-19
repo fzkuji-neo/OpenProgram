@@ -1,242 +1,33 @@
-# Composer interaction modes — 输入框作为"用户决定"的统一承接点
+# 输入框与用户决定输出
 
-## 一句话
+输入框用于普通消息与用户主动打开的函数表单。运行时提问、确认、表单和权限批准作为对话中的独立输出卡片显示。待回答问题不会替换输入框、清空草稿、关闭函数表单、改变发送语义或抢占焦点。
 
-聊天输入框（composer）不只是一个文本框，而是一个**能切换多种形态的容器**。
-每一种形态是一个"变换"（mode）：填函数表单是一种、回答 runtime.ask 的问题
-是一种、批准一个工具是一种。所有"需要用户做决定"的交互都**就地在输入框里
-变形呈现**，而不是各弹各的浮窗。每种 mode 各自一个文件夹、走同一套接口，
-后续新交互要么直接复用一种 mode，要么在已有 mode 上做衍生。
+## 普通消息与函数表单
 
-## 为什么要有统一承接点
+输入框只有 `idle` 与 `fn-form` 两种状态。选择注册函数打开 `FunctionForm`，字段校验、关闭与切换动画仍由输入框管理。出现问题不取消函数表单。
 
-有三种交互会把回合交还给用户：运行一个 `@agentic_function`、回答一个
-`runtime.ask` 提问、批准一次工具执行。如果分开呈现——一个是就地表单、一个是
-浮窗卡片、一个完全没有界面——用户的注意力会被拉到不同位置，每条路径也各写
-一套代码。把三者都放进输入框呈现，用户的视线始终停在输入区，前端也获得了一个
-承接"用户决定"的单一入口。
+输入完整的注册函数 `name(parameter=literal, ...)` 表达式时使用相同调用分发与校验。说明文字、不完整表达式和代码块仍是普通聊天内容。执行中发送消息遵循原排队或注入设置；空输入保留停止操作。
 
-这也与事件层对齐：事件层是统一的事件流，任何"需要用户做决定"的事件
-（question.asked，以及将来的 approval.asked / form.asked）都应当落到前端的
-**同一个出口**——输入框的 mode 容器，由它挑选一种变换来呈现。后端一个注册表
-（QuestionRegistry），前端一个承接点（composer），一条事件路径。
-| 工具批准（permission ask） | **没有 UI**（生产里是死的，只有测试在后台 resolve） | 无 ❌ |
+## 决定输出卡片
 
-三种"该用户了"的交互，一种就地变形、一种浮窗、一种没有。用户的注意力被
-扯到不同地方，代码也各写各的。**统一成一处**：所有"该用户了"都发生在输入框，
-用户视线不离开输入区；前端只有一个"用户决定"承接点。
+`DecisionOutputs` 在当前会话与分屏消息区中显示 `PendingDecision`。每张卡片复用 `QuestionMode` 处理 `ask`、`confirm`、`ask_many`、`form` 和 `approval`，回答字段与导航属于卡片。新问题不自动聚焦，并发问题保持稳定显示顺序。
 
-这也跟事件层对齐：事件层是统一事件流，任何"需要用户决定"的事件（question.asked、
-将来的 approval.asked / form.asked）在前端都该落到**同一个出口**——输入框的
-mode 容器，由它选一种变换来呈现。一个后端 registry（QuestionRegistry）、一个
-前端承接点（composer），一条事件路径。
+文字和选项问题使用独立输入和提交按钮；多问题提交有序答案，表单提交字段对象。权限批准保留允许范围、操作详情和明确同意/拒绝行为。问题出现本身不授权操作。
 
-## 现状：fn-form 已经是"变换"的范本
+提交后立即在卡片中显示实际回答和提交中状态。只有匹配命令的 applied 回执确认送达。结果未知时保留原命令标识和答案供重试，显示可用错误码，不能显示成功。明确拒绝后核对当前问题。请求关闭不能显示为回答成功。确认后的回答和拒绝保留为会话内回执，不改变主输入框草稿。
 
-读 `apps/web/components/chat/composer/` 得到的事实——fn-form 已经把"输入框变形"
-做对了，新框架是把它的隐式约定显式化、再容纳更多 mode：
+回执是内存中的界面状态，不是 Workflow 检查点。刷新加载仍待回答的规范问题；本次不增加历史回执持久化。切换标签不改变请求绑定的会话、执行、代次与版本。
 
-* **触发态在 store**：`session-store.ts` 的 `fnFormFunction`（+ `fnFormClosing`），
-  `openFnForm(fn)` / `closeFnForm()`。非空 = 当前处于 fn-form 形态。
-* **字段态在 hook**：`use-fn-form-state.ts`（values / workdir / error / closing），
-  fn 变了就重新播种默认值。
-* **视觉在 module.css**：`inputWrapper` 加 `morphed` 切形；`outgoingLayer`
-  做 fn→fn 切换时的交叉淡出动画。
-* **Send 按钮行为跟着切**：`onSendButtonClick = fnFormActive ? submitFnForm : submit`，
-  disabled / title 也随当前形态变。
-* **组件**：`fn-form/fn-form.tsx`（外形）+ `fn-form-fields.tsx`（字段渲染）。
+## 讨论与事件
 
-问题（runtime.ask）现在没走这套，是独立浮窗（`apps/web/components/ui/question-prompt.tsx`，
-监听 `op:question-asked` window 事件、发 `question_reply`/`question_reject`）。
-本设计让它退役，改成一种 mode。
+显式讨论操作有独立反馈字段，先确认拒绝当前请求，再将带上下文的讨论加入原会话队列。拒绝未确认时不发送讨论或允许执行。主输入框的普通消息不会隐式拒绝问题，也不会被当作答案。
 
-函数调用有两种前端输入形式。选择一个已注册函数会打开 `FunctionForm`；在 idle
-composer 中输入完整且精确的表达式，例如
-`gui_agent(task="查看当前内置浏览器页面标题，但不要修改页面")`，则不打开表单，
-直接调用同一个函数。只有去除首尾空白后的全部输入恰好是一个已注册的
-`name(parameter=literal, ...)` 调用时，才识别为函数表达式。两种输入都会经过同一套
-参数归一化和 schema 校验，再交给同一个 `FunctionInvocation` dispatcher。包含
-函数调用的说明文本，以及被行内或代码块反引号包裹的调用文本，仍作为普通聊天输入。
+纯界面设置直接更新状态；一次性用户操作使用关联请求与响应；运行时问题事件投影为待回答状态，命令回执决定是否成功。事件出现不等于答案回执。
 
-## 模型：容器 + 变换（mode）
+问题事件和重连快照提供精确目标。`useWaitAnswer` 管理提交回执，`QuestionMode` 管理字段，`DecisionOutputs` 管理输出位置。Workflow 在原进程继续；已有 Agent 预声明等待保留原恢复契约。
 
-### 容器（composer）
+## 验收
 
-composer 任一时刻处于**一种** mode：
+待回答问题与非空输入框同时存在时，问题位于输入框外，草稿和焦点保留，普通发送仍提交聊天消息。卡片提交后立即有答案反馈，确认后保留回执，输入框草稿不变；同时验证会话隔离、重试命令一致性和实际 App 操作。
 
-* `idle` —— 普通打字（默认）。
-* `fn-form` —— 填函数参数表单。
-* `question` —— 回答 runtime.ask（选项 / 多选 / 自由文本）。
-* `approval` —— 批准/拒绝一个工具执行（question 的衍生：固定两个选项 +
-  危险动作摘要）。
-* 将来：`form`（runtime.form 多字段）、`diff-approve`（带 diff 预览的批准）……
-
-同一时刻只有一种 mode 占据输入区（互斥）。mode 切换走容器的状态机，进入/退出
-都有就地变形动画（沿用 `outgoingLayer` 交叉淡出）。
-
-### 变形态的布局
-
-composer 在任何模式下都保持三段式：上方 env chips、中间 wrapper 盒子、下方一条
-外挂控件行（权限 / 模型 / effort / context ring）。变形只是让 wrapper 向上长高，
-控件行永远不动也不换样式。wrapper 内部的变形态 = 48px 头部 + 四周 12px 内边距的
-body：
-
-* **fn-form**：运行按钮（与聊天发送键同一颗 24px 方）和 24px 关闭键并排钉在头部
-  右缘；body 在最后一个字段后直接收尾。
-* **question / approval**：头部只放标签和进度。body 最后一行左侧放审批选项，
-  右侧放答复操作；「Chat about this」紧挨发送左侧，多题时位于导航按钮之前。
-  选择选项只改变选中状态，发送才提交。窄窗口在底部操作区内换行，不重叠控件。
-  键盘激活按钮时保留该按钮自身的动作。不使用绝对定位，也不预留空行。
-
-按钮一律 6px 圆角矩形，不用胶囊或圆形。等比例静态示例见
-[fn-form-compact-mock.html](fn-form-compact-mock.html)。
-
-### 一种 mode 的统一接口
-
-每种 mode 是一个**自包含单元**，对容器暴露同一套契约（草案，实现时定型）：
-
-```ts
-interface ComposerMode<TState> {
-  id: string;                       // "fn-form" | "question" | "approval" | …
-  // 进入这种 mode 需要的数据（fn 定义 / 问题 envelope / 批准请求）
-  // 由触发源塞进 store，容器读出来传给 mode。
-  useModeState(input): TState;      // 这种 mode 的局部状态 hook（如 use-fn-form-state）
-  Body: React.FC<{ state: TState; ... }>;   // 输入区里渲染的主体
-  // 主操作按钮（占住 composer 的 Send 位）的行为/文案/可用性
-  primaryAction(state): { label; disabled; run: () => void };
-  // 次操作（取消/拒绝），退出 mode
-  secondaryAction(state): { label; run: () => void } | null;
-  onExit?(): void;                  // 收尾（清状态、发未答信号等）
-}
-```
-
-容器只认这个接口；加一种 mode = 加一个实现了它的文件夹，**不改容器主体**。
-
-### 文件组织
-
-```
-apps/web/components/chat/composer/
-  modes/
-    index.ts            # mode 注册表（id → ComposerMode），容器据此查表
-    types.ts            # ComposerMode 接口
-    fn-form/            # 现有 fn-form 迁进来，作为第一种 mode
-    question/           # runtime.ask（吸收 question-prompt 的逻辑，去掉浮窗）
-    approval/           # 工具批准（question 的衍生）
-  index.tsx             # 容器：读当前 mode、查表、渲染 Body + 接管 Send
-```
-
-后续衍生：`approval/` 直接 import `question/` 的 Body 再包一层（加危险摘要），
-就是"在已有变换上做衍生"。
-
-## 三种通信形态：直接 store / 请求 / 广播（别混）
-
-每种 mode 是"怎么触发进来、用户操作后又怎么回传"。看代码会发现它们走**三条
-不同的通道**，按一句话准则区分：**跨进程/网络边界才考虑总线；同一处的状态变化
-直接改 store；要后端做一件事并给个明确答复，用请求（HTTP/RPC），不是广播。**
-
-| 形态 | 通道 | 例子 | 为什么 |
-|---|---|---|---|
-| **直接 store** | Zustand action，同一处前端状态 | 点侧边栏函数 → `openFnForm(fn)` 进 fn-form | 没跨任何边界，就是前端自己换个形态；上总线是多此一举 |
-| **请求（command）** | HTTP POST / RPC，一来一回 | FunctionForm 或精确函数表达式 → `POST /api/function/{name}`；mode 答复 → `question_reply` WS action | "我要你做件事 + 给我答复"（运行后回 `session_id`、resolve 哪个问题）。请求/响应模型最贴，总线是 fire-and-forget 拿不到回话 |
-| **广播（event）** | 事件总线 → WS | 函数运行的进度/产出/`question.asked`/`file.changed` | 后端单向吐出"发生了什么"，谁关心谁接、不等回话 |
-
-**函数调用的完整链路**：入口可以是选择函数（直接 store，打开 FunctionForm，填写
-参数），也可以是在 idle composer 输入精确的已注册函数表达式（在前端解析并校验）。
-两条入口都生成相同的 `FunctionInvocation`，再调用共享 dispatcher（**请求**：POST
-发起并返回 `session_id`），不会调用聊天消息发送器，也不会创建用户聊天回合。随后函数
-在子进程运行；运行事件和中途 `runtime.ask` 更新经事件层 → WS 返回（**广播**）。
-
-反例（防以后踩）：别把"发起运行"做成 fire-and-forget 的总线事件——那就拿不到
-`session_id`，前端无从跳转/绑定会话。发起用请求、过程用广播。
-
-## 事件如何路由进来
-
-> 这一节只讲上表第三类——**广播**：后端经事件层吐出的"要用户决定"事件
-> 怎么落到 composer。用户操作后的**答复**是第二类（请求/WS action），见上表。
-
-后端不变地经事件层发"要用户决定"的帧（`question.asked`，审批合流后也走它，
-见下）。前端：
-
-1. `use-ws.ts` 收到 `question.asked` → 现在转成 `op:question-asked` window 事件
-   给浮窗。改成：写入 store 的 `pendingDecision`（envelope）。
-2. composer 容器订阅 `pendingDecision`：非空就根据 `kind` 选 mode
-   （`ask`/`confirm` → question，`approval` → approval）进入该形态。
-3. 用户在输入区操作 → mode 的 primary/secondary 发 `question_reply` /
-   `question_reject`（沿用现有 WS action，后端 `_resolve_question` 收口不变）。
-4. 别处先答了 / stop → 后端广播 `question.replied`/`rejected` → 前端清
-   `pendingDecision`、退出 mode（沿用现有"收回"逻辑）。
-
-**互斥与优先级（已定，2026-06-13）**：一次只呈现一个 mode，规则两条——
-
-* **系统决定之间排队**：两个"系统要用户决定"的事件（如先来 question 再来
-  approval）→ FIFO 排队，一次一个。答完前一个，自动呈现下一个。不叠加、
-  不并排。
-* **系统决定 vs 用户主动开的 mode**：用户自己点开的 fn-form 撞上一个系统
-  决定 → 直接**取消** fn-form（用户主动开的，丢弃无所谓），让系统决定占住
-  输入区。不暂存、不恢复。
-
-即：`pendingDecision` 是一个 FIFO 队列；队首非空时占据输入区。新系统决定入队；
-若此刻是用户主动 mode（fn-form），清掉它再显示队首。实现简单，无栈、无快照。
-
-## 后端：审批合流到 QuestionRegistry
-
-为了让"审批"也走同一条事件路径 → 落到同一个 composer 承接点，后端把
-`permissions/approval.py` 合流到 `QuestionRegistry`（user-input-requests.md 点 6）：
-
-* `await_user_approval` 不再用独立的 `ApprovalRegistry` + 自定义
-  `approval_request` 信封，而是注册一个 `kind="approval"` 的 PendingQuestion
-  （prompt = "允许执行 {tool}?"，options = ["允许","拒绝"]，detail = 参数摘要），
-  经事件层发 `question.asked`。
-* 异步等待沿用 `asyncio.to_thread(ev.wait, timeout)`（工具 execute 是协程，
-  不能同步阻塞 loop）。
-* 布尔结果从问题三态映射：answered「允许」→ True；declined / timeout → False。
-* `ApprovalRegistry` 退役；`approval_registry()` 访问器保留为薄垫片或迁移
-  调用方；两个 dispatcher 批准测试改写成走 QuestionRegistry。
-
-合流后：一个 registry、一种事件（question.asked）、一个前端承接点。审批顺带
-**复活**（之前没 UI）。
-
-## 退役（已完成）
-
-* `apps/web/components/ui/question-prompt.tsx` 浮窗 + app-shell 挂载 → 已删。
-* `permissions/approval.py` 的 `ApprovalRegistry` / `approval_request` 信封 → 已删；
-  `approval_registry()` 返回统一 QuestionRegistry。
-
-## 落地顺序（每步独立验证，全部完成）
-
-1. ✅ **框架骨架**（26685949）：`modes/types.ts`（ComposerMode 接口）+
-   `modes/index.ts`（注册表）。fn-form 第一版仍内联（见 Status 偏差说明）。
-2. ✅ **question mode**（bc144b8c）：`modes/question/`，runtime.ask 在输入框
-   就地呈现；删浮窗；use-ws → store 的 pendingDecisions 队列。真子进程端到端验证。
-3. ✅ **后端审批合流**（73a094be）：`await_user_approval` 走 QuestionRegistry
-   （kind=approval），经事件层发 question.asked；ApprovalRegistry 退役；两个
-   dispatcher 批准测试迁到统一 registry + 事件总线契约。
-4. ✅ **approval mode**（27c05faa）：`modes/approval/`，question 的衍生——
-   危险摘要（工具名+参数）+ 允许/拒绝 + 拒绝附理由（理由变工具错误文本）。
-   真子进程端到端验证（含子进程审批桥）。
-5. ✅ **冲突排队 + 超时收回**（c0c8956e）：FIFO 队列一次一个；用户主动 fn-form
-   撞系统决定则取消；超时经 transport 广播 question.rejected 收回卡片
-   （修了"超时卡片挂死"的真 bug）。浏览器验证抢占。
-
-每步都能在浏览器自验、独立提交。
-
-## 决策（已定，2026-06-13）
-
-* **同屏冲突**：FIFO 队列；系统决定排队、一次一个；用户主动开的 fn-form 撞上
-  系统决定直接取消（见上）。
-* **approval 危险摘要**：显示命令/参数全文，超长截断（首尾保留）；不做危险
-  token 高亮（第一版从简）。
-* **拒绝并附理由**：approval 的 secondary 允许附文本理由，理由变成工具错误
-  文本回给模型（opencode 做法）。
-* **timeout**：mode 占输入区等用户，超时按 declined 收尾、自动退出 mode 并在
-  输入区给一行提示（"超时未响应"）。
-
-## 关联
-
-* user-input registry / runtime.ask：[../runtime/user-input-requests.md](../runtime/operations/user-input-requests.md)
-* 事件层（统一事件流，这是它在前端的对齐落点）：
-  [../proactive/event-reference.html](../proactive/event-reference.html)
-
-### 讨论待处理请求
-
-Chat about this 在现有问题卡片内打开反馈输入框；打开或取消不结束等待。发送时将用户反馈和原问题或工具上下文绑定到精确的 canonical decline，确认 applied 后通过既有会话队列发送讨论，禁用该次回复的工具和网络搜索。单独 Deny 不创建讨论消息。普通草稿、附件不变。提交后的重试保留同一命令和反馈，确认前禁止并发批准。
+参见[用户输入请求](../runtime/operations/user-input-requests.zh.md)与[执行控制](../runtime/execution/execution-control.zh.html#decision-output)。
