@@ -53,6 +53,6 @@ Workflow 表单只询问任务信息，不要求配置执行设置。文本润�
 
 ### 组长周报草稿
 
-`group_weekly_report(task)` 根据你提供的材料生成本地草稿，不读取或发送微信消息。JSON 输入包含 `mode`（`inspect`、`summary` 或 `reminder`）、`week`（`YYYY-Www`）、`group`、按顺序排列的 `members` 和 `materials`。每条材料包含 `id`、`member`、`week` 和 `text`；可用 `kind: "claim"` 区分成员自述与已提供的周报材料。自然语言由模型解析，缺少范围时返回待补充信息。
+`group_weekly_report(task)` 主动从记忆、相关本地文件和微信查找范围、材料与作者证据，生成未发送草稿。缺字段不再提问，未核实作者与不可用来源写入限制。显式 `source: "supplied"` 只使用所给材料。来源选项见[每周报告](reports.zh.md)。
 
-结构化输入的核对由代码完成，不调用模型。汇总按成员限制模型上下文，核验来源引用并保留不确定项。本地文件保存到 `reports/group-weekly/<week>/<unique-run>/`（或 `output_dir`）。未找到材料不等于未提交。请核对草稿后自行发送。
+完整且显式只用输入材料的结构化核对由代码完成，不调用模型。汇总按成员限制模型上下文，核验来源引用并保留不确定项。本地文件保存到 `reports/group-weekly/<week>/<unique-run>/`（或 `output_dir`）。未找到材料不等于未提交。请核对草稿后自行发送。

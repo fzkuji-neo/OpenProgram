@@ -110,3 +110,53 @@ def test_standalone_agent_session_retains_retry_behavior_without_enclosing_state
         assert current_recovery.get() is None
     finally:
         session.close()
+
+
+@pytest.mark.parametrize("failures", [1, 3])
+def test_runtime_recovers_responses_reasoning_then_generation_error_without_tool_replay(failures):
+    from openprogram.providers._shared.openai_responses import process_responses_stream
+    from openprogram.providers.utils.event_stream import EventStream
+
+    calls, effects, observed = [], [], []
+
+    async def stream(model, context, options=None):
+        receipts = [m.tool_call_id for m in context.messages if m.role == "toolResult"]
+        calls.append(receipts)
+        n = len(calls)
+        if 2 <= n <= failures + 1:
+            output = AssistantMessage(content=[], api=model.api, provider=model.provider,
+                                      model=model.id, timestamp=n)
+            events = EventStream()
+
+            async def feed():
+                yield {"type": "response.output_item.added", "output_index": 0,
+                       "item": {"type": "reasoning", "id": "rs_1"}}
+                yield {"type": "response.reasoning_summary_text.delta", "output_index": 0,
+                       "delta": "Checking available source evidence"}
+                yield {"type": "error", "code": None,
+                       "message": "Internal error during token generation"}
+
+            try:
+                await process_responses_stream(feed(), output, events, model)
+            except RuntimeError as exc:
+                events.fail(exc)
+            async for event in events:
+                observed.append(event.type)
+                yield event
+            return
+        content = ([TextContent(text='{"answer":7}')] if receipts else
+                   [ToolCall(id=f"lookup-{n}", name="lookup", arguments={})])
+        msg = _response(model, content, n)
+        yield EventStart(partial=msg)
+        yield EventDone(reason=msg.stop_reason, message=msg)
+
+    runtime = Runtime(call=lambda *a, **k: "unused", model="dummy", max_retries=failures + 1)
+    result = runtime.exec("Read once then answer", stream_fn=stream,
+                          tools=[{"spec": {"name": "lookup", "description": "Read",
+                                           "parameters": {"type": "object", "properties": {}}},
+                                  "execute": lambda: effects.append(1) or "evidence"}],
+                          response_format={"type": "json_schema", "schema": SCHEMA, "fallback": "prompt"})
+    assert result == {"answer": 7}
+    assert calls == [[]] + [["lookup-1"]] * (failures + 1)
+    assert effects == [1]
+    assert observed.count("thinking_delta") == failures
