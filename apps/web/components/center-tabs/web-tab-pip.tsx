@@ -63,6 +63,7 @@ import {
 import type { WebTabCaptureLoop } from "@/lib/browser/web-tab-capture-loop";
 
 import styles from "./center-tabs.module.css";
+import { WebTabPipSurface } from "./web-tab-pip-surface";
 
 type PipDrag = {
   kind: "move" | "resize";
@@ -284,6 +285,8 @@ export function WebTabPip() {
   const [chatBox, setChatBox] = useState<WebTabPipRect | null>(null);
   const [, render] = useState(0);
   const bridge = desktopBridge();
+  const nativeSurface = typeof bridge?.webTab.syncVisible === "function";
+  const interactive = nativeSurface || !bridge;
   const url = tab?.url || (tabId?.startsWith("w:") ? tabId.slice(2) : "");
   const marker = resource?.resourceId
     ? liveOperationMarker(resource.resourceId, { generation: resource.generation || 0 })
@@ -360,7 +363,7 @@ export function WebTabPip() {
   }, [live, expanded, setRect]);
 
   useEffect(() => {
-    if (!tabId || !live) return;
+    if (!tabId || !live || interactive) return;
     const gen = ++captureGenRef.current;
     const capture = bridge?.webTab.capture;
     showShot(getSnapshot(tabId) ?? null);
@@ -397,7 +400,9 @@ export function WebTabPip() {
       endActiveDragRef.current(false);
       if (captureGenRef.current === gen) captureGenRef.current += 1;
     };
-  }, [bridge, tabId, live, ownerSessionId]);
+  }, [bridge, tabId, live, ownerSessionId, interactive]);
+
+  useEffect(() => () => endActiveDragRef.current(false), [tabId]);
 
   const presented = live && chatBox
     ? pipChatRect(rect, expanded, chatBox, expandedSize)
@@ -494,6 +499,7 @@ export function WebTabPip() {
   ) => {
     if (drag.kind === "move") {
       el.style.transform = `translate(${next.x - drag.origin.x}px, ${next.y - drag.origin.y}px)`;
+      el.dispatchEvent(new Event("op:pip-geometry"));
       return;
     }
     el.style.left = `${next.x}px`;
@@ -502,6 +508,7 @@ export function WebTabPip() {
     el.style.height = `${next.height}px`;
     el.style.right = "auto";
     el.style.bottom = "auto";
+    el.dispatchEvent(new Event("op:pip-geometry"));
   };
 
   const applyInlineRect = (el: HTMLElement, next: WebTabPipRect) => {
@@ -514,6 +521,7 @@ export function WebTabPip() {
     el.style.height = `${next.height}px`;
     el.style.right = "auto";
     el.style.bottom = "auto";
+    el.dispatchEvent(new Event("op:pip-geometry"));
   };
 
   const persistRect = (
@@ -574,7 +582,7 @@ export function WebTabPip() {
     event: React.PointerEvent<HTMLElement>,
     dir?: PipResizeDir,
   ) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || dragRef.current) return;
     const el = rootRef.current;
     if (!el) return;
     event.preventDefault();
@@ -631,6 +639,7 @@ export function WebTabPip() {
   const onDragPointerUp = (event: React.PointerEvent<HTMLElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    onDragPointerMove(event);
     finishDrag(true);
   };
 
@@ -738,6 +747,7 @@ export function WebTabPip() {
         </span>
       ) : null}
       <div className={styles.webPipStage}>
+        {interactive ? <WebTabPipSurface key={tabId} tabId={tabId} url={url} native={nativeSurface} /> : <>
         <div className={styles.webPipBody}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={shotRef} className={styles.webPipShot} alt="" />
@@ -759,6 +769,7 @@ export function WebTabPip() {
             />
           ) : null}
         </div>
+        </>}
       </div>
       {PIP_RESIZE_DIRS.map((dir) => (
         <div

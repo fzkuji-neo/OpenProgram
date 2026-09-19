@@ -27,7 +27,7 @@ await build({
     b.onResolve({ filter: /browser-control-bar/ }, () => ({ path: "control-bar", namespace: "test-services" }));
     b.onLoad({ filter: /.*/, namespace: "test-services" }, a => ({ contents: a.path === "control-bar"
       ? "export function BrowserControlBar() { return null; } export function ActionCueTravel() { return null; } export function BrowserPageCue() { return null; }"
-      : "export function desktopBridge() { return null; }" }));
+      : "export function desktopBridge() { return null; } export function installDesktopMenuHandlers() {} export function ensureWebView() {} export function removeVisibleWebTabBounds() {} export function registerVisibleWebTabBounds() {} export function setWebTabReady() {}" }));
   }}],
 });
 const { window } = parseHTML("<html><body></body></html>");
@@ -159,11 +159,15 @@ test("PiP toolbar Open page reveals the exact hidden page as the current top tab
   });
 });
 
-test("last-frame PiP keeps Open page on chrome and has no body duplicate", async () => {
+test("browser PiP embeds an interactive sandboxed page and keeps Open page on chrome", async () => {
   await withPip(async ({ host, page, hidden, session, prefBefore }) => {
     const pip = host.querySelector("[data-pip='true']");
     const chrome = pip.firstElementChild;
-    assert.ok(pip.textContent.includes("Last frame") || pip.textContent.includes("unavailable"));
+    const frame = pip.querySelector("iframe");
+    assert.ok(frame);
+    assert.equal(frame.getAttribute("src"), "https://page.test/1");
+    assert.equal(frame.getAttribute("sandbox"), "allow-scripts allow-same-origin allow-forms allow-popups");
+    assert.equal(pip.querySelector("img"), null);
     assert.equal(bodyOpenPage(host), undefined);
     const buttons = [...pip.querySelectorAll("button")];
     assert.ok(buttons.length > 0);
