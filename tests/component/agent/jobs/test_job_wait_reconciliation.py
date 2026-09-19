@@ -239,6 +239,9 @@ def test_reconciler_schedules_recovery_on_an_existing_event_loop():
     recovered = asyncio.Event()
 
     class _Waits:
+        def cancel_live_waits(self):
+            return ()
+
         def reclaim_expired_claims(self):
             return 0
 
