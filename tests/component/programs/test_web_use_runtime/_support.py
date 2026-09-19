@@ -172,10 +172,12 @@ class _NativeObserveAdapter:
         self.calls.append("close")
 
 
-def _public_open_transport(webtab):
+def _public_open_transport(webtab, seen=None):
     def request_on_ws(_ws, command, timeout=15.0):
         del timeout
         if command.get("op") == "open":
+            if seen is not None:
+                seen.append(dict(command))
             return {
                 "ok": True,
                 "window_id": "win",
@@ -203,4 +205,3 @@ def _public_open_transport(webtab):
         return {"ok": False, "reason_code": "page_context_stale"}
 
     return request_on_ws
-

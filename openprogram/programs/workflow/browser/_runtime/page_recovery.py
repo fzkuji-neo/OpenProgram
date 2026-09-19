@@ -130,7 +130,11 @@ def _recover_web_use_page(failure: dict, *, backend: str):
                 registry.release_page_capabilities([target["page_context_token"]], owner_id=owner_id)
         surface_context.release_bindings(context)
     check_cancelled()
-    context = surface_context.open_page(failure["recovery_url"], **({"window_id": window_id} if window_id else {}))
+    context = surface_context.open_page(
+        failure["recovery_url"],
+        **({"window_id": window_id} if window_id else {}),
+        background=True,
+    )
     if "surfaces" not in context:
         return state._open_page_error(context)
     try:

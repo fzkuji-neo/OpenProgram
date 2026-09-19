@@ -397,6 +397,118 @@ def test_web_use_captures_and_controls_a_hidden_internal_page():
         server.server_close()
 
 
+def test_public_web_use_creates_a_background_page_from_an_empty_window():
+    if os.environ.get("OPENPROGRAM_TEST_LIVE") != "1":
+        pytest.skip("set OPENPROGRAM_TEST_LIVE=1 to inspect the installed App")
+    if os.environ.get("OPENPROGRAM_TEST_REAL_HOME") != "1":
+        pytest.skip("set OPENPROGRAM_TEST_REAL_HOME=1 to use the default profile")
+
+    playwright = pytest.importorskip("playwright.sync_api")
+    from openprogram.programs.tools.web.browser._chrome_bootstrap import (
+        desktop_app_ws_url,
+    )
+
+    cdp_url = desktop_app_ws_url(timeout=2)
+    if not cdp_url:
+        pytest.skip("the installed /Applications/OpenProgram.app is not running")
+
+    server, fixture_url, marker = _start_fixture()
+    owner_id = "mcp:live-empty-window:" + uuid.uuid4().hex
+    web_session_id = ""
+    shell_page = None
+    created_tab = ""
+    try:
+        with playwright.sync_playwright() as runtime:
+            browser = runtime.chromium.connect_over_cdp(cdp_url, timeout=15_000)
+            shell_page = next((
+                page
+                for context in browser.contexts
+                for page in context.pages
+                if page.url.startswith("http://127.0.0.1:18100")
+                or page.url.startswith("http://localhost:18100")
+            ), None)
+            assert shell_page is not None
+            before_pages = _page_inventory(shell_page)
+            if before_pages:
+                pytest.skip(
+                    "safe automatic-create acceptance requires no existing Page "
+                    "in the originating App window"
+                )
+            original_tab = _active_tab_id(shell_page)
+            _assert_openprogram_not_frontmost()
+
+            _, observed = _dispatch({
+                "command": "observe",
+                "backend": "open_claude_chrome",
+                "arguments": {
+                    "url": fixture_url,
+                    "detail": "interactive",
+                },
+            }, owner_id)
+            assert observed.get("ok") is not False, observed
+            assert observed["web_session_id"]
+            assert observed["frame_id"]
+            assert observed["title"] == marker
+            assert marker in observed["text"]
+            web_session_id = observed["web_session_id"]
+            _assert_unchanged(shell_page, original_tab)
+            _assert_openprogram_not_frontmost()
+
+            deadline = time.monotonic() + 15
+            while time.monotonic() < deadline:
+                created = {
+                    tab_id: page
+                    for tab_id, page in _page_inventory(shell_page).items()
+                    if tab_id not in before_pages
+                }
+                matching = [
+                    tab_id for tab_id, page in created.items()
+                    if page.get("url") == fixture_url
+                    and page.get("title") == marker
+                ]
+                if len(matching) == 1:
+                    created_tab = matching[0]
+                    break
+                time.sleep(0.1)
+            assert created_tab
+            assert _page_inventory(shell_page)[created_tab]["visible"] is False
+    finally:
+        if web_session_id:
+            try:
+                _dispatch({
+                    "command": "close", "web_session_id": web_session_id,
+                }, owner_id)
+            except Exception:
+                pass
+        try:
+            _release_owner(owner_id)
+        except Exception:
+            pass
+        if shell_page is not None and not created_tab:
+            try:
+                candidates = [
+                    tab_id for tab_id, page in _page_inventory(shell_page).items()
+                    if page.get("url") == fixture_url
+                ]
+                if len(candidates) == 1:
+                    created_tab = candidates[0]
+            except Exception:
+                pass
+        if shell_page is not None and created_tab:
+            try:
+                _close_owned_page(
+                    shell_page,
+                    shell_page.evaluate(
+                        "() => window.openprogramDesktop?.windowId || ''"
+                    ),
+                    created_tab,
+                )
+            except Exception:
+                pass
+        server.shutdown()
+        server.server_close()
+
+
 def test_public_gui_agent_creates_and_cleans_its_background_page():
     if os.environ.get("OPENPROGRAM_TEST_LIVE") != "1":
         pytest.skip("set OPENPROGRAM_TEST_LIVE=1 to inspect the installed App")

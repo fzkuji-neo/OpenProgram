@@ -37,7 +37,7 @@ def _execute_web_use(
     if command in {"observe", "act"} and url and not state._has_usable_page(
         context, web_session_id, page_context_token,
     ):
-        opened = surface_context.open_page(url)
+        opened = surface_context.open_page(url, background=True)
         if "surfaces" not in opened:
             return state._open_page_error(opened)
         context = opened
@@ -202,7 +202,7 @@ def execute_direct_web_use(arguments: dict, *, owner_id: str):
     if command in {"observe", "act"} and url and not state._has_usable_page(
         None, web_session_id, page_context_token,
     ):
-        opened = surface_context.open_page(url)
+        opened = surface_context.open_page(url, background=True)
         if "surfaces" not in opened:
             return state._open_page_error(opened)
         try:
