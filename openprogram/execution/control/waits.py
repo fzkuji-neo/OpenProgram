@@ -88,6 +88,8 @@ class WaitsOperations:
         paused with the exact checkpoint recorded on the wait; startup or a
         scheduler can submit the deterministic internal continue intent.
         """
+        if wait.policy_snapshot.get("mode") == "live":
+            return execution
         if (
             execution.status is not ExecutionStatus.PAUSED
             or execution.current_attempt_id is not None

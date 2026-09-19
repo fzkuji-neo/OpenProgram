@@ -90,19 +90,19 @@ def ask_user(question: str) -> Optional[str]:
     # 2. 事件层 runtime.ask：webui 路径走这条活链路（发 question.asked
     #    事件 → 前端问题卡片 → 用户答 → resume）。仅当处于有前端的执行
     #    上下文（can_ask）时才用，否则落到 TTY / None。
-    try:
-        from openprogram.agentic_programming.function import _current_runtime
-        rt = _current_runtime.get(None)
-        if rt is not None and rt.can_ask():
-            from openprogram.agent.questions import UserDeclined, AskTimeout
-            try:
-                answer = rt.ask(question)
-            except (UserDeclined, AskTimeout):
-                answer = None
-            _finish_ask_user_node(pending_id, answer)
-            return answer
-    except Exception:
-        pass
+    from openprogram.agentic_programming.function import _current_runtime
+    rt = _current_runtime.get(None)
+    if rt is not None and rt.can_ask():
+        from openprogram.agent.questions import UserDeclined, AskTimeout
+        try:
+            answer = rt.ask(question)
+        except (UserDeclined, AskTimeout):
+            answer = None
+        except BaseException:
+            _finish_ask_user_node(pending_id, None)
+            raise
+        _finish_ask_user_node(pending_id, answer)
+        return answer
 
     # 3. 终端输入（交互模式最后兜底）
     if sys.stdin is not None and sys.stdin.isatty():

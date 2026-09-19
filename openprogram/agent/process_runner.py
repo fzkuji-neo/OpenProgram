@@ -1000,7 +1000,14 @@ def _child_entry(
                 if attempt_id is not None and getattr(tool, "_resumable", False)
                 else nullcontext()
             )
-            with binding:
+            from openprogram.agent.questions import live_workflow_questions
+            question_binding = (
+                live_workflow_questions(
+                    execution_id=execution_id, attempt_id=attempt_id,
+                    generation=generation, producer_id=f"process:{os.getpid()}",
+                ) if attempt_id is not None else nullcontext()
+            )
+            with binding, question_binding:
                 result = loop.run_until_complete(
                     wrapped.execute(call_id, dict(kwargs or {}), None, None)
                 )
@@ -1119,6 +1126,16 @@ def _bridge_question_to_parent(
     execution = default_store().get_execution(execution_id)
     if execution is None or execution.session_id != parent_session_id:
         return
+    if wait.policy_snapshot.get("mode") == "live":
+        from openprogram.execution.attempts import AttemptStore
+        owner = AttemptStore(default_store()).get(wait.attempt_id)
+        if (wait.status.value not in {"open", "claimed"}
+                or execution.status.value != "running"
+                or execution.current_attempt_id != wait.attempt_id
+                or execution.owner_lease.get("generation") != wait.generation
+                or owner is None or owner.status.value != "active"
+                or owner.lease_expires_at <= time.time()):
+            return
     with lock:
         pending_qids.add(qid)
 
@@ -1434,9 +1451,17 @@ def run_agentic_in_subprocess(
             event_queue.put({_WEBTAB_DRAIN_STOP: True}, block=False)
         except Exception:
             pass
-        # The child may have exited while a durable wait remains open.  Do not
-        # invent a decline here: cancellation and expiry are canonical control
-        # transitions, and restart recovery may later resume this execution.
+        # Only this process's live questions die with its call stack.
+        # Predeclared durable waits belong to restart recovery instead.
+        if attempt_id is not None:
+            from openprogram.execution import default_store
+            from openprogram.execution.waits import DurableWaitStore
+            from openprogram.agent.questions import retract_question
+            for qid in DurableWaitStore(default_store()).cancel_live_waits(
+                execution_id=eid, attempt_id=attempt_id, generation=generation,
+                producer_id=f"process:{p.pid}",
+            ):
+                retract_question(qid)
         page_cleanup_failures = []
         # Only this lock identifies a Page command already in flight. The
         # drain thread also delivers ordinary events, so its liveness must not

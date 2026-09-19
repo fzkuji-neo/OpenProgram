@@ -308,6 +308,7 @@ class RecoveryOperations:
         """
         try:
             self._execution_waits.reclaim_expired_claims()
+            self._execution_waits.cancel_live_waits()
             self._execution_waits.reclaim_orphaned_claims()
             expired = self._execution_waits.expire_due()
             recovered = self._recover_wait_outcomes()
