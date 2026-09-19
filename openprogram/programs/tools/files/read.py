@@ -132,17 +132,22 @@ def _mark_read_baseline(file_path: str) -> None:
 
 
 def execute(file_path: str,
-            offset: int = 1,
-            limit: int = MAX_LINES_DEFAULT) -> str:
+            offset: int | None = 1,
+            limit: int | None = MAX_LINES_DEFAULT) -> str:
     """Read a file and return its contents with line numbers.
 
     Args:
         file_path: Absolute path of the file to read.
-        offset: Line number to start reading from (1-based). Default 1.
+        offset: Line number to start reading from (1-based). Null uses default 1.
             For PDF files this is the first PAGE to read.
-        limit: Maximum number of lines to return. Default 2000.
+        limit: Maximum number of lines to return. Null uses default 2000.
             For PDF files this is the number of PAGES (default 20).
     """
+    # Strict tool schemas represent omitted optional arguments as null.
+    # Normalize these pagination defaults before either text or PDF handling.
+    offset = 1 if offset is None else offset
+    limit = MAX_LINES_DEFAULT if limit is None else limit
+
     # Worktree-aware resolution: relative paths bind to the active
     # worktree root when one is set; absolute paths outside the
     # worktree get a soft warning but still proceed (D6).
