@@ -428,50 +428,73 @@ def test_public_web_use_creates_a_background_page_from_an_empty_window():
                 or page.url.startswith("http://localhost:18100")
             ), None)
             assert shell_page is not None
-            before_pages = _page_inventory(shell_page)
-            if before_pages:
-                pytest.skip(
-                    "safe automatic-create acceptance requires no existing Page "
-                    "in the originating App window"
-                )
-            original_tab = _active_tab_id(shell_page)
-            _assert_openprogram_not_frontmost()
+            try:
+                before_pages = _page_inventory(shell_page)
+                if before_pages:
+                    pytest.skip(
+                        "safe automatic-create acceptance requires no existing Page "
+                        "in the originating App window"
+                    )
+                original_tab = _active_tab_id(shell_page)
+                _assert_openprogram_not_frontmost()
 
-            _, observed = _dispatch({
-                "command": "observe",
-                "backend": "open_claude_chrome",
-                "arguments": {
-                    "url": fixture_url,
-                    "detail": "interactive",
-                },
-            }, owner_id)
-            assert observed.get("ok") is not False, observed
-            assert observed["web_session_id"]
-            assert observed["frame_id"]
-            assert observed["title"] == marker
-            assert marker in observed["text"]
-            web_session_id = observed["web_session_id"]
-            _assert_unchanged(shell_page, original_tab)
-            _assert_openprogram_not_frontmost()
+                _, observed = _dispatch({
+                    "command": "observe",
+                    "backend": "open_claude_chrome",
+                    "arguments": {
+                        "url": fixture_url,
+                        "detail": "interactive",
+                    },
+                }, owner_id)
+                assert observed.get("ok") is not False, observed
+                assert observed["web_session_id"]
+                assert observed["frame_id"]
+                assert observed["title"] == marker
+                assert marker in observed["text"]
+                web_session_id = observed["web_session_id"]
+                _assert_unchanged(shell_page, original_tab)
+                _assert_openprogram_not_frontmost()
 
-            deadline = time.monotonic() + 15
-            while time.monotonic() < deadline:
-                created = {
-                    tab_id: page
-                    for tab_id, page in _page_inventory(shell_page).items()
-                    if tab_id not in before_pages
-                }
-                matching = [
-                    tab_id for tab_id, page in created.items()
-                    if page.get("url") == fixture_url
-                    and page.get("title") == marker
-                ]
-                if len(matching) == 1:
-                    created_tab = matching[0]
-                    break
-                time.sleep(0.1)
-            assert created_tab
-            assert _page_inventory(shell_page)[created_tab]["visible"] is False
+                deadline = time.monotonic() + 15
+                while time.monotonic() < deadline:
+                    created = {
+                        tab_id: page
+                        for tab_id, page in _page_inventory(shell_page).items()
+                        if tab_id not in before_pages
+                    }
+                    matching = [
+                        tab_id for tab_id, page in created.items()
+                        if page.get("url") == fixture_url
+                        and page.get("title") == marker
+                    ]
+                    if len(matching) == 1:
+                        created_tab = matching[0]
+                        break
+                    time.sleep(0.1)
+                assert created_tab
+                assert _page_inventory(shell_page)[created_tab]["visible"] is False
+            finally:
+                if shell_page is not None and not created_tab:
+                    try:
+                        candidates = [
+                            tab_id for tab_id, page in _page_inventory(shell_page).items()
+                            if page.get("url") == fixture_url
+                        ]
+                        if len(candidates) == 1:
+                            created_tab = candidates[0]
+                    except Exception:
+                        pass
+                if shell_page is not None and created_tab:
+                    try:
+                        _close_owned_page(
+                            shell_page,
+                            shell_page.evaluate(
+                                "() => window.openprogramDesktop?.windowId || ''"
+                            ),
+                            created_tab,
+                        )
+                    except Exception:
+                        pass
     finally:
         if web_session_id:
             try:
@@ -484,27 +507,6 @@ def test_public_web_use_creates_a_background_page_from_an_empty_window():
             _release_owner(owner_id)
         except Exception:
             pass
-        if shell_page is not None and not created_tab:
-            try:
-                candidates = [
-                    tab_id for tab_id, page in _page_inventory(shell_page).items()
-                    if page.get("url") == fixture_url
-                ]
-                if len(candidates) == 1:
-                    created_tab = candidates[0]
-            except Exception:
-                pass
-        if shell_page is not None and created_tab:
-            try:
-                _close_owned_page(
-                    shell_page,
-                    shell_page.evaluate(
-                        "() => window.openprogramDesktop?.windowId || ''"
-                    ),
-                    created_tab,
-                )
-            except Exception:
-                pass
         server.shutdown()
         server.server_close()
 
