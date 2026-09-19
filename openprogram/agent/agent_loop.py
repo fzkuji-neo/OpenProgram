@@ -58,6 +58,94 @@ from .types import (
 # runtime.exec still defaults to 20.
 MAX_INNER_ITERATIONS = None
 
+# Repetition recovery is deliberately narrow.  It applies only to a
+# tool-enabled response and only after the provider has emitted one exact,
+# sufficiently large text suffix repeatedly.  There is no total output or
+# wall-clock quota here: healthy long responses take the normal path, while
+# an exact repeated segment is treated as a failed response.
+_REPETITION_MIN_PERIOD_CHARS = 32
+_REPETITION_MAX_PERIOD_CHARS = 1024
+_REPETITION_MIN_TOTAL_BYTES = 2048
+_REPETITION_MIN_COUNT = 8
+_REPETITION_TAIL_CHARS = 16 * 1024
+_REPETITION_CHECK_BYTES = 128
+
+
+class RepetitiveOutputError(RuntimeError):
+    """The current provider response repeated one text segment without progress."""
+
+    code = "repetitive_output"
+
+    def __init__(self) -> None:
+        super().__init__(self.code)
+        # Agent-loop recovery handles this error in the same logical session.
+        # If the shared allowance is exhausted, Runtime.exec must not create a
+        # second session and replay already completed tool effects.
+        self.retryable = False
+        self.transport_exhausted = False
+
+
+class _RepeatedTextGuard:
+    """Detect one exact, long suffix period repeated consecutively.
+
+    The provider may split one repeated sentence at arbitrary token/delta
+    boundaries.  Keep a bounded tail and inspect the suffix as a repeated
+    period instead of comparing individual deltas.  The detector has no
+    aggregate output limit: it only retains the tail needed for this check.
+    """
+
+    def __init__(
+        self,
+        *,
+        min_period_chars: int = _REPETITION_MIN_PERIOD_CHARS,
+        max_period_chars: int = _REPETITION_MAX_PERIOD_CHARS,
+        min_total_bytes: int = _REPETITION_MIN_TOTAL_BYTES,
+        min_count: int = _REPETITION_MIN_COUNT,
+        tail_chars: int = _REPETITION_TAIL_CHARS,
+        check_bytes: int = _REPETITION_CHECK_BYTES,
+    ) -> None:
+        self._min_period_chars = min_period_chars
+        self._max_period_chars = max_period_chars
+        self._min_total_bytes = min_total_bytes
+        self._min_count = min_count
+        self._tail_chars = tail_chars
+        self._check_bytes = check_bytes
+        self._tail = ""
+        self._pending_check_bytes = 0
+
+    def observe(self, delta: Any) -> bool:
+        if not isinstance(delta, str) or not delta:
+            return False
+        self._tail += delta
+        if len(self._tail) > self._tail_chars:
+            self._tail = self._tail[-self._tail_chars :]
+        self._pending_check_bytes += len(delta.encode("utf-8"))
+        if self._pending_check_bytes < self._check_bytes:
+            return False
+        self._pending_check_bytes = 0
+        return self._is_repeated_suffix()
+
+    def reset(self) -> None:
+        self._tail = ""
+        self._pending_check_bytes = 0
+
+    def _is_repeated_suffix(self) -> bool:
+        tail_bytes = len(self._tail.encode("utf-8"))
+        if tail_bytes < self._min_total_bytes:
+            return False
+        max_period = min(self._max_period_chars, len(self._tail) // self._min_count)
+        for period_chars in range(self._min_period_chars, max_period + 1):
+            unit = self._tail[-period_chars:]
+            previous = self._tail[-2 * period_chars : -period_chars]
+            if unit != previous:
+                continue
+            unit_bytes = len(unit.encode("utf-8"))
+            count = max(self._min_count, (self._min_total_bytes + unit_bytes - 1) // unit_bytes)
+            repeated = unit * count
+            if len(repeated.encode("utf-8")) >= self._min_total_bytes and self._tail.endswith(repeated):
+                return True
+        return False
+
 
 def iteration_cap_for(max_iterations: int | None) -> int | None:
     """Return a caller cap, or ``None`` for an unbounded chat turn."""
@@ -193,7 +281,7 @@ def _finish_interrupted_stream(stream, exc, messages, cancel_event) -> None:
     from openprogram.agentic_programming.function import CancelledError, check_cancelled
     from openprogram.providers.utils.errors import ExecInterrupt
 
-    cancelled = isinstance(exc, CancelledError) or bool(
+    cancelled = isinstance(exc, (CancelledError, asyncio.CancelledError)) or bool(
         cancel_event is not None and cancel_event.is_set()
     )
     if isinstance(exc, ExecInterrupt) and not cancelled:
@@ -443,6 +531,11 @@ async def _run_loop_with_recovery(
     """
     Main loop logic — mirrors runLoop() in TypeScript.
     """
+    # Keep this import at function scope.  Repetitive-output recovery can
+    # raise the same cancellation boundary as structured recovery; importing
+    # it only in a later branch makes that path an UnboundLocalError.
+    from openprogram.providers.utils.errors import ExecInterrupt
+
     first_turn = True
     pending_messages: list[AgentMessage] = []
     if config.get_steering_messages:
@@ -598,6 +691,78 @@ async def _run_loop_with_recovery(
                     provider_snapshot,
                     structured_attempt if structured_plan is not None else None,
                 )
+            except RepetitiveOutputError as error:
+                from openprogram.providers.utils.recovery import (
+                    current_recovery,
+                    reserve_recovery,
+                )
+
+                state = current_recovery.get()
+                has_recovery_budget = bool(
+                    state is None
+                    or (state.phase != "cancelled" and state.used < state.limit)
+                )
+                failed_message = AssistantMessage(
+                    content=[],
+                    api=config.model.api,
+                    provider=config.model.provider,
+                    model=config.model.id,
+                    stop_reason="error",
+                    error_message=error.code,
+                    error_retryable=(
+                        has_recovery_budget
+                        and not (cancel_event is not None and cancel_event.is_set())
+                    ),
+                    error_transport_exhausted=(
+                        has_recovery_budget is False
+                    ),
+                    timestamp=int(time.time() * 1000),
+                )
+                # The provider.before durable effect must be closed even
+                # though this response has no terminal provider event.  This
+                # mirrors the incomplete structured-output path and prevents
+                # the next durable request from seeing an unfinished effect.
+                await finish_provider_response(failed_message)
+                if cancel_event is not None and cancel_event.is_set():
+                    if state is not None:
+                        state.mark_cancelled()
+                    raise ExecInterrupt("cancelled")
+                if not reserve_recovery(error.code):
+                    if state is not None:
+                        state.mark_paused()
+                    error.transport_exhausted = True
+                    error.retryable = False
+                    raise
+                # The runtime stream projection already treats this event as
+                # an attempt boundary.  Keep the actual reason in ``issues``
+                # so the existing projection starts a fresh visible attempt
+                # without presenting this as a schema-validation failure.
+                attempt = max(1, int(state.requests)) if state is not None else 1
+                ev_stream.push(AgentEventMessageUpdate(
+                    message=failed_message,
+                    assistant_message_event=EventStructuredOutputRetry(
+                        attempt=attempt,
+                        next_attempt=attempt + 1,
+                        issues=[{
+                            "code": error.code,
+                            "message": "provider response repeated text without progress",
+                        }],
+                    ),
+                ))
+                # Discard the failed provider response, but keep every
+                # completed tool result already installed in this context.
+                # The next model call stays inside this agent loop, so the
+                # tool executor cannot replay an external operation.
+                current_context.messages.append(UserMessage(
+                    content=(
+                        "The previous response repeated the same text without "
+                        "making progress. Continue from the completed tool "
+                        "results, use an available tool when needed, and "
+                        "produce one complete response without repeating that text."
+                    ),
+                    timestamp=int(time.time() * 1000),
+                ))
+                continue
             except StructuredOutputGenerationError as error:
                 if error.code != "incomplete" or structured_plan is None:
                     raise
@@ -838,6 +1003,39 @@ async def _run_loop_with_recovery(
 
     ev_stream.push(AgentEventAgentEnd(messages=new_messages))
     ev_stream.end(new_messages)
+
+
+async def _cancel_response_stream(response_stream: Any, iterator: Any) -> None:
+    """Stop a discarded provider response before starting its recovery."""
+    current_task = asyncio.current_task()
+    cancel_producer = getattr(response_stream, "cancel_producer", None)
+    if callable(cancel_producer):
+        try:
+            await cancel_producer()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
+        if current_task is not None and current_task.cancelling():
+            # EventStream.cancel_producer() intentionally consumes the
+            # producer task's cancellation.  It must not consume a
+            # cancellation requested for this agent task while it awaits the
+            # producer, otherwise recovery would issue another provider call.
+            raise asyncio.CancelledError()
+        return
+
+    close = getattr(iterator, "aclose", None)
+    if not callable(close):
+        close = getattr(response_stream, "aclose", None)
+    if callable(close):
+        try:
+            await close()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
+        if current_task is not None and current_task.cancelling():
+            raise asyncio.CancelledError()
 
 
 async def _stream_assistant_response(
@@ -1109,6 +1307,7 @@ async def _stream_assistant_response(
 
     partial_message: AssistantMessage | None = None
     added_partial = False
+    repetition_guard = _RepeatedTextGuard() if context.tools else None
 
     if config.safe_point_hook is not None:
         from openprogram.agent.continuation import runtime_contract_snapshot
@@ -1185,6 +1384,31 @@ async def _stream_assistant_response(
                 from openprogram.providers.utils.errors import ExecInterrupt
 
                 raise ExecInterrupt("cancelled")
+            if repetition_guard is not None and event.type in {
+                "text_start",
+                "thinking_start",
+                "thinking_delta",
+                "thinking_end",
+                "toolcall_start",
+                "toolcall_delta",
+                "toolcall_end",
+            }:
+                # Text from separate blocks or across a thinking/tool-call
+                # boundary is not one continuous response segment.
+                repetition_guard.reset()
+            if (
+                repetition_guard is not None
+                and event.type == "text_delta"
+                and repetition_guard.observe(getattr(event, "delta", ""))
+            ):
+                await _cancel_response_stream(response_stream, iterator)
+                if (
+                    added_partial
+                    and context.messages
+                    and context.messages[-1] is partial_message
+                ):
+                    context.messages.pop()
+                raise RepetitiveOutputError()
             if event.type == "start":
                 partial_message = event.partial
                 if structured_plan is None:
