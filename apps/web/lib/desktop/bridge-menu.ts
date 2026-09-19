@@ -79,6 +79,10 @@ export function installDesktopMenuHandlers(): void {
   const startupWebTabIds = useCenterTabs.getState().tabs
     .filter((tab) => tab.kind === "web")
     .map((tab) => tab.id);
+  // Register the exact renderer window as soon as the authenticated socket is
+  // available. Restoration may wait on resources or transfer recovery and
+  // must not gate the owner/window association used by web_use.
+  reregisterDesktopWindow(bridge);
   window.addEventListener("op-desktop-new-tab", () => {
     useCenterTabs.getState().openNewTabPage();
     showCenterSurface();
@@ -88,6 +92,7 @@ export function installDesktopMenuHandlers(): void {
   bridge.webTab.onState((state) => persistNativeWebTabState(state));
   window.addEventListener("op:browser-connection", (event: Event) => {
     if ((event as CustomEvent<{ connected: boolean }>).detail?.connected) {
+      reregisterDesktopWindow(bridge);
       void restoreRetainedWebViews(bridge).then(() => reregisterDesktopWindow(bridge));
       return;
     }
@@ -543,6 +548,7 @@ export function installDesktopMenuHandlers(): void {
     };
     useCenterTabs.subscribe(reconcileNativeResources);
     reconcileNativeResources();
+    reregisterDesktopWindow(bridge);
     void restoreRetainedWebViews(bridge, { tabIds: startupWebTabIds }).then(
       () => reregisterDesktopWindow(bridge),
     );
