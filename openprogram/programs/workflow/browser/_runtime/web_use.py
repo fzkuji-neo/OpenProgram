@@ -67,8 +67,23 @@ def _execute_web_use(
 
     if command == "list_pages":
         if not captured_here:
+            # A workflow subprocess inherits the chat's origin-only window
+            # context, but usually has no bound Page yet. Preserve that
+            # context so capture_pages can use the parent webtab bridge;
+            # passing None would make the child search its own empty WS
+            # registry (or make an in-process call enumerate every window).
+            capture_context = context if (
+                surface_context.tool_enabled(context)
+                or bool(
+                    isinstance(context, dict)
+                    and (
+                        context.get("origin_window_id")
+                        or context.get("window_id")
+                    )
+                )
+            ) else None
             context = surface_context.capture_pages(
-                context if surface_context.tool_enabled(context) else None
+                capture_context
             )
             captured_here = True
         context = context or {}
