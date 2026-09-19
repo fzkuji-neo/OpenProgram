@@ -71,6 +71,7 @@ await build({
         export function desktopBridge() {
           return {
             webTab: {
+              syncVisible: globalThis.livePipTest ? () => {} : undefined,
               ensure() {},
               navigate() {},
               goBack() {},
@@ -99,7 +100,7 @@ await build({
         }
         export function installDesktopMenuHandlers() {}
         export function destroyStaleWebViews() {}
-        export function ensureWebView() {}
+        export function ensureWebView(_bridge, id) { (globalThis.pipEnsures ||= []).push(id); }
         export function registerVisibleWebTabBounds(_bridge, id, next) {
           bounds.push({ id, ...next });
         }
@@ -113,6 +114,7 @@ const { window } = parseHTML("<html><body></body></html>");
 globalThis.window = window;
 globalThis.document = window.document;
 globalThis.CustomEvent = window.CustomEvent;
+globalThis.Event = window.Event;
 globalThis.HTMLElement = window.HTMLElement;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.localStorage = {
@@ -209,6 +211,13 @@ function stageTrack(el) {
 }
 HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
   layoutReads += 1;
+  if (this.getAttribute("data-pip-live") === "native") {
+    const pip = this.closest('[data-pip="true"]');
+    const translate = /translate\(([-.\d]+)px, ([-.\d]+)px\)/.exec(pip.style.transform || "");
+    return box((parseFloat(pip.style.left) || 0) + Number(translate?.[1] || 0) + 5,
+      (parseFloat(pip.style.top) || 0) + Number(translate?.[2] || 0) + 29,
+      (parseFloat(pip.style.width) || 300) - 10, (parseFloat(pip.style.height) || 199) - 34);
+  }
   const track = stageTrack(this);
   if (this.getAttribute("data-web-pip-dock") && track) {
     return track.edge === "bottom"
@@ -1228,4 +1237,41 @@ test("chat PiP does not provide separate task pause controls", async () => {
     assert.equal(chromeButton(host, "Pause Agent to use page"), undefined);
     assert.equal(chromeButton(host, "Continue Agent"), undefined);
   });
+});
+
+
+test("live PiP registers the existing page and keeps it visible while dragging without capture", async () => {
+  globalThis.livePipTest = true;
+  let captures = 0;
+  try {
+    await withShell(async ({ host, page }) => {
+      await act(async () => useWebTabPip.getState().setRect({ x: 40, y: 80, width: 400, height: 250 }));
+      flushObservers();
+      flushRaf();
+      assert.ok(host.querySelector('[data-pip-live="native"]'));
+      assert.equal(captures, 0);
+      assert.ok(boundsCalls.some(call => call.id === page.id));
+      const before = boundsCalls.length;
+      const originalBounds = boundsCalls.at(-1);
+      const ensures = globalThis.pipEnsures.length;
+      const removed = globalThis.webTabBoundsRemoved.count;
+      const pip = host.querySelector('[data-pip="true"]');
+      const chrome = pip.firstElementChild;
+      dispatchPointer(chrome, "pointerdown", { clientX: 20, clientY: 20 });
+      dispatchPointer(chrome, "pointermove", { clientX: 50, clientY: 40 });
+      flushRaf();
+      assert.ok(boundsCalls.length > before);
+      assert.equal(boundsCalls.at(-1).x, originalBounds.x + 30);
+      assert.equal(boundsCalls.at(-1).y, originalBounds.y + 20);
+      assert.equal(globalThis.pipEnsures.length, ensures);
+      assert.equal(globalThis.webTabBoundsRemoved.count, removed);
+      assert.ok(host.querySelector('[data-pip-live="native"]'));
+      assert.equal(captures, 0);
+      await act(async () => dispatchPointer(chrome, "pointerup", { clientX: 50, clientY: 40 }));
+      await act(async () => useWebTabPip.getState().hide());
+      assert.equal(host.querySelector('[data-pip-live="native"]'), null);
+      assert.ok(globalThis.webTabBoundsRemoved.count > removed);
+      assert.ok(useCenterTabs.getState().tabs.some(tab => tab.id === page.id));
+    }, { capture: async () => { captures++; return null; } });
+  } finally { globalThis.livePipTest = false; }
 });

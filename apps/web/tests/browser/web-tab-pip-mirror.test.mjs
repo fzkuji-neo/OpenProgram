@@ -7,11 +7,8 @@ import { fittedImageRect, mapOperationPoint } from "../../lib/browser/browser-ma
 const pipSource = readFileSync(new URL("../../components/center-tabs/web-tab-pip.tsx", import.meta.url), "utf8");
 const paneSource = readFileSync(new URL("../../components/center-tabs/web-tab-pane.tsx", import.meta.url), "utf8");
 
-test("read-only PiP never mounts a native view or iframe", () => {
-  assert.doesNotMatch(pipSource, /<iframe/);
-  assert.doesNotMatch(pipSource, /ensureWebView/);
-  assert.doesNotMatch(pipSource, /registerVisibleWebTabBounds/);
-  assert.doesNotMatch(pipSource, /setPipZoom/);
+test("legacy capture fallback remains available beside the live surface", () => {
+  assert.match(pipSource, /WebTabPipSurface/);
   assert.match(pipSource, /webTab\.capture/);
   assert.match(pipSource, /Last frame|unavailable/);
 });
