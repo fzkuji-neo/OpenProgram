@@ -515,6 +515,10 @@ class ProvidersOperations:
                                 if model_call_budget is not None and forward_structured_event:
                                     model_call_budget["validation_repairs_used"] += 1
                                 _thinking_buf["text"] = ""
+                                # These are completed tool receipts, not invalid
+                                # generated text. Workflow verification still
+                                # needs them after a response-only repair.
+                                self.last_blocks.extend(dict(block) for block in _tool_index.values())
                                 _tool_index.clear()
                                 _hidden_tool_occurrences.clear()
                             if forward_structured_event:
