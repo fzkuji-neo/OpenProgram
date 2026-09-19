@@ -4,7 +4,7 @@ The report suite consists of four independently versioned Workflow packages and
 one coordinating `weekly_report` package. They must be installed in the Programs catalog;
 this source checkout alone does not install them. The suite supports independent execution and composition through the `weekly_report` entry.
 Native WeChat collection depends on accessible search and conversation controls;
-unavailable controls return a recoverable state instead of a completed report.
+the group Workflow records unavailable controls and continues with local evidence, producing an explicitly partial draft.
 
 | Entry | Purpose | External writes |
 | --- | --- | --- |
@@ -58,27 +58,10 @@ matching ISO weeks and unique source IDs. Insufficient evidence returns a reques
 for input or review instead of inventing progress. Model-assisted semantic checks
 can detect unsupported claims but are not a guarantee of factual correctness.
 
-For a natural-language group request, a read-only agent first looks for missing
-source-group identity and ordered members in memory and saved local meeting
-records. It preserves explicit user scope and asks for clarification when sources
-do not establish one group and roster. This step cannot send messages, write
-files, operate WeChat, or call another report.
+For a group report, a request such as `Prepare the group report` is enough to start discovery. The Workflow retrieves missing group identity, roster, current materials and author evidence from memory, relevant local records and the identified WeChat group. It preserves supplied report bodies and does not ask for missing fields. With no reporting period specified, it uses the current ISO week and records that assumption. Unresolved authors remain visibly unverified; unavailable or insufficient evidence produces a partial draft with source diagnostics, never invented progress.
 
-For a structured group request, provide `source` (`wechat` or explicitly `supplied`), `group`,
-`week`, and the ordered `members` array. Supplied material additionally identifies
-its `member`. WeChat collection requires an accessible, verified group interface;
-versions without accessible message rows can use bounded window OCR. Captured
-pages and their original OCR rows are saved as local source evidence. Unknown
-authors, uncertain dates, clipped messages, and low-confidence boundaries remain
-unverified. If native search focus cannot be proved, open the requested group
-and resume; the Workflow still performs collection and summarization. A window
-that does not permit capture returns `WINDOW_CAPTURE_UNAVAILABLE`. No screen or
-WeChat settings are changed.
-Each child retains its own interaction and recovery behavior. Group request
-parsing uses schema-validated model output, permits prompt fallback for providers
-without verified native schema support, and uses the Runtime's existing bounded
-repair retry. Exhausted model-format failures return `WAITING_MODEL` with the
-original request for resumption, rather than claiming that user input is missing.
+The default source is `auto`. Explicit `source: "supplied"` restricts the run to supplied materials. Native collection verifies the group and retains source evidence; historical coverage remains partial. It cannot send messages or change system permissions. If WeChat access fails, relevant local sources remain available. Model and provider failures retain their actual execution errors rather than being classified as missing user input.
+
 Routing, group request parsing, and personal report model calls inherit the
 Runtime timeout (`OPENPROGRAM_EXEC_TIMEOUT_S`); they impose no separate 90-second
 limit. External record updates are not automatically repeated after an uncertain
@@ -89,7 +72,7 @@ two, three, or all four destinations according to meaning and negation, then cod
 passes the entire original request unchanged to each selected Workflow. It does
 not split on punctuation, extract materials, force drafts, or assign a common
 week. A generic personal progress draft without Feishu language is
-`personal_chat`, not the Feishu form. Unclear destinations require clarification.
+`personal_chat`, not the Feishu form. An unspecified audience defaults to the unsent group discovery draft; routing does not ask for clarification.
 Single results are returned verbatim; multiple results are labeled by audience.
 
 ## Continue incomplete work

@@ -53,6 +53,6 @@ Success requires a fresh page confirmation and persisted values. If a write resu
 
 ### Group weekly report drafts
 
-`group_weekly_report(task)` prepares local drafts from material you provide. It does not read or send WeChat messages. Use a JSON request with `mode` (`inspect`, `summary`, or `reminder`), `week` (`YYYY-Www`), `group`, ordered `members`, and `materials`. Each material has `id`, `member`, `week`, and `text`; optional `kind: "claim"` distinguishes a member's statement from supplied report content. Natural-language input is parsed by the model; missing scope is returned for clarification.
+`group_weekly_report(task)` autonomously retrieves group scope, report material and author evidence from memory, relevant local files and WeChat, then prepares an unsent draft. Missing fields do not trigger questions. Unknown authors and unavailable sources are listed as limitations. Explicit `source: "supplied"` restricts collection to supplied materials. See [weekly reports](reports.md) for source options.
 
-Inspection uses code without model calls for structured inputs. Summaries use bounded per-member model contexts, checked source references and explicit uncertainty. Local files are saved under `reports/group-weekly/<week>/<unique-run>/` (or `output_dir`). Missing material is not proof of non-submission. Review the draft and send it yourself.
+Inspection of complete structured supplied-only inputs uses code without model calls. Summaries use bounded per-member model contexts, checked source references and explicit uncertainty. Local files are saved under `reports/group-weekly/<week>/<unique-run>/` (or `output_dir`). Missing material is not proof of non-submission. Review the draft and send it yourself.
