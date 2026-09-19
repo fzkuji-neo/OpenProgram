@@ -347,7 +347,7 @@ def open_question(
         except BaseException:
             DurableWaitStore(store).cancel_live_waits(
                 execution_id=execution_id, attempt_id=attempt_id,
-                generation=generation, producer_id=producer_id,
+                generation=generation, producer_id=producer_id, wait_id=q.id,
             )
             get_question_registry().consume(q.id)
             raise
