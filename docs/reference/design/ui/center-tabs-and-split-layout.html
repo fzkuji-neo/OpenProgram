@@ -480,7 +480,7 @@
     <section id="model">
       <h2>1 · 概念模型</h2>
       <div class="invariant">
-        <p>会话 S 与网页 W 的<strong>配对</strong>是唯一一等关系。分屏与悬浮窗是同一配对的两种呈现。一个 WebTab 叶子同一时刻只有一个原生 <code>WebContentsView</code> 矩形；聊天 PiP 是该 Page 的只读图像。同一叶子作为普通顶部标签活动时，隐藏聊天预览及其预留空间，原生页面占满内容区；网页标签与其 PiP 不得同时显示，也不把页面换成遮罩或截图。</p>
+        <p>会话 S 与网页 W 的<strong>配对</strong>是唯一一等关系。分屏与悬浮窗是同一配对的两种呈现。一个 WebTab 叶子同一时刻只有一个原生 <code>WebContentsView</code> 矩形；聊天 PiP 直接呈现该 Page 的可交互原生视图。同一叶子作为普通顶部标签活动时，隐藏聊天预览及其预留空间，原生页面占满内容区；网页标签与其 PiP 不得同时显示，也不把页面换成遮罩或截图。</p>
         <p class="why">配对来自 agent 在 S 打开 W、用户把 W 拖进 S 的分屏/组、收起时建立，或 agent 操作一张尚未配对的页。<code>show()</code> 与 <code>registerPipPair</code> 写入配对表；覆盖函数只决定这份配对此刻画在哪个宿主。独立网页在被 agent 操作之前没有配对，也就没有「收起到悬浮窗」。</p>
       </div>
 
@@ -652,7 +652,7 @@
       <p><code>pipCoversCenter</code> 在 <code>activeId === tabId</code> 时为假。绑定（<code>tabId</code> / <code>ownerTabId</code>）与跟随偏好保留。<code>WebTabPane</code> 保持完整工具栏，<code>.webFrame</code> 占满可用内容区，不为 PiP 预留停靠区，也不渲染 <code>PipBoundMask</code>。返回 owner 会话时覆盖再为真，除非用户走了 <code>hide()</code>。</p>
       <ul>
         <li>desktop 继续 <code>ensureWebView</code>，原生 bounds 只来自测得的 <code>.webFrame</code>。</li>
-        <li>聊天 PiP 仍是 <code>capture</code> 图像，不挂第二份 native view，不把页面截图叠在真实页面旁或之上。</li>
+        <li>聊天 PiP 复用同一个 native view，支持点击、滚动与输入。拖动通过 requestAnimationFrame 合并位置更新，真实页面保持显示；打开顶部标签后交还视图，不创建第二个 Page。</li>
       </ul>
 
       <h3><span class="rule">R5</span>工具栏「收起到悬浮窗」：目标解析</h3>
@@ -772,7 +772,7 @@
           <tr><td>owner / 叶子关闭时清绑定与配对</td><td><code>web-tab-pip-store.ts</code> 末尾 <code>useCenterTabs.subscribe</code></td></tr>
           <tr><td>小窗：live、拖拽、bounds、截图、展开 / 全屏 / ✕</td><td><code>apps/web/components/center-tabs/web-tab-pip.tsx</code> · <code>WebTabPip</code>；挂在 <code>app-shell.tsx</code> 的 <code>.center-body</code> 内，默认 <code>.webPip</code> 右上、<code>top:78px</code>（头部按钮下方）</td></tr>
           <tr><td>R2 打开页面隐藏预览</td><td><code>web-tab-pip-store.ts</code> 的 <code>pipCoversCenter</code> 仅在 owner 会话为真；<code>web-tab-pane.tsx</code> 的 <code>.webFrame</code> 占满内容区，无停靠门户</td></tr>
-          <tr><td>截图缓存</td><td><code>usePipSnapshots</code> / <code>getSnapshot</code> / <code>setSnapshot</code>；PiP 卸载与拖动时 <code>bridge.webTab.capture</code></td></tr>
+          <tr><td>截图缓存</td><td><code>usePipSnapshots</code> / <code>getSnapshot</code> / <code>setSnapshot</code>；仅不支持原生视图的旧 bridge 使用 capture 降级；现代桌面 PiP 不轮询截图</td></tr>
           <tr><td>agent open / close / 回执</td><td><code>apps/web/lib/desktop/desktop-bridge.ts</code> · <code>installDesktopMenuHandlers</code> 内 WS 分支；<code>closeAgentWebTabResult</code>；<code>restorePriorActiveTabAfterFailedWebOpen</code></td></tr>
           <tr><td>会话↔网页配对、可见性</td><td>同上 · <code>surfaceRefForChat</code>（PiP 回退读 <code>peekWebTabPipId</code> / <code>peekWebTabPipOwnerId</code>）/ <code>visibleWebTab</code> / <code>visibleWebTabById</code>（用 <code>peekLiveWebTabPipId</code>）/ <code>browserPageInventory</code></td></tr>
           <tr><td>桌面分屏是否可用</td><td><code>app-shell.tsx</code> 调 <code>setDesktopSplitLayoutAvailable(isDesktop && activeKind==="session" && isSplitLayoutAvailable(width))</code>；阈值在 <code>split-layout.ts</code>（360+480+6）</td></tr>
@@ -834,7 +834,7 @@
   <section id="page-navigation"><h2>Initial page navigation</h2><p>Replacing an explicit New tab page records it in that tab's page history. Back returns to that initial page and Forward restores the selected application or built-in page, without adding another visible tab. Selecting another destination after Back discards the old forward entries. Existing conversation history remains navigable before returning to the initial page. History is persisted with the tab.</p></section>
 <section id="tab-controls"><h2>Tab controls</h2><p>Back, Forward, and New tab each use a 28px-wide button with an 8px gap. An empty tab-list container takes no layout space. New tab has no left divider.</p></section>
 <section id="last-tab"><h2>Closing the last tab</h2><p>The final visible tab can close completely. Its window and empty tab strip remain open, and the center content area stays blank. The plus button explicitly opens a new tab. Session-owned hidden pages remain available in Resources and never become the close fallback. Close selects visible neighbors after normalizing split groups. The empty state persists across route changes and reloads; it does not automatically create a draft conversation. Moving tabs between windows retains its existing window lifecycle.</p><p>Acceptance: close the final tab through the close button or keyboard command; no visible tab or center content remains, and explicit open actions create the requested tab.</p></section>
-</main>
+<section><h2>Interactive floating page</h2><p>The supplied Codex screenshot is a visual reference; its internals are not established by the image. Adopt continuous visible content, direct input and frame-coalesced dragging. Reuse the existing Electron WebContentsView and visible-bounds collection instead of creating another Page or forwarding image coordinates. The native view remains displayed during movement. Each animation frame updates the host transform and native bounds; only release persists geometry. Native input keeps the existing browser control and permission behavior.</p><p>The plain browser uses a sandboxed iframe for HTTP(S) pages. It is a separate embedded browser document, not a connection to the Desktop Page; login state and frame-ancestor restrictions follow browser policy. Restricted URLs display an unavailable message and retain Open page. Older Desktop bridges without visible-view support keep a labeled image fallback. Hidden, switched or unmounted previews release bounds and observers without closing their Page. Menus and dialogs occlude native content.</p><p>Acceptance: the public WebTabPip mounts the exact tab id, performs no capture on a current Desktop bridge, updates native bounds during drag without recreating or hiding the page, preserves pointer cleanup and session isolation, and exposes iframe interaction without a body click overlay. Native App acceptance verifies a changing counter, clicking, typing, scrolling and continued updates during drag.</p><h3>Implementation status</h3><p>Source implementation passes independent specification and quality review. Installed-App acceptance and verification results are recorded separately; a source review does not establish native rendering performance.</p></section></main>
 </div>
 
 <script>
