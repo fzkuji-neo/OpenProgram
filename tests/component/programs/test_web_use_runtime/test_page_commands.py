@@ -920,6 +920,7 @@ def test_observe_with_url_opens_desktop_tab_when_no_page(monkeypatch):
 
 def test_resource_web_open_creates_a_background_page(monkeypatch):
     from openprogram.agent import surface_context
+    from openprogram.programs._runtime import _allowed_tool_names
     from openprogram.programs.workflow.browser._runtime import page_recovery
     from openprogram.resources.providers import builtin
 
@@ -936,7 +937,11 @@ def test_resource_web_open_creates_a_background_page(monkeypatch):
         lambda **kwargs: {"ok": True, "web_session_id": "resource-session"},
     )
 
-    result = builtin._web("open", {"url": "https://example.test/"})
+    token = _allowed_tool_names.set({"web_use"})
+    try:
+        result = builtin._web("open", {"url": "https://example.test/"})
+    finally:
+        _allowed_tool_names.reset(token)
 
     assert result["ok"] is True
     assert opens == [("https://example.test/", {"background": True})]
