@@ -487,7 +487,12 @@ def test_public_web_use_creates_a_background_page_from_an_empty_window():
                         break
                     time.sleep(0.1)
                 assert created_tab
-                assert _page_inventory(shell_page)[created_tab]["visible"] is False
+                _, listed = _dispatch({"command": "list_pages"}, owner_id)
+                selected = next(
+                    page for page in listed.get("pages") or []
+                    if page.get("tab_id") == created_tab
+                )
+                assert selected["visible"] is False
             finally:
                 if shell_page is not None and not created_tab:
                     try:
