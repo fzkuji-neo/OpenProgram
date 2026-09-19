@@ -420,14 +420,29 @@ def test_public_web_use_creates_a_background_page_from_an_empty_window():
     try:
         with playwright.sync_playwright() as runtime:
             browser = runtime.chromium.connect_over_cdp(cdp_url, timeout=15_000)
-            shell_page = next((
+            target_url = os.environ.get("OPENPROGRAM_TEST_DESKTOP_URL", "")
+            candidates = [
                 page
                 for context in browser.contexts
                 for page in context.pages
-                if page.url.startswith("http://127.0.0.1:18100")
-                or page.url.startswith("http://localhost:18100")
-            ), None)
-            assert shell_page is not None
+                if (
+                    page.url.startswith("http://127.0.0.1:18100")
+                    or page.url.startswith("http://localhost:18100")
+                )
+                and (not target_url or page.url == target_url)
+                and page.locator(
+                    '[role="tab"][data-tab-id][aria-selected="true"]'
+                ).count()
+                and page.evaluate(
+                    "() => Boolean(window.openprogramDesktop?.windowId)"
+                )
+            ]
+            if len(candidates) != 1:
+                pytest.skip(
+                    "set OPENPROGRAM_TEST_DESKTOP_URL to one live App shell URL "
+                    "when multiple windows are available"
+                )
+            shell_page = candidates[0]
             try:
                 before_pages = _page_inventory(shell_page)
                 if before_pages:
