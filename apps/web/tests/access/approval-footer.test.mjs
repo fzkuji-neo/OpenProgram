@@ -59,7 +59,9 @@ const { flushSync } = await import("react-dom");
 const { QuestionMode } = await import("../../components/chat/composer/modes/question/question-mode.tsx");
 globalThis.WebSocket = { OPEN: 1 };
 const decision = { id: "wait-one", kind: "approval", prompt: "Allow this command?", detail: "echo test", options: [], allowedScopes: ["once", "always"], multi: false, allow_custom: false, executionId: "exec-one", expectedVersion: 3, waitGeneration: 0 };
+const { useDecisionSubmissions } = await import("../../lib/chat/decision-submissions.ts");
 async function mounted(q, check) {
+  useDecisionSubmissions.setState({submissions: {}});
   const frames = [], resolved = [], discussed = [];
   globalThis.approvalSocket = { readyState: 1, send: value => frames.push(JSON.parse(value)) };
   respond = async (_url, init) => {
@@ -144,6 +146,7 @@ const { useSendQueue, registerChatSender } = await import("../../lib/chat/send-q
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
 
 async function discussionMounted(check) {
+  useDecisionSubmissions.setState({submissions: {}});
   const requests = [], sent = [], removed = [], notices = [], frames = [];
   globalThis.approvalSocket = { readyState: 1, send: value => frames.push(JSON.parse(value)) };
   const onToast = e => notices.push(e.detail); window.addEventListener("op:toast", onToast);
@@ -266,5 +269,25 @@ test("pending discussion blocks another answer via Ctrl and Meta Enter", async (
     const count = frames.length;
     await act(async () => finish());
     assert.equal(count, 0, "no competing approval while rejection is pending");
+  });
+});
+
+
+test("failed submission leaves the actual answer and error visible in the output", async () => {
+  await mounted({ ...decision, id: "wait-inline-error", kind: "ask", options: ["Alice"] }, async ({ host, button, frames }) => {
+    respond = async (_url, init) => {
+      frames.push(JSON.parse(init.body));
+      return Response.json({error: "test_unavailable"}, {status: 503});
+    };
+    await act(async () => button("Alice").click());
+    await act(async () => button("Send").click());
+    const receipt = host.querySelector('[role="status"]');
+    assert.ok(receipt, "submission must have visible inline feedback");
+    assert.match(receipt.textContent, /Alice/);
+    assert.match(receipt.textContent, /test_unavailable.*503/);
+    await act(async () => button("Retry").click());
+    assert.equal(frames.length, 2);
+    assert.equal(frames[0].command_id, frames[1].command_id);
+    assert.deepEqual(frames[0].payload, frames[1].payload);
   });
 });

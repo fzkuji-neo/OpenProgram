@@ -142,7 +142,7 @@ function stepAnswered(step: Step, a: Answer): boolean {
 export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionModeProps) {
   const { text } = useTranslation();
   const [discussionPending, setDiscussionPending] = useState(false);
-  const { sendAnswer, answerPending, answerLocked } = useWaitAnswer(q, onResolve);
+  const { sendAnswer, submission, answerPending, answerLocked } = useWaitAnswer(q, onResolve);
 
   const [discussionOpen, setDiscussionOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -227,7 +227,7 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
       primary: false,
     };
     const nextOrSend = atLast
-      ? { label: answerPending ? text("Sending…", "发送中…") : answerLocked ? text("Retry", "重试") : text("Send", "发送"), onClick: submit, disabled: !allAnswered, primary: true }
+      ? { label: answerPending ? text("Sending…", "发送中…") : answerLocked ? text("Retry", "重试") : text("Send", "发送"), onClick: submit, disabled: !answerLocked && !allAnswered, primary: true }
       : {
           label: text("Next ›", "下一题 ›"),
           onClick: () => setIdx((i) => Math.min(steps.length - 1, i + 1)),
@@ -297,6 +297,13 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
           </span>
         </div>}
       </div>
+      {submission && <div className={styles.body} role="status" aria-live="polite" data-answer-status={submission.status}>
+        <div>{answerPending ? text("Sending answer…", "正在提交回答…") : submission.error}</div>
+        {submission.command.payload.answer !== undefined && <div className="whitespace-pre-wrap break-words">
+          {text("Your answer: ", "你的回答：")}{typeof submission.command.payload.answer === "string"
+            ? submission.command.payload.answer : JSON.stringify(submission.command.payload.answer)}
+        </div>}
+      </div>}
       <div className={styles.body} data-fn-form-body onKeyDown={onKey}>
         {cur.kind === "approval" ? (
           <StepBody step={cur} answer={curAns} onChange={(a) => patch(idx, a)} />
@@ -323,12 +330,12 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
           {cur.kind === "approval" && !discussionOpen && (
             <div className={styles.actionButtons}>
               <button type="button" className={styles.navBtn}
-                disabled={answerPending || (answerLocked && (curAns as { pick: string }).pick !== "deny")}
+                disabled={answerPending || (answerLocked && submission?.command.action !== "execution.wait.decline")}
                 onClick={() => { patch(idx, { pick: "deny" }); void sendAnswer("execution.wait.decline"); }}>
                 {text("Deny", "拒绝")}
               </button>
               <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
-                disabled={answerPending || (answerLocked && (curAns as { pick: string }).pick !== "once")}
+                disabled={answerPending || (answerLocked && submission?.command.action !== "execution.wait.answer")}
                 aria-busy={answerPending}
                 onClick={() => { patch(idx, { pick: "once" }); void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope: "once" }); }}>
                 {answerPending ? text("Sending…", "提交中…") : text("Allow once", "同意")}
@@ -505,8 +512,7 @@ function StepBody({
             const picked = !step.multi && aa.picked.size ? new Set<string>() : aa.picked;
             onChange({ picked, custom });
           }}
-          autoFocus
-        />
+                  />
       ) : null}
     </>
   );
