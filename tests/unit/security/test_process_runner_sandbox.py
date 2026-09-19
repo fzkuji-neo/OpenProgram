@@ -439,7 +439,8 @@ def test_child_entry_builds_the_session_selected_custom_runtime(
     assert result == {"error": "tool not found: missing_probe"}
 
 
-def test_child_entry_force_invokes_hidden_agentic_tool(monkeypatch, tmp_path):
+@pytest.mark.parametrize("tool_failed", [False, True])
+def test_child_entry_force_invokes_hidden_agentic_tool(monkeypatch, tmp_path, tool_failed):
     from types import SimpleNamespace
 
     from openprogram.agent import process_runner
@@ -480,7 +481,8 @@ def test_child_entry_force_invokes_hidden_agentic_tool(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENPROGRAM_IN_AGENTIC_SUBPROCESS", "0")
 
     class DummyResult:
-        content = [SimpleNamespace(text="ran")]
+        content = [SimpleNamespace(text="browser unavailable" if tool_failed else "ran")]
+        is_error = tool_failed
 
     class DummyWrapped:
         async def execute(self, *a, **k):
@@ -521,5 +523,7 @@ def test_child_entry_force_invokes_hidden_agentic_tool(monkeypatch, tmp_path):
     with result_path.open("rb") as handle:
         result = pickle.load(handle)
     assert seen.get("name") == "hidden_child_probe"
-    assert result.get("ok") is True
-    assert result.get("text") == "ran"
+    assert result.get("ok") is (not tool_failed)
+    assert result.get("text") == ("browser unavailable" if tool_failed else "ran")
+    if tool_failed:
+        assert result["error"] == "browser unavailable"
