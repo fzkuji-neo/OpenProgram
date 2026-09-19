@@ -281,4 +281,4 @@ Attempt 3: ConnectionError: timeout
 
 ### The boundaries of retrying
 
-`max_retries` only handles transient failures at the API level (network timeouts, rate limits, etc.). If the problem lies in the function's own logic or output format, retrying won't fix it — edit the function code directly.
+Transient transport failures, structured-output repairs, and repetitive tool-enabled responses share the invocation's failure-recovery allowance. A repetitive response is discarded and regenerated in the same Agent context, preserving completed tool results and their Runtime receipts. This recovery does not impose an aggregate token or duration limit. Explicit caller limits, cancellation, permission failures, and exhausted recovery remain authoritative. Repeating a response is not permission to repeat an external write; an uncertain write outcome requires inspection before another attempt. Function logic errors still require a code fix.
