@@ -29,8 +29,6 @@ def grok_cli_version() -> str:
 def grok_build_route(model_id: str) -> str:
     """The proxy routes by this header, not the JSON ``model`` field."""
     mid = (model_id or "").strip().lower()
-    if mid in {"grok-build", "grok-4.6", "grok-4.6-build", "grok-4.5", "grok-4.5-build"}:
-        return "grok-build"
     return mid or "grok-build"
 
 

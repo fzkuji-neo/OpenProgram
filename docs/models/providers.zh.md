@@ -25,7 +25,7 @@
 | `cerebras` | OpenAI Completions | API key（`CEREBRAS_API_KEY`） | |
 | `mistral` | OpenAI Completions | API key（`MISTRAL_API_KEY`） | |
 | `xai` | OpenAI Completions | API key（`XAI_API_KEY`） | |
-| `xai_subscription` | OpenAI Completions | OAuth（SuperGrok / X Premium+）：浏览器 PKCE 登录 | 模型与 `xai` 相同，走 `cli-chat-proxy.grok.com`（不是 `api.x.ai`） |
+| `xai_subscription` | OpenAI Responses | OAuth（SuperGrok / X Premium+）：浏览器 PKCE 登录 | 模型与 `xai` 相同，走 `cli-chat-proxy.grok.com`（不是 `api.x.ai`） |
 | `zai` | OpenAI Completions | API key（`ZAI_API_KEY`） | |
 | `huggingface` | OpenAI Completions | API key（`HF_TOKEN`） | |
 | `minimax` / `minimax_cn` | Anthropic Messages | API key（`MINIMAX_API_KEY` / `MINIMAX_CN_API_KEY`） | 国际 / 国内两个端点 |
@@ -65,3 +65,5 @@ runtime = create_runtime(provider="gemini-cli")    # 复用 Gemini CLI 登录态
 ```
 
 上表其余 provider：`create_runtime(provider=..., model=...)` 会按该模型的协议自动路由，与聊天界面走同一条路径。
+
+Grok Subscription 在代理路由请求头中保留所选模型 ID。选择 `grok-4.6` 时请求该模型，不替换成 `grok-build` 别名。

@@ -25,7 +25,7 @@ Access methods: **API key** = a key stored in the credential store (`providers l
 | `cerebras` | OpenAI Completions | API key (`CEREBRAS_API_KEY`) | |
 | `mistral` | OpenAI Completions | API key (`MISTRAL_API_KEY`) | |
 | `xai` | OpenAI Completions | API key (`XAI_API_KEY`) | |
-| `xai_subscription` | OpenAI Completions | OAuth (SuperGrok / X Premium+): browser PKCE sign-in | Same models as `xai`, via `cli-chat-proxy.grok.com` (not `api.x.ai`) |
+| `xai_subscription` | OpenAI Responses | OAuth (SuperGrok / X Premium+): browser PKCE sign-in | Same models as `xai`, via `cli-chat-proxy.grok.com` (not `api.x.ai`) |
 | `zai` | OpenAI Completions | API key (`ZAI_API_KEY`) | |
 | `huggingface` | OpenAI Completions | API key (`HF_TOKEN`) | |
 | `minimax` / `minimax_cn` | Anthropic Messages | API key (`MINIMAX_API_KEY` / `MINIMAX_CN_API_KEY`) | International / China endpoints |
@@ -65,3 +65,5 @@ runtime = create_runtime(provider="gemini-cli")    # reuses the Gemini CLI login
 ```
 
 Every other provider in the table above routes automatically by the model's protocol: `create_runtime(provider=..., model=...)` uses the same path as the chat UI.
+
+Grok Subscription preserves the selected model ID in its proxy routing header. Selecting `grok-4.6` requests that model; it does not substitute the `grok-build` alias.
