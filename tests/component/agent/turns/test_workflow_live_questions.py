@@ -194,3 +194,17 @@ def test_queue_publish_failure_propagates():
             raise OSError("queue is closed")
     with pytest.raises(OSError, match="queue is closed"):
         QueueTransport(BrokenQueue()).publish({"prompt": "Q"})
+
+
+def test_failed_publication_does_not_cancel_another_question_in_same_process(owner):
+    from openprogram.agent.questions import open_question
+    from openprogram.execution.waits import DurableWaitStore
+    with bound_runtime(owner, lambda frame: None):
+        first, _ = open_question(session_id='session', kind='ask', prompt='first', on_asked=lambda q: None)
+        def fail(question):
+            raise OSError('second publish failed')
+        with pytest.raises(OSError, match='second publish failed'):
+            open_question(session_id='session', kind='ask', prompt='second', on_asked=fail)
+    assert [wait.wait_id for wait in DurableWaitStore(owner[0]).list_open()] == [first.id]
+    answer(owner, {'id': first.id, 'wait_generation': 0}, 'still answerable')
+    assert DurableWaitStore(owner[0]).get_wait(first.id).answer == 'still answerable'

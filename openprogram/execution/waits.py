@@ -112,7 +112,7 @@ class DurableWaitStore:
         )
 
     def cancel_live_waits(self, *, execution_id=None, attempt_id=None,
-                          generation=None, producer_id=None):
+                          generation=None, producer_id=None, wait_id=None):
         """Close one exited producer's waits, or all orphaned live waits."""
         closed = []
         now = time.time()
@@ -121,6 +121,8 @@ class DurableWaitStore:
                 "SELECT * FROM execution_waits WHERE status IN ('open', 'claimed')"
             ).fetchall()
             for row in rows:
+                if wait_id is not None and row["wait_id"] != wait_id:
+                    continue
                 policy = self._decode_ref(row["execution_id"], row["policy_snapshot_ref"])
                 if policy.get("mode") != "live":
                     continue
