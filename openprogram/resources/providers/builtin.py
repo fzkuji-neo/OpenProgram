@@ -30,7 +30,7 @@ def _web(action: str, arguments: dict):
         from openprogram.programs.workflow.browser._runtime.page_recovery import (
             _open_page_error, _start_session_on_opened_page,
         )
-        opened = surface_context.open_page(arguments["url"])
+        opened = surface_context.open_page(arguments["url"], background=True)
         if "surfaces" not in opened:
             return _open_page_error(opened)
         try:
@@ -94,4 +94,3 @@ def register_builtins(registry: ResourceRegistry) -> None:
         "backend": web_schema["properties"]["backend"],
     }, "required": ["url"], "additionalProperties": False}
     registry.register(ResourceProvider("web", "Built-in browser Page", actions, _web))
-

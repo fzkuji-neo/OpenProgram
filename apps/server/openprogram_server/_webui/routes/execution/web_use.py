@@ -26,6 +26,7 @@ def register(app: FastAPI) -> None:
                 "web_session_id", arguments.pop("computer_session_id")
             )
         owner_id = _owner_id(payload)
+        from openprogram.programs import ToolReturn
         from openprogram.programs._runtime import _normalize_result
         from openprogram.programs.workflow.browser import (
             execute_direct_web_use,
@@ -33,6 +34,8 @@ def register(app: FastAPI) -> None:
 
         try:
             raw = execute_direct_web_use(arguments, owner_id=owner_id)
+            if isinstance(raw, dict) and raw.get("ok") is False:
+                raw = ToolReturn(json_data=raw, is_error=True)
             if legacy:
                 if hasattr(raw, "json_data"):
                     metadata = dict(raw.json_data or {})

@@ -14,13 +14,18 @@ def test_closed_target_recovery_observes_without_replaying_click(monkeypatch):
     monkeypatch.setattr(browser, "_execute_web_use", lambda *args: {
         "ok": False, "reason_code": "target_lost", "recovery_url": "https://example.com/task",
     })
-    monkeypatch.setattr(surface_context, "open_page", lambda url: calls.append(url) or {"surfaces": [{}]})
+    monkeypatch.setattr(
+        surface_context, "open_page",
+        lambda url, **kwargs: calls.append((url, kwargs)) or {"surfaces": [{}]},
+    )
     monkeypatch.setattr(surface_context, "current", lambda: {"context_id": "owner"})
     monkeypatch.setattr(browser, "_start_session_on_opened_page", lambda **kwargs: {
         "ok": True, "frame_id": "fresh", "web_session_id": "new",
     })
     result = browser.web_use(command="act", arguments={"action": "click", "ref": "old"})
-    assert calls == ["https://example.com/task"]
+    assert calls == [(
+        "https://example.com/task", {"background": True},
+    )]
     assert result["recovered_page"] is True
     assert result["frame_id"] == "fresh"
 
@@ -98,7 +103,10 @@ def test_closed_page_reopens_in_original_window(monkeypatch):
     monkeypatch.setattr(browser, "_start_session_on_opened_page", lambda **kwargs: {"ok":True})
     result = browser._recover_web_use_page({"recovery_url":"https://example.com/old", "recovery_tab_id":"tab", "recovery_window_id":"win"}, backend="playwright_mcp")
     assert result["ok"] is True
-    assert calls == [("https://example.com/old", {"window_id":"win"})]
+    assert calls == [(
+        "https://example.com/old",
+        {"window_id":"win", "background": True},
+    )]
 
 
 
@@ -122,4 +130,3 @@ def test_recovery_cancelled_during_inventory_does_not_open_page(monkeypatch):
     with pytest.raises(CancelledError):
         browser._recover_web_use_page({"recovery_url":"https://example.com/old", "recovery_tab_id":"tab", "recovery_window_id":"win"}, backend="playwright_mcp")
     assert released == [{"context_id":"inventory"}]
-

@@ -961,7 +961,7 @@ def test_observe_with_url_session_only_act_uses_live_registry_session(monkeypatc
     monkeypatch.setattr(
         surface_context,
         "open_page",
-        lambda url: {
+        lambda url, **_kwargs: {
             "context_id": "page_ctx_opened",
             "window_id": "win",
             "surfaces": [{
@@ -1074,4 +1074,3 @@ def test_public_url_observe_releases_binding_when_frame_is_missing(
             webtab.release_binding(binding_id)
         webtab.release_connection(owner)
         registry.close_all()
-

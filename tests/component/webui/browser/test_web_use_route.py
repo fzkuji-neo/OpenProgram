@@ -39,6 +39,35 @@ def test_worker_web_use_route_preserves_images_and_server_owner(monkeypatch):
     assert calls == [({"command": "act"}, "mcp:client:connection")]
 
 
+def test_worker_web_use_route_marks_known_tool_failure_as_error(monkeypatch):
+    from openprogram.programs.workflow import browser as browser_agent
+    from openprogram.webui.routes.execution.web_use import register
+
+    failure = {
+        "ok": False,
+        "reason_code": "desktop_unavailable",
+        "error": "desktop web tab did not expose a CDP target",
+    }
+    monkeypatch.setattr(
+        browser_agent,
+        "execute_direct_web_use",
+        lambda _arguments, *, owner_id: failure,
+    )
+    app = FastAPI()
+    register(app)
+
+    response = TestClient(app).post("/api/web-use", json={
+        "arguments": {"command": "observe"},
+        "owner_id": "mcp:client:connection",
+    })
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["result"]["is_error"] is True
+    assert json.loads(payload["result"]["content"][0]["text"]) == failure
+
+
 def test_worker_web_use_route_rejects_non_mcp_owner():
     from openprogram.webui.routes.execution.web_use import register
 

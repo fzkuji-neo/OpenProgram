@@ -884,7 +884,7 @@ def test_observe_with_url_opens_desktop_tab_when_no_page(monkeypatch):
     monkeypatch.setattr(
         surface_context,
         "open_page",
-        lambda url: opens.append(url) or {
+        lambda url, **kwargs: opens.append((url, kwargs)) or {
             "context_id": "page_ctx_opened",
             "surfaces": [{"binding_id": "surface_opened"}],
         },
@@ -899,7 +899,7 @@ def test_observe_with_url_opens_desktop_tab_when_no_page(monkeypatch):
         backend="playwright_mcp",
         arguments={"url": "https://example.test/form"},
     )
-    assert opens == ["https://example.test/form"]
+    assert opens == [("https://example.test/form", {"background": True})]
     assert result["ok"] is True
     assert result["web_session_id"] == "cs_opened"
     assert result["frame_id"] == "frame-1"
@@ -916,6 +916,30 @@ def test_observe_with_url_opens_desktop_tab_when_no_page(monkeypatch):
     assert acted["web_session_id"] == "cs_opened"
     assert "page_context_token" not in acted
     assert acted.get("closed") is not True
+
+
+def test_resource_web_open_creates_a_background_page(monkeypatch):
+    from openprogram.agent import surface_context
+    from openprogram.programs.workflow.browser._runtime import page_recovery
+    from openprogram.resources.providers import builtin
+
+    opens = []
+    monkeypatch.setattr(
+        surface_context, "open_page",
+        lambda url, **kwargs: opens.append((url, kwargs)) or {
+            "context_id": "resource-opened",
+            "surfaces": [{"binding_id": "resource-surface"}],
+        },
+    )
+    monkeypatch.setattr(
+        page_recovery, "_start_session_on_opened_page",
+        lambda **kwargs: {"ok": True, "web_session_id": "resource-session"},
+    )
+
+    result = builtin._web("open", {"url": "https://example.test/"})
+
+    assert result["ok"] is True
+    assert opens == [("https://example.test/", {"background": True})]
 
 
 
@@ -941,8 +965,11 @@ def test_public_url_observe_keeps_binding_for_first_session_act(
     owner = object()
     webtab.ensure_connection_revision(owner)
     webtab._desktop_windows[owner] = "win"
+    open_commands = []
     monkeypatch.setattr(server, "_ws_connections", [owner])
-    monkeypatch.setattr(webtab, "request_on_ws", _public_open_transport(webtab))
+    monkeypatch.setattr(
+        webtab, "request_on_ws", _public_open_transport(webtab, open_commands),
+    )
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: registry)
     monkeypatch.setattr(surface_context, "current", lambda: None)
     monkeypatch.setattr(
@@ -971,6 +998,9 @@ def test_public_url_observe_keeps_binding_for_first_session_act(
         assert observed["web_session_id"].startswith("cs_")
         assert observed.get("closed") is not True
         assert "page_context_token" not in observed
+        assert open_commands == [{
+            "op": "open", "url": url, "background": True,
+        }]
         assert webtab._bindings
         binding_id = next(iter(webtab._bindings))
         assert webtab.request_bound_tab(binding_id).get("ok") is True
@@ -1075,7 +1105,7 @@ def test_act_with_url_reports_desktop_unavailable(monkeypatch):
     monkeypatch.setattr(
         surface_context,
         "open_page",
-        lambda url: {
+        lambda url, **_kwargs: {
             "ok": False,
             "reason_code": "desktop_unavailable",
             "error": surface_context.DESKTOP_UNAVAILABLE_ERROR,
@@ -1112,7 +1142,9 @@ def test_open_page_cleanup_contract_reaches_public_web_use_entries(
         "handoff_instruction": "Close the remaining background Page.",
     }
     monkeypatch.setattr(surface_context, "current", lambda: None)
-    monkeypatch.setattr(surface_context, "open_page", lambda _url: cleanup)
+    monkeypatch.setattr(
+        surface_context, "open_page", lambda _url, **_kwargs: cleanup,
+    )
     arguments = {
         "command": "act",
         "arguments": {"action": "navigate", "url": "https://example.test/"},
