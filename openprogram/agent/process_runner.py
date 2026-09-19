@@ -1041,11 +1041,14 @@ def _child_entry(
                 real_id = max(tops, key=lambda n: n.seq).id
         except Exception:
             real_id = None
+        # A completed Python invocation may still return a failed tool result
+        # (for example a browser timeout). Preserve that failure across IPC.
+        failed = bool(getattr(result, "is_error", False))
+        payload = {"ok": not failed, "runtime_msg_id": real_id, "text": text_out}
+        if failed:
+            payload["error"] = text_out or "Agentic tool returned an error"
         with open(result_path, "wb") as f:
-            pickle.dump(
-                {"ok": True, "runtime_msg_id": real_id, "text": text_out},
-                f,
-            )
+            pickle.dump(payload, f)
     except BaseException as e:  # noqa: BLE001
         from openprogram.agentic_programming.continuation import FunctionSuspended
         # A recoverable invocation can fail before its wrapper is entered (for

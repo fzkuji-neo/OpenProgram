@@ -486,6 +486,17 @@ def _update_function_call_exit(
     except Exception:
         pass
 
+    # ToolReturn and AgentToolResult encode failure without raising. Respect
+    # that explicit protocol in both sync and async function DAG records.
+    from openprogram.agent.types import AgentToolResult
+    from openprogram.programs._execution_common import ToolReturn
+    if status == "completed" and isinstance(output, (ToolReturn, AgentToolResult)) and output.is_error:
+        status = "error"
+        if isinstance(output, ToolReturn):
+            error = output.text or str(output.json_data or "Tool returned an error")
+        else:
+            error = "".join(getattr(item, "text", "") for item in output.content) or "Tool returned an error"
+
     duration = None
     if started_at is not None and ended_at is not None:
         duration = float(ended_at) - float(started_at)
