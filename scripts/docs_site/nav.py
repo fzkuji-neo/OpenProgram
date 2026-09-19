@@ -385,6 +385,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
 # Tutorial docs must read top-to-bottom; anything unlisted sorts after these,
 # alphabetically (which is fine for the design-notes archive).
 PAGE_ORDER: dict[str, int] = {
+    "reference/design/runtime/report-delivery-intent.html": 1007,
     "README.md": 0,
     "start/GETTING_STARTED.md": 1,
     "start/daily-use.md": 2,

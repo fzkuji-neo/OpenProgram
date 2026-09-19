@@ -1,5 +1,7 @@
 # Prepare weekly reports
 
+Personal-chat and Feishu draft requests return the full Markdown body by default. They do not need a successful local file write. An explicitly requested Markdown output path retains file delivery; existing file-delivery resume requests remain supported. Returning text does not submit or send anything externally.
+
 The report suite consists of four independently versioned Workflow packages and
 one coordinating `weekly_report` package. They must be installed in the Programs catalog;
 this source checkout alone does not install them. The suite supports independent execution and composition through the `weekly_report` entry.
