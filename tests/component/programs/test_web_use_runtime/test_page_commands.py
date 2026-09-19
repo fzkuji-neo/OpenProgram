@@ -681,6 +681,73 @@ def test_public_page_token_keeps_the_turn_owner_across_calls(monkeypatch):
     assert captures == [None]
 
 
+def test_list_pages_preserves_origin_window_for_subprocess_bridge(monkeypatch):
+    from openprogram.agent import surface_context
+    from openprogram.programs.workflow import browser as module
+    from openprogram.programs.workflow.browser import web_use_runtime
+
+    origin_context = surface_context.window_context("window-1")
+    inventory_context = {
+        "context_id": "inventory-1",
+        "window_id": "window-1",
+        "surfaces": [],
+    }
+    captures = []
+
+    class _Registry:
+        def list_pages(self, **kwargs):
+            assert kwargs["context"] is inventory_context
+            return {"ok": True, "pages": []}
+
+    monkeypatch.setattr(web_use_runtime, "get_registry", lambda: _Registry())
+    monkeypatch.setattr(surface_context, "current", lambda: origin_context)
+
+    def capture_pages(context=None):
+        captures.append(context)
+        return inventory_context
+
+    monkeypatch.setattr(surface_context, "capture_pages", capture_pages)
+
+    result = module.web_use(command="list_pages")
+
+    assert result["ok"] is True
+    assert captures == [origin_context]
+
+
+def test_list_pages_round_trips_origin_window_through_child_bridge(monkeypatch):
+    from openprogram.agent import surface_context
+    from openprogram.programs.workflow import browser as module
+    from openprogram.programs.workflow.browser import web_use_runtime
+    from openprogram.webui.ws_actions import webtab
+
+    origin_context = surface_context.window_context("window-1")
+    inventory_context = {
+        "context_id": "inventory-1",
+        "window_id": "window-1",
+        "surfaces": [],
+    }
+    calls = []
+
+    class _Registry:
+        def list_pages(self, **kwargs):
+            assert kwargs["context"] is inventory_context
+            return {"ok": True, "pages": []}
+
+    def bridge_request(command, timeout):
+        calls.append((command, timeout))
+        return {"ok": True, "context": inventory_context}
+
+    monkeypatch.setenv("OPENPROGRAM_IN_AGENTIC_SUBPROCESS", "1")
+    monkeypatch.setattr(web_use_runtime, "get_registry", lambda: _Registry())
+    monkeypatch.setattr(surface_context, "current", lambda: origin_context)
+    monkeypatch.setattr(webtab, "_request", bridge_request)
+
+    result = module.web_use(command="list_pages")
+
+    assert result["ok"] is True
+    assert calls == [({"op": "capture_pages", "window_id": "window-1"}, 5.0)]
+
+
 
 def test_same_owner_repeated_observe_reuses_exact_page_session():
     from openprogram.programs.workflow.browser.web_use_runtime import (
@@ -1092,4 +1159,3 @@ def test_public_web_use_open_carries_trusted_resource_owner(monkeypatch, subproc
     assert len(commands) == 1
     assert commands[0]["op"] == "open"
     assert commands[0].get("session_id") == (session_id or None)
-
