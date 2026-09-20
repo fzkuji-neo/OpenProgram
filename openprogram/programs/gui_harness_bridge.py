@@ -150,19 +150,28 @@ def install_gui_harness_web_use(original: Callable | None = None):
                 runtime=runtime, allow_general=allow_general,
             ))
         # Direct callers that bypass the canonical Agent safe-point still
-        # receive the structured advisory result used by the Functions/CLI
-        # surfaces. Canonical Agent dispatch checks the same report before
-        # this function is entered and owns the durable wait.
+        # receive the same registry-derived capability result used by the
+        # canonical Agent safe-point. Canonical dispatch owns the durable wait
+        # only for the recoverable ``waiting`` state.
         if selected_surface in {"", "desktop"} and not vm_url:
-            from openprogram.system_access import report
-            access = report()
-            missing = [row for row in access["capabilities"]
-                       if row["status"] == "not_granted" and row.get("can_request")]
-            if access.get("platform") == "Darwin" and missing:
+            from openprogram.system_access import required_access_state
+            access_state = required_access_state(
+                "gui_agent",
+                {"surface": selected_surface, "vm_url": vm_url, "backend": backend},
+            )
+            if access_state and access_state.get("state") != "ready":
+                reason_code = str(
+                    access_state.get("reason_code") or "system_access_required"
+                )
                 return _normalize_gui_result({
-                    "status": "infeasible", "reason_code": "system_access_required",
-                    "summary": "Waiting for system access.",
-                    "handoff_instruction": "", "system_access": missing,
+                    "status": "infeasible", "reason_code": reason_code,
+                    "summary": (
+                        "Desktop access is unavailable on this execution host."
+                        if reason_code == "system_access_unavailable"
+                        else "Waiting for system access."
+                    ),
+                    "handoff_instruction": "",
+                    "system_access": list(access_state.get("capabilities", [])),
                     "completion_verified": False,
                 })
         call_args = {

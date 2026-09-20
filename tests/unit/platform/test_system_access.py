@@ -141,6 +141,22 @@ def test_gui_agent_desktop_manifest_requires_missing_macos_capabilities(monkeypa
     assert manifest['policy_snapshot']['on_grant'] == 'continue'
 
 
+@pytest.mark.parametrize('status', ['unavailable', 'unsupported'])
+def test_gui_agent_unresolvable_access_does_not_create_permanent_wait(monkeypatch, status):
+    monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
+    monkeypatch.setattr(system_access, '_native_probe', lambda: {
+        'identity': {'executable': sys.executable},
+        'capabilities': {
+            'screen_recording': {'status': status, 'detail': 'unavailable'},
+            'accessibility': {'status': 'granted', 'detail': 'fresh'},
+        },
+    })
+    state = system_access.required_access_state('gui_agent', {'surface': 'desktop'})
+    assert state['state'] == 'infeasible'
+    assert state['reason_code'] == 'system_access_unavailable'
+    assert system_access.access_manifest_for_tool('gui_agent', {'surface': 'desktop'}) is None
+
+
 @pytest.mark.parametrize('args', [
     {'task': 'Use browser', 'surface': 'browser'},
     {'task': 'Use VM', 'surface': 'vm', 'vm_url': 'http://vm'},

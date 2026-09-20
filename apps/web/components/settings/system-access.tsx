@@ -8,6 +8,7 @@ import styles from "./settings-page.module.css";
 type Capability = {
   id: string;
   label?: string;
+  label_zh?: string;
   status: string;
   detail?: string;
   instruction?: string;
@@ -35,13 +36,6 @@ type Report = {
 const legacyLabels: Record<string, [string, string]> = {
   screen_recording: ["Screen recording", "屏幕录制"],
   accessibility: ["Desktop control", "桌面控制"],
-  apple_events: ["Automation", "自动化"],
-  calendar: ["Calendar", "日历"],
-  reminders: ["Reminders", "提醒事项"],
-  file_read: ["File read", "读取文件"],
-  file_write: ["File write", "写入文件"],
-  microphone: ["Microphone", "麦克风"],
-  camera: ["Camera", "摄像头"],
 };
 
 function fallbackLabel(id: string, text: (en: string, zh: string) => string) {
@@ -140,7 +134,7 @@ export function SystemAccess() {
           const canRequest = row.can_request === true && row.status === "not_granted" && row.request_mode !== "settings";
           return <div className={`${styles.row} ${styles.rowTop}`} key={row.id}>
             <div className={styles.label}>
-              <div>{row.label || fallbackLabel(row.id, text)} · {status}</div>
+              <div>{text(row.label || fallbackLabel(row.id, text), row.label_zh || fallbackLabel(row.id, text))} · {status}</div>
               <p className={styles.pageMeta}>{row.detail || (row.status === "granted" ? text("The execution program has this access.", "当前执行程序已获得授权。") : row.status === "not_granted" ? text("This access has not been granted to the execution program.", "当前执行程序尚未获得这项系统授权。") : row.status === "unknown" ? text("The host cannot verify this access yet.", "当前主机尚不能确认这项权限。") : row.status === "unsupported" ? text("This capability is not supported by the current host.", "当前主机暂不支持这项能力。") : text("This capability is unavailable in the current environment.", "当前环境无法提供这项能力。"))}</p>
               {row.instruction && row.status !== "granted" && <p className={styles.pageMeta}>{row.instruction}</p>}
               {(row.required || row.required_for?.length) && <p className={styles.pageMeta}>{text("Used by: ", "使用于：")}{(row.required_for || []).join(", ")}</p>}
