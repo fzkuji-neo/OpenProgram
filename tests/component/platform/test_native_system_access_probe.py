@@ -8,12 +8,14 @@ from openprogram import system_access
 
 
 def _probe_payload(executable, *, screen_recording='granted', accessibility='granted'):
+    statuses = {capability: 'granted' for capability in system_access._MAC}
+    statuses.update(screen_recording=screen_recording, accessibility=accessibility)
     return {
         'schema': 1,
         'identity': {'executable': executable},
         'capabilities': [
-            {'id': 'screen_recording', 'status': screen_recording, 'detail': 'fresh'},
-            {'id': 'accessibility', 'status': accessibility, 'detail': 'fresh'},
+            {'id': capability, 'status': status, 'detail': 'fresh'}
+            for capability, status in statuses.items()
         ],
     }
 
@@ -75,6 +77,20 @@ def test_native_probe_entry_marks_missing_dependency_unavailable(monkeypatch, ca
             raise ImportError('Quartz is missing')
         if name == 'ApplicationServices':
             return SimpleNamespace(AXIsProcessTrusted=lambda: True)
+        if name == 'EventKit':
+            return SimpleNamespace(
+                EKEntityTypeEvent=0, EKEntityTypeReminder=1,
+                EKEventStore=SimpleNamespace(
+                    authorizationStatusForEntityType_=lambda entity: 3,
+                ),
+            )
+        if name == 'AVFoundation':
+            return SimpleNamespace(
+                AVMediaTypeAudio='audio', AVMediaTypeVideo='video',
+                AVCaptureDevice=SimpleNamespace(
+                    authorizationStatusForMediaType_=lambda media: 3,
+                ),
+            )
         if name == 'Foundation':
             raise ImportError('Foundation is missing')
         raise AssertionError(name)
@@ -86,6 +102,41 @@ def test_native_probe_entry_marks_missing_dependency_unavailable(monkeypatch, ca
     assert rows['screen_recording']['status'] == 'unavailable'
     assert 'missing' in rows['screen_recording']['detail']
     assert rows['accessibility']['status'] == 'granted'
+
+
+def test_native_probe_entry_checks_eventkit_and_avfoundation_without_request(monkeypatch, capsys):
+    monkeypatch.setattr(system_access.sys, 'argv', ['-c'])
+
+    class Store:
+        @classmethod
+        def authorizationStatusForEntityType_(cls, entity):
+            return 3
+
+    class Device:
+        @classmethod
+        def authorizationStatusForMediaType_(cls, media):
+            return 3
+
+    def import_module(name):
+        if name == 'Quartz':
+            return SimpleNamespace(CGPreflightScreenCaptureAccess=lambda: True)
+        if name == 'ApplicationServices':
+            return SimpleNamespace(AXIsProcessTrusted=lambda: True)
+        if name == 'EventKit':
+            return SimpleNamespace(EKEntityTypeEvent=0, EKEntityTypeReminder=1, EKEventStore=Store)
+        if name == 'AVFoundation':
+            return SimpleNamespace(AVMediaTypeAudio='audio', AVMediaTypeVideo='video', AVCaptureDevice=Device)
+        if name == 'Foundation':
+            raise ImportError('Foundation is mocked away')
+        raise AssertionError(name)
+
+    monkeypatch.setattr(system_access.importlib, 'import_module', import_module)
+    system_access._native_probe_entry()
+    payload = json.loads(capsys.readouterr().out)
+    rows = {row['id']: row for row in payload['capabilities']}
+    assert all(rows[capability]['status'] == 'granted' for capability in (
+        'calendar', 'reminders', 'microphone', 'camera',
+    ))
 
 
 def test_report_rejects_probe_for_another_executable(monkeypatch):

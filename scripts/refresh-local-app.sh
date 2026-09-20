@@ -411,7 +411,7 @@ if test "$sync_gui_harness" = 1; then
 fi
 if test "$(uname -s)" = Darwin; then
   "$app_python" -I -c \
-    'import AppKit, ApplicationServices, Quartz, ScreenCaptureKit'
+      'import AppKit, ApplicationServices, AVFoundation, EventKit, Quartz, ScreenCaptureKit'
   if test "$sync_gui_harness" = 1; then
     "$app_python" -I -c \
       'from gui_harness.adapters.mac_window import window_support'

@@ -25,6 +25,8 @@ def test_privacy_update_preserves_bundle_identity_and_existing_fields(tmp_path):
     assert result['NSAppleEventsUsageDescription']
     assert result['NSCalendarsFullAccessUsageDescription']
     assert result['NSRemindersFullAccessUsageDescription']
+    assert result['NSMicrophoneUsageDescription']
+    assert result['NSCameraUsageDescription']
     original = path.read_bytes()
     module.update_privacy_plist(path)
     assert path.read_bytes() == original

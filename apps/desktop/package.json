@@ -117,7 +117,9 @@
         "NSCalendarsUsageDescription": "OpenProgram accesses your calendars to carry out tasks you request.",
         "NSCalendarsFullAccessUsageDescription": "OpenProgram reads and updates calendar events when you request it.",
         "NSRemindersUsageDescription": "OpenProgram accesses reminders to carry out tasks you request.",
-        "NSRemindersFullAccessUsageDescription": "OpenProgram reads and updates reminders when you request it."
+      "NSRemindersFullAccessUsageDescription": "OpenProgram reads and updates reminders when you request it.",
+      "NSMicrophoneUsageDescription": "OpenProgram accesses the microphone when you request audio tasks.",
+      "NSCameraUsageDescription": "OpenProgram accesses the camera when you request camera tasks."
       }
     },
     "win": {

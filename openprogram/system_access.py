@@ -102,9 +102,13 @@ _CAPABILITY_SPECS = (
         identity_bundle_id='ai.openprogram.runtime',
     ),
     CapabilitySpec(
-        'calendar', 'Calendar', '日历', 'integrations', 'runtime', 'settings',
-        operations=('calendar:*',), settings_pane='Privacy_Calendars',
+        'calendar', 'Calendar', '日历', 'integrations', 'runtime', 'native',
+        operations=('calendar:*',), module='EventKit',
+        check_method='authorizationStatusForEntityType_',
+        request_method='requestFullAccessToEventsWithCompletion_',
+        request_style='eventkit_events', settings_pane='Privacy_Calendars',
         settings_label='Calendars', usage_key='NSCalendarsUsageDescription',
+        tcc_service='Calendar',
         package_declarations=('NSCalendarsUsageDescription', 'NSCalendarsFullAccessUsageDescription'),
         usage_descriptions=(
             ('NSCalendarsUsageDescription', 'OpenProgram accesses your calendars to carry out tasks you request.'),
@@ -115,9 +119,13 @@ _CAPABILITY_SPECS = (
         identity_bundle_id='ai.openprogram.runtime',
     ),
     CapabilitySpec(
-        'reminders', 'Reminders', '提醒事项', 'integrations', 'runtime', 'settings',
-        operations=('reminders:*',), settings_pane='Privacy_Reminders',
+        'reminders', 'Reminders', '提醒事项', 'integrations', 'runtime', 'native',
+        operations=('reminders:*',), module='EventKit',
+        check_method='authorizationStatusForEntityType_',
+        request_method='requestFullAccessToRemindersWithCompletion_',
+        request_style='eventkit_reminders', settings_pane='Privacy_Reminders',
         settings_label='Reminders', usage_key='NSRemindersUsageDescription',
+        tcc_service='Reminders',
         package_declarations=('NSRemindersUsageDescription', 'NSRemindersFullAccessUsageDescription'),
         usage_descriptions=(
             ('NSRemindersUsageDescription', 'OpenProgram accesses reminders to carry out tasks you request.'),
@@ -138,17 +146,27 @@ _CAPABILITY_SPECS = (
         settings_label='Files and Folders',
     ),
     CapabilitySpec(
-        'microphone', 'Microphone', '麦克风', 'media', 'runtime', 'settings',
-        operations=('microphone:*',), settings_pane='Privacy_Microphone',
-        settings_label='Microphone',
+        'microphone', 'Microphone', '麦克风', 'media', 'runtime', 'native',
+        operations=('microphone:*',), module='AVFoundation',
+        check_method='authorizationStatusForMediaType_',
+        request_method='requestAccessForMediaType_completionHandler_',
+        request_style='avfoundation_audio', settings_pane='Privacy_Microphone',
+        settings_label='Microphone', tcc_service='Microphone',
+        package_declarations=('NSMicrophoneUsageDescription',),
+        usage_descriptions=(('NSMicrophoneUsageDescription', 'OpenProgram accesses the microphone when you request audio tasks.'),),
         identity_role='runtime',
         identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
         identity_bundle_id='ai.openprogram.runtime',
     ),
     CapabilitySpec(
-        'camera', 'Camera', '摄像头', 'media', 'runtime', 'settings',
-        operations=('camera:*',), settings_pane='Privacy_Camera',
-        settings_label='Camera',
+        'camera', 'Camera', '摄像头', 'media', 'runtime', 'native',
+        operations=('camera:*',), module='AVFoundation',
+        check_method='authorizationStatusForMediaType_',
+        request_method='requestAccessForMediaType_completionHandler_',
+        request_style='avfoundation_video', settings_pane='Privacy_Camera',
+        settings_label='Camera', tcc_service='Camera',
+        package_declarations=('NSCameraUsageDescription',),
+        usage_descriptions=(('NSCameraUsageDescription', 'OpenProgram accesses the camera when you request camera tasks.'),),
         identity_role='runtime',
         identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
         identity_bundle_id='ai.openprogram.runtime',
@@ -230,7 +248,10 @@ def validate_capability_registry() -> None:
             raise RuntimeError(f'Native capability {spec.id} has no nonprompting check.')
         if spec.request_mode == 'native' and not spec.request_method:
             raise RuntimeError(f'Native capability {spec.id} has no request method.')
-        if spec.request_style not in {'none', 'accessibility_prompt'}:
+        if spec.request_style not in {
+            'none', 'accessibility_prompt', 'eventkit_events',
+            'eventkit_reminders', 'avfoundation_audio', 'avfoundation_video',
+        }:
             raise RuntimeError(f'Unknown native request style for {spec.id}.')
         if spec.request_mode in {'native', 'settings', 'targeted'} and not spec.settings_pane:
             raise RuntimeError(f'Capability {spec.id} has no settings destination.')
@@ -389,6 +410,69 @@ def _native_executor() -> str:
     return os.path.abspath(sys.executable)
 
 
+def _native_media_type(spec: CapabilitySpec, native):
+    return getattr(
+        native,
+        'AVMediaTypeAudio' if spec.request_style == 'avfoundation_audio' else 'AVMediaTypeVideo',
+    )
+
+
+def _native_event_type(spec: CapabilitySpec, native):
+    return getattr(
+        native,
+        'EKEntityTypeEvent' if spec.request_style == 'eventkit_events' else 'EKEntityTypeReminder',
+    )
+
+
+def _native_check(spec: CapabilitySpec, native) -> bool:
+    """Perform a non-prompting check for one registry entry."""
+    if spec.request_style.startswith('eventkit_'):
+        status = native.EKEventStore.authorizationStatusForEntityType_(_native_event_type(spec, native))
+        return int(status) in {3, 4}
+    if spec.request_style.startswith('avfoundation_'):
+        status = native.AVCaptureDevice.authorizationStatusForMediaType_(_native_media_type(spec, native))
+        return int(status) == 3
+    return bool(getattr(native, spec.check_method)())
+
+
+def _native_wait_for_callback(invoke) -> None:
+    """Wait for an EventKit/AVFoundation completion callback in the child."""
+    completed = threading.Event()
+
+    def completion(*_args):
+        completed.set()
+
+    invoke(completion)
+    if not completed.wait(_NATIVE_REQUEST_TIMEOUT - 1):
+        raise TimeoutError('native authorization callback timed out')
+
+
+def _native_request(spec: CapabilitySpec, native) -> None:
+    """Request one capability after an explicit local-owner action."""
+    if spec.request_style == 'accessibility_prompt':
+        method = getattr(native, spec.request_method)
+        method({native.kAXTrustedCheckOptionPrompt: True})
+        return
+    if spec.request_style.startswith('eventkit_'):
+        store = native.EKEventStore.alloc().init()
+        method = getattr(store, spec.request_method, None)
+        if method is not None:
+            _native_wait_for_callback(method)
+            return
+        legacy = getattr(store, 'requestAccessToEntityType_completion_', None)
+        if legacy is None:
+            raise AttributeError(f'EventKit request method is unavailable for {spec.id}')
+        _native_wait_for_callback(lambda done: legacy(_native_event_type(spec, native), done))
+        return
+    if spec.request_style.startswith('avfoundation_'):
+        method = getattr(native.AVCaptureDevice, spec.request_method)
+        _native_wait_for_callback(
+            lambda done: method(_native_media_type(spec, native), done)
+        )
+        return
+    getattr(native, spec.request_method)()
+
+
 def _native_probe_entry() -> None:
     """Private child entry for nonprompting native checks and explicit requests."""
     request = None
@@ -402,15 +486,11 @@ def _native_probe_entry() -> None:
     rows = []
     for capability, (_, module, method, _) in _MAC.items():
         try:
+            spec = capability_spec(capability)
             native = importlib.import_module(module)
             if request == capability:
-                spec = capability_spec(capability)
-                request_method = getattr(native, spec.request_method)
-                if spec.request_style == 'accessibility_prompt':
-                    request_method({native.kAXTrustedCheckOptionPrompt: True})
-                else:
-                    request_method()
-            granted = bool(getattr(native, method)())
+                _native_request(spec, native)
+            granted = _native_check(spec, native)
             rows.append({
                 'id': capability,
                 'status': 'granted' if granted else 'not_granted',

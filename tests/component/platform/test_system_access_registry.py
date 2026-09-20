@@ -29,21 +29,22 @@ def test_registry_is_unique_and_report_contains_all_declared_capabilities(monkey
     assert rows["screen_recording"]["identity"]["bundle_id"] == "ai.openprogram.runtime"
     assert rows["file_read"]["subject"] == "user_selected_path"
     assert rows["file_read"]["settings_available"] is False
-    assert rows["microphone"]["status"] == "unknown"
+    assert rows["microphone"]["request_mode"] == "native"
+    assert rows["calendar"]["request_mode"] == "native"
 
 
-def test_declaration_request_never_runs_native_probe(monkeypatch):
+def test_native_request_uses_the_registry_probe(monkeypatch):
     monkeypatch.setattr(system_access.platform, "system", lambda: "Darwin")
-    monkeypatch.setattr(
-        system_access,
-        "_native_probe",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("declaration-only capabilities must not probe")
-        ),
-    )
+    monkeypatch.setattr(system_access, "_native_probe", lambda *args, **kwargs: {
+        "identity": {"executable": "test"},
+        "capabilities": {
+            capability: {"status": "granted", "detail": "fresh"}
+            for capability in system_access._MAC
+        },
+    })
     row = system_access.request_access("calendar")
     assert row["id"] == "calendar"
-    assert row["status"] == "unknown"
+    assert row["status"] == "granted"
     assert row["can_request"] is False
 
 
