@@ -199,6 +199,7 @@ def _capability_row(spec: CapabilitySpec, *, status: str, detail: str) -> dict:
         'status': status,
         'optional': spec.optional,
         'category': spec.category,
+        'setup_group': spec.category,
         'subject': spec.subject,
         'request_mode': spec.request_mode,
         'settings_available': bool(spec.settings_pane),
