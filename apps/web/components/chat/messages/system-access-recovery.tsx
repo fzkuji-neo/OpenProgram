@@ -75,7 +75,7 @@ export function SystemAccessRecovery({ output, requiredCapabilities, autoOpen, o
   // This acknowledgement starts polling only. It is intentionally separate
   // from setup(), so reconnect/history replay cannot produce a native prompt.
   useEffect(() => {
-    if (!autoOpen || !visibleNow || armed) return;
+    if (!autoOpen || !local || !visibleNow || armed) return;
     setArmed(true);
     onAutoOpen?.();
   }, [autoOpen, visibleNow, armed, onAutoOpen]);
