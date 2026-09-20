@@ -116,15 +116,17 @@ def test_request_access_uses_the_same_named_helper(monkeypatch):
     ])
 
     def run(command, **kwargs):
-        commands.append(command)
+        commands.append((command, kwargs))
         return SimpleNamespace(returncode=0, stdout=json.dumps(next(payloads)), stderr='')
 
     monkeypatch.setattr(subprocess, 'run', run)
     result = system_access.request_access('accessibility')
     assert result['status'] == 'granted'
     assert len(commands) == 3
-    assert all(command[:3] == [executable, '-I', '-B'] for command in commands)
-    assert commands[1][-2:] == ['--request', 'accessibility']
+    assert all(command[:3] == [executable, '-I', '-B'] for command, _ in commands)
+    assert commands[1][0][-2:] == ['--request', 'accessibility']
+    assert commands[0][1]['timeout'] == system_access._NATIVE_PROBE_TIMEOUT
+    assert commands[1][1]['timeout'] == system_access._NATIVE_REQUEST_TIMEOUT
 
 
 def test_probe_timeout_is_unknown(monkeypatch):

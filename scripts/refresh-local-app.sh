@@ -434,7 +434,7 @@ if test ! -e "$runtime_root/bin/python" && test ! -L "$runtime_root/bin/python";
   ln -s "../$app_python_relative" "$runtime_root/bin/python"
 fi
 "$app_python" -I "$runtime_assets_stage/build-macos-runtime-app.py" \
-  "$runtime_root" --python "$app_python" --icon "$runtime_assets_stage/icon.icns"
+  "$runtime_root" --python "$app_python" --icon "$runtime_assets_stage/icon.icns" --outer-app "$app_path"
 runtime_version="$("$app_python" -I -c 'from importlib.metadata import version; print(version("openprogram"))')"
 runtime_uv_version="$("$runtime_root/bin/uv" --version | awk '{print $2}')"
 # The verifier probes every capability before writing its manifest. Never

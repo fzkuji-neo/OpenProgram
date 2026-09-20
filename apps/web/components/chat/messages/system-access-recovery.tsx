@@ -58,14 +58,14 @@ export function SystemAccessRecovery({ output, requiredCapabilities, autoOpen, o
   }, [local, armed]);
   const missing = required.filter(id => !rows.some(row => row.id === id && row.status === "granted"));
   const requestable = missing.filter(id => rows.some(row => row.id === id && row.status === "not_granted" && row.can_request));
-  async function setup(id: string) {
+  async function setup(id: string, openSettings = false) {
     const signal = lifetime.current?.signal;
     if (!signal || signal.aborted || busy.current) return;
     busy.current = true; ++version.current;
     setPending(true); setError("");
     let succeeded = false;
     try {
-      const response = await fetch(`/api/system/access/${encodeURIComponent(id)}`, { method: "POST", signal });
+      const response = await fetch(`/api/system/access/${encodeURIComponent(id)}?open_settings=${openSettings ? "true" : "false"}`, { method: "POST", signal });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || String(response.status));
       if (!signal.aborted) { succeeded = true; setRows(previous => previous.map(row => row.id === id ? result : row)); }
@@ -97,7 +97,7 @@ export function SystemAccessRecovery({ output, requiredCapabilities, autoOpen, o
       onClick={() => {
         if (!armed) setArmed(true);
         requested.current.add(requestable[0]);
-        void setup(requestable[0]);
+        void setup(requestable[0], true);
       }}>{text("Open System Settings", "打开系统设置")}</button>}
   </div>;
 }

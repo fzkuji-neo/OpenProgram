@@ -68,11 +68,11 @@ See [tools](tools.md), [Web](../interfaces/web.md), [terminal](../interfaces/tui
 
 ## macOS asks for access again after an update
 
-File-folder access, Photos, screen recording, and Accessibility are macOS permissions. Bypass controls tool approval and cannot grant these permissions. A system prompt names OpenProgram because macOS attributes the managed backend to the containing application.
+File-folder access, Photos, screen recording, and Accessibility are macOS permissions. Bypass controls tool approval and cannot grant these permissions. The desktop App and its named backend are signed applications. macOS can maintain separate permission records for them; enabling a similarly named entry does not prove that the executing backend has access.
 
 Local App refresh, local package installation, and conversational self-update reuse a private signing identity stored under `~/Library/Application Support/OpenProgram/local-signing`. This keeps subsequent local builds under the same certificate identity instead of changing it with every build. Keep this directory when cleaning build artifacts; it contains the local signing keychain. Missing or damaged signing state stops the build rather than silently creating a replacement identity.
 
-The first migration from an older ad hoc build may require consent again in macOS. It does not automatically reset existing grants or accept system dialogs. Local signing is for this computer's development builds; publicly distributed apps still need Developer ID signing and notarization.
+The first migration from an older ad hoc build may require consent again in macOS. An old permission can still appear enabled while macOS rejects the updated signature. System access checks the current executor rather than trusting the Settings toggle. Use Request authorization to invoke native consent. Opening System Settings is a separate action; Accessibility and previously denied permissions may require that interface. When a recorded successful grant belongs to an older verified signing identity, explicit authorization setup renews only that OpenProgram capability once. Startup and ordinary checks never reset grants or accept system dialogs. Local signing is for this computer's development builds; publicly distributed apps still need Developer ID signing and notarization.
 
 Auto mode reviews the complete operation before dispatch, including shell commands. Review input is bounded to 64 KiB; oversized input or an unavailable classifier fails closed rather than approving a truncated prefix. Each model candidate has a 30-second timeout. A review is invalidated when its arguments or live permission policy change. Explicit deny rules and mandatory approvals retain precedence.
 

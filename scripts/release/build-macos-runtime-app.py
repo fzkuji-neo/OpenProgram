@@ -16,6 +16,17 @@ IDENTIFIER = 'ai.openprogram.runtime'
 RELATIVE = f'{BUNDLE}/Contents/MacOS/{NAME}'
 
 
+PRIVACY_USAGE = {'NSAppleEventsUsageDescription': 'OpenProgram controls applications on your Mac to carry out tasks you request.', 'NSCalendarsUsageDescription': 'OpenProgram accesses your calendars to carry out tasks you request.', 'NSCalendarsFullAccessUsageDescription': 'OpenProgram reads and updates calendar events when you request it.', 'NSRemindersUsageDescription': 'OpenProgram accesses reminders to carry out tasks you request.', 'NSRemindersFullAccessUsageDescription': 'OpenProgram reads and updates reminders when you request it.'}
+
+def update_privacy_plist(path: Path) -> None:
+    """Keep native consent declarations on the actual responsible application."""
+    with path.open('rb') as stream:
+        data = plistlib.load(stream)
+    data.update(PRIVACY_USAGE)
+    with path.open('wb') as stream:
+        plistlib.dump(data, stream, sort_keys=True)
+
+
 def build(root: Path, python: Path, icon: Path) -> Path:
     root, python = root.resolve(), python.resolve()
     python.relative_to(root)
@@ -38,7 +49,7 @@ def build(root: Path, python: Path, icon: Path) -> Path:
                 'CFBundleDisplayName': NAME, 'CFBundleExecutable': NAME,
                 'CFBundlePackageType': 'APPL', 'CFBundleVersion': '1',
                 'CFBundleIconFile': 'icon.icns', 'LSUIElement': True,
-                'NSHighResolutionCapable': True}, stream, sort_keys=True)
+                'NSHighResolutionCapable': True, **PRIVACY_USAGE}, stream, sort_keys=True)
         relative_home = os.path.relpath(prefix, executable.parent)
         subprocess.run(['clang', str(Path(__file__).with_name('mac-runtime-main.c')),
             '-I' + str(prefix / 'include' / f'python{version}'), '-L' + str(prefix / 'lib'),
@@ -82,5 +93,8 @@ if __name__ == '__main__':
     parser.add_argument('runtime_root', type=Path)
     parser.add_argument('--python', type=Path, required=True)
     parser.add_argument('--icon', type=Path, required=True)
+    parser.add_argument('--outer-app', type=Path)
     args = parser.parse_args()
+    if args.outer_app is not None:
+        update_privacy_plist(args.outer_app / 'Contents/Info.plist')
     print(build(args.runtime_root, args.python, args.icon))

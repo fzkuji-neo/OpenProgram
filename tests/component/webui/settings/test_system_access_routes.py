@@ -15,7 +15,7 @@ def test_status_never_requests_and_remote_setup_is_denied(monkeypatch):
     misc.register(app)
     monkeypatch.setattr(system_access, 'report', lambda: {'capabilities': []})
     requested = []
-    monkeypatch.setattr(system_access, 'request_access', lambda cap: requested.append(cap) or {'status': 'granted'})
+    monkeypatch.setattr(system_access, 'request_access', lambda cap, **kwargs: requested.append((cap, kwargs)) or {'status': 'granted'})
     monkeypatch.setattr(self_updates, 'require_owner', lambda request: None)
     with TestClient(app, client=('203.0.113.4', 4000)) as client:
         assert client.get('/api/system/access').json() == {'capabilities': []}
@@ -23,7 +23,8 @@ def test_status_never_requests_and_remote_setup_is_denied(monkeypatch):
     assert requested == []
     with TestClient(app, base_url='http://127.0.0.1:18100', headers={'origin': 'http://127.0.0.1:18100'}, client=('127.0.0.1', 4000)) as client:
         assert client.post('/api/system/access/accessibility').json()['status'] == 'granted'
-    assert requested == ['accessibility']
+        assert client.post('/api/system/access/accessibility?open_settings=true').json()['status'] == 'granted'
+    assert requested == [('accessibility', {'open_settings': False}), ('accessibility', {'open_settings': True})]
 
 
 def test_non_owner_cannot_prompt(monkeypatch):

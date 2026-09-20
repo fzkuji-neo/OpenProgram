@@ -1,17 +1,24 @@
-"""Recover obsolete ad-hoc ScreenCapture grants at explicit local setup only."""
+"""Track verified native executor identities and recover stale grants explicitly."""
 from __future__ import annotations
 
 from contextlib import contextmanager
 from functools import lru_cache
 import json
 import os
+from copy import deepcopy
 from pathlib import Path
 import re
 import subprocess
 import sys
 
 _APP = Path('/Applications/OpenProgram.app')
+_RUNTIME_APP = _APP / 'Contents/Resources/runtime/OpenProgram.app'
 _BUNDLE_ID = 'ai.openprogram.desktop'
+_RUNTIME_BUNDLE_ID = 'ai.openprogram.runtime'
+_CAPABILITY_TARGETS = {
+    'screen_recording': (_APP, _BUNDLE_ID),
+    'accessibility': (_RUNTIME_APP, _RUNTIME_BUNDLE_ID),
+}
 
 
 def _managed_worker() -> bool:
@@ -21,34 +28,49 @@ def _managed_worker() -> bool:
 
 
 @lru_cache(maxsize=4)
-def _verified_identity(stamp: tuple) -> dict | None:
+def _verified_identity(stamp: tuple, app: Path = _APP, bundle_id: str = _BUNDLE_ID) -> dict | None:
     try:
-        check = subprocess.run(['/usr/bin/codesign', '--verify', '--strict', str(_APP)],
+        check = subprocess.run(['/usr/bin/codesign', '--verify', '--strict', str(app)],
                                capture_output=True, timeout=5)
         if check.returncode:
             return None
-        result = subprocess.run(['/usr/bin/codesign', '-dvvv', str(_APP)],
+        result = subprocess.run(['/usr/bin/codesign', '-dvvv', str(app)],
                                 capture_output=True, text=True, timeout=5)
         fields = dict(line.split('=', 1) for line in result.stderr.splitlines() if '=' in line)
+        requirement = ''
+        req = subprocess.run(['/usr/bin/codesign', '-d', '-r-', str(app)],
+                             capture_output=True, text=True, timeout=5)
+        for line in req.stderr.splitlines():
+            if line.startswith('designated => '):
+                requirement = line.removeprefix('designated => ').strip()
+                break
         digest = fields.get('CDHash', '')
-        if (result.returncode or fields.get('Identifier') != _BUNDLE_ID or
-                fields.get('Signature') != 'adhoc' or not re.fullmatch(r'[a-f0-9]{40,64}', digest)):
+        if (result.returncode or req.returncode or fields.get('Identifier') != bundle_id or
+                not requirement or not re.fullmatch(r'[a-f0-9]{40,64}', digest)):
             return None
-        return {'bundle_id': _BUNDLE_ID, 'hash': digest}
+        return {'bundle_id': bundle_id, 'requirement': requirement, 'hash': digest}
     except (OSError, subprocess.SubprocessError):
         return None
 
 
-def _app_identity() -> dict | None:
+def _identity_for(app: Path, bundle_id: str) -> dict | None:
     try:
-        if _APP.is_symlink():
+        if app.is_symlink():
             return None
-        paths = [_APP / 'Contents/MacOS/OpenProgram', _APP / 'Contents/_CodeSignature/CodeResources']
+        paths = [app / 'Contents/MacOS/OpenProgram', app / 'Contents/_CodeSignature/CodeResources']
         stamp = tuple((s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
                       for s in (p.stat() for p in paths))
-        return _verified_identity(stamp)
+        return _verified_identity(stamp, app, bundle_id)
     except OSError:
         return None
+
+
+def _app_identity() -> dict | None:
+    return _identity_for(_APP, _BUNDLE_ID)
+
+
+def _runtime_identity() -> dict | None:
+    return _identity_for(_RUNTIME_APP, _RUNTIME_BUNDLE_ID)
 
 
 def _state_path() -> Path:
@@ -70,7 +92,9 @@ def _receipt():
         state = json.loads(raw) if raw else {}
         if not isinstance(state, dict):
             raise ValueError('Invalid system access receipt')
-        original = dict(state)
+        # Nested capability receipts and reset markers must be compared by
+        # value, otherwise in-place updates are invisible to the commit step.
+        original = deepcopy(state)
         yield state
         if state != original:
             payload = json.dumps(state, sort_keys=True).encode()
@@ -82,29 +106,51 @@ def _receipt():
         os.close(fd)
 
 
-def _valid_grant(value: object) -> bool:
-    return (isinstance(value, dict) and value.get('bundle_id') == _BUNDLE_ID and
-            isinstance(value.get('hash'), str) and
-            re.fullmatch(r'[a-f0-9]{40,64}', value['hash']) is not None)
+def _valid_grant(value: object, *, capability: str, legacy: bool = False) -> bool:
+    expected = _CAPABILITY_TARGETS.get(capability, (None, None))[1]
+    return (isinstance(value, dict) and value.get('bundle_id') == expected and
+            ((isinstance(value.get('requirement'), str) and bool(value['requirement'])) or
+             (legacy and isinstance(value.get('hash'), str))) and
+            (not value.get('hash') or
+             (isinstance(value.get('hash'), str) and
+              re.fullmatch(r'[a-f0-9]{40,64}', value['hash']) is not None)))
+
+
+def _identity_for_capability(capability: str) -> dict | None:
+    if capability == 'screen_recording':
+        return _app_identity()
+    if capability == 'accessibility':
+        return _runtime_identity()
+    return None
 
 
 def observe(row: dict) -> dict:
     """Attach recovery advice, recording only the actual worker's successful check."""
-    if row.get('id') != 'screen_recording' or not _managed_worker():
+    capability = row.get('id')
+    if capability not in _CAPABILITY_TARGETS or not _managed_worker():
         return row
-    identity = _app_identity()
+    identity = _identity_for_capability(capability)
     if identity is None:
         return row
     try:
         with _receipt() as state:
             if row['status'] == 'granted':
-                state.clear()
-                state.update(granted=identity)
+                grants = state.setdefault('granted_by_capability', {})
+                if not isinstance(grants, dict):
+                    grants = {}
+                    state['granted_by_capability'] = grants
+                grants[capability] = identity
             elif row['status'] == 'not_granted':
-                old = state.get('granted')
-                if _valid_grant(old) and old['hash'] != identity['hash']:
+                grants = state.get('granted_by_capability', {})
+                old = grants.get(capability) if isinstance(grants, dict) else None
+                # Read the pre-requirement screen receipt for compatibility.
+                if old is None and capability == 'screen_recording':
+                    old = state.get('granted')
+                if (_valid_grant(old, capability=capability, legacy=capability == 'screen_recording') and
+                        ((old.get('requirement') and old.get('requirement') != identity.get('requirement')) or
+                         (not old.get('requirement') and old.get('hash') != identity.get('hash')))):
                     return {**row, 'recovery': 'reauthorize_after_update',
-                            'detail': 'The application changed after recording access was granted. Renew system authorization.',
+                            'detail': 'The signed OpenProgram executor changed after authorization was granted. Renew system authorization.',
                             'instruction': 'Open system authorization to renew access for the updated OpenProgram application.'}
     except (OSError, ValueError):
         pass  # Missing/unwritable evidence cannot justify resetting a grant.
@@ -112,31 +158,60 @@ def observe(row: dict) -> dict:
 
 
 def _reset_screen_grant() -> None:
-    result = subprocess.run(['/usr/bin/tccutil', 'reset', 'ScreenCapture', _BUNDLE_ID],
+    _reset_capability('screen_recording')
+
+
+def _reset_capability(capability: str) -> None:
+    service, bundle_id = {'screen_recording': ('ScreenCapture', _BUNDLE_ID),
+                          'accessibility': ('Accessibility', _RUNTIME_BUNDLE_ID)}[capability]
+    result = subprocess.run(['/usr/bin/tccutil', 'reset', service, bundle_id],
                             capture_output=True, timeout=5)
     if result.returncode:
-        raise RuntimeError('Could not renew OpenProgram recording authorization. Open System Settings to remove and add OpenProgram.')
+        raise RuntimeError('Could not renew OpenProgram system authorization. Open System Settings to remove and add OpenProgram.')
 
 
 def prepare_request(row: dict) -> None:
     """Consume a verified stale receipt once, before the existing native request."""
-    if (row.get('id') != 'screen_recording' or row.get('status') != 'not_granted' or
+    capability = row.get('id')
+    if (capability not in _CAPABILITY_TARGETS or row.get('status') != 'not_granted' or
             row.get('recovery') != 'reauthorize_after_update' or not _managed_worker()):
         return
-    identity = _app_identity()
+    identity = _identity_for_capability(capability)
     if identity is None:
         return
     try:
         with _receipt() as state:
-            old = state.get('granted')
-            if (not _valid_grant(old) or old['hash'] == identity['hash'] or
-                    state.get('reset_for') == identity):
+            grants = state.get('granted_by_capability', {})
+            old = grants.get(capability) if isinstance(grants, dict) else None
+            if old is None and capability == 'screen_recording':
+                old = state.get('granted')
+            marker = state.setdefault('reset_for', {})
+            if not isinstance(marker, dict):
+                marker = {}
+                state['reset_for'] = marker
+            if (not _valid_grant(old, capability=capability, legacy=capability == 'screen_recording') or
+                    (old.get('requirement') and old.get('requirement') == identity.get('requirement')) or
+                    (not old.get('requirement') and old.get('hash') == identity.get('hash')) or
+                    (isinstance(marker.get(capability), dict) and
+                     marker[capability].get('bundle_id') == identity.get('bundle_id') and
+                     marker[capability].get('requirement') == identity.get('requirement')) or
+                    (capability == 'screen_recording' and
+                     marker.get('bundle_id') == identity.get('bundle_id') and
+                     not marker.get('requirement') and marker.get('hash') == identity.get('hash'))):
                 return
-            state['reset_for'] = identity
+            marker[capability] = identity
+            # Preserve the original screen receipt shape for older readers.
+            if capability == 'screen_recording':
+                marker.update(identity)
         # Persist before the OS call: failure or a crash must not cause a reset loop.
     except (OSError, ValueError) as exc:
         raise RuntimeError('Could not save authorization recovery. Open System Settings to renew OpenProgram access.') from exc
     try:
-        _reset_screen_grant()
+        # Keep the legacy screen hook as the compatibility seam for existing
+        # callers and tests; accessibility always uses its fixed target.
+        if capability == 'screen_recording':
+            _reset_screen_grant()
+        else:
+            _reset_capability(capability)
     except (OSError, subprocess.SubprocessError) as exc:
-        raise RuntimeError('Could not renew OpenProgram recording authorization. Open System Settings to remove and add OpenProgram.') from exc
+        raise RuntimeError('Could not renew OpenProgram system authorization. Open System Settings to remove and add OpenProgram.') from exc
