@@ -140,10 +140,10 @@ def _identity_for_capability(capability: str) -> dict | None:
         role = capability_identity_targets().get(capability, {}).get('role')
     except Exception:
         pass
-    if role == 'containing_app' or capability == 'screen_recording':
-        return _app_identity()
-    if role == 'runtime' or capability == 'accessibility':
+    if role == 'runtime':
         return _runtime_identity()
+    if role == 'containing_app':
+        return _app_identity()
     return None
 
 

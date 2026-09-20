@@ -104,6 +104,30 @@ def register(app):
             })
         return JSONResponse({"waits": visible}, headers={"Cache-Control": "no-store"})
 
+    @app.post("/api/system/access/setup")
+    def setup_system_access_api(request: Request):
+        """Explicitly initialize all native capabilities for this executor."""
+        from openprogram.backend_endpoint import is_loopback_host
+        from openprogram.self_update.control.projection import ProjectionAccessError
+        from ..self_updates import require_owner
+        try:
+            require_owner(request)
+            from urllib.parse import urlsplit
+            origin = urlsplit(request.headers.get("origin", ""))
+            forwarded = any(key.lower() == "forwarded" or key.lower().startswith("x-forwarded-") for key in request.headers)
+            if (not request.client or not is_loopback_host(request.client.host)
+                    or not is_loopback_host(request.url.hostname or "")
+                    or origin.scheme not in {"http", "https"}
+                    or not is_loopback_host(origin.hostname or "") or forwarded):
+                raise ProjectionAccessError("Authorize on the execution computer.")
+        except ProjectionAccessError:
+            return JSONResponse({"error": "System access setup requires the local owner on the execution computer."}, status_code=403)
+        try:
+            from openprogram.system_access import setup_all_access
+            return JSONResponse(setup_all_access(), headers={"Cache-Control": "no-store"})
+        except Exception:
+            return JSONResponse({"error": "The unified system access setup could not be completed. Open System Settings on the execution computer."}, status_code=503)
+
     @app.post("/api/system/access/{capability}")
     def request_system_access_api(capability: str, request: Request):
         from openprogram.backend_endpoint import is_loopback_host

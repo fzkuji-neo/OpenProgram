@@ -31,7 +31,8 @@ def test_report_uses_fresh_named_executor_probe_when_worker_cache_is_stale(monke
         "ApplicationServices",
         SimpleNamespace(AXIsProcessTrusted=lambda: False),
     )
-    fresh = _probe_payload(str(Path(system_access.sys.executable).resolve()))
+    executor = system_access._native_executor()
+    fresh = _probe_payload(str(Path(executor).resolve()))
 
     def run(command, **kwargs):
         commands.append((command, kwargs))
@@ -44,14 +45,14 @@ def test_report_uses_fresh_named_executor_probe_when_worker_cache_is_stale(monke
     assert rows["screen_recording"]["status"] == "granted"
     assert rows["accessibility"]["status"] == "granted"
     assert len(commands) == 1
-    assert commands[0][0][:3] == [os.path.abspath(system_access.sys.executable), "-I", "-B"]
+    assert commands[0][0][:3] == [executor, "-I", "-B"]
     assert "_native_probe_entry" in commands[0][0][4]
     assert commands[0][1]["timeout"] > 0
 
 
 def test_report_preserves_unavailable_dependency_status(monkeypatch):
     monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
-    executable = str(Path(system_access.sys.executable).resolve())
+    executable = str(Path(system_access._native_executor()).resolve())
     fresh = _probe_payload(executable, screen_recording='unavailable')
     fresh['capabilities'][0]['detail'] = 'Native permission dependencies are missing (ImportError).'
     monkeypatch.setattr(
@@ -89,7 +90,7 @@ def test_native_probe_entry_marks_missing_dependency_unavailable(monkeypatch, ca
 
 def test_report_rejects_probe_for_another_executable(monkeypatch):
     monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
-    executable = os.path.abspath(system_access.sys.executable)
+    executable = os.path.abspath(system_access._native_executor())
     monkeypatch.setattr(
         subprocess, 'run',
         lambda command, **kwargs: SimpleNamespace(
@@ -106,7 +107,7 @@ def test_report_rejects_probe_for_another_executable(monkeypatch):
 
 def test_request_access_uses_the_same_named_helper(monkeypatch):
     monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
-    executable = os.path.abspath(system_access.sys.executable)
+    executable = os.path.abspath(system_access._native_executor())
     identity = str(Path(executable).resolve())
     commands = []
     payloads = iter([

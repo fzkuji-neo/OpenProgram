@@ -26,6 +26,7 @@ def test_registry_is_unique_and_report_contains_all_declared_capabilities(monkey
     assert rows["apple_events"]["identity"]["bundle_id"] == "ai.openprogram.desktop"
     assert rows["calendar"]["label_zh"] == "日历"
     assert rows["accessibility"]["identity"]["bundle_id"] == "ai.openprogram.runtime"
+    assert rows["screen_recording"]["identity"]["bundle_id"] == "ai.openprogram.runtime"
     assert rows["file_read"]["subject"] == "user_selected_path"
     assert rows["file_read"]["settings_available"] is False
     assert rows["microphone"]["status"] == "unknown"

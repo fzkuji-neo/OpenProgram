@@ -8,8 +8,8 @@ def test_public_report_and_request_recover_updated_app_once(monkeypatch, tmp_pat
     monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
     monkeypatch.setattr(recovery, '_state_path', lambda: tmp_path / 'receipt.json')
     monkeypatch.setattr(recovery, '_managed_worker', lambda: True)
-    identity = {'hash': 'a' * 40, 'bundle_id': 'ai.openprogram.desktop'}
-    monkeypatch.setattr(recovery, '_app_identity', lambda: dict(identity))
+    identity = {'hash': 'a' * 40, 'bundle_id': 'ai.openprogram.runtime'}
+    monkeypatch.setattr(recovery, '_runtime_identity', lambda: dict(identity))
     status = {'screen': 'granted'}
     calls = []
     def probe(request_capability=None, *, timeout=5.0):
@@ -21,7 +21,7 @@ def test_public_report_and_request_recover_updated_app_once(monkeypatch, tmp_pat
         }}
     monkeypatch.setattr(system_access, '_native_probe', probe)
     monkeypatch.setattr(system_access, '_open_settings', lambda cap: True)
-    monkeypatch.setattr(recovery, '_reset_screen_grant', lambda: calls.append(('reset', 'ai.openprogram.desktop')))
+    monkeypatch.setattr(recovery, '_reset_screen_grant', lambda: calls.append(('reset', 'ai.openprogram.runtime')))
     assert system_access.report()['capabilities'][0]['status'] == 'granted'
     identity['hash'] = 'b' * 40
     status['screen'] = 'not_granted'
@@ -29,17 +29,17 @@ def test_public_report_and_request_recover_updated_app_once(monkeypatch, tmp_pat
     assert row['recovery'] == 'reauthorize_after_update'
     assert not calls
     system_access.request_access('screen_recording')
-    assert calls == [('reset', 'ai.openprogram.desktop'), ('request', 'screen_recording')]
+    assert calls == [('reset', 'ai.openprogram.runtime'), ('request', 'screen_recording')]
     system_access.request_access('screen_recording')
-    assert calls.count(('reset', 'ai.openprogram.desktop')) == 1
+    assert calls.count(('reset', 'ai.openprogram.runtime')) == 1
 
 
 def test_no_reset_without_verified_changed_grant(monkeypatch, tmp_path):
     from openprogram import system_access_identity as recovery
     monkeypatch.setattr(recovery, '_state_path', lambda: tmp_path / 'receipt.json')
     monkeypatch.setattr(recovery, '_managed_worker', lambda: True)
-    identity = {'hash': 'a' * 40, 'bundle_id': 'ai.openprogram.desktop'}
-    monkeypatch.setattr(recovery, '_app_identity', lambda: identity)
+    identity = {'hash': 'a' * 40, 'bundle_id': 'ai.openprogram.runtime'}
+    monkeypatch.setattr(recovery, '_runtime_identity', lambda: identity)
     monkeypatch.setattr(recovery, '_reset_screen_grant', lambda: (_ for _ in ()).throw(AssertionError('unexpected reset')))
     denied = {'id': 'screen_recording', 'status': 'not_granted'}
     assert recovery.observe(denied) == denied
@@ -63,10 +63,10 @@ def test_failed_reset_is_not_repeated_after_restart(monkeypatch, tmp_path):
     import pytest
     from openprogram import system_access_identity as recovery
     p = tmp_path / 'receipt.json'
-    p.write_text(json.dumps({'granted': {'hash': 'a' * 40, 'bundle_id': 'ai.openprogram.desktop'}}))
+    p.write_text(json.dumps({'granted': {'hash': 'a' * 40, 'bundle_id': 'ai.openprogram.runtime'}}))
     monkeypatch.setattr(recovery, '_state_path', lambda: p)
     monkeypatch.setattr(recovery, '_managed_worker', lambda: True)
-    monkeypatch.setattr(recovery, '_app_identity', lambda: {'hash': 'b' * 40, 'bundle_id': 'ai.openprogram.desktop'})
+    monkeypatch.setattr(recovery, '_runtime_identity', lambda: {'hash': 'b' * 40, 'bundle_id': 'ai.openprogram.runtime'})
     calls = []
     def fail():
         calls.append(1)
@@ -89,7 +89,7 @@ def test_receipt_symlink_and_corrupt_state_cannot_reset(monkeypatch, tmp_path):
     p.symlink_to(victim)
     monkeypatch.setattr(recovery, '_state_path', lambda: p)
     monkeypatch.setattr(recovery, '_managed_worker', lambda: True)
-    monkeypatch.setattr(recovery, '_app_identity', lambda: {'hash': 'b' * 40, 'bundle_id': 'ai.openprogram.desktop'})
+    monkeypatch.setattr(recovery, '_runtime_identity', lambda: {'hash': 'b' * 40, 'bundle_id': 'ai.openprogram.runtime'})
     row = {'id': 'screen_recording', 'status': 'granted'}
     assert recovery.observe(row) == row
     assert victim.read_text() == 'unchanged'
@@ -107,7 +107,7 @@ def test_platform_reset_command_is_fixed_and_bounded(monkeypatch):
         return SimpleNamespace(returncode=0)
     monkeypatch.setattr(recovery.subprocess, 'run', run)
     recovery._reset_screen_grant()
-    assert calls == [(['/usr/bin/tccutil', 'reset', 'ScreenCapture', 'ai.openprogram.desktop'],
+    assert calls == [(['/usr/bin/tccutil', 'reset', 'ScreenCapture', 'ai.openprogram.runtime'],
                       {'capture_output': True, 'timeout': 5})]
 
 
@@ -151,7 +151,7 @@ def test_nested_receipts_and_reset_marker_are_persisted(monkeypatch, tmp_path):
     monkeypatch.setattr(recovery, '_state_path', lambda: p)
     monkeypatch.setattr(recovery, '_managed_worker', lambda: True)
     identities = {
-        'screen_recording': {'bundle_id': 'ai.openprogram.desktop', 'requirement': 'screen-v1', 'hash': 'a' * 40},
+        'screen_recording': {'bundle_id': 'ai.openprogram.runtime', 'requirement': 'screen-v1', 'hash': 'a' * 40},
         'accessibility': {'bundle_id': 'ai.openprogram.runtime', 'requirement': 'ax-v1', 'hash': 'b' * 40},
     }
     monkeypatch.setattr(recovery, '_identity_for_capability', lambda capability: dict(identities[capability]))
@@ -183,8 +183,8 @@ def test_wrong_bundle_and_empty_legacy_receipt_never_recover(monkeypatch, tmp_pa
     from openprogram import system_access_identity as recovery
     monkeypatch.setattr(recovery, '_state_path', lambda: tmp_path / 'receipt.json')
     monkeypatch.setattr(recovery, '_managed_worker', lambda: True)
-    monkeypatch.setattr(recovery, '_app_identity', lambda: {
-        'bundle_id': 'ai.openprogram.desktop', 'requirement': 'new', 'hash': 'a' * 40})
+    monkeypatch.setattr(recovery, '_runtime_identity', lambda: {
+        'bundle_id': 'ai.openprogram.runtime', 'requirement': 'new', 'hash': 'a' * 40})
     with recovery._receipt() as state:
         state['granted'] = {'bundle_id': 'wrong.bundle', 'hash': 'b' * 40}
     row = recovery.observe({'id': 'screen_recording', 'status': 'not_granted'})

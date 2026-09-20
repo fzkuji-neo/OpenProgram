@@ -5,6 +5,14 @@ import pytest
 from openprogram import system_access
 
 
+def test_native_executor_prefers_named_runtime(monkeypatch, tmp_path):
+    monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
+    helper = tmp_path / 'OpenProgram'
+    helper.write_text('runtime')
+    monkeypatch.setattr('openprogram.worker.lifecycle.worker_executable', lambda: str(helper))
+    assert system_access._native_executor() == str(helper.resolve())
+
+
 def test_macos_checks_both_and_does_not_prompt(monkeypatch):
     monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
     monkeypatch.setattr(system_access, '_native_probe', lambda: {
@@ -105,6 +113,24 @@ def test_open_settings_skips_native_request(monkeypatch):
     row = system_access.request_access('accessibility', open_settings=True)
     assert calls == ['accessibility']
     assert row['settings_opened'] is True
+
+
+def test_unified_setup_requests_each_registered_native_capability_once(monkeypatch):
+    monkeypatch.setattr(system_access.platform, 'system', lambda: 'Darwin')
+    requested = []
+    monkeypatch.setattr(system_access, 'request_access', lambda capability: requested.append(capability) or {
+        'id': capability, 'status': 'granted', 'detail': 'fresh',
+    })
+    monkeypatch.setattr(system_access, 'report', lambda: {
+        'capabilities': [
+            {'id': 'screen_recording', 'status': 'granted'},
+            {'id': 'accessibility', 'status': 'granted'},
+        ],
+    })
+    result = system_access.setup_all_access()
+    assert requested == ['screen_recording', 'accessibility']
+    assert result['status'] == 'granted'
+    assert result['remaining_capabilities'] == []
 
 
 @pytest.mark.parametrize('status', ['unknown', 'unavailable'])

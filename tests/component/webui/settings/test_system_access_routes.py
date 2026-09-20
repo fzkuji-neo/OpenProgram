@@ -27,6 +27,22 @@ def test_status_never_requests_and_remote_setup_is_denied(monkeypatch):
     assert requested == [('accessibility', {'open_settings': False}), ('accessibility', {'open_settings': True})]
 
 
+def test_unified_setup_is_explicit_local_owner_action(monkeypatch):
+    app = FastAPI()
+    misc.register(app)
+    monkeypatch.setattr(self_updates, 'require_owner', lambda request: None)
+    calls = []
+    monkeypatch.setattr(system_access, 'setup_all_access', lambda: calls.append(True) or {
+        'status': 'granted', 'capabilities': [], 'requested_capabilities': [],
+        'remaining_capabilities': [],
+    })
+    with TestClient(app, base_url='http://127.0.0.1:18100',
+                    headers={'origin': 'http://127.0.0.1:18100'},
+                    client=('127.0.0.1', 4000)) as client:
+        assert client.post('/api/system/access/setup').json()['status'] == 'granted'
+    assert calls == [True]
+
+
 def test_non_owner_cannot_prompt(monkeypatch):
     app = FastAPI()
     misc.register(app)

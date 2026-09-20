@@ -107,6 +107,23 @@ export function SystemAccessRecovery({ output, requiredCapabilities, autoOpen, o
     }
   }
 
+  async function setupAll() {
+    const signal = lifetime.current?.signal;
+    if (!signal || signal.aborted || busy.current) return;
+    busy.current = true;
+    setPending("all"); setError("");
+    try {
+      const response = await fetch("/api/system/access/setup", { method: "POST", signal });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || String(response.status));
+      if (!signal.aborted) { setRows(Array.isArray(result.capabilities) ? result.capabilities : []); setArmed(true); void refresh.current(); }
+    } catch (e) {
+      if (!signal.aborted) setError(e instanceof Error ? e.message : text("Could not initialize system access.", "无法初始化系统权限。"));
+    } finally {
+      if (!signal.aborted) { busy.current = false; setPending(""); }
+    }
+  }
+
   function statusText(status: string) {
     return ({
       granted: text("Granted", "已授权"),
@@ -124,6 +141,9 @@ export function SystemAccessRecovery({ output, requiredCapabilities, autoOpen, o
       : !missing.length ? text("System access is ready.", "系统权限已就绪。")
       : text("Waiting for system authorization…", "等待系统授权…"))}</span>
     {checked && missing.length > 0 && <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
+      {local && missing.some(row => row.request_mode === "native" || row.can_request) && <button type="button" disabled={!!pending}
+        style={{ border: 0, background: "none", padding: 0, color: "var(--text-secondary)", font: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}
+        onClick={() => void setupAll()}>{pending === "all" ? text("Setting up…", "正在初始化…") : text("Set up all", "初始化全部")}</button>}
       {missing.map(row => <span key={row.id} style={{ display: "inline-flex", gap: 6, alignItems: "baseline" }}>
         <span>{row.label || row.id} · {statusText(row.status)}</span>
         {local && row.status === "not_granted" && row.can_request && <button type="button" disabled={!!pending}
