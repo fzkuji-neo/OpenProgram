@@ -60,6 +60,7 @@ class CapabilitySpec:
     identity_bundle_id: str | None = None
     tcc_service: str | None = None
     package_declarations: tuple[str, ...] = ()
+    usage_descriptions: tuple[tuple[str, str], ...] = ()
 
 
 # Keep the two legacy rows first: old clients display the first row and their
@@ -93,6 +94,7 @@ _CAPABILITY_SPECS = (
         settings_label='Automation', usage_key='NSAppleEventsUsageDescription',
         entitlement='com.apple.security.automation.apple-events',
         package_declarations=('NSAppleEventsUsageDescription', 'com.apple.security.automation.apple-events'),
+        usage_descriptions=(('NSAppleEventsUsageDescription', 'OpenProgram controls applications on your Mac to carry out tasks you request.'),),
         identity_role='containing_app',
         identity_application='/Applications/OpenProgram.app',
         identity_bundle_id='ai.openprogram.desktop',
@@ -102,6 +104,10 @@ _CAPABILITY_SPECS = (
         operations=('calendar:*',), settings_pane='Privacy_Calendars',
         settings_label='Calendars', usage_key='NSCalendarsUsageDescription',
         package_declarations=('NSCalendarsUsageDescription', 'NSCalendarsFullAccessUsageDescription'),
+        usage_descriptions=(
+            ('NSCalendarsUsageDescription', 'OpenProgram accesses your calendars to carry out tasks you request.'),
+            ('NSCalendarsFullAccessUsageDescription', 'OpenProgram reads and updates calendar events when you request it.'),
+        ),
         identity_role='runtime',
         identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
         identity_bundle_id='ai.openprogram.runtime',
@@ -111,6 +117,10 @@ _CAPABILITY_SPECS = (
         operations=('reminders:*',), settings_pane='Privacy_Reminders',
         settings_label='Reminders', usage_key='NSRemindersUsageDescription',
         package_declarations=('NSRemindersUsageDescription', 'NSRemindersFullAccessUsageDescription'),
+        usage_descriptions=(
+            ('NSRemindersUsageDescription', 'OpenProgram accesses reminders to carry out tasks you request.'),
+            ('NSRemindersFullAccessUsageDescription', 'OpenProgram reads and updates reminders when you request it.'),
+        ),
         identity_role='runtime',
         identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
         identity_bundle_id='ai.openprogram.runtime',
@@ -158,25 +168,24 @@ def capability_spec(capability: str) -> CapabilitySpec:
         raise ValueError(f'Unknown system capability: {capability}') from exc
 
 
-_PACKAGE_USAGE_TEXT = {
-    'NSAppleEventsUsageDescription': 'OpenProgram controls applications on your Mac to carry out tasks you request.',
-    'NSCalendarsUsageDescription': 'OpenProgram accesses your calendars to carry out tasks you request.',
-    'NSCalendarsFullAccessUsageDescription': 'OpenProgram reads and updates calendar events when you request it.',
-    'NSRemindersUsageDescription': 'OpenProgram accesses reminders to carry out tasks you request.',
-    'NSRemindersFullAccessUsageDescription': 'OpenProgram reads and updates reminders when you request it.',
-}
-
-
 def package_usage_declarations() -> dict[str, str]:
     """Return the usage strings required by the registry for macOS bundles."""
-    keys = {
+    declarations: dict[str, str] = {}
+    expected_keys = {
         key for spec in capability_registry() for key in spec.package_declarations
         if key.startswith('NS')
     }
-    missing = keys - _PACKAGE_USAGE_TEXT.keys()
-    if missing:
-        raise RuntimeError(f'No usage description text for registry keys: {sorted(missing)}')
-    return {key: _PACKAGE_USAGE_TEXT[key] for key in sorted(keys)}
+    for spec in capability_registry():
+        for key, text in spec.usage_descriptions:
+            if key in declarations and declarations[key] != text:
+                raise RuntimeError(f'Conflicting usage description for registry key: {key}')
+            declarations[key] = text
+    if set(declarations) != expected_keys:
+        raise RuntimeError(
+            f'Registry package usage metadata is incomplete: '
+            f'expected={sorted(expected_keys)}, declared={sorted(declarations)}'
+        )
+    return {key: declarations[key] for key in sorted(declarations)}
 
 
 def package_entitlements() -> frozenset[str]:
