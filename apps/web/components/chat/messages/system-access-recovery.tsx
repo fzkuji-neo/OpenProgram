@@ -119,7 +119,7 @@ export function SystemAccessRecovery({ output, requiredCapabilities, autoOpen, o
     <span>{error || (!local ? text("Waiting for authorization on the execution computer.", "等待执行电脑完成系统授权。")
       : !checked ? text("Checking system access…", "正在检查系统权限…")
       : !missing.length ? text("System access is ready.", "系统权限已就绪。")
-      : text("System access needs attention.", "需要处理系统权限。"))}</span>
+      : text("Waiting for system authorization…", "等待系统授权…"))}</span>
     {checked && missing.length > 0 && <span style={{ display: "inline-flex", gap: 8, flexWrap: "wrap" }}>
       {missing.map(row => <span key={row.id} style={{ display: "inline-flex", gap: 6, alignItems: "baseline" }}>
         <span>{row.label || row.id} · {statusText(row.status)}</span>
