@@ -82,7 +82,9 @@ export function SystemAccessRecovery({ output, requiredCapabilities, autoOpen, o
   }, [autoOpen, visibleNow, armed, onAutoOpen]);
 
   const rowById = new Map(rows.map(row => [row.id, row]));
-  const missing = required.map(id => rowById.get(id) || { id, status: "unknown" }).filter(row => row.status !== "granted");
+  const missing = required.map(id => rowById.get(id) || {
+    id, status: "unknown", settings_available: false,
+  }).filter(row => row.status !== "granted");
 
   async function setup(row: Row, openSettings = false) {
     const signal = lifetime.current?.signal;

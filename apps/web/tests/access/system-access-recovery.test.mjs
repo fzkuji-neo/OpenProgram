@@ -75,6 +75,16 @@ test('operation-scoped access does not offer a global settings action',async()=>
  assert.equal(JSON.stringify(h.view).includes('Open Settings'),false);h.unmount();
 });
 
+test('an unknown required capability is read-only until the registry reports it',async()=>{
+ const staleOutput={status:'infeasible',reason_code:'system_access_required',system_access:[{id:'stale_capability',status:'not_granted'}]};
+ const h=harness(true,[{ok:true,json:async()=>({capabilities:[]})}],staleOutput);
+ await h.flush();
+ assert.equal(h.calls.some(([,method])=>method==='POST'),false);
+ assert.equal(JSON.stringify(h.view).includes('Open Settings'),false);
+ assert.equal(JSON.stringify(h.view).includes('Request'),false);
+ h.unmount();
+});
+
 test('autoOpen only arms visible recovery and never requests native access',async()=>{
  const denied={ok:true,json:async()=>({capabilities:[{id:'calendar',status:'not_granted',can_request:true}]})};
  const h=harness(true,[denied,denied,denied]);
