@@ -104,6 +104,20 @@ export function SystemAccess() {
     } catch (e) { setError(e instanceof Error ? e.message : text("Permission request failed.", "申请权限失败。")); }
     finally { setPending(""); }
   }
+  async function setupAll() {
+    setPending("all"); setError(""); setNotice("");
+    try {
+      const response = await fetch("/api/system/access/setup", { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || String(response.status));
+      setReport(previous => previous ? { ...previous, capabilities: result.capabilities || previous.capabilities } : previous);
+      setNotice(result.status === "granted"
+        ? text("All registered native access is confirmed.", "已确认所有已登记的本机权限。")
+        : text("Setup finished; review the remaining capabilities below.", "初始化完成，请检查下方仍未授权的权限。"));
+      window.dispatchEvent(new Event("openprogram-system-access-changed"));
+    } catch (e) { setError(e instanceof Error ? e.message : text("Permission setup failed.", "权限初始化失败。")); }
+    finally { setPending(""); }
+  }
 
   const labels: Record<string, string> = {
     granted: text("Granted", "已授权"), not_granted: text("Not authorized", "未授权"),
@@ -126,6 +140,12 @@ export function SystemAccess() {
     {!report && !error && <p role="status">{text("Checking…", "正在检查…")}</p>}
     {report && <>
       <p className={styles.pageMeta}>{report.application ? `${report.application} · ` : ""}{report.host} · {report.platform}</p>
+      {report.platform === "Darwin" && local && report.capabilities.some(row => row.status !== "granted" && row.request_mode === "native") &&
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <Button variant="secondary" disabled={!!pending} onClick={() => void setupAll()}>
+            {pending === "all" ? text("Setting up…", "正在初始化…") : text("Set up all OpenProgram access", "初始化全部 OpenProgram 权限")}
+          </Button>
+        </div>}
       {groups.map(([group, rows]) => <div className={styles.card} key={group}>
         <h4>{groupLabel(group, text)}</h4>
         {rows.map(row => {

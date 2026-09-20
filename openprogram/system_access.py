@@ -69,15 +69,15 @@ class CapabilitySpec:
 # here even when the current platform backend is declaration-only.
 _CAPABILITY_SPECS = (
     CapabilitySpec(
-        'screen_recording', 'Screen recording', '屏幕录制', 'desktop', 'containing_app',
+        'screen_recording', 'Screen recording', '屏幕录制', 'desktop', 'runtime',
         'native', operations=('gui_agent:desktop',), module='Quartz',
         check_method='CGPreflightScreenCaptureAccess',
         request_method='CGRequestScreenCaptureAccess',
         settings_pane='Privacy_ScreenCapture',
         settings_label='Screen & System Audio Recording',
-        identity_role='containing_app',
-        identity_application='/Applications/OpenProgram.app',
-        identity_bundle_id='ai.openprogram.desktop', tcc_service='ScreenCapture',
+        identity_role='runtime',
+        identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
+        identity_bundle_id='ai.openprogram.runtime', tcc_service='ScreenCapture',
     ),
     CapabilitySpec(
         'accessibility', 'Desktop control', '桌面控制', 'desktop', 'runtime', 'native',
@@ -369,6 +369,26 @@ def _native_identity() -> dict[str, str]:
     return identity
 
 
+def _native_executor() -> str:
+    """Return the one signed executor used for every macOS native check.
+
+    A packaged worker is launched through the embedded, signed runtime app.
+    Falling back to the current interpreter is limited to source/check-out
+    installs where no named runtime exists; a bare ``python3`` can therefore
+    never become a second identity in an installed OpenProgram run.
+    """
+    if platform.system() != 'Darwin':
+        return os.path.abspath(sys.executable)
+    try:
+        from openprogram.worker.lifecycle import worker_executable
+        candidate = Path(worker_executable()).resolve()
+        if candidate.is_file() and candidate.name == 'OpenProgram':
+            return str(candidate)
+    except (OSError, RuntimeError, ImportError):
+        _log.debug('named runtime executor unavailable', exc_info=True)
+    return os.path.abspath(sys.executable)
+
+
 def _native_probe_entry() -> None:
     """Private child entry for nonprompting native checks and explicit requests."""
     request = None
@@ -417,7 +437,7 @@ def _native_probe_entry() -> None:
 
 
 def _native_probe(request_capability: str | None = None, *, timeout: float = _NATIVE_PROBE_TIMEOUT) -> dict | None:
-    executable = os.path.abspath(sys.executable)
+    executable = _native_executor()
     identity_executable = str(Path(executable).resolve())
     command = [executable, '-I', '-B', '-c', _NATIVE_PROBE_SCRIPT]
     if request_capability is not None:
@@ -704,6 +724,44 @@ def request_access(capability: str, *, open_settings: bool = False) -> dict:
         return after
     finally:
         _REQUEST_LOCK.release()
+
+
+def setup_all_access() -> dict:
+    """Run the explicit first-run setup for every native runtime capability.
+
+    The caller must be the local owner and must have initiated the action from
+    the visible settings UI.  macOS still owns the final decision for each
+    privacy category; this function only requests the registered capabilities
+    through the one signed runtime identity and returns one consolidated report.
+    """
+    if platform.system() != 'Darwin':
+        snapshot = report()
+        return {
+            'status': 'unsupported', 'requested_capabilities': [],
+            'remaining_capabilities': [row['id'] for row in snapshot['capabilities']
+                                       if row.get('status') != 'granted'],
+            'capabilities': snapshot['capabilities'],
+        }
+    requested = []
+    errors = []
+    for spec in capability_registry():
+        if spec.request_mode != 'native':
+            continue
+        requested.append(spec.id)
+        try:
+            request_access(spec.id)
+        except (RuntimeError, ValueError) as exc:
+            errors.append({'id': spec.id, 'error': str(exc)})
+    snapshot = report()
+    remaining = [row['id'] for row in snapshot['capabilities']
+                 if row.get('id') in requested and row.get('status') != 'granted']
+    return {
+        'status': 'granted' if not remaining and not errors else 'partial',
+        'requested_capabilities': requested,
+        'remaining_capabilities': remaining,
+        'errors': errors,
+        'capabilities': snapshot['capabilities'],
+    }
 
 
 def doctor_rows() -> list[dict]:
