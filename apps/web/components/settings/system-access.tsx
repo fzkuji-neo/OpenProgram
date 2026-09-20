@@ -42,13 +42,13 @@ export function SystemAccess() {
     };
   }, [text]);
   const local = typeof window !== "undefined" && ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
-  async function request(row: Capability) {
+  async function request(row: Capability, openSettings = false) {
     setPending(row.id); setError(""); setNotice("");
     try {
-      const response = await fetch(`/api/system/access/${encodeURIComponent(row.id)}`, { method: "POST" });
+      const response = await fetch(`/api/system/access/${encodeURIComponent(row.id)}?open_settings=${openSettings ? "true" : "false"}`, { method: "POST" });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      setNotice(result.status === "granted" ? text("Access confirmed.", "已确认授权。") : text("Complete authorization in System Settings on this computer, then return here.", "请在这台电脑的系统设置中完成授权，然后返回此处。"));
+      setNotice(result.status === "granted" ? text("Access confirmed.", "已确认授权。") : openSettings ? text("System Settings opened.", "已打开系统设置。") : text("Authorization request finished without confirmation.", "授权请求结束，但尚未确认授权。"));
       window.dispatchEvent(new Event("openprogram-system-access-changed"));
     } catch (e) { setError(e instanceof Error ? e.message : text("Permission request failed.", "申请权限失败。")); }
     finally { setPending(""); }
@@ -77,7 +77,10 @@ export function SystemAccess() {
             report.platform === "Linux" ? "在已登录的受支持图形桌面中运行；无桌面服务器可使用浏览器或虚拟机功能，不需要开放桌面权限。" :
             "请在已登录的桌面中运行。锁屏、系统确认界面或高权限应用可能不可访问，无需把整个程序改为管理员运行。")}</p>}
         </div>
-        {row.can_request && local && <Button variant="secondary" disabled={!!pending} onClick={() => void request(row)}>{pending === row.id ? text("Requesting…", "正在申请…") : text("Set up access", "设置权限")}</Button>}
+        {report.platform === "Darwin" && row.status !== "granted" && local && <>
+          {row.can_request && <Button variant="secondary" disabled={!!pending} onClick={() => void request(row)}>{pending === row.id ? text("Requesting…", "正在申请…") : text("Request authorization", "请求授权")}</Button>}
+          <Button variant="ghost" disabled={!!pending} onClick={() => void request(row, true)}>{text("Open System Settings", "打开系统设置")}</Button>
+        </>}
       </div>)}</div>
       <details><summary>{text("Execution process", "执行程序")}</summary><code>{report.executable}</code></details>
     </>}

@@ -21,6 +21,7 @@ _REQUEST_LOCK = threading.Lock()
 _log = logging.getLogger(__name__)
 _NATIVE_PROBE_SCHEMA = 1
 _NATIVE_PROBE_TIMEOUT = 5.0
+_NATIVE_REQUEST_TIMEOUT = 120.0
 _NATIVE_PROBE_MAX_OUTPUT = 16 * 1024
 _NATIVE_PROBE_SCRIPT = (
     'from openprogram.system_access import _native_probe_entry; '
@@ -106,7 +107,7 @@ def _native_probe_entry() -> None:
     }, sort_keys=True), flush=True)
 
 
-def _native_probe(request_capability: str | None = None) -> dict | None:
+def _native_probe(request_capability: str | None = None, *, timeout: float = _NATIVE_PROBE_TIMEOUT) -> dict | None:
     executable = os.path.abspath(sys.executable)
     identity_executable = str(Path(executable).resolve())
     command = [executable, '-I', '-B', '-c', _NATIVE_PROBE_SCRIPT]
@@ -116,7 +117,7 @@ def _native_probe(request_capability: str | None = None) -> dict | None:
         command.extend(['--request', request_capability])
     try:
         result = subprocess.run(
-            command, capture_output=True, text=True, timeout=_NATIVE_PROBE_TIMEOUT,
+            command, capture_output=True, text=True, timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError) as exc:
         _log.debug('fresh native access probe failed to start: %s', exc)
@@ -277,7 +278,7 @@ def _open_settings(capability: str) -> bool:
         return False
 
 
-def request_access(capability: str) -> dict:
+def request_access(capability: str, *, open_settings: bool = False) -> dict:
     """Explicit local-user setup only; never call from a probe or a model tool."""
     if platform.system() != 'Darwin' or capability not in _MAC:
         raise ValueError('No native permission request for this capability on this platform.')
@@ -285,14 +286,20 @@ def request_access(capability: str) -> dict:
         raise RuntimeError('A system permission request is already in progress.')
     try:
         before = _mac_status(capability)
-        if before['status'] == 'granted' or not before['can_request']:
+        if before['status'] == 'granted':
+            return before
+        if open_settings:
+            result = _mac_status(capability)
+            result['settings_opened'] = _open_settings(capability)
+            return result
+        if not before['can_request']:
             return before
         from openprogram.system_access_identity import prepare_request
         prepare_request(before)
-        _native_probe(request_capability=capability)
+        requested = _native_probe(request_capability=capability, timeout=_NATIVE_REQUEST_TIMEOUT)
+        if requested is None:
+            return _mac_row(capability, status='unknown', detail='Native authorization request did not complete; authorization was not confirmed.')
         after = _mac_status(capability)
-        if after['status'] != 'granted':
-            after['settings_opened'] = _open_settings(capability)
         return after
     finally:
         _REQUEST_LOCK.release()

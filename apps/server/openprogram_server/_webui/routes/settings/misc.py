@@ -123,7 +123,8 @@ def register(app):
         except ProjectionAccessError:
             return JSONResponse({"error": "System access setup requires the local owner on the execution computer."}, status_code=403)
         try:
-            return JSONResponse(request_access(capability), headers={"Cache-Control": "no-store"})
+            open_settings = request.query_params.get("open_settings", "false").lower() in {"1", "true", "yes"}
+            return JSONResponse(request_access(capability, open_settings=open_settings), headers={"Cache-Control": "no-store"})
         except ValueError as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
         except RuntimeError as exc:

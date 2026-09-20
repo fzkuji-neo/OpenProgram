@@ -111,7 +111,14 @@
       "icon": "build/icon.icns",
       "identity": null,
       "hardenedRuntime": false,
-      "notarize": false
+      "notarize": false,
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "OpenProgram controls applications on your Mac to carry out tasks you request.",
+        "NSCalendarsUsageDescription": "OpenProgram accesses your calendars to carry out tasks you request.",
+        "NSCalendarsFullAccessUsageDescription": "OpenProgram reads and updates calendar events when you request it.",
+        "NSRemindersUsageDescription": "OpenProgram accesses reminders to carry out tasks you request.",
+        "NSRemindersFullAccessUsageDescription": "OpenProgram reads and updates reminders when you request it."
+      }
     },
     "win": {
       "target": [
