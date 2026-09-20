@@ -70,11 +70,9 @@ _CAPABILITY_SPECS = (
         request_method='CGRequestScreenCaptureAccess',
         settings_pane='Privacy_ScreenCapture',
         settings_label='Screen & System Audio Recording',
-        usage_key='NSScreenCaptureUsageDescription',
         identity_role='containing_app',
         identity_application='/Applications/OpenProgram.app',
         identity_bundle_id='ai.openprogram.desktop', tcc_service='ScreenCapture',
-        package_declarations=('NSScreenCaptureUsageDescription',),
     ),
     CapabilitySpec(
         'accessibility', 'Desktop control', 'desktop', 'runtime', 'native',
@@ -118,14 +116,12 @@ _CAPABILITY_SPECS = (
     CapabilitySpec(
         'microphone', 'Microphone', 'media', 'containing_app', 'settings',
         operations=('microphone:*',), settings_pane='Privacy_Microphone',
-        settings_label='Microphone', usage_key='NSMicrophoneUsageDescription',
-        package_declarations=('NSMicrophoneUsageDescription',),
+        settings_label='Microphone',
     ),
     CapabilitySpec(
         'camera', 'Camera', 'media', 'containing_app', 'settings',
         operations=('camera:*',), settings_pane='Privacy_Camera',
-        settings_label='Camera', usage_key='NSCameraUsageDescription',
-        package_declarations=('NSCameraUsageDescription',),
+        settings_label='Camera',
     ),
 )
 
