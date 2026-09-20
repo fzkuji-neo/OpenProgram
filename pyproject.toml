@@ -108,6 +108,8 @@ dependencies = [
     # Window-scoped GUI capture and Accessibility actions; no ML perception required.
     "pyobjc-framework-ScreenCaptureKit>=10; sys_platform == 'darwin'",
     "pyobjc-framework-ApplicationServices>=10; sys_platform == 'darwin'",
+    "pyobjc-framework-AVFoundation>=10; sys_platform == 'darwin'",
+    "pyobjc-framework-EventKit>=10; sys_platform == 'darwin'",
     # Windows ConPTY binding (import name ``winpty``). Drives the interactive
     # Claude-account browser login through a pseudo-terminal on Windows, where
     # stdlib ``pty`` doesn't exist (POSIX reuses ``pty``). Windows-only marker;

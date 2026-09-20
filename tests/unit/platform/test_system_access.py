@@ -1,4 +1,5 @@
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -11,6 +12,55 @@ def test_native_executor_prefers_named_runtime(monkeypatch, tmp_path):
     helper.write_text('runtime')
     monkeypatch.setattr('openprogram.worker.lifecycle.worker_executable', lambda: str(helper))
     assert system_access._native_executor() == str(helper.resolve())
+
+
+@pytest.mark.parametrize('capability,style', [
+    ('calendar', 'eventkit_events'),
+    ('reminders', 'eventkit_reminders'),
+    ('microphone', 'avfoundation_audio'),
+    ('camera', 'avfoundation_video'),
+])
+def test_native_request_styles_use_explicit_completion_callbacks(capability, style):
+    callbacks = []
+
+    class Store:
+        @classmethod
+        def authorizationStatusForEntityType_(cls, entity):
+            return 0
+
+        def requestFullAccessToEventsWithCompletion_(self, callback):
+            callbacks.append(('calendar', callback)); callback(True, None)
+
+        def requestFullAccessToRemindersWithCompletion_(self, callback):
+            callbacks.append(('reminders', callback)); callback(True, None)
+
+        def requestAccessToEntityType_completion_(self, entity, callback):
+            callbacks.append(('legacy', callback)); callback(True, None)
+
+        @classmethod
+        def alloc(cls):
+            return cls()
+
+        def init(self):
+            return self
+
+    class Device:
+        @classmethod
+        def authorizationStatusForMediaType_(cls, media):
+            return 0
+
+        @classmethod
+        def requestAccessForMediaType_completionHandler_(cls, media, callback):
+            callbacks.append((media, callback)); callback(True)
+
+    native = SimpleNamespace(
+        EKEntityTypeEvent=0, EKEntityTypeReminder=1, EKEventStore=Store,
+        AVMediaTypeAudio='audio', AVMediaTypeVideo='video', AVCaptureDevice=Device,
+    )
+    spec = system_access.capability_spec(capability)
+    assert spec.request_style == style
+    system_access._native_request(spec, native)
+    assert callbacks
 
 
 def test_macos_checks_both_and_does_not_prompt(monkeypatch):
@@ -128,7 +178,8 @@ def test_unified_setup_requests_each_registered_native_capability_once(monkeypat
         ],
     })
     result = system_access.setup_all_access()
-    assert requested == ['screen_recording', 'accessibility']
+    assert requested == [spec.id for spec in system_access.capability_registry()
+                         if spec.request_mode == 'native']
     assert result['status'] == 'granted'
     assert result['remaining_capabilities'] == []
 
