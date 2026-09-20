@@ -210,7 +210,10 @@ def validate_capability_registry() -> None:
         if spec.entitlement and spec.entitlement not in declarations:
             raise RuntimeError(f'Capability {spec.id} entitlement is missing from package declarations.')
         for operation in spec.operations:
-            if not operation or ':' not in operation:
+            prefix, separator, action = operation.partition(':')
+            if (not operation or not separator or not prefix or not action or
+                    prefix not in {'gui_agent', 'apple_events', 'calendar', 'reminders',
+                                   'file', 'microphone', 'camera'}):
                 raise RuntimeError(f'Invalid operation mapping for {spec.id}.')
     package_usage_declarations()
 
@@ -515,6 +518,51 @@ def report() -> dict:
     }
 
 
+def required_access_state(tool_name: str, args: dict | None) -> dict | None:
+    """Return one registry-derived preflight result for a host-bound tool.
+
+    ``waiting`` is recoverable by the durable system-access wait. Native
+    dependency and platform failures are terminal for this operation, so they
+    do not create a wait that can never become granted. Direct function calls
+    and the canonical safe point consume this same result.
+    """
+    if str(tool_name) != 'gui_agent' or not isinstance(args, dict):
+        return None
+    surface = str(args.get('surface') or '').strip().lower()
+    if surface not in {'', 'desktop'} or args.get('vm_url'):
+        return None
+    if not surface and args.get('backend'):
+        return None
+    snapshot = report()
+    if snapshot.get('platform') != 'Darwin':
+        return None
+    required_ids = {
+        spec.id for spec in capability_registry()
+        if 'gui_agent:desktop' in spec.operations
+    }
+    capabilities = [dict(row) for row in snapshot.get('capabilities', ())
+                    if isinstance(row, dict) and row.get('id') in required_ids]
+    if not capabilities or all(row.get('status') == 'granted' for row in capabilities):
+        return {'state': 'ready', 'capabilities': capabilities, 'required_capabilities': []}
+    terminal = [row for row in capabilities
+                if row.get('status') in {'unsupported', 'unavailable'}]
+    if terminal:
+        return {
+            'state': 'infeasible',
+            'reason_code': 'system_access_unavailable',
+            'capabilities': capabilities,
+            'required_capabilities': [str(row['id']) for row in terminal],
+            'detail': 'The desktop access backend is unavailable on this execution host.',
+        }
+    return {
+        'state': 'waiting',
+        'reason_code': 'system_access_required',
+        'capabilities': capabilities,
+        'required_capabilities': [str(row['id']) for row in capabilities
+                                  if row.get('status') != 'granted'],
+    }
+
+
 def access_manifest_for_tool(tool_name: str, args: dict | None) -> dict | None:
     """Return a pre-effect durable wait manifest for local desktop GUI use.
 
@@ -531,19 +579,11 @@ def access_manifest_for_tool(tool_name: str, args: dict | None) -> dict | None:
     # browser execution path.
     if not surface and args.get('backend'):
         return None
-    snapshot = report()
-    if snapshot.get('platform') != 'Darwin':
+    state = required_access_state(tool_name, args)
+    if not state or state.get('state') != 'waiting':
         return None
-    required_ids = {
-        spec.id for spec in capability_registry()
-        if 'gui_agent:desktop' in spec.operations
-    }
-    capabilities = [dict(row) for row in snapshot.get('capabilities', ())
-                    if isinstance(row, dict) and row.get('id') in required_ids]
-    missing = [row for row in capabilities if row.get('status') != 'granted']
-    if not missing:
-        return None
-    required = [str(row['id']) for row in missing]
+    capabilities = list(state['capabilities'])
+    required = list(state['required_capabilities'])
     return {
         'kind': 'system_access',
         'required_capabilities': required,
