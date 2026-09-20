@@ -23,7 +23,7 @@ def test_registry_is_unique_and_report_contains_all_declared_capabilities(monkey
     assert set(rows) == {spec.id for spec in system_access.capability_registry()}
     assert rows["apple_events"]["request_mode"] == "targeted"
     assert rows["apple_events"]["identity_scope"] == "target_app"
-    assert rows["apple_events"]["identity"]["bundle_id"] is None
+    assert rows["apple_events"]["identity"]["bundle_id"] == "ai.openprogram.desktop"
     assert rows["calendar"]["label_zh"] == "日历"
     assert rows["accessibility"]["identity"]["bundle_id"] == "ai.openprogram.runtime"
     assert rows["file_read"]["subject"] == "user_selected_path"

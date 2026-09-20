@@ -93,6 +93,9 @@ _CAPABILITY_SPECS = (
         settings_label='Automation', usage_key='NSAppleEventsUsageDescription',
         entitlement='com.apple.security.automation.apple-events',
         package_declarations=('NSAppleEventsUsageDescription', 'com.apple.security.automation.apple-events'),
+        identity_role='containing_app',
+        identity_application='/Applications/OpenProgram.app',
+        identity_bundle_id='ai.openprogram.desktop',
     ),
     CapabilitySpec(
         'calendar', 'Calendar', '日历', 'integrations', 'runtime', 'settings',
@@ -300,6 +303,10 @@ def _capability_row(spec: CapabilitySpec, *, status: str, detail: str) -> dict:
         row['usage_key'] = spec.usage_key
     if spec.entitlement:
         row['entitlement'] = spec.entitlement
+    if spec.subject == 'target_app':
+        row['target_identity'] = {'status': 'required', 'bundle_id': None}
+    elif spec.subject == 'user_selected_path':
+        row['target_identity'] = {'status': 'required', 'path': None}
     row['package_declarations'] = list(spec.package_declarations)
     return row
 
