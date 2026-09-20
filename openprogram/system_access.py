@@ -501,7 +501,13 @@ def report() -> dict:
         wayland = bool(os.environ.get('WAYLAND_DISPLAY'))
         display = bool(os.environ.get('DISPLAY'))
         desktop_row = {
-            'id': 'desktop_session', 'label': 'Desktop access', 'optional': True,
+            'id': 'desktop_session', 'kind': 'host_session', 'label': 'Desktop access',
+            'label_zh': '桌面访问', 'optional': True, 'category': 'desktop',
+            'setup_group': 'desktop', 'subject': 'desktop_session',
+            'request_mode': 'none', 'settings_available': False,
+            'operations': ['desktop_session:*'], 'required_operations': ['desktop_session:*'],
+            'identity_scope': 'host_session', 'identity_role': None,
+            'identity_bundle_id': None, 'identity_application': None,
             'status': 'unsupported' if wayland else ('unknown' if display else 'unavailable'),
             'detail': ('The current desktop input backend does not provide Wayland portal authorization.' if wayland
                        else 'An X11 display is configured; access must be verified by the desktop backend.' if display
@@ -514,14 +520,26 @@ def report() -> dict:
     elif system == 'Windows':
         # Session names and administrator membership do not prove desktop access.
         desktop_row = {
-            'id': 'desktop_session', 'label': 'Desktop access', 'optional': True,
+            'id': 'desktop_session', 'kind': 'host_session', 'label': 'Desktop access',
+            'label_zh': '桌面访问', 'optional': True, 'category': 'desktop',
+            'setup_group': 'desktop', 'subject': 'desktop_session',
+            'request_mode': 'none', 'settings_available': False,
+            'operations': ['desktop_session:*'], 'required_operations': ['desktop_session:*'],
+            'identity_scope': 'host_session', 'identity_role': None,
+            'identity_bundle_id': None, 'identity_application': None,
             'status': 'unknown', 'detail': 'Desktop access is verified when the target is opened.',
             'instruction': 'Run in the intended signed-in desktop session. Locked screens, UAC secure desktop and higher-privilege applications may be inaccessible. Do not run the whole application as administrator.',
             'can_request': False,
         }
         rows = [desktop_row] + [_declaration_row(spec, system) for spec in capability_registry()]
     else:
-        desktop_row = {'id': 'desktop_session', 'label': 'Desktop access', 'optional': True,
+        desktop_row = {'id': 'desktop_session', 'kind': 'host_session', 'label': 'Desktop access',
+                 'label_zh': '桌面访问', 'optional': True, 'category': 'desktop',
+                 'setup_group': 'desktop', 'subject': 'desktop_session',
+                 'request_mode': 'none', 'settings_available': False,
+                 'operations': ['desktop_session:*'], 'required_operations': ['desktop_session:*'],
+                 'identity_scope': 'host_session', 'identity_role': None,
+                 'identity_bundle_id': None, 'identity_application': None,
                  'status': 'unsupported', 'detail': 'No desktop permission backend for this platform.',
                  'instruction': 'Use a supported browser or remote VM backend.', 'can_request': False}
         rows = [desktop_row] + [_declaration_row(spec, system) for spec in capability_registry()]
