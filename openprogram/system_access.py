@@ -56,6 +56,7 @@ class CapabilitySpec:
     identity_application: str | None = None
     identity_bundle_id: str | None = None
     tcc_service: str | None = None
+    package_declarations: tuple[str, ...] = ()
 
 
 # Keep the two legacy rows first: old clients display the first row and their
@@ -73,6 +74,7 @@ _CAPABILITY_SPECS = (
         identity_role='containing_app',
         identity_application='/Applications/OpenProgram.app',
         identity_bundle_id='ai.openprogram.desktop', tcc_service='ScreenCapture',
+        package_declarations=('NSScreenCaptureUsageDescription',),
     ),
     CapabilitySpec(
         'accessibility', 'Desktop control', 'desktop', 'runtime', 'native',
@@ -88,16 +90,20 @@ _CAPABILITY_SPECS = (
         'apple_events', 'Automation', 'integrations', 'target_app', 'targeted',
         operations=('apple_events:*',), settings_pane='Privacy_Automation',
         settings_label='Automation', usage_key='NSAppleEventsUsageDescription',
+        entitlement='com.apple.security.automation.apple-events',
+        package_declarations=('NSAppleEventsUsageDescription', 'com.apple.security.automation.apple-events'),
     ),
     CapabilitySpec(
         'calendar', 'Calendar', 'integrations', 'containing_app', 'settings',
         operations=('calendar:*',), settings_pane='Privacy_Calendars',
         settings_label='Calendars', usage_key='NSCalendarsUsageDescription',
+        package_declarations=('NSCalendarsUsageDescription', 'NSCalendarsFullAccessUsageDescription'),
     ),
     CapabilitySpec(
         'reminders', 'Reminders', 'integrations', 'containing_app', 'settings',
         operations=('reminders:*',), settings_pane='Privacy_Reminders',
         settings_label='Reminders', usage_key='NSRemindersUsageDescription',
+        package_declarations=('NSRemindersUsageDescription', 'NSRemindersFullAccessUsageDescription'),
     ),
     CapabilitySpec(
         'file_read', 'File read', 'storage', 'user_selected_path', 'operation',
@@ -113,11 +119,13 @@ _CAPABILITY_SPECS = (
         'microphone', 'Microphone', 'media', 'containing_app', 'settings',
         operations=('microphone:*',), settings_pane='Privacy_Microphone',
         settings_label='Microphone', usage_key='NSMicrophoneUsageDescription',
+        package_declarations=('NSMicrophoneUsageDescription',),
     ),
     CapabilitySpec(
         'camera', 'Camera', 'media', 'containing_app', 'settings',
         operations=('camera:*',), settings_pane='Privacy_Camera',
         settings_label='Camera', usage_key='NSCameraUsageDescription',
+        package_declarations=('NSCameraUsageDescription',),
     ),
 )
 
@@ -179,6 +187,10 @@ def _capability_row(spec: CapabilitySpec, *, status: str, detail: str) -> dict:
     """Build the stable row shape plus registry metadata."""
     settings = (f'Privacy & Security > {spec.settings_label}'
                 if spec.settings_pane else 'Use the operation-specific access flow.')
+    settings_url = (
+        'x-apple.systempreferences:com.apple.preference.security?' + spec.settings_pane
+        if spec.settings_pane else None
+    )
     instruction = (
         f'On this execution Mac, open System Settings > {settings}. '
         'Authorize the executing application shown by macOS. Return here to check again.'
@@ -195,6 +207,7 @@ def _capability_row(spec: CapabilitySpec, *, status: str, detail: str) -> dict:
         'request_mode': spec.request_mode,
         'settings_available': bool(spec.settings_pane),
         'settings_pane': spec.settings_pane,
+        'settings_url': settings_url,
         'operations': list(spec.operations),
         'required_operations': list(spec.operations),
         'instruction': instruction,
@@ -205,6 +218,7 @@ def _capability_row(spec: CapabilitySpec, *, status: str, detail: str) -> dict:
         row['usage_key'] = spec.usage_key
     if spec.entitlement:
         row['entitlement'] = spec.entitlement
+    row['package_declarations'] = list(spec.package_declarations)
     return row
 
 
