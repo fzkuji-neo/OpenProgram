@@ -263,6 +263,8 @@ def _capability_row(spec: CapabilitySpec, *, status: str, detail: str) -> dict:
         'subject': spec.subject,
         'identity_role': spec.identity_role or spec.subject,
         'identity_scope': spec.subject,
+        'identity_bundle_id': spec.identity_bundle_id,
+        'identity_application': spec.identity_application,
         'identity': {
             'role': spec.identity_role or spec.subject,
             'scope': spec.subject,
