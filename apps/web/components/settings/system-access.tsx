@@ -1,20 +1,66 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import styles from "./settings-page.module.css";
 
-type Capability = { id: string; label: string; status: string; detail: string; instruction: string; can_request: boolean };
-type Report = { application?: string; platform: string; host: string; executable: string; capabilities: Capability[] };
+type Capability = {
+  id: string;
+  label?: string;
+  status: string;
+  detail?: string;
+  instruction?: string;
+  can_request?: boolean;
+  can_open_settings?: boolean;
+  settings_available?: boolean;
+  settings_pane?: string;
+  request_mode?: string;
+  setup_group?: string;
+  category?: string;
+  required?: boolean;
+  required_for?: string[];
+  target?: string;
+};
+type Report = {
+  application?: string;
+  platform: string;
+  host: string;
+  executable: string;
+  capabilities: Capability[];
+};
 
-/** Live executor status; never persist a grant or prompt while checking. */
+const legacyLabels: Record<string, [string, string]> = {
+  screen_recording: ["Screen recording", "屏幕录制"],
+  accessibility: ["Desktop control", "桌面控制"],
+};
+
+function fallbackLabel(id: string, text: (en: string, zh: string) => string) {
+  const known = legacyLabels[id];
+  if (known) return text(...known);
+  return id.replace(/[_-]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function groupLabel(id: string, text: (en: string, zh: string) => string) {
+  const names: Record<string, [string, string]> = {
+    desktop: ["Desktop", "桌面"],
+    privacy: ["Privacy", "隐私"],
+    media: ["Media", "媒体"],
+    files: ["Files", "文件"],
+    automation: ["Automation", "自动化"],
+    integrations: ["Integrations", "集成"],
+  };
+  return names[id] ? text(...names[id]) : id;
+}
+
+/** Live executor status; reading this report never opens a permission prompt. */
 export function SystemAccess() {
   const { text } = useTranslation();
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState("");
   const [notice, setNotice] = useState("");
+
   useEffect(() => {
     let generation = 0;
     const controller = new AbortController();
@@ -41,47 +87,61 @@ export function SystemAccess() {
       window.removeEventListener("openprogram-system-access-changed", visible);
     };
   }, [text]);
+
   const local = typeof window !== "undefined" && ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
   async function request(row: Capability, openSettings = false) {
     setPending(row.id); setError(""); setNotice("");
     try {
       const response = await fetch(`/api/system/access/${encodeURIComponent(row.id)}?open_settings=${openSettings ? "true" : "false"}`, { method: "POST" });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      if (!response.ok) throw new Error(result.error || String(response.status));
       setNotice(result.status === "granted" ? text("Access confirmed.", "已确认授权。") : openSettings ? text("System Settings opened.", "已打开系统设置。") : text("Authorization request finished without confirmation.", "授权请求结束，但尚未确认授权。"));
       window.dispatchEvent(new Event("openprogram-system-access-changed"));
     } catch (e) { setError(e instanceof Error ? e.message : text("Permission request failed.", "申请权限失败。")); }
     finally { setPending(""); }
   }
+
   const labels: Record<string, string> = {
     granted: text("Granted", "已授权"), not_granted: text("Not authorized", "未授权"),
     unknown: text("Not verified", "未确认"), unavailable: text("Unavailable", "不可用"),
-    unsupported: text("Unsupported", "暂不支持"),
+    unsupported: text("Unsupported", "暂不支持"), requesting: text("Requesting", "申请中"),
   };
+  const groups = useMemo(() => {
+    const result = new Map<string, Capability[]>();
+    for (const row of report?.capabilities || []) {
+      const group = row.setup_group || row.category || "other";
+      const rows = result.get(group) || [];
+      rows.push(row); result.set(group, rows);
+    }
+    return [...result.entries()];
+  }, [report]);
+
   return <section>
     <h3 className={styles.sectionTitle}>{text("System access", "系统权限")}</h3>
-    <p className={styles.pageMeta}>{text("Optional capabilities on the execution computer. Checks never open permission prompts.", "执行电脑上的可选功能。检查状态不会弹出授权窗口。")}</p>
+    <p className={styles.pageMeta}>{text("Capabilities are read from the execution host registry. Checking status never opens a prompt; use an action on a row to request or open settings.", "权限能力由执行主机的统一注册表提供。检查状态不会弹出授权窗口；只有点击具体行的操作才会申请授权或打开设置。")}</p>
     {!report && !error && <p role="status">{text("Checking…", "正在检查…")}</p>}
     {report && <>
       <p className={styles.pageMeta}>{report.application ? `${report.application} · ` : ""}{report.host} · {report.platform}</p>
-      <div className={styles.card}>{report.capabilities.map(row => <div className={`${styles.row} ${styles.rowTop}`} key={row.id}>
-        <div className={styles.label}>
-          <div>{row.id === "screen_recording" ? text("Screen recording", "屏幕录制") : row.id === "accessibility" ? text("Desktop control", "桌面控制") : text("Desktop access", "桌面访问")} · {labels[row.status] || row.status}</div>
-          <p className={styles.pageMeta}>{text(row.detail,
-            row.status === "granted" ? "当前执行程序已获得授权。" :
-            row.status === "not_granted" ? "当前执行程序尚未获得这项系统授权。" :
-            row.status === "unknown" ? "尚不能确认当前执行程序是否可以访问桌面。" :
-            report.platform === "Linux" ? "当前桌面环境或后端无法提供这项功能。" : "当前运行环境缺少所需支持。")}</p>
-          {row.status !== "granted" && <p className={styles.pageMeta}>{text(row.instruction,
-            report.platform === "Darwin" ? `请在执行电脑的系统设置 → 隐私与安全性 → ${row.id === "accessibility" ? "辅助功能" : "屏幕与系统音频录制"}，授权系统提示的执行程序。返回后自动检查；仅在系统要求时重启程序。` :
-            report.platform === "Linux" ? "在已登录的受支持图形桌面中运行；无桌面服务器可使用浏览器或虚拟机功能，不需要开放桌面权限。" :
-            "请在已登录的桌面中运行。锁屏、系统确认界面或高权限应用可能不可访问，无需把整个程序改为管理员运行。")}</p>}
-        </div>
-        {report.platform === "Darwin" && row.status !== "granted" && local && <>
-          {row.can_request && <Button variant="secondary" disabled={!!pending} onClick={() => void request(row)}>{pending === row.id ? text("Requesting…", "正在申请…") : text("Request authorization", "请求授权")}</Button>}
-          <Button variant="ghost" disabled={!!pending} onClick={() => void request(row, true)}>{text("Open System Settings", "打开系统设置")}</Button>
-        </>}
-      </div>)}</div>
+      {groups.map(([group, rows]) => <div className={styles.card} key={group}>
+        <h4>{groupLabel(group, text)}</h4>
+        {rows.map(row => {
+          const status = labels[row.status] || row.status;
+          const canSettings = (row.settings_available === undefined ? row.can_open_settings !== false : row.settings_available === true) && row.status !== "unsupported" && row.status !== "unavailable";
+          const canRequest = row.can_request === true && row.status === "not_granted" && row.request_mode !== "settings";
+          return <div className={`${styles.row} ${styles.rowTop}`} key={row.id}>
+            <div className={styles.label}>
+              <div>{row.label || fallbackLabel(row.id, text)} · {status}</div>
+              <p className={styles.pageMeta}>{row.detail || (row.status === "granted" ? text("The execution program has this access.", "当前执行程序已获得授权。") : row.status === "not_granted" ? text("This access has not been granted to the execution program.", "当前执行程序尚未获得这项系统授权。") : row.status === "unknown" ? text("The host cannot verify this access yet.", "当前主机尚不能确认这项权限。") : row.status === "unsupported" ? text("This capability is not supported by the current host.", "当前主机暂不支持这项能力。") : text("This capability is unavailable in the current environment.", "当前环境无法提供这项能力。"))}</p>
+              {row.instruction && row.status !== "granted" && <p className={styles.pageMeta}>{row.instruction}</p>}
+              {(row.required || row.required_for?.length) && <p className={styles.pageMeta}>{text("Used by: ", "使用于：")}{(row.required_for || []).join(", ")}</p>}
+            </div>
+            {report.platform === "Darwin" && local && row.status !== "granted" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {canRequest && <Button variant="secondary" disabled={!!pending} onClick={() => void request(row)}>{pending === row.id ? text("Requesting…", "正在申请…") : text("Request authorization", "请求授权")}</Button>}
+              {canSettings && <Button variant="ghost" disabled={!!pending} onClick={() => void request(row, true)}>{text("Open System Settings", "打开系统设置")}</Button>}
+            </div>}
+          </div>;
+        })}
+      </div>)}
       <details><summary>{text("Execution process", "执行程序")}</summary><code>{report.executable}</code></details>
     </>}
     {notice && <p role="status">{notice}</p>}
