@@ -51,6 +51,7 @@ class CapabilitySpec:
     module: str | None = None
     check_method: str | None = None
     request_method: str | None = None
+    request_style: str = 'none'
     settings_pane: str | None = None
     settings_label: str = 'Privacy & Security'
     usage_key: str | None = None
@@ -83,6 +84,7 @@ _CAPABILITY_SPECS = (
         operations=('gui_agent:desktop',), module='ApplicationServices',
         check_method='AXIsProcessTrusted',
         request_method='AXIsProcessTrustedWithOptions',
+        request_style='accessibility_prompt',
         settings_pane='Privacy_Accessibility', settings_label='Accessibility',
         identity_role='runtime',
         identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
@@ -220,8 +222,16 @@ def validate_capability_registry() -> None:
     if len(ids) != len(set(ids)) or any(not item for item in ids):
         raise RuntimeError('System access capability ids must be unique and non-empty.')
     for spec in _CAPABILITY_SPECS:
+        if spec.request_mode not in {'native', 'settings', 'targeted', 'operation', 'none'}:
+            raise RuntimeError(f'Unknown request mode for {spec.id}.')
+        if spec.subject not in {'containing_app', 'runtime', 'target_app', 'user_selected_path', 'provider_session'}:
+            raise RuntimeError(f'Unknown identity subject for {spec.id}.')
         if spec.request_mode == 'native' and not (spec.module and spec.check_method):
             raise RuntimeError(f'Native capability {spec.id} has no nonprompting check.')
+        if spec.request_mode == 'native' and not spec.request_method:
+            raise RuntimeError(f'Native capability {spec.id} has no request method.')
+        if spec.request_style not in {'none', 'accessibility_prompt'}:
+            raise RuntimeError(f'Unknown native request style for {spec.id}.')
         if spec.request_mode in {'native', 'settings', 'targeted'} and not spec.settings_pane:
             raise RuntimeError(f'Capability {spec.id} has no settings destination.')
         if spec.identity_role and spec.identity_role not in {'containing_app', 'runtime'}:
@@ -375,12 +385,11 @@ def _native_probe_entry() -> None:
             native = importlib.import_module(module)
             if request == capability:
                 spec = capability_spec(capability)
-                if capability == 'screen_recording':
-                    getattr(native, spec.request_method)()
+                request_method = getattr(native, spec.request_method)
+                if spec.request_style == 'accessibility_prompt':
+                    request_method({native.kAXTrustedCheckOptionPrompt: True})
                 else:
-                    native.AXIsProcessTrustedWithOptions(
-                        {native.kAXTrustedCheckOptionPrompt: True}
-                    )
+                    request_method()
             granted = bool(getattr(native, method)())
             rows.append({
                 'id': capability,

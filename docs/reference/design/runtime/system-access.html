@@ -39,7 +39,7 @@ h1,h2{line-height:1.25} table{border-collapse:collapse;width:100%;margin:16px 0}
 <tr><td><code>identity</code></td><td>Bundle id and designated requirement, or provider/path identity. Anonymous <code>python3</code>, <code>node</code> and stale cache paths never become OpenProgram identities.</td></tr>
 <tr><td><code>operations</code></td><td>Tool and operation names that require the capability. GUI desktop requires screen recording and accessibility; browser, VM and ordinary CLI operations do not.</td></tr>
 </table>
-<p>The registry is validated at import time: ids are unique, every platform entry has a check and state mapping, every settings action has a fixed destination, and every operation reference points to a declared capability. Package usage descriptions and entitlements are checked against the same ids in build tests.</p>
+<p>The registry is validated at import time: ids are unique, every native entry has a non-prompting check, declaration-only entries specify their status semantics, every settings action has a fixed destination, and every operation reference points to a declared capability. Package usage descriptions and entitlements are checked against the same ids in build tests.</p>
 
 <h2>State and API contract</h2>
 <p>Each report contains <code>schema</code>, platform, host, executing identity, timestamp, and a capability array. Rows contain id, category, status, detail, instruction, request mode, settings availability, required operations, and recovery metadata. Status means:</p>
@@ -48,7 +48,7 @@ h1,h2{line-height:1.25} table{border-collapse:collapse;width:100%;margin:16px 0}
 
 <h2>First-run setup and operation flow</h2>
 <ol>
-<li>On first use, the Web settings page displays the registry grouped by product area. It explains why each capability is needed and shows current status. A single “check all” performs read-only checks.</li>
+<li>On first use, the Web settings page displays the registry grouped by product area. It explains why each capability is needed and performs one read-only check for all rows when the page loads.</li>
 <li>The user chooses “Request authorization” or “Open System Settings” for a row or group. The UI never sends a native request during page mount, reconnect, status polling, history replay or model output rendering.</li>
 <li>The backend serializes one native request per executing identity. It uses the named runtime for the native check and request, then performs a fresh check. A macOS dialog may still be separate for separate privacy categories or target applications; the UI reports each result instead of claiming that one click can authorize unknown future targets.</li>
 <li>Before an operation, the operation declares its required capabilities. The worker runs one fresh report and creates a durable <code>system_access</code> wait only for missing required capabilities. Browser and VM operations bypass this host check. The wait stores the original checkpoint and continues the same execution after every required row is granted.</li>
