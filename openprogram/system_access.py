@@ -97,9 +97,9 @@ _CAPABILITY_SPECS = (
         entitlement='com.apple.security.automation.apple-events',
         package_declarations=('NSAppleEventsUsageDescription', 'com.apple.security.automation.apple-events'),
         usage_descriptions=(('NSAppleEventsUsageDescription', 'OpenProgram controls applications on your Mac to carry out tasks you request.'),),
-        identity_role='containing_app',
-        identity_application='/Applications/OpenProgram.app',
-        identity_bundle_id='ai.openprogram.desktop',
+        identity_role='runtime',
+        identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
+        identity_bundle_id='ai.openprogram.runtime',
     ),
     CapabilitySpec(
         'calendar', 'Calendar', '日历', 'integrations', 'runtime', 'settings',
