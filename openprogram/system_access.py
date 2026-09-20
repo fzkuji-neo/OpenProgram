@@ -95,16 +95,22 @@ _CAPABILITY_SPECS = (
         package_declarations=('NSAppleEventsUsageDescription', 'com.apple.security.automation.apple-events'),
     ),
     CapabilitySpec(
-        'calendar', 'Calendar', '日历', 'integrations', 'containing_app', 'settings',
+        'calendar', 'Calendar', '日历', 'integrations', 'runtime', 'settings',
         operations=('calendar:*',), settings_pane='Privacy_Calendars',
         settings_label='Calendars', usage_key='NSCalendarsUsageDescription',
         package_declarations=('NSCalendarsUsageDescription', 'NSCalendarsFullAccessUsageDescription'),
+        identity_role='runtime',
+        identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
+        identity_bundle_id='ai.openprogram.runtime',
     ),
     CapabilitySpec(
-        'reminders', 'Reminders', '提醒事项', 'integrations', 'containing_app', 'settings',
+        'reminders', 'Reminders', '提醒事项', 'integrations', 'runtime', 'settings',
         operations=('reminders:*',), settings_pane='Privacy_Reminders',
         settings_label='Reminders', usage_key='NSRemindersUsageDescription',
         package_declarations=('NSRemindersUsageDescription', 'NSRemindersFullAccessUsageDescription'),
+        identity_role='runtime',
+        identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
+        identity_bundle_id='ai.openprogram.runtime',
     ),
     CapabilitySpec(
         'file_read', 'File read', '文件读取', 'storage', 'user_selected_path', 'operation',
@@ -117,14 +123,20 @@ _CAPABILITY_SPECS = (
         settings_label='Files and Folders',
     ),
     CapabilitySpec(
-        'microphone', 'Microphone', '麦克风', 'media', 'containing_app', 'settings',
+        'microphone', 'Microphone', '麦克风', 'media', 'runtime', 'settings',
         operations=('microphone:*',), settings_pane='Privacy_Microphone',
         settings_label='Microphone',
+        identity_role='runtime',
+        identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
+        identity_bundle_id='ai.openprogram.runtime',
     ),
     CapabilitySpec(
-        'camera', 'Camera', '摄像头', 'media', 'containing_app', 'settings',
+        'camera', 'Camera', '摄像头', 'media', 'runtime', 'settings',
         operations=('camera:*',), settings_pane='Privacy_Camera',
         settings_label='Camera',
+        identity_role='runtime',
+        identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
+        identity_bundle_id='ai.openprogram.runtime',
     ),
 )
 
