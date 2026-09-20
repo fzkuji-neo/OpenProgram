@@ -31,7 +31,12 @@ def test_privacy_update_preserves_bundle_identity_and_existing_fields(tmp_path):
 
 
 def test_outer_and_runtime_consent_descriptions_agree():
+    from openprogram.system_access import validate_package_consistency
     package = json.loads((ROOT / 'apps/desktop/package.json').read_text())
     assert package['build']['mac']['extendInfo'] == builder().PRIVACY_USAGE
     entitlements = plistlib.loads((ROOT / 'apps/desktop/build/entitlements.mac.plist').read_bytes())
     assert entitlements['com.apple.security.automation.apple-events'] is True
+    validate_package_consistency(
+        package['build']['mac']['extendInfo'],
+        {key for key, value in entitlements.items() if value is True and key.startswith('com.apple.')},
+    )

@@ -16,9 +16,18 @@ def test_registry_is_unique_and_report_contains_all_declared_capabilities(monkey
         },
     )
     rows = {row["id"]: row for row in system_access.report()["capabilities"]}
+    report = system_access.report()
+    assert report["schema"] == system_access.SYSTEM_ACCESS_SCHEMA
+    assert report["version"] == system_access.SYSTEM_ACCESS_VERSION
+    assert report["identity"]["executable"]
     assert set(rows) == {spec.id for spec in system_access.capability_registry()}
     assert rows["apple_events"]["request_mode"] == "targeted"
+    assert rows["apple_events"]["identity_scope"] == "target_app"
+    assert rows["apple_events"]["identity"]["bundle_id"] is None
+    assert rows["calendar"]["label_zh"] == "日历"
+    assert rows["accessibility"]["identity"]["bundle_id"] == "ai.openprogram.runtime"
     assert rows["file_read"]["subject"] == "user_selected_path"
+    assert rows["file_read"]["settings_available"] is False
     assert rows["microphone"]["status"] == "unknown"
 
 

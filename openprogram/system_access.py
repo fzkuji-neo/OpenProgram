@@ -22,6 +22,8 @@ from types import MappingProxyType
 _REQUEST_LOCK = threading.Lock()
 _log = logging.getLogger(__name__)
 _NATIVE_PROBE_SCHEMA = 1
+SYSTEM_ACCESS_SCHEMA = 2
+SYSTEM_ACCESS_VERSION = 2
 _NATIVE_PROBE_TIMEOUT = 5.0
 _NATIVE_REQUEST_TIMEOUT = 120.0
 _NATIVE_PROBE_MAX_OUTPUT = 16 * 1024
@@ -39,6 +41,7 @@ class CapabilitySpec:
 
     id: str
     label: str
+    label_zh: str
     category: str
     subject: str
     request_mode: str
@@ -64,7 +67,7 @@ class CapabilitySpec:
 # here even when the current platform backend is declaration-only.
 _CAPABILITY_SPECS = (
     CapabilitySpec(
-        'screen_recording', 'Screen recording', 'desktop', 'containing_app',
+        'screen_recording', 'Screen recording', '屏幕录制', 'desktop', 'containing_app',
         'native', operations=('gui_agent:desktop',), module='Quartz',
         check_method='CGPreflightScreenCaptureAccess',
         request_method='CGRequestScreenCaptureAccess',
@@ -75,7 +78,7 @@ _CAPABILITY_SPECS = (
         identity_bundle_id='ai.openprogram.desktop', tcc_service='ScreenCapture',
     ),
     CapabilitySpec(
-        'accessibility', 'Desktop control', 'desktop', 'runtime', 'native',
+        'accessibility', 'Desktop control', '桌面控制', 'desktop', 'runtime', 'native',
         operations=('gui_agent:desktop',), module='ApplicationServices',
         check_method='AXIsProcessTrusted',
         request_method='AXIsProcessTrustedWithOptions',
@@ -85,41 +88,41 @@ _CAPABILITY_SPECS = (
         identity_bundle_id='ai.openprogram.runtime', tcc_service='Accessibility',
     ),
     CapabilitySpec(
-        'apple_events', 'Automation', 'integrations', 'target_app', 'targeted',
+        'apple_events', 'Automation', '自动化', 'integrations', 'target_app', 'targeted',
         operations=('apple_events:*',), settings_pane='Privacy_Automation',
         settings_label='Automation', usage_key='NSAppleEventsUsageDescription',
         entitlement='com.apple.security.automation.apple-events',
         package_declarations=('NSAppleEventsUsageDescription', 'com.apple.security.automation.apple-events'),
     ),
     CapabilitySpec(
-        'calendar', 'Calendar', 'integrations', 'containing_app', 'settings',
+        'calendar', 'Calendar', '日历', 'integrations', 'containing_app', 'settings',
         operations=('calendar:*',), settings_pane='Privacy_Calendars',
         settings_label='Calendars', usage_key='NSCalendarsUsageDescription',
         package_declarations=('NSCalendarsUsageDescription', 'NSCalendarsFullAccessUsageDescription'),
     ),
     CapabilitySpec(
-        'reminders', 'Reminders', 'integrations', 'containing_app', 'settings',
+        'reminders', 'Reminders', '提醒事项', 'integrations', 'containing_app', 'settings',
         operations=('reminders:*',), settings_pane='Privacy_Reminders',
         settings_label='Reminders', usage_key='NSRemindersUsageDescription',
         package_declarations=('NSRemindersUsageDescription', 'NSRemindersFullAccessUsageDescription'),
     ),
     CapabilitySpec(
-        'file_read', 'File read', 'storage', 'user_selected_path', 'operation',
+        'file_read', 'File read', '文件读取', 'storage', 'user_selected_path', 'operation',
         platforms=('Darwin', 'Linux', 'Windows'), operations=('file:read',),
-        settings_pane='Privacy_FilesAndFolders', settings_label='Files and Folders',
+        settings_label='Files and Folders',
     ),
     CapabilitySpec(
-        'file_write', 'File write', 'storage', 'user_selected_path', 'operation',
+        'file_write', 'File write', '文件写入', 'storage', 'user_selected_path', 'operation',
         platforms=('Darwin', 'Linux', 'Windows'), operations=('file:write',),
-        settings_pane='Privacy_FilesAndFolders', settings_label='Files and Folders',
+        settings_label='Files and Folders',
     ),
     CapabilitySpec(
-        'microphone', 'Microphone', 'media', 'containing_app', 'settings',
+        'microphone', 'Microphone', '麦克风', 'media', 'containing_app', 'settings',
         operations=('microphone:*',), settings_pane='Privacy_Microphone',
         settings_label='Microphone',
     ),
     CapabilitySpec(
-        'camera', 'Camera', 'media', 'containing_app', 'settings',
+        'camera', 'Camera', '摄像头', 'media', 'containing_app', 'settings',
         operations=('camera:*',), settings_pane='Privacy_Camera',
         settings_label='Camera',
     ),
@@ -140,6 +143,54 @@ def capability_spec(capability: str) -> CapabilitySpec:
         raise ValueError(f'Unknown system capability: {capability}') from exc
 
 
+_PACKAGE_USAGE_TEXT = {
+    'NSAppleEventsUsageDescription': 'OpenProgram controls applications on your Mac to carry out tasks you request.',
+    'NSCalendarsUsageDescription': 'OpenProgram accesses your calendars to carry out tasks you request.',
+    'NSCalendarsFullAccessUsageDescription': 'OpenProgram reads and updates calendar events when you request it.',
+    'NSRemindersUsageDescription': 'OpenProgram accesses reminders to carry out tasks you request.',
+    'NSRemindersFullAccessUsageDescription': 'OpenProgram reads and updates reminders when you request it.',
+}
+
+
+def package_usage_declarations() -> dict[str, str]:
+    """Return the usage strings required by the registry for macOS bundles."""
+    keys = {
+        key for spec in capability_registry() for key in spec.package_declarations
+        if key.startswith('NS')
+    }
+    missing = keys - _PACKAGE_USAGE_TEXT.keys()
+    if missing:
+        raise RuntimeError(f'No usage description text for registry keys: {sorted(missing)}')
+    return {key: _PACKAGE_USAGE_TEXT[key] for key in sorted(keys)}
+
+
+def package_entitlements() -> frozenset[str]:
+    """Return registry-declared entitlements expected in the signed bundle."""
+    return frozenset(
+        key for spec in capability_registry() for key in spec.package_declarations
+        if key.startswith('com.apple.')
+    )
+
+
+def validate_package_consistency(
+    actual_usage: dict[str, str], actual_entitlements: set[str] | frozenset[str],
+) -> None:
+    """Fail on drift between registry declarations and a built macOS bundle."""
+    expected_usage = package_usage_declarations()
+    expected_entitlements = package_entitlements()
+    if dict(actual_usage) != expected_usage:
+        raise RuntimeError(
+            f'Package usage declarations drift from registry: '
+            f'expected={sorted(expected_usage)}, actual={sorted(actual_usage)}'
+        )
+    missing_entitlements = set(expected_entitlements) - set(actual_entitlements)
+    if missing_entitlements:
+        raise RuntimeError(
+            f'Package entitlements drift from registry: '
+            f'missing={sorted(missing_entitlements)}, actual={sorted(actual_entitlements)}'
+        )
+
+
 def validate_capability_registry() -> None:
     ids = [spec.id for spec in _CAPABILITY_SPECS]
     if len(ids) != len(set(ids)) or any(not item for item in ids):
@@ -151,9 +202,17 @@ def validate_capability_registry() -> None:
             raise RuntimeError(f'Capability {spec.id} has no settings destination.')
         if spec.identity_role and spec.identity_role not in {'containing_app', 'runtime'}:
             raise RuntimeError(f'Unknown identity role for {spec.id}.')
+        if not spec.label or not spec.label_zh:
+            raise RuntimeError(f'Capability {spec.id} must have English and Chinese labels.')
+        declarations = set(spec.package_declarations)
+        if spec.usage_key and spec.usage_key not in declarations:
+            raise RuntimeError(f'Capability {spec.id} usage_key is missing from package declarations.')
+        if spec.entitlement and spec.entitlement not in declarations:
+            raise RuntimeError(f'Capability {spec.id} entitlement is missing from package declarations.')
         for operation in spec.operations:
             if not operation or ':' not in operation:
                 raise RuntimeError(f'Invalid operation mapping for {spec.id}.')
+    package_usage_declarations()
 
 
 validate_capability_registry()
@@ -196,11 +255,20 @@ def _capability_row(spec: CapabilitySpec, *, status: str, detail: str) -> dict:
     row = {
         'id': spec.id,
         'label': spec.label,
+        'label_zh': spec.label_zh,
         'status': status,
         'optional': spec.optional,
         'category': spec.category,
         'setup_group': spec.category,
         'subject': spec.subject,
+        'identity_role': spec.identity_role or spec.subject,
+        'identity_scope': spec.subject,
+        'identity': {
+            'role': spec.identity_role or spec.subject,
+            'scope': spec.subject,
+            'bundle_id': spec.identity_bundle_id,
+            'application': spec.identity_application,
+        },
         'request_mode': spec.request_mode,
         'settings_available': bool(spec.settings_pane),
         'settings_pane': spec.settings_pane,
@@ -374,8 +442,11 @@ def _mac_status(capability: str) -> dict:
 def report() -> dict:
     """Return fresh advisory status for this process, not the connecting client."""
     system = platform.system()
+    execution_identity = _native_identity()
     if system == 'Darwin':
         probe = _native_probe()
+        if probe is not None and isinstance(probe.get('identity'), dict):
+            execution_identity = dict(probe['identity'])
         rows = []
         for spec in capability_registry():
             current = probe['capabilities'].get(spec.id) if (
@@ -428,8 +499,18 @@ def report() -> dict:
             application = str(bundle.objectForInfoDictionaryKey_('CFBundleName') or '')
         except Exception:
             _log.debug("bundle name lookup unavailable", exc_info=True)
-    return {'platform': system, 'application': application, 'host': socket.gethostname(), 'executable': sys.executable,
-            'pid': os.getpid(), 'checked_at': time.time(), 'capabilities': rows}
+    return {
+        'schema': SYSTEM_ACCESS_SCHEMA,
+        'version': SYSTEM_ACCESS_VERSION,
+        'platform': system,
+        'application': application,
+        'host': socket.gethostname(),
+        'executable': sys.executable,
+        'pid': os.getpid(),
+        'identity': execution_identity,
+        'checked_at': time.time(),
+        'capabilities': rows,
+    }
 
 
 def access_manifest_for_tool(tool_name: str, args: dict | None) -> dict | None:

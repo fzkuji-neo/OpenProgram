@@ -10,13 +10,18 @@ import shutil
 import subprocess
 import tempfile
 
+from openprogram.system_access import package_usage_declarations
+
 NAME = 'OpenProgram'
 BUNDLE = 'OpenProgram.app'
 IDENTIFIER = 'ai.openprogram.runtime'
 RELATIVE = f'{BUNDLE}/Contents/MacOS/{NAME}'
 
 
-PRIVACY_USAGE = {'NSAppleEventsUsageDescription': 'OpenProgram controls applications on your Mac to carry out tasks you request.', 'NSCalendarsUsageDescription': 'OpenProgram accesses your calendars to carry out tasks you request.', 'NSCalendarsFullAccessUsageDescription': 'OpenProgram reads and updates calendar events when you request it.', 'NSRemindersUsageDescription': 'OpenProgram accesses reminders to carry out tasks you request.', 'NSRemindersFullAccessUsageDescription': 'OpenProgram reads and updates reminders when you request it.'}
+# The capability registry is the source of truth for usage descriptions. This
+# prevents the runtime bundle and the outer app from silently drifting when a
+# new privacy category is introduced.
+PRIVACY_USAGE = package_usage_declarations()
 
 def update_privacy_plist(path: Path) -> None:
     """Keep native consent declarations on the actual responsible application."""
