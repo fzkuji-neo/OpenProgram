@@ -10,6 +10,7 @@ type Row = {
   status: string;
   can_request?: boolean;
   request_mode?: string;
+  settings_available?: boolean;
   setup_group?: string;
   category?: string;
   detail?: string;
@@ -126,7 +127,7 @@ export function SystemAccessRecovery({ output, requiredCapabilities, autoOpen, o
         {local && row.status === "not_granted" && row.can_request && <button type="button" disabled={!!pending}
           style={{ border: 0, background: "none", padding: 0, color: "var(--text-secondary)", font: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}
           onClick={() => void setup(row)}>{pending === row.id ? text("Requesting…", "正在申请…") : text("Request", "请求授权")}</button>}
-        {local && row.status !== "granted" && row.status !== "unsupported" && row.status !== "unavailable" && <button type="button" disabled={!!pending}
+        {local && row.settings_available !== false && row.status !== "granted" && row.status !== "unsupported" && row.status !== "unavailable" && <button type="button" disabled={!!pending}
           style={{ border: 0, background: "none", padding: 0, color: "var(--text-secondary)", font: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}
           onClick={() => void setup(row, true)}>{text("Open Settings", "打开设置")}</button>}
       </span>)}

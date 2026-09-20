@@ -7,7 +7,7 @@ import { systemAccessAction } from '../../lib/access/system-access-action.ts';
 import { systemAccessRequired } from '../../lib/access/system-access-result.ts';
 const source = transformSync(readFileSync(new URL('../../components/chat/messages/system-access-recovery.tsx',import.meta.url),'utf8'),{loader:'tsx',format:'cjs',jsx:'automatic'}).code;
 const output={status:'infeasible',reason_code:'system_access_required',system_access:[{id:'screen_recording',status:'not_granted'}]};
-function harness(autoOpen, responses) {
+function harness(autoOpen, responses, result=output) {
  let index=0, dirty=true, mounted=true, calls=[], resumed=0, view;
  const slots=[], effects=[], timers=new Set(), listeners=new Map();
  const react={
@@ -25,7 +25,7 @@ function harness(autoOpen, responses) {
   require:name=>name==='react'?react:name==='react/jsx-runtime'?{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})}:name.includes('i18n')?{useTranslation:()=>({text})}:name.includes('system-access-action')?{systemAccessAction}:{systemAccessRequired}
  });
  const Component=module.exports.SystemAccessRecovery;
- async function flush(){for(let n=0;n<50;n++){if(dirty&&mounted){dirty=false;index=0;view=Component({output,autoOpen,onContinue:()=>resumed++});while(effects.length)effects.shift()();}await new Promise(resolve=>setImmediate(resolve));if(!dirty&&!effects.length)return;}throw new Error('Recovery did not settle');}
+  async function flush(){for(let n=0;n<50;n++){if(dirty&&mounted){dirty=false;index=0;view=Component({output:result,autoOpen,onContinue:()=>resumed++});while(effects.length)effects.shift()();}await new Promise(resolve=>setImmediate(resolve));if(!dirty&&!effects.length)return;}throw new Error('Recovery did not settle');}
  return {flush,language:async()=>{text=(en)=>en;dirty=true;await flush();},poll:async()=>{for(const fn of timers)fn();await flush();},unmount:()=>{mounted=false;for(const slot of slots)slot?.cleanup?.();},get calls(){return calls;},get resumed(){return resumed;},get view(){return view;},get timers(){return timers.size;}};
 }
 const grant=()=>({ok:true,json:async()=>({capabilities:[{id:'screen_recording',status:'granted'}]})});
@@ -66,6 +66,13 @@ test('unknown capability status never triggers an authorization request',async()
  const h=harness(true,[{ok:true,json:async()=>({capabilities:[{id:'screen_recording',status:'unknown',can_request:false}]})}]);
  await h.flush();assert.equal(h.calls.some(([,method])=>method==='POST'),false);
  assert.match(JSON.stringify(h.view),/Waiting for system authorization/);h.unmount();
+});
+
+test('operation-scoped access does not offer a global settings action',async()=>{
+ const fileOutput={status:'infeasible',reason_code:'system_access_required',system_access:[{id:'file_read',status:'unknown'}]};
+ const h=harness(true,[{ok:true,json:async()=>({capabilities:[{id:'file_read',status:'unknown',settings_available:false}]})}],fileOutput);
+ await h.flush();assert.equal(h.calls.some(([,method])=>method==='POST'),false);
+ assert.equal(JSON.stringify(h.view).includes('Open Settings'),false);h.unmount();
 });
 
 test('autoOpen only arms visible recovery and never requests native access',async()=>{

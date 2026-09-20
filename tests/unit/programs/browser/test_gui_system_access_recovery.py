@@ -20,3 +20,19 @@ def test_authorized_desktop_and_vm_keep_existing_execution(monkeypatch):
     monkeypatch.setattr(system_access, 'report', lambda: (_ for _ in ()).throw(AssertionError('VM must not inspect local permissions')))
     assert fn(task='Inspect remote', surface='vm', vm_url='http://vm:5000')['status'] == 'succeeded'
     assert len(calls) == 2
+
+
+def test_unavailable_desktop_access_is_terminal_and_matches_preflight(monkeypatch):
+    calls = []
+    monkeypatch.setattr(system_access, 'report', lambda: {
+        'platform': 'Darwin',
+        'capabilities': [
+            {'id': 'screen_recording', 'status': 'unavailable'},
+            {'id': 'accessibility', 'status': 'granted'},
+        ],
+    })
+    fn = install_gui_harness_web_use(lambda **kwargs: calls.append(kwargs) or {'status': 'succeeded'})
+    result = fn(task='Inspect my screen')
+    assert calls == []
+    assert result['reason_code'] == 'system_access_unavailable'
+    assert result['system_access'][0]['id'] == 'screen_recording'
