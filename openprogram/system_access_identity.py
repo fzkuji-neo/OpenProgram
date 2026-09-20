@@ -15,10 +15,24 @@ _APP = Path('/Applications/OpenProgram.app')
 _RUNTIME_APP = _APP / 'Contents/Resources/runtime/OpenProgram.app'
 _BUNDLE_ID = 'ai.openprogram.desktop'
 _RUNTIME_BUNDLE_ID = 'ai.openprogram.runtime'
-_CAPABILITY_TARGETS = {
-    'screen_recording': (_APP, _BUNDLE_ID),
-    'accessibility': (_RUNTIME_APP, _RUNTIME_BUNDLE_ID),
-}
+def _registry_targets() -> dict[str, tuple[Path, str]]:
+    """Resolve identity targets from the system-access capability registry."""
+    try:
+        from openprogram.system_access import capability_identity_targets
+        return {
+            capability: (Path(metadata['application']), metadata['bundle_id'])
+            for capability, metadata in capability_identity_targets().items()
+        }
+    except Exception:
+        # Import-time fallback keeps legacy CLI imports usable during package
+        # bootstrap; the normal worker always resolves the registry above.
+        return {
+            'screen_recording': (_APP, _BUNDLE_ID),
+            'accessibility': (_RUNTIME_APP, _RUNTIME_BUNDLE_ID),
+        }
+
+
+_CAPABILITY_TARGETS = _registry_targets()
 
 
 def _managed_worker() -> bool:
@@ -117,9 +131,18 @@ def _valid_grant(value: object, *, capability: str, legacy: bool = False) -> boo
 
 
 def _identity_for_capability(capability: str) -> dict | None:
-    if capability == 'screen_recording':
+    target = _CAPABILITY_TARGETS.get(capability)
+    if target is None:
+        return None
+    role = None
+    try:
+        from openprogram.system_access import capability_identity_targets
+        role = capability_identity_targets().get(capability, {}).get('role')
+    except Exception:
+        pass
+    if role == 'containing_app' or capability == 'screen_recording':
         return _app_identity()
-    if capability == 'accessibility':
+    if role == 'runtime' or capability == 'accessibility':
         return _runtime_identity()
     return None
 
@@ -162,8 +185,15 @@ def _reset_screen_grant() -> None:
 
 
 def _reset_capability(capability: str) -> None:
-    service, bundle_id = {'screen_recording': ('ScreenCapture', _BUNDLE_ID),
-                          'accessibility': ('Accessibility', _RUNTIME_BUNDLE_ID)}[capability]
+    target = _CAPABILITY_TARGETS.get(capability)
+    if target is None:
+        raise ValueError(f'Unknown system capability: {capability}')
+    try:
+        from openprogram.system_access import capability_identity_targets
+        service = capability_identity_targets()[capability]['tcc_service']
+    except Exception as exc:
+        raise ValueError(f'Unknown system capability: {capability}') from exc
+    bundle_id = target[1]
     result = subprocess.run(['/usr/bin/tccutil', 'reset', service, bundle_id],
                             capture_output=True, timeout=5)
     if result.returncode:

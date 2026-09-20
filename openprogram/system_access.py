@@ -16,6 +16,8 @@ import subprocess
 import sys
 import threading
 import time
+from dataclasses import dataclass
+from types import MappingProxyType
 
 _REQUEST_LOCK = threading.Lock()
 _log = logging.getLogger(__name__)
@@ -27,25 +29,210 @@ _NATIVE_PROBE_SCRIPT = (
     'from openprogram.system_access import _native_probe_entry; '
     '_native_probe_entry()'
 )
+@dataclass(frozen=True)
+class CapabilitySpec:
+    """The single protocol definition for a host capability.
+
+    A spec is deliberately declarative.  A missing implementation is reported
+    as ``unknown``/``unsupported`` and is never interpreted as a grant.
+    """
+
+    id: str
+    label: str
+    category: str
+    subject: str
+    request_mode: str
+    platforms: tuple[str, ...] = ('Darwin',)
+    optional: bool = True
+    operations: tuple[str, ...] = ()
+    module: str | None = None
+    check_method: str | None = None
+    request_method: str | None = None
+    settings_pane: str | None = None
+    settings_label: str = 'Privacy & Security'
+    usage_key: str | None = None
+    entitlement: str | None = None
+    identity_role: str | None = None
+    identity_application: str | None = None
+    identity_bundle_id: str | None = None
+    tcc_service: str | None = None
+
+
+# Keep the two legacy rows first: old clients display the first row and their
+# wire shape remains unchanged.  All other host capabilities are represented
+# here even when the current platform backend is declaration-only.
+_CAPABILITY_SPECS = (
+    CapabilitySpec(
+        'screen_recording', 'Screen recording', 'desktop', 'containing_app',
+        'native', operations=('gui_agent:desktop',), module='Quartz',
+        check_method='CGPreflightScreenCaptureAccess',
+        request_method='CGRequestScreenCaptureAccess',
+        settings_pane='Privacy_ScreenCapture',
+        settings_label='Screen & System Audio Recording',
+        usage_key='NSScreenCaptureUsageDescription',
+        identity_role='containing_app',
+        identity_application='/Applications/OpenProgram.app',
+        identity_bundle_id='ai.openprogram.desktop', tcc_service='ScreenCapture',
+    ),
+    CapabilitySpec(
+        'accessibility', 'Desktop control', 'desktop', 'runtime', 'native',
+        operations=('gui_agent:desktop',), module='ApplicationServices',
+        check_method='AXIsProcessTrusted',
+        request_method='AXIsProcessTrustedWithOptions',
+        settings_pane='Privacy_Accessibility', settings_label='Accessibility',
+        identity_role='runtime',
+        identity_application='/Applications/OpenProgram.app/Contents/Resources/runtime/OpenProgram.app',
+        identity_bundle_id='ai.openprogram.runtime', tcc_service='Accessibility',
+    ),
+    CapabilitySpec(
+        'apple_events', 'Automation', 'integrations', 'target_app', 'targeted',
+        operations=('apple_events:*',), settings_pane='Privacy_Automation',
+        settings_label='Automation', usage_key='NSAppleEventsUsageDescription',
+    ),
+    CapabilitySpec(
+        'calendar', 'Calendar', 'integrations', 'containing_app', 'settings',
+        operations=('calendar:*',), settings_pane='Privacy_Calendars',
+        settings_label='Calendars', usage_key='NSCalendarsUsageDescription',
+    ),
+    CapabilitySpec(
+        'reminders', 'Reminders', 'integrations', 'containing_app', 'settings',
+        operations=('reminders:*',), settings_pane='Privacy_Reminders',
+        settings_label='Reminders', usage_key='NSRemindersUsageDescription',
+    ),
+    CapabilitySpec(
+        'file_read', 'File read', 'storage', 'user_selected_path', 'operation',
+        platforms=('Darwin', 'Linux', 'Windows'), operations=('file:read',),
+        settings_pane='Privacy_FilesAndFolders', settings_label='Files and Folders',
+    ),
+    CapabilitySpec(
+        'file_write', 'File write', 'storage', 'user_selected_path', 'operation',
+        platforms=('Darwin', 'Linux', 'Windows'), operations=('file:write',),
+        settings_pane='Privacy_FilesAndFolders', settings_label='Files and Folders',
+    ),
+    CapabilitySpec(
+        'microphone', 'Microphone', 'media', 'containing_app', 'settings',
+        operations=('microphone:*',), settings_pane='Privacy_Microphone',
+        settings_label='Microphone', usage_key='NSMicrophoneUsageDescription',
+    ),
+    CapabilitySpec(
+        'camera', 'Camera', 'media', 'containing_app', 'settings',
+        operations=('camera:*',), settings_pane='Privacy_Camera',
+        settings_label='Camera', usage_key='NSCameraUsageDescription',
+    ),
+)
+
+CAPABILITY_REGISTRY = MappingProxyType({spec.id: spec for spec in _CAPABILITY_SPECS})
+
+
+def capability_registry() -> tuple[CapabilitySpec, ...]:
+    """Return the immutable registry in protocol order."""
+    return _CAPABILITY_SPECS
+
+
+def capability_spec(capability: str) -> CapabilitySpec:
+    try:
+        return CAPABILITY_REGISTRY[str(capability)]
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f'Unknown system capability: {capability}') from exc
+
+
+def validate_capability_registry() -> None:
+    ids = [spec.id for spec in _CAPABILITY_SPECS]
+    if len(ids) != len(set(ids)) or any(not item for item in ids):
+        raise RuntimeError('System access capability ids must be unique and non-empty.')
+    for spec in _CAPABILITY_SPECS:
+        if spec.request_mode == 'native' and not (spec.module and spec.check_method):
+            raise RuntimeError(f'Native capability {spec.id} has no nonprompting check.')
+        if spec.request_mode in {'native', 'settings', 'targeted'} and not spec.settings_pane:
+            raise RuntimeError(f'Capability {spec.id} has no settings destination.')
+        if spec.identity_role and spec.identity_role not in {'containing_app', 'runtime'}:
+            raise RuntimeError(f'Unknown identity role for {spec.id}.')
+        for operation in spec.operations:
+            if not operation or ':' not in operation:
+                raise RuntimeError(f'Invalid operation mapping for {spec.id}.')
+
+
+validate_capability_registry()
+
+# Compatibility view used by the existing native probe tests and old callers.
 _MAC = {
-    'screen_recording': ('Screen recording', 'Quartz', 'CGPreflightScreenCaptureAccess',
-                         'Privacy & Security > Screen & System Audio Recording'),
-    'accessibility': ('Desktop control', 'ApplicationServices', 'AXIsProcessTrusted',
-                       'Privacy & Security > Accessibility'),
+    spec.id: (spec.label, spec.module, spec.check_method, spec.settings_label)
+    for spec in _CAPABILITY_SPECS if spec.request_mode == 'native'
 }
 
 
-def _mac_row(capability: str, *, status: str, detail: str) -> dict:
-    label, _, _, setting = _MAC[capability]
-    row = {'id': capability, 'label': label, 'status': 'unknown', 'optional': True,
-           'instruction': f'On this execution Mac, open System Settings > {setting}. '
-                          'Authorize the executing application shown by macOS. '
-                          'Return here to check again; if macOS requires it, restart that application.',
-           'can_request': False}
-    if status in {'granted', 'not_granted', 'unavailable'}:
-        row.update(status=status, can_request=status == 'not_granted')
-    row['detail'] = detail
+def capability_identity_targets() -> dict[str, dict[str, str]]:
+    """Return registry identity metadata without exposing mutable specs."""
+    return {
+        spec.id: {
+            'application': spec.identity_application,
+            'bundle_id': spec.identity_bundle_id,
+            'role': spec.identity_role,
+            'tcc_service': spec.tcc_service,
+        }
+        for spec in capability_registry()
+        if spec.identity_application and spec.identity_bundle_id
+    }
+
+
+def _capability_row(spec: CapabilitySpec, *, status: str, detail: str) -> dict:
+    """Build the stable row shape plus registry metadata."""
+    settings = (f'Privacy & Security > {spec.settings_label}'
+                if spec.settings_pane else 'Use the operation-specific access flow.')
+    instruction = (
+        f'On this execution Mac, open System Settings > {settings}. '
+        'Authorize the executing application shown by macOS. Return here to check again.'
+        if spec.settings_pane else
+        'Access is checked when the operation runs. Select the path or target application explicitly.'
+    )
+    row = {
+        'id': spec.id,
+        'label': spec.label,
+        'status': status,
+        'optional': spec.optional,
+        'category': spec.category,
+        'subject': spec.subject,
+        'request_mode': spec.request_mode,
+        'settings_available': bool(spec.settings_pane),
+        'settings_pane': spec.settings_pane,
+        'operations': list(spec.operations),
+        'required_operations': list(spec.operations),
+        'instruction': instruction,
+        'can_request': status == 'not_granted' and spec.request_mode == 'native',
+        'detail': detail,
+    }
+    if spec.usage_key:
+        row['usage_key'] = spec.usage_key
+    if spec.entitlement:
+        row['entitlement'] = spec.entitlement
     return row
+
+
+def _mac_row(capability: str, *, status: str, detail: str) -> dict:
+    """Legacy helper retained for callers that only know the two old ids."""
+    return _capability_row(capability_spec(capability), status=status, detail=detail)
+
+
+def _declaration_row(spec: CapabilitySpec, system: str) -> dict:
+    if system not in spec.platforms:
+        return _capability_row(
+            spec, status='unsupported',
+            detail=f'The {spec.label.lower()} backend is not supported on {system}.',
+        )
+    if spec.request_mode == 'targeted':
+        return _capability_row(
+            spec, status='unknown',
+            detail='Authorization is target-specific; provide the target application to check it.',
+        )
+    if spec.request_mode == 'operation':
+        return _capability_row(
+            spec, status='unknown',
+            detail='Authorization is scoped to the selected path and is checked by the real operation.',
+        )
+    return _capability_row(
+        spec, status='unknown',
+        detail='This capability is declared but no nonprompting backend is available in this runtime.',
+    )
 
 
 def _native_identity() -> dict[str, str]:
@@ -75,8 +262,9 @@ def _native_probe_entry() -> None:
         try:
             native = importlib.import_module(module)
             if request == capability:
+                spec = capability_spec(capability)
                 if capability == 'screen_recording':
-                    native.CGRequestScreenCaptureAccess()
+                    getattr(native, spec.request_method)()
                 else:
                     native.AXIsProcessTrustedWithOptions(
                         {native.kAXTrustedCheckOptionPrompt: True}
@@ -156,6 +344,9 @@ def _native_probe(request_capability: str | None = None, *, timeout: float = _NA
 
 
 def _mac_status(capability: str) -> dict:
+    spec = capability_spec(capability)
+    if spec.request_mode != 'native':
+        return _declaration_row(spec, 'Darwin')
     probe = _native_probe()
     if probe is None:
         return _mac_row(
@@ -175,20 +366,26 @@ def report() -> dict:
     if system == 'Darwin':
         probe = _native_probe()
         rows = []
-        for key in _MAC:
-            current = probe['capabilities'].get(key) if probe is not None else None
-            rows.append(_mac_row(
-                key,
-                status=current['status'] if current is not None else 'unknown',
-                detail=current['detail'] if current is not None
-                else 'The fresh native permission check failed; authorization is unknown.',
-            ))
-        from openprogram.system_access_identity import observe
-        rows = [observe(row) for row in rows]
+        for spec in capability_registry():
+            current = probe['capabilities'].get(spec.id) if (
+                probe is not None and spec.id in _MAC) else None
+            if current is not None:
+                row = _capability_row(spec, **current)
+            elif spec.id in _MAC:
+                row = _capability_row(
+                    spec, status='unknown',
+                    detail='The fresh native permission check failed; authorization is unknown.',
+                )
+            else:
+                row = _declaration_row(spec, system)
+            if spec.id in _MAC:
+                from openprogram.system_access_identity import observe
+                row = observe(row)
+            rows.append(row)
     elif system == 'Linux':
         wayland = bool(os.environ.get('WAYLAND_DISPLAY'))
         display = bool(os.environ.get('DISPLAY'))
-        rows = [{
+        desktop_row = {
             'id': 'desktop_session', 'label': 'Desktop access', 'optional': True,
             'status': 'unsupported' if wayland else ('unknown' if display else 'unavailable'),
             'detail': ('The current desktop input backend does not provide Wayland portal authorization.' if wayland
@@ -197,19 +394,22 @@ def report() -> dict:
             'instruction': ('Use a supported X11 desktop session or a browser/VM backend. Do not disable desktop security.' if wayland
                             else 'Run the desktop worker in the intended signed-in graphical session; browser and ordinary CLI tasks do not require desktop access.'),
             'can_request': False,
-        }]
+        }
+        rows = [desktop_row] + [_declaration_row(spec, system) for spec in capability_registry()]
     elif system == 'Windows':
         # Session names and administrator membership do not prove desktop access.
-        rows = [{
+        desktop_row = {
             'id': 'desktop_session', 'label': 'Desktop access', 'optional': True,
             'status': 'unknown', 'detail': 'Desktop access is verified when the target is opened.',
             'instruction': 'Run in the intended signed-in desktop session. Locked screens, UAC secure desktop and higher-privilege applications may be inaccessible. Do not run the whole application as administrator.',
             'can_request': False,
-        }]
+        }
+        rows = [desktop_row] + [_declaration_row(spec, system) for spec in capability_registry()]
     else:
-        rows = [{'id': 'desktop_session', 'label': 'Desktop access', 'optional': True,
+        desktop_row = {'id': 'desktop_session', 'label': 'Desktop access', 'optional': True,
                  'status': 'unsupported', 'detail': 'No desktop permission backend for this platform.',
-                 'instruction': 'Use a supported browser or remote VM backend.', 'can_request': False}]
+                 'instruction': 'Use a supported browser or remote VM backend.', 'can_request': False}
+        rows = [desktop_row] + [_declaration_row(spec, system) for spec in capability_registry()]
     application = ''
     if system == 'Darwin':
         try:
@@ -240,8 +440,12 @@ def access_manifest_for_tool(tool_name: str, args: dict | None) -> dict | None:
     snapshot = report()
     if snapshot.get('platform') != 'Darwin':
         return None
+    required_ids = {
+        spec.id for spec in capability_registry()
+        if 'gui_agent:desktop' in spec.operations
+    }
     capabilities = [dict(row) for row in snapshot.get('capabilities', ())
-                    if isinstance(row, dict) and row.get('id') in _MAC]
+                    if isinstance(row, dict) and row.get('id') in required_ids]
     missing = [row for row in capabilities if row.get('status') != 'granted']
     if not missing:
         return None
@@ -268,11 +472,13 @@ def access_manifest_for_tool(tool_name: str, args: dict | None) -> dict | None:
 
 def _open_settings(capability: str) -> bool:
     """Open only the fixed native page after an explicit user setup action."""
-    panes = {'screen_recording': 'Privacy_ScreenCapture', 'accessibility': 'Privacy_Accessibility'}
+    spec = capability_spec(capability)
+    if not spec.settings_pane:
+        return False
     try:
         appkit = importlib.import_module('AppKit')
         foundation = importlib.import_module('Foundation')
-        url = foundation.NSURL.URLWithString_('x-apple.systempreferences:com.apple.preference.security?' + panes[capability])
+        url = foundation.NSURL.URLWithString_('x-apple.systempreferences:com.apple.preference.security?' + spec.settings_pane)
         return bool(appkit.NSWorkspace.sharedWorkspace().openURL_(url))
     except Exception:
         return False
@@ -280,8 +486,14 @@ def _open_settings(capability: str) -> bool:
 
 def request_access(capability: str, *, open_settings: bool = False) -> dict:
     """Explicit local-user setup only; never call from a probe or a model tool."""
-    if platform.system() != 'Darwin' or capability not in _MAC:
+    spec = capability_spec(capability)
+    if platform.system() != 'Darwin':
         raise ValueError('No native permission request for this capability on this platform.')
+    if spec.request_mode != 'native':
+        result = _declaration_row(spec, 'Darwin')
+        if open_settings and spec.settings_pane:
+            result['settings_opened'] = _open_settings(capability)
+        return result
     if not _REQUEST_LOCK.acquire(blocking=False):
         raise RuntimeError('A system permission request is already in progress.')
     try:
