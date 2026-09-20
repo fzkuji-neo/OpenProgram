@@ -53,17 +53,25 @@ test('changing language during a check never dispatches a continuation',async()=
  await h.language();release(grant());await h.flush();assert.equal(h.resumed,0);h.unmount();
 });
 
-test('native denial prompts once; later grant remains worker-owned',async()=>{
+test('native denial never prompts automatically; later grant remains worker-owned',async()=>{
  const denied={ok:true,json:async()=>({capabilities:[{id:'screen_recording',status:'not_granted',can_request:true}]})};
  const requested={ok:true,json:async()=>({id:'screen_recording',status:'not_granted',can_request:true})};
  const h=harness(true,[denied,requested,denied,denied,grant()]);
  await h.flush();await h.poll();await h.poll();
- assert.equal(h.calls.filter(([,method])=>method==='POST').length,1);
+ assert.equal(h.calls.filter(([,method])=>method==='POST').length,0);
  assert.equal(h.resumed,0);h.unmount();
 });
 
 test('unknown capability status never triggers an authorization request',async()=>{
  const h=harness(true,[{ok:true,json:async()=>({capabilities:[{id:'screen_recording',status:'unknown',can_request:false}]})}]);
  await h.flush();assert.equal(h.calls.some(([,method])=>method==='POST'),false);
- assert.match(JSON.stringify(h.view),/could not be verified/);h.unmount();
+ assert.match(JSON.stringify(h.view),/needs attention/);h.unmount();
+});
+
+test('autoOpen only arms visible recovery and never requests native access',async()=>{
+ const denied={ok:true,json:async()=>({capabilities:[{id:'calendar',status:'not_granted',can_request:true}]})};
+ const h=harness(true,[denied,denied,denied]);
+ await h.flush(); await h.poll();
+ assert.equal(h.calls.some(([,method])=>method==='POST'),false);
+ h.unmount();
 });
