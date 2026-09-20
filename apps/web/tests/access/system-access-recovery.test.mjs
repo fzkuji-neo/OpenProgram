@@ -65,7 +65,7 @@ test('native denial never prompts automatically; later grant remains worker-owne
 test('unknown capability status never triggers an authorization request',async()=>{
  const h=harness(true,[{ok:true,json:async()=>({capabilities:[{id:'screen_recording',status:'unknown',can_request:false}]})}]);
  await h.flush();assert.equal(h.calls.some(([,method])=>method==='POST'),false);
- assert.match(JSON.stringify(h.view),/needs attention/);h.unmount();
+ assert.match(JSON.stringify(h.view),/Waiting for system authorization/);h.unmount();
 });
 
 test('autoOpen only arms visible recovery and never requests native access',async()=>{
