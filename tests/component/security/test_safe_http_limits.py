@@ -822,14 +822,22 @@ def test_fdopen_failure_closes_download_descriptor_and_removes_temp(
     monkeypatch, tmp_path, asynchronous
 ):
     descriptors: list[int] = []
+    closed_descriptors: list[int] = []
     real_mkstemp = safe_http.tempfile.mkstemp
+    real_close = safe_http.os.close
 
     def record_mkstemp(*args, **kwargs):
         descriptor, name = real_mkstemp(*args, **kwargs)
         descriptors.append(descriptor)
         return descriptor, name
 
+    def record_close(descriptor):
+        real_close(descriptor)
+        if descriptor in descriptors:
+            closed_descriptors.append(descriptor)
+
     monkeypatch.setattr(safe_http.tempfile, "mkstemp", record_mkstemp)
+    monkeypatch.setattr(safe_http.os, "close", record_close)
     monkeypatch.setattr(
         safe_http.os,
         "fdopen",
@@ -862,8 +870,9 @@ def test_fdopen_failure_closes_download_descriptor_and_removes_temp(
             client.download("https://public.test/resource", destination)
 
     assert len(descriptors) == 1
-    with pytest.raises(OSError):
-        os.fstat(descriptors[0])
+    # Observe the successful close, not the later state of its integer: an
+    # event loop or background thread may already have reused that number.
+    assert descriptors[0] in closed_descriptors
     assert list(tmp_path.iterdir()) == []
 
 

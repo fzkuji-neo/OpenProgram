@@ -139,7 +139,7 @@ def _identity_for_capability(capability: str) -> dict | None:
         from openprogram.system_access import capability_identity_targets
         role = capability_identity_targets().get(capability, {}).get('role')
     except Exception:
-        pass
+        return None
     if role == 'runtime':
         return _runtime_identity()
     if role == 'containing_app':
