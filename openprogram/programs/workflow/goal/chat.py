@@ -53,6 +53,13 @@ def publish(session_id: str, goal: dict) -> dict:
     return goal
 
 
+def continuation_policy() -> dict:
+    """Completion provenance; canonical control remains the ownership authority."""
+    from openprogram.execution.process_owner import current_process_owner
+    from openprogram.execution.restart import window_seconds
+    return {"process": current_process_owner(), "window_seconds": window_seconds()}
+
+
 @serialized
 def create(session_id: str, objective: str, token_budget: int | None = None, *,
            max_rounds: int | None = None, max_elapsed_s: float | None = None,
@@ -84,6 +91,7 @@ def create(session_id: str, objective: str, token_budget: int | None = None, *,
         "active_started_at": now if get_current_execution_id() else None,
         "questions": [], "pending_answers": [], "checklist": [],
         "stop_requested": False, "last_reason": "",
+        "continuation_policy": continuation_policy(),
     }
     goals.reset_goal_usage_cursor(session_id, goal)
     publish(session_id, goal)
@@ -170,6 +178,8 @@ def resume(session_id: str, expected: dict | None = None) -> dict:
     goal["goal_id"] = goal.get("goal_id") or uuid.uuid4().hex
     goal.pop("roles", None)
     goal.pop("role_requests", None)
+    goal.pop("continuation_restart", None)
+    goal["continuation_policy"] = continuation_policy()
     goals.reset_goal_usage_cursor(session_id, goal)
     return publish(session_id, goal)
 
@@ -210,14 +220,8 @@ def turn_context(session_id: str, execution_id: str, expected: dict | None = Non
                 goals.check_goal_preconditions(goal or {}, expected)
                 if goal.get("status") != "active" or goal.get("execution_id") != execution_id:
                     raise goals.GoalConflictError("Goal changed before the admitted turn started")
-                from openprogram.execution.process_owner import current_process_owner
-                from openprogram.execution.restart import window_seconds
                 goal.update(phase="working", active_started_at=time.time())
-                # Provenance for an undelivered completion, not an execution
-                # lease: canonical control remains the ownership authority.
-                goal["continuation_policy"] = {
-                    "process": current_process_owner(), "window_seconds": window_seconds(),
-                }
+                goal["continuation_policy"] = continuation_policy()
                 publish(session_id, goal)
         yield
     finally:
@@ -346,6 +350,12 @@ def _continuation_ready(store, session_id: str, previous_execution_id: str, expe
         pending = goal.get("continuation_restart")
         policy = goal.get("continuation_policy") or {}
         origin = policy.get("process")
+        if not origin:
+            goal.update(status="paused_recoverable", phase="paused",
+                        pause_reason="restart_provenance_unknown",
+                        last_reason="Saved Goal has no continuation provenance; explicitly resume to continue")
+            publish(session_id, goal)
+            return False
         current = current_process_owner()
         restarted = bool(origin and any(origin.get(key) != current.get(key)
                                         for key in ("host", "pid", "start")))
