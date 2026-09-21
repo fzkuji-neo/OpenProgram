@@ -6,7 +6,7 @@ Goal 让目标跨普通聊天轮次保持有效。当前 agent 使用会话的�
 
 输入 `/goal <目标>`，或使用 **Programs → Workflow → goal → Use**。表单启动聊天 Goal，不执行 Python Workflow。也可以明确要求 agent 创建 Goal。
 
-agent 使用 `todo_create`、`todo_update` 和 `todo_list` 维护多步骤工作计划。Goal 工作期间创建的 todo 关联目标及其 revision。每轮结束后，Goal 详情显示计划进度。目标独立于计划保存：全部勾选不能单独证明目标已完成。
+agent 使用 `todo_create`、`todo_update` 和 `todo_list` 维护多步骤工作计划。Goal 工作期间创建的 todo 关联目标及其 revision。todo 修改成功后，Goal 详情刷新计划进度，回合结束时再次核对。进度通知失败不会撤销已经保存的 todo。目标独立于计划保存：全部勾选不能单独证明目标已完成。
 
 agent 调用 `update_goal(status="complete")` 前，必须用当前实际证据核实每项要求。关联 todo 尚未完成时，runtime 拒绝标记完成。这是结构检查，不是独立语义验证。简单目标不必为了形式创建 todo。
 

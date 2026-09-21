@@ -130,6 +130,60 @@ def test_chat_goal_completion_rejects_unfinished_todos(session, monkeypatch):
     assert goals.load_goal("chat-goal")["status"] == "active"
 
 
+def test_todo_tools_publish_current_goal_progress(session, monkeypatch, tmp_path):
+    from openprogram.programs.workflow.goal import chat
+    from openprogram.programs.tools.planning.todo import shared
+    from openprogram.programs.tools.planning.todo.todo_create.todo_create import _todo_create_impl
+    from openprogram.programs.tools.planning.todo.todo_update.todo_update import _todo_update_impl
+    goals, _ = session
+    monkeypatch.setattr(shared, "todos_path", lambda sid: tmp_path / "todos.json")
+    monkeypatch.setattr(shared, "current_session_id", lambda: "chat-goal")
+    goal = chat.create("chat-goal", "verify")
+    monkeypatch.setattr(chat, "current_identity", lambda: chat.identity(goal))
+    assert "created" in _todo_create_impl("verify")
+    assert goals.load_goal("chat-goal")["checklist"] == [{"text": "verify", "done": False}]
+    assert "updated" in _todo_update_impl("1", status="completed")
+    saved = goals.load_goal("chat-goal")
+    assert saved["checklist"] == [{"text": "verify", "done": True}]
+    assert saved["status"] == "active"
+    goal = saved
+    goal["revision"] += 1
+    goals.save_goal("chat-goal", goal)
+    assert "updated" in _todo_update_impl("1", subject="old revision")
+    assert goals.load_goal("chat-goal")["checklist"] == []
+
+
+def test_todo_saved_success_survives_goal_projection_failure(session, monkeypatch, tmp_path):
+    from openprogram.programs.workflow.goal import chat
+    from openprogram.programs.tools.planning.todo import shared
+    from openprogram.programs.tools.planning.todo.todo_create.todo_create import _todo_create_impl
+    from openprogram.programs.tools.planning.todo.todo_update.todo_update import _todo_update_impl
+    goals, _ = session
+    monkeypatch.setattr(shared, "todos_path", lambda sid: tmp_path / "todos.json")
+    monkeypatch.setattr(shared, "current_session_id", lambda: "chat-goal")
+    goal = chat.create("chat-goal", "verify")
+    monkeypatch.setattr(chat, "current_identity", lambda: chat.identity(goal))
+    refresh = chat.refresh_todos
+    def unavailable(_sid):
+        raise goals.GoalConflictError("busy")
+    monkeypatch.setattr(chat, "refresh_todos", unavailable)
+    assert "created" in _todo_create_impl("verify")
+    assert "updated" in _todo_update_impl("1", status="completed")
+    assert shared.load("chat-goal")[0]["status"] == "completed"
+    refresh("chat-goal")
+    assert goals.load_goal("chat-goal")["checklist"] == [{"text": "verify", "done": True}]
+
+
+def test_todo_refresh_preserves_legacy_goal_checklist(session):
+    from openprogram.programs.workflow.goal import chat
+    goals, _ = session
+    goal = chat.create("chat-goal", "verify")
+    goal.update(execution_mode="workflow", checklist=[{"text": "legacy", "done": False}])
+    goals.save_goal("chat-goal", goal)
+    chat.refresh_todos("chat-goal")
+    assert goals.load_goal("chat-goal")["checklist"] == goal["checklist"]
+
+
 def test_old_revision_cannot_complete_new_goal(session):
     from openprogram.programs.workflow.goal import chat
     goals, _ = session

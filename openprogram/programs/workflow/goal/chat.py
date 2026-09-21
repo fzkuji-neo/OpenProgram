@@ -101,6 +101,23 @@ def todos(session_id: str, goal: dict) -> list[dict]:
             and item.get("goal_revision") == goal.get("revision")]
 
 
+def project_todos(session_id: str, goal: dict) -> list[dict]:
+    return [{"text": item["subject"], "done": item["status"] == "completed"}
+            for item in todos(session_id, goal)]
+
+
+@serialized
+def refresh_todos(session_id: str) -> None:
+    """Publish the current revision's plan without changing Goal lifecycle."""
+    goal = goals.load_goal(session_id)
+    if not goal or goal.get("execution_mode") != "chat":
+        return
+    checklist = project_todos(session_id, goal)
+    if checklist != goal.get("checklist"):
+        goal["checklist"] = checklist
+        publish(session_id, goal)
+
+
 @serialized
 def update(session_id: str, status: str, *, expected: dict | None) -> dict:
     goal = goals.load_goal(session_id)
@@ -263,8 +280,7 @@ def after_terminal(store, execution):
             goal["turns_used"] = int(goal.get("turns_used") or 0) + 1
             goal["run_turns"] = int(goal.get("run_turns") or 0) + 1
             goal["accounted_execution_id"] = execution.execution_id
-            goal["checklist"] = [{"text": item["subject"], "done": item["status"] == "completed"}
-                                 for item in todos(sid, goal)]
+            goal["checklist"] = project_todos(sid, goal)
             if execution.status != ExecutionStatus.COMPLETED and goal.get("status") == "active" and not stale_revision:
                 goal.update(status="paused_recoverable", phase="paused",
                             last_reason=execution.reason_code or execution.status.value)
