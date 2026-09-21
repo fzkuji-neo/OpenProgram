@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 def _new_usage() -> dict[str, Any]:
     return {
+        "tokens_reported": False,
         "input": 0, "output": 0, "cache_read": 0, "cache_write": 0,
         "total_tokens": 0,
         "cost": {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "total": 0},
@@ -612,6 +613,7 @@ def _handle_metadata_bedrock(
 ) -> None:
     usage = event.get("usage", {})
     if usage:
+        output["usage"]["tokens_reported"] = all(usage.get(key) is not None for key in ("inputTokens", "outputTokens"))
         output["usage"]["input"] = usage.get("inputTokens", 0) or 0
         output["usage"]["output"] = usage.get("outputTokens", 0) or 0
         output["usage"]["cache_read"] = usage.get("cacheReadInputTokens", 0) or 0

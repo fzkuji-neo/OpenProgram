@@ -62,9 +62,16 @@ def get_models(provider: str | None = None) -> list[Model]:
     return models
 
 
-def calculate_cost(model: Model, usage: Usage) -> float:
+def calculate_cost(model: Model, usage: Usage | dict) -> float:
     """Calculate total cost in USD from usage and model pricing. Also mutates usage.cost."""
     from openprogram.providers.types import UsageCost
+
+    if isinstance(usage, dict):
+        # Bedrock and Gemini CLI normalize dictionary-shaped streamed output.
+        normalized = Usage.model_validate(usage)
+        total = calculate_cost(model, normalized)
+        usage["cost"] = normalized.cost.model_dump()
+        return total
 
     input_cost = usage.input / 1_000_000 * (model.cost.input or 0.0)
     output_cost = usage.output / 1_000_000 * (model.cost.output or 0.0)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from contextlib import contextmanager
 from types import SimpleNamespace
 
@@ -363,3 +364,91 @@ def test_canonical_turn_freezes_actual_execution_and_mid_turn_goal(runtime, tmp_
     with meter.read() as conn:
         row = conn.execute("SELECT goal_id, execution_id FROM usage_events WHERE request_id IS NOT NULL").fetchone()
     assert tuple(row) == (saved["goal_id"], admission.execution_id)
+
+
+@pytest.mark.parametrize("adapter", ["responses", "google", "bedrock", "gemini_cli"])
+@pytest.mark.parametrize("reported", [False, True])
+def test_real_adapter_zero_and_missing_usage_remain_distinct(runtime, monkeypatch, adapter, reported):
+    goals, chat, meter, goal = runtime
+    m = model()
+
+    class Provider:
+        requires_credentials = False
+
+        async def stream_simple(self, m, context, options):
+            if adapter == "responses":
+                from openprogram.providers._shared.openai_responses import process_responses_stream
+                output = AssistantMessage(content=[], api=m.api, provider=m.provider, model=m.id, timestamp=0)
+                async def events():
+                    response = {"status": "completed"}
+                    if reported:
+                        response["usage"] = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+                    yield {"type": "response.completed", "response": response}
+                await process_responses_stream(events(), output, SimpleNamespace(push=lambda event: None), m)
+                yield final(m, output.usage).model_dump()
+            elif adapter == "bedrock":
+                from openprogram.providers.amazon_bedrock import amazon_bedrock as bedrock
+                output = {"usage": bedrock._new_usage()}
+                bedrock._handle_metadata_bedrock(
+                    {"usage": {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}} if reported else {}, m, output)
+                yield {"type": "done", "message": {**final(m, Usage()).message.model_dump(), "usage": output["usage"]}}
+            elif adapter == "google":
+                from google import genai
+                from google.genai import types
+                from openprogram.providers.google import google
+                class Models:
+                    async def generate_content_stream(self, **kwargs):
+                        async def chunks():
+                            yield types.GenerateContentResponse(candidates=[], usage_metadata=(
+                                types.GenerateContentResponseUsageMetadata(prompt_token_count=0, candidates_token_count=0,
+                                                                           total_token_count=0) if reported else None))
+                        return chunks()
+                monkeypatch.setattr(genai, "Client", lambda **kw: SimpleNamespace(aio=SimpleNamespace(models=Models())))
+                from openprogram.providers.types import SimpleStreamOptions
+                async for event in google.stream_simple(m, context, SimpleStreamOptions(api_key="test")):
+                    yield event
+            else:
+                from openprogram.providers.google_gemini_cli import google_gemini_cli as cli
+                class Response:
+                    status_code = 200
+                    async def __aenter__(self):
+                        return self
+                    async def __aexit__(self, *args):
+                        return None
+                    async def aiter_lines(self):
+                        chunk = {"candidates": []}
+                        if reported:
+                            chunk["usageMetadata"] = {"promptTokenCount": 0, "candidatesTokenCount": 0, "totalTokenCount": 0}
+                        yield "data: " + json.dumps(chunk)
+                class Client(Response):
+                    def stream(self, *args, **kwargs):
+                        return Response()
+                monkeypatch.setattr(cli, "build_async_client", lambda **kwargs: Client())
+                async for event in cli.stream_google_gemini_cli(m, context, {"api_key": "test", "project_id": "test"}):
+                    yield event
+
+    with bound(chat, goal):
+        run(Provider(), m)
+    usage = goals.load_goal("goal-usage")["usage"]
+    assert usage["tokens_known"] is reported
+    assert usage["cost_known"] is reported
+    assert usage["total_tokens"] == 0
+
+
+def test_provider_factory_failure_cannot_be_reported_as_no_request(runtime):
+    goals, chat, meter, goal = runtime
+    invoked = []
+    class Provider:
+        requires_credentials = False
+
+        def stream_simple(self, *args):
+            # A plugin can perform synchronous I/O before returning an iterator.
+            invoked.append(True)
+            raise RuntimeError("lost response before iterator returned")
+
+    with bound(chat, goal), pytest.raises(RuntimeError, match="lost response"):
+        run(Provider())
+    assert invoked == [True]
+    usage = goals.load_goal("goal-usage")["usage"]
+    assert usage["requests"] == 1
+    assert usage["unknown_token_requests"] == 1
