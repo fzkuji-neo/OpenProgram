@@ -11,9 +11,9 @@ Extracted from dispatcher/__init__.py (dispatcher-split step 2):
 Title lock markers (the single authoritative scheme — every entry point
 must use these, never a third name):
 
-  _user_titled     bool  user manually renamed → permanent lock; auto-
+  _user_titled     bool  user requested a rename → permanent lock; auto-
                          titling never runs again. Set ONLY by the rename
-                         action when the user typed a name.
+                         action for a typed or explicitly generated name.
   _auto_titled     bool  the auto-titler has produced at least one title
                          (phase-1 truncation or any LLM write) → "don't
                          re-truncate" dedup guard. Set ONLY here.

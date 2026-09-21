@@ -561,30 +561,57 @@ async def handle_rename_session(ws, cmd: dict):
     from openprogram.agent.session_db import default_db
 
     session_id = cmd.get("session_id")
-    if not session_id:
+
+    async def reply(status: str, title: str | None = None):
+        await ws.send_text(json.dumps({
+            "type": "session_rename_result",
+            "data": {"session_id": session_id, "action": "rename_session",
+                     "request_id": cmd.get("request_id"), "status": status,
+                     "title": title},
+        }))
+
+    db = default_db()
+    before = db.get_session(session_id) if isinstance(session_id, str) else None
+    if not before:
+        await reply("failed")
         return
-
     title = cmd.get("title")
-    if isinstance(title, str):
-        title = title.strip()
-
+    if title is not None and not isinstance(title, str):
+        await reply("failed")
+        return
+    title = (title or "").strip()
     if not title:
-        title = _llm_rename(session_id)
-        if not title:
+        try:
+            title = await asyncio.wait_for(asyncio.to_thread(_llm_rename, session_id), 60)
+        except Exception as exc:
+            _s._log(f"[rename_session] {session_id}: {type(exc).__name__}")
+            await reply("failed")
             return
-
-    is_user_typed = bool(cmd.get("title", "").strip())
+        current = db.get_session(session_id)
+        if (not current or current.get("title") != before.get("title")
+                or (current.get("extra_meta") or {}).get("_user_titled")
+                != (before.get("extra_meta") or {}).get("_user_titled")):
+            await reply("superseded")
+            return
+        if not isinstance(title, str) or not title.strip():
+            await reply("failed")
+            return
+        title = title.strip()
     try:
-        kw = {"title": title}
-        if is_user_typed:
-            kw["_user_titled"] = True
-        default_db().update_session(session_id, **kw)
-    except Exception as e:
-        _s._log(f"[rename_session] {session_id}: {e}")
+        # Both menu actions express the user's choice, protecting it from
+        # subsequent background titling.
+        db.update_session(session_id, title=title, _user_titled=True)
+    except Exception as exc:
+        _s._log(f"[rename_session] {session_id}: {type(exc).__name__}")
+        await reply("failed")
+        return
+    if session_id in _s._sessions:
+        _s._sessions[session_id]["title"] = title
     _s._broadcast(json.dumps({
         "type": "session_updated",
         "data": {"id": session_id, "title": title},
     }, default=str))
+    await reply("ok", title)
 
 
 def _llm_rename(session_id: str) -> str | None:
@@ -606,8 +633,15 @@ def _llm_rename(session_id: str) -> str | None:
         if user_text and assistant_text:
             break
     if not user_text:
+        # Function-only sessions have execution records rather than user turns.
+        user_text = (db.get_session(session_id) or {}).get("title") or ""
+        assistant_text = next((
+            msg.get("content", "") for msg in reversed(history)
+            if msg.get("role") == "code" and isinstance(msg.get("content"), str)
+        ), assistant_text)
+    if not user_text:
         return None
-    return _generate_llm_title(user_text, assistant_text)
+    return _generate_llm_title(str(user_text), str(assistant_text))
 
 
 async def handle_update_session_flags(ws, cmd: dict):
