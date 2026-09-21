@@ -1469,7 +1469,11 @@ def test_snapshot_distinguishes_ended_provider_receipt_from_action_attention(tmp
     monkeypatch.setattr("openprogram.execution.default_store", lambda: store)
     observed = goal_execution_state({"execution_id": ended.execution_id}, ended.session_id)
     assert observed["finished"] is False
-    assert observed["can_start_new_turn"] is (orphan and attention in {None, "cancel", "cancel_applying"})
+    # A new inspection turn is allowed for either unknown outcome, but it
+    # never resumes the old tool invocation or resolves its effect receipt.
+    assert observed["can_start_new_turn"] is (attention in {None, "cancel", "cancel_applying"})
+    if observed["can_start_new_turn"]:
+        assert observed["recovery_mode"] == "restricted_new_turn"
 
 
 def test_normal_provider_completion_records_continuation_without_pause(tmp_path):

@@ -167,7 +167,7 @@ export function GoalChip() {
 function useGoalExecution(sessionId: string, goal: GoalState, enabled: boolean) {
   const connection = useSessionStore((state) => state.wsStatus);
   const identity = `${sessionId}:${goal.run_id}:${goal.execution_id}:${goal.version}`;
-  const [observation, setObservation] = useState<{ identity?: string; status?: string; finished?: boolean | null; can_start_new_turn?: boolean; provider_response_incomplete?: boolean; fresh: boolean }>({ fresh: false });
+  const [observation, setObservation] = useState<{ identity?: string; status?: string; finished?: boolean | null; can_start_new_turn?: boolean; provider_response_incomplete?: boolean; recovery_mode?: string | null; recovery_reason?: string | null; fresh: boolean }>({ fresh: false });
   const request = useRef(0);
   const controller = useRef<AbortController>();
   const refresh = useCallback(async () => {
@@ -233,10 +233,13 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
   const unsaved = draft.dirty;
   const execution = useGoalExecution(sessionId, goal, open || !!goal.stop_requested || resumable);
   const stopped = execution.fresh && execution.finished === true;
-  const canResume = execution.fresh && (execution.can_start_new_turn === true || execution.finished === true);
+  const canResume = execution.fresh && (execution.can_start_new_turn ?? execution.finished) === true;
   const stopPending = !!goal.stop_requested && !!goal.execution_id && !stopped;
   const executionLabel = !goal.execution_id ? text("Stop takes effect at the next Goal boundary; no execution record.", "停止在下一个 Goal 边界生效；无执行记录。")
     : !execution.fresh || execution.status === "unavailable" ? text("Execution status unknown", "执行状态未知")
+    : execution.recovery_mode === "restricted_new_turn" && canResume ? text("Previous action outcomes are unknown. Resume starts a new turn to inspect current state; new side effects require confirmation.", "旧操作结果未知。继续会开始新轮次检查实际状态；新的副作用操作需要确认。")
+    : execution.recovery_reason === "pending_wait" ? text("Answer the pending approval or question in Activity before resuming.", "请先在 Activity 中处理待办审批或问题，再继续。")
+    : execution.recovery_reason === "active_children" ? text("Child executions are still active. Inspect their status in Activity.", "子任务仍未结束，请在 Activity 中检查其状态。")
     : stopped ? text("Execution stopped", "执行已停止")
     : execution.provider_response_incomplete && canResume ? text("Previous model response is incomplete. Resume starts a new chat turn without repeating external actions.", "上一轮模型响应记录不完整。继续将开始新聊天轮次，不自动重放外部操作。")
     : execution.status === "reconciliation_required" ? text("An action result needs confirmation. Inspect the execution in Activity before retrying; Resume is disabled to prevent duplicate actions.", "操作结果需要确认。请在 Activity 中检查执行记录后再重试；继续暂不可用，以防重复执行。")

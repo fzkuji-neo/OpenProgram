@@ -14,6 +14,37 @@ from .shared import (
 
 
 class RecoveryOperations:
+    def close_interrupted_chat(self, execution_id: str, *, expected_version: int):
+        """Close only the dead frame. Unknown effects stay in the durable ledger."""
+        from ..chat_recovery import recovery_state
+        with self.executions._transaction() as connection:
+            execution = self.executions._require_execution(connection, execution_id)
+            if execution.status_version != expected_version:
+                raise ExecutionConflict("stale_version", "Interrupted chat changed")
+            state = recovery_state(self.executions, execution, allow_cancel=True)
+            if not state["can_start_new_turn"]:
+                raise ExecutionConflict("recovery_unavailable", str(state["recovery_reason"]))
+            if execution.status in TERMINAL_EXECUTION_STATUSES:
+                return execution
+            if execution.status is ExecutionStatus.CANCELLING:
+                execution = self.executions._transition_execution(
+                    connection, execution_id, expected_version=execution.status_version,
+                    target=ExecutionStatus.RECONCILIATION_REQUIRED, reason_code="effect_reconciliation")
+            closed = self.executions._transition_execution(
+                connection, execution_id, expected_version=execution.status_version,
+                target=ExecutionStatus.INTERRUPTED, reason_code="restart_new_turn",
+                clear_owner=True,
+            )
+            self._reconcile_terminal_cancel(closed, connection)
+            for row in connection.execute(
+                "SELECT command_id FROM commands WHERE execution_id = ? AND kind = ? AND status = ?",
+                (execution_id, CommandKind.CANCEL.value, CommandStatus.ACCEPTED.value),
+            ).fetchall():
+                self.executions._transition_command(connection, row["command_id"],
+                    expected_status=CommandStatus.ACCEPTED, target=CommandStatus.REJECTED,
+                    result_version=closed.status_version, rejection_code="execution_terminal")
+            return closed
+
     def recover_owner_loss(
         self,
         execution_id: str,
@@ -111,11 +142,15 @@ class RecoveryOperations:
                     connection.execute("UPDATE effects SET status = 'committed', receipt_json = ?, updated_at = ?, resolved_at = ? WHERE effect_id = ?", (_json(receipt), now, now, aggregate["effect_id"]))
                     self.effects._append_event(connection, execution.status_version, self.effects._require(connection, aggregate["effect_id"]), now)
             restart_pending = False
-            agent_input = self.executions.get_agent_turn_input(execution_id)
+            restart_new_turn = False
+            agent_input = (self.executions.get_agent_turn_input(execution_id)
+                           or self.executions.get_job_agent_input(execution_id))
+            is_job = isinstance(agent_input, Mapping) and agent_input.get("kind") == "job_agent"
             if (
                 execution.status is ExecutionStatus.RUNNING
                 and isinstance(agent_input, Mapping)
-                and agent_input.get("kind") == "chat"
+                and agent_input.get("kind") in {"chat", "job_agent"}
+                and (not is_job or only_if_abandoned)
             ):
                 # A provider request is an execution-local uncertainty.  It
                 # has no external tool effect and can be safely classified as
@@ -187,14 +222,17 @@ class RecoveryOperations:
                     (execution_id, CommandKind.PAUSE.value, CommandKind.CANCEL.value,
                      CommandStatus.ACCEPTED.value, CommandStatus.APPLYING.value),
                 ).fetchone() is not None
-                request = agent_input.get("request") if isinstance(agent_input, Mapping) else {}
+                request = agent_input.get("turn_request" if is_job else "request", {})
                 interaction = request.get("interaction") if isinstance(request, Mapping) else None
                 restart_pending = (
                     not unresolved_rows
                     and not control_pending
-                    and interaction not in {"spawn", "merge"}
+                    and (is_job or interaction not in {"spawn", "merge"})
                     and cursor_covers_tools
                 )
+                restart_new_turn = (not is_job and not restart_pending and not control_pending
+                                    and interaction in {None, "interactive"}
+                                    and request.get("source") in {"web", "tui", "acp"})
 
             unresolved = connection.execute(
                 "SELECT 1 FROM effects WHERE execution_id = ? "
@@ -291,6 +329,12 @@ class RecoveryOperations:
                 record_intent(self.executions, connection, recovered,
                               interrupted_at=max(prior.updated_at, execution.updated_at),
                               seconds=window_seconds())
+            elif restart_new_turn:
+                from ..restart import record_intent, window_seconds
+                prior = self.attempts._require(connection, execution.current_attempt_id)
+                record_intent(self.executions, connection, recovered,
+                              interrupted_at=max(prior.updated_at, execution.updated_at),
+                              seconds=window_seconds(), mode="new_turn")
             attempt = None
             if execution.current_attempt_id is not None:
                 attempt = self.attempts._require(
@@ -358,6 +402,32 @@ class RecoveryOperations:
                     result_version=recovered.status_version,
                     rejection_code="owner_lost_before_checkpoint",
                 )
+            # A cooperative worker shutdown can die before its pause reaches
+            # a safe point. Preserve that exact restart intent, not a user pause.
+            if (command is not None and command.kind is CommandKind.PAUSE
+                    and recovered.status in {ExecutionStatus.RECONCILIATION_REQUIRED, ExecutionStatus.INTERRUPTED}
+                    and isinstance(agent_input, Mapping) and agent_input.get("kind") == "chat"
+                    and agent_input.get("request", {}).get("source") in {"web", "tui", "acp"}
+                    and agent_input.get("request", {}).get("interaction") in {None, "interactive"}):
+                row = connection.execute(
+                    "SELECT sequence, payload_json FROM execution_events WHERE execution_id = ? "
+                    "AND kind = 'execution.restart.requested' "
+                    "AND json_extract(payload_json, '$.pause_command_id') = ? ORDER BY sequence DESC LIMIT 1",
+                    (execution_id, command.command_id),
+                ).fetchone()
+                if row is not None:
+                    if command.status is CommandStatus.APPLYING:
+                        command = self.executions._transition_command(connection, command.command_id,
+                            expected_status=CommandStatus.APPLYING, target=CommandStatus.REJECTED,
+                            result_version=recovered.status_version, rejection_code="restart_new_turn")
+                    data = json.loads(row["payload_json"])
+                    self.executions._append_event(connection, execution_id=execution_id,
+                        execution_version=recovered.status_version, kind="execution.restart.requested",
+                        payload=dict(data, mode="new_turn", expected_version=recovered.status_version,
+                                     pause_command_id=None), created_at=time.time())
+                    self.executions._append_event(connection, execution_id=execution_id,
+                        execution_version=recovered.status_version, kind="execution.restart.settled",
+                        payload=dict(request_sequence=row["sequence"], outcome="pause_interrupted"), created_at=time.time())
         if attempt is not None:
             self.registry.unbind(
                 execution_id,

@@ -150,6 +150,44 @@ def test_background_spawn_has_one_canonical_execution_and_no_inner_exec_identity
     assert identities <= {job_id}
 
 
+def test_abandoned_provider_only_job_requeues_same_authorized_resource_admission(durable_job, monkeypatch):
+    from openprogram.execution.effects import EffectClassification, EffectStatus, EffectStore
+    from openprogram.execution.restart import reconcile
+    runner, _ledger, execution_store, _db = durable_job
+    # Exercise startup's consumer synchronously, without the fixture's live
+    # dispatcher racing our simulated abandoned owner.
+    runner._shutdown_event.set()
+    runner._dispatch_wake.set()
+    for thread in (runner._dispatcher_thread, runner._reconciler_thread, runner._budget_thread):
+        thread.join(timeout=5)
+        assert not thread.is_alive()
+    runner._shutdown_event.clear()
+    monkeypatch.setattr("openprogram.execution.restart.window_seconds", lambda: -1)
+    monkeypatch.setattr("openprogram.execution.process_owner.process_owner_may_be_alive", lambda *a, **kw: False)
+    job_id, execution = _execution(runner, execution_store)
+    store = execution_store()
+    original = store.get_job_agent_input(job_id)
+    control = runner._execution_control
+    leased, reserved = control.attempts.lease(job_id, expected_version=execution.status_version,
+                                             owner_id="abandoned-worker", ttl_seconds=30)
+    active, _ = control.attempts.activate(leased.attempt_id, generation=leased.generation,
+                                        expected_execution_version=reserved.status_version)
+    effects = EffectStore(store)
+    effects.register(effect_id="provider-interrupted", execution_id=job_id, attempt_id=active.attempt_id,
+                     action_id="provider", classification=EffectClassification.NONREPEATABLE,
+                     idempotency_key=None, metadata={"kind": "provider.before"})
+    effects.mark_dispatched("provider-interrupted", expected_status=EffectStatus.PLANNED)
+    recovered = control.recover_owner_loss(job_id, only_if_abandoned=True)
+    assert recovered.execution.status.value == "paused"
+    reconcile(runner)
+    assert store.get_job_agent_input(job_id) == original
+    assert len(store.list_for_session(execution.session_id)) == 1
+    assert effects.get("provider-interrupted").status is EffectStatus.NOT_COMMITTED
+    commands = store.list_commands(job_id)
+    from openprogram.execution.model import CommandKind
+    assert any(c.kind is CommandKind.CONTINUE and c.actor.get("surface") == "worker-restart" for c in commands)
+
+
 def test_job_negotiates_the_agent_safe_points(durable_job):
     runner, _ledger, execution_store, _db = durable_job
     job_id, execution = _execution(runner, execution_store)

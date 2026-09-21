@@ -51,40 +51,18 @@ def goal_execution_state(goal: dict, session_id: str = "") -> dict:
         execution = store.get_execution(execution_id)
         if execution is None or (session_id and execution.session_id != session_id):
             return unavailable
-        active = store.list_nonterminal(session_id=execution.session_id)
-        known = {item.execution_id: item for item in active}
-        known[execution_id] = execution
-        descendants = []
-        for child in active:
-            if child.execution_id == execution_id:
-                continue
-            parent_id = child.parent_execution_id
-            seen = {child.execution_id}
-            while parent_id:
-                if parent_id == execution_id:
-                    descendants.append(child.execution_id)
-                    break
-                if parent_id in seen:
-                    return unavailable
-                seen.add(parent_id)
-                parent = known.get(parent_id)
-                if parent is None:
-                    parent = store.get_execution(parent_id)
-                    if parent is None or parent.session_id != execution.session_id:
-                        return unavailable
-                    known[parent_id] = parent
-                parent_id = parent.parent_execution_id
+        from openprogram.execution.chat_recovery import recovery_state
+        recovery = recovery_state(store, execution, allow_cancel=True)
         from openprogram.execution.public import _effect_summary
         provider_incomplete = _effect_summary(store, execution).get("provider_response_incomplete") is True
-        finished = execution.status in TERMINAL_EXECUTION_STATUSES and not descendants
+        finished = execution.status in TERMINAL_EXECUTION_STATUSES and not recovery["active_children"]
         return {
             "execution_id": execution_id,
             "status": execution.status.value,
             "status_version": execution.status_version,
-            "active_children": descendants,
             "finished": finished,
-            "can_start_new_turn": finished or (provider_incomplete and not descendants),
             "provider_response_incomplete": provider_incomplete,
+            **recovery,
         }
     except Exception:
         return unavailable

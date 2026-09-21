@@ -233,6 +233,10 @@ class ExecutionStore(StateBlobsOperations, FinishRepairOperations, ProjectionsOp
         return record
 
 
+    @staticmethod
+    def admission_execution_id(session_id: str, key: str) -> str:
+        return "exec_" + hashlib.sha256(_json([session_id, key]).encode()).hexdigest()
+
     def admit_execution(
         self,
         *,
@@ -253,6 +257,8 @@ class ExecutionStore(StateBlobsOperations, FinishRepairOperations, ProjectionsOp
         agent_turn_payload: Mapping[str, Any] | None = None,
         job_agent_payload: Mapping[str, Any] | None = None,
         track_process_owner: bool = False,
+        admission_key: str | None = None,
+        recovery_from: tuple[str, int] | None = None,
     ) -> ExecutionRecord:
         """Admit one execution and its immutable input in one transaction."""
         if not input_ref or not input_hash or not entrypoint or not config_snapshot_ref:
@@ -282,6 +288,40 @@ class ExecutionStore(StateBlobsOperations, FinishRepairOperations, ProjectionsOp
         if job_payload_json is not None and hashlib.sha256(job_payload_json.encode("utf-8")).hexdigest() != input_hash:
             raise ExecutionConflict("input_hash_mismatch", "durable Job Agent input does not match input_hash")
         with self._admission_transaction(session_id) as connection:
+            if admission_key is not None:
+                if not admission_key or execution_id is not None:
+                    raise ExecutionConflict("invalid_admission_key", "Admission key requires a generated identity")
+                execution_id = self.admission_execution_id(session_id, admission_key)
+                existing = self._get_execution(connection, execution_id)
+                if existing is not None:
+                    saved = connection.execute("SELECT * FROM execution_inputs WHERE execution_id = ?",
+                                               (execution_id,)).fetchone()
+                    durable = connection.execute("SELECT payload_json FROM execution_agent_turn_inputs WHERE execution_id = ?",
+                                                 (execution_id,)).fetchone()
+                    if (saved is None or existing.session_id != session_id
+                            or existing.parent_execution_id != parent_execution_id
+                            or existing.source_checkpoint_id != source_checkpoint_id
+                            or existing.capabilities != capabilities
+                            or saved["input_hash"] != input_hash or saved["entrypoint"] != entrypoint
+                            or json.loads(saved["trusted_actor_json"]) != actor_snapshot
+                            or saved["config_snapshot_ref"] != config_snapshot_ref
+                            or saved["user_message_id"] != user_message_id
+                            or saved["assistant_message_id"] != assistant_message_id
+                            or (durable["payload_json"] if durable else None) != durable_payload_json):
+                        raise ExecutionConflict("admission_key_conflict", "Continuation key has different immutable input")
+                    return existing
+            if recovery_from is not None:
+                from ..chat_recovery import recovery_state
+                previous = self._require_execution(connection, recovery_from[0])
+                if previous.session_id != session_id or previous.status_version != recovery_from[1]:
+                    raise ExecutionConflict("stale_version", "Interrupted source changed before admission")
+                state = recovery_state(self, previous)
+                if not state["can_start_new_turn"]:
+                    raise ExecutionConflict("recovery_unavailable", str(state["recovery_reason"]))
+                if previous.status not in TERMINAL_EXECUTION_STATUSES:
+                    self._transition_execution(connection, previous.execution_id,
+                        expected_version=previous.status_version, target=ExecutionStatus.INTERRUPTED,
+                        reason_code="restart_new_turn", clear_owner=True)
             if durable_payload_json is not None:
                 connection.execute(
                     "DELETE FROM execution_finish_repair_slots "
@@ -642,4 +682,3 @@ class ExecutionStore(StateBlobsOperations, FinishRepairOperations, ProjectionsOp
                 target=target,
                 reason_code=reason_code,
             )
-
