@@ -60,7 +60,7 @@ test('deduplicates clicks and correlates responses across sessions',async()=>{
 });
 test('disconnect reports uncertainty and releases pending action',async()=>{
   const s=socket();const pending=autoRenameSession('A');s.close();await pending;
-  assert.match(messages.at(-1),/not confirmed/);
+  assert.match(messages.at(-1),/not confirmed.*Reload the page/);
   const again=autoRenameSession('A');assert.equal(s.frames.length,2);s.reply(s.frames[1],'superseded');await again;
   assert.match(messages.at(-1),/was not applied/);
 });
