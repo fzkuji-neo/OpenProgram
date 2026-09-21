@@ -97,6 +97,8 @@ def test_origin_followup_obeys_restart_window(tmp_path, monkeypatch, store_fixtu
     from openprogram.self_update.control.continuation import reconcile
     from openprogram.agent.job.runner import JobRunner
 
+    monkeypatch.setattr(policy, "window_seconds", lambda: 7200)
+
     updates = _prepared(tmp_path, monkeypatch)
     stopped = updates.load("su_test").state.updated_at
     monkeypatch.setattr(policy, "time", lambda: stopped + elapsed)

@@ -140,7 +140,7 @@ def _pause(store, record, runner):
 
 
 def continuation_allowed(store, record):
-    """Bound unattended work after completion; caller holds the update lock."""
+    """Honor the persisted restart policy; caller holds the update lock."""
     from openprogram.execution import restart as policy
 
     path = store.root / record.request.update_id / "restart-window.json"
@@ -150,18 +150,22 @@ def continuation_allowed(store, record):
         interrupted_at = record.state.updated_at
         window = dict(
             interrupted_at=interrupted_at,
-            resume_before=interrupted_at + policy.window_seconds(),
+            resume_before=policy.resume_deadline(interrupted_at, policy.window_seconds()),
             expired=False,
         )
     import math
     if (set(window) != {"interrupted_at", "resume_before", "expired"}
             or type(window["expired"]) is not bool
-            or any(type(window[key]) not in {int, float} or not math.isfinite(window[key])
-                   for key in ("interrupted_at", "resume_before"))
-            or window["resume_before"] < window["interrupted_at"]):
+            or type(window["interrupted_at"]) not in {int, float}
+            or not math.isfinite(window["interrupted_at"])
+            or (window["resume_before"] is not None and (
+                type(window["resume_before"]) not in {int, float}
+                or not math.isfinite(window["resume_before"])
+                or window["resume_before"] < window["interrupted_at"]))):
         raise ValueError("invalid self-update restart window")
     if (window["expired"] or policy.window_seconds() == 0
-            or not window["interrupted_at"] <= policy.time() <= window["resume_before"]):
+            or policy.time() < window["interrupted_at"]
+            or (window["resume_before"] is not None and policy.time() > window["resume_before"])):
         window["expired"] = True
     # Write before dispatch. A later restart/config change cannot renew it.
     if window != original:

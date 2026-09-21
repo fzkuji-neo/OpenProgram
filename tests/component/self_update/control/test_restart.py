@@ -79,8 +79,9 @@ def _environment(tmp_path, monkeypatch):
     return updates, runner, service, attempt
 
 
-@pytest.mark.parametrize("elapsed,enabled,update_duration", [(60, True, 0), (7200, True, 0), (7201, True, 0), (60, False, 0), (60, True, 10800)])
-def test_update_pause_survives_restart_and_continues_once(tmp_path, monkeypatch, elapsed, enabled, update_duration):
+@pytest.mark.parametrize("window", [-1, 7200])
+@pytest.mark.parametrize("elapsed,enabled,update_duration", [(60, True, 0), (7200, True, 0), (7201, True, 0), (86400, True, 0), (60, False, 0), (60, True, 10800)])
+def test_update_pause_survives_restart_and_continues_once(tmp_path, monkeypatch, elapsed, enabled, update_duration, window):
     from openprogram.self_update.delivery import restart
     from openprogram.self_update import UpdatePhase
     from openprogram.self_update.control.maintenance import enter_maintenance
@@ -118,6 +119,7 @@ def test_update_pause_survives_restart_and_continues_once(tmp_path, monkeypatch,
     restart.reconcile(runner)
     assert runner._execution_store.get_execution("active").status.value == "paused"
     from openprogram.execution import restart as policy
+    monkeypatch.setattr(policy, "window_seconds", lambda: window)
     deadline_start = updates.load("su_test").state.updated_at
     monkeypatch.setattr(policy, "time", lambda: deadline_start + elapsed)
     if not enabled:
@@ -131,7 +133,7 @@ def test_update_pause_survives_restart_and_continues_once(tmp_path, monkeypatch,
     )
     restart.reconcile(runner)
     resumed = runner._execution_store.get_execution("active")
-    if elapsed > 7200 or not enabled:
+    if (window != -1 and elapsed > window) or not enabled:
         assert resumed.status.value == "paused"
         assert resumed.checkpoint_head_id == paused.checkpoint_head_id
         monkeypatch.setattr(policy, "window_seconds", lambda: 14400)
