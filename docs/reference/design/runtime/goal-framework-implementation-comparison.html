@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agent Goal 功能实现对比与 OpenProgram 设计参考</title>
+<title>OpenProgram：全框架重启恢复与 Goal 设计</title>
 <style>
   :root {
     color-scheme: dark;
@@ -198,13 +198,39 @@
   @media (max-width:820px) { :root{--sidebar:0px}.sidebar{display:none}main{margin-left:0}.mobile-nav{display:block;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--line);background:rgba(16,19,24,.96);backdrop-filter:blur(10px)}.mobile-nav summary{padding:11px 19px;color:var(--text);font-size:12px;list-style:none}.mobile-nav summary::before{content:"目录 ＋"}.mobile-nav[open] summary::before{content:"目录 −"}.mobile-nav .mobile-links{display:flex;gap:7px;padding:0 19px 12px;overflow:auto}.mobile-nav a{flex:0 0 auto;padding:6px 9px;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-size:11px;text-decoration:none}.hero{padding-top:36px}.framework-grid,.cols,.model-grid,.surface-grid{grid-template-columns:1fr}.content{padding-bottom:70px}.framework{padding:17px}.framework-head{display:block}.facts{grid-template-columns:1fr 1fr}.diagram-canvas{padding:0}.goal-demo-row{grid-template-columns:88px 1fr} }
   @media (max-width:520px) { .facts{grid-template-columns:1fr}.hero,.content{padding-left:19px;padding-right:19px}h1{font-size:34px} }
   @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto} }
+  .chat-design { max-width:1280px; padding:38px clamp(19px,5vw,72px); }
+  .chat-design table { min-width:620px; }
+  .chat-design .matrix-wrap { max-width:100%; }
+  .chat-design h2 { margin-top:30px; }
+  .chat-design h1 { font-size:clamp(28px,4vw,44px); }
+  .chat-design code { overflow-wrap:anywhere; }
+  .design-nav { display:flex; flex-wrap:wrap; gap:4px; margin:18px 0; }
+  .design-path { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; padding:0; list-style:none; }
+  .design-path li { border:1px solid var(--line); border-radius:9px; padding:14px; background:var(--panel); }
+  .design-path strong { display:block; color:var(--text); }
+  #workflow-reference { padding:20px; border-top:1px solid var(--line); }
+  #workflow-reference > summary { cursor:pointer; color:var(--muted); }
+  @media(max-width:720px) { .design-path { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 <aside class="sidebar">
   <div class="brand">OpenProgram Research</div>
-  <div class="doc-title">Goal 功能的实现方式</div>
+  <div class="doc-title">Goal 与会话恢复设计</div>
   <nav aria-label="文档目录">
+    <a href="#chat-goal-contract">设计与边界</a>
+    <a href="#harness-decisions">五个 harness 的取舍</a>
+    <a href="#restart-inventory">现有恢复缺口</a>
+    <a href="#restart-contract">自动重启恢复</a>
+    <a href="#recovery-matrix">全状态恢复矩阵</a>
+    <a href="#ownership-design">状态归属</a>
+    <a href="#recovery-design">中断恢复</a>
+    <a href="#completion-design">Todo 与验收</a>
+    <a href="#usage-design">用量与费用</a>
+    <a href="#controls-design">控制与界面</a>
+    <a href="#acceptance-design">实施与验收</a>
+    <a href="#status">实现状态</a>
+    <details><summary>Python Workflow 兼容参考</summary>
     <div class="nav-label">Framing</div>
     <a href="#scope">范围与口径</a>
     <a href="#control-loop">Goal 总控制流程</a>
@@ -220,35 +246,174 @@
     <div class="nav-label">Adjacent</div>
     <a href="#opencode">OpenCode</a>
     <a href="#openclaw">OpenClaw</a>
-    <a href="#sdk-baselines">通用框架基线</a>
     <div class="nav-label">Design</div>
     <a href="#lessons">可参考的设计</a>
     <a href="#target-contract">当前合同与扩展</a>
     <a href="#surfaces">Web 与 TUI</a>
     <a href="#implementation-evidence">实现与验收</a>
     <a href="#status">实现状态与证据边界</a>
+    </details>
   </nav>
 </aside>
 
 <main>
+  <div class="chat-design">
   <section id="chat-goal-contract">
-    <p>恢复控制分别报告旧执行是否结束、是否允许安全开始新聊天。已失去 owner 且只有模型响应记录未完成的执行，使用 canonical effect 分类允许新聊天，不伪造旧执行完成；外部效果、活动子执行、待回答问题或存储读取失败仍阻止恢复，并说明原因。Todo 全部完成仅表示计划进度。</p>
-    <p>用量在 provider 记账后及时结算，并在退出执行边界再次核对；重复通知不能重复计费。缺失或不可读取的计量不能显示为已知零成本。暂停后的独立聊天不归入旧 Goal。历史已丢失的归属不通过猜测会话总额补写。</p>
-    <p>本页当前聊天模式以本节为准；后文 work/refine/judge 图及 typed verdict 停滞规则描述 Python Workflow 兼容路径，不是 Web、TUI、ACP 的聊天执行方式。默认无限轮数同时适用于两条路径；显式预算仍有效。</p>
-    <p>待办保存后刷新当前目标及 revision 的进度；读取当前待办作为唯一数据来源，不使用旧事件中的列表覆盖新状态。进度发布失败不撤销已保存的待办，回合结束时再次核对。勾选全部待办不自动完成 Goal，agent 仍须核实目标。重启后需显式恢复，不自动重跑暂停任务。</p>
-    <h2>聊天 Goal 与工作计划</h2>
-    <p>默认不限制 Goal 的执行轮数。完成依据是当前目标要求、关联 todo 的完成状态和 agent 的证据核实，不是轮数。只有用户明确设置的轮数预算才限制执行；耗尽预算不表示完成。界面进度只显示 todo 完成数，没有 todo 时省略进度及其分隔符，详情中也不显示空进度项，保留 Goal 状态，不以执行轮数代替。旧会话保存的预算不批量猜测来源；用户要求取消的既有目标通过预算控制移除上限，不修改目标、todo、用量或运行状态。</p>
-    <p>Goal 是会话的持久目标。工作由当前聊天 agent 执行；harness 在普通回合结束、会话空闲时检查状态，并为 active Goal 提交下一轮普通聊天。长时间运行的 Goal Workflow 不再作为聊天入口。下述设计的实现状态集中记录在文末。</p>
-    <table><thead><tr><th>职责</th><th>行为</th><th>验收边界</th></tr></thead><tbody>
-      <tr><td>目标</td><td>create_goal/get_goal/update_goal 仅管理状态；用户可通过 /goal 和现有详情控制开始、暂停、恢复和取消。</td><td>开始和恢复不生成强制 goal 函数调用。</td></tr>
-      <tr><td>计划</td><td>当前 agent 用 todo_create/todo_update/todo_list 维护步骤。todo 关联 goal_id 和 revision；目标原文独立保存。</td><td>旧目标的 todo 不证明新目标完成；勾选不是完成证据。</td></tr>
-      <tr><td>完成</td><td>与 Codex 一样，由当前 agent 按完整目标审查实际证据后更新状态。harness 校验身份、状态、预算和未完成 todo。</td><td>不在每轮自动创建独立 judge；结构校验不能证明语义完成。</td></tr>
-      <tr><td>续轮</td><td>已提交的普通聊天结束后，active Goal 在 idle 时获得一个新的普通聊天 execution，沿用来源、权限和工具限制。</td><td>暂停、取消、错误、等待和预算用尽不自动续轮；重复结束通知不重复启动。</td></tr>
-      <tr><td>控制</td><td>Goal 修改与续轮准入使用共享会话互斥及版本检查。用户消息遵循现有 steer/queue 选择。</td><td>旧 execution 仅补记实际用量，不改变新 revision 的完成状态或续轮；恢复不重置累计用量。</td></tr>
-    </tbody></table>
-    <p>参考源码：<a href="https://github.com/openai/codex/blob/main/codex-rs/ext/goal/src/extension.rs">GoalExtension 生命周期</a>、<a href="https://github.com/openai/codex/blob/main/codex-rs/ext/goal/src/runtime.rs">空闲续轮与核算</a>、<a href="https://github.com/openai/codex/blob/main/codex-rs/ext/goal/src/spec.rs">状态工具</a>、<a href="https://github.com/openai/codex/blob/main/codex-rs/ext/goal/templates/goals/continuation.md">完成审查与计划提示</a>。采用普通聊天续轮和 agent 自审；保留 OpenProgram 的权限、CAS 和显式恢复机制；不复制 Rust extension 框架或另建通用 scheduler。</p>
-    <p>兼容边界：历史 Workflow 记录可阅读；现存 Python Workflow 在迁移期间保留原合同，聊天入口明确切换。审批恢复沿用已保存的工具合同：新聊天没有旧 goal 工具，恢复也不能重新加入；只有旧 checkpoint 明确包含该工具时才保留。外部事件自动唤醒、provider 工具协议修复和跨主机调度分别处理。</p>
+    <div class="eyebrow">OpenProgram · Harness design</div>
+    <h1>整个会话运行时的重启恢复与 Goal 设计</h1>
+    <p class="lead">设计问题：App 或 worker 重启后，如何自动继续原本在执行的会话与 Goal，恢复子任务、审批、上下文和用量，同时不重复未知写入、不恢复用户主动停止的工作。</p>
+    <nav class="design-nav" aria-label="方案章节"><a href="#harness-decisions">参照</a><a href="#ownership-design">状态</a><a href="#recovery-design">恢复</a><a href="#completion-design">验收</a><a href="#usage-design">费用</a><a href="#controls-design">界面</a><a href="#acceptance-design">实施</a><a href="#status">实现状态</a></nav>
+    <p>面向框架开发与产品验收。本文定义目标方案；实现状态集中在文末。范围覆盖 Web、TUI、ACP、后台 Job 和已获授权的子任务；Goal 使用同一聊天执行层。保留 Python Workflow API，不复制另一套执行引擎，不增加通用调度框架，不承诺任意外部操作恰好执行一次。</p>
+    <p><a href="#restart-inventory">已核实的现状</a> · <a href="#restart-contract">自动恢复合同</a> · <a href="#recovery-matrix">全状态恢复矩阵</a> · <a href="#restart-tests">故障验收矩阵</a></p>
+    <div class="callout">核心合同：<strong>恢复会话不等于重试工具</strong>。旧轮次可以结束为 interrupted，旧操作仍保持 outcome_unknown；新轮次先检查现实状态。Goal、Todo、聊天记录和已发生用量均保留。</div>
+    <ol class="design-path" aria-label="普通 Goal 执行顺序">
+      <li><strong>1. 保存目标</strong>原目标、完成条件、权限范围和显式预算。</li>
+      <li><strong>2. 普通聊天工作</strong>agent 维护 Todo，使用现有工具及审批。</li>
+      <li><strong>3. 轮次结束检查</strong>结算用量，判断继续、等待、暂停或验收。</li>
+      <li><strong>4. 验收完成</strong>逐项证据成立后提交 achieved；否则继续工作。</li>
+    </ol>
+    <p>默认没有轮数上限。轮数只是诊断信息，不能替代进度或停止条件。短状态工具 create_goal/get_goal/update_goal 保留；它们只读写目标，不在一次函数调用中执行整个任务。</p>
   </section>
+  <section id="harness-decisions">
+    <h2>五个 harness：采用什么，不复制什么</h2>
+    <div class="matrix-wrap"><table><thead><tr><th>参照及证据</th><th>核实的行为</th><th>OpenProgram 的选择</th></tr></thead><tbody>
+      <tr><td><a href="https://github.com/openai/codex/blob/4d160ea71dddc8e3b7e780b1aa159e79baaa535f/codex-rs/core/src/context_manager/normalize.rs#L21">Codex：历史修复</a> · <a href="https://github.com/openai/codex/blob/4d160ea71dddc8e3b7e780b1aa159e79baaa535f/codex-rs/ext/goal/src/runtime.rs#L425">空闲续轮</a></td><td>缺失工具输出补 aborted；Goal 通过普通线程空闲准入继续。</td><td>采用普通聊天续轮、配对修复和当前状态验证；不把 aborted 解释为外部效果已撤销。</td></tr>
+      <tr><td><a href="https://code.claude.com/docs/en/sessions#what-a-resumed-session-restores">Claude Code：恢复</a> · <a href="https://code.claude.com/docs/en/goal#how-evaluation-works">Goal 评估</a></td><td>崩溃中的工具不自动重跑；独立小模型按对话证据评估 Goal。仅核实官方合同，非内部源码。</td><td>采用恢复后不盲目重跑与独立完成审查；不每个工作轮次都额外评估，避免无必要的延迟和费用。</td></tr>
+      <tr><td><a href="https://github.com/anomalyco/opencode/blob/70a24697ea0028e19f22712fd63059538cb4bee7/packages/opencode/src/session/message-v2.ts#L353">OpenCode：历史转换</a> · <a href="https://github.com/anomalyco/opencode/blob/70a24697ea0028e19f22712fd63059538cb4bee7/packages/opencode/src/session/processor.ts#L452">步骤用量</a></td><td>pending/running 调用转换成中断错误；模型步骤结束记录 tokens 与 cost。</td><td>采用可继续的中断历史和逐请求用量；Todo 是工作计划，不独立决定完成。</td></tr>
+      <tr><td><a href="https://github.com/openclaw/openclaw/blob/bc0b24713dc8814a598e0a588c967837c18f6660/src/agents/session-transcript-repair.ts#L368">OpenClaw：配对修复</a></td><td>匹配已有结果，缺失时补错误，处理重复及位置不正确的结果。</td><td>采用 provider 请求投影修复；不覆盖原始真实记录，不把 heartbeat 等同于 Goal。</td></tr>
+      <tr><td><a href="https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/core/session/src/repair.ts#L14">DeepSeek harness：中断关闭</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/blob/ddefc45fbc7f8e46dd73185e68295696d1297887/packages/goal/goal-round-driver/README.md">续轮合同</a></td><td>独占写入后追加修复；区分未开始和结果未知；关闭旧 turn，恢复后的 Goal 需明确授权继续。</td><td>采用分层状态及幂等修复；不复制默认 round cap，也不采用重启后必须手动重新启用的产品策略。</td></tr>
+    </tbody></table></div>
+    <p>以下是基于这些实现作出的 OpenProgram 设计选择，不声称五个项目具有相同的安全、验收或费用保证。参考源码固定到已检查的版本；未运行外部项目的测试。</p>
+    <p>Codex 的可确认边界：<a href="https://developers.openai.com/zh-Hans/docs/app-server">官方 App Server 文档</a>区分 thread/resume、turn/start 和持久 Goal；<a href="https://github.com/openai/codex/blob/4d160ea71dddc8e3b7e780b1aa159e79baaa535f/codex-rs/ext/goal/src/extension.rs#L164">公开扩展源码</a>在恢复线程时加载 active Goal，在空闲时尝试续轮。这些证据没有证明任意桌面退出、系统重启和工具进程死亡均可恢复原内存或继续原工具。OpenProgram 将“此前运行意图仍有效时自动继续”定义为自己的明确产品合同，不依赖这个未经证实的更强假设。</p>
+  </section>
+  <section id="restart-inventory">
+    <h2>现状：已有持久化，缺少一致的恢复决策</h2>
+    <div class="matrix-wrap"><table><thead><tr><th>已检查的代码</th><th>当前行为</th><th>需要改变或验证的部分</th></tr></thead><tbody>
+      <tr><td><code>execution/startup.py</code>、<code>execution/control/recovery.py</code></td><td>已有 owner 核查、canonical 恢复、wait 回执恢复和投影重送；不是空白实现。</td><td>未确认 effect 可使整个 execution 进入 reconciliation_required；要把“操作待核查”和“会话可继续”分开。</td></tr>
+      <tr><td><code>execution/restart.py</code></td><td>已有重启暂停意图、去重续接命令和资源准入；默认恢复窗口 7200 秒，要求无未决 effect。</td><td>重用其持久事件、命令和调度能力；不把隐藏时间窗口作为运行意图失效条件。</td></tr>
+      <tr><td><code>workflow/goal/chat.py</code>、<code>_webui/_exec_dag.py</code></td><td>聊天 Goal 的停止逻辑与会话修复均可写 paused_recoverable；显示修复还修改目标状态。</td><td>Goal 不因 worker 退出变成人工暂停；显示投影不能单独改变业务运行意图。</td></tr>
+      <tr><td><code>agent/job/runner/recovery.py</code>、<code>execution/control/waits.py</code></td><td>已有 Job 恢复、延后 inbox、持久回答与去重 continue；普通聊天部分重启路径排除 spawn/merge。</td><td>统一父子任务恢复决策及结果投递，不能假设已保存 Job 等于已完整恢复子 agent。</td></tr>
+      <tr><td><code>execution/waits.py</code></td><td>durable wait 与 live producer wait 不同；失去 producer 的 live wait 会取消。</td><td>可恢复的审批和问题不能只依赖进程回调；失效的问题保留记录，重新确认而不是默认批准。</td></tr>
+      <tr><td><code>usage/context.py</code>、<code>usage/event.py</code></td><td>已有会话、agent、Job 归属及账本；上下文未直接保存 Goal/revision/request-attempt 身份。</td><td>请求前固定归属和唯一键，支持重启后的迟到回执；缺失用量不能作为零。</td></tr>
+      <tr><td><code>browser_resources.py</code>、<code>terminal_resources.py</code>、Web session store</td><td>已有资源身份、恢复状态及会话投影；不等于进程、网页状态和运行环境全部可重建。</td><td>逐资源验收真实重连、失效报告和新资源身份；前端重连不能触发重复执行。</td></tr>
+    </tbody></table></div>
+    <p>检查覆盖上述共享入口，不宣称所有资源适配器已经逐个完成故障测试。不能仅凭 UI 暂停推断历史数据已删除，也不能仅凭记录存在推断任务可自动继续。</p>
+  </section>
+  <section id="restart-contract">
+    <h2>自动恢复合同：运行意图不随进程消失</h2>
+    <p>在现有 admission / command / restart intent 上补齐持久的 run_intent，不新建平行调度系统。它记录 work_id、原始输入与待消费消息、desired_state（run / paused / cancelled / done）、最近有效控制版本、权限范围、目标 revision、执行宿主身份、父子关系、最后提交进度及恢复策略。原用户请求被可靠保存后才能向客户端确认已接受。</p>
+    <p>默认自动恢复此前仍为 run 的已授权工作，普通会话与 Goal 一致，不依赖用户重新打开该会话。暂停、停止、完成、审批未通过和预算耗尽均保留。没有 Goal 的普通请求只继续到这次请求完成，不转成无限 Goal。后台任务沿用原有授权和并发额度；重启不允许生成额外子任务。</p>
+    <p>关闭窗口或前端重载只断开客户端；“退出并停止全部任务”必须持久化用户停止意图。普通 App 退出、升级维护、worker 崩溃和机器重启不隐式等同于用户 Pause。正常退出先停止新准入、保存已接受控制操作和检查点，再退出 worker；强制退出按最后已提交记录恢复。仅存在客户端草稿、尚未被服务端确认的输入不冒充已提交请求。</p>
+    <p>取消隐藏的两小时恢复有效期；长时间停机也保留运行意图，但继续前重新检查工作目录、宿主、模型和工具可用性、凭据、当前权限与预算。资源不存在或权限已撤销则显示准确等待原因，不自动切换项目、账号、模型或扩大权限。已有显式禁用自动恢复的设置仍有效；旧暂停记录原因不明时保持暂停并提示，不能猜成正在运行。</p>
+    <ol aria-label="统一重启恢复顺序">
+      <li><strong>加载事实：</strong>读取运行意图、用户控制命令、消息、checkpoint、effects、waits、资源、用量和投影游标。读取或迁移失败时显示恢复失败，不清空旧状态。</li>
+      <li><strong>确认所有权：</strong>存活执行者重新关联，死亡执行者被 generation fencing 排除；同一工作只由一个宿主恢复。单机恢复不偷偷变成跨主机接管。</li>
+      <li><strong>修复上下文：</strong>合并真实结果，补齐缺失工具输出并记录中断；有完整安全检查点时从检查点继续，否则以相同 work_id 的新 turn 继续，不重复追加用户输入。</li>
+      <li><strong>作出决定：</strong>用户停止优先；随后检查审批、权限、预算、资源和未知效果。可运行进入 queued；待依赖进入 waiting；故障给出可重试原因。所有决定保存到同一控制服务。</li>
+      <li><strong>准入与续接：</strong>经现有公平调度和资源额度启动；按 work_id + 控制版本 + 前序提交点生成稳定 continuation key。保存准入和消费恢复意图不能留下重复窗口，跨库部分用可重试 outbox 收敛。</li>
+      <li><strong>恢复界面：</strong>App/Web/TUI 从 canonical 快照及单调事件序号重建，显示恢复中、排队、工作、等待或失败；展示不是第二套控制逻辑。</li>
+    </ol>
+    <p>恢复协调逻辑属于现有 execution control；服务器和 JobRunner 可以调用同一幂等入口，但不能各自作不同恢复决定。UI orphan cleanup 只修复派生投影，Goal.after_terminal 只提交当前版本的续轮请求。临时故障使用持久重试时间和有上限的退避间隔，不空转模型；持续故障保留待恢复记录，显示错误和 Retry / Pause / End，不删除任务。</p>
+  </section>
+  <section id="recovery-matrix">
+    <h2>全状态恢复矩阵</h2>
+    <div class="matrix-wrap"><table><thead><tr><th>重启前</th><th>重启后默认行为</th><th>必须保留的限制</th></tr></thead><tbody>
+      <tr><td>已接收、尚未调度的普通请求</td><td>保留原输入顺序重新排队，只准入一次。</td><td>以客户端请求 ID 去重；Stop 不被迟到重试覆盖。</td></tr>
+      <tr><td>模型流式回复中断</td><td>保留已提交文本和工具结果；未完成输出明确标注，重新请求剩余工作。</td><td>不能拼接成虚构的完整回复；新的 provider attempt 可新增成本。</td></tr>
+      <tr><td>active Goal 正在工作或两轮之间</td><td>加载目标、Todo、证据、预算和原运行意图；自动继续工作或验收。</td><td>不能因无当前 execution 漏掉空闲 active Goal；5/5 只触发验收。</td></tr>
+      <tr><td>用户 Pause / End / Stop</td><td>保持暂停或终止，不受完成通知及自动恢复解除。</td><td>停止命令一经接受即持久化；可见执行停止进度与业务意图分开。</td></tr>
+      <tr><td>待审批或待用户回答</td><td>恢复原问题、请求摘要及作用范围；持久回答已提交则只消费一次。</td><td>重启不是批准；工具实现、参数或权限变化时旧批准不适用于新动作。</td></tr>
+      <tr><td>父 agent 等待子任务</td><td>恢复已有子任务身份、输出、inbox 游标及等待关系；父任务收到终态后按原意图继续。</td><td>存活子任务重新关联，已结束子任务不重建；用户暂停策略传播给同一任务范围内的子执行，不误停独立任务。</td></tr>
+      <tr><td>外部进程、终端或远程作业运行中</td><td>凭宿主、进程启动身份或作业 handle 查询，存活则继续观察。</td><td>不能仅用 PID 判断；无法确定是否完成则保留 unknown，不重复提交。</td></tr>
+      <tr><td>浏览器 / MCP / 临时资源</td><td>保留稳定资源引用，重连后核实身份；确实失效时报告并按授权新建资源。</td><td>网页表单、登录、JS 内存、REPL 变量不保证恢复；新 tab 或新 session 不能冒充原对象。</td></tr>
+      <tr><td>context compaction 或消息持久化中</td><td>使用最后已提交历史与摘要，未提交摘要不覆盖原历史。</td><td>部分工具参数不可执行；权限配置取当前有效值，持久的工作配置与不可用依赖明确显示。</td></tr>
+      <tr><td>结果已写入、完成通知未送达</td><td>重放终态投影与 inbox 投递，不重新运行任务。</td><td>canonical 终态和投影版本防止 UI 回退；父级汇总不重复计费。</td></tr>
+      <tr><td>费用回执未到或仅在流中出现</td><td>按 provider attempt 核查可取得的回执，已有记录去重汇总。</td><td>无法取得的消耗保留未知；停机时间不计入 active time。</td></tr>
+    </tbody></table></div>
+    <p>恢复承诺的是已确认保存的工作状态、运行意图与可重建执行，不是任意进程内存快照。未落盘流片段、已死亡 shell 的交互内存或外部服务丢失的回执必须如实说明，不能用清空任务掩盖，也不能用虚构成功补齐。</p>
+  </section>
+  <section id="ownership-design">
+    <h2>一个聊天执行层，五类持久数据</h2>
+    <div class="matrix-wrap"><table><thead><tr><th>数据及唯一所有者</th><th>保留内容</th><th>不能承担的职责</th></tr></thead><tbody>
+      <tr><td>Goal / 目标状态服务</td><td>goal_id、revision、原目标、验收条件、status、显式 budget、阻塞原因。</td><td>不持有 provider stream，不恢复函数调用栈。</td></tr>
+      <tr><td>Todo / 现有计划存储</td><td>稳定 item_id、goal_id、revision、状态、证据引用；UI 从同一来源读取。</td><td>不能通过删掉未完成条目缩小目标；计划编辑不是任务进展的充分证据。</td></tr>
+      <tr><td>Turn / canonical execution</td><td>输入来源、权限、目标归属、owner generation、轮次状态、子任务。</td><td>interrupted 不等于 Goal 失败，不等于所有外部进程停止。</td></tr>
+      <tr><td>Tool attempt / effect store</td><td>调用和实际工具实现身份、输入摘要、开始记录、真实或合成结果来源、效果确定性。</td><td>结果未知不能伪装成成功或“从未执行”；工具名称不能证明只读。</td></tr>
+      <tr><td>Usage receipt / 用量账本</td><td>request/attempt 唯一标识、turn/goal/revision 归属、模型、tokens、价格快照、金额和可信状态。</td><td>不从会话总额猜 Goal 费用；不将估算伪装成实际结算。</td></tr>
+    </tbody></table></div>
+    <p>继续复用现有 session、execution、effect、todo、usage 存储，不建设第二套事件平台。需要跨库更新时使用现有可重试通知及唯一操作键；不假设跨数据库原子事务。派生 UI 与统计可重建，原始记录不被派生状态覆盖。</p>
+    <p>Goal 状态保持 active / paused / blocked / achieved / cancelled / budget_exhausted；执行、等待、验收放在 phase 或既有等待记录中，不组合出重复状态机。兼容 paused_recoverable 的存量读取。revision 或权限改变使旧验收与自动续轮预约失效，旧用量仍归原目标。</p>
+  </section>
+  <section id="recovery-design">
+    <h2>中断恢复：先确认执行所有权，再恢复上下文</h2>
+    <ol>
+      <li><strong>确认旧执行者：</strong>使用现有 owner lease / generation 判断；租约不明、存储不可读时暂不写修复。不能仅凭“连接断开”宣称旧进程死亡。旧 generation 的后续写入被拒绝。</li>
+      <li><strong>核实子进程：</strong>可跟踪的存活进程重新关联并等待或显式取消；不能把仍运行的 shell 当作已停止。失联的远程操作保留未知效果记录。</li>
+      <li><strong>选择唯一恢复方式：</strong>存活 owner 只重新关联；确认死亡且有可验证的安全 checkpoint 时，在同一 execution 下创建新 attempt；仅无可靠 checkpoint 时，取得独占恢复权，以稳定 repair key 补齐缺失输出、结束旧 turn 为 interrupted，再准入新 turn。三者互斥，选择绑定同一持久恢复决定、控制版本和 continuation key，不能既续 checkpoint 又新开 turn。checkpoint 必须覆盖已提交效果并满足现有权限、等待与安全点合同，不能借此重放未知写入。修复重复执行无副作用，真实结果优先，不写虚构用量；迟到且可验证的真实回执追加为核对事件，在后续上下文中替代合成占位。</li>
+      <li><strong>恢复运行意图：</strong>此前仍在运行的普通请求和 active Goal 自动进入统一准入；用户主动暂停的不自动恢复。需要人工处理的只是具体权限、预算、资源或未知操作，不把重启本身作为手动 Resume 的理由。</li>
+      <li><strong>决定工具行为：</strong>新轮次知道哪些调用未开始、哪些结果未知。继续核查和独立工作不受旧未知结果全局锁定；相关写入仍受原审批与恢复限制。</li>
+    </ol>
+    <div class="matrix-wrap"><table><thead><tr><th>中断前状态</th><th>恢复后的事实</th><th>允许的后续操作</th></tr></thead><tbody>
+      <tr><td>意图已保存，尚未记录 dispatch</td><td>not_started；所有 dispatch 必须先持久记录，否则不能作此判断。</td><td>仍有必要时按当前权限重新调用。</td></tr>
+      <tr><td>dispatch 已记录，结果缺失</td><td>outcome_unknown；包括记录开始与真正调用之间崩溃的情况。</td><td>可信只读工具可重读；服务支持去重时用原幂等键；其他写入先核实。</td></tr>
+      <tr><td>结果已经持久化</td><td>completed / error，保留实际返回值。</td><td>复用结果，不因重启再次运行。</td></tr>
+      <tr><td>外部任务仍存活</td><td>running_external + 可验证 handle。</td><td>重新连接、等待或取消；不重复提交任务。</td></tr>
+      <tr><td>非幂等写入结果无法查询</td><td>outcome_unknown + 待处理操作明细。</td><td>允许读操作及核查；用户确认风险后才能重试或明确放弃该操作。</td></tr>
+    </tbody></table></div>
+    <p>安全边界：read_only / idempotent / state_probe 能力来自受信工具注册信息及执行时保存的实现身份，不接受模型自称只读，不按 read 这个名字猜。一般 shell、第三方 MCP 与自定义工具默认未知。未知写入相关恢复轮次先限制为可信读取与状态查询；没有可靠相关性判断时，不自动开放写入，必须先核对或由用户明确授权。</p>
+    <p>这不是针对某个会话放行，也不是只对白名单文件修复。普通聊天和 Goal 共享同一恢复入口。旧效果审计可继续是 unresolved，而其所属聊天轮次结束为 interrupted；相应调整“存在 unresolved 就不允许结束轮次”的旧约束。</p>
+  </section>
+  <section id="completion-design">
+    <h2>Todo 管计划，验收管目标</h2>
+    <p>目标创建时保留原文并提取可核实要求；不明确到会改变任务范围时才询问用户。多步骤任务由工作 agent 维护 Todo，简单任务允许无 Todo。每个必要要求都有证据检查点；新增或删除 Todo 不得隐式删除原要求。</p>
+    <p>普通工作轮次不运行第二个 judge。工作 agent 提交 complete 候选，或必要 Todo 全部完成且尚未验证时，进入 verifying。先检查当前 revision、必要 Todo、未结束子任务和相关未知效果，再运行一次独立的只读验收；工作 agent 的“完成”文本不是验收事实。</p>
+    <p>验收按要求输出 met / unmet / unknown 和证据引用；可确定判断的要求检查真实测试回执、文件版本、运行状态等。语义要求由独立模型审查。需要执行测试时沿用普通工具审批和预算；shell 不因为被称作“验证”就变成只读工具。缺少证据返回下一轮补充，不伪造通过。</p>
+    <p>仅当前 goal_id + revision + 已核验的结果版本允许提交 achieved；提交前重新核对证据版本并比较 Goal 控制版本。可控产物使用版本号或内容摘要，外部事实记录核实时间及查询回执，不声称跨所有外部系统原子验证。完成表示该次核实时条件成立；完成后不默认监控文件或重新开启目标。后续编辑、新请求或明确监控要求另行验收。人工豁免必须作为明确的目标修订并保留原因，agent 不能自行缩小范围。独立验收同样可能出错，不保证绝对正确。</p>
+    <p>无进展的判定看结果与证据变化，而不是是否调用工具。相同真实阻塞连续出现、且没有独立可做工作时才进入 blocked；有运行 handle 的等待进入 waiting，不空转模型轮次。不以“达到固定总轮数”冒充阻塞或完成。</p>
+    <p>等待使用既有持久 wait 与 execution 终态通知，保存 work_id / Goal revision、handle、已观察版本及唯一消费键。完成、失败或超时通知仅在运行意图仍为 run、版本相符且无其他当前执行时准入一次；缺失通知由既有 reconciler 按退避间隔查询。重启期间到达的结果先保存，恢复后按相同规则自动继续。暂停、取消或修订使旧唤醒失效，不丢弃结果本身；查询超时不推断外部操作已经停止。</p>
+  </section>
+  <section id="usage-design">
+    <h2>费用：按请求归属，按回执结算</h2>
+    <p>请求发出前固定 goal_id / revision / turn_id / request_id；暂停后的普通聊天没有旧 Goal 归属。子 agent 与验收请求显式继承归属，同一 receipt 只计一次，不同时加父项汇总与子项明细。重试是新的 provider attempt，若产生真实消耗则分别计入。</p>
+    <p>流式累计 usage 按同一 attempt 更新水位，不对每个累计快照求和。持久回执写入成功后再刷新 Goal 投影；临时失败由相同幂等键重试，重启可重建统计。迟到回执仍计入原 Goal，不因为 Goal 已暂停、结束或编辑就丢弃。</p>
+    <p>tokens 已知与价格已知分别保存。价格表换代不追溯改写历史报价；估算、已知值、部分未知分别显示，例如“已知 $0.42；另有 1 次请求用量未知”。历史游标数据保留，不推算无法证明的归属。主动运行耗时按持久开始/停止事件累计，暂停与停机不计 active time；恢复不清零。</p>
+    <p>预算默认不设限。用户设置硬费用预算时，未知价格或无法核实的消耗不能当作剩余额度；暂停新的付费准入并说明原因。能够计算请求最大额度时预留额度，否则不承诺绝对不超支。重新读取账本、恢复执行及验收前均重新检查显式预算。</p>
+  </section>
+  <section id="controls-design">
+    <h2>控制与界面：状态、原因、操作同时可见</h2>
+    <div class="matrix-wrap"><table><thead><tr><th>状态前 → 操作 → 状态后</th><th>用户看到什么</th><th>执行约束</th></tr></thead><tbody>
+      <tr><td>运行中 → 重启 → 恢复中 / 排队 → 核查 / 执行</td><td>无需点击 Resume；具体阻碍显示原因、对应操作和 Retry。用户主动暂停时才显示 Resume。</td><td>恢复运行意图但不盲目重发旧工具；同一工作只准入一轮。</td></tr>
+      <tr><td>Todo 5/5 → 发起验收 → verifying</td><td>“5/5 · 验收中”，不是“已完成”。</td><td>缺证据返回工作轮次；通过后才显示“目标已完成”。</td></tr>
+      <tr><td>active → Pause → paused</td><td>立即停止自动续轮；独立显示当前执行是否仍在停止中。</td><td>禁止新准入，取消当前执行；不假装撤销已发生效果。</td></tr>
+      <tr><td>任意未完成目标 → End → cancelled</td><td>“目标已结束”；未结束进程或未知操作仍有提示。</td><td>结束目标意图不依赖所有效果已核实，旧执行不再关联自动续轮。</td></tr>
+      <tr><td>有未决操作 → 查看 / 查询 / 人工确认 → 已核实或保留未知</td><td>准确定位到调用、输入摘要、原时间和可用检查；不是只跳到整个 Activity 列表。</td><td>风险重试需当前用户明确授权，不能由模型或页面内容代答。</td></tr>
+    </tbody></table></div>
+    <p>空 Todo 不显示进度占位或分隔符。按钮权限由后端返回 can_resume / can_verify / can_end 及 reason_code，前端不按一组 status 字符串自行猜测。UI 读取失败显示“状态暂不可确认”和刷新入口，不显示永久无解释的灰色按钮。</p>
+    <p>用户输入优先于自动续轮；采用已有 steer/queue 语义。续轮去重键绑定 goal_id、revision 和前序已提交 turn；状态检查和准入必须共用版本比较。暂停、编辑、显式取消与新一轮准入竞争时，以持久状态及 generation 校验阻止过期动作。</p>
+  </section>
+  <section id="acceptance-design">
+    <h2>实施顺序与必须通过的验收</h2>
+    <div class="matrix-wrap"><table><thead><tr><th>阶段与改动位置</th><th>必须证明的行为</th></tr></thead><tbody>
+      <tr><td>1. 统一恢复决策：execution/startup、restart、control/recovery、JobRunner、_exec_dag 投影</td><td>普通请求、active Goal、已存在子任务在重启后自动恢复；用户暂停不恢复。取消隐藏时间窗口，删除投影层业务状态改写，保持唯一准入与当前权限。</td></tr>
+      <tr><td>2. 共享执行恢复：agent/production_driver、上下文构造、effects、waits、资源适配器</td><td>真实子进程在 dispatch 前、开始后、结果写入后被终止；重启后只追加一次修复，保留真实结果，可继续普通聊天。旧 owner 迟到写入、存活 shell 与未知非幂等写入不能被错误重试。</td></tr>
+      <tr><td>3. Goal 续轮与控制：workflow/goal、HTTP/WS/TUI/ACP 入口</td><td>Resume 不重放工具；双击、重复完成事件、编辑/暂停竞争不产生双执行。旧 revision 不提交新目标完成。无 Todo 不显示占位；5/5 不直接显示 achieved。</td></tr>
+      <tr><td>4. 证据验收：Goal completion 候选与现有 agent 检查能力</td><td>必要项未完成、证据缺失、测试失败、结果过期、相关未知效果分别拒绝完成；实际证据满足时只提交一次 achieved。验证不能提升工具权限。</td></tr>
+      <tr><td>5. 请求归属与统计：usage/recorder、ledger、Goal 投影</td><td>重复/乱序 usage、并发子任务、流式累计值、重试、账本故障、暂停后迟到回执均正确；未知不为零，预算超限不继续付费请求。</td></tr>
+      <tr><td>6. 兼容与本机验收</td><td>旧 Goal 可读取、未知效果无猜测迁移、Python Workflow 不受聊天恢复策略破坏。完整回归、独立规格/质量审查后更新唯一默认 App，并验收真实按钮、重启续接和费用显示。</td></tr>
+    </tbody></table></div>
+    <p>每阶段先公共入口故障复现，再最小实现及回归。普通聊天也覆盖恢复测试，不能仅让一个特定会话通过。验收区分源码、自动测试、本机 App 和远端发布；没有测试或部署证据的设计不标已实现。</p>
+    <h3 id="restart-tests">重启故障验收：不是只测一次 Resume</h3>
+    <p>通过公开聊天、Goal、Job、审批与控制入口建立任务，在独立测试存储及非用户可见的进程测试中进行真实终止；不得终止用户的当前任务来证明故障恢复。最终可见 App 验收只使用默认实例，并先确认更新不会覆盖无关工作。</p>
+    <ul>
+      <li>覆盖前端重载、App 正常退出、worker 正常重启、worker 被强制终止、停机超过原两小时窗口、恢复过程中再次崩溃；宿主重启语义由进程身份变化测试，真实系统重启单列未验收，不自行重启用户机器。</li>
+      <li>断点包括接收输入前后、provider 请求中、tool dispatch 前后、结果提交前后、父子消息投递中、Todo 全完成但尚未验收、完成提交后投影发送前、费用持久化前后。</li>
+      <li>同时恢复多个会话，证明公平排队、共享额度、每个工作单一 owner、重复通知不双执行；恢复期间用户 Pause / End、修改权限或新输入优先，旧版本不得继续。</li>
+      <li>存活子进程只重新关联，非幂等写入结果未知只核查；已接受审批不重复消费，审批未接受不自动批准；晚到结果与晚到费用归原身份。</li>
+      <li>数据库不可用、损坏迁移、缺失凭据、目录不存在、工具版本改变和投影事件丢失均有明确状态及可恢复入口；不能清空历史或停留在无说明的禁用控件。</li>
+    </ul>
+  </section>
+  </div>
+  <details id="workflow-reference"><summary>Python Workflow 兼容路径及既有详细图示（不定义上方聊天 Goal 合同）</summary>
   <details class="mobile-nav">
     <summary aria-label="打开文档目录"></summary>
     <nav class="mobile-links" aria-label="移动端文档目录">
@@ -262,7 +427,7 @@
     <div class="meta">
       <span class="pill native">4 个原生 Goal 实现</span>
       <span class="pill near">2 个相邻机制实现</span>
-      <span class="pill">4 个通用框架基线</span>
+      <span class="pill">兼容路径参考，不作为聊天 Goal 实现证明</span>
       <span class="pill">5 张 Archify SVG · 文档内嵌</span>
     </div>
     <div class="reading-line" aria-label="OpenProgram 当前判断">
@@ -1355,18 +1520,10 @@
       </article>
     </section>
 
-    <section id="sdk-baselines">
-      <h2>通用 Agent 框架基线</h2>
-      <div class="framework-grid">
-        <div class="card baseline"><div class="kind">Task input + runner limit</div><h3>OpenAI Agents SDK</h3><p>Agent 保存 instructions、tools、handoffs 与 output type；<code>Runner.run(input)</code> 驱动工具循环，最终输出或 <code>max_turns</code> 结束。Session/RunState 可保存对话和 HITL 状态，但 SDK 不定义 first-class Goal schema、completion evaluator 或 idle auto-continuation。</p><p><a href="https://openai.github.io/openai-agents-python/agents/">Agents</a> · <a href="https://openai.github.io/openai-agents-python/running_agents/">Running agents</a> · <a href="https://openai.github.io/openai-agents-python/human_in_the_loop/">HITL</a></p></div>
-        <div class="card baseline"><div class="kind">Graph state + conditional END</div><h3>LangGraph</h3><p>应用自行把 objective、plan、evidence 与 counters 放入 graph state；node 负责工作，conditional edge 决定下一 node 或 <code>END</code>。Checkpointer 保存每个 super-step，interrupt 负责暂停与恢复。它提供构建 Goal 的原语，但不规定 Goal 的字段或判定算法。</p><p><a href="https://docs.langchain.com/oss/python/langgraph/graph-api">Graph API</a> · <a href="https://docs.langchain.com/oss/python/langgraph/persistence">Persistence</a> · <a href="https://docs.langchain.com/oss/python/langgraph/interrupts">Interrupts</a></p></div>
-        <div class="card baseline"><div class="kind">Stateful termination object</div><h3>AutoGen AgentChat</h3><p>Task 是 team 的输入；停止条件是独立、可组合、带状态的 <code>TerminationCondition</code>，可按消息数、文本、token、timeout、handoff、source 或外部信号停止。Team 与 termination state 可保存/恢复。它把“何时停”从 agent 中分离，但没有持久化目标控制面。</p><p><a href="https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/termination.html">Termination</a> · <a href="https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/state.html">State</a></p></div>
-        <div class="card baseline"><div class="kind">Persona goal + executable task</div><h3>CrewAI</h3><p><code>Agent.goal</code> 是角色目标，主要进入 prompt；真正执行单位是 <code>Task(description, expected_output, guardrail)</code>，Process 决定任务顺序，Flow 提供 state 与 persistence。这里的 goal 更接近 agent persona，不是跨 turn completion controller。</p><p><a href="https://docs.crewai.com/en/concepts/agents">Agents</a> · <a href="https://docs.crewai.com/en/concepts/tasks">Tasks</a> · <a href="https://docs.crewai.com/en/concepts/flows">Flows</a></p></div>
-      </div>
-    </section>
 
     <section id="lessons">
-      <h2>对 OpenProgram 后续设计有直接价值的实现</h2>
+      <h2>Python Workflow 的独立判定与兼容约束</h2>
+      <p>以下独立 work/judge 合同仅属于 Python Workflow；聊天模式采用上方方案：普通工作轮次不运行 judge，仅在完成候选出现时作独立验收。</p>
       <div class="take-grid">
         <div class="card do"><div class="take-label">已经采用</div><h3>Codex 的控制面数据模型</h3><p>当前快照已有稳定 <code>goal_id</code>、每次执行独立的 <code>run_id</code>、typed status、budget/usage、时间字段和 CAS version；用户操作负责 pause/resume/edit/answer/limit/clear，judge 只提交候选 verdict。</p></div>
         <div class="card do"><div class="take-label">直接采用</div><h3>Hermes 的三段判定</h3><p>completion contract 明确定义 outcome/verification/constraints/boundaries/stop_when；确定性 gate 先执行；只有 gate 通过后才使用语义 judge。异步依赖进入 wait barrier，不重复启动工作 turn。</p></div>
@@ -1986,12 +2143,16 @@ Goal answer saved; resuming from the latest checkpoint.</pre>
       <p>完成验收还发现通用执行结束记录未一致收敛：Goal 为 <code>achieved</code>，但对应 canonical execution 的 completed 写入连续重试后留下 <code>finish_repair_stalled</code>，状态仍为 running。该未解决项不否定已生成的工作输出与 Goal 判定，但阻止“完整执行生命周期全部验收通过”的结论。</p>
     </section>
 
+  </div>
+  </details>
+  <div class="content">
     <section id="status">
       <h2>实现状态与证据边界</h2>
-      <p data-implementation-state="implemented">聊天 Goal 与 todo 集成：普通聊天续轮、短状态工具、todo 关联、Web/TUI 入口和预算核算已有实现，并通过独立规格与质量审查及完整自动验收。请求压缩的默认输出预算阻塞已有修复，默认及显式上限、备用模型切换均有回归覆盖。源码验收不证明任一安装实例已经更新；安装版本与实际运行结果必须在交付时单独核实。其余 Workflow 实现记录仅证明保留的 Python 兼容路径，不证明聊天模式的实际运行结果。</p>
+      <p data-implementation-state="design-proposed">上方统一自动重启恢复、运行意图、完整子任务与资源恢复、完成候选验收和请求级归属是目标方案，不是已实现声明。现有聊天 Goal 已有普通续轮、短状态工具、Todo 关联、无限默认轮数及部分用量故障补计；旧工具结果未知仍可能阻止 Resume，且现有重启自动恢复覆盖不一致。设计交付不更新 App、不迁移用户会话、不合并或推送源码。</p>
+      <div class="callout warn">实施状态：共享的中断结果修复、未知效果与轮次状态解耦、精确定位操作的核查入口、独立完成候选验收、请求级 Goal 用量归属及上述故障矩阵尚待实现和验收。既有全量回归有文档导航基线失败，本地默认设置也与两项测试期望不同；不将较小的通过集合冒充全部验收。</div>
       <div class="framework-grid">
-        <div class="card"><h3>当前代码已经具备</h3><ul><li>单 prompt Goal、Working Agent 与独立 inspection judge。</li><li>schema v3 版本化 session 快照、goal/run ID、checkpoint、CAS 写入和旧数据规范化。</li><li>typed stop states、round/token/active-time/cost 预算、checklist stall 与 idle-spin 检测。</li><li>异步问题队列、逐项回答、边界消费、有人/无人值守判定策略。</li><li>Web Goal dialog、TUI 操作、页面重载 hydration 与 worker 重启后的可恢复暂停。</li><li>五张 Archify typed source 生成并以内联 SVG 写入本文档。</li></ul></div>
-        <div class="card"><h3>仍未实现或尚未验收</h3><ul><li>deterministic gate executor、外部事件自动 wake handle 和 append-only evidence repository。</li><li>跨主机分布式 lease；同机共享目录的 Goal ownership 已实现。</li><li>默认 App 的已验收范围见上文；异步回答的完整界面操作与无障碍树尚未验收。</li><li>Goal 主体与运行修复已合入主分支并包含在默认 App；执行树摘要缺陷及通用跨进程启动恢复风险尚未修复。</li></ul></div>
+        <div class="card"><h3>兼容路径记录，不作为新方案证据</h3><ul><li>Python Workflow 的 work/refine/judge 控制器及预算策略保留。</li><li>已有版本化 Goal 快照、goal/run ID、CAS 写入与旧数据读取。</li><li>已有 Web/TUI 控件及重启暂停状态，但恢复能力存在上述缺口。</li><li>既有详细图示保留于兼容参考；不证明聊天入口使用独立 Workflow。</li></ul></div>
+        <div class="card"><h3>不纳入本次方案的扩展</h3><ul><li>跨主机分布式执行租约、通用工作流引擎、独立审计仓库。</li><li>自动批量重写历史 Goal 费用或工具效果。</li><li>给任意非幂等外部操作提供恰好一次执行保证。</li><li>将 Python Workflow 的独立 judge 在每个普通聊天轮次重新执行。</li></ul></div>
       </div>
       <div class="callout warn"><strong>版本边界：</strong>本地参考仓库用于读取可复现的具体代码路径；官方在线文档与公开仓库 main 用于确认后续新增合同。Hermes 本地快照的基础 GoalManager 不含当前上游的 completion contract、quality gate 与 wait barrier，因此相关段落以公开上游源码为准。Claude Code 以官方文档为准。</div>
       <p class="footer">OpenProgram Goal 的权威工程设计与实现对比。产品使用说明见 <a href="../../../capabilities/goal.html">Goal Workflow</a>；本文中的未验收项不能作为已发布或已部署的证明。</p>
