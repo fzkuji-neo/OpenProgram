@@ -49,7 +49,10 @@ def managed_work(store, sid, goal) -> list[dict]:
         if matches((payload.get("request") or {}).get("goal_context") or {}):
             owned.add(member.execution_id)
         job = store.get_job_agent_input(member.execution_id) or {}
-        if matches((job.get("job_context") or {}).get("usage_goal") or {}):
+        usage_goal = (job.get("job_context") or {}).get("usage_goal") or {}
+        if (usage_goal.get("goal_id") == goal.get("goal_id")
+                and usage_goal.get("goal_revision") == goal.get("revision")
+                and usage_goal.get("goal_session_id") == sid):
             owned.add(member.execution_id)
     while additions := {key for key, parent in parents.items() if parent in owned} - owned:
         owned.update(additions)

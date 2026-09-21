@@ -8,6 +8,54 @@ from tests.component.agent.async_job_support import store_fixture as store_fixtu
 from tests.component.agent.test_goal_request_budget import transport as transport, consume, bounded_model
 
 
+@pytest.mark.parametrize("process_status", ["running", "unknown", "exited"])
+def test_cross_session_job_managed_work_blocks_verification(tmp_path, monkeypatch, store_fixture, transport, process_status):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from openprogram.agent.run_control import get_current_execution_id, get_current_session_id
+    from openprogram.execution import ExecutionStore
+    from openprogram.processes import ProcessStore
+    from openprogram.programs.workflow.goal import chat, verification
+    from openprogram.webui.routes.execution.goal import register
+    import openprogram.programs.workflow.goal as goals
+    import tests.component.agent.test_goal_job_usage as current
+
+    original = consume
+    created = []
+    async def with_process(*args, **kwargs):
+        process = ProcessStore().create(session_id=get_current_session_id(),
+            execution_id=get_current_execution_id(), tool_call_id="background",
+            command="work", cwd=None, backend_id="local")
+        ProcessStore().update(process["id"], status=process_status)
+        created.append(process)
+        return await original(*args, **kwargs)
+    monkeypatch.setattr(current, "consume", with_process)
+    test_canonical_child_job_inherits_goal_and_settles_once(
+        tmp_path, monkeypatch, store_fixture, transport, "cross_session")
+    store = ExecutionStore(tmp_path / "executions.db")
+    monkeypatch.setattr("openprogram.execution.default_store", lambda: store)
+    goal = goals.load_goal("p1")
+    child = store.get_execution(created[0]["execution_id"])
+    assert child.parent_execution_id is None
+    expected = "managed_work_unfinished" if process_status != "exited" else None
+    assert verification.blockers(store, "p1", goal["execution_id"], goal) == expected
+    records = verification.managed_work(store, "p1", goal)
+    assert {item["id"] for item in records} == ({created[0]["id"]} if expected else set())
+    assert verification.managed_work(store, "p1", dict(goal, revision=goal["revision"] + 1)) == []
+    assert verification.managed_work(store, "p2", goals.load_goal("p2")) == []
+    app = FastAPI()
+    register(app)
+    with TestClient(app) as client:
+        controls = client.get("/api/sessions/p1/goal").json()["controls"]
+        assert controls["can_verify"] is (expected is None)
+        assert controls["reasons"]["verify"] == expected
+        if expected:
+            assert client.post("/api/sessions/p1/goal", json={"action": "verify"}).status_code == 409
+            goal["completion_requested"] = chat.identity(goal)
+            verification.prepare(store, store.get_execution(goal["execution_id"]), goal)
+            assert goal.get("verification", {}).get("status") != "pending"
+
+
 @pytest.mark.parametrize("mode", ["normal", "receipt_failure", "descendant", "cross_session", "mid_turn", "budgeted", "priority", "queued", "unowned"])
 def test_canonical_child_job_inherits_goal_and_settles_once(tmp_path, monkeypatch, store_fixture, transport, mode):
     import openprogram.programs.workflow.goal as goals
