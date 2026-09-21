@@ -193,6 +193,67 @@ def test_finish_transient_failure_retries_after_handle_release(tmp_path):
 
 
 
+def test_finish_requires_durable_intent_even_on_retry(tmp_path, monkeypatch):
+    from openprogram.agent import production_driver as module
+    from openprogram.programs.workflow.goal import chat
+
+    store = ExecutionStore(tmp_path / "durable-finish.sqlite3")
+    driver = module.AgentProductionDriver(store, turn_runner=lambda **kw: SimpleNamespace(failed=False))
+    entry = module.CanonicalAgentEntry(store, driver)
+    monkeypatch.setattr(driver, "_schedule_finish_retry_worker", lambda: None)
+    monkeypatch.setattr(module.shared, "FINISH_RETRY_LIMIT", 1)
+    writable = [False]
+    real_persist = store.upsert_finish_repair
+
+    def persist(**kwargs):
+        if not writable[0]:
+            raise OSError("completion intent storage unavailable")
+        return real_persist(**kwargs)
+
+    monkeypatch.setattr(store, "upsert_finish_repair", persist)
+    finishes = []
+    real_finish = entry.control.finish_attempt
+
+    def finish(**kwargs):
+        finishes.append(bool(store.list_finish_repairs()))
+        return real_finish(**kwargs)
+
+    monkeypatch.setattr(entry.control, "finish_attempt", finish)
+    admission = entry.admit(
+        session_id="durable-finish", turn_payload={"version": 1, "kind": "chat", "request": {
+            "user_text": "work", "agent_id": "default", "source": "test"}},
+        trusted_actor={"subject": "test"}, config_snapshot_ref="config:test",
+        user_message_id="u", assistant_message_id="a",
+    )
+
+    async def run():
+        active = await entry.activate(admission)
+        key = (admission.execution_id, active.attempt_id, active.generation)
+        await driver._handles[key].done
+        return key
+
+    key = asyncio.run(run())
+    driver._retry_finish(key)
+    assert store.get_execution(admission.execution_id).status is ExecutionStatus.RUNNING
+    assert not finishes
+    assert key in driver._pending_finishes
+
+    # Storage recovers, but the completion consumer is still unavailable.
+    writable[0] = True
+    def unavailable(*args):
+        raise OSError("Goal notification unavailable")
+    monkeypatch.setattr(chat, "after_terminal", unavailable)
+    driver._retry_finish(key)
+    assert store.get_execution(admission.execution_id).status is ExecutionStatus.COMPLETED
+    assert finishes == [True]
+    assert store.list_finish_repairs()
+    monkeypatch.setattr(chat, "after_terminal", lambda *args: None)
+    entry.control.replay_finish_repairs(include_stalled=True)
+    assert finishes == [True]
+    assert not store.list_finish_repairs()
+    assert key not in driver._pending_finishes
+
+
 def test_finish_retry_re_reads_cancellation_state(tmp_path):
     from openprogram.agent.production_driver import AgentProductionDriver
 

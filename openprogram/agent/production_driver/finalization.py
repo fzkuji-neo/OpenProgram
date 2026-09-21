@@ -217,14 +217,17 @@ class FinalizationOperations:
                                 current_pending[4],
                                 command_id,
                             )
-                self._persist_finish_retry(
+                if not self._persist_finish_retry(
                     attempt,
                     execution.status_version,
                     retry_target,
                     retry_outcome,
                     retry_reason,
                     command_id,
-                )
+                ):
+                    shared.time.sleep(delay)
+                    delay = min(delay * 2, shared.FINISH_RETRY_MAX_DELAY)
+                    continue
                 try:
                     service.finish_attempt(
                         attempt_id=attempt.attempt_id,
