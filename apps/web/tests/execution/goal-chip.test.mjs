@@ -114,6 +114,17 @@ test("Goal progress shows todos, never execution rounds", async () => {
   } finally { await view.close(); }
 });
 
+test("completed todo progress remains Verifying until evidence passes", async () => {
+  reset();
+  runtimeState.conversations.s1.goal = { ...snapshot(1), phase: "verifying", checklist: [{ text: "Verify", done: true }] };
+  const view = await mount();
+  try {
+    assert.equal(view.host.querySelector(".badge-short").textContent, "Goal · Verifying · Todos 1/1");
+    await frame({ ...snapshot(2, "achieved"), phase: "terminal" });
+    assert.equal(view.host.querySelector(".badge-short"), null);
+  } finally { await view.close(); }
+});
+
 test("provider-only incomplete responses allow a new Goal turn without claiming stop", async () => {
   reset();
   useSessionStore.setState({ wsStatus: "open" });

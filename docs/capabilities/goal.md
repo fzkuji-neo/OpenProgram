@@ -1,6 +1,6 @@
 # Goals in chat
 
-A Goal keeps an objective active across ordinary chat turns. The current agent does the work with the conversation's tools, model, permissions and history. At the end of a successful turn, the runtime continues an active Goal with another ordinary chat turn. There is no nested working agent or automatic separate judge in chat mode.
+A Goal keeps an objective active across ordinary chat turns. The current agent does the work with the conversation's tools, model, permissions and history. At the end of a successful turn, the runtime continues an active Goal with another ordinary chat turn. Completion candidates receive a separate read-only verification turn; ordinary working turns do not each run a judge. There is no nested working agent.
 
 ## Start and plan
 
@@ -8,7 +8,11 @@ Enter `/goal <objective>`, or use **Programs → Workflow → goal → Use**. Th
 
 The agent uses `todo_create`, `todo_update` and `todo_list` to maintain a plan for multi-step work. New items created during Goal work are associated with the Goal and its revision. The Goal details refresh progress after each successful todo change and reconcile it again when a turn ends. Progress notification failures do not undo saved todos. The objective remains independent of the plan: checking every item does not by itself prove completion.
 
-The agent must check current evidence against every requirement before calling `update_goal(status="complete")`. The runtime rejects completion while associated todos remain unfinished. This is a structural check; it is not independent semantic verification. A simple objective does not require an artificial todo list.
+The agent must check current evidence against every requirement before calling `update_goal(status="complete")`. This short operation submits a candidate; it does not mark the Goal achieved. Unfinished associated todos prevent submission. A fully completed todo plan also triggers verification once per changed plan. A simple objective does not require an artificial todo list.
+
+The badge displays **Verifying** while a distinct ordinary chat turn assesses the original objective and each todo requirement. Only trusted built-in inspection tools are available, under normal permissions. Shell commands, writes and Goal mutation tools are not verification tools. If tests or external queries are needed, the verifier returns missing evidence to the working agent, whose normal permissions and budgets still apply.
+
+The verifier must provide a per-requirement assessment and recorded evidence references. Successful reads record file fingerprints; saved conversation evidence and the verifier's own result are versioned by digest. The runtime rechecks requirements, user controls, todo state, unfinished executions, unknown effects and referenced evidence before saving achieved. Pause, edit, cancellation, new user instructions or changed evidence prevent stale success. Missing evidence returns to ordinary work; a failed execution remains recoverable. Semantic verification is an independent model judgment, not a guarantee of perfect results. Completion describes the verification time and does not silently start ongoing monitoring.
 
 ## Control execution
 

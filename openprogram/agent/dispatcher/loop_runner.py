@@ -298,11 +298,20 @@ def resolve_agent_runtime(
         tools = apply_tool_policy(tools or [], source=req.source)
         web_use_enabled = False
     tools = _retain_saved_contract_tools(tools, saved_runtime_contract)
+    if req.goal_verification:
+        from openprogram.programs.workflow.goal import verification
+        from openprogram.agent.run_control import get_current_execution_id
+        from openprogram.programs import _is_verifier_read_tool
+        verification.require_candidate(req.session_id, vars(req), execution_id=get_current_execution_id())
+        tools = [tool for tool in tools or [] if _is_verifier_read_tool(tool) and tool.name != "self_update_observe"]
+        web_use_enabled = False
     from openprogram.programs import install_allowed_tool_names
     install_allowed_tool_names({tool.name for tool in tools or []})
     _log_resolved_tools(req, tools)
     if tools:
         tools = [_wrap_with_approval(tool, req, event_sink) for tool in tools]
+        if req.goal_verification:
+            tools = [verification.wrap_read(tool, req) if tool.name == "read" else tool for tool in tools]
         if assistant_msg_id is not None:
             wrapped = []
             for tool in tools:
@@ -325,8 +334,11 @@ def resolve_agent_runtime(
     )
     system_prompt = recordable_prompt
     if saved_system_prompt is None and req.source != "agent_spawn":
-        from openprogram.programs.workflow.goal.chat import instructions
-        system_prompt += instructions(req.session_id)
+        if req.goal_verification:
+            system_prompt += verification.instructions(req.session_id, req)
+        else:
+            from openprogram.programs.workflow.goal.chat import instructions
+            system_prompt += instructions(req.session_id)
     surface_prompt = _render_surface_context(
         req.surface_context, web_use_enabled=web_use_enabled,
     )

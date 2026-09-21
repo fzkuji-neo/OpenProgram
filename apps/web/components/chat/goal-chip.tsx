@@ -142,7 +142,8 @@ function useGoalDraft<T>(source: T, revision: number) {
   };
 }
 
-function statusLabel(status: string | undefined, zh: boolean) {
+function statusLabel(status: string | undefined, zh: boolean, phase?: string) {
+  if (status === "active" && phase === "verifying") return zh ? "验收中" : "Verifying";
   const labels: Record<string, [string, string]> = {
     refining: ["Refining", "完善中"], active: ["Active", "进行中"],
     running: ["Running", "执行中"], evaluating: ["Evaluating", "判定中"],
@@ -299,7 +300,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
         aria-label={text("Open Goal details", "打开 Goal 详情")}
       >
         <Target size={14} strokeWidth={2} className="workdir-icon" />
-        <span className="badge-short">Goal · {stopPending ? text("Stop not confirmed", "停止未确认") : statusLabel(goal.status, zh)}{progress ? ` · ${progress}` : null}</span>
+        <span className="badge-short">Goal · {stopPending ? text("Stop not confirmed", "停止未确认") : statusLabel(goal.status, zh, goal.phase)}{progress ? ` · ${progress}` : null}</span>
       </button> : null}
       <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) setConfirmCancel(false); }}>
         <DialogContent className={styles.dialog} aria-busy={busy} onCloseAutoFocus={(event) => {
@@ -337,7 +338,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
           </div> : null}
 
           <div className={styles.metrics}>
-            <div><span>{text("Status", "状态")}</span><strong>{statusLabel(goal.status, zh)}</strong></div>
+            <div><span>{text("Status", "状态")}</span><strong>{statusLabel(goal.status, zh, goal.phase)}</strong></div>
             {progress ? <div><span>{text("Progress", "进度")}</span><strong>{progress}</strong></div> : null}
             <div><span>{text("Tokens", "Token")}</span><strong>{goal.usage?.tokens_known === false ? text("Unknown", "未知") : goal.usage?.total_tokens ?? 0}</strong></div>
             <div><span>{text("Cost", "成本")}</span><strong>{goal.usage?.cost_known === true && Number.isFinite(goal.usage.cost_usd)

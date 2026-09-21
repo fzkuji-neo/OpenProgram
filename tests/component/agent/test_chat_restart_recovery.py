@@ -93,7 +93,7 @@ def test_restart_admits_one_new_turn_with_original_authority(runtime, monkeypatc
     def run(*, request, cancel_event):
         calls.append(request)
         if has_goal:
-            chat.update(request.session_id, "complete", expected=chat.current_identity())
+            goals.apply_goal_action(request.session_id, "pause")
         return SimpleNamespace(failed=False)
     real_activate = CanonicalAgentAdapter.activate
     async def activate(self, admission, **kwargs):
@@ -131,7 +131,7 @@ def test_restart_admits_one_new_turn_with_original_authority(runtime, monkeypatc
     reconcile(runner)
     if fault == "startup_after_admission":
         from tests.support.waiting import wait_until
-        assert wait_until(lambda: any(e.execution_id != admission.execution_id and e.status is ExecutionStatus.COMPLETED
+        assert wait_until(lambda: any(e.execution_id != admission.execution_id and e.status in {ExecutionStatus.COMPLETED, ExecutionStatus.CANCELLED}
                                      for e in store.list_for_session("goal-chat")), timeout=5)
     else:
         assert done.wait(5)
@@ -213,7 +213,7 @@ def test_only_incompatible_checkpoint_falls_back_to_new_chat(runtime, monkeypatc
     done = threading.Event()
     def run(*, request, cancel_event):
         calls.append(request)
-        chat.update(request.session_id, "complete", expected=chat.current_identity())
+        goals.apply_goal_action(request.session_id, "pause")
         return SimpleNamespace(failed=False)
     real_activate = CanonicalAgentAdapter.activate
     async def activate(self, admitted, **kwargs):
@@ -262,7 +262,7 @@ def test_goal_created_inside_running_turn_recovers_only_its_original_identity(ru
                 metadata={"kind": "tool.before", "payload": {"tool_name": "bash"}})
             effects.mark_dispatched("midturn-unknown", expected_status=EffectStatus.PLANNED)
             raise ProcessLost()
-        chat.update(request.session_id, "complete", expected=chat.current_identity())
+        goals.apply_goal_action(request.session_id, "pause")
         return SimpleNamespace(failed=False)
     adapter = CanonicalAgentAdapter(store=store, turn_runner=run)
     admission = adapter.admit(TurnRequest("goal-chat", "start task", "main", "web"),
@@ -291,7 +291,7 @@ def test_goal_created_inside_running_turn_recovers_only_its_original_identity(ru
     reconcile(SimpleNamespace(_execution_store=store, _execution_control=default_control_service()))
     if change is None:
         assert finished.wait(5)
-        assert goals.load_goal("goal-chat")["status"] == "achieved"
+        assert goals.load_goal("goal-chat")["status"] == "paused"
         assert len(calls) == 2
         assert chat.identity(goals.load_goal("goal-chat")) == original_identity
     else:

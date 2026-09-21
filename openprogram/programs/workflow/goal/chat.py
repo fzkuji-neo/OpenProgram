@@ -81,7 +81,7 @@ def create(session_id: str, objective: str, token_budget: int | None = None, *,
     now = time.time()
     goal = {
         "execution_mode": "chat", "goal_id": uuid.uuid4().hex,
-        "run_id": uuid.uuid4().hex, "revision": 1,
+        "run_id": uuid.uuid4().hex, "revision": 1, "control_version": 1,
         "version": int((previous or {}).get("version") or 0),
         "text": objective, "status": "active", "phase": "idle",
         "execution_id": get_current_execution_id(),
@@ -159,7 +159,10 @@ def update(session_id: str, status: str, *, expected: dict | None) -> dict:
         raise ValueError("Recheck the same blocker over at least three Goal turns before marking blocked")
     goals.accumulate_goal_usage(session_id, goal)
     goals.checkpoint_active_elapsed(goal)
-    goal.update(status="achieved" if status == "complete" else "blocked", phase="terminal")
+    if status == "complete":
+        goal.update(completion_requested=identity(goal), phase="verifying")
+    else:
+        goal.update(status="blocked", phase="terminal")
     return publish(session_id, goal)
 
 
@@ -182,12 +185,16 @@ def resume(session_id: str, expected: dict | None = None) -> dict:
         default_control_service().close_interrupted_chat(
             observed["execution_id"], expected_version=observed["status_version"])
     goal.update(execution_mode="chat", status="active", phase="idle",
+                control_version=int(goal.get("control_version") or 0) + 1,
                 run_id=uuid.uuid4().hex, run_turns=0, stop_requested=False,
                 pause_reason="", active_started_at=None, last_reason="")
     goal["goal_id"] = goal.get("goal_id") or uuid.uuid4().hex
     goal.pop("roles", None)
     goal.pop("role_requests", None)
     goal.pop("continuation_restart", None)
+    goal.pop("verification", None)
+    goal.pop("completion_requested", None)
+    goal.pop("verified_plan", None)
     goal["continuation_policy"] = continuation_policy()
     goals.reset_goal_usage_cursor(session_id, goal)
     return publish(session_id, goal)
@@ -203,6 +210,7 @@ def instructions(session_id: str) -> str:
         + json.dumps({"objective": goal["text"], "identity": identity(goal),
                       "budget": goal.get("budget"), "usage": goal.get("usage"),
                       "answers": goal.get("pending_answers", []),
+                      "verification_feedback": goal.get("last_reason"),
                       "todos": todos(session_id, goal)}, ensure_ascii=False)
         + "\nUse todo_list, todo_create and todo_update to plan meaningful multi-step work "
         "and keep the plan current. Do the work yourself using normal tools. "
@@ -211,6 +219,8 @@ def instructions(session_id: str) -> str:
         "Before calling update_goal(status='complete'), derive every requirement from the "
         "objective and user instructions and inspect current authoritative evidence for each. "
         "Missing, partial or indirect evidence means keep working. "
+        "Calling complete only submits a candidate for a separate read-only verification turn; "
+        "do not claim the Goal has passed verification yet. "
         "Only mark blocked if the same verified blocker persists for at least three consecutive "
         "Goal turns and no independent work remains. Ordinary difficulty is not a blocker. "
         "User corrections take precedence over continuation instructions. "
@@ -229,7 +239,9 @@ def turn_context(session_id: str, execution_id: str, expected: dict | None = Non
                 goals.check_goal_preconditions(goal or {}, expected)
                 if goal.get("status") != "active" or goal.get("execution_id") != execution_id:
                     raise goals.GoalConflictError("Goal changed before the admitted turn started")
-                goal.update(phase="working", active_started_at=time.time())
+                candidate = goal.get("verification") or {}
+                phase = "verifying" if candidate.get("execution_id") == execution_id and candidate.get("status") == "pending" else "working"
+                goal.update(phase=phase, active_started_at=time.time())
                 goal["continuation_policy"] = continuation_policy()
                 publish(session_id, goal)
         yield
@@ -276,7 +288,14 @@ def admit(entry, **kwargs):
             except goals.GoalConflictError as exc:
                 raise ContinuationSuperseded(str(exc)) from exc
         if not active:
+            if request.get("goal_verification"):
+                raise ContinuationSuperseded("Goal verification is no longer active")
             return entry._admit_without_goal(**kwargs)
+        if request.get("goal_verification"):
+            from .verification import require_candidate
+            if not key or not request.get("goal_trigger"):
+                raise ContinuationSuperseded("Verification requires internal continuation admission")
+            require_candidate(sid, request, admission_key=key)
         if goals.budget_exhausted(goal):
             raise goals.GoalConflictError("Goal budget is exhausted")
         from openprogram.execution.foreground import active_foreground_task
@@ -292,6 +311,13 @@ def admit(entry, **kwargs):
         admission = entry._admit_without_goal(**kwargs)
         try:
             goal.update(execution_id=admission.execution_id, phase="queued")
+            if request.get("goal_verification"):
+                goal["verification"]["execution_id"] = admission.execution_id
+                goal["phase"] = "verifying"
+            else:
+                prior = goal.pop("verification", None)
+                if prior:
+                    goal["last_verification"] = prior
             goal.pop("continuation_restart", None)
             goals.reset_goal_usage_cursor(sid, goal)
             publish(sid, goal)
@@ -348,6 +374,14 @@ def after_terminal(store, execution):
         if goal.get("usage_pending_until") is not None:
             raise goals.GoalStateUnavailable("Goal usage settlement is pending")
         if goal.get("status") != "active" or stale_revision:
+            return
+        from . import verification
+        if request.get("goal_verification"):
+            verification.finish(store, execution, goal, request)
+        else:
+            verification.prepare(store, execution, goal)
+        publish(sid, goal)
+        if goal.get("status") != "active":
             return
     start_next(store, execution.execution_id, expected=identity(goal))
 
@@ -421,8 +455,12 @@ def start_next(store, previous_execution_id: str, *, expected: dict):
     if not _continuation_ready(store, sid, previous_execution_id, expected):
         return
     key = "goal:" + json.dumps([previous_execution_id, expected], sort_keys=True)
+    from . import verification
+    with locked(sid):
+        goal = goals.load_goal(sid)
+        request, key = verification.continuation(goal, request, key)
     msg_id = store.admission_execution_id(sid, key) + "_user"
-    request.update(user_text="Continue the active Goal. Inspect the current todo plan and actual results, then do the remaining work or verify completion.",
+    request.update(user_text=request["user_text"] if request.get("goal_verification") else "Continue the active Goal. Inspect the current todo plan and actual results, then do the remaining work or verify completion.",
                    user_msg_id=msg_id, user_already_persisted=False,
                    history_override=None, attachments=None, spawn_caller=None,
                    goal_context=expected, goal_trigger=True,
