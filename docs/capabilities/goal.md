@@ -31,6 +31,8 @@ The state tools are short operations: `create_goal`, `get_goal`, and `update_goa
 
 Goal distinguishes a terminal execution from permission to start a new chat turn. An abandoned model-only response with no active descendants, pending waits or non-cancel commands can allow Resume without rewriting the old execution as completed. Unconfirmed external effects still block Resume; open Activity to inspect the execution and use its existing controls. Todo completion is not objective verification.
 
+Provider requests repair incomplete tool-call history without rewriting saved records. Missing outputs receive an explicit unknown-outcome error placeholder, including a call at the end of history. Saved real outputs take precedence over placeholders; duplicate outputs are collapsed and paired with their call. Interrupted assistant text remains labelled as interrupted. Unpaired tool-result protocol entries remain in saved history but are omitted from the provider request. This repair does not prove that an operation failed, authorize a retry, or remove execution recovery restrictions.
+
 Provider usage receipts refresh active Goal totals; turn exit reconciles them again. Repeated notifications do not add the same usage twice. Metering read failures preserve the cursor and display unknown rather than zero. Older interrupted Goals whose usage was never settled are explicitly labelled pending accounting; their whole-session costs are not guessed into Goal totals.
 
 ## Python Workflow compatibility
