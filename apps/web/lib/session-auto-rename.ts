@@ -19,7 +19,7 @@ export async function autoRenameSession(sessionId: string): Promise<void> {
     } else if (result?.status === "superseded") {
       showToast(translateText("Conversation changed; generated name was not applied", "会话已变更，未应用生成的名称"));
     } else if (!result) {
-      showToast(translateText("Rename not confirmed. Check the conversation title after reconnecting.", "未收到命名确认，请在连接恢复后查看会话名称。"), { tone: "warn" });
+      showToast(translateText("Rename not confirmed. Reload the page to check the final conversation title.", "未收到命名确认，请刷新页面确认最终会话名称。"), { tone: "warn" });
     } else {
       showToast(translateText("Could not generate a name. The previous title is unchanged.", "名称生成失败，原名称已保留。"), { tone: "error" });
     }
