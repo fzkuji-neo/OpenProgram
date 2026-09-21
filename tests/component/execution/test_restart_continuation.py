@@ -426,10 +426,14 @@ def test_completed_tool_cursor_resumes_when_next_provider_is_interrupted(tmp_pat
 
 
 @pytest.mark.parametrize("queued", [False, True])
-@pytest.mark.parametrize("elapsed,resumes", [(7200, True), (7201, False)])
-def test_initial_admission_recovery_obeys_fixed_deadline(tmp_path, monkeypatch, queued, elapsed, resumes):
+@pytest.mark.parametrize("window", [-1, 7200])
+@pytest.mark.parametrize("elapsed", [7200, 7201, 86400])
+def test_initial_admission_recovery_preserves_restart_policy(tmp_path, monkeypatch, queued, elapsed, window):
     from openprogram.execution import restart
     from openprogram.execution.startup import recover_execution_startup
+
+    monkeypatch.setattr(restart, "window_seconds", lambda: window)
+    resumes = window == -1 or elapsed <= window
 
     store, attempts, running, active = _running(tmp_path, activate=not queued)
     # A fresh admission has not run a tool and needs no continuation cursor.
@@ -451,7 +455,7 @@ def test_initial_admission_recovery_obeys_fixed_deadline(tmp_path, monkeypatch, 
     _StartupDriver.activations = []
     recover_execution_startup(control_service=service, projection_dispatcher=_NoopProjection())
     intent = next(e for e in store.list_events(running.execution_id) if e.kind == restart._REQUEST)
-    assert intent.payload["resume_before"] == interrupted_at + 7200
+    assert intent.payload["resume_before"] == (None if window == -1 else interrupted_at + window)
     _restart_after_startup(service, monkeypatch)
     expected = ExecutionStatus.RUNNING if resumes else ExecutionStatus.PAUSED
     assert store.get_execution(running.execution_id).status is expected

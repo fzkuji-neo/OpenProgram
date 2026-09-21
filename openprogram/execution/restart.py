@@ -1,4 +1,4 @@
-"""Bounded worker-restart continuation through canonical events and commands."""
+"""Worker-restart continuation through durable canonical events and commands."""
 
 from __future__ import annotations
 
@@ -14,13 +14,18 @@ _SETTLED = "execution.restart.settled"
 
 
 def window_seconds() -> int:
+    """-1 preserves run intent indefinitely; zero is an explicit opt-out."""
     from openprogram.setup import _read_config
 
     settings = _read_config().get("execution", {})
     if not isinstance(settings, dict):
         return 0
-    value = settings.get("auto_resume_window_seconds", 7200)
-    return value if type(value) is int and value >= 0 else 0
+    value = settings.get("auto_resume_window_seconds", -1)
+    return value if type(value) is int and value >= -1 else 0
+
+
+def resume_deadline(interrupted_at: float, seconds: int) -> float | None:
+    return None if seconds == -1 else interrupted_at + seconds
 
 
 def record_intent(
@@ -34,7 +39,7 @@ def record_intent(
         kind=_REQUEST,
         payload=dict(
             interrupted_at=interrupted_at,
-            resume_before=interrupted_at + seconds,
+            resume_before=resume_deadline(interrupted_at, seconds),
             expected_version=execution.status_version,
             pause_command_id=pause_command_id,
         ),
@@ -60,7 +65,7 @@ def crash_checkpoint(service, connection, execution):
     ):
         return None
     seconds = checkpoint.state_refs.get("restart_window_seconds", 0)
-    if type(seconds) is not int or seconds <= 0:
+    if type(seconds) is not int or seconds == 0 or seconds < -1:
         return None
     # A later committed action makes an older checkpoint unsafe to replay.
     if connection.execute(
@@ -160,7 +165,7 @@ def _settle(store, execution, event, outcome):
 
 
 def reconcile(runner) -> None:
-    """Resume only the exact restart-owned pause before its fixed deadline."""
+    """Resume the exact restart-owned pause, honoring any explicit deadline."""
     from openprogram.self_update.control.maintenance import maintenance_blocks
 
     if getattr(runner, "_restart_shutdown", False) or maintenance_blocks(
@@ -207,7 +212,7 @@ def reconcile(runner) -> None:
             continue
         if (
             time() < data["interrupted_at"]
-            or time() > data["resume_before"]
+            or (data["resume_before"] is not None and time() > data["resume_before"])
             or window_seconds() == 0
         ):
             _settle(store, execution, event, "expired")

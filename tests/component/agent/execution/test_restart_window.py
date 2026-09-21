@@ -31,9 +31,10 @@ def _runner(h):
     return SimpleNamespace(_execution_store=h.store, _execution_control=h.control)
 
 
-@pytest.mark.parametrize("elapsed, resumes", [(60, True), (7200, True), (7201, False)])
-def test_orderly_restart_has_fixed_two_hour_window(
-    real_agent_chat, monkeypatch, elapsed, resumes
+@pytest.mark.parametrize("window", [None, -1, 7200])
+@pytest.mark.parametrize("elapsed", [60, 7200, 7201, 86400])
+def test_orderly_restart_preserves_default_intent_and_explicit_deadline(
+    real_agent_chat, monkeypatch, elapsed, window
 ):
     from openprogram.execution import restart
     from tests.component.providers.scripted_provider import (
@@ -42,6 +43,11 @@ def test_orderly_restart_has_fixed_two_hour_window(
     )
 
     h = real_agent_chat
+    monkeypatch.setattr(
+        "openprogram.setup._read_config",
+        lambda: {"execution": {} if window is None else {"auto_resume_window_seconds": window}},
+    )
+    resumes = window != 7200 or elapsed <= window
     h.provider.add_response(
         ScriptedToolCall("first", {}, "first-call"),
         ScriptedToolCall("second", {}, "second-call"),
@@ -62,7 +68,9 @@ def test_orderly_restart_has_fixed_two_hour_window(
         for e in h.store.list_events(execution.execution_id)
         if e.kind == restart._REQUEST
     )
-    assert intent.payload["resume_before"] - intent.payload["interrupted_at"] == 7200
+    assert intent.payload["resume_before"] == (
+        intent.payload["interrupted_at"] + window if window == 7200 else None
+    )
     monkeypatch.setattr(
         restart, "time", lambda: intent.payload["interrupted_at"] + elapsed
     )
@@ -426,10 +434,7 @@ def test_shutdown_pause_race_with_completed_action(real_agent_chat, monkeypatch)
         if e.kind == restart._REQUEST
     ]
     assert len(requests) == 1
-    assert (
-        requests[0].payload["resume_before"] - requests[0].payload["interrupted_at"]
-        == 7200
-    )
+    assert requests[0].payload["resume_before"] is None
     restart.reconcile(_runner(h))
     _wait(
         lambda: (
