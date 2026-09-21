@@ -28,7 +28,11 @@ def state(tmp_path, monkeypatch):
 
 
 def run(ws, **kwargs):
-    asyncio.run(actions.handle_rename_session(ws, {'session_id': 'rename-test', 'request_id': 'r1', **kwargs}))
+    async def finish():
+        task = await actions.handle_rename_session(ws, {'session_id': 'rename-test', 'request_id': 'r1', **kwargs})
+        if task is not None:
+            await task
+    asyncio.run(finish())
 
 
 def test_auto_rename_persists_broadcasts_and_replies(state, monkeypatch):
@@ -95,7 +99,7 @@ def test_model_generation_does_not_block_event_loop(state, monkeypatch):
         return 'Generated title'
     monkeypatch.setattr(actions, '_llm_rename', generate)
     async def scenario():
-        task = asyncio.create_task(actions.handle_rename_session(ws, {'session_id': 'rename-test'}))
+        task = await actions.handle_rename_session(ws, {'session_id': 'rename-test'})
         await asyncio.sleep(0.05)
         released.set()
         await task
@@ -112,3 +116,29 @@ def test_failed_persistence_does_not_broadcast_success(state, monkeypatch):
     assert not frames
     assert ws.frames[-1]['data']['status'] == 'failed'
     assert db.get_session('rename-test')['title'] == 'Old title'
+
+
+def test_same_connection_manual_rename_during_generation(state, monkeypatch):
+    import threading
+    db, ws, frames = state
+    started, released = threading.Event(), threading.Event()
+    def generate(sid):
+        started.set()
+        assert released.wait(2)
+        return 'Stale generated title'
+    monkeypatch.setattr(actions, '_llm_rename', generate)
+    async def scenario():
+        task = await actions.handle_rename_session(ws, {'session_id': 'rename-test', 'request_id': 'auto'})
+        assert isinstance(task, asyncio.Task)
+        try:
+            assert await asyncio.to_thread(started.wait, 2)
+            await actions.handle_rename_session(ws, {'session_id': 'rename-test', 'title': 'Manual name', 'request_id': 'manual'})
+            assert db.get_session('rename-test')['title'] == 'Manual name'
+        finally:
+            released.set()
+            await task
+        await asyncio.sleep(0)
+        assert task not in actions._rename_tasks
+    asyncio.run(scenario())
+    assert [f['data']['status'] for f in ws.frames] == ['ok', 'superseded']
+    assert len(frames) == 1

@@ -544,6 +544,9 @@ async def handle_delete_session(ws, cmd: dict):
     _s._broadcast(json.dumps({"type": "session_deleted", "session_id": session_id}))
 
 
+_rename_tasks: set[asyncio.Task] = set()
+
+
 async def handle_rename_session(ws, cmd: dict):
     """Set a conversation's display title.
 
@@ -563,12 +566,16 @@ async def handle_rename_session(ws, cmd: dict):
     session_id = cmd.get("session_id")
 
     async def reply(status: str, title: str | None = None):
-        await ws.send_text(json.dumps({
-            "type": "session_rename_result",
-            "data": {"session_id": session_id, "action": "rename_session",
-                     "request_id": cmd.get("request_id"), "status": status,
-                     "title": title},
-        }))
+        try:
+            await ws.send_text(json.dumps({
+                "type": "session_rename_result",
+                "data": {"session_id": session_id, "action": "rename_session",
+                         "request_id": cmd.get("request_id"), "status": status,
+                         "title": title},
+            }))
+        except Exception:
+            # Persistence and broadcasts remain valid if the requesting socket left.
+            _s._log(f"[rename_session] {session_id}: reply not delivered")
 
     db = default_db()
     before = db.get_session(session_id) if isinstance(session_id, str) else None
@@ -580,38 +587,58 @@ async def handle_rename_session(ws, cmd: dict):
         await reply("failed")
         return
     title = (title or "").strip()
-    if not title:
+    async def finish():
+        nonlocal title
+        if not title:
+            try:
+                title = await asyncio.wait_for(asyncio.to_thread(_llm_rename, session_id), 60)
+            except Exception as exc:
+                _s._log(f"[rename_session] {session_id}: {type(exc).__name__}")
+                await reply("failed")
+                return
+            current = db.get_session(session_id)
+            if (not current or current.get("title") != before.get("title")
+                    or (current.get("extra_meta") or {}).get("_user_titled")
+                    != (before.get("extra_meta") or {}).get("_user_titled")):
+                await reply("superseded")
+                return
+            if not isinstance(title, str) or not title.strip():
+                await reply("failed")
+                return
+            title = title.strip()
         try:
-            title = await asyncio.wait_for(asyncio.to_thread(_llm_rename, session_id), 60)
+            # Both menu actions express the user's choice, protecting it from
+            # subsequent background titling.
+            db.update_session(session_id, title=title, _user_titled=True)
         except Exception as exc:
             _s._log(f"[rename_session] {session_id}: {type(exc).__name__}")
             await reply("failed")
             return
-        current = db.get_session(session_id)
-        if (not current or current.get("title") != before.get("title")
-                or (current.get("extra_meta") or {}).get("_user_titled")
-                != (before.get("extra_meta") or {}).get("_user_titled")):
-            await reply("superseded")
-            return
-        if not isinstance(title, str) or not title.strip():
+        if session_id in _s._sessions:
+            _s._sessions[session_id]["title"] = title
+        _s._broadcast(json.dumps({
+            "type": "session_updated",
+            "data": {"id": session_id, "title": title},
+        }, default=str))
+        await reply("ok", title)
+
+    if title:
+        await finish()
+        return None
+
+    async def run():
+        try:
+            await finish()
+        except Exception as exc:
+            _s._log(f"[rename_session] {session_id}: {type(exc).__name__}")
             await reply("failed")
-            return
-        title = title.strip()
-    try:
-        # Both menu actions express the user's choice, protecting it from
-        # subsequent background titling.
-        db.update_session(session_id, title=title, _user_titled=True)
-    except Exception as exc:
-        _s._log(f"[rename_session] {session_id}: {type(exc).__name__}")
-        await reply("failed")
-        return
-    if session_id in _s._sessions:
-        _s._sessions[session_id]["title"] = title
-    _s._broadcast(json.dumps({
-        "type": "session_updated",
-        "data": {"id": session_id, "title": title},
-    }, default=str))
-    await reply("ok", title)
+
+    # The socket dispatcher awaits handlers serially. Return immediately so
+    # navigation, chat, and a newer manual rename can use this same connection.
+    task = asyncio.create_task(run())
+    _rename_tasks.add(task)
+    task.add_done_callback(_rename_tasks.discard)
+    return task
 
 
 def _llm_rename(session_id: str) -> str | None:
