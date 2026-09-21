@@ -172,6 +172,11 @@ def resume(session_id: str, expected: dict | None = None) -> dict:
             raise goals.GoalStateUnavailable("Interrupted Goal usage is still unavailable; retry after the ledger recovers.")
     if goals.budget_exhausted(goal):
         raise ValueError("Goal budget is exhausted; increase its limit before resuming")
+    observed = goals.goal_execution_state(goal, session_id)
+    if observed.get("can_start_new_turn") and not observed.get("finished"):
+        from openprogram.execution import default_control_service
+        default_control_service().close_interrupted_chat(
+            observed["execution_id"], expected_version=observed["status_version"])
     goal.update(execution_mode="chat", status="active", phase="idle",
                 run_id=uuid.uuid4().hex, run_turns=0, stop_requested=False,
                 pause_reason="", active_started_at=None, last_reason="")
@@ -257,8 +262,10 @@ def admit(entry, **kwargs):
     with locked(sid):
         goal = goals.load_goal(sid)
         active = goal and goal.get("execution_mode") == "chat" and goal.get("status") == "active"
+        key = kwargs.get("admission_key")
+        continuation_id = entry.store.admission_execution_id(sid, key) if key else None
         if request.get("goal_trigger"):
-            if not active or goal.get("execution_id") != request.get("goal_previous_execution"):
+            if not active or goal.get("execution_id") not in {request.get("goal_previous_execution"), continuation_id}:
                 raise ContinuationSuperseded("Goal continuation was superseded")
             try:
                 goals.check_goal_preconditions(goal, request.get("goal_context"))
@@ -269,10 +276,15 @@ def admit(entry, **kwargs):
         if goals.budget_exhausted(goal):
             raise goals.GoalConflictError("Goal budget is exhausted")
         from openprogram.execution.foreground import active_foreground_task
-        if active_foreground_task(entry.store, sid):
+        foreground = active_foreground_task(entry.store, sid)
+        if foreground and foreground["execution_id"] != continuation_id:
             raise goals.GoalConflictError("Conversation already has an active execution")
         request = dict(request, goal_context=identity(goal))
         kwargs["turn_payload"] = dict(payload, request=request)
+        if continuation_id and goal.get("execution_id") == continuation_id:
+            # Validate the same immutable admission without resetting a live
+            # turn's phase, accounting cursor or persisted Goal version.
+            return entry._admit_without_goal(**kwargs)
         admission = entry._admit_without_goal(**kwargs)
         try:
             goal.update(execution_id=admission.execution_id, phase="queued")
@@ -280,7 +292,8 @@ def admit(entry, **kwargs):
             goals.reset_goal_usage_cursor(sid, goal)
             publish(sid, goal)
         except Exception:
-            entry.driver.fail_admission(admission, reason_code="goal_state_conflict")
+            if key is None:
+                entry.driver.fail_admission(admission, reason_code="goal_state_conflict")
             raise
         return admission
 
@@ -403,8 +416,10 @@ def start_next(store, previous_execution_id: str, *, expected: dict):
     sid = source.session_id
     if not _continuation_ready(store, sid, previous_execution_id, expected):
         return
+    key = "goal:" + json.dumps([previous_execution_id, expected], sort_keys=True)
+    msg_id = store.admission_execution_id(sid, key) + "_user"
     request.update(user_text="Continue the active Goal. Inspect the current todo plan and actual results, then do the remaining work or verify completion.",
-                   user_msg_id=uuid.uuid4().hex, user_already_persisted=False,
+                   user_msg_id=msg_id, user_already_persisted=False,
                    history_override=None, attachments=None, spawn_caller=None,
                    goal_context=expected, goal_trigger=True,
                    goal_previous_execution=previous_execution_id)
@@ -417,14 +432,21 @@ def start_next(store, previous_execution_id: str, *, expected: dict):
             trusted_actor=source.trusted_actor, user_message_id=request["user_msg_id"],
             assistant_message_id=f"{request['user_msg_id']}_reply",
             config_snapshot_ref=source.config_snapshot_ref,
+            admission_key=key,
         )
     except ContinuationSuperseded:
         return
     def activate():
+        from openprogram.execution.model import ExecutionStatus
+        current = store.get_execution(admission.execution_id)
+        if current.status is not ExecutionStatus.QUEUED or current.current_attempt_id:
+            return
         try:
             asyncio.run(adapter.activate(admission))
         except Exception:
-            adapter.fail_admission(admission, reason_code="goal_activation_failed")
+            current = store.get_execution(admission.execution_id)
+            if current.status is ExecutionStatus.QUEUED and current.current_attempt_id is None:
+                adapter.fail_admission(admission, reason_code="goal_activation_failed")
     try:
         threading.Thread(target=activate, daemon=True, name="goal-chat").start()
     except Exception:

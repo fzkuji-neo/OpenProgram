@@ -416,6 +416,8 @@ class CanonicalAgentEntry:
         user_message_id: str | None,
         assistant_message_id: str | None,
         config_snapshot_ref: str,
+        admission_key: str | None = None,
+        recovery_from: tuple[str, int] | None = None,
     ) -> CanonicalAgentAdmission:
         payload = normalize_agent_turn_payload(turn_payload)
         supplied_session = (
@@ -430,7 +432,9 @@ class CanonicalAgentEntry:
         content_hash = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
         revision = self.store.create_revision(manifest=self._REVISION_MANIFEST)
         record = self.store.admit_execution(
-            execution_id=f"exec_{uuid.uuid4().hex}",
+            execution_id=None if admission_key else f"exec_{uuid.uuid4().hex}",
+            admission_key=admission_key,
+            recovery_from=recovery_from,
             run_id=f"run_{uuid.uuid4().hex}",
             session_id=session_id,
             revision_id=revision.revision_id,
@@ -592,6 +596,8 @@ class CanonicalAgentAdapter:
         user_message_id: str | None,
         assistant_message_id: str | None = None,
         config_snapshot_ref: str,
+        admission_key: str | None = None,
+        recovery_from: tuple[str, int] | None = None,
     ) -> CanonicalAgentAdmission:
         return self.entry.admit(
             session_id=session_id,
@@ -600,6 +606,8 @@ class CanonicalAgentAdapter:
             user_message_id=user_message_id,
             assistant_message_id=assistant_message_id,
             config_snapshot_ref=config_snapshot_ref,
+            **({"admission_key": admission_key} if admission_key is not None else {}),
+            **({"recovery_from": recovery_from} if recovery_from is not None else {}),
         )
 
     async def activate(

@@ -29,7 +29,7 @@ def resume_deadline(interrupted_at: float, seconds: int) -> float | None:
 
 
 def record_intent(
-    store, connection, execution, *, interrupted_at, seconds, pause_command_id=None
+    store, connection, execution, *, interrupted_at, seconds, pause_command_id=None, mode="checkpoint"
 ):
     """Called inside the transaction owning the interruption/pause intent."""
     store._append_event(
@@ -42,6 +42,7 @@ def record_intent(
             resume_before=resume_deadline(interrupted_at, seconds),
             expected_version=execution.status_version,
             pause_command_id=pause_command_id,
+            mode=mode,
         ),
         created_at=time(),
     )
@@ -164,6 +165,34 @@ def _settle(store, execution, event, outcome):
         )
 
 
+def _fallback_after_contract_mismatch(store, execution, event, command):
+    """A rejected immutable checkpoint can request a fresh chat, never tool replay."""
+    payload = store.get_agent_turn_input(execution.execution_id)
+    if (not payload or payload.get("kind") != "chat"
+            or payload.get("request", {}).get("source") not in {"web", "tui", "acp"}):
+        return False
+    with store._transaction() as connection:
+        if connection.execute(
+            "SELECT 1 FROM execution_events WHERE execution_id = ? AND kind = ? "
+            "AND json_extract(payload_json, '$.request_sequence') = ? LIMIT 1",
+            (execution.execution_id, _SETTLED, event.sequence),
+        ).fetchone():
+            return True
+        current = store._require_execution(connection, execution.execution_id)
+        if (current.status is not ExecutionStatus.PAUSED or current.current_attempt_id
+                or current.reason_code != "continuation_contract_mismatch"
+                or current.status_version != command.result_version):
+            return False
+        store._append_event(connection, execution_id=current.execution_id,
+            execution_version=current.status_version, kind=_REQUEST,
+            payload=dict(event.payload, mode="new_turn", expected_version=current.status_version,
+                         pause_command_id=None), created_at=time())
+        store._append_event(connection, execution_id=current.execution_id,
+            execution_version=current.status_version, kind=_SETTLED,
+            payload=dict(request_sequence=event.sequence, outcome="checkpoint_incompatible"), created_at=time())
+    return True
+
+
 def reconcile(runner) -> None:
     """Resume the exact restart-owned pause, honoring any explicit deadline."""
     from openprogram.self_update.control.maintenance import maintenance_blocks
@@ -173,10 +202,20 @@ def reconcile(runner) -> None:
     ):
         return
     store = runner._execution_store
-    for execution in store.list_nonterminal():
+    from contextlib import closing
+    with closing(store._connect()) as connection:
+        # Include interrupted frames until their durable new-turn request settles.
+        ids = [row[0] for row in connection.execute(
+            "SELECT r.execution_id FROM execution_events r WHERE r.kind = ? "
+            "AND NOT EXISTS (SELECT 1 FROM execution_events s WHERE s.execution_id = r.execution_id "
+            "AND s.kind = ? AND json_extract(s.payload_json, '$.request_sequence') = r.sequence) "
+            "GROUP BY r.execution_id ORDER BY MIN(r.sequence)",
+            (_REQUEST, _SETTLED),
+        )]
+    for execution_id in ids:
+        execution = store.get_execution(execution_id)
         if (
-            execution.status is not ExecutionStatus.PAUSED
-            or execution.current_attempt_id
+            execution is None or execution.current_attempt_id
         ):
             continue
         events = store.list_events(execution.execution_id)
@@ -190,11 +229,26 @@ def reconcile(runner) -> None:
         ):
             continue
         data = event.payload
+        if data.get("mode") == "new_turn":
+            from .chat_recovery import start_recovery_turn
+            try:
+                outcome = start_recovery_turn(store, execution, event)
+                if outcome:
+                    _settle(store, store.get_execution(execution.execution_id), event, outcome)
+            except Exception:
+                _log.exception("new-turn recovery failed for %s", execution.execution_id)
+            continue
+        if execution.status is not ExecutionStatus.PAUSED:
+            continue
         command_id = (
             f"worker-restart:continue:{execution.execution_id}:{event.sequence}"
         )
         existing = store.get_command(command_id)
         if existing is not None:
+            if (existing.status is CommandStatus.REJECTED
+                    and existing.rejection_code == "continuation_contract_mismatch"
+                    and _fallback_after_contract_mismatch(store, execution, event, existing)):
+                continue
             if existing.status in {CommandStatus.APPLIED, CommandStatus.REJECTED}:
                 _settle(store, execution, event, existing.status.value)
             continue
