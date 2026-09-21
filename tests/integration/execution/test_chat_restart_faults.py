@@ -51,8 +51,12 @@ if mode == 'start':
             effects.resolve(effect.effect_id, expected_status=EffectStatus.DISPATCHED,
                 outcome=EffectStatus.COMMITTED, receipt={'output': 'saved result'},
                 attempt_id=attempt.attempt_id, generation=attempt.generation)
-        ready.write_text(json.dumps({'execution_id': execution.execution_id,
-                                    'attempt_id': attempt.attempt_id, 'generation': attempt.generation}))
+        # Publish readiness only after the complete recovery identity is closed.
+        # The parent intentionally kills this process as soon as ready exists.
+        pending = ready.with_suffix('.tmp')
+        pending.write_text(json.dumps({'execution_id': execution.execution_id,
+                                      'attempt_id': attempt.attempt_id, 'generation': attempt.generation}))
+        pending.replace(ready)
         if threading.Event().wait(25):
             raise AssertionError('unexpected signal')
         raise TimeoutError('test did not kill its worker')
@@ -141,3 +145,20 @@ def test_killed_chat_recovers_once_without_repeating_effects(tmp_path, has_goal,
         if worker.poll() is None:
             worker.kill()
         worker.communicate(timeout=5)
+
+
+def test_readiness_waits_for_complete_recovery_identity(tmp_path, monkeypatch):
+    slow_write = r'''
+original_write = Path.write_text
+def slow_ready_write(path, *args, **kwargs):
+    if path.name in {'ready.json', 'ready.tmp'}:
+        path.touch()
+        threading.Event().wait(0.2)
+    return original_write(path, *args, **kwargs)
+Path.write_text = slow_ready_write
+'''
+    monkeypatch.setattr(sys.modules[__name__], 'PROGRAM', PROGRAM.replace(
+        'mode, folder, phase, has_goal = sys.argv[1:]',
+        slow_write + '\nmode, folder, phase, has_goal = sys.argv[1:]',
+    ))
+    test_killed_chat_recovers_once_without_repeating_effects(tmp_path, True, 'before_dispatch')
