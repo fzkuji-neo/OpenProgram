@@ -88,9 +88,11 @@ async def stream_simple_with_provider(
     budget = BudgetedRequest.begin(model, context, opts, provider)
     receipt = None
     try:
-        receipt = RequestReceipt.begin(model, opts)
+        receipt = RequestReceipt.begin(model, opts, provider_context=context, provider=provider, budget=budget)
         if budget is not None:
             opts = budget.clamp(opts, model)
+        if receipt is not None:
+            opts = receipt.clamp(opts, model)
 
         if get_api_key is not None:
             key_result = get_api_key(model.provider)
@@ -124,13 +126,13 @@ async def stream_simple_with_provider(
             if final is not None:
                 recorded = True
                 if receipt is not None:
-                    if budget is not None:
-                        budget.settle(model, final, opts, frozen_event=receipt.event(final))
                     receipt.settle(final)
                 elif budget is not None:
                     budget.settle(model, final, opts)
                 else:
                     _record_usage(model, final, opts)
+            elif receipt is not None:
+                _observe_usage(receipt, event)
         yield event
 
 
@@ -173,9 +175,11 @@ async def stream(
         budget = BudgetedRequest.begin(model, context, opts, provider)
         receipt = None
         try:
-            receipt = RequestReceipt.begin(model, opts)
+            receipt = RequestReceipt.begin(model, opts, provider_context=context, provider=provider, budget=budget)
             if budget is not None:
                 opts = budget.clamp(opts, model)
+            if receipt is not None:
+                opts = receipt.clamp(opts, model)
 
             # Auto-resolve API key from the AuthStore if not set (same as stream_simple)
             if not opts.api_key and getattr(provider, "requires_credentials", True):
@@ -197,13 +201,13 @@ async def stream(
                 if final is not None:
                     recorded = True
                     if receipt is not None:
-                        if budget is not None:
-                            budget.settle(model, final, opts, frozen_event=receipt.event(final))
                         receipt.settle(final)
                     elif budget is not None:
                         budget.settle(model, final, opts)
                     else:
                         _record_usage(model, final, opts)
+                elif receipt is not None:
+                    _observe_usage(receipt, event)
             yield event
 
 
@@ -245,7 +249,7 @@ async def _metered(stream_fn, model: Model, context, opts, budget, receipt=None)
         if receipt is not None:
             receipt.start()
         events = stream_fn(model, context, opts)
-        if budget is not None:
+        if budget is not None and receipt is None:
             budget.start()
     except BaseException:
         if budget is not None:
@@ -273,6 +277,14 @@ def _record_usage(model: Model, final, options) -> None:
         record_message(model, final, session_id=session_id)
     except Exception:
         pass
+
+
+def _observe_usage(receipt, event):
+    partial = event.get("partial") if isinstance(event, dict) else getattr(event, "partial", None)
+    if isinstance(partial, dict):
+        partial = AssistantMessage.model_validate(partial)
+    if isinstance(partial, AssistantMessage):
+        receipt.observe(partial)
 
 
 def _extract_final(event) -> AssistantMessage | None:

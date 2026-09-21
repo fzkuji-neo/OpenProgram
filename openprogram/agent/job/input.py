@@ -77,10 +77,21 @@ _OUTER_KEYS = frozenset({"version", "kind", "turn_request", "job_context"})
 
 
 def _validate_context(value: Any, request: Mapping[str, Any]) -> dict[str, Any]:
-    context = _object(value, "job_context", _JOB_CONTEXT_KEYS)
+    context = _object(value, "job_context", _JOB_CONTEXT_KEYS | {"usage_goal"})
     required = _JOB_CONTEXT_KEYS - set(context)
     if required:
         raise JobAgentInputError(f"job_context is missing fields: {sorted(required)}")
+    if context.get("usage_goal") is not None:
+        from openprogram.usage.context import GOAL_FIELDS
+        identity = _object(context["usage_goal"], "job_context.usage_goal", GOAL_FIELDS)
+        if set(identity) != GOAL_FIELDS:
+            raise JobAgentInputError("job_context.usage_goal is incomplete")
+        for key in GOAL_FIELDS - {"goal_revision"}:
+            if not isinstance(identity[key], str) or not identity[key] or len(identity[key]) > 512:
+                raise JobAgentInputError("job_context.usage_goal has invalid identity")
+        if type(identity["goal_revision"]) is not int or not 1 <= identity["goal_revision"] <= MAX_RESOURCE_HINT_VALUE:
+            raise JobAgentInputError("job_context.usage_goal has invalid revision")
+        context["usage_goal"] = identity
     for name in ("parent_execution_id", "run_id", "branch_frontier", "worktree_id", "origin_turn_id"):
         _optional_string(context[name], f"job_context.{name}")
 
@@ -175,7 +186,8 @@ class JobAgentInputV1:
     @classmethod
     def from_job(cls, job: Any, *, run_id: str | None = None,
                  parent_execution_id: str | None = None,
-                 permission_snapshot: Mapping[str, Any] | None = None) -> "JobAgentInputV1":
+                 permission_snapshot: Mapping[str, Any] | None = None,
+                 usage_goal: Mapping[str, Any] | None = None) -> "JobAgentInputV1":
         from openprogram.agent.authority import normalize_authority
 
         deferred_inbox = None
@@ -272,6 +284,8 @@ class JobAgentInputV1:
                 },
             },
         }
+        if usage_goal is not None:
+            payload["job_context"]["usage_goal"] = dict(usage_goal)
         return cls.parse(payload)
 
     def to_dict(self) -> dict[str, Any]:

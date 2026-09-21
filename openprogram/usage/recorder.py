@@ -100,12 +100,19 @@ def build_message_event(
     ctx = context or current_usage_context()
     reported_total = int(getattr(usage, "total_tokens", 0) or 0)
     known = bool(inp or out or cr or cw or reported_total) or bool(getattr(usage, "tokens_reported", False))
+    if request_id is not None:
+        known = reported_total > 0 or bool(getattr(usage, "tokens_reported", False))
     if request_id is not None and min(inp, out, cr, cw, reported_total) < 0:
         raise ValueError("Provider reported negative token counts")
     cost, cost_source = _cost_from_model(model, usage)
+    if request_id is not None and getattr(usage, "provider_cost_usd", None) is None and (
+            not getattr(usage, "tokens_reported", False) or reported_total > inp + out + cr + cw):
+        # A total without its billable components proves tokens, not price.
+        cost_source = "unknown"
     if not known and getattr(usage, "provider_cost_usd", None) is None:
         cost_source = "unknown"
-        cost = {key: 0.0 for key in cost}
+        if not (inp or out or cr or cw):
+            cost = {key: 0.0 for key in cost}
     # contextvar session wins (set by the turn's usage_scope) so a
     # compaction/summary call inside the turn attributes to the same
     # session even when its own options carried no session_id.

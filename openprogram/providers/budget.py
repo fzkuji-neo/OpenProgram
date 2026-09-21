@@ -213,12 +213,18 @@ class BudgetedRequest:
                 "budgeted requests cannot safely account for on_payload mutation",
             )
         input_bound = estimate_input_upper_bound(context, options, model)
+        reservation_model = model
+        if getattr(options, "service_tier", None) not in {None, "default", "standard"}:
+            # Catalog rates do not bound alternate service tiers. The shared
+            # governor rejects unknown prices only when a cost ceiling exists.
+            from .types import ModelCost
+            reservation_model = model.model_copy(update={"cost": ModelCost()})
         try:
             reservation = governor.reserve_provider_request(
                 job_id,
                 input_token_upper_bound=input_bound,
                 requested_max_output_tokens=requested_output_cap(options, model),
-                model=model,
+                model=reservation_model,
             )
         except Exception as exc:
             # The ledger is the budget authority. If it cannot answer, a

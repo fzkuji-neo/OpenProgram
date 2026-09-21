@@ -39,6 +39,23 @@ _current: contextvars.ContextVar[UsageContext] = contextvars.ContextVar(
     "op_usage_ctx", default=UsageContext()
 )
 
+GOAL_FIELDS = frozenset({"goal_id", "goal_revision", "goal_run_id", "goal_session_id"})
+
+
+@contextmanager
+def bind_goal(identity, *, session_id: str):
+    """Bind canonical Job attribution, clearing any caller's transient turn."""
+    from openprogram.programs.workflow.goal import chat
+    identity = identity or {}
+    token = _current.set(replace(_current.get(), session_id=session_id,
+                                 **{key: identity.get(key) for key in GOAL_FIELDS}))
+    turn_token = chat._turn_goal.set(None)
+    try:
+        yield
+    finally:
+        chat._turn_goal.reset(turn_token)
+        _current.reset(token)
+
 
 def current_usage_context() -> UsageContext:
     return _current.get()

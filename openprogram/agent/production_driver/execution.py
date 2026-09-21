@@ -108,6 +108,8 @@ class ExecutionOperations:
                                                       getattr(request, "goal_context", None)))
             job_context = getattr(request, "_job_context", None)
             if isinstance(job_context, shared.Mapping):
+                from openprogram.usage.context import bind_goal
+                goal_context.enter_context(bind_goal(job_context.get("usage_goal"), session_id=request.session_id))
                 from openprogram.agent.job.runner import (
                     _current_job_governance,
                     _current_job_id,

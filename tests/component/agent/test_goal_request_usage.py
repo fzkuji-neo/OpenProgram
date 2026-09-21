@@ -367,10 +367,11 @@ def test_canonical_turn_freezes_actual_execution_and_mid_turn_goal(runtime, tmp_
 
 
 @pytest.mark.parametrize("adapter", ["responses", "google", "bedrock", "gemini_cli"])
-@pytest.mark.parametrize("reported", [False, True])
+@pytest.mark.parametrize("reported", [False, True, "components"])
 def test_real_adapter_zero_and_missing_usage_remain_distinct(runtime, monkeypatch, adapter, reported):
     goals, chat, meter, goal = runtime
     m = model()
+    components = reported == "components"
 
     class Provider:
         requires_credentials = False
@@ -383,14 +384,20 @@ def test_real_adapter_zero_and_missing_usage_remain_distinct(runtime, monkeypatc
                     response = {"status": "completed"}
                     if reported:
                         response["usage"] = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+                        if components:
+                            response["usage"] = {"input_tokens": 30, "output_tokens": 60, "total_tokens": 90,
+                                                 "input_tokens_details": {"cached_tokens": 10},
+                                                 "output_tokens_details": {"reasoning_tokens": 40}}
                     yield {"type": "response.completed", "response": response}
                 await process_responses_stream(events(), output, SimpleNamespace(push=lambda event: None), m)
                 yield final(m, output.usage).model_dump()
             elif adapter == "bedrock":
                 from openprogram.providers.amazon_bedrock import amazon_bedrock as bedrock
                 output = {"usage": bedrock._new_usage()}
+                counters = ({"inputTokens": 20, "outputTokens": 60, "totalTokens": 90, "cacheReadInputTokens": 10}
+                            if components else {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0})
                 bedrock._handle_metadata_bedrock(
-                    {"usage": {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}} if reported else {}, m, output)
+                    {"usage": counters} if reported else {}, m, output)
                 yield {"type": "done", "message": {**final(m, Usage()).message.model_dump(), "usage": output["usage"]}}
             elif adapter == "google":
                 from google import genai
@@ -400,8 +407,10 @@ def test_real_adapter_zero_and_missing_usage_remain_distinct(runtime, monkeypatc
                     async def generate_content_stream(self, **kwargs):
                         async def chunks():
                             yield types.GenerateContentResponse(candidates=[], usage_metadata=(
-                                types.GenerateContentResponseUsageMetadata(prompt_token_count=0, candidates_token_count=0,
-                                                                           total_token_count=0) if reported else None))
+                                types.GenerateContentResponseUsageMetadata(
+                                    prompt_token_count=30 if components else 0, candidates_token_count=20 if components else 0,
+                                    thoughts_token_count=40 if components else 0, cached_content_token_count=10 if components else 0,
+                                    total_token_count=90 if components else 0) if reported else None))
                         return chunks()
                 monkeypatch.setattr(genai, "Client", lambda **kw: SimpleNamespace(aio=SimpleNamespace(models=Models())))
                 from openprogram.providers.types import SimpleStreamOptions
@@ -419,6 +428,9 @@ def test_real_adapter_zero_and_missing_usage_remain_distinct(runtime, monkeypatc
                         chunk = {"candidates": []}
                         if reported:
                             chunk["usageMetadata"] = {"promptTokenCount": 0, "candidatesTokenCount": 0, "totalTokenCount": 0}
+                            if components:
+                                chunk["usageMetadata"] = {"promptTokenCount": 30, "candidatesTokenCount": 20, "totalTokenCount": 90,
+                                                          "thoughtsTokenCount": 40, "cachedContentTokenCount": 10}
                         yield "data: " + json.dumps(chunk)
                 class Client(Response):
                     def stream(self, *args, **kwargs):
@@ -430,9 +442,28 @@ def test_real_adapter_zero_and_missing_usage_remain_distinct(runtime, monkeypatc
     with bound(chat, goal):
         run(Provider(), m)
     usage = goals.load_goal("goal-usage")["usage"]
-    assert usage["tokens_known"] is reported
-    assert usage["cost_known"] is reported
-    assert usage["total_tokens"] == 0
+    assert usage["tokens_known"] is bool(reported)
+    assert usage["cost_known"] is bool(reported)
+    assert usage["total_tokens"] == (90 if components else 0)
+    if components:
+        assert usage["cost_usd"] == pytest.approx(0.00015)
+
+
+def test_completions_bill_reasoning_and_cached_input_once(runtime):
+    from openprogram.providers.openai_completions.openai_completions import _usage_from_chunk
+    goals, chat, meter, goal = runtime
+    class Provider:
+        requires_credentials = False
+        async def stream_simple(self, m, context, options):
+            usage = _usage_from_chunk(SimpleNamespace(prompt_tokens=30, completion_tokens=60, total_tokens=90,
+                prompt_tokens_details=SimpleNamespace(cached_tokens=10),
+                completion_tokens_details=SimpleNamespace(reasoning_tokens=40)))
+            yield final(m, usage)
+    with bound(chat, goal):
+        run(Provider())
+    usage = goals.load_goal("goal-usage")["usage"]
+    assert usage["total_tokens"] == 90
+    assert usage["cost_usd"] == pytest.approx(0.00015)
 
 
 def test_provider_factory_failure_cannot_be_reported_as_no_request(runtime):
@@ -452,3 +483,35 @@ def test_provider_factory_failure_cannot_be_reported_as_no_request(runtime):
     usage = goals.load_goal("goal-usage")["usage"]
     assert usage["requests"] == 1
     assert usage["unknown_token_requests"] == 1
+
+
+@pytest.mark.parametrize("terminal", [False, True])
+@pytest.mark.parametrize("complete_counters", [False, True])
+def test_partial_cumulative_usage_survives_interruption_without_double_count(runtime, terminal, complete_counters):
+    from openprogram.providers.types import EventStart
+    goals, chat, meter, goal = runtime
+
+    class Provider:
+        requires_credentials = False
+
+        async def stream_simple(self, m, context, options):
+            for output in (10, 20, 20, 15):
+                yield EventStart(partial=final(m, Usage(input=100, output=output, tokens_reported=complete_counters)).message).model_dump()
+            if terminal:
+                yield final(m, Usage(input=100, output=25))
+            else:
+                raise RuntimeError("stream interrupted")
+
+    with bound(chat, goal):
+        if terminal:
+            run(Provider())
+        else:
+            with pytest.raises(RuntimeError, match="interrupted"):
+                run(Provider())
+    meter.close()
+    usage = goals.load_goal("goal-usage")["usage"]
+    assert usage["total_tokens"] == (125 if terminal else 120)
+    assert usage["cost_usd"] == pytest.approx(0.00015 if terminal else 0.00014)
+    assert usage["unknown_token_requests"] == (0 if terminal else 1)
+    assert usage["unknown_cost_requests"] == (0 if terminal else 1)
+    assert sum(row.events for row in meter.query()) == (1 if terminal else 0)

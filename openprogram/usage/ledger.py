@@ -14,6 +14,7 @@ a future JSONL or remote backend can implement the same two methods.
 from __future__ import annotations
 
 import atexit
+import json
 import sqlite3
 import threading
 import time
@@ -89,6 +90,7 @@ CREATE TABLE IF NOT EXISTS usage_requests (
     state TEXT NOT NULL CHECK (state IN ('prepared','started','settled','released')),
     metadata_json TEXT NOT NULL,
     receipt_json TEXT,
+    observed_json TEXT,
     created_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_requests_goal ON usage_requests(goal_session_id, goal_id);
@@ -385,6 +387,9 @@ class UsageLedger:
             for name, definition in columns.items():
                 if existing and name not in existing:
                     conn.execute(f"ALTER TABLE usage_events ADD COLUMN {name} {definition}")
+            request_columns = {str(row[1]) for row in conn.execute("PRAGMA table_info(usage_requests)")}
+            if request_columns and "observed_json" not in request_columns:
+                conn.execute("ALTER TABLE usage_requests ADD COLUMN observed_json TEXT")
             conn.commit()
         except Exception:
             conn.rollback()
@@ -496,6 +501,55 @@ class UsageLedger:
                f"VALUES ({placeholders})")
         conn.execute(sql, row)
 
+    @staticmethod
+    def start_provider_reservation(conn, reservation_id: str) -> None:
+        if conn.execute("""SELECT 1 FROM usage_reservations
+                WHERE reservation_id IN (?, ?) AND state = 'reserved'
+                  AND expires_at IS NOT NULL AND expires_at <= ?""",
+                (reservation_id + ":token", reservation_id + ":cost", time.time())).fetchone():
+            raise RuntimeError("Provider reservation expired before dispatch")
+        changed = conn.execute("""UPDATE usage_reservations
+            SET state = 'started', request_started_at = ?
+            WHERE reservation_id IN (?, ?) AND state = 'reserved'""",
+            (time.time(), reservation_id + ":token", reservation_id + ":cost")).rowcount
+        if not changed and conn.execute("""SELECT 1 FROM usage_reservations
+                WHERE reservation_id IN (?, ?) AND state IN ('started','settled')""",
+                (reservation_id + ":token", reservation_id + ":cost")).fetchone() is None:
+            raise KeyError(reservation_id)
+
+    @staticmethod
+    def attribute_provider_event(conn, reservation_id: str, event: UsageEvent) -> UsageEvent:
+        rows = conn.execute("""SELECT job_id, budget_scope_id, state FROM usage_reservations
+            WHERE reservation_id IN (?, ?)""", (reservation_id + ":token", reservation_id + ":cost")).fetchall()
+        if not rows:
+            raise KeyError(reservation_id)
+        if any(row["state"] == "released" for row in rows):
+            raise RuntimeError("cannot settle a released provider reservation")
+        return event.model_copy(update={"job_id": rows[0]["job_id"], "budget_scope_id": rows[0]["budget_scope_id"],
+                                        "reservation_id": reservation_id + ":token"})
+
+    def settle_provider_reservation(self, conn, reservation_id: str, event: UsageEvent):
+        attributed = self.attribute_provider_event(conn, reservation_id, event)
+        self.append_in_transaction(conn, attributed)
+        # A known cost with missing tokens cannot release token exposure, and
+        # known tokens cannot make an unknown price free.
+        for kind, known in (("token", event.tokens_known), ("cost", event.cost_source != "unknown")):
+            if known:
+                conn.execute("""UPDATE usage_reservations SET state = 'settled', settled_event_id = ?
+                    WHERE reservation_id = ? AND state IN ('reserved','started')""",
+                    (attributed.event_id, reservation_id + ":" + kind))
+        return attributed
+
+    def flush_request(self, conn, row):
+        event = UsageEvent.model_validate_json(row["receipt_json"])
+        reservation = json.loads(row["metadata_json"]).get("job_reservation_id")
+        if reservation:
+            event = self.settle_provider_reservation(conn, reservation, event)
+        else:
+            self.append_in_transaction(conn, event)
+        conn.execute("UPDATE usage_requests SET state = 'settled' WHERE request_id = ?", (row["request_id"],))
+        return event
+
     def append_many(self, events: Iterable[UsageEvent]) -> None:
         rows = [[getattr(e, c) for c in _COLUMNS] for e in events]
         if not rows:
@@ -513,14 +567,13 @@ class UsageLedger:
     def goal_usage(self, session_id: str, goal_id: str) -> dict:
         """One snapshot of known subtotals and unresolved request counts."""
         with self.immediate() as conn:
-            for pending in conn.execute("""SELECT request_id, receipt_json FROM usage_requests
+            for pending in conn.execute("""SELECT request_id, receipt_json, metadata_json FROM usage_requests
                     WHERE goal_session_id = ? AND goal_id = ? AND state = 'started' AND receipt_json IS NOT NULL""",
                     (session_id, goal_id)).fetchall():
-                self.append_in_transaction(conn, UsageEvent.model_validate_json(pending["receipt_json"]))
-                conn.execute("UPDATE usage_requests SET state = 'settled' WHERE request_id = ?", (pending["request_id"],))
+                self.flush_request(conn, pending)
             row = conn.execute("""
-                SELECT COALESCE(SUM(e.total_tokens), 0) AS tokens,
-                       COALESCE(SUM(e.cost_total), 0) AS cost,
+                SELECT COALESCE(SUM(COALESCE(e.total_tokens, json_extract(r.observed_json, '$.total_tokens'), 0)), 0) AS tokens,
+                       COALESCE(SUM(COALESCE(e.cost_total, json_extract(r.observed_json, '$.cost_total'), 0)), 0) AS cost,
                        COALESCE(SUM(CASE WHEN e.event_id IS NULL OR e.tokens_known = 0 THEN 1 ELSE 0 END), 0) AS unknown_tokens,
                        COALESCE(SUM(CASE WHEN e.event_id IS NULL OR e.cost_source = 'unknown' THEN 1 ELSE 0 END), 0) AS unknown_cost,
                        COUNT(*) AS requests

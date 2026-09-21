@@ -41,7 +41,11 @@ When an ownerless interrupted execution still has an unknown external outcome, n
 
 Chat provider requests capture their Goal identity, revision and price before dispatch. Their terminal usage receipts update that original Goal even after pause or edit; replacing the Goal does not transfer old charges to the new objective. Duplicate receipt delivery does not add usage twice. A started request without a usage receipt remains unknown, not free. The details show known subtotals alongside unknown request counts. Receipt projection can be rebuilt from the ledger after restart without repeating the provider request.
 
-Older cursor-based totals are retained as a legacy subtotal on the next attributed request; past requests are not assigned guessed Goal identities. Metering failures display unknown rather than zero. Durable background-Job inheritance and concurrent hard-budget reservations are still under implementation; this request-accounting change alone is not a guarantee against exceeding an explicit token or cost limit.
+Older cursor-based totals are retained as a legacy subtotal on the next attributed request; past requests are not assigned guessed Goal identities. Metering failures display unknown rather than zero. Partial streaming counters are cumulative lower bounds, not additional charges; repeated snapshots are not added together. A final receipt replaces the partial subtotal.
+
+Background Jobs admitted by an active Goal inherit its durable identity, including descendants and cross-session calls. An unrelated Goal in the destination session receives no charges. Existing Jobs without saved attribution remain unassigned. Goal and Job reservations start and settle in the same accounting transaction; a saved receipt can finish settlement after restart without repeating the request. Missing token or price information retains the corresponding reserved exposure.
+
+Limits remain optional. Explicit token or cost limits reserve conservative exposure before credentials or provider calls, count parallel requests against the same Goal, and recheck at dispatch. Token limits can reduce the provider's output cap. Requests with an unsupported bound, unknown price or unpriced service tier cannot bypass a hard limit; the Goal pauses or reports budget exhaustion. An expired reservation that never started cannot dispatch; a started request never becomes free merely because time passes. These bounds require audited provider adapters and do not promise control over unaudited external billing behavior.
 
 ## Python Workflow compatibility
 
