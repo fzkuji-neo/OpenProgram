@@ -152,6 +152,44 @@ def normalize_goal(goal: dict) -> dict:
     return value
 
 
+def _chat_active_boundary(goal: dict, current: float) -> tuple[float, bool, bool]:
+    """Return observed activity time, exactness and whether the owner is live.
+
+    Owner-loss discovery is not the time a worker stopped. The last heartbeat
+    provides a lower bound; unobserved time remains unknown, never offline time.
+    """
+    from openprogram.execution import default_store
+    from openprogram.execution.attempts import AttemptStore, AttemptStatus
+    started = float(goal["active_started_at"])
+    try:
+        store = default_store()
+        execution = store.get_execution(goal.get("execution_id") or "")
+        attempt_id = goal.get("active_attempt_id") or (execution.current_attempt_id if execution else None)
+        attempts = AttemptStore(store)
+        attempt = attempts.get(attempt_id) if attempt_id else None
+        events = None
+        if attempt is None and execution:
+            events = store.list_events(execution.execution_id)
+            ended = next((event for event in reversed(events) if event.kind == "attempt.ended"), None)
+            if ended:
+                attempt = attempts.get(ended.payload["attempt"]["attempt_id"])
+        if attempt is None:
+            return started, False, False
+        if attempt.status is not AttemptStatus.ENDED:
+            live = (execution is not None and execution.current_attempt_id == attempt.attempt_id
+                    and attempt.lease_expires_at > current)
+            return (current, True, True) if live else (min(current, attempt.updated_at), False, False)
+        if attempt.lease_expires_at != 0:
+            return min(current, attempt.ended_at or started), True, False
+        events = events if events is not None else store.list_events(attempt.execution_id)
+        ended = next((event for event in reversed(events) if event.kind == "attempt.ended"
+                      and event.payload.get("attempt", {}).get("attempt_id") == attempt.attempt_id), None)
+        return min(current, float(ended.payload.get("last_active_at", started)) if ended else started), False, False
+    except Exception:
+        # Missing accounting evidence cannot become a fabricated wall duration.
+        return started, False, False
+
+
 def checkpoint_active_elapsed(
     goal: dict, *, now: float | None = None, stop: bool = False,
 ) -> float:
@@ -160,11 +198,17 @@ def checkpoint_active_elapsed(
     usage = dict(goal.get("usage") or {})
     elapsed = float(usage.get("active_elapsed_s") or 0.0)
     started = goal.get("active_started_at")
+    chat = goal.get("execution_mode") == "chat"
+    live = not chat
     if started is not None:
+        if chat:
+            current, known, live = _chat_active_boundary(goal, current)
+            if not known:
+                usage["active_time_known"] = False
         elapsed += max(0.0, current - float(started))
     usage["active_elapsed_s"] = elapsed
     goal["usage"] = usage
-    goal["active_started_at"] = None if stop else current
+    goal["active_started_at"] = None if stop or not live else current
     return elapsed
 
 
@@ -351,8 +395,14 @@ def budget_exhausted(goal: dict, *, now: float | None = None) -> str:
     if budget.get("max_tokens") and int(usage.get("total_tokens") or 0) >= int(budget["max_tokens"]):
         return "tokens"
     if budget.get("max_elapsed_s"):
-        elapsed = float(usage.get("active_elapsed_s") or 0.0)
-        if goal.get("active_started_at") is not None:
+        if goal.get("execution_mode") == "chat":
+            observed = dict(goal, usage=dict(usage))
+            elapsed = checkpoint_active_elapsed(observed, now=now)
+            if observed["usage"].get("active_time_known") is False:
+                return "elapsed_time_unknown"
+        else:
+            elapsed = float(usage.get("active_elapsed_s") or 0.0)
+        if goal.get("execution_mode") != "chat" and goal.get("active_started_at") is not None:
             elapsed += max(
                 0.0,
                 (time.time() if now is None else float(now))

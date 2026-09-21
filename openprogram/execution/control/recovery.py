@@ -345,6 +345,7 @@ class RecoveryOperations:
                         "attempt_mismatch",
                         "execution current attempt belongs to a different execution",
                     )
+                last_active_at = attempt.updated_at
                 attempt = self.attempts._end_for_owner_loss(
                     connection, attempt, outcome=outcome
                 )
@@ -353,7 +354,7 @@ class RecoveryOperations:
                     execution_id=execution_id,
                     execution_version=recovered.status_version,
                     kind="attempt.ended",
-                    payload={"attempt": attempt.to_dict()},
+                    payload={"attempt": attempt.to_dict(), "last_active_at": last_active_at},
                     created_at=attempt.updated_at,
                 )
 
@@ -599,7 +600,7 @@ class RecoveryOperations:
             self.executions._append_event(
                 connection, execution_id=execution_id,
                 execution_version=completed.status_version, kind="attempt.ended",
-                payload={"attempt": ended.to_dict()}, created_at=ended.updated_at,
+                payload={"attempt": ended.to_dict(), "last_active_at": attempt.updated_at}, created_at=ended.updated_at,
             )
             if command is not None and completed.status in TERMINAL_EXECUTION_STATUSES:
                 self.executions._transition_command(

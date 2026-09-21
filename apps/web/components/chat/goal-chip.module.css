@@ -144,7 +144,13 @@
 .checklist li { color: hsl(var(--foreground)); }
 .checklist li[data-done="true"] { color: hsl(var(--muted-foreground)); text-decoration: line-through; }
 .error { margin: 0; color: hsl(var(--destructive)); font-size: 12px; }
-.actions { gap: 8px; }
+.actions { gap: 8px; flex-wrap: wrap; }
+.operations { display: grid; gap: 8px; font-size: 12px; }
+.operations p { margin: 0; }
+.operations > div { display: grid; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.operations code { overflow-wrap: anywhere; }
+.operations button { justify-self: start; }
+.inspector { min-width: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 560px) {
   .roles { grid-template-columns: 1fr; }

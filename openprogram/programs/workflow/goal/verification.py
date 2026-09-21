@@ -31,7 +31,34 @@ def message_snapshot(row) -> dict:
     return {key: row.get(key) for key in ("id", "role", "content", "extra", "tool_calls")}
 
 
-def blockers(store, sid, execution_id) -> str | None:
+def managed_work(store, sid, goal) -> list[dict]:
+    """Only this Goal revision's executions and exact descendants own its work."""
+    from openprogram.execution.conversation_scope import conversation_execution_scope
+    from openprogram.processes import ProcessStore, scoped_records
+    from openprogram.processes.store import ACTIVE
+    members, parents = conversation_execution_scope(store, sid)
+    owned = set()
+    def matches(context):
+        return (context.get("goal_id") == goal.get("goal_id")
+                and context.get("revision") == goal.get("revision"))
+    creation = goal.get("creation_execution_context") or {}
+    if matches(creation):
+        owned.add(creation.get("execution_id"))
+    for member in members:
+        payload = store.get_agent_turn_input(member.execution_id) or {}
+        if matches((payload.get("request") or {}).get("goal_context") or {}):
+            owned.add(member.execution_id)
+        job = store.get_job_agent_input(member.execution_id) or {}
+        if matches((job.get("job_context") or {}).get("usage_goal") or {}):
+            owned.add(member.execution_id)
+    while additions := {key for key, parent in parents.items() if parent in owned} - owned:
+        owned.update(additions)
+    return [{key: record[key] for key in ("id", "execution_id", "status", "started_at")}
+            for record in scoped_records(ProcessStore(), sid)
+            if record["execution_id"] in owned and record["status"] in ACTIVE]
+
+
+def blockers(store, sid, execution_id, goal=None) -> str | None:
     from openprogram.execution.chat_recovery import recovery_state
     from openprogram.execution.conversation_scope import conversation_executions
     from openprogram.execution.effects import EffectStore
@@ -45,6 +72,8 @@ def blockers(store, sid, execution_id) -> str | None:
             return "unfinished_conversation_execution"
         if any(effect.metadata.get("kind") != "provider.before" for effect in effects.list_unresolved(member.execution_id)):
             return "unknown_external_effects"
+    if goal and managed_work(store, sid, goal):
+        return "managed_work_unfinished"
     return None
 
 
@@ -64,7 +93,7 @@ def prepare(store, execution, goal) -> None:
     if any(item["status"] != "completed" for item in plan):
         goal["last_reason"] = "Completion deferred: the todo plan changed or is unfinished."
         return
-    reason = blockers(store, sid, execution.execution_id)
+    reason = blockers(store, sid, execution.execution_id, goal)
     if reason:
         goal.update(status="paused_recoverable", phase="paused",
                     last_reason=f"Completion cannot be verified: {reason}")
@@ -218,7 +247,7 @@ def finish(store, execution, goal, request) -> None:
     report = None
     try:
         require_candidate(sid, request, execution_id=execution.execution_id)
-        problem = blockers(store, sid, execution.execution_id)
+        problem = blockers(store, sid, execution.execution_id, goal)
         user_inputs = {row["id"]: digest(message_snapshot(row)) for row in goals._db().get_branch(sid)
                        if row.get("role") == "user" and row["id"] != source.user_message_id}
         if user_inputs != candidate["user_inputs"]:

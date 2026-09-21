@@ -70,6 +70,102 @@ const { api } = await import("../../lib/net/api.ts");
 const snapshot = (version, status = "active") => ({
   goal_id: "goal-1", version, revision: 1, text: "Write the review", status,
 });
+const controls = (overrides = {}) => ({
+  can_resume: true, can_verify: false, can_end: true, can_pause: false,
+  reasons: { resume: null, verify: "no_completed_work", end: null, pause: "goal_not_running" },
+  operations: [], waits: [], active_children: [], ...overrides,
+});
+
+test("backend eligibility overrides a finished execution and explains why", async () => {
+  reset(); useSessionStore.setState({ wsStatus: "open" });
+  const goal = { ...snapshot(1, "paused"), execution_id: "finished" };
+  runtimeState.conversations.s1.goal = goal;
+  const original = api.getGoal;
+  api.getGoal = async () => ({ goal, execution: { execution_id: "finished", finished: true },
+    controls: controls({ can_resume: false, reasons: { resume: "active_owner" } }) });
+  const view = await mount();
+  try {
+    await view.open();
+    assert.equal([...view.host.querySelectorAll("button")].find(b => b.textContent === "Resume").disabled, true);
+    assert.match(view.host.textContent, /Another turn is running/);
+  } finally { await view.close(); api.getGoal = original; }
+});
+
+test("untracked Goal reads backend controls and explicit Verify uses the ordinary action", async () => {
+  reset(); useSessionStore.setState({ wsStatus: "open" });
+  const goal = snapshot(1, "paused");
+  runtimeState.conversations.s1.goal = goal;
+  const original = api.getGoal, mutate = api.mutateGoal;
+  let reads = 0, sent;
+  api.getGoal = async () => { reads++; return { goal, execution: { execution_id: null, status: "untracked" },
+    controls: controls({ can_verify: true, reasons: {} }) }; };
+  api.mutateGoal = async (_sid, body) => { sent = body; return { goal: { ...goal, version: 2, status: "active", phase: "verifying" } }; };
+  const view = await mount();
+  try {
+    await view.open(); assert.ok(reads > 0);
+    await view.click("Verify");
+    assert.equal(sent.action, "verify");
+    assert.equal(sent.expected.goal_id, goal.goal_id);
+    assert.equal(runtimeState.conversations.s1.goal.status, "active");
+  } finally { await view.close(); api.getGoal = original; api.mutateGoal = mutate; }
+});
+
+test("unknown operations expose exact identity without inventing a cancelled outcome", async () => {
+  reset(); useSessionStore.setState({ wsStatus: "open" });
+  const goal = { ...snapshot(1, "paused"), execution_id: "old" };
+  runtimeState.conversations.s1.goal = goal;
+  const original = api.getGoal;
+  api.getGoal = async () => ({ goal, execution: { execution_id: "old", status: "reconciliation_required" },
+    controls: controls({ operations: [{ effect_id: "effect-exact-123", execution_id: "old", status: "dispatched", tool_name: "write", created_at: 100 }] }) });
+  const view = await mount();
+  try {
+    await view.open();
+    assert.match(view.host.textContent, /effect-exact-123/);
+    assert.match(view.host.textContent, /dispatched/);
+    assert.ok([...view.host.querySelectorAll("button")].some(b => b.textContent === "Inspect execution"));
+    assert.doesNotMatch(view.host.textContent, /Execution stopped/);
+  } finally { await view.close(); api.getGoal = original; }
+});
+
+test("refresh adopts a newer server run instead of retaining disabled stale controls", async () => {
+  reset();
+  const old = { ...snapshot(1, "paused"), run_id: "old", execution_id: "old-exec" };
+  const latest = { ...old, version: 2, run_id: "new", execution_id: "new-exec" };
+  runtimeState.conversations.s1.goal = old;
+  const original = api.getGoal;
+  api.getGoal = async () => ({ goal: latest, controls: controls(), execution: { execution_id: "new-exec", status: "cancelled", finished: true } });
+  const view = await mount();
+  try {
+    await view.open();
+    assert.equal(runtimeState.conversations.s1.goal.run_id, "new");
+    assert.equal([...view.host.querySelectorAll("button")].find(b => b.textContent === "Resume").disabled, false);
+  } finally { await view.close(); api.getGoal = original; }
+});
+
+test("Inspect execution requests the exact old operation, not the newest execution", async () => {
+  reset();
+  const goal = { ...snapshot(1, "paused"), execution_id: "old-exec" };
+  runtimeState.conversations.s1.goal = goal;
+  const original = api.getGoal, fetch = globalThis.fetch;
+  api.getGoal = async () => ({ goal, controls: controls(), execution: { execution_id: "old-exec", status: "reconciliation_required" } });
+  const urls = [];
+  const old = { execution_id: "old-exec", session_id: "s1", run_id: "run", revision_id: "rev", status: "reconciliation_required", status_version: 3,
+    updated_at: 1, event_sequence: 3, capabilities: {}, pending_command_ids: [], active_child_ids: [], effect_summary: { unresolved: 1 } };
+  globalThis.fetch = async (url) => {
+    urls.push(String(url));
+    const body = String(url).endsWith("/executions") ? { items: [{ snapshot: old }, { snapshot: { ...old, execution_id: "new-exec", updated_at: 99 } }] }
+      : String(url).includes("/events?") ? { snapshot: old, events: [] }
+      : { checkpoints: [], waits: [], drafts: [], unresolved_effects: [] };
+    return { ok: true, status: 200, json: async () => body };
+  };
+  const view = await mount();
+  try {
+    await view.open(); await view.click("Inspect execution");
+    assert.ok(urls.includes("/api/execution/old-exec/debugger?conversation_session_id=s1"), urls);
+    assert.ok(!urls.some(url => url.includes("/new-exec/")), urls);
+    await view.click("Close execution details");
+  } finally { await view.close(); api.getGoal = original; globalThis.fetch = fetch; }
+});
 async function mount() {
   const host = document.createElement("div");
   document.body.appendChild(host);
@@ -93,7 +189,14 @@ async function frame(goal, sid = "s1") {
 }
 function reset() {
   runtimeState.conversations = { s1: { id: "s1", goal: snapshot(1) } };
-  useSessionStore.setState({ currentSessionId: "s1" });
+  useSessionStore.setState({ currentSessionId: "s1", wsStatus: "open" });
+  // Default HTTP fixture describes an untracked Goal; action-specific tests
+  // replace it with the corresponding canonical projection.
+  api.getGoal = async (sid) => {
+    const goal = runtimeState.conversations[sid].goal;
+    return { goal, execution: { execution_id: goal.execution_id ?? null, status: "untracked" },
+      controls: controls({ can_resume: goal.status === "paused", can_pause: goal.status === "active" }) };
+  };
 }
 
 test("Goal progress shows todos, never execution rounds", async () => {
@@ -145,7 +248,7 @@ test("provider-only incomplete responses allow a new Goal turn without claiming 
   const goal = { ...snapshot(1, "paused_recoverable"), execution_id: "old-provider" };
   runtimeState.conversations.s1.goal = goal;
   const original = api.getGoal;
-  api.getGoal = async () => ({ goal, execution: {
+  api.getGoal = async () => ({ goal, controls: controls(), execution: {
     execution_id: goal.execution_id, status: "reconciliation_required",
     finished: false, can_start_new_turn: true, provider_response_incomplete: true,
   } });
@@ -165,7 +268,7 @@ test("unknown external effects permit restricted Resume without claiming cancell
   const goal = { ...snapshot(1, "paused_recoverable"), execution_id: "unknown-write", stop_requested: true };
   runtimeState.conversations.s1.goal = goal;
   const original = api.getGoal;
-  api.getGoal = async () => ({ goal, execution: {
+  api.getGoal = async () => ({ goal, controls: controls(), execution: {
     execution_id: goal.execution_id, status: "reconciliation_required", finished: false,
     can_start_new_turn: true, recovery_mode: "restricted_new_turn",
   } });
@@ -192,7 +295,7 @@ test("real connection updates enable Goal resume only after a fresh stop observa
   let reads = 0;
   api.getGoal = async () => {
     reads++;
-    return { goal, execution: { execution_id: "exec-resume", status: "cancelled", finished: true } };
+    return { goal, controls: controls(), execution: { execution_id: "exec-resume", status: "cancelled", finished: true } };
   };
   const view = await mount();
   try {
@@ -415,8 +518,9 @@ test("a conflict fetches the latest Goal without replacing the local draft", asy
   const { HttpError } = await import("../../lib/net/fetch-client.ts");
   const mutate = api.mutateGoal;
   const get = api.getGoal;
-  api.mutateGoal = async () => { throw new HttpError("Goal changed", 409); };
-  api.getGoal = async () => ({ goal: { ...snapshot(2), revision: 2, text: "Saved remotely" } });
+  let conflicted = false;
+  api.mutateGoal = async () => { conflicted = true; throw new HttpError("Goal changed", 409); };
+  api.getGoal = async () => ({ goal: conflicted ? { ...snapshot(2), revision: 2, text: "Saved remotely" } : snapshot(1) });
   const view = await mount();
   try {
     await view.open();

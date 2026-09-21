@@ -15,6 +15,18 @@ import type {
   PoolView,
 } from "@/lib/types";
 
+export interface GoalControls {
+  can_resume: boolean;
+  can_verify: boolean;
+  can_end: boolean;
+  can_pause: boolean;
+  reasons: Partial<Record<"resume" | "verify" | "end" | "pause", string | null>>;
+  operations: { effect_id: string; execution_id: string; status: string; tool_name?: string | null; created_at: number; dispatched_at?: number | null }[];
+  waits: { wait_id: string; execution_id: string; kind: string; created_at: number }[];
+  active_children: string[];
+  processes: { id: string; execution_id: string; status: string; started_at: number }[];
+}
+
 interface RawModel {
   id: string;
   name: string;
@@ -138,6 +150,7 @@ export const api = {
 
   getGoal: (sessionId: string, signal?: AbortSignal) => jsonFetch<{
     goal: Record<string, unknown>;
+    controls?: GoalControls;
     execution?: { execution_id?: string | null; status?: string; finished?: boolean | null; can_start_new_turn?: boolean; provider_response_incomplete?: boolean; recovery_mode?: string | null; recovery_reason?: string | null };
   }>(
     `/api/sessions/${encodeURIComponent(sessionId)}/goal`,

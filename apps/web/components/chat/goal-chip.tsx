@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pause, Play, Square, Target } from "lucide-react";
+import { Check, Pause, Play, Square, Target } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { api } from "@/lib/net/api";
+import { api, type GoalControls } from "@/lib/net/api";
+import { SessionDebugger } from "@/components/right-sidebar/session-debugger";
 import { HttpError } from "@/lib/net/fetch-client";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { updateSessionGoal } from "@/lib/runtime-bridge/goal-state";
@@ -63,6 +64,7 @@ export interface GoalState {
     unknown_token_requests?: number;
     unknown_cost_requests?: number;
     active_elapsed_s?: number;
+    active_time_known?: boolean;
   };
   checkpoint?: { phase?: string; round?: number; at?: number };
   checklist?: { text: string; done: boolean }[] | null;
@@ -83,12 +85,28 @@ export interface GoalState {
   pause_reason?: string;
 }
 
-const runningStatuses = new Set(["refining", "active", "running", "evaluating"]);
 const terminalStatuses = new Set(["achieved", "impossible", "cancelled", "cleared"]);
-const resumableStatuses = new Set([
-  "paused", "paused_recoverable", "waiting_external", "blocked", "stalled",
-  "budget_exhausted", "capped", "error", "failed",
-]);
+
+function controlReason(reason: string | null | undefined, zh: boolean): string {
+  const messages: Record<string, [string, string]> = {
+    active_owner: ["Another turn is running. Wait for it to stop before continuing this Goal.", "另一个轮次正在运行，请等待其结束后再继续此 Goal。"],
+    budget_exhausted: ["The explicit budget is exhausted. Change the Goal budget before continuing.", "已达到显式预算，请修改 Goal 预算后再继续。"],
+    elapsed_time_unknown: ["Interrupted active time is unknown, so the explicit time limit cannot be verified. Remove the time limit to continue.", "中断时段的执行时间未知，无法核实显式时间上限；移除时间上限后可继续。"],
+    execution_unavailable: ["Execution status is unavailable. Refresh status to retry.", "无法读取执行状态，请刷新状态重试。"],
+    unknown_external_effects: ["Operation outcomes must be checked before verification.", "验收前需要确认外部操作的结果。"],
+    unfinished_conversation_execution: ["Related executions have not finished.", "关联执行尚未结束。"],
+    managed_work_unfinished: ["Goal-owned background work is still running or its outcome is unknown.", "此 Goal 的后台工作仍在运行，或其结果未知。"],
+    pending_wait: ["Answer the pending approval or question in the execution details.", "请在执行详情中处理待答审批或问题。"],
+    active_children: ["Child executions are still active. Inspect their status below.", "子任务仍未结束，请在下方查看其状态。"],
+    unfinished_todos: ["Complete the remaining todos before verification.", "请先完成剩余待办，再进行验收。"],
+    no_completed_work: ["Verification requires a finished working turn.", "验收需要先有已结束的工作轮次。"],
+    ordinary_chat_required: ["Verification is available for chat Goals.", "此验收入口适用于聊天 Goal。"],
+    execution_not_finished: ["The previous execution has not stopped.", "上一轮执行尚未停止。"],
+    goal_not_resumable: ["The Goal is not paused.", "Goal 当前未暂停。"],
+    goal_terminal: ["The Goal has ended.", "Goal 已结束。"],
+  };
+  return reason ? messages[reason]?.[zh ? 1 : 0] ?? reason : "";
+}
 
 function formatElapsed(seconds: number | undefined): string {
   const total = Math.max(0, Math.round(seconds ?? 0));
@@ -170,7 +188,7 @@ export function GoalChip() {
 function useGoalExecution(sessionId: string, goal: GoalState, enabled: boolean) {
   const connection = useSessionStore((state) => state.wsStatus);
   const identity = `${sessionId}:${goal.run_id}:${goal.execution_id}:${goal.version}`;
-  const [observation, setObservation] = useState<{ identity?: string; status?: string; finished?: boolean | null; can_start_new_turn?: boolean; provider_response_incomplete?: boolean; recovery_mode?: string | null; recovery_reason?: string | null; fresh: boolean }>({ fresh: false });
+  const [observation, setObservation] = useState<{ controls?: GoalControls; identity?: string; status?: string; finished?: boolean | null; can_start_new_turn?: boolean; provider_response_incomplete?: boolean; recovery_mode?: string | null; recovery_reason?: string | null; fresh: boolean }>({ fresh: false });
   const request = useRef(0);
   const controller = useRef<AbortController>();
   const refresh = useCallback(async () => {
@@ -178,15 +196,18 @@ function useGoalExecution(sessionId: string, goal: GoalState, enabled: boolean) 
     controller.current?.abort();
     const own = controller.current = new AbortController();
     setObservation((v) => ({ ...v, fresh: false }));
-    if (!enabled || !goal.execution_id || connection !== "open") return;
+    if (!enabled || connection !== "open") return;
     try {
       const result = await api.getGoal(sessionId, AbortSignal.any([own.signal, AbortSignal.timeout(10000)]));
       if (serial !== request.current || own.signal.aborted) return;
-      if (result.execution?.execution_id !== goal.execution_id
-        || result.goal.goal_id !== goal.goal_id || result.goal.run_id !== goal.run_id
+      if (result.goal.goal_id !== goal.goal_id
         || Number(result.goal.version ?? 0) < Number(goal.version ?? 0)) return;
       updateSessionGoal(sessionId, result.goal);
-      setObservation({ ...result.execution, identity, fresh: true });
+      // A newer canonical run refreshes the Goal first; its own keyed request
+      // will load controls. Never attach old-run eligibility to the new run.
+      if ((result.execution?.execution_id || null) !== (goal.execution_id || null)
+        || result.goal.run_id !== goal.run_id) return;
+      setObservation({ ...result.execution, controls: result.controls, identity, fresh: true });
     } catch {
       // Keep the Goal and its editor; a read failure is not a stopped execution.
     }
@@ -213,6 +234,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [stopError, setStopError] = useState("");
+  const [inspection, setInspection] = useState<string | null>(null);
   const pending = useRef(false);
   const mounted = useRef(true);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -230,16 +252,16 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
   const progress = checklist.length
     ? `${text("Todos", "待办")} ${done}/${checklist.length}`
     : null;
-  const running = runningStatuses.has(goal.status || "");
-  const resumable = resumableStatuses.has(goal.status || "");
   const terminal = terminalStatuses.has(goal.status || "");
   const unsaved = draft.dirty;
-  const execution = useGoalExecution(sessionId, goal, open || !!goal.stop_requested || resumable);
+  const execution = useGoalExecution(sessionId, goal, open || !!goal.stop_requested);
+  const controls = execution.controls;
   const stopped = execution.fresh && execution.finished === true;
-  const canResume = execution.fresh && (execution.can_start_new_turn ?? execution.finished) === true;
+  const canResume = execution.fresh && controls?.can_resume === true;
   const stopPending = !!goal.stop_requested && !!goal.execution_id && !stopped;
   const executionLabel = !goal.execution_id ? text("Stop takes effect at the next Goal boundary; no execution record.", "停止在下一个 Goal 边界生效；无执行记录。")
     : !execution.fresh || execution.status === "unavailable" ? text("Execution status unknown", "执行状态未知")
+    : execution.status === "running" && controls?.can_pause && !goal.stop_requested ? text("Execution running", "执行正在运行")
     : execution.recovery_mode === "restricted_new_turn" && canResume ? text("Previous action outcomes are unknown. Resume starts a new turn to inspect current state; new side effects require confirmation.", "旧操作结果未知。继续会开始新轮次检查实际状态；新的副作用操作需要确认。")
     : execution.recovery_reason === "pending_wait" ? text("Answer the pending approval or question in Activity before resuming.", "请先在 Activity 中处理待办审批或问题，再继续。")
     : execution.recovery_reason === "active_children" ? text("Child executions are still active. Inspect their status in Activity.", "子任务仍未结束，请在 Activity 中检查其状态。")
@@ -253,7 +275,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
   if (terminal && !stopPending && !open) return null;
 
   async function mutate(action: string, values: Record<string, unknown> = {}) {
-    if (pending.current || (action === "edit" && draft.conflict) || (action === "resume" && unsaved)) return;
+    if (pending.current || (action === "edit" && draft.conflict) || (["resume", "verify"].includes(action) && unsaved)) return;
     pending.current = true;
     setBusy(true);
     setError("");
@@ -318,17 +340,12 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
             </DialogDescription>
           </DialogHeader>
 
-          {(goal.stop_requested || resumable) ? <section className={styles.reason} aria-label={text("Execution stop status", "执行停止状态")}>
+          <section className={styles.reason} aria-label={text("Execution stop status", "执行停止状态")}>
             <p role="status">{executionLabel}</p>
             <Button variant="outline" disabled={busy} onClick={() => void execution.refresh()}>{text("Refresh status", "刷新状态")}</Button>
-            {goal.execution_id ? <Button variant="outline" onClick={() => {
-              const store = useSessionStore.getState();
-              store.setRightDockView("running");
-              store.setRightDockOpen(true);
-              setOpen(false);
-            }}>{text("Open Activity", "打开运行记录")}</Button> : null}
+            {goal.execution_id ? <Button variant="outline" onClick={() => setInspection(goal.execution_id!)}>{text("Inspect execution", "查看执行详情")}</Button> : null}
             {stopPending ? <Button variant="outline" disabled={busy} onClick={() => void mutate("stop")}>{text("Retry stop", "重试停止")}</Button> : null}
-          </section> : null}
+          </section>
 
           <label className={styles.field}>
             <span>{text("Goal", "目标")}</span>
@@ -349,7 +366,9 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
               ? text(`Known $${goal.usage.cost_usd!.toFixed(4)}; ${goal.usage.unknown_cost_requests} request(s) unknown`, `已知 $${goal.usage.cost_usd!.toFixed(4)}；另有 ${goal.usage.unknown_cost_requests} 次请求未知`)
               : goal.usage?.cost_known === true && Number.isFinite(goal.usage.cost_usd)
                 ? `$${goal.usage.cost_usd!.toFixed(4)}` : text("Unknown", "未知")}</strong></div>
-            <div><span>{text("Active time", "执行时间")}</span><strong>{formatElapsed(goal.usage?.active_elapsed_s)}</strong></div>
+            <div><span>{text("Active time", "执行时间")}</span><strong>{goal.usage?.active_time_known === false
+              ? text(`At least ${formatElapsed(goal.usage.active_elapsed_s)}; interrupted interval unknown`, `至少 ${formatElapsed(goal.usage.active_elapsed_s)}；中断时段未知`)
+              : formatElapsed(goal.usage?.active_elapsed_s)}</strong></div>
           </div>
 
           {goal.usage?.accounting_pending ? <p role="status">{text("Usage from the interrupted run has not been reconciled. Unknown is not zero; session totals must not be treated as Goal costs.", "中断执行的用量尚未核对。未知不代表零，不能把整个会话的费用当作此 Goal 费用。")}</p> : null}
@@ -416,6 +435,32 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
               {checklist.map((item, index) => <li key={`${index}:${item.text}`} data-done={item.done}>{item.done ? "✓" : "○"} {item.text}</li>)}
             </ul>
           ) : null}
+          {controls?.operations?.length ? <section aria-label={text("Unresolved operations", "结果未确认的操作")} className={styles.operations}>
+            <strong>{text("Unresolved operations", "结果未确认的操作")}</strong>
+            <p>{text("These results are unknown, not cancelled. Inspect the saved execution before repeating an action.", "这些结果尚未确认，不代表已取消。重复操作前请检查保存的执行记录。")}</p>
+            {controls.operations.map((operation) => <div key={operation.effect_id}>
+              <span>{operation.tool_name || text("Operation", "操作")} · {operation.status}</span>
+              <code>{operation.effect_id}</code>
+              <span>{new Date((operation.dispatched_at ?? operation.created_at) * 1000).toLocaleString(locale)}</span>
+              <Button variant="outline" onClick={() => setInspection(operation.execution_id)}>{text("Inspect execution", "查看执行详情")}</Button>
+            </div>)}
+          </section> : null}
+          {controls?.waits?.map((wait) => <Button key={wait.wait_id} variant="outline" onClick={() => setInspection(wait.execution_id)}>{text("Pending response", "待答事项")}: {wait.kind} · {wait.wait_id}</Button>)}
+          {controls?.active_children?.map((id) => <Button key={id} variant="outline" onClick={() => setInspection(id)}>{text("Inspect child", "查看子任务")}: {id}</Button>)}
+          {controls?.processes?.map((process) => <div className={styles.operations} key={process.id}>
+            <span>{text("Background work", "后台工作")}: {process.status}</span><code>{process.id}</code>
+            <Button variant="outline" onClick={() => setInspection(process.execution_id)}>{text("Inspect execution", "查看执行详情")}</Button>
+          </div>)}
+          {inspection ? <section className={styles.inspector} aria-label={text("Selected execution", "所选执行")}>
+            <Button variant="outline" onClick={() => setInspection(null)}>{text("Close execution details", "关闭执行详情")}</Button>
+            <SessionDebugger key={`${sessionId}:${inspection}`} sessionId={sessionId} active={open} requestedExecutionId={inspection} />
+          </section> : null}
+          {!terminal ? <div className={styles.draftNotice} role="status">
+            {!execution.fresh || !controls ? <p>{text("Action status unavailable. Refresh status to retry.", "无法读取操作状态，请刷新状态重试。")}</p> : <>
+              {controls.reasons.resume && controls.reasons.resume !== "goal_not_resumable" ? <p>{text("Resume", "继续")}: {controlReason(controls.reasons.resume, zh)}</p> : null}
+              {controls.reasons.verify ? <p>{text("Verify", "验收")}: {controlReason(controls.reasons.verify, zh)}</p> : null}
+            </>}
+          </div> : null}
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
           {stopError && !stopped ? <p className={styles.error} role="alert">{stopError}</p> : null}
 
@@ -426,10 +471,13 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
               <Button variant="destructive" disabled={busy} onClick={() => void mutate("cancel")}>{text("Confirm end", "确认终止")}</Button>
             </DialogFooter>
           </section> : <DialogFooter className={styles.actions}>
-            {!terminal ? <Button ref={endButton} variant="destructive" disabled={busy} onClick={() => setConfirmCancel(true)}><Square size={14} />{text("End", "终止")}</Button> : null}
-            {running ? <Button variant="outline" disabled={busy} onClick={() => void mutate("pause")}><Pause size={14} />{text("Pause", "暂停")}</Button> : null}
+            {!terminal ? <Button ref={endButton} variant="destructive" disabled={busy || (execution.fresh && controls?.can_end === false)} onClick={() => setConfirmCancel(true)}><Square size={14} />{text("End", "终止")}</Button> : null}
+            {controls?.can_pause ? <Button variant="outline" disabled={busy || !execution.fresh} onClick={() => void mutate("pause")}><Pause size={14} />{text("Pause", "暂停")}</Button> : null}
             <Button variant="outline" disabled={busy || !draft.dirty || draft.conflict || !draft.value.trim()} onClick={() => void mutate("edit", { prompt: draft.value.trim() })}>{text("Save edit", "保存修改")}</Button>
-            {resumable ? <Button disabled={busy || unsaved || (!!goal.execution_id && !canResume)} onClick={() => void mutate("resume")}><Play size={14} />{text("Resume", "继续")}</Button> : null}
+            {!terminal ? <>
+              <Button disabled={busy || unsaved || !canResume} onClick={() => void mutate("resume")}><Play size={14} />{text("Resume", "继续")}</Button>
+              <Button disabled={busy || unsaved || !execution.fresh || !controls?.can_verify} onClick={() => void mutate("verify")}><Check size={14} />{text("Verify", "验收")}</Button>
+            </> : null}
           </DialogFooter>}
           {unsaved ? <p className={styles.draftNotice} role="status">{text("Save or discard unsaved changes before resuming.", "继续前请保存或放弃未保存的修改。")}
             <Button variant="ghost" disabled={busy} onClick={() => { draft.reset(); }}>{text("Discard changes", "放弃修改")}</Button>

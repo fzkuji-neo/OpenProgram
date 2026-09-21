@@ -88,7 +88,9 @@ from openprogram.programs.workflow.goal.notices import (  # noqa: F401
 )
 from openprogram.programs.workflow.goal.execution import (  # noqa: F401
     GoalStopUnconfirmed,
+    goal_control_state,
     goal_execution_state,
+    goal_projection,
     request_goal_stop,
     require_goal_execution_finished,
 )

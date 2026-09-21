@@ -176,6 +176,7 @@ def resume(session_id: str, expected: dict | None = None) -> dict:
         raise ValueError("No resumable Goal")
     goals.check_goal_preconditions(goal, expected)
     goals.require_goal_execution_finished(goal, session_id, allow_new_chat=True)
+    goals.checkpoint_active_elapsed(goal, stop=True)
     if goal.get("usage_pending_until") is not None:
         goals.accumulate_goal_usage(session_id, goal, until=goal["usage_pending_until"])
         if goal.get("usage_pending_until") is not None:
@@ -183,6 +184,9 @@ def resume(session_id: str, expected: dict | None = None) -> dict:
     if goals.budget_exhausted(goal):
         raise ValueError("Goal budget is exhausted; increase its limit before resuming")
     observed = goals.goal_execution_state(goal, session_id)
+    controls = goals.goal_control_state(goal, session_id, observed)
+    if not controls["can_resume"]:
+        raise goals.GoalConflictError("Cannot resume Goal: " + controls["reasons"]["resume"])
     if observed.get("can_start_new_turn") and not observed.get("finished"):
         from openprogram.execution import default_control_service
         default_control_service().close_interrupted_chat(
@@ -231,6 +235,36 @@ def instructions(session_id: str) -> str:
     )
 
 
+@serialized
+def verify_from_controls(session_id: str, expected: dict | None = None) -> dict:
+    """Submit a user-requested candidate to the existing independent verifier."""
+    from openprogram.execution import default_store
+    from . import verification
+    goal = goals.load_goal(session_id)
+    if not goal:
+        raise ValueError("No Goal exists")
+    goals.check_goal_preconditions(goal, expected)
+    controls = goals.goal_control_state(goal, session_id)
+    if not controls["can_verify"]:
+        raise goals.GoalConflictError("Cannot verify Goal: " + controls["reasons"]["verify"])
+    if goal.get("status") != "active":
+        goal = resume(session_id, expected)
+    else:
+        goal["control_version"] = int(goal.get("control_version") or 0) + 1
+        goal["continuation_policy"] = continuation_policy()
+        goal.pop("continuation_restart", None)
+    store = default_store()
+    previous = store.get_execution(goal["execution_id"])
+    goal.pop("verification", None)
+    goal["completion_requested"] = identity(goal)
+    verification.prepare(store, previous, goal)
+    publish(session_id, goal)
+    if (goal.get("verification") or {}).get("status") != "pending":
+        raise goals.GoalConflictError(goal.get("last_reason") or "Goal verification is unavailable")
+    start_next(store, previous.execution_id, expected=identity(goal))
+    return goals.load_goal(session_id)
+
+
 @contextmanager
 def turn_context(session_id: str, execution_id: str, expected: dict | None = None):
     goal = goals.load_goal(session_id)
@@ -244,7 +278,11 @@ def turn_context(session_id: str, execution_id: str, expected: dict | None = Non
                     raise goals.GoalConflictError("Goal changed before the admitted turn started")
                 candidate = goal.get("verification") or {}
                 phase = "verifying" if candidate.get("execution_id") == execution_id and candidate.get("status") == "pending" else "working"
-                goal.update(phase=phase, active_started_at=time.time())
+                goals.checkpoint_active_elapsed(goal, stop=True)
+                from openprogram.execution import default_store
+                execution = default_store().get_execution(execution_id)
+                goal.update(phase=phase, active_started_at=time.time(),
+                            active_attempt_id=execution.current_attempt_id)
                 goal["continuation_policy"] = continuation_policy()
                 publish(session_id, goal)
         yield
