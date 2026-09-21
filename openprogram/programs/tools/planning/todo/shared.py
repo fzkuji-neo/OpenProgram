@@ -77,5 +77,16 @@ def next_id(todos: list[dict[str, Any]]) -> str:
     return str(highest + 1)
 
 
+def notify_goal(session_id: str) -> None:
+    """Refresh derived Goal progress after saving and releasing the todo lock."""
+    from openprogram.programs.workflow.goal import chat
+    try:
+        chat.refresh_todos(session_id)
+    except Exception:
+        # The todo is already durable; terminal accounting reconciles progress.
+        import logging
+        logging.getLogger(__name__).exception("Goal todo progress refresh deferred")
+
+
 def lock() -> threading.Lock:
     return _lock

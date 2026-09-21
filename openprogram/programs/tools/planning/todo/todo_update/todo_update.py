@@ -76,4 +76,5 @@ def _todo_update_impl(
             return f"Todo #{todo_id} unchanged (no new field values)"
         entry["updated_at"] = time.time()
         shared.save(sid, todos)
+    shared.notify_goal(sid)
     return f"Todo #{todo_id} updated ({', '.join(updated)})"

@@ -6,7 +6,7 @@ A Goal keeps an objective active across ordinary chat turns. The current agent d
 
 Enter `/goal <objective>`, or use **Programs → Workflow → goal → Use**. The form starts a chat Goal; it does not execute the Python Workflow. You can also explicitly ask the agent to create a Goal.
 
-The agent uses `todo_create`, `todo_update` and `todo_list` to maintain a plan for multi-step work. New items created during Goal work are associated with the Goal and its revision. The Goal details show their progress after a turn. The objective remains independent of the plan: checking every item does not by itself prove completion.
+The agent uses `todo_create`, `todo_update` and `todo_list` to maintain a plan for multi-step work. New items created during Goal work are associated with the Goal and its revision. The Goal details refresh progress after each successful todo change and reconcile it again when a turn ends. Progress notification failures do not undo saved todos. The objective remains independent of the plan: checking every item does not by itself prove completion.
 
 The agent must check current evidence against every requirement before calling `update_goal(status="complete")`. The runtime rejects completion while associated todos remain unfinished. This is a structural check; it is not independent semantic verification. A simple objective does not require an artificial todo list.
 
