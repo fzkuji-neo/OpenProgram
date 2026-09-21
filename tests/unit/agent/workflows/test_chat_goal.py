@@ -184,14 +184,17 @@ def test_todo_refresh_preserves_legacy_goal_checklist(session):
     assert goals.load_goal("chat-goal")["checklist"] == goal["checklist"]
 
 
-def test_provider_receipt_refreshes_goal_usage_without_duplicate_charge(session, monkeypatch):
+def test_legacy_provider_receipt_refreshes_goal_usage_without_duplicate_charge(session, monkeypatch):
     from openprogram.programs.workflow.goal import chat
     from openprogram.usage.event import UsageEvent
     from openprogram.usage.recorder import run_usage_hooks
     goals, _ = session
     total = {"total_tokens": 0, "cost_usd": 0, "cost_known": True, "unknown_cost_events": 0}
     monkeypatch.setattr(goals, "goal_usage", lambda *a: dict(total))
-    chat.create("chat-goal", "verify")
+    goal = chat.create("chat-goal", "verify")
+    goal.pop("usage_mode")
+    goals.reset_goal_usage_cursor("chat-goal", goal)
+    goals.save_goal("chat-goal", goal)
     total.update(total_tokens=100, cost_usd=0.2)
     event = UsageEvent(session_id="chat-goal", total_tokens=100)
     run_usage_hooks(event)
@@ -222,10 +225,11 @@ def test_metering_read_failure_preserves_cursor_and_does_not_double_bill(session
     assert goal["usage"]["cost_known"] is True
 
 
-def test_resume_settles_failed_boundary_before_excluding_paused_usage(session, monkeypatch):
+def test_legacy_resume_settles_failed_boundary_before_excluding_paused_usage(session, monkeypatch):
     from openprogram.programs.workflow.goal import chat
     goals, _ = session
     goal = chat.create("chat-goal", "verify")
+    goal.pop("usage_mode")
     goal.update(status="paused", usage={"total_tokens": 10, "cost_usd": 0.1},
                 usage_cursor={"total_tokens": 100, "cost_usd": 1}, usage_pending_until=50.0)
     goals.save_goal("chat-goal", goal)
@@ -264,7 +268,7 @@ def test_budget_exhausted_resume_does_not_reactivate(session):
     from openprogram.programs.workflow.goal import chat
     goals, _ = session
     goal = chat.create("chat-goal", "task", token_budget=10)
-    goal.update(status="budget_exhausted", usage={"total_tokens": 10})
+    goal.update(status="budget_exhausted", legacy_usage={"total_tokens": 10})
     goals.save_goal("chat-goal", goal)
     result = goals.handle_goal_command("chat-goal", "resume")
     assert not result["send_text"]
