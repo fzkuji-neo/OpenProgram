@@ -368,6 +368,8 @@ def _process_turn_once(
     on_event = on_event or _noop
     user_msg_id = req.user_msg_id or uuid.uuid4().hex[:12]
     req.user_msg_id = user_msg_id
+    from openprogram.programs.workflow.goal.presentation import event_sink
+    on_event = event_sink(on_event, req)
     from openprogram.self_update.control.maintenance import turn_admission
 
     # User slash actions are still durable Agent turns. Keep their existing

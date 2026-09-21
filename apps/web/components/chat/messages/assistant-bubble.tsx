@@ -119,8 +119,9 @@ function TypingIndicator() {
   );
 }
 
-export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
+export function AssistantBubble({ msg, verdict, verificationDetails, sessionIdOverride }: {
   msg: ChatMsg;
+  verificationDetails?: import("react").ReactNode;
   sessionIdOverride?: string;
   /** goal 判定/完善内部轮：正文里剥出来的 JSON 尾巴 —— 折成一条
    *  <details>（summary = 裁决摘要，展开 = 原始 JSON，调试用）。
@@ -518,6 +519,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
               <pre>{verdict.json}</pre>
             </details>
           ) : null}
+          {verificationDetails}
           {!streaming && outboundFiles.length > 0 ? (
             <AttachmentChips items={outboundFiles} />
           ) : null}

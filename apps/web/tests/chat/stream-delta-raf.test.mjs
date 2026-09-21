@@ -65,6 +65,31 @@ const SID = "s_raf";
 const UID = "u_raf";
 const RID = `${UID}_reply`;
 
+test("verifier identity survives streaming, accepted verdict and history mapping", async () => {
+  const sid = "verification-stream", uid = "verifier", rid = uid + "_reply";
+  const mark = {id:"candidate",status:"pending"};
+  applyChatWsMessage({type:"chat_ack",data:{session_id:sid,msg_id:uid,goal_verification:mark}});
+  assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification, mark);
+  applyChatWsMessage({type:"chat_response",data:{type:"stream_event",session_id:sid,msg_id:uid,goal_verification:mark,event:{type:"text",text:'{"requirements":['}}});
+  assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification, mark);
+  const accepted = {...mark,status:"met",requirements:[{id:"objective",verdict:"met",text:"Compute"}]};
+  globalThis.CustomEvent = class { constructor(type, options) {this.type=type;this.detail=options.detail;} };
+  const { updateSessionGoal } = await import("../../lib/runtime-bridge/goal-state.ts");
+  updateSessionGoal(sid,{version:5,verification_message:{message_id:rid,presentation:accepted}});
+  applyChatWsMessage({type:"chat_response",data:{type:"result",session_id:sid,msg_id:uid,content:'{"requirements":[]}',goal_verification:mark}});
+  assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification, accepted);
+  applyChatWsMessage({type:"chat_ack",data:{session_id:sid,msg_id:uid,goal_verification:mark}});
+  assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification, accepted);
+  updateSessionGoal(sid,{version:4,verification_message:{message_id:rid,presentation:mark}});
+  assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification, accepted);
+  const { convToChatMsgs } = await import("../../lib/chat/conv-mapper.ts");
+  const raw = '{"requirements":[],"reason":"internal"}';
+  const mapped = convToChatMsgs([{id:rid,role:"assistant",content:raw,goal_verification:accepted}]);
+  assert.deepEqual(mapped[0].goalVerification, accepted);
+  assert.equal(mapped[0].content, raw);
+  assert.equal(convToChatMsgs([{id:"normal-json",role:"assistant",content:raw}])[0].goalVerification, undefined);
+});
+
 function reply() {
   return useSessionStore.getState().messagesById[RID];
 }

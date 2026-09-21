@@ -50,6 +50,9 @@ def build_session_graph(
         # asyncio yield, which could otherwise mix graph and transcript data.
         full_msgs = list(messages)
 
+    from openprogram.programs.workflow.goal.presentation import annotate_messages
+    full_msgs = annotate_messages(session_id, full_msgs)
+
     # Named branches: {branch_anchor_id: human name}. meta.json's
     # `branches` dict is keyed by the branch anchor node id (the branch's
     # first-turn reply); stamp the name onto that node so the DAG can
@@ -196,6 +199,7 @@ def build_session_graph(
             "function": m.get("function"),
             "display": m.get("display"),
             "source": m.get("source"),
+            "goal_verification": m.get("goal_verification"),
             "status": m.get("status"),
             "preview": preview,
             "input": _extract_tool_input(m),
