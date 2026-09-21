@@ -290,8 +290,8 @@
     <h2>现状：已有持久化，缺少一致的恢复决策</h2>
     <div class="matrix-wrap"><table><thead><tr><th>已检查的代码</th><th>当前行为</th><th>需要改变或验证的部分</th></tr></thead><tbody>
       <tr><td><code>execution/startup.py</code>、<code>execution/control/recovery.py</code></td><td>已有 owner 核查、canonical 恢复、wait 回执恢复和投影重送；不是空白实现。</td><td>未确认 effect 可使整个 execution 进入 reconciliation_required；要把“操作待核查”和“会话可继续”分开。</td></tr>
-      <tr><td><code>execution/restart.py</code></td><td>已有重启暂停意图、去重续接命令和资源准入；默认恢复窗口 7200 秒，要求无未决 effect。</td><td>重用其持久事件、命令和调度能力；不把隐藏时间窗口作为运行意图失效条件。</td></tr>
-      <tr><td><code>workflow/goal/chat.py</code>、<code>_webui/_exec_dag.py</code></td><td>聊天 Goal 的停止逻辑与会话修复均可写 paused_recoverable；显示修复还修改目标状态。</td><td>Goal 不因 worker 退出变成人工暂停；显示投影不能单独改变业务运行意图。</td></tr>
+      <tr><td><code>execution/restart.py</code></td><td>已有重启暂停意图、去重续接命令和资源准入；默认无恢复期限，显式禁用和有限期限保留，要求无未决 effect。</td><td>全状态恢复尚待验收；旧记录已保存的有限期限不自动延长，未决效果不因取消默认期限而获得重放权限。</td></tr>
+      <tr><td><code>workflow/goal/chat.py</code>、<code>_webui/_exec_dag.py</code></td><td>聊天 Goal 不因停机或显示投影修复而暂停；执行完成前持久化通知，重启后按原策略续轮。缺失恢复来源的旧记录保留显式 Resume。</td><td>完成通知与检查点恢复已有针对性测试；未知效果、新轮次恢复和完整子任务路径仍待实现及验收。</td></tr>
       <tr><td><code>agent/job/runner/recovery.py</code>、<code>execution/control/waits.py</code></td><td>已有 Job 恢复、延后 inbox、持久回答与去重 continue；普通聊天部分重启路径排除 spawn/merge。</td><td>统一父子任务恢复决策及结果投递，不能假设已保存 Job 等于已完整恢复子 agent。</td></tr>
       <tr><td><code>execution/waits.py</code></td><td>durable wait 与 live producer wait 不同；失去 producer 的 live wait 会取消。</td><td>可恢复的审批和问题不能只依赖进程回调；失效的问题保留记录，重新确认而不是默认批准。</td></tr>
       <tr><td><code>usage/context.py</code>、<code>usage/event.py</code></td><td>已有会话、agent、Job 归属及账本；上下文未直接保存 Goal/revision/request-attempt 身份。</td><td>请求前固定归属和唯一键，支持重启后的迟到回执；缺失用量不能作为零。</td></tr>
@@ -2148,7 +2148,7 @@ Goal answer saved; resuming from the latest checkpoint.</pre>
   <div class="content">
     <section id="status">
       <h2>实现状态与证据边界</h2>
-      <p data-implementation-state="design-proposed">上方统一自动重启恢复、运行意图、完整子任务与资源恢复、完成候选验收和请求级归属是目标方案，不是已实现声明。现有聊天 Goal 已有普通续轮、短状态工具、Todo 关联、无限默认轮数及部分用量故障补计；旧工具结果未知仍可能阻止 Resume，且现有重启自动恢复覆盖不一致。设计交付不更新 App、不迁移用户会话、不合并或推送源码。</p>
+      <p data-implementation-state="baseline-failed">统一恢复方案处于部分实施状态，未完成集成或 App 验收。源码已移除默认恢复期限，保留显式限制；聊天 Goal 使用已有持久完成通知续轮，显示投影不再改写其运行意图。针对性测试覆盖停机完成、通知前进程消失、中途创建 Goal、旧来源缺失和用户控制；全量回归仍有已复现的文档导航基线失败，不能据此标记方案完成。现有聊天 Goal 已有普通续轮、短状态工具、Todo 关联、无限默认轮数及部分用量故障补计；旧工具结果未知仍可能阻止 Resume。完整子任务与资源恢复、完成候选验收和请求级归属仍是目标能力。提交、审查及命令记录保存在实施台账；源码状态不代表本机 App 已更新。</p>
       <div class="callout warn">实施状态：共享的中断结果修复、未知效果与轮次状态解耦、精确定位操作的核查入口、独立完成候选验收、请求级 Goal 用量归属及上述故障矩阵尚待实现和验收。既有全量回归有文档导航基线失败，本地默认设置也与两项测试期望不同；不将较小的通过集合冒充全部验收。</div>
       <div class="framework-grid">
         <div class="card"><h3>兼容路径记录，不作为新方案证据</h3><ul><li>Python Workflow 的 work/refine/judge 控制器及预算策略保留。</li><li>已有版本化 Goal 快照、goal/run ID、CAS 写入与旧数据读取。</li><li>已有 Web/TUI 控件及重启暂停状态，但恢复能力存在上述缺口。</li><li>既有详细图示保留于兼容参考；不证明聊天入口使用独立 Workflow。</li></ul></div>
