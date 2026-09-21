@@ -210,7 +210,14 @@ def turn_context(session_id: str, execution_id: str, expected: dict | None = Non
                 goals.check_goal_preconditions(goal or {}, expected)
                 if goal.get("status") != "active" or goal.get("execution_id") != execution_id:
                     raise goals.GoalConflictError("Goal changed before the admitted turn started")
+                from openprogram.execution.process_owner import current_process_owner
+                from openprogram.execution.restart import window_seconds
                 goal.update(phase="working", active_started_at=time.time())
+                # Provenance for an undelivered completion, not an execution
+                # lease: canonical control remains the ownership authority.
+                goal["continuation_policy"] = {
+                    "process": current_process_owner(), "window_seconds": window_seconds(),
+                }
                 publish(session_id, goal)
         yield
     finally:
@@ -265,6 +272,7 @@ def admit(entry, **kwargs):
         admission = entry._admit_without_goal(**kwargs)
         try:
             goal.update(execution_id=admission.execution_id, phase="queued")
+            goal.pop("continuation_restart", None)
             goals.reset_goal_usage_cursor(sid, goal)
             publish(sid, goal)
         except Exception:
@@ -308,10 +316,9 @@ def after_terminal(store, execution):
                 goal.update(status="paused_recoverable", phase="paused",
                             last_reason=execution.reason_code or execution.status.value)
             if goal.get("status") == "active" and not stale_revision:
-                from openprogram.agent.run_control import is_worker_stopping
                 exhausted = goals.budget_exhausted(goal)
-                if is_worker_stopping() or request.get("permission_mode") == "plan":
-                    goal.update(status="paused_recoverable", phase="paused", last_reason="worker stopping or plan mode")
+                if request.get("permission_mode") == "plan":
+                    goal.update(status="paused_recoverable", phase="paused", last_reason="plan mode")
                 elif exhausted:
                     goal.update(status="budget_exhausted", phase="terminal", last_reason=exhausted)
                 else:
@@ -322,6 +329,54 @@ def after_terminal(store, execution):
         if goal.get("status") != "active" or stale_revision:
             return
     start_next(store, execution.execution_id, expected=identity(goal))
+
+
+def _continuation_ready(store, session_id: str, previous_execution_id: str, expected: dict) -> bool:
+    """Keep shutdown deferrals in the existing durable finish notification."""
+    from openprogram.agent.run_control import is_worker_stopping
+    from openprogram.execution import restart
+    from openprogram.execution.process_owner import current_process_owner
+
+    with locked(session_id):
+        goal = goals.load_goal(session_id)
+        if (not goal or goal.get("status") != "active"
+                or goal.get("execution_id") != previous_execution_id
+                or identity(goal) != expected):
+            return False
+        pending = goal.get("continuation_restart")
+        policy = goal.get("continuation_policy") or {}
+        origin = policy.get("process")
+        current = current_process_owner()
+        restarted = bool(origin and any(origin.get(key) != current.get(key)
+                                        for key in ("host", "pid", "start")))
+        stopping = is_worker_stopping()
+        if stopping or restarted:
+            if pending is None:
+                previous = store.get_execution(previous_execution_id)
+                interrupted_at = (previous.terminal_at or previous.updated_at) if previous else restart.time()
+                goal["continuation_restart"] = {
+                    "interrupted_at": interrupted_at,
+                    "resume_before": restart.resume_deadline(
+                        interrupted_at, policy.get("window_seconds", restart.window_seconds())),
+                }
+                publish(session_id, goal)
+                pending = goal["continuation_restart"]
+            if restarted and origin.get("host") != current.get("host"):
+                raise goals.GoalStateUnavailable("Goal continuation belongs to another execution host")
+        if stopping:
+            # The caller keeps its finish-repair row until this succeeds.
+            raise goals.GoalStateUnavailable("Goal continuation deferred until worker restart")
+        if pending is not None:
+            deadline = pending["resume_before"]
+            now = restart.time()
+            if (restart.window_seconds() == 0 or now < pending["interrupted_at"]
+                    or (deadline is not None and now > deadline)):
+                goal.update(status="paused_recoverable", phase="paused",
+                            pause_reason="restart_policy",
+                            last_reason="Automatic restart disabled or its explicit deadline expired")
+                publish(session_id, goal)
+                return False
+        return True
 
 
 def start_next(store, previous_execution_id: str, *, expected: dict):
@@ -336,6 +391,8 @@ def start_next(store, previous_execution_id: str, *, expected: dict):
         raise ValueError("Goal continuation requires a prior ordinary chat")
     request = dict(payload["request"])
     sid = source.session_id
+    if not _continuation_ready(store, sid, previous_execution_id, expected):
+        return
     request.update(user_text="Continue the active Goal. Inspect the current todo plan and actual results, then do the remaining work or verify completion.",
                    user_msg_id=uuid.uuid4().hex, user_already_persisted=False,
                    history_override=None, attachments=None, spawn_caller=None,

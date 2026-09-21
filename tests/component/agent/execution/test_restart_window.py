@@ -99,8 +99,9 @@ def test_orderly_restart_preserves_default_intent_and_explicit_deadline(
         assert h.store.get_execution(execution.execution_id).status.value == "paused"
 
 
+@pytest.mark.parametrize("with_goal", [False, True])
 def test_abandoned_safe_checkpoint_resumes_without_repeating_provider(
-    real_agent_chat, monkeypatch
+    real_agent_chat, monkeypatch, with_goal
 ):
     from openprogram.execution import restart
     from tests.component.providers.scripted_provider import (
@@ -109,6 +110,12 @@ def test_abandoned_safe_checkpoint_resumes_without_repeating_provider(
     )
 
     h = real_agent_chat
+    continuations = []
+    if with_goal:
+        import openprogram.programs.workflow.goal as goals
+        from openprogram.programs.workflow.goal import chat
+        chat.create(h.session_id, "finish the requested work")
+        monkeypatch.setattr(chat, "start_next", lambda *args, **kw: continuations.append(args))
     h.provider.add_response(ScriptedToolCall("first", {}, "first-call"))
     h.provider.add_response(ScriptedText("done"))
     original = h.control.commit_agent_safe_point
@@ -137,6 +144,10 @@ def test_abandoned_safe_checkpoint_resumes_without_repeating_provider(
     assert recovered, errors
     assert recovered[0].execution.status.value == "paused"
     assert h.tools.calls == []
+    if with_goal:
+        from openprogram.webui._exec_dag import reconcile_interrupted_runs
+        reconcile_interrupted_runs()
+        assert goals.load_goal(h.session_id)["status"] == "active"
     restart.reconcile(_runner(h))
     _wait(
         lambda: (
@@ -146,6 +157,9 @@ def test_abandoned_safe_checkpoint_resumes_without_repeating_provider(
     )
     assert h.tools.calls == ["first"]
     assert h.provider.call_count == 2
+    if with_goal:
+        _wait(lambda: bool(continuations))
+        assert goals.load_goal(h.session_id)["status"] == "active"
 
 
 @pytest.mark.parametrize("crash", [False, True])

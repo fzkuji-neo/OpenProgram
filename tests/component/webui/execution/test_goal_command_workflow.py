@@ -220,8 +220,9 @@ def test_goal_http_answer_resumes_newly_unblocked_work_with_other_questions_pend
     assert body["goal"]["questions"][1]["status"] == "pending"
 
 
-def test_worker_restart_turns_active_goal_into_recoverable_pause(
-    tmp_path, monkeypatch,
+@pytest.mark.parametrize("mode", [None, "chat"])
+def test_worker_restart_projection_preserves_chat_goal_intent(
+    tmp_path, monkeypatch, mode,
 ) -> None:
     from openprogram.agent.session_db import SessionDB
     import openprogram.programs.workflow.goal as goal_pkg
@@ -234,15 +235,22 @@ def test_worker_restart_turns_active_goal_into_recoverable_pause(
     monkeypatch.setattr(goal_pkg, "_emit_goal_update", lambda *_a, **_k: None)
     goal_pkg.save_goal("restart-goal", {
         "text": "write survey",
-        "status": "running",
+        "status": "active" if mode == "chat" else "running",
         "phase": "working",
         "version": 0,
         "checkpoint": {"phase": "working", "round": 3},
         "turns_used": 3,
+        "execution_mode": mode,
     })
 
-    assert reconcile_interrupted_runs() == 1
+    assert reconcile_interrupted_runs() == (0 if mode == "chat" else 1)
     recovered = goal_pkg.load_goal("restart-goal")
+    if mode == "chat":
+        assert recovered["status"] == "active"
+        assert recovered["phase"] == "working"
+        assert recovered["turns_used"] == 3
+        db.close()
+        return
     assert recovered["status"] == "paused_recoverable"
     assert recovered["pause_reason"] == "worker_restart"
     assert recovered["checkpoint"] == {"phase": "working", "round": 3}

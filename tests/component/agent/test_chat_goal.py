@@ -176,3 +176,87 @@ def test_failed_chat_stops_goal_without_continuation(runtime, monkeypatch):
     asyncio.run(adapter.activate(admission))
     assert goals.load_goal("goal-chat")["status"] == "paused_recoverable"
     assert not continuations
+
+
+@pytest.mark.parametrize("action", ["continue", "pause", "clear", "disabled", "expired"])
+@pytest.mark.parametrize("abrupt", [False, True])
+def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypatch, action, abrupt):
+    from openprogram.agent.production_driver import CanonicalAgentAdapter
+    from openprogram.agent.dispatcher.types import TurnRequest
+    from openprogram.execution import restart, AttemptStore
+    from openprogram.execution.control import RuntimeControlService
+    from openprogram.execution.driver import DriverRegistry
+
+    goals, chat, store = runtime
+    stopping = [False]
+    restarted = [False]
+    now = [restart.time()]
+    monkeypatch.setattr("openprogram.agent.run_control.is_worker_stopping", lambda: stopping[0])
+    monkeypatch.setattr(restart, "time", lambda: now[0])
+    monkeypatch.setattr(restart, "window_seconds", lambda: 7200 if action == "expired" else -1)
+    calls, durable_before_notification = [], []
+    done = threading.Event()
+    real_notify = chat.after_terminal
+
+    def notify(executions, execution):
+        durable_before_notification.append(bool(executions.list_finish_repairs()))
+        if abrupt and not restarted[0]:
+            raise RuntimeError("process disappeared after terminal commit, before Goal notification")
+        result = real_notify(executions, execution)
+        goal = goals.load_goal("goal-chat")
+        if goal["status"] == "achieved" and goal.get("accounted_execution_id") == execution.execution_id:
+            done.set()
+        return result
+
+    monkeypatch.setattr(chat, "after_terminal", notify)
+
+    def runner(*, request, cancel_event):
+        calls.append(request)
+        if len(calls) == 1:
+            stopping[0] = not abrupt
+        else:
+            chat.update(request.session_id, "complete", expected=chat.current_identity())
+        return SimpleNamespace(failed=False)
+
+    monkeypatch.setattr("openprogram.agent.production_driver.CanonicalAgentAdapter",
+                        lambda **kw: CanonicalAgentAdapter(turn_runner=runner, **kw))
+    adapter = CanonicalAgentAdapter(turn_runner=runner)
+    # Simulate losing the process-local retry worker. Durable replay must suffice.
+    monkeypatch.setattr(adapter.driver, "_schedule_finish_retry_worker", lambda: None)
+    request = TurnRequest("goal-chat", "work", "main", "web", permission_mode="ask",
+                          tools_override=["read", "update_goal"])
+    admission = adapter.admit(request, trusted_actor={}, user_message_id="shutdown-u1",
+                              config_snapshot_ref="session:goal-chat")
+    asyncio.run(adapter.activate(admission))
+    assert durable_before_notification[0] is True
+    assert store.get_execution(admission.execution_id).status.value == "completed"
+    assert goals.load_goal("goal-chat")["status"] == "active"
+    assert store.list_finish_repairs()
+    assert len(calls) == 1
+
+    stopping[0] = False
+    restarted[0] = True
+    now[0] = store.get_execution(admission.execution_id).terminal_at
+    if abrupt:
+        from openprogram.execution import process_owner
+        new_process = dict(process_owner.current_process_owner(), start="restarted-test-process")
+        monkeypatch.setattr(process_owner, "current_process_owner", lambda: dict(new_process))
+    if action in {"pause", "clear"}:
+        goals.apply_goal_action("goal-chat", action)
+    elif action == "disabled":
+        monkeypatch.setattr(restart, "window_seconds", lambda: 0)
+    elif action == "expired":
+        now[0] += 7201
+    fresh = RuntimeControlService(store, AttemptStore(store), DriverRegistry())
+    fresh.replay_finish_repairs()
+    if action == "continue":
+        assert done.wait(5), goals.load_goal("goal-chat")
+        assert len(calls) == 2
+        assert calls[1].tools_override == request.tools_override
+        assert calls[1].permission_mode == "ask"
+    else:
+        assert len(calls) == 1
+        assert goals.load_goal("goal-chat")["status"] in {"paused", "paused_recoverable", "cancelled"}
+    fresh.replay_finish_repairs()
+    assert len(calls) == (2 if action == "continue" else 1)
+    assert not store.list_finish_repairs()

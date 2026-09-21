@@ -76,6 +76,18 @@ class FinalizationOperations:
         )
         with self._handles_lock:
             cancel_command_id = self._cancel_commands.get(key)
+        # Commit the notification intent before terminalizing. A process can
+        # disappear after canonical completion but before Goal continuation;
+        # startup must still be able to retry that notification idempotently.
+        if not self._persist_finish_retry(
+            attempt, execution.status_version, target, outcome,
+            reason_code, cancel_command_id,
+        ):
+            self._queue_finish_retry(
+                attempt, execution.status_version, target, outcome,
+                reason_code, cancel_command_id,
+            )
+            return
         try:
             service.finish_attempt(
                 attempt_id=attempt.attempt_id,
