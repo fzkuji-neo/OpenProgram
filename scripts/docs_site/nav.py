@@ -495,6 +495,7 @@ PAGE_ORDER: dict[str, int] = {
     "reference/design/ui/center-tabs-and-split-layout.html": 1009,
     "reference/design/ui/built-in-browser.html": 1010,
     "reference/design/ui/session-resources.html": 1010,
+    "reference/design/ui/session-auto-rename.html": 1011,
     "reference/design/ui/browser-extensions.html": 1011,
     "reference/design/ui/integrated-terminal.html": 1012,
     "reference/design/ui/composer-local-attachment-paths.html": 1013,

@@ -36,6 +36,7 @@ import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import { activateOnKey } from "@/lib/utils";
 import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
+import { autoRenameSession } from "@/lib/session-auto-rename";
 import { wsRequest } from "@/lib/net/ws-request";
 import { projectGroups, moveProject, filterProjectItems } from "@/lib/projects/project-groups";
 import {
@@ -438,6 +439,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
         groups={allGroups}
         onClick={() => switchTo(c.id, label)}
         onRename={(title) => renameSession(c.id, title)}
+        onAutoRename={() => void autoRenameSession(c.id)}
         onTogglePin={() => setFlags(c.id, { pinned: !c.pinned })}
         onToggleArchive={() => setFlags(c.id, { archived: !c.archived })}
         onMoveToGroup={(g) => setFlags(c.id, { group: g })}
@@ -909,6 +911,7 @@ function ConvItem({
   groups,
   onClick,
   onRename,
+  onAutoRename,
   onTogglePin,
   onToggleArchive,
   onMoveToGroup,
@@ -923,6 +926,7 @@ function ConvItem({
   groups: string[];
   onClick: () => void;
   onRename: (title: string) => void;
+  onAutoRename: () => void;
   onTogglePin: () => void;
   onToggleArchive: () => void;
   onMoveToGroup: (group: string) => void;
@@ -1020,6 +1024,7 @@ function ConvItem({
   function openMenu(event: React.MouseEvent<HTMLElement>) {
     menu.show(event, [
       { id: "rename", label: t("sidebar.rename"), onSelect: startRename },
+      { id: "auto-rename", label: t("sidebar.auto_rename"), onSelect: onAutoRename },
       { id: "pin", label: t(conv.pinned ? "sidebar.unpin" : "sidebar.pin"), onSelect: onTogglePin },
       { id: "group", label: t("sidebar.move_to_group"), children: [
         ...(conv.group ? [{ id: "ungroup", label: t("sidebar.remove_from_group"), onSelect: () => onMoveToGroup("") }] : []),
@@ -1169,6 +1174,7 @@ function ConvItem({
           conv={conv}
           groups={groups}
           onRename={startRename}
+          onAutoRename={onAutoRename}
           onTogglePin={onTogglePin}
           onToggleArchive={onToggleArchive}
           onMoveToGroup={onMoveToGroup}

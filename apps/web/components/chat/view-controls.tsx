@@ -1,5 +1,7 @@
 "use client";
 
+import { autoRenameSession } from "@/lib/session-auto-rename";
+
 /**
  * ViewControls — the pair of buttons at the top-right of the chat pane,
  * modelled on Obsidian's per-pane controls:
@@ -162,6 +164,12 @@ export function ViewControls() {
             >
               <span className="flex-1">{t("sidebar.rename")}</span>
               <span className={SHORTCUT + " w-[16px] text-center"}>R</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className={itemCls(false)}
+              onSelect={() => { if (sessionId) void autoRenameSession(sessionId); }}
+            >
+              <span className="flex-1">{t("sidebar.auto_rename")}</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               className={itemCls(false)}

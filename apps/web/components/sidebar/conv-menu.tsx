@@ -40,6 +40,7 @@ export interface ConvMenuProps {
    *  "Move to group" sub-list. */
   groups: string[];
   onRename: () => void;
+  onAutoRename: () => void;
   onTogglePin: () => void;
   onToggleArchive: () => void;
   /** "" ungroups; any other string assigns/creates that group. */
@@ -56,6 +57,7 @@ export function ConvMenu({
   conv,
   groups,
   onRename,
+  onAutoRename,
   onTogglePin,
   onToggleArchive,
   onMoveToGroup,
@@ -102,6 +104,7 @@ export function ConvMenu({
       className={`${MENU_PANEL} min-w-[200px] outline-none`}
     >
       <MenuItem label={t("sidebar.rename")} shortcut="R" onClick={() => run(onRename)} />
+      <MenuItem label={t("sidebar.auto_rename")} onClick={() => run(onAutoRename)} />
       <MenuItem
         label={conv.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
         shortcut="P"

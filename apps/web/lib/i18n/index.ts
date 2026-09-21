@@ -173,6 +173,7 @@ const DICT = {
     zh: "此操作无法撤销。",
   },
   // Conversation context menu + Recents filter
+  "sidebar.auto_rename": { en: "Auto rename", zh: "自动命名" },
   "sidebar.rename": { en: "Rename", zh: "重命名" },
   "sidebar.pin": { en: "Pin", zh: "置顶" },
   "sidebar.unpin": { en: "Unpin", zh: "取消置顶" },
