@@ -235,3 +235,66 @@ def test_only_incompatible_checkpoint_falls_back_to_new_chat(runtime, monkeypatc
         assert not calls
         assert len(store.list_for_session("goal-chat")) == 1
         assert store.get_execution(admission.execution_id).status.value == "paused"
+
+
+@pytest.mark.parametrize("change", [None, "edit", "pause", "clear", "replace"])
+def test_goal_created_inside_running_turn_recovers_only_its_original_identity(runtime, monkeypatch, change):
+    import asyncio
+    from openprogram.agent.run_control import get_current_execution_id
+    from openprogram.execution import default_control_service
+    from openprogram.execution.restart import reconcile
+    from openprogram.programs.workflow.goal.execution import GoalStopUnconfirmed
+    goals, chat, store = runtime
+    goals.apply_goal_action("goal-chat", "clear")
+    monkeypatch.setattr("openprogram.execution.restart.window_seconds", lambda: -1)
+    calls = []
+    class ProcessLost(BaseException):
+        pass
+    def run(*, request, cancel_event):
+        calls.append(request)
+        if len(calls) == 1:
+            chat.create(request.session_id, "finish the original task")
+            execution = store.get_execution(get_current_execution_id())
+            effects = EffectStore(store)
+            effects.register(effect_id="midturn-unknown", execution_id=execution.execution_id,
+                attempt_id=execution.current_attempt_id, action_id="write",
+                classification=EffectClassification.NONREPEATABLE, idempotency_key=None,
+                metadata={"kind": "tool.before", "payload": {"tool_name": "bash"}})
+            effects.mark_dispatched("midturn-unknown", expected_status=EffectStatus.PLANNED)
+            raise ProcessLost()
+        chat.update(request.session_id, "complete", expected=chat.current_identity())
+        return SimpleNamespace(failed=False)
+    adapter = CanonicalAgentAdapter(store=store, turn_runner=run)
+    admission = adapter.admit(TurnRequest("goal-chat", "start task", "main", "web"),
+        trusted_actor={}, user_message_id="mid-user", config_snapshot_ref="session:goal-chat")
+    asyncio.run(adapter.activate(admission))
+    assert not store.get_agent_turn_input(admission.execution_id)["request"].get("goal_context")
+    original_identity = chat.identity(goals.load_goal("goal-chat"))
+    if change:
+        try:
+            goals.apply_goal_action("goal-chat", "clear" if change == "replace" else change,
+                                    **({"prompt": "different objective"} if change == "edit" else {}))
+        except GoalStopUnconfirmed:
+            pass  # The requested Goal mutation persists; its old effect stays unknown.
+        if change == "replace":
+            chat.create("goal-chat", "different goal")
+    finished = threading.Event()
+    real_activate = CanonicalAgentAdapter.activate
+    async def activate(self, resumed, **kwargs):
+        try:
+            return await real_activate(self, resumed, **kwargs)
+        finally:
+            finished.set()
+    monkeypatch.setattr(CanonicalAgentAdapter, "activate", activate)
+    monkeypatch.setattr("openprogram.agent.production_driver.CanonicalAgentAdapter",
+                        lambda **kw: CanonicalAgentAdapter(turn_runner=run, **kw))
+    reconcile(SimpleNamespace(_execution_store=store, _execution_control=default_control_service()))
+    if change is None:
+        assert finished.wait(5)
+        assert goals.load_goal("goal-chat")["status"] == "achieved"
+        assert len(calls) == 2
+        assert chat.identity(goals.load_goal("goal-chat")) == original_identity
+    else:
+        assert len(calls) == 1
+        assert len(store.list_for_session("goal-chat")) == 1
+    assert EffectStore(store).get("midturn-unknown").status is EffectStatus.DISPATCHED

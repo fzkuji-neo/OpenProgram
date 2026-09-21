@@ -93,6 +93,10 @@ def create(session_id: str, objective: str, token_budget: int | None = None, *,
         "stop_requested": False, "last_reason": "",
         "continuation_policy": continuation_policy(),
     }
+    if goal["execution_id"]:
+        # A mid-turn creation cannot mutate its already admitted request.
+        # Preserve that exact association, not permission for a later revision.
+        goal["creation_execution_context"] = dict(identity(goal), execution_id=goal["execution_id"])
     goals.reset_goal_usage_cursor(session_id, goal)
     publish(session_id, goal)
     if get_current_execution_id():

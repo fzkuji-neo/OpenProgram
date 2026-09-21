@@ -96,6 +96,12 @@ def start_recovery_turn(store, execution, event):
             return "superseded"
         goal = goals.load_goal(execution.session_id)
         expected = request.get("goal_context")
+        if not expected and goal:
+            created = goal.get("creation_execution_context") or {}
+            if (created.get("execution_id") == execution.execution_id
+                    and {key: created.get(key) for key in ("goal_id", "revision", "run_id")} == chat.identity(goal)):
+                expected = chat.identity(goal)
+                request["goal_context"] = expected
         if expected:
             if (not goal or goal.get("status") != "active" or goal.get("stop_requested")
                     or chat.identity(goal) != expected
