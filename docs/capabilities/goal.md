@@ -16,7 +16,7 @@ The verifier must provide a per-requirement assessment and recorded evidence ref
 
 ## Control execution
 
-Verification turns show a concise status in chat. Expand Verification details to inspect each requirement, its assessment and evidence references; the original report is available in a nested disclosure. Streaming report text is not displayed as a normal reply. Only a result accepted by the runtime is shown as completed; pending, interrupted or unconfirmed checks do not establish completion. Saved verifier turns use the same presentation after reload, without rewriting their original evidence. Ordinary JSON replies are unaffected.
+Verification turns use the same collapsed execution row as other chat operations, with a short status such as Goal completed. Expand it and select Verification report to view the original report in the existing right-side detail panel. Reports and repeated requirement assessments are not printed in the chat transcript. Streaming and saved turns share this behavior; your expansion choice is preserved when a turn finishes. Only a result accepted by the runtime is shown as completed. Original evidence and ordinary JSON replies are unchanged.
 
 The Goal details retain the objective, status, usage and progress after page reload. When there are no todos, the badge and details omit todo progress without a placeholder; the Goal status remains visible. Use the existing chat input to add instructions, following its normal queue or steering mode.
 
