@@ -21,7 +21,7 @@ def test_complete_is_a_candidate_not_a_success(runtime):
 
 @pytest.mark.parametrize("automatic", [False, True])
 @pytest.mark.parametrize("outcome", ["met", "unknown", "invented", "changed", "missing", "pause", "edit", "cancel", "budget_aba", "user_input", "coverage", "restart"])
-def test_independent_verification_uses_real_read_and_persisted_result(runtime, monkeypatch, tmp_path, outcome, automatic, fault=None):
+def test_independent_verification_uses_real_read_and_persisted_result(runtime, monkeypatch, tmp_path, outcome, automatic, fault=None, limit=None):
     from openprogram.agent.production_driver import CanonicalAgentAdapter
     from openprogram.agent.authority import local_owner_authority
     from openprogram.agent.dispatcher.types import TurnRequest
@@ -158,6 +158,8 @@ def test_independent_verification_uses_real_read_and_persisted_result(runtime, m
     monkeypatch.setattr("openprogram.agent.production_driver.CanonicalAgentAdapter",
                         lambda **kw: CanonicalAgentAdapter(turn_runner=runner, **kw))
     adapter = CanonicalAgentAdapter(turn_runner=runner)
+    if limit:
+        goals.apply_goal_action("goal-chat", "budget", max_turns=limit)
     authority = local_owner_authority()
     request = TurnRequest("goal-chat", "work", "main", "web", permission_mode="bypass", model_override="openai/fake", **authority)
     first = adapter.admit(request, trusted_actor=authority, user_message_id="work-u", assistant_message_id="work-a",
@@ -173,11 +175,13 @@ def test_independent_verification_uses_real_read_and_persisted_result(runtime, m
         assert not thread.is_alive()
     assert not errors, errors
     goal = goals.load_goal("goal-chat")
-    assert len(calls) == (2 if outcome in {"met", "pause", "edit", "cancel"} else 3)
+    assert len(calls) == (2 if limit or outcome in {"met", "pause", "edit", "cancel"} else 3)
     assert (goal["status"] == "achieved") is (outcome == "met")
     if outcome == "met":
         assert goal["verification"]["status"] == "met"
         assert goal["verification"]["result_sha256"]
+    elif limit:
+        assert goal["status"] == "budget_exhausted"
     chat.after_terminal(store, store.get_execution(first.execution_id))
     assert len(calls) <= 3
 
@@ -186,6 +190,12 @@ def test_independent_verification_uses_real_read_and_persisted_result(runtime, m
 def test_verification_durable_retries_do_not_create_another_verifier(runtime, monkeypatch, tmp_path, fault):
     test_independent_verification_uses_real_read_and_persisted_result(
         runtime, monkeypatch, tmp_path, "met", False, fault=fault)
+
+
+@pytest.mark.parametrize("outcome", ["met", "unknown", "missing", "invented"])
+def test_last_admitted_verification_can_finish_but_cannot_exceed_budget(runtime, monkeypatch, tmp_path, outcome):
+    test_independent_verification_uses_real_read_and_persisted_result(
+        runtime, monkeypatch, tmp_path, outcome, False, limit=2)
 
 
 @pytest.mark.parametrize("limit", ["budget", "unknown_effect", "child"])

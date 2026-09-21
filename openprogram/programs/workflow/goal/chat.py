@@ -338,6 +338,7 @@ def after_terminal(store, execution):
     if request.get("source") not in {"web", "tui", "acp"}:
         return
     sid = execution.session_id
+    completed_verification = bool(request.get("goal_verification")) and execution.status == ExecutionStatus.COMPLETED
     with locked(sid):
         goal = goals.load_goal(sid)
         if (not goal or goal.get("execution_mode") != "chat"
@@ -349,7 +350,7 @@ def after_terminal(store, execution):
             goals.accumulate_goal_usage(sid, goal, until=goal["usage_pending_until"])
             if goal.get("status") == "active" and not stale_revision:
                 exhausted = goals.budget_exhausted(goal)
-                if exhausted:
+                if exhausted and not completed_verification:
                     goal.update(status="budget_exhausted", phase="terminal", last_reason=exhausted)
             publish(sid, goal)
         if goal.get("accounted_execution_id") != execution.execution_id:
@@ -366,7 +367,7 @@ def after_terminal(store, execution):
                 exhausted = goals.budget_exhausted(goal)
                 if request.get("permission_mode") == "plan":
                     goal.update(status="paused_recoverable", phase="paused", last_reason="plan mode")
-                elif exhausted:
+                elif exhausted and not completed_verification:
                     goal.update(status="budget_exhausted", phase="terminal", last_reason=exhausted)
                 else:
                     goal["phase"] = "idle"
@@ -378,6 +379,11 @@ def after_terminal(store, execution):
         from . import verification
         if request.get("goal_verification"):
             verification.finish(store, execution, goal, request)
+            # A limit prevents another paid turn, not acceptance of evidence
+            # produced by the last already-admitted verification turn.
+            exhausted = goals.budget_exhausted(goal)
+            if goal.get("status") == "active" and exhausted:
+                goal.update(status="budget_exhausted", phase="terminal", last_reason=exhausted)
         else:
             verification.prepare(store, execution, goal)
         publish(sid, goal)
