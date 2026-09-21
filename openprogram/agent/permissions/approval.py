@@ -82,6 +82,7 @@ def wrap_with_approval(
     orig_execute = agent_tool.execute
     name = agent_tool.name
     prepared = None
+    approved_recovery = None
 
     async def _permission_preflight(call_id, args, *, operation_id=None):
         nonlocal prepared
@@ -96,7 +97,7 @@ def wrap_with_approval(
     def _interaction_manifest(call_id: str, args: dict) -> dict | None:
         """Describe an approval before the Agent loop dispatches its effect."""
         decision, reason, _, _ = permission_decision(agent_tool, req, args)
-        if decision != "deny":
+        if decision != "deny" and reason != "RECOVERY_EFFECT_UNCERTAIN":
             from openprogram.system_access import access_manifest_for_tool
             access = access_manifest_for_tool(name, args)
             if access is not None:
@@ -112,19 +113,28 @@ def wrap_with_approval(
         import os
         from openprogram.programs.permission_rule import exact_rule_for_call
         scopes = ["once"]
-        if reason != "AUTO_REFUSAL_FALLBACK" and name not in _ONE_SHOT_FORCE_APPROVAL_TOOLS and exact_rule_for_call(name, args) is not None:
+        if reason not in {"AUTO_REFUSAL_FALLBACK", "RECOVERY_EFFECT_UNCERTAIN"} and name not in _ONE_SHOT_FORCE_APPROVAL_TOOLS and exact_rule_for_call(name, args) is not None:
             scopes.append("always")
+        from .recovery import approval_context
+        recovery = approval_context(agent_tool, req)
+        detail = _approval_detail(name, args)
+        if recovery:
+            detail = ("Previous operations have unknown outcomes. This approval authorizes only "
+                      "the new operation below; it does not confirm or resolve prior operations.\n"
+                      + "\n".join(f"{item['tool']}: {item['effect_id']}" for item in recovery)
+                      + "\n\n" + detail)
         return {
             "kind": "approval",
             "prompt": f"允许执行 {name}？",
             "options": ["允许", "拒绝"],
             "allow_custom": False,
-            "detail": _approval_detail(name, args),
+            "detail": detail,
             "request_metadata": {
                 "tool": name, "args": args, "tool_call_id": str(call_id),
                 "risk_level": _risk_level(name, args),
                 "approval_reason": reason,
                 "allowed_scopes": scopes,
+                "recovery_effects": recovery,
                 "permission_version": getattr(req, "_permission_version", 0),
                 "file_preconditions": capture_file_state(name, args),
                 "accept_edits_safe": bool(getattr(agent_tool, "_accept_edits_safe", False)),
@@ -193,6 +203,13 @@ def wrap_with_approval(
     async def _run_original(
         call_id, args, cancel, on_update, *, already_escalated=False,
     ):
+        from .recovery import approval_context
+        try:
+            recovery = approval_context(agent_tool, req)
+        except Exception:
+            return _denied("[denied] cannot verify unresolved prior operations", "RECOVERY_STATE_UNAVAILABLE")
+        if (recovery or approved_recovery) and recovery != approved_recovery:
+            return _denied("[denied] prior operations changed; request a new one-shot approval", "RECOVERY_APPROVAL_STALE")
         try:
             from .file_state import check_current, current_files
             check_current()
@@ -272,6 +289,7 @@ def wrap_with_approval(
             return await orig_execute(call_id, args, cancel, on_update)
 
     async def _approve_then_run(call_id, args, cancel, on_update):
+        nonlocal approved_recovery
         if not _approval_authorized():
             return _denied(
                 "[denied] approval requires an interactive local owner",
@@ -285,14 +303,19 @@ def wrap_with_approval(
             except Exception as exc:
                 return _denied(f"[denied] {exc}", "SELF_UPDATE_RETRY_INVALID")
             approval_args = {**args, "candidate": preview}
+        from .recovery import approval_context
+        recovery = approval_context(agent_tool, req)
         approved, reason, scope = await await_user_approval(
             req=req, tool_name=name, args=approval_args, on_event=on_event,
-            tool_call_id=str(call_id))
+            tool_call_id=str(call_id), **({"recovery_effects": recovery} if recovery else {}))
         if not approved:
             msg = (f"[denied] {reason.strip()}" if isinstance(reason, str)
                    and reason.strip() else f"[denied] user did not approve {name}")
             return _denied(msg, "APPROVAL_DENIED")
-        if scope == "always" and name not in _ONE_SHOT_FORCE_APPROVAL_TOOLS:
+        if recovery and scope != "once":
+            return _denied("[denied] uncertain operations require one-shot approval", "RECOVERY_APPROVAL_SCOPE")
+        approved_recovery = recovery
+        if scope == "always" and not recovery and name not in _ONE_SHOT_FORCE_APPROVAL_TOOLS:
             if not _persist_always_allow_rule(req.session_id, name, args):
                 return _denied("[denied] could not save the project approval rule; operation was not executed", "APPROVAL_RULE_SAVE_FAILED")
         if _fallback(call_id, args) and prepared.history is not None:
@@ -386,6 +409,7 @@ async def await_user_approval(
     on_event: EventCallback,
     timeout: float = 300.0,
     tool_call_id: str | None = None,
+    recovery_effects: list[dict[str, str]] | None = None,
 ) -> tuple[bool, "str | None", str]:
     """Consume the resolved approval wait selected by the Agent safe point.
     返回 (approved, reason, scope)：approved=是否放行；reason=拒绝理由（可为 None）；
@@ -420,6 +444,14 @@ async def await_user_approval(
             if (wait.request.get("permission_version", 0) != getattr(req, "_permission_version", 0)
                     or wait.request.get("working_dir") != (current_worktree_path() or os.getcwd())):
                 return False, "permission or working directory changed after this approval", "once"
+        if recovery_effects or wait.request.get("recovery_effects"):
+            import os
+            from openprogram.worktree.context import current_worktree_path
+            if (wait.request.get("approval_reason") != "RECOVERY_EFFECT_UNCERTAIN"
+                    or wait.request.get("recovery_effects") != recovery_effects
+                    or wait.request.get("permission_version", 0) != getattr(req, "_permission_version", 0)
+                    or wait.request.get("working_dir") != (current_worktree_path() or os.getcwd())):
+                return False, "recovery context changed; request a new one-shot approval", "once"
         if wait.status is WaitStatus.RESOLVED:
             from .file_state import validate
             if tool_name in {"edit", "write", "apply_patch"} and "file_preconditions" not in wait.request:

@@ -180,7 +180,14 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
     verdict = _match_rule(getattr(req, "permission_rules", None), name, args)
     if verdict == "deny":
         return "deny", "PERMISSION_RULE_DENY", f"blocked by deny rule: {name}", None
-    if verdict == "ask" or name in _FORCE_APPROVAL_TOOLS:
+    from .recovery import approval_context
+    try:
+        recovery = approval_context(agent_tool, req)
+    except Exception:
+        return "deny", "RECOVERY_STATE_UNAVAILABLE", "cannot verify unresolved prior operations", None
+    if recovery:
+        reason = "RECOVERY_EFFECT_UNCERTAIN"
+    elif verdict == "ask" or name in _FORCE_APPROVAL_TOOLS:
         reason = "PERMISSION_RULE_ASK" if verdict == "ask" else "MANDATORY_APPROVAL"
     else:
         if name == "web_use":
