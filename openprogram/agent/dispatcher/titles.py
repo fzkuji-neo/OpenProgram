@@ -68,6 +68,7 @@ TITLE_SCHEMA = {
 _TITLE_RESPONSE_FORMAT = JsonSchemaOutput(
     schema=TITLE_SCHEMA,
     name="session_title",
+    fallback="prompt",
     max_validation_retries=1,
 )
 
