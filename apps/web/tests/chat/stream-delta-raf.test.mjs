@@ -94,6 +94,21 @@ function reply() {
   return useSessionStore.getState().messagesById[RID];
 }
 
+test("accepted snapshot arriving before the row is replayed only for its exact identity", async () => {
+  const { updateSessionGoal } = await import("../../lib/runtime-bridge/goal-state.ts");
+  const sid="accepted-before-message", uid="verify-late", rid=uid+"_reply";
+  const accepted={id:"candidate-late",status:"met"};
+  updateSessionGoal(sid,{version:9,verification_message:{message_id:rid,presentation:accepted}});
+  const pending={id:"candidate-late",status:"pending"};
+  applyChatWsMessage({type:"chat_ack",data:{session_id:sid,msg_id:uid,goal_verification:pending}});
+  applyChatWsMessage({type:"chat_response",data:{type:"result",session_id:sid,msg_id:uid,content:'{"requirements":[]}',goal_verification:pending}});
+  assert.deepEqual(useSessionStore.getState().messagesById[rid].goalVerification,accepted);
+  for (const [session, user, identity] of [["other-session","other-user",pending], [sid,"other-message",pending], [sid,"other-candidate",{id:"different",status:"pending"}]]) {
+    applyChatWsMessage({type:"chat_ack",data:{session_id:session,msg_id:user,goal_verification:identity}});
+    assert.deepEqual(useSessionStore.getState().messagesById[user+"_reply"].goalVerification,identity);
+  }
+});
+
 function send(event, sid = SID, uid = UID) {
   applyChatWsMessage({
     type: "chat_response",

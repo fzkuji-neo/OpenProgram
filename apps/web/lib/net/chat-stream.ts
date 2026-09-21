@@ -35,6 +35,7 @@
  */
 
 import { rememberSystemAccessFromTree } from "../access/system-access-result";
+import { verificationForMessage } from "../runtime-bridge/goal-state";
 import {
   applyExecutionStreamFromChat,
   useExecutionStreamStore,
@@ -333,9 +334,9 @@ function handleAck(
   if (d.goal_verification && d.msg_id) {
     const rid = replyId(d.msg_id);
     const current = ensureReply(sid, rid).goalVerification;
-    if (!current || current.id !== d.goal_verification.id || current.status === "pending") {
-      useSessionStore.getState().updateMessage(sid, rid, { goalVerification: d.goal_verification });
-    }
+    useSessionStore.getState().updateMessage(sid, rid, {
+      goalVerification: verificationForMessage(sid, rid, d.goal_verification, current),
+    });
   }
   acknowledgePendingUserText(sid);
   clearPendingFirstAck(sid);
@@ -441,9 +442,9 @@ function handleResponse(d: ChatResponseData | undefined): void {
 
   if (d.goal_verification) {
     const current = ensureReply(sid, rid).goalVerification;
-    if (!current || current.id !== d.goal_verification.id || current.status === "pending") {
-      useSessionStore.getState().updateMessage(sid, rid, { goalVerification: d.goal_verification });
-    }
+    useSessionStore.getState().updateMessage(sid, rid, {
+      goalVerification: verificationForMessage(sid, rid, d.goal_verification, current),
+    });
   }
 
   // Live execution tree for a streaming `/run` — store it on the reply
