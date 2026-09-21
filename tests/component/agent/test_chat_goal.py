@@ -113,6 +113,9 @@ def test_terminal_retry_settles_pending_usage_before_continuing(runtime, monkeyp
     goals, chat, store = runtime
     goal = goals.load_goal("goal-chat")
     goal["execution_id"] = "interrupted-ledger"
+    # This compatibility case exercises the pre-request-accounting cursor.
+    goal.pop("usage_mode", None)
+    goals.reset_goal_usage_cursor("goal-chat", goal)
     goals.save_goal("goal-chat", goal)
     execution = SimpleNamespace(execution_id="interrupted-ledger", session_id="goal-chat",
                                 status=ExecutionStatus.COMPLETED)
@@ -145,6 +148,11 @@ def test_edit_keeps_terminal_usage_without_continuing_old_revision(runtime, monk
     from openprogram.agent.production_driver import CanonicalAgentAdapter
     from openprogram.agent.dispatcher.types import TurnRequest
     goals, chat, store = runtime
+    # Legacy snapshots keep their cursor semantics until their next request.
+    legacy = goals.load_goal("goal-chat")
+    legacy.pop("usage_mode", None)
+    goals.reset_goal_usage_cursor("goal-chat", legacy)
+    goals.save_goal("goal-chat", legacy)
     total = [0]
     monkeypatch.setattr(goals, "goal_usage", lambda *a: {"total_tokens": total[0], "cost_usd": 0, "cost_known": True})
     monkeypatch.setattr(goals, "request_goal_stop", lambda *a: None)

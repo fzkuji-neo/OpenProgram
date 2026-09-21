@@ -5,8 +5,9 @@ module serves passes through, so reserve/start/settle lives here rather than
 in each adapter.
 
 A call is *budgeted* only when a governed job is bound to this context
-(``current_job_resource_context()``). Everything else — CLI, tests, headless
-usage — stays on the historical best-effort recording path untouched.
+(``current_job_resource_context()``). Goal requests also have durable receipts
+in usage.request; their hard-budget reservation integration is separate from
+this governed-Job contract. Other callers retain best-effort recording.
 
 The order matters and is the whole point of the module:
 
@@ -152,6 +153,9 @@ def requested_output_cap(options, model) -> int:
 def provider_retry_attempts(default_attempts: int) -> int:
     """Return one provider attempt while a governed reservation is active."""
     try:
+        from openprogram.usage.context import request_context
+        if request_context().goal_id:
+            return 1
         from openprogram.agent.job.runner import current_job_resource_context
         if current_job_resource_context() is not None:
             return 1
@@ -254,7 +258,7 @@ class BudgetedRequest:
                 f"could not start resource reservation: {exc}",
             ) from exc
 
-    def settle(self, model, final, options) -> None:
+    def settle(self, model, final, options, *, frozen_event=None) -> None:
         """Settle actual usage and append the event in one transaction.
 
         Idempotent: a provider that emits two terminal events settles once.
@@ -262,7 +266,7 @@ class BudgetedRequest:
         if self._settled:
             return
         from openprogram.usage.recorder import build_message_event, run_usage_hooks
-        event = build_message_event(
+        event = frozen_event or build_message_event(
             model, final,
             session_id=getattr(options, "session_id", None) if options else None,
         )

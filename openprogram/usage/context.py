@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import contextvars
 from contextlib import contextmanager
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from typing import Iterator, Optional
 
 from .event import CALL_KIND_UNKNOWN
@@ -28,6 +28,11 @@ class UsageContext:
     session_id: Optional[str] = None
     parent_session_id: Optional[str] = None
     agent_id: Optional[str] = None
+    goal_id: Optional[str] = None
+    goal_revision: Optional[int] = None
+    goal_run_id: Optional[str] = None
+    goal_session_id: Optional[str] = None
+    execution_id: Optional[str] = None
 
 
 _current: contextvars.ContextVar[UsageContext] = contextvars.ContextVar(
@@ -75,14 +80,23 @@ def usage_scope(
 def snapshot() -> dict:
     """Serializable copy of the current context, for crossing a process or
     thread boundary that doesn't inherit contextvars."""
-    c = _current.get()
-    return {
-        "call_kind": c.call_kind,
-        "call_label": c.call_label,
-        "session_id": c.session_id,
-        "parent_session_id": c.parent_session_id,
-        "agent_id": c.agent_id,
-    }
+    return asdict(request_context())
+
+
+def request_context(session_id: str | None = None) -> UsageContext:
+    """Capture trusted turn identity, never infer it from the current session Goal."""
+    from openprogram.agent.run_control import get_current_execution_id
+    from openprogram.programs.workflow.goal import chat
+    base = _current.get()
+    bound = chat._turn_goal.get()
+    effective = base.session_id or session_id
+    updates = {"session_id": effective,
+               "execution_id": get_current_execution_id() or base.execution_id}
+    if bound is not None:
+        updates.update(goal_id=bound.get("goal_id"), goal_revision=bound.get("revision"),
+                       goal_run_id=bound.get("run_id"),
+                       goal_session_id=effective if bound else None)
+    return replace(base, **updates)
 
 
 def apply_snapshot(data: Optional[dict]) -> None:
@@ -96,6 +110,11 @@ def apply_snapshot(data: Optional[dict]) -> None:
         session_id=data.get("session_id"),
         parent_session_id=data.get("parent_session_id"),
         agent_id=data.get("agent_id"),
+        goal_id=data.get("goal_id"),
+        goal_revision=data.get("goal_revision"),
+        goal_run_id=data.get("goal_run_id"),
+        goal_session_id=data.get("goal_session_id"),
+        execution_id=data.get("execution_id"),
     ))
 
 

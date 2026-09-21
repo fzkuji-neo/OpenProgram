@@ -12,6 +12,7 @@ from typing import AsyncGenerator, Awaitable, Callable
 
 from .api_registry import get_api_provider
 from .budget import BudgetedRequest
+from openprogram.usage.request import RequestReceipt
 from .env_api_keys import resolve_provider_key
 from .types import (
     AssistantMessage,
@@ -85,7 +86,9 @@ async def stream_simple_with_provider(
     # Reserve budget BEFORE credentials or network: a denied call must never
     # resolve a key or open a socket. Returns None for unbudgeted callers.
     budget = BudgetedRequest.begin(model, context, opts, provider)
+    receipt = None
     try:
+        receipt = RequestReceipt.begin(model, opts)
         if budget is not None:
             opts = budget.clamp(opts, model)
 
@@ -105,17 +108,12 @@ async def stream_simple_with_provider(
     except BaseException:
         if budget is not None:
             budget.release()
+        if receipt is not None:
+            receipt.release()
         raise
 
-    # NOTE: the claude-code Meridian-profile header (x-meridian-profile) is
-    # injected one layer down, in openai_completions.stream_simple — that's
-    # the single chokepoint EVERY claude-code request passes through. This
-    # wrapper is bypassed by some callers (e.g. providers/default_llm.py calls
-    # the raw api-provider directly), so injecting here would miss them.
-    # See docs/design/claude-code-meridian-profile.md.
-
     recorded = False
-    async for event in _metered(provider.stream_simple, model, context, opts, budget):
+    async for event in _metered(provider.stream_simple, model, context, opts, budget, receipt):
         # Record AT the terminal event, not after the loop: the consumer
         # (agent_loop) returns the moment it sees the done/error event,
         # leaving this generator suspended at ``yield`` — a post-loop line
@@ -125,7 +123,11 @@ async def stream_simple_with_provider(
             final = _extract_final(event)
             if final is not None:
                 recorded = True
-                if budget is not None:
+                if receipt is not None:
+                    if budget is not None:
+                        budget.settle(model, final, opts, frozen_event=receipt.event(final))
+                    receipt.settle(final)
+                elif budget is not None:
                     budget.settle(model, final, opts)
                 else:
                     _record_usage(model, final, opts)
@@ -169,7 +171,9 @@ async def stream(
             raise ValueError(f"No stream function registered for API: {model.api!r}")
 
         budget = BudgetedRequest.begin(model, context, opts, provider)
+        receipt = None
         try:
+            receipt = RequestReceipt.begin(model, opts)
             if budget is not None:
                 opts = budget.clamp(opts, model)
 
@@ -181,16 +185,22 @@ async def stream(
         except BaseException:
             if budget is not None:
                 budget.release()
+            if receipt is not None:
+                receipt.release()
             raise
 
         recorded = False
-        async for event in _metered(provider.stream, model, context, opts, budget):
+        async for event in _metered(provider.stream, model, context, opts, budget, receipt):
             record_activity("provider_data")
             if not recorded:
                 final = _extract_final(event)
                 if final is not None:
                     recorded = True
-                    if budget is not None:
+                    if receipt is not None:
+                        if budget is not None:
+                            budget.settle(model, final, opts, frozen_event=receipt.event(final))
+                        receipt.settle(final)
+                    elif budget is not None:
                         budget.settle(model, final, opts)
                     else:
                         _record_usage(model, final, opts)
@@ -217,23 +227,29 @@ async def complete(
     return final_message
 
 
-async def _metered(stream_fn, model: Model, context, opts, budget):
+async def _metered(stream_fn, model: Model, context, opts, budget, receipt=None):
     """Drive the provider stream, marking the reservation started around I/O.
 
     Failures while constructing the provider iterator release a reservation.
     Once ``start`` succeeds, any failure or cancellation conservatively keeps
     exposure held because the request may already have reached the provider.
     """
-    if budget is None:
+    if budget is None and receipt is None:
         async for event in stream_fn(model, context, opts):
             yield event
         return
 
     try:
         events = stream_fn(model, context, opts)
-        budget.start()
+        if budget is not None:
+            budget.start()
+        if receipt is not None:
+            receipt.start()
     except BaseException:
-        budget.release()
+        if budget is not None:
+            budget.release()
+        if receipt is not None:
+            receipt.release()
         raise
 
     async for event in events:

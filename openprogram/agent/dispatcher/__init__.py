@@ -417,11 +417,11 @@ def _process_turn_once(
     try:
         from dataclasses import replace as _replace
         from openprogram.usage.context import (
-            UsageContext, current_usage_context, _current as _usage_cur,
+            current_usage_context, _current as _usage_cur,
         )
         _cur = current_usage_context()
         if _cur.call_kind == "unknown":
-            _usage_cur.set(UsageContext(
+            _usage_cur.set(_replace(_cur,
                 call_kind="chat", agent_id=req.agent_id, session_id=req.session_id))
         else:
             # Keep the outer source (exec/subagent) but fill in this turn's

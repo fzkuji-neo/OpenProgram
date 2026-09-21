@@ -125,6 +125,20 @@ test("completed todo progress remains Verifying until evidence passes", async ()
   } finally { await view.close(); }
 });
 
+test("partial usage displays known subtotal and unknown request counts", async () => {
+  reset();
+  runtimeState.conversations.s1.goal = { ...snapshot(1, "paused"), usage: {
+    total_tokens: 120, tokens_known: false, unknown_token_requests: 1,
+    cost_usd: 0.42, cost_known: false, unknown_cost_requests: 2,
+  } };
+  const view = await mount();
+  try {
+    await view.open();
+    assert.match(view.host.textContent, /Known 120; 1 request\(s\) unknown/);
+    assert.match(view.host.textContent, /Known \$0.4200; 2 request\(s\) unknown/);
+  } finally { await view.close(); }
+});
+
 test("provider-only incomplete responses allow a new Goal turn without claiming stop", async () => {
   reset();
   useSessionStore.setState({ wsStatus: "open" });

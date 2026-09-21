@@ -81,6 +81,7 @@ def create(session_id: str, objective: str, token_budget: int | None = None, *,
     now = time.time()
     goal = {
         "execution_mode": "chat", "goal_id": uuid.uuid4().hex,
+        "usage_mode": "requests",
         "run_id": uuid.uuid4().hex, "revision": 1, "control_version": 1,
         "version": int((previous or {}).get("version") or 0),
         "text": objective, "status": "active", "phase": "idle",
@@ -120,9 +121,11 @@ def project_todos(session_id: str, goal: dict) -> list[dict]:
 
 @serialized
 def refresh_usage(session_id: str) -> None:
-    """Publish already-recorded provider usage only for an active chat Goal."""
+    """Publish durable receipts, including after pause, edit or completion."""
     goal = goals.load_goal(session_id)
-    if not goal or goal.get("execution_mode") != "chat" or goal.get("status") != "active":
+    if not goal or goal.get("execution_mode") != "chat":
+        return
+    if goal.get("usage_mode") != "requests" and goal.get("status") != "active":
         return
     goals.accumulate_goal_usage(session_id, goal)
     goals.checkpoint_active_elapsed(goal)

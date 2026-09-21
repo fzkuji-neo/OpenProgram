@@ -472,7 +472,9 @@ async def stream_simple(
     yield EventStart(type="start", partial=partial)
 
     try:
-        for _attempt in range(PROVIDER_STREAM_MAX_ATTEMPTS):
+        from ..budget import provider_retry_attempts
+        attempts = provider_retry_attempts(PROVIDER_STREAM_MAX_ATTEMPTS)
+        for _attempt in range(attempts):
             try:
                 async with await client.chat.completions.create(**params) as stream:
                     # <=250ms cancel poll — do not wait for the next token.
@@ -634,7 +636,7 @@ async def stream_simple(
                 if (
                     committed
                     or not retryable
-                    or _attempt >= PROVIDER_STREAM_MAX_ATTEMPTS - 1
+                    or _attempt >= attempts - 1
                     or _user_cancelled()
                 ):
                     raise
@@ -661,7 +663,7 @@ async def stream_simple(
                 )
                 print(
                     f"[openai-completions stream retry] attempt {_attempt + 1}/"
-                    f"{PROVIDER_STREAM_MAX_ATTEMPTS} after {sleep_s:.1f}s — {e}",
+                    f"{attempts} after {sleep_s:.1f}s — {e}",
                     flush=True,
                 )
                 from ..utils.stream_retry import _sleep_unless_aborted

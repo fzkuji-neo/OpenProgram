@@ -17,7 +17,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 # Known call-kind labels. NOT exhaustive and NOT enforced — a string so
@@ -53,13 +53,19 @@ class UsageEvent(BaseModel):
     job_id: Optional[str] = None
     budget_scope_id: Optional[str] = None
     reservation_id: Optional[str] = None
+    request_id: Optional[str] = None
+    goal_id: Optional[str] = None
+    goal_revision: Optional[int] = None
+    goal_session_id: Optional[str] = None
+    execution_id: Optional[str] = None
+    tokens_known: bool = True
 
     # model
     provider: str = ""
     api: Optional[str] = None
     model_id: str = ""
 
-    # tokens (provider-authoritative; 0 when absent)
+    # Token subtotals; tokens_known distinguishes an absent report from zero.
     input_tokens: int = 0
     output_tokens: int = 0
     cache_read_tokens: int = 0

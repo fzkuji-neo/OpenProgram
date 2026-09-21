@@ -164,6 +164,7 @@ def test_restart_preserves_user_controls_limits_and_live_children(runtime, monke
     elif change == "budget":
         goal["budget"]["max_tokens"] = 1
         goal["usage"]["total_tokens"] = 2
+        goal["legacy_usage"] = {"total_tokens": 2}
     elif change == "turn_budget":
         goal["budget"]["max_turns"] = 1
     elif change == "disabled":

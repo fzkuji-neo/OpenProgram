@@ -12,6 +12,7 @@ import asyncio
 from types import SimpleNamespace
 
 import httpx
+import pytest
 
 from openprogram.providers.openai_completions import openai_completions
 from openprogram.providers.types import Context, Model, SimpleStreamOptions
@@ -121,6 +122,22 @@ def test_thinking_only_mid_stream_error_retries(monkeypatch):
     )
     assert thinking == "fresh thought"  # discarded prefix is gone
     assert text == "answer"
+
+
+def test_goal_request_does_not_hide_an_extra_paid_attempt(monkeypatch):
+    from openprogram.usage.context import UsageContext, _current
+    streams = [
+        _Stream([_chunk(thinking="partial")], error=_api_error()),
+        _Stream([_chunk(text="second attempt", finish="stop")]),
+    ]
+    _install(monkeypatch, streams)
+    token = _current.set(UsageContext(goal_id="goal", goal_revision=1, goal_session_id="session"))
+    try:
+        with pytest.raises(openai_completions._openai.APIError):
+            _consume()
+        assert len(streams) == 1
+    finally:
+        _current.reset(token)
 
 
 def test_visible_text_mid_stream_error_does_not_retry(monkeypatch):

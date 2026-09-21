@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator, Awaitable, Callable, Literal, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .structured_output import JsonSchemaOutput
 
@@ -235,6 +235,16 @@ class UsageCost(BaseModel):
 
 
 class Usage(BaseModel):
+    # Preserve missing-vs-explicit-zero through serialized provider messages.
+    tokens_reported: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reported_counters(cls, value):
+        if isinstance(value, dict) and "tokens_reported" not in value:
+            return {**value, "tokens_reported": {"input", "output"}.issubset(value)}
+        return value
+
     requested_service_tier: str | None = None
     service_tier: str | None = None
     provider_cost_usd: float | None = None

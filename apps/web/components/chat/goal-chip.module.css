@@ -58,7 +58,12 @@
 }
 
 .metrics span { color: hsl(var(--muted-foreground)); font-size: 10px; }
-.metrics strong { margin-top: 3px; font-size: 12px; }
+.metrics strong {
+  margin-top: 3px;
+  font-size: 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
 .roles {
   display: grid;
