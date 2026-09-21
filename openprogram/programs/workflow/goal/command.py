@@ -33,6 +33,7 @@ def _apply_goal_action(session_id: str, action: str, **values) -> dict:
         raise ValueError("No Goal exists for this session")
     _goal.check_goal_preconditions(goal, values.get("expected"))
     action = action.strip().lower()
+    goal["control_version"] = int(goal.get("control_version") or 0) + 1
     if action == "pause":
         if goal.get("status") not in _goal.RUNNING_STATUSES:
             raise ValueError("Only a running Goal can be paused")

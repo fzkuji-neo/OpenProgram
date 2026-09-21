@@ -162,6 +162,7 @@ class TurnRequest:
     goal_context: Optional[dict] = None
     goal_trigger: bool = False
     goal_previous_execution: Optional[str] = None
+    goal_verification: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.profile_snapshot is not None:

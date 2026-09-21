@@ -180,9 +180,9 @@ def process_user_turn(
 ) -> TurnResult:
     """Run one full agent turn, then the ordinary ``turn.stop`` gate.
 
-    Goal is no longer a dispatcher-owned continuation mode. ``/goal`` and
-    Programs both invoke the single public Goal Workflow, whose own loop
-    owns every Goal round and completion decision.
+    Chat Goals use canonical ordinary turns. Their terminal notification
+    admits subsequent work or a read-only completion verification turn;
+    the dispatcher never invokes a nested Goal Workflow.
     """
     # Same-session spawned turns are components inside another execution,
     # so they do not enter the top-level turn.stop gate.

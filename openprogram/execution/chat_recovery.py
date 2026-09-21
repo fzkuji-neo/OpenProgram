@@ -132,6 +132,7 @@ def start_recovery_turn(store, execution, event):
             user_text="Continue the interrupted task using saved conversation history. Inspect actual state before acting. Prior tool results may be unknown; do not assume failure or repeat an external action without confirmation.",
             user_msg_id=new_id + "_user", user_already_persisted=False,
             history_override=None, attachments=None, surface_context=None, spawn_caller=None,
+            goal_verification=None,
         )
         request.pop("branch_from", None)
         adapter = CanonicalAgentAdapter(store=store, event_sink=emit_ws_frame)

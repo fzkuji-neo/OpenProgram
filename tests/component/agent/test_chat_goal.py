@@ -68,14 +68,14 @@ def test_completed_chat_continues_once_with_original_authority(runtime, monkeypa
     def runner(*, request, cancel_event):
         calls.append(request)
         if len(calls) == 2:
-            chat.update(request.session_id, "complete", expected=chat.current_identity())
+            goals.apply_goal_action(request.session_id, "pause")
         return SimpleNamespace(failed=False)
 
     real_activate = CanonicalAgentAdapter.activate
     async def activate(self, admission, **kwargs):
         result = await real_activate(self, admission, **kwargs)
         goal = goals.load_goal("goal-chat")
-        if goal["status"] == "achieved" and goal.get("accounted_execution_id") == admission.execution_id == goal["execution_id"]:
+        if goal["status"] == "paused" and goal.get("accounted_execution_id") == admission.execution_id == goal["execution_id"]:
             finished.set()
         return result
     monkeypatch.setattr(CanonicalAgentAdapter, "activate", activate)
@@ -209,7 +209,7 @@ def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypat
             raise RuntimeError("process disappeared after terminal commit, before Goal notification")
         result = real_notify(executions, execution)
         goal = goals.load_goal("goal-chat")
-        if goal["status"] == "achieved" and goal.get("accounted_execution_id") == execution.execution_id:
+        if goal["status"] == "paused" and goal.get("accounted_execution_id") == execution.execution_id:
             done.set()
         return result
 
@@ -222,7 +222,7 @@ def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypat
                 chat.create(request.session_id, "finish the task")
             stopping[0] = not abrupt
         else:
-            chat.update(request.session_id, "complete", expected=chat.current_identity())
+            goals.apply_goal_action(request.session_id, "pause")
         return SimpleNamespace(failed=False)
 
     monkeypatch.setattr("openprogram.agent.production_driver.CanonicalAgentAdapter",

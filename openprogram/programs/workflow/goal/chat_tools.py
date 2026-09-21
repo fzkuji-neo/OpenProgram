@@ -28,7 +28,7 @@ def get_goal() -> dict:
 
 
 @function(name="update_goal", toolset=["core"], unsafe_in=["wechat", "telegram"],
-          description="Mark the current Goal complete only after verifying every requirement against actual evidence and finishing its todo plan. Mark blocked only after the SAME blocker recurs across at least three consecutive Goal turns with no independent work available. Never shrink the objective. Budget exhaustion is not completion. User pause/resume and budget changes use the Goal controls.")
+          description="Submit a completion candidate only after checking every requirement against actual evidence and finishing the todo plan. This does not mark the Goal achieved: a separate read-only verification turn must pass. Mark blocked only after the SAME blocker recurs across at least three consecutive Goal turns with no independent work available. Never shrink the objective. Budget exhaustion is not completion. User pause/resume and budget changes use the Goal controls.")
 def update_goal(status: str) -> dict:
     from . import chat
     return chat.update(_session(), status, expected=chat.current_identity())

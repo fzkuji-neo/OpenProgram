@@ -3,7 +3,8 @@
 Interactive ``/goal`` and Goal controls save objective state and execute normal
 chat turns. ``chat`` integrates admission, terminal accounting and continuation;
 ``chat_tools`` exposes short create/get/update operations. Existing todo items
-can carry the Goal identity and revision. The working chat verifies completion.
+can carry the Goal identity and revision. Completion candidates are checked by
+an independent, read-only ordinary chat turn in ``verification``.
 
 Programs and Python may still call :func:`goal` with isolated pre-call context.
 That compatibility Workflow owns its refinement, work rounds and judgment.
@@ -22,7 +23,7 @@ as completion. Deterministic responsibilities are split as
 * ``state``: goal meta read / write, stop-rule constants, event fan-out
 * ``notices``: transcript system rows, terminal finisher
 
-The independent judge belongs only to the Python Workflow, not chat Goals.
+The legacy ``judge`` implementation belongs only to the Python Workflow.
 Design doc:
 docs/reference/design/runtime/goal-framework-implementation-comparison.html.
 
