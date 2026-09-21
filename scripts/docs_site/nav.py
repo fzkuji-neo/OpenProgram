@@ -346,6 +346,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/ui/browser-control-surfaces.html",
             "reference/design/ui/head-bugs.html",
             "reference/design/ui/send-queue-reliability.html",
+            "reference/design/ui/session-auto-rename.html",
             "reference/design/ui/slash-and-compact.html",
             "reference/design/ui/turn-occupancy.md",
             "reference/design/ui/websocket-command-lifecycle.html",
