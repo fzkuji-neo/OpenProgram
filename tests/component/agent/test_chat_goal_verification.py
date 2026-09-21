@@ -20,7 +20,7 @@ def test_complete_is_a_candidate_not_a_success(runtime):
 
 
 @pytest.mark.parametrize("automatic", [False, True])
-@pytest.mark.parametrize("outcome", ["met", "unknown", "invented", "changed", "missing", "pause", "edit", "cancel", "budget_aba", "user_input", "coverage", "restart"])
+@pytest.mark.parametrize("outcome", ["met", "unknown", "invented", "changed", "missing", "pause", "edit", "cancel", "budget_aba", "user_input", "coverage", "restart", "reused_path", "reused_version"])
 def test_independent_verification_uses_real_read_and_persisted_result(runtime, monkeypatch, tmp_path, outcome, automatic, fault=None, limit=None):
     from openprogram.agent.production_driver import CanonicalAgentAdapter
     from openprogram.agent.authority import local_owner_authority
@@ -111,6 +111,15 @@ def test_independent_verification_uses_real_read_and_persisted_result(runtime, m
                 goal = goals.load_goal(request.session_id)
                 refs = [key for key in goal["verification"]["evidence"] if key.startswith("read:")]
                 assert refs
+                if outcome in {"reused_path", "reused_version"}:
+                    other = tmp_path / "other.txt" if outcome == "reused_path" else artifact
+                    other.write_text("A different observation")
+                    second = asyncio.run(tools[0].execute("inspect-result", {"file_path": str(other)}, None, None))
+                    assert not second.is_error
+                    if outcome == "reused_path":
+                        artifact.write_text("Original artifact changed after inspection")
+                    # The model cites the FIRST returned evidence ID, not a
+                    # later observation that happens to reuse its tool-call ID.
                 if outcome == "changed":
                     artifact.write_text("Changed after read")
                 if outcome in {"pause", "edit", "cancel"}:

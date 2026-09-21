@@ -189,11 +189,14 @@ def wrap_read(tool, request):
         with chat.locked(request.session_id):
             goal, candidate = require_candidate(request.session_id, vars(request),
                                                 execution_id=get_current_execution_id())
-            evidence_id = "read:" + digest([get_current_execution_id(), call_id])
-            candidate["evidence"][evidence_id] = {
+            output_digest = digest(text)
+            # Providers may reuse call IDs across iterations. An already
+            # returned reference must never name a different observation.
+            evidence_id = "read:" + digest([get_current_execution_id(), call_id, path, fingerprint, output_digest])
+            candidate["evidence"].setdefault(evidence_id, {
                 "kind": "file", "path": path, "sha256": fingerprint,
-                "output_sha256": digest(text), "call_id": call_id, "observed_at": time.time(),
-            }
+                "output_sha256": output_digest, "call_id": call_id, "observed_at": time.time(),
+            })
             chat.publish(request.session_id, goal)
         return result.model_copy(update={"content": [*result.content, TextContent(
             text=f"\nVerification evidence ID: {evidence_id}; file SHA256: {fingerprint}")]})
