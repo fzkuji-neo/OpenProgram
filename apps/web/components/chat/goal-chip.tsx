@@ -60,6 +60,8 @@ export interface GoalState {
     total_tokens?: number;
     cost_usd?: number;
     cost_known?: boolean;
+    unknown_token_requests?: number;
+    unknown_cost_requests?: number;
     active_elapsed_s?: number;
   };
   checkpoint?: { phase?: string; round?: number; at?: number };
@@ -340,9 +342,13 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
           <div className={styles.metrics}>
             <div><span>{text("Status", "状态")}</span><strong>{statusLabel(goal.status, zh, goal.phase)}</strong></div>
             {progress ? <div><span>{text("Progress", "进度")}</span><strong>{progress}</strong></div> : null}
-            <div><span>{text("Tokens", "Token")}</span><strong>{goal.usage?.tokens_known === false ? text("Unknown", "未知") : goal.usage?.total_tokens ?? 0}</strong></div>
-            <div><span>{text("Cost", "成本")}</span><strong>{goal.usage?.cost_known === true && Number.isFinite(goal.usage.cost_usd)
-              ? `$${goal.usage.cost_usd!.toFixed(4)}` : text("Unknown", "未知")}</strong></div>
+            <div><span>{text("Tokens", "Token")}</span><strong>{goal.usage?.unknown_token_requests
+              ? text(`Known ${goal.usage.total_tokens ?? 0}; ${goal.usage.unknown_token_requests} request(s) unknown`, `已知 ${goal.usage.total_tokens ?? 0}；另有 ${goal.usage.unknown_token_requests} 次请求未知`)
+              : goal.usage?.tokens_known === false ? text("Unknown", "未知") : goal.usage?.total_tokens ?? 0}</strong></div>
+            <div><span>{text("Cost", "成本")}</span><strong>{goal.usage?.unknown_cost_requests && Number.isFinite(goal.usage.cost_usd)
+              ? text(`Known $${goal.usage.cost_usd!.toFixed(4)}; ${goal.usage.unknown_cost_requests} request(s) unknown`, `已知 $${goal.usage.cost_usd!.toFixed(4)}；另有 ${goal.usage.unknown_cost_requests} 次请求未知`)
+              : goal.usage?.cost_known === true && Number.isFinite(goal.usage.cost_usd)
+                ? `$${goal.usage.cost_usd!.toFixed(4)}` : text("Unknown", "未知")}</strong></div>
             <div><span>{text("Active time", "执行时间")}</span><strong>{formatElapsed(goal.usage?.active_elapsed_s)}</strong></div>
           </div>
 

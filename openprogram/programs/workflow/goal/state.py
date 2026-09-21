@@ -73,7 +73,12 @@ def load_goal(session_id: str) -> Optional[dict]:
             return None
         if not isinstance(goal, dict):
             raise ValueError("Invalid persisted Goal")
-        return normalize_goal(goal)
+        value = normalize_goal(goal)
+        if value.get("usage_mode") == "requests":
+            # Read projection only: no lifecycle mutation or version increment.
+            # Durable receipts are authoritative even if their publish hook failed.
+            accumulate_goal_usage(session_id, value)
+        return value
     except Exception as exc:
         _log.debug("goal read failed for session %s", session_id, exc_info=True)
         raise GoalStateUnavailable("Goal state unavailable; retry after storage recovers.") from exc
@@ -276,6 +281,11 @@ def goal_usage(session_id: str, since: float, until: float | None = None) -> dic
 
 def reset_goal_usage_cursor(session_id: str, goal: dict) -> None:
     """Exclude all session usage that happened before this active run."""
+    if goal.get("usage_mode") == "requests":
+        _goal.accumulate_goal_usage(session_id, goal)
+        if goal.get("usage_pending_until") is not None:
+            raise GoalStateUnavailable("Goal usage ledger unavailable")
+        return
     if goal.get("usage_pending_until") is not None:
         raise GoalStateUnavailable("Goal usage must be reconciled before starting another turn.")
     current = _goal.goal_usage(session_id, 0.0)
@@ -286,6 +296,14 @@ def reset_goal_usage_cursor(session_id: str, goal: dict) -> None:
 
 def accumulate_goal_usage(session_id: str, goal: dict, *, until: float | None = None) -> None:
     """Add only usage recorded since this Goal controller's last boundary."""
+    if goal.get("usage_mode") == "requests":
+        from openprogram.usage.request import project
+        try:
+            project(session_id, goal)
+        except Exception:
+            goal["usage"] = dict(goal.get("usage") or {}, cost_known=False, tokens_known=False, accounting_pending=True)
+            goal["usage_pending_until"] = time.time()
+        return
     current = (_goal.goal_usage(session_id, 0.0) if until is None
                else _goal.goal_usage(session_id, 0.0, until))
     if current.get("available") is False:

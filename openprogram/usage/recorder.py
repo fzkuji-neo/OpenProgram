@@ -6,8 +6,8 @@ three inputs available at the stream.py chokepoint: the ``Model`` (carries
 pricing), the final ``AssistantMessage`` (carries provider-reported
 ``Usage``), and the current ``UsageContext`` (carries the call source).
 
-Everything here is BEST-EFFORT: a metering failure must never propagate
-into the LLM response path. All public entry points swallow exceptions.
+Legacy record_message and publish hooks are best-effort. Event construction
+is strict for callers that durably settle a budget or Goal request receipt.
 """
 from __future__ import annotations
 
@@ -77,13 +77,15 @@ def _cost_from_model(model, usage) -> tuple[dict, str]:
 def build_message_event(
     model, message, *, session_id: Optional[str] = None,
     token_source: str = "provider_usage",
+    context=None, request_id: str | None = None, timestamp: float | None = None,
 ) -> Optional[UsageEvent]:
     """Assemble the UsageEvent for one finished LLM call without storing it.
 
     Budgeted calls need the event and its append to happen inside the
     governor's settle transaction, so building is separate from appending.
-    Returns None when the call reported no tokens. Raises on a malformed
-    event: a budgeted caller must see that rather than silently under-bill.
+    Legacy callers skip absent/zero counters. A request identity preserves
+    known zero and separate token/cost availability. Raises on malformed
+    request counters rather than silently under-billing.
     """
     usage = getattr(message, "usage", None)
     if usage is None:
@@ -92,18 +94,28 @@ def build_message_event(
     out = int(getattr(usage, "output", 0) or 0)
     cr = int(getattr(usage, "cache_read", 0) or 0)
     cw = int(getattr(usage, "cache_write", 0) or 0)
-    if not (inp or out or cr or cw):
+    if not (inp or out or cr or cw) and request_id is None:
         return None  # no tokens — nothing happened worth recording
 
-    ctx = current_usage_context()
+    ctx = context or current_usage_context()
+    reported_total = int(getattr(usage, "total_tokens", 0) or 0)
+    known = bool(inp or out or cr or cw or reported_total) or bool(getattr(usage, "tokens_reported", False))
+    if request_id is not None and min(inp, out, cr, cw, reported_total) < 0:
+        raise ValueError("Provider reported negative token counts")
     cost, cost_source = _cost_from_model(model, usage)
+    if not known and getattr(usage, "provider_cost_usd", None) is None:
+        cost_source = "unknown"
+        cost = {key: 0.0 for key in cost}
     # contextvar session wins (set by the turn's usage_scope) so a
     # compaction/summary call inside the turn attributes to the same
     # session even when its own options carried no session_id.
     eff_session = ctx.session_id or session_id
 
     return UsageEvent(
-        ts=time.time(),
+        **({"event_id": request_id} if request_id else {}),
+        ts=time.time() if timestamp is None else timestamp,
+        request_id=request_id, goal_id=ctx.goal_id, goal_revision=ctx.goal_revision,
+        goal_session_id=ctx.goal_session_id, execution_id=ctx.execution_id, tokens_known=known,
         session_id=eff_session,
         parent_session_id=ctx.parent_session_id,
         agent_id=ctx.agent_id,
@@ -116,7 +128,7 @@ def build_message_event(
         output_tokens=out,
         cache_read_tokens=cr,
         cache_write_tokens=cw,
-        total_tokens=inp + out,
+        total_tokens=(reported_total or inp + out + cr + cw) if request_id else inp + out,
         token_source=token_source,
         cost_source=cost_source,
         **cost,
@@ -125,10 +137,10 @@ def build_message_event(
 
 def run_usage_hooks(event: UsageEvent) -> None:
     """Fire post-record hooks. Best-effort: a throwing hook is contained."""
-    if event.session_id:
+    if event.goal_session_id or event.session_id:
         try:
             from openprogram.programs.workflow.goal.chat import refresh_usage
-            refresh_usage(event.session_id)
+            refresh_usage(event.goal_session_id or event.session_id)
         except Exception:
             # Metering is durable already; the chat boundary retries projection.
             pass

@@ -20,5 +20,6 @@ See docs/design/usage-metering.md.
 - **`event.py`** — UsageEvent
 - **`ledger.py`** — UsageLedger
 - **`recorder.py`** — UsageRecorder
+- **`request.py`** — Durable Goal request identity and replayable terminal usage receipts
 
 _Auto-generated from `__init__.py` docstring — keep that as the source of truth; re-run `python scripts/gen_dir_readmes.py` from the repo root to refresh._

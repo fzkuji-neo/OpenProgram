@@ -1,7 +1,7 @@
 """UsageLedger — append-only SQLite store of UsageEvents.
 
-One global file (``~/.openprogram/usage.db``, profile-aware) with a single
-``usage_events`` table. Indexed for the queries the panels need: by time,
+One global file (``~/.openprogram/usage.db``, profile-aware) with immutable
+``usage_events``, request receipts and resource reservations. Indexed by time,
 by model+time, by session, by kind+time. WAL mode so the @agentic_function
 subprocesses can append concurrently with the main worker.
 
@@ -31,6 +31,7 @@ _COLUMNS = [
     "total_tokens", "cost_total", "cost_input", "cost_output",
     "cost_cache_read", "cost_cache_write", "cost_source", "token_source",
     "schema_version", "job_id", "budget_scope_id", "reservation_id",
+    "request_id", "goal_id", "goal_revision", "goal_session_id", "execution_id", "tokens_known",
 ]
 
 _BOOTSTRAP_BUSY_TIMEOUT_MS = 2_000
@@ -65,12 +66,32 @@ CREATE TABLE IF NOT EXISTS usage_events (
     ,job_id         TEXT
     ,budget_scope_id TEXT
     ,reservation_id  TEXT
+    ,request_id TEXT
+    ,goal_id TEXT
+    ,goal_revision INTEGER
+    ,goal_session_id TEXT
+    ,execution_id TEXT
+    ,tokens_known INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS ix_usage_ts       ON usage_events(ts);
 CREATE INDEX IF NOT EXISTS ix_usage_model_ts ON usage_events(model_id, ts);
 CREATE INDEX IF NOT EXISTS ix_usage_session  ON usage_events(session_id);
 CREATE INDEX IF NOT EXISTS ix_usage_kind_ts  ON usage_events(call_kind, ts);
 CREATE INDEX IF NOT EXISTS ix_usage_job     ON usage_events(job_id);
+CREATE INDEX IF NOT EXISTS ix_usage_goal ON usage_events(goal_session_id, goal_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_usage_request ON usage_events(request_id) WHERE request_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS usage_requests (
+    request_id TEXT PRIMARY KEY,
+    goal_session_id TEXT NOT NULL,
+    goal_id TEXT NOT NULL,
+    goal_revision INTEGER NOT NULL,
+    state TEXT NOT NULL CHECK (state IN ('prepared','started','settled','released')),
+    metadata_json TEXT NOT NULL,
+    receipt_json TEXT,
+    created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_requests_goal ON usage_requests(goal_session_id, goal_id);
 
 CREATE TABLE IF NOT EXISTS job_admissions (
     admission_id TEXT PRIMARY KEY,
@@ -357,9 +378,13 @@ class UsageLedger:
             existing = {
                 str(row[1]) for row in conn.execute("PRAGMA table_info(usage_events)")
             }
-            for name in ("job_id", "budget_scope_id", "reservation_id"):
+            columns = {name: "TEXT" for name in (
+                "job_id", "budget_scope_id", "reservation_id", "request_id", "goal_id",
+                "goal_session_id", "execution_id")}
+            columns.update(goal_revision="INTEGER", tokens_known="INTEGER NOT NULL DEFAULT 1")
+            for name, definition in columns.items():
                 if existing and name not in existing:
-                    conn.execute(f"ALTER TABLE usage_events ADD COLUMN {name} TEXT")
+                    conn.execute(f"ALTER TABLE usage_events ADD COLUMN {name} {definition}")
             conn.commit()
         except Exception:
             conn.rollback()
@@ -484,6 +509,28 @@ class UsageLedger:
             conn.commit()
 
     # read
+
+    def goal_usage(self, session_id: str, goal_id: str) -> dict:
+        """One snapshot of known subtotals and unresolved request counts."""
+        with self.immediate() as conn:
+            for pending in conn.execute("""SELECT request_id, receipt_json FROM usage_requests
+                    WHERE goal_session_id = ? AND goal_id = ? AND state = 'started' AND receipt_json IS NOT NULL""",
+                    (session_id, goal_id)).fetchall():
+                self.append_in_transaction(conn, UsageEvent.model_validate_json(pending["receipt_json"]))
+                conn.execute("UPDATE usage_requests SET state = 'settled' WHERE request_id = ?", (pending["request_id"],))
+            row = conn.execute("""
+                SELECT COALESCE(SUM(e.total_tokens), 0) AS tokens,
+                       COALESCE(SUM(e.cost_total), 0) AS cost,
+                       COALESCE(SUM(CASE WHEN e.event_id IS NULL OR e.tokens_known = 0 THEN 1 ELSE 0 END), 0) AS unknown_tokens,
+                       COALESCE(SUM(CASE WHEN e.event_id IS NULL OR e.cost_source = 'unknown' THEN 1 ELSE 0 END), 0) AS unknown_cost,
+                       COUNT(*) AS requests
+                FROM usage_requests r LEFT JOIN usage_events e ON e.request_id = r.request_id
+                WHERE r.goal_session_id = ? AND r.goal_id = ? AND r.state IN ('started','settled')
+            """, (session_id, goal_id)).fetchone()
+        return {"total_tokens": row["tokens"], "cost_usd": row["cost"],
+                "tokens_known": row["unknown_tokens"] == 0, "cost_known": row["unknown_cost"] == 0,
+                "unknown_token_requests": row["unknown_tokens"], "unknown_cost_requests": row["unknown_cost"],
+                "requests": row["requests"]}
 
     def query(
         self,

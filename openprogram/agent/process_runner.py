@@ -737,12 +737,12 @@ def _child_entry(
             apply_snapshot as _apply_uctx,
             usage_scope as _usage_scope,
             _current as _usage_cur,
-            UsageContext,
         )
         _apply_uctx(usage_ctx_snapshot)
         from openprogram.usage.context import current_usage_context
         _parent = current_usage_context()
-        _usage_cur.set(UsageContext(
+        from dataclasses import replace
+        _usage_cur.set(replace(_parent,
             call_kind="exec",
             call_label=tool_name,
             session_id=_parent.session_id or session_id,

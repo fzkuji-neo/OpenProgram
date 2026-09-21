@@ -39,7 +39,9 @@ Provider requests repair incomplete tool-call history without rewriting saved re
 
 When an ownerless interrupted execution still has an unknown external outcome, new operations in that conversation require exact, one-shot approval, including in bypass mode or with an existing allow rule. Actual built-in file inspection tools (`read`, `grep`, `glob`, `list`) can inspect state under their normal permissions; custom tools are not trusted solely because they use those names. The approval identifies prior uncertain operations and the new operation. Changed uncertainty requires a new approval; approval never marks the prior operation successful or failed. Non-interactive work cannot approve a new side effect. This guard also applies to restarted chat turns.
 
-Provider usage receipts refresh active Goal totals; turn exit reconciles them again. Repeated notifications do not add the same usage twice. Metering read failures preserve the cursor and display unknown rather than zero. Older interrupted Goals whose usage was never settled are explicitly labelled pending accounting; their whole-session costs are not guessed into Goal totals.
+Chat provider requests capture their Goal identity, revision and price before dispatch. Their terminal usage receipts update that original Goal even after pause or edit; replacing the Goal does not transfer old charges to the new objective. Duplicate receipt delivery does not add usage twice. A started request without a usage receipt remains unknown, not free. The details show known subtotals alongside unknown request counts. Receipt projection can be rebuilt from the ledger after restart without repeating the provider request.
+
+Older cursor-based totals are retained as a legacy subtotal on the next attributed request; past requests are not assigned guessed Goal identities. Metering failures display unknown rather than zero. Durable background-Job inheritance and concurrent hard-budget reservations are still under implementation; this request-accounting change alone is not a guarantee against exceeding an explicit token or cost limit.
 
 ## Python Workflow compatibility
 
