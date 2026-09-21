@@ -113,6 +113,7 @@ def stream_google_gemini_cli(
             "provider": model.provider,
             "model": model.id,
             "usage": {
+                "tokens_reported": False,
                 "input": 0, "output": 0, "cache_read": 0, "cache_write": 0,
                 "total_tokens": 0,
                 "cost": {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0, "total": 0},
@@ -305,6 +306,7 @@ def stream_google_gemini_cli(
 
                             usage_meta = chunk.get("usageMetadata", {})
                             if usage_meta:
+                                output["usage"]["tokens_reported"] = all(usage_meta.get(key) is not None for key in ("promptTokenCount", "candidatesTokenCount"))
                                 output["usage"]["input"] = usage_meta.get("promptTokenCount", 0) or 0
                                 output["usage"]["output"] = (usage_meta.get("candidatesTokenCount", 0) or 0) + (usage_meta.get("thoughtsTokenCount", 0) or 0)
                                 output["usage"]["cache_read"] = usage_meta.get("cachedContentTokenCount", 0) or 0

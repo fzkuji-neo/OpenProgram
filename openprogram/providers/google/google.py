@@ -295,9 +295,10 @@ async def stream_simple(
             if _cancelled():
                 from openprogram.providers.utils.errors import StreamAborted
                 raise StreamAborted("stream cancelled by caller signal")
-            if chunk.usage_metadata and chunk.usage_metadata.total_token_count:
+            if chunk.usage_metadata is not None:
                 um = chunk.usage_metadata
                 usage_final = Usage(
+                    tokens_reported=um.prompt_token_count is not None and um.candidates_token_count is not None,
                     input=um.prompt_token_count or 0,
                     output=um.candidates_token_count or 0,
                     total_tokens=um.total_token_count or 0,

@@ -361,6 +361,7 @@ async def process_responses_stream(
             output.usage.cache_read = cached
             output.usage.cache_write = 0
             output.usage.total_tokens = total_tokens
+            output.usage.tokens_reported = all(usage_dict.get(key) is not None for key in ("input_tokens", "output_tokens"))
 
         output.usage.requested_service_tier = service_tier
         output.usage.service_tier = resp_dict.get("service_tier")

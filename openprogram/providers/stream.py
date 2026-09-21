@@ -240,11 +240,13 @@ async def _metered(stream_fn, model: Model, context, opts, budget, receipt=None)
         return
 
     try:
+        # An opaque provider may perform I/O while constructing its iterator.
+        # Once invoked, absence of a receipt cannot prove the request was free.
+        if receipt is not None:
+            receipt.start()
         events = stream_fn(model, context, opts)
         if budget is not None:
             budget.start()
-        if receipt is not None:
-            receipt.start()
     except BaseException:
         if budget is not None:
             budget.release()
