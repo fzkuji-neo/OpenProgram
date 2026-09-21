@@ -56,7 +56,6 @@ import { renderMarkdown, useMarkdownReady } from "./markdown";
 const JUMP_LATEST_FADE_MS = 280;
 
 import { AssistantBubble } from "./assistant-bubble";
-import { VerificationDetails } from "./verification-details";
 import { verificationSummary } from "@/lib/chat/goal-verification";
 import { AttachCard } from "./attach-card";
 import { DecisionOutputs } from "./decision-output";
@@ -117,9 +116,9 @@ export function AssistantMessage({
     && msg.status !== "pending";
   if (msg.goalVerification) {
     return <AssistantBubble
-      msg={{ ...msg, content: verificationSummary(msg.goalVerification, msg.status, text),
+      msg={{ ...msg, content: "",
         blocks: [], thinking: "", tools: [], callRoots: [], contextTree: undefined }}
-      verificationDetails={<VerificationDetails value={msg.goalVerification} raw={msg.content || ""} settled={settled} />}
+      verdict={{ summary: verificationSummary(msg.goalVerification, msg.status, text), json: msg.content || "" }}
       sessionIdOverride={sessionIdOverride}
     />;
   }
@@ -147,13 +146,11 @@ export function AssistantMessage({
     }
   }
   const met = split.data.met;
-  const reason = typeof split.data.reason === "string" ? split.data.reason : "";
   const summary =
     typeof met === "boolean"
       ? (met
-          ? text("Verdict: met", "裁决：已达成")
-          : text("Verdict: not met", "裁决：未达成"))
-        + (reason ? ` · ${reason.length > 80 ? reason.slice(0, 80) + "…" : reason}` : "")
+          ? text("Verification passed", "验收通过")
+          : text("Verification failed", "验收未通过"))
       : text("Structured output", "结构化输出");
   return (
     <AssistantBubble

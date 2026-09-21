@@ -31,6 +31,7 @@ import {
   FunctionStep,
   SPAWNING_TOOL_NAMES,
   SubAgentStep,
+  StepRow,
   ThinkingStep,
 } from "./execution-strip";
 import type { TNode } from "./tree-types";
@@ -119,14 +120,10 @@ function TypingIndicator() {
   );
 }
 
-export function AssistantBubble({ msg, verdict, verificationDetails, sessionIdOverride }: {
+export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
   msg: ChatMsg;
-  verificationDetails?: import("react").ReactNode;
   sessionIdOverride?: string;
-  /** goal 判定/完善内部轮：正文里剥出来的 JSON 尾巴 —— 折成一条
-   *  <details>（summary = 裁决摘要，展开 = 原始 JSON，调试用）。
-   *  由 message-list 的 AssistantMessage 包装层识别并传入；持久化
-   *  数据不动，纯渲染层。 */
+  /** Internal Goal report, using the same trace and detail panel as tools. */
   verdict?: { summary: string; json: string };
 }) {
   // Subscribed so the bubble re-renders once `renderMd` lands and the
@@ -275,7 +272,7 @@ export function AssistantBubble({ msg, verdict, verificationDetails, sessionIdOv
         <div className="message-sender">{sender}</div>
       </div>
 
-      {msg.status === "error" ? (
+      {msg.status === "error" && !msg.goalVerification ? (
         <div className="error-content">
           {(() => {
             const headline = errorHeadline(msg, text);
@@ -499,10 +496,10 @@ export function AssistantBubble({ msg, verdict, verificationDetails, sessionIdOv
                 </div>
               ) : null}
               {hasContent && msg.status !== "error" ? <MarkdownText text={contentText} /> : null}
-              {streaming && !hasContent && !waitingApproval ? <TypingIndicator /> : null}
+              {streaming && !hasContent && !waitingApproval && !verdict ? <TypingIndicator /> : null}
             </>
           )}
-          {msg.status === "cancelled" || msg.status === "interrupted" ? (
+          {!msg.goalVerification && (msg.status === "cancelled" || msg.status === "interrupted") ? (
             <div className="pending-body" role="status">
               <span className="pending-label">{msg.status === "cancelled"
                 ? text("Cancelled", "已取消") : text("Interrupted", "已中断")}</span>
@@ -514,12 +511,21 @@ export function AssistantBubble({ msg, verdict, verificationDetails, sessionIdOv
             </div>
           ) : null}
           {verdict ? (
-            <details className="goal-verdict">
-              <summary>{verdict.summary}</summary>
-              <pre>{verdict.json}</pre>
-            </details>
+            <ExecutionStrip label={verdict.summary} streaming={streaming}>
+              <StepRow
+                icon="llm"
+                title={text("Verification report", "验收报告")}
+                running={streaming}
+                copyText={verdict.json}
+                detail={{
+                  path: `chat-report:${bubbleSessionId || ""}:${msg.id}`,
+                  name: text("Verification report", "验收报告"),
+                  status: streaming ? "running" : msg.status === "error" ? "error" : "completed",
+                  output: verdict.json,
+                }}
+              />
+            </ExecutionStrip>
           ) : null}
-          {verificationDetails}
           {!streaming && outboundFiles.length > 0 ? (
             <AttachmentChips items={outboundFiles} />
           ) : null}
