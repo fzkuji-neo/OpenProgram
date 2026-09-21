@@ -101,12 +101,16 @@ test("Goal progress shows todos, never execution rounds", async () => {
   runtimeState.conversations.s1.goal = { ...snapshot(1), turns_used: 12, max_turns: 150 };
   const view = await mount();
   try {
-    assert.match(view.host.textContent, /No todos yet/);
+    assert.equal(view.host.querySelector(".badge-short").textContent, "Goal · Active");
     assert.doesNotMatch(view.host.textContent, /12\/150/);
     await frame({ ...snapshot(2), checklist: [{ text: "Verify", done: false }] });
     assert.match(view.host.textContent, /Todos 0\/1/);
     await frame({ ...snapshot(3), checklist: [{ text: "Verify", done: true }] });
     assert.match(view.host.textContent, /Todos 1\/1/);
+    await frame({ ...snapshot(4, "paused_recoverable"), checklist: [] });
+    assert.equal(view.host.querySelector(".badge-short").textContent, "Goal · Paused after restart");
+    await view.open();
+    assert.doesNotMatch(view.host.textContent, /No todos yet|尚无待办|Progress/);
   } finally { await view.close(); }
 });
 

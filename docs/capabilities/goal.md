@@ -12,7 +12,7 @@ The agent must check current evidence against every requirement before calling `
 
 ## Control execution
 
-The Goal details retain the objective, status, usage and progress after page reload. Use the existing chat input to add instructions, following its normal queue or steering mode.
+The Goal details retain the objective, status, usage and progress after page reload. When there are no todos, the badge and details omit todo progress without a placeholder; the Goal status remains visible. Use the existing chat input to add instructions, following its normal queue or steering mode.
 
 - `/goal`: read the current state.
 - `/goal pause`: save a pause and request cancellation of the current execution.
