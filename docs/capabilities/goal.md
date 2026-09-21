@@ -21,6 +21,7 @@ The Goal details retain the objective, status, usage and progress after page rel
 - `/goal`: read the current state.
 - `/goal pause`: save a pause and request cancellation of the current execution.
 - `/goal resume`: continue a paused Goal with cumulative usage.
+- `/goal verify`: independently verify the latest finished work without marking it achieved directly.
 - `/goal edit <objective>`: save a new revision and pause; resume explicitly when ready.
 - `/goal clear`: cancel the Goal.
 - `/goal budget max_turns=10 max_tokens=10000`: change limits; zero removes a limit.
@@ -32,6 +33,12 @@ A failed or cancelled execution stops automatic continuation. Worker restart doe
 The state tools are short operations: `create_goal`, `get_goal`, and `update_goal`. They do not perform the task. The agent may mark `blocked` only after the same verified blocker recurs for at least three consecutive Goal turns with no independent work remaining. The runtime enforces the minimum turn count; the agent is responsible for verifying that it is the same blocker.
 
 ## Recovery and metering
+
+Goal details use the backend's current action eligibility. Disabled Resume or Verify actions explain the unmet prerequisite; Refresh status retries a failed read without discarding your objective or draft. End remains available to stop the Goal intent even if an old operation's outcome is unknown. Unresolved operations show their saved identifiers, tool names, timestamps and status. Inspect execution opens that exact execution, including pending approvals and questions, rather than an unrelated activity selection.
+
+Verify starts the same independent ordinary verification turn used for automatic candidates. It requires finished work, completed associated todos, available budget and no unresolved relevant work. Goal-owned background processes that are still running or have unknown outcomes prevent verification; unrelated resources do not. Pause, cancellation, changed versions and duplicate requests cannot bypass these prerequisites.
+
+Active time retains already observed work across restart and excludes offline intervals. After abrupt worker loss, the last durable heartbeat provides a lower bound; the unobserved final interval is shown as unknown, not zero. Late usage receipts do not restart a paused timer. An explicit active-time ceiling blocks further work if that unknown interval prevents checking the limit; removing the optional ceiling allows continuation. No default time or round ceiling is added.
 
 Goal distinguishes a terminal execution from permission to start a new chat turn. Once an ordinary chat has no owner, active descendants or pending questions, Resume can close its interrupted frame and start a restricted inspection turn. Unknown effects remain unknown; neither Resume nor a prior unconfirmed stop claims that an external operation was cancelled. A new admission has a durable identity, so a crash between admission and saving the Goal cannot create duplicate turns. Incompatible checkpoints use a new chat turn; temporary activation or credential errors do not authorize that fallback. Provider-only interrupted background Jobs retain their immutable input and resource admission. Child executions with unresolved effects still require inspection rather than automatic replay. Todo completion is not objective verification.
 

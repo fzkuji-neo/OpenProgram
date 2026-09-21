@@ -149,6 +149,9 @@ def test_goal_http_answer_persists_and_returns_resume_invocation(
     import openprogram.programs.workflow.goal as goal_pkg
     from openprogram.webui.routes.execution import goal as goal_routes
 
+    from openprogram.execution import ExecutionStore
+    execution_store = ExecutionStore(tmp_path / "executions.db")
+    monkeypatch.setattr("openprogram.execution.default_store", lambda: execution_store)
     db = SessionDB(tmp_path / "sessions-git")
     db.create_session("web-goal", "main")
     monkeypatch.setattr(goal_pkg, "_db", lambda: db)
@@ -178,7 +181,8 @@ def test_goal_http_answer_persists_and_returns_resume_invocation(
     body = answered.json()
     assert body["goal"]["status"] == "active"
     assert body["goal"]["pending_answers"][0]["answer"] == "Knowledge editing"
-    assert body["execution"]["execution_id"] == "chat-execution"
+    assert body["admission"]["execution_id"] == "chat-execution"
+    assert body["execution"]["status"] == "untracked"  # The admission stub saves no execution.
     assert "invoke" not in body
 
 
@@ -189,6 +193,9 @@ def test_goal_http_answer_resumes_newly_unblocked_work_with_other_questions_pend
     import openprogram.programs.workflow.goal as goal_pkg
     from openprogram.webui.routes.execution import goal as goal_routes
 
+    from openprogram.execution import ExecutionStore
+    execution_store = ExecutionStore(tmp_path / "executions.db")
+    monkeypatch.setattr("openprogram.execution.default_store", lambda: execution_store)
     db = SessionDB(tmp_path / "sessions-git")
     db.create_session("web-goal", "main")
     monkeypatch.setattr(goal_pkg, "_db", lambda: db)
@@ -215,7 +222,8 @@ def test_goal_http_answer_resumes_newly_unblocked_work_with_other_questions_pend
     assert answered.status_code == 200
     body = answered.json()
     assert body["goal"]["status"] == "active"
-    assert body["execution"]["execution_id"] == "chat-execution"
+    assert body["admission"]["execution_id"] == "chat-execution"
+    assert body["execution"]["status"] == "untracked"
     assert "invoke" not in body
     assert body["goal"]["questions"][1]["status"] == "pending"
 

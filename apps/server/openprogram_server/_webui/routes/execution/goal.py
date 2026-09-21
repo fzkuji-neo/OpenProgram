@@ -17,9 +17,7 @@ def register(app):
         goal = goal_module.load_goal(session_id)
         if not goal:
             return JSONResponse(content={"error": "GoalNotFound"}, status_code=404)
-        return JSONResponse(content={
-            "goal": goal, "execution": goal_module.goal_execution_state(goal, session_id),
-        })
+        return JSONResponse(content=goal_module.goal_projection(goal, session_id))
 
     @app.post("/api/sessions/{session_id}/goal")
     async def mutate_goal(session_id: str, body: dict = None):
@@ -37,10 +35,9 @@ def register(app):
                 execution = chat.start_from_controls(session_id)
             except ValueError as exc:
                 return JSONResponse(content={"error": str(exc)}, status_code=409)
-            return JSONResponse(content={
-                "goal": goal,
-                "execution": execution,
-            })
+            response = goal_module.goal_projection(goal_module.load_goal(session_id), session_id)
+            response["admission"] = execution
+            return JSONResponse(content=response)
         try:
             goal = goal_module.apply_goal_action(
                 session_id,
@@ -48,13 +45,10 @@ def register(app):
                 **{key: value for key, value in payload.items() if key != "action"},
             )
         except goal_module.GoalStopUnconfirmed as exc:
-            return JSONResponse(content={
-                "goal": exc.goal, "stop_error": str(exc),
-                "execution": goal_module.goal_execution_state(exc.goal, session_id),
-            })
+            return JSONResponse(content={**goal_module.goal_projection(exc.goal, session_id), "stop_error": str(exc)})
         except ValueError as exc:
             return JSONResponse(content={"error": str(exc)}, status_code=409)
-        response = {"goal": goal, "execution": goal_module.goal_execution_state(goal, session_id)}
+        response = goal_module.goal_projection(goal, session_id)
         if (
             action == "answer"
             and goal.get("status") == "paused"
@@ -63,7 +57,8 @@ def register(app):
             try:
                 from openprogram.programs.workflow.goal import chat
                 response["goal"] = chat.resume(session_id)
-                response["execution"] = chat.start_from_controls(session_id)
+                response["admission"] = chat.start_from_controls(session_id)
+                response.update(goal_module.goal_projection(goal_module.load_goal(session_id), session_id))
             except goal_module.GoalConflictError as exc:
                 response["resume_error"] = str(exc)
         return JSONResponse(content=response)

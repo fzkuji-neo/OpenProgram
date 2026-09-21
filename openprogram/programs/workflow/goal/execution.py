@@ -56,8 +56,11 @@ def goal_execution_state(goal: dict, session_id: str = "") -> dict:
         from openprogram.execution.public import _effect_summary
         provider_incomplete = _effect_summary(store, execution).get("provider_response_incomplete") is True
         finished = execution.status in TERMINAL_EXECUTION_STATUSES and not recovery["active_children"]
+        source = store.get_execution_input(execution_id)
         return {
             "execution_id": execution_id,
+            "session_id": execution.session_id,
+            "msg_id": source.user_message_id if source else None,
             "status": execution.status.value,
             "status_version": execution.status_version,
             "finished": finished,
@@ -66,6 +69,72 @@ def goal_execution_state(goal: dict, session_id: str = "") -> dict:
         }
     except Exception:
         return unavailable
+
+
+def goal_control_state(goal: dict, session_id: str, observed: dict | None = None) -> dict:
+    """Project action prerequisites; mutations still recheck current versions."""
+    import openprogram.programs.workflow.goal as goals
+    from . import chat, verification
+    observed = observed if observed is not None else goal_execution_state(goal, session_id)
+    status = goal.get("status")
+    terminal = status in goals.TERMINAL_STATUSES - goals.RESUMABLE_STATUSES
+    reasons = {"resume": None, "verify": None, "end": "goal_terminal" if terminal else None,
+               "pause": None if status in goals.RUNNING_STATUSES else "goal_not_running"}
+    controls = {"reasons": reasons, "operations": [], "waits": [], "processes": [],
+                "active_children": list(observed.get("active_children") or [])}
+    execution_reason = None
+    verify_reason = "no_completed_work"
+    try:
+        from openprogram.execution import default_store
+        from openprogram.execution.foreground import active_foreground_task
+        from openprogram.execution.conversation_scope import conversation_executions
+        from openprogram.execution.effects import EffectStore
+        from openprogram.execution.waits import DurableWaitStore
+        store = default_store()
+        if observed["status"] == "unavailable":
+            execution_reason = "execution_unavailable"
+        elif not (observed["status"] == "untracked" or observed.get("finished") or observed.get("can_start_new_turn")):
+            execution_reason = observed.get("recovery_reason") or "execution_not_finished"
+        foreground = active_foreground_task(store, session_id)
+        if foreground and foreground["execution_id"] != goal.get("execution_id"):
+            execution_reason = "active_owner"
+        effects, waits = EffectStore(store), DurableWaitStore(store)
+        for member in conversation_executions(store, session_id):
+            for effect in effects.list_unresolved(member.execution_id):
+                if effect.metadata.get("kind") == "provider.before":
+                    continue
+                payload = effect.metadata.get("payload") or {}
+                controls["operations"].append({
+                    "effect_id": effect.effect_id, "execution_id": member.execution_id,
+                    "status": effect.status.value, "tool_name": payload.get("tool_name") if isinstance(payload, dict) else None,
+                    "created_at": effect.created_at, "dispatched_at": effect.dispatched_at,
+                })
+            controls["waits"].extend({"wait_id": wait.wait_id, "execution_id": member.execution_id,
+                                      "kind": wait.kind, "created_at": wait.created_at}
+                                     for wait in waits.list_open(execution_id=member.execution_id))
+        controls["processes"] = verification.managed_work(store, session_id, goal)
+        source = store.get_agent_turn_input(goal["execution_id"]) if goal.get("execution_id") else None
+        if goal.get("execution_mode") != "chat":
+            verify_reason = "ordinary_chat_required"
+        elif source and source.get("kind") == "chat" and observed.get("finished"):
+            verify_reason = verification.blockers(store, session_id, goal["execution_id"], goal)
+            if not verify_reason and any(item.get("status") != "completed" for item in chat.todos(session_id, goal)):
+                verify_reason = "unfinished_todos"
+    except Exception:
+        execution_reason = verify_reason = "execution_unavailable"
+    exhausted = goals.budget_exhausted(goal)
+    budget_reason = "elapsed_time_unknown" if exhausted == "elapsed_time_unknown" else "budget_exhausted" if exhausted else None
+    reasons["resume"] = ("goal_terminal" if terminal else
+                         "goal_not_resumable" if status not in goals.RESUMABLE_STATUSES else
+                         execution_reason or budget_reason)
+    reasons["verify"] = "goal_terminal" if terminal else execution_reason or budget_reason or verify_reason
+    controls.update({"can_" + action: reason is None for action, reason in reasons.items()})
+    return controls
+
+
+def goal_projection(goal: dict, session_id: str) -> dict:
+    observed = goal_execution_state(goal, session_id)
+    return {"goal": goal, "execution": observed, "controls": goal_control_state(goal, session_id, observed)}
 
 
 def require_goal_execution_finished(

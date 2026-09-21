@@ -33,6 +33,9 @@ def _apply_goal_action(session_id: str, action: str, **values) -> dict:
         raise ValueError("No Goal exists for this session")
     _goal.check_goal_preconditions(goal, values.get("expected"))
     action = action.strip().lower()
+    if action == "verify":
+        from .chat import verify_from_controls
+        return verify_from_controls(session_id, values.get("expected"))
     goal["control_version"] = int(goal.get("control_version") or 0) + 1
     if action == "pause":
         if goal.get("status") not in _goal.RUNNING_STATUSES:
@@ -221,7 +224,7 @@ def _handle_goal_command(session_id: str, raw_args: str) -> dict:
     if args.lower() == "help":
         return {"text": (
             "/goal — show objective, roles, usage, checkpoint and questions\n"
-            "/goal pause | resume | clear | stop (retry saved stop)\n/goal edit <objective>\n"
+            "/goal pause | resume | verify | clear | stop (retry saved stop)\n/goal edit <objective>\n"
             "/goal answer [question-id] <answer>\n"
             "/goal role <work|judge> <provider> <model> [effort=high] [timeout_s=300]\n"
             "/goal budget max_turns=10 max_tokens=10000 max_elapsed_s=3600 max_cost_usd=5\n"
@@ -263,6 +266,9 @@ def _handle_goal_command(session_id: str, raw_args: str) -> dict:
         except ValueError as exc:
             return {"text": str(exc), "send_text": None}
         return {"text": "Goal pause saved. " + _goal._status_text(_goal.load_goal(session_id), session_id), "send_text": None}
+    if head == "verify":
+        apply_goal_action(session_id, "verify")
+        return {"text": "Verifying Goal evidence in an independent conversation turn.", "send_text": None}
     if head == "resume":
         goal = _goal.load_goal(session_id)
         if not goal or goal.get("status") not in _goal.RESUMABLE_STATUSES:
@@ -368,7 +374,9 @@ def _status_text(goal: Optional[dict], session_id: str = "") -> str:
                and isinstance(usage.get("cost_usd"), (int, float)) and math.isfinite(usage["cost_usd"])
                else "cost unknown")
         )
-        lines.append(f"  active time: {float(usage.get('active_elapsed_s') or 0):.1f}s")
+        qualifier = "at least " if usage.get("active_time_known") is False else ""
+        suffix = "; interrupted interval unknown" if qualifier else ""
+        lines.append(f"  active time: {qualifier}{float(usage.get('active_elapsed_s') or 0):.1f}s{suffix}")
     if goal.get("spec"):
         spec = str(goal["spec"])
         lines.append("  spec: " + (spec[:300] + "…" if len(spec) > 300
