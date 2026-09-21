@@ -2,6 +2,22 @@ import { runtimeState } from "./state";
 import { useSessionStore } from "../session-store";
 import type { GoalVerification } from "../chat/goal-verification";
 
+/** Replay a snapshot that may have arrived before its assistant row. */
+export function verificationForMessage(
+  sessionId: string, messageId: string, incoming: GoalVerification,
+  current?: GoalVerification,
+): GoalVerification {
+  const goal = runtimeState.conversations[sessionId]?.goal as {
+    verification_message?: { message_id: string; presentation: GoalVerification } | null;
+  } | undefined;
+  const result = goal?.verification_message;
+  if (result?.message_id === messageId && result.presentation.id === incoming.id
+      && result.presentation.status !== "pending") {
+    return result.presentation;
+  }
+  return current?.id === incoming.id && current.status !== "pending" ? current : incoming;
+}
+
 /** Apply HTTP, hydration and live snapshots in durable session-version order. */
 export function updateSessionGoal(
   sessionId: string,
