@@ -107,6 +107,17 @@ def project_todos(session_id: str, goal: dict) -> list[dict]:
 
 
 @serialized
+def refresh_usage(session_id: str) -> None:
+    """Publish already-recorded provider usage only for an active chat Goal."""
+    goal = goals.load_goal(session_id)
+    if not goal or goal.get("execution_mode") != "chat" or goal.get("status") != "active":
+        return
+    goals.accumulate_goal_usage(session_id, goal)
+    goals.checkpoint_active_elapsed(goal)
+    publish(session_id, goal)
+
+
+@serialized
 def refresh_todos(session_id: str) -> None:
     """Publish the current revision's plan without changing Goal lifecycle."""
     goal = goals.load_goal(session_id)
@@ -146,7 +157,11 @@ def resume(session_id: str, expected: dict | None = None) -> dict:
     if not goal or goal.get("status") not in goals.RESUMABLE_STATUSES:
         raise ValueError("No resumable Goal")
     goals.check_goal_preconditions(goal, expected)
-    goals.require_goal_execution_finished(goal, session_id)
+    goals.require_goal_execution_finished(goal, session_id, allow_new_chat=True)
+    if goal.get("usage_pending_until") is not None:
+        goals.accumulate_goal_usage(session_id, goal, until=goal["usage_pending_until"])
+        if goal.get("usage_pending_until") is not None:
+            raise goals.GoalStateUnavailable("Interrupted Goal usage is still unavailable; retry after the ledger recovers.")
     if goals.budget_exhausted(goal):
         raise ValueError("Goal budget is exhausted; increase its limit before resuming")
     goal.update(execution_mode="chat", status="active", phase="idle",
@@ -204,6 +219,7 @@ def turn_context(session_id: str, execution_id: str, expected: dict | None = Non
                 with locked(session_id):
                     latest = goals.load_goal(session_id)
                     if latest and latest.get("execution_id") == execution_id:
+                        goals.accumulate_goal_usage(session_id, latest)
                         goals.checkpoint_active_elapsed(latest, stop=True)
                         publish(session_id, latest)
         except Exception:
@@ -274,6 +290,13 @@ def after_terminal(store, execution):
             return
         expected = request.get("goal_context")
         stale_revision = bool(expected and identity(goal) != expected)
+        if goal.get("accounted_execution_id") == execution.execution_id and goal.get("usage_pending_until") is not None:
+            goals.accumulate_goal_usage(sid, goal, until=goal["usage_pending_until"])
+            if goal.get("status") == "active" and not stale_revision:
+                exhausted = goals.budget_exhausted(goal)
+                if exhausted:
+                    goal.update(status="budget_exhausted", phase="terminal", last_reason=exhausted)
+            publish(sid, goal)
         if goal.get("accounted_execution_id") != execution.execution_id:
             goals.accumulate_goal_usage(sid, goal)
             goals.checkpoint_active_elapsed(goal, stop=True)
@@ -294,6 +317,8 @@ def after_terminal(store, execution):
                 else:
                     goal["phase"] = "idle"
             publish(sid, goal)
+        if goal.get("usage_pending_until") is not None:
+            raise goals.GoalStateUnavailable("Goal usage settlement is pending")
         if goal.get("status") != "active" or stale_revision:
             return
     start_next(store, execution.execution_id, expected=identity(goal))

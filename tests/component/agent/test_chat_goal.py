@@ -105,6 +105,40 @@ def test_completed_chat_continues_once_with_original_authority(runtime, monkeypa
     assert len(calls) == 2
 
 
+@pytest.mark.parametrize("exhausted", [False, True])
+def test_terminal_retry_settles_pending_usage_before_continuing(runtime, monkeypatch, exhausted):
+    from openprogram.execution.model import ExecutionStatus
+    goals, chat, store = runtime
+    goal = goals.load_goal("goal-chat")
+    goal["execution_id"] = "interrupted-ledger"
+    goals.save_goal("goal-chat", goal)
+    execution = SimpleNamespace(execution_id="interrupted-ledger", session_id="goal-chat",
+                                status=ExecutionStatus.COMPLETED)
+    monkeypatch.setattr(store, "get_agent_turn_input", lambda _: {"kind": "chat", "request": {"source": "web"}})
+    continuations = []
+    monkeypatch.setattr(chat, "start_next", lambda *a, **kw: continuations.append(a))
+    monkeypatch.setattr(goals, "goal_usage", lambda *a, **kw: {"available": False})
+    with pytest.raises(goals.GoalStateUnavailable):
+        chat.after_terminal(store, execution)
+    pending = goals.load_goal("goal-chat")["usage_pending_until"]
+    assert not continuations
+    reads = []
+    def recovered(*args, **kwargs):
+        reads.append(kwargs.get("until", args[2] if len(args) > 2 else None))
+        return {"available": True, "total_tokens": 100, "cost_usd": 1, "cost_known": True}
+    monkeypatch.setattr(goals, "goal_usage", recovered)
+    monkeypatch.setattr(goals, "budget_exhausted", lambda goal: "cost budget exhausted" if exhausted else None)
+    chat.after_terminal(store, execution)
+    settled = goals.load_goal("goal-chat")
+    assert reads == [pending]
+    assert settled["usage"]["total_tokens"] == 100
+    assert settled["usage"]["cost_usd"] == 1
+    assert settled["turns_used"] == 1
+    assert "usage_pending_until" not in settled
+    assert len(continuations) == (0 if exhausted else 1)
+    assert settled["status"] == ("budget_exhausted" if exhausted else "active")
+
+
 def test_edit_keeps_terminal_usage_without_continuing_old_revision(runtime, monkeypatch):
     from openprogram.agent.production_driver import CanonicalAgentAdapter
     from openprogram.agent.dispatcher.types import TurnRequest

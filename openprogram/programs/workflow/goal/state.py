@@ -95,6 +95,12 @@ def normalize_goal(goal: dict) -> dict:
     value["recoverable"] = value.get("status") in RESUMABLE_STATUSES
     usage = dict(value.get("usage") or {})
     usage.setdefault("active_elapsed_s", 0.0)
+    if (value.get("execution_mode") == "chat" and value.get("pause_reason") == "worker_restart"
+            and value.get("execution_id") and not value.get("usage_accounted_at")
+            and value.get("accounted_execution_id") != value.get("execution_id")):
+        usage["accounting_pending"] = True
+        usage["cost_known"] = False
+        usage["tokens_known"] = False
     value["usage"] = usage
     value.setdefault("budget", {"max_turns": value.get("max_turns")})
     value.setdefault("checkpoint", {})
@@ -243,16 +249,17 @@ def save_goal_progress(session_id: str, goal: dict, base: dict) -> dict:
         return goal
 
 
-def goal_usage(session_id: str, since: float) -> dict:
+def goal_usage(session_id: str, since: float, until: float | None = None) -> dict:
     """Aggregate provider-recorded usage for this Goal's session window."""
     try:
         from openprogram.usage import default_ledger
         rows = default_ledger.query(
-            since=since, filters={"session_id": session_id},
+            since=since, until=until, filters={"session_id": session_id},
         )
         row = rows[0] if rows else None
         return {
             "total_tokens": int(row.total_tokens if row else 0),
+            "available": True,
             "cost_usd": float(row.cost_total if row else 0.0),
             "cost_known": bool(row.cost_known if row else True),
             "unknown_cost_events": int(row.unknown_cost_events if row else 0),
@@ -260,6 +267,7 @@ def goal_usage(session_id: str, since: float) -> dict:
     except Exception:
         return {
             "total_tokens": 0,
+            "available": False,
             "cost_usd": 0.0,
             "cost_known": False,
             "unknown_cost_events": 1,
@@ -268,14 +276,29 @@ def goal_usage(session_id: str, since: float) -> dict:
 
 def reset_goal_usage_cursor(session_id: str, goal: dict) -> None:
     """Exclude all session usage that happened before this active run."""
-    goal["usage_cursor"] = _goal.goal_usage(session_id, 0.0)
-
-
-def accumulate_goal_usage(session_id: str, goal: dict) -> None:
-    """Add only usage recorded since this Goal controller's last boundary."""
+    if goal.get("usage_pending_until") is not None:
+        raise GoalStateUnavailable("Goal usage must be reconciled before starting another turn.")
     current = _goal.goal_usage(session_id, 0.0)
+    if current.get("available") is False:
+        raise GoalStateUnavailable("Usage ledger unavailable; Goal accounting cursor was preserved.")
+    goal["usage_cursor"] = current
+
+
+def accumulate_goal_usage(session_id: str, goal: dict, *, until: float | None = None) -> None:
+    """Add only usage recorded since this Goal controller's last boundary."""
+    current = (_goal.goal_usage(session_id, 0.0) if until is None
+               else _goal.goal_usage(session_id, 0.0, until))
+    if current.get("available") is False:
+        goal.setdefault("usage_pending_known", {
+            "cost_known": (goal.get("usage") or {}).get("cost_known", True),
+            "tokens_known": (goal.get("usage") or {}).get("tokens_known", True),
+        })
+        goal["usage"] = dict(goal.get("usage") or {}, cost_known=False, tokens_known=False)
+        goal["usage_pending_until"] = time.time() if until is None else until
+        return
     cursor = dict(goal.get("usage_cursor") or current)
     usage = dict(goal.get("usage") or {})
+    usage.update(goal.pop("usage_pending_known", {}))
     token_delta = max(
         0,
         int(current.get("total_tokens") or 0)
@@ -296,6 +319,9 @@ def accumulate_goal_usage(session_id: str, goal: dict) -> None:
     usage["cost_known"] = bool(usage.get("cost_known", True)) and unknown_delta == 0
     goal["usage"] = usage
     goal["usage_cursor"] = current
+    goal["usage_accounted_at"] = time.time()
+    usage.pop("accounting_pending", None)
+    goal.pop("usage_pending_until", None)
 
 
 def budget_exhausted(goal: dict, *, now: float | None = None) -> str:
