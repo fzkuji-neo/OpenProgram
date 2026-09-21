@@ -727,7 +727,10 @@ def reconcile_interrupted_runs() -> int:
             # Reset it independently of the node loop: a worker killed
             # between the status write and the placeholder insert leaves a
             # running ROW with no running NODE.
-            # A Goal whose execution lease belonged to the previous worker is
+            # Legacy Workflow Goals need an explicit recoverable pause. Chat
+            # Goals retain their run intent; canonical recovery owns execution
+            # continuation, and a display repair must not disable it.
+            # A Workflow Goal whose execution lease belonged to the previous worker is
             # recoverable state, not a terminal error. Persist an explicit pause;
             # hydration then shows the Goal content and a resume action instead of
             # leaving a false running indicator or discarding the checkpoint.
@@ -737,6 +740,7 @@ def reconcile_interrupted_runs() -> int:
                 full = store.get_session(sid) or {}
                 goal_meta = (full.get("extra_meta") or {}).get("goal")
                 if (isinstance(goal_meta, dict)
+                        and goal_meta.get("execution_mode") != "chat"
                         and goal_meta.get("status") in {
                             "refining", "active", "running", "evaluating",
                         }):
