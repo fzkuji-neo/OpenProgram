@@ -883,6 +883,8 @@ async def handle_load_session(ws, cmd: dict):
             raw_msgs = [
                 m for m in raw_msgs if m.get("id") not in hidden_ids
             ]
+            from openprogram.programs.workflow.goal.presentation import annotate_messages
+            raw_msgs = await _session_io(annotate_messages, conv["id"], raw_msgs)
             # Fold standalone role="tool" rows into their parent assistant's
             # tool_calls[] so the chat UI sees the same shape on refresh
             # as it does on live WS stream.

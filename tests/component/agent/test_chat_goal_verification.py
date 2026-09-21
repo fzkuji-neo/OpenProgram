@@ -189,6 +189,23 @@ def test_independent_verification_uses_real_read_and_persisted_result(runtime, m
     if outcome == "met":
         assert goal["verification"]["status"] == "met"
         assert goal["verification"]["result_sha256"]
+        from openprogram.programs.workflow.goal.presentation import annotate_messages
+        rows = goals._db().get_messages("goal-chat")
+        projected = annotate_messages("goal-chat", rows)
+        result_id = goal["verification"]["result_message_id"]
+        original = next(row for row in rows if row["id"] == result_id)
+        shown = next(row for row in projected if row["id"] == result_id)
+        assert shown["goal_verification"]["status"] == "met"
+        assert shown["goal_verification"]["requirements"][0]["text"]
+        assert shown["content"] == original["content"]
+        assert "goal_verification" not in original
+        work = next(row for row in projected if row["id"] == "work-a")
+        assert "goal_verification" not in work
+        from openprogram.webui.graph_builder import build_session_graph
+        graph = build_session_graph("goal-chat", messages=rows, include_layout=False)
+        assert next(row for row in graph if row["id"] == result_id)["goal_verification"] == shown["goal_verification"]
+        changed = [dict(row, content="changed") if row["id"] == result_id else row for row in rows]
+        assert next(row for row in annotate_messages("goal-chat", changed) if row["id"] == result_id)["goal_verification"]["status"] == "unavailable"
     elif limit:
         assert goal["status"] == "budget_exhausted"
     chat.after_terminal(store, store.get_execution(first.execution_id))

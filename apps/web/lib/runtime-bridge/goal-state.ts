@@ -1,15 +1,21 @@
 import { runtimeState } from "./state";
+import { useSessionStore } from "../session-store";
+import type { GoalVerification } from "../chat/goal-verification";
 
 /** Apply HTTP, hydration and live snapshots in durable session-version order. */
 export function updateSessionGoal(
   sessionId: string,
-  goal: { version?: number } | null,
+  goal: { version?: number; verification_message?: { message_id: string; presentation: GoalVerification } | null } | null,
 ): void {
   const conversation = runtimeState.conversations[sessionId] ?? { id: sessionId };
   const previous = conversation.goal as { version?: number } | null | undefined;
   if ((previous?.version ?? 0) > (goal?.version ?? 0)) return;
   conversation.goal = goal;
   runtimeState.conversations[sessionId] = conversation;
+  const result = goal?.verification_message;
+  if (result && useSessionStore.getState().messagesById[result.message_id]) {
+    useSessionStore.getState().updateMessage(sessionId, result.message_id, { goalVerification: result.presentation });
+  }
   window.dispatchEvent(new CustomEvent("op:goal-state", {
     detail: { session_id: sessionId, goal },
   }));

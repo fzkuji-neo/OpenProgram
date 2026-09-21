@@ -109,6 +109,7 @@ interface StreamEvent {
 }
 
 interface ChatResponseData {
+  goal_verification?: import("../chat/goal-verification").GoalVerification;
   type: string;
   msg_id?: string;
   session_id?: string;
@@ -263,7 +264,7 @@ export function applyChatWsMessage(msg: WsEnvelope): void {
  *  Add the locally stashed user turn first, then create its assistant
  *  placeholder so both rows and both start times appear on the ACK. */
 function handleAck(
-  d: { session_id?: string; msg_id?: string; text?: string } | undefined,
+  d: { session_id?: string; msg_id?: string; text?: string; goal_verification?: ChatResponseData["goal_verification"] } | undefined,
 ): void {
   if (!d?.session_id) return;
   const sid = d.session_id;
@@ -329,6 +330,13 @@ function handleAck(
   }
   // The frame is the backend's durable acceptance boundary. Run the
   // composer cleanup only now; socket.write success is not acceptance.
+  if (d.goal_verification && d.msg_id) {
+    const rid = replyId(d.msg_id);
+    const current = ensureReply(sid, rid).goalVerification;
+    if (!current || current.id !== d.goal_verification.id || current.status === "pending") {
+      useSessionStore.getState().updateMessage(sid, rid, { goalVerification: d.goal_verification });
+    }
+  }
   acknowledgePendingUserText(sid);
   clearPendingFirstAck(sid);
 }
@@ -430,6 +438,13 @@ function handleResponse(d: ChatResponseData | undefined): void {
   }
 
   const rid = replyId(d.msg_id);
+
+  if (d.goal_verification) {
+    const current = ensureReply(sid, rid).goalVerification;
+    if (!current || current.id !== d.goal_verification.id || current.status === "pending") {
+      useSessionStore.getState().updateMessage(sid, rid, { goalVerification: d.goal_verification });
+    }
+  }
 
   // Live execution tree for a streaming `/run` — store it on the reply
   // so <RuntimeBlock />'s <ExecutionTree /> renders it as it grows.

@@ -160,6 +160,7 @@ export interface ChatMsg {
   status?: MessageStatus;
   function?: string;           // if this is a direct function run
   display?: "runtime" | "normal";
+  goalVerification?: import("../chat/goal-verification").GoalVerification;
   /** Pass-through of metadata.source from the server so the client
    *  can distinguish "real user typed" vs internal synthetic turns
    *  (job_followup, merge_turn, agent_spawn). */

@@ -77,6 +77,7 @@ interface LegacyMsg {
    *  both user and assistant rows. Same-session multi-agent uses
    *  this to colour / label each row by author. */
   agent_id?: string;
+  goal_verification?: import("./goal-verification").GoalVerification;
   /** streaming-resume: lifecycle status persisted on the node.
    *  ``running`` means a producer is still writing this msg — render
    *  the runtime block in its in-progress state and (if the worker
@@ -367,6 +368,7 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
           return m.type === "error" ? "error" : "done";
         })(),
         rawType: m.type,
+        goalVerification: m.goal_verification,
         timestamp: ts,
         contextTree: (m.context_tree as never) || undefined,
         usage: m.usage,

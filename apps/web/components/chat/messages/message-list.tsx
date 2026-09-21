@@ -56,6 +56,8 @@ import { renderMarkdown, useMarkdownReady } from "./markdown";
 const JUMP_LATEST_FADE_MS = 280;
 
 import { AssistantBubble } from "./assistant-bubble";
+import { VerificationDetails } from "./verification-details";
+import { verificationSummary } from "@/lib/chat/goal-verification";
 import { AttachCard } from "./attach-card";
 import { DecisionOutputs } from "./decision-output";
 import { SystemAccessWaits } from "./system-access-waits";
@@ -96,29 +98,9 @@ function splitJsonTail(content: string): {
   return null;
 }
 
-/** goal 判定回复的完整五键契约（goal/__init__.py _parse_decision）。
- *  主 lane 的模型有时会把上下文里见过的判定 JSON 依样画在回复结尾——
- *  按这个精确 schema 识别（met/need_user 布尔 + reason/question 字符串
- *  + options 数组，五键齐全），不是"内容长得像 JSON"的泛匹配：普通
- *  消息几乎不可能撞出这个形状。 */
-function isVerdictShape(d: Record<string, unknown>): boolean {
-  return (
-    typeof d.met === "boolean" &&
-    typeof d.need_user === "boolean" &&
-    typeof d.reason === "string" &&
-    typeof d.question === "string" &&
-    Array.isArray(d.options)
-  );
-}
-
-/** Assistant 行的包装层：把回复结尾的 goal 机器 JSON 收进 <details>，
- *  正文只显示 prose。两条识别路径（都不碰持久化数据，纯渲染层）：
- *  1) 内部 spawn 轮 —— spawn 根用户行的 spawnedFrom.label ∈
- *     GOAL_SPAWN_LABELS，经本行 calledBy/predecessor 关联；
- *  2) 主 lane 回复尾部被模型依样画出的判定 JSON —— 精确五键
- *     verdict schema（见 isVerdictShape）。
- *  展开后仍是原始 JSON（调试）。其余消息原样走 AssistantBubble。 */
-function AssistantMessage({
+/** Only explicit canonical verifier identities or legacy Goal spawn labels
+ * change presentation. Ordinary JSON replies remain ordinary messages. */
+export function AssistantMessage({
   msg,
   sessionIdOverride,
 }: {
@@ -133,8 +115,16 @@ function AssistantMessage({
   // streaming 期间不折（JSON 尾巴没到齐会闪）；落定后一次成型。
   const settled = msg.status !== "streaming" && msg.status !== "running"
     && msg.status !== "pending";
+  if (msg.goalVerification) {
+    return <AssistantBubble
+      msg={{ ...msg, content: verificationSummary(msg.goalVerification, msg.status, text),
+        blocks: [], thinking: "", tools: [], callRoots: [], contextTree: undefined }}
+      verificationDetails={<VerificationDetails value={msg.goalVerification} raw={msg.content || ""} settled={settled} />}
+      sessionIdOverride={sessionIdOverride}
+    />;
+  }
   const split = settled ? splitJsonTail(msg.content || "") : null;
-  if (!split || (!isGoalSpawn && !isVerdictShape(split.data))) {
+  if (!split || !isGoalSpawn) {
     return <AssistantBubble msg={msg} sessionIdOverride={sessionIdOverride} />;
   }
   // blocks 路径渲染的是 text 块不是 content —— 同步剥掉最后一个 text
