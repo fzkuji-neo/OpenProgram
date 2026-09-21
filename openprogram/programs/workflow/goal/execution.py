@@ -74,12 +74,17 @@ def goal_execution_state(goal: dict, session_id: str = "") -> dict:
                         return unavailable
                     known[parent_id] = parent
                 parent_id = parent.parent_execution_id
+        from openprogram.execution.public import _effect_summary
+        provider_incomplete = _effect_summary(store, execution).get("provider_response_incomplete") is True
+        finished = execution.status in TERMINAL_EXECUTION_STATUSES and not descendants
         return {
             "execution_id": execution_id,
             "status": execution.status.value,
             "status_version": execution.status_version,
             "active_children": descendants,
-            "finished": execution.status in TERMINAL_EXECUTION_STATUSES and not descendants,
+            "finished": finished,
+            "can_start_new_turn": finished or (provider_incomplete and not descendants),
+            "provider_response_incomplete": provider_incomplete,
         }
     except Exception:
         return unavailable
@@ -87,6 +92,7 @@ def goal_execution_state(goal: dict, session_id: str = "") -> dict:
 
 def require_goal_execution_finished(
     goal: dict, session_id: str, *, current_execution_id: str | None = None,
+    allow_new_chat: bool = False,
 ) -> None:
     from .state import GoalConflictError
 
@@ -94,6 +100,8 @@ def require_goal_execution_finished(
     # Script-only Goals have no canonical record. The public entry's existing
     # exclusive_goal lock is still required and excludes concurrent controllers.
     if observed["status"] == "untracked" or observed["finished"]:
+        return
+    if allow_new_chat and observed.get("can_start_new_turn"):
         return
     if (
         current_execution_id and current_execution_id == observed["execution_id"]

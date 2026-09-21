@@ -1429,7 +1429,7 @@ def test_returned_provider_failure_finishes_without_attention(tmp_path, stop_rea
 
 @pytest.mark.parametrize("kind,orphan", [("provider.before", True), ("tool.before", False)])
 @pytest.mark.parametrize("attention", [None, "wait", "command", "cancel", "cancel_applying"])
-def test_snapshot_distinguishes_ended_provider_receipt_from_action_attention(tmp_path, kind, orphan, attention):
+def test_snapshot_distinguishes_ended_provider_receipt_from_action_attention(tmp_path, monkeypatch, kind, orphan, attention):
     from openprogram.execution.effects import EffectClassification, EffectStatus
     from openprogram.execution.public import execution_snapshot
 
@@ -1465,6 +1465,11 @@ def test_snapshot_distinguishes_ended_provider_receipt_from_action_attention(tmp
     assert snapshot.effect_summary.get("provider_response_incomplete", False) is (orphan and attention in {None, "cancel", "cancel_applying"})
     assert snapshot.status == "reconciliation_required"
     assert len(control.effects.list_unresolved(execution.execution_id)) == 1
+    from openprogram.programs.workflow.goal.execution import goal_execution_state
+    monkeypatch.setattr("openprogram.execution.default_store", lambda: store)
+    observed = goal_execution_state({"execution_id": ended.execution_id}, ended.session_id)
+    assert observed["finished"] is False
+    assert observed["can_start_new_turn"] is (orphan and attention in {None, "cancel", "cancel_applying"})
 
 
 def test_normal_provider_completion_records_continuation_without_pause(tmp_path):

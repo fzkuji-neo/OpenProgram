@@ -184,6 +184,70 @@ def test_todo_refresh_preserves_legacy_goal_checklist(session):
     assert goals.load_goal("chat-goal")["checklist"] == goal["checklist"]
 
 
+def test_provider_receipt_refreshes_goal_usage_without_duplicate_charge(session, monkeypatch):
+    from openprogram.programs.workflow.goal import chat
+    from openprogram.usage.event import UsageEvent
+    from openprogram.usage.recorder import run_usage_hooks
+    goals, _ = session
+    total = {"total_tokens": 0, "cost_usd": 0, "cost_known": True, "unknown_cost_events": 0}
+    monkeypatch.setattr(goals, "goal_usage", lambda *a: dict(total))
+    chat.create("chat-goal", "verify")
+    total.update(total_tokens=100, cost_usd=0.2)
+    event = UsageEvent(session_id="chat-goal", total_tokens=100)
+    run_usage_hooks(event)
+    run_usage_hooks(event)
+    saved = goals.load_goal("chat-goal")
+    assert saved["usage"]["total_tokens"] == 100
+    assert saved["usage"]["cost_usd"] == pytest.approx(0.2)
+    saved["status"] = "paused"
+    goals.save_goal("chat-goal", saved)
+    total.update(total_tokens=200, cost_usd=0.4)
+    run_usage_hooks(event)
+    assert goals.load_goal("chat-goal")["usage"]["total_tokens"] == 100
+
+
+def test_metering_read_failure_preserves_cursor_and_does_not_double_bill(session, monkeypatch):
+    goals, _ = session
+    goal = {"usage": {"total_tokens": 10, "cost_usd": 0.1, "cost_known": True},
+            "usage_cursor": {"total_tokens": 100, "cost_usd": 1, "unknown_cost_events": 0}}
+    monkeypatch.setattr(goals, "goal_usage", lambda *a: {"available": False})
+    goals.accumulate_goal_usage("chat-goal", goal)
+    assert goal["usage_cursor"]["total_tokens"] == 100
+    assert goal["usage"]["cost_known"] is False
+    monkeypatch.setattr(goals, "goal_usage", lambda *a: {
+        "total_tokens": 110, "cost_usd": 1.2, "unknown_cost_events": 0})
+    goals.accumulate_goal_usage("chat-goal", goal)
+    assert goal["usage"]["total_tokens"] == 20
+    assert goal["usage"]["cost_usd"] == pytest.approx(0.3)
+    assert goal["usage"]["cost_known"] is True
+
+
+def test_resume_settles_failed_boundary_before_excluding_paused_usage(session, monkeypatch):
+    from openprogram.programs.workflow.goal import chat
+    goals, _ = session
+    goal = chat.create("chat-goal", "verify")
+    goal.update(status="paused", usage={"total_tokens": 10, "cost_usd": 0.1},
+                usage_cursor={"total_tokens": 100, "cost_usd": 1}, usage_pending_until=50.0)
+    goals.save_goal("chat-goal", goal)
+    def aggregate(sid, since, until=None):
+        return {"total_tokens": 110 if until == 50.0 else 900,
+                "cost_usd": 1.2 if until == 50.0 else 9, "unknown_cost_events": 0}
+    monkeypatch.setattr(goals, "goal_usage", aggregate)
+    resumed = chat.resume("chat-goal")
+    assert resumed["usage"]["total_tokens"] == 20
+    assert resumed["usage"]["cost_usd"] == pytest.approx(0.3)
+    assert resumed["usage_cursor"]["total_tokens"] == 900
+    assert "usage_pending_until" not in resumed
+
+
+def test_unsettled_restart_usage_is_not_presented_as_free(session):
+    goals, _ = session
+    goal = goals.normalize_goal({"execution_mode": "chat", "pause_reason": "worker_restart",
+                                "execution_id": "old", "usage": {"total_tokens": 0, "cost_usd": 0}})
+    assert goal["usage"]["accounting_pending"]
+    assert goal["usage"]["cost_known"] is False
+
+
 def test_old_revision_cannot_complete_new_goal(session):
     from openprogram.programs.workflow.goal import chat
     goals, _ = session

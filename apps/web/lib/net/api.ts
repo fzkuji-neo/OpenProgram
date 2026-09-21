@@ -138,7 +138,7 @@ export const api = {
 
   getGoal: (sessionId: string, signal?: AbortSignal) => jsonFetch<{
     goal: Record<string, unknown>;
-    execution?: { execution_id?: string | null; status?: string; finished?: boolean | null };
+    execution?: { execution_id?: string | null; status?: string; finished?: boolean | null; can_start_new_turn?: boolean; provider_response_incomplete?: boolean };
   }>(
     `/api/sessions/${encodeURIComponent(sessionId)}/goal`,
     { signal },

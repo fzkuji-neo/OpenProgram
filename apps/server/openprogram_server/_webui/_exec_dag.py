@@ -741,6 +741,12 @@ def reconcile_interrupted_runs() -> int:
                             "refining", "active", "running", "evaluating",
                         }):
                     goal_meta = dict(goal_meta)
+                    import openprogram.programs.workflow.goal as goal_module
+                    from openprogram.execution import default_store
+                    previous = default_store().get_execution(str(goal_meta.get("execution_id") or ""))
+                    cutoff = previous.updated_at if previous is not None else time.time()
+                    goal_module.accumulate_goal_usage(sid, goal_meta, until=cutoff)
+                    goal_module.checkpoint_active_elapsed(goal_meta, now=cutoff, stop=True)
                     goal_meta["status"] = "paused_recoverable"
                     goal_meta["phase"] = "paused"
                     goal_meta["recoverable"] = True
@@ -749,7 +755,6 @@ def reconcile_interrupted_runs() -> int:
                     goal_meta["last_reason"] = (
                         "worker restarted during Goal execution; resume from the latest checkpoint"
                     )
-                    import openprogram.programs.workflow.goal as goal_module
                     goal_module.save_goal(sid, goal_meta)
                     goal_module._emit_goal_update(None, sid, goal_meta)
                     fixed += 1

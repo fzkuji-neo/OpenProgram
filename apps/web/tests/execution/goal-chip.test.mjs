@@ -114,6 +114,26 @@ test("Goal progress shows todos, never execution rounds", async () => {
   } finally { await view.close(); }
 });
 
+test("provider-only incomplete responses allow a new Goal turn without claiming stop", async () => {
+  reset();
+  useSessionStore.setState({ wsStatus: "open" });
+  const goal = { ...snapshot(1, "paused_recoverable"), execution_id: "old-provider" };
+  runtimeState.conversations.s1.goal = goal;
+  const original = api.getGoal;
+  api.getGoal = async () => ({ goal, execution: {
+    execution_id: goal.execution_id, status: "reconciliation_required",
+    finished: false, can_start_new_turn: true, provider_response_incomplete: true,
+  } });
+  const view = await mount();
+  try {
+    await view.open();
+    const resume = [...view.host.querySelectorAll("button")].find(b => b.textContent === "Resume");
+    assert.equal(resume.disabled, false);
+    assert.match(view.host.textContent, /Previous model response is incomplete/);
+    assert.doesNotMatch(view.host.textContent, /Execution stopped/);
+  } finally { await view.close(); api.getGoal = original; }
+});
+
 test("real connection updates enable Goal resume only after a fresh stop observation", async () => {
   reset();
   const previousWebSocket = globalThis.WebSocket;

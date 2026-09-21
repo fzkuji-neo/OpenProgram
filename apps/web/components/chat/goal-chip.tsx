@@ -55,6 +55,8 @@ export interface GoalState {
     max_cost_usd?: number | null;
   };
   usage?: {
+    accounting_pending?: boolean;
+    tokens_known?: boolean;
     total_tokens?: number;
     cost_usd?: number;
     cost_known?: boolean;
@@ -165,7 +167,7 @@ export function GoalChip() {
 function useGoalExecution(sessionId: string, goal: GoalState, enabled: boolean) {
   const connection = useSessionStore((state) => state.wsStatus);
   const identity = `${sessionId}:${goal.run_id}:${goal.execution_id}:${goal.version}`;
-  const [observation, setObservation] = useState<{ identity?: string; status?: string; finished?: boolean | null; fresh: boolean }>({ fresh: false });
+  const [observation, setObservation] = useState<{ identity?: string; status?: string; finished?: boolean | null; can_start_new_turn?: boolean; provider_response_incomplete?: boolean; fresh: boolean }>({ fresh: false });
   const request = useRef(0);
   const controller = useRef<AbortController>();
   const refresh = useCallback(async () => {
@@ -231,10 +233,14 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
   const unsaved = draft.dirty;
   const execution = useGoalExecution(sessionId, goal, open || !!goal.stop_requested || resumable);
   const stopped = execution.fresh && execution.finished === true;
+  const canResume = execution.fresh && (execution.can_start_new_turn === true || execution.finished === true);
   const stopPending = !!goal.stop_requested && !!goal.execution_id && !stopped;
   const executionLabel = !goal.execution_id ? text("Stop takes effect at the next Goal boundary; no execution record.", "停止在下一个 Goal 边界生效；无执行记录。")
     : !execution.fresh || execution.status === "unavailable" ? text("Execution status unknown", "执行状态未知")
     : stopped ? text("Execution stopped", "执行已停止")
+    : execution.provider_response_incomplete && canResume ? text("Previous model response is incomplete. Resume starts a new chat turn without repeating external actions.", "上一轮模型响应记录不完整。继续将开始新聊天轮次，不自动重放外部操作。")
+    : execution.status === "reconciliation_required" ? text("An action result needs confirmation. Inspect the execution in Activity before retrying; Resume is disabled to prevent duplicate actions.", "操作结果需要确认。请在 Activity 中检查执行记录后再重试；继续暂不可用，以防重复执行。")
+    : execution.status === "paused" ? text("The previous execution is paused. Continue or stop it in Activity before starting a new Goal turn.", "旧执行仍处于暂停状态。请先在 Activity 中继续或停止旧执行，再启动新的 Goal 轮次。")
     : execution.status === "cancelling" ? text("Stopping", "正在停止")
     : text("Stop not confirmed", "停止未确认");
   useEffect(() => { if (terminal) setConfirmCancel(false); }, [terminal]);
@@ -309,6 +315,12 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
           {(goal.stop_requested || resumable) ? <section className={styles.reason} aria-label={text("Execution stop status", "执行停止状态")}>
             <p role="status">{executionLabel}</p>
             <Button variant="outline" disabled={busy} onClick={() => void execution.refresh()}>{text("Refresh status", "刷新状态")}</Button>
+            {goal.execution_id ? <Button variant="outline" onClick={() => {
+              const store = useSessionStore.getState();
+              store.setRightDockView("running");
+              store.setRightDockOpen(true);
+              setOpen(false);
+            }}>{text("Open Activity", "打开运行记录")}</Button> : null}
             {stopPending ? <Button variant="outline" disabled={busy} onClick={() => void mutate("stop")}>{text("Retry stop", "重试停止")}</Button> : null}
           </section> : null}
 
@@ -324,11 +336,13 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
           <div className={styles.metrics}>
             <div><span>{text("Status", "状态")}</span><strong>{statusLabel(goal.status, zh)}</strong></div>
             {progress ? <div><span>{text("Progress", "进度")}</span><strong>{progress}</strong></div> : null}
-            <div><span>{text("Tokens", "Token")}</span><strong>{goal.usage?.total_tokens ?? 0}</strong></div>
+            <div><span>{text("Tokens", "Token")}</span><strong>{goal.usage?.tokens_known === false ? text("Unknown", "未知") : goal.usage?.total_tokens ?? 0}</strong></div>
             <div><span>{text("Cost", "成本")}</span><strong>{goal.usage?.cost_known === true && Number.isFinite(goal.usage.cost_usd)
               ? `$${goal.usage.cost_usd!.toFixed(4)}` : text("Unknown", "未知")}</strong></div>
             <div><span>{text("Active time", "执行时间")}</span><strong>{formatElapsed(goal.usage?.active_elapsed_s)}</strong></div>
           </div>
+
+          {goal.usage?.accounting_pending ? <p role="status">{text("Usage from the interrupted run has not been reconciled. Unknown is not zero; session totals must not be treated as Goal costs.", "中断执行的用量尚未核对。未知不代表零，不能把整个会话的费用当作此 Goal 费用。")}</p> : null}
 
           {goal.roles && goal.execution_mode !== "chat" ? <section className={styles.roles} aria-label={text("Goal roles", "Goal 角色")}>
             {(["work", "judge"] as const).map((name) => {
@@ -405,7 +419,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
             {!terminal ? <Button ref={endButton} variant="destructive" disabled={busy} onClick={() => setConfirmCancel(true)}><Square size={14} />{text("End", "终止")}</Button> : null}
             {running ? <Button variant="outline" disabled={busy} onClick={() => void mutate("pause")}><Pause size={14} />{text("Pause", "暂停")}</Button> : null}
             <Button variant="outline" disabled={busy || !draft.dirty || draft.conflict || !draft.value.trim()} onClick={() => void mutate("edit", { prompt: draft.value.trim() })}>{text("Save edit", "保存修改")}</Button>
-            {resumable ? <Button disabled={busy || unsaved || (!!goal.execution_id && !stopped)} onClick={() => void mutate("resume")}><Play size={14} />{text("Resume", "继续")}</Button> : null}
+            {resumable ? <Button disabled={busy || unsaved || (!!goal.execution_id && !canResume)} onClick={() => void mutate("resume")}><Play size={14} />{text("Resume", "继续")}</Button> : null}
           </DialogFooter>}
           {unsaved ? <p className={styles.draftNotice} role="status">{text("Save or discard unsaved changes before resuming.", "继续前请保存或放弃未保存的修改。")}
             <Button variant="ghost" disabled={busy} onClick={() => { draft.reset(); }}>{text("Discard changes", "放弃修改")}</Button>

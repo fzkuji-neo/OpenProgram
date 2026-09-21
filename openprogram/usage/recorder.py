@@ -125,6 +125,13 @@ def build_message_event(
 
 def run_usage_hooks(event: UsageEvent) -> None:
     """Fire post-record hooks. Best-effort: a throwing hook is contained."""
+    if event.session_id:
+        try:
+            from openprogram.programs.workflow.goal.chat import refresh_usage
+            refresh_usage(event.session_id)
+        except Exception:
+            # Metering is durable already; the chat boundary retries projection.
+            pass
     for hook in _hooks:
         try:
             hook(event)

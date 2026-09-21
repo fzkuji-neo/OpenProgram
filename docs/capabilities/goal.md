@@ -27,6 +27,12 @@ A failed or cancelled execution stops automatic continuation. Worker restart lea
 
 The state tools are short operations: `create_goal`, `get_goal`, and `update_goal`. They do not perform the task. The agent may mark `blocked` only after the same verified blocker recurs for at least three consecutive Goal turns with no independent work remaining. The runtime enforces the minimum turn count; the agent is responsible for verifying that it is the same blocker.
 
+## Recovery and metering
+
+Goal distinguishes a terminal execution from permission to start a new chat turn. An abandoned model-only response with no active descendants, pending waits or non-cancel commands can allow Resume without rewriting the old execution as completed. Unconfirmed external effects still block Resume; open Activity to inspect the execution and use its existing controls. Todo completion is not objective verification.
+
+Provider usage receipts refresh active Goal totals; turn exit reconciles them again. Repeated notifications do not add the same usage twice. Metering read failures preserve the cursor and display unknown rather than zero. Older interrupted Goals whose usage was never settled are explicitly labelled pending accounting; their whole-session costs are not guessed into Goal totals.
+
 ## Python Workflow compatibility
 
 Direct Python and composed Workflow calls to `goal()` retain their existing work/refinement/judge contract. This compatibility path is distinct from chat Goals. It accepts `context_mode`, work/judge model settings and execution limits. Chat mode uses the conversation's work model and does not use those separate role settings.
