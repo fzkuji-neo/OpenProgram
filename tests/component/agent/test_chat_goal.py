@@ -272,7 +272,10 @@ def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypat
         assert goals.load_goal("goal-chat")["status"] in {"paused", "paused_recoverable", "cancelled"}
     fresh.replay_finish_repairs()
     assert len(calls) == (2 if continued else 1)
-    assert not store.list_finish_repairs()
+    # User pause now ends the fixture's work instead of bypassing completion
+    # verification. Its cancel receipt may settle after Goal notification.
+    from tests.support.waiting import wait_until
+    assert wait_until(lambda: not store.list_finish_repairs(), timeout=5)
     if creation == "legacy" and action == "continue":
         # An explicit owner resume upgrades old data and remains usable.
         resumed = chat.resume("goal-chat")
