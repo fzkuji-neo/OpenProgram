@@ -224,7 +224,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
   const done = checklist.filter((item) => item.done).length;
   const progress = checklist.length
     ? `${text("Todos", "待办")} ${done}/${checklist.length}`
-    : text("No todos yet", "尚无待办");
+    : null;
   const running = runningStatuses.has(goal.status || "");
   const resumable = resumableStatuses.has(goal.status || "");
   const terminal = terminalStatuses.has(goal.status || "");
@@ -290,7 +290,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
         aria-label={text("Open Goal details", "打开 Goal 详情")}
       >
         <Target size={14} strokeWidth={2} className="workdir-icon" />
-        <span className="badge-short">Goal · {stopPending ? text("Stop not confirmed", "停止未确认") : statusLabel(goal.status, zh)} · {progress}</span>
+        <span className="badge-short">Goal · {stopPending ? text("Stop not confirmed", "停止未确认") : statusLabel(goal.status, zh)}{progress ? ` · ${progress}` : null}</span>
       </button> : null}
       <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) setConfirmCancel(false); }}>
         <DialogContent className={styles.dialog} aria-busy={busy} onCloseAutoFocus={(event) => {
@@ -323,7 +323,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
 
           <div className={styles.metrics}>
             <div><span>{text("Status", "状态")}</span><strong>{statusLabel(goal.status, zh)}</strong></div>
-            <div><span>{text("Progress", "进度")}</span><strong>{progress}</strong></div>
+            {progress ? <div><span>{text("Progress", "进度")}</span><strong>{progress}</strong></div> : null}
             <div><span>{text("Tokens", "Token")}</span><strong>{goal.usage?.total_tokens ?? 0}</strong></div>
             <div><span>{text("Cost", "成本")}</span><strong>{goal.usage?.cost_known === true && Number.isFinite(goal.usage.cost_usd)
               ? `$${goal.usage.cost_usd!.toFixed(4)}` : text("Unknown", "未知")}</strong></div>
