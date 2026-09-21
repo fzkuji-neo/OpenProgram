@@ -36,6 +36,8 @@ def test_completed_chat_continues_once_with_original_authority(runtime, monkeypa
     from openprogram.agent.production_driver import CanonicalAgentAdapter
     from openprogram.agent.dispatcher.types import TurnRequest
     goals, chat, store = runtime
+    # Disabling restart recovery must not disable live, same-process turns.
+    monkeypatch.setattr("openprogram.execution.restart.window_seconds", lambda: 0)
     goal = goals.load_goal("goal-chat")
     goal["turns_used"] = 150
     goals.save_goal("goal-chat", goal)
@@ -180,7 +182,8 @@ def test_failed_chat_stops_goal_without_continuation(runtime, monkeypatch):
 
 @pytest.mark.parametrize("action", ["continue", "pause", "clear", "disabled", "expired"])
 @pytest.mark.parametrize("abrupt", [False, True])
-def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypatch, action, abrupt):
+@pytest.mark.parametrize("creation", ["before_turn", "mid_turn", "legacy"])
+def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypatch, action, abrupt, creation):
     from openprogram.agent.production_driver import CanonicalAgentAdapter
     from openprogram.agent.dispatcher.types import TurnRequest
     from openprogram.execution import restart, AttemptStore
@@ -188,6 +191,8 @@ def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypat
     from openprogram.execution.driver import DriverRegistry
 
     goals, chat, store = runtime
+    if creation == "mid_turn":
+        goals.apply_goal_action("goal-chat", "clear")
     stopping = [False]
     restarted = [False]
     now = [restart.time()]
@@ -213,6 +218,8 @@ def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypat
     def runner(*, request, cancel_event):
         calls.append(request)
         if len(calls) == 1:
+            if creation == "mid_turn":
+                chat.create(request.session_id, "finish the task")
             stopping[0] = not abrupt
         else:
             chat.update(request.session_id, "complete", expected=chat.current_identity())
@@ -233,6 +240,11 @@ def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypat
     assert goals.load_goal("goal-chat")["status"] == "active"
     assert store.list_finish_repairs()
     assert len(calls) == 1
+    if creation == "legacy":
+        saved = goals.load_goal("goal-chat")
+        saved.pop("continuation_policy", None)
+        saved.pop("continuation_restart", None)
+        goals.save_goal("goal-chat", saved)
 
     stopping[0] = False
     restarted[0] = True
@@ -249,7 +261,8 @@ def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypat
         now[0] += 7201
     fresh = RuntimeControlService(store, AttemptStore(store), DriverRegistry())
     fresh.replay_finish_repairs()
-    if action == "continue":
+    continued = action == "continue" and creation != "legacy"
+    if continued:
         assert done.wait(5), goals.load_goal("goal-chat")
         assert len(calls) == 2
         assert calls[1].tools_override == request.tools_override
@@ -258,5 +271,11 @@ def test_shutdown_completion_is_durable_and_replays_goal_once(runtime, monkeypat
         assert len(calls) == 1
         assert goals.load_goal("goal-chat")["status"] in {"paused", "paused_recoverable", "cancelled"}
     fresh.replay_finish_repairs()
-    assert len(calls) == (2 if action == "continue" else 1)
+    assert len(calls) == (2 if continued else 1)
     assert not store.list_finish_repairs()
+    if creation == "legacy" and action == "continue":
+        # An explicit owner resume upgrades old data and remains usable.
+        resumed = chat.resume("goal-chat")
+        chat.start_next(store, admission.execution_id, expected=chat.identity(resumed))
+        assert done.wait(5), goals.load_goal("goal-chat")
+        assert len(calls) == 2
