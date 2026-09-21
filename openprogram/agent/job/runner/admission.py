@@ -7,12 +7,14 @@ class AdmissionOperations:
     @staticmethod
     def _canonical_input(job: shared.Job, *, run_id: str | None,
                          parent_execution_id: str | None = None,
-                         permission_snapshot: shared.Mapping[str, shared.Any] | None = None) -> tuple[str, str, dict[str, shared.Any]]:
+                         permission_snapshot: shared.Mapping[str, shared.Any] | None = None,
+                         usage_goal: shared.Mapping[str, shared.Any] | None = None) -> tuple[str, str, dict[str, shared.Any]]:
         from openprogram.agent.job.input import JobAgentInputV1
 
         immutable = JobAgentInputV1.from_job(job, run_id=run_id,
                                             parent_execution_id=parent_execution_id,
-                                            permission_snapshot=permission_snapshot).to_dict()
+                                            permission_snapshot=permission_snapshot,
+                                            usage_goal=usage_goal).to_dict()
         payload = shared.json.dumps(
             immutable,
             ensure_ascii=False,
@@ -65,10 +67,19 @@ class AdmissionOperations:
         if job.source == "self_update_replan":
             from openprogram.self_update.delivery.restart import replan_permission_snapshot
             permission_snapshot = replan_permission_snapshot(self._execution_store, job)
-        run_id = parent.run_id if parent is not None else f"job-run-{job.id}"
+        canonical_parent = parent if parent is not None and parent.session_id == job.parent_session_id else None
+        run_id = canonical_parent.run_id if canonical_parent is not None else f"job-run-{job.id}"
+        usage_goal = None
+        if parent is not None and parent.status.value == "running" and parent.current_attempt_id is not None:
+            from openprogram.agent.run_control import get_current_execution_id, get_current_session_id
+            from openprogram.usage.context import GOAL_FIELDS, request_context
+            if get_current_execution_id() == parent.execution_id and get_current_session_id() == caller_session:
+                usage = request_context(caller_session)
+                if usage.goal_id:
+                    usage_goal = {key: getattr(usage, key) for key in GOAL_FIELDS}
         input_ref, input_hash, input_payload = self._canonical_input(
             job, run_id=run_id, parent_execution_id=parent.execution_id if parent else None,
-            permission_snapshot=permission_snapshot,
+            permission_snapshot=permission_snapshot, usage_goal=usage_goal,
         )
         revision = self._execution_store.create_revision(
             revision_id=f"job-revision-{input_hash[:24]}",
@@ -85,7 +96,9 @@ class AdmissionOperations:
         }
         self._execution_store.admit_execution(
             execution_id=job.id,
-            parent_execution_id=parent.execution_id if parent is not None else None,
+            # Canonical parentage is same-session. Cross-session delegation
+            # keeps exact caller provenance in immutable Job input instead.
+            parent_execution_id=canonical_parent.execution_id if canonical_parent is not None else None,
             session_id=job.parent_session_id,
             revision_id=revision.revision_id,
             input_ref=input_ref,
@@ -530,4 +543,3 @@ class AdmissionOperations:
         self._dispatch_wake.set()
 
         return job.id
-

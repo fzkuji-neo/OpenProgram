@@ -273,23 +273,7 @@ class ReservationsOperations:
     def start_provider_request(self, reservation_id: str) -> None:
         """Mark all reservations for a provider request as started."""
         with self.ledger.immediate() as conn:
-            changed = conn.execute(
-                """UPDATE usage_reservations
-                   SET state = 'started', request_started_at = ?
-                   WHERE reservation_id IN (?, ?) AND state = 'reserved'""",
-                (
-                    time.time(), reservation_id + ":token", reservation_id + ":cost",
-                ),
-            ).rowcount
-            if changed == 0:
-                existing = conn.execute(
-                    """SELECT 1 FROM usage_reservations
-                       WHERE reservation_id IN (?, ?)
-                         AND state IN ('started','settled')""",
-                    (reservation_id + ":token", reservation_id + ":cost"),
-                ).fetchone()
-                if existing is None:
-                    raise KeyError(reservation_id)
+            self.ledger.start_provider_reservation(conn, reservation_id)
 
 
     def settle_provider_request(self, reservation_id: str, event):
@@ -308,20 +292,7 @@ class ReservationsOperations:
                 return None
             if any(row["state"] == "released" for row in rows):
                 raise RuntimeError("cannot settle a released provider reservation")
-            attributed = event.model_copy(update={
-                "job_id": rows[0]["job_id"],
-                "budget_scope_id": rows[0]["budget_scope_id"],
-                "reservation_id": token_id,
-            })
-            self.ledger.append_in_transaction(conn, attributed)
-            conn.execute(
-                """UPDATE usage_reservations
-                   SET state = 'settled', settled_event_id = ?
-                   WHERE reservation_id IN (?, ?)
-                     AND state IN ('reserved','started')""",
-                (attributed.event_id, token_id, cost_id),
-            )
-            return attributed
+            return self.ledger.settle_provider_reservation(conn, reservation_id, event)
 
 
     def release_provider_request(self, reservation_id: str) -> bool:
@@ -384,4 +355,3 @@ class ReservationsOperations:
                    WHERE reservation_id = ?""",
                 (attributed.event_id, reservation_id),
             )
-

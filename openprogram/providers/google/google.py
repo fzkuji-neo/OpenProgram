@@ -299,10 +299,12 @@ async def stream_simple(
                 um = chunk.usage_metadata
                 usage_final = Usage(
                     tokens_reported=um.prompt_token_count is not None and um.candidates_token_count is not None,
-                    input=um.prompt_token_count or 0,
-                    output=um.candidates_token_count or 0,
+                    input=max(0, (um.prompt_token_count or 0) - (um.cached_content_token_count or 0)),
+                    cache_read=um.cached_content_token_count or 0,
+                    output=(um.candidates_token_count or 0) + (um.thoughts_token_count or 0),
                     total_tokens=um.total_token_count or 0,
                 )
+                partial.usage = usage_final
 
             prompt_feedback = getattr(chunk, "prompt_feedback", None)
             block_reason = getattr(prompt_feedback, "block_reason", None)

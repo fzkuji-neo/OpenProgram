@@ -10,10 +10,83 @@ import math
 import time
 import uuid
 from dataclasses import asdict
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 
 from .context import UsageContext, request_context
 from .event import UsageEvent
 from .recorder import build_message_event, run_usage_hooks
+
+
+def _exposure(conn, goal, sid, *, excluding=None):
+    """Known usage plus conservative outstanding bounds, across all revisions."""
+    from openprogram.providers.budget import QuotaExceeded
+    legacy = goal.get("legacy_usage") or {}
+    limits = goal.get("budget") or {}
+    tokens = int(legacy.get("total_tokens") or 0)
+    cost = Decimal(str(legacy.get("cost_usd") or 0)) * 1_000_000
+    if limits.get("max_tokens") and not legacy.get("tokens_known", True):
+        raise QuotaExceeded("quota.accounting_unavailable")
+    if limits.get("max_cost_usd") is not None and not legacy.get("cost_known", True):
+        raise QuotaExceeded("quota.cost_unavailable")
+    for row in conn.execute("""SELECT * FROM usage_requests
+            WHERE goal_session_id = ? AND goal_id = ? AND state != 'released'""", (sid, goal["goal_id"])):
+        if row["request_id"] == excluding:
+            continue
+        metadata = json.loads(row["metadata_json"])
+        reservation = metadata.get("reservation") or {}
+        if row["state"] == "prepared" and reservation.get("expires_at", float("inf")) <= time.time():
+            continue
+        event = UsageEvent.model_validate_json(row["receipt_json"]) if row["receipt_json"] else None
+        if event is not None and event.tokens_known:
+            tokens += event.total_tokens
+        elif reservation.get("token_reservation") is not None:
+            tokens += reservation["token_reservation"]
+        elif row["state"] != "prepared" and limits.get("max_tokens"):
+            raise QuotaExceeded("quota.accounting_unavailable")
+        if event is not None and event.cost_source != "unknown":
+            cost += Decimal(str(event.cost_total)) * 1_000_000
+        elif reservation.get("cost_reservation_microusd") is not None:
+            cost += reservation["cost_reservation_microusd"]
+        elif row["state"] != "prepared" and limits.get("max_cost_usd") is not None:
+            raise QuotaExceeded("quota.cost_unavailable")
+    return tokens, int(cost.to_integral_value(rounding=ROUND_CEILING))
+
+
+def _reserve(conn, goal, sid, model, options, provider_context, provider):
+    from openprogram.providers.budget import QuotaExceeded, estimate_input_upper_bound, requested_output_cap
+    from openprogram.providers.api_registry import has_audited_accounting
+    from openprogram.agent.resource_governance.contracts import plan_request_reservation
+    limits = goal.get("budget") or {}
+    token_limit, cost_limit = limits.get("max_tokens"), limits.get("max_cost_usd")
+    if not token_limit and cost_limit is None:
+        return None
+    if (not has_audited_accounting(provider, model.api) or provider_context is None
+            or getattr(options, "on_payload", None) is not None):
+        raise QuotaExceeded("quota.accounting_unavailable", "Hard Goal budget requires an audited request bound")
+    if cost_limit is not None and getattr(options, "service_tier", None) not in {None, "default", "standard"}:
+        raise QuotaExceeded("quota.cost_unavailable", "Requested service tier has no fixed cost ceiling")
+    tokens, cost = _exposure(conn, goal, sid)
+    plan = plan_request_reservation(
+        input_token_upper_bound=estimate_input_upper_bound(provider_context, options, model),
+        requested_max_output_tokens=requested_output_cap(options, model),
+        remaining_token_budget=max(0, token_limit - tokens) if token_limit else None,
+        model=model, cost_budget_configured=cost_limit is not None,
+    )
+    if not plan.allowed:
+        raise QuotaExceeded(plan.reason_code)
+    if cost_limit is not None:
+        ceiling = int((Decimal(str(cost_limit)) * 1_000_000).to_integral_value(rounding=ROUND_FLOOR))
+        if cost + plan.cost_reservation_microusd > ceiling:
+            raise QuotaExceeded("quota.cost_exhausted")
+    return dict(asdict(plan), expires_at=time.time() + 300)
+
+
+def _record_denial(sid, goal, exc):
+    from openprogram.programs.workflow.goal import chat
+    exhausted = exc.reason_code in {"quota.cost_exhausted", "quota.token_exhausted"}
+    goal.update(status="budget_exhausted" if exhausted else "paused_recoverable",
+                phase="terminal" if exhausted else "paused", last_reason=exc.reason_code)
+    chat.publish(sid, goal)
 
 
 class RequestReceipt:
@@ -23,10 +96,11 @@ class RequestReceipt:
         self.metadata = metadata
 
     @classmethod
-    def begin(cls, model, options):
+    def begin(cls, model, options, *, provider_context=None, provider=None, budget=None):
         from . import ledger
         from openprogram.programs.workflow.goal import chat
         import openprogram.programs.workflow.goal as goals
+        from openprogram.providers.budget import QuotaExceeded
 
         context = request_context(getattr(options, "session_id", None))
         if not context.goal_id:
@@ -54,12 +128,35 @@ class RequestReceipt:
                         "provider": model.provider, "api": model.api, "model_id": model.id,
                         "price": model.cost.model_dump(exclude_unset=True), "service_tier": getattr(options, "service_tier", None)}
             request_id = uuid.uuid4().hex
-            with ledger.default_ledger.immediate() as conn:
-                conn.execute("""INSERT INTO usage_requests
-                    (request_id, goal_session_id, goal_id, goal_revision, state, metadata_json, created_at)
-                    VALUES (?, ?, ?, ?, 'prepared', ?, ?)""",
-                    (request_id, sid, context.goal_id, context.goal_revision, json.dumps(metadata), now))
+            try:
+                with ledger.default_ledger.immediate() as conn:
+                    metadata["reservation"] = _reserve(conn, goal, sid, model, options, provider_context, provider)
+                    if budget is not None:
+                        if budget._governor.ledger._path().resolve() != ledger.default_ledger._path().resolve():
+                            raise QuotaExceeded("quota.accounting_unavailable", "Goal and Job accounting authorities differ")
+                        metadata["job_reservation_id"] = budget.reservation.reservation_id
+                        row = conn.execute("SELECT job_id, budget_scope_id FROM usage_reservations WHERE reservation_id = ?",
+                                           (budget.reservation.reservation_id + ":token",)).fetchone()
+                        if row is None:
+                            raise QuotaExceeded("quota.accounting_unavailable", "Job reservation is unavailable")
+                        metadata["job_id"], metadata["budget_scope_id"] = row[0], row[1]
+                    conn.execute("""INSERT INTO usage_requests
+                        (request_id, goal_session_id, goal_id, goal_revision, state, metadata_json, created_at)
+                        VALUES (?, ?, ?, ?, 'prepared', ?, ?)""",
+                        (request_id, sid, context.goal_id, context.goal_revision, json.dumps(metadata), now))
+            except QuotaExceeded as exc:
+                _record_denial(sid, goal, exc)
+                raise
         return cls(ledger.default_ledger, request_id, metadata)
+
+    def clamp(self, options, model):
+        from openprogram.providers.budget import BudgetedRequest
+        from openprogram.agent.resource_governance.contracts import RequestReservation
+        reservation = self.metadata.get("reservation")
+        if not reservation:
+            return options
+        plan = RequestReservation(**{k: v for k, v in reservation.items() if k != "expires_at"})
+        return BudgetedRequest("", None, plan).clamp(options, model)
 
     @classmethod
     def load(cls, ledger, request_id: str):
@@ -79,10 +176,35 @@ class RequestReceipt:
                     or goal.get("goal_id") != context["goal_id"] or goal.get("revision") != context["goal_revision"]
                     or goal.get("run_id") != context["goal_run_id"]):
                 raise goals.GoalConflictError("Goal changed before provider dispatch")
-            with self.ledger.immediate() as conn:
-                if conn.execute("UPDATE usage_requests SET state = 'started' WHERE request_id = ? AND state = 'prepared'",
-                                (self.request_id,)).rowcount != 1:
-                    raise RuntimeError("A provider request may only start once")
+            from openprogram.providers.budget import QuotaExceeded
+            try:
+                with self.ledger.immediate() as conn:
+                    reservation = self.metadata.get("reservation") or {}
+                    if reservation.get("expires_at", float("inf")) <= time.time():
+                        raise QuotaExceeded("quota.accounting_unavailable", "Goal request reservation expired before dispatch")
+                    limits = goal.get("budget") or {}
+                    tokens, cost = _exposure(conn, goal, context["goal_session_id"], excluding=self.request_id)
+                    for key, used, amount, reason in (
+                        ("max_tokens", tokens, reservation.get("token_reservation"), "token"),
+                        ("max_cost_usd", cost, reservation.get("cost_reservation_microusd"), "cost"),
+                    ):
+                        ceiling = limits.get(key)
+                        if ceiling is None:
+                            continue
+                        if amount is None:
+                            raise QuotaExceeded("quota.accounting_unavailable")
+                        if reason == "cost":
+                            ceiling = int((Decimal(str(ceiling)) * 1_000_000).to_integral_value(rounding=ROUND_FLOOR))
+                        if used + amount > ceiling:
+                            raise QuotaExceeded(f"quota.{reason}_exhausted")
+                    if conn.execute("UPDATE usage_requests SET state = 'started' WHERE request_id = ? AND state = 'prepared'",
+                                    (self.request_id,)).rowcount != 1:
+                        raise RuntimeError("A provider request may only start once")
+                    if self.metadata.get("job_reservation_id"):
+                        self.ledger.start_provider_reservation(conn, self.metadata["job_reservation_id"])
+            except QuotaExceeded as exc:
+                _record_denial(context["goal_session_id"], goal, exc)
+                raise
         self.refresh()
 
     def refresh(self):
@@ -109,11 +231,15 @@ class RequestReceipt:
             message.usage.requested_service_tier = data["service_tier"]
         event = build_message_event(model, message, context=UsageContext(**data["context"]),
                                     request_id=self.request_id, timestamp=data["created_at"])
-        if event is None or (not event.tokens_known and event.cost_source == "unknown"):
+        if event is None or (not event.tokens_known and event.cost_source == "unknown"
+                             and not event.total_tokens and not event.cost_total):
             return None
         if any(not math.isfinite(value) or value < 0 for value in (
                 event.cost_total, event.cost_input, event.cost_output, event.cost_cache_read, event.cost_cache_write)):
             raise ValueError("Provider reported invalid cost")
+        if data.get("job_reservation_id"):
+            event = event.model_copy(update={"job_id": data["job_id"], "budget_scope_id": data["budget_scope_id"],
+                                             "reservation_id": data["job_reservation_id"] + ":token"})
         return event
 
     def settle(self, message):
@@ -138,15 +264,39 @@ class RequestReceipt:
                              (event.model_dump_json(), self.request_id))
         return self.flush()
 
+    def observe(self, message):
+        """Persist cumulative lower bounds; only a terminal receipt settles."""
+        event = self.event(message)
+        if event is None:
+            return
+        changed = False
+        with self.ledger.immediate() as conn:
+            row = conn.execute("SELECT state, observed_json, receipt_json FROM usage_requests WHERE request_id = ?",
+                               (self.request_id,)).fetchone()
+            if row is None or row["state"] != "started" or row["receipt_json"]:
+                return
+            prior = UsageEvent.model_validate_json(row["observed_json"]) if row["observed_json"] else None
+            if prior:
+                # Providers publish cumulative snapshots, sometimes repeated or
+                # out of order. Do not add counters from two snapshots.
+                event = event.model_copy(update={
+                    "total_tokens": max(prior.total_tokens, event.total_tokens),
+                    "cost_total": max(prior.cost_total, event.cost_total),
+                })
+            if prior is None or (event.total_tokens, event.cost_total) != (prior.total_tokens, prior.cost_total):
+                conn.execute("UPDATE usage_requests SET observed_json = ? WHERE request_id = ?",
+                             (event.model_dump_json(), self.request_id))
+                changed = True
+        if changed:
+            self.refresh()
+
     def flush(self):
         with self.ledger.immediate() as conn:
-            row = conn.execute("SELECT receipt_json FROM usage_requests WHERE request_id = ? AND state IN ('started','settled')",
+            row = conn.execute("SELECT * FROM usage_requests WHERE request_id = ? AND state IN ('started','settled')",
                                (self.request_id,)).fetchone()
-            if row is None or not row[0]:
+            if row is None or not row["receipt_json"]:
                 return None
-            event = UsageEvent.model_validate_json(row[0])
-            self.ledger.append_in_transaction(conn, event)
-            conn.execute("UPDATE usage_requests SET state = 'settled' WHERE request_id = ?", (self.request_id,))
+            event = self.ledger.flush_request(conn, row)
         run_usage_hooks(event)
         return event
 

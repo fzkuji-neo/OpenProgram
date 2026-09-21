@@ -61,10 +61,11 @@ def _usage_from_chunk(u: Any) -> Usage:
     ``prompt_tokens_details.cached_tokens`` and DeepSeek-style top-level
     ``prompt_cache_hit_tokens``. Both report ``prompt_tokens`` INCLUSIVE
     of the cached part, so split it out (same semantics as
-    openai_responses.py). Reasoning tokens are likewise split out of
-    ``completion_tokens``.
+    openai_responses.py). Reasoning tokens are already included in billable
+    ``completion_tokens`` and must not be subtracted a second time.
     """
     usage = Usage(
+        tokens_reported=all(getattr(u, key, None) is not None for key in ("prompt_tokens", "completion_tokens")),
         input=getattr(u, "prompt_tokens", 0) or 0,
         output=getattr(u, "completion_tokens", 0) or 0,
         total_tokens=getattr(u, "total_tokens", 0) or 0,
@@ -76,11 +77,6 @@ def _usage_from_chunk(u: Any) -> Usage:
     if cached:
         usage.cache_read = cached
         usage.input = max(0, usage.input - cached)
-    details = getattr(u, "completion_tokens_details", None)
-    if details:
-        reasoning_tokens = getattr(details, "reasoning_tokens", 0) or 0
-        if reasoning_tokens:
-            usage.output = (getattr(u, "completion_tokens", 0) or 0) - reasoning_tokens
     ticks = getattr(u, "cost_in_usd_ticks", None)
     if isinstance(ticks, (int, float)) and ticks >= 0:
         usage.provider_cost_usd = ticks / 10_000_000_000
