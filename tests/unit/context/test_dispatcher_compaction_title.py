@@ -544,3 +544,24 @@ def test_web_compact_rejects_an_unknown_session(monkeypatch):
             "content": "compact: unknown session stale-session",
         },
     }]
+
+
+def test_title_supports_provider_without_verified_native_schema(monkeypatch):
+    from openprogram.providers.structured_output import (
+        StructuredOutputCapabilities, negotiate_structured_output,
+        parse_and_validate_json,
+    )
+    model = Model(id='deepseek-flash', name='DeepSeek', provider='deepseek',
+                  api='openai-completions', base_url='https://api.deepseek.com')
+    class PromptRuntime(_TitleRuntimeSpy):
+        def exec(self, **kwargs):
+            self.calls.append(kwargs)
+            output = kwargs['response_format']
+            plan = negotiate_structured_output(model, StructuredOutputCapabilities(), output)
+            assert plan.mode == 'prompt'
+            assert kwargs['toolset'] == 'none'
+            return parse_and_validate_json('{"title":"会话自动命名"}', output)
+    runtime = PromptRuntime()
+    _install_title_runtime(monkeypatch, runtime)
+    assert title_module._generate_llm_title('自动命名功能验收', '已记录') == '会话自动命名'
+    assert runtime.closed
