@@ -1,19 +1,24 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { CircleHelp, ExternalLink, MoreVertical, Pause, Play, X } from "lucide-react";
 
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { ActionCueTravel } from "./browser-control-bar";
 import { useTranslation } from "@/lib/i18n";
-import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
+import { activeThemeId } from "@/lib/prefs/theme-pref";
+import { MenuOptionContent } from "@/components/ui/menu-option-content";
+import { itemCls, MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
-import { useSidebarMenu, type SidebarMenuItem } from "@/components/sidebar/use-sidebar-menu";
+import { type SidebarMenuItem } from "@/components/sidebar/use-sidebar-menu";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
   browserTakeoverKind,
@@ -184,69 +189,73 @@ function PipMoreMenu({
   onToggleFollow: () => void;
 }) {
   const { text } = useTranslation();
-  const menu = useSidebarMenu();
+  const prefix = `pip-menu:${useId()}:`;
+  const overlay = desktopBridge()?.mainMenu;
+  const [open, setOpen] = useState(false);
+  const opened = useRef(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const dispatch = useRef<(id: string) => void>(() => {});
   const moreLabel = text("More", "更多");
   const followLabel = text("Automatically show the page the Agent is using", "自动显示 Agent 正在操作的网页");
-  const native = typeof window !== "undefined" && !!window.openprogramDesktop?.contextMenu;
-  const items: SidebarMenuItem[] = [
-    { id: "follow-page", label: followLabel, checked: following, onSelect: onToggleFollow },
-    {
-      id: "show-actions",
-      label: showLabel,
-      checked: showActionsEnabled(),
-      onSelect: () => { toggleShowActions(); },
-    },
-    {
-      id: "history",
-      label: historyLabel,
-      separatorBefore: true,
-      children: historyItems,
-    },
-  ];
-  if (native) {
-    return (
-      <button
-        type="button"
-        className={styles.webToolbarBtn}
-        title={moreLabel}
-        aria-label={moreLabel}
-        aria-haspopup="menu"
-        aria-expanded={menu.open}
-        onClick={(event) => {
-          if (menu.open) menu.close();
-          else menu.show(event, items);
-        }}
-      >
-        <MoreVertical size={14} aria-hidden="true" />
-      </button>
-    );
-  }
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={styles.webToolbarBtn}
-          title={moreLabel}
-          aria-label={moreLabel}
-        >
-          <MoreVertical size={14} aria-hidden="true" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className={MENU_PANEL}>
-        <DropdownMenuItem role="menuitemcheckbox" aria-checked={following} onSelect={onToggleFollow}>
-          {following ? "✓ " : ""}{followLabel}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => { toggleShowActions(); }}>
-          {showActionsEnabled() ? "✓ " : ""}{showLabel}
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled>{historyLabel}</DropdownMenuItem>
-        {historyItems.map((item) => (
-          <DropdownMenuItem key={item.id} disabled>{item.label}</DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+  const description = text(
+    "When enabled, the preview switches to the page the Agent is using. When disabled, it keeps the current page. This only changes the preview, not the Agent's actions.",
+    "开启后，小窗随 Agent 的操作切换网页；关闭后，保持当前网页。只改变显示内容，不影响 Agent 执行。",
   );
+  const items: SidebarMenuItem[] = [
+    { id: `${prefix}follow-page`, label: followLabel, description, checked: following, onSelect: onToggleFollow },
+    { id: `${prefix}show-actions`, label: showLabel, checked: showActionsEnabled(), onSelect: () => { toggleShowActions(); } },
+    { id: `${prefix}history`, label: historyLabel, separatorBefore: true,
+      children: historyItems.map(item => ({ ...item, id: `${prefix}history:${item.id}` })) },
+  ];
+  dispatch.current = id => items.find(item => item.id === id)?.onSelect?.();
+  useEffect(() => {
+    if (!overlay) return;
+    const action = overlay.onAction(id => {
+      if (opened.current && id.startsWith(prefix)) dispatch.current(id);
+    });
+    const closed = overlay.onClosed?.(() => {
+      if (!opened.current) return;
+      opened.current = false;
+      setOpen(false);
+      trigger.current?.focus();
+    });
+    return () => {
+      action();
+      closed?.();
+      if (opened.current) overlay.close();
+      opened.current = false;
+    };
+  }, [overlay, prefix]);
+  const button = <button ref={trigger} type="button" className={styles.webToolbarBtn}
+    title={moreLabel} aria-label={moreLabel} aria-haspopup="menu" aria-expanded={open}
+    onClick={overlay ? () => {
+      if (opened.current) { overlay.close(); return; }
+      const rect = trigger.current!.getBoundingClientRect();
+      overlay.open({
+        theme: activeThemeId(), width: 360,
+        anchor: { x: Math.max(8, rect.right - 360), y: rect.bottom + 4, vw: window.innerWidth, vh: window.innerHeight },
+        items: items.map(({ onSelect: _onSelect, ...item }) => item),
+      });
+      opened.current = true;
+      setOpen(true);
+    } : undefined}><MoreVertical size={14} aria-hidden="true" /></button>;
+  if (overlay) return button;
+  return <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
+    <DropdownMenuContent className={`${MENU_PANEL} w-[360px] max-w-[calc(100vw-16px)]`}>
+      {items.slice(0, 2).map(item => <DropdownMenuItem key={item.id}
+        role="menuitemcheckbox" aria-checked={item.checked} className={itemCls(false)} onSelect={item.onSelect}>
+        <MenuOptionContent label={item.label} description={item.description} checked={item.checked} />
+      </DropdownMenuItem>)}
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className={itemCls(false)}>{historyLabel}</DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className={`${MENU_PANEL} max-w-[calc(100vw-16px)]`}>
+          {historyItems.map(item => <DropdownMenuItem key={item.id} disabled className={itemCls(false)}>{item.label}</DropdownMenuItem>)}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    </DropdownMenuContent>
+  </DropdownMenu>;
+
 }
 
 export function WebTabPip() {
@@ -697,6 +706,7 @@ export function WebTabPip() {
             </button>
           ) : null}
           <PipMoreMenu
+            key={`${sessionId}:${branchId}:${tabId}`}
             historyItems={historyItems}
             historyLabel={historyLabel}
             showLabel={showLabel}

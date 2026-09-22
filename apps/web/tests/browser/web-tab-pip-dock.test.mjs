@@ -14,6 +14,7 @@ const boundsCalls = [];
 await build({
   absWorkingDir: webPath,
   stdin: { contents: `
+    export { default as ContextMenuPage } from "./app/menu-overlay/context-menu/page";
     export { WebTabPip } from "./components/center-tabs/web-tab-pip";
     export { WebTabPane } from "./components/center-tabs/web-tab-pane";
     export { useCenterTabs } from "./lib/tabs/center-tabs-store";
@@ -64,12 +65,13 @@ await build({
             return { id: "assoc-1", resource_id: "page-1", control_state: "paused", session_id: "a", conversation_session_id: "a", tab_id: "w:https://page.test/1", kind: "web", title: "Resource test 1", target: "https://page.test/1", status: "open", source: "browser", generation: 1, sequence: 3 };
           }`
       : a.path === "next-nav"
-      ? "export const useRouter = () => ({ push() {}, replace() {} }); export const usePathname = () => '/chat';"
+      ? "export const useRouter = () => ({ push() {}, replace() {} }); export const usePathname = () => '/chat'; export const useSearchParams = () => globalThis.menuParams || new URLSearchParams();"
       : `
         const bounds = globalThis.webTabBoundsCalls;
         const removed = globalThis.webTabBoundsRemoved;
         export function desktopBridge() {
           return {
+            mainMenu: window.openprogramDesktop?.mainMenu,
             webTab: {
               syncVisible: globalThis.livePipTest ? () => {} : undefined,
               ensure() {},
@@ -239,7 +241,7 @@ HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const {
-  WebTabPip, WebTabPane, useCenterTabs, useWebTabPip,
+  ContextMenuPage, WebTabPip, WebTabPane, useCenterTabs, useWebTabPip,
   ingestBrowserResource, resetBrowserResources, getPreviewPreference, selectResourcePreview,
   togglePreviewExpanded, hideResourcePreview, followCurrentBranch, getSnapshot, setSnapshot,
   pipChatRect, pipCoversCenter, pipHostMode, pipPresentationSize,
@@ -299,20 +301,26 @@ function chromeButton(host, label) {
     || button.textContent === label);
 }
 
-function installNativeMenu() {
-  const popups = [];
-  const closed = [];
-  const resolvers = [];
+function installOverlayMenu() {
+  const popups = [], closed = [], resolvers = [];
+  const actions = new Set(), closures = new Set();
   window.openprogramDesktop = {
-    contextMenu: {
-      popup(request) {
+    contextMenu: { popup() { return Promise.resolve(null); }, close() {} },
+    mainMenu: {
+      open(request) {
         popups.push(request);
-        return new Promise(resolve => { resolvers.push(resolve); });
+        resolvers.push(id => {
+          const item = request.items.find(item => item.id.endsWith(":" + id));
+          for (const cb of actions) cb(item?.id || id);
+          for (const cb of closures) cb();
+        });
       },
-      close(id) { closed.push(id); },
+      close() { closed.push(true); for (const cb of closures) cb(); },
+      onAction(cb) { actions.add(cb); return () => actions.delete(cb); },
+      onClosed(cb) { closures.add(cb); return () => closures.delete(cb); },
     },
   };
-  return { popups, closed, resolvers };
+  return { popups, closed, resolvers, actions, closures, dismiss() { for (const cb of closures) cb(); } };
 }
 
 function clickButton(button, { detail = 0, clientX = 12, clientY = 34 } = {}) {
@@ -427,15 +435,17 @@ test("preview chrome offers a close icon and omits pin and expand controls", asy
 
 async function toggleFollowMenu(host, menu, expectedChecked) {
   await act(async () => clickButton(chromeButton(host, "More")));
-  const item = menu.popups.at(-1).items.find(item => item.id === "follow-page");
+  const item = menu.popups.at(-1).items.find(item => item.id.endsWith(":follow-page"));
   assert.ok(item);
   assert.equal(item.label, "Automatically show the page the Agent is using");
   assert.equal(item.checked, expectedChecked);
+  assert.match(item.description, /When enabled.*When disabled/s);
+  assert.equal(menu.popups.at(-1).width, 360);
   await act(async () => menu.resolvers.at(-1)("follow-page"));
 }
 
 test("More explains follow mode and toggles it without controlling execution", async () => {
-  const menu = installNativeMenu();
+  const menu = installOverlayMenu();
   await withShell(async ({ host, session }) => {
     await toggleFollowMenu(host, menu, false);
     assert.equal(getPreviewPreference("a", null).mode, "follow");
@@ -565,8 +575,8 @@ test("expand after a stored rect does not write the expanded size into collapse"
   });
 });
 
-test("PiP More native history is a reachable submenu, not a disabled parent", async () => {
-  const menu = installNativeMenu();
+test("PiP More custom history is a reachable submenu, not a disabled parent", async () => {
+  const menu = installOverlayMenu();
   await withShell(async ({ host }) => {
     await act(async () => {
       recordOperationCue({
@@ -588,12 +598,12 @@ test("PiP More native history is a reachable submenu, not a disabled parent", as
     assert.equal(menu.popups.length, 1);
     assert.equal(menu.popups[0].items.some(item => item.id === "follow" || item.label === "Follow"), false);
     assert.equal(menu.popups[0].items.some(item => item.id === "pin" || /Pin preview|Unpin preview/.test(item.label || "")), false);
-    const history = menu.popups[0].items.find(item => item.id === "history");
+    const history = menu.popups[0].items.find(item => item.id.endsWith(":history"));
     assert.ok(history);
     assert.equal(history.disabled, undefined);
     assert.equal(history.label, "Operation history");
     assert.deepEqual(history.children, [
-      { id: "op-1", label: "click · acknowledged", disabled: true },
+      { id: history.children[0].id, label: "click · acknowledged", disabled: true },
     ]);
     assert.equal(document.querySelector("[data-native-view-occluder]"), null);
     assert.equal(document.querySelector('[role="menu"]'), null);
@@ -1128,7 +1138,7 @@ test("parent resize during drag does not write the store; release clamps to the 
 });
 
 test("follow menu selects latest Agent page and unchecked holds current page", async () => {
-  const menu = installNativeMenu();
+  const menu = installOverlayMenu();
   await withShell(async ({ host, page, session }) => {
     const second = {
       id: "w:https://page.test/2",
@@ -1247,4 +1257,44 @@ test("live PiP registers the existing page and keeps it visible while dragging w
       assert.ok(useCenterTabs.getState().tabs.some(tab => tab.id === page.id));
     }, { capture: async () => { captures++; return null; } });
   } finally { globalThis.livePipTest = false; }
+});
+
+
+test("More cancellation and unmount discard stale actions and remove listeners", async () => {
+  const menu = installOverlayMenu();
+  await withShell(async ({ host }) => {
+    await act(async () => clickButton(chromeButton(host, "More")));
+    const old = menu.popups[0].items[0].id;
+    await act(async () => { for (const cb of menu.actions) cb("tabmenu:close"); });
+    assert.equal(getPreviewPreference("a", null).mode, "manual");
+    await act(async () => menu.dismiss());
+    assert.equal(chromeButton(host, "More").getAttribute("aria-expanded"), "false");
+    await act(async () => { for (const cb of menu.actions) cb(old); });
+    assert.equal(getPreviewPreference("a", null).mode, "manual");
+    await act(async () => clickButton(chromeButton(host, "More")));
+    await act(async () => clickButton(chromeButton(host, "Close preview")));
+    assert.equal(menu.closed.length, 1);
+    assert.equal(menu.actions.size, 0);
+    assert.equal(menu.closures.size, 0);
+  });
+});
+
+test("application menu renders an unchecked box and a separate wrapping explanation", async () => {
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  globalThis.menuParams = new URLSearchParams({ width: "360", items: JSON.stringify([
+    { id: "follow", label: "Automatically show Agent page", checked: false,
+      description: "When enabled, follow the page. <script>not markup</script>" },
+  ]) });
+  try {
+    const { document: doc } = parseHTML(renderToStaticMarkup(createElement(ContextMenuPage)));
+    const option = doc.querySelector('[role="menuitemcheckbox"]');
+    assert.equal(option.getAttribute("aria-checked"), "false");
+    const title = [...option.querySelectorAll("span")].find(el => el.textContent === "Automatically show Agent page");
+    assert.ok(title);
+    assert.match(title.className, /block whitespace-normal/);
+    assert.match(title.nextElementSibling.textContent, /When enabled/);
+    assert.match(title.nextElementSibling.className, /block whitespace-normal/);
+    assert.ok(option.querySelector('[aria-hidden="true"]'));
+    assert.equal(doc.querySelector("script"), null);
+  } finally { delete globalThis.menuParams; }
 });

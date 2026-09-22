@@ -21,11 +21,13 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Bookmark, Check, ChevronRight, Folder } from "lucide-react";
 
 import { itemCls, MENU_PANEL, MENU_SEPARATOR } from "@/components/chat/top-bar/menu-styles";
+import { MenuOptionContent } from "@/components/ui/menu-option-content";
 import { isThemeId } from "@/lib/prefs/theme-pref";
 
 interface ContextMenuItem {
   id: string;
   label: string;
+  description?: string;
   iconUrl?: string;
   icon?: "folder";
   disabled?: boolean;
@@ -134,15 +136,20 @@ function NestedMenuItems({ items }: { items: ContextMenuItem[] }) {
         <DropdownMenuPrimitive.Item
           disabled={item.disabled}
           className={`${itemCls(false)} w-full min-w-0 outline-none data-[highlighted]:bg-bg-hover data-[highlighted]:text-text-bright data-[disabled]:pointer-events-none data-[disabled]:opacity-55`}
-          title={item.label}
+          role={typeof item.checked === "boolean" ? "menuitemcheckbox" : "menuitem"}
+          aria-checked={item.checked}
+          title={item.description ? undefined : item.label}
           onSelect={() => choose(item)}
         >
+          {item.description || typeof item.checked === "boolean" ? <MenuOptionContent
+            label={item.label} description={item.description} checked={item.checked} /> : <>
           {hasItemIcon(item) ? (
             <span className="inline-flex w-[14px] shrink-0 items-center justify-center">
               <ItemIcon item={item} />
             </span>
           ) : null}
-          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+          <span className="min-w-0 flex-1 truncate">{item.label}</span></>}
+
         </DropdownMenuPrimitive.Item>
       )}
     </div>
@@ -153,10 +160,12 @@ function NestedContextMenu({
   items,
   x,
   y,
+  width,
 }: {
   items: ContextMenuItem[];
   x: number;
   y: number;
+  width?: number;
 }) {
   const close = () => mainMenuBridge()?.close();
   return (
@@ -176,7 +185,7 @@ function NestedContextMenu({
           sideOffset={0}
           collisionPadding={8}
           className={`${MENU_PANEL} w-[280px] max-w-[calc(100vw-16px)] outline-none`}
-          style={{ width: NESTED_MENU_WIDTH }}
+          style={{ width: width || NESTED_MENU_WIDTH }}
           onEscapeKeyDown={close}
           onPointerDownOutside={close}
           onPointerEnter={cancelHoverClose}
@@ -319,6 +328,7 @@ function ContextMenuOverlayPage() {
         items={items}
         x={menuState.x}
         y={menuState.y}
+        width={requestedWidth}
       />
     );
   }
@@ -358,8 +368,8 @@ function ContextMenuOverlayPage() {
           <div key={item.id}>
             {item.separatorBefore ? <div className={MENU_SEPARATOR} /> : null}
             <div
-              role="menuitemcheckbox"
-              aria-checked={item.checked || undefined}
+              role={typeof item.checked === "boolean" ? "menuitemcheckbox" : "menuitem"}
+              aria-checked={item.checked}
               aria-disabled={item.disabled || undefined}
               tabIndex={-1}
               className={itemCls(i === active && !item.disabled)}
@@ -373,6 +383,7 @@ function ContextMenuOverlayPage() {
               }}
               onClick={() => choose(item)}
             >
+              {item.description ? <MenuOptionContent label={item.label} description={item.description} checked={item.checked} /> : <>
               {hasItemIcon(item) ? (
                 <span className="inline-flex w-[14px] shrink-0 items-center justify-center">
                   <ItemIcon item={item} />
@@ -385,7 +396,8 @@ function ContextMenuOverlayPage() {
                 title={item.label}
               >
                 {item.label}
-              </span>
+              </span></>}
+
             </div>
           </div>
         ))}

@@ -319,6 +319,8 @@ export interface DesktopTerminalApi {
 export interface DesktopContextMenuItem {
   id: string;
   label: string;
+  /** Separate explanatory text in application HTML menus. */
+  description?: string;
   iconUrl?: string;
   icon?: "folder";
   disabled?: boolean;
