@@ -1,4 +1,6 @@
-# Memory — 记忆系统设计
+<div id="memory-记忆系统设计"></div>
+
+# 阅读指南
 
 ## 定义
 
@@ -45,16 +47,15 @@ commit 到实体记忆，也没有 Graph 视图。阅读代码或维护文档时
 |------|------|
 | [`overview.zh.md`](overview.zh.md) | 当前Source、Topic与派生视图架构，自动writer，权限边界，事务、失败行为和实现记录 |
 | [`written-marker.zh.md`](written-marker.zh.md) | 记忆怎么知道哪些轮次已经写过，分四层：已替换的位置游标、references下八个框架、已实现的节点marker，以及仍延期的事件通知方案 |
-| [`written-marker.html`](written-marker.html) | 上述四层的可视化：序号从哪来、分叉时漏掉什么、八个框架并排、走行与三步写入的顺序、以及从记忆自身内容推导的那条路 |
-| [`memory-architecture.html`](memory-architecture.html) | 可视化：两个写入入口、五步写入、暂存事务、写入游标、常驻块归谁维护、九个接口方法的接线状况、失败契约 |
-| [`memory-comparison.html`](memory-comparison.html) | 可视化：`references/` 下八个框架怎么写长期记忆、怎么记住哪些还没写，八个维度逐条对照，包括分叉之后各家的游标怎么办、各家的常驻块归谁维护，以及我们的选择和两处计划中的改动落在哪一格 |
-| [`memory-adoption.html`](memory-adoption.html) | 三层可视化：从那份对照里挑出的四条做法，放进我们的结构各要付什么代价，以及逐条判决（三条采纳，一条按实测的每轮耗时否掉） |
-| [`speaker-identity.html`](speaker-identity.html) | 三层可视化：改之前是什么样（几个人共用一通会话、身份断在哪两处）、references下八个框架各自怎么做、我们怎么做的（两个文件，已落地），以及这个形状留下的两件事（发信人能在正文里打第二个标签、没有键可以按人过滤记忆）和收口它们的那个字段 |
-| [`authority-landscape.html`](authority-landscape.html) | 当前owner/paired权限方法、本地参考框架证据、采用/修改/拒绝记录、执行顺序可视化和实现进度 |
-| [`authority-handoff.md`](authority-handoff.md) | 已定案的权限与writer决策、延期边界、review处理结果和实现交接 |
-| [`git-as-entity-memory.md`](git-as-entity-memory.md) | 实体层的 git 底座（Session-Git + Project-Git） |
-| [`entity-memory.md`](entity-memory.md) | 实体记忆：Session-Git + Project-Git，按生命周期组织 |
-| [`virtual-memory.md`](virtual-memory.md) | 抽象记忆：Timeline + Graph + Core，按类型 × 生命周期组织 |
+| [`written-marker.html`](written-marker.zh.html) | 上述四层的可视化：序号从哪来、分叉时漏掉什么、八个框架并排、走行与三步写入的顺序、以及从记忆自身内容推导的那条路 |
+| [`architecture.html`](architecture.zh.html) | 可视化：两个写入入口、五步写入、暂存事务、写入游标、常驻块归谁维护、九个接口方法的接线状况、失败契约 |
+| [`comparison.html`](comparison.zh.html) | 可视化：`references/` 下八个框架怎么写长期记忆、怎么记住哪些还没写，八个维度逐条对照，包括分叉之后各家的游标怎么办、各家的常驻块归谁维护，以及我们的选择和两处计划中的改动落在哪一格 |
+| [`adoption.html`](adoption.zh.html) | 三层可视化：从那份对照里挑出的四条做法，放进我们的结构各要付什么代价，以及逐条判决（三条采纳，一条按实测的每轮耗时否掉） |
+| [`speaker-identity.html`](speaker-identity.zh.html) | 三层可视化：改之前是什么样（几个人共用一通会话、身份断在哪两处）、references下八个框架各自怎么做、我们怎么做的（两个文件，已落地），以及这个形状留下的两件事（发信人能在正文里打第二个标签、没有键可以按人过滤记忆）和收口它们的那个字段 |
+| [`authority-landscape.html`](authority-landscape.zh.html) | 当前owner/paired权限方法、本地参考框架证据、采用/修改/拒绝记录、执行顺序可视化和实现进度 |
+| [`authority-handoff.md`](authority-handoff.zh.md) | 已定案的权限与writer决策、延期边界、review处理结果和实现交接 |
+| [基于 Git 的实体记忆：未实现提案](entity-memory-proposal.zh.md) | 生命周期、回放、一致性与项目集成提案 |
+| [`virtual-memory.md`](virtual-memory.zh.md) | 抽象记忆：Timeline + Graph + Core，按类型 × 生命周期组织 |
 
 ## 实现状态
 
@@ -62,4 +63,4 @@ commit 到实体记忆，也没有 Graph 视图。阅读代码或维护文档时
 
 记忆工具、CLI和Web UI已经注册。已提交基线包含writer状态、一次性trusted Source backfill、`memory.backend=none`边界以及从SessionDB到watcher状态的组合集成测试。真实writer验收已处理2条符合写入条件的消息，此后历史backfill已在正式工作区执行完毕：154个frame中有137个被引用，共232次引用出现。
 
-Topic block新增的Source引用必须解析到`trusted` frame，并且必须属于本次事务自己归档的证据，因此任何工具路径都无法引用`pending` Source或把无关Source挂到新段落上。写入失败归入一个封闭的`MemoryWriteFailureCode`枚举，状态文件、CLI、工具、API和Web UI共用同一契约；idle watcher在跨进程锁下逐条持久化终态结果；未配对群聊归档有明确的频率与存储上限。按请求方档位过滤读取已部分实现：`memory.read`独立成capability，读取路径接收调用方解析好的档位，pending证据支撑的block不进入召回与Core；按档位删改block正文仍见[`authority-handoff.md`](authority-handoff.md)设计。越权请求hold队列、分支语义provenance、跨会话spawn关系、实体Git层、Graph视图和事件通知writer仍作为独立设计延期。
+Topic block新增的Source引用必须解析到`trusted` frame，并且必须属于本次事务自己归档的证据，因此任何工具路径都无法引用`pending` Source或把无关Source挂到新段落上。写入失败归入一个封闭的`MemoryWriteFailureCode`枚举，状态文件、CLI、工具、API和Web UI共用同一契约；idle watcher在跨进程锁下逐条持久化终态结果；未配对群聊归档有明确的频率与存储上限。按请求方档位过滤读取已部分实现：`memory.read`独立成capability，读取路径接收调用方解析好的档位，pending证据支撑的block不进入召回与Core；按档位删改block正文仍见[`authority-handoff.md`](authority-handoff.zh.md)设计。越权请求hold队列、分支语义provenance、跨会话spawn关系、实体Git层、Graph视图和事件通知writer仍作为独立设计延期。

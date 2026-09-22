@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OpenProgram · Composer Tool Profile 菜单</title>
+<title>OpenProgram · Composer Tool Profile Menu</title>
 <style>
   :root { color-scheme:dark; --bg:#11141a; --panel:#181d26; --line:#303a4a;
     --text:#dce3ec; --muted:#96a1b1; --blue:#72a8ff; --green:#55d69c;
@@ -30,49 +30,49 @@
 </style>
 </head>
 <body><main>
-  <h1>Composer Tool Profile 菜单设计</h1>
-  <p class="sub">范围：<code>ControlsCluster</code> 中 Tools 行右侧齿轮打开的二级菜单。本文同时作为单任务设计、实施 brief 和证据 ledger。</p>
-  <div class="lead">二级菜单使用已安装的 Base UI <code>Menu.SubmenuRoot</code>、<code>SubmenuTrigger</code>、<code>Portal</code> 和 <code>Positioner</code>。打开状态受 React 控制；齿轮只响应点击，鼠标移出不关闭；点击外部、Escape、选择 profile 或关闭一级菜单时关闭。</div>
+  <h1>Composer Tool Profile Menu Design</h1>
+  <p class="sub">Scope:<code>ControlsCluster</code> the submenu opened by the gear on the right of the Tools row. This page also serves as the task design, implementation brief and evidence ledger.</p>
+  <div class="lead">The submenu uses the installed Base UI <code>Menu.SubmenuRoot</code>, <code>SubmenuTrigger</code>, <code>Portal</code> and <code>Positioner</code>. React controls its open state. The gear responds only to clicks; moving the pointer away does not close it. Outside clicks, Escape, profile selection and closing the parent menu close it.</div>
 
-  <h2>当前实现与已验证缺口</h2>
-  <p>一级菜单通过 <code>Menu.Portal</code> 挂载到 document body，positioner 使用 <code>z-index: 200</code>。失败实现把二级菜单作为 composer 内的 <code>position: fixed</code> 节点，并增加透明 backdrop。composer 的 <code>.inputArea</code> 自身是 <code>z-index: 5</code> 的层叠上下文，因此二级节点即使设置 <code>z-index: 9999</code>，仍位于 body portal 的一级菜单之后。截图中的一级菜单覆盖二级菜单由此产生。</p>
+  <h2>Current implementation and verified gap</h2>
+  <p>The parent menu is mounted through <code>Menu.Portal</code> on document body; its positioner uses <code>z-index: 200</code>. The failed implementation places the submenu inside the composer as a <code>position: fixed</code> node and adds a transparent backdrop. The composer <code>.inputArea</code> itself is a <code>z-index: 5</code> stacking context. Even with <code>z-index: 9999</code>, the submenu stays behind the parent menu in the body portal. This causes the overlap visible in the screenshot.</p>
 
-  <h2>参考实现比较</h2>
-  <div class="table-wrap" role="region" aria-label="参考实现比较表格横向滚动区域" data-scroll-region tabindex="0"><table><thead><tr><th>方案</th><th>能力</th><th>结论</th></tr></thead><tbody>
-    <tr><td>Base UI submenu</td><td>受控 open、click trigger、outside press、Escape、focus、portal、floating position</td><td class="ok">采用；项目已安装且原代码已使用</td></tr>
-    <tr><td>手写 fixed + backdrop</td><td>点击状态可实现；缺少 portal 层级、自动 flip、完整键盘与 focus 行为</td><td>拒绝；重复已有基础设施并产生当前缺陷</td></tr>
-    <tr><td>原生 Popover API</td><td>top layer 与 light dismiss；不提供现有 Menu 的 roving focus、submenu 关系和定位合同</td><td>本次不采用；会同时维护两套菜单语义</td></tr>
+  <h2>Reference comparison</h2>
+  <div class="table-wrap" role="region" aria-label="Horizontally scrollable reference comparison table" data-scroll-region tabindex="0"><table><thead><tr><th>Option</th><th>Capabilities</th><th>Decision</th></tr></thead><tbody>
+    <tr><td>Base UI submenu</td><td>Controlled open state, click trigger, outside press, Escape, focus, portal and floating position</td><td class="ok">Adopted; already installed and used by the original implementation</td></tr>
+    <tr><td>Manual fixed positioning and backdrop</td><td>Click state is possible, but portal ordering, automatic flip and complete keyboard/focus behavior are missing</td><td>Rejected; duplicates existing infrastructure and causes the current defect</td></tr>
+    <tr><td>Native Popover API</td><td>Top layer and light dismissal, but lacks the existing Menu roving-focus, submenu and positioning contracts</td><td>Not adopted here; would maintain two menu semantics</td></tr>
   </tbody></table></div>
 
-  <h2>目标状态与边界</h2>
+  <h2>Target state and boundaries</h2>
   <div class="grid">
-    <section class="card"><h3>状态</h3><ul><li><code>profileMenuOpen</code> 是唯一二级 open 状态。</li><li>一级关闭时显式清除二级状态。</li><li>profile 选择沿用 <code>switchProfile</code>。</li></ul></section>
-    <section class="card"><h3>DOM 与层级</h3><ul><li>两级菜单均由 Base UI portal 挂到 body。</li><li>一级 positioner 为 200，二级为 201。</li><li>Base UI 负责 anchor、flip 和碰撞处理。</li></ul></section>
-    <section class="card"><h3>明确排除</h3><ul><li>不修改 Tools 行开关语义。</li><li>不增加依赖或全局 overlay 管理器。</li><li>不改 profile 数据、后端或其他弹层。</li></ul></section>
+    <section class="card"><h3>State</h3><ul><li><code>profileMenuOpen</code> is the only submenu open state.</li><li>Explicitly clear submenu state when the parent closes.</li><li>Profile selection continues using <code>switchProfile</code>.</li></ul></section>
+    <section class="card"><h3>DOM and ordering</h3><ul><li>Both menus use Base UI portals mounted on body.</li><li>The parent positioner is 200 and the submenu is 201.</li><li>Base UI handles anchoring, flipping and collisions.</li></ul></section>
+    <section class="card"><h3>Explicit exclusions</h3><ul><li>Do not change the Tools row toggle semantics.</li><li>Do not add dependencies or a global overlay manager.</li><li>Do not change profile data, the backend or other overlays.</li></ul></section>
   </div>
-  <p>信任边界、隐私、并发和取消均不涉及：本改动只控制本地展示状态，不读写新的持久数据，不发起网络请求。</p>
-  <p>Tools 视觉行使用一个 <code>role="none"</code> 容器，内部放置两个同级且非嵌套的 menuitem：Tools <code>Menu.Item</code> 和齿轮 <code>SubmenuTrigger</code>。鼠标和键盘都能分别激活两个动作；激活 Tools 会切换开关并关闭 profile，激活齿轮只切换 profile。视觉必须保持原布局：Tools 标签在左，右侧先显示齿轮，启用时再在最右侧显示勾；齿轮的 22px 尺寸、14px 图标及其与勾的间距不变。Base UI 会用 <code>sibling-open</code> 原因报告父菜单 item 的 pointer move，本组件只忽略这一种关闭原因；outside press、Escape、item press 和父菜单关闭等其他原因仍由 Base UI 处理。</p>
+  <p>No trust, privacy, concurrency or cancellation boundary is involved: this change controls local presentation only, without new persisted data or network requests.</p>
+  <p>The Tools visual row uses a <code>role="none"</code> container with two sibling, non-nested menuitems: the Tools <code>Menu.Item</code> and gear <code>SubmenuTrigger</code>. Mouse and keyboard can activate each independently. Tools toggles the setting and closes the profile menu; the gear only toggles the profile menu. Preserve the original layout: Tools label on the left, gear on the right, and the enabled checkmark at the far right. Preserve the 22px gear button, 14px icon and spacing before the checkmark. Base UI reports pointer moves over parent items with the <code>sibling-open</code> reason. This component ignores only that closing reason; Base UI still handles outside press, Escape, item press and parent closure.</p>
 
-  <h2>实施 brief 与验收</h2>
-  <p>生产文件：<code>apps/web/components/chat/composer/controls/controls-cluster.tsx</code>、<code>composer.module.css</code>。回归入口：<code>npm run check:composer-tool-profile</code>。兼容要求：Tools 行仍切换 tools；profile 项仍调用现有回调；一级菜单其他项不变。</p>
+  <h2>Implementation brief and acceptance</h2>
+  <p>Production file:<code>apps/web/components/chat/composer/controls/controls-cluster.tsx</code>, <code>composer.module.css</code>. Regression entry:<code>npm run check:composer-tool-profile</code>. Compatibility: the Tools row still toggles tools, profile items use the existing callback, and other parent menu items remain unchanged.</p>
   <ul>
-    <li>点击齿轮打开二级菜单，移动鼠标到菜单外不会关闭。</li>
-    <li>二级面板全部绘制在一级面板之上，不受 composer 层叠上下文限制。</li>
-    <li>点击外部、按 Escape、选择 profile、关闭一级菜单均关闭二级菜单。</li>
-    <li>Tools 行保持原视觉顺序：<code>标签 · 齿轮 · 勾</code>，不得改成 <code>标签 · 勾 · 齿轮</code>。</li>
-    <li>不再存在 <code>menuPosition</code>、<code>profileMenuBackdrop</code> 或手写 fixed 坐标。</li>
+    <li>Click the gear to open the submenu; moving outside does not close it.</li>
+    <li>The entire submenu renders above the parent, unaffected by the composer stacking context.</li>
+    <li>Outside clicks, Escape, profile selection and parent closure all close the submenu.</li>
+    <li>Preserve the Tools row order: <code>label · gear · checkmark</code>, never <code>label · checkmark · gear</code>.</li>
+    <li>There is no longer a <code>menuPosition</code>, <code>profileMenuBackdrop</code> or manually computed fixed coordinates.</li>
   </ul>
 
-  <h2>当前实现与验证证据</h2>
-  <div class="table-wrap" role="region" aria-label="当前实现验证证据表格横向滚动区域" data-scroll-region tabindex="0"><table><thead><tr><th>项目</th><th>证据</th><th>状态</th></tr></thead><tbody>
-    <tr><td>菜单行为</td><td><code>npm run check:composer-tool-profile</code> 覆盖受控二级菜单、父菜单关闭、层级、键盘和 store 归属</td><td class="ok">通过</td></tr>
-    <tr><td>类型检查</td><td><code>npx tsc --noEmit</code></td><td class="ok">通过</td></tr>
-    <tr><td>实现约束</td><td><code>sibling-open</code> 是唯一被忽略的父菜单关闭原因；outside press、Escape、item press 与父菜单关闭保持有效</td><td class="ok">符合</td></tr>
-    <tr><td>安装版入口</td><td>可见验收使用 <code>/Applications/OpenProgram.app</code>、默认 profile 和端口 <code>18100</code>；本页不以第二实例作为验收依据</td><td class="ok">固定</td></tr>
-    <tr><td>完整前端检查</td><td><code>npm --prefix apps/web run check</code>，包含新增菜单检查</td><td class="ok">通过</td></tr>
-    <tr><td>生产构建</td><td><code>npm --prefix apps/web run build</code>，29 个静态页面生成</td><td class="ok">通过</td></tr>
-    <tr><td>文档</td><td><code>python -m scripts.docs_site.checklinks</code>：0 broken links</td><td class="ok">通过</td></tr>
-    <tr><td>视觉约束</td><td>gear 位于 check 左侧，按钮为 22×22px、图标为 14px，并保留既有间距与整行 hover</td><td class="ok">符合</td></tr>
+  <h2>Current implementation and verification evidence</h2>
+  <div class="table-wrap" role="region" aria-label="Horizontally scrollable implementation evidence table" data-scroll-region tabindex="0"><table><thead><tr><th>Item</th><th>Evidence</th><th>State</th></tr></thead><tbody>
+    <tr><td>Menu behavior</td><td><code>npm run check:composer-tool-profile</code> covers the controlled submenu, parent closure, ordering, keyboard and store ownership</td><td class="ok">Passed</td></tr>
+    <tr><td>Type checking</td><td><code>npx tsc --noEmit</code></td><td class="ok">Passed</td></tr>
+    <tr><td>Implementation constraints</td><td><code>sibling-open</code> is the only ignored parent-menu closing reason; outside press, Escape, item press and parent closure remain active</td><td class="ok">Compliant</td></tr>
+    <tr><td>Installed entry</td><td>Visible acceptance uses <code>/Applications/OpenProgram.app</code>, the default profile and port <code>18100</code>; a second instance is not acceptance evidence for this page</td><td class="ok">Fixed</td></tr>
+    <tr><td>Complete frontend checks</td><td><code>npm --prefix apps/web run check</code>, including the new menu checks</td><td class="ok">Passed</td></tr>
+    <tr><td>Production build</td><td><code>npm --prefix apps/web run build</code>, generating 29 static pages</td><td class="ok">Passed</td></tr>
+    <tr><td>Documentation</td><td><code>python -m scripts.docs_site.checklinks</code>: 0 broken links</td><td class="ok">Passed</td></tr>
+    <tr><td>Visual constraints</td><td>The gear remains left of the checkmark, with a 22×22px button and 14px icon, preserving existing spacing and full-row hover</td><td class="ok">Compliant</td></tr>
   </tbody></table></div>
 <script>
 document.querySelectorAll('[data-scroll-region]').forEach(region=>region.addEventListener('keydown',event=>{

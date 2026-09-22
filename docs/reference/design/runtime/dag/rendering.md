@@ -1,4 +1,6 @@
-# DAG Rendering Spec (Layout · Edges · Legend · Default Visibility)
+<div id="dag-rendering-spec-layout-edges-legend-default-visibility"></div>
+
+# Rendering specification
 
 > How the session graph draws: where each node goes, what each edge looks like,
 > and what the user sees by default. **This document is the authoritative
@@ -7,7 +9,7 @@
 > edges) see `dag/overview.md`; this document only covers the drawing.
 >
 > Every rule comes with an example. **The SVG scenario figures in
-> `dag-layout-spec.html` are authoritative** (13 scenes: 1–7 base layout, 8 merge,
+> `layout.html` are authoritative** (13 scenes: 1–7 base layout, 8 merge,
 > 9 cross-branch messaging, 10 spawn dispatch & merge-back, 11 execution-subtree
 > aggregation, 12 status & badge legend, 13 badge anchoring & collision). The ASCII
 > figures in this file are a text-mode digest, equivalent to the html; on conflict
@@ -180,10 +182,10 @@ reply and everything the model did until the next user message**:
 ```
 Default (conversation layer):    Click the reply to open its thread:
 ◇ROOT                          ◇ROOT
-├ ○你好                        ├ ○你好
-│ └ △回复                      │ └ △回复
-├ ○查天气                      ├ ○查天气
-│ └ △回复 ⁹                    │ └ △回复┄┐
+├ ○Hello                        ├ ○Hello
+│ └ △Reply                      │ └ △Reply
+├ ○Weather                      ├ ○Weather
+│ └ △Reply ⁹                    │ └ △Reply┄┐
                                │        ■ bash
                                │        ■ web_fetch
                                │        ■ sub-agent ⁵
@@ -642,7 +644,7 @@ The failed line is kept — that is the point of forking rather than rewinding �
 but it can never re-enter context.
 
 So once such a node is **off the HEAD chain**, it draws in the same grey as a
-covered turn, and the inspector labels it `失败轮 · 已留档`. The two states look
+covered turn, and the inspector labels it `Failed turn · Recorded`. The two states look
 alike because on the only axis the graph is about they *are* alike: on disk,
 readable, and never in the next request.
 
@@ -655,7 +657,7 @@ currently looking at, before you have retried it. Off-HEAD alone would grey
 every sibling branch. The node has to be a failure *and* abandoned.
 
 `status` is the store's own terminal marker, written by the turn machinery
-([Unified execution control](../execution/execution-control.html) for the cancel case, which stays
+([Unified execution control](../execution/control.html) for the cancel case, which stays
 `cancelled` and keeps its own 50% grey). The graph reads it; it never decides
 it.
 
@@ -668,10 +670,10 @@ node's thread, with the popover landing on top of the very expansion it had
 just triggered.
 
 **Hover → the brief card.** The quick cut: role (a spawn head titles itself
-`子 agent · <name>` — this is where the name lives, §12), model/tokens, a
+`Subagent · <name>` — this is where the name lives, §12), model/tokens, a
 short content preview, folded call count. The token figure is
 `llm.output_tokens` when the node carries a measurement and `chars/4` when it
-does not; the card says which (`tokens` vs `tokens（估）`). Appears after a
+does not; the card says which (`tokens` vs `tokens (estimated)`). Appears after a
 short hover delay, gone when the cursor leaves.
 
 **Click → the node's own action.** Fold or unfold its call thread (§12).
@@ -760,7 +762,7 @@ thread likewise inserts later conversation-layer turns. Expansion is
 insertion, never overlay.
 
 **No captions.** The agent's name lives in the tooltip and the inspector
-(which titles the node `子 agent · <name>` rather than the `user` its role
+(which titles the node `Subagent · <name>` rather than the `user` its role
 field claims); the canvas carries only the glyph and its count. The name on
 the wire comes from the label the runner stamps (`spawned_from.label`), with
 the recorded branch name as a fallback.
@@ -801,7 +803,7 @@ The whole spec is implemented. Where each part lives:
 | §8 aged / spilled drawing | `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (stroke-opacity + `▤`), fed by `_coverageSet` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
 | §9 `covers_ids` on the wire | `apps/server/openprogram_server/_webui/graph_builder.py` resolves `metadata.covers` to ids; tested in `tests/unit/dag/test_graph_builder_covers.py` |
 | §9 capsule shape | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` `capsule` (keyed on `covers_ids`, tagged `data-shape` so `_applyShapeSize` leaves its geometry alone) |
-| §9 fold + pleats + ghosts | `apps/web/lib/runtime-bridge/dag/passes/fold-summaries.ts` (fold), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (pleats, `已压缩 · N 轮` caption, ghost stroke), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dashed ghost edge), `_summaryExpanded` in `apps/web/lib/runtime-bridge/dag/store/globals.ts`; executed by `apps/web/scripts/runtime/check-dag-summary.mjs` |
+| §9 fold + pleats + ghosts | `apps/web/lib/runtime-bridge/dag/passes/fold-summaries.ts` (fold), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (pleats, `Compacted · N turns` caption, ghost stroke), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dashed ghost edge), `_summaryExpanded` in `apps/web/lib/runtime-bridge/dag/store/globals.ts`; executed by `apps/web/scripts/runtime/check-dag-summary.mjs` |
 | §10 archived failure | `apps/web/lib/runtime-bridge/dag/render/nodes.ts::_isArchivedFailure` — `status=error` AND off the HEAD chain; grey overrides §4's red |
 | §11 one card, two states / fork & edit | `apps/web/lib/runtime-bridge/dag/interaction/tooltip.ts`: `renderNodeInfo` feeds both states, `expandTooltip` deepens the card in place; `apps/web/lib/runtime-bridge/dag/render/inspector.ts` builds only the verb list (+ raw JSON layer), wired in `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts`; the actions go through `POST /api/chat/checkout` |
 | §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (inside the canvas HUD), `.dag-legend` in `apps/web/app/styles/dag/hud.css` |

@@ -1,4 +1,6 @@
-# Harness
+<div id="harness"></div>
+
+# 运行环境扩展
 
 程序包显示在 **能力 → Programs → Packages**。Tools 和 Workflows 是可调用能力，软件 Applications 由独立页面管理。新克隆使用 `programs/packages/`；已经登记在 `programs/applications/` 的源码保留原位置和调用名，升级、卸载使用登记位置。分类改名不会重新下载或移动源码。
 
@@ -13,7 +15,9 @@ immutable product runtime 拒绝原地安装、升级和卸载 Program。
 > 当用户要求安装某个 agent 尚未拥有的 harness 时，请遵循
 > 下面的步骤——它们被写成可逐步执行的形式。
 
-## TL;DR
+<div id="tldr"></div>
+
+## 主要行为
 
 ```bash
 # 第一方 Programs 已经存在：

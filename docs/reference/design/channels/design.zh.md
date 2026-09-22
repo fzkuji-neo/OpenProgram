@@ -2,7 +2,7 @@
 
 外部 chat 平台 (Telegram / Discord / Slack / WeChat) 通过这个子系统跟 OpenProgram 双向通讯：用户在 platform 上发消息触发 agent，agent 回复通过同一条 channel 发回去。
 
-本文档描述该层的结构与消息流转。该层守住的要求与不变量，以及跟 OpenClaw / hermes 的对比，见 [`audit.md`](./audit.md)。
+本文档描述该层的结构与消息流转。该层守住的要求与不变量，以及跟 OpenClaw / hermes 的对比，见 [`audit.md`](audit.zh.md)。
 
 ## 1. 整体形态
 
@@ -403,5 +403,5 @@ CLI 继续提供账号、binding 和 access 管理。
 
 ## 9. 参考
 
-- [`audit.md`](./audit.md) — 要求、不变量，以及跟 OpenClaw / Hermes 的对比
+- [`audit.md`](audit.zh.md) — 要求、不变量，以及跟 OpenClaw / Hermes 的对比
 - 各 adapter 顶部 docstring — platform-specific 协议细节

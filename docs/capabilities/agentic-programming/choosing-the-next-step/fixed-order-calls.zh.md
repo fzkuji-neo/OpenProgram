@@ -120,7 +120,7 @@ gaps = identify_gaps(survey=survey, runtime=runtime)
 
 ## 与“由 LLM 选择调用”的对比
 
-| | 固定顺序调用 | [工具调用](tool-calling.md) / [下一步决策](next-step-decision.md) |
+| | 固定顺序调用 | [工具调用](tool-calling.zh.md) / [下一步决策](next-step-decision.zh.md) |
 |---|-----------|-------------|
 | 由谁决定调用顺序 | Python 代码 | LLM |
 | 运行多少个子函数 | 若干个，全部运行 | 工具循环：跨多轮运行多个；决策菜单：仅一个 |

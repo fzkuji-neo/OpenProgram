@@ -1,24 +1,36 @@
 # Overview
 
-Come here to look up parameters, commands, and configuration keys. This tab holds the complete reference for the Python API, the CLI commands, and the configuration entries, plus the engineering design-notes archive.
+<!-- Compatibility anchors for existing incoming links. -->
+<a id="design-notes-archive"></a>
+
+
+Look up Python APIs, CLI commands and configuration here. Use the product guides for task-oriented instructions, and the generated pages for the current argument and setting inventory.
 
 ## Python API
 
-- [API overview](API.md) — the core components on one page: `agentic_function`, `Runtime`, providers
-- [agentic_function](api/agentic-function.md) — the decorator itself: parameters, metadata, behavior
-- [Runtime](api/runtime.md) — every parameter of `runtime.exec()` and its semantics
-- [Providers](api/providers.md) — `create_runtime` and the built-in provider runtimes
+- [API overview](API.md): core components and imports.
+- [Functions](api/agentic-function.md): decorator parameters, metadata and execution behavior.
+- [Runtime](api/runtime.md): model requests and runtime contracts.
+- [Providers](api/providers.md): runtime creation and provider interfaces.
 
 ## CLI and configuration
 
-- [CLI reference](cli.md) — what every `openprogram` subcommand does and its key flags
-- [Configuration reference](config.md) — the keys in `config.json`, how to use `openprogram config`, and the environment variable roundup
-- [Diagnostics bundle](diagnostics.md) — `openprogram diagnostics`: what goes into the support zip and what is redacted out of it
+| Guide | Generated detail |
+|---|---|
+| [CLI usage](cli.md) | [Global flags](cli/README.md) and the command pages in the sidebar. |
+| [Configuration](config.md) | [Config keys](config-keys.md), defaults and apply timing. |
+| [Provider setup](../models/providers.md) | [Provider registry](provider-registry.md), protocols and environment variable names. |
+
+Generated pages have complete English and Chinese descriptions. Command names, flags, configuration keys and protocol values retain their source spelling in both languages. Their inventory comes from code and is regenerated with the site.
+
+## Diagnostics
+
+[Diagnostics bundles](diagnostics.md) explains what the support ZIP contains and how sensitive fields are redacted.
 
 ## Topic notes
 
-- [Claude Code context compaction](claude-code-compaction.md) — an analysis of Claude Code's compaction behavior
+[Claude Code compaction](claude-code-compaction.md) examines context compaction behavior.
 
-## Design-notes archive
+## Engineering design
 
-[`design/`](design/README.md) is the archive of engineering design notes: written for the developers themselves, organized by subsystem (runtime, providers, function, memory, channels, cli, ui, etc.), append-only. It records the thinking at decision time and is not guaranteed to match the current code line by line — for accurate user-facing information, trust the other pages in this tab and the code.
+The [Design tab](design/README.md) organizes current designs by subsystem. Each topic has one maintained document; design revisions update that document, while Git retains its history. Planned behavior is identified in implementation-status sections. These engineering explanations complement the product guides.

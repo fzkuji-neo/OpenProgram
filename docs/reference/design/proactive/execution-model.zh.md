@@ -100,7 +100,7 @@ agent。** 做法是——agent 该干嘛干嘛、不等它；旁观规则在**�
 
 ## 4. 框架怎么把这些串起来
 
-![事件分发：挡路同步 / 旁观异步](diagrams/execution-dispatch.svg)
+![事件分发：挡路同步 / 旁观异步](diagrams/execution-dispatch.zh.svg)
 
 ## 5. 几个简单的兜底
 

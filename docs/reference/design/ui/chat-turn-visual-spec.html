@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>聊天轮次视觉规范 — 执行时间线 + 文件修改 + 消息导航</title>
+<title>Chat turn visual specification — execution timeline, file changes, and message navigation</title>
 <style>
 :root{
   color-scheme:light dark;
@@ -47,7 +47,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
   border-radius:999px;color:var(--text-secondary);font-size:12px;background:var(--bg-secondary)}
 .doc-pill.current{color:var(--accent-cyan)}
 
-/* ── 聊天基元 ── */
+/* ── Chat primitives ── */
 .u-msg{display:flex;justify-content:flex-end;margin:10px 0}
 .u-bubble{background:var(--bg-tertiary);border-radius:14px;padding:9px 14px;max-width:70%;color:var(--text-primary)}
 .reply{margin:10px 0;color:var(--text-primary)}
@@ -57,9 +57,8 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .reply-footer .act{display:inline-flex;align-items:center;gap:2px}
 .reply-message:hover .reply-footer,.reply-footer:focus-within{opacity:1}
 
-/* ── 执行时间线（无外框） ── */
-/* 开关 = GPT 式纯文字：无按钮底色、无内边距偏移，与正文左对齐；
-   hover 只提亮文字。 */
+/* ── Execution timeline (no outer frame) ── */
+/* Toggle = GPT-style plain text: no button background or padding offset; align with body text. Hover brightens text only. */
 .tl-toggle{display:inline-flex;align-items:center;gap:8px;color:var(--text-muted);
   font-size:13px;cursor:pointer;user-select:none;height:28px;margin:0 0 1.5px;padding:0;
   letter-spacing:.2px;border:none;background:transparent}
@@ -72,7 +71,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .runtime-program-content{min-width:0;padding-right:52px}
 .runtime-program-content .tl-toggle{max-width:100%}
 .runtime-program-content .tl-toggle>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* 高度过渡：grid 0fr↔1fr。展开只向下推开、收起平滑抽走，视口不动。 */
+/* Height transition: grid 0fr↔1fr. Expand downward, collapse smoothly, keep viewport fixed. */
 .tl-collapse{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s ease}
 .tl.open .tl-collapse{grid-template-rows:1fr}
 .tl-collapse-inner{overflow:hidden;min-height:0}
@@ -84,8 +83,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
   font-size:13px;cursor:pointer;border-radius:6px;padding:3px 8px;user-select:none}
 .step-head:hover{background:var(--bg-hover)}
 .step-head:focus-visible{outline:1px solid var(--accent-cyan);outline-offset:1px;background:var(--bg-hover)}
-/* 图标锚在标题行内部（与文字天然对齐），底色遮住背后的竖线。
-   可展开行始终显示圆形状态：收起实心、展开空心；叶子行无圈。 */
+/* Icons sit inside title rows, aligned to text; background covers the vertical line. Expandable rows always show solid collapsed circles or hollow expanded rings; leaves have none. */
 .step-icon{position:absolute;left:-36px;top:50%;transform:translateY(-50%);width:20px;height:20px;
   --marker-size:26px;--marker-radius:13px;display:flex;align-items:center;justify-content:center;
   background:var(--bg-primary);color:var(--text-secondary);isolation:isolate}
@@ -110,26 +108,25 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
   background-color:transparent}
 .step-icon svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;
   stroke-linecap:round;stroke-linejoin:round}
-/* 三类配色：思考紫 / 函数橙 / LLM 青 / 子代理绿（静态不动画）。 */
+/* Type colors: purple thinking / orange function / cyan LLM / green sub-agent (static, not animated)。 */
 .step-icon.k-thinking{color:var(--timeline-thinking)}
 .step-icon.k-function{color:var(--timeline-function)}
 .step-icon.k-llm{color:var(--timeline-llm)}
 .step-icon.k-subagent{color:var(--timeline-subagent)}
 .step-icon.is-error{color:var(--accent-red)}
 .step-title{flex:0 0 auto}
-/* 标题 = 详情入口：悬停下划线；行内其他位置只负责展开/折叠。 */
+/* Title = details entry, underlined on hover; other row areas only expand/collapse. */
 .step-title.link{cursor:pointer}
 .step-title.link:hover{color:var(--text-bright);text-decoration:underline}
 .step-note{color:var(--text-muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-/* 动作钉在行尾；只在鼠标压着的那一行 head 上显现——:hover 挂 head
-   而非 .step，否则嵌套树里子行悬停会点亮所有祖先行的动作。 */
+/* Actions stay at row ends and appear only on the hovered head. Apply :hover to head, not .step, to avoid revealing ancestor actions. */
 .step-act{opacity:0;display:inline-flex;gap:8px;align-items:center;font-size:12px;color:var(--text-muted);
   order:3;margin-left:auto}
 .step-head:hover .step-act,.step-head:has(:focus-visible) .step-act{opacity:1}
 .step-act .btn{border:1px solid var(--border-light);border-radius:6px;padding:1px 8px;cursor:pointer;
   color:var(--text-secondary);background:transparent;font-size:12px}
 .step-act .btn:hover{background:var(--bg-hover);color:var(--text-bright)}
-/* 内联内容块与标题条同宽对齐（不再左缩进）——只有思考行用。 */
+/* Inline content shares title width without extra indentation; thinking rows only. */
 .step-body{display:grid;grid-template-rows:0fr;opacity:0;transform:translateY(-3px);pointer-events:none;
   transition:grid-template-rows .22s cubic-bezier(.2,.7,.2,1),opacity .14s ease,transform .22s cubic-bezier(.2,.7,.2,1)}
 .step-body-clip{min-height:0;overflow:hidden}
@@ -138,7 +135,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .step.open>.step-body{grid-template-rows:1fr;opacity:1;transform:translateY(0);pointer-events:auto}
 .step-body .mono{font-family:var(--font-mono);font-size:12px;color:var(--text-primary)}
 
-/* ── 嵌套层级：缩进一层的子时间线 ── */
+/* ── Nested levels: an indented child timeline ── */
 .tl-sub{position:relative;display:grid;grid-template-rows:0fr;margin-left:8px;padding-left:34px;
   opacity:0;transform:translateY(-3px);pointer-events:none;
   transition:grid-template-rows .22s cubic-bezier(.2,.7,.2,1),opacity .14s ease,transform .22s cubic-bezier(.2,.7,.2,1)}
@@ -157,7 +154,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .spin{width:7px;height:7px;border-radius:50%;background:var(--accent-cyan);animation:pulse 1.4s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 
-/* ── 消息式 footer（手动函数运行的操作行） ── */
+/* ── Message-style footer (manual function actions) ── */
 .runtime-program-conclusion{margin-top:12px}
 .runtime-program-conclusion-label{margin-bottom:3px;color:var(--text-bright);font-size:12px;font-weight:600}
 .runtime-program-conclusion-meta{margin:0;color:var(--text-secondary);font-size:13px;line-height:1.55}
@@ -174,7 +171,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .msg-nav{display:inline-flex;align-items:center;gap:2px;margin-left:4px}
 .msg-nav .label{font-size:12px;color:var(--text-muted);min-width:28px;text-align:center}
 
-/* ── Sub-agent 当前行为诊断 ── */
+/* ── Current sub-agent behavior diagnostics ── */
 .state-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;max-width:980px}
 .state-card{position:relative;min-height:126px;padding:14px;border:1px solid var(--border-light);
   border-radius:10px;background:var(--bg-secondary)}
@@ -206,7 +203,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .path-table th{color:var(--text-bright);font-weight:600}.path-table td{color:var(--text-secondary)}
 .path-table code{font-family:var(--font-mono);color:var(--text-primary)}
 
-/* ── 文件修改摘要与 Review ── */
+/* ── File-change summaries and Review ── */
 .change-target-demo{display:grid;grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr);gap:1px;max-width:980px;overflow:hidden;border:1px solid var(--border-light);border-radius:12px;background:var(--border-light)}
 .change-chat-pane,.change-review-pane{min-width:0;background:var(--bg-primary)}.change-chat-pane{padding:20px}
 .change-card-demo{container:change-card/inline-size;width:min(100%,680px);margin-top:17px;overflow:hidden;border:1px solid color-mix(in srgb,var(--border-light) 72%,transparent);border-radius:9px;background:var(--bg-tertiary);font-family:var(--font-sans)}
@@ -231,7 +228,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .decision{display:inline-flex;padding:2px 6px;border-radius:999px;font:9px/1.4 var(--font-mono)}.decision.adopt{color:var(--accent-green);background:color-mix(in srgb,var(--accent-green) 12%,transparent)}.decision.modify{color:var(--accent-cyan);background:color-mix(in srgb,var(--accent-cyan) 12%,transparent)}.decision.reject{color:var(--accent-red);background:color-mix(in srgb,var(--accent-red) 10%,transparent)}
 .source-links{display:flex;flex-wrap:wrap;gap:8px;max-width:980px;margin-top:10px}.source-links a{color:var(--accent-cyan);font-size:11px;text-decoration:none}.source-links a:hover{text-decoration:underline}
 
-/* ── 父子分支导航样例 ── */
+/* ── Parent/child navigation example ── */
 .branch-nav-demo{max-width:980px}
 .branch-map{display:grid;grid-template-columns:minmax(150px,1fr) 88px minmax(150px,1fr) 88px minmax(150px,1fr);
   align-items:center;gap:8px;margin-bottom:14px}
@@ -287,7 +284,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .branch-explain-item.caller{border-left-color:var(--accent-orange)}
 .branch-explain-item b{display:block;margin-bottom:3px;color:var(--text-bright)}
 
-/* ── 消息导航（左缘横线） ── */
+/* ── Message navigation (left-edge marks) ── */
 .mini{position:absolute;left:10px;top:50%;transform:translateY(-50%);display:flex;
   flex-direction:column;gap:7px;align-items:flex-start;padding:8px 4px;z-index:3}
 .mini .dash{width:16px;height:2.5px;border-radius:2px;background:var(--text-muted);opacity:.5;transition:all .15s}
@@ -327,186 +324,181 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 </style>
 </head>
 <body>
-<h1>聊天轮次视觉规范</h1>
-<div class="desc">执行时间线（去外框、图标竖线串联、行样式统一）+ 手动函数运行 + sub-agent 父子分支导航 + 文件修改摘要与 Review + 左缘消息导航。全部可交互。本文件是聊天轮次视觉的唯一权威；相关实现在 <code>apps/web/components/chat/messages/</code> 与 <code>app/styles/chat/</code>。</div>
-<div class="doc-meta" aria-label="文档状态">
-  <span class="doc-pill current">时间线折叠与复制规范 · 已实现</span>
-  <span class="doc-pill">范围：Chat / workflow / sub-agent 展示</span>
-  <span class="doc-pill">圆点连续开合动画与函数列对齐 · 已实现</span>
-  <span class="doc-pill">精确文件归因、Review 与安全 Undo · 待实现</span>
+<h1>Chat turn visual specification</h1>
+<div class="desc">Execution timeline (no outer frame, icons connected vertically, consistent rows), manual function runs, sub-agent parent/child branch navigation, file-change summaries and Review, and left-edge message navigation. All examples are interactive. This is the sole visual authority for chat turns; related implementations are in <code>apps/web/components/chat/messages/</code> and <code>app/styles/chat/</code>.</div>
+<div class="doc-meta" aria-label="Document status">
+  <span class="doc-pill current">Timeline folding and copying specification · implemented</span>
+  <span class="doc-pill">Scope: Chat / workflow / sub-agent presentation</span>
+  <span class="doc-pill">Continuous circle expand/collapse animation and function-column alignment · implemented</span>
+  <span class="doc-pill">Exact file attribution, Review, and safe Undo · pending</span>
 </div>
 
-<!-- ═══════ 1. 收起态 ═══════ -->
-<h2><span class="num">1</span>默认（收起）：一轮 = 一行淡文字 + 回复</h2>
-<div class="desc">执行过程不再有框。收起态是一行 GPT"已思考 19s ›"式的<b>纯文字</b>摘要——无按钮底色、与正文左对齐，hover 只提亮文字。摘要只分三类：思考 / 函数 / 子代理。点击展开时间线。</div>
+<!-- ═══════ 1. Collapsed state ═══════ -->
+<h2><span class="num">1</span>Default (collapsed): one turn = one muted summary line + reply</h2>
+<div class="desc">Execution has no outer frame. The collapsed state is a GPT-style “Thought for 19s ›”<b>plain-text</b> summary, without a button background, aligned with body text, and brightening text only on hover. Summaries have three categories: thinking / function / sub-agent. Click to expand the timeline.</div>
 <div class="stage">
-  <div class="u-msg"><div class="u-bubble">你能开一个agent，帮我去看看今天天气吗，我在北京亚洲金融大厦</div></div>
+  <div class="u-msg"><div class="u-bubble">Can you start an agent to check today’s weather? I’m at the Asia Financial Center in Beijing.</div></div>
 
   <div class="tl" id="tl1">
     <div class="tl-toggle">
-      <span>思考 ×2 · 函数 ×1 · 子代理: 查询北京天气</span><span class="chev">›</span>
+      <span>Thinking ×2 · Function ×1 · Sub-agent: check Beijing weather</span><span class="chev">›</span>
     </div>
     <div class="tl-collapse"><div class="tl-collapse-inner">
     <div class="tl-body">
       <div class="step" data-step-toggle>
         <div class="step-head"><span class="step-icon k-thinking"><svg viewBox="0 0 24 24"><path d="M12 3.5l2 5.6 5.6 2-5.6 2-2 5.6-2-5.6-5.6-2 5.6-2 2-5.6z"/></svg></span>
-          <span class="step-title">思考</span>
-          <span class="step-note">需要先核对当前日期，再决定查询口径…</span>
-          <span class="step-act"><button class="btn">复制</button></span></div>
-        <div class="step-body"><div class="step-body-clip"><div class="step-body-inner">用户在北京亚洲金融大厦，要今天的天气。我先用 bash 核对系统日期，确认"今天"是哪一天，然后开一个子代理去做实时查询，最后汇总成简短建议。</div></div></div>
+          <span class="step-title">Thinking</span>
+          <span class="step-note">First verify today’s date, then choose the query…</span>
+          <span class="step-act"><button class="btn">Copy</button></span></div>
+        <div class="step-body"><div class="step-body-clip"><div class="step-body-inner">The user is at the Asia Financial Center in Beijing and wants today’s weather. First use bash to check the system date, then start a sub-agent for a live query and summarize brief advice.</div></div></div>
       </div>
       <div class="step">
         <div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span>
-          <span class="step-title link">函数调用</span>
+          <span class="step-title link">Function call</span>
           <span class="step-note">bash · date '+%Y-%m-%d %H:%M %Z' → 2026-07-10 16:32 CST</span>
-          <span class="step-act"><button class="btn">复制</button></span></div>
+          <span class="step-act"><button class="btn">Copy</button></span></div>
       </div>
       <div class="step">
         <div class="step-head"><span class="step-icon k-subagent"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
-          <span class="step-title link">子代理: 查询北京天气</span>
-          <span class="step-note">已完成</span>
-          <span class="step-act"><button class="btn">复制</button><button class="btn">Switch ↗</button></span></div>
+          <span class="step-title link">Sub-agent: check Beijing weather</span>
+          <span class="step-note">Completed</span>
+          <span class="step-act"><button class="btn">Copy</button><button class="btn">Switch ↗</button></span></div>
       </div>
       <div class="step" data-step-toggle>
         <div class="step-head"><span class="step-icon k-thinking"><svg viewBox="0 0 24 24"><path d="M12 3.5l2 5.6 5.6 2-5.6 2-2 5.6-2-5.6-5.6-2 5.6-2 2-5.6z"/></svg></span>
-          <span class="step-title">思考</span>
-          <span class="step-note">子代理结果可信，整理成出行建议…</span>
-          <span class="step-act"><button class="btn">复制</button></span></div>
-        <div class="step-body"><div class="step-body-clip"><div class="step-body-inner">数据来自中国天气网 + Open-Meteo，两源一致。整理成三行：现况、区间、建议。</div></div></div>
+          <span class="step-title">Thinking</span>
+          <span class="step-note">The sub-agent result is reliable; summarize travel advice…</span>
+          <span class="step-act"><button class="btn">Copy</button></span></div>
+        <div class="step-body"><div class="step-body-clip"><div class="step-body-inner">China Weather and Open-Meteo agree. Summarize current conditions, daily range, and advice in three lines.</div></div></div>
       </div>
     </div>
     </div></div>
   </div>
 
   <div class="reply-message">
-    <div class="reply">北京今天<b>小雨转暴雨</b>，现在 25.8°C、湿度 89%；全天 24～28°C，降水概率约 98%。<b>建议带伞</b>，尽量减少非必要外出。</div>
+    <div class="reply">Beijing today:<b>light rain becoming heavy rain</b>, currently 25.8°C and 89% humidity; daily range 24–28°C, approximately 98% chance of precipitation.<b>Bring an umbrella</b> and minimize unnecessary outings.</div>
     <div class="reply-footer">
       <span class="ts">16:33</span>
       <span class="act">
-        <button class="icon-btn" title="复制"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
-        <button class="icon-btn" title="重试"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
+        <button class="icon-btn" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+        <button class="icon-btn" title="Retry"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
       </span>
     </div>
   </div>
 </div>
-<div class="rule">规则：外层无框无底色；收起行 = 纯文字摘要 + ›（无按钮底色，与正文列左对齐）；所有收起行固定高 28px，第一行文字、箭头与同轮 28px 头像严格上下居中，不使用 top、transform 或 translate 做垂直偏移；回复文本永远直接可见，底部发送时间和复制、重试等操作只在消息 hover 或 footer 键盘 focus 时一起显示。<b>时间契约：</b>用户消息在发送成功时记录本地时间，Agent 回复与独立 function/runtime 在首个可见状态创建时记录开始时间；Agent 内的 thinking 和普通 tool step 共享所属 Agent 消息的开始时间，独立 runtime/sub-agent 消息保留自身开始时间。所有后续流式更新、终态更新和层级迁移均保留该时间，刷新后优先使用持久化的权威时间。发送或重试后、首个回复内容到达前的临时 thinking 状态只占一行，开始时间紧跟状态文字显示，不创建正常消息 footer；首个回复内容到达后再切换为正式消息布局。执行摘要、正文和时间戳采用不同字号与行高，因此正文到 footer 使用 14px 视觉间距，使两段可见文字之间的留白一致；不改变折叠行高度或头像位置。<br>
-Agent 回复发起的 function 及其执行树只属于该回复的执行时间线，不得再生成顶层 runtime 卡片；只有用户直接运行的 function 才作为独立 runtime 消息显示。<br>
-<b>展开只向下</b>：高度过渡用 grid 0fr↔1fr（0.18s），展开把下方内容推开、收起平滑抽走；<b>视口不许跳</b>——聊天区关掉原生 scroll anchoring（overflow-anchor:none），且用户点击后的 600ms 内暂停贴底吸附，展开/收起时开关行在屏幕上纹丝不动。收起动画结束后卸载子树，折叠状态不付渲染成本。<b>执行过程始终默认收起</b>：流式与历史消息都只显示摘要行，摘要小字以 shimmer 表示进行中；用户点击后可展开，列表继续向下拼接新步骤（淡入下滑 0.22s），当前运行中的行图标位用呼吸点，思考行的 note 显示最新一行。用户手动选择在本轮后续流式更新和落定时保持不变——流式与落定共用同一条时间线渲染路径（伪 blocks 由实时字段合成，finalize 后由真 blocks 接管）。</div>
+<div class="rule">Rules: no outer border or background; the collapsed row is a plain-text summary + ›, without a button background, aligned to the body column. Every collapsed row is exactly 28px tall; its first line and arrow are vertically centered with the turn’s 28px avatar, without top, transform, or translate offsets. Reply text is always directly visible. The bottom timestamp and copy/retry actions appear together only on message hover or keyboard focus within the footer.<b>Time contract:</b>User messages record local time on successful send. Agent replies and independent function/runtime messages record start time when their first visible state is created. Thinking and ordinary tool steps inside an Agent share that Agent message’s start time; independent runtime/sub-agent messages keep their own. Subsequent streaming, terminal updates, and hierarchy moves preserve it; after reload, prefer persisted authoritative time. Temporary thinking after send/retry but before the first reply content occupies one row, with start time immediately after status text and no normal message footer. Switch to the formal message layout when reply content arrives. Execution summaries, body text, and timestamps use different font sizes and line heights, so body-to-footer spacing is 14px visually, keeping visible paragraph gaps consistent without changing collapsed-row height or avatar placement.<br> Functions and execution trees initiated by an Agent reply belong only to that reply’s execution timeline and must not also create top-level runtime cards. Only user-invoked functions appear as independent runtime messages.<br>
+<b>Expand downward only</b>: use grid 0fr↔1fr height transitions (0.18s), pushing lower content down on expansion and smoothly removing it on collapse;<b>the viewport must not jump</b>. Disable native scroll anchoring in chat (overflow-anchor:none), and suspend bottom following for 600ms after user clicks. The toggle row stays fixed on screen while expanding/collapsing. Unmount children after collapse animation to eliminate rendering cost while folded.<b>Execution always defaults to collapsed</b>: streaming and historical messages show only the summary, whose small text shimmers while running. Users can expand it; new steps append downward with a 0.22s fade/slide. Running rows use breathing dots in the icon position, and thinking notes show the latest line. Manual choices persist through later streaming and finalization. Streaming and finalized states use one timeline renderer: synthetic blocks derive from live fields until real blocks replace them after finalize.</div>
 
-<!-- ═══════ 2. 时间线细节 ═══════ -->
-<h2><span class="num">2</span>时间线行：圆圈同时表示可展开与开合状态</h2>
-<div class="desc">左列始终是原有类型图标，图标采用统一的 24×24 线性 SVG，其中函数行使用 Lucide Wrench；图标按类配色：<b style="color:var(--timeline-thinking)">思考紫</b> / <b style="color:var(--timeline-function)">函数橙</b> / <b style="color:var(--timeline-llm)">LLM 青</b> / <b style="color:var(--timeline-subagent)">子代理绿</b>。深色和浅色模式分别使用清晰、鲜艳的类型色。只要一行有直接子内容，圆形状态就始终可见：<b>收起时为同类型的均匀浅色实心圆，展开时为空心圆环</b>，不依赖鼠标悬停。收起态只有一个完整色面，不区分内心和外圈；浅色模式混入 8% 类型色，深色模式混入 14% 类型色，并与页面底色生成不透明颜色，因此会完全遮住背后的时间线。外圈由独立静态层绘制，固定为 2px，外径始终为主层 26px、子层 23px；外圈不参与任何 transition 或 animation，展开和收起只改变内部是同色填充还是页面底色。展开时，内部圆形色面在 220ms 内缩为 1.5px 宽、12px 高的竖段，从圆心向下移动到圆环下缘，并同步渐变为透明，露出原有中性时间线；不在原有时间线上再绘制第二条半透明线。子内容同时以 0fr→1fr、高度 220ms、透明度 140ms 和 -3px→0 的位移显示。折叠使用完全相反的 transition，连续点击时从当前动画进度反向执行。圆心、外径和图标位置不参与动画。叶子行不画圈。不增加任何箭头，也不显示后代步数。交互仍分为两个区域：<b>带下划线的标题</b>点击后打开右侧具体信息；点击图标、摘要或行内空白只展开/折叠。</div>
+<!-- ═══════ 2. Timeline details ═══════ -->
+<h2><span class="num">2</span>Timeline rows: circles indicate both expandability and open state</h2>
+<div class="desc">The left column retains type icons using uniform 24×24 outline SVGs; function rows use Lucide Wrench. Colors indicate type:<b style="color:var(--timeline-thinking)">purple thinking</b> / <b style="color:var(--timeline-function)">orange function</b> / <b style="color:var(--timeline-llm)">cyan LLM</b> / <b style="color:var(--timeline-subagent)">green sub-agent</b>. Dark and light modes each use clear, vivid type colors. Rows with direct child content always show a circular state:<b>a uniform light solid circle when collapsed, a hollow ring when expanded</b>, independent of hover. Collapsed circles have one uniform surface without separate center and rim. Mix 8% type color in light mode and 14% in dark mode with the page background to create an opaque color that fully covers the timeline behind it. An independent static outer ring is fixed at 2px, with outer diameters of 26px for main rows and 23px for children. The outer ring never transitions or animates; opening and closing change only the inner fill between matching color and page background. During expansion, the inner circle shrinks over 220ms to a 1.5px-wide, 12px-high vertical segment, moves downward from the center to the ring’s lower edge, and fades out to reveal the existing neutral timeline. Do not draw a second translucent line over it. Child content simultaneously uses 0fr→1fr, 220ms height, 140ms opacity, and -3px→0 translation. Collapse reverses these transitions exactly; repeated clicks reverse from current animation progress. Circle centers, outer diameters, and icon positions do not animate. Leaf rows have no circle. Add no arrows or descendant-step counts. Interaction still has two regions:<b>underlined titles</b> open specific information on the right; clicking icons, summaries, or row whitespace only expands/collapses.</div>
 <div class="stage">
   <div class="tl open">
-    <div class="tl-toggle"><span>思考 ×1 · 函数 ×2（进行中）</span><span class="chev">›</span></div>
+    <div class="tl-toggle"><span>Thinking ×1 · Functions ×2 (running)</span><span class="chev">›</span></div>
     <div class="tl-collapse"><div class="tl-collapse-inner">
     <div class="tl-body">
       <div class="step open" data-step-toggle>
         <div class="step-head"><span class="step-icon k-thinking"><svg viewBox="0 0 24 24"><path d="M12 3.5l2 5.6 5.6 2-5.6 2-2 5.6-2-5.6-5.6-2 5.6-2 2-5.6z"/></svg></span>
-          <span class="step-title">思考</span>
-          <span class="step-note">点开的行长这样——内容与标题条同宽对齐</span>
-          <span class="step-act"><button class="btn">复制</button></span></div>
-        <div class="step-body"><div class="step-body-clip"><div class="step-body-inner">展开的内容块只有一层浅底色，没有边框、没有自己的头部——头就是上面那行。内容块左缘与标题条对齐（不再额外缩进）。再点一次行收回去。只有思考行内联展开；函数/子代理的详情在右栏。</div></div></div>
+          <span class="step-title">Thinking</span>
+          <span class="step-note">Expanded rows: content aligns to the title row width</span>
+          <span class="step-act"><button class="btn">Copy</button></span></div>
+        <div class="step-body"><div class="step-body-clip"><div class="step-body-inner">Expanded content has one light background, no border, and no header of its own—the row above is its header. Content’s left edge aligns with the title row, without extra indentation. Click the row again to collapse. Only thinking expands inline; function/sub-agent details appear in the right panel.</div></div></div>
       </div>
       <div class="step open" data-step-toggle>
         <div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span>
-          <span class="step-title link">函数调用</span>
-          <span class="step-note">research_agent · 内部还有子调用 → 展开是缩进一层的子时间线</span>
-          <span class="step-act"><button class="btn">复制</button></span></div>
+          <span class="step-title link">Function call</span>
+          <span class="step-note">research_agent · has internal child calls → expands to an indented child timeline</span>
+          <span class="step-act"><button class="btn">Copy</button></span></div>
         <div class="tl-sub"><div class="tl-sub-clip"><div class="tl-sub-inner">
           <div class="step">
             <div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span>
               <span class="step-title link">web_search</span>
-              <span class="step-note">"北京 朝阳区 今日天气" → 12 results</span>
-              <span class="step-act"><button class="btn">复制</button></span></div>
+              <span class="step-note">“Beijing Chaoyang district weather today” → 12 results</span>
+              <span class="step-act"><button class="btn">Copy</button></span></div>
           </div>
           <div class="step">
             <div class="step-head"><span class="step-icon k-llm"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></span>
               <span class="step-title link">LLM</span>
-              <span class="step-note">两源数据一致，取中国天气网为准…</span>
-              <span class="step-act"><button class="btn">复制</button></span></div>
+              <span class="step-note">Both sources agree; use China Weather as primary…</span>
+              <span class="step-act"><button class="btn">Copy</button></span></div>
           </div>
           <div class="step">
             <div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span>
               <span class="step-title link">read_page</span>
               <span class="step-note">weather.com.cn/101010300.shtml</span>
-              <span class="step-act"><button class="btn">复制</button></span></div>
+              <span class="step-act"><button class="btn">Copy</button></span></div>
           </div>
         </div></div></div>
       </div>
       <div class="step" data-step-toggle>
         <div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span>
-          <span class="step-title link">函数调用</span>
-          <span class="step-note">deep_lookup · 点击非标题区域逐级展开</span>
-          <span class="step-act"><button class="btn">复制</button></span></div>
+          <span class="step-title link">Function call</span>
+          <span class="step-note">deep_lookup · click outside the title to expand each level</span>
+          <span class="step-act"><button class="btn">Copy</button></span></div>
         <div class="tl-sub"><div class="tl-sub-clip"><div class="tl-sub-inner">
-          <div class="step"><div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span><span class="step-title link">search_index</span><span class="step-note">命中 18 条候选</span><span class="step-act"><button class="btn">复制</button></span></div></div>
-          <div class="step"><div class="step-head"><span class="step-icon k-llm"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></span><span class="step-title link">LLM</span><span class="step-note">筛选并合并重复结果</span><span class="step-act"><button class="btn">复制</button></span></div></div>
-          <div class="step"><div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span><span class="step-title link">write_report</span><span class="step-note">已写入调研文件</span><span class="step-act"><button class="btn">复制</button></span></div></div>
+          <div class="step"><div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span><span class="step-title link">search_index</span><span class="step-note">18 candidate matches</span><span class="step-act"><button class="btn">Copy</button></span></div></div>
+          <div class="step"><div class="step-head"><span class="step-icon k-llm"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></span><span class="step-title link">LLM</span><span class="step-note">Filter and merge duplicates</span><span class="step-act"><button class="btn">Copy</button></span></div></div>
+          <div class="step"><div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span><span class="step-title link">write_report</span><span class="step-note">Research file written</span><span class="step-act"><button class="btn">Copy</button></span></div></div>
         </div></div></div>
       </div>
       <div class="step">
         <div class="step-head"><span class="step-icon"><span class="spin"></span></span>
-          <span class="step-title link">函数调用</span>
-          <span class="step-note">web_fetch · weather.com.cn（运行中）</span>
-          <span class="step-act"><button class="btn">复制</button></span></div>
+          <span class="step-title link">Function call</span>
+          <span class="step-note">web_fetch · weather.com.cn (running)</span>
+          <span class="step-act"><button class="btn">Copy</button></span></div>
       </div>
       <div class="step">
         <div class="step-head"><span class="step-icon is-error"><svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></span>
-          <span class="step-title link" style="color:var(--accent-red)">函数调用</span>
-          <span class="step-note">bash · 退出码 1 — 失败的行图标换红 ✗</span>
-          <span class="step-act"><button class="btn">复制</button></span></div>
+          <span class="step-title link" style="color:var(--accent-red)">Function call</span>
+          <span class="step-note">bash · exit code 1 — failed rows use a red ✗ icon</span>
+          <span class="step-act"><button class="btn">Copy</button></span></div>
       </div>
     </div>
     </div></div>
   </div>
 </div>
-<div class="rule">状态就画在图标位：运行中 = 呼吸点（青），失败 = 红 ✗，正常 = 类型图标（按类配色）；可展开性和开合状态也只在图标位表达——有子内容时始终显示圆形状态，收起实心、展开空心，叶子行不画圈。圆圈继承当前行的类型色；收起态为单一、均匀、不透明的浅色面，不是 hover 效果，鼠标移动不会改变它。<br>
-几何：主层 tl-body 左内边距 38px，20px 图标落在 4..24（中心 14），1.5px 竖线压在 13.25px；子层左内边距 34px，17px 图标（中心 12.5），竖线压在 11.75px。图标盒、圆心和竖线位置保持不变；收起态直接绘制主层 26px、子层 23px 的完整色面，内部和边缘颜色完全一致，并遮住背后的时间线。独立外圈固定为 2px，展开和收起时都不变化；展开态在图标盒外增加 1px 页面底色内遮罩，恰好覆盖到圆环内缘，灰色时间线只能从圆环外缘下方开始。总外径不改变行高和列宽。内部色面只改变自身宽高、纵向位置和透明度：26/23px 圆形缩为 1.5×12px 竖段并渐变透明，竖段上缘落在对应圆环下缘，最终由原有 1.5px 中性时间线单独显示连接关系。<br>
-动画：圆形色面、圆环配色和子内容在同一帧开始。色面、子内容高度和子时间线起点使用同一个 220ms cubic-bezier(.2,.7,.2,1)；子时间线自身的 -3px→0 位移之外，线起点再执行 -9.5px→-0.5px，使它和上方 12px 竖段在所有中间帧保持相接。圆环配色与内容透明度使用 140–180ms ease；折叠按相反方向执行。实现只依据同一个 open 状态，不增加中间状态。暗色与浅色模式分别使用独立的鲜艳类型色；浅色模式时间线使用 22% 中性色，深色模式使用 28%，均低于类型图标和文字的视觉权重。prefers-reduced-motion 下所有过渡缩短为 0.01ms。<br>
-不增加独立箭头，不预留箭头槽，也不显示“⋯ N 步”。右侧只保留 Copy、Switch 等动作，动作右缘不受行是否可展开影响。带下划线的标题始终是详情入口；辅助动作只在鼠标压着的那一行出现，进入和离开均即时切换，不做 opacity 过渡。:hover 必须挂在 step-head 而非整个 step——嵌套树里子行悬停不会同时显示祖先行的动作；键盘操作只由 :focus-visible 保持动作可见，鼠标点击留下的 focus 不会让旧行残留。点击图标、摘要或行内空白只展开/折叠，不打开详情。<br>
-嵌套层级：函数内部还有子调用时（@agentic_function 的执行树、工具的多层 call-tree），展开就是<b>缩进一层的子时间线</b>——同一套行样式递归下去，层数不限。<br>
-<b>实现状态：</b>生产组件已使用收起实心、展开空心的圆点状态；收起态是均匀、不透明、能够遮住连接线的浅色色面，圆形色面连续缩小并露出原有连接线，子内容以同一个 220ms 过渡展开或折叠，外径统一为主层 26px、子层 23px。其余既有行为不变：所有时间线行均提供复制操作，右侧展开箭头和步骤数提示已移除。</div>
+<div class="rule">Status occupies the icon position: running = breathing cyan dot, failed = red ✗, normal = type-colored icon. Expandability and open state are also expressed only there: rows with children always show a circle, solid when collapsed and hollow when expanded; leaves have none. Circles inherit type colors. Collapsed fill is uniform, opaque, and light; it is not a hover effect and does not change with pointer movement.<br> Geometry: main tl-body left padding is 38px; a 20px icon occupies 4..24 (center 14) and the 1.5px vertical line sits at 13.25px. Child left padding is 34px, with 17px icons (center 12.5) and the line at 11.75px. Icon boxes, circle centers, and line positions stay fixed. Collapsed fill covers the full 26px main / 23px child circle with identical center/edge colors, covering the timeline. The independent outer ring remains 2px in both states. Expanded state adds a 1px page-background inner mask outside the icon box, exactly reaching the ring’s inner edge; the gray timeline starts below its outer lower edge. Outer diameter changes neither row height nor column width. Only the inner fill changes width, height, vertical position, and opacity: a 26/23px circle becomes a 1.5×12px segment and fades out, with the segment’s top at the ring’s lower edge. The original 1.5px neutral timeline alone displays the connection.<br> Animation: circular fill, ring color, and child content start in one frame. Fill, child height, and child-timeline start share 220ms cubic-bezier(.2,.7,.2,1). In addition to the child timeline’s -3px→0 translation, its line start moves -9.5px→-0.5px, staying connected to the upper 12px segment in all intermediate frames. Ring color and content opacity use 140–180ms ease. Collapse reverses direction. Implementation uses one open state without intermediate states. Dark/light modes have separate vivid type colors. Timelines use 22% neutral color in light mode and 28% in dark mode, both visually weaker than type icons and text. prefers-reduced-motion reduces every transition to 0.01ms.<br> Add no independent arrow, arrow slot, or “⋯ N steps” label. Keep only actions such as Copy and Switch on the right; action right edges do not depend on expandability. Underlined titles always open details. Auxiliary actions appear only on the hovered row, changing immediately on entry/exit without opacity transitions. Apply :hover to step-head rather than the entire step so child hover does not reveal ancestor actions. Keyboard interaction retains actions only through :focus-visible; pointer focus must not leave old-row actions visible. Icons, summaries, and whitespace only expand/collapse, never open details.<br> Nesting: when functions have child calls (@agentic_function execution trees or multi-level tool call trees), expansion shows<b>an indented child timeline</b>, recursively using identical row styles without a depth limit.<br>
+<b>Implementation status:</b>Production components use solid collapsed circles and hollow expanded circles. Collapsed fill is uniform, opaque, light, and covers connecting lines. It continuously shrinks to reveal the original line; child content expands/collapses with the same 220ms transition. Outer diameters are 26px main and 23px child. Existing behavior is otherwise unchanged: every timeline row offers copy, while right-side expansion arrows and step counts are removed.</div>
 
-<!-- ═══════ 3. 手动函数运行 ═══════ -->
-<h2><span class="num">3</span>手动函数运行：一个 FunctionInvocation，两种输入方式</h2>
-<div class="desc">函数表单和完整函数表达式是同一个 <code>FunctionInvocation { name, kwargs }</code> 的两种编辑方式。表单点“运行”直接提交 typed kwargs；普通输入框中的整段文本若精确匹配一个已注册函数及其命名参数，也在创建 user message 之前转换成同一个对象并提交。两者都只产生下面这一条 ProgramRun，不创建 UserBubble，也不经过一次额外的 Agent 文本回合。带前后说明文字、反引号或代码围栏的函数片段仍是普通消息，避免把讨论代码误执行。</div>
+<!-- ═══════ 3. Manual function runs ═══════ -->
+<h2><span class="num">3</span>Manual function runs: one FunctionInvocation, two input modes</h2>
+<div class="desc">The function form and complete function expression are two editors for the same <code>FunctionInvocation { name, kwargs }</code> . Clicking Run in the form submits typed kwargs directly. Entire composer text that exactly matches a registered function with named arguments is converted to the same object before creating a user message. Both create only the ProgramRun below, without UserBubble or an extra Agent text turn. Function fragments with surrounding prose, backticks, or code fences remain ordinary messages to avoid executing code under discussion.</div>
 <table class="path-table">
-  <thead><tr><th>输入</th><th>入口判定</th><th>持久化与显示</th></tr></thead>
+  <thead><tr><th>Input</th><th>Entry classification</th><th>Persistence and display</th></tr></thead>
   <tbody>
-    <tr><td><code>gui_agent(task=&quot;…&quot;, surface=&quot;browser&quot;)</code></td><td>整段精确匹配、函数已注册、仅命名字面量参数</td><td><code>POST /api/function/gui_agent</code> → 单条 ProgramRun</td></tr>
-    <tr><td>Favorite Programs 的 gui_agent 表单</td><td>表单 schema 生成同一个 typed kwargs</td><td><code>POST /api/function/gui_agent</code> → 单条 ProgramRun</td></tr>
-    <tr><td><code>请解释 gui_agent(...)</code> 或 <code>`gui_agent(...)`</code></td><td>不是整段函数表达式</td><td>普通 UserMessage → Agent</td></tr>
+    <tr><td><code>gui_agent(task=&quot;…&quot;, surface=&quot;browser&quot;)</code></td><td>Exact whole-input match, registered function, named literal arguments only</td><td><code>POST /api/function/gui_agent</code> → single ProgramRun</td></tr>
+    <tr><td>gui_agent form in Favorite Programs</td><td>Form schema generates the same typed kwargs</td><td><code>POST /api/function/gui_agent</code> → single ProgramRun</td></tr>
+    <tr><td><code>Please explain gui_agent(...)</code> or <code>`gui_agent(...)`</code></td><td>Not a complete function expression</td><td>Ordinary UserMessage → Agent</td></tr>
   </tbody>
 </table>
-<div class="desc">识别器不执行 JavaScript/Python，不支持位置参数、属性访问、变量或任意表达式；它只解析字符串、数值、布尔、null 和函数 schema 允许的平面命名参数。缺少必填项或类型不合法时保留草稿、打开同一个表单并显示参数错误，不降级成聊天消息。运行展示保留左侧 Function 类型头像和右侧无框时间线；该头像只标识 ProgramRun 类型，不表示 Agent 发言。展开运行摘要后，根行只展示直接子节点；每个子节点的后代仍默认折叠，由用户逐层展开。</div>
+<div class="desc">The recognizer executes neither JavaScript nor Python and supports no positional arguments, attribute access, variables, or arbitrary expressions. It parses only strings, numbers, booleans, null, and flat named arguments allowed by the function schema. Missing required or invalidly typed parameters retain the draft, open the same form, and display errors instead of falling back to chat. Runs retain a Function-type avatar on the left and unframed timeline on the right. This avatar identifies ProgramRun, not an Agent speaker. Expanded run summaries show only direct root children; their descendants stay collapsed until users expand each level.</div>
 <div class="stage run-host">
   <div class="runtime-program-run">
     <div class="runtime-program-avatar" aria-hidden="true">ƒ</div>
     <div class="runtime-program-content">
       <div class="tl" id="runtime-demo">
         <button class="tl-toggle" type="button">
-          <span>weather_report · 已完成 · 00:03 · 今天小雨转暴雨，24～28°C…</span><span class="chev">›</span>
+          <span>weather_report · completed · 00:03 · Light rain becoming heavy rain today, 24–28°C…</span><span class="chev">›</span>
         </button>
         <div class="tl-collapse"><div class="tl-collapse-inner">
           <div class="tl-body">
             <div class="step open" data-step-toggle>
               <div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span>
                 <span class="step-title link">weather_report</span>
-                <span class="step-note">{"city": "北京"} · 3.2s → 今天小雨转暴雨，24～28°C…</span>
-                <span class="step-act"><button class="btn">复制</button></span></div>
+                <span class="step-note">{"city": "Beijing"} · 3.2s → Light rain becoming heavy rain today, 24–28°C…</span>
+                <span class="step-act"><button class="btn">Copy</button></span></div>
               <div class="tl-sub"><div class="tl-sub-clip"><div class="tl-sub-inner">
                 <div class="step">
                   <div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span>
                     <span class="step-title link">web_search</span>
-                    <span class="step-note">"北京 今日天气" → 12 results</span>
-                    <span class="step-act"><button class="btn">复制</button></span></div>
+                    <span class="step-note">“Beijing weather today” → 12 results</span>
+                    <span class="step-act"><button class="btn">Copy</button></span></div>
                 </div>
                 <div class="step">
                   <div class="step-head"><span class="step-icon k-llm"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></span>
                     <span class="step-title link">LLM</span>
-                    <span class="step-note">汇总两源数据 · 1.1s</span>
-                    <span class="step-act"><button class="btn">复制</button></span></div>
+                    <span class="step-note">Summarize two sources · 1.1s</span>
+                    <span class="step-act"><button class="btn">Copy</button></span></div>
                 </div>
               </div></div></div>
             </div>
@@ -520,78 +512,77 @@ Agent 回复发起的 function 及其执行树只属于该回复的执行时间�
           <div class="run-footer">
             <span class="ts">16:32</span>
             <span class="act">
-              <button class="icon-btn" title="复制结果"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
-              <button class="icon-btn" title="重试"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
-              <button class="icon-btn" title="修改后重新运行"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+              <button class="icon-btn" title="Copy result"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+              <button class="icon-btn" title="Retry"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
+              <button class="icon-btn" title="Edit and rerun"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
               <span class="msg-nav">
-                <button class="icon-btn" title="上一版"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+                <button class="icon-btn" title="Previous version"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
                 <span class="label">1 / 2</span>
-                <button class="icon-btn" title="下一版"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+                <button class="icon-btn" title="Next version"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
               </span>
             </span>
           </div>
     </div>
   </div>
 </div>
-<div class="rule"><b>入口合同：</b>FunctionForm 和精确函数表达式共用一个 kwargs 类型转换器和一个 HTTP 提交器；聊天提交只负责在其前面做精确识别，不能复制函数运行的占位、Project、channel、session 导航或错误回滚逻辑。识别成功后不得调用 <code>sendChatMessage</code>，不得写 pending user text。附件、运行中排队和系统 decision 不隐式变成函数参数。<br>
-顶部折叠标题、Conclusion 和 footer 共享同一个内容列起点，不使用各自的 left、padding-left、margin-left 或 transform 做视觉补偿。footer 与聊天消息的 footer 同款（同一套图标按钮 + 时间戳，悬停显现），justify-content:flex-start；Conclusion 或直接结果到 footer 的垂直间距固定复用 assistant 正文到 footer 的 14px 视觉段落间距，不另设紧凑间距；版本切换<b>复用聊天的 .message-nav 组件</b>（◀ N/M ▶），不另造样式。footer 的复制复制<b>根调用的实际结果</b>（error ?? output），不是参数 JSON。<br>
-<b>分支语义</b>：重试 = <b>参数不变的兄弟分支</b>；修改（Edit）= 把上一次的参数预填回表单、提交后作为<b>可改参数的兄弟分支</b>运行（fork_of_node → 锚到原调用的前驱）。两者都在原位替换显示、旧运行经 ◀ N/M ▶ 仍可回看——<b>绝不在会话尾部追加新调用</b>。运行中占位 = 单条呼吸点行；嵌套在别的消息里（nested）时不渲染 footer。<br>
-<b>实现状态：</b>生产函数 footer 已移除额外左内边距，时间行、折叠标题和 Conclusion 严格共享同一左缘。精确函数表达式、FunctionForm、共享 HTTP dispatcher、Advanced 参数分组和 bound 会话隔离均已实现；<code>function-invocation.test.mjs</code> 覆盖直接调用、普通文本边界、typed kwargs、成功绑定、导航与失败回滚，GUI 不可执行结果和 metadata 由对应 Python 回归覆盖，并已通过独立规格审查。</div>
+<div class="rule"><b>Entry contract:</b>FunctionForm and exact function expressions share one kwargs converter and one HTTP submitter. Chat submission only performs precise recognition before them; it must not duplicate function placeholders, Project, channel, session navigation, or error rollback. Successful recognition must not call <code>sendChatMessage</code> or write pending user text. Attachments, queuing during a run, and system decisions do not implicitly become function parameters.<br> The top collapsed title, Conclusion, and footer share one content-column start, without separate left, padding-left, margin-left, or transform adjustments. Footer uses the same icon buttons, timestamp, and hover reveal as chat footers, with justify-content:flex-start. Conclusion or direct result-to-footer spacing reuses the assistant body’s 14px visual paragraph gap, without a separate compact gap. Version navigation<b>reuses the chat .message-nav component</b> (◀ N/M ▶), with no new style. Footer copy copies<b>the root call’s actual result</b> (error ?? output), not argument JSON.<br>
+<b>Branch semantics</b>: Retry creates <b>a sibling branch with unchanged arguments</b>; Edit prefills previous arguments into the form and submits as<b>a sibling branch with editable arguments</b> (fork_of_node anchors to the original call’s predecessor). Both replace the displayed run in place; old runs remain accessible via ◀ N/M ▶.<b>Never append a new call at the conversation’s end</b>. Running placeholder = one breathing-dot row; nested runs render no footer.<br>
+<b>Implementation status:</b>Production function footers no longer have extra left padding. Timestamp rows, collapsed titles, and Conclusion share exactly one left edge. Exact function expressions, FunctionForm, shared HTTP dispatcher, Advanced argument groups, and bound-session isolation are implemented;<code>function-invocation.test.mjs</code> covers direct calls, ordinary-text boundaries, typed kwargs, successful binding, navigation, and failure rollback. Corresponding Python regressions cover non-executable GUI results and metadata. Independent specification review passed.</div>
 
-<!-- ═══════ 4. Sub-agent 当前行为 ═══════ -->
-<h2><span class="num">4</span>Sub-agent 实时显示现状：记录保留，执行区默认收起</h2>
-<div class="desc">Sub-agent 行会实时写入执行树，但外层执行区在流式和终态都默认收起。数据保留在消息的 <code>attachCards</code> 或 <code>contextTree</code> 中；用户展开后可查看同一条持续更新的时间线记录。</div>
+<!-- ═══════ 4. Current sub-agent behavior ═══════ -->
+<h2><span class="num">4</span>Current sub-agent live display: records retained, execution collapsed by default</h2>
+<div class="desc">Sub-agent rows update the execution tree live, while the outer execution area defaults to collapsed in streaming and terminal states. Data remains in the message’s <code>attachCards</code> or <code>contextTree</code> ; expansion reveals the same continuously updated timeline record.</div>
 
-<div class="state-flow" aria-label="当前 sub-agent 显示状态序列">
+<div class="state-flow" aria-label="Current sub-agent display-state sequence">
   <div class="state-card">
-    <div class="state-kicker">T0 · 父级 RUNNING</div>
-    <div class="state-title">执行区默认收起</div>
-    <div class="state-copy"><code>const [open, setOpen] = useState(false)</code>，流式状态不参与初始展开值。</div>
+    <div class="state-kicker">T0 · parent RUNNING</div>
+    <div class="state-title">Execution area defaults to collapsed</div>
+    <div class="state-copy"><code>const [open, setOpen] = useState(false)</code>; streaming state does not determine its initial open value.</div>
   </div>
   <div class="state-card">
-    <div class="state-kicker">T1 · 子代理开始</div>
-    <div class="state-title">记录“Sub-agent · 运行中”</div>
-    <div class="state-copy">时间线数据更新，摘要保持收起；用户已展开时新行按正常动画出现。</div>
+    <div class="state-kicker">T1 · sub-agent starts</div>
+    <div class="state-title">Record “Sub-agent · Running”</div>
+    <div class="state-copy">Timeline data updates while the summary stays collapsed. If the user has expanded it, the new row appears with normal animation.</div>
   </div>
   <div class="state-card">
-    <div class="state-kicker">T2 · 子代理结束</div>
-    <div class="state-title">同一行原位更新</div>
-    <div class="state-copy">稳定 <code>card_id</code> 对应的行改为“已完成/出错”，不追加副本，也不删除。</div>
+    <div class="state-kicker">T2 · sub-agent finishes</div>
+    <div class="state-title">Update the same row in place</div>
+    <div class="state-copy">The row with stable <code>card_id</code> changes to “Completed/Error,” without duplication or deletion.</div>
   </div>
   <div class="state-card">
-    <div class="state-kicker">T3 · 父级 TERMINAL</div>
-    <div class="state-title">执行区保持收起</div>
-    <div class="state-copy">终态更新不改变默认状态，也不覆盖用户的手动展开选择。</div>
+    <div class="state-kicker">T3 · parent TERMINAL</div>
+    <div class="state-title">Execution area stays collapsed</div>
+    <div class="state-copy">Terminal updates neither change the default nor override the user’s manual expansion.</div>
   </div>
   <div class="state-card">
-    <div class="state-kicker">T4 · 用户重新展开</div>
-    <div class="state-title">仍是同一条时间线行</div>
-    <div class="state-copy">记录没有变成卡片；悬停或聚焦该行时，行尾继续显示 <b>Switch ↗</b>。</div>
+    <div class="state-kicker">T4 · user expands again</div>
+    <div class="state-title">Still the same timeline row</div>
+    <div class="state-copy">The record has not become a card. Hovering or focusing the row still displays at its end <b>Switch ↗</b>.</div>
   </div>
 </div>
 
-<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">慢速重放当前行为</h3>
-<div class="desc">演示刻意放慢，便于确认运行状态变化不会自动展开执行区。T4 模拟用户手动展开，用于确认收起期间持续更新的记录仍是同一条时间线行。</div>
+<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Slow replay of current behavior</h3>
+<div class="desc">The demo is deliberately slow so running-state changes can be seen not to expand the execution area automatically. T4 simulates manual expansion and confirms that records updated while collapsed remain the same timeline rows.</div>
 <div class="current-demo">
   <div class="demo-toolbar">
-    <button class="demo-btn" type="button" id="replay-subagent">慢速重放</button>
-    <button class="demo-btn" type="button" id="reset-subagent">重置</button>
-    <span class="demo-status" id="subagent-status" aria-live="polite">等待重放</span>
+    <button class="demo-btn" type="button" id="replay-subagent">Slow replay</button>
+    <button class="demo-btn" type="button" id="reset-subagent">Reset</button>
+    <span class="demo-status" id="subagent-status" aria-live="polite">Waiting to replay</span>
   </div>
   <div class="demo-runtime">
     <div class="runtime-program-avatar" aria-hidden="true">ƒ</div>
     <div class="runtime-program-content">
       <div class="tl" id="subagent-demo">
         <button class="tl-toggle" type="button" id="subagent-demo-toggle" aria-expanded="false">
-          <span id="subagent-demo-label">auto_workflow · 等待运行</span><span class="chev">›</span>
+          <span id="subagent-demo-label">auto_workflow · waiting to run</span><span class="chev">›</span>
         </button>
         <div class="tl-collapse"><div class="tl-collapse-inner">
           <div class="tl-body">
             <div class="step demo-subagent" id="demo-subagent-row">
               <div class="step-head"><span class="step-icon k-subagent"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
-                <span class="step-title link">Sub-agent: 检索近期论文</span>
-                <span class="step-note" id="demo-subagent-note">运行中…</span>
-                <span class="step-act"><button class="btn" type="button">复制</button><button class="btn" type="button">Switch ↗</button></span></div>
+                <span class="step-title link">Sub-agent: search recent papers</span>
+                <span class="step-note" id="demo-subagent-note">Running…</span>
+                <span class="step-act"><button class="btn" type="button">Copy</button><button class="btn" type="button">Switch ↗</button></span></div>
             </div>
           </div>
         </div></div>
@@ -600,140 +591,140 @@ Agent 回复发起的 function 及其执行树只属于该回复的执行时间�
   </div>
 </div>
 
-<div class="diagnostic-note"><b>状态边界：</b>父级 workflow 是否仍为 <code>running</code> 只影响摘要 shimmer 和步骤状态，不决定外层展开状态。收起不会删除记录；用户展开后，原记录仍按时间线行显示。</div>
+<div class="diagnostic-note"><b>State boundary:</b>Whether the parent workflow is still <code>running</code> affects only summary shimmer and step status, not outer expansion. Collapsing does not delete records; expansion shows the original record as a timeline row.</div>
 
 <table class="path-table">
-  <thead><tr><th>调用路径</th><th>实时数据</th><th>页面节点</th><th>共同的可见性控制</th></tr></thead>
+  <thead><tr><th>Call path</th><th>Live data</th><th>Page node</th><th>Shared visibility control</th></tr></thead>
   <tbody>
-    <tr><td>聊天中的 <code>agent()</code></td><td><code>sub_agent</code> 事件按稳定 <code>card_id</code> 更新 <code>attachCards</code></td><td><code>SubAgentStep</code></td><td rowspan="2"><code>ExecutionStrip</code><br><code>const [open, setOpen] = useState(false)</code></td></tr>
-    <tr><td><code>auto_workflow</code> 内部 selection agent</td><td><code>tree_update</code> 更新 <code>contextTree</code></td><td><code>TreeStep</code> 子节点</td></tr>
+    <tr><td>In chat, <code>agent()</code></td><td><code>sub_agent</code> events update by stable <code>card_id</code> : <code>attachCards</code></td><td><code>SubAgentStep</code></td><td rowspan="2"><code>ExecutionStrip</code><br><code>const [open, setOpen] = useState(false)</code></td></tr>
+    <tr><td><code>auto_workflow</code> internal selection agent</td><td><code>tree_update</code> : <code>contextTree</code></td><td><code>TreeStep</code> child node</td></tr>
   </tbody>
 </table>
-<div class="rule"><b>实现合同：</b>完成事件只更新同一条子代理记录；<code>ExecutionStrip</code> 以 <code>false</code> 作为流式和历史消息的共同默认状态，手动切换优先。相关入口：<a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/chat/messages/execution-strip.tsx" style="color:var(--accent-cyan)">execution-strip.tsx</a>、<a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/lib/net/chat-stream.ts" style="color:var(--accent-cyan)">chat-stream.ts</a>、<a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/chat/messages/runtime-block.tsx" style="color:var(--accent-cyan)">runtime-block.tsx</a>、<a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/scripts/runtime/check-spawn-cards.mjs" style="color:var(--accent-cyan)">check-spawn-cards.mjs</a>。</div>
+<div class="rule"><b>Implementation contract:</b>Completion events update the same sub-agent record only;<code>ExecutionStrip</code> uses <code>false</code> as the common default for streaming and historical messages, with manual choices taking precedence. Related entries:<a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/chat/messages/execution-strip.tsx" style="color:var(--accent-cyan)">execution-strip.tsx</a>, <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/lib/net/chat-stream.ts" style="color:var(--accent-cyan)">chat-stream.ts</a>, <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/chat/messages/runtime-block.tsx" style="color:var(--accent-cyan)">runtime-block.tsx</a>, <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/scripts/runtime/check-spawn-cards.mjs" style="color:var(--accent-cyan)">check-spawn-cards.mjs</a>.</div>
 
-<!-- ═══════ 5. 父子分支导航 ═══════ -->
-<h2><span class="num">5</span>Sub-agent 父子分支导航：一个进入口，两个返回落点</h2>
-<div class="desc">这里直接画现有的两套返回交互。父对话从时间线里的 <b>Switch ↗</b> 进入子分支；子分支顶部的 <b>返回主对话</b> 回到父分支最新位置，首条消息前的 <b>创建自 / 切回调用处</b> 回到发起 sub-agent 的那条消息。点样例内的三个按钮查看落点。</div>
+<!-- ═══════ 5. Parent/child navigation ═══════ -->
+<h2><span class="num">5</span>Sub-agent parent/child navigation: one entry, two return destinations</h2>
+<div class="desc">The two existing return interactions are shown here. The parent enters a child branch through the timeline’s <b>Switch ↗</b> . The child’s top <b>Return to main conversation</b> returns to the parent’s latest position; before the first message, <b>Created from / Return to call site</b> returns to the message that started the sub-agent. Click the three sample buttons to inspect destinations.</div>
 
 <div class="branch-nav-demo">
-  <div class="branch-map" aria-label="父子分支导航落点图">
+  <div class="branch-map" aria-label="Parent/child branch-navigation destinations">
     <div class="branch-map-node" id="branch-map-caller">
       <div class="branch-map-kicker">A · callerId</div>
-      <div class="branch-map-title">父分支 · 原始调用处</div>
+      <div class="branch-map-title">Parent branch · original call site</div>
     </div>
     <div class="branch-map-edge to-child">
-      <svg viewBox="0 0 88 18" role="img"><title>父分支与子分支之间的双向路径</title><desc>Switch 向右进入子分支，切回调用处向左返回。</desc><path d="M2 5h80m0 0-6-3m6 3-6 3M86 13H6m0 0 6-3m-6 3 6 3"/></svg>
-      <span>Switch →<br><span style="color:var(--accent-orange)">← 调用处</span></span>
+      <svg viewBox="0 0 88 18" role="img"><title>Bidirectional paths between parent and child branches</title><desc>Switch enters the child branch to the right; return to call site goes left.</desc><path d="M2 5h80m0 0-6-3m6 3-6 3M86 13H6m0 0 6-3m-6 3 6 3"/></svg>
+      <span>Switch →<br><span style="color:var(--accent-orange)">← Call site</span></span>
     </div>
     <div class="branch-map-node" id="branch-map-child">
       <div class="branch-map-kicker">B · attach.head_id</div>
-      <div class="branch-map-title">Sub-agent 子分支</div>
+      <div class="branch-map-title">Sub-agent child branch</div>
     </div>
     <div class="branch-map-edge to-latest">
-      <svg viewBox="0 0 88 18" role="img"><title>子分支返回父分支最新位置</title><desc>顶部返回主对话按钮跳转到父分支最新消息。</desc><path d="M2 9h80m0 0-6-3m6 3-6 3"/></svg>
-      <span>返回主对话 →</span>
+      <svg viewBox="0 0 88 18" role="img"><title>Child returns to the parent’s latest position</title><desc>The top return-to-main button navigates to the parent’s latest message.</desc><path d="M2 9h80m0 0-6-3m6 3-6 3"/></svg>
+      <span>Return to main conversation →</span>
     </div>
     <div class="branch-map-node" id="branch-map-latest">
       <div class="branch-map-kicker">C · backTarget</div>
-      <div class="branch-map-title">父分支 · 最新位置</div>
+      <div class="branch-map-title">Parent branch · latest position</div>
     </div>
   </div>
 
   <div class="branch-demo-shell">
     <div class="branch-demo-bar">
       <span class="branch-demo-dot" aria-hidden="true"></span>
-      <span>交互预览</span>
-      <button class="branch-action" type="button" id="branch-demo-reset">重置到父对话</button>
-      <span class="branch-demo-state" id="branch-demo-state" aria-live="polite">父分支 · 最新位置</span>
+      <span>Interaction preview</span>
+      <button class="branch-action" type="button" id="branch-demo-reset">Reset to parent conversation</button>
+      <span class="branch-demo-state" id="branch-demo-state" aria-live="polite">Parent branch · latest position</span>
     </div>
 
-    <section class="branch-view active" id="branch-view-parent" tabindex="-1" aria-label="父对话预览">
-      <div class="branch-landing latest" id="branch-landing-latest">已返回父分支最新位置，并展开、高亮发起 sub-agent 的执行行。</div>
-      <div class="branch-landing caller" id="branch-landing-caller">已切回原始调用处；此落点之后的父分支消息不在当前 transcript 中。</div>
-      <div class="u-msg"><div class="u-bubble">请检索 2025–2026 年的相关论文，整理研究脉络。</div></div>
-      <div class="reply">我会让一个 sub-agent 独立检索和核对论文。</div>
+    <section class="branch-view active" id="branch-view-parent" tabindex="-1" aria-label="Parent conversation preview">
+      <div class="branch-landing latest" id="branch-landing-latest">Returned to the parent’s latest position, with the originating sub-agent execution row expanded and highlighted.</div>
+      <div class="branch-landing caller" id="branch-landing-caller">Returned to the original call site; later parent-branch messages are not in the current transcript.</div>
+      <div class="u-msg"><div class="u-bubble">Find relevant papers from 2025–2026 and organize the research developments.</div></div>
+      <div class="reply">I’ll ask a sub-agent to independently search and verify papers.</div>
       <div class="tl open branch-parent-strip">
-        <div class="tl-toggle"><span>思考 ×1 · 子代理 ×1</span><span class="chev">›</span></div>
+        <div class="tl-toggle"><span>Thinking ×1 · Sub-agent ×1</span><span class="chev">›</span></div>
         <div class="tl-collapse"><div class="tl-collapse-inner"><div class="tl-body">
           <div class="step" id="branch-parent-call">
             <div class="step-head">
               <span class="step-icon k-subagent"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
-              <span class="step-title link">Sub-agent: 检索近期论文</span>
-              <span class="step-note">已完成</span>
-              <span class="step-act"><button class="btn" type="button">复制</button><button class="btn" type="button" data-branch-destination="child">Switch ↗</button></span>
+              <span class="step-title link">Sub-agent: search recent papers</span>
+              <span class="step-note">Completed</span>
+              <span class="step-act"><button class="btn" type="button">Copy</button><button class="btn" type="button" data-branch-destination="child">Switch ↗</button></span>
             </div>
           </div>
         </div></div></div>
       </div>
       <div class="branch-continuation" id="branch-parent-continuation">
-        <div class="reply">已继续处理父对话：对 sub-agent 返回的论文清单去重，并将研究脉络写入项目文件。</div>
+        <div class="reply">Continued the parent conversation: deduplicated the returned papers and wrote the research overview to project files.</div>
         <div class="run-footer" style="margin-top:14px"><span class="ts">15:42</span></div>
       </div>
     </section>
 
-    <section class="branch-view" id="branch-view-child" tabindex="-1" aria-label="Sub-agent 子分支预览" aria-hidden="true">
+    <section class="branch-view" id="branch-view-child" tabindex="-1" aria-label="Sub-agent child-branch preview" aria-hidden="true">
       <div class="branch-context-banner">
-        <span class="branch-context-label">正在查看子 agent 分支 · <b>检索近期论文</b></span>
-        <button class="branch-action" type="button" data-branch-destination="latest">返回主对话</button>
+        <span class="branch-context-label">Viewing sub-agent branch · <b>Search recent papers</b></span>
+        <button class="branch-action" type="button" data-branch-destination="latest">Return to main conversation</button>
       </div>
       <div class="branch-origin">
         <div class="branch-origin-icon" aria-hidden="true">↰</div>
         <div class="branch-origin-copy">
-          <div class="branch-origin-title">创建自：近期论文调研</div>
-          <div class="branch-origin-sub">这个分支由父对话中的 agent() 调用创建</div>
+          <div class="branch-origin-title">Created from: recent-paper research</div>
+          <div class="branch-origin-sub">This branch was created by an agent() call in the parent conversation</div>
         </div>
-        <button class="branch-action" type="button" data-branch-destination="caller">切回调用处 ↗</button>
+        <button class="branch-action" type="button" data-branch-destination="caller">Return to call site ↗</button>
       </div>
-      <div class="u-msg"><div class="u-bubble">检索 2025–2026 年相关论文，核对时间、方法与研究关系。</div></div>
+      <div class="u-msg"><div class="u-bubble">Search relevant papers from 2025–2026, checking dates, methods, and research relationships.</div></div>
       <div class="tl open" style="margin-top:16px">
-        <div class="tl-toggle"><span>思考 ×2 · 函数 ×4 · 已完成</span><span class="chev">›</span></div>
+        <div class="tl-toggle"><span>Thinking ×2 · Functions ×4 · Completed</span><span class="chev">›</span></div>
         <div class="tl-collapse"><div class="tl-collapse-inner"><div class="tl-body">
-          <div class="step"><div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span><span class="step-title link">web_search</span><span class="step-note">2025 2026 persona spillover LLM → 24 results</span><span class="step-act"><button class="btn">复制</button></span></div></div>
-          <div class="step"><div class="step-head"><span class="step-icon k-llm"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/></svg></span><span class="step-title link">LLM</span><span class="step-note">按年份、问题设定和方法关系分组…</span><span class="step-act"><button class="btn">复制</button></span></div></div>
+          <div class="step"><div class="step-head"><span class="step-icon k-function"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span><span class="step-title link">web_search</span><span class="step-note">2025 2026 persona spillover LLM → 24 results</span><span class="step-act"><button class="btn">Copy</button></span></div></div>
+          <div class="step"><div class="step-head"><span class="step-icon k-llm"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/></svg></span><span class="step-title link">LLM</span><span class="step-note">Group by year, problem setting, and method relationships…</span><span class="step-act"><button class="btn">Copy</button></span></div></div>
         </div></div></div>
       </div>
-      <div class="reply" style="margin-top:14px">已完成检索与核对，整理结果已写入工作目录。</div>
+      <div class="reply" style="margin-top:14px">Search and verification are complete; organized results are written to the working directory.</div>
     </section>
   </div>
 
   <div class="branch-explain">
-    <div class="branch-explain-item latest"><b>顶部“返回主对话”</b>回到父分支最新位置；重新加载后定位发起回合，展开执行区并高亮 sub-agent 行。</div>
-    <div class="branch-explain-item caller"><b>首条消息前“切回调用处”</b>直接回到 <code>callerId</code>；父分支在该消息之后的继续内容不显示。</div>
+    <div class="branch-explain-item latest"><b>Top “Return to main conversation”</b>Return to the parent’s latest position; after reload, locate the originating turn, expand execution, and highlight the sub-agent row.</div>
+    <div class="branch-explain-item caller"><b>“Return to call site” before the first message</b>Return directly to <code>callerId</code>; later continuation in the parent branch is hidden.</div>
   </div>
 </div>
-<div class="rule"><b>共同边界：</b>三个动作都是切换同一 session 的活动 HEAD 并重新加载 transcript，不是打开新标签页。运行中后端禁止移动 HEAD；跨 session 的旧 AttachCard 只负责打开目标 session，不属于这个同 session 交互样例。<code>auto_workflow</code> 内只有 <code>TreeStep</code> 而没有 attach 指针的节点，仍只能打开右栏详情，不显示这组分支导航。</div>
+<div class="rule"><b>Shared boundary:</b>All three actions switch the active HEAD in one session and reload the transcript; they do not open a new tab. The backend prohibits HEAD movement during execution. Legacy cross-session AttachCard opens a target session only and is outside this same-session example.<code>auto_workflow</code> contains only <code>TreeStep</code> without an attach pointer still open right-panel details only and show none of these branch-navigation actions.</div>
 
-<!-- ═══════ 6. 消息导航 ═══════ -->
-<h2><span class="num">6</span>左缘消息导航：横线即消息，悬停展开列表</h2>
-<div class="desc">聊天列左缘一列小横线，一条横线 = 你发过的一条消息（当前可视的那条加亮加长）。悬停整列 → 展开消息列表面板，点击跳到那条消息。把鼠标移到左边那几条横线上试试。</div>
+<!-- ═══════ 6. Message navigation ═══════ -->
+<h2><span class="num">6</span>Left-edge message navigation: lines mark messages; hover opens a list</h2>
+<div class="desc">Small horizontal marks along the chat column’s left edge each represent one user message; the currently visible one is brighter and longer. Hover the column to open a message list, then click to jump. Try hovering the marks on the left.</div>
 <div class="stage" style="min-height:300px">
-  <div class="u-msg"><div class="u-bubble">你好</div></div>
-  <div class="reply">你好！有什么我可以帮你的吗？</div>
-  <div class="u-msg"><div class="u-bubble">你能开一个agent，帮我去看看今天天气吗</div></div>
-  <div class="reply">北京今天小雨转暴雨，现在 25.8°C……建议带伞。</div>
-  <div class="u-msg"><div class="u-bubble">那明天呢？</div></div>
-  <div class="reply">明天多云转晴，26～31°C，无降水……</div>
+  <div class="u-msg"><div class="u-bubble">Hello</div></div>
+  <div class="reply">Hello! How can I help?</div>
+  <div class="u-msg"><div class="u-bubble">Can you start an agent to check today’s weather?</div></div>
+  <div class="reply">Beijing has light rain becoming heavy rain today, currently 25.8°C… Bring an umbrella.</div>
+  <div class="u-msg"><div class="u-bubble">What about tomorrow?</div></div>
+  <div class="reply">Tomorrow turns from cloudy to sunny, 26–31°C, no precipitation…</div>
 
   <div class="mini">
     <span class="dash"></span>
     <span class="dash active"></span>
     <span class="dash"></span>
     <div class="mini-panel">
-      <div class="mini-row">你好</div>
-      <div class="mini-row active">你能开一个agent，帮我去看看今天天气吗</div>
-      <div class="mini-row">那明天呢？</div>
+      <div class="mini-row">Hello</div>
+      <div class="mini-row active">Can you start an agent to check today’s weather?</div>
+      <div class="mini-row">What about tomorrow?</div>
     </div>
   </div>
 </div>
-<div class="rule">横线只数用户消息（回复不占位）；整列<b>贴左缘</b>——紧靠左侧栏分割线（left: calc((100% - 100cqw)/2 + 8px)，chat-area 是 inline-size 容器），不悬在正文中间。面板从刻度右侧展开，行内文字单行截断；点击 = 平滑滚到那条消息并闪一下。面板出现时横线隐去，二者不叠。列表滚动时高亮跟随当前可视消息。</div>
+<div class="rule">Marks count only user messages; replies occupy no mark. The column<b>stays at the left edge</b> beside the sidebar divider (left: calc((100% - 100cqw)/2 + 8px), with chat-area an inline-size container), not amid body text. The panel expands to the right of the marks with single-line truncated rows. Clicking smoothly scrolls to and briefly highlights a message. Marks disappear while the panel is visible. Highlight follows the current visible message during scrolling.</div>
 
-<!-- ═══════ 7. 文件修改与 Review ═══════ -->
-<h2><span class="num">7</span>文件修改：精确归因、分层 Review、安全 Undo</h2>
-<div class="desc">本节只定义聊天卡与 Changes center tab 的视觉表面。文件归因、Undo、历史 Revert、多轮 Restore、Branch、checkpoint、并发和保留策略的唯一权威是 <a href="../runtime/operations/file-management.html">文件修改、Review 与历史恢复</a>。聊天卡只陈述本轮精确修改；Review 使用 This turn、Current branch 和 Workspace。</div>
+<!-- ═══════ 7. File changes and Review ═══════ -->
+<h2><span class="num">7</span>File changes: exact attribution, scoped Review, safe Undo</h2>
+<div class="desc">This section defines only chat-card and Changes center-tab visuals. The sole authority for file attribution, Undo, historical Revert, multi-turn Restore, Branch, checkpoints, concurrency, and retention is <a href="../runtime/operations/file-management.html">File changes, Review, and history recovery</a>. Chat cards report only exact changes from this turn. Review uses This turn, Current branch, and Workspace.</div>
 
-<div class="change-target-demo" aria-label="聊天摘要卡与独立 Review 页目标草图">
+<div class="change-target-demo" aria-label="Target sketch: chat summary card and independent Review page">
   <div class="change-chat-pane">
-    <div class="reply">后台进程逻辑与测试已更新。</div>
+    <div class="reply">Background-process logic and tests updated.</div>
     <div class="change-card-demo">
       <div class="change-summary"><span class="change-summary-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12.67 19a2 2 0 0 0 1.416-.588l6.154-6.172a6 6 0 0 0-8.49-8.49L5.586 9.914A2 2 0 0 0 5 11.328V18a1 1 0 0 0 1 1z"/><path d="M16 8 2 22"/><path d="M17.5 15H9"/></svg></span><span class="change-summary-title" data-short="3 files">3 files changed</span><span class="change-summary-stat"><b class="add">+27</b><b class="del">−6</b><span class="change-summary-meter" title="82% additions · 18% deletions" aria-hidden="true"></span></span><span class="change-summary-actions"><span class="change-summary-notice" title="current file state does not match the recorded source" role="status">current file state does not match the recorded source</span><button class="change-summary-action primary" type="button">Review</button></span></div>
       <div class="change-group">
@@ -757,79 +748,79 @@ Agent 回复发起的 function 及其执行树只属于该回复的执行时间�
     </div>
   </div>
 </div>
-<div class="rule"><b>显示状态：</b>只有存在持久化的本轮文件记录，或该轮包含直接文件写入工具时才挂载聊天卡；普通文字回复与确认无记录的轮次完全不显示卡片，也不显示 Review。旧文件写入轮次缺少内嵌摘要时进入视口后按需查询；查询期间只保留不可见 probe，空结果隐藏，查询失败仅显示紧凑的“无法加载文件修改 / 重试”行内状态，不显示无数据依据的 Review。该状态实现已通过独立 specification review、quality review、真实组件测试和完整 Web gate。</div>
-<div class="rule"><b>视觉边界：</b>保留完整外边框、圆角、文件列表和 footer；整张卡片统一使用产品 <code>--font-sans</code>，标题、路径、统计、状态与按钮不切换独立 monospace 字体，数字只保留 tabular alignment。header 固定 40px，左侧内边距为 12px，FeatherIcon—标题与标题—统计均使用 12px 间距；左侧使用用户指定的 19px FeatherIcon，并以一条横线分隔摘要与文件列表。深色主题中，header 和 footer 使用 <code>--bg-tertiary</code>，文件列表使用 <code>--bg-primary</code>；浅色主题中，整张卡、header、Review 按钮和 footer 全部使用 <code>--bg-primary</code>，不使用阴影或深色上下色块，只由外框和分隔线建立边界。所有主题的文件行默认透明，只有 hover 时叠加 <code>--bg-hover</code>；footer hover 同样只叠加 <code>--bg-hover</code>。FeatherIcon 表示本轮包含直接文件编辑，不使用网站 logo；hover 使用组件定义的 1.6 秒位移与旋转序列，reduced motion 下停用。header 的 FeatherIcon、14px 标题、统计区、13px Undo/Redo 与 Review 按钮必须按同一垂直中心线对齐，不使用 baseline 对齐；方向图标使用 <code>1em</code> 与按钮文字等高。总增删数字始终同时显示，包括 <code>+0</code> 或 <code>−0</code>；统计字号为 12px，其下 2.5px 双色比例条只编码 additions / deletions 的真实占比，不增加分类 chips 或装饰性数字。卡片以自身 inline size 建立 container；卡片宽度 ≤420px 时标题从 “3 files changed” 缩写为 “3 files”，FeatherIcon、统计和操作保持可见，并恢复 6px / 5px 的紧凑间距；viewport media query 只作为兼容路径。历史操作预检未通过时，header 不显示 Undo/Revert/Redo/Reapply，而是在 Review 左侧显示一条 12px 主题强调色状态提示；提示单行省略，<code>title</code> 保留全文，窄卡片限制为 92px。该状态不再在文件列表或 footer 下追加独立提示行。成功 Undo 后显示 <b>Redo</b>；历史 Revert 的反向操作显示 <b>Reapply</b>。两者都调用同一安全 reapply transaction 并重新预检，不维护独立线性 redo 栈。Review 使用中性色描边按钮；Undo / Revert 使用文字加回退图标，不使用强调色。Code / Tests / Docs / Large 分类只在 Review 中出现。文件列表到文件行的四边间距统一为 4px；文件行固定 28px，行内左右内边距为 6px，文件路径使用 13px 产品 sans，增删统计使用 12px 产品 sans 并固定列宽；整行导航，不放展开箭头或 hover 操作组。唯一的展开控制属于 Show more footer；展开后 footer 只显示 13px <b>Collapse</b>，完整 Review 始终由 header 的 Review 按钮进入，不再追加 “Review all” footer。</div>
+<div class="rule"><b>Display state:</b>Mount a chat card only when persisted turn file records exist or the turn contains a direct file-writing tool. Ordinary text replies and turns confirmed to have no records display neither card nor Review. Legacy file-writing turns without embedded summaries query on demand when entering the viewport. During queries, keep only an invisible probe; hide empty results. Query failure shows only a compact “Unable to load file changes / Retry” inline status, without unsupported Review controls. This state implementation passed independent specification review, quality review, real component tests, and the complete Web gate.</div>
+<div class="rule"><b>Visual boundary:</b>Retain the full outer border, rounded corners, file list, and footer. The entire card uses product <code>--font-sans</code>; titles, paths, statistics, status, and buttons do not switch to a separate monospace font, while numbers retain tabular alignment. Header is 40px high with 12px left padding. FeatherIcon-to-title and title-to-statistics gaps are both 12px. Use the user-specified 19px FeatherIcon on the left, with a horizontal divider between summary and files. Dark-theme header and footer use <code>--bg-tertiary</code>, and the file list uses <code>--bg-primary</code>. In light mode, the card, header, Review button, and footer all use <code>--bg-primary</code>, without shadows or dark top/bottom blocks; only outer borders and dividers establish boundaries. File rows are transparent by default in every theme, adding only <code>--bg-hover</code> on hover. Footer hover likewise adds only <code>--bg-hover</code>. FeatherIcon indicates direct file edits in this turn, not the site logo. Hover uses the component’s 1.6-second movement/rotation sequence, disabled for reduced motion. Header FeatherIcon, 14px title, statistics, 13px Undo/Redo, and Review button share one vertical centerline rather than baseline alignment. Direction icons use <code>1em</code> at the same height as button text. Always show both addition and deletion totals, including <code>+0</code> or <code>−0</code>. Statistics are 12px; the 2.5px two-color proportion bar below encodes actual additions/deletions only, without category chips or decorative numbers. The card is an inline-size container. At width ≤420px, shorten “3 files changed” to “3 files,” retain FeatherIcon/statistics/actions, and restore compact 6px / 5px gaps. Viewport media queries are compatibility-only. When history preflight fails, hide Undo/Revert/Redo/Reapply and show one 12px theme-accent status before Review. Truncate it to one line;<code>title</code> retains full text; narrow cards limit it to 92px. Do not append a separate status below the file list or footer. After successful Undo, show <b>Redo</b>; the inverse of historical Revert is <b>Reapply</b>. Both use the same safe reapply transaction with renewed preflight, without a separate linear redo stack. Review is a neutral outlined button. Undo/Revert use text with a backward icon, not accent color. Code / Tests / Docs / Large categories appear only in Review. File-list padding is 4px on all sides. Rows are 28px high with 6px horizontal padding, 13px product sans paths, and 12px product sans statistics in fixed-width columns. The whole row navigates; add no expansion arrow or hover action group. Only the Show more footer expands. Once expanded, the footer shows only 13px <b>Collapse</b>. Full Review always opens from the header button, without an added “Review all” footer.</div>
 
-<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">官方参考与可确认边界</h3>
-<table class="path-table"><thead><tr><th>系统</th><th>本轮 / checkpoint</th><th>Review</th><th>Undo / rewind</th></tr></thead><tbody>
-  <tr><td>Codex</td><td>开源 <code>TurnDiffTracker</code> 只消费 committed <code>apply_patch</code> 精确 delta，不重读 workspace；delta 不精确时清空本轮 diff。</td><td><code>/diff</code> 单独使用 Git：tracked 走 <code>git diff</code>，untracked 走 <code>git ls-files --others --exclude-standard</code>。</td><td>开源 <code>thread/revert</code> 明确只回退对话历史；Codex App 文件 Undo 的客户端实现未在当前开源仓库中确认，不推断。</td></tr>
-  <tr><td>Claude Code</td><td>每个 user prompt 建 checkpoint；只跟踪 Write、Edit、NotebookEdit 等直接文件编辑工具。保留最近 100 个 checkpoint。</td><td>Desktop/Web 使用 session 级增删统计入口；打开后左侧文件列表、右侧单文件 diff，支持行级评论和再次交给 Agent 修改。</td><td>代码与对话可分别恢复；Bash、一般后台 sub-agent、外部并发修改、symlink/hardlink 不保证恢复，没有 tracked edits 时不显示代码恢复选项。</td></tr>
-  <tr><td>OpenProgram 当前实现</td><td>直接工具 checkpoint 之外，还在每次 Bash 前后递归扫描最多 20,000 个文件并预复制不超过 5 MiB 的候选内容。</td><td>聊天卡内请求完整 diff；历史消息逐条请求文件列表；shadow Git 和当前磁盘 fallback 混用。</td><td>大文件没有 baseline 时被记录为 <code>pre_existing=false</code>；Undo 可能删除原有文件，且部分失败后仍可写入 reverted 状态。</td></tr>
+<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Official references and verifiable boundaries</h3>
+<table class="path-table"><thead><tr><th>System</th><th>This turn / checkpoint</th><th>Review</th><th>Undo / rewind</th></tr></thead><tbody>
+  <tr><td>Codex</td><td>Open-source <code>TurnDiffTracker</code> consumes only committed <code>apply_patch</code> exact deltas without rereading the workspace; inexact deltas clear this-turn diff.</td><td><code>/diff</code> independently uses Git: tracked files use <code>git diff</code>, untracked files use <code>git ls-files --others --exclude-standard</code>.</td><td>Open-source <code>thread/revert</code> explicitly restores conversation history only. Codex App file Undo client implementation is not confirmed in the current open-source repository; do not infer it.</td></tr>
+  <tr><td>Claude Code</td><td>Create a checkpoint per user prompt, tracking only direct file-editing tools such as Write, Edit, and NotebookEdit. Retain the latest 100 checkpoints.</td><td>Desktop/Web exposes session-level additions/deletions; opening shows file navigation on the left and a single-file diff on the right, supporting line comments and another Agent revision.</td><td>Code and conversation can be restored separately. Bash, general background sub-agents, external concurrent changes, and symlink/hardlink recovery are not guaranteed. Without tracked edits, no code-restore option appears.</td></tr>
+  <tr><td>Current OpenProgram implementation</td><td>Beyond direct-tool checkpoints, recursively scans up to 20,000 files around every Bash call and precopies candidate content up to 5 MiB.</td><td>Chat cards request full diffs; historical messages request file lists individually; shadow Git is mixed with current-disk fallback.</td><td>Large files without baselines are recorded as <code>pre_existing=false</code>; Undo may delete preexisting files, and partial failures may still persist reverted state.</td></tr>
 </tbody></table>
-<div class="source-links" aria-label="官方参考链接"><a href="https://code.claude.com/docs/en/checkpointing">Claude Code checkpointing</a><a href="https://code.claude.com/docs/en/desktop">Claude Code Desktop diff view</a><a href="https://code.claude.com/docs/en/web-quickstart">Claude Code Web review</a><a href="https://github.com/openai/codex/blob/main/codex-rs/core/src/turn_diff_tracker.rs">Codex turn diff tracker</a><a href="https://github.com/openai/codex/blob/main/codex-rs/tui/src/get_git_diff.rs">Codex Git diff</a><a href="https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/src/protocol/v2/thread.rs">Codex thread revert protocol</a></div>
+<div class="source-links" aria-label="Official reference links"><a href="https://code.claude.com/docs/en/checkpointing">Claude Code checkpointing</a><a href="https://code.claude.com/docs/en/desktop">Claude Code Desktop diff view</a><a href="https://code.claude.com/docs/en/web-quickstart">Claude Code Web review</a><a href="https://github.com/openai/codex/blob/main/codex-rs/core/src/turn_diff_tracker.rs">Codex turn diff tracker</a><a href="https://github.com/openai/codex/blob/main/codex-rs/tui/src/get_git_diff.rs">Codex Git diff</a><a href="https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/src/protocol/v2/thread.rs">Codex thread revert protocol</a></div>
 
-<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">采用、调整与拒绝</h3>
-<table class="path-table"><thead><tr><th>结论</th><th>设计项</th><th>OpenProgram 处理</th></tr></thead><tbody>
-  <tr><td><span class="decision adopt">采用</span></td><td>Codex 的精确增量归因</td><td>本轮统计只来自 committed file mutation event；没有精确 before/after 就不进入本轮卡。</td></tr>
-  <tr><td><span class="decision adopt">采用</span></td><td>Claude/Codex 的独立审查面</td><td>聊天只保留摘要；Review 使用左侧文件导航、右侧单文件内容，并支持行级评论。</td></tr>
-  <tr><td><span class="decision modify">调整</span></td><td>Claude 的 session diff 与 Codex 的 turn/repo diff</td><td>放进同一个 Review tab 的三个 scope：This turn、Current branch、Workspace；切换 scope 不改变术语含义。</td></tr>
-  <tr><td><span class="decision modify">调整</span></td><td>Claude 的 checkpoint 恢复</td><td>保留 turn 级快速 Undo，但必须先完成全量冲突预检；恢复记录作为新的不可变 journal transaction 保存。</td></tr>
-  <tr><td><span class="decision reject">拒绝</span></td><td>Bash 目录扫描归因</td><td>删除 Bash 前后 cwd 遍历与候选文件预复制。普通 Bash、后台进程和外部修改不计入本轮，也不能由本轮 Undo。</td></tr>
-  <tr><td><span class="decision reject">拒绝</span></td><td>近似本轮 diff 与静默部分恢复</td><td>无法证明来源时只进入 Workspace Review；Undo 预检失败时不修改任何文件，并列出冲突路径。</td></tr>
-  <tr><td><span class="decision modify">调整</span></td><td>参考产品的 header 操作层级</td><td>采用“文字 Undo + 中性描边 Review”的主次关系；左侧使用 FeatherIcon 表示直接文件编辑，尺寸、间距、颜色和 Review 页面继续沿用 OpenProgram 视觉系统。</td></tr>
-</tbody></table>
-
-<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">三个 Review scope</h3>
-<table class="path-table"><thead><tr><th>Scope</th><th>权威数据源</th><th>包含</th><th>Undo</th></tr></thead><tbody>
-  <tr><td><code>This turn</code></td><td>当前 turn 的精确 mutation journal</td><td>主 change set；关联 child change set 按真实 producer 保留，并通过 origin 分组，不复制 mutation。</td><td>仅当全部记录为 recoverable 且 current digest 等于记录的 after digest。</td></tr>
-  <tr><td><code>Current branch</code></td><td>当前 active lineage 的 mutation projection</td><td>所有已完成 turn 与显式 revert/restore/reapply；不包含 sibling branch、普通 Bash 和外部写入。</td><td>从具体 turn/checkpoint 发起，不提供无范围的一键 branch Undo。</td></tr>
-  <tr><td><code>Workspace</code></td><td>Git tracked diff + <code>ls-files --others --exclude-standard</code></td><td>当前未提交 tracked/untracked 文件；遵循 <code>.gitignore</code>。非 Git 工作区显示 unavailable，不使用目录扫描替代。</td><td>无。Workspace 变化可能来自用户、其他 session 或后台进程。</td></tr>
+<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Adopted, adapted, and rejected</h3>
+<table class="path-table"><thead><tr><th>Decision</th><th>Design item</th><th>OpenProgram handling</th></tr></thead><tbody>
+  <tr><td><span class="decision adopt">Adopt</span></td><td>Codex’s exact incremental attribution</td><td>Turn statistics derive only from committed file-mutation events. Without exact before/after, omit from the turn card.</td></tr>
+  <tr><td><span class="decision adopt">Adopt</span></td><td>Claude/Codex’s independent review surface</td><td>Chat retains summaries only. Review has left file navigation and right single-file content, with line comments.</td></tr>
+  <tr><td><span class="decision modify">Adapt</span></td><td>Claude session diff and Codex turn/repository diff</td><td>Place in three scopes within one Review tab: This turn, Current branch, Workspace. Switching scope does not alter terminology.</td></tr>
+  <tr><td><span class="decision modify">Adapt</span></td><td>Claude checkpoint recovery</td><td>Retain quick turn-level Undo with complete conflict preflight first. Store recovery as a new immutable journal transaction.</td></tr>
+  <tr><td><span class="decision reject">Reject</span></td><td>Bash directory-scan attribution</td><td>Delete cwd traversal and candidate precopy around Bash. Ordinary Bash, background processes, and external changes neither count toward this turn nor qualify for its Undo.</td></tr>
+  <tr><td><span class="decision reject">Reject</span></td><td>Approximate turn diffs and silent partial recovery</td><td>Unproven provenance appears only in Workspace Review. Failed Undo preflight changes no files and lists conflict paths.</td></tr>
+  <tr><td><span class="decision modify">Adapt</span></td><td>Reference-product header action hierarchy</td><td>Adopt “text Undo + neutral outlined Review.” FeatherIcon on the left identifies direct edits; dimensions, spacing, colors, and Review pages retain OpenProgram’s visual system.</td></tr>
 </tbody></table>
 
-<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">目标 mutation journal</h3>
-<div class="change-flow" aria-label="精确文件修改数据流">
-  <div class="change-flow-card"><b>1 · Before mutation</b><p>直接编辑工具在写入前记录规范路径、文件类型、<code>before_digest</code> 与可恢复 baseline。无法安全保存 baseline 时标记 <code>recoverability=unavailable</code>，绝不写成“原文件不存在”。</p></div>
-  <div class="change-flow-card"><b>2 · Commit mutation</b><p>写入成功后记录 <code>after_digest</code>、operation、行数、binary/large、<code>turn_id</code> 和 <code>actor_id</code>；失败不产生 committed mutation。</p></div>
-  <div class="change-flow-card"><b>3 · Persist summary</b><p>turn finalize 只归并本轮 mutation，生成净文件列表和增删统计并随 transcript 持久化。复杂度只与 changed paths 有关，不扫描 cwd。</p></div>
-  <div class="change-flow-card"><b>4 · Review on demand</b><p>Review 先读取摘要；选择文件后才请求一个有界 diff。切换文件取消旧请求；聊天 DOM 永远不挂载 diff。</p></div>
+<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Three Review scopes</h3>
+<table class="path-table"><thead><tr><th>Scope</th><th>Authoritative data source</th><th>Contains</th><th>Undo</th></tr></thead><tbody>
+  <tr><td><code>This turn</code></td><td>Exact mutation journal for the current turn</td><td>Primary change set; linked child change sets retain actual producers and group by origin without copying mutations.</td><td>Only when every record is recoverable and current digest equals the recorded after digest.</td></tr>
+  <tr><td><code>Current branch</code></td><td>Mutation projection of the current active lineage</td><td>All completed turns and explicit revert/restore/reapply; excludes sibling branches, ordinary Bash, and external writes.</td><td>Start from a specific turn/checkpoint; no unscoped one-click branch Undo.</td></tr>
+  <tr><td><code>Workspace</code></td><td>Git tracked diff + <code>ls-files --others --exclude-standard</code></td><td>Current uncommitted tracked/untracked files; respects <code>.gitignore</code>. Non-Git workspaces show unavailable, without directory-scan substitution.</td><td>None. Workspace changes may come from users, other sessions, or background processes.</td></tr>
+</tbody></table>
+
+<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Target mutation journal</h3>
+<div class="change-flow" aria-label="Exact file-change data flow">
+  <div class="change-flow-card"><b>1 · Before mutation</b><p>Before writing, direct-edit tools record canonical path, file type,<code>before_digest</code> , and a recoverable baseline. If a baseline cannot be saved safely, mark <code>recoverability=unavailable</code>, never “original file absent.”</p></div>
+  <div class="change-flow-card"><b>2 · Commit mutation</b><p>After successful writes, record <code>after_digest</code>, operation, line counts, binary/large,<code>turn_id</code> and <code>actor_id</code>. Failures create no committed mutation.</p></div>
+  <div class="change-flow-card"><b>3 · Persist summary</b><p>Turn finalize merges only this turn’s mutations, generating net file lists and addition/deletion statistics persisted with the transcript. Complexity depends only on changed paths, without cwd scans.</p></div>
+  <div class="change-flow-card"><b>4 · Review on demand</b><p>Review reads summaries first, requesting one bounded diff only after file selection. Switching files cancels old requests. Chat DOM never mounts diffs.</p></div>
 </div>
-<div class="change-note danger"><b>必须删除的当前逻辑：</b><code>agent_loop._snapshot_cwd</code>、<code>_walk_scan</code> 与 <code>_checkpoint_changed_files</code> 不能继续参与文件归因。特别是“超过 5 MiB 未暂存 → 使用不存在路径 → <code>pre_existing=false</code>”必须消失；baseline 缺失只能表示不可恢复，不能表示新建文件。</div>
+<div class="change-note danger"><b>Current logic that must be removed:</b><code>agent_loop._snapshot_cwd</code>, <code>_walk_scan</code> and <code>_checkpoint_changed_files</code> must no longer participate in file attribution. In particular, “over 5 MiB not staged → use nonexistent path → <code>pre_existing=false</code>” must disappear. Missing baselines mean unrecoverable, never newly created files.</div>
 
-<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Undo 安全合同</h3>
-<table class="path-table"><thead><tr><th>阶段 / 状态</th><th>规则</th><th>可见结果</th></tr></thead><tbody>
-  <tr><td>Eligibility</td><td>每个文件必须有精确 operation、before/after digest；普通文件才可恢复，symlink/hardlink 与缺失 baseline 标记 unavailable。</td><td>任一文件 unavailable，卡片不显示可执行 Undo；Review 解释具体原因。</td></tr>
-  <tr><td>Preflight</td><td>恢复前重新读取所有 current digest。新建文件只有仍等于 after digest 才可删除；修改/删除/rename 同样要求未被后来编辑。</td><td>任一冲突则整次 Undo 不写磁盘，状态为 <code>blocked-conflict</code>，列出冲突路径。</td></tr>
-  <tr><td>Apply</td><td>全部预检通过后，将恢复内容写入同目录临时文件并原子替换；多文件操作保留回滚 staging。</td><td>意外 I/O 失败时回滚已应用项，不能把部分成功标为 Reverted。</td></tr>
-  <tr><td>Record</td><td>成功恢复追加 <code>revert_of=&lt;turn_id&gt;</code> transaction；原 turn 状态由 journal 推导。</td><td>聊天与 Review 显示 Reverted，历史文件列表仍可审查；不修改原对话内容。</td></tr>
+<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Undo safety contract</h3>
+<table class="path-table"><thead><tr><th>Phase / state</th><th>Rule</th><th>Visible result</th></tr></thead><tbody>
+  <tr><td>Eligibility</td><td>Every file requires exact operation and before/after digests. Only regular files are recoverable; symlinks, hardlinks, and missing baselines are unavailable.</td><td>If any file is unavailable, the card shows no executable Undo; Review explains why.</td></tr>
+  <tr><td>Preflight</td><td>Reread all current digests before recovery. Newly created files may be deleted only while equal to after digest; modifications, deletions, and renames likewise require no subsequent edits.</td><td>Any conflict prevents all disk writes for this Undo; state becomes <code>blocked-conflict</code>, listing conflict paths.</td></tr>
+  <tr><td>Apply</td><td>After complete preflight, write restored contents to same-directory temporary files and atomically replace. Multi-file operations retain rollback staging.</td><td>Unexpected I/O failures roll back applied items; partial success must not be labeled Reverted.</td></tr>
+  <tr><td>Record</td><td>Successful recovery appends a <code>revert_of=&lt;turn_id&gt;</code> transaction; original-turn state derives from the journal.</td><td>Chat and Review show Reverted; historical file lists remain reviewable without changing original conversation content.</td></tr>
 </tbody></table>
 
-<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">性能与内容上限</h3>
-<table class="path-table"><thead><tr><th>路径</th><th>目标上限</th><th>降级</th></tr></thead><tbody>
-  <tr><td>Turn finalize</td><td>不遍历 workspace；只归并 mutation journal 中的 changed paths。</td><td>单条 mutation 缺少精确信息就排除并记录诊断，不生成近似统计。</td></tr>
-  <tr><td>Transcript</td><td>摘要随消息返回；首屏最多 3 个文件，不再为每条历史消息发送 <code>list_turn_files</code>。</td><td>legacy 消息只在进入视口或主动 Review 时查询。</td></tr>
-  <tr><td>File list</td><td>服务端每页 100 个文件；前端只保留相邻页并支持键盘导航。</td><td>分类统计来自 summary，不要求先加载全部行。</td></tr>
-  <tr><td>Selected diff</td><td>同时只挂载一个 diff；每批最多 200 行或 256 KiB，按 hunk/page 继续加载。</td><td>binary 或超大单 hunk 显示统计、原因与 Open file，不把不完整内容冒充完整 diff。</td></tr>
-  <tr><td>Render budget</td><td>diff 计算有明确时间预算；超预算返回 metadata，Review 不阻塞聊天和 Agent 完成。</td><td>允许稍后重试或打开原文件，绝不回退到“before 与当前磁盘”的跨轮近似 diff。</td></tr>
+<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Performance and content limits</h3>
+<table class="path-table"><thead><tr><th>Path</th><th>Target limit</th><th>Fallback</th></tr></thead><tbody>
+  <tr><td>Turn finalize</td><td>Never traverse workspace; merge only changed paths in the mutation journal.</td><td>Exclude mutations missing exact information and record diagnostics; produce no approximate statistics.</td></tr>
+  <tr><td>Transcript</td><td>Return summaries with messages; initially display at most three files and stop sending <code>list_turn_files</code>.</td><td> for every historical message. Query legacy messages only on viewport entry or explicit Review.</td></tr>
+  <tr><td>File list</td><td>Server pages contain 100 files; frontend retains adjacent pages only and supports keyboard navigation.</td><td>Category statistics come from summaries without loading every row.</td></tr>
+  <tr><td>Selected diff</td><td>Mount only one diff at a time, with at most 200 lines or 256 KiB per batch, continuing by hunk/page.</td><td>Binary or oversized single hunks show statistics, reasons, and Open file; never present incomplete content as a full diff.</td></tr>
+  <tr><td>Render budget</td><td>Diff computation has an explicit time budget. Exceeding it returns metadata; Review never blocks chat or Agent completion.</td><td>Allow retry later or opening the original file; never fall back to cross-turn approximate “before versus current disk” diffs.</td></tr>
 </tbody></table>
 
-<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Review tab 与交互合同</h3>
-<table class="path-table"><thead><tr><th>动作或状态</th><th>结果</th><th>边界</th></tr></thead><tbody>
-  <tr><td>Review / 文件行</td><td>打开同一确定性 <code>r:&lt;sessionId&gt;:&lt;assistantMsgId&gt;</code> center tab；文件行同时选择路径。</td><td>不加载聊天内 diff；重复点击只聚焦或更新 selection。</td></tr>
-  <tr><td>布局</td><td>未分屏时复用现有 group，把 Review 放到聊天右侧；满员 split 时作为普通 active tab。</td><td>不替换已有 peer，不增加第三 pane，不新增第二套 tab store。</td></tr>
-  <tr><td>Scope 切换</td><td>This turn、Current branch、Workspace 保持同一左 rail / 右 diff 构图，标题和来源标签同步变化。</td><td>Workspace 不显示 Undo；ignored 文件不出现；非 Git 明确 unavailable。</td></tr>
-  <tr><td>行级评论</td><td>点击 diff 行添加评论；多条评论在下一条 prompt 中作为结构化文件位置一起发送。</td><td>评论不直接修改文件，不假装 code review 已执行。</td></tr>
-  <tr><td>Large / binary</td><td>显示精确统计、diff unavailable 原因和 Open file。</td><td>不渲染完整大文件，不把日志自动归类为 Agent 修改。</td></tr>
-  <tr><td>Undo conflict</td><td>卡片显示 Review conflict；Review 定位冲突文件。</td><td>没有 Force undo 快捷按钮，避免覆盖用户或其他 session 的后续编辑。</td></tr>
+<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Review tab and interaction contract</h3>
+<table class="path-table"><thead><tr><th>Action or state</th><th>Result</th><th>Boundary</th></tr></thead><tbody>
+  <tr><td>Review / file row</td><td>Open the same deterministic <code>r:&lt;sessionId&gt;:&lt;assistantMsgId&gt;</code> center tab; file rows also select their path.</td><td>Do not load inline chat diffs; repeated clicks only focus or update selection.</td></tr>
+  <tr><td>Layout</td><td>Without split view, reuse the existing group and place Review to the chat’s right; with a full split, use a normal active tab.</td><td>Do not replace existing peers, add a third pane, or create a second tab store.</td></tr>
+  <tr><td>Scope switching</td><td>This turn, Current branch, and Workspace share left navigation/right diff layout, updating title and source labels together.</td><td>Workspace has no Undo; ignored files are absent; non-Git is explicitly unavailable.</td></tr>
+  <tr><td>Line comments</td><td>Click diff lines to comment; send multiple comments with structured file locations in the next prompt.</td><td>Comments do not directly edit files or claim code review has been performed.</td></tr>
+  <tr><td>Large / binary</td><td>Show exact statistics, diff-unavailable reasons, and Open file.</td><td>Do not render entire large files or automatically classify logs as Agent edits.</td></tr>
+  <tr><td>Undo conflict</td><td>Card shows Review conflict; Review locates conflicting files.</td><td>No Force undo shortcut that could overwrite later user or other-session edits.</td></tr>
 </tbody></table>
 
-<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">实施边界与验收</h3>
-<table class="path-table"><thead><tr><th>范围</th><th>首选位置</th><th>明确排除</th></tr></thead><tbody>
-  <tr><td>精确 mutation 与恢复</td><td><code>programs/tools/files/</code>、<code>store/snapshot/checkpoint/</code>、turn context/finalize 与 <code>agent/internals/_revert.py</code>。</td><td>不再给 Bash 增加目录 watcher，不更改用户 Git，不从当前磁盘反推本轮。</td></tr>
-  <tr><td>Review 协议</td><td><code>ws_actions/turn_files.py</code>、消息 metadata、现有 Git helper；新增分页 summary/diff 请求。</td><td>不返回无界字符串，不保留 approximate fallback。</td></tr>
-  <tr><td>Review center tab</td><td><code>center-tab-ids.ts</code>、<code>center-tabs-store.ts</code>、<code>center-tab-groups.ts</code> 与最小 Review pane。</td><td>不实现新窗口、modal、第三 pane 或参考产品品牌元素。</td></tr>
-  <tr><td>聊天卡</td><td><code>turn-files-chips.tsx</code>、用户提供的 <code>FeatherIcon</code> 与现有 CSS。</td><td>FeatherIcon 只标识直接文件编辑，不放网站 logo；不保留 inline diff、文件行箭头、hover 操作组或参考产品品牌元素。</td></tr>
+<h3 style="font-size:14px;color:var(--text-bright);margin:24px 0 8px">Implementation boundaries and acceptance</h3>
+<table class="path-table"><thead><tr><th>Scope</th><th>Preferred location</th><th>Explicit exclusions</th></tr></thead><tbody>
+  <tr><td>Exact mutations and recovery</td><td><code>programs/tools/files/</code>, <code>store/snapshot/checkpoint/</code>, turn context/finalize, and <code>agent/internals/_revert.py</code>.</td><td>Do not add Bash directory watchers, modify user Git, or infer this turn from current disk.</td></tr>
+  <tr><td>Review protocol</td><td><code>ws_actions/turn_files.py</code>, message metadata, and existing Git helpers; add paginated summary/diff requests.</td><td>No unbounded strings or approximate fallback.</td></tr>
+  <tr><td>Review center tab</td><td><code>center-tab-ids.ts</code>, <code>center-tabs-store.ts</code>, <code>center-tab-groups.ts</code> and a minimal Review pane.</td><td>No new window, modal, third pane, or reference-product branding.</td></tr>
+  <tr><td>Chat card</td><td><code>turn-files-chips.tsx</code>, user-provided <code>FeatherIcon</code> , and existing CSS.</td><td>FeatherIcon identifies direct file edits only; no site logo, inline diff, file-row arrows, hover action groups, or reference-product branding.</td></tr>
 </tbody></table>
-<div class="rule"><b>视觉验收条件：</b>聊天卡最多显示 3 个初始文件名，不加载 diff；最多扩展到 20 个路径，其余进入 Review；Changes 同时只挂载一个有界 diff；This turn / Current branch / Workspace 的来源标签始终可见；历史 Restore 使用独立 impact sheet，不把 Undo/Revert/Restore/Branch 堆在卡片 header。完整数据与恢复验收见<a href="../runtime/operations/file-management.html#acceptance">权威运行时设计</a>。<br><b>实现状态：</b>生产聊天卡保留外框与 header 分隔线，顶部高度为 40px，使用 19px Feather 文件修改语义图标；Undo/Redo/Revert/Reapply 只显示当前可执行的一项，Review 使用中性色描边按钮。center Review 已实现 This turn / Current branch / Workspace、有界文件与 diff 分页、actor/producer/linked impact；branch checkout mismatch banner 会在文件修改前要求 Keep current files 或 Restore branch code。运行时与视觉实现均已通过 Task A–E 的独立审查。字体、三层背景、8ch 固定统计列、仅 Collapse footer、紧凑间距和浅色主背景修订已通过独立审查；历史预检提示移入 header 的实现也已通过本轮独立 specification review 与 quality review。</div>
+<div class="rule"><b>Visual acceptance:</b>Chat cards initially show at most three filenames and load no diff; expand to at most 20 paths, with the remainder in Review. Changes mounts one bounded diff at a time. This turn / Current branch / Workspace source labels remain visible. Historical Restore uses a separate impact sheet rather than crowding Undo/Revert/Restore/Branch into card headers. Full data/recovery acceptance is in the<a href="../runtime/operations/file-management.html#acceptance">authoritative runtime design</a>.<br><b>Implementation status:</b>Production chat cards retain outer borders and header dividers, with 40px headers and 19px Feather file-edit icons. Undo/Redo/Revert/Reapply shows only the currently executable action; Review uses a neutral outlined button. Center Review implements This turn / Current branch / Workspace, bounded file/diff pagination, and actor/producer/linked impact. A branch checkout mismatch banner requires Keep current files or Restore branch code before file modification. Runtime and visual implementations passed Task A–E independent reviews. Fonts, three background levels, 8ch fixed statistics columns, Collapse-only footer, compact spacing, and light primary-background revisions passed independent review. Moving history-preflight hints into the header also passed this iteration’s independent specification and quality reviews.</div>
 
 <script>
 document.getElementById('tl1').querySelector(':scope > .tl-toggle').addEventListener('click',()=>{
@@ -890,10 +881,10 @@ function showBranchDestination(destination,reveal=true){
   branchMapChild.classList.toggle('active',child);
   branchMapLatest.classList.toggle('active',destination==='latest');
   branchState.textContent=child
-    ? 'Sub-agent · 子分支'
+    ? 'Sub-agent · child branch'
     : destination==='caller'
-      ? '父分支 · 原始调用处'
-      : '父分支 · 最新位置';
+      ? 'Parent branch · original call site'
+      : 'Parent branch · latest position';
   if(reveal) requestAnimationFrame(()=>{
     (child?branchChildView:branchParentView).focus({preventScroll:true});
   });
@@ -918,33 +909,33 @@ function setSubagentOpen(open){
 function resetSubagentDemo(){
   subagentTimers.forEach(clearTimeout);subagentTimers=[];
   setSubagentOpen(false);
-  subagentLabel.textContent='auto_workflow · 等待运行';
+  subagentLabel.textContent='auto_workflow · waiting to run';
   subagentRow.className='step demo-subagent';
-  subagentNote.textContent='运行中…';
-  subagentStatus.textContent='等待重放';
+  subagentNote.textContent='Running…';
+  subagentStatus.textContent='Waiting to replay';
 }
 function replaySubagentDemo(){
   resetSubagentDemo();
-  subagentLabel.textContent='auto_workflow · 运行中';
-  subagentStatus.textContent='T0：父级运行，执行区保持收起';
+  subagentLabel.textContent='auto_workflow · running';
+  subagentStatus.textContent='T0: parent running; execution area stays collapsed';
   subagentTimers.push(setTimeout(()=>{
     subagentRow.className='step demo-subagent is-mounted is-arriving is-running';
-    subagentStatus.textContent='T1：子代理行出现';
+    subagentStatus.textContent='T1: sub-agent row appears';
   },900));
   subagentTimers.push(setTimeout(()=>{
     subagentRow.className='step demo-subagent is-mounted';
-    subagentNote.textContent='已完成';
-    subagentStatus.textContent='T2：同一行更新为已完成';
+    subagentNote.textContent='Completed';
+    subagentStatus.textContent='T2: same row updates to Completed';
   },2800));
   subagentTimers.push(setTimeout(()=>{
-    subagentLabel.textContent='auto_workflow · 已完成';
+    subagentLabel.textContent='auto_workflow · Completed';
     setSubagentOpen(false);
-    subagentStatus.textContent='T3：父级结束，执行区保持收起';
+    subagentStatus.textContent='T3: parent finished; execution area stays collapsed';
   },4800));
   subagentTimers.push(setTimeout(()=>{
     setSubagentOpen(true);
     subagentRow.className='step demo-subagent is-mounted';
-    subagentStatus.textContent='T4：用户重新展开，仍是同一条时间线行';
+    subagentStatus.textContent='T4: user expands again; still the same timeline row';
   },6500));
 }
 subagentToggle.addEventListener('click',()=>setSubagentOpen(!subagentDemo.classList.contains('open')));

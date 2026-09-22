@@ -44,7 +44,7 @@ class Event:
 - 用户发消息进来，dispatcher 本来就在处理。
 
 proactive 层做的，就是在这些已有的点上，把发生的事**翻译成一条 Event，丢进事件流**。
-（具体在哪几行接，是实现细节，见 [实施规划](../plans/proactive-implementation.md)。）
+（具体在哪几行接，是实现细节，见 [实施规划](../plans/proactive-implementation.zh.md)。）
 
 ## 3. 事件流：一条只往后记的流水账
 
@@ -83,7 +83,7 @@ def 更新(状况, e):
 
 具体走一遍，看雪球怎么长：
 
-![fold：事件一条条过，状况一步步长](diagrams/events-fold.svg)
+![fold：事件一条条过，状况一步步长](diagrams/events-fold.zh.svg)
 
 到这里"当前状况"就是 `{改过的文件: {auth.py}, bash失败: 2}`——**没有谁手动维护这个计数，
 它纯粹是事件累加的副产品。** 这就是 overview 里说的"事件驱动帮你统一管了记忆"。

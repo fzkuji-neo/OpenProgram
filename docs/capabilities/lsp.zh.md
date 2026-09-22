@@ -51,7 +51,7 @@ tests/unit/test_loop.py:31:11    monkeypatch.setattr(loop, "dispatch", fake)
 
 每个语言、每个工作区一个 server。工作区取最近的、含 `pyproject.toml`、`setup.py`、`package.json`、`tsconfig.json` 或 `.git` 的祖先目录，同一个根下的两个文件共用一个 server 进程。
 
-Server 首次使用时启动，之后在进程生命周期内缓存复用，OpenProgram 退出时关闭。Server 进程走 OpenProgram 启动子进程的同一条路径，所以配置的[沙箱](../reference/design/runtime/sandbox.md)对它同样生效：默认的 `workspace-write` 模式下，language server 只读工作区、不往外写，这正好够用。
+Server 首次使用时启动，之后在进程生命周期内缓存复用，OpenProgram 退出时关闭。Server 进程走 OpenProgram 启动子进程的同一条路径，所以配置的[沙箱](../reference/design/runtime/sandbox-architecture.zh.html)对它同样生效：默认的 `workspace-write` 模式下，language server 只读工作区、不往外写，这正好够用。
 
 ## 和 grep、CodeGraph 的分工
 

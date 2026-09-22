@@ -108,7 +108,9 @@ merge-x/
 # Generated reference pages (rebuilt by scripts/docs_site/generate_reference.py)
 docs/reference/cli/
 docs/reference/config-keys.md
+docs/reference/config-keys.zh.md
 docs/reference/provider-registry.md
+docs/reference/provider-registry.zh.md
 
 # Electron desktop shell
 apps/desktop/dist/

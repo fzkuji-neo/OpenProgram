@@ -1,4 +1,6 @@
-# Distill
+<div id="distill"></div>
+
+# 历史提炼
 
 OpenProgram 不再随安装包提供默认 `distill` skill 或 `/distill` 命令。
 保留的 `read_conversation` 工具可以把历史会话提供给 Program，或者提供给用户、项目、插件安装的 skill。

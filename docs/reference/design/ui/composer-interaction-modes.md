@@ -30,4 +30,4 @@ UI-only settings use direct store updates. A one-shot user action uses a correla
 
 Verify a pending question alongside a populated composer: the question is outside the composer, the draft and focus remain, and normal Send remains ordinary message submission. Click the card's submit button and verify immediate answer feedback, matching acknowledgement, retained receipt, unchanged composer draft, session isolation, retry identity and native App behavior.
 
-See [user input requests](../runtime/operations/user-input-requests.md) and [execution control](../runtime/execution/execution-control.html#decision-output).
+See [user input requests](../runtime/operations/user-input-requests.md) and [execution control](../runtime/execution/control.html#decision-output).

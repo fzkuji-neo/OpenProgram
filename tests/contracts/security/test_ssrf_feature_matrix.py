@@ -11,8 +11,13 @@ ROOT = Path(__file__).resolve().parents[3]
 MATRIX = ROOT / "docs/reference/design/feature-matrix.html"
 
 
-def test_ssrf_matrix_evidence_matches_integrated_snapshot() -> None:
-    result = check_matrix(MATRIX)
+@pytest.fixture(params=["", ".zh"])
+def matrix_path(request) -> Path:
+    return MATRIX.with_name(f"feature-matrix{request.param}.html")
+
+
+def test_ssrf_matrix_evidence_matches_integrated_snapshot(matrix_path: Path) -> None:
+    result = check_matrix(matrix_path)
 
     assert result.feature_count == 160
     assert result.openprogram_score == 94.5
@@ -21,7 +26,7 @@ def test_ssrf_matrix_evidence_matches_integrated_snapshot() -> None:
 
 
 def _replace_in_ssrf_row(text: str, old: str, new: str) -> str:
-    start = text.index("私网访问与 SSRF 防护")
+    start = text.index("Private-network access and SSRF protection" if '<html lang="en"' in text else "私网访问与 SSRF 防护")
     end = text.index("</tr>", start)
     return text[:start] + text[start:end].replace(old, new, 1) + text[end:]
 
@@ -35,11 +40,12 @@ def _replace_in_ssrf_row(text: str, old: str, new: str) -> str:
 )
 def test_ssrf_matrix_checker_rejects_stale_evidence(
     tmp_path: Path,
+    matrix_path: Path,
     old: str,
     new: str,
     message: str,
 ) -> None:
-    original = MATRIX.read_text(encoding="utf-8")
+    original = matrix_path.read_text(encoding="utf-8")
     changed = _replace_in_ssrf_row(original, old, new)
     assert changed != original
     candidate = tmp_path / "feature-matrix.html"

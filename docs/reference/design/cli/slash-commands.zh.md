@@ -1,4 +1,6 @@
-# Slash Commands — Unified Design
+<div id="slash-commands-unified-design"></div>
+
+# 斜杠命令统一设计
 
 设计目标：把 OpenProgram 现在散落在 CLI 写死表、Web composer 写死表、`/api/plugins/commands`、MCP prompts、skills 这几条互不相通的"指令源"，合并成一份**统一的 slash 命令登记表**，五个层级、一份格式、一套渲染、一个 UI。
 

@@ -2,7 +2,7 @@
 
 ## Contract
 
-- Design: `docs/reference/design/runtime/session/store-lock-scope.html`.
+- Design: `docs/reference/design/runtime/session/storage-consistency.html`.
 - Base: `9f01e27a`.
 - Keep the store-wide lock limited to in-memory cache and location-map operations.
 - Serialize load/rebuild/delete/invalidate per session; sessions with different IDs must not wait for one another's filesystem I/O.

@@ -2,8 +2,8 @@
 
 一个 session 同时只允许 **一个活着的 turn**。跑着的时候打字是排队，不是第二轮。停止是中断：占用在取消 *意图* 上释放，而不是等旧 turn 线程死掉。
 
-相关：[`interaction-feedback.md`](interaction-feedback.md)（0ms UI）、
-[`send-queue-reliability.html`](send-queue-reliability.html)（队列机制）。
+相关：[`interaction-feedback.md`](interaction-feedback.zh.md)（0ms UI）、
+[`send-queue-reliability.html`](send-queue-reliability.zh.html)（队列机制）。
 代码：`use-chat-submit.ts`（`stopSession`）、
 `server.py`（`_finish_owned_run` / `_try_reserve_run`）、
 `run_control.py`（`cancel_execution`、`CANCEL_GRACE_S`）、

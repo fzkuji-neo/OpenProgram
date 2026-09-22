@@ -1,4 +1,5 @@
-# 升级
+<span id="升级"></span>
+# 升级源码检出
 
 `openprogram upgrade` 根据安装类型选择行为。managed release 安装最新 stable
 GitHub Release，但在用户显式重启前不改变运行中的 worker。source checkout 使用本文

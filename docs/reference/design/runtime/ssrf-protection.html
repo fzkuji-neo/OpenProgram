@@ -68,7 +68,7 @@ Implemented behavior and future work are labeled separately.</p>
 all DNS answers, dials only approved peers, handles redirects explicitly, confines credentials to their declared
 origin, bounds response resources, and fails static verification for unclassified consumers or active unmanaged SDK transports.</p></div></section>
 
-<h2><span class="num">01</span>Implemented boundary</h2>
+<h2><span class="num">01</span> Implemented boundary</h2>
 <div class="tbl"><table>
 <tr><th>Component</th><th>Implemented responsibility</th><th>Explicit non-responsibility</th></tr>
 <tr><td><code>openprogram/security/url_policy.py</code></td><td>URL and origin normalization; scheme, userinfo, host, and port validation; full A/AAAA classification; exact owner exceptions; stable sanitized reason codes</td><td>Does not send network requests or infer a caller's trust class</td></tr>
@@ -77,7 +77,7 @@ origin, bounds response resources, and fails static verification for unclassifie
 <tr><td><code>runtime_http_audit.py</code>, <code>doctor</code>, and <code>scripts/check_runtime_http.py</code></td><td>Bounded sanitized denial state, exact owner exception/proxy reporting, AST inventory, SDK disposition verification, and stale exclusion detection</td><td>Do not display userinfo, query, fragment, credentials, peer response bodies, or token-bearing paths</td></tr>
 </table></div>
 
-<h2 id="surfaces"><span class="num">02</span>Runtime consumers and separate boundaries</h2>
+<h2 id="surfaces"><span class="num">02</span> Runtime consumers and separate boundaries</h2>
 <div class="tbl"><table>
 <tr><th>Boundary</th><th>Current treatment</th><th>Status in this feature</th></tr>
 <tr><td>Arbitrary and derived Runtime URLs</td><td><code>web_fetch</code>, attachments, generated assets, image result downloads, catalogs, marketplaces, and updater metadata use managed clients with public or exact-service policy</td><td class="yes">Included</td></tr>
@@ -96,7 +96,7 @@ plugins, external CLIs, and package-manager child processes remain separate boun
 application URL validation, policy proxies, and operating-system network sandboxes remain distinct controls; upstream wrappers
 and protocol libraries are not counted again as independent implementations.</p></div></section>
 
-<h2><span class="num">03</span>Reference mechanisms</h2>
+<h2><span class="num">03</span> Reference mechanisms</h2>
 <div class="note"><b>Evidence boundary.</b> The matrix uses fixed snapshots. Current official documentation is linked directly
 for design context, without retroactively changing the fixed-version matrix scores. Capabilities not confirmed in the audited
 snapshot are described as unconfirmed, not as universally absent.</div>
@@ -116,21 +116,21 @@ snapshot are described as unconfirmed, not as universally absent.</div>
 <tr><td><b>OWASP</b></td><td>Separates known-service allowlisting from arbitrary-public-target validation, restricts protocols, validates every A/AAAA result, and prefers allowlists for trusted services.</td><td>A single DNS preflight still has DNS pinning and time-of-check/time-of-use risk; network controls are also recommended.</td><td>Adopted separate trust classes and connect-time peer constraints. Rejected one preflight DNS result as the only boundary.</td></tr>
 </table></div>
 <p class="small">Primary sources:
-<a href="https://github.com/NousResearch/hermes-agent/blob/main/tools/url_safety.py">Hermes url_safety.py</a>,
-<a href="https://hermes-agent.nousresearch.com/docs/user-guide/security/">Hermes Security</a>,
-<a href="https://docs.openclaw.ai/gateway/security">OpenClaw Security</a>,
-<a href="https://code.claude.com/docs/en/sandboxing">Claude Code Sandboxing</a>,
-<a href="https://code.claude.com/docs/en/data-usage">Claude Code WebFetch safety check</a>,
-<a href="https://github.com/openai/codex/blob/main/codex-rs/network-proxy/README.md">Codex network proxy</a>,
-<a href="https://opencode.ai/v2/docs/permissions">OpenCode Permissions</a>,
-<a href="https://github.com/google-gemini/gemini-cli/blob/main/docs/reference/tools.md">Gemini CLI tools</a>,
+ <a href="https://github.com/NousResearch/hermes-agent/blob/main/tools/url_safety.py">Hermes url_safety.py</a>,
+ <a href="https://hermes-agent.nousresearch.com/docs/user-guide/security/">Hermes Security</a>,
+ <a href="https://docs.openclaw.ai/gateway/security">OpenClaw Security</a>,
+ <a href="https://code.claude.com/docs/en/sandboxing">Claude Code Sandboxing</a>,
+ <a href="https://code.claude.com/docs/en/data-usage">Claude Code WebFetch safety check</a>,
+ <a href="https://github.com/openai/codex/blob/main/codex-rs/network-proxy/README.md">Codex network proxy</a>,
+ <a href="https://opencode.ai/v2/docs/permissions">OpenCode Permissions</a>,
+ <a href="https://github.com/google-gemini/gemini-cli/blob/main/docs/reference/tools.md">Gemini CLI tools</a>,
 and
-<a href="https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html">OWASP SSRF Prevention</a>.</p>
+ <a href="https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html">OWASP SSRF Prevention</a>.</p>
 <p class="small">Versioned local snapshot evidence: <code>@tencent-ai/codebuddy-code@2.109.3 dist/codebuddy.js,
 CHANGELOG.md, dist/web-ui/docs/cn/cli/permissions.md</code>; <code>@google/gemini-cli@0.35.3 core/dist/src/utils/fetch.js</code>;
-<code>references/pi-mono@3eb002766fff</code>; <code>references/weclaw@10711d0c6b7e</code>; and <code>references/pi-ai</code>.</p>
+ <code>references/pi-mono@3eb002766fff</code>; <code>references/weclaw@10711d0c6b7e</code>; and <code>references/pi-ai</code>.</p>
 
-<h2 id="decision"><span class="num">04</span>Adopted, modified, and rejected choices</h2>
+<h2 id="decision"><span class="num">04</span> Adopted, modified, and rejected choices</h2>
 <div class="tbl"><table>
 <tr><th>Decision</th><th>Mechanism</th><th>Reason</th></tr>
 <tr><td class="yes">Adopted</td><td>One pure URL/IP policy; all DNS answers must pass; DNS failure is closed; every redirect is reevaluated; errors are origin-only; decoded bodies are bounded</td><td>These checks cover the Runtime's target, redirect, credential, and resource boundaries consistently.</td></tr>
@@ -148,7 +148,7 @@ CHANGELOG.md, dist/web-ui/docs/cn/cli/permissions.md</code>; <code>@google/gemin
 <p>The Runtime URL-fetch implementation is complete through Task 8. This section records that implementation evidence first,
 then lists separate future boundaries. The matrix remains <code>◐</code> because those separate boundaries are excluded.</p></div></section>
 
-<h2><span class="num">05</span>Completed plan: implementation evidence</h2>
+<h2><span class="num">05</span> Completed plan: implementation evidence</h2>
 <div class="flow">
   <div class="box"><h3>Registry-keyed caller</h3><div class="small">42 immutable consumers<br>four trust classes<br>exact configured or callback origin</div></div>
   <div class="arrow">›</div>
@@ -189,7 +189,7 @@ target before proxy use, constrains the proxy peer separately, reports delegatio
 </table></div>
 <p>The checker fails for an unregistered raw call, active unmanaged SDK transport, registry entry without a classified consumer,
 or stale exclusion. Doctor exposes stable <code>runtime-http-registry</code>, <code>runtime-http-owner-exceptions</code>,
-<code>runtime-http-policy-proxy</code>, <code>runtime-http-recent-denials</code>, and <code>runtime-http-unmanaged-transport</code> labels.</p>
+ <code>runtime-http-policy-proxy</code>, <code>runtime-http-recent-denials</code>, and <code>runtime-http-unmanaged-transport</code> labels.</p>
 
 <h3>05.4 Verification snapshot</h3>
 <div class="tbl"><table>
@@ -207,7 +207,7 @@ and the 42-row compatibility contract are present. The complete repository comma
 provider dependencies. The feature matrix records <code>◐</code> because the verified scope is Runtime-owned HTTP rather than the
 separate browser, arbitrary-code, plugin, external-CLI, and package-manager boundaries.</div>
 
-<h2 id="future"><span class="num">06</span>OpenProgram future plan</h2>
+<h2 id="future"><span class="num">06</span> OpenProgram future plan</h2>
 <div class="tbl"><table>
 <tr><th>Future boundary</th><th>Required work before claiming completion</th></tr>
 <tr><td>Browser navigation and page-derived traffic</td><td>Define and test navigation, popup, Service Worker, background resource, redirect, download, CDP, and browser-profile policy across every browser backend; use an enforcing egress boundary where browser interception is insufficient.</td></tr>
@@ -215,6 +215,6 @@ separate browser, arbitrary-code, plugin, external-CLI, and package-manager boun
 <tr><td>Disabled third-party SDK network features</td><td>Enable only after the SDK supports managed transport injection or an owner-configured enforcing policy proxy has equivalent tests. Do not replace the disabled disposition with an unverified SDK guarantee.</td></tr>
 </table></div>
 <p class="small">Related documents: <a href="sandbox-architecture.html">Sandbox design</a>,
-<a href="../providers/network-proxy.html">network proxy design</a>, and
-<a href="../feature-matrix.html">feature matrix</a>.</p>
+ <a href="../providers/network-proxy.html">network proxy design</a>, and
+ <a href="../feature-matrix.html">feature matrix</a>.</p>
 </main></body></html>

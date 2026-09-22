@@ -18,7 +18,9 @@ Web UI
 模型自己选择工具时不经过 REST endpoint，但进入同一套 dispatcher 工具执行与
 runtime-block 包装。
 
-## REST endpoint
+<div id="rest-endpoint"></div>
+
+## REST 端点
 
 `POST /api/function/{name}` 接受：
 

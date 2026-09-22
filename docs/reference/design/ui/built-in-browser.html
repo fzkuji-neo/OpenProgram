@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>OpenProgram 内置浏览器设计</title>
+  <title>OpenProgram built-in browser design</title>
   <style>
     :root {
       color-scheme: light;
@@ -212,66 +212,66 @@
   <main>
     <header>
       <div class="eyebrow">OpenProgram · UI design specification</div>
-      <h1>内置浏览器、资料导入与新建 Pane</h1>
-      <p class="lede">新建 Pane 只负责选择内容类型；进入 Browser 后才显示网页导航、书签、History 和资料导入。浏览器工具栏只处理当前网页和浏览资料，整个窗口的菜单只处理 OpenProgram 与 Pane。两类设置共用同一 Settings 页面，但使用不同入口。</p>
-      <div class="meta"><span class="pill"><span class="dot"></span>当前基线已实现</span><span class="pill">桌面 App</span><span class="pill">独立浏览器 profile</span><span class="pill">Browser chrome 已对齐</span><span class="pill">popup 激活 · 网页右键菜单已实现</span></div>
+      <h1>Built-in browser, data import, and new panes</h1>
+      <p class="lede">New Pane only selects the content type; web navigation, bookmarks, History, and data import appear after entering Browser. The browser toolbar handles the current page and browsing data; the window menu handles OpenProgram and panes. Both settings entry points use the same Settings page.</p>
+      <div class="meta"><span class="pill"><span class="dot"></span>Implemented in the current baseline</span><span class="pill">Desktop App</span><span class="pill">Independent browser profile</span><span class="pill">Browser chrome aligned</span><span class="pill">Popup activation and web context menus implemented</span></div>
       <details class="mobile-toc">
-        <summary>本页目录</summary>
-        <nav aria-label="移动端页内导航"><a href="#decisions">产品决策</a><a href="#toolbar">工具栏与菜单</a><a href="#surfaces">可见状态</a><a href="#references">参考行为</a><a href="#architecture">架构与数据流</a><a href="#boundaries">信任边界</a><a href="#session-pages">会话网页</a>
-          <a href="#acceptance">验收与状态</a></nav>
+        <summary>On this page</summary>
+        <nav aria-label="Mobile in-page navigation"><a href="#decisions">Product decisions</a><a href="#toolbar">Toolbar and menus</a><a href="#surfaces">Visible states</a><a href="#references">Reference behavior</a><a href="#architecture">Architecture and data flow</a><a href="#boundaries">Trust boundaries</a><a href="#session-pages">Session web pages</a>
+          <a href="#acceptance">Acceptance and status</a></nav>
       </details>
     </header>
 
-    <section class="metrics" aria-label="设计范围摘要">
-      <div class="metric"><span class="metric-label">范围</span><span class="metric-value">Pane 层级 · Browser chrome · Profile import</span></div>
-      <div class="metric"><span class="metric-label">平台</span><span class="metric-value">桌面 App · 独立 profile · 源数据只读</span></div>
-      <div class="metric"><span class="metric-label">实现状态</span><span class="metric-value">资料导入 · Browser chrome · Browser settings 已实现</span></div>
+    <section class="metrics" aria-label="Design scope summary">
+      <div class="metric"><span class="metric-label">Scope</span><span class="metric-value">Pane hierarchy · Browser chrome · Profile import</span></div>
+      <div class="metric"><span class="metric-label">Platform</span><span class="metric-value">Desktop App · Independent profile · Read-only source data</span></div>
+      <div class="metric"><span class="metric-label">Implementation status</span><span class="metric-value">Data import · Browser chrome · Browser settings implemented</span></div>
     </section>
 
     <section class="section" id="decisions">
-      <div class="section-head"><span class="section-no">01</span><h2>产品决策</h2></div>
-      <p class="section-intro">当前问题来自内容入口、浏览器主页和资料管理共用一个页面。设计先分离职责，再定义每个页面出现的控件。</p>
-      <div class="decision"><strong>New pane 只做选择</strong><p>空白 Pane 只显示 Files、New chat、Browser、Terminal。地址栏、快捷网站、Bookmarks 和 History 不出现在这里。</p></div>
-      <div class="decision"><strong>四个入口使用同级彩色识别</strong><p>Files、New chat、Browser、Terminal 都使用相同尺寸的圆角图标容器和 Lucide 线性图标；Files 使用蓝色、New chat 使用绿色、Browser 保留橙紫色、Terminal 使用紫色。颜色只帮助识别内容类型，不改变卡片层级、交互状态或可访问名称，也不引入品牌 Logo、外部素材和额外动画。</p></div>
-      <div class="decision"><strong>Browser home 复用完整 Browser chrome</strong><p>选择 Browser 后原位进入浏览器主页；主页与实际网页使用同一套地址栏和书签栏结构。主页中无当前网页语义的 Back、Forward、Reload、Home、Bookmark 和外部打开保持可见但禁用，地址输入、Bookmarks、Import 和 Browser <code>⋯</code> 可用。</p></div>
-      <div class="decision"><strong>页面决定导航还是 popup</strong><p>普通链接、表单提交、脚本赋值和同文档导航继续由当前 <code>WebContentsView</code> 提交，并只更新当前 WebTab 的 URL、标题和 History；不得新建标签。只有页面明确请求新浏览上下文（<code>target="_blank"</code> 或 <code>window.open</code>）时，main 进程才把经过校验的 HTTP(S) URL 转换为一个具有独立 id 的 WebTab。新 WebTab 立即成为活动标签；当前已经位于 <code>/chat</code> 或 <code>/s/&lt;id&gt;</code> 时不得再推送 <code>/chat</code>，避免会话路由同步覆盖 popup 的活动状态。</p></div>
-      <div class="decision"><strong>网页右键菜单绑定命中内容</strong><p>原生网页区域直接使用 Electron <code>context-menu</code> 命中参数。HTTP(S) 链接显示 Open Link in New Tab 和 Copy Link Address；可编辑内容显示 Undo、Redo、Cut、Copy、Paste 和 Select All；普通页面显示 Back、Forward 和 Reload。Open Link in New Tab 复用同一 popup 入口，因此与页面自己的 <code>window.open</code> 具有相同的 URL 校验、唯一标签和立即激活语义。菜单动作只作用于产生该菜单且仍由同一窗口拥有的 WebTab。</p></div>
-      <div class="decision"><strong>悬浮网页预览属于发起会话</strong><p>Agent 在聊天中打开的悬浮网页预览记录创建时的 session tab。它只在该会话作为当前中心内容时显示；切换到其他聊天、普通 Browser tab 或非聊天页面时，renderer 必须从原生可见集合移除该 WebTab 并恢复用户网页缩放。返回原会话时复用同一 WebTab、URL、滚动和表单状态，不重新加载。用户关闭预览后，恢复入口也只出现在所属会话。</p></div>
-      <div class="decision"><strong>书签分为保存与管理</strong><p>地址栏右侧的星标只保存或移除当前页；相邻的 Bookmarks 按钮打开完整书签页。Browser home 只显示用户维护的快捷网站，不展开全部书签。</p></div>
-      <div class="decision"><strong>Bookmarks manager 采用 Chrome 式两栏结构</strong><p>完整书签页顶部固定页面标题、搜索框和页级菜单；左栏只显示可折叠的文件夹树并高亮当前目录，右栏只显示当前目录的直接子项。书签行使用 favicon、标题和单一 <code>⋮</code> 菜单，文件夹行进入对应目录；不再把整棵树、URL 和编辑/删除按钮同时铺在一个列表里。左右列表行统一为 <code>36px</code>，搜索框沿用全局 <code>30px</code> 控件高度，行内图标按钮为 <code>28px</code>，页头为 <code>52px</code>；右侧列表的首屏内边距为 <code>16px</code>。Pane 变窄时目录树移到内容列表上方，不能直接消失。</p></div>
-      <div class="decision"><strong>书签栏默认显示</strong><p>Browser home 和实际网页默认在地址栏下方显示同一行书签。用户可以从 Browser <code>⋯</code> 或 Settings 关闭；窄分屏临时隐藏该行，仍可通过 Browser <code>⋯</code> 中的 Bookmarks 访问全部内容。</p></div>
-      <div class="decision"><strong>书签栏显示来源目录的内容</strong><p>Chromium 的 <code>Bookmarks bar</code> 是书签栏容器，不作为普通文件夹按钮显示。该容器的直接子项按原顺序进入栏内；<code>Other bookmarks</code> 和 <code>Mobile bookmarks</code> 作为右侧文件夹入口，仅在非空时显示。普通根级书签继续作为栏内项目。进入溢出菜单的项目不能在可见栏内保留被裁切的半个按钮；最后一个可见按钮必须完整显示背景和两侧圆角。</p></div>
-      <div class="decision"><strong>书签菜单保留 Chrome 式层级</strong><p>单行书签栏不出现水平滚动条；被宽度截断的项目由右侧溢出入口列出。菜单固定为 280px 宽，过长标题使用省略号；文件夹行在既有 14px 图标位显示 Folder 图标，并以右箭头进入下一级菜单，不把完整路径拼进一行。网站行显示书签 favicon；导入数据未包含 favicon 时按 URL 获取，加载失败时显示 Bookmark 图标，不能留下无内容的空白位。桌面 App 中鼠标悬停书签栏文件夹立即打开该文件夹，横向移到相邻文件夹时菜单随目标切换，不设置额外等待时间。连续切换文件夹时复用同一个菜单视图，只替换菜单数据，不能反复重建视图并重新解码已经显示过的 favicon。菜单的原生覆盖层从书签栏下缘开始，不能遮挡书签栏按钮的鼠标命中区域。每一级菜单高度受当前窗口约束，并支持鼠标、触控板与键盘操作。</p></div>
-      <div class="decision"><strong>设置只有一个数据源</strong><p>窗口菜单的 Settings 打开 OpenProgram 设置；Browser 的 <code>⋯</code> 直接打开其中的 Browser 分区。工具栏不增加常驻齿轮，也不实现第二套浏览器设置存储。</p></div>
-      <div class="decision"><strong>分屏属于 Pane</strong><p>分屏、退出分屏和 Pane 排列适用于 Files、Chat、Browser、Terminal，不属于当前网页动作。它们放在 Tab/Pane 控件或 Tab 上下文菜单，不出现在浏览器工具栏。</p></div>
-      <div class="decision"><strong>导入保留来源结构</strong><p>Chromium 的 bookmark bar、other bookmarks 以及嵌套文件夹按原有层级和顺序进入 OpenProgram bookmark tree；导入不得把书签压平成主页下方的独立条目。</p></div>
-      <div class="decision"><strong>菜单分别绑定触发按钮</strong><p>Browser <code>⋯</code> 和窗口 <code>⋯</code> 都使用各自触发按钮的实际屏幕矩形定位，菜单右边缘与按钮右边缘对齐，垂直间距为 4px；二者不能共用位置或内容。</p></div>
-      <div class="decision"><strong>History 使用紧凑行</strong><p>记录按本地日期分组，每行只显示时间、favicon、标题、域名和操作；完整 URL 不再单独占用第二行。</p></div>
-      <div class="decision"><strong>导入必须显式触发</strong><p>来源浏览器、profile 和数据类型分别确认。OpenProgram 不读取或修改用户正在使用的源 profile。</p></div>
+      <div class="section-head"><span class="section-no">01</span><h2>Product decisions</h2></div>
+      <p class="section-intro">Content entry points, browser home, and data management currently share one page. The design separates their responsibilities before defining the controls on each page.</p>
+      <div class="decision"><strong>New pane only selects content</strong><p>An empty pane only shows Files, New chat, Browser, and Terminal. The address bar, quick sites, Bookmarks, and History do not appear here.</p></div>
+      <div class="decision"><strong>Four entries use equal visual priority and distinct colors</strong><p>Files, New chat, Browser, and Terminal all use equally sized rounded icon containers and Lucide outline icons. Files uses blue, New chat green, Browser orange and purple, and Terminal purple. Color only identifies content types; it does not change card hierarchy, interaction states, or accessible names, and introduces no brand logos, external assets, or extra animation.</p></div>
+      <div class="decision"><strong>Browser home reuses complete browser chrome</strong><p>Selecting Browser opens browser home in place. Home and actual pages share the address bar and bookmarks bar structure. Back, Forward, Reload, Home, Bookmark, and external opening remain visible but disabled when no current page applies; address input, Bookmarks, Import, and Browser <code>⋯</code> remain available.</p></div>
+      <div class="decision"><strong>The page determines navigation versus popup</strong><p>Ordinary links, form submissions, script assignments, and same-document navigation continue to commit in the current <code>WebContentsView</code> and only update that WebTab's URL, title, and History; they must not create a tab. Only when the page explicitly requests a new browsing context (<code>target="_blank"</code> or <code>window.open</code>) does the main process convert a validated HTTP(S) URL into a WebTab with its own id. The new WebTab immediately becomes active; when already at <code>/chat</code> or <code>/s/&lt;id&gt;</code> , do not push <code>/chat</code>again, so session-route synchronization cannot overwrite popup activation.</p></div>
+      <div class="decision"><strong>Web context menus bind to the hit content</strong><p>The native page area directly uses Electron <code>context-menu</code> hit parameters. HTTP(S) links show Open Link in New Tab and Copy Link Address; editable content shows Undo, Redo, Cut, Copy, Paste, and Select All; ordinary pages show Back, Forward, and Reload. Open Link in New Tab reuses the popup entry point and therefore has the same semantics as the page's own <code>window.open</code> for URL validation, unique tabs, and immediate activation. Menu actions only affect the WebTab that produced the menu and is still owned by the same window.</p></div>
+      <div class="decision"><strong>Floating web previews belong to the initiating session</strong><p>A floating web preview opened by an agent in chat records its session tab at creation. It appears only while that session is the current center content. Switching to another chat, a regular Browser tab, or a non-chat page must remove the WebTab from the renderer's native visible set and restore the user's web zoom. Returning to the original session reuses the same WebTab, URL, scroll position, and form state without reloading. After the user closes the preview, its restore entry also appears only in that session.</p></div>
+      <div class="decision"><strong>Saving and managing bookmarks are separate</strong><p>The star at the right of the address bar only saves or removes the current page; the adjacent Bookmarks button opens the complete bookmarks page. Browser home shows only user-maintained quick sites, not all bookmarks.</p></div>
+      <div class="decision"><strong>Bookmarks manager uses a Chrome-style two-column layout</strong><p>The complete bookmarks page has a fixed page title, search field, and page menu at the top. The left column contains only a collapsible folder tree with the current directory highlighted; the right column contains only that directory's direct children. Bookmark rows have a favicon, title, and single <code>⋮</code> menu; folder rows open the corresponding directory. The entire tree, URLs, and edit/delete buttons no longer share one list. Rows in both lists use <code>36px</code>; the search field uses the global <code>30px</code> control height, inline icon buttons use <code>28px</code>, and the header uses <code>52px</code>. The right list's initial viewport padding is <code>16px</code>. In a narrow pane, the directory tree moves above the content list rather than disappearing.</p></div>
+      <div class="decision"><strong>The bookmarks bar is visible by default</strong><p>Browser home and actual pages show the same bookmarks row below the address bar by default. Users can disable it through Browser <code>⋯</code> or Settings. Narrow split panes temporarily hide the row, while all content remains accessible through Bookmarks in Browser <code>⋯</code> .</p></div>
+      <div class="decision"><strong>The bookmarks bar displays source-directory contents</strong><p>Chromium's <code>Bookmarks bar</code> is the bookmarks-bar container, not an ordinary folder button. Its direct children enter the bar in original order;<code>Other bookmarks</code> and <code>Mobile bookmarks</code> appear as right-side folder entries only when nonempty. Ordinary root bookmarks remain bar items. Items placed in overflow must not leave partially clipped buttons in the visible bar; the last visible button must retain its full background and both rounded ends.</p></div>
+      <div class="decision"><strong>Bookmark menus retain Chrome-style hierarchy</strong><p>The single-row bookmarks bar has no horizontal scrollbar; items that exceed its width appear in the right-side overflow menu. Menus have a fixed width of 280px and ellipsize long titles. Folder rows show a Folder icon in the existing 14px icon slot and a right arrow to enter the next menu, rather than concatenating full paths. Site rows show bookmark favicons; when imported data lacks a favicon, fetch it from the URL and show a Bookmark icon on failure, never an empty slot. In the desktop App, hovering over a bookmarks-bar folder opens it immediately, and moving horizontally to an adjacent folder switches menus without extra delay. Consecutive folder switches reuse one menu view and replace only its data, without rebuilding the view or decoding previously displayed favicons again. The native overlay starts at the bookmarks bar's lower edge and must not cover the buttons' pointer hit areas. Each menu level is constrained by the current window height and supports mouse, trackpad, and keyboard interaction.</p></div>
+      <div class="decision"><strong>Settings have one source of truth</strong><p>Settings in the window menu opens OpenProgram settings; Browser's <code>⋯</code> opens its Browser section directly. The toolbar adds no persistent gear button and no second browser-settings store.</p></div>
+      <div class="decision"><strong>Split layout belongs to panes</strong><p>Splitting, leaving split view, and pane arrangement apply to Files, Chat, Browser, and Terminal; they are not current-page actions. They belong in Tab/Pane controls or the tab context menu, not the browser toolbar.</p></div>
+      <div class="decision"><strong>Import preserves source structure</strong><p>Chromium's bookmark bar, other bookmarks, and nested folders retain their hierarchy and order in the OpenProgram bookmark tree. Import must not flatten bookmarks into separate entries below home.</p></div>
+      <div class="decision"><strong>Each menu binds to its own trigger</strong><p>Browser <code>⋯</code> and the window <code>⋯</code> use their respective trigger buttons' actual screen rectangles. The menu's right edge aligns with the button's right edge, with a 4px vertical gap; the two menus cannot share placement or content.</p></div>
+      <div class="decision"><strong>History uses compact rows</strong><p>Records are grouped by local date. Each row shows only time, favicon, title, domain, and actions; the full URL no longer occupies a second line.</p></div>
+      <div class="decision"><strong>Import requires an explicit action</strong><p>The source browser, profile, and data types are confirmed separately. OpenProgram does not read or modify the source profile actively used by the user.</p></div>
     </section>
 
     <section class="section" id="toolbar">
-      <div class="section-head"><span class="section-no">02</span><h2>工具栏与菜单归属</h2></div>
-      <p class="section-intro">浏览器区域分为当前网页、浏览器资料和整个窗口三层。按钮是否常驻由操作频率、当前页面相关性和窄分屏占用共同决定。</p>
+      <div class="section-head"><span class="section-no">02</span><h2>Toolbar and menu ownership</h2></div>
+      <p class="section-intro">The browser area has three levels: current page, browsing data, and entire window. Whether an action remains visible depends on frequency, relevance to the current page, and space in narrow split panes.</p>
 
       <div class="toolbar-lab">
         <div class="toolbar-lab-head">
-          <strong>目标 Browser chrome</strong>
-          <div class="mode-switch" role="group" aria-label="预览工具栏状态">
-            <button type="button" data-chrome-mode="standard" aria-pressed="true">标准</button>
-            <button type="button" data-chrome-mode="hidden" aria-pressed="false">隐藏书签栏</button>
-            <button type="button" data-chrome-mode="narrow" aria-pressed="false">窄分屏</button>
+          <strong>Target browser chrome</strong>
+          <div class="mode-switch" role="group" aria-label="Preview toolbar state">
+            <button type="button" data-chrome-mode="standard" aria-pressed="true">Standard</button>
+            <button type="button" data-chrome-mode="hidden" aria-pressed="false">Hide bookmarks bar</button>
+            <button type="button" data-chrome-mode="narrow" aria-pressed="false">Narrow split pane</button>
           </div>
         </div>
         <div class="toolbar-stage">
-          <div class="toolbar-preview mode-standard" id="toolbar-preview" role="img" aria-label="标准浏览器工具栏：后退、前进、刷新、主页、地址栏、收藏当前页、书签、外部打开和浏览器菜单；地址栏下方显示书签栏。">
+          <div class="toolbar-preview mode-standard" id="toolbar-preview" role="img" aria-label="Standard browser toolbar: back, forward, reload, home, address bar, bookmark current page, bookmarks, external opening, and browser menu; the bookmarks bar appears below the address bar.">
             <div class="preview-window-bar"><strong>Browser tab</strong><span>Pane controls · OpenProgram menu</span></div>
             <div class="browser-toolbar">
               <div class="browser-actions" aria-hidden="true"><span class="tool-button">←</span><span class="tool-button optional-narrow">→</span><span class="tool-button">↻</span><span class="tool-button optional-medium">⌂</span></div>
               <div class="address">https://www.google.com/</div>
               <div class="browser-actions" aria-hidden="true"><span class="tool-button">☆</span><span class="tool-button emphasis optional-medium">▤</span><span class="tool-button optional-medium">↗</span><span class="tool-button">•••</span></div>
             </div>
-            <div class="bookmarks-bar" aria-label="可选书签栏">
+            <div class="bookmarks-bar" aria-label="Optional bookmarks bar">
               <span class="bookmark-chip"><i></i><span>GitHub</span></span>
               <span class="bookmark-chip"><i></i><span>OpenProgram Docs</span></span>
               <span class="bookmark-chip"><i></i><span>Research</span></span>
@@ -279,46 +279,46 @@
             </div>
           </div>
         </div>
-        <p class="toolbar-note" id="toolbar-note"><strong>标准：</strong>完整网页导航常驻；书签栏默认显示。星标负责当前页，Bookmarks 按钮负责浏览与管理。分屏和全局 Settings 不在这一行。</p>
+        <p class="toolbar-note" id="toolbar-note"><strong>Standard:</strong>Full web navigation remains visible; the bookmarks bar is visible by default. The star manages the current page; Bookmarks opens browsing and management. Split controls and global Settings are not in this row.</p>
       </div>
 
-      <h3>按钮顺序与收缩规则</h3>
-      <div class="table-scroll" tabindex="0" role="region" aria-label="浏览器工具栏按钮顺序与收缩规则，可横向滚动">
+      <h3>Button order and collapse rules</h3>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Browser toolbar button order and collapse rules, horizontally scrollable">
         <table class="acceptance-table">
-          <thead><tr><th>位置</th><th>常驻动作</th><th>窄分屏规则</th></tr></thead>
+          <thead><tr><th>Position</th><th>Persistent actions</th><th>Narrow-pane rules</th></tr></thead>
           <tbody>
-            <tr><td>地址栏左侧</td><td>Back · Forward · Reload/Stop · Home</td><td><code>520–719px</code> 将 Home 移入 <code>⋯</code>；低于 <code>520px</code> 再将 Forward 移入 <code>⋯</code>。Back 与 Reload/Stop 始终保留。</td></tr>
-            <tr><td>地址栏</td><td>URL、搜索输入与安全状态；加载期间 Reload 原位变为 Stop。</td><td>始终占据剩余宽度，最低可用宽度 <code>160px</code>；不换行。</td></tr>
-            <tr><td>地址栏右侧</td><td>Bookmark current page · Bookmarks · Open externally · Browser menu</td><td><code>520–719px</code> 将 Bookmarks 与 Open externally 移入 <code>⋯</code>；星标和 <code>⋯</code> 始终保留。</td></tr>
-            <tr><td>地址栏下方</td><td>用户可选的单行 bookmarks bar，直接显示 <code>Bookmarks bar</code> 的子项；非空的 <code>Other bookmarks</code> / <code>Mobile bookmarks</code> 固定在右侧，末尾是溢出入口。</td><td>低于 <code>560px</code> 不渲染该行，从 Browser <code>⋯</code> 中打开 Bookmarks；禁止水平滚动条。文件夹与溢出菜单的最大高度不得超过当前窗口可用高度，并允许纵向滚动。</td></tr>
+            <tr><td>Left of address bar</td><td>Back · Forward · Reload/Stop · Home</td><td><code>520–719px</code> Move Home into <code>⋯</code>; below <code>520px</code> , also move Forward into <code>⋯</code>. Back and Reload/Stop always remain.</td></tr>
+            <tr><td>Address bar</td><td>URL, search input, and security state; Reload becomes Stop in place during loading.</td><td>Always occupies remaining width, with a minimum usable width of <code>160px</code>; no wrapping.</td></tr>
+            <tr><td>Right of address bar</td><td>Bookmark current page · Bookmarks · Open externally · Browser menu</td><td><code>520–719px</code> Move Bookmarks and Open externally into <code>⋯</code>; the star and <code>⋯</code> always remain.</td></tr>
+            <tr><td>Below address bar</td><td>An optional single-row bookmarks bar directly displays the children of <code>Bookmarks bar</code> ; nonempty <code>Other bookmarks</code> / <code>Mobile bookmarks</code> remain on the right, followed by overflow.</td><td>Below <code>560px</code> , do not render this row; open Bookmarks through Browser <code>⋯</code> . Horizontal scrollbars are prohibited. Folder and overflow menus must not exceed the current available window height and must allow vertical scrolling.</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="scope-grid">
-        <article class="scope-card"><h3>Browser toolbar</h3><p>只放与当前网页直接相关且频繁使用的动作：导航、地址、保存当前页、打开书签、外部打开和 Browser <code>⋯</code>。</p></article>
-        <article class="scope-card"><h3>Browser <code>⋯</code></h3><p>New browser tab、Find in page、Zoom、Print、Bookmarks、History、Downloads、Show bookmarks bar、Import browser data、Clear browsing data、Browser settings。</p></article>
-        <article class="scope-card"><h3>Window menu</h3><p>New pane/window、Pane 布局、OpenProgram Settings、Help 与 About。它不再直接放 Bookmarks、History 或网页级设置。</p></article>
+        <article class="scope-card"><h3>Browser toolbar</h3><p>Only frequent current-page actions belong here: navigation, address input, saving the current page, opening bookmarks, external opening, and Browser <code>⋯</code>.</p></article>
+        <article class="scope-card"><h3>Browser <code>⋯</code></h3><p>New browser tab, Find in page, Zoom, Print, Bookmarks, History, Downloads, Show bookmarks bar, Import browser data, Clear browsing data, Browser settings.</p></article>
+        <article class="scope-card"><h3>Window menu</h3><p>New pane/window, pane layout, OpenProgram Settings, Help, and About. It no longer directly contains Bookmarks, History, or page-level settings.</p></article>
       </div>
-      <h3>聊天悬浮预览作用域</h3>
-      <div class="table-scroll" tabindex="0" role="region" aria-label="聊天悬浮网页预览的会话作用域，可横向滚动">
+      <h3>Chat floating-preview scope</h3>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Session scope of floating chat web previews, horizontally scrollable">
         <table class="acceptance-table">
-          <thead><tr><th>活动内容</th><th>悬浮预览</th><th>原生 WebTab 约束</th></tr></thead>
+          <thead><tr><th>Active content</th><th>Floating preview</th><th>Native WebTab constraints</th></tr></thead>
           <tbody>
-            <tr><td>创建预览的聊天</td><td>显示；返回该聊天时恢复原位置和尺寸。</td><td>使用 PiP bounds 和布局缩放；保持同一 WebContentsView。</td></tr>
-            <tr><td>其他聊天</td><td>隐藏；不显示恢复入口。</td><td>从 <code>syncVisible</code> 集合移除并恢复用户 zoom factor。</td></tr>
-            <tr><td>普通 Browser tab、分屏中的同一网页</td><td>隐藏。</td><td>普通 pane 独占该 WebTab 的可见 bounds，不保留 PiP 布局缩放。</td></tr>
-            <tr><td>用户在所属聊天关闭预览</td><td>隐藏；所属聊天显示恢复入口。</td><td>保留后台 WebTab，不暴露为其他会话的 turn surface。</td></tr>
+            <tr><td>The chat that created the preview</td><td>Visible; returning to that chat restores its previous position and size.</td><td>Uses PiP bounds and layout zoom; retains the same WebContentsView.</td></tr>
+            <tr><td>Another chat</td><td>Hidden; no restore entry.</td><td>Remove it from the <code>syncVisible</code> set and restore the user's zoom factor.</td></tr>
+            <tr><td>Regular Browser tab or the same page in split view</td><td>Hidden.</td><td>The ordinary pane exclusively owns that WebTab's visible bounds; PiP layout zoom does not persist.</td></tr>
+            <tr><td>The user closes the preview in its owning chat</td><td>Hidden; the owning chat shows a restore entry.</td><td>Retain the background WebTab without exposing it as another session's turn surface.</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
     <section class="section" id="surfaces">
-      <div class="section-head"><span class="section-no">03</span><h2>三个可见状态</h2></div>
-      <p class="section-intro">下面是信息结构验收图。切换状态即可检查控件是否出现在正确层级。</p>
+      <div class="section-head"><span class="section-no">03</span><h2>Three visible states</h2></div>
+      <p class="section-intro">The following information-architecture acceptance diagram lets you switch states to verify that controls appear at the correct level.</p>
       <div class="demo-wrap">
-        <div class="demo-tabs" role="tablist" aria-label="内置浏览器状态">
+        <div class="demo-tabs" role="tablist" aria-label="Built-in browser states">
           <button class="demo-tab" type="button" role="tab" aria-selected="true" aria-controls="demo-launcher" id="tab-launcher" tabindex="0">New pane</button>
           <button class="demo-tab" type="button" role="tab" aria-selected="false" aria-controls="demo-browser" id="tab-browser" tabindex="-1">Browser home</button>
           <button class="demo-tab" type="button" role="tab" aria-selected="false" aria-controls="demo-history" id="tab-history" tabindex="-1">History</button>
@@ -326,27 +326,27 @@
         <div class="demo-panel active" id="demo-launcher" role="tabpanel" aria-labelledby="tab-launcher">
           <div class="pane-head"><span class="window-dot"></span><strong>New pane</strong></div>
           <div class="launcher">
-            <div class="launcher-item"><span class="icon">F</span><span><strong>Files</strong><small>浏览当前项目文件</small></span><span class="shortcut">⌘P</span></div>
-            <div class="launcher-item"><span class="icon">C</span><span><strong>New chat</strong><small>创建独立对话</small></span><span class="shortcut">⌥⌘S</span></div>
-            <div class="launcher-item"><span class="icon">W</span><span><strong>Browser</strong><small>打开内置浏览器主页</small></span><span class="shortcut">⌘T</span></div>
-            <div class="launcher-item"><span class="icon">&gt;_</span><span><strong>Terminal</strong><small>打开项目终端</small></span><span class="shortcut">⌃`</span></div>
+            <div class="launcher-item"><span class="icon">F</span><span><strong>Files</strong><small>Browse current project files</small></span><span class="shortcut">⌘P</span></div>
+            <div class="launcher-item"><span class="icon">C</span><span><strong>New chat</strong><small>Create an independent conversation</small></span><span class="shortcut">⌥⌘S</span></div>
+            <div class="launcher-item"><span class="icon">W</span><span><strong>Browser</strong><small>Open built-in browser home</small></span><span class="shortcut">⌘T</span></div>
+            <div class="launcher-item"><span class="icon">&gt;_</span><span><strong>Terminal</strong><small>Open the project terminal</small></span><span class="shortcut">⌃`</span></div>
           </div>
         </div>
         <div class="demo-panel" id="demo-browser" role="tabpanel" aria-labelledby="tab-browser" hidden>
           <div class="pane-head"><span class="window-dot"></span><strong>Browser</strong></div>
           <div class="browser-toolbar">
             <div class="browser-actions" aria-hidden="true"><span class="tool-button">←</span><span class="tool-button optional-narrow">→</span><span class="tool-button">↻</span><span class="tool-button optional-medium">⌂</span></div>
-            <div class="address">输入 URL 或搜索内容</div>
+            <div class="address">Enter a URL or search query</div>
             <div class="browser-actions" aria-hidden="true"><span class="tool-button">☆</span><span class="tool-button emphasis optional-medium">▤</span><span class="tool-button optional-medium">↗</span><span class="tool-button">•••</span></div>
           </div>
-          <div class="bookmarks-bar" aria-label="书签栏">
+          <div class="bookmarks-bar" aria-label="Bookmarks bar">
             <span class="bookmark-chip"><i></i><span>GitHub</span></span>
             <span class="bookmark-chip"><i></i><span>OpenProgram Docs</span></span>
             <span class="bookmark-chip"><i></i><span>Research</span></span>
             <span class="bookmark-overflow">»</span>
           </div>
           <div class="browser-home">
-            <div class="import-banner"><span class="browser-mark">O</span><span><strong>从浏览器导入资料</strong><span>选择 History、Bookmarks 和 Cookies</span></span><span class="primary" aria-hidden="true">Import</span></div>
+            <div class="import-banner"><span class="browser-mark">O</span><span><strong>Import browser data</strong><span>Select History, Bookmarks, and Cookies</span></span><span class="primary" aria-hidden="true">Import</span></div>
             <div class="home-grid">
               <div class="home-block"><h4>Quick sites</h4><div class="site-row"><i></i>GitHub</div><div class="site-row"><i></i>Google</div><div class="site-row"><i></i>OpenProgram Docs</div></div>
             </div>
@@ -354,14 +354,14 @@
         </div>
         <div class="demo-panel" id="demo-history" role="tabpanel" aria-labelledby="tab-history" hidden>
           <div class="pane-head"><span class="window-dot"></span><strong>History</strong></div>
-          <div class="history-head"><h4>History</h4><div class="history-search">搜索历史记录</div></div>
+          <div class="history-head"><h4>History</h4><div class="history-search">Search history</div></div>
           <div class="history-group">
-            <div class="history-date">今天</div>
+            <div class="history-date">Today</div>
             <div class="history-row"><span class="check"></span><span class="time">14:22</span><span class="favicon"></span><span class="title">OpenProgram · Documentation</span><span class="domain">openprogram.ai</span><span class="more">•••</span></div>
             <div class="history-row"><span class="check"></span><span class="time">14:16</span><span class="favicon"></span><span class="title">Repository issues and pull requests</span><span class="domain">github.com</span><span class="more">•••</span></div>
             <div class="history-row"><span class="check"></span><span class="time">13:58</span><span class="favicon"></span><span class="title">Agent interface research notes</span><span class="domain">example.com</span><span class="more">•••</span></div>
             <div class="history-row"><span class="check"></span><span class="time">13:41</span><span class="favicon"></span><span class="title">Browser history design references</span><span class="domain">chromium.org</span><span class="more">•••</span></div>
-            <div class="history-date">昨天</div>
+            <div class="history-date">Yesterday</div>
             <div class="history-row"><span class="check"></span><span class="time">21:05</span><span class="favicon"></span><span class="title">Electron session and cookies API</span><span class="domain">electronjs.org</span><span class="more">•••</span></div>
             <div class="history-row"><span class="check"></span><span class="time">20:47</span><span class="favicon"></span><span class="title">Chromium user data directory</span><span class="domain">chromium.org</span><span class="more">•••</span></div>
           </div>
@@ -370,36 +370,36 @@
     </section>
 
     <section class="section" id="references">
-      <div class="section-head"><span class="section-no">04</span><h2>参考行为与取舍</h2></div>
-      <p class="section-intro">参考产品用于确认可见行为，平台文档用于确认可实现边界。OpenProgram 不复制完整 Chromium importer。</p>
+      <div class="section-head"><span class="section-no">04</span><h2>Reference behavior and tradeoffs</h2></div>
+      <p class="section-intro">Reference products establish visible behavior; platform documentation establishes implementation boundaries. OpenProgram does not duplicate the complete Chromium importer.</p>
       <div class="compare-grid">
-        <article class="compare-card"><span class="label">Content hierarchy</span><h3>Codex 的 Pane 入口</h3><p>Files、New chat、Browser、Terminal 作为一级内容类型；浏览器控件只在 Browser 内显示。</p><span class="choice">采用</span></article>
-        <article class="compare-card"><span class="label">Browser profile</span><h3>独立浏览状态</h3><p>内置浏览器保持自己的 profile。需要既有资料时，由用户明确发起导入。</p><span class="choice modified">修改后采用</span></article>
-        <article class="compare-card"><span class="label">Bookmark access</span><h3>Chrome 的分层入口</h3><p>星标保存当前页；书签栏可开关；完整管理器独立存在。OpenProgram 保留三层，但针对分屏定义更严格的收缩规则。</p><span class="choice modified">修改后采用</span></article>
-        <article class="compare-card"><span class="label">Settings ownership</span><h3>OpenAI 的 App Settings</h3><p>内置浏览器保持独立状态，Cookies 与历史清理归桌面 App Settings。OpenProgram 增加 Browser <code>⋯</code> 深链，但不复制设置存储。</p><span class="choice modified">修改后采用</span></article>
-        <article class="compare-card"><span class="label">Page intent</span><h3>Chrome 的导航与 popup 区分</h3><p>当前浏览上下文中的导航原位提交；页面明确请求新浏览上下文时创建并激活新标签。OpenProgram 保留这一区分，但把 native popup 转换为受中心标签状态管理的 WebTab。</p><span class="choice modified">修改后采用</span></article>
-        <article class="compare-card"><span class="label">Page menu</span><h3>Electron 原生 context menu</h3><p><code>webContents</code> 提供链接、选择区、编辑状态和 frame 命中参数；<code>Menu.popup</code> 提供当前 OS 的原生菜单。OpenProgram 采用有限动作集，不暴露 DevTools 或任意协议打开。</p><span class="choice modified">修改后采用</span></article>
-        <article class="compare-card"><span class="label">Importer</span><h3>Chromium C++ importer</h3><p>组件不作为 Electron JavaScript API 暴露，且不提供通用 Cookies import 实现。</p><span class="choice rejected">不复制</span></article>
+        <article class="compare-card"><span class="label">Content hierarchy</span><h3>Codex pane entry points</h3><p>Files, New chat, Browser, and Terminal are top-level content types; browser controls appear only inside Browser.</p><span class="choice">Adopted</span></article>
+        <article class="compare-card"><span class="label">Browser profile</span><h3>Independent browsing state</h3><p>The built-in browser maintains its own profile. Users explicitly initiate import when existing data is needed.</p><span class="choice modified">Adopted with changes</span></article>
+        <article class="compare-card"><span class="label">Bookmark access</span><h3>Chrome's layered entry points</h3><p>The star saves the current page, the bookmarks bar can be toggled, and the complete manager is separate. OpenProgram retains these three levels with stricter collapse rules for split panes.</p><span class="choice modified">Adopted with changes</span></article>
+        <article class="compare-card"><span class="label">Settings ownership</span><h3>OpenAI App Settings</h3><p>The built-in browser maintains independent state; Cookies and history clearing belong to desktop App Settings. OpenProgram adds a Browser <code>⋯</code>  deep link without duplicating settings storage.</p><span class="choice modified">Adopted with changes</span></article>
+        <article class="compare-card"><span class="label">Page intent</span><h3>Chrome distinguishes navigation from popups</h3><p>Navigation in the current browsing context commits in place; explicit requests for a new context create and activate a new tab. OpenProgram preserves this distinction while converting native popups into WebTabs managed by center-tab state.</p><span class="choice modified">Adopted with changes</span></article>
+        <article class="compare-card"><span class="label">Page menu</span><h3>Electron native context menu</h3><p><code>webContents</code> provides link, selection, edit-state, and frame hit parameters;<code>Menu.popup</code> provides the current OS's native menu. OpenProgram adopts a limited action set without exposing DevTools or arbitrary protocol opening.</p><span class="choice modified">Adopted with changes</span></article>
+        <article class="compare-card"><span class="label">Importer</span><h3>Chromium C++ importer</h3><p>components are not exposed as Electron JavaScript APIs and provide no general Cookies import implementation.</p><span class="choice rejected">Not duplicated</span></article>
       </div>
       <ul class="source-list">
-        <li><a href="https://help.openai.com/en/articles/20001277-using-the-built-in-browser-in-the-chatgpt-desktop-app">OpenAI 内置浏览器说明</a>：确认独立浏览状态、外部浏览器边界，以及 Cookies 和 History 由桌面 App Settings 清理。</li>
-        <li><a href="https://support.google.com/chrome/answer/188842">Chrome 书签说明</a>：确认地址栏右侧保存当前页、书签栏可开关、完整 Bookmark manager 独立存在。</li>
-        <li><a href="https://support.google.com/chrome/answer/96816">Chrome 导入设置</a>：确认按数据类型选择以及 Imported Bookmarks 的合并行为。</li>
-        <li><a href="https://chromium.googlesource.com/chromium/src/+/main/docs/user_data_dir.md">Chromium user data directory</a>：确认 History、Bookmarks、Cookies 的 profile 存储位置。</li>
-        <li><a href="https://chromium.googlesource.com/chromium/src/+/refs/tags/145.0.7573.1/components/user_data_importer/">Chromium user_data_importer</a>：确认原生导入组件的能力与 Electron 暴露边界。</li>
-        <li><a href="https://www.electronjs.org/docs/latest/api/session">Electron session</a> 与 <a href="https://www.electronjs.org/docs/latest/api/cookies">Cookies</a>：确认持久化 partition 和逐条 Cookie 写入接口。</li>
-        <li><a href="https://www.electronjs.org/docs/latest/api/web-contents">Electron webContents</a> 与 <a href="https://www.electronjs.org/docs/latest/api/window-open">renderer window.open</a>：确认 <code>setWindowOpenHandler</code> 接收已解析 popup URL，<code>context-menu</code> 提供链接、选择区和编辑命中参数。</li>
-        <li><a href="https://www.electronjs.org/docs/latest/api/menu">Electron Menu</a>：确认 <code>Menu.buildFromTemplate</code> 和绑定所属 <code>BaseWindow</code> 的 <code>menu.popup</code> 是 main 进程的原生上下文菜单入口。</li>
+        <li><a href="https://help.openai.com/en/articles/20001277-using-the-built-in-browser-in-the-chatgpt-desktop-app">OpenAI built-in browser documentation</a>: establishes independent browsing state, external-browser boundaries, and clearing Cookies and History through desktop App Settings.</li>
+        <li><a href="https://support.google.com/chrome/answer/188842">Chrome bookmarks documentation</a>: establishes saving the current page beside the address bar, toggling the bookmarks bar, and a separate complete Bookmark manager.</li>
+        <li><a href="https://support.google.com/chrome/answer/96816">Chrome import settings</a>: establishes data-type selection and Imported Bookmarks merging behavior.</li>
+        <li><a href="https://chromium.googlesource.com/chromium/src/+/main/docs/user_data_dir.md">Chromium user data directory</a>: establishes profile storage locations for History, Bookmarks, and Cookies.</li>
+        <li><a href="https://chromium.googlesource.com/chromium/src/+/refs/tags/145.0.7573.1/components/user_data_importer/">Chromium user_data_importer</a>: establishes native importer capabilities and Electron exposure boundaries.</li>
+        <li><a href="https://www.electronjs.org/docs/latest/api/session">Electron session</a> and <a href="https://www.electronjs.org/docs/latest/api/cookies">Cookies</a>: establish persistent partitions and per-cookie write APIs.</li>
+        <li><a href="https://www.electronjs.org/docs/latest/api/web-contents">Electron webContents</a> and <a href="https://www.electronjs.org/docs/latest/api/window-open">renderer window.open</a>: establish that <code>setWindowOpenHandler</code> receives resolved popup URLs, and<code>context-menu</code> provides link, selection, and edit hit parameters.</li>
+        <li><a href="https://www.electronjs.org/docs/latest/api/menu">Electron Menu</a>: establish that <code>Menu.buildFromTemplate</code> and <code>BaseWindow</code> bound to their owning <code>menu.popup</code> are native context-menu entry points in the main process.</li>
       </ul>
     </section>
 
     <section class="section" id="architecture">
-      <div class="section-head"><span class="section-no">05</span><h2>导入架构与数据流</h2></div>
-      <p class="section-intro">renderer 只传递 main 进程签发的 opaque source/profile id。文件路径、源浏览器可执行路径和 Cookie 值都不能通过 renderer 自由指定。</p>
+      <div class="section-head"><span class="section-no">05</span><h2>Import architecture and data flow</h2></div>
+      <p class="section-intro">The renderer passes only opaque source/profile ids issued by the main process. It cannot freely specify file paths, source-browser executable paths, or Cookie values.</p>
       <div class="architecture">
         <svg viewBox="0 0 900 390" role="img" aria-labelledby="flow-title flow-desc">
-          <title id="flow-title">浏览器资料导入数据流</title>
-          <desc id="flow-desc">用户从桌面界面选择来源，main 进程发现 profile 并只读复制到临时目录。History 和 Bookmarks 由解析器读取，Cookies 由源浏览器临时进程解密，最终分别写入 OpenProgram history store、bookmark tree 和 persist webtabs session。</desc>
+          <title id="flow-title">Browser data import flow</title>
+          <desc id="flow-desc">The user selects a source in the desktop UI. The main process discovers profiles and makes read-only copies in a temporary directory. Parsers read History and Bookmarks; a temporary source-browser process decrypts Cookies. The results are written to the OpenProgram history store, bookmark tree, and persist webtabs session respectively.</desc>
           <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6f7481"/></marker><marker id="arrow-hot" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#5d55d7"/></marker></defs>
           <rect x="24" y="42" width="145" height="70" rx="10" fill="#f4f5f8" stroke="#b9bfcc"/><text x="96" y="71" text-anchor="middle" font-family="ui-monospace" font-size="13">Import dialog</text><text x="96" y="92" text-anchor="middle" font-family="ui-sans-serif" font-size="11" fill="#646977">source · profile · types</text>
           <rect x="238" y="42" width="164" height="70" rx="10" fill="#f4f5f8" stroke="#b9bfcc"/><text x="320" y="68" text-anchor="middle" font-family="ui-monospace" font-size="12">apps/desktop/main.js</text><text x="320" y="90" text-anchor="middle" font-family="ui-sans-serif" font-size="10" fill="#646977">run/cancel · request id</text>
@@ -411,95 +411,95 @@
           <rect x="728" y="153" width="148" height="68" rx="10" fill="#e6f1eb" stroke="#367b5a"/><text x="802" y="179" text-anchor="middle" font-family="ui-monospace" font-size="10">browsing-history-store.js</text><text x="802" y="199" text-anchor="middle" font-family="ui-sans-serif" font-size="10" fill="#646977">apps/web/lib/tabs/bookmarks.ts</text>
           <rect x="728" y="280" width="148" height="68" rx="10" fill="#e6f1eb" stroke="#367b5a"/><text x="802" y="308" text-anchor="middle" font-family="ui-monospace" font-size="12">persist:webtabs</text><text x="802" y="327" text-anchor="middle" font-family="ui-sans-serif" font-size="11" fill="#646977">Electron cookies.set</text>
           <path d="M635 215H728" stroke="#6f7481" stroke-width="1.6" marker-end="url(#arrow)"/><path d="M635 323H728" stroke="#5d55d7" stroke-width="1.8" marker-end="url(#arrow-hot)"/>
-          <rect x="22" y="155" width="365" height="199" rx="12" fill="none" stroke="#d9d5cc" stroke-dasharray="6 5"/><text x="40" y="181" font-family="ui-monospace" font-size="10" fill="#9b9890">SOURCE PROFILE · READ ONLY</text><text x="40" y="215" font-family="ui-sans-serif" font-size="12" fill="#55534e">1. 发现已安装浏览器和 profile 名称</text><text x="40" y="246" font-family="ui-sans-serif" font-size="12" fill="#55534e">2. 解析真实路径并拒绝符号链接逃逸</text><text x="40" y="277" font-family="ui-sans-serif" font-size="12" fill="#55534e">3. 复制需要的文件，不锁定活动数据库</text><text x="40" y="308" font-family="ui-sans-serif" font-size="12" fill="#55534e">4. 正常或失败后删除临时目录</text>
+          <rect x="22" y="155" width="365" height="199" rx="12" fill="none" stroke="#d9d5cc" stroke-dasharray="6 5"/><text x="40" y="181" font-family="ui-monospace" font-size="10" fill="#9b9890">SOURCE PROFILE · READ ONLY</text><text x="40" y="215" font-family="ui-sans-serif" font-size="12" fill="#55534e">1. Discover installed browsers and profile names</text><text x="40" y="246" font-family="ui-sans-serif" font-size="12" fill="#55534e">2. Resolve real paths and reject symlink escapes</text><text x="40" y="277" font-family="ui-sans-serif" font-size="12" fill="#55534e">3. Copy required files without locking active databases</text><text x="40" y="308" font-family="ui-sans-serif" font-size="12" fill="#55534e">4. Delete the temporary directory after success or failure</text>
         </svg>
       </div>
-      <div class="legend"><span>一般资料路径</span><span class="sensitive">Cookie 敏感路径</span></div>
+      <div class="legend"><span>Ordinary data path</span><span class="sensitive">Sensitive Cookie path</span></div>
       <div class="import-types">
-        <article class="type-card"><h3>History</h3><ul><li>读取 Chromium History SQLite 副本</li><li>只接受 http/https</li><li>按 URL + visitedAt 去重</li><li>错误时保留现有记录</li></ul></article>
-        <article class="type-card"><h3>Bookmarks</h3><ul><li>解析 Chromium Bookmarks JSON</li><li>保留根目录、嵌套文件夹与同级顺序</li><li>同 URL 不重复添加并删除空文件夹</li><li>只在 Bookmarks 页面展示和管理</li></ul></article>
-        <article class="type-card"><h3>Cookies</h3><ul><li>禁止直接复制 Cookie 数据库</li><li>由源浏览器临时进程解密</li><li>逐条校验后写入 partition</li><li>任何日志都不记录值</li></ul></article>
+        <article class="type-card"><h3>History</h3><ul><li>Read a copy of Chromium History SQLite</li><li>Accept only http/https</li><li>Deduplicate by URL + visitedAt</li><li>Preserve existing records on error</li></ul></article>
+        <article class="type-card"><h3>Bookmarks</h3><ul><li>Parse Chromium Bookmarks JSON</li><li>Preserve roots, nested folders, and sibling order</li><li>Avoid duplicate URLs and remove empty folders</li><li>Display and manage only on the Bookmarks page</li></ul></article>
+        <article class="type-card"><h3>Cookies</h3><ul><li>Direct Cookie database copying is prohibited</li><li>Decrypt in a temporary source-browser process</li><li>Validate each item before writing to the partition</li><li>Never log values</li></ul></article>
       </div>
-      <h3>网页导航、popup 与右键动作流</h3>
-      <div class="table-scroll" tabindex="0" role="region" aria-label="网页导航、popup 与右键动作数据流，可横向滚动">
+      <h3>Web navigation, popup, and context-action flow</h3>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Web navigation, popup, and context-action data flow, horizontally scrollable">
         <table class="acceptance-table">
-          <thead><tr><th>页面意图</th><th>main 进程</th><th>renderer 状态</th></tr></thead>
+          <thead><tr><th>Page intent</th><th>Main process</th><th>Renderer state</th></tr></thead>
           <tbody>
-            <tr><td>当前上下文导航</td><td><code>did-navigate</code> / <code>did-navigate-in-page</code> 回报同一 record 的状态；不发送 popup 事件。</td><td><code>updateWebTab</code> 原位更新 URL、标题和 favicon，id 与活动标签不变。</td></tr>
-            <tr><td><code>target="_blank"</code> / <code>window.open</code></td><td><code>setWindowOpenHandler</code> 拒绝 native 子窗口；仅将有效 HTTP(S) URL 和 opener id 发给拥有该 View 的窗口。</td><td><code>openPopupWebTab</code> 创建唯一 id 并立即设为 active；已在聊天 surface 时保持当前 route。</td></tr>
-            <tr><td>网页右键链接 → Open Link in New Tab</td><td><code>context-menu</code> 校验 exact owner 和 URL 后复用上述 popup 事件；Copy/Edit/Navigation 动作直接绑定产生菜单的 <code>webContents</code>。</td><td>新标签与页面 popup 相同；菜单关闭或 stale owner 时不执行跨标签动作。</td></tr>
+            <tr><td>Current-context navigation</td><td><code>did-navigate</code> / <code>did-navigate-in-page</code> Report the same record's state; send no popup event.</td><td><code>updateWebTab</code> Update URL, title, and favicon in place; retain id and active tab.</td></tr>
+            <tr><td><code>target="_blank"</code> / <code>window.open</code></td><td><code>setWindowOpenHandler</code> Reject native child windows; send only valid HTTP(S) URLs and opener ids to the window that owns the View.</td><td><code>openPopupWebTab</code> Create a unique id and activate it immediately; retain the current route when already on a chat surface.</td></tr>
+            <tr><td>Web link context menu → Open Link in New Tab</td><td><code>context-menu</code> Validate exact ownership and URL, then reuse the popup event above; bind Copy/Edit/Navigation directly to the menu-producing <code>webContents</code>.</td><td>The new tab behaves like a page popup; do not execute cross-tab actions after menu dismissal or with a stale owner.</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
     <section class="section" id="boundaries">
-      <div class="section-head"><span class="section-no">06</span><h2>信任边界与失败行为</h2></div>
-      <p class="section-intro">网页内容、renderer 与 main 进程之间只传递完成动作所需的有界状态；资料导入不是 profile 迁移，只复制用户明确选择的数据。</p>
+      <div class="section-head"><span class="section-no">06</span><h2>Trust boundaries and failure behavior</h2></div>
+      <p class="section-intro">Web content, renderer, and main process exchange only bounded state required for an action. Data import is not profile migration; it copies only explicitly selected data.</p>
       <table class="boundary-table">
-        <thead><tr><th>边界</th><th>约束</th><th>失败结果</th></tr></thead>
+        <thead><tr><th>Boundary</th><th>Constraint</th><th>Failure outcome</th></tr></thead>
         <tbody>
-          <tr><td>renderer → main</td><td>source/profile 使用 main 返回的 opaque id；数据类型使用 allowlist；renderer 不能传文件路径或可执行路径。</td><td><span class="risk">拒绝请求</span></td></tr>
-          <tr><td>网页内容 → main</td><td>popup 和右键链接只接受解析后的 HTTP(S) URL；动作绑定产生事件的 exact WebTab owner。<code>file:</code>、<code>javascript:</code>、已转移/关闭的 record 和伪造 opener 均不得创建标签或导航其他 View。</td><td><span class="risk">deny / no-op</span></td></tr>
-          <tr><td>源 profile</td><td>只读发现；真实路径必须位于已发现 browser root 内；拒绝符号链接逃逸。</td><td><span class="risk">source_invalid</span></td></tr>
-          <tr><td>临时数据</td><td>目录 0700、文件 0600；成功、失败或超时后都删除；日志只记录来源标签、类型、计数和错误码。</td><td><span class="risk">cleanup + stable error</span></td></tr>
-          <tr><td>目标 profile</td><td>History 和 Bookmarks 合并；Cookies 通过 Electron API 写入，不替换目标数据库。</td><td><span class="risk">保留导入前数据</span></td></tr>
-          <tr><td>并发与取消</td><td>全 App 同时只允许一个导入任务。发起 renderer 生成有界 request id；只有同一 renderer 可以取消。取消在解析阶段边界、临时浏览器启动/CDP 等待以及每条 Cookie 写入前后检查。</td><td><span class="risk">import_busy / import_cancelled</span></td></tr>
-          <tr><td>取消后的目标状态</td><td>接受取消后不合并 History 或 Bookmarks，临时浏览器终止且临时目录删除。Electron Cookie API 没有事务；取消前已经完成的 Cookie 写入保留，取消后不得继续写入。</td><td><span class="risk">cooperative stop</span></td></tr>
+          <tr><td>renderer → main</td><td>source/profile uses opaque ids returned by main; data types use an allowlist; renderer cannot pass file or executable paths.</td><td><span class="risk">Reject the request</span></td></tr>
+          <tr><td>Web content → main</td><td>Popup and context-menu links accept only resolved HTTP(S) URLs; actions bind to the exact WebTab owner that produced the event.<code>file:</code>, <code>javascript:</code>, transferred/closed records, and forged openers must not create tabs or navigate other Views.</td><td><span class="risk">deny / no-op</span></td></tr>
+          <tr><td>Source profile</td><td>Read-only discovery; real paths must remain under discovered browser roots; reject symlink escapes.</td><td><span class="risk">source_invalid</span></td></tr>
+          <tr><td>Temporary data</td><td>Directories use 0700 and files 0600; delete after success, failure, or timeout. Logs contain only source labels, types, counts, and error codes.</td><td><span class="risk">cleanup + stable error</span></td></tr>
+          <tr><td>Target profile</td><td>Merge History and Bookmarks; write Cookies through the Electron API without replacing the target database.</td><td><span class="risk">Preserve pre-import data</span></td></tr>
+          <tr><td>Concurrency and cancellation</td><td>Only one import job may run across the App at a time. The initiating renderer creates a bounded request id; only that renderer may cancel. Check cancellation at parser phase boundaries, during temporary-browser startup/CDP waits, and before and after each Cookie write.</td><td><span class="risk">import_busy / import_cancelled</span></td></tr>
+          <tr><td>Target state after cancellation</td><td>After accepting cancellation, do not merge History or Bookmarks; terminate the temporary browser and delete temporary files. Electron's Cookie API has no transaction: writes completed before cancellation remain, but no further writes may occur afterward.</td><td><span class="risk">cooperative stop</span></td></tr>
         </tbody>
       </table>
       <div class="exclusions">
-        <div class="exclusion">资料导入不复制 Passwords、支付信息、地址、扩展、下载记录、缓存、localStorage 或 Service Workers。内置浏览器不提供扩展安装或管理，原因与代码边界见 <a href="browser-extensions.html">浏览器扩展支持决策</a>。</div>
-        <div class="exclusion">不实现密码管理器、系统 Credential Store、自动填充或对运行中的源浏览器进行远程调试。</div>
-        <div class="exclusion">Cookie 导入可以减少重复登录，但设备绑定、过期、二次验证或服务端撤销仍会要求重新登录。</div>
-        <div class="exclusion">本地浏览器导入仅属于桌面 App；Web-only 模式不得显示为可用能力。</div>
-        <div class="exclusion">本轮网页右键菜单不实现 Save page、Save image、Download linked file、View source、Inspect element 或扩展注入项；需要这些动作时另行定义下载、文件授权和开发者模式边界。</div>
+        <div class="exclusion">Import excludes Passwords, payment details, addresses, extensions, downloads, caches, localStorage, and Service Workers. The built-in browser provides no extension installation or management; rationale and code boundaries are in <a href="browser-extensions.html">Browser extension support decision</a>.</div>
+        <div class="exclusion">No password manager, system Credential Store, autofill, or remote debugging of the running source browser is implemented.</div>
+        <div class="exclusion">Cookie import can reduce repeated login, but device binding, expiration, secondary verification, or server-side revocation can still require login.</div>
+        <div class="exclusion">Local browser import is desktop-only and must not appear available in Web-only mode.</div>
+        <div class="exclusion">This web context menu does not implement Save page, Save image, Download linked file, View source, Inspect element, or extension-injected entries. Such actions require separate download, file-authorization, and developer-mode boundaries.</div>
       </div>
     </section>
 
-    <section class="section" id="session-pages"><h2>会话资源中的网页</h2><p>网页按会话归类，默认收进右侧可折叠的会话资源面板。入口与资源类型的完整设计见 <a href="session-resources.html">Session resources</a>。网页记录继续保留真实会话归属与固定状态，手动网页及显式分屏保留顶部位置。</p></section>
+    <section class="section" id="session-pages"><h2>Web pages in session resources</h2><p>Pages are grouped by session and collapsed into the right-side session resources panel by default. The complete entry-point and resource-type design is in <a href="session-resources.html">Session resources</a>. Page records retain actual session ownership and pin state; manual pages and explicit split views retain top-level placement.</p></section>
 
     <section class="section" id="acceptance">
-      <div class="section-head"><span class="section-no">07</span><h2>验收与实现状态</h2></div>
-      <p class="section-intro">每项验收都对应一个外部可观察结果。设计状态和实现证据分列，不以文档存在本身证明功能完成。</p>
-      <div class="table-scroll" tabindex="0" role="region" aria-label="内置浏览器验收结果与实现证据，可横向滚动">
+      <div class="section-head"><span class="section-no">07</span><h2>Acceptance and implementation status</h2></div>
+      <p class="section-intro">Each acceptance item maps to an externally observable result. Design status and implementation evidence are separate; the existence of this document does not prove completion.</p>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Built-in browser acceptance results and implementation evidence, horizontally scrollable">
       <table class="acceptance-table">
-        <thead><tr><th>可观察结果</th><th>当前状态</th><th>实现证据</th></tr></thead>
+        <thead><tr><th>Observable result</th><th>Current status</th><th>Implementation evidence</th></tr></thead>
         <tbody>
-          <tr><td>普通页面导航保持当前 WebTab id 与活动状态；<code>target="_blank"</code> / <code>window.open</code> 创建唯一 WebTab，并在创建后持续保持活动，不被原聊天 route 覆盖。网页链接右键显示 Open Link in New Tab 与 Copy Link Address；普通/编辑上下文显示对应 Navigation 或 Edit 动作，所有动作只作用于 exact owner。</td><td><span class="status">已实现并通过默认 App 验收</span></td><td><code>desktop-bridge.ts</code> popup route contract；<code>apps/desktop/main.js</code> WebContentsView context menu；<code>check-web-split.mjs</code>；<code>check-webtab-navigation.js</code>。独立 specification 与 quality review 均通过；安装版中 popup 在创建后连续观察 2 秒保持 active 且 <code>/s/&lt;id&gt;</code> 不变，普通导航保持 tab 数量与 id，HTTP(S) 链接原生右键菜单显示 Open/Copy 与页面导航动作。</td></tr>
-          <tr><td>新建 Pane 只显示 Files、New chat、Browser、Terminal；四个入口使用同尺寸、不同语义色的圆角图标容器，DOM 中不存在浏览器专属控件。</td><td><span class="status">已实现并通过默认 App 深浅主题验收</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/new-tab-page.tsx"><code>new-tab-page.tsx</code></a>；<code>check-built-in-browser.mjs</code> 的有效级联与语义色 mutation 检查</td></tr>
-          <tr><td>选择 Browser 后原位显示与网页页签相同的地址栏和书签栏结构、导入入口和快捷网站；无当前网页语义的动作保持可见但禁用。</td><td><span class="status">已实现并通过默认 App 验收</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/browser-home-page.tsx"><code>browser-home-page.tsx</code></a>；<code>check-built-in-browser.mjs</code>；实际 App 中 toolbar / bookmarks bar 为 <code>40px / 30px</code></td></tr>
-          <tr><td>标准宽度的 Browser toolbar 按顺序显示 Back、Forward、Reload/Stop、Home、地址栏、当前页星标、Bookmarks、外部打开和 Browser <code>⋯</code>；不显示分屏与 Settings 齿轮。</td><td><span class="status">已实现</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/web-tab-pane.tsx"><code>web-tab-pane.tsx</code></a>；<code>check-built-in-browser.mjs</code>；<code>check-web-split.mjs</code></td></tr>
-          <tr><td>Browser <code>⋯</code> 提供 Bookmarks、History、Downloads、书签栏开关、Import、Clear browsing data 和 Browser settings；窗口主菜单只保留 App、窗口与 Pane 操作。桌面弹层按菜单的 <code>scrollWidth/scrollHeight</code> 回报固有尺寸，不能按当前裁剪高度递归缩小。</td><td><span class="status">已实现</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/browser-controls.tsx"><code>browser-controls.tsx</code></a>；<code>menu-overlay/context-menu/page.tsx</code>；<code>check-built-in-browser.mjs</code></td></tr>
-          <tr><td>书签栏默认显示；用户关闭后保持关闭；直接显示 <code>Bookmarks bar</code> 的子项，非空的其他根目录位于右侧；末尾溢出入口可访问被截断的项目。进入溢出菜单的项目不再残留被裁切的按钮，最后一个可见按钮必须完整显示背景和两侧圆角。桌面文件夹悬停打开并可横向切换；鼠标从文件夹按钮跨入弹层或子菜单时保持打开，鼠标同时离开按钮及全部菜单面板后在 120ms 内关闭，不要求额外点击。文件夹菜单固定为 280px 宽，标题省略，嵌套文件夹逐级展开；文件夹行显示 Folder 图标，网站行显示 favicon，加载失败时显示 Bookmark 图标，不保留空白图标位；Pane 低于 560px 时隐藏书签栏，但 Bookmarks 页面仍可到达。</td><td><span class="status">已实现并通过默认 App 验收</span></td><td><code>check-bookmarks.mjs</code>、<code>check-built-in-browser.mjs</code>、<code>check-webtab-zoom-bounds.js</code>；默认 App 中溢出的 Writing 按钮保持隐藏，最后可见的 Experiments 按钮完整显示 5px 两侧圆角；Other Bookmarks 悬停弹层可打开，离开后实测约 133ms 关闭</td></tr>
-          <tr><td>Bookmarks manager 使用顶部搜索、左侧文件夹树和右侧当前目录列表；普通行只保留 favicon/文件夹图标、标题和 <code>⋮</code>。左右列表行均为 <code>36px</code>，页头为 <code>52px</code>，窄 Pane 改为上下布局。</td><td><span class="status">已实现并通过默认 App 密度验收</span></td><td><code>builtin-tab-pane.tsx</code>；<code>center-tabs.module.css</code>；<code>check-bookmarks.mjs</code>；默认 App 实测页头、文件夹行、内容行、搜索框、图标按钮分别为 <code>52 / 36 / 36 / 30 / 28px</code></td></tr>
-          <tr><td>Browser settings 与窗口 Settings 使用同一路由和同一配置源；Browser <code>⋯</code> 直接打开 Browser 分区，toolbar 不显示常驻齿轮。</td><td><span class="status">已实现</span></td><td><code>/settings/browser</code>；<code>browser-settings.tsx</code>；<code>browser-prefs.ts</code></td></tr>
-          <tr><td>导入对话框列出来源浏览器、profile 和支持的数据类型；开始前关闭不产生目标变更。执行期间原 Import 按钮原位变为 Cancel，关闭按钮禁用；接受取消后显示稳定的取消结果并释放全局导入占用，下一次导入可以开始。</td><td><span class="status">已实现并通过默认 App 验收</span></td><td><code>browser-import:run/cancel</code> IPC；<code>browser-profile-import.js</code> cancellation self-check；<code>check-webtab-navigation.js</code> 的 sender ownership、lease release 与 window cleanup 检查；<code>check-built-in-browser.mjs</code>。安装版实际识别 Chrome 的 3 个 profile；运行时显示 Cancel 且禁用关闭按钮，取消返回 <code>import_cancelled</code>，随后新请求不再返回 <code>import_busy</code>。</td></tr>
-          <tr><td>History 按日期分组，至少 1000 条时保持 36–40px 行高，搜索和滚动可用。</td><td><span class="status">已实现并通过默认 App 规模验收</span></td><td><code>web-history.css</code> 为 38px；History 分页上限 5000，搜索在 main 进程完成；存储 self-check 覆盖 5000 条上限。在安装版 App 的现有 5000 条记录上逐批显示到 1000 行，三次增量渲染为 <code>241.6 / 235.1 / 256.2ms</code>，行高全部为 <code>38px</code>，滚动到底部后末行可见；<code>google</code> 搜索在 <code>299.4ms</code> 内得到 250 条匹配结果。</td></tr>
-          <tr><td>内置网页下载进入系统 Downloads 目录；Downloads 页面显示实时进度和最终状态，并支持打开文件、在 Finder 中显示、取消进行中任务和清除记录。</td><td><span class="status ok">已实现，安装版通过</span></td><td><code>apps/desktop/main.js</code> 的 <code>will-download</code> 与 <code>downloads:*</code> IPC；<code>builtin-tab-pane.tsx</code>；<code>check-webtab-navigation.js</code>。安装版 App 实际完成 42 B 附件下载，并取消一个 32 MB 进行中任务；页面分别显示 <code>Completed</code>、<code>Cancelled</code>，取消后 <code>active=false</code>，测试记录可清除。另一次安装版下载验证中，Open 使用系统关联应用打开 58 B 文本文件，Show in Finder 定位并选中同一文件；随后已清除测试记录并将文件移到废纸篓。</td></tr>
-          <tr><td>当前网页支持 Find in page、Zoom in/out/reset 和 Print；命令只作用于请求窗口拥有的精确 WebTab。Print 首先调用系统打印；系统打印失败或没有可用 destination 时，由同一动作打开所属窗口的原生 Save PDF 对话框。用户取消系统打印或保存均返回未完成，不写入文件；系统打印成功时不得额外生成 PDF。PDF 先写入目标目录中的唯一临时文件，完成后再替换用户选择的路径，失败时保留既有目标。Find 提供上一处、下一处、匹配数与关闭，关闭时清除页面选择；<code>⌘/Ctrl+F</code>、<code>⌘/Ctrl++/-/0</code>、<code>⌘/Ctrl+P</code> 与菜单动作一致。Web 前端与桌面壳版本暂时不一致时，前端按 preload 实际暴露的能力启用动作；缺少新 IPC 的旧壳必须禁用对应动作且不能导致页面异常。</td><td><span class="status ok">已实现，安装版通过</span></td><td><code>apps/desktop/main.js</code> 的 <code>webtab:find/zoom/print</code> IPC；<code>web-tab-pane.tsx</code>；<code>check-webtab-navigation.js</code>；<code>check-built-in-browser.mjs</code>。安装版在本地文档页找到 35 处匹配并可前进到第 2 处；Zoom 返回 <code>100 → 110 → 100 → 100</code>。验收机没有打印 destination，系统 Print 失败后实际出现所属窗口的原生 Save PDF 对话框，并从当前文档 WebTab 生成 1 页、8455 B 的 PDF，IPC 返回 <code>true</code>；测试文件已移到废纸篓。自动检查覆盖系统打印取消、保存取消、写入失败保留既有文件，以及 PDF 渲染期间失去 exact ownership 时不写文件。常驻 toolbar 与 tab 栏样式未改变。</td></tr>
-          <tr><td>Bookmarks 保留来源根目录、最多 64 层文件夹和同级顺序；无效 URL 被过滤，重复导入不产生重复 URL 或空文件夹。</td><td><span class="status">已实现</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/lib/tabs/bookmarks.ts"><code>apps/web/lib/tabs/bookmarks.ts</code></a>；<code>check-bookmarks.mjs</code></td></tr>
-          <tr><td>窗口主菜单在桌面 App 和 Web 中都与触发按钮右对齐，按钮底部到菜单顶部的间距为 4px。桌面主菜单、Browser 菜单、书签菜单和 tab 右键菜单从 renderer 传入的 CSS 像素坐标必须按发送页面的 zoom factor 转换为 Electron DIP；在 80%、100%、125% 缩放下都保持贴近原触发按钮。由 renderer 动态提供的 Browser、书签和 tab 右键菜单只在该行实际有勾选、文件夹或 favicon 时渲染左侧图标槽；无图标项不保留空槽，文字从菜单行默认的 <code>10px</code> 内边距开始。</td><td><span class="status">已实现</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/main-menu.tsx"><code>main-menu.tsx</code></a>；<code>menu-overlay/context-menu/page.tsx</code>；<code>check-built-in-browser.mjs</code>；<code>check-center-tabs.mjs</code>；<code>check-webtab-zoom-bounds.js</code></td></tr>
-          <tr><td>聊天输入框、模型、上下文等弹层未覆盖内置网页区域时，不得隐藏或重置原生 Web Page；只有可见弹层的矩形实际与网页矩形相交时，才暂停显示对应 WebContentsView。</td><td><span class="status">已实现</span></td><td><code>web-tab-bounds.ts</code> 的矩形相交判断；<code>web-tab-pane.tsx</code>；<code>check-web-split.mjs</code></td></tr>
-          <tr><td>聊天内创建的悬浮网页预览只在所属会话显示；切到其他聊天、普通 Browser tab 或非聊天页面时必须隐藏并恢复用户网页缩放。返回所属会话时复用原 WebTab 状态；关闭后的恢复入口也只属于该会话。</td><td><span class="status">已实现，自动检查与运行时复核通过</span></td><td><code>web-tab-pip-store.ts</code>；<code>web-tab-pip.tsx</code>；<code>web-tab-pane.tsx</code>；<code>desktop-bridge.ts</code>；<code>apps/desktop/main.js</code>；<code>check-web-split.mjs</code> 覆盖 owner chat、inventory 和无 pointer-up 切换；<code>check-webtab-navigation.js</code> 覆盖首次导航提交与 transfer commit 后的 zoom restore。安装版 production build 与默认 worker 健康检查通过。</td></tr>
-          <tr><td>Cookies 只进入 <code>persist:webtabs</code>；IPC、日志、History 和 renderer 不出现 Cookie 值。</td><td><span class="status">已实现</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/desktop/browser-profile-import.js"><code>browser-profile-import.js</code></a> self-check；<code>apps/desktop/main.js</code></td></tr>
-          <tr><td>来源损坏、浏览器缺失、临时进程超时和 Cookie 部分失败返回稳定错误码并保留原数据。</td><td><span class="status">已实现</span></td><td><code>browser-profile-import.js</code> 与 <code>browsing-history-store.js</code> self-check</td></tr>
-          <tr><td>依赖 PTY 的全屏终端程序。</td><td><span class="status limit">当前限制</span></td><td>产品边界，不作为当前验收缺口。</td></tr>
-          <tr><td>Passwords、自动填充、支付/地址数据和源浏览器接管。</td><td><span class="status out">明确排除</span></td><td><code>browser-profile-import.js</code> 的导入类型 allowlist。</td></tr>
-          <tr><td>Chrome Web Store 与 Edge Add-ons 只作为普通网页打开；产品不提供商店安装、本地目录加载、CRX 下载、扩展运行时或管理页。</td><td><span class="status out">明确排除，代码已移除</span></td><td><a href="browser-extensions.html"><code>browser-extensions.html</code></a>；<code>check-no-browser-extensions.js</code>；扩展不属于 profile data import。</td></tr>
+          <tr><td>Ordinary navigation retains the current WebTab id and active state;<code>target="_blank"</code> / <code>window.open</code> creates a unique WebTab that remains active after creation without being overwritten by the original chat route. Link context menus show Open Link in New Tab and Copy Link Address; ordinary/editable contexts show corresponding Navigation or Edit actions, all restricted to the exact owner.</td><td><span class="status">Implemented and accepted in the default App</span></td><td><code>desktop-bridge.ts</code> popup route contract; <code>apps/desktop/main.js</code> WebContentsView context menu; <code>check-web-split.mjs</code>; <code>check-webtab-navigation.js</code>. Independent specification and quality reviews passed. In the installed App, the popup remained active throughout a continuous 2-second observation and <code>/s/&lt;id&gt;</code> stayed unchanged; ordinary navigation retained tab count and id; native HTTP(S) link context menus displayed Open/Copy and page navigation actions.</td></tr>
+          <tr><td>New Pane shows only Files, New chat, Browser, and Terminal. All four use equally sized rounded icon containers with different semantic colors; browser-only controls are absent from the DOM.</td><td><span class="status">Implemented and accepted in light and dark themes in the default App</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/new-tab-page.tsx"><code>new-tab-page.tsx</code></a>; <code>check-built-in-browser.mjs</code> effective-cascade and semantic-color mutation checks</td></tr>
+          <tr><td>Selecting Browser displays the same address-bar and bookmarks-bar structure as web tabs, with import and quick-site entries. Actions without a current page remain visible but disabled.</td><td><span class="status">Implemented and accepted in the default App</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/browser-home-page.tsx"><code>browser-home-page.tsx</code></a>; <code>check-built-in-browser.mjs</code>; toolbar / bookmarks bar in the actual App measure <code>40px / 30px</code></td></tr>
+          <tr><td>At standard width, the Browser toolbar shows Back, Forward, Reload/Stop, Home, address bar, current-page star, Bookmarks, external opening, and Browser <code>⋯</code>in that order; no split controls or Settings gear.</td><td><span class="status">Implemented</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/web-tab-pane.tsx"><code>web-tab-pane.tsx</code></a>; <code>check-built-in-browser.mjs</code>; <code>check-web-split.mjs</code></td></tr>
+          <tr><td>Browser <code>⋯</code> provides Bookmarks, History, Downloads, bookmarks-bar toggle, Import, Clear browsing data, and Browser settings; the window menu contains only App, window, and pane actions. Desktop popovers report intrinsic size using the menu's <code>scrollWidth/scrollHeight</code> , without recursively shrinking to the current clipped height.</td><td><span class="status">Implemented</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/browser-controls.tsx"><code>browser-controls.tsx</code></a>; <code>menu-overlay/context-menu/page.tsx</code>; <code>check-built-in-browser.mjs</code></td></tr>
+          <tr><td>The bookmarks bar appears by default and remains off after the user disables it. It directly displays the children of <code>Bookmarks bar</code> , with nonempty other roots at the right and an overflow entry for hidden items. Overflowed items leave no clipped button behind; the last visible button retains its full background and both rounded ends. Desktop folder hover opens menus and supports horizontal switching. Menus stay open while moving from the trigger into a popover or submenu, and close within 120ms after leaving the trigger and every menu panel, without an extra click. Folder menus are 280px wide, ellipsize titles, and open nested folders level by level. Folder rows show Folder icons; site rows show favicons with Bookmark fallback on failure and no empty icon slots. Below 560px pane width, the bar hides but Bookmarks remains reachable.</td><td><span class="status">Implemented and accepted in the default App</span></td><td><code>check-bookmarks.mjs</code>, <code>check-built-in-browser.mjs</code>, <code>check-webtab-zoom-bounds.js</code>; in the default App, the overflowed Writing button stayed hidden and the last visible Experiments button retained both 5px rounded ends. Other Bookmarks opened on hover and closed approximately 133ms after leaving.</td></tr>
+          <tr><td>Bookmarks manager uses top search, a left folder tree, and the current directory list on the right. Ordinary rows contain only a favicon/folder icon, title, and <code>⋮</code>. Rows in both lists are <code>36px</code>, and the header uses <code>52px</code>, and narrow panes stack vertically.</td><td><span class="status">Implemented and density-accepted in the default App</span></td><td><code>builtin-tab-pane.tsx</code>; <code>center-tabs.module.css</code>; <code>check-bookmarks.mjs</code>; measured header, folder row, content row, search field, and icon button sizes in the default App are respectively <code>52 / 36 / 36 / 30 / 28px</code></td></tr>
+          <tr><td>Browser settings and window Settings share a route and configuration source; Browser <code>⋯</code> opens the Browser section directly, with no persistent toolbar gear.</td><td><span class="status">Implemented</span></td><td><code>/settings/browser</code>; <code>browser-settings.tsx</code>; <code>browser-prefs.ts</code></td></tr>
+          <tr><td>The import dialog lists source browsers, profiles, and supported data types; closing before starting causes no target changes. During import, Import becomes Cancel in place and closing is disabled. Accepted cancellation shows a stable result and releases the global import lease so another import can start.</td><td><span class="status">Implemented and accepted in the default App</span></td><td><code>browser-import:run/cancel</code> IPC; <code>browser-profile-import.js</code> cancellation self-check; <code>check-webtab-navigation.js</code> sender-ownership, lease-release, and window-cleanup checks;<code>check-built-in-browser.mjs</code>. The installed App detected 3 Chrome profiles. While running, it displayed Cancel and disabled closing; cancellation returned <code>import_cancelled</code>, and the next request no longer returned <code>import_busy</code>.</td></tr>
+          <tr><td>History groups records by date, retains 36–40px rows with at least 1000 records, and supports search and scrolling.</td><td><span class="status">Implemented and scale-accepted in the default App</span></td><td><code>web-history.css</code> is 38px; History pagination caps at 5000 and search runs in main. Storage self-check covers the 5000-record limit. The installed App's existing 5000 records were incrementally displayed up to 1000 rows; three incremental renders took <code>241.6 / 235.1 / 256.2ms</code>, all row heights were <code>38px</code>, and the last row was visible after scrolling to the bottom;<code>google</code> search returned 250 matches within <code>299.4ms</code> .</td></tr>
+          <tr><td>Built-in page downloads go to the system Downloads directory. The Downloads page shows live progress and final status and supports opening files, revealing them in Finder, cancelling active jobs, and clearing records.</td><td><span class="status ok">Implemented; installed-App checks passed</span></td><td><code>apps/desktop/main.js</code> bound to their owning <code>will-download</code> and <code>downloads:*</code> IPC; <code>builtin-tab-pane.tsx</code>; <code>check-webtab-navigation.js</code>. The installed App completed a 42 B attachment download and cancelled an active 32 MB job; the page displayed <code>Completed</code>, <code>Cancelled</code>respectively. After cancellation, <code>active=false</code>, and test records could be cleared. In another installed-App download check, Open used the system-associated application to open a 58 B text file, and Show in Finder located and selected that same file; test records were then cleared and the file moved to Trash.</td></tr>
+          <tr><td>The current page supports Find in page, Zoom in/out/reset, and Print; commands target only the exact WebTab owned by the requesting window. Print first invokes system printing. If printing fails or no destination is available, the same action opens the owning window's native Save PDF dialog. Cancelling system printing or saving returns incomplete and writes no file; successful system printing must not additionally generate a PDF. Write the PDF to a unique temporary file in the target directory, then replace the selected path on completion; preserve existing targets on failure. Find provides previous/next match, count, and close; closing clears page selection;<code>⌘/Ctrl+F</code>, <code>⌘/Ctrl++/-/0</code>, <code>⌘/Ctrl+P</code> matches menu actions. When frontend and desktop-shell versions temporarily differ, enable actions according to capabilities actually exposed by preload. An older shell lacking new IPC must disable corresponding actions without breaking the page.</td><td><span class="status ok">Implemented; installed-App checks passed</span></td><td><code>apps/desktop/main.js</code> bound to their owning <code>webtab:find/zoom/print</code> IPC; <code>web-tab-pane.tsx</code>; <code>check-webtab-navigation.js</code>; <code>check-built-in-browser.mjs</code>. The installed App found 35 matches in a local documentation page and advanced to match 2; Zoom returned <code>100 → 110 → 100 → 100</code>. The acceptance machine had no print destination: after system Print failed, the owning window's native Save PDF dialog appeared and generated a 1-page, 8455 B PDF from the current documentation WebTab. IPC returned <code>true</code>; the test file was moved to Trash. Automated checks cover system-print cancellation, save cancellation, preserving existing files on write failure, and avoiding writes when exact ownership is lost during PDF rendering. Persistent toolbar and tab-bar styling did not change.</td></tr>
+          <tr><td>Bookmarks preserve source roots, up to 64 folder levels, and sibling order; invalid URLs are filtered, and repeated imports create neither duplicate URLs nor empty folders.</td><td><span class="status">Implemented</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/lib/tabs/bookmarks.ts"><code>apps/web/lib/tabs/bookmarks.ts</code></a>; <code>check-bookmarks.mjs</code></td></tr>
+          <tr><td>In desktop App and Web, the window menu right-aligns with its trigger with a 4px gap below the button. For desktop main, Browser, bookmark, and tab context menus, CSS-pixel coordinates from the renderer must be converted to Electron DIP using the sender page's zoom factor. Menus remain beside their triggers at 80%, 100%, and 125% zoom. Renderer-provided Browser, bookmark, and tab context menus render a left icon slot only when a row actually contains a checkmark, folder, or favicon. Rows without icons reserve no empty slot; their text starts at the menu row's default <code>10px</code> padding.</td><td><span class="status">Implemented</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/center-tabs/main-menu.tsx"><code>main-menu.tsx</code></a>; <code>menu-overlay/context-menu/page.tsx</code>; <code>check-built-in-browser.mjs</code>; <code>check-center-tabs.mjs</code>; <code>check-webtab-zoom-bounds.js</code></td></tr>
+          <tr><td>Chat-composer, model, context, and other popovers must not hide or reset a native Web Page when they do not cover it. Suspend the corresponding WebContentsView only when a visible popover rectangle actually intersects the page rectangle.</td><td><span class="status">Implemented</span></td><td><code>web-tab-bounds.ts</code> rectangle-intersection checks;<code>web-tab-pane.tsx</code>; <code>check-web-split.mjs</code></td></tr>
+          <tr><td>Floating previews created in chat appear only in their owning session. Switching to another chat, ordinary Browser tab, or non-chat page hides them and restores user web zoom. Returning reuses the original WebTab state; the restore entry after closing also belongs only to that session.</td><td><span class="status">Implemented; automated checks and runtime review passed</span></td><td><code>web-tab-pip-store.ts</code>; <code>web-tab-pip.tsx</code>; <code>web-tab-pane.tsx</code>; <code>desktop-bridge.ts</code>; <code>apps/desktop/main.js</code>; <code>check-web-split.mjs</code> covers owner chat, inventory, and switching without pointer-up;<code>check-webtab-navigation.js</code> covers first navigation commit and zoom restoration after transfer commit. The installed production build and default worker health checks passed.</td></tr>
+          <tr><td>Cookies only enter <code>persist:webtabs</code>; Cookie values do not appear in IPC, logs, History, or renderer.</td><td><span class="status">Implemented</span></td><td><a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/desktop/browser-profile-import.js"><code>browser-profile-import.js</code></a> self-check; <code>apps/desktop/main.js</code></td></tr>
+          <tr><td>Corrupt sources, missing browsers, temporary-process timeouts, and partial Cookie failures return stable error codes and preserve original data.</td><td><span class="status">Implemented</span></td><td><code>browser-profile-import.js</code> and <code>browsing-history-store.js</code> self-check</td></tr>
+          <tr><td>Full-screen terminal programs that depend on PTY.</td><td><span class="status limit">Current limitation</span></td><td>Product boundary, not a current acceptance gap.</td></tr>
+          <tr><td>Passwords, autofill, payment/address data, and source-browser takeover.</td><td><span class="status out">Explicitly excluded</span></td><td><code>browser-profile-import.js</code> import-type allowlist.</td></tr>
+          <tr><td>Chrome Web Store and Edge Add-ons open only as ordinary pages. The product provides no store installation, local-directory loading, CRX downloads, extension runtime, or management page.</td><td><span class="status out">Explicitly excluded; code removed</span></td><td><a href="browser-extensions.html"><code>browser-extensions.html</code></a>; <code>check-no-browser-extensions.js</code>; extensions are outside profile data import.</td></tr>
         </tbody>
       </table>
       </div>
-      <h3>验证环境</h3>
-      <p>可见验收只使用安装的 <code>/Applications/OpenProgram.app</code>、默认 18100 worker 和 <code>~/.openprogram</code>。文档更新不改变 Agent 的网页控制协议。</p>
+      <h3>Verification environment</h3>
+      <p>Visible acceptance uses only the installed <code>/Applications/OpenProgram.app</code>, default worker on 18100, and <code>~/.openprogram</code>. Documentation updates do not change the agent web-control protocol.</p>
     </section>
-    <p class="footnote">本页是当前设计的规范性说明。实现发生变化时直接更新本页；历史修订由 Git 保存。</p>
+    <p class="footnote">This page is the normative description of the current design. Update it directly when implementation changes; Git preserves revision history.</p>
   </main>
 
-  <aside class="rail" aria-label="页内导航">
+  <aside class="rail" aria-label="In-page navigation">
     <div class="rail-title">On this page</div>
-    <nav><a href="#decisions">产品决策</a><a href="#toolbar">工具栏与菜单</a><a href="#surfaces">可见状态</a><a href="#references">参考行为</a><a href="#architecture">架构与数据流</a><a href="#boundaries">信任边界</a><a href="#session-pages">会话网页</a>
-          <a href="#acceptance">验收与状态</a></nav>
+    <nav><a href="#decisions">Product decisions</a><a href="#toolbar">Toolbar and menus</a><a href="#surfaces">Visible states</a><a href="#references">Reference behavior</a><a href="#architecture">Architecture and data flow</a><a href="#boundaries">Trust boundaries</a><a href="#session-pages">Session web pages</a>
+          <a href="#acceptance">Acceptance and status</a></nav>
   </aside>
 </div>
 <script>
@@ -536,14 +536,14 @@
   const toolbarNote = document.getElementById('toolbar-note');
   const toolbarModes = [...document.querySelectorAll('[data-chrome-mode]')];
   const toolbarNotes = {
-    standard: '<strong>标准：</strong>完整网页导航常驻；星标负责当前页，Bookmarks 按钮负责浏览与管理。分屏和全局 Settings 不在这一行。',
-    hidden: '<strong>书签栏已隐藏：</strong>地址栏保持完整；书签仍可从 Bookmarks 按钮或 Browser ⋯ 访问。',
-    narrow: '<strong>窄分屏：</strong>Home、Bookmarks、外部打开和 Forward 依次收入 Browser ⋯；地址栏、Back、Reload/Stop、星标和 ⋯ 保持可见。'
+    standard: '<strong>Standard:</strong> Full navigation remains visible; the star manages the current page and Bookmarks handles browsing and management. Split controls and global Settings are outside this row.',
+    hidden: '<strong>Bookmarks bar hidden:</strong> The address bar remains complete; bookmarks remain accessible through Bookmarks or Browser ⋯.',
+    narrow: '<strong>Narrow split pane:</strong> Home, Bookmarks, external opening, and Forward move into Browser ⋯ in order; the address bar, Back, Reload/Stop, star, and ⋯ remain visible.'
   };
   const toolbarLabels = {
-    standard: '标准浏览器工具栏：后退、前进、刷新、主页、地址栏、收藏当前页、书签、外部打开和浏览器菜单；地址栏下方显示书签栏。',
-    hidden: '标准浏览器工具栏：地址栏下方的书签栏已隐藏，书签入口仍可用。',
-    narrow: '窄分屏浏览器工具栏：后退、刷新、地址栏、收藏当前页和浏览器菜单；其他操作位于浏览器菜单；书签栏隐藏。'
+    standard: 'Standard browser toolbar: back, forward, reload, home, address bar, bookmark current page, bookmarks, external opening, and browser menu; bookmarks bar below the address bar.',
+    hidden: 'Standard browser toolbar: bookmarks bar hidden below the address bar; bookmarks remain accessible.',
+    narrow: 'Narrow-pane toolbar: back, reload, address bar, bookmark current page, and browser menu; other actions are in the menu and the bookmarks bar is hidden.'
   };
   toolbarModes.forEach((button) => {
     button.addEventListener('click', () => {

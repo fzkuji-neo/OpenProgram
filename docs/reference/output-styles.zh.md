@@ -70,4 +70,4 @@ openprogram config set agent.output_style lab-notes
 ## 相关
 
 - [配置](config.zh.md)：完整设置注册表与 `openprogram config`
-- [上下文组装](design/context/composition.md)：拥有提示的分层装配器
+- [上下文组装](design/context/composition.zh.md)：拥有提示的分层装配器

@@ -11,7 +11,7 @@ agent，都会让链分叉，于是一个会话里同时有好几条分支，共
 动手做什么，具体到文件和改动量。第四层是不受当前实现约束、重新设计这块该是
 什么样，以及为什么它们都不是下一步。
 
-配套可视化是[`written-marker.html`](written-marker.html)，它外面的记忆子
+配套可视化是[`written-marker.html`](written-marker.zh.html)，它外面的记忆子
 系统是[`overview.zh.md`](overview.zh.md)。
 
 ---

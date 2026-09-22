@@ -2,7 +2,7 @@
 
 > 本文是 Ink TUI 会话记录显示与交互的设计：工具调用如何渲染、输出如何折叠与
 > 展开、命令与键位如何声明、运行中途的提问如何呈现。配套文档：
-> [user-input-requests.md](../runtime/operations/user-input-requests.md)
+> [user-input-requests.md](../runtime/operations/user-input-requests.zh.md)
 > （运行中途的提问；其 TUI 呈现层在本文中规定）。
 
 ## 1. 目标

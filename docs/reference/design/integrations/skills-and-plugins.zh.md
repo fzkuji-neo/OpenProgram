@@ -1,4 +1,6 @@
-# Skills & Plugins
+<div id="skills-plugins"></div>
+
+# 技能与插件
 
 skill 与 plugin 系统覆盖 claude-code、opencode、hermes 三家的能力，遇到栈不同就换等价物，并在 OpenProgram 自身的宿主界面上补充能力。
 
@@ -11,7 +13,9 @@ skill 与 plugin 系统覆盖 claude-code、opencode、hermes 三家的能力，
 
 ## 1. 概念与文件约定
 
-### Skill
+<div id="skill"></div>
+
+### 技能
 单位：一个目录，含 `SKILL.md` + 可选 `references/`、`templates/`、其它资源。
 
 `SKILL.md` frontmatter（claude-code 标准 + opencode/hermes 增量）：
@@ -44,7 +48,9 @@ OpenProgram 不随安装包提供默认 skill。产品工作流归 Programs；sk
 
 资源布局（hermes 约定）：`SKILL.md` + `references/` + `templates/`。
 
-### Plugin
+<div id="plugin"></div>
+
+### 插件
 单位：一个包，含 manifest + 入口。**三种 manifest 都支持**，统一解析：
 - `plugin.json`（claude-code / hermes 风格）
 - `pyproject.toml` 内 `[tool.openprogram.plugin]`（Python 原生）
@@ -194,7 +200,9 @@ apps/web/components/plugins/
   validate-plugin.tsx, plugin-detail.tsx, plugin-host.tsx (iframe / dynamic mount)
 ```
 
-### Store
+<div id="store"></div>
+
+### 存储
 `lib/skills-store.ts`、`lib/plugins-store.ts`，WS 订阅 `skills:changed` / `plugins:changed` / `plugins:error`。
 
 ---

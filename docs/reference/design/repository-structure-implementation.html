@@ -22,7 +22,7 @@ summary { cursor: pointer; font-weight: 600; }
 and dependency boundaries. This page maps those boundaries to source locations,
 compatibility requirements, and verification. Migration chronology and previous
 review output are available in Git history; they are not current acceptance results.</p>
-<h2 id="implementation-map">Implementation map<a class="header-anchor" href="#implementation-map">#</a></h2>
+<h2 id="implementation-map">Implementation map <a class="header-anchor" href="#implementation-map">#</a></h2>
 <div class="doc-scroll" role="region" tabindex="0" aria-label="Implementation table"><table>
 <thead>
 <tr>
@@ -75,15 +75,15 @@ review output are available in Git history; they are not current acceptance resu
 </tbody>
 </table></div>
 <p>Source: <a href="https://github.com/fzkuji-neo/OpenProgram/tree/main/apps">application workspaces</a>,
-<a href="https://github.com/fzkuji-neo/OpenProgram/tree/main/openprogram">core</a>, and
-<a href="https://github.com/fzkuji-neo/OpenProgram/tree/main/scripts">maintenance scripts</a>.</p>
-<h2 id="compatibility-and-remaining-ownership">Compatibility and remaining ownership<a class="header-anchor" href="#compatibility-and-remaining-ownership">#</a></h2>
+ <a href="https://github.com/fzkuji-neo/OpenProgram/tree/main/openprogram">core</a>, and
+ <a href="https://github.com/fzkuji-neo/OpenProgram/tree/main/scripts">maintenance scripts</a>.</p>
+<h2 id="compatibility-and-remaining-ownership">Compatibility and remaining ownership <a class="header-anchor" href="#compatibility-and-remaining-ownership">#</a></h2>
 <p><code>openprogram/cli/__init__.py</code> resolves the canonical CLI application in a checkout
 or installed package and rejects an already-loaded foreign canonical package.
 <code>openprogram.cli</code>, <code>python -m openprogram</code>, and CLI module entry points remain
 compatibility surfaces; moving internal files must preserve their behavior.</p>
 <p><code>openprogram/webui/</code> remains a Server compatibility surface. Route implementations, including Agent profiles, belong to
-<code>apps/server/openprogram_server/_webui/routes/</code> and are grouped by product domain.
+ <code>apps/server/openprogram_server/_webui/routes/</code> and are grouped by product domain.
 The compatibility package resolves the application modules without duplicating their implementation.</p>
 <p><code>scripts/install-release.sh</code> remains the public installer entry, while its
 implementation resides under <code>scripts/release/</code>. The root npm workspace and lock
@@ -92,7 +92,7 @@ separate lock file or dependency installation below each application.</p>
 <p>The default local runtime uses port <code>18100</code> and <code>~/.openprogram</code>. Installed-App
 acceptance uses <code>/Applications/OpenProgram.app</code>; repository layout changes must
 preserve packaging and installed imports as well as source-checkout execution.</p>
-<h2 id="verification">Verification<a class="header-anchor" href="#verification">#</a></h2>
+<h2 id="verification">Verification <a class="header-anchor" href="#verification">#</a></h2>
 <p>The <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/tests/contracts/repository/test_repository_layout.py">repository contracts</a>
 check directory ownership, application locations and compatibility requirements.
 Run the existing contract from the repository root:</p>
@@ -104,7 +104,7 @@ wheel and check imports outside the checkout, and verify affected application
 packaging. Use the <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/.github/CONTRIBUTING.md">contributor checks</a>
 and <a href="testing/test-system.html">test-system design</a> to select the required gates.</p>
 <p>For documentation changes, rebuild before checking links; the checker reads
-<code>docs/_site/</code>, not source Markdown:</p>
+ <code>docs/_site/</code>, not source Markdown:</p>
 <pre><code class="language-sh">python<span class="w"> </span>-m<span class="w"> </span>scripts.docs_site.build
 python<span class="w"> </span>-m<span class="w"> </span>scripts.docs_site.checklinks
 </code></pre>
@@ -130,7 +130,7 @@ python<span class="w"> </span>-m<span class="w"> </span>scripts.docs_site.checkl
 <tr><td>tests/component/webui</td><td>57</td><td>1</td></tr>
 <tr><td>tests/unit/providers</td><td>54</td><td>1</td></tr></tbody></table></div>
 <p>These counts cover direct Python, JavaScript and TypeScript source files. Feature subdirectories retain their implementations and tests; moving a file does not reduce behavioral coverage. The original collected test identities are retained with four additional regression cases.</p>
-<h2 id="implementation-status">Implementation status<a class="header-anchor" href="#implementation-status">#</a></h2>
+<h2 id="implementation-status">Implementation status <a class="header-anchor" href="#implementation-status">#</a></h2>
 <div class="doc-scroll" role="region" tabindex="0" aria-label="Implementation table"><table>
 <thead>
 <tr>

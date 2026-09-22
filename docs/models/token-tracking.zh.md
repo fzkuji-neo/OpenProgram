@@ -30,7 +30,7 @@
 | Cloud Code Assist（`gemini_subscription`、`google_gemini_cli`） | `promptTokenCount`、`candidatesTokenCount` + `thoughtsTokenCount`、`cachedContentTokenCount`、`totalTokenCount` | 仅读 |
 | Bedrock Converse Stream（`amazon_bedrock`） | `inputTokens`、`outputTokens`、`cacheReadInputTokens`、`cacheWriteInputTokens`、`totalTokens` | 读 + 写 |
 
-成本在取到用量后立即按模型行的价格计算。OpenAI Responses 协议上，响应实际返回的 `service_tier` 会再调整单价，[fast tier](fast-tier.md) 请求按 priority 档价格计费。
+成本在取到用量后立即按模型行的价格计算。OpenAI Responses 协议上，响应实际返回的 `service_tier` 会再调整单价，[fast tier](fast-tier.zh.md) 请求按 priority 档价格计费。
 
 ## 用量显示在哪
 

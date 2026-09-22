@@ -1,4 +1,6 @@
-# Next-step decision making(decision.make / exec(choices=))
+<div id="next-step-decision-makingdecisionmake-execchoices"></div>
+
+# 下一步决策
 
 本文档描述 OpenProgram 里的**下一步决策**机制:agentic 函数把"下一步做什么"交给 LLM 决定——给它一组选项,它选一个,框架把这个选择直接解析成"下一步的结果"。这套机制和 provider 原生的 tool call 是两条独立的路。
 

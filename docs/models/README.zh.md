@@ -27,7 +27,7 @@ openprogram providers setup      # 交互式：扫描现有凭据 → 登录 →
 | `status <provider>` | 检查当前凭据是否可用 |
 | `list` | 按账号列出已配置的凭据池 |
 | `available [QUERY]` | 列出全部可配置的 provider 目录（含社区目录），可按关键词过滤 |
-| `discover` / `adopt` | 扫描本机已有凭据（Codex CLI、环境变量等）并导入，见[认证与凭据](auth.md) |
+| `discover` / `adopt` | 扫描本机已有凭据（Codex CLI、环境变量等）并导入，见[认证与凭据](auth.zh.md) |
 | `use <provider> [account]` | 多账号时选择该 provider 当前跑哪个账号 |
 | `doctor` | 诊断凭据：过期、刷新、冷却、冲突 |
 | `aliases` / `accounts` / `migrate` | 短名别名、账号管理、凭据格式迁移 |
@@ -43,8 +43,8 @@ openprogram providers setup      # 交互式：扫描现有凭据 → 登录 →
 
 ## 本节其他页面
 
-- [Provider 一览](providers.md) — 内置 provider 目录、接入方式、库方式使用
-- [认证与凭据](auth.md) — 凭据来源、存放位置、从其他 CLI 导入
-- [fast tier](fast-tier.md) — 把请求路由到更快档位
-- [thinking effort](thinking-effort.md) — 推理深度档位
-- [Token 统计](token-tracking.md) — 各 provider 的用量统计口径
+- [Provider 一览](providers.zh.md) — 内置 provider 目录、接入方式、库方式使用
+- [认证与凭据](auth.zh.md) — 凭据来源、存放位置、从其他 CLI 导入
+- [fast tier](fast-tier.zh.md) — 把请求路由到更快档位
+- [thinking effort](thinking-effort.zh.md) — 推理深度档位
+- [Token 统计](token-tracking.zh.md) — 各 provider 的用量统计口径

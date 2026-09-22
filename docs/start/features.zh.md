@@ -1,8 +1,8 @@
 # 功能详解
 
-README 中的 [核心特性](../README.md) 表格
+README 中的 [核心特性](../README.zh.md) 表格
 指向这里，呈现每项特性背后更完整的来龙去脉。
-[Agentic Programming 设计理念](../capabilities/agentic-programming/philosophy.md)
+[Agentic Programming 设计理念](../capabilities/agentic-programming/philosophy.zh.md)
 一文讲的是*为什么*；本页讲的是*它在日常使用中如何体现*。
 
 ## 自动上下文
@@ -116,7 +116,7 @@ Web UI的Memory页面读的是同一个工作区。agent通过`memory_search`、
 （用户消息、LLM 调用、代码 Call、attach）以及它们之间的边。
 该视图随聊天一起滚动：点击某个节点会把对话滚动到对应的消息，
 面板会保持当前查看的范围处于高亮。渲染规则的规范在
-[`design/runtime/dag/rendering.md`](../reference/design/runtime/dag/rendering.md)，新增节点类型时请参阅它。
+[`design/runtime/dag/rendering.md`](../reference/design/runtime/dag/rendering.zh.md)，新增节点类型时请参阅它。
 
 ## 多账户 + 密钥轮换
 
@@ -149,7 +149,7 @@ openprogram providers list                              # 当前激活的会被�
 `spread evenly` / `random` / `least used`）以及 ↑ / ↓ 优先级。你以旧方式
 （环境变量 / 配置）已经设置好的密钥会被迁移进列表，因此不会丢失任何东西。
 设计 + 状态：
-[`design/providers/auth/unified-account-management.md`](../reference/design/providers/auth/unified-account-management.md)。
+[`design/providers/auth/unified-account-management.md`](../reference/design/providers/auth/unified-account-management.zh.md)。
 
 ## 多 agent + 多 channel（未来走向）
 

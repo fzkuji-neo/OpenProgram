@@ -19,32 +19,32 @@
 
 **先读事件底座**（你最近在确认的就是这块——系统到底支不支持"在某时机做某事"）：
 
-0. **[`event-reference.html`](event-reference.html)** —— **官方 API Reference**：所有事件类型
+0. **[`event-reference.html`](event-reference.zh.html)** —— **官方 API Reference**：所有事件类型
    （26 个，A/B/ws.frame 三类）逐一列清，每个带 payload 字段表、触发时机、源码 file:line；
    全部 API、三种用法（观察/拦截/发问）。可搜索、可展开。双击用浏览器打开。**查事件先看它。**
-1. [`event-layer.md`](event-layer.md) —— **统一 Event 模型 + 这层在框架里的定位 + 框架图**。
+1. [`event-layer.md`](event-layer.zh.md) —— **统一 Event 模型 + 这层在框架里的定位 + 框架图**。
    事件长什么样、两大类事件源（agent 干活 / 系统状态）、总线放哪、跟谁交互。
-   **可视化版本：[`event-layer.html`](event-layer.html)**（真 SVG 架构图 + 事件流动画，
+   **可视化版本：[`event-layer.html`](event-layer.zh.html)**（真 SVG 架构图 + 事件流动画，
    双击用浏览器打开），md 是同内容的文字源。
-2. [`framework-evolution.md`](framework-evolution.md) —— **框架里的信号怎么路由**。
+2. [`framework-evolution.md`](framework-evolution.zh.md) —— **框架里的信号怎么路由**。
    为什么让 webui 当路由点会留下缺口、总线当中枢后各角色是什么、各子系统往总线里放什么、
    哪些部分刻意不动。
-   **可视化版本：[`framework-evolution.html`](framework-evolution.html)**。
+   **可视化版本：[`framework-evolution.html`](framework-evolution.zh.html)**。
 
 **再读主动性应用**（建在底座之上的 proactive）：
 
-2. [`overview.md`](overview.md) —— 跟着一个场景走一遍（模型想跑 `rm -rf`，框架怎么拦），
+2. [`overview.md`](overview.zh.md) —— 跟着一个场景走一遍（模型想跑 `rm -rf`，框架怎么拦），
    规则、出手方式、状态等概念在故事里就地解释。
-3. [`events-and-state.md`](events-and-state.md) —— 状态怎么从事件"累加"（fold）出来；
+3. [`events-and-state.md`](events-and-state.zh.md) —— 状态怎么从事件"累加"（fold）出来；
    这是规则能"记住过去"的原理。
 
 **想动手改、讨论细节**：
 
 | Doc | 讲什么 |
 |---|---|
-| [`execution-model.md`](execution-model.md) | 规则（Policy）怎么写；"挡路的"和"旁观的"两类有何不同 |
-| [`policies-mvp.md`](policies-mvp.md) | 三条具体规则，当样板照着写新规则 |
-| [`invariants.md`](invariants.md) | 框架要守的底线（主要是"别让框架自己触发自己、绕成死循环"） |
+| [`execution-model.md`](execution-model.zh.md) | 规则（Policy）怎么写；"挡路的"和"旁观的"两类有何不同 |
+| [`policies-mvp.md`](policies-mvp.zh.md) | 三条具体规则，当样板照着写新规则 |
+| [`invariants.md`](invariants.zh.md) | 框架要守的底线（主要是"别让框架自己触发自己、绕成死循环"） |
 
 ## 一句话回答几个你可能会问的问题
 

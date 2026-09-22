@@ -14,7 +14,7 @@
 
 ## 转写器
 
-`get_branch` 返回的是对话链——由 `predecessor` 串起的 user/assistant 节点。工具调用和函数调用节点不在这条链上，它们通过 `caller` 挂在发起它们的那个 assistant 轮次上（[DAG overview](../dag/overview.md)）。转写器把两者合起来：走一遍分支，在每一轮下面打印 `caller` 指向它的那些调用。这和 `graph_builder` 给网页 DAG 用的是同一条边，只是读成散文而不是坐标。
+`get_branch` 返回的是对话链——由 `predecessor` 串起的 user/assistant 节点。工具调用和函数调用节点不在这条链上，它们通过 `caller` 挂在发起它们的那个 assistant 轮次上（[DAG overview](../dag/overview.zh.md)）。转写器把两者合起来：走一遍分支，在每一轮下面打印 `caller` 指向它的那些调用。这和 `graph_builder` 给网页 DAG 用的是同一条边，只是读成散文而不是坐标。
 
 签名：
 

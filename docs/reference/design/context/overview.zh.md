@@ -1,4 +1,6 @@
-# Context — 上下文层
+<div id="context-上下文层"></div>
+
+# 概览
 
 **把会话历史 + 当前输入,组装成每次喂给 LLM 的内容。** 在
 [`../providers/`](../providers/) 的上游:context 产出一个 `Context`(system /
@@ -8,7 +10,7 @@ messages / tools),providers 把它翻译成各家 wire 请求。
 本层决定**喂什么、怎么分层**;providers 决定**怎么发给某一家**。两层解耦。
 
 > 每次调用如何按稳定度分层、如何让模型知道自己的处境，见
-> [`composition.md`](composition.md)；本文讲它底下的存储与压缩机制。
+> [`composition.md`](composition.zh.md)；本文讲它底下的存储与压缩机制。
 
 ---
 
@@ -264,7 +266,7 @@ override 优先于持久化的 model，所以切换在下一次落盘前就生�
 
 ## 八、与三层组成的关系
 
-[`composition.md`](composition.md) 把每次 LLM 调用按"多久变一次"分三层，
+[`composition.md`](composition.zh.md) 把每次 LLM 调用按"多久变一次"分三层，
 既服务缓存（稳定的靠前），也让模型知道自己的处境。本文的机制为这三层提供材料：
 
 | 层 | 内容 | 变化频率 | 材料来自 |

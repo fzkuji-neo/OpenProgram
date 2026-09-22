@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenProgram · 报错与超时机制（现状）</title>
+<title>OpenProgram · Error and timeout mechanisms (current state)</title>
 <style>
   :root{
     --bg:#0f1117; --panel:#171a23; --panel2:#1d2130; --ink:#e7e9ee; --muted:#9aa3b2;
@@ -84,248 +84,248 @@
 <body>
 <div class="wrap">
 <section id="unbounded-answer">
-<h2>回答总时长与交互次数</h2>
-<p>默认聊天回答不设置工具交互次数上限，也不设置总处理时长上限。持续产生数据的 HTTP 模型流不因运行时间较长而中断。OPENPROGRAM_SSE_TOTAL_TIMEOUT_S 默认 0，表示无总时长限制；正数仍表示部署显式指定的单流期限。实现以正无穷 deadline 表示未设置上限，HTTP URL、重定向、响应大小检查保持原有规则。</p>
-<p>连接建立、写入、连接池等待、无数据和无有效数据检查仍然区分于回答总时长。用户取消始终有效。runtime.exec 的显式期限与程序调用轮数参数、GUI/browser 独立工具的声明预算不由聊天默认设置覆盖。</p>
-<p>验收使用实际 AgentSession 超过旧 200 次交互、managed HTTP 流经过旧 7200 秒且持续返回内容、显式期限仍终止等公共边界；不进行真实长时间等待或修改真实会话。</p>
-<h3>实现状态</h3><p>聊天交互循环和 HTTP 单流已默认不限次数与总时长。回归测试覆盖超过 200 次工具交互、持续响应超过原总时长、Google 同步与异步传输，以及显式总时长配置仍然生效。</p>
+<h2>Total response duration and interaction count</h2>
+<p>Default chat responses have neither a tool-interaction limit nor a total processing-duration limit. HTTP model streams that keep producing data are not interrupted merely for running a long time. OPENPROGRAM_SSE_TOTAL_TIMEOUT_S defaults to 0, meaning no total-duration limit; positive values remain explicit deployment deadlines for one stream. An unset limit uses a positive-infinity deadline. Existing HTTP URL, redirect and response-size checks remain unchanged.</p>
+<p>Connection establishment, writes, pool waits, no-data and no-effective-data checks remain distinct from total response duration. User cancellation always applies. Explicit runtime.exec deadlines, program call-round parameters and declared budgets of standalone GUI/browser tools are not overridden by chat defaults.</p>
+<p>Acceptance uses public boundaries: an actual AgentSession exceeding the former 200 interactions, a managed HTTP stream returning content beyond the former 7200 seconds, and continued termination under explicit deadlines. Tests neither wait for real long periods nor modify real sessions.</p>
+<h3>Implementation status</h3><p>Chat interaction loops and individual HTTP streams now default to unlimited counts and total duration. Regressions cover more than 200 tool interactions, continuous responses beyond the former duration, Google synchronous/asynchronous transport, and explicit total-duration configuration.</p>
 </section>
 
 
-  <p class="sub">OpenProgram · 设计文档</p>
-  <h1>报错与超时机制（现状梳理）</h1>
-  <p class="small">范围：一次 <code>runtime.exec()</code> 从发起到失败/超时的完整路径——重试、退避、连接/流超时、错误分类、外层 watchdog。
-  目的：<b>先把现状写清楚再优化</b>。优化项在文末（§8）单列并标注实现状态与对应 commit。配套：<code>docs/design/llm-fault-tolerance.md</code>（跨框架对比）、<code>error-retry.md</code>。</p>
+  <p class="sub">OpenProgram · Design document</p>
+  <h1>Error and timeout mechanisms (current-state inventory)</h1>
+  <p class="small">Scope: the complete path of one <code>runtime.exec()</code> from initiation to failure/timeout: retries, backoff, connection/stream timeouts, error classification and outer watchdog.
+  Purpose: <b>document current behavior before optimizing</b>. Optimization items are listed separately in §8 with implementation state and corresponding commits. Companion documents: <code>docs/design/llm-fault-tolerance.md</code>(cross-framework comparison), <code>error-retry.md</code>.</p>
 
   <div class="lead">
-    <p style="margin-top:0"><b>一句话结论。</b> provider 层的连接/流超时基础设施是<span class="pill p-ok">成熟的</span>——mid-stream stall（连上后不再吐 token）已被 SSE idle/data-stall/total 预算主动限住。真正会导致「卡很久没有新行」的是
-    <span class="pill p-bad">三层重试循环相乘</span> +
-    <span class="pill p-bad">deadline 不穿透</span> +
-    <span class="pill p-bad">外层 watchdog 被 except 吞掉</span>。三者叠加，一次持续的 <code>ConnectError</code> 能跑数百秒到上千秒。</p>
+    <p style="margin-top:0"><b>Summary.</b> The provider-layer connection/stream timeout infrastructure is <span class="pill p-ok">mature</span>: mid-stream stalls after connection are actively bounded by SSE idle/data-stall/total budgets. Long periods with no new output instead result from
+    <span class="pill p-bad">multiplication of three retry loops</span> +
+    <span class="pill p-bad">deadlines not propagating</span> +
+    <span class="pill p-bad">outer watchdog exceptions being caught</span>. Together, one persistent <code>ConnectError</code> can run for hundreds to over a thousand seconds.</p>
   </div>
 
   <div class="callout co-ok" style="margin-top:16px">
-    <b>实现状态 — 已落地（2026-06-01）。</b> §8 的 #1–#4（框架）与 #5（GUI harness）已实施并通过验证；#6 评估后暂缓（见该节）。下文 §2–§7 描述的是<u>修复前</u>的机制（保留以解释问题根因）；§5/§6 标了「已修复」，§8 标了每项状态与对应符号 / env。
+    <b>Implementation status — delivered (2026-06-01).</b> Items #1–#4 (framework) and #5 (GUI harness) in §8 are implemented and verified; #6 was evaluated and deferred. Sections §2–§7 describe<u>pre-fix</u>behavior to explain the causes. Sections §5/§6 mark fixes, and §8 records each status with symbols/environment variables.
     <div style="margin-top:10px;font-family:var(--mono);font-size:12px;line-height:1.8">
-      <span class="pill p-ok">框架</span> OpenProgram <code>4e64ac95</code> — deadline 穿透 + <code>ExecInterrupt</code> + 不跨层重试 + <code>OPENPROGRAM_EXEC_TIMEOUT_S</code><br>
-      <span class="pill p-ok">harness</span> GUI-Agent-Harness <code>74bfd06</code> — <code>SampleTimeoutError(ExecInterrupt)</code> + <code>--exec-timeout-s</code> + 按 <code>LLMError.reason</code> 分类 + auth 中止 + <code>reraise_if_fatal</code><br>
-      <span class="small">文档更新提交于本仓后续 commit；上面两个是<b>实现</b> commit。行号仍为撰写时快照。</span>
+      <span class="pill p-ok">Framework</span> OpenProgram <code>4e64ac95</code> — deadline propagation + <code>ExecInterrupt</code> + no cross-layer retries + <code>OPENPROGRAM_EXEC_TIMEOUT_S</code><br>
+      <span class="pill p-ok">harness</span> GUI-Agent-Harness <code>74bfd06</code> — <code>SampleTimeoutError(ExecInterrupt)</code> + <code>--exec-timeout-s</code> + classification by <code>LLMError.reason</code> + abort on auth + <code>reraise_if_fatal</code><br>
+      <span class="small">Documentation updates were committed later in this repository; the two above are <b>implementation</b> commits. Line numbers remain snapshots from authoring.</span>
     </div>
   </div>
 
   <!-- ============================================================= -->
-  <h2><span class="n">1</span> 三层超时职责</h2>
-  <p>系统里有三种语义不同的「超时」，分属不同层、由不同代码负责。把它们混在一起是大多数困惑的来源。</p>
+  <h2><span class="n">1</span> Three timeout responsibilities</h2>
+  <p>The system has three semantically different timeouts, owned by different layers and code. Confusing them causes most misunderstandings.</p>
   <div class="grid g3">
     <div class="card">
-      <h4>① call-level <span class="pill p-ok">已覆盖</span></h4>
-      <div class="role">责任方：provider transport</div>
-      <p class="small" style="margin-bottom:0">一次 HTTP 请求 / 一条 SSE 流最多等多久；chunk 之间最大间隔。由 httpx 超时 + TCP keepalive + codex SSE 解析预算共同保证。</p>
+      <h4>① call-level <span class="pill p-ok">Covered</span></h4>
+      <div class="role">Owner: provider transport</div>
+      <p class="small" style="margin-bottom:0">Maximum wait for one HTTP request/SSE stream and maximum interval between chunks, enforced jointly by httpx timeouts, TCP keepalive and codex SSE parsing budgets.</p>
     </div>
     <div class="card">
-      <h4>② exec-level <span class="pill p-warn">部分</span></h4>
-      <div class="role">责任方：<code>runtime.exec(timeout_s=)</code></div>
-      <p class="small" style="margin-bottom:0">整个 exec（含全部 retry sleep）的 wall-clock 上限。当前是「attempt 之间的软 deadline」，<b>不向下穿透</b>到内层 stream 重试，且默认 <code>None</code>=无界。</p>
+      <h4>② exec-level <span class="pill p-warn">Partial</span></h4>
+      <div class="role">Owner: <code>runtime.exec(timeout_s=)</code></div>
+      <p class="small" style="margin-bottom:0">Wall-clock limit for an entire exec, including all retry sleeps. Currently a soft deadline between attempts; it <b>does not propagate</b> into inner stream retries, and defaults to <code>None</code>=unbounded.</p>
     </div>
     <div class="card">
-      <h4>③ task-level <span class="pill p-bad">不可靠</span></h4>
-      <div class="role">责任方：调用方（runner / dispatcher）</div>
-      <p class="small" style="margin-bottom:0">一条 benchmark 样本 / 一个 agent turn 的总预算（OCR + 多轮 crop + gate + review + 重试）。只有调用方知道。ScreenSpot 现用 <code>signal.alarm</code>，会被框架吞掉。</p>
+      <h4>③ task-level <span class="pill p-bad">Unreliable</span></h4>
+      <div class="role">Owner: caller (runner / dispatcher)</div>
+      <p class="small" style="margin-bottom:0">Total budget for one benchmark sample/Agent turn: OCR, multiple crops, gates, review and retries. Only the caller knows it. ScreenSpot currently uses <code>signal.alarm</code>, which the framework catches.</p>
     </div>
   </div>
 
   <!-- ============================================================= -->
-  <h2><span class="n">2</span> 完整调用栈</h2>
-  <p>从 benchmark 一路到网络 I/O。每层右下角标注它<b>自己持有的</b>超时/重试控制。注意有 <span class="pill p-bad">三层独立的重试循环</span>（locator、exec、stream_retry），彼此不共享 wall-clock。</p>
+  <h2><span class="n">2</span> Complete call stack</h2>
+  <p>From benchmark to network I/O. Each layer’s lower-right corner lists <b>its own</b> timeout/retry controls. There are <span class="pill p-bad">three independent retry loops</span>(locator, exec, stream_retry), without a shared wall-clock budget.</p>
 
   <div class="stack">
     <div class="layer">
       <div class="t">ScreenSpot runner · run_one()</div>
-      <div class="d">外层 <code>signal.alarm(sample_timeout_s)</code> 软中断；locator 内部还有自己的多轮重试。<span class="cite">benchmark 侧（不在本仓）</span></div>
-      <div class="tagrow"><span class="pill p-bad">retry loop #1（locator 轮次）</span><span class="pill p-bad">signal.alarm watchdog</span></div>
+      <div class="d">Outer <code>signal.alarm(sample_timeout_s)</code> soft interrupt; locator also has its own multiround retries.<span class="cite">Benchmark side (outside this repository)</span></div>
+      <div class="tagrow"><span class="pill p-bad">Retry loop #1 (locator rounds)</span><span class="pill p-bad">signal.alarm watchdog</span></div>
     </div>
 
     <div class="layer warn">
       <div class="t">Runtime.exec(content, …, timeout_s=None)</div>
-      <div class="d"><code>for attempt in range(max_retries)</code> 包 <code>except Exception</code>；deadline 只在 attempt <i>之间</i>检查，不打断正在跑的 <code>_call</code>。<span class="cite">runtime.py:750 / :780 / :754</span></div>
-      <div class="tagrow"><span class="pill p-bad">retry loop #2（max_retries=6）</span><span class="pill p-warn">软 deadline（要调用方传 timeout_s）</span></div>
+      <div class="d"><code>for attempt in range(max_retries)</code> wraps <code>except Exception</code>; the deadline is checked only <i>between attempts</i>and does not interrupt an executing <code>_call</code>.<span class="cite">runtime.py:750 / :780 / :754</span></div>
+      <div class="tagrow"><span class="pill p-bad">retry loop #2 (max_retries=6)</span><span class="pill p-warn">Soft deadline (caller must pass timeout_s)</span></div>
     </div>
 
     <div class="layer">
       <div class="t">Runtime._call(content, model, response_format)</div>
-      <div class="d"><b>同步</b>方法；<u>不接收任何 timeout 参数</u>。委派给 <code>_call_via_providers</code> → <code>_run_async()</code>。<span class="cite">runtime.py:771 / :981 / :1007</span></div>
-      <div class="tagrow"><span class="pill p-bad">无 timeout 入参</span></div>
+      <div class="d"><b>Synchronous</b> method;<u>accepts no timeout parameter</u>. Delegates to <code>_call_via_providers</code> → <code>_run_async()</code>.<span class="cite">runtime.py:771 / :981 / :1007</span></div>
+      <div class="tagrow"><span class="pill p-bad">No timeout argument</span></div>
     </div>
 
     <div class="layer warn">
-      <div class="t">_run_async(coro) · async→sync 桥</div>
-      <div class="d">无运行中的 loop → <code>asyncio.run(coro)</code> 跑在<b>当前线程</b>（CLI/benchmark 即主线程）；已有 loop（web/worker）→ offload 到 <b>线程池 worker 线程</b>。<span class="cite">runtime.py:1248–1261</span></div>
-      <div class="tagrow"><span class="pill p-warn">主线程：signal.alarm 能落进来</span><span class="pill p-bad">worker 线程：信号根本落不到</span></div>
+      <div class="t">_run_async(coro) · async-to-sync adapter</div>
+      <div class="d">No running loop → <code>asyncio.run(coro)</code> runs on <b>the current thread</b>(main thread for CLI/benchmark); existing loop (web/worker) → offload to <b>a thread-pool worker</b>.<span class="cite">runtime.py:1248–1261</span></div>
+      <div class="tagrow"><span class="pill p-warn">Main thread: signal.alarm can arrive</span><span class="pill p-bad">Worker thread: signals cannot arrive</span></div>
     </div>
 
     <div class="layer">
       <div class="t">openai_codex · _run() → retry_stream(_attempt)</div>
-      <div class="d">codex provider 的一次完整调用，内部走 stream 重试编排。<span class="cite">openai_codex.py:134 / :210</span></div>
+      <div class="d">One complete codex-provider call internally orchestrates stream retries.<span class="cite">openai_codex.py:134 / :210</span></div>
     </div>
 
     <div class="layer bad">
       <div class="t">retry_stream(attempt_fn, max_attempts=3)</div>
-      <div class="d"><code>for attempt in range(max_attempts)</code> 包 <code>except Exception</code>；<code>ConnectError</code> 判 <code>retryable=True</code>。<b>纯按次数，完全不知道任何 deadline。</b><span class="cite">stream_retry.py:230 / :238 / :51</span></div>
-      <div class="tagrow"><span class="pill p-bad">retry loop #3（max_attempts=3）</span><span class="pill p-bad">无 wall-clock 感知</span></div>
+      <div class="d"><code>for attempt in range(max_attempts)</code> wraps <code>except Exception</code>; <code>ConnectError</code> Checks <code>retryable=True</code>.<b>Count-based only, with no knowledge of any deadline.</b><span class="cite">stream_retry.py:230 / :238 / :51</span></div>
+      <div class="tagrow"><span class="pill p-bad">retry loop #3 (max_attempts=3)</span><span class="pill p-bad">No wall-clock awareness</span></div>
     </div>
 
     <div class="layer ok">
       <div class="t">httpx.AsyncClient.stream(...) · get_shared_async_client("openai-codex")</div>
-      <div class="d">硬化过的共享 client：connect/write/pool=30s、TCP keepalive ~60s 探死连接、force-IPv4 逃生、proxy。<span class="cite">http_client.py:107 / :48–104 / openai_codex.py:223</span></div>
+      <div class="d">Hardened shared client: connect/write/pool=30s, TCP keepalive detecting dead connections at ~60s, force-IPv4 fallback and proxy.<span class="cite">http_client.py:107 / :48–104 / openai_codex.py:223</span></div>
       <div class="tagrow"><span class="pill p-ok">connect 30s</span><span class="pill p-ok">keepalive ~60s</span></div>
     </div>
 
     <div class="layer ok">
-      <div class="t">_parse_sse_stream(response) · SSE 逐行</div>
-      <div class="d"><code>await asyncio.wait_for(line_iter.__anext__(), timeout=wait)</code>，<code>wait = min(idle_left, stall_left, total−now)</code>。<b>mid-stream stall 在这里被主动限住。</b><span class="cite">openai_codex.py:407 / :447 / :449 / :424</span></div>
+      <div class="t">_parse_sse_stream(response) · line-by-line SSE</div>
+      <div class="d"><code>await asyncio.wait_for(line_iter.__anext__(), timeout=wait)</code>, <code>wait = min(idle_left, stall_left, total−now)</code>.<b>Mid-stream stalls are actively bounded here.</b><span class="cite">openai_codex.py:407 / :447 / :449 / :424</span></div>
       <div class="tagrow"><span class="pill p-ok">idle 1800s</span><span class="pill p-ok">data-stall 900s</span><span class="pill p-ok">total 7200s</span></div>
     </div>
   </div>
 
   <!-- ============================================================= -->
-  <h2><span class="n">3</span> 已有的超时防御（已 armed）</h2>
-  <p>这些都<b>已经在生效</b>，默认值全部可经 env 覆盖。集中定义在 <code>providers/utils/timeouts.py</code> 与 <code>http_client.py</code>。</p>
+  <h2><span class="n">3</span> Existing timeout defenses (active)</h2>
+  <p>These are all <b>already active</b>; environment variables can override every default. Defined centrally in <code>providers/utils/timeouts.py</code> and <code>http_client.py</code>.</p>
   <table>
-    <thead><tr><th>防御</th><th>默认值</th><th>env 覆盖</th><th>生效点</th><th class="c">状态</th></tr></thead>
+    <thead><tr><th>Defense</th><th>Default</th><th>Environment override</th><th>Enforcement point</th><th class="c">Status</th></tr></thead>
     <tbody>
-      <tr><td>connect 超时</td><td class="c">30s</td><td><code>OPENPROGRAM_HTTPX_CONNECT_TIMEOUT_S</code></td><td class="cite">timeouts.py:39</td><td class="c"><span class="pill p-ok">on</span></td></tr>
-      <tr><td>write / pool 超时</td><td class="c">30s</td><td><code>…_WRITE_/_POOL_…</code></td><td class="cite">timeouts.py:40–41</td><td class="c"><span class="pill p-ok">on</span></td></tr>
-      <tr><td>TCP keepalive 探死连接</td><td class="c">~60s<br><span class="small">(30+10×3)</span></td><td><code>OPENPROGRAM_TCP_KEEPALIVE</code></td><td class="cite">http_client.py:48–79</td><td class="c"><span class="pill p-ok">on</span></td></tr>
-      <tr><td>SSE idle（无任何字节）</td><td class="c">1800s</td><td><code>OPENPROGRAM_SSE_IDLE_TIMEOUT_S</code></td><td class="cite">timeouts.py:45 / codex:449</td><td class="c"><span class="pill p-ok">on</span></td></tr>
-      <tr><td>SSE data-stall（无真实 data）</td><td class="c">900s</td><td><code>OPENPROGRAM_SSE_DATA_STALL_TIMEOUT_S</code></td><td class="cite">timeouts.py:47 / codex:447</td><td class="c"><span class="pill p-ok">on</span></td></tr>
-      <tr><td>SSE 单流 total 上限</td><td class="c">7200s</td><td><code>OPENPROGRAM_SSE_TOTAL_TIMEOUT_S</code></td><td class="cite">timeouts.py:49 / codex:424</td><td class="c"><span class="pill p-ok">on</span></td></tr>
+      <tr><td>Connect timeout</td><td class="c">30s</td><td><code>OPENPROGRAM_HTTPX_CONNECT_TIMEOUT_S</code></td><td class="cite">timeouts.py:39</td><td class="c"><span class="pill p-ok">on</span></td></tr>
+      <tr><td>Write / pool timeout</td><td class="c">30s</td><td><code>…_WRITE_/_POOL_…</code></td><td class="cite">timeouts.py:40–41</td><td class="c"><span class="pill p-ok">on</span></td></tr>
+      <tr><td>TCP keepalive dead-connection detection</td><td class="c">~60s<br><span class="small">(30+10×3)</span></td><td><code>OPENPROGRAM_TCP_KEEPALIVE</code></td><td class="cite">http_client.py:48–79</td><td class="c"><span class="pill p-ok">on</span></td></tr>
+      <tr><td>SSE idle (no bytes)</td><td class="c">1800s</td><td><code>OPENPROGRAM_SSE_IDLE_TIMEOUT_S</code></td><td class="cite">timeouts.py:45 / codex:449</td><td class="c"><span class="pill p-ok">on</span></td></tr>
+      <tr><td>SSE data-stall (no actual data)</td><td class="c">900s</td><td><code>OPENPROGRAM_SSE_DATA_STALL_TIMEOUT_S</code></td><td class="cite">timeouts.py:47 / codex:447</td><td class="c"><span class="pill p-ok">on</span></td></tr>
+      <tr><td>SSE single-stream total limit</td><td class="c">7200s</td><td><code>OPENPROGRAM_SSE_TOTAL_TIMEOUT_S</code></td><td class="cite">timeouts.py:49 / codex:424</td><td class="c"><span class="pill p-ok">on</span></td></tr>
       <tr><td>httpx read backstop</td><td class="c">1860s<br><span class="small">(idle+60)</span></td><td><code>OPENPROGRAM_HTTPX_READ_TIMEOUT_S</code></td><td class="cite">timeouts.py:52–60</td><td class="c"><span class="pill p-ok">on</span></td></tr>
-      <tr><td>大 prompt 预算缩放</td><td class="c">×1.25–2.0</td><td class="small">按 context_tokens 分档</td><td class="cite">timeouts.py:65–89</td><td class="c"><span class="pill p-ok">on</span></td></tr>
-      <tr><td>force-IPv4 / proxy 逃生</td><td class="c">off / 自动</td><td><code>OPENPROGRAM_FORCE_IPV4</code>, <code>HTTP(S)_PROXY</code></td><td class="cite">http_client.py:92–101</td><td class="c"><span class="pill p-ok">on</span></td></tr>
+      <tr><td>Large-prompt budget scaling</td><td class="c">×1.25–2.0</td><td class="small">Tiered by context_tokens</td><td class="cite">timeouts.py:65–89</td><td class="c"><span class="pill p-ok">on</span></td></tr>
+      <tr><td>Force-IPv4 / proxy fallback</td><td class="c">Off / automatic</td><td><code>OPENPROGRAM_FORCE_IPV4</code>, <code>HTTP(S)_PROXY</code></td><td class="cite">http_client.py:92–101</td><td class="c"><span class="pill p-ok">on</span></td></tr>
     </tbody>
   </table>
-  <div class="callout co-ok"><b>含义。</b>「连上后服务器不再吐 token」这种典型卡死，已被 codex 的 <code>_parse_sse_stream</code> 用 <code>asyncio.wait_for</code> 主动限在 idle/data-stall/total 三个预算内——<u>不是裸奔</u>。所以「provider 缺 read-timeout」的判断对 codex <b>不成立</b>。</div>
+  <div class="callout co-ok"><b>Meaning.</b> The typical stall where a connected server stops producing tokens is already constrained by codex <code>_parse_sse_stream</code> using <code>asyncio.wait_for</code> to idle/data-stall/total budgets:<u>protection is present</u>. Therefore claiming that the codex provider lacks a read timeout <b>is incorrect</b>.</div>
 
   <!-- ============================================================= -->
-  <h2><span class="n">4</span> exec 重试状态机</h2>
-  <p>一次 <code>exec()</code> 内部的重试逻辑。关键：<b>deadline 检查只发生在两次 <code>_call</code> 之间</b>（虚线框），无法打断正在执行的 <code>_call</code>。</p>
-  <pre><span class="cmt"># runtime.py:746–818（精简）</span>
-_deadline = start + timeout_s   <span class="cmt"># timeout_s=None ⇒ _deadline=None ⇒ 整段失效</span>
-<span class="num">for</span> attempt <span class="num">in</span> range(max_retries):          <span class="cmt"># 默认 6（_default_max_retries, :58）</span>
+  <h2><span class="n">4</span> Exec retry state machine</h2>
+  <p>Retry logic within one <code>exec()</code> . Key point: <b>the deadline is checked only between two <code>_call</code> between attempts</b>(dashed box), so it cannot interrupt the currently running <code>_call</code>.</p>
+  <pre><span class="cmt"># runtime.py:746–818 (abridged)</span>
+_deadline = start + timeout_s   <span class="cmt"># timeout_s=None ⇒ _deadline=None ⇒ entire block inactive</span>
+<span class="num">for</span> attempt <span class="num">in</span> range(max_retries):          <span class="cmt"># default 6 (_default_max_retries, :58)</span>
 
-    <span class="cmt">┌── 软 deadline 检查（仅 attempt 之间）─────────────┐</span>
+    <span class="cmt">┌── Soft deadline check (between attempts only) ─────────────┐</span>
     <span class="num">if</span> _deadline <span class="num">and</span> now() &gt;= _deadline:           <span class="cmt"># :754</span>
         <span class="num">raise</span> LLMError(reason=TIMEOUT, retryable=False)
     <span class="cmt">└──────────────────────────────────────────────────┘</span>
 
     <span class="num">try</span>:
-        reply = self._call(...)      <span class="cmt"># :771 同步阻塞，无 timeout 入参；卡这里时上面的检查到不了</span>
+        reply = self._call(...)      <span class="cmt"># :771 synchronous blocking, no timeout argument; a stall here prevents the check above</span>
         <span class="num">break</span>
     <span class="num">except</span> (TypeError, NotImplementedError):
-        <span class="num">raise</span>                       <span class="cmt"># 编程错误，不重试</span>
-    <span class="num">except</span> Exception <span class="num">as</span> e:           <span class="cmt"># :780 ← 这里吞掉一切，包括外来的 TimeoutError</span>
-        permanent = _is_permanent_error(e)   <span class="cmt"># :782 只匹配图片/auth marker</span>
+        <span class="num">raise</span>                       <span class="cmt"># Programming error: do not retry</span>
+    <span class="num">except</span> Exception <span class="num">as</span> e:           <span class="cmt"># :780 catches everything, including an external TimeoutError</span>
+        permanent = _is_permanent_error(e)   <span class="cmt"># :782 matches image/auth markers only</span>
         <span class="num">if</span> permanent <span class="num">or</span> attempt == max_retries-1:
             <span class="num">raise</span> _build_llm_error(...)   <span class="cmt"># → LLMError(reason, retryable, cause, …)</span>
-        sleep_s = _retry_sleep_seconds(attempt)  <span class="cmt"># 1.5·2^n，±25% 抖动；attempt5 ≈ 48s（:81）</span>
-        <span class="num">if</span> _deadline <span class="num">and</span> now()+sleep_s &gt;= _deadline:  <span class="cmt"># :801 退避会越界就提前判 TIMEOUT</span>
+        sleep_s = _retry_sleep_seconds(attempt)  <span class="cmt"># 1.5·2^n, ±25% jitter; attempt5 ≈ 48s (:81)</span>
+        <span class="num">if</span> _deadline <span class="num">and</span> now()+sleep_s &gt;= _deadline:  <span class="cmt"># :801 report TIMEOUT early if backoff would exceed the deadline</span>
             <span class="num">raise</span> LLMError(reason=TIMEOUT, retryable=False)
         time.sleep(sleep_s)          <span class="cmt"># :818</span></pre>
 
-  <h3><code>_is_permanent_error</code> 只认两类 <span class="cite">runtime.py:104–120</span></h3>
-  <p>marker 列表只有：<code>not a valid image</code> / <code>invalid image</code> / <code>image data is not</code> / <code>login expired</code> / <code>login failed</code> / <code>re-auth</code> / <code>unauthorized</code> / <code>invalid api key</code>。任何<b>超时类</b>异常都不命中 → <code>permanent=False</code> → <b>会被重试</b>。这正是外层 <code>SampleTimeoutError</code> 被当 transient 吃掉的直接原因。</p>
+  <h3><code>_is_permanent_error</code> Recognizes only two classes <span class="cite">runtime.py:104–120</span></h3>
+  <p>The marker list contains only: <code>not a valid image</code> / <code>invalid image</code> / <code>image data is not</code> / <code>login expired</code> / <code>login failed</code> / <code>re-auth</code> / <code>unauthorized</code> / <code>invalid api key</code>. Any <b>timeout-class</b> exception misses these → <code>permanent=False</code> → <b>it is retried</b>. This directly explains why the outer <code>SampleTimeoutError</code> is treated as transient.</p>
 
   <!-- ============================================================= -->
-  <h2><span class="n">5</span> 核心缺陷：三层重试相乘，无人封顶 wall-clock</h2>
-  <p>持续 <code>ConnectError</code>（死路由 / VPN 黑洞 / proxy 不通，日志即 <code>openai-codex stream retry … ConnectError</code>）时，三层循环逐层相乘，<b>没有任何一层用 wall-clock 封顶</b>：</p>
+  <h2><span class="n">5</span> Core defect: three retry loops multiply with no wall-clock cap</h2>
+  <p>With persistent <code>ConnectError</code>(dead route, VPN packet loss or unreachable proxy; logs show <code>openai-codex stream retry … ConnectError</code>), the three loops multiply, and <b>no layer caps wall-clock time</b>: </p>
 
   <table>
-    <thead><tr><th>循环</th><th>位置</th><th class="c">次数</th><th>单次代价</th><th>退避</th><th class="c">deadline 感知</th></tr></thead>
+    <thead><tr><th>Loop</th><th>Location</th><th class="c">Count</th><th>Cost per attempt</th><th>Backoff</th><th class="c">Deadline awareness</th></tr></thead>
     <tbody>
-      <tr><td>#3 内层 stream</td><td class="cite">stream_retry.py:230</td><td class="c">max_attempts=3</td><td>connect ≤30s</td><td>1→2s（封顶30s）</td><td class="c"><span class="pill p-bad">无</span></td></tr>
-      <tr><td>#2 中层 exec</td><td class="cite">runtime.py:750</td><td class="c">max_retries=6</td><td>= 一整个内层循环</td><td>1.5→48s</td><td class="c"><span class="pill p-warn">软 / 需传 timeout_s</span></td></tr>
-      <tr><td>#1 外层 locator</td><td class="cite">benchmark 侧</td><td class="c">多轮</td><td>= 一整个中层循环</td><td>—</td><td class="c"><span class="pill p-bad">无</span></td></tr>
+      <tr><td>#3 Inner stream</td><td class="cite">stream_retry.py:230</td><td class="c">max_attempts=3</td><td>connect ≤30s</td><td>1→2s (capped at 30s)</td><td class="c"><span class="pill p-bad">None</span></td></tr>
+      <tr><td>#2 Middle exec</td><td class="cite">runtime.py:750</td><td class="c">max_retries=6</td><td>= one complete inner loop</td><td>1.5→48s</td><td class="c"><span class="pill p-warn">Soft / requires timeout_s</span></td></tr>
+      <tr><td>#1 Outer locator</td><td class="cite">Benchmark side</td><td class="c">Multiple rounds</td><td>= one complete middle loop</td><td>—</td><td class="c"><span class="pill p-bad">None</span></td></tr>
     </tbody>
   </table>
 
-  <div class="arith">connect 为<b>超时</b>（丢包、非 refused，每次吃满 30s）时的最坏 wall-clock：
+  <div class="arith">When connect encounters <b>timeouts</b>(packet loss, not refusal, consuming 30s each), worst-case wall-clock time:
 
-  内层 ≈ 3 × 30s（connect） + (1+2)s（退避）            ≈  <span class="num">93s</span>
-  中层 ≈ 6 × 93s + (1.5+3+6+12+24)s（退避）            ≈ <span class="num">605s</span>   ← 单次 exec()
-  外层 ≈ locator 再乘 N 轮                              ≈ <span class="num">&gt;900s</span>
+  Inner ≈ 3 × 30s (connect) + (1+2)s (backoff)            ≈  <span class="num">93s</span>
+  Middle ≈ 6 × 93s + (1.5+3+6+12+24)s (backoff)            ≈ <span class="num">605s</span>   ← one exec()
+  Outer ≈ locator multiplies by N rounds                              ≈ <span class="num">&gt;900s</span>
 
-  传输层 connect 尝试总数 = 3 × 6 (× locator 轮) = <span class="num">18+</span> 次</div>
+  Total transport connect attempts = 3 × 6 (× locator rounds) = <span class="num">18+</span> attempts</div>
 
-  <div class="callout co-bad"><b>双层重复重试（设计味道）。</b> <code>ConnectError</code> 在内层已经被判 <code>retryable=True</code> 并重试满 3 次、抛出 <code>ProviderStreamError(retryable=True)</code>；交到 exec 后，<code>_is_permanent_error</code> 不命中 → exec <b>又</b>用全新的 6× 预算重试同一个传输错误。<u>同一个传输错误被两层各自重试</u>，这才是把 ~90s 的问题放大成 600s+ 的根本。</div>
+  <div class="callout co-bad"><b>Duplicate retries at two layers (design issue).</b> <code>ConnectError</code> The inner layer already classifies <code>retryable=True</code> and retries it three times before raising <code>ProviderStreamError(retryable=True)</code>; once it reaches exec, <code>_is_permanent_error</code> does not match → exec <b>again</b> retries the same transport error with a fresh 6× budget.<u>The same transport error is independently retried at two layers</u>, turning a ~90s problem into 600s+.</div>
 
-  <div class="callout co-ok"><b>已修复 <code>4e64ac95</code>。</b> exec 把单一 deadline 穿透进 <code>stream_retry</code>（每 attempt 前 + 退避前都检查），且 <code>stream_retry</code> 耗尽预算时给异常打 <code>transport_exhausted</code> 标志，exec 见到就<u>不再用新预算重试</u> —— 18 次（3×6）塌回内层 3 次。<code>_parse_sse_stream</code> 的 SSE 等待也 clamp 到 <code>min(budget, 剩余 deadline)</code>，单条流不再越过预算。</div>
+  <div class="callout co-ok"><b>Fixed <code>4e64ac95</code>.</b> Exec propagates one deadline into <code>stream_retry</code>(checked before each attempt and backoff), and <code>stream_retry</code> marks budget-exhausted exceptions with <code>transport_exhausted</code> ; exec then<u>does not retry with a new budget</u> , reducing 18 attempts (3×6) to the three inner attempts.<code>_parse_sse_stream</code> SSE waits in <code>min(budget, remaining deadline)</code> are also clamped, so individual streams cannot exceed the budget.</div>
 
   <!-- ============================================================= -->
-  <h2><span class="n">6</span> watchdog 被吞掉的时序</h2>
-  <p>ScreenSpot 用 <code>signal.alarm</code> 想在 sample 总预算到点时硬停，但它抛的异常正好撞进上面两层的 <code>except Exception</code>。</p>
+  <h2><span class="n">6</span> Timeline of a swallowed watchdog</h2>
+  <p>ScreenSpot uses <code>signal.alarm</code> to stop at the sample deadline, but its exception reaches the two layers’ <code>except Exception</code>.</p>
   <div class="seq">
-    <div class="row"><div class="ix">1</div><div class="bd"><b>signal.alarm(900)</b> 起一个一次性闹钟。<span class="meta">benchmark run_one() 外层</span></div></div>
-    <div class="row"><div class="ix">2</div><div class="bd">进入 <b>exec → _call → _run_async → asyncio.run</b>（主线程），卡在持续 ConnectError 的嵌套重试里。</div></div>
-    <div class="row bad"><div class="ix">3</div><div class="bd"><b>900s 到点，SIGALRM 触发</b>，handler 在主线程下一个字节码边界 <code>raise SampleTimeoutError</code>（继承 <code>TimeoutError → Exception</code>）。</div></div>
-    <div class="row bad"><div class="ix">4</div><div class="bd">异常冒泡到 <b>stream_retry 的 <code>except Exception</code></b>（:238）或 <b>exec 的 <code>except Exception</code></b>（:780），被当成「一次普通调用失败」。</div></div>
-    <div class="row bad"><div class="ix">5</div><div class="bd"><code>_is_permanent_error</code> 不命中 → <code>permanent=False</code> → <b>继续 retry</b>。sample 语义（「整条样本已超时、必须停」）<u>丢失</u>。</div></div>
-    <div class="row bad"><div class="ix">6</div><div class="bd"><code>signal.alarm</code> 是一次性的，已消耗；外层 <code>finally: alarm(0)</code> 要等 run_one() 返回才执行——但它正卡着。<b>此后没有任何硬保护，继续跑。</b></div></div>
+    <div class="row"><div class="ix">1</div><div class="bd"><b>signal.alarm(900)</b> Starts a one-shot alarm.<span class="meta">Outside benchmark run_one()</span></div></div>
+    <div class="row"><div class="ix">2</div><div class="bd">Enters <b>exec → _call → _run_async → asyncio.run</b> on the main thread and stalls in nested retries for persistent ConnectError.</div></div>
+    <div class="row bad"><div class="ix">3</div><div class="bd"><b>At 900s, SIGALRM fires</b>, and the handler at the next main-thread bytecode boundary <code>raise SampleTimeoutError</code>(inherits <code>TimeoutError → Exception</code>).</div></div>
+    <div class="row bad"><div class="ix">4</div><div class="bd">The exception propagates to <b>stream_retry’s <code>except Exception</code></b>(:238), or <b>exec’s <code>except Exception</code></b>(:780), and is treated as an ordinary call failure.</div></div>
+    <div class="row bad"><div class="ix">5</div><div class="bd"><code>_is_permanent_error</code> Does not match → <code>permanent=False</code> → <b>retry continues</b>. The sample meaning (“this entire sample timed out and must stop”) is<u>lost</u>.</div></div>
+    <div class="row bad"><div class="ix">6</div><div class="bd"><code>signal.alarm</code> is one-shot and has been consumed; the outer <code>finally: alarm(0)</code> runs only after run_one() returns, but it is still blocked.<b>No further hard protection remains, so execution continues.</b></div></div>
   </div>
-  <div class="callout co-warn"><b>web / worker 语境更糟。</b> 当存在运行中的 event loop 时，<code>_run_async</code> 把 <code>asyncio.run</code> offload 到<b>线程池 worker 线程</b>（runtime.py:1260）。Python 只向主线程投递信号，所以 <code>signal.alarm</code> 在这种语境里<u>根本落不到</u>正在跑的 <code>_call</code> 上——软 watchdog 完全无效。</div>
+  <div class="callout co-warn"><b>Web/worker contexts are worse.</b> With a running event loop, <code>_run_async</code> takes <code>asyncio.run</code> and offloads it to <b>a thread-pool worker</b>(runtime.py:1260). Python delivers signals only to the main thread, so <code>signal.alarm</code> in this context<u>cannot reach</u>the running <code>_call</code> : the soft watchdog is ineffective.</div>
 
-  <div class="callout co-ok"><b>已修复 框架 <code>4e64ac95</code> + harness <code>74bfd06</code>。</b> <code>SampleTimeoutError</code> 改继承 <code>ExecInterrupt(BaseException)</code>，两层 <code>except Exception</code> 都吞不住它 —— 它穿过 OpenProgram 重试层、由 <code>run_one()</code> 在 sample 边界接住记 <code>sample_timeout</code>（步骤 4/5 不再发生）。worker 线程语境里信号本就落不到，改由 <code>--exec-timeout-s</code> → <code>OPENPROGRAM_EXEC_TIMEOUT_S</code> 的 call-level deadline 兜底（不依赖信号），且 <code>_run_async</code> 现在把 deadline contextvar 带进 worker 线程。</div>
+  <div class="callout co-ok"><b>Fixed in framework <code>4e64ac95</code> + harness <code>74bfd06</code>.</b> <code>SampleTimeoutError</code> now inherits <code>ExecInterrupt(BaseException)</code>, which neither <code>except Exception</code> can catch. It crosses the OpenProgram retry layers and is caught by <code>run_one()</code> at the sample boundary to record <code>sample_timeout</code>(steps 4/5 no longer occur). Signals never reach worker threads; instead, <code>--exec-timeout-s</code> → <code>OPENPROGRAM_EXEC_TIMEOUT_S</code> provides a signal-independent call-level deadline, and <code>_run_async</code> now propagates the deadline ContextVar into the worker thread.</div>
 
   <!-- ============================================================= -->
-  <h2><span class="n">7</span> 错误分类与 retryable 判定</h2>
-  <p>exec 放弃时抛的是结构化 <code>LLMError</code>（<span class="cite">errors.py:62</span>），<b>已经</b>带够了上层精确计分所需的字段——上层不该一律记成 <code>wrong_format</code>。</p>
+  <h2><span class="n">7</span> Error classification and retryability</h2>
+  <p>When exec gives up, it raises structured <code>LLMError</code> (<span class="cite">errors.py:62</span>), <b>already</b> containing enough fields for precise caller-side scoring; callers should not label everything <code>wrong_format</code>.</p>
   <div class="grid g2">
     <div class="card">
-      <h4><code>ErrorReason</code> 枚举 <span class="cite">errors.py:31</span></h4>
+      <h4><code>ErrorReason</code> Enumeration <span class="cite">errors.py:31</span></h4>
       <p class="small" style="margin-bottom:0"><code>TRANSPORT</code> · <code>RATE_LIMIT</code> · <code>PROVIDER_INTERNAL</code> · <code>AUTHENTICATION</code> · <code>AUTHORIZATION</code> · <code>INVALID_REQUEST</code> · <code>CONTEXT_LENGTH</code> · <code>CONTENT_POLICY</code> · <code>TIMEOUT</code> · <code>UNKNOWN</code></p>
     </div>
     <div class="card">
-      <h4><code>LLMError</code> 字段 <span class="cite">errors.py:62–85</span></h4>
+      <h4><code>LLMError</code> Fields <span class="cite">errors.py:62–85</span></h4>
       <p class="small" style="margin-bottom:0"><code>reason</code> · <code>retryable</code> · <code>http_status</code> · <code>retry_after_s</code> · <code>attempts</code> · <code>elapsed_s</code> · <code>had_image</code> · <code>provider</code> · <code>model</code> · <code>last_error_type</code> · <code>cause</code></p>
     </div>
   </div>
-  <h3><code>classify_error</code> 判定顺序 <span class="cite">errors.py:191–258</span></h3>
+  <h3><code>classify_error</code> Classification order <span class="cite">errors.py:191–258</span></h3>
   <table>
-    <thead><tr><th class="c">优先级</th><th>依据</th><th>判定</th><th class="c">retryable</th></tr></thead>
+    <thead><tr><th class="c">Priority</th><th>Basis</th><th>Classification</th><th class="c">retryable</th></tr></thead>
     <tbody>
-      <tr><td class="c">1</td><td>HTTP 429</td><td>RATE_LIMIT</td><td class="c"><span class="pill p-ok">是</span></td></tr>
-      <tr><td class="c">1</td><td>HTTP 500/502/503/504</td><td>PROVIDER_INTERNAL</td><td class="c"><span class="pill p-ok">是</span></td></tr>
-      <tr><td class="c">1</td><td>HTTP 401 / 403</td><td>AUTHENTICATION / AUTHORIZATION</td><td class="c"><span class="pill p-bad">否</span></td></tr>
-      <tr><td class="c">1</td><td>HTTP 400（+context/policy marker）</td><td>INVALID_REQUEST / CONTEXT_LENGTH / CONTENT_POLICY</td><td class="c"><span class="pill p-bad">否</span></td></tr>
-      <tr><td class="c">2</td><td>异常类型名 ∈ 传输集合<br><span class="small">ConnectError / ReadTimeout / …（stream_retry.py:72）</span></td><td>TRANSPORT</td><td class="c"><span class="pill p-ok">是</span></td></tr>
-      <tr><td class="c">3</td><td>消息子串兜底（auth / invalid / context / policy / rate-limit / 传输名）</td><td>对应 reason</td><td class="c"><span class="pill p-warn">视类</span></td></tr>
-      <tr><td class="c">—</td><td>都不命中</td><td>UNKNOWN</td><td class="c"><span class="pill p-bad">否</span></td></tr>
+      <tr><td class="c">1</td><td>HTTP 429</td><td>RATE_LIMIT</td><td class="c"><span class="pill p-ok">Yes</span></td></tr>
+      <tr><td class="c">1</td><td>HTTP 500/502/503/504</td><td>PROVIDER_INTERNAL</td><td class="c"><span class="pill p-ok">Yes</span></td></tr>
+      <tr><td class="c">1</td><td>HTTP 401 / 403</td><td>AUTHENTICATION / AUTHORIZATION</td><td class="c"><span class="pill p-bad">No</span></td></tr>
+      <tr><td class="c">1</td><td>HTTP 400 (+context/policy marker)</td><td>INVALID_REQUEST / CONTEXT_LENGTH / CONTENT_POLICY</td><td class="c"><span class="pill p-bad">No</span></td></tr>
+      <tr><td class="c">2</td><td>Exception type name belongs to the transport set<br><span class="small">ConnectError / ReadTimeout / … (stream_retry.py:72)</span></td><td>TRANSPORT</td><td class="c"><span class="pill p-ok">Yes</span></td></tr>
+      <tr><td class="c">3</td><td>Message-substring fallback (auth / invalid / context / policy / rate-limit / transport name)</td><td>Corresponding reason</td><td class="c"><span class="pill p-warn">Depends on class</span></td></tr>
+      <tr><td class="c">—</td><td>No match</td><td>UNKNOWN</td><td class="c"><span class="pill p-bad">No</span></td></tr>
     </tbody>
   </table>
-  <p class="small">注意：<code>override_reason=TIMEOUT</code> 的 deadline 命中一律 <code>retryable=False</code>（<span class="cite">runtime.py:170–176</span>）；其余「预算耗尽但类型本可重试」保持 <code>retryable=True</code>，含义是「换个新预算可再试」，不是「立刻重试」。</p>
+  <p class="small">Note: <code>override_reason=TIMEOUT</code> deadline hits always use <code>retryable=False</code> (<span class="cite">runtime.py:170–176</span>); other exhausted budgets whose error type could be retried retain <code>retryable=True</code>, meaning “retry with a new budget”, not “retry immediately”.</p>
 
   <!-- ============================================================= -->
-  <h2><span class="n">8</span> 优化项（实现状态）</h2>
-  <p class="small">两条线并行、职责不同：框架侧 #1–#4 让<u>任何</u>调用方（channels worker、web turn、benchmark）都不被嵌套重试拖死；harness 侧 #5 负责 sample-level 计分与可靠 watchdog。子进程不替代框架修复，框架修复也不免除 runner 的 watchdog。<b>#1–#4 已在框架 <code>4e64ac95</code> 落地，#5 在 harness <code>74bfd06</code> 落地（子进程隔离暂缓）；#6 暂缓。</b></p>
+  <h2><span class="n">8</span> Optimization items (implementation status)</h2>
+  <p class="small">Two parallel areas with different responsibilities: framework #1–#4 prevent<u>any</u>caller (channel worker, web turn, benchmark) from excessive nested retries; harness #5 handles sample-level scoring and a reliable watchdog. Subprocesses do not replace framework fixes, and framework fixes do not remove runner watchdog obligations.<b>#1–#4 delivered in framework <code>4e64ac95</code> , #5 in harness <code>74bfd06</code> (subprocess isolation deferred); #6 deferred.</b></p>
   <table>
-    <thead><tr><th class="c">#</th><th>修复点</th><th>为什么</th><th class="c">价值</th><th>状态</th></tr></thead>
+    <thead><tr><th class="c">#</th><th>Fix</th><th>Reason</th><th class="c">Value</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td class="c">1</td><td>把单一 deadline 从 <code>exec</code> 穿透到 <code>_call</code> → codex <code>_run</code> → <code>stream_retry</code>（SSE wait 取 <code>min(budget, 剩余)</code>）</td><td>现在 <code>exec(timeout_s)</code> 只管中层、且要调用方传；内层 stream_retry + SSE 预算都不知道它。穿透后才是真 end-to-end，溢出 ≤ 一次 connect。</td><td class="c"><span class="pill p-bad">最高</span></td><td><span class="pill p-ok">已实施 <code>4e64ac95</code></span><br><span class="small">新 <code>providers/utils/deadline.py</code>（ContextVar）；exec/async_exec set+reset；stream_retry & codex 读取</span></td></tr>
-      <tr><td class="c">2</td><td>传输层错误不跨层重复重试</td><td>stream_retry 已耗尽 3 次的 <code>ProviderStreamError</code> 到 exec 又被重试 6 次 = 18 次。exec 应识别「provider 自己的传输预算已耗尽」，几乎不再重试。</td><td class="c"><span class="pill p-bad">高</span></td><td><span class="pill p-ok">已实施 <code>4e64ac95</code></span><br><span class="small"><code>stream_retry</code> 打 <code>transport_exhausted</code> 标志；exec 见到即不再重试（reason 仍诚实 TRANSPORT/retryable）</span></td></tr>
-      <tr><td class="c">3</td><td>引入 <code>ExecInterrupt(BaseException)</code> 硬中断契约</td><td><code>exec</code> 与 <code>stream_retry</code> <b>都</b>有 <code>except Exception</code>；<code>BaseException</code> 同时穿透两层，外部 watchdog 一抛即退。</td><td class="c"><span class="pill p-bad">高</span></td><td><span class="pill p-ok">已实施 <code>4e64ac95</code></span><br><span class="small"><code>errors.ExecInterrupt</code>；两层显式 <code>except ExecInterrupt: raise</code></span></td></tr>
-      <tr><td class="c">4</td><td><code>exec(timeout_s)</code> 给默认值 / 入口必传</td><td>现默认 <code>None</code>=无界。dispatcher / worker / benchmark 任一未 arm 的调用方都裸奔。</td><td class="c"><span class="pill p-warn">中</span></td><td><span class="pill p-ok">已实施 <code>4e64ac95</code></span><br><span class="small"><code>OPENPROGRAM_EXEC_TIMEOUT_S</code> 进程级默认；默认 0=无界（opt-in，不改既有行为）</span></td></tr>
-      <tr><td class="c">5</td><td>ScreenSpot：可靠 watchdog + 按 <code>LLMError.reason</code> 计分（+ 子进程隔离）</td><td>sample-level 总预算只有 runner 知道。auth 直接停 run、timeout 单列、传输失败单列，不污染 wrong_format。</td><td class="c"><span class="pill p-warn">harness 侧</span></td><td><span class="pill p-warn">部分 <code>74bfd06</code></span><br><span class="small"><code>SampleTimeoutError(ExecInterrupt)</code>、<code>--exec-timeout-s</code>、reason 分类 + <code>provider_auth</code>、auth 中止 run、<code>reraise_if_fatal</code> 已做；<b>子进程硬隔离暂缓</b>（watchdog 已可靠 + 有 call-level deadline，优先级降低）</span></td></tr>
-      <tr><td class="c">6</td><td>同步 <code>_call</code> 线程 future 硬上限（兜底）</td><td>仅防「单次 <code>_call</code> 真无限挂」。SSE 预算已限住 stall，故降级为 belt-and-suspenders。</td><td class="c"><span class="pill p-ok">兜底</span></td><td><span class="pill p-bad">暂缓</span><br><span class="small">副作用见下；#1 已让 stall/connect 有界，单独 _call 无限挂的窗口已很小</span></td></tr>
+      <tr><td class="c">1</td><td>Propagate a single deadline from <code>exec</code> to <code>_call</code> → codex <code>_run</code> → <code>stream_retry</code>(SSE waits use <code>min(budget, remaining)</code>)</td><td>Currently <code>exec(timeout_s)</code> controls only the middle layer and requires caller input; inner stream_retry and SSE budgets do not know it. Propagation makes the deadline end-to-end, with overshoot bounded by one connect attempt.</td><td class="c"><span class="pill p-bad">Highest</span></td><td><span class="pill p-ok">Implemented <code>4e64ac95</code></span><br><span class="small">New <code>providers/utils/deadline.py</code> (ContextVar); exec/async_exec set+reset; stream_retry & Codex reads</span></td></tr>
+      <tr><td class="c">2</td><td>Do not repeat transport retries across layers</td><td>After stream_retry exhausts three attempts for <code>ProviderStreamError</code> , exec retries six more times, totaling 18. Exec should recognize the provider’s exhausted transport budget and practically avoid retrying.</td><td class="c"><span class="pill p-bad">High</span></td><td><span class="pill p-ok">Implemented <code>4e64ac95</code></span><br><span class="small"><code>stream_retry</code> Set the <code>transport_exhausted</code> flag; exec stops retrying while honestly retaining TRANSPORT/retryable as the reason</span></td></tr>
+      <tr><td class="c">3</td><td>Introduce a <code>ExecInterrupt(BaseException)</code> hard-interrupt contract</td><td><code>exec</code> and <code>stream_retry</code> <b>Both</b> include <code>except Exception</code>; <code>BaseException</code> so it passes through both layers and immediately exits on an external watchdog interrupt.</td><td class="c"><span class="pill p-bad">High</span></td><td><span class="pill p-ok">Implemented <code>4e64ac95</code></span><br><span class="small"><code>errors.ExecInterrupt</code>; both layers explicitly <code>except ExecInterrupt: raise</code></span></td></tr>
+      <tr><td class="c">4</td><td><code>exec(timeout_s)</code> Provide a default / require it at entry</td><td>Current default <code>None</code>=unbounded. Any dispatcher/worker/benchmark caller that does not configure it lacks this protection.</td><td class="c"><span class="pill p-warn">Medium</span></td><td><span class="pill p-ok">Implemented <code>4e64ac95</code></span><br><span class="small"><code>OPENPROGRAM_EXEC_TIMEOUT_S</code> Process-level default; 0=unbounded (opt-in, preserving behavior)</span></td></tr>
+      <tr><td class="c">5</td><td>ScreenSpot: reliable watchdog + scoring by <code>LLMError.reason</code> (+ subprocess isolation)</td><td>Only the runner knows the total sample budget. Authentication stops the run; timeout and transport failures have separate categories and do not contaminate wrong_format.</td><td class="c"><span class="pill p-warn">Harness side</span></td><td><span class="pill p-warn">Partial <code>74bfd06</code></span><br><span class="small"><code>SampleTimeoutError(ExecInterrupt)</code>, <code>--exec-timeout-s</code>, reason classification + <code>provider_auth</code>, auth aborts the run, <code>reraise_if_fatal</code> implemented; <b>hard subprocess isolation deferred</b>(watchdog reliability and call-level deadlines reduce its priority)</span></td></tr>
+      <tr><td class="c">6</td><td>Synchronous <code>_call</code> Hard thread-future limit (last resort)</td><td>Only protects against one <code>_call</code> hanging indefinitely. SSE budgets already bound stalls, making this an additional safeguard.</td><td class="c"><span class="pill p-ok">Last resort</span></td><td><span class="pill p-bad">Deferred</span><br><span class="small">See side effects below; #1 bounds stalls/connects, leaving little scope for an individual _call to hang indefinitely</span></td></tr>
     </tbody>
   </table>
-  <div class="callout co-warn"><b>关于线程 future 兜底的副作用（#6）。</b> Python 不能安全 kill 线程：超时后 caller 返回，但那个 <code>_call</code> 线程仍在后台跑，<u>直到 socket 自己报错才回收</u>；其间它可能仍去 append model-call node / 写 store/DAG，造成状态污染。所以 #6 只能当兜底，且必须依赖 #1 的 read-timeout 让泄漏窗口有界。理想路径是推动 provider 暴露 async，exec 主走 <code>asyncio.wait_for</code>（能真正取消到 await 点，无泄漏线程），同步线程方案仅作无 async 路径时的退路。</div>
+  <div class="callout co-warn"><b>Side effects of thread-future fallback (#6).</b> Python cannot safely kill a thread: the caller returns on timeout, but the <code>_call</code> thread keeps running in the background<u>until the socket itself fails</u>; meanwhile it may append model-call nodes or write store/DAG state, causing contamination. Thus #6 is only a last resort and must rely on #1 read timeouts to bound the leak. Ideally providers expose async and exec uses <code>asyncio.wait_for</code>(cancellation reaches await points with no leaked threads); synchronous threads remain a fallback only when async is unavailable.</div>
 
   <div class="foot">
-    现状基于对以下文件的只读核查：
-    <code>agentic_programming/runtime.py</code>（exec/retry/bridge）、
-    <code>providers/utils/timeouts.py</code>、<code>providers/utils/http_client.py</code>、
-    <code>providers/utils/stream_retry.py</code>、<code>providers/utils/errors.py</code>、
-    <code>providers/openai_codex/openai_codex.py</code>。
-    行号为撰写时快照，优化落地后需同步更新。配套对比见 <code>llm-fault-tolerance.md</code>。
+    Current-state analysis is based on read-only inspection of these files:
+    <code>agentic_programming/runtime.py</code> (exec/retry/bridge),
+    <code>providers/utils/timeouts.py</code>, <code>providers/utils/http_client.py</code>,
+    <code>providers/utils/stream_retry.py</code>, <code>providers/utils/errors.py</code>,
+    <code>providers/openai_codex/openai_codex.py</code>.
+    Line numbers are snapshots from authoring and must be updated after implementation. Companion comparison: <code>llm-fault-tolerance.md</code>.
   </div>
 
 </div>

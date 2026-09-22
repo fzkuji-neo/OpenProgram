@@ -1,4 +1,6 @@
-# Session 上下文
+<div id="session-上下文"></div>
+
+# 上下文
 
 `session_context` 是统一的 per-turn 上下文管理器，负责装载 ContextVar（`_store` / `_current_turn_id` / `_current_runtime` / `_call_id`），让 docstring 进 prompt、DAG 持久化、ask_user 追踪等能力在所有入口生效。
 
@@ -35,7 +37,7 @@ def session_context(
             tok.var.reset(tok)
 ```
 
-`session_context` 在 session 不存在时会调 `create_session`——这是 [operations.md](operations.md) 中创建入口之一。
+`session_context` 在 session 不存在时会调 `create_session`——这是 [operations.md](operations.zh.md) 中创建入口之一。
 
 ## session 边界
 

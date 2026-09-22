@@ -7,11 +7,13 @@
 | [**NVIDIA NOOA**](https://github.com/NVIDIA-NeMo/labs-OO-Agents) (Apache-2.0) | Agent 是 Python 对象；函数体为 `...` 的方法由 LLM 实现，docstring 是 prompt，类型标注是契约。 | 面向对象：状态在 `self` 上，模型**往 Jupyter 风格的 REPL 里写 Python**（CodeAct）来行动。OpenProgram 把函数留在模块级，让模型**在已注册函数里选择**而不是生成代码——动作空间更窄，也更容易沙箱和回放。 |
 | [**DSPy**](https://github.com/stanfordnlp/dspy) (MIT) | 用带类型的 **Signature** 代替手写 prompt，由框架编译。 | 按指标优化 prompt 本身。我们把 prompt 保持固定、可读，把力气花在执行结构上——DAG、重试、上下文范围。两者互补。 |
 | [**Marvin**](https://github.com/PrefectHQ/marvin) (Apache-2.0) · [**Mirascope**](https://github.com/Mirascope/mirascope) (MIT) | 装饰一个 Python 函数，用 docstring 和返回类型驱动一次结构化 LLM 调用。 | 聚焦单次类型良好的调用。OpenProgram 补上**跨多次调用**发生的事：共享执行 DAG、`spawn`、fork，以及每次调用的上下文预算。 |
-| [**LangGraph**](https://github.com/langchain-ai/langgraph) (MIT) | Agent 运行应是带检查点的可检查图，而不是不透明循环。 | 图事先声明为节点和边。我们的图是**从调用栈记录下来的**——你写普通 Python，DAG 就是实际跑过的轨迹。另见 [OpenProgram 与 LangGraph、AutoGen、CrewAI](ai-agent-frameworks.md)。 |
+| [**LangGraph**](https://github.com/langchain-ai/langgraph) (MIT) | Agent 运行应是带检查点的可检查图，而不是不透明循环。 | 图事先声明为节点和边。我们的图是**从调用栈记录下来的**——你写普通 Python，DAG 就是实际跑过的轨迹。另见 [OpenProgram 与 LangGraph、AutoGen、CrewAI](ai-agent-frameworks.zh.md)。 |
 | [**smolagents**](https://github.com/huggingface/smolagents) (Apache-2.0) | 让模型通过代码行动，而不是死板的 tool JSON。 | 沙箱里写代码的 agent，类似 NOOA。我们接受同一前提——「代码是行动语言」——但在**编写时**用 `@agentic_function` 绑定，这样确定性部分在运行前就可审查。 |
 | [**Scriptorium**](https://github.com/Fzkuji/Scriptorium) | 可读的 Agent 记忆；Markdown 笔记；事实回链到来源消息；为 Claude Code 提供 MCP。 | 模型把记忆写成普通文件，所以你可以打开、diff，并把每条事实追回到它来自的那条消息。 |
 
 如果你在这个方向上做事，而我们写错了你的项目——或漏掉了它——请开 PR 或 issue。我们乐意被纠正。
+
+<div id="acknowledgements"></div>
 
 ## 致谢
 
@@ -37,6 +39,8 @@ OpenProgram 站在前人的肩膀上。工具框架、provider 抽象和若干�
 
 血缘更具体的工具文件在文件级 docstring 里各自注明了直接灵感来源。这些 MIT
 许可的组件保留其原 MIT 条款；组合作品整体以 AGPL-3.0 分发。
+
+<div id="contributing"></div>
 
 ## 贡献
 

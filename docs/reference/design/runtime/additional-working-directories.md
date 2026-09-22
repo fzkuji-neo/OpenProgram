@@ -4,7 +4,7 @@ Beyond its main working directory (the bound project path), a session can mount 
 
 The two differ in how freely they change. The main directory freezes on the session's first turn and moves afterwards only to repair a folder that vanished from disk — see [session/operations.md](session/operations.md), "Main project binding". Additional directories are added and removed at any point in the session's life, and each change takes effect from the next turn.
 
-The project path → session cwd link is handled by `project_workdir_for`; the fence side is covered in `docs/reference/design/runtime/permission-model.md` §3.5.
+The project path → session cwd link is handled by `project_workdir_for`; the fence side is covered in `docs/reference/design/runtime/sandbox-architecture.html` §3.5.
 
 ---
 

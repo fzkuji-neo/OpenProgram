@@ -1,11 +1,13 @@
-# @agentic_function
+<div id="agentic_function"></div>
+
+# @agentic_function 用法
 
 `@agentic_function` 包装一个 Python 函数，其函数体可以通过 `llm()`
 发起 LLM 调用。除非使用 `expose="hidden"`，否则该包装器会把这次函数调用记录到
 会话 DAG 中。
 
 本页讲解使用模式。元数据规则见
-[`function-metadata.md`](function-metadata.md)。
+[`function-metadata.md`](function-metadata.zh.md)。
 
 ## 基本模式
 
@@ -53,7 +55,7 @@ def research_pipeline(task: str, runtime) -> dict:
 裸的 `runtime.exec(content=...)` 并非无工具：既不传 `tools=` 也不传 `toolset=`
 时，调用默认解析出完整的注册表工具集，模型已经可以搜索、跑代码、改文件。想要
 纯推理调用请传 `toolset="none"`（或 `tools=[]`）——
-见 [`tool-calling.md`](../choosing-the-next-step/tool-calling.md)。
+见 [`tool-calling.md`](../choosing-the-next-step/tool-calling.zh.md)。
 
 ```python
 @agentic_function(input={
@@ -75,13 +77,13 @@ def research_assistant(task: str, runtime) -> str:
 
 除了直接组合和工具之外，挑选下一步的第三种方式是通过 `exec(choices=...)` 或
 `decision.make` 给出一个决策菜单——见
-[`next-step-decision.md`](../choosing-the-next-step/next-step-decision.md)。
+[`next-step-decision.md`](../choosing-the-next-step/next-step-decision.zh.md)。
 
 ## 装饰器字段
 
 装饰器字段（`expose`、`render_range`、`input`、`system`……）的文档**只在一处**：
-[`function-metadata.md`](function-metadata.md) §3。位于
-[`../../../reference/api/agentic-function.md`](../../../reference/api/agentic-function.md) 的 API 参考
+[`function-metadata.md`](function-metadata.zh.md) §3。位于
+[`../../../reference/api/agentic-function.md`](../../../reference/api/agentic-function.zh.md) 的 API 参考
 附带一份精简的速查表。
 
 本页讲解使用*模式*；它有意不重复逐字段的参考说明。如果你想知道某个字段的作用，

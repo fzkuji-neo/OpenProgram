@@ -137,7 +137,7 @@ Python worker 提供。
 ## 分发边界
 
 单端口让 Node 成为构建期依赖，并允许 release 携带预构建前端。安装与打包的
-规范来源是[安装、打包、发布与升级设计](../distribution/installation-packaging.html)。
+规范来源是[安装、打包、发布与升级设计](../distribution/installation-packaging.zh.html)。
 macOS 桌面应用把 CPython 和核心依赖放入签名 app bundle，不在首次启动时下载
 基础 Python runtime。CLI/server 安装使用 uv 管理的 Python 环境，source
 checkout 保留开发构建流程。

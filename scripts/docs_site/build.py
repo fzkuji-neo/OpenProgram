@@ -10,6 +10,7 @@ Run:  python -m scripts.docs_site.build
 from __future__ import annotations
 
 import html as _html
+import json
 import os
 import re
 import shutil
@@ -370,8 +371,13 @@ def flatten_pages(sections):
     prev/next and breadcrumbs). Returns list of (page, [(en, zh)])."""
     out = []
     for sec in sections:
+        chain = [(sec.title, sec.title_zh or sec.title)]
+        if sec.area:
+            chain = [sec.area]
+            if sum(other.area == sec.area for other in sections) > 1:
+                chain.append((sec.title.split(" · ")[-1], (sec.title_zh or sec.title).split(" · ")[-1]))
         for p in sec.pages:
-            out.append((p, [(sec.title, sec.title_zh or sec.title)]))
+            out.append((p, chain))
     return out
 
 
@@ -395,17 +401,18 @@ def render_breadcrumb(chain, title, title_zh=""):
 def render_prevnext(prev_p, next_p):
     if not prev_p and not next_p:
         return ""
-    left = right = ""
-    if prev_p:
-        href = DEPLOY_BASE + str(prev_p.out).replace("\\", "/")
-        left = (f'<a class="pn-link pn-prev" href="{href}">'
-                f'<span class="pn-dir" data-i18n="prev">Previous</span>'
-                f'<span class="pn-title">{_html.escape(prev_p.title)}</span></a>')
-    if next_p:
-        href = DEPLOY_BASE + str(next_p.out).replace("\\", "/")
-        right = (f'<a class="pn-link pn-next" href="{href}">'
-                 f'<span class="pn-dir" data-i18n="next">Next</span>'
-                 f'<span class="pn-title">{_html.escape(next_p.title)}</span></a>')
+    def link(page, direction, label):
+        if page is None:
+            return ""
+        href = DEPLOY_BASE + page.out.as_posix()
+        paths = (f' data-href-en="{href}" data-href-zh="{DEPLOY_BASE}{page.zh_out.as_posix()}"'
+                 if page.zh_out else "")
+        title = (f' data-title-zh="{_html.escape(page.title_zh, quote=True)}"'
+                 if page.title_zh else "")
+        return (f'<a class="pn-link pn-{direction}" href="{href}"{paths}>'
+                f'<span class="pn-dir" data-i18n="{direction}">{label}</span>'
+                f'<span class="pn-title"{title}>{_html.escape(page.title)}</span></a>')
+    left, right = link(prev_p, "prev", "Previous"), link(next_p, "next", "Next")
     return f'<div class="prevnext">{left}{right}</div>'
 
 
@@ -438,14 +445,16 @@ def render_tabbar(tabs, active_key: str, base: str) -> str:
         cls = " active" if t.key == active_key else ""
         zh = (f' data-title-zh="{_html.escape(t.title_zh, quote=True)}"'
               if t.title_zh and t.title_zh != t.title else "")
+        landing = next((p for sec in t.sections for p in sec.pages if p.out == t.landing), None)
+        if landing and landing.zh_out:
+            zh += f' data-href-en="{href}" data-href-zh="{base}{landing.zh_out.as_posix()}"'
         links.append(f'<a class="tablink{cls}" href="{href}"{zh}>{_html.escape(t.title)}</a>')
     return "".join(links)
 
 
 
-def render_nav(sections, current_out: Path, base: str) -> str:
-    """Flat OpenClaw-style sidebar: every page sits under a plain section
-    header; nothing collapses."""
+def render_nav(sections, current_out: Path, base: str, *, collapsible: bool = False) -> str:
+    """Render product groups or native disclosures for the design catalog."""
     def navlink(p) -> str:
         href = base + str(p.out).replace("\\", "/")
         active = " active" if p.out == current_out else ""
@@ -458,14 +467,41 @@ def render_nav(sections, current_out: Path, base: str) -> str:
                      f' data-href-en="{href}" data-href-zh="{zh_href}"')
         return f'<a class="navlink{active}" href="{href}"{extra}>{_html.escape(p.title)}</a>'
 
-    out = []
+    def title_attrs(title, title_zh):
+        return (f' data-title-zh="{_html.escape(title_zh, quote=True)}"'
+                if title_zh and title_zh != title else "")
+
+    def disclosure(title, title_zh, count, active, css):
+        opened = " open" if active else ""
+        return (f'<details class="{css} nav-disclosure"{opened}>'
+                f'<summary><span class="nav-sec-title"{title_attrs(title, title_zh)}>'
+                f'{_html.escape(title)}</span><span class="nav-count">{count}</span></summary>')
+
+    def section_html(sec, title=None, title_zh=None):
+        en, zh = title or sec.title, title_zh or sec.title_zh
+        if collapsible:
+            start = disclosure(en, zh, len(sec.pages), any(p.out == current_out for p in sec.pages), "nav-sec")
+        else:
+            start = f'<div class="nav-sec"><div class="nav-sec-title"{title_attrs(en, zh)}>{_html.escape(en)}</div>'
+        return start + "\n".join(navlink(p) for p in sec.pages) + ("</details>" if collapsible else "</div>")
+
+    if not collapsible:
+        return "\n".join(section_html(sec) for sec in sections)
+
+    areas = {}
     for sec in sections:
-        zh = (f' data-title-zh="{_html.escape(sec.title_zh, quote=True)}"'
-              if sec.title_zh and sec.title_zh != sec.title else "")
-        out.append('<div class="nav-sec">')
-        out.append(f'<div class="nav-sec-title"{zh}>{_html.escape(sec.title)}</div>')
-        out.extend(navlink(p) for p in sec.pages)
-        out.append("</div>")
+        areas.setdefault(sec.area or (sec.title, sec.title_zh), []).append(sec)
+    out = []
+    for (en, zh), children in areas.items():
+        if len(children) == 1:
+            out.append(section_html(children[0], en, zh))
+            continue
+        pages = [p for sec in children for p in sec.pages]
+        out.append(disclosure(en, zh, len(pages), any(p.out == current_out for p in pages), "nav-branch"))
+        for sec in children:
+            # The parent already provides the domain, so child labels can be short.
+            out.append(section_html(sec, sec.title.split(" · ")[-1], sec.title_zh.split(" · ")[-1]))
+        out.append("</details>")
     return "\n".join(out)
 
 
@@ -593,7 +629,7 @@ def _build_into_out_root() -> int:
                 toc = extract_toc(body)
 
         tab = tab_by_key[tab_key_of[p.out]]
-        nav_html = render_nav(tab.sections, p.out, base)
+        nav_html = render_nav(tab.sections, p.out, base, collapsible=tab.key == "design")
         tabbar_html = render_tabbar(tabs, tab.key, base)
 
         # breadcrumb + prev/next + last-updated
@@ -677,16 +713,60 @@ def _build_into_out_root() -> int:
             "title": p.title,
             "url": str(p.out).replace("\\", "/"),
             "group": " › ".join(zh for (zh, _en) in chain) if chain else "",
-            "text": searchmod.plain_text(body),
+            "text": searchmod.plain_text(html_text if p.kind == "html" else body),
+            "lang": "en",
+            "has_translation": p.zh_src is not None,
         })
+        if p.zh_src is not None and p.zh_out is not None:
+            search_records.append({
+                "title": p.title_zh or p.title,
+                "url": p.zh_out.as_posix(),
+                "group": " › ".join(zh or en for en, zh in chain),
+                "text": searchmod.plain_text(zh_text if p.zh_src.suffix == ".html" else zh_body),
+                "lang": "zh",
+                "has_translation": True,
+            })
 
     searchmod.write_index(search_records, OUT_ROOT)
     _write_home(tabs)
     _copy_static_root()
     _write_sitemap()
+    _write_redirects()
 
     print(f"built {rendered} pages → {OUT_ROOT}")
     return 0
+
+
+def _write_redirects() -> None:
+    """Publish retired URLs without adding duplicate documents to the catalog."""
+    source = DOCS_ROOT / "redirects.json"
+    if not source.exists():
+        return
+    aliases = json.loads(source.read_text(encoding="utf-8"))
+    for old, target in aliases.items():
+        destination = target.split("#", 1)[0]
+        for path in (old, destination):
+            if (Path(path).is_absolute() or ".." in Path(path).parts
+                    or ":" in path or "?" in path or "\\" in path
+                    or not path.endswith(".html")):
+                raise ValueError(f"Invalid documentation redirect path: {path}")
+        output = OUT_ROOT / old
+        if output.exists() or destination in aliases:
+            raise ValueError(f"Documentation redirect collision or chain: {old}")
+        if not (OUT_ROOT / destination).is_file():
+            raise ValueError(f"Missing documentation redirect target: {target}")
+        url = DEPLOY_BASE + target
+        escaped = _html.escape(url, quote=True)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            '<!doctype html><html lang="en"><meta charset="utf-8">'
+            '<meta name="robots" content="noindex">'
+            f'<link rel="canonical" href="{escaped}">'
+            '<title>Document moved</title>'
+            f'<script src="{_html.escape(DEPLOY_BASE, quote=True)}assets/redirect.js"></script>'
+            f'<p>This document has moved to <a href="{escaped}">its canonical page</a>.</p>'
+            '</html>', encoding="utf-8",
+        )
 
 
 def _copy_static_root() -> None:

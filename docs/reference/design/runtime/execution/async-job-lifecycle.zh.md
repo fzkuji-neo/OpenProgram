@@ -138,7 +138,9 @@ attach pointer（`function="attach"` 节点）由 `_run_spawn` / `_task_impl` �
 这样 LLM 在 task 跑完前再触发新 turn 不会看到半成品 attach 内容，但用户能看到
 spinner。
 
-### D9. WS API
+<div id="d9-ws-api"></div>
+
+### D9. WebSocket API
 
 四个 ws action（参考 `ws_actions/` 现有命名）：
 
