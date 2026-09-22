@@ -528,10 +528,16 @@ export function useComposerAttachments(
       }
       if (placeholder.sourcePath) {
         // Native documents are references. The optional local preview is never sent.
-        updateDocForOwner(ownerKey, placeholder.id, { loading: false });
-        void readDroppedTextFile(f).then((preview) => {
-          updateDocForOwner(ownerKey, placeholder.id, { content: preview?.content ?? null });
-        });
+        const isPdf = placeholder.ext === "pdf" || f.type === "application/pdf";
+        void Promise.all([readDroppedTextFile(f), isPdf ? readFileAsBase64(f) : null])
+          .then(([preview, dataB64]) => {
+            updateDocForOwner(ownerKey, placeholder.id, {
+              content: preview?.content ?? null, dataB64, loading: false,
+            });
+          }).catch(() => {
+            // Preview failure does not invalidate a native path reference.
+            updateDocForOwner(ownerKey, placeholder.id, { loading: false });
+          });
         return;
       }
       Promise.all([readFileAsBase64(f), readDroppedTextFile(f)])
