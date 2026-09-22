@@ -14,6 +14,10 @@ from openprogram.browser_resources import BrowserResourceStore
 def setup_attach(tmp_path, monkeypatch):
     from openprogram.agent.authority import local_owner_authority
     monkeypatch.setattr('openprogram.paths.get_state_dir', lambda: tmp_path)
+    from openprogram.store.session.session_store import SessionStore
+    db = SessionStore(tmp_path / 'sessions')
+    monkeypatch.setattr('openprogram.agent.session_db.default_db', lambda: db)
+    monkeypatch.setattr('openprogram.execution.default_store', lambda: None)
     # Authorization is exercised separately; avoid depending on an unrelated session DB fixture.
     monkeypatch.setattr(processes, '_authorize', lambda *args, **kwargs: None)
     class Socket:
@@ -93,3 +97,26 @@ def test_reattach_already_used_page_does_not_add_a_second_row(setup_attach):
     assert len(response.json()['items']) == 1
     assert response.json()['items'][0]['execution_id'] == 'exec-a'
     assert len([a for a in store.associations_for_page(key) if a['conversation_session_id']=='a']) == 1
+
+
+def test_attachment_response_uses_same_branch_identity_as_resource_snapshot(setup_attach, tmp_path, monkeypatch):
+    from openprogram.context.nodes import Call
+    from openprogram.store import SessionNodeWriter
+    from openprogram.store.session.session_store import SessionStore
+    client, ws, generation, _ = setup_attach
+    db = SessionStore(tmp_path / 'sessions')
+    writer = SessionNodeWriter(db, 'a')
+    writer.append(Call(id='u1', role='user', predecessor='ROOT', seq=1))
+    writer.append(Call(id='a1', role='llm', predecessor='u1', seq=2))
+    db.set_head('a', 'a1')
+    monkeypatch.setattr('openprogram.agent.session_db.default_db', lambda: db)
+    monkeypatch.setattr('openprogram.execution.default_store', lambda: None)
+    binding = webtab.register_binding(ws, 'win', 'b', 'native-b', allow_background=True)
+    key = webtab.binding_page_key(binding)
+    BrowserResourceStore().retain(page_key=key, window_id='win', tab_id='b', connection_generation=generation,
+        session_id='a', conversation_session_id='a', user_message_id='u1', assistant_message_id='a1')
+    attached = client.post('/api/session/a/resources/attach-web', json={'window_id':'win','tab_id':'b'}).json()['items']
+    from openprogram.browser_resources import project_conversation_resources
+    snapshot, *_ = project_conversation_resources('a')
+    assert snapshot[0]['branch_id'] is not None
+    assert [(r['id'], r['branch_id']) for r in attached] == [(r['id'], r['branch_id']) for r in snapshot]

@@ -638,7 +638,7 @@ def request_open_tab(
 def attach_existing_page(session_id: str, window_id: str, tab_id: str) -> list[dict]:
     """Associate an owner-selected live Page without navigation or operation takeover."""
     from openprogram.webui.ws_actions.runtime import trusted_runtime_actor
-    from openprogram.browser_resources import BrowserResourceStore, project_page_resource_rows, emit_browser_resource
+    from openprogram.browser_resources import BrowserResourceStore, project_conversation_resources, emit_browser_resource
 
     matches = [(ws, revision) for ws, wid, revision in registered_desktop_windows()
                if wid == window_id and trusted_runtime_actor(getattr(ws, "scope", None), surface="ws") is not None]
@@ -671,8 +671,10 @@ def attach_existing_page(session_id: str, window_id: str, tab_id: str) -> list[d
                      connection_generation=revision, title=page.get("title") or "",
                      target=page.get("url") or "", session_id=session_id,
                      conversation_session_id=session_id, live=True)
-    rows = [row for row in project_page_resource_rows(key)
-            if row.get("conversation_session_id") == session_id]
+    # Match the snapshot projection, including stable branch/presentation IDs.
+    # Unassigned Page projections would create a second renderer row on attach.
+    conversation_rows, _, _ = project_conversation_resources(session_id)
+    rows = [row for row in conversation_rows if row.get("resource_id") == key]
     for row in rows:
         emit_browser_resource(row, page_key=key)
     return rows
