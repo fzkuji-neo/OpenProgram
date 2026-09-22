@@ -8,7 +8,7 @@ import { parseHTML } from 'linkedom';
 const web = dirname(fileURLToPath(new URL('../../package.json', import.meta.url)));
 const dir = await mkdtemp(join(web, '.queue-ui-test-'));
 after(() => rm(dir, {recursive:true, force:true}));
-await build({absWorkingDir:web, stdin:{contents:`export { QueuedMessages } from './components/chat/messages/queued-messages'; export { useSendQueue, registerChatSender } from './lib/chat/send-queue';`,resolveDir:web},bundle:true,format:'esm',platform:'node',packages:'external',outfile:join(dir,'test.mjs'),jsx:'automatic',tsconfig:join(web,'tsconfig.json'),plugins:[{name:'ports',setup(b){
+await build({absWorkingDir:web, stdin:{contents:`export { QueuedMessages } from './components/chat/messages/queued-messages'; export { useSendQueue, registerChatSender } from './lib/chat/send-queue'; export { queuedMessagePayload } from './lib/chat/queued-attachments';`,resolveDir:web},bundle:true,format:'esm',platform:'node',packages:'external',outfile:join(dir,'test.mjs'),jsx:'automatic',tsconfig:join(web,'tsconfig.json'),plugins:[{name:'ports',setup(b){
  b.onResolve({filter:/^react$/},()=>({path:'react',external:true}));
  b.onResolve({filter:/\.module\.css$/},()=>({path:'css',namespace:'stub'}));
  b.onResolve({filter:/desktop-bridge$/},()=>({path:'bridge',namespace:'stub'}));
@@ -30,7 +30,7 @@ globalThis.sessions={activeChatKey:'A',currentSessionId:'A',runningTasks:{A:{msg
 window.location={pathname:'/s/A'};
 const {createElement:h,act}=await import('react');
 const {createRoot}=await import('react-dom/client');
-const {QueuedMessages,useSendQueue,registerChatSender}=await import(pathToFileURL(join(dir,'test.mjs')));
+const {QueuedMessages,useSendQueue,registerChatSender,queuedMessagePayload}=await import(pathToFileURL(join(dir,'test.mjs')));
 
 test('queued bubble previews attachments and edits files without changing order or another draft',async()=>{
  const doc={id:'old',filename:'old.txt',ext:'txt',sizeBytes:3,content:'old',sourcePath:'/fixture/old.txt',order:0};
@@ -46,10 +46,10 @@ test('queued bubble previews attachments and edits files without changing order 
  await act(async()=>root.render(h(QueuedMessages,{sessionId:'A'})));
  assert.equal(host.querySelectorAll('[data-queued-message]').length,2);
  assert.doesNotMatch(host.textContent,/other session/);
- globalThis.sessions.currentSessionId='B'; // A peer queue keeps its own document authority.
+ globalThis.sessions.currentSessionId='B'; // Preview remains local even while a peer has focus.
  await click(host.querySelector('[data-attachment-preview]'));
- assert.equal(document.querySelector('[data-document-path]')?.getAttribute('data-document-path'),'/fixture/old.txt');
- assert.equal(document.querySelector('[data-document-session]')?.getAttribute('data-document-session'),'A');
+ assert.equal(Boolean(document.querySelector('[data-document-path]')),false, 'unsent native files must not request backend path access');
+ assert.match(document.querySelector('[role="dialog"]').textContent,/old/);
  await click(document.querySelector('[aria-label="Close preview"]'));
  assert.equal(document.querySelector('[role="dialog"]'),null);
  await click(button('Edit queued message'));
@@ -69,6 +69,22 @@ test('queued bubble previews attachments and edits files without changing order 
  await click(host.querySelector('[data-attachment-remove]'));
  await click(button('Cancel'));
  assert.equal(useSendQueue.getState().queues.A[0].docs[0].filename,'new.txt');
+ // Native PDF bytes are preview-only and are snapshotted before drain.
+ const pdfBytes=Buffer.from('%PDF-1.4\nfixture').toString('base64');
+ globalThis.FileReader=class { readAsDataURL(){this.result='data:application/pdf;base64,'+pdfBytes;queueMicrotask(()=>this.onload());} };
+ await click(button('Edit queued message'));
+ const pdfInput=host.querySelector('input[type="file"]');
+ Object.defineProperty(pdfInput,'files',{value:[{name:'local.pdf',type:'application/pdf',size:17}],configurable:true});
+ await act(async()=>pdfInput.dispatchEvent(new window.Event('change',{bubbles:true})));
+ await click(button('Save'));
+ const queued=useSendQueue.getState().queues.A[0];
+ assert.equal(queued.docs[1].dataB64,pdfBytes);
+ assert.equal(queued.docs[1].loading,false);
+ assert.equal(queuedMessagePayload(queued).attachments.length,0,'native PDF remains a path reference');
+ await click([...host.querySelectorAll('[data-attachment-preview]')].find(el=>el.textContent.includes('local.pdf')));
+ assert.match(document.querySelector('iframe')?.getAttribute('src') || '',/^blob:/);
+ assert.equal(Boolean(document.querySelector('[data-document-path]')),false);
+ await click(document.querySelector('[aria-label="Close preview"]'));
  await click(button('Remove from queue'));
  assert.equal(useSendQueue.getState().queues.A[0].id,second);
  assert.equal(useSendQueue.getState().queues.B[0].text,'other session');

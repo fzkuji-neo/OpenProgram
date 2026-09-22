@@ -15,7 +15,6 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
-import { AttachmentPreview } from "../../messages/attachment-preview";
 import { createPortal } from "react-dom";
 import { useTranslation } from "@/lib/i18n";
 import { formatAttachmentSize, imagePreviewDataUrl, type PendingImage } from "./image-attach";
@@ -298,9 +297,8 @@ function FileTile({ doc, onRemove }: { doc: PendingDoc; onRemove: () => void }) 
 }
 
 export function FilePreviewModal(props: { doc?: PendingDoc; image?: PendingImage; sessionId?: string | null; onClose: () => void }) {
-  if (props.doc?.sourcePath && props.doc.ext !== "folder") {
-    return <AttachmentPreview sessionId={props.sessionId} path={props.doc.sourcePath} filename={props.doc.filename} onClose={props.onClose} />;
-  }
+  // A selected native file can be outside the session file-access scope.
+  // Preview its captured content without requesting backend path access.
   return <LocalFilePreviewModal {...props} />;
 }
 
