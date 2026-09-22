@@ -417,7 +417,7 @@ def test_standalone_search_text_excludes_styles_and_scripts():
 def test_authored_navigation_names_are_short_and_unambiguous() -> None:
     pages = discover(ROOT / "docs")
     for page in pages:
-        if page.zh_src is None:  # Code-generated reference pages keep CLI names.
+        if page.zh_src is None:  # Unpaired fixtures do not define bilingual navigation.
             continue
         assert 1 <= len(page.title.split()) <= 4, page.rel
         assert len(page.title) <= 26, page.rel
