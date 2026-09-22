@@ -29,23 +29,18 @@ export function WebSurfaceChip({
     : text("Web control disabled", "网页控制未启用");
   const title =
     surface.title || new URL(surface.url || "about:blank").hostname || "Web";
-  const regionLabel = surface.region === "left"
-    ? text("Left", "左侧")
-    : surface.region === "right"
-      ? text("Right", "右侧")
-      : text("Center", "中间");
   return (
-    <HoverTip label={`${stateLabel} · ${regionLabel} · ${title}`}>
+    <HoverTip label={`${stateLabel} · ${title}`}>
       <button
         type="button"
         className={`status-badge ${styles.surfaceChip} ${toolsEnabled ? "" : "paused"}`}
-        aria-label={`${stateLabel}: ${regionLabel} · ${title}`}
+        aria-label={`${stateLabel}: ${title}`}
         aria-pressed={toolsEnabled}
         onClick={onToggleAccess}
       >
         <ChromeIcon size={14} aria-hidden="true" />
         <span className={styles.surfaceChipLabel}>
-          {regionLabel} · {title}
+          {title}
         </span>
       </button>
     </HoverTip>
