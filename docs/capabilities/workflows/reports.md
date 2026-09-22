@@ -11,7 +11,7 @@ the group Workflow records unavailable controls and continues with local evidenc
 | Entry | Purpose | External writes |
 | --- | --- | --- |
 | `personal_weekly_report(task)` | Personal Feishu drafts and explicit Feishu inspection or record updates | Only explicit submission/update requests may write to Feishu |
-| `personal_chat_weekly_report(task)` | Owner's three-section WeChat-group copy (`1.本周进展` / `2.开会讨论要点` / `3.下周计划`) | Local draft only; never sends WeChat |
+| `personal_chat_weekly_report(task)` | Owner's three-section WeChat-group copy (weekly progress, discussion topics, and next-week plans; rendered in Chinese) | Local draft only; never sends WeChat |
 | `group_weekly_report(task)` | Collect group reports, track missing members, and prepare a local summary | Never sends WeChat messages |
 | `tencent_weekly_report(task)` | Approximately 100 Chinese characters of Tencent progress for a leader, intended for Friday afternoon | Local draft only |
 | `weekly_report(task)` | An agent selects the requested report Workflows and forwards the complete request | Preserves the requested operation; child write restrictions apply |

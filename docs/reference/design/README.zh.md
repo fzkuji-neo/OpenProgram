@@ -21,7 +21,7 @@
 
 依次阅读执行控制、会话存储、分支协作与恢复。
 
-[执行控制](runtime/execution/execution-control.html) · [会话存储](runtime/session/storage.md) · [会话 DAG](runtime/dag/overview.md) · [目标与重启恢复](runtime/goal-framework-implementation-comparison.html) · [Agent 配置](runtime/agent-configuration-ui.html)
+[执行控制](runtime/execution/execution-control.html) · [会话存储](runtime/session/storage.md) · [会话 DAG](runtime/dag/overview.md) · [目标与重启恢复](runtime/goal-and-recovery.html) · [Agent 配置](runtime/agent-configuration-ui.html)
 
 先阅读函数调用、工作流组成与应用执行，再查看报告场景。
 
@@ -35,7 +35,7 @@
 
 区分单次请求的上下文组装与持久化记忆、归因。
 
-[上下文总览](context/overview.md) · [上下文组成](context/composition.md) · [上下文压缩](context/compaction.md) · [记忆总览](memory/overview.md) · [实体记忆](memory/entity-memory.md)
+[上下文总览](context/overview.md) · [上下文组成](context/composition.md) · [上下文压缩](context/compaction.md) · [记忆总览](memory/overview.md) · [实体记忆](memory/entity-memory-proposal.md)
 
 ## 界面与交互
 

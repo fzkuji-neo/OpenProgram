@@ -17,6 +17,6 @@ Agent execution runtime — the run loop, worktrees, async tasks, streaming/resu
 - [`operations/streaming-resume.md`](operations/streaming-resume.md)
 - [`operations/user-input-requests.md`](operations/user-input-requests.md) — pause a running function to ask the user (`runtime.ask`/`confirm`), question registry + WS/REST protocol + subprocess bridge
 - [`agent-collaboration.md`](agent-collaboration.md) — **authoritative**: agent collaboration as one cross-branch communication primitive — the four domains, the tool surface, the three budgets ([the tool surface rendered](agent-collab-architecture.html), [the eight reference implementations compared](agent-collab-comparison.html))
-- [`sandbox-architecture.html`](sandbox-architecture.html) — the canonical execution-security design: authority tiers, permission modes and approval, sandbox enforcement, framework comparison, and implementation evidence. [`permission-model.md`](permission-model.md) and [`sandbox.md`](sandbox.md) remain stable link targets.
+- [`sandbox-architecture.html`](sandbox-architecture.html) — the canonical execution-security design: authority tiers, permission modes and approval, sandbox enforcement, framework comparison, and implementation evidence. [`permission-model.md`](sandbox-architecture.html) and [`sandbox.md`](sandbox-architecture.html) remain stable link targets.
 
 - [嵌套 LLM 节点内容（聊天式有序块）](https://github.com/fzkuji-neo/OpenProgram/blob/main/docs/reference/design/runtime/nested-llm-node-content.zh.html)

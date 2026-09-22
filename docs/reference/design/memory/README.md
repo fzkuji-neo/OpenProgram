@@ -55,8 +55,7 @@ using the proposal as a code map.
 | [`speaker-identity.html`](speaker-identity.html) | Visualization in three layers: how several people share one session and where speaker identity used to break, what all eight reference frameworks do about it, the two-file change that follows from them and now runs, and the two things that shape leaves open — a sender can type a second label into the body, and there is no key to filter memory by person — with the field that closes both |
 | [`authority-landscape.html`](authority-landscape.html) | Current owner/paired authority method, local reference-framework evidence, adopted/modified/rejected decisions, execution-order visualization, and implementation record |
 | [`authority-handoff.md`](authority-handoff.md) | Settled authority and writer decisions, exact deferred boundaries, review disposition, and implementation handoff |
-| [`git-as-entity-memory.md`](git-as-entity-memory.md) | The entity layer's git substrate (Session-Git + Project-Git) |
-| [`entity-memory.md`](entity-memory.md) | Entity memory: Session-Git + Project-Git, organized by lifecycle |
+| [Entity memory on Git — deferred proposal](entity-memory-proposal.md) | Proposed lifecycle, replay, consistency and project integration |
 | [`virtual-memory.md`](virtual-memory.md) | Abstract memory: Timeline + Graph + Core, organized by type × lifecycle |
 
 ## Implementation Status

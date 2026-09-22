@@ -492,7 +492,7 @@
 
   function normalize(href) {
     const u = new URL(href, location.href);
-    return u.pathname + u.hash;
+    return u.pathname + u.search + u.hash;
   }
 
   function isInternalPage(href) {
@@ -601,6 +601,9 @@
     const seq = ++navSeq;
     fetchPage(clean).then((doc) => {
       if (seq !== navSeq) return; // a newer navigation superseded this one
+      // Redirect-only and standalone documents need a real document load.
+      // DOMParser does not execute their navigation scripts.
+      if (!doc.querySelector("main.content article")) { location.href = pathname; return; }
       // Site was rebuilt underneath this tab → full load to pick up the new
       // assets and sidebar instead of mixing two builds.
       const nb = doc.documentElement.getAttribute("data-build");
@@ -624,7 +627,7 @@
     if (!isInternalPage(a.href)) return;
     e.preventDefault();
     const path = normalize(a.href);
-    if (path.split("#")[0] === location.pathname && path.includes("#")) {
+    if (path.split("#")[0] === location.pathname + location.search && path.includes("#")) {
       // same page, different anchor
       const el = document.getElementById(decodeURIComponent(path.split("#")[1]));
       if (el) { history.pushState({ spa: true }, "", path); el.scrollIntoView(); }
@@ -634,7 +637,7 @@
   });
 
   window.addEventListener("popstate", () => {
-    navigate(location.pathname + location.hash, false);
+    navigate(location.pathname + location.search + location.hash, false);
   });
 
   // hover / touch prefetch: by the time the click lands, the page is cached
@@ -732,6 +735,6 @@
   });
 
   // ── boot ───────────────────────────────────────────────────────────────
-  history.replaceState({ spa: true }, "", location.pathname + location.hash);
+  history.replaceState({ spa: true }, "", location.pathname + location.search + location.hash);
   initPage();
 })();

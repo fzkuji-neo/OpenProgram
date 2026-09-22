@@ -22,7 +22,7 @@
 
 2. **模型看到 docstring 匹配任务，误以为该调。** 模型看到 `wiki_agent` 的工具描述("Maintain a wiki vault — route to ingest…")正好匹配当前任务，认为应该路由给 `wiki_agent` → 调自己 → 进去又是裸 exec、又看到自己 → 无限递归。
 
-一个 7 层嵌套的根因实例见 `docs/reference/design/TODO-doc-code-gaps.md` §1，其中会话记录的 `context_tree` 展示了调用链 `4d76→0c07→0964→c6f9→f1c9→4379→8746→100c`。
+一个 7 层嵌套的根因实例见 `docs/reference/design/documentation-gaps.md` §1，其中会话记录的 `context_tree` 展示了调用链 `4d76→0c07→0964→c6f9→f1c9→4379→8746→100c`。
 
 ---
 
@@ -149,4 +149,4 @@ wrapper 不把函数自己的名字推进 `_current_tool_policy["deny"]`。内�
 ## 关联文档
 
 - `docs/reference/design/runtime/dag/overview.md` —— 统一 system 前缀约束，本机制把处境提示放 user turn 正是为遵守该约束。
-- `docs/reference/design/TODO-doc-code-gaps.md` §1 —— 7 层嵌套根因实例。
+- `docs/reference/design/documentation-gaps.md` §1 —— 7 层嵌套根因实例。

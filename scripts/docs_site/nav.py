@@ -338,10 +338,8 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/runtime/additional-working-directories.md",
             "reference/design/runtime/session/comparison.md",
             "reference/design/runtime/session/distill.md",
-            "reference/design/runtime/session/index-consistency.html",
-            "reference/design/runtime/session/merged-head-atomicity.html",
+            "reference/design/runtime/session/storage-consistency.html",
             "reference/design/runtime/session/name.md",
-            "reference/design/runtime/session/store-lock-scope.html",
         ]),
         ('Runtime · DAG and collaboration', '运行时 · DAG 与协作', [
             "reference/design/runtime/dag/overview.md",
@@ -359,8 +357,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/runtime/operations/unify-parent-called-by.md",
         ]),
         ('Runtime · Goals and recovery', '运行时 · 目标与恢复', [
-            "reference/design/runtime/goal.md",
-            "reference/design/runtime/goal-framework-implementation-comparison.html",
+            "reference/design/runtime/goal-and-recovery.html",
             "reference/design/runtime/agent-resource-governance.html",
             "reference/design/runtime/structured-generation-recovery.html",
             "reference/design/runtime/durable-tool-results.html",
@@ -415,8 +412,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/memory/README.md",
             "reference/design/memory/overview.md",
             "reference/design/memory/memory-architecture.html",
-            "reference/design/memory/entity-memory.md",
-            "reference/design/memory/git-as-entity-memory.md",
+            "reference/design/memory/entity-memory-proposal.md",
             "reference/design/memory/virtual-memory.md",
             "reference/design/memory/authority-handoff.md",
             "reference/design/memory/authority-landscape.html",
@@ -437,8 +433,6 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/proactive/overview.md",
             "reference/design/proactive/policies-mvp.md",
             "reference/design/proactive/invariants.md",
-            "reference/design/proactive/commitments-and-heartbeat.html",
-            "reference/design/proactive/commitments-and-heartbeat.md",
             "reference/design/proactive/event-reference.html",
             "reference/design/proactive/framework-evolution.html",
             "reference/design/proactive/framework-evolution.md",
@@ -524,7 +518,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/providers/json-schema-structured-output.html",
             "reference/design/providers/network-proxy.md",
             "reference/design/providers/metadata-load-diagnostics.html",
-            "reference/design/providers/PROBLEM-models-and-bailian.md",
+            "reference/design/providers/bailian-model-catalog.md",
             "reference/design/usage-metering.md",
         ]),
         ('Providers · Authentication', '模型服务 · 账号与认证', [
@@ -542,7 +536,6 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/providers/reliability/error-retry.md",
             "reference/design/providers/reliability/error-taxonomy-propagation.md",
             "reference/design/providers/reliability/llm-fault-tolerance.md",
-            "reference/design/providers/error-and-timeout-mechanism.html",
             "reference/design/providers/record-replay.md",
             "reference/design/providers/record-replay.html",
             "reference/design/providers/responses-reasoning-replay.html",
@@ -568,8 +561,6 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
         ]),
         ('Security and permissions', '安全与权限', [
             "reference/design/runtime/sandbox-architecture.html",
-            "reference/design/runtime/permission-model.md",
-            "reference/design/runtime/sandbox.md",
             "reference/design/runtime/system-access.html",
             "reference/design/runtime/ssrf-protection.html",
             "reference/design/security/dependency-security.html",
@@ -592,25 +583,24 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/community-discoverability.html",
         ]),
         ('Supporting · Prototypes', '补充 · 交互原型', [
-            "reference/design/ui/layout-density-mock.html",
-            "reference/design/ui/fn-form-compact-mock.html",
+            "reference/design/ui/layout-density-prototype.html",
+            "reference/design/ui/composer-interaction-prototype.html",
             "reference/design/ui/project-workspace-prototype.html",
-            "reference/design/ui/sidebar-hierarchy-mock.html",
+            "reference/design/ui/sidebar-hierarchy-prototype.html",
             "reference/design/runtime/dag/dag-live.html",
         ]),
         ('Supporting · Implementation records', '补充 · 实施记录', [
             "reference/design/repository-structure-implementation.html",
             "reference/design/site-indexnow-implementation.html",
-            "reference/design/TODO-doc-code-gaps.md",
-            "reference/design/TODO-improvements.md",
-            "reference/design/ui/head-bugs.html",
+            "reference/design/documentation-gaps.md",
+            "reference/design/engineering-backlog.md",
             "reference/design/ui/unification-work.md",
             "reference/design/ui/resource-panel-preview-plan.html",
             "reference/design/distribution/implementation-plan.md",
             "reference/design/integrations/web-use-implementation.html",
             "reference/design/extension-gating/implementation.md",
-            "reference/design/plans/2026-07-08-credential-connection-unification.md",
-            "reference/design/plans/2026-08-12-mcp-server.md",
+            "reference/design/plans/credential-connection-unification.md",
+            "reference/design/plans/mcp-server-implementation.md",
             "reference/design/plans/cache-control-passthrough.md",
             "reference/design/plans/proactive-implementation.md",
         ]),
@@ -747,12 +737,9 @@ PAGE_ORDER: dict[str, int] = {
     "reference/design/memory/memory-comparison.html": 5,
     "reference/design/memory/memory-adoption.html": 6,
     # Within the design archive everything defaults to 999 (alphabetical).
-    # >999 pins a page to the end of its section; the sandbox note and its
-    # rendered companion stay adjacent, doc first.
+    # >999 pins canonical security designs to the end of their section.
     "reference/design/runtime/sandbox-architecture.html": 1000,
-    "reference/design/runtime/permission-model.md": 1001,
     "reference/design/runtime/system-access.html": 1002,
-    "reference/design/runtime/sandbox.md": 1002,
     # Same treatment for agent collaboration: the design note first, then its
     # two rendered companions (our tool surface, then the eight reference
     # implementations compared).
@@ -762,7 +749,7 @@ PAGE_ORDER: dict[str, int] = {
     # Unified lifecycle and debugger control contract for all runtime owners.
     "reference/design/runtime/execution/execution-control.html": 1005,
     "reference/design/runtime/durable-tool-results.html": 1005,
-    "reference/design/runtime/goal-framework-implementation-comparison.html": 1006,
+    "reference/design/runtime/goal-and-recovery.html": 1006,
     # Center tabs: authoritative tab/group/view state and split-layout design.
     "reference/design/ui/center-tabs-and-split-layout.html": 1009,
     "reference/design/ui/built-in-browser.html": 1010,

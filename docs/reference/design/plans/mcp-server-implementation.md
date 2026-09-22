@@ -453,7 +453,7 @@ pass count or release acceptance.
 **Files:**
 
 - Modify: `docs/reference/design/integrations/mcp-server.html`
-- Modify: `docs/reference/design/plans/2026-08-12-mcp-server.md` only if executed paths or commands differ materially
+- Modify: `docs/reference/design/plans/mcp-server-implementation.md` only if executed paths or commands differ materially
 - Update: `.superpowers/sdd/2026-08-12-mcp-server/ledger.md` (gitignored; do not commit)
 
 **RED:** Before editing status, run the complete gate and record exact command/output/commit evidence in the ledger:
@@ -475,7 +475,7 @@ Re-run the five commands above after the documentation edit. Expected: PASS and 
 **Commit:**
 
 ```bash
-git add docs/reference/design/integrations/mcp-server.html docs/reference/design/plans/2026-08-12-mcp-server.md
+git add docs/reference/design/integrations/mcp-server.html docs/reference/design/plans/mcp-server-implementation.md
 git commit -m "docs: record MCP server implementation evidence"
 ```
 

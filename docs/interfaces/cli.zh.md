@@ -1,4 +1,5 @@
-# CLI
+<span id="cli"></span>
+# 使用 CLI
 
 在脚本或其他程序里调用 OpenProgram，一条命令拿到一次回复。
 

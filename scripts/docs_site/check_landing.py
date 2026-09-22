@@ -469,6 +469,8 @@ def main() -> int:
             require(built_optimized_hero.read_bytes() == optimized_hero.read_bytes(),
                     "built optimized hero differs from its source", failures)
 
+    redirect_source = BUILT_SITE.parent / "redirects.json"
+    redirects = json.loads(redirect_source.read_text(encoding="utf-8")) if redirect_source.exists() else {}
     language_pairs: set[tuple[Path, Path]] = set()
     for html_path in BUILT_SITE.rglob("*.html"):
         if html_path.name.endswith(".raw.html"):
@@ -496,6 +498,15 @@ def main() -> int:
              if "canonical" in link.get("rel", "").split()),
             "",
         )
+        retired_target = redirects.get(html_path.relative_to(BUILT_SITE).as_posix())
+        if retired_target is not None:
+            require(canonical_url == "/docs/" + retired_target,
+                    f"incorrect redirect canonical URL in {html_path}", failures)
+            require(any(meta.get("name") == "robots" and meta.get("content") == "noindex"
+                        for meta in head_page.meta),
+                    f"redirect must be excluded from indexing in {html_path}", failures)
+            # Retired URLs are not articles or translated copies of articles.
+            continue
         breadcrumbs = [
             item for item in head_page.structured_data
             if item.get("@type") == "BreadcrumbList"

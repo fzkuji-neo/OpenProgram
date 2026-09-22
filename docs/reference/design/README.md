@@ -21,7 +21,7 @@ Understand the whole system, source ownership and implementation boundaries.
 
 Follow execution, session persistence, branching and recovery in that order.
 
-[Execution control](runtime/execution/execution-control.html) · [Session storage](runtime/session/storage.md) · [Session DAG](runtime/dag/overview.md) · [Goals and restart recovery](runtime/goal-framework-implementation-comparison.html) · [Agent configuration](runtime/agent-configuration-ui.html)
+[Execution control](runtime/execution/execution-control.html) · [Session storage](runtime/session/storage.md) · [Session DAG](runtime/dag/overview.md) · [Goals and restart recovery](runtime/goal-and-recovery.html) · [Agent configuration](runtime/agent-configuration-ui.html)
 
 Understand function calls, workflow composition and application execution before the report examples.
 
@@ -35,7 +35,7 @@ Read the event contract before policies, proactive actions and scheduling.
 
 Separate per-request context assembly from persistent memory and attribution.
 
-[Context overview](context/overview.md) · [Context composition](context/composition.md) · [Compaction](context/compaction.md) · [Memory overview](memory/overview.md) · [Entity memory](memory/entity-memory.md)
+[Context overview](context/overview.md) · [Context composition](context/composition.md) · [Compaction](context/compaction.md) · [Memory overview](memory/overview.md) · [Entity memory](memory/entity-memory-proposal.md)
 
 ## Interfaces
 
