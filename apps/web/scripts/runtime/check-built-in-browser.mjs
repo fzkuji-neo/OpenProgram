@@ -219,7 +219,7 @@ assert.equal(
 assert.match(nestedMenuItems, /<DropdownMenuPrimitive\.SubTrigger[\s\S]*?<ItemIcon item=\{item\} \/>/);
 assert.match(nestedMenuItems, /<DropdownMenuPrimitive\.Item[\s\S]*?<ItemIcon item=\{item\} \/>/);
 const flatMenuItems = contextMenu.slice(contextMenu.indexOf("function ContextMenuOverlayPage"));
-assert.match(flatMenuItems, /role="menuitemcheckbox"[\s\S]*?<ItemIcon item=\{item\} \/>/);
+assert.match(flatMenuItems, /items\.map[\s\S]*?<ItemIcon item=\{item\} \/>/);
 assert.equal(
   contextMenu.match(/<ItemIcon item=\{item\} \/>/g)?.length,
   3,
