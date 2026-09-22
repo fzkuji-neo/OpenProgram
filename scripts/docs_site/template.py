@@ -9,11 +9,11 @@ from pathlib import Path
 
 
 def _asset_version() -> str:
-    """Short content hash of site.css + site.js, for cache-busting their URLs.
+    """Short content hash of shared docs assets, for cache-busting their URLs.
     Same content → same version (stable diffs); any edit → new version (browsers
     re-fetch instead of serving a stale cached copy)."""
     h = hashlib.md5()
-    for name in ("site.css", "site.js"):
+    for name in ("site.css", "site.js", "theme.js"):
         p = Path(__file__).parent / "assets" / name
         try:
             h.update(p.read_bytes())
@@ -47,6 +47,11 @@ _IC_SUN = (
     ' stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3.2"/>'
     '<path d="M8 1.2v1.8M8 13v1.8M1.2 8H3M13 8h1.8M3.2 3.2l1.3 1.3M11.5 11.5l1.3 1.3M12.8 3.2l-1.3 1.3M4.5 11.5l-1.3 1.3"/></svg>'
 )
+_IC_SYSTEM = (
+    '<svg class="ic-system" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor"'
+    ' stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
+    '<rect x="1.5" y="2.5" width="13" height="9" rx="1.5"/><path d="M8 11.5V14M5.5 14h5"/></svg>'
+)
 _IC_GLOBE = (
     '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"'
     ' stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4" stroke-linecap="round"/>'
@@ -72,12 +77,6 @@ _IC_COLLAPSE = (
     '<path d="M2 6.2h4.2V2M14 6.2H9.8V2M2 9.8h4.2V14M14 9.8H9.8V14"/></svg>'
 )
 
-# Inline head script: set theme before first paint to avoid a flash.
-_THEME_BOOT = """
-(function(){try{var t=localStorage.getItem('op-docs-theme');
-if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
-document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
-"""
 
 
 def render_page(
@@ -188,12 +187,12 @@ def render_page(
 <meta name="twitter:description" content="{social_description}">
 <meta name="twitter:image" content="https://openprogram.io/docs/images/openprogram-social-card.png">
 <meta name="twitter:image:alt" content="OpenProgram: Self-Programming AI Agent Framework">
-<script>{_THEME_BOOT}</script>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/svg+xml" href="{base}assets/mark.svg">
 <link rel="stylesheet" href="{base}assets/site.css?v={ASSET_VER}">
 <link rel="stylesheet" href="{base}assets/pygments-light.css" media="(prefers-color-scheme: light)" id="pyg-light">
 <link rel="stylesheet" href="{base}assets/pygments-dark.css" media="(prefers-color-scheme: dark)" id="pyg-dark">
+<script src="{base}assets/theme.js?v={ASSET_VER}"></script>
 {extra_head}
 </head>
 <body>
@@ -213,7 +212,14 @@ def render_page(
       <button class="lang-opt" data-lang="zh" role="menuitem"><span>简体中文</span>{_IC_CHECK}</button>
     </div>
   </div>
-  <button class="icon" id="theme-toggle" aria-label="Toggle theme">{_IC_MOON}{_IC_SUN}</button>
+  <div class="theme-wrap">
+    <button class="icon" id="theme-toggle" aria-label="Theme" aria-haspopup="menu" aria-controls="theme-menu" aria-expanded="false">{_IC_SYSTEM}{_IC_MOON}{_IC_SUN}</button>
+    <div class="theme-menu" id="theme-menu" role="menu" aria-labelledby="theme-toggle">
+      <button class="theme-opt" data-theme-choice="system" role="menuitemradio" aria-checked="true"><span>Follow system</span>{_IC_CHECK}</button>
+      <button class="theme-opt" data-theme-choice="light" role="menuitemradio" aria-checked="false"><span>Light</span>{_IC_CHECK}</button>
+      <button class="theme-opt" data-theme-choice="dark" role="menuitemradio" aria-checked="false"><span>Dark</span>{_IC_CHECK}</button>
+    </div>
+  </div>
 </header>
 <nav class="tabbar">{tabbar_html}</nav>
 

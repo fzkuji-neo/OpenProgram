@@ -99,34 +99,35 @@ header.topbar {
 .topbar button.icon:hover { background: var(--bg-side); color: var(--tx); }
 /* hamburger shows on all widths: wide = collapse the sidebar, narrow = drawer */
 
-/* theme toggle: show the icon for the theme you'd switch TO */
-#theme-toggle .ic-sun { display: none; }
-html[data-theme="dark"] #theme-toggle .ic-sun { display: block; }
-html[data-theme="dark"] #theme-toggle .ic-moon { display: none; }
+/* Theme icon shows the selected preference, including automatic system mode. */
+#theme-toggle svg { display: none; }
+html[data-theme-mode="system"] #theme-toggle .ic-system,
+html[data-theme-mode="light"] #theme-toggle .ic-sun,
+html[data-theme-mode="dark"] #theme-toggle .ic-moon { display: block; }
 
 /* language dropdown */
-.lang-wrap { position: relative; }
+.lang-wrap, .theme-wrap { position: relative; }
 .topbar button.lang-trigger {
   width: auto; padding: 0 10px; gap: 6px;
   font-size: 12.5px; font-weight: 600; font-family: var(--sans);
 }
 .lang-trigger .chev { transition: transform .15s ease; }
 .lang-wrap.open .lang-trigger .chev { transform: rotate(180deg); }
-.lang-menu {
+.lang-menu, .theme-menu {
   position: absolute; top: calc(100% + 8px); right: 0; min-width: 160px;
   background: var(--bg-card); border: 1px solid var(--bd); border-radius: 10px;
   box-shadow: var(--shadow); padding: 5px; display: none; z-index: 200;
 }
-.lang-wrap.open .lang-menu { display: block; }
-.lang-opt {
+.lang-wrap.open .lang-menu, .theme-wrap.open .theme-menu { display: block; }
+.lang-opt, .theme-opt {
   display: flex; width: 100%; align-items: center; justify-content: space-between;
   gap: 18px; padding: 7px 10px; border: none; background: none; cursor: pointer;
   color: var(--tx); font: 600 13.5px var(--sans); border-radius: 7px; text-align: left;
 }
-.lang-opt:hover { background: var(--bd-soft); }
-.lang-opt .check { visibility: hidden; color: var(--acc); flex: none; }
-.lang-opt.active { color: var(--acc); }
-.lang-opt.active .check { visibility: visible; }
+.lang-opt:hover, .theme-opt:hover { background: var(--bd-soft); }
+.lang-opt .check, .theme-opt .check { visibility: hidden; color: var(--acc); flex: none; }
+.lang-opt.active, .theme-opt.active { color: var(--acc); }
+.lang-opt.active .check, .theme-opt.active .check { visibility: visible; }
 
 /* ── tabbar (top-level sections, below the topbar) ── */
 nav.tabbar {
