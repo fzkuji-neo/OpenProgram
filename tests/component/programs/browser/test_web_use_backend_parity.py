@@ -549,7 +549,7 @@ def test_scaled_preview_preserves_mcp_reference_namespace(monkeypatch, backend, 
         assert params["y"] == 67.5
     elif action == "scroll":
         if backend == "playwright_mcp":
-            assert params["deltaY"] == 75
+            assert params["deltaY"] == 600
         else:
             assert "window.scrollBy(0, 600)" in params["function"]
     else:

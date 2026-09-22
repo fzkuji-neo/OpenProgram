@@ -1419,7 +1419,7 @@ def test_bound_pointer_inputs_use_native_presentation_scale(monkeypatch, scale):
     observed = controller.execute(action="observe")
     result = controller.execute(action="scroll", expected_frame_id=observed["frame_id"], amount=600)
     assert result["ok"] is True
-    assert ("wheel", 0, 600 * scale) in api.page.calls
+    assert ("wheel", 0, 600) in api.page.calls
     assert all(binding == "fixed-preview" and kwargs["expected_geometry_revision"] == 9
                for binding, kwargs in queries)
 

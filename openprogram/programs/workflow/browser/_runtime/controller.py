@@ -588,7 +588,7 @@ class BrowserPageController:
             scale = self._pointer_scale()
             if scale is None:
                 return self._invalidate_frame()
-            run(page.mouse.wheel, 0, int(amount) * scale)
+            run(page.mouse.wheel, 0, int(amount))
             return self._mutated(f"scrolled {int(amount)}px")
         if action == "click":
             if not ref:

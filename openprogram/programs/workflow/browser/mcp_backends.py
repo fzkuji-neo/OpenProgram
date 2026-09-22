@@ -308,8 +308,6 @@ class OfficialMCPPageBackend:
             if action == "click" and not ref:
                 params = {**params, "x": float(arguments["x"]) * scale,
                           "y": float(arguments["y"]) * scale}
-            elif action == "scroll" and self.name == "playwright_mcp":
-                params = {**params, "deltaY": params["deltaY"] * scale}
             elif action in {"click", "hover"} and ref:
                 if action == "click":
                     from . import _BACKGROUND_REF_CLICK_SCRIPT
