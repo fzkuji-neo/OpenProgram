@@ -742,19 +742,13 @@ def _write_redirects() -> None:
             raise ValueError(f"Missing documentation redirect target: {target}")
         url = DEPLOY_BASE + target
         escaped = _html.escape(url, quote=True)
-        # The fragment on the incoming URL wins over a section default. Preserve
-        # query parameters before that fragment; never interpolate them as code.
-        script_url = json.dumps(url).replace("<", "\\u003c")
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
             '<!doctype html><html lang="en"><meta charset="utf-8">'
             '<meta name="robots" content="noindex">'
             f'<link rel="canonical" href="{escaped}">'
             '<title>Document moved</title>'
-            f'<script>const target={script_url};'
-            'const [path, fragment] = target.split("#");'
-            'location.replace(path + location.search + '
-            '(location.hash || (fragment ? "#" + fragment : "")));</script>'
+            f'<script src="{_html.escape(DEPLOY_BASE, quote=True)}assets/redirect.js"></script>'
             f'<p>This document has moved to <a href="{escaped}">its canonical page</a>.</p>'
             '</html>', encoding="utf-8",
         )

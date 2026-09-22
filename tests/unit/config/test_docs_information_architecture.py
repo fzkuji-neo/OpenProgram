@@ -311,8 +311,11 @@ def test_retired_document_urls_publish_redirects_without_duplicate_catalog_entri
     assert build.build() == 0
     output = tmp_path / '_site'
     redirect = (output / 'start/old.html').read_text()
-    assert 'location.replace' in redirect
-    assert 'location.search' in redirect and 'location.hash' in redirect
+    assert '<script src="/docs/assets/redirect.js"></script>' in redirect
+    assert '<script>' not in redirect  # The default worker blocks inline scripts.
+    redirect_script = (output / 'assets/redirect.js').read_text()
+    assert 'location.replace' in redirect_script
+    assert 'location.search' in redirect_script and 'location.hash' in redirect_script
     assert '/docs/start/topic.html#details' in redirect
     assert 'noindex' in redirect
     assert 'old.html' not in (output / 'sitemap.xml').read_text()

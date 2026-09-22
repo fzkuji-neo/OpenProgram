@@ -603,7 +603,11 @@
       if (seq !== navSeq) return; // a newer navigation superseded this one
       // Redirect-only and standalone documents need a real document load.
       // DOMParser does not execute their navigation scripts.
-      if (!doc.querySelector("main.content article")) { location.href = pathname; return; }
+      if (!doc.querySelector("main.content article")) {
+        if (pathname === location.pathname + location.search + location.hash) location.reload();
+        else location.href = pathname;
+        return;
+      }
       // Site was rebuilt underneath this tab → full load to pick up the new
       // assets and sidebar instead of mixing two builds.
       const nb = doc.documentElement.getAttribute("data-build");
