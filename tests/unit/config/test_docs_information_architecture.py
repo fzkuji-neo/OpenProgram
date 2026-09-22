@@ -365,3 +365,17 @@ def test_consolidated_entity_proposal_retains_replay_and_project_sections() -> N
         assert set(headings) <= set(ids)
         assert len(ids) == len(set(ids))
         assert '&lt;span' not in rendered
+
+
+def test_local_topic_titles_render_as_headings_after_compatibility_anchors() -> None:
+    import re
+    from scripts.docs_site import build
+
+    for name in ('context/composition', 'memory/overview',
+                 'runtime/session/storage', 'runtime/dag/rendering'):
+        for language in ('', '.zh'):
+            source = (ROOT / f'docs/reference/design/{name}{language}.md').read_text()
+            build._SLUG_DEDUP = {}
+            rendered = build.make_md().render(source)
+            assert re.search(r'<h1\b[^>]*>[^<]+', rendered), name + language
+            assert not re.search(r'^# ', rendered, re.MULTILINE), name + language

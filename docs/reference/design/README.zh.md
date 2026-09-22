@@ -8,7 +8,7 @@
 ## 阅读顺序
 
 1. 了解整体系统：[框架总览](framework-overview.md) → [仓库结构](repository-structure.html)。
-2. 跟踪一次执行：[调用流程](runtime/execution/agent-call-flow.md) → [执行控制](runtime/execution/execution-control.html) → [会话存储](runtime/session/storage.md)。
+2. 跟踪一次执行：[调用流程](runtime/execution/agent-call-flow.md) → [执行控制](runtime/execution/control.html) → [会话存储](runtime/session/storage.md)。
 3. 修改某个子系统：选择下方主题，阅读设计正文及其实现状态附录，再核对源码和验证要求。
 
 ## 架构总览
@@ -21,7 +21,7 @@
 
 依次阅读执行控制、会话存储、分支协作与恢复。
 
-[执行控制](runtime/execution/execution-control.html) · [会话存储](runtime/session/storage.md) · [会话 DAG](runtime/dag/overview.md) · [目标与重启恢复](runtime/goal-and-recovery.html) · [Agent 配置](runtime/agent-configuration-ui.html)
+[执行控制](runtime/execution/control.html) · [会话存储](runtime/session/storage.md) · [会话 DAG](runtime/dag/overview.md) · [目标与重启恢复](runtime/goal-and-recovery.html) · [Agent 配置](runtime/agent-configuration-ui.html)
 
 先阅读函数调用、工作流组成与应用执行，再查看报告场景。
 
@@ -29,7 +29,7 @@
 
 先阅读事件约定，再阅读规则、主动执行与调度。
 
-[事件层](proactive/event-layer.md) · [规则执行](proactive/execution-model.md) · [调度与记忆](scheduler/scheduler-memory.html)
+[事件层](proactive/event-layer.md) · [规则执行](proactive/execution-model.md) · [调度与记忆](scheduler/memory-integration.html)
 
 ## 上下文与记忆
 

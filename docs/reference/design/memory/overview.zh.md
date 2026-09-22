@@ -1,4 +1,6 @@
-# 记忆子系统
+<div id="记忆子系统"></div>
+
+# 架构概览
 
 OpenProgram 怎么让 agent 跨会话"记住"事情。
 
@@ -399,7 +401,7 @@ agents。在这个接口上再开一条私路，只会变成绕过它的办法�
 供重试。legacy后续header可能来自正文，v2 parser也不会在非法frame后重新开始解析。
 完整方案和实测代价见
 [`written-marker.zh.md`](written-marker.zh.md)，更广的采用决策见
-[`memory-adoption.html`](memory-adoption.html)。
+[`adoption.html`](adoption.html)。
 
 "谁说的"已经按独立可信字段实现。渠道入口把实际发信人的`speaker_id`和
 `speaker_display`与路由`peer_id`、正文分开传到持久化节点；网页、命令行、TUI和

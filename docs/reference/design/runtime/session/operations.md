@@ -1,4 +1,6 @@
-# Session Operations
+<div id="session-operations"></div>
+
+# Operations
 
 Each operation is written out end to end, from trigger to disk to frontend.
 

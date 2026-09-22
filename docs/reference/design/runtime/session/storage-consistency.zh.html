@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>会话存储一致性</title>
+  <title>存储一致性</title>
   <style>
     :root{color-scheme:dark;--bg:#11120f;--panel:#191a16;--line:#34362d;--text:#e8e6dc;--muted:#aaa99f;--ok:#8fca8b;--warn:#e1b36c;--bad:#e98b83}
     *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 ui-sans-serif,system-ui,sans-serif}main{max-width:1040px;margin:auto;padding:48px 24px 72px}h1{font-size:32px;line-height:1.2;margin:.2em 0}h2{margin-top:38px;border-bottom:1px solid var(--line);padding-bottom:8px}h3{margin:0 0 8px}.sub,.muted{color:var(--muted)}.lead,.card,.note{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}.table{overflow:auto;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;min-width:720px}th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}th{color:var(--muted)}code{color:#d7c58f}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}ol,ul{padding-left:22px}.flow{display:grid;grid-template-columns:auto 1fr;gap:8px 12px}.flow b{color:var(--warn)}
@@ -11,7 +11,7 @@
 </head>
 <body><main>
   <p class="sub">OpenProgram / SessionStore / implementation handoff</p>
-  <h1>会话存储一致性</h1>
+  <h1>存储一致性</h1>
   <p class="sub">本页规范 <code>meta.json</code>、内存 <code>_index</code> 与 <code>index.json</code> 的时间和并发合同，以及 merged heads 和 store 锁范围。各部分保留独立的验收边界。</p>
 
   <div class="lead"><b>确定方案。</b> <code>updated_at</code> 表示最后一次会话内容追加时间，不表示任意元数据持久化时间。内存注册表的读、改、快照由独立锁保护；磁盘原子写串行化，但不在注册表锁内执行文件 I/O。延迟 flush 只能清除自己快照之前的 dirty 状态，不能覆盖并发更新。</div>

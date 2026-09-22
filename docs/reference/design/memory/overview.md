@@ -1,4 +1,6 @@
-# Memory subsystem
+<div id="memory-subsystem"></div>
+
+# Architecture overview
 
 How OpenProgram makes the agent "remember" things across conversations.
 
@@ -638,7 +640,7 @@ succeeds, and remains for retry on failure. Later legacy headers can be user
 content, and the v2 parser never resumes after an invalid frame. The full
 design and measured cost are in
 [`written-marker.md`](written-marker.md); the broader adoption decisions are
-in [`memory-adoption.html`](memory-adoption.html).
+in [`adoption.html`](adoption.html).
 
 The speaker design is implemented with independent trusted transport
 fields. `SourceRecord.speaker_label` supplies the serializer's `speaker`

@@ -1,4 +1,6 @@
-# Context — The Context Layer
+<div id="context-the-context-layer"></div>
+
+# Overview
 
 **Assembles conversation history + current input into what gets fed to the LLM on each call.** Upstream of
 [`../providers/`](../providers/): context produces a `Context` (system /

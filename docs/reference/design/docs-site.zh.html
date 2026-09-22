@@ -160,6 +160,7 @@ python<span class="w"> </span>-m<span class="w"> </span>scripts.docs_site.check_
 <p>每个主题只维护一份正文。合并保留独有图示、约束、实现状态和验收证据；用途不同的使用指南与 API 参考继续分开。主题文件名使用描述性的英文小写与连字符，不带日期、TODO 或 PROBLEM 前缀；未实现提案在标题中明确状态。</p>
 <p>构建器维护退役输出路径到唯一正文的显式映射，生成仅跳转的 HTML，不加入导航、搜索或 sitemap。跳转保留查询参数和章节片段；同源外部脚本在 worker 的 CSP 下执行跳转，不使用内联跳转脚本。SPA 遇到仅跳转页面时执行完整加载；浏览器历史已切到该地址时显式刷新。目标必须存在，旧网址不能覆盖真实页面或再指向另一条旧网址。映射无效时原子构建失败。存在中文正文时中文旧网址继续进入中文；独立 HTML 的 raw 地址和 Markdown/HTML companion 地址也纳入兼容映射。</p>
 <p>验收包括正文唯一归属、全部旧网址直接进入有效目标、合并后独有内容仍在、链接与语言检查，以及默认本地文档入口的导航和跳转。文档整理不改变运行时行为，也不把未实现设计标为已实现。</p>
+<p>子系统目录内的名字省略重复的子系统前缀，例如 <code>context/statistics.html</code>、<code>memory/editor.html</code>、<code>runtime/dag/layout.html</code>。页面标题同样直接写组成、压缩、统计口径；所属范围由父级目录、面包屑和开头正文说明。保留具有独立含义的技术术语与跨子系统名称。短名字已被文字页占用时，用 diagram 明确区分图解。保留旧标题锚点，旧网址直接指向最新输出，不形成多次跳转。</p>
 <h2 id="实现状态">实现状态<a class="header-anchor" href="#实现状态">#</a></h2>
 <div class="doc-scroll" tabindex="0" role="region" aria-label="文档表格"><table>
 <thead>

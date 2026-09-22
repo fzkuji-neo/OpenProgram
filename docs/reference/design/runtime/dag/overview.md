@@ -1,4 +1,6 @@
-# Session DAG — Design
+<div id="session-dag-design"></div>
+
+# Design overview
 
 > This document is the authoritative design of the agent execution record: the
 > data model, its edges and invariants, branching and spawn, context rendering,

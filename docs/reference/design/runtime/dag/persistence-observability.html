@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DAG 持久化失败可观察性</title><style>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>持久化失败可观察性</title><style>
 :root{color-scheme:dark;--bg:#11120f;--panel:#191a16;--line:#34362d;--text:#e8e6dc;--muted:#aaa99f;--ok:#8fca8b;--warn:#e1b36c;--bad:#e98b83}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 ui-sans-serif,system-ui,sans-serif}main{max-width:1000px;margin:auto;padding:48px 24px 72px}h1{font-size:32px;line-height:1.2}h2{margin-top:36px;border-bottom:1px solid var(--line);padding-bottom:8px}.sub{color:var(--muted)}.lead,.note{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}.table{overflow:auto;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;min-width:700px}th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}th{color:var(--muted)}code{color:#d7c58f}.ok{color:var(--ok)}.warn{color:var(--warn)}ul{padding-left:22px}
 </style></head><body><main>
 <p class="sub">OpenProgram / agentic DAG / implementation handoff</p>
-<h1>DAG 持久化失败可观察性</h1>
+<h1>持久化失败可观察性</h1>
 <p class="sub">基线：<code>4f8649d1</code>。范围仅限 agentic/traced function 的 DAG entry append 与 exit update。</p>
 <div class="lead"><b>确定方案。</b> DAG 是执行记录，不是用户函数的成功条件：append/update 失败继续保持 best-effort，不改变返回值或原始异常；但必须通过本地 logger 输出一次结构化 warning 和 traceback，使磁盘、权限、序列化错误可诊断。</div>
 

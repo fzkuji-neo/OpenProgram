@@ -1,4 +1,6 @@
-# Context Composition Comparison — Reference Projects vs. Us (organized by the three layers)
+<div id="context-composition-comparison-reference-projects-vs-us-organized-by-the-three-layers"></div>
+
+# Design comparison
 
 > This document compares the context components that reference projects feed to the LLM against our L0/L1/L2 design, laid out layer by layer. It is a comparison; the design itself lives in [`composition.md`](composition.md).
 >

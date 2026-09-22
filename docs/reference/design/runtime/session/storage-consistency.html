@@ -1,4 +1,4 @@
-<h1 id="session-storage-consistency">Session storage consistency</h1>
+<h1 id="session-storage-consistency">Storage consistency</h1>
 <p>This document defines timestamp, snapshot, merged-head and lock-scope contracts for SessionStore. See <a href="storage.md">Session storage</a> for the data model. Each contract has its own acceptance boundary; implementation evidence is collected at the end.</p>
 <h2 id="registry">Registry timestamps and snapshots</h2>
 <p><code>updated_at</code> is the last content-append time, not the time of an arbitrary metadata write. Registry reads, mutations and snapshots share a state lock. Disk publication is serialized separately; filesystem I/O never holds that state lock. Deferred flush must preserve mutations newer than its snapshot.</p>

@@ -1,4 +1,6 @@
-# Session Context
+<div id="session-context"></div>
+
+# Context
 
 `session_context` is the unified per-turn context manager. It populates the ContextVars (`_store` / `_current_turn_id` / `_current_runtime` / `_call_id`) so that capabilities such as feeding docstrings into the prompt, DAG persistence, and ask_user tracking take effect across all entry points.
 
