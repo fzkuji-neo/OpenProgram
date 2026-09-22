@@ -50,7 +50,7 @@ Windows 路径规则可使用正斜杠避免转义歧义，例如
 
 Sandbox 位于输入框 Plus 菜单，与审批模式独立。修改 Sandbox 影响后续 turn。Bypass 保持当前沙箱限制，普通工具审批不能用于沙箱升级。如果拒绝不能创建独立升级等待，需要用户显式修改相关设置后发起新调用。
 
-参见[工具](tools.zh.md)、[Web](../interfaces/web.zh.md)、[终端](../interfaces/tui.zh.md)和[工程合同](../reference/design/runtime/permission-model.zh.md)。
+参见[工具](tools.zh.md)、[Web](../interfaces/web.zh.md)、[终端](../interfaces/tui.zh.md)和[工程合同](../reference/design/runtime/sandbox-architecture.zh.html)。
 
 ## macOS 在更新后再次询问权限
 

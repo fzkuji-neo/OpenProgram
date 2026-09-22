@@ -17,6 +17,6 @@ Agent 执行运行时 —— 运行循环、worktree、异步任务、流式传�
 - [`operations/streaming-resume.md`](operations/streaming-resume.md)
 - [`operations/user-input-requests.md`](operations/user-input-requests.md) — 暂停正在运行的函数以向用户提问(`runtime.ask`/`confirm`),问题注册表 + WS/REST 协议 + 子进程桥接
 - [`agent-collaboration.md`](agent-collaboration.md) — **权威**：agent 协作收敛成一个分支间通信原语 —— 四个域、工具面、三个预算（[工具面图示](agent-collab-architecture.html)、[八家参考实现对照](agent-collab-comparison.html)）
-- [`sandbox-architecture.html`](sandbox-architecture.html) — 唯一权威执行安全设计：Authority 权限档、Permission 模式与审批、沙箱执法、框架对照和实现证据。[`permission-model.md`](permission-model.md) 与 [`sandbox.md`](sandbox.md) 只保留为稳定旧链接入口。
+- [`sandbox-architecture.html`](sandbox-architecture.html) — 唯一权威执行安全设计：Authority 权限档、Permission 模式与审批、沙箱执法、框架对照和实现证据。[`permission-model.md`](sandbox-architecture.html) 与 [`sandbox.md`](sandbox-architecture.html) 只保留为稳定旧链接入口。
 
 - [嵌套 LLM 节点内容（聊天式有序块）](https://github.com/fzkuji-neo/OpenProgram/blob/main/docs/reference/design/runtime/nested-llm-node-content.zh.html)

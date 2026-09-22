@@ -4,7 +4,7 @@
 
 两者在"可变程度"上正相反。主目录在会话第一轮定格，此后只为修复磁盘上消失的目录而移动——见 [session/operations.zh.md](session/operations.zh.md)"主项目绑定"。额外目录则在会话生命周期内随时增删，每次改动下一轮生效。
 
-项目路径 → 会话 cwd 的链路由 `project_workdir_for` 承担，围栏部分见 `docs/reference/design/runtime/permission-model.zh.md` §3.5。
+项目路径 → 会话 cwd 的链路由 `project_workdir_for` 承担，围栏部分见 `docs/reference/design/runtime/sandbox-architecture.zh.html` §3.5。
 
 ---
 

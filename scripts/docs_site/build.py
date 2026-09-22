@@ -10,6 +10,7 @@ Run:  python -m scripts.docs_site.build
 from __future__ import annotations
 
 import html as _html
+import json
 import os
 import re
 import shutil
@@ -715,9 +716,48 @@ def _build_into_out_root() -> int:
     _write_home(tabs)
     _copy_static_root()
     _write_sitemap()
+    _write_redirects()
 
     print(f"built {rendered} pages → {OUT_ROOT}")
     return 0
+
+
+def _write_redirects() -> None:
+    """Publish retired URLs without adding duplicate documents to the catalog."""
+    source = DOCS_ROOT / "redirects.json"
+    if not source.exists():
+        return
+    aliases = json.loads(source.read_text(encoding="utf-8"))
+    for old, target in aliases.items():
+        destination = target.split("#", 1)[0]
+        for path in (old, destination):
+            if (Path(path).is_absolute() or ".." in Path(path).parts
+                    or ":" in path or "?" in path or "\\" in path
+                    or not path.endswith(".html")):
+                raise ValueError(f"Invalid documentation redirect path: {path}")
+        output = OUT_ROOT / old
+        if output.exists() or destination in aliases:
+            raise ValueError(f"Documentation redirect collision or chain: {old}")
+        if not (OUT_ROOT / destination).is_file():
+            raise ValueError(f"Missing documentation redirect target: {target}")
+        url = DEPLOY_BASE + target
+        escaped = _html.escape(url, quote=True)
+        # The fragment on the incoming URL wins over a section default. Preserve
+        # query parameters before that fragment; never interpolate them as code.
+        script_url = json.dumps(url).replace("<", "\\u003c")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            '<!doctype html><html lang="en"><meta charset="utf-8">'
+            '<meta name="robots" content="noindex">'
+            f'<link rel="canonical" href="{escaped}">'
+            '<title>Document moved</title>'
+            f'<script>const target={script_url};'
+            'const [path, fragment] = target.split("#");'
+            'location.replace(path + location.search + '
+            '(location.hash || (fragment ? "#" + fragment : "")));</script>'
+            f'<p>This document has moved to <a href="{escaped}">its canonical page</a>.</p>'
+            '</html>', encoding="utf-8",
+        )
 
 
 def _copy_static_root() -> None:

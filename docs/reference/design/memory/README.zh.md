@@ -52,8 +52,7 @@ commit 到实体记忆，也没有 Graph 视图。阅读代码或维护文档时
 | [`speaker-identity.html`](speaker-identity.html) | 三层可视化：改之前是什么样（几个人共用一通会话、身份断在哪两处）、references下八个框架各自怎么做、我们怎么做的（两个文件，已落地），以及这个形状留下的两件事（发信人能在正文里打第二个标签、没有键可以按人过滤记忆）和收口它们的那个字段 |
 | [`authority-landscape.html`](authority-landscape.html) | 当前owner/paired权限方法、本地参考框架证据、采用/修改/拒绝记录、执行顺序可视化和实现进度 |
 | [`authority-handoff.md`](authority-handoff.md) | 已定案的权限与writer决策、延期边界、review处理结果和实现交接 |
-| [`git-as-entity-memory.md`](git-as-entity-memory.md) | 实体层的 git 底座（Session-Git + Project-Git） |
-| [`entity-memory.md`](entity-memory.md) | 实体记忆：Session-Git + Project-Git，按生命周期组织 |
+| [基于 Git 的实体记忆：未实现提案](entity-memory-proposal.zh.md) | 生命周期、回放、一致性与项目集成提案 |
 | [`virtual-memory.md`](virtual-memory.md) | 抽象记忆：Timeline + Graph + Core，按类型 × 生命周期组织 |
 
 ## 实现状态

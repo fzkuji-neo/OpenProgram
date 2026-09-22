@@ -67,7 +67,7 @@ store/
 > module lives under its sub-package — there are no flat top-level module
 > aliases.
 
-Designs: [`git-as-entity-memory.md`](../../docs/reference/design/memory/git-as-entity-memory.md)
+Designs: [`git-as-entity-memory.md`](../../docs/reference/design/memory/entity-memory-proposal.md)
 (why git), [`overview.md`](../../docs/reference/design/memory/overview.md) (entity layer),
 [`file-management.html`](../../docs/reference/design/runtime/operations/file-management.html) (snapshot / commit
 / worktree / read-before-edit — how they combine).

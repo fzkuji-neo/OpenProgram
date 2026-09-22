@@ -294,3 +294,71 @@ def test_design_navigation_disclosures_open_current_group() -> None:
     chain = next(chain for page, chain in flatten_pages(design.sections) if page.out == current)
     assert chain == [("Agents and workflows", "Agent 与工作流"), ("Sessions", "会话与存储")]
     assert "<details" not in render_nav(design.sections, current, "/docs/")
+
+
+def test_retired_document_urls_publish_redirects_without_duplicate_catalog_entries(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import json
+    from scripts.docs_site import build, generate_reference
+
+    (tmp_path / 'start').mkdir()
+    (tmp_path / 'start/topic.md').write_text('# Canonical topic\n\n## Details\nBody\n')
+    (tmp_path / 'redirects.json').write_text(json.dumps({'start/old.html': 'start/topic.html#details'}))
+    monkeypatch.setattr(build, 'DOCS_ROOT', tmp_path)
+    monkeypatch.setattr(build, 'OUT_ROOT', tmp_path / '_site')
+    monkeypatch.setattr(generate_reference, 'generate_all', lambda: None)
+    assert build.build() == 0
+    output = tmp_path / '_site'
+    redirect = (output / 'start/old.html').read_text()
+    assert 'location.replace' in redirect
+    assert 'location.search' in redirect and 'location.hash' in redirect
+    assert '/docs/start/topic.html#details' in redirect
+    assert 'noindex' in redirect
+    assert 'old.html' not in (output / 'sitemap.xml').read_text()
+    assert {p.rel.as_posix() for p in discover(tmp_path)} == {'start/topic.md'}
+    assert 'old.html' not in (output / 'start/topic.html').read_text()
+
+
+def test_invalid_document_redirect_preserves_published_site(tmp_path: Path, monkeypatch) -> None:
+    import json
+    import pytest
+    from scripts.docs_site import build, generate_reference
+
+    (tmp_path / 'start').mkdir()
+    (tmp_path / 'start/topic.md').write_text('# Topic\n')
+    monkeypatch.setattr(build, 'DOCS_ROOT', tmp_path)
+    monkeypatch.setattr(build, 'OUT_ROOT', tmp_path / '_site')
+    monkeypatch.setattr(generate_reference, 'generate_all', lambda: None)
+    assert build.build() == 0
+    published = (tmp_path / '_site/start/topic.html').read_bytes()
+    for aliases in (
+        {'start/old.html': 'missing.html'},
+        {'start/topic.html': 'start/topic.html'},
+        {'start/old.html': 'start/other.html', 'start/other.html': 'start/topic.html'},
+        {'../outside.html': 'start/topic.html'},
+    ):
+        (tmp_path / 'redirects.json').write_text(json.dumps(aliases))
+        with pytest.raises(ValueError):
+            build.build()
+        assert (tmp_path / '_site/start/topic.html').read_bytes() == published
+
+
+def test_consolidated_entity_proposal_retains_replay_and_project_sections() -> None:
+    import re
+    from scripts.docs_site import build
+
+    for language, headings in (
+        ('', ('42-projects-panel', '43-project-indicator-at-the-top-of-chat',
+              '5-key-invariants', '6-risks',
+              '8-relationship-with-the-existing-commit-chain', 'appendix-proposed-build-order')),
+        ('.zh', ('42-projects-panel', '43-chat-顶部-project-指示',
+                 '5-关键不变式', '6-风险点', '8-跟现有-commit-chain-的关系', '附录-提议的构建顺序')),
+    ):
+        source = (ROOT / f'docs/reference/design/memory/entity-memory-proposal{language}.md').read_text()
+        build._SLUG_DEDUP = {}
+        rendered = build.make_md().render(source)
+        ids = re.findall(r'\bid="([^"]+)"', rendered)
+        assert set(headings) <= set(ids)
+        assert len(ids) == len(set(ids))
+        assert '&lt;span' not in rendered

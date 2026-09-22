@@ -2,9 +2,8 @@
 
 OpenProgram 怎么让 agent 跨会话"记住"事情。
 
-> 本文覆盖记忆子系统的全貌。实体层的 git 底座见
-> [`git-as-entity-memory.zh.md`](git-as-entity-memory.zh.md) 与
-> [`entity-memory.zh.md`](entity-memory.zh.md)。
+> 本文说明当前记忆子系统。[实体记忆提案](entity-memory-proposal.zh.md)
+> 单独维护尚未实现的 Git 生命周期与回放设计。
 >
 > 路径约定：所有状态在 `~/.openprogram/`（即 `get_state_dir()`）；
 > 具名 profile 用 `~/.openprogram-<profile>/`。

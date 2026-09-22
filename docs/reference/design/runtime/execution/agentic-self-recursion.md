@@ -23,7 +23,7 @@ Two triggers compound:
 
 2. **The model sees the docstring match the task and mistakenly thinks it should call it.** The model sees `wiki_agent`'s tool description ("Maintain a wiki vault — route to ingest…") match the current task exactly, decides it should route to `wiki_agent` → calls itself → enters another bare exec, sees itself again → infinite recursion.
 
-A worked root-cause example of 7-level nesting is in `docs/reference/design/TODO-doc-code-gaps.md` §1; the session log's `context_tree` there shows the chain `4d76→0c07→0964→c6f9→f1c9→4379→8746→100c`.
+A worked root-cause example of 7-level nesting is in `docs/reference/design/documentation-gaps.md` §1; the session log's `context_tree` there shows the chain `4d76→0c07→0964→c6f9→f1c9→4379→8746→100c`.
 
 ---
 
@@ -150,4 +150,4 @@ Supplement: the test uses a `_deny()` helper (`test:51-53`) that reads `_current
 ## Related documents
 
 - `docs/reference/design/runtime/dag/overview.md` — the unified-system-prefix constraint; this mechanism puts the situational prompt in the user turn to obey that constraint.
-- `docs/reference/design/TODO-doc-code-gaps.md` §1 — the 7-level nesting root-cause example.
+- `docs/reference/design/documentation-gaps.md` §1 — the 7-level nesting root-cause example.

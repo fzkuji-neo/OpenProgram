@@ -1,4 +1,5 @@
-# CLI
+<span id="cli"></span>
+# CLI 命令参考
 
 `openprogram` 全部子命令的速查表。每条命令都可以用 `openprogram <command> -h` 查看自己的帮助；子命令的动词再套一层，如 `openprogram logs tail -h`。
 

@@ -1,4 +1,5 @@
-# CLI
+<span id="cli"></span>
+# Use the CLI
 
 Call OpenProgram from scripts or other programs and get one reply per command.
 

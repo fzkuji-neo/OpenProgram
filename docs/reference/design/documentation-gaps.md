@@ -1,4 +1,5 @@
-# Open Items Where Design Docs Are Out of Sync With Code
+<span id="open-items-where-design-docs-are-out-of-sync-with-code"></span>
+# Documentation and implementation gaps
 
 
 This file records the divergences between the design docs and the actual code, ordered by priority. This file retains only unresolved divergences; historical fixes are recorded in Git.

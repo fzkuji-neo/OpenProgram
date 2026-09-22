@@ -329,7 +329,7 @@ LLM 标题生成的细节（prompt、参数、后处理）见 [name.md](name.md)
 ### 归档不动的东西
 
 `updated_at` 记录的是最后一次追加消息的时间，归档不追加任何消息，因此不碰这个
-时间戳。这是[索引一致性契约](index-consistency.html)：取消归档后会话回到列表
+时间戳。这是[索引一致性契约](storage-consistency.html)：取消归档后会话回到列表
 里原来的位置，不会被顶到最上面。消息、分支、history 文件都不动，归档期间
 `get_messages` 照常可读。
 

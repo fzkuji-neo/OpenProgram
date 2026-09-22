@@ -2,9 +2,8 @@
 
 How OpenProgram makes the agent "remember" things across conversations.
 
-> This document covers the memory subsystem end to end. For the entity
-> tier's git substrate see [`git-as-entity-memory.md`](git-as-entity-memory.md)
-> and [`entity-memory.md`](entity-memory.md).
+> This document describes the active memory subsystem. The separate
+> [entity memory proposal](entity-memory-proposal.md) covers deferred Git-backed lifecycle and replay designs.
 >
 > Path conventions: all state lives under `~/.openprogram/` (= `get_state_dir()`);
 > named profiles use `~/.openprogram-<profile>/`.

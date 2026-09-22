@@ -51,7 +51,7 @@ Long results stop at 50 entries with a count of what was left out; narrow the qu
 
 One server per language per workspace. The workspace is the nearest ancestor directory holding `pyproject.toml`, `setup.py`, `package.json`, `tsconfig.json` or `.git`, and two files under the same root share one server process.
 
-A server starts on first use, stays cached for the life of the process, and shuts down when OpenProgram exits. Server processes start through the same path as every other child OpenProgram runs, so the configured [sandbox](../reference/design/runtime/sandbox.md) applies to them: under the default `workspace-write` mode a language server reads the workspace and writes nothing outside it, which is all it needs.
+A server starts on first use, stays cached for the life of the process, and shuts down when OpenProgram exits. Server processes start through the same path as every other child OpenProgram runs, so the configured [sandbox](../reference/design/runtime/sandbox-architecture.html) applies to them: under the default `workspace-write` mode a language server reads the workspace and writes nothing outside it, which is all it needs.
 
 ## Compared to grep and CodeGraph
 

@@ -25,7 +25,7 @@ as completion. Deterministic responsibilities are split as
 
 The legacy ``judge`` implementation belongs only to the Python Workflow.
 Design doc:
-docs/reference/design/runtime/goal-framework-implementation-comparison.html.
+docs/reference/design/runtime/goal-and-recovery.html.
 
 Goal state is one versioned session snapshot. It contains the objective and
 refined checklist, typed lifecycle status, controller checkpoint, cumulative

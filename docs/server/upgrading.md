@@ -1,4 +1,5 @@
-# Upgrading
+<span id="upgrading"></span>
+# Upgrade source checkouts
 
 `openprogram upgrade` selects behavior from the installation type. A managed
 release installs the latest stable GitHub Release and leaves the running worker

@@ -1,4 +1,5 @@
-# Configuration
+<span id="configuration"></span>
+# Server configuration
 
 All of OpenProgram's state lives in a single directory, `~/.openprogram/`. This page covers what is in it, how `openprogram config` reads and writes settings, and how to isolate multiple sets of state with profiles.
 

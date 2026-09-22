@@ -260,7 +260,7 @@
   <div class="chat-design">
   <section id="chat-goal-contract">
     <div class="eyebrow">OpenProgram · Harness design</div>
-    <h1>整个会话运行时的重启恢复与 Goal 设计</h1>
+    <span id="goal-workflow-design"></span><span id="goal-workflow-设计"></span><h1>整个会话运行时的重启恢复与 Goal 设计</h1>
     <p class="lead">设计问题：App 或 worker 重启后，如何自动继续原本在执行的会话与 Goal，恢复子任务、审批、上下文和用量，同时不重复未知写入、不恢复用户主动停止的工作。</p>
     <nav class="design-nav" aria-label="方案章节"><a href="#harness-decisions">参照</a><a href="#ownership-design">状态</a><a href="#recovery-design">恢复</a><a href="#completion-design">验收</a><a href="#usage-design">费用</a><a href="#controls-design">界面</a><a href="#acceptance-design">实施</a><a href="#status">实现状态</a></nav>
     <p>面向框架开发与产品验收。本文定义目标方案；实现状态集中在文末。范围覆盖 Web、TUI、ACP、后台 Job 和已获授权的子任务；Goal 使用同一聊天执行层。保留 Python Workflow API，不复制另一套执行引擎，不增加通用调度框架，不承诺任意外部操作恰好执行一次。</p>
