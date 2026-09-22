@@ -135,8 +135,8 @@ assert.match(centerTabsCss, /\.bookmarkBarOverflowed\s*\{[^}]*position:\s*absolu
   "overflowed bookmark buttons must stay measurable without being clipped into view");
 assert.match(contextMenuOverlay, /onPointerEnter=\{cancelHoverClose\}/,
   "desktop bookmark panels must cancel pending close when entered");
-assert.match(contextMenuOverlay, /onPointerLeave=\{scheduleHoverClose\}/,
-  "desktop bookmark panels must schedule close when left");
+assert.match(contextMenuOverlay, /onPointerLeave=\{persistent \? undefined : scheduleHoverClose\}/,
+  "non-persistent bookmark panels must schedule close when left");
 assert.match(desktopBridgeTypes, /scheduleClose\?\(delay\?: number\): void;/,
   "desktop bridge must type the delayed menu-close command");
 assert.match(desktopBridgeTypes, /cancelClose\?\(\): void;/,
