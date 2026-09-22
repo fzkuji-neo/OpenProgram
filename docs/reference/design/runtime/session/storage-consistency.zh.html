@@ -10,7 +10,7 @@
   </style>
 </head>
 <body><main>
-  <p class="sub">OpenProgram / SessionStore / implementation handoff</p>
+  <p class="sub">OpenProgram / SessionStore / 实施交接</p>
   <h1>存储一致性</h1>
   <p class="sub">本页规范 <code>meta.json</code>、内存 <code>_index</code> 与 <code>index.json</code> 的时间和并发合同，以及 merged heads 和 store 锁范围。各部分保留独立的验收边界。</p>
 
@@ -62,7 +62,7 @@
     <tr><td><code>append_message</code></td><td>追加一条内容</td><td>meta/index 同时推进，列表按新时间排序。</td></tr>
     <tr><td><code>list_sessions</code></td><td>调用方修改返回行</td><td>后续列表结果不受影响。</td></tr>
     <tr><td>deferred flush</td><td>旧快照写入期间并发更新</td><td>后续 flush 后 <code>index.json</code> 包含新字段，不被旧保存清除 dirty。</td></tr>
-    <tr><td>concurrent registry access</td><td>并发 update/list/flush</td><td>无迭代异常，JSON 始终可解析，最终内存与磁盘一致。</td></tr>
+    <tr><td>并发注册表访问</td><td>并发 update/list/flush</td><td>无迭代异常，JSON 始终可解析，最终内存与磁盘一致。</td></tr>
   </tbody></table></div>
 
   <h2>Windows 会话目录删除</h2><p>显式删除会话、过期会话清理和容量清理共用平台删除适配器。普通 Git 对象因 Windows 只读属性导致删除失败时，清除该属性并仅重试该次删除一次。其他权限失败保持调用方原有的尽力处理行为；不修改 ACL，也不跟随链接改变目标权限。缺失历史的清理条件和归档保留规则保持不变。</p><p>验收通过公开 SessionStore reopen 和 delete_session 入口使用只读 Git 对象。原生 Windows 单元回归检查目录确实消失，而非仅从索引移除。实现遵循标准 <a href="https://docs.python.org/3/library/shutil.html#rmtree-example">shutil 只读文件删除示例</a>，使用兼容 Python 3.11 的错误回调与只读属性检查。</p><p>适配器和公开回归已通过独立规格与质量审查。原生验收由 Windows 单元 CI 执行，本地模拟不能替代。</p><h2>Merged heads 原子更新</h2>

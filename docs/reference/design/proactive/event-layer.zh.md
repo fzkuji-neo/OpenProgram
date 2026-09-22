@@ -173,9 +173,9 @@ webui 的存在。
 
 ## 8. 架构图
 
-![事件层架构图](diagrams/event-layer-architecture.svg)
+![事件层架构图](diagrams/event-layer-architecture.zh.svg)
 
-> 交互版本（带事件流动画的完整可视化页）：[`event-layer.html`](event-layer.html)
+> 交互版本（带事件流动画的完整可视化页）：[`event-layer.html`](event-layer.zh.html)
 
 - 总线是唯一中枢：源和消费者互不认识，只认总线。
 - webui 和 proactive 都只是**消费者**，同级。proactive 是这层之上的应用，不在这层之内。

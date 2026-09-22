@@ -58,12 +58,12 @@ Windows 推荐使用 Windows Terminal。运行在 MinTTY 中的 Git Bash 可能�
 |---|---|
 | `/help`、`/keybindings` | 命令列表与键盘快捷键参考 |
 | `/model`、`/fetch-models` | 切换模型、重新拉取模型列表 |
-| `/effort` | 调整 thinking effort（档位见 [thinking effort](../models/thinking-effort.md)） |
+| `/effort` | 调整 thinking effort（档位见 [thinking effort](../models/thinking-effort.zh.md)） |
 | `/new`、`/resume`、`/sessions`、`/session` | 新会话、续聊、会话列表、当前会话信息 |
 | `/rewind` | 回退会话到某条消息 |
 | `/compact`、`/context`、`/clear` | 压缩上下文、查看上下文、清屏 |
 | `/permissions`、`/sandbox` | 权限档与沙箱 |
-| `/login <provider>`、`/logout` | provider 登录 / 登出（见[认证与凭据](../models/auth.md)） |
+| `/login <provider>`、`/logout` | provider 登录 / 登出（见[认证与凭据](../models/auth.zh.md)） |
 | `/agents`、`/agent` | 管理 / 切换 agent |
 | `/mcp`、`/tools`、`/memory` | 查看和管理与 Web UI 对应页面同源的数据 |
 | `/cost` | 本会话 token 用量 |

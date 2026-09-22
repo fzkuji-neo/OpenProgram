@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="zh"><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>实时布局</title>
+<title>Live layout</title>
 <style>
 :root{--bg:#1a1a18;--pan:#232320;--bd:#3a3a36;--tx:#d8d6cc;--tx2:#9a988e;--acc:#d19a66;--cb:#15140f}
 *{box-sizing:border-box}
@@ -42,92 +42,89 @@ text{font-family:-apple-system,sans-serif;pointer-events:none}
 @media(max-width:760px){.w{padding:24px 20px 60px}.stage{gap:16px}.stage>div:first-child{flex-basis:480px}.side{min-width:0;width:100%}.principles{padding:20px}.canvas{display:block}}
 </style></head>
 <body><div class="w">
-<h1>实时布局</h1>
-<p class="sub">不是写死坐标的示意图。这里内置了和后端 <code>graph_layout</code> 一致的布局算法
-（lane / tier / depth + 占列规则），喂节点数据 → <b>算法自己算出每个节点的位置</b> → 画出来。
-切换下面的场景看不同数据跑出来的布局。通信线默认隐藏，鼠标移到图上才显示。</p>
+<h1>Live layout</h1>
+<p class="sub">This page uses an executable layout algorithm matching the backend <code>graph_layout</code> (lane / tier / depth and column-allocation rules). Supply node data → <b>the algorithm computes every node position</b> → render the result. Switch scenarios below to inspect layouts from different datasets. Communication edges are hidden until you hover over the graph.</p>
 
 <div class="bar" id="bar"></div>
 <div class="stage">
-  <div data-scroll-region tabindex="0" role="region" aria-label="DAG 图横向滚动区域"><svg id="svg" class="canvas"></svg></div>
+  <div data-scroll-region tabindex="0" role="region" aria-label="Horizontally scrollable DAG diagram"><svg id="svg" class="canvas"></svg></div>
   <div class="side">
     <div class="desc" id="desc"></div>
     <div class="legend">
-      <b>节点</b>：◇ ROOT&nbsp;&nbsp;○ user&nbsp;&nbsp;△ llm&nbsp;&nbsp;□ code&nbsp;&nbsp;◉ merge<br>
-      <b>颜色</b> = 分支身份（每条 lane 一色）<br>
-      <b>线型</b> = 连线类型：<br>
-      &nbsp;━ 同分支&nbsp;&nbsp;- - retry&nbsp;&nbsp;-·- spawn&nbsp;&nbsp;··· 通信(hover)&nbsp;&nbsp;═ 合并&nbsp;&nbsp;┄ attach<br>
-      <b>列规则</b>：fork 占两列（竖线列 + 节点列）
-    </div>
+      <b>Nodes</b>: ◇ ROOT&nbsp;&nbsp;○ user&nbsp;&nbsp;△ llm&nbsp;&nbsp;□ code&nbsp;&nbsp;◉ merge<br>
+      <b>Color</b> = branch identity (one color per lane)<br>
+      <b>Line style</b> = edge type:<br>
+      &amp;nbsp;━ Same branch&amp;nbsp;&amp;nbsp;- - retry&amp;nbsp;&amp;nbsp;-·- spawn&amp;nbsp;&amp;nbsp;··· communication (hover)&amp;nbsp;&amp;nbsp;═ merge&amp;nbsp;&amp;nbsp;┄ attach<br>
+      <b>Column rule</b>: each fork uses two columns (vertical axis + nodes)</div>
     <table class="tbl" id="coords"></table>
   </div>
 </div>
 
 <div class="principles">
-  <h2>设计原则（DAG 怎么画 —— 全部规则）</h2>
+  <h2>Design principles (all DAG rendering rules)</h2>
 
-  <h3>1. 连线：每个节点连它的父，先往下、再往右</h3>
-  <p><b>唯一的连线规则</b>：每个节点连它的【父】，从父<b>先往下（父正下方画竖线到子的行）、再往右（横到子）</b>。所有连线都这样，没有例外。</p>
+  <h3>1. Edges: connect each node to its parent, down first and then right</h3>
+  <p><b>One edge-routing rule</b>: connect each node to its parent, routing from the parent <b>down to the child’s row, then right to the child</b>. Every edge follows this rule.</p>
   <ul>
-    <li>父 = caller 优先（谁调用我），没有 caller 才用 predecessor。</li>
-    <li>ROOT→问题：从 ROOT 下面竖 + 右到问题。问题<b>必须</b>连到 ROOT 上。</li>
-    <li>问题→A回复、A回复→工具：子调用从父先下后右，逐层缩进（函数调用逻辑）。</li>
-    <li>同一列的两个节点（问题 / B回复了）：从上面那个正下方一条竖线直连下来。</li>
-    <li><b>不存在</b>"一根贯穿整列的主干竖线"；竖线只是"父正下方到子那一段"。节点之间不互相乱连，全靠"连父"自然成树。</li>
+    <li>Parent = caller first (the invoking node); use predecessor only when caller is absent.</li>
+    <li>ROOT → question: down from ROOT, then right to the question. The question <b>must</b> connect to ROOT.</li>
+    <li>Question → reply A and reply A → tool: route down then right, increasing indentation for nested function calls.</li>
+    <li>Nodes in the same column (question / B replied) connect with a vertical line from the upper node.</li>
+    <li><b>There is no </b>single line spanning an entire column. Each vertical segment runs from a parent to its child’s row; parent links define the tree without arbitrary connections.</li>
   </ul>
 
-  <h3>2. 节点形状 = 角色</h3>
-  <p>◇ ROOT（菱形，白填充） · ○ user（真人用户消息，圆） · △ llm（AI / agent 消息，三角） · □ code（工具 / 函数调用，方块） · ◉ merge（合并汇聚点，实心带孔圆）。<br>
-  <b>agent 之间发来的消息是 △（三角），不是 ○</b>——圆只给真人用户。</p>
+  <h3>2. Node shape = role</h3>
+  <p>◇ ROOT (white-filled diamond) · ○ user (human message, circle) · △ llm (AI/agent message, triangle) · □ code (tool/function call, square) · ◉ merge (filled circle with a hole).<br>
+  <b>Messages from another agent use △, not ○</b>; circles are reserved for human users.</p>
 
-  <h3>3. 颜色 = 分支身份（不表示线的类型）</h3>
-  <p>每条 lane（分支）一个颜色。任何线都用它所属/指向分支的 lane 颜色。<b>绝不</b>用颜色区分线的类型——那会和"颜色=分支"冲突。</p>
+  <h3>3. Color = branch identity, not edge type</h3>
+  <p>Each lane (branch) has one color. Every edge uses the color of the branch it belongs to or targets.<b>Never</b> distinguish edge types by color, which would conflict with branch identity.</p>
 
-  <h3>4. 线型 = 连线类型（颜色之外的另一维，正交）</h3>
+  <h3>4. Line style = edge type, independent of color</h3>
   <ul>
-    <li>━ 实线：同分支调用（父→子，正常对话 / 子调用）</li>
-    <li>- - 虚线 5 4：retry 分叉（用户手动重试 / 改写）</li>
-    <li>-·- 点划线 4 2 1 2：大模型主动建分支（spawn_branch）</li>
-    <li>··· 点线 1 5：分支间通信（send_to_branch）</li>
-    <li>═ 粗实线 2.4：合并汇入（merge）</li>
-    <li>┄ 长虚线 4 4：attach 回流（子分支结果嵌回）</li>
+    <li>━ Solid: calls within a branch (parent → child; ordinary chat/nested calls)</li>
+    <li>- - Dashed 5 4: retry fork (manual retry/rewrite)</li>
+    <li>-·- Dash-dot 4 2 1 2: model-created branch (spawn_branch)</li>
+    <li>··· Dotted 1 5: cross-branch communication (send_to_branch)</li>
+    <li>═ Thick solid 2.4: merge input</li>
+    <li>┄ Long dash 4 4: attach return (child result embedded in parent)</li>
   </ul>
 
-  <h3>5. 列（lane / tier）</h3>
+  <h3>5. Columns (lane / tier)</h3>
   <ul>
-    <li><b>tier（缩进）</b>：按角色固定。ROOT=0，user=1，llm=2，工具=3，子调用逐层 +1。子节点在父的右下角。</li>
-    <li><b>lane（分支列）</b>：有几条分支排几列，按出现顺序 0,1,2，不跳号。</li>
-    <li><b>fork 占两列</b>：一条 fork 分支 = 它自己的竖线列 + 节点列。新分支整条排在它分叉出的那条分支【全部内容】的右边，不重叠。</li>
-    <li><b>正方形网格</b>：横向格距 = 纵向格距，子节点严格在父的右下角（45°）。</li>
-    <li><b>紧凑</b>：空行上移、空列左移，收起节点后腾出的行列要补上，不留空。</li>
+    <li><b>tier (indentation)</b>: fixed by role. ROOT=0, user=1, llm=2, tools=3; nested calls add 1 per level. Children sit down and right of parents.</li>
+    <li><b>lane (branch column)</b>: allocate branches in appearance order 0,1,2, without gaps.</li>
+    <li><b>A fork uses two columns</b>: its own vertical axis plus node column. Place the entire new branch to the right of all content in the originating branch, without overlap.</li>
+    <li><b>Square grid</b>: horizontal and vertical spacing match; children sit diagonally down-right at 45°.</li>
+    <li><b>Compact layout</b>: shift rows upward and columns leftward to fill space released by collapsed nodes.</li>
   </ul>
 
-  <h3>6. 行（depth）= 时间序</h3>
-  <p>按全局 created_at（seq）排，早发生的在上。所以一条<b>已存在</b>的分支（如被通信的 B）排在引用它的操作（send）<b>之前</b>，不会被画成"通信时才新建"。retry 的兄弟对齐到同一行（同一时刻的平行可能）。</p>
+  <h3>6. Rows (depth) follow time</h3>
+  <p>Order by global created_at (seq), earlier events above. An <b>existing</b> branch (such as communication target B) appears <b>before</b> the send operation referencing it, rather than appearing newly created at send time. Retry siblings share a row as parallel alternatives.</p>
 
-  <h3>7. 分支间通信（agent ↔ agent）—— 异步</h3>
-  <p>不是同步阻塞（那会让 A 干等 B、两条并行分支变串行甚至死锁）。是异步，像"派后台 agent 干活 + 还能继续聊天"：</p>
+  <h3>7. Cross-branch communication (agent ↔ agent) is asynchronous</h3>
+  <p>Synchronous blocking would make A wait for B, serializing parallel branches or causing deadlock. Asynchronous execution allows a background agent to work while conversation continues:</p>
   <ul>
-    <li>A 的 △ 调 send_to_branch → A 这边出一个 □ 工具节点；工具<b>瞬间返回，A 不阻塞</b>，继续自己的事。</li>
-    <li>消息跨到 B：B 那边相当于另一个 agent 发来消息 → 一个 △「B收到」，B 再产出 △「B应答」。<b>B收到/B应答 属于 B 分支</b>（B 的颜色、串在 B 上），不在 A 那边。</li>
-    <li>B 答完，结果<b>异步送回 A 末尾</b> → 一个 △「B回复了」，它是外部推回 A 的新一轮输入，<b>和「问题」同级</b>（user 级，挂 A 主干）。</li>
-    <li>A 再对它回应 → △「A回应」。</li>
-    <li>两条通信线（··· 点线）：A→B 发、B→A 回。两条分支各自的线都不停、不阻塞。</li>
+    <li>A’s △ invokes send_to_branch → A gets a □ tool node. The tool <b>returns immediately without blocking A</b>, which continues its own work.</li>
+    <li>The message reaches B from another agent → △ “B received,” followed by △ “B responds.”<b>Both nodes belong to branch B</b> (B’s color and connections), not A.</li>
+    <li>After B responds, the result is <b>delivered asynchronously to A’s end</b> → △ “B replied.” It is a new externally supplied input turn for A, <b>at the same level as “Question”</b> (user level, attached to A’s main conversation).</li>
+    <li>A responds to it → △ “A responds.”</li>
+    <li>Two dotted communication edges: A → B and B → A. Neither branch blocks.</li>
   </ul>
 
-  <h3>8. 分支合并 / 子分支服务</h3>
+  <h3>8. Branch merges / child-branch work</h3>
   <ul>
-    <li><b>合并</b>：N 条分支汇聚到一个 ◉ merge 节点（多父）。merge 落在 base 分支的 lane；其它分支用 ═ 粗汇入线汇进来。</li>
-    <li><b>子分支服务</b>：A 调 spawn_branch 派子分支 B（-·- 点划线，B 的首节点和 spawn 节点同一行起）→ B 独立跑 → 结果 ┄ attach 回流嵌回 A。</li>
+    <li><b>Merge</b>: N branches converge on one ◉ merge node with multiple parents. It sits in the base lane; other branches connect with thick merge-input edges.</li>
+    <li><b>Child-branch work</b>: A invokes spawn_branch to create B (dash-dot edge; B starts on the spawn row) → B runs independently → its result returns through an attach edge.</li>
   </ul>
 
-  <h3>9. 软连接线：默认隐藏，hover 端点才显示 + 动画</h3>
-  <p><b>调用线</b>（同分支 / retry / spawn —— 结构骨架）常驻显示。<br>
-  <b>软连接线</b>（通信 send→收到、返回 应答→回复了、merge 汇入、attach 回流 —— 凡是跨分支的"谁连了谁"）<b>默认全部隐藏</b>：只有鼠标放到这条线<b>连接的两个端点节点中的任意一个</b>上时，这条线才显示出来，并带<b>流动动画</b>（虚线流动，表示方向）。移开就隐藏。<br>
-  理由：这类线会非常多，常驻会把图糊成一团；按需 hover 显示，既不挡视线又能查"这个节点连去了哪"。</p>
+  <h3>9. Cross-branch reference edges: hidden until endpoint hover, then animated</h3>
+  <p><b>Call edges</b> (same branch / retry / spawn, defining graph structure) remain visible.<br>
+  <b>Reference edges</b> (send → received, response → replied, merge inputs, and attach returns: cross-branch references) are <b>hidden by default</b>: reveal an edge only while hovering <b>either endpoint node</b>, with a <b>directional animation</b> (moving dashes). Hide it again when the pointer leaves.<br>
+  Rationale: many such edges would obscure the graph if always visible. Hover reveals a node’s connections without persistent clutter.</p>
 
-  <h3>10. 本图是什么</h3>
-  <p>不是写死坐标的示意图。这里内置了和后端 <code>graph_layout</code> 一致的布局算法（lane/tier/depth + 占列规则），喂节点数据 → 算法自己算出每个节点的位置 → 画出来。上方切换场景看不同数据跑出来的真实布局。</p>
+  <h3>10. What this diagram does</h3>
+  <p>This page uses an executable layout algorithm matching the backend <code>graph_layout</code> layout algorithm is implemented here with matching lane/tier/depth and column-allocation rules. Input node data → compute positions → render. Switch scenarios above to see actual computed layouts for different datasets.</p>
 </div>
 
 <script>
@@ -341,14 +338,14 @@ function render(nodes){
   // 连线 = caller 树(照 dag/overview.md): 每个节点连它的【父(caller)】, 父在左上、
   // 子在右下,父正下方竖线 + 横到子(├─/└─ 树形)。
   //   - 同对话链: user 连 ROOT(竖线), llm 连它的 user, tool 连它的 llm —— 函数调用
-  //     逐层缩进的树。竖线只是"父正下方那一小段",不是贯穿整条 lane。
+  //     逐层缩进的树。竖线只是"The segment directly below its parent",不是贯穿整条 lane。
   //   - 跨分支(fork/spawn/通信): 子在别的 lane, 从源到子用对应 dash 线型。
   // 唯一规则：每个节点连它的【父】，从父【先往下、再往右】到子(父正下方竖线
   // 到子的行，再横到子)。所有连线都这样，无例外。父 = caller 优先，否则 predecessor。
   //   - ROOT→问题：从 ROOT 下面竖 + 右到问题(连上 ROOT)
   //   - 问题→A回复：问题下面竖 + 右
   //   - 问题→B回复了(同列)：问题下面竖到 B回复了(同列横段≈0)
-  //   - 跨分支(fork/spawn/通信)：父在别的 lane，同样"先下后右"，只是线型用 dash 区分。
+  //   - 跨分支(fork/spawn/通信)：父在别的 lane，同样"Down, then right"，只是线型用 dash 区分。
   for(const m of nodes){
     if(m.display==="root")continue;
     const c=pos(m), color=laneColor(m._laneNum);
@@ -377,7 +374,7 @@ function render(nodes){
         fill:"none",stroke:color,"stroke-width":1.6,"stroke-dasharray":dash,opacity:dash?0.8:1}));
     }
   }
-  // ===== 软连接线(非调用): merge 汇入 / attach 回流 / 通信。本质都是"谁连了谁"。
+  // ===== 软连接线(非调用): merge 汇入 / attach 回流 / 通信。本质都是"Which nodes connect"。
   // 默认隐藏；鼠标放到它连接的【任一端点节点】上才显示 + 流动动画。=====
   // merge 汇入线
   for(const m of nodes){
@@ -432,7 +429,7 @@ function render(nodes){
 
   // 坐标表
   const tbl=document.getElementById("coords");
-  tbl.innerHTML="<tr><th>id</th><th>lane</th><th>tier</th><th>列</th><th>行</th></tr>"+
+  tbl.innerHTML="<tr><th>id</th><th>lane</th><th>tier</th><th>Column</th><th>Row</th></tr>"+
     nodes.map(m=>`<tr><td>${m.label||m.id}</td><td>${m._laneNum}</td><td>${m._tier}</td><td>${m._lane+m._tier}</td><td>${depthRow[m._depth]}</td></tr>`).join("");
 }
 let buildMapsCache={fork:{}};
@@ -442,64 +439,64 @@ let buildMapsCache={fork:{}};
    ============================================================ */
 const R0={id:"ROOT",role:"user",display:"root",created_at:0};
 const SCENES=[
- {name:"单轮对话",desc:"发一句话。算法应给全 lane 0，tier 0/1/2 阶梯。",nodes:()=>[R0,
-   {id:"u1",role:"user",caller:"ROOT",predecessor:null,created_at:1,label:"你好"},
-   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"AI回复"}]},
- {name:"多轮对话",desc:"两轮。所有 user 都挂 ROOT(tier1)，全 lane 0。",nodes:()=>[R0,
-   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"你好"},
-   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"回复1"},
-   {id:"u2",role:"user",caller:"ROOT",predecessor:"l1",created_at:3,label:"再问"},
-   {id:"l2",role:"assistant",caller:"u2",predecessor:"u2",created_at:4,label:"回复2"}]},
- {name:"retry 分叉",desc:"对第一句 retry → 第2条分支。fork 占两列(竖线+节点)，虚线分叉。",nodes:()=>[R0,
-   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"你好"},
-   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"回复1"},
-   {id:"u1b",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:3,label:"你好(改写)"},
-   {id:"l1b",role:"assistant",caller:"u1b",predecessor:"u1b",created_at:4,label:"回复1'"}]},
- {name:"工具调用",desc:"AI 调工具 → 工具 tier3 缩进，不另开 lane。",nodes:()=>[R0,
-   {id:"u1",role:"user",caller:"ROOT",predecessor:null,created_at:1,label:"北京天气"},
-   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"AI回复"},
+ {name:"One turn",desc:"One message. All nodes should use lane 0, with tiers 0/1/2.",nodes:()=>[R0,
+   {id:"u1",role:"user",caller:"ROOT",predecessor:null,created_at:1,label:"Hello"},
+   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"AI reply"}]},
+ {name:"Multiple turns",desc:"Two turns. All user nodes attach to ROOT (tier 1), in lane 0.",nodes:()=>[R0,
+   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"Hello"},
+   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"Reply 1"},
+   {id:"u2",role:"user",caller:"ROOT",predecessor:"l1",created_at:3,label:"Ask again"},
+   {id:"l2",role:"assistant",caller:"u2",predecessor:"u2",created_at:4,label:"Reply 2"}]},
+ {name:"Retry fork",desc:"Retry the first message to create branch 2. The fork uses two columns (axis + nodes) and a dashed fork edge.",nodes:()=>[R0,
+   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"Hello"},
+   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"Reply 1"},
+   {id:"u1b",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:3,label:"Hello (edited)"},
+   {id:"l1b",role:"assistant",caller:"u1b",predecessor:"u1b",created_at:4,label:"Reply 1'"}]},
+ {name:"Tool call",desc:"An AI tool call is indented to tier 3 without creating a lane.",nodes:()=>[R0,
+   {id:"u1",role:"user",caller:"ROOT",predecessor:null,created_at:1,label:"Beijing weather"},
+   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"AI reply"},
    {id:"t1",role:"tool",caller:"l1",created_at:3,label:"web_search",sub:"tier3"}]},
- {name:"多 fork(retry 3次)",desc:"同一点 retry 三次 → 三条分支各占独立列，不重叠。",nodes:()=>[R0,
+ {name:"Multiple forks (three retries)",desc:"Three retries at one point create three branches in separate, nonoverlapping columns.",nodes:()=>[R0,
    {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"v1"},
    {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"r1"},
    {id:"u2",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:3,label:"v2"},
    {id:"l2",role:"assistant",caller:"u2",predecessor:"u2",created_at:4,label:"r2"},
    {id:"u3",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:5,label:"v3"},
    {id:"l3",role:"assistant",caller:"u3",predecessor:"u3",created_at:6,label:"r3"}]},
- {name:"分支合并",desc:"两条分支 → merge 节点(◉)汇聚。base 主线 + peer 粗汇入线 ═。",nodes:()=>[R0,
-   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"问题"},
-   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"回复A"},
-   {id:"u1b",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:3,label:"问题(改写)"},
-   {id:"l1b",role:"assistant",caller:"u1b",predecessor:"u1b",created_at:4,label:"回复B"},
-   {id:"mg",role:"merge",caller:"l1",predecessor:"l1",created_at:5,label:"merge",sub:"合并A+B",mergeFrom:["l1b"]}]},
- {name:"分支间通信",desc:"异步：A 调 send_to_branch(正方形工具)给 B 发消息 → 工具瞬间返回，A【不阻塞】继续自己的事。B 在自己节奏处理(B收到=三角→B应答=三角，都在 B 分支)。B 答完，结果【异步送回】A 末尾，变成一个三角「B回复了」(agent 发来的=三角)。两条通信线：A→B 发、B→A 回；两条分支各自竖线都不停。",nodes:()=>[R0,
+ {name:"Branch merge",desc:"Two branches converge on ◉ merge: the base continues and the peer uses a thick input edge ═.",nodes:()=>[R0,
+   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"Question"},
+   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"Reply A"},
+   {id:"u1b",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:3,label:"Question (edited)"},
+   {id:"l1b",role:"assistant",caller:"u1b",predecessor:"u1b",created_at:4,label:"Reply B"},
+   {id:"mg",role:"merge",caller:"l1",predecessor:"l1",created_at:5,label:"merge",sub:"Merge A+B",mergeFrom:["l1b"]}]},
+ {name:"Cross-branch communication",desc:"Asynchronously, A invokes send_to_branch (square tool) for B and returns immediately; A continues without blocking. B handles it independently: B received and B responds are triangles on B’s branch. The result returns asynchronously to A’s end as a triangle “B replied,” because another agent sent it. Two communication edges connect A→B and B→A; both branches continue.",nodes:()=>[R0,
    // A 分支
-   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"问题"},
-   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"A回复"},
+   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"Question"},
+   {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"A replies"},
    // B 分支(独立,和 A 平行,从 ROOT 来)
-   {id:"ub",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:3,label:"B用户",independent:true},
-   {id:"lb",role:"assistant",caller:"ub",predecessor:"ub",created_at:4,label:"B回复"},
+   {id:"ub",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:3,label:"B user",independent:true},
+   {id:"lb",role:"assistant",caller:"ub",predecessor:"ub",created_at:4,label:"B replies"},
    // A 调 send 工具(瞬间返回,不阻塞)；B收到/B应答 归 B 分支。
-   {id:"send",role:"code",caller:"l1",predecessor:"l1",created_at:5,label:"send_to_branch",sub:"瞬间返回,A不阻塞"},
-   {id:"bRecv",role:"assistant",caller:"ub",predecessor:"lb",commFrom:"send",created_at:6,label:"B收到(另一agent)"},
-   {id:"bAns",role:"assistant",caller:"bRecv",predecessor:"bRecv",created_at:7,label:"B应答"},
+   {id:"send",role:"code",caller:"l1",predecessor:"l1",created_at:5,label:"send_to_branch",sub:"Immediate; A continues"},
+   {id:"bRecv",role:"assistant",caller:"ub",predecessor:"lb",commFrom:"send",created_at:6,label:"B received (agent)"},
+   {id:"bAns",role:"assistant",caller:"bRecv",predecessor:"bRecv",created_at:7,label:"B responds"},
    // B应答 异步送回 A 末尾 → 三角「B回复了」。它是外部推回 A 的新一轮输入,
    // 和「问题」同级(tierHint=1,挂 A 竖线 user 列),不是 send 的缩进子调用。
-   {id:"aRecv",role:"assistant",caller:"ROOT",predecessor:"send",commFrom:"bAns",tierHint:1,created_at:8,label:"B回复了",sub:"A的新一轮,直连ROOT(和问题同级)"},
+   {id:"aRecv",role:"assistant",caller:"ROOT",predecessor:"send",commFrom:"bAns",tierHint:1,created_at:8,label:"B replied",sub:"A’s new turn, directly under ROOT at question level"},
    // A 收到 B 的回复后,A 的 llm 对它作出回应(B回复了=输入 → A回应=llm,缩进一级)
-   {id:"aAns",role:"assistant",caller:"aRecv",predecessor:"aRecv",created_at:9,label:"A回应",sub:"A 对 B回复的回应"}]},
- {name:"子分支服务",desc:"A 的 llm 调 spawn_branch(□工具) → 当场【新建】一个临时子 agent 分支 B → B 在自己分支干活(△ 子agent → △ 干完) → 干完后结果【attach 回流】嵌回 A，A 收到后继续(△)。关键区别于通信：B 不是平行已存在的，是 spawn 当场生出来的，所以从 spawn 那行往下长，不和「问题」平行。spawn 线常驻(点划线)，attach 回流是软连接(hover 显示)。",nodes:()=>[R0,
-   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"问题"},
+   {id:"aAns",role:"assistant",caller:"aRecv",predecessor:"aRecv",created_at:9,label:"A responds",sub:"A responds to B"}]},
+ {name:"Child-branch work",desc:"A’s llm calls spawn_branch (square tool), creating a temporary child-agent branch B at that moment. B works independently (triangle child agent → triangle completion); its result attaches back to A, which continues. Unlike communication with an existing peer, B is newly created and begins on the spawn row, not the question row. The dash-dot spawn edge remains visible; the attach reference edge appears on hover.",nodes:()=>[R0,
+   {id:"u1",role:"user",caller:"ROOT",predecessor:"ROOT",created_at:1,label:"Question"},
    {id:"l1",role:"assistant",caller:"u1",predecessor:"u1",created_at:2,label:"A"},
-   {id:"sp",role:"code",caller:"l1",predecessor:"l1",created_at:3,label:"spawn_branch",sub:"A调的工具,当场派子分支"},
+   {id:"sp",role:"code",caller:"l1",predecessor:"l1",created_at:3,label:"spawn_branch",sub:"A’s tool creates a child"},
    // B = spawn 当场新建的子 agent 分支。caller=sp(spawn 派的)、无 predecessor →
    // 不被当独立分支对齐到问题行；从 spawn 那行往下长。首节点是 △ 子agent(非 user)。
-   {id:"b1",role:"assistant",caller:"sp",spawn_from:"sp",tierHint:1,created_at:4,label:"子分支B",sub:"spawn当场新建的子agent"},
-   {id:"b2",role:"assistant",caller:"b1",predecessor:"b1",created_at:5,label:"B干完"},
+   {id:"b1",role:"assistant",caller:"sp",spawn_from:"sp",tierHint:1,created_at:4,label:"Child B",sub:"New child agent at spawn"},
+   {id:"b2",role:"assistant",caller:"b1",predecessor:"b1",created_at:5,label:"B done"},
    // B 干完 → attach 回流嵌回 A → A 收到后继续(新一轮,挂 A 主干 user 级)。
-   {id:"a2",role:"assistant",caller:"ROOT",predecessor:"sp",attach_from:"b2",tierHint:1,created_at:6,label:"A(收到B)",sub:"attach回流,A收到后继续"},
+   {id:"a2",role:"assistant",caller:"ROOT",predecessor:"sp",attach_from:"b2",tierHint:1,created_at:6,label:"A receives B",sub:"Attach result; A continues"},
    // A 收到子分支结果后,继续处理/回应(A收到B=输入 → A回应=llm,缩进一级)
-   {id:"a3",role:"assistant",caller:"a2",predecessor:"a2",created_at:7,label:"A回应",sub:"A 对子分支结果的处理"}]},
+   {id:"a3",role:"assistant",caller:"a2",predecessor:"a2",created_at:7,label:"A responds",sub:"A handles child result"}]},
 ];
 
 function show(i){

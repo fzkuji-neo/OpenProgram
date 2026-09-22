@@ -188,7 +188,9 @@ get_external_skills_dirs()   扩展
 
 trusted_roots 校验，path traversal 防护。
 
-### Frontmatter
+<div id="frontmatter"></div>
+
+### 前置元数据
 
 - `metadata.hermes.config`：配置变量声明
 - `platforms`: ["darwin", "linux", "win32"]

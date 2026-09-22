@@ -111,4 +111,4 @@ tool 和其他子系统继续使用各自的网络与权限规则。凭证脱敏
 provider runtime 生命周期：无运行副作用的 provider 包导入、auth/API 原子发布、built-in 注册失败下稳定的
 FAILED 传播、record/replay 激活失败改走 blocked provider 恢复（runtime 停在 READY，`openprogram recordings
 status`/`off` 可恢复），并删除导入期环境变量保护。规范设计与验证边界见
-[`record-replay.html`](record-replay.html)。
+[`record-replay.html`](record-replay.zh.html)。

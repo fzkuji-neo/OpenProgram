@@ -66,12 +66,17 @@
     if (label) label.textContent = lang === "zh" ? "中文" : "EN";
     document.querySelectorAll(".lang-opt").forEach((b) => {
       b.classList.toggle("active", b.getAttribute("data-lang") === lang);
+      b.disabled = b.getAttribute("data-lang") !== ROOT.getAttribute("data-page-lang") &&
+        !ROOT.getAttribute("data-alt-lang-url");
+      b.title = b.disabled ? (lang === "zh" ? "暂无此语言版本" : "Translation unavailable") : "";
     });
     // Bilingual-labelled elements (sidebar links, group headers, tabs,
     // breadcrumbs, callout heads) switch text; links switch href too.
     document.querySelectorAll("[data-title-zh]").forEach((el) => {
       if (el.dataset.titleEn == null) el.dataset.titleEn = el.textContent; // capture once
       el.textContent = lang === "zh" ? el.getAttribute("data-title-zh") : el.dataset.titleEn;
+    });
+    document.querySelectorAll("[data-href-en][data-href-zh]").forEach((el) => {
       const hrefZh = el.getAttribute("data-href-zh");
       const hrefEn = el.getAttribute("data-href-en");
       if (lang === "zh" && hrefZh) el.setAttribute("href", hrefZh);
@@ -96,6 +101,7 @@
       opt.addEventListener("click", () => {
         closeLangMenu();
         const lang = opt.getAttribute("data-lang");
+        if (opt.disabled) return;
         if (lang === curLang) return;
         curLang = lang;
         try { localStorage.setItem("op-docs-lang", curLang); } catch (e) {}
@@ -693,6 +699,7 @@
     const ql = q.toLowerCase();
     const scored = [];
     for (const doc of index) {
+      if (doc.lang && doc.lang !== curLang && doc.has_translation) continue;
       const tl = doc.title.toLowerCase();
       const bl = doc.text.toLowerCase();
       let score = 0, pos = -1;

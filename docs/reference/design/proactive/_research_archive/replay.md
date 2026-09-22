@@ -1,101 +1,93 @@
-# 回放即 policy 测试
+<div id="回放即-policy-测试"></div>
 
-## 1. 为什么回放是测试框架
+# Replay as policy testing
 
-policy 的 `evaluate(event, state)` 是纯函数；`state` 是 `events.jsonl` 的纯 fold
-（见 `events-and-state.md` §4）。两个输入都来自落盘的事件流，所以**把历史事件流喂回去重放
-一条 policy，就等于在真实负载上测试它**——不需要造 mock，不需要跑活的 agent。
+<div id="1-为什么回放是测试框架"></div>
+
+## 1. Why replay is a testing framework
+
+A policy's `evaluate(event, state)` is a pure function; `state` is a pure fold of `events.jsonl` (see `events-and-state.md` §4). Both inputs come from the persisted event stream, so **replaying historical events through a policy tests it on real workloads** without mocks or a running agent.
 
 ```
 openprogram proactive replay --policy TestGapWatcher --sessions <ids|all>
 ```
 
-两个用途，互为表里：
+Two complementary uses:
 
-- **工程**：任何新 policy 启用前**必跑**，看它在历史会话上 would-have-fired 多少次、命中
-  哪些事件。把"先发明再上线才发现 precision 不行"（Clippy 的死法）提前到离线。
-- **论文**：would-have-fired 报告是 precision 人工标注的样本来源（见 `evaluation.md`）。
+- **Engineering**: every new policy **must** be replayed before activation to inspect how often it would have fired in historical sessions and which events it matched. This exposes poor precision offline instead of discovering it only after deployment (the failure pattern associated with Clippy).
+- **Paper**: the would-have-fired report supplies samples for manual precision annotation (see `evaluation.md`).
 
-回放工具应在决策引擎**之前**就位——评估优先于功能（`overview.md` §5）。
+The replay tool should be ready **before** the decision engine: evaluation precedes functionality (`overview.md` §5).
 
-## 2. 确定性难题：新 policy 首次回放历史
+<div id="2-确定性难题新-policy-首次回放历史"></div>
 
-回放的卖点是"确定性 = 可测"。但有一个场景它天然不成立，必须诚实处理：
+## 2. The determinism problem: a new policy's first historical replay
 
-> 新 policy 依赖的 L2 推断，在历史会话里**从未发生过**——`state.inferred` derived event
-> 不在那段历史的 `events.jsonl` 里（`events-and-state.md` §4）。
+Replay promises determinism and therefore testability. One case is inherently non-deterministic and must be handled explicitly:
 
-对"已经跑过的"policy 回放是确定的（直接读历史里的 derived event）。但回放工具最核心的用例
-恰恰是"新 policy 首次跑历史"，这时 L2 不存在。两种诚实的应对，做成两个模式：
+> The L2 inference required by a new policy **never occurred** in the historical session: its `state.inferred` derived event is absent from that session's `events.jsonl` (`events-and-state.md` §4).
 
-| 模式 | 允许的 state | 确定性 | 用途 |
+Replaying a policy that has already run is deterministic because it reads historical derived events directly. However, a central use case is running a new policy on history for the first time, when L2 does not exist. Provide two explicit modes:
+
+| Mode | Permitted state | Determinism | Purpose |
 |---|---|---|---|
-| **strict** | 仅 L0/L1 + 已落盘 `state.inferred` | 完全确定，逐位可复现 | L0/L1 policy 的回归测试；论文里可复现的硬数字 |
-| **augmented** | strict + **现场补算 L2** | 见 §3 | 依赖 L2 的新 policy（如 UnvalidatedCompletionNudge）首次评估 |
+| **strict** | L0/L1 and persisted `state.inferred` only | Fully deterministic, bit-for-bit reproducible | Regression testing of L0/L1 policies; reproducible quantitative paper results |
+| **augmented** | strict plus **newly computed L2** | See §3 | First evaluation of a new L2-dependent policy, such as UnvalidatedCompletionNudge |
 
-MVP 三条里 DangerousCommandGuard、TestGapWatcher 的 L1 部分走 strict；
-UnvalidatedCompletionNudge 和 TestGapWatcher 的收尾信号判定走 augmented。
+Among the three MVP policies, DangerousCommandGuard and the L1 part of TestGapWatcher use strict mode. UnvalidatedCompletionNudge and TestGapWatcher's completion-signal detection use augmented mode.
 
-## 3. augmented 模式的可复现性
+<div id="3-augmented-模式的可复现性"></div>
 
-现场补 L2 = 现场调 LLM，天然非确定（采样、模型版本漂移）。把它约束到"可复现的非确定"：
+## 3. Reproducibility in augmented mode
 
-- 固定 `model + version + temperature=0`。
-- 补出的 L2 推断**缓存落盘**，并把 `model 指纹`随报告一起发布。
-- 复现语义不是"复现推断过程"，而是"**复现你的标注集**"——别人拿你发布的缓存 + 指纹，得到
-  和你完全相同的 L2 值，从而复现你报告的 precision 数字，无需自己再调一次会漂移的模型。
-- 同一 policy 对同一会话**二次回放确定**（第二次读缓存）。
+Computing missing L2 requires calling an LLM and is inherently non-deterministic because of sampling and model-version drift. Constrain this to reproducible evaluation inputs:
 
-Prepare 类 policy 的额外边界：回放**只能到 would-have-prepared**——无法确定性地重跑 reviewer
-subagent。所以 TestGapWatcher 真正用户可见的那一步（prepared 置信度过阈值才 Notify）**回放
-验证不到**，其 Notify 精度必须靠在线 A/B，报告里明确标注"Notify precision: online-only"。
+- Fix `model + version + temperature=0`.
+- **Persist a cache** of the newly computed L2 inferences and publish the `model fingerprint` with the report.
+- Reproduction means **reproducing the annotation set**, not repeating the inference process. Others use the published cache and fingerprint to obtain exactly the same L2 values and reproduce reported precision without calling a model that may have changed.
+- A **second replay** of the same policy on the same session **is deterministic**, because it reads the cache.
 
-## 4. 三个回放必须做对的细节
+Additional boundary for Prepare policies: replay **stops at would-have-prepared** because the reviewer subagent cannot be rerun deterministically. TestGapWatcher's actual user-visible step — Notify only after prepared confidence exceeds the threshold — **cannot be verified through replay**. Its Notify precision requires online A/B evaluation and must be labeled “Notify precision: online-only” in the report.
 
-**冷却闭环**：新 policy 回放历史时没有自己的动作历史，`cooldown` 记录（来自"动作已发生"的
-事件）对它是空的。若忽略自身冷却，则每次命中都报，would-have-fired 数被稀释、precision 失真。
-解法：回放引擎把自己模拟出的 would-fire 决策**回灌为虚拟 cooldown 事件**，让后续命中按真实
-上线时的冷却行为被压制。
+<div id="4-三个回放必须做对的细节"></div>
 
-**时钟注入**：`cooldown_s`、15 分钟冷却、任务段预算这类时间逻辑，回放时的"现在"必须是**事件
-的 `ts`**，不是 wall-clock。所以 policy **禁止触碰 `time.time()`**——框架向 `evaluate` 注入
-一个由当前事件 `ts` 驱动的时钟。否则在 2024 年的历史会话上用 2026 年的"现在"算冷却，全错。
+## 4. Three replay details that must be correct
 
-**分支折叠**：session 是 git DAG，可 rewind/分叉，而 `events.jsonl` 是线性文件。回放必须按
-`node_id` 沿"当前节点到根"的 DAG 路径**重建**后折叠（`events-and-state.md` §5），不是按文件
-顺序。否则把多个被 rewind 掉的分支当成一条连续历史，state 失真、would-have-fired 报告作废。
-例外：cooldown/熔断这类打扰预算声明为跨分支全局。
+**Simulated cooldown feedback**: a new policy has no action history when replaying historical events, so its `cooldown` records, derived from events indicating an action occurred, are empty. Ignoring its own cooldown reports every match, distorting would-have-fired counts and precision. The replay engine must **feed simulated would-fire decisions back as virtual cooldown events**, suppressing subsequent matches as they would be suppressed in production.
 
-## 5. recall 的结构性盲点
+**Clock injection**: for temporal logic such as `cooldown_s`, a 15-minute cooldown, or a task-segment budget, replay's “now” must be **the event's `ts`**, not wall-clock time. A policy therefore **must not call `time.time()`**. The framework injects a clock driven by the current event's `ts` into `evaluate`. Computing cooldown for a historical 2024 session using the current time in 2026 would be incorrect.
 
-would-have-fired 报告只列"policy 会触发的地方"——它**结构上看不见 false negative**（该触发
-却没触发的地方）。所以 precision 能从回放直接读，**recall 不能**。recall 必须靠另外标注一组
-should-have-fired 样本（人工在历史会话里标"这里本该提醒"），见 `evaluation.md`。回放报告自身
-不声称 recall。
+**Branch-aware folding**: a session is a git DAG that supports rewind and branching, whereas `events.jsonl` is linear. Replay must **reconstruct** the DAG path from the current node to the root using `node_id` and then fold it (`events-and-state.md` §5), rather than following file order. Otherwise, branches discarded by rewind are incorrectly treated as a continuous history, corrupting state and invalidating would-have-fired reports. Exception: interruption budgets such as cooldowns and circuit breakers are declared global across branches.
 
-## 6. 报告输出结构
+<div id="5-recall-的结构性盲点"></div>
+
+## 5. A structural limitation for recall
+
+A would-have-fired report lists only where a policy would fire. It **cannot structurally reveal false negatives**: places where it should have fired but did not. Precision can therefore be derived directly from replay, but **recall cannot**. Recall requires a separately annotated should-have-fired sample set, with humans marking historical moments where a notification should have occurred; see `evaluation.md`. The replay report itself makes no recall claim.
+
+<div id="6-报告输出结构"></div>
+
+## 6. Report output structure
 
 ```
 replay-report {
   policy: "TestGapWatcher"
   mode: "augmented"                      # strict | augmented
-  model_fingerprint: "claude-…@2026-06"  # augmented 才有
+  model_fingerprint: "claude-…@2026-06"  # augmented only
   sessions_scanned: 214
   events_scanned: 51_320
   fired: 38
   per_session: [
-    { session_id, node_path: [...],      # 折叠用的 DAG 路径
+    { session_id, node_path: [...],      # DAG path used for folding
       fires: [
-        { event_ref, state_snapshot_ref, # 可点开查看触发上下文（脱敏后，见 threat-model.md）
+        { event_ref, state_snapshot_ref, # Inspect triggering context after redaction; see threat-model.md
           action: "Prepare→Notify",
-          cooldown_suppressed: false,    # 冷却闭环是否压制了它
+          cooldown_suppressed: false,    # Whether simulated cooldown suppressed it
           notes: "Notify precision: online-only" }
       ] }
   ]
-  invariant_checks: { loop_free: pass, breaker_exempt: pass, ... }   # 见 invariants.md §5
+  invariant_checks: { loop_free: pass, breaker_exempt: pass, ... }   # See invariants.md §5
 }
 ```
 
-每个 fire 都带 `event_ref` + `state_snapshot_ref`，标注者据此判 would-have-fired 是否正确
-（precision 标注）。报告同时把四条不变式（`invariants.md`）作为断言一并跑过——回放既测 policy
-质量，也守框架不变式。
+Every fire includes `event_ref` and `state_snapshot_ref`, enabling annotators to judge whether it should have fired (precision annotation). The report also executes the four invariants (`invariants.md`) as assertions: replay evaluates policy quality and checks framework invariants.

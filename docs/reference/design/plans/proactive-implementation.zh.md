@@ -1,6 +1,6 @@
 # Proactive Layer 接入代码 — 设计
 
-> Proactive 本身的设计在 [`../proactive/`](../proactive/README.md)。本文只讲那套设计
+> Proactive 本身的设计在 [`../proactive/`](../proactive/README.zh.md)。本文只讲那套设计
 > 与现有 OpenProgram 代码的交界：复用了哪些机制、事件从哪里发出、gate 挂在哪里、
 > 它的强制力实际覆盖到什么程度。有冲突以设计文档为准。
 

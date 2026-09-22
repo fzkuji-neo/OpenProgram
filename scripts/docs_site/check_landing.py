@@ -475,15 +475,16 @@ def main() -> int:
     for html_path in BUILT_SITE.rglob("*.html"):
         if html_path.name.endswith(".raw.html"):
             continue
-        if html_path.name.endswith(".zh.html"):
-            en_path = html_path.with_name(html_path.name.replace(".zh.html", ".html"))
+        suffix = ".viz.html" if html_path.name.endswith(".viz.html") else ".html"
+        if html_path.name.endswith(".zh" + suffix):
+            en_path = html_path.with_name(html_path.name.removesuffix(".zh" + suffix) + suffix)
             zh_path = html_path
         elif html_path == BUILT_SITE / "index.html":
             en_path = html_path
             zh_path = BUILT_SITE / "README.zh.html"
         else:
             en_path = html_path
-            zh_path = html_path.with_name(html_path.stem + ".zh.html")
+            zh_path = html_path.with_name(html_path.name.removesuffix(suffix) + ".zh" + suffix)
 
         head = html_path.read_text(encoding="utf-8").split("</head>", 1)[0]
         head_page = LandingParser()

@@ -64,7 +64,7 @@ Program installer 只用于第三方 Program 和开发者源码 overlay，不用
 
 ## 下一步
 
-- [模型与 provider](../models/README.md) — 各 provider 的接入方式、多账户与密钥轮换
-- [Agentic Programming](../capabilities/agentic-programming/README.md) — 写你自己的 `@agentic_function`
-- [界面](../interfaces/README.md) — 终端 TUI、web UI 与 channels
-- [日常操作](daily-use.md) — 会话管理、分支与回退
+- [模型与 provider](../models/README.zh.md) — 各 provider 的接入方式、多账户与密钥轮换
+- [Agentic Programming](../capabilities/agentic-programming/README.zh.md) — 写你自己的 `@agentic_function`
+- [界面](../interfaces/README.zh.md) — 终端 TUI、web UI 与 channels
+- [日常操作](daily-use.zh.md) — 会话管理、分支与回退

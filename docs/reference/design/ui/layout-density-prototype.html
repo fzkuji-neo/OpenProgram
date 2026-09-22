@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>布局密度原型</title>
+<title>Layout density prototype</title>
 <style>
   :root{
     --bg:#141416; --bg2:#1c1c1f; --bg3:#232327; --border:#2c2c31;
@@ -18,7 +18,7 @@
   .swbtn.on{background:var(--accent);border-color:var(--accent);color:#0c0c10;font-weight:600}
   .app{flex:1;display:flex;min-height:0}
 
-  /* ═══ 左栏：无固定块，间距统一 ═══ */
+  /* ═══ Left sidebar: no fixed blocks, uniform spacing ═══ */
   .left{width:232px;flex-shrink:0;border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column}
   .brand{height:48px;display:flex;align-items:center;padding:0 10px 0 14px;flex-shrink:0;gap:8px}
   .brand .name{font-weight:700;font-size:14.5px;flex:1}
@@ -31,9 +31,9 @@
   .row .ic{width:16px;text-align:center;flex-shrink:0}
   .sect{padding:12px 8px 4px;font-size:11px;color:var(--text2)}
 
-  /* ═══ 中央 ═══ */
+  /* ═══ Center ═══ */
   .center{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
-  /* tab 条 40px——聊天 tab 下面没有第二条栏 */
+  /* 40px tab strip; no second bar beneath chat tabs */
   .strip{height:40px;display:flex;align-items:flex-end;padding:0 8px;background:var(--bg2);flex-shrink:0;position:relative}
   .strip::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--border)}
   .tb{display:flex;align-items:center;gap:7px;padding:0 10px 0 12px;height:34px;border-radius:9px 9px 0 0;color:var(--text2);cursor:pointer;font-size:12.5px;position:relative}
@@ -53,7 +53,7 @@
   .m-ai{line-height:1.7;max-width:92%}
   .note{color:var(--text3);font-size:12px}
 
-  /* composer 接管会话设置 */
+  /* Session settings move to the composer */
   .composer{margin:8px 9vw 14px;border:1px solid var(--border);border-radius:14px;background:var(--bg2);padding:10px 12px;flex-shrink:0}
   .composer .in{color:var(--text2);font-size:13px;padding:2px 2px 10px}
   .crow{display:flex;gap:6px;align-items:center;font-size:11.5px}
@@ -62,7 +62,7 @@
   .chip.green{color:var(--green);border-color:#2e4636}
   .crow .send{margin-left:auto;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#0c0c10;display:grid;place-items:center;flex-shrink:0}
 
-  /* 文件 / 网页 tab 的 40px 工具栏 */
+  /* 40px toolbar for file / web tabs */
   .toolbar40{height:40px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--border);flex-shrink:0;font-size:12px;color:var(--text2)}
   .addr{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;color:var(--text)}
   .viewer{flex:1;display:grid;place-items:center;color:var(--text3);font-size:12.5px;text-align:center;line-height:2}
@@ -71,7 +71,7 @@
     display:grid;place-items:center;color:var(--text2);font-size:13px;text-align:center;line-height:2}
   .badge{display:inline-block;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:2px 10px;font-size:11px;margin-top:6px}
 
-  /* 右侧标注 */
+  /* Right-side annotations */
   .anno{position:fixed;right:14px;bottom:12px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--text2);line-height:1.9;z-index:9;max-width:330px}
   .anno b{color:var(--text)}
   .anno .old{color:var(--text3);text-decoration:line-through}
@@ -94,19 +94,19 @@
 </head>
 <body>
 <div class="bar">
-  <b>设计 v4</b><span>三个问题一次解：左栏固定块矛盾 · 纵向空间 · 真浏览器</span>
+  <b>Design v4</b><span>Three issues addressed: fixed sidebar blocks, vertical space and a real browser</span>
   <span style="flex:1"></span>
-  <button class="swbtn on" data-p="chat">会话 tab</button>
-  <button class="swbtn" data-p="file">文件 tab</button>
-  <button class="swbtn" data-p="web">网页 tab</button>
+  <button class="swbtn on" data-p="chat">Chat tab</button>
+  <button class="swbtn" data-p="file">File tab</button>
+  <button class="swbtn" data-p="web">Web tab</button>
 </div>
 <div class="app">
 
-  <!-- 左栏：品牌行右侧 ＋（永远可达的新会话）；下面全部统一滚动、统一 1px 间距 -->
+  <!-- Left sidebar: persistent new-session + in the brand row; all content below scrolls together with 1px spacing -->
   <div class="left">
     <div class="brand">
       <span class="name">Open<i>Program</i></span>
-      <span class="hbtn" title="新会话（常驻，列表滚走也在）">＋</span>
+      <span class="hbtn" title="New session (always available, even when the list scrolls)">＋</span>
       <span class="hbtn">⎔</span>
     </div>
     <div class="lscroll">
@@ -123,24 +123,24 @@
     </div>
   </div>
 
-  <!-- 中央 -->
+  <!-- Center -->
   <div class="center">
     <div class="strip">
-      <div class="tb on" id="t-chat">💬 proxy 重构 <span class="x">✕</span></div>
+      <div class="tb on" id="t-chat">💬 Proxy refactoring <span class="x">✕</span></div>
       <div class="tb" id="t-file">📄 http_proxy.py</div>
       <div class="tb" id="t-web">🌐 google.com</div>
       <div class="plus">＋</div>
-      <span class="statusdot" title="Local · 连接正常（原顶栏 status chip 缩成角落状态点）"></span>
+      <span class="statusdot" title="Local · Connected (top-bar status chip becomes a corner status dot)"></span>
     </div>
     <div class="content">
 
-      <!-- 会话 tab：40px tab 条下面直接是对话，没有第二条栏 -->
+      <!-- Chat tab: conversation begins directly below the 40px tab strip, without another bar -->
       <div class="pane on" id="p-chat">
         <div class="msgs">
-          <div class="m-user">把 socksio 的问题修一下</div>
-          <div class="m-ai">根因是 ALL_PROXY=socks5 时 httpx 构造客户端就要求 socksio，已统一代理解析入口。</div>
-          <div class="m-ai note">↑ 注意：对话区从 tab 条底(y=40)一直到 composer——原来这里还有一条 48px 的设置栏。
-            模型 / 权限 / thinking 全部住进 composer（↓），和 Claude/ChatGPT 同一惯例。</div>
+          <div class="m-user">Fix the socksio issue</div>
+          <div class="m-ai">With ALL_PROXY=socks5, httpx requires socksio when constructing the client. Proxy resolution now uses one entry point.</div>
+          <div class="m-ai note">↑ The conversation extends from the tab strip bottom (y=40) to the composer; a 48px settings bar previously occupied this space.
+            Model, permissions and thinking controls move into the composer (↓), following the Claude/ChatGPT layout.</div>
         </div>
         <div class="composer">
           <div class="in">Ask for follow-up changes…</div>
@@ -155,28 +155,28 @@
         </div>
       </div>
 
-      <!-- 文件 tab：保留 40px 工具栏（面包屑是内容的一部分） -->
+      <!-- File tab: retain the 40px toolbar (breadcrumbs belong to content) -->
       <div class="pane" id="p-file">
         <div class="toolbar40"><span class="mono">providers › utils › http_proxy.py</span>
           <span style="flex:1"></span><span>✏️</span><span>⬇</span></div>
-        <div class="viewer">代码查看器（行号 / markdown / 图片 / PDF 同现状）</div>
+        <div class="viewer">Code viewer (line numbers / Markdown / images / PDF remain as implemented)</div>
       </div>
 
-      <!-- 网页 tab：40px 地址栏 + 真浏览器投屏 -->
+      <!-- Web tab: 40px address bar + real browser screencast -->
       <div class="pane" id="p-web">
         <div class="toolbar40">
           <span>←</span><span>→</span><span>⟳</span>
           <input class="addr mono" value="https://www.google.com/">
-          <span title="外部打开">⧉</span>
+          <span title="Open externally">⧉</span>
         </div>
         <div class="browser-live">
           <div>
-            <b>sidecar Chrome 投屏（CDP screencast）</b><br>
-            后端复用已有 playwright + openprogram browser 的 sidecar：<br>
-            Page.startScreencast → 帧流走 WS → 这里 canvas 渲染；<br>
-            鼠标/键盘事件回传 Input.dispatch*。真 Google、真登录态。<br>
-            <span class="badge">人看的 = agent 操作的同一个浏览器 → 操作网页的地基</span><br>
-            <span class="note">iframe 只做 sidecar 不可用时的降级</span>
+            <b>Sidecar Chrome display (CDP screencast)</b><br>
+            The backend reuses the existing Playwright + openprogram browser sidecar:<br>
+            Page.startScreencast → frames over WS → canvas rendering here;<br>
+            Mouse and keyboard events return through Input.dispatch*. Actual Google pages and authenticated sessions.<br>
+            <span class="badge">The user sees the same browser that the agent controls</span><br>
+            <span class="note">iframe is only a fallback when the sidecar is unavailable</span>
           </div>
         </div>
       </div>
@@ -186,12 +186,12 @@
 </div>
 
 <div class="anno">
-  <b>数字对账</b><br>
-  聊天顶部 chrome：<span class="old">48+48 = 96px</span> → <b>40px</b>（内容高度 +56px）<br>
-  文件/网页 tab：40 + 40 = 80px（面包屑/地址栏属于内容）<br>
-  左栏：<span class="old">固定 New chat + 分界线</span> → 全部统一滚动、1px 间距；
-  品牌行 ＋ 常驻兜底<br>
-  原顶栏五枚 chip 去向：模型×2/权限/项目 → composer；status → tab 条角落绿点；branch → History 面板头部
+  <b>Dimension comparison</b><br>
+  Chat top chrome:<span class="old">48+48 = 96px</span> → <b>40px</b>(56px more content height)<br>
+  File/web tabs: 40 + 40 = 80px (breadcrumbs/address bar belong to content)<br>
+  Left sidebar:<span class="old">Fixed New chat + divider</span> → Everything scrolls together with 1px spacing;
+  The brand-row + remains available<br>
+  Former top-bar chips: two model controls / permissions / project → composer; status → corner dot in tab strip; branch → History panel header
 </div>
 
 <script>

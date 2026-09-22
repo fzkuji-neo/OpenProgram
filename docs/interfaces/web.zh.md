@@ -1,4 +1,6 @@
-# Web UI
+<div id="web-ui"></div>
+
+# 网页界面
 
 在会话的 ⋯ 菜单中选择 **自动命名（Auto rename）**，即可让配置的默认模型根据会话内容生成名称。**重命名（Rename）** 仍可手动输入名称。生成期间显示原名称；生成失败时保留原名称并显示提示。用户明确选择的名称不会被后台自动命名覆盖。聊天区域的会话菜单也提供同一入口。该操作不会发送聊天消息或调用工具。
 
@@ -30,7 +32,7 @@ PDF 文件支持连续阅读、页码跳转、缩略图、文档目录、适合�
 openprogram web
 ```
 
-浏览器打开 `http://localhost:18100`。页面是由本地 FastAPI worker 直接提供的静态导出——`/api`、`/ws` 和 UI 都在同一个端口（默认 18100）。数据全部来自 worker，会话与终端 TUI、CLI 单发共用，见[界面总览](README.md)。改端口用 `openprogram ports --port`。
+浏览器打开 `http://localhost:18100`。页面是由本地 FastAPI worker 直接提供的静态导出——`/api`、`/ws` 和 UI 都在同一个端口（默认 18100）。数据全部来自 worker，会话与终端 TUI、CLI 单发共用，见[界面总览](README.zh.md)。改端口用 `openprogram ports --port`。
 
 ![聊天页](../images/chat_hero.png)
 
@@ -117,7 +119,7 @@ Wayland display（例如通过 SSH 使用服务器），Web UI 会改为显示�
 | `/projects` | History → Projects：权限规则、默认设置、关联会话 |
 | `/settings` | 设置：providers（模型与凭据）、search、general（含主题、运行版本，以及存在 Electron bridge 时的 Desktop 更新状态）、system、usage、auth、channels |
 
-`/settings` 直接打开会跳到 `/settings/general`。模型凭据仍在 `/settings/providers`，见[配置模型](../models/README.md)。
+`/settings` 直接打开会跳到 `/settings/general`。模型凭据仍在 `/settings/providers`，见[配置模型](../models/README.zh.md)。
 
 ### 会话运行记录
 

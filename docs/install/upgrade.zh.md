@@ -373,4 +373,4 @@ openprogram upgrade
 
 source checkout 的恢复细节见[服务器升级](../server/upgrading.zh.md)。
 持续维护的架构、信任边界、界面状态和实现证据见
-[正式版本自动更新](../reference/design/distribution/automatic-updates.html)。
+[正式版本自动更新](../reference/design/distribution/automatic-updates.zh.html)。

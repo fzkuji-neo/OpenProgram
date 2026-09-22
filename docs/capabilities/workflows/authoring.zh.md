@@ -19,6 +19,8 @@ Workflow 是一个 Python 包，公开一个 `@agentic_function` 入口。人工
 
 公开入口保持简短。有独立职责时，再把准备、检查或单独阶段放入辅助模块。直接调用 `llm`、`agent`、`goal`、工具和其他 Workflow，不另建分发器或执行引擎。明确处理预期的非法输入，让运行时的取消正常传播。
 
+<div id="design-principle-the-workflow-owns-execution-parameters"></div>
+
 ## 设计原则：运行参数由 Workflow 自己决定
 
 用户只描述任务、证据材料和交付要求，不负责填写模型名称、推理强度、迭代轮数、超时、Token 预算、并发数或重试次数。禁止把这些参数放进 Advanced、其他设置弹窗，或改成问题让用户逐项填写。缺失的任务事实和必要授权仍可澄清；执行参数的选择属于 Workflow 的职责。

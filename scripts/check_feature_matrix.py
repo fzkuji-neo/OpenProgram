@@ -30,6 +30,7 @@ HEADERS = (
     "gm内",
     "buddy",
 )
+HEADERS_EN = ("Feature", "Ours", *HEADERS[2:10], "cc internal", "cx internal", "gm internal", "buddy")
 FRAMEWORK_NAMES = HEADERS[1:]
 EXPECTED_SNAPSHOT = "2fb471b3"
 EXPECTED_INTEGRATION_SNAPSHOT = "d91c3e66"
@@ -129,13 +130,13 @@ class _MatrixParser(HTMLParser):
         elif tag == "tr" and self.in_row:
             if self.cells:
                 if "grp" in self.row_classes:
-                    match = re.search(r"\d+\s+(.+?)\s+\d+\s*项", self.cells[0][1])
+                    match = re.search(r"\d+\s+(.+?)\s+\d+\s*(?:项|features)", self.cells[0][1])
                     if not match:
                         raise MatrixError("category heading is malformed")
                     self.category = match.group(1)
                 elif (
                     all("hc" not in classes for classes, _name, _full in self.cells)
-                    and self.cells[0][1] == "功能"
+                    and self.cells[0][1] in {"功能", "Feature"}
                 ):
                     self.headers.append(tuple(cell[1] for cell in self.cells))
                 elif all(
@@ -238,7 +239,7 @@ def _validate_detail_group_counts(
         classes = re.search(r'class="([^"]*)"', attrs)
         if classes and "grp" in classes.group(1).split():
             heading = re.search(
-                r"<b[^>]*>(.*?)</b>\s*<span[^>]*>(\d+)\s*项</span>",
+                r"<b[^>]*>(.*?)</b>\s*<span[^>]*>(\d+)\s*(?:项|features)</span>",
                 body,
                 re.DOTALL,
             )
@@ -274,8 +275,9 @@ def check_matrix(path: Path) -> MatrixResult:
         raise MatrixError(
             f"expected one canonical matrix table, found {parser.table_count}"
         )
-    if parser.headers != [HEADERS]:
+    if parser.headers not in ([HEADERS], [HEADERS_EN]):
         raise MatrixError("framework headers are stale")
+    framework_names = parser.headers[0][1:]
     if len(parser.rows) != 160:
         raise MatrixError(f"feature row count is stale: {len(parser.rows)}")
 
@@ -292,7 +294,7 @@ def check_matrix(path: Path) -> MatrixResult:
         gaps += row.cells[0] == "·" and any(cell != "·" for cell in row.cells[1:])
         only += row.cells[0] != "·" and all(cell == "·" for cell in row.cells[1:])
 
-    json_rows = [row for row in parser.rows if row.name == JSON_SCHEMA_ROW]
+    json_rows = [row for row in parser.rows if row.name in {JSON_SCHEMA_ROW, "JSON-schema-constrained output"}]
     if len(json_rows) != 1:
         raise MatrixError("JSON Schema row is missing or duplicated")
     json_row = json_rows[0]
@@ -306,10 +308,11 @@ def check_matrix(path: Path) -> MatrixResult:
         raise MatrixError("published snapshot evidence is stale")
     if source.count(f"integrated candidate@{EXPECTED_INTEGRATION_SNAPSHOT}") < 3:
         raise MatrixError("integration snapshot evidence is stale")
-    if "runtime llm(response_format=…) 的 JSON schema 结构化输出" in source:
+    if ("runtime llm(response_format=…) 的 JSON schema 结构化输出" in source
+            or "runtime llm(response_format=…) JSON schema structured output" in source):
         raise MatrixError("old snapshot still claims complete JSON Schema support")
 
-    ssrf_rows = [row for row in parser.rows if row.name == SSRF_ROW]
+    ssrf_rows = [row for row in parser.rows if row.name in {SSRF_ROW, "Private-network access and SSRF protection"}]
     if len(ssrf_rows) != 1:
         raise MatrixError("SSRF row is missing or duplicated")
     ssrf_row = ssrf_rows[0]
@@ -333,28 +336,31 @@ def check_matrix(path: Path) -> MatrixResult:
         if not visible:
             raise MatrixError(f"published score for {name} is not numeric")
         published_scores[name] = (float(width), float(visible.group()))
-    if set(published_scores) != set(FRAMEWORK_NAMES):
+    if set(published_scores) != set(framework_names):
         raise MatrixError("published framework score rows are stale")
-    for name, expected in zip(FRAMEWORK_NAMES, scores):
+    for name, expected in zip(framework_names, scores):
         width, visible = published_scores[name]
         if visible != expected or width != max(2, expected * 4):
             raise MatrixError(
                 f"published score for {name} does not match the canonical table"
             )
-    aria = re.search(r"OpenProgram为([0-9.]+)分", source)
+    aria = re.search(r'OpenProgram(?:为| )([0-9.]+)(?:分|(?=[" ,]))', score_svg.group())
     if not aria or float(aria.group(1)) != scores[0]:
         raise MatrixError("published score ARIA does not match the canonical table")
 
     published_gaps = _published_integer(
         source,
-        r"(?:未确认的|参考列已确认的|这)\s*(\d+)\s*项|功能矩阵、[0-9.]+\s*分、(\d+)\s*个候选差异",
+        r"(?:未确认的|参考列已确认的|这)\s*(\d+)\s*项|功能矩阵、[0-9.]+\s*分、(\d+)\s*个候选差异"
+        r"|(\d+) features unconfirmed in OpenProgram|Feature matrix, [0-9.]+ score, (\d+) candidate differences",
         "gaps",
     )
     if published_gaps != gaps:
         raise MatrixError("published gaps do not match the canonical table")
     published_only = _published_integer(
         source,
-        r"仅 OpenProgram 确认的\s*(\d+)\s*项|功能矩阵、[0-9.]+\s*分、\d+\s*个候选差异、(\d+)\s*个快照差异",
+        r"仅 OpenProgram 确认的\s*(\d+)\s*项|功能矩阵、[0-9.]+\s*分、\d+\s*个候选差异、(\d+)\s*个快照差异"
+        r"|(\d+) features (?:currently )?confirmed only in OpenProgram"
+        r"|Feature matrix, [0-9.]+ score, \d+ candidate differences, (\d+) version-evidence differences",
         "OpenProgram-only count",
     )
     if published_only != only:
@@ -484,7 +490,7 @@ def check_matrix(path: Path) -> MatrixResult:
         expected_openprogram_percent = round(100 * framework_scores[0] / len(category_rows))
         expected_reference_percent = round(100 * max(reference_scores) / len(category_rows))
         expected_reference_names = {
-            FRAMEWORK_NAMES[index]
+            framework_names[index]
             for index, score in enumerate(framework_scores[1:], start=1)
             if index not in {7, 8} and score == max(reference_scores)
         }
@@ -497,10 +503,10 @@ def check_matrix(path: Path) -> MatrixResult:
             != (expected_reference_min, expected_reference_max)
             or median_x != expected_reference_median
             or f"{expected_reference_percent}%" not in visible_label
-            or not any(name in visible_label for name in expected_reference_names)
+            or not any(name.casefold() in visible_label.casefold() for name in expected_reference_names)
             or (
                 framework_scores[0] > max(reference_scores)
-                and f"我们 {expected_openprogram_percent}%" not in visible_label
+                and f"{framework_names[0]} {expected_openprogram_percent}%" not in visible_label
             )
         ):
             raise MatrixError(f"published category point for {category} is stale")
@@ -538,13 +544,13 @@ def check_matrix(path: Path) -> MatrixResult:
             )
         )
     for category in leaders:
-        if category not in legend:
+        if category.casefold() not in legend.casefold():
             raise MatrixError("published category legend is stale")
     for _gap, category, op_percent, reference_min, reference_max in sorted(
         gaps_by_category, reverse=True
     )[:3]:
         if (
-            category not in legend
+            category.casefold() not in legend.casefold()
             or f"{op_percent}%" not in legend
             or f"{reference_min}%–{reference_max}%" not in legend
         ):

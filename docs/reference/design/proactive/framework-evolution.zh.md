@@ -5,7 +5,7 @@
 
 ## 1. 总线要解决的问题
 
-![六套机制各自为政](diagrams/framework-asis.svg)
+![六套机制各自为政](diagrams/framework-asis.zh.svg)
 
 没有总线时，信号存在的目的只有一个：让前端看到。这个目的把每个信号都硬连到 webui server 的
 `_broadcast`——job_status、channel_turn、skills:changed 各用各的 JSON 直连，agent 事件经
@@ -18,7 +18,7 @@ dispatcher 回调链到达。webui 是个 UI 组件，让它当路由点就等�
 
 ## 2. 总线当中枢：三个角色
 
-![一条总线当中枢](diagrams/framework-tobe.svg)
+![一条总线当中枢](diagrams/framework-tobe.zh.svg)
 
 | 角色 | 谁 | 这个角色是什么 |
 |---|---|---|
@@ -76,4 +76,4 @@ webui 已是总线订阅者——五个外部源（task runner、sub_agent、wor
 channels）改为 emit `ws.frame` 事件，不再 import webui。剩余工作是 proactive 规则层，
 它消费总线，不新增源。
 
-> 可视化版本：[`framework-evolution.html`](framework-evolution.html)。
+> 可视化版本：[`framework-evolution.html`](framework-evolution.zh.html)。

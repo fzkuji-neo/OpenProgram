@@ -116,7 +116,7 @@ Gate rules:
 
 **Python gate functions** (the ToolGate signature): return `None` to allow, a reason string to deny. The merged
 deny reason reaches the actor — for `tool.before` it becomes the model's error tool result via
-`ToolGateDenied`; for `turn.stop` it becomes the `[hook] <reason>。继续。` continuation prompt.
+`ToolGateDenied`; for `turn.stop` it becomes the continuation prompt prefixed with `[hook]`.
 
 **Shell subscribers** follow the Claude Code hooks exit-code protocol. The Event arrives as JSON on stdin.
 

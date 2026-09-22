@@ -161,7 +161,7 @@ This document describes the structure and message flow. For the requirements and
 from openprogram.channels.outbound import send
 
 # In any Python script, no worker needs to be running
-send("telegram", "default", "1234", "早上好")
+send("telegram", "default", "1234", "Good morning")
 ```
 
 What happens:

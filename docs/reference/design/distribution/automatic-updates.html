@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OpenProgram 正式版本自动更新</title>
+<title>OpenProgram Stable Release Automatic Updates</title>
 <style>
   :root {
     color-scheme: dark;
@@ -556,61 +556,61 @@
 </head>
 <body>
 <div class="page" data-document="automatic-updates">
-  <aside class="rail" aria-label="文档目录">
+  <aside class="rail" aria-label="Document contents">
     <div class="rail-mark">OpenProgram / Updates</div>
     <nav>
-      <a href="#overview">结论</a>
-      <a href="#architecture">系统路径</a>
-      <a href="#platform-paths">平台行为</a>
-      <a href="#desktop-states">设置状态</a>
-      <a href="#scheduling">调度与缓存</a>
-      <a href="#trust-boundaries">信任边界</a>
-      <a href="#failures">失败语义</a>
-      <a href="#routing">安装类型</a>
-      <a href="#references">方案选择</a>
-      <a href="#source-map">实现入口</a>
-      <a href="#implementation-evidence">实现证据</a>
+      <a href="#overview">Conclusion</a>
+      <a href="#architecture">System paths</a>
+      <a href="#platform-paths">Platform behavior</a>
+      <a href="#desktop-states">Settings states</a>
+      <a href="#scheduling">Scheduling and cache</a>
+      <a href="#trust-boundaries">Trust boundaries</a>
+      <a href="#failures">Failure semantics</a>
+      <a href="#routing">Installation types</a>
+      <a href="#references">Design choices</a>
+      <a href="#source-map">Implementation entry points</a>
+      <a href="#implementation-evidence">Implementation evidence</a>
     </nav>
-    <div class="rail-note">权威设计 · 当前状态<br>只描述已实现合同及明确标记的 release 验收。</div>
+    <div class="rail-note">Authoritative design · current state<br>Describes only implemented contracts and explicitly identified release acceptance.</div>
   </aside>
 
   <main>
     <section class="hero" id="overview">
       <p class="eyebrow">Distribution architecture · stable channel</p>
-      <h1>正式版本自动更新</h1>
-      <p class="lede">OpenProgram 只把完整、稳定、经过 manifest 验证的 GitHub Release 视为可安装更新。Desktop 自动发现并校验平台 installer：macOS 使用 DMG，Windows 使用带 Authenticode 签名的 EXE；managed CLI/server 验证完整 runtime 后原子切换。仓库出现新提交不构成用户更新。</p>
+      <h1>Stable release automatic updates</h1>
+      <p class="lede">OpenProgram considers only complete, stable GitHub Releases verified against the manifest to be installable updates. Desktop automatically discovers and verifies platform installers: DMG on macOS and Authenticode-signed EXE on Windows; managed CLI/server verifies the complete runtime before switching atomically. New repository commits do not constitute user updates.</p>
 
-      <div class="status-strip" aria-label="实现状态">
-        <div class="status-cell ready"><div class="k">Design</div><div class="v">已确定</div><div class="detail">一个 stable 通道，一套 Release 合同</div></div>
-        <div class="status-cell ready"><div class="k">Implementation</div><div class="v">已合入 main</div><div class="detail">Desktop、managed CLI、Release gate</div></div>
-        <div class="status-cell ready"><div class="k">Source baseline</div><div class="v">v0.8.1</div><div class="detail">当前源码与 runtime/package 版本基线；远端 latest 未在本页重新核验</div></div>
-        <div class="status-cell ready"><div class="k">Dependency</div><div class="v">0 个新增 updater 包</div><div class="detail">Electron/Node、Python 与 shell 原生能力</div></div>
+      <div class="status-strip" aria-label="Implementation status">
+        <div class="status-cell ready"><div class="k">Design</div><div class="v">Established</div><div class="detail">One stable channel, one Release contract</div></div>
+        <div class="status-cell ready"><div class="k">Implementation</div><div class="v">Merged into main</div><div class="detail">Desktop, managed CLI, Release gate</div></div>
+        <div class="status-cell ready"><div class="k">Source baseline</div><div class="v">v0.8.1</div><div class="detail">Current source and runtime/package version baseline; remote latest has not been reverified on this page</div></div>
+        <div class="status-cell ready"><div class="k">Dependency</div><div class="v">0 new updater packages</div><div class="detail">Native Electron/Node, Python, and shell capabilities</div></div>
       </div>
 
       <div class="brief">
-        <article id="question"><h2>Question</h2><p>如何让正式安装发现和应用新版本，同时不跟踪 <code>main</code>、不降级产品功能，并保证失败时保留可用版本？</p></article>
-        <article id="audience"><h2>Audience</h2><p>维护 Release、Desktop、CLI/server、设置页和安装文档的开发者与发布人员。</p></article>
-        <article id="scope"><h2>Scope</h2><p>macOS/Windows Desktop，macOS/Linux/Windows managed CLI/server，以及 source checkout 的明确分流。</p></article>
-        <article id="exclusions"><h2>Exclusions</h2><p>Windows 沙箱、macOS 签名、Linux Desktop、PyPI 产品安装、后台替换运行中的应用。</p></article>
+        <article id="question"><h2>Question</h2><p>How can a production installation discover and apply new versions without tracking <code>main</code>, reducing product functionality, or losing a working version on failure?</p></article>
+        <article id="audience"><h2>Audience</h2><p>Developers and release maintainers responsible for Release, Desktop, CLI/server, Settings, and installation documentation.</p></article>
+        <article id="scope"><h2>Scope</h2><p>macOS/Windows Desktop, macOS/Linux/Windows managed CLI/server, and explicit routing for source checkouts.</p></article>
+        <article id="exclusions"><h2>Exclusions</h2><p>Windows sandboxing, macOS signing, Linux Desktop, PyPI product installation, and background replacement of a running application.</p></article>
       </div>
     </section>
 
     <section aria-labelledby="decisions-title">
-      <div class="section-head"><div class="section-num">01</div><div><h2 id="decisions-title">必须保持的产品合同</h2><p>平台动作不同，但版本来源、完整产品定义和验证结果必须一致。</p></div></div>
+      <div class="section-head"><div class="section-num">01</div><div><h2 id="decisions-title">Product contracts to preserve</h2><p>Platform actions differ, but version sources, complete-product definitions, and verification results must agree.</p></div></div>
       <div class="decision-grid">
-        <article class="decision complete"><div class="label">Release unit</div><h3>更新单位是完整产品</h3><p>不单独更新 wheel、Web、Program、OCR、Browser 或模型。每个受支持产物都满足统一 capability manifest，并包含固定 CPython。</p></article>
-        <article class="decision desktop"><div class="label">Desktop</div><h3>自动检查，校验后打开 installer</h3><p>主进程选择当前平台与架构的 DMG 或 EXE，验证 bytes 与 SHA-256；Windows 再验证 Authenticode。renderer 不能提供 URL、hash 或文件名。</p></article>
-        <article class="decision cli"><div class="label">CLI / server</div><h3>显式命令，原子切换 runtime</h3><p><code>openprogram upgrade</code> 验证 Release、runtime、capabilities 和 cold start，最后替换 <code>current</code>；不自动重启现有 worker。</p></article>
-        <article class="decision dev"><div class="label">Development</div><h3>源码安装保留 Git 流程</h3><p>source checkout 继续使用显式 ref、preflight、build 与 probe，不把开发分支伪装成 stable Release。</p></article>
+        <article class="decision complete"><div class="label">Release unit</div><h3>The update unit is the complete product</h3><p>Do not update the wheel, Web, Program, OCR, Browser, or models separately. Every supported artifact satisfies the unified capability manifest and includes a pinned CPython.</p></article>
+        <article class="decision desktop"><div class="label">Desktop</div><h3>Automatic checks; open the installer after verification</h3><p>The main process selects the DMG or EXE for the current platform and architecture and verifies bytes and SHA-256; Windows also verifies Authenticode. The renderer cannot provide URLs, hashes, or filenames.</p></article>
+        <article class="decision cli"><div class="label">CLI / server</div><h3>Explicit command, atomic runtime switch</h3><p><code>openprogram upgrade</code> verifies the Release, runtime, capabilities, and cold start, then finally replaces <code>current</code>; it does not automatically restart the existing worker.</p></article>
+        <article class="decision dev"><div class="label">Development</div><h3>Source installations retain the Git workflow</h3><p>Source checkouts continue to use explicit refs, preflight, build, and probe, without presenting a development branch as a stable Release.</p></article>
       </div>
     </section>
 
     <section id="architecture" aria-labelledby="architecture-title">
-      <div class="section-head"><div class="section-num">02</div><div><h2 id="architecture-title">从 GitHub Release 到平台动作</h2><p>两条用户路径在严格验证后分开。任何缺失、重复或不一致都在进入下载或安装前停止。</p></div></div>
+      <div class="section-head"><div class="section-num">02</div><div><h2 id="architecture-title">From GitHub Release to platform action</h2><p>The two user paths separate after strict verification. Any missing, duplicate, or inconsistent data stops processing before download or installation.</p></div></div>
       <div class="diagram">
         <svg viewBox="0 0 1040 470" role="img" aria-labelledby="update-architecture-title update-architecture-desc">
           <title>Automatic update architecture</title>
-          <desc>GitHub latest Release 经过稳定版本、manifest、资产和架构验证后，分别进入 Desktop 的平台 installer 校验下载路径和 managed CLI 的完整 runtime 原子切换路径。</desc>
+          <desc>GitHub latest Release passes stable-version, manifest, asset, and architecture validation, then enters either Desktop platform-installer verification and download or the managed CLI complete-runtime atomic-switch path.</desc>
           <defs>
             <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#6aa6ff"/></marker>
             <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#78d69a"/></marker>
@@ -654,157 +654,157 @@
           </g>
         </svg>
         <div class="diagram-mobile">
-          <div><strong>1 · GitHub latest</strong><br>只接受 non-draft、non-prerelease、<code>vX.Y.Z</code>。</div>
-          <div><strong>2 · Release + manifest gate</strong><br>验证唯一资产、版本、bytes、SHA-256 和平台架构。</div>
-          <div><strong>3A · Desktop</strong><br>校验平台 installer；Windows 额外验证 Authenticode；随后由用户确认安装。</div>
-          <div><strong>3B · managed CLI</strong><br>验证完整 runtime 与 cold start，最后原子切换 <code>current</code>。</div>
+          <div><strong>1 · GitHub latest</strong><br>Accept only non-draft, non-prerelease, <code>vX.Y.Z</code>.</div>
+          <div><strong>2 · Release + manifest gate</strong><br>Verify unique assets, version, bytes, SHA-256, and platform architecture.</div>
+          <div><strong>3A · Desktop</strong><br>Verify the platform installer; Windows additionally verifies Authenticode; the user then confirms installation.</div>
+          <div><strong>3B · managed CLI</strong><br>Verify the complete runtime and cold start, then atomically switch <code>current</code>.</div>
         </div>
-        <div class="legend"><span><i></i>metadata / Desktop</span><span class="verified"><i></i>完整 runtime 安装</span><span class="boundary-line"><i></i>信任边界</span></div>
-        <p class="diagram-caption">renderer 从未获得资产 URL、文件名或 hash；CLI 子进程只继承安装所需的最小环境变量。</p>
+        <div class="legend"><span><i></i>metadata / Desktop</span><span class="verified"><i></i>Complete runtime installation</span><span class="boundary-line"><i></i>Trust boundaries</span></div>
+        <p class="diagram-caption">The renderer never receives asset URLs, filenames, or hashes; CLI subprocesses inherit only the minimum environment required for installation.</p>
       </div>
     </section>
 
     <section id="platform-paths" aria-labelledby="paths-title">
-      <div class="section-head"><div class="section-num">03</div><div><h2 id="paths-title">Desktop 与 CLI 的完成边界</h2><p>“检查”“下载”“安装”分别对应可验证的动作。两个平台不使用同一套替换机制。</p></div></div>
+      <div class="section-head"><div class="section-num">03</div><div><h2 id="paths-title">Desktop and CLI completion boundaries</h2><p>“Check,” “download,” and “install” each correspond to verifiable actions. The two platforms use different replacement mechanisms.</p></div></div>
       <div class="path-columns">
         <article class="path-card">
-          <div class="path-head desktop"><h3>macOS Desktop</h3><p>自动发现 + 完整下载 + 明确安装交接</p></div>
+          <div class="path-head desktop"><h3>macOS Desktop</h3><p>Automatic discovery + complete download + explicit installation handoff</p></div>
           <ol class="steps">
-            <li><strong>启动调度</strong><span>packaged app 启动 30 秒后首次检查；开发模式不自动检查。</span></li>
-            <li><strong>严格选择</strong><span>仅匹配当前 <code>process.arch</code> 的完整 unsigned DMG。</span></li>
-            <li><strong>安全保存</strong><span>用户选择目标；随机 exclusive 临时文件；流式 size/hash 验证。</span></li>
-            <li><strong>打开安装介质</strong><span>校验成功后打开 DMG。应用不后台替换运行中的 <code>.app</code>。</span></li>
+            <li><strong>Startup scheduling</strong><span>A packaged app first checks 30 seconds after startup; development mode does not check automatically.</span></li>
+            <li><strong>Strict selection</strong><span>Match only the complete unsigned DMG for the current <code>process.arch</code>.</span></li>
+            <li><strong>Safe saving</strong><span>User-selected destination; random exclusive temporary file; streaming size/hash verification.</span></li>
+            <li><strong>Open installation media</strong><span>Open the DMG after successful verification. The app does not replace the running <code>.app</code>.</span></li>
           </ol>
         </article>
         <article class="path-card">
-          <div class="path-head desktop"><h3>Windows Desktop</h3><p>自动发现 + 完整下载 + 签名验证 + 明确安装交接</p></div>
+          <div class="path-head desktop"><h3>Windows Desktop</h3><p>Automatic discovery + complete download + signature verification + explicit installation handoff</p></div>
           <ol class="steps">
-            <li><strong>启动调度</strong><span>packaged app 启动后自动检查；开发模式不自动检查。</span></li>
-            <li><strong>严格选择</strong><span>只接受精确命名的 <code>OpenProgram-&lt;version&gt;-win-x64.exe</code>。</span></li>
-            <li><strong>双重校验</strong><span>流式验证 size/SHA-256，落盘后要求 Authenticode 状态为 Valid。</span></li>
-            <li><strong>打开 installer</strong><span>校验成功后打开按用户安装的 NSIS 向导，不静默替换运行中的应用。</span></li>
+            <li><strong>Startup scheduling</strong><span>A packaged app checks automatically after startup; development mode does not check automatically.</span></li>
+            <li><strong>Strict selection</strong><span>Accept only the exactly named <code>OpenProgram-&lt;version&gt;-win-x64.exe</code>.</span></li>
+            <li><strong>Dual verification</strong><span>Verify size/SHA-256 while streaming; after saving, require Authenticode status Valid.</span></li>
+            <li><strong>Open the installer</strong><span>After verification, open the per-user NSIS wizard without silently replacing the running application.</span></li>
           </ol>
         </article>
         <article class="path-card">
-          <div class="path-head cli"><h3>macOS / Linux CLI &amp; server</h3><p>显式执行 + 完整 runtime 验证 + 原子激活</p></div>
+          <div class="path-head cli"><h3>macOS / Linux CLI &amp; server</h3><p>Explicit execution + complete runtime verification + atomic activation</p></div>
           <ol class="steps">
-            <li><strong>检查</strong><span><code>openprogram upgrade --check</code> 只读报告当前与最新版本。</span></li>
-            <li><strong>版本化 installer</strong><span>从已验证的不可变 tag 读取脚本，并固定 repository/version。</span></li>
-            <li><strong>隔离验收</strong><span>checksum、capability manifest、version probe、worker cold start 全部成功。</span></li>
-            <li><strong>激活</strong><span>准备 launcher 后以 <code>os.replace</code> 切换 <code>current</code>；用户显式重启 worker。</span></li>
+            <li><strong>Check</strong><span><code>openprogram upgrade --check</code> reports current and latest versions read-only.</span></li>
+            <li><strong>Versioned installer</strong><span>Read the script from the verified immutable tag and pin repository/version.</span></li>
+            <li><strong>Isolated acceptance</strong><span>Checksum, capability manifest, version probe, and worker cold start must all succeed.</span></li>
+            <li><strong>Activate</strong><span>After preparing the launcher, use <code>os.replace</code> to switch <code>current</code>; the user explicitly restarts the worker.</span></li>
           </ol>
         </article>
       </div>
     </section>
 
     <section id="desktop-states" aria-labelledby="states-title">
-      <div class="section-head"><div class="section-num">04</div><div><h2 id="states-title">Settings → General → Application</h2><p>下面是同一设置区的真实信息状态，不是独立产品版本。使用按钮或左右方向键切换。</p></div></div>
+      <div class="section-head"><div class="section-num">04</div><div><h2 id="states-title">Settings → General → Application</h2><p>The following are actual information states in the same Settings section, not separate product versions. Use the buttons or left/right arrow keys to switch.</p></div></div>
       <div class="state-review">
-        <div class="state-tabs" role="tablist" aria-label="更新状态">
-          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-idle" id="tab-idle" data-target="idle">未检查</button>
-          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-checking" id="tab-checking" data-target="checking">检查中</button>
-          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-current" id="tab-current" data-target="current">已是最新</button>
-          <button class="state-tab" role="tab" aria-selected="true" aria-controls="state-available" id="tab-available" data-target="available">有新版本</button>
-          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-downloading" id="tab-downloading" data-target="downloading">下载中</button>
-          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-error" id="tab-error" data-target="error">可重试错误</button>
+        <div class="state-tabs" role="tablist" aria-label="Update status">
+          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-idle" id="tab-idle" data-target="idle">Not checked</button>
+          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-checking" id="tab-checking" data-target="checking">Checking</button>
+          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-current" id="tab-current" data-target="current">Up to date</button>
+          <button class="state-tab" role="tab" aria-selected="true" aria-controls="state-available" id="tab-available" data-target="available">Update available</button>
+          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-downloading" id="tab-downloading" data-target="downloading">Downloading</button>
+          <button class="state-tab" role="tab" aria-selected="false" aria-controls="state-error" id="tab-error" data-target="error">Retryable error</button>
         </div>
         <div class="state-stage">
-          <article class="update-state" id="state-idle" role="tabpanel" aria-labelledby="tab-idle" data-update-state="idle"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Current version</span><span class="value">0.7.0</span></div><div class="setting-row"><span class="name">Automatically check for updates</span><span class="toggle" aria-hidden="true"></span></div><div class="state-message">Not checked yet</div><div class="mock-actions"><span class="mock-button primary">Check now</span></div></div></div><p class="state-note">缓存不存在或已失效。默认开启自动检查。</p></article>
-          <article class="update-state" id="state-checking" role="tabpanel" aria-labelledby="tab-checking" data-update-state="checking"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Current version</span><span class="value">0.7.0</span></div><div class="setting-row"><span class="name">Automatically check for updates</span><span class="toggle" aria-hidden="true"></span></div><div class="state-message">Checking GitHub Releases…</div><div class="mock-actions"><span class="mock-button">Check now · disabled</span></div></div></div><p class="state-note">一个进行中的 Promise 被所有窗口复用，不产生并发 metadata 请求。</p></article>
-          <article class="update-state" id="state-current" role="tabpanel" aria-labelledby="tab-current" data-update-state="up-to-date"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Current version</span><span class="value">0.7.1</span></div><div class="setting-row"><span class="name">Latest stable release</span><span class="value">0.7.1</span></div><div class="state-message ok">OpenProgram is up to date</div><div class="mock-actions"><span class="mock-button">Check now</span><span class="mock-button">View release notes</span></div></div></div><p class="state-note">相同或更低的版本都显示 up to date，不允许 stable 降级。</p></article>
-          <article class="update-state active" id="state-available" role="tabpanel" aria-labelledby="tab-available" data-update-state="available"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Current version</span><span class="value">0.7.0</span></div><div class="setting-row"><span class="name">Available version</span><span class="value">0.7.1 · stable</span></div><div class="setting-row"><span class="name">Published</span><span class="value">GitHub Release date</span></div><div class="state-message ok">A complete update for this platform is available.</div><div class="mock-actions"><span class="mock-button primary">Download and open installer</span><span class="mock-button">View release notes</span></div></div></div><p class="state-note">Release Notes 在应用内按纯文本摘要显示；完整正文只打开固定 GitHub Release 页面。</p></article>
-          <article class="update-state" id="state-downloading" role="tabpanel" aria-labelledby="tab-downloading" data-update-state="downloading"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Downloading</span><span class="value">1.52 GB / 2.45 GB · 62%</span></div><div class="state-message">Downloading and verifying the complete installer<div class="progress-track"><span></span></div></div><div class="mock-actions"><span class="mock-button">Download in progress · disabled</span></div></div></div><p class="state-note">主进程最多每 250ms 发布一次进度；完成时保证发送最终状态。</p></article>
-          <article class="update-state" id="state-error" role="tabpanel" aria-labelledby="tab-error" data-update-state="error"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Available version</span><span class="value">0.7.1</span></div><div class="state-message error">Download checksum mismatch. The temporary file was removed.</div><div class="mock-actions"><span class="mock-button primary">Retry download</span><span class="mock-button">Check now</span><span class="mock-button">View release notes</span></div></div></div><p class="state-note">错误状态保留已验证的 release metadata，因此用户可直接重试，不需要先重新检查。</p></article>
+          <article class="update-state" id="state-idle" role="tabpanel" aria-labelledby="tab-idle" data-update-state="idle"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Current version</span><span class="value">0.7.0</span></div><div class="setting-row"><span class="name">Automatically check for updates</span><span class="toggle" aria-hidden="true"></span></div><div class="state-message">Not checked yet</div><div class="mock-actions"><span class="mock-button primary">Check now</span></div></div></div><p class="state-note">The cache is absent or expired. Automatic checks are enabled by default.</p></article>
+          <article class="update-state" id="state-checking" role="tabpanel" aria-labelledby="tab-checking" data-update-state="checking"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Current version</span><span class="value">0.7.0</span></div><div class="setting-row"><span class="name">Automatically check for updates</span><span class="toggle" aria-hidden="true"></span></div><div class="state-message">Checking GitHub Releases…</div><div class="mock-actions"><span class="mock-button">Check now · disabled</span></div></div></div><p class="state-note">All windows reuse one in-flight Promise, preventing concurrent metadata requests.</p></article>
+          <article class="update-state" id="state-current" role="tabpanel" aria-labelledby="tab-current" data-update-state="up-to-date"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Current version</span><span class="value">0.7.1</span></div><div class="setting-row"><span class="name">Latest stable release</span><span class="value">0.7.1</span></div><div class="state-message ok">OpenProgram is up to date</div><div class="mock-actions"><span class="mock-button">Check now</span><span class="mock-button">View release notes</span></div></div></div><p class="state-note">The same or a lower version is shown as up to date; stable downgrades are disallowed.</p></article>
+          <article class="update-state active" id="state-available" role="tabpanel" aria-labelledby="tab-available" data-update-state="available"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Current version</span><span class="value">0.7.0</span></div><div class="setting-row"><span class="name">Available version</span><span class="value">0.7.1 · stable</span></div><div class="setting-row"><span class="name">Published</span><span class="value">GitHub Release date</span></div><div class="state-message ok">A complete update for this platform is available.</div><div class="mock-actions"><span class="mock-button primary">Download and open installer</span><span class="mock-button">View release notes</span></div></div></div><p class="state-note">Release Notes appear as plain-text summaries inside the app; the full body opens only the fixed GitHub Release page.</p></article>
+          <article class="update-state" id="state-downloading" role="tabpanel" aria-labelledby="tab-downloading" data-update-state="downloading"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Downloading</span><span class="value">1.52 GB / 2.45 GB · 62%</span></div><div class="state-message">Downloading and verifying the complete installer<div class="progress-track"><span></span></div></div><div class="mock-actions"><span class="mock-button">Download in progress · disabled</span></div></div></div><p class="state-note">The main process publishes progress at most every 250ms and guarantees a final state on completion.</p></article>
+          <article class="update-state" id="state-error" role="tabpanel" aria-labelledby="tab-error" data-update-state="error"><div class="settings-shell"><div class="settings-title">Application</div><div class="settings-body"><h3>OpenProgram</h3><div class="setting-row"><span class="name">Available version</span><span class="value">0.7.1</span></div><div class="state-message error">Download checksum mismatch. The temporary file was removed.</div><div class="mock-actions"><span class="mock-button primary">Retry download</span><span class="mock-button">Check now</span><span class="mock-button">View release notes</span></div></div></div><p class="state-note">An error state retains verified release metadata, so users can retry directly without checking again.</p></article>
         </div>
       </div>
     </section>
 
     <section id="scheduling" aria-labelledby="schedule-title">
-      <div class="section-head"><div class="section-num">05</div><div><h2 id="schedule-title">调度、持久化与恢复</h2><p>自动检查只影响发现，不触发无人值守安装。手动检查始终强制刷新。</p></div></div>
-      <div class="schedule" aria-label="自动检查时间线">
-        <article><strong>启动 + 30s</strong><span>packaged app 首次调度；已有缓存时先计算 due time。</span></article>
-        <article><strong>检查成功 + 24h</strong><span><code>lastSuccessAt</code> 决定下一次自动检查。</span></article>
-        <article><strong>检查失败 + 6h</strong><span><code>lastAttemptAt</code> 提供失败退避，不连续访问 GitHub。</span></article>
-        <article><strong>resume / 设置变化</strong><span>清除旧 timer，最多立即检查一次，然后重新排程。</span></article>
+      <div class="section-head"><div class="section-num">05</div><div><h2 id="schedule-title">Scheduling, persistence, and recovery</h2><p>Automatic checks affect discovery only; they do not trigger unattended installation. Manual checks always force a refresh.</p></div></div>
+      <div class="schedule" aria-label="Automatic-check timeline">
+        <article><strong>Startup + 30s</strong><span>First packaged-app schedule; calculate the due time first if a cache exists.</span></article>
+        <article><strong>Successful check + 24h</strong><span><code>lastSuccessAt</code> determines the next automatic check.</span></article>
+        <article><strong>Failed check + 6h</strong><span><code>lastAttemptAt</code> provides failure backoff, avoiding continuous GitHub requests.</span></article>
+        <article><strong>Resume / settings change</strong><span>Clear the old timer, check immediately at most once, then reschedule.</span></article>
       </div>
       <div class="decision-grid" style="margin-top:16px">
-        <article class="decision"><div class="label">Persisted schema 1</div><h3><code>update-state.json</code></h3><p>保存 automaticChecks、lastAttemptAt、lastSuccessAt 和最近一次经过验证的 release metadata；使用临时文件加 rename。POSIX 可指定文件 mode，Windows 沿用当前用户目录 ACL。</p></article>
-        <article class="decision"><div class="label">Repair</div><h3>损坏状态不能控制调度</h3><p>无效 JSON、未知 schema、未来时间、版本/架构不匹配和缺失 release 都被归一化并重写。写入失败时不提交隐藏的内存设置变化。</p></article>
+        <article class="decision"><div class="label">Persisted schema 1</div><h3><code>update-state.json</code></h3><p>Save automaticChecks, lastAttemptAt, lastSuccessAt, and the latest verified release metadata using a temporary file plus rename. POSIX can specify file mode; Windows inherits the current user-directory ACL.</p></article>
+        <article class="decision"><div class="label">Repair</div><h3>Corrupt state cannot control scheduling</h3><p>Invalid JSON, unknown schemas, future timestamps, version/architecture mismatches, and missing releases are normalized and rewritten. A write failure must not commit hidden in-memory setting changes.</p></article>
       </div>
     </section>
 
     <section id="trust-boundaries" aria-labelledby="trust-title">
-      <div class="section-head"><div class="section-num">06</div><div><h2 id="trust-title">信任边界</h2><p>验证发生在获得权限的进程中；低权限界面只接收用于展示的投影状态。</p></div></div>
+      <div class="section-head"><div class="section-num">06</div><div><h2 id="trust-title">Trust boundaries</h2><p>Verification occurs in the privileged process; the lower-privilege UI receives only projected display state.</p></div></div>
       <div class="boundary-grid">
-        <article class="boundary remote"><div class="label">Remote metadata</div><h3>GitHub 响应默认不可信</h3><p>HTTPS、固定 host、最多 5 次重定向、逐跳验证、大小与 body idle timeout；再次要求 <code>draft === false</code> 和 <code>prerelease === false</code>。</p><ul class="contract-list"><li>tag 必须是 <code>vX.Y.Z</code></li><li>asset name 与 manifest basename 唯一</li><li>GitHub size 与 manifest bytes 一致</li></ul></article>
-        <article class="boundary renderer"><div class="label">Renderer IPC</div><h3>renderer 不能选择远端目标</h3><p>preload 只暴露 <code>getState</code>、<code>check</code>、布尔设置、<code>download</code>、<code>openRelease</code> 和状态订阅。</p><ul class="contract-list"><li>不接受 URL、path、hash、repository 或命令</li><li>公开状态剥离 asset name/URL/SHA-256</li><li>窗口关闭不能中止检查或下载</li></ul></article>
-        <article class="boundary files"><div class="label">Downloaded files</div><h3>完成校验前不激活</h3><p>Desktop 使用随机 exclusive 临时文件并处理 short write；Windows 沿用目录 ACL 并额外验证 Authenticode。CLI 在新版本目录验证完整 runtime 后才替换 <code>current</code>。</p><ul class="contract-list"><li>大小/hash/签名不符立即删除临时文件</li><li>archive path traversal 被拒绝</li><li>launcher 准备失败保留旧 current</li></ul></article>
-        <article class="boundary state"><div class="label">Child process</div><h3>版本化 installer 使用最小环境</h3><p>managed upgrade 固定 repository 和目标 version，只传 PATH/HOME/temp/locale/proxy/XDG/OpenProgram state 等允许项。</p><ul class="contract-list"><li>不继承 provider/API 凭据</li><li>不继承 archive/checksum source override</li><li><code>--json</code> 始终输出单一 JSON 文档</li></ul></article>
+        <article class="boundary remote"><div class="label">Remote metadata</div><h3>GitHub responses are untrusted by default</h3><p>HTTPS, fixed host, at most 5 redirects, per-hop validation, size limit, and body idle timeout; also require <code>draft === false</code> and <code>prerelease === false</code>.</p><ul class="contract-list"><li>The tag must be <code>vX.Y.Z</code></li><li>Asset names and manifest basenames are unique</li><li>GitHub size matches manifest bytes</li></ul></article>
+        <article class="boundary renderer"><div class="label">Renderer IPC</div><h3>The renderer cannot choose remote targets</h3><p>Preload exposes only <code>getState</code>, <code>check</code>, boolean settings, <code>download</code>, <code>openRelease</code>, and state subscriptions.</p><ul class="contract-list"><li>Accept no URL, path, hash, repository, or command</li><li>Public state strips asset name/URL/SHA-256</li><li>Closing a window cannot abort a check or download</li></ul></article>
+        <article class="boundary files"><div class="label">Downloaded files</div><h3>Do not activate before verification finishes</h3><p>Desktop uses random exclusive temporary files and handles short writes; Windows inherits directory ACLs and additionally verifies Authenticode. CLI verifies the complete runtime in a new version directory before replacing <code>current</code>.</p><ul class="contract-list"><li>Delete temporary files immediately on size/hash/signature mismatch</li><li>Reject archive path traversal</li><li>Launcher preparation failure preserves the old current</li></ul></article>
+        <article class="boundary state"><div class="label">Child process</div><h3>The versioned installer uses a minimal environment</h3><p>Managed upgrade pins the repository and target version, passing only allowed entries such as PATH/HOME/temp/locale/proxy/XDG/OpenProgram state.</p><ul class="contract-list"><li>Do not inherit provider/API credentials</li><li>Do not inherit archive/checksum source overrides</li><li><code>--json</code> always emits a single JSON document</li></ul></article>
       </div>
     </section>
 
     <section id="failures" aria-labelledby="failures-title">
-      <div class="section-head"><div class="section-num">07</div><div><h2 id="failures-title">失败语义</h2><p>每个错误都说明停止位置和保留内容，不用模糊的“更新失败”代替事务边界。</p></div></div>
+      <div class="section-head"><div class="section-num">07</div><div><h2 id="failures-title">Failure semantics</h2><p>Every error states where processing stopped and what was preserved; vague “update failed” messages do not replace transaction boundaries.</p></div></div>
       <div class="failure-list">
-        <div class="failure-row"><div class="case">离线、超时、GitHub 限流</div><div class="result">自动检查记录错误并按 6 小时退避；手动检查显示可重试错误。</div><div class="preserve">应用和当前版本继续运行</div></div>
-        <div class="failure-row"><div class="case">Release / manifest 无效</div><div class="result">拒绝响应，不下载；不回退 wheel、source archive、其他架构或旧版本。</div><div class="preserve">最近一次有效 metadata 可保留</div></div>
-        <div class="failure-row"><div class="case">Installer body stall / size / hash / Windows 签名错误</div><div class="result">中止 response，关闭文件，删除随机临时文件，恢复可重试动作。</div><div class="preserve">未校验文件绝不打开</div></div>
-        <div class="failure-row"><div class="case">CLI archive / cold start / launcher 失败</div><div class="result">installer 非零退出；不执行最后的 <code>current</code> 替换。</div><div class="preserve">旧 runtime 仍为 current</div></div>
-        <div class="failure-row"><div class="case">切换成功但 worker 仍运行旧版本</div><div class="result">命令明确报告 active runtime 已更新，并打印显式 restart 指令。</div><div class="preserve">运行中请求不被隐式中断</div></div>
+        <div class="failure-row"><div class="case">Offline, timeout, GitHub rate limit</div><div class="result">Automatic checks record the error and back off for 6 hours; manual checks show a retryable error.</div><div class="preserve">The app and current version keep running</div></div>
+        <div class="failure-row"><div class="case">Invalid Release / manifest</div><div class="result">Reject the response without downloading; do not fall back to a wheel, source archive, another architecture, or an older version.</div><div class="preserve">The latest valid metadata may be retained</div></div>
+        <div class="failure-row"><div class="case">Installer body stall / size / hash / Windows signature error</div><div class="result">Abort the response, close the file, delete the random temporary file, and restore the retry action.</div><div class="preserve">Never open an unverified file</div></div>
+        <div class="failure-row"><div class="case">CLI archive / cold start / launcher failure</div><div class="result">The installer exits nonzero without performing the final <code>current</code> replacement.</div><div class="preserve">The old runtime remains current</div></div>
+        <div class="failure-row"><div class="case">Switch succeeded, but the worker still runs the old version</div><div class="result">The command explicitly reports the active runtime update and prints an explicit restart instruction.</div><div class="preserve">Running requests are not implicitly interrupted</div></div>
       </div>
     </section>
 
     <section id="routing" aria-labelledby="routing-title">
-      <div class="section-head"><div class="section-num">08</div><div><h2 id="routing-title">安装类型决定更新路径</h2><p>安装检测只回答当前运行方式，不创造功能不同的产品版本。</p></div></div>
-      <div class="route"><div class="from">managed_release</div><div class="arrow">→</div><div class="to"><strong>正式 GitHub Release</strong><span>Desktop bridge 或 complete runtime installer；immutable marker 优先。</span></div></div>
-      <div class="route"><div class="from">source_checkout</div><div class="arrow">→</div><div class="to"><strong>显式 Git ref pipeline</strong><span>preflight、checkout、依赖/构建、probe，必要时按开发合同重启。</span></div></div>
-      <div class="route"><div class="from">unknown</div><div class="arrow">→</div><div class="to"><strong>稳定错误</strong><span>不猜测 PyPI、binary 或 Git 路径；提示使用正式 installer 或源码 checkout。</span></div></div>
-      <p class="diagram-caption"><code>pip_wheel</code> 不属于正式产品安装类型。开发者 wheel 可以作为构建输入，但不提供功能不完整的普通用户版本。</p>
+      <div class="section-head"><div class="section-num">08</div><div><h2 id="routing-title">Installation type determines the update path</h2><p>Installation detection identifies only the current execution mode; it does not create product variants with different functionality.</p></div></div>
+      <div class="route"><div class="from">managed_release</div><div class="arrow">→</div><div class="to"><strong>Official GitHub Release</strong><span>Desktop bridge or complete runtime installer; immutable markers take precedence.</span></div></div>
+      <div class="route"><div class="from">source_checkout</div><div class="arrow">→</div><div class="to"><strong>Explicit Git ref pipeline</strong><span>Preflight, checkout, dependencies/build, and probe; restart according to the development contract when needed.</span></div></div>
+      <div class="route"><div class="from">unknown</div><div class="arrow">→</div><div class="to"><strong>Stable error</strong><span>Do not guess PyPI, binary, or Git paths; direct the user to the official installer or a source checkout.</span></div></div>
+      <p class="diagram-caption"><code>pip_wheel</code> is not an official product installation type. Developer wheels may be build inputs, but do not provide an incomplete ordinary-user product.</p>
     </section>
 
     <section id="references" aria-labelledby="references-title">
-      <div class="section-head"><div class="section-num">09</div><div><h2 id="references-title">参考实现与采用方式</h2><p>参考用于确定平台限制和状态模型；最终方案服从 OpenProgram 的 unsigned Desktop 与完整 runtime 合同。</p></div></div>
+      <div class="section-head"><div class="section-num">09</div><div><h2 id="references-title">Reference implementations and adoption</h2><p>References establish platform constraints and state models; the final approach follows OpenProgram’s unsigned Desktop and complete-runtime contracts.</p></div></div>
       <div class="reference-grid">
-        <article class="reference-card"><span class="choice">采用</span><h3><a href="https://docs.github.com/en/rest/releases/releases#get-the-latest-release">GitHub Releases API</a></h3><p>latest stable metadata、Release Notes 和 assets。客户端仍对 stable 字段、tag、唯一资产和 manifest 做独立验证。</p></article>
-        <article class="reference-card"><span class="choice modified">修改采用</span><h3><a href="https://www.electronjs.org/docs/latest/tutorial/updates">Electron update lifecycle</a></h3><p>采用 check / available / download / error 状态模型；Desktop 完成边界为校验后打开平台 installer，不调用自动替换。</p></article>
-        <article class="reference-card"><span class="choice rejected">当前不采用</span><h3><a href="https://www.electronjs.org/docs/latest/api/auto-updater/">Electron autoUpdater</a></h3><p>macOS 原生自动安装要求签名，Electron 不提供 Linux 内置 updater；与当前产物和平台合同不匹配。</p></article>
-        <article class="reference-card"><span class="choice rejected">不新增依赖</span><h3><a href="https://www.electron.build/docs/features/auto-update/">electron-updater</a></h3><p>现有 Release manifest、Node/Electron API、Python 和 shell 已覆盖本阶段；新增包不能改变当前 Desktop 安装边界。</p></article>
+        <article class="reference-card"><span class="choice">Adopt</span><h3><a href="https://docs.github.com/en/rest/releases/releases#get-the-latest-release">GitHub Releases API</a></h3><p>Latest stable metadata, Release Notes, and assets. Clients still independently validate stable fields, tags, unique assets, and manifests.</p></article>
+        <article class="reference-card"><span class="choice modified">Adapt</span><h3><a href="https://www.electronjs.org/docs/latest/tutorial/updates">Electron update lifecycle</a></h3><p>Adopt the check / available / download / error state model; Desktop completes by opening the verified platform installer, without automatic replacement.</p></article>
+        <article class="reference-card"><span class="choice rejected">Not currently adopted</span><h3><a href="https://www.electronjs.org/docs/latest/api/auto-updater/">Electron autoUpdater</a></h3><p>Native macOS automatic installation requires signing, and Electron provides no built-in Linux updater; these do not match current artifacts and platform contracts.</p></article>
+        <article class="reference-card"><span class="choice rejected">No new dependencies</span><h3><a href="https://www.electron.build/docs/features/auto-update/">electron-updater</a></h3><p>The existing Release manifest, Node/Electron APIs, Python, and shell cover this phase; a new package cannot change the current Desktop installation boundary.</p></article>
       </div>
     </section>
 
     <section id="source-map" aria-labelledby="source-title">
-      <div class="section-head"><div class="section-num">10</div><div><h2 id="source-title">实现入口</h2><p>链接分别指向当前主分支的公共兼容入口和正式实现；设计结论不依赖本页中的代码副本。</p></div></div>
+      <div class="section-head"><div class="section-num">10</div><div><h2 id="source-title">Implementation entry points</h2><p>Links point to current main-branch public compatibility entry points and official implementations; design conclusions do not depend on copied code on this page.</p></div></div>
       <div class="file-grid">
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/desktop/update-service.js"><span class="path">apps/desktop/update-service.js</span><p>Desktop metadata、状态、缓存、调度、平台资产选择、下载、hash 与公开投影。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/desktop/windows-signature.js"><span class="path">apps/desktop/windows-signature.js</span><p>Windows updater 的 Authenticode 状态、证书 subject 与 thumbprint 验证。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/desktop/main.js"><span class="path">apps/desktop/main.js</span><p>自动检查 timer、resume、IPC handler 和多窗口状态广播。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/desktop/preload.js"><span class="path">apps/desktop/preload.js</span><p>固定、无 URL 参数的 renderer bridge。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/settings/general-section.tsx"><span class="path">apps/web/components/settings/general-section.tsx</span><p>Desktop 更新状态和普通 Web 的 CLI 指令回退。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/cli/python/openprogram_cli/_impl/commands/upgrade.py"><span class="path">apps/cli/python/openprogram_cli/_impl/commands/upgrade.py</span><p>安装类型分流、managed Release gate、dry-run/JSON 与 installer 执行。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/openprogram/updater/github.py"><span class="path">openprogram/updater/github.py</span><p>GitHub stable metadata、manifest 和 immutable installer 获取。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/install-release.sh"><span class="path">scripts/install-release.sh</span><p>保持 macOS/Linux 已发布 URL 的兼容入口；下载同一不可变 tag 下的正式实现。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/install-release.ps1"><span class="path">scripts/install-release.ps1</span><p>保持 Windows PowerShell 已发布 URL 的兼容入口；下载同一不可变 tag 下的正式实现。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/release/install-release.sh"><span class="path">scripts/release/install-release.sh</span><p>macOS/Linux 完整 runtime 下载、校验、cold start、launcher staging 和原子激活。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/release/install-release.ps1"><span class="path">scripts/release/install-release.ps1</span><p>Windows ZIP 下载、校验、cold start、launcher staging 和原子激活。</p></a>
-        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/.github/workflows/release.yml"><span class="path">.github/workflows/release.yml</span><p>完整资产发布和创建 Release 后的 latest endpoint 门禁。</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/desktop/update-service.js"><span class="path">apps/desktop/update-service.js</span><p>Desktop metadata, state, cache, scheduling, platform asset selection, download, hash, and public projection.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/desktop/windows-signature.js"><span class="path">apps/desktop/windows-signature.js</span><p>Windows updater Authenticode status, certificate subject, and thumbprint verification.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/desktop/main.js"><span class="path">apps/desktop/main.js</span><p>Automatic-check timer, resume, IPC handlers, and multi-window state broadcast.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/desktop/preload.js"><span class="path">apps/desktop/preload.js</span><p>Fixed renderer bridge without URL parameters.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/web/components/settings/general-section.tsx"><span class="path">apps/web/components/settings/general-section.tsx</span><p>Desktop update status and CLI-instruction fallback for ordinary Web.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/apps/cli/python/openprogram_cli/_impl/commands/upgrade.py"><span class="path">apps/cli/python/openprogram_cli/_impl/commands/upgrade.py</span><p>Installation-type routing, managed Release gate, dry-run/JSON, and installer execution.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/openprogram/updater/github.py"><span class="path">openprogram/updater/github.py</span><p>GitHub stable metadata, manifest, and immutable installer retrieval.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/install-release.sh"><span class="path">scripts/install-release.sh</span><p>Preserve the published macOS/Linux URL compatibility entry point; download the official implementation from the same immutable tag.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/install-release.ps1"><span class="path">scripts/install-release.ps1</span><p>Preserve the published Windows PowerShell URL compatibility entry point; download the official implementation from the same immutable tag.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/release/install-release.sh"><span class="path">scripts/release/install-release.sh</span><p>macOS/Linux complete-runtime download, verification, cold start, launcher staging, and atomic activation.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/scripts/release/install-release.ps1"><span class="path">scripts/release/install-release.ps1</span><p>Windows ZIP download, verification, cold start, launcher staging, and atomic activation.</p></a>
+        <a class="file-card" href="https://github.com/fzkuji-neo/OpenProgram/blob/main/.github/workflows/release.yml"><span class="path">.github/workflows/release.yml</span><p>Complete artifact publication and the latest-endpoint gate after creating a Release.</p></a>
       </div>
     </section>
 
     <section id="implementation-evidence" aria-labelledby="evidence-title">
-      <div class="section-head"><div class="section-num">11</div><div><h2 id="evidence-title">实现状态与验收证据</h2><p>实现事实和仍需 Release 环境验证的事实分开记录。这里不保留日期化变更日志或 commit 清单。</p></div></div>
+      <div class="section-head"><div class="section-num">11</div><div><h2 id="evidence-title">Implementation status and acceptance evidence</h2><p>Implemented facts and facts still requiring Release-environment verification are recorded separately. This page does not retain dated change logs or commit lists.</p></div></div>
       <div class="evidence-grid">
-        <article class="evidence-card pass"><div class="label">Implemented</div><h3>Desktop 完整路径</h3><p>stable metadata、平台/架构选择、状态缓存、24h/6h 调度、最小 IPC、verified download、Windows Authenticode、Settings 状态和 Web fallback 已实现。</p><code>npm run check --workspace apps/desktop</code></article>
-        <article class="evidence-card pass"><div class="label">Implemented</div><h3>Managed CLI 完整路径</h3><p>Release manifest gate、immutable installer、环境隔离、dry-run/JSON、真实 old→new current 切换与 launcher 失败保留旧版本已覆盖。</p><code>uv run pytest -q tests/component/config/test_formal_release_updates.py tests/component/config/test_distribution_release.py</code></article>
-        <article class="evidence-card pass"><div class="label">Verified</div><h3>安全与失败路径</h3><p>逐跳 host 验证、metadata/download stall abort、short write、随机 exclusive 临时文件、checksum/size 清理、并发 Promise 和状态修复已验证。</p><code>apps/desktop/scripts/check-update-service.js</code></article>
-        <article class="evidence-card pass"><div class="label">Verified</div><h3>文档与发布门禁</h3><p>双语安装/升级文档、Release latest 验证、文档构建、链接、Desktop/Web/TypeScript 与 workflow 静态门禁纳入发布检查。</p><code>python -m scripts.docs_site.checklinks</code></article>
-        <article class="evidence-card pass"><div class="label">Repository release record</div><h3>v0.8.1 acceptance record</h3><p>仓库中的 v0.8.1 acceptance 记录了 runtime、CLI、Desktop、manifest 和 checksum 资产边界。源码版本不能证明当前 GitHub published release；本页不重新访问 GitHub latest，也不把历史远端资产检查当作当前运行中客户端验收。</p></article>
-        <article class="evidence-card pending"><div class="label">Installed-client acceptance</div><h3>真实客户端更新交互</h3><p>尚未操作当前用户窗口验证版本发现、平台 installer 打开、长时间运行与 sleep/resume 排程；这些交互不由发布资产 smoke 代替。Windows 还必须在正式 release runner 使用真实证书通过 Authenticode gate。</p></article>
-        <article class="evidence-card pending"><div class="label">Historical compatibility acceptance</div><h3>v0.6.6 及更早版本的一次性过渡</h3><p>历史记录中，Desktop 需要手动安装首个含 updater 的 v0.7.0 DMG；CLI/server 需要重新运行公开 installer。这是 v0.7.0 的迁移背景，不是当前 v0.8.1 的发布状态。</p></article>
+        <article class="evidence-card pass"><div class="label">Implemented</div><h3>Complete Desktop path</h3><p>Stable metadata, platform/architecture selection, state cache, 24h/6h scheduling, minimal IPC, verified download, Windows Authenticode, Settings states, and Web fallback are implemented.</p><code>npm run check --workspace apps/desktop</code></article>
+        <article class="evidence-card pass"><div class="label">Implemented</div><h3>Complete managed CLI path</h3><p>The Release manifest gate, immutable installer, environment isolation, dry-run/JSON, real old→new current switching, and old-version retention on launcher failure are covered.</p><code>uv run pytest -q tests/component/config/test_formal_release_updates.py tests/component/config/test_distribution_release.py</code></article>
+        <article class="evidence-card pass"><div class="label">Verified</div><h3>Security and failure paths</h3><p>Per-hop host validation, metadata/download stall abort, short writes, random exclusive temporary files, checksum/size cleanup, concurrent Promises, and state repair are verified.</p><code>apps/desktop/scripts/check-update-service.js</code></article>
+        <article class="evidence-card pass"><div class="label">Verified</div><h3>Documentation and release gates</h3><p>Bilingual installation/upgrade documentation, Release latest verification, documentation build, links, Desktop/Web/TypeScript, and workflow static gates are included in release checks.</p><code>python -m scripts.docs_site.checklinks</code></article>
+        <article class="evidence-card pass"><div class="label">Repository release record</div><h3>v0.8.1 acceptance record</h3><p>The repository’s v0.8.1 acceptance records runtime, CLI, Desktop, manifest, and checksum artifact boundaries. The source version does not prove the current GitHub published release; this page does not revisit GitHub latest or treat historical remote-artifact checks as acceptance of a currently running client.</p></article>
+        <article class="evidence-card pending"><div class="label">Installed-client acceptance</div><h3>Real client update interactions</h3><p>The current user window has not been operated to verify version discovery, opening the platform installer, long-running behavior, or sleep/resume scheduling; release-artifact smoke tests do not replace these interactions. Windows must additionally pass the Authenticode gate with a real certificate on an official release runner.</p></article>
+        <article class="evidence-card pending"><div class="label">Historical compatibility acceptance</div><h3>One-time transition from v0.6.6 and earlier</h3><p>Historical records require Desktop to manually install the first updater-equipped v0.7.0 DMG, and CLI/server to rerun the public installer. This is v0.7.0 migration background, not the current v0.8.1 release state.</p></article>
       </div>
-      <div class="release-handoff"><h3>当前状态与历史背景</h3><p>v0.7.0 是历史上首个包含 updater 的正式 release；当前源码和安装脚本版本基线为 v0.8.1。v0.6.6 及更早 Desktop 的迁移说明仍保留为历史背景；当前证据不包含前台客户端更新交互，因此 installed-client acceptance 仍待单独验证。</p></div>
+      <div class="release-handoff"><h3>Current state and historical background</h3><p>v0.7.0 was historically the first official release with the updater; the current source and installer version baseline is v0.8.1. Migration instructions for v0.6.6 and earlier Desktop remain as historical context; current evidence excludes foreground-client update interactions, so installed-client acceptance still requires separate verification.</p></div>
     </section>
 
-    <footer class="footer"><span>Canonical design: distribution / automatic updates</span><span>设计与代码持续同步 · 历史通过 Git 查看</span></footer>
+    <footer class="footer"><span>Canonical design: distribution / automatic updates</span><span>Design stays synchronized with code · View history through Git</span></footer>
   </main>
 </div>
 

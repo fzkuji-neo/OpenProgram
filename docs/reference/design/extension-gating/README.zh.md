@@ -6,16 +6,18 @@
 
 | 文件 | 何时阅读 |
 |---|---|
-| [README.md](./README.md) | 第一次阅读 —— 高层模型 + agent.json schema + 示例 |
-| [reference-comparison.md](./reference-comparison.md) | 考虑改动设计时 —— 看看 claude-code / opencode / hermes 是怎么做的 |
-| [implementation.md](./implementation.md) | 改动代码时 —— 文件路径、辅助模块、门控落点 |
-| [future-work.md](./future-work.md) | 明确标注为“尚未构建，且除非有人提出否则不在路线图上” |
+| [README.md](README.zh.md) | 第一次阅读 —— 高层模型 + agent.json schema + 示例 |
+| [reference-comparison.md](reference-comparison.zh.md) | 考虑改动设计时 —— 看看 claude-code / opencode / hermes 是怎么做的 |
+| [implementation.md](implementation.zh.md) | 改动代码时 —— 文件路径、辅助模块、门控落点 |
+| [future-work.md](future-work.zh.md) | 明确标注为“尚未构建，且除非有人提出否则不在路线图上” |
 
-关于更广义的 skills+plugins 设计（目录、发现、热重载等），见 [`../skills-and-plugins.md`](../integrations/skills-and-plugins.md)。本目录只覆盖**门控**这一子集。
+关于更广义的 skills+plugins 设计（目录、发现、热重载等），见 [`../skills-and-plugins.md`](../integrations/skills-and-plugins.zh.md)。本目录只覆盖**门控**这一子集。
 
 ---
 
-## TL;DR
+<div id="tldr"></div>
+
+## 主要行为
 
 LLM 直接看到的每一种扩展类型，都在 agent profile 中通过**相同的结构**进行门控：
 
@@ -86,7 +88,7 @@ Plugin **不在**这个列表中 —— plugin 是宿主层面的“贡献者”
 - 向后兼容 —— 旧的 `{disabled: [pdf]}` profile 仍然可用
 - 极易扩展 —— 新增一种扩展类型 = 新增一个顶层字段，沿用相同的 {disabled, allowed} 结构
 
-完整的 claude-code / opencode 并排对比见 [reference-comparison.md](./reference-comparison.md)。
+完整的 claude-code / opencode 并排对比见 [reference-comparison.md](reference-comparison.zh.md)。
 
 ---
 
@@ -148,8 +150,8 @@ mcp:
 
 ## 另见
 
-- [reference-comparison.md](./reference-comparison.md) —— 三个参考实现之间如何对比
-- [implementation.md](./implementation.md) —— 代码路径与辅助模块
-- [future-work.md](./future-work.md) —— 有意未构建的条目
-- [../calling-unification.md](../function/calling-unification.md) —— 针对 function-calling 子系统的更广义 6 层门控文档（本目录所形式化的，正是其中针对*所有*扩展而非仅工具的第 2/3/5 层）
-- [../skills-and-plugins.md](../integrations/skills-and-plugins.md) —— 最初的 skills + plugins 设计文档（涵盖目录、发现、热重载 —— 不含门控）
+- [reference-comparison.md](reference-comparison.zh.md) —— 三个参考实现之间如何对比
+- [implementation.md](implementation.zh.md) —— 代码路径与辅助模块
+- [future-work.md](future-work.zh.md) —— 有意未构建的条目
+- [../calling-unification.md](../function/calling-unification.zh.md) —— 针对 function-calling 子系统的更广义 6 层门控文档（本目录所形式化的，正是其中针对*所有*扩展而非仅工具的第 2/3/5 层）
+- [../skills-and-plugins.md](../integrations/skills-and-plugins.zh.md) —— 最初的 skills + plugins 设计文档（涵盖目录、发现、热重载 —— 不含门控）

@@ -114,7 +114,7 @@ speaker字段时保持speakerless。
 参考框架中，openclaw和hermes-agent只把名字放进正文，因此它们的长期记忆层没有独立
 发信人字段。这里保留正文形式以兼容当前轮次，同时采用Honcho的记录模型：发言人与消息
 一起存储，读接口把speaker作为显式参数。完整对照见
-[`speaker-identity.html`](speaker-identity.html)。
+[`speaker-identity.html`](speaker-identity.zh.html)。
 
 ### 正文不建立可信身份
 
@@ -401,7 +401,7 @@ agents。在这个接口上再开一条私路，只会变成绕过它的办法�
 供重试。legacy后续header可能来自正文，v2 parser也不会在非法frame后重新开始解析。
 完整方案和实测代价见
 [`written-marker.zh.md`](written-marker.zh.md)，更广的采用决策见
-[`adoption.html`](adoption.html)。
+[`adoption.html`](adoption.zh.html)。
 
 "谁说的"已经按独立可信字段实现。渠道入口把实际发信人的`speaker_id`和
 `speaker_display`与路由`peer_id`、正文分开传到持久化节点；网页、命令行、TUI和

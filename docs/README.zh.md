@@ -21,10 +21,10 @@
 </p>
 
 <p align="center">
-  <a href="start/GETTING_STARTED.md">快速上手</a> &middot;
+  <a href="start/GETTING_STARTED.zh.md">快速上手</a> &middot;
   <a href="install/install.zh.md">安装</a> &middot;
-  <a href="reference/API.md">API 参考</a> &middot;
-  <a href="capabilities/agentic-programming/philosophy.md">设计哲学</a> &middot;
+  <a href="reference/API.zh.md">API 参考</a> &middot;
+  <a href="capabilities/agentic-programming/philosophy.zh.md">设计哲学</a> &middot;
   <a href="README.md">English</a>
 </p>
 
@@ -33,7 +33,7 @@
 > *"The more constraints one imposes, the more one frees oneself."*
 > —— **Igor Stravinsky**，《Poetics of Music》
 
-**我们提出 _Agentic Programming_。** LLM 灵活,代码确定。让模型掌控一切,得到的是混乱——不可预测的执行、上下文爆炸、没有输出保证;把一切硬编码,又丢掉了智能。**Harness** 在两者之间取得平衡,逐时逐刻地交织——**想固定的流程交给 Python,写不进脚本的判断交给 LLM。**([完整论证 →](capabilities/agentic-programming/philosophy.md))
+**我们提出 _Agentic Programming_。** LLM 灵活,代码确定。让模型掌控一切,得到的是混乱——不可预测的执行、上下文爆炸、没有输出保证;把一切硬编码,又丢掉了智能。**Harness** 在两者之间取得平衡,逐时逐刻地交织——**想固定的流程交给 Python,写不进脚本的判断交给 LLM。**([完整论证 →](capabilities/agentic-programming/philosophy.zh.md))
 
 **目录**
 
@@ -45,9 +45,9 @@
   - [2. Agentic 工作流 —— 可信且自我演化的 agent 的地基](#2-agentic-工作流--可信且自我演化的-agent-的地基)
   - [3. 事件基础设施 —— 主动 agent 的地基](#3-事件基础设施--主动-agent-的地基)
 - [另外还带着这些](#另外还带着这些)
-- [相关项目](comparisons/related-projects.md)
-- [致谢](comparisons/related-projects.md#acknowledgements)
-- [贡献](comparisons/related-projects.md#contributing)
+- [相关项目](comparisons/related-projects.zh.md)
+- [致谢](comparisons/related-projects.zh.md#acknowledgements)
+- [贡献](comparisons/related-projects.zh.md#contributing)
 - [引用](#引用)
 - [许可证](#许可证)
 
@@ -87,7 +87,7 @@ openprogram web
 openprogram --print "用一句话介绍你自己"
 ```
 
-GUI Agent、Research Agent、Wiki Agent 已随每个受支持的 release 附带。第三方 Program 用 `openprogram programs install <owner>/<repo>`。详情见 [快速上手](start/GETTING_STARTED.md)。
+GUI Agent、Research Agent、Wiki Agent 已随每个受支持的 release 附带。第三方 Program 用 `openprogram programs install <owner>/<repo>`。详情见 [快速上手](start/GETTING_STARTED.zh.md)。
 
 ## 新闻
 

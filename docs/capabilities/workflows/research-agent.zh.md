@@ -1,4 +1,6 @@
-# Research Agent
+<div id="research-agent"></div>
+
+# 研究智能体
 
 自主科研 agent：接一个研究选题，走完文献调研 → 想法生成 → 实验 → 写作 → 评审 → rebuttal / 展示的完整流程，产出可提交的论文。它不信任自己的输出——引用逐条对着 Crossref / OpenAlex / Semantic Scholar / arXiv 四个索引核验，论文里的数字要能追溯到实验的 `run_record.json`，评审可以换一个不同的模型来做（作者与审稿人不同模型，避免自评自）。
 
