@@ -206,11 +206,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {section(text("In progress", "正在进行"), working)}
       {state.fetchedAt && processes.loaded && unassigned.length === 0 && ungrouped.length === 0 && attention.length === 0 && working.length === 0 && <SidebarNotice>{roots.length ? text("No tasks are running. Previous tasks are in History.", "当前没有正在进行的任务，已结束任务保留在历史记录中。") : text("Tasks and their programs will appear here when this conversation runs.", "此会话开始执行后，任务及其程序会显示在这里。")}</SidebarNotice>}
       {section(text("History", "历史记录"), history, true)}
-      {ungrouped.length > 0 && <div className="group/sec"><SectionHeader name={text("Records awaiting branch association", "尚未关联分支的记录")} collapsible={false} collapsed={false} onToggle={() => {}} />{ungrouped.filter(item => {
+      {ungrouped.length > 0 && <div className="group/sec"><SectionHeader className={styles.sectionHeader} name={text("Records awaiting branch association", "尚未关联分支的记录")} collapsible={false} collapsed={false} onToggle={() => {}} />{ungrouped.filter(item => {
         const parent = item.view_parent_execution_id ?? item.parent_execution_id;
         return !parent || !ungrouped.some(other => other.execution_id === parent);
       }).map(item => agentRow(item))}</div>}
-      {unassigned.length > 0 && <div className="group/sec"><SectionHeader name={text("Programs without an Agent record", "未关联 Agent 记录的程序")} collapsible={false} collapsed={false} onToggle={() => {}} />{unassigned.map(programRow)}</div>}
+      {unassigned.length > 0 && <div className="group/sec"><SectionHeader className={styles.sectionHeader} name={text("Programs without an Agent record", "未关联 Agent 记录的程序")} collapsible={false} collapsed={false} onToggle={() => {}} />{unassigned.map(programRow)}</div>}
     </div>
   </section>;
 }

@@ -214,6 +214,8 @@
 /* ---- File tree (fills the right sidebar) --------------------------- */
 
 .treeCol {
+  font-size: var(--right-panel-text-size, 14px);
+  line-height: var(--right-panel-line-height, 1.5);
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -244,8 +246,8 @@
   gap: 10px;
   padding-left: 8px;
   color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: var(--right-panel-text-size, 13px);
+  font-weight: var(--right-panel-font-weight, 650);
   line-height: 36px;
   letter-spacing: 0;
 }
@@ -273,9 +275,9 @@
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 450;
-  line-height: 1.35;
+  font-size: var(--right-panel-meta-size, 11px);
+  font-weight: var(--right-panel-font-weight, 450);
+  line-height: var(--right-panel-line-height, 1.35);
   user-select: text;
 }
 .treeRootCopy {
@@ -383,7 +385,7 @@
   outline: none;
   color: var(--text-primary);
   background: var(--bg-input);
-  font-size: 13px;
+  font-size: var(--right-panel-text-size, 13px);
 }
 .treeSearchInput:focus {
   border-color: color-mix(in srgb, var(--accent-blue) 65%, var(--border));
@@ -400,7 +402,7 @@
   min-width: 38px;
   padding: 0 3px;
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: var(--right-panel-meta-size, 11px);
   line-height: 24px;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -450,7 +452,7 @@
   border-radius: var(--ui-list-radius);
   color: var(--text-dim);
   background: transparent;
-  font-size: 11px;
+  font-size: var(--right-panel-meta-size, 11px);
   cursor: pointer;
 }
 .treeSearchOption:hover { color: var(--text-primary); }
@@ -515,7 +517,7 @@
   align-items: center;
   height: 30px;
   padding: 0 8px 0 0; /* nested depth is added inline */
-  font-size: 13px;
+  font-size: var(--right-panel-text-size, 13px);
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
@@ -555,7 +557,7 @@
   margin-left: 12px;
   height: 18px;
   padding: 0 3px;
-  font-size: 13px;
+  font-size: var(--right-panel-text-size, 13px);
   color: var(--text-bright);
   background: var(--bg-input);
   border: 1px solid var(--accent-orange);
@@ -616,7 +618,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.treePath { font-size: 12px; }
+.treePath { font-size: var(--right-panel-meta-size, 12px); }
 
 .treeNameMatch {
   border-radius: 2px;
@@ -631,13 +633,13 @@
 
 .treeHint {
   padding: 3px 10px;
-  font-size: 12px;
+  font-size: var(--right-panel-meta-size, 12px);
   color: var(--text-dim);
 }
 
 /* Files retains the shared Explorer controls, with a separate path row. */
 .filePathRow { display: flex; align-items: center; min-width: 0; min-height: 30px; gap: 4px; }
-.fileBreadcrumb { position: relative; display: flex; align-items: center; min-width: 0; flex: 1; gap: 0; overflow: hidden; font-size: 14px; color: var(--text-dim); }
+.fileBreadcrumb { position: relative; display: flex; align-items: center; min-width: 0; flex: 1; gap: 0; overflow: hidden; font-size: var(--right-panel-text-size, 14px); color: var(--text-dim); }
 .fileBreadcrumb button { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 32px; padding: 6px 8px; background: transparent; border: 0; border-radius: var(--ui-list-radius); cursor: pointer; }
 .fileBreadcrumb > button { flex: 0 0 auto; max-width: 40%; }
 .fileBreadcrumb button:hover, .fileCrumbMenu button:hover { background: var(--bg-hover); }
@@ -649,21 +651,21 @@
 .fileCrumbMenu button:focus-visible { outline: none; background: var(--bg-hover); color: var(--text-bright); }
 
 .treeRowWithSize { grid-template-columns: 17px minmax(0, 1fr) auto; }
-.folderSize { font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text-dim); padding-left: 8px; white-space: nowrap; }
+.folderSize { font-size: var(--right-panel-meta-size, 10px); font-variant-numeric: tabular-nums; color: var(--text-dim); padding-left: 8px; white-space: nowrap; }
 .fileDetails { background: var(--bg-primary); color: var(--text-primary); width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 40px); overflow-y: auto; border-radius: 12px; }
-.fileDetails dl { display: grid; gap: 10px; font-size: 12px; }
+.fileDetails dl { display: grid; gap: 10px; font-size: var(--right-panel-meta-size, 12px); }
 .fileDetails dl > div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; }
 .fileDetails dt { color: var(--text-dim); }
 .fileDetails dd { overflow-wrap: anywhere; }
-.folderSizeDetails { display: grid; gap: 6px; font-size: 12px; }
+.folderSizeDetails { display: grid; gap: 6px; font-size: var(--right-panel-meta-size, 12px); }
 .fileDetailActions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.fileDetailActions button { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 10px; border-radius: 6px; background: var(--bg-hover); }
+.fileDetailActions button { display: inline-flex; align-items: center; gap: 6px; font-size: var(--right-panel-meta-size, 12px); padding: 6px 10px; border-radius: 6px; background: var(--bg-hover); }
 .fileDetailActions button:disabled { opacity: .45; }
 .treeWithDetails { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: auto minmax(0, 1fr); }
 .treeWithDetails > .treeHeader { grid-column: 1; grid-row: 1; }
 .treeWithDetails > .treeBody { grid-column: 1; grid-row: 2; }
 .fileDetailsInline { grid-column: 2; grid-row: 1 / 3; border-left: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; color: var(--text-primary); }
-.fileDetailsInline dl { display: grid; gap: 12px; font-size: 12px; }
+.fileDetailsInline dl { display: grid; gap: 12px; font-size: var(--right-panel-meta-size, 12px); }
 .fileDetailsInline dt { color: var(--text-dim); margin-bottom: 3px; }
 .fileDetailsInline dd { overflow-wrap: anywhere; }
 .fileDetailHeading { display: flex; align-items: center; justify-content: space-between; }

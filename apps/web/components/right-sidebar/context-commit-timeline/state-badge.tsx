@@ -11,7 +11,7 @@ export function StateBadge(props: { state: StateName; count?: number }) {
         color: c.fg,
         padding: "1px 6px",
         borderRadius: 3,
-        fontSize: 10,
+        fontSize: "var(--right-panel-meta-size, 10px)",
         whiteSpace: "nowrap",
       }}
     >

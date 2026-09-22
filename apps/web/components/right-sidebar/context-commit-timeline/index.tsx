@@ -172,7 +172,7 @@ export function ContextCommitTimeline() {
         minHeight: 0,
         display: "flex",
         flexDirection: "column",
-        fontSize: 13,
+        fontSize: "var(--right-panel-text-size, 13px)",
         color: "var(--text-bright)",
       }}
     >

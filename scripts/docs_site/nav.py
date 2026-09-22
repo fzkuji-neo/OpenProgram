@@ -512,6 +512,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/ui/file-type-icons.html",
             "reference/design/ui/project-workspace.md",
             "reference/design/ui/right-sidebar-files.html",
+            "reference/design/ui/right-sidebar-typography.html",
             "reference/design/ui/sidebars-resizing.html",
         ]),
         ('CLI and TUI', '命令行与终端界面', [
