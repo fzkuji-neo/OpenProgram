@@ -2,29 +2,34 @@
 
 按子系统查找设计与实现边界。每个主题先阅读下方入口，再在侧栏展开对应分类，查看详细设计、对比与关联说明。
 
+
+侧栏只列出七个一级领域；展开领域后选择子模块，再进入页面。进入页面时自动展开完整路径，过滤同时匹配页面名与分类名。
+
 ## 阅读顺序
 
 1. 了解整体系统：[框架总览](framework-overview.md) → [仓库结构](repository-structure.html)。
 2. 跟踪一次执行：[调用流程](runtime/execution/agent-call-flow.md) → [执行控制](runtime/execution/execution-control.html) → [会话存储](runtime/session/storage.md)。
 3. 修改某个子系统：选择下方主题，阅读设计正文及其实现状态附录，再核对源码和验证要求。
 
-## 架构与仓库
+## 架构总览
 
 了解整体架构、源码归属与实现边界。
 
 [框架总览](framework-overview.md) · [仓库结构](repository-structure.html) · [实现状态导航](implementation-status.html)
 
-## 运行时与会话
+## Agent 与工作流
 
 依次阅读执行控制、会话存储、分支协作与恢复。
 
 [执行控制](runtime/execution/execution-control.html) · [会话存储](runtime/session/storage.md) · [会话 DAG](runtime/dag/overview.md) · [目标与重启恢复](runtime/goal-framework-implementation-comparison.html) · [Agent 配置](runtime/agent-configuration-ui.html)
 
-## 程序与工作流
-
 先阅读函数调用、工作流组成与应用执行，再查看报告场景。
 
 [函数调用](function/calling-unification.md) · [程序模型](function/agentic-program.html) · [应用运行](runtime/application-runtime.html) · [报告工作流](runtime/report-suite.html)
+
+先阅读事件约定，再阅读规则、主动执行与调度。
+
+[事件层](proactive/event-layer.md) · [规则执行](proactive/execution-model.md) · [调度与记忆](scheduler/scheduler-memory.html)
 
 ## 上下文与记忆
 
@@ -32,37 +37,27 @@
 
 [上下文总览](context/overview.md) · [上下文组成](context/composition.md) · [上下文压缩](context/compaction.md) · [记忆总览](memory/overview.md) · [实体记忆](memory/entity-memory.md)
 
-## 事件与调度
-
-先阅读事件约定，再阅读规则、主动执行与调度。
-
-[事件层](proactive/event-layer.md) · [规则执行](proactive/execution-model.md) · [调度与记忆](scheduler/scheduler-memory.html)
-
-## 界面与工作区
+## 界面与交互
 
 先阅读状态与交互约定，再选择对话、浏览器、工作区、设置或终端。
 
 [界面总览](ui/README.md) · [状态层](ui/state-layer.md) · [对话与输入框](ui/composer-interaction-modes.md) · [内置浏览器](ui/built-in-browser.html) · [项目工作区](ui/project-workspace.md) · [命令行与终端界面](cli/README.md)
 
-## 模型服务与账号
+## 模型与外部接入
 
 分别查找请求构建、模型参数、账号解析与错误处理。
 
 [模型目录](providers/models/overview.md) · [请求构建](providers/request-build.md) · [账号管理](providers/auth/unified-account-management.md) · [重试行为](providers/reliability/error-retry.md) · [用量统计](usage-metering.md)
 
-## 扩展与消息渠道
-
 查找 Harness、MCP、技能、插件与消息渠道的接口约定。
 
 [Harness 标准](integrations/harness-standard.md) · [MCP 集成](integrations/mcp-integration.md) · [MCP 服务端](integrations/mcp-server.html) · [扩展启用控制](extension-gating/README.md) · [消息渠道](channels/design.md)
 
-## 安全与分发
+## 安全与工程
 
 分别查找执行权限与安装、更新、平台支持。
 
 [执行权限与沙箱](runtime/sandbox-architecture.html) · [系统访问](runtime/system-access.html) · [依赖安全](security/dependency-security.html) · [安装与打包](distribution/installation-packaging.html) · [自动更新](distribution/automatic-updates.html)
-
-## 工程与文档
 
 查找统一验证规则、错误处理与文档维护要求。
 
