@@ -244,7 +244,7 @@ function createControlOverlays({
     catch { return null; }
   }
 
-  return { controlOverlayOwner, actionCueOwner, hideControlOverlay, closeControlOverlay, clampControlLayout, sendControlOverlayUpdate, layoutControlOverlay, setControlOverlay, handleControlOverlayEvent, nativeMenuOwner };
+  return { controlOverlayOwner, actionCueOwner, hideControlOverlay, closeControlOverlay, clampControlLayout, sendControlOverlayUpdate, layoutControlOverlay, setControlOverlay, handleControlOverlayEvent, nativeMenuOwner, nativeContextMenus };
 }
 
 module.exports = { createControlOverlays };
