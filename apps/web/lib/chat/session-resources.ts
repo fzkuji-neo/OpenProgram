@@ -87,8 +87,6 @@ export type PreviewPreference = {
 
 export type ResourceGroup = {
   key: string;
-  title: string;
-  current: boolean;
   rows: SessionResource[];
 };
 
@@ -331,40 +329,23 @@ export function resourceIsUnavailable(row: SessionResource): boolean {
   return row.status === "closed" || row.status === "exited";
 }
 
-/** Unnamed branch groups show the origin after the last colon, truncated
- *  to 8 characters. The grouping key stays the full branch id. */
-function unnamedBranchTitle(branchId: string): string {
-  const origin = branchId.includes(":") ? branchId.slice(branchId.lastIndexOf(":") + 1) : branchId;
-  return origin.slice(0, 8) || branchId;
-}
+const RESOURCE_KIND_ORDER = ["web", "vm", "desktop", "terminal", "application", "docker", "remote", "other"];
 
-export function groupSessionResources(rows: readonly SessionResource[], currentBranchId: string | null): ResourceGroup[] {
+/** Classify display groups from resource descriptors, never names or branches. */
+export function groupSessionResources(rows: readonly SessionResource[]): ResourceGroup[] {
   const groups = new Map<string, ResourceGroup>();
   for (const row of rows) {
-    const key = resourceIsUnavailable(row) ? "unavailable" : (row.branchId || "unassigned");
+    if (resourceIsUnavailable(row)) continue;
+    const kind = row.source === "browser" || row.source === "web" ? "web" : row.kind;
+    const key = RESOURCE_KIND_ORDER.includes(kind) ? kind : "other";
     let group = groups.get(key);
     if (!group) {
-      group = {
-        key,
-        title: key === "unavailable" ? "Closed pages" : key === "unassigned" ? "Unassigned" : (row.branchName || unnamedBranchTitle(key)),
-        current: key === currentBranchId,
-        rows: [],
-      };
+      group = { key, rows: [] };
       groups.set(key, group);
-    } else if (row.branchName && (group.title === key || group.title === unnamedBranchTitle(key))) {
-      group.title = row.branchName;
     }
     group.rows.push(row);
   }
-  const ordered = [...groups.values()].sort((a, b) => {
-    if (a.current !== b.current) return a.current ? -1 : 1;
-    if (a.key === "unavailable") return 1;
-    if (b.key === "unavailable") return -1;
-    if (a.key === "unassigned") return 1;
-    if (b.key === "unassigned") return -1;
-    return 0;
-  });
-  return ordered;
+  return RESOURCE_KIND_ORDER.flatMap(key => groups.get(key) ? [groups.get(key)!] : []);
 }
 
 function inCurrentScope(row: SessionResource, scopeSessionId: string): boolean {
