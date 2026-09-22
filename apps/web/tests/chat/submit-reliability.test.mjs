@@ -29,7 +29,6 @@ const mocks = {
   "@/lib/execution/function-invocation": "export const parseFunctionInvocation = () => ({kind:'none'});",
   "@/lib/abilities/functions-store": "export const useFunctions = {getState: () => ({functions:[]})};",
   "@/lib/format-utils/toast": "export const showToast = (...args) => host.toasts.push(args);",
-  "@/lib/chat/attachment-marker": "export const buildAttachmentEnvelope = () => ({mentions:[],imagesPayload:[],docsPayload:[]});",
   "../attach/attachment-session-cache": "export const attachmentsBlockSend = () => null;",
   "../attach/at-mention": "export const expandAtMentions = (text) => host.expandMentions(text);",
   "../modes/fn-form/session-target": "export const resolveFnFormSessionId = (current, active) => current ?? active;",
@@ -203,15 +202,57 @@ for (const mode of ["queue", "steer"]) {
     assert.equal(host.commands.length, 0);
   });
 }
-for (const field of ["pendingImages", "pendingDocs"]) {
-  test(`${field}: rejected queue submit keeps draft and emits no follow request`, async () => {
-    running();
-    await composer("caption", { [field]: [{ id: "attachment" }] }).submit();
-    assert.equal(queueFor("A").length, 0);
-    assert.equal(host.draftWrites.length, 0);
-    assert.equal(host.notes.length, 0);
-  });
-}
+test("attached queue captures files, supports editing and drains the edited payload", async () => {
+  running();
+  const doc = { id: "doc", filename: "before.txt", ext: "txt", sizeBytes: 3,
+    content: "old", dataB64: "b2xk", order: 0 };
+  let cleared = false;
+  await composer("caption", {pendingDocs: [doc], clearAttachmentsAfterSubmit() { cleared = true; }}).submit();
+  const row = queueFor("A")[0];
+  assert.ok(row, "attachment message must enter the queue");
+  assert.equal(cleared, true);
+  assert.equal(row.docs[0].dataB64, "b2xk");
+  assert.equal(useSendQueue.getState().beginEdit("A", row.id), true);
+  delete host.sessions.runningTasks.A;
+  useSendQueue.getState().drain("A");
+  assert.equal(host.frames.length, 0, "editing holds the head");
+  assert.equal(useSendQueue.getState().updateDraft("A", row.id, {text:"edited", images:[],
+    docs:[{...doc, filename:"after.txt", content:"new", dataB64:"bmV3"}]}), true);
+  useSendQueue.getState().drain("A");
+  assert.equal(queueFor("A").length, 0);
+  assert.match(host.frames[0].text, /edited/);
+  assert.match(host.frames[0].text, /after.txt/);
+  assert.doesNotMatch(host.frames[0].text, /before.txt/);
+  assert.equal(host.frames[0].attachments[0].data, "bmV3");
+});
+
+test("attachment queue rejection restores exact edited files and does not steer", async () => {
+  running();
+  await composer("", {runningMessageMode:"steer", pendingDocs:[{id:"d",filename:"file.txt",ext:"txt",sizeBytes:3,dataB64:"YWJj",content:"abc"}]}).submit();
+  assert.equal(queueFor("A").length, 1);
+  assert.equal(host.commands.length, 0);
+  delete host.sessions.runningTasks.A;
+  useSendQueue.getState().drain("A");
+  pending.getPendingUserReject("A")?.();
+  assert.equal(queueFor("A")[0].docs[0].dataB64, "YWJj");
+  pending.getPendingUserReject("A")?.();
+  assert.equal(queueFor("A").length, 1);
+  delete host.sessions.runningTasks.A;
+  useSendQueue.getState().drain("A");
+  assert.equal(host.frames.length, 1, "rejection must not create an automatic retry loop");
+  useSendQueue.getState().retryDraft("A", queueFor("A")[0].id);
+  assert.equal(host.frames.length, 2);
+});
+
+test("queue editing and removal cannot mutate uncertain steering delivery", async () => {
+  running(); await composer("keep").submit();
+  const row = queueFor("A")[0];
+  useSendQueue.getState().setSteering("A", row.id, {steerCommand:{command_id:"receipt"}});
+  assert.equal(useSendQueue.getState().beginEdit("A", row.id), false);
+  assert.equal(useSendQueue.getState().updateDraft("A", row.id, {text:"changed",images:[],docs:[]}), false);
+  assert.equal(useSendQueue.getState().removeDraft("A", row.id), false);
+  assert.equal(queueFor("A")[0].text, "keep");
+});
 
 test("peer queue submit emits follow only for its own scroller; repeated sends have distinct seeds", async () => {
   focus("B"); running();
@@ -395,4 +436,28 @@ test("unconfirmed steering backs off with one timer and preserves its command", 
   await steerQueuedMessage('A',queueFor('A')[0].id);
   assert.equal(timers.size,0);
   assert.equal(queueFor('A').length,0);
+});
+
+
+test("terminal rejection keeps a text queue entry until explicit retry", async () => {
+  running(); await composer("keep plain draft").submit();
+  delete host.sessions.runningTasks.A;
+  useSendQueue.getState().drain("A");
+  pending.getPendingUserReject("A")?.();
+  assert.equal(queueFor("A")[0].text, "keep plain draft");
+  delete host.sessions.runningTasks.A;
+  useSendQueue.getState().drain("A");
+  assert.equal(host.frames.length, 1);
+});
+
+
+test("image queue preview survives composer cleanup and original bytes survive drain", async () => {
+  running();
+  const image = {id:"image",sizeBytes:12,previewUrl:"blob:composer",attachment:{type:"image",media_type:"image/png",data:"c21hbGw=",original_data:"b3JpZ2luYWw=",original_media_type:"image/png",filename:"shot.png"}};
+  await composer("image", {pendingImages:[image],clearAttachmentsAfterSubmit(){image.previewUrl=null;}}).submit();
+  const row=queueFor("A")[0];
+  assert.equal(row.images[0].previewUrl,"data:image/png;base64,b3JpZ2luYWw=");
+  delete host.sessions.runningTasks.A;
+  useSendQueue.getState().drain("A");
+  assert.equal(host.frames[0].attachments[0].original_data,"b3JpZ2luYWw=");
 });

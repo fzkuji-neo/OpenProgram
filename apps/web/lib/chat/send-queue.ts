@@ -6,7 +6,7 @@
  * A message typed while the session's turn is still running is parked
  * here instead of being dropped (the backend rejects a concurrent
  * `chat` with `code:"run_active"`). The entries render as dimmed
- * "queued" bubbles under the transcript and drain one at a time: when
+ * "queued" bubbles above the composer and drain one at a time: when
  * a session's running task clears, the head entry is sent as an
  * ordinary turn.
  *
@@ -17,6 +17,8 @@
  */
 
 import { create } from "zustand";
+import type { ChatAttachment } from "@/components/chat/composer/submit/send-chat-message";
+import { queuedMessagePayload, snapshotQueuedAttachments, type QueuedAttachments } from "./queued-attachments";
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 
 // ponytail: `send-chat-message` imports back into this module (it records the
@@ -34,6 +36,9 @@ type SendFn = (args: {
   webSearchEnabled: boolean;
   serviceTier?: string;
   background?: boolean;
+  attachments?: ChatAttachment[];
+  hasAttachments?: boolean;
+  onReject?: () => void;
 }) => boolean;
 
 let sendImpl: SendFn | null = null;
@@ -43,7 +48,10 @@ export function registerChatSender(fn: SendFn): void {
   sendImpl = fn;
 }
 
-export interface QueuedMessage {
+export interface QueuedMessage extends QueuedAttachments {
+  /** Prevent automatic dispatch while the user edits this draft. */
+  editing?: boolean;
+  deliveryError?: boolean;
   id: string;
   text: string;
   /** Turn settings captured at type-time, replayed verbatim on send. */
@@ -69,6 +77,11 @@ interface SendQueueState {
   queues: Record<string, QueuedMessage[]>;
   enqueue: (sessionId: string, draft: QueueDraft) => string;
   remove: (sessionId: string, id: string) => void;
+  beginEdit: (sessionId: string, id: string) => boolean;
+  endEdit: (sessionId: string, id: string) => void;
+  updateDraft: (sessionId: string, id: string, draft: QueuedAttachments & { text: string }) => boolean;
+  retryDraft: (sessionId: string, id: string) => void;
+  removeDraft: (sessionId: string, id: string) => boolean;
   setInjecting: (sessionId: string, id: string, injecting: boolean) => void;
   setSteering: (sessionId: string, id: string, patch: Partial<Pick<QueuedMessage, "injecting" | "steerCommand" | "steerError">>) => void;
   /** Send the head entry if the session is idle. No-op otherwise. */
@@ -89,7 +102,7 @@ export const useSendQueue = create<SendQueueState>((set, get) => ({
         ...s.queues,
         [sessionId]: [
           ...(s.queues[sessionId] ?? EMPTY),
-          { ...draft, id, queuedAt: Date.now() },
+          { ...draft, ...snapshotQueuedAttachments(draft), id, queuedAt: Date.now() },
         ],
       },
     }));
@@ -106,6 +119,41 @@ export const useSendQueue = create<SendQueueState>((set, get) => ({
       else delete queues[sessionId];
       return { queues };
     }),
+
+  beginEdit: (sessionId, id) => {
+    const row = get().queues[sessionId]?.find(item => item.id === id);
+    if (!row || row.editing || row.injecting || row.steerCommand) return false;
+    set(s => ({ queues: { ...s.queues, [sessionId]: s.queues[sessionId].map(item => item.id === id ? {...item, editing:true} : item) } }));
+    return true;
+  },
+  endEdit: (sessionId, id) => {
+    const rows = get().queues[sessionId];
+    if (!rows?.some(item => item.id === id && item.editing)) return;
+    set(s => ({ queues: { ...s.queues, [sessionId]: rows.map(item => item.id === id ? {...item, editing:false} : item) } }));
+  },
+  updateDraft: (sessionId, id, draft) => {
+    const rows = get().queues[sessionId];
+    const row = rows?.find(item => item.id === id);
+    if (!row || !row.editing || row.injecting || row.steerCommand) return false;
+    if (!draft.text.trim() && !draft.images?.length && !draft.docs?.length) return false;
+    set(s => ({ queues: { ...s.queues, [sessionId]: rows.map(item => item.id === id
+      ? {...item, text:draft.text, ...snapshotQueuedAttachments(draft), editing:false, deliveryError:false, steerError:undefined} : item) } }));
+    return true;
+  },
+  retryDraft: (sessionId, id) => {
+    const rows = get().queues[sessionId];
+    const row = rows?.find(item => item.id === id);
+    if (!row || row.editing || row.injecting || row.steerCommand) return;
+    set(s => ({ queues: { ...s.queues, [sessionId]: rows.map(item => item.id === id ? {...item, deliveryError:false} : item) } }));
+    get().drain(sessionId);
+  },
+  removeDraft: (sessionId, id) => {
+    const row = get().queues[sessionId]?.find(item => item.id === id);
+    if (!row || row.injecting || row.steerCommand || row.editing) return false;
+    get().remove(sessionId, id);
+    get().drain(sessionId);
+    return true;
+  },
 
   setInjecting: (sessionId, id, injecting) =>
     set((s) => {
@@ -130,7 +178,7 @@ export const useSendQueue = create<SendQueueState>((set, get) => ({
   drain: (sessionId) => {
     const head = (get().queues[sessionId] ?? EMPTY)[0];
     if (!head || !sendImpl) return;
-    if (head.injecting || head.steerCommand) return;
+    if (head.deliveryError || head.editing || head.injecting || head.steerCommand) return;
     // Still busy — the next running-task clear will call us again.
     if (useSessionStore.getState().runningTasks[sessionId]) return;
     // Pop BEFORE sending: sendChatMessage re-enters the store (running
@@ -138,8 +186,17 @@ export const useSendQueue = create<SendQueueState>((set, get) => ({
     // below, so there is no window where the entry is both queued and
     // in flight.
     get().remove(sessionId, head.id);
+    const payload = queuedMessagePayload(head);
+    const restore = (deliveryError = false) => set((s) => {
+      const rows = s.queues[sessionId] ?? EMPTY;
+      if (rows.some(item => item.id === head.id)) return {};
+      return { queues: { ...s.queues, [sessionId]: [{...head, deliveryError}, ...rows] } };
+    });
     const ok = sendImpl({
-      text: head.text,
+      ...payload,
+      // Text-only run_active uses requeueRejected; other pre-ACK failures
+      // invoke this callback and require an explicit retry.
+      onReject: () => restore(true),
       sessionId,
       thinking: head.thinking,
       toolsEnabled: head.toolsEnabled,
@@ -149,14 +206,8 @@ export const useSendQueue = create<SendQueueState>((set, get) => ({
       background: head.background,
     });
     if (ok) return;
-    // Socket closed mid-drain — put it back at the FRONT so order
-    // survives the reconnect.
-    set((s) => ({
-      queues: {
-        ...s.queues,
-        [sessionId]: [head, ...(s.queues[sessionId] ?? EMPTY)],
-      },
-    }));
+    // Socket closed mid-drain: retain the complete payload at the head.
+    restore();
   },
 }));
 
@@ -177,14 +228,13 @@ export function promoteToHead(sessionId: string, id: string): void {
 }
 
 /** Imperative enqueue for the composer (which is not a store consumer).
- *  The queue intentionally carries plain text only. Returning null keeps an
- *  attached draft intact instead of separating its caption from its files. */
+ *  Callers must supply the attachment snapshots when files are present. */
 export function enqueueMessage(
   sessionId: string,
   draft: QueueDraft,
   attachmentCount = 0,
 ): string | null {
-  if (attachmentCount > 0) return null;
+  if (attachmentCount > (draft.images?.length ?? 0) + (draft.docs?.length ?? 0)) return null;
   return useSendQueue.getState().enqueue(sessionId, draft);
 }
 

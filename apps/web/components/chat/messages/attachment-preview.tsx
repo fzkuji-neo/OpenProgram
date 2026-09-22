@@ -25,16 +25,18 @@ import { absRawFileUrl } from "@/lib/files/files-shared";
 
 export function AttachmentPreview({
   path,
+  sessionId: ownerSessionId,
   filename,
   onClose,
 }: {
   path: string;
+  sessionId?: string | null;
   filename: string;
   onClose: () => void;
 }) {
   const { text } = useTranslation();
   const sessionId = useSessionStore((s) => s.currentSessionId);
-  const [capturedSessionId] = useState(sessionId);
+  const [capturedSessionId] = useState(ownerSessionId === undefined ? sessionId : ownerSessionId);
 
   // Replaces the old window-level Escape listener: same Escape, plus
   // the Tab trap and focus-return to the chip that opened the preview.

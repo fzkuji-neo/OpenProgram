@@ -2,6 +2,7 @@
 
 import { ExecutionApiError, getExecutionSnapshot, postExecutionCommand } from "@/lib/net/execution-client";
 import { useSessionStore } from "@/lib/session-store";
+import { queuedHasAttachments } from "@/lib/chat/queued-attachments";
 import { queueFor, useSendQueue } from "@/lib/chat/send-queue";
 import type { CommandResult, ExecutionCommand } from "@/lib/execution/execution-debugger";
 
@@ -33,7 +34,7 @@ export async function steerQueuedMessage(sessionId: string, messageId: string): 
   const entry = queueFor(sessionId).find(item => item.id === messageId);
   const key = confirmationKey(sessionId, messageId);
   if (!entry) { clearConfirmation(key); return false; }
-  if (entry.injecting) return false;
+  if (entry.deliveryError || entry.editing || queuedHasAttachments(entry) || entry.injecting) return false;
   const pending = confirmations.get(key);
   if (pending?.timer !== undefined) {
     clearTimeout(pending.timer);

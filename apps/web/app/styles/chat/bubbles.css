@@ -45,6 +45,8 @@
 .message-sender { display: none; }                    /* no name line */
 
 .message.user {
+  padding-top: 6px;
+  padding-bottom: 6px;
   background: transparent;          /* the bubble carries the colour, not the row */
   display: flex;
   flex-direction: column;
@@ -424,31 +426,6 @@
   color: var(--text-muted);
 }
 
-/* Queued sends — messages typed while the turn was still running. Same
-   user bubble, dimmed and dashed so it reads as "written, not yet sent"
-   at a glance without being a different component.
-   对应组件：components/chat/messages/queued-messages.tsx */
-.message.user[data-queued] .message-content {
-  opacity: 0.55;
-  background: transparent;
-  border: 1px dashed var(--border);
-}
-/* The queue's action row is always visible (no hover reveal): these are
-   the only controls the user has over a message that hasn't gone out. */
-.message.user[data-queued] .message-actions-footer {
-  align-items: center;
-  gap: 8px;
-  opacity: 1;
-}
-.message.user[data-queued] .message-actions[data-queued-actions] {
-  opacity: 1;
-}
-.queued-badge {
-  font-size: 11px;
-  font-family: var(--font-sans);
-  color: var(--text-muted);
-  letter-spacing: 0.02em;
-}
 .steering-badge {
   margin-right: 6px;
   font-size: 11px;

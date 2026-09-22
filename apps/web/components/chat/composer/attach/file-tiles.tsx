@@ -15,6 +15,7 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
+import { AttachmentPreview } from "../../messages/attachment-preview";
 import { createPortal } from "react-dom";
 import { useTranslation } from "@/lib/i18n";
 import { formatAttachmentSize, imagePreviewDataUrl, type PendingImage } from "./image-attach";
@@ -296,7 +297,14 @@ function FileTile({ doc, onRemove }: { doc: PendingDoc; onRemove: () => void }) 
   );
 }
 
-export function FilePreviewModal({
+export function FilePreviewModal(props: { doc?: PendingDoc; image?: PendingImage; sessionId?: string | null; onClose: () => void }) {
+  if (props.doc?.sourcePath && props.doc.ext !== "folder") {
+    return <AttachmentPreview sessionId={props.sessionId} path={props.doc.sourcePath} filename={props.doc.filename} onClose={props.onClose} />;
+  }
+  return <LocalFilePreviewModal {...props} />;
+}
+
+function LocalFilePreviewModal({
   doc, image, onClose,
 }: {
   doc?: PendingDoc;
@@ -305,6 +313,14 @@ export function FilePreviewModal({
 }) {
   const { text } = useTranslation();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!doc?.dataB64 || (doc.ext !== "pdf" && doc.mediaType !== "application/pdf")) return;
+    const bytes = Uint8Array.from(atob(doc.dataB64), char => char.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    setPdfUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [doc?.dataB64, doc?.ext, doc?.mediaType]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     dialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
@@ -421,6 +437,8 @@ export function FilePreviewModal({
                 objectFit: "contain",
               }}
             />
+          ) : pdfUrl ? (
+            <iframe title={doc?.filename || "PDF"} src={pdfUrl} style={{width:"100%",height:"55vh",border:0}} />
           ) : doc?.content === null || doc == null ? (
             <span style={{ color: "var(--text-muted)" }}>
               {text(
