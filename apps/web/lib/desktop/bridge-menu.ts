@@ -197,15 +197,18 @@ export function installDesktopMenuHandlers(): void {
       const tab = d.tab_id
         ? useCenterTabs.getState().tabs.find((item) => item.id === d.tab_id && item.kind === "web")
         : null;
-      void (tab && bridge.webTab.resolve
-        ? bridge.webTab.resolve(tab.id)
-        : Promise.resolve(null)
-      ).then((targetId) => sendWebTabResult(
+      void (tab && bridge.webTab.inspect
+        ? bridge.webTab.inspect(tab.id)
+        : tab && bridge.webTab.resolve
+          ? bridge.webTab.resolve(tab.id).then(target_id => target_id ? { target_id, input_scale: 1 } : null)
+          : Promise.resolve(null)
+      ).then((result) => sendWebTabResult(
         guardedSocket,
         d.req_id!,
         tab?.kind === "web" ? tab : { id: d.tab_id ?? "", url: "" },
-        targetId,
-      ));
+        result?.target_id ?? null,
+        undefined, undefined, result?.input_scale ?? 1,
+      )).catch(() => sendWebTabResult(guardedSocket, d.req_id!, { id: d.tab_id ?? "" }, null));
       return;
     }
 
@@ -326,7 +329,9 @@ export function installDesktopMenuHandlers(): void {
           }));
         });
       } else {
-        void bridge.webTab.activate(tab.id, d.url, true).then((targetId) => {
+        void bridge.webTab.activate(tab.id, d.url, true).then(async (targetId) => {
+          const inspected = bridge.webTab.inspect ? await bridge.webTab.inspect(tab.id) : null;
+          if (bridge.webTab.inspect && inspected?.target_id !== targetId) targetId = null;
           guardedSocket.send(JSON.stringify({
             action: "webtab_result",
             req_id: d.req_id,
@@ -334,6 +339,7 @@ export function installDesktopMenuHandlers(): void {
               tab.id,
               d.expected_geometry_revision ?? 0,
               targetId,
+              inspected?.input_scale ?? 1,
             ),
           }));
         }).catch(() => {

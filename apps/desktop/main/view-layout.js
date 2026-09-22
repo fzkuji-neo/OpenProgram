@@ -161,6 +161,7 @@ function createViewLayout({
     if (!targetId || recordFor(ctx, id) !== record) return null;
     return {
       target_id: targetId,
+      input_scale: record.pipLayoutZoom || 1,
       url: contents.getURL(),
       title: contents.getTitle(),
     };

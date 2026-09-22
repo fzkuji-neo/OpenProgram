@@ -538,6 +538,7 @@ function controlledRecord(id, currentUrl = "", loading = false) {
     selectAll: 0,
   };
   let zoomFactor = 1;
+  const debuggerListeners = new Map();
   const webContents = {
     getURL: () => currentUrl,
     getTitle: () => id,
@@ -557,6 +558,7 @@ function controlledRecord(id, currentUrl = "", loading = false) {
       });
     },
     debugger: {
+      on(event, listener) { debuggerListeners.set(event, listener); },
       isAttached() { return debuggerAttached; },
       attach() { debuggerAttached = true; },
       sendCommand(method, params) {
@@ -565,6 +567,10 @@ function controlledRecord(id, currentUrl = "", loading = false) {
         if (method === "Target.getTargetInfo") {
           targetCalls += 1;
           result = { targetInfo: { targetId: `${id}-target` } };
+        } else if (method === "Emulation.setDeviceMetricsOverride" || method === "Emulation.clearDeviceMetricsOverride") {
+          result = {};
+        } else if (method === "Page.captureScreenshot") {
+          result = { data: "PIP_CSS_PIXELS" };
         } else if (typeof method === "string" && method.startsWith("Overlay.")) {
           result = {};
         } else {
@@ -577,7 +583,7 @@ function controlledRecord(id, currentUrl = "", loading = false) {
         }
         return Promise.resolve(result);
       },
-      detach() { debuggerAttached = false; },
+      detach() { debuggerAttached = false; debuggerListeners.get("detach")?.(); },
     },
     navigationHistory: {
       canGoBack: () => canGoBack,
@@ -632,6 +638,7 @@ function controlledRecord(id, currentUrl = "", loading = false) {
     focus() { focusCalls.push("focus"); },
     executeJavaScript(script, userGesture) {
       executeJavaScriptCalls.push([script, userGesture]);
+      if (script.includes("devicePixelRatio")) return Promise.resolve({ dpr: 2, x: 0, y: 0, screenWidth: 1440, screenHeight: 900 });
       const result = {
         visible_text_excerpt: "excerpt",
         text_truncated: false,
@@ -892,6 +899,7 @@ const webtabChecks = Object.assign({},
   require("./webtab-checks/transfer-recovery")(webtabCheckContext),
   require("./webtab-checks/browser-data")(webtabCheckContext),
   require("./webtab-checks/cue-freshness")(webtabCheckContext),
+  require("./webtab-checks/pip-viewport")(webtabCheckContext),
   require("./webtab-checks/human-input")(webtabCheckContext),
   require("./webtab-checks/control-overlay")(webtabCheckContext),
 );
@@ -1075,6 +1083,7 @@ Promise.all([
     await checkConfirmedDestroyHandler();
     await checkHumanInputYieldingAndActionCue();
     await checkBackgroundPreview();
+    await webtabChecks.checkPipCapture();
     await checkActionCueFreshness();
     await checkActionCueWorkerIncarnation();
     await checkOverlappingActionCues();

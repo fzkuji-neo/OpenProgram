@@ -707,6 +707,7 @@ const {
   process,
   recordFor: (...args) => recordFor(...args),
   safeRecordVisit: (...args) => safeRecordVisit(...args),
+  withDebugger: (...args) => withDebugger(...args),
   tabTransfers,
 });
 

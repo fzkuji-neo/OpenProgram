@@ -3,6 +3,7 @@ from __future__ import annotations
 from ._support import (
     _WS,
     asyncio,
+    pytest,
     threading,
 )
 
@@ -196,3 +197,22 @@ def test_open_page_background_response_timeout_requires_manual_cleanup(
         "handoff_instruction"
     ]
 
+
+
+@pytest.mark.parametrize("scale", [0.125, 1, float("inf"), -1, True])
+def test_webtab_result_preserves_only_positive_finite_input_scale(scale):
+    from openprogram.webui.ws_actions import webtab
+
+    owner = _WS()
+    holder = {}
+    webtab._pending["input-scale"] = (threading.Event(), holder, owner)
+    try:
+        asyncio.run(webtab.handle_webtab_result(owner, {
+            "req_id": "input-scale", "ok": True, "input_scale": scale,
+        }))
+        if type(scale) in (int, float) and 0 < scale < float("inf"):
+            assert holder["result"]["input_scale"] == scale
+        else:
+            assert "input_scale" not in holder["result"]
+    finally:
+        webtab._pending.pop("input-scale", None)

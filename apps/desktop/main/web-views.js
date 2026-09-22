@@ -17,6 +17,7 @@ function createWebViews({
   process,
   recordFor,
   safeRecordVisit,
+  withDebugger,
   tabTransfers,
 }) {
   function sendState(record, extra) {
@@ -285,6 +286,9 @@ function createWebViews({
       ]) {
         wc.on(ev, () => sendState(record));
       }
+      // Detaching any final shared debugger holder resets Chromium emulation.
+      // Restore the current preview, never the geometry saved by a capture.
+      wc.debugger.on("detach", () => restorePipViewport(record));
       wc.on("did-navigate", () => {
         if (record.pipLayoutZoom) applyPipViewport(record, view.getBounds());
         else restorePendingPipZoom(record);
@@ -358,6 +362,14 @@ function createWebViews({
     });
     record.pipLayoutZoom = scale;
     record.pipViewport = { width: PIP_VIRTUAL_WIDTH, height: PIP_VIRTUAL_HEIGHT };
+  }
+
+  function restorePipViewport(record) {
+    try {
+      if (record.pipLayoutZoom && !record.view.webContents.isDestroyed()) {
+        applyPipViewport(record, record.view.getBounds());
+      }
+    } catch { /* renderer or native view closed during cleanup */ }
   }
 
   function rememberUserZoom(record) {
@@ -451,11 +463,65 @@ function createWebViews({
     }
   }
 
+  async function capturePipView(ctx, record) {
+    if (record.pipCapture) return record.pipCapture;
+    const contents = record.view.webContents;
+    const bounds = record.view.getBounds();
+    const scale = record.pipLayoutZoom;
+    const url = contents.getURL();
+    const navigation = record.navigation;
+    const current = () => recordFor(ctx, record.id) === record
+      && !contents.isDestroyed() && record.pipLayoutZoom === scale
+      && !boundsDiffer(bounds, record.view.getBounds())
+      && contents.getURL() === url && record.navigation === navigation;
+    const capture = (async () => {
+      try {
+        // Native capturePage returns the scaled display bitmap. CDP must know
+        // the same emulation state before capturing, or captureScreenshot can
+        // temporarily reflow the document to the native view's small size.
+        const result = await withDebugger(contents, async (client) => {
+          const metrics = await contents.executeJavaScript(`({
+            dpr: devicePixelRatio, x: scrollX, y: scrollY,
+            screenWidth: screen.width, screenHeight: screen.height
+          })`);
+          if (!current() || !(metrics.dpr > 0)) return null;
+          try {
+            await client.sendCommand("Emulation.setDeviceMetricsOverride", {
+              width: PIP_VIRTUAL_WIDTH, height: PIP_VIRTUAL_HEIGHT,
+              deviceScaleFactor: metrics.dpr, mobile: false,
+              screenWidth: metrics.screenWidth, screenHeight: metrics.screenHeight,
+              dontSetVisibleSize: true, scale,
+            });
+            if (!current()) return null;
+            return await client.sendCommand("Page.captureScreenshot", {
+              format: "png", fromSurface: true, captureBeyondViewport: true,
+              clip: { x: metrics.x, y: metrics.y, width: PIP_VIRTUAL_WIDTH,
+                height: PIP_VIRTUAL_HEIGHT, scale: 1 / metrics.dpr },
+            });
+          } finally {
+            try { await client.sendCommand("Emulation.clearDeviceMetricsOverride"); }
+            finally { restorePipViewport(record); }
+          }
+        });
+        if (!current() || !result?.data) return null;
+        return `data:image/png;base64,${result.data}`;
+      } finally {
+        // withDebugger can detach here or after another concurrent holder.
+        // The detach listener also reapplies the latest preview geometry.
+        restorePipViewport(record);
+      }
+    })();
+    record.pipCapture = capture;
+    try { return await capture; }
+    finally { if (record.pipCapture === capture) record.pipCapture = null; }
+  }
+
   async function captureView(ctx, id) {
     const record = recordFor(ctx, id);
     if (!record) return null;
     const contents = record.view.webContents;
     try {
+      if (record.pipLayoutZoom) return await capturePipView(ctx, record);
       const image = await contents.capturePage(
         undefined,
         { stayHidden: true },
