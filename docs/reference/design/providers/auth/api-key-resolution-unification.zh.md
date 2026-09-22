@@ -1,7 +1,7 @@
 # API key / 凭据解析
 
 由一个模块回答"provider X 用的是哪个凭据，X 是否已配置？"。本文与
-[credential-validation-unification](credential-validation-unification.md) 配套：
+[credential-validation-unification](credential-validation-unification.zh.md) 配套：
 那篇讲"这个 key 是否*有效*"，本篇讲"这个 key *是什么*，以及 provider *是否已配置*"。
 
 ## 1. 为什么只留一个解析器
@@ -106,5 +106,5 @@ anthropic 把 OAuth 放在最前。它们回答的是不同的问题，因此 `_
 
 更长远的方向（不在本文范围内）：一个 `Provider` 元数据 dataclass（id、env_vars、
 kind、base_url、default_api），把
-[credential-validation-unification](credential-validation-unification.md) 的 KIND
+[credential-validation-unification](credential-validation-unification.zh.md) 的 KIND
 表和 `_PROVIDER_DEFAULT_API` 折叠进去，做到每个 provider 一条注册项。

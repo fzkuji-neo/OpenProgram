@@ -1,6 +1,6 @@
 """Session archiving: a reversible metadata flag that hides a session
 from the default list without deleting anything or touching activity
-time (see docs/reference/design/runtime/session/index-consistency.html).
+time (see docs/reference/design/runtime/session/storage-consistency.html).
 """
 from __future__ import annotations
 

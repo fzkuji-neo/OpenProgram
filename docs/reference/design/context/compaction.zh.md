@@ -1,9 +1,11 @@
-# 上下文压缩
+<div id="上下文压缩"></div>
+
+# 压缩
 
 压缩通过把最老的轮次替换成一份 LLM 写的摘要，让长对话保持在模型上下文窗口之内。
 本文是压缩的唯一权威文档：结果如何存储、如何改变模型读到的内容、如何与分支和多轮
 压缩组合、由哪些不变量保护。摘要在 DAG 上的视觉呈现（胶囊）由
-[dag/rendering.md 第九节](../runtime/dag/rendering.md)规定；本文定义渲染所消费的
+[dag/rendering.md 第九节](../runtime/dag/rendering.zh.md)规定；本文定义渲染所消费的
 数据与语义。
 
 ## 一、模型：滚动摘要，永远只有一份现役
@@ -126,7 +128,7 @@ summarizer 接收上一份摘要文本作为输入、吸收它、产出替代品
 
 ## 六、图上显示什么
 
-由 [dag/rendering.md 第九节](../runtime/dag/rendering.md)定义；本侧的下发契约：
+由 [dag/rendering.md 第九节](../runtime/dag/rendering.zh.md)定义；本侧的下发契约：
 
 - 现役摘要行携带 `covers_ids`——照抄 `metadata.covers_ids`，加上被覆盖轮次的
   caller 子树（被覆盖的轮连同它的工具调用一起折叠），去掉已不存在的 id。

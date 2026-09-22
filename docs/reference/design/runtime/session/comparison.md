@@ -1,4 +1,6 @@
-# Session Management Comparison
+<div id="session-management-comparison"></div>
+
+# Management comparison
 
 A comprehensive comparison of the session management mechanisms across four projects: Claude Code, OpenCode, OpenClaw, and OpenProgram (our design).
 

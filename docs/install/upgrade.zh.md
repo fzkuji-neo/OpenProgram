@@ -1,4 +1,5 @@
-# 升级
+<span id="升级"></span>
+# 升级已安装的发行版
 
 升级行为取决于安装类型。stable 安装只在已发布版本之间变更，不跟随 `origin/main`。
 
@@ -372,4 +373,4 @@ openprogram upgrade
 
 source checkout 的恢复细节见[服务器升级](../server/upgrading.zh.md)。
 持续维护的架构、信任边界、界面状态和实现证据见
-[正式版本自动更新](../reference/design/distribution/automatic-updates.html)。
+[正式版本自动更新](../reference/design/distribution/automatic-updates.zh.html)。

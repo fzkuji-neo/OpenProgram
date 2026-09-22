@@ -10,7 +10,7 @@
 > `apps/web/lib/net/owner-auth-bootstrap.ts`, and
 > `openprogram/agent/authority.py`.
 > Related designs: [speaker identity](../memory/speaker-identity.md),
-> [permission model](../runtime/permission-model.md), and
+> [permission model](../runtime/sandbox-architecture.html), and
 > [MCP server](../integrations/mcp-server.html).
 
 OpenProgram keeps one authority model in every deployment mode: a

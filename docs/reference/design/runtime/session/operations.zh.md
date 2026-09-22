@@ -1,4 +1,6 @@
-# Session 操作流程
+<div id="session-操作流程"></div>
+
+# 操作流程
 
 每个操作从触发到磁盘到前端，完整写一遍。
 
@@ -255,7 +257,7 @@ channel 会话命名与普通会话**完全一样**，走同一套两阶段 LLM 
 - 让 LLM 重新生成（点按钮，title 为空）→ `_llm_rename()` → `update_session(session_id, title=LLM结果)`
   不设 `_user_titled`，自动命名继续。
 
-LLM 标题生成的细节（prompt、参数、后处理）见 [name.md](name.md)。
+LLM 标题生成的细节（prompt、参数、后处理）见 [name.md](name.zh.md)。
 
 ---
 
@@ -291,7 +293,7 @@ LLM 标题生成的细节（prompt、参数、后处理）见 [name.md](name.md)
 
 ### 每条 session 返回的字段
 
-注册表中的 15 个字段 + preview + project（列举时补充），共 17 个。完整列表见 [storage.md](storage.md)。
+注册表中的 15 个字段 + preview + project（列举时补充），共 17 个。完整列表见 [storage.md](storage.zh.md)。
 
 ---
 
@@ -329,7 +331,7 @@ LLM 标题生成的细节（prompt、参数、后处理）见 [name.md](name.md)
 ### 归档不动的东西
 
 `updated_at` 记录的是最后一次追加消息的时间，归档不追加任何消息，因此不碰这个
-时间戳。这是[索引一致性契约](index-consistency.html)：取消归档后会话回到列表
+时间戳。这是[索引一致性契约](storage-consistency.zh.html)：取消归档后会话回到列表
 里原来的位置，不会被顶到最上面。消息、分支、history 文件都不动，归档期间
 `get_messages` 照常可读。
 

@@ -1,4 +1,6 @@
-# Context Compaction
+<div id="context-compaction"></div>
+
+# Compaction
 
 Compaction keeps a long conversation inside the model's context window by
 replacing the oldest turns with one LLM-written summary. This document is the

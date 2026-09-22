@@ -30,6 +30,7 @@ TOP_LEVEL_FILES = {
     "package-lock.json",
     "package.json",
     "README.md",
+    "README.zh.md",
     "pyproject.toml",
     "setup.py",
     "uv.lock",

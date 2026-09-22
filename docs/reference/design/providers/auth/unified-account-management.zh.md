@@ -3,7 +3,7 @@
 CLI、web、TUI 用同一套方式管理账号：列出、添加、激活、重命名、删除，每个
 provider 可以有多个账号，另有可开关的轮换与故障转移。某个 provider 背后是什么
 后端属于实现细节，管理界面是统一的。本文建立在
-[unified-auth-storage.md](./unified-auth-storage.md) 描述的登录侧之上。
+[unified-auth-storage.md](unified-auth-storage.zh.md) 描述的登录侧之上。
 
 ## 一个账号就是一个 profile
 

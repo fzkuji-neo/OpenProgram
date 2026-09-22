@@ -1,4 +1,6 @@
-# Memory — Memory System Design
+<div id="memory-memory-system-design"></div>
+
+# Reading guide
 
 ## Definition
 
@@ -49,14 +51,13 @@ using the proposal as a code map.
 | [`overview.md`](overview.md) | The current Source/Topic/derived-view architecture, automatic writer, authority boundary, transactions, failure behavior, and implementation record |
 | [`written-marker.md`](written-marker.md) | How memory knows which turns it has already written, in four layers: the replaced position cursor, the eight reference frameworks, the implemented mark-on-the-node design, and the event-driven design that remains deferred |
 | [`written-marker.html`](written-marker.html) | Visualization of those four layers: where the ordinal comes from and what it drops at a fork, the reference frameworks side by side, the walk and the three write steps, and the derived alternative |
-| [`memory-architecture.html`](memory-architecture.html) | Visualization: the two write entry points, the five write steps, the staged transaction, the write cursor, who maintains the always-on block, which of the nine provider hooks are wired, and the failure contract |
-| [`memory-comparison.html`](memory-comparison.html) | Visualization: how the eight reference frameworks write and track long-term memory, across eight dimensions, including what each does to its cursor at a fork and what maintains its always-on block, and where our choices and our two planned changes land against them |
-| [`memory-adoption.html`](memory-adoption.html) | Visualization in three layers: the four moves worth borrowing from that comparison, what each would cost here, and the verdict on each — three adopted, one rejected on measured per-turn latency |
+| [`architecture.html`](architecture.html) | Visualization: the two write entry points, the five write steps, the staged transaction, the write cursor, who maintains the always-on block, which of the nine provider hooks are wired, and the failure contract |
+| [`comparison.html`](comparison.html) | Visualization: how the eight reference frameworks write and track long-term memory, across eight dimensions, including what each does to its cursor at a fork and what maintains its always-on block, and where our choices and our two planned changes land against them |
+| [`adoption.html`](adoption.html) | Visualization in three layers: the four moves worth borrowing from that comparison, what each would cost here, and the verdict on each — three adopted, one rejected on measured per-turn latency |
 | [`speaker-identity.html`](speaker-identity.html) | Visualization in three layers: how several people share one session and where speaker identity used to break, what all eight reference frameworks do about it, the two-file change that follows from them and now runs, and the two things that shape leaves open — a sender can type a second label into the body, and there is no key to filter memory by person — with the field that closes both |
 | [`authority-landscape.html`](authority-landscape.html) | Current owner/paired authority method, local reference-framework evidence, adopted/modified/rejected decisions, execution-order visualization, and implementation record |
 | [`authority-handoff.md`](authority-handoff.md) | Settled authority and writer decisions, exact deferred boundaries, review disposition, and implementation handoff |
-| [`git-as-entity-memory.md`](git-as-entity-memory.md) | The entity layer's git substrate (Session-Git + Project-Git) |
-| [`entity-memory.md`](entity-memory.md) | Entity memory: Session-Git + Project-Git, organized by lifecycle |
+| [Entity memory on Git — deferred proposal](entity-memory-proposal.md) | Proposed lifecycle, replay, consistency and project integration |
 | [`virtual-memory.md`](virtual-memory.md) | Abstract memory: Timeline + Graph + Core, organized by type × lifecycle |
 
 ## Implementation Status

@@ -469,19 +469,22 @@ def main() -> int:
             require(built_optimized_hero.read_bytes() == optimized_hero.read_bytes(),
                     "built optimized hero differs from its source", failures)
 
+    redirect_source = BUILT_SITE.parent / "redirects.json"
+    redirects = json.loads(redirect_source.read_text(encoding="utf-8")) if redirect_source.exists() else {}
     language_pairs: set[tuple[Path, Path]] = set()
     for html_path in BUILT_SITE.rglob("*.html"):
         if html_path.name.endswith(".raw.html"):
             continue
-        if html_path.name.endswith(".zh.html"):
-            en_path = html_path.with_name(html_path.name.replace(".zh.html", ".html"))
+        suffix = ".viz.html" if html_path.name.endswith(".viz.html") else ".html"
+        if html_path.name.endswith(".zh" + suffix):
+            en_path = html_path.with_name(html_path.name.removesuffix(".zh" + suffix) + suffix)
             zh_path = html_path
         elif html_path == BUILT_SITE / "index.html":
             en_path = html_path
             zh_path = BUILT_SITE / "README.zh.html"
         else:
             en_path = html_path
-            zh_path = html_path.with_name(html_path.stem + ".zh.html")
+            zh_path = html_path.with_name(html_path.name.removesuffix(suffix) + ".zh" + suffix)
 
         head = html_path.read_text(encoding="utf-8").split("</head>", 1)[0]
         head_page = LandingParser()
@@ -496,6 +499,15 @@ def main() -> int:
              if "canonical" in link.get("rel", "").split()),
             "",
         )
+        retired_target = redirects.get(html_path.relative_to(BUILT_SITE).as_posix())
+        if retired_target is not None:
+            require(canonical_url == "/docs/" + retired_target,
+                    f"incorrect redirect canonical URL in {html_path}", failures)
+            require(any(meta.get("name") == "robots" and meta.get("content") == "noindex"
+                        for meta in head_page.meta),
+                    f"redirect must be excluded from indexing in {html_path}", failures)
+            # Retired URLs are not articles or translated copies of articles.
+            continue
         breadcrumbs = [
             item for item in head_page.structured_data
             if item.get("@type") == "BreadcrumbList"

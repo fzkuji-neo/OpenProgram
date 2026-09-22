@@ -1,13 +1,14 @@
-# Session DAG — 设计
+<div id="session-dag-设计"></div>
+
+# 设计概览
 
 > 本文是 agent 执行记录的权威设计：数据模型、边与不变量、分支与 spawn、上下文渲染、
-> 上下文装配、压缩。模型选型的论证见
-> [`../../research/execution-trace-model-selection.zh.md`](../../research/execution-trace-model-selection.zh.md)。
-> 调用流程图见 [`../agent-call-flow.svg`](../agent-call-flow.svg)。
+> 上下文装配、压缩。[模型选型与取舍](#模型选型)在本页集中说明。
+> 调用流程图见 [`../agent-call-flow.svg`](../agent-call-flow.zh.svg)。
 > 可视化渲染规范（布局、连线、图例、默认可见性）是
 > [`rendering.zh.md`](rendering.zh.md)——绘制以它为准，本文只讲语义。
 
-![模型可视化](session-dag.svg)
+![模型可视化](session-dag.zh.svg)
 
 ## 1. 概述与动机
 
@@ -26,6 +27,70 @@ trace、用 session 标签分组，因为它们只做事后观察、从不回读
 这个设计的核心在于融合本身：记录下的调用树**就是**运行时上下文，每次调用按 frame
 作用域和逐函数的 expose 设置查询它，且所有节点永久保留（支撑 fork 与 replay）。构成
 它的单项技术（调用栈追踪、图 fork）都常见，把三重身份合在一张图上的整体做法不常见。
+
+<div id="llm-agent-追踪圈已经收敛到-span"></div>
+<div id="otel-是真共识"></div>
+<div id="span-如何满足这些要求"></div>
+<div id="span-的缺点"></div>
+<div id="与当前模型的距离"></div>
+<div id="与设计文档的关系"></div>
+<div id="历史先分裂后统一"></div>
+<div id="备选方案-基本都用-span"></div>
+<div id="执行记录数据模型-选择-span"></div>
+<div id="结论"></div>
+<div id="路线"></div>
+<div id="这是什么领域"></div>
+<div id="问题"></div>
+<div id="领域格局"></div>
+<div id="模型选型"></div>
+
+## 模型选型与取舍
+
+### 为什么使用会话 DAG
+
+执行记录需要同时表达嵌套调用、对话分支，以及每次 LLM 调用实际读取的节点。
+所有 LLM 调用使用同一种节点角色，循环迭代是兄弟节点。单一调用树无法同时区分
+对话的不同续接分支，时间戳也不能确定回复属于哪个分支。因此分别保留 `caller`、
+`predecessor` 和 `reads`，由 `seq` 提供确定的记录顺序。
+
+### 比较过的模型
+
+| 模型 | 适用能力 | 对本设计的限制 |
+|---|---|---|
+| 扁平日志 | 追加事件，采集简单 | 调用嵌套、分支祖先和上下文读取仍需要显式关系。 |
+| Span 树 | 操作标识、父子调用、时间、状态和属性 | 调用父子关系不能替代独立的对话前驱。 |
+| 带时间的嵌套区间 | 适合 Chrome Trace / Perfetto 等性能视图 | 时间用于观察执行，不能作为持久化分支关系的定义。 |
+| 会话 DAG | 同一记录包含调用、对话分支和上下文读取 | 需要边校验、索引和显式渲染规则；这是内部采用的模型。 |
+
+参考范围包括商业 APM（Datadog、New Relic、Honeycomb、Lightstep）、内核追踪
+（Pixie、Cilium）和 agent 可观测性系统（Langfuse、Arize Phoenix/OpenInference、
+LangSmith、OpenLLMetry、W&B Weave、Braintrust）。它们用于参考采集、检查与导出方式，
+不要求复制其存储模型或产品行为。Span 结构以
+[OpenTelemetry 官方追踪模型](https://opentelemetry.io/docs/concepts/signals/traces/)为外部参考。
+
+### 采用与不采用的设计
+
+| 选择 | 结论与原因 |
+|---|---|
+| 统一操作记录 | 采用：user、llm、code 共享 `Call`，通过角色和 metadata 表达差异。 |
+| 父子调用关系 | 采用 `caller`，保留嵌套函数与 LLM 调用的执行归属。 |
+| 用时间顺序替代对话边 | 不采用：`predecessor` 是顶层 schema 字段，分叉、重试和分支遍历都需要它。`seq` 只能排序，不能确定分支祖先。 |
+| 只把上下文读取记录为追踪事件 | 内部不采用：`reads` 是解释上下文选择的显式节点 ID 列表，遥测导出另行映射。 |
+| 把 `caused_by` 作为前置要求 | 当前 schema 不包含它，不能把追踪 link 的设想写成已经实现的字段。 |
+| 持久化依赖 OTel SDK | 不采用：会话存储和上下文重建由 OpenProgram 自己管理。 |
+| GenAI 属性约定 | 用于参考模型与用量元数据的互通方式；参考规范不代表已实现 exporter。见[官方约定](https://github.com/open-telemetry/semantic-conventions-genai)。 |
+
+### 代价与实现边界
+
+逐次记录调用会增加存储和索引开销。对权威记录采样会丢失上下文重建、分支和重放
+需要的历史，因此采样遥测必须单独派生。调用树与对话链还需要各自的校验。
+Token、成本和评估元数据需要显式定义，不能从耗时推断。
+
+字段分别为：`Call.id` 表示身份，`caller` 表示调用关系，`predecessor` 表示对话关系，
+`seq` 提供确定顺序，`reads` 记录上下文引用，`metadata` 保存适配器数据。
+`created_at` 是墙钟时间，不是排序依据。后续章节给出这些契约，文末实现状态附录
+集中记录剩余工作。
+
 
 ## 2. 数据模型
 
@@ -131,7 +196,9 @@ ROOT
 
 ## 4. 分支与 Spawn
 
-### Fork
+<div id="fork"></div>
+
+### 分叉
 
 分支是同一位置上的另一种可能。**分支节点的 `predecessor` 与被替换节点完全相同**——
 同一 predecessor 有多个对话子节点即为 fork。不存在特殊节点类型：
@@ -165,7 +232,9 @@ shadow-git 提交、快照淘汰。那些以"已有完整回复"为前提的步�
   在这条分支上。重试永远看不到它正在重试的那个错误。这里没有任何按 status 的过滤，分
   支隔离本身已经做到了。
 
-### Spawn
+<div id="spawn"></div>
+
+### 创建子分支
 
 `SessionStore.spawn_branch(session_id, caller_node_id, *, source, name=…)` 是开
 干净 spawn 根的**唯一**原语。它创建分支根 user 节点（`predecessor=None`、

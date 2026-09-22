@@ -16,8 +16,23 @@ MATRIX = ROOT / "docs/reference/design/feature-matrix.html"
 FRAMEWORK_COMPARISON = ROOT / "docs/reference/design/framework-comparison.html"
 
 
+@pytest.fixture(params=["", ".zh"])
+def matrix_path(request) -> Path:
+    return MATRIX.with_name(f"feature-matrix{request.param}.html")
+
+
+def _label(text: str, chinese: str, english: str) -> str:
+    return english if '<html lang="en"' in text else chinese
+
+
+def _replace_number(text: str, chinese: str, english: str, number: str) -> str:
+    label = _label(text, chinese, english)
+    return text.replace(label, label.replace(number, "999"), 1)
+
+
 def _demote_json_schema_row(text: str) -> str:
-    start = text.index('<tr><td class="fname">按 JSON schema 约束输出')
+    name = _label(text, "按 JSON schema 约束输出", "JSON-schema-constrained output")
+    start = text.index(f'<tr><td class="fname">{name}')
     old = '<td class="g1 us">●</td>'
     cell = text.index(old, start)
     return text[:cell] + '<td class="g2 us">◐</td>' + text[cell + len(old) :]
@@ -32,8 +47,8 @@ def _rename_section_item(text: str, section: str, old: str) -> str:
     return text[:start] + changed + text[end:]
 
 
-def test_feature_matrix_published_values_match_canonical_table() -> None:
-    result = check_matrix(MATRIX)
+def test_feature_matrix_published_values_match_canonical_table(matrix_path: Path) -> None:
+    result = check_matrix(matrix_path)
 
     assert result.feature_count == 160
     assert result.openprogram_score == 94.5
@@ -56,19 +71,15 @@ def test_feature_matrix_published_values_match_canonical_table() -> None:
             "integration snapshot",
         ),
         (
-            lambda text: text.replace("OpenProgram为94.5分", "OpenProgram为999分", 1),
+            lambda text: _replace_number(text, "OpenProgram为94.5分", "OpenProgram 94.5", "94.5"),
             "score",
         ),
         (
-            lambda text: text.replace(
-                "参考列已确认的 56 项", "参考列已确认的 999 项", 1
-            ),
+            lambda text: _replace_number(text, "参考列已确认的 56 项", "56 features unconfirmed in OpenProgram", "56"),
             "gaps",
         ),
         (
-            lambda text: text.replace(
-                "仅 OpenProgram 确认的 6 项", "仅 OpenProgram 确认的 999 项", 1
-            ),
+            lambda text: _replace_number(text, "仅 OpenProgram 确认的 6 项", "6 features confirmed only in OpenProgram", "6"),
             "OpenProgram-only",
         ),
         (
@@ -80,20 +91,21 @@ def test_feature_matrix_published_values_match_canonical_table() -> None:
             "category point",
         ),
         (
-            lambda text: _rename_section_item(text, "gaps", "终端快捷键自动配置"),
+            lambda text: _rename_section_item(text, "gaps", _label(text, "终端快捷键自动配置", "Automatic terminal-shortcut configuration")),
             "gap detail",
         ),
         (
-            lambda text: text.replace(
+            lambda text: _replace_number(
+                text,
                 '进入后续评估</b> <span style="color:#6b6a63">29 项',
-                '进入后续评估</b> <span style="color:#6b6a63">999 项',
-                1,
+                'For further assessment</b> <span style="color:#6b6a63">29 features',
+                "29",
             ),
             "gap detail group count",
         ),
         (
             lambda text: _rename_section_item(
-                text, "ours", "函数调用树写进<br>同一张会话图"
+                text, "ours", _label(text, "函数调用树写进<br>同一张会话图", "Function-call trees in<br>the same session graph")
             ),
             "OpenProgram-only detail",
         ),
@@ -102,10 +114,11 @@ def test_feature_matrix_published_values_match_canonical_table() -> None:
 )
 def test_feature_matrix_checker_rejects_published_drift(
     tmp_path: Path,
+    matrix_path: Path,
     mutation,
     message: str,
 ) -> None:
-    original = MATRIX.read_text(encoding="utf-8")
+    original = matrix_path.read_text(encoding="utf-8")
     changed = mutation(original)
     assert changed != original
     candidate = tmp_path / "feature-matrix.html"
@@ -143,8 +156,9 @@ def test_framework_documents_pin_the_same_current_release_versions() -> None:
         assert all(len(tags) == 1 for tags in found.values())
         return {repo: next(iter(tags)) for repo, tags in found.items()}
 
-    assert versions(MATRIX) == expected
-    assert versions(FRAMEWORK_COMPARISON) == expected
+    for path in (MATRIX, FRAMEWORK_COMPARISON):
+        assert versions(path) == expected
+        assert versions(path.with_name(path.stem + ".zh.html")) == expected
 
 
 def test_framework_documents_publish_the_current_event_count() -> None:
@@ -163,8 +177,12 @@ def test_framework_documents_publish_the_current_event_count() -> None:
 
     matrix = MATRIX.read_text(encoding="utf-8")
     comparison = FRAMEWORK_COMPARISON.read_text(encoding="utf-8")
-    assert f"我们 {count} 个" in matrix
-    assert comparison.count(f"{count}事件") == 2
+    assert f"ours {count}" in matrix.casefold()
+    assert comparison.count(f"{count} events") == 2
+    chinese_matrix = MATRIX.with_name("feature-matrix.zh.html").read_text(encoding="utf-8")
+    chinese_comparison = FRAMEWORK_COMPARISON.with_name("framework-comparison.zh.html").read_text(encoding="utf-8")
+    assert f"我们 {count} 个" in chinese_matrix
+    assert chinese_comparison.count(f"{count}事件") == 2
 
 
 def test_runtime_docs_publish_structured_return_and_error_contracts() -> None:

@@ -1,4 +1,5 @@
-# Upgrading
+<span id="upgrading"></span>
+# Upgrade installed releases
 
 Upgrade behavior depends on the installation type. A stable installation always moves between published versions; it never follows `origin/main`.
 

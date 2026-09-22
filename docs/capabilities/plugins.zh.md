@@ -1,4 +1,6 @@
-# Plugins
+<div id="plugins"></div>
+
+# 插件
 
 插件是打包好的扩展：一个带 manifest 的 pip / npm / git / 本地包，装进宿主后向 OpenProgram 贡献 commands、skills、MCP server、providers、hooks、agents、侧边栏项、web 页面等。这一页讲插件怎么装、怎么管，以及插件长什么样。
 

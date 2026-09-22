@@ -11,7 +11,7 @@
 > Sources (ordered by reliability):
 > - [Compaction - Claude Platform Docs](https://platform.claude.com/docs/en/build-with-claude/compaction) (official, but describes only the API level)
 > - [Context editing - Claude API Docs](https://platform.claude.com/docs/en/build-with-claude/context-editing) (official)
-> - [Inside Claude Code - Context Compaction](https://y-agent.github.io/inside-claude-code/04-context-compaction.html) (reverse engineering, most detailed)
+> - [Inside Claude Code - Context Compaction](https://y-agent.github.io/inside-claude-code/04-compaction-diagram.html) (reverse engineering, most detailed)
 > - [Dive into Claude Code](https://arxiv.org/html/2604.14228v1) (arXiv 2604.14228, VILA-Lab source reverse engineering)
 > - [DeepWiki - Context Window & Compaction](https://deepwiki.com/anthropics/claude-code/3.3-context-window-and-compaction) (community wiki)
 > - [Claude Code VS OpenCode §5.3](https://0xtresser.github.io/Claude-Code-VS-OpenCode/en/Chapter_05_Session_and_Context/5.3_Context_Compaction.html) (comparative analysis)

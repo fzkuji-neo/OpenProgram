@@ -1,4 +1,6 @@
-# Session Data Model
+<div id="session-data-model"></div>
+
+# Data model
 
 ## On-Disk Layout
 

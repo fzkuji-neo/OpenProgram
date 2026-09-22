@@ -1,4 +1,5 @@
-# CLI
+<span id="cli"></span>
+# 使用 CLI
 
 在脚本或其他程序里调用 OpenProgram，一条命令拿到一次回复。
 
@@ -23,7 +24,7 @@ openprogram sessions list                 # 找会话 id
 openprogram --resume <session-id> --print "接着上次的结论，下一步怎么做"
 ```
 
-`--resume` 与 `--print` 搭配才生效。交互式续聊请在 TUI 里用 `/resume` 挑选会话（该参数目前在启动交互式 TUI 时被忽略），见[终端 TUI](tui.md)。
+`--resume` 与 `--print` 搭配才生效。交互式续聊请在 TUI 里用 `/resume` 挑选会话（该参数目前在启动交互式 TUI 时被忽略），见[终端 TUI](tui.zh.md)。
 
 ## 隔离环境
 

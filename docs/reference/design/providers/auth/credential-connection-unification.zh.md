@@ -8,7 +8,7 @@
 一把 key 打官方端点、另一把 key 打阿里云百炼 `compatible-mode/v1`，不需要为每个
 兼容端点预建一份模型清单。
 
-本文是 [unified-auth-storage.md](./unified-auth-storage.md) 的一次具体化：那份
+本文是 [unified-auth-storage.md](unified-auth-storage.zh.md) 的一次具体化：那份
 文档定的是"一个存储、一套登录、跨界面统一"的整体方向；本文只收敛其中的
 **payload 结构层**，不涉及登录注册表、存储路径、刷新所有权等议题。
 

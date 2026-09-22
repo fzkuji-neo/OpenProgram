@@ -411,7 +411,9 @@ agent 跑到一半（worktree 里 commit 了 5 个 patch），用户决定自己
 
 ---
 
-## Part 4. `.worktreeinclude`
+<div id="part-4-worktreeinclude"></div>
+
+## 第四部分：`.worktreeinclude`
 
 `git worktree add`只checkout**已跟踪**的内容。仓库故意保持未跟踪且被 gitignore 的文件
 （`.env`、按机器分的 TLS 证书、`*.local.json` 覆盖项）不会出现在新建的 worktree 里，

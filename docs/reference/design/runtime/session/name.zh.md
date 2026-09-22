@@ -1,6 +1,6 @@
 # LLM 标题生成
 
-命名的完整流程（首轮自动命名、用户主动重命名、竞态保护、锁标记）见 [operations.md](operations.md) 的"命名"段。权威实现在 `openprogram/agent/dispatcher/titles.py`，是所有入口共用的唯一命名实现。本文件只描述 `_generate_llm_title()`（阶段 2）的实现细节。
+命名的完整流程（首轮自动命名、用户主动重命名、竞态保护、锁标记）见 [operations.md](operations.zh.md) 的"命名"段。权威实现在 `openprogram/agent/dispatcher/titles.py`，是所有入口共用的唯一命名实现。本文件只描述 `_generate_llm_title()`（阶段 2）的实现细节。
 
 阶段 1 的截断（`_title_from_text` / `_default_title`）也在 titles.py：剥 `[attachment:]` / `<attachment-preview>` / `<file>` 标记 → 取首行 → 截 50 字（超出加 `…`）。
 
@@ -8,7 +8,9 @@
 
 用户消息前 500 字符 + assistant 回复前 500 字符。包裹在 `<session>` 标签中。
 
-## Prompt
+<div id="prompt"></div>
+
+## 提示词
 
 ```
 Generate a concise title (3-7 words) that captures the main topic of this conversation.

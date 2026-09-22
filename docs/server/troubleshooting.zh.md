@@ -1,7 +1,7 @@
 # 故障排查
 
 常见的坑。全新安装 / 升级的完整运维手册在
-[`GETTING_STARTED.md`](../start/GETTING_STARTED.md) 中；本
+[`GETTING_STARTED.md`](../start/GETTING_STARTED.zh.md) 中；本
 页汇总反复出现的"它不工作"场景。
 
 ## "No provider available"

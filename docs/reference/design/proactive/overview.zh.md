@@ -9,7 +9,7 @@ agent 正在帮用户清理项目。某一刻，模型决定执行一条 shell �
 
 整个过程是这样的：
 
-![场景：拦下 rm -rf build 的五步](diagrams/overview-scenario.svg)
+![场景：拦下 rm -rf build 的五步](diagrams/overview-scenario.zh.svg)
 
 就这么简单。现在把这五步里出现的几个概念，逐个讲清楚。
 
@@ -112,7 +112,7 @@ agent，要么挡路的为了快牺牲了能力。分开各管各的，互不拖
 这个"把一长串事件累加成当前状况"的动作，有个名字叫 **fold**（也叫 reduce）。别被词吓到，
 就是滚雪球：从空白开始，一条条事件滚过去，雪球（状态）越滚越大，滚完就是"现在的状况"。
 
-![fold：事件一条条过，状况一步步长](diagrams/events-fold.svg)
+![fold：事件一条条过，状况一步步长](diagrams/events-fold.zh.svg)
 
 这个累加出来的"当前状况"就叫 **State（状态）**。规则的 `evaluate` 除了看当前这条事件，
 还能读这个 State：
@@ -127,7 +127,7 @@ State 怎么从事件累加出来、为什么这么设计，`events-and-state.md
 
 ## 把五个概念串起来
 
-![五个概念怎么串起来](diagrams/overview-concepts.svg)
+![五个概念怎么串起来](diagrams/overview-concepts.zh.svg)
 
 这就是全部。剩下的文档都是把这张图里某一块讲细：
 - `events-and-state.md`：事件长啥样、State 怎么 fold 出来

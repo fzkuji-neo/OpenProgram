@@ -16,7 +16,7 @@ OpenProgram 自带一批注册为工具的函数，模型在聊天里直接调�
 | `glob` | 按文件名模式找文件 | 无 |
 | `grep` | 内容搜索，优先 ripgrep，缺 rg 回退 Python re | 无（装 `rg` 更快） |
 | `semble_search` / `semble_find_related` | 语义 + 词法代码搜索，返回排好序的代码块 | 每个受支持的 release 已包含；source developer 通过锁定的项目环境安装 `search` extra |
-| `lsp_diagnostics` / `lsp_references` / `lsp_definition` | 从 language server 拿类型检查错误、真实调用点、真实定义位置，见[Language server 工具](lsp.md) | Python 装 `pyright`，TypeScript 装 `typescript-language-server`（缺哪个工具就报哪条安装命令） |
+| `lsp_diagnostics` / `lsp_references` / `lsp_definition` | 从 language server 拿类型检查错误、真实调用点、真实定义位置，见[Language server 工具](lsp.zh.md) | Python 装 `pyright`，TypeScript 装 `typescript-language-server`（缺哪个工具就报哪条安装命令） |
 
 ### 文档版本
 
@@ -127,5 +127,5 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 | `memory_*` | 读取持久记忆工作区——`memory_search`（按语义找）、`memory_grep`（找确切字符串）、`memory_get`（读一个文件、章节或段落）、`memory_browse`（看有什么）、`memory_status`（规模与版本），以及 `memory_update` 用来更正某一处。没有记录对话的工具：那件事在后台完成。每个实例只有一份工作区，所有agent、所有对话（含聊天渠道）共用（见[聊天渠道](../integrations/channels.zh.md#谁能和你的机器人说话)）。 | 无 |
 | `worktree_*` | git worktree：`worktree_create`（也可直接从 PR 开 worktree，传 `pr="123"` / `"#123"` / GitHub PR 链接，走 `gh`）/ `merge` / `discard` / `list` / `keep` | git |
 | `cron` | 登记周期性 agent 任务 | 无 |
-| `list_mcp_resources` / `read_mcp_resource` / `list_mcp_prompts` / `get_mcp_prompt` | 把 MCP 的 resources / prompts 原语暴露给模型（`mcp_meta` 目录） | 已配置的 MCP server（见 [MCP](mcp.md)） |
+| `list_mcp_resources` / `read_mcp_resource` / `list_mcp_prompts` / `get_mcp_prompt` | 把 MCP 的 resources / prompts 原语暴露给模型（`mcp_meta` 目录） | 已配置的 MCP server（见 [MCP](mcp.zh.md)） |
 | `tool_search` | 按需加载延迟工具；下一次模型请求包含其完整 schema | 无 |

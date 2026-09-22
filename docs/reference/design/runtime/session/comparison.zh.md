@@ -1,4 +1,6 @@
-# Session 管理方案对比
+<div id="session-管理方案对比"></div>
+
+# 管理方案对比
 
 Claude Code、OpenCode、OpenClaw、OpenProgram（我们的设计）四个项目的 session 管理机制全面对比。
 

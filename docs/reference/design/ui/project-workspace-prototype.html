@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>OpenProgram 浏览器式界面原型 v3</title>
+<title>OpenProgram browser-style workspace prototype</title>
 <style>
   :root{
     --bg:#141416; --bg2:#1c1c1f; --bg3:#232327; --border:#2c2c31;
@@ -15,7 +15,7 @@
   .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
   .app{flex:1;display:flex;min-height:0}
 
-  /* ═══ 左侧栏：按项目分组的会话 ═══ */
+  /* ═══ Left sidebar: sessions grouped by project ═══ */
   .left{width:240px;flex-shrink:0;border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column}
   .left .brand{height:44px;display:flex;align-items:center;padding:0 14px;font-weight:700;font-size:15px;flex-shrink:0}
   .left .brand i{color:var(--accent);font-style:normal}
@@ -42,9 +42,9 @@
   .lfoot span{cursor:pointer}
   .lfoot span:hover{color:var(--text)}
 
-  /* ═══ 中央：浏览器式 tab 容器 ═══ */
+  /* ═══ Center: browser-style tab container ═══ */
   .center{flex:1;display:flex;flex-direction:column;min-width:0}
-  /* tab 条（浏览器顶部） */
+  /* Tab strip (browser top) */
   .tabbar{height:40px;display:flex;align-items:flex-end;gap:2px;padding:6px 8px 0;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
   .tb{display:flex;align-items:center;gap:7px;padding:0 10px 0 12px;height:34px;border:1px solid var(--border);border-bottom:none;border-radius:9px 9px 0 0;background:transparent;color:var(--text2);cursor:pointer;font-size:12.5px;max-width:200px;flex-shrink:0}
   .tb.on{background:var(--bg);color:var(--text)}
@@ -54,7 +54,7 @@
   .tb .x:hover{color:var(--text);background:var(--bg3)}
   .tab-plus{color:var(--text2);padding:4px 10px;cursor:pointer;font-size:15px;align-self:center}
   .tab-plus:hover{color:var(--text)}
-  /* 当前 tab 的工具栏（第二行，内容随 tab 类型变） */
+  /* Current tab toolbar (second row, content depends on tab type) */
   .toolbar{height:40px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--border);flex-shrink:0;font-size:12px;color:var(--text2)}
   .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:7px;padding:3px 9px;font-size:11.5px;color:var(--text2);cursor:pointer;white-space:nowrap}
   .chip:hover{color:var(--text);border-color:var(--text3)}
@@ -66,7 +66,7 @@
   .crumbs{display:flex;gap:5px;align-items:center;color:var(--text2)}
   .crumbs .sep{color:var(--text3)}
 
-  /* tab 内容 */
+  /* Tab content */
   .content{flex:1;min-height:0;position:relative}
   .pane{position:absolute;inset:0;display:none;flex-direction:column}
   .pane.on{display:flex}
@@ -83,14 +83,14 @@
   .cl{display:flex;line-height:1.7;font-size:12.5px}
   .cl .ln{width:56px;text-align:right;padding-right:18px;color:var(--text3);user-select:none;flex-shrink:0}
   .k{color:#bb9af7}.s{color:#9ece6a}.c{color:#565f89}.f{color:#7aa2f7}
-  /* 新标签页 */
+  /* New tab */
   .ntp{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
   .ntp h2{font-size:18px;font-weight:650}
   .ntp .qrow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
   .qcard{border:1px solid var(--border);border-radius:12px;padding:14px 18px;cursor:pointer;color:var(--text2);font-size:13px;display:flex;gap:9px;align-items:center}
   .qcard:hover{border-color:var(--accent);color:var(--text)}
 
-  /* ═══ 右侧栏：纯文件树（可被 History DAG 临时覆盖） ═══ */
+  /* ═══ Right sidebar: file tree (temporarily overlaid by History DAG) ═══ */
   .right{width:250px;flex-shrink:0;border-left:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;position:relative}
   .rhead{min-height:66px;display:flex;flex-direction:column;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
   .rootpath{width:100%;height:20px;display:flex;align-items:center;gap:6px;color:var(--text2);font:11px/20px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -104,7 +104,7 @@
   .tnode.open .tc{transform:rotate(90deg)}
   .tkids{margin-left:15px;display:none}
   .tkids.show{display:block}
-  /* History DAG 覆盖层（context/viewport 只活在这里面） */
+  /* History DAG overlay (context/viewport exist only here) */
   .dagpanel{position:absolute;inset:0;background:var(--bg2);display:none;flex-direction:column;z-index:5}
   .dagpanel.on{display:flex}
   .daghead{height:40px;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--text)}
@@ -140,44 +140,44 @@
 <body>
 <div class="app">
 
-  <!-- ═══ 左：项目分组的会话 ═══ -->
+  <!-- ═══ Left: project-grouped sessions ═══ -->
   <div class="left">
     <div class="brand">Open<i>Program</i></div>
-    <div class="lsearch">🔍 搜索会话 / 项目…</div>
+    <div class="lsearch">🔍 Search sessions / projects…</div>
     <div class="lbody">
       <div class="pgroup open">
-        <div class="phead"><span class="pc">▶</span><span>📁</span><span class="pname">OpenProgram</span><span class="padd" title="此项目新会话">＋</span></div>
+        <div class="phead"><span class="pc">▶</span><span>📁</span><span class="pname">OpenProgram</span><span class="padd" title="New session in this project">＋</span></div>
         <div class="ppath">~/Documents/LLM Agent Harness/OpenProgram</div>
         <div class="plist">
-          <div class="sess running on" data-tab="t-sess1"><span class="dot"></span>proxy 重构与测试修复</div>
-          <div class="sess" data-tab="t-sess2"><span class="dot"></span>docs 站样式升级</div>
+          <div class="sess running on" data-tab="t-sess1"><span class="dot"></span>Proxy refactoring and test fixes</div>
+          <div class="sess" data-tab="t-sess2"><span class="dot"></span>Documentation styling update</div>
         </div>
       </div>
       <div class="pgroup open">
         <div class="phead"><span class="pc">▶</span><span>📁</span><span class="pname">NativeMem</span><span class="padd">＋</span></div>
         <div class="ppath">~/Documents/NativeMem</div>
         <div class="plist">
-          <div class="sess"><span class="dot"></span>v8 双视图评测</div>
+          <div class="sess"><span class="dot"></span>v8 dual-view evaluation</div>
         </div>
       </div>
       <div class="pgroup">
-        <div class="phead"><span class="pc">▶</span><span>💬</span><span class="pname">未绑定项目</span><span class="padd">＋</span></div>
+        <div class="phead"><span class="pc">▶</span><span>💬</span><span class="pname">No project</span><span class="padd">＋</span></div>
         <div class="plist">
-          <div class="sess"><span class="dot"></span>随手问的一个问题</div>
+          <div class="sess"><span class="dot"></span>An ad hoc question</div>
         </div>
       </div>
     </div>
-    <div class="lfoot"><span>🧩 Functions</span><span>🎓 Skills</span><span>⚙️ 设置</span></div>
+    <div class="lfoot"><span>🧩 Functions</span><span>🎓 Skills</span><span>⚙️ Settings</span></div>
   </div>
 
-  <!-- ═══ 中：浏览器式 tab 容器 ═══ -->
+  <!-- ═══ Center: browser-style tab container ═══ -->
   <div class="center">
     <div class="tabbar" id="tabbar"></div>
     <div class="toolbar" id="toolbar"></div>
     <div class="content" id="content"></div>
   </div>
 
-  <!-- ═══ 右：纯文件树 ═══ -->
+  <!-- ═══ Right: file tree ═══ -->
   <div class="right">
     <div class="rhead">
       <div class="rootpath" title="/Users/fzkuji/Documents/LLM Agent Harness/OpenProgram">📁 /Users/fzkuji/Documents/LLM Agent Harness/OpenProgram</div>
@@ -185,7 +185,7 @@
     </div>
     <div class="rbody" id="ftree"></div>
     <div class="dagpanel" id="dagpanel">
-      <div class="daghead">🕘 History — proxy 重构 <span class="x dag-close">✕</span></div>
+      <div class="daghead">🕘 History — Proxy refactoring <span class="x dag-close">✕</span></div>
       <div class="dagtools">
         <span class="chip on">Viewport</span><span class="chip">Context</span>
       </div>
@@ -202,10 +202,10 @@
     </div>
   </div>
 </div>
-<div class="hint">会话/文件都是中间的 tab · 🕘 在会话工具栏里，点开才出现 DAG（Context/Viewport 只活在里面）</div>
+<div class="hint">Sessions and files are center tabs · Open 🕘 in the session toolbar to show the DAG (Context/Viewport remain inside it)</div>
 
 <script>
-/* ── tab 模型：type = session | file | ntp ── */
+/* ── Tab model: type = session | file | ntp ── */
 const FILES = {
   "http_proxy.py":{crumb:["openprogram","providers","utils","http_proxy.py"],lines:[
     ['<span class="c"># Unified proxy resolution — env semantics live in httpx.</span>'],
@@ -222,8 +222,8 @@ const FILES = {
   "cli.py":{crumb:["openprogram","cli.py"],lines:[['<span class="k">def</span> <span class="f">build_parser</span>():'],['    ...']]},
 };
 let tabs=[
-  {id:"t-sess1",type:"session",name:"proxy 重构",icon:"💬"},
-  {id:"t-sess2",type:"session",name:"docs 样式",icon:"💬"},
+  {id:"t-sess1",type:"session",name:"Proxy refactoring",icon:"💬"},
+  {id:"t-sess2",type:"session",name:"Documentation styling",icon:"💬"},
 ];
 let active="t-sess1";
 
@@ -239,12 +239,12 @@ function renderTabs(){
     };
     bar.appendChild(el);
   });
-  const p=document.createElement('div'); p.className='tab-plus'; p.textContent='＋'; p.title="新标签页";
-  p.onclick=()=>{ if(!tabs.find(t=>t.id==='t-ntp')) tabs.push({id:"t-ntp",type:"ntp",name:"新标签页",icon:"⊕"}); active="t-ntp"; renderAll(); };
+  const p=document.createElement('div'); p.className='tab-plus'; p.textContent='＋'; p.title="New tab";
+  p.onclick=()=>{ if(!tabs.find(t=>t.id==='t-ntp')) tabs.push({id:"t-ntp",type:"ntp",name:"New tab",icon:"⊕"}); active="t-ntp"; renderAll(); };
   bar.appendChild(p);
 }
 
-/* 工具栏随 tab 类型切换 —— 设置跟着 tab 走 */
+/* The toolbar changes with the tab type; settings belong to the tab */
 function renderToolbar(){
   const tb=document.getElementById('toolbar'); const t=tabs.find(x=>x.id===active);
   if(!t){ tb.innerHTML=''; return; }
@@ -255,14 +255,14 @@ function renderToolbar(){
       <span class="chip green">🛡 Ask permissions</span>
       <span class="tspacer"></span>
       <span class="ticon" title="History DAG" data-action="history-dag">🕘</span>
-      <span class="ticon" title="本会话设置">⚙️</span>`;
+      <span class="ticon" title="Session settings">⚙️</span>`;
   } else if(t.type==='file'){
     const f=FILES[t.name];
     tb.innerHTML=`<div class="crumbs">${f.crumb.map((c,i)=>`<span${i===f.crumb.length-1?' style="color:var(--text)"':''}>${c}</span>`).join('<span class="sep">›</span>')}</div>
       <span class="tspacer"></span>
-      <span class="chip">Source</span><span class="ticon" title="下载">⬇</span>`;
+      <span class="chip">Source</span><span class="ticon" title="Download">⬇</span>`;
   } else {
-    tb.innerHTML=`<span style="color:var(--text3)">新标签页</span>`;
+    tb.innerHTML=`<span style="color:var(--text3)">New tab</span>`;
   }
   const historyTrigger=tb.querySelector('[data-action="history-dag"]');
   if(historyTrigger) historyTrigger.onclick=()=>dag(true);
@@ -275,10 +275,10 @@ function renderContent(){
   if(t.type==='session'){
     pane.innerHTML=`
       <div class="msgs">
-        <div class="m-user">把 socksio 的问题修一下，顺便整理 proxy 设计</div>
-        <div class="m-ai">根因是 ALL_PROXY=socks5 时 httpx 在构造客户端就要求 socksio。依赖收进 <span class="mono" style="color:var(--accent)">httpx[socks]</span>，代理解析统一到一个入口，1594 个测试全过。</div>
+        <div class="m-user">Fix the socksio issue and organize the proxy design</div>
+        <div class="m-ai">With ALL_PROXY=socks5, httpx requires socksio when constructing the client. The dependency is included in <span class="mono" style="color:var(--accent)">httpx[socks]</span>; proxy resolution uses one entry point, and all 1594 tests pass.</div>
         <div class="m-tool" data-action="open-file" data-file="http_proxy.py">✏️ Edit <span class="fp mono">providers/utils/http_proxy.py</span></div>
-        <div class="m-ai" style="color:var(--text2);font-size:12px">↑ 点文件路径 → 右边树高亮 + 新开一个文件 tab（就像浏览器点链接）</div>
+        <div class="m-ai" style="color:var(--text2);font-size:12px">↑ Click a file path to highlight it in the right tree and open a file tab</div>
       </div>
       <div class="composer">Ask for follow-up changes…
         <div class="crow"><span>＋ 🖐</span><span class="send">↑</span></div>
@@ -288,14 +288,14 @@ function renderContent(){
     pane.innerHTML=`<div class="viewer">${f.lines.map((l,i)=>`<div class="cl mono"><span class="ln">${i+1}</span><span>${l[0]||'&nbsp;'}</span></div>`).join('')}</div>`;
   } else {
     pane.innerHTML=`<div class="ntp">
-      <h2>新标签页</h2>
+      <h2>New tab</h2>
       <div class="qrow">
-        <div class="qcard">💬 新会话（当前项目）</div>
+        <div class="qcard">💬 New session (current project)</div>
         <div class="qcard">🖥 Run gui_agent</div>
         <div class="qcard">🔍 Run research_agent</div>
-        <div class="qcard">⚙️ 项目设置</div>
+        <div class="qcard">⚙️ Project settings</div>
       </div>
-      <div style="color:var(--text3);font-size:12px">以后 workflow run 也从这里开：run 也是一种 tab</div>
+      <div style="color:var(--text3);font-size:12px">Workflow runs will also open here as a tab type</div>
     </div>`;
   }
   host.appendChild(pane);
@@ -315,14 +315,14 @@ function dag(show){ document.getElementById('dagpanel').classList.toggle('on',sh
 
 document.querySelector('.dag-close').onclick=()=>dag(false);
 
-/* 左侧栏 */
+/* Left sidebar */
 document.querySelectorAll('.phead').forEach(h=>h.onclick=()=>h.parentElement.classList.toggle('open'));
 document.querySelectorAll('.sess[data-tab]').forEach(s=>s.onclick=()=>{
   document.querySelectorAll('.sess').forEach(x=>x.classList.remove('on')); s.classList.add('on');
   active=s.dataset.tab; renderAll();
 });
 
-/* 右侧文件树 */
+/* Right file tree */
 const TREE=[
   {n:"openprogram",d:1,kids:[{n:"cli.py"},{n:"providers",d:1,kids:[{n:"utils",d:1,kids:[{n:"http_proxy.py"}]}]}]},
   {n:"docs",d:1,kids:[]},{n:"web",d:1,kids:[]},{n:"tests",d:1,kids:[]},

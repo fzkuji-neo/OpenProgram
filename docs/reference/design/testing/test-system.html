@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OpenProgram 测试系统</title>
+<title>OpenProgram test system</title>
 <style>
   :root { --bg:#111318; --panel:#191d25; --line:#303746; --text:#d5d9e2;
     --muted:#9299a8; --accent:#72a7ff; --ok:#66c07a; --warn:#e1aa55; --bad:#e36b72; }
@@ -44,29 +44,29 @@
 </head>
 <body>
 <main>
-  <h1>OpenProgram 测试系统</h1>
-  <p class="lead">本页定义测试分类、目录、依赖边界、执行命令和 CI 职责。测试层级由运行时依赖决定，产品域沿用 <code>openprogram/</code> 的模块名称。结构迁移不改变产品行为；测试发现的真实产品缺陷按独立批次修复和验证。</p>
+  <h1>OpenProgram test system</h1>
+  <p class="lead">This page defines test categories, directories, dependency boundaries, commands and CI responsibilities. Runtime dependencies determine test levels; product domains follow module names in <code>openprogram/</code> . Structural migration does not change product behavior; genuine product defects found by tests are fixed and verified in separate batches.</p>
 
-  <h2>1. 当前实现</h2>
-  <p>当前共有 394 个 Git tracked Python 测试文件：226 个 unit、138 个 component、14 个 contracts、9 个 integration、4 个 e2e 和 3 个 live。执行层用例全部位于 <code>tests/&lt;layer&gt;/&lt;product-domain&gt;/</code>，没有直接放在层级根目录的 tracked test 文件。</p>
-  <p>仓库 contract 只枚举 Git tracked 文件，unit 的 TestClient、subprocess、socket、真实线程/线程池、固定等待和全局线程类替换由结构 contract 与 autouse 运行时 guard 共同阻止。CI 分别执行 contracts、三个 Python 版本的 unit、component、integration、非 browser e2e、built-Web browser、Web、CLI、Desktop 和 coverage。</p>
-  <p>当前剩余结构差距不是测试层级本身，而是仓库顶层结构约束：需要阻止新的根目录开发脚本、未声明顶层目录和已删除源码路径重新进入有效指南。</p>
+  <h2>1. Current implementation</h2>
+  <p>There are currently 394 Git-tracked Python test files: 226 unit, 138 component, 14 contracts, 9 integration, 4 e2e and 3 live. Execution-level cases all reside in <code>tests/&lt;layer&gt;/&lt;product-domain&gt;/</code>, with no tracked test files directly at a level root.</p>
+  <p>Repository contracts enumerate only Git-tracked files. Structural contracts and autouse runtime guards jointly prohibit TestClient, subprocess, sockets, real threads/thread pools, fixed waits and global thread-class replacement in unit tests. CI separately runs contracts, unit on three Python versions, component, integration, non-browser e2e, built-Web browser, Web, CLI, Desktop and coverage.</p>
+  <p>The remaining structural gap concerns top-level repository constraints, not test levels: prevent new root development scripts, undeclared top-level directories and deleted source paths from returning to active guides.</p>
 
-  <h2>2. 参考框架及职责边界</h2>
-  <p>参考信息来自各项目官方文档。仓库继续使用现有工具；本设计不增加新的通用 test runner。</p>
+  <h2>2. Reference frameworks and responsibility boundaries</h2>
+  <p>References come from official project documentation. The repository retains existing tools; this design adds no general-purpose test runner.</p>
   <div class="table"><table>
-    <thead><tr><th>工具</th><th>采用能力</th><th>未提供的能力</th><th>OpenProgram 处理方式</th></tr></thead>
+    <thead><tr><th>Tool</th><th>Adopted capability</th><th>Not provided</th><th>OpenProgram treatment</th></tr></thead>
     <tbody>
-      <tr><td><a href="https://docs.pytest.org/en/stable/explanation/goodpractices.html">pytest</a></td><td>Python discovery、fixture、marker、warning 和 xfail 策略</td><td>不执行 JavaScript，也不保证 fixture 自身具备进程隔离</td><td>负责 Python contracts、unit、component、integration、e2e 和 live</td></tr>
-      <tr><td><a href="https://pytest-xdist.readthedocs.io/">pytest-xdist</a></td><td>多进程分发</td><td>不能修复全局状态、后台线程或不安全 monkeypatch</td><td>隔离问题修复并重复验证后，只启用固定 worker 数</td></tr>
-      <tr><td><a href="https://nodejs.org/api/test.html">node:test</a></td><td>Node 22 内置断言、test 和 mock</td><td>不提供真实 DOM 和浏览器交互</td><td>用于 Web 纯 TypeScript/JavaScript 逻辑，避免新增依赖</td></tr>
-      <tr><td><a href="https://vitest.dev/guide/">Vitest</a></td><td>CLI 已有的 TypeScript test runner</td><td>不覆盖 Python worker 和真实浏览器</td><td>仅保留在 CLI，不在 Web 再安装一份</td></tr>
-      <tr><td><a href="https://playwright.dev/docs/best-practices">Playwright</a></td><td>真实浏览器、用户可见行为和跨页面状态</td><td>不替代 unit/component 测试</td><td>复用 Python browser extra，使用 Playwright 管理的 Chromium</td></tr>
-      <tr><td><a href="https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs">GitHub Actions</a></td><td>版本矩阵、job 隔离和 required checks</td><td>不定义测试语义</td><td>按测试层级拆分 jobs，使用相同的本地命令</td></tr>
+      <tr><td><a href="https://docs.pytest.org/en/stable/explanation/goodpractices.html">pytest</a></td><td>Python discovery, fixtures, markers, warnings and xfail policies</td><td>Does not execute JavaScript or guarantee fixture process isolation</td><td>Runs Python contracts, unit, component, integration, e2e and live</td></tr>
+      <tr><td><a href="https://pytest-xdist.readthedocs.io/">pytest-xdist</a></td><td>Multiprocess distribution</td><td>Cannot repair global state, background threads or unsafe monkeypatches</td><td>Enable only a fixed worker count after isolation fixes and repeated verification</td></tr>
+      <tr><td><a href="https://nodejs.org/api/test.html">node:test</a></td><td>Node 22 built-in assertions, tests and mocks</td><td>No real DOM or browser interactions</td><td>Use for pure Web TypeScript/JavaScript logic without new dependencies</td></tr>
+      <tr><td><a href="https://vitest.dev/guide/">Vitest</a></td><td>Existing CLI TypeScript test runner</td><td>Does not cover the Python worker or real browsers</td><td>Retain only in CLI; do not install another copy for Web</td></tr>
+      <tr><td><a href="https://playwright.dev/docs/best-practices">Playwright</a></td><td>Real browsers, user-visible behavior and cross-page state</td><td>Does not replace unit/component tests</td><td>Reuse the Python browser extra and Playwright-managed Chromium</td></tr>
+      <tr><td><a href="https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs">GitHub Actions</a></td><td>Version matrices, job isolation and required checks</td><td>Does not define test semantics</td><td>Separate jobs by test level using the same local commands</td></tr>
     </tbody>
   </table></div>
 
-  <h2>3. 目标结构</h2>
+  <h2>3. Target structure</h2>
   <pre>tests/
   contracts/{repository,security}/
   unit/&lt;product-domain&gt;/
@@ -78,43 +78,43 @@
   conftest.py</pre>
 
   <div class="table"><table>
-    <thead><tr><th>层级</th><th>允许依赖</th><th>禁止依赖</th><th>默认执行</th></tr></thead>
+    <thead><tr><th>Level</th><th>Allowed dependencies</th><th>Prohibited dependencies</th><th>Default execution</th></tr></thead>
     <tbody>
-      <tr><td><b>contracts</b></td><td>AST、tracked files、manifest、registry、schema</td><td>外部服务；用源码文本代替行为断言</td><td>每次 PR</td></tr>
-      <tr><td><b>unit</b></td><td>内存对象、纯函数、局部 fake、单模块使用的隔离临时文件；生产模块内部受控且可清理的线程资源</td><td>TestClient、socket、subprocess、测试代码直接创建的真实后台线程或线程池、固定 sleep</td><td>Python 3.11/3.12/3.13</td></tr>
-      <tr><td><b>component</b></td><td>tmp_path、临时 SQLite、TestClient、fake provider、受控线程</td><td>外部网络和真实凭证</td><td>Python 3.12</td></tr>
-      <tr><td><b>integration</b></td><td>loopback HTTP/WS、真实 subprocess、多个生产模块</td><td>外部服务</td><td>Python 3.12</td></tr>
-      <tr><td><b>e2e</b></td><td>公开 CLI、真实 worker、构建后的 Web、浏览器</td><td>开发者真实 HOME 和预先存在的构建产物</td><td>专用 CI job</td></tr>
-      <tr><td><b>live</b></td><td>真实 provider、channel、远端服务</td><td>普通 PR required checks</td><td>手动或定时</td></tr>
+      <tr><td><b>contracts</b></td><td>AST, tracked files, manifest, registry, schema</td><td>External services; source-text checks used instead of behavioral assertions</td><td>Every PR</td></tr>
+      <tr><td><b>unit</b></td><td>In-memory objects, pure functions, local fakes, isolated temporary files for one module; controlled cleanable threads inside production modules</td><td>TestClient, sockets, subprocesses, real background threads/thread pools directly created by tests and fixed sleeps</td><td>Python 3.11/3.12/3.13</td></tr>
+      <tr><td><b>component</b></td><td>tmp_path, temporary SQLite, TestClient, fake providers and controlled threads</td><td>External networks and real credentials</td><td>Python 3.12</td></tr>
+      <tr><td><b>integration</b></td><td>Loopback HTTP/WS, real subprocesses and multiple production modules</td><td>External services</td><td>Python 3.12</td></tr>
+      <tr><td><b>e2e</b></td><td>Public CLI, real worker, built Web and browser</td><td>Developer’s real HOME and pre-existing build outputs</td><td>Dedicated CI job</td></tr>
+      <tr><td><b>live</b></td><td>Real providers, channels and remote services</td><td>Ordinary PR required checks</td><td>Manual or scheduled</td></tr>
     </tbody>
   </table></div>
-  <p>同一测试符合多个层级时，按依赖最强的层级分类。目录最多使用“层级/产品域”两级。marker 只描述执行能力：<code>slow</code>、<code>browser</code>、<code>sandbox</code>、<code>live</code>；不重复声明目录已经表达的层级。</p>
+  <p>When a test meets multiple levels, choose the one with the strongest dependencies. Directories have at most level/product-domain depth. Markers describe only execution capabilities: <code>slow</code>, <code>browser</code>, <code>sandbox</code>, <code>live</code>; do not repeat levels already expressed by directories.</p>
 
-  <h2>4. 执行和状态隔离</h2>
+  <h2>4. Execution and state isolation</h2>
   <ul>
-    <li>仓库级 contracts 只读取 Git tracked 文件。通用扫描器由调用方传入 roots，并排除嵌套 repository 和构建目录。</li>
-    <li>顶层 <code>conftest.py</code> 仅保留防止访问真实用户状态所必需的隔离；产品域 fixture 放在局部目录。</li>
-    <li>临时 HOME 具有确定的清理阶段。测试不能依赖真实 <code>~/.openprogram</code>。</li>
-    <li>等待并发结果使用 Event、Condition 或带截止时间的条件等待；unit 中禁止固定 sleep。</li>
-    <li>测试不能替换 Python 标准库的进程全局线程类，也不能直接创建真实线程或线程池。生产模块内部创建的后台资源必须在 fixture teardown 中 join 或关闭。</li>
-    <li>一个生产缺陷对应一个通过最低公开边界复现的 regression test。</li>
+    <li>Repository contracts read only Git-tracked files. Callers supply roots to generic scanners, excluding nested repositories and build directories.</li>
+    <li>Top-level <code>conftest.py</code> retains only isolation required to prevent access to real user state; domain fixtures stay local.</li>
+    <li>Temporary HOME has deterministic cleanup. Tests must not depend on real <code>~/.openprogram</code>.</li>
+    <li>Wait for concurrent results with Event, Condition or deadline-based conditional waits; fixed sleeps are prohibited in unit tests.</li>
+    <li>Tests must not replace process-global standard-library thread classes or directly create real threads/thread pools. Background resources created inside production modules must be joined or closed during fixture teardown.</li>
+    <li>Each production defect gets one regression test through the lowest public boundary.</li>
   </ul>
 
-  <h2>5. Web、CLI 与 desktop</h2>
+  <h2>5. Web, CLI and desktop</h2>
   <div class="table"><table>
-    <thead><tr><th>现有检查</th><th>目标</th><th>判定</th></tr></thead>
+    <thead><tr><th>Existing checks</th><th>Target</th><th>Decision</th></tr></thead>
     <tbody>
-      <tr><td>Web security/architecture source check</td><td><code>apps/web/scripts/check-*.mjs</code></td><td>只有源代码结构本身属于契约时保留</td></tr>
-      <tr><td>Web pure helper behavior</td><td><code>apps/web/tests/*.test.mjs</code> + <code>node:test</code></td><td>直接 import 并断言输入输出</td></tr>
-      <tr><td>Web user interaction</td><td><code>tests/e2e/web</code> + Playwright</td><td>操作构建后的页面并观察公开行为</td></tr>
-      <tr><td>CLI TypeScript</td><td>现有 Vitest</td><td>CI 执行 typecheck、test、build</td></tr>
-      <tr><td>desktop VM/fake Electron</td><td>desktop component checks</td><td>CI 执行完整 <code>npm run check</code></td></tr>
-      <tr><td>真实 Electron</td><td>release e2e</td><td>初始重构不新增打包测试基础设施</td></tr>
+      <tr><td>Web security/architecture source check</td><td><code>apps/web/scripts/check-*.mjs</code></td><td>Retain only when source structure itself is contractual</td></tr>
+      <tr><td>Web pure helper behavior</td><td><code>apps/web/tests/*.test.mjs</code> + <code>node:test</code></td><td>Import directly and assert inputs/outputs</td></tr>
+      <tr><td>Web user interaction</td><td><code>tests/e2e/web</code> + Playwright</td><td>Operate built pages and observe public behavior</td></tr>
+      <tr><td>CLI TypeScript</td><td>Existing Vitest</td><td>CI runs typecheck, test and build</td></tr>
+      <tr><td>desktop VM/fake Electron</td><td>desktop component checks</td><td>CI runs the complete <code>npm run check</code></td></tr>
+      <tr><td>Real Electron</td><td>release e2e</td><td>Initial restructuring adds no packaging-test infrastructure</td></tr>
     </tbody>
   </table></div>
 
-  <h2>6. CI 数据流</h2>
-  <div class="flow" role="img" aria-label="从静态检查到发布验证的测试执行顺序">
+  <h2>6. CI data flow</h2>
+  <div class="flow" role="img" aria-label="Test execution order from static checks to release verification">
     <div><b>quality</b><span>Ruff<br>contracts<br>docs</span></div>
     <div><b>unit matrix</b><span>Python<br>3.11 / 3.12 / 3.13</span></div>
     <div><b>component</b><span>Python 3.12<br>local resources</span></div>
@@ -122,63 +122,63 @@
     <div><b>interfaces</b><span>Web<br>CLI<br>desktop</span></div>
     <div><b>e2e / live</b><span>non-browser + browser required<br>live manual</span></div>
   </div>
-  <p>Python 命令使用 <code>uv run --locked</code>。矩阵关闭 fail-fast，避免一个版本失败后取消其他结果。普通 PR 不执行 live。所有 CI 命令同时写入贡献文档。</p>
+  <p>Python commands use <code>uv run --locked</code>. Matrix fail-fast is disabled so one version’s failure does not cancel other results. Ordinary PRs do not run live tests. All CI commands also appear in contribution documentation.</p>
 
-  <h2>7. 采用、调整与拒绝</h2>
+  <h2>7. Adopted, adjusted and rejected</h2>
   <div class="table"><table>
-    <thead><tr><th>状态</th><th>决定</th><th>边界</th></tr></thead>
+    <thead><tr><th>Status</th><th>Decision</th><th>Boundary</th></tr></thead>
     <tbody>
-      <tr><td class="ok">采用</td><td>层级优先目录、产品域二级目录、strict markers、strict xfail、固定 worker 数、Playwright-managed Chromium</td><td>迁移时保持测试语义和数量</td></tr>
-      <tr><td class="warn">调整</td><td>保留必要的 Web source contracts，同时把纯逻辑迁移到 node:test</td><td>不一次性重写全部 Web checks</td></tr>
-      <tr><td class="warn">调整</td><td>初期只生成 coverage 报告</td><td>稳定后依据实测数据设置阈值</td></tr>
-      <tr><td class="bad">拒绝</td><td>新增 tox/nox、在 Web 再安装 Vitest、<code>-n auto</code>、全局任意覆盖率阈值</td><td>现有工具已经覆盖需求，或当前状态不具备稳定并行条件</td></tr>
-      <tr><td class="bad">排除</td><td>Windows-specific 测试、打包和兼容性；keyring/Credential Manager</td><td>不属于本次测试系统重构</td></tr>
+      <tr><td class="ok">Adopt</td><td>Level-first directories, product-domain subdirectories, strict markers, strict xfail, fixed workers and Playwright-managed Chromium</td><td>Preserve test semantics and counts during migration</td></tr>
+      <tr><td class="warn">Adjust</td><td>Retain necessary Web source contracts while migrating pure logic to node:test</td><td>Do not rewrite all Web checks at once</td></tr>
+      <tr><td class="warn">Adjust</td><td>Initially generate coverage reports only</td><td>Set thresholds from measured data after stabilization</td></tr>
+      <tr><td class="bad">Reject</td><td>Adding tox/nox, installing Vitest again in Web, <code>-n auto</code>, and arbitrary global coverage thresholds</td><td>Existing tools cover requirements, or current isolation is insufficient for stable parallelism</td></tr>
+      <tr><td class="bad">Exclude</td><td>Windows-specific tests, packaging and compatibility; keyring/Credential Manager</td><td>Outside this test-system restructuring</td></tr>
     </tbody>
   </table></div>
 
-  <h2>8. 验收标准</h2>
+  <h2>8. Acceptance criteria</h2>
   <ul>
-    <li>clean checkout 和包含 ignored/nested repository 文件的 checkout 收集相同 tracked tests，并产生相同 contracts 结果。</li>
-    <li>unit 测试代码不直接使用 TestClient、subprocess、socket、真实后台线程或线程池、固定 sleep；生产模块内部线程资源必须在 teardown 中回收。</li>
-    <li>Python required suites 无未处理线程 warning，连续三次固定 xdist worker 执行无 worker crash。</li>
-    <li>缺少前端产物的 component 行为与构建后 CSP 的 e2e 行为分别验证。</li>
-    <li>CLI、Web、desktop 的 package scripts 全部由 CI 执行。</li>
-    <li>测试迁移前后 test 数量、skip 和 xfail 变化均有明确记录。</li>
-    <li>required Python suite 为零失败；已知产品缺陷不能作为完成状态保留。</li>
-    <li>覆盖率先建立可复现基线，再以不高于实测基线的阈值阻止回退；阈值提高必须由新增有效测试支持。</li>
-    <li>unit 结构契约识别直接和别名资源导入、sleep 函数直接导入与标准库线程类替换；autouse 运行时保护拦截测试代码直接启动真实线程、构造线程池或执行固定等待。unit 只允许模块限定的 <code>asyncio.sleep(0)</code>，其位置参数与关键字参数形式均作为调度让步允许。</li>
-    <li>npm 依赖风险按 workspace 单独审计；只采用兼容当前构建和测试的升级，不使用强制破坏性升级。</li>
+    <li>Clean checkouts and checkouts containing ignored/nested-repository files collect identical tracked tests and produce identical contract results.</li>
+    <li>Unit test code does not directly use TestClient, subprocesses, sockets, real background threads/thread pools or fixed sleeps; internal production threads are reclaimed at teardown.</li>
+    <li>Required Python suites emit no unhandled-thread warnings; three consecutive runs with fixed xdist workers have no worker crashes.</li>
+    <li>Separately verify component behavior without frontend artifacts and e2e behavior with built CSP.</li>
+    <li>CI runs all CLI, Web and desktop package scripts.</li>
+    <li>Explicitly record test-count, skip and xfail changes across migration.</li>
+    <li>Required Python suites have zero failures; known product defects cannot remain in a completed state.</li>
+    <li>Establish reproducible coverage first, then prevent regression with a threshold no higher than the measured baseline; raising it requires additional meaningful tests.</li>
+    <li>Unit structural contracts detect direct/aliased resource imports, direct sleep imports and replacement of standard-library thread classes. Autouse runtime guards intercept real-thread creation, thread-pool construction and fixed waits directly in test code. Unit tests permit only module-qualified <code>asyncio.sleep(0)</code>, with positional or keyword forms allowed as scheduling yields.</li>
+    <li>Audit npm dependency risks per workspace; use only upgrades compatible with current builds/tests, without forced breaking upgrades.</li>
   </ul>
 
   <p>Merge-turn tests own their temporary SessionStore. The fixture registers close immediately after construction, so successful tests, assertion failures, and setup failures drain pending index writes and join store timers before the unit resource guard runs. The guard remains strict; cleanup does not depend on machine speed or a longer timeout.</p>
 
   <p>History-page objects use the local name <code>historyWindow</code>, keeping source checks for browser <code>window</code> access unambiguous. Local-refresh test repositories include the real ASAR permission-restoration helper so version-change rejection is exercised after staging, without weakening the no-installation assertions.</p>
 
-  <h2>9. 实现状态</h2>
+  <h2>9. Implementation status</h2>
   <div class="table"><table>
-    <thead><tr><th>工作项</th><th>状态</th><th>完成证据</th></tr></thead>
+    <thead><tr><th>Work item</th><th>Status</th><th>Completion evidence</th></tr></thead>
     <tbody>
-      <tr><td>设计与基线</td><td><span class="tag ok">已完成</span></td><td>设计、站点构建、链接检查、clean-checkout baseline 和两阶段独立审查</td></tr>
-      <tr><td>输入枚举与共享状态</td><td><span class="tag ok">已完成</span></td><td>Git-owned 输入枚举、临时 HOME 清理、局部 fixture、线程与 TLS 资源回收；专项及 unit 回归、独立规格和质量审查通过</td></tr>
-      <tr><td>Python 目录迁移</td><td><span class="tag ok">已完成</span></td><td>目录与 marker 迁移完成；HTTP inventory 重复实现、agentic context 结构契约误报和 retry 测试隔离问题已修复；最终 required suite 为 5356 passed、10 skipped、1 xfailed，独立规格与质量审查通过</td></tr>
-      <tr><td>Web/CLI/desktop</td><td><span class="tag ok">已完成</span></td><td>Web pure helper 使用 node:test，component 与 built-Web/browser e2e 分离；当前 Scheduler view-model 为 4 个 Node 单元测试，Web check/build、CLI typecheck/Vitest/build、desktop check 与独立审查通过</td></tr>
-      <tr><td>CI 与贡献文档</td><td><span class="tag ok">已完成</span></td><td>十类独立 CI 结果、三版本 unit matrix、locked uv、非 browser e2e、完整 Web/CLI/desktop/browser 命令与贡献文档 contract；独立审查通过</td></tr>
-      <tr><td>等待、并发与大文件</td><td><span class="tag ok">已完成</span></td><td>结构契约覆盖资源导入、固定等待与全局线程类替换；unit autouse guard 检查测试直接创建线程/线程池、固定等待、生产资源 teardown 和全局状态恢复；7 个实际依赖 runner、threadpool 或 workflow 执行的文件共 109 个测试迁至 component；当前 required selection 为 5699 passed、16 skipped、1 xfailed</td></tr>
-      <tr><td>覆盖率和最终验证</td><td><span class="tag ok">已完成</span></td><td>Python 3.12.13 locked 环境连续两次串行 unit 均为 2560 passed、3 skipped，branch-mode coverage 均为 42.402765%；CI 先生成并上传 XML artifact，再以 6 位精度执行 40% floor；固定 <code>-n 4</code> required selection 连续三次均为 5699 passed、16 skipped、1 xfailed、0 worker crash</td></tr>
+      <tr><td>Design and baseline</td><td><span class="tag ok">Complete</span></td><td>Design, site build, link checks, clean-checkout baseline and two-stage independent review</td></tr>
+      <tr><td>Input enumeration and shared state</td><td><span class="tag ok">Complete</span></td><td>Git-owned input enumeration, temporary-HOME cleanup, local fixtures, thread/TLS cleanup; focused and unit regressions plus independent specification/quality reviews passed</td></tr>
+      <tr><td>Python directory migration</td><td><span class="tag ok">Complete</span></td><td>Directory/marker migration complete; duplicate HTTP inventory, agentic-context structural-contract false positives and retry isolation fixed. Final required suite: 5356 passed, 10 skipped, 1 xfailed; independent specification/quality reviews passed</td></tr>
+      <tr><td>Web/CLI/desktop</td><td><span class="tag ok">Complete</span></td><td>Web pure helpers use node:test; component and built-Web/browser e2e are separate. Scheduler view-model has 4 Node unit tests; Web check/build, CLI typecheck/Vitest/build, desktop checks and independent review passed</td></tr>
+      <tr><td>CI and contribution documentation</td><td><span class="tag ok">Complete</span></td><td>Ten independent CI results, three-version unit matrix, locked uv, non-browser e2e, complete Web/CLI/desktop/browser commands and contribution-document contracts; independent review passed</td></tr>
+      <tr><td>Waits, concurrency and large files</td><td><span class="tag ok">Complete</span></td><td>Structural contracts cover resource imports, fixed waits and global thread-class replacement. Unit autouse guards cover direct test thread/thread-pool creation, fixed waits, production-resource teardown and global-state restoration. Seven files with 109 tests actually requiring runners, thread pools or Workflow execution moved to component. Current required selection: 5699 passed, 16 skipped, 1 xfailed</td></tr>
+      <tr><td>Coverage and final verification</td><td><span class="tag ok">Complete</span></td><td>In a locked Python 3.12.13 environment, two consecutive serial unit runs each produced 2560 passed, 3 skipped and branch coverage 42.402765%. CI generates/uploads XML before enforcing a 40% floor at six-digit precision. Fixed <code>-n 4</code> required selection ran three consecutive times with 5699 passed, 16 skipped, 1 xfailed and 0 worker crashes</td></tr>
     </tbody>
   </table></div>
 
-  <h2>10. 完善计划与实施记录</h2>
-  <p>以下批次依次完成。每批先用公开或共享边界复现失败，再修复最小共享根因，执行专项与受影响测试，完成独立规格审查和质量审查后提交。前一批未通过审查时不开始下一批。</p>
+  <h2>10. Improvement plan and implementation records</h2>
+  <p>Complete batches sequentially. Each first reproduces failure through a public/shared boundary, fixes the minimum shared cause, runs focused/affected tests, passes independent specification and quality review, then commits. Do not start the next batch before the prior review passes.</p>
   <div class="table"><table>
-    <thead><tr><th>批次</th><th>范围</th><th>排除</th><th>门禁</th><th>状态</th></tr></thead>
+    <thead><tr><th>Batch</th><th>Scope</th><th>Exclude</th><th>Gate</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td>required suite 归零</td><td>移除未被注册表使用的旧 channel 实现；修正 <code>@function</code> / <code>@agentic_function</code> 结构契约误报；隔离 retry 测试状态</td><td>不改变受管理 channel 实现和公开 API</td><td>4 个失败节点专项通过；最终 required suite 为 5356 passed、10 skipped、1 xfailed；独立规格与质量审查通过</td><td><span class="tag ok">已完成</span></td></tr>
-      <tr><td>结构与等待契约</td><td>识别别名资源导入、线程类替换和非零异步等待；运行时拦截测试直接创建线程或线程池；迁移或改写实际违规测试</td><td>不实现 Python 控制流解释器，不按文件行数机械拆分测试</td><td>结构与运行时契约通过；unit 为 2434 passed、3 skipped；5 个迁移 component 文件为 104 passed；独立规格和质量审查通过</td><td><span class="tag ok">已完成</span></td></tr>
-      <tr><td>覆盖率门禁</td><td>记录精确 branch baseline；设置防回退阈值；只补关键未覆盖分支</td><td>不追求任意高覆盖率数字，不为覆盖率复制断言</td><td>隔离 Python 3.12.13 locked 环境连续两次均为 unit 2560 passed、3 skipped，branch-mode baseline 42.402765%；6 位精度的 40% floor 通过；XML 仍在 floor 前上传，CI contract 通过</td><td><span class="tag ok">已完成</span></td></tr>
-      <tr><td>JavaScript 依赖风险</td><td>分别审计 Web、CLI、desktop；升级可兼容依赖并验证 lockfile</td><td>不执行 <code>npm audit fix --force</code>，不引入新 runner</td><td>兼容升级后 Web 从 8 high 降至 5 high，CLI 从 4 high + 1 moderate 降至 1 moderate，desktop 从 5 high + 2 moderate 降至 2 high；剩余项分别要求 Next/eslint-config-next 16、esbuild 0.28、Electron 43 的独立兼容迁移；三个 workspace 的 npm ci 与既有 check/test/typecheck/build 全部通过</td><td><span class="tag ok">已完成</span></td></tr>
-      <tr><td>2026-08-15 最终集成</td><td>合入当时的 main，执行 Python、Web、CLI、desktop、browser、docs、examples 和 diff/status 门禁</td><td>不覆盖主工作区未提交修改，不远程 push</td><td>历史候选证据：串行 required suite 为 5370 passed、10 skipped、2 deselected、1 xfailed；固定 <code>-n 4</code> 连续三次均为 5370 passed、10 skipped、1 xfailed、0 worker crash；Web、CLI、desktop、browser、docs、example、Ruff 与 diff-check 门禁通过，独立规格和质量审查通过</td><td><span class="tag ok">已完成</span></td></tr>
-      <tr><td>2026-08-17 结构维护</td><td>清理根目录开发脚本、同步路径与目录 README、增加仓库结构 contract，并修复 main 合并后的测试回退</td><td>不重排产品模块，不覆盖主工作区其他任务</td><td>contracts 442 passed、1 skipped；固定 <code>-n 4</code> 连续三次均为 5699 passed、16 skipped、1 xfailed、0 worker crash；Python 3.12 unit coverage 连续两次为 42.402765%；docs 503 页、0 断链；Desktop 完整 <code>npm run check</code> 通过</td><td><span class="tag warn">待独立复核</span></td></tr>
+      <tr><td>Zero required-suite failures</td><td>Remove old channel implementations unused by the registry; correct <code>@function</code> / <code>@agentic_function</code> structural-contract false positives; isolate retry test state</td><td>Do not change managed channel implementations or public APIs</td><td>All 4 failing-node checks passed; final required suite: 5356 passed, 10 skipped, 1 xfailed; independent specification/quality reviews passed</td><td><span class="tag ok">Complete</span></td></tr>
+      <tr><td>Structure and waiting contracts</td><td>Detect aliased resource imports, thread-class replacement and nonzero asynchronous waits; intercept direct test thread/thread-pool creation; migrate or rewrite actual violations</td><td>Do not implement a Python control-flow interpreter or mechanically split tests by line count</td><td>Structural/runtime contracts passed; unit: 2434 passed, 3 skipped; five migrated component files: 104 passed; independent specification/quality reviews passed</td><td><span class="tag ok">Complete</span></td></tr>
+      <tr><td>Coverage gate</td><td>Record precise branch baseline, set a regression floor and cover only critical missing branches</td><td>Do not pursue arbitrary high coverage or duplicate assertions for coverage</td><td>Two isolated locked Python 3.12.13 runs each produced unit 2560 passed, 3 skipped, branch baseline 42.402765%. Six-digit 40% floor passed; XML still uploads before floor enforcement; CI contract passed</td><td><span class="tag ok">Complete</span></td></tr>
+      <tr><td>JavaScript dependency risks</td><td>Audit Web, CLI and desktop separately; upgrade compatible dependencies and verify lockfile</td><td>Do not run <code>npm audit fix --force</code>, and do not introduce a new runner</td><td>After compatible upgrades, Web decreased from 8 high to 5 high, CLI from 4 high + 1 moderate to 1 moderate, and desktop from 5 high + 2 moderate to 2 high. Remaining items require separate compatible migrations to Next/eslint-config-next 16, esbuild 0.28 and Electron 43. All three workspaces passed npm ci and existing check/test/typecheck/build</td><td><span class="tag ok">Complete</span></td></tr>
+      <tr><td>Final integration, 2026-08-15</td><td>Integrate into main as it stood then; run Python, Web, CLI, desktop, browser, docs, examples and diff/status gates</td><td>Do not overwrite uncommitted primary-workspace changes or push remotely</td><td>Historical candidate evidence: serial required suite 5370 passed, 10 skipped, 2 deselected, 1 xfailed; fixed <code>-n 4</code> ran three consecutive times with 5370 passed, 10 skipped, 1 xfailed and 0 worker crashes. Web, CLI, desktop, browser, docs, examples, Ruff and diff-check gates passed; independent specification/quality reviews passed</td><td><span class="tag ok">Complete</span></td></tr>
+      <tr><td>Structural maintenance, 2026-08-17</td><td>Clean root development scripts, synchronize paths/directory READMEs, add repository-structure contracts and repair test regressions after main integration</td><td>Do not rearrange product modules or overwrite other primary-workspace tasks</td><td>Contracts: 442 passed, 1 skipped; fixed <code>-n 4</code> ran three times with 5699 passed, 16 skipped, 1 xfailed and 0 worker crashes. Python 3.12 unit coverage twice measured 42.402765%; docs: 503 pages, 0 broken links; complete Desktop <code>npm run check</code> passed</td><td><span class="tag warn">Awaiting independent review</span></td></tr>
     </tbody>
   </table></div>
 </main>

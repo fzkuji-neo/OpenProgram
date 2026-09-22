@@ -38,79 +38,79 @@
   </defs>
 
   <rect x="1" y="1" width="1238" height="638" rx="16" fill="url(#bg)" stroke="var(--border)"/>
-  <text x="620" y="38" text-anchor="middle" font-size="19" font-weight="700" class="t" font-family="-apple-system,'Segoe UI',sans-serif">代码结构 — 两条路径分布在两个包，共享根 agent/ 引擎</text>
-  <text x="620" y="58" text-anchor="middle" font-size="11.5" class="s" font-family="-apple-system,'Segoe UI',sans-serif">蓝=dispatcher 包（聊天 turn）· 紫=agentic_programming 包（exec 调用原语）· 绿=agent/ 根（共享引擎+设施）</text>
+  <text x="620" y="38" text-anchor="middle" font-size="19" font-weight="700" class="t" font-family="-apple-system,'Segoe UI',sans-serif">Code structure — two packages share the root agent/ engine</text>
+  <text x="620" y="58" text-anchor="middle" font-size="11.5" class="s" font-family="-apple-system,'Segoe UI',sans-serif">Blue = dispatcher (chat turns) · purple = agentic_programming (exec primitive) · green = agent/ (shared engine and facilities)</text>
 
   <!-- ===== PKG A: dispatcher ===== -->
   <rect x="40" y="84" width="370" height="300" rx="13" fill="var(--blue-pkg)" stroke="#58a6ff" stroke-width="1.3"/>
-  <text x="60" y="108" font-size="13" font-weight="700" fill="#58a6ff" font-family="-apple-system,sans-serif">包 A · openprogram/agent/dispatcher/</text>
-  <text x="60" y="124" font-size="9.5" class="s" font-family="-apple-system,sans-serif">聊天 turn 前端：会话·持久化·广播·收尾</text>
+  <text x="60" y="108" font-size="13" font-weight="700" fill="#58a6ff" font-family="-apple-system,sans-serif">Package A · openprogram/agent/dispatcher/</text>
+  <text x="60" y="124" font-size="9.5" class="s" font-family="-apple-system,sans-serif">Chat-turn entry: sessions, persistence, broadcasting, cleanup</text>
 
   <g filter="url(#soft)"><rect x="60" y="134" width="330" height="40" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="72" y="151" font-size="11" class="fn">__init__.py</text><text x="320" y="151" text-anchor="end" font-size="9" class="s">1062</text>
-    <text x="72" y="166" font-size="8.5" class="s" font-family="-apple-system,sans-serif">process_user_turn · _run_loop_blocking · 直接调 agent_loop(:902)</text></g>
+    <text x="72" y="166" font-size="8.5" class="s" font-family="-apple-system,sans-serif">process_user_turn · _run_loop_blocking · calls agent_loop directly (:902)</text></g>
   <g filter="url(#soft)"><rect x="60" y="180" width="160" height="38" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="72" y="196" font-size="10" class="fn">persistence.py</text>
-    <text x="72" y="210" font-size="8" class="s" font-family="-apple-system,sans-serif">写 assistant 会话消息</text></g>
+    <text x="72" y="210" font-size="8" class="s" font-family="-apple-system,sans-serif">Write assistant session message</text></g>
   <g filter="url(#soft)"><rect x="230" y="180" width="160" height="38" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="242" y="196" font-size="10" class="fn">finalize.py</text>
-    <text x="242" y="210" font-size="8" class="s" font-family="-apple-system,sans-serif">标题·压缩·git 收尾</text></g>
+    <text x="242" y="210" font-size="8" class="s" font-family="-apple-system,sans-serif">Title, compaction, and git cleanup</text></g>
   <g filter="url(#soft)"><rect x="60" y="224" width="330" height="40" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="72" y="241" font-size="10" class="fn">runtime_attach.py</text>
-    <text x="72" y="256" font-size="8.5" class="s" font-family="-apple-system,sans-serif">把 agentic 工具包成 runtime-block：从外面轮询 exec 的 DAG 推前端</text></g>
+    <text x="72" y="256" font-size="8.5" class="s" font-family="-apple-system,sans-serif">Wrap agentic tools as runtime blocks: poll the exec DAG to update the UI</text></g>
   <g filter="url(#soft)"><rect x="60" y="270" width="105" height="34" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="72" y="290" font-size="9.5" class="fn">titles.py</text></g>
   <g filter="url(#soft)"><rect x="173" y="270" width="105" height="34" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="185" y="290" font-size="9.5" class="fn">forced_tool.py</text></g>
   <g filter="url(#soft)"><rect x="286" y="270" width="104" height="34" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="298" y="290" font-size="9.5" class="fn">types.py</text></g>
-  <text x="60" y="328" font-size="9" class="s" font-family="-apple-system,sans-serif">写 DAG：role=user + role=assistant（会话消息）</text>
-  <text x="60" y="346" font-size="9" class="s" font-family="-apple-system,sans-serif">入口：webui / channels / TUI → process_user_turn</text>
-  <text x="60" y="368" font-size="8.5" class="s" font-family="-apple-system,sans-serif" font-style="italic">独有：session·user 节点·WebSocket 广播·resolve model·审批/plan·收尾</text>
+  <text x="60" y="328" font-size="9" class="s" font-family="-apple-system,sans-serif">Write DAG: role=user + role=assistant (session messages)</text>
+  <text x="60" y="346" font-size="9" class="s" font-family="-apple-system,sans-serif">Entry: webui / channels / TUI → process_user_turn</text>
+  <text x="60" y="368" font-size="8.5" class="s" font-family="-apple-system,sans-serif" font-style="italic">Owns: session, user nodes, WebSocket, model resolution, approval/plan, cleanup</text>
 
   <!-- ===== PKG B: agentic_programming ===== -->
   <rect x="830" y="84" width="370" height="300" rx="13" fill="var(--purple-pkg)" stroke="#bc8cf2" stroke-width="1.3"/>
-  <text x="850" y="108" font-size="13" font-weight="700" fill="#bc8cf2" font-family="-apple-system,sans-serif">包 B · openprogram/agentic_programming/</text>
-  <text x="850" y="124" font-size="9.5" class="s" font-family="-apple-system,sans-serif">exec 调用原语：给 @agentic_function 作者用</text>
+  <text x="850" y="108" font-size="13" font-weight="700" fill="#bc8cf2" font-family="-apple-system,sans-serif">Package B · openprogram/agentic_programming/</text>
+  <text x="850" y="124" font-size="9.5" class="s" font-family="-apple-system,sans-serif">exec primitive for @agentic_function authors</text>
 
   <g filter="url(#soft)"><rect x="850" y="134" width="330" height="40" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="862" y="151" font-size="11" class="fn">runtime.py</text><text x="1170" y="151" text-anchor="end" font-size="9" class="s">1830</text>
-    <text x="862" y="166" font-size="8.5" class="s" font-family="-apple-system,sans-serif">Runtime·exec·_call_via_providers·开/关 llm 节点</text></g>
+    <text x="862" y="166" font-size="8.5" class="s" font-family="-apple-system,sans-serif">Runtime · exec · _call_via_providers · open/close llm nodes</text></g>
   <g filter="url(#soft)"><rect x="850" y="180" width="330" height="40" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="862" y="197" font-size="10" class="fn">function.py</text>
-    <text x="862" y="212" font-size="8.5" class="s" font-family="-apple-system,sans-serif">@agentic_function 装饰器 · 写 role=code 节点</text></g>
+    <text x="862" y="212" font-size="8.5" class="s" font-family="-apple-system,sans-serif">@agentic_function decorator · write role=code nodes</text></g>
   <g filter="url(#soft)"><rect x="850" y="226" width="160" height="38" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="862" y="242" font-size="10" class="fn">decision.py</text>
     <text x="862" y="256" font-size="8" class="s" font-family="-apple-system,sans-serif">decision.make(choices)</text></g>
   <g filter="url(#soft)"><rect x="1020" y="226" width="160" height="38" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="1032" y="242" font-size="10" class="fn">skills.py</text>
-    <text x="1032" y="256" font-size="8" class="s" font-family="-apple-system,sans-serif">SKILL.md 发现</text></g>
+    <text x="1032" y="256" font-size="8" class="s" font-family="-apple-system,sans-serif">SKILL.md discovery</text></g>
   <g filter="url(#soft)"><rect x="850" y="270" width="330" height="34" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="862" y="290" font-size="9.5" class="fn">session.py</text>
-    <text x="970" y="290" font-size="8.5" class="s" font-family="-apple-system,sans-serif">runtime.ask 用户输入通道（非 AgentSession）</text></g>
-  <text x="850" y="328" font-size="9" class="s" font-family="-apple-system,sans-serif">写 DAG：role=llm（调用节点）+ role=code（函数节点）</text>
-  <text x="850" y="346" font-size="9" class="s" font-family="-apple-system,sans-serif">入口：@agentic_function 体内 runtime.exec / decision.make</text>
-  <text x="850" y="368" font-size="8.5" class="s" font-family="-apple-system,sans-serif" font-style="italic">独有：llm 节点配对·_call_id 工具归属·choices·重试·嵌套</text>
+    <text x="970" y="290" font-size="8.5" class="s" font-family="-apple-system,sans-serif">runtime.ask user-input channel (not AgentSession)</text></g>
+  <text x="850" y="328" font-size="9" class="s" font-family="-apple-system,sans-serif">Write DAG: role=llm (model calls) + role=code (function calls)</text>
+  <text x="850" y="346" font-size="9" class="s" font-family="-apple-system,sans-serif">Entry: runtime.exec / decision.make inside @agentic_function</text>
+  <text x="850" y="368" font-size="8.5" class="s" font-family="-apple-system,sans-serif" font-style="italic">Owns: llm node pairing, _call_id tool ownership, choices, retries, nesting</text>
 
   <!-- arrows down to shared core -->
   <path d="M 225 384 C 225 420 380 430 470 446" stroke="#58a6ff" stroke-width="1.7" fill="none" marker-end="url(#aGreen)" class="flow"/>
-  <text x="300" y="420" font-size="9" fill="#58a6ff" font-family="-apple-system,sans-serif">直接调</text>
+  <text x="300" y="420" font-size="9" fill="#58a6ff" font-family="-apple-system,sans-serif">Direct call</text>
   <path d="M 1010 384 C 1010 420 855 430 770 446" stroke="#bc8cf2" stroke-width="1.7" fill="none" marker-end="url(#aGreen)" class="flow"/>
-  <text x="930" y="420" font-size="9" fill="#bc8cf2" font-family="-apple-system,sans-serif">经 AgentSession</text>
+  <text x="930" y="420" font-size="9" fill="#bc8cf2" font-family="-apple-system,sans-serif">Via AgentSession</text>
 
   <!-- ===== SHARED CORE: agent/ root ===== -->
   <rect x="300" y="440" width="640" height="160" rx="13" fill="var(--green-pkg)" stroke="#3fb950" stroke-width="1.4"/>
-  <text x="320" y="464" font-size="13" font-weight="700" fill="#3fb950" font-family="-apple-system,sans-serif">共享根 · openprogram/agent/（两条路汇合的引擎 + 设施）</text>
+  <text x="320" y="464" font-size="13" font-weight="700" fill="#3fb950" font-family="-apple-system,sans-serif">Shared root · openprogram/agent/ (engine and facilities for both paths)</text>
 
   <g filter="url(#soft)"><rect x="320" y="476" width="190" height="44" rx="8" fill="var(--green-fill)" stroke="#3fb950" stroke-width="1.1"/>
     <text x="332" y="494" font-size="11" font-weight="600" class="fn">agent_loop.py</text><text x="498" y="494" text-anchor="end" font-size="9" class="s">668</text>
-    <text x="332" y="510" font-size="8.5" class="s" font-family="-apple-system,sans-serif">tool loop 引擎 · 两入口汇合点(:114)</text></g>
+    <text x="332" y="510" font-size="8.5" class="s" font-family="-apple-system,sans-serif">Tool-loop engine · common entry (:114)</text></g>
   <g filter="url(#soft)"><rect x="522" y="476" width="190" height="44" rx="8" fill="var(--card)" stroke="var(--border)"/>
     <text x="534" y="494" font-size="11" class="fn">agent.py</text><text x="700" y="494" text-anchor="end" font-size="9" class="s">517</text>
-    <text x="534" y="510" font-size="8.5" class="s" font-family="-apple-system,sans-serif">Agent 类 · 驱动 agent_loop(:418)</text></g>
+    <text x="534" y="510" font-size="8.5" class="s" font-family="-apple-system,sans-serif">Agent class · drives agent_loop (:418)</text></g>
   <g filter="url(#soft)"><rect x="724" y="476" width="200" height="44" rx="8" fill="var(--card)" stroke="var(--border)"/>
     <text x="736" y="494" font-size="11" class="fn">session.py</text><text x="912" y="494" text-anchor="end" font-size="9" class="s">263</text>
-    <text x="736" y="510" font-size="8.5" class="s" font-family="-apple-system,sans-serif">AgentSession · exec 经它进引擎</text></g>
+    <text x="736" y="510" font-size="8.5" class="s" font-family="-apple-system,sans-serif">AgentSession · exec enters the engine through it</text></g>
 
   <g filter="url(#soft)"><rect x="320" y="528" width="120" height="30" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="332" y="547" font-size="9" class="fn">_approval.py</text></g>
@@ -123,20 +123,20 @@
   <g filter="url(#soft)"><rect x="822" y="528" width="102" height="30" rx="7" fill="var(--card)" stroke="var(--border)"/>
     <text x="834" y="547" font-size="9" class="fn">retry.py</text></g>
 
-  <text x="320" y="582" font-size="9" class="s" font-family="-apple-system,sans-serif">两条路都到 agent_loop。dispatcher 直接调；exec 经 AgentSession → Agent → agent_loop。</text>
+  <text x="320" y="582" font-size="9" class="s" font-family="-apple-system,sans-serif">Both reach agent_loop: dispatcher directly; exec via AgentSession → Agent → agent_loop.</text>
 
   <!-- shared DAG store note -->
   <g filter="url(#soft)">
     <rect x="956" y="440" width="244" height="160" rx="12" fill="var(--card)" stroke="var(--border)" stroke-dasharray="3 3"/>
-    <text x="974" y="462" font-size="11" font-weight="700" class="t" font-family="-apple-system,sans-serif">共享底座（同一个 DAG）</text>
+    <text x="974" y="462" font-size="11" font-weight="700" class="t" font-family="-apple-system,sans-serif">Shared DAG infrastructure</text>
     <text x="974" y="482" font-size="9" class="s" font-family="-apple-system,sans-serif">openprogram/context/ · store/</text>
-    <text x="974" y="500" font-size="8.5" class="s" font-family="-apple-system,sans-serif">· _store ContextVar：dispatcher 设，</text>
-    <text x="974" y="513" font-size="8.5" class="s" font-family="-apple-system,sans-serif">  exec 读同一个</text>
-    <text x="974" y="531" font-size="8.5" class="s" font-family="-apple-system,sans-serif">· Call 节点：user/llm/code 同一类</text>
-    <text x="974" y="544" font-size="8.5" class="s" font-family="-apple-system,sans-serif">  （nodes.py），只是 role 不同</text>
-    <text x="974" y="562" font-size="8.5" class="s" font-family="-apple-system,sans-serif">· 两个包写的是同一个 GraphStore</text>
-    <text x="974" y="580" font-size="8" class="s" font-family="-apple-system,sans-serif" font-style="italic">上下文/节点已统一；分歧只在外围</text>
+    <text x="974" y="500" font-size="8.5" class="s" font-family="-apple-system,sans-serif">· _store ContextVar: set by dispatcher;</text>
+    <text x="974" y="513" font-size="8.5" class="s" font-family="-apple-system,sans-serif">  exec reads the same value</text>
+    <text x="974" y="531" font-size="8.5" class="s" font-family="-apple-system,sans-serif">· Call nodes: user/llm/code share one type</text>
+    <text x="974" y="544" font-size="8.5" class="s" font-family="-apple-system,sans-serif">  (nodes.py), with different roles</text>
+    <text x="974" y="562" font-size="8.5" class="s" font-family="-apple-system,sans-serif">· Both packages write the same GraphStore</text>
+    <text x="974" y="580" font-size="8" class="s" font-family="-apple-system,sans-serif" font-style="italic">Context and nodes are unified; outer layers differ</text>
   </g>
 
-  <text x="40" y="624" font-size="9.5" class="s" font-family="-apple-system,sans-serif">分布：包 A（dispatcher，聊天）与包 B（agentic_programming，exec）在两个不同目录，各写各的 role；都依赖根 agent/ 的 agent_loop 引擎，都写同一个 DAG（context/ + store/）。</text>
+  <text x="40" y="624" font-size="9.5" class="s" font-family="-apple-system,sans-serif">Package A (dispatcher, chat) and package B (agentic_programming, exec) live in separate directories and write their own roles. Both use agent_loop in agent/ and share one DAG (context/ + store/).</text>
 </svg>

@@ -62,4 +62,4 @@ Direct Python and composed Workflow calls to `goal()` retain their existing work
 
 The chat form preserves explicit round, token, active-time and cost limits. It rejects separate Workflow role options and isolated context; change the conversation's settings for chat work instead. In the Rich REPL, `/goal` starts a canonical chat execution and prints its execution ID.
 
-See the [engineering design](../reference/design/runtime/goal.md) for the migration and implementation evidence.
+See the [engineering design](../reference/design/runtime/goal-and-recovery.html) for the migration and implementation evidence.

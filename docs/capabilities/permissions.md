@@ -64,7 +64,7 @@ A tool result identifies whether the refusal came from authority, a permission r
 
 Sandbox is configured separately in the composer Plus menu. Changing Sandbox affects subsequent turns. Bypass keeps the current sandbox restrictions, and an ordinary tool approval never authorizes a sandbox escalation. When a sandbox denial cannot open a separate escalation wait, change the relevant settings explicitly and submit a new call.
 
-See [tools](tools.md), [Web](../interfaces/web.md), [terminal](../interfaces/tui.md), and the [engineering contract](../reference/design/runtime/permission-model.md).
+See [tools](tools.md), [Web](../interfaces/web.md), [terminal](../interfaces/tui.md), and the [engineering contract](../reference/design/runtime/sandbox-architecture.html).
 
 ## macOS asks for access again after an update
 

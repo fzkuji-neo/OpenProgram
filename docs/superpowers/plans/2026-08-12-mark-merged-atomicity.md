@@ -2,7 +2,7 @@
 
 ## Contract
 
-- Design: `docs/reference/design/runtime/session/merged-head-atomicity.html`.
+- Design: `docs/reference/design/runtime/session/storage-consistency.html`.
 - Base: `0402ce3f`.
 - Make `merged_heads` read-union-write atomic under the existing per-session index lock.
 - Keep persistence outside that lock and preserve order, trimming, idempotence, and callers.

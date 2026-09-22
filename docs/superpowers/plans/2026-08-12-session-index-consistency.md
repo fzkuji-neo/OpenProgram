@@ -2,7 +2,7 @@
 
 ## Contract
 
-- Approved design: `docs/reference/design/runtime/session/index-consistency.html`.
+- Approved design: `docs/reference/design/runtime/session/storage-consistency.html`.
 - Base commit: `e831d0f0`.
 - Production files: `openprogram/store/session/session_store.py`, `openprogram/store/session/session_node_writer.py`.
 - Public tests: metadata-only updates preserve `updated_at` and ordering; append advances meta/index together; list rows are snapshots; an update during an older disk write remains dirty and reaches the next flush; concurrent update/list/flush leaves parseable, current JSON.

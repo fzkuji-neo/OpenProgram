@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OpenProgram 主题系统</title>
+<title>OpenProgram theme system</title>
 <style>
   :root {
     --page: #f4f2ec;
@@ -87,53 +87,53 @@
 </head>
 <body>
 <div class="shell">
-  <nav aria-label="文档章节">
-    <strong>主题系统</strong>
-    <a href="#contract">设计边界</a>
-    <a href="#flow">设置到组件</a>
-    <a href="#tokens">Token 契约</a>
-    <a href="#preview">三套主题包</a>
-    <a href="#frameworks">方案比较</a>
-    <a href="#acceptance">验收</a>
-    <a href="#status">实现状态</a>
+  <nav aria-label="Document sections">
+    <strong>Theme system</strong>
+    <a href="#contract">Design boundaries</a>
+    <a href="#flow">Settings to components</a>
+    <a href="#tokens">Token contract</a>
+    <a href="#preview">Three theme packs</a>
+    <a href="#frameworks">Option comparison</a>
+    <a href="#acceptance">Acceptance</a>
+    <a href="#status">Implementation status</a>
   </nav>
   <main>
     <header>
       <span class="kicker">OpenProgram / Web UI</span>
-      <h1>主题是一份完整数据，组件只读取语义 token</h1>
-      <p class="lede">回答三个问题：主题由哪里选择和持久化；一次设置会影响哪些界面；怎样保证新增或修改主题时不会只改变部分组件、部分窗口或部分状态。</p>
-      <div class="meta"><span class="tag">受众：Web / Desktop 实现者</span><span class="tag">状态：当前规范</span><span class="tag">范围：颜色、字体、跨窗口主题</span></div>
+      <h1>Themes are complete data sets; components read semantic tokens only</h1>
+      <p class="lede">This answers three questions: where themes are selected and persisted, which surfaces a setting affects, and how theme additions or edits avoid updating only some components, windows or states.</p>
+      <div class="meta"><span class="tag">Audience: Web / Desktop implementers</span><span class="tag">Status: current specification</span><span class="tag">Scope: colors, fonts and cross-window themes</span></div>
     </header>
 
     <section id="contract">
-      <h2>设计边界</h2>
-      <div class="callout"><strong>唯一运行时仍是 CSS custom properties。</strong> 不引入 JS theme object、CSS-in-JS 或第二套组件皮肤。内置主题必须提供相同 token 集；组件不得按 <code>dark</code>、<code>light</code> 等具体主题名写分支。</div>
+      <h2>Design boundaries</h2>
+      <div class="callout"><strong>CSS custom properties remain the sole runtime mechanism.</strong> Do not introduce JS theme objects, CSS-in-JS or a second component skin system. Built-in themes must provide identical token sets; components must not branch on specific theme names such as <code>dark</code>, <code>light</code> .</div>
       <div class="grid" style="margin-top:14px">
-        <article class="card"><h3>包含</h3><ul><li>Settings 中的 Appearance 与 Font</li><li>首帧、React 水合后及系统明暗变化</li><li>主窗口、桌面浮层和新建窗口</li><li>表面、文字、边框、状态、focus、composer 和 DAG</li></ul></article>
-        <article class="card"><h3>不包含</h3><ul><li>改变组件尺寸、布局或交互逻辑</li><li>自动改写用户已保存的 CSS overlay</li><li>以主题名为条件的业务逻辑</li><li>把语法高亮或网站内容强制套用应用主题</li></ul></article>
+        <article class="card"><h3>Included</h3><ul><li>Appearance and Font in Settings</li><li>First frame, React hydration and system color-scheme changes</li><li>Main window, desktop overlays and new windows</li><li>Surfaces, text, borders, states, focus, composer and DAG</li></ul></article>
+        <article class="card"><h3>Excluded</h3><ul><li>Changing component dimensions, layouts or interaction logic</li><li>Automatically rewriting saved user CSS overlays</li><li>Business logic conditional on theme names</li><li>Forcing application themes onto syntax highlighting or website content</li></ul></article>
       </div>
     </section>
 
     <section id="flow">
-      <h2>设置如何影响组件</h2>
+      <h2>How settings affect components</h2>
       <div class="flow">
-        <article><span class="kicker">1 · 选择</span><h3>Settings</h3><p>Appearance 是四层：Mode、命名主题包、强调色、CSS overlay。字体选项来自 <code>font-pref.ts</code>。</p></article>
-        <article><span class="kicker">2 · 持久化</span><h3>Browser preference</h3><p>schema 3 写入 <code>agentic_theme_style</code> + <code>agentic_theme_mode</code>；强调色与 overlay 是同一 prefs 族。字体同时维护 cookie 以保证首帧。</p></article>
-        <article><span class="kicker">3 · 应用</span><h3>HTML attributes</h3><p>首帧脚本和 hook 设置 <code>data-theme</code>、<code>data-custom-css</code>、强调色 token 与 <code>--font-sans</code>。</p></article>
-        <article><span class="kicker">4 · 解析</span><h3>完整 token 文件</h3><p>每个主题包定义同一 token 契约；强调色只覆盖三个 accent token；CSS overlay 叠在当前包之上。</p></article>
-        <article><span class="kicker">5 · 消费</span><h3>全部组件</h3><p>Tailwind bridge、CSS modules、桌面浮层全部读取 token，不判断具体主题名。</p></article>
+        <article><span class="kicker">1 · Select</span><h3>Settings</h3><p>Appearance has four layers: Mode, named theme pack, accent color and CSS overlay. Font options come from <code>font-pref.ts</code>.</p></article>
+        <article><span class="kicker">2 · Persist</span><h3>Browser preference</h3><p>Schema 3 writes to <code>agentic_theme_style</code> + <code>agentic_theme_mode</code>; accent and overlay belong to the same preferences family. Fonts also maintain a cookie for the first frame.</p></article>
+        <article><span class="kicker">3 · Apply</span><h3>HTML attributes</h3><p>The first-frame script and hook set <code>data-theme</code>, <code>data-custom-css</code>, accent tokens and <code>--font-sans</code>.</p></article>
+        <article><span class="kicker">4 · Resolve</span><h3>Complete token files</h3><p>Every theme pack defines the same token contract; accent overrides only three accent tokens; CSS overlays apply on top of the current pack.</p></article>
+        <article><span class="kicker">5 · Consume</span><h3>All components</h3><p>The Tailwind bridge, CSS modules and desktop overlays all read tokens without checking specific theme names.</p></article>
       </div>
     </section>
 
     <section id="diagnostics">
-      <h2>偶发主题切换诊断</h2>
-      <p>桌面启动和系统配色更新优先读取主界面保存的有效 <code>theme-prefs.json</code> 整份偏好。仅当文件缺失或明暗模式、风格无效时，才使用旧版浏览器存储迁移。浏览器数据库的原始字节扫描无法识别最新记录，不覆盖有效桌面偏好，也不恢复已清除的强调色。网页加载后仍以自身 localStorage 为准并同步桌面缓存。</p>
-      <p>桌面主页面记录消息成功发送的时间点、首屏初始化、设置修改、系统配色事件、跨窗口偏好同步和 HTML 主题属性变化。记录只含时间、固定事件名称、主题枚举和系统明暗状态，不含聊天内容、页面地址、CSS 或用户路径。桌面 userData 下的 <code>theme-events.json</code> 最多保留 64 条，写入失败不影响主题显示。日志用于确认偶发切换来源，不代表已修复未知触发条件。</p>
+      <h2>Diagnosing intermittent theme switches</h2>
+      <p>Desktop startup and system color-scheme updates prefer the complete valid <code>theme-prefs.json</code>  preferences saved by the main UI. Legacy browser-storage migration is used only when the file is missing or its mode/style is invalid. Raw browser-database byte scans cannot identify the latest record, must not override valid desktop preferences and must not restore cleared accent colors. After loading, the web page uses its own localStorage as authority and synchronizes the desktop cache.</p>
+      <p>The desktop main page records successful message-send times, first-screen initialization, settings changes, system color events, cross-window preference synchronization and HTML theme-attribute changes. Records contain only timestamps, fixed event names, theme enums and system light/dark state, excluding chat content, page URLs, CSS and user paths. Under desktop userData, <code>theme-events.json</code>  retains at most 64 records; write failures do not affect theme rendering. The log identifies the source of intermittent switches and does not establish that unknown triggers are fixed.</p>
     </section>
 
     <section id="tokens">
-      <h2>完整 token 契约</h2>
-      <p>主题文件负责“值”；组件负责“用途”。同一用途在所有主题中使用同一个 token 名。</p>
+      <h2>Complete token contract</h2>
+      <p>Theme files provide values; components define usage. The same purpose uses the same token name across every theme.</p>
       <div class="token-groups">
         <article class="token-group"><h3>Surface</h3><code>--bg-primary / secondary / tertiary</code><code>--bg-input / hover / selected</code><code>--surface-popover / tooltip</code></article>
         <article class="token-group"><h3>Text</h3><code>--text-bright / primary</code><code>--text-secondary / muted</code><code>--nav-color / hover</code></article>
@@ -143,75 +143,75 @@
         <article class="token-group"><h3>Component-owned roles</h3><code>--composer-surface / shadow / filter</code><code>--provider-icon-bg</code><code>--dag-ghost</code></article>
       </div>
       <table style="margin-top:18px">
-        <thead><tr><th>设置</th><th>直接状态</th><th>影响范围</th><th>禁止</th></tr></thead>
+        <thead><tr><th>Setting</th><th>Direct state</th><th>Affected scope</th><th>Prohibited</th></tr></thead>
         <tbody>
-          <tr><td>Appearance</td><td><code>data-theme</code></td><td>背景、文字、边框、shadow、状态色、tab focus、composer、popover、DAG、desktop overlay</td><td>组件内写 <code>[data-theme="light"]</code></td></tr>
-          <tr><td>Accent</td><td><code>--accent-orange</code> / fill / hover</td><td>主操作色、选中边界、桌面错误页与目录列表的链接色</td><td>新增第四个 accent token 名</td></tr>
-          <tr><td>Font</td><td><code>--font-sans</code></td><td>body、button、input、select、textarea、optgroup；显式 mono 区域除外</td><td>普通组件重新声明系统字体栈</td></tr>
-          <tr><td>CSS overlay</td><td><code>#user-custom-css</code> + <code>data-custom-css</code></td><td>叠在当前主题包上的可选 snippet；未覆写项仍来自该包</td><td>把 overlay 再做成第四套皮肤卡片</td></tr>
+          <tr><td>Appearance</td><td><code>data-theme</code></td><td>Backgrounds, text, borders, shadows, state colors, tab focus, composer, popover, DAG and desktop overlays</td><td>Writing component-level <code>[data-theme="light"]</code></td></tr>
+          <tr><td>Accent</td><td><code>--accent-orange</code> / fill / hover</td><td>Primary-action color, selection borders and link colors on desktop error pages and directory listings</td><td>Adding a fourth accent token name</td></tr>
+          <tr><td>Font</td><td><code>--font-sans</code></td><td>body, button, input, select, textarea and optgroup, except explicit mono regions</td><td>Redeclaring system font stacks in ordinary components</td></tr>
+          <tr><td>CSS overlay</td><td><code>#user-custom-css</code> + <code>data-custom-css</code></td><td>Optional snippet over the current theme pack; unspecified values still come from that pack</td><td>Turning overlay into a fourth skin card</td></tr>
         </tbody>
       </table>
       <table style="margin-top:18px">
-        <thead><tr><th>主题族</th><th>主题</th><th>主色</th><th>作用范围</th></tr></thead>
+        <thead><tr><th>Theme families</th><th>Theme</th><th>Primary color</th><th>Scope</th></tr></thead>
         <tbody>
-          <tr><td>Beige</td><td><code>beige-dark</code> / <code>beige-light</code></td><td>橙色 / 珊瑚色</td><td>同一套组件角色，只替换主题值</td></tr>
-          <tr><td>Neutral</td><td><code>dark</code> / <code>light</code></td><td>蓝色</td><td>Default Button、主操作填充、选中态、链接与强调边界</td></tr>
-          <tr><td>Aurora</td><td><code>aurora</code> / <code>aurora-light</code></td><td>青绿色</td><td>同一套组件角色，并使用深色 foreground 保证填充对比</td></tr>
+          <tr><td>Beige</td><td><code>beige-dark</code> / <code>beige-light</code></td><td>Orange / coral</td><td>Same component roles; only theme values change</td></tr>
+          <tr><td>Neutral</td><td><code>dark</code> / <code>light</code></td><td>Blue</td><td>Default Button, primary-action fills, selected states, links and accent borders</td></tr>
+          <tr><td>Aurora</td><td><code>aurora</code> / <code>aurora-light</code></td><td>Teal</td><td>Same component roles, with dark foreground for filled-element contrast</td></tr>
         </tbody>
       </table>
     </section>
 
     <section id="preview">
-      <h2>内置主题共享同一组件结构</h2>
-      <div class="demo-toolbar" role="group" aria-label="预览主题">
-        <button type="button" data-theme-button="beige-dark" aria-pressed="true">暖色深</button>
-        <button type="button" data-theme-button="beige-light" aria-pressed="false">暖色浅</button>
-        <button type="button" data-theme-button="dark" aria-pressed="false">深色</button>
-        <button type="button" data-theme-button="light" aria-pressed="false">浅色</button>
-        <button type="button" data-theme-button="aurora" aria-pressed="false">极光</button>
+      <h2>Built-in themes share one component structure</h2>
+      <div class="demo-toolbar" role="group" aria-label="Preview theme">
+        <button type="button" data-theme-button="beige-dark" aria-pressed="true">Warm dark</button>
+        <button type="button" data-theme-button="beige-light" aria-pressed="false">Warm light</button>
+        <button type="button" data-theme-button="dark" aria-pressed="false">Dark</button>
+        <button type="button" data-theme-button="light" aria-pressed="false">Light</button>
+        <button type="button" data-theme-button="aurora" aria-pressed="false">Aurora</button>
       </div>
       <div class="theme-demo" id="theme-demo" data-demo-theme="beige-dark">
         <div class="demo-strip"><span class="demo-tab">New chat</span><span class="demo-tab active">Browser</span><span class="demo-tab">Terminal</span></div>
-        <div class="demo-content"><div><strong>同一 tab、同一文字层级、同一按钮用途</strong><small>主题只替换 token 值，不替换组件结构或行为。</small></div><button class="demo-action" type="button" tabindex="-1">Primary action</button></div>
+        <div class="demo-content"><div><strong>Same tab, text hierarchy and button purposes</strong><small>Themes replace token values, not component structure or behavior.</small></div><button class="demo-action" type="button" tabindex="-1">Primary action</button></div>
       </div>
     </section>
 
     <section id="frameworks">
-      <h2>实现方案比较</h2>
+      <h2>Implementation comparison</h2>
       <table>
-        <thead><tr><th>方案</th><th>采用</th><th>原因与边界</th><th>当前缺失能力</th></tr></thead>
+        <thead><tr><th>Option</th><th>Adopted</th><th>Rationale and boundaries</th><th>Missing capability</th></tr></thead>
         <tbody>
-          <tr><td>CSS custom properties + <code>data-theme</code></td><td class="yes">采用</td><td>原生级联覆盖 Web、CSS modules、Tailwind arbitrary values 和桌面同源浮层。</td><td>CSS 本身不能验证每个主题是否漏 token，因此增加静态契约检查。</td></tr>
-          <tr><td>Tailwind <code>@theme</code></td><td class="yes">作为 bridge</td><td>只把 CSS token 暴露给 utility 名，不保存另一份色值。</td><td>不能动态生成 CSS import，主题文件与 TS id 由检查脚本对齐。</td></tr>
-          <tr><td>JavaScript theme object / Context</td><td class="no">拒绝</td><td>会复制色值且无法自然覆盖原生 CSS、首帧和 Electron overlay。</td><td>不提供运行时逐组件主题 props。</td></tr>
-          <tr><td>组件级 <code>[data-theme]</code> 分支</td><td class="no">拒绝</td><td>新增主题时必然漏改；改为主题文件提供组件角色 token。</td><td>组件不得知道内置主题 id。</td></tr>
-          <tr><td><code>light-dark()</code> 仅按 color-scheme</td><td class="no">拒绝</td><td>只能表达明暗两类，不能区分 Beige、Neutral、Aurora 三套包。</td><td>仍使用各主题显式值。</td></tr>
+          <tr><td>CSS custom properties + <code>data-theme</code></td><td class="yes">Adopted</td><td>Native cascading covers Web, CSS modules, Tailwind arbitrary values and same-origin desktop overlays.</td><td>CSS alone cannot validate missing theme tokens, so add a static contract check.</td></tr>
+          <tr><td>Tailwind <code>@theme</code></td><td class="yes">As a bridge</td><td>Expose CSS tokens as utility names without storing another set of color values.</td><td>Cannot dynamically generate CSS imports; a check script aligns theme files with TS ids.</td></tr>
+          <tr><td>JavaScript theme object / Context</td><td class="no">Rejected</td><td>Duplicates color values and cannot naturally cover native CSS, the first frame or Electron overlays.</td><td>No runtime per-component theme props.</td></tr>
+          <tr><td>Component-level <code>[data-theme]</code>  branches</td><td class="no">Rejected</td><td>New themes would inevitably miss edits; theme files should provide component-role tokens instead.</td><td>Components must not know built-in theme ids.</td></tr>
+          <tr><td><code>light-dark()</code> Only color-scheme</td><td class="no">Rejected</td><td>Expresses only light and dark, not the three Beige, Neutral and Aurora packs.</td><td>Keep explicit values for each theme.</td></tr>
         </tbody>
       </table>
-      <p style="margin-top:12px;color:var(--muted);font-size:13px">规范依据：<a href="https://www.w3.org/TR/css-variables-1/">CSS Custom Properties Level 1</a>、<a href="https://www.w3.org/TR/css-color-adjust-1/#color-scheme-prop">CSS Color Adjustment 的 color-scheme</a>。现有实现入口见 <code>apps/web/lib/prefs/theme-pref.ts</code>、<code>apps/web/app/globals.css</code> 与 <code>apps/web/app/styles/themes/</code>。</p>
+      <p style="margin-top:12px;color:var(--muted);font-size:13px">Specification basis:<a href="https://www.w3.org/TR/css-variables-1/">CSS Custom Properties Level 1</a>, <a href="https://www.w3.org/TR/css-color-adjust-1/#color-scheme-prop">CSS Color Adjustment color-scheme</a>. Existing implementation entry points: <code>apps/web/lib/prefs/theme-pref.ts</code>, <code>apps/web/app/globals.css</code>  and <code>apps/web/app/styles/themes/</code>.</p>
     </section>
 
     <section id="acceptance">
-      <h2>验收标准</h2>
+      <h2>Acceptance criteria</h2>
       <ul class="status-list">
-        <li><strong>主题列表</strong><span>设置页只展示 Beige / Neutral / Aurora；CSS imports、主题文件、桌面浮层允许值由检查脚本证明一致。</span></li>
-        <li><strong>Token 完整</strong><span>六套内置主题（三包 × 深浅）提供相同 token 集；<code>custom-light.css</code> 仅作为旧 snippet 回落，取值与 beige-light 一致。</span></li>
-        <li><strong>强调色</strong><span>独立 picker 覆盖 <code>--accent-orange</code> / <code>--accent-fill</code> / <code>--accent-orange-hover</code>；空值使用当前包默认。桌面错误页与目录列表的链接色跟随覆盖值，窗口底色仍是包的 <code>--bg-primary</code>。</span></li>
-        <li><strong>CSS overlay</strong><span>用户 CSS 叠在当前包上，由 Enable 开关门控；旧 <code>[data-theme=custom]</code> 选择器改写到 <code>data-custom-css</code>。</span></li>
-        <li><strong>组件隔离</strong><span>theme 文件之外不存在按具体内置主题名分支的组件 CSS。</span></li>
-        <li><strong>跨窗口一致</strong><span>六个主题包 id 原样传给 desktop overlay；桌面窗口底色使用该主题的 <code>--bg-primary</code>。</span></li>
-        <li><strong>字体一致</strong><span>普通文本和原生表单控件继承同一 <code>--font-sans</code>；mono 区域显式例外。</span></li>
-        <li><strong>主色矩阵</strong><span>Neutral 深浅主题为蓝色，Beige 深浅主题为橙色，Aurora 为青绿色；包默认 accent 仍从 CSS 文件读取。</span></li>
-        <li><strong>桌面活动标签</strong><span>深色模式下，标签栏的 <code>--tab-active-bg</code> 使用内容区底色混合 12% 白色，普通标签与分屏组合共用。选中背景在悬停时保持稳定；浅色模式与浏览器标签保持内容区底色。</span></li>
-        <li><strong>可见验收</strong><span>默认安装版在深色、浅色和 aurora 下检查主窗口、tab、composer、popover 与桌面浮层。</span></li>
+        <li><strong>Theme list</strong><span>Settings displays only Beige / Neutral / Aurora; check scripts establish agreement between CSS imports, theme files and allowed desktop overlay values.</span></li>
+        <li><strong>Complete tokens</strong><span>Six built-in themes (three packs × light/dark) provide the same token set;<code>custom-light.css</code>  is only a legacy-snippet fallback with values matching beige-light.</span></li>
+        <li><strong>Accent color</strong><span>An independent picker overrides <code>--accent-orange</code> / <code>--accent-fill</code> / <code>--accent-orange-hover</code>; an empty value uses the current pack default. Desktop error-page and directory-listing link colors follow the override, while the window background remains the pack's <code>--bg-primary</code>.</span></li>
+        <li><strong>CSS overlay</strong><span>User CSS overlays the current pack, gated by the Enable switch; legacy <code>[data-theme=custom]</code>  selectors are rewritten to <code>data-custom-css</code>.</span></li>
+        <li><strong>Component isolation</strong><span>Outside theme files, no component CSS branches on specific built-in theme names.</span></li>
+        <li><strong>Cross-window consistency</strong><span>All six theme-pack ids pass unchanged to desktop overlays; desktop window backgrounds use that theme's <code>--bg-primary</code>.</span></li>
+        <li><strong>Font consistency</strong><span>Ordinary text and native form controls inherit the same <code>--font-sans</code>, with explicit exceptions for mono regions.</span></li>
+        <li><strong>Primary-color matrix</strong><span>Neutral light/dark themes use blue, Beige uses orange, and Aurora uses teal; pack-default accents continue to come from CSS files.</span></li>
+        <li><strong>Active desktop tab</strong><span>In dark mode, the tab bar's <code>--tab-active-bg</code>  blends the content background with 12% white, shared by ordinary tabs and split groups. The selected background remains stable on hover; light mode and browser tabs retain the content background.</span></li>
+        <li><strong>Visible acceptance</strong><span>Inspect the main window, tabs, composer, popovers and desktop overlays in dark, light and aurora using the default installed App.</span></li>
       </ul>
     </section>
 
     <section id="status">
-      <h2>实现状态</h2>
+      <h2>Implementation status</h2>
       <div class="card">
-        <p><strong>当前实现采用 Obsidian 式 Appearance：Mode × 命名主题包 × 强调色 × CSS overlay。</strong></p>
-        <p>schema 3 的 <code>THEME_STYLE_PAIRS</code> 仍是 Beige / Neutral / Aurora 的深浅矩阵。Custom 不再是第四张风格卡；存量 <code>custom</code> / <code>custom-light</code> 迁到 beige，已保存的 CSS 打开 overlay，旧选择器改写到 <code>data-custom-css</code>。强调色独立持久化，只覆盖三个 accent token。composer、provider icon 与 DAG 只消费角色 token。桌面 BrowserWindow 底色仍用包的 <code>--bg-primary</code>；错误页与目录列表链接色在有覆盖时使用强调色。主题契约检查已纳入 Web 总检查。</p>
+        <p><strong>The current implementation uses Obsidian-style Appearance: Mode × named theme pack × accent color × CSS overlay.</strong></p>
+        <p>Schema 3's <code>THEME_STYLE_PAIRS</code>  remains the light/dark matrix of Beige / Neutral / Aurora. Custom is no longer a fourth style card; existing <code>custom</code> / <code>custom-light</code>  migrates to beige, saved CSS enables the overlay, and old selectors are rewritten to <code>data-custom-css</code>. Accent color persists independently and overrides only three accent tokens. Composer, provider icons and DAG consume role tokens only. Desktop BrowserWindow backgrounds still use the pack's <code>--bg-primary</code>; error-page and directory-listing links use the accent override when present. Theme-contract checks are included in the complete Web checks.</p>
       </div>
     </section>
   </main>
@@ -226,6 +226,6 @@
     });
   }
 </script>
-<p>Windows 测试使用 Node.js 的 fileURLToPath 将模块 URL 转为本地文件路径，避免驱动器路径前出现额外斜杠；主题行为和断言保持不变。</p>
+<p>Windows tests use Node.js fileURLToPath to convert module URLs into local paths, avoiding an extra slash before drive paths; theme behavior and assertions remain unchanged.</p>
 </body>
 </html>

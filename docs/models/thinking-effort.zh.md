@@ -1,4 +1,6 @@
-# thinking effort
+<div id="thinking-effort"></div>
+
+# 推理强度
 
 各家 API 用不同参数控制推理深度（`effort` 字符串、`reasoning_effort`、token budget）。OpenProgram 把它们统一成一个档位滑块。
 
@@ -33,4 +35,4 @@ minimal · low · medium · high · xhigh · max
 
 选定的档位随会话持久化，provider 发请求前把框架档位翻译成各家 API 的实际参数。
 
-映射规则与探测策略的完整记录见[设计笔记](../reference/design/providers/models/thinking-effort.md)。
+映射规则与探测策略的完整记录见[设计笔记](../reference/design/providers/models/thinking-effort.zh.md)。

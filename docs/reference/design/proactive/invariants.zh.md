@@ -17,7 +17,7 @@
 
 如果不管这条事件的来历，它又被某条规则看到、又触发一个 `Prepare`、又产生一条"准备好了"……
 
-![死循环 vs 允许的唯一二跳](diagrams/invariants-loop.svg)
+![死循环 vs 允许的唯一二跳](diagrams/invariants-loop.zh.svg)
 
 每个 `Prepare` 都是真金白银的后台任务（可能调 LLM）。绕成死循环 = 无限烧钱、刷屏。
 

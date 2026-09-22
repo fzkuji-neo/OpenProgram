@@ -1,4 +1,6 @@
-# Session Operations
+<div id="session-operations"></div>
+
+# Operations
 
 Each operation is written out end to end, from trigger to disk to frontend.
 
@@ -367,7 +369,7 @@ REST endpoints can report a missing session instead of silently succeeding.
 
 `updated_at` records the last time a message was appended, and archiving
 appends nothing — so it leaves the timestamp alone. This is the
-[index consistency contract](index-consistency.html): an archived session
+[index consistency contract](storage-consistency.html): an archived session
 returns to exactly its old place in the list when unarchived, rather than
 jumping to the top. Messages, branches, and history files are untouched;
 `get_messages` keeps working while a session is archived.

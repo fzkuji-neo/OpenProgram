@@ -37,7 +37,7 @@ its canonical finalization; otherwise the execution becomes paused for an
 explicit continuation decision.
 
 The normative design is
-[`docs/reference/design/runtime/execution/execution-control.html`](../../docs/reference/design/runtime/execution/execution-control.html).
+[`docs/reference/design/runtime/execution/control.html`](../../docs/reference/design/runtime/execution/control.html).
 
 `restart.py` records bounded worker restart intents in canonical events and
 continues eligible checkpoints through the existing control/resource commands.

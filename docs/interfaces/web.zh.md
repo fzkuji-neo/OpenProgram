@@ -1,4 +1,6 @@
-# Web UI
+<div id="web-ui"></div>
+
+# 网页界面
 
 网页小窗固定使用 1920 × 1080 CSS 像素的页面视口。调整小窗大小只改变显示比例，未使用的区域留白，网页布局和 Agent 操作坐标保持不变。打开为完整标签页后恢复正常窗口尺寸和原有页面缩放。
 
@@ -32,7 +34,7 @@ PDF 文件支持连续阅读、页码跳转、缩略图、文档目录、适合�
 openprogram web
 ```
 
-浏览器打开 `http://localhost:18100`。页面是由本地 FastAPI worker 直接提供的静态导出——`/api`、`/ws` 和 UI 都在同一个端口（默认 18100）。数据全部来自 worker，会话与终端 TUI、CLI 单发共用，见[界面总览](README.md)。改端口用 `openprogram ports --port`。
+浏览器打开 `http://localhost:18100`。页面是由本地 FastAPI worker 直接提供的静态导出——`/api`、`/ws` 和 UI 都在同一个端口（默认 18100）。数据全部来自 worker，会话与终端 TUI、CLI 单发共用，见[界面总览](README.zh.md)。改端口用 `openprogram ports --port`。
 
 ![聊天页](../images/chat_hero.png)
 
@@ -119,7 +121,7 @@ Wayland display（例如通过 SSH 使用服务器），Web UI 会改为显示�
 | `/projects` | History → Projects：权限规则、默认设置、关联会话 |
 | `/settings` | 设置：providers（模型与凭据）、search、general（含主题、运行版本，以及存在 Electron bridge 时的 Desktop 更新状态）、system、usage、auth、channels |
 
-`/settings` 直接打开会跳到 `/settings/general`。模型凭据仍在 `/settings/providers`，见[配置模型](../models/README.md)。
+`/settings` 直接打开会跳到 `/settings/general`。模型凭据仍在 `/settings/providers`，见[配置模型](../models/README.zh.md)。
 
 ### 会话运行记录
 

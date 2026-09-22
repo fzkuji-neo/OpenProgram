@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>内置浏览器主页按钮</title>
+  <title>Built-in browser Home button</title>
   <style>
     :root { color-scheme: dark; --bg:#161615; --panel:#20201f; --line:#3a3935; --text:#e8e7df; --muted:#aaa89d; --accent:#d19a66; }
     * { box-sizing:border-box; }
@@ -20,40 +20,40 @@
 </head>
 <body>
 <main>
-  <h1>内置浏览器主页按钮</h1>
-  <p>为 OpenProgram 内置浏览器的导航栏增加主页入口，复用现有新标签页，不引入主页 URL 配置。</p>
+  <h1>Built-in browser Home button</h1>
+  <p>Add a Home entry to the OpenProgram built-in browser toolbar, reusing the existing new-tab page without introducing a configurable home URL.</p>
 
-  <h2>行为</h2>
+  <h2>Behavior</h2>
   <div class="card">
     <ul>
-      <li>桌面原生 WebContentsView 和普通浏览器 iframe 两套工具栏都显示 House 图标按钮。</li>
-      <li>按钮标题与无障碍名称按当前语言显示为 <code>Home</code> 或 <code>主页</code>。</li>
-      <li>点击后把当前 <code>web</code> tab 原位替换为现有 <code>ntp</code> 页面；不新增标签，不跳转外部网址。</li>
-      <li>保留标签顺序、当前激活状态和 compound-tab 成员位置；移除旧 web tab id，并清除指向它的 legacy split 状态。</li>
+      <li>Both the desktop native WebContentsView toolbar and the ordinary browser iframe toolbar display a House icon button.</li>
+      <li>The button title and accessible name follow the current language: <code>Home</code> or <code>Home</code>.</li>
+      <li>Clicking replaces the current <code>web</code>  tab in place with the existing <code>ntp</code>  page; it does not add a tab or navigate to an external URL.</li>
+      <li>Preserve tab order, active state and compound-tab member position; remove the old web tab id and clear legacy split state that references it.</li>
     </ul>
   </div>
 
-  <h2>边界</h2>
-  <p>不增加自定义主页设置、搜索引擎设置、依赖、后台进程或新的页面实现。后退、前进、地址输入、刷新、书签、分屏和外部打开行为保持不变。</p>
+  <h2>Boundaries</h2>
+  <p>Do not add custom home settings, search-engine settings, dependencies, background processes or a new page implementation. Back, forward, address input, reload, bookmarks, split view and external opening remain unchanged.</p>
 
-  <h2>任务文件</h2>
-  <p>生产代码：<code>apps/web/components/center-tabs/web-tab-pane.tsx</code>、<code>apps/web/lib/tabs/center-tabs-store.ts</code>。测试：<code>apps/web/scripts/runtime/check-web-split.mjs</code>。设计与验收记录：本文件。</p>
+  <h2>Task files</h2>
+  <p>Production code:<code>apps/web/components/center-tabs/web-tab-pane.tsx</code>, <code>apps/web/lib/tabs/center-tabs-store.ts</code>. Tests:<code>apps/web/scripts/runtime/check-web-split.mjs</code>. Design and acceptance records: this file.</p>
 
-  <h2>验收</h2>
+  <h2>Acceptance</h2>
   <ul>
-    <li>RED：现有代码缺少 store action、House 按钮和两套工具栏接线。</li>
-    <li>GREEN：状态测试证明原位替换、分组更新和原生 web-view id 清理；源码门禁证明两套工具栏都有主页按钮。</li>
-    <li>构建后只使用已安装的 <code>/Applications/OpenProgram.app</code> 做可见页面验收，不从 Electron 源码启动。</li>
+    <li>RED: the existing code lacks the store action, House button and wiring for both toolbars.</li>
+    <li>GREEN: state tests demonstrate in-place replacement, group updates and native web-view id cleanup; source checks verify Home buttons in both toolbars.</li>
+    <li>After building, use only the installed <code>/Applications/OpenProgram.app</code>  for visible page acceptance; do not start Electron from source.</li>
   </ul>
 
-  <h2>实现记录</h2>
-  <p class="status">已实现并通过自动化门禁与已安装应用验收。</p>
+  <h2>Implementation record</h2>
+  <p class="status">Implemented and passed automated checks and installed-App acceptance.</p>
   <ul>
-    <li>Web 全部门禁、TypeScript 检查和生产构建通过。</li>
-    <li>已安装的 <code>/Applications/OpenProgram.app</code> 使用包内 Python runtime 启动默认 worker；未从 Electron 源码启动。</li>
-    <li>DOM/ARIA 验收确认工具栏只有一个 <code>Home</code> 按钮，<code>title</code> 与无障碍名称正确，地址栏显示 <code>https://example.com/</code>。</li>
-    <li>点击主页后显示现有 <code>New tab</code> 页面，标签数量保持不变，原 web tab 的 CDP target 被移除。</li>
-    <li>一张当前 viewport 截图用于确认按钮位置和视觉一致性；没有启用 OCR、候选框检测或多轮截图。</li>
+    <li>All Web checks, TypeScript checks and the production build passed.</li>
+    <li>The installed <code>/Applications/OpenProgram.app</code>  starts the default worker with its bundled Python runtime; Electron was not started from source.</li>
+    <li>DOM/ARIA acceptance confirms exactly one <code>Home</code>  button in the toolbar;<code>title</code>  and the accessible name are correct, and the address bar displays <code>https://example.com/</code>.</li>
+    <li>Clicking Home displays the existing <code>New tab</code>  page, preserves the tab count and removes the original web tab's CDP target.</li>
+    <li>One screenshot of the current viewport confirms button placement and visual consistency; OCR, candidate-box detection and repeated screenshots were not used.</li>
   </ul>
 </main>
 </body>

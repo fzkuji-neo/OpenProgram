@@ -1,4 +1,6 @@
-# Function calling
+<div id="function-calling"></div>
+
+# 函数调用
 
 LLM 如何从列表中挑选一个函数、框架如何运行它，以及运行结果如何作为模型
 下一轮的输入回灌。关于逐步推进的循环机制（LLM 如何在一次
@@ -12,7 +14,9 @@ LLM 如何从列表中挑选一个函数、框架如何运行它，以及运行�
 存在于运行历史中，永远不会进入后续的 prompt 上下文，因此宽泛的暴露不带来
 上下文开销。
 
-## On the wire
+<div id="on-the-wire"></div>
+
+## 协议格式
 
 与业界所称的 "tool use"（OpenAI / Anthropic / Gemini API 中的 ``tools=[]`` /
 ``tool_calls=[]``）是同一个概念。我们把这个*动作*称为
@@ -35,7 +39,9 @@ agent_tools() / get_agent_tool() …    tool_calls=[...] 字段
 （``AgentTool`` / ``AgentToolResult``）携带了线上格式所没有的运行时附加项
 （sidecar 门控、sync→async、字符上限等）。
 
-## Two decorators, one registry
+<div id="two-decorators-one-registry"></div>
+
+## 两个装饰器共用一个注册表
 
 作者注册一个 LLM 可调用函数恰好有两种方式：
 
@@ -71,7 +77,9 @@ LLM's tool_call dispatch.             (it triggers __call__ → wrapper);
 ``@agentic_function`` 是一个类（而非函数）的设计理由，参见
 下文 "Why two decorators"。
 
-## The shared kwargs (apply to both decorators)
+<div id="the-shared-kwargs-apply-to-both-decorators"></div>
+
+## 两个装饰器共用的关键字参数
 
 ```
 kwarg                       what it controls
@@ -130,7 +138,9 @@ register_globally           If False, build AgentTool + attach
                             Useful for in-test isolation.
 ```
 
-## The gating layers
+<div id="the-gating-layers"></div>
+
+## 可用性控制层
 
 每一轮的工具选择都会经过这些过滤器（骨架取自
 Claude Code 的 `tools.ts`）。Layer 2 是由注册驱动的暴露
@@ -193,7 +203,9 @@ Layer 1–5 表示 "LLM 无法看到/使用这个工具"。Layer 6 表示
 唯一让 LLM 自己选择拉取哪些工具的层（用于在需要前把
 庞大的 MCP/plugin 工具集挡在 prompt 之外）。
 
-## Per-layer default policy
+<div id="per-layer-default-policy"></div>
+
+## 各层默认策略
 
 主导原则是 **default-on, user-curated**：一个刚
 注册的工具无需任何配置即可使用；每一层的
@@ -266,7 +278,9 @@ Layer  Kind      Default (no config)                Who overrides & when
 （按工具的关闭开关）**；系统自身的 L5 否决（attended、
 subagent 上限）仅存在于代码中，对用户不可见。
 
-## Plugins and MCP servers
+<div id="plugins-and-mcp-servers"></div>
+
+## 插件与 MCP 服务
 
 因为暴露由注册驱动（Layer 2），一个 plugin 或 MCP
 server 只需 **注册它的工具** 就能使工具可用——与
@@ -285,13 +299,17 @@ allowlist 的第二步。具体来说：
   `expose=False`；用户仍可在 Functions
   页（Layer 5）关闭其中任何一个。不过默认是 "注册即可用"。
 
-## Tool profiles (Programs page)
+<div id="tool-profiles-programs-page"></div>
+
+## 工具配置（程序页面）
 
 一个 **tool profile** 是一个命名配置，表示 "这次对话
 启用哪些工具"。Programs 页（`/programs`）
 管理 profiles；聊天输入框让用户挑选使用哪个 profile。
 
-### Concepts
+<div id="concepts"></div>
+
+### 概念
 
 ```
 tool catalog          all registered, exposed tools — a flat read-only
@@ -315,7 +333,9 @@ default profile       the built-in "all tools on" profile. Always
                       tool. Used when no other profile is selected.
 ```
 
-### User flow
+<div id="user-flow"></div>
+
+### 操作流程
 
 1. **Programs 页** 展示 catalog（所有工具）和一个
    profiles 侧边栏。点击某个 profile 会显示它包含哪些工具；
@@ -328,7 +348,9 @@ default profile       the built-in "all tools on" profile. Always
    "research" profile 中的工具。Agent profiles（``agent.json``）可在其
    ``tools.toolset`` 字段中按名字引用一个 tool profile。
 
-### Storage
+<div id="storage"></div>
+
+### 存储
 
 Profiles 持久化在 ``functions_meta.json`` 中（与
 ``programs_meta.json`` 同一位置），形状如下：
@@ -347,7 +369,9 @@ Profiles 持久化在 ``functions_meta.json`` 中（与
 新建一个 profile = 复制 "default"（所有工具）。用户随后
 移除该场景下不需要的工具。
 
-### Relationship to Layer 5 (global disable)
+<div id="relationship-to-layer-5-global-disable"></div>
+
+### 与第五层全局禁用的关系
 
 一个 profile 表示 "这次对话使用这些工具"（L2b，主动
 选择）。按工具的全局禁用（L5，``tools.disabled``）
@@ -356,7 +380,9 @@ Profiles 持久化在 ``functions_meta.json`` 中（与
 解析管道在 L2b 之后应用 L5）。但用户的
 主操作是 profile 管理，而非按工具的全局开关。
 
-## User-editable entry points
+<div id="user-editable-entry-points"></div>
+
+## 用户可编辑入口
 
 ```
 Entry point                     Controls                     Layer  Persisted in
@@ -400,7 +426,9 @@ Author decorator kwargs         expose / available_if /      L1/2/  in-code
 兜底。Agent profile = 面向高级多 agent 配置的按 agent 覆盖。
 Author kwargs = 框架内部机制。
 
-## Four knobs none of the reference frameworks have
+<div id="four-knobs-none-of-the-reference-frameworks-have"></div>
+
+## 参考框架未提供的四项控制
 
 在 6 层级联之外，框架还增加了四个运行时旋钮，
 Claude Code、Hermes、OpenClaw 都没有：
@@ -428,7 +456,9 @@ Claude Code、Hermes、OpenClaw 都没有：
    user / role allowed to use it" (can_use)
 ```
 
-## Why two decorators, not one
+<div id="why-two-decorators-not-one"></div>
+
+## 采用两个装饰器的原因
 
 这两个装饰器包装的是不同 *种类的工作*：
 
@@ -472,7 +502,9 @@ Claude Code、Hermes、OpenClaw 都没有：
 语义差异藏进一个标志里。两个装饰器让选择在
 调用点显式化：叶子上用 ``@function``，agentic 函数体上用 ``@agentic_function``。
 
-## Decoration → registration trace
+<div id="decoration-registration-trace"></div>
+
+## 从装饰到注册的过程
 
 ### @function (leaf)
 
@@ -555,7 +587,9 @@ def research(topic: str) -> str: ...
       tool_call it)
 ```
 
-## Resolution path (dispatcher → provider)
+<div id="resolution-path-dispatcher-provider"></div>
+
+## 解析路径（dispatcher → provider）
 
 ```
 1. user message arrives → dispatcher.process_user_turn
@@ -595,7 +629,9 @@ def research(topic: str) -> str: ...
    → LLM can call cron normally
 ```
 
-## Where each piece lives
+<div id="where-each-piece-lives"></div>
+
+## 各部分的代码位置
 
 ```
 openprogram/programs/_runtime.py
@@ -676,7 +712,9 @@ openprogram/programs/workflow/*/__init__.py           @agentic_function
                                                        Wiki-Agent-Harness.
 ```
 
-## Test invariants (what the suite locks down)
+<div id="test-invariants-what-the-suite-locks-down"></div>
+
+## 测试约束的不变量
 
 单元测试套件（``tests/unit/programs/runtime/test_tools_runtime.py``、
 ``tests/component/agent/turns/test_dispatcher_tools.py``）覆盖：
@@ -701,7 +739,9 @@ openprogram/programs/workflow/*/__init__.py           @agentic_function
   but still attaches `_agent_tool`
 - @agentic_function(available_if=lambda: False) returns raw fn
 
-## Stable boundary
+<div id="stable-boundary"></div>
+
+## 稳定边界
 
 注册表/装饰器/dispatcher 边界是稳定的。**不会** 触及它的
 工作包括：

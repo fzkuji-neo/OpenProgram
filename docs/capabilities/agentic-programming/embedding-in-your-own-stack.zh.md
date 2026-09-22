@@ -152,4 +152,4 @@ headless 空实现——所以完全不碰它们的嵌入代码行为也是对�
 
 - [`@agentic_function`](writing-functions/agentic-function.zh.md) —— 装饰器详解
 - [Runtime API](../../reference/api/runtime.zh.md) —— `exec()` 的参数与行为
-- [嵌入接缝](../../reference/design/runtime/overview.zh.md) —— 这个模式背后的设计契约
+- [嵌入接缝](../../reference/design/runtime/README.zh.md) —— 这个模式背后的设计契约

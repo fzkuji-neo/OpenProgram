@@ -84,7 +84,7 @@ openprogram providers list                          # 查看各账户，激活�
 
 ## 一台机器能同时跑两个 OpenProgram 吗？
 
-能，用 profile 把状态目录和端口分开，见 [多实例与 profile](../install/profiles.md)。
+能，用 profile 把状态目录和端口分开，见 [多实例与 profile](../install/profiles.zh.md)。
 
 ## 之前的对话怎么找回来？
 
