@@ -301,7 +301,7 @@ export function RightSidebar() {
             <FileTree projectId={treeProjectId} />
           ) : (
             <div
-              style={{ padding: 16, fontSize: 13, color: "var(--text-dim)" }}
+              style={{ padding: 16, fontSize: "var(--right-panel-meta-size, 13px)", color: "var(--text-dim)" }}
             >
               {text("Bind a project to browse files", "绑定项目后可浏览文件")}
             </div>

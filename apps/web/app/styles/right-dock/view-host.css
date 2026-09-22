@@ -20,6 +20,16 @@
    rule no longer matches since nav rows are class strings of Tailwind
    utilities now (no `.sidebar-nav-item` class). */
 
+/* Shared text roles for right-side panels; reused components keep their fallback elsewhere. */
+.right-sidebar {
+  --right-panel-text-size: var(--fs-base);
+  --right-panel-meta-size: var(--fs-sm);
+  --right-panel-font-family: var(--font-sans);
+  --right-panel-font-weight: 400;
+  --right-panel-line-height: 20px;
+  font: var(--right-panel-font-weight) var(--right-panel-text-size)/var(--right-panel-line-height) var(--right-panel-font-family);
+}
+
 /* View host — one child visible at a time, matching data-view. */
 .right-view-host {
   margin-top: 12px;
@@ -56,7 +66,8 @@
 .session-view-switch-btn {
   flex: 1;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--right-panel-text-size, 12px);
+  line-height: var(--right-panel-line-height, normal);
   font-family: inherit;
   color: var(--text-muted);
   background: transparent;

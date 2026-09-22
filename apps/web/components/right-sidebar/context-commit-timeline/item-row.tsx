@@ -33,13 +33,13 @@ export function ItemRow(props: { item: CommitItem }) {
           <div className={styles.itemChips}>
             <StateBadge state={it.state} />
             {it.is_anchor && (
-              <span style={{ color: "var(--orange, #e3b341)", fontSize: 10 }}>anchor</span>
+              <span style={{ color: "var(--orange, #e3b341)", fontSize: "var(--right-panel-meta-size, 10px)" }}>anchor</span>
             )}
             {it.locked && (
-              <span style={{ color: "var(--text-muted)", fontSize: 10 }}>locked</span>
+              <span style={{ color: "var(--text-muted)", fontSize: "var(--right-panel-meta-size, 10px)" }}>locked</span>
             )}
             {it.reason && (
-              <span style={{ color: "var(--text-muted)", fontSize: 10 }}>
+              <span style={{ color: "var(--text-muted)", fontSize: "var(--right-panel-meta-size, 10px)" }}>
                 reason: {it.reason}
               </span>
             )}

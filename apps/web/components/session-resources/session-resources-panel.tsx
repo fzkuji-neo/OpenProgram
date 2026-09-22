@@ -161,6 +161,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
           title={group.title}>
         <SectionHeader
           name={group.title}
+          className={styles.sectionHeader}
           collapsible
           collapsed={!open}
           onToggle={toggleGroup}

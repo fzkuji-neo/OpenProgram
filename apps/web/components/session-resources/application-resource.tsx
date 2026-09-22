@@ -8,7 +8,7 @@ export function ApplicationResourceView({ resource, onHide }: { resource: Sessio
   const { text } = useTranslation();
   if (!resource.applicationInstanceId || !resource.applicationId) return null;
   return <section aria-label={text("Application resource", "应用资源")} className="flex min-h-80 flex-1 flex-col">
-    <header className="flex gap-2 p-2"><strong className="flex-1">{resource.title}</strong>
+    <header className="flex gap-2 p-2"><strong className="flex-1" style={{ fontWeight: "var(--right-panel-font-weight, 700)" }}>{resource.title}</strong>
       <button onClick={() => useCenterTabs.getState().openApplicationTab(resource.applicationId!, resource.applicationInstanceId!, resource.title)}>{text("Open in tab", "在标签页打开")}</button>
       <button onClick={onHide}>{text("Hide view", "隐藏视图")}</button>
     </header>

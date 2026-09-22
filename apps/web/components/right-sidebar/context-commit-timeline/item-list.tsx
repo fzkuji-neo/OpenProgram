@@ -29,7 +29,7 @@ export function ItemList(props: { items: CommitItem[] }) {
           onKeyDown={activateOnKey(() => setShown((n) => n + ITEM_PAGE))}
           style={{
             padding: "6px 12px",
-            fontSize: 11,
+            fontSize: "var(--right-panel-meta-size, 11px)",
             color: "var(--text-muted)",
             cursor: "pointer",
             textAlign: "center",

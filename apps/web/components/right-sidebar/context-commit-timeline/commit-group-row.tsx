@@ -25,7 +25,7 @@ export function CommitGroupRow(props: {
         alignItems: "center",
         gap: 4,
         marginLeft: 8,
-        fontSize: 10,
+        fontSize: "var(--right-panel-meta-size, 10px)",
         color: "var(--text-muted)",
       }}
       onClick={(e) => e.stopPropagation()}
