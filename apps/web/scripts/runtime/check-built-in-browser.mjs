@@ -299,7 +299,7 @@ assert.match(bridgeTypes, /stopFind\?\(/);
 assert.match(bridgeTypes, /zoom\?\(id: string, action: "in" \| "out" \| "reset"\)/);
 assert.match(bridgeTypes, /print\?\(id: string\): Promise<boolean>/);
 assert.match(bridgeTypes, /capture\?\(id: string\): Promise<string \| null>/);
-assert.match(bridgeTypes, /setPipZoom\?\(id: string, width: number \| null\): void/);
+assert.match(bridgeTypes, /setPipZoom\?\(id: string, width: number \| null, height\?: number\): void/);
 assert.match(webTabPane, /className=\{styles\.webFindBar\}/);
 assert.match(webTabPane, /const canFind = typeof bridge\.webTab\.find === "function"/);
 assert.match(webTabPane, /bridge\.webTab\.stopFind\?\./);

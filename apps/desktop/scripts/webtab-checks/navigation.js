@@ -346,6 +346,8 @@ async function checkSenderOwnership() {
     find: [],
     stopFind: [],
     zoom: [],
+    emulation: [],
+    disableEmulation: 0,
     print: [],
     printToPDF: [],
     capturePage: 0,
@@ -396,15 +398,24 @@ async function checkSenderOwnership() {
   ]);
   testContext.assert.deepEqual(a.nativeCalls.stopFind, ["clearSelection"]);
   testContext.assert.deepEqual(a.nativeCalls.zoom, [1.1, 1, 1]);
-  testContext.ipcListeners.get("webtab:set-pip-zoom")(eventA, "owned-a", 960);
-  testContext.assert.equal(a.nativeCalls.zoom.at(-1), 0.5);
+  for (const [width, height, scale] of [[960, 540, 0.5], [240, 135, 0.125], [2000, 1125, 2000 / 1920], [600, 200, 200 / 1080]]) {
+    testContext.ipcListeners.get("webtab:set-pip-zoom")(eventA, "owned-a", width, height);
+    testContext.assert.ok(a.nativeCalls.emulation.at(-1), "PiP must enable a fixed viewport through the public IPC");
+    testContext.assert.deepEqual(testContext.plain(a.nativeCalls.emulation.at(-1)), {
+      screenPosition: "desktop", viewSize: { width: 1920, height: 1080 },
+      deviceScaleFactor: 0, scale,
+    });
+    testContext.assert.equal(a.nativeCalls.zoom.at(-1), 1, "PiP resizing must not use page zoom");
+  }
   testContext.assert.equal(await testContext.ipcHandlers.get("webtab:zoom")(eventA, "owned-a", "in"), 110);
-  testContext.assert.equal(a.nativeCalls.zoom.at(-1), 0.5);
-  testContext.ipcListeners.get("webtab:set-pip-zoom")(eventA, "owned-a", 240);
-  testContext.assert.equal(a.nativeCalls.zoom.at(-1), 0.25);
-  testContext.ipcListeners.get("webtab:set-pip-zoom")(eventA, "owned-a", 2000);
   testContext.assert.equal(a.nativeCalls.zoom.at(-1), 1);
+  winA.webContents.getZoomFactor = () => 1.25;
+  testContext.ipcListeners.get("webtab:set-pip-zoom")(eventA, "owned-a", 384, 216);
+  testContext.assert.equal(a.nativeCalls.emulation.at(-1).scale, 0.25, "renderer CSS bounds must become native DIP");
+  delete winA.webContents.getZoomFactor;
+  const disabledBefore = a.nativeCalls.disableEmulation;
   testContext.ipcListeners.get("webtab:set-pip-zoom")(eventA, "owned-a", null);
+  testContext.assert.equal(a.nativeCalls.disableEmulation, disabledBefore + 1);
   testContext.assert.equal(a.nativeCalls.zoom.at(-1), 1.1);
 
   const freshZoomRecord = testContext.hooks.ensureView(

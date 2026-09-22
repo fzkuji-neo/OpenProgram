@@ -2462,5 +2462,6 @@
 .webPipLive { position: absolute; inset: 0 5px 5px; }
 .webPipEmbedded { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .webPipEmbedHint { font-size: 10px; color: var(--text-muted); padding: 2px 6px; }
-.webPipFrame { display: block; flex: 1; width: 100%; min-height: 0; border: 0; background: white; }
+.webPipFrameViewport { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.webPipFrame { position: absolute; display: block; width: 1920px; height: 1080px; border: 0; background: white; transform-origin: top left; }
 .webPipDragging .webPipFrame { pointer-events: none; }

@@ -15,6 +15,7 @@ function createActionCues({
   setTimeout,
 }) {
   function viewZoomFactor(record) {
+    if (record.pipLayoutZoom) return record.pipLayoutZoom;
     try {
       const zoom = Number(record.view.webContents.getZoomFactor?.());
       return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
@@ -27,8 +28,8 @@ function createActionCues({
     const bounds = record.view.getBounds();
     const zoom = viewZoomFactor(record);
     return {
-      width: bounds.width / zoom,
-      height: bounds.height / zoom,
+      width: record.pipViewport?.width ?? bounds.width / zoom,
+      height: record.pipViewport?.height ?? bounds.height / zoom,
       zoom,
       bounds,
     };

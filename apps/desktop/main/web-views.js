@@ -243,6 +243,7 @@ function createWebViews({
       view.setBounds = (bounds) => {
         const prev = view.getBounds();
         nativeSetBounds(bounds);
+        if (record.pipLayoutZoom) applyPipViewport(record, view.getBounds());
         if (boundsDiffer(prev, view.getBounds())) {
           clearActionCue(record, true);
           layoutControlOverlay(record);
@@ -284,7 +285,10 @@ function createWebViews({
       ]) {
         wc.on(ev, () => sendState(record));
       }
-      wc.on("did-navigate", () => restorePendingPipZoom(record));
+      wc.on("did-navigate", () => {
+        if (record.pipLayoutZoom) applyPipViewport(record, view.getBounds());
+        else restorePendingPipZoom(record);
+      });
       // Browsing history. The store folds repeat hits on the head URL into one
       // row, so the title/favicon events that follow a navigation enrich the
       // entry instead of appending duplicates.
@@ -334,12 +338,26 @@ function createWebViews({
 
   const WEBTAB_ZOOM_FACTORS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
   const PIP_VIRTUAL_WIDTH = 1920;
-  const PIP_ZOOM_MIN = 0.25;
+  const PIP_VIRTUAL_HEIGHT = 1080;
 
-  function pipLayoutZoom(width) {
-    // CSS viewport = viewWidth / zoom. CDP/Playwright Input and
-    // screenshot(scale="css") already use that CSS space.
-    return Math.max(PIP_ZOOM_MIN, Math.min(1, width / PIP_VIRTUAL_WIDTH));
+  function pipLayoutZoom(width, height = width * PIP_VIRTUAL_HEIGHT / PIP_VIRTUAL_WIDTH) {
+    return Math.min(width / PIP_VIRTUAL_WIDTH, height / PIP_VIRTUAL_HEIGHT);
+  }
+
+  function applyPipViewport(record, { width, height }) {
+    if (!(width > 0 && height > 0)) return;
+    const wc = record.view.webContents;
+    // Page zoom changes layout; device emulation scales presentation separately.
+    wc.setZoomFactor(1);
+    const scale = pipLayoutZoom(width, height);
+    wc.enableDeviceEmulation({
+      screenPosition: "desktop",
+      viewSize: { width: PIP_VIRTUAL_WIDTH, height: PIP_VIRTUAL_HEIGHT },
+      deviceScaleFactor: 0,
+      scale,
+    });
+    record.pipLayoutZoom = scale;
+    record.pipViewport = { width: PIP_VIRTUAL_WIDTH, height: PIP_VIRTUAL_HEIGHT };
   }
 
   function rememberUserZoom(record) {
@@ -353,7 +371,7 @@ function createWebViews({
     }
   }
 
-  function setPipZoom(ctx, id, width) {
+  function setPipZoom(ctx, id, width, height = width * PIP_VIRTUAL_HEIGHT / PIP_VIRTUAL_WIDTH) {
     let record = recordFor(ctx, id);
     if (!record && width == null && tabTransfers.isLocked(id)) {
       const lockedRecord = ctx?.views.get(id);
@@ -365,13 +383,11 @@ function createWebViews({
     if (!record) return false;
     const wc = record.view.webContents;
     try {
-      if (typeof width === "number" && width > 0) {
+      if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
         rememberUserZoom(record);
-        const factor = pipLayoutZoom(width);
         record.pendingTransferZoomRestore = false;
         record.pendingPipZoomRestore = false;
-        record.pipLayoutZoom = factor;
-        wc.setZoomFactor(factor);
+        applyPipViewport(record, { width, height });
         return true;
       }
       record.pendingTransferZoomRestore = false;
@@ -384,7 +400,9 @@ function createWebViews({
   function requestPipZoomRestore(record) {
     try {
       const wc = record.view.webContents;
+      wc.disableDeviceEmulation();
       record.pipLayoutZoom = null;
+      record.pipViewport = null;
       record.pendingPipZoomRestore = !wc.getURL() || !!record.navigation;
       wc.setZoomFactor(record.userZoomFactor ?? 1);
       return true;

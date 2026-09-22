@@ -175,7 +175,7 @@ export interface DesktopWebTabApi {
     cb: (event: DesktopBrowserControlOverlayEvent) => void,
   ): () => void;
   /** PiP-only layout scale. Pass the content width, or null to restore user zoom. */
-  setPipZoom?(id: string, width: number | null): void;
+  setPipZoom?(id: string, width: number | null, height?: number): void;
   /** Navigation/title/loading events pushed from main; returns the
    *  unsubscribe function. */
   onState(cb: (state: DesktopWebTabState) => void): () => void;

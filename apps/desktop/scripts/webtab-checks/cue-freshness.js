@@ -160,6 +160,19 @@ async function checkActionCueFreshness() {
     }),
     true,
   );
+  // Fixed viewport markers retain CSS coordinates at small and letterboxed sizes.
+  for (const [width, height] of [[240, 135], [600, 200], [960, 540]]) {
+    testContext.hooks.setPipZoom(ctx, "cue-page", width, height);
+    testContext.hooks.syncVisibleViews(ctx, [{ id: "cue-page", bounds: { x: 30, y: 40, width, height } }]);
+    testContext.assert.equal(await testContext.ipcHandlers.get("webtab:show-action")(
+      { sender: win.webContents }, "cue-page",
+      { x: 960, y: 540, width: 1920, height: 1080, sequence: width, generation: 3 },
+    ), true);
+    const cue = liveCue.actionCueWindow.getBounds();
+    const scale = Math.min(width / 1920, height / 1080);
+    testContext.assert.equal(cue.x + cue.width / 2, Math.round(30 + 960 * scale));
+    testContext.assert.equal(cue.y + cue.height / 2, Math.round(40 + 540 * scale));
+  }
   testContext.hooks.destroyView(ctx, "cue-page");
   testContext.hooks.windows.delete(ctx.id);
 }

@@ -59,7 +59,7 @@ function checkPreloadWindowIdentity() {
   exposed.webTab.capture("pane-a");
   exposed.webTab.preview("pane-a");
   exposed.webTab.preview("pane-a", true);
-  exposed.webTab.setPipZoom("pane-a", 640);
+  exposed.webTab.setPipZoom("pane-a", 640, 360);
   const marker = {
     x: 12,
     y: 24,
@@ -75,7 +75,7 @@ function checkPreloadWindowIdentity() {
   testContext.assert.deepEqual(sent.slice(-4), [
     ["webtab:find", "pane-a", "needle", { forward: false, findNext: true }],
     ["webtab:stop-find", "pane-a", "clearSelection"],
-    ["webtab:set-pip-zoom", "pane-a", 640],
+    ["webtab:set-pip-zoom", "pane-a", 640, 360],
     ["webtab:control-overlay", "pane-a", { resourceId: "page-a", generation: 1 }],
   ]);
   testContext.assert.deepEqual(invoked, [
