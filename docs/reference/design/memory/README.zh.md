@@ -1,4 +1,6 @@
-# Memory — 记忆系统设计
+<div id="memory-记忆系统设计"></div>
+
+# 阅读指南
 
 ## 定义
 
@@ -46,9 +48,9 @@ commit 到实体记忆，也没有 Graph 视图。阅读代码或维护文档时
 | [`overview.zh.md`](overview.zh.md) | 当前Source、Topic与派生视图架构，自动writer，权限边界，事务、失败行为和实现记录 |
 | [`written-marker.zh.md`](written-marker.zh.md) | 记忆怎么知道哪些轮次已经写过，分四层：已替换的位置游标、references下八个框架、已实现的节点marker，以及仍延期的事件通知方案 |
 | [`written-marker.html`](written-marker.html) | 上述四层的可视化：序号从哪来、分叉时漏掉什么、八个框架并排、走行与三步写入的顺序、以及从记忆自身内容推导的那条路 |
-| [`memory-architecture.html`](memory-architecture.html) | 可视化：两个写入入口、五步写入、暂存事务、写入游标、常驻块归谁维护、九个接口方法的接线状况、失败契约 |
-| [`memory-comparison.html`](memory-comparison.html) | 可视化：`references/` 下八个框架怎么写长期记忆、怎么记住哪些还没写，八个维度逐条对照，包括分叉之后各家的游标怎么办、各家的常驻块归谁维护，以及我们的选择和两处计划中的改动落在哪一格 |
-| [`memory-adoption.html`](memory-adoption.html) | 三层可视化：从那份对照里挑出的四条做法，放进我们的结构各要付什么代价，以及逐条判决（三条采纳，一条按实测的每轮耗时否掉） |
+| [`architecture.html`](architecture.html) | 可视化：两个写入入口、五步写入、暂存事务、写入游标、常驻块归谁维护、九个接口方法的接线状况、失败契约 |
+| [`comparison.html`](comparison.html) | 可视化：`references/` 下八个框架怎么写长期记忆、怎么记住哪些还没写，八个维度逐条对照，包括分叉之后各家的游标怎么办、各家的常驻块归谁维护，以及我们的选择和两处计划中的改动落在哪一格 |
+| [`adoption.html`](adoption.html) | 三层可视化：从那份对照里挑出的四条做法，放进我们的结构各要付什么代价，以及逐条判决（三条采纳，一条按实测的每轮耗时否掉） |
 | [`speaker-identity.html`](speaker-identity.html) | 三层可视化：改之前是什么样（几个人共用一通会话、身份断在哪两处）、references下八个框架各自怎么做、我们怎么做的（两个文件，已落地），以及这个形状留下的两件事（发信人能在正文里打第二个标签、没有键可以按人过滤记忆）和收口它们的那个字段 |
 | [`authority-landscape.html`](authority-landscape.html) | 当前owner/paired权限方法、本地参考框架证据、采用/修改/拒绝记录、执行顺序可视化和实现进度 |
 | [`authority-handoff.md`](authority-handoff.md) | 已定案的权限与writer决策、延期边界、review处理结果和实现交接 |

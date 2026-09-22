@@ -30,4 +30,4 @@
 
 待回答问题与非空输入框同时存在时，问题位于输入框外，草稿和焦点保留，普通发送仍提交聊天消息。卡片提交后立即有答案反馈，确认后保留回执，输入框草稿不变；同时验证会话隔离、重试命令一致性和实际 App 操作。
 
-参见[用户输入请求](../runtime/operations/user-input-requests.zh.md)与[执行控制](../runtime/execution/execution-control.zh.html#decision-output)。
+参见[用户输入请求](../runtime/operations/user-input-requests.zh.md)与[执行控制](../runtime/execution/control.zh.html#decision-output)。

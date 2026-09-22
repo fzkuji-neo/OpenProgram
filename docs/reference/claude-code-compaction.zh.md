@@ -11,7 +11,7 @@
 > 来源（按可靠度排序）：
 > - [Compaction - Claude Platform Docs](https://platform.claude.com/docs/en/build-with-claude/compaction)（官方，但只描述 API 层面）
 > - [Context editing - Claude API Docs](https://platform.claude.com/docs/en/build-with-claude/context-editing)（官方）
-> - [Inside Claude Code - Context Compaction](https://y-agent.github.io/inside-claude-code/04-context-compaction.html)（逆向分析，最详细）
+> - [Inside Claude Code - Context Compaction](https://y-agent.github.io/inside-claude-code/04-compaction-diagram.html)（逆向分析，最详细）
 > - [Dive into Claude Code](https://arxiv.org/html/2604.14228v1)（arXiv 2604.14228，VILA-Lab 源码逆向分析）
 > - [DeepWiki - Context Window & Compaction](https://deepwiki.com/anthropics/claude-code/3.3-context-window-and-compaction)（社区 wiki）
 > - [Claude Code VS OpenCode §5.3](https://0xtresser.github.io/Claude-Code-VS-OpenCode/en/Chapter_05_Session_and_Context/5.3_Context_Compaction.html)（对比分析）

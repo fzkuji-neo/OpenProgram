@@ -1,4 +1,6 @@
-# DAG Rendering Spec (Layout · Edges · Legend · Default Visibility)
+<div id="dag-rendering-spec-layout-edges-legend-default-visibility"></div>
+
+# Rendering specification
 
 > How the session graph draws: where each node goes, what each edge looks like,
 > and what the user sees by default. **This document is the authoritative
@@ -7,7 +9,7 @@
 > edges) see `dag/overview.md`; this document only covers the drawing.
 >
 > Every rule comes with an example. **The SVG scenario figures in
-> `dag-layout-spec.html` are authoritative** (13 scenes: 1–7 base layout, 8 merge,
+> `layout.html` are authoritative** (13 scenes: 1–7 base layout, 8 merge,
 > 9 cross-branch messaging, 10 spawn dispatch & merge-back, 11 execution-subtree
 > aggregation, 12 status & badge legend, 13 badge anchoring & collision). The ASCII
 > figures in this file are a text-mode digest, equivalent to the html; on conflict
@@ -655,7 +657,7 @@ currently looking at, before you have retried it. Off-HEAD alone would grey
 every sibling branch. The node has to be a failure *and* abandoned.
 
 `status` is the store's own terminal marker, written by the turn machinery
-([Unified execution control](../execution/execution-control.html) for the cancel case, which stays
+([Unified execution control](../execution/control.html) for the cancel case, which stays
 `cancelled` and keeps its own 50% grey). The graph reads it; it never decides
 it.
 

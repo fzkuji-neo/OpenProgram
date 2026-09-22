@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DAG 实时布局（真算法）</title>
+<title>实时布局</title>
 <style>
 :root{--bg:#1a1a18;--pan:#232320;--bd:#3a3a36;--tx:#d8d6cc;--tx2:#9a988e;--acc:#d19a66;--cb:#15140f}
 *{box-sizing:border-box}
@@ -42,7 +42,7 @@ text{font-family:-apple-system,sans-serif;pointer-events:none}
 @media(max-width:760px){.w{padding:24px 20px 60px}.stage{gap:16px}.stage>div:first-child{flex-basis:480px}.side{min-width:0;width:100%}.principles{padding:20px}.canvas{display:block}}
 </style></head>
 <body><div class="w">
-<h1>DAG 实时布局（真算法）</h1>
+<h1>实时布局</h1>
 <p class="sub">不是写死坐标的示意图。这里内置了和后端 <code>graph_layout</code> 一致的布局算法
 （lane / tier / depth + 占列规则），喂节点数据 → <b>算法自己算出每个节点的位置</b> → 画出来。
 切换下面的场景看不同数据跑出来的布局。通信线默认隐藏，鼠标移到图上才显示。</p>

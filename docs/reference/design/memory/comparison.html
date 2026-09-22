@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>记忆写入：八个框架横向对比</title>
+<title>写入方案对比</title>
 <style>
   :root{
     --bg:#16150f; --pan:#1d1c14; --bd:#2e2c20; --tx:#bdb9a6; --acc:#d4843a;
@@ -72,9 +72,9 @@
 <body>
 <div class="wrap">
 
-  <h1>记忆写入：八个框架横向对比</h1>
+  <h1>写入方案对比</h1>
   <p class="sub">别人怎么把对话变成长期记忆，我们的选择落在哪一格，接下来要往哪走。
-    机制本身在 <a href="memory-architecture.html">记忆子系统：机制图解</a>，权威正文在
+    机制本身在 <a href="architecture.html">记忆子系统：机制图解</a>，权威正文在
     <code>docs/reference/design/memory/overview.md</code>。这页只做对照。</p>
 
   <div class="grid3">
@@ -1062,7 +1062,7 @@
     <tr><td><b>openclaw</b></td><td>文件自己</td><td class="y">每天03:00的cron，做梦管道跑完往里升</td><td class="y">升之前按预算丢最老的自动段落；全丢光也照样写入新的</td><td class="q"><span class="src">src/memory-host-sdk/dreaming.ts:17<br>extensions/memory-core/src/memory-budget.ts:25,100-164<br>.../short-term-promotion.ts:1706-1727</span></td></tr>
     <tr><td><b>hermes-agent</b></td><td>文件自己</td><td class="n">没有</td><td class="h">硬拒这一次写入，把用量和上限回给正在对话的主模型，由它replace或remove腾地方</td><td class="q"><span class="src">tools/memory_tool.py:149,295-306<br>consolidate / distill / prune / compact / dream全部无命中</span></td></tr>
     <tr><td><b>opencode</b> · <b>pi-mono</b></td><td>人手写的文件</td><td class="q">不适用</td><td class="q">没有闸</td><td class="q"><span class="src">packages/opencode/src/session/instruction.ts:60-93<br>packages/coding-agent/src/core/resource-loader.ts:57-100</span></td></tr>
-    <tr class="us"><td><b>OpenProgram迁移前</b></td><td>根目录<code>core.md</code></td><td class="n">没有；<code>organize_topics</code>只处理<code>topics/**.md</code></td><td class="n">事务拒绝超预算写入</td><td class="q"><span class="src">memory-adoption.html 第02节</span></td></tr>
+    <tr class="us"><td><b>OpenProgram迁移前</b></td><td>根目录<code>core.md</code></td><td class="n">没有；<code>organize_topics</code>只处理<code>topics/**.md</code></td><td class="n">事务拒绝超预算写入</td><td class="q"><span class="src">adoption.html 第02节</span></td></tr>
     <tr class="plan"><td><b>OpenProgram当前</b></td><td><code>topics/core.md</code></td><td>每次事务安装后与其他派生视图一起确定性重建</td><td>按预算渲染，未进入常驻块的Topic内容仍可检索</td><td class="q"><span class="src">overview.md「常驻块」</span></td></tr>
   </table>
   </div>
@@ -1088,7 +1088,7 @@
     第一条和第二条我们不打算照抄：第二道闸仍然是闸，仍然在写入的路上，加了它还是会把稳定事实挡在外面；
     归属区分之所以要紧，是因为openclaw的常驻文件是唯一一份、丢一行等于销毁一行，
     而把core.md变成派生视图之后丢不再等于销毁，归属也就不用判了。
-    判决和理由在<a href="memory-adoption.html">对标之后抄什么</a>第 02 节。
+    判决和理由在<a href="adoption.html">对标之后抄什么</a>第 02 节。
   </div>
 
   <!-- ══════════ 08 ══════════ -->
@@ -1229,7 +1229,7 @@
   <div class="note p">
     <b>方案本身在别处。</b>标记写在哪、什么时候打上、分叉时怎么走、标记丢了怎么办、从位置游标怎么迁移，
     权威描述在 <a href="written-marker.html">written-marker.md</a>，机制图在
-    <a href="memory-architecture.html">memory-architecture.html</a> 第 04 节。这一页只回答一个问题：
+    <a href="architecture.html">architecture.html</a> 第 04 节。这一页只回答一个问题：
     这个形状和外面各家是什么关系。
   </div>
 

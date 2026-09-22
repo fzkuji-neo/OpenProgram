@@ -1,4 +1,6 @@
-# Session 上下文
+<div id="session-上下文"></div>
+
+# 上下文
 
 `session_context` 是统一的 per-turn 上下文管理器，负责装载 ContextVar（`_store` / `_current_turn_id` / `_current_runtime` / `_call_id`），让 docstring 进 prompt、DAG 持久化、ask_user 追踪等能力在所有入口生效。
 

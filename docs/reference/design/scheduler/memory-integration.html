@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OpenProgram Scheduler 与 Memory 接口</title>
+<title>Memory 接口</title>
 <style>
   :root{--bg:#151714;--panel:#1d201c;--line:#33382f;--text:#d7d9d2;--muted:#969b91;--accent:#75a76c;--warn:#d0a15a}
   *{box-sizing:border-box}body{margin:0;padding:40px 24px 80px;background:var(--bg);color:var(--text);font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -12,7 +12,7 @@
 </style>
 </head>
 <body><main>
-<span id="commitments-migration"></span><span id="commitments-迁移"></span><h1>OpenProgram Scheduler 与 Memory 接口</h1>
+<span id="commitments-migration"></span><span id="commitments-迁移"></span><h1>Memory 接口</h1>
 <p>Scheduler 负责时间、执行、状态和结果；Memory 负责长期语义事实。两者通过稳定引用和现有 Memory 工具连接，但不共享状态文件或写入事务。Agent 可以在规划、执行和关闭任务时显式维护关联的 Memory 记录。</p>
 
 <h2>1. 目标与边界</h2>

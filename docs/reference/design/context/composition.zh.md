@@ -1,4 +1,6 @@
-# 上下文组成 —— 注册式三层
+<div id="上下文组成-注册式三层"></div>
+
+# 组成
 
 > 本文定义**每次 LLM 调用喂什么**。它不枚举一组固定成分——那会定死、不可扩展——而是
 > 定义**一套规则 + 注册机制**：成分如何归层、如何排序、如何按条件出现。具体成分由各
@@ -745,7 +747,7 @@ io 已释放** —— 它是历史的安全网,不是删光。整会话上下文
 ## 相关文档
 - [`overview.md`](overview.md) —— 上下文层的机制（L1 历史由 DAG + ContextCommit 产出；expose/render_range 在那）
 - [`comparison.md`](comparison.md) —— 与参考项目的成分对比
-- [`context-compaction.html`](context-compaction.html) —— 上下文压缩设计（文本级四层管道 + DAG 级节点 visibility 精简）
+- [`compaction-diagram.html`](compaction-diagram.html) —— 上下文压缩设计（文本级四层管道 + DAG 级节点 visibility 精简）
 - [`memory-introspection.html`](memory-introspection.html) —— 第八节的可视化：逐块量出来的装配现状、八家参考实现在"模型知不知道自己有记忆"上的对照、每处改动的落点
 - [`../providers/request-build.md`](../providers/request-build.md) —— 下游：Context 翻译成各家 wire + 缓存落地
 - [`../runtime/execution/agentic-self-recursion.md`](../runtime/execution/agentic-self-recursion.md) —— `_situational_prefix`，L2 处境的雏形

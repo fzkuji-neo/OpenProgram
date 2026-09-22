@@ -1,4 +1,6 @@
-# Context Composition — Registry-Based Three Layers
+<div id="context-composition-registry-based-three-layers"></div>
+
+# Composition
 
 > This document defines **what gets fed into each LLM call**. It does not enumerate a fixed set of components — that would hard-code them and prevent extension. It defines **a set of rules plus a registration mechanism**: how components are assigned to layers, how they are ordered, and how they appear conditionally. Concrete components are **registered** by individual features, so adding a feature does not change the framework.
 >
@@ -671,7 +673,7 @@ The memory writer already draws this line on its own side — it runs the Claude
 ## Related Documents
 - [`overview.md`](overview.md) — the context layer's mechanism (L1 history is produced by DAG + ContextCommit; expose/render_range live there)
 - [`comparison.md`](comparison.md) — component comparison with reference projects
-- [`context-compaction.html`](context-compaction.html) — context-compaction design (text-level four-stage pipeline + DAG-level node visibility pruning)
+- [`compaction-diagram.html`](compaction-diagram.html) — context-compaction design (text-level four-stage pipeline + DAG-level node visibility pruning)
 - [`memory-introspection.html`](memory-introspection.html) — §8 rendered: the assembled context measured block by block, the eight reference implementations compared on whether their model knows it has memory, and the landing point of each change
 - [`../providers/request-build.md`](../providers/request-build.md) — downstream: Context translated into each vendor's wire + cache landing
 - [`../runtime/execution/agentic-self-recursion.md`](../runtime/execution/agentic-self-recursion.md) — `_situational_prefix`, the prototype of the L2 situation

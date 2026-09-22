@@ -1,4 +1,6 @@
-# Context — 上下文层
+<div id="context-上下文层"></div>
+
+# 概览
 
 **把会话历史 + 当前输入,组装成每次喂给 LLM 的内容。** 在
 [`../providers/`](../providers/) 的上游:context 产出一个 `Context`(system /

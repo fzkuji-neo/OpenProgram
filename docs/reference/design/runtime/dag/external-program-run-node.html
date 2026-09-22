@@ -687,7 +687,7 @@
   <table>
     <thead><tr><th>参考面</th><th>已有能力</th><th>缺口与决定</th></tr></thead>
     <tbody>
-      <tr><td><code>dag-layout-spec.html</code></td><td>ROOT=菱形、User=圆形、LLM=三角形、Code=正方形；场景 5 已定义手动函数。</td><td>直接采用现有正方形，不增加新节点形状。</td></tr>
+      <tr><td><code>layout.html</code></td><td>ROOT=菱形、User=圆形、LLM=三角形、Code=正方形；场景 5 已定义手动函数。</td><td>直接采用现有正方形，不增加新节点形状。</td></tr>
       <tr><td><code>dag/overview.md</code></td><td>区分 <code>predecessor</code> 与 <code>caller</code>，顶层手动调用只有一个 code 节点。</td><td>保留存储中的 predecessor 时间顺序；会话概览单独派生 ROOT → Program 排版边，不补造调用者消息。</td></tr>
       <tr><td><code>dag/rendering.md</code></td><td>手动顶层函数属于 conversation layer，默认可见。</td><td>当前看不到节点属于实现缺口，不通过修改数据模型解决。</td></tr>
       <tr><td>当前 <code>RuntimeBlock</code></td><td>有 tree 时显示执行树，无 tree 时显示一个 running <code>StepRow</code>，顶层已有消息 footer。</td><td>顶层外层复用 <code>ExecutionStrip</code> 的展开状态逻辑；只有执行内容和 usage 传入折叠区，现有 footer 在其外部原样渲染。嵌套调用的现有展示不变。</td></tr>

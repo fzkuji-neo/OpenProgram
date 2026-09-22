@@ -8,7 +8,7 @@ The sidebar starts with seven areas. Expand an area, choose a module, then open 
 ## Reading order
 
 1. Understand the system: [framework overview](framework-overview.md) → [repository structure](repository-structure.html).
-2. Trace an execution: [call flow](runtime/execution/agent-call-flow.md) → [execution control](runtime/execution/execution-control.html) → [session storage](runtime/session/storage.md).
+2. Trace an execution: [call flow](runtime/execution/agent-call-flow.md) → [execution control](runtime/execution/control.html) → [session storage](runtime/session/storage.md).
 3. Change a subsystem: choose a topic below, read its design and implementation-status appendix, then verify source ownership and acceptance requirements.
 
 ## Architecture
@@ -21,7 +21,7 @@ Understand the whole system, source ownership and implementation boundaries.
 
 Follow execution, session persistence, branching and recovery in that order.
 
-[Execution control](runtime/execution/execution-control.html) · [Session storage](runtime/session/storage.md) · [Session DAG](runtime/dag/overview.md) · [Goals and restart recovery](runtime/goal-and-recovery.html) · [Agent configuration](runtime/agent-configuration-ui.html)
+[Execution control](runtime/execution/control.html) · [Session storage](runtime/session/storage.md) · [Session DAG](runtime/dag/overview.md) · [Goals and restart recovery](runtime/goal-and-recovery.html) · [Agent configuration](runtime/agent-configuration-ui.html)
 
 Understand function calls, workflow composition and application execution before the report examples.
 
@@ -29,7 +29,7 @@ Understand function calls, workflow composition and application execution before
 
 Read the event contract before policies, proactive actions and scheduling.
 
-[Event layer](proactive/event-layer.md) · [Rule execution](proactive/execution-model.md) · [Scheduling and memory](scheduler/scheduler-memory.html)
+[Event layer](proactive/event-layer.md) · [Rule execution](proactive/execution-model.md) · [Scheduling and memory](scheduler/memory-integration.html)
 
 ## Context and memory
 
