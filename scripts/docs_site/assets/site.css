@@ -577,7 +577,7 @@ nav.sidebar .nav-disclosure a.navlink {
 }
 nav.sidebar .nav-disclosure a.navlink:hover { background: var(--bg-code); }
 nav.sidebar .nav-disclosure a.navlink.active {
-  background: var(--acc-soft); color: var(--acc); font-weight: 500;
+  background: transparent; color: var(--acc); font-weight: 500;
 }
 nav.sidebar .nav-disclosure a.navlink:focus-visible,
 nav.sidebar .nav-disclosure > summary:focus-visible {
