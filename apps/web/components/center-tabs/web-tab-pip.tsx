@@ -202,11 +202,15 @@ function PipMoreMenu({
     "开启后，小窗随 Agent 的操作切换网页；关闭后，保持当前网页。只改变显示内容，不影响 Agent 执行。",
   );
   const items: SidebarMenuItem[] = [
-    { id: `${prefix}follow-page`, label: followLabel, description, checked: following, onSelect: onToggleFollow },
-    { id: `${prefix}show-actions`, label: showLabel, checked: showActionsEnabled(), onSelect: () => { toggleShowActions(); } },
+    { id: `${prefix}follow-page`, label: followLabel, description, checked: following, keepOpen: true, onSelect: onToggleFollow },
+    { id: `${prefix}show-actions`, label: showLabel, checked: showActionsEnabled(), keepOpen: true, onSelect: () => { toggleShowActions(); } },
     { id: `${prefix}history`, label: historyLabel, separatorBefore: true,
       children: historyItems.map(item => ({ ...item, id: `${prefix}history:${item.id}` })) },
   ];
+  const serializedItems = JSON.stringify(items);
+  useEffect(() => {
+    if (open && opened.current) overlay?.updateItems?.(JSON.parse(serializedItems));
+  }, [open, overlay, serializedItems]);
   dispatch.current = id => items.find(item => item.id === id)?.onSelect?.();
   useEffect(() => {
     if (!overlay) return;
@@ -244,7 +248,7 @@ function PipMoreMenu({
     <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
     <DropdownMenuContent className={`${MENU_PANEL} w-[360px] max-w-[calc(100vw-16px)]`}>
       {items.slice(0, 2).map(item => <DropdownMenuItem key={item.id}
-        role="menuitemcheckbox" aria-checked={item.checked} className={itemCls(false)} onSelect={item.onSelect}>
+        role="menuitemcheckbox" aria-checked={item.checked} className={itemCls(false)} onSelect={event => { event.preventDefault(); item.onSelect?.(); }}>
         <MenuOptionContent label={item.label} description={item.description} checked={item.checked} />
       </DropdownMenuItem>)}
       <DropdownMenuSub>
@@ -706,7 +710,7 @@ export function WebTabPip() {
             </button>
           ) : null}
           <PipMoreMenu
-            key={`${sessionId}:${branchId}:${tabId}`}
+            key={`${sessionId}:${branchId}`}
             historyItems={historyItems}
             historyLabel={historyLabel}
             showLabel={showLabel}

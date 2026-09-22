@@ -321,6 +321,8 @@ export interface DesktopContextMenuItem {
   label: string;
   /** Separate explanatory text in application HTML menus. */
   description?: string;
+  /** Checkbox selections may update without dismissing the HTML menu. */
+  keepOpen?: boolean;
   iconUrl?: string;
   icon?: "folder";
   disabled?: boolean;
@@ -346,13 +348,14 @@ export interface DesktopMainMenuApi {
     width?: number;
     height?: number;
   }): void;
+  updateItems?(items: DesktopContextMenuItem[]): void;
   close(): void;
   scheduleClose?(delay?: number): void;
   cancelClose?(): void;
   onUpdate?(cb: (state: {
     items: DesktopContextMenuItem[];
-    x: number;
-    y: number;
+    x?: number;
+    y?: number;
     theme?: ThemeId;
     width?: number;
   }) => void): () => void;

@@ -312,9 +312,10 @@ function installOverlayMenu() {
         resolvers.push(id => {
           const item = request.items.find(item => item.id.endsWith(":" + id));
           for (const cb of actions) cb(item?.id || id);
-          for (const cb of closures) cb();
+
         });
       },
+      updateItems(items) { popups.at(-1).items = items; },
       close() { closed.push(true); for (const cb of closures) cb(); },
       onAction(cb) { actions.add(cb); return () => actions.delete(cb); },
       onClosed(cb) { closures.add(cb); return () => closures.delete(cb); },
@@ -434,7 +435,9 @@ test("preview chrome offers a close icon and omits pin and expand controls", asy
 });
 
 async function toggleFollowMenu(host, menu, expectedChecked) {
-  await act(async () => clickButton(chromeButton(host, "More")));
+  if (chromeButton(host, "More").getAttribute("aria-expanded") !== "true") {
+    await act(async () => clickButton(chromeButton(host, "More")));
+  }
   const item = menu.popups.at(-1).items.find(item => item.id.endsWith(":follow-page"));
   assert.ok(item);
   assert.equal(item.label, "Automatically show the page the Agent is using");
@@ -442,6 +445,7 @@ async function toggleFollowMenu(host, menu, expectedChecked) {
   assert.match(item.description, /When enabled.*When disabled/s);
   assert.equal(menu.popups.at(-1).width, 360);
   await act(async () => menu.resolvers.at(-1)("follow-page"));
+  assert.equal(chromeButton(host, "More").getAttribute("aria-expanded"), "true");
 }
 
 test("More explains follow mode and toggles it without controlling execution", async () => {
@@ -449,9 +453,12 @@ test("More explains follow mode and toggles it without controlling execution", a
   await withShell(async ({ host, session }) => {
     await toggleFollowMenu(host, menu, false);
     assert.equal(getPreviewPreference("a", null).mode, "follow");
+    assert.equal(getPreviewPreference("a", null).targetId, "assoc-1");
     await toggleFollowMenu(host, menu, true);
     assert.equal(getPreviewPreference("a", null).mode, "manual");
     assert.equal(getPreviewPreference("a", null).targetId, "assoc-1");
+    assert.equal(menu.popups.length, 1);
+    assert.equal(menu.closed.length, 0);
     assert.equal(useCenterTabs.getState().activeId, session.id);
     assert.deepEqual(globalThis.controlPosts, []);
   });
@@ -1297,4 +1304,21 @@ test("application menu renders an unchecked box and a separate wrapping explanat
     assert.ok(option.querySelector('[aria-hidden="true"]'));
     assert.equal(doc.querySelector("script"), null);
   } finally { delete globalThis.menuParams; }
+});
+
+
+test("Show actions can be unchecked and checked in the same open menu", async () => {
+  const menu = installOverlayMenu();
+  await withShell(async ({ host }) => {
+    await act(async () => clickButton(chromeButton(host, "More")));
+    const checked = () => menu.popups[0].items.find(item => item.id.endsWith(":show-actions")).checked;
+    const initial = checked();
+    await act(async () => menu.resolvers[0]("show-actions"));
+    assert.equal(checked(), !initial);
+    assert.equal(chromeButton(host, "More").getAttribute("aria-expanded"), "true");
+    await act(async () => menu.resolvers[0]("show-actions"));
+    assert.equal(checked(), initial);
+    assert.equal(menu.popups.length, 1);
+    assert.equal(menu.closed.length, 0);
+  });
 });

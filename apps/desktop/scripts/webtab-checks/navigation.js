@@ -248,6 +248,27 @@ async function checkSenderOwnership() {
   const menuCancelled = testContext.ipcHandlers.get("native-menu:popup")(nativeEvent, menuRequest);
   testContext.ipcListeners.get("native-menu:close")(nativeEvent, "preview-menu");
   testContext.assert.equal(await menuCancelled, null);
+  // Persistent HTML checkbox actions keep the same view; ordinary actions close it.
+  const overlayMessages = [];
+  const overlay = { webContents: {
+    isDestroyed: () => false, close() {},
+    send(...args) { overlayMessages.push(args); },
+  } };
+  ctxA.mainMenuView = overlay;
+  const overlayEvent = { sender: overlay.webContents };
+  testContext.ipcListeners.get("main-menu:choose")(overlayEvent, "pip:follow", { keepOpen: true });
+  testContext.assert.strictEqual(ctxA.mainMenuView, overlay);
+  testContext.assert.equal(winA.sent.at(-1)[0], "main-menu:action");
+  const updatedItems = [{ id: "pip:follow", label: "Follow", checked: true }];
+  testContext.ipcListeners.get("main-menu:update-items")(nativeEvent, updatedItems);
+  testContext.assert.equal(overlayMessages.at(-1)[0], "main-menu:update");
+  testContext.assert.strictEqual(overlayMessages.at(-1)[1].items, updatedItems);
+  const updateCount = overlayMessages.length;
+  testContext.ipcListeners.get("main-menu:update-items")({ ...nativeEvent, senderFrame: {} }, []);
+  testContext.ipcListeners.get("main-menu:update-items")(overlayEvent, []);
+  testContext.assert.equal(overlayMessages.length, updateCount, "only the owning trusted main frame may update items");
+  testContext.ipcListeners.get("main-menu:choose")(overlayEvent, "normal-action");
+  testContext.assert.equal(ctxA.mainMenuView, null);
   const a = testContext.controlledRecord("owned-a");
   const b = testContext.controlledRecord("owned-b");
   testContext.addRecord(ctxA, a);
