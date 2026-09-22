@@ -28,6 +28,7 @@ interface ContextMenuItem {
   id: string;
   label: string;
   description?: string;
+  keepOpen?: boolean;
   iconUrl?: string;
   icon?: "folder";
   disabled?: boolean;
@@ -37,12 +38,12 @@ interface ContextMenuItem {
 }
 
 interface MainMenuBridge {
-  choose(id: string): void;
+  choose(id: string, options?: { keepOpen?: boolean }): void;
   close(): void;
   scheduleClose?(delay?: number): void;
   cancelClose?(): void;
   resize?(size: { width: number; height: number }): void;
-  onUpdate?(cb: (state: MenuState) => void): () => void;
+  onUpdate?(cb: (state: Partial<MenuState>) => void): () => void;
 }
 
 interface MenuState {
@@ -97,9 +98,9 @@ function hasItemIcon(item: ContextMenuItem) {
   return Boolean(item.checked || item.icon === "folder" || item.iconUrl);
 }
 
-function NestedMenuItems({ items }: { items: ContextMenuItem[] }) {
+function NestedMenuItems({ items, persistent = false }: { items: ContextMenuItem[]; persistent?: boolean }) {
   const choose = (item: ContextMenuItem) => {
-    if (!item.disabled) mainMenuBridge()?.choose(item.id);
+    if (!item.disabled) mainMenuBridge()?.choose(item.id, { keepOpen: item.keepOpen });
   };
   return items.map((item) => (
     <div key={item.id}>
@@ -126,9 +127,9 @@ function NestedMenuItems({ items }: { items: ContextMenuItem[] }) {
               collisionPadding={8}
               className={`${MENU_PANEL} w-[280px] max-w-[calc(100vw-16px)] outline-none`}
               onPointerEnter={cancelHoverClose}
-              onPointerLeave={scheduleHoverClose}
+              onPointerLeave={persistent ? undefined : scheduleHoverClose}
             >
-              <NestedMenuItems items={item.children} />
+              <NestedMenuItems items={item.children} persistent={persistent} />
             </DropdownMenuPrimitive.SubContent>
           </DropdownMenuPrimitive.Portal>
         </DropdownMenuPrimitive.Sub>
@@ -139,7 +140,10 @@ function NestedMenuItems({ items }: { items: ContextMenuItem[] }) {
           role={typeof item.checked === "boolean" ? "menuitemcheckbox" : "menuitem"}
           aria-checked={item.checked}
           title={item.description ? undefined : item.label}
-          onSelect={() => choose(item)}
+          onSelect={event => {
+            if (item.keepOpen) event.preventDefault();
+            choose(item);
+          }}
         >
           {item.description || typeof item.checked === "boolean" ? <MenuOptionContent
             label={item.label} description={item.description} checked={item.checked} /> : <>
@@ -168,6 +172,7 @@ function NestedContextMenu({
   width?: number;
 }) {
   const close = () => mainMenuBridge()?.close();
+  const hoverClose = items.some(item => item.keepOpen) ? undefined : scheduleHoverClose;
   return (
     <DropdownMenuPrimitive.Root open modal={false} onOpenChange={(open) => { if (!open) close(); }}>
       <DropdownMenuPrimitive.Trigger asChild>
@@ -189,10 +194,10 @@ function NestedContextMenu({
           onEscapeKeyDown={close}
           onPointerDownOutside={close}
           onPointerEnter={cancelHoverClose}
-          onPointerLeave={scheduleHoverClose}
+          onPointerLeave={hoverClose}
           onCloseAutoFocus={(event) => event.preventDefault()}
         >
-          <NestedMenuItems items={items} />
+          <NestedMenuItems items={items} persistent={!hoverClose} />
         </DropdownMenuPrimitive.Content>
       </DropdownMenuPrimitive.Portal>
     </DropdownMenuPrimitive.Root>
@@ -219,13 +224,11 @@ function ContextMenuOverlayPage() {
   const requestedWidth = menuState.width || 0;
 
   useEffect(() => mainMenuBridge()?.onUpdate?.((state) => {
-    setMenuState({
-      items: Array.isArray(state.items) ? state.items : [],
-      x: Number(state.x) || 0,
-      y: Number(state.y) || 0,
-      theme: state.theme,
-      width: Math.max(0, Number(state.width) || 0),
-    });
+    setMenuState(previous => ({
+      ...previous,
+      ...state,
+      items: Array.isArray(state.items) ? state.items : previous.items,
+    }));
   }), []);
 
   useEffect(() => {
@@ -276,7 +279,7 @@ function ContextMenuOverlayPage() {
 
   const choose = (item: ContextMenuItem) => {
     if (item.disabled) return;
-    mainMenuBridge()?.choose(item.id);
+    mainMenuBridge()?.choose(item.id, { keepOpen: item.keepOpen });
   };
   const close = () => mainMenuBridge()?.close();
 

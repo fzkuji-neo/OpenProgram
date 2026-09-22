@@ -885,11 +885,18 @@ function registerWebTabIpc() {
     const ctx = contextForMenuSender(event);
     if (ctx) resizeMenuOverlay(ctx, normalizedRendererBounds(event, size));
   });
-  ipcMain.on("main-menu:choose", (event, id) => {
+  ipcMain.on("main-menu:update-items", (event, items) => {
+    const ctx = nativeMenuOwner(event);
+    const view = ctx?.mainMenuView;
+    if (view && !view.webContents.isDestroyed() && Array.isArray(items)) {
+      view.webContents.send("main-menu:update", { items });
+    }
+  });
+  ipcMain.on("main-menu:choose", (event, id, options) => {
     const ctx = contextForMenuSender(event);
     if (!ctx) return;
     ctx.win.webContents.send("main-menu:action", id);
-    closeMainMenu(ctx);
+    if (options?.keepOpen !== true) closeMainMenu(ctx);
   });
   ipcMain.on("webtab:ensure", (event, id, url) => {
     const ctx = contextForSender(event);
