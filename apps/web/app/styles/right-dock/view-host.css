@@ -27,6 +27,9 @@
   --right-panel-font-family: var(--font-sans);
   --right-panel-font-weight: 400;
   --right-panel-line-height: 20px;
+  --ui-button-font-size: var(--right-panel-text-size);
+  --ui-button-line-height: var(--right-panel-line-height);
+  --ui-button-font-weight: var(--right-panel-font-weight);
   font: var(--right-panel-font-weight) var(--right-panel-text-size)/var(--right-panel-line-height) var(--right-panel-font-family);
 }
 
