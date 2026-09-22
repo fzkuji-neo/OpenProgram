@@ -110,8 +110,14 @@ def test_ui_design_navigation_is_grouped_without_losing_pages() -> None:
         for page in pages
         if page.rel.parent.as_posix() == "reference/design/ui"
     }
+    supporting = {
+        page.rel.as_posix()
+        for section in design.sections if section.title.startswith("Supporting ·")
+        for page in section.pages if page.rel.parent.as_posix() == "reference/design/ui"
+    }
     grouped = set().union(*ui_sections.values())
-    assert grouped == expected
+    assert grouped.isdisjoint(supporting)
+    assert grouped | supporting == expected
 
 
 def test_editorial_navigation_does_not_list_a_page_twice() -> None:
@@ -232,3 +238,45 @@ def test_root_overview_has_bilingual_navigation_titles(tmp_path: Path) -> None:
     (tmp_path / "README.zh.md").write_text('<p>OpenProgram</p>', encoding="utf-8")
     page = discover(tmp_path)[0]
     assert (page.title, page.title_zh) == ("Overview", "概览")
+
+
+def test_design_structure_has_one_overview_and_covers_every_page() -> None:
+    pages = discover(ROOT / "docs")
+    design = next(tab for tab in build_tabs(ROOT / "docs", pages) if tab.key == "design")
+    assert len({section.title for section in design.sections}) == len(design.sections)
+    assert all(section.title_zh for section in design.sections)
+    assert max(len(section.pages) for section in design.sections) <= 24
+    actual = [page.rel for section in design.sections for page in section.pages]
+    expected = [page.rel for page in pages if page.rel.as_posix().startswith("reference/design/")]
+    assert sorted(actual) == sorted(expected)
+    assert [section.title for section in design.sections][-3:] == [
+        "Supporting · Prototypes", "Supporting · Implementation records", "Supporting · Research",
+    ]
+
+
+def test_design_navigation_disclosures_open_current_group() -> None:
+    from scripts.docs_site.build import render_nav
+    pages = discover(ROOT / "docs")
+    design = next(tab for tab in build_tabs(ROOT / "docs", pages) if tab.key == "design")
+    current = Path("reference/design/runtime/session/storage.html")
+    markup = render_nav(design.sections, current, "/docs/", collapsible=True)
+    from html.parser import HTMLParser
+
+    class Groups(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.open_groups = 0
+            self.group_open = False
+            self.active_open = False
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag == "details":
+                self.group_open = "open" in attrs
+                self.open_groups += self.group_open
+            if tag == "a" and attrs.get("href") == "/docs/" + current.as_posix():
+                self.active_open = self.group_open
+    parser = Groups()
+    parser.feed(markup)
+    assert parser.open_groups == 1
+    assert parser.active_open
+    assert "<details" not in render_nav(design.sections, current, "/docs/")
