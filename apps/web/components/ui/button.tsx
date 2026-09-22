@@ -12,12 +12,9 @@ import { cn } from "@/lib/utils"
 // is the only modifier kept because square buttons still need a
 // width that matches the height.)
 const buttonVariants = cva(
-  // leading-none drops the inherited 1.25 line-height so the text
-  // line-box equals the font size; flex ``items-center`` then puts
-  // the glyph centre exactly on the button centre. Without this
-  // the extra line-leading (~3px) shows up as a tiny vertical
-  // drift between glyphs and pill geometry on some fonts.
-  "inline-flex h-[var(--ui-button-h)] rounded-[var(--ui-button-radius)] items-center justify-center gap-2 whitespace-nowrap px-4 text-sm leading-none font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // Keep the default line box equal to the font size. Panels can set
+  // the optional typography variables to match their surrounding text.
+  "inline-flex h-[var(--ui-button-h)] rounded-[var(--ui-button-radius)] items-center justify-center gap-2 whitespace-nowrap px-4 text-[length:var(--ui-button-font-size,0.875rem)] leading-[var(--ui-button-line-height,1)] font-[number:var(--ui-button-font-weight,500)] ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
