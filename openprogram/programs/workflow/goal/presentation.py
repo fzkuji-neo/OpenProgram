@@ -2,6 +2,27 @@
 from __future__ import annotations
 
 
+def history_projection(goal: dict | None, session_id: str) -> dict | None:
+    """Project legacy terminal state without changing the captured session."""
+    if goal is None:
+        return None
+    from .state import _end_records
+    import openprogram.programs.workflow.goal as goals
+    if (goal.get("status") not in {"achieved", "impossible", "cancelled", "cleared"}
+            or any(row["goal"].get("goal_id") == goal.get("goal_id")
+                   for row in goal.get("end_records", []))):
+        return goal
+    # Legacy Goals lack an ending anchor. Derive it from the saved terminal
+    # time, never from the current head, which moves with subsequent chat.
+    ended_at = goal.get("updated_at") or goal.get("created_at") or 0
+    messages = goals._db().get_messages(session_id)
+    eligible = [row for row in messages
+                if row.get("role") in {"user", "assistant"} and not row.get("caller")
+                and (row.get("timestamp") or 0) <= ended_at]
+    anchor = max(eligible, key=lambda row: row.get("timestamp") or 0).get("id") if eligible else None
+    return dict(goal, end_records=_end_records(goal, goal, anchor))
+
+
 def candidate_presentation(candidate: dict) -> dict:
     status = candidate.get("status")
     report = candidate.get("report") or {}
