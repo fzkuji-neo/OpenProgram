@@ -462,13 +462,13 @@ function persistComposerDrafts(drafts: Record<string, string>) {
 const DEFAULT_COMPOSER_SETTINGS: ComposerSettings = {
   thinking: "",
   tools: true,
-  webSearch: false,
+  webSearch: true,
   fast: false,
   runningMessageMode: "queue",
   unattended: false,  // web default: attended (a human is watching, may be asked)
-  permission_mode: "",  // "" → send inherit; backend uses session/project/ask
+  permission_mode: "",  // "" → send inherit; backend uses session/project/auto
   effective_permission: "",
-  sandbox: true,  // system default is workspace-write
+  sandbox: false,  // default off; user can still enable in the Plus menu
 };
 const initialSessionDraftState = readSessionDraftState();
 

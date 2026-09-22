@@ -47,7 +47,7 @@ const MODE_LABELS: {
   },
 ];
 
-const DEFAULT_MODE: PermissionMode = "ask";
+const DEFAULT_MODE: PermissionMode = "auto";
 
 export interface PermissionModeHook {
   mode: PermissionMode;

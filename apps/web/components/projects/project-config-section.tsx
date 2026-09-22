@@ -47,8 +47,8 @@ export function ProjectConfigSection({ projectId }: { projectId: string }) {
     {
       key: "permission_mode",
       label: text("Default permission mode", "默认权限模式"),
-      // 无 "Not set"——没设就是内置默认档 Ask permissions（对齐 Claude Code）。
-      fallback: "ask",
+      // 无 "Not set"——没设就是内置默认档 Auto mode。
+      fallback: "auto",
       opts: [
         { v: "ask", label: text("Ask permissions", "逐次确认") },
         { v: "acceptEdits", label: text("Accept edits", "接受编辑") },
