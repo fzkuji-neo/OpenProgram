@@ -30,7 +30,7 @@ const executionStrip = source("components/chat/messages/execution-strip.tsx");
 const executionCss = source("app/styles/chat/execution-strip.css");
 const runtimeHelpers = source("lib/runtime-bridge/helpers.ts");
 const markdownRenderer = source("lib/runtime-bridge/markdown-render.ts");
-const chatVisualSpec = source("../../docs/reference/design/ui/chat-turn-visual-spec.html");
+const chatVisualSpec = source("../../docs/reference/design/ui/chat-turn-visual-spec.zh.html");
 const controlsCluster = source("components/chat/composer/controls/controls-cluster.tsx");
 const contextBreakdownPanel = source("components/chat/context-breakdown-panel.tsx");
 const contextBadge = source("components/chat/context-badge.tsx");
@@ -1414,7 +1414,7 @@ assert.match(subagentCurrentState, /const \[open, setOpen\] = useState\(false\)/
 assert.match(subagentCurrentState, /id="replay-subagent"[\s\S]*id="demo-subagent-row"/);
 assert.match(
   subagentCurrentState,
-  /id="demo-subagent-row"[\s\S]*class="step-act"[\s\S]*Switch ↗/,
+  /id="demo-subagent-row"[\s\S]*class="step-act"[\s\S]*切换 ↗/,
   "the reopened sub-agent record must retain the ordinary timeline-row switch action",
 );
 assert.match(
@@ -1435,7 +1435,7 @@ assert.ok(
 );
 const branchNavigation = chatVisualSpec.slice(branchNavigationStart, branchNavigationEnd);
 for (const contract of [
-  'data-branch-destination="child">Switch ↗',
+  'data-branch-destination="child">切换 ↗',
   'data-branch-destination="latest">返回主对话',
   'data-branch-destination="caller">切回调用处 ↗',
   'id="branch-landing-latest"',

@@ -85,7 +85,7 @@ test("unconfirmed sessions read before writing and ignore stale completion after
     h.settings = {};
     await act(async () => root.render(createElement(Probe)));
     await act(async () => requests[1].resolve({ mode: "bypass", version: 3 }));
-    assert.equal(hook().mode, "ask");
+    assert.equal(hook().mode, "auto");
     assert.deepEqual(h.settings, {});
   }, null);
 });

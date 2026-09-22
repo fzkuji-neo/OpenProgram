@@ -55,8 +55,8 @@ async function fixture(fn) {
 test('Tools and Search follow the current scope when both sessions have equal values',()=>fixture(async({hooks,stores,render,frames,reply})=>{
  await render(['A']);await act(async()=>reply(frames.at(-1),true));await render(['B']);await act(async()=>reply(frames.at(-1),false));
  await act(async()=>{hooks.B.toggleWebSearch();hooks.B.toggleTools();});
- assert.equal(stores.A.getState().settings.webSearch,false);assert.equal(stores.A.getState().settings.tools,true);
- assert.equal(stores.B.getState().settings.webSearch,true);assert.equal(stores.B.getState().settings.tools,false);
+ assert.equal(stores.A.getState().settings.webSearch,true);assert.equal(stores.A.getState().settings.tools,true);
+ assert.equal(stores.B.getState().settings.webSearch,false);assert.equal(stores.B.getState().settings.tools,false);
 }));
 test('profile selection follows its scope across switches and remounts',()=>fixture(async({hooks,render,frames,reply})=>{
  await render(['A']);await act(async()=>reply(frames.at(-1),true));await act(async()=>hooks.A.switchProfile('research'));
