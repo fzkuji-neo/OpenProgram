@@ -152,9 +152,9 @@ def render_page(
     if nav_html:
         layout_cls = ""
         sidebar_html = (
-            '<nav class="sidebar">\n'
+            '<nav class="sidebar" aria-label="Documentation">\n'
             '    <input class="nav-filter" type="text" data-i18n-ph="nav_filter"\n'
-            '           placeholder="Filter docs…" autocomplete="off" spellcheck="false">\n'
+            '           aria-label="Filter docs" placeholder="Filter docs…" autocomplete="off" spellcheck="false">\n'
             f'    <div class="nav-tree">{nav_html}</div>\n'
             '  </nav>\n  '
         )

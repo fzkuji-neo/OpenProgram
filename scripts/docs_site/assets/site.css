@@ -470,3 +470,54 @@ html[data-fs="1"] .viz-frame { height: calc(100vh - 40px); }
   text-transform: uppercase; color: var(--tx-faint);
   padding: 0 9px; margin-bottom: 4px;
 }
+
+/* Reader navigation, informed by Rare UI's grouped navigation and progress.
+   Implemented locally; the static reader has no component-library runtime. */
+nav.sidebar { background: var(--bg); padding: 24px 18px 72px; }
+.nav-sec { position: relative; margin-top: 26px; }
+.nav-sec-title { font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--tx); margin-bottom: 9px; }
+nav.sidebar a.navlink { position: relative; margin-left: 9px; padding: 8px 12px 8px 20px; border-radius: 0 6px 6px 0; border-left: 1px dashed var(--bd); }
+nav.sidebar a.navlink.active { background: transparent; color: var(--acc); border-left-color: var(--acc); }
+nav.sidebar a.navlink.active::before, nav.sidebar a.navlink:focus-visible::before {
+  content: ""; position: absolute; left: -1px; top: 0; height: 50%; width: 12px;
+  border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; border-radius: 0 0 0 6px;
+}
+nav.sidebar a.navlink:hover { background: var(--bd-soft); }
+aside.toc .toc-title { font-weight: 600; }
+aside.toc a.active { border-left-color: transparent; }
+aside.toc a.active::after {
+  content: ""; position: absolute; left: -2px; top: 0; width: 10px; height: 50%;
+  border-left: 2px solid var(--acc); border-bottom: 2px solid var(--acc); border-radius: 0 0 0 6px;
+}
+article .code-frame { margin: 20px 0; border: 1px solid var(--bd); border-radius: 12px; overflow: hidden; background: var(--bg-code); }
+article .code-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--bd); background: var(--bg-side); color: var(--tx-soft); font: 12px var(--mono); }
+article .code-frame pre { border: 0; border-radius: 0; margin: 0; padding: 18px; }
+article .code-header .copy-btn { position: static; opacity: 1; flex-shrink: 0; padding: 4px 9px; border: 1px solid var(--bd); border-radius: 6px; background: var(--bg-card); color: var(--tx-soft); cursor: pointer; font: 12px var(--sans); }
+article .code-header .copy-btn:hover, article .code-header .copy-btn.copied { color: var(--acc); border-color: var(--acc); }
+.reader-progress { position: fixed; right: 24px; bottom: 24px; z-index: 170; width: 230px; max-width: calc(100vw - 32px); border: 1px solid var(--bd); border-radius: 20px; background: var(--bg-card); box-shadow: var(--shadow); padding: 0; }
+.reader-progress summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; font-size: 12px; font-weight: 500; border-radius: inherit; }
+.reader-progress summary::-webkit-details-marker { display: none; }
+.reader-label { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.reader-percent { color: var(--tx-soft); font-variant-numeric: tabular-nums; font-size: 11px; }
+.reader-ring { width: 19px; height: 19px; flex: none; border-radius: 50%; background: conic-gradient(var(--acc) var(--read-progress, 0%), var(--bd) 0); position: relative; }
+.reader-ring::after { content: ""; position: absolute; inset: 3px; background: var(--bg-card); border-radius: 50%; }
+.reader-sections { padding: 6px 8px 10px; max-height: min(52vh, 420px); overflow-y: auto; border-top: 1px solid var(--bd); }
+.reader-sections a { display: block; padding: 8px 10px; color: var(--tx-soft); border-radius: 7px; font-size: 13px; line-height: 1.4; }
+.reader-sections a:hover { text-decoration: none; background: var(--bd-soft); }
+.reader-sections a.active { color: var(--acc); background: var(--acc-soft); }
+:where(a, button, input, summary):focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
+@media (max-width: 860px) {
+  header.topbar { gap: 8px; padding: 0 12px; }
+  .topbar .brand { font-size: 13px; }
+  .topbar .search-trigger { padding: 8px; }
+  .topbar .search-trigger kbd { display: none; }
+  .topbar button.lang-trigger { padding: 0 7px; }
+  .topbar .brand .mark { width: 18px; height: 18px; }
+  html[data-nav-collapsed="1"] nav.sidebar.open { transform: translateX(0); }
+  .reader-progress { bottom: 16px; right: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+html[data-fs="1"] article :is(h1, h2, h3, h4) { scroll-margin-top: 24px; }
