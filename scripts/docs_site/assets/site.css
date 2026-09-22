@@ -550,6 +550,8 @@ nav.sidebar .nav-disclosure > summary {
 nav.sidebar .nav-disclosure > summary::-webkit-details-marker { display: none; }
 nav.sidebar .nav-disclosure > summary::before {
   content: ""; width: 5px; height: 5px; margin: 0 4px 0 1px;
+  /* Include the border when aligning the chevron center to the 1px rail. */
+  position: relative; left: -.5px;
   border-right: 1px solid currentColor; border-bottom: 1px solid currentColor;
   transform: rotate(-45deg); flex-shrink: 0; color: var(--tx-soft);
 }
