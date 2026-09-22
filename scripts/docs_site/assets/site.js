@@ -14,8 +14,8 @@
   const pygLight = document.getElementById("pyg-light");
   const pygDark = document.getElementById("pyg-dark");
   function syncPygments(theme) {
-    if (pygLight) { pygLight.media = "all"; pygLight.disabled = theme === "dark"; }
-    if (pygDark) { pygDark.media = "all"; pygDark.disabled = theme !== "dark"; }
+    if (pygLight) pygLight.media = theme === "dark" ? "not all" : "all";
+    if (pygDark) pygDark.media = theme === "dark" ? "all" : "not all";
   }
   syncPygments(ROOT.getAttribute("data-theme"));
 
