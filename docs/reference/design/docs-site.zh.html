@@ -144,6 +144,7 @@ python<span class="w"> </span>-m<span class="w"> </span>scripts.docs_site.check_
 </table></div>
 <p>渲染器使用 <code>markdown-it-py</code>、<code>mdit-py-plugins</code> 和 Pygments，产出静态资源，不引入客户端框架或编辑器/CMS。本次文档优化不迁移站点框架。</p>
 <h2 id="reader-navigation">阅读导航</h2>
+<p>分组导航使用一条从首行延伸到当前行的连续虚线，末端弯角对齐文字中心；同组切换页面时指示线高度连续变化。鼠标悬停和键盘焦点显示独立的中性预览指示，不改变当前页面选中状态。键盘焦点使用文字下划线与轻微背景区分，不给整行增加大边框。章节目录采用相同指示方式。过滤、文字换行、语言切换和窗口调整均重新计算位置。首页概览提供明确的中英文标题，不显示由文件名推导的标签。</p>
 <p>阅读界面保留九个分类与静态 HTML 路由。顶部显示分类，左侧按组显示页面，中央为正文，右侧为章节目录。窄屏使用页面目录抽屉，并通过可展开的阅读进度控件访问章节。</p>
 <p>交互参考 <a href="https://www.rareui.com/components/hooksidebar">Rare UI Hook Sidebar</a>、<a href="https://www.rareui.com/components/scrollprogressindicator">Scroll Progress</a> 和 <a href="https://www.rareui.com/components/codeblock">Code Block</a>，采用分组选中指示、带章节跳转的进度和带标签的代码复制。现有静态资源独立实现这些行为，不包含 Rare UI 源码或 React 依赖；直接复用组件源码有单独的许可要求。不采用装饰球、邻近缩放和变形导航，以保持文字目标的位置稳定。</p>
 <p>视觉变量沿用应用配色：正文背景 #faf9f5、侧栏 #f5f4ed、代码 #f0eee6、文字 #3d3d3a、强调色 #b8651f，并保留深色对应值。导航和正文使用本地 Inter，代码使用系统等宽字体，内容左对齐。分组通过连接指示区分层级，正文保持主要阅读位置。</p>

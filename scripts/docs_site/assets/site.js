@@ -178,6 +178,61 @@
   // ── per-page wiring (re-run after every SPA swap) ──────────────────────
   let disposeReader = () => {};
 
+  let disposeRails = () => {};
+  let updateRails = () => {};
+
+  function initNavigationRails() {
+    disposeRails();
+    const groups = Array.from(document.querySelectorAll(".nav-sec, aside.toc .toc-list"));
+    let frame = 0;
+    const cleanups = [];
+    const paints = [];
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; paints.forEach((paint) => paint()); }); };
+    const resize = new ResizeObserver(schedule);
+    groups.forEach((group) => {
+      let hovered = null;
+      const links = Array.from(group.querySelectorAll("a"));
+      const paint = () => {
+        const visible = links.filter((link) => link.getClientRects().length && getComputedStyle(link).display !== "none");
+        const active = visible.find((link) => link.classList.contains("active"));
+        const focused = visible.find((link) => link === document.activeElement && link.matches(":focus-visible"));
+        const preview = focused || (visible.includes(hovered) ? hovered : null);
+        const bounds = group.getBoundingClientRect();
+        const top = visible.length ? visible[0].getBoundingClientRect().top - bounds.top : 0;
+        const center = (link) => { const rect = link.getBoundingClientRect(); return rect.top - bounds.top + rect.height / 2; };
+        const activeEnd = active ? center(active) : top;
+        group.style.setProperty("--rail-top", top + "px");
+        group.style.setProperty("--rail-height", Math.max(0, activeEnd - top) + "px");
+        group.style.setProperty("--rail-visible", active ? "1" : "0");
+        const previewEnd = preview ? center(preview) : top;
+        const previewTop = active && previewEnd > activeEnd ? activeEnd : top;
+        group.style.setProperty("--preview-top", previewTop + "px");
+        group.style.setProperty("--preview-height", Math.max(0, previewEnd - previewTop) + "px");
+        group.style.setProperty("--preview-visible", preview && preview !== active ? "0.7" : "0");
+      };
+      const over = (event) => { hovered = event.target.closest("a"); schedule(); };
+      const leave = () => { hovered = null; schedule(); };
+      group.addEventListener("pointerover", over);
+      group.addEventListener("pointerleave", leave);
+      group.addEventListener("focusin", schedule);
+      group.addEventListener("focusout", schedule);
+      resize.observe(group);
+      links.forEach((link) => resize.observe(link));
+      paints.push(paint);
+      cleanups.push(() => {
+        group.removeEventListener("pointerover", over);
+        group.removeEventListener("pointerleave", leave);
+        group.removeEventListener("focusin", schedule);
+        group.removeEventListener("focusout", schedule);
+      });
+    });
+    updateRails = schedule;
+    paints.forEach((paint) => paint());
+    disposeRails = () => {
+      cancelAnimationFrame(frame); resize.disconnect(); cleanups.forEach((cleanup) => cleanup());
+    };
+  }
+
   function initSidebar() {
     const active = document.querySelector("nav.sidebar a.navlink.active");
     document.querySelectorAll("nav.sidebar a.navlink, nav.tabbar a").forEach((link) => {
@@ -202,6 +257,7 @@
           const hasMatch = !q || sec.querySelector('a.navlink:not([style*="display: none"])');
           sec.style.display = hasMatch ? "" : "none";
         });
+        updateRails();
       });
     }
   }
@@ -342,6 +398,7 @@
         });
       });
       label.textContent = sections[active].link.textContent;
+      updateRails();
       const link = sections[active].link;
       const toc = link.closest("aside.toc");
       if (toc && toc.clientHeight && !toc.matches(":hover") && !toc.contains(document.activeElement)) {
@@ -383,6 +440,7 @@
     initSidebar();
     initArticle();
     applyLang(curLang);
+    initNavigationRails();
   }
 
   // ── SPA navigation ─────────────────────────────────────────────────────

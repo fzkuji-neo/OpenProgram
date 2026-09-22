@@ -475,19 +475,36 @@ html[data-fs="1"] .viz-frame { height: calc(100vh - 40px); }
    Implemented locally; the static reader has no component-library runtime. */
 nav.sidebar { background: var(--bg); padding: 24px 18px 72px; }
 .nav-sec { position: relative; margin-top: 26px; }
-.nav-sec-title { font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--tx); margin-bottom: 9px; }
-nav.sidebar a.navlink { position: relative; margin-left: 9px; padding: 8px 12px 8px 20px; border-radius: 0 6px 6px 0; border-left: 1px dashed var(--bd); }
-nav.sidebar a.navlink.active { background: transparent; color: var(--acc); border-left-color: var(--acc); }
-nav.sidebar a.navlink.active::before, nav.sidebar a.navlink:focus-visible::before {
-  content: ""; position: absolute; left: -1px; top: 0; height: 50%; width: 12px;
-  border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; border-radius: 0 0 0 6px;
-}
-nav.sidebar a.navlink:hover { background: var(--bd-soft); }
+.nav-sec-title { font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--tx); margin-bottom: 8px; }
+nav.sidebar a.navlink { position: relative; margin-left: 9px; padding: 7px 10px 7px 18px; border: 0; border-radius: 5px; font-weight: 400; }
+nav.sidebar a.navlink.active { background: transparent; color: var(--tx); font-weight: 550; }
+nav.sidebar a.navlink:hover { background: transparent; color: var(--tx); }
+/* Group-owned indicators preserve continuity across rows and SPA selection.
+   Their geometry is measured from real wrapped rows, never from row indices. */
+.nav-sec, aside.toc .toc-list { position: relative; }
+aside.toc .toc-list { border: 0; }
 aside.toc .toc-title { font-weight: 600; }
-aside.toc a.active { border-left-color: transparent; }
-aside.toc a.active::after {
-  content: ""; position: absolute; left: -2px; top: 0; width: 10px; height: 50%;
-  border-left: 2px solid var(--acc); border-bottom: 2px solid var(--acc); border-radius: 0 0 0 6px;
+aside.toc a { border: 0; margin-left: 0; }
+aside.toc a.active { color: var(--tx); font-weight: 550; }
+aside.toc a.lvl-3::before { content: none; }
+.nav-sec::before, .nav-sec::after,
+aside.toc .toc-list::before, aside.toc .toc-list::after {
+  content: ""; position: absolute; pointer-events: none; width: 11px; left: 9px;
+  border-left: 1px dashed currentColor; border-bottom: 1px dashed currentColor;
+  border-bottom-left-radius: 7px; box-sizing: border-box;
+  transition: height 220ms cubic-bezier(.2,.8,.2,1), top 220ms cubic-bezier(.2,.8,.2,1), opacity 120ms;
+}
+.nav-sec::after, aside.toc .toc-list::after {
+  color: var(--acc); top: var(--rail-top, 0px); height: var(--rail-height, 0px); opacity: var(--rail-visible, 0);
+}
+.nav-sec::before, aside.toc .toc-list::before {
+  color: var(--tx-faint); top: var(--preview-top, 0px); height: var(--preview-height, 0px); opacity: var(--preview-visible, 0);
+}
+aside.toc .toc-list::before, aside.toc .toc-list::after { left: 0; width: 10px; }
+/* A text-level focus treatment remains visible without a full-row orange box. */
+nav.sidebar a.navlink:focus-visible, aside.toc a:focus-visible {
+  outline: none; color: var(--tx); background: var(--bd-soft);
+  text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px;
 }
 article .code-frame { margin: 20px 0; border: 1px solid var(--bd); border-radius: 12px; overflow: hidden; background: var(--bg-code); }
 article .code-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--bd); background: var(--bg-side); color: var(--tx-soft); font: 12px var(--mono); }
@@ -511,7 +528,7 @@ article .code-header .copy-btn:hover, article .code-header .copy-btn.copied { co
   .topbar .brand { font-size: 13px; }
   .topbar .search-trigger { padding: 8px; }
   .topbar .search-trigger kbd { display: none; }
-  .topbar button.lang-trigger { padding: 0 7px; }
+  .topbar button.lang-trigger { padding: 0 7px; white-space: nowrap; flex-shrink: 0; }
   .topbar .brand .mark { width: 18px; height: 18px; }
   html[data-nav-collapsed="1"] nav.sidebar.open { transform: translateX(0); }
   .reader-progress { bottom: 16px; right: 16px; }
@@ -521,3 +538,5 @@ article .code-header .copy-btn:hover, article .code-header .copy-btn.copied { co
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
 html[data-fs="1"] article :is(h1, h2, h3, h4) { scroll-margin-top: 24px; }
+
+@media (max-width: 420px) { .topbar .lang-trigger svg { display: none; } }

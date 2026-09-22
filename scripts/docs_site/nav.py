@@ -150,7 +150,7 @@ def discover(docs_root: Path) -> list[Page]:
         title = override[0] if override else extract_title(path)
         zh_src = zh_sources.get(rel)
         zh_out = (rel.with_name(rel.stem + ".zh.html")) if zh_src else None
-        title_zh = extract_title(zh_src) if zh_src else ""
+        title_zh = ("概览" if rel_str == "README.md" else extract_title(zh_src)) if zh_src else ""
         pages.append(
             Page(
                 src=path,
