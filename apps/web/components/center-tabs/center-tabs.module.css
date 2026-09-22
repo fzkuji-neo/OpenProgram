@@ -452,14 +452,15 @@
    pointer-events:none 且不属于被拖元素，pointer capture 不受影响。 */
 .detachCue {
   position: fixed;
-  /* 偏到指针右下方，不压在手指/光标下面。 */
-  transform: translate(14px, 16px);
+  /* Keep the cue within the 40px tab strip, above native web views. */
+  height: 30px;
+  box-sizing: border-box;
   z-index: 1000;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   white-space: nowrap;
-  padding: 8px 15px;
+  padding: 4px 12px;
   border-radius: 999px;
   background: var(--accent-blue);
   color: var(--primary-foreground);
@@ -2465,3 +2466,15 @@
 .webPipFrameViewport { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .webPipFrame { position: absolute; display: block; width: 1920px; height: 1080px; border: 0; background: white; transform-origin: top left; }
 .webPipDragging .webPipFrame { pointer-events: none; }
+
+.tab[data-pointer-pressed="true"], .compoundTab[data-pointer-pressed="true"] {
+  background: var(--bg-tertiary);
+  box-shadow: inset 0 0 0 1px var(--accent-blue);
+}
+
+.resourceDropError {
+  position: absolute; right: 48px; top: 4px; z-index: 1001;
+  max-width: calc(100% - 96px); padding: 4px 12px;
+  background: var(--bg-secondary); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px; font-size: 13px;
+}

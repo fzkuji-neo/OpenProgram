@@ -82,6 +82,22 @@ def register(app):
         except Exception as exc:
             return _error(exc)
 
+    @app.post("/api/session/{session_id}/resources/attach-web")
+    def attach_web_resource(session_id: str, request: Request, body: dict):
+        try:
+            _authorize(request, session_id, stop=True)
+            window_id, tab_id = body.get("window_id"), body.get("tab_id")
+            if any(not isinstance(value, str) or not value or len(value) > 512
+                   for value in (window_id, tab_id)):
+                return JSONResponse({"error": "invalid_command"}, status_code=400)
+            from openprogram.webui.ws_actions.webtab import attach_existing_page
+            items = attach_existing_page(session_id, window_id, tab_id)
+            return JSONResponse({"items": items}, headers={"Cache-Control": "no-store"})
+        except ValueError:
+            return JSONResponse({"error": "stale_page"}, status_code=409)
+        except Exception as exc:
+            return _error(exc)
+
     @app.post("/api/session/{session_id}/resources/{resource_id}/control")
     async def session_resource_control(session_id: str, resource_id: str, request: Request):
         try:

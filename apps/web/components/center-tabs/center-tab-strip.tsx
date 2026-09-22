@@ -160,8 +160,7 @@ export function CenterTabStrip() {
     tabs,
     enteringIds,
     closingIds,
-    activatedOnPressRef,
-    onTabClick,
+    suppressedClickRef,
     onTabClickFromPointer,
     onOpenNewTab,
     onTabClose,
@@ -175,6 +174,7 @@ export function CenterTabStrip() {
     releaseFrozenWidths,
   });
   const {
+    resourceDropError,
     draggedIds,
     dropMarker,
     dragWidth,
@@ -194,8 +194,7 @@ export function CenterTabStrip() {
     // stays valid, so a frozen row must be released (and reflowed) before
     // the press arms anything.
     releaseFrozenWidths,
-    onTabClick,
-    activatedOnPressRef,
+    suppressedClickRef,
     tabMenuRef,
     applyDrop,
     setDragAnnouncement,
@@ -219,7 +218,7 @@ export function CenterTabStrip() {
 
   const [detachCueHost, setDetachCueHost] = useState<Element | null>(null);
   useEffect(() => {
-    setDetachCueHost(detachCue ? document.querySelector(".center-body") : null);
+    setDetachCueHost(detachCue ? document.body : null);
   }, [detachCue !== null]);
 
   const visibleTabs = topLevelTabs(tabs, groups);
@@ -279,8 +278,7 @@ export function CenterTabStrip() {
       teardownPointerDrag(); // return-home animation for a live pointer drag
       cancelCoordinator();
       removeReleaseListener();
-      setDraggedIds(new Set());
-      setDropMarker(null);
+      clearDragState();
       menu.setTabMenu(null);
       if (cancelled) {
         setDragAnnouncement(text("Tab move cancelled", "标签移动已取消"));
@@ -441,14 +439,14 @@ export function CenterTabStrip() {
             splitPickerHost,
           )
         : null}
-      {/* Floating detach cue: portaled into .center-body so it escapes the
-         strip's overflow clip. pointer-events:none and NOT a child of the
+      {resourceDropError ? <div className={styles.resourceDropError} role="alert">{resourceDropError}</div> : null}
+      {/* Detach cue: fixed within the top strip, outside native webpage bounds. pointer-events:none and NOT a child of the
          captured tab, so pointer capture is untouched. */}
       {detachCue && detachCueHost && !detachOverTarget
         ? createPortal(
             <div
               className={styles.detachCue}
-              style={{ left: detachCue.x, top: detachCue.y }}
+              style={{ left: Math.max(8, Math.min(detachCue.x, window.innerWidth - 160)), top: (stripRef.current?.getBoundingClientRect().top ?? 0) + 4 }}
               aria-hidden="true"
             >
               <SquareArrowOutUpRight size={14} />

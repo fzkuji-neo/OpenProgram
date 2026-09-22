@@ -69,9 +69,8 @@ export function useTabLifecycle({
   const activeSessionDraft = activeSession?.draft;
   const conversations = useSessionStore((s) => s.conversations);
   const [sessionActivationRequest, setSessionActivationRequest] = useState(0);
-  // Tab id activated by the current pointerdown, consumed by the click
-  // that follows it (see onTabPointerDown / onTabClickFromPointer).
-  const activatedOnPressRef = useRef<string | null>(null);
+  // A drag or cancellation suppresses its follow-up click once.
+  const suppressedClickRef = useRef<string | null>(null);
 
   // Session activation → upsert/focus its tab. The draft tab morphs
   // into the real session tab in place when chat_ack assigns an id
@@ -207,15 +206,13 @@ export function useTabLifecycle({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
-  /** Click handler for strip tabs. pointerdown already activated the tab
-   *  (Chrome activates on press), so the click that completes that same
-   *  press is a no-op; a click on the already-active tab still reloads. */
+  /** Activate on click after release; a completed or cancelled drag consumes it. */
   function onTabClickFromPointer(tab: CenterTab) {
-    if (activatedOnPressRef.current === tab.id) {
-      activatedOnPressRef.current = null;
+    if (suppressedClickRef.current === tab.id) {
+      suppressedClickRef.current = null;
       return;
     }
-    activatedOnPressRef.current = null;
+    suppressedClickRef.current = null;
     onTabClick(tab);
   }
 
@@ -352,7 +349,7 @@ export function useTabLifecycle({
     tabs,
     enteringIds,
     closingIds,
-    activatedOnPressRef,
+    suppressedClickRef,
     onTabClick,
     onTabClickFromPointer,
     onOpenNewTab,
