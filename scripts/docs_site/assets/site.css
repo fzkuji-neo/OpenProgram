@@ -554,7 +554,7 @@ nav.sidebar .nav-disclosure > summary::before {
   transform: rotate(-45deg); flex-shrink: 0; color: var(--tx-soft);
 }
 nav.sidebar .nav-disclosure[open] > summary::before { transform: rotate(45deg); }
-nav.sidebar .nav-disclosure > summary:hover { background: var(--bg-code); }
+nav.sidebar .nav-disclosure > summary:hover { background: transparent; }
 nav.sidebar .nav-disclosure .nav-sec-title {
   padding: 0; margin: 0; font-size: 13px; line-height: 1.4; font-weight: 550;
   min-width: 0; overflow-wrap: anywhere;
@@ -575,7 +575,7 @@ nav.sidebar .nav-disclosure a.navlink {
   font-size: 13px; line-height: 1.45; font-weight: 400;
   overflow-wrap: anywhere; text-decoration: none; border-radius: 4px;
 }
-nav.sidebar .nav-disclosure a.navlink:hover { background: var(--bg-code); }
+nav.sidebar .nav-disclosure a.navlink:hover { background: transparent; }
 nav.sidebar .nav-disclosure a.navlink.active {
   background: transparent; color: var(--acc); font-weight: 500;
 }
