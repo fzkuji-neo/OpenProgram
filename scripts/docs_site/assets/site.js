@@ -10,25 +10,7 @@
   const ROOT = document.documentElement;
   const BASE = ROOT.dataset.base || "/docs/"; // absolute mount prefix
 
-  // ── theme ──────────────────────────────────────────────────────────────
-  const pygLight = document.getElementById("pyg-light");
-  const pygDark = document.getElementById("pyg-dark");
-  function syncPygments(theme) {
-    if (pygLight) pygLight.media = theme === "dark" ? "not all" : "all";
-    if (pygDark) pygDark.media = theme === "dark" ? "all" : "not all";
-  }
-  syncPygments(ROOT.getAttribute("data-theme"));
-
-  const themeBtn = document.getElementById("theme-toggle");
-  if (themeBtn) {
-    themeBtn.addEventListener("click", () => {
-      const next = ROOT.getAttribute("data-theme") === "dark" ? "light" : "dark";
-      ROOT.setAttribute("data-theme", next);
-      try { localStorage.setItem("op-docs-theme", next); } catch (e) {}
-      syncPygments(next);
-      window.dispatchEvent(new CustomEvent("documentThemeChange", { detail: { theme: next } }));
-    });
-  }
+  // Theme initialization and listeners live in the synchronous head script theme.js.
 
   // ── i18n (UI chrome; body language is per-document) ───────────────────
   const I18N = {
@@ -83,6 +65,7 @@
       else if (lang !== "zh" && hrefEn) el.setAttribute("href", hrefEn);
     });
     document.querySelectorAll("article .copy-btn:not(.copied)").forEach((b) => { b.textContent = d.copy; });
+    window.dispatchEvent(new CustomEvent("documentLangChange", { detail: { lang } }));
   }
 
   const langBtn = document.getElementById("lang-toggle");
@@ -106,7 +89,6 @@
         curLang = lang;
         try { localStorage.setItem("op-docs-lang", curLang); } catch (e) {}
         applyLang(curLang);
-        window.dispatchEvent(new CustomEvent("documentLangChange", { detail: { lang: curLang } }));
         const altUrl = ROOT.getAttribute("data-alt-lang-url");
         const pl = ROOT.getAttribute("data-page-lang");
         if (altUrl && pl && pl !== curLang) navigate(altUrl); // stay in-app
