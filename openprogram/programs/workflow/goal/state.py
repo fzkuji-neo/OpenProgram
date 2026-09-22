@@ -78,7 +78,8 @@ def load_goal(session_id: str) -> Optional[dict]:
             # Read projection only: no lifecycle mutation or version increment.
             # Durable receipts are authoritative even if their publish hook failed.
             accumulate_goal_usage(session_id, value)
-        value["end_records"] = _end_records(value, value, sess.get("last_node_id"))
+        from .presentation import history_projection
+        value = history_projection(value, session_id)
         return value
     except Exception as exc:
         _log.debug("goal read failed for session %s", session_id, exc_info=True)
@@ -242,10 +243,11 @@ def save_goal(session_id: str, goal: dict) -> dict:
     candidate["updated_at"] = time.time()
     db = _goal._db()
     session = db.get_session(session_id) or {}
-    previous = (session.get("extra_meta") or {}).get("goal") or {}
+    from .presentation import history_projection
+    previous = history_projection((session.get("extra_meta") or {}).get("goal"), session_id) or {}
     # Keep terminal snapshots inside the same CAS as the current Goal. They
     # are not chat messages and must never be reconstructed from a later Goal.
-    candidate["end_records"] = _end_records(previous, candidate, session.get("last_node_id"))
+    candidate["end_records"] = _end_records(previous, candidate, session.get("head_id"))
     compare = getattr(db, "compare_and_set_session_dict", None)
     if callable(compare):
         if not compare(session_id, "goal", version=expected, value=candidate):
@@ -313,7 +315,7 @@ def save_goal_progress(session_id: str, goal: dict, base: dict) -> dict:
     try:
         return _goal.save_goal(session_id, goal)
     except GoalConflictError:
-        anchor = (_goal._db().get_session(session_id) or {}).get("last_node_id")
+        anchor = (_goal._db().get_session(session_id) or {}).get("head_id")
         def merge(latest):
             merged = _merge_progress(base, goal, latest)
             merged["end_records"] = _end_records(latest, merged, anchor)

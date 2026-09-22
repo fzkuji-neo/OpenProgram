@@ -23,6 +23,32 @@ def test_terminal_record_survives_new_goal_and_repeated_save(runtime):
     assert second["goal_id"] != record["goal"]["goal_id"]
 
 
+def test_cancelled_record_uses_public_head_and_stays_after_reload(runtime):
+    import openprogram.programs.workflow.goal as goals
+    db = goals._db()
+    db.append_message("goal-chat", {"id": "at-end", "role": "assistant", "content": "Done work", "timestamp": 10})
+    goal = goals.load_goal("goal-chat")
+    goal.update(status="cancelled", verification={"result_message_id": "old-failed-check"})
+    goals.save_goal("goal-chat", goal)
+    assert goals.load_goal("goal-chat")["end_records"][0]["anchor_id"] == "at-end"
+    db.append_message("goal-chat", {"id": "later", "role": "user", "content": "Next", "predecessor": "at-end", "timestamp": 20})
+    db.invalidate_cache("goal-chat")
+    assert goals.load_goal("goal-chat")["end_records"][0]["anchor_id"] == "at-end"
+
+
+def test_legacy_terminal_anchor_is_based_on_ending_time_not_current_head(runtime):
+    import openprogram.programs.workflow.goal as goals
+    from openprogram.programs.workflow.goal.presentation import history_projection
+    db = goals._db()
+    db.append_message("goal-chat", {"id": "original", "role": "assistant", "content": "Work", "timestamp": 10})
+    old = {"goal_id": "legacy", "text": "Original", "status": "cancelled", "updated_at": 15}
+    db.update_session("goal-chat", goal=old)
+    assert history_projection(old, "goal-chat")["end_records"][0]["anchor_id"] == "original"
+    db.append_message("goal-chat", {"id": "newer", "role": "user", "content": "Next", "predecessor": "original", "timestamp": 20})
+    db.invalidate_cache("goal-chat")
+    assert goals.load_goal("goal-chat")["end_records"][0]["anchor_id"] == "original"
+
+
 def test_event_identity_is_exact_and_does_not_rewrite_content():
     from openprogram.programs.workflow.goal.presentation import event_sink
     output = []
