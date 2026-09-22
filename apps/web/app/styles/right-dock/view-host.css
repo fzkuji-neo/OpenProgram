@@ -87,3 +87,9 @@
 /* Collapsed: hide view content + nav labels (the latter is inherited
    from .sidebar.collapsed rules in 02-sidebar.css). */
 .right-sidebar.collapsed .right-view-host { display: none; }
+
+[data-resource-drop-over="true"] {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: -2px;
+  background: var(--bg-tertiary);
+}

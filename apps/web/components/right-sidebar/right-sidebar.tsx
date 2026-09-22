@@ -281,6 +281,7 @@ export function RightSidebar() {
         <div role="button" tabIndex={0}
           className={sidebarNavItemClass + " right-nav-item" + (view === VIEW_RESOURCES ? " " + sidebarNavItemActiveClass : "")}
           data-view={VIEW_RESOURCES}
+          data-resource-drop-session={activitySessionId || undefined}
           onClick={() => onNavClick(VIEW_RESOURCES)}
           onKeyDown={activateOnKey(() => onNavClick(VIEW_RESOURCES))}
           onMouseEnter={() => resourcesIconRef.current?.startAnimation?.()}
@@ -311,7 +312,7 @@ export function RightSidebar() {
         <div className="right-view" data-view={VIEW_RUNNING}>
           <RunningPanel key={activitySessionId || "no-session"} sessionId={activitySessionId} active={open && visible && view === VIEW_RUNNING} />
         </div>
-        <div id="sessionResourcesPanel" className="right-view" data-view={VIEW_RESOURCES}>
+        <div id="sessionResourcesPanel" className="right-view" data-view={VIEW_RESOURCES} data-resource-drop-session={open && view === VIEW_RESOURCES ? activitySessionId || undefined : undefined}>
           {open && visible && view === VIEW_RESOURCES && <SessionResourcesPanel />}
         </div>
         {/* Detail view: ui.js showDetail() writes innerHTML into

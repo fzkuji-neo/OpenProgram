@@ -635,6 +635,49 @@ def request_open_tab(
     return _bind_opened_tab(_request(command, timeout))
 
 
+def attach_existing_page(session_id: str, window_id: str, tab_id: str) -> list[dict]:
+    """Associate an owner-selected live Page without navigation or operation takeover."""
+    from openprogram.webui.ws_actions.runtime import trusted_runtime_actor
+    from openprogram.browser_resources import BrowserResourceStore, project_page_resource_rows, emit_browser_resource
+
+    matches = [(ws, revision) for ws, wid, revision in registered_desktop_windows()
+               if wid == window_id and trusted_runtime_actor(getattr(ws, "scope", None), surface="ws") is not None]
+    if len(matches) != 1:
+        raise KeyError("window_unavailable")
+    ws, revision = matches[0]
+    result = request_on_ws(ws, {"op": "list", "window_id": window_id, "session_id": session_id})
+    if (ws, window_id, revision) not in registered_desktop_windows():
+        raise ValueError("stale_page")
+    if not result.get("ok"):
+        raise RuntimeError("page_unavailable")
+    pages = [page for page in result.get("pages", []) if isinstance(page, dict)
+             and page.get("tab_id") == tab_id and isinstance(page.get("target_id"), str) and page["target_id"]]
+    if len(pages) != 1:
+        raise KeyError("page_unavailable")
+    page = pages[0]
+    try:
+        binding = register_binding(ws, window_id, tab_id, page["target_id"],
+                                   allow_background=True, expected_connection_revision=revision)
+    except RuntimeError:
+        raise ValueError("stale_page") from None
+    key = binding_page_key(binding)
+    store = BrowserResourceStore()
+    resource = store.get_resource(key)
+    if not resource or resource.get("lifecycle") in {"closed", "unknown", "restore_failed"}:
+        raise ValueError("stale_page")
+    if not any((assoc.get("conversation_session_id") or assoc.get("session_id")) == session_id
+               for assoc in store.associations_for_page(key)):
+        store.retain(page_key=key, window_id=window_id, tab_id=tab_id,
+                     connection_generation=revision, title=page.get("title") or "",
+                     target=page.get("url") or "", session_id=session_id,
+                     conversation_session_id=session_id, live=True)
+    rows = [row for row in project_page_resource_rows(key)
+            if row.get("conversation_session_id") == session_id]
+    for row in rows:
+        emit_browser_resource(row, page_key=key)
+    return rows
+
+
 def request_active_tab(timeout: float = 5.0) -> dict:
     """Return the currently visible desktop web tab, if one is active."""
     return _request({"op": "active"}, timeout)

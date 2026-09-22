@@ -89,7 +89,7 @@ assert.match(pointerMove, /Math\.hypot\(dx, dy\) < DRAG_START_THRESHOLD_PX\) ret
 assert.match(pointerMove, /dragCoordinator\.start\(\)/);
 assert.match(
   pointerMove,
-  /drag\.started = true;[\s\S]*?activatedOnPressRef\.current = activationTabId\(drag\.subject\);/,
+  /drag\.started = true;[\s\S]*?suppressedClickRef\.current = activationTabId\(drag\.subject\);/,
   "a completed drag must consume its synthetic follow-up click",
 );
 // The tab element itself follows the pointer, clamped to the slot span.
@@ -487,50 +487,7 @@ assert.match(strip, /tabMenuRef\.current = tabMenu;/, "the ref must track the me
 // Right/middle button never starts a drag.
 assert.match(strip, /if \(event\.button !== 0 \|\| pointerDragRef\.current\) return;/);
 assert.match(strip, /onPointerDown=\{\(event\) => onDragPointerDown\(dragSubject, event\)\}/);
-// ---- Activate on press (Chrome) --------------------------------------
-// pointerdown selects the tab so it is live for the whole drag; the click
-// that completes the same press must not re-activate it.
-const pointerDown = strip.slice(
-  strip.indexOf("function onTabPointerDown"),
-  strip.indexOf("function onPointerDragMove"),
-);
-assert.match(pointerDown, /onTabClick\(pressed\)/, "pointerdown must activate the tab");
-assert.match(
-  pointerDown,
-  /pressed\.id !== useCenterTabs\.getState\(\)\.activeId/,
-  "only activate when it actually changes",
-);
-assert.match(pointerDown, /activatedOnPressRef\.current = pressed\.id;/);
-assert.match(
-  pointerDown,
-  /const element = event\.currentTarget as HTMLElement;/,
-  "whole-composite drag must transform the composite element, not its tab-flow parent",
-);
-// Right/middle button and an open context menu both return before this.
-assert.ok(
-  pointerDown.indexOf("event.button !== 0") < pointerDown.indexOf("onTabClick(pressed)"),
-  "right-click must return before activating",
-);
-assert.ok(
-  pointerDown.indexOf("tabMenuRef.current") < pointerDown.indexOf("onTabClick(pressed)"),
-  "an open context menu must return before activating",
-);
-// A composite press carries no member-level activation; its click activates
-// the canonical member only when the gesture remains a click.
-assert.match(pointerDown, /subject\.kind !== "group"/);
-// The follow-up click is consumed once, preserving click-to-reload for a
-// genuine click on the already-active tab.
-assert.match(strip, /function onTabClickFromPointer/);
-assert.match(
-  strip,
-  /if \(activatedOnPressRef\.current === tab\.id\) \{[\s\S]*?return;/,
-  "the click completing an activating press is a no-op",
-);
-assert.equal(
-  strip.match(/onActivate=\{onTabClickFromPointer\}/g)?.length,
-  2,
-  "both plain tabs and the composite split tab use the press-aware click path",
-);
+// Press/release and drag cancellation are exercised through the mounted pointer hook.
 assert.match(strip, /moveGroupMember\(/);
 assert.match(strip, /moveGroup\(/);
 assert.match(strip, /ungroupTab\(/);
