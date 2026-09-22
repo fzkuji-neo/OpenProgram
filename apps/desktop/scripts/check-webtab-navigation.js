@@ -523,6 +523,8 @@ function controlledRecord(id, currentUrl = "", loading = false) {
     find: [],
     stopFind: [],
     zoom: [],
+    emulation: [],
+    disableEmulation: 0,
     print: [],
     printToPDF: [],
     capturePage: 0,
@@ -596,6 +598,8 @@ function controlledRecord(id, currentUrl = "", loading = false) {
       return nativeCalls.find.length;
     },
     stopFindInPage(action) { nativeCalls.stopFind.push(action); },
+    enableDeviceEmulation(options) { nativeCalls.emulation.push(options); },
+    disableDeviceEmulation() { nativeCalls.disableEmulation += 1; },
     getZoomFactor() { return zoomFactor; },
     setZoomFactor(value) {
       zoomFactor = value;

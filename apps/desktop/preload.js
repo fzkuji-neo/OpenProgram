@@ -68,7 +68,7 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
       ipcRenderer.on("webtab:control-overlay-event", listener);
       return () => ipcRenderer.removeListener("webtab:control-overlay-event", listener);
     },
-    setPipZoom: (id, width) => ipcRenderer.send("webtab:set-pip-zoom", id, width),
+    setPipZoom: (id, width, height) => ipcRenderer.send("webtab:set-pip-zoom", id, width, height),
     onState: (cb) => {
       const listener = (_event, state) => cb(state);
       ipcRenderer.on("webtab:state", listener);

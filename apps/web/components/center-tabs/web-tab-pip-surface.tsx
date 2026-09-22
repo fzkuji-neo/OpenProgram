@@ -13,6 +13,7 @@ export function WebTabPipSurface({ tabId, url, native }: {
 }) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const initialUrl = useRef(url);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const { text } = useTranslation();
   useEffect(() => {
     const bridge = desktop.desktopBridge();
@@ -23,6 +24,7 @@ export function WebTabPipSurface({ tabId, url, native }: {
     let disposed = false;
     let frame = 0;
     let zoomWidth = 0;
+    let zoomHeight = 0;
     const report = () => {
       if (disposed) return;
       const bounds = measureWebTabBounds(body);
@@ -34,9 +36,10 @@ export function WebTabPipSurface({ tabId, url, native }: {
         desktop.setWebTabReady(tabId, false);
         return;
       }
-      if (zoomWidth !== bounds.width) {
-        bridge.webTab.setPipZoom?.(tabId, bounds.width);
+      if (zoomWidth !== bounds.width || zoomHeight !== bounds.height) {
+        bridge.webTab.setPipZoom?.(tabId, bounds.width, bounds.height);
         zoomWidth = bounds.width;
+        zoomHeight = bounds.height;
       }
       desktop.registerVisibleWebTabBounds(bridge, tabId, bounds);
       desktop.setWebTabReady(tabId, true);
@@ -78,18 +81,36 @@ export function WebTabPipSurface({ tabId, url, native }: {
     };
   }, [native, tabId]);
 
+  useEffect(() => {
+    if (native) return;
+    const body = bodyRef.current;
+    const iframe = iframeRef.current;
+    if (!body || !iframe) return;
+    const fit = () => {
+      const scale = Math.min(body.clientWidth / 1920, body.clientHeight / 1080);
+      iframe.style.transform = `scale(${scale})`;
+    };
+    const resize = new ResizeObserver(fit);
+    resize.observe(body);
+    fit();
+    return () => resize.disconnect();
+  }, [native, tabId, url]);
+
   if (native) return <div ref={bodyRef} className={styles.webPipLive} data-pip-live="native" />;
   return <div className={styles.webPipEmbedded} data-pip-live="iframe">
     <div className={styles.webPipEmbedHint}>{text(
       "Embedded page · some sites require Open page",
       "嵌入页面 · 部分网站需点击打开页面",
     )}</div>
+    <div ref={bodyRef} className={styles.webPipFrameViewport}>
     {/^https?:\/\//i.test(url) ? <iframe
+      ref={iframeRef}
       key={tabId}
       src={url}
       title={text("Interactive page preview", "可交互页面预览")}
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
       className={styles.webPipFrame}
     /> : <div className={styles.webPipFallback}>{text("This page cannot be embedded", "此页面无法嵌入")}</div>}
+    </div>
   </div>;
 }

@@ -16,6 +16,7 @@ await build({
   stdin: { contents: `
     export { default as ContextMenuPage } from "./app/menu-overlay/context-menu/page";
     export { WebTabPip } from "./components/center-tabs/web-tab-pip";
+    export { WebTabPipSurface } from "./components/center-tabs/web-tab-pip-surface";
     export { WebTabPane } from "./components/center-tabs/web-tab-pane";
     export { useCenterTabs } from "./lib/tabs/center-tabs-store";
     export {
@@ -81,7 +82,7 @@ await build({
               reload() {},
               stop() {},
               openExternal() {},
-              setPipZoom() {},
+              setPipZoom(...args) { (globalThis.pipViewportCalls ||= []).push(args); },
               onState() { return () => {}; },
               onFindResult() { return () => {}; },
               onCommand() { return () => {}; },
@@ -241,7 +242,7 @@ HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const {
-  ContextMenuPage, WebTabPip, WebTabPane, useCenterTabs, useWebTabPip,
+  ContextMenuPage, WebTabPip, WebTabPane, WebTabPipSurface, useCenterTabs, useWebTabPip,
   ingestBrowserResource, resetBrowserResources, getPreviewPreference, selectResourcePreview,
   togglePreviewExpanded, hideResourcePreview, followCurrentBranch, getSnapshot, setSnapshot,
   pipChatRect, pipCoversCenter, pipHostMode, pipPresentationSize,
@@ -1243,6 +1244,7 @@ test("live PiP registers the existing page and keeps it visible while dragging w
       assert.ok(boundsCalls.some(call => call.id === page.id));
       const before = boundsCalls.length;
       const originalBounds = boundsCalls.at(-1);
+      assert.deepEqual(globalThis.pipViewportCalls.at(-1), [page.id, originalBounds.width, originalBounds.height]);
       const ensures = globalThis.pipEnsures.length;
       const removed = globalThis.webTabBoundsRemoved.count;
       const pip = host.querySelector('[data-pip="true"]');
@@ -1321,4 +1323,26 @@ test("Show actions can be unchecked and checked in the same open menu", async ()
     assert.equal(menu.popups.length, 1);
     assert.equal(menu.closed.length, 0);
   });
+});
+
+
+test("embedded PiP scales its fixed page without recreating the iframe", async () => {
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(WebTabPipSurface, { tabId: "iframe-test", url: "https://example.test", native: false })));
+    const iframe = host.querySelector("iframe");
+    const body = iframe.parentElement;
+    for (const [width, height, scale] of [[240, 135, 0.125], [960, 540, 0.5], [600, 200, 200 / 1080]]) {
+      Object.defineProperty(body, "clientWidth", { configurable: true, value: width });
+      Object.defineProperty(body, "clientHeight", { configurable: true, value: height });
+      flushObservers();
+      assert.equal(iframe.style.transform, `scale(${scale})`);
+      assert.equal(host.querySelector("iframe"), iframe);
+    }
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
 });

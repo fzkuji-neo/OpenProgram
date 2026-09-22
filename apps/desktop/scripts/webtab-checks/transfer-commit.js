@@ -11,7 +11,7 @@ async function checkSuccessfulTransferAndDurableCommit() {
   testContext.attachControlledRecord(sourceCtx, first, { x: 1, y: 2, width: 300, height: 400 });
   testContext.attachControlledRecord(sourceCtx, second, { x: 301, y: 2, width: 320, height: 400 });
   testContext.assert.equal(testContext.hooks.setPipZoom(sourceCtx, "success-a", 480), true);
-  testContext.assert.equal(first.nativeCalls.zoom.at(-1), 0.25);
+  testContext.assert.equal(first.nativeCalls.emulation.at(-1).scale, 0.25);
 
   const successPayload = testContext.webTransferPayload(["success-a", "success-b"]);
   successPayload.fileDrafts = [{ key: "draft:success-a", value: "source draft" }];
@@ -53,7 +53,7 @@ async function checkSuccessfulTransferAndDurableCommit() {
   testContext.assert.equal(testContext.hooks.setPipZoom(sourceCtx, "success-a", null), false);
   testContext.assert.equal(testContext.hooks.setPipZoom(destinationCtx, "success-a", null), true);
   testContext.assert.equal(
-    first.nativeCalls.zoom.at(-1),
+    first.nativeCalls.emulation.at(-1).scale,
     0.25,
     "transfer lock must defer rather than apply the ordinary-pane zoom reset",
   );
