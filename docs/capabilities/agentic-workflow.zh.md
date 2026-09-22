@@ -25,7 +25,7 @@ Chat Agent 可以直接调用搜索、创建、修订或具体 Workflow，但不
 
 ## 自己编写 package
 
-当前 authoring 合同见[编写 Workflow package](workflows/authoring.md)，其中列出必需文件、metadata、入口签名、允许的 import、校验命令和当前接入限制。
+当前 authoring 合同见[编写 Workflow package](workflows/authoring.zh.md)，其中列出必需文件、metadata、入口签名、允许的 import、校验命令和当前接入限制。
 
 ```bash
 openprogram workflows validate ./my_workflow
@@ -34,4 +34,4 @@ openprogram workflows validate ./my_workflow --json
 
 静态校验不会 import package，也不会执行 `tests/test_workflow.py`。强制 sandbox 的行为测试门和人工 publish 命令目前还不是公开能力；CLI 会明确报告这一边界。
 
-如果扩展是一个暴露多组 agentic function 的可安装仓库，而不是单个生成式 Workflow package，请使用另一套 [Harness 安装合同](installing-harnesses.md)。
+如果扩展是一个暴露多组 agentic function 的可安装仓库，而不是单个生成式 Workflow package，请使用另一套 [Harness 安装合同](installing-harnesses.zh.md)。

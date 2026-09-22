@@ -139,20 +139,20 @@ id,以便函数体内 LLM 调用有 frame 可参照)。
 
 ## 相关设计
 
-- [`dag/overview.md`](dag/overview.md) — **权威**:历史记录数据模型(一整张图 / 三种节点 user·llm·code / caller+predecessor 边 / render_context 上下文检索)
-- [`dag/rendering.md`](dag/rendering.md) — **权威渲染规范**：布局/连线/图例/默认可见性，12 场景
-- [`dag/branch-collaboration.md`](dag/branch-collaboration.md) — 分支协作（通信 / 派活 / 合并）设计与实现步骤
-- [`execution/agent-call-flow.md`](execution/agent-call-flow.md) — 调用流程骨架(turn / loop,跟节点模型正交)
-- [`execution/agent-worktree.md`](execution/agent-worktree.md)
-- [`execution/async-job-lifecycle.md`](execution/async-job-lifecycle.md)
-- [`execution/control.html`](execution/control.html) — **权威设计**：统一暂停、继续、单步、调整、取消、检查点、revision 与恢复合同
-- [`execution/dispatcher-split.md`](execution/dispatcher-split.md) — 将 `agent/dispatcher.py` 拆分为按职责划分的包(遵循「单文件不超过 1000 行」规则)
-- [`operations/file-management.html`](operations/file-management.html) — 文件归因、Review、Undo、Restore、分支对齐和多 agent 所有权的权威设计
+- [`dag/overview.md`](dag/overview.zh.md) — **权威**:历史记录数据模型(一整张图 / 三种节点 user·llm·code / caller+predecessor 边 / render_context 上下文检索)
+- [`dag/rendering.md`](dag/rendering.zh.md) — **权威渲染规范**：布局/连线/图例/默认可见性，12 场景
+- [`dag/branch-collaboration.md`](dag/branch-collaboration.zh.md) — 分支协作（通信 / 派活 / 合并）设计与实现步骤
+- [`execution/agent-call-flow.md`](execution/agent-call-flow.zh.md) — 调用流程骨架(turn / loop,跟节点模型正交)
+- [`execution/agent-worktree.md`](execution/agent-worktree.zh.md)
+- [`execution/async-job-lifecycle.md`](execution/async-job-lifecycle.zh.md)
+- [`execution/control.html`](execution/control.zh.html) — **权威设计**：统一暂停、继续、单步、调整、取消、检查点、revision 与恢复合同
+- [`execution/dispatcher-split.md`](execution/dispatcher-split.zh.md) — 将 `agent/dispatcher.py` 拆分为按职责划分的包(遵循「单文件不超过 1000 行」规则)
+- [`operations/file-management.html`](operations/file-management.zh.html) — 文件归因、Review、Undo、Restore、分支对齐和多 agent 所有权的权威设计
 - [`session/`](session/) — Session 子系统：数据模型、存储、命名、列举、生命周期、广播
 - [嵌套 `llm()` 流式设计](https://github.com/fzkuji-neo/OpenProgram/blob/main/docs/reference/design/runtime/agentic-llm-streaming.zh.html) — **完整设计**：RuntimeBlock 按节点 token 流（协议、FE 缓冲、落盘、取消/重连、in-process+subprocess）
-- [`operations/streaming-resume.md`](operations/streaming-resume.md)
-- [`operations/user-input-requests.md`](operations/user-input-requests.md) — 暂停正在运行的函数以向用户提问(`runtime.ask`/`confirm`),问题注册表 + WS/REST 协议 + 子进程桥接
-- [`agent-collaboration.md`](agent-collaboration.md) — **权威**：agent 协作收敛成一个分支间通信原语 —— 四个域、工具面、三个预算（[工具面图示](agent-collab-architecture.html)、[八家参考实现对照](agent-collab-comparison.html)）
-- [`sandbox-architecture.html`](sandbox-architecture.html) — 唯一权威执行安全设计：Authority 权限档、Permission 模式与审批、沙箱执法、框架对照和实现证据。[`permission-model.md`](sandbox-architecture.html) 与 [`sandbox.md`](sandbox-architecture.html) 只保留为稳定旧链接入口。
+- [`operations/streaming-resume.md`](operations/streaming-resume.zh.md)
+- [`operations/user-input-requests.md`](operations/user-input-requests.zh.md) — 暂停正在运行的函数以向用户提问(`runtime.ask`/`confirm`),问题注册表 + WS/REST 协议 + 子进程桥接
+- [`agent-collaboration.md`](agent-collaboration.zh.md) — **权威**：agent 协作收敛成一个分支间通信原语 —— 四个域、工具面、三个预算（[工具面图示](agent-collab-architecture.zh.html)、[八家参考实现对照](agent-collab-comparison.zh.html)）
+- [`sandbox-architecture.html`](sandbox-architecture.zh.html) — 唯一权威执行安全设计：Authority 权限档、Permission 模式与审批、沙箱执法、框架对照和实现证据。[`permission-model.md`](sandbox-architecture.zh.html) 与 [`sandbox.md`](sandbox-architecture.zh.html) 只保留为稳定旧链接入口。
 
 - [嵌套 LLM 节点内容（聊天式有序块）](https://github.com/fzkuji-neo/OpenProgram/blob/main/docs/reference/design/runtime/nested-llm-node-content.zh.html)

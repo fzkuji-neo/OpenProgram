@@ -2,9 +2,9 @@
 
 > **实现状态：**本文是实体记忆的提议设计。下文的 Session-Git 和 Project-Git
 > 生命周期尚未在当前 Memory runtime 实现。当前实现是
-> [`overview.md`](overview.md) 所述的 Source/Topic/Core workspace。
+> [`overview.md`](overview.zh.md) 所述的 Source/Topic/Core workspace。
 
-本文统一维护生命周期、回放和一致性提案。下文路径、hook 与 UI 入口均属于未实现设计，不是当前使用说明。存储草案统一使用 history/ 与 context/；旧 messages/ 与依赖 SQLite 的草图不作为当前存储合同。当前持久化见[会话存储](../runtime/session/storage.md)。项目自动提交必须能识别 agent 所属改动；如果用户并发编辑，仅凭开始时工作区干净不能证明改动归属。
+本文统一维护生命周期、回放和一致性提案。下文路径、hook 与 UI 入口均属于未实现设计，不是当前使用说明。存储草案统一使用 history/ 与 context/；旧 messages/ 与依赖 SQLite 的草图不作为当前存储合同。当前持久化见[会话存储](../runtime/session/storage.zh.md)。项目自动提交必须能识别 agent 所属改动；如果用户并发编辑，仅凭开始时工作区干净不能证明改动归属。
 
 <span id="1-概念"></span>
 <span id="实体记忆-entity-memory"></span>
@@ -278,7 +278,7 @@ class Provenance:
     ingestion_time: float
 ```
 
-详见 [`virtual-memory.md`](virtual-memory.md)。
+详见 [`virtual-memory.md`](virtual-memory.zh.md)。
 
 
 ## 轮次提交、回放与一致性
@@ -358,7 +358,9 @@ Session.metadata["project_id"] = "proj_xxx"   # 加到 sessions 表
 session 可以独立存在 (没 project). 有 project 时, agent 修改文件触发的 commit 落在 project repo.
 
 <span id="42-projects-panel"></span>
-### Projects panel
+<div id="projects-panel"></div>
+
+### 项目面板
 
 左 sidebar 的 "Projects" section:
 

@@ -531,7 +531,7 @@ tooltip 和检查器里。
 离开 HEAD 会把每一条兄弟分支都刷灰。节点必须**既是失败、又已被放弃**。
 
 `status` 是存储自己的终态标记，由轮次机制写入（取消的情形见
-[统一运行控制](../execution/control.html)，它保持 `cancelled`、沿用自己的 50%
+[统一运行控制](../execution/control.zh.html)，它保持 `cancelled`、沿用自己的 50%
 灰化）。图读它，从不自己判定它。
 
 ## 十一、悬停、单击、右键、双击

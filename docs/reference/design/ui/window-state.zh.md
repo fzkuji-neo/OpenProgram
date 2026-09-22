@@ -4,7 +4,7 @@
 
 相关代码：`apps/desktop/window-state.js`、`apps/desktop/main.js`、
 `apps/web/app/styles/base.css`、`apps/web/components/app-shell.tsx`。
-主窗口有几个、谁负责创建，见 [`window-lifecycle.md`](window-lifecycle.md)。
+主窗口有几个、谁负责创建，见 [`window-lifecycle.md`](window-lifecycle.zh.md)。
 
 ## 为什么贴边的普通窗口拖不动
 
@@ -106,4 +106,4 @@ debounce 300ms，避免拖动中狂写。chrome 事件和关闭立即落盘。
 
 已实现：schema v2、旧文件迁移、先恢复普通尺寸再套 chrome、铺满工作区按最大化处理、显示器回退、主窗口 debounce 持久化、撕下窗口一次性尺寸、标题栏缩放内缩，以及 `apps/desktop/scripts/check-window-state.js` 测试。
 
-桌面窗口底色跟随已解析的 Web 主题（`theme-chrome.js`），规则写在 [unification-work.md](unification-work.md)。窗口几何持久化不保存、不恢复背景色。
+桌面窗口底色跟随已解析的 Web 主题（`theme-chrome.js`），规则写在 [unification-work.md](unification-work.zh.md)。窗口几何持久化不保存、不恢复背景色。

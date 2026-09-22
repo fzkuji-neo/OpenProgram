@@ -401,17 +401,18 @@ def render_breadcrumb(chain, title, title_zh=""):
 def render_prevnext(prev_p, next_p):
     if not prev_p and not next_p:
         return ""
-    left = right = ""
-    if prev_p:
-        href = DEPLOY_BASE + str(prev_p.out).replace("\\", "/")
-        left = (f'<a class="pn-link pn-prev" href="{href}">'
-                f'<span class="pn-dir" data-i18n="prev">Previous</span>'
-                f'<span class="pn-title">{_html.escape(prev_p.title)}</span></a>')
-    if next_p:
-        href = DEPLOY_BASE + str(next_p.out).replace("\\", "/")
-        right = (f'<a class="pn-link pn-next" href="{href}">'
-                 f'<span class="pn-dir" data-i18n="next">Next</span>'
-                 f'<span class="pn-title">{_html.escape(next_p.title)}</span></a>')
+    def link(page, direction, label):
+        if page is None:
+            return ""
+        href = DEPLOY_BASE + page.out.as_posix()
+        paths = (f' data-href-en="{href}" data-href-zh="{DEPLOY_BASE}{page.zh_out.as_posix()}"'
+                 if page.zh_out else "")
+        title = (f' data-title-zh="{_html.escape(page.title_zh, quote=True)}"'
+                 if page.title_zh else "")
+        return (f'<a class="pn-link pn-{direction}" href="{href}"{paths}>'
+                f'<span class="pn-dir" data-i18n="{direction}">{label}</span>'
+                f'<span class="pn-title"{title}>{_html.escape(page.title)}</span></a>')
+    left, right = link(prev_p, "prev", "Previous"), link(next_p, "next", "Next")
     return f'<div class="prevnext">{left}{right}</div>'
 
 
@@ -444,6 +445,9 @@ def render_tabbar(tabs, active_key: str, base: str) -> str:
         cls = " active" if t.key == active_key else ""
         zh = (f' data-title-zh="{_html.escape(t.title_zh, quote=True)}"'
               if t.title_zh and t.title_zh != t.title else "")
+        landing = next((p for sec in t.sections for p in sec.pages if p.out == t.landing), None)
+        if landing and landing.zh_out:
+            zh += f' data-href-en="{href}" data-href-zh="{base}{landing.zh_out.as_posix()}"'
         links.append(f'<a class="tablink{cls}" href="{href}"{zh}>{_html.escape(t.title)}</a>')
     return "".join(links)
 
@@ -709,8 +713,19 @@ def _build_into_out_root() -> int:
             "title": p.title,
             "url": str(p.out).replace("\\", "/"),
             "group": " › ".join(zh for (zh, _en) in chain) if chain else "",
-            "text": searchmod.plain_text(body),
+            "text": searchmod.plain_text(html_text if p.kind == "html" else body),
+            "lang": "en",
+            "has_translation": p.zh_src is not None,
         })
+        if p.zh_src is not None and p.zh_out is not None:
+            search_records.append({
+                "title": p.title_zh or p.title,
+                "url": p.zh_out.as_posix(),
+                "group": " › ".join(zh or en for en, zh in chain),
+                "text": searchmod.plain_text(zh_text if p.zh_src.suffix == ".html" else zh_body),
+                "lang": "zh",
+                "has_translation": True,
+            })
 
     searchmod.write_index(search_records, OUT_ROOT)
     _write_home(tabs)

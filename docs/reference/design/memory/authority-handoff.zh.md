@@ -1,8 +1,8 @@
 # 权限：两个档位与配对
 
 > OpenProgram 如何判定一个发言人能让 agent 做什么，以及这个判定如何传到记忆里。
-> 发言人归因本身见 [`speaker-identity.html`](speaker-identity.html)；
-> 配套可视化是 [`authority-landscape.html`](authority-landscape.html)。
+> 发言人归因本身见 [`speaker-identity.html`](speaker-identity.zh.html)；
+> 配套可视化是 [`authority-landscape.html`](authority-landscape.zh.html)。
 > 关联代码：`openprogram/agent/authority.py`、`openprogram/channels/_access.py`、
 > `openprogram/channels/base.py`、`openprogram/memory/writing.py`。
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -96,7 +96,7 @@ a{color:#9db8ff}
 </head>
 <body>
 <main>
-  <div class="eyebrow">OpenProgram · Design · Runtime</div>
+  <div class="eyebrow">OpenProgram · 设计 · Runtime</div>
   <h1>嵌套 Agentic LLM 流式传输</h1>
   <p class="lede">完整产品设计（非 spike）。目标：在 <b>@agentic_function</b> 执行树里，对每次 <code>llm()</code> / <code>runtime.exec(..., execution_kind="llm")</code> 做<strong>按节点、按通道</strong>的实时 token 流，覆盖 ExecutionStrip 卡片、右侧详情、思考折叠、取消、重连、并行 LLM，以及 in-process / subprocess 两条路径。<b>先定契约，再按阶段实现同一设计</b>——与 context-manager 设计哲学一致。</p>
   <div class="meta">
@@ -131,7 +131,7 @@ a{color:#9db8ff}
       <tr><td>顶层 chat 流</td><td><code>chat_response.data.type=stream_event</code>，内层 <code>event.type ∈ {text,thinking,tool_*}</code>；FE 用 rAF 合并进 assistant reply</td><td>与嵌套 LLM 节点无关</td></tr>
       <tr><td>执行树</td><td><code>tree_update</code> ~1.2s 轮询；LLM 节点 <code>node_type:"exec"</code>，开节点 <code>status=running</code> / 关节点写 <code>output</code>+<code>raw_reply</code></td><td>关节点前 <code>output</code> 为空 → TreeStep 只见 prompt note，看不到生长中的回复</td></tr>
       <tr><td>Runtime 流</td><td><code>Runtime.on_stream</code> 已转发 provider <code>text</code>/<code>thinking</code> delta</td><td>嵌套路径未带 <code>node_id</code> 上浮到 WS；subprocess 仅经 queue 转发现有 envelope</td></tr>
-      <tr><td>FE TreeStep</td><td>note = params 摘要 + duration + <code>→ short(output|raw_reply)</code>；详情面板 Prompt(<code>params._content</code>) / LLM Reply(<code>raw_reply</code>)</td><td>无 <code>Map&lt;nodeId, PartialStream&gt;</code>，无法在 running 时把 delta 画进卡片</td></tr>
+      <tr><td>前端 TreeStep</td><td>note = params 摘要 + duration + <code>→ short(output|raw_reply)</code>；详情面板 Prompt(<code>params._content</code>) / LLM Reply(<code>raw_reply</code>)</td><td>无 <code>Map&lt;nodeId, PartialStream&gt;</code>，无法在 running 时把 delta 画进卡片</td></tr>
     </table></div>
     <div class="callout">证据锚点：<code>_event_parsing.agent_event_to_envelope</code>、<code>_exec_dag._poll</code> / <code>live_progress</code>、<code>runtime/history._open_model_call_node</code>、<code>apps/web/lib/net/chat-stream.ts</code>、<code>execution-strip.tsx#TreeStep</code>、<code>process_runner.run_agentic_in_subprocess</code>。</div>
   </section>
@@ -246,7 +246,7 @@ a{color:#9db8ff}
     <ul>
       <li><b>排序</b>：同一 <code>(node_id, channel)</code> 上，有 <code>seq</code> 则按 seq 追加；缺 seq 则按到达序。乱序低 seq 丢弃（不重排历史）。</li>
       <li><b>服务端 coalesce</b>：同一节点 16–32ms 窗口内可合并多个 delta 再广播（字段仍是一个 <code>llm_delta</code>，delta 为拼接串）；禁止跨 node / 跨 channel 合并。</li>
-      <li><b>FE coalesce</b>：沿用顶层 rAF 策略——<code>Map&lt;nodeId, PartialStream&gt;</code> 写入立即发生，DOM/store stamp 每帧最多一次。</li>
+      <li><b>前端合并</b>：沿用顶层 rAF 策略——<code>Map&lt;nodeId, PartialStream&gt;</code> 写入立即发生，DOM/store stamp 每帧最多一次。</li>
       <li><b>背压</b>：WS 发送队列上限（建议 per-session 512 帧）；超限时优先丢弃中间 text delta，保留最新快照帧（周期性发「全量 snapshot」型 llm_delta：delta=自上次 snapshot 以来的增量，或单独字段 <code>snapshot</code>——v1 采用「超限则跳过中间、保证最终 close 树完整」）。thinking 同策略但更激进可丢。</li>
       <li><b>与 tree_update 关系</b>：delta 永不写入 <code>tree</code> 子段；partial 文本经 §5 节流写入节点后再被下一次 tree_update 带上。</li>
     </ul>
@@ -346,17 +346,17 @@ llmStreamsBySession: {
       <tr><td>provider 错误</td><td>status=error；error 字段；optional partial output</td><td>tree_update；可另有 runtime error 信封</td><td>红错误 note；详情 Error 块；保留 partial 供调试</td></tr>
       <tr><td>超时</td><td>同 error + reason=timeout</td><td>同上</td><td>文案区分「超时」</td></tr>
       <tr><td>WS 闪断后重连</td><td>partial 已在盘</td><td>新 delta 继续；不重放</td><td>先画盘上 partial，再接流</td></tr>
-      <tr><td>worker 崩溃</td><td>abort sweep → aborted</td><td>无</td><td>partial + aborted；不可再流</td></tr>
+      <tr><td>worker 崩溃</td><td>中止清理 → aborted</td><td>无</td><td>partial + aborted；不可再流</td></tr>
       <tr><td>seq 空洞</td><td>—</td><td>—</td><td>忽略；终态树覆盖</td></tr>
     </table></div>
   </section>
 
   <!-- 7 -->
   <section id="s7">
-    <h2>7. In-process vs Subprocess</h2>
+    <h2>7. 进程内与子进程</h2>
     <div class="grid2">
       <div class="card soft">
-        <h3>In-process</h3>
+        <h3>进程内</h3>
         <p><code>Runtime.on_stream</code> → 包装为 <code>llm_delta</code>（填入当前 <code>_active_llm_node_id</code>）→ <code>_broadcast_chat_response</code>。</p>
         <p><code>live_progress(..., on_event=None)</code> 直接广播 <code>tree_update</code>。</p>
       </div>
@@ -379,8 +379,8 @@ llmStreamsBySession: {
     <h2>8. UI 文案与行为（默认提案）</h2>
     <ul>
       <li><b>卡片主位</b>：流式中显示生长中的 <b>reply</b>（text）；完成后 <code>→</code> 摘要。</li>
-      <li><b>Prompt <code>_content</code></b>：默认仍作<strong>次要</strong>信息——running 且尚无 token 时显示短 prompt；有 token 后 prompt 让位给 reply，详情面板始终可看全文 prompt。</li>
-      <li><b>Thinking</b>：默认折叠；标题「思考」；running 显示最新一行；点击展开全文（详情或 inline fold）。</li>
+      <li><b>提示词 <code>_content</code></b>：默认仍作<strong>次要</strong>信息——running 且尚无 token 时显示短 prompt；有 token 后 prompt 让位给 reply，详情面板始终可看全文 prompt。</li>
+      <li><b>思考</b>：默认折叠；标题「思考」；running 显示最新一行；点击展开全文（详情或 inline fold）。</li>
       <li>不把嵌套 LLM 文本复制到外层 assistant 气泡。</li>
     </ul>
     <div class="callout warn">「prompt 是否始终钉在 note 左侧」见开放问题 Q1；实现前按本默认。</div>
@@ -429,8 +429,8 @@ llmStreamsBySession: {
       <li><b>协议与后端发射</b>：Runtime 在 <code>_active_llm_node_id</code> 上下文把 on_stream 转为 llm_delta；广播辅助函数；单测信封。</li>
       <li><b>Subprocess 桥</b>：确认 queue 透传；加隔离模式日志；双路径集成测。</li>
       <li><b>节流落盘</b>：running 节点 partial output/thinking；与 close 竞态测试。</li>
-      <li><b>FE store + chat-stream</b>：llmStreams 切片；reducer；清除规则；不污染 reply。</li>
-      <li><b>TreeStep + Detail</b>：选择规则；thinking fold；样式。</li>
+      <li><b>前端存储 + chat-stream</b>：llmStreams 切片；reducer；清除规则；不污染 reply。</li>
+      <li><b>TreeStep + 详情</b>：选择规则；thinking fold；样式。</li>
       <li><b>取消/重连/并行</b>：按 §6 §1 收口；手工清单签收。</li>
       <li><b>文档与检查脚本</b>：本页升「已采纳」；必要时 check-*.mjs 锁 UI 契约。</li>
     </ol>
@@ -576,13 +576,13 @@ llmStreamsBySession: {
       const prompt = n.prompt||'';
       let note='';
       if(running && text) note = text;
-      else if(running) note = prompt ? ('prompt · '+prompt) : '生成中…';
+      else if(running) note = prompt ? ('提示词 · '+prompt) : '生成中…';
       else if(n.status==='cancelled') note = (text||n.output||'') + ' · 已取消';
       else note = text ? ('→ '+text) : '无文本输出';
       if(n.ms && n.status!=='running') note += ' · '+n.ms+'ms';
       const badge = n.status==='running'?'run':n.status==='cancelled'?'cancel':n.status==='error'?'err':'done';
       const th = buf?.thinking ? `<div class="step"><span class="icon th">TH</span><span class="note">思考 · ${escapeHtml(buf.thinking.slice(-40))}</span></div>` : '';
-      return `${th}<div class="step"><span class="icon llm">LLM</span><span class="note"><span class="grow">${escapeHtml(note)}</span></span><span class="badge ${badge}">${n.status}</span></div>`;
+      return `${th}<div class="step"><span class="icon llm">LLM</span><span class="note"><span class="grow">${escapeHtml(note)}</span></span><span class="badge ${badge}">${({idle:'空闲',running:'运行中',completed:'已完成',cancelled:'已取消',error:'错误'})[n.status]||n.status}</span></div>`;
     }).join('');
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));}
@@ -596,10 +596,10 @@ llmStreamsBySession: {
   const sample='你好，世界。这是嵌套 llm() 的流式回复演示。';
   document.getElementById('btn-reset').onclick=()=>{
     clearInterval(timer); Object.keys(streams).forEach(k=>delete streams[k]);
-    document.getElementById('mode-badge').textContent='idle';
+    document.getElementById('mode-badge').textContent='空闲';
     document.getElementById('mode-badge').className='badge';
     document.getElementById('mock-log').textContent='';
-    renderTree(document.getElementById('mock-tree'),[{id:'n1',status:'idle',prompt:'Summarize…',output:''}]);
+    renderTree(document.getElementById('mock-tree'),[{id:'n1',status:'idle',prompt:'生成摘要…',output:''}]);
   };
   document.getElementById('btn-reset').click();
 
@@ -607,13 +607,13 @@ llmStreamsBySession: {
     clearInterval(timer);
     Object.keys(streams).forEach(k=>delete streams[k]);
     document.getElementById('mock-log').textContent='';
-    const node={id:'n1',status:'running',prompt:'Summarize…',output:''};
+    const node={id:'n1',status:'running',prompt:'生成摘要…',output:''};
     streams.n1={text:'',thinking:'先读页面结构…',updatedAt:Date.now()};
-    log('tree_update: open node n1 running');
+    log('tree_update: 打开节点 n1，状态 running');
     log('llm_delta thinking');
     renderTree(document.getElementById('mock-tree'),[node]);
     const badge=document.getElementById('mode-badge');
-    badge.textContent='streaming'; badge.className='badge run';
+    badge.textContent='正在生成'; badge.className='badge run';
     let i=0;
     timer=setInterval(()=>{
       i++;
@@ -624,8 +624,8 @@ llmStreamsBySession: {
         clearInterval(timer);
         node.status='completed'; node.output=sample; node.ms=842;
         delete streams.n1;
-        log('tree_update: close node output=full; clear PartialStream');
-        badge.textContent='done'; badge.className='badge done';
+        log('tree_update: 关闭节点 output=full；清除 PartialStream');
+        badge.textContent='已完成'; badge.className='badge done';
         renderTree(document.getElementById('mock-tree'),[node]);
       }
     },40);
@@ -634,8 +634,8 @@ llmStreamsBySession: {
   document.getElementById('btn-parallel').onclick=()=>{
     streams.a={text:''}; streams.b={text:''};
     const nodes=[
-      {id:'a',status:'running',prompt:'Task A',output:''},
-      {id:'b',status:'running',prompt:'Task B',output:''}
+      {id:'a',status:'running',prompt:'任务 A',output:''},
+      {id:'b',status:'running',prompt:'任务 B',output:''}
     ];
     let i=0;
     const ta='Alpha 流…'; const tb='Beta 并行流式…';
@@ -655,7 +655,7 @@ llmStreamsBySession: {
   };
 
   document.getElementById('btn-cancel-run').onclick=()=>{
-    const node={id:'c1',status:'running',prompt:'Long…',output:''};
+    const node={id:'c1',status:'running',prompt:'长任务…',output:''};
     streams.c1={text:''};
     let i=0; const s='将会被取消的半段文字——后面不再增长';
     const t=setInterval(()=>{

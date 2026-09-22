@@ -17,7 +17,9 @@ openprogram sessions export <session-id> --output ~/review.md
 
 会话 id 用 `openprogram sessions list` 查，或在 Web UI 侧栏看。
 
-## Web UI
+<div id="web-ui"></div>
+
+## 网页界面
 
 在侧栏右键点击一个会话（或用行上的 `⋯` 按钮），选**导出**再选格式，文件由浏览器下载。
 

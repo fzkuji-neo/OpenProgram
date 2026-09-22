@@ -1,4 +1,6 @@
-# Skills
+<div id="skills"></div>
+
+# 技能
 
 Skill 是给模型按需加载的领域知识：一个目录，里面一份 `SKILL.md`。这一页讲 skill 的格式、查找路径和管理命令，帮你给 agent 增加"会做某类事"的能力而不用写代码。
 
@@ -25,7 +27,7 @@ front matter 是 `key: value` 形式的 YAML 子集；`name` 和 `description` �
 
 ## 查找路径
 
-system prompt、管理 CLI 和 slash command 投射使用同一套四个来源：remote-cache（`~/.openprogram/cache/skills/`）、插件贡献（见 [Plugins](plugins.md)）、user（`~/.openprogram/skills/`）和 project（`<cwd>/skills/`）。重名时后面的、更本地的来源覆盖前面的来源。OpenProgram 不随安装包提供默认 skill；产品工作流由 Programs 提供。
+system prompt、管理 CLI 和 slash command 投射使用同一套四个来源：remote-cache（`~/.openprogram/cache/skills/`）、插件贡献（见 [Plugins](plugins.zh.md)）、user（`~/.openprogram/skills/`）和 project（`<cwd>/skills/`）。重名时后面的、更本地的来源覆盖前面的来源。OpenProgram 不随安装包提供默认 skill；产品工作流由 Programs 提供。
 
 ## 管理命令
 

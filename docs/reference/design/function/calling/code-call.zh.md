@@ -65,7 +65,9 @@ def research_pipeline(task: str, runtime: Runtime) -> str:
     ])
 ```
 
-## Context Tree
+<div id="context-tree"></div>
+
+## 上下文树
 
 ```
 research_pipeline

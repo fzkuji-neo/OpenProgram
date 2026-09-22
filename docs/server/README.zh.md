@@ -76,6 +76,6 @@ runtime 刷新生成的 unit，因此不可变 release 升级后不会继续启�
 
 ## 相关页面
 
-- [配置与数据目录](configuration.md) —— `~/.openprogram/` 里有什么，`openprogram config` 怎么用
-- [备份与恢复](backup.md) —— 用 `openprogram backup` 快照记忆、会话与配置
-- [故障排查](troubleshooting.md) —— 常见的"它不工作"场景
+- [配置与数据目录](configuration.zh.md) —— `~/.openprogram/` 里有什么，`openprogram config` 怎么用
+- [备份与恢复](backup.zh.md) —— 用 `openprogram backup` 快照记忆、会话与配置
+- [故障排查](troubleshooting.zh.md) —— 常见的"它不工作"场景

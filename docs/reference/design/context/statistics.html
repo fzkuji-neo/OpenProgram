@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>统计口径</title>
+<title>Accounting rules</title>
 <style>
   :root {
     --bg: #f7f7f5; --surface: #fff; --text: #202124; --muted: #6b7280;
@@ -56,80 +56,80 @@
 <main>
   <header>
     <div class="eyebrow">Context · Measurement contract</div>
-    <h1>统计口径</h1>
-    <p>面向使用者和实现者，定义底部 Context 面板如何报告真实总量、可分类内容和无法直接重建的差额。</p>
+    <h1>Accounting rules</h1>
+    <p>For users and implementers: defines how the bottom Context panel reports actual totals, categorized content and differences that cannot be reconstructed directly.</p>
     <div class="meta">
-      <span class="pill active">状态：已实现</span>
-      <span class="pill">范围：Web / App 共用接口</span>
-      <span class="pill">不包含：新的 UI 样式</span>
+      <span class="pill active">Status: implemented</span>
+      <span class="pill">Scope: shared Web / App API</span>
+      <span class="pill">Excluded: new UI styling</span>
     </div>
   </header>
 
   <section>
-    <h2>01 · 结果必须回答三个问题</h2>
+    <h2>01 · The result must answer three questions</h2>
     <div class="grid">
-      <article class="card"><strong>总共占用了多少？</strong><p>优先使用 provider 返回的真实 input token；没有实测时才使用本地估算。</p></article>
-      <article class="card"><strong>内容来自哪里？</strong><p>按互斥分类展示 system、tools、MCP、skills、memory、messages，禁止重复计数。</p></article>
-      <article class="card"><strong>哪些无法还原？</strong><p>实测总量与已分类估算之间的正差额显示为“其他上下文（估算）”，不隐藏。</p></article>
+      <article class="card"><strong>How much context is occupied?</strong><p>Prefer actual input tokens returned by the provider; use local estimates only when no measurement is available.</p></article>
+      <article class="card"><strong>Where does the content come from?</strong><p>Show system, tools, MCP, skills, memory and messages as mutually exclusive categories; never count them twice.</p></article>
+      <article class="card"><strong>What cannot be reconstructed?</strong><p>Show the positive difference between the measured total and categorized estimates as “Other context (estimated)”; do not hide it.</p></article>
     </div>
   </section>
 
   <section>
-    <h2>02 · 单次快照</h2>
-    <div class="flow" aria-label="统计数据流">
-      <div class="step"><strong>当前分支</strong><br>读取已压缩后的 rendered history、最近一次 system prompt 和冻结工具集。</div>
+    <h2>02 · A single snapshot</h2>
+    <div class="flow" aria-label="Statistics data flow">
+      <div class="step"><strong>Current branch</strong><br>Read compacted rendered history, the latest system prompt and the frozen tool set.</div>
       <div class="arrow" aria-hidden="true">→</div>
-      <div class="step"><strong>本地分类</strong><br>计算消息结构、工具 schema、Skills、Memory；嵌套项从父分类扣除。</div>
+      <div class="step"><strong>Local categorization</strong><br>Calculate message structure, tool schemas, Skills and Memory; subtract nested items from their parent categories.</div>
       <div class="arrow" aria-hidden="true">→</div>
-      <div class="step"><strong>provider 校准</strong><br>合并同一 HEAD 的最近实测总量并计算未分类差额。</div>
+      <div class="step"><strong>Provider calibration</strong><br>Combine the latest measured total for the same HEAD and calculate the uncategorized difference.</div>
     </div>
-    <p class="note" style="margin-top:14px">一个 API 响应只计算一次本地 breakdown。面板不能在同一响应中再次读取动态工具注册表，否则分类和 <code>estimated</code> 可能来自两个不同时间点。</p>
+    <p class="note" style="margin-top:14px">Calculate the local breakdown only once per API response. The panel must not reread the dynamic tool registry within that response, or the categories and <code>estimated</code> may refer to different moments.</p>
   </section>
 
   <section>
-    <h2>03 · 互斥分类</h2>
+    <h2>03 · Mutually exclusive categories</h2>
     <table>
-      <thead><tr><th>分类</th><th>原料</th><th>精度与边界</th></tr></thead>
+      <thead><tr><th>Category</th><th>Source</th><th>Accuracy and boundaries</th></tr></thead>
       <tbody>
-        <tr><td>Messages</td><td>rendered history；可见文本、thinking、tool input/result、memory prefetch</td><td>文本可重建；未持久化的原始图片按差额处理。</td></tr>
-        <tr><td>System prompt</td><td>最近一次实际记录的完整 system prompt</td><td>先计算完整值，再扣除 Skills、常驻 Memory 和 deferred catalog，避免重复。</td></tr>
-        <tr><td>Skills / Memory</td><td>实际注入 system prompt 的索引与常驻块</td><td>它们是 System prompt 的子组成，不得再次增加总量。</td></tr>
-        <tr><td>System tools / MCP tools</td><td>本轮冻结工具集的 provider schema</td><td>按工具的 <code>_mcp_server</code> 归入二者之一。</td></tr>
-        <tr><td>Deferred tools</td><td>system prompt 内的工具名目录</td><td>按实际发送的名称目录计，不按完整 description/schema 计。</td></tr>
-        <tr><td>Other context (estimated)</td><td><code>provider total - classified estimate</code></td><td>包含未持久化图片、provider 包装开销、临时 surface prompt 等无法可靠重建内容。</td></tr>
+        <tr><td>Messages</td><td>Rendered history; visible text, thinking, tool input/result and memory prefetch</td><td>Text can be reconstructed; original images that were not persisted contribute to the difference.</td></tr>
+        <tr><td>System prompt</td><td>The latest complete system prompt actually recorded</td><td>Calculate the full value first, then subtract Skills, resident Memory and the deferred catalog to avoid duplication.</td></tr>
+        <tr><td>Skills / Memory</td><td>Indexes and resident blocks actually injected into the system prompt</td><td>These are components of the System prompt and must not increase the total again.</td></tr>
+        <tr><td>System tools / MCP tools</td><td>Provider schemas for the tool set frozen for this turn</td><td>Assign each tool according to its <code>_mcp_server</code> to one of the two categories.</td></tr>
+        <tr><td>Deferred tools</td><td>Tool-name catalog within the system prompt</td><td>Count the name catalog actually sent, not the full descriptions/schemas.</td></tr>
+        <tr><td>Other context (estimated)</td><td><code>provider total - classified estimate</code></td><td>Includes content that cannot be reconstructed reliably: non-persisted images, provider wrapping overhead and temporary surface prompts.</td></tr>
       </tbody>
     </table>
   </section>
 
   <section>
-    <h2>04 · 计算规则</h2>
+    <h2>04 · Calculation rules</h2>
     <div class="formula">classified = system_other + skills + memory + tools + mcp + deferred + messages
 other = max(0, provider_total - classified)
 displayed_used = provider_total if measured else classified
 free = max(0, window - displayed_used)</div>
-    <p class="note warning" style="margin-top:14px">若本地分类估算高于 provider 实测，保留 provider 总量作为占用真值，并按统一比例收缩分类显示值；响应同时保留原始估算和校准系数，不能显示负数差额。</p>
+    <p class="note warning" style="margin-top:14px">If local category estimates exceed the provider measurement, retain the provider total as the occupancy value and scale displayed categories down proportionally. The response retains raw estimates and the calibration factor; never display a negative difference.</p>
   </section>
 
   <section>
-    <h2>05 · 验收条件</h2>
+    <h2>05 · Acceptance criteria</h2>
     <ul>
-      <li>同一响应中的 <code>estimated</code> 与分类原始合计来自同一次计算。</li>
-      <li>实测状态下，各展示分类之和等于 <code>total_used</code>；估算状态下等于 <code>input_used</code>。</li>
-      <li>切换分支或图发生变化后，旧 provider 实测不复用到新的 HEAD。</li>
-      <li>切换模型后立即使用新模型的 context window，并将旧模型实测降级为当前模型下的重新估算；下一次请求完成后再采用新模型的 provider 实测。</li>
-      <li>工具 input/result、thinking 和 memory prefetch 会改变 Messages 数值。</li>
-      <li>App 与 Web 只消费同一个 <code>/api/sessions/{id}/context</code> 合同，不各自重新估算。</li>
+      <li>In the same response, <code>estimated</code> and the raw category total come from the same calculation.</li>
+      <li>When measured, displayed categories sum to <code>total_used</code>; when estimated, they sum to <code>input_used</code>.</li>
+      <li>After a branch switch or graph change, do not reuse the old provider measurement for the new HEAD.</li>
+      <li>After a model switch, immediately use its context window and replace the old measurement with a fresh estimate for the current model. Use the new provider measurement after the next request completes.</li>
+      <li>Tool input/result, thinking and memory prefetch affect Messages.</li>
+      <li>App and Web consume the same <code>/api/sessions/{id}/context</code> contract and do not estimate independently.</li>
     </ul>
   </section>
 
   <section>
-    <h2>06 · 实施证据</h2>
+    <h2>06 · Implementation evidence</h2>
     <div class="grid">
-      <article class="card"><strong>记录真实输入</strong><p><code>system_prompt_node.py</code> 按分支 HEAD 读取实际 system prompt；<code>tool_snapshot_node.py</code> 保存本轮冻结工具及其计价结果。</p></article>
-      <article class="card"><strong>统一计算与校准</strong><p><code>session_stats.py</code> 负责分类、去重和 provider 总量校准；<code>budget.py</code> 负责冻结工具 schema 的估算。</p></article>
-      <article class="card"><strong>同一接口消费</strong><p><code>tree.py</code> 只计算一次 breakdown，App 与 Web 由 <code>context-breakdown-panel.tsx</code> 展示同一响应。</p></article>
+      <article class="card"><strong>Record actual input</strong><p><code>system_prompt_node.py</code> reads the actual system prompt by branch HEAD; <code>tool_snapshot_node.py</code> stores the frozen tools for the turn and their calculated cost.</p></article>
+      <article class="card"><strong>Shared calculation and calibration</strong><p><code>session_stats.py</code> handles categorization, deduplication and calibration against the provider total; <code>budget.py</code> estimates the frozen tool schemas.</p></article>
+      <article class="card"><strong>Consume the same API</strong><p><code>tree.py</code> calculates the breakdown once; App and Web use <code>context-breakdown-panel.tsx</code> to display the same response.</p></article>
     </div>
-    <p class="note" style="margin-top:14px"><code>test_session_stats_accuracy.py</code> 覆盖结构化消息、未分类差额、超额校准、分支 ancestry、旧快照兼容、非推进 HEAD 子 Agent、冻结工具、动态注册表和模型切换；相关 Context 定向测试共 51 项通过。</p>
+    <p class="note" style="margin-top:14px"><code>test_session_stats_accuracy.py</code> Coverage includes structured messages, uncategorized differences, overestimate calibration, branch ancestry, old-snapshot compatibility, child Agents that do not advance HEAD, frozen tools, dynamic registries and model switches; all 51 focused Context tests passed.</p>
   </section>
 </main>
 </body>

@@ -2,7 +2,7 @@
 
 桌面壳是一个进程、**一个主窗口**。撕下来的窗口是额外的、短命的。打开应用、点 Dock、再点一次启动，都不能再新建一个主窗口。
 
-尺寸和最大化见 [`window-state.md`](window-state.md)。代码：`apps/desktop/window-lifecycle.js`、`apps/desktop/main.js`。
+尺寸和最大化见 [`window-state.md`](window-state.zh.md)。代码：`apps/desktop/window-lifecycle.js`、`apps/desktop/main.js`。
 
 ## 原来错在哪
 

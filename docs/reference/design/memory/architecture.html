@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>机制图解</title>
+<title>Mechanism diagrams</title>
 <style>
   :root{
     --bg:#16150f; --pan:#1d1c14; --bd:#2e2c20; --tx:#bdb9a6; --acc:#d4843a;
@@ -33,7 +33,7 @@
     background:var(--pan);border-radius:99px;padding:4px 12px}
   .toc a:hover{border-color:var(--acc);color:#f0eee6}
 
-  /* 状态三栏 */
+  /* Three status columns */
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 22px}
   .st{background:var(--pan);border:1px solid var(--bd);border-top-width:3px;border-radius:12px;padding:12px 15px}
   .st .k{font-size:10.5px;letter-spacing:.2em;color:var(--dim);margin-bottom:5px}
@@ -41,7 +41,7 @@
   .st p b{color:#f0eee6;font-weight:600}
   @media(max-width:860px){.grid3{grid-template-columns:1fr}}
 
-  /* 两栏卡片 */
+  /* Two-column cards */
   .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px}
   .oc{background:var(--pan);border:1px solid var(--bd);border-radius:12px;padding:8px 8px 12px}
   .oc h4{margin:6px 4px 8px;font-size:13.5px;color:#f0eee6}
@@ -183,51 +183,44 @@
 <body>
 <div class="wrap">
 
-  <h1>机制图解</h1>
-  <p class="sub">一段对话怎么变成磁盘上的主题文件，写到一半失败会怎样，会话分叉之后靠什么认出哪些已经写过，
-    每次会话都注入的那一小块记忆归谁维护。
-    正文在 <code>docs/reference/design/memory/overview.md</code>，第 04 节的完整设计在 <a href="written-marker.html">written-marker.md</a>，这页只画机制。
-    别家怎么做的、我们的选择落在哪一格，在 <a href="comparison.html">记忆写入：八个框架横向对比</a>。</p>
+  <h1>Mechanism diagrams</h1>
+  <p class="sub">How a conversation becomes topic files on disk, what happens if a write fails midway, how forks track previously written messages, and who maintains the small memory block injected into every session. The main text is in <code>docs/reference/design/memory/overview.md</code>; the complete design for section 04 is in <a href="written-marker.html">written-marker.md</a>. This page illustrates mechanisms only. Comparisons with other implementations and the rationale for our choices are in <a href="comparison.html">Memory writing: comparison of eight frameworks</a>.</p>
 
   <div class="grid3">
     <div class="st" style="border-top-color:#5aad4e">
-      <div class="k">在跑的</div>
-      <p>两个写入入口、五步写入、暂存事务、夜间整理、<b>沉默即成功</b>的返回值契约，
-        以及<b>第 05 节</b>的常驻块派生视图：<code>core.md</code>是<code>topics/core.md</code>的渲染结果，
-        预算不再拒事务。</p>
+      <div class="k">Running implementation</div>
+      <p>Two write entry points, five write steps, staged transactions, nightly organization, the <b>silence-means-success</b> return-value contract, and <b>Section 05</b> and its resident-block derived view: <code>core.md</code> is rendered from <code>topics/core.md</code>; exceeding the budget no longer rejects transactions.</p>
     </div>
     <div class="st" style="border-top-color:#d4843a">
-      <div class="k">定稿了还没落地</div>
-      <p><b>第 04 节</b>的写入游标：跑着的仍是位置游标，分叉之后整条分支漏写，
-        或者只写下一个从对话中间开始的片段。要走的是<b>在节点上打「已写」标记</b>，
-        从 head 往回走到第一个有标记的为止。</p>
+      <div class="k">Designed, not yet implemented</div>
+      <p><b>Section 04’s</b> write cursor: the running implementation still uses positions, which can omit an entire fork or write only a fragment starting mid-conversation. The planned approach <b>marks nodes as written</b> and walks backward from head to the first marked node.</p>
     </div>
     <div class="st" style="border-top-color:#8a8675">
-      <div class="k">接口留着没接线</div>
+      <div class="k">Interface present but not connected</div>
       <p><code>name</code> <code>is_available</code> <code>initialize</code> <code>shutdown</code>
-        <code>extract_before_discard</code>：五个方法运行时没有任何调用方。</p>
+        <code>extract_before_discard</code>: five methods have no runtime callers.</p>
     </div>
   </div>
 
   <div class="toc">
-    <a href="#flow">01 一条对话怎么变成长期记忆</a>
-    <a href="#steps">02 写入的五个步骤</a>
-    <a href="#txn">03 事务：改在暂存，验过才装</a>
-    <a href="#cursor">04 游标：身份不是位置</a>
-    <a href="#core">05 常驻块：谁在维护它</a>
-    <a href="#hooks">06 接口的九个方法</a>
-    <a href="#fail">07 失败会怎样</a>
-    <a href="#open">08 还没解决的</a>
-    <a href="#web">09 Web 页面状态</a>
-    <a href="#changes">10 统一修改接口</a>
+    <a href="#flow">01 From conversation to long-term memory</a>
+    <a href="#steps">02 Five write steps</a>
+    <a href="#txn">03 Transactions: stage, validate, install</a>
+    <a href="#cursor">04 Cursor: identity versus position</a>
+    <a href="#core">05 Maintaining the resident block</a>
+    <a href="#hooks">06 Nine interface methods</a>
+    <a href="#fail">07 Failure behavior</a>
+    <a href="#open">08 Unresolved issues</a>
+    <a href="#web">09 Web page status</a>
+    <a href="#changes">10 Unified modification interface</a>
   </div>
 
-  <!-- ══════════ 01 总图 ══════════ -->
-  <h2 id="flow"><span class="num">01</span>一条对话怎么变成长期记忆</h2>
-  <p class="lead">两个入口，一段写入逻辑。两条路的区别只有 <code>force</code> 这一个开关：一个够了才写，一个剩多少写多少。</p>
+  <!-- ══════════ 01 Overview ══════════ -->
+  <h2 id="flow"><span class="num">01</span> From conversation to long-term memory</h2>
+  <p class="lead">Two entry points share one write implementation. They differ only in the <code>force</code> switch: one waits for enough content; the other writes everything remaining.</p>
 
   <div class="card">
-  <svg viewBox="0 0 1160 610" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="一条对话怎么变成长期记忆">
+  <svg viewBox="0 0 1160 610" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="From conversation to long-term memory">
     <defs>
       <marker id="f-gn" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#5aad4e"/></marker>
       <marker id="f-bl" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#4f8ef7"/></marker>
@@ -236,135 +229,133 @@
       <marker id="f-cy" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2db3d5"/></marker>
     </defs>
 
-    <text x="24" y="32" fill="#d4843a" font-size="16" font-weight="700">一条对话怎么变成长期记忆</text>
-    <text x="24" y="56" fill="#8a8675" font-size="12.5">对话不在写入时缓存在进程里。每一次写入都重新从会话存储读回来，所以进程重启不丢。</text>
+    <text x="24" y="32" fill="#d4843a" font-size="16" font-weight="700">From conversation to long-term memory</text>
+    <text x="24" y="56" fill="#8a8675" font-size="12.5">Conversation content is not buffered in process memory for writing. Every write rereads session storage, so process restarts lose nothing.</text>
 
-    <!-- 会话存储 -->
+    <!-- Session storage -->
     <rect x="32" y="76" width="1096" height="86" rx="10" fill="#1e2630" stroke="#2db3d5" stroke-width="1.4"/>
-    <text x="50" y="102" fill="#2db3d5" font-size="13" font-weight="700">会话存储</text>
-    <text x="122" y="102" fill="#8a8675" font-size="11.5">持久、有序，每条消息一个稳定 id</text>
+    <text x="50" y="102" fill="#2db3d5" font-size="13" font-weight="700">Sessions</text>
+    <text x="122" y="102" fill="#8a8675" font-size="11.5">Persistent and ordered; stable ID per message</text>
     <g>
       <rect x="50" y="114" width="76" height="28" rx="6" fill="#12110b" stroke="#2e2c20"/>
-      <text x="88" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">用户</text>
+      <text x="88" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">User</text>
       <rect x="134" y="114" width="76" height="28" rx="6" fill="#12110b" stroke="#2e2c20"/>
-      <text x="172" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">助手</text>
+      <text x="172" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">Assistant</text>
       <rect x="218" y="114" width="76" height="28" rx="6" fill="#12110b" stroke="#2e2c20"/>
-      <text x="256" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">用户</text>
+      <text x="256" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">User</text>
       <rect x="302" y="114" width="76" height="28" rx="6" fill="#12110b" stroke="#2e2c20"/>
-      <text x="340" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">助手</text>
+      <text x="340" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">Assistant</text>
       <rect x="386" y="114" width="76" height="28" rx="6" fill="#12110b" stroke="#2e2c20"/>
-      <text x="424" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">用户</text>
+      <text x="424" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">User</text>
       <rect x="470" y="114" width="76" height="28" rx="6" fill="#12110b" stroke="#2e2c20"/>
-      <text x="508" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">助手</text>
+      <text x="508" y="132" fill="#bdb9a6" font-size="11.5" text-anchor="middle">Assistant</text>
       <text x="562" y="134" fill="#6b6a63" font-size="13">…</text>
     </g>
-    <text x="606" y="124" fill="#bdb9a6" font-size="11.5">get_branch(session_id) 沿 predecessor 边往回走，</text>
-    <text x="606" y="144" fill="#bdb9a6" font-size="11.5">拿回 head 那条分支，按顺序</text>
+    <text x="606" y="124" fill="#bdb9a6" font-size="11.5">get_branch(session_id) walks backward along predecessor edges,</text>
+    <text x="606" y="144" fill="#bdb9a6" font-size="11.5">returning the head branch in order</text>
 
-    <text x="50" y="184" fill="#8a8675" font-size="11.5">只有人说的和助手答的算数。工具调用和结果、runtime 自己排的轮次（子 agent 回报、分支合并提示）、空消息，都不进记忆。</text>
+    <text x="50" y="184" fill="#8a8675" font-size="11.5">Only user messages and assistant replies count. Tool calls/results, runtime-scheduled turns such as subagent reports or branch-merge notices, and empty messages never enter memory.</text>
 
-    <!-- 入口一 -->
+    <!-- Entry one -->
     <rect x="32" y="206" width="272" height="122" rx="9" fill="#101a10" stroke="#5aad4e" stroke-width="1.5"/>
-    <text x="50" y="232" fill="#5aad4e" font-size="13.5" font-weight="700">入口一 · 每轮结束</text>
+    <text x="50" y="232" fill="#5aad4e" font-size="13.5" font-weight="700">Entry one · end of each turn</text>
     <text x="50" y="250" fill="#6b6a63" font-size="10.5" font-family="Menlo,monospace">agent/dispatcher</text>
     <text x="50" y="272" fill="#d4843a" font-size="11" font-family="Menlo,monospace">write(session_id=…)  force=False</text>
-    <text x="50" y="294" fill="#bdb9a6" font-size="11">不传消息，自己去会话存储读</text>
-    <text x="50" y="314" fill="#8a8675" font-size="10.5">每轮都调，多数时候什么也不做</text>
+    <text x="50" y="294" fill="#bdb9a6" font-size="11">Read stored session messages</text>
+    <text x="50" y="314" fill="#8a8675" font-size="10.5">Called every turn; usually does nothing</text>
 
-    <!-- 入口二 -->
+    <!-- Entry two -->
     <rect x="32" y="348" width="272" height="122" rx="9" fill="#1d2738" stroke="#4f8ef7" stroke-width="1.5"/>
-    <text x="50" y="374" fill="#4f8ef7" font-size="13.5" font-weight="700">入口二 · 会话闲下来</text>
+    <text x="50" y="374" fill="#4f8ef7" font-size="13.5" font-weight="700">Entry two · session becomes idle</text>
     <text x="50" y="392" fill="#6b6a63" font-size="10.5" font-family="Menlo,monospace">memory/session_watcher</text>
     <text x="50" y="414" fill="#d4843a" font-size="11" font-family="Menlo,monospace">write(messages, …)  force=True</text>
-    <text x="50" y="436" fill="#bdb9a6" font-size="11">5 分钟扫一次，30 分钟没动静算闲</text>
-    <text x="50" y="456" fill="#8a8675" font-size="10.5">剩多少写多少，不管够不够一批</text>
+    <text x="50" y="436" fill="#bdb9a6" font-size="11">Scan every five minutes; idle after 30</text>
+    <text x="50" y="456" fill="#8a8675" font-size="10.5">Write all remaining content</text>
 
-    <!-- 入口三 -->
+    <!-- Entry three -->
     <rect x="32" y="490" width="272" height="96" rx="9" fill="#221a30" stroke="#9d6fe0" stroke-width="1.5"/>
-    <text x="50" y="516" fill="#9d6fe0" font-size="13.5" font-weight="700">每天 03:00 · 整理</text>
+    <text x="50" y="516" fill="#9d6fe0" font-size="13.5" font-weight="700">Daily 03:00 · organize</text>
     <text x="50" y="534" fill="#6b6a63" font-size="10.5" font-family="Menlo,monospace">memory/scheduler</text>
     <text x="50" y="556" fill="#d4843a" font-size="11" font-family="Menlo,monospace">reorganize(model=…)</text>
-    <text x="50" y="576" fill="#bdb9a6" font-size="11">不写新内容，只重排已经落盘的</text>
+    <text x="50" y="576" fill="#bdb9a6" font-size="11">Reorganize disk content; no new content</text>
 
-    <!-- 汇合 -->
+    <!-- Convergence -->
     <rect x="344" y="206" width="236" height="264" rx="10" fill="#241f10" stroke="#d4843a" stroke-width="1.8"/>
     <text x="362" y="234" fill="#d4843a" font-size="14" font-weight="700">writing.write()</text>
-    <text x="362" y="254" fill="#8a8675" font-size="11">两条路在这里汇合</text>
+    <text x="362" y="254" fill="#8a8675" font-size="11">Both paths converge here</text>
     <line x1="362" y1="268" x2="562" y2="268" stroke="#2e2c20" stroke-width="1"/>
     <text x="362" y="294" fill="#5aad4e" font-size="11.5" font-weight="700">force=False</text>
-    <text x="362" y="314" fill="#bdb9a6" font-size="11">走一趟就回来。不到阈值</text>
-    <text x="362" y="332" fill="#bdb9a6" font-size="11">就一趟也不写。</text>
+    <text x="362" y="314" fill="#bdb9a6" font-size="11">Run once and return. Below threshold,</text>
+    <text x="362" y="332" fill="#bdb9a6" font-size="11">write nothing.</text>
     <text x="362" y="366" fill="#4f8ef7" font-size="11.5" font-weight="700">force=True</text>
-    <text x="362" y="386" fill="#bdb9a6" font-size="11">while 还欠着：一趟接一趟，</text>
-    <text x="362" y="404" fill="#bdb9a6" font-size="11">直到不欠为止。</text>
-    <text x="362" y="432" fill="#8a8675" font-size="10.5">会话结束后没有下一批，</text>
-    <text x="362" y="450" fill="#8a8675" font-size="10.5">停在半路就永远补不上。</text>
+    <text x="362" y="386" fill="#bdb9a6" font-size="11">Repeat passes while content remains</text>
+    <text x="362" y="404" fill="#bdb9a6" font-size="11">until nothing remains.</text>
+    <text x="362" y="432" fill="#8a8675" font-size="10.5">No next batch after session end;</text>
+    <text x="362" y="450" fill="#8a8675" font-size="10.5">partial writes leave content unwritten.</text>
 
-    <!-- 一趟 -->
+    <!-- One pass -->
     <rect x="620" y="206" width="244" height="264" rx="10" fill="#12110b" stroke="#2e2c20" stroke-width="1.4"/>
-    <text x="638" y="234" fill="#d4843a" font-size="14" font-weight="700">write_session() 一趟</text>
-    <text x="638" y="254" fill="#8a8675" font-size="11">五步，见第 02 节</text>
+    <text x="638" y="234" fill="#d4843a" font-size="14" font-weight="700">One write_session() pass</text>
+    <text x="638" y="254" fill="#8a8675" font-size="11">Five steps; see section 02</text>
     <g font-size="11.5" fill="#bdb9a6">
       <circle cx="648" cy="286" r="9" fill="#1e2630" stroke="#2db3d5"/><text x="648" y="290" fill="#2db3d5" font-size="10.5" text-anchor="middle">1</text>
-      <text x="666" y="290">挑欠账 · 游标没记过的</text>
+      <text x="666" y="290">Select unwritten messages</text>
       <circle cx="648" cy="322" r="9" fill="#1d2738" stroke="#4f8ef7"/><text x="648" y="326" fill="#4f8ef7" font-size="10.5" text-anchor="middle">2</text>
-      <text x="666" y="326">分批 · 累加到 16k token</text>
+      <text x="666" y="326">Accumulate 16k tokens</text>
       <circle cx="648" cy="358" r="9" fill="#241f10" stroke="#d4843a"/><text x="648" y="362" fill="#d4843a" font-size="10.5" text-anchor="middle">3</text>
-      <text x="666" y="362">调模型 · 在暂存里改文件</text>
+      <text x="666" y="362">Model edits staged files</text>
       <circle cx="648" cy="394" r="9" fill="#221a30" stroke="#9d6fe0"/><text x="648" y="398" fill="#9d6fe0" font-size="10.5" text-anchor="middle">4</text>
-      <text x="666" y="398">整理 · 攒够了就重排</text>
+      <text x="666" y="398">Organize at the threshold</text>
       <circle cx="648" cy="430" r="9" fill="#101a10" stroke="#5aad4e"/><text x="648" y="434" fill="#5aad4e" font-size="10.5" text-anchor="middle">5</text>
-      <text x="666" y="434">提交 · 验过才整体安装</text>
+      <text x="666" y="434">Validate and install</text>
     </g>
 
-    <!-- 记忆库 -->
+    <!-- Memory repository -->
     <rect x="900" y="176" width="228" height="352" rx="10" fill="#12110b" stroke="#2e2c20" stroke-width="1.4"/>
-    <text x="918" y="204" fill="#d4843a" font-size="14" font-weight="700">记忆库</text>
+    <text x="918" y="204" fill="#d4843a" font-size="14" font-weight="700">Memory repository</text>
     <text x="918" y="224" fill="#6b6a63" font-size="10.5" font-family="Menlo,monospace">&lt;state&gt;/memory/</text>
     <text x="918" y="256" fill="#d4843a" font-size="11.5" font-family="Menlo,monospace">topics/</text>
-    <text x="918" y="274" fill="#8a8675" font-size="11">主题文件。模型只改这里</text>
+    <text x="918" y="274" fill="#8a8675" font-size="11">Only model-editable files</text>
     <text x="918" y="304" fill="#2db3d5" font-size="11.5" font-family="Menlo,monospace">sources/</text>
-    <text x="918" y="322" fill="#8a8675" font-size="11">原文存档，只增不改</text>
+    <text x="918" y="322" fill="#8a8675" font-size="11">Append-only source archive</text>
     <text x="918" y="352" fill="#5aad4e" font-size="11.5" font-family="Menlo,monospace">core.md</text>
-    <text x="918" y="370" fill="#8a8675" font-size="11">每次会话都注入</text>
-    <text x="918" y="400" fill="#9d6fe0" font-size="11.5" font-family="Menlo,monospace">timeline/ 等三处</text>
-    <text x="918" y="418" fill="#8a8675" font-size="11">派生视图，写完就重建</text>
+    <text x="918" y="370" fill="#8a8675" font-size="11">Injected into every session</text>
+    <text x="918" y="400" fill="#9d6fe0" font-size="11.5" font-family="Menlo,monospace">timeline/ + two locations</text>
+    <text x="918" y="418" fill="#8a8675" font-size="11">Derived views rebuilt after writes</text>
     <text x="918" y="448" fill="#8a8675" font-size="11.5" font-family="Menlo,monospace">.scriptorium/</text>
-    <text x="918" y="466" fill="#8a8675" font-size="11">游标、写锁、写手历史</text>
+    <text x="918" y="466" fill="#8a8675" font-size="11">Cursor, write lock, writer history</text>
     <line x1="918" y1="486" x2="1110" y2="486" stroke="#2e2c20" stroke-width="1"/>
-    <text x="918" y="508" fill="#8a8675" font-size="10.5">写成一次，就 commit 一版</text>
+    <text x="918" y="508" fill="#8a8675" font-size="10.5">One commit per successful write</text>
 
-    <!-- 连线 -->
+    <!-- Connections -->
     <line x1="304" y1="267" x2="340" y2="267" stroke="#5aad4e" stroke-width="1.6" marker-end="url(#f-gn)"/>
     <line x1="304" y1="409" x2="340" y2="409" stroke="#4f8ef7" stroke-width="1.6" marker-end="url(#f-bl)"/>
     <line x1="580" y1="338" x2="616" y2="338" stroke="#d4843a" stroke-width="1.6" marker-end="url(#f-or)"/>
     <line x1="864" y1="338" x2="896" y2="338" stroke="#d4843a" stroke-width="1.6" marker-end="url(#f-or)"/>
 
-    <!-- force 回环 -->
+    <!-- force Loop -->
     <path d="M742 470 L742 492 L462 492 L462 474" fill="none" stroke="#4f8ef7" stroke-width="1.5"
       stroke-dasharray="6 4" marker-end="url(#f-bl)"/>
-    <text x="602" y="510" fill="#4f8ef7" font-size="11" text-anchor="middle">force 时：还欠着就再来一趟</text>
+    <text x="602" y="510" fill="#4f8ef7" font-size="11" text-anchor="middle">When forced: repeat while content remains</text>
 
-    <!-- 整理直连记忆库 -->
+    <!-- Organization directly accesses memory -->
     <path d="M304 538 C 520 570, 720 572, 894 520" fill="none" stroke="#9d6fe0" stroke-width="1.5"
       marker-end="url(#f-vi)"/>
-    <text x="596" y="592" fill="#9d6fe0" font-size="11" text-anchor="middle">整理不走写入这条路：它只重排 topics/，不动 sources/，也不推游标</text>
+    <text x="596" y="592" fill="#9d6fe0" font-size="11" text-anchor="middle">Organization bypasses ingestion: it rearranges topics/, leaves sources/ unchanged, and does not advance the cursor</text>
   </svg>
+  <p class="note">Diagram details: Session storage. No messages passed; read session storage. Scan every five minutes; idle after 30 minutes. Write everything remaining regardless of batch threshold. Reorganize existing disk content; add nothing new. While content remains, run successive passes. After a session ends there is no next batch; stopping halfway leaves content unwritten forever. Select unwritten messages not covered by the cursor. Batch by accumulating 16k tokens. Call the model to edit staged files. Organize when enough content accumulates. Commit: install everything after validation. Topic files; the model edits only these. timeline/ and two other locations.</p>
   </div>
   <div class="legend">
-    <b>怎么读</b>：左边三个入口，中间是它们共用的那段逻辑，右边是磁盘。
-    绿色那条每轮都触发，但只有攒够 16k token 才真的写；蓝色那条在会话闲置后触发，把剩下的全部写完，所以它要循环。
-    紫色那条不产生新内容。<br>
-    <b>为什么每轮那次不传消息</b>：会话存储本来就是持久有序的，从它读回来的每条消息都有稳定 id，
-    进程里再缓一份只会在重启时丢掉，而且给出的位置每次运行都不一样。
+    <b>Reading the diagram</b>: three entries on the left, shared logic in the center, disk on the right. Green triggers every turn but writes only after 16k tokens accumulate. Blue triggers after idleness and loops to write everything remaining. Purple produces no new content.<br>
+    <b>Why the per-turn entry passes no messages</b>: session storage is already persistent and ordered, with stable message IDs. A duplicate process buffer would be lost on restart and produce positions that vary between runs.
   </div>
 
-  <!-- ══════════ 02 五个步骤 ══════════ -->
-  <h2 id="steps"><span class="num">02</span>写入的五个步骤</h2>
-  <p class="lead">一趟里发生的事。阈值只回答"值不值得叫一次模型"，不回答"一次写多少"，所以跑了一天的会话要走好几趟。</p>
+  <!-- ══════════ 02 Five steps ══════════ -->
+  <h2 id="steps"><span class="num">02</span> Five write steps</h2>
+  <p class="lead">What happens in one pass. The threshold determines whether to call a model, not how much a single call writes; a day-long conversation may need several passes.</p>
 
   <div class="card">
-  <svg viewBox="0 0 1160 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="写入的五个步骤">
+  <svg viewBox="0 0 1160 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Five write steps">
     <defs>
       <marker id="s-gy" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8a8675"/></marker>
     </defs>
@@ -372,73 +363,75 @@
     <rect x="32" y="86" width="208" height="168" rx="10" fill="#1e2630" stroke="#2db3d5" stroke-width="1.4"/>
     <circle cx="52" cy="70" r="13" fill="#12110b" stroke="#2db3d5" stroke-width="1.4"/>
     <text x="52" y="75" fill="#2db3d5" font-size="13" font-weight="700" text-anchor="middle">1</text>
-    <text x="76" y="75" fill="#2db3d5" font-size="13.5" font-weight="700">挑欠账</text>
-    <text x="48" y="116" fill="#bdb9a6" font-size="11.5">分支上的每一条</text>
-    <text x="48" y="136" fill="#bdb9a6" font-size="11.5">减去游标记过的</text>
-    <text x="48" y="156" fill="#f0eee6" font-size="11.5">= 这个会话还欠着的</text>
+    <text x="76" y="75" fill="#2db3d5" font-size="13.5" font-weight="700">Select unwritten content</text>
+    <text x="48" y="116" fill="#bdb9a6" font-size="11.5">Every message on the branch</text>
+    <text x="48" y="136" fill="#bdb9a6" font-size="11.5">minus cursor-covered messages</text>
+    <text x="48" y="156" fill="#f0eee6" font-size="11.5">= remaining session content</text>
     <text x="48" y="186" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">runtime.pending()</text>
-    <text x="48" y="212" fill="#8a8675" font-size="10.5">顺手滤掉工具调用</text>
-    <text x="48" y="230" fill="#8a8675" font-size="10.5">和 runtime 自排的轮次</text>
+    <text x="48" y="212" fill="#8a8675" font-size="10.5">Also exclude tool calls</text>
+    <text x="48" y="230" fill="#8a8675" font-size="10.5">and runtime-scheduled turns</text>
 
     <rect x="254" y="86" width="208" height="168" rx="10" fill="#1d2738" stroke="#4f8ef7" stroke-width="1.4"/>
     <circle cx="274" cy="70" r="13" fill="#12110b" stroke="#4f8ef7" stroke-width="1.4"/>
     <text x="274" y="75" fill="#4f8ef7" font-size="13" font-weight="700" text-anchor="middle">2</text>
-    <text x="298" y="75" fill="#4f8ef7" font-size="13.5" font-weight="700">分批</text>
-    <text x="270" y="116" fill="#bdb9a6" font-size="11.5">从头一条条累加</text>
-    <text x="270" y="136" fill="#bdb9a6" font-size="11.5">够 16k token 就切</text>
-    <text x="270" y="164" fill="#f0eee6" font-size="11.5">切下来的是这一批</text>
-    <text x="270" y="192" fill="#8a8675" font-size="10.5">剩的留给下一趟，</text>
-    <text x="270" y="210" fill="#8a8675" font-size="10.5">一次模型调用装不下</text>
-    <text x="270" y="228" fill="#8a8675" font-size="10.5">一整天的对话</text>
+    <text x="298" y="75" fill="#4f8ef7" font-size="13.5" font-weight="700">Batch</text>
+    <text x="270" y="116" fill="#bdb9a6" font-size="11.5">Accumulate from the start</text>
+    <text x="270" y="136" fill="#bdb9a6" font-size="11.5">Cut a batch at 16k tokens</text>
+    <text x="270" y="164" fill="#f0eee6" font-size="11.5">That segment is the current batch</text>
+    <text x="270" y="192" fill="#8a8675" font-size="10.5">Leave the rest for the next pass;</text>
+    <text x="270" y="210" fill="#8a8675" font-size="10.5">one model call cannot contain</text>
+    <text x="270" y="228" fill="#8a8675" font-size="10.5">a whole day’s conversation</text>
 
     <rect x="476" y="86" width="208" height="168" rx="10" fill="#241f10" stroke="#d4843a" stroke-width="1.6"/>
     <circle cx="496" cy="70" r="13" fill="#12110b" stroke="#d4843a" stroke-width="1.4"/>
     <text x="496" y="75" fill="#d4843a" font-size="13" font-weight="700" text-anchor="middle">3</text>
-    <text x="520" y="75" fill="#d4843a" font-size="13.5" font-weight="700">调模型改主题文件</text>
-    <text x="492" y="116" fill="#bdb9a6" font-size="11.5">写手拿到这一批原文</text>
-    <text x="492" y="136" fill="#bdb9a6" font-size="11.5">和当前的目录结构</text>
-    <text x="492" y="164" fill="#f0eee6" font-size="11.5">用文件工具改 topics/</text>
-    <text x="492" y="192" fill="#8a8675" font-size="10.5">改的是暂存目录里的</text>
-    <text x="492" y="210" fill="#8a8675" font-size="10.5">拷贝，见第 03 节。跑在</text>
-    <text x="492" y="228" fill="#8a8675" font-size="10.5">用户自己的登录上</text>
+    <text x="520" y="75" fill="#d4843a" font-size="13.5" font-weight="700">Call the model to edit topics</text>
+    <text x="492" y="116" fill="#bdb9a6" font-size="11.5">Writer receives batch source text</text>
+    <text x="492" y="136" fill="#bdb9a6" font-size="11.5">and the current directory structure</text>
+    <text x="492" y="164" fill="#f0eee6" font-size="11.5">File tools edit topics/</text>
+    <text x="492" y="192" fill="#8a8675" font-size="10.5">Edits affect copies in the staging</text>
+    <text x="492" y="210" fill="#8a8675" font-size="10.5">directory; see section 03. Runs using</text>
+    <text x="492" y="228" fill="#8a8675" font-size="10.5">the user’s own login</text>
 
     <rect x="698" y="86" width="208" height="168" rx="10" fill="#221a30" stroke="#9d6fe0" stroke-width="1.4"/>
     <circle cx="718" cy="70" r="13" fill="#12110b" stroke="#9d6fe0" stroke-width="1.4"/>
     <text x="718" y="75" fill="#9d6fe0" font-size="13" font-weight="700" text-anchor="middle">4</text>
-    <text x="742" y="75" fill="#9d6fe0" font-size="13.5" font-weight="700">整理</text>
-    <text x="714" y="116" fill="#bdb9a6" font-size="11.5">攒够 5 批或 4 万 token</text>
-    <text x="714" y="136" fill="#bdb9a6" font-size="11.5">→ 重排一次</text>
-    <text x="714" y="164" fill="#bdb9a6" font-size="11.5">距上次全局整理满一天</text>
-    <text x="714" y="184" fill="#bdb9a6" font-size="11.5">→ 再重排一次</text>
-    <text x="714" y="212" fill="#8a8675" font-size="10.5">同一个动作，两个触发</text>
-    <text x="714" y="230" fill="#8a8675" font-size="10.5">条件。都不满足就跳过</text>
+    <text x="742" y="75" fill="#9d6fe0" font-size="13.5" font-weight="700">Organize</text>
+    <text x="714" y="116" fill="#bdb9a6" font-size="11.5">After five batches or 40k tokens</text>
+    <text x="714" y="136" fill="#bdb9a6" font-size="11.5">→ reorganize once</text>
+    <text x="714" y="164" fill="#bdb9a6" font-size="11.5">One day after global organization</text>
+    <text x="714" y="184" fill="#bdb9a6" font-size="11.5">→ reorganize again</text>
+    <text x="714" y="212" fill="#8a8675" font-size="10.5">One action, two triggers;</text>
+    <text x="714" y="230" fill="#8a8675" font-size="10.5">skip when neither applies</text>
 
     <rect x="920" y="86" width="208" height="168" rx="10" fill="#101a10" stroke="#5aad4e" stroke-width="1.6"/>
     <circle cx="940" cy="70" r="13" fill="#12110b" stroke="#5aad4e" stroke-width="1.4"/>
     <text x="940" y="75" fill="#5aad4e" font-size="13" font-weight="700" text-anchor="middle">5</text>
-    <text x="964" y="75" fill="#5aad4e" font-size="13.5" font-weight="700">事务提交</text>
-    <text x="936" y="116" fill="#bdb9a6" font-size="11.5">校验通过 → 整体安装</text>
-    <text x="936" y="136" fill="#bdb9a6" font-size="11.5">不通过 → 整批丢弃</text>
-    <text x="936" y="164" fill="#f0eee6" font-size="11.5">装进去了才推游标</text>
-    <text x="936" y="192" fill="#8a8675" font-size="10.5">这一批的原文在调模型</text>
-    <text x="936" y="210" fill="#8a8675" font-size="10.5">之前就已经存档，所以</text>
-    <text x="936" y="228" fill="#8a8675" font-size="10.5">存档永远不落后于游标</text>
+    <text x="964" y="75" fill="#5aad4e" font-size="13.5" font-weight="700">Commit the transaction</text>
+    <text x="936" y="116" fill="#bdb9a6" font-size="11.5">Validation passes → install all</text>
+    <text x="936" y="136" fill="#bdb9a6" font-size="11.5">Validation fails → discard the batch</text>
+    <text x="936" y="164" fill="#f0eee6" font-size="11.5">Advance cursor after installation</text>
+    <text x="936" y="192" fill="#8a8675" font-size="10.5">This batch’s source text is archived</text>
+    <text x="936" y="210" fill="#8a8675" font-size="10.5">before the model call, so the archive</text>
+    <text x="936" y="228" fill="#8a8675" font-size="10.5">never falls behind the cursor</text>
 
     <line x1="240" y1="170" x2="250" y2="170" stroke="#8a8675" stroke-width="1.4" marker-end="url(#s-gy)"/>
     <line x1="462" y1="170" x2="472" y2="170" stroke="#8a8675" stroke-width="1.4" marker-end="url(#s-gy)"/>
     <line x1="684" y1="170" x2="694" y2="170" stroke="#8a8675" stroke-width="1.4" marker-end="url(#s-gy)"/>
     <line x1="906" y1="170" x2="916" y2="170" stroke="#8a8675" stroke-width="1.4" marker-end="url(#s-gy)"/>
 
-    <text x="32" y="286" fill="#8a8675" font-size="11.5">整趟持一把跨进程写锁，等 1 秒拿不到就放弃：正在聊天的会话要写记忆是常事，让用户等不如下一轮再来。</text>
+    <text x="32" y="286" fill="#8a8675" font-size="11.5">A cross-process write lock covers the entire pass. Give up if acquisition takes over one second: active conversations commonly write memory, so retrying next turn is preferable to delaying the user.</text>
   </svg>
+  <p class="note">Diagram details: minus messages covered by the cursor. Leave the remainder for the next pass; After one day since global organization. Validation passes → install everything. Advance the cursor only after installation.</p>
+  <p class="note">Diagram details: Accumulate messages from the beginning. The writer receives this batch’s source text.</p>
   </div>
 
-  <!-- ══════════ 03 事务 ══════════ -->
-  <h2 id="txn"><span class="num">03</span>事务：改在暂存，验过才装</h2>
-  <p class="lead">模型不直接改记忆库。它改的是一份临时拷贝，只有整份验过才被整体安装；验不过整份丢掉，记忆库一个字节没动。</p>
+  <!-- ══════════ 03 Transaction ══════════ -->
+  <h2 id="txn"><span class="num">03</span> Transactions: stage, validate, install</h2>
+  <p class="lead">The model never edits the repository directly. It edits a temporary copy, installed only after complete validation. Failed validation discards the copy without changing a byte in the repository.</p>
 
   <div class="card">
-  <svg viewBox="0 0 1160 490" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="写入事务">
+  <svg viewBox="0 0 1160 490" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Write transaction">
     <defs>
       <marker id="t-gy" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8a8675"/></marker>
       <marker id="t-gn" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#5aad4e"/></marker>
@@ -446,107 +439,108 @@
       <marker id="t-or" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#d4843a"/></marker>
     </defs>
 
-    <text x="24" y="32" fill="#d4843a" font-size="15" font-weight="700">一次写入事务的全过程</text>
+    <text x="24" y="32" fill="#d4843a" font-size="15" font-weight="700">Complete write-transaction lifecycle</text>
 
-    <!-- 记忆库 -->
+    <!-- Memory repository -->
     <rect x="32" y="60" width="196" height="196" rx="10" fill="#12110b" stroke="#2e2c20" stroke-width="1.4"/>
-    <text x="50" y="86" fill="#bdb9a6" font-size="13" font-weight="700">记忆库</text>
+    <text x="50" y="86" fill="#bdb9a6" font-size="13" font-weight="700">Memory repository</text>
     <text x="50" y="112" fill="#d4843a" font-size="11" font-family="Menlo,monospace">topics/</text>
     <text x="50" y="132" fill="#2db3d5" font-size="11" font-family="Menlo,monospace">sources/</text>
     <text x="50" y="152" fill="#5aad4e" font-size="11" font-family="Menlo,monospace">core.md</text>
-    <text x="50" y="184" fill="#8a8675" font-size="11">事务期间它是只读的</text>
-    <text x="50" y="204" fill="#8a8675" font-size="11">参照物，谁也不在这里</text>
-    <text x="50" y="224" fill="#8a8675" font-size="11">直接改</text>
+    <text x="50" y="184" fill="#8a8675" font-size="11">Read-only during the transaction;</text>
+    <text x="50" y="204" fill="#8a8675" font-size="11">a reference that nobody</text>
+    <text x="50" y="224" fill="#8a8675" font-size="11">edits directly</text>
 
     <path d="M228 130 L294 130" fill="none" stroke="#8a8675" stroke-width="1.5" marker-end="url(#t-gy)"/>
-    <text x="261" y="120" fill="#8a8675" font-size="10.5" text-anchor="middle">整份拷贝</text>
+    <text x="261" y="120" fill="#8a8675" font-size="10.5" text-anchor="middle">Copy everything</text>
 
-    <!-- 暂存 -->
+    <!-- Staging -->
     <rect x="298" y="60" width="290" height="196" rx="10" fill="#241f10" stroke="#d4843a" stroke-width="1.6"/>
-    <text x="316" y="86" fill="#d4843a" font-size="13" font-weight="700">暂存目录</text>
-    <text x="392" y="86" fill="#6b6a63" font-size="10.5" font-family="Menlo,monospace">系统临时目录里新建</text>
+    <text x="316" y="86" fill="#d4843a" font-size="13" font-weight="700">Staging</text>
+    <text x="392" y="86" fill="#6b6a63" font-size="10.5" font-family="Menlo,monospace">System temporary directory</text>
     <rect x="316" y="98" width="254" height="42" rx="6" fill="#12110b" stroke="#2e2c20"/>
     <text x="330" y="115" fill="#d4843a" font-size="11" font-family="Menlo,monospace">topics/</text>
-    <text x="330" y="132" fill="#bdb9a6" font-size="11">可写。写手这一轮的每次编辑都落这儿</text>
+    <text x="330" y="132" fill="#bdb9a6" font-size="11">Writable; all edits this turn go here</text>
     <rect x="316" y="150" width="254" height="42" rx="6" fill="#12110b" stroke="#2e2c20"/>
     <text x="330" y="167" fill="#2db3d5" font-size="11" font-family="Menlo,monospace">sources/  chmod 0444</text>
-    <text x="330" y="184" fill="#bdb9a6" font-size="11">文件系统这一层就拒写，不等到最后才发现</text>
-    <text x="316" y="214" fill="#8a8675" font-size="11">基准线在拷贝之前从记忆库读：拷完再读，等于</text>
-    <text x="316" y="232" fill="#8a8675" font-size="11">拿这次编辑去量它自己，丢掉的块 ID 会像从没存在过</text>
+    <text x="330" y="184" fill="#bdb9a6" font-size="11">Filesystem rejects writes immediately</text>
+    <text x="316" y="214" fill="#8a8675" font-size="11">Read the repository baseline before copying.</text>
+    <text x="316" y="232" fill="#8a8675" font-size="11">A later baseline would miss deleted block IDs.</text>
 
     <path d="M588 130 L644 130" fill="none" stroke="#8a8675" stroke-width="1.5" marker-end="url(#t-gy)"/>
 
-    <!-- 校验 -->
+    <!-- Validation -->
     <rect x="648" y="60" width="256" height="196" rx="10" fill="#12110b" stroke="#2e2c20" stroke-width="1.4"/>
-    <text x="666" y="86" fill="#bdb9a6" font-size="13" font-weight="700">四道校验</text>
-    <text x="666" y="112" fill="#bdb9a6" font-size="11.5">1　sources/ 的指纹没变</text>
-    <text x="682" y="130" fill="#8a8675" font-size="10.5">原文存档只增不改</text>
-    <text x="666" y="154" fill="#bdb9a6" font-size="11.5">2　改之前的块 ID 一个不少</text>
-    <text x="682" y="172" fill="#8a8675" font-size="10.5">段落可以改写、合并、搬家</text>
-    <text x="666" y="196" fill="#bdb9a6" font-size="11.5">3　主题间的链接指到 #^块 ID</text>
-    <text x="666" y="220" fill="#bdb9a6" font-size="11.5">4　引用的来源真的存在</text>
-    <text x="682" y="238" fill="#8a8675" font-size="10.5">core.md 不超额，块链接不悬空</text>
+    <text x="666" y="86" fill="#bdb9a6" font-size="13" font-weight="700">Four validations</text>
+    <text x="666" y="112" fill="#bdb9a6" font-size="11.5">1 sources/ fingerprint unchanged</text>
+    <text x="682" y="130" fill="#8a8675" font-size="10.5">Source archive is append-only</text>
+    <text x="666" y="154" fill="#bdb9a6" font-size="11.5">2 Every pre-existing block ID remains</text>
+    <text x="682" y="172" fill="#8a8675" font-size="10.5">Rewrite, merge, or move paragraphs</text>
+    <text x="666" y="196" fill="#bdb9a6" font-size="11.5">3 Cross-topic links target #^block IDs</text>
+    <text x="666" y="220" fill="#bdb9a6" font-size="11.5">4 Referenced sources actually exist</text>
+    <text x="682" y="238" fill="#8a8675" font-size="10.5">core.md budget; valid block links</text>
 
-    <!-- 出口 -->
+    <!-- Outputs -->
     <path d="M904 100 L948 100" fill="none" stroke="#5aad4e" stroke-width="1.6" marker-end="url(#t-gn)"/>
     <path d="M904 200 L948 200" fill="none" stroke="#e0445a" stroke-width="1.6" marker-end="url(#t-no)"/>
 
     <rect x="952" y="60" width="176" height="90" rx="9" fill="#101a10" stroke="#5aad4e" stroke-width="1.5"/>
-    <text x="968" y="84" fill="#5aad4e" font-size="12.5" font-weight="700">通过 · 整体安装</text>
-    <text x="968" y="104" fill="#bdb9a6" font-size="11">现有的先挪进备份</text>
-    <text x="968" y="122" fill="#bdb9a6" font-size="11">暂存整份装入</text>
-    <text x="968" y="140" fill="#bdb9a6" font-size="11">重建派生视图，commit</text>
+    <text x="968" y="84" fill="#5aad4e" font-size="12.5" font-weight="700">Pass · install everything</text>
+    <text x="968" y="104" fill="#bdb9a6" font-size="11">Back up existing data</text>
+    <text x="968" y="122" fill="#bdb9a6" font-size="11">Install full staged copy</text>
+    <text x="968" y="140" fill="#bdb9a6" font-size="11">Rebuild views; commit</text>
 
     <rect x="952" y="164" width="176" height="92" rx="9" fill="#241015" stroke="#e0445a" stroke-width="1.5"/>
-    <text x="968" y="188" fill="#e0445a" font-size="12.5" font-weight="700">不通过 · 整批丢弃</text>
-    <text x="968" y="208" fill="#bdb9a6" font-size="11">暂存目录重新拷一份</text>
-    <text x="968" y="226" fill="#bdb9a6" font-size="11">记忆库保持原样</text>
-    <text x="968" y="244" fill="#bdb9a6" font-size="11">抛出被拒的原因</text>
+    <text x="968" y="188" fill="#e0445a" font-size="12.5" font-weight="700">Fail · discard the batch</text>
+    <text x="968" y="208" fill="#bdb9a6" font-size="11">Create fresh staging</text>
+    <text x="968" y="226" fill="#bdb9a6" font-size="11">Repository unchanged</text>
+    <text x="968" y="244" fill="#bdb9a6" font-size="11">Raise the rejection reason</text>
 
-    <!-- 修复 -->
-    <text x="24" y="308" fill="#d4843a" font-size="14" font-weight="700">被驳回之后：只有一次修复机会</text>
+    <!-- Repair -->
+    <text x="24" y="308" fill="#d4843a" font-size="14" font-weight="700">After rejection: one repair attempt only</text>
     <rect x="32" y="326" width="300" height="88" rx="9" fill="#241015" stroke="#e0445a" stroke-width="1.3"/>
-    <text x="50" y="350" fill="#e0445a" font-size="12" font-weight="700">第一次驳回</text>
-    <text x="50" y="372" fill="#bdb9a6" font-size="11.5">把被拒的原文，加上一句针对这条</text>
-    <text x="50" y="390" fill="#bdb9a6" font-size="11.5">规则的具体改法，发回写手重做</text>
-    <text x="50" y="408" fill="#8a8675" font-size="10.5">工作区已经回到这一轮之前的样子</text>
+    <text x="50" y="350" fill="#e0445a" font-size="12" font-weight="700">First rejection</text>
+    <text x="50" y="372" fill="#bdb9a6" font-size="11.5">Return rejected text and</text>
+    <text x="50" y="390" fill="#bdb9a6" font-size="11.5">rule-specific repair guidance</text>
+    <text x="50" y="408" fill="#8a8675" font-size="10.5">Workspace restored to its pre-turn state</text>
 
     <path d="M332 370 L388 370" fill="none" stroke="#d4843a" stroke-width="1.5" marker-end="url(#t-or)"/>
 
     <rect x="392" y="326" width="300" height="88" rx="9" fill="#241f10" stroke="#d4843a" stroke-width="1.3"/>
-    <text x="410" y="350" fill="#d4843a" font-size="12" font-weight="700">重做一遍</text>
-    <text x="410" y="372" fill="#bdb9a6" font-size="11.5">同样在暂存里改，同样四道校验</text>
-    <text x="410" y="394" fill="#8a8675" font-size="10.5">基准线在修复之前重新取一次：改完再取会去</text>
-    <text x="410" y="410" fill="#8a8675" font-size="10.5">解析模型刚写坏的文本</text>
+    <text x="410" y="350" fill="#d4843a" font-size="12" font-weight="700">Retry the edit</text>
+    <text x="410" y="372" fill="#bdb9a6" font-size="11.5">Same staging and four validations</text>
+    <text x="410" y="394" fill="#8a8675" font-size="10.5">Take a fresh baseline before repair;</text>
+    <text x="410" y="410" fill="#8a8675" font-size="10.5">a later baseline may contain corrupt text.</text>
 
     <path d="M692 370 L748 370" fill="none" stroke="#e0445a" stroke-width="1.5" marker-end="url(#t-no)"/>
 
     <rect x="752" y="326" width="376" height="88" rx="9" fill="#241015" stroke="#e0445a" stroke-width="1.5"/>
-    <text x="770" y="350" fill="#e0445a" font-size="12" font-weight="700">第二次还驳回 → 这一批彻底不写</text>
-    <text x="770" y="372" fill="#bdb9a6" font-size="11.5">报 COMMIT_REJECTED，游标不动，这些轮次仍然欠着。</text>
-    <text x="770" y="394" fill="#bdb9a6" font-size="11.5">在这里报成功，就等于让调用方把游标推过一批从没落盘的内容。</text>
+    <text x="770" y="350" fill="#e0445a" font-size="12" font-weight="700">Second rejection → do not write this batch</text>
+    <text x="770" y="372" fill="#bdb9a6" font-size="11.5">COMMIT_REJECTED; cursor unchanged; turns pending.</text>
+    <text x="770" y="394" fill="#bdb9a6" font-size="11.5">False success would skip content never installed on disk.</text>
 
-    <text x="32" y="452" fill="#8a8675" font-size="11.5">同一条管线也给人用：手改主题文件走的是同一套暂存和校验，改坏了当场被拒，提交过的文件一字不动。</text>
-    <text x="32" y="474" fill="#8a8675" font-size="11.5">块 ID 是别的段落、时间轴和关系图找到这一段的唯一途径，所以"内容随便改、ID 必须还在"是这套校验里最硬的一条。</text>
+    <text x="32" y="452" fill="#8a8675" font-size="11.5">The same pipeline serves human edits: manually edited topics use identical staging and validation. Invalid edits are rejected immediately without changing committed files.</text>
+    <text x="32" y="474" fill="#8a8675" font-size="11.5">Block IDs are how other paragraphs, timelines, and relation graphs locate a paragraph. Content may change but IDs must remain: this is the strongest validation constraint.</text>
   </svg>
+  <p class="note">Diagram details: Read-only throughout the transaction; Paragraphs may be rewritten, merged, or moved.</p>
+  <p class="note">Diagram details: Staging directory. Created under the system temporary directory. Writable; every writer edit this turn goes here. Filesystem-level denial prevents writes immediately. Read the baseline from the repository before copying. Reading it after copying. would compare an edit with itself and treat lost block IDs as though they never existed. core.md stays within budget; no dangling block links. Move existing data to backup. Install the complete staged copy. Rebuild derived views and commit. Recreate staging from a fresh copy. Leave the repository unchanged. Return the rejected text and a specific. instruction for correcting this rule to the writer. The workspace has already been restored to its pre-turn state. Take a fresh baseline before repair; taking it afterward would. parse text the model has just corrupted. Return COMMIT_REJECTED, leave the cursor unchanged, and keep these turns pending. Reporting success here would let the caller advance past content never installed on disk.</p>
   </div>
 
-  <!-- ══════════ 04 游标 ══════════ -->
-  <h2 id="cursor"><span class="num">04</span>游标：身份不是位置</h2>
-  <p class="lead">一条会话是一张图，不是一条线。重问一句、重试一次回答、派一个子 agent，都会从中间分叉出一条新分支。
-    分支上说的话都该进记忆，共享前缀上说的话不该进第二遍。</p>
+  <!-- ══════════ 04 Cursor ══════════ -->
+  <h2 id="cursor"><span class="num">04</span> Cursor: identity versus position</h2>
+  <p class="lead">A session is a graph, not a linear sequence. Re-asking, retrying a reply, or spawning a subagent creates a branch. Every branch’s messages should enter memory, but shared prefixes should not be written twice.</p>
 
   <div class="card">
-  <svg viewBox="0 0 1160 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="写入游标：位置、节点标记与外部集合">
+  <svg viewBox="0 0 1160 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Write cursor: positions, node markers, and external sets">
     <defs>
       <marker id="c-or" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#d4843a"/></marker>
       <marker id="c-gr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#5aad4e"/></marker>
     </defs>
 
-    <text x="24" y="32" fill="#d4843a" font-size="15" font-weight="700">同一个会话，主干写完之后从第三条消息分出去</text>
-    <text x="24" y="54" fill="#8a8675" font-size="12">主干 9 条已经写进记忆。用户回到 m3 重新问，新分支往下又聊了 6 条，head 现在在 b9。</text>
+    <text x="24" y="32" fill="#d4843a" font-size="15" font-weight="700">One session forks from message three after the main branch was written</text>
+    <text x="24" y="54" fill="#8a8675" font-size="12">Nine main-branch messages are already in memory. The user returns to m3 and asks again; six more messages follow, with head now at b9.</text>
 
-    <text x="104" y="104" fill="#8a8675" font-size="11.5" text-anchor="end">主干</text>
+    <text x="104" y="104" fill="#8a8675" font-size="11.5" text-anchor="end">Main branch</text>
     <g>
       <line x1="150" y1="100" x2="880" y2="100" stroke="#3a382c" stroke-width="1.4"/>
       <g font-size="11.5" text-anchor="middle">
@@ -560,13 +554,13 @@
         <rect x="752" y="86" width="56" height="28" rx="8" fill="#12110b" stroke="#3a382c" stroke-width="1.3"/><text x="780" y="105" fill="#8a8675">m8</text>
         <rect x="842" y="86" width="56" height="28" rx="8" fill="#12110b" stroke="#3a382c" stroke-width="1.3"/><text x="870" y="105" fill="#8a8675">m9</text>
       </g>
-      <text x="920" y="105" fill="#8a8675" font-size="11">这 9 条已经写过</text>
+      <text x="920" y="105" fill="#8a8675" font-size="11">These nine are already written</text>
     </g>
 
     <path d="M330 118 C 330 160, 392 158, 392 196" fill="none" stroke="#d4843a" stroke-width="1.6" marker-end="url(#c-or)"/>
-    <text x="348" y="152" fill="#d4843a" font-size="11">从 m3 分出去</text>
+    <text x="348" y="152" fill="#d4843a" font-size="11">Fork from m3</text>
 
-    <text x="104" y="216" fill="#d4843a" font-size="11.5" text-anchor="end">新分支</text>
+    <text x="104" y="216" fill="#d4843a" font-size="11.5" text-anchor="end">New branch</text>
     <g>
       <line x1="420" y1="212" x2="880" y2="212" stroke="#3a382c" stroke-width="1.4"/>
       <g font-size="11.5" text-anchor="middle">
@@ -577,17 +571,17 @@
         <rect x="752" y="198" width="56" height="28" rx="8" fill="#241f10" stroke="#d4843a" stroke-width="1.3"/><text x="780" y="217" fill="#d4843a">b8</text>
         <rect x="842" y="198" width="56" height="28" rx="8" fill="#241f10" stroke="#d4843a" stroke-width="2.2"/><text x="870" y="217" fill="#d4843a">b9</text>
       </g>
-      <text x="920" y="211" fill="#d4843a" font-size="11">head 在这里</text>
-      <text x="920" y="228" fill="#8a8675" font-size="10.5">这 6 条从没写过</text>
+      <text x="920" y="211" fill="#d4843a" font-size="11">Head is here</text>
+      <text x="920" y="228" fill="#8a8675" font-size="10.5">These six have never been written</text>
     </g>
 
     <path d="M122 130 L122 142 L358 142 L358 130" fill="none" stroke="#5aad4e" stroke-width="1.2"/>
-    <text x="240" y="160" fill="#5aad4e" font-size="11" text-anchor="middle">共享前缀</text>
+    <text x="240" y="160" fill="#5aad4e" font-size="11" text-anchor="middle">Shared prefix</text>
 
     <line x1="32" y1="256" x2="1128" y2="256" stroke="#2e2c20" stroke-width="1"/>
 
-    <text x="366" y="292" fill="#e0445a" font-size="12.5" font-weight="700" text-anchor="end">现在跑的 · 记「写到第几条」</text>
-    <text x="366" y="312" fill="#8a8675" font-size="11" text-anchor="end">游标存 ordinal=9，只收编号大于 9 的</text>
+    <text x="366" y="292" fill="#e0445a" font-size="12.5" font-weight="700" text-anchor="end">Current · record the written position</text>
+    <text x="366" y="312" fill="#8a8675" font-size="11" text-anchor="end">Cursor: ordinal=9; accept larger values</text>
     <g font-size="12" text-anchor="middle">
       <text x="420" y="296" fill="#8a8675">4</text><text x="510" y="296" fill="#8a8675">5</text>
       <text x="600" y="296" fill="#8a8675">6</text><text x="690" y="296" fill="#8a8675">7</text>
@@ -601,14 +595,14 @@
       <line x1="774" y1="306" x2="786" y2="318"/><line x1="786" y1="306" x2="774" y2="318"/>
       <line x1="864" y1="306" x2="876" y2="318"/><line x1="876" y1="306" x2="864" y2="318"/>
     </g>
-    <text x="920" y="300" fill="#e0445a" font-size="11.5" font-weight="700">六条全部 ≤ 9</text>
-    <text x="920" y="318" fill="#bdb9a6" font-size="11">一条都不写</text>
+    <text x="920" y="300" fill="#e0445a" font-size="11.5" font-weight="700">All six are ≤ 9</text>
+    <text x="920" y="318" fill="#bdb9a6" font-size="11">Write none</text>
 
-    <text x="366" y="376" fill="#5aad4e" font-size="12.5" font-weight="700" text-anchor="end">要走的 · 在节点上打「已写」标记</text>
-    <text x="366" y="396" fill="#8a8675" font-size="11" text-anchor="end">从 head 往回走，收没标记的，遇到有标记的就停</text>
+    <text x="366" y="376" fill="#5aad4e" font-size="12.5" font-weight="700" text-anchor="end">Planned · mark nodes as written</text>
+    <text x="366" y="396" fill="#8a8675" font-size="11" text-anchor="end">Walk from head to first marked node</text>
     <g font-size="11" text-anchor="middle" fill="#8a8675">
-      <text x="420" y="380">无标记</text><text x="510" y="380">无标记</text><text x="600" y="380">无标记</text>
-      <text x="690" y="380">无标记</text><text x="780" y="380">无标记</text><text x="870" y="380">无标记</text>
+      <text x="420" y="380">Unmarked</text><text x="510" y="380">Unmarked</text><text x="600" y="380">Unmarked</text>
+      <text x="690" y="380">Unmarked</text><text x="780" y="380">Unmarked</text><text x="870" y="380">Unmarked</text>
     </g>
     <g stroke="#5aad4e" stroke-width="2.2" fill="none">
       <path d="M413 392 L419 400 L429 386"/><path d="M503 392 L509 400 L519 386"/>
@@ -616,296 +610,275 @@
       <path d="M773 392 L779 400 L789 386"/><path d="M863 392 L869 400 L879 386"/>
     </g>
     <path d="M392 368 L360 368" stroke="#5aad4e" stroke-width="1.4" marker-end="url(#c-gr)" transform="translate(0,0)"/>
-    <text x="920" y="380" fill="#5aad4e" font-size="11.5" font-weight="700">六条全部欠着</text>
-    <text x="920" y="398" fill="#bdb9a6" font-size="11">走到 m3 有标记，停</text>
+    <text x="920" y="380" fill="#5aad4e" font-size="11.5" font-weight="700">All six remain unwritten</text>
+    <text x="920" y="398" fill="#bdb9a6" font-size="11">Stop at marked m3</text>
 
-    <text x="366" y="440" fill="#9d6fe0" font-size="12.5" font-weight="700" text-anchor="end">另一个能走通的 · 记忆自己存 ID 集合</text>
-    <text x="366" y="460" fill="#8a8675" font-size="11" text-anchor="end">走完整条分支，减去集合里的 ID</text>
+    <text x="366" y="440" fill="#9d6fe0" font-size="12.5" font-weight="700" text-anchor="end">Alternative · memory stores an ID set</text>
+    <text x="366" y="460" fill="#8a8675" font-size="11" text-anchor="end">Traverse branch; subtract stored IDs</text>
     <g font-size="11" text-anchor="middle" fill="#8a8675">
-      <text x="420" y="444">新 id</text><text x="510" y="444">新 id</text><text x="600" y="444">新 id</text>
-      <text x="690" y="444">新 id</text><text x="780" y="444">新 id</text><text x="870" y="444">新 id</text>
+      <text x="420" y="444">New IDs</text><text x="510" y="444">New IDs</text><text x="600" y="444">New IDs</text>
+      <text x="690" y="444">New IDs</text><text x="780" y="444">New IDs</text><text x="870" y="444">New IDs</text>
     </g>
     <g stroke="#9d6fe0" stroke-width="2.2" fill="none">
       <path d="M413 456 L419 464 L429 450"/><path d="M503 456 L509 464 L519 450"/>
       <path d="M593 456 L599 464 L609 450"/><path d="M683 456 L689 464 L699 450"/>
       <path d="M773 456 L779 464 L789 450"/><path d="M863 456 L869 464 L879 450"/>
     </g>
-    <text x="920" y="444" fill="#9d6fe0" font-size="11.5" font-weight="700">六条全部欠着</text>
-    <text x="920" y="462" fill="#bdb9a6" font-size="11">结果一样，代价不一样</text>
+    <text x="920" y="444" fill="#9d6fe0" font-size="11.5" font-weight="700">All six remain unwritten</text>
+    <text x="920" y="462" fill="#bdb9a6" font-size="11">Same result, different cost</text>
 
     <rect x="32" y="490" width="1096" height="52" rx="8" fill="#101a10" stroke="#5aad4e" stroke-width="1.2"/>
-    <text x="50" y="514" fill="#5aad4e" font-size="12" font-weight="700">分叉点之前为什么自动不会重复写：</text>
-    <text x="270" y="514" fill="#bdb9a6" font-size="12">分支这条线往回走，走到 m3 还是那条消息，标记就在它身上，走行到此为止。</text>
-    <text x="50" y="534" fill="#bdb9a6" font-size="12">两条线之间不需要任何顺序，也不需要互相知道：谁先写，谁就给共享的那几条打上标记，另一条来的时候正好停在它们上面。</text>
+    <text x="50" y="514" fill="#5aad4e" font-size="12" font-weight="700">Why the prefix is not duplicated:</text>
+    <text x="270" y="514" fill="#bdb9a6" font-size="12">Walking backward reaches the same m3 message with its marker, and traversal stops there.</text>
+    <text x="50" y="534" fill="#bdb9a6" font-size="12">The two branches need no ordering or knowledge of each other. The first writer marks shared messages; the next traversal stops at those markers.</text>
 
     <rect x="32" y="558" width="354" height="122" rx="9" fill="#12110b" stroke="#2e2c20"/>
-    <text x="50" y="582" fill="#d4843a" font-size="12" font-weight="700">标记写在哪</text>
-    <text x="50" y="604" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">节点 metadata，键名带 provider</text>
-    <text x="50" y="626" fill="#bdb9a6" font-size="11">值是记忆工作区的标识，导出的会话</text>
-    <text x="50" y="644" fill="#bdb9a6" font-size="11">带着标记去到别处，不会被误认</text>
-    <text x="50" y="666" fill="#8a8675" font-size="10.5">rewind 盖 rewound 就是同一条路</text>
+    <text x="50" y="582" fill="#d4843a" font-size="12" font-weight="700">Where the marker lives</text>
+    <text x="50" y="604" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">Node metadata, with a provider-qualified key</text>
+    <text x="50" y="626" fill="#bdb9a6" font-size="11">Value identifies the memory workspace;</text>
+    <text x="50" y="644" fill="#bdb9a6" font-size="11">exported markers retain workspace identity.</text>
+    <text x="50" y="666" fill="#8a8675" font-size="10.5">Rewind’s rewound marker uses the same mechanism</text>
 
     <rect x="398" y="558" width="354" height="122" rx="9" fill="#12110b" stroke="#2e2c20"/>
-    <text x="416" y="582" fill="#d4843a" font-size="12" font-weight="700">什么时候打上</text>
-    <text x="416" y="604" fill="#bdb9a6" font-size="11">两个条件：事务安装成功，并且这一趟</text>
-    <text x="416" y="622" fill="#bdb9a6" font-size="11">确实改动过文件</text>
-    <text x="416" y="646" fill="#8a8675" font-size="10.5">实测：二十轮撞同一处被拒编辑，</text>
-    <text x="416" y="664" fill="#8a8675" font-size="10.5">返回成功，主题文件只有一个字节</text>
+    <text x="416" y="582" fill="#d4843a" font-size="12" font-weight="700">When to mark</text>
+    <text x="416" y="604" fill="#bdb9a6" font-size="11">Two conditions: successful transaction installation,</text>
+    <text x="416" y="622" fill="#bdb9a6" font-size="11">and actual file changes in this pass</text>
+    <text x="416" y="646" fill="#8a8675" font-size="10.5">Observed: twenty turns encountered the same rejected edit,</text>
+    <text x="416" y="664" fill="#8a8675" font-size="10.5">returned success, and left a one-byte topic file</text>
 
     <rect x="764" y="558" width="364" height="122" rx="9" fill="#241f10" stroke="#d4843a" stroke-width="1.4"/>
-    <text x="782" y="582" fill="#d4843a" font-size="12" font-weight="700">这一节的状态</text>
-    <text x="782" y="604" fill="#bdb9a6" font-size="11">设计定了，代码还没换。跑着的仍是位置</text>
-    <text x="782" y="622" fill="#bdb9a6" font-size="11">游标，上面那排红叉是改之前的真实行为</text>
-    <text x="782" y="646" fill="#8a8675" font-size="10.5">实测：存的是 9，一条五轮的分支被算成零轮，</text>
-    <text x="782" y="664" fill="#8a8675" font-size="10.5">一条十一轮的分支被算成最后两轮</text>
+    <text x="782" y="582" fill="#d4843a" font-size="12" font-weight="700">Status of this section</text>
+    <text x="782" y="604" fill="#bdb9a6" font-size="11">Design settled; implementation still uses a positional</text>
+    <text x="782" y="622" fill="#bdb9a6" font-size="11">cursor. Red crosses show actual pre-change behavior</text>
+    <text x="782" y="646" fill="#8a8675" font-size="10.5">Observed: position 9 skips a five-turn branch;</text>
+    <text x="782" y="664" fill="#8a8675" font-size="10.5">only the last two of eleven turns are selected.</text>
   </svg>
+  <p class="note">Diagram details: Cursor stores ordinal=9; accept only larger ordinals. Walk backward from head, collect unmarked nodes, stop at the first marker. Traverse the whole branch and subtract IDs in the set. Value identifies the memory workspace; exported sessions. retain markers without being mistaken for another workspace. Observed: stored position 9 treats a five-turn branch as empty,. and an eleven-turn branch as its last two turns.</p>
   </div>
   <div class="legend">
-    <b>为什么位置当不了身份</b>：编号是链表被展开成列表的那一刻数出来的，它描述的是这次展开，
-    不是消息本身。展开之前没有这个号，展开之后这个号和消息的 ID 没有关系。
-    同一条消息沿两条线走到会拿到两个号，两条线上深度相同的两条不同消息会拿到同一个号；
-    而且 <code>get_branch</code> 会滤掉 <code>rewind</code> 标记过的轮次、压缩会把摘要节点接在中间，
-    所以同一条线在两次读取之间也不稳定。<br>
-    <b>这个形状连纠正都不接受</b>：<code>advance_cursor</code> 在新序号低于已存序号时抛
-    <code>cursor cannot move backwards</code>，而往回走恰恰是分叉需要的。
-    单调计数器和会分叉的对话是两个形状，其中一个修不成另一个。<br>
-    <b>两种失效不是一样响的</b>：分支还没超过已写高度时一条都不认领，是漏掉一条分支；
-    超过之后只认领超出去的那一段，是<b>写下一个从对话中间开始的片段，然后把整条分支记成已写</b>。
-    后一种是成功返回的，没有任何东西会提示它出过错。
+    <b>Why position cannot represent identity</b>: ordinals are assigned when a linked structure is expanded into a list. They describe that expansion, not messages. Before expansion there is no ordinal; afterward it has no relationship to the message ID. The same message reached by two paths can receive different ordinals, and different messages at equal depths can share one. Furthermore, <code>get_branch</code> filters turns marked <code>rewind</code> , and compaction inserts summary nodes, so even one path changes between reads.<br>
+    <b>The representation also rejects correction</b>: <code>advance_cursor</code> raises
+    <code>cursor cannot move backwards</code> when a new ordinal is below the stored one, although moving backward is exactly what branching requires. A monotonic counter cannot be corrected into a representation of branching conversations.<br>
+    <b>The two failures differ in visibility</b>: before the branch exceeds the stored height, nothing is claimed and the whole branch is omitted. Afterward, only the excess is claimed: <b>a fragment beginning mid-conversation is written, then the entire branch is marked written</b>. This second case returns success without any indication of failure.
   </div>
 
   <div class="card">
-  <svg viewBox="0 0 1160 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="四层：现状、别人、两种做法、取哪一个">
+  <svg viewBox="0 0 1160 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four sections: current behavior, references, alternatives, choice">
     <rect x="24" y="16" width="240" height="24" rx="6" fill="#211316"/>
-    <text x="38" y="33" fill="#e0445a" font-size="11.5" letter-spacing="1.4">第一层 · 我们现在</text>
+    <text x="38" y="33" fill="#e0445a" font-size="11.5" letter-spacing="1.4">First · current implementation</text>
     <rect x="24" y="48" width="1112" height="66" rx="8" fill="#1d1c14" stroke="#2e2c20"/>
-    <text x="42" y="72" fill="#f0eee6" font-size="12">位置游标：<tspan font-family="Menlo,monospace" fill="#bdb9a6">runtime.json</tspan> 里一个 thread 一条 <tspan font-family="Menlo,monospace" fill="#bdb9a6">{message_id, ordinal}</tspan>，只认领序号更大的记录</text>
-    <text x="42" y="94" fill="#8a8675" font-size="11">序号来自 <tspan font-family="Menlo,monospace">enumerate(get_branch(...))</tspan>，而 <tspan font-family="Menlo,monospace">advance_cursor</tspan> 明确拒绝往回移动，所以连改对都做不到</text>
+    <text x="42" y="72" fill="#f0eee6" font-size="12">Positional cursor:<tspan font-family="Menlo,monospace" fill="#bdb9a6">runtime.json</tspan> stores one <tspan font-family="Menlo,monospace" fill="#bdb9a6">{message_id, ordinal}</tspan>per thread, claiming only larger ordinals</text>
+    <text x="42" y="94" fill="#8a8675" font-size="11">Ordinals come from <tspan font-family="Menlo,monospace">enumerate(get_branch(...))</tspan>, and <tspan font-family="Menlo,monospace">advance_cursor</tspan> explicitly forbids moving backward, preventing correction</text>
 
     <rect x="24" y="128" width="240" height="24" rx="6" fill="#101722"/>
-    <text x="38" y="145" fill="#4f8ef7" font-size="11.5" letter-spacing="1.4">第二层 · 别人怎么做</text>
+    <text x="38" y="145" fill="#4f8ef7" font-size="11.5" letter-spacing="1.4">Second · other implementations</text>
     <rect x="24" y="160" width="1112" height="118" rx="8" fill="#1d1c14" stroke="#2e2c20"/>
-    <text x="42" y="184" fill="#bdb9a6" font-size="11.5">读了九个参考框架。<tspan fill="#f0eee6" font-weight="600">三个存的对话会分叉</tspan>（claude-code、openclaw、pi-mono，都是一份追加写的文件里每条带父指针）；三个是直线；一个在重试时把整个会话重写掉、旧分支直接毁掉；两个不存对话。</text>
-    <text x="42" y="206" fill="#bdb9a6" font-size="11.5">直线让位置就是身份，所以大多数根本碰不到这个问题。<tspan fill="#f0eee6" font-weight="600">没有任何一个把「记忆取走过这一轮」写到对话轮次上。</tspan></text>
-    <text x="42" y="230" fill="#8a8675" font-size="11">codex-cli：分叉开一份新文件，抽取任务按 thread 记水位和租约，<tspan fill="#bdb9a6">把单位放粗到分叉不再重要</tspan></text>
-    <text x="42" y="248" fill="#8a8675" font-size="11">pi-mono：存储根本不提供改动一条记录的方法，加注解和移游标都靠追加一条指向它的记录，分支摘要覆盖谁在切换的那一刻从树上现算，<tspan fill="#bdb9a6">从拓扑推增量</tspan></text>
-    <text x="42" y="266" fill="#8a8675" font-size="11">claude-code：游标放进程内存，指的消息找不到就整个会话重新处理；openclaw：写 <tspan font-family="Menlo,monospace">promotedAt</tspan>，但写在派生记录上，它的记忆钩子读对话时平着取最后十五行</text>
+    <text x="42" y="184" fill="#bdb9a6" font-size="11.5">Nine reference frameworks were read.<tspan fill="#f0eee6" font-weight="600">Three store branching conversations</tspan>(Claude-code, Openclaw, Pi-mono: append-only files with parent pointers); three are linear; one rewrites the entire session on retry and destroys the old branch; two do not store conversations.</text>
+    <text x="42" y="206" fill="#bdb9a6" font-size="11.5">Linear histories make positions sufficient for identity, so most never encounter this problem.<tspan fill="#f0eee6" font-weight="600">None marks conversation turns as already consumed by memory.</tspan></text>
+    <text x="42" y="230" fill="#8a8675" font-size="11">Codex-cli forks into a new file; extraction tracks thread-level watermarks and leases,<tspan fill="#bdb9a6">using a coarser unit where branching no longer matters</tspan></text>
+    <text x="42" y="248" fill="#8a8675" font-size="11">Pi-mono storage cannot modify a record. Annotations and cursor moves append references; branch summaries compute coverage from the tree at switching time,<tspan fill="#bdb9a6">deriving increments from topology</tspan></text>
+    <text x="42" y="266" fill="#8a8675" font-size="11">Claude-code keeps its cursor in process memory and reprocesses the whole session when the referenced message is missing. Openclaw writes <tspan font-family="Menlo,monospace">promotedAt</tspan>on derived records, while its memory hook reads the last fifteen conversation lines as a flat list</text>
 
     <rect x="24" y="292" width="240" height="24" rx="6" fill="#141a12"/>
-    <text x="38" y="309" fill="#5aad4e" font-size="11.5" letter-spacing="1.4">第三层 · 两种做法并排</text>
+    <text x="38" y="309" fill="#5aad4e" font-size="11.5" letter-spacing="1.4">Third · two approaches</text>
 
     <rect x="24" y="324" width="548" height="160" rx="8" fill="#101a10" stroke="#5aad4e" stroke-width="1.3"/>
-    <text x="42" y="348" fill="#5aad4e" font-size="12.5" font-weight="700">在节点上打标记</text>
-    <text x="42" y="370" fill="#bdb9a6" font-size="11">欠账：从 head 往回走，遇到第一个有标记的就停</text>
-    <text x="42" y="390" fill="#bdb9a6" font-size="11">要存的：一个本来就存在的节点上多一个字段</text>
-    <text x="42" y="410" fill="#bdb9a6" font-size="11">增长：不增长；一次读取只走几步</text>
-    <text x="42" y="430" fill="#bdb9a6" font-size="11">迁移：把归档覆盖到的节点标上</text>
-    <text x="42" y="450" fill="#e0445a" font-size="11">丢一个标记：走行提前停下，更老的全部搁浅</text>
-    <text x="42" y="470" fill="#e0445a" font-size="11">耦合：记忆往会话存储里写一个字段</text>
+    <text x="42" y="348" fill="#5aad4e" font-size="12.5" font-weight="700">Mark nodes</text>
+    <text x="42" y="370" fill="#bdb9a6" font-size="11">Pending content: walk backward from head until the first marker</text>
+    <text x="42" y="390" fill="#bdb9a6" font-size="11">Storage: one additional field on an existing node</text>
+    <text x="42" y="410" fill="#bdb9a6" font-size="11">Growth: no separate growth; each read traverses a few nodes</text>
+    <text x="42" y="430" fill="#bdb9a6" font-size="11">Migration: mark nodes covered by archived sources</text>
+    <text x="42" y="450" fill="#e0445a" font-size="11">Missing marker: traversal stops too early and older content remains pending</text>
+    <text x="42" y="470" fill="#e0445a" font-size="11">Coupling: memory writes a field into session storage</text>
 
     <rect x="588" y="324" width="548" height="160" rx="8" fill="#1a1622" stroke="#9d6fe0" stroke-width="1.3"/>
-    <text x="606" y="348" fill="#9d6fe0" font-size="12.5" font-weight="700">记忆自己存一份 ID 集合</text>
-    <text x="606" y="370" fill="#bdb9a6" font-size="11">欠账：走完整条分支，减去集合</text>
-    <text x="606" y="390" fill="#bdb9a6" font-size="11">要存的：每个 thread 一个文件，装下写过的每个 ID</text>
-    <text x="606" y="410" fill="#bdb9a6" font-size="11">增长：每条消息一项；一次读取要整份清单</text>
-    <text x="606" y="430" fill="#bdb9a6" font-size="11">迁移：用同一份归档播种同一个集合</text>
-    <text x="606" y="450" fill="#5aad4e" font-size="11">丢一个条目：那一轮被重新拿出来，精确</text>
-    <text x="606" y="470" fill="#bdb9a6" font-size="11">耦合：记忆自己记账，但带出文件、迁移、只增不删</text>
+    <text x="606" y="348" fill="#9d6fe0" font-size="12.5" font-weight="700">Memory stores its own ID set</text>
+    <text x="606" y="370" fill="#bdb9a6" font-size="11">Pending content: traverse the whole branch and subtract the set</text>
+    <text x="606" y="390" fill="#bdb9a6" font-size="11">Storage: one file per thread containing every written ID</text>
+    <text x="606" y="410" fill="#bdb9a6" font-size="11">Growth: one entry per message; reads load the complete list</text>
+    <text x="606" y="430" fill="#bdb9a6" font-size="11">Migration: seed the set from the same archive</text>
+    <text x="606" y="450" fill="#5aad4e" font-size="11">Missing entry: precisely that turn becomes pending again</text>
+    <text x="606" y="470" fill="#bdb9a6" font-size="11">Coupling: memory owns bookkeeping, including files, migration, and append-only retention</text>
 
     <rect x="24" y="498" width="240" height="24" rx="6" fill="#241f10"/>
-    <text x="38" y="515" fill="#d4843a" font-size="11.5" letter-spacing="1.4">第四层 · 取哪一个</text>
-    <text x="284" y="515" fill="#f0eee6" font-size="12" font-weight="600">取节点标记。</text>
-    <text x="380" y="515" fill="#bdb9a6" font-size="11.5">「记在外面」一旦要在分叉之后仍然正确，就只能是集合，而集合带出文件怎么放、怎么迁移、ID 为什么不能删、读取代价随会话增长这一串。</text>
-    <text x="284" y="537" fill="#bdb9a6" font-size="11.5">代价是集合精确而走行不精确：走行假定标记构成一段前缀，靠「一批永远是最老的那几轮」成立，它是假定不是不变量。会话存储本来就在给节点存来源、显示类别、分支根、rewind 状态，多一个字段是同一类东西。</text>
+    <text x="38" y="515" fill="#d4843a" font-size="11.5" letter-spacing="1.4">Fourth · choice</text>
+    <text x="284" y="515" fill="#f0eee6" font-size="12" font-weight="600">Node markers.</text>
+    <text x="380" y="515" fill="#bdb9a6" font-size="11.5">External ID sets require storage, migration, permanent retention, and growing read cost.</text>
+    <text x="284" y="537" fill="#bdb9a6" font-size="11.5">The tradeoff is precise sets versus approximate traversal. Traversal assumes markers form a prefix, relying on every batch selecting the oldest turns; this is an assumption, not an invariant. Session storage already records provenance, display kind, branch roots, and rewind state; another field is the same kind of metadata.</text>
   </svg>
+  <p class="note">Diagram details: Use node markers. External bookkeeping that remains correct after forks requires a set, introducing file placement, migration, permanent ID retention, and read cost that grows with the conversation.</p>
   </div>
   <div class="legend">
-    <b>先做能幂等重放的那一步</b>：三步的顺序是先归档证据、再写主题文件、最后打标记。
-    归档是追加式、按内容寻址的，同一批归档两次逐字节不变；主题文件带块 ID 和脚注，
-    半写会污染，所以走整装或不装的事务。写入器死在两步之间，留下的是没人引用的证据、
-    没有标记、下次仍然欠着的同一批，也就是一次<b>重做</b>。反过来先打标记，同一次崩溃变成安静地丢掉这些轮次。<br>
-    <b>「做完了」都要有可核对的产物</b>：标记要事务安装成功<i>并且</i>这一趟确实改动过文件，
-    夜间那一趟要报出改过哪些文件而不是看过哪些文件。没有报错不是产出。<br>
-    <b>它让会话存储付出什么（核实过）</b>：会话那边没有整树哈希，
-    唯一那个逐字节整树哈希是记忆工作区的版本号，根在 <code>&lt;state&gt;/memory</code>，
-    和 <code>&lt;state&gt;/sessions</code> 不相交，所以标记不会被读成一次并发的记忆写入。
-    会被碰到的是会话索引缓存：过期判定看 history 目录的 mtime，一次重写和一次追加一样会让它变，
-    别的进程重建一次索引，实测 289 个节点 4.2 MB 是 <b>14 到 50 毫秒</b>，而且自限。
-    真正会增长的是 git：会话目录每轮 <code>git add -A</code> 一次，
-    字节变过的节点都会成为新 blob，所以<b>标记只打在这一批上，不做全量扫一遍</b>，
-    否则每轮加上整个会话的重量，一生下来是平方级。
-    另外两条硬约束：标记不能动 <code>updated_at</code>（闲置看门狗就是按它判断"已处理"，
-    动了等于把会话送回一次强制写入），也不能走"把会话记成已同步"的那条路径。
+    <b>Perform the idempotent step first</b>: archive evidence, write topics, then mark nodes. Archives are append-only and content-addressed; archiving the same batch twice is byte-identical. Topics have block IDs and footnotes, so partial writes would corrupt them; transactions install all or nothing. If the writer dies between steps, it leaves unreferenced evidence, no markers, and the same pending batch for the next <b>retry</b>. Marking first would turn that crash into silent loss of those turns.<br>
+    <b>Completion needs verifiable output</b>: marking requires successful transaction installation<i>and</i>actual file changes. Nightly organization must report changed files, not merely inspected files. Absence of an error is not an output.<br>
+    <b>Verified cost to session storage</b>: sessions have no whole-tree hash. The sole byte-level tree hash is the memory-workspace revision rooted at <code>&lt;state&gt;/memory</code>, separate from <code>&lt;state&gt;/sessions</code> , so node markers are not mistaken for concurrent memory writes. The session-index cache is affected: history-directory mtime changes on rewrites just as on appends. Another process rebuilds the index; measured cost for 289 nodes and 4.2 MB is <b>14–50 ms</b> and is self-limiting. Git is what grows: the session directory runs <code>git add -A</code> per turn, and changed nodes become new blobs. Therefore, <b>mark only the current batch; never rescan and rewrite every node</b>, or each turn adds the entire session and total growth becomes quadratic. Two additional constraints: markers must not change <code>updated_at</code>(the idle watcher uses it to decide whether a session was handled; changing it would trigger another forced write), and must not use the “mark session synchronized” path.
   </div>
 
-  <!-- ══════════ 05 常驻块 ══════════ -->
-  <h2 id="core"><span class="num">05</span>常驻块：谁在维护它</h2>
-  <p class="lead"><code>core.md</code>是每次会话开头都注入的那一小块。它现在是
-    <code>topics/core.md</code>的渲染结果，2000 token是渲染预算而不是闸门。
-    改之前它是被写的正本，顶到上限的那一刻就是它最后一次改变的时刻，而且此后每一笔事务都被它拒掉。</p>
+  <!-- ══════════ 05 Resident block ══════════ -->
+  <h2 id="core"><span class="num">05</span> Maintaining the resident block</h2>
+  <p class="lead"><code>core.md</code> is the small block injected at each session’s start. It is now rendered from
+    <code>topics/core.md</code>; 2000 tokens is a rendering budget, not a transaction gate. Previously it was the writable source of truth: once full, it stopped changing and rejected every later transaction.</p>
 
   <div class="card">
-  <svg viewBox="0 0 1160 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="常驻块：改之前的写入路径与现在的派生视图">
+  <svg viewBox="0 0 1160 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Resident block: previous write path and current derived view">
     <defs>
       <marker id="k-no" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#e0445a"/></marker>
       <marker id="k-gy" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8a8675"/></marker>
       <marker id="k-vi" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9d6fe0"/></marker>
     </defs>
 
-    <text x="24" y="30" fill="#d4843a" font-size="15" font-weight="700">同一个文件，两种身份：被写的，和被渲染的</text>
-    <text x="24" y="52" fill="#8a8675" font-size="12">左边是改之前的，右边是现在跑着的。分界线就一句话：正本在哪。</text>
+    <text x="24" y="30" fill="#d4843a" font-size="15" font-weight="700">One file, two roles: edited source versus rendered output</text>
+    <text x="24" y="52" fill="#8a8675" font-size="12">Left is the old behavior; right is the running implementation. The distinction is where the source of truth lives.</text>
 
-    <!-- ─────────── 现在 ─────────── -->
+    <!-- ─────────── Current ─────────── -->
     <rect x="32" y="70" width="536" height="26" rx="6" fill="#241015"/>
-    <text x="48" y="88" fill="#e0445a" font-size="11.5" letter-spacing="1.4">改之前 · core.md就是正本</text>
+    <text x="48" y="88" fill="#e0445a" font-size="11.5" letter-spacing="1.4">Previously · core.md was authoritative</text>
 
     <rect x="32" y="106" width="252" height="58" rx="8" fill="#12110b" stroke="#2e2c20" stroke-width="1.3"/>
-    <text x="48" y="128" fill="#bdb9a6" font-size="12">写入agent直接编辑它</text>
+    <text x="48" y="128" fill="#bdb9a6" font-size="12">The writer agent edited it directly</text>
     <text x="48" y="148" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">prompts/write.py · prompts/system.py</text>
     <path d="M284 135 L316 135" stroke="#8a8675" stroke-width="1.4" marker-end="url(#k-gy)"/>
 
     <rect x="320" y="106" width="248" height="58" rx="8" fill="#241f10" stroke="#d4843a" stroke-width="1.4"/>
-    <text x="336" y="128" fill="#d4843a" font-size="12">2000 token闸，超了就抛</text>
-    <text x="336" y="148" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">management/block_views.py的_synchronize</text>
+    <text x="336" y="128" fill="#d4843a" font-size="12">A 2000-token limit raised</text>
+    <text x="336" y="148" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">_synchronize</text>
 
     <path d="M444 164 L444 186" stroke="#e0445a" stroke-width="1.5" marker-end="url(#k-no)"/>
     <rect x="32" y="188" width="536" height="58" rx="8" fill="#241015" stroke="#e0445a" stroke-width="1.4"/>
-    <text x="48" y="210" fill="#e0445a" font-size="12" font-weight="700">整笔事务被拒，这一轮的主题改动一起回滚</text>
-    <text x="48" y="230" fill="#bdb9a6" font-size="11.5">修复话术只有一句：core.md满了，别动它，这条放进主题文件。</text>
+    <text x="48" y="210" fill="#e0445a" font-size="12" font-weight="700">The entire transaction was rejected, including topic changes</text>
+    <text x="48" y="230" fill="#bdb9a6" font-size="11.5">Repair guidance only said: core.md is full; leave it unchanged and put this fact in a topic file.</text>
 
     <path d="M300 246 L300 268" stroke="#e0445a" stroke-width="1.5" marker-end="url(#k-no)"/>
     <rect x="32" y="270" width="536" height="52" rx="8" fill="#12110b" stroke="#e0445a" stroke-width="1.3"/>
-    <text x="48" y="292" fill="#e0445a" font-size="12" font-weight="700">从此每一条稳定事实都被劝走</text>
-    <text x="48" y="312" fill="#bdb9a6" font-size="11.5">而且没有任何东西让它变短：夜间整理的文件列表只从topics/**.md来。</text>
+    <text x="48" y="292" fill="#e0445a" font-size="12" font-weight="700">Every later stable fact was redirected elsewhere</text>
+    <text x="48" y="312" fill="#bdb9a6" font-size="11.5">Nothing shortened it: nightly organization listed only topics/**.md.</text>
 
-    <!-- 更宽的那一层 -->
+    <!-- Wider layer -->
     <rect x="32" y="336" width="536" height="106" rx="8" fill="#12110b" stroke="#e0445a" stroke-width="1.6"/>
-    <text x="48" y="358" fill="#e0445a" font-size="12" font-weight="700">闸量的是暂存里的整份core.md，不是这次改动</text>
-    <text x="48" y="378" fill="#bdb9a6" font-size="11.5">所以一份已经超标的core.md会拒掉它之后的每一笔事务，包括只改主题文件的，</text>
-    <text x="48" y="396" fill="#bdb9a6" font-size="11.5">和一个字都没改的。而它本来就允许人手编辑，是普通Markdown。</text>
-    <text x="48" y="418" fill="#8a8675" font-size="11">实测：人在编辑器里把它撑大之后，一笔没有任何改动的事务报</text>
+    <text x="48" y="358" fill="#e0445a" font-size="12" font-weight="700">The limit measured all staged core.md, not the current change</text>
+    <text x="48" y="378" fill="#bdb9a6" font-size="11.5">An already oversized core.md therefore rejected every later transaction, even topic-only edits</text>
+    <text x="48" y="396" fill="#bdb9a6" font-size="11.5">and no-op transactions. Yet it was ordinary Markdown that humans could edit.</text>
+    <text x="48" y="418" fill="#8a8675" font-size="11">Observed: after a manual enlargement, a no-op transaction reported</text>
     <text x="48" y="435" fill="#8a8675" font-size="11" font-family="Menlo,monospace">Core Memory exceeds 2000 tokens: 4004</text>
 
     <rect x="32" y="452" width="536" height="80" rx="8" fill="#241015" stroke="#e0445a" stroke-width="1.4"/>
-    <text x="48" y="474" fill="#e0445a" font-size="12" font-weight="700">两次被拒之后：这个会话的对话不进记忆，下一个也不进</text>
-    <text x="48" y="494" fill="#bdb9a6" font-size="11.5">报COMMIT_REJECTED，它不在可重试集合里，所以观察者照样把会话标成已处理。</text>
-    <text x="48" y="514" fill="#bdb9a6" font-size="11.5">这个状态要靠人去改短那个文件才会结束。</text>
+    <text x="48" y="474" fill="#e0445a" font-size="12" font-weight="700">After two rejections, neither this session nor the next enters memory</text>
+    <text x="48" y="494" fill="#bdb9a6" font-size="11.5">COMMIT_REJECTED is not retryable; the watcher marks the session handled.</text>
+    <text x="48" y="514" fill="#bdb9a6" font-size="11.5">Only manually shortening the file resolves this state.</text>
 
-    <!-- ─────────── 计划 ─────────── -->
+    <!-- ─────────── Planned ─────────── -->
     <rect x="596" y="70" width="532" height="26" rx="6" fill="#1a1622"/>
-    <text x="612" y="88" fill="#9d6fe0" font-size="11.5" letter-spacing="1.4">现在 · topics/core.md是正本，core.md是渲染结果</text>
+    <text x="612" y="88" fill="#9d6fe0" font-size="11.5" letter-spacing="1.4">Now · topics/core.md is authoritative; core.md is rendered</text>
 
     <rect x="596" y="106" width="240" height="140" rx="8" fill="#12110b" stroke="#5aad4e" stroke-width="1.5"/>
-    <text x="612" y="128" fill="#5aad4e" font-size="12" font-weight="700">topics/core.md正本</text>
-    <text x="612" y="147" fill="#8a8675" font-size="11">一个普通主题文件，不设上限</text>
+    <text x="612" y="128" fill="#5aad4e" font-size="12" font-weight="700">Authoritative topics/core.md</text>
+    <text x="612" y="147" fill="#8a8675" font-size="11">Topic file; no size limit</text>
     <rect x="612" y="158" width="208" height="20" rx="3" fill="#2a2a1c"/>
-    <text x="622" y="172" fill="#bdb9a6" font-size="10.5">段落^a1</text>
+    <text x="622" y="172" fill="#bdb9a6" font-size="10.5">Paragraph ^a1</text>
     <rect x="612" y="182" width="208" height="20" rx="3" fill="#2a2a1c"/>
-    <text x="622" y="196" fill="#bdb9a6" font-size="10.5">段落^b2</text>
+    <text x="622" y="196" fill="#bdb9a6" font-size="10.5">Paragraph ^b2</text>
     <rect x="612" y="206" width="208" height="20" rx="3" fill="#241f14"/>
-    <text x="622" y="220" fill="#8a8675" font-size="10.5">段落^c3 · 这次没装进去</text>
-    <text x="612" y="240" fill="#8a8675" font-size="10.5">写入方和夜间整理都只认识它</text>
+    <text x="622" y="220" fill="#8a8675" font-size="10.5">Paragraph ^c3 · omitted this time</text>
+    <text x="612" y="240" fill="#8a8675" font-size="10.5">Both writers organize this source</text>
 
     <path d="M840 176 L876 176" stroke="#9d6fe0" stroke-width="1.6" marker-end="url(#k-vi)"/>
-    <text x="858" y="168" fill="#9d6fe0" font-size="10.5" text-anchor="middle">渲染</text>
+    <text x="858" y="168" fill="#9d6fe0" font-size="10.5" text-anchor="middle">Render</text>
 
     <rect x="888" y="106" width="240" height="140" rx="8" fill="#12110b" stroke="#9d6fe0" stroke-width="1.5"/>
-    <text x="904" y="128" fill="#9d6fe0" font-size="12" font-weight="700">core.md派生</text>
-    <text x="904" y="147" fill="#8a8675" font-size="11">每次写入装成之后跟着重建</text>
+    <text x="904" y="128" fill="#9d6fe0" font-size="12" font-weight="700">Derived core.md</text>
+    <text x="904" y="147" fill="#8a8675" font-size="11">Rebuilt after installation</text>
     <rect x="904" y="158" width="208" height="20" rx="3" fill="#2a2a1c"/>
-    <text x="914" y="172" fill="#bdb9a6" font-size="10.5">段落^a1</text>
+    <text x="914" y="172" fill="#bdb9a6" font-size="10.5">Paragraph ^a1</text>
     <rect x="904" y="182" width="208" height="20" rx="3" fill="#2a2a1c"/>
-    <text x="914" y="196" fill="#bdb9a6" font-size="10.5">段落^b2</text>
-    <text x="904" y="220" fill="#5aad4e" font-size="10.5">装到2000 token为止</text>
-    <text x="904" y="238" fill="#5aad4e" font-size="10.5">装不下的不报错，只报出块ID</text>
+    <text x="914" y="196" fill="#bdb9a6" font-size="10.5">Paragraph ^b2</text>
+    <text x="904" y="220" fill="#5aad4e" font-size="10.5">Include up to 2000 tokens</text>
+    <text x="904" y="238" fill="#5aad4e" font-size="10.5">Omitted blocks yield IDs</text>
 
     <rect x="596" y="262" width="532" height="86" rx="8" fill="#12110b" stroke="#9d6fe0" stroke-width="1.3"/>
-    <text x="612" y="284" fill="#f0eee6" font-size="12" font-weight="700">预算是渲染上限，不是闸门</text>
-    <text x="612" y="304" fill="#bdb9a6" font-size="11.5">被挤出去的段落还在正本里，照样被索引，照样能被search和memory_get找到。</text>
-    <text x="612" y="323" fill="#bdb9a6" font-size="11.5">所以留在外面只损失可见性，不损失内容，裁剪也就不必先分清是谁写的。</text>
-    <text x="612" y="341" fill="#8a8675" font-size="11">想让某一段一直在，就把它在正本里排到前面，这是普通编辑。</text>
+    <text x="612" y="284" fill="#f0eee6" font-size="12" font-weight="700">The budget limits rendering, not writes</text>
+    <text x="612" y="304" fill="#bdb9a6" font-size="11.5">Omitted source paragraphs remain indexed for search and memory_get.</text>
+    <text x="612" y="323" fill="#bdb9a6" font-size="11.5">Omission loses visibility, not content, so clipping does not need to distinguish authorship.</text>
+    <text x="612" y="341" fill="#8a8675" font-size="11">To keep a paragraph visible, move it earlier in the source through ordinary editing.</text>
 
     <rect x="596" y="356" width="532" height="86" rx="8" fill="#12110b" stroke="#5aad4e" stroke-width="1.3"/>
-    <text x="612" y="378" fill="#f0eee6" font-size="12" font-weight="700">为什么必须先变成派生视图，才谈得上裁</text>
-    <text x="612" y="398" fill="#bdb9a6" font-size="11.5">事务有一条硬契约：改之前存在的块ID，改之后必须还找得到。</text>
-    <text x="612" y="417" fill="#bdb9a6" font-size="11.5">core.md里今天可能有独苗，裁掉它整笔就被拒；渲染结果的ID永远是正本ID</text>
-    <text x="612" y="435" fill="#bdb9a6" font-size="11.5">的子集，裁掉一段，ID在正本里活着。</text>
+    <text x="612" y="378" fill="#f0eee6" font-size="12" font-weight="700">Why clipping first requires a derived view</text>
+    <text x="612" y="398" fill="#bdb9a6" font-size="11.5">Transactions require every pre-existing block ID to remain discoverable.</text>
+    <text x="612" y="417" fill="#bdb9a6" font-size="11.5">Clipping unique core.md blocks could reject a transaction. Rendered IDs are a subset</text>
+    <text x="612" y="435" fill="#bdb9a6" font-size="11.5">of source IDs, so omitted blocks remain in the source.</text>
 
     <rect x="596" y="452" width="532" height="80" rx="8" fill="#221a30" stroke="#9d6fe0" stroke-width="1.4"/>
-    <text x="612" y="474" fill="#9d6fe0" font-size="12" font-weight="700">这一节的状态</text>
-    <text x="612" y="494" fill="#bdb9a6" font-size="11.5">已经落地。左边画的是改之前的行为，不再发生。</text>
-    <text x="612" y="514" fill="#bdb9a6" font-size="11.5">实测：一份11883 token的手写core.md，一笔不碰它的写入照样装成，渲染出1983 token。</text>
+    <text x="612" y="474" fill="#9d6fe0" font-size="12" font-weight="700">Status of this section</text>
+    <text x="612" y="494" fill="#bdb9a6" font-size="11.5">Implemented. The left-hand behavior no longer occurs.</text>
+    <text x="612" y="514" fill="#bdb9a6" font-size="11.5">Observed: 11,883-token core.md allows unrelated writes; 1,983 tokens rendered.</text>
 
     <line x1="32" y1="552" x2="1128" y2="552" stroke="#2e2c20" stroke-width="1"/>
-    <text x="32" y="578" fill="#8a8675" font-size="11.5">老实现里这件事是有人管的：<tspan font-family="Menlo,monospace">memory/core.py</tspan>的refresh_from_wiki把core.md从一个指定的wiki页重建出来，按标题边界截到预算，由sleep的deep阶段调用。</text>
-    <text x="32" y="600" fill="#8a8675" font-size="11.5">换成topics/sources这套结构时那条流程被删掉。右边那一栏就是把它接回来，只是指定页从wiki页换成主题文件。</text>
+    <text x="32" y="578" fill="#8a8675" font-size="11.5">The older implementation already maintained this:<tspan font-family="Menlo,monospace">memory/core.py</tspan>refresh_from_wiki rebuilt core.md from a designated wiki page, clipping at heading boundaries to the budget, called by sleep’s deep stage.</text>
+    <text x="32" y="600" fill="#8a8675" font-size="11.5">That process was removed when switching to topics/sources. The right-hand design restores it with a topic file replacing the designated wiki page.</text>
   </svg>
+  <p class="note">Diagram details: management/block_views.py _synchronize. Both writers and nightly organization use this file.</p>
+  <p class="note">Diagram details: It reports COMMIT_REJECTED, outside the retryable set, so the watcher still marks the session handled. Ordinary topic file without a size limit. Both writers and nightly organization use only this file. Rebuilt after each successful installation. Include content up to 2000 tokens. Omitted blocks produce IDs, not errors. Omitted paragraphs remain in the source, indexed and discoverable through search and memory_get. A unique block in core.md could make clipping reject the entire transaction. Rendered IDs are always a subset. Observed: an 11,883-token handwritten core.md no longer blocks an unrelated write; rendering produced 1,983 tokens.</p>
   </div>
   <div class="legend">
-    <b>两个方向的区别</b>：现在是<b>拒绝</b>，拒绝落在写入的路上，代价是内容进不来；
-    计划是<b>不装</b>，不装落在渲染的路上，代价只是这一次没被看见。
-    <b>为什么不给它加第二道闸</b>：第二道闸仍然是闸，仍然在写入的路上，仍然会把稳定事实挡在外面。
-    别家要区分"人写的"和"自动写的"才敢裁，是因为它们的常驻文件是唯一一份，丢一行等于销毁一行；
-    这里正本是全量的，所以归属这件事根本不用判。
+    <b>Difference between the approaches</b>: the current description’s old path <b>rejects</b> on the write path, preventing content from entering; the planned replacement <b>omits</b> on the rendering path, making content invisible only for that injection.
+    <b>Why not add another gate</b>: another gate still blocks writes and stable facts. Other implementations must distinguish human and automatic content before clipping because their resident file is the only copy: deleting a line destroys it. Here the complete source remains, so authorship does not need classification.
   </div>
 
   <div class="grid2">
     <div class="oc">
-      <h4>Web 默认展示实际注入块</h4>
-      <div class="d"><code>GET /api/memory/core</code>同时返回<code>topics/core.md</code>正本、根目录<code>core.md</code>渲染结果和考虑<code>memory.core.inject</code>后的有效注入内容。Core 页默认只读展示有效注入内容，并显示实际 token 数与 2000 token 预算；“完整记录”视图才进入可编辑正本。现有<code>content/size/mtime</code>字段继续表示正本，避免破坏旧调用方。</div>
+      <h4>Web defaults to the actual injected block</h4>
+      <div class="d"><code>GET /api/memory/core</code> returns both <code>topics/core.md</code> the authoritative source, root-level <code>core.md</code> rendered output, and effective injected content after considering <code>memory.core.inject</code>. Core defaults to a read-only effective-injection view with actual tokens and the 2000-token budget. “Full records” opens the editable source. Existing <code>content/size/mtime</code> continues to mean authoritative source for compatibility.</div>
     </div>
     <div class="oc">
-      <h4>Writer 与 Organizer 控制内容用途</h4>
-      <div class="d">Writer 阅读完整输入，但只记录以后仍有用途的事实；不记录重复状态检查、未变化的测量、一次性工具过程和可从项目文件重新读取的细节。项目进度进入对应项目 Topic。Organizer 在处理<code>topics/core.md</code>时，把项目专属、过期或重复内容移入普通 Topic 或删除，只保留多数未来会话都需要的规则、偏好与身份事实。</div>
+      <h4>Writer and Organizer govern content purpose</h4>
+      <div class="d">Writer reads complete input but records only facts useful later, excluding repeated status checks, unchanged measurements, one-off tool processes, and details recoverable from project files. Project progress belongs in its project Topic. When Organizer handles <code>topics/core.md</code>, it moves project-specific, stale, or duplicate content to ordinary Topics or deletes it, retaining only rules, preferences, and identity facts needed by most future sessions.</div>
     </div>
   </div>
   <div class="tbl">
     <table>
-      <thead><tr><th>验收入口</th><th>要求</th></tr></thead>
+      <thead><tr><th>Acceptance entry</th><th>Requirement</th></tr></thead>
       <tbody>
-        <tr><td><code>GET /api/memory/core</code></td><td>在工作区锁内读取完整快照；兼容返回正本<code>content/size/mtime</code>，并额外返回渲染内容、有效注入内容、注入开关、token 数与预算。</td></tr>
-        <tr><td>Memory → Core</td><td>默认显示实际注入内容和 token 预算；关闭注入时明确显示空注入。用户可切换到完整正本并沿用现有事务保存，保存期间的新草稿不会被刷新覆盖；所有 Markdown 预览经过共享清洗。</td></tr>
-        <tr><td>Writer prompt</td><td>不再要求把每个重复过程写成 Topic；Core 不再接收普通项目进度。</td></tr>
-        <tr><td>Organizer prompt</td><td>显式整理 Core 中的项目过程、重复记录和过期状态；删除后仍由 Git 保留历史。</td></tr>
+        <tr><td><code>GET /api/memory/core</code></td><td>reads a complete snapshot under the workspace lock; it retains authoritative <code>content/size/mtime</code> and additionally returns rendered content, effective injection, injection switch, token count, and budget.</td></tr>
+        <tr><td>Memory → Core</td><td>Defaults to actual injected content and token budget, explicitly showing empty injection when disabled. Users can switch to the full source and save through existing transactions. New drafts during save are not overwritten by refresh; all Markdown previews use shared sanitization.</td></tr>
+        <tr><td>Writer prompt</td><td>No longer requires every repeated process to become a Topic; Core excludes ordinary project progress.</td></tr>
+        <tr><td>Organizer prompt</td><td>Explicitly organizes project processes, duplicates, and stale states in Core; deleted content remains in Git history.</td></tr>
       </tbody>
     </table>
   </div>
-  <div class="legend"><b>实现状态（2026-08-17）：已实现，修复后待复核。</b>Web 默认展示考虑注入开关后的有效 Core，完整 records 保存采用 compare-and-set 同步 Runtime 规范化正本，Markdown 经过共享清洗，GET 在事务安装期间只读取完整快照；Writer 与 Organizer 已加入上述内容用途约束。正式工作区通过结构化 Memory 事务从 186 条整理为 15 条，Topic 文件从 9 个整理为 4 个；<code>topics/core.md</code>从 31 条、约 15305 token 整理为 3 条、约 429 token，实际注入约 425 token。重复探测、旧工具清单、项目重复检查及失效状态均已从当前视图删除，原内容仍保留在 Memory Git 历史中。自动写入阈值调整为 8000 token，检索只使用整理后的 Topic，不再直接混入 Source 原文。当前修复覆盖特殊 token 计数和保存期间继续编辑的状态边界；复核结论在验证完成后记录。</div>
+  <div class="legend"><b>Implementation status (2026-08-17): implemented; awaiting review after fixes.</b> Web defaults to effective Core after the injection switch. Full-record saves synchronize Runtime-normalized source through compare-and-set; Markdown is sanitized; GET reads only complete snapshots during transaction installation. Writer/Organizer include these content-purpose constraints. Structured Memory transactions reduced the production workspace from 186 records to 15 and nine Topic files to four; <code>topics/core.md</code> was reduced from 31 records/about 15,305 tokens to three/about 429 tokens, with about 425 injected tokens. Repeated probes, old tool lists, repeated project checks, and invalid states were removed from current views but remain in Memory Git history. Automatic writing now starts at 8000 tokens. Retrieval uses organized Topics without directly mixing Source text. Current fixes cover special-token counting and continued edits during save; review conclusions are recorded after validation.</div>
 
-  <!-- ══════════ 06九个方法 ══════════ -->
-  <h2 id="hooks"><span class="num">06</span>接口的九个方法</h2>
-  <p class="lead">记忆和 agent 运行时之间只有这一个接口。除了 <code>name</code> 之外每个方法都有默认实现，
-    所以换一套记忆系统只需要写它有事可做的那几个。下图按会话的生命周期摆开，并如实标出哪些还没接线。</p>
+  <!-- ══════════ 06Nine methods ══════════ -->
+  <h2 id="hooks"><span class="num">06</span> Nine interface methods</h2>
+  <p class="lead">This is the sole interface between memory and agent runtime. Every method except <code>name</code> has a default implementation, so replacement memory systems implement only methods they need. The diagram follows the session lifecycle and explicitly marks unconnected methods.</p>
 
   <div class="card">
-  <svg viewBox="0 0 1160 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MemoryBackend 的九个方法">
-    <text x="24" y="32" fill="#d4843a" font-size="15" font-weight="700">按生命周期摆开的九个方法</text>
-    <text x="24" y="54" fill="#8a8675" font-size="12">线上方 = 运行时真的在调；线下方 = 接口留着，运行时还没有任何调用方。</text>
+  <svg viewBox="0 0 1160 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nine MemoryBackend methods">
+    <text x="24" y="32" fill="#d4843a" font-size="15" font-weight="700">Nine methods arranged by lifecycle</text>
+    <text x="24" y="54" fill="#8a8675" font-size="12">Above the line: actual runtime calls. Below: interface exists, but no runtime caller.</text>
 
-    <!-- 已接线 -->
+    <!-- Connected -->
     <g>
       <rect x="216" y="86" width="196" height="94" rx="9" fill="#101a10" stroke="#5aad4e" stroke-width="1.5"/>
       <text x="234" y="110" fill="#5aad4e" font-size="12.5" font-weight="700" font-family="Menlo,monospace">system_prompt()</text>
-      <text x="234" y="132" fill="#bdb9a6" font-size="11">会话开始注入 core.md</text>
-      <text x="234" y="152" fill="#8a8675" font-size="11">包在 memory-context 里，</text>
-      <text x="234" y="170" fill="#8a8675" font-size="11">免得被当成用户现在说的</text>
+      <text x="234" y="132" fill="#bdb9a6" font-size="11">Inject core.md at session start</text>
+      <text x="234" y="152" fill="#8a8675" font-size="11">Wrap in memory-context</text>
+      <text x="234" y="170" fill="#8a8675" font-size="11">distinct from current user input</text>
 
       <rect x="428" y="86" width="196" height="94" rx="9" fill="#101a10" stroke="#5aad4e" stroke-width="1.5"/>
       <text x="446" y="110" fill="#5aad4e" font-size="12.5" font-weight="700" font-family="Menlo,monospace">search(query)</text>
-      <text x="446" y="132" fill="#bdb9a6" font-size="11">每轮开跑前搜一次</text>
-      <text x="446" y="152" fill="#8a8675" font-size="11">默认 BM25，取前五条</text>
-      <text x="446" y="170" fill="#8a8675" font-size="11">时间预算很紧，要快</text>
+      <text x="446" y="132" fill="#bdb9a6" font-size="11">Search before each turn</text>
+      <text x="446" y="152" fill="#8a8675" font-size="11">Default BM25, top five results</text>
+      <text x="446" y="170" fill="#8a8675" font-size="11">Tight time budget; must be fast</text>
 
       <rect x="640" y="86" width="196" height="94" rx="9" fill="#101a10" stroke="#5aad4e" stroke-width="1.5"/>
       <text x="658" y="110" fill="#5aad4e" font-size="12.5" font-weight="700" font-family="Menlo,monospace">write(…)</text>
-      <text x="658" y="132" fill="#bdb9a6" font-size="11">每轮一次，闲置再一次</text>
-      <text x="658" y="152" fill="#8a8675" font-size="11">两次的差别只有 force，</text>
-      <text x="658" y="170" fill="#8a8675" font-size="11">所以是一个方法不是两个</text>
+      <text x="658" y="132" fill="#bdb9a6" font-size="11">Once per turn, once on idleness</text>
+      <text x="658" y="152" fill="#8a8675" font-size="11">Only force differs,</text>
+      <text x="658" y="170" fill="#8a8675" font-size="11">so this is one method, not two</text>
 
       <rect x="900" y="86" width="196" height="94" rx="9" fill="#101a10" stroke="#5aad4e" stroke-width="1.5"/>
       <text x="918" y="110" fill="#5aad4e" font-size="12.5" font-weight="700" font-family="Menlo,monospace">reorganize()</text>
-      <text x="918" y="132" fill="#bdb9a6" font-size="11">每天 03:00 重排一次</text>
-      <text x="918" y="152" fill="#8a8675" font-size="11">也可以手动触发：</text>
+      <text x="918" y="132" fill="#bdb9a6" font-size="11">Reorganize daily at 03:00</text>
+      <text x="918" y="152" fill="#8a8675" font-size="11">Also manually triggered:</text>
       <text x="918" y="170" fill="#8a8675" font-size="11" font-family="Menlo,monospace">openprogram memory sleep</text>
     </g>
 
@@ -915,26 +888,26 @@
     <path d="M800 180 C 800 214, 880 208, 880 242" fill="none" stroke="#5aad4e" stroke-width="1.4"/>
     <line x1="998" y1="180" x2="998" y2="242" stroke="#5aad4e" stroke-width="1.4"/>
 
-    <!-- 生命线 -->
+    <!-- Lifecycle -->
     <line x1="60" y1="256" x2="1120" y2="256" stroke="#d4843a" stroke-width="2.4"/>
     <g text-anchor="middle" font-size="11">
       <circle cx="110" cy="256" r="5" fill="#16150f" stroke="#d4843a" stroke-width="2"/>
-      <text x="110" y="240" fill="#d4843a" font-size="11.5" font-weight="700">选中</text>
+      <text x="110" y="240" fill="#d4843a" font-size="11.5" font-weight="700">Selection</text>
       <circle cx="314" cy="256" r="5" fill="#16150f" stroke="#d4843a" stroke-width="2"/>
-      <text x="314" y="278" fill="#8a8675">会话开始</text>
+      <text x="314" y="278" fill="#8a8675">Session start</text>
       <circle cx="526" cy="256" r="5" fill="#16150f" stroke="#d4843a" stroke-width="2"/>
-      <text x="526" y="278" fill="#8a8675">每轮开跑前</text>
+      <text x="526" y="278" fill="#8a8675">Before each turn</text>
       <circle cx="614" cy="256" r="5" fill="#16150f" stroke="#d4843a" stroke-width="2"/>
-      <text x="614" y="240" fill="#8a8675">上下文压缩时</text>
+      <text x="614" y="240" fill="#8a8675">Context compaction</text>
       <circle cx="700" cy="256" r="5" fill="#16150f" stroke="#d4843a" stroke-width="2"/>
-      <text x="700" y="278" fill="#8a8675">每轮结束</text>
+      <text x="700" y="278" fill="#8a8675">End of each turn</text>
       <circle cx="880" cy="256" r="5" fill="#16150f" stroke="#d4843a" stroke-width="2"/>
-      <text x="880" y="278" fill="#8a8675">会话结束</text>
+      <text x="880" y="278" fill="#8a8675">Session end</text>
       <circle cx="998" cy="256" r="5" fill="#16150f" stroke="#d4843a" stroke-width="2"/>
-      <text x="998" y="278" fill="#8a8675">夜里 03:00</text>
+      <text x="998" y="278" fill="#8a8675">03:00 nightly</text>
     </g>
 
-    <!-- 未接线 -->
+    <!-- Not connected -->
     <line x1="110" y1="256" x2="110" y2="330" stroke="#4a4838" stroke-width="1.3" stroke-dasharray="4 4"/>
     <line x1="314" y1="288" x2="314" y2="330" stroke="#4a4838" stroke-width="1.3" stroke-dasharray="4 4"/>
     <line x1="614" y1="256" x2="614" y2="330" stroke="#4a4838" stroke-width="1.3" stroke-dasharray="4 4"/>
@@ -943,127 +916,129 @@
     <rect x="32" y="332" width="196" height="104" rx="9" fill="#12110b" stroke="#4a4838" stroke-width="1.3" stroke-dasharray="5 4"/>
     <text x="50" y="356" fill="#8a8675" font-size="12.5" font-weight="700" font-family="Menlo,monospace">name</text>
     <text x="106" y="356" fill="#8a8675" font-size="12.5" font-weight="700" font-family="Menlo,monospace">is_available()</text>
-    <text x="50" y="378" fill="#bdb9a6" font-size="11">选哪一套记忆系统要用的</text>
-    <text x="50" y="398" fill="#bdb9a6" font-size="11">两件事。但现在没有"选"这</text>
-    <text x="50" y="416" fill="#bdb9a6" font-size="11">个动作：直接构造出来的</text>
+    <text x="50" y="378" fill="#bdb9a6" font-size="11">Two operations select</text>
+    <text x="50" y="398" fill="#bdb9a6" font-size="11">a memory backend. No current</text>
+    <text x="50" y="416" fill="#bdb9a6" font-size="11">selection: direct construction</text>
 
     <rect x="240" y="332" width="196" height="104" rx="9" fill="#12110b" stroke="#4a4838" stroke-width="1.3" stroke-dasharray="5 4"/>
     <text x="258" y="356" fill="#8a8675" font-size="12.5" font-weight="700" font-family="Menlo,monospace">initialize(…)</text>
-    <text x="258" y="378" fill="#bdb9a6" font-size="11">本该在会话开始时调一次</text>
-    <text x="258" y="398" fill="#8a8675" font-size="11">附带后果：内置实现拿它记</text>
-    <text x="258" y="416" fill="#8a8675" font-size="11">会话 id，那条兜底路是死的</text>
+    <text x="258" y="378" fill="#bdb9a6" font-size="11">Once at session start</text>
+    <text x="258" y="398" fill="#8a8675" font-size="11">Built-in use: store</text>
+    <text x="258" y="416" fill="#8a8675" font-size="11">session ID; fallback unreachable</text>
 
     <rect x="534" y="332" width="230" height="104" rx="9" fill="#12110b" stroke="#4a4838" stroke-width="1.3" stroke-dasharray="5 4"/>
     <text x="552" y="356" fill="#8a8675" font-size="12.5" font-weight="700" font-family="Menlo,monospace">extract_before_discard()</text>
-    <text x="552" y="378" fill="#bdb9a6" font-size="11">方向和别的都相反：它什么也不存。</text>
-    <text x="552" y="398" fill="#bdb9a6" font-size="11">压缩器手里攥着一批准备丢掉的消息，</text>
-    <text x="552" y="416" fill="#bdb9a6" font-size="11">问记忆哪些该留进摘要</text>
+    <text x="552" y="378" fill="#bdb9a6" font-size="11">Stores nothing; selects what to retain.</text>
+    <text x="552" y="398" fill="#bdb9a6" font-size="11">Compactor supplies discarded text</text>
+    <text x="552" y="416" fill="#bdb9a6" font-size="11">Memory selects summary content</text>
 
     <rect x="782" y="332" width="196" height="104" rx="9" fill="#12110b" stroke="#4a4838" stroke-width="1.3" stroke-dasharray="5 4"/>
     <text x="800" y="356" fill="#8a8675" font-size="12.5" font-weight="700" font-family="Menlo,monospace">shutdown()</text>
-    <text x="800" y="378" fill="#bdb9a6" font-size="11">本该在最后一轮之后调</text>
-    <text x="800" y="398" fill="#8a8675" font-size="11">现在收尾靠闲置观察者，</text>
-    <text x="800" y="416" fill="#8a8675" font-size="11">它走的是 write(force=True)</text>
+    <text x="800" y="378" fill="#bdb9a6" font-size="11">Should run after the final turn</text>
+    <text x="800" y="398" fill="#8a8675" font-size="11">Idle watcher finalizes</text>
+    <text x="800" y="416" fill="#8a8675" font-size="11">through write(force=True)</text>
 
     <rect x="32" y="456" width="1096" height="60" rx="8" fill="#241f10" stroke="#d4843a" stroke-width="1.2"/>
-    <text x="50" y="480" fill="#d4843a" font-size="12" font-weight="700">这五个不是多余的方法，缺的是运行时那几行接线。</text>
-    <text x="380" y="480" fill="#bdb9a6" font-size="12">它们是留给第三方记忆系统的插件点：外部系统往往要建连接、要在会话结束时冲刷缓冲、要在压缩前抢救内容。</text>
-    <text x="50" y="502" fill="#bdb9a6" font-size="12">内置实现恰好这几件事都不需要做，所以缺了接线也没人发现。真接进来一套 mem0 之类的，第一件事就是把这几个调用点补上。</text>
+    <text x="50" y="480" fill="#d4843a" font-size="12" font-weight="700">Five methods lack runtime call sites.</text>
+    <text x="380" y="480" fill="#bdb9a6" font-size="12">Third-party extensions: connections, final writes, and preservation before compaction.</text>
+    <text x="50" y="502" fill="#bdb9a6" font-size="12">The built-in implementation needs none of these, hiding the missing calls. Integrating a system such as mem0 first requires connecting them.</text>
   </svg>
+  <p class="note">Diagram details: selection step: it is constructed directly. a session ID, so that fallback path is unreachable. Compactor supplies messages to discard. Memory selects what the summary retains.</p>
+  <p class="note">Diagram details: so it is not mistaken for current user input. Two operations for selecting. a memory backend. Currently there is no. Should run once at session start. Consequence: the built-in implementation uses it to store. Opposite direction from the others: it stores nothing. The compactor has messages about to be discarded. and asks memory which should remain in the summary. Currently the idle watcher handles finalization. These five methods are not redundant; the runtime call sites are missing. They are extension points for third-party memory systems, which often need connections, session-end flushing, and pre-compaction preservation.</p>
   </div>
   <div class="legend">
-    <b>另外两条约定</b>：一是回忆文本在产生的地方就已经包好 <code>&lt;memory-context&gt;</code>，出口不再包一次，
-    包两层会把里面那层剥掉、只剩一个空壳。二是接口里没有"注册工具"这一项：
-    带工具的记忆系统按插件接进来，插件本来就能注册命令、技能、MCP、hook 和 agent，再开一条私道只会绕过它。
+    <b>Two other conventions</b>: recalled text is already wrapped in <code>&lt;memory-context&gt;</code> where it is produced; wrapping again at output would strip the inner layer and leave an empty wrapper. Also, the interface has no tool-registration method: memory systems with tools are plugins, already able to register commands, skills, MCP, hooks, and agents. A private route would bypass that mechanism.
   </div>
 
-  <!-- ══════════ 07失败 ══════════ -->
-  <h2 id="fail"><span class="num">07</span>失败会怎样</h2>
-  <p class="lead">写入的返回值只有三种，观察者读的就是它。不吭声等于成功，失败要说清是哪一种：会自己好的，和再试也一样的。</p>
+  <!-- ══════════ 07Failure ══════════ -->
+  <h2 id="fail"><span class="num">07</span> Failure behavior</h2>
+  <p class="lead">Writes have three return outcomes interpreted by the watcher. Silence means success; failures distinguish transient conditions from those that will not change on retry.</p>
 
   <div class="card">
-  <svg viewBox="0 0 1160 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="写入失败的两种">
+  <svg viewBox="0 0 1160 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two write-failure classes">
     <defs>
       <marker id="e-gn" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#5aad4e"/></marker>
       <marker id="e-or" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#d4843a"/></marker>
       <marker id="e-no" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#e0445a"/></marker>
     </defs>
 
-    <text x="24" y="32" fill="#d4843a" font-size="15" font-weight="700">write() 返回什么，闲置观察者就怎么做</text>
+    <text x="24" y="32" fill="#d4843a" font-size="15" font-weight="700">write() return values determine idle-watcher behavior</text>
 
     <rect x="32" y="130" width="164" height="120" rx="10" fill="#241f10" stroke="#d4843a" stroke-width="1.8"/>
     <text x="114" y="176" fill="#d4843a" font-size="14" font-weight="700" text-anchor="middle">write()</text>
-    <text x="114" y="200" fill="#8a8675" font-size="11" text-anchor="middle">一次调用</text>
-    <text x="114" y="220" fill="#8a8675" font-size="11" text-anchor="middle">三种回答</text>
+    <text x="114" y="200" fill="#8a8675" font-size="11" text-anchor="middle">One call</text>
+    <text x="114" y="220" fill="#8a8675" font-size="11" text-anchor="middle">Three answers</text>
 
     <path d="M196 160 C 236 160, 236 106, 276 106" fill="none" stroke="#5aad4e" stroke-width="1.6" marker-end="url(#e-gn)"/>
     <path d="M196 190 L276 190" fill="none" stroke="#d4843a" stroke-width="1.6" marker-end="url(#e-or)"/>
     <path d="M196 220 C 236 220, 236 302, 276 302" fill="none" stroke="#e0445a" stroke-width="1.6" marker-end="url(#e-no)"/>
 
-    <!-- 成功 -->
+    <!-- Success -->
     <rect x="280" y="66" width="300" height="80" rx="9" fill="#101a10" stroke="#5aad4e" stroke-width="1.5"/>
-    <text x="298" y="90" fill="#5aad4e" font-size="12.5" font-weight="700">什么也不返回</text>
-    <text x="298" y="112" fill="#bdb9a6" font-size="11.5">写完了，或者本来就没到阈值不欠什么</text>
-    <text x="298" y="132" fill="#8a8675" font-size="11">两种情况都是"没有问题要说"</text>
+    <text x="298" y="90" fill="#5aad4e" font-size="12.5" font-weight="700">Return nothing</text>
+    <text x="298" y="112" fill="#bdb9a6" font-size="11.5">Write complete, or below threshold</text>
+    <text x="298" y="132" fill="#8a8675" font-size="11">Both mean “no problem to report”</text>
     <rect x="612" y="66" width="216" height="80" rx="9" fill="#12110b" stroke="#2e2c20"/>
-    <text x="630" y="90" fill="#bdb9a6" font-size="12" font-weight="700">观察者：标记已处理</text>
-    <text x="630" y="112" fill="#8a8675" font-size="11">这个会话不再被提起</text>
-    <text x="630" y="132" fill="#8a8675" font-size="11">下次轮询直接跳过</text>
+    <text x="630" y="90" fill="#bdb9a6" font-size="12" font-weight="700">Watcher: mark handled</text>
+    <text x="630" y="112" fill="#8a8675" font-size="11">Do not revisit this session</text>
+    <text x="630" y="132" fill="#8a8675" font-size="11">Skip on the next poll</text>
     <rect x="860" y="66" width="268" height="80" rx="9" fill="#12110b" stroke="#2e2c20"/>
-    <text x="878" y="90" fill="#bdb9a6" font-size="12" font-weight="700">为什么方向不能反</text>
-    <text x="878" y="112" fill="#8a8675" font-size="11">忘了写 return 也是"什么也不返回"。</text>
-    <text x="878" y="132" fill="#8a8675" font-size="11">反过来读，这种疏忽就成了永久重试</text>
+    <text x="878" y="90" fill="#bdb9a6" font-size="12" font-weight="700">Why the convention cannot be reversed</text>
+    <text x="878" y="112" fill="#8a8675" font-size="11">Forgetting a return also returns nothing.</text>
+    <text x="878" y="132" fill="#8a8675" font-size="11">Reversing it causes endless retries</text>
 
-    <!-- 可重试 -->
+    <!-- Retryable -->
     <rect x="280" y="160" width="300" height="96" rx="9" fill="#241f10" stroke="#d4843a" stroke-width="1.5"/>
-    <text x="298" y="184" fill="#d4843a" font-size="12.5" font-weight="700">还欠着 · 值得再试</text>
-    <text x="298" y="206" fill="#bdb9a6" font-size="11.5">别的写手正拿着写锁</text>
-    <text x="298" y="224" fill="#bdb9a6" font-size="11.5">git 提交失败、向量后端不可用</text>
-    <text x="298" y="242" fill="#bdb9a6" font-size="11.5">模型不可达、写手进程起不来</text>
+    <text x="298" y="184" fill="#d4843a" font-size="12.5" font-weight="700">Still pending · worth retrying</text>
+    <text x="298" y="206" fill="#bdb9a6" font-size="11.5">Another writer holds the lock</text>
+    <text x="298" y="224" fill="#bdb9a6" font-size="11.5">Git commit failed or vector backend unavailable</text>
+    <text x="298" y="242" fill="#bdb9a6" font-size="11.5">Model unreachable or writer process cannot start</text>
     <rect x="612" y="160" width="216" height="96" rx="9" fill="#12110b" stroke="#2e2c20"/>
-    <text x="630" y="184" fill="#bdb9a6" font-size="12" font-weight="700">观察者：不标记</text>
-    <text x="630" y="206" fill="#8a8675" font-size="11">下一轮轮询原样再来</text>
-    <text x="630" y="226" fill="#8a8675" font-size="11">对话本来就安全躺在</text>
-    <text x="630" y="244" fill="#8a8675" font-size="11">会话存储里，不会丢</text>
+    <text x="630" y="184" fill="#bdb9a6" font-size="12" font-weight="700">Watcher: leave unmarked</text>
+    <text x="630" y="206" fill="#8a8675" font-size="11">Retry unchanged at the next poll</text>
+    <text x="630" y="226" fill="#8a8675" font-size="11">Conversation data remains safe</text>
+    <text x="630" y="244" fill="#8a8675" font-size="11">in session storage</text>
     <rect x="860" y="160" width="268" height="96" rx="9" fill="#12110b" stroke="#2e2c20"/>
-    <text x="878" y="184" fill="#bdb9a6" font-size="12" font-weight="700">这一类的共同点</text>
-    <text x="878" y="206" fill="#8a8675" font-size="11">条件自己会消失：锁会释放，模型会</text>
-    <text x="878" y="226" fill="#8a8675" font-size="11">恢复。同样的内容下次送过去，结果</text>
-    <text x="878" y="246" fill="#8a8675" font-size="11">可能就不一样</text>
+    <text x="878" y="184" fill="#bdb9a6" font-size="12" font-weight="700">What these failures share</text>
+    <text x="878" y="206" fill="#8a8675" font-size="11">The condition can disappear: the lock releases,</text>
+    <text x="878" y="226" fill="#8a8675" font-size="11">the model recovers, and the same content</text>
+    <text x="878" y="246" fill="#8a8675" font-size="11">may succeed next time</text>
 
-    <!-- 不可重试 -->
+    <!-- Not retryable -->
     <rect x="280" y="270" width="300" height="96" rx="9" fill="#241015" stroke="#e0445a" stroke-width="1.5"/>
-    <text x="298" y="294" fill="#e0445a" font-size="12.5" font-weight="700">还欠着 · 再试也一样</text>
-    <text x="298" y="316" fill="#bdb9a6" font-size="11.5">写手改两遍都被事务驳回</text>
-    <text x="298" y="334" fill="#bdb9a6" font-size="11.5">补丁引用了没提供的来源、格式不合</text>
-    <text x="298" y="352" fill="#bdb9a6" font-size="11.5">压根没给会话 id</text>
+    <text x="298" y="294" fill="#e0445a" font-size="12.5" font-weight="700">Still pending · retry will not help</text>
+    <text x="298" y="316" fill="#bdb9a6" font-size="11.5">Both writer edits were rejected by the transaction</text>
+    <text x="298" y="334" fill="#bdb9a6" font-size="11.5">Unavailable source or invalid patch</text>
+    <text x="298" y="352" fill="#bdb9a6" font-size="11.5">No session ID was provided</text>
     <rect x="612" y="270" width="216" height="96" rx="9" fill="#12110b" stroke="#2e2c20"/>
-    <text x="630" y="294" fill="#bdb9a6" font-size="12" font-weight="700">观察者：照样标记</text>
-    <text x="630" y="316" fill="#bdb9a6" font-size="11">并且把原因发上事件总线</text>
+    <text x="630" y="294" fill="#bdb9a6" font-size="12" font-weight="700">Watcher: still mark handled</text>
+    <text x="630" y="316" fill="#bdb9a6" font-size="11">and publish the failure reason</text>
     <text x="630" y="336" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">memory.ingest_ended</text>
     <text x="630" y="354" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">ok: false</text>
     <rect x="860" y="270" width="268" height="96" rx="9" fill="#12110b" stroke="#2e2c20"/>
-    <text x="878" y="294" fill="#bdb9a6" font-size="12" font-weight="700">为什么明知没写完还标记</text>
-    <text x="878" y="316" fill="#8a8675" font-size="11">同样的内容再送一次还是同样的驳回，</text>
-    <text x="878" y="336" fill="#8a8675" font-size="11">一直重试只烧模型额度。而没人看见</text>
-    <text x="878" y="356" fill="#8a8675" font-size="11">的失败，就是永远不会被修的失败</text>
+    <text x="878" y="294" fill="#bdb9a6" font-size="12" font-weight="700">Why mark an incomplete write handled</text>
+    <text x="878" y="316" fill="#8a8675" font-size="11">Same content, same rejection;</text>
+    <text x="878" y="336" fill="#8a8675" font-size="11">retries waste quota. Invisible</text>
+    <text x="878" y="356" fill="#8a8675" font-size="11">failures are never corrected</text>
 
     <line x1="32" y1="392" x2="1128" y2="392" stroke="#2e2c20" stroke-width="1"/>
-    <text x="32" y="418" fill="#bdb9a6" font-size="12">每轮那条路用同一套返回值：它也会撞上被别人占着的写锁。以前那次撞锁被当成"还不够写"咽掉，和真的没到阈值长得一模一样，于是一轮没写成、什么也没说。</text>
-    <text x="32" y="442" fill="#8a8675" font-size="12">每轮那条路拿到"还欠着"只记一行调试日志：下一轮自然会再来。真正要把一个会话收尾的是闲置观察者，所以判断标不标记的责任在它那边。</text>
-    <text x="32" y="464" fill="#8a8675" font-size="12">无论哪一种，记忆都不会把对话带下水：每个钩子都自己吞掉自己的异常并记日志。吞掉不等于装作没发生。</text>
+    <text x="32" y="418" fill="#bdb9a6" font-size="12">Per-turn writes use the same returns. Previously, lock contention was misreported as an unmet threshold, silently leaving a turn unwritten.</text>
+    <text x="32" y="442" fill="#8a8675" font-size="12">The per-turn path logs pending content at debug level; the next turn naturally retries. The idle watcher is responsible for session finalization and therefore decides whether to mark it handled.</text>
+    <text x="32" y="464" fill="#8a8675" font-size="12">Memory failures never fail the conversation: every hook catches and logs its own exceptions. Catching an exception does not mean pretending nothing happened.</text>
   </svg>
+  <p class="note">Diagram details: Write complete, or below threshold with nothing due. Patch cites an unavailable source or has invalid formatting. and publish the reason on the event bus. endless retries only consume model quota. Invisible.</p>
+  <p class="note">Diagram details: Writing finished, or the threshold was not reached and nothing is due. The opposite interpretation would turn that omission into endless retries. Sending identical content again yields identical rejection; The per-turn path uses the same returns and can also encounter a held lock. Previously lock contention was swallowed as “not enough content,” indistinguishable from an unmet threshold, leaving an unwritten turn without any report.</p>
   </div>
 
-  <!-- ══════════ 08还没解决的 ══════════ -->
-  <h2 id="open"><span class="num">08</span>分支相关的实现状态</h2>
-  <p class="lead">节点写入标记和会话边界的活分支枚举已经实现。其余问题分别是互斥分支的语义表达、跨会话spawn关系和压缩摘要去重；这些不属于位置记录本身。</p>
+  <!-- ══════════ 08Unresolved ══════════ -->
+  <h2 id="open"><span class="num">08</span> Branch-related implementation status</h2>
+  <p class="lead">Node write markers and live-branch enumeration at session boundaries are implemented. Remaining issues concern mutually exclusive branch semantics, cross-session spawn relationships, and compaction-summary deduplication, not positional bookkeeping.</p>
 
   <div class="grid2">
 
     <div class="oc">
-      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="一条分支只在会话边界上被回访">
-        <text x="16" y="26" fill="#d4843a" font-size="12.5" font-weight="700">一条分支只在会话边界上被回访</text>
+      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A branch is revisited only at a session boundary">
+        <text x="16" y="26" fill="#d4843a" font-size="12.5" font-weight="700">A branch is revisited only at a session boundary</text>
         <line x1="60" y1="70" x2="220" y2="70" stroke="#3a382c" stroke-width="1.3"/>
         <g font-size="10.5" text-anchor="middle">
           <circle cx="60" cy="70" r="7" fill="#101a10" stroke="#5aad4e" stroke-width="1.3"/>
@@ -1078,63 +1053,66 @@
           <circle cx="348" cy="30" r="7" fill="#241f10" stroke="#d4843a" stroke-width="1.3"/>
           <circle cx="420" cy="30" r="8" fill="#241f10" stroke="#d4843a" stroke-width="2.2"/>
         </g>
-        <text x="440" y="34" fill="#d4843a" font-size="11">head，会被写</text>
+        <text x="440" y="34" fill="#d4843a" font-size="11">Head: will be written</text>
         <line x1="276" y1="118" x2="420" y2="118" stroke="#2a2820" stroke-width="1.3"/>
         <g>
           <circle cx="276" cy="118" r="7" fill="#12110b" stroke="#3a382c" stroke-width="1.3"/>
           <circle cx="348" cy="118" r="7" fill="#12110b" stroke="#3a382c" stroke-width="1.3"/>
           <circle cx="420" cy="118" r="7" fill="#12110b" stroke="#3a382c" stroke-width="1.3"/>
         </g>
-        <text x="440" y="122" fill="#8a8675" font-size="11">要等会话闲下来</text>
-        <text x="16" y="160" fill="#8a8675" font-size="11">每一轮里，两条写入路径要的都是"结束在head的那条分支"。</text>
-        <text x="16" y="178" fill="#8a8675" font-size="11">会话边界上才会枚举每条分支各要一遍。</text>
+        <text x="440" y="122" fill="#8a8675" font-size="11">Wait for idle</text>
+        <text x="16" y="160" fill="#8a8675" font-size="11">Within a turn, both write paths request the branch ending at head.</text>
+        <text x="16" y="178" fill="#8a8675" font-size="11">Only session boundaries enumerate every branch.</text>
       </svg>
-      <div class="d"><b>已实现。</b>强制会话边界写入先处理当前head，再枚举其他未归档分支tip；共享前缀由节点标记去重。当前仍通过闲置观察器触发，尚未改成head变化事件通知。</div>
+  <p class="note">Diagram details: Wait until the session is idle.</p>
+      <div class="d"><b>Implemented.</b> Forced boundary writes process current head first, then other unarchived branch tips; node markers deduplicate shared prefixes. The idle watcher still triggers this, not head-change events.</div>
     </div>
 
     <div class="oc">
-      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="两条分支写进同一批主题文件">
-        <text x="16" y="26" fill="#d4843a" font-size="12.5" font-weight="700">两条互斥的分支，一份主题文件</text>
+      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two branches write the same topic files">
+        <text x="16" y="26" fill="#d4843a" font-size="12.5" font-weight="700">Mutually exclusive branches, one topic file</text>
         <rect x="16" y="46" width="150" height="40" rx="7" fill="#241f10" stroke="#d4843a" stroke-width="1.3"/>
-        <text x="91" y="70" fill="#d4843a" font-size="11.5" text-anchor="middle">分支甲：用 Flask</text>
+        <text x="91" y="70" fill="#d4843a" font-size="11.5" text-anchor="middle">Branch A: use Flask</text>
         <rect x="16" y="104" width="150" height="40" rx="7" fill="#1d2738" stroke="#4f8ef7" stroke-width="1.3"/>
-        <text x="91" y="128" fill="#4f8ef7" font-size="11.5" text-anchor="middle">分支乙：改用 FastAPI</text>
+        <text x="91" y="128" fill="#4f8ef7" font-size="11.5" text-anchor="middle">Branch B: FastAPI</text>
         <path d="M166 66 C 210 66, 210 88, 250 92" fill="none" stroke="#d4843a" stroke-width="1.4"/>
         <path d="M166 124 C 210 124, 210 102, 250 98" fill="none" stroke="#4f8ef7" stroke-width="1.4"/>
         <rect x="256" y="52" width="200" height="86" rx="8" fill="#12110b" stroke="#2e2c20" stroke-width="1.3"/>
         <text x="272" y="74" fill="#bdb9a6" font-size="11" font-family="Menlo,monospace">topics/projects/x.md</text>
-        <text x="272" y="98" fill="#d4843a" font-size="11">这个项目用 Flask</text>
-        <text x="272" y="120" fill="#4f8ef7" font-size="11">这个项目用 FastAPI</text>
-        <text x="466" y="90" fill="#e0445a" font-size="11">两段并排</text>
-        <text x="466" y="110" fill="#8a8675" font-size="11">谁也没说</text>
-        <text x="466" y="128" fill="#8a8675" font-size="11">它们互斥</text>
-        <text x="16" y="172" fill="#8a8675" font-size="11">检索会把两条都返回；夜里整理甚至可能把它们合成一段。</text>
+        <text x="272" y="98" fill="#d4843a" font-size="11">This project uses Flask</text>
+        <text x="272" y="120" fill="#4f8ef7" font-size="11">This project uses FastAPI</text>
+        <text x="466" y="90" fill="#e0445a" font-size="11">Adjacent text</text>
+        <text x="466" y="110" fill="#8a8675" font-size="11">Neither says</text>
+        <text x="466" y="128" fill="#8a8675" font-size="11">they conflict</text>
+        <text x="16" y="172" fill="#8a8675" font-size="11">Retrieval returns both; nightly organization may even merge them.</text>
       </svg>
-      <div class="d">主题文件的格式里<b>没有"这两条是互斥选项"这种说法</b>，所以来自不同分支的记录只能并排堆着。</div>
+  <p class="note">Diagram details: Branch B: switch to FastAPI. Two adjacent paragraphs. they are mutually exclusive.</p>
+      <div class="d">The topic format has <b>no expression for “these are mutually exclusive options”</b>, so records from different branches can only coexist side by side.</div>
     </div>
 
     <div class="oc">
-      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="跨会话 spawn 的两半各自记账">
-        <text x="16" y="26" fill="#d4843a" font-size="12.5" font-weight="700">跨会话 spawn：两半各记各的账</text>
+      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cross-session spawn halves maintain separate bookkeeping">
+        <text x="16" y="26" fill="#d4843a" font-size="12.5" font-weight="700">Cross-session spawn: independent bookkeeping</text>
         <rect x="16" y="46" width="230" height="60" rx="8" fill="#101a10" stroke="#5aad4e" stroke-width="1.3"/>
-        <text x="32" y="68" fill="#5aad4e" font-size="11.5">会话 A · 主对话</text>
+        <text x="32" y="68" fill="#5aad4e" font-size="11.5">Session A · main conversation</text>
         <text x="32" y="90" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">cursors/openprogram/A.json</text>
         <rect x="314" y="46" width="230" height="60" rx="8" fill="#1d2738" stroke="#4f8ef7" stroke-width="1.3"/>
-        <text x="330" y="68" fill="#4f8ef7" font-size="11.5">会话 B · 子 agent 的分支</text>
+        <text x="330" y="68" fill="#4f8ef7" font-size="11.5">Session B · subagent branch</text>
         <text x="330" y="90" fill="#8a8675" font-size="10.5" font-family="Menlo,monospace">cursors/openprogram/B.json</text>
         <path d="M246 76 L308 76" fill="none" stroke="#8a8675" stroke-width="1.3" stroke-dasharray="4 4"/>
         <text x="277" y="66" fill="#8a8675" font-size="10.5" text-anchor="middle">spawn</text>
-        <text x="16" y="134" fill="#bdb9a6" font-size="11">线程键就是会话 id，所以两半落在两个游标文件下，</text>
-        <text x="16" y="152" fill="#bdb9a6" font-size="11">两次回溯谁也不会走进对方的图。</text>
-        <text x="16" y="176" fill="#5aad4e" font-size="11">不重、不漏。</text>
-        <text x="96" y="176" fill="#e0445a" font-size="11">缺的是"这条分支接着那段对话"的那条链接。</text>
+        <text x="16" y="134" fill="#bdb9a6" font-size="11">Thread keys are session IDs, so the halves use separate cursor files;</text>
+        <text x="16" y="152" fill="#bdb9a6" font-size="11">neither traversal enters the other graph.</text>
+        <text x="16" y="176" fill="#5aad4e" font-size="11">No loss.</text>
+        <text x="96" y="176" fill="#e0445a" font-size="11">Missing: a link identifying the continued conversation.</text>
       </svg>
-      <div class="d">同一会话内的 spawn 分支共用这个会话的游标和存档，不需要额外东西。<b>跨会话那种，记忆里看不出两段是一回事。</b></div>
+  <p class="note">Diagram details: No duplication or omission. What is missing is the link saying this branch continues that conversation.</p>
+      <div class="d">Spawn branches within one session share its cursor and archive without extra machinery.<b>For cross-session spawn, memory cannot identify the two parts as related.</b></div>
     </div>
 
     <div class="oc">
-      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="压缩摘要一旦成为 head">
-        <text x="16" y="26" fill="#d4843a" font-size="12.5" font-weight="700">压缩摘要一旦成为 head</text>
+      <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="When a compaction summary becomes head">
+        <text x="16" y="26" fill="#d4843a" font-size="12.5" font-weight="700">When a compaction summary becomes head</text>
         <line x1="40" y1="66" x2="300" y2="66" stroke="#3a382c" stroke-width="1.3"/>
         <g>
           <circle cx="40" cy="66" r="7" fill="#101a10" stroke="#5aad4e" stroke-width="1.3"/>
@@ -1142,45 +1120,45 @@
           <circle cx="212" cy="66" r="7" fill="#101a10" stroke="#5aad4e" stroke-width="1.3"/>
           <circle cx="298" cy="66" r="7" fill="#101a10" stroke="#5aad4e" stroke-width="1.3"/>
         </g>
-        <text x="330" y="70" fill="#8a8675" font-size="11">原始轮次，已经写过</text>
+        <text x="330" y="70" fill="#8a8675" font-size="11">Original turns, already written</text>
         <path d="M40 74 C 40 100, 80 100, 100 108" fill="none" stroke="#9d6fe0" stroke-width="1.4"/>
         <rect x="104" y="94" width="150" height="34" rx="7" fill="#221a30" stroke="#9d6fe0" stroke-width="1.4"/>
-        <text x="179" y="116" fill="#9d6fe0" font-size="11.5" text-anchor="middle">压缩摘要</text>
-        <text x="264" y="116" fill="#8a8675" font-size="11">它取的是被压那一段</text>
-        <text x="264" y="132" fill="#8a8675" font-size="11">第一条的前驱，所以平常是旁支</text>
-        <text x="16" y="164" fill="#bdb9a6" font-size="11">head 一旦挪到摘要这条线上，摘要就成了一条没写过的助手轮次：</text>
-        <text x="16" y="182" fill="#bdb9a6" font-size="11">内容是记忆里已有内容的复述，id 却是游标从没见过的。</text>
+        <text x="179" y="116" fill="#9d6fe0" font-size="11.5" text-anchor="middle">Compaction summary</text>
+        <text x="264" y="116" fill="#8a8675" font-size="11">Uses the predecessor of the first summarized turn,</text>
+        <text x="264" y="132" fill="#8a8675" font-size="11">so normally it is a side branch</text>
+        <text x="16" y="164" fill="#bdb9a6" font-size="11">If head moves to the summary branch, the summary becomes an unwritten assistant turn:</text>
+        <text x="16" y="182" fill="#bdb9a6" font-size="11">its content repeats existing memory, but the cursor has never seen its ID.</text>
       </svg>
-      <div class="d">于是<b>同一批事实被换一种说法又写了一遍</b>。平常不发生，因为摘要节点是旁支而不是主线上的一员。</div>
+      <div class="d">Consequently, <b>the same facts are written again in different wording</b>. Normally this does not happen because summaries are side branches rather than mainline nodes.</div>
     </div>
 
   </div>
 
-  <h2 id="web"><span class="num">09</span>Memory Web 页面</h2>
-  <p class="lead">页面采用 OpenProgram 现有“顶部标题栏 + 二级栏 + 内容区”结构。现代化来自清楚的层级、统一的行高、可读的内容宽度和稳定的窄宽度行为，不增加新的数据层或装饰性仪表盘。</p>
+  <h2 id="web"><span class="num">09</span> Memory Web page</h2>
+  <p class="lead">The page uses OpenProgram’s existing top title bar, secondary sidebar, and content area. Clear hierarchy, consistent row heights, readable content width, and stable narrow-window behavior improve the UI without new data layers or decorative dashboards.</p>
 
   <div class="grid3">
     <div class="st" style="border-top-color:#e0445a">
-      <div class="k">当前问题</div>
-      <p>四个分区、上下文列表和 Topic 行使用接近的视觉权重；选中前右侧几乎全空。Core 的说明与视图切换在左栏，实际内容和 token 状态在右栏，关系不清楚。</p>
+      <div class="k">Current problem</div>
+      <p>The four sections, context lists, and Topic rows have similar visual weight; before selection, the right side is nearly empty. Core explanation/view switching sits on the left while content/token status sits on the right, obscuring their relationship.</p>
     </div>
     <div class="st" style="border-top-color:#4f8ef7">
-      <div class="k">结构原则</div>
-      <p>顶部只负责页面身份与设置入口；二级栏先选择分区，再显示该分区的列表或过滤器；右侧标题区集中名称、元数据和操作，正文使用受控阅读宽度。</p>
+      <div class="k">Structural principles</div>
+      <p>The top bar provides page identity and settings only. The secondary sidebar selects a section, then lists its items or filters. The content header consolidates name, metadata, and actions; body text has a controlled reading width.</p>
     </div>
     <div class="st" style="border-top-color:#5aad4e">
-      <div class="k">保持不变</div>
-      <p>继续使用 Topics、Timeline、Recent、Core 四个现有入口和现有 API。没有 writer 状态条、Commitments、Scheduler 状态、统计仪表盘、新依赖或新的持久化 UI 状态。</p>
+      <div class="k">Unchanged</div>
+      <p>Retain Topics, Timeline, Recent, Core, and existing APIs. No writer status bar, Commitments, Scheduler status, statistics dashboard, new dependency, or new persisted UI state.</p>
     </div>
   </div>
 
   <div class="m-review" aria-labelledby="memory-target-title">
     <div class="m-review-head">
       <div>
-        <h3 id="memory-target-title">目标页面 · 宽屏结构</h3>
-        <p>点击左侧四个分区，可检查对应的列表与内容状态。</p>
+        <h3 id="memory-target-title">Target page · wide layout</h3>
+        <p>Click the four left-hand sections to inspect their lists and content states.</p>
       </div>
-      <p>当前数据：0 Topics / 3 条 Core records / 2 个 Timeline 日期</p>
+      <p>Current data: 0 Topics / 3 Core records / 2 Timeline dates</p>
     </div>
 
     <div class="m-frame" id="memoryPrototype">
@@ -1248,12 +1226,12 @@
 
           <section class="m-panel" data-memory-panel="timeline">
             <header class="m-detail-head"><div class="m-detail-copy"><div class="m-detail-title">August 15, 2026</div><div class="m-detail-sub">2 memory records · derived from Topics</div></div></header>
-            <div class="m-doc-wrap"><article class="m-doc"><div class="m-doc-kicker">Timeline</div><h4>Saturday</h4><p class="m-lede">Timeline remains a derived chronological view. It presents the Markdown generated for the selected date without adding event times or change metadata.</p><div class="m-record"><div class="m-record-meta"><span>Core · 2026-08-15</span></div><p>Never fabricate tool calls or tool results. Report only observed results from available tools.</p></div><div class="m-record"><div class="m-record-meta"><span>Core · 2026-08-15</span></div><p>Use plain 你 with no invented honorific unless the owner explicitly chooses one.</p></div></article></div>
+            <div class="m-doc-wrap"><article class="m-doc"><div class="m-doc-kicker">Timeline</div><h4>Saturday</h4><p class="m-lede">Timeline remains a derived chronological view. It presents the Markdown generated for the selected date without adding event times or change metadata.</p><div class="m-record"><div class="m-record-meta"><span>Core · 2026-08-15</span></div><p>Never fabricate tool calls or tool results. Report only observed results from available tools.</p></div><div class="m-record"><div class="m-record-meta"><span>Core · 2026-08-15</span></div><p>Use plain “you” with no invented honorific unless the owner explicitly chooses one.</p></div></article></div>
           </section>
 
           <section class="m-panel" data-memory-panel="recent">
             <header class="m-detail-head"><div class="m-detail-copy"><div class="m-detail-title">Recent memory</div><div class="m-detail-sub">3 / 50 records · newest durable records first · derived from Topics</div></div></header>
-            <div class="m-doc-wrap"><article class="m-doc"><div class="m-recent-card"><div class="m-record-meta"><span class="m-badge">CORE</span><span>2026-08-15</span></div><p>Never fabricate tool calls or tool results. Report observed results and state when no available tool returns a result.</p></div><div class="m-recent-card"><div class="m-record-meta"><span class="m-badge">CORE</span><span>2026-08-15</span></div><p>Use plain 你 with no invented honorific unless the owner explicitly chooses one.</p></div><div class="m-recent-card"><div class="m-record-meta"><span class="m-badge">CORE</span><span>2026-08-10</span></div><p>Use Chinese by default when discussing Memory and other operational work.</p></div></article></div>
+            <div class="m-doc-wrap"><article class="m-doc"><div class="m-recent-card"><div class="m-record-meta"><span class="m-badge">CORE</span><span>2026-08-15</span></div><p>Never fabricate tool calls or tool results. Report observed results and state when no available tool returns a result.</p></div><div class="m-recent-card"><div class="m-record-meta"><span class="m-badge">CORE</span><span>2026-08-15</span></div><p>Use plain “you” with no invented honorific unless the owner explicitly chooses one.</p></div><div class="m-recent-card"><div class="m-record-meta"><span class="m-badge">CORE</span><span>2026-08-10</span></div><p>Use Chinese by default when discussing Memory and other operational work.</p></div></article></div>
           </section>
 
           <section class="m-panel" data-memory-panel="core">
@@ -1261,7 +1239,7 @@
               <div class="m-detail-copy"><div class="m-detail-title">Core memory</div><div class="m-detail-sub"><span class="m-core-status">Injection enabled</span> · 425 / 2,000 tokens</div></div>
               <div class="m-actions"><div class="m-segment"><span class="active">Prompt preview</span><span>Source records</span></div></div>
             </header>
-            <div class="m-doc-wrap"><article class="m-doc"><div class="m-doc-kicker">Read-only prompt preview</div><h4>Core memory</h4><p class="m-lede">Generated from Source records and inserted into new system prompts. Edit the source records to change this preview.</p><div class="m-record"><div class="m-record-meta"><span>Language</span><span>·</span><span>Aug 10</span></div><p>Use Chinese by default when discussing Memory and other operational work.</p></div><div class="m-record"><div class="m-record-meta"><span>Address</span><span>·</span><span>Aug 15</span></div><p>Use plain 你 with no invented honorific unless the owner explicitly chooses one.</p></div><div class="m-record"><div class="m-record-meta"><span>Tool reporting</span><span>·</span><span>Aug 15</span></div><p>Never fabricate tool calls or tool results. Report observed results and state when no available tool returns a result.</p></div></article></div>
+            <div class="m-doc-wrap"><article class="m-doc"><div class="m-doc-kicker">Read-only prompt preview</div><h4>Core memory</h4><p class="m-lede">Generated from Source records and inserted into new system prompts. Edit the source records to change this preview.</p><div class="m-record"><div class="m-record-meta"><span>Language</span><span>·</span><span>Aug 10</span></div><p>Use Chinese by default when discussing Memory and other operational work.</p></div><div class="m-record"><div class="m-record-meta"><span>Address</span><span>·</span><span>Aug 15</span></div><p>Use plain “you” with no invented honorific unless the owner explicitly chooses one.</p></div><div class="m-record"><div class="m-record-meta"><span>Tool reporting</span><span>·</span><span>Aug 15</span></div><p>Never fabricate tool calls or tool results. Report observed results and state when no available tool returns a result.</p></div></article></div>
           </section>
         </main>
       </div>
@@ -1270,8 +1248,8 @@
 
   <div class="m-state-grid">
     <div class="m-state">
-      <h4>窄宽度 · 可操作样稿</h4>
-      <p>小于 720px 时不把分区导航、列表和详情纵向堆叠。点击 Topic 进入详情，点击返回键恢复列表。</p>
+      <h4>Narrow width · interactive prototype</h4>
+      <p>Below 720px, do not stack section navigation, list, and detail vertically. Click a Topic for details; Back returns to the list.</p>
       <div class="m-mobile" id="memoryMobilePrototype">
         <div class="m-mobile-view" data-mobile-view="list">
           <div class="m-mobile-head">Memory</div>
@@ -1307,140 +1285,140 @@
       </div>
     </div>
     <div class="m-state">
-      <h4>窄宽度规则</h4>
-      <p>分区导航只在列表态出现；详情态占据全部内容宽度并提供明确返回按钮。Core、Timeline 和 Recent 没有文件列表时直接进入内容态。桌面二级栏的展开状态不被窗口宽度改写。</p>
+      <h4>Narrow-width rules</h4>
+      <p>Section navigation appears only in list mode. Detail mode uses the full content width and an explicit Back button. Core, Timeline, and Recent enter content mode directly when there is no file list. Window width never rewrites desktop-sidebar expansion state.</p>
       <div class="m-rail-note" style="margin:14px 0 0;background:#171610;border-color:#343226">
-        <strong style="color:#f0eee6">可用宽度优先级</strong>
-        <span>内容详情 ＞ 上下文列表 ＞ 分区标签文字。宽度不足时先隐藏分区文字，只保留图标；不压缩正文到不可读宽度。</span>
+        <strong style="color:#f0eee6">Width priority</strong>
+        <span>Content detail > context list > section labels. Hide section text first, retaining icons; do not compress body text below readable width.</span>
       </div>
     </div>
   </div>
 
   <div class="tbl">
     <table>
-      <thead><tr><th>区域</th><th>目标结构</th><th>避免的问题</th></tr></thead>
+      <thead><tr><th>Area</th><th>Target structure</th><th>Problem avoided</th></tr></thead>
       <tbody>
-        <tr><td><b>顶部标题栏</b></td><td>页面标题与 Memory settings</td><td>不显示无法由现有 API 准确计算的总量，也不放 writer 状态、刷新状态或重复说明</td></tr>
-        <tr><td><b>二级栏</b></td><td>分区下面的 Folder、Topic、Timeline 年/月/日、Recent 与 Core 入口全部使用同一套 36px 行高、10px 横向内边距、8px 圆角、13px 字号和选中背景。Folder 与 Timeline 年/月必须复用同一个 14×14 线性 ChevronRight SVG、路径和展开旋转规则，并使用相同的数字徽标；Timeline 只用缩进表达层级；Topics 不重复显示由 Core 分区管理的 <code>topics/core.md</code></td><td>展开控件不再使用过小的实心三角，Timeline 不再显示与 Topics 不同的计数文本</td></tr>
-        <tr><td><b>内容标题</b></td><td>名称、类型、路径、修改时间、视图与编辑操作集中在一个 76px 区域</td><td>删除独立 meta 横条和分散的 Core 状态</td></tr>
-        <tr><td><b>正文</b></td><td>Preview/Timeline/Recent/Core 使用最大 780px 阅读面；Edit 保持全宽等宽字体编辑器</td><td>避免超宽文本和大片无结构空白</td></tr>
-        <tr><td><b>Markdown 预览</b></td><td>Topics、Timeline 与 Core 在现有 <code>marked</code> 和 HTML 清洗链路内解释 Memory 使用的 Obsidian Flavored Markdown：命名 <code>[^id]</code> 显示为连续 <code>[1]</code> 上标，定义集中到带分隔线的文末有序列表，支持两个空格缩进的续行与 <code>^[inline footnote]</code>；段末或独立行 <code>^block-id</code> 只保留不可见锚点，ID 仅接受 Latin 字母、数字和连字符；围栏代码、四空格缩进代码以及反斜杠转义的脚注语法保持字面内容</td><td>不在阅读正文中暴露内部 evidence ID 和 block ID；不改变可编辑的磁盘原文</td></tr>
-        <tr><td><b>窄宽度</b></td><td>分区图标栏 + 列表/详情单页切换</td><td>不自动折叠桌面栏，不把三块上下堆叠，不允许内容区重叠</td></tr>
+        <tr><td><b>Top title bar</b></td><td>Page title and Memory settings</td><td>No totals that existing APIs cannot accurately calculate; no writer/refresh status or duplicate explanations</td></tr>
+        <tr><td><b>Secondary sidebar</b></td><td>Folder, Topic, Timeline year/month/day, Recent, and Core entries all share 36px row height, 10px horizontal padding, 8px radius, 13px text, and selection background. Folder and Timeline year/month reuse the same 14×14 linear ChevronRight SVG/path/rotation and numeric badges. Timeline expresses hierarchy through indentation only. Topics does not duplicate <code>topics/core.md</code></td><td>managed by Core. Expansion controls avoid tiny filled triangles, and Timeline uses the same count presentation as Topics</td></tr>
+        <tr><td><b>Content header</b></td><td>Name, type, path, modification time, view, and editing actions in one 76px area</td><td>Remove a separate metadata strip and scattered Core status</td></tr>
+        <tr><td><b>Body</b></td><td>Preview/Timeline/Recent/Core use a maximum 780px reading area; Edit remains a full-width monospace editor</td><td>Avoid excessively wide text and large unstructured empty regions</td></tr>
+        <tr><td><b>Markdown preview</b></td><td>Topics, Timeline, and Core interpret Memory’s Obsidian Flavored Markdown through existing <code>marked</code> and HTML sanitization. Named <code>[^id]</code> become sequential <code>[1]</code> superscripts; definitions form a separated ordered list at the end, supporting two-space continuation and <code>^[inline footnote]</code>. Paragraph-end or standalone <code>^block-id</code> becomes an invisible anchor only, accepting Latin letters, digits, and hyphens in IDs. Fenced code, four-space-indented code, and backslash-escaped footnote syntax remain literal</td><td>Do not expose internal evidence/block IDs in prose; do not change editable disk source</td></tr>
+        <tr><td><b>Narrow width</b></td><td>Section icons plus single-page list/detail switching</td><td>Do not auto-collapse desktop sidebars, stack three panes vertically, or allow overlap</td></tr>
       </tbody>
     </table>
   </div>
 
-  <div class="note"><b>上游依据：</b><a href="https://obsidian.md/help/obsidian-flavored-markdown">Obsidian Flavored Markdown</a> 定义 CommonMark、GFM、LaTeX 和 Obsidian 扩展的组合；<a href="https://obsidian.md/help/syntax#Footnotes">Footnotes</a> 定义命名脚注数字化、两个空格续行与 inline footnote；<a href="https://obsidian.md/help/links#Link%20to%20a%20block%20in%20a%20note">Internal links</a> 定义 block ID 的位置和字符集。Obsidian 主应用闭源，公开 API 与帮助仓库不能提供核心 renderer 源码，因此本实现对齐官方语法和 Reading/Publish 的可观察输出，不复制未公开实现。</div>
+  <div class="note"><b>Upstream basis:</b><a href="https://obsidian.md/help/obsidian-flavored-markdown">Obsidian Flavored Markdown</a> defines the combination of CommonMark, GFM, LaTeX, and Obsidian extensions; <a href="https://obsidian.md/help/syntax#Footnotes">Footnotes</a> defines numbered named footnotes, two-space continuation, and inline footnotes; <a href="https://obsidian.md/help/links#Link%20to%20a%20block%20in%20a%20note">Internal links</a> defines block-ID placement and character set. Obsidian’s main application is closed source, and public API/help repositories do not expose its core renderer. This implementation follows official syntax and observable Reading/Publish output rather than copying unpublished code.</div>
 
   <div class="grid2">
     <div class="oc">
-      <h4>实现范围</h4>
-      <div class="d">页面布局主要由 <code>apps/web/components/memory/index.tsx</code>、<code>parts.tsx</code> 和 <code>memory-page.module.css</code> 维护。Memory 固定格式的阅读转换集中在专用 Markdown helper，复用现有 <code>marked</code> 与 HTML 清洗，不改变编辑内容、API、writer 或磁盘格式。</div>
+      <h4>Implementation scope</h4>
+      <div class="d">Page layout is mainly maintained in <code>apps/web/components/memory/index.tsx</code>, <code>parts.tsx</code> and <code>memory-page.module.css</code> . Memory-specific reading transformations live in a dedicated Markdown helper, reusing existing <code>marked</code> and HTML sanitization without changing editable content, APIs, writer, or disk format.</div>
     </div>
     <div class="oc">
-      <h4>明确排除</h4>
-      <div class="d">不增加首页 dashboard、统计图、Topic 创建向导、拖拽排序、批量编辑、writer 状态、自动折叠栏、新 API 或新依赖。脚注来源链接继续使用原有 URL；本轮不增加来源浏览 API，也不把 Memory 专用语法扩展到 Chat Markdown。没有选择内容时只显示简洁的选择提示与现有设置入口。</div>
+      <h4>Explicit exclusions</h4>
+      <div class="d">No home dashboard, charts, Topic-creation wizard, drag sorting, bulk editing, writer status, automatic sidebar collapse, new APIs, or dependencies. Footnote sources retain existing URLs; no new source-browsing API or Memory syntax in Chat Markdown. Without selected content, show only a concise selection prompt and existing settings entry.</div>
     </div>
   </div>
 
-  <div class="note"><b>验收边界：</b>公开入口 <code>/memory</code> 在桌面宽度显示固定二级栏和完整内容区；Recent 与 Core 不在中间栏重复标题、数量、视图切换或注入状态，Core 的切换和状态只在右侧内容头部出现一次；Recent 右侧标题显示当前记录数与实时 <code>memory.recent.limit</code>，例如 <code>7 / 50 records</code>，不把记录条数误写成 token 预算；顶部不把受截断的 Recent 数量表述为 Memory 总量；右侧 Preview、Timeline、Recent 与 Core 使用居中的文档面，空 Topics 使用独立空状态卡；Topics、Timeline 与 Core 的 Markdown 预览把已定义命名脚注和 inline footnote 按出现顺序显示为 <code>[1]</code> 上标和文末脚注列表，两个空格缩进的续行属于上一条脚注，正文不显示 evidence ID 或合法的段末 block ID，脚注链接、重复引用和未定义引用保持可预测，行内、围栏、列表围栏和四空格缩进代码中的相同文本不参与转换，反斜杠转义引用保持字面内容，任意原文字符不能与内部占位符冲突；Timeline 按年、月、日折叠且不把派生文件重建时间显示成记录时间；Core 明确区分只读 Prompt preview 与可编辑 Source records；Topics 列表不显示 <code>core.md</code>；小于 720px 时不得产生横向重叠，编辑器操作进入独立下一行并可换行。页面不请求或渲染 writer 状态、pending 数、Commitments 或 Scheduler 状态。</div>
-  <div class="legend"><b>本轮实现状态：</b>Recent 和 Core 已删除中间栏的重复上下文块；Recent 的标题与容量只在右侧内容头部显示，并从 Recent API 响应头读取当前 <code>memory.recent.limit</code>，呈现为“当前记录数 / 配置上限”；Core 的 Prompt preview / Source records 切换、注入状态和 token 用量也只在右侧显示一次。Timeline 年/月/日折叠继续保留。正式 Memory 已通过结构化事务删除 survey test 项目记录；后台 writer 后续仍可按正常行为生成新 Topic。居中文档面、卡片化空状态、76px 单一标题区、780px 阅读宽度和窄窗编辑操作换行已经进入生产代码。Topics 文件行、Timeline 年/月/日入口继续复用 36px 行高、10px 横向内边距、8px 圆角和 13px 字号的侧栏行；Folder、Timeline 年和 Timeline 月也已复用同一个 14×14 线性 ChevronRight 与数字徽标，Timeline 只以缩进表达层级。Memory 专用 Preview 已把命名脚注和 inline footnote 转换成 Obsidian Reading/Publish 风格的数字上标与文末有序列表，并隐藏合法的段末 block ID；编辑器和磁盘原文保持不变。小于 720px 的完整列表/详情互斥仍不在本轮生产实现范围。</div>
+  <div class="note"><b>Acceptance boundaries:</b> Public entry <code>/memory</code> shows a fixed secondary sidebar and complete content area at desktop width. Recent/Core do not repeat title, count, view switch, or injection status in the middle sidebar; Core controls/status appear once in the right content header. Recent’s header shows current records and live <code>memory.recent.limit</code>, for example <code>7 / 50 records</code>, never confusing record count with token budget. The top bar does not call truncated Recent counts total Memory. Preview, Timeline, Recent, and Core use centered document areas; empty Topics has its own empty-state card. Defined named and inline footnotes render in occurrence order as <code>[1]</code> superscripts and an end-of-document list. Two-space continuations belong to the preceding footnote; body text hides evidence IDs and valid paragraph-end block IDs. Links, repeated refs, and undefined refs behave predictably. Inline/fenced/list-fenced/four-space-indented code stays literal, as do escaped references. Arbitrary input cannot collide with internal placeholders. Timeline collapses by year/month/day and never uses derived-file rebuild times as record times. Core distinguishes read-only Prompt preview from editable Source records; Topics excludes <code>core.md</code>. Below 720px, no horizontal overlap; editor actions occupy a separate wrappable row. The page neither requests nor renders writer status, pending counts, Commitments, or Scheduler state.</div>
+  <div class="legend"><b>Implementation status for this iteration:</b> Recent and Core no longer duplicate context blocks in the middle sidebar. Recent title/capacity appear only in the right content header, reading current <code>memory.recent.limit</code> from Recent API response headers and showing “current records / configured limit.” Core Prompt preview / Source records, injection status, and tokens also appear once on the right. Timeline year/month/day collapse remains. Structured transactions removed survey-test project records from production Memory; normal background writers may create new Topics. Centered documents, card empty states, a single 76px header, 780px reading width, and wrapping narrow-window edit actions are in production code. Topic rows and Timeline date entries share 36px height, 10px horizontal padding, 8px radius, and 13px text; Folder and Timeline year/month share 14×14 linear ChevronRight and numeric badges, with indentation-only hierarchy. Memory Preview converts named/inline footnotes to Obsidian Reading/Publish-style numbered superscripts and ordered end lists, hiding valid trailing block IDs while preserving editor/disk source. Complete mutually exclusive list/detail modes below 720px remain outside this iteration’s production scope.</div>
 
   <div class="grid2">
     <div class="oc">
-      <h4>实现证据</h4>
-      <div class="d">提交 <code>5f1f06c4</code> 实现文档面、空状态和紧凑上下文栏；<code>1c770a4e</code> 将路径元数据合入 76px 标题区并统一 36px/780px 尺寸；<code>b583833d</code> 删除不准确的顶部总量并补齐窄窗操作换行；<code>7ef440c6</code> 统一 Topics、Timeline、Recent 与 Core 的二级侧栏行。<code>check-memory-status</code> 从父提交 RED 变为 GREEN；Memory 设置、Markdown 清洗、TypeScript、production build、HTML、链接与 diff 检查通过。Memory Markdown 行为测试覆盖命名脚注、重复引用、inline footnote、两个空格续行、行内/围栏/列表围栏/四空格缩进代码字面保留、转义引用、占位冲突、block ID 隐藏与 sanitizer；默认 18100 App 的真实 Topic 显示 <code>[1]</code>–<code>[4]</code> 及带 <code>1.</code>–<code>4.</code> marker 的文末脚注列表，正文不再出现内部 ID。</div>
+      <h4>Implementation evidence</h4>
+      <div class="d">Commit <code>5f1f06c4</code> implements document areas, empty states, and compact context sidebars; <code>1c770a4e</code> merges path metadata into the 76px header and standardizes 36px/780px dimensions; <code>b583833d</code> removes inaccurate top totals and adds narrow-window action wrapping; <code>7ef440c6</code> unifies secondary-sidebar rows for Topics, Timeline, Recent, and Core.<code>check-memory-status</code> changed from RED on the parent commit to GREEN. Memory settings, Markdown sanitization, TypeScript, production build, HTML, links, and diff checks pass. Memory Markdown tests cover named/repeated/inline footnotes, two-space continuations, literal inline/fenced/list-fenced/four-space code, escapes, placeholder collisions, hidden block IDs, and sanitization. A real Topic in the default port-18100 App displays <code>[1]</code>–<code>[4]</code> and an end footnote list with <code>1.</code>–<code>4.</code> markers, without internal IDs in the body.</div>
     </div>
     <div class="oc">
-      <h4>兼容要求</h4>
-      <div class="d">保留四个分区、全部现有请求、Core 保存 compare-and-set、Markdown 清洗、Timeline partial date、键盘焦点、Topics 排除 Core 与现有设置跳转。脚注转换发生在清洗前；生成的链接和锚点仍经过统一 sanitizer。不新增组件库、API、数据库字段、自动栏状态或测试 Memory。</div>
+      <h4>Compatibility requirements</h4>
+      <div class="d">Preserve four sections, existing requests, Core compare-and-set saves, Markdown sanitization, partial Timeline dates, keyboard focus, Core exclusion from Topics, and settings navigation. Footnote transformation occurs before sanitization; generated links/anchors pass through the same sanitizer. No new component library, API, database fields, automatic sidebar state, or test Memory.</div>
     </div>
   </div>
 
-  <h2 id="changes"><span class="num">10</span>统一修改接口</h2>
-  <p class="lead">Memory 同时支持模型直接编辑 Topic 文件，以及模型或其他程序调用结构化接口。两种方式不互相替代；区别只在于调用方如何表达修改。所有修改最终进入同一套 Runtime 暂存、校验、派生视图、原子安装和 Git 流程。</p>
+  <h2 id="changes"><span class="num">10</span> Unified modification interface</h2>
+  <p class="lead">Memory supports both direct Topic-file edits and structured calls by models or other programs. Neither replaces the other; they differ only in how callers express changes. All modifications use the same Runtime staging, validation, derived views, atomic installation, and Git process.</p>
 
   <div class="grid2">
     <div class="oc">
-      <h4>方式一 · 直接编辑文件</h4>
-      <div class="d">后台 writer 或整理模型在 Runtime 提供的暂存目录中直接创建、重写、移动或删除 <code>topics/**/*.md</code>。新脚注中的每个 Source 写成 <code>[简短关键词](source_ref)</code>；模型只决定关键词和选择哪个已有 Source，不能决定最终链接。编辑结束后不能直接覆盖正式 Memory；必须调用 <code>commit_edits</code>，由 Runtime 分配和保留 ID、把 <code>source_ref</code>解析为归档链接、检查 Source 与 block 链接、重建 Timeline/Recent/Relations/Core，再整体安装。Web 与 CLI 的文件编辑走同样的 <code>staged_edit</code> 收口。</div>
+      <h4>Method one · edit files directly</h4>
+      <div class="d">Background writers or organizing models create, rewrite, move, or delete <code>topics/**/*.md</code> inside Runtime-provided staging. Each Source in new footnotes is written as <code>[short keyword](source_ref)</code>. The model chooses keywords and an existing Source, not the final URL. After editing it must not overwrite production Memory directly; it calls <code>commit_edits</code> so Runtime allocates/preserves IDs, resolves <code>source_ref</code> into archive links, validates Source/block links, rebuilds Timeline/Recent/Relations/Core, and installs everything. Web/CLI file edits use the same <code>staged_edit</code> entry.</div>
     </div>
     <div class="oc">
-      <h4>方式二 · 调用结构化接口</h4>
-      <div class="d">模型工具和 owner REST 接收 <code>memory_changes[]</code>。内容操作是 <code>create_record</code>、<code>update_record</code>、<code>delete_record</code>，结构操作是 <code>move_records</code>。Runtime 把这些操作渲染为 Topic Markdown，然后进入与直接编辑相同的安装流程。</div>
+      <h4>Method two · structured interface</h4>
+      <div class="d">Model tools and owner REST accept <code>memory_changes[]</code>. Content operations are <code>create_record</code>, <code>update_record</code>, <code>delete_record</code>; structural operations are <code>move_records</code>. Runtime renders them into Topic Markdown and uses the same installation path as direct edits.</div>
     </div>
   </div>
 
   <div class="grid2">
     <div class="oc">
-      <h4>Source 身份</h4>
-      <div class="d"><code>source</code>是不可变且必须验证的归档身份。Runtime 只根据它生成链接、检查 trust state 和恢复派生视图；显示文本不能改变引用目标。</div>
+      <h4>Source identity</h4>
+      <div class="d"><code>source</code> is immutable and must be verified. Runtime uses it to generate links, inspect trust state, and restore derived views. Display text cannot change the target.</div>
     </div>
     <div class="oc">
-      <h4>引用关键词</h4>
-      <div class="d"><code>label</code>是本条引用的局部显示文本，由同一次 Memory 写入调用生成，不是 Source 的永久标题。Memory agent 的 prompt 与工具 schema 要求它使用简短、与上下文相关的关键词，并避免 Markdown、URL、Source ID、说话人或时间模板。除必须是非空字符串这一 Markdown 结构要求外，Runtime 不判断关键词质量，不截断或改写模型返回的 label，也不为标签增加模型调用。</div>
+      <h4>Reference keyword</h4>
+      <div class="d"><code>label</code> is local display text for this citation, generated in the same Memory write call, not a permanent Source title. Memory-agent prompts and tool schemas require short context-relevant keywords and discourage Markdown, URLs, Source IDs, speaker names, or time templates. Apart from a nonempty-string Markdown requirement, Runtime does not assess keyword quality, truncate/rewrite labels, or add a model call for them.</div>
     </div>
   </div>
 
-  <div class="note"><b>规范输出：</b><code>{"content":"...","sources":[{"source":"provider/thread/message","label":"调研范围"}]}</code>。Topic 文件最终保留标准 Markdown：<code>[调研范围](../../sources/...#source-...)</code>。Parser 从链接目标恢复 Source 身份，不能再把方括号内的显示文本当成 Source ID。</div>
+  <div class="note"><b>Canonical output:</b><code>{"content":"...","sources":[{"source":"provider/thread/message","label":"research scope"}]}</code>. Topic files retain standard Markdown: <code>[research scope](../../sources/...#source-...)</code>. The parser recovers Source identity from the link target, never from bracketed display text.</div>
 
   <div class="tbl">
     <table>
-      <thead><tr><th>参考接口</th><th>可复用约定</th><th>本项目取舍</th></tr></thead>
+      <thead><tr><th>Reference interface</th><th>Reusable convention</th><th>Project choice</th></tr></thead>
       <tbody>
-        <tr><td><a href="https://www.rfc-editor.org/rfc/rfc6902.html">RFC 6902 JSON Patch</a></td><td><code>add/remove/replace/move</code>分开；没有语义化 merge/split。</td><td>保留内容 CRUD 与结构 move 的边界，但目标使用稳定 <code>memory_id</code>，不暴露 Markdown 路径指针。</td></tr>
-        <tr><td><a href="https://developers.notion.com/reference/patch-block-children">Notion block children</a></td><td>创建内容时同时指定插入位置；位置属于父级结构。</td><td><code>create_record.destination</code>同时描述 Topic、标题链与位置。</td></tr>
-        <tr><td><a href="https://prosemirror.net/docs/ref/#transform">ProseMirror Transform</a></td><td>join/split 等高层意图最终分解为可验证的 transaction steps。</td><td>合并与拆分由模型规划成 update/create/delete/move，不增加含义不唯一的 Runtime 原语。</td></tr>
-        <tr><td><a href="https://docs.mem0.ai/platform/api-reference/memory/update-memory">Mem0</a> / <a href="https://docs.letta.com/api-reference/memory/modify-block">Letta</a></td><td>公开 Memory 写接口以记录或 block 的增删改为主。</td><td>沿用记录级 CRUD，并补充本项目多文件 Topic 所需的批量 move。</td></tr>
+        <tr><td><a href="https://www.rfc-editor.org/rfc/rfc6902.html">RFC 6902 JSON Patch</a></td><td><code>add/remove/replace/move</code> are separate; no semantic merge/split.</td><td>Preserve content CRUD versus structural move, targeting stable <code>memory_id</code> rather than exposing Markdown path pointers.</td></tr>
+        <tr><td><a href="https://developers.notion.com/reference/patch-block-children">Notion block children</a></td><td>Content creation also specifies insertion position, owned by the parent structure.</td><td><code>create_record.destination</code> describes Topic, heading chain, and position together.</td></tr>
+        <tr><td><a href="https://prosemirror.net/docs/ref/#transform">ProseMirror Transform</a></td><td>High-level join/split intentions decompose into verifiable transaction steps.</td><td>Models plan merges/splits as update/create/delete/move; do not add ambiguous Runtime primitives.</td></tr>
+        <tr><td><a href="https://docs.mem0.ai/platform/api-reference/memory/update-memory">Mem0</a> / <a href="https://docs.letta.com/api-reference/memory/modify-block">Letta</a></td><td>Public Memory write APIs primarily create/update/delete records or blocks.</td><td>Retain record-level CRUD and add batch moves required by multi-file Topics.</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="tbl">
     <table>
-      <thead><tr><th>结构化操作</th><th>必要数据</th><th>Runtime 行为</th></tr></thead>
+      <thead><tr><th>Structured operation</th><th>Required data</th><th>Runtime behavior</th></tr></thead>
       <tbody>
-        <tr><td><code>create_record</code></td><td>最终 <code>content</code>、<code>time</code>、非空 <code>sources[{source,label}]</code>，以及 <code>destination</code>：<code>topic_path</code>、<code>headings</code>、<code>position</code>；before/after 时再给 <code>anchor_memory_id</code>。模型 schema 用 <code>undated</code> 表示无日期；owner REST 也接受 <code>null</code>。</td><td>验证 Topic、位置和每个 Source，原样使用 label 作为显示文本，写入规范 Markdown，分配新的 block 与 evidence ID。</td></tr>
-        <tr><td><code>update_record</code></td><td>现有 <code>memory_id</code> 加完整的最终 <code>content/time/sources</code>。</td><td>只修改记录内容，保留 block ID 和位置，以最终值替换该段及其 evidence definition。</td></tr>
-        <tr><td><code>delete_record</code></td><td>现有 <code>memory_id</code>。</td><td>删除对应记录和不再使用的 evidence definition；存在悬空 block 链接时整笔拒绝。</td></tr>
-        <tr><td><code>move_records</code></td><td>有序且非空的 <code>memory_ids</code>，以及与创建相同的 <code>destination</code>。</td><td>按给定顺序批量移动记录；保留 ID、内容、时间、Source 和创建顺序。可在同一章节重排，也可跨章节或 Topic 移动。</td></tr>
+        <tr><td><code>create_record</code></td><td>Final <code>content</code>, <code>time</code>, nonempty <code>sources[{source,label}]</code>, and <code>destination</code>: <code>topic_path</code>, <code>headings</code>, <code>position</code>; before/after additionally requires <code>anchor_memory_id</code>. Model schema uses <code>undated</code> to represent no date; owner REST also accepts <code>null</code>.</td><td>Validate Topic, position, and every Source; retain label verbatim as display text, write canonical Markdown, and allocate block/evidence IDs.</td></tr>
+        <tr><td><code>update_record</code></td><td>Existing <code>memory_id</code> plus complete final <code>content/time/sources</code>.</td><td>Update only record content, preserving block ID and position; replace the paragraph and evidence definition with final values.</td></tr>
+        <tr><td><code>delete_record</code></td><td>Existing <code>memory_id</code>.</td><td>Delete the record and unused evidence definition; reject the whole transaction if block links would dangle.</td></tr>
+        <tr><td><code>move_records</code></td><td>Ordered, nonempty <code>memory_ids</code>, and the same <code>destination</code>.</td><td>as creation. Move records in the specified order, preserving IDs, content, time, Sources, and creation order. Reorder within a section or move across sections/Topics.</td></tr>
       </tbody>
     </table>
   </div>
 
-  <div class="note"><b>共同事务：</b>两种方式都先修改暂存副本，再执行 Topic normalization、Source 和 relation 校验、Timeline/Recent/Relations/Core 重建与原子安装，最后记录 Git。任何安装前错误都不能改变正式 Memory。Git 失败发生在安装之后时不伪装成回滚，返回值用 <code>memory_committed</code> 与 <code>git_committed</code>区分。</div>
-  <div class="note"><b>兼容入口：</b><code>memory_update</code> 与 <code>POST /api/memory/changes</code>新增 <code>memory_changes</code>。现有整个 Topic 文件的 <code>changes[path/action/content]</code> 和旧 unified diff <code>patch</code>继续兼容；三种 API 表达格式每次只能选择一种，最终都调用 <code>MemoryWorkspace.update</code>。</div>
-  <div class="note"><b>Source 输入：</b><code>memory_changes[].sources[].source</code>可引用归档中已经存在且可验证的 Source，也可引用同一请求顶层 <code>sources</code> 中的 <code>new-source-*</code>标签；后者先由 Runtime 转换为正式 Source ID。调用方不能提交 provenance、trust state 或 owner 身份。预发布的 <code>source_refs: [string]</code>继续接受，并以原字符串作为兼容显示名；新请求只公开 <code>sources</code>。</div>
-  <div class="note"><b>兼容与迁移：</b>现有 Topic 中的显示名继续解析，Runtime 不在没有语义模型参与时猜测关键词。新写入和显式更新使用 Memory agent 提供的 label；label 在移动、派生视图重建和正文更新时原样保留。不会修改 Source archive、真实 Source ID、evidence ID 或 block ID。</div>
-  <div class="note"><b>位置契约：</b><code>destination.position</code>只接受 <code>start</code>、<code>end</code>、<code>before</code>、<code>after</code>。before/after 的锚点必须位于目标 Topic 与标题链，且不能属于本次移动集合。批量移动后的顺序严格等于 <code>memory_ids</code>顺序。同一 ID 最多接受一次内容操作和一次 move；delete 与 move 不能同时指向它。</div>
-  <div class="note"><b>组合操作：</b>语义合并由一次 <code>update_record</code>、若干 <code>delete_record</code> 和必要的 <code>move_records</code>表达；语义拆分由一次 update、若干 create 和必要的 move 表达。章节或文件的合并、拆分只需批量 move。Runtime 不提供 <code>merge_records</code>、<code>split_record</code>、<code>place_records</code> 或 <code>reorder_records</code>。</div>
-  <div class="note"><b>结构清理：</b>移动或删除后，Runtime 自动移除没有任何 Memory 记录的标题链；Topic 文件不再包含记录时直接删除。派生 Timeline、Recent、Relations 与 Core 在同一事务重建，调用方不修改这些文件。</div>
-  <div class="note"><b>旧格式边界：</b><code>mem_*</code> 记录继续保留原 ID。结构操作不得拆开共享同一物理段落的多个旧 ID 或规范 block alias；需要移动时必须把该物理段落的全部 ID 按段内原顺序、连续放进同一个 <code>move_records</code>。</div>
-  <div class="note"><b>Evidence 冲突：</b>跨 Topic 移动时，若目标 Topic 或同批其他源 Topic 已有相同 evidence label，但时间或 Source 语义不同，Runtime 以 <code>INVALID_ARGUMENT</code> 原子拒绝整个事务；相同语义仅因相对链接路径不同不视为冲突。</div>
-  <div class="note"><b>预发布兼容：</b>早期结构化接口的 <code>create/update/delete</code>输入仍由 Runtime 转换为新名称；模型 schema 和本文档只公开四个正式操作，旧别名不再扩展。</div>
-  <div class="note"><b>Scheduler 边界：</b>本地 owner 创建的 prompt task 可以显式调用 <code>memory_status</code>、<code>memory_get</code> 与 <code>memory_update</code>，维护通过 MemoryRef 关联的长期记录；Scheduler service 不隐式双写。记录删除后不保留占位对象或 ID 转发，旧 <code>memory_id</code> 的当前查询返回 <code>NOT_FOUND</code>。外部 token capability 与非 owner 改写范围继续延期。</div>
-  <div class="note"><b>模型修改范围：</b>交互模型、后台 writer 与整理模型都可重写、合并、拆分或删除当前 Topic。删除 block 时，同一事务必须移除或更新指向它的 Topic 链接；Source 归档仍只追加。增量写入和整理完成后均尝试记录 Git 提交。</div>
+  <div class="note"><b>Shared transaction:</b> Both methods edit staging, normalize Topics, validate Sources/relations, rebuild Timeline/Recent/Relations/Core, atomically install, and then record Git. Pre-installation errors cannot change production Memory. Post-installation Git failures must not pretend rollback occurred; results distinguish <code>memory_committed</code> and <code>git_committed</code>.</div>
+  <div class="note"><b>Compatible entry points:</b><code>memory_update</code> and <code>POST /api/memory/changes</code> Add <code>memory_changes</code>. Existing whole-Topic <code>changes[path/action/content]</code> and legacy unified diff <code>patch</code> remain supported. Each request selects exactly one of the three formats; all eventually call <code>MemoryWorkspace.update</code>.</div>
+  <div class="note"><b>Source input:</b><code>memory_changes[].sources[].source</code> may reference an existing verifiable archived Source, or request-level <code>sources</code> using a <code>new-source-*</code> label; Runtime converts the latter to a formal Source ID first. Callers cannot submit provenance, trust state, or owner identity. Prerelease <code>source_refs: [string]</code> remains accepted, using the original string as a compatibility display label; new requests expose only <code>sources</code>.</div>
+  <div class="note"><b>Compatibility and migration:</b> Existing display labels remain parseable. Runtime does not guess keywords without a semantic model. New writes and explicit updates use labels supplied by the Memory agent; labels survive moves, derived-view rebuilds, and body updates unchanged. Source archives, real Source IDs, evidence IDs, and block IDs remain unchanged.</div>
+  <div class="note"><b>Position contract:</b><code>destination.position</code> Accept only <code>start</code>, <code>end</code>, <code>before</code>, <code>after</code>. before/after anchors must belong to the destination Topic/heading chain and cannot belong to the move set. Final order exactly matches <code>memory_ids</code>. Each ID accepts at most one content operation and one move; delete and move cannot target the same ID.</div>
+  <div class="note"><b>Combined operations:</b> A semantic merge consists of one <code>update_record</code>, several <code>delete_record</code> , and any required <code>move_records</code>; a semantic split consists of one update, several creates, and required moves. Section/file merges and splits require only batch move. Runtime provides neither <code>merge_records</code>, <code>split_record</code>, <code>place_records</code> nor <code>reorder_records</code>.</div>
+  <div class="note"><b>Structural cleanup:</b> After moves/deletes, Runtime removes heading chains without Memory records and deletes Topic files that contain no records. Derived Timeline, Recent, Relations, and Core rebuild in the same transaction; callers do not edit them.</div>
+  <div class="note"><b>Legacy-format boundary:</b><code>mem_*</code> records retain their IDs. Structural operations cannot split multiple old IDs or canonical aliases sharing one physical paragraph. Moves must include all IDs of that paragraph contiguously in original paragraph order in one <code>move_records</code>.</div>
+  <div class="note"><b>Evidence conflicts:</b> When moving across Topics, if the destination or another source Topic in the batch has the same evidence label with different time/Source semantics, Runtime atomically rejects everything with <code>INVALID_ARGUMENT</code> . Identical semantics with different relative link paths are not conflicts.</div>
+  <div class="note"><b>Prerelease compatibility:</b> Earlier structured-interface <code>create/update/delete</code> inputs are converted to new names by Runtime. Model schemas and this document expose only four official operations; legacy aliases are not extended.</div>
+  <div class="note"><b>Scheduler boundary:</b> Local-owner prompt tasks may explicitly call <code>memory_status</code>, <code>memory_get</code> and <code>memory_update</code> to maintain long-term records linked by MemoryRef; Scheduler service does not implicitly dual-write. Deleted records leave no placeholder or ID forwarding; querying an old <code>memory_id</code> returns <code>NOT_FOUND</code>. External token capabilities and non-owner mutation scope remain deferred.</div>
+  <div class="note"><b>Model mutation scope:</b> Interactive models, background writers, and organizers can rewrite, merge, split, or delete current Topics. Deleting a block requires removing/updating Topic links to it in the same transaction; Source archives remain append-only. Incremental writes and organization both attempt Git commits.</div>
 
   <div class="tbl">
     <table>
-      <thead><tr><th>验收入口</th><th>可观测结果</th></tr></thead>
+      <thead><tr><th>Acceptance entry</th><th>Observable results</th></tr></thead>
       <tbody>
-        <tr><td>直接文件编辑后 <code>commit_edits</code></td><td><code>[调研范围](source_ref)</code>被规范化为显示相同关键词的真实归档链接；正式 Topic、Timeline、Recent、Relations 和 Core 同时反映模型编辑，且 parser 恢复完整 Source ID；校验失败时正式文件不变。</td></tr>
-        <tr><td><code>MemoryWorkspace.update(memory_changes=...)</code></td><td>create_record/update_record 接受 <code>sources[{source,label}]</code>并保留调用方提供的 label；旧 <code>source_refs</code>继续工作。四种操作可单独或组合执行；任一项失败时 revision 和所有 Memory 字节不变。</td></tr>
-        <tr><td><code>memory_update</code></td><td><code>memory_changes</code>、整个文件 <code>changes</code> 和旧 unified diff 得到相同的事务与返回字段。</td></tr>
-        <tr><td><code>POST /api/memory/changes</code></td><td>接收相同的 <code>memory_changes</code>，返回 revision、changed_files、block/evidence ID 与 Git 提交信息。</td></tr>
+        <tr><td>After direct file editing, <code>commit_edits</code></td><td><code>[research scope](source_ref)</code> normalizes to a real archive link with the same keyword. Production Topic, Timeline, Recent, Relations, and Core reflect the edits together; the parser recovers full Source IDs. Validation failure leaves production files unchanged.</td></tr>
+        <tr><td><code>MemoryWorkspace.update(memory_changes=...)</code></td><td>create_record/update_record accept <code>sources[{source,label}]</code> and preserve caller labels; legacy <code>source_refs</code> still works. The four operations work independently or together; any failure leaves revision and all Memory bytes unchanged.</td></tr>
+        <tr><td><code>memory_update</code></td><td><code>memory_changes</code>, whole-file <code>changes</code> , and legacy unified diff share transaction behavior and return fields.</td></tr>
+        <tr><td><code>POST /api/memory/changes</code></td><td>accepts the same <code>memory_changes</code> and returns revision, changed_files, block/evidence IDs, and Git commit information.</td></tr>
       </tbody>
     </table>
   </div>
 
-  <div class="note"><b>实施简报：</b>范围限于 Writer Prompt、Topic footnote normalization/parser、结构化 <code>memory_changes</code>、Topic 移动与 Timeline 派生显示；Source archive、检索身份、Preview renderer、数据库和模型调用次数不变。公共入口 RED 覆盖直接文件编辑与 <code>MemoryWorkspace.update(memory_changes=...)</code>，受影响验证覆盖 Topic parser、结构化修改、Writer prompt、派生视图、owner REST、HTML 与文档链接。</div>
-  <div class="legend"><b>Source label 实现状态：已实现。</b>Writer 同一次写入按 prompt 与工具 schema 生成短关键词；Runtime 保留并验证完整 Source ID，把 agent 返回的 label 原样渲染为链接文本，移动记录、重建 Timeline 和构建检索索引时继续使用真实身份。结构化接口公开 <code>sources[{source,label}]</code>，旧 <code>source_refs</code>、pre-v2 provider 归档和文件名含编码字符的 Source 仍可读取和提交；同一 Source 归档在一次 Topic tree 解析中只扫描一次。Runtime 不再对 label 做语义分类、截断或回退。</div>
-  <div class="note"><b>检索性能与信任：</b>生产 BM25 使用版本化磁盘缓存，并在进程内按 Topic/Source 文件签名复用索引；embedding 同样复用已解析事件和文档向量。Topic 或 Source 文件的时间、大小或 inode 变化会使缓存失效，因此内容修改和 Source promotion 都会重新解析信任状态。BM25、Embedding 与 Hybrid 在返回 Topic 前统一根据其全部 Source 引用解析 <code>trusted/pending</code>，pending 支撑的 Topic 不进入自动上下文。</div>
+  <div class="note"><b>Implementation brief:</b> Scope is Writer Prompt, Topic footnote normalization/parser, structured <code>memory_changes</code>, Topic moves, and Timeline derived display. Source archives, retrieval identity, Preview renderer, database, and model-call count stay unchanged. Public-entry RED covers direct file editing and <code>MemoryWorkspace.update(memory_changes=...)</code>; affected validation covers Topic parsing, structured modifications, Writer prompt, derived views, owner REST, HTML, and documentation links.</div>
+  <div class="legend"><b>Source-label implementation status: implemented.</b> Writer generates short keywords in the same call following prompts/schemas. Runtime preserves and validates full Source IDs, renders agent labels verbatim, and retains real identities during moves, Timeline rebuilds, and retrieval indexing. Structured interfaces expose <code>sources[{source,label}]</code>; legacy <code>source_refs</code>, pre-v2 provider archives, and Source filenames with encoded characters remain readable and writable. Each Source archive is scanned once per Topic-tree parse. Runtime no longer classifies, truncates, or substitutes labels semantically.</div>
+  <div class="note"><b>Retrieval performance and trust:</b> Production BM25 uses a versioned disk cache and reuses in-process indexes by Topic/Source file signatures; embedding also reuses parsed events and document vectors. Changes to time, size, or inode invalidate caches, so content changes and Source promotion re-evaluate trust. BM25, Embedding, and Hybrid resolve <code>trusted/pending</code> from every Source reference before returning a Topic; pending-backed Topics never enter automatic context.</div>
 
-  <div class="legend"><b>实现状态（2026-08-15）：</b>模型工具与 owner REST 已统一提供上述四个正式操作；整个文件 <code>changes</code> 和旧 unified diff 保持兼容。直接编辑 Topic 与结构化操作共用暂存、格式校验、空结构清理、Timeline/Recent/Core 派生、原子安装和 Git 历史。批量 move、位置与共享物理段落校验、首次结构调整时的 Recent 创建顺序保留、跨 Topic evidence 冲突拒绝均有公共入口回归测试。Scheduler 的内部 Agent 生命周期写入按 Scheduler 设计文档执行；记录删除后旧 <code>memory_id</code> 的当前查询返回 <code>NOT_FOUND</code>，不保留已删除记录或旧 ID 映射。外部 token capability 仍按本节边界延期。</div>
+  <div class="legend"><b>Implementation status (2026-08-15):</b> Model tools and owner REST expose the four official operations. Whole-file <code>changes</code> and legacy unified diff remain compatible. Direct edits and structured operations share staging, validation, empty-structure cleanup, Timeline/Recent/Core derivation, atomic installation, and Git history. Public-entry regression tests cover batch moves, position/shared-paragraph checks, Recent creation-order preservation on first structural change, and cross-Topic evidence conflict rejection. Scheduler’s internal Agent lifecycle writes follow its design document; deleted records leave old <code>memory_id</code> returns <code>NOT_FOUND</code>, without retained records or old-ID mappings. External token capability remains deferred as specified here.</div>
 
   <div class="legend">
-    <b>实现状态（2026-08-11）</b>：每轮写入与闲置写入使用同一事务；节点自身记录工作区写入标记；会话边界枚举活分支；常驻块由<code>topics/core.md</code>渲染；后台writer沿用默认聊天agent，并允许<code>memory.writer.model</code>实时覆盖；未分类异常默认不可重试。<code>memory.backend=none</code>既关闭提示、召回、自动写入、整理和记忆线程，也在创建工作区前拒绝全部CLI memory动词与<code>/api/memory/*</code>路由。writer最近成功、失败分类、retryable判定和待处理数可由工具、CLI及Web查询。一次性<code>memory backfill</code>已实现，只处理未被Topic引用的trusted Source、排除pending并按批复用正常writer事务；组合测试覆盖SessionDB、默认模型解析、managed tools、暂存安装、Topic、marker与watcher状态。正式工作区验收中，23个旧v1 source文件（154个frame）经<code>origin_scope</code>到<code>authority_tier</code>的只读兼容后全部解析；2条待处理消息提交为3个Topic文件、5个唯一block，6个source引用和relation目标均通过校验，两条节点marker写入成功，第二次扫描处理数为0且revision不变。该验收未执行历史backfill，因此152个未引用frame仍存在。仍未实现：越权请求hold队列、按请求方档位过滤读取结果、互斥分支语义、跨会话spawn关系和由head变化事件直接触发写入。写入失败原因码是封闭枚举，受限writer阶段看不到Source归档。
+    <b>Implementation status (2026-08-11)</b>: per-turn and idle writes share one transaction; nodes store workspace write markers; session boundaries enumerate live branches; the resident block is rendered from <code>topics/core.md</code>; background writers use the default chat agent with live <code>memory.writer.model</code> updates. Unclassified exceptions are non-retryable by default.<code>memory.backend=none</code> disables prompts, recall, automatic writing, organization, and memory threads, and rejects all CLI memory verbs and <code>/api/memory/*</code> routes before workspace creation. Tools, CLI, and Web expose recent writer success, failure category, retryability, and pending counts. One-shot <code>memory backfill</code> is implemented for trusted Sources not referenced by Topics, excluding pending Sources and reusing normal writer transactions by batch. Component tests cover SessionDB, default-model resolution, managed tools, staging installation, Topics, markers, and watcher state. Production-workspace acceptance parsed all 23 old v1 Source files (154 frames) through read-only compatibility from <code>origin_scope</code> to <code>authority_tier</code>. Two pending messages produced three Topic files and five unique blocks; six Source refs and relation targets validated; both node markers were written. A second scan processed zero items without changing revision. Historical backfill was not run, leaving 152 unreferenced frames. Still unimplemented: unauthorized-request hold queue, requester-level filtering, mutually exclusive branch semantics, cross-session spawn relationships, and direct head-change-triggered writing. Failure reason codes are a closed enum; restricted writer phases cannot see Source archives.
   </div>
 
 </div>

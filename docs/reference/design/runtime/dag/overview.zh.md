@@ -4,11 +4,11 @@
 
 > 本文是 agent 执行记录的权威设计：数据模型、边与不变量、分支与 spawn、上下文渲染、
 > 上下文装配、压缩。[模型选型与取舍](#模型选型)在本页集中说明。
-> 调用流程图见 [`../agent-call-flow.svg`](../agent-call-flow.svg)。
+> 调用流程图见 [`../agent-call-flow.svg`](../agent-call-flow.zh.svg)。
 > 可视化渲染规范（布局、连线、图例、默认可见性）是
 > [`rendering.zh.md`](rendering.zh.md)——绘制以它为准，本文只讲语义。
 
-![模型可视化](session-dag.svg)
+![模型可视化](session-dag.zh.svg)
 
 ## 1. 概述与动机
 
@@ -196,7 +196,9 @@ ROOT
 
 ## 4. 分支与 Spawn
 
-### Fork
+<div id="fork"></div>
+
+### 分叉
 
 分支是同一位置上的另一种可能。**分支节点的 `predecessor` 与被替换节点完全相同**——
 同一 predecessor 有多个对话子节点即为 fork。不存在特殊节点类型：
@@ -230,7 +232,9 @@ shadow-git 提交、快照淘汰。那些以"已有完整回复"为前提的步�
   在这条分支上。重试永远看不到它正在重试的那个错误。这里没有任何按 status 的过滤，分
   支隔离本身已经做到了。
 
-### Spawn
+<div id="spawn"></div>
+
+### 创建子分支
 
 `SessionStore.spawn_branch(session_id, caller_node_id, *, source, name=…)` 是开
 干净 spawn 根的**唯一**原语。它创建分支根 user 节点（`predecessor=None`、

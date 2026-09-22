@@ -114,6 +114,6 @@ Agentic Programming 同时是：
 ---
 
 延伸阅读：
-- [快速开始](../../start/GETTING_STARTED.md)
+- [快速开始](../../start/GETTING_STARTED.zh.md)
 - [API 参考](../../reference/api/)
 - [设计细节](../../reference/design/)

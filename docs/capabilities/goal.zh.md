@@ -62,4 +62,4 @@ Provider 请求会修复不完整的工具调用历史，不改写已保存记�
 
 直接 Python 调用和组合 Workflow 中的 `goal()` 保留已有 work/refinement/judge 合同。这个兼容路径与聊天 Goal 分开，仍接受 `context_mode`、work/judge 模型设置和执行上限。聊天模式使用会话工作模型，不使用单独角色设置。
 
-迁移及实现证据见[工程设计](../reference/design/runtime/goal-and-recovery.html)。
+迁移及实现证据见[工程设计](../reference/design/runtime/goal-and-recovery.zh.html)。

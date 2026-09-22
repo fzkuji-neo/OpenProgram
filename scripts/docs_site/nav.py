@@ -7,6 +7,7 @@ folder name. Within a group, README.md is pinned first, the rest sort by name.
 
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -91,11 +92,11 @@ def extract_title(path: Path) -> str:
         m = _HTML_TITLE_RE.search(text)
         if m:
             # strip a common " — OpenProgram" style suffix for nav brevity
-            return re.sub(r"\s*[—·|-]\s*OpenProgram.*$", "", m.group(1).strip())
+            return html.unescape(re.sub(r"\s*[—·|-]\s*OpenProgram.*$", "", m.group(1).strip()))
         # body-only fragment: fall back to its first <h1>
         h1 = re.search(r"<h1[^>]*>(.*?)</h1>", text, re.IGNORECASE | re.DOTALL)
         if h1:
-            return re.sub(r"<[^>]+>", "", h1.group(1)).strip()
+            return html.unescape(re.sub(r"<[^>]+>", "", h1.group(1)).strip())
     return prettify(path.stem)
 
 
@@ -184,6 +185,8 @@ def _dedupe_md_html(pages: list[Page]) -> list[Page]:
                     if p.zh_out is not None:
                         p.zh_out = p.zh_out.with_suffix(".viz.html")
                     p.title = f"{p.title} (viz)"
+                    if p.title_zh:
+                        p.title_zh = f"{p.title_zh}（图解）"
                 result.append(p)
         else:
             result.extend(group)
@@ -325,6 +328,8 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/runtime/execution/agentic-self-recursion.html",
             "reference/design/runtime/execution/agentic-self-recursion.md",
             "reference/design/runtime/execution/async-job-lifecycle.md",
+            "reference/design/runtime/agentic-llm-streaming.html",
+            "reference/design/runtime/controllability-and-three-surface-sync.md",
             "reference/design/runtime/execution/dispatcher-split.md",
             "reference/design/runtime/execution/next-step-decision.md",
         ]),
@@ -342,6 +347,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
         ]),
         ('Runtime · DAG and collaboration', '运行时 · DAG 与协作', [
             "reference/design/runtime/dag/overview.md",
+            "reference/design/runtime/nested-llm-node-content.html",
             "reference/design/runtime/agent-collaboration.md",
             "reference/design/runtime/agent-collab-architecture.html",
             "reference/design/runtime/agent-collab-comparison.html",
@@ -589,6 +595,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/runtime/dag/live-layout.html",
         ]),
         ('Supporting · Implementation records', '补充 · 实施记录', [
+            "reference/design/runtime/p3-three-surface-sync.md",
             "reference/design/repository-structure-implementation.html",
             "reference/design/site-indexnow-implementation.html",
             "reference/design/documentation-gaps.md",

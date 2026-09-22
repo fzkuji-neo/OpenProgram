@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>斜杠命令与上下文压缩</title>
+<title>Slash Commands and Context Compaction</title>
 <style>
   :root {
     --bg: #f4efe6;
@@ -56,118 +56,118 @@
 <body>
 <div class="wrap">
 <header>
-  <div class="kicker">斜杠与压缩 · 当前设计</div>
-  <h1>斜杠命令能发出去，压缩有系统行</h1>
-  <p class="lead">「上下文压缩」的入口是 <code>/compact</code>。Composer 把可选参数命令立刻执行；压缩开始 / 成功 / 失败都落一条系统行。占用尺子、无可压、圆环生命周期写在占用设计里。</p>
+  <div class="kicker">Slash commands and compaction · Current design</div>
+  <h1>Slash commands dispatch; compaction produces system messages</h1>
+  <p class="lead">The entry for context compaction is <code>/compact</code>. The composer executes optional-argument commands immediately; compaction start, success and failure each produce a system message. Measurement, nothing-to-compact behavior and ring lifecycle belong in the occupancy design.</p>
   <div class="row">
-    <span class="pill ok">后端压缩管道可用</span>
-    <span class="pill ok">可选参数点选 / 回车立刻执行</span>
-    <span class="pill ok">started / finished / failed 系统行</span>
-    <span class="pill warn">圆环建议态与面板按钮见占用设计</span>
+    <span class="pill ok">Backend compaction pipeline available</span>
+    <span class="pill ok">Optional-argument commands execute on selection or Enter</span>
+    <span class="pill ok">System messages for started / finished / failed</span>
+    <span class="pill warn">See occupancy design for ring suggestions and panel actions</span>
   </div>
 </header>
 
-<h2>一句话</h2>
+<h2>Summary</h2>
 <div class="card">
-  <p><code>/compact</code> 让模型把旧对话收成一段摘要，接到 DAG 上，后面只带「摘要 + 最近几轮」。</p>
-  <p style="margin:0">可选参数（<code>[…]</code>）点选或回车立刻跑。菜单收起动画不再截 Enter。没有 session 时提示先发一条，不会假装成功。</p>
+  <p><code>/compact</code> asks the model to summarize old conversation turns, records the summary in the DAG, and supplies “summary + recent turns” afterward.</p>
+  <p style="margin:0">Optional arguments (<code>[…]</code>) execute immediately on selection or Enter. Menu closing animations no longer intercept Enter. Without a session, the UI asks the user to send a message first instead of claiming success.</p>
 </div>
 
-<h2>压缩是什么</h2>
-<p>模型上下文就那么大。对话一长，旧轮次必须让位。OpenProgram 用滚动摘要：同一时刻只有一份有效摘要，再压一次是把「旧摘要 + 更多轮次」收成新摘要，不是叠两层。</p>
-<p>下一轮模型实际看到的是：</p>
-<div class="card"><code>[系统提示] [当前摘要] [没被吃掉的最近几轮] [你刚发的话]</code></div>
+<h2>What compaction does</h2>
+<p>Models have finite context windows. As conversation grows, older turns must be reduced. OpenProgram uses a rolling summary: only one summary is active at a time. Further compaction combines the old summary and additional turns into a new summary instead of stacking summaries.</p>
+<p>The next model request actually contains:</p>
+<div class="card"><code>[System prompt] [Current summary] [Recent uncompacted turns] [New user message]</code></div>
 
-<h3>三条触发路径</h3>
+<h3>Three trigger paths</h3>
 <table>
-  <thead><tr><th>谁触发</th><th>条件</th><th>状态</th></tr></thead>
+  <thead><tr><th>Trigger</th><th>Condition</th><th>Status</th></tr></thead>
   <tbody>
     <tr>
-      <td>手动 <code>/compact</code></td>
-      <td>输入框执行命令，可选留下最近 N token</td>
-      <td>会发出 <code>action: compact</code>。无 session 时 alert，不空跑。</td>
+      <td>Manual <code>/compact</code></td>
+      <td>Execute in the composer; optionally keep the latest N tokens</td>
+      <td>Emits <code>action: compact</code>. Without a session, show an alert instead of running an empty operation.</td>
     </tr>
     <tr>
-      <td>回合前自动压</td>
-      <td>本轮预算 ≥ 窗口的 80%。先 compact，snip 兜底</td>
-      <td>dispatcher 在 <code>loop_runner.py</code> 里做。系统行走同一套文案。</td>
+      <td>Automatic pre-turn compaction</td>
+      <td>Turn budget ≥ 80% of the window. Compact first, then fall back to snip</td>
+      <td>Dispatcher handles this in <code>loop_runner.py</code>. System messages use the same wording.</td>
     </tr>
     <tr>
-      <td>爆窗抢救</td>
-      <td>模型返回 413 / prompt_too_long。每回合最多一次</td>
-      <td><code>reactive.py</code>。同样走压缩事件。</td>
+      <td>Context-window overflow recovery</td>
+      <td>Model returns 413 / prompt_too_long; at most once per turn</td>
+      <td><code>reactive.py</code>; uses the same compaction events.</td>
     </tr>
   </tbody>
 </table>
 
-<p>圆环按占用比例着色，面板可以一键压缩，见 <a href="../context/occupancy-status.html">占用与压缩</a>。</p>
+<p>The ring color reflects occupancy, and the panel offers one-click compaction; see <a href="../context/occupancy-status.html">Occupancy and compaction</a>.</p>
 
-<h3>压的时候具体干什么</h3>
+<h3>Compaction steps</h3>
 <div class="flow">
-  <div class="step"><div class="who">读取</div><div>从 SessionDB 拿渲染后的历史：已有摘要 + 还在枝上的轮次。再压不会回头重读已被盖住的原文。</div></div>
-  <div class="step"><div class="who">门槛</div><div>少于 4 条就停，手动路径回一句系统说明。rendered 已是摘要 + 尾巴、没有可切点时发无可压，不烧摘要 LLM。</div></div>
-  <div class="step"><div class="who">摘要</div><div>另打一次 LLM。最近尾巴默认按窗口的 10% 留，夹在 8k–40k token，至少 5 条有字的消息。可被 <code>/compact 2000</code> 覆盖。</div></div>
-  <div class="step"><div class="who">落下</div><div>写入一个 <code>summary_*</code> 节点（role=llm，name=context/summary），<code>covers_ids</code> 标出被替换的那一段。会话 meta 记下这份摘要，方便下次接着压。旧轮不删，HEAD 不动。</div></div>
-  <div class="step"><div class="who">图</div><div>DAG 上是一颗胶囊。旧摘要标成 superseded，不再参与渲染。聊天记录里被盖住的原文还在库里。</div></div>
+  <div class="step"><div class="who">Read</div><div>Read rendered history from SessionDB: the existing summary and turns remaining on the branch. Recompaction does not reread original text already covered by a summary.</div></div>
+  <div class="step"><div class="who">Threshold</div><div>Stop if fewer than four messages remain; the manual path emits a system explanation. If rendered history is already summary plus tail with no valid cut, emit nothing-to-compact without invoking the summarization LLM.</div></div>
+  <div class="step"><div class="who">Summarize</div><div>Make a separate LLM call. By default, retain a recent tail of 10% of the window, clamped to 8k–40k tokens and at least five nonempty messages. This can be overridden by <code>/compact 2000</code>.</div></div>
+  <div class="step"><div class="who">Persist</div><div>Write a <code>summary_*</code> node (role=llm, name=context/summary); <code>covers_ids</code> marks the replaced range. Session metadata records the summary for subsequent compaction. Old turns are not deleted and HEAD does not move.</div></div>
+  <div class="step"><div class="who">Graph</div><div>The DAG displays a capsule. The old summary becomes superseded and stops participating in rendering. Covered original conversation text remains in storage.</div></div>
 </div>
 
-<h3>圆环和 /context 面板</h3>
-<p>右下角圆环显示「此刻占用 / 窗口」。点开是 token 分类。占用数字按折叠后的 rendered 视图计，和压缩报告同一把尺子。颜色：不到 50% 绿，50–80% 黄，≥80% 红。</p>
-<p class="note">正在压、面板「立即压缩」的交互以占用设计为准，不在本页另开一套。</p>
+<h3>Ring and /context panel</h3>
+<p>The lower-right ring shows current occupancy divided by window size; opening it reveals token categories. Occupancy uses the compacted rendered view, matching the compaction report. Colors: green below 50%, yellow at 50–80%, red at ≥80%.</p>
+<p class="note">The occupancy design defines running-compaction state and the Compact now panel interaction; this page does not create separate behavior.</p>
 
-<h2>斜杠命令</h2>
-<p>输入以 <code>/</code> 开头、还没有空格时，菜单从输入框顶边卷上来。空格一开始，菜单用 380ms 收起。回车时看第一个词在不在命令表里：在就执行，不在就当普通聊天。</p>
-<p>内置表在 <code>slash-commands.ts</code>。另会拉 <code>/api/commands</code> 把技能 / 插件 / 用户命令拼进来。派发时内置排在前面。</p>
+<h2>Slash commands</h2>
+<p>When input starts with <code>/</code> and contains no space, the menu expands upward from the composer. After a space appears, it closes over 380ms. Enter checks whether the first word is a registered command: execute if registered, otherwise send ordinary chat.</p>
+<p>The built-in registry is in <code>slash-commands.ts</code>. It also fetches <code>/api/commands</code> to include skills, plugins and user commands. Built-ins have dispatch precedence.</p>
 <table>
-  <thead><tr><th>命令</th><th>点选 / 回车</th></tr></thead>
+  <thead><tr><th>Command</th><th>Selection / Enter</th></tr></thead>
   <tbody>
-    <tr><td><code>/compact</code></td><td>立刻压缩。参数 <code>[keep_recent_tokens]</code> 可选，不填也执行。</td></tr>
-    <tr><td><code>/rewind</code>、<code>/branch</code></td><td>立刻跑（参数可选）。</td></tr>
-    <tr><td><code>/context</code></td><td>打开圆环面板。</td></tr>
-    <tr><td><code>/clear</code>、<code>/new</code></td><td>新会话。</td></tr>
-    <tr><td><code>/task</code>、<code>/skill</code>、<code>/merge</code></td><td>先填前缀，等人补必填参数。</td></tr>
-    <tr><td><code>/help</code></td><td>把输入设成 <code>/</code>，菜单再出现。</td></tr>
-    <tr><td><code>/sandbox</code>、<code>/doctor</code>、<code>/memory</code></td><td>各自动作；doctor 有会话时会把报告当用户消息发出去。</td></tr>
+    <tr><td><code>/compact</code></td><td>Compact immediately. The <code>[keep_recent_tokens]</code> argument is optional; execution does not require it.</td></tr>
+    <tr><td><code>/rewind</code>, <code>/branch</code></td><td>Run immediately (arguments optional).</td></tr>
+    <tr><td><code>/context</code></td><td>Open the ring panel.</td></tr>
+    <tr><td><code>/clear</code>, <code>/new</code></td><td>New session.</td></tr>
+    <tr><td><code>/task</code>, <code>/skill</code>, <code>/merge</code></td><td>Fill the prefix and wait for required arguments.</td></tr>
+    <tr><td><code>/help</code></td><td>Set input to <code>/</code>, making the menu appear again.</td></tr>
+    <tr><td><code>/sandbox</code>, <code>/doctor</code>, <code>/memory</code></td><td>Run their respective actions; with a session, doctor sends its report as a user message.</td></tr>
   </tbody>
 </table>
 
-<h2>已经落地的斜杠修复</h2>
+<h2>Implemented slash-command fixes</h2>
 <ul>
-  <li>可选参数（只有 <code>[…]</code>）点选 / 回车立刻执行。<code>/task</code> 这类必填参数继续先填前缀。</li>
-  <li>菜单 <code>closing</code> 时不截 Enter，落到 <code>runCommand</code>。</li>
-  <li>没有 session 时不清空输入装成功，alert「先开始一段对话」。</li>
-  <li><code>compaction_started</code> / <code>finished</code> / <code>failed</code> 各有一条系统行。无可压是第四种，见占用设计。</li>
+  <li>Optional arguments (only <code>[…]</code>) execute immediately on selection / Enter.<code>/task</code> and similar required-argument commands still fill a prefix first.</li>
+  <li>When the menu is <code>closing</code>, it does not intercept Enter; execution proceeds to <code>runCommand</code>.</li>
+  <li>Without a session, retain input and alert “Start a conversation first” rather than clearing it as if successful.</li>
+  <li><code>compaction_started</code> / <code>finished</code> / <code>failed</code> each have a system message. Nothing-to-compact is a fourth state defined in the occupancy design.</li>
 </ul>
 
-<h2>次要、还没做</h2>
+<h2>Minor unfinished items</h2>
 <ul>
-  <li>统一注册表如果也叫 compact，菜单会出两个同名项。派发仍走内置。</li>
-  <li>Jump to latest 的 z-index 是 7，输入框是 5。按钮出来时可能盖住菜单该在的位置。</li>
-  <li><code>/help</code> 不是独立页。</li>
-  <li><code>/doctor</code> 有会话时会把体检报告当聊天发出去。</li>
+  <li>If the unified registry also names an item compact, the menu shows duplicate names. Dispatch still selects the built-in.</li>
+  <li>Jump to latest has z-index 7 while the composer has 5; the button may overlap the menu position.</li>
+  <li><code>/help</code> is not a separate page.</li>
+  <li><code>/doctor</code> sends its diagnostic report as chat when a session exists.</li>
 </ul>
 
-<h2>关键文件</h2>
+<h2>Key files</h2>
 <table>
-  <thead><tr><th>做什么</th><th>路径</th></tr></thead>
+  <thead><tr><th>Responsibility</th><th>Path</th></tr></thead>
   <tbody>
-    <tr><td>命令表</td><td><code>apps/web/components/chat/composer/slash/slash-commands.ts</code></td></tr>
-    <tr><td>菜单 / 派发</td><td><code>apps/web/components/chat/composer/slash/use-slash-menu.ts</code></td></tr>
-    <tr><td>点选</td><td><code>apps/web/components/chat/composer/index.tsx</code>（<code>selectSlashCommand</code>）</td></tr>
-    <tr><td>键盘</td><td><code>apps/web/components/chat/composer/input/use-composer-keydown.ts</code></td></tr>
-    <tr><td>回车提交</td><td><code>apps/web/components/chat/composer/submit/use-chat-submit.ts</code></td></tr>
-    <tr><td>WS 手动压缩</td><td><code>apps/server/openprogram_server/_webui/ws_actions/chat.py</code> → <code>handle_compact</code></td></tr>
-    <tr><td>压缩管道</td><td><code>openprogram/context/engine.py</code>、<code>summarize.py</code></td></tr>
-    <tr><td>自动压</td><td><code>openprogram/agent/dispatcher/loop_runner.py</code></td></tr>
-    <tr><td>爆窗抢救</td><td><code>openprogram/context/reactive.py</code></td></tr>
-    <tr><td>前端收事件</td><td><code>apps/web/lib/runtime-bridge/chat-handlers.ts</code></td></tr>
-    <tr><td>圆环 / 面板</td><td><code>context-badge.tsx</code>、<code>context-breakdown-panel.tsx</code></td></tr>
-    <tr><td>占用尺子</td><td><a href="../context/occupancy-status.html">occupancy-status.html</a></td></tr>
+    <tr><td>Command registry</td><td><code>apps/web/components/chat/composer/slash/slash-commands.ts</code></td></tr>
+    <tr><td>Menu / dispatch</td><td><code>apps/web/components/chat/composer/slash/use-slash-menu.ts</code></td></tr>
+    <tr><td>Selection</td><td><code>apps/web/components/chat/composer/index.tsx</code> (<code>selectSlashCommand</code>)</td></tr>
+    <tr><td>Keyboard</td><td><code>apps/web/components/chat/composer/input/use-composer-keydown.ts</code></td></tr>
+    <tr><td>Enter submission</td><td><code>apps/web/components/chat/composer/submit/use-chat-submit.ts</code></td></tr>
+    <tr><td>Manual compaction over WS</td><td><code>apps/server/openprogram_server/_webui/ws_actions/chat.py</code> → <code>handle_compact</code></td></tr>
+    <tr><td>Compaction pipeline</td><td><code>openprogram/context/engine.py</code>, <code>summarize.py</code></td></tr>
+    <tr><td>Automatic compaction</td><td><code>openprogram/agent/dispatcher/loop_runner.py</code></td></tr>
+    <tr><td>Context-window overflow recovery</td><td><code>openprogram/context/reactive.py</code></td></tr>
+    <tr><td>Frontend event handling</td><td><code>apps/web/lib/runtime-bridge/chat-handlers.ts</code></td></tr>
+    <tr><td>Ring / panel</td><td><code>context-badge.tsx</code>, <code>context-breakdown-panel.tsx</code></td></tr>
+    <tr><td>Occupancy measurement</td><td><a href="../context/occupancy-status.html">occupancy-status.html</a></td></tr>
   </tbody>
 </table>
 
 <footer>
-  斜杠派发和三种压缩系统行已经落地。占用口径、无可压、圆环三态以占用设计为准。
+  Slash dispatch and the three compaction system messages are implemented. The occupancy design defines measurement, nothing-to-compact behavior and the ring’s three states.
 </footer>
 </div>
 </body>

@@ -379,3 +379,36 @@ def test_local_topic_titles_render_as_headings_after_compatibility_anchors() -> 
             rendered = build.make_md().render(source)
             assert re.search(r'<h1\b[^>]*>[^<]+', rendered), name + language
             assert not re.search(r'^# ', rendered, re.MULTILINE), name + language
+
+
+def test_previous_next_and_tabs_follow_document_language(tmp_path):
+    from scripts.docs_site.build import render_prevnext, render_tabbar
+
+    (tmp_path / 'start').mkdir()
+    (tmp_path / 'start/README.md').write_text('# Introduction\n', encoding='utf-8')
+    (tmp_path / 'start/README.zh.md').write_text('# 介绍\n', encoding='utf-8')
+    page = discover(tmp_path)[0]
+    rendered = render_prevnext(page, None)
+    assert 'data-title-zh="介绍"' in rendered
+    assert 'data-href-zh="/docs/start/README.zh.html"' in rendered
+    tabs = render_tabbar(build_tabs(tmp_path, [page]), 'start', '/docs/')
+    assert 'data-href-zh="/docs/start/README.zh.html"' in tabs
+
+
+def test_language_check_includes_html_and_design_prose_but_preserves_code(tmp_path, monkeypatch):
+    source = tmp_path / 'reference/design/topic.html'
+    source.parent.mkdir(parents=True)
+    source.write_text('<h1>中文标题</h1><p>English explanation.</p>', encoding='utf-8')
+    monkeypatch.setattr(checklang, 'DOCS', tmp_path)
+    assert checklang.main() == 1
+    source.write_text('<h1>Topic</h1><svg aria-label="调用关系"></svg>', encoding='utf-8')
+    assert checklang.main() == 1
+    source.write_text('<h1>Topic</h1><div id="旧锚点"></div><pre>示例代码</pre>', encoding='utf-8')
+    assert checklang.main() == 0
+
+
+def test_standalone_search_text_excludes_styles_and_scripts():
+    from scripts.docs_site.search import plain_text
+
+    assert plain_text('<style>.ui { color: red; }</style><script>const hidden = 1;</script>'
+                      '<h1>模型选型</h1><p>比较备选设计。</p>') == '模型选型 比较备选设计。'

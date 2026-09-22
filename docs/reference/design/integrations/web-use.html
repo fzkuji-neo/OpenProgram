@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Web Use 设计概览</title>
+<title>Web Use design overview</title>
 <style>
   :root{--bg:#15140f;--text:#c4c0b1;--muted:#858173;--title:#f3f0e8;--line:#343126;--accent:#e08a3e;--blue:#5b91f2;--green:#63b15a;--violet:#a679e4;--code:#100f0b}
   *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -18,23 +18,23 @@
 <body><main>
   <header>
     <div class="eyebrow">OpenProgram · Web Use</div>
-    <h1>Web Use：只控制内置浏览器 Page</h1>
-    <p>Agent 可以直接调用 <code>web_use</code>，也可以让 GUI Agent Harness 用同一接口连续执行。Runtime 绑定一个 exact Page，并在三个 browser backend 中固定一个执行。</p>
+    <h1>Web Use: control only built-in browser Pages</h1>
+    <p>An agent can call <code>web_use</code>, or let GUI Agent Harness execute continuously through the same interface. The runtime binds an exact Page and pins one of three browser backends for execution.</p>
     <p class="status">TARGET NAME: WEB_USE · PUBLIC NAME: WEB_USE · BROWSER-ONLY RUNTIME IMPLEMENTED</p>
   </header>
 
   <section aria-labelledby="boundary-title">
-    <h2 id="boundary-title">名称与边界</h2>
-    <div class="table-scroll"><table><thead><tr><th>能力</th><th>负责什么</th><th>当前状态</th></tr></thead><tbody>
-      <tr><td>Web Use</td><td>内置浏览器的 BrowserContext、Page、tab、popup、分屏、跨窗口发现，以及 DOM/ARIA/viewport 操作。</td><td class="use">当前能力；公开名称为 <code>web_use</code></td></tr>
-      <tr><td>Computer Use</td><td>未来的桌面应用、整屏或应用窗口截图、OS 级鼠标键盘；需要操作网页时可以调用 Web Use。</td><td class="adapt">保留名称，当前不实现，也不预建配置或后台进程</td></tr>
+    <h2 id="boundary-title">Names and boundaries</h2>
+    <div class="table-scroll"><table><thead><tr><th>Capability</th><th>Responsibilities</th><th>Current status</th></tr></thead><tbody>
+      <tr><td>Web Use</td><td>Built-in browser BrowserContext, Page, tab, popup, split views, cross-window discovery, and DOM/ARIA/viewport operations.</td><td class="use">Current capability; its public name is <code>web_use</code></td></tr>
+      <tr><td>Computer Use</td><td>Future desktop applications, full-screen or application-window screenshots, and OS-level mouse/keyboard input; Web Use can be called for webpage interaction.</td><td class="adapt">Reserved name; not currently implemented, with no pre-created configuration or background processes</td></tr>
     </tbody></table></div>
   </section>
 
   <section aria-labelledby="architecture-title">
-    <h2 id="architecture-title">系统结构</h2>
+    <h2 id="architecture-title">System structure</h2>
     <div class="diagram architecture-diagram"><svg viewBox="0 0 1120 640" role="img">
-      <title>Agent、Web Use 与三个可选浏览器 backend 的分层关系</title><desc>Agent 可以直接调用 web_use，也可以通过 GUI Agent Harness 调用相同工具。Runtime 为当前 WebSession 固定 Playwright MCP、Chrome DevTools MCP 或 Open Claude in Chrome-compatible backend，并由选中的一个 backend 操作绑定的精确 Page。</desc>
+      <title>Layered relationship between the agent, Web Use, and three optional browser backends</title><desc>An agent can call web_use directly or call the same tool through GUI Agent Harness. The runtime pins Playwright MCP, Chrome DevTools MCP, or the Open Claude in Chrome-compatible backend for the current WebSession. The selected backend operates the bound exact Page.</desc>
       <defs>
         <linearGradient id="arch-harness" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2116"/><stop offset="1" stop-color="#17140f"/></linearGradient>
         <linearGradient id="arch-runtime" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#251a32"/><stop offset="1" stop-color="#15121b"/></linearGradient>
@@ -50,7 +50,7 @@
         <text x="42" y="31" fill="#5a5544" font-size="10" font-weight="700" letter-spacing="2">AGENT / CONTROL</text><line x1="166" y1="27" x2="1078" y2="27" stroke="#29271f"/>
 
         <circle cx="76" cy="115" r="31" fill="#121a28" stroke="#5b91f2" stroke-width="1.5"/><circle cx="76" cy="115" r="20" fill="none" stroke="#5b91f2" stroke-opacity=".35"/><text x="76" y="120" fill="#5b91f2" font-size="12" font-weight="800" text-anchor="middle">AI</text>
-        <text x="122" y="109" fill="#f3f0e8" font-size="16" font-weight="750">Any Agent</text><text x="122" y="132" fill="#858173" font-size="11">选择 direct 或 harness</text>
+        <text x="122" y="109" fill="#f3f0e8" font-size="16" font-weight="750">Any Agent</text><text x="122" y="132" fill="#858173" font-size="11">Choose direct or harness</text>
         <path d="M214 115 H272" fill="none" stroke="#5b91f2" stroke-width="2" marker-end="url(#arch-blue-arrow)"/>
 
         <g filter="url(#arch-shadow)"><rect x="286" y="53" width="276" height="124" rx="20" fill="url(#arch-harness)" stroke="#e08a3e" stroke-width="1.5"/></g>
@@ -68,7 +68,7 @@
         <g filter="url(#arch-shadow)"><rect x="742" y="53" width="332" height="124" rx="20" fill="url(#arch-runtime)" stroke="#a679e4" stroke-width="1.5"/></g>
         <text x="774" y="83" fill="#a679e4" font-size="10" font-weight="700" letter-spacing="1.6">RUNTIME</text><text x="774" y="111" fill="#f3f0e8" font-size="18" font-weight="750">Bind once. Execute exactly.</text>
         <g fill="#aaa696" font-size="11"><text x="774" y="139">Page binding</text><text x="856" y="139" fill="#5a5544">•</text><text x="872" y="139">permission</text><text x="944" y="139" fill="#5a5544">•</text><text x="960" y="139">verification</text></g>
-        <text x="774" y="160" fill="#858173" font-size="11">WebSession 创建后冻结 backend</text>
+        <text x="774" y="160" fill="#858173" font-size="11">Pin the backend when WebSession is created</text>
 
         <text x="42" y="245" fill="#5a5544" font-size="10" font-weight="700" letter-spacing="2">EXECUTION / CHOOSE ONE</text><line x1="224" y1="241" x2="1078" y2="241" stroke="#29271f"/>
         <path d="M908 177 V217" fill="none" stroke="#858173" stroke-width="1.8"/>
@@ -77,11 +77,11 @@
 
         <g filter="url(#arch-shadow)"><rect x="70" y="291" width="280" height="108" rx="16" fill="#111a15" stroke="#63b15a" stroke-width="1.5"/></g>
         <circle cx="112" cy="345" r="21" fill="#17251c" stroke="#63b15a" stroke-opacity=".55"/><text x="112" y="349" fill="#63b15a" font-size="9" font-weight="800" text-anchor="middle">DOM</text>
-        <text x="148" y="329" fill="#63b15a" font-size="14" font-weight="750">Playwright MCP</text><text x="148" y="351" fill="#c4c0b1" font-size="11">DOM · ARIA · element refs</text><text x="148" y="374" fill="#858173" font-size="11">默认：结构化页面操作</text>
+        <text x="148" y="329" fill="#63b15a" font-size="14" font-weight="750">Playwright MCP</text><text x="148" y="351" fill="#c4c0b1" font-size="11">DOM · ARIA · element refs</text><text x="148" y="374" fill="#858173" font-size="11">Default: structured page operations</text>
 
         <g filter="url(#arch-shadow)"><rect x="420" y="291" width="280" height="108" rx="16" fill="#10191c" stroke="#55bdd6" stroke-width="1.5"/></g>
         <circle cx="462" cy="345" r="21" fill="#132329" stroke="#55bdd6" stroke-opacity=".55"/><text x="462" y="349" fill="#55bdd6" font-size="9" font-weight="800" text-anchor="middle">CDP</text>
-        <text x="498" y="329" fill="#55bdd6" font-size="14" font-weight="750">Chrome DevTools MCP</text><text x="498" y="351" fill="#c4c0b1" font-size="11">CDP · snapshot · diagnostics</text><text x="498" y="374" fill="#858173" font-size="11">通过 MCP adapter 接入 Runtime</text>
+        <text x="498" y="329" fill="#55bdd6" font-size="14" font-weight="750">Chrome DevTools MCP</text><text x="498" y="351" fill="#c4c0b1" font-size="11">CDP · snapshot · diagnostics</text><text x="498" y="374" fill="#858173" font-size="11">Connect to the runtime through an MCP adapter</text>
 
         <g filter="url(#arch-shadow)"><rect x="770" y="291" width="280" height="108" rx="16" fill="#1c1610" stroke="#e08a3e" stroke-width="1.5"/></g>
         <circle cx="812" cy="345" r="21" fill="#2a1d12" stroke="#e08a3e" stroke-opacity=".55"/><text x="812" y="349" fill="#e08a3e" font-size="9" font-weight="800" text-anchor="middle">VIS</text>
@@ -94,16 +94,16 @@
         <path d="M335 501 H785" stroke="#343126"/><circle cx="360" cy="487" r="4" fill="#e15b68"/><circle cx="375" cy="487" r="4" fill="#e0b23e"/><circle cx="390" cy="487" r="4" fill="#63b15a"/>
         <text x="560" y="491" fill="#f3f0e8" font-size="12" font-weight="700" text-anchor="middle">exact Page</text><rect x="695" y="478" width="72" height="19" rx="9.5" fill="#17251c"/><circle cx="708" cy="487.5" r="3" fill="#63b15a"/><text x="737" y="491.5" fill="#63b15a" font-size="11" font-weight="700" text-anchor="middle">BOUND</text>
         <rect x="355" y="518" width="78" height="60" rx="8" fill="#181913"/><rect x="449" y="518" width="310" height="13" rx="6.5" fill="#1e2019"/><rect x="449" y="540" width="238" height="9" rx="4.5" fill="#282a22"/><rect x="449" y="558" width="276" height="9" rx="4.5" fill="#20231f"/><rect x="449" y="576" width="168" height="6" rx="3" fill="#34362f"/>
-        <text x="560" y="623" fill="#858173" font-size="11" text-anchor="middle">同一个 Page · 分屏在任意方向 · 无需窗口置前</text>
+        <text x="560" y="623" fill="#858173" font-size="11" text-anchor="middle">Same Page · Split in any direction · No window activation required</text>
       </g>
     </svg></div>
-    <p class="caption">三个 backend 都是可选执行路径；Runtime 在 WebSession 创建时固定其中一个，并把所有动作限制到同一个 Page。</p>
+    <p class="caption">The three backends are alternative execution paths. The runtime pins one when creating the WebSession and confines every action to the same Page.</p>
   </section>
 
   <section aria-labelledby="pages-title">
-    <h2 id="pages-title">四个网页在一个窗口里怎样表示</h2>
+    <h2 id="pages-title">Representing four webpages in one window</h2>
     <div class="diagram page-model-diagram"><svg viewBox="0 0 1120 440" role="img">
-      <title>三个顶部标签项包含四个可控制 Page</title><desc>同一个 BrowserContext 和 OpenProgram window 中，前两个顶部标签项各包含一个 Page，第三个顶部标签项是分屏组，包含左右两个 Page。list_pages 同时返回 tab_entries 布局和 pages 控制目标；Agent 最终只用某个 Page 的 token 建立 WebSession。</desc>
+      <title>Three top-level tab entries contain four controllable Pages</title><desc>In the same BrowserContext and OpenProgram window, the first two top-level tab entries each contain one Page. The third is a split group containing left and right Pages. list_pages returns both the tab_entries layout and pages control targets; the agent ultimately creates a WebSession using only one Page token.</desc>
       <defs><marker id="pages-arrow" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#858173"/></marker><marker id="pages-blue-arrow" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#5b91f2"/></marker></defs>
       <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
         <text x="34" y="31" fill="#858173" font-size="11" letter-spacing="1.4">BROWSERCONTEXT ctx_1 · WINDOW win_1</text>
@@ -139,20 +139,20 @@
         </g>
         <path d="M938 334 V370" fill="none" stroke="#5b91f2" stroke-width="2" marker-end="url(#pages-blue-arrow)"/>
         <text x="938" y="390" fill="#a679e4" font-size="12" font-weight="700" text-anchor="middle">p4 token → exact WebSession</text>
-        <text x="560" y="425" fill="#858173" font-size="12" text-anchor="middle">顶部标签结构用于理解窗口；Page token 用于观察和操作。分屏不增加另一套 Agent command。</text>
+        <text x="560" y="425" fill="#858173" font-size="12" text-anchor="middle">The top-level tab structure describes the window; Page tokens support observation and operation. Split views do not introduce a separate set of agent commands.</text>
       </g>
     </svg></div>
-    <p class="caption">当前 <code>list_pages</code> 同时返回 <code>tab_entries + pages</code>：前者描述 single/split 与 pane 顺序，后者提供可独立控制的 exact Page token。跨窗口目标保持相同结构，在外层增加 <code>windows[]</code>，每个 Page 继续携带原 <code>window_id</code>。完整字段见<a href="web-use-technical-spec.html#page-model">多 Page 数据模型</a>。</p>
+    <p class="caption">Currently, <code>list_pages</code> returns both <code>tab_entries + pages</code>: the former describes single/split layout and pane ordering; the latter provides independently controllable exact Page tokens. Cross-window targets retain the same structure, adding an outer <code>windows[]</code>, while each Page retains its original <code>window_id</code>. For the full fields, see <a href="web-use-technical-spec.html#page-model">Multi-Page data model</a>.</p>
   </section>
 
   <section aria-labelledby="click-title">
-    <h2 id="click-title">Claude Code 的视觉坐标点击分支</h2>
+    <h2 id="click-title">Claude Code visual coordinate-click path</h2>
     <div class="diagram"><svg viewBox="0 0 1120 650" role="img">
-      <title>Claude Code 浏览器插件视觉坐标点击流程</title><desc>本机 Claude Code 2.1.227 与 Chrome 扩展 1.0.85 的视觉分支先取得截图，再把模型选择的坐标经 MCP、Native Messaging 和 Chrome 扩展发送到目标 Tab；扩展绘制视觉光标，并以 CDP 鼠标事件完成实际点击。</desc>
+      <title>Claude Code browser extension visual coordinate-click flow</title><desc>The visual path in the locally installed Claude Code 2.1.227 and Chrome extension 1.0.85 first captures a screenshot, then sends model-selected coordinates to the target Tab through MCP, Native Messaging, and the Chrome extension. The extension draws a visual cursor and performs the actual click using CDP mouse events.</desc>
       <defs><marker id="click-arrow" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#858173"/></marker><marker id="click-blue-arrow" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6Z" fill="#5b91f2"/></marker></defs>
       <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
         <g fill="#151b25" stroke="#343126"><rect x="24" y="24" width="144" height="54" rx="7"/><rect x="210" y="24" width="154" height="54" rx="7"/><rect x="402" y="24" width="154" height="54" rx="7"/><rect x="594" y="24" width="154" height="54" rx="7"/><rect x="786" y="24" width="144" height="54" rx="7"/><rect x="968" y="24" width="128" height="54" rx="7"/></g>
-        <g fill="#f3f0e8" font-size="12" font-weight="700" text-anchor="middle"><text x="96" y="56">Claude Code</text><text x="287" y="49">claude-in-chrome</text><text x="287" y="65">MCP tools</text><text x="479" y="49">Native Messaging</text><text x="479" y="65">host</text><text x="671" y="49">Chrome extension</text><text x="671" y="65">service worker</text><text x="858" y="49">视觉光标</text><text x="858" y="65">content script</text><text x="1032" y="49">目标 Tab</text><text x="1032" y="65">CDP</text></g>
+        <g fill="#f3f0e8" font-size="12" font-weight="700" text-anchor="middle"><text x="96" y="56">Claude Code</text><text x="287" y="49">claude-in-chrome</text><text x="287" y="65">MCP tools</text><text x="479" y="49">Native Messaging</text><text x="479" y="65">host</text><text x="671" y="49">Chrome extension</text><text x="671" y="65">service worker</text><text x="858" y="49">Visual cursor</text><text x="858" y="65">content script</text><text x="1032" y="49">Target Tab</text><text x="1032" y="65">CDP</text></g>
         <g stroke="#343126" stroke-dasharray="4 6"><line x1="96" y1="78" x2="96" y2="620"/><line x1="287" y1="78" x2="287" y2="620"/><line x1="479" y1="78" x2="479" y2="620"/><line x1="671" y1="78" x2="671" y2="620"/><line x1="858" y1="78" x2="858" y2="620"/><line x1="1032" y1="78" x2="1032" y2="620"/></g>
 
         <g fill="none" stroke="#858173" stroke-width="1.8" marker-end="url(#click-arrow)">
@@ -163,39 +163,39 @@
         </g>
         <line x1="671" y1="590" x2="1028" y2="590" stroke="#5b91f2" stroke-width="2.2" marker-end="url(#click-blue-arrow)"/>
 
-        <g fill="#c4c0b1" font-size="11.5"><text x="112" y="116">① computer(screenshot, tabId)</text><text x="306" y="166">② tool request</text><text x="497" y="216">③ JSON / stdio</text><text x="742" y="266">④ Page.captureScreenshot</text><text x="434" y="325">⑤ 同一路径返回 PNG + viewport metadata</text><text x="112" y="396">⑥ computer(left_click, [x,y], tabId)</text><text x="306" y="446">⑦ click request</text><text x="497" y="496">⑧ 校验 tab、权限与坐标映射</text><text x="703" y="546">⑨ UPDATE_PHANTOM_CURSOR</text><text x="755" y="581" fill="#5b91f2">⑩ Input.dispatchMouseEvent: moved → pressed → released</text></g>
-        <text x="671" y="530" fill="#e08a3e" font-size="10.5" text-anchor="middle">需要时在这里暂停并请求用户授权</text>
-        <text x="560" y="632" fill="#858173" font-size="12" text-anchor="middle">页面上的光标只是视觉提示；真正的点击由 CDP 发给指定 Tab，不移动系统鼠标。</text>
+        <g fill="#c4c0b1" font-size="11.5"><text x="112" y="116">① computer(screenshot, tabId)</text><text x="306" y="166">② tool request</text><text x="497" y="216">③ JSON / stdio</text><text x="742" y="266">④ Page.captureScreenshot</text><text x="434" y="325">⑤ Return PNG + viewport metadata through the same path</text><text x="112" y="396">⑥ computer(left_click, [x,y], tabId)</text><text x="306" y="446">⑦ click request</text><text x="497" y="496">⑧ Validate tab, permissions, and coordinate mapping</text><text x="703" y="546">⑨ UPDATE_PHANTOM_CURSOR</text><text x="755" y="581" fill="#5b91f2">⑩ Input.dispatchMouseEvent: moved → pressed → released</text></g>
+        <text x="671" y="530" fill="#e08a3e" font-size="10.5" text-anchor="middle">Pause here and request user authorization when needed</text>
+        <text x="560" y="632" fill="#858173" font-size="12" text-anchor="middle">The on-page cursor is only a visual cue. CDP sends the actual click to the specified Tab without moving the system mouse.</text>
       </g>
     </svg></div>
-    <p class="caption">本图来自本机 Claude Code 2.1.227 与 Chrome 扩展 1.0.85 的安装包观察，只描述视觉坐标分支，不是官方稳定内部接口。<code>computer</code> 也支持使用页面 ref 点击；该分支不要求先截图。</p>
+    <p class="caption">This diagram is based on inspection of the locally installed Claude Code 2.1.227 and Chrome extension 1.0.85 packages. It describes only the visual-coordinate path, not an officially stable internal interface.<code>computer</code> also supports clicking through page refs; that path does not require a screenshot first.</p>
   </section>
 
   <section aria-labelledby="chat-stability-title">
-    <h2 id="chat-stability-title">Chat 渲染稳定性</h2>
-    <p>存在 live normal assistant reply 或对应 runtime card 已存在时，Web Use 的 tree update 不得触发 transcript reload。standalone run 缺少 persisted runtime card 时允许首次单次 hydrate。该约束确保已有历史 message element identity 保持不变，避免流式回复、滚动位置和消息操作状态被重置。</p>
+    <h2 id="chat-stability-title">Chat rendering stability</h2>
+    <p>When a live normal assistant reply or its corresponding runtime card exists, Web Use tree updates must not trigger transcript reload. A standalone run without a persisted runtime card may perform one initial hydration. This preserves existing historical message element identity and prevents streaming replies, scroll positions, and message-action state from being reset.</p>
   </section>
 
   <section aria-labelledby="reuse-title">
-    <h2 id="reuse-title">可以复用到什么程度</h2>
-    <div class="table-scroll"><table><thead><tr><th>结论</th><th>组件</th><th>OpenProgram 处理</th></tr></thead><tbody>
-      <tr><td class="use">直接使用</td><td>Microsoft Playwright MCP、Playwright、MCP SDK</td><td>开源依赖；固定版本后接入。</td></tr>
-      <tr><td class="adapt">直接调用接口</td><td>CDP、Electron <code>webContents.debugger</code>、Chrome <code>debugger</code> / Native Messaging</td><td>不需要复制 Claude 代码；内置浏览器直接使用 Electron/CDP，不需要另装 Chrome 扩展。</td></tr>
-      <tr><td class="use">可选 backend</td><td><a href="https://github.com/ChromeDevTools/chrome-devtools-mcp">Chrome DevTools MCP</a></td><td>通过 MCP adapter 接入统一 Runtime，并绑定 exact Page。</td></tr>
-      <tr><td class="adapt">可选 backend</td><td><a href="https://github.com/noemica-io/open-claude-in-chrome">Open Claude in Chrome-compatible</a></td><td>采用其工具契约与视觉操作方式；由 OpenProgram Electron/CDP adapter 绑定 exact Page。</td></tr>
-      <tr><td class="rebuild">OpenProgram 层</td><td>exact Page adapter、统一权限、verification 与 backend selector</td><td>三个 backend 共用；单个 WebSession 只允许一个 backend 执行动作。</td></tr>
+    <h2 id="reuse-title">Extent of reuse</h2>
+    <div class="table-scroll"><table><thead><tr><th>Conclusion</th><th>Component</th><th>OpenProgram handling</th></tr></thead><tbody>
+      <tr><td class="use">Use directly</td><td>Microsoft Playwright MCP, Playwright, MCP SDK</td><td>Open-source dependency; integrate a pinned version.</td></tr>
+      <tr><td class="adapt">Call the interface directly</td><td>CDP, Electron <code>webContents.debugger</code>, Chrome <code>debugger</code> / Native Messaging</td><td>No Claude source copy is needed. The built-in browser uses Electron/CDP directly, without installing a separate Chrome extension.</td></tr>
+      <tr><td class="use">Optional backend</td><td><a href="https://github.com/ChromeDevTools/chrome-devtools-mcp">Chrome DevTools MCP</a></td><td>Connect through an MCP adapter to the shared runtime and bind an exact Page.</td></tr>
+      <tr><td class="adapt">Optional backend</td><td><a href="https://github.com/noemica-io/open-claude-in-chrome">Open Claude in Chrome-compatible</a></td><td>Use its tool contract and visual interaction model; the OpenProgram Electron/CDP adapter binds an exact Page.</td></tr>
+      <tr><td class="rebuild">OpenProgram layer</td><td>Exact Page adapter, shared permissions, verification, and backend selector</td><td>Shared by all three backends; only one backend may execute actions within a WebSession.</td></tr>
     </tbody></table></div>
   </section>
 
   <footer class="links">
-    <a href="web-use-technical-spec.html#reuse">开源、接口与复用清单</a>
-    <a href="web-use-technical-spec.html#page-model">多 Page 与分屏返回结构</a>
-    <a href="web-use-technical-spec.html">技术规格与实施阶段</a>
-    <a href="web-use-implementation.html">当前实现与验证记录</a>
+    <a href="web-use-technical-spec.html#reuse">Open-source components, interfaces, and reuse inventory</a>
+    <a href="web-use-technical-spec.html#page-model">Multi-Page and split-view response structure</a>
+    <a href="web-use-technical-spec.html">Technical specification and implementation phases</a>
+    <a href="web-use-implementation.html">Current implementation and verification records</a>
     <a href="https://github.com/microsoft/playwright-mcp">Microsoft Playwright MCP</a>
     <a href="https://github.com/ChromeDevTools/chrome-devtools-mcp">Chrome DevTools MCP</a>
     <a href="https://github.com/noemica-io/open-claude-in-chrome">Open Claude in Chrome</a>
-    <a href="https://code.claude.com/docs/en/chrome">Claude Code Browser 文档</a>
+    <a href="https://code.claude.com/docs/en/chrome">Claude Code Browser documentation</a>
   </footer>
 </main></body>
 </html>

@@ -2,7 +2,7 @@
 
 本文描述在一次模型调用内，LLM 在每一轮如何"做出选择"——挑选一个函数去执行，或者输出文本并结束。
 
-> 配套文档：[`calling-unification.md`](../../../reference/design/function/calling-unification.md)
+> 配套文档：[`calling-unification.md`](../../../reference/design/function/calling-unification.zh.md)
 > 介绍了整个函数调用框架的设计——`@function` / `@agentic_function` 装饰器、共享注册表、6 层
 > 门控、延迟加载等。本页只涵盖"挑选下一步"这部分的循环机制。
 
@@ -35,7 +35,7 @@
 `"none"`（仅文本），或 `{"type": "function", "name": "X"}` 强制某个函数。它会被转发给 provider，由后者映射到自身的协议形态（已覆盖 OpenAI、Anthropic、Gemini 和 Bedrock）。
 在 provider 支持该开关的情况下，`parallel_tool_calls=False` 禁止在一轮内进行多次挑选。`max_iterations` 限制循环的轮数——实际上限是
 `max(1, max_iterations)`（调用方设置时）；聊天轮次不设上限（见
-[终止](#termination)）。对于一次强制的、结构化的决策*结尾*（而非逐轮控制），`exec(choices=...)` 仍是更丰富的工具——见 [下一步决策](./next-step-decision.md)。
+[终止](#termination)）。对于一次强制的、结构化的决策*结尾*（而非逐轮控制），`exec(choices=...)` 仍是更丰富的工具——见 [下一步决策](next-step-decision.zh.md)。
 
 ## 循环主体：`_run_loop`
 

@@ -138,4 +138,4 @@ class SessionStore:
     def latest_user_text(session_id) -> str | None
 ```
 
-每个方法的完整行为见 [operations.md](operations.md)。
+每个方法的完整行为见 [operations.md](operations.zh.md)。

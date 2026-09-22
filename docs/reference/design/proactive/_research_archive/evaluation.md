@@ -1,85 +1,81 @@
-# 评估
+<div id="评估"></div>
 
-这层将来要支撑一篇论文。本文是评估骨架：贡献怎么锚定才能与已发表工作区分、用什么实验、
-什么 baseline、什么指标、数据集怎么发布。
+# Evaluation
 
-## 1. 贡献重锚
+This layer is intended to support a future paper. This document outlines its evaluation: how to distinguish contributions from published work, which experiments, baselines and metrics to use, and how to release the dataset.
 
-原 PRL 是一份**未发表的内部设计**，"我们删掉了它的 YAML/14-intent/CapabilityManifest"
-不构成贡献——审稿人无法验证一个他看不到的对照物。所以 PRL 降为附录里的设计动机，不作
-baseline。贡献重新锚定在三个能与已发表工作区分的点：
+<div id="1-贡献重锚"></div>
 
-| 贡献 | 是什么 | 已有工作为何没有 |
+## 1. Reframing the contributions
+
+The original PRL was an **unpublished internal design**. Removing its YAML/14-intent/CapabilityManifest is not a contribution: reviewers cannot verify a comparison they cannot access. PRL therefore becomes design motivation in the appendix, not a baseline. Reframe contributions around three distinctions from published work:
+
+| Contribution | Description | What prior work lacks |
 |---|---|---|
-| **C1** git-as-truth 事件溯源 + replay-as-policy-test | 决策是事件流的纯 fold，回放历史 = 离线测 policy（`replay.md`） | Claude Code hooks / AgentSpec 是即时拦截，无事件溯源、无离线回放测试 |
-| **C2** 框架强制打扰预算 + dismiss 熔断闭环 | 预算/熔断在框架层强制，acceptance 反馈自动回流（`execution-model.md` §5） | hooks 是开环——拦截后无反馈回路、无自我静音 |
-| **C3** lazy L2 推断作为 derived event 写回 | 语义状态按需推断、结果写回事件流保证回放确定（`events-and-state.md` §4） | 别家无"推断即数据、写回即可复现"的机制 |
+| **C1** git-as-truth event sourcing + replay-as-policy-test | Decisions are a pure fold over the event stream; historical replay tests policies offline (`replay.md`) | Claude Code hooks / AgentSpec intercept immediately, without event sourcing or offline replay tests |
+| **C2** Framework-enforced interruption budgets + dismiss-triggered circuit-breaker feedback | The framework enforces budgets and circuit breakers, automatically incorporating acceptance feedback (`execution-model.md` §5) | Hooks are open-loop: no post-interception feedback or self-muting |
+| **C3** Lazy L2 inference written back as derived events | Infer semantic state on demand and write results into the event stream for deterministic replay (`events-and-state.md` §4) | Other systems lack a mechanism in which inference becomes recorded data that reproduces the result |
 
-**双通道（同步 gate / 异步 observer）不作为贡献**——它就是 K8s admission webhook vs
-controller、servlet filter vs event listener，系统会审稿人一句话驳掉 novelty。论文里把它写成
-**设计决策 + 与 admission webhook 的显式类比**，价值只来自 agent 场景的具体刻画（10ms p99
-实测、critical fail-closed 事故分析、gate 穿透 subagent bypass），那是 evidence 不是 claim。
+**The two channels (synchronous gate / asynchronous observer) are not a contribution.** They follow existing patterns such as K8s admission webhooks versus controllers, or servlet filters versus event listeners; a systems reviewer can immediately reject their novelty. Present them as a **design decision, explicitly compared with admission webhooks**. Their value comes from agent-specific evidence: measured 10ms p99, critical fail-closed incident analysis, and gates applying through subagent bypass. These are evidence, not novelty claims.
 
-## 2. Related work（必须 engage，否则一搜即中）
+<div id="2-related-work必须-engage否则一搜即中"></div>
 
-| 工作 | 关系 |
+## 2. Related work that must be addressed
+
+| Work | Relationship |
 |---|---|
-| Claude Code hooks `PreToolUse`（allow/ask/deny） | gate lane 在外部观察者眼里就是它的重实现 → gate-only baseline 必须对标它 |
-| AgentSpec（arXiv 2503.18666）类 runtime enforcement | 覆盖 gate 语义；C1/C2 是其没有的 |
-| Horvitz 1999 mixed-initiative + interruption-cost 文献 | 打扰预算与 acceptance 反馈的原则化前身；熔断阈值要与 expected-utility-of-interruption 对比 |
-| ProactiveBench（arXiv 2410.12361） | 现成 proactive 评测，含事件→是否该介入的标注；论文必须用它/扩展它/论证不适用 |
-| levels-of-automation 文献 | 对应被删的 0-8 ladder；论文需一段论证"为什么自主度阶梯不是我们的贡献面" |
+| Claude Code hooks `PreToolUse` (allow/ask/deny) | An external observer sees the gate lane as a reimplementation; the gate-only baseline must compare against it |
+| AgentSpec (arXiv 2503.18666) and related runtime enforcement | Covers gate semantics; lacks C1/C2 |
+| Horvitz 1999 mixed-initiative and interruption-cost literature | Principled predecessors to interruption budgets and acceptance feedback; compare breaker thresholds with expected utility of interruption |
+| ProactiveBench (arXiv 2410.12361) | Existing proactive evaluation with annotations of whether events warrant intervention; the paper must use it, extend it, or justify why it does not apply |
+| Levels-of-automation literature | Relates to the removed 0–8 ladder; explain why autonomy levels are outside our contribution |
 
-## 3. 实验设计
+<div id="3-实验设计"></div>
 
-N=1 自用两周是 anecdote 不是实验（作者既写 policy 又当被试 = Hawthorne + 循环论证；20-50 个
-事件无统计意义）。换成：
+## 3. Experimental design
 
-1. **大规模回放**：公开 agent trajectory 语料（SWE-bench / SWE-agent / OpenHands 的数千条
-   trajectories）映射到 Event schema 后回放，**≥2 名标注者**标 would-have-fired，报
-   **precision + Cohen's kappa**。
-2. **recall**：另行标注一组 should-have-fired 样本估 recall——would-have-fired 报告结构上
-   看不见 false negative（`replay.md` §5），recall 必须独立来。
-3. **真人部署**：n=8-12 开发者各 1-2 周，替代 N=1 自用。统计功效从预期事件率倒推所需
-   session 数。
+Two weeks of N=1 personal use is anecdotal, not an experiment. The author both writes policies and serves as the subject, introducing Hawthorne effects and circular reasoning; 20–50 events have no statistical significance. Replace this with:
 
-## 4. 必备 baseline
+1. **Large-scale replay:** map public agent trajectories (thousands from SWE-bench / SWE-agent / OpenHands) into the Event schema and replay them. Use **at least two annotators** for would-have-fired decisions; report **precision and Cohen's kappa**.
+2. **Recall:** independently annotate should-have-fired examples to estimate recall. A would-have-fired report structurally cannot expose false negatives (`replay.md` §5), so recall requires a separate set.
+3. **Human deployment:** n=8–12 developers for 1–2 weeks each instead of N=1 personal use. Derive the required session count for statistical power from the expected event rate.
 
-| baseline | 是什么 | 为什么关键 |
+<div id="4-必备-baseline"></div>
+
+## 4. Required baselines
+
+| Baseline | Description | Why it matters |
 |---|---|---|
-| **prompt-only** | 把三条 policy 意图直接写进 system prompt（"完成前若没跑测试请提醒"），零 runtime 成本 | **最致命对照**——若它达到相近 acceptance，整个 runtime layer 的存在性论证崩塌。必须证明 runtime 拦截/状态/预算带来 prompt 给不了的东西 |
-| **no-proactive** | 关掉本层 | 下界 |
-| **gate-only** | 只留 gate lane（≈ Claude Code hooks 重实现） | 隔离 observer/反馈闭环的增量贡献 |
+| **prompt-only** | Put the three policy intents directly in the system prompt, e.g. “Remind me before completion if tests have not run,” with zero runtime cost | **The most consequential comparison:** if acceptance is similar, the rationale for the runtime layer fails. Establish what runtime interception, state and budgets provide that prompts cannot |
+| **no-proactive** | Disable this layer | Lower bound |
+| **gate-only** | Retain only the gate lane, approximately a Claude Code hooks reimplementation | Isolate the added contribution of observers and feedback |
 
-不拿"原 PRL 全量管线"做 baseline——它没有实现，强行比较反坐实 straw man。
+Do not use the original full PRL pipeline as a baseline: it was never implemented, and forced comparison would be a straw man.
 
-## 5. 指标
+<div id="5-指标"></div>
 
-**主指标结果型**，不是 accept/dismiss：
+## 5. Metrics
 
-- TestGapWatcher：触发的模块后续**真补测试率** / 后续真出 bug 率。
-- UnvalidatedCompletionNudge：accept 后**真发现回归**的比例。
+**Primary metrics measure outcomes**, not accept/dismiss:
 
-accept/dismiss 是混淆变量大杂烩（dismiss 混"建议错/时机错/早知道/flow 中无脑关"），**降为
-辅助信号**。熔断阈值给**敏感性分析**：N∈{2,3,5} 下的静音率/漏报率曲线，并在 related work 里
-说明为何选简单计数器而非 expected-utility（可辩护理由：冷启动无标定数据）。
+- TestGapWatcher: the proportion of triggered modules that **actually gain tests**, and their subsequent actual bug rate.
+- UnvalidatedCompletionNudge: the proportion of accepted suggestions that **actually reveal regressions**.
 
-## 6. 配套评估（回应自我批判）
+Accept/dismiss mixes confounders: a dismissal may mean incorrect advice, bad timing, prior knowledge or automatic dismissal during focused work. **Treat it as an auxiliary signal.** Provide **sensitivity analysis** for breaker thresholds: muting and missed-intervention curves for N∈{2,3,5}. Explain in related work why a simple counter is used instead of expected utility; lack of calibrated cold-start data is a defensible reason.
 
-我们批判 PRL"把状态推断质量当已解决模块"——不能把同一问题往下挪一层。所以：
+<div id="6-配套评估回应自我批判"></div>
 
-- **L1/L2 推断独立评估**：路径前缀→touched_modules（monorepo 下易错）、claimed_completion
-  等各建 100-200 条标注集，**单独报 accuracy**。
-- **错误归因分解**：policy precision 差时，拆成 **state 错误 vs 决策错误**——否则无法判断是
-  `evaluate` 逻辑差还是状态推断错。
-- **ablation**（系统论文必备）：去熔断 / 去双通道（全同步 or 全异步）/ 去 L2 只留 L1，各掉
-  多少 precision、加多少延迟。其中"observer 型检查放进同步路径导致 turn 延迟 +X 秒"是双通道
-  设计决策的直接证据。
-- **L2 成本核算**：每 turn ≤2 次推断的 $ / 延迟，与 prompt-only baseline 的成本对比。
+## 6. Supporting evaluations addressing our own critique
 
-## 7. 数据集发布
+We criticize PRL for assuming state-inference quality is solved; we cannot simply move that assumption down one layer. Therefore:
 
-把"公开 trajectory 回放 + 标注集"本身做成 **dataset 贡献**：机会分类法 + ≥2 标注者 +
-fire/no-fire 实例 + should-have-fired 集。发布前过脱敏 schema（`threat-model.md` §5——events
-含密钥/私有代码，原始 payload 不可直接发布）。augmented 模式的 L2 缓存 + model 指纹随集发布，
-使他人复现标注集而非推断过程（`replay.md` §3）。
+- **Evaluate L1/L2 inference separately:** create 100–200 annotated examples each for path-prefix → touched_modules (error-prone in monorepos), claimed_completion and similar tasks; **report accuracy separately**.
+- **Decompose error attribution:** when policy precision is poor, distinguish **state errors from decision errors**. Otherwise it is impossible to tell whether `evaluate` logic or state inference is wrong.
+- **Ablations required for a systems paper:** remove the breaker; remove dual channels (all synchronous or all asynchronous); remove L2 and retain only L1. Measure precision loss and added latency for each. The additional X seconds of turn latency caused by putting observer checks in the synchronous path directly supports the dual-channel design decision.
+- **L2 cost accounting:** dollars and latency for at most two inferences per turn, compared with prompt-only costs.
+
+<div id="7-数据集发布"></div>
+
+## 7. Dataset release
+
+Make public-trajectory replay and its annotations a **dataset contribution**: opportunity taxonomy, at least two annotators, fire/no-fire cases and a should-have-fired set. Apply the redaction schema before release (`threat-model.md` §5: events contain secrets/private code, so raw payloads must not be published directly). Release augmented-mode L2 caches and model fingerprints with the dataset, enabling reproduction of the annotation set rather than the inference process (`replay.md` §3).

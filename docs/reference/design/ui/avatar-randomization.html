@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -11,57 +11,57 @@
 <body><main>
   <header>
     <div class="eyebrow">Settings · Agent and user identity</div>
-    <h1>头像设置</h1>
-    <p>Agent 与用户头像共用一个 <code>AvatarPicker</code>。先选三种类型，再进入该类型自己的控件。生成类型的变体只属于当前 DiceBear 风格。</p>
+    <h1>Avatar settings</h1>
+    <p>Agent and user avatars share one <code>AvatarPicker</code>. Select one of three types, then use that type's controls. Generated variants belong only to the current DiceBear style.</p>
   </header>
   <section>
-    <h2>问题与边界</h2>
+    <h2>Problem and boundaries</h2>
     <div class="cards">
-      <article class="card"><strong>当前缺陷</strong><p>把每一种 DiceBear 风格和 Letter / Upload 排成同一行源选择；变体网格再覆盖全部风格，点选会改掉刚刚选的 style。</p></article>
-      <article class="card"><strong>目标</strong><p>类型（Generated / Letter / Upload）是唯一入口。Generated 先选风格，再从该风格的变体里挑 seed。Letter 的字符和颜色在选择器内编辑。</p></article>
-      <article class="card"><strong>不变范围</strong><p><code>AvatarConfig</code> 的 kind 名称（<code>dicebear</code> / <code>letter</code> / <code>upload</code>）、持久化字段、<code>Avatar</code> 渲染、Agent/User profile store 和 DiceBear 依赖均不改变。</p></article>
+      <article class="card"><strong>Current defect</strong><p>Every DiceBear style appears alongside Letter / Upload in one source-selection row; the variant grid then covers all styles, so choosing a variant changes the style just selected.</p></article>
+      <article class="card"><strong>Objective</strong><p>Type (Generated / Letter / Upload) is the sole entry point. For Generated, select a style, then choose a seed from that style's variants. Edit Letter characters and colors inside the picker.</p></article>
+      <article class="card"><strong>Unchanged scope</strong><p><code>AvatarConfig</code>  kind names (<code>dicebear</code> / <code>letter</code> / <code>upload</code>), persistence fields,<code>Avatar</code>  rendering, Agent/User profile stores and the DiceBear dependency remain unchanged.</p></article>
     </div>
   </section>
   <section>
-    <h2>统一数据流</h2>
+    <h2>Unified data flow</h2>
     <div class="flow" aria-label="Avatar settings flow">
-      <div class="step"><span>1 · TYPE</span><b>Generated / Letter / Upload</b><p>左对齐分段控件，不是 16 风格瓷砖行</p></div>
-      <div class="step"><span>2 · STYLE</span><b>当前 DiceBear 风格</b><p>换风格尽量保留当前 seed，否则用显示名</p></div>
-      <div class="step"><span>3 · VARIANTS</span><b>只含当前风格</b><p>固定 48px 轨道，在右侧 cluster 内换行，不拉伸</p></div>
-      <div class="step"><span>4 · SAVE</span><b><code>AvatarConfig</code></b><p>Generated 写入 <code>kind: dicebear</code>、当前 style 与 seed</p></div>
+      <div class="step"><span>1 · TYPE</span><b>Generated / Letter / Upload</b><p>Left-aligned segmented control, rather than a row of 16 style tiles</p></div>
+      <div class="step"><span>2 · STYLE</span><b>Current DiceBear style</b><p>Retain the current seed when changing style if possible; otherwise use the display name</p></div>
+      <div class="step"><span>3 · VARIANTS</span><b>Current style only</b><p>Fixed 48px tracks wrap within the right-hand cluster without stretching</p></div>
+      <div class="step"><span>4 · SAVE</span><b><code>AvatarConfig</code></b><p>Generated writes <code>kind: dicebear</code>, the current style and seed</p></div>
     </div>
   </section>
   <section>
-    <h2>布局</h2>
-    <p>设置卡片里每一行都是两段式：名称在左，不伸展；控件在右，按内容收缩。Avatar 与 Preview、Display name 相同——标签在左，选择器以自然瓷砖尺寸靠右成组，不拉满卡片。字母模式的字符和颜色仍在选择器内，不作为卡片上的独立行。</p>
+    <h2>Layout</h2>
+    <p>Each settings-card row has two parts: a non-stretching label on the left and content-sized controls on the right. Avatar follows Preview and Display name: the label stays left, and the picker groups naturally sized tiles on the right without filling the card. Letter characters and colors remain inside the picker instead of becoming separate card rows.</p>
   </section>
   <section>
-    <h2>决策</h2>
+    <h2>Decisions</h2>
     <table>
-      <thead><tr><th>方案</th><th>结论</th><th>原因</th></tr></thead>
+      <thead><tr><th>Option</th><th>Decision</th><th>Reason</th></tr></thead>
       <tbody>
-        <tr><td>源选择 = 每种风格 + Letter + Upload</td><td class="out">拒绝</td><td>把类型和风格混在一层，Letter 还要再到卡片外改字符。</td></tr>
-        <tr><td>变体网格覆盖全部已发布风格</td><td class="out">拒绝</td><td>点选变体会改掉当前 style，和「先选风格」冲突。</td></tr>
-        <tr><td>类型 →（风格 + 同风格变体 | 字母字段 | 上传）</td><td class="status">采用</td><td>三条路径互不交叉；Regenerate 只换当前风格的 seed。</td></tr>
-        <tr><td>变体网格 <code>1fr</code> 拉满卡片</td><td class="out">拒绝</td><td>瓷砖保持固定 48px，作为右侧 cluster 换行，不拉伸。</td></tr>
-        <tr><td>为 Agent 和用户分别实现</td><td class="out">拒绝</td><td>两个设置入口已共用 <code>ProfileEditor</code> 与 <code>AvatarPicker</code>。</td></tr>
+        <tr><td>Source selection = every style + Letter + Upload</td><td class="out">Rejected</td><td>This mixes type and style at one level and requires editing Letter characters outside the card.</td></tr>
+        <tr><td>Variant grid spans all published styles</td><td class="out">Rejected</td><td>Selecting a variant changes the current style, conflicting with selecting the style first.</td></tr>
+        <tr><td>Type → (style + same-style variants | letter fields | upload)</td><td class="status">Adopted</td><td>The three paths are independent; Regenerate changes only the seed for the current style.</td></tr>
+        <tr><td>Variant grid <code>1fr</code>  fills the card</td><td class="out">Rejected</td><td>Tiles remain fixed at 48px and wrap in the right-hand cluster without stretching.</td></tr>
+        <tr><td>Separate implementations for agents and users</td><td class="out">Rejected</td><td>Both settings entry points already share <code>ProfileEditor</code>  and <code>AvatarPicker</code>.</td></tr>
       </tbody>
     </table>
   </section>
   <section>
-    <h2>验收合同</h2>
+    <h2>Acceptance contract</h2>
     <ol>
-      <li>Agent 和用户设置使用同一选择器。</li>
-      <li>变体全部属于当前风格；Regenerate 不改 style。</li>
-      <li>点击变体后写入 <code>kind: "dicebear"</code>、当前 style 与该 seed。</li>
-      <li>Letter 的字符和颜色在选择器内编辑，仍落在 profile 的 <code>initial</code> / <code>color</code>。</li>
-      <li>变体网格是固定 48px 轨道，落在行右侧的 cluster 里，不是 <code>1fr</code> 拉满。</li>
-      <li>已保存的 <code>AvatarConfig</code> 继续按原 kind / style / seed 显示。</li>
+      <li>Agent and user settings use the same picker.</li>
+      <li>All variants belong to the current style; Regenerate does not change style.</li>
+      <li>Selecting a variant writes <code>kind: "dicebear"</code>, the current style and that seed.</li>
+      <li>Letter characters and colors are edited in the picker and remain stored in the profile's <code>initial</code> / <code>color</code>.</li>
+      <li>The variant grid uses fixed 48px tracks in the row's right-hand cluster, instead of <code>1fr</code>  filling the row.</li>
+      <li>Saved <code>AvatarConfig</code>  continues to render using the original kind / style / seed.</li>
     </ol>
   </section>
   <section>
-    <h2>实现状态</h2>
-    <p><span class="status">已实现。</span> <code>AvatarPicker</code> 以三种类型为入口；Generated 用 <code>AVATAR_STYLES</code> 选风格，<code>variants.ts</code> 只为当前风格生成 seed。Letter 控件从 <code>ProfileEditor</code> 迁入选择器。设置卡片把 Avatar 做成与其它行相同的两段式：左侧标签，右侧自然尺寸选择器。<code>apps/web/tests/settings/avatar-randomization.test.mjs</code> 与 <code>theme-appearance.test.mjs</code> 校验同风格变体、Regenerate 不改风格、Letter 控件位置和固定轨道网格。</p>
+    <h2>Implementation status</h2>
+    <p><span class="status">Implemented.</span> <code>AvatarPicker</code>  offers three types; Generated uses <code>AVATAR_STYLES</code>  to select a style, and<code>variants.ts</code>  generates seeds only for the current style. Letter controls move from <code>ProfileEditor</code>  into the picker. The settings card gives Avatar the same two-part layout as other rows: left label and naturally sized right picker.<code>apps/web/tests/settings/avatar-randomization.test.mjs</code>  and <code>theme-appearance.test.mjs</code>  verify same-style variants, unchanged style on Regenerate, Letter control placement and the fixed-track grid.</p>
   </section>
 </main></body>
 </html>

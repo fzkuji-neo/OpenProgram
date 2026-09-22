@@ -9,7 +9,7 @@ OpenProgram 的全部状态存在 `~/.openprogram/` 一个目录里。本页说�
 
 | 路径 | 内容 |
 |------|------|
-| `config.json` | 用户设置：端口、默认模型、provider 配置、禁用的工具等，见[配置参考](../reference/config.md) |
+| `config.json` | 用户设置：端口、默认模型、provider 配置、禁用的工具等，见[配置参考](../reference/config.zh.md) |
 | `sessions/`、`sessions-git/` | 聊天会话数据及其 git 存档 |
 | `agents/`、`agents.json` | agent 定义（persona、模型、技能） |
 | `auth/` | provider 凭据存储 |
@@ -104,4 +104,4 @@ openprogram --profile dev            # 用 ~/.openprogram-dev/ 跑一套独立�
 OPENPROGRAM_PROFILE=dev openprogram status
 ```
 
-配合不同的 `OPENPROGRAM_WEB_PORT` 可以同时跑多套服务。安装方式见[安装](../install/profiles.md)。
+配合不同的 `OPENPROGRAM_WEB_PORT` 可以同时跑多套服务。安装方式见[安装](../install/profiles.zh.md)。

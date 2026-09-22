@@ -1,7 +1,7 @@
 # 模型目录与 Provider 配置
 
 > 本文描述模型目录的运行逻辑：数据放哪、文件与代码怎么交互、后端和前端各自怎么消费。
-> Thinking effort 的参数细节见 [thinking-effort.md](thinking-effort.md)。
+> Thinking effort 的参数细节见 [thinking-effort.md](thinking-effort.zh.md)。
 
 ## 1. 一句话架构
 

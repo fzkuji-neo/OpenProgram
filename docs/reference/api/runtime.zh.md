@@ -1,4 +1,6 @@
-# Runtime
+<div id="runtime"></div>
+
+# 运行时 API
 
 > Source: [`openprogram/agentic_programming/runtime.py`](https://github.com/fzkuji-neo/OpenProgram/blob/main/openprogram/agentic_programming/runtime.py)
 
@@ -6,7 +8,9 @@ LLM 运行时。封装 LLM provider,自动从 session DAG 算上下文、调用 
 
 ---
 
-## Class: `Runtime`
+<div id="class-runtime"></div>
+
+## `Runtime` 类
 
 ```python
 class Runtime(call=None, model="default", max_retries=None, api_key=None, skills=None)
@@ -73,7 +77,7 @@ Runtime.exec(content, context=None, response_format=None, model=None,
 | `tool_choice` | `str \| dict` | `"auto"` | `"auto"` / `"required"` / `"none"` / `{"type":"function","name":"X"}` 强制某工具。透传到 provider(OpenAI / Anthropic / Gemini / Bedrock 各自映射协议形态) |
 | `parallel_tool_calls` | `bool` | `True` | 允许一轮多个工具调用;`False` 透传到支持该开关的 provider |
 | `max_iterations` | `int` | `20` | 工具循环轮数上限(一轮 = 一次模型调用 + 其工具执行)。生效值为 `max(1, max_iterations)`。聊天轮次不设上限。这个默认 20 只作用于 `runtime.exec` |
-| `choices` | `dict \| list \| None` | `None` | 设了则约束 turn 的**收尾**:模型跑完整 turn 后,最终回复必须从 `choices` 里选一个;`exec` 解析并返回该选择的结果。详见 [next-step-decision](../../capabilities/agentic-programming/choosing-the-next-step/next-step-decision.md) |
+| `choices` | `dict \| list \| None` | `None` | 设了则约束 turn 的**收尾**:模型跑完整 turn 后,最终回复必须从 `choices` 里选一个;`exec` 解析并返回该选择的结果。详见 [next-step-decision](../../capabilities/agentic-programming/choosing-the-next-step/next-step-decision.zh.md) |
 | `timeout_s` | `float \| None` | `None` | 整个 `exec()`(含全部重试休眠)的墙钟时间预算,超时抛 `LLMError`(`reason=TIMEOUT`, `retryable=False`)。`None` = 回落到环境变量 `OPENPROGRAM_EXEC_TIMEOUT_S`(没设或为 `0` = 不限时) |
 | `on_retry` | `Callable \| None` | `None` | 每次退避休眠前调用的观测回调(每个后面还排着重试的失败尝试触发一次),入参 `RetryInfo`;最终失败不触发。回调内抛出的异常被吞掉 |
 | `web_search` | `bool` | `False` | 本次调用启用 provider 原生的 web 搜索工具(视 provider 支持) |

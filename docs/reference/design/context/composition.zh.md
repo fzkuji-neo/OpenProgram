@@ -740,14 +740,14 @@ io 已释放** —— 它是历史的安全网,不是删光。整会话上下文
 - 对话和函数调用统一走 `render_context`（`context/nodes.py`）+ `render_dag_messages` 渲染管道。对话场景 `frame_entry_seq=None`（顶层，全可见），函数调用场景由 `callers`/`subcalls`/`expose` 控制可见范围。
 - L2 处境（`_situational_prefix` + `_compute_call_path`）在 step 6a/6b 运行。
 - computer-use 指导与 token 预算提示未注册。
-- 第八节是设计，代码还没跟上。当前 `memory_global` 用 `fence_memory` 包 `core.md`，常驻块带的是召回围栏和召回那句话，`fence_core` 还不存在。`_build_memory` 对关掉 / 空 / 取不到三态一律返回空串。六个 `memory_*` 一个都不在 `DEFAULT_TOOLS` 里，只能经 `toolset="memory"` 或 `toolset="full"` 到达会话。`<environment>` 只报 OS 和 Shell。四处改动、各自落点、实测 token 代价见 [`memory-introspection.html`](memory-introspection.html)。
+- 第八节是设计，代码还没跟上。当前 `memory_global` 用 `fence_memory` 包 `core.md`，常驻块带的是召回围栏和召回那句话，`fence_core` 还不存在。`_build_memory` 对关掉 / 空 / 取不到三态一律返回空串。六个 `memory_*` 一个都不在 `DEFAULT_TOOLS` 里，只能经 `toolset="memory"` 或 `toolset="full"` 到达会话。`<environment>` 只报 OS 和 Shell。四处改动、各自落点、实测 token 代价见 [`memory-introspection.html`](memory-introspection.zh.html)。
 
 ---
 
 ## 相关文档
-- [`overview.md`](overview.md) —— 上下文层的机制（L1 历史由 DAG + ContextCommit 产出；expose/render_range 在那）
-- [`comparison.md`](comparison.md) —— 与参考项目的成分对比
-- [`compaction-diagram.html`](compaction-diagram.html) —— 上下文压缩设计（文本级四层管道 + DAG 级节点 visibility 精简）
-- [`memory-introspection.html`](memory-introspection.html) —— 第八节的可视化：逐块量出来的装配现状、八家参考实现在"模型知不知道自己有记忆"上的对照、每处改动的落点
-- [`../providers/request-build.md`](../providers/request-build.md) —— 下游：Context 翻译成各家 wire + 缓存落地
-- [`../runtime/execution/agentic-self-recursion.md`](../runtime/execution/agentic-self-recursion.md) —— `_situational_prefix`，L2 处境的雏形
+- [`overview.md`](overview.zh.md) —— 上下文层的机制（L1 历史由 DAG + ContextCommit 产出；expose/render_range 在那）
+- [`comparison.md`](comparison.zh.md) —— 与参考项目的成分对比
+- [`compaction-diagram.html`](compaction-diagram.zh.html) —— 上下文压缩设计（文本级四层管道 + DAG 级节点 visibility 精简）
+- [`memory-introspection.html`](memory-introspection.zh.html) —— 第八节的可视化：逐块量出来的装配现状、八家参考实现在"模型知不知道自己有记忆"上的对照、每处改动的落点
+- [`../providers/request-build.md`](../providers/request-build.zh.md) —— 下游：Context 翻译成各家 wire + 缓存落地
+- [`../runtime/execution/agentic-self-recursion.md`](../runtime/execution/agentic-self-recursion.zh.md) —— `_situational_prefix`，L2 处境的雏形

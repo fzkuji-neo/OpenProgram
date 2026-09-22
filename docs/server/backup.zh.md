@@ -122,7 +122,9 @@ openprogram backup prune --keep 5
 保留最新的 5 份，删掉其余的，并打印释放了多少空间。
 `--keep` 默认为 5，小于 1 的值会被拒绝。
 
-## Profile
+<div id="profile"></div>
+
+## 配置档案
 
 每个子命令只作用于当前 profile。在 `--profile alpha` 下，
 备份从 `~/.openprogram-alpha/backups/` 读写，
