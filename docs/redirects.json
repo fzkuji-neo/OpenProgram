@@ -59,5 +59,9 @@
   "reference/design/runtime/execution/execution-control.html": "reference/design/runtime/execution/control.html",
   "reference/design/runtime/execution/execution-control.zh.html": "reference/design/runtime/execution/control.zh.html",
   "reference/design/scheduler/scheduler-memory.html": "reference/design/scheduler/memory-integration.html",
-  "reference/design/scheduler/scheduler-memory.raw.html": "reference/design/scheduler/memory-integration.raw.html"
+  "reference/design/scheduler/scheduler-memory.raw.html": "reference/design/scheduler/memory-integration.raw.html",
+  "reference/design/runtime/overview.html": "reference/design/runtime/README.html",
+  "reference/design/research/execution-trace-model-selection.html": "reference/design/runtime/dag/overview.html#model-selection",
+  "reference/design/runtime/overview.zh.html": "reference/design/runtime/README.zh.html",
+  "reference/design/research/execution-trace-model-selection.zh.html": "reference/design/runtime/dag/overview.zh.html#模型选型"
 }

@@ -4,8 +4,7 @@
 
 > This document is the authoritative design of the agent execution record: the
 > data model, its edges and invariants, branching and spawn, context rendering,
-> context assembly, and compaction. For the rationale behind choosing this model,
-> see [`../../research/execution-trace-model-selection.md`](../../research/execution-trace-model-selection.md).
+> context assembly, and compaction. The [model selection](#model-selection) section compares alternatives and explains the choices.
 > For the call-flow diagram, see [`../agent-call-flow.svg`](../agent-call-flow.svg).
 > The visual rendering spec (layout, edges, legend, default visibility) is
 > [`rendering.md`](rendering.md) — that file stays authoritative for
@@ -38,6 +37,76 @@ What is claimable as novel is the fusion itself: the recorded call tree *is*
 the runtime context, each call queries it by frame scope + per-function expose,
 and all nodes are retained for fork and replay. The individual ingredients
 (ContextVar call-stack tracking, graph forking) are common; the whole is not.
+
+<div id="alternatives-nearly-all-use-span"></div>
+<div id="conclusion"></div>
+<div id="distance-from-the-current-model"></div>
+<div id="drawbacks-of-span"></div>
+<div id="execution-trace-data-model-choosing-span"></div>
+<div id="history-fragmented-then-unified"></div>
+<div id="how-span-satisfies-the-requirements"></div>
+<div id="otel-is-real-consensus"></div>
+<div id="relationship-to-the-design-doc"></div>
+<div id="route"></div>
+<div id="state-of-the-field"></div>
+<div id="the-field"></div>
+<div id="the-llm-agent-tracing-community-has-converged-on-span"></div>
+<div id="the-problem"></div>
+<div id="model-selection"></div>
+
+## Model selection and trade-offs
+
+### Why a session DAG
+
+The execution record serves three requirements together: nested calls, conversation
+branches, and the exact nodes read by each LLM call. All LLM invocations use the
+same node role, and loop iterations remain siblings. A single call tree cannot
+also identify alternative conversation continuations; timestamps cannot identify
+which branch a reply follows. The design therefore retains `caller`,
+`predecessor`, and `reads` as distinct relationships, with `seq` providing order.
+
+### Alternatives considered
+
+| Model | Useful properties | Boundary for this design |
+|---|---|---|
+| Flat logs | Append-only events, simple collection | Nesting, branch ancestry and context reads require additional explicit relationships. |
+| Span tree | Operation identity, parent-child calls, timing, status and attributes | Parentage describes calls; it cannot replace the separate conversation predecessor. |
+| Timed nested intervals | Suitable for performance views such as Chrome Trace / Perfetto | Timing is a view of execution, not a durable definition of branch ancestry. |
+| Session DAG | Calls, conversation branches and context reads in one record | Requires edge validation, indexes and explicit rendering rules. This is the selected internal model. |
+
+The reference corpus includes commercial APM (Datadog, New Relic, Honeycomb and
+Lightstep), kernel tracing (Pixie and Cilium), and agent observability systems
+(Langfuse, Arize Phoenix/OpenInference, LangSmith, OpenLLMetry, W&B Weave and
+Braintrust). These are references for collection, inspection and export, not
+requirements to reproduce their storage models or product behavior. The normative
+external reference for span structure is the [OpenTelemetry trace model](https://opentelemetry.io/docs/concepts/signals/traces/).
+
+### Adopted and rejected choices
+
+| Choice | Decision and reason |
+|---|---|
+| A uniform operation record | Adopted: user, LLM and code nodes share `Call`, with roles and metadata describing differences. |
+| A parent-child call relationship | Adopted as `caller`; nested functions and LLM calls retain their execution ancestry. |
+| Replacing the conversation edge with time order | Rejected: `predecessor` is a top-level schema field required for forks, retries and branch traversal. `seq` orders records but cannot identify branch ancestry. |
+| Treating context reads only as tracing events | Rejected internally: `reads` is an explicit list of node IDs used to explain context selection. Any telemetry export is a separate mapping. |
+| Adding `caused_by` as a prerequisite | Not part of this schema; do not present a tracing link proposal as an implemented field. |
+| Requiring an OTel SDK for persistence | Rejected: session storage and context reconstruction remain owned by OpenProgram. |
+| GenAI attribute conventions | A reference for interoperable model and usage metadata; consulting the conventions does not imply an implemented exporter. See the [official conventions](https://github.com/open-telemetry/semantic-conventions-genai). |
+
+### Costs and implementation boundary
+
+Recording each invocation increases storage and indexing work. Sampling away
+canonical nodes would remove history needed for context reconstruction, branching
+and replay; any sampled telemetry must be derived separately. The call tree and
+conversation chain also need independent validation. Token, cost and evaluation
+metadata require explicit definitions rather than being inferred from timing.
+
+The field mapping is `Call.id` for identity, `caller` for invocation ancestry,
+`predecessor` for conversation ancestry, `seq` for deterministic order, `reads`
+for context references, and `metadata` for adapter-specific data. `created_at`
+is a wall-clock timestamp, not the ordering key. The following sections define
+these contracts; the implementation-status appendix records remaining work.
+
 
 ## 2. Data Model
 

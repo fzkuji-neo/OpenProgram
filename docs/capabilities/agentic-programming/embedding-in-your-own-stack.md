@@ -174,4 +174,4 @@ embedded code that never touches them behaves correctly: nothing cancels, and
 
 - [`@agentic_function`](writing-functions/agentic-function.md) — the decorator in depth
 - [Runtime API](../../reference/api/runtime.md) — `exec()` parameters and behaviour
-- [Embedding seams](../../reference/design/runtime/overview.md) — the design contract behind this mode
+- [Embedding seams](../../reference/design/runtime/README.md) — the design contract behind this mode
