@@ -8,7 +8,7 @@ const settings = read("../../components/settings/memory-settings.tsx");
 const settingsCss = read("../../components/settings/memory-settings.module.css");
 const settingsNav = read("../../components/settings/settings-tabs-layout.tsx");
 const settingsCache = read("../../lib/prefs/settings-cache.ts");
-const design = read("../../../../docs/reference/design/memory/memory-settings-ui.html");
+const design = read("../../../../docs/reference/design/memory/settings-ui.html");
 
 assert.match(settingsNav, /href: "\/settings\/memory"/);
 assert.match(page, /href="\/settings\/memory"/);

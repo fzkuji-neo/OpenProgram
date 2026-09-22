@@ -88,7 +88,7 @@ assert.equal(
   "an existing runtime card must not reload the transcript",
 );
 
-assert.match(design, /Chat 渲染稳定性/);
-assert.match(design, /历史 message element identity 保持不变/);
+assert.match(design, /Chat rendering stability/);
+assert.match(design, /preserves existing historical message element identity/);
 
 console.log("web-use chat stability contract: ok");
