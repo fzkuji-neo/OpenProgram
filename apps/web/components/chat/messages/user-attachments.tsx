@@ -156,9 +156,10 @@ function FileGlyph() {
  *  instead of a file glyph. A path-less chip (upload still in flight,
  *  legacy inlined `<file>` block, oversize file that was never stored)
  *  stays a plain label — there is nothing to open. */
-export function AttachmentChips({ items }: { items: ParsedAttachment[] }) {
+export function AttachmentChips({ items, sessionId: ownerSessionId }: { items: ParsedAttachment[]; sessionId?: string | null }) {
   const { text } = useTranslation();
-  const sessionId = useSessionStore((s) => s.currentSessionId);
+  const focusedSessionId = useSessionStore((s) => s.currentSessionId);
+  const sessionId = ownerSessionId === undefined ? focusedSessionId : ownerSessionId;
   const [open, setOpen] = useState<ParsedAttachment | null>(null);
   if (items.length === 0) return null;
   return (
@@ -204,6 +205,7 @@ export function AttachmentChips({ items }: { items: ParsedAttachment[] }) {
       })}
       {open ? (
         <AttachmentPreview
+          sessionId={sessionId}
           path={open.path}
           filename={open.filename}
           onClose={() => setOpen(null)}

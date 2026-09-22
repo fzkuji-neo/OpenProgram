@@ -65,7 +65,6 @@ import { AgentBranchBanner } from "./agent-branch-banner";
 import { RuntimeBlock } from "./runtime-block";
 import { SpawnedFromCard } from "./spawned-from-card";
 import { UserBubble } from "./user-bubble";
-import { QueuedMessages } from "./queued-messages";
 import { MessageTimestamp } from "./message-actions";
 
 /** goal 循环的内部 spawn 轮 label（openprogram/programs/workflow/goal/
@@ -894,11 +893,6 @@ export const MessageList = memo(function MessageList({
       ) : null}
       {paintRows ? <DecisionOutputs key={`decisions-${sessionId}`} sessionId={sessionId} /> : null}
       {paintRows ? <SystemAccessWaits key={sessionId} sessionId={sessionId} /> : null}
-      {/* Messages typed during the run — dimmed rows under the live
-          turn, drained one at a time when it ends. */}
-      {paintRows ? (
-        <QueuedMessages sessionId={sessionId} />
-      ) : null}
       {paintRows && jumpShown && jumpHost
         ? createPortal(
             <div className={[

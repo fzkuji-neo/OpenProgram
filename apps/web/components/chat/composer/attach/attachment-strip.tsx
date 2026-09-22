@@ -15,6 +15,8 @@ import {
 import styles from "./attachment-strip.module.css";
 
 interface AttachmentStripProps {
+  sessionId?: string | null;
+  readOnly?: boolean;
   pendingImages: PendingImage[];
   pendingDocs: PendingDoc[];
   imageError: string | null;
@@ -57,6 +59,8 @@ function itemMeta(
 }
 
 export function AttachmentStrip({
+  readOnly = false,
+  sessionId,
   pendingImages,
   pendingDocs,
   imageError,
@@ -159,7 +163,7 @@ export function AttachmentStrip({
                     </span>
                   </span>
                 </button>
-                <button
+                {!readOnly && <button
                   type="button"
                   className={styles.remove}
                   data-attachment-remove
@@ -167,7 +171,7 @@ export function AttachmentStrip({
                   onClick={() => onRemoveImage(image.id)}
                 >
                   ×
-                </button>
+                </button>}
               </div>
             );
           }
@@ -212,7 +216,7 @@ export function AttachmentStrip({
                   </span>
                 </span>
               </button>
-              <button
+              {!readOnly && <button
                 type="button"
                 className={styles.remove}
                 data-attachment-remove
@@ -220,7 +224,7 @@ export function AttachmentStrip({
                 onClick={() => onRemoveDoc(doc.id)}
               >
                 ×
-              </button>
+              </button>}
             </div>
           );
         })}
@@ -245,12 +249,14 @@ export function AttachmentStrip({
       </div>
       {preview?.kind === "image" && (
         <FilePreviewModal
+          sessionId={sessionId}
           image={preview.item}
           onClose={() => setPreview(null)}
         />
       )}
       {preview?.kind === "doc" && (
         <FilePreviewModal
+          sessionId={sessionId}
           doc={preview.item}
           onClose={() => setPreview(null)}
         />

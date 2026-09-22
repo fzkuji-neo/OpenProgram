@@ -101,6 +101,7 @@ function releaseAttachmentPreviews(data: StoredAttachments): StoredAttachments {
  */
 export function useComposerAttachments(
   boundChatKey?: string | null,
+  transientInitial?: StoredAttachments,
 ): UseComposerAttachmentsResult {
   const isBound = boundChatKey != null;
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
@@ -123,8 +124,8 @@ export function useComposerAttachments(
   const mountedRef = useRef(true);
   const lifecycleEpochRef = useRef(0);
   const activeChatKeyRef = useRef<string | null>(activeChatKey);
-  const attachmentsByChatRef = useRef<AttachmentsByChat>(new Map());
-  const loadedAttachmentKeysRef = useRef(new Set<string>());
+  const attachmentsByChatRef = useRef<AttachmentsByChat>(new Map(boundChatKey && transientInitial ? [[boundChatKey, transientInitial]] : []));
+  const loadedAttachmentKeysRef = useRef(new Set<string>(boundChatKey && transientInitial ? [boundChatKey] : []));
   const loadingAttachmentKeysRef = useRef(new Set<string>());
   const dirtyAttachmentKeysRef = useRef(new Set<string>());
   const attachmentMergeChangesRef = useRef(
@@ -155,7 +156,7 @@ export function useComposerAttachments(
   }, []);
 
   const persistAttachments = useCallback((chatKey: string, data: StoredAttachments) => {
-    if (attachmentOwnerIsClosed(chatKey)) return;
+    if (transientInitial || attachmentOwnerIsClosed(chatKey)) return;
     const previous = attachmentWriteChainsRef.current.get(chatKey) ?? Promise.resolve();
     const next = previous
       .catch(() => undefined)
@@ -169,7 +170,7 @@ export function useComposerAttachments(
         attachmentWriteChainsRef.current.delete(chatKey);
       }
     });
-  }, []);
+  }, [transientInitial]);
 
   const publishAttachments = useCallback((chatKey: string, data: StoredAttachments) => {
     if (attachmentOwnerIsClosed(chatKey)) {

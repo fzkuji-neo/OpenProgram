@@ -1,23 +1,23 @@
 .attachmentStrip {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: flex-start;
   box-sizing: border-box;
-  max-height: 214px;
+  max-height: 112px;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 10px 10px 8px;
+  padding: 8px 10px 4px;
 }
 
 .attachmentItem {
-  width: 248px;
+  width: 212px;
   max-width: 100%;
-  height: 60px;
+  height: 46px;
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 8px;
+  padding: 5px 7px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -56,9 +56,9 @@
 
 .thumb,
 .formatIcon {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
   border-radius: 5px;
   overflow: hidden;
   display: grid;
@@ -70,8 +70,8 @@
 }
 
 .thumbImg {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   display: block;
 }

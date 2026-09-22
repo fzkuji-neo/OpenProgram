@@ -22,6 +22,8 @@
  */
 "use client";
 
+import { QueuedMessages } from "../messages/queued-messages";
+
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -165,7 +167,8 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   const fnFormActive = fnFormFunction !== null;
   // Decisions have their own output cards. Chat text always sends or queues
   // a message, and an empty running composer retains its Stop action.
-  const showStop = isRunning && !fnFormActive && !input.trim();
+  const showStop = isRunning && !fnFormActive && !input.trim()
+    && pendingImages.length === 0 && pendingDocs.length === 0;
   const composerMode = resolveComposerMode(fnFormFunction);
   const morphed = composerMode !== "idle";
 
@@ -525,6 +528,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
             document.body,
           )
         : null}
+      <QueuedMessages key={activeChatKey ?? currentSessionId ?? "new"} sessionId={activeChatKey ?? currentSessionId} />
       <EnvironmentRow
         sessionId={currentSessionId}
         toolsEnabled={toolsEnabled}
@@ -559,6 +563,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         className={`${styles.inputWrapper} ${morphed ? styles.morphed : ""}`}
       >
         <AttachmentStrip
+          sessionId={currentSessionId}
           pendingImages={pendingImages}
           pendingDocs={pendingDocs}
           imageError={imageError}

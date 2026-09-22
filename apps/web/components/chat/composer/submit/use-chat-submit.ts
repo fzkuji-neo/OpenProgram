@@ -124,10 +124,10 @@ export function useChatSubmit({
     // During a run every plain-text send first gets one retained queue row.
     // Queue mode leaves it there; steer mode marks that same row injecting
     // until the durable command receipt accepts it or releases it for normal drain.
-    // (Plain text only — attachments / slash go through the normal path,
-    // which is disabled while running.)
+    // Attachments stay in the queue for an ordinary turn; steering is text-only.
     if (isRunning) {
-      if (!trimmed || !submitOwnerKey) return;
+      if ((!trimmed && pendingImages.length === 0 && pendingDocs.length === 0) || !submitOwnerKey) return;
+      if (attachmentsBlockSend(pendingImages, pendingDocs)) return;
       // Queue and steer bypass the ordinary send preparation below. Capture
       // the full paste now: clearing the draft may GC its backing entry, and
       // neither queue drain nor steer may send an unresolved placeholder.
@@ -135,6 +135,8 @@ export function useChatSubmit({
       const queuedText = expandPasteTokens(trimmed);
       const queuedId = enqueueMessage(submitOwnerKey, {
         text: queuedText,
+        images: pendingImages,
+        docs: pendingDocs,
         thinking,
         toolsEnabled,
         toolsProfile,
@@ -143,13 +145,11 @@ export function useChatSubmit({
         background: bound !== null,
         injecting: false,
       }, pendingImages.length + pendingDocs.length);
-      if (!queuedId) {
-        // 队列只收纯文本；带附件的草稿保持原样并提示，而不是无声 no-op
-        // 让用户以为发送坏了。
-        const { showToast } = await import("@/lib/format-utils/toast");
-        showToast("Attachments can't be queued — stop the current turn or wait for it to finish.");
-        return;
-      }
+      if (!queuedId) return;
+      clearAttachmentsAfterSubmit(submitOwnerKey, {
+        imageIds: pendingImages.map(image => image.id),
+        docIds: pendingDocs.map(doc => doc.id),
+      });
       // This accepted submit does not reach sendChatMessage until queue drain
       // (and a successful steer may never reach it). Follow the submitting
       // scroller now, even though messageOrder/lastId has not changed yet.
@@ -160,7 +160,7 @@ export function useChatSubmit({
       });
       setComposerInputFor(submitOwnerKey, "");
       setHistoryIndex(-1);
-      if (runningMessageMode === "steer") {
+      if (runningMessageMode === "steer" && !pendingImages.length && !pendingDocs.length) {
         void steerQueuedMessage(submitOwnerKey, queuedId);
       }
       return;
