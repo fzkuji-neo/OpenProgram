@@ -203,7 +203,7 @@ test("Open in tab reveals the exact existing page as the current top tab", async
   const root = createRoot(host);
   try {
     await act(async () => root.render(createElement(SessionResourcesPanel)));
-    assert.match(host.textContent, /Unassigned/);
+    assert.match(host.textContent, /Webpage/);
     assert.equal([...host.querySelectorAll("button")].some(b => /pin to top|remove from top/i.test(`${b.title}${b.getAttribute("aria-label") || ""}`)), false);
     const visibleBefore = topLevelTabs(useCenterTabs.getState().tabs, groups).map(tab => tab.id);
     assert.ok(!visibleBefore.includes(page.id));
@@ -401,7 +401,7 @@ test("hide keeps the page and does not change the live tab identity", () => {
   resetBrowserResources();
 });
 
-test("current branch group uses a title-adjacent section chevron and keyboard-collapses without hiding other groups", async () => {
+test("resource type group uses a title-adjacent section chevron and keyboard-collapses without hiding other groups", async () => {
   resetBrowserResources();
   const session = { id: "s:a", kind: "session", sessionId: "a", title: "Chat A" };
   const currentPage = pageTab("w:a", "a", "https://example.org", { title: "Example Domain" });
@@ -417,8 +417,8 @@ test("current branch group uses a title-adjacent section chevron and keyboard-co
       tabId: currentPage.id, branchId: "br-a", branchName: "Research",
       controlState: "idle", generation: 1, sequence: 1,
     }, {
-      id: "assoc-b", sessionId: "a", scopeSessionId: "a", kind: "web", title: "Other page",
-      target: otherPage.url, status: "open", source: "browser", sourceId: otherPage.id, resourceId: "page-b",
+      id: "assoc-b", sessionId: "a", scopeSessionId: "a", kind: "vm", title: "Other page",
+      target: otherPage.url, status: "open", source: "usage", sourceId: otherPage.id, resourceId: "page-b",
       tabId: otherPage.id, branchId: "br-b", branchName: "Preview live check",
       controlState: "idle", generation: 1, sequence: 1,
     }],
@@ -428,20 +428,20 @@ test("current branch group uses a title-adjacent section chevron and keyboard-co
   const root = createRoot(host);
   try {
     await act(async () => root.render(createElement(SessionResourcesPanel)));
-    const currentBlock = host.querySelector('[data-resource-group="br-a"]');
-    const otherBlock = host.querySelector('[data-resource-group="br-b"]');
+    const currentBlock = host.querySelector('[data-resource-group="web"]');
+    const otherBlock = host.querySelector('[data-resource-group="vm"]');
     const current = currentBlock?.querySelector("[aria-expanded]");
     const other = otherBlock?.querySelector("[aria-expanded]");
-    assert.equal(currentBlock.getAttribute("data-current"), "true");
+    assert.equal(currentBlock.getAttribute("data-current"), null);
     assert.equal(otherBlock.getAttribute("data-current"), null);
     assert.equal(current.getAttribute("role"), "button");
     assert.equal(current.getAttribute("aria-expanded"), "true");
     const title = current.firstElementChild;
-    assert.equal(title?.textContent, "Research");
+    assert.equal(title?.textContent, "Webpage");
     const chevron = title.nextElementSibling;
     assert.ok(chevron?.querySelector("svg"), "chevron sits immediately after the title");
     assert.ok(!chevron.textContent.trim());
-    assert.equal(currentBlock.querySelector("small")?.textContent, "Current");
+    assert.equal(currentBlock.querySelector("small")?.textContent, "1");
     assert.ok(!current.contains(currentBlock.querySelector("small")), "Current trails the section, not the chevron");
     assert.equal(other.getAttribute("aria-expanded"), "true");
     assert.ok(host.querySelector('[title="https://example.org"]'));
@@ -550,30 +550,22 @@ test("restore statuses stay on the original branch with localized labels", async
   const { host, root } = mountPanel();
   try {
     await act(async () => { setLocale("en"); root.render(createElement(SessionResourcesPanel)); });
-    const branch = host.querySelector('[data-resource-group="br-a"]');
+    const branch = host.querySelector('[data-resource-group="web"]');
     const closed = host.querySelector('[data-resource-group="unavailable"]');
     assert.ok(branch);
-    assert.ok(closed);
+    assert.equal(closed, null);
     assert.match(branch.textContent, /Restoring page…/);
     assert.match(branch.textContent, /Could not restore page/);
     assert.match(branch.textContent, /Reconnect/);
     assert.match(branch.textContent, /arXiv/);
     assert.doesNotMatch(branch.textContent, /Old tab/);
-    assert.match(closed.textContent, /Closed resources/);
-    assert.match(closed.querySelector("small")?.textContent || "", /1/);
-    const closedToggle = closed.querySelector("[aria-expanded]");
-    assert.ok(closedToggle);
-    await act(async () => {
-      closedToggle.dispatchEvent(keydown("Enter"));
-    });
-    assert.match(closed.textContent, /Old tab/);
     assert.doesNotMatch(host.textContent, /Unavailable/);
     assert.equal(getPreviewPreference("a", "br-a").hidden, true);
     await act(async () => { setLocale("zh"); });
-    assert.match(host.querySelector('[data-resource-group="br-a"]').textContent, /正在恢复网页…/);
-    assert.match(host.querySelector('[data-resource-group="br-a"]').textContent, /网页恢复失败/);
-    assert.match(host.querySelector('[data-resource-group="br-a"]').textContent, /需要重新连接/);
-    assert.match(host.querySelector('[data-resource-group="unavailable"]').textContent, /已关闭的资源/);
+    assert.match(host.querySelector('[data-resource-group="web"]').textContent, /正在恢复网页…/);
+    assert.match(host.querySelector('[data-resource-group="web"]').textContent, /网页恢复失败/);
+    assert.match(host.querySelector('[data-resource-group="web"]').textContent, /需要重新连接/);
+    assert.equal(host.querySelector('[data-resource-group="unavailable"]'), null);
     assert.match(host.textContent, /arXiv/);
   } finally {
     setLocale("en");
@@ -606,7 +598,7 @@ test("labels follow App language without remount; user titles stay verbatim", as
   const snapshot = () => host.textContent || "";
   try {
     await act(async () => { setLocale("en"); root.render(createElement(SessionResourcesPanel)); });
-    assert.match(snapshot(), /Current/);
+    assert.doesNotMatch(snapshot(), /Current/);
     assert.match(snapshot(), /Webpage/);
     assert.match(snapshot(), /Open/);
     assert.match(snapshot(), /Main agent/);
@@ -616,12 +608,12 @@ test("labels follow App language without remount; user titles stay verbatim", as
     );
     assert.ok(previewInConversationButton(host, "Google"));
     assert.match(snapshot(), /Google/);
-    assert.match(snapshot(), /研究分支/);
+    assert.doesNotMatch(snapshot(), /研究分支/);
     assert.match(snapshot(), /Research Agent/);
     assert.doesNotMatch(snapshot(), /当前|网页|已打开|主 Agent|虚拟机/);
 
     await act(async () => { setLocale("zh"); });
-    assert.match(snapshot(), /当前/);
+    assert.doesNotMatch(snapshot(), /当前/);
     assert.match(snapshot(), /网页/);
     assert.match(snapshot(), /已打开/);
     assert.match(snapshot(), /主 Agent/);
@@ -632,12 +624,12 @@ test("labels follow App language without remount; user titles stay verbatim", as
       true,
     );
     assert.match(snapshot(), /Google/);
-    assert.match(snapshot(), /研究分支/);
+    assert.doesNotMatch(snapshot(), /研究分支/);
     assert.match(snapshot(), /Research Agent/);
     assert.doesNotMatch(snapshot(), /Current|Webpage|\bOpen\b|Main agent/);
 
     await act(async () => { setLocale("en"); });
-    assert.match(snapshot(), /Current/);
+    assert.doesNotMatch(snapshot(), /Current/);
     assert.match(snapshot(), /Webpage/);
     assert.match(snapshot(), /Open/);
     assert.match(snapshot(), /Main agent/);
@@ -647,7 +639,7 @@ test("labels follow App language without remount; user titles stay verbatim", as
     );
     assert.ok(previewInConversationButton(host, "Google"));
     assert.match(snapshot(), /Google/);
-    assert.match(snapshot(), /研究分支/);
+    assert.doesNotMatch(snapshot(), /研究分支/);
     assert.match(snapshot(), /Research Agent/);
   } finally {
     setLocale("en");
@@ -713,12 +705,12 @@ test("preview and Open in tab retry only recoverable pages with the exact tab id
   try {
     await act(async () => { setLocale("en"); root.render(createElement(SessionResourcesPanel)); });
     const closedGroup = host.querySelector('[data-resource-group="unavailable"]');
-    await act(async () => closedGroup.querySelector("[aria-expanded]").dispatchEvent(keydown("Enter")));
+    assert.equal(closedGroup, null);
 
     await act(async () => previewInConversationButton(host, "Healthy").click());
     await act(async () => openInTabButton(host, "Healthy").click());
-    await act(async () => previewInConversationButton(host, "Old tab").click());
-    await act(async () => openInTabButton(host, "Old tab").click());
+    assert.equal(previewInConversationButton(host, "Old tab"), undefined);
+    assert.equal(openInTabButton(host, "Old tab"), undefined);
     await act(async () => previewInConversationButton(host, "Restoring").click());
     assert.deepEqual(globalThis.retryRestoreCalls, []);
     assert.equal(getPreviewPreference("a", "br-a").hidden, false);
@@ -848,5 +840,44 @@ test("Application resources open the same instance inline without starting an op
   } finally {
     await act(async () => root.unmount()); host.remove();
     globalThis.fetch = originalFetch;
+  }
+});
+
+test("type groups retain sidebar actions and collapse state without using page or branch titles", async () => {
+  resetBrowserResources();
+  const session = { id: "s:type-group", kind: "session", sessionId: "type-group", title: "Open Baidu" };
+  const page = pageTab("w:type-group", session.sessionId, "https://example.test");
+  useCenterTabs.setState({ tabs: [session, page], activeId: session.id, groups: [], splitWebTabId: null });
+  globalThis.resourceBackend = { rows: [
+    { id: "type-web", sessionId: session.sessionId, scopeSessionId: session.sessionId, kind: "web", title: "Baidu title", target: page.url,
+      status: "open", source: "browser", sourceId: page.id, tabId: page.id, branchName: "Open Baidu", branchId: "br-a" },
+    { id: "type-vm", sessionId: session.sessionId, kind: "vm", title: "Dev machine", target: "vm://dev",
+      status: "running", source: "usage", sourceId: "vm", branchName: "Open Baidu", branchId: "br-a" },
+  ], currentBranchId: "br-a", loaded: true };
+  let { host, root } = mountPanel();
+  try {
+    await act(async () => root.render(createElement(SessionResourcesPanel)));
+    assert.deepEqual([...host.querySelectorAll('[data-resource-group]')].map(el => el.dataset.resourceGroup), ['web', 'vm']);
+    assert.equal(host.querySelector('[data-resource-group="web"] [aria-expanded]').textContent, 'Webpage');
+    assert.doesNotMatch(host.textContent, /Open Baidu/);
+    assert.ok(previewInConversationButton(host, 'Baidu title'));
+    assert.ok(openInTabButton(host, 'Baidu title'));
+    assert.ok(host.querySelector('[aria-label="Close webpage: Baidu title"]'));
+    await act(async () => previewInConversationButton(host, 'Baidu title').click());
+    assert.equal(useWebTabPip.getState().tabId, page.id);
+    await act(async () => host.querySelector('[data-resource-kind="vm"] button').click());
+    assert.equal(useWebTabPip.getState().tabId, null);
+    assert.equal(getPreviewPreference(session.sessionId, 'br-a').hidden, true);
+    await act(async () => host.querySelector('[data-resource-group="web"] [aria-expanded]').dispatchEvent(keydown('Enter')));
+    assert.equal(host.querySelector('[data-resource-group="web"] [aria-expanded]').getAttribute('aria-expanded'), 'false');
+    await act(async () => root.unmount()); host.remove();
+    ({ host, root } = mountPanel());
+    await act(async () => root.render(createElement(SessionResourcesPanel)));
+    assert.equal(host.querySelector('[data-resource-group="web"] [aria-expanded]').getAttribute('aria-expanded'), 'false');
+    assert.equal(host.querySelector('[data-resource-group="vm"] [aria-expanded]').getAttribute('aria-expanded'), 'true');
+  } finally {
+    await act(async () => root.unmount()); host.remove();
+    localStorage.removeItem('openprogram.resource-groups:type-group');
+    useWebTabPip.getState().end(); resetBrowserResources();
   }
 });

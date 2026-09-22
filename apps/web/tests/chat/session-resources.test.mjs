@@ -114,13 +114,10 @@ test("browser associations keep exact page identity and group by branch not sess
   assert.equal(backend.filter(row => row.resourceId === "page-a").length, 2);
   const rows = sessionResourceRows(tabs, backend, "a");
   assert.equal(rows.filter(row => row.sourceId === "w:a" && row.source === "web").length, 0);
-  const groups = groupSessionResources(rows, "br-a");
-  assert.deepEqual(groups.map(group => group.key), ["br-a", "br-b", "unassigned"]);
-  assert.equal(groups[0].current, true);
-  assert.equal(groups[0].title, "Research");
-  assert.equal(groups[2].title, "Unassigned");
-  assert.ok(groups[2].rows.some(row => row.id === "assoc-c"));
-  assert.ok(groups[2].rows.some(row => row.kind === "vm"));
+  const groups = groupSessionResources(rows);
+  assert.deepEqual(groups.map(group => group.key), ["web", "vm"]);
+  assert.ok(groups[0].rows.some(row => row.id === "assoc-c"));
+  assert.ok(groups[1].rows.some(row => row.kind === "vm"));
 });
 
 test("optimistic close suppresses a late old event but authoritative snapshot restores on failure", () => {
@@ -202,38 +199,20 @@ test("parent Resources keep authorized child-owned browser Pages", () => {
   assert.equal(listed.length, 1);
   assert.equal(listed[0].sessionId, "child");
   assert.equal(listed[0].conversationSessionId, "parent");
-  assert.equal(groupSessionResources(listed, "br-parent")[0].key, "br-parent");
+  assert.equal(groupSessionResources(listed)[0].key, "web");
 });
 
-test("unnamed branch groups use short origin, not the raw branch id", () => {
-  const branchId = "local_139d9ce9-b16e-4fb6-ac85-712ef0e5b03a:6bf13196";
-  const unnamed = backendResourceRows([
-    browserItem({ branch_id: branchId, branch_name: null }),
-  ], "a");
-  const unnamedGroups = groupSessionResources(unnamed, branchId);
-  assert.equal(unnamedGroups[0].key, branchId);
-  assert.equal(unnamedGroups[0].title, "6bf13196");
-  assert.equal(unnamedGroups[0].title.includes("local_"), false);
-
-  const promoted = backendResourceRows([
-    browserItem({ branch_id: branchId, branch_name: null }),
-    browserItem({
-      id: "assoc-named", branch_id: branchId, branch_name: "五页计数器发布验收", sequence: 2,
-    }),
-  ], "a");
-  assert.equal(groupSessionResources(promoted, branchId)[0].title, "五页计数器发布验收");
-  assert.equal(groupSessionResources(promoted, branchId)[0].key, branchId);
-
-  const firstNamed = backendResourceRows([
-    browserItem({ branch_id: branchId, branch_name: "Research" }),
-    browserItem({
-      id: "assoc-later", branch_id: branchId, branch_name: "Build", sequence: 2,
-    }),
-  ], "a");
-  assert.equal(groupSessionResources(firstNamed, branchId)[0].title, "Research");
+test("resource type order ignores branch names and keeps unknown kinds in other", () => {
+  const rows = ["mystery", "remote", "docker", "application", "terminal", "desktop", "vm", "web"].map((kind, i) => ({
+    id: String(i), source: "usage", kind, title: "Open Baidu", branchId: "branch", branchName: "Research", status: "open",
+  }));
+  const groups = groupSessionResources(rows);
+  assert.deepEqual(groups.map(group => group.key), ["web", "vm", "desktop", "terminal", "application", "docker", "remote", "other"]);
+  assert.equal(groups.at(-1).rows[0].kind, "mystery");
+  assert.deepEqual(groupSessionResources(rows.map(row => ({ ...row, title: "Renamed", branchName: "Renamed branch" }))).map(group => group.key), groups.map(group => group.key));
 });
 
-test("closed Pages move to a collapsed unavailable group and leave live counts", () => {
+test("closed Pages leave active type groups", () => {
   const rows = backendResourceRows([
     browserItem({ id: "assoc-live", status: "open", control_state: "active" }),
     browserItem({
@@ -241,15 +220,14 @@ test("closed Pages move to a collapsed unavailable group and leave live counts",
       status: "closed", control_state: "closed", sequence: 2,
     }),
   ], "a");
-  const groups = groupSessionResources(rows, "br-a");
-  assert.deepEqual(groups.map(group => group.key), ["br-a", "unavailable"]);
+  const groups = groupSessionResources(rows);
+  assert.deepEqual(groups.map(group => group.key), ["web"]);
   assert.equal(groups[0].rows.length, 1);
   assert.equal(groups[0].rows[0].id, "assoc-live");
-  assert.equal(groups[1].title, "Closed pages");
-  assert.equal(groups[1].rows[0].id, "assoc-dead");
+  assert.equal(groups.length, 1);
 });
 
-test("retained live Pages stay in the branch group across closed control and restore statuses", () => {
+test("retained live Pages stay in the type group across closed control and restore statuses", () => {
   const retained = [
     browserItem({ status: "open", control_state: "closed" }),
     browserItem({ id: "assoc-unknown", resource_id: "page-u", status: "unknown", control_state: "closed", sequence: 2 }),
@@ -259,8 +237,8 @@ test("retained live Pages stay in the branch group across closed control and res
   for (const row of retained) {
     assert.equal(resourceIsUnavailable(row), false, row.status);
   }
-  const groups = groupSessionResources(retained, "br-a");
-  assert.deepEqual(groups.map(group => group.key), ["br-a"]);
+  const groups = groupSessionResources(retained);
+  assert.deepEqual(groups.map(group => group.key), ["web"]);
   assert.equal(groups[0].rows.length, 4);
   assert.equal(resourceIsUnavailable(backendResourceRows([
     browserItem({ status: "closed", control_state: "unknown" }),
@@ -589,5 +567,5 @@ test("persistent terminals use the same scoped resource list and closed grouping
   assert.deepEqual(terminalResourceRows(records, "b"), []);
   assert.deepEqual(terminalResourceRows(records, null), []);
   const exited = terminalResourceRows([{ ...records[0], status: "exited" }], "a");
-  assert.equal(groupSessionResources(exited, null)[0].key, "unavailable");
+  assert.deepEqual(groupSessionResources(exited), []);
 });

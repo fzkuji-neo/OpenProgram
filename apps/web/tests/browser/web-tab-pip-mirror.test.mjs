@@ -60,7 +60,6 @@ test("PiP screenshot maps pixel points onto a letterboxed contain fit", () => {
   assert.match(pipSource, /Open page/);
   assert.match(pipSource, /Pause Agent to use page/);
   assert.match(pipSource, /<ExternalLink /);
-  assert.match(pipSource, /<Pin /);
   assert.doesNotMatch(pipSource, /<Locate /);
   assert.doesNotMatch(pipSource, /"Follow"/);
   assert.doesNotMatch(pipSource, /className=\{styles\.webPipBar\}/);

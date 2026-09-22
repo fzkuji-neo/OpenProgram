@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CircleHelp, ExternalLink, Maximize2, Minimize2, MoreVertical, Pause, Pin, Play, X } from "lucide-react";
+import { CircleHelp, ExternalLink, MoreVertical, Pause, Play, X } from "lucide-react";
 
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { ActionCueTravel } from "./browser-control-bar";
@@ -37,7 +37,6 @@ import {
   listedBrowserResources,
   previewTabId,
   selectResourcePreview,
-  togglePreviewExpanded,
   useBrowserResourceStore,
   viewedBranchFor,
   type SessionResource,
@@ -175,16 +174,22 @@ function PipMoreMenu({
   historyItems,
   historyLabel,
   showLabel,
+  following,
+  onToggleFollow,
 }: {
   historyItems: SidebarMenuItem[];
   historyLabel: string;
   showLabel: string;
+  following: boolean;
+  onToggleFollow: () => void;
 }) {
   const { text } = useTranslation();
   const menu = useSidebarMenu();
   const moreLabel = text("More", "更多");
+  const followLabel = text("Automatically show the page the Agent is using", "自动显示 Agent 正在操作的网页");
   const native = typeof window !== "undefined" && !!window.openprogramDesktop?.contextMenu;
   const items: SidebarMenuItem[] = [
+    { id: "follow-page", label: followLabel, checked: following, onSelect: onToggleFollow },
     {
       id: "show-actions",
       label: showLabel,
@@ -229,6 +234,9 @@ function PipMoreMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className={MENU_PANEL}>
+        <DropdownMenuItem role="menuitemcheckbox" aria-checked={following} onSelect={onToggleFollow}>
+          {following ? "✓ " : ""}{followLabel}
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => { toggleShowActions(); }}>
           {showActionsEnabled() ? "✓ " : ""}{showLabel}
         </DropdownMenuItem>
@@ -420,8 +428,8 @@ export function WebTabPip() {
 
   const title = resource?.title || tab.title || url;
   const openPage = text("Open page", "打开页面");
-  const hideLabel = text("Hide", "隐藏");
-  const expandLabel = pref?.expanded ? text("Collapse", "收起") : text("Expand", "展开");
+  const hideLabel = text("Close preview", "关闭小窗");
+  const hideHint = text("Close preview; the resource stays available", "关闭小窗，资源继续保留");
   const resizeLabels: Record<PipResizeDir, string> = {
     n: text("Resize from top", "从顶部调整大小"),
     ne: text("Resize from top right", "从右上角调整大小"),
@@ -433,12 +441,6 @@ export function WebTabPip() {
     nw: text("Resize from top left", "从左上角调整大小"),
   };
   const pinned = pref?.mode === "manual";
-  const pinLabel = pinned
-    ? text("Unpin preview", "取消固定预览")
-    : text("Pin preview", "固定预览");
-  const pinHint = pinned
-    ? text("Return to automatic display of the page the Agent is operating", "恢复自动显示 Agent 正在操作的页面")
-    : text("Hold the current page", "保持当前页面");
   const modeLabel = pinned
     ? text("Fixed preview", "固定预览")
     : text("Auto preview", "自动预览");
@@ -694,33 +696,12 @@ export function WebTabPip() {
               <CircleHelp size={14} aria-hidden="true" />
             </button>
           ) : null}
-          <button
-            type="button"
-            className={styles.webToolbarBtn}
-            aria-pressed={pinned}
-            aria-label={pinLabel}
-            title={pinHint}
-            style={pinned ? { background: "var(--bg-hover)", color: "var(--text-bright)" } : undefined}
-            onClick={togglePinnedPreview}
-          >
-            <Pin size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className={styles.webToolbarBtn}
-            onClick={() => {
-              if (sessionId) togglePreviewExpanded(sessionId, branchId);
-              render(value => value + 1);
-            }}
-            title={expandLabel}
-            aria-label={expandLabel}
-          >
-            {pref?.expanded ? <Minimize2 size={14} aria-hidden="true" /> : <Maximize2 size={14} aria-hidden="true" />}
-          </button>
           <PipMoreMenu
             historyItems={historyItems}
             historyLabel={historyLabel}
             showLabel={showLabel}
+            following={!pinned}
+            onToggleFollow={togglePinnedPreview}
           />
           <button
             type="button"
@@ -729,7 +710,7 @@ export function WebTabPip() {
               if (sessionId) hideResourcePreview(sessionId, branchId);
               hide();
             }}
-            title={hideLabel}
+            title={hideHint}
             aria-label={hideLabel}
           >
             <X size={14} aria-hidden="true" />

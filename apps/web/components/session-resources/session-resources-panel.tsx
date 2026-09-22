@@ -82,18 +82,34 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
   const terminals = useTerminalResources(s => s.rows);
   const terminalError = useTerminalResources(s => s.error);
   const pendingClose = pendingCloseRequest();
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const collapseKey = `openprogram.resource-groups:${sessionId || "no-session"}`;
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try {
+      const value = JSON.parse(localStorage.getItem(collapseKey) || "{}");
+      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    } catch { return {}; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(collapseKey, JSON.stringify(collapsed)); } catch { /* Storage may be unavailable. */ }
+  }, [collapseKey, collapsed]);
   const [selected, setSelected] = useState<SessionResource | null>(null);
   const [, render] = useState(0);
   const rows = sessionResourceRows(tabs, [...backend.rows, ...terminalResourceRows(Object.values(terminals), sessionId)], sessionId);
+  const selectView = (row: SessionResource) => {
+    if (!sessionId) return;
+    hideResourcePreview(sessionId, backend.currentBranchId);
+    useWebTabPip.getState().hide();
+    setSelected(row);
+  };
   const requested = useResourceSelection(s => s.id);
   const requestRevision = useResourceSelection(s => s.revision);
   useEffect(() => {
     if (!requested) { setSelected(null); return; }
     const row = rows.find(item => item.id === requested);
     if (row?.source === "browser" || row?.source === "web") {
+      setSelected(null);
       if (sessionId) previewInConversation(sessionId, row);
-    } else if (row) setSelected(row);
+    } else if (row) selectView(row);
     // An explicit command selects the current descriptor once, never a replacement.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requested, requestRevision]);
@@ -103,14 +119,9 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
   };
   const viewedBranch = backend.currentBranchId;
   const pref = sessionId ? getPreviewPreference(sessionId, viewedBranch) : null;
-  const groups = groupSessionResources(rows, viewedBranch).map(group => {
-    const title = group.key === "unavailable"
-      ? text("Closed resources", "已关闭的资源")
-      : group.key === "unassigned"
-        ? text("Unassigned", "未归属")
-        : group.title;
-    return { ...group, title };
-  }).filter(group => group.rows.length > 0);
+  const groups = groupSessionResources(rows).map(group => ({
+    ...group, title: names[group.key] || text("Other resources", "其他资源"),
+  }));
   const icons = { terminal: TerminalSquare, web: Globe, docker: Box, vm: Monitor, remote: Server, desktop: Monitor };
   const statusName = (row: SessionResource) => {
     const pageRow = row.kind === "web" || row.source === "browser" || row.source === "web";
@@ -138,8 +149,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
       {groups.length === 0 && <p className={styles.empty}>{!backend.loaded ? text("Loading resources…", "正在加载资源…")
           : sessionId ? text("This session has no resources in use.", "当前会话没有正在使用的资源。") : text("Select a session to view its resources.", "选择会话以查看其资源。")}</p>}
       {groups.map(group => {
-        const open = group.key === "unavailable" ? collapsed[group.key] === false : !collapsed[group.key];
-        const currentLabel = text("Current", "当前");
+        const open = collapsed[group.key] !== true;
         const toggleGroup = () => {
           setCollapsed(value => {
             const closed = open;
@@ -148,15 +158,13 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
         };
         return <div key={group.key} className={`group/sec ${styles.groupBlock}`}
           data-resource-group={group.key}
-          data-current={group.current ? "true" : undefined}
-          title={group.current ? `${group.title} · ${currentLabel}` : group.title}>
+          title={group.title}>
         <SectionHeader
           name={group.title}
           collapsible
           collapsed={!open}
           onToggle={toggleGroup}
           actions={<span className={styles.groupMeta}>
-            {group.current ? <small className={styles.groupCurrent}>{currentLabel}</small> : null}
             <small className={styles.groupCount}>{group.rows.length}</small>
           </span>}
         />
@@ -176,11 +184,12 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
               onClick={() => {
                 if (!sessionId) return;
                 if (row.kind === "web" || row.source === "browser") {
+                  setSelected(null);
                   selectResourcePreview(sessionId, viewedBranch, row.id);
                   bindPreview(sessionId, row, false);
                   retryRecoverablePage(row, tabs);
                   render(value => value + 1);
-                } else setSelected(row);
+                } else selectView(row);
               }}><Icon size={16} aria-hidden="true" /><span><strong>{row.title}</strong>
               <small>{subtitle}</small></span></button>
             {operating && <span className={styles.dot} aria-hidden="true" />}
@@ -188,6 +197,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
               aria-label={`${text("Preview in conversation", "在会话中预览")}: ${row.title}`}
               title={text("Preview in conversation", "在会话中预览")} onClick={() => {
                 if (!sessionId) return;
+                setSelected(null);
                 selectResourcePreview(sessionId, viewedBranch, row.id);
                 previewInConversation(sessionId, row);
                 retryRecoverablePage(row, tabs);

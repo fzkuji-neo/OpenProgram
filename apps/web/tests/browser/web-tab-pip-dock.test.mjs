@@ -399,73 +399,49 @@ async function withShell(run, { capture } = {}) {
   }
 }
 
-test("chat PiP chrome is one row with icon actions and no second toolbar", async () => {
-  await withShell(async ({ host }) => {
-    assert.equal(host.querySelector("[data-web-pip-dock]"), null);
+test("preview chrome offers a close icon and omits pin and expand controls", async () => {
+  await withShell(async ({ host, page, session }) => {
     const pip = host.querySelector("[data-pip='true']");
     assert.ok(pip);
-    assert.equal(pip.getAttribute("data-pip-host"), "chat");
-    const handles = [...pip.querySelectorAll("[data-pip-resize]")];
-    assert.equal(handles.length, 8);
-    assert.deepEqual(handles.map((handle) => handle.getAttribute("data-pip-resize")), [...PIP_RESIZE_DIRS]);
-    assert.equal(handles.every((handle) => handle.parentElement === pip), true);
-    assert.equal(pip.firstElementChild.contains(handles[0]), false);
-    assert.equal(pip.children.length, 10);
-    const openPage = chromeButton(host, "Open page");
-    const pin = chromeButton(host, "Unpin preview");
-    const takeover = chromeButton(host, "Pause Agent to use page") || chromeButton(host, "Retry pause");
-    const more = labeledButton(host, "More");
-    const expand = labeledButton(host, "Expand");
-    const hide = labeledButton(host, "Hide");
-    assert.ok(openPage && pin && more && expand && hide);
-    assert.equal(takeover, undefined);
-    assert.equal(labeledButton(host, "Use in webpage"), undefined);
-    assert.equal(labeledButton(host, "Follow current branch"), undefined);
-    assert.equal(labeledButton(host, "Follow"), undefined);
-    assert.equal(labeledButton(host, "Show actions"), undefined);
-    const chrome = pip.firstElementChild;
-    const actions = chrome?.querySelector("div");
-    assert.equal(chrome.contains(openPage), true);
-    assert.equal(chrome.contains(pin), true);
-    assert.equal(chrome.contains(expand), true);
-    assert.equal(chrome.contains(more), true);
-    assert.equal(chrome.contains(hide), true);
-    assert.equal(actions.contains(openPage) && actions.contains(hide), true);
-    const title = pip.querySelector("span");
-    const status = pip.querySelector("small");
-    assert.equal(title?.textContent, "Resource test 1");
-    assert.equal(status?.textContent, "Ready to use · Fixed preview");
-    assert.equal(title.title.includes("Fixed preview"), true);
-    assert.equal(pin.getAttribute("aria-pressed"), "true");
-    assert.equal(pin.getAttribute("title"), "Return to automatic display of the page the Agent is operating");
-    assert.equal(pipChromeButtons(host).length, 5);
-  });
-});
-
-test("Pin toggle stays on the chrome and switches auto and fixed preview", async () => {
-  await withShell(async ({ host, session }) => {
-    const unpin = chromeButton(host, "Unpin preview");
-    assert.ok(unpin);
-    assert.equal(unpin.getAttribute("aria-pressed"), "true");
-    await act(async () => {
-      clickButton(unpin);
-    });
-    assert.equal(getPreviewPreference("a", null).mode, "follow");
-    const pin = chromeButton(host, "Pin preview");
-    assert.ok(pin);
-    assert.equal(pin.getAttribute("aria-pressed"), "false");
-    assert.equal(chromeButton(host, "Unpin preview"), undefined);
-    assert.equal(host.querySelector("small")?.textContent, "Ready to use · Auto preview");
-    assert.equal(pipChromeButtons(host).length, 5);
+    assert.equal(pip.querySelectorAll("[data-pip-resize]").length, 8);
+    assert.deepEqual(pipChromeButtons(host).map(button => button.getAttribute("aria-label")),
+      ["Open page", "More", "Close preview"]);
+    const hide = chromeButton(host, "Close preview");
+    assert.equal(hide.textContent, "");
+    assert.ok(hide.querySelector("svg"));
+    const tabsBefore = useCenterTabs.getState().tabs;
+    await act(async () => clickButton(hide));
+    assert.equal(host.querySelector("[data-pip='true']"), null);
+    assert.equal(getPreviewPreference("a", null).hidden, true);
+    assert.deepEqual(useCenterTabs.getState().tabs, tabsBefore);
     assert.equal(useCenterTabs.getState().activeId, session.id);
     assert.deepEqual(globalThis.controlPosts, []);
     await act(async () => {
-      clickButton(pin);
+      selectResourcePreview("a", null, "assoc-1");
+      useWebTabPip.getState().show(page.id, session.id);
     });
+    assert.ok(host.querySelector("[data-pip='true']"));
+    assert.equal(getPreviewPreference("a", null).hidden, false);
+  });
+});
+
+async function toggleFollowMenu(host, menu, expectedChecked) {
+  await act(async () => clickButton(chromeButton(host, "More")));
+  const item = menu.popups.at(-1).items.find(item => item.id === "follow-page");
+  assert.ok(item);
+  assert.equal(item.label, "Automatically show the page the Agent is using");
+  assert.equal(item.checked, expectedChecked);
+  await act(async () => menu.resolvers.at(-1)("follow-page"));
+}
+
+test("More explains follow mode and toggles it without controlling execution", async () => {
+  const menu = installNativeMenu();
+  await withShell(async ({ host, session }) => {
+    await toggleFollowMenu(host, menu, false);
+    assert.equal(getPreviewPreference("a", null).mode, "follow");
+    await toggleFollowMenu(host, menu, true);
     assert.equal(getPreviewPreference("a", null).mode, "manual");
     assert.equal(getPreviewPreference("a", null).targetId, "assoc-1");
-    assert.equal(chromeButton(host, "Unpin preview").getAttribute("aria-pressed"), "true");
-    assert.equal(useWebTabPip.getState().tabId, "w:https://page.test/1");
     assert.equal(useCenterTabs.getState().activeId, session.id);
     assert.deepEqual(globalThis.controlPosts, []);
   });
@@ -1151,7 +1127,8 @@ test("parent resize during drag does not write the store; release clamps to the 
   });
 });
 
-test("unpin follows the latest Agent page; pin holds the current page", async () => {
+test("follow menu selects latest Agent page and unchecked holds current page", async () => {
+  const menu = installNativeMenu();
   await withShell(async ({ host, page, session }) => {
     const second = {
       id: "w:https://page.test/2",
@@ -1190,18 +1167,14 @@ test("unpin follows the latest Agent page; pin holds the current page", async ()
     assert.equal(getPreviewPreference("a", null).expanded, true);
     assert.equal(getPreviewPreference("a", null).targetId, "assoc-1");
     assert.equal(useWebTabPip.getState().tabId, page.id);
-    await act(async () => {
-      clickButton(chromeButton(host, "Unpin preview"));
-    });
+    await toggleFollowMenu(host, menu, false);
     assert.equal(getPreviewPreference("a", null).mode, "follow");
     assert.equal(getPreviewPreference("a", null).targetId, "assoc-2");
     assert.equal(getPreviewPreference("a", null).expanded, true);
     assert.equal(useWebTabPip.getState().tabId, second.id);
     assert.equal(useCenterTabs.getState().activeId, session.id);
     assert.deepEqual(globalThis.controlPosts, []);
-    await act(async () => {
-      clickButton(chromeButton(host, "Pin preview"));
-    });
+    await toggleFollowMenu(host, menu, true);
     assert.equal(getPreviewPreference("a", null).mode, "manual");
     assert.equal(getPreviewPreference("a", null).targetId, "assoc-2");
     assert.equal(getPreviewPreference("a", null).expanded, true);
