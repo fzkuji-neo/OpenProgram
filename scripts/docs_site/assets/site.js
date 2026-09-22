@@ -36,13 +36,13 @@
       search: "搜索文档", search_ph: "搜索标题或正文…", on_this_page: "本页内容",
       prev: "上一篇", next: "下一篇", updated: "最后更新", nav_filter: "过滤目录…",
       copy: "复制", copied: "已复制 ✓", copy_fail: "复制失败", search_empty: "无匹配结果",
-      table_scroll: "文档表格",
+      table_scroll: "文档表格", reading: "阅读进度", code: "代码",
     },
     en: {
       search: "Search docs", search_ph: "Search titles or text…", on_this_page: "On this page",
       prev: "Previous", next: "Next", updated: "Last updated", nav_filter: "Filter docs…",
       copy: "Copy", copied: "Copied ✓", copy_fail: "Copy failed", search_empty: "No results",
-      table_scroll: "Documentation table",
+      table_scroll: "Documentation table", reading: "Reading progress", code: "Code",
     },
   };
   let curLang = "en";
@@ -176,11 +176,18 @@
   });
 
   // ── per-page wiring (re-run after every SPA swap) ──────────────────────
-  let tocObserver = null;
+  let disposeReader = () => {};
 
   function initSidebar() {
     const active = document.querySelector("nav.sidebar a.navlink.active");
-    if (active) active.scrollIntoView({ block: "center" });
+    document.querySelectorAll("nav.sidebar a.navlink, nav.tabbar a").forEach((link) => {
+      if (link.classList.contains("active")) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+    if (active) {
+      const nav = sidebarEl();
+      nav.scrollTop += active.getBoundingClientRect().top - nav.getBoundingClientRect().top - nav.clientHeight / 2;
+    }
 
     const navFilter = document.querySelector(".nav-filter");
     if (navFilter && !navFilter.dataset.bound) {
@@ -235,53 +242,141 @@
       makeKeyboardReachable(el, "", false);
     });
 
-    // code-block copy buttons
+    // Keep controls outside the code's horizontal scroll area.
     document.querySelectorAll("article pre").forEach((pre) => {
-      if (pre.querySelector(".copy-btn")) return;
+      if (pre.closest(".code-frame") || pre.querySelector(".copy-btn")) return;
+      const code = pre.querySelector("code") || pre;
+      const frame = document.createElement("div");
+      frame.className = "code-frame";
+      const header = document.createElement("div");
+      header.className = "code-header";
+      const label = document.createElement("span");
+      const language = Array.from(code.classList).find((name) => name.startsWith("language-"));
+      label.textContent = language ? language.slice(9) : t("code");
+      if (!language) label.dataset.i18n = "code";
       const btn = document.createElement("button");
       btn.className = "copy-btn";
       btn.type = "button";
       btn.textContent = t("copy");
-      btn.addEventListener("click", () => {
-        const code = pre.querySelector("code") || pre;
-        navigator.clipboard.writeText(code.innerText).then(() => {
+      btn.setAttribute("aria-live", "polite");
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(code.textContent);
           btn.textContent = t("copied");
           btn.classList.add("copied");
           setTimeout(() => { btn.textContent = t("copy"); btn.classList.remove("copied"); }, 1500);
-        }).catch(() => { btn.textContent = t("copy_fail"); });
+        } catch (_) { btn.textContent = t("copy_fail"); }
       });
-      pre.appendChild(btn);
+      pre.replaceWith(frame);
+      header.append(label, btn);
+      frame.append(header, pre);
     });
+    initReader();
+  }
 
-    // toc scroll-spy
-    if (tocObserver) { tocObserver.disconnect(); tocObserver = null; }
-    const tocLinks = Array.from(document.querySelectorAll("aside.toc a"));
-    if (tocLinks.length) {
-      const map = new Map();
-      tocLinks.forEach((a) => {
-        const id = decodeURIComponent(a.getAttribute("href").slice(1));
-        const el = document.getElementById(id);
-        if (el) map.set(el, a);
+  // One reading state for desktop TOC and compact section navigation.
+  // Interaction references: rareui.com Hook Sidebar / Scroll Progress.
+  // Independently implemented for this static renderer; no component source.
+  function initReader() {
+    disposeReader();
+    const article = document.querySelector("main.content article");
+    const main = document.querySelector("main.content");
+    const tocLinks = Array.from(document.querySelectorAll("aside.toc a[href^='#']"));
+    const sections = tocLinks.map((link) => {
+      let target;
+      try { target = document.getElementById(decodeURIComponent(link.hash.slice(1))); } catch (_) {}
+      return { link, target };
+    }).filter((item) => item.target);
+    if (!article || !sections.length || article.querySelector(".viz-frame")) return;
+    const reader = document.createElement("details");
+    reader.className = "reader-progress";
+    const summary = document.createElement("summary");
+    summary.setAttribute("aria-label", t("reading"));
+    const ring = document.createElement("span");
+    ring.className = "reader-ring";
+    ring.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.className = "reader-label";
+    const percent = document.createElement("span");
+    percent.className = "reader-percent";
+    summary.append(ring, label, percent);
+    const menu = document.createElement("nav");
+    menu.className = "reader-sections";
+    menu.setAttribute("aria-label", t("on_this_page"));
+    const menuLinks = sections.map(({ link }) => {
+      const a = link.cloneNode(true);
+      a.removeAttribute("class");
+      a.addEventListener("click", () => { reader.open = false; });
+      menu.appendChild(a);
+      return a;
+    });
+    reader.append(summary, menu);
+    document.body.appendChild(reader);
+    let frame = 0;
+    let active = -1;
+    const update = () => {
+      frame = 0;
+      const fullscreen = ROOT.getAttribute("data-fs") === "1";
+      const scroller = fullscreen ? main : document.scrollingElement;
+      const offset = fullscreen ? 24 : 120;
+      const bottom = fullscreen ? main.clientHeight : window.innerHeight;
+      const rect = article.getBoundingClientRect();
+      const distance = Math.max(0, article.scrollHeight - (bottom - offset));
+      const progress = distance ? Math.min(1, Math.max(0, (offset - rect.top) / distance)) : 1;
+      const value = Math.round(progress * 100);
+      ring.style.setProperty("--read-progress", value + "%");
+      percent.textContent = value + "%";
+      let next = 0;
+      sections.forEach(({ target }, index) => {
+        if (target.getBoundingClientRect().top <= offset + 1) next = index;
       });
-      tocObserver = new IntersectionObserver((entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            tocLinks.forEach((l) => l.classList.remove("active"));
-            const a = map.get(e.target);
-            if (a) {
-              a.classList.add("active");
-              // keep the highlighted entry visible; hands off while the
-              // pointer is inside the toc (the user is scrolling it)
-              const toc = a.closest("aside.toc");
-              if (toc && toc.scrollHeight > toc.clientHeight && !toc.matches(":hover")) {
-                toc.scrollTo({ top: a.offsetTop - toc.clientHeight / 2 + a.offsetHeight / 2, behavior: "smooth" });
-              }
-            }
-          }
+      if (scroller.scrollHeight > scroller.clientHeight && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2) next = sections.length - 1;
+      if (active === next) return;
+      active = next;
+      sections.forEach(({ link }, index) => {
+        const selected = index === active;
+        [link, menuLinks[index]].forEach((a) => {
+          a.classList.toggle("active", selected);
+          if (selected) a.setAttribute("aria-current", "location");
+          else a.removeAttribute("aria-current");
         });
-      }, { rootMargin: "-116px 0px -70% 0px", threshold: 0 });
-      map.forEach((_a, el) => tocObserver.observe(el));
-    }
+      });
+      label.textContent = sections[active].link.textContent;
+      const link = sections[active].link;
+      const toc = link.closest("aside.toc");
+      if (toc && toc.clientHeight && !toc.matches(":hover") && !toc.contains(document.activeElement)) {
+        const bounds = toc.getBoundingClientRect();
+        const item = link.getBoundingClientRect();
+        if (item.top < bounds.top || item.bottom > bounds.bottom) toc.scrollTop += item.top - bounds.top - toc.clientHeight / 2;
+      }
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    const dismiss = (e) => {
+      if (e.type === "keydown" && e.key !== "Escape") return;
+      if (e.type === "click" && reader.contains(e.target)) return;
+      if (reader.open && e.type === "keydown" && reader.contains(document.activeElement)) summary.focus();
+      reader.open = false;
+    };
+    window.addEventListener("scroll", schedule, { passive: true });
+    main.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    document.addEventListener("click", dismiss, true);
+    document.addEventListener("keydown", dismiss);
+    const resize = new ResizeObserver(schedule);
+    resize.observe(article);
+    const mode = new MutationObserver(schedule);
+    mode.observe(ROOT, { attributes: true, attributeFilter: ["data-fs"] });
+    update();
+    disposeReader = () => {
+      cancelAnimationFrame(frame);
+      resize.disconnect(); mode.disconnect();
+      window.removeEventListener("scroll", schedule);
+      main.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      document.removeEventListener("click", dismiss, true);
+      document.removeEventListener("keydown", dismiss);
+      reader.remove();
+    };
   }
 
   function initPage() {
@@ -341,6 +436,8 @@
   function swapFrom(doc, pathname) {
     // <html> metadata
     const newRoot = doc.documentElement;
+    const newLang = newRoot.getAttribute("data-page-lang");
+    if (newLang === "en" || newLang === "zh") curLang = newLang;
     ["data-page-lang", "data-alt-lang-url"].forEach((attr) => {
       const v = newRoot.getAttribute(attr);
       if (v == null) ROOT.removeAttribute(attr); else ROOT.setAttribute(attr, v);
@@ -406,7 +503,9 @@
       const el = document.getElementById(decodeURIComponent(hash));
       if (el) { el.scrollIntoView(); return; }
     }
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: "instant" });
+    const main = document.querySelector("main.content");
+    if (main) main.scrollTop = 0;
   }
 
   let navSeq = 0;
