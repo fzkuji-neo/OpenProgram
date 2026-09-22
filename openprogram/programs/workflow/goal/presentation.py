@@ -2,6 +2,14 @@
 from __future__ import annotations
 
 
+def history_projection(goal: dict | None, anchor: str | None) -> dict | None:
+    """Project legacy terminal state without changing the captured session."""
+    if goal is None:
+        return None
+    from .state import _end_records
+    return dict(goal, end_records=_end_records(goal, goal, anchor))
+
+
 def candidate_presentation(candidate: dict) -> dict:
     status = candidate.get("status")
     report = candidate.get("report") or {}

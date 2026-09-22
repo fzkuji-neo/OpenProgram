@@ -23,6 +23,7 @@ import { useTranslation } from "@/lib/i18n";
 import styles from "./goal-chip.module.css";
 
 export interface GoalState {
+  end_records?: { anchor_id: string | null; goal: GoalState }[];
   execution_mode?: string;
   schema_version?: number;
   roles?: Record<"work" | "judge", {
@@ -224,7 +225,7 @@ function useGoalExecution(sessionId: string, goal: GoalState, enabled: boolean) 
   return { ...observation, fresh: observation.fresh && observation.identity === identity && connection === "open", refresh };
 }
 
-function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }) {
+export function GoalDetails({ sessionId, goal, historical = false }: { sessionId: string; goal: GoalState; historical?: boolean }) {
   const { locale, text } = useTranslation();
   const zh = locale.startsWith("zh");
   const [open, setOpen] = useState(false);
@@ -254,7 +255,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
     : null;
   const terminal = terminalStatuses.has(goal.status || "");
   const unsaved = draft.dirty;
-  const execution = useGoalExecution(sessionId, goal, open || !!goal.stop_requested);
+  const execution = useGoalExecution(sessionId, goal, !historical && (open || !!goal.stop_requested));
   const controls = execution.controls;
   const stopped = execution.fresh && execution.finished === true;
   const canResume = execution.fresh && controls?.can_resume === true;
@@ -272,9 +273,10 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
     : execution.status === "cancelling" ? text("Stopping", "正在停止")
     : text("Stop not confirmed", "停止未确认");
   useEffect(() => { if (terminal) setConfirmCancel(false); }, [terminal]);
-  if (terminal && !stopPending && !open) return null;
+  if (!historical && terminal && !stopPending && !open) return null;
 
   async function mutate(action: string, values: Record<string, unknown> = {}) {
+    if (historical) return;
     if (pending.current || (action === "edit" && draft.conflict) || (["resume", "verify"].includes(action) && unsaved)) return;
     pending.current = true;
     setBusy(true);
@@ -316,7 +318,19 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
 
   return (
     <>
-      {!terminal || stopPending ? <button
+      {historical ? <div className="attach-card" data-goal-id={goal.goal_id}>
+        <div className="attach-card-header">
+          <div className="attach-card-icon" aria-hidden="true"><Target size={18} /></div>
+          <div className="attach-card-meta">
+            <div className="attach-card-label">Goal · {statusLabel(goal.status, zh, goal.phase)}</div>
+            <div className="attach-card-sub">{goal.text}</div>
+          </div>
+          <button ref={trigger} type="button" className="attach-card-open" onClick={() => setOpen(true)}
+            aria-label={text("Open Goal details", "打开 Goal 详情")}>
+            {text("Details", "详情")}
+          </button>
+        </div>
+      </div> : !terminal || stopPending ? <button
         ref={trigger}
         type="button"
         className={`runtime-badge workdir-badge ${styles.trigger}`}
@@ -340,16 +354,16 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
             </DialogDescription>
           </DialogHeader>
 
-          <section className={styles.reason} aria-label={text("Execution stop status", "执行停止状态")}>
+          {!historical ? <section className={styles.reason} aria-label={text("Execution stop status", "执行停止状态")}>
             <p role="status">{executionLabel}</p>
             <Button variant="outline" disabled={busy} onClick={() => void execution.refresh()}>{text("Refresh status", "刷新状态")}</Button>
             {goal.execution_id ? <Button variant="outline" onClick={() => setInspection(goal.execution_id!)}>{text("Inspect execution", "查看执行详情")}</Button> : null}
             {stopPending ? <Button variant="outline" disabled={busy} onClick={() => void mutate("stop")}>{text("Retry stop", "重试停止")}</Button> : null}
-          </section>
+          </section> : null}
 
           <label className={styles.field}>
             <span>{text("Goal", "目标")}</span>
-            <textarea disabled={busy} value={draft.value} onChange={(event) => draft.set(event.target.value)} rows={4} />
+            <textarea readOnly={historical} disabled={busy} value={draft.value} onChange={(event) => draft.set(event.target.value)} rows={4} />
           </label>
           {draft.conflict ? <div role="status" className={styles.reason}>
             <p>{text("The goal changed elsewhere. Your unsaved text is preserved.", "目标已在其他位置修改，未保存的正文已保留。")}</p>
@@ -387,7 +401,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
           </section> : null}
 
           {goal.last_reason ? <p className={styles.reason}>{goal.last_reason}</p> : null}
-          {pendingQuestions.length ? (
+          {!historical && pendingQuestions.length ? (
             <section className={styles.questionQueue} aria-label={text("Pending Goal questions", "Goal 待答问题")}>
               <header>
                 <strong>{text("Pending questions", "待答问题")} · {pendingQuestions.length}</strong>
@@ -455,7 +469,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
             <Button variant="outline" onClick={() => setInspection(null)}>{text("Close execution details", "关闭执行详情")}</Button>
             <SessionDebugger key={`${sessionId}:${inspection}`} sessionId={sessionId} active={open} requestedExecutionId={inspection} />
           </section> : null}
-          {!terminal ? <div className={styles.draftNotice} role="status">
+          {!historical && !terminal ? <div className={styles.draftNotice} role="status">
             {!execution.fresh || !controls ? <p>{text("Action status unavailable. Refresh status to retry.", "无法读取操作状态，请刷新状态重试。")}</p> : <>
               {controls.reasons.resume && controls.reasons.resume !== "goal_not_resumable" ? <p>{text("Resume", "继续")}: {controlReason(controls.reasons.resume, zh)}</p> : null}
               {controls.reasons.verify ? <p>{text("Verify", "验收")}: {controlReason(controls.reasons.verify, zh)}</p> : null}
@@ -464,7 +478,7 @@ function GoalDetails({ sessionId, goal }: { sessionId: string; goal: GoalState }
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
           {stopError && !stopped ? <p className={styles.error} role="alert">{stopError}</p> : null}
 
-          {confirmCancel ? <section aria-label={text("End Goal confirmation", "终止目标确认")}>
+          {historical ? null : confirmCancel ? <section aria-label={text("End Goal confirmation", "终止目标确认")}>
             <p>{text("End this Goal? Saved work and history will remain.", "终止此目标？已保存的工作和历史记录会保留。")}</p>
             <DialogFooter className={styles.actions}>
               <Button autoFocus variant="outline" disabled={busy} onClick={() => setConfirmCancel(false)}>{text("Keep goal", "保留目标")}</Button>

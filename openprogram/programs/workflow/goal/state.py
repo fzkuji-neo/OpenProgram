@@ -78,6 +78,7 @@ def load_goal(session_id: str) -> Optional[dict]:
             # Read projection only: no lifecycle mutation or version increment.
             # Durable receipts are authoritative even if their publish hook failed.
             accumulate_goal_usage(session_id, value)
+        value["end_records"] = _end_records(value, value, sess.get("last_node_id"))
         return value
     except Exception as exc:
         _log.debug("goal read failed for session %s", session_id, exc_info=True)
@@ -212,6 +213,23 @@ def checkpoint_active_elapsed(
     return elapsed
 
 
+def _end_records(previous: dict, candidate: dict, anchor: str | None) -> list:
+    """Terminal history travels with the current Goal, never inside itself."""
+    records = deepcopy(previous.get("end_records") or [])
+    for ended in (previous, candidate):
+        if (ended.get("status") not in {"achieved", "impossible", "cancelled", "cleared"}
+                or not ended.get("goal_id")):
+            continue
+        if any(row["goal"].get("goal_id") == ended["goal_id"] for row in records):
+            continue
+        snapshot = deepcopy({key: value for key, value in ended.items()
+                             if key != "end_records"})
+        verification = ended.get("verification") or {}
+        records.append({"anchor_id": verification.get("result_message_id") or anchor,
+                        "goal": snapshot})
+    return records
+
+
 def save_goal(session_id: str, goal: dict) -> dict:
     """Persist one complete Goal snapshot with optimistic concurrency."""
     expected = int(goal.get("version") or 0)
@@ -221,6 +239,11 @@ def save_goal(session_id: str, goal: dict) -> dict:
     candidate["version"] = expected + 1
     candidate["updated_at"] = time.time()
     db = _goal._db()
+    session = db.get_session(session_id) or {}
+    previous = (session.get("extra_meta") or {}).get("goal") or {}
+    # Keep terminal snapshots inside the same CAS as the current Goal. They
+    # are not chat messages and must never be reconstructed from a later Goal.
+    candidate["end_records"] = _end_records(previous, candidate, session.get("last_node_id"))
     compare = getattr(db, "compare_and_set_session_dict", None)
     if callable(compare):
         if not compare(session_id, "goal", version=expected, value=candidate):
@@ -288,8 +311,13 @@ def save_goal_progress(session_id: str, goal: dict, base: dict) -> dict:
     try:
         return _goal.save_goal(session_id, goal)
     except GoalConflictError:
+        anchor = (_goal._db().get_session(session_id) or {}).get("last_node_id")
+        def merge(latest):
+            merged = _merge_progress(base, goal, latest)
+            merged["end_records"] = _end_records(latest, merged, anchor)
+            return merged
         committed = _goal._db().update_session_dict(
-            session_id, "goal", lambda latest: _merge_progress(base, goal, latest),
+            session_id, "goal", merge,
         )
         if committed is None:
             raise GoalConflictError("Goal session is unavailable")
@@ -457,7 +485,7 @@ def _emit_goal_update(on_event: Optional[Callable], session_id: str,
             "recoverable", "pause_reason", "stop_requested", "last_reason", "last_question",
             "last_question_id", "last_question_at", "last_question_options",
             "questions", "pending_answers", "interaction_mode", "created_at",
-            "updated_at", "roles", "roles_origin", "role_requests")},
+            "updated_at", "roles", "roles_origin", "role_requests", "end_records")},
     }
     from .presentation import goal_message
     payload["goal"]["verification_message"] = goal_message(goal)

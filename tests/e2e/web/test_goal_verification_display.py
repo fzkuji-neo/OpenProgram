@@ -15,6 +15,7 @@ def test_verifier_summary_streaming_and_history(tmp_path):
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {AssistantMessage} from './components/chat/messages/message-list';
+import {GoalDetails} from './components/chat/goal-chip';
 import {useSessionStore} from './lib/session-store';
 import {convToChatMsgs} from './lib/chat/conv-mapper';
 import {DetailPanel} from './components/right-sidebar/detail-panel';
@@ -29,7 +30,9 @@ window.show=(mode)=>{
  if(mode==='cancelled'||mode==='error') {rows[0].status=mode;rows[0].goalVerification.status='pending';}
  if(mode==='legacy') {rows[0].goalVerification=undefined;rows[0].calledBy='legacy-parent';rows[0].content='{"met":true,"reason":"LEGACY_REPORT"}';rows[0].blocks=[{type:'text',text:rows[0].content}];useSessionStore.setState({messagesById:{'legacy-parent':{spawnedFrom:{label:'goal 判定'}}}});}
  root.render(<QueryClientProvider client={query}><div id="transcript"><AssistantMessage key={mode==='history'?'history':'live'} msg={rows[0]} sessionIdOverride="s"/></div><DetailPanel/></QueryClientProvider>);
-};window.show('pending');
+};
+window.historyCard=()=>root.render(<GoalDetails sessionId="s" historical goal={{goal_id:'old',version:3,status:'achieved',text:'Original completed objective',checklist:[{text:'Original todo',done:true}]}}/>);
+window.show('pending');
 '''
     bundle = tmp_path / "verification.js"
     subprocess.run(["node", "-e", "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});", str(ROOT / "apps/web"), str(bundle), entry], cwd=ROOT, check=True, capture_output=True)
@@ -43,38 +46,23 @@ window.show=(mode)=>{
             page.evaluate("localStorage.setItem('agentic_locale','zh')")
             page.add_script_tag(path=str(bundle))
             transcript = page.locator("#transcript")
-            toggle = transcript.locator(".tl-toggle")
-            expect(toggle).to_have_text("正在验收目标…›")
-            expect(toggle).to_have_attribute("aria-expanded", "false")
-            assert "RAW_PRIVATE_REPORT" not in transcript.text_content()
-            toggle.focus()
-            page.keyboard.press("Enter")
-            expect(toggle).to_have_attribute("aria-expanded", "true")
-            expect(transcript.get_by_text("验收报告", exact=True)).to_be_visible()
-            page.evaluate("window.show('accepted')")
-            expect(toggle).to_have_text("目标已完成›")
-            expect(toggle).to_have_attribute("aria-expanded", "true")
-            for hidden in ["RAW_PRIVATE_REPORT", "核对计算结果", "message:work", "Met", "Passed"]:
-                assert hidden not in transcript.text_content()
-            assert transcript.locator("details").count() == 0
-            transcript.get_by_text("验收报告", exact=True).click()
-            expect(page.locator("#detailBody")).to_contain_text("RAW_PRIVATE_REPORT")
-            assert page.locator("img[src=x]").count() == 0
-            toggle.click()
-            expect(transcript.locator(".tl-body")).to_have_count(0)
-            page.evaluate("window.show('history')")
-            expect(toggle).to_have_attribute("aria-expanded", "false")
-            for mode, label in [("unmet", "目标验收未通过"), ("unknown", "验收结果未确认"), ("cancelled", "验收已取消"), ("error", "验收已中断")]:
+            for mode in ["pending", "accepted", "history", "unmet", "unknown", "cancelled", "error", "legacy"]:
                 page.evaluate(f"window.show('{mode}')")
-                expect(toggle).to_have_text(label + "›")
-                assert transcript.locator(".chat-text,.error-content,.pending-body").count() == 0
+                expect(transcript).to_be_empty()
             page.evaluate("window.show('ordinary')")
             expect(transcript.get_by_text("RAW_PRIVATE_REPORT", exact=False)).to_be_visible()
-            assert transcript.locator(".tl-toggle").count() == 0
-            page.evaluate("window.show('legacy')")
-            expect(toggle).to_have_text("验收通过›")
-            toggle.click()
-            expect(transcript.get_by_text("验收报告", exact=True)).to_be_visible()
-            assert "LEGACY_REPORT" not in transcript.text_content()
+            assert page.locator("img[src=x]").count() == 0
+            page.evaluate("window.historyCard()")
+            expect(page.locator(".attach-card")).to_have_count(1)
+            page.get_by_role("button", name="打开 Goal 详情").focus()
+            page.keyboard.press("Enter")
+            expect(page.get_by_role("dialog")).to_be_visible()
+            expect(page.get_by_role("textbox")).to_have_value("Original completed objective")
+            expect(page.get_by_role("textbox")).to_have_attribute("readonly", "")
+            expect(page.get_by_role("dialog")).to_contain_text("Original todo")
+            expect(page.get_by_role("button", name="保存修改")).to_have_count(0)
+            page.keyboard.press("Escape")
+            expect(page.get_by_role("dialog")).to_have_count(0)
+            expect(page.get_by_role("button", name="打开 Goal 详情")).to_be_focused()
         finally:
             browser.close()

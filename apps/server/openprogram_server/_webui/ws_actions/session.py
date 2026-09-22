@@ -1218,6 +1218,7 @@ async def handle_load_session(ws, cmd: dict):
             _stats = {**_stats, "type": "context_stats", "breakdown": _bd}
             conv["_last_context_stats"] = _stats
         _db_sess = _ddb().get_session(session_id) or {}
+        from openprogram.programs.workflow.goal.presentation import history_projection
         await ws.send_text(json.dumps({
             "type": "session_loaded",
             "data": {
@@ -1237,7 +1238,7 @@ async def handle_load_session(ws, cmd: dict):
                 "source": _db_sess.get("source"),
                 # Session goal (/goal) — the composer's GoalChip hydrates
                 # from this on load; live changes ride goal_update frames.
-                "goal": (_db_sess.get("extra_meta") or {}).get("goal"),
+                "goal": history_projection((_db_sess.get("extra_meta") or {}).get("goal"), _db_sess.get("last_node_id")),
                 "settings": {
                     "tools_enabled": run_cfg.tools_enabled,
                     "tools_override": run_cfg.tools_override,

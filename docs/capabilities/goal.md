@@ -16,7 +16,7 @@ The verifier must provide a per-requirement assessment and recorded evidence ref
 
 ## Control execution
 
-Verification turns use the same collapsed execution row as other chat operations, with a short status such as Goal completed. Expand it and select Verification report to view the original report in the existing right-side detail panel. Reports and repeated requirement assessments are not printed in the chat transcript. Streaming and saved turns share this behavior; your expansion choice is preserved when a turn finishes. Only a result accepted by the runtime is shown as completed. Original evidence and ordinary JSON replies are unchanged.
+Internal verification turns are not rendered as assistant replies. Starting, running, pausing and verifying a Goal do not add transcript cards. When a Goal ends, one compact card remains at its ending position. Click it to open the existing Goal details dialog with that Goal's saved result, progress and usage. Historical details are read-only and remain associated with the original Goal after a new Goal starts. Ordinary agent replies and original evidence remain unchanged.
 
 The Goal details retain the objective, status, usage and progress after page reload. When there are no todos, the badge and details omit todo progress without a placeholder; the Goal status remains visible. Use the existing chat input to add instructions, following its normal queue or steering mode.
 

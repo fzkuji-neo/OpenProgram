@@ -3,6 +3,26 @@ from types import SimpleNamespace
 from tests.component.agent.test_chat_goal import runtime  # noqa: F401
 
 
+def test_terminal_record_survives_new_goal_and_repeated_save(runtime):
+    import openprogram.programs.workflow.goal as goals
+    from openprogram.programs.workflow.goal import chat
+    first = goals.load_goal("goal-chat")
+    first["text"] = "First objective"
+    assert not first.get("end_records")
+    first.update(status="achieved", last_reason="Verified")
+    goals.save_goal("goal-chat", first)
+    saved = goals.load_goal("goal-chat")
+    assert len(saved["end_records"]) == 1
+    record = saved["end_records"][0]
+    assert record["goal"]["text"] == "First objective"
+    assert "end_records" not in record["goal"]
+    goals.save_goal("goal-chat", saved)
+    assert len(goals.load_goal("goal-chat")["end_records"]) == 1
+    second = chat.create("goal-chat", "Second objective")
+    assert second["end_records"][0] == record
+    assert second["goal_id"] != record["goal"]["goal_id"]
+
+
 def test_event_identity_is_exact_and_does_not_rewrite_content():
     from openprogram.programs.workflow.goal.presentation import event_sink
     output = []
