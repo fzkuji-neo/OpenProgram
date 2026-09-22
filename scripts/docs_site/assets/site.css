@@ -541,25 +541,46 @@ html[data-fs="1"] article :is(h1, h2, h3, h4) { scroll-margin-top: 24px; }
 
 @media (max-width: 420px) { .topbar .lang-trigger svg { display: none; } }
 
-/* Design catalog: expose categories first, and the current topic's pages. */
-nav.sidebar details.nav-disclosure { margin: 3px 0; padding: 0; border: 0; }
+/* Design navigation: compact areas, modules and page rows. */
+nav.sidebar details.nav-disclosure { margin: 2px 0; padding: 0; border: 0; }
 nav.sidebar .nav-disclosure > summary {
-  display: flex; align-items: center; gap: 8px; min-height: 38px;
-  padding: 7px 4px; cursor: pointer; list-style: none; border-radius: 6px;
+  display: flex; align-items: center; gap: 6px; min-height: 34px;
+  padding: 6px; cursor: pointer; list-style: none; border-radius: 5px;
 }
 nav.sidebar .nav-disclosure > summary::-webkit-details-marker { display: none; }
 nav.sidebar .nav-disclosure > summary::before {
-  content: ""; width: 5px; height: 5px; border-right: 1px solid currentColor;
-  border-bottom: 1px solid currentColor; transform: rotate(-45deg); flex-shrink: 0;
+  content: ""; width: 5px; height: 5px; margin: 0 4px 0 1px;
+  border-right: 1px solid currentColor; border-bottom: 1px solid currentColor;
+  transform: rotate(-45deg); flex-shrink: 0; color: var(--tx-soft);
 }
 nav.sidebar .nav-disclosure[open] > summary::before { transform: rotate(45deg); }
 nav.sidebar .nav-disclosure > summary:hover { background: var(--bg-code); }
-nav.sidebar .nav-disclosure .nav-sec-title { margin: 0; font-size: 12px; line-height: 1.5; }
-nav.sidebar .nav-count { margin-left: auto; color: var(--tx-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
+nav.sidebar .nav-disclosure .nav-sec-title {
+  padding: 0; margin: 0; font-size: 13px; line-height: 1.4; font-weight: 550;
+  min-width: 0; overflow-wrap: anywhere;
+}
+nav.sidebar .nav-count {
+  margin-left: auto; padding-left: 4px; color: var(--tx-faint);
+  font-size: 10px; font-weight: 400; font-variant-numeric: tabular-nums;
+}
 nav.sidebar .nav-disclosure:not([open])::before,
 nav.sidebar .nav-disclosure:not([open])::after { opacity: 0; }
-
-nav.sidebar details.nav-branch { margin: 3px 0; padding: 0; border: 0; }
-nav.sidebar .nav-branch > .nav-sec { margin-left: 13px; padding-left: 8px; border-left: 1px solid var(--bd); }
-nav.sidebar .nav-branch > summary .nav-sec-title { font-size: 13px; }
-nav.sidebar .nav-branch > .nav-sec > summary { min-height: 34px; }
+nav.sidebar .nav-tree > .nav-disclosure { margin-bottom: 8px; }
+nav.sidebar .nav-branch > .nav-sec { margin-left: 12px; }
+nav.sidebar .nav-branch > .nav-sec > summary { min-height: 30px; }
+nav.sidebar .nav-branch > .nav-sec > summary .nav-sec-title { font-size: 12px; font-weight: 500; }
+nav.sidebar .nav-branch > .nav-sec > summary .nav-count { display: none; }
+nav.sidebar .nav-disclosure a.navlink {
+  margin: 1px 0 1px 10px; padding: 6px 8px 6px 14px;
+  font-size: 13px; line-height: 1.45; font-weight: 400;
+  overflow-wrap: anywhere; text-decoration: none; border-radius: 4px;
+}
+nav.sidebar .nav-disclosure a.navlink:hover { background: var(--bg-code); }
+nav.sidebar .nav-disclosure a.navlink.active {
+  background: var(--acc-soft); color: var(--acc); font-weight: 500;
+}
+nav.sidebar .nav-disclosure a.navlink:focus-visible,
+nav.sidebar .nav-disclosure > summary:focus-visible {
+  outline: none; box-shadow: inset 0 0 0 2px var(--acc);
+  text-decoration: none;
+}
