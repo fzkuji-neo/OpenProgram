@@ -412,3 +412,39 @@ def test_standalone_search_text_excludes_styles_and_scripts():
 
     assert plain_text('<style>.ui { color: red; }</style><script>const hidden = 1;</script>'
                       '<h1>模型选型</h1><p>比较备选设计。</p>') == '模型选型 比较备选设计。'
+
+
+def test_authored_navigation_names_are_short_and_unambiguous() -> None:
+    pages = discover(ROOT / "docs")
+    for page in pages:
+        if page.zh_src is None:  # Code-generated reference pages keep CLI names.
+            continue
+        assert 1 <= len(page.title.split()) <= 4, page.rel
+        assert len(page.title) <= 26, page.rel
+        assert 1 <= len(page.title_zh) <= 12, page.rel
+        assert not any(char in page.title for char in "():`"), page.rel
+    for tab in build_tabs(ROOT / "docs", pages):
+        for section in tab.sections:
+            for attr in ("title", "title_zh"):
+                titles = [getattr(page, attr).casefold() for page in section.pages
+                          if page.zh_src is not None]
+                assert len(titles) == len(set(titles)), (tab.key, section.title, attr)
+
+
+def test_short_navigation_names_preserve_document_identity(tmp_path) -> None:
+    folder = tmp_path / "reference/design/runtime/execution"
+    folder.mkdir(parents=True)
+    for suffix, title in (("", "Self-Recursion Guard for Agentic Functions"),
+                          (".zh", "Agentic 函数防自递归机制")):
+        (folder / f"agentic-self-recursion{suffix}.md").write_text(f"# {title}\n")
+        (folder / f"agentic-self-recursion{suffix}.html").write_text(
+            f"<title>{title}</title><h1 id='existing-anchor'>{title}</h1>"
+        )
+    pages = {page.kind: page for page in discover(tmp_path)}
+    assert (pages["md"].title, pages["md"].title_zh) == ("Recursion guard", "递归保护")
+    assert (pages["html"].title, pages["html"].title_zh) == ("Recursion diagram", "递归图解")
+    assert pages["md"].out.name == "agentic-self-recursion.html"
+    assert pages["html"].out.name == "agentic-self-recursion.viz.html"
+    assert pages["html"].zh_out.name == "agentic-self-recursion.zh.viz.html"
+    assert "existing-anchor" in pages["html"].src.read_text()
+    assert "Self-Recursion Guard for Agentic Functions" in pages["md"].src.read_text()

@@ -8,6 +8,7 @@ folder name. Within a group, README.md is pinned first, the rest sort by name.
 from __future__ import annotations
 
 import html
+import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -49,6 +50,11 @@ ROOT_PAGE_GROUPS: dict[str, tuple[str, str]] = {
     "README.md": ("Overview", "start"),
     "capabilities/agentic-programming/philosophy.md": ("Philosophy", ""),
 }
+
+# Short bilingual display names; descriptive document headings remain in the sources.
+PAGE_TITLES: dict[str, dict[str, str]] = json.loads(
+    Path(__file__).with_name("page_titles.json").read_text(encoding="utf-8")
+)
 
 # Sidebar titles for directories that have no README.md of their own.
 DIR_TITLES: dict[str, tuple[str, str]] = {  # rel dir -> (English, 中文)
@@ -165,7 +171,14 @@ def discover(docs_root: Path) -> list[Page]:
                 title_zh=title_zh,
             )
         )
-    return _dedupe_md_html(pages)
+    pages = _dedupe_md_html(pages)
+    for page in pages:
+        names = PAGE_TITLES.get(page.rel.as_posix())
+        if names:
+            page.title = names["en"]
+            if page.zh_src is not None:
+                page.title_zh = names["zh"]
+    return pages
 
 
 def _dedupe_md_html(pages: list[Page]) -> list[Page]:
