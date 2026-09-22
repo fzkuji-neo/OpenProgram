@@ -318,7 +318,6 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
         ]),
         ('Runtime · Execution', '运行时 · 执行与控制', [
             "reference/design/runtime/README.md",
-            "reference/design/runtime/overview.md",
             "reference/design/runtime/execution/agent-call-flow.md",
             "reference/design/runtime/execution/control.html",
             "reference/design/runtime/execution/agent-action-lifecycle.html",
@@ -605,7 +604,6 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/plans/proactive-implementation.md",
         ]),
         ('Supporting · Research', '补充 · 研究材料', [
-            "reference/design/research/execution-trace-model-selection.md",
             "reference/design/proactive/_research_archive/evaluation.md",
             "reference/design/proactive/_research_archive/replay.md",
             "reference/design/proactive/_research_archive/threat-model.md",
