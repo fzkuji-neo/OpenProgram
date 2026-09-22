@@ -61,7 +61,7 @@ window.location = { pathname: "/chat", hash: "" };
 window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { GoalChip } = await import("../../components/chat/goal-chip.tsx");
+const { GoalChip, GoalDetails } = await import("../../components/chat/goal-chip.tsx");
 const { runtimeState, setSocket } = await import("../../lib/runtime-bridge/state.ts");
 const { updateStatus } = await import("../../lib/runtime-bridge/ui.ts");
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
@@ -166,11 +166,30 @@ test("Inspect execution requests the exact old operation, not the newest executi
     await view.click("Close execution details");
   } finally { await view.close(); api.getGoal = original; globalThis.fetch = fetch; }
 });
-async function mount() {
+test("historical Goal reuses details without reading or editing the current Goal", async () => {
+  reset();
+  const archived = { ...snapshot(3, "achieved"), text: "Archived objective", usage: { cost_known: true, cost_usd: 0.25 } };
+  runtimeState.conversations.s1.goal = { ...snapshot(4), goal_id: "new", text: "New objective" };
+  let reads = 0;
+  api.getGoal = async () => { reads++; throw new Error("historical record must not query current Goal"); };
+  const view = await mount(createElement(GoalDetails, { sessionId: "s1", goal: archived, historical: true }));
+  try {
+    assert.equal(view.host.querySelectorAll(".attach-card").length, 1);
+    await view.open();
+    assert.equal(view.host.querySelector("textarea").value, "Archived objective");
+    assert.ok(view.host.querySelector("textarea").hasAttribute("readonly"));
+    assert.ok(!view.host.textContent.includes("New objective"));
+    assert.ok(!view.host.textContent.includes("Save edit"));
+    assert.ok(!view.host.textContent.includes("Stop not confirmed"));
+    assert.equal(reads, 0);
+  } finally { await view.close(); }
+});
+
+async function mount(element = createElement(GoalChip)) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
-  await act(async () => root.render(createElement(GoalChip)));
+  await act(async () => root.render(element));
   return {
     host,
     async click(text) {
