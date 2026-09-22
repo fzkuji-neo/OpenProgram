@@ -34,13 +34,13 @@ export interface SessionScopeState {
 export const DEFAULT_SCOPE_SETTINGS: ComposerSettings = {
   thinking: "",
   tools: true,
-  webSearch: false,
+  webSearch: true,
   fast: false,
   runningMessageMode: "queue",
   unattended: false,
   permission_mode: "",
   effective_permission: "",
-  sandbox: true,
+  sandbox: false,
 };
 
 /**
