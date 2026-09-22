@@ -225,3 +225,10 @@ def test_bilingual_companions_keep_distinct_language_outputs(tmp_path, monkeypat
             assert build.relink_internal('<a href="topic.zh.md">Text</a>', Path("section")) == (
                 '<a href="/docs/section/topic.zh.html">Text</a>'
             )
+
+
+def test_root_overview_has_bilingual_navigation_titles(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text('<p>OpenProgram</p>', encoding="utf-8")
+    (tmp_path / "README.zh.md").write_text('<p>OpenProgram</p>', encoding="utf-8")
+    page = discover(tmp_path)[0]
+    assert (page.title, page.title_zh) == ("Overview", "概览")
