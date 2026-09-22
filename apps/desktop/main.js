@@ -832,6 +832,7 @@ const {
   setControlOverlay,
   handleControlOverlayEvent,
   nativeMenuOwner,
+  nativeContextMenus,
 } = require("./main/control-overlays").createControlOverlays({
   Menu,
   UI_ORIGIN,

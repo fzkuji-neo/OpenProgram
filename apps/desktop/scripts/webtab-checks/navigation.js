@@ -237,6 +237,17 @@ async function checkSenderOwnership() {
   testContext.assert.equal(testContext.hooks.nativeMenuOwner(nativeEvent), null);
   testContext.assert.throws(() => testContext.ipcHandlers.get("native-menu:popup")(nativeEvent, {}), /Unauthorized/);
   winA.webContents.getURL = () => "http://127.0.0.1:18100/chat";
+  const menuRequest = { requestId: "preview-menu", x: 20, y: 30,
+    items: [{ id: "follow-page", label: "Automatically show the page the Agent is using", checked: false }] };
+  const menuChoice = testContext.ipcHandlers.get("native-menu:popup")(nativeEvent, menuRequest);
+  testContext.assert.strictEqual(testContext.menuPopupOptions.at(-1).window, winA);
+  testContext.assert.equal(testContext.menuTemplate[0].checked, false);
+  testContext.menuTemplate[0].click();
+  testContext.menuPopupOptions.at(-1).callback();
+  testContext.assert.equal(await menuChoice, "follow-page");
+  const menuCancelled = testContext.ipcHandlers.get("native-menu:popup")(nativeEvent, menuRequest);
+  testContext.ipcListeners.get("native-menu:close")(nativeEvent, "preview-menu");
+  testContext.assert.equal(await menuCancelled, null);
   const a = testContext.controlledRecord("owned-a");
   const b = testContext.controlledRecord("owned-b");
   testContext.addRecord(ctxA, a);
