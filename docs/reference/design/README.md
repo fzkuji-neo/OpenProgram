@@ -1,232 +1,83 @@
-# Design and implementation documents
+# Design documentation
 
-This directory maintains subsystem designs, implementation locations and remaining
-boundaries. Ownership spans both `openprogram/` and `apps/`; the core package alone
-is not a complete implementation map.
+Find designs and implementation boundaries by subsystem. Start with the entries below, then expand the matching sidebar category for detailed designs, comparisons and related notes.
 
-## Reading entry points
+## Reading order
 
-| Question | Document |
-|---|---|
-| Where are subsystem designs and implementation status? | [Implementation navigation](implementation-status.html) |
-| Which directories own implementation and compatibility? | [Repository design](repository-structure.html) and [implementation map](repository-structure-implementation.html) |
-| How does a conversation execute? | [Framework overview](framework-overview.md) |
-| Which verification layers apply? | [Test system](testing/test-system.html) |
-| How should HTML implementation documents be authored and verified? | [HTML rendering and authoring](docs-site.html) |
+1. Understand the system: [framework overview](framework-overview.md) → [repository structure](repository-structure.html).
+2. Trace an execution: [call flow](runtime/execution/agent-call-flow.md) → [execution control](runtime/execution/execution-control.html) → [session storage](runtime/session/storage.md).
+3. Change a subsystem: choose a topic below, read its design and implementation-status appendix, then verify source ownership and acceptance requirements.
 
-Design bodies explain behavior and constraints. An implementation-status appendix
-records implemented, partial, unimplemented and out-of-scope items. Source presence,
-passing tests, publication and installed-App acceptance are separate states. This
-index routes readers to topic owners without maintaining another completion score.
+## Architecture and repository
 
-## context/ — context engine, commits, tool aging
+Understand the whole system, source ownership and implementation boundaries.
 
-| Doc | Topic |
-|---|---|
-| [`context/overview.md`](context/overview.md) | Context layer: pipeline + DAG storage + ContextCommit + compaction/render + attach/merge + cross-turn tool + gaps |
-| [`context/composition.md`](context/composition.md) | Target state: per-call layering (L0/L1/L2) + situational context |
-| [`context/comparison.md`](context/comparison.md) | Context approaches compared against reference projects |
-| [`context/context-compaction.html`](context/context-compaction.html) | Context compaction (rendered) |
+[Framework overview](framework-overview.md) · [Repository structure](repository-structure.html) · [Implementation navigation](implementation-status.html)
 
-## memory/ — memory system (entity + abstract)
+## Runtime and sessions
 
-| Doc | Topic |
-|---|---|
-| [`memory/README.md`](memory/README.md) | Memory system overview: architecture, design principles, implementation status |
-| [`memory/overview.md`](memory/overview.md) | Memory subsystem: entity/virtual two-tier + provenance-navigated recall, and the chain running today ([visualization](memory/memory-architecture.html)) |
-| [`memory/entity-memory.md`](memory/entity-memory.md) | Entity memory: Session-Git + Project-Git, organized by lifecycle |
-| [`memory/git-as-entity-memory.md`](memory/git-as-entity-memory.md) | Entity memory on Git: Session-Git + Project-Git |
-| [`memory/virtual-memory.md`](memory/virtual-memory.md) | Abstract memory: Timeline + Graph + Core, organized by type × lifecycle |
+Follow execution, session persistence, branching and recovery in that order.
 
-## proactive/ — event layer + proactivity (event-driven)
+[Execution control](runtime/execution/execution-control.html) · [Session storage](runtime/session/storage.md) · [Session DAG](runtime/dag/overview.md) · [Goals and restart recovery](runtime/goal-framework-implementation-comparison.html) · [Agent configuration](runtime/agent-configuration-ui.html)
 
-Two parts: the **event base** (one unified event stream for the whole framework) and
-**proactivity applications** (rules subscribe to the stream and act). They are decoupled,
-so the base is usable alone. Read event-layer first for the overall picture.
+## Programs and workflows
 
-Event base:
+Understand function calls, workflow composition and application execution before the report examples.
 
-| Doc | Topic |
-|---|---|
-| [`proactive/event-layer.md`](proactive/event-layer.md) | Unified Event model, framework placement, diagram, event boundaries ([visualization](proactive/event-layer.html)) |
-| [`proactive/framework-evolution.md`](proactive/framework-evolution.md) | Framework evolution: current → target → five migration steps ([visualization](proactive/framework-evolution.html)) |
+[Function calling](function/calling-unification.md) · [Program model](function/agentic-program.html) · [Application runtime](runtime/application-runtime.html) · [Report workflows](runtime/report-suite.html)
 
-Proactivity applications (built on the base):
+## Context and memory
 
-| Doc | Topic |
-|---|---|
-| [`proactive/overview.md`](proactive/overview.md) | One scenario end to end (blocking `rm -rf`), introducing rules / actions / state in place |
-| [`proactive/events-and-state.md`](proactive/events-and-state.md) | How state folds out of events — why a rule can remember the past |
-| [`proactive/execution-model.md`](proactive/execution-model.md) | How to write a Policy; blocking vs observing rules |
-| [`proactive/policies-mvp.md`](proactive/policies-mvp.md) | Three sample rules to copy when writing new ones |
-| [`proactive/invariants.md`](proactive/invariants.md) | Invariants the framework itself must hold (chiefly: no feedback loops) |
+Separate per-request context assembly from persistent memory and attribution.
 
-> Paper/production-grade material (offline replay validation, adversarial safety,
-> evaluation skeleton) is archived under `proactive/_research_archive/`.
+[Context overview](context/overview.md) · [Context composition](context/composition.md) · [Compaction](context/compaction.md) · [Memory overview](memory/overview.md) · [Entity memory](memory/entity-memory.md)
 
-## runtime/ — agent execution, DAG, async, revert, controllability
+## Events and scheduling
 
-| Doc | Topic |
-|---|---|
-| [`runtime/overview.md`](runtime/overview.md) | Runtime API behaviour (see also [`../api/runtime.md`](../api/runtime.md)) |
-| [`runtime/operations/user-input-requests.md`](runtime/operations/user-input-requests.md) | User input via runtime.ask/confirm |
-| [`runtime/execution/execution-control.html`](runtime/execution/execution-control.html) | **Authoritative** unified execution control: pause, continue, step, steering, cancellation, checkpoint, revision, recovery, and surface synchronization |
-| [`runtime/unified-session-context.md`](runtime/unified-session-context.md) | Unified session context |
-| [`runtime/agent-configuration-ui.html`](runtime/agent-configuration-ui.html) | Agent configuration framework: identity, model, instructions, Programs, Skills, MCP, and Sessions ([core settings](runtime/agent-core-configuration-ui.html), [capabilities](runtime/agent-capability-configuration-ui.html), [Programs picker](runtime/agent-tool-configuration-ui.html)) |
-| [`runtime/execution/agent-worktree.md`](runtime/execution/agent-worktree.md) | Agent worktree behaviour |
-| [`runtime/execution/async-job-lifecycle.md`](runtime/execution/async-job-lifecycle.md) | Async task lifecycle |
-| [`runtime/agent-resource-governance.html`](runtime/agent-resource-governance.html) | Agent runtime quotas and task lifecycle governance: current implementation audit, reference comparison, admission, budgets, recovery, visibility, and implementation gates |
-| [`runtime/operations/streaming-resume.md`](runtime/operations/streaming-resume.md) | Streaming + resume |
-| [`runtime/operations/file-management.html`](runtime/operations/file-management.html) | **Authoritative** file attribution, Review, Undo, historical Revert, multi-turn Restore, branch/worktree alignment, and multi-agent ownership |
-| [`runtime/dag/overview.md`](runtime/dag/overview.md) | **authoritative** Session DAG data model (one graph / 3 node roles user·llm·code / caller+predecessor edges / spawn / rendering / assembly / compaction) |
-| [`runtime/dag/rendering.md`](runtime/dag/rendering.md) | **authoritative rendering spec**: layout / edges / legend / default visibility, 12 scenarios |
-| [`runtime/dag/branch-collaboration.md`](runtime/dag/branch-collaboration.md) | Branch collaboration (communication / dispatch / merge) design and implementation steps |
-| [`runtime/execution/dispatcher-split.md`](runtime/execution/dispatcher-split.md) | Dispatcher split design |
-| [`runtime/execution/next-step-decision.md`](runtime/execution/next-step-decision.md) | Next-step decision (how the model picks what runs next) |
-| [`runtime/execution/agentic-self-recursion.md`](runtime/execution/agentic-self-recursion.md) | Agentic self-recursion ([rendered](runtime/execution/agentic-self-recursion.html)) |
-| [`runtime/operations/branch-naming.md`](runtime/operations/branch-naming.md) | Branch naming ([rendered](runtime/operations/branch-naming.html)) |
-| [`runtime/session/README.md`](runtime/session/README.md) | Session subsystem: data model, storage, naming, listing, lifecycle |
-| [`runtime/self-update.html`](runtime/self-update.html) | Conversational self-update: owner approval, candidate activation, verification, and recovery |
-| [`runtime/goal-framework-implementation-comparison.html`](runtime/goal-framework-implementation-comparison.html) | **Authoritative Goal design**: native implementation comparison, controller and state flow, async questions, hard-task stopping, restart recovery, Web/TUI surfaces, and implementation evidence |
-| [`runtime/sandbox-architecture.html`](runtime/sandbox-architecture.html) | Canonical execution-security design: authority tiers, permission modes and approval, host sandbox boundaries, framework comparison, and implementation evidence |
-| [`runtime/permission-model.md`](runtime/permission-model.md) / [`runtime/sandbox.md`](runtime/sandbox.md) | Stable link targets that point to the canonical execution-security design |
-| [`runtime/ssrf-protection.html`](runtime/ssrf-protection.html) | Outbound URL and SSRF design: current gaps, Hermes/OpenClaw/OWASP comparison, scoped trust policy, transport requirements, and full acceptance gates |
-| [`runtime/agent-collaboration.md`](runtime/agent-collaboration.md) | Agent collaboration: cross-branch communication primitives ([tool surface](runtime/agent-collab-architecture.html), [eight reference implementations compared](runtime/agent-collab-comparison.html)) |
-| [`runtime/tool-toggle-management.md`](runtime/tool-toggle-management.md) | Tool toggles / toolset management design |
-| [`runtime/additional-working-directories.md`](runtime/additional-working-directories.md) | Multiple working directories per session |
+Read the event contract before policies, proactive actions and scheduling.
 
-## providers/ — LLM providers, credentials, model catalog, thinking/effort
+[Event layer](proactive/event-layer.md) · [Rule execution](proactive/execution-model.md) · [Scheduling and memory](scheduler/scheduler-memory.html)
 
-| Doc | Topic |
-|---|---|
-| [`providers/request-build.md`](providers/request-build.md) | Request build pipeline |
-| [`providers/models/overview.md`](providers/models/overview.md) | Model catalog, final design |
-| [`providers/models/thinking-effort.md`](providers/models/thinking-effort.md) | Thinking / effort subsystem (level definitions, data flow, per-provider wire formats, UI picker) |
-| [`providers/models/fast-tier.md`](providers/models/fast-tier.md) | The Fast tier: two-tier detection, storage, wires |
-| [`providers/auth/claude-code-direct-oauth.md`](providers/auth/claude-code-direct-oauth.md) | claude-code direct subscription auth (Meridian dropped) |
-| [`providers/auth/credential-validation-unification.md`](providers/auth/credential-validation-unification.md) | Unified credential validation |
-| [`providers/auth/unified-auth-storage.md`](providers/auth/unified-auth-storage.md) | Unified auth storage |
-| [`providers/auth/unified-account-management.md`](providers/auth/unified-account-management.md) | Unified account management + rotation |
-| [`providers/auth/credential-file-hardening.html`](providers/auth/credential-file-hardening.html) | File credential persistence hardening: current inventory, user-flow risks, atomic private-write contract, backup/restore boundary, and implementation gates |
-| [`providers/auth/credential-status-redesign.md`](providers/auth/credential-status-redesign.md) | Credential status |
-| [`providers/auth/api-key-resolution-unification.md`](providers/auth/api-key-resolution-unification.md) | API key resolution unification |
-| [`providers/reliability/error-retry.md`](providers/reliability/error-retry.md) | Error + retry handling |
-| [`providers/reliability/error-taxonomy-propagation.md`](providers/reliability/error-taxonomy-propagation.md) | Error taxonomy + propagation |
-| [`providers/reliability/llm-fault-tolerance.md`](providers/reliability/llm-fault-tolerance.md) | LLM fault tolerance (investigation) |
-| [`providers/reliability/error-and-timeout-mechanism.html`](providers/reliability/error-and-timeout-mechanism.html) | Error + timeout mechanism (rendered) |
-| [`providers/network-proxy.md`](providers/network-proxy.md) | Outbound network proxy |
-| [`providers/auth/credential-connection-unification.md`](providers/auth/credential-connection-unification.md) | Credential/connection unification |
-| [`providers/PROBLEM-models-and-bailian.md`](providers/PROBLEM-models-and-bailian.md) | Model list and the Bailian provider |
+## Interfaces and workspace
 
-## function/ — function & tool calling
+Start with state and interaction rules; then choose chat, browser, workspace, settings or terminal.
 
-| Doc | Topic |
-|---|---|
-| [`function/calling-unification.md`](function/calling-unification.md) | Tool/function calling framework (current) |
+[UI overview](ui/README.md) · [State layer](ui/state-layer.md) · [Chat and composer](ui/composer-interaction-modes.md) · [Built-in browser](ui/built-in-browser.html) · [Project workspace](ui/project-workspace.md) · [CLI and TUI](cli/README.md)
 
-> Authoring-facing docs (`@agentic_function` usage, function metadata,
-> tool-calling loop, next-step decision, pure-python helpers) moved to the
-> user guide at [`../agentic-programming/README.md`](../../capabilities/agentic-programming/README.md).
+## Providers and accounts
 
-## cli/ — CLI / TUI, slash commands, ports
+Keep request construction, model options, account resolution and failure handling distinct.
 
-| Doc | Topic |
-|---|---|
-| [`cli/redesign.md`](cli/redesign.md) | CLI / TUI redesign (schema-driven settings, config panel) — current |
-| [`cli/ports.md`](cli/ports.md) | Web UI port (config surface, conflict handling) |
-| [`cli/slash-commands.md`](cli/slash-commands.md) | Slash commands |
-| [`cli/slash-commands-references.md`](cli/slash-commands-references.md) | Slash-command reference snapshot |
-| [`cli/drop-run-command.md`](cli/drop-run-command.md) | Function execution path from the Web UI |
-| [`cli/naming.md`](cli/naming.md) | CLI naming |
-| [`cli/single-port.md`](cli/single-port.md) | Single-port architecture |
-| [`cli/config-write-safety.md`](cli/config-write-safety.md) | Config write safety — atomic `update_config` |
-| [`cli/tui-upgrade.md`](cli/tui-upgrade.md) | TUI upgrade |
+[Model catalog](providers/models/overview.md) · [Request building](providers/request-build.md) · [Account management](providers/auth/unified-account-management.md) · [Retry behavior](providers/reliability/error-retry.md) · [Usage metering](usage-metering.md)
 
-## channels/ — messaging channels
+## Extensions and channels
 
-| Doc | Topic |
-|---|---|
-| [`channels/design.md`](channels/design.md) | Channel design (current) |
-| [`channels/audit.md`](channels/audit.md) | Channel audit / reference snapshot |
+Find harness, MCP, skills, plugin and channel contracts.
 
-## ui/ — surfaces, indicators, attachments, GUI agent
+[Harness standard](integrations/harness-standard.md) · [MCP integration](integrations/mcp-integration.md) · [MCP server](integrations/mcp-server.html) · [Extension gating](extension-gating/README.md) · [Channels](channels/design.md)
 
-| Doc | Topic |
-|---|---|
-| [`ui/invariants.md`](ui/invariants.md) | Cross-module UI invariants |
-| [`ui/chat-turn-visual-spec.html`](ui/chat-turn-visual-spec.html) | Chat-turn visual spec (execution timeline + manual runs + message minimap) |
-| [`ui/interaction-feedback.md`](ui/interaction-feedback.md) | The 0ms interaction-feedback rule |
-| [`ui/surface-system.md`](ui/surface-system.md) | Surface system |
-| [`ui/theme-system.html`](ui/theme-system.html) | Theme entry, complete token contract, component consumption, and desktop-overlay propagation |
-| [`ui/app-icon.html`](ui/app-icon.html) | macOS app icon source layers, Apple-managed enclosure, packaging, and legacy fallback boundary |
-| [`ui/settings-collapsible-columns.html`](ui/settings-collapsible-columns.html) | Collapsible app and Settings nav; Providers list stays expanded |
-| [`ui/indicator-dots.md`](ui/indicator-dots.md) | Indicator dots |
-| [`ui/attachment-handling.html`](ui/attachment-handling.html) | Complete attachment design, framework comparison, and implementation contract |
-| [`ui/composer-interaction-modes.md`](ui/composer-interaction-modes.md) | Composer interaction modes |
-| [`ui/gui-agent.html`](ui/gui-agent.html) | GUI agent entry, state machine, result contract, and implementation status |
-| [`ui/state-layer.md`](ui/state-layer.md) | Web state layer: per-session vs global stores, session-scope container plan |
-| [`ui/center-tabs-and-split-layout.html`](ui/center-tabs-and-split-layout.html) | Authoritative single-tab and composite split-tab lifecycle, rendering, persistence, and transfer design |
-| [`ui/project-workspace.md`](ui/project-workspace.md) | Project workspace — files, tabs, multi-session ([prototype](ui/project-workspace-prototype.html)) |
+## Security and distribution
 
-## integrations/ — MCP, skills/plugins, harness standard
+Read execution authority separately from installation, updates and platform support.
 
-| Doc | Topic |
-|---|---|
-| [`integrations/harness-standard.md`](integrations/harness-standard.md) | Harness standard (plug-in + auto-detect); install: [`../installing-harnesses.md`](../../capabilities/installing-harnesses.md) |
-| [`integrations/mcp-integration.md`](integrations/mcp-integration.md) | MCP integration |
-| [`integrations/skills-and-plugins.md`](integrations/skills-and-plugins.md) | Skills and plugins |
-| [`integrations/extension-management.html`](integrations/extension-management.html) | Unified Web management for Plugins, Skills, and MCP servers |
+[Authority and sandbox](runtime/sandbox-architecture.html) · [System access](runtime/system-access.html) · [Dependency security](security/dependency-security.html) · [Installation and packaging](distribution/installation-packaging.html) · [Automatic updates](distribution/automatic-updates.html)
 
-## extension-gating/
+## Engineering and documentation
 
-Extension gating design + reference comparison — see
-[`extension-gating/README.md`](extension-gating/README.md).
+Find shared verification rules, error handling and documentation maintenance.
 
-## Cross-cutting
+[Test system](testing/test-system.html) · [Error handling](error-handling.md) · [Documentation structure and rendering](docs-site.html) · [Site discoverability](site-discoverability-performance.html)
 
-| Doc | Topic |
-|---|---|
-| [`usage-metering.md`](usage-metering.md) | Usage subsystem (token/cost accounting, ledger, collection point, subprocesses, consumers) |
-| [`framework-overview.md`](framework-overview.md) | Framework overview: one conversation from input to output |
-| [`framework-comparison.html`](framework-comparison.html) | Whole-framework comparison against twelve reference implementations by design axis: where we lead, where we lag, and what they have that we never considered (rendered) |
-| [`feature-matrix.html`](feature-matrix.html) | The same twelve implementations scanned by feature list instead of design axis: 160 user-facing features in one grid, what only they have, what only we have (rendered) |
-| [`docs-site.html`](docs-site.html) | The documentation site itself (build, nav, bilingual routing) |
-| [`repository-structure.html`](repository-structure.html) | Repository boundaries, long-file split policy, and documentation information architecture |
-| [`repository-structure-implementation.html`](repository-structure-implementation.html) | Source ownership, compatibility boundaries and verification for repository structure |
+## Supporting material
 
-## research/ — investigations
+- **Prototypes**: layout and interaction experiments, not evidence of implemented behavior. They have their own sidebar category.
+- **Implementation records**: migration steps, plans and discrepancies to verify. Read the corresponding current design first; historical records do not establish current implementation status.
+- **Research**: exploratory proposals, threat analysis and evaluation notes, not product commitments.
 
-| Doc | Topic |
-|---|---|
-| [`research/execution-trace-model-selection.md`](research/execution-trace-model-selection.md) | Choosing the data model for agent execution traces (span concept, what's novel) |
+## Maintenance rules
 
-## distribution/ — installation, packaging, and updates
+Every page has one sidebar category. Register new pages and their reading order in `scripts/docs_site/nav.py`; unclassified pages remain visible in an Uncategorized group. Category changes preserve page URLs.
 
-| Doc | Topic |
-|---|---|
-| [`distribution/installation-packaging.html`](distribution/installation-packaging.html) | Complete-product installation, packaging, platform support, and release artifacts |
-| [`distribution/automatic-updates.html`](distribution/automatic-updates.html) | Stable Release discovery, verified macOS/Windows Desktop installer handoff, managed CLI atomic activation, trust boundaries, UI states, and implementation evidence |
-| [`distribution/implementation-plan.md`](distribution/implementation-plan.md) | Historical distribution implementation evidence not duplicated by the current designs |
+Maintain one current design per topic. Diagrams, comparisons and implementation records should explain their relationship to that design without copying its body. Default sources are English with synchronized Chinese counterparts. See [documentation conventions](docs-site.html).
 
-## plans/ — supporting implementation plans
-
-| Doc | Topic |
-|---|---|
-| [`plans/proactive-implementation.md`](plans/proactive-implementation.md) | Proactive layer implementation plan |
-| [`plans/cache-control-passthrough.md`](plans/cache-control-passthrough.md) | Per-block passthrough of Anthropic `cache_control` |
-| [`plans/2026-07-08-credential-connection-unification.md`](plans/2026-07-08-credential-connection-unification.md) | Credential/connection unification migration |
-
-## TODO-doc-code-gaps.md
-
-[`TODO-doc-code-gaps.md`](TODO-doc-code-gaps.md) — Places where the docs and the code disagree, ordered by priority. Delete an entry once it is fixed.
-
-## Conventions
-
-- Maintain one current design per topic. Supporting implementation notes link to it rather than copying its body.
-- Use present tense; retrieve historical commits, dates and review rounds from Git.
-- Implementation notes explain entry points, source ownership, data and state transitions, failure handling, compatibility and verification, followed by an implementation-status appendix.
-- Every published page is HTML. Prefer native HTML for implementation documents with diagrams, state and evidence structures; short usage text may remain Markdown source.
-- Default `.md` / `.html` pages are entirely English; `.zh.md` / `.zh.html` pages are Chinese counterparts. Update English first, then synchronize Chinese.
-- API documentation belongs under `docs/reference/api/`; product usage belongs in the relevant product tab.
-- Use relative document links within the site and GitHub links for repository source.
-- Rebuild the site before running `python -m scripts.docs_site.checklinks`.
+Documentation claims, source presence, passing tests, publication and installed-App acceptance are separate states. Categories do not indicate implementation completeness.

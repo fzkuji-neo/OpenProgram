@@ -235,11 +235,20 @@
 
   function initSidebar() {
     const active = document.querySelector("nav.sidebar a.navlink.active");
+    const filter = document.querySelector(".nav-filter");
+    const designNavigation = Boolean(document.querySelector("nav.sidebar .nav-disclosure"));
+    if (filter?.value && (designNavigation || filter.dataset.designNavigation === "true")) {
+      filter.value = "";
+      filter.dispatchEvent(new Event("input"));
+    }
+    if (filter) filter.dataset.designNavigation = String(designNavigation);
     document.querySelectorAll("nav.sidebar a.navlink, nav.tabbar a").forEach((link) => {
       if (link.classList.contains("active")) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     });
     if (active) {
+      const group = active.closest("details.nav-disclosure");
+      if (group) group.open = true;
       const nav = sidebarEl();
       nav.scrollTop += active.getBoundingClientRect().top - nav.getBoundingClientRect().top - nav.clientHeight / 2;
     }
@@ -256,6 +265,15 @@
         document.querySelectorAll("nav.sidebar .nav-sec").forEach((sec) => {
           const hasMatch = !q || sec.querySelector('a.navlink:not([style*="display: none"])');
           sec.style.display = hasMatch ? "" : "none";
+          if (sec.matches("details.nav-disclosure")) {
+            if (q) {
+              if (!sec.hasAttribute("data-filter-open")) sec.dataset.filterOpen = String(sec.open);
+              sec.open = Boolean(hasMatch);
+            } else if (sec.hasAttribute("data-filter-open")) {
+              sec.open = sec.dataset.filterOpen === "true";
+              delete sec.dataset.filterOpen;
+            }
+          }
         });
         updateRails();
       });

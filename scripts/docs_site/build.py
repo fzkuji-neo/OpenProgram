@@ -443,9 +443,8 @@ def render_tabbar(tabs, active_key: str, base: str) -> str:
 
 
 
-def render_nav(sections, current_out: Path, base: str) -> str:
-    """Flat OpenClaw-style sidebar: every page sits under a plain section
-    header; nothing collapses."""
+def render_nav(sections, current_out: Path, base: str, *, collapsible: bool = False) -> str:
+    """Render product groups or native disclosures for the design catalog."""
     def navlink(p) -> str:
         href = base + str(p.out).replace("\\", "/")
         active = " active" if p.out == current_out else ""
@@ -462,10 +461,16 @@ def render_nav(sections, current_out: Path, base: str) -> str:
     for sec in sections:
         zh = (f' data-title-zh="{_html.escape(sec.title_zh, quote=True)}"'
               if sec.title_zh and sec.title_zh != sec.title else "")
-        out.append('<div class="nav-sec">')
-        out.append(f'<div class="nav-sec-title"{zh}>{_html.escape(sec.title)}</div>')
+        if collapsible:
+            opened = " open" if any(p.out == current_out for p in sec.pages) else ""
+            out.append(f'<details class="nav-sec nav-disclosure"{opened}>')
+            out.append(f'<summary><span class="nav-sec-title"{zh}>{_html.escape(sec.title)}</span>'
+                       f'<span class="nav-count">{len(sec.pages)}</span></summary>')
+        else:
+            out.append('<div class="nav-sec">')
+            out.append(f'<div class="nav-sec-title"{zh}>{_html.escape(sec.title)}</div>')
         out.extend(navlink(p) for p in sec.pages)
-        out.append("</div>")
+        out.append("</details>" if collapsible else "</div>")
     return "\n".join(out)
 
 
@@ -593,7 +598,7 @@ def _build_into_out_root() -> int:
                 toc = extract_toc(body)
 
         tab = tab_by_key[tab_key_of[p.out]]
-        nav_html = render_nav(tab.sections, p.out, base)
+        nav_html = render_nav(tab.sections, p.out, base, collapsible=tab.key == "design")
         tabbar_html = render_tabbar(tabs, tab.key, base)
 
         # breadcrumb + prev/next + last-updated
