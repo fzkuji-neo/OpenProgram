@@ -679,7 +679,7 @@ export function selectResourcePreview(sessionId: string, branchId: string | null
 export function followCurrentBranch(sessionId: string, branchId: string | null): PreviewPreference {
   return writePref(sessionId, branchId, {
     mode: "follow",
-    targetId: latestFollowTarget(sessionId, branchId),
+    targetId: latestFollowTarget(sessionId, branchId) ?? getPreviewPreference(sessionId, branchId).targetId,
     hidden: false,
   });
 }
