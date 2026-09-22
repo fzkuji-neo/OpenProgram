@@ -56,7 +56,7 @@ import { renderMarkdown, useMarkdownReady } from "./markdown";
 const JUMP_LATEST_FADE_MS = 280;
 
 import { AssistantBubble } from "./assistant-bubble";
-import { verificationSummary } from "@/lib/chat/goal-verification";
+import { GoalDetails, useSessionGoal } from "../goal-chip";
 import { AttachCard } from "./attach-card";
 import { DecisionOutputs } from "./decision-output";
 import { SystemAccessWaits } from "./system-access-waits";
@@ -73,92 +73,14 @@ import { MessageTimestamp } from "./message-actions";
  *  只有这些轮才做 JSON 尾巴折叠——绝不按"内容长得像 JSON"匹配普通消息。 */
 const GOAL_SPAWN_LABELS = new Set(["goal 判定", "goal 完善"]);
 
-/** 从回复文本里剥出结尾的严格 JSON 对象。找最左的 "{" 使其到结尾能
- *  JSON.parse 成对象 —— 即整个 JSON 尾巴；前面的部分是 prose。 */
-function splitJsonTail(content: string): {
-  prose: string;
-  json: string;
-  data: Record<string, unknown>;
-} | null {
-  const t = content.trimEnd();
-  if (!t.endsWith("}")) return null;
-  for (let i = t.indexOf("{"); i !== -1; i = t.indexOf("{", i + 1)) {
-    const tail = t.slice(i);
-    try {
-      const data = JSON.parse(tail) as unknown;
-      if (data && typeof data === "object" && !Array.isArray(data)) {
-        return { prose: t.slice(0, i).trim(), json: tail, data: data as Record<string, unknown> };
-      }
-    } catch {
-      /* not a JSON start — keep scanning */
-    }
-    // ponytail: O(n·parse) scan; content is one LLM reply, never large.
-  }
-  return null;
-}
-
-/** Only explicit canonical verifier identities or legacy Goal spawn labels
- * change presentation. Ordinary JSON replies remain ordinary messages. */
-export function AssistantMessage({
-  msg,
-  sessionIdOverride,
-}: {
-  msg: ChatMsg;
-  sessionIdOverride?: string;
+/** Internal verifier output stays in durable execution history, not chat. */
+export function AssistantMessage({ msg, sessionIdOverride }: {
+  msg: ChatMsg; sessionIdOverride?: string;
 }) {
-  const { text } = useTranslation();
   const spawnLabel = useSessionStore((s) =>
-    msg.calledBy ? s.messagesById[msg.calledBy]?.spawnedFrom?.label : undefined,
-  );
-  const isGoalSpawn = !!spawnLabel && GOAL_SPAWN_LABELS.has(spawnLabel);
-  // streaming 期间不折（JSON 尾巴没到齐会闪）；落定后一次成型。
-  const settled = msg.status !== "streaming" && msg.status !== "running"
-    && msg.status !== "pending";
-  if (msg.goalVerification) {
-    return <AssistantBubble
-      msg={{ ...msg, content: "",
-        blocks: [], thinking: "", tools: [], callRoots: [], contextTree: undefined }}
-      verdict={{ summary: verificationSummary(msg.goalVerification, msg.status, text), json: msg.content || "" }}
-      sessionIdOverride={sessionIdOverride}
-    />;
-  }
-  const split = settled ? splitJsonTail(msg.content || "") : null;
-  if (!split || !isGoalSpawn) {
-    return <AssistantBubble msg={msg} sessionIdOverride={sessionIdOverride} />;
-  }
-  // blocks 路径渲染的是 text 块不是 content —— 同步剥掉最后一个 text
-  // 块的 JSON 尾巴，两条渲染路径一致。
-  let blocks = msg.blocks;
-  if (blocks) {
-    for (let i = blocks.length - 1; i >= 0; i--) {
-      const b = blocks[i];
-      if (b.type !== "text") continue;
-      const bt = (b.text || "").trimEnd();
-      if (bt.endsWith(split.json)) {
-        const stripped = bt.slice(0, bt.length - split.json.length).trim();
-        blocks = [
-          ...blocks.slice(0, i),
-          ...(stripped ? [{ ...b, text: stripped }] : []),
-          ...blocks.slice(i + 1),
-        ];
-      }
-      break;
-    }
-  }
-  const met = split.data.met;
-  const summary =
-    typeof met === "boolean"
-      ? (met
-          ? text("Verification passed", "验收通过")
-          : text("Verification failed", "验收未通过"))
-      : text("Structured output", "结构化输出");
-  return (
-    <AssistantBubble
-      msg={{ ...msg, content: split.prose, blocks }}
-      verdict={{ summary, json: JSON.stringify(split.data, null, 2) }}
-      sessionIdOverride={sessionIdOverride}
-    />
-  );
+    msg.calledBy ? s.messagesById[msg.calledBy]?.spawnedFrom?.label : undefined);
+  if (msg.goalVerification || (spawnLabel && GOAL_SPAWN_LABELS.has(spawnLabel))) return null;
+  return <AssistantBubble msg={msg} sessionIdOverride={sessionIdOverride} />;
 }
 
 const SYSTEM_EVENT_KINDS = new Set(["compaction", "snip", "event"]);
@@ -706,6 +628,8 @@ export const MessageList = memo(function MessageList({
   const { text } = useTranslation();
   const sessionId = useSessionStore((s) => s.currentSessionId);
   const chatKey = useSessionStore((s) => s.activeChatKey);
+  const goal = useSessionGoal(sessionId);
+  const endRecords = goal?.end_records ?? [];
   useHistoryWindow(sessionId, paintRows);
   const ids = useMessageIds(sessionId);
   const [, setOrigTick] = useState(0);
@@ -907,6 +831,16 @@ export const MessageList = memo(function MessageList({
       ) : null}
       {paintRows ? (() => {
         const nodes: ReactNode[] = [];
+        const addGoalRecords = (anchors: (string | null)[]) => {
+          if (!sessionId) return;
+          for (const record of endRecords) {
+            if (anchors.includes(record.anchor_id)) nodes.push(
+              <GoalDetails key={`goal-end-${record.goal.goal_id}`} sessionId={sessionId}
+                goal={record.goal} historical />,
+            );
+          }
+        };
+        addGoalRecords([null]);
         let i = 0;
         while (i < ids.length) {
           const id = ids[i];
@@ -932,6 +866,7 @@ export const MessageList = memo(function MessageList({
                 </div>
               </div>,
             );
+            addGoalRecords(run);
             continue;
           }
           nodes.push(
@@ -949,6 +884,7 @@ export const MessageList = memo(function MessageList({
               </div>
             ),
           );
+          addGoalRecords([id]);
           i += 1;
         }
         return nodes;
