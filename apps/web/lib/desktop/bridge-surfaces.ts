@@ -112,6 +112,7 @@ export function finalizeBoundWebTabActivation(
   tabId: string,
   expectedGeometryRevision: number,
   targetId: string | null,
+  inputScale = 1,
 ): Record<string, unknown> {
   const tab = visibleWebTabById(tabId);
   const geometryRevision = webTabGeometryRevisions.get(tabId) ?? 0;
@@ -136,6 +137,7 @@ export function finalizeBoundWebTabActivation(
     url,
     tab_id: tab.id,
     target_id: targetId,
+    input_scale: inputScale,
     geometry_revision: geometryRevision,
   };
 }
@@ -485,6 +487,7 @@ export function sendWebTabResult(
   targetId: string | null,
   ownership?: { created: boolean; reused: boolean },
   failure?: { error: string; reason_code?: string },
+  inputScale = 1,
 ): void {
   const activeUrl = active.url || (active.id.startsWith("w:") ? active.id.slice(2) : "");
   const ok = !!activeUrl && !!targetId;
@@ -497,6 +500,7 @@ export function sendWebTabResult(
       url: activeUrl,
       tab_id: active.id,
       target_id: targetId,
+      input_scale: inputScale,
       geometry_revision: webTabGeometryRevisions.get(active.id) ?? 0,
     } : {}),
     ...ownership,

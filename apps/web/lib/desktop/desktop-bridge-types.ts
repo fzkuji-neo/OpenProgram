@@ -121,6 +121,7 @@ export interface DesktopWebTabApi {
   /** Read the exact native Page target and live metadata without revealing it. */
   inspect?(id: string): Promise<{
     target_id: string;
+    input_scale?: number;
     url: string;
     title: string;
   } | null>;

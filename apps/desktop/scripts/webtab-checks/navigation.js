@@ -145,6 +145,7 @@ async function checkVisibleCollectionAndActivation() {
     testContext.plain(await testContext.hooks.inspectView(ctx, "live-title")),
     {
       target_id: "live-title-target",
+      input_scale: 1,
       url: "https://live.example/path",
       title: "live-title",
     },
@@ -413,6 +414,12 @@ async function checkSenderOwnership() {
   testContext.ipcListeners.get("webtab:set-pip-zoom")(eventA, "owned-a", 384, 216);
   testContext.assert.equal(a.nativeCalls.emulation.at(-1).scale, 0.25, "renderer CSS bounds must become native DIP");
   delete winA.webContents.getZoomFactor;
+  testContext.hooks.syncVisibleViews(ctxA, [{ id: "owned-a", bounds: { x: 0, y: 0, width: 480, height: 270 } }]);
+  testContext.assert.equal(
+    await testContext.ipcHandlers.get("webtab:capture")(eventA, "owned-a"),
+    "data:image/png;base64,PIP_CSS_PIXELS",
+    "fixed PiP capture must render CSS pixels rather than return its small presentation bitmap",
+  );
   const disabledBefore = a.nativeCalls.disableEmulation;
   testContext.ipcListeners.get("webtab:set-pip-zoom")(eventA, "owned-a", null);
   testContext.assert.equal(a.nativeCalls.disableEmulation, disabledBefore + 1);

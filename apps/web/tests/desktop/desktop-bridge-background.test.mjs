@@ -339,10 +339,23 @@ test("agent Page open reports cleanup failure and visible reuse ownership", asyn
     url: visibleUrl,
     tab_id: visibleId,
     target_id: "target-visible",
+    input_scale: 1,
     geometry_revision: 0,
     created: false,
     reused: true,
   }]);
+
+  window.openprogramDesktop.webTab.inspect = async () => ({ target_id: "target-visible", input_scale: 0.125 });
+  sent.length = 0;
+  listeners.get("op:ws-message")({ detail: { type: "webtab.command", data: {
+    op: "resolve", req_id: "pip-scale", window_id: "main", tab_id: visibleId,
+  } } });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].ok, true);
+  assert.equal(sent[0].target_id, "target-visible");
+  assert.equal(sent[0].input_scale, 0.125, "bound pointer input uses native PiP scale");
+  delete window.openprogramDesktop.webTab.inspect;
 
   // Two existing split sessions: a same-URL agent request must not select A's page.
   resetTabs();

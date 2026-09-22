@@ -165,6 +165,63 @@ class BrowserPageController:
     def record_external_mutation(self, detail: str) -> dict[str, state.Any]:
         return self._owner.submit(self._mutated, detail).result()
 
+    def pointer_scale(self) -> float | None:
+        return self._owner.submit(self._pointer_scale).result()
+
+    def hover_external_ref(self, attribute: str, frame_id: str) -> dict:
+        return self._owner.submit(self._hover_external_ref, attribute, frame_id).result()
+
+    def clear_external_ref(self, attribute: str) -> None:
+        def clear():
+            for frame in self._page().frames:
+                with state.suppress(Exception):
+                    frame.locator(f"[{attribute}]").evaluate_all(
+                        "(nodes, attr) => nodes.forEach(n => n.removeAttribute(attr))", attribute,
+                    )
+        self._owner.submit(clear).result()
+
+    def _hover_external_ref(self, attribute: str, frame_id: str) -> dict:
+        page = self._page()
+        targets = [frame.locator(f"[{attribute}]") for frame in page.frames]
+        try:
+            stale = self._require_fresh(frame_id) or self._write_allowed()
+            if stale:
+                return stale
+            matches = [target for target in targets if target.count() == 1]
+            scale = self._pointer_scale()
+            if len(matches) != 1 or scale is None:
+                return self._invalidate_frame()
+            target = matches[0]
+            target.scroll_into_view_if_needed()
+            bounds = target.bounding_box()
+            if not bounds:
+                return self._invalidate_frame()
+            page.mouse.move((bounds["x"] + bounds["width"] / 2) * scale,
+                            (bounds["y"] + bounds["height"] / 2) * scale)
+            return self._mutated("hovered external reference")
+        finally:
+            for target in targets:
+                with state.suppress(Exception):
+                    target.evaluate_all("(nodes, attr) => nodes.forEach(n => n.removeAttribute(attr))", attribute)
+
+    def _pointer_scale(self) -> float | None:
+        if not self.binding_id:
+            return 1.0
+        from openprogram.webui.ws_actions.webtab import request_bound_tab
+
+        result = request_bound_tab(
+            self.binding_id,
+            expected_page_revision=self.page_revision,
+            expected_access_revision=self.access_revision,
+            expected_geometry_revision=self.geometry_revision,
+        )
+        if not result.get("ok"):
+            return None
+        scale = result.get("input_scale", 1)
+        if type(scale) not in (int, float) or not state.math.isfinite(scale) or scale <= 0:
+            return None
+        return float(scale)
+
     def _viewport(self, page, snapshot: dict[str, state.Any]) -> dict[str, state.Any]:
         size = page.viewport_size or {}
         return {
@@ -528,7 +585,10 @@ class BrowserPageController:
             run(page.goto, url)
             return self._mutated(f"navigated to {url}")
         if action == "scroll":
-            run(page.mouse.wheel, 0, int(amount))
+            scale = self._pointer_scale()
+            if scale is None:
+                return self._invalidate_frame()
+            run(page.mouse.wheel, 0, int(amount) * scale)
             return self._mutated(f"scrolled {int(amount)}px")
         if action == "click":
             if not ref:
@@ -549,7 +609,10 @@ class BrowserPageController:
                     or point_x >= viewport["width"] or point_y >= viewport["height"]
                 ):
                     return {"ok": False, "reason_code": "invalid_coordinate"}
-                self._agent_click(lambda: run(page.mouse.click, point_x, point_y))
+                scale = self._pointer_scale()
+                if scale is None:
+                    return self._invalidate_frame()
+                self._agent_click(lambda: run(page.mouse.click, point_x * scale, point_y * scale))
                 return self._mutated(
                     f"clicked viewport point ({point_x:g}, {point_y:g})",
                     point={"x": point_x, "y": point_y, "width": 0, "height": 0},
@@ -580,7 +643,18 @@ class BrowserPageController:
             run(target.press, key)
             return self._mutated(f"pressed {key} on {ref}")
         if action == "hover":
-            run(target.hover)
+            scale = self._pointer_scale()
+            if scale is None:
+                return self._invalidate_frame()
+            if scale == 1:
+                run(target.hover)
+            else:
+                run(target.scroll_into_view_if_needed)
+                bounds = target.bounding_box()
+                if not bounds:
+                    return self._invalidate_frame()
+                run(page.mouse.move, (bounds["x"] + bounds["width"] / 2) * scale,
+                    (bounds["y"] + bounds["height"] / 2) * scale)
             return self._mutated(f"hovered {ref}")
         if action == "select":
             run(target.select_option, value)

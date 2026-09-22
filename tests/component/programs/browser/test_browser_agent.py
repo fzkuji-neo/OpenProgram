@@ -1396,3 +1396,41 @@ def test_web_use_does_not_expose_backend_or_session_handles():
     for name in ("backend", "web_session_id", "page_context_token"):
         assert web_use.input_meta[name]["hidden"]
         assert inspect.signature(web_use).parameters[name].default == ""
+
+
+@pytest.mark.parametrize("scale", [0.125, 0.5, 1.0])
+def test_bound_pointer_inputs_use_native_presentation_scale(monkeypatch, scale):
+    from openprogram.webui.ws_actions import webtab
+
+    controller, api = _controller()
+    controller.binding_id = "fixed-preview"
+    controller.geometry_revision = 9
+    queries = []
+    monkeypatch.setattr(webtab, "request_bound_tab", lambda binding_id, **kwargs:
+        queries.append((binding_id, kwargs)) or {"ok": True, "input_scale": scale})
+    monkeypatch.setattr(webtab, "request_bound_screenshot", lambda *_a, **_k: {
+        "ok": True, "image_data_url": "data:image/png;base64," + base64.b64encode(b"png").decode(),
+    })
+    observed = controller.execute(action="observe")
+    controller.execute(action="screenshot", expected_frame_id=observed["frame_id"])
+    result = controller.execute(action="click", expected_frame_id=observed["frame_id"], x=480, y=320)
+    assert result["ok"] is True
+    assert ("mouse_click", 480 * scale, 320 * scale) in api.page.calls
+    observed = controller.execute(action="observe")
+    result = controller.execute(action="scroll", expected_frame_id=observed["frame_id"], amount=600)
+    assert result["ok"] is True
+    assert ("wheel", 0, 600 * scale) in api.page.calls
+    assert all(binding == "fixed-preview" and kwargs["expected_geometry_revision"] == 9
+               for binding, kwargs in queries)
+
+
+def test_bound_pointer_rejects_stale_native_geometry(monkeypatch):
+    from openprogram.webui.ws_actions import webtab
+
+    controller, api = _controller()
+    controller.binding_id = "fixed-preview"
+    monkeypatch.setattr(webtab, "request_bound_tab", lambda *_a, **_k: {"ok": False})
+    observed = controller.execute(action="observe")
+    result = controller.execute(action="scroll", expected_frame_id=observed["frame_id"], amount=600)
+    assert result == {"ok": False, "reason_code": "stale_observation"}
+    assert not any(call[0] == "wheel" for call in api.page.calls)

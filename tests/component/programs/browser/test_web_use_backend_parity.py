@@ -519,3 +519,48 @@ def test_open_claude_backend_normalizes_real_playwright_timeout(monkeypatch):
     assert controllers[backend].invalidated == 1
     assert controllers[backend].write_attempts == 1
     assert all(client.write_calls == [] for client in clients.values())
+
+
+@pytest.mark.parametrize("backend", BACKENDS[:2])
+@pytest.mark.parametrize("action", ["point", "ref", "scroll", "hover"])
+def test_scaled_preview_preserves_mcp_reference_namespace(monkeypatch, backend, action):
+    registry, controllers, clients, _ = _registry(monkeypatch)
+    observed = _observe(registry, backend)
+    controller = controllers[backend]
+    controller.pointer_scale = lambda: 0.125
+    hovered = []
+    controller.hover_external_ref = lambda attr, frame: hovered.append((attr, frame)) or {"ok": True}
+    calls = []
+    clients[backend].call = lambda name, args: calls.append((name, dict(args))) or _Result("done")
+    args = {"action": "click" if action in {"point", "ref"} else action,
+            "expected_frame_id": observed["frame_id"]}
+    if action == "point":
+        args.update(x=960, y=540)
+    elif action in {"ref", "hover"}:
+        args["ref"] = "upstream-only-ref"
+    else:
+        args["amount"] = 600
+    result = registry.execute(command="act", web_session_id=observed["web_session_id"],
+                              owner_id="owner-1", arguments=args)
+    assert result["ok"] is True
+    name, params = calls[-1]
+    if action == "point":
+        assert params["x"] == 120
+        assert params["y"] == 67.5
+    elif action == "scroll":
+        if backend == "playwright_mcp":
+            assert params["deltaY"] == 75
+        else:
+            assert "window.scrollBy(0, 600)" in params["function"]
+    else:
+        if backend == "playwright_mcp":
+            assert name == "browser_evaluate"
+            assert params["target"] == "upstream-only-ref"
+        else:
+            assert name == "evaluate_script"
+            assert params["args"] == ["upstream-only-ref"]
+        if action == "ref":
+            assert "element.click()" in params["function"]
+        else:
+            assert hovered[0][0] in params["function"]
+            assert hovered[0][1] == observed["frame_id"]

@@ -733,6 +733,9 @@ async def handle_webtab_result(ws, cmd: dict):
             **({"title": cmd["title"]} if isinstance(cmd.get("title"), str) else {}),
             **({"preview": cmd["preview"]} if isinstance(cmd.get("preview"), dict) else {}),
             **({"image_data_url": image_data_url} if image_data_url else {}),
+            **({"input_scale": cmd["input_scale"]}
+               if type(cmd.get("input_scale")) in (int, float)
+               and 0 < cmd["input_scale"] < float("inf") else {}),
             **({"geometry_revision": cmd["geometry_revision"]}
                if isinstance(cmd.get("geometry_revision"), int) else {}),
             **({"reason_code": cmd["reason_code"]}

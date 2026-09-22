@@ -294,7 +294,36 @@ class OfficialMCPPageBackend:
         rejected = controller.prepare_external_action(arguments)
         if rejected is not None:
             return rejected
+        scale = 1.0
+        if action in {"click", "hover", "scroll"}:
+            get_scale = getattr(controller, "pointer_scale", None)
+            scale = get_scale() if callable(get_scale) else 1.0
+            if scale is None:
+                return controller.invalidate_external_frame()
         call = self._action_call(session, arguments)
+        hover_attribute = None
+        ref = str(arguments.get("ref") or "").lstrip("@")
+        if call is not None and scale != 1:
+            name, params = call
+            if action == "click" and not ref:
+                params = {**params, "x": float(arguments["x"]) * scale,
+                          "y": float(arguments["y"]) * scale}
+            elif action == "scroll" and self.name == "playwright_mcp":
+                params = {**params, "deltaY": params["deltaY"] * scale}
+            elif action in {"click", "hover"} and ref:
+                if action == "click":
+                    from . import _BACKGROUND_REF_CLICK_SCRIPT
+                    script = _BACKGROUND_REF_CLICK_SCRIPT
+                else:
+                    hover_attribute = "data-openprogram-pointer-" + uuid.uuid4().hex
+                    script = f"(element) => element.setAttribute('{hover_attribute}', '')"
+                name, params = (
+                    ("browser_evaluate", {"target": ref, "function": script})
+                    if self.name == "playwright_mcp" else
+                    ("evaluate_script", {"pageId": session.state["upstream_page"],
+                                         "args": [ref], "function": script})
+                )
+            call = name, params
         if call is None:
             return {"ok": False, "reason_code": "unsupported_action"}
         client = self._ensure_bound(session)
@@ -305,6 +334,11 @@ class OfficialMCPPageBackend:
                 set_cursor(True)
         try:
             result = client.call(call[0], call[1])
+        except Exception:
+            if hover_attribute is not None:
+                with suppress(Exception):
+                    controller.clear_external_ref(hover_attribute)
+            raise
         finally:
             if cursor_armed:
                 with suppress(Exception):
@@ -314,6 +348,9 @@ class OfficialMCPPageBackend:
             or getattr(result, "is_error", False)
         )
         if is_error:
+            if hover_attribute is not None:
+                with suppress(Exception):
+                    controller.clear_external_ref(hover_attribute)
             controller.invalidate_external_frame()
             return {
                 "ok": False,
@@ -321,6 +358,8 @@ class OfficialMCPPageBackend:
                 "result": _result_text(result),
                 "observe_required": True,
             }
+        if hover_attribute is not None:
+            return controller.hover_external_ref(hover_attribute, frame_id)
         mutation = controller.record_external_mutation(f"{self.name}:{action}")
         return {
             **mutation,
