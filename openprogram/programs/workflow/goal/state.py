@@ -225,7 +225,9 @@ def _end_records(previous: dict, candidate: dict, anchor: str | None) -> list:
         snapshot = deepcopy({key: value for key, value in ended.items()
                              if key != "end_records"})
         verification = ended.get("verification") or {}
-        records.append({"anchor_id": verification.get("result_message_id") or anchor,
+        verified_anchor = (verification.get("result_message_id")
+                           if ended.get("status") == "achieved" else None)
+        records.append({"anchor_id": verified_anchor or anchor,
                         "goal": snapshot})
     return records
 
