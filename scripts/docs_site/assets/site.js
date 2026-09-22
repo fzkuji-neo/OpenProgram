@@ -247,8 +247,11 @@
       else link.removeAttribute("aria-current");
     });
     if (active) {
-      const group = active.closest("details.nav-disclosure");
-      if (group) group.open = true;
+      let group = active.closest("details.nav-disclosure");
+      while (group) {
+        group.open = true;
+        group = group.parentElement.closest("details.nav-disclosure");
+      }
       const nav = sidebarEl();
       nav.scrollTop += active.getBoundingClientRect().top - nav.getBoundingClientRect().top - nav.clientHeight / 2;
     }
@@ -259,10 +262,16 @@
       navFilter.addEventListener("input", () => {
         const q = navFilter.value.trim().toLowerCase();
         document.querySelectorAll("nav.sidebar a.navlink").forEach((a) => {
-          a.style.display = !q || a.textContent.toLowerCase().includes(q) ? "" : "none";
+          const labels = [a.textContent];
+          let group = a.closest("details.nav-disclosure");
+          while (group) {
+            labels.push(group.querySelector(":scope > summary .nav-sec-title")?.textContent || "");
+            group = group.parentElement.closest("details.nav-disclosure");
+          }
+          a.style.display = !q || labels.some((label) => label.toLowerCase().includes(q)) ? "" : "none";
         });
         // a section is visible iff it still has a visible link
-        document.querySelectorAll("nav.sidebar .nav-sec").forEach((sec) => {
+        document.querySelectorAll("nav.sidebar .nav-sec, nav.sidebar .nav-branch").forEach((sec) => {
           const hasMatch = !q || sec.querySelector('a.navlink:not([style*="display: none"])');
           sec.style.display = hasMatch ? "" : "none";
           if (sec.matches("details.nav-disclosure")) {

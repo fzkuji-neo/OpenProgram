@@ -370,8 +370,13 @@ def flatten_pages(sections):
     prev/next and breadcrumbs). Returns list of (page, [(en, zh)])."""
     out = []
     for sec in sections:
+        chain = [(sec.title, sec.title_zh or sec.title)]
+        if sec.area:
+            chain = [sec.area]
+            if sum(other.area == sec.area for other in sections) > 1:
+                chain.append((sec.title.split(" · ")[-1], (sec.title_zh or sec.title).split(" · ")[-1]))
         for p in sec.pages:
-            out.append((p, [(sec.title, sec.title_zh or sec.title)]))
+            out.append((p, chain))
     return out
 
 
@@ -457,20 +462,41 @@ def render_nav(sections, current_out: Path, base: str, *, collapsible: bool = Fa
                      f' data-href-en="{href}" data-href-zh="{zh_href}"')
         return f'<a class="navlink{active}" href="{href}"{extra}>{_html.escape(p.title)}</a>'
 
-    out = []
-    for sec in sections:
-        zh = (f' data-title-zh="{_html.escape(sec.title_zh, quote=True)}"'
-              if sec.title_zh and sec.title_zh != sec.title else "")
+    def title_attrs(title, title_zh):
+        return (f' data-title-zh="{_html.escape(title_zh, quote=True)}"'
+                if title_zh and title_zh != title else "")
+
+    def disclosure(title, title_zh, count, active, css):
+        opened = " open" if active else ""
+        return (f'<details class="{css} nav-disclosure"{opened}>'
+                f'<summary><span class="nav-sec-title"{title_attrs(title, title_zh)}>'
+                f'{_html.escape(title)}</span><span class="nav-count">{count}</span></summary>')
+
+    def section_html(sec, title=None, title_zh=None):
+        en, zh = title or sec.title, title_zh or sec.title_zh
         if collapsible:
-            opened = " open" if any(p.out == current_out for p in sec.pages) else ""
-            out.append(f'<details class="nav-sec nav-disclosure"{opened}>')
-            out.append(f'<summary><span class="nav-sec-title"{zh}>{_html.escape(sec.title)}</span>'
-                       f'<span class="nav-count">{len(sec.pages)}</span></summary>')
+            start = disclosure(en, zh, len(sec.pages), any(p.out == current_out for p in sec.pages), "nav-sec")
         else:
-            out.append('<div class="nav-sec">')
-            out.append(f'<div class="nav-sec-title"{zh}>{_html.escape(sec.title)}</div>')
-        out.extend(navlink(p) for p in sec.pages)
-        out.append("</details>" if collapsible else "</div>")
+            start = f'<div class="nav-sec"><div class="nav-sec-title"{title_attrs(en, zh)}>{_html.escape(en)}</div>'
+        return start + "\n".join(navlink(p) for p in sec.pages) + ("</details>" if collapsible else "</div>")
+
+    if not collapsible:
+        return "\n".join(section_html(sec) for sec in sections)
+
+    areas = {}
+    for sec in sections:
+        areas.setdefault(sec.area or (sec.title, sec.title_zh), []).append(sec)
+    out = []
+    for (en, zh), children in areas.items():
+        if len(children) == 1:
+            out.append(section_html(children[0], en, zh))
+            continue
+        pages = [p for sec in children for p in sec.pages]
+        out.append(disclosure(en, zh, len(pages), any(p.out == current_out for p in pages), "nav-branch"))
+        for sec in children:
+            # The parent already provides the domain, so child labels can be short.
+            out.append(section_html(sec, sec.title.split(" · ")[-1], sec.title_zh.split(" · ")[-1]))
+        out.append("</details>")
     return "\n".join(out)
 
 

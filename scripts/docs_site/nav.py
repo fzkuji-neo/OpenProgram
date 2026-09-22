@@ -192,11 +192,11 @@ def _dedupe_md_html(pages: list[Page]) -> list[Page]:
 
 @dataclass
 class Section:
-    """One sidebar section: a plain (non-collapsible) header + a flat page list.
-    Every page belongs to exactly one section — OpenClaw-style."""
+    """An ordered page group, optionally nested under a design area."""
     title: str
     title_zh: str
     pages: list  # list[Page]
+    area: tuple[str, str] | None = None
 
 
 @dataclass
@@ -624,6 +624,35 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
 }
 
 
+# Top-level design areas. The section lists below are the only source of
+# hierarchy/order; flat page sequences remain available to breadcrumbs and
+# previous/next navigation. Overview is a direct group, not a redundant wrapper.
+DESIGN_AREAS = [
+    ("Architecture", "架构总览", ["Overview"]),
+    ("Agents and workflows", "Agent 与工作流", [
+        "Runtime · Execution", "Runtime · Sessions", "Runtime · DAG and collaboration",
+        "Runtime · Goals and recovery", "Runtime · Configuration and operations",
+        "Programs and workflows", "Workflows · Reports", "Events and scheduling",
+    ]),
+    ("Context and memory", "上下文与记忆", ["Context", "Memory"]),
+    ("Interfaces", "界面与交互", [
+        "UI · Foundations", "UI · Chat and composer", "UI · Browser and tabs",
+        "UI · Settings and catalog", "UI · Workspace and sidebar", "CLI and TUI",
+    ]),
+    ("Models and connections", "模型与外部接入", [
+        "Providers · Requests and models", "Providers · Authentication",
+        "Providers · Reliability", "Extensions and integrations", "Channels",
+    ]),
+    ("Security and engineering", "安全与工程", [
+        "Security and permissions", "Distribution", "Engineering · Testing and errors",
+        "Engineering · Documentation and website",
+    ]),
+    ("Supporting material", "补充材料", [
+        "Supporting · Prototypes", "Supporting · Implementation records", "Supporting · Research",
+    ]),
+]
+
+
 # Explicit sidebar order for product pages (rel path or rel dir -> rank).
 # Tutorial docs must read top-to-bottom; anything unlisted sorts after these,
 # alphabetically (which is fine for the design-notes archive).
@@ -815,6 +844,20 @@ def build_tabs(docs_root: Path, pages: list[Page]) -> list[Tab]:
                 section.title = "Uncategorized · " + section.title
                 section.title_zh = "待分类 · " + (section.title_zh or section.title)
         sections.extend(fallback_sections)
+
+        if key == "design":
+            by_title = {section.title: section for section in sections}
+            ordered = []
+            for area_en, area_zh, names in DESIGN_AREAS:
+                for name in names:
+                    section = by_title.pop(name, None)
+                    if section is not None:
+                        section.area = (area_en, area_zh)
+                        ordered.append(section)
+            for section in by_title.values():
+                section.area = ("Uncategorized", "待分类")
+                ordered.append(section)
+            sections = ordered
 
         landing = sections[0].pages[0].out if sections and sections[0].pages else Path("index.html")
         tabs.append(Tab(key=key, title=en, title_zh=zh, sections=sections,

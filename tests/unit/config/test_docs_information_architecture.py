@@ -268,15 +268,29 @@ def test_design_navigation_disclosures_open_current_group() -> None:
             self.open_groups = 0
             self.group_open = False
             self.active_open = False
+            self.depth = 0
+            self.roots = 0
+            self.active_depth = 0
+        def handle_endtag(self, tag):
+            if tag == "details":
+                self.depth -= 1
         def handle_starttag(self, tag, attrs):
             attrs = dict(attrs)
             if tag == "details":
+                self.roots += self.depth == 0
+                self.depth += 1
                 self.group_open = "open" in attrs
                 self.open_groups += self.group_open
             if tag == "a" and attrs.get("href") == "/docs/" + current.as_posix():
                 self.active_open = self.group_open
+                self.active_depth = self.depth
     parser = Groups()
     parser.feed(markup)
-    assert parser.open_groups == 1
+    assert parser.roots == 7
+    assert parser.open_groups == 2
+    assert parser.active_depth == 2
     assert parser.active_open
+    from scripts.docs_site.build import flatten_pages
+    chain = next(chain for page, chain in flatten_pages(design.sections) if page.out == current)
+    assert chain == [("Agents and workflows", "Agent 与工作流"), ("Sessions", "会话与存储")]
     assert "<details" not in render_nav(design.sections, current, "/docs/")
