@@ -147,6 +147,7 @@ window.ResizeObserver = class {
   disconnect() { this.active = false; }
   unobserve() { this.active = false; }
 };
+const RealMutationObserver = window.MutationObserver;
 window.MutationObserver = class {
   observe() {}
   disconnect() {}
@@ -1307,6 +1308,28 @@ test("capture rejection and quick release restore the page without replaying ges
       assert.ok(host.querySelector('[data-pip-live="native"]'));
     }, { capture: async () => { captures++; throw new Error("capture unavailable"); } });
   } finally { globalThis.livePipTest = false; }
+});
+
+
+test("occluding a preview settles instead of observing its own hidden attribute forever", async () => {
+  const previous = window.MutationObserver;
+  window.MutationObserver = RealMutationObserver;
+  globalThis.MutationObserver = RealMutationObserver;
+  globalThis.livePipTest = true;
+  try {
+    await withShell(async ({ host }) => {
+      const modal = document.createElement("div");
+      modal.setAttribute("role", "dialog");
+      modal.getBoundingClientRect = () => box(0, 0, 2000, 2000);
+      host.append(modal);
+      for (let i = 0; i < 6; i++) await act(async () => { flushRaf(); });
+      assert.equal(rafQueue.size, 0, "occlusion must not cause a self-sustaining rAF loop");
+    });
+  } finally {
+    globalThis.livePipTest = false;
+    window.MutationObserver = previous;
+    globalThis.MutationObserver = previous;
+  }
 });
 
 
