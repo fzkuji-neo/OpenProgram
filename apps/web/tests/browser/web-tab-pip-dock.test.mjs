@@ -960,7 +960,7 @@ test("resize then resource switch restores origin inline geometry without a stor
 test("eight root handles keep content ratio and the opposite anchor", async () => {
   await withShell(async ({ host }) => {
     const origin = { x: 200, y: 120, width: 400, height: 255 };
-    const bounds = { x: 5, y: 5, width: 990, height: 690 };
+    const bounds = { x: 14, y: 14, width: 972, height: 672 };
     const pip = host.querySelector("[data-pip='true']");
     const handles = [...pip.querySelectorAll("[data-pip-resize]")];
     assert.equal(handles.length, 8);
@@ -1012,7 +1012,7 @@ test("expanded resize persists size without writing collapsed rect", async () =>
       { ...origin, width: PIP_EXPANDED_WIDTH, height: PIP_EXPANDED_HEIGHT },
       80,
       45,
-      { x: 5, y: 5, width: 990, height: 690 },
+      { x: 14, y: 14, width: 972, height: 672 },
       PIP_MIN_WIDTH,
       PIP_MIN_HEIGHT,
       "se",
@@ -1142,10 +1142,10 @@ test("parent resize during drag does not write the store; release clamps to the 
     });
     const finalRect = useWebTabPip.getState().rect;
     assert.equal(pip.style.transform, "");
-    assert.ok(finalRect.x >= 5);
-    assert.ok(finalRect.y >= 5);
-    assert.ok(finalRect.x + finalRect.width <= 275);
-    assert.ok(finalRect.y + finalRect.height <= 695);
+    assert.ok(finalRect.x >= 14);
+    assert.ok(finalRect.y >= 14);
+    assert.ok(finalRect.x + finalRect.width <= 266);
+    assert.ok(finalRect.y + finalRect.height <= 686);
   });
 });
 
