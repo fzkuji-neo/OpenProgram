@@ -1,5 +1,5 @@
 /** Aspect-preserving PiP overlay size. Window height is content + 30 CSS px
- *  (28px chrome + 2px root borders). Native page size/zoom is not changed. */
+ *  (30px chrome, no outer border). Native page size/zoom is not changed. */
 
 export type PipRect = { x: number; y: number; width: number; height: number };
 export type PipResizeDir = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";

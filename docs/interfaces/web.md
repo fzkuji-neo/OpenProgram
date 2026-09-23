@@ -106,6 +106,8 @@ Session history is stored as a DAG, not a flat list:
 
 Each message's action menu has "Rewind to here": it truly rolls the session back to that message, and the undone user input is pre-filled back into the input box for editing and resending. The `/rewind` slash command in the input box is the same feature.
 
+The floating webpage preview fills the space below its compact header, without an outer frame or side and bottom padding. Drag the header to move it; use its edges or corners to resize it.
+
 ## Other pages
 
 | Route | Purpose |
