@@ -82,6 +82,15 @@ type PipDrag = {
 };
 
 function containerBox(el: HTMLElement): WebTabPipRect {
+  const box = rawContainerBox(el);
+  // Keep the outward 5px resize targets inside the host, without page padding.
+  const insetX = Math.min(5, box.width / 2);
+  const insetY = Math.min(5, box.height / 2);
+  return { x: box.x + insetX, y: box.y + insetY,
+    width: box.width - insetX * 2, height: box.height - insetY * 2 };
+}
+
+function rawContainerBox(el: HTMLElement): WebTabPipRect {
   const parent = el.offsetParent as HTMLElement | null;
   if (!parent) {
     return { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
