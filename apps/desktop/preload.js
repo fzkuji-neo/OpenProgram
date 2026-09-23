@@ -60,7 +60,7 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
     stopFind: (id, action) => ipcRenderer.send("webtab:stop-find", id, action),
     zoom: (id, action) => ipcRenderer.invoke("webtab:zoom", id, action),
     print: (id) => ipcRenderer.invoke("webtab:print", id),
-    capture: (id) => ipcRenderer.invoke("webtab:capture", id),
+    capture: (id, mode) => ipcRenderer.invoke("webtab:capture", id, mode),
     showAction: (id, marker) => ipcRenderer.invoke("webtab:show-action", id, marker),
     setControlOverlay: (id, payload) => ipcRenderer.send("webtab:control-overlay", id, payload),
     onControlOverlayEvent: (cb) => {

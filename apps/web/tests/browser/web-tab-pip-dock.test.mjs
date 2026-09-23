@@ -82,6 +82,7 @@ await build({
               reload() {},
               stop() {},
               openExternal() {},
+              setBounds(id, next) { (globalThis.pipFinalBounds ||= []).push({ id, ...next }); },
               setPipZoom(...args) { (globalThis.pipViewportCalls ||= []).push(args); },
               onState() { return () => {}; },
               onFindResult() { return () => {}; },
@@ -92,9 +93,9 @@ await build({
                 globalThis.controlOverlays.push({ id, payload });
               },
               onControlOverlayEvent() { return () => {}; },
-              capture: async (id) => (
+              capture: async (id, mode) => (
                 typeof globalThis.webTabCapture === "function"
-                  ? globalThis.webTabCapture(id)
+                  ? globalThis.webTabCapture(id, mode)
                   : null
               ),
             },
@@ -142,9 +143,9 @@ Object.defineProperty(window.HTMLElement.prototype, "offsetParent", {
 const resizeObservers = [];
 window.ResizeObserver = class {
   constructor(cb) { this.cb = cb; resizeObservers.push(this); }
-  observe() {}
-  disconnect() {}
-  unobserve() {}
+  observe() { this.active = true; }
+  disconnect() { this.active = false; }
+  unobserve() { this.active = false; }
 };
 window.MutationObserver = class {
   observe() {}
@@ -153,7 +154,7 @@ window.MutationObserver = class {
 globalThis.ResizeObserver = window.ResizeObserver;
 globalThis.MutationObserver = window.MutationObserver;
 function flushObservers() {
-  for (const observer of resizeObservers) observer.cb?.();
+  for (const observer of resizeObservers) if (observer.active) observer.cb?.();
 }
 const rafQueue = new Map();
 let rafSeq = 0;
@@ -1231,42 +1232,83 @@ test("chat PiP does not provide separate task pause controls", async () => {
 });
 
 
-test("live PiP registers the existing page and keeps it visible while dragging without capture", async () => {
+test("live PiP freezes native geometry through continuous resize and commits once on release", async () => {
   globalThis.livePipTest = true;
-  let captures = 0;
+  globalThis.pipFinalBounds = [];
+  const captures = [];
+  const decode = window.HTMLImageElement.prototype.decode;
+  window.HTMLImageElement.prototype.decode = async () => {};
   try {
     await withShell(async ({ host, page }) => {
       await act(async () => useWebTabPip.getState().setRect({ x: 40, y: 80, width: 400, height: 250 }));
-      flushObservers();
-      flushRaf();
-      assert.ok(host.querySelector('[data-pip-live="native"]'));
-      assert.equal(captures, 0);
-      assert.ok(boundsCalls.some(call => call.id === page.id));
+      flushObservers(); flushRaf();
       const before = boundsCalls.length;
-      const originalBounds = boundsCalls.at(-1);
-      assert.deepEqual(globalThis.pipViewportCalls.at(-1), [page.id, originalBounds.width, originalBounds.height]);
-      const ensures = globalThis.pipEnsures.length;
+      const zooms = globalThis.pipViewportCalls.length;
       const removed = globalThis.webTabBoundsRemoved.count;
       const pip = host.querySelector('[data-pip="true"]');
-      const chrome = pip.firstElementChild;
-      dispatchPointer(chrome, "pointerdown", { clientX: 20, clientY: 20 });
-      dispatchPointer(chrome, "pointermove", { clientX: 50, clientY: 40 });
-      flushRaf();
-      assert.ok(boundsCalls.length > before);
-      assert.equal(boundsCalls.at(-1).x, originalBounds.x + 30);
-      assert.equal(boundsCalls.at(-1).y, originalBounds.y + 20);
-      assert.equal(globalThis.pipEnsures.length, ensures);
-      assert.equal(globalThis.webTabBoundsRemoved.count, removed);
-      assert.ok(host.querySelector('[data-pip-live="native"]'));
-      assert.equal(captures, 0);
-      await act(async () => dispatchPointer(chrome, "pointerup", { clientX: 50, clientY: 40 }));
-      await act(async () => useWebTabPip.getState().hide());
-      assert.equal(host.querySelector('[data-pip-live="native"]'), null);
+      const handle = pip.querySelector('[data-pip-resize="se"]');
+      await act(async () => dispatchPointer(handle, "pointerdown", { clientX: 400, clientY: 250 }));
+      for (let i = 1; i <= 60; i++) {
+        dispatchPointer(handle, "pointermove", { clientX: 400 + i, clientY: 250 + i });
+        flushRaf(); flushObservers(); flushRaf();
+      }
+      assert.equal(boundsCalls.length, before, "held resize must not resize the native renderer");
+      assert.equal(globalThis.pipViewportCalls.length, zooms);
+      assert.deepEqual(captures, ["presentation"]);
       assert.ok(globalThis.webTabBoundsRemoved.count > removed);
+      assert.ok(host.querySelector('[data-pip-gesture-frame]').src.startsWith("data:image/"));
+      await act(async () => dispatchPointer(handle, "pointerup", { clientX: 460, clientY: 310 }));
+      assert.equal(globalThis.pipFinalBounds.length, 1);
+      assert.deepEqual(captures, ["presentation", "presentation"]);
+      assert.ok(boundsCalls.length > before, "release restores the live page");
       assert.ok(useCenterTabs.getState().tabs.some(tab => tab.id === page.id));
-    }, { capture: async () => { captures++; return null; } });
+    }, { capture: async (_id, mode) => { captures.push(mode); return "data:image/png;base64,FRAME"; } });
+  } finally {
+    globalThis.livePipTest = false;
+    window.HTMLImageElement.prototype.decode = decode;
+  }
+});
+
+test("late gesture capture cannot hide a closed preview", async () => {
+  globalThis.livePipTest = true;
+  const decode = window.HTMLImageElement.prototype.decode;
+  window.HTMLImageElement.prototype.decode = async () => {};
+  let resolve;
+  try {
+    await withShell(async ({ host }) => {
+      const chrome = host.querySelector('[data-pip="true"]').firstElementChild;
+      await act(async () => dispatchPointer(chrome, "pointerdown"));
+      await act(async () => useWebTabPip.getState().hide());
+      const removed = globalThis.webTabBoundsRemoved.count;
+      const shown = boundsCalls.length;
+      await act(async () => resolve("data:image/png;base64,LATE"));
+      assert.equal(globalThis.webTabBoundsRemoved.count, removed);
+      assert.equal(boundsCalls.length, shown);
+      assert.equal(host.querySelector('[data-pip-live="native"]'), null);
+    }, { capture: () => new Promise(r => { resolve = r; }) });
+  } finally { globalThis.livePipTest = false; window.HTMLImageElement.prototype.decode = decode; }
+});
+
+test("capture rejection and quick release restore the page without replaying gesture frames", async () => {
+  globalThis.livePipTest = true;
+  globalThis.pipFinalBounds = [];
+  let captures = 0;
+  try {
+    await withShell(async ({ host }) => {
+      const chrome = host.querySelector('[data-pip="true"]').firstElementChild;
+      const shown = boundsCalls.length;
+      await act(async () => {
+        dispatchPointer(chrome, "pointerdown");
+        dispatchPointer(chrome, "pointerup", { clientX: 10, clientY: 10 });
+      });
+      assert.equal(captures, 2);
+      assert.equal(globalThis.pipFinalBounds.length, 1);
+      assert.ok(boundsCalls.length > shown);
+      assert.ok(host.querySelector('[data-pip-live="native"]'));
+    }, { capture: async () => { captures++; throw new Error("capture unavailable"); } });
   } finally { globalThis.livePipTest = false; }
 });
+
 
 
 test("More cancellation and unmount discard stale actions and remove listeners", async () => {

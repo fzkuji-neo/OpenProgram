@@ -587,6 +587,7 @@ export function WebTabPip() {
     } else if (el) {
       applyInlineRect(el, drag.origin);
     }
+    el?.dispatchEvent(new Event("op:pip-gesture-end"));
     if (persist) captureLoopRef.current?.resume();
     dragFinishingRef.current = false;
   };
@@ -617,6 +618,7 @@ export function WebTabPip() {
     el.classList.add(styles.webPipDragging);
     el.style.willChange = kind === "move" ? "transform" : "left, top, width, height";
     captureLoopRef.current?.pause();
+    el.dispatchEvent(new Event("op:pip-gesture-start"));
   };
 
   const onDragPointerMove = (event: React.PointerEvent<HTMLElement>) => {

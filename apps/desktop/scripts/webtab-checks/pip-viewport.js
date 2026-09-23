@@ -43,6 +43,13 @@ module.exports = function createChecks(t) {
     t.assert.equal(c.nativeCalls.emulation.length, emulationCount + 1, "one emulation update per changed scale");
     resize(240);
     t.assert.equal((await t.hooks.inspectView(ctx, record.id)).input_scale, 0.125);
+    const nativeCaptures = c.nativeCalls.capturePage;
+    const beforePresentation = c.nativeCalls.emulation.length;
+    const beforeDebugger = c.debuggerCommands.length;
+    await t.ipcHandlers.get("webtab:capture")(event, record.id, "presentation");
+    t.assert.equal(c.nativeCalls.capturePage, nativeCaptures + 1, "gesture captures use the already rendered presentation");
+    t.assert.equal(c.nativeCalls.emulation.length, beforePresentation, "gesture captures never reconfigure emulation");
+    t.assert.equal(c.debuggerCommands.length, beforeDebugger, "gesture captures never attach CDP");
     c.delayDebuggerMethod("Page.captureScreenshot");
     c.delayDebuggerMethod("Target.getTargetInfo");
     const resolving = t.hooks.resolveView(ctx, record.id);
