@@ -225,12 +225,17 @@ def extract_toc(body_html: str) -> str:
     def render_group(nodes):
         rows = ['<ul class="toc-list">']
         for level, hid, text, children in nodes:
+            rows.append('<li>')
+            if children:
+                rows.append('<details class="toc-disclosure" open=""><summary>')
             rows.append(
-                f'<li><a class="lvl-{level}" href="#{_html.escape(hid)}">'
+                f'<a class="lvl-{level}" href="#{_html.escape(hid)}">'
                 f'{_html.escape(text, quote=False)}</a>'
             )
             if children:
+                rows.append('</summary>')
                 rows.append(render_group(children))
+                rows.append('</details>')
             rows.append("</li>")
         rows.append("</ul>")
         return "\n".join(rows)

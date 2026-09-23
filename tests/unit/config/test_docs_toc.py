@@ -13,10 +13,11 @@ def test_toc_groups_children_under_their_nearest_shallower_heading():
     <h4 id="detail">Detail</h4><h3 id="second">Second</h3>
     <h2 id="next">Next</h2><h3 id="third">Third</h3>''')
     parts = root.findall('./ul/li')
-    assert [part.find('a').get('href') for part in parts] == ['#part', '#next']
-    assert [link.get('href') for link in parts[0].findall('./ul/li/a')] == ['#first', '#second']
-    assert parts[0].find('./ul/li/ul/li/a').get('href') == '#detail'
-    assert parts[1].find('./ul/li/a').get('href') == '#third'
+    assert [part.find('./details/summary/a').get('href') for part in parts] == ['#part', '#next']
+    assert parts[0].find('./details/ul/li/details/summary/a').get('href') == '#first'
+    assert parts[0].find('./details/ul/li/a').get('href') == '#second'
+    assert parts[0].find('./details/ul/li/details/ul/li/a').get('href') == '#detail'
+    assert parts[1].find('./details/ul/li/a').get('href') == '#third'
     assert [link.get('href') for link in root.iter('a')] == [
         '#part', '#first', '#detail', '#second', '#next', '#third',
     ]
@@ -25,8 +26,8 @@ def test_toc_groups_children_under_their_nearest_shallower_heading():
 def test_toc_handles_skipped_levels_without_empty_parent_groups():
     root = _toc('''<h3 id="orphan">Orphan</h3><h6 id="deep">Deep</h6>
     <h2 id="parent">Parent</h2><h5 id="skip">Skip</h5>''')
-    assert [link.get('href') for link in root.findall('./ul/li/a')] == ['#orphan', '#parent']
-    assert [link.get('href') for link in root.findall('./ul/li/ul/li/a')] == ['#deep', '#skip']
+    assert [link.get('href') for link in root.findall('./ul/li/details/summary/a')] == ['#orphan', '#parent']
+    assert [link.get('href') for link in root.findall('./ul/li/details/ul/li/a')] == ['#deep', '#skip']
     assert len(root.findall('.//ul')) == 3
 
 
@@ -53,6 +54,16 @@ def test_markdown_deep_headings_have_targets_without_renaming_existing_anchors(m
     root = _toc(body)
     assert article.find('h2[2]').get('id') == 'duplicate'
     assert article.find('h4').get('id') == 'duplicate-1'
-    assert root.find('./ul/li/ul/li/ul/li/ul/li/ul/li/a').get('href') == '#leaf'
+    assert root.find('./ul/li/details/ul/li/details/ul/li/details/ul/li/details/ul/li/a').get('href') == '#leaf'
     targets = {heading.get('id') for heading in article}
     assert all(link.get('href')[1:] in targets for link in root.iter('a'))
+
+
+def test_only_parent_headings_are_disclosures_with_separate_navigation_links():
+    root = _toc('<h2 id="parent">Parent</h2><h3 id="child">Child</h3><h2 id="leaf">Leaf</h2>')
+    disclosure = root.find('./ul/li/details')
+    assert disclosure is not None and 'open' in disclosure.attrib
+    assert disclosure.find('./summary/a').get('href') == '#parent'
+    assert disclosure.find('./ul/li/a').get('href') == '#child'
+    assert len(root.findall('.//details')) == 1
+    assert root.find('./ul/li/a').get('href') == '#leaf'
