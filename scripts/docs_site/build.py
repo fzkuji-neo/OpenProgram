@@ -139,6 +139,9 @@ def make_md() -> MarkdownIt:
     md = MarkdownIt("gfm-like", {"html": True, "linkify": False, "highlight": _highlight_code})
     md.use(anchors_plugin, max_level=3, slug_func=_make_unique_slug,
            permalink=True, permalinkSymbol="#", permalinkSpace=False)
+    # Assign deeper anchors after existing levels to preserve their public URLs.
+    md.use(anchors_plugin, min_level=4, max_level=6, slug_func=_make_unique_slug,
+           permalink=True, permalinkSymbol="#", permalinkSpace=False)
     md.use(deflist_plugin)
     md.use(tasklists_plugin, enabled=True)
     md.enable("table")
@@ -195,7 +198,7 @@ def apply_callouts(html: str) -> str:
 
 # ── toc extraction (from rendered html headings) ────────────────────────────
 
-_HEADING_RE = re.compile(r'<h([23])[^>]*\bid="([^"]+)"[^>]*>(.*?)</h[23]>', re.DOTALL)
+_HEADING_RE = re.compile(r'<h([2-6])[^>]*\bid="([^"]+)"[^>]*>(.*?)</h\1>', re.DOTALL)
 
 
 def extract_toc(body_html: str) -> str:
@@ -207,17 +210,32 @@ def extract_toc(body_html: str) -> str:
         text = _html.unescape(text)  # decode &quot; etc.; re-escaped on output
         if not text:
             continue
-        items.append((level, hid, text))
+        items.append((int(level), _html.unescape(hid), text))
     if not items:
         return ""
-    rows = ['<div class="toc-title" data-i18n="on_this_page">On this page</div>',
-            '<div class="toc-list">']
+    tree = []
+    stack = []
     for level, hid, text in items:
-        cls = "lvl-3" if level == "3" else ""
-        # quote=False: this is element text, not an attribute — keep real quotes
-        rows.append(f'<a class="{cls}" href="#{_html.escape(hid)}">{_html.escape(text, quote=False)}</a>')
-    rows.append("</div>")
-    return "\n".join(rows)
+        while stack and stack[-1][0] >= level:
+            stack.pop()
+        node = (level, hid, text, [])
+        (stack[-1][3] if stack else tree).append(node)
+        stack.append(node)
+
+    def render_group(nodes):
+        rows = ['<ul class="toc-list">']
+        for level, hid, text, children in nodes:
+            rows.append(
+                f'<li><a class="lvl-{level}" href="#{_html.escape(hid)}">'
+                f'{_html.escape(text, quote=False)}</a>'
+            )
+            if children:
+                rows.append(render_group(children))
+            rows.append("</li>")
+        rows.append("</ul>")
+        return "\n".join(rows)
+
+    return '<div class="toc-title" data-i18n="on_this_page">On this page</div>\n' + render_group(tree)
 
 
 def relink_internal(body_html: str, cur_dir: Path) -> str:
