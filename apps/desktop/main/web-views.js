@@ -568,12 +568,12 @@ function createWebViews({
     finally { if (record.pipCapture === capture) record.pipCapture = null; }
   }
 
-  async function captureView(ctx, id) {
+  async function captureView(ctx, id, mode) {
     const record = recordFor(ctx, id);
     if (!record) return null;
     const contents = record.view.webContents;
     try {
-      if (record.pipLayoutZoom) return await capturePipView(ctx, record);
+      if (record.pipLayoutZoom && mode !== "presentation") return await capturePipView(ctx, record);
       const image = await contents.capturePage(
         undefined,
         { stayHidden: true },

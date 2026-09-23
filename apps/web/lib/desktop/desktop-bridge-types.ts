@@ -161,7 +161,7 @@ export interface DesktopWebTabApi {
   zoom?(id: string, action: "in" | "out" | "reset"): Promise<number | null>;
   print?(id: string): Promise<boolean>;
   /** Snapshot of the native page as a data URL, for PiP drag placeholders. */
-  capture?(id: string): Promise<string | null>;
+  capture?(id: string, mode?: "presentation"): Promise<string | null>;
   /** Host-owned action location on the exact native view. null clears. */
   showAction?(
     id: string,

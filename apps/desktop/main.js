@@ -1011,9 +1011,9 @@ function registerWebTabIpc() {
     const ctx = contextForSender(event);
     return ctx ? printView(ctx, id) : false;
   });
-  ipcMain.handle("webtab:capture", (event, id) => {
+  ipcMain.handle("webtab:capture", (event, id, mode) => {
     const ctx = contextForSender(event);
-    return ctx ? captureView(ctx, id) : null;
+    return ctx ? captureView(ctx, id, mode === "presentation" ? mode : undefined) : null;
   });
   ipcMain.handle("webtab:show-action", (event, id, marker) => {
     const ctx = contextForSender(event);

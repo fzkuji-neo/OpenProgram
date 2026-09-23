@@ -81,7 +81,7 @@ function checkPreloadWindowIdentity() {
   testContext.assert.deepEqual(invoked, [
     ["webtab:zoom", "pane-a", "in"],
     ["webtab:print", "pane-a"],
-    ["webtab:capture", "pane-a"],
+    ["webtab:capture", "pane-a", undefined],
     ["webtab:preview", "pane-a", undefined],
     ["webtab:preview", "pane-a", true],
     ["webtab:show-action", "pane-a", marker],
