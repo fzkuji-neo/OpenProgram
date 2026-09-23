@@ -52,10 +52,9 @@ export function registerVisibleWebTabBounds(
   bounds: DesktopWebTabBounds,
 ): void {
   const previous = visibleWebBounds.get(id);
-  if (!previous || previous.x !== bounds.x || previous.y !== bounds.y
-      || previous.width !== bounds.width || previous.height !== bounds.height) {
-    invalidateWebTabGeometry(bridge, id);
-  }
+  if (previous && previous.x === bounds.x && previous.y === bounds.y
+      && previous.width === bounds.width && previous.height === bounds.height) return;
+  invalidateWebTabGeometry(bridge, id);
   visibleWebBounds.set(id, { ...bounds });
   scheduleVisibleWebBoundsFlush(bridge);
 }
@@ -66,8 +65,8 @@ export function removeVisibleWebTabBounds(
 ): void {
   if (visibleWebBounds.delete(id)) {
     invalidateWebTabGeometry(bridge, id);
+    scheduleVisibleWebBoundsFlush(bridge);
   }
-  scheduleVisibleWebBoundsFlush(bridge);
 }
 
 export function setWebTabReady(id: string, ready: boolean): void {

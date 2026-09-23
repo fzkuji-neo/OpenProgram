@@ -16,6 +16,23 @@ module.exports = function createChecks(t) {
     };
     const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
     resize(240);
+    const emulationCount = c.nativeCalls.emulation.length;
+    const zoomCount = c.nativeCalls.zoom.length;
+    for (let x = 11; x <= 70; x++) {
+      t.hooks.syncVisibleViews(ctx, [{ id: record.id, bounds: { x, y: 20, width: 240, height: 135 } }]);
+    }
+    t.assert.equal(c.nativeCalls.emulation.length, emulationCount, "60 position-only moves must not reset emulation");
+    t.assert.equal(c.nativeCalls.zoom.length, zoomCount, "moving must not reset page zoom");
+    const boundsCount = c.boundsCalls.length;
+    for (let i = 0; i < 60; i++) {
+      t.hooks.syncVisibleViews(ctx, [{ id: record.id, bounds: { x: 70, y: 20, width: 240, height: 135 } }]);
+    }
+    t.assert.equal(c.boundsCalls.length, boundsCount, "identical geometry must not update native bounds");
+    t.assert.equal(c.nativeCalls.emulation.length, emulationCount);
+    t.assert.equal(c.nativeCalls.insertedCSS.length, 1, "moving must not reinsert preview CSS");
+    resize(480);
+    t.assert.equal(c.nativeCalls.emulation.length, emulationCount + 1, "one emulation update per changed scale");
+    resize(240);
     t.assert.equal((await t.hooks.inspectView(ctx, record.id)).input_scale, 0.125);
     c.delayDebuggerMethod("Page.captureScreenshot");
     c.delayDebuggerMethod("Target.getTargetInfo");
@@ -64,6 +81,24 @@ module.exports = function createChecks(t) {
     t.assert.equal(c.debuggerCommands.at(-1).method, "Emulation.clearDeviceMetricsOverride");
     t.assert.equal(c.nativeCalls.emulation.at(-1).scale, 0.125);
     t.assert.equal(c.isDebuggerAttached(), false);
+    // Pending styles from either side of navigation cannot survive a preview exit.
+    t.hooks.setPipZoom(ctx, record.id, null);
+    await flush();
+    t.assert.ok(c.nativeCalls.removedCSS.includes(c.nativeCalls.insertedCSS[0].key));
+    const pendingStyles = [];
+    record.view.webContents.insertCSS = () => new Promise(resolve => pendingStyles.push(resolve));
+    resize(240);
+    const beforeNavigation = c.nativeCalls.emulation.length;
+    record.view.webContents.emit("did-navigate");
+    t.assert.equal(c.nativeCalls.emulation.length, beforeNavigation + 1, "navigation forces restore even at the same scale");
+    t.assert.equal(pendingStyles.length, 2);
+    t.hooks.setPipZoom(ctx, record.id, null);
+    pendingStyles[0]("old-document-style");
+    pendingStyles[1]("new-document-style");
+    await flush();
+    t.assert.ok(c.nativeCalls.removedCSS.includes("old-document-style"));
+    t.assert.ok(c.nativeCalls.removedCSS.includes("new-document-style"));
+    t.assert.equal(record.pipScrollbarStyle, null);
     t.hooks.destroyView(ctx, record.id);
     t.hooks.windows.delete(ctx.id);
   }

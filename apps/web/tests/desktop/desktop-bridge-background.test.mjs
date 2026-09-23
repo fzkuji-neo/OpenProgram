@@ -835,3 +835,36 @@ test("visible route failure rolls back only an agent-created Page", async () => 
   closeTab(persistentId);
   window.location.pathname = priorPathname;
 });
+
+
+test("visible geometry suppresses duplicate IPC while preserving move and hide updates", async () => {
+  const calls = [];
+  const bridge = { windowId: "geometry-test", webTab: { syncVisible: items => calls.push(items) } };
+  const id = "geometry-dedup-page";
+  const bounds = { x: 10, y: 20, width: 480, height: 270 };
+  registerVisibleWebTabBounds(bridge, id, bounds);
+  await Promise.resolve();
+  assert.equal(calls.length, 1);
+  for (let i = 0; i < 60; i++) {
+    registerVisibleWebTabBounds(bridge, id, { ...bounds });
+    await Promise.resolve();
+  }
+  assert.equal(calls.length, 1);
+  registerVisibleWebTabBounds(bridge, id, { ...bounds, x: 50 });
+  registerVisibleWebTabBounds(bridge, id, { ...bounds, x: 60 });
+  await Promise.resolve();
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].find(item => item.id === id).bounds.x, 60);
+  removeVisibleWebTabBounds(bridge, id);
+  await Promise.resolve();
+  assert.equal(calls.length, 3);
+  assert.equal(calls[2].some(item => item.id === id), false);
+  removeVisibleWebTabBounds(bridge, id);
+  await Promise.resolve();
+  assert.equal(calls.length, 3);
+  registerVisibleWebTabBounds(bridge, id, bounds);
+  await Promise.resolve();
+  assert.equal(calls.length, 4, "showing again must publish even with the original bounds");
+  removeVisibleWebTabBounds(bridge, id);
+  await Promise.resolve();
+});

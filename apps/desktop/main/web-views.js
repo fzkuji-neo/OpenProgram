@@ -243,15 +243,22 @@ function createWebViews({
       const nativeSetVisible = view.setVisible.bind(view);
       view.setBounds = (bounds) => {
         const prev = view.getBounds();
+        if (!boundsDiffer(prev, bounds)) return;
         nativeSetBounds(bounds);
-        if (record.pipLayoutZoom) applyPipViewport(record, view.getBounds());
-        if (boundsDiffer(prev, view.getBounds())) {
+        const current = view.getBounds();
+        if (record.pipLayoutZoom && (prev.width !== current.width || prev.height !== current.height)) {
+          applyPipViewport(record, current);
+        }
+        if (boundsDiffer(prev, current)) {
           clearActionCue(record, true);
           layoutControlOverlay(record);
         }
       };
+      let lastVisible;
       view.setVisible = (visible) => {
+        if (lastVisible === visible) return;
         nativeSetVisible(visible);
+        lastVisible = visible;
         if (!visible) {
           clearActionCue(record, true);
           hideControlOverlay(record);
@@ -290,8 +297,10 @@ function createWebViews({
       // Restore the current preview, never the geometry saved by a capture.
       wc.debugger.on("detach", () => restorePipViewport(record));
       wc.on("did-navigate", () => {
-        if (record.pipLayoutZoom) applyPipViewport(record, view.getBounds());
-        else restorePendingPipZoom(record);
+        if (record.pipLayoutZoom) {
+          applyPipViewport(record, view.getBounds(), true);
+          setPipScrollbarStyle(record, true, true);
+        } else restorePendingPipZoom(record);
       });
       // Browsing history. The store folds repeat hits on the head URL into one
       // row, so the title/favicon events that follow a navigation enrich the
@@ -348,12 +357,13 @@ function createWebViews({
     return Math.min(width / PIP_VIRTUAL_WIDTH, height / PIP_VIRTUAL_HEIGHT);
   }
 
-  function applyPipViewport(record, { width, height }) {
+  function applyPipViewport(record, { width, height }, force = false) {
     if (!(width > 0 && height > 0)) return;
     const wc = record.view.webContents;
     // Page zoom changes layout; device emulation scales presentation separately.
-    wc.setZoomFactor(1);
     const scale = pipLayoutZoom(width, height);
+    if (!force && record.pipLayoutZoom === scale) return;
+    if (wc.getZoomFactor() !== 1) wc.setZoomFactor(1);
     wc.enableDeviceEmulation({
       screenPosition: "desktop",
       viewSize: { width: PIP_VIRTUAL_WIDTH, height: PIP_VIRTUAL_HEIGHT },
@@ -364,10 +374,35 @@ function createWebViews({
     record.pipViewport = { width: PIP_VIRTUAL_WIDTH, height: PIP_VIRTUAL_HEIGHT };
   }
 
+  // Only the root tracks are suppressed. Overflow, wheel and keyboard scrolling
+  // remain native; normal tabs get their original CSS back, even after a late insert.
+  function setPipScrollbarStyle(record, enabled, replace = false) {
+    const wc = record.view.webContents;
+    const previous = record.pipScrollbarStyle;
+    if (enabled && previous && !replace) return;
+    const remove = (key) => {
+      if (!wc.isDestroyed()) void wc.removeInsertedCSS(key).catch(() => {});
+    };
+    record.pipScrollbarStyle = null;
+    if (previous?.key) remove(previous.key);
+    if (!enabled || wc.isDestroyed()) return;
+    const pending = {};
+    record.pipScrollbarStyle = pending;
+    void wc.insertCSS(
+      ":root { scrollbar-width: none !important; } :root::-webkit-scrollbar { display: none !important; }",
+      { cssOrigin: "user" },
+    ).then(key => {
+      if (record.pipScrollbarStyle !== pending) remove(key);
+      else pending.key = key;
+    }).catch(() => {
+      if (record.pipScrollbarStyle === pending) record.pipScrollbarStyle = null;
+    });
+  }
+
   function restorePipViewport(record) {
     try {
       if (record.pipLayoutZoom && !record.view.webContents.isDestroyed()) {
-        applyPipViewport(record, record.view.getBounds());
+        applyPipViewport(record, record.view.getBounds(), true);
       }
     } catch { /* renderer or native view closed during cleanup */ }
   }
@@ -400,6 +435,8 @@ function createWebViews({
         record.pendingTransferZoomRestore = false;
         record.pendingPipZoomRestore = false;
         applyPipViewport(record, { width, height });
+        setPipScrollbarStyle(record, true);
+        record.view.setBackgroundColor("#00000000");
         return true;
       }
       record.pendingTransferZoomRestore = false;
@@ -415,6 +452,8 @@ function createWebViews({
       wc.disableDeviceEmulation();
       record.pipLayoutZoom = null;
       record.pipViewport = null;
+      setPipScrollbarStyle(record, false);
+      record.view.setBackgroundColor("#ffffff");
       record.pendingPipZoomRestore = !wc.getURL() || !!record.navigation;
       wc.setZoomFactor(record.userZoomFactor ?? 1);
       return true;
