@@ -216,26 +216,20 @@ aside.toc .toc-title {
   font-size: 12px; font-weight: 700;
   letter-spacing: .02em; color: var(--tx-soft); margin-bottom: 12px;
 }
-/* tree with a guide line down the left, like the sidebar */
-aside.toc .toc-list { border-left: 1px solid var(--bd); }
+/* Each heading owns its nested siblings and their guide line. */
+aside.toc .toc-list { list-style: none; margin: 0; padding: 0; }
+aside.toc .toc-list .toc-list { margin-left: 14px; }
 aside.toc a {
-  display: block; line-height: 1.45; color: var(--tx-soft);
-  position: relative; border-left: 2px solid transparent; margin-left: -1px;
+  display: block; position: relative; line-height: 1.45;
+  padding: 6px 0 6px 16px; font-size: 13.5px; font-weight: 550;
+  color: var(--tx-soft); overflow-wrap: anywhere;
 }
-/* level 1 (h2): heavier, darker */
-aside.toc a:not(.lvl-3) {
-  padding: 6px 0 6px 16px; font-size: 13.5px; font-weight: 550; color: var(--tx-soft);
-}
-/* level 2 (h3): deeper indent + its own thinner guide branch */
-aside.toc a.lvl-3 {
-  padding: 4px 0 4px 30px; font-size: 12.5px; color: var(--tx-faint);
-}
-aside.toc a.lvl-3::before {
-  content: ""; position: absolute; left: 16px; top: 0; bottom: 0;
-  border-left: 1px solid var(--bd-soft);
+aside.toc .toc-list .toc-list a {
+  padding-top: 4px; padding-bottom: 4px; font-size: 12.5px;
+  font-weight: 400; color: var(--tx-faint);
 }
 aside.toc a:hover { color: var(--tx); text-decoration: none; }
-aside.toc a.active { color: var(--acc); border-left-color: var(--acc); font-weight: 600; }
+aside.toc a.active, aside.toc a.in-path { color: var(--tx); font-weight: 550; }
 
 /* ── breadcrumb ── */
 .breadcrumb { font-size: 13px; color: var(--tx-faint); margin-bottom: 18px; }
@@ -267,7 +261,7 @@ article h2 {
 article h3 { font-size: 17.5px; margin: 30px 0 10px; letter-spacing: -.008em; }
 article h4 { font-size: 15.5px; margin: 22px 0 8px; color: var(--tx-soft); }
 article h2, article h3, article h4 { font-weight: 640; }
-article h1, article h2, article h3, article h4 { scroll-margin-top: 116px; }
+article :is(h1, h2, h3, h4, h5, h6) { scroll-margin-top: 116px; }
 article .header-anchor {
   opacity: 0; margin-left: 8px; color: var(--tx-faint); font-weight: 400; text-decoration: none;
 }
@@ -487,7 +481,6 @@ aside.toc .toc-list { border: 0; }
 aside.toc .toc-title { font-weight: 600; }
 aside.toc a { border: 0; margin-left: 0; }
 aside.toc a.active { color: var(--tx); font-weight: 550; }
-aside.toc a.lvl-3::before { content: none; }
 .nav-sec::before, .nav-sec::after,
 aside.toc .toc-list::before, aside.toc .toc-list::after {
   content: ""; position: absolute; pointer-events: none; width: 11px; left: 9px;
@@ -502,6 +495,12 @@ aside.toc .toc-list::before, aside.toc .toc-list::after {
   color: var(--tx-faint); top: var(--preview-top, 0px); height: var(--preview-height, 0px); opacity: var(--preview-visible, 0);
 }
 aside.toc .toc-list::before, aside.toc .toc-list::after { left: 0; width: 10px; }
+/* Child groups remain legible even before a child becomes current. */
+aside.toc .toc-list .toc-list {
+  background: repeating-linear-gradient(to bottom, var(--bd) 0 3px, transparent 3px 6px)
+    0 var(--rail-top, 0px) / 1px var(--guide-height, 0px) no-repeat;
+}
+aside.toc .toc-list .toc-list a:is(.active, .in-path) { color: var(--tx); font-weight: 550; }
 /* A text-level focus treatment remains visible without a full-row orange box. */
 nav.sidebar a.navlink:focus-visible, aside.toc a:focus-visible {
   outline: none; color: var(--tx); background: var(--bd-soft);
@@ -538,7 +537,7 @@ article .code-header .copy-btn:hover, article .code-header .copy-btn.copied { co
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
-html[data-fs="1"] article :is(h1, h2, h3, h4) { scroll-margin-top: 24px; }
+html[data-fs="1"] article :is(h1, h2, h3, h4, h5, h6) { scroll-margin-top: 24px; }
 
 @media (max-width: 420px) { .topbar .lang-trigger svg { display: none; } }
 
