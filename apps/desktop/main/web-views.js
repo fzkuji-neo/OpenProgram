@@ -450,6 +450,11 @@ function createWebViews({
         applyPipViewport(record, { width, height });
         setPipScrollbarStyle(record, true);
         record.view.setBackgroundColor("#00000000");
+        const radius = Math.max(1, Math.round(10 * (ctx.win.webContents.getZoomFactor?.() ?? 1)));
+        if (record.pipCornerRadius !== radius) {
+          record.view.setBorderRadius(radius);
+          record.pipCornerRadius = radius;
+        }
         return true;
       }
       record.pendingTransferZoomRestore = false;
@@ -467,6 +472,10 @@ function createWebViews({
       record.pipViewport = null;
       setPipScrollbarStyle(record, false);
       record.view.setBackgroundColor("#ffffff");
+      if (record.pipCornerRadius) {
+        record.view.setBorderRadius(0);
+        record.pipCornerRadius = 0;
+      }
       record.pendingPipZoomRestore = !wc.getURL() || !!record.navigation;
       wc.setZoomFactor(record.userZoomFactor ?? 1);
       return true;

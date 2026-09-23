@@ -103,13 +103,14 @@ test("store clamp forwards the shared min constants into geometry", () => {
 test("css keeps a flush frameless page and eight outward transparent handles", () => {
   const css = readFileSync(new URL("../../components/center-tabs/center-tabs.module.css", import.meta.url), "utf8");
   assert.match(css, /\.webPipChrome \{[\s\S]*?height: 30px/);
-  assert.match(css, /\.webPip \{[^}]*border: 0;[^}]*border-radius: 0;[^}]*box-shadow: none;[^}]*overflow: visible;/);
+  assert.match(css, /\.webPip \{[^}]*border: 0;[^}]*border-radius: 10px;[^}]*box-shadow: none;[^}]*overflow: visible;/);
   assert.match(css, /\.webPipLive \{[^}]*inset: 0;/);
   for (const [dir, edge] of [["n", "top"], ["s", "bottom"], ["e", "right"], ["w", "left"]]) {
     assert.match(css, new RegExp(`\\.webPipResize\\[data-dir="${dir}"\\] \\{ ${edge}: -5px;`));
   }
   assert.doesNotMatch(css, /linear-gradient\(135deg/);
-  assert.doesNotMatch(css, /\.webPipResize::after/);
+  assert.match(css, /\.webPipResize:hover::after,/);
+  assert.match(css, /\.webPipBody \{[^}]*border-radius: 10px;[^}]*overflow: hidden;/);
   assert.match(css, /background: transparent/);
   assert.match(css, /cursor: ns-resize/);
   assert.match(css, /cursor: ew-resize/);
@@ -122,7 +123,7 @@ test("css keeps a flush frameless page and eight outward transparent handles", (
   assert.match(css, /z-index: 7/);
   assert.match(css, /\.webPipActions \{[\s\S]*?z-index: 5/);
   assert.match(css, /\.webPipResize\[data-dir="n"\],\s*\.webPipResize\[data-dir="s"\] \{[\s\S]*?height: 5px/);
-  assert.match(css, /\.webPipResize\[data-dir="ne"\],[\s\S]*?width: 10px/);
+  assert.match(css, /\.webPipResize\[data-dir="ne"\],[\s\S]*?width: 24px/);
 });
 
 test("default and expanded windows are 16:9 content plus a 30px header", () => {

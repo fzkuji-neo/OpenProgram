@@ -525,6 +525,7 @@ function controlledRecord(id, currentUrl = "", loading = false) {
     zoom: [],
     emulation: [],
     disableEmulation: 0,
+    radius: [],
     insertedCSS: [],
     removedCSS: [],
     activeCSS: [],
@@ -706,6 +707,7 @@ function controlledRecord(id, currentUrl = "", loading = false) {
     webContents,
     setVisible(value) { visibility.push(value); },
     setBackgroundColor() {},
+    setBorderRadius(value) { nativeCalls.radius.push(value); },
     setBounds(value) {
       bounds = { ...value };
       boundsCalls.push({ ...value });

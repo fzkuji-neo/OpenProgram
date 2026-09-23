@@ -25,6 +25,13 @@ module.exports = function createChecks(t) {
     t.hooks.syncVisibleViews(ctx, [{ id: record.id, bounds: record.view.getBounds() }]);
     t.assert.deepEqual(t.plain(record.view.getBounds()), { x: 10, y: 20, width: 255, height: 143 }, "fitting is idempotent");
     resize(240);
+    t.assert.equal(c.nativeCalls.radius.at(-1), 10, "PiP rounds the native surface");
+    win.webContents.getZoomFactor = () => 1.5;
+    resize(240);
+    t.assert.equal(c.nativeCalls.radius.at(-1), 15, "native radius follows host UI zoom, not page scale");
+    win.webContents.getZoomFactor = () => 1;
+    resize(240);
+    const radiusCalls = c.nativeCalls.radius.length;
     const emulationCount = c.nativeCalls.emulation.length;
     const zoomCount = c.nativeCalls.zoom.length;
     for (let x = 11; x <= 70; x++) {
@@ -39,6 +46,7 @@ module.exports = function createChecks(t) {
     t.assert.equal(c.boundsCalls.length, boundsCount, "identical geometry must not update native bounds");
     t.assert.equal(c.nativeCalls.emulation.length, emulationCount);
     t.assert.equal(c.nativeCalls.insertedCSS.length, 1, "moving must not reinsert preview CSS");
+    t.assert.equal(c.nativeCalls.radius.length, radiusCalls, "moves and identical bounds do not update corner clipping");
     resize(480);
     t.assert.equal(c.nativeCalls.emulation.length, emulationCount + 1, "one emulation update per changed scale");
     resize(240);
@@ -102,6 +110,7 @@ module.exports = function createChecks(t) {
     await flush();
     t.assert.ok(c.nativeCalls.removedCSS.includes(c.nativeCalls.insertedCSS[0].key));
     t.assert.equal(c.nativeCalls.activeCSS.length, 0, "normal tabs must recover their original root scrollbar styling");
+    t.assert.equal(c.nativeCalls.radius.at(-1), 0, "ordinary tabs restore square native corners");
     const pendingStyles = [];
     record.view.webContents.insertCSS = () => new Promise(resolve => pendingStyles.push(resolve));
     resize(240);
