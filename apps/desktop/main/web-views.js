@@ -242,6 +242,7 @@ function createWebViews({
       const nativeSetBounds = view.setBounds.bind(view);
       const nativeSetVisible = view.setVisible.bind(view);
       view.setBounds = (bounds) => {
+        if (record.pipLayoutZoom) bounds = fittedPipBounds(bounds);
         const prev = view.getBounds();
         if (!boundsDiffer(prev, bounds)) return;
         nativeSetBounds(bounds);
@@ -353,8 +354,18 @@ function createWebViews({
   const PIP_VIRTUAL_WIDTH = 1920;
   const PIP_VIRTUAL_HEIGHT = 1080;
 
+  function fittedPipBounds(bounds) {
+    const height = Math.round(bounds.width * PIP_VIRTUAL_HEIGHT / PIP_VIRTUAL_WIDTH);
+    return height <= bounds.height
+      ? { ...bounds, height }
+      : { ...bounds, width: Math.round(bounds.height * PIP_VIRTUAL_WIDTH / PIP_VIRTUAL_HEIGHT) };
+  }
+
   function pipLayoutZoom(width, height = width * PIP_VIRTUAL_HEIGHT / PIP_VIRTUAL_WIDTH) {
-    return Math.min(width / PIP_VIRTUAL_WIDTH, height / PIP_VIRTUAL_HEIGHT);
+    const fitted = fittedPipBounds({ width, height });
+    // Native bounds are integral. Cover the fitted rectangle so fractional
+    // pixels cannot expose the page canvas; trailing clipping is below one DIP.
+    return Math.max(fitted.width / PIP_VIRTUAL_WIDTH, fitted.height / PIP_VIRTUAL_HEIGHT);
   }
 
   function applyPipViewport(record, { width, height }, force = false) {

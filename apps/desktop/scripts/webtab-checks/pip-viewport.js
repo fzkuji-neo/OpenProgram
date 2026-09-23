@@ -15,6 +15,15 @@ module.exports = function createChecks(t) {
       t.hooks.syncVisibleViews(ctx, [{ id: record.id, bounds: { x: 10, y: 20, width, height: width * 9 / 16 } }]);
     };
     const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
+    t.hooks.setPipZoom(ctx, record.id, 255, 146);
+    t.hooks.syncVisibleViews(ctx, [{ id: record.id, bounds: { x: 10, y: 20, width: 255, height: 146 } }]);
+    t.assert.deepEqual(t.plain(record.view.getBounds()), { x: 10, y: 20, width: 255, height: 143 },
+      "native preview must not expose the page canvas outside the fitted rectangle");
+    const fittedScale = c.nativeCalls.emulation.at(-1).scale;
+    t.assert.ok(fittedScale * 1920 >= 255 && fittedScale * 1080 >= 143, "rounding must not leave an uncovered pixel");
+    t.assert.ok(fittedScale * 1080 - 143 < 1, "rounding clips less than one native pixel");
+    t.hooks.syncVisibleViews(ctx, [{ id: record.id, bounds: record.view.getBounds() }]);
+    t.assert.deepEqual(t.plain(record.view.getBounds()), { x: 10, y: 20, width: 255, height: 143 }, "fitting is idempotent");
     resize(240);
     const emulationCount = c.nativeCalls.emulation.length;
     const zoomCount = c.nativeCalls.zoom.length;

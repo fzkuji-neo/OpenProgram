@@ -401,7 +401,7 @@ async function checkSenderOwnership() {
   ]);
   testContext.assert.deepEqual(a.nativeCalls.stopFind, ["clearSelection"]);
   testContext.assert.deepEqual(a.nativeCalls.zoom, [1.1, 1, 1]);
-  for (const [width, height, scale] of [[960, 540, 0.5], [240, 135, 0.125], [2000, 1125, 2000 / 1920], [600, 200, 200 / 1080]]) {
+  for (const [width, height, scale] of [[960, 540, 0.5], [240, 135, 0.125], [2000, 1125, 2000 / 1920], [600, 200, 356 / 1920]]) {
     testContext.ipcListeners.get("webtab:set-pip-zoom")(eventA, "owned-a", width, height);
     testContext.assert.ok(a.nativeCalls.emulation.at(-1), "PiP must enable a fixed viewport through the public IPC");
     testContext.assert.deepEqual(testContext.plain(a.nativeCalls.emulation.at(-1)), {
