@@ -179,12 +179,15 @@
     const resize = new ResizeObserver(schedule);
     groups.forEach((group) => {
       let hovered = null;
-      const links = Array.from(group.querySelectorAll("a"));
+      const isToc = group.classList.contains("toc-list");
+      const links = Array.from(group.querySelectorAll(isToc ? ":scope > li > a" : "a"));
       const paint = () => {
         const visible = links.filter((link) => link.getClientRects().length && getComputedStyle(link).display !== "none");
-        const active = visible.find((link) => link.classList.contains("active"));
-        const focused = visible.find((link) => link === document.activeElement && link.matches(":focus-visible"));
-        const preview = focused || (visible.includes(hovered) ? hovered : null);
+        const owns = (link, target) => isToc ? link.parentElement.contains(target) : link === target;
+        const active = visible.find((link) => link.classList.contains("active") || (isToc && link.parentElement.querySelector("a.active")));
+        const focused = visible.find((link) => owns(link, document.activeElement) && document.activeElement.matches(":focus-visible"));
+        const preview = focused || visible.find((link) => owns(link, hovered));
+        if (isToc) links.forEach((link) => link.classList.toggle("in-path", link === active));
         const bounds = group.getBoundingClientRect();
         const top = visible.length ? visible[0].getBoundingClientRect().top - bounds.top : 0;
         const center = (link) => { const rect = link.getBoundingClientRect(); return rect.top - bounds.top + rect.height / 2; };
@@ -192,6 +195,7 @@
         group.style.setProperty("--rail-top", top + "px");
         group.style.setProperty("--rail-height", Math.max(0, activeEnd - top) + "px");
         group.style.setProperty("--rail-visible", active ? "1" : "0");
+        if (isToc) group.style.setProperty("--guide-height", visible.length ? Math.max(0, center(visible[visible.length - 1]) - top) + "px" : "0px");
         const previewEnd = preview ? center(preview) : top;
         const previewTop = active && previewEnd > activeEnd ? activeEnd : top;
         group.style.setProperty("--preview-top", previewTop + "px");
