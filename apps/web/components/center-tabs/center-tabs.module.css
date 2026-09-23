@@ -1270,7 +1270,7 @@
   display: flex;
   flex-direction: column;
   border: 0;
-  border-radius: 10px;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
   overflow: visible;
@@ -1280,7 +1280,7 @@
   transition: none;
 }
 .webPipChrome {
-  border-radius: 10px 10px 0 0;
+  border-radius: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: row;
@@ -1347,7 +1347,7 @@
   color: var(--text-bright);
 }
 .webPipStage {
-  border-radius: 10px;
+  border-radius: 0;
   overflow: hidden;
   position: relative;
   flex: 1;
@@ -1529,7 +1529,7 @@
 .webPipResize[data-dir="se"] { right: -12px; bottom: -12px; cursor: nwse-resize; }
 .webPipResize[data-dir="ne"] { top: -12px; right: -12px; cursor: nesw-resize; }
 .webPipResize[data-dir="sw"] { left: -12px; bottom: -12px; cursor: nesw-resize; }
-/* The 12px outer / 10px inner arc follows the page corner with no gap.
+/* The curved hint sits at the corner without reserving a gap.
    The larger transparent hit target stays independent of this visual hint. */
 .webPipResize[data-dir="ne"]::after,
 .webPipResize[data-dir="nw"]::after,
@@ -1548,8 +1548,7 @@
 .webPipResize[data-dir="ne"]::after { top: 10px; right: 10px; border-left: 0; border-bottom: 0; border-radius: 0 12px 0 0; }
 .webPipResize[data-dir="se"]::after { bottom: 10px; right: 10px; border-left: 0; border-top: 0; border-radius: 0 0 12px 0; }
 .webPipResize[data-dir="sw"]::after { bottom: 10px; left: 10px; border-right: 0; border-top: 0; border-radius: 0 0 0 12px; }
-.webPipResize:hover::after,
-.webPipDragging .webPipResize::after { opacity: 1; }
+.webPipResize:hover::after { opacity: 1; }
 .webPipFallback {
   height: 100%;
   display: flex;
