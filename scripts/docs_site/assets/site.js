@@ -182,7 +182,8 @@
       const isToc = group.classList.contains("toc-list");
       const links = Array.from(group.querySelectorAll(isToc ? ":scope > li > a, :scope > li > details > summary > a" : "a"));
       const paint = () => {
-        const visible = links.filter((link) => link.getClientRects().length && getComputedStyle(link).display !== "none");
+        const visible = links.filter((link) => link.getClientRects().length && getComputedStyle(link).display !== "none"
+          && !(isToc && link.closest(".toc-list").closest("details:not([open])")));
         const owns = (link, target) => isToc ? link.closest("li").contains(target) : link === target;
         const active = visible.find((link) => link.classList.contains("active") || (isToc && link.closest("li").querySelector("a.active")));
         const focused = visible.find((link) => owns(link, document.activeElement) && document.activeElement.matches(":focus-visible"));
@@ -421,7 +422,7 @@
       label.textContent = sections[active].link.textContent;
       updateRails();
       let link = sections[active].link;
-      while (!link.getClientRects().length) {
+      while (!link.getClientRects().length || link.closest(".toc-list").closest("details:not([open])")) {
         const parent = link.closest(".toc-list").parentElement.closest("details.toc-disclosure");
         if (!parent) break;
         link = parent.querySelector(":scope > summary > a");
@@ -593,6 +594,7 @@
   }
 
   let navSeq = 0;
+  let renderedPage = location.pathname + location.search;
   function navigate(href, push) {
     if (push === undefined) push = true;
     const pathname = normalize(href);
@@ -612,11 +614,16 @@
       const nb = doc.documentElement.getAttribute("data-build");
       const cb = ROOT.getAttribute("data-build");
       if (nb && cb && nb !== cb) { location.href = pathname; return; }
-      const doSwap = () => { swapFrom(doc, pathname); afterSwap(pathname); };
+      const doSwap = () => {
+        if (seq !== navSeq) return;
+        swapFrom(doc, pathname); renderedPage = clean; afterSwap(pathname);
+      };
       if (push) history.pushState({ spa: true }, "", pathname);
       if (document.startViewTransition) document.startViewTransition(doSwap);
       else doSwap();
-    }).catch(() => { location.href = pathname; }); // graceful full-load fallback
+    }).catch(() => {
+      if (seq === navSeq) location.href = pathname; // graceful full-load fallback
+    });
   }
   window.opDocsNavigate = navigate;
 
@@ -640,6 +647,11 @@
   });
 
   window.addEventListener("popstate", () => {
+    // Native fragment navigation must retain the current disclosure state.
+    if (location.pathname + location.search === renderedPage) {
+      ++navSeq; // Cancel any pending navigation back to a different document.
+      return;
+    }
     navigate(location.pathname + location.search + location.hash, false);
   });
 
