@@ -15,7 +15,7 @@ from pathlib import Path
 
 # Folders that are never part of the docs site.
 EXCLUDE_DIRS = {"_site", "_site.tmp", "_site.old", "_static_root",
-                "images", "slides"}
+                "images", "slides", "node_modules"}
 
 # Internal execution plans stay versioned in Git but are not product
 # documentation. Keep this path-level list separate from EXCLUDE_DIRS so a
