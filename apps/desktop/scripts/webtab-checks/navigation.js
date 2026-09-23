@@ -349,6 +349,8 @@ async function checkSenderOwnership() {
     zoom: [],
     emulation: [],
     disableEmulation: 0,
+    insertedCSS: [],
+    removedCSS: [],
     print: [],
     printToPDF: [],
     capturePage: 0,

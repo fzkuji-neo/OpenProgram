@@ -25,6 +25,7 @@ function declaration(name) {
 const listeners = new Map();
 const visibleCalls = [];
 const setBoundsCalls = [];
+const pipZoomCalls = [];
 const menuOpenCalls = [];
 const menuResizeCalls = [];
 const terminalRegistrations = [];
@@ -60,6 +61,7 @@ const sandbox = {
   resizeMenuOverlay: (receivedContext, size) => {
     menuResizeCalls.push([receivedContext, size]);
   },
+  setPipZoom: (...args) => pipZoomCalls.push(args),
   syncVisibleViews: (receivedContext, items) => {
     visibleCalls.push([receivedContext, items]);
     return true;
@@ -213,6 +215,10 @@ assert.deepEqual(plain(visibleCalls[0][1]), [{
   id: "zoomed",
   bounds: { x: 890, y: 88, width: 568, height: 763 },
 }]);
+
+listeners.get("webtab:set-pip-zoom")(event, "zoomed", screenshotBounds.width, screenshotBounds.height);
+assert.deepEqual(plain(pipZoomCalls[0]), [context, "zoomed", 568, 763],
+  "preview scale and native bounds use the same rounded DIP at non-integral app zoom");
 
 listeners.get("webtab:set-bounds")(event, "zoomed", screenshotBounds);
 assert.deepEqual(plain(setBoundsCalls), [

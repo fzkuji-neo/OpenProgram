@@ -2460,7 +2460,7 @@
 .sessionNavigation button:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 
 /* Keep native content inside the edge resize hit targets. */
-.webPipLive { position: absolute; inset: 0 5px 5px; }
+.webPipLive { position: absolute; inset: 0 10px 10px; }
 .webPipEmbedded { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .webPipEmbedHint { font-size: 10px; color: var(--text-muted); padding: 2px 6px; }
 .webPipFrameViewport { position: relative; flex: 1; min-height: 0; overflow: hidden; }

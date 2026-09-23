@@ -525,6 +525,8 @@ function controlledRecord(id, currentUrl = "", loading = false) {
     zoom: [],
     emulation: [],
     disableEmulation: 0,
+    insertedCSS: [],
+    removedCSS: [],
     print: [],
     printToPDF: [],
     capturePage: 0,
@@ -540,6 +542,12 @@ function controlledRecord(id, currentUrl = "", loading = false) {
   let zoomFactor = 1;
   const debuggerListeners = new Map();
   const webContents = {
+    insertCSS(css, options) {
+      const key = `css-${nativeCalls.insertedCSS.length}`;
+      nativeCalls.insertedCSS.push({ key, css, options });
+      return Promise.resolve(key);
+    },
+    removeInsertedCSS(key) { nativeCalls.removedCSS.push(key); return Promise.resolve(); },
     getURL: () => currentUrl,
     getTitle: () => id,
     isLoading: () => loading,

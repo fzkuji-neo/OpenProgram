@@ -1004,8 +1004,8 @@ function registerWebTabIpc() {
   ipcMain.on("webtab:set-pip-zoom", (event, id, width, height) => {
     const ctx = contextForSender(event);
     const zoom = rendererZoomFactor(event);
-    if (ctx) setPipZoom(ctx, id, width == null ? null : width * zoom,
-      height == null ? undefined : height * zoom);
+    if (ctx) setPipZoom(ctx, id, width == null ? null : Math.round(width * zoom),
+      height == null ? undefined : Math.round(height * zoom));
   });
   ipcMain.handle("webtab:print", (event, id) => {
     const ctx = contextForSender(event);
