@@ -1529,23 +1529,25 @@
 .webPipResize[data-dir="se"] { right: -12px; bottom: -12px; cursor: nwse-resize; }
 .webPipResize[data-dir="ne"] { top: -12px; right: -12px; cursor: nesw-resize; }
 .webPipResize[data-dir="sw"] { left: -12px; bottom: -12px; cursor: nesw-resize; }
-/* Curved hints are visual only; the full corner remains an invisible hit target. */
+/* The 12px outer / 10px inner arc follows the page corner with no gap.
+   The larger transparent hit target stays independent of this visual hint. */
 .webPipResize[data-dir="ne"]::after,
 .webPipResize[data-dir="nw"]::after,
 .webPipResize[data-dir="se"]::after,
 .webPipResize[data-dir="sw"]::after {
   content: "";
   position: absolute;
-  inset: 8px;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
   border: 2px solid var(--text-muted);
-  border-radius: 5px;
   opacity: 0;
   pointer-events: none;
 }
-.webPipResize[data-dir="nw"]::after { border-right: 0; border-bottom: 0; border-radius: 5px 0 0 0; }
-.webPipResize[data-dir="ne"]::after { border-left: 0; border-bottom: 0; border-radius: 0 5px 0 0; }
-.webPipResize[data-dir="se"]::after { border-left: 0; border-top: 0; border-radius: 0 0 5px 0; }
-.webPipResize[data-dir="sw"]::after { border-right: 0; border-top: 0; border-radius: 0 0 0 5px; }
+.webPipResize[data-dir="nw"]::after { top: 10px; left: 10px; border-right: 0; border-bottom: 0; border-radius: 12px 0 0 0; }
+.webPipResize[data-dir="ne"]::after { top: 10px; right: 10px; border-left: 0; border-bottom: 0; border-radius: 0 12px 0 0; }
+.webPipResize[data-dir="se"]::after { bottom: 10px; right: 10px; border-left: 0; border-top: 0; border-radius: 0 0 12px 0; }
+.webPipResize[data-dir="sw"]::after { bottom: 10px; left: 10px; border-right: 0; border-top: 0; border-radius: 0 0 0 12px; }
 .webPipResize:hover::after,
 .webPipDragging .webPipResize::after { opacity: 1; }
 .webPipFallback {
