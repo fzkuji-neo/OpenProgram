@@ -94,6 +94,7 @@ module.exports = function createChecks(t) {
     t.hooks.setPipZoom(ctx, record.id, null);
     await flush();
     t.assert.ok(c.nativeCalls.removedCSS.includes(c.nativeCalls.insertedCSS[0].key));
+    t.assert.equal(c.nativeCalls.activeCSS.length, 0, "normal tabs must recover their original root scrollbar styling");
     const pendingStyles = [];
     record.view.webContents.insertCSS = () => new Promise(resolve => pendingStyles.push(resolve));
     resize(240);
