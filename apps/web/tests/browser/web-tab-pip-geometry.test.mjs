@@ -110,7 +110,7 @@ test("css keeps a flush frameless page and eight outward transparent handles", (
   }
   assert.doesNotMatch(css, /linear-gradient\(135deg/);
   assert.match(css, /\.webPipResize:hover::after,/);
-  assert.match(css, /\.webPipBody \{[^}]*border-radius: 10px;[^}]*overflow: hidden;/);
+  assert.match(css, /\.webPipStage \{[^}]*border-radius: 10px;[^}]*overflow: hidden;/);
   assert.match(css, /background: transparent/);
   assert.match(css, /cursor: ns-resize/);
   assert.match(css, /cursor: ew-resize/);
