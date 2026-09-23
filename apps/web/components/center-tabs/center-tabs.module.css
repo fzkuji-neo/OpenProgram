@@ -1269,11 +1269,11 @@
   height: 198.75px;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-primary);
-  box-shadow: var(--shadow);
-  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
 }
 .webPipDragging {
   will-change: transform;
@@ -1286,8 +1286,8 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 2px;
-  min-height: 28px;
-  height: 28px;
+  min-height: 30px;
+  height: 30px;
   flex-shrink: 0;
   padding: 0 2px 0 8px;
   overflow: hidden;
@@ -1498,22 +1498,22 @@
 }
 .webPipResize[data-dir="n"],
 .webPipResize[data-dir="s"] {
-  left: 10px;
-  right: 10px;
+  left: 0;
+  right: 0;
   height: 5px;
   cursor: ns-resize;
 }
-.webPipResize[data-dir="n"] { top: 0; }
-.webPipResize[data-dir="s"] { bottom: 0; }
+.webPipResize[data-dir="n"] { top: -5px; }
+.webPipResize[data-dir="s"] { bottom: -5px; }
 .webPipResize[data-dir="e"],
 .webPipResize[data-dir="w"] {
-  top: 10px;
-  bottom: 10px;
+  top: 0;
+  bottom: 0;
   width: 5px;
   cursor: ew-resize;
 }
-.webPipResize[data-dir="e"] { right: 0; }
-.webPipResize[data-dir="w"] { left: 0; }
+.webPipResize[data-dir="e"] { right: -5px; }
+.webPipResize[data-dir="w"] { left: -5px; }
 .webPipResize[data-dir="ne"],
 .webPipResize[data-dir="nw"],
 .webPipResize[data-dir="se"],
@@ -1522,10 +1522,10 @@
   height: 10px;
   z-index: 7;
 }
-.webPipResize[data-dir="nw"] { top: 0; left: 0; cursor: nwse-resize; }
-.webPipResize[data-dir="se"] { right: 0; bottom: 0; cursor: nwse-resize; }
-.webPipResize[data-dir="ne"] { top: 0; right: 0; cursor: nesw-resize; }
-.webPipResize[data-dir="sw"] { left: 0; bottom: 0; cursor: nesw-resize; }
+.webPipResize[data-dir="nw"] { top: -5px; left: -5px; cursor: nwse-resize; }
+.webPipResize[data-dir="se"] { right: -5px; bottom: -5px; cursor: nwse-resize; }
+.webPipResize[data-dir="ne"] { top: -5px; right: -5px; cursor: nesw-resize; }
+.webPipResize[data-dir="sw"] { left: -5px; bottom: -5px; cursor: nesw-resize; }
 .webPipFallback {
   height: 100%;
   display: flex;
@@ -2459,8 +2459,8 @@
 .sessionNavigation button:disabled { opacity: .35; cursor: default; }
 .sessionNavigation button:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 
-/* Keep native content inside the edge resize hit targets. */
-.webPipLive { position: absolute; inset: 0 10px 10px; }
+/* Resize targets extend outside the native surface; no visible content gutter. */
+.webPipLive { position: absolute; inset: 0; }
 .webPipEmbedded { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .webPipEmbedHint { font-size: 10px; color: var(--text-muted); padding: 2px 6px; }
 .webPipFrameViewport { position: relative; flex: 1; min-height: 0; overflow: hidden; }

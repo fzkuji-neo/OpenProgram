@@ -219,9 +219,9 @@ HTMLElement.prototype.getBoundingClientRect = function getBoundingClientRect() {
   if (this.getAttribute("data-pip-live") === "native") {
     const pip = this.closest('[data-pip="true"]');
     const translate = /translate\(([-.\d]+)px, ([-.\d]+)px\)/.exec(pip.style.transform || "");
-    return box((parseFloat(pip.style.left) || 0) + Number(translate?.[1] || 0) + 5,
-      (parseFloat(pip.style.top) || 0) + Number(translate?.[2] || 0) + 29,
-      (parseFloat(pip.style.width) || 300) - 10, (parseFloat(pip.style.height) || 199) - 34);
+    return box((parseFloat(pip.style.left) || 0) + Number(translate?.[1] || 0),
+      (parseFloat(pip.style.top) || 0) + Number(translate?.[2] || 0) + 30,
+      (parseFloat(pip.style.width) || 300), (parseFloat(pip.style.height) || 199) - 30);
   }
   const track = stageTrack(this);
   if (this.getAttribute("data-web-pip-dock") && track) {

@@ -100,10 +100,14 @@ test("store clamp forwards the shared min constants into geometry", () => {
   assert.match(store, /export \{\s*PIP_HEADER_HEIGHT,\s*PIP_RESIZE_DIRS,\s*clampPipRectAspect,\s*pipContentAspect,\s*resizePipRect,/);
 });
 
-test("css uses eight transparent handles and keeps 28px chrome", () => {
+test("css keeps a flush frameless page and eight outward transparent handles", () => {
   const css = readFileSync(new URL("../../components/center-tabs/center-tabs.module.css", import.meta.url), "utf8");
-  assert.match(css, /\.webPipChrome \{[\s\S]*?height: 28px/);
-  assert.match(css, /\.webPip \{[\s\S]*?border-radius: 10px/);
+  assert.match(css, /\.webPipChrome \{[\s\S]*?height: 30px/);
+  assert.match(css, /\.webPip \{[^}]*border: 0;[^}]*border-radius: 0;[^}]*box-shadow: none;[^}]*overflow: visible;/);
+  assert.match(css, /\.webPipLive \{[^}]*inset: 0;/);
+  for (const [dir, edge] of [["n", "top"], ["s", "bottom"], ["e", "right"], ["w", "left"]]) {
+    assert.match(css, new RegExp(`\\.webPipResize\\[data-dir="${dir}"\\] \\{ ${edge}: -5px;`));
+  }
   assert.doesNotMatch(css, /linear-gradient\(135deg/);
   assert.doesNotMatch(css, /\.webPipResize::after/);
   assert.match(css, /background: transparent/);
