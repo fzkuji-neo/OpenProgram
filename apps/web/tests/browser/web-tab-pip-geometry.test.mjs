@@ -103,7 +103,7 @@ test("store clamp forwards the shared min constants into geometry", () => {
 test("css keeps a flush frameless page and eight outward transparent handles", () => {
   const css = readFileSync(new URL("../../components/center-tabs/center-tabs.module.css", import.meta.url), "utf8");
   assert.match(css, /\.webPipChrome \{[\s\S]*?height: 30px/);
-  assert.match(css, /\.webPip \{[^}]*border: 0;[^}]*border-radius: 0;[^}]*box-shadow: none;[^}]*overflow: visible;/);
+  assert.match(css, /\.webPip \{[^}]*border: 0;[^}]*border-radius: 10px;[^}]*box-shadow: none;[^}]*overflow: visible;/);
   assert.match(css, /\.webPipLive \{[^}]*inset: 0;/);
   for (const [dir, edge] of [["n", "top"], ["s", "bottom"], ["e", "right"], ["w", "left"]]) {
     assert.match(css, new RegExp(`\\.webPipResize\\[data-dir="${dir}"\\] \\{ ${edge}: -5px;`));
@@ -115,7 +115,12 @@ test("css keeps a flush frameless page and eight outward transparent handles", (
   for (const [dir, edges] of [["nw", "top: 10px; left: 10px;"], ["ne", "top: 10px; right: 10px;"], ["se", "bottom: 10px; right: 10px;"], ["sw", "bottom: 10px; left: 10px;"]]) {
     assert.ok(css.includes(`.webPipResize[data-dir="${dir}"]::after { ${edges}`));
   }
-  assert.match(css, /\.webPipStage \{[^}]*border-radius: 0;[^}]*overflow: hidden;/);
+  assert.match(css, /\.webPipStage \{[^}]*border-radius: 0 0 10px 10px;[^}]*overflow: hidden;/);
+  assert.match(css, /\.webPipChrome \{[^}]*border-radius: 10px 10px 0 0;/);
+  const background = (selector) => css.match(new RegExp(`\\.${selector} \\{[^}]*background: ([^;]+);`))?.[1];
+  assert.equal(background("webPipChrome"), "var(--bg-secondary)");
+  assert.equal(background("webPipStage"), background("webPipChrome"), "native top cutouts match the header");
+  assert.match(css, /\.webPipGestureFrame \{[^}]*border-radius: 10px 10px 0 0;/, "retained gesture image leaves native top cutouts clear");
   assert.match(css, /background: transparent/);
   assert.match(css, /cursor: ns-resize/);
   assert.match(css, /cursor: ew-resize/);
