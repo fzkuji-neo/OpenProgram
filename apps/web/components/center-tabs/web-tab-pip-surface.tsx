@@ -81,7 +81,8 @@ export function WebTabPipSurface({ tabId, url, native }: {
         '[role="dialog"], [role="menu"], [role="listbox"], .branches-merge-modal-backdrop, [data-native-view-occluder="true"]',
       ));
       if (occluded || bounds.width <= 0 || bounds.height <= 0) {
-        if (gestureFrameRef.current) gestureFrameRef.current.hidden = true;
+        const image = gestureFrameRef.current;
+        if (image && !image.hidden) image.hidden = true;
         desktop.removeVisibleWebTabBounds(bridge, tabId);
         desktop.setWebTabReady(tabId, false);
         return;
