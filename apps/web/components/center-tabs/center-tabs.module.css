@@ -1347,6 +1347,8 @@
   color: var(--text-bright);
 }
 .webPipStage {
+  border-radius: 10px;
+  overflow: hidden;
   position: relative;
   flex: 1;
   min-height: 0;
@@ -1354,8 +1356,6 @@
   flex-direction: column;
 }
 .webPipBody {
-  border-radius: 10px;
-  overflow: hidden;
   position: relative;
   flex: 1;
   min-height: 0;
