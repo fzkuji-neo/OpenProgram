@@ -180,11 +180,11 @@
     groups.forEach((group) => {
       let hovered = null;
       const isToc = group.classList.contains("toc-list");
-      const links = Array.from(group.querySelectorAll(isToc ? ":scope > li > a" : "a"));
+      const links = Array.from(group.querySelectorAll(isToc ? ":scope > li > a, :scope > li > details > summary > a" : "a"));
       const paint = () => {
         const visible = links.filter((link) => link.getClientRects().length && getComputedStyle(link).display !== "none");
-        const owns = (link, target) => isToc ? link.parentElement.contains(target) : link === target;
-        const active = visible.find((link) => link.classList.contains("active") || (isToc && link.parentElement.querySelector("a.active")));
+        const owns = (link, target) => isToc ? link.closest("li").contains(target) : link === target;
+        const active = visible.find((link) => link.classList.contains("active") || (isToc && link.closest("li").querySelector("a.active")));
         const focused = visible.find((link) => owns(link, document.activeElement) && document.activeElement.matches(":focus-visible"));
         const preview = focused || visible.find((link) => owns(link, hovered));
         if (isToc) links.forEach((link) => link.classList.toggle("in-path", link === active));
@@ -194,13 +194,13 @@
         const activeEnd = active ? center(active) : top;
         group.style.setProperty("--rail-top", top + "px");
         group.style.setProperty("--rail-height", Math.max(0, activeEnd - top) + "px");
-        group.style.setProperty("--rail-visible", active ? "1" : "0");
+        group.style.setProperty("--rail-visible", active && !(isToc && active.parentElement.tagName === "SUMMARY") ? "1" : "0");
         if (isToc) group.style.setProperty("--guide-height", visible.length ? Math.max(0, center(visible[visible.length - 1]) - top) + "px" : "0px");
         const previewEnd = preview ? center(preview) : top;
         const previewTop = active && previewEnd > activeEnd ? activeEnd : top;
         group.style.setProperty("--preview-top", previewTop + "px");
         group.style.setProperty("--preview-height", Math.max(0, previewEnd - previewTop) + "px");
-        group.style.setProperty("--preview-visible", preview && preview !== active ? "0.7" : "0");
+        group.style.setProperty("--preview-visible", preview && preview !== active && !(isToc && preview.parentElement.tagName === "SUMMARY") ? "0.7" : "0");
       };
       const over = (event) => { hovered = event.target.closest("a"); schedule(); };
       const leave = () => { hovered = null; schedule(); };
@@ -208,6 +208,7 @@
       group.addEventListener("pointerleave", leave);
       group.addEventListener("focusin", schedule);
       group.addEventListener("focusout", schedule);
+      if (isToc) group.addEventListener("toggle", schedule, true);
       resize.observe(group);
       links.forEach((link) => resize.observe(link));
       paints.push(paint);
@@ -216,6 +217,7 @@
         group.removeEventListener("pointerleave", leave);
         group.removeEventListener("focusin", schedule);
         group.removeEventListener("focusout", schedule);
+        if (isToc) group.removeEventListener("toggle", schedule, true);
       });
     });
     updateRails = schedule;
@@ -418,7 +420,12 @@
       });
       label.textContent = sections[active].link.textContent;
       updateRails();
-      const link = sections[active].link;
+      let link = sections[active].link;
+      while (!link.getClientRects().length) {
+        const parent = link.closest(".toc-list").parentElement.closest("details.toc-disclosure");
+        if (!parent) break;
+        link = parent.querySelector(":scope > summary > a");
+      }
       const toc = link.closest("aside.toc");
       if (toc && toc.clientHeight && !toc.matches(":hover") && !toc.contains(document.activeElement)) {
         const bounds = toc.getBoundingClientRect();

@@ -548,14 +548,16 @@ nav.sidebar .nav-disclosure > summary {
   padding: 6px; cursor: pointer; list-style: none; border-radius: 5px;
 }
 nav.sidebar .nav-disclosure > summary::-webkit-details-marker { display: none; }
-nav.sidebar .nav-disclosure > summary::before {
+nav.sidebar .nav-disclosure > summary::before,
+aside.toc .toc-disclosure > summary::before {
   content: ""; width: 5px; height: 5px; margin: 0 4px 0 1px;
   /* Include the border when aligning the chevron center to the 1px rail. */
   position: relative; left: -.5px;
   border-right: 1px solid currentColor; border-bottom: 1px solid currentColor;
   transform: rotate(-45deg); flex-shrink: 0; color: var(--tx-soft);
 }
-nav.sidebar .nav-disclosure[open] > summary::before { transform: rotate(45deg); }
+nav.sidebar .nav-disclosure[open] > summary::before,
+aside.toc .toc-disclosure[open] > summary::before { transform: rotate(45deg); }
 nav.sidebar .nav-disclosure > summary:hover { background: transparent; }
 nav.sidebar .nav-disclosure .nav-sec-title {
   padding: 0; margin: 0; font-size: 13px; line-height: 1.4; font-weight: 550;
@@ -586,3 +588,15 @@ nav.sidebar .nav-disclosure > summary:focus-visible {
   outline: none; box-shadow: inset 0 0 0 2px var(--acc);
   text-decoration: none;
 }
+
+/* The same disclosure chevron marks parent headings in both navigation trees. */
+aside.toc .toc-disclosure { margin: 0; padding: 0; }
+aside.toc .toc-disclosure > summary {
+  display: flex; align-items: center; list-style: none; cursor: pointer;
+  position: relative; background: var(--bg); z-index: 1;
+}
+aside.toc .toc-disclosure > summary::-webkit-details-marker { display: none; }
+aside.toc .toc-disclosure > summary::before { margin-left: -1.5px; margin-right: 12.5px; }
+aside.toc .toc-disclosure > summary > a { flex: 1; min-width: 0; padding-left: 0; }
+aside.toc .toc-disclosure > summary:has(> a.in-path)::before { color: var(--acc); }
+aside.toc .toc-disclosure > summary:focus-visible { outline: 1px solid var(--acc); outline-offset: 2px; }
