@@ -401,7 +401,9 @@ function createWebViews({
     record.pipScrollbarStyle = pending;
     void wc.insertCSS(
       ":root { scrollbar-width: none !important; } :root::-webkit-scrollbar { display: none !important; }",
-      { cssOrigin: "user" },
+      // Electron removal uses Blink's default author origin, even when insertion
+      // requested user origin. Keep insertion/removal in the same origin.
+      { cssOrigin: "author" },
     ).then(key => {
       if (record.pipScrollbarStyle !== pending) remove(key);
       else pending.key = key;

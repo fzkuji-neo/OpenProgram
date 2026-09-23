@@ -145,6 +145,7 @@ async function checkLockedRecordsRejectOrdinaryIpc() {
     disableEmulation: 0,
     insertedCSS: [],
     removedCSS: [],
+    activeCSS: [],
     print: [],
     printToPDF: [],
     capturePage: 0,

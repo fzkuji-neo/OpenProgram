@@ -527,6 +527,7 @@ function controlledRecord(id, currentUrl = "", loading = false) {
     disableEmulation: 0,
     insertedCSS: [],
     removedCSS: [],
+    activeCSS: [],
     print: [],
     printToPDF: [],
     capturePage: 0,
@@ -544,10 +545,17 @@ function controlledRecord(id, currentUrl = "", loading = false) {
   const webContents = {
     insertCSS(css, options) {
       const key = `css-${nativeCalls.insertedCSS.length}`;
-      nativeCalls.insertedCSS.push({ key, css, options });
+      const sheet = { key, css, options };
+      nativeCalls.insertedCSS.push(sheet);
+      nativeCalls.activeCSS.push(sheet);
       return Promise.resolve(key);
     },
-    removeInsertedCSS(key) { nativeCalls.removedCSS.push(key); return Promise.resolve(); },
+    removeInsertedCSS(key) {
+      nativeCalls.removedCSS.push(key);
+      // Electron 44 calls Blink removal with its default author origin.
+      nativeCalls.activeCSS = nativeCalls.activeCSS.filter(sheet => sheet.key !== key || sheet.options?.cssOrigin === "user");
+      return Promise.resolve();
+    },
     getURL: () => currentUrl,
     getTitle: () => id,
     isLoading: () => loading,
