@@ -83,10 +83,10 @@ type PipDrag = {
 
 function containerBox(el: HTMLElement): WebTabPipRect {
   const box = rawContainerBox(el);
-  // Keep 5px outward handles clear of the adjacent 8px sidebar hit area,
-  // plus 1px separation. This is outside the preview, never page padding.
-  const insetX = Math.min(14, box.width / 2);
-  const insetY = Math.min(14, box.height / 2);
+  // Keep 12px outward corner targets clear of the adjacent 8px sidebar hit area,
+  // plus 2px separation. This is outside the preview, never page padding.
+  const insetX = Math.min(22, box.width / 2);
+  const insetY = Math.min(22, box.height / 2);
   return { x: box.x + insetX, y: box.y + insetY,
     width: box.width - insetX * 2, height: box.height - insetY * 2 };
 }
