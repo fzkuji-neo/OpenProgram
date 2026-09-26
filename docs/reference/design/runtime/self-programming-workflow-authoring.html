@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workflow discovery, creation, and automatic execution design</title>
+<style>
+  :root{color-scheme:dark;--bg:#111316;--panel:#181b20;--panel2:#1e2229;--line:#303640;--text:#e8eaee;--muted:#9da4af;--cyan:#58cadb;--blue:#79aaff;--green:#72d09a;--orange:#ef9b6b;--red:#ed7777;--purple:#b99cff;--mono:ui-monospace,"SFMono-Regular",Menlo,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.68 var(--sans)}a{color:var(--blue)}code,pre{font-family:var(--mono)}code{padding:1px 5px;border-radius:4px;background:#252931;color:#dde1e8;font-size:.9em}.page{width:min(1160px,calc(100% - 32px));margin:auto;padding:28px 0 72px}.set-nav,.toc{display:flex;flex-wrap:wrap;gap:7px}.set-nav{margin-bottom:22px}.set-nav a,.toc a{padding:5px 9px;border:1px solid var(--line);border-radius:7px;color:#b2b8c2;text-decoration:none;font-size:12px}.set-nav a[aria-current="page"],.toc a:hover,.toc a:focus-visible{border-color:#39717b;background:#17252a;color:#8ddbe6}header{padding:8px 0 26px;border-bottom:1px solid var(--line)}.eyebrow{color:var(--cyan);font:11px var(--mono);letter-spacing:.09em;text-transform:uppercase}h1{max-width:900px;margin:9px 0 11px;font-size:clamp(29px,4.5vw,46px);line-height:1.15;letter-spacing:-.025em}h2{margin:0 0 13px;font-size:24px;line-height:1.25}h3{margin:21px 0 8px;font-size:16px}.lead{max-width:900px;margin:0;color:#c7cbd3;font-size:16px}.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.pill{padding:4px 9px;border:1px solid var(--line);border-radius:999px;color:#b6bcc6;font:11px var(--mono)}.pill.proposed{border-color:#4d456b;background:#241f34;color:#cab8ff}.pill.scope{border-color:#315c63;background:#172329;color:#91dce7}.toc{margin-top:18px}main{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:34px}article{min-width:0}aside{position:sticky;top:18px;align-self:start;padding-top:30px}section{padding:31px 0;border-bottom:1px solid var(--line)}p{margin:9px 0}ul,ol{padding-left:22px}li+li{margin-top:5px}.panel,.callout,.decision{border:1px solid var(--line);border-radius:11px;background:var(--panel);padding:15px 17px}.decision{border-color:#39717b;background:#142126}.decision strong{color:#91dce7}.callout{margin:14px 0}.callout.warn{border-left:3px solid var(--orange);background:#241d18}.callout.good{border-left:3px solid var(--green);background:#16231c}.side-title{margin:0 0 11px;color:var(--muted);font:11px var(--mono);letter-spacing:.08em;text-transform:uppercase}.side-list{list-style:none;padding:0;margin:0}.side-list li{padding:7px 0;border-bottom:1px solid #292e36;font-size:12px}.side-list li:last-child{border-bottom:0}.side-list a{text-decoration:none}.status-list{display:grid;gap:8px}.status-row{display:grid;grid-template-columns:82px 1fr;gap:8px;font-size:12px}.status-row span:last-child{color:var(--muted)}.tag{display:inline-block;padding:2px 7px;border-radius:999px;font:10px var(--mono)}.tag.current{background:#183023;color:#8bd9aa}.tag.target{background:#222b3d;color:#9bbbf0}.tag.remove{background:#382020;color:#f09a9a}table{width:100%;margin:15px 0;border-collapse:collapse;font-size:13px}th,td{padding:10px 11px;border:1px solid var(--line);text-align:left;vertical-align:top}th{background:var(--panel2);color:#dfe2e8}td{color:#bec3cc}.diagram{margin:17px 0;padding:20px;border:1px solid var(--line);border-radius:12px;background:#0d0f12;overflow:auto}.diagram svg{display:block;min-width:820px;width:100%;height:auto}.diagram text{font-family:var(--mono)}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.card{padding:15px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}.card h3{margin:0 0 5px}.card p{margin:0;color:var(--muted);font-size:13px}.card .sig{display:block;margin:9px 0;color:#c6b7fa;font:12px var(--mono)}pre{overflow:auto;margin:14px 0;padding:15px 17px;border:1px solid var(--line);border-radius:10px;background:#0d0f12;color:#d8dce3;font-size:12px;line-height:1.6}pre code{padding:0;background:transparent;color:inherit}.steps{counter-reset:step;margin-top:15px}.step{display:grid;grid-template-columns:34px 1fr;gap:11px;padding:13px 0;border-top:1px solid var(--line)}.step:before{counter-increment:step;content:counter(step);display:grid;place-items:center;width:27px;height:27px;border:1px solid #4b535f;border-radius:50%;color:var(--cyan);font:11px var(--mono)}.step strong{display:block}.step p{margin:2px 0;color:var(--muted);font-size:13px}.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:11px}.dot{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:50%}.dot.user{background:var(--purple)}.dot.agent{background:var(--cyan)}.dot.public{background:var(--blue)}.dot.runtime{background:var(--green)}.phase{display:grid;grid-template-columns:110px 1fr;gap:16px;padding:16px 0;border-top:1px solid var(--line)}.phase-id{color:var(--cyan);font:12px var(--mono)}.phase h3{margin:0 0 5px}.phase p{margin:0;color:var(--muted);font-size:13px}.gate{margin-top:7px;color:#d8c49a;font:11px var(--mono)}footer{padding-top:25px;color:var(--muted);font-size:12px}:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}@media(max-width:900px){main{grid-template-columns:1fr}aside{position:static;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:22px}.cards{grid-template-columns:1fr}}@media(max-width:620px){.page{width:min(100% - 22px,1160px)}aside{grid-template-columns:1fr}.phase{grid-template-columns:1fr}table{display:block;overflow:auto}.lead{font-size:15px}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="page">
+  <nav class="set-nav" aria-label="Self-Programming Workflow documentation">
+    <a href="./self-programmed-agentic-workflow.html">Overview</a>
+    <a href="./programs-architecture.html">Programs code structure</a>
+    <a href="./self-programming-workflow-model.html">Programming model and composition</a>
+    <a href="./self-programming-workflow-authoring.html" aria-current="page">Discovery, creation, and automatic execution</a>
+    <a href="./self-programming-workflow-ui.html">DAG and Programs</a>
+    <a href="./agent-tool-configuration-ui.html">Agent tool configuration</a>
+  </nav>
+
+  <header>
+    <div class="eyebrow">Self-Programming Workflow · architecture and implementation plan</div>
+    <h1>Separate Workflow discovery, creation, revision, and execution</h1>
+    <p class="lead">This page defines how the OpenProgram Chat Agent selects existing Workflows, creates reusable Workflows on demand, and lets users manually trigger the complete process through <code>auto_workflow(task)</code> . Selection, creation, revision, and execution must be independent public operations. The complete entry point only orchestrates them and retains no second implementation.</p>
+    <div class="meta"><span class="pill proposed">Status: source implementation and re-review complete · App acceptance pending</span><span class="pill scope">Scope: Workflow catalog / authoring / runtime / Programs UI</span><span class="pill">Audience: Runtime, Programs, and Web implementers</span><span class="pill">Compatibility: read-only recovery of legacy runs</span></div>
+    <nav class="toc" aria-label="Page navigation"><a href="#decision">Design decisions</a><a href="#parameter-ownership">Parameter ownership</a><a href="#current">Current implementation</a><a href="#architecture">Target architecture</a><a href="#contracts">Public contracts</a><a href="#authoring">Creation and reuse</a><a href="#lifecycle">Lifecycle</a><a href="#comparison">Framework comparison</a><a href="#migration">Implementation plan</a><a href="#acceptance">Acceptance</a><a href="#status">Implementation status</a></nav>
+  </header>
+
+  <main>
+    <article>
+      <section id="decision">
+        <h2>1. Design decisions</h2>
+        <div class="decision"><strong>Remove the entry point for new <code>agentic_workflow</code> calls.</strong>Separate its capabilities into <code>search_workflows</code>, <code>create_workflow</code>, <code>revise_workflow</code> and execution of a specific Workflow; also provide a complete <code>auto_workflow</code> entry point for manual user use only.</div>
+        <div class="cards">
+          <div class="card"><h3>Chat Agent path</h3><span class="sig">Agent → search / create / revise / workflow</span><p>The Agent decides whether to call an existing Program directly. Search only when the catalog is large or candidates are not loaded. The Agent does not call <code>auto_workflow</code>.</p></div>
+          <div class="card"><h3>Manual user path</h3><span class="sig">User → auto_workflow(task)</span><p>One request performs search, one visible selection, creation if needed, and execution. Every step remains independently visible in the DAG.</p></div>
+        </div>
+        <div class="callout warn"><code>auto_workflow</code> is a convenience orchestration entry, not a candidate Workflow or component. Exclude it from search results, prohibit imports in generated code, and omit it from Agent tools.</div>
+        <div class="callout"><code>workflow/</code> categorizes code only. Directories, helper files, and internal subdirectories are not Programs. Programs, the Registry, and call graphs treat only actually registered <code>@agentic_function</code> as executable entities. Directory hierarchy must not change public names, invocation, or execution semantics.</div>
+      </section>
+
+      <section id="parameter-ownership">
+        <h2>Workflow parameter ownership</h2>
+        <p>Users supply the task, evidence and deliverable requirements. Execution parameters belong to the Workflow; do not expose them through Advanced, settings dialogs or parameter questions.</p>
+        <p>When a Workflow has several task-dependent parameters, make one tool-free model request before execution to produce the complete plan. Supply real runtime capabilities and application limits. Validate every field and cross-field constraint, apply a complete fallback on invalid output or planning failure, and propagate cancellation. Fixed invariants remain code-owned; the model cannot change permissions, credentials or application ceilings. Persist the effective plan before resumable work and reuse it on resume.</p>
+        <p>The canonical development example, parameter contract and acceptance checklist are in <a href="../../../capabilities/workflows/authoring.md#design-principle-the-workflow-owns-execution-parameters">Workflow authoring</a>. Missing task facts may require clarification; execution tuning must not be delegated to the user.</p>
+      </section>
+
+      <section id="current">
+        <h2>2. Current implementation and confirmed gaps</h2>
+        <table>
+          <thead><tr><th>Current fact</th><th>Problem</th><th>Target handling</th></tr></thead>
+          <tbody>
+            <tr><td>Public entry points are <code>search_workflows</code>, <code>create_workflow</code>, <code>revise_workflow</code> and the user-level <code>auto_workflow</code>; the legacy <code>agentic_workflow</code> is no longer registered.<code>resume_workflow</code> remains an internal function.</td><td>The old name did not indicate search, generation, publication, and execution.</td><td>New calls use four explicit entries; historical runs support read-only recovery.</td></tr>
+            <tr><td>Read-only search, create/revise publication, and specific Workflow execution are independent public operations;<code>auto_workflow</code> only orchestrates these entries and retains no second implementation.</td><td>Read-only discovery, persistent writes, and business execution must not share one lifecycle.</td><td>Separate behavior by public contract; remove the composite execution path.</td></tr>
+            <tr><td>Existing projects pin run inputs with Git revisions, snapshots, and <code>project_ref.json</code> .</td><td>Versioning and recovery must remain independent of orchestration.</td><td>Retain project formats, snapshots, checkpoints, and explicit resume.</td></tr>
+            <tr><td>Ordinary execution failures preserve their original error and checkpoint without rewriting published Workflows.</td><td>An ordinary execution must not silently change published source.</td><td>Pre-publication structural/test repairs stay in create; published changes require explicit revise.</td></tr>
+            <tr><td><code>auto_workflow</code> appears in user forms and Programs (automatic entry · manual user use only), not in Agent tools.</td><td>Users need a complete entry, while Agents already have task routing; these have different semantics.</td><td><code>auto_workflow</code> is visible to users and hidden from Agents.</td></tr>
+            <tr><td><code>@agentic_function(tool_visible=)</code> passes Layer-2 <code>register(..., expose)</code>; the default is <code>True</code>, keeping all existing functions exposed.</td><td>A decorator must express “visible to users, unavailable as an Agent tool.”</td><td><code>auto_workflow</code> registers with <code>tool_visible=False</code> .</td></tr>
+            <tr><td>Execution-time repair is removed.<code>create_workflow</code> retains bounded pre-publication author retries (<code>PROJECT_AUTHOR_ATTEMPTS</code>).</td><td>Ordinary run failures must not automatically publish a revision.</td><td>Published changes require explicit <code>revise_workflow</code>.</td></tr>
+            <tr><td>Four public entries moved into <code>workflow/</code>; the old source directory is deleted.</td><td>Classification paths must remain independent of runtime identity.</td><td>Programs uses classification directories only for navigation. Function nodes and function-level call graphs derive from the Registry and the selected entry’s reachable AST.</td></tr>
+            <tr><td>New projects use a multi-file package contract, but product documentation still describes parameterless <code>workflow()</code>, banning every import, and automatic execution-time rewriting.</td><td>Human authors would follow the old contract and infer actual rules only from validator errors.</td><td>Use the current validator as the only rule source, with English/Chinese author pages and shared CLI static validation.</td></tr>
+            <tr><td><code>tests/test_workflow.py</code>Currently participates only in AST/import checks and is not executed before publication.</td><td>Static validity does not establish behavioral correctness; directly executing untrusted tests would cross the security boundary.</td><td>First define static validate; later implement a behavioral-test gate with mandatory sandboxing, no network, filtered credentials, constrained write directories, and timeouts.</td></tr>
+          </tbody>
+        </table>
+        <p>This design reuses existing Workflow packages, Git, snapshots, checkpoints, DAG callers, and cancellation state. It introduces no second execution Runtime, graph DSL, Workflow database, or string dispatcher.</p>
+
+        <h3>Code classification and runtime identity</h3>
+        <p>Python directories organize source; runtime identity comes only from registration. Neither derives from the other: directory names cannot automatically become Programs, and moving files cannot automatically change public function names.</p>
+        <pre><code>openprogram/programs/workflow/
+└── workflow/                         # Classification directory, not executable
+    ├── __init__.py                   # Entries and shared implementation
+    ├── &lt;helper&gt;.py                   # Create only for an independent responsibility
+    └── &lt;subsystem&gt;/                  # Further responsibility-based organization as needed
+
+Executable entities shown by Registry / Programs:
+  search_workflows
+  create_workflow
+  revise_workflow
+  auto_workflow
+
+Not executable entities:
+  workflow
+  __init__.py
+  Any helper file
+  Any internal subdirectory</code></pre>
+        <table>
+          <thead><tr><th>Layer</th><th>Sole responsibility</th><th>Prohibited behavior</th></tr></thead>
+          <tbody>
+            <tr><td>Filesystem</td><td>Organize Python source by <code>agentic / workflow</code> type; entries, helpers, and internal subdirectories can share a classification tree.</td><td>Do not register Programs merely because files or directories exist; do not pre-create files such as <code>runtime.py</code>, <code>legacy.py</code> without independent responsibilities.</td></tr>
+            <tr><td>Registry</td><td>Use decorated function names, schemas, exposure, and source files as authoritative runtime identity.</td><td>Do not overwrite function names with parent directory names or re-register the legacy <code>agentic_workflow</code>.</td></tr>
+            <tr><td>Programs catalog</td><td>Directory nodes expand only; function nodes come from the Registry and can be selected, inspected, and run.</td><td>Do not show <code>workflow/</code> as an executable Program or helper files as functions.</td></tr>
+            <tr><td>Call graph</td><td>The root is the registered function selected by the user; dependency edges follow its actual calls.</td><td>Do not use source directory names as roots or show an old aggregate name because a file contains several entries.</td></tr>
+            <tr><td>Runtime</td><td>Continue calling public function names; run, checkpoint, cancellation, and legacy recovery contracts remain unchanged.</td><td>Do not turn source moves into new execution paths, state formats, or compatibility entries.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout good"><strong>Long-term constraint:</strong>Developers may add entries or helpers in this classification directory for new Workflow management functions, but executable Programs must derive from registered functions. Directory scans may generate navigation nodes, never executable entities.</div>
+      </section>
+
+      <section id="architecture">
+        <h2>3. Target architecture and two primary paths</h2>
+        <figure class="diagram">
+          <svg viewBox="0 0 1120 650" role="img" aria-labelledby="flow-title flow-desc">
+            <title id="flow-title">Workflow search, creation, and execution architecture</title>
+            <desc id="flow-desc">Top: the complete manual auto_workflow process. Deterministic search is followed by one visible Selection Agent choosing reuse or creation, then a specific Workflow call. Middle: Chat Agent directly chooses search, creation, revision, or a specific Workflow according to the task, without auto_workflow. Both paths share the catalog and Workflow Runtime.</desc>
+            <defs>
+              <marker id="arrow-neutral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7e8793"/></marker>
+              <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b99cff"/></marker>
+              <marker id="arrow-cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#58cadb"/></marker>
+              <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#72d09a"/></marker>
+            </defs>
+
+            <rect x="20" y="20" width="1080" height="228" rx="18" fill="#15131d" stroke="#4d456b"/>
+            <rect x="20" y="272" width="1080" height="210" rx="18" fill="#10191d" stroke="#315c63"/>
+            <rect x="20" y="510" width="1080" height="120" rx="18" fill="#111915" stroke="#315441"/>
+            <g font-size="12" letter-spacing="1.2">
+              <text x="43" y="51" fill="#cab8ff">Complete manual user flow · ONLY USER</text>
+              <text x="43" y="303" fill="#91dce7">Independent CHAT AGENT path · NO AUTO_WORKFLOW</text>
+              <text x="43" y="541" fill="#9bc9aa">Shared state and execution layer · DETERMINISTIC</text>
+            </g>
+
+            <g text-anchor="middle">
+              <rect x="43" y="88" width="128" height="66" rx="11" fill="#251f35" stroke="#8b73cb"/>
+              <text x="107" y="115" fill="#eee9ff" font-size="14">User form</text><text x="107" y="136" fill="#b8a8e4" font-size="11">task</text>
+              <rect x="205" y="88" width="158" height="66" rx="11" fill="#251f35" stroke="#8b73cb"/>
+              <text x="284" y="115" fill="#eee9ff" font-size="14">auto_workflow</text><text x="284" y="136" fill="#b8a8e4" font-size="11">Orchestration only</text>
+              <rect x="397" y="88" width="168" height="66" rx="11" fill="#1a2130" stroke="#79aaff"/>
+              <text x="481" y="115" fill="#eaf1ff" font-size="14">search_workflows</text><text x="481" y="136" fill="#a8c4f2" font-size="11">Deterministic read-only search</text>
+              <rect x="599" y="88" width="158" height="66" rx="11" fill="#251f35" stroke="#8b73cb"/>
+              <text x="678" y="115" fill="#eee9ff" font-size="14">Selection Agent</text><text x="678" y="136" fill="#b8a8e4" font-size="11">The only model decision</text>
+              <path d="M822 77L872 121L822 165L772 121Z" fill="#211d2d" stroke="#8b73cb"/>
+              <text x="822" y="117" fill="#eee9ff" font-size="13">reuse</text><text x="822" y="134" fill="#b8a8e4" font-size="11">or create</text>
+              <rect x="924" y="51" width="150" height="66" rx="11" fill="#1a2130" stroke="#79aaff"/>
+              <text x="999" y="78" fill="#eaf1ff" font-size="14">Specific Workflow</text><text x="999" y="99" fill="#a8c4f2" font-size="11">Pinned revision</text>
+              <rect x="924" y="160" width="150" height="66" rx="11" fill="#1a2130" stroke="#79aaff"/>
+              <text x="999" y="187" fill="#eaf1ff" font-size="14">create_workflow</text><text x="999" y="208" fill="#a8c4f2" font-size="11">Create and publish</text>
+            </g>
+            <g fill="none" stroke="#b99cff" stroke-width="2" marker-end="url(#arrow-purple)">
+              <path d="M171 121H205"/><path d="M363 121H397"/><path d="M565 121H599"/><path d="M757 121H772"/>
+              <path d="M872 105H892V84H924"/><path d="M822 165V193H924"/><path d="M999 160V117"/>
+            </g>
+            <g font-size="10" fill="#cab8ff"><text x="884" y="97">reuse</text><text x="838" y="187">create</text></g>
+
+            <g text-anchor="middle">
+              <rect x="43" y="342" width="146" height="70" rx="11" fill="#17262b" stroke="#58cadb"/>
+              <text x="116" y="371" fill="#ddf7fb" font-size="15">Chat Agent</text><text x="116" y="393" fill="#8bcbd5" font-size="11">Choose directly by task</text>
+              <rect x="225" y="320" width="849" height="135" rx="14" fill="#14191f" stroke="#39717b"/>
+              <text x="247" y="344" fill="#8bcbd5" text-anchor="start" font-size="11">PUBLIC WORKFLOW ABILITIES · Invoke one or more entries as needed</text>
+              <rect x="247" y="361" width="178" height="62" rx="10" fill="#1a2130" stroke="#79aaff"/>
+              <text x="336" y="387" fill="#eaf1ff" font-size="13">search_workflows</text><text x="336" y="407" fill="#a8c4f2" font-size="10">When the catalog is unknown</text>
+              <rect x="449" y="361" width="178" height="62" rx="10" fill="#1a2130" stroke="#79aaff"/>
+              <text x="538" y="387" fill="#eaf1ff" font-size="13">create_workflow</text><text x="538" y="407" fill="#a8c4f2" font-size="10">When a stable asset is needed</text>
+              <rect x="651" y="361" width="178" height="62" rx="10" fill="#1a2130" stroke="#79aaff"/>
+              <text x="740" y="387" fill="#eaf1ff" font-size="13">revise_workflow</text><text x="740" y="407" fill="#a8c4f2" font-size="10">When the user explicitly requests changes</text>
+              <rect x="853" y="361" width="199" height="62" rx="10" fill="#1a2130" stroke="#79aaff"/>
+              <text x="952" y="387" fill="#eaf1ff" font-size="13">Specific Workflow</text><text x="952" y="407" fill="#a8c4f2" font-size="10">Direct call if matched</text>
+              <text x="649" y="443" fill="#7f8997" font-size="10">Search/create/revise as needed; no auto_workflow.</text>
+            </g>
+            <path d="M189 377H225" fill="none" stroke="#58cadb" stroke-width="2" marker-end="url(#arrow-cyan)"/>
+
+            <g text-anchor="middle">
+              <rect x="225" y="553" width="224" height="58" rx="11" fill="#1d2721" stroke="#72d09a"/>
+              <text x="337" y="578" fill="#e5f6ea" font-size="14">Workflow catalog</text><text x="337" y="598" fill="#9bc9aa" font-size="10">metadata + immutable Git refs</text>
+              <rect x="652" y="553" width="216" height="58" rx="11" fill="#1d2721" stroke="#72d09a"/>
+              <text x="760" y="578" fill="#e5f6ea" font-size="14">Workflow Runtime</text><text x="760" y="598" fill="#9bc9aa" font-size="10">snapshot + checkpoint</text>
+              <rect x="927" y="553" width="147" height="58" rx="11" fill="#1b2027" stroke="#59616d"/>
+              <text x="1000" y="578" fill="#e8eaee" font-size="14">Task result</text><text x="1000" y="598" fill="#9da4af" font-size="10">result + ref</text>
+            </g>
+            <g fill="none" stroke="#7e8793" stroke-width="1.5" marker-end="url(#arrow-neutral)">
+              <path d="M336 423V553" stroke-dasharray="5 5"/><path d="M538 423V515H393V553"/><path d="M740 423V515H421V553"/>
+            </g>
+            <g fill="none" stroke="#72d09a" stroke-width="2" marker-end="url(#arrow-green)">
+              <path d="M952 423V505H760V553"/><path d="M1074 84H1090V570H868"/><path d="M868 582H927"/>
+            </g>
+            <g font-size="10" fill="#7f8997"><text x="347" y="515">read</text><text x="480" y="507">publish new revision</text><text x="881" y="497">execute selected Workflow</text></g>
+          </svg>
+        </figure>
+        <div class="legend"><span><i class="dot user"></i>Manual user orchestration</span><span><i class="dot agent"></i>Chat Agent decision</span><span><i class="dot public"></i>Public Workflow capabilities</span><span><i class="dot runtime"></i>Persistent state and execution</span></div>
+        <h3>Chat Agent decision order</h3>
+        <ol>
+          <li>An already-loaded Program or Workflow clearly matches: call it directly without searching first.</li>
+          <li>An unloaded dynamic Workflow may exist: call <code>search_workflows</code>.</li>
+          <li>Complete match: invoke the candidate’s pinned revision directly.</li>
+          <li>Partial capability only: compose direct calls for a one-off task; when reuse, recovery, scheduling, or stable structure is needed, call <code>create_workflow</code>.</li>
+          <li>No match: the Agent can still use tools directly for an ordinary one-off task. Create only when the user explicitly requests a reusable asset or the task has stable recurring structure.</li>
+        </ol>
+      </section>
+
+      <section id="contracts">
+        <h2>4. Public capability contracts</h2>
+        <table>
+          <thead><tr><th>Entry</th><th>Caller</th><th>Responsibility</th><th>Prohibited behavior</th></tr></thead>
+          <tbody>
+            <tr><td><code>search_workflows(task)</code></td><td>Agent, user</td><td>Deterministically return ranked candidates, pinned revisions, contracts, permissions, and match evidence.</td><td>Must not call a model, write files, execute candidates, or publish.</td></tr>
+            <tr><td><code>create_workflow(task)</code></td><td>Agent, user</td><td>Read candidate components, generate a new package, validate, publish, and return a ref.</td><td>Must not execute the user task or modify existing projects.</td></tr>
+            <tr><td><code>revise_workflow(workflow_id, request)</code></td><td>Agent, user</td><td>Create a new candidate from a specified revision, validate it, and publish a new revision.</td><td>Must not be silently triggered by ordinary execution failure or overwrite old revisions.</td></tr>
+            <tr><td><code>auto_workflow(task)</code></td><td>Manual user use only</td><td>Call search; one visible selection Agent decides reuse/create; finally call the selected Workflow. Layer-2 unexposed registration keeps it out of Agent tools.</td><td>Must not appear in Agent tools or search candidates, or automatically revise published projects.</td></tr>
+            <tr><td>Specific Workflow entry</td><td>Agent, user, other Workflows</td><td>Execute a defined business contract.</td><td>Must not reenter global search or authoring.</td></tr>
+          </tbody>
+        </table>
+        <pre><code>{
+  "action": "reuse | create",
+  "workflow_id": "research_report",
+  "workflow_revision": "&lt;immutable git revision&gt;",
+  "result": {},
+  "run_id": "&lt;workflow run id&gt;"
+}</code></pre>
+        <p><code>auto_workflow</code> must report whether it reused or created. Search, creation, and execution each produce DAG child nodes, not a single unexplained aggregate node.</p>
+      </section>
+
+      <section id="authoring"><span id="author"></span>
+        <h2>5. Search, component reuse, and creation</h2>
+        <h3>One package contract and a human-author entry</h3>
+        <p>Agent and human authors use the same static validator. New projects must use the package format <code>pyproject.toml + README.md + __init__.py + workflow.py + tests/test_workflow.py + helper</code> ; legacy <code>entry.py</code> is outside new authoring. The first CLI phase provides <code>openprogram workflows validate &lt;directory&gt;</code>, returning read-only diagnostics for structure, metadata, AST, imports, entries, and dependency-import shapes. Missing dependencies, cycles, and revision pins remain create/revise publication checks.<code>--json</code> provides stable script output. create/revise invokes the same candidate validator before publication, without a second rule set.</p>
+        <div class="callout warn">Static validate does not execute project code and must not be described as passing publication tests. A behavioral-test gate must run in a mandatory sandbox independent of the user profile, with network disabled by default, credentials filtered, and write directories and time bounded; unavailable sandboxing must deny publication. This gate is a separate subsequent task.</div>
+        <h3>Search contract</h3>
+        <p>Search uses catalog metadata and pinned Git HEAD for deterministic text retrieval, then gives candidate contracts to the calling Agent. Chat Agent decides in the chat path; the manual auto path uses its sole visible selection Agent. Search results are not execution permission; permissions, input schemas, and side effects accompany candidates.</p>
+        <pre><code>{
+  "workflow_id": "web_research",
+  "revision": "&lt;git revision&gt;",
+  "retrieval_score": 4,
+  "matched_terms": ["web", "research"],
+  "input_schema": {},
+  "output_schema": {},
+  "permissions": ["network"]
+}</code></pre>
+        <h3>Reuse components during creation</h3>
+        <p><code>create_workflow</code> receives read-only snapshots of available Workflows and the public Program catalog. Generated projects reference Workflow packages through normal Python imports without copying dependency source. The manifest pins each dependency revision; publication rejects dependency cycles, missing entries, and undeclared permission expansion.</p>
+        <pre><code>research_report/
+├── pyproject.toml
+├── README.md
+├── workflows/
+│   └── research_report/
+│       ├── __init__.py
+│       ├── collect.py      # imports web_research
+│       └── synthesize.py
+└── tests/
+    └── test_research_report.py</code></pre>
+        <div class="steps">
+          <div class="step"><div><strong>Pin inputs</strong><p>Freeze catalog revisions and reachable dependencies; later external commits do not change this authoring attempt.</p></div></div>
+          <div class="step"><div><strong>Generate one candidate</strong><p>Only the candidate directory is writable; source repositories, dependency Workflows, and user directories stay read-only.</p></div></div>
+          <div class="step"><div><strong>Deterministic validation</strong><p>Check package, unique entry, schemas, imports, dependency closure, cycles, permissions, and test commands.</p></div></div>
+          <div class="step"><div><strong>Bounded pre-publication repair</strong><p>Repair only generated-candidate structure or test failures, with a retry limit. Do not repair cancellation or provider errors.</p></div></div>
+          <div class="step"><div><strong>Atomic publication</strong><p>After all validation succeeds, create one commit and update the catalog. Return a Workflow ref without executing the user task.</p></div></div>
+        </div>
+        <div class="callout good">One-off tasks do not automatically create Workflows. Creation requires an explicit user request or at least one need for stable reuse, recovery, scheduling, or versioned review.</div>
+      </section>
+
+      <section id="lifecycle">
+        <h2>6. Lifecycle, failure, and trust boundaries</h2>
+        <table>
+          <thead><tr><th>Phase</th><th>Allowed state change</th><th>Failure rule</th></tr></thead>
+          <tbody>
+            <tr><td>search</td><td>No persistent run; read-only result</td><td>Report or skip corrupt catalog items; never change projects.</td></tr>
+            <tr><td>create / revise</td><td><code>running → completed | failed | cancelled</code></td><td>Failure and cancellation do not publish. Candidates may be reclaimed; diagnostics go to run state.</td></tr>
+            <tr><td>workflow run</td><td><code>running → completed | failed | capped | cancelled | interrupted</code></td><td>Preserve the original error and checkpoint; do not automatically rewrite a published Workflow.</td></tr>
+            <tr><td>auto</td><td>Aggregate child-call state</td><td>Stop on any child failure; never mark partial results completed.</td></tr>
+            <tr><td>resume</td><td>Resume only the specified run</td><td>Pin the original snapshot/revision; do not search again or reselect a project.</td></tr>
+          </tbody>
+        </table>
+        <h3>Boundary requirements</h3>
+        <ul>
+          <li>Authoring writes are limited to the current candidate and run state. Network, credentials, and external tools follow current session permissions.</li>
+          <li>Publication to the same target Workflow must serialize; different projects may run concurrently. Concurrent publication does not alter running snapshots.</li>
+          <li>Cancellation, permission denial, timeout, provider terminal errors, and external Stop never enter repair.</li>
+          <li>The invocation form inherits the session’s Project; it offers no second working-directory override.</li>
+          <li>Local App refresh refuses to proceed when active runs exist; restarting must not rewrite run state as failed or cancelled.</li>
+          <li>Legacy <code>code.py</code>, legacy snapshots, and historical runs support read-only recovery; new calls never produce the old format.</li>
+        </ul>
+      </section>
+
+      <section id="comparison">
+        <h2>7. Official framework comparison</h2>
+        <p>Comparisons establish boundaries only; OpenProgram does not import other frameworks’ Runtimes or DSLs. “Not covered” means the cited official pages do not define a complete product contract for automatically generating and publishing persistent Python Workflows.</p>
+        <table>
+          <thead><tr><th>Official material</th><th>Relevant capability</th><th>Adoption or adaptation</th><th>Not directly covered</th></tr></thead>
+          <tbody>
+            <tr><td><a href="https://openai.github.io/openai-agents-python/multi_agent/">OpenAI Agents SDK · orchestration</a></td><td>Distinguishes LLM decisions from code orchestration; a manager can call specialized Agents as tools.</td><td>Adopt “Chat Agent owns the user conversation; specialized capabilities are independent tools”;<code>auto_workflow</code> uses code orchestration.</td><td>Does not define local Workflow catalog generation, Git publication, or legacy-run compatibility.</td></tr>
+            <tr><td><a href="https://openai.github.io/openai-agents-python/tools/">OpenAI Agents SDK · tool search</a></td><td>Large tool surfaces can defer search and loading while keeping search observable.</td><td>Adopt on-demand search without searching before every message; return contracts rather than directly executing.</td><td>Does not create new persistent tool implementations.</td></tr>
+            <tr><td><a href="https://docs.langchain.com/oss/python/langgraph/workflows-agents">LangGraph · workflows and agents</a></td><td>Explicitly distinguishes predefined Workflow paths from Agents that dynamically choose tools.</td><td>Adopt the responsibility distinction; retain Python control flow without adding a graph DSL.</td><td>Does not define Agents automatically writing, testing, and publishing new Python Workflows.</td></tr>
+            <tr><td><a href="https://docs.langchain.com/oss/python/langgraph/use-subgraphs">LangGraph · subgraphs</a></td><td>Reuses subgraphs through input/output schemas with explicit parent/child persistence boundaries.</td><td>Adopt contract-based composition and pinned dependency revisions; OpenProgram expresses relationships using Python imports.</td><td>Does not provide an OpenProgram-style Git project catalog or authoring-publication flow.</td></tr>
+            <tr><td><a href="https://docs.crewai.com/en/concepts/flows">CrewAI · Flows</a></td><td>Flows combine explicit events, state, and Crews into structured processes.</td><td>Adopt only the separation of deterministic processes from Agent collaboration.</td><td>The cited page does not describe runtime search and generation of persistent Flow assets.</td></tr>
+          </tbody>
+        </table>
+        <h3>Adopted, adapted, and rejected</h3>
+        <table>
+          <thead><tr><th>Choice</th><th>Decision</th><th>Boundary</th></tr></thead>
+          <tbody>
+            <tr><td>Agent searches tools/Workflows on demand</td><td>Adopt</td><td>Call known Programs directly; search large catalogs only.</td></tr>
+            <tr><td>Contract-based composition of reusable subprocesses</td><td>Adapt</td><td>Use Python imports, schemas, and pinned Git revisions without a subgraph DSL.</td></tr>
+            <tr><td>Manager-style complete entry</td><td>Adapt</td><td>Manual user use only: <code>auto_workflow</code>; Agents do not call it recursively.</td></tr>
+            <tr><td>Automatically rewrite published flows after execution failure</td><td>Reject</td><td>Changes must explicitly enter <code>revise_workflow</code>.</td></tr>
+            <tr><td>Automatically persist every one-off task</td><td>Reject</td><td>Let the Agent complete tasks directly when reuse or recovery has no value.</td></tr>
+            <tr><td>Create similar Workflows based on task wording</td><td>Reject</td><td>Selection assesses capabilities by candidate contracts. Language, output paths, date ranges, and ordinary parameter differences do not constitute a new execution structure.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="migration"><span id="handoff"></span>
+        <h2>8. Implementation plan</h2>
+        <p>Each phase has a separate commit and proceeds through public RED, minimal GREEN, specification review, and quality review. Do not start the next phase until both reviews pass. Existing <code>tests/component/agent/test_agentic_workflow.py</code> anchors the monolithic entry; migrate corresponding test ownership in each phase so removing the entry does not invalidate all tests at once.</p>
+        <div class="phase"><div class="phase-id">Phase 0</div><div><h3>Connect exposure controls</h3><p>Add to <code>@agentic_function</code> a tool-level exposure parameter passed into Layer-2 <code>register(..., expose)</code>; reuse existing <code>_unexposed</code>/<code>exposed_names()</code>.</p><div class="gate">Gate: minimal registration-contract tests prove the parameter takes effect; defaults remain unchanged and all existing functions stay exposed.</div></div></div>
+        <div class="phase"><div class="phase-id">Phase 1</div><div><h3>Extract read-only search</h3><p>Extract from the existing module the public contract <code>search_workflows</code> ; return pinned revisions, schemas, permissions, and match information; exclude <code>auto_workflow</code> and legacy projects. Move search tests to the new entry.</p><div class="gate">Gate: catalog and run directories remain byte-identical before and after the call; the Agent can read candidates without execution nodes.</div></div></div>
+        <div class="phase"><div class="phase-id">Phase 2</div><div><h3>Separate creation and revision</h3><p>Move candidates, validation, dependency pinning, and publication into <code>create_workflow</code>; implement <code>revise_workflow</code> with an explicit target and new revision. Creation does not execute the user task. Delete execution-time repair; move author/validate/publish tests to the new entry.</p><div class="gate">Gate: create adds only one project; revise adds only one revision; failure, cancellation, and terminal errors never publish; no automatic execution-time publication path exists.</div></div></div>
+        <div class="phase"><div class="phase-id">Phase 3</div><div><h3>Create user-level auto_workflow</h3><p>Use the preceding public capabilities for search → visible select → reuse/create → run. The full DAG shows each step. The invocation form contains only <code>task</code> and inherits the session Project; register it as hidden from Agents using Phase 0.</p><div class="gate">Gate: visible in user forms but absent from Agent tools; real App reuse and create paths are distinguishable.</div></div></div>
+        <div class="phase"><div class="phase-id">Phase 4</div><div><h3>Remove new agentic_workflow calls</h3><p>Stop registering the old entry and remove selection/repair branches used only by the old composite path. Retain explicit <code>resume_workflow(run_id)</code> and the legacy read-only executor. Delete or migrate remaining tests tied to the monolithic entry; retain resume/legacy tests.</p><div class="gate">Gate: new catalogs, DAGs, and runs contain no <code>agentic_workflow</code>; historical runs remain inspectable and resumable with unchanged artifacts.</div></div></div>
+        <div class="phase"><div class="phase-id">Phase 5</div><div><h3>Classification directories, UI, documentation, and final gates</h3><p>First establish “directories classify; Registry defines runtime identity,” then move relevant source into <code>workflow/</code>. Programs creates expandable navigation from actual directories and function nodes from the Registry; the call-graph root uses the selected function name. Finally synchronize product documentation and accept direct, reuse, create, cancel, and legacy recovery in the default App.</p><div class="gate">Gate: the source tree has no old <code>agentic_workflow/</code>; the Registry has no legacy name; in Programs, <code>workflow</code> expands but cannot run. Its expanded contents show only four registered functions. Helper files and internal directories are not Programs. Call-graph roots use selected function names. Directory moves do not change registered schemas, execution, recovery, or cancellation. Automated regressions must cover these constraints, followed by documentation build, zero dead links, and visual acceptance in the default App.</div></div></div>
+        <div class="phase"><div class="phase-id">Phase 6</div><div><h3>Unify author static validation</h3><p>Expose the current package validator as a shared read-only entry for the human CLI and Agent author; add English/Chinese author specifications. create/revise revalidates candidates through the same function before publication. Exclude legacy reading, behavioral tests, scaffold, publish CLI, and catalog migration from this phase.</p><div class="gate">Gate: a valid directory yields the same metadata and file list in CLI and Agent candidate validation. Invalid directories return nonzero status and deterministic diagnostics. Validation neither writes directories, initializes Git, nor executes test code.</div></div></div>
+        <div class="phase"><div class="phase-id">Phase 7</div><div><h3>Mandatory isolated behavioral-test gate</h3><p>Run candidate tests before publication in a mandatory sandbox independent of the user profile, with no network, filtered credentials, constrained write directories, and a timeout. Missing sandbox, test failure, or cancellation prevents publication.</p><div class="gate">Gate: malicious credential reads, out-of-root writes, network access, timeout, and ordinary failure all have public RED tests. create/revise keeps catalog and HEAD unchanged on every failure.</div></div></div>
+        <h3>Minimum file boundaries</h3>
+        <table>
+          <thead><tr><th>Scope</th><th>Preferred change location</th><th>Explicit exclusions</th></tr></thead>
+          <tbody>
+            <tr><td>Runtime and public functions</td><td><code>openprogram/programs/workflow/</code> classification directory; organize entries, shared implementation, and necessary internal subdirectories as ordinary Python code within it.</td><td>Do not register classification directories as Programs, rewrite execution Runtime during source moves, or pre-create files without actual responsibilities.</td></tr>
+            <tr><td>Registration and exposure</td><td><code>openprogram/programs/_registry.py</code>, <code>_runtime.py</code> ’s existing exposure mechanism.</td><td>No second permission or tool-registration system.</td></tr>
+            <tr><td>Component and execution tests</td><td>Existing Workflow public-entry tests, registration-contract tests, and legacy recovery tests. Test filenames may be cleaned separately later and do not define runtime identity.</td><td>Do not rewrite Runtime tests because source moves; do not replace public-entry tests with mock-only coverage.</td></tr>
+            <tr><td>Programs UI</td><td>Existing Programs routes, catalog, and page components; the backend returns classification nodes and registered function nodes separately.</td><td>Do not maintain a second frontend Workflow function list or create a Workflow database or separate management application.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="acceptance">
+        <h2>9. Public acceptance matrix</h2>
+        <table>
+          <thead><tr><th>Scenario</th><th>Public entry</th><th>Required observation</th></tr></thead>
+          <tbody>
+            <tr><td>Agent already has an exact tool</td><td>Chat message</td><td>Direct Workflow Call; no search/create/auto nodes.</td></tr>
+            <tr><td>Complete match in catalog</td><td><code>search_workflows</code> → Workflow</td><td>Return a pinned ref and reuse it; no repository or revision changes.</td></tr>
+            <tr><td>Partial components only</td><td><code>create_workflow</code></td><td>New package references components by import without copying dependency source; does not execute the user task.</td></tr>
+            <tr><td>Explicit revision</td><td><code>revise_workflow</code></td><td>Old revision remains executable; new revision becomes active after all publication gates pass.</td></tr>
+            <tr><td>Complete automatic user run</td><td><code>auto_workflow</code></td><td>DAG shows search, the sole selection Agent, optional create, and final Workflow; result includes action and ref.</td></tr>
+            <tr><td>Same task type, different wording or language</td><td><code>auto_workflow</code></td><td>Search candidates carry validated name, summary, and tags as capability descriptions. Reuse pinned revisions when existing capabilities cover the task. A zero term score alone does not justify create. When candidates exist, create requires a concrete nonempty missing_capability or is rejected before authoring.</td></tr>
+            <tr><td>Agent tool discovery</td><td>Chat Agent tool inventory</td><td>Includes search/create/revise and specific Workflows; excludes auto and the legacy agentic entry.</td></tr>
+            <tr><td>Programs classification browsing</td><td><code>functions / agentic / workflow</code></td><td><code>workflow</code> is a non-executable classification node with only four registered functions as children. Helpers and internal directories do not become Programs.</td></tr>
+            <tr><td>Programs call graph</td><td>Select any Workflow management function</td><td>Title and root use the selected function name, never the old <code>agentic_workflow</code> or a directory name as runtime identity.</td></tr>
+            <tr><td>Execution failure</td><td>Specific Workflow</td><td>State is failed, original error retained, published source and HEAD unchanged.</td></tr>
+            <tr><td>Cancellation or Stop</td><td>create/revise/auto/run</td><td>Relevant runs end cancelled, without repair, publication, or leftover running state.</td></tr>
+            <tr><td>Concurrent publication to one project</td><td>Two revise calls</td><td>Serialize active-revision validation; lose no commits and never overwrite a new HEAD.</td></tr>
+            <tr><td>Legacy-run recovery</td><td>Internal compatible recovery (<code>resume_workflow(run_id)</code>)</td><td>Execute the pinned old artifact read-only; create no project, publish nothing, and do not change the old snapshot.</td></tr>
+          </tbody>
+        </table>
+        <div class="callout warn">Final completion cannot rely on unit tests alone. Exercise real forms and Chat paths in the default <code>/Applications/OpenProgram.app</code> , then reload the session and verify DAG callers, run states, Workflow refs, and catalog changes.</div>
+      </section>
+
+      <section id="status">
+        <h2>10. Implementation status</h2><p>Parameter ownership is a design requirement with a development example. Existing Workflows require individual adoption; Goal currently selects reasoning effort automatically and retains defaults for its other settings. This document does not mark full-parameter planning as implemented across the catalog.</p>
+        <table>
+          <thead><tr><th>Capability</th><th>Current evidence</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Git Workflow packages, snapshots, checkpoints, and explicit resume</td><td>Already implemented in the current runtime and retained by this design.</td><td><span class="tag current">Existing</span></td></tr>
+            <tr><td><code>@agentic_function</code> tool-level exposure connected to Layer-2</td><td><code>@agentic_function(tool_visible=)</code> passes Layer-2 <code>register(..., expose)</code>; the default is <code>True</code>, keeping all existing functions exposed.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>Independent <code>search_workflows</code></td><td>Public read-only entry returns pinned revisions, schemas, permissions, and match evidence; excludes <code>auto_workflow</code> and legacy projects without entries; no model calls, file writes, execution, or publication.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>Independent <code>create_workflow</code> / <code>revise_workflow</code></td><td>create adds only projects without executing user tasks. revise rejects publication when candidate contents equal the active revision (<code>revision unchanged</code>); otherwise it adds one revision. Dependency revisions are written into <code>pyproject.toml</code> ’s <code>workflow-dependencies</code>; failures and cancellations never publish.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>User-level <code>auto_workflow</code></td><td>Source lives in <code>openprogram/programs/workflow/auto_workflow.py</code>; visible in user forms and Programs automatic entries; registered with <code>tool_visible=False</code> ; orchestrates search → visible selection Agent (public <code>agent()</code>, <code>AUTO_DECISION_ATTEMPTS=3</code>) → reuse/create → pinned execution, without automatic revise. This entry is a complete single-file Workflow without independent steps, dependencies, or a test package, so no same-named directory is added.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>Suppress creation of similar Workflows</td><td>Search gives selection validated names, summaries, and tags. Selection prefers candidates whose capabilities cover the task. Wording, language, output paths, date ranges, and ordinary parameter differences must not trigger create. A zero term score indicates only lack of lexical overlap. With nonempty candidates, create without missing_capability fails before publication.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>Shared static author validator and CLI</td><td>Agent candidates and local directories use the same package contract;<code>openprogram workflows validate</code> is read-only, supports text/JSON diagnostics, and neither imports nor executes candidate code. Reading development directories ignores Python-generated<code>__pycache__</code> without relaxing source-location rules. Metadata identity, a unique public entry, safe<code>__all__</code>, decorator origin, and final re-export binding are checked by the same validator.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>Pre-publication behavioral-test gate</td><td>Manual test/publish and generated create/revise execute behavioral tests in a mandatory OS sandbox independent of the user profile. Independent review passes; complete integration acceptance is still underway.</td><td><span class="tag target">Pending</span></td></tr>
+            <tr><td>Revision-specific execution and dependency pins</td><td><code>_run_published_workflow</code> uses <code>git archive</code> to check out the selected revision;<code>workflow_dependencies</code> persists at publication and is pinned during execution. Old revisions remain executable after a new HEAD is published.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>legacy <code>code.py</code> resume</td><td><code>resume_workflow</code> replays legacy run snapshots/<code>code.py</code> read-only. Failures return failed without calling the planner or rewriting artifacts.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>Workflow cancellation terminal state</td><td>Internal <code>resume_workflow(run_id)</code> direct regressions cover package snapshots, legacy <code>code.py</code> and <code>SINGLE</code>: <code>CancelledError</code> persisted as a non-executable <code>cancelled</code> run projection;<code>KeyboardInterrupt</code> is persisted as a <code>interrupted</code> run projection allowing later calls to reuse artifacts/checkpoints. Both retain original exception propagation. Generating and persisting a new canonical <code>execution_id</code> for a recovery attempt remains the responsibility of unified Execution integration.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>Stop new <code>agentic_workflow</code> calls</td><td>The old entry is no longer registered; new catalogs, DAGs, and runs contain no <code>agentic_workflow</code>; <code>resume_workflow</code> remains an internal function.</td><td><span class="tag current">Completed</span></td></tr>
+            <tr><td>Separate classification directories from executable entities</td><td><code>workflow/</code> serves only as classification. Programs shows four public functions from the Registry, supporting nested categories and multi-entry files. Call graphs analyze the selected function and reachable helpers; directories and helpers do not define runtime identity. Specification and quality re-reviews passed.</td><td><span class="tag current">Implemented</span></td></tr>
+            <tr><td>Real acceptance in default App</td><td>Code and documentation gates are complete, awaiting visual acceptance in the default <code>/Applications/OpenProgram.app</code> for direct / reuse / create / cancel / legacy resume.</td><td><span class="tag target">Pending</span></td></tr>
+          </tbody>
+        </table>
+        <p>Phase 0–6 source implementation, component regressions, CLI public paths, documentation build, and both independent re-reviews are complete. Mandatory sandbox behavioral-test gates and real default-App acceptance remain pending.</p>
+      </section>
+
+      <section id="exclusions">
+        <h2>11. Explicit exclusions</h2>
+        <ul>
+          <li>Do not add <code>@workflow</code>, a graph DSL, a second Runtime, or a string <code>call_workflow()</code> dispatcher.</li>
+          <li>Do not automatically turn every user message into a Workflow or create projects by default for one-off tasks.</li>
+          <li>Do not automatically modify published Workflows or implicitly publish revisions after ordinary execution errors.</li>
+          <li>No Workflow database, background Git polling, remote push, Marketplace, or remote dependency resolution.</li>
+          <li>This phase does not implement scaffold, manual publish commands, catalog state-directory migration, or execution of untrusted tests; each is a separate subsequent task.</li>
+          <li>Do not change existing Python call semantics for Agents, Programs, or Workflows; this design separates only entry points and lifecycles.</li>
+        </ul>
+      </section>
+
+<section id="portable-package-contract">
+<h2>Portable Workflow package contract</h2>
+<p>A Workflow is a self-contained Python package under <code>openprogram/programs/workflow/&lt;workflow_id&gt;</code>. Its public function name and package-relative location remain stable when the OpenProgram checkout moves. Package metadata, imports, dependency revisions, UI links and invocation requests never contain a developer home directory.</p>
+<table><thead><tr><th>Concern</th><th>Contract</th></tr></thead><tbody>
+<tr><td>Identity</td><td>The lowercase package identifier is the registered callable name. Python composition uses ordinary imports and direct calls. No new runtime, decorator or invocation protocol is introduced.</td></tr>
+<tr><td>Internal location</td><td>Persist <code>{"scope":"programs","path":"workflow/weekly_report"}</code> using a canonical two-component POSIX path. The scope means <code>openprogram/programs/</code> in the active project. Resolve it against the active OpenProgram Programs catalog only at filesystem boundaries. Never resolve it against the conversation working directory. Reject absolute scoped paths, traversal and ambiguous catalog matches. When a wheel contains a non-Git copy of a Workflow, that copy does not compete with the independently versioned source package; two matching Git projects remain ambiguous.</td></tr>
+<tr><td>External installation</td><td>The installed App may use an explicitly owner-recorded source checkout. A single <code>catalog_root</code> installation binding identifies that checkout; <code>refresh-local-app.sh</code> updates it from the checkout being installed. This binding is distinct from each package's portable path. External development symlinks retain their explicit authorization; a relative identifier does not authorize arbitrary external code.</td></tr>
+<tr><td>Migration</td><td>Convert previously authorized in-project absolute entries to scoped relative entries, including records whose old checkout no longer exists. Only a structurally valid matching package in a known catalog can satisfy a legacy Workflow entry. Do not repeat unrestricted directory discovery when a checkout moves. Preserve unrelated external records and authorization revocation.</td></tr>
+<tr><td>Discovery and UI</td><td>Use one callable catalog for launch parameters and favorites. Refresh updates React and runtime readers together. A missing or invalid callable produces a visible error; Use never silently waits and disappears. Sidebar and Programs launch use the same handoff. Resolve a missing cached callable with one authenticated catalog fetch, publish that response to both shared readers, and display a localized failure if the callable is unavailable. Route cleanup, a newer launch or a changed chat owner cancels stale form opening. Do not consume a pending launch before the deferred chat reset completes.</td></tr>
+<tr><td>Authoring</td><td>Design input, output, side effects, failure and cancellation before implementation. Keep metadata, public entry point, helpers, tests and README inside the package. Validate structure, run behavior checks, publish an immutable revision, verify discovery, favorite and open its parameter form. A static validation pass is not execution evidence.</td></tr>
+<tr><td>Compatibility</td><td>Preserve existing function names, schema, favorites ordering, dependency pins, ordinary Python imports and uncommitted Workflow files. Runtime absolute paths remain internal filesystem details, not persisted package identities.</td></tr>
+</tbody></table>
+<h3>Authoring and publication lifecycle</h3>
+<p>The formal manual interface is <code>openprogram workflows validate DIRECTORY</code>, <code>openprogram workflows test DIRECTORY</code>, and <code>openprogram workflows publish DIRECTORY</code>. Validate is read-only. Test copies a validated candidate and pinned dependencies into a temporary workspace and runs its tests in a required OS sandbox with network disabled, credential-free environment, protected source files and bounded process lifetime. Manual publication and the generated create/revise entry points use the same required behavior-test gate. Publish repeats validation and tests on the exact snapshot it commits; it never trusts an old success report. Existing packages require an explicit <code>--replace</code> and a clean destination. Failure, timeout, sandbox unavailability or unsuccessful tests publish nothing.</p>
+<p>Documented <code>from workflows.NAME import NAME</code> imports resolve to the same authorized callable as <code>openprogram.programs.workflow.NAME</code> in the live catalog. The live alias exposes only named authorized entry points. Snapshot execution explicitly owns its <code>workflows</code> namespace and continues to load pinned bytes; it never falls back to the live catalog. The package README specifies purpose, input, output, effects, failure/cancellation behavior, dependencies, tests and a reproducible invocation.</p>
+<h3>Acceptance</h3>
+<ul><li>Record, move the checkout, discover and resolve the same authorized Workflow without editing package metadata or per-package paths.</li><li>Recover the previously recorded weekly-report package from its obsolete checkout prefix without authorizing unrelated directories.</li><li>Reject traversal, unknown scope, unauthorized packages and ambiguous resolution; preserve explicitly installed external sources.</li><li>In the default installed App, the existing weekly_report favorite appears and Use opens its task form; do not execute or submit a report during acceptance.</li><li>The English authoring guide and Chinese translation specify identical creation, validation, publication, relocation and troubleshooting behavior, with commands verified against the CLI.</li></ul>
+<h3>Implementation status</h3>
+<p>Scoped source persistence, authorized legacy relocation, installed-catalog import and shared form launching have passed independent specification and quality review. Manual test/publication, documented import aliases and authoring documentation have also passed independent specification and quality review. Repository-wide verification is incomplete and does not imply a full-suite pass. Installed-App acceptance and deployment are recorded in release evidence.</p>
+</section>
+
+</article>
+
+    <aside aria-label="Design summary">
+      <div class="panel"><div class="side-title">Final public surface</div><ul class="side-list"><li><a href="#contracts"><code>search_workflows</code></a></li><li><a href="#contracts"><code>create_workflow</code></a></li><li><a href="#contracts"><code>revise_workflow</code></a></li><li><a href="#contracts"><code>auto_workflow</code></a></li><li>Specific Workflow entry</li></ul></div>
+      <div class="panel"><div class="side-title">Exposure rules</div><div class="status-list"><div class="status-row"><span>User</span><span>All visible</span></div><div class="status-row"><span>Chat Agent</span><span>Excludes auto</span></div><div class="status-row"><span>Workflow search</span><span>Excludes auto and legacy</span></div><div class="status-row"><span>Legacy entry</span><span>Read-only resume</span></div></div></div>
+      <div class="panel"><div class="side-title">Related designs</div><ul class="side-list"><li><a href="./self-programming-workflow-model.html">Programming model and composition</a></li><li><a href="./self-programming-workflow-ui.html">DAG and Programs</a></li><li><a href="./llm-and-agent.html">Agent execution semantics</a></li><li><a href="./programs-architecture.html">Programs code structure</a></li></ul></div>
+    </aside>
+  </main>
+
+  <footer>This page is the current design for this topic. Update it directly when the design changes; Git records implementation history, and completion evidence is maintained in “Implementation status.”</footer>
+</div>
+</body>
+</html>

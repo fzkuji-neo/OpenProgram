@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenProgram · macOS App Icon Specification</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --page:#f5f6f8; --surface:#fff; --ink:#17181c; --muted:#666b76;
+    --line:#dfe2e8; --soft:#eef0f4; --blue:#568ff4; --purple:#8d67ed;
+    --navy:#101622; --ok:#247a4a; --warn:#9b5b12;
+  }
+  @media (prefers-color-scheme:dark) {
+    :root { --page:#15171b; --surface:#1d2025; --ink:#f4f5f7; --muted:#a7acb6;
+      --line:#343840; --soft:#272b31; --ok:#75d39a; --warn:#f0b667; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--page); color:var(--ink); font:15px/1.58 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif; }
+  main { width:min(1080px,calc(100% - 32px)); margin:0 auto; padding:56px 0 88px; }
+  header { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:28px; align-items:end; padding-bottom:30px; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 10px; font-size:clamp(30px,5vw,48px); line-height:1.08; letter-spacing:-.035em; }
+  header p { margin:0; max-width:720px; color:var(--muted); }
+  .status { align-self:start; padding:6px 10px; background:color-mix(in srgb,var(--ok) 13%,transparent); color:var(--ok); border-radius:7px; font-size:12px; font-weight:650; }
+  section { margin-top:48px; }
+  h2 { margin:0 0 18px; font-size:24px; letter-spacing:-.02em; }
+  h3 { margin:0 0 8px; font-size:16px; }
+  p { margin:0 0 12px; }
+  code { font:13px/1.5 ui-monospace,"SFMono-Regular",Menlo,monospace; }
+  .lead { max-width:800px; color:var(--muted); }
+  .flow { display:grid; grid-template-columns:1fr 52px 1fr 52px 1fr; align-items:center; gap:12px; }
+  .stage { min-height:280px; padding:22px; background:var(--surface); border:1px solid var(--line); border-radius:14px; }
+  .stage small { display:block; margin-bottom:18px; color:var(--muted); font-weight:600; letter-spacing:.02em; }
+  .arrow { text-align:center; color:var(--muted); font-size:24px; }
+  .canvas { position:relative; width:174px; height:174px; margin:8px auto 20px; background:var(--navy); }
+  .canvas.transparent { background-image:linear-gradient(45deg,var(--soft) 25%,transparent 25%),linear-gradient(-45deg,var(--soft) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--soft) 75%),linear-gradient(-45deg,transparent 75%,var(--soft) 75%); background-size:20px 20px; background-position:0 0,0 10px,10px -10px,-10px 0; }
+  .canvas.output { border-radius:38px; box-shadow:0 10px 30px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.16); }
+  .mark { position:absolute; inset:27px; border:10px solid transparent; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--purple)) border-box; -webkit-mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; }
+  .node { position:absolute; border-radius:50%; }
+  .a { width:48px; height:48px; left:47px; top:47px; background:#4aa3f1; }
+  .b { width:36px; height:36px; left:89px; top:81px; background:#9a69e7; }
+  .c { width:19px; height:19px; left:67px; top:105px; background:#7283de; }
+  .caption { color:var(--muted); font-size:13px; }
+  .rule-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+  .rule { padding:18px 20px; background:var(--surface); border:1px solid var(--line); border-radius:12px; }
+  .rule b { display:block; margin-bottom:5px; }
+  .do b { color:var(--ok); } .dont b { color:var(--warn); }
+  table { width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--line); }
+  th,td { padding:13px 16px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:0; }
+  th { color:var(--muted); font-size:12px; letter-spacing:.03em; }
+  .files { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .file { padding:13px 15px; background:var(--surface); border:1px solid var(--line); border-radius:10px; }
+  .file code { display:block; overflow-wrap:anywhere; }
+  .file span { display:block; margin-top:4px; color:var(--muted); font-size:13px; }
+  a { color:var(--blue); }
+  footer { margin-top:52px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  @media (max-width:820px) {
+    header { grid-template-columns:1fr; }
+    .flow { grid-template-columns:1fr; }
+    .arrow { transform:rotate(90deg); }
+    .rule-grid,.files { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>macOS App Icon Specification</h1>
+      <p>For desktop packaging and brand asset maintenance. Modern macOS uses layered Apple Icon Composer assets; OpenProgram provides a background definition and four independent brand depth layers. Source assets do not draw the outer system contour. Internal nodes retain lighting gradients that represent raised volume.</p>
+    </div>
+    <div class="status">Raised-ring preview accepted · Installation awaiting Xcode license</div>
+  </header>
+
+  <section aria-labelledby="gap">
+    <h2 id="gap">Current implementation and gaps</h2>
+    <table>
+      <thead><tr><th>Item</th><th>Current implementation</th><th>Official design requirement</th><th>Target</th></tr></thead>
+      <tbody>
+        <tr><td>Depth structure</td><td>The orbit and three nodes share one SVG and one group, so Icon Composer treats the entire brand symbol as one depth plane.</td><td>A background and one or more foreground layers create spatial depth; groups become system-rendered depth layers in back-to-front order.</td><td>Place the orbit and large, medium and small nodes in four separate groups.</td></tr>
+        <tr><td>Material</td><td>Nodes already have raised shading, but the ring has only a blue-purple hue transition and lacks cross-section contrast.</td><td>The system generates the outer squircle and edge effects; internal brand layers may use independent shading to express depth.</td><td>Disable Specular on all four groups. Keep upper-left radial lighting on nodes. Use a blue-purple ring gradient that is light at the upper left and dark at the lower right, with low-opacity shading along both cross-section edges to create raised thickness without a white halo.</td></tr>
+        <tr><td>Internal scale</td><td>The orbit outer edge occupies approximately 64% of canvas width, still smaller than the main shape in System Settings.</td><td>Keep the subject clear within the system mask’s safe area and visually consistent in size with neighboring system icons.</td><td>Increase the orbit outer edge to approximately 69%, slightly enlarge all three nodes, and retain approximately 15% safe margin on each side.</td></tr>
+        <tr><td>Brand boundaries</td><td>The blue-purple orbit and three nodes are established; an automatic gradient generates the background.</td><td>Keep an unmasked square canvas, centered subject and clear foreground edges; the system applies final clipping.</td><td>Do not copy the System Settings gear shape; adopt only its layering, occlusion and system-material approach.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section aria-labelledby="decision">
+    <h2 id="decision">Final decisions</h2>
+    <div class="flow">
+      <article class="stage">
+        <small>1 · Background definition</small>
+        <div class="canvas" aria-label="Unclipped square background"></div>
+        <p class="caption">The background color is defined by <code>icon.json</code> in <code>automatic-gradient</code>. Source assets contain no rounded corners.</p>
+      </article>
+      <div class="arrow" aria-hidden="true">+</div>
+      <article class="stage">
+        <small>2 · Four transparent brand layers</small>
+        <div class="canvas transparent" aria-label="OpenProgram brand symbol on a transparent canvas"><i class="mark"></i><i class="node a"></i><i class="node b"></i><i class="node c"></i></div>
+        <p class="caption">The orbit and three nodes use separate SVGs and enter four Icon Composer groups in back-to-front order.</p>
+      </article>
+      <div class="arrow" aria-hidden="true">→</div>
+      <article class="stage">
+        <small>3 · System output illustration</small>
+        <div class="canvas output" aria-label="Illustration after macOS applies the final mask and system effects"><i class="mark"></i><i class="node a"></i><i class="node b"></i><i class="node c"></i></div>
+        <p class="caption">The Apple toolchain generates the outer rounded mask and edge effects. Internal node lighting belongs to the brand assets; Icon Composer adds inter-layer shadows only, without Specular halos.</p>
+      </article>
+    </div>
+  </section>
+
+  <section aria-labelledby="rules">
+    <h2 id="rules">Asset boundaries</h2>
+    <div class="rule-grid">
+      <div class="rule do"><b>Retain in source assets</b><span>A 1024 × 1024 canvas, blue-purple orbit with directional lighting and dark cross-section edges, three separate raised nodes with lighting gradients, transparent foreground, safe margins and clear contours.</span></div>
+      <div class="rule dont"><b>Exclude from source assets</b><span>External squircle, rounded rectangle, outer frame, outer-contour highlights, pre-drawn drop shadows, blur, system-container materials and precomposited backgrounds.</span></div>
+      <div class="rule do"><b>Apple toolchain responsibilities</b><span>Final masking, inter-group depth, system highlights, refraction, opacity, shadows, platform shape, appearance adaptation and compatibility assets.</span></div>
+      <div class="rule dont"><b>Do not replace component assets</b><span>Web favicon, sidebar icons and loading animations retain their existing size-specific assets; do not export them from App-icon screenshots.</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="matrix">
+    <h2 id="matrix">Build and compatibility</h2>
+    <table>
+      <thead><tr><th>Path</th><th>Input</th><th>Purpose</th><th>Constraint</th></tr></thead>
+      <tbody>
+        <tr><td>Current release</td><td><code>build/AppIcon.icon</code></td><td>Electron Builder invokes Xcode 26 <code>actool</code> to generate <code>Assets.car</code> and compatibility icons.</td><td>GitHub Actions uses a macOS 26 runner.</td></tr>
+        <tr><td>Older-system fallback</td><td>The same <code>AppIcon.icon</code></td><td>Xcode generates compatible representations from the modern source package; the repository no longer maintains a second hand-drawn `.icns` source.</td><td>Compatibility output still comes from the Apple toolchain; no separate squircle asset is allowed.</td></tr>
+        <tr><td>Local development</td><td>Xcode 26 <code>Icon Composer.app</code> and <code>ictool</code></td><td>Directly export macOS Default/Dark/Mono previews, then inspect Dock, Finder and About after packaging.</td><td>The local Xcode license must be accepted before complete Electron Builder packaging can run.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section aria-labelledby="implementation">
+    <h2 id="implementation">Implementation entry points</h2>
+    <div class="files">
+      <div class="file"><code>apps/desktop/build/AppIcon.icon/icon.json</code><span>Background and layer structure.</span></div>
+      <div class="file"><code>apps/desktop/build/AppIcon.icon/Assets/01-orbit.svg</code><span>Bottom blue-purple orbit.</span></div>
+      <div class="file"><code>apps/desktop/build/AppIcon.icon/Assets/02-node-blue.svg</code><span>Second-layer primary node.</span></div>
+      <div class="file"><code>apps/desktop/build/AppIcon.icon/Assets/03-node-purple.svg</code><span>Third-layer auxiliary node.</span></div>
+      <div class="file"><code>apps/desktop/build/AppIcon.icon/Assets/04-node-indigo.svg</code><span>Frontmost small node.</span></div>
+      <div class="file"><code>apps/desktop/scripts/check-icon.sh</code><span>Prevent rounded corners, borders and shadows from re-entering modern assets.</span></div>
+      <div class="file"><code>apps/desktop/package.json</code><span>The macOS packaging entry is fixed to <code>AppIcon.icon</code>.</span></div>
+      <div class="file"><code>.github/workflows/release.yml</code><span>Use a macOS 26 runner with Xcode 26.</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="evidence">
+    <h2 id="evidence">References and acceptance</h2>
+    <p class="lead">The design follows Apple’s <a href="https://developer.apple.com/design/human-interface-guidelines/app-icons">App icons HIG</a>, <a href="https://developer.apple.com/icon-composer/">Icon Composer</a> and <a href="https://developer.apple.com/documentation/Xcode/creating-your-app-icon-using-icon-composer">Xcode icon creation instructions</a>. Packaging capability follows <a href="https://www.electron.build/docs/features/icons-and-images/">Electron Builder icon documentation</a>.</p>
+    <p class="lead">Focused checks must confirm: all four modern SVGs use 1024 × 1024 transparent canvases without an outer squircle, frame or outer highlight; the three nodes use upper-left radial lighting; the ring has directional blue-purple lighting and dark cross-section gradients without white;<code>icon.json</code> declares four groups ordered orbit, large node, medium node, small node, all with Specular disabled and 42% neutral Shadow; package configuration uses <code>.icon</code>; the release runner provides Xcode 26.<code>ictool</code> must export Default, Dark and Mono successfully. Final visual acceptance checks Dock, Finder, About, and size and depth beside official icons.</p>
+  </section>
+
+  <section aria-labelledby="status">
+    <h2 id="status">Implementation status</h2>
+    <table>
+      <thead><tr><th>Scope</th><th>Status</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td>Apple Icon Composer build entry and automatic-gradient background</td><td>Implemented</td><td><code>apps/desktop/package.json</code> and current <code>AppIcon.icon</code></td></tr>
+        <tr><td>Four foreground depth groups</td><td>Implemented</td><td><code>icon:check</code> passes; all four groups disable Specular, remove node-edge halos, use 42% neutral Shadow and declare back-to-front order</td></tr>
+        <tr><td>Source shading</td><td>Implemented</td><td>Three nodes use radial gradients lit from the upper left and darkened at the lower right. The ring uses directional lighting and dark cross-section gradients without white; the outer system contour is excluded from SVGs.</td></tr>
+        <tr><td>Subject visual scale</td><td>Implemented</td><td>The orbit outer edge occupies approximately 69% of the canvas, with all three nodes enlarged and approximately 15% safe margin per side.</td></tr>
+        <tr><td>Local Default/Dark/Mono export</td><td>Accepted</td><td>Xcode 26.3 <code>ictool</code> all exported 1024 × 1024 previews successfully; 128 × 128 Dock-size previews were also accepted</td></tr>
+        <tr><td>Installed Dock, Finder and About</td><td>Blocked</td><td><code>actool</code> reports that the Xcode license has not been accepted; run complete Electron Builder packaging after acceptance</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>Excluded scope: redrawing the Web favicon, README logo, sidebar wordmark or loading animation is outside this specification.</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,266 @@
+.usagePage {
+  font-family: var(--font-sans);
+}
+
+.muted {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+}
+
+/* ── stat cards ─────────────────────────────────────────────────────────── */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-list-radius, 8px);
+  background: var(--bg-primary);
+}
+
+.cardValue {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-bright);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+}
+
+/* ── section wrapper ─────────────────────────────────────────────────────── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+/* ── dimension tabs ──────────────────────────────────────────────────────── */
+
+.dimTabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  width: fit-content;
+}
+
+.dimTab {
+  all: unset;
+  cursor: pointer;
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s;
+}
+
+.dimTab:hover {
+  color: var(--text-primary);
+}
+
+.dimTabActive {
+  background: var(--bg-primary);
+  color: var(--text-bright);
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── legend ──────────────────────────────────────────────────────────────── */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 6px 0 0;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legendDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── trend chart ─────────────────────────────────────────────────────────── */
+
+.chartWrap {
+  position: relative;
+  width: 100%;
+  height: 168px;
+  border: 1px solid var(--border);
+  border-radius: var(--ui-list-radius, 8px);
+  background: var(--bg-primary);
+}
+
+.chartWrap svg {
+  display: block;
+}
+
+.chartWrap svg text {
+  font-family: var(--font-sans);
+}
+
+.chartEmpty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+}
+
+.chartTip {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+  z-index: 2;
+}
+
+.chartTip strong {
+  color: var(--text-bright);
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+/* ── bar chart (by_kind) ─────────────────────────────────────────────────── */
+
+.barsWrap {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px 12px;
+  align-items: center;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  padding: 0 8px;
+}
+
+.barRow {
+  display: contents;
+}
+
+.barLabel {
+  color: var(--text-secondary);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 50px;
+}
+
+.barTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent-blue);
+  transition: width 0.3s ease;
+}
+
+.barValue {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+/* ── model table ─────────────────────────────────────────────────────────── */
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-family: var(--font-sans);
+}
+
+.table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table tr:hover td {
+  background: var(--bg-hover);
+}
+
+.num,
+.table th.num,
+.table td.num {
+  text-align: right;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.modelCell {
+  font-family: var(--font-mono, monospace);
+  color: var(--text-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

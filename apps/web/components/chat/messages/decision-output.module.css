@@ -1,0 +1,36 @@
+.card {
+  width: 100%;
+  min-width: 0;
+  flex-shrink: 0;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+}
+
+.prompt {
+  font-weight: 600;
+  white-space: pre-wrap;
+}
+
+.label {
+  color: var(--text-secondary);
+}
+
+.answer {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+}
