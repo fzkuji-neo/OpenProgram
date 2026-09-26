@@ -1,0 +1,53 @@
+/* FormMode —— runtime.form 多字段表单。复用 question-mode 的 host/badge/
+   prompt/input/actions（已对齐 fn-form），这里只加字段栈布局。字段标签 /
+   勾选框对齐 fn-form 的 .field / .label / .toggle 视觉。 */
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 280px;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.fields::-webkit-scrollbar {
+  display: none;
+}
+
+/* = fn-form .field：纵向 label + 控件，6px gap。 */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* boolean 字段：标签 + 勾选框紧挨同一行，靠左（勾选框就贴在文字右边）。 */
+.fieldRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* = fn-form .label：sans、fs-base、text-secondary。 */
+.label {
+  font-weight: 600;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.hint {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.checkbox {
+  align-self: flex-start;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-orange);
+  cursor: pointer;
+}

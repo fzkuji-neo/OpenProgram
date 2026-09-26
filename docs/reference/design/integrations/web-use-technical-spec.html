@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web Use technical specification</title>
+<style>
+  :root{--bg:#15140f;--text:#c4c0b1;--muted:#858173;--title:#f3f0e8;--line:#343126;--accent:#e08a3e;--blue:#5b91f2;--green:#63b15a;--violet:#a679e4;--red:#e15b68;--code:#100f0b}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  main{max-width:1180px;margin:auto;padding:56px 28px 100px}header{max-width:940px;padding-bottom:42px}
+  .eyebrow{color:var(--accent);font:12px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase}
+  h1{max-width:850px;margin:14px 0 18px;color:var(--title);font-size:42px;line-height:1.16;letter-spacing:-.025em}
+  h2{margin:0 0 22px;color:var(--title);font-size:25px;line-height:1.3}h3{margin:26px 0 8px;color:var(--title);font-size:16px}
+  p{max-width:88ch;margin:8px 0}a{color:#55bdd6}code{color:var(--accent);font:13px ui-monospace,SFMono-Regular,Menlo,monospace}
+  .lead{max-width:820px;color:#aaa696;font-size:17px}.status{margin-top:22px;color:var(--muted);font:11px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em}
+  nav{display:flex;flex-wrap:wrap;gap:10px 22px;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  nav a{color:var(--muted);text-decoration:none;font-size:13px}nav a:hover,nav a:focus-visible{color:var(--title);text-decoration:underline;text-underline-offset:4px}
+  section{padding:48px 0;border-top:1px solid var(--line);scroll-margin-top:18px}section:first-of-type{border-top:0}
+  .caption{color:var(--muted);font-size:12px}
+  table{width:100%;border-collapse:collapse;margin:14px 0 22px;font-size:13.5px}th{padding:11px 12px;border-bottom:1px solid #5a5544;color:var(--muted);text-align:left;font-size:11px;letter-spacing:.06em;white-space:nowrap}
+  td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:top}td:first-child{color:var(--title);font-weight:650}.table-scroll{overflow-x:auto}.table-scroll table{min-width:760px}.default,.evidence-yes{color:var(--green)}
+  .tool-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:28px;margin:28px 0}.tool{padding-top:12px;border-top:2px solid var(--line)}.tool .n{color:var(--accent);font:22px ui-monospace,SFMono-Regular,Menlo,monospace}.tool strong{display:block;margin:4px 0;color:var(--title)}.tool p{font-size:13px;color:var(--muted)}
+  .rules{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin:24px 0}.rule{padding-top:12px;border-top:1px solid var(--line)}.rule .k{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em}.rule h3{margin:8px 0 5px}.rule p{color:var(--muted);font-size:13px}.on{color:var(--green)}.fallback,.evidence-partial{color:var(--accent)}.off,.evidence-no{color:var(--red)}
+  pre{margin:16px 0;padding:16px 18px;overflow:auto;background:var(--code);color:#ded9c9;font:12px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .phase{display:grid;grid-template-columns:84px 1fr 280px;gap:24px;padding:18px 0;border-bottom:1px solid var(--line)}.phase:last-child{border-bottom:0}.phase-id{color:var(--accent);font:11px ui-monospace,SFMono-Regular,Menlo,monospace}.phase strong{color:var(--title)}.gate{color:var(--muted);font-size:12.5px}
+  .checks{columns:2;column-gap:48px;padding-left:20px}.checks li{break-inside:avoid;margin:0 0 12px;padding-left:4px}.checks strong{color:var(--title)}
+  details{border-top:1px solid var(--line)}details:last-child{border-bottom:1px solid var(--line)}summary{padding:16px 0;color:var(--title);cursor:pointer;font-weight:650}details>div{padding:0 0 22px;color:var(--muted)}.refs{padding-left:20px}.refs li{margin:8px 0}
+  @media(max-width:760px){main{padding:32px 20px 72px}h1{font-size:32px}section{padding:38px 0}.tool-flow,.rules{grid-template-columns:1fr}.phase{grid-template-columns:1fr;gap:5px}.checks{columns:1}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">OpenProgram · technical specification</div>
+    <h1>Web Use technical specification</h1>
+    <p class="lead">This page contains only implementation interfaces, Page identity, failures and acceptance specifications. For architecture diagrams and Web Use / Computer Use boundaries, see <a href="web-use.html">design overview</a>.</p>
+    <p class="status">WEB_USE PUBLIC API IMPLEMENTED · BROWSER-ONLY RUNTIME</p>
+  </header>
+
+  <nav aria-label="Contents"><a href="#naming">Public names</a><a href="#modes">Three backends</a><a href="#page-model">Multi-Page model</a><a href="#reuse">Open source and reuse</a><a href="#contract">Tool contract</a><a href="#boundaries">Costs and boundaries</a><a href="#delivery">Implementation order</a><a href="#acceptance">Acceptance</a><a href="#evidence">Current evidence</a></nav>
+
+  <section id="naming">
+    <h2>Public names and compatibility boundaries</h2>
+    <div class="table-scroll"><table><thead><tr><th>Layer</th><th>Official name</th><th>Compatibility rule</th></tr></thead><tbody>
+      <tr><td>Agent / MCP tool</td><td><code>web_use</code></td><td>Expose only the new name in the model tool list, never two equivalent tools.</td></tr>
+      <tr><td>HTTP bridge</td><td><code>/api/web-use</code></td><td>Old <code>/api/computer-use</code> remains only a hidden compatibility route using the same handler.</td></tr>
+      <tr><td>Session</td><td><code>web_session_id</code> and <code>WebUseSessionRegistry</code></td><td>Legacy HTTP routes may convert <code>computer_session_id</code> to new fields; Runtime does not maintain duplicate sessions.</td></tr>
+      <tr><td>Computer Use</td><td>Reserved for future desktop control</td><td>Add no desktop tools, configuration, adapters or screenshot processes in this task.</td></tr>
+    </tbody></table></div>
+  </section>
+
+  <section id="modes">
+    <h2>Three execution backends</h2>
+    <div class="table-scroll"><table><thead><tr><th></th><th>Playwright MCP</th><th>Chrome DevTools MCP</th><th>Open Claude in Chrome-compatible</th></tr></thead><tbody>
+      <tr><td>Setting value</td><td><code>playwright_mcp</code> <span class="default">Default</span></td><td><code>chrome_devtools_mcp</code></td><td><code>open_claude_chrome</code></td></tr>
+      <tr><td>Runtime adapter</td><td>Pinned official <code>@playwright/mcp</code> connected as a private child process over stdio.</td><td>Pinned official <code>chrome-devtools-mcp</code>, binding an authorized CDP target through the MCP adapter.</td><td>OpenProgram implements the compatible tool contract through its first-party Electron/CDP adapter bound to authorized WebContents targets; it does not run the original Chrome extension/native host.</td></tr>
+      <tr><td>Observation</td><td>Accessibility snapshots, DOM/ARIA and stable refs.</td><td>DOM snapshots, accessibility information and bounded console/network diagnostics.</td><td>Page structure and refs; return one viewport screenshot when semantic location is insufficient.</td></tr>
+      <tr><td>Actions</td><td>Map each canonical Action to one allowlisted upstream action.</td><td>Map the same Action to one bound CDP action.</td><td>Map the same Action to one bound Electron/CDP action.</td></tr>
+      <tr><td>Integration prerequisites</td><td>Disable out-of-scope tabs/eval/storage/files tools; pass exact-Page isolation tests first.</td><td>No independent Page enumeration/switching; Runtime adapters specify every target.</td><td>Reuse only tool contracts and interaction semantics; Runtime owns Page identity, permissions, transport and verification.</td></tr>
+    </tbody></table></div>
+    <p>Settings affect only new WebSessions. Freeze the backend at creation; failures, timeouts and stale frames must not switch it automatically, avoiding duplicate clicks/submissions.</p>
+  </section>
+
+  <section id="page-model">
+    <h2>BrowserContext, Window, top tabs and Page</h2>
+    <div class="table-scroll"><table><thead><tr><th>Level</th><th>Meaning</th><th>Control target</th><th>Change rule</th></tr></thead><tbody>
+      <tr><td><code>BrowserContext</code></td><td>Cookies, storage and network-isolation boundary for one browsing session.</td><td>No</td><td>Destroying a Context invalidates all Page capabilities beneath it.</td></tr>
+      <tr><td><code>Window</code></td><td>One OpenProgram window; <code>list_pages</code> aggregates all registered windows and retains each <code>window_id</code>.</td><td>No</td><td>Closing a window or rebuilding its control connection revokes only that window’s inventory/tokens.</td></tr>
+      <tr><td><code>tab_entry</code></td><td>One item in the top tab bar.<code>single</code> contains one Page; <code>split</code> contains two ordered panes.</td><td>No</td><td>Grouping, splitting, reordering or ratio changes update <code>inventory_revision</code> without changing underlying Page identity.</td></tr>
+      <tr><td><code>Page</code></td><td>Unified identity for Playwright Page / Electron WebContents / CDP target.</td><td class="default">Yes</td><td>Navigation preserves identity; closing or replacing the target revokes old tokens/sessions.</td></tr>
+      <tr><td><code>pane</code></td><td>Page placement in the current tab entry, such as order 0/1 and current bounds.</td><td>No</td><td>Layout metadata for a Page, not a second observe/act API.</td></tr>
+    </tbody></table></div>
+    <p>Target structure returns both <code>tab_entries</code> and <code>pages</code>: the former describes window arrangement, the latter lists controllable webpages. A split tab has two Pages, so the example window has 3 top-tab entries and 4 Pages. Single-entry ID comes directly from <code>tab:&lt;tab_id&gt;</code>, split-entry ID from <code>group:&lt;CenterTabGroup.id&gt;</code>; pane IDs derive from group and current order. No new database tables, registry or background process. Only identity, layout and tokens are shown below; title, origin, opener and capabilities use existing Page fields.</p>
+    <pre>{
+  "browser_context_id": "ctx_1",
+  "window_id": "win_1",
+  "inventory_revision": 42,
+  "active_tab_entry_id": "group:g3",
+  "focused_page": "p4",
+  "tab_entries": [
+    { "id": "tab:w:google", "mode": "single", "pages": ["p1"] },
+    { "id": "tab:w:github", "mode": "single", "pages": ["p2"] },
+    {
+      "id": "group:g3",
+      "mode": "split",
+      "pages": ["p3", "p4"],
+      "split": {
+        "axis": "horizontal",
+        "ratio": 0.5,
+        "panes": [
+          { "pane_id": "pane:g3:0", "order": 0, "page": "p3" },
+          { "pane_id": "pane:g3:1", "order": 1, "page": "p4" }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    { "page": "p1", "tab_id": "w:google", "tab_entry_id": "tab:w:google", "visible": false, "focused": false, "placement": { "mode": "single" }, "page_context_token": "pct_…" },
+    { "page": "p2", "tab_id": "w:github", "tab_entry_id": "tab:w:github", "visible": false, "focused": false, "placement": { "mode": "single" }, "page_context_token": "pct_…" },
+    { "page": "p3", "tab_id": "w:bilibili", "tab_entry_id": "group:g3", "visible": true, "focused": false, "placement": { "mode": "split", "pane_id": "pane:g3:0", "order": 0 }, "page_context_token": "pct_…" },
+    { "page": "p4", "tab_id": "w:youtube", "tab_entry_id": "group:g3", "visible": true, "focused": true, "placement": { "mode": "split", "pane_id": "pane:g3:1", "order": 1 }, "page_context_token": "pct_…" }
+  ]
+}</pre>
+    <p><code>axis</code> and <code>order</code> is canonical; left/right/top/bottom derive from current bounds and are not Page identity. Current UI mainly uses horizontal dual panes, but the API never fixes the target to the right webpage. After moving a Page, adjusting ratio or changing active tab entry, the next <code>list_pages</code> returns new layout and increments <code>inventory_revision</code>; affected visible Pages continue rejecting old coordinates through geometry revision. Each window has at most one <code>focused_page</code>, but an active split may contain two <code>visible=true</code> Pages.</p>
+  </section>
+
+  <section id="reuse">
+    <h2>Open source, open APIs and non-reusable parts</h2>
+    <div class="table-scroll"><table><thead><tr><th>Component</th><th>Public status</th><th>Direct reuse?</th><th>OpenProgram treatment</th></tr></thead><tbody>
+      <tr><td><a href="https://github.com/microsoft/playwright-mcp">Microsoft Playwright MCP</a></td><td class="evidence-yes">Open source · Apache-2.0</td><td>Yes</td><td>Use official <code>@playwright/mcp</code> with a pinned version; retain outer Page tokens, permissions and verification.</td></tr>
+      <tr><td><a href="https://github.com/microsoft/playwright">Playwright / playwright-core</a></td><td class="evidence-yes">Open source · Apache-2.0</td><td>Yes</td><td>Execution layer for Playwright MCP; do not implement a second DOM locator.</td></tr>
+      <tr><td><a href="https://github.com/modelcontextprotocol/typescript-sdk">MCP TypeScript SDK</a></td><td class="evidence-yes">SDK code: new contributions Apache-2.0; unrelicensed legacy code MIT</td><td>Usable as a code dependency</td><td>Reuse existing OpenProgram MCP server/client; MCP defines the tool protocol, not how to click.</td></tr>
+      <tr><td><a href="https://github.com/modelcontextprotocol/modelcontextprotocol">MCP protocol / specification</a></td><td class="evidence-yes">Spec contributions Apache-2.0; unrelicensed legacy content MIT</td><td>Implementable from the specification</td><td>Use standard tools/list, tools/call, content and cancellation semantics, without copying a particular client’s browser tools.</td></tr>
+      <tr><td><a href="https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/LICENSE">Non-specification MCP documentation</a></td><td class="evidence-partial">CC-BY-4.0</td><td>Reference/reuse with attribution</td><td>Implementation reference only, not a runtime dependency.</td></tr>
+      <tr><td><a href="https://github.com/ChromeDevTools/devtools-protocol">Chrome DevTools Protocol</a></td><td class="evidence-yes">Open protocol and types · BSD-3-Clause</td><td>Yes</td><td>Call directly <code>Page.captureScreenshot</code>, <code>Input.dispatchMouseEvent</code> and related commands without Claude code.</td></tr>
+      <tr><td><a href="https://www.electronjs.org/docs/latest/api/debugger">Electron webContents.debugger</a></td><td class="evidence-yes">Electron open source · MIT; API built in</td><td>Yes</td><td>Preferred CDP transport for the embedded browser; bind exact WebContents/targets without foregrounding windows.</td></tr>
+      <tr><td><a href="https://developer.chrome.com/docs/extensions/reference/api/debugger">Chrome debugger API</a> and <a href="https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging">Native Messaging</a></td><td class="evidence-partial">Public built-in Chrome/Chromium API, not a separate library</td><td>Callable</td><td>Needed only for future standalone Chrome-extension control; the embedded OpenProgram browser needs no Native Messaging host.</td></tr>
+      <tr><td><a href="https://github.com/noemica-io/open-claude-in-chrome">Open Claude in Chrome</a></td><td class="evidence-partial">Third-party source-available implementation · PolyForm Noncommercial 1.0.0; not an official Anthropic project</td><td>Contract/implementation can be evaluated within current noncommercial scope</td><td>Use only compatible tool contracts/interaction semantics; runtime transport is OpenProgram’s Electron/CDP adapter, not the original extension/native host.</td></tr>
+      <tr><td><a href="https://github.com/anthropics/claude-code/blob/main/LICENSE.md">Public Claude Code repository</a></td><td class="evidence-no">Repository contents all rights reserved; this conclusion applies only to this repository</td><td>Cannot copy as open-source code</td><td>Do not depend on internal code; reference official public product behavior only.</td></tr>
+      <tr><td>Official Anthropic Claude Chrome extension action handlers, visual cursor, permission UI and native host</td><td class="evidence-no">Installable released product; no public reusable source or explicit open-source license</td><td>Cannot copy directly</td><td>Reference official behavior only; OpenProgram retains its own <code>web_use</code> contract and backend adapters.</td></tr>
+      <tr><td>Claude visual-location capability</td><td class="evidence-no">Hosted model capability, not open source</td><td>Service access only</td><td>No Claude-specific implementation dependency; provide one screenshot to the selected model’s native vision.</td></tr>
+    </tbody></table></div>
+    <p>CDP is not restricted to Claude. Anthropic’s official orchestration, extension implementation and product permissions lack public reusable source; CDP screenshot/click commands are public APIs. Third-party clean-room projects are references, not proof the official implementation is open source.</p>
+  </section>
+
+  <section id="contract">
+    <h2>Agents need only five commands</h2>
+    <div class="tool-flow">
+      <div class="tool"><span class="n">01</span><strong>list_pages</strong><p>Read the Page inventory authorized for the current turn, without upstream tab enumeration.</p></div>
+      <div class="tool"><span class="n">02</span><strong>observe</strong><p>Select a Page and create a WebSession; return bounded text, ARIA and refs.</p></div>
+      <div class="tool"><span class="n">03</span><strong>act</strong><p>Carry the latest frame and perform one click, type, press, scroll, select or navigate.</p></div>
+      <div class="tool"><span class="n">04</span><strong>verify</strong><p>Execute only Runtime assertions; model claims of completion cannot establish success.</p></div>
+      <div class="tool"><span class="n">05</span><strong>close</strong><p>Release WebSession, Page binding and caller-held capabilities.</p></div>
+    </div>
+    <pre>web_use({ command: "list_pages" })
+web_use({ command: "observe", page_context_token: "pct_…", arguments: { detail: "interactive" } })
+web_use({ command: "act", web_session_id: "cs_…", arguments: { action: "click", expected_frame_id: "f_…", ref: "e1" } })
+web_use({ command: "verify", web_session_id: "cs_…", arguments: { action: "verify", expected_frame_id: "f_…", assertion: "text_contains", value: "Saved" } })
+web_use({ command: "close", web_session_id: "cs_…" })</pre>
+    <p><code>list_pages</code> returns a group-aware snapshot of all registered OpenProgram windows: <code>windows[]</code> stores each window’s <code>window_id</code>, <code>inventory_revision</code>, active/focused identity and <code>tab_entries</code>; flattened <code>pages</code> lets the Agent select Pages directly, each carrying its owning <code>window_id</code>. Original top-level window fields still describe the originating primary window for compatibility. Each Page has stable <code>tab_id</code>, owning <code>tab_entry_id</code>, placement, title, origin, <code>focused</code>, <code>visible</code>, optional <code>opener_tab_id</code> and single-use <code>page_context_token</code>. Agents do not act on windows, tab entries or panes; the first <code>observe</code> simply returns the exact Page token. Tokens bind the caller owner, <code>window_id</code>, exact Page target and server-owned page/access revision. Reject missing/replayed/cross-owner tokens, rebuilt connections or replaced targets before backend calls. Repeating <code>web_session_id</code> without <code>observe</code> for the same owner, Page and backend reuses the WebSession and ID. Different owners/backends remain subject to exclusive leases. Chat owner is fixed to current session/assistant turn; dispatcher teardown releases all its WebSessions/Page leases on completion, retry, cancellation or exception, without relying on explicit <code>close</code>. Every subsequent observe, act and verify revalidates exact binding. Visible Pages also validate geometry revision; background Pages resolve targets without changing tabs, stores or window focus.<code>web_use</code> Page inventory, WebSession registry and renderer WebSocket registry must run in the worker main process. Chat runtime cards may retain agentic-function UI but must not move this tool to an isolated subprocess. A subprocess GUI Agent Harness loop calls the same worker-owned WebSession through a parent bridge and forwards revisions unchanged. Any mismatch returns <code>page_context_stale</code> without executing page actions.</p>
+    <p>Web popups create separate tabs and WebContents/Pages, preserving <code>opener_tab_id</code>. They do not replace the opener or transfer existing WebSessions. The next <code>list_pages</code> discovers the popup; the Agent explicitly opens a new session with its token. GUI Agent Harness refreshes bounded inventory after every write and switches only by token. Cross-window aggregation expands discovery only, leaving bindings, leases and session lifecycles unchanged.</p>
+    <p>Each visible web tab also has renderer-owned monotonic <code>geometry_revision</code>. Existing bounds lifecycle measures viewport-relative bounds on mount, resize, ancestor scroll, pane reorder, window resize, visibility changes and transfer. Only normalized <code>x/y/width/height</code> or in-app visibility changes increment revision; focus changes do not. Turn surface refs carry the revision; <code>preview</code> must validate and echo it before native preview. WebSession stores it and forwards it unchanged through the process bridge to the exact renderer for observe/act/verify. Renderer compares again before Electron activate. Missing revisions from old clients stay compatible; once capability revision is nonzero, any mismatch returns <code>page_context_stale</code> without native preview, activate or backend calls. Geometry alone does not recreate Page identity/lease; callers relist/observe and continue with the same Page. Visibility means in-App pane layout, not macOS stacking, occlusion or minimization.</p>
+  </section>
+
+  <section id="boundaries">
+    <h2>Costs and functional boundaries</h2>
+    <div class="rules">
+      <div class="rule"><span class="k on">DEFAULT</span><h3>DOM / ARIA</h3><p>URL, title, page text, accessibility snapshots and element refs. Ordinary webpage interaction sends no screenshots.</p></div>
+      <div class="rule"><span class="k fallback">FALLBACK</span><h3>One viewport screenshot</h3><p>Only for visual acceptance, canvas or failed semantic location. The image enters only the immediately following model request; prompt text records frame/viewport metadata only. Clear caller-held copies and revoke coordinate permission immediately afterward.</p></div>
+      <div class="rule"><span class="k off">OFF</span><h3>Expensive vision pipeline</h3><p>Do not enable OCR, YOLO, object detectors, crop/zoom, component/vision memory, Workflow replay or automatic learning.</p></div>
+    </div>
+    <ul><li>Derive left/right/top/bottom from actual pane geometry, never a hardcoded right side.</li><li>Exact-Page operations do not require OpenProgram/target foregrounding and use no OS mouse, desktop coordinates or full-screen screenshots.</li><li>Writes to one Page are exclusive; observe again after every write.</li><li>Do not store screenshots in local artifacts, final results, completion evidence, tool-result text or DAG prompts. Locally retain only image-attached, frame and viewport metadata. Once sent to the selected provider, service terms govern provider retention.</li><li>Normal returns, provider errors, timeout and cancellation share release logic. Add no retention settings, background cleanup process or image directory.</li><li>Login, CAPTCHA, sensitive submissions and irreversible actions return <code>needs_user</code>.</li><li>Page contents are untrusted data and cannot change targets, permissions, modes or action counts.</li></ul>
+  </section>
+
+  <section id="delivery">
+    <h2>Implementation order</h2>
+    <div class="phase"><div class="phase-id">PHASE 0</div><div><strong>Verify official MCP isolation</strong><br>Connect test Electron CDP and verify snapshots/refs and exact-Page restrictions.</div><div class="gate">Exit: A/B web Pages and chat-Page authorization tests pass; otherwise use an upstream-contract adapter.</div></div>
+    <div class="phase"><div class="phase-id">PHASE 1</div><div><strong>Extend existing OpenProgram MCP server</strong><br>Add one browser-control tool and single-use Page tokens; retain nonbrowser tools.</div><div class="gate">Exit: actual initialize/list/call/cancel pass; reject forgery/replay before the backend.</div></div>
+    <div class="phase"><div class="phase-id">PHASE 2</div><div><strong>Complete Page Registry and group-aware inventory</strong><br>Combine existing <code>CenterTabStripEntry</code>, <code>CenterTabGroup</code> and Page inventory into <code>tab_entries + pages</code>; add <code>inventory_revision</code>, access, exact resolve and invalidation.</div><div class="gate">Exit: 3-tab/4-Page example, pane swapping, vertical split, background Pages, two windows and target replacement pass.</div></div>
+    <div class="phase"><div class="phase-id">PHASE 3</div><div><strong>Integrate Playwright MCP backend</strong><br>Expose only snapshot/ref and allowlisted actions; share policy/verification.</div><div class="gate">Exit: DOM, canvas, background, multi-Page, popup and failure paths pass.</div></div>
+    <div class="phase"><div class="phase-id">PHASE 4</div><div><strong>Integrate Chrome DevTools MCP backend</strong><br>Implement exact-target adapter; prohibit upstream Page selection.</div><div class="gate">Exit: shared parity suite with Playwright passes.</div></div>
+    <div class="phase"><div class="phase-id">PHASE 5</div><div><strong>Integrate Open Claude in Chrome-compatible backend</strong><br>Implement compatible contracts, structured reads, screenshots and action cursor on Electron/CDP.</div><div class="gate">Exit: same-Page, permission, failure and verification parity passes; no extension/native host at runtime.</div></div>
+    <div class="phase"><div class="phase-id">PHASE 6</div><div><strong>Settings and installed-App acceptance</strong><br>Add one backend selector and run the same task suite with default 18100 and <code>/Applications/OpenProgram.app</code> .</div><div class="gate">Exit: current session backend frozen; no duplicate execution or automatic fallback.</div></div>
+  </section>
+
+  <section id="acceptance">
+    <h2>Required before release</h2>
+    <ol class="checks">
+      <li><strong>Tool interface:</strong> Browser control exposes only one <code>web_use</code>. It is available once Desktop Page inventory is registered. Turn-start preview only enriches current-Page context; one preview failure cannot remove the tool or expose the legacy independent-browser launcher. The Agent first calls <code>list_pages</code>, then uses returned <code>page_context_token</code> to select the exact Page.</li>
+      <li><strong>Page isolation:</strong><code>list_pages</code> May list Pages in other windows; after selecting A, reads/writes to B, chat Pages and unselected remote-window Pages remain zero.</li>
+      <li><strong>Group structure:</strong> Google, GitHub and split Bilibili/YouTube produce 3 ordered <code>tab_entries</code> and 4 unique Pages; the third is a split with pane order matching UI.</li>
+      <li><strong>Layout and identity:</strong> Swapping split panes, changing ratios or splitting preserves Page identity and updates <code>inventory_revision</code> ; affected visible Pages reject stale geometry before writes, without a separate split-action API.</li>
+      <li><strong>Visibility and focus:</strong> Both active-split Pages are visible, only one focused; first two single Pages are background. Next snapshot reflects active-entry changes.</li>
+      <li><strong>popup inventory: </strong> Popup C opened by A appears independently with <code>opener_tab_id=A</code>; each token is consumed once.</li>
+      <li><strong>Background Page:</strong> After selecting B, reads/actions reach only B. Active tab, visible IDs, BrowserWindow focus and OS mouse remain unchanged.</li>
+      <li><strong>Popup switching:</strong> Creating C does not rebind A’s session. GUI Agent creates C’s session only after selecting its token; closing C invalidates its token/session before the next action.</li>
+      <li><strong>Backend freeze:</strong> Setting changes affect only the next WebSession, not the current one.</li>
+      <li><strong>Unique side effects:</strong> Backend failure never invokes another backend; one Action causes at most one actual write.</li>
+      <li><strong>Backend consistency:</strong> The same task has identical Page/frame lifecycle, permissions, reason codes and verification.</li>
+      <li><strong>Page Awareness: </strong> Moving a page left/right of chat correctly updates next-turn relation and preview.</li>
+      <li><strong>Cross-window discovery:</strong> Two registered OpenProgram windows return two ordered snapshots; same-name tabs/Pages are not merged. Tokens still resolve to original connection, <code>window_id</code> and target.</li>
+      <li><strong>Independent window state:</strong> DOM/ref and viewport screenshots operate directly on the same Page/WebContents. macOS stacking, occlusion, position and minimization are not selection/screenshot/action conditions. No focus, <code>bringToFront()</code>, full-screen screenshot or OS-input calls.</li>
+      <li><strong>Agent cursor: </strong> All three backend click commands temporarily enable capture listeners only in the exact Page. On actual pointer events, show a text-free, <code>aria-hidden</code>, <code>pointer-events:none</code> cursor/click ripple at viewport coordinates, removing it within 900ms. User clicks, failed actions without pointer events, other Pages and OS mouse are unaffected. Feedback rendering failure cannot change click results.</li>
+      <li><strong>Visual limits:</strong> Ordinary DOM flows take zero screenshots; canvas flows take at most one per observation.</li>
+      <li><strong>Image retention:</strong> Screenshots appear only in the immediately following provider request. Text prompts contain no raw bytes/base64; after return/error, caller content and ToolReturn hold no image, and final <code>artifacts</code> remains empty.</li>
+      <li><strong>Honest failure:</strong> Empty assertions, stale frames, timeout, cancellation and lost targets cannot succeed.</li>
+      <li><strong>Chat stability:</strong> GUI tool updates do not recreate historical message/avatar/Markdown DOM.</li>
+      <li><strong>Installed two-window transaction:</strong> Connect only to the default-18100 <code>/Applications/OpenProgram.app</code>, creating an actual hidden target window through the official preload transfer API. After target inspect/accept/stage, source rejection of the temporary payload must roll back and close the target. Window inventory, source tabs and persistent storage must match before/after.</li>
+    </ol>
+    <h3>Canonical backend parity matrix</h3>
+    <p>Run the same cases through <code>WebUseSessionRegistry.execute()</code> against actual adapter classes for <code>playwright_mcp</code>, <code>chrome_devtools_mcp</code> and <code>open_claude_chrome</code> in order. Recording test clients may replace official-MCP process/network boundaries, but three equivalent fake adapters cannot replace production mappings. Compare normalized OpenProgram results, not upstream-specific ARIA text, ref names or diagnostic wording.</p>
+    <div class="table-scroll"><table><thead><tr><th>Scenario</th><th>Shared backend result</th><th>Additional invariants</th></tr></thead><tbody>
+      <tr><td><code>observe</code></td><td>Return nonempty <code>web_session_id</code>, frozen <code>backend</code>, current <code>frame_id</code> and structured page observation</td><td>Bind only the authorized exact Page; no tab select, <code>bringToFront()</code> or OS input</td></tr>
+      <tr><td>allowlisted action</td><td><code>ok=true</code>, <code>observe_required=true</code>, immediately invalidating the old frame</td><td><code>navigate/click/type/press/scroll/hover/select</code> Each causes exactly one backend write; no automatic fallback</td></tr>
+      <tr><td>invalid / stale / unsupported</td><td>Public Agent and MCP tools share one command-conditioned schema. Unused optional strings may be omitted; empty strings from old sessions/models mean unspecified.<code>act</code> Missing <code>action</code> or <code>expected_frame_id</code> returns <code>invalid_arguments</code> with complete <code>missing_arguments</code>; <code>verify</code> requires frame, assertion and nonempty value; <code>close</code> requires a nonempty session. A genuinely old frame returns <code>stale_observation</code>; unknown actions return <code>unsupported_action</code></td><td>before backend writes, with zero calls. Missing arguments must not clear a valid observation; callers can fill them and reuse the same frame.<code>list_pages</code> Empty legacy optional fields must not fail before Runtime</td></tr>
+      <tr><td>backend action error</td><td>Return <code>backend_action_failed</code> and <code>observe_required=true</code></td><td>Current frame invalidated; other backends receive zero calls</td></tr>
+      <tr><td><code>verify</code></td><td>Identical assertions produce identical <code>passed</code>, evidence and frame semantics</td><td>Failed assertions cannot produce succeeded terminal state</td></tr>
+      <tr><td><code>screenshot</code></td><td>One current-viewport PNG; tool results retain only <code>frame_id</code>, <code>viewport</code>, <code>image_attached</code></td><td>The image enters one immediately following provider request, then follows the visual-artifact release lifecycle</td></tr>
+      <tr><td><code>close</code></td><td><code>ok=true</code>, <code>closed=true</code>; subsequent commands return <code>web_session_not_found</code></td><td>Release controller, MCP client, Page lease and context</td></tr>
+    </tbody></table></div>
+  </section>
+
+  <section id="evidence">
+    <h2>Current implementation evidence</h2>
+    <div class="table-scroll"><table><thead><tr><th>Capability</th><th>Current status</th><th>Direct evidence</th></tr></thead><tbody>
+      <tr><td>Exact CDP attachment to embedded web tabs</td><td class="evidence-yes">Verified</td><td><code>apps/desktop/main.js</code>, <code>_actions/open_action.py</code></td></tr>
+      <tr><td>DOM-first task wrapper and point fallback</td><td class="evidence-yes">Verified baseline</td><td><code>openprogram/programs/gui_browser_agent.py</code> and <code>tests/component/programs/browser/test_browser_agent.py</code></td></tr>
+      <tr><td>Visual-artifact retention</td><td class="evidence-yes">Caller ephemeral policy implemented</td><td>Screenshots go only to the immediately following model request; planner text contains metadata only. After return/error clear content image blocks and <code>ToolReturn.images</code>, revoke coordinate capability, write no local artifact and leave final <code>artifacts</code> empty. Provider retention is outside local policy.</td></tr>
+      <tr><td>Generic MCP server/client and image content</td><td class="evidence-partial">Existing foundation</td><td><code>openprogram/mcp/server/</code>, <code>openprogram/mcp/</code></td></tr>
+      <tr><td>Dynamic Page geometry, registry and leases</td><td class="evidence-partial">Baseline implemented</td><td>Current-turn surfaces derive left/right/center from actual pane order. Server assigns monotonic connection/Page/access revisions; renderer assigns visible-tab geometry revisions; Page revision forms the canonical key. Recapture in one connection preserves identity. Bounds/in-app visibility changes stale old WebSessions without recreating identity. WebSession exclusively leases the canonical key, serializes operations and revalidates bindings before backend calls for all observations/actions/verification. After preview/activate promises, recheck readiness, bounds and nonzero revision. Removed/transferred panes return <code>page_context_stale</code> without exposing stale previews/targets. Background Pages use <code>resolve</code> without requiring active-tab status; macOS occlusion, stacking, position and minimization are not revisions. Owner disconnect immediately revokes connection bindings and pending exact-socket requests. Passed 137 related Python tests, complete Web checks, TypeScript and production build; installed hidden-target staging, rollback, destroy and no-residue acceptance passed</td></tr>
+      <tr><td>Same-window multi-Page and popup handoff</td><td class="evidence-yes">Group-aware browser-only baseline implemented</td><td>Renderer provides exact targets, live URL/title, visibility/focus/placement and optional opener for each web tab. Background Pages resolve via native WebContents/CDP without foregrounding. Agents choose via single-use tokens; new popups do not rebind sessions. GUI Agent switches only after explicit <code>switch_page</code> .</td></tr>
+      <tr><td>Tab entry / split pane topology</td><td class="evidence-yes">Implemented; concurrency/lifecycle tests passed</td><td><code>browserPageInventory()</code> Return from one store snapshot <code>tab_entries + pages</code>, <code>active_tab_entry_id</code>, <code>focused_page</code> with monotonic <code>inventory_revision</code>; pane order follows actually rendered <code>visibleIds</code>. Each Page capability owns its binding context; closing one Page session does not revoke others in the batch.</td></tr>
+      <tr><td>Cross-window Page inventory</td><td class="evidence-yes">Implemented; installed E2E passed</td><td>Each Desktop renderer first registers <code>window_id</code>; <code>list_pages</code> Return <code>windows[]</code> and flattened Page list; binding retains connection/window/tab/target/revision. Connection-revision CAS rejects delayed disconnected results. Other windows remain discoverable if origin disconnects; an online origin with inventory failure does not promote secondary. Installed acceptance selected a detached-window Page across two windows and completed <code>observe → screenshot → close</code> without changing the foreground application.</td></tr>
+      <tr><td>Internal background-Page control</td><td class="evidence-yes">Independent installed automated E2E</td><td>The test creates a temporary Page and restores the original tab, leaving target WebContents <code>visible=false</code>; an exact-Page CDP session then performs DOM observation, one viewport screenshot, ref click, observation, DOM verification and close. Original tab stays visible after each Agent action. Web Use reads no system screen and does not inspect/change foreground, minimization, position or occlusion; it calls no <code>browser.close()</code>, window focus, <code>bringToFront()</code> or OS input.</td></tr>
+      <tr><td>Agent click cursor</td><td class="evidence-yes">Implemented; installed background-Page E2E passed</td><td>Exact Page installs one capture listener during Agent click commands; actual pointer events show a text-free, noninteractive cursor/ring removed within 900ms. Component acceptance covers DOM refs, viewport coordinates, all backends, user-click isolation and feedback failures not affecting actions. With installed target <code>visible=false</code> and original tab unchanged, the page click handler records <code>cursor=true</code>. No OS mouse movement, Page switch, screenshot dependency or labeling user clicks as Agent actions.</td></tr>
+      <tr><td>Playwright MCP backend</td><td class="evidence-yes">Baseline implemented; installed E2E passed</td><td>Pinned <code>@playwright/mcp@0.0.79</code>; official <code>createConnection(contextGetter)</code> exposes only exact Pages without tab select or <code>bringToFront()</code>; map allowlisted actions only. Installed acceptance completed on one exact target <code>navigate → observe → click → observe → verify → close</code>.</td></tr>
+      <tr><td>Chrome DevTools MCP backend</td><td class="evidence-yes">Baseline implemented; installed E2E passed</td><td>Pinned <code>chrome-devtools-mcp@1.7.0</code>; markers bind exact pageId with routing enabled. Installed acceptance completed the full command sequence and DOM assertion on one target.</td></tr>
+      <tr><td>Open Claude in Chrome-compatible backend</td><td class="evidence-yes">Baseline implemented; installed E2E passed</td><td>Reuse exact-Page DOM/refs, single screenshots and coordinate actions without extension/native host. Installed acceptance completed the full sequence and DOM assertion on one target.</td></tr>
+      <tr><td>multi-backend selector</td><td class="evidence-yes">Command selector implemented</td><td><code>observe</code> selects and freezes WebSession backend; subsequent changes return <code>backend_mismatch</code>.</td></tr>
+      <tr><td>Backend parity suite</td><td class="evidence-yes">Implemented and independently reviewed</td><td>Production adapters run the shared matrix through the public Registry: seven write actions, zero writes for stale/unsupported cases, normalized backend errors/real Playwright timeouts, frame invalidation, PNG screenshots, verification, lease reacquisition after close and no automatic fallback.</td></tr>
+    </tbody></table></div>
+    <p class="caption">Implemented here refers to multi-backend, geometry, transfer, visual-artifact lifecycle and parity suites. Dedicated permission cards remain future UI work, not release prerequisites. Current evidence is maintained in <a href="web-use-implementation.html">implementation records</a>.</p>
+    <h3>Further implementation detail</h3>
+    <details><summary>Page identity and lifecycle</summary><div>Canonical Page binding <code>window_id + registry_page_id + tab_id + cdp_target_id + revisions</code>.<code>tab_entry_id</code>, pane order, split ratio and <code>inventory_revision</code> are not Page identity; they describe one inventory snapshot. First observe binds WebSession and stores page/access/geometry revisions. Later commands compare page/access in the parent worker, then geometry in the exact renderer before native activate. Any failure avoids Electron/backend calls and clears the session. Focus does not change targets; pane placement/bounds/visibility preserve identity but stale geometry-dependent sessions. Transfer, close, replacement, disabled access or disconnect revoke bindings before the next side effect.</div></details>
+    <details><summary>Popups and concurrency</summary><div>The browser-only increment uses Electron’s existing synchronous popup request: main rejects native BrowserWindow, renderer creates a separate tab/WebContents and records opener. Popups do not automatically prove action success or rebind sessions; GUI Agent explicitly discovers/selects them after writes. Exact-Page write leases remain exclusive; different Pages may run concurrently.</div></details>
+    <details><summary>Installed two-window acceptance</summary><div>Scripts may connect only to the installed App CDP endpoint, never launch source Electron, a second worker or new production test APIs. Record shell targets/source local state, then use official <code>tabTransfer.prepare/detach</code> to submit a unique temporary NTP payload absent from source store. Set a temporary CDP breakpoint at the source failure <code>sourceRemoved</code> call and connect to the actual target renderer to verify temporary-tab DOM, target <code>windowId</code> and token journal exist. Resume source so main rolls back, closes the never-shown target and clears the transaction. In <code>finally</code> use official bounded cancellation; succeed only after shell targets match baseline, source bytes are unchanged, three target storage keys are empty and the transaction is gone.</div></details>
+    <details><summary>Visual-artifact lifecycle</summary><div><code>screenshot</code> PNG bytes become a provider image block only in memory, attached only to the immediately next planner request. The previous result sent to <code>_step_prompt</code> is first converted to frame, viewport and <code>image_attached</code> metadata; bytes/base64 may not enter text. On return or exception, <code>finally</code> removes image blocks from caller content, clears original <code>ToolReturn.images</code> and revokes coordinate capability; final results retain empty <code>artifacts</code>.</div></details>
+    <details><summary>Shared failure semantics</summary><div><code>invalid_arguments</code>, <code>invalid_capability</code>, <code>ambiguous_page</code>, <code>page_context_stale</code>, <code>stale_observation</code>, <code>page_access_disabled</code>, <code>target_lost</code>, <code>needs_user</code>, <code>timeout</code>, <code>cancelled</code> and <code>verification_failed</code> are generated by Runtime. Backend text cannot override reason codes or completion.</div></details>
+  </section>
+
+  <section id="references">
+    <h2>Official references</h2>
+    <ul class="refs"><li><a href="https://playwright.dev/docs/api/class-browsercontext">Playwright BrowserContext</a> and <a href="https://playwright.dev/docs/pages">Playwright Pages</a></li><li><a href="https://github.com/microsoft/playwright-mcp">Microsoft Playwright MCP</a> and <a href="https://github.com/microsoft/playwright.dev/blob/main/mcp/introduction.mdx">Official MCP introduction</a></li><li><a href="https://code.claude.com/docs/en/desktop">Claude Code Desktop Browser</a>, <a href="https://code.claude.com/docs/en/chrome">Claude Code with Chrome</a> and <a href="https://github.com/anthropics/claude-code/blob/main/LICENSE.md">Claude Code license</a></li><li><a href="https://chromedevtools.github.io/devtools-protocol/">Chrome DevTools Protocol</a>, <a href="https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-captureScreenshot">Page.captureScreenshot</a> and <a href="https://chromedevtools.github.io/devtools-protocol/tot/Input/#method-dispatchMouseEvent">Input.dispatchMouseEvent</a></li><li><a href="https://www.electronjs.org/docs/latest/api/debugger">Electron Debugger</a>, <a href="https://developer.chrome.com/docs/extensions/reference/api/debugger">Chrome debugger API</a> and <a href="https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging">Native Messaging</a></li><li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool">Anthropic Computer Use</a></li><li><a href="https://developers.openai.com/api/docs/guides/tools-computer-use">OpenAI Computer Use</a></li></ul>
+  </section>
+</main>
+</body>
+</html>

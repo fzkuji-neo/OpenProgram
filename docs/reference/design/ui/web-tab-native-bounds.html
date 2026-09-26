@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Native page bounds in the built-in browser</title>
+  <style>
+    :root { color-scheme: dark; --bg:#161615; --panel:#20201f; --line:#3a3935; --text:#e8e7df; --muted:#aaa89d; --accent:#d19a66; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:40px max(24px,10vw) 80px; background:var(--bg); color:var(--text); font:14px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif; }
+    main { max-width:920px; } h1 { font-size:24px; margin:0 0 8px; } h2 { margin:34px 0 10px; font-size:17px; color:var(--accent); }
+    p, li { color:var(--muted); } code { color:var(--text); background:#2a2927; border-radius:4px; padding:1px 5px; }
+    .card { border:1px solid var(--line); border-radius:10px; background:var(--panel); padding:18px 20px; }
+    table { width:100%; border-collapse:collapse; margin:14px 0 20px; }
+    th, td { padding:10px 12px; border:1px solid var(--line); text-align:left; vertical-align:top; color:var(--muted); }
+    th { color:var(--text); background:var(--panel); }
+    .status { color:var(--accent); font-weight:600; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Native page bounds in the built-in browser</h1>
+  <p>The Electron shell DOM toolbar and native <code>WebContentsView</code> must maintain the same page bounds at any shell zoom factor.</p>
+
+  <h2>Verified gaps</h2>
+  <div class="card">
+    <p>At a shell zoom factor of approximately <code>1.095</code> , the renderer sends <code>x=812.63, width=518.64</code> CSS px, which the main process uses directly as DIP. Correct native bounds should be approximately <code>x=890, width=568</code>. The webpage consequently covers the left chat pane and leaves blank space on the right.</p>
+    <p>The old occlusion check hides every native Web pane whenever any <code>role=dialog</code> exists in the document. Local working-directory, project and permission menus at the bottom blank the neighboring webpage even when entirely inside the chat pane. Meanwhile, <code>role=menu</code>, <code>role=listbox</code> and several custom fullscreen confirmation overlays are not covered by the same rule.</p>
+  </div>
+
+  <h2>Unified overlay rules for multiple Web panes</h2>
+  <table>
+    <thead><tr><th>Overlay type</th><th>Detection</th><th>Native Web behavior</th></tr></thead>
+    <tbody>
+      <tr><td>Local Popover, Dropdown, listbox and tab/split menus</td><td><code>role=dialog/menu/listbox</code></td><td>Calculate rectangles per Web body; hide only panes that actually intersect.</td></tr>
+      <tr><td>Fullscreen modals, confirmation backdrops and attachment previews</td><td><code>data-native-view-occluder=true</code> or the existing merge backdrop</td><td>The fullscreen rectangle intersects each Web body, hiding every covered pane.</td></tr>
+      <tr><td>Tooltips, toasts, drag cues and ordinary portaled content</td><td>Excluded from the occlusion selector</td><td>Transient hints do not blank the whole webpage.</td></tr>
+      <tr><td>Desktop main/context/bookmark native menus</td><td>Separate overlay owner in the main process</td><td>Retain native-menu lifecycle management; do not manage it again through renderer DOM.</td></tr>
+    </tbody>
+  </table>
+  <p>Multiple split Web panes do not share a global visible flag. Each <code>WebTabPane</code> uses its own body bounds against the same set of current overlays. If a menu covers only the left Web pane, the right pane stays visible. Agent picture-in-picture previews reuse the same <code>registerVisibleWebTabBounds</code> / <code>syncVisible</code> path and publish only the small-window body rectangle, keeping toolbar buttons and the lower-right resize handle outside the native view. Existing MutationObserver, ResizeObserver and scroll/resize listeners republish bounds after overlays close, move or resize. During small-window dragging/resizing the renderer throttles calls to <code>syncVisible</code> to 100ms and publishes immediately on pointer release, avoiding per-frame IPC. Global flush still batches microtasks within the same tick.</p>
+
+  <h2>Design</h2>
+  <ul>
+    <li>The renderer continues sending CSS px measured by <code>getBoundingClientRect()</code> .</li>
+    <li>Only at the renderer IPC boundary does the main process read <code>event.sender.getZoomFactor()</code>, convert CSS px into native DIP, then apply existing integer rounding and nonnegative dimension constraints.</li>
+    <li><code>sync-visible</code> and the compatibility entry <code>set-bounds</code> use the same conversion. Internal show/hide/transfer paths already using DIP are not scaled again.</li>
+    <li>Shell zoom changes trigger the existing renderer <code>resize</code> listener to remeasure and send current bounds. The main process reads the current zoom factor on every IPC call.</li>
+    <li>Invalid or nonpositive zoom factors are treated as <code>1</code> .</li>
+    <li>A DOM overlay occludes the native <code>WebContentsView</code> only when its visible rectangle intersects the current Web body. Working-directory, project and permission menus inside the chat pane must not hide pages in neighboring splits. Dialogs, attachment previews and merge backdrops covering a webpage must still hide the native view; existing bounds observers restore it on close.</li>
+  </ul>
+
+  <h2>Boundaries and exclusions</h2>
+  <p>Do not forcibly reset user zoom or change split ratios, DOM layout, preload APIs, site zoom, Browser Agent, dependencies or configuration. Electron <code>WebContentsView.setBounds</code> takes DIP while renderer DOM measurements use CSS px. The renderer retains measurement precision; the main process converts units and performs final rounding.</p>
+
+  <h2>Task files and acceptance</h2>
+  <p>Production code: <code>apps/desktop/main.js</code>, <code>apps/web/components/center-tabs/web-tab-pane.tsx</code> and <code>apps/web/lib/browser/web-tab-bounds.ts</code>. Public gates: <code>apps/desktop/scripts/check-webtab-zoom-bounds.js</code> and existing web split gates.</p>
+  <ul>
+    <li>Automation covers 100% zoom, approximately 109.5% zoom, invalid zoom factors, both IPC entry points and existing desktop regressions.</li>
+    <li>The installed App uses the default worker on 18100. At non-100% shell zoom, verify matching width and height between the DOM body and native viewport; check splits, split-ratio changes and window resizing.</li>
+    <li>Visual acceptance uses only one current viewport screenshot, without OCR, candidate boxes or repeated crops.</li>
+    <li>Public regressions must verify: a working-directory/project menu left of a nonintersecting right Web body leaves it visible; a menu/listbox intersecting one Web body hides only that pane; a fullscreen modal backdrop hides every intersecting pane; edge contact without overlapping area leaves it visible.</li>
+  </ul>
+
+  <h2>Implementation evidence</h2>
+  <ul>
+    <li>Complete desktop and web checks passed. Dynamic renderer tests retain fractional DOMRect values and verify <code>syncVisible</code> payload.</li>
+    <li><code>check:web-split</code> runs rectangle-intersection regressions: the left working-directory/project menu does not hide the right WebTab; <code>dialog/menu/listbox</code>, intersecting overlays and fullscreen dialog backdrops are evaluated separately for each Web body. Zero area and edge-only contact do not hide panes. General <code>DialogOverlay</code>, permission confirmations, context click-catchers and scoped drop overlays enter the same check through <code>data-native-view-occluder</code> .</li>
+    <li>Final specification and quality reviews both returned <code>PASS</code>; no product CSS or existing menu dimensions, positions, radii or interaction structure changed.</li>
+    <li>At approximately 109.5% shell zoom in the installed App, converted DOM-body dimensions and native-viewport dimensions are both <code>568×763 DIP</code>.</li>
+    <li>After resizing the window to <code>1350×800</code> , converted DOM-body dimensions and native-viewport dimensions are both <code>526×712 DIP</code>; they still match after restoring the window.</li>
+    <li>The default worker health check on 18100 passed; CDP 9223 observed both the shell and the current native Bilibili page.</li>
+  </ul>
+
+  <h2>Implementation status</h2>
+  <p class="status">Unit conversion, automated gates and installed-App acceptance are complete.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenProgram · Composer Tool Profile Menu</title>
+<style>
+  :root { color-scheme:dark; --bg:#11141a; --panel:#181d26; --line:#303a4a;
+    --text:#dce3ec; --muted:#96a1b1; --blue:#72a8ff; --green:#55d69c;
+    --amber:#f0c562; --mono:ui-monospace,SFMono-Regular,Menlo,monospace }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--text);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif }
+  main { max-width:1000px; margin:auto; padding:42px 28px 80px }
+  h1 { margin:0 0 8px; font-size:29px } h2 { margin:38px 0 12px; padding-top:15px;
+    border-top:1px solid var(--line); font-size:20px } p { margin:8px 0 }
+  code { padding:1px 5px; border:1px solid #2b3544; border-radius:5px;
+    background:#0d1015; font-family:var(--mono); font-size:.91em }
+  .sub { color:var(--muted) } .lead,.card,.table-wrap { border:1px solid var(--line);
+    border-radius:11px; background:var(--panel) } .lead { margin-top:20px; padding:15px 17px;
+    border-left:4px solid var(--blue) } .grid { display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px } .card { padding:14px 15px }
+  h3 { margin:0 0 6px; font-size:15px } ul { margin:6px 0; padding-left:20px }
+  .table-wrap { max-width:100%; overflow:auto; overscroll-behavior-x:contain }
+  table { width:100%; border-collapse:collapse }
+  th,td { padding:9px 11px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top }
+  th { color:#cbd5e3 } tr:last-child td { border-bottom:0 }
+  .table-wrap:focus-visible { outline:2px solid var(--blue); outline-offset:3px }
+  .ok { color:var(--green) } .pending { color:var(--amber) }
+  @media(max-width:760px) { main { padding:28px 20px 60px } .grid { grid-template-columns:1fr } code { overflow-wrap:anywhere } }
+</style>
+</head>
+<body><main>
+  <h1>Composer Tool Profile Menu Design</h1>
+  <p class="sub">Scope:<code>ControlsCluster</code> the submenu opened by the gear on the right of the Tools row. This page also serves as the task design, implementation brief and evidence ledger.</p>
+  <div class="lead">The submenu uses the installed Base UI <code>Menu.SubmenuRoot</code>, <code>SubmenuTrigger</code>, <code>Portal</code> and <code>Positioner</code>. React controls its open state. The gear responds only to clicks; moving the pointer away does not close it. Outside clicks, Escape, profile selection and closing the parent menu close it.</div>
+
+  <h2>Current implementation and verified gap</h2>
+  <p>The parent menu is mounted through <code>Menu.Portal</code> on document body; its positioner uses <code>z-index: 200</code>. The failed implementation places the submenu inside the composer as a <code>position: fixed</code> node and adds a transparent backdrop. The composer <code>.inputArea</code> itself is a <code>z-index: 5</code> stacking context. Even with <code>z-index: 9999</code>, the submenu stays behind the parent menu in the body portal. This causes the overlap visible in the screenshot.</p>
+
+  <h2>Reference comparison</h2>
+  <div class="table-wrap" role="region" aria-label="Horizontally scrollable reference comparison table" data-scroll-region tabindex="0"><table><thead><tr><th>Option</th><th>Capabilities</th><th>Decision</th></tr></thead><tbody>
+    <tr><td>Base UI submenu</td><td>Controlled open state, click trigger, outside press, Escape, focus, portal and floating position</td><td class="ok">Adopted; already installed and used by the original implementation</td></tr>
+    <tr><td>Manual fixed positioning and backdrop</td><td>Click state is possible, but portal ordering, automatic flip and complete keyboard/focus behavior are missing</td><td>Rejected; duplicates existing infrastructure and causes the current defect</td></tr>
+    <tr><td>Native Popover API</td><td>Top layer and light dismissal, but lacks the existing Menu roving-focus, submenu and positioning contracts</td><td>Not adopted here; would maintain two menu semantics</td></tr>
+  </tbody></table></div>
+
+  <h2>Target state and boundaries</h2>
+  <div class="grid">
+    <section class="card"><h3>State</h3><ul><li><code>profileMenuOpen</code> is the only submenu open state.</li><li>Explicitly clear submenu state when the parent closes.</li><li>Profile selection continues using <code>switchProfile</code>.</li></ul></section>
+    <section class="card"><h3>DOM and ordering</h3><ul><li>Both menus use Base UI portals mounted on body.</li><li>The parent positioner is 200 and the submenu is 201.</li><li>Base UI handles anchoring, flipping and collisions.</li></ul></section>
+    <section class="card"><h3>Explicit exclusions</h3><ul><li>Do not change the Tools row toggle semantics.</li><li>Do not add dependencies or a global overlay manager.</li><li>Do not change profile data, the backend or other overlays.</li></ul></section>
+  </div>
+  <p>No trust, privacy, concurrency or cancellation boundary is involved: this change controls local presentation only, without new persisted data or network requests.</p>
+  <p>The Tools visual row uses a <code>role="none"</code> container with two sibling, non-nested menuitems: the Tools <code>Menu.Item</code> and gear <code>SubmenuTrigger</code>. Mouse and keyboard can activate each independently. Tools toggles the setting and closes the profile menu; the gear only toggles the profile menu. Preserve the original layout: Tools label on the left, gear on the right, and the enabled checkmark at the far right. Preserve the 22px gear button, 14px icon and spacing before the checkmark. Base UI reports pointer moves over parent items with the <code>sibling-open</code> reason. This component ignores only that closing reason; Base UI still handles outside press, Escape, item press and parent closure.</p>
+
+  <h2>Implementation brief and acceptance</h2>
+  <p>Production file:<code>apps/web/components/chat/composer/controls/controls-cluster.tsx</code>, <code>composer.module.css</code>. Regression entry:<code>npm run check:composer-tool-profile</code>. Compatibility: the Tools row still toggles tools, profile items use the existing callback, and other parent menu items remain unchanged.</p>
+  <ul>
+    <li>Click the gear to open the submenu; moving outside does not close it.</li>
+    <li>The entire submenu renders above the parent, unaffected by the composer stacking context.</li>
+    <li>Outside clicks, Escape, profile selection and parent closure all close the submenu.</li>
+    <li>Preserve the Tools row order: <code>label · gear · checkmark</code>, never <code>label · checkmark · gear</code>.</li>
+    <li>There is no longer a <code>menuPosition</code>, <code>profileMenuBackdrop</code> or manually computed fixed coordinates.</li>
+  </ul>
+
+  <h2>Current implementation and verification evidence</h2>
+  <div class="table-wrap" role="region" aria-label="Horizontally scrollable implementation evidence table" data-scroll-region tabindex="0"><table><thead><tr><th>Item</th><th>Evidence</th><th>State</th></tr></thead><tbody>
+    <tr><td>Menu behavior</td><td><code>npm run check:composer-tool-profile</code> covers the controlled submenu, parent closure, ordering, keyboard and store ownership</td><td class="ok">Passed</td></tr>
+    <tr><td>Type checking</td><td><code>npx tsc --noEmit</code></td><td class="ok">Passed</td></tr>
+    <tr><td>Implementation constraints</td><td><code>sibling-open</code> is the only ignored parent-menu closing reason; outside press, Escape, item press and parent closure remain active</td><td class="ok">Compliant</td></tr>
+    <tr><td>Installed entry</td><td>Visible acceptance uses <code>/Applications/OpenProgram.app</code>, the default profile and port <code>18100</code>; a second instance is not acceptance evidence for this page</td><td class="ok">Fixed</td></tr>
+    <tr><td>Complete frontend checks</td><td><code>npm --prefix apps/web run check</code>, including the new menu checks</td><td class="ok">Passed</td></tr>
+    <tr><td>Production build</td><td><code>npm --prefix apps/web run build</code>, generating 29 static pages</td><td class="ok">Passed</td></tr>
+    <tr><td>Documentation</td><td><code>python -m scripts.docs_site.checklinks</code>: 0 broken links</td><td class="ok">Passed</td></tr>
+    <tr><td>Visual constraints</td><td>The gear remains left of the checkmark, with a 22×22px button and 14px icon, preserving existing spacing and full-row hover</td><td class="ok">Compliant</td></tr>
+  </tbody></table></div>
+<script>
+document.querySelectorAll('[data-scroll-region]').forEach(region=>region.addEventListener('keydown',event=>{
+  const step=Math.max(80,Math.round(region.clientWidth*.75));
+  if(event.key==='ArrowRight'){event.preventDefault();region.scrollLeft+=step}
+  else if(event.key==='ArrowLeft'){event.preventDefault();region.scrollLeft-=step}
+  else if(event.key==='Home'){event.preventDefault();region.scrollLeft=0}
+  else if(event.key==='End'){event.preventDefault();region.scrollLeft=region.scrollWidth}
+}));
+</script>
+</main></body></html>

@@ -1,0 +1,503 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, Pause, Play, Square, Target } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { api, type GoalControls } from "@/lib/net/api";
+import { SessionDebugger } from "@/components/right-sidebar/session-debugger";
+import { HttpError } from "@/lib/net/fetch-client";
+import { runtimeState } from "@/lib/runtime-bridge/state";
+import { updateSessionGoal } from "@/lib/runtime-bridge/goal-state";
+import { useSessionStore } from "@/lib/session-store";
+import { useTranslation } from "@/lib/i18n";
+
+import styles from "./goal-chip.module.css";
+
+export interface GoalState {
+  end_records?: { anchor_id: string | null; goal: GoalState }[];
+  execution_mode?: string;
+  schema_version?: number;
+  roles?: Record<"work" | "judge", {
+    provider: string;
+    model: string;
+    model_provider: string;
+    effort: string;
+    timeout_s: number;
+  }>;
+  roles_origin?: string;
+  role_requests?: {
+    model?: string; effort?: string; timeout_s?: number;
+    judge_model?: string; judge_effort?: string; judge_timeout_s?: number;
+  };
+  goal_id?: string;
+  run_id?: string;
+  execution_id?: string;
+  stop_requested?: boolean;
+  revision?: number;
+  version?: number;
+  text?: string;
+  spec?: string;
+  status?: string;
+  phase?: string;
+  turns_used?: number;
+  max_turns?: number;
+  budget?: {
+    max_turns?: number | null;
+    max_tokens?: number | null;
+    max_elapsed_s?: number | null;
+    max_cost_usd?: number | null;
+  };
+  usage?: {
+    accounting_pending?: boolean;
+    tokens_known?: boolean;
+    total_tokens?: number;
+    cost_usd?: number;
+    cost_known?: boolean;
+    unknown_token_requests?: number;
+    unknown_cost_requests?: number;
+    active_elapsed_s?: number;
+    active_time_known?: boolean;
+  };
+  checkpoint?: { phase?: string; round?: number; at?: number };
+  checklist?: { text: string; done: boolean }[] | null;
+  last_reason?: string;
+  last_question?: string;
+  last_question_at?: number;
+  last_question_options?: { label: string; description: string }[];
+  questions?: {
+    id: string;
+    prompt: string;
+    reason?: string;
+    status: "pending" | "answered" | "superseded";
+    options?: { label: string; description?: string }[];
+    can_continue?: boolean;
+  }[];
+  interaction_mode?: "attended" | "unattended";
+  recoverable?: boolean;
+  pause_reason?: string;
+}
+
+const terminalStatuses = new Set(["achieved", "impossible", "cancelled", "cleared"]);
+
+function controlReason(reason: string | null | undefined, zh: boolean): string {
+  const messages: Record<string, [string, string]> = {
+    active_owner: ["Another turn is running. Wait for it to stop before continuing this Goal.", "另一个轮次正在运行，请等待其结束后再继续此 Goal。"],
+    budget_exhausted: ["The explicit budget is exhausted. Change the Goal budget before continuing.", "已达到显式预算，请修改 Goal 预算后再继续。"],
+    elapsed_time_unknown: ["Interrupted active time is unknown, so the explicit time limit cannot be verified. Remove the time limit to continue.", "中断时段的执行时间未知，无法核实显式时间上限；移除时间上限后可继续。"],
+    execution_unavailable: ["Execution status is unavailable. Refresh status to retry.", "无法读取执行状态，请刷新状态重试。"],
+    unknown_external_effects: ["Operation outcomes must be checked before verification.", "验收前需要确认外部操作的结果。"],
+    unfinished_conversation_execution: ["Related executions have not finished.", "关联执行尚未结束。"],
+    managed_work_unfinished: ["Goal-owned background work is still running or its outcome is unknown.", "此 Goal 的后台工作仍在运行，或其结果未知。"],
+    pending_wait: ["Answer the pending approval or question in the execution details.", "请在执行详情中处理待答审批或问题。"],
+    active_children: ["Child executions are still active. Inspect their status below.", "子任务仍未结束，请在下方查看其状态。"],
+    unfinished_todos: ["Complete the remaining todos before verification.", "请先完成剩余待办，再进行验收。"],
+    no_completed_work: ["Verification requires a finished working turn.", "验收需要先有已结束的工作轮次。"],
+    ordinary_chat_required: ["Verification is available for chat Goals.", "此验收入口适用于聊天 Goal。"],
+    execution_not_finished: ["The previous execution has not stopped.", "上一轮执行尚未停止。"],
+    goal_not_resumable: ["The Goal is not paused.", "Goal 当前未暂停。"],
+    goal_terminal: ["The Goal has ended.", "Goal 已结束。"],
+  };
+  return reason ? messages[reason]?.[zh ? 1 : 0] ?? reason : "";
+}
+
+function formatElapsed(seconds: number | undefined): string {
+  const total = Math.max(0, Math.round(seconds ?? 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const rest = total % 60;
+  return hours ? `${hours}h ${minutes}m` : minutes ? `${minutes}m ${rest}s` : `${rest}s`;
+}
+
+function readGoalFromRuntime(sid: string | null): GoalState | null {
+  if (!sid) return null;
+  const conv = runtimeState.conversations[sid] as { goal?: GoalState | null } | undefined;
+  return conv?.goal ?? null;
+}
+
+export function useSessionGoal(sessionId: string | null): GoalState | null {
+  const [snapshot, setSnapshot] = useState(() => ({ sessionId, goal: readGoalFromRuntime(sessionId) }));
+  useEffect(() => setSnapshot({ sessionId, goal: readGoalFromRuntime(sessionId) }), [sessionId]);
+  useEffect(() => {
+    const onGoalState = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { session_id?: string; goal?: GoalState | null } | undefined;
+      if (detail?.session_id === sessionId) setSnapshot({ sessionId, goal: detail.goal ?? null });
+    };
+    const onWsMessage = (event: Event) => {
+      const detail = (event as CustomEvent).detail as
+        | { type?: string; data?: { session_id?: string; goal?: GoalState } }
+        | undefined;
+      if (detail?.type === "goal_update" && detail.data?.session_id) {
+        updateSessionGoal(detail.data.session_id, detail.data.goal ?? null);
+      }
+    };
+    window.addEventListener("op:goal-state", onGoalState);
+    window.addEventListener("op:ws-message", onWsMessage);
+    return () => {
+      window.removeEventListener("op:goal-state", onGoalState);
+      window.removeEventListener("op:ws-message", onWsMessage);
+    };
+  }, [sessionId]);
+  return snapshot.sessionId === sessionId ? snapshot.goal : readGoalFromRuntime(sessionId);
+}
+
+function useGoalDraft<T>(source: T, revision: number) {
+  const [draft, setDraft] = useState({ base: source, value: source, revision });
+  const dirty = JSON.stringify(draft.value) !== JSON.stringify(draft.base);
+  const changed = revision !== draft.revision || JSON.stringify(source) !== JSON.stringify(draft.base);
+  useEffect(() => {
+    if (!dirty && changed) setDraft({ base: source, value: source, revision });
+  }, [source, revision, dirty, changed]);
+  return {
+    value: draft.value, dirty, conflict: dirty && changed,
+    set: (value: T) => setDraft((current) => ({ ...current, value })),
+    reset: () => setDraft({ base: source, value: source, revision }),
+  };
+}
+
+function statusLabel(status: string | undefined, zh: boolean, phase?: string) {
+  if (status === "active" && phase === "verifying") return zh ? "验收中" : "Verifying";
+  const labels: Record<string, [string, string]> = {
+    refining: ["Refining", "完善中"], active: ["Active", "进行中"],
+    running: ["Running", "执行中"], evaluating: ["Evaluating", "判定中"],
+    paused: ["Paused", "已暂停"], paused_recoverable: ["Paused after restart", "重启后可继续"],
+    waiting_user: ["Waiting for you", "等待回答"], waiting_external: ["Waiting externally", "等待外部事件"],
+    blocked: ["Blocked", "已阻塞"], stalled: ["Stalled", "无进展"],
+    budget_exhausted: ["Budget exhausted", "预算已用尽"], achieved: ["Achieved", "已达成"],
+    impossible: ["Impossible", "当前约束下不可完成"], failed: ["Failed", "执行失败"],
+    cancelled: ["Cancelled", "已终止"], cleared: ["Cleared", "已清除"],
+  };
+  const pair = labels[status || ""];
+  return pair ? pair[zh ? 1 : 0] : status || (zh ? "未知" : "Unknown");
+}
+
+export function GoalChip() {
+  const sessionId = useSessionStore((state) => state.currentSessionId);
+  const goal = useSessionGoal(sessionId);
+  if (!sessionId || !goal) return null;
+  return <GoalDetails key={`${sessionId}:${goal.goal_id || "legacy"}`} sessionId={sessionId} goal={goal} />;
+}
+
+function useGoalExecution(sessionId: string, goal: GoalState, enabled: boolean) {
+  const connection = useSessionStore((state) => state.wsStatus);
+  const identity = `${sessionId}:${goal.run_id}:${goal.execution_id}:${goal.version}`;
+  const [observation, setObservation] = useState<{ controls?: GoalControls; identity?: string; status?: string; finished?: boolean | null; can_start_new_turn?: boolean; provider_response_incomplete?: boolean; recovery_mode?: string | null; recovery_reason?: string | null; fresh: boolean }>({ fresh: false });
+  const request = useRef(0);
+  const controller = useRef<AbortController>();
+  const refresh = useCallback(async () => {
+    const serial = ++request.current;
+    controller.current?.abort();
+    const own = controller.current = new AbortController();
+    setObservation((v) => ({ ...v, fresh: false }));
+    if (!enabled || connection !== "open") return;
+    try {
+      const result = await api.getGoal(sessionId, AbortSignal.any([own.signal, AbortSignal.timeout(10000)]));
+      if (serial !== request.current || own.signal.aborted) return;
+      if (result.goal.goal_id !== goal.goal_id
+        || Number(result.goal.version ?? 0) < Number(goal.version ?? 0)) return;
+      updateSessionGoal(sessionId, result.goal);
+      // A newer canonical run refreshes the Goal first; its own keyed request
+      // will load controls. Never attach old-run eligibility to the new run.
+      if ((result.execution?.execution_id || null) !== (goal.execution_id || null)
+        || result.goal.run_id !== goal.run_id) return;
+      setObservation({ ...result.execution, controls: result.controls, identity, fresh: true });
+    } catch {
+      // Keep the Goal and its editor; a read failure is not a stopped execution.
+    }
+  }, [sessionId, goal.goal_id, goal.run_id, goal.execution_id, goal.version, identity, enabled, connection]);
+  useEffect(() => {
+    void refresh();
+    const onExecution = (event: Event) => {
+      const execution = (event as CustomEvent).detail?.execution;
+      if (execution?.session_id === sessionId) void refresh();
+    };
+    window.addEventListener("op:execution-update", onExecution);
+    return () => { request.current++; controller.current?.abort(); window.removeEventListener("op:execution-update", onExecution); };
+  }, [refresh, sessionId]);
+  return { ...observation, fresh: observation.fresh && observation.identity === identity && connection === "open", refresh };
+}
+
+export function GoalDetails({ sessionId, goal, historical = false }: { sessionId: string; goal: GoalState; historical?: boolean }) {
+  const { locale, text } = useTranslation();
+  const zh = locale.startsWith("zh");
+  const [open, setOpen] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const draft = useGoalDraft(goal.text ?? "", goal.revision ?? 1);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [stopError, setStopError] = useState("");
+  const [inspection, setInspection] = useState<string | null>(null);
+  const pending = useRef(false);
+  const mounted = useRef(true);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const endButton = useRef<HTMLButtonElement>(null);
+  const hadConfirmation = useRef(false);
+  useEffect(() => {
+    if (hadConfirmation.current && !confirmCancel) endButton.current?.focus();
+    hadConfirmation.current = confirmCancel;
+  }, [confirmCancel]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
+  const checklist = goal.checklist ?? [];
+  const pendingQuestions = (goal.questions ?? []).filter((item) => item.status === "pending");
+  const done = checklist.filter((item) => item.done).length;
+  const progress = checklist.length
+    ? `${text("Todos", "待办")} ${done}/${checklist.length}`
+    : null;
+  const terminal = terminalStatuses.has(goal.status || "");
+  const unsaved = draft.dirty;
+  const execution = useGoalExecution(sessionId, goal, !historical && (open || !!goal.stop_requested));
+  const controls = execution.controls;
+  const stopped = execution.fresh && execution.finished === true;
+  const canResume = execution.fresh && controls?.can_resume === true;
+  const stopPending = !!goal.stop_requested && !!goal.execution_id && !stopped;
+  const executionLabel = !goal.execution_id ? text("Stop takes effect at the next Goal boundary; no execution record.", "停止在下一个 Goal 边界生效；无执行记录。")
+    : !execution.fresh || execution.status === "unavailable" ? text("Execution status unknown", "执行状态未知")
+    : execution.status === "running" && controls?.can_pause && !goal.stop_requested ? text("Execution running", "执行正在运行")
+    : execution.recovery_mode === "restricted_new_turn" && canResume ? text("Previous action outcomes are unknown. Resume starts a new turn to inspect current state; new side effects require confirmation.", "旧操作结果未知。继续会开始新轮次检查实际状态；新的副作用操作需要确认。")
+    : execution.recovery_reason === "pending_wait" ? text("Answer the pending approval or question in Activity before resuming.", "请先在 Activity 中处理待办审批或问题，再继续。")
+    : execution.recovery_reason === "active_children" ? text("Child executions are still active. Inspect their status in Activity.", "子任务仍未结束，请在 Activity 中检查其状态。")
+    : stopped ? text("Execution stopped", "执行已停止")
+    : execution.provider_response_incomplete && canResume ? text("Previous model response is incomplete. Resume starts a new chat turn without repeating external actions.", "上一轮模型响应记录不完整。继续将开始新聊天轮次，不自动重放外部操作。")
+    : execution.status === "reconciliation_required" ? text("An action result needs confirmation. Inspect the execution in Activity before retrying; Resume is disabled to prevent duplicate actions.", "操作结果需要确认。请在 Activity 中检查执行记录后再重试；继续暂不可用，以防重复执行。")
+    : execution.status === "paused" ? text("The previous execution is paused. Continue or stop it in Activity before starting a new Goal turn.", "旧执行仍处于暂停状态。请先在 Activity 中继续或停止旧执行，再启动新的 Goal 轮次。")
+    : execution.status === "cancelling" ? text("Stopping", "正在停止")
+    : text("Stop not confirmed", "停止未确认");
+  useEffect(() => { if (terminal) setConfirmCancel(false); }, [terminal]);
+  if (!historical && terminal && !stopPending && !open) return null;
+
+  async function mutate(action: string, values: Record<string, unknown> = {}) {
+    if (historical) return;
+    if (pending.current || (action === "edit" && draft.conflict) || (["resume", "verify"].includes(action) && unsaved)) return;
+    pending.current = true;
+    setBusy(true);
+    setError("");
+    setStopError("");
+    try {
+      const result = await api.mutateGoal(sessionId, { action, ...values, expected: {
+        goal_id: goal.goal_id ?? "", revision: goal.revision ?? 1,
+        run_id: goal.run_id ?? "", version: goal.version ?? 0,
+      } });
+      updateSessionGoal(sessionId, result.goal);
+      if (mounted.current) {
+        if (action === "edit") draft.reset();
+        if (action === "answer") setAnswers((current) => {
+          const next = { ...current }; delete next[String(values.question_id)]; return next;
+        });
+      }
+      if (result.resume_error) throw new Error(`${text("Answer saved.", "回答已保存。 ")} ${result.resume_error}`);
+      if (mounted.current) void execution.refresh();
+      if (result.stop_error) {
+        if (mounted.current) setStopError(result.stop_error);
+        return;
+      }
+    } catch (cause) {
+      if (mounted.current) setError(cause instanceof Error ? cause.message : String(cause));
+      if (cause instanceof HttpError && cause.status === 409) {
+        try {
+          const latest = await api.getGoal(sessionId);
+          updateSessionGoal(sessionId, latest.goal);
+        } catch {
+          if (mounted.current) setError(text("The request conflicted and the latest Goal could not be loaded. Your draft is preserved.", "请求冲突，且无法读取最新目标；草稿已保留。"));
+        }
+      }
+    } finally {
+      pending.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      {historical ? <div className="attach-card" data-goal-id={goal.goal_id}>
+        <div className="attach-card-header">
+          <div className="attach-card-icon" aria-hidden="true"><Target size={18} /></div>
+          <div className="attach-card-meta">
+            <div className="attach-card-label">Goal · {statusLabel(goal.status, zh, goal.phase)}</div>
+            <div className="attach-card-sub">{goal.text}</div>
+          </div>
+          <button ref={trigger} type="button" className="attach-card-open" onClick={() => setOpen(true)}
+            aria-label={text("Open Goal details", "打开 Goal 详情")}>
+            {text("Details", "详情")}
+          </button>
+        </div>
+      </div> : !terminal || stopPending ? <button
+        ref={trigger}
+        type="button"
+        className={`runtime-badge workdir-badge ${styles.trigger}`}
+        onClick={() => setOpen(true)}
+        aria-label={text("Open Goal details", "打开 Goal 详情")}
+      >
+        <Target size={14} strokeWidth={2} className="workdir-icon" />
+        <span className="badge-short">Goal · {stopPending ? text("Stop not confirmed", "停止未确认") : statusLabel(goal.status, zh, goal.phase)}{progress ? ` · ${progress}` : null}</span>
+      </button> : null}
+      <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) setConfirmCancel(false); }}>
+        <DialogContent className={styles.dialog} aria-busy={busy} onCloseAutoFocus={(event) => {
+          event.preventDefault(); trigger.current?.focus();
+        }} onEscapeKeyDown={(event) => {
+          if (confirmCancel) { event.preventDefault(); setConfirmCancel(false); }
+        }}>
+          <DialogHeader>
+            <DialogTitle>{text("Goal details", "Goal 详情")}</DialogTitle>
+            <DialogDescription>
+              {goal.goal_id ? `${goal.goal_id.slice(0, 8)} · ` : ""}
+              {text("revision", "修订")} {goal.revision ?? 1} · version {goal.version ?? 0}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!historical ? <section className={styles.reason} aria-label={text("Execution stop status", "执行停止状态")}>
+            <p role="status">{executionLabel}</p>
+            <Button variant="outline" disabled={busy} onClick={() => void execution.refresh()}>{text("Refresh status", "刷新状态")}</Button>
+            {goal.execution_id ? <Button variant="outline" onClick={() => setInspection(goal.execution_id!)}>{text("Inspect execution", "查看执行详情")}</Button> : null}
+            {stopPending ? <Button variant="outline" disabled={busy} onClick={() => void mutate("stop")}>{text("Retry stop", "重试停止")}</Button> : null}
+          </section> : null}
+
+          <label className={styles.field}>
+            <span>{text("Goal", "目标")}</span>
+            <textarea readOnly={historical} disabled={busy} value={draft.value} onChange={(event) => draft.set(event.target.value)} rows={4} />
+          </label>
+          {draft.conflict ? <div role="status" className={styles.reason}>
+            <p>{text("The goal changed elsewhere. Your unsaved text is preserved.", "目标已在其他位置修改，未保存的正文已保留。")}</p>
+            <Button variant="outline" disabled={busy} onClick={draft.reset}>{text("Use latest goal", "采用最新目标")}</Button>
+          </div> : null}
+
+          <div className={styles.metrics}>
+            <div><span>{text("Status", "状态")}</span><strong>{statusLabel(goal.status, zh, goal.phase)}</strong></div>
+            {progress ? <div><span>{text("Progress", "进度")}</span><strong>{progress}</strong></div> : null}
+            <div><span>{text("Tokens", "Token")}</span><strong>{goal.usage?.unknown_token_requests
+              ? text(`Known ${goal.usage.total_tokens ?? 0}; ${goal.usage.unknown_token_requests} request(s) unknown`, `已知 ${goal.usage.total_tokens ?? 0}；另有 ${goal.usage.unknown_token_requests} 次请求未知`)
+              : goal.usage?.tokens_known === false ? text("Unknown", "未知") : goal.usage?.total_tokens ?? 0}</strong></div>
+            <div><span>{text("Cost", "成本")}</span><strong>{goal.usage?.unknown_cost_requests && Number.isFinite(goal.usage.cost_usd)
+              ? text(`Known $${goal.usage.cost_usd!.toFixed(4)}; ${goal.usage.unknown_cost_requests} request(s) unknown`, `已知 $${goal.usage.cost_usd!.toFixed(4)}；另有 ${goal.usage.unknown_cost_requests} 次请求未知`)
+              : goal.usage?.cost_known === true && Number.isFinite(goal.usage.cost_usd)
+                ? `$${goal.usage.cost_usd!.toFixed(4)}` : text("Unknown", "未知")}</strong></div>
+            <div><span>{text("Active time", "执行时间")}</span><strong>{goal.usage?.active_time_known === false
+              ? text(`At least ${formatElapsed(goal.usage.active_elapsed_s)}; interrupted interval unknown`, `至少 ${formatElapsed(goal.usage.active_elapsed_s)}；中断时段未知`)
+              : formatElapsed(goal.usage?.active_elapsed_s)}</strong></div>
+          </div>
+
+          {goal.usage?.accounting_pending ? <p role="status">{text("Usage from the interrupted run has not been reconciled. Unknown is not zero; session totals must not be treated as Goal costs.", "中断执行的用量尚未核对。未知不代表零，不能把整个会话的费用当作此 Goal 费用。")}</p> : null}
+
+          {goal.roles && goal.execution_mode !== "chat" ? <section className={styles.roles} aria-label={text("Goal roles", "Goal 角色")}>
+            {(["work", "judge"] as const).map((name) => {
+              const role = goal.roles![name];
+              if (!role) return <div key={name}>{name}: {text("Unavailable", "不可用")}</div>;
+              return <div key={name}>
+                <span>{name === "work" ? text("Working agent", "工作 Agent") : text("Judge", "判定 Agent")}</span>
+                <strong>{role.provider}/{role.model}</strong>
+                <span>{role.effort} · {role.timeout_s}s</span>
+              </div>;
+            })}
+            {goal.roles_origin === "legacy-resolved" ? <p>{text("Roles resolved on first resume of this legacy Goal.", "旧目标在首次恢复时解析角色配置。")}</p> : null}
+          </section> : null}
+
+          {goal.last_reason ? <p className={styles.reason}>{goal.last_reason}</p> : null}
+          {!historical && pendingQuestions.length ? (
+            <section className={styles.questionQueue} aria-label={text("Pending Goal questions", "Goal 待答问题")}>
+              <header>
+                <strong>{text("Pending questions", "待答问题")} · {pendingQuestions.length}</strong>
+                <span>{goal.interaction_mode === "attended" ? text("Attended · asynchronous", "有人值守 · 异步") : text("Unattended · asynchronous", "无人值守 · 异步")}</span>
+              </header>
+              {pendingQuestions.map((question) => {
+                const answer = answers[question.id] ?? "";
+                return (
+                  <div className={styles.waiting} key={question.id}>
+                    <strong>{question.prompt}</strong>
+                    {question.reason ? <span>{question.reason}</span> : null}
+                    {question.options?.length ? (
+                      <div className={styles.answerOptions}>
+                        {question.options.map((option) => (
+                          <button
+                            key={option.label}
+                            type="button"
+                            disabled={busy}
+                            onClick={() => setAnswers((current) => ({ ...current, [question.id]: option.label }))}
+                          >{option.label}</button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <textarea
+                      disabled={busy}
+                      aria-label={`${text("Answer", "回答")}: ${question.prompt}`}
+                      value={answer}
+                      onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))}
+                      rows={2}
+                      placeholder={text("Answer this question when convenient", "方便时回答这个问题")}
+                    />
+                    <Button
+                      disabled={busy || !answer.trim()}
+                      onClick={() => void mutate("answer", { question_id: question.id, answer: answer.trim() })}
+                    >
+                      <Play size={14} />{goal.status === "waiting_user" && !unsaved ? text("Answer and resume", "回答并继续") : text("Submit answer", "提交回答")}
+                    </Button>
+                  </div>
+                );
+              })}
+            </section>
+          ) : null}
+          {checklist.length ? (
+            <ul className={styles.checklist}>
+              {checklist.map((item, index) => <li key={`${index}:${item.text}`} data-done={item.done}>{item.done ? "✓" : "○"} {item.text}</li>)}
+            </ul>
+          ) : null}
+          {controls?.operations?.length ? <section aria-label={text("Unresolved operations", "结果未确认的操作")} className={styles.operations}>
+            <strong>{text("Unresolved operations", "结果未确认的操作")}</strong>
+            <p>{text("These results are unknown, not cancelled. Inspect the saved execution before repeating an action.", "这些结果尚未确认，不代表已取消。重复操作前请检查保存的执行记录。")}</p>
+            {controls.operations.map((operation) => <div key={operation.effect_id}>
+              <span>{operation.tool_name || text("Operation", "操作")} · {operation.status}</span>
+              <code>{operation.effect_id}</code>
+              <span>{new Date((operation.dispatched_at ?? operation.created_at) * 1000).toLocaleString(locale)}</span>
+              <Button variant="outline" onClick={() => setInspection(operation.execution_id)}>{text("Inspect execution", "查看执行详情")}</Button>
+            </div>)}
+          </section> : null}
+          {controls?.waits?.map((wait) => <Button key={wait.wait_id} variant="outline" onClick={() => setInspection(wait.execution_id)}>{text("Pending response", "待答事项")}: {wait.kind} · {wait.wait_id}</Button>)}
+          {controls?.active_children?.map((id) => <Button key={id} variant="outline" onClick={() => setInspection(id)}>{text("Inspect child", "查看子任务")}: {id}</Button>)}
+          {controls?.processes?.map((process) => <div className={styles.operations} key={process.id}>
+            <span>{text("Background work", "后台工作")}: {process.status}</span><code>{process.id}</code>
+            <Button variant="outline" onClick={() => setInspection(process.execution_id)}>{text("Inspect execution", "查看执行详情")}</Button>
+          </div>)}
+          {inspection ? <section className={styles.inspector} aria-label={text("Selected execution", "所选执行")}>
+            <Button variant="outline" onClick={() => setInspection(null)}>{text("Close execution details", "关闭执行详情")}</Button>
+            <SessionDebugger key={`${sessionId}:${inspection}`} sessionId={sessionId} active={open} requestedExecutionId={inspection} />
+          </section> : null}
+          {!historical && !terminal ? <div className={styles.draftNotice} role="status">
+            {!execution.fresh || !controls ? <p>{text("Action status unavailable. Refresh status to retry.", "无法读取操作状态，请刷新状态重试。")}</p> : <>
+              {controls.reasons.resume && controls.reasons.resume !== "goal_not_resumable" ? <p>{text("Resume", "继续")}: {controlReason(controls.reasons.resume, zh)}</p> : null}
+              {controls.reasons.verify ? <p>{text("Verify", "验收")}: {controlReason(controls.reasons.verify, zh)}</p> : null}
+            </>}
+          </div> : null}
+          {error ? <p className={styles.error} role="alert">{error}</p> : null}
+          {stopError && !stopped ? <p className={styles.error} role="alert">{stopError}</p> : null}
+
+          {historical ? null : confirmCancel ? <section aria-label={text("End Goal confirmation", "终止目标确认")}>
+            <p>{text("End this Goal? Saved work and history will remain.", "终止此目标？已保存的工作和历史记录会保留。")}</p>
+            <DialogFooter className={styles.actions}>
+              <Button autoFocus variant="outline" disabled={busy} onClick={() => setConfirmCancel(false)}>{text("Keep goal", "保留目标")}</Button>
+              <Button variant="destructive" disabled={busy} onClick={() => void mutate("cancel")}>{text("Confirm end", "确认终止")}</Button>
+            </DialogFooter>
+          </section> : <DialogFooter className={styles.actions}>
+            {!terminal ? <Button ref={endButton} variant="destructive" disabled={busy || (execution.fresh && controls?.can_end === false)} onClick={() => setConfirmCancel(true)}><Square size={14} />{text("End", "终止")}</Button> : null}
+            {controls?.can_pause ? <Button variant="outline" disabled={busy || !execution.fresh} onClick={() => void mutate("pause")}><Pause size={14} />{text("Pause", "暂停")}</Button> : null}
+            <Button variant="outline" disabled={busy || !draft.dirty || draft.conflict || !draft.value.trim()} onClick={() => void mutate("edit", { prompt: draft.value.trim() })}>{text("Save edit", "保存修改")}</Button>
+            {!terminal ? <>
+              <Button disabled={busy || unsaved || !canResume} onClick={() => void mutate("resume")}><Play size={14} />{text("Resume", "继续")}</Button>
+              <Button disabled={busy || unsaved || !execution.fresh || !controls?.can_verify} onClick={() => void mutate("verify")}><Check size={14} />{text("Verify", "验收")}</Button>
+            </> : null}
+          </DialogFooter>}
+          {unsaved ? <p className={styles.draftNotice} role="status">{text("Save or discard unsaved changes before resuming.", "继续前请保存或放弃未保存的修改。")}
+            <Button variant="ghost" disabled={busy} onClick={() => { draft.reset(); }}>{text("Discard changes", "放弃修改")}</Button>
+          </p> : null}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

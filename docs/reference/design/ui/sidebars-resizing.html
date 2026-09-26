@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sidebar widths and collapsed state</title>
+  <style>
+    :root{color-scheme:light dark;font:15px/1.55 system-ui,sans-serif;--bg:#181817;--panel:#232321;--text:#eee;--muted:#aaa;--line:#444;--accent:#6ea8fe}
+    body{margin:0;background:var(--bg);color:var(--text)}
+    main{max-width:900px;margin:auto;padding:40px 24px 64px}h1{margin:0 0 8px;font-size:28px}h2{margin:32px 0 8px;font-size:18px}p{color:var(--muted);max-width:76ch}code{color:var(--accent)}
+    table{width:100%;border-collapse:collapse;background:var(--panel)}th,td{padding:10px 12px;border:1px solid var(--line);text-align:left}th{color:var(--text)}td{color:var(--muted)}
+  </style>
+</head>
+<body><main>
+  <h1>Sidebar widths and collapsed state</h1>
+  <p>Both sidebars share width, drag and collapse behavior. Each sidebar owns only its navigation, state sources and main content.</p>
+
+  <h2>State constraints</h2>
+  <table>
+    <tr><th>State</th><th>Width rules</th><th>Behavior</th></tr>
+    <tr><td>Left expanded</td><td>180–480px</td><td>Drag from the right edge; stop changing at the range limit</td></tr>
+    <tr><td>Right expanded</td><td>240–720px</td><td>Drag from the left edge; stop changing at the range limit</td></tr>
+    <tr><td>Collapsed</td><td>Fixed at 49px</td><td>Both sides use the same 150ms width animation</td></tr>
+    <tr><td>Expand again</td><td>Restore the valid width from before collapse</td><td>Use the same width animation and retain the most recently adjusted width</td></tr>
+  </table>
+
+  <h2>Implementation boundaries</h2>
+  <p><code>components/layout/use-resizable-rail.ts</code> is the sole implementation of width behavior: it saves expanded widths, enforces limits, handles pointer capture, generates expanded/collapsed styles and controls transitions. The sidebars supply their own limits and growth directions instead of maintaining separate event listeners. Handles share the rail-resize-handle style in base.css, with a hit area extending about 8px on either side of the divider without affecting layout width. The shell permits handle overflow while the inner content container remains clipped. Only the primary button starts a drag; touch panning and text selection on the handle are disabled.</p>
+
+  <h2>Component boundaries</h2>
+  <table>
+    <tr><th>File</th><th>Responsibility</th></tr>
+    <tr><td><code>sidebar/sidebar.tsx</code></td><td>Left shell, persisted toggle, New chat, favorites and session composition</td></tr>
+    <tr><td><code>sidebar/sidebar-primary-nav.tsx</code></td><td>Fixed navigation, route highlighting, navigation icon animation and Programs refresh</td></tr>
+    <tr><td><code>right-sidebar/right-sidebar.tsx</code></td><td>Right shell, file entry and view container</td></tr>
+    <tr><td><code>right-sidebar/detail-panel.tsx</code></td><td>Details/Context switching and detail rendering for the selected DAG node</td></tr>
+  </table>
+  <p>Do not split the session list or AppShell in this restructuring: their independent state and interaction boundaries require a change separate from moving sidebar shells.</p>
+
+  <h2>Acceptance</h2>
+  <p>Drag each sidebar to its limit and collapse it: it should smoothly become 49px wide within 150ms. Expanding again restores its previous width. Dragging can begin within about 8px on either side of the divider. Hovering and dragging change only the cursor, with no extra highlight. Dragging continues after the pointer leaves the handle. Release, pointer cancellation or window blur must restore the collapse animation. Window-level end events supplement captured handle events; a move event that detects a released button also ends the drag.</p>
+
+  <h2>Implementation status</h2>
+  <p>Implemented: both sidebars use the same width behavior module. Fixed navigation and detail rendering have moved out of the shell files; shell components only compose them.</p>
+</main></body>
+</html>
