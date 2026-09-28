@@ -69,10 +69,16 @@ function SummaryBar({
   rows,
   totalUsed,
   window,
+  freeLabel,
+  hoveredIndex,
+  onHover,
 }: {
   rows: { label: string; tokens: number; color: string }[];
   totalUsed: number;
   window: number;
+  freeLabel: string;
+  hoveredIndex: number | null;
+  onHover: (index: number | null) => void;
 }) {
   const used = Math.max(0, Math.min(totalUsed, window));
   const reported = rows.reduce((sum, row) => sum + Math.max(0, row.tokens), 0);
@@ -80,26 +86,58 @@ function SummaryBar({
   // Keep the bar equal to the displayed total without exceeding the window.
   const scale = reported > used && reported > 0 ? used / reported : 1;
   const missing = Math.max(0, used - reported * scale);
+  let offset = 0;
+  const segments = rows.map((row, index) => {
+    const tokens = Math.max(0, row.tokens) * scale
+      + (index === rows.length - 1 ? missing : 0);
+    const left = window > 0 ? (offset / window) * 100 : 0;
+    offset += tokens;
+    return { ...row, index, tokens, left,
+      width: window > 0 ? (tokens / window) * 100 : 0 };
+  });
+  const free = Math.max(0, window - used);
   return (
     <div
-      className="flex h-[6px] w-full overflow-hidden rounded-full"
-      style={{ background: "var(--usage-track)" }}
-      role="img"
+      className="relative h-[12px] w-full"
       aria-label={rows.filter((row) => row.tokens > 0)
         .map((row) => `${row.label}: ${fmt(row.tokens)}`).join(", ")}
+      onPointerLeave={() => onHover(null)}
     >
-      {window > 0 && rows.map((row) => row.tokens > 0 && (
+      <span
+        className="absolute inset-x-0 top-[3px] h-[6px] rounded-full"
+        style={{ background: "var(--usage-track)" }}
+      />
+      {segments.map((segment) => segment.tokens > 0 && (
         <span
-          key={row.label}
-          className="h-full shrink-0"
-          style={{ width: `${(row.tokens * scale / window) * 100}%`, background: row.color }}
-          title={`${row.label}: ${fmt(row.tokens)}`}
+          key={segment.label}
+          className="absolute transition-[top,height] duration-150"
+          style={{
+            left: `${segment.left}%`,
+            width: `${segment.width}%`,
+            minWidth: hoveredIndex === segment.index ? 2 : undefined,
+            top: hoveredIndex === segment.index ? 0 : 3,
+            height: hoveredIndex === segment.index ? 12 : 6,
+            background: segment.color,
+            zIndex: hoveredIndex === segment.index ? 2 : 1,
+          }}
+          onPointerEnter={() => onHover(segment.index)}
+          title={`${segment.label}: ${fmt(segment.tokens)}`}
         />
       ))}
-      {window > 0 && missing > 0 && (
+      {window > 0 && free > 0 && (
         <span
-          className="h-full shrink-0"
-          style={{ width: `${(missing / window) * 100}%`, background: "var(--context-other)" }}
+          className="absolute transition-[top,height] duration-150"
+          style={{
+            left: `${(used / window) * 100}%`,
+            width: `${(free / window) * 100}%`,
+            top: hoveredIndex === rows.length ? 0 : 3,
+            height: hoveredIndex === rows.length ? 12 : 6,
+            background: hoveredIndex === rows.length
+              ? "color-mix(in srgb, var(--usage-track) 75%, var(--text-muted))"
+              : "var(--usage-track)",
+          }}
+          onPointerEnter={() => onHover(rows.length)}
+          title={`${freeLabel}: ${fmt(free)}`}
         />
       )}
     </div>
@@ -214,6 +252,7 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
     readContextBreakdownCache(sessionId, headId),
   );
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
 
   useEffect(() => {
     const sync = () => {
@@ -343,14 +382,30 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
                 {text("Last request measured", "上次请求实测")} {fmt(lastMeasured || 0)}
               </div>
             )}
-            <SummaryBar rows={rows} totalUsed={totalUsed} window={win} />
+            <SummaryBar
+              rows={rows}
+              totalUsed={totalUsed}
+              window={win}
+              freeLabel={text("Free space", "剩余空间")}
+              hoveredIndex={hoveredCategory}
+              onHover={setHoveredCategory}
+            />
 
             <div className="my-3 h-px shrink-0 bg-[var(--border)]" />
 
             {/* 每行颜色与顶部总览条的对应分段一致。 */}
             <div className="space-y-2">
-              {rows.map((r) => (
-                <div key={r.label} style={{ opacity: r.zero ? 0.4 : 1 }}>
+              {rows.map((r, index) => (
+                <div
+                  key={r.label}
+                  onPointerEnter={() => setHoveredCategory(index)}
+                  onPointerLeave={() => setHoveredCategory(null)}
+                  style={{
+                    opacity: r.zero ? 0.4 : 1,
+                    background: hoveredCategory === index ? "var(--bg-hover)" : undefined,
+                    borderRadius: 4,
+                  }}
+                >
                   <div className="mb-[4px] flex items-center justify-between text-[12px]">
                     <span style={{ color: "var(--text-primary)" }}>{r.label}</span>
                     <span style={{ color: "var(--text-muted)" }}>
