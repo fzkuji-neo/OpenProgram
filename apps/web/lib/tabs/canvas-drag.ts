@@ -40,7 +40,7 @@ export function canvasDropAt(x: number, y: number): CanvasDrop | null {
 }
 export function showCanvasDrop(drop: CanvasDrop | null) {
   if (!drop) { preview?.remove(); preview = null; return; }
-  // Styled by .canvas-drop-preview (canvas-controls.module.css): soft system
+  // Styled by .canvas-drop-preview (app/styles/base.css): soft system
   // blue with a slight spring as it moves between drop zones.
   if (!preview) { preview = document.createElement("div"); preview.className = "canvas-drop-preview"; document.body.append(preview); }
   const inset = 4;
