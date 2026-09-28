@@ -13,6 +13,39 @@ import time
 import uuid
 
 
+def _record_canonical_context_stats(session_id: str, msg_id: str, conv: dict,
+                                    turn_result) -> None:
+    """Publish and persist the last request's context size after a WS turn."""
+    usage = getattr(turn_result, "usage", None) or {}
+    if not usage or not usage.get("context_tokens"):
+        return
+    from types import SimpleNamespace
+    from openprogram.agent.session_db import default_db
+    from openprogram.webui import server as _s
+
+    session = default_db().get_session(session_id) or {}
+    with _s._sessions_lock:
+        current = _s._sessions.get(session_id)
+        if current is None:
+            return
+        current["head_id"] = session.get("head_id")
+    _s._hydrate_messages_from_db(session_id)
+    measured_runtime = SimpleNamespace(
+        model=conv.get("model_override") or getattr(
+            conv.get("runtime"), "model", None,
+        ),
+        last_usage={
+            "input_tokens": int(usage.get("input_tokens") or 0),
+            "output_tokens": int(usage.get("output_tokens") or 0),
+            "cache_read": int(usage.get("cache_read_tokens") or 0),
+            "cache_create": int(usage.get("cache_write_tokens") or 0),
+            "context_tokens": int(usage.get("context_tokens") or 0),
+        },
+    )
+    _s._broadcast_context_stats(session_id, msg_id, chat_runtime=measured_runtime)
+    _s._save_session(session_id)
+
+
 def _db_agent_id(session_id: str) -> str:
     """Read agent_id from SessionStore, falling back to default."""
     from openprogram.agent.session_db import default_db
@@ -1201,7 +1234,20 @@ async def handle_chat(ws, cmd: dict):
             return await _adapter.activate(_admission, on_activated=_publish_activation)
 
         try:
-            asyncio.run(_activate())
+            activated = asyncio.run(_activate())
+            if activated is not None:
+                _active, turn_result = activated
+                # Stats are a derived projection; a transient failure here
+                # must not change the already-committed turn's outcome.
+                try:
+                    _record_canonical_context_stats(
+                        session_id, msg_id, conv, turn_result,
+                    )
+                except Exception:
+                    import logging
+                    logging.getLogger(__name__).exception(
+                        "failed to record context stats for %s", session_id,
+                    )
         finally:
             _release_surface_bindings(surface_context)
             try:

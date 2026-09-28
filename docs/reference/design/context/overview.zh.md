@@ -235,6 +235,10 @@ tool 保护(OpenCode)。
 圆环从 store 读 `total_used / window`；面板的头行读同样的字段，并据此推出
 `Free space`，所以分项行永远不和总数打架。
 
+当前 WebSocket 聊天入口在轮次结束后读取最后一次 provider 请求的 prompt
+用量，更新当前分支的 HEAD，广播实测统计并持久化。加载会话时，如果旧轮次保存的
+provider 用量比已有统计新，且之后没有修改会话状态，会据此恢复实测统计。
+
 **这个数永远描述"此刻"。** 两种来源：
 
 | basis | 何时 | `total_used` |
