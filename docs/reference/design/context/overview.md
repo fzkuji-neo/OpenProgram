@@ -307,3 +307,5 @@ function. It and ContextCommit are two ways of landing the same idea — annotat
 discardable and recomputable state in a SQL table, versus ContextCommit as an immutable snapshot in
 git JSON. ContextCommit is what the system uses; the ideas that carried over (compaction tightens
 monotonically, the view is a pure function, summaries are not written to the DAG) are described above.
+
+Current context occupancy uses the last measured request, never the sum of requests in a turn. Empty terminal events preserve the last measurement. If no measurement exists, the UI uses a local estimate. Persisted usage and calibration from the older cumulative accounting format are invalidated; cumulative billing totals remain unchanged.

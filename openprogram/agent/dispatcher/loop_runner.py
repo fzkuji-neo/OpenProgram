@@ -880,6 +880,7 @@ def run_loop_blocking(
             "input_tokens": 0, "output_tokens": 0,
             "cache_read_tokens": 0, "cache_write_tokens": 0,
             "provider_request_count": 0, "agent_iteration_count": 0,
+            "context_tokens": 0,
         }
         tool_calls: list[dict] = []
         seen_tool_ids: set[str] = set()
@@ -994,13 +995,15 @@ def run_loop_blocking(
                         # 当前上下文占用 ≈ 最后一次调用的 prompt 体积
                         # （input + cache_read）。turn 内多次调用的 input
                         # 之和会远超窗口，只能用于计费，不能用于占用率。
-                        usage_total["context_tokens"] = (
+                        prompt_tokens = (
                             usage.get("input_tokens", 0)
                             + usage.get("cache_read_tokens", 0)
                         )
-                        if usage.get("request_input_estimate"):
-                            usage_total["request_input_estimate"] = usage["request_input_estimate"]
-                        if usage_total["context_tokens"] > 0:
+                        # Empty terminal events must not erase the last request.
+                        if prompt_tokens > 0:
+                            usage_total["context_tokens"] = prompt_tokens
+                            usage_total["request_input_estimate"] = usage.get("request_input_estimate", 0)
+                        if prompt_tokens > 0:
                             on_event({
                                 "type": "chat_response",
                                 "data": {

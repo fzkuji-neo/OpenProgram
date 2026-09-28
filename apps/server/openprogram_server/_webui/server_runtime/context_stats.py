@@ -194,6 +194,7 @@ def _broadcast_context_stats(session_id: str, msg_id: str, chat_runtime=None, ex
 
     stats = {
         "type": "context_stats",
+        "context_usage_version": 2,
         "chat": conv.get("_chat_usage", dict(_zero)),
         "exec": exec_stats,
         "provider": provider_name,
@@ -267,6 +268,8 @@ def _build_context_occupancy(session_id, conv, *, measured_total=None,
         return occupancy
     except Exception:
         prev = (conv or {}).get("_last_context_stats") or {}
+        if prev.get("context_usage_version") != 2:
+            prev = {}
         return {
             "window": int(window or prev.get("window") or 0),
             "total_used": int(measured_total or prev.get("total_used") or 0),
@@ -312,7 +315,7 @@ def session_context_stats(
     same_rev = int(prev.get("_context_rev") or 0) == int(
         conv.get("_context_rev") or 0
     )
-    if prev.get("basis") in ("measured", "estimated") and (
+    if prev.get("context_usage_version") == 2 and prev.get("basis") in ("measured", "estimated") and (
         head_id is None or head_id == conv.get("head_id")
     ) and same_rev:
         out = {k: prev[k] for k in
@@ -363,7 +366,8 @@ def refresh_context_stats(session_id: str, msg_id: str = "") -> None:
         usage_at = float(usage.get("last_updated_at") or 0)
         previous_at = float(previous.get("timestamp") or 0)
         session_at = float(session.get("updated_at") or 0)
-        if (usage_at > previous_at and session_at <= usage_at
+        if (usage.get("context_usage_version") == 2
+                and usage_at > previous_at and session_at <= usage_at
                 and int(usage.get("last_prompt_tokens") or 0) > 0):
             measured_total = (int(usage["last_prompt_tokens"])
                               + int(usage.get("last_cache_read_tokens") or 0))
@@ -375,7 +379,8 @@ def refresh_context_stats(session_id: str, msg_id: str = "") -> None:
     current_model = conv.get("model_override") or getattr(conv.get("runtime"), "model", None)
     reusable_calibration = (
         prev.get("calibration")
-        if (not measured_total and prev.get("calibration_source") == "request"
+        if (not measured_total and prev.get("context_usage_version") == 2
+            and prev.get("calibration_source") == "request"
             and prev.get("provider") == current_provider
             and prev.get("model") == current_model)
         else None
@@ -389,6 +394,7 @@ def refresh_context_stats(session_id: str, msg_id: str = "") -> None:
         **{k: v for k, v in prev.items()
            if k not in ("calibration", "calibration_source", "breakdown")},
         "type": "context_stats",
+        "context_usage_version": 2,
         "session_id": session_id,
         "provider": current_provider,
         "model": current_model,

@@ -17,10 +17,12 @@ def _record_context_usage(session_id: str, msg_id: str, conv: dict,
                           usage: dict, *, refresh_head: bool = False) -> None:
     """Publish and persist a provider request's measured prompt size."""
     measured = int(usage.get("context_tokens") or 0) if usage else 0
-    if not measured and usage:
+    if usage and "context_tokens" not in usage:
         measured = (int(usage.get("input_tokens") or 0)
                     + int(usage.get("cache_read_tokens") or 0))
     if not measured:
+        from openprogram.webui import server as _s
+        _s.refresh_context_stats(session_id, msg_id)
         return
     from types import SimpleNamespace
     from openprogram.agent.session_db import default_db

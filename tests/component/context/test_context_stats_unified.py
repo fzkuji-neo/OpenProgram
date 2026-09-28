@@ -99,6 +99,7 @@ def test_refresh_reuses_only_same_model_request_calibration(monkeypatch, session
     conv["_last_context_stats"] = {
         "basis": "measured", "total_used": 120_000,
         "calibration": 2.0, "calibration_source": "request",
+        "context_usage_version": 2,
         "provider": "anthropic", "model": "m1", "window": 200_000,
     }
     srv.refresh_context_stats("ctx-test")
@@ -148,6 +149,7 @@ def test_panel_total_matches_the_ring_total(monkeypatch, session):
 def test_panel_reuses_the_measurement_while_the_graph_holds(session):
     conv, _sent = session
     conv["_last_context_stats"] = {
+        "context_usage_version": 2,
         "window": 200_000, "total_used": 77_777,
         "basis": "measured", "estimated": 60_000, "calibration": 1.3,
     }
@@ -188,6 +190,7 @@ def test_panel_re_estimates_for_a_different_branch(session):
     conv, _sent = session
     conv["head_id"] = "head-a"
     conv["_last_context_stats"] = {
+        "context_usage_version": 2,
         "window": 200_000, "total_used": 77_777, "basis": "measured",
     }
     stats = srv.session_context_stats("ctx-test", head_id="head-b")
@@ -247,7 +250,7 @@ def test_refresh_recovers_provider_usage_newer_than_stale_badge(monkeypatch, ses
     monkeypatch.setattr(session_db, "default_db", lambda: type("DB", (), {
         "get_session": lambda self, _sid: {
             "updated_at": 150.0,
-            "_usage": json.dumps({"last_updated_at": 200.0,
+            "_usage": json.dumps({"context_usage_version": 2, "last_updated_at": 200.0,
                                   "last_prompt_tokens": 99_000,
                                   "last_cache_read_tokens": 3_000}),
         },
@@ -287,6 +290,7 @@ def test_refresh_survives_an_estimator_failure(monkeypatch, session):
     """A transient DB error must not blank the ring."""
     conv, sent = session
     conv["_last_context_stats"] = {
+        "context_usage_version": 2,
         "window": 200_000, "total_used": 50_000, "basis": "measured",
     }
     monkeypatch.setattr(
@@ -325,3 +329,40 @@ def test_every_graph_change_calls_refresh(monkeypatch):
     # branch.py holds two separate call sites (checkout and delete).
     assert (root / "ws_actions/branch.py").read_text(
         encoding="utf-8").count("refresh_context_stats") == 2
+
+
+def test_missing_last_request_does_not_display_turn_billing(monkeypatch, session):
+    from openprogram.webui.ws_actions.chat import _record_context_usage
+    conv, sent = session
+    conv["_last_context_stats"] = {
+        "total_used": 2404285, "basis": "measured",
+        "calibration": 24.6101, "calibration_source": "request",
+    }
+    _record_context_usage("ctx-test", "msg", conv, {
+        "input_tokens": 2254931, "cache_read_tokens": 149354,
+        "context_tokens": 0, "request_input_estimate": 97695,
+    })
+    assert sent[-1]["basis"] == "estimated"
+    assert sent[-1]["total_used"] == sent[-1]["estimated"]
+    assert sent[-1]["total_used"] < 100000
+    assert "calibration" not in sent[-1]
+
+
+def test_usage_tracker_separates_billing_from_occupancy():
+    from openprogram.context.usage import UsageTracker
+    from openprogram.context.types import UsageState
+    tracker = UsageTracker()
+    tracker._cache["s"] = UsageState()
+    state = tracker.record_turn("s", usage={
+        "input_tokens": 2254931, "cache_read_tokens": 149354,
+        "context_tokens": 100000,
+    }, persist=False)
+    assert state.last_prompt_tokens == 100000
+    assert state.last_cache_read_tokens == 0
+    assert state.cumulative_prompt_tokens == 2254931
+    assert state.cumulative_cache_read_tokens == 149354
+    state = tracker.record_turn("s", usage={
+        "input_tokens": 2000000, "context_tokens": 0,
+    }, persist=False)
+    assert state.last_prompt_tokens == 0
+    assert state.source == "estimate"
