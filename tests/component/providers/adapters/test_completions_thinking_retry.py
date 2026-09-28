@@ -151,3 +151,46 @@ def test_visible_text_mid_stream_error_does_not_retry(monkeypatch):
         pass
     else:
         raise AssertionError("committed text must not be silently retried")
+
+
+@pytest.mark.parametrize("finish", [None, "stop"])
+def test_thinking_only_completion_requests_continuation(monkeypatch, finish):
+    streams = [_Stream([_chunk(thinking="unfinished", finish=finish)])]
+    _install(monkeypatch, streams)
+
+    done = next(event for event in _consume() if event.type == "done")
+    assert done.message.stop_reason == "length"
+    assert [block.thinking for block in done.message.content if block.type == "thinking"] == ["unfinished"]
+    assert streams == []
+
+
+def test_eof_without_finish_reason_is_not_success(monkeypatch):
+    streams = [_Stream([_chunk(text="partial")])]
+    _install(monkeypatch, streams)
+
+    done = next(event for event in _consume() if event.type == "done")
+    assert done.message.stop_reason == "length"
+    assert [block.text for block in done.message.content if block.type == "text"] == ["partial"]
+
+
+def test_trailing_none_does_not_erase_explicit_length(monkeypatch):
+    streams = [_Stream([_chunk(text="partial", finish="length"), _chunk()])]
+    _install(monkeypatch, streams)
+
+    done = next(event for event in _consume() if event.type == "done")
+    assert done.message.stop_reason == "length"
+
+
+@pytest.mark.parametrize("finish", [None, "length"])
+def test_incomplete_tool_call_is_not_executable(monkeypatch, finish):
+    tool_delta = SimpleNamespace(
+        index=0, id="call_1",
+        function=SimpleNamespace(name="Bash", arguments='{"cmd":"incomplete'),
+    )
+    chunk = _chunk(finish=finish)
+    chunk.choices[0].delta.tool_calls = [tool_delta]
+    _install(monkeypatch, [_Stream([chunk])])
+
+    done = next(event for event in _consume() if event.type == "done")
+    assert done.message.stop_reason == "length"
+    assert all(block.type != "toolCall" for block in done.message.content)

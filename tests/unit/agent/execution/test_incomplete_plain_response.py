@@ -66,6 +66,16 @@ def test_length_response_continues_instead_of_ending_turn():
     assert len(contexts) == 2
 
 
+def test_progressive_length_responses_do_not_hit_no_progress_limit():
+    _messages, _events, contexts = asyncio.run(_run([
+        _message("part one", "length"),
+        _message("part two", "length"),
+        _message("part three", "length"),
+        _message("complete"),
+    ]))
+    assert len(contexts) == 4
+
+
 def test_repeated_empty_responses_fail_clearly():
     with pytest.raises(RuntimeError, match="model_response_incomplete"):
         asyncio.run(_run([_message(""), _message(""), _message("")]))
