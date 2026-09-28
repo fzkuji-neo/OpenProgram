@@ -6,6 +6,11 @@ export type CanvasLayout = { root: LayoutNode; focusedPaneId: string; zoomedPane
 export type CanvasSide = "left" | "right" | "top" | "bottom" | "center";
 export type CanvasPreset = "1x1" | "1x2" | "2x1" | "main+2" | "2x2" | "3x3" | "4x4";
 export type Rect = { left: number; top: number; width: number; height: number };
+
+export function canvasViewport(width: number, height: number): Rect {
+  const padding = 8;
+  return { left: padding, top: padding, width: Math.max(0, width - padding * 2), height: Math.max(0, height - padding * 2) };
+}
 const id = () => `canvas:${crypto.randomUUID()}`;
 export const pane = (content: string | null = null): LayoutNode => ({ kind: "pane", id: id(), content });
 export const leaves = (node: LayoutNode): Extract<LayoutNode, { kind: "pane" }>[] => node.kind === "pane" ? [node] : node.children.flatMap(leaves);
