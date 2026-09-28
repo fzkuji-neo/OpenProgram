@@ -89,11 +89,11 @@ function validateTransferPayload(ctx, value) {
   if (serializedBytes(value, "Transfer payload") > TRANSFER_PAYLOAD_MAX_BYTES) {
     throw new TypeError("Transfer payload is too large");
   }
-  if (!Array.isArray(value.tabs) || value.tabs.length < 1 || value.tabs.length > 3) {
-    throw new TypeError("Transfer payload requires one to three tabs");
+  if (!Array.isArray(value.tabs) || value.tabs.length < 1 || value.tabs.length > 256) {
+    throw new TypeError("Transfer payload requires one to 256 tabs");
   }
 
-  const validKinds = new Set(["session", "file", "web", "ntp", "application"]);
+  const validKinds = new Set(["session", "file", "web", "ntp", "application", "builtin"]);
   const tabs = [];
   const ids = [];
   const seen = new Set();
@@ -118,7 +118,7 @@ function validateTransferPayload(ctx, value) {
     for (const field of ["url", "path", "projectId", "sessionId", "applicationId", "applicationInstanceId"]) {
       if (tab[field] !== undefined && tab[field] !== null) normalized[field] = tab[field];
     }
-    for (const field of ["draft", "dirty"]) {
+    for (const field of ["draft", "dirty", "canvasAnchor"]) {
       const item = optionalBoolean(tab[field], `tab.${field}`);
       if (item !== undefined) normalized[field] = item;
     }
@@ -142,6 +142,14 @@ function validateTransferPayload(ctx, value) {
         throw new TypeError("Session history does not match current session");
       }
       normalized.sessionHistory = { entries, index: history.index };
+    }
+    if (tab.kind === "builtin") {
+      if (!["files", "browser", "bookmarks", "history", "downloads", "terminal", "claude", "review"].includes(tab.page)) throw new TypeError("Invalid builtin page");
+      normalized.page = tab.page;
+      for (const field of ["reviewSessionId", "reviewMsgId", "reviewScope", "reviewPath"]) {
+        boundedString(tab[field], `tab.${field}`, 16 * 1024);
+        if (tab[field] !== undefined) normalized[field] = tab[field];
+      }
     }
     copyNavigationFields(tab, normalized, boundedString);
     copyPageHistory(tab, normalized, page => {
@@ -185,12 +193,12 @@ function validateTransferPayload(ctx, value) {
   }
   if (sourceKind === "segment" || sourceKind === "group") {
     const memberIds = uniqueBoundedIds(value.source.memberIds, "source.memberIds", {
-      min: 2,
-      max: 3,
+      min: 1,
+      max: 256,
     });
     const visibleIds = uniqueBoundedIds(value.source.visibleIds, "source.visibleIds", {
       min: 1,
-      max: 2,
+      max: 256,
     });
     boundedString(value.source.focusedId, "source.focusedId", 4 * 1024, true);
     if (visibleIds.some((id) => !memberIds.includes(id))) {
@@ -216,6 +224,28 @@ function validateTransferPayload(ctx, value) {
     source.memberIds = memberIds;
     source.visibleIds = visibleIds;
     source.focusedId = value.source.focusedId;
+    if (sourceKind === "group" && value.source.canvas !== undefined) {
+      const canvas = value.source.canvas;
+      const nodeIds = new Set(), contents = new Set(); let count = 0;
+      function node(n, depth = 0) {
+        if (!isPlainObject(n) || depth > 64 || ++count > 4096) throw new TypeError("Invalid canvas tree");
+        boundedString(n.id, "canvas node id", 4096, true);
+        if (nodeIds.has(n.id)) throw new TypeError("Duplicate canvas node id");
+        nodeIds.add(n.id);
+        if (n.kind === "pane") {
+          if (n.content !== null && (!memberIds.includes(n.content) || contents.has(n.content))) throw new TypeError("Invalid canvas content");
+          if (n.content) contents.add(n.content);
+          return { kind: "pane", id: n.id, content: n.content };
+        }
+        if (n.kind !== "split" || !["row", "col"].includes(n.dir) || !Array.isArray(n.children) || !n.children.length || !Array.isArray(n.sizes) || n.sizes.length !== n.children.length || n.sizes.some(s => !Number.isFinite(s) || s <= 0)) throw new TypeError("Invalid canvas split");
+        const sum = n.sizes.reduce((a,b) => a+b,0);
+        return { kind: "split",id:n.id,dir:n.dir,children:n.children.map(c => node(c,depth+1)),sizes:n.sizes.map(s => s/sum) };
+      }
+      const root = node(canvas.root);
+      if (!nodeIds.has(canvas.focusedPaneId) || (canvas.zoomedPaneId && !nodeIds.has(canvas.zoomedPaneId))) throw new TypeError("Invalid canvas focus");
+      source.canvas = { root, focusedPaneId:canvas.focusedPaneId, zoomedPaneId:canvas.zoomedPaneId };
+    }
+
     if (sourceKind === "segment") source.memberIndex = value.source.memberIndex;
   }
 

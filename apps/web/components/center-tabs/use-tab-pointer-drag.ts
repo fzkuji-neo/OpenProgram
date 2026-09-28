@@ -13,6 +13,7 @@
  * dragging; the torn-off window is created at RELEASE.
  */
 import { useLayoutEffect, useRef, useState } from "react";
+import { canvasDropAt, showCanvasDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
 
 import {
   DETACH_HYSTERESIS_PX,
@@ -69,6 +70,7 @@ interface PointerDragState {
   targets: PointerDropTarget[];
   /** Latest clamped offset, re-applied after each React commit. */
   lastTx: number;
+  lastTy?: number;
   lastIntent: TabDropIntent | null;
   /** Tab strip's vertical span (viewport px), snapshotted at drag start.
    *  Detach intent triggers geometrically when the cursor leaves this band;
@@ -154,10 +156,11 @@ export function useTabPointerDrag({
   useLayoutEffect(() => {
     const drag = pointerDragRef.current;
     if (!drag?.started) return;
-    drag.element.style.transform = `translateX(${drag.lastTx}px)`;
+    drag.element.style.transform = `translate(${drag.lastTx}px, ${drag.lastTy ?? 0}px)`;
   });
 
   function clearDragState() {
+    setCanvasDragging(false);
     removeReleaseListener();
     setResourceTarget(null);
     setDraggedIds(new Set());
@@ -375,6 +378,7 @@ export function useTabPointerDrag({
       drag.stripTop = stripRect.top;
       drag.stripBottom = stripRect.bottom;
       drag.element.setAttribute("data-pointer-drag", "true");
+      setCanvasDragging(true);
       try {
         drag.element.setPointerCapture(drag.pointerId);
       } catch {
@@ -392,7 +396,7 @@ export function useTabPointerDrag({
     const bridge = desktopBridge();
     const hasTransferToken = Boolean(dragCoordinator.current()?.transferToken);
     const isSoloWindow =
-      Boolean(bridge?.moveWindowBy) && useCenterTabs.getState().tabs.length === 1;
+      false;
     if (isSoloWindow) {
       // The lone tab NEVER moves relative to its strip — the WINDOW moves under
       // it. Move the window every frame, even while hovering another window:
@@ -418,9 +422,11 @@ export function useTabPointerDrag({
       // must NOT lift that clamp (that let the tab run out to the window edge
       // and nearly clip). Intent is shown by the floating "New window" pill and
       // the detach-intent style, never by the tab body leaving its row.
-      const tx = Math.min(Math.max(dx, drag.minTx), drag.maxTx);
+      const outsideBand = e.clientY < drag.stripTop || e.clientY > drag.stripBottom;
+      const tx = outsideBand ? dx : Math.min(Math.max(dx, drag.minTx), drag.maxTx);
+      drag.lastTy = outsideBand ? dy : 0;
       drag.lastTx = tx;
-      drag.element.style.transform = `translateX(${tx}px)`;
+      drag.element.style.transform = `translate(${tx}px, ${drag.lastTy}px)`;
     }
 
     const resourceTarget = resourceDropTarget(drag.subject, e.clientX, e.clientY);
@@ -434,6 +440,14 @@ export function useTabPointerDrag({
       setDetachOverTarget(false);
       drag.element.removeAttribute("data-detach-intent");
       publishDropMarker(null);
+      return;
+    }
+
+    const canvasDrop = canvasDropAt(e.clientX, e.clientY);
+    showCanvasDrop(canvasDrop);
+    if (canvasDrop) {
+      drag.detaching = false; drag.overWindow = false; drag.lastIntent = null;
+      setDetaching(false); setDetachCue(null); publishDropMarker(null);
       return;
     }
 
@@ -608,6 +622,17 @@ export function useTabPointerDrag({
       clearDragState();
       return;
     }
+    const canvasDrop = resourceTarget ? null : canvasDropAt(e.clientX, e.clientY);
+    if (canvasDrop) {
+      restorePointerDragElement(drag.element, false);
+      const committed = dragCoordinator.commit();
+      clearDragState();
+      if (committed) void (async () => {
+        if (committed.transferToken && !await desktopBridge()?.tabTransfer.cancel(committed.transferToken)) return;
+        useCenterTabs.getState().dockCanvas(committed.subject.tabIds, canvasDrop.targetId, canvasDrop.paneId, canvasDrop.side);
+      })();
+      return;
+    }
     if (resourceTarget) {
       const sessionId = resourceTarget.dataset.resourceDropSession!;
       restorePointerDragElement(drag.element, true);
@@ -649,7 +674,7 @@ export function useTabPointerDrag({
       restorePointerDragElement(drag.element, true);
       const token = prepared.transferToken;
       const bridge = desktopBridge();
-      const wantsDetach = drag.detaching; // geometric tear-off intent at release
+      const wantsDetach = drag.detaching && (e.clientX < 0 || e.clientY < 0 || e.clientX > window.innerWidth || e.clientY > window.innerHeight);
       dragCoordinator.clear(); // main / the destination owns the token now
       clearDragState();
       if (!bridge || !token) return;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
@@ -8,6 +8,8 @@ import { PageShell } from "./page-shell";
 import { Sidebar } from "./sidebar/sidebar";
 import { RightSidebar } from "./right-sidebar/right-sidebar";
 import { CenterTabStrip } from "./center-tabs/center-tab-strip";
+import { CanvasControls, CANVAS_HEADER, CANVAS_TOOLBAR } from "./center-tabs/canvas-controls";
+import { canvasGeometry, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
 import { BrowserResourceProjection } from "@/lib/browser/browser-resource-projection";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
@@ -411,11 +413,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const setSplitRatio = useCenterTabs((s) => s.setSplitRatio);
   const centerBodyRef = useRef<HTMLDivElement | null>(null);
   const [centerBodyWidth, setCenterBodyWidth] = useState(0);
+  const [centerBodyHeight, setCenterBodyHeight] = useState(0);
   useEffect(() => {
     const node = centerBodyRef.current;
     if (!node) return;
     const measureScheduler = createSplitLayoutMeasureScheduler(() => {
       setCenterBodyWidth(node.getBoundingClientRect().width);
+      setCenterBodyHeight(node.getBoundingClientRect().height);
     });
     const layoutRoot = node.closest(".app");
     measureScheduler.schedule();
@@ -452,8 +456,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // so fall back to the focused tab alone.
   const panes = topLevelTabs(tabs, groups).length === 0
     ? []
-    : activeGroup && splitAvailable ? compoundPanes : focusedPanes;
-  const showDivider = panes.length === 2;
+    : activeGroup ? compoundPanes : focusedPanes;
+  const canvas = useMemo(() => activeGroup?.canvas ?? rowLayout(activeId ? [activeId] : [], splitRatio), [activeGroup?.canvas, activeId, splitRatio]);
+  const canvasLeaves = leaves(canvas.root);
+  const geometry = canvasGeometry(canvas.root, { left: 0, top: CANVAS_TOOLBAR, width: centerBodyWidth, height: Math.max(0, centerBodyHeight - CANVAS_TOOLBAR) });
+  const webIds = panes.flatMap(p => p.kind !== "session" && tabs.find(t => t.id === p.tabId)?.kind === "web" ? [p.tabId] : []);
+  const liveWebIds = new Set([...(activeId && webIds.includes(activeId) ? [activeId] : []), ...webIds.filter(id => id !== activeId)].slice(0, 8));
   const sessionPaneIndex = panes.findIndex((pane) => pane.kind === "session");
   const showChat = isChatRoute(pathname);
   const paintRows = hostPaintsRows(showChat, sessionPaneIndex, activeTabDagView);
@@ -477,16 +485,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSplitRatio(clampSplitRatioForWidth(ratio, rect.width));
   }
 
-  function centerPaneClassName(index: number) {
-    if (!showDivider) return "center-single-pane";
-    return index === 0 ? "center-split-primary" : "center-split-secondary";
-  }
-
-  function centerPaneStyle(index: number) {
-    if (!showDivider) return undefined;
-    return index === 0
-      ? { order: 0, width: `${effectiveSplitRatio * 100}%` }
-      : { order: 2 };
+  function centerPaneClassName(_index: number) { return "center-canvas-content"; }
+  function centerPaneStyle(index: number): CSSProperties {
+    const item = panes[index];
+    const tabId = item?.kind === "session" ? item.activeTabId : item?.tabId;
+    const p = canvasLeaves.find(p => p.content === tabId);
+    if (!p) return { display: "none" };
+    const r = canvas.zoomedPaneId === p.id
+      ? { left:0,top:CANVAS_TOOLBAR,width:centerBodyWidth,height:centerBodyHeight-CANVAS_TOOLBAR }
+      : geometry.panes.get(p.id)!;
+    const hidden = (canvas.zoomedPaneId && canvas.zoomedPaneId !== p.id) || r.width < 150 || r.height < 110;
+    return { position:"absolute",left:r.left+1,top:r.top+CANVAS_HEADER,width:Math.max(0,r.width-2),height:Math.max(0,r.height-CANVAS_HEADER-1),minWidth:0,minHeight:0,overflow:"hidden",display:hidden?"none":"flex",flexDirection:"column" };
   }
 
   function renderTabPane(tabId: string, kind: "peer" | "tab") {
@@ -505,7 +514,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return <FileTabPane projectId={tab.projectId} path={tab.path} />;
     }
     if (tab.kind === "web") {
-      return <WebTabPane tabId={tab.id} url={tab.url ?? ""} />;
+      return <WebTabPane tabId={tab.id} url={tab.url ?? ""} suspended={!liveWebIds.has(tab.id)} />;
     }
     if (tab.kind === "application" && tab.applicationInstanceId) {
       return <ApplicationTabPane instanceId={tab.applicationInstanceId} />;
@@ -573,6 +582,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div
           ref={centerBodyRef}
           className="center-body"
+          data-canvas-root="true"
           style={{ flex: 1, minHeight: 0, display: "flex", position: "relative" }}
         >
           {/* Chat shell is mounted ONCE at the layout level and kept
@@ -601,39 +611,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DagView visible={activeTabDagView} />
             <ViewControls />
           </div>
-          {showChat && showDivider ? (
-            <div
-              className="center-split-divider"
-              style={{ order: 1 }}
-              role="separator"
-              aria-orientation="vertical"
-              aria-valuenow={Math.round(effectiveSplitRatio * 100)}
-              tabIndex={0}
-              onPointerDown={(e) => {
-                if (e.button !== 0) return;
-                e.currentTarget.setPointerCapture(e.pointerId);
-                e.preventDefault();
-              }}
-              onPointerMove={(e) => {
-                if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-                const rect = centerBodyRef.current?.getBoundingClientRect();
-                if (!rect || rect.width <= 0) return;
-                updateSplitRatio((e.clientX - rect.left) / rect.width);
-              }}
-              onPointerUp={(e) => {
-                if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-                  e.currentTarget.releasePointerCapture(e.pointerId);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-                e.preventDefault();
-                updateSplitRatio(
-                  effectiveSplitRatio + (e.key === "ArrowLeft" ? -0.02 : 0.02),
-                );
-              }}
-            />
-          ) : null}
+          {showChat && activeId && panes.length > 0 ? <CanvasControls layout={canvas} targetId={activeId} width={centerBodyWidth} height={centerBodyHeight} /> : null}
           {showChat
             ? panes.map((pane, index) => {
                 if (pane.kind === "session") return null;
@@ -644,6 +622,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 return (
                   <div
                     key={pane.key}
+                    onPointerDownCapture={() => useCenterTabs.getState().setActive(pane.tabId)}
                     className={centerPaneClassName(index)}
                     style={centerPaneStyle(index)}
                   >

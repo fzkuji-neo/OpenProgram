@@ -54,10 +54,11 @@ export function bindTransfers(useCenterTabs: StoreApi<CenterTabsState>, closedSe
     const memberIds = payload.source.kind === "segment"
       ? sourceMemberIds.filter((id) => transferred.has(id))
       : sourceMemberIds;
-    if (memberIds.length < 2) return null;
+    if (memberIds.length < 2 && !payload.source.canvas) return null;
     const visibleIds = (payload.source.visibleIds ?? memberIds.slice(0, 2))
       .filter((id) => transferred.has(id));
     return {
+      canvas: payload.source.canvas,
       id: payload.source.groupId ?? `g:transfer:${memberIds.join(":")}`,
       memberIds,
       visibleIds,

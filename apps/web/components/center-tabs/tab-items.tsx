@@ -19,6 +19,7 @@ import {
   type AnimatedNavIconHandle,
 } from "@/components/animated-icons";
 import type { CenterTab } from "@/lib/tabs/center-tabs-store";
+import { leaves } from "@/lib/tabs/canvas-layout";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import type { TabDragSubject } from "@/lib/tabs/tab-drag-coordinator";
 import { useTranslation } from "@/lib/i18n";
@@ -185,8 +186,9 @@ export function CompoundTabItem({
           onActivate(canonicalTab);
         }}
       />
+      {group.canvas ? <span style={{ fontSize: 11, padding: "0 5px", color: "var(--text-muted)" }}>{leaves(group.canvas.root).length}</span> : null}
       <div className={styles.compoundMembers}>
-        {memberTabs.map((tab) => {
+        {memberTabs.slice(0, 2).map((tab) => {
           const memberClosing = !closing && closingIds.has(tab.id);
           const memberLabel = labelOf(tab, t, text);
           const closeLabel = `${text("Close", "关闭")} ${memberLabel}`;
