@@ -336,6 +336,24 @@ test("failure flushes pending progress and keeps the provider error separate", (
   ]);
 });
 
+test("retry status is visible during the same turn and clears on completion", () => {
+  const sid = "retry-status", uid = "retry-user", rid = uid + "_reply";
+  applyChatWsMessage({type:"chat_ack",data:{session_id:sid,msg_id:uid}});
+  applyChatWsMessage({type:"chat_response",data:{type:"stream_event",session_id:sid,msg_id:uid,
+    event:{type:"retry",attempt:2,max_attempts:3,reason:"transport",delay_ms:1500}}});
+  assert.deepEqual(useSessionStore.getState().messagesById[rid].retryStatus, {
+    attempt:2,maxAttempts:3,reason:"transport",delayMs:1500,
+  });
+  assert.equal(useSessionStore.getState().messagesById[rid].status,"streaming");
+  applyChatWsMessage({type:"chat_response",data:{type:"stream_event",session_id:sid,msg_id:uid,
+    event:{type:"thinking",text:"Continuing"}}});
+  assert.equal(useSessionStore.getState().messagesById[rid].retryStatus,undefined);
+  applyChatWsMessage({type:"chat_response",data:{type:"stream_event",session_id:sid,msg_id:uid,
+    event:{type:"retry",attempt:3,max_attempts:3,reason:"transport"}}});
+  applyChatWsMessage({type:"chat_response",data:{type:"result",session_id:sid,msg_id:uid,content:"Done"}});
+  assert.equal(useSessionStore.getState().messagesById[rid].retryStatus,undefined);
+});
+
 test("host execution outcome survives live stream and history mapping", async () => {
   reset();
   send({ type: "tool_use", tool: "bash", tool_call_id: "denied", input: "{}" });

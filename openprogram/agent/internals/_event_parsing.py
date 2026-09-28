@@ -56,7 +56,7 @@ def agent_event_to_envelope(ev, req: "TurnRequest") -> Optional[dict]:
                          "event": {"type": "thinking",
                                    "text": getattr(ame, "delta", "")}},
             }
-        if ame_type in {"structured_output_retry", "structured_output_end"}:
+        if ame_type in {"structured_output_retry", "structured_output_end", "retry"}:
             event = (
                 ame.model_dump(mode="json", exclude_none=True)
                 if hasattr(ame, "model_dump")
@@ -181,6 +181,9 @@ def extract_usage(msg) -> dict:
         "cache_read_tokens":  cache_read,
         "cache_write_tokens": cache_write,
     }
+    request_input_estimate = _g("request_input_estimate")
+    if request_input_estimate:
+        result["request_input_estimate"] = request_input_estimate
     requested = usage.get("requested_service_tier") if isinstance(usage, dict) else getattr(usage, "requested_service_tier", None)
     actual = usage.get("service_tier") if isinstance(usage, dict) else getattr(usage, "service_tier", None)
     if requested in ("priority", "fast") or actual in ("priority", "fast"):

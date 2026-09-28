@@ -252,6 +252,9 @@ class Usage(BaseModel):
     cache_read: int = 0
     cache_write: int = 0
     total_tokens: int = 0
+    # Local estimate of the exact request that produced this usage. It is
+    # paired with provider input usage to calibrate later graph estimates.
+    request_input_estimate: int = 0
     cost: UsageCost = Field(default_factory=UsageCost)
 
 
@@ -424,6 +427,14 @@ class EventStructuredOutputRetry(BaseModel):
     issues: list[dict[str, str]] = Field(default_factory=list)
 
 
+class EventRetry(BaseModel):
+    type: Literal["retry"] = "retry"
+    attempt: int
+    max_attempts: int | None = None
+    reason: str
+    delay_ms: int = 0
+
+
 class EventStructuredOutputEnd(BaseModel):
     type: Literal["structured_output_end"] = "structured_output_end"
     attempt: int
@@ -489,6 +500,7 @@ AssistantMessageEvent = Union[
     EventTextDelta,
     EventTextEnd,
     EventStructuredOutputRetry,
+    EventRetry,
     EventStructuredOutputEnd,
     EventThinkingStart,
     EventThinkingDelta,

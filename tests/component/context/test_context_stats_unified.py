@@ -82,6 +82,48 @@ def test_measurement_yields_measured_plus_calibration(fake_db):
     assert stats["calibration"] == pytest.approx(12345 / stats["estimated"], rel=1e-3)
 
 
+def test_calibration_pairs_provider_usage_with_dispatched_request(fake_db):
+    measured = cs.build_stats(
+        "s1", measured_total=120_000, request_input_estimate=60_000,
+    )
+    assert measured["calibration"] == 2.0
+    assert measured["calibration_source"] == "request"
+    after_compaction = cs.build_stats("s1", estimated_total=30_000, calibration=2.0)
+    assert after_compaction["basis"] == "estimated"
+    assert after_compaction["total_used"] == 60_000
+
+
+def test_refresh_reuses_only_same_model_request_calibration(monkeypatch, session):
+    conv, sent = session
+    conv["runtime"] = type("Runtime", (), {"model": "m1"})()
+    conv["_last_context_stats"] = {
+        "basis": "measured", "total_used": 120_000,
+        "calibration": 2.0, "calibration_source": "request",
+        "provider": "anthropic", "model": "m1", "window": 200_000,
+    }
+    srv.refresh_context_stats("ctx-test")
+    assert sent[-1]["total_used"] == 2 * sent[-1]["estimated"]
+    assert srv.session_context_stats("ctx-test")["total_used"] == sent[-1]["total_used"]
+    conv["model_override"] = "m2"
+    srv.refresh_context_stats("ctx-test")
+    assert sent[-1]["total_used"] == sent[-1]["estimated"]
+
+
+def test_websocket_usage_carries_paired_request_estimate(monkeypatch, session):
+    from openprogram.webui.ws_actions.chat import _record_context_usage
+    conv, sent = session
+    conv["runtime"] = type("Runtime", (), {"model": "m1"})()
+    monkeypatch.setattr(srv, "_save_session", lambda _sid: None)
+    _record_context_usage("ctx-test", "msg", conv, {
+        "input_tokens": 120_000, "output_tokens": 10,
+        "request_input_estimate": 60_000,
+    })
+    assert sent[-1]["basis"] == "measured"
+    assert sent[-1]["total_used"] == 120_000
+    assert sent[-1]["calibration"] == 2.0
+    assert sent[-1]["calibration_source"] == "request"
+
+
 def test_explicit_window_overrides_the_registry_lookup(fake_db):
     assert cs.build_stats("s1", window=1_000_000)["window"] == 1_000_000
 

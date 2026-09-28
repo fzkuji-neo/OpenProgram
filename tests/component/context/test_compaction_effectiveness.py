@@ -9,6 +9,7 @@ from openprogram.context.engine import DefaultContextEngine
 from openprogram.context.nodes import Call, ROLE_CODE, render_context
 from openprogram.context.render import render_dag_messages
 from openprogram.context.tokens import estimate_history_tokens
+from openprogram.context.summarize import Summarizer
 from openprogram.store.session.session_node_writer import SessionNodeWriter
 from openprogram.store.session.session_store import SessionStore
 
@@ -37,6 +38,24 @@ def rendered(store):
     g = SessionNodeWriter(store, 'compact').load()
     ids = render_context(g, head_id='a7', frame_entry_seq=-1)
     return g, ids, render_dag_messages(g, ids)
+
+
+def test_cut_can_summarize_giant_completed_turn_before_current_request():
+    history = []
+    for i in range(4):
+        history.extend([
+            {'role': 'user', 'content': f'request {i}', '_context_tokens': 50},
+            {'role': 'assistant', 'content': f'answer {i}', '_context_tokens': 1500},
+        ])
+    history.extend([
+        {'role': 'user', 'content': 'run tools', '_context_tokens': 50},
+        {'role': 'assistant', 'content': 'completed tool evidence', '_context_tokens': 60000},
+        {'role': 'user', 'content': 'continue from the evidence', '_context_tokens': 30},
+    ])
+
+    cut = Summarizer().find_cut_index(history, context_window=1_000_000)
+    assert cut == len(history) - 1
+    assert history[cut]['content'] == 'continue from the evidence'
 
 
 def test_short_tool_heavy_conversation_compacts_complete_input(conversation, monkeypatch):

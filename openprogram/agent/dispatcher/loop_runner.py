@@ -998,6 +998,8 @@ def run_loop_blocking(
                             usage.get("input_tokens", 0)
                             + usage.get("cache_read_tokens", 0)
                         )
+                        if usage.get("request_input_estimate"):
+                            usage_total["request_input_estimate"] = usage["request_input_estimate"]
                         if usage_total["context_tokens"] > 0:
                             on_event({
                                 "type": "chat_response",

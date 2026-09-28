@@ -158,6 +158,7 @@ def _broadcast_context_stats(session_id: str, msg_id: str, chat_runtime=None, ex
                 # 最后一次调用的 prompt 体积（input+cache_read）≈ 当前
                 # 上下文占用；badge 圆环用它算百分比，不用 turn 累计值。
                 "context_tokens": usage.get("context_tokens", 0),
+                "request_input_estimate": usage.get("request_input_estimate", 0),
             }
 
     # --- Exec usage (per-function, not cumulative) ---
@@ -188,6 +189,7 @@ def _broadcast_context_stats(session_id: str, msg_id: str, chat_runtime=None, ex
     measured = int((conv.get("_chat_usage") or {}).get("context_tokens") or 0)
     occupancy = state._build_context_occupancy(
         session_id, conv, measured_total=measured, window=context_window,
+        request_input_estimate=int((conv.get("_chat_usage") or {}).get("request_input_estimate") or 0),
     )
 
     stats = {
@@ -230,7 +232,8 @@ def _resolve_context_window(provider_name, model) -> int | None:
 
 
 def _build_context_occupancy(session_id, conv, *, measured_total=None,
-                             window=None, estimated_total=None) -> dict:
+                             window=None, estimated_total=None,
+                             request_input_estimate=None, calibration=None) -> dict:
     """``{window, total_used, basis, estimated[, calibration]}`` for a session.
 
     Falls back to the last broadcast record when the estimate cannot be
@@ -246,12 +249,15 @@ def _build_context_occupancy(session_id, conv, *, measured_total=None,
             measured_total=measured_total,
             window=window,
             estimated_total=estimated_total,
+            request_input_estimate=request_input_estimate,
+            calibration=calibration,
         )
         snapshot = occupancy.pop("_breakdown", None)
         if snapshot is not None and conv is not None:
             occ = {
                 key: occupancy[key]
-                for key in ("window", "total_used", "basis", "estimated", "calibration")
+                for key in ("window", "total_used", "basis", "estimated",
+                            "calibration", "calibration_source")
                 if key in occupancy
             }
             finalized = _cs.finalize_breakdown(snapshot, occ)
@@ -306,16 +312,16 @@ def session_context_stats(
     same_rev = int(prev.get("_context_rev") or 0) == int(
         conv.get("_context_rev") or 0
     )
-    if prev.get("basis") == "measured" and (
+    if prev.get("basis") in ("measured", "estimated") and (
         head_id is None or head_id == conv.get("head_id")
     ) and same_rev:
         out = {k: prev[k] for k in
                 ("window", "total_used", "basis", "estimated",
-                 "calibration", "_context_rev")
+                 "calibration", "calibration_source", "_context_rev")
                 if k in prev}
         if estimated_total is not None:
             out["estimated"] = int(estimated_total)
-            if int(estimated_total) > 0:
+            if int(estimated_total) > 0 and out.get("calibration_source") != "request":
                 out["calibration"] = round(
                     int(out.get("total_used") or 0) / int(estimated_total), 4
                 )
@@ -363,15 +369,29 @@ def refresh_context_stats(session_id: str, msg_id: str = "") -> None:
                               + int(usage.get("last_cache_read_tokens") or 0))
     except (ValueError, TypeError, AttributeError, OSError):
         pass
+    prev = conv.get("_last_context_stats") or {}
+    current_provider = (conv.get("provider_override") or conv.get("provider_name")
+                        or state._runtime_management._default_provider) or ""
+    current_model = conv.get("model_override") or getattr(conv.get("runtime"), "model", None)
+    reusable_calibration = (
+        prev.get("calibration")
+        if (not measured_total and prev.get("calibration_source") == "request"
+            and prev.get("provider") == current_provider
+            and prev.get("model") == current_model)
+        else None
+    )
     occupancy = state._build_context_occupancy(
         session_id, conv, measured_total=measured_total,
         window=state._conv_context_window(conv),
+        calibration=reusable_calibration,
     )
-    prev = conv.get("_last_context_stats") or {}
     stats = {
-        **{k: v for k, v in prev.items() if k not in ("calibration", "breakdown")},
+        **{k: v for k, v in prev.items()
+           if k not in ("calibration", "calibration_source", "breakdown")},
         "type": "context_stats",
         "session_id": session_id,
+        "provider": current_provider,
+        "model": current_model,
         "context_window": occupancy["window"] or prev.get("context_window"),
         **occupancy,
         "_context_rev": conv["_context_rev"],

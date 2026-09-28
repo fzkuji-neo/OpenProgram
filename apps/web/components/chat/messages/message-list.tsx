@@ -207,8 +207,8 @@ function SystemEventRow({ msg }: { msg: ChatMsg }) {
   const label = msg.kind === "compaction" && msg.slot === "event" && typeof n === "number"
     ? (tb != null && ta != null
       ? text(
-          `Context compacted here: covered ${n} messages, ${tb} → ${ta} tokens`,
-          `此处压缩了上下文：盖住 ${n} 条，${tb} → ${ta} tokens`,
+          `Context compacted here: covered ${n} messages, estimated ${tb} → ${ta} tokens`,
+          `此处压缩了上下文：盖住 ${n} 条，本地估算 ${tb} → ${ta} tokens`,
         )
       : text(
           `Context compacted here: covered ${n} messages`,

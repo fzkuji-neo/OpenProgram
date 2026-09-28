@@ -16,6 +16,7 @@ from openprogram.providers.types import (
     AssistantMessage,
     Context,
     EventDone,
+    EventRetry,
     EventStructuredOutputEnd,
     EventStructuredOutputRetry,
     TextContent,
@@ -843,6 +844,15 @@ async def _run_loop_with_recovery(
                     raise RuntimeError(
                         "model_response_incomplete: provider stopped without a complete answer"
                     )
+                ev_stream.push(AgentEventMessageUpdate(
+                    message=message,
+                    assistant_message_event=EventRetry(
+                        attempt=2 if visible_text else incomplete_responses + 1,
+                        max_attempts=None if visible_text else 3,
+                        reason="output_limit" if message.stop_reason == "length" and visible_text
+                        else "incomplete_response",
+                    ),
+                ))
                 commit_assistant(message)
                 ev_stream.push(AgentEventTurnEnd(message=message, tool_results=[]))
                 current_context.messages.append(UserMessage(
@@ -1339,6 +1349,17 @@ async def _stream_assistant_response(
         context._request_compactor = RequestCompactor()
     llm_context = await context._request_compactor.prepare(llm_context, config.model, stream_opts, get_api_key=config.get_api_key)
 
+    # Estimate the dispatched request, before its in-flight assistant/tool
+    # messages are coalesced into the persisted conversation graph.
+    from openprogram.context.budget import default_allocator
+    from openprogram.context.tokens import real_context_window
+    request_input_estimate = default_allocator.allocate(
+        context_window=real_context_window(config.model),
+        system_prompt=llm_context.system_prompt or "",
+        history=llm_context.messages,
+        tools=llm_context.tools or [],
+    ).input_used
+
     partial_message: AssistantMessage | None = None
     added_partial = False
     repetition_guard = _RepeatedTextGuard() if context.tools else None
@@ -1468,11 +1489,27 @@ async def _stream_assistant_response(
                         assistant_message_event=event,
                     ))
 
+            elif event.type == "retry" and partial_message is not None:
+                ev_stream.push(AgentEventMessageUpdate(
+                    message=partial_message,
+                    assistant_message_event=event,
+                ))
+
             elif event.type in ("done", "error"):
                 response.status = "completed" if event.type == "done" else (
                     "cancelled" if event.error.stop_reason == "aborted" else "failed"
                 )
                 final_message = event.message if event.type == "done" else event.error
+                if final_message.usage.tokens_reported:
+                    final_message.usage.request_input_estimate = request_input_estimate
+                    if (final_message.model == config.model.id
+                            and final_message.provider == config.model.provider):
+                        context._request_compactor.note_usage(
+                            config.model,
+                            measured_input=(final_message.usage.input
+                                            + final_message.usage.cache_read),
+                            request_estimate=request_input_estimate,
+                        )
                 if receipt is not None:
                     receipt.update(stop_reason=final_message.stop_reason,
                                    usage=_durable_message(final_message.usage))
