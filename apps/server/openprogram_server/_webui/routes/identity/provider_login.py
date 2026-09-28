@@ -46,6 +46,7 @@ class _LoginSession:
         self.pending: dict | None = None    # {message, secret, future} while prompting
         self.done: bool = False
         self.ok: bool = False
+        self.error_code: str | None = None
         self.error: str | None = None
         self.name: str | None = None        # saved account id on success
         self.label: str | None = None       # saved human-readable label
@@ -239,7 +240,9 @@ def register(app):
             except asyncio.CancelledError:
                 raise
             except Exception as e:  # noqa: BLE001
-                sess.error = f"{e.__class__.__name__}: {e}"
+                from openprogram.auth.methods.pkce_oauth import OAuthExchangeError
+                sess.error_code = e.category if isinstance(e, OAuthExchangeError) else None
+                sess.error = str(e) if isinstance(e, (OAuthExchangeError, TimeoutError, ValueError)) else f"{e.__class__.__name__}: {e}"
             finally:
                 if not sess.done:
                     sess.done = True
@@ -267,6 +270,7 @@ def register(app):
             "done": sess.done,
             "ok": sess.ok,
             "error": sess.error,
+            "error_code": sess.error_code,
             "name": sess.name,
             "label": sess.label,
         })

@@ -432,7 +432,7 @@ export function AccountManager({ provider, onChanged }: { provider: Provider; on
       <div className={styles.accountHelp}>
         {state.add_mode === "api_key"
           ? text("Each key is a separate account. Saved values stay masked.", "每个密钥都是独立账号，保存后的值始终显示为掩码。")
-          : text("Each account is a separate sign-in. Choose which account handles requests.", "每个账号都是独立登录，可选择处理请求的账号。")}
+          : text("Sign in to add an account, then enable it for requests.", "登录后添加账号，启用后用于模型请求。")}
       </div>
 
       {msg && <div style={{ fontSize: "0.75rem", opacity: 0.75, marginTop: "0.2rem" }}>{msg}</div>}
