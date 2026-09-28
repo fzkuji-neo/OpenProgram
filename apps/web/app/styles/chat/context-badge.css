@@ -56,12 +56,16 @@
   .context-ring-badge.is-busy svg { animation: none; }
 }
 
-/* Context breakdown card — usage meters are BLUE (Claude uses blue for
-   usage bars; coral stays the action colour, and --accent-blue is
-   aliased to coral so it can't be reused here). Track: --bg-tertiary
-   on the light white card; in dark, --bg-tertiary EQUALS
-   --surface-popover, so a translucent white step keeps it visible. */
+/* Category colours are reused in the summary bar and detail meters. */
 .context-breakdown-panel {
-  --usage-bar: var(--meter-fill);
   --usage-track: var(--meter-track);
+  --context-system-prompt: var(--accent-purple);
+  --context-system-tools: var(--accent-cyan);
+  --context-system-tools-deferred: color-mix(in srgb, var(--accent-cyan) 60%, var(--text-bright));
+  --context-mcp-tools: var(--accent-yellow);
+  --context-mcp-tools-deferred: color-mix(in srgb, var(--accent-yellow) 65%, var(--accent-red));
+  --context-memory: var(--accent-green);
+  --context-skills: color-mix(in srgb, var(--accent-purple) 55%, var(--accent-red));
+  --context-messages: var(--meter-fill);
+  --context-other: var(--accent-red);
 }

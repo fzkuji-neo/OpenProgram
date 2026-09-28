@@ -34,12 +34,21 @@ function fmt(n: number): string {
   return String(n);
 }
 
-/* Claude 用法：所有用量条统一 BLUE（--usage-bar / --usage-track，定义在
-   chat.css 的 .context-breakdown-panel 上，light/dark 各一档）；不再按
-   分类配色。*/
+/** Category colours are shared by the summary and its detail rows. */
+const CATEGORY_COLORS = [
+  "var(--context-system-prompt)",
+  "var(--context-system-tools)",
+  "var(--context-system-tools-deferred)",
+  "var(--context-mcp-tools)",
+  "var(--context-mcp-tools-deferred)",
+  "var(--context-memory)",
+  "var(--context-skills)",
+  "var(--context-messages)",
+  "var(--context-other)",
+] as const;
 
-/** 6px 圆角蓝色用量条 —— 顶部总量条和每行分解条共用。*/
-function UsageBar({ pct }: { pct: number }) {
+/** 6px category meter; the remaining width is unused window capacity. */
+function UsageBar({ pct, color }: { pct: number; color: string }) {
   return (
     <div
       className="h-[6px] w-full overflow-hidden rounded-full"
@@ -49,9 +58,50 @@ function UsageBar({ pct }: { pct: number }) {
         className="h-full rounded-full"
         style={{
           width: `${Math.max(0, Math.min(100, pct))}%`,
-          background: "var(--usage-bar)",
+          background: color,
         }}
       />
+    </div>
+  );
+}
+
+function SummaryBar({
+  rows,
+  totalUsed,
+  window,
+}: {
+  rows: { label: string; tokens: number; color: string }[];
+  totalUsed: number;
+  window: number;
+}) {
+  const used = Math.max(0, Math.min(totalUsed, window));
+  const reported = rows.reduce((sum, row) => sum + Math.max(0, row.tokens), 0);
+  // Graph snapshots may briefly provide a total before their categories.
+  // Keep the bar equal to the displayed total without exceeding the window.
+  const scale = reported > used && reported > 0 ? used / reported : 1;
+  const missing = Math.max(0, used - reported * scale);
+  return (
+    <div
+      className="flex h-[6px] w-full overflow-hidden rounded-full"
+      style={{ background: "var(--usage-track)" }}
+      role="img"
+      aria-label={rows.filter((row) => row.tokens > 0)
+        .map((row) => `${row.label}: ${fmt(row.tokens)}`).join(", ")}
+    >
+      {window > 0 && rows.map((row) => row.tokens > 0 && (
+        <span
+          key={row.label}
+          className="h-full shrink-0"
+          style={{ width: `${(row.tokens * scale / window) * 100}%`, background: row.color }}
+          title={`${row.label}: ${fmt(row.tokens)}`}
+        />
+      ))}
+      {window > 0 && missing > 0 && (
+        <span
+          className="h-full shrink-0"
+          style={{ width: `${(missing / window) * 100}%`, background: "var(--context-other)" }}
+        />
+      )}
     </div>
   );
 }
@@ -209,10 +259,11 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
     ];
     // 全部分类都显示（含 0），不过滤 —— 让用户看到每一档存在与否。
     // Free space 不单列：顶部总量行的百分比已经表达了同一信息。
-    return defs.map(([label, v]) => ({
+    return defs.map(([label, v], index) => ({
       label,
       tokens: v,
       pct: win > 0 ? (v / win) * 100 : 0,
+      color: CATEGORY_COLORS[index],
       zero: v <= 0,
     }));
   }, [data, text, win, totalUsed]);
@@ -292,12 +343,11 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
                 {text("Last request measured", "上次请求实测")} {fmt(lastMeasured || 0)}
               </div>
             )}
-            <UsageBar pct={usedPct * 100} />
+            <SummaryBar rows={rows} totalUsed={totalUsed} window={win} />
 
             <div className="my-3 h-px shrink-0 bg-[var(--border)]" />
 
-            {/* 分类分解 —— 每行：标签左 / muted 数值右 / 下方细蓝条
-                （Claude 用量面板 5-hour / weekly 行的形制）。*/}
+            {/* 每行颜色与顶部总览条的对应分段一致。 */}
             <div className="space-y-2">
               {rows.map((r) => (
                 <div key={r.label} style={{ opacity: r.zero ? 0.4 : 1 }}>
@@ -307,7 +357,7 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
                       {fmt(r.tokens)} · {r.pct.toFixed(1)}%
                     </span>
                   </div>
-                  <UsageBar pct={r.pct} />
+                  <UsageBar pct={r.pct} color={r.color} />
                 </div>
               ))}
             </div>
