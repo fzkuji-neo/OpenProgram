@@ -1190,7 +1190,7 @@ async def handle_load_session(ws, cmd: dict):
                 from openprogram.webui.session_history import HistorySnapshot, install_snapshot
                 snapshot = await _session_io(HistorySnapshot, session_id, head, shown, {m.get("id") for m in chain})
                 install_snapshot(ws, snapshot)
-                shown, history = await _session_io(snapshot.page, before=history_before, after=history_after, around=history_around)
+                shown, history = await _session_io(snapshot.page, before=history_before, after=history_after, around=history_around, initial=not is_history_page)
             except ValueError as exc:
                 raise OperationError("invalid_request", scope="session", retryable=True) from exc
             if is_history_page:
