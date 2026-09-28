@@ -6,15 +6,24 @@ import { canvasGeometry, leaves, presetLayout, insertPane, removePane, equalize,
 import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas-drag";
 import { useTranslation } from "@/lib/i18n";
 
-export const CANVAS_TOOLBAR = 30;
 export const CANVAS_HEADER = 28;
 export function CanvasControls({ layout, targetId, width, height }: { layout: CanvasLayout; targetId: string; width: number; height: number }) {
   const { text } = useTranslation();
   const tabs = useCenterTabs(s => s.tabs), groups = useCenterTabs(s => s.groups);
   const [saved, setSaved] = useState<Array<{ name: string; layout: CanvasLayout }>>([]);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [saveName, setSaveName] = useState<string | null>(null);
   useEffect(() => { try { const v = JSON.parse(localStorage.getItem("centerCanvasPresets") || "[]"); if (Array.isArray(v)) setSaved(v); } catch {} }, []);
-  const all = leaves(layout.root), geometry = canvasGeometry(layout.root, { left: 0, top: CANVAS_TOOLBAR, width, height: Math.max(0,height-CANVAS_TOOLBAR) });
+  useEffect(() => {
+    if (!menu) return;
+    const dismiss = () => { setMenu(null); setSaveName(null); };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", key);
+    window.addEventListener("resize", dismiss);
+    return () => { window.removeEventListener("pointerdown", dismiss); window.removeEventListener("keydown", key); window.removeEventListener("resize", dismiss); };
+  }, [menu]);
+  const all = leaves(layout.root), geometry = canvasGeometry(layout.root, { left: 0, top: 0, width, height: Math.max(0,height) });
   const update = (canvas: CanvasLayout) => useCenterTabs.getState().setCanvas(targetId, canvas);
   const focus = (paneId: string) => update({ ...layout, focusedPaneId: paneId });
   const zoom = (paneId: string) => update({ ...layout, focusedPaneId: paneId, zoomedPaneId: layout.zoomedPaneId === paneId ? undefined : paneId });
@@ -41,31 +50,31 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   });
   const button: CSSProperties = { background:"var(--bg-tertiary)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:4, cursor:"pointer", padding:"1px 6px", fontSize:12 };
   return <>
-    <div style={{ position:"absolute", top:0,left:0,right:0,height:CANVAS_TOOLBAR,display:"flex",alignItems:"center",gap:5,padding:"0 6px",zIndex:12,background:"var(--bg-secondary)" }}>
+    {menu && <div role="menu" data-native-view-occluder="true" onPointerDown={e => e.stopPropagation()} style={{ position:"fixed", top:menu.y,left:menu.x,width:220,maxHeight:"calc(100vh - 16px)",overflowY:"auto",display:"flex",flexDirection:"column",gap:6,padding:8,zIndex:100001,background:"var(--bg-secondary)",border:"1px solid var(--border)",borderRadius:6,boxShadow:"0 6px 24px #0005" }}>
       <select aria-label={text("Layout preset", "布局预设")} style={button} value="" onChange={e => {
         if (e.target.value.startsWith("saved:")) { const entry=saved[Number(e.target.value.slice(6))]; if (entry) update(entry.layout); }
         else update(presetLayout(e.target.value as CanvasPreset, all.flatMap(p => p.content ? [p.content] : [])));
+        setMenu(null);
       }}>
         <option value="" disabled>{text("Layout", "布局")}</option>
         {([['1x1','Single','单屏'],['1x2','Columns','左右'],['2x1','Rows','上下'],['main+2','Main + 2','主 + 2'],['2x2','4 panes','四宫格'],['3x3','9 panes','九宫格'],['4x4','16 panes','十六宫格']] as const).map(([v,en,zh]) => <option key={v} value={v}>{text(en,zh)}</option>)}
         {saved.map((s,i) => <option key={i} value={`saved:${i}`}>{s.name}</option>)}
       </select>
-      <button style={button} onClick={() => split("right")} title={text("Split right", "向右切分")}>◫</button>
-      <button style={button} onClick={() => split("bottom")} title={text("Split below", "向下切分")}>⬒</button>
-      <button style={button} onClick={() => update({ ...layout,root:equalize(layout.root) })}>{text("Equalize", "等分")}</button>
+      <button style={button} onClick={() => { split("right"); setMenu(null); }} title={text("Split right", "向右切分")}>{text("Split right", "向右切分")}</button>
+      <button style={button} onClick={() => { split("bottom"); setMenu(null); }} title={text("Split below", "向下切分")}>{text("Split below", "向下切分")}</button>
+      <button style={button} onClick={() => { update({ ...layout,root:equalize(layout.root) }); setMenu(null); }}>{text("Equalize", "等分")}</button>
       <button style={button} onClick={() => setSaveName("")}>{text("Save layout", "保存布局")}</button>
-      {saveName !== null && <form onSubmit={e => { e.preventDefault(); if (!saveName.trim()) return; const next=[...saved.filter(s => s.name !== saveName.trim()), { name:saveName.trim(),layout }]; setSaved(next); localStorage.setItem("centerCanvasPresets",JSON.stringify(next)); setSaveName(null); }} style={{ display:"flex",gap:4 }}>
+      {saveName !== null && <form onSubmit={e => { e.preventDefault(); if (!saveName.trim()) return; const next=[...saved.filter(s => s.name !== saveName.trim()), { name:saveName.trim(),layout }]; setSaved(next); localStorage.setItem("centerCanvasPresets",JSON.stringify(next)); setSaveName(null); setMenu(null); }} style={{ display:"flex",gap:4 }}>
         <input autoFocus value={saveName} placeholder={text("Layout name", "布局名称")} onChange={e => setSaveName(e.target.value)} style={{ ...button,width:120 }} /><button style={button}>{text("Save","保存")}</button><button type="button" style={button} onClick={() => setSaveName(null)}>×</button>
       </form>}
-      <span style={{ fontSize:11,color:"var(--text-muted)" }}>{all.length}</span>
-    </div>
+    </div>}
     {all.map(p => {
       const rect=geometry.panes.get(p.id)!;
       const visible = !layout.zoomedPaneId || layout.zoomedPaneId === p.id;
-      const r = layout.zoomedPaneId === p.id ? { left:0,top:CANVAS_TOOLBAR,width,height:height-CANVAS_TOOLBAR } : rect;
+      const r = layout.zoomedPaneId === p.id ? { left:0,top:0,width,height } : rect;
       const tab=tabs.find(t => t.id === p.content), tiny=r.width<150 || r.height<110;
       return <div key={p.id} data-canvas-pane={p.id} data-canvas-target={targetId} style={{ position:"absolute",...r,display:visible?undefined:"none",pointerEvents:"none",zIndex:10,border:`1px solid ${layout.focusedPaneId===p.id?'var(--accent)':'var(--border)'}`,borderRadius:6,boxSizing:"border-box" }}>
-        <div onPointerDown={e => { focus(p.id); if(p.content) startPaneDrag(e,p.content); }} style={{ pointerEvents:"auto",height:CANVAS_HEADER,display:"flex",alignItems:"center",gap:3,padding:"0 5px",background:"var(--bg-secondary)",cursor:"grab",color:"var(--text-secondary)",fontSize:12 }}>
+        <div onContextMenu={e => { e.preventDefault(); e.stopPropagation(); focus(p.id); setSaveName(null); setMenu({ x:Math.max(8,Math.min(e.clientX,window.innerWidth-236)), y:Math.max(8,Math.min(e.clientY,window.innerHeight-260)) }); }} onPointerDown={e => { if (e.button !== 0) return; focus(p.id); if(p.content) startPaneDrag(e,p.content); }} style={{ pointerEvents:"auto",height:CANVAS_HEADER,display:"flex",alignItems:"center",gap:3,padding:"0 5px",background:"var(--bg-secondary)",cursor:"grab",color:"var(--text-secondary)",fontSize:12 }}>
           <span style={{ overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",flex:1 }}>{tab?.title || (tab ? text("Untitled","未命名") : text("Empty pane","空格"))}</span>
           <button style={button} title={text("Zoom / restore","放大 / 还原")} onClick={() => zoom(p.id)}>↗</button>
           <button style={button} title={text("Return content to tab strip","关闭格子，内容回到标签栏")} onClick={() => close(p.id)}>×</button>
