@@ -1,5 +1,11 @@
 import { jsonFetch } from "./fetch-client";
 
+export type ActiveToolCall = {
+  id: string; execution_id: string; session_id: string; tool_call_id?: string | null;
+  name: string; description: string; command: string; started_at: number;
+  status: "running" | "unknown";
+};
+
 export type ManagedProcess = {
   id: string;
   session_id: string | null;
@@ -20,7 +26,7 @@ export type ManagedProcess = {
 export const processIsActive = (process: ManagedProcess) =>
   ["starting", "running", "stopping", "unknown"].includes(process.status);
 export const getSessionProcesses = (sessionId: string, signal?: AbortSignal) =>
-  jsonFetch<{ items: ManagedProcess[]; now: number }>(`/api/session/${encodeURIComponent(sessionId)}/processes`, { signal, cache: "no-store" });
+  jsonFetch<{ items: ManagedProcess[]; calls?: ActiveToolCall[]; now: number }>(`/api/session/${encodeURIComponent(sessionId)}/processes`, { signal, cache: "no-store" });
 export const getProcess = (id: string, signal?: AbortSignal, sessionId?: string | null) =>
   jsonFetch<{ process: ManagedProcess; output: string }>(`/api/process/${encodeURIComponent(id)}${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ""}`, { signal, cache: "no-store" });
 export const stopProcess = (id: string, sessionId?: string | null) =>

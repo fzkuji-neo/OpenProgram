@@ -28,3 +28,8 @@
 .rowHeading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .rowHeading .name { flex: 1; min-width: 0; }
 .started { flex-shrink: 0; color: var(--text-dim); font-size: var(--right-panel-meta-size, 12px); font-variant-numeric: tabular-nums; }
+
+.liveCall { padding: 6px 8px; }
+.liveCall summary { cursor: pointer; }
+.liveCall summary .name { display: inline; margin-right: 8px; }
+.liveCall .output { margin: 8px 0; max-height: 180px; overflow: auto; }
