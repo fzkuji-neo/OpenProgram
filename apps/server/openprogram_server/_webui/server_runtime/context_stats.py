@@ -342,8 +342,30 @@ def refresh_context_stats(session_id: str, msg_id: str = "") -> None:
     if conv is None:
         return
     conv["_context_rev"] = int(conv.get("_context_rev") or 0) + 1
+    # Older canonical WebSocket turns persisted provider usage but never
+    # broadcast context_stats. Recover that measurement on session load when
+    # it is newer than the saved badge and no later branch edit occurred.
+    measured_total = None
+    try:
+        import json
+        from openprogram.agent.session_db import default_db
+        session = default_db().get_session(session_id) or {}
+        usage = session.get("_usage") or {}
+        if isinstance(usage, str):
+            usage = json.loads(usage)
+        previous = conv.get("_last_context_stats") or {}
+        usage_at = float(usage.get("last_updated_at") or 0)
+        previous_at = float(previous.get("timestamp") or 0)
+        session_at = float(session.get("updated_at") or 0)
+        if (usage_at > previous_at and session_at <= usage_at
+                and int(usage.get("last_prompt_tokens") or 0) > 0):
+            measured_total = (int(usage["last_prompt_tokens"])
+                              + int(usage.get("last_cache_read_tokens") or 0))
+    except (ValueError, TypeError, AttributeError, OSError):
+        pass
     occupancy = state._build_context_occupancy(
-        session_id, conv, window=state._conv_context_window(conv),
+        session_id, conv, measured_total=measured_total,
+        window=state._conv_context_window(conv),
     )
     prev = conv.get("_last_context_stats") or {}
     stats = {

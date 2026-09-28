@@ -195,6 +195,46 @@ def test_refresh_tracks_a_model_switch_window(monkeypatch, session):
     assert "calibration" not in sent[-1]
 
 
+def test_refresh_recovers_provider_usage_newer_than_stale_badge(monkeypatch, session):
+    conv, sent = session
+    conv["_last_context_stats"] = {
+        "basis": "estimated", "total_used": 38_000,
+        "window": 1_000_000, "timestamp": 100.0,
+    }
+    import openprogram.agent.session_db as session_db
+    monkeypatch.setattr(session_db, "default_db", lambda: type("DB", (), {
+        "get_session": lambda self, _sid: {
+            "updated_at": 150.0,
+            "_usage": json.dumps({"last_updated_at": 200.0,
+                                  "last_prompt_tokens": 99_000,
+                                  "last_cache_read_tokens": 3_000}),
+        },
+        "get_branch": lambda self, _sid, head_id=None: _FakeDB().get_branch(_sid),
+    })())
+    srv.refresh_context_stats("ctx-test")
+    assert sent[-1]["basis"] == "measured"
+    assert sent[-1]["total_used"] == 102_000
+
+
+def test_refresh_does_not_reuse_usage_after_later_branch_change(monkeypatch, session):
+    conv, sent = session
+    conv["_last_context_stats"] = {
+        "basis": "estimated", "total_used": 38_000,
+        "window": 1_000_000, "timestamp": 100.0,
+    }
+    import openprogram.agent.session_db as session_db
+    monkeypatch.setattr(session_db, "default_db", lambda: type("DB", (), {
+        "get_session": lambda self, _sid: {
+            "updated_at": 250.0,
+            "_usage": {"last_updated_at": 200.0,
+                       "last_prompt_tokens": 99_000},
+        },
+        "get_branch": lambda self, _sid, head_id=None: _FakeDB().get_branch(_sid),
+    })())
+    srv.refresh_context_stats("ctx-test")
+    assert sent[-1]["basis"] == "estimated"
+
+
 def test_refresh_on_an_unknown_session_is_a_no_op(session):
     _conv, sent = session
     srv.refresh_context_stats("no-such-session")

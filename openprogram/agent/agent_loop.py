@@ -646,6 +646,7 @@ async def _run_loop_with_recovery(
         has_more_tool_calls = True
         steering_after_tools: list[AgentMessage] | None = None
         repeat_failures: dict[str, int] = {}
+        incomplete_responses = 0
 
         while has_more_tool_calls or len(pending_messages) > 0:
             inner_iterations += 1
@@ -823,6 +824,38 @@ async def _run_loop_with_recovery(
             # Check for tool calls
             tool_calls = [c for c in message.content if isinstance(c, ToolCall)]
             has_more_tool_calls = len(tool_calls) > 0
+
+            # A provider can exhaust its output budget entirely on thinking,
+            # or stop at its token limit before answering. Neither is a
+            # completed agent turn. Keep completed tool effects in context and
+            # ask for a continuation, with a bounded failure if it repeats.
+            visible_text = "".join(
+                block.text for block in message.content
+                if isinstance(block, TextContent)
+            ).strip()
+            if structured_plan is None and not has_more_tool_calls and (
+                message.stop_reason == "length" or not visible_text
+            ):
+                await finish_provider_response(message)
+                incomplete_responses += 1
+                if incomplete_responses > 2:
+                    raise RuntimeError(
+                        "model_response_incomplete: provider stopped without a complete answer"
+                    )
+                commit_assistant(message)
+                ev_stream.push(AgentEventTurnEnd(message=message, tool_results=[]))
+                current_context.messages.append(UserMessage(
+                    content=(
+                        "Continue from the completed work and give a complete "
+                        "answer to the user's request. Do not repeat tool calls "
+                        "that have already succeeded."
+                    ),
+                    timestamp=int(time.time() * 1000),
+                ))
+                has_more_tool_calls = True
+                continue
+            if visible_text or has_more_tool_calls:
+                incomplete_responses = 0
 
             if structured_plan is not None and structured_plan.mode == "tool":
                 submit_calls = [
