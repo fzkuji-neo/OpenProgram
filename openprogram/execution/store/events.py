@@ -31,6 +31,15 @@ from .shared import (
 )
 
 class EventsOperations:
+    def latest_event_sequence(self, execution_id: str) -> int | None:
+        """Read the public cursor from its covering index, without event bodies."""
+        with closing(self._connect()) as connection:
+            row = connection.execute(
+                "SELECT MAX(execution_sequence) FROM execution_events WHERE execution_id = ?",
+                (execution_id,),
+            ).fetchone()
+            return int(row[0]) if row and row[0] is not None else None
+
     def list_events(self, execution_id: str) -> list[ExecutionEvent]:
         with closing(self._connect()) as connection:
             rows = connection.execute(

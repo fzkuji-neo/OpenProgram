@@ -76,7 +76,7 @@ function errorMessage(error: unknown): string {
     : "Execution request failed.";
 }
 
-export function useExecutionDebugger(active: boolean, sessionId: string | null, requestedExecutionId?: string | null): ExecutionDebuggerController {
+export function useExecutionDebugger(active: boolean, sessionId: string | null, requestedExecutionId?: string | null, inspect = true): ExecutionDebuggerController {
   const [branches, setBranches] = useState<import("./execution-debugger").ConversationActivityBranch[]>([]);
   const [snapshots, setSnapshots] = useState<Record<string, ExecutionSnapshot>>({});
   const [cursors, setCursors] = useState<Record<string, EventCursor>>({});
@@ -134,8 +134,8 @@ export function useExecutionDebugger(active: boolean, sessionId: string | null, 
           next[item.snapshot.execution_id] = { ...item.snapshot, started_at: item.started_at, task_label: item.task_label, view_parent_execution_id: item.parent_execution_id };
           if (item.event_cursor) nextCursors[item.snapshot.execution_id] = item.event_cursor;
         }
-        const inspectionId = [selectedExecutionId, requestedExecutionId].find((id) => id && next[id])
-          || Object.values(next).sort((a, b) => b.updated_at - a.updated_at)[0]?.execution_id;
+        const inspectionId = inspect ? ([selectedExecutionId, requestedExecutionId].find((id) => id && next[id])
+          || Object.values(next).sort((a, b) => b.updated_at - a.updated_at)[0]?.execution_id) : undefined;
         let history: PersistedExecutionEvent[] = [];
         if (inspectionId) {
           const [replay] = await Promise.all([
@@ -166,7 +166,7 @@ export function useExecutionDebugger(active: boolean, sessionId: string | null, 
     refreshPromise.current = request;
     void request.then(() => { if (refreshPromise.current === request) refreshPromise.current = null; });
     return request;
-  }, [active, sessionId, selectedExecutionId, requestedExecutionId, loadDebuggerData]);
+  }, [active, sessionId, selectedExecutionId, requestedExecutionId, loadDebuggerData, inspect]);
 
   useEffect(() => {
     if (!active || !sessionId) return;

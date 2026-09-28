@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { useExecutionDebugger } from "@/lib/execution/use-execution-debugger";
 import { useManagedProcesses } from "@/lib/execution/use-managed-processes";
@@ -19,8 +19,9 @@ import styles from "./running-panel.module.css";
 /** One conversation-owned list; inspecting a row reuses the existing controls. */
 export function RunningPanel({ active, sessionId }: { active: boolean; sessionId: string | null }) {
   const { text } = useTranslation();
-  const state = useExecutionDebugger(active, sessionId);
   const [selection, setSelection] = useState<"agent" | string | null>(null);
+  const state = useExecutionDebugger(active, sessionId, undefined,
+    selection === "agent" || Boolean(selection?.startsWith("branch:")));
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setExpanded(previous => {
@@ -41,6 +42,14 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     && ["stale", "conflict"].includes(state.connection.state)
   );
   const hasRead = Boolean(state.fetchedAt) || processes.loaded;
+  const [readNotice, setReadNotice] = useState<{ sessionId: string | null; persistent: boolean } | null>(null);
+  useEffect(() => {
+    setReadNotice(null);
+    if (!active || !readFailed) return;
+    const retry = setTimeout(() => setReadNotice({ sessionId, persistent: false }), 5000);
+    const persistent = setTimeout(() => setReadNotice({ sessionId, persistent: true }), 30000);
+    return () => { clearTimeout(retry); clearTimeout(persistent); };
+  }, [active, sessionId, readFailed]);
   const byExecution = new Map<string, ManagedProcess[]>();
   const unassigned: ManagedProcess[] = [];
   const ids = new Set(state.executions.map(item => item.execution_id));
@@ -197,9 +206,11 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     {(!historical || historyOpen) && items.map(branchRow)}
   </div>;
   return <section className={styles.panel} aria-label={text("Conversation activity", "会话运行记录")}>
-    {readFailed && <p role="status" className={styles.notice}>{hasRead
-      ? text("Some statuses are unavailable. Showing saved records and retrying automatically.", "部分状态暂时不可用，保留上次记录并自动重试。")
-      : text("Could not load activity. Retrying automatically.", "无法读取运行记录，正在自动重试。")}</p>}
+    {readFailed && readNotice?.sessionId === sessionId && <p role="status" className={`${styles.notice} ${readNotice.persistent && !hasRead ? styles.error : ""}`}>{hasRead
+      ? text("Updating status… Showing saved records.", "正在更新状态，当前显示上次记录。")
+      : readNotice.persistent
+        ? text("Activity is still unavailable. Retrying automatically.", "运行记录暂时无法读取，正在自动重试。")
+        : text("Loading activity… Retrying automatically.", "正在加载运行记录，自动重试中。")}</p>}
     <div className={styles.scroll}>
       {!hasRead && !processes.stale && state.connection.state === "reconnecting" ? <SidebarNotice>{text("Loading…", "加载中…")}</SidebarNotice> : null}
       {section(text("Needs attention", "需要处理"), attention)}
