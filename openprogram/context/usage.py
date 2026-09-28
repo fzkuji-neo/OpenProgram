@@ -79,11 +79,15 @@ class UsageTracker:
         """
         prev = self.get(session_id)
         u = usage or {}
+        # Dispatcher totals carry an explicit last-request occupancy. Never
+        # substitute their cumulative billing fields when that value is zero.
+        aggregated = "context_tokens" in u
+        prompt = int(u.get("context_tokens" if aggregated else "input_tokens", 0) or 0)
         new = UsageState(
-            last_prompt_tokens=int(u.get("input_tokens", 0) or 0),
+            last_prompt_tokens=prompt,
             last_completion_tokens=int(u.get("output_tokens", 0) or 0),
-            last_cache_read_tokens=int(u.get("cache_read_tokens", 0) or 0),
-            last_cache_write_tokens=int(u.get("cache_write_tokens", 0) or 0),
+            last_cache_read_tokens=0 if aggregated else int(u.get("cache_read_tokens", 0) or 0),
+            last_cache_write_tokens=0 if aggregated else int(u.get("cache_write_tokens", 0) or 0),
             cumulative_prompt_tokens=prev.cumulative_prompt_tokens
                 + int(u.get("input_tokens", 0) or 0),
             cumulative_completion_tokens=prev.cumulative_completion_tokens
@@ -94,7 +98,7 @@ class UsageTracker:
             compaction_count=prev.compaction_count,
             last_updated_at=time.time(),
             last_compacted_at=prev.last_compacted_at,
-            source="provider" if usage else "estimate",
+            source="provider" if prompt > 0 else "estimate",
         )
         with self._lock:
             self._cache[session_id] = new
@@ -165,6 +169,10 @@ class UsageTracker:
             data = json.loads(raw) if isinstance(raw, str) else dict(raw)
         except Exception:
             return UsageState()
+        if data.get("context_usage_version") != 2:
+            # Old last_* fields contain turn totals. Preserve billing history.
+            for key in ("last_prompt_tokens", "last_cache_read_tokens", "last_cache_write_tokens"):
+                data[key] = 0
         return UsageState(
             last_prompt_tokens=int(data.get("last_prompt_tokens", 0) or 0),
             last_completion_tokens=int(data.get("last_completion_tokens", 0) or 0),
@@ -184,6 +192,7 @@ class UsageTracker:
         try:
             from openprogram.agent.session_db import default_db
             data = {
+                "context_usage_version": 2,
                 "last_prompt_tokens": state.last_prompt_tokens,
                 "last_completion_tokens": state.last_completion_tokens,
                 "last_cache_read_tokens": state.last_cache_read_tokens,

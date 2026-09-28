@@ -326,7 +326,7 @@ def finalize_turn(
     db.update_session(
         req.session_id,
         head_id=head_id,
-        last_prompt_tokens=int(usage.get("input_tokens") or 0),
+        last_prompt_tokens=int(usage.get("context_tokens") or 0),
         model=req.model_override or session.get("model"),
     )
 

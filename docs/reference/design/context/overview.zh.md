@@ -294,3 +294,5 @@ Annotation，每 turn 跑 annotator 流水线更新，再由 `build_view` 纯函
 ContextCommit 是同一想法的两种落地——annotation 是派生、可丢弃重算的 SQL 表状态，
 ContextCommit 是 git JSON 里的不可变快照。系统用的是 ContextCommit；沿用下来的思想（压缩
 单向收紧、view 是纯函数、summary 不写 DAG）已在上文描述。
+
+当前上下文占用使用最后一次请求的实测值，不使用一轮多次请求的累计输入量。无用量的结束事件保留此前实测值；没有实测值时界面使用本地估算。旧累计统计格式保存的占用与校准系数失效，累计计费用量保持不变。
