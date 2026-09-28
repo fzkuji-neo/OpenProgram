@@ -129,8 +129,8 @@ export function CompoundTabItem({
     const tab = tabs.find((candidate) => candidate.id === tabId);
     return tab ? [tab] : [];
   });
-  const canonicalTab = memberTabs.find((tab) => tab.kind === "session")
-    ?? memberTabs.find((tab) => tab.id === group.focusedId)
+  const canonicalTab = memberTabs.find((tab) => tab.id === group.focusedId)
+    ?? memberTabs.find((tab) => tab.kind === "session")
     ?? memberTabs[0];
   if (!canonicalTab) return null;
   const combinedLabel = memberTabs.map((tab) => labelOf(tab, t, text)).join(" · ");
@@ -186,7 +186,7 @@ export function CompoundTabItem({
           onActivate(canonicalTab);
         }}
       />
-      {group.canvas ? <span style={{ fontSize: 11, padding: "0 5px", color: "var(--text-muted)" }}>{leaves(group.canvas.root).length}</span> : null}
+      {group.canvas ? <span className={styles.canvasPaneCount}>{leaves(group.canvas.root).length}</span> : null}
       <div className={styles.compoundMembers}>
         {memberTabs.slice(0, 2).map((tab) => {
           const memberClosing = !closing && closingIds.has(tab.id);
