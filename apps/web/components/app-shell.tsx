@@ -8,7 +8,7 @@ import { PageShell } from "./page-shell";
 import { Sidebar } from "./sidebar/sidebar";
 import { RightSidebar } from "./right-sidebar/right-sidebar";
 import { CenterTabStrip } from "./center-tabs/center-tab-strip";
-import { CanvasControls, CANVAS_HEADER, CANVAS_TOOLBAR } from "./center-tabs/canvas-controls";
+import { CanvasControls, CANVAS_HEADER } from "./center-tabs/canvas-controls";
 import { canvasGeometry, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
 import { BrowserResourceProjection } from "@/lib/browser/browser-resource-projection";
@@ -459,7 +459,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     : activeGroup ? compoundPanes : focusedPanes;
   const canvas = useMemo(() => activeGroup?.canvas ?? rowLayout(activeId ? [activeId] : [], splitRatio), [activeGroup?.canvas, activeId, splitRatio]);
   const canvasLeaves = leaves(canvas.root);
-  const geometry = canvasGeometry(canvas.root, { left: 0, top: CANVAS_TOOLBAR, width: centerBodyWidth, height: Math.max(0, centerBodyHeight - CANVAS_TOOLBAR) });
+  const geometry = canvasGeometry(canvas.root, { left: 0, top: 0, width: centerBodyWidth, height: Math.max(0, centerBodyHeight) });
   const webIds = panes.flatMap(p => p.kind !== "session" && tabs.find(t => t.id === p.tabId)?.kind === "web" ? [p.tabId] : []);
   const liveWebIds = new Set([...(activeId && webIds.includes(activeId) ? [activeId] : []), ...webIds.filter(id => id !== activeId)].slice(0, 8));
   const sessionPaneIndex = panes.findIndex((pane) => pane.kind === "session");
@@ -492,7 +492,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const p = canvasLeaves.find(p => p.content === tabId);
     if (!p) return { display: "none" };
     const r = canvas.zoomedPaneId === p.id
-      ? { left:0,top:CANVAS_TOOLBAR,width:centerBodyWidth,height:centerBodyHeight-CANVAS_TOOLBAR }
+      ? { left:0,top:0,width:centerBodyWidth,height:centerBodyHeight }
       : geometry.panes.get(p.id)!;
     const hidden = (canvas.zoomedPaneId && canvas.zoomedPaneId !== p.id) || r.width < 150 || r.height < 110;
     return { position:"absolute",left:r.left+1,top:r.top+CANVAS_HEADER,width:Math.max(0,r.width-2),height:Math.max(0,r.height-CANVAS_HEADER-1),minWidth:0,minHeight:0,overflow:"hidden",display:hidden?"none":"flex",flexDirection:"column" };
