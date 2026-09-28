@@ -127,12 +127,8 @@ export function useTabPointerDrag({
   /** True once the drag crosses the detach threshold: the tab is leaving,
    *  so the strip closes its slot (see detachShifts). */
   const [detaching, setDetaching] = useState(false);
-  /** Floating "New window" cue position while detaching. Portaled outside the
-   *  strip (which clips vertical overflow), tracks the pointer. Null = hidden. */
-  const [detachCue, setDetachCue] = useState<{ x: number; y: number } | null>(null);
   /** True while the detach cursor is over ANOTHER OpenProgram window (a merge
-   *  target). Suppresses the "New window" pill — that window shows its own
-   *  "Add tab here" cue instead, so the two are mutually exclusive by location. */
+   *  target) — that window shows its own "Add tab here" cue. */
   const [detachOverTarget, setDetachOverTarget] = useState(false);
   const detachHoverPollRef = useRef(false);
 
@@ -167,7 +163,6 @@ export function useTabPointerDrag({
     setDropMarker(null);
     setDragWidth(0);
     setDetaching(false);
-    setDetachCue(null);
     setDetachOverTarget(false);
   }
 
@@ -396,7 +391,7 @@ export function useTabPointerDrag({
     const bridge = desktopBridge();
     const hasTransferToken = Boolean(dragCoordinator.current()?.transferToken);
     const isSoloWindow =
-      false;
+      Boolean(bridge?.moveWindowBy) && useCenterTabs.getState().tabs.length === 1;
     if (isSoloWindow) {
       // The lone tab NEVER moves relative to its strip — the WINDOW moves under
       // it. Move the window every frame, even while hovering another window:
@@ -412,16 +407,10 @@ export function useTabPointerDrag({
       drag.lastTx = 0;
       drag.element.style.transform = "translateX(0)";
     } else {
-      // In-strip reorder clamps the tab to the visible slot span. But once the
-      // drag leaves the strip / hovers another window (detach or merge intent,
-      // from last frame), the tab should track the cursor FREELY — never freeze
-      // at the strip edge. Whether it actually merges is decided at release by
-      // the live hit test, so free movement here costs nothing.
-      // Always clamp the tab to the visible slot span — the same limit that
-      // keeps it from vanishing off the edge in a plain reorder. Detach/merge
-      // must NOT lift that clamp (that let the tab run out to the window edge
-      // and nearly clip). Intent is shown by the floating "New window" pill and
-      // the detach-intent style, never by the tab body leaving its row.
+      // Inside the strip band the tab is clamped to the visible slot span (plain
+      // reorder). Once the cursor leaves the band the tab itself follows the
+      // pointer freely in both axes — canvas docking, Resources, new window —
+      // so no separate floating cue is needed.
       const outsideBand = e.clientY < drag.stripTop || e.clientY > drag.stripBottom;
       const tx = outsideBand ? dx : Math.min(Math.max(dx, drag.minTx), drag.maxTx);
       drag.lastTy = outsideBand ? dy : 0;
@@ -436,7 +425,6 @@ export function useTabPointerDrag({
       drag.overWindow = false;
       drag.lastIntent = null;
       setDetaching(false);
-      setDetachCue(null);
       setDetachOverTarget(false);
       drag.element.removeAttribute("data-detach-intent");
       publishDropMarker(null);
@@ -447,7 +435,7 @@ export function useTabPointerDrag({
     showCanvasDrop(canvasDrop);
     if (canvasDrop) {
       drag.detaching = false; drag.overWindow = false; drag.lastIntent = null;
-      setDetaching(false); setDetachCue(null); publishDropMarker(null);
+      setDetaching(false); publishDropMarker(null);
       return;
     }
 
@@ -486,21 +474,16 @@ export function useTabPointerDrag({
     }
     if (nextDetaching !== drag.detaching) setDetaching(nextDetaching);
     drag.detaching = nextDetaching;
-    // Drop-to-place: while dragging out of the strip the tab shows detach-intent
-    // (translucent, accent outline) plus a floating "New window" pill near the
-    // cursor. The pill is portaled outside .tabsFlow — that 40px strip clips
-    // vertical overflow, so an on-tab pill above/below is invisible. No window
-    // is created mid-drag; it is torn off at release (onPointerDragUp).
+    // Drop-to-place: the dragged tab itself follows the cursor out of the
+    // strip and carries the detach-intent state; there is no separate
+    // floating cue. No window is created mid-drag; it is torn off at release.
     drag.element.toggleAttribute("data-detach-intent", drag.detaching);
-    setDetachCue(
-      drag.detaching ? { x: e.clientX, y: e.clientY } : null,
-    );
     // Poll the window under the cursor (same read-only hit test used at
     // release) for the ENTIRE drag once a transfer token exists — NOT only
     // while detaching. main drives each destination window's hover cue from
     // this poll and clears it on a null return, so the highlight is adaptive:
     // it follows the cursor off a window (→ null → hover-leave) and back on,
-    // never latching. It also hides the source "New window" pill over a target.
+    // never latching.
     // One in-flight call at a time; no second loop. Gated on the raw token
     // (NOT detachCapable) so a SOLO window still polls — it can't detach, but
     // it must detect another window under the cursor to merge onto it.
@@ -674,7 +657,7 @@ export function useTabPointerDrag({
       restorePointerDragElement(drag.element, true);
       const token = prepared.transferToken;
       const bridge = desktopBridge();
-      const wantsDetach = drag.detaching && (e.clientX < 0 || e.clientY < 0 || e.clientX > window.innerWidth || e.clientY > window.innerHeight);
+      const wantsDetach = drag.detaching; // geometric tear-off intent at release
       dragCoordinator.clear(); // main / the destination owns the token now
       clearDragState();
       if (!bridge || !token) return;
@@ -763,7 +746,6 @@ export function useTabPointerDrag({
     dropMarker,
     dragWidth,
     detaching,
-    detachCue,
     detachOverTarget,
     onTabPointerDown,
     setDraggedIds,

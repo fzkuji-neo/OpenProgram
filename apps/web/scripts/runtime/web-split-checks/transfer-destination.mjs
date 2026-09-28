@@ -194,9 +194,10 @@ testContext.plainSessionModule.applySessionTransfer(testContext.emptySessionSnap
 }
 
 
-// Full group: reject("group-full") before any accept/journal/mutation.
+// Large group: canvas groups have no member cap, so a four-member group is
+// staged like any other transfer instead of being rejected as "group-full".
 {
-  const fullGroupPayload = {
+  const largeGroupPayload = {
     tabs: ["one", "two", "three", "four"].map((name) => ({
       id: `w:t5-${name}`,
       kind: "web",
@@ -206,7 +207,7 @@ testContext.plainSessionModule.applySessionTransfer(testContext.emptySessionSnap
     source: {
       windowId: "source",
       kind: "group",
-      groupId: "g:t5-full",
+      groupId: "g:t5-large",
       memberIds: ["w:t5-one", "w:t5-two", "w:t5-three", "w:t5-four"],
       visibleIds: ["w:t5-one", "w:t5-two"],
       focusedId: "w:t5-one",
@@ -214,13 +215,19 @@ testContext.plainSessionModule.applySessionTransfer(testContext.emptySessionSnap
     fileDrafts: [],
     chats: [],
   };
-  const { bridge, calls } = testContext.makeTransferBridge(fullGroupPayload);
+  const largeBefore = testContext.plainTabsModule.snapshotCenterTabsPayload();
+  const { bridge, calls } = testContext.makeTransferBridge(largeGroupPayload);
   testContext.assert.equal(
-    await testContext.bridgeModule.stageIncomingTransfer(bridge, "t5-full", { kind: "strip-end" }),
-    false,
+    await testContext.bridgeModule.stageIncomingTransfer(bridge, "t5-large", { kind: "strip-end" }),
+    true,
   );
-  testContext.assert.deepEqual(calls.at(-1), ["reject", "t5-full", "group-full"]);
-  testContext.assert.equal(calls.some(([name]) => name === "accept"), false);
+  testContext.assert.equal(calls.some(([name, , reason]) => name === "reject" && reason === "group-full"), false);
+  testContext.assert.deepEqual(
+    testContext.plainTabs.getState().groups.find((group) => group.id === "g:t5-large")?.memberIds,
+    ["w:t5-one", "w:t5-two", "w:t5-three", "w:t5-four"],
+  );
+  testContext.pendingProjection.unregisterPendingTransfer("t5-large", "main");
+  testContext.plainTabsModule.replaceCenterTabsPayload(largeBefore, { persist: true });
 }
 
 

@@ -45,7 +45,7 @@ globalThis.localStorage = {
 };
 globalThis.WebSocket = { OPEN: 1 };
 
-const { useCenterTabs } = await import("../../lib/tabs/center-tabs-store.ts");
+const { useCenterTabs, snapshotCenterTabsPayload } = await import("../../lib/tabs/center-tabs-store.ts");
 const { setSocket } = await import("../../lib/runtime-bridge/state.ts");
 const {
   installDesktopMenuHandlers,
@@ -380,6 +380,9 @@ test("agent Page open reports cleanup failure and visible reuse ownership", asyn
       return id;
     },
   });
+  // Migrate the legacy fixture groups to canvases once, so the comparison
+  // below sees stable pane ids.
+  useCenterTabs.setState({ groups: snapshotCenterTabsPayload().groups });
   const groupsBefore = useCenterTabs.getState().groups;
   setDesktopSplitLayoutAvailable(true);
   setWebTabReady(otherId, true);

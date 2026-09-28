@@ -43,6 +43,12 @@ testContext.plainTabs.setState({
   splitWebTabId: "w:opener",
   splitRatio: 0.45,
 });
+// Migrate the legacy fixture group to its canvas once, so later snapshots
+// compare stable pane ids instead of re-migrating with fresh random ids.
+testContext.plainTabs.setState({
+  groups: testContext.plainTabsModule.snapshotCenterTabsPayload().groups,
+});
+(testContext.popupOpenerGroup = testContext.plainTabs.getState().groups[0]);
 
 (testContext.popupCallback = null);
 

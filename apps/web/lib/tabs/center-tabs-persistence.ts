@@ -1,4 +1,4 @@
-import { mapNode, leaves, rowLayout } from "./canvas-layout";
+import { holdsLayout, mapNode, leaves, rowLayout } from "./canvas-layout";
 import { normalizeTabPageHistory } from "./navigation/page-history";
 import { topLevelTabs } from "../browser/web-page-management";
 import { normalizeSessionHistory } from "./navigation/session-history";
@@ -252,7 +252,7 @@ function normalizedRebasedGroup(
   visibleIds: string[],
   focusedId: string | undefined,
 ): CenterTabGroup | null {
-  if (memberIds.length < 2 && !group.canvas) return null;
+  if (memberIds.length < 2 && !holdsLayout(group.canvas)) return null;
   const visible = visibleIds.filter((id, index) =>
     memberIds.includes(id) && visibleIds.indexOf(id) === index);
   return {

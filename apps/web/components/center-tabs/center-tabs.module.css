@@ -26,6 +26,8 @@
    处全部同色。切 tab 不做任何过渡动画，瞬时切换。 */
 .strip {
   --tab-active-bg: var(--bg-primary);
+  /* 拖动中的 tab：介于活动 tab 与非活动（栏底）之间的中间色，完全不透明。 */
+  --tab-drag-bg: color-mix(in oklch, var(--tab-active-bg) 55%, var(--tabrow-bg));
   height: 40px;
   box-sizing: border-box;
   display: flex;
@@ -417,66 +419,35 @@
    不铺底就会透出下面的 tab，看起来"重叠成一团"。 */
 .tab[data-pointer-drag="true"],
 .compoundTab[data-pointer-drag="true"] {
-  /* transform 绝不能进 transition —— 它由 JS 每帧直写来跟手。
-     只让 detach 态的视觉属性（缩放/透明度/阴影）平滑过渡，
-     缩放走 scale，与 translateX 各自独立，互不打架。 */
-  transition: scale 140ms ease-out, opacity 140ms ease-out,
-    box-shadow 140ms ease-out;
+  /* transform 绝不能进 transition —— 它由 JS 每帧直写来跟手（x/y 双轴）。
+     拖离 tab 栏时只有阴影变化，平滑过渡即可。 */
+  transition: box-shadow 140ms ease-out;
   position: relative;
   z-index: 30;
   opacity: 1;
-  background: var(--bg-primary);
+  background: var(--tab-drag-bg);
   color: var(--text-bright);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.18);
   transform-origin: center;
 }
 /* 拖动中的 tab 不画左侧分隔条（它已脱离栏内节奏）。 */
 .tab[data-pointer-drag="true"]::before {
   background: transparent;
 }
-/* 纵向拖离 strip 进入 detach 态：拎起来的缩略图 + "松手拆成新窗口" 的明确提示。
-   此时抬到最上层，且不参与栏内让位，不会和邻居内容糊在一起。 */
+/* 拖离 tab 栏（进入画布 / 新窗口意图）：tab 本体继续跟手，保持完全不透明，
+   不缩放、不加蓝色描边，只把阴影加深一点表示"被拎起来"。
+   不再有单独的"New window"浮动胶囊。 */
 .tab[data-detach-intent="true"],
 .compoundTab[data-detach-intent="true"] {
-  opacity: 0.7;
+  opacity: 1;
   z-index: 40;
-  /* 越过 detach 阈值时轻微缩小，像被"拎起来"的缩略图。用 scale 属性而不是
-     transform，跟手的 translateX 才不会被覆盖。 */
-  scale: 0.92;
-  /* accent 描边 + 抬升：明确表示"松手会拆成独立窗口"。 */
-  outline: 2px solid var(--accent-blue);
-  outline-offset: 1px;
-  border-radius: 8px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42);
-}
-/* "New window" 提示条：跟随光标的浮动胶囊。由组件 portal 进 .center-body，
-   position:fixed 定位在指针右下方——不能画在被拖 tab 上，因为标签栏容器
-   .tabsFlow 有 overflow:hidden/auto，会把上下溢出裁掉导致提示看不见。
-   pointer-events:none 且不属于被拖元素，pointer capture 不受影响。 */
-.detachCue {
-  position: fixed;
-  /* Keep the cue within the 40px tab strip, above native web views. */
-  height: 30px;
-  box-sizing: border-box;
-  z-index: 1000;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--accent-blue);
-  color: var(--primary-foreground);
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12);
-  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14), 0 12px 28px rgba(0, 0, 0, 0.24);
 }
 /* 目标窗口的"在此打开"提示：另一窗口的 tab 悬停到本窗口时，只在顶部标签栏
    显示——整条 .strip 一层淡强调底 + 下缘强调线，外加一枚小胶囊挂在 strip
    下沿。绝不画在页面内容区（否则像分屏）。pointer-events:none，不挡释放。
-   与源窗口的 detachCue 由光标位置互斥。 */
+   源窗口一侧没有额外提示。 */
 .strip[data-transfer-hover] {
   position: relative;
   background:
@@ -554,11 +525,6 @@
   .tab,
   .compoundTab {
     transition-duration: 0ms;
-  }
-  /* detach 的缩略图缩放也一并跳过，只保留半透明提示。 */
-  .tab[data-detach-intent="true"],
-  .compoundTab[data-detach-intent="true"] {
-    scale: 1;
   }
 }
 
@@ -2512,13 +2478,7 @@
 /* The dragged element stays opaque and follows the pointer beyond the strip. */
 :global(html[data-canvas-dragging]) .strip,
 :global(html[data-canvas-dragging]) .tabsFlow { overflow: visible; z-index: 10000; }
-.tab[data-pointer-drag="true"], .compoundTab[data-pointer-drag="true"],
-.tab[data-detach-intent="true"], .compoundTab[data-detach-intent="true"] {
-  opacity: 1; scale: 1; z-index: 100001;
-  background: color-mix(in srgb, var(--bg-primary) 50%, var(--bg-tertiary));
-  outline: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.35);
-  transition: none;
-}
+.tab[data-pointer-drag="true"], .compoundTab[data-pointer-drag="true"] { z-index: 100001; transition: none; }
 
 .canvasPaneCount {
   flex: 0 0 auto;

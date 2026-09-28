@@ -176,16 +176,17 @@ testContext.assert.match(
   "narrow layout must resolve only the focused member",
 );
 
+// The center is a canvas: an active group renders every member pane, laid out
+// by the canvas tree (not a two-pane split gated on width).
 testContext.assert.match(
   testContext.appShellSource,
-  // No isDesktop gate: split is purely a measured-width decision now.
-  /const panes = topLevelTabs\(tabs, groups\)\.length === 0\s*\? \[\]\s*: activeGroup && splitAvailable \? compoundPanes : focusedPanes;/,
+  /const panes = topLevelTabs\(tabs, groups\)\.length === 0\s*\? \[\]\s*: activeGroup \? compoundPanes : focusedPanes;/,
 );
 
 testContext.assert.match(
   testContext.appShellSource,
-  /const showDivider = panes\.length === 2;/,
-  "divider follows rendered panes, not visible member count",
+  /const geometry = canvasGeometry\(canvas\.root,/,
+  "pane rects come from the canvas tree geometry",
 );
 
 testContext.assert.doesNotMatch(testContext.appShellSource, /visibleTabs\.length === 2/);
@@ -207,11 +208,13 @@ testContext.assert.match(testContext.appShellSource, /if \(pane\.kind === "sessi
 
 testContext.assert.match(testContext.appShellSource, /tab\.kind === "web"[\s\S]*?<WebTabPane/);
 
-testContext.assert.match(testContext.appShellSource, /"center-split-primary"/);
+testContext.assert.match(
+  testContext.appShellSource,
+  /function centerPaneStyle\(index: number\)[\s\S]*?geometry\.panes\.get\(p\.id\)/,
+  "every pane is positioned from its canvas rect",
+);
 
-testContext.assert.match(testContext.appShellSource, /className="center-split-divider"/);
-
-testContext.assert.match(testContext.appShellSource, /"center-split-secondary"/);
+testContext.assert.match(testContext.appShellSource, /<CanvasControls layout=\{canvas\}/);
 
 testContext.assert.match(testContext.appShellSource, /setDesktopSplitLayoutAvailable/);
 
@@ -267,23 +270,29 @@ testContext.assert.match(testContext.splitMeasureSource, /measureScheduler\.canc
 
 testContext.assert.doesNotMatch(testContext.splitMeasureSource, /setInterval/);
 
-testContext.assert.match(testContext.appShellSource, /width: `\$\{effectiveSplitRatio \* 100\}%`/);
+// Canvas dividers: one accessible separator per split boundary, oriented by
+// the split direction, pointer-draggable and nudged 2% by the arrow keys.
+(testContext.canvasControlsSource = await testContext.readFile(
+  new URL("../../components/center-tabs/canvas-controls.tsx", testContext.sourceUrl),
+  "utf8",
+));
 
-testContext.assert.match(testContext.appShellSource, /aria-valuenow=\{Math\.round\(effectiveSplitRatio \* 100\)\}/);
+testContext.assert.match(testContext.canvasControlsSource, /geometry\.dividers\.map\(/);
 
-testContext.assert.match(testContext.appShellSource, /onPointerDown=/);
+testContext.assert.match(testContext.canvasControlsSource, /role="separator"/);
 
-testContext.assert.match(testContext.appShellSource, /onPointerMove=/);
+testContext.assert.match(
+  testContext.canvasControlsSource,
+  /aria-orientation=\{d\.dir === "row" \? "vertical" : "horizontal"\}/,
+);
 
-testContext.assert.match(testContext.appShellSource, /role="separator"/);
+testContext.assert.match(testContext.canvasControlsSource, /aria-valuenow=\{Math\.round\(d\.sizes\[d\.index\]\*100\)\}/);
 
-testContext.assert.match(testContext.appShellSource, /aria-orientation="vertical"/);
+testContext.assert.match(testContext.canvasControlsSource, /onPointerDown=/);
 
-testContext.assert.match(testContext.appShellSource, /"ArrowLeft"/);
+testContext.assert.match(testContext.canvasControlsSource, /"ArrowLeft","ArrowRight","ArrowUp","ArrowDown"/);
 
-testContext.assert.match(testContext.appShellSource, /"ArrowRight"/);
-
-testContext.assert.match(testContext.appShellSource, /0\.02/);
+testContext.assert.match(testContext.canvasControlsSource, /resizeSplit\([^)]*-\.02:\.02\)/);
 
 testContext.assert.match(testContext.appShellSource, /sessionStore\.setCurrentConv\(sid\);/);
 

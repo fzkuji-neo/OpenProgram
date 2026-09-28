@@ -1,4 +1,4 @@
-import { leaves, rowLayout, sanitizeLayout, removePane, type CanvasLayout } from "./canvas-layout";
+import { holdsLayout, leaves, rowLayout, sanitizeLayout, removePane, type CanvasLayout } from "./canvas-layout.ts";
 import type { CenterTab } from "./center-tabs-store";
 
 export const MAX_CENTER_TAB_GROUP_MEMBERS = Number.POSITIVE_INFINITY;
@@ -52,7 +52,17 @@ export function normalizeCenterTabLayout(layout: CenterTabLayout): CenterTabLayo
     const memberIds = unique(candidate.memberIds).filter(
       (id) => alive.has(id) && !claimed.has(id),
     ).slice(0, MAX_CENTER_TAB_GROUP_MEMBERS);
-    if (memberIds.length === 0 || (memberIds.length < 2 && !candidate.canvas)) continue;
+    // A pane whose tab was closed (or claimed by another group) is removed,
+    // not blanked: only panes the user deliberately left empty survive, so a
+    // canvas that drops to one live tab dissolves like any one-member group.
+    const kept = new Set(memberIds);
+    const pruned = candidate.canvas && {
+      ...candidate.canvas,
+      root: leaves(candidate.canvas.root)
+        .filter((pane) => pane.content && !kept.has(pane.content))
+        .reduce((root, pane) => removePane(root, pane.id), candidate.canvas.root),
+    };
+    if (memberIds.length === 0 || (memberIds.length < 2 && !holdsLayout(pruned))) continue;
     claimedGroupIds.add(candidate.id);
     const memberSet = new Set(memberIds);
     const first = Math.min(...memberIds.map((id) => tabIds.indexOf(id)));
@@ -68,11 +78,15 @@ export function normalizeCenterTabLayout(layout: CenterTabLayout): CenterTabLayo
     const focusedId = visibleIds.includes(candidate.focusedId)
       ? candidate.focusedId
       : visibleIds[0];
-    const canvas = sanitizeLayout(candidate.canvas ?? rowLayout(memberIds), new Set(memberIds));
+    // Legacy groups (and callers that add members) migrate to a row layout in
+    // their previously rendered order: visible panes first, then the rest.
+    const legacyOrder = unique([...visibleIds, ...memberIds]);
+    const canvas = sanitizeLayout(pruned ?? rowLayout(legacyOrder), kept);
     const canvasIds = leaves(canvas.root).flatMap(p => p.content ? [p.content] : []);
-    // Legacy callers can add members; place them in the migrated row layout.
-    const migrated = canvasIds.length > 0 && memberIds.some(id => !canvasIds.includes(id)) ? rowLayout(memberIds) : canvas;
-    groups.push({ ...candidate, memberIds, visibleIds: memberIds, focusedId, canvas: migrated });
+    const migrated = canvasIds.length > 0 && memberIds.some(id => !canvasIds.includes(id)) ? rowLayout(legacyOrder) : canvas;
+    // Every member is on the canvas, so visibleIds is the spatial pane order.
+    const placed = leaves(migrated.root).flatMap(p => p.content ? [p.content] : []);
+    groups.push({ ...candidate, memberIds, visibleIds: placed.length ? placed : memberIds, focusedId, canvas: migrated });
   }
   return { tabIds, groups };
 }
@@ -135,11 +149,12 @@ export function ungroupCenterTab(
   const groups = layout.groups.flatMap((group) => {
     if (group.id !== source.id) return [group];
     const memberIds = group.memberIds.filter((id) => id !== tabId);
-    if (!memberIds.length || (memberIds.length < 2 && !group.canvas)) return [];
+    const canvas = group.canvas ? { ...group.canvas, root: removePane(group.canvas.root, leaves(group.canvas.root).find(p => p.content === tabId)?.id ?? "") } : undefined;
+    if (!memberIds.length || (memberIds.length < 2 && !holdsLayout(canvas))) return [];
     const visibleIds = group.visibleIds.filter((id) => id !== tabId);
     return [{
       ...group,
-      canvas: group.canvas ? { ...group.canvas, root: removePane(group.canvas.root, leaves(group.canvas.root).find(p => p.content === tabId)?.id ?? "") } : undefined,
+      canvas,
       memberIds,
       visibleIds,
       focusedId: visibleIds.includes(group.focusedId)

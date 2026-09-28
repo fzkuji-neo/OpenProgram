@@ -9,6 +9,8 @@ export type Rect = { left: number; top: number; width: number; height: number };
 const id = () => `canvas:${crypto.randomUUID()}`;
 export const pane = (content: string | null = null): LayoutNode => ({ kind: "pane", id: id(), content });
 export const leaves = (node: LayoutNode): Extract<LayoutNode, { kind: "pane" }>[] => node.kind === "pane" ? [node] : node.children.flatMap(leaves);
+/** A single member keeps its layout only while other (empty) panes remain. */
+export const holdsLayout = (canvas: CanvasLayout | undefined) => !!canvas && leaves(canvas.root).length > 1;
 export function mapNode(node: LayoutNode, target: string, fn: (n: LayoutNode) => LayoutNode): LayoutNode {
   return node.id === target ? fn(node) : node.kind === "pane" ? node : { ...node, children: node.children.map(c => mapNode(c, target, fn)) };
 }

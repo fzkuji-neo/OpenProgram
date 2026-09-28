@@ -228,7 +228,13 @@ test("Open in tab reveals the exact existing page as the current top tab", async
     assert.ok(visible.includes(groupedPage.id));
     assert.equal(state.tabs.find(tab => tab.id === pinned.id).webPinned, true);
     assert.equal(state.tabs.find(tab => tab.id === groupedPage.id).webPinned, undefined);
-    assert.deepEqual(state.groups, groups);
+    // Opening a hidden page leaves the existing group intact (its canvas is the
+    // one migrated from the legacy two-member pair).
+    assert.deepEqual(state.groups.map(({ canvas, ...group }) => group), groups);
+    assert.deepEqual(
+      state.groups[0].canvas.root.children.map(pane => pane.content),
+      [groupedSession.id, groupedPage.id],
+    );
     assert.equal(state.splitWebTabId, null);
     await act(async () => button.click());
     const again = useCenterTabs.getState();

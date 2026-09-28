@@ -128,7 +128,7 @@ test("restore retains the active grouped session and removes duplicates", () => 
   });
   assert.deepEqual(payload.tabs.map(tab => tab.id), ["s:A:duplicate", "w:1"]);
   assert.equal(payload.activeId, "s:A:duplicate");
-  assert.deepEqual(payload.groups, [{ id: "g", memberIds: ["s:A:duplicate", "w:1"], visibleIds: ["s:A:duplicate", "w:1"], focusedId: "s:A:duplicate" }]);
+  assert.deepEqual(payload.groups.map(({ canvas: _canvas, ...group }) => group), [{ id: "g", memberIds: ["s:A:duplicate", "w:1"], visibleIds: ["s:A:duplicate", "w:1"], focusedId: "s:A:duplicate" }]);
 });
 
 test("same-title sessions remain distinct", () => {

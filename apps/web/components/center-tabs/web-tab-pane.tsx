@@ -22,7 +22,7 @@
  *    back/forward buttons: iframe history is unreliable cross-origin.
  */
 import { useEffect, useId, useRef, useState } from "react";
-import { canvasDragging } from "@/lib/tabs/canvas-drag";
+import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
 import type { KeyboardEvent, ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, PictureInPicture2, RotateCw, Star, X } from "lucide-react";
 
@@ -406,12 +406,12 @@ function DesktopWebTabPane({
     ro.observe(el);
     const mo = new MutationObserver(report);
     mo.observe(document.body, { subtree: true, childList: true, attributes: true });
-    window.addEventListener("canvas-drag-change", report);
+    const offCanvasDrag = onCanvasDragChange(report);
     window.addEventListener("resize", report);
     window.addEventListener("scroll", report, true);
     return () => {
       disposed = true;
-      window.removeEventListener("canvas-drag-change", report);
+      offCanvasDrag();
       ro.disconnect();
       mo.disconnect();
       window.removeEventListener("resize", report);
