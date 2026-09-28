@@ -9,7 +9,7 @@ import { Sidebar } from "./sidebar/sidebar";
 import { RightSidebar } from "./right-sidebar/right-sidebar";
 import { CenterTabStrip } from "./center-tabs/center-tab-strip";
 import { CanvasControls } from "./center-tabs/canvas-controls";
-import { canvasGeometry, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
+import { canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
 import { BrowserResourceProjection } from "@/lib/browser/browser-resource-projection";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
@@ -459,7 +459,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     : activeGroup ? compoundPanes : focusedPanes;
   const canvas = useMemo(() => activeGroup?.canvas ?? rowLayout(activeId ? [activeId] : [], splitRatio), [activeGroup?.canvas, activeId, splitRatio]);
   const canvasLeaves = leaves(canvas.root);
-  const geometry = canvasGeometry(canvas.root, { left: 0, top: 0, width: centerBodyWidth, height: Math.max(0, centerBodyHeight) });
+  const canvasRect = canvasViewport(centerBodyWidth, centerBodyHeight);
+  const geometry = canvasGeometry(canvas.root, canvasRect);
   const webIds = panes.flatMap(p => p.kind !== "session" && tabs.find(t => t.id === p.tabId)?.kind === "web" ? [p.tabId] : []);
   const liveWebIds = new Set([...(activeId && webIds.includes(activeId) ? [activeId] : []), ...webIds.filter(id => id !== activeId)].slice(0, 8));
   const sessionPaneIndex = panes.findIndex((pane) => pane.kind === "session");
@@ -492,7 +493,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const p = canvasLeaves.find(p => p.content === tabId);
     if (!p) return { display: "none" };
     const r = canvas.zoomedPaneId === p.id
-      ? { left:0,top:0,width:centerBodyWidth,height:centerBodyHeight }
+      ? canvasRect
       : geometry.panes.get(p.id)!;
     const hidden = (canvas.zoomedPaneId && canvas.zoomedPaneId !== p.id) || r.width < 150 || r.height < 110;
     // No per-pane title bar: content fills its pane. Multi-pane layouts keep a

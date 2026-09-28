@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Columns2, Equal, FileText, Globe, LayoutGrid, Maximize2, MessageSquare, Minimize2, Rows2, Save, SquareDashed, X } from "lucide-react";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
-import { canvasGeometry, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, mapNode, type CanvasLayout, type CanvasPreset } from "@/lib/tabs/canvas-layout";
+import { canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, mapNode, type CanvasLayout, type CanvasPreset } from "@/lib/tabs/canvas-layout";
 import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas-drag";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./canvas-controls.module.css";
@@ -47,7 +47,8 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
     window.addEventListener("resize", dismiss);
     return () => { window.removeEventListener("pointerdown", dismiss); window.removeEventListener("keydown", key); window.removeEventListener("resize", dismiss); };
   }, [menu]);
-  const all = leaves(layout.root), geometry = canvasGeometry(layout.root, { left: 0, top: 0, width, height: Math.max(0,height) });
+  const canvasRect = canvasViewport(width, height);
+  const all = leaves(layout.root), geometry = canvasGeometry(layout.root, canvasRect);
   const update = (canvas: CanvasLayout) => useCenterTabs.getState().setCanvas(targetId, canvas);
   const focus = (paneId: string) => update({ ...layout, focusedPaneId: paneId });
   const zoom = (paneId: string) => update({ ...layout, focusedPaneId: paneId, zoomedPaneId: layout.zoomedPaneId === paneId ? undefined : paneId });
@@ -126,7 +127,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
       const rect=geometry.panes.get(p.id)!;
       const visible = !layout.zoomedPaneId || layout.zoomedPaneId === p.id;
       const zoomed = layout.zoomedPaneId === p.id;
-      const r = zoomed ? { left:0,top:0,width,height } : rect;
+      const r = zoomed ? canvasRect : rect;
       const tab=tabs.find(t => t.id === p.content), tiny=r.width<150 || r.height<110;
       const title = titleOf(tab);
       return <div key={p.id} className={styles.pane} data-canvas-pane={p.id} data-canvas-target={targetId} data-single={single || undefined} data-focused={(!single && layout.focusedPaneId === p.id) || undefined} style={{ ...r, display: visible ? undefined : "none" }}>
