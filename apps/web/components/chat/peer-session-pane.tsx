@@ -20,6 +20,7 @@
  * (`setActive`), which changes no layout and interrupts no input.
  */
 import { useCallback, useEffect, useRef } from "react";
+import { ArrowDown } from "lucide-react";
 
 import { useMessageIds, useSessionStore } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
@@ -173,7 +174,7 @@ export function PeerSessionPane({
         position: "relative",
       }}
     >
-      {showTitle || detached || streaming ? <div
+      {showTitle || streaming ? <div
         className="peer-session-header"
         style={{
           display: "flex",
@@ -195,11 +196,6 @@ export function PeerSessionPane({
         >
           {showTitle ? title : null}
         </span>
-        {detached ? <button type="button" onClick={jumpToLatest}
-          aria-label={text("Jump to latest", "跳到最新")}
-          style={{ marginLeft: "auto", fontSize: "inherit", cursor: "pointer" }}>
-          {text("Jump to latest", "跳到最新")}
-        </button> : null}
         {streaming ? <span className="thinking-spinner" aria-hidden="true" /> : null}
       </div> : null}
       {/* `minWidth: 0` on both the scroller and the column: without it a
@@ -246,6 +242,16 @@ export function PeerSessionPane({
           <DecisionOutputs key={sessionId} sessionId={sessionId} />
         </div>
       </div>
+      {detached ? (
+        <div className="jump-latest-anchor" style={{ bottom: "calc(var(--peer-composer-h, 0px) + 12px)" }}>
+          <button type="button" className="jump-latest" onClick={jumpToLatest}
+            aria-label={text("Jump to latest", "跳到最新")}
+            title={text("Jump to latest", "跳到最新")}>
+            <ArrowDown aria-hidden="true" />
+            {text("Jump to latest", "跳到最新")}
+          </button>
+        </div>
+      ) : null}
       {/* Full composer, scoped to this pane's session. The scope is what the
           composer and its control hooks (draft, run state, thinking effort,
           tools, permission mode, /context panel) read, so everything here
