@@ -1211,8 +1211,13 @@ async def handle_load_session(ws, cmd: dict):
         _permission_state = permission_state(session_id)
         _effective_permission = permission_from_config(
             run_cfg, default=project_defaults(conv["id"]).get("permission_mode"))
-        refresh_context_after_load = not conv.get("_last_context_breakdown")
         _stats = conv.get("_last_context_stats") or {}
+        if _stats.get("context_usage_version") != 2:
+            conv.pop("_last_context_stats", None)
+            conv.pop("_last_context_breakdown", None)
+            conv.pop("_chat_usage", None)
+            _stats = {}
+        refresh_context_after_load = not conv.get("_last_context_breakdown")
         _bd = conv.get("_last_context_breakdown")
         if _bd and "breakdown" not in _stats:
             _stats = {**_stats, "type": "context_stats", "breakdown": _bd}
