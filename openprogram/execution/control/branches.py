@@ -525,7 +525,7 @@ class BranchesOperations:
                 checkpoint is None
                 and kind is CommandKind.CONTINUE
                 and execution.status is ExecutionStatus.PAUSED
-                and execution.reason_code == "restart_pending"
+                and execution.reason_code in {"restart_pending", "paused_before_first_effect"}
             )
             if checkpoint is None and not (initial_activation or restart_initial_activation):
                 raise ExecutionConflict("checkpoint_required", "a published checkpoint is required")

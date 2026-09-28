@@ -59,6 +59,11 @@ from .types import (
 # runtime.exec still defaults to 20.
 MAX_INNER_ITERATIONS = None
 
+
+class _SafePointStop(BaseException):
+    """The durable owner paused before an external operation started."""
+
+
 # Repetition recovery is deliberately narrow.  It applies only to a
 # tool-enabled response and only after the provider has emitted one exact,
 # sufficiently large text suffix repeatedly.  There is no total output or
@@ -693,6 +698,9 @@ async def _run_loop_with_recovery(
                     provider_snapshot,
                     structured_attempt if structured_plan is not None else None,
                 )
+            except _SafePointStop:
+                ev_stream.push(AgentEventAgentEnd(messages=new_messages))
+                return
             except RepetitiveOutputError as error:
                 from openprogram.providers.utils.recovery import (
                     current_recovery,
@@ -1400,7 +1408,8 @@ async def _stream_assistant_response(
                 "tools": [_durable_message(tool) for tool in (llm_context.tools or [])],
             },
         }
-        await config.safe_point_hook("provider.before", provider_payload)
+        if await config.safe_point_hook("provider.before", provider_payload):
+            raise _SafePointStop()
         if provider_payload.get("supports_idempotency_key") is True:
             stream_opts.idempotency_key = provider_payload.get("idempotency_key")
         else:
@@ -1731,7 +1740,8 @@ async def _execute_tool_calls(
 
         async def notify_started():
             if safe_point_hook is not None:
-                await safe_point_hook("tool.started", {"tool_call_id": str(tool_call.id)})
+                if await safe_point_hook("tool.started", {"tool_call_id": str(tool_call.id)}):
+                    raise _SafePointStop()
 
         execution = ToolExecution(notify_started)
         if skipped_repeat:
@@ -1812,6 +1822,9 @@ async def _execute_tool_calls(
                     if timeout is None
                     else await asyncio.wait_for(operation, timeout=timeout)
                 )
+        except _SafePointStop:
+            stop_at_safe_point = True
+            break
         except FunctionSuspended:
             if safe_point_hook is None:
                 raise

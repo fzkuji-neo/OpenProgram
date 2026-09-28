@@ -13,6 +13,39 @@ from .shared import (
 
 
 class SafePointsOperations:
+    def pause_before_first_effect(self, *, attempt_id, generation, command_id):
+        """Pause a live Agent owner whose admission has produced no effects."""
+        with self.executions._transaction() as connection:
+            attempt = self.attempts._require(connection, attempt_id)
+            self.attempts._validate_generation(attempt, generation)
+            execution = self.executions._require_execution(connection, attempt.execution_id)
+            command = self.executions._get_command(connection, command_id)
+            if (execution.status is not ExecutionStatus.PAUSING
+                    or execution.checkpoint_head_id is not None
+                    or command is None or command.execution_id != execution.execution_id
+                    or command.kind is not CommandKind.PAUSE
+                    or command.status is not CommandStatus.APPLYING):
+                raise AttemptConflict("command_mismatch", "initial pause no longer belongs to this owner")
+            if connection.execute(
+                "SELECT 1 FROM effects WHERE execution_id = ? AND "
+                "(status != 'not_committed' OR COALESCE(json_extract(receipt_json, '$.pause_before_dispatch'), 0) != 1) LIMIT 1",
+                (execution.execution_id,),
+            ).fetchone():
+                raise AttemptConflict("effect_state_invalid", "initial pause requires no dispatched work")
+            ended, paused = self.attempts._finish_in_transaction(
+                connection, attempt_id, generation=generation,
+                expected_execution_version=execution.status_version,
+                target=ExecutionStatus.PAUSED, outcome="paused_before_first_effect",
+                reason_code="paused_before_first_effect",
+            )
+            command = self.executions._transition_command(
+                connection, command_id, expected_status=CommandStatus.APPLYING,
+                target=CommandStatus.APPLIED, result_version=paused.status_version,
+            )
+        self.registry.unbind(execution.execution_id, attempt_id=attempt_id, generation=generation)
+        self._observe_paused(paused)
+        return SafePointCompletion(command=command, execution=paused, attempt=ended, checkpoint=None)
+
     def arrive_safe_point(
         self,
         *,

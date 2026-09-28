@@ -496,7 +496,7 @@ def _admitted_agent_execution(tmp_path, *, execution_id: str = "exec-restart-1")
     return store, attempts, active, running
 
 
-def _real_provider_safe_point(tmp_path, *, tool_calls=True, pause=True):
+def _real_provider_safe_point(tmp_path, *, tool_calls=True, pause=True, expose_hook=None, expected_status=None):
     """Create a checkpoint only through provider before/after callbacks."""
 
     store, attempts, active, running = _admitted_agent_execution(tmp_path)
@@ -517,6 +517,8 @@ def _real_provider_safe_point(tmp_path, *, tool_calls=True, pause=True):
     )
     request._execution_revision_id = running.revision_id
     hook = driver._safe_point_hook(active, request, threading.Event())
+    if expose_hook is not None:
+        expose_hook.append(hook)
     snapshot = runtime_contract_snapshot(
         model=Model(
             id="fake", name="fake", api="openai-completions", provider="openai",
@@ -561,7 +563,7 @@ def _real_provider_safe_point(tmp_path, *, tool_calls=True, pause=True):
         "next_tool_index": 0,
     }) is pause
     paused = store.get_execution(running.execution_id)
-    assert paused is not None and paused.status is (ExecutionStatus.PAUSED if pause else ExecutionStatus.RUNNING)
+    assert paused is not None and paused.status is (expected_status or (ExecutionStatus.PAUSED if pause else ExecutionStatus.RUNNING))
     checkpoint = control.checkpoints.get(paused.checkpoint_head_id)
     assert checkpoint is not None
     return store, control, active, paused, checkpoint, command
@@ -1487,3 +1489,173 @@ def test_normal_provider_completion_records_continuation_without_pause(tmp_path)
     state = AgentCheckpointV1.load(store, checkpoint)
     assert state.payload["next_tool_index"] == 0
     assert state.payload["current_decision"]["tool_call_ids"] == ["tool-1"]
+
+
+@pytest.mark.parametrize("boundary", ["tool.before", "tool.started", "provider.before"])
+@pytest.mark.parametrize("timing", ["before", "admission"])
+def test_pause_between_agent_effects_hands_off_without_failure(tmp_path, monkeypatch, boundary, timing):
+    hooks = []
+    store, control, active, running, checkpoint, _ = _real_provider_safe_point(
+        tmp_path, pause=False, expose_hook=hooks,
+    )
+    hook = hooks[0]
+    tool_payload = {"tool_call_id": "tool-1", "tool_name": "echo", "arguments": {}}
+    if boundary == "tool.started":
+        assert hook("tool.before", tool_payload) is False
+    from openprogram.execution.model import CommandKind
+    def pause():
+        store.accept_command_with_transition(
+            command_id="pause-between-effects", execution_id=running.execution_id,
+            expected_version=store.get_execution(running.execution_id).status_version,
+            kind=CommandKind.PAUSE, target=ExecutionStatus.PAUSING,
+            payload={}, actor={"subject": "agent-owner"},
+        )
+    if timing == "before":
+        pause()
+    else:
+        method = "mark_dispatched" if boundary == "tool.started" else "register"
+        original = getattr(control.effects, method)
+        def race(*args, **kwargs):
+            pause()
+            return original(*args, **kwargs)
+        monkeypatch.setattr(control.effects, method, race)
+    from openprogram.agent.continuation import AgentCheckpointV1
+    initial_state = AgentCheckpointV1.load(store, checkpoint)
+    tool_payload["resolved_snapshot"] = initial_state.read_json_ref(
+        store, running.execution_id,
+        initial_state.payload["resolved_model_system_tool_snapshot_ref"],
+    )
+    assert hook(boundary, tool_payload) is True
+    paused = store.get_execution(running.execution_id)
+    assert paused.status is ExecutionStatus.PAUSED
+    assert store.get_command("pause-between-effects").status is CommandStatus.APPLIED
+    from openprogram.agent.continuation import AgentCheckpointV1
+    state = AgentCheckpointV1.load(store, control.checkpoints.get(paused.checkpoint_head_id))
+    assert state.payload["next_tool_index"] == 0
+    assert state.payload["current_decision"]["tool_call_ids"] == ["tool-1"]
+    with store._connect() as connection:
+        assert connection.execute(
+            "SELECT count(*) FROM effects WHERE execution_id = ? AND status IN ('planned', 'dispatched', 'uncertain')",
+            (running.execution_id,),
+        ).fetchone()[0] == 0
+
+    # A new owner must admit the untouched tool once, including when an old
+    # owner had registered (but never dispatched) that exact tool identity.
+    monkeypatch.undo()
+    async def activate(next_attempt, _activation):
+        return DriverBinding(execution_id=next_attempt.execution_id,
+            attempt_id=next_attempt.attempt_id, generation=next_attempt.generation,
+            driver=SimpleNamespace(), handle=object())
+
+    resumed = asyncio.run(control.request_continue(
+        command_id="resume-between-effects", execution_id=paused.execution_id,
+        expected_version=paused.status_version, actor={"subject": "agent-owner"},
+        activator=activate,
+    ))
+    assert resumed.delivered
+    from openprogram.agent.continuation import AgentContinuation
+    from openprogram.agent.dispatcher.types import TurnRequest
+    from openprogram.agent.production_driver import AgentProductionDriver
+    from openprogram.providers.types import AssistantMessage
+    request = TurnRequest(session_id=paused.session_id, user_text="resume exactly once",
+                          agent_id="main", source="component", user_msg_id="user-anchor")
+    continuation = AgentContinuation(
+        request=request, checkpoint=control.checkpoints.get(paused.checkpoint_head_id),
+        state=state, tool_results=(),
+        assistant_message=AssistantMessage.model_validate(state.read_json_ref(
+            store, paused.execution_id, state.payload["assistant_message_delta_ref"])),
+        resolved_snapshot=tool_payload["resolved_snapshot"],
+    )
+    next_attempt = control.attempts.get(resumed.execution.current_attempt_id)
+    resumed_hook = AgentProductionDriver(store, control_service=control)._safe_point_hook(
+        next_attempt, request, threading.Event(), continuation=continuation)
+    assert resumed_hook("tool.before", tool_payload) is False
+    assert resumed_hook("tool.started", tool_payload) is False
+    with store._connect() as connection:
+        assert connection.execute(
+            "SELECT count(*) FROM effects WHERE execution_id = ? AND status = 'dispatched'",
+            (running.execution_id,),
+        ).fetchone()[0] == 1
+
+
+@pytest.mark.parametrize("timing", ["before", "dispatch"])
+def test_active_initial_pause_resumes_original_admission(tmp_path, monkeypatch, timing):
+    store, attempts, active, running = _admitted_agent_execution(tmp_path)
+    from openprogram.agent.dispatcher.types import TurnRequest
+    from openprogram.agent.production_driver import AgentProductionDriver
+    from openprogram.agent.continuation import runtime_contract_snapshot
+    from openprogram.execution.model import CommandKind
+    from openprogram.providers.types import Model
+    control = RuntimeControlService(store, attempts, DriverRegistry())
+    request = TurnRequest(session_id=running.session_id, user_text="original",
+                          agent_id="main", source="component", user_msg_id="user-anchor")
+    hook = AgentProductionDriver(store, control_service=control)._safe_point_hook(
+        active, request, threading.Event())
+    snapshot = runtime_contract_snapshot(
+        model=Model(id="fake", name="fake", api="openai-completions", provider="openai",
+                    base_url="https://example.invalid/v1"),
+        system_prompt="", tools=[], request=request)
+
+    def pause():
+        store.accept_command_with_transition(
+            command_id="pause-initial-active", execution_id=running.execution_id,
+            expected_version=store.get_execution(running.execution_id).status_version,
+            kind=CommandKind.PAUSE, target=ExecutionStatus.PAUSING,
+            payload={}, actor={"subject": "agent-owner"})
+    if timing == "before":
+        pause()
+    else:
+        dispatch = control.effects.mark_dispatched
+        def race(*args, **kwargs):
+            pause()
+            return dispatch(*args, **kwargs)
+        monkeypatch.setattr(control.effects, "mark_dispatched", race)
+    assert hook("provider.before", {"resolved_snapshot": snapshot, "context": {}}) is True
+    paused = store.get_execution(running.execution_id)
+    assert paused.status is ExecutionStatus.PAUSED
+    assert paused.checkpoint_head_id is None
+    assert store.get_command("pause-initial-active").status is CommandStatus.APPLIED
+    monkeypatch.undo()
+    activated = []
+    async def activate(next_attempt, activation):
+        activated.append(activation)
+        return DriverBinding(execution_id=next_attempt.execution_id,
+            attempt_id=next_attempt.attempt_id, generation=next_attempt.generation,
+            driver=SimpleNamespace(), handle=object())
+    resumed = asyncio.run(control.request_continue(
+        command_id="resume-initial-active", execution_id=paused.execution_id,
+        expected_version=paused.status_version, actor={"subject": "agent-owner"}, activator=activate))
+    assert resumed.delivered and len(activated) == 1
+    assert activated[0].checkpoint is None
+    next_attempt = attempts.get(resumed.execution.current_attempt_id)
+    next_hook = AgentProductionDriver(store, control_service=control)._safe_point_hook(
+        next_attempt, request, threading.Event())
+    assert next_hook("provider.before", {"resolved_snapshot": snapshot, "context": {}}) is False
+    with store._connect() as connection:
+        assert connection.execute("SELECT count(*) FROM effects WHERE execution_id = ? AND status = 'dispatched'",
+                                  (running.execution_id,)).fetchone()[0] == 1
+
+
+def test_pause_during_result_publication_retries_only_checkpoint(tmp_path, monkeypatch):
+    from openprogram.execution.model import CommandKind
+    original = RuntimeControlService.commit_agent_safe_point
+    calls = []
+    def race(service, **kwargs):
+        calls.append(kwargs["effect_id"])
+        if len(calls) == 1:
+            execution = service.executions.get_execution(kwargs["execution_id"])
+            service.executions.accept_command_with_transition(
+                command_id="pause-during-publication", execution_id=execution.execution_id,
+                expected_version=execution.status_version, kind=CommandKind.PAUSE,
+                target=ExecutionStatus.PAUSING, payload={}, actor={"subject": "agent-owner"})
+        return original(service, **kwargs)
+    monkeypatch.setattr(RuntimeControlService, "commit_agent_safe_point", race)
+    hooks = []
+    # The completed provider is published while pause is pending; the next
+    # boundary performs the ownership handoff without a second provider call.
+    store, _, active, _, _, _ = _real_provider_safe_point(
+        tmp_path, pause=False, expose_hook=hooks, expected_status=ExecutionStatus.PAUSING)
+    assert len(calls) == 2 and calls[0] == calls[1]
+    assert hooks[0]("tool.before", {"tool_call_id": "tool-1", "arguments": {}}) is True
+    assert store.get_execution(active.execution_id).status is ExecutionStatus.PAUSED
+    assert store.get_command("pause-during-publication").status is CommandStatus.APPLIED

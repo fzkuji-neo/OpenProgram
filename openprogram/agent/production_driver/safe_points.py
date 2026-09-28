@@ -21,7 +21,7 @@ class SafePointsOperations:
         dispatcher-local state for a future attempt.
         """
         from openprogram.execution.effects import (
-            EffectClassification, EffectStatus,
+            EffectClassification, EffectStatus, EffectConflict,
         )
         from openprogram.execution.model import CommandKind
 
@@ -39,6 +39,7 @@ class SafePointsOperations:
         provider_terminal_receipt: dict[str, shared.Any] | None = None
         latest_assistant: dict[str, shared.Any] | None = None
         latest_snapshot: dict[str, shared.Any] = {}
+        last_checkpoint_inputs = None
         if continuation is not None:
             for item in continuation.state.payload["completed_actions"]:
                 action = dict(item)
@@ -267,8 +268,79 @@ class SafePointsOperations:
             except shared.AgentCheckpointError as exc:
                 raise shared.AgentDriverError(exc.code, str(exc)) from exc
 
+        def pause_before_dispatch(service):
+            """Consume pause at the last completed decision, without starting work."""
+            from openprogram.execution.checkpoints import CheckpointFragment
+            from openprogram.execution.restart import window_seconds
+
+            execution = service.executions.get_execution(attempt.execution_id)
+            if execution.status is shared.ExecutionStatus.CANCELLING or cancel_event.is_set():
+                from openprogram.providers.utils.errors import ExecInterrupt
+                raise ExecInterrupt("cancelled")
+            if execution.status is not shared.ExecutionStatus.PAUSING:
+                return False
+            command = current_command(service, attempt.execution_id)
+            if command is None or command.kind is not CommandKind.PAUSE:
+                return False
+            # A registered effect can still be undispatched. Settle that intent;
+            # its action remains pending in the Agent cursor for the next owner.
+            for value in pending.values():
+                effect = service.effects.get(value[0])
+                if effect is not None and effect.status is EffectStatus.PLANNED:
+                    service.effects.resolve_not_started(
+                        effect.effect_id,
+                        receipt={"outcome": "not_started", "execution_started": False,
+                                 "pause_before_dispatch": True},
+                        attempt_id=attempt.attempt_id, generation=attempt.generation,
+                    )
+            if last_checkpoint_inputs is not None:
+                state = shared.AgentCheckpointV1.build(**last_checkpoint_inputs)
+                for blob in state.blob_payloads.values():
+                    service.executions.put_state_blob(attempt.execution_id, blob)
+                refs = {
+                    "agent_checkpoint": service.executions.put_state_blob(
+                        attempt.execution_id, state.to_bytes()),
+                    "restart_window_seconds": window_seconds(),
+                    "agent_checkpoint_v1": {
+                        key: state.payload[key]
+                        for key in ("safe_point", "frontier", "turn", "current_decision", "next_tool_index")
+                    },
+                }
+                fragment = CheckpointFragment(
+                    safe_point_kind=state.payload["safe_point"]["kind"],
+                    frontier=tuple(state.payload["frontier"]), state_refs=refs,
+                )
+            else:
+                checkpoint = service.checkpoints.get(execution.checkpoint_head_id)
+                if checkpoint is None:
+                    service.pause_before_first_effect(
+                        attempt_id=attempt.attempt_id, generation=attempt.generation,
+                        command_id=command.command_id,
+                    )
+                    return True
+                state = shared.AgentCheckpointV1.load(service.executions, checkpoint)
+                fragment = CheckpointFragment(
+                    safe_point_kind=state.payload["safe_point"]["kind"],
+                    frontier=checkpoint.frontier, state_refs=checkpoint.state_refs,
+                    completed_frontier=checkpoint.completed_frontier,
+                    completed_actions=checkpoint.completed_actions,
+                    effect_receipts=checkpoint.effect_receipts,
+                    child_frontier=checkpoint.child_frontier,
+                )
+            if command.status is shared.CommandStatus.ACCEPTED:
+                service.executions.transition_command(
+                    command.command_id, expected_status=shared.CommandStatus.ACCEPTED,
+                    target=shared.CommandStatus.APPLYING,
+                )
+            service.arrive_safe_point(
+                attempt_id=attempt.attempt_id, generation=attempt.generation,
+                command_id=command.command_id,
+                expected_execution_version=execution.status_version, fragment=fragment,
+            )
+            return True
+
         def hook(kind: str, payload: shared.Mapping[str, shared.Any]) -> bool:
-            nonlocal provider_action_id, provider_effect_id, provider_input_hash, provider_terminal_receipt, latest_assistant, latest_snapshot, completed_tool_results
+            nonlocal provider_action_id, provider_effect_id, provider_input_hash, provider_terminal_receipt, latest_assistant, latest_snapshot, completed_tool_results, last_checkpoint_inputs
             service = self._control_service()
             if kind == "tool.started":
                 pending_tool = pending.get("tool")
@@ -446,7 +518,10 @@ class SafePointsOperations:
                     raise shared.AgentDriverError("invalid_safe_point", "unsupported Agent effect boundary")
                 effect_id = f"effect_{action_id[:32]}"
                 previous = service.effects.get(effect_id)
-                if kind == "tool.before" and previous is not None and previous.receipt.get("function_suspended") is True:
+                if kind == "tool.before" and previous is not None and (
+                    previous.receipt.get("function_suspended") is True
+                    or previous.receipt.get("pause_before_dispatch") is True
+                ):
                     action_id = digest(action_id, str(attempt.generation))
                     effect_id = f"effect_{action_id[:32]}"
                 supports_idempotency_key = (
@@ -476,14 +551,14 @@ class SafePointsOperations:
                     idempotency_key=idempotency_key,
                     metadata={"kind": kind, "payload": dict(payload)},
                 )
-                if effect.status is EffectStatus.PLANNED and kind != "tool.before":
-                    service.effects.mark_dispatched(
-                        effect.effect_id, expected_status=EffectStatus.PLANNED,
-                    )
                 pending[kind.rsplit(".", 1)[0]] = (
                     effect_id, action_id, input_hash, idempotency_key,
                     dispatch_candidates,
                 )
+                if effect.status is EffectStatus.PLANNED and kind != "tool.before":
+                    service.effects.mark_dispatched(
+                        effect.effect_id, expected_status=EffectStatus.PLANNED,
+                    )
                 return False
 
             key = kind.rsplit(".", 1)[0]
@@ -622,6 +697,9 @@ class SafePointsOperations:
                 else:
                     decision_action_ids.add(action_id)
 
+            last_checkpoint_inputs = checkpoint_inputs(
+                kind, payload, effect_id, action_id, input_hash, terminal_receipt,
+            )
             command = None if kind == "provider.finished" else current_command(service, attempt.execution_id)
             from openprogram.execution.restart import window_seconds
             # Direct non-durable hook callers do not carry a revision contract.
@@ -656,18 +734,31 @@ class SafePointsOperations:
                 checkpoint = shared.AgentCheckpointV1.build(**inputs)
             except shared.AgentCheckpointError as exc:
                 raise shared.AgentDriverError(exc.code, str(exc)) from exc
-            completion = service.commit_agent_safe_point(
-                execution_id=attempt.execution_id, attempt_id=attempt.attempt_id,
-                generation=attempt.generation, expected_version=current.status_version,
-                safe_point_kind=str(checkpoint.payload["safe_point"]["kind"]),
-                frontier=tuple(checkpoint.payload["frontier"]),
-                state_refs={"restart_window_seconds": restart_window},
-                effect_id=effect_id, terminal_receipt=terminal_receipt,
-                receipt_blob=shared.canonical_json_bytes(terminal_receipt),
-                agent_checkpoint=checkpoint,
-                command_id=command.command_id if command is not None else None, managed_action_id=action_id,
-                consumed_steer_command_ids=tuple(sorted(steer_consumed_ids or ())),
-            )
+            from openprogram.execution.safe_points import AgentSafePointConflict
+            while True:
+                try:
+                    completion = service.commit_agent_safe_point(
+                        execution_id=attempt.execution_id, attempt_id=attempt.attempt_id,
+                        generation=attempt.generation, expected_version=current.status_version,
+                        safe_point_kind=str(checkpoint.payload["safe_point"]["kind"]),
+                        frontier=tuple(checkpoint.payload["frontier"]),
+                        state_refs={"restart_window_seconds": restart_window},
+                        effect_id=effect_id, terminal_receipt=terminal_receipt,
+                        receipt_blob=shared.canonical_json_bytes(terminal_receipt),
+                        agent_checkpoint=checkpoint,
+                        command_id=command.command_id if command is not None else None, managed_action_id=action_id,
+                        consumed_steer_command_ids=tuple(sorted(steer_consumed_ids or ())),
+                    )
+                    break
+                except AgentSafePointConflict as exc:
+                    if exc.code != "stale_version":
+                        raise
+                    # Control commands may advance the execution version while
+                    # we serialize the result. The exact effect and attempt
+                    # still fence this retry; no provider/tool is re-executed.
+                    current = service.executions.get_execution(attempt.execution_id)
+                    if current is None or current.current_attempt_id != attempt.attempt_id:
+                        raise
             if kind != "tool.suspended":
                 remember_completed_action()
             if command is not None and command.kind is CommandKind.STEER and steer_queue is not None:
@@ -687,5 +778,20 @@ class SafePointsOperations:
                         })
             return command is not None and command.kind in {CommandKind.PAUSE, CommandKind.STEP}
 
-        return hook
+        def guarded_hook(kind, payload):
+            if kind.endswith(".before") or kind == "tool.started":
+                service = self._control_service()
+                if pause_before_dispatch(service):
+                    return True
+                try:
+                    return hook(kind, payload)
+                except EffectConflict as exc:
+                    # Pause can win after the precheck, including between
+                    # registering an intent and admitting its dispatch.
+                    if exc.code == "admission_closed" and pause_before_dispatch(service):
+                        return True
+                    raise
+            return hook(kind, payload)
+
+        return guarded_hook
 
