@@ -1,5 +1,6 @@
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { MAX_CENTER_TAB_GROUP_MEMBERS, findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
+import { holdsLayout } from "@/lib/tabs/canvas-layout";
 import type { CenterTabsPersistedPayload } from "@/lib/tabs/center-tabs-persistence";
 import { normalizeCenterTabsPayload, orderTabs, persistCenterTabsPayload, persistedState } from "@/lib/tabs/center-tabs-persistence";
 import type { DesktopTransferPayload, TabDropPlacement } from "@/lib/tabs/tab-transfer-journal";
@@ -54,7 +55,7 @@ export function bindTransfers(useCenterTabs: StoreApi<CenterTabsState>, closedSe
     const memberIds = payload.source.kind === "segment"
       ? sourceMemberIds.filter((id) => transferred.has(id))
       : sourceMemberIds;
-    if (memberIds.length < 2 && !payload.source.canvas) return null;
+    if (memberIds.length < 2 && !holdsLayout(payload.source.canvas)) return null;
     const visibleIds = (payload.source.visibleIds ?? memberIds.slice(0, 2))
       .filter((id) => transferred.has(id));
     return {

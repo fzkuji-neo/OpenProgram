@@ -21,7 +21,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CirclePlus, Plus, SquareArrowOutUpRight } from "lucide-react";
+import { CirclePlus, Plus } from "lucide-react";
 
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { topLevelTabs } from "@/lib/browser/web-page-management";
@@ -179,8 +179,6 @@ export function CenterTabStrip() {
     dropMarker,
     dragWidth,
     detaching,
-    detachCue,
-    detachOverTarget,
     onTabPointerDown,
     setDraggedIds,
     setDropMarker,
@@ -215,11 +213,6 @@ export function CenterTabStrip() {
   const tabMenu = menu.tabMenu;
   tabMenuRef.current = tabMenu;
   const { splitPickerTabId, splitPickerHost, setSplitPickerTabId } = menu;
-
-  const [detachCueHost, setDetachCueHost] = useState<Element | null>(null);
-  useEffect(() => {
-    setDetachCueHost(detachCue ? document.body : null);
-  }, [detachCue !== null]);
 
   const visibleTabs = topLevelTabs(tabs, groups);
   const stripFocusId = visibleTabs.some(tab => tab.id === focusedTabId)
@@ -440,8 +433,6 @@ export function CenterTabStrip() {
           )
         : null}
       {resourceDropError ? <div className={styles.resourceDropError} role="alert">{resourceDropError}</div> : null}
-      {/* Detach cue: fixed within the top strip, outside native webpage bounds. pointer-events:none and NOT a child of the
-         captured tab, so pointer capture is untouched. */}
       {/* Cross-window drop cue (destination side): a drag from another window
          is hovering this one, so release merges the tab in here. Confined to
          the TOP TAB STRIP — the .strip gets a subtle accent highlight (see

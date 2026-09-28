@@ -70,6 +70,7 @@ await build({
       : `
         const bounds = globalThis.webTabBoundsCalls;
         const removed = globalThis.webTabBoundsRemoved;
+        export function buildTransferPayload() { return {}; }
         export function desktopBridge() {
           return {
             mainMenu: window.openprogramDesktop?.mainMenu,

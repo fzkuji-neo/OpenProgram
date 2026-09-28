@@ -80,7 +80,11 @@ testContext.assert.deepEqual(testContext.secondaryTabs.getState().tabs.map((tab)
   "s:existing",
 ]);
 
-testContext.assert.deepEqual(testContext.secondaryTabs.getState().groups[0], {
+{
+  const { canvas: _canvas, ...placedGroup } = testContext.secondaryTabs.getState().groups[0];
+  testContext.placedGroup = placedGroup;
+}
+testContext.assert.deepEqual(testContext.placedGroup, {
   id: "g:source",
   memberIds: ["w:left", "w:right"],
   visibleIds: ["w:left", "w:right"],
@@ -125,7 +129,12 @@ testContext.assert.deepEqual(testContext.secondaryTabs.getState().tabs, testCont
   { kind: "merge", targetTabId: "w:left", memberIndex: 1 },
 ));
 
-testContext.assert.deepEqual(testContext.fourthMember, { ok: false, reason: "group-full" });
+// Canvas groups are uncapped: a two-member group merges into another group.
+testContext.assert.equal(testContext.fourthMember.ok, true);
+testContext.assert.deepEqual(
+  testContext.fourthMember.after.groups[0].memberIds,
+  ["w:left", "w:three", "w:four", "w:right"],
+);
 
 
 (testContext.groupedRemoval = testContext.secondaryTabsModule.removeTransferredTabs(
@@ -160,13 +169,23 @@ testContext.secondaryTabsModule.replaceCenterTabsPayload(testContext.groupedAfte
   { persist: false },
 ));
 
-testContext.assert.equal(testContext.groupedMerge.ok, false);
+// Uncapped canvas groups: a two-pane group merges beside a lone tab as
+// three panes instead of being rejected as "group-full".
+testContext.assert.equal(testContext.groupedMerge.ok, true);
 
 testContext.assert.deepEqual(testContext.secondaryTabs.getState().tabs.map((tab) => tab.id), [
   "s:existing",
+  "w:left",
+  "w:right",
 ]);
 
-testContext.assert.deepEqual(testContext.secondaryTabs.getState().groups, []);
+testContext.assert.deepEqual(testContext.secondaryTabs.getState().groups[0].memberIds, [
+  "s:existing",
+  "w:left",
+  "w:right",
+]);
+
+testContext.secondaryTabsModule.replaceCenterTabsPayload(testContext.groupedMerge.before, { persist: false });
 
 (testContext.segmentPayload = {
   ...testContext.transferPayload,
@@ -282,7 +301,12 @@ testContext.assert.deepEqual(testContext.secondaryTabs.getState().tabs.map((tab)
   "w:segment-c",
 ]);
 
-testContext.assert.deepEqual(testContext.secondaryTabs.getState().groups, []);
+// A legacy three-member group migrates to a three-pane canvas; transferring
+// one member out leaves the other two together.
+testContext.assert.deepEqual(
+  testContext.secondaryTabs.getState().groups.map((group) => group.memberIds),
+  [["w:segment-a", "w:segment-c"]],
+);
 
 
 (testContext.oversizedGroupPayload = {
@@ -309,19 +333,29 @@ testContext.assert.deepEqual(testContext.secondaryTabs.getState().groups, []);
 
 (testContext.beforeOversized = structuredClone(testContext.secondaryTabs.getState().tabs));
 
-testContext.assert.deepEqual(
+// Canvas groups are uncapped, so a four-member group transfers intact.
+testContext.assert.equal(
   testContext.secondaryTabsModule.validateTransferredTabs(
     testContext.oversizedGroupPayload,
     { kind: "strip-end" },
-  ),
-  { ok: false, reason: "group-full" },
+  ).ok,
+  true,
 );
 
-testContext.assert.equal(testContext.secondaryTabsModule.insertTransferredTabs(
+(testContext.oversizedInsert = testContext.secondaryTabsModule.insertTransferredTabs(
   testContext.oversizedGroupPayload,
   { kind: "strip-end" },
   { persist: false },
-).ok, false);
+));
+
+testContext.assert.equal(testContext.oversizedInsert.ok, true);
+
+testContext.assert.deepEqual(
+  testContext.secondaryTabs.getState().groups.find((group) => group.id === "g:oversized")?.memberIds,
+  testContext.oversizedGroupPayload.source.memberIds,
+);
+
+testContext.secondaryTabsModule.replaceCenterTabsPayload(testContext.oversizedInsert.before, { persist: false });
 
 testContext.assert.deepEqual(testContext.secondaryTabs.getState().tabs, testContext.beforeOversized);
 

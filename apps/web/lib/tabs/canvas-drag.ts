@@ -5,11 +5,14 @@ import { desktopBridge, buildTransferPayload } from "../desktop/desktop-bridge";
 export type CanvasDrop = { targetId: string; paneId: string; side: CanvasSide; rect: Rect };
 let preview: HTMLDivElement | null = null;
 let dragging = false;
+const listeners = new Set<() => void>();
 export function canvasDragging() { return dragging; }
+/** Native web panes subscribe so they can swap to a snapshot while a drag runs. */
+export function onCanvasDragChange(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
 export function setCanvasDragging(value: boolean) {
   dragging = value;
   document.documentElement.toggleAttribute("data-canvas-dragging", value);
-  window.dispatchEvent(new Event("canvas-drag-change"));
+  listeners.forEach((listener) => listener());
   if (!value) { preview?.remove(); preview = null; }
 }
 export function canvasDropAt(x: number, y: number): CanvasDrop | null {

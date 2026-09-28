@@ -302,7 +302,7 @@ export function buildTransferPayload(
   };
   if (subject.kind !== "tab") {
     source.groupId = subject.sourceGroup.id;
-    if (subject.kind === "group") source.canvas = subject.sourceGroup.canvas;
+    if (subject.kind === "group" && subject.sourceGroup.canvas) source.canvas = subject.sourceGroup.canvas;
     source.memberIds = [...subject.sourceGroup.memberIds];
     source.visibleIds = [...subject.sourceGroup.visibleIds];
     if (subject.sourceGroup.focusedId !== undefined) {

@@ -92,9 +92,11 @@ assert.match(
   /drag\.started = true;[\s\S]*?suppressedClickRef\.current = activationTabId\(drag\.subject\);/,
   "a completed drag must consume its synthetic follow-up click",
 );
-// The tab element itself follows the pointer, clamped to the slot span.
-assert.match(pointerMove, /drag\.element\.style\.transform = `translateX\(\$\{tx\}px\)`/);
-assert.match(pointerMove, /Math\.min\(Math\.max\(dx, drag\.minTx\), drag\.maxTx\)/);
+// The tab element itself follows the pointer: clamped to the slot span while
+// inside the strip band, free in both axes once it leaves the band (canvas
+// docking / new window), so no separate floating cue is needed.
+assert.match(pointerMove, /drag\.element\.style\.transform = `translate\(\$\{tx\}px, \$\{drag\.lastTy\}px\)`/);
+assert.match(pointerMove, /const tx = outsideBand \? dx : Math\.min\(Math\.max\(dx, drag\.minTx\), drag\.maxTx\)/);
 // The clamp must keep the dragged tab's BODY inside the strip's VISIBLE
 // span, so it is never clipped by the window edge or dragged over the
 // window controls. Bounding the centre against the slot span (an earlier
@@ -162,7 +164,7 @@ assert.match(pointerMove, /publishDropMarker\(drag\.lastIntent\);/);
 assert.match(pointerMove, /drag\.lastTx = tx;/, "the clamped offset must be recorded");
 assert.match(
   strip,
-  /useLayoutEffect\(\(\) => \{[\s\S]*?pointerDragRef\.current[\s\S]*?drag\.element\.style\.transform = `translateX\(\$\{drag\.lastTx\}px\)`;/,
+  /useLayoutEffect\(\(\) => \{[\s\S]*?pointerDragRef\.current[\s\S]*?drag\.element\.style\.transform = `translate\(\$\{drag\.lastTx\}px, \$\{drag\.lastTy \?\? 0\}px\)`;/,
   "the drag offset must be re-asserted after every commit, before paint",
 );
 // Bystander shifts must never emit a transform for the dragged tab (it
@@ -232,8 +234,7 @@ assert.match(pointerMove, /e\.clientY < drag\.stripTop - DETACH_HYSTERESIS_PX/,
 // keyed on the plain strip rect, not an inner-inset band.
 assert.match(pointerMove, /e\.clientY <= drag\.stripBottom && e\.clientY >= drag\.stripTop/,
   "coming home (cancel) must trigger as soon as the cursor is back inside the strip rect");
-// Drop-to-place: leaving the strip only shows detach-intent (translucent,
-// slot closed). No window is created mid-drag — macOS starves JS timers
+// Drop-to-place: leaving the strip only shows detach-intent (slot closed). No window is created mid-drag — macOS starves JS timers
 // during the button-held modal loop, so live cursor-follow is impossible.
 assert.match(pointerMove, /data-detach-intent/);
 assert.doesNotMatch(strip, /beginDetach|followCursorWithDetached|moveDetached/,
@@ -242,54 +243,39 @@ assert.doesNotMatch(strip, /data-detached-away/,
   "the strip tab is never collapsed mid-drag — there is no live window to double it");
 assert.doesNotMatch(strip, /detachRequested|detachedShown|followRequested|detachPromise/,
   "the live-follow drag-state fields must be gone");
-// The detach-intent feedback (translucent grabbed tab) stays as pure drag
-// feedback, but there is no data-detached-away opacity:0 collapse anymore.
+// The dragged tab itself is the only drag feedback: it follows the pointer out
+// of the strip, stays fully opaque in a colour between the active and inactive
+// tabs, and there is no separate floating "New window" cue.
 assert.doesNotMatch(css, /data-detached-away/,
   "the opacity:0 collapse existed only to hide a live window — it must be gone");
-assert.match(css, /\[data-detach-intent="true"\][\s\S]*?opacity: 0\.7/,
-  "the detach-intent translucent feedback must remain");
-// New-window cue: dragging out shows a clear "this becomes its own window"
-// affordance — accent outline ON the dragged tab, plus a floating "New window"
-// pill portaled OUTSIDE the strip (which clips vertical overflow, so an on-tab
-// pill is invisible). No bottom banner, no disconnect badge.
-assert.match(css, /\[data-detach-intent="true"\][\s\S]*?outline:[^;]*var\(--accent/,
-  "the dragged tab must show an accent outline when releasing would split it out");
-// The old ::after / data-detach-label pill was clipped by .tabsFlow overflow —
-// it must be gone, replaced by the portaled floating cue.
+assert.match(css, /--tab-drag-bg: color-mix\(in oklch, var\(--tab-active-bg\) \d+%, var\(--tabrow-bg\)\)/,
+  "the dragged tab colour must sit between the active tab and the tab row");
+assert.match(css, /\.tab\[data-pointer-drag="true"\][\s\S]*?opacity: 1;[\s\S]*?background: var\(--tab-drag-bg\)/,
+  "the dragged tab must be fully opaque with the in-between drag colour");
+assert.match(css, /\[data-detach-intent="true"\] \{[^}]*opacity: 1;/,
+  "leaving the strip must not make the dragged tab translucent");
+assert.doesNotMatch(css, /\[data-detach-intent="true"\] \{[^}]*(outline|scale):/,
+  "leaving the strip must not shrink or outline the dragged tab");
 assert.doesNotMatch(css, /data-detach-label/,
   "the clipped ::after pill (data-detach-label) must be removed");
 assert.doesNotMatch(strip, /data-detach-label/,
   "the data-detach-label plumbing must be removed");
-// The floating cue is set to the pointer position while detaching and cleared
-// on every drag-exit path (clearDragState is the shared teardown).
-assert.match(pointerMove, /setDetachCue\(\s*drag\.detaching \? \{ x: e\.clientX, y: e\.clientY \} : null/,
-  "the floating cue must track the pointer while detaching and clear when not");
-assert.match(strip, /function clearDragState\(\)[\s\S]*?setDetachCue\(null\)/,
-  "the floating cue must be cleared on every drag-exit (clearDragState)");
-// It must be portaled (fixed, outside the strip) and non-interactive so it
-// never steals the pointer capture.
-assert.match(strip, /createPortal\(\s*<div\s+className=\{styles\.detachCue\}/,
-  "the floating cue must be portaled outside the strip");
-assert.match(css, /\.detachCue \{[\s\S]*?position: fixed/,
-  "the floating cue must be position:fixed (escapes the clipped strip)");
-assert.match(css, /\.detachCue \{[\s\S]*?pointer-events: none/,
-  "the floating cue must be pointer-events:none so it never breaks pointer capture");
-// ---- Mutually-exclusive cross-window cues ---------------------------
-// Over EMPTY desktop → "New window" pill (detachCue). Over ANOTHER window →
-// that window's own "Add tab here" cue instead, so the source-side pill must
-// hide whenever a hover target exists. The source polls window-at-cursor for
-// the ENTIRE drag (not only detach) so the destination hover cue is adaptive —
-// main clears the highlight on a null return, so it never latches.
+assert.doesNotMatch(strip, /detachCue|setDetachCue/,
+  "the floating 'New window' cue state must be gone");
+assert.doesNotMatch(css, /\.detachCue\b/,
+  "the floating 'New window' cue CSS must be gone");
+assert.match(pointerMove, /const outsideBand = [\s\S]*?drag\.lastTy = outsideBand \? dy : 0;[\s\S]*?translate\(\$\{tx\}px, \$\{drag\.lastTy\}px\)/,
+  "outside the strip the dragged tab must follow the pointer on both axes");
+// ---- Cross-window hover ---------------------------------------------
+// The source polls window-at-cursor for the ENTIRE drag (not only detach) so
+// the destination hover cue is adaptive — main clears the highlight on a null
+// return, so it never latches.
 assert.match(pointerMove, /if \(hasTransferToken && !detachHoverPollRef\.current\)/,
   "the source must poll window-at-cursor for the entire drag (a token exists), not only while detaching — gated on the raw token so a SOLO window still polls");
 assert.match(pointerMove, /tabTransfer\.windowAtCursor/,
   "the source must poll window-at-cursor to detect a merge target");
-assert.match(pointerMove, /const over = id !== null;[\s\S]*?setDetachOverTarget\(over\)/,
+assert.match(pointerMove, /const over = id !== null;[\s\S]*?drag\.overWindow = over/,
   "the source must record whether the drag cursor is over another window");
-assert.match(strip, /\{detachCue && detachCueHost && !detachOverTarget/,
-  "the source 'New window' pill must hide when a hover target exists (mutually exclusive)");
-assert.match(strip, /function clearDragState\(\)[\s\S]*?setDetachOverTarget\(false\)/,
-  "the over-target flag must clear on drag-exit");
 // ---- Destination cross-window cue (TOP TAB STRIP only) --------------
 // The destination window subscribes to onTransferHover; on enter it shows the
 // cue CONFINED TO THE TOP STRIP — never a full-window/content-area overlay
@@ -638,16 +624,16 @@ assert.match(pointerDragRule, /z-index: 30;/);
 assert.match(pointerDragRule, /opacity: 1;/, "the follow-the-pointer tab must be fully opaque");
 assert.match(
   pointerDragRule,
-  /background: var\(--bg-primary\);/,
-  "the dragged tab needs an opaque fill so neighbours cannot show through",
+  /background: var\(--tab-drag-bg\);/,
+  "the dragged tab needs an opaque in-between fill so neighbours cannot show through",
 );
-// Translucency is allowed ONLY in the detach state, and it lifts above
-// the strip there so it still cannot overlap neighbours' content.
+// The detach state stays fully opaque and lifts above the strip so it
+// cannot overlap neighbours' content.
 const detachRule = css.slice(
   css.indexOf('.tab[data-detach-intent="true"]'),
   css.indexOf('data-drop-intent="merge"'),
 );
-assert.match(detachRule, /opacity: 0\.7;/);
+assert.match(detachRule, /opacity: 1;/);
 assert.match(detachRule, /z-index: 40;/, "the detach state must lift clear of the strip");
 assert.doesNotMatch(css, /data-drag-source/);
 // ---- Live reorder (Chrome-style slide-aside, no insert markers) ----

@@ -174,9 +174,13 @@ for (const tab of testContext.inventoryTabs) testContext.setWebTabReady(tab.id, 
 
 (testContext.hiddenThirdPanes = testContext.resolveCenterTabPanes(testContext.hiddenThird, testContext.paneTabs, "w:two"));
 
-testContext.assert.deepEqual(testContext.hiddenThird.memberIds, ["s:a", "w:one"]);
+// Canvas groups show every member, so focusing the third member keeps all
+// three panes and focuses it rather than evicting another member.
+testContext.assert.deepEqual(testContext.hiddenThird.memberIds, ["s:a", "w:one", "w:two"]);
 
-testContext.assert.equal(testContext.hiddenThirdPanes.some((pane) => pane.tabId === "w:two"), false);
+testContext.assert.equal(testContext.hiddenThird.focusedId, "w:two");
+
+testContext.assert.equal(testContext.hiddenThirdPanes.some((pane) => pane.tabId === "w:two"), true);
 
 (testContext.narrowPanes = testContext.resolveCenterTabPanes(
   undefined,

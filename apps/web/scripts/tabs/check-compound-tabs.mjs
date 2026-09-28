@@ -359,7 +359,13 @@ const broken = groups.normalizeCenterTabLayout({
   }],
 });
 assert.deepEqual(broken.tabIds, ["a", "c", "b", "d"]);
-assert.deepEqual(broken.groups, [{
+// Every normalized group carries a canvas tree whose panes mirror its members.
+assert.deepEqual(
+  broken.groups[0].canvas && broken.groups[0].canvas.root.children.map((pane) => pane.content),
+  ["a", "c"],
+);
+const withoutCanvas = (list) => list.map(({ canvas: _canvas, ...group }) => group);
+assert.deepEqual(withoutCanvas(broken.groups), [{
   id: "g:one",
   memberIds: ["a", "c"],
   visibleIds: ["a", "c"],
@@ -379,7 +385,7 @@ const duplicateGroupIds = groups.normalizeCenterTabLayout({
     { id: "g:duplicate", memberIds: ["c", "d"], visibleIds: ["c", "d"], focusedId: "c" },
   ],
 });
-assert.deepEqual(duplicateGroupIds.groups, [{
+assert.deepEqual(withoutCanvas(duplicateGroupIds.groups), [{
   id: "g:duplicate",
   memberIds: ["a", "b"],
   visibleIds: ["a", "b"],
@@ -417,14 +423,18 @@ assert.equal(result.accepted, true);
 assert.deepEqual(result.layout.groups[0].memberIds, ["a", "b"]);
 assert.deepEqual(result.layout.tabIds, ["a", "b", "c", "d"]);
 
-result = groups.groupCenterTabs(result.layout, "c", "a", 2, "unused");
-assert.equal(result.accepted, false);
-assert.deepEqual(result.layout.groups[0].memberIds, ["a", "b"]);
-assert.deepEqual(result.layout.groups[0].visibleIds, ["a", "b"]);
-
-const full = groups.groupCenterTabs(result.layout, "d", "a", 3, "unused");
-assert.equal(full.accepted, false);
-assert.deepEqual(full.layout, result.layout);
+// Canvas groups have no member cap: a third and fourth tab dock into the
+// same group and each gets its own canvas pane.
+const third = groups.groupCenterTabs(result.layout, "c", "a", 2, "unused");
+assert.equal(third.accepted, true);
+assert.deepEqual(third.layout.groups[0].memberIds, ["a", "b", "c"]);
+const fourth = groups.groupCenterTabs(third.layout, "d", "a", 3, "unused");
+assert.equal(fourth.accepted, true);
+assert.deepEqual(fourth.layout.groups[0].memberIds, ["a", "b", "c", "d"]);
+assert.deepEqual(
+  fourth.layout.groups[0].canvas && fourth.layout.groups[0].canvas.root.children.map((pane) => pane.content),
+  ["a", "b", "c", "d"],
+);
 
 const wholeGroupLayout = {
   tabIds: ["a", "b", "c", "d"],
@@ -441,26 +451,26 @@ const mergedWholeGroup = groups.mergeCenterTabGroup(
   "c",
   1,
 );
-assert.equal(mergedWholeGroup.accepted, false);
-assert.equal(mergedWholeGroup.layout, wholeGroupLayout);
+assert.equal(mergedWholeGroup.accepted, true);
+assert.deepEqual(mergedWholeGroup.layout.groups.map((group) => group.memberIds), [["c", "a", "b"]]);
 
 const threeMemberGroupLayout = {
   tabIds: ["a", "b", "c", "d"],
   groups: [{
-    id: "g:full-source",
+    id: "g:three-source",
     memberIds: ["a", "b", "c"],
     visibleIds: ["a", "b"],
     focusedId: "b",
   }],
 };
-const rejectedWholeGroup = groups.mergeCenterTabGroup(
+const mergedThree = groups.mergeCenterTabGroup(
   threeMemberGroupLayout,
-  "g:full-source",
+  "g:three-source",
   "d",
   1,
 );
-assert.equal(rejectedWholeGroup.accepted, false);
-assert.equal(rejectedWholeGroup.layout, threeMemberGroupLayout);
+assert.equal(mergedThree.accepted, true);
+assert.deepEqual(mergedThree.layout.groups.map((group) => group.memberIds), [["d", "a", "b", "c"]]);
 
 const focusedA = groups.focusCenterTabGroupMember(result.layout, "g:ab", "a");
 assert.deepEqual(focusedA.groups[0].visibleIds, ["a", "b"]);
@@ -475,7 +485,9 @@ const moved = groups.moveCenterTab(
 );
 assert.deepEqual(moved.tabIds, ["c", "a", "b"]);
 
-const groupedLayout = {
+// Normalize once so the legacy group gains its migrated canvas; moves must
+// then leave that layout (canvas included) untouched.
+const groupedLayout = groups.normalizeCenterTabLayout({
   tabIds: ["a", "b", "c", "d"],
   groups: [{
     id: "g:move",
@@ -483,7 +495,7 @@ const groupedLayout = {
     visibleIds: ["a", "b"],
     focusedId: "a",
   }],
-};
+});
 assert.deepEqual(groups.moveCenterTab(groupedLayout, "b", "b"), groupedLayout);
 assert.deepEqual(groups.moveCenterTabGroup(groupedLayout, "g:move", "b"), groupedLayout);
 assert.deepEqual(groups.moveCenterTabGroup(groupedLayout, "g:move", "missing"), groupedLayout);
@@ -687,27 +699,25 @@ useCenterTabs.setState({
   splitRatio: 0.44,
 });
 storageWrites.length = 0;
-assert.equal(useCenterTabs.getState().mergeGroup("g:whole", "c", 1), false);
+// The canvas has no pane cap: merging a third tab into a full pair is
+// accepted, the tab joins the group (leaving the top strip) and every member
+// gets a canvas pane.
+assert.equal(useCenterTabs.getState().mergeGroup("g:whole", "c", 1), true);
 let wholeGroupState = useCenterTabs.getState();
-assert.deepEqual(wholeGroupState.tabs.map((tab) => tab.id), ["a", "b", "c", "d"]);
-assert.deepEqual(wholeGroupState.groups[0].memberIds, ["a", "b"]);
+assert.deepEqual(wholeGroupState.groups[0].memberIds, ["c", "a", "b"]);
 assert.equal(wholeGroupState.activeId, "b");
-assert.equal(wholeGroupState.groups[0].focusedId, "b");
-assert.deepEqual(wholeGroupState.groups[0].visibleIds, ["a", "b"]);
-assert.equal(storageWrites.length, 0, "a complete split group rejects a third member");
-
-useCenterTabs.setState({
-  tabs: wholeGroupTabs,
-  groups: wholeGroupLayout.groups,
-  activeId: "c",
-  splitWebTabId: null,
-  splitRatio: 0.44,
-});
-assert.equal(useCenterTabs.getState().mergeGroup("g:whole", "c", 1), false);
-wholeGroupState = useCenterTabs.getState();
-assert.equal(wholeGroupState.activeId, "c");
-assert.equal(wholeGroupState.groups[0].focusedId, "b");
-assert.deepEqual(wholeGroupState.groups[0].visibleIds, ["a", "b"]);
+assert.deepEqual(
+  [...wholeGroupState.groups[0].visibleIds].sort(),
+  ["a", "b", "c"],
+  "every canvas member is a visible pane",
+);
+assert.equal(
+  wholeGroupState.groups[0].canvas.root.kind === "split"
+    ? wholeGroupState.groups[0].canvas.root.children.length
+    : 1,
+  3,
+);
+assert.equal(storageWrites.length, 1, "the merge persists in one write");
 
 useCenterTabs.setState({
   tabs: migrated.tabs,
@@ -769,13 +779,15 @@ assert.deepEqual(state.tabs.map((tab) => tab.id), ["w:one", "s:chat", "w:two"]);
 
 state.setSplitWebTab("w:one");
 state = useCenterTabs.getState();
-assert.equal(state.groupTab("w:two", "s:chat", 2), false);
+// No pane cap: a third tab joins the pair as another canvas pane.
+assert.equal(state.groupTab("w:two", "s:chat", 2), true);
 state = useCenterTabs.getState();
-assert.deepEqual(state.groups[0].memberIds, ["s:chat", "w:one"]);
-assert.deepEqual(state.groups[0].visibleIds, ["s:chat", "w:one"]);
+assert.deepEqual(state.groups[0].memberIds, ["s:chat", "w:one", "w:two"]);
+assert.deepEqual([...state.groups[0].visibleIds].sort(), ["s:chat", "w:one", "w:two"]);
 let persisted = JSON.parse(storageValues.get("centerTabs:main"));
 assert.equal(persisted.groups[0].visibleIds.includes(persisted.groups[0].focusedId), true);
 
+useCenterTabs.getState().closeTab("w:two");
 useCenterTabs.getState().closeTab("w:one");
 state = useCenterTabs.getState();
 assert.deepEqual(state.groups, [], "a one-member group dissolves after close");
