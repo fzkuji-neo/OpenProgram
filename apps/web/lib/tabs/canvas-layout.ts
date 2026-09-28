@@ -7,8 +7,10 @@ export type CanvasSide = "left" | "right" | "top" | "bottom" | "center";
 export type CanvasPreset = "1x1" | "1x2" | "2x1" | "main+2" | "2x2" | "3x3" | "4x4";
 export type Rect = { left: number; top: number; width: number; height: number };
 
+const CANVAS_GAP = 6;
+
 export function canvasViewport(width: number, height: number): Rect {
-  const padding = 8;
+  const padding = CANVAS_GAP;
   return { left: padding, top: padding, width: Math.max(0, width - padding * 2), height: Math.max(0, height - padding * 2) };
 }
 const id = () => `canvas:${crypto.randomUUID()}`;
@@ -104,14 +106,14 @@ export function canvasGeometry(root: LayoutNode, rect: Rect) {
   const dividers: Array<Rect & { splitId: string; index: number; dir: "row" | "col"; span: number; sizes: number[] }> = [];
   function visit(n: LayoutNode, r: Rect) {
     if (n.kind === "pane") { panes.set(n.id, r); return; }
-    const horizontal = n.dir === "row", span = Math.max(0, (horizontal ? r.width : r.height) - 6 * (n.children.length - 1));
+    const horizontal = n.dir === "row", span = Math.max(0, (horizontal ? r.width : r.height) - CANVAS_GAP * (n.children.length - 1));
     let offset = 0;
     n.children.forEach((child, i) => {
       const length = span * n.sizes[i];
       visit(child, horizontal ? { ...r, left: r.left + offset, width: length } : { ...r, top: r.top + offset, height: length });
       offset += length;
-      if (i < n.children.length - 1) dividers.push({ ...(horizontal ? { ...r, left: r.left + offset, width: 6 } : { ...r, top: r.top + offset, height: 6 }), splitId: n.id, index: i, dir: n.dir, span, sizes: n.sizes });
-      offset += 6;
+      if (i < n.children.length - 1) dividers.push({ ...(horizontal ? { ...r, left: r.left + offset, width: CANVAS_GAP } : { ...r, top: r.top + offset, height: CANVAS_GAP }), splitId: n.id, index: i, dir: n.dir, span, sizes: n.sizes });
+      offset += CANVAS_GAP;
     });
   }
   visit(root, rect); return { panes, dividers };
