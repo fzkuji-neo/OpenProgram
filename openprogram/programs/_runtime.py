@@ -1317,6 +1317,11 @@ def _tool_search_by_name(payload: str) -> str:
     lines: list[str] = []
     for name in requested:
         allowed = _allowed_tool_names.get()
+        # A Claude-style ToolSearch request may capitalize built-in names.
+        # Resolve only inside this turn's allowed set; never broaden scope.
+        if (allowed is not None and name not in allowed and get(name) is None
+                and name.lower() in allowed):
+            name = name.lower()
         t = get(name) if allowed is None or name in allowed else None
         if t is None:
             missing.append(name)
