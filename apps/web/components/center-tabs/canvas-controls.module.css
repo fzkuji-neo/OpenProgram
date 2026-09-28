@@ -1,0 +1,383 @@
+/* 中间画布：macOS 风格——大圆角、极细分隔、标题栏半透明、控件悬停才出现。
+   颜色全部取主题 token，深浅主题都自动适配。 */
+
+.pane {
+  position: absolute;
+  z-index: 10;
+  box-sizing: border-box;
+  border-radius: 10px;
+  pointer-events: none;
+  /* 细描边画在内侧，不占格子尺寸。 */
+  box-shadow: inset 0 0 0 1px var(--border);
+  transition: box-shadow 160ms ease;
+}
+.pane[data-focused="true"] {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklch, var(--accent-blue) 55%, transparent),
+    0 0 0 3px color-mix(in oklch, var(--accent-blue) 14%, transparent);
+}
+
+.pane[data-single="true"] {
+  box-shadow: none;
+}
+
+/* 格子没有标题栏：顶部正中一个 iPadOS 分屏式的"•••"把手。
+   拖它移动格子，点它打开菜单。平时很淡，悬停才浮起成胶囊。 */
+.grip {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 0 0 8px 8px;
+  cursor: grab;
+  touch-action: none;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+.grip:active {
+  cursor: grabbing;
+}
+.grip i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity 140ms ease, background 140ms ease;
+}
+.pane[data-focused="true"] .grip i {
+  opacity: 0.85;
+}
+.grip:hover,
+.grip:focus-visible,
+.grip[aria-expanded="true"] {
+  outline: none;
+  background: color-mix(in oklch, var(--bg-tertiary) 90%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+.grip:hover i,
+.grip:focus-visible i,
+.grip[aria-expanded="true"] i {
+  opacity: 1;
+  background: var(--text-bright);
+}
+
+/* 空格子：居中一张卡片，列出可放进来的 tab。 */
+.empty {
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  height: 100%;
+  overflow: auto;
+  border-radius: 10px;
+  background: var(--bg-primary);
+}
+.emptyCard {
+  width: min(280px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  overflow: auto;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-sm);
+}
+.emptyHint {
+  padding: 6px 8px 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+}
+.emptyItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.emptyItem:hover,
+.emptyItem:focus-visible {
+  outline: none;
+  background: color-mix(in oklch, var(--accent-blue) 16%, transparent);
+  color: var(--text-bright);
+}
+.emptyItem svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary);
+}
+.emptyItem span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 格子太小：只剩一个"点开放大"的胶囊。 */
+.tiny {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.tiny span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  font-size: 11px;
+}
+.tiny svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* 分隔条：平时几乎看不见，悬停 / 拖动时出现一条细蓝线。 */
+.divider {
+  position: absolute;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.divider::after {
+  content: "";
+  border-radius: 999px;
+  background: transparent;
+  transition: background 140ms ease;
+}
+.divider[aria-orientation="vertical"] {
+  cursor: col-resize;
+}
+.divider[aria-orientation="vertical"]::after {
+  width: 2px;
+  height: 100%;
+}
+.divider[aria-orientation="horizontal"] {
+  cursor: row-resize;
+}
+.divider[aria-orientation="horizontal"]::after {
+  width: 100%;
+  height: 2px;
+}
+.divider:hover::after,
+.divider:focus-visible::after,
+.divider[data-active="true"]::after {
+  background: color-mix(in oklch, var(--accent-blue) 80%, transparent);
+}
+.divider:focus-visible {
+  outline: none;
+}
+
+/* 右键菜单：macOS 毛玻璃菜单。 */
+.menu {
+  position: fixed;
+  z-index: 100001;
+  width: 232px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 5px;
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--bg-secondary) 82%, transparent);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-popover);
+  color: var(--text-primary);
+  font: 13px/1.2 -apple-system, BlinkMacSystemFont, var(--font-sans);
+  transform-origin: top left;
+  animation: menuIn 120ms ease-out;
+}
+@keyframes menuIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.menuTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.menuTitle svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+.menuTitle span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.menuLabel {
+  padding: 6px 8px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 0 2px 4px;
+}
+.preset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 2px 4px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: 10px/1.1 -apple-system, BlinkMacSystemFont, var(--font-sans);
+  cursor: pointer;
+}
+.preset:hover,
+.preset:focus-visible {
+  outline: none;
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+.presetIcon {
+  width: 30px;
+  height: 22px;
+  display: grid;
+  gap: 1.5px;
+  padding: 1.5px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--text-secondary) 55%, transparent);
+}
+.presetIcon i {
+  border-radius: 1.5px;
+  background: color-mix(in oklch, var(--text-secondary) 40%, transparent);
+}
+.preset:hover .presetIcon i,
+.preset:focus-visible .presetIcon i {
+  background: color-mix(in oklch, var(--accent-blue) 70%, transparent);
+}
+.separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.menuItem:hover,
+.menuItem:focus-visible {
+  outline: none;
+  background: var(--accent-blue);
+  color: #fff;
+}
+.menuItem svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.85;
+}
+.shortcut {
+  margin-left: auto;
+  opacity: 0.55;
+  font-size: 12px;
+}
+.saveForm {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+.saveInput {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-bright);
+  font: inherit;
+}
+.saveInput:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--accent-blue), 0 0 0 3px color-mix(in oklch, var(--accent-blue) 22%, transparent);
+}
+.saveButton {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent-blue);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* 拖放预览：柔和的系统蓝圆角块，带一点弹性。由 canvas-drag 挂到 body。 */
+:global(.canvas-drop-preview) {
+  position: fixed;
+  z-index: 99999;
+  box-sizing: border-box;
+  pointer-events: none;
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--accent-blue) 14%, transparent);
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in oklch, var(--accent-blue) 70%, transparent),
+    0 8px 24px color-mix(in oklch, var(--accent-blue) 18%, transparent);
+  backdrop-filter: blur(2px);
+  transition:
+    left 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15),
+    top 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15),
+    width 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15),
+    height 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu { animation: none; }
+  .pane, .grip, .grip i, .divider::after, :global(.canvas-drop-preview) { transition: none; }
+}

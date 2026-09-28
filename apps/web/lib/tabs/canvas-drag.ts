@@ -40,8 +40,11 @@ export function canvasDropAt(x: number, y: number): CanvasDrop | null {
 }
 export function showCanvasDrop(drop: CanvasDrop | null) {
   if (!drop) { preview?.remove(); preview = null; return; }
-  if (!preview) { preview = document.createElement("div"); document.body.append(preview); }
-  Object.assign(preview.style, { position: "fixed", pointerEvents: "none", zIndex: "99999", background: "rgba(110,168,254,.18)", border: "2px solid #6ea8fe", borderRadius: "7px", boxSizing: "border-box", ...Object.fromEntries(Object.entries(drop.rect).map(([k,v]) => [k, `${v}px`])) });
+  // Styled by .canvas-drop-preview (canvas-controls.module.css): soft system
+  // blue with a slight spring as it moves between drop zones.
+  if (!preview) { preview = document.createElement("div"); preview.className = "canvas-drop-preview"; document.body.append(preview); }
+  const inset = 4;
+  Object.assign(preview.style, { left: `${drop.rect.left + inset}px`, top: `${drop.rect.top + inset}px`, width: `${Math.max(0, drop.rect.width - inset * 2)}px`, height: `${Math.max(0, drop.rect.height - inset * 2)}px` });
 }
 export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: string) {
   if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
@@ -63,7 +66,7 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
   function move(e: PointerEvent) {
     if (!started && Math.hypot(e.clientX-start.x,e.clientY-start.y) < 6) return;
     if (!started) { started = true; setCanvasDragging(true); }
-    Object.assign(el.style, { position: "fixed", left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, zIndex: "100000", background: "var(--bg-tertiary)", opacity: "1", pointerEvents: "none", transform: `translate(${e.clientX-start.x}px,${e.clientY-start.y}px)` });
+    Object.assign(el.style, { position: "fixed", left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, zIndex: "100000", background: "var(--bg-tertiary)", opacity: "1", pointerEvents: "none", borderRadius: "10px", boxShadow: "0 1px 2px rgba(0,0,0,.14), 0 12px 28px rgba(0,0,0,.24)", transform: `translate(${e.clientX-start.x}px,${e.clientY-start.y}px)` });
     showCanvasDrop(canvasDropAt(e.clientX,e.clientY));
   }
   async function up(e: PointerEvent) {
