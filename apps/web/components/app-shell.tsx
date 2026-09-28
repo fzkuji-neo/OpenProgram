@@ -507,6 +507,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           tabId={tab.id}
           sessionId={tab.sessionId ?? null}
           title={tab.title}
+          showTitle={false}
         />
       );
     }

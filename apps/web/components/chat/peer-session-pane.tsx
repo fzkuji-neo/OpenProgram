@@ -45,10 +45,12 @@ export function PeerSessionPane({
   tabId,
   sessionId,
   title,
+  showTitle = true,
 }: {
   tabId: string;
   sessionId: string | null;
   title: string;
+  showTitle?: boolean;
 }) {
   const { text } = useTranslation();
   const setActive = useCenterTabs((s) => s.setActive);
@@ -171,7 +173,7 @@ export function PeerSessionPane({
         position: "relative",
       }}
     >
-      <div
+      {showTitle || detached || streaming ? <div
         className="peer-session-header"
         style={{
           display: "flex",
@@ -191,7 +193,7 @@ export function PeerSessionPane({
             whiteSpace: "nowrap",
           }}
         >
-          {title}
+          {showTitle ? title : null}
         </span>
         {detached ? <button type="button" onClick={jumpToLatest}
           aria-label={text("Jump to latest", "跳到最新")}
@@ -199,7 +201,7 @@ export function PeerSessionPane({
           {text("Jump to latest", "跳到最新")}
         </button> : null}
         {streaming ? <span className="thinking-spinner" aria-hidden="true" /> : null}
-      </div>
+      </div> : null}
       {/* `minWidth: 0` on both the scroller and the column: without it a
           flex child refuses to shrink below its content's intrinsic
           width, and the bubbles collapse instead of wrapping. */}
