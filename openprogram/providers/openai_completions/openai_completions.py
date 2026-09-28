@@ -452,7 +452,12 @@ async def stream_simple(
                             continue
 
                         delta = chunk.choices[0].delta
-                        finish_reason = chunk.choices[0].finish_reason
+                        chunk_finish_reason = chunk.choices[0].finish_reason
+                        # Keep an explicit terminal reason across trailing
+                        # usage/empty choices chunks. A later None must not
+                        # turn a real length/tool_calls finish into a stop.
+                        if chunk_finish_reason is not None:
+                            finish_reason = chunk_finish_reason
 
                         # Reasoning / thinking content (for o1/o3 models)
                         reasoning_content = getattr(delta, "reasoning_content", None) or getattr(delta, "reasoning", None)
@@ -533,7 +538,7 @@ async def stream_simple(
                                         partial=partial,
                                     )
 
-                        if finish_reason:
+                        if chunk_finish_reason:
                             # Finalize thinking
                             if thinking_index >= 0 and text_index == -1:
                                 yield EventThinkingEnd(
@@ -632,8 +637,21 @@ async def stream_simple(
                 await _sleep_unless_aborted(sleep_s, _user_cancelled)
 
         # Build final message
-        stop_reason_map = {"stop": "stop", "length": "length", "tool_calls": "toolUse"}
-        stop_reason = stop_reason_map.get(finish_reason or "", "stop")
+        stop_reason_map = {
+            "stop": "stop", "length": "length", "tool_calls": "toolUse",
+            "function_call": "toolUse", "content_filter": "error",
+        }
+        # Missing/unknown termination is incomplete. A nominal stop with
+        # only thinking is also incomplete. Return a length continuation to
+        # the agent loop so each paid request retains its own usage record.
+        stop_reason = stop_reason_map.get(finish_reason, "length")
+        if stop_reason == "stop" and not any(
+            not isinstance(block, ThinkingContent) for block in content_blocks
+        ):
+            stop_reason = "length"
+        if stop_reason == "length" and tool_indices:
+            content_blocks = [b for b in content_blocks if not isinstance(b, ToolCall)]
+            tool_indices.clear()
         if tool_indices and stop_reason == "stop":
             stop_reason = "toolUse"
 

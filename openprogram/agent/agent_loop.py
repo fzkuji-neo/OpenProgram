@@ -828,7 +828,8 @@ async def _run_loop_with_recovery(
             # A provider can exhaust its output budget entirely on thinking,
             # or stop at its token limit before answering. Neither is a
             # completed agent turn. Keep completed tool effects in context and
-            # ask for a continuation, with a bounded failure if it repeats.
+            # ask for a continuation. Only consecutive turns without visible
+            # progress count toward the no-progress limit.
             visible_text = "".join(
                 block.text for block in message.content
                 if isinstance(block, TextContent)
@@ -837,7 +838,7 @@ async def _run_loop_with_recovery(
                 message.stop_reason == "length" or not visible_text
             ):
                 await finish_provider_response(message)
-                incomplete_responses += 1
+                incomplete_responses = 0 if visible_text else incomplete_responses + 1
                 if incomplete_responses > 2:
                     raise RuntimeError(
                         "model_response_incomplete: provider stopped without a complete answer"
