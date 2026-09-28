@@ -22,6 +22,7 @@
  *    back/forward buttons: iframe history is unreliable cross-origin.
  */
 import { useEffect, useId, useRef, useState } from "react";
+import { canvasDragging } from "@/lib/tabs/canvas-drag";
 import type { KeyboardEvent, ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, PictureInPicture2, RotateCw, Star, X } from "lucide-react";
 
@@ -78,14 +79,14 @@ import {
   useBrowserControlStore,
 } from "@/lib/browser/browser-control";
 
-export function WebTabPane({ tabId, url }: { tabId: string; url: string }) {
+export function WebTabPane({ tabId, url, suspended = false }: { tabId: string; url: string; suspended?: boolean }) {
   // Bridge presence is fixed for the lifetime of the page (preload
   // ran or it didn't), so branching in render is stable. Web tabs
   // never server-render (the tabs store is empty during SSR).
   const bridge = desktopBridge();
   const menuOwnerId = useId();
   if (bridge) {
-    return <DesktopWebTabPane bridge={bridge} tabId={tabId} url={url} menuOwnerId={menuOwnerId} />;
+    return <DesktopWebTabPane bridge={bridge} tabId={tabId} url={url} menuOwnerId={menuOwnerId} suspended={suspended} />;
   }
   return <IframeWebTabPane tabId={tabId} url={url} menuOwnerId={menuOwnerId} />;
 }
@@ -216,11 +217,13 @@ function HomeButton({ tabId }: { tabId: string }) {
 /* ---- Desktop shell: native WebContentsView ------------------------- */
 
 function DesktopWebTabPane({
+  suspended,
   bridge,
   tabId,
   url,
   menuOwnerId,
 }: {
+  suspended: boolean;
   bridge: DesktopBridge;
   tabId: string;
   url: string;
@@ -333,6 +336,9 @@ function DesktopWebTabPane({
   const canPrint = typeof bridge.webTab.print === "function";
   const collapseTarget = usePipCollapseTarget(tabId);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const [frozenImage, setFrozenImage] = useState<string | null>(null);
+  const [frozen, setFrozen] = useState(false);
+
   const addressRef = useRef<HTMLInputElement>(null);
   const findRef = useRef<HTMLInputElement>(null);
   // Last URL the native view is known to be at (our navigate calls +
@@ -368,8 +374,19 @@ function DesktopWebTabPane({
   useEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
+    let disposed = false, capturing = false, lastFrozen = false;
     const report = () => {
       const bounds = measureWebTabBounds(el);
+      const freeze = canvasDragging() || suspended || bounds.width < 320 || bounds.height < 172;
+      if (freeze !== lastFrozen) { lastFrozen = freeze; setFrozen(freeze); }
+      if (freeze) {
+        if (!capturing) {
+          capturing = true;
+          void bridge.webTab.capture?.(tabId, "presentation").then(image => { if (!disposed && image) setFrozenImage(image); }).catch(() => {});
+        }
+        removeVisibleWebTabBounds(bridge, tabId); setWebTabReady(tabId, false); return;
+      }
+      capturing = false;
       const occluded = isWebTabOccluded(
         bounds,
         document.querySelectorAll(
@@ -389,16 +406,19 @@ function DesktopWebTabPane({
     ro.observe(el);
     const mo = new MutationObserver(report);
     mo.observe(document.body, { subtree: true, childList: true, attributes: true });
+    window.addEventListener("canvas-drag-change", report);
     window.addEventListener("resize", report);
     window.addEventListener("scroll", report, true);
     return () => {
+      disposed = true;
+      window.removeEventListener("canvas-drag-change", report);
       ro.disconnect();
       mo.disconnect();
       window.removeEventListener("resize", report);
       window.removeEventListener("scroll", report, true);
       removeVisibleWebTabBounds(bridge, tabId);
     };
-  }, [bridge, tabId]);
+  }, [bridge, tabId, suspended]);
 
   // Main → renderer state: address bar (unless the user is typing in
   // it), tab title, loading spinner, history-button enablement. URL
@@ -643,7 +663,12 @@ function DesktopWebTabPane({
       <div
         ref={bodyRef}
         className={styles.webFrame}
-      />
+        style={{ position: "relative", overflow: "hidden" }}
+      >
+        {frozen ? <button type="button" onClick={() => useCenterTabs.getState().setActive(tabId)} style={{ position:"absolute",inset:0,border:0,padding:0,background:"var(--bg-primary)",color:"var(--text-secondary)",cursor:"pointer" }}>
+          {frozenImage ? <img src={frozenImage} alt={text("Frozen webpage", "网页快照")} style={{ width:"100%",height:"100%",objectFit:"cover",objectPosition:"top left" }} /> : text("Webpage paused — select to activate", "网页已暂停，点击激活")}
+        </button> : null}
+      </div>
       </WebPaneStage>
     </div>
   );

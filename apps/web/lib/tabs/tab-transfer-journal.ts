@@ -1,3 +1,4 @@
+import type { CanvasLayout } from "./canvas-layout";
 import type { DesktopWebTabBounds as Bounds } from "@/lib/desktop/desktop-bridge-types";
 import {
   registerPendingTransfer,
@@ -13,6 +14,7 @@ import type {
 } from "@/lib/tabs/center-tabs-store";
 
 export interface TransferSourcePosition {
+  canvas?: CanvasLayout;
   windowId: string;
   kind: "tab" | "segment" | "group";
   groupId?: string;

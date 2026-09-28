@@ -918,3 +918,12 @@ html[data-sidebar-closed] #sidebar .sidebar-nav-action {
     scroll-behavior: auto !important;
   }
 }
+
+/* Canvas drag previews must stay above the app and native-view placeholders. */
+html[data-canvas-dragging] .desktop-tab-row { z-index: 100000; }
+.center-canvas-content { box-sizing: border-box; container-type: inline-size; }
+@container (max-width: 280px) {
+  .center-canvas-content .chat-messages { padding-left: 6px; padding-right: 6px; }
+  .center-canvas-content textarea { max-height: 38px; }
+}
+html[data-canvas-dragging] iframe { pointer-events: none; }

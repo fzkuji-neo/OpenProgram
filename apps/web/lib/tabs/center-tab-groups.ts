@@ -1,10 +1,12 @@
+import { leaves, rowLayout, sanitizeLayout, removePane, type CanvasLayout } from "./canvas-layout";
 import type { CenterTab } from "./center-tabs-store";
 
-export const MAX_CENTER_TAB_GROUP_MEMBERS = 2;
-export const MAX_CENTER_TAB_PANES = 2;
+export const MAX_CENTER_TAB_GROUP_MEMBERS = Number.POSITIVE_INFINITY;
+export const MAX_CENTER_TAB_PANES = Number.POSITIVE_INFINITY;
 export const MAX_CENTER_TAB_GROUP_VISIBLE = MAX_CENTER_TAB_PANES;
 
 export interface CenterTabGroup {
+  canvas?: CanvasLayout;
   id: string;
   memberIds: string[];
   visibleIds: string[];
@@ -50,7 +52,7 @@ export function normalizeCenterTabLayout(layout: CenterTabLayout): CenterTabLayo
     const memberIds = unique(candidate.memberIds).filter(
       (id) => alive.has(id) && !claimed.has(id),
     ).slice(0, MAX_CENTER_TAB_GROUP_MEMBERS);
-    if (memberIds.length < 2) continue;
+    if (memberIds.length === 0 || (memberIds.length < 2 && !candidate.canvas)) continue;
     claimedGroupIds.add(candidate.id);
     const memberSet = new Set(memberIds);
     const first = Math.min(...memberIds.map((id) => tabIds.indexOf(id)));
@@ -66,7 +68,11 @@ export function normalizeCenterTabLayout(layout: CenterTabLayout): CenterTabLayo
     const focusedId = visibleIds.includes(candidate.focusedId)
       ? candidate.focusedId
       : visibleIds[0];
-    groups.push({ ...candidate, memberIds, visibleIds, focusedId });
+    const canvas = sanitizeLayout(candidate.canvas ?? rowLayout(memberIds), new Set(memberIds));
+    const canvasIds = leaves(canvas.root).flatMap(p => p.content ? [p.content] : []);
+    // Legacy callers can add members; place them in the migrated row layout.
+    const migrated = canvasIds.length > 0 && memberIds.some(id => !canvasIds.includes(id)) ? rowLayout(memberIds) : canvas;
+    groups.push({ ...candidate, memberIds, visibleIds: memberIds, focusedId, canvas: migrated });
   }
   return { tabIds, groups };
 }
@@ -107,7 +113,7 @@ export function focusCenterTabGroupMember(
     groups: layout.groups.map((group) => {
       if (group.id !== groupId || !group.memberIds.includes(memberId)) return group;
       if (group.visibleIds.includes(memberId)) {
-        return { ...group, focusedId: memberId };
+        return { ...group, focusedId: memberId, canvas: group.canvas ? { ...group.canvas, focusedPaneId: leaves(group.canvas.root).find(p => p.content === memberId)?.id ?? group.canvas.focusedPaneId } : undefined };
       }
       const replaceAt = Math.max(0, group.visibleIds.indexOf(group.focusedId));
       const visibleIds = [...group.visibleIds];
@@ -129,10 +135,11 @@ export function ungroupCenterTab(
   const groups = layout.groups.flatMap((group) => {
     if (group.id !== source.id) return [group];
     const memberIds = group.memberIds.filter((id) => id !== tabId);
-    if (memberIds.length < 2) return [];
+    if (!memberIds.length || (memberIds.length < 2 && !group.canvas)) return [];
     const visibleIds = group.visibleIds.filter((id) => id !== tabId);
     return [{
       ...group,
+      canvas: group.canvas ? { ...group.canvas, root: removePane(group.canvas.root, leaves(group.canvas.root).find(p => p.content === tabId)?.id ?? "") } : undefined,
       memberIds,
       visibleIds,
       focusedId: visibleIds.includes(group.focusedId)
@@ -330,7 +337,7 @@ export function resolveCenterTabPanes(
   // panes and the singleton legacy shell is not used at all (it can only
   // exist once, so it can't back either side fairly). A lone session still
   // gets the legacy shell — that's the unchanged, non-split path.
-  const symmetricSessions = sessionIds.length > 1;
+  const symmetricSessions = !!group?.canvas || sessionIds.length > 1;
   let sessionAdded = false;
   const panes: CenterTabPane[] = [];
   for (const tab of visibleTabs) {

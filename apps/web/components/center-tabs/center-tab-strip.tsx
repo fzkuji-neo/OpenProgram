@@ -442,19 +442,6 @@ export function CenterTabStrip() {
       {resourceDropError ? <div className={styles.resourceDropError} role="alert">{resourceDropError}</div> : null}
       {/* Detach cue: fixed within the top strip, outside native webpage bounds. pointer-events:none and NOT a child of the
          captured tab, so pointer capture is untouched. */}
-      {detachCue && detachCueHost && !detachOverTarget
-        ? createPortal(
-            <div
-              className={styles.detachCue}
-              style={{ left: Math.max(8, Math.min(detachCue.x, window.innerWidth - 160)), top: (stripRef.current?.getBoundingClientRect().top ?? 0) + 4 }}
-              aria-hidden="true"
-            >
-              <SquareArrowOutUpRight size={14} />
-              {text("New window", "新窗口")}
-            </div>,
-            detachCueHost,
-          )
-        : null}
       {/* Cross-window drop cue (destination side): a drag from another window
          is hovering this one, so release merges the tab in here. Confined to
          the TOP TAB STRIP — the .strip gets a subtle accent highlight (see

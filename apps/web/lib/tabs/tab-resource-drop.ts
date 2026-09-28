@@ -1,3 +1,4 @@
+import { findCenterTabGroup } from "./center-tab-groups";
 import { useCenterTabs } from './center-tabs-store';
 import { desktopBridge } from '../desktop/desktop-bridge';
 import { jsonFetch } from '../net/fetch-client';
@@ -9,7 +10,9 @@ export function resourceDropTarget(subject: TabDragSubject, x: number, y: number
   if (subject.kind === 'group' || subject.tabIds.length !== 1 || !desktopBridge()) return null;
   const state = useCenterTabs.getState();
   if (!state.tabs.some(tab => tab.id === subject.tabIds[0] && tab.kind === 'web')) return null;
-  const active = state.tabs.find(tab => tab.id === state.activeId);
+  const focused = state.tabs.find(tab => tab.id === state.activeId);
+  const group = focused && findCenterTabGroup(state.groups, focused.id);
+  const active = focused?.kind === "session" ? focused : state.tabs.find(tab => tab.kind === "session" && group?.memberIds.includes(tab.id));
   if (active?.kind !== 'session' || active.draft || !active.sessionId) return null;
   for (const element of document.querySelectorAll<HTMLElement>('[data-resource-drop-session]')) {
     if (element.dataset.resourceDropSession !== active.sessionId) continue;

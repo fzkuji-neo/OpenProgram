@@ -1,3 +1,4 @@
+import { canvasActions } from "./store/canvas";
 /** Public tab-store entry point. Actions are grouped by responsibility in store/. */
 import { create } from "zustand";
 import { readCenterTabsPayload } from "./center-tabs-persistence";
@@ -30,6 +31,7 @@ export const useCenterTabs = create<CenterTabsState>((set, get) => {
     fileNavigationHistory: fileHistoryFor(initial.tabs.find(tab => tab.id === initial.activeId)),
     fileNavigationRestore: initial.tabs.find(tab => tab.id === initial.activeId)?.fileNavigationSnapshot ?? null,
     ...layoutActions(set, get),
+    ...canvasActions(set),
     ...navigationActions(set, get, closedSessionAckTombstones),
     ...sessionsActions(set, get, closedSessionAckTombstones),
     ...pagesActions(set, get, closedSessionAckTombstones),

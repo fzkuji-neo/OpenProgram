@@ -1,3 +1,4 @@
+import type { CanvasLayout, CanvasSide } from "../canvas-layout";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import type { BuiltinPage } from "@/lib/tabs/center-tab-ids";
 import { type TabPageHistory } from "../navigation/page-history";
@@ -5,6 +6,8 @@ import { type SessionTabHistory } from "../navigation/session-history";
 export type CenterTabKind = "session" | "file" | "web" | "ntp" | "builtin" | "application";
 
 export interface CenterTab {
+  /** Empty canvas layout tab; removed once real content occupies the layout. */
+  canvasAnchor?: boolean;
   applicationId?: string;
   applicationInstanceId?: string;
   id: string;
@@ -90,6 +93,8 @@ export interface FileTabOptions {
 }
 
 export interface CenterTabsState {
+  setCanvas: (targetId: string, canvas: CanvasLayout) => void;
+  dockCanvas: (sourceId: string | string[], targetId: string, paneId: string, side: CanvasSide) => void;
   navigationRoute?: string;
   recordRouteNavigation: (pathname: string) => void;
   canNavigateHistory: (direction: -1 | 1) => boolean;

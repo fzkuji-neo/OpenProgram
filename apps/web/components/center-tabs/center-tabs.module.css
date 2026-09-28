@@ -2505,3 +2505,14 @@
 }
 
 .webPipGestureFrame { border-radius: 10px 10px 0 0; width: 100%; height: 100%; object-fit: contain; object-position: top left; pointer-events: none; user-select: none; }
+
+/* The dragged element stays opaque and follows the pointer beyond the strip. */
+:global(html[data-canvas-dragging]) .strip,
+:global(html[data-canvas-dragging]) .tabsFlow { overflow: visible; z-index: 10000; }
+.tab[data-pointer-drag="true"], .compoundTab[data-pointer-drag="true"],
+.tab[data-detach-intent="true"], .compoundTab[data-detach-intent="true"] {
+  opacity: 1; scale: 1; z-index: 100001;
+  background: color-mix(in srgb, var(--bg-primary) 50%, var(--bg-tertiary));
+  outline: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  transition: none;
+}
