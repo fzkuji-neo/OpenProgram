@@ -185,7 +185,7 @@ class Summarizer:
             return 0
         user_indices = [i for i, msg in enumerate(messages)
                         if msg.get("role") == "user"]
-        if len(user_indices) < 3:
+        if len(user_indices) < 2:
             return 0
         latest_allowed = user_indices[-2]
         boundaries = [i for i in range(1, latest_allowed + 1)
@@ -199,7 +199,14 @@ class Summarizer:
         for cut in boundaries:
             if sum(tokens[cut:]) <= effective_keep:
                 return cut
-        return boundaries[-1]
+        # The two-turn preference is not a hard floor. A single completed
+        # tool-heavy turn can exceed the entire keep budget while the next
+        # user request is short. In that case summarize the completed turn
+        # and keep the active/latest user turn intact.
+        for cut in user_indices[1:]:
+            if sum(tokens[cut:]) <= effective_keep:
+                return cut
+        return boundaries[-1] if boundaries else 0
 
     # ---- LLM call ------------------------------------------------------
 

@@ -122,6 +122,7 @@ def test_thinking_only_mid_stream_error_retries(monkeypatch):
     )
     assert thinking == "fresh thought"  # discarded prefix is gone
     assert text == "answer"
+    assert any(event.type == "retry" and event.reason == "transport" for event in events)
 
 
 def test_goal_request_does_not_hide_an_extra_paid_attempt(monkeypatch):

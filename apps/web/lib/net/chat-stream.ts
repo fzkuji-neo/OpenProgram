@@ -91,7 +91,13 @@ useExecutionStreamStore.getState().setSnapshotRequester((ev) => {
 });
 
 interface StreamEvent {
-  type: "text" | "thinking" | "tool_use" | "tool_result" | "sub_agent";
+  type: "text" | "thinking" | "tool_use" | "tool_result" | "sub_agent" | "retry" | "structured_output_retry";
+  attempt?: number;
+  next_attempt?: number;
+  max_attempts?: number;
+  reason?: string;
+  issues?: { code?: string }[];
+  delay_ms?: number;
   text?: string;
   tool?: string;
   input?: string;
@@ -804,6 +810,9 @@ function appendDeltaBlock(
 
 function applyStreamEvent(sid: string, rid: string, evt: StreamEvent): void {
   if (evt.type === "text" || evt.type === "thinking") {
+    if (evt.text && useSessionStore.getState().messagesById[rid]?.retryStatus) {
+      useSessionStore.getState().updateMessage(sid, rid, { retryStatus: undefined });
+    }
     let cur = pendingDeltas.get(rid);
     if (!cur) {
       const msg = ensureReply(sid, rid);
@@ -843,6 +852,19 @@ function applyStreamEvent(sid: string, rid: string, evt: StreamEvent): void {
   }
 
   switch (evt.type) {
+    case "retry":
+    case "structured_output_retry": {
+      store.updateMessage(sid, rid, {
+        status: "streaming",
+        retryStatus: {
+          attempt: evt.next_attempt ?? evt.attempt ?? 2,
+          maxAttempts: evt.max_attempts,
+          reason: evt.reason ?? evt.issues?.[0]?.code,
+          delayMs: evt.delay_ms,
+        },
+      });
+      break;
+    }
     case "tool_use": {
       const blocks: AssistantBlock[] = [
         ...(cur.blocks ?? []),
@@ -982,7 +1004,7 @@ function finalize(sid: string, rid: string, d: ChatResponseData): void {
         ? "cancelled"
         : "done";
 
-  const patch: Partial<ChatMsg> = { status, rawType: d.type };
+  const patch: Partial<ChatMsg> = { status, rawType: d.type, retryStatus: undefined };
   if (status === "error") {
     if (d.reason) patch.errorReason = d.reason;
     if (typeof d.retryable === "boolean") patch.errorRetryable = d.retryable;

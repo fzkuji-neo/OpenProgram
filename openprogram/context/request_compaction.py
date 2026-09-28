@@ -38,6 +38,13 @@ class RequestCompactor:
     def __init__(self):
         self._cache: dict[str, str] = {}
         self._checkpoint = None
+        self._usage_scale: dict[str, float] = {}
+
+    def note_usage(self, model, *, measured_input: int, request_estimate: int) -> None:
+        """Calibrate later requests in this turn against one matching request."""
+        if measured_input > 0 and request_estimate > 0:
+            fingerprint = hashlib.sha256(model.model_dump_json().encode()).hexdigest()
+            self._usage_scale[fingerprint] = measured_input / request_estimate
 
     async def prepare(self, context: Context, model, options: SimpleStreamOptions, *, get_api_key=None) -> Context:
         window = real_context_window(model)
@@ -56,16 +63,18 @@ class RequestCompactor:
         if options.response_format is not None:
             schema_tokens = _text_tokens(json.dumps(
                 options.response_format.schema, ensure_ascii=False, default=str)) + 32
-        limit = window - reserve - margin - budget.system_prompt - budget.tools_schema - schema_tokens
+        fingerprint = hashlib.sha256(model.model_dump_json().encode()).hexdigest()
+        scale = self._usage_scale.get(fingerprint, 1.0)
+        limit = int((window - reserve - margin) / scale) - budget.system_prompt - budget.tools_schema - schema_tokens
         def prepared(messages):
             # Reservation controls compaction only. The provider may use all
             # remaining capacity, subject to the model's actual output limit.
-            available = window - margin - budget.system_prompt - budget.tools_schema - schema_tokens - estimate_history_tokens(messages)
+            estimated_input = budget.system_prompt + budget.tools_schema + schema_tokens + estimate_history_tokens(messages)
+            available = window - margin - round(estimated_input * scale)
             options.max_tokens = requested if requested is not None else min(model.max_tokens, max(1, available))
             return context.model_copy(update={'messages': messages})
 
         messages = list(context.messages)
-        fingerprint = hashlib.sha256(model.model_dump_json().encode()).hexdigest()
         # A checkpoint is invocation-local and valid only for the same model
         # and exact source prefix, including user instructions.
         raw_messages = list(messages)

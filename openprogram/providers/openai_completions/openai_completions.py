@@ -26,6 +26,7 @@ from ..types import (
     Context,
     EventDone,
     EventError,
+    EventRetry,
     EventStart,
     EventTextDelta,
     EventTextEnd,
@@ -627,6 +628,10 @@ async def stream_simple(
                 partial = _make_empty_assistant(model)
                 sleep_s = stream_backoff_seconds(
                     _attempt, getattr(e, "retry_after_s", None) or None,
+                )
+                yield EventRetry(
+                    attempt=_attempt + 2, max_attempts=attempts,
+                    reason="transport", delay_ms=round(sleep_s * 1000),
                 )
                 print(
                     f"[openai-completions stream retry] attempt {_attempt + 1}/"

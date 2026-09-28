@@ -44,6 +44,7 @@ def _record_context_usage(session_id: str, msg_id: str, conv: dict,
             "cache_read": int(usage.get("cache_read_tokens") or 0),
             "cache_create": int(usage.get("cache_write_tokens") or 0),
             "context_tokens": measured,
+            "request_input_estimate": int(usage.get("request_input_estimate") or 0),
         },
     )
     _s._broadcast_context_stats(session_id, msg_id, chat_runtime=measured_runtime)

@@ -496,7 +496,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 </div>
               ) : null}
               {hasContent && msg.status !== "error" ? <MarkdownText text={contentText} /> : null}
-              {streaming && !hasContent && !waitingApproval && !verdict ? <TypingIndicator /> : null}
+              {streaming && !hasContent && !waitingApproval && !verdict && !msg.retryStatus ? <TypingIndicator /> : null}
             </>
           )}
           {!msg.goalVerification && (msg.status === "cancelled" || msg.status === "interrupted") ? (
@@ -525,6 +525,20 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 }}
               />
             </ExecutionStrip>
+          ) : null}
+          {streaming && msg.retryStatus ? (
+            <div className="pending-body" role="status" aria-live="polite">
+              <span className="thinking-spinner" aria-hidden="true" />
+              <span className="pending-label">
+                {text("Retrying", "正在重试")}
+                {` ${msg.retryStatus.attempt}${msg.retryStatus.maxAttempts ? `/${msg.retryStatus.maxAttempts}` : ""}`}
+                {msg.retryStatus.reason === "transport"
+                  ? text(" · connection interrupted", " · 连接中断")
+                  : msg.retryStatus.reason === "output_limit"
+                    ? text(" · continuing output", " · 继续生成")
+                    : text(" · response incomplete", " · 响应未完成")}
+              </span>
+            </div>
           ) : null}
           {!streaming && outboundFiles.length > 0 ? (
             <AttachmentChips items={outboundFiles} />

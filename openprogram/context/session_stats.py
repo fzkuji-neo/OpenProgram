@@ -389,6 +389,8 @@ def build_stats(
     measured_total: Optional[int] = None,
     window: Optional[int] = None,
     estimated_total: Optional[int] = None,
+    request_input_estimate: Optional[int] = None,
+    calibration: Optional[float] = None,
 ) -> dict:
     """The one context-occupancy record both frontends read.
 
@@ -411,7 +413,7 @@ def build_stats(
         total_used = int(measured_total)
         basis = "measured"
     else:
-        total_used = estimated
+        total_used = round(estimated * calibration) if calibration and calibration > 0 else estimated
         basis = "estimated"
 
     stats = {
@@ -420,8 +422,19 @@ def build_stats(
         "basis": basis,
         "estimated": estimated,
     }
-    if basis == "measured" and estimated > 0:
-        stats["calibration"] = round(total_used / estimated, 4)
+    if basis == "measured":
+        paired_estimate = int(request_input_estimate or 0)
+        if paired_estimate > 0:
+            stats["calibration"] = round(total_used / paired_estimate, 4)
+            stats["calibration_source"] = "request"
+        elif estimated > 0:
+            # Older provider records lack a paired request estimate. This
+            # ratio is informative only; graph edits must not reuse it.
+            stats["calibration"] = round(total_used / estimated, 4)
+            stats["calibration_source"] = "graph"
+    elif calibration and calibration > 0:
+        stats["calibration"] = calibration
+        stats["calibration_source"] = "request"
     if breakdown is not None:
         stats["_breakdown"] = breakdown
     return stats
@@ -463,10 +476,8 @@ def finalize_breakdown(breakdown: dict, occupancy: dict) -> dict:
     }
     classified_estimate = sum(values.values())
     total = max(0, int(result.get("total_used") or classified_estimate))
-    measured = result.get("basis") == "measured"
-
     scale = 1.0
-    if measured and classified_estimate > total:
+    if classified_estimate > total:
         scale = total / classified_estimate if classified_estimate else 1.0
         values = _scale_categories(values, total)
 
@@ -474,9 +485,7 @@ def finalize_breakdown(breakdown: dict, occupancy: dict) -> dict:
     result["classified_estimate"] = classified_estimate
     result["classified_used"] = sum(values.values())
     result["classification_scale"] = round(scale, 6)
-    result["unclassified"] = (
-        max(0, total - result["classified_used"]) if measured else 0
-    )
+    result["unclassified"] = max(0, total - result["classified_used"])
     result["input_used"] = classified_estimate
     window = int(result.get("window") or result.get("context_window") or 0)
     result["free_space"] = max(0, window - total)

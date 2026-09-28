@@ -117,7 +117,7 @@ export function tooltipRows(
     const before = record.tokens_before;
     const after = record.tokens_after;
     if (typeof before === "number" && typeof after === "number") {
-      rows.push(kv("tokens", `${before} → ${after}`));
+      rows.push(kv(translateText("tokens (est.)", "token（估算）"), `${before} → ${after}`));
     }
     const at = record.compacted_at;
     if (typeof at === "number" && at > 0) {

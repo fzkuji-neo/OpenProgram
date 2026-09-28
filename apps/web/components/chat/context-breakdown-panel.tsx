@@ -127,6 +127,9 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
   const ringBasis = useSessionStore((s) =>
     sessionId ? s.tokens[sessionId]?.basis : undefined,
   );
+  const lastMeasured = useSessionStore((s) =>
+    sessionId ? s.tokens[sessionId]?.context : undefined,
+  );
   const ringWindow = useSessionStore((s) =>
     sessionId ? s.contextWindow[sessionId] : undefined,
   );
@@ -284,6 +287,11 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
                 {fmt(totalUsed)} / {fmt(win)} ({(usedPct * 100).toFixed(1)}%)
               </span>
             </div>
+            {data?.basis === "estimated" && Boolean(lastMeasured) && (
+              <div className="mb-2 text-[11px]" style={{ color: "var(--text-muted)" }}>
+                {text("Last request measured", "上次请求实测")} {fmt(lastMeasured || 0)}
+              </div>
+            )}
             <UsageBar pct={usedPct * 100} />
 
             <div className="my-3 h-px shrink-0 bg-[var(--border)]" />

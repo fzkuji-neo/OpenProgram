@@ -48,10 +48,12 @@ async def _run(responses: list[AssistantMessage]):
 
 
 def test_thinking_only_response_continues_to_a_visible_answer():
-    messages, _events, contexts = asyncio.run(_run([
+    messages, events, contexts = asyncio.run(_run([
         _message(""), _message("Done"),
     ]))
     assert len(contexts) == 2
+    assert any(getattr(getattr(event, 'assistant_message_event', None), 'type', None) == 'retry'
+               for event in events)
     assert any(isinstance(message, UserMessage) and "Continue" in str(message.content)
                for message in contexts[1])
     assert any(isinstance(message, AssistantMessage)

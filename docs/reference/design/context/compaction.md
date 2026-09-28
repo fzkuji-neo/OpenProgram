@@ -110,9 +110,11 @@ turn) and reactive compact (provider overflow error) all run the same
    coverage; their visible child calls contribute to input and token budgets.
 2. **Select whole turns.** The retained-token target is 10% of the model
    window, bounded to 8,000–40,000 tokens (an explicit override takes priority).
-   The default retains at least four conversational messages at a user boundary.
-   A history already below the target is a no-op. When recent turns exceed the
-   target, retain them intact and summarize the older complete turns.
+   The default prefers at least four conversational messages at a user boundary.
+   A history already below the target is a no-op. If the last two turns exceed
+   the target, the cut can advance to the latest user boundary: the completed
+   earlier turn enters the summary and the latest user turn stays intact. If
+   that latest turn alone exceeds the target, it stays intact.
 3. **Summarize the entire covered prefix.** Every replaced turn, including the
    initial user request and any applicable previous summary, enters the model
    input together with its rendered child calls. Session-global summary caches
@@ -129,6 +131,13 @@ turn) and reactive compact (provider overflow error) all run the same
    count, with local before/after estimates using the provider-message renderer
    shared by the context panel. No-op paths write no node and do not increment
    compaction usage. Original history and HEAD remain unchanged.
+
+The context display uses provider input usage for a completed request. Each
+request also records a local estimate of those same dispatched messages, so a
+later graph edit can scale its local estimate with a matched measured/estimated
+ratio. That scaled value remains labelled as an estimate until the next
+provider request reports usage. Legacy usage without a matched request estimate
+is not used to calibrate later graph states.
 
 ## 5. HEAD integrity
 

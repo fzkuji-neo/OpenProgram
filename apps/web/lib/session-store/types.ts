@@ -155,6 +155,8 @@ export interface ChatMsg {
   tokensAfter?: number;
   /** Reasoning tokens streamed under a collapsible "Thinking" block. */
   thinking?: string;
+  /** Live status for an automatic retry within this assistant turn. */
+  retryStatus?: { attempt: number; maxAttempts?: number; reason?: string; delayMs?: number };
   /** Tool calls made during this assistant turn, in emit order. */
   tools?: ChatToolCall[];
   status?: MessageStatus;

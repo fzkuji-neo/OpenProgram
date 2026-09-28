@@ -26,6 +26,20 @@ def answer(text):
                             provider=m.provider, model=m.id, timestamp=0)
 
 
+def test_request_budget_uses_matching_provider_usage():
+    request = Context(messages=[UserMessage(content='review ' * 2600, timestamp=0)])
+    compactor = RequestCompactor()
+    async def run():
+        first_options = SimpleStreamOptions()
+        await compactor.prepare(request, model(), first_options)
+        estimate = _text_tokens('review ' * 2600) + 4
+        compactor.note_usage(model(), measured_input=2 * estimate,
+                             request_estimate=estimate)
+        with pytest.raises(ValueError, match='Protected request'):
+            await compactor.prepare(request, model(), SimpleStreamOptions())
+    asyncio.run(run())
+
+
 def install_summary(monkeypatch):
     calls = []
     async def summary(m, context, options):
