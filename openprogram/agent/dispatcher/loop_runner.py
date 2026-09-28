@@ -998,6 +998,16 @@ def run_loop_blocking(
                             usage.get("input_tokens", 0)
                             + usage.get("cache_read_tokens", 0)
                         )
+                        if usage_total["context_tokens"] > 0:
+                            on_event({
+                                "type": "chat_response",
+                                "data": {
+                                    "type": "context_usage",
+                                    "session_id": req.session_id,
+                                    "msg_id": req.user_msg_id,
+                                    "usage": usage,
+                                },
+                            })
                         # Build ordered blocks from msg.content so the
                         # webui can render thinking / text / tool cards
                         # interleaved in their original LLM emission

@@ -237,9 +237,10 @@ serves it to `/context` and `server._broadcast_context_stats` pushes it over the
 panel reads the same fields for its headline and derives `Free space` from them,
 so its per-category rows never contradict the total.
 
-The canonical WebSocket chat runner records the final provider request's prompt
-size after the turn, refreshes the active branch head, broadcasts the measured
-record, and persists it. Session loading can recover a newer provider usage
+The canonical WebSocket chat runner records each provider request's prompt size
+as it finishes, so the ring and panel update between tool calls. At turn end it
+refreshes the active branch head and persists the final measurement. Session
+loading can recover a newer provider usage
 record when an older chat turn finished before this broadcast was implemented;
 it only does so when no later session edit has superseded that usage.
 

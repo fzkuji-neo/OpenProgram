@@ -13,23 +13,27 @@ import time
 import uuid
 
 
-def _record_canonical_context_stats(session_id: str, msg_id: str, conv: dict,
-                                    turn_result) -> None:
-    """Publish and persist the last request's context size after a WS turn."""
-    usage = getattr(turn_result, "usage", None) or {}
-    if not usage or not usage.get("context_tokens"):
+def _record_context_usage(session_id: str, msg_id: str, conv: dict,
+                          usage: dict, *, refresh_head: bool = False) -> None:
+    """Publish and persist a provider request's measured prompt size."""
+    measured = int(usage.get("context_tokens") or 0) if usage else 0
+    if not measured and usage:
+        measured = (int(usage.get("input_tokens") or 0)
+                    + int(usage.get("cache_read_tokens") or 0))
+    if not measured:
         return
     from types import SimpleNamespace
     from openprogram.agent.session_db import default_db
     from openprogram.webui import server as _s
 
-    session = default_db().get_session(session_id) or {}
-    with _s._sessions_lock:
-        current = _s._sessions.get(session_id)
-        if current is None:
-            return
-        current["head_id"] = session.get("head_id")
-    _s._hydrate_messages_from_db(session_id)
+    if refresh_head:
+        session = default_db().get_session(session_id) or {}
+        with _s._sessions_lock:
+            current = _s._sessions.get(session_id)
+            if current is None:
+                return
+            current["head_id"] = session.get("head_id")
+        _s._hydrate_messages_from_db(session_id)
     measured_runtime = SimpleNamespace(
         model=conv.get("model_override") or getattr(
             conv.get("runtime"), "model", None,
@@ -39,11 +43,20 @@ def _record_canonical_context_stats(session_id: str, msg_id: str, conv: dict,
             "output_tokens": int(usage.get("output_tokens") or 0),
             "cache_read": int(usage.get("cache_read_tokens") or 0),
             "cache_create": int(usage.get("cache_write_tokens") or 0),
-            "context_tokens": int(usage.get("context_tokens") or 0),
+            "context_tokens": measured,
         },
     )
     _s._broadcast_context_stats(session_id, msg_id, chat_runtime=measured_runtime)
     _s._save_session(session_id)
+
+
+def _record_canonical_context_stats(session_id: str, msg_id: str, conv: dict,
+                                    turn_result) -> None:
+    """Refresh HEAD and publish the last request after a completed turn."""
+    _record_context_usage(
+        session_id, msg_id, conv,
+        getattr(turn_result, "usage", None) or {}, refresh_head=True,
+    )
 
 
 def _db_agent_id(session_id: str) -> str:
@@ -1045,13 +1058,25 @@ async def handle_chat(ws, cmd: dict):
     # retained only as transport/DAG provenance and never becomes ownership.
     from openprogram.agent.dispatcher.types import TurnRequest
     from openprogram.agent.production_driver import CanonicalAgentAdapter
-    _adapter = CanonicalAgentAdapter(
-        event_sink=(
-            lambda env: _s._broadcast_envelope(env)
-            if hasattr(_s, "_broadcast_envelope")
-            else _s._broadcast(json.dumps(env, default=str))
-        ),
-    )
+    def _on_agent_event(env: dict) -> None:
+        data = env.get("data") or {}
+        if data.get("type") == "context_usage":
+            try:
+                _record_context_usage(
+                    session_id, msg_id, conv, data.get("usage") or {},
+                )
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception(
+                    "failed to record in-flight context stats for %s", session_id,
+                )
+            return
+        if hasattr(_s, "_broadcast_envelope"):
+            _s._broadcast_envelope(env)
+        else:
+            _s._broadcast(json.dumps(env, default=str))
+
+    _adapter = CanonicalAgentAdapter(event_sink=_on_agent_event)
     from openprogram.agent.session_config import tools_override_from_config
     _response_format_payload = (
         response_format.model_dump(mode="json")
