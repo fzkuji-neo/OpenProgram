@@ -8,7 +8,7 @@ import { PageShell } from "./page-shell";
 import { Sidebar } from "./sidebar/sidebar";
 import { RightSidebar } from "./right-sidebar/right-sidebar";
 import { CenterTabStrip } from "./center-tabs/center-tab-strip";
-import { CanvasControls, CANVAS_HEADER } from "./center-tabs/canvas-controls";
+import { CanvasControls } from "./center-tabs/canvas-controls";
 import { canvasGeometry, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
 import { BrowserResourceProjection } from "@/lib/browser/browser-resource-projection";
@@ -495,7 +495,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       ? { left:0,top:0,width:centerBodyWidth,height:centerBodyHeight }
       : geometry.panes.get(p.id)!;
     const hidden = (canvas.zoomedPaneId && canvas.zoomedPaneId !== p.id) || r.width < 150 || r.height < 110;
-    return { position:"absolute",left:r.left+1,top:r.top+CANVAS_HEADER,width:Math.max(0,r.width-2),height:Math.max(0,r.height-CANVAS_HEADER-1),minWidth:0,minHeight:0,overflow:"hidden",display:hidden?"none":"flex",flexDirection:"column" };
+    // No per-pane title bar: content fills its pane. Multi-pane layouts keep a
+    // 1px inset for the hairline and round the corners; a lone pane is flush.
+    const inset = canvasLeaves.length > 1 ? 1 : 0;
+    return { position:"absolute",left:r.left+inset,top:r.top+inset,width:Math.max(0,r.width-2*inset),height:Math.max(0,r.height-2*inset),minWidth:0,minHeight:0,overflow:"hidden",borderRadius:inset ? 9 : undefined,display:hidden?"none":"flex",flexDirection:"column" };
   }
 
   function renderTabPane(tabId: string, kind: "peer" | "tab") {
