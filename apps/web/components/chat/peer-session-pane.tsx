@@ -23,6 +23,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { ArrowDown } from "lucide-react";
 
 import { useMessageIds, useSessionStore } from "@/lib/session-store";
+import { useSessionHistory } from "@/lib/chat/session-history";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
   RECYCLE_MIN_ROWS,
@@ -57,6 +58,7 @@ export function PeerSessionPane({
   const setActive = useCenterTabs((s) => s.setActive);
   const activeId = useCenterTabs((s) => s.activeId);
   const ids = useMessageIds(sessionId);
+  const historyLoaded = useSessionHistory(s => Boolean(sessionId && s.pages[sessionId]));
   const areaRef = useRef<HTMLDivElement | null>(null);
   const scrollKey = sessionId ? `peer:${sessionId}` : null;
   useHistoryWindow(sessionId, true, areaRef, scrollKey);
@@ -221,7 +223,9 @@ export function PeerSessionPane({
                 textAlign: "center",
               }}
             >
-              {text("Loading conversation…", "加载会话中…")}
+              {sessionId && !historyLoaded
+                ? text("Loading conversation…", "加载会话中…")
+                : text("Send a message to start", "发送消息以开始会话")}
             </div>
           ) : (
             ids.map((id) => (
