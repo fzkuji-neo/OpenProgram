@@ -142,3 +142,14 @@ test("branch details show a request once, below a short aligned heading", async 
     assert.doesNotMatch(host.textContent, /Execution history for this conversation branch|Branch 1/);
   });
 });
+
+test("ongoing shell calls and background programs appear without opening an Agent", async () => {
+  await mounted([], async host => {
+    assert.match(host.textContent, /Functions/);
+    assert.match(host.textContent, /bash/);
+    assert.match(host.textContent, /sleep 30/);
+    assert.match(host.textContent, /Running programs/);
+    assert.doesNotMatch(host.textContent, /Tasks and their programs will appear/);
+  }, [], [], {}, { calls: [{ id: "call", name: "bash", command: "sleep 30", started_at: 1, status: "running" }],
+    items: [{id:"proc", command:"python worker.py", status:"running", started_at:1, backend_id:"local"}] });
+});

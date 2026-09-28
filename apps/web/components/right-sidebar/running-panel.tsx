@@ -22,6 +22,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   const [selection, setSelection] = useState<"agent" | string | null>(null);
   const state = useExecutionDebugger(active, sessionId, undefined,
     selection === "agent" || Boolean(selection?.startsWith("branch:")));
+  useEffect(() => { setSelection(null); }, [sessionId]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setExpanded(previous => {
@@ -197,6 +198,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       </div>}
     </div>;
   }
+  const liveProcesses = processes.items.filter(processIsActive);
+  const liveCalls = (processes.calls || []).filter(call => !liveProcesses.some(process =>
+    process.execution_id === call.execution_id && process.tool_call_id && process.tool_call_id === call.tool_call_id));
   const roots = groups;
   const attention = groups.filter(branchAttention);
   const working = groups.filter(item => !branchAttention(item) && branchActive(item));
@@ -213,15 +217,28 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         : text("Loading activity… Retrying automatically.", "正在加载运行记录，自动重试中。")}</p>}
     <div className={styles.scroll}>
       {!hasRead && !processes.stale && state.connection.state === "reconnecting" ? <SidebarNotice>{text("Loading…", "加载中…")}</SidebarNotice> : null}
+      {liveCalls.length > 0 && <div className="group/sec">
+        <SectionHeader name={text("Functions", "函数调用")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
+        {liveCalls.map(call => <details className={styles.liveCall} key={call.id}>
+          <summary><span className={styles.name}>{call.name}</span><span className={styles.meta}>{call.status === "running" ? text("Running", "正在运行") : text("Status needs confirmation", "状态待确认")}</span></summary>
+          {call.description && <p className={styles.meta}>{call.description}</p>}
+          <time className={styles.meta} dateTime={new Date(call.started_at * 1000).toISOString()}>{text("Started", "开始时间")} {updatedTime(call.started_at)}</time>
+          {call.command && <pre className={styles.output}>{call.command}</pre>}
+        </details>)}
+      </div>}
+      {liveProcesses.length > 0 && <div className="group/sec">
+        <SectionHeader name={text("Running programs", "运行中的程序")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
+        {liveProcesses.map(programRow)}
+      </div>}
       {section(text("Needs attention", "需要处理"), attention)}
       {section(text("In progress", "正在进行"), working)}
-      {state.fetchedAt && processes.loaded && unassigned.length === 0 && ungrouped.length === 0 && attention.length === 0 && working.length === 0 && <SidebarNotice>{roots.length ? text("No tasks are running. Previous tasks are in History.", "当前没有正在进行的任务，已结束任务保留在历史记录中。") : text("Tasks and their programs will appear here when this conversation runs.", "此会话开始执行后，任务及其程序会显示在这里。")}</SidebarNotice>}
+      {state.fetchedAt && processes.loaded && unassigned.length === 0 && ungrouped.length === 0 && attention.length === 0 && working.length === 0 && liveCalls.length === 0 && liveProcesses.length === 0 && <SidebarNotice>{roots.length ? text("No tasks are running. Previous tasks are in History.", "当前没有正在进行的任务，已结束任务保留在历史记录中。") : text("Tasks and their programs will appear here when this conversation runs.", "此会话开始执行后，任务及其程序会显示在这里。")}</SidebarNotice>}
       {section(text("History", "历史记录"), history, true)}
       {ungrouped.length > 0 && <div className="group/sec"><SectionHeader className={styles.sectionHeader} name={text("Records awaiting branch association", "尚未关联分支的记录")} collapsible={false} collapsed={false} onToggle={() => {}} />{ungrouped.filter(item => {
         const parent = item.view_parent_execution_id ?? item.parent_execution_id;
         return !parent || !ungrouped.some(other => other.execution_id === parent);
       }).map(item => agentRow(item))}</div>}
-      {unassigned.length > 0 && <div className="group/sec"><SectionHeader className={styles.sectionHeader} name={text("Programs without an Agent record", "未关联 Agent 记录的程序")} collapsible={false} collapsed={false} onToggle={() => {}} />{unassigned.map(programRow)}</div>}
+      {unassigned.some(item => !processIsActive(item)) && <div className="group/sec"><SectionHeader className={styles.sectionHeader} name={text("Programs without an Agent record", "未关联 Agent 记录的程序")} collapsible={false} collapsed={false} onToggle={() => {}} />{unassigned.filter(item => !processIsActive(item)).map(programRow)}</div>}
     </div>
   </section>;
 }

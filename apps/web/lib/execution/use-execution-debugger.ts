@@ -99,6 +99,12 @@ export function useExecutionDebugger(active: boolean, sessionId: string | null, 
     return () => { mounted.current = false; refreshToken.current++; refreshController.current?.abort(); };
   }, []);
 
+  useEffect(() => {
+    setSnapshots({}); setBranches([]); setCursors({}); setEvents([]);
+    setDebuggerData({}); setFetchedAt(null); setSelectedExecutionId(null);
+    setConnection({ state: "reconnecting" });
+  }, [sessionId]);
+
   const loadDebuggerData = useCallback(async (executionId: string, signal?: AbortSignal) => {
     const state = await getExecutionDebuggerState(executionId, signal, sessionId);
     if (!mounted.current || signal?.aborted) return state;
