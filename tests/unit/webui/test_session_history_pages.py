@@ -60,3 +60,35 @@ def test_indexed_snapshot_reads_only_selected_pages_and_supports_reverse_seek(tm
         close_snapshots(ws)
     from pathlib import Path
     assert not Path(directory).exists()
+
+
+def test_initial_page_is_small_and_older_pages_preserve_every_message():
+    from openprogram.webui.session_history import HistorySnapshot, INITIAL_PAGE_BYTES
+    rows = [{'id': f'm{i}', 'role': 'assistant', 'content': 'x' * 20000} for i in range(70)]
+    snapshot = HistorySnapshot('session', 'm69', rows, {m['id'] for m in rows})
+    try:
+        page, meta = snapshot.page(initial=True)
+        import json
+        assert len(json.dumps(page).encode()) <= INITIAL_PAGE_BYTES
+        assert page[-1]['id'] == 'm69'
+        assert len(page) <= 12
+        found = page
+        while meta['before']:
+            page, meta = snapshot.page(before=meta['before'])
+            found = page + found
+        assert found == rows
+    finally:
+        snapshot.close()
+
+
+def test_wire_tools_preserve_blocks_and_legacy_fallback_without_mutating_storage():
+    from openprogram.webui.session_history import wire_message
+    call = {'tool_call_id': 'display-id', 'tool': 'read', 'input': 'path', 'result': 'content'}
+    block = {**call, 'type': 'tool', 'tool_call_id': 'provider-id'}
+    row = {'blocks': [block], 'tool_calls': [call], 'extra': {'tool_calls': [call]}}
+    compact = wire_message(row)
+    assert compact == {'blocks': [block]}
+    assert row['tool_calls'] == [call] and row['extra']['tool_calls'] == [call]
+    assert wire_message({'tool_calls': [call]}) == {'tool_calls': [call]}
+    different = {**row, 'blocks': [{**block, 'result': 'different'}]}
+    assert wire_message(different)['tool_calls'] == [call]

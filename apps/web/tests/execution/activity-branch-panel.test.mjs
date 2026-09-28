@@ -122,9 +122,11 @@ test("Activity never flashes an error for loading, reconnection, or another conv
     }, [], [], {connection,fetchedAt:null}, {loaded:true});
   }
 });
-test("Activity still reports confirmed current conversation read failures", async () => {
+test("Activity reports continuing read failures without replacing saved records", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   for (const processFailed of [false,true]) await mounted([], async host => {
-    assert.match(host.textContent, /statuses are unavailable/);
+    await act(async () => { t.mock.timers.tick(5000); });
+    assert.match(host.textContent, /Updating status.*Showing saved records/);
   }, [], [], {connection: processFailed ? {state:"connected"} : {state:"stale",message:"request failed",errorSessionId:"session"}}, {stale:processFailed});
 });
 

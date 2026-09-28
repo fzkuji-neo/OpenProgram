@@ -35,6 +35,10 @@ def project_id_for_session(session_id: str) -> str:
 
 def _event_sequence(store: Any, execution_id: str, fallback: int) -> int:
     try:
+        latest = getattr(store, "latest_event_sequence", None)
+        if callable(latest):
+            sequence = latest(execution_id)
+            return sequence if sequence is not None else fallback
         events = store.list_events(execution_id)
         if events:
             return max(int(event.execution_sequence) for event in events)

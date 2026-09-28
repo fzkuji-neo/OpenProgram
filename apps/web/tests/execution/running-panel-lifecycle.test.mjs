@@ -96,11 +96,15 @@ test("activity never overlaps polls for the same resource and aborts on unmount"
   assert.ok(requests.every(request => request.signal.aborted));
 });
 
-test("initial failures add no phantom update history and preserve activity errors", async () => {
+test("transient activity failures stay quiet before retry status appears", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   respond = async () => response({ error: "denied" }, 403);
   await mount(RunningPanel, { sessionId: "session-one", active: true }, async (host) => {
-    assert.match(host.textContent, /Could not load activity/);
-    assert.doesNotMatch(host.textContent, /Nothing is running|Loading/);
+    assert.doesNotMatch(host.textContent, /Could not load|unavailable|Retrying/);
+    await act(async () => { t.mock.timers.tick(5000); });
+    assert.match(host.textContent, /Loading activity.*Retrying/);
+    await act(async () => { t.mock.timers.tick(25000); });
+    assert.match(host.textContent, /Activity is still unavailable/);
   });
 });
 
@@ -126,4 +130,22 @@ test("conversation parent ignores historical update fixtures", async () => {
   } finally {
     useSessionStore.setState({ currentSessionId: previousSessionId });
   }
+});
+
+
+test("activity list does not load unselected execution events or debugger bodies", async () => {
+  const urls = [];
+  respond = async (url) => {
+    urls.push(String(url));
+    if (String(url).endsWith("/executions")) return response({ items: [{ snapshot: {
+      execution_id: "exec-one", session_id: "session-one", status: "completed", updated_at: 1,
+      event_sequence: 100, status_version: 1,
+    } }] });
+    if (String(url).includes("/processes")) return response({ items: [] });
+    throw new Error("Unselected detail should not be requested");
+  };
+  await mount(RunningPanel, { sessionId: "session-one", active: true }, async () => {
+    assert.ok(urls.some(url => url.endsWith("/executions")));
+    assert.equal(urls.filter(url => /\/(events|debugger)[?]/.test(url)).length, 0);
+  });
 });

@@ -91,6 +91,15 @@ class ProgressOperations:
             info = self._jobs.get(job_id)
         if info:
             return info["session_id"]
+        # Canonical executions already record their owning session. In
+        # particular, foreground turns have no Job file: do not scan every
+        # conversation on disk to establish that fact for each Activity row.
+        execution_store = getattr(self, "_execution_store", None)
+        if execution_store is not None:
+            execution = execution_store.get_execution(job_id)
+            if execution is not None:
+                found = shared._store_load(execution.session_id, job_id)
+                return execution.session_id if found is not None else None
         # Not in memory — scan disk. Jobs always live under the
         # session repo they were spawned for, so a walk is bounded.
         from openprogram.store import default_store

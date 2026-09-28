@@ -86,7 +86,7 @@ export function PeerSessionPane({
       const sock = getSocket();
       if (!sock || sock.readyState !== WebSocket.OPEN) return false;
       requestedRef.current = sessionId;
-      wsSend({ action: "load_session", session_id: sessionId });
+      wsSend({ action: "load_session", session_id: sessionId, history_version: 2 });
       return true;
     };
     if (send()) return;

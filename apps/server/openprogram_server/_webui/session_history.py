@@ -5,10 +5,26 @@ import json
 
 PAGE_MESSAGES = 50
 PAGE_BYTES = 512 * 1024
+INITIAL_PAGE_MESSAGES = 12
+INITIAL_PAGE_BYTES = 128 * 1024
 
 
 def wire_message(message: dict) -> dict:
-    """Remove only exact duplicates already promoted out of legacy extra."""
+    """Keep one copy of tool bodies and promoted legacy fields on the wire."""
+    calls = message.get('tool_calls')
+    blocks = message.get('blocks')
+    if isinstance(calls, list) and calls and isinstance(blocks, list):
+        tools = [b for b in blocks if isinstance(b, dict) and b.get('type') == 'tool']
+        # Legacy call IDs may name display rows, while blocks use provider IDs.
+        # The current client already uses blocks whenever present. Only remove
+        # the fallback if every non-identity field is represented there.
+        if len(calls) == len(tools) and all(
+            isinstance(call, dict) and all(
+                key in ('tool_call_id', 'node_id') or block.get(key) == value
+                for key, value in call.items()
+            ) for call, block in zip(calls, tools)
+        ):
+            message = {k: v for k, v in message.items() if k != 'tool_calls'}
     extra = message.get('extra')
     if isinstance(extra, str):
         try:
@@ -21,7 +37,7 @@ def wire_message(message: dict) -> dict:
     # blocks/tool_calls may have been truncated on the wire. Their originals
     # remain persisted and are read by the existing full-output endpoint.
     for key in ('blocks', 'tool_calls'):
-        if key in message:
+        if key in message or (key == 'tool_calls' and calls and 'tool_calls' not in message):
             remaining.pop(key, None)
     copied = dict(message)
     if remaining:
@@ -119,8 +135,10 @@ class HistorySnapshot:
             self._db.close()
             self._directory.cleanup()
 
-    def page(self, *, before=None, after=None, around=None):
+    def page(self, *, before=None, after=None, around=None, initial=False):
         """Read at most one page, using indexed message IDs in either direction."""
+        message_limit = INITIAL_PAGE_MESSAGES if initial else PAGE_MESSAGES
+        byte_limit = INITIAL_PAGE_BYTES if initial else PAGE_BYTES
         with self._lock:
             cursor = before if before is not None else after if after is not None else around
             position = None
@@ -130,20 +148,20 @@ class HistorySnapshot:
                     raise ValueError('History cursor is unavailable')
                 position = found[0]
             if after is not None:
-                candidates = self._db.execute('SELECT position,id,size FROM groups WHERE position>? ORDER BY position LIMIT ?', (position, PAGE_MESSAGES)).fetchall()
+                candidates = self._db.execute('SELECT position,id,size FROM groups WHERE position>? ORDER BY position LIMIT ?', (position, message_limit)).fetchall()
             elif around is not None:
-                start = max(0, position - PAGE_MESSAGES // 2)
-                candidates = self._db.execute('SELECT position,id,size FROM groups WHERE position>=? ORDER BY position LIMIT ?', (start, PAGE_MESSAGES)).fetchall()
+                start = max(0, position - message_limit // 2)
+                candidates = self._db.execute('SELECT position,id,size FROM groups WHERE position>=? ORDER BY position LIMIT ?', (start, message_limit)).fetchall()
                 # Anchor must fit even when adjacent turns exceed the byte budget.
-                while candidates and candidates[0][0] < position and sum(r[2] for r in candidates if r[0] <= position) > PAGE_BYTES:
+                while candidates and candidates[0][0] < position and sum(r[2] for r in candidates if r[0] <= position) > byte_limit:
                     candidates.pop(0)
             else:
                 stop = self.total if position is None else position
-                candidates = self._db.execute('SELECT position,id,size FROM groups WHERE position<? ORDER BY position DESC LIMIT ?', (stop, PAGE_MESSAGES)).fetchall()
+                candidates = self._db.execute('SELECT position,id,size FROM groups WHERE position<? ORDER BY position DESC LIMIT ?', (stop, message_limit)).fetchall()
             chosen = []
             size = 0
             for row in candidates:
-                if chosen and size + row[2] > PAGE_BYTES:
+                if chosen and size + row[2] > byte_limit:
                     break
                 chosen.append(row)
                 size += row[2]
