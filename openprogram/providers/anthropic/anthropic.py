@@ -557,6 +557,8 @@ async def stream_simple(
     cache_control = _get_cache_control(base_url, getattr(opts, "cache_retention", None))
 
     _merged_headers = {**(getattr(opts, "headers", None) or {}), **(_conn.headers if _conn else {})}
+    from .._shared.opencode_headers import opencode_headers
+    _merged_headers.update(opencode_headers(model.provider, base_url, opts.session_id))
     # 高速档：composer 的 fast 开关随消息带 service_tier；模型声明了
     # fast 才透传（Claude 线上形态 = speed:"fast" + fast-mode beta 头）。
     _fast = getattr(opts, "service_tier", None) in ("priority", "fast") and bool(getattr(model, "fast", False))

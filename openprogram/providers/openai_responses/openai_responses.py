@@ -74,6 +74,7 @@ def stream_openai_responses(
             client = _create_client(
                 model, context, api_key, opts.get("headers"),
                 conn_base_url=conn_base_url, conn_headers=conn_headers,
+                session_id=opts.get("session_id"),
                 idempotency_key=(
                     opts.get("idempotency_key")
                     if opts.get("supports_idempotency_key") else None
@@ -174,6 +175,7 @@ def _create_client(
     conn_base_url: str | None = None,
     conn_headers: dict[str, str] | None = None,
     idempotency_key: str | None = None,
+    session_id: str | None = None,
 ) -> Any:
     import openai
 
@@ -191,6 +193,8 @@ def _create_client(
     # The credential's own base_url wins (e.g. an Aliyun Bailian api-key
     # carries its own endpoint) — else the catalog default.
     base_url = conn_base_url or getattr(model, "base_url", None) or ""
+    from .._shared.opencode_headers import opencode_headers
+    headers.update(opencode_headers(model.provider, base_url, session_id))
     if getattr(model, "provider", None) == "xai-subscription":
         from openprogram.providers.xai_subscription.headers import (
             CLI_CHAT_PROXY_BASE_URL,

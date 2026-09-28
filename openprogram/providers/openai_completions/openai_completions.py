@@ -271,6 +271,8 @@ async def stream_simple(
     base_url = (_conn.base_url if _conn and _conn.base_url else None) \
         or (model.base_url if model.base_url != "https://api.openai.com/v1" else None)
     extra_headers = {**(opts.headers or {}), **(_conn.headers if _conn else {})}
+    from .._shared.opencode_headers import opencode_headers
+    extra_headers.update(opencode_headers(model.provider, base_url, opts.session_id))
     if opts.get("supports_idempotency_key") and opts.get("idempotency_key"):
         extra_headers["Idempotency-Key"] = opts["idempotency_key"]
 
