@@ -121,6 +121,7 @@ function SummaryBar({
             zIndex: hoveredIndex === segment.index ? 2 : 1,
           }}
           onPointerEnter={() => onHover(segment.index)}
+          onPointerLeave={() => onHover(null)}
           title={`${segment.label}: ${fmt(segment.tokens)}`}
         />
       ))}
@@ -137,6 +138,7 @@ function SummaryBar({
               : "var(--usage-track)",
           }}
           onPointerEnter={() => onHover(rows.length)}
+          onPointerLeave={() => onHover(null)}
           title={`${freeLabel}: ${fmt(free)}`}
         />
       )}
@@ -294,7 +296,7 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
       [text("Memory files", "记忆文件"), d.memory || 0],
       [text("Skills", "技能"), d.skills || 0],
       [text("Messages", "对话消息"), d.messages || 0],
-      [text("Other context (estimated)", "其他上下文（估算）"), d.unclassified || 0],
+      [text("Unclassified difference (estimated)", "未分类差额（估算）"), d.unclassified || 0],
     ];
     // 全部分类都显示（含 0），不过滤 —— 让用户看到每一档存在与否。
     // Free space 不单列：顶部总量行的百分比已经表达了同一信息。
@@ -398,8 +400,10 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
               {rows.map((r, index) => (
                 <div
                   key={r.label}
-                  onPointerEnter={() => setHoveredCategory(index)}
-                  onPointerLeave={() => setHoveredCategory(null)}
+                  title={index === rows.length - 1 ? text(
+                    "The difference between the total input usage and locally classified estimates. It can change after a request or compaction.",
+                    "总输入用量与本地分类估算之和的差额。请求完成或压缩后，这个差额可能变化。",
+                  ) : undefined}
                   style={{
                     opacity: r.zero ? 0.4 : 1,
                     background: hoveredCategory === index ? "var(--bg-hover)" : undefined,
