@@ -1505,6 +1505,24 @@ def _tool_repeat_key(name: str, args: Any) -> str:
     return repeat_key(name, args)
 
 
+_TOOL_NAME_ALIASES = {"Bash": "bash", "Read": "read", "ToolSearch": "tool_search"}
+
+
+def _resolve_called_tool(tools: list[AgentTool] | None, call: ToolCall) -> tuple[AgentTool | None, dict]:
+    """Resolve observed Claude spellings only within the turn's allowed tools."""
+    available = {tool.name: tool for tool in (tools or [])}
+    tool = available.get(call.name)
+    if tool is None:
+        tool = available.get(_TOOL_NAME_ALIASES.get(call.name, ""))
+    args = dict(call.arguments)
+    if tool is not None and tool.name == "tool_search":
+        if call.name == "ToolSearch" and "query" in args and "select" not in args:
+            args["select"] = args.pop("query")
+        if args.get("max_results", object()) is None:
+            args.pop("max_results")
+    return tool, args
+
+
 async def _execute_tool_calls(
     tools: list[AgentTool] | None,
     assistant_message: AssistantMessage,
@@ -1560,17 +1578,17 @@ async def _execute_tool_calls(
     increment_tool_calls(len(tool_calls))
 
     for index, tool_call in enumerate(tool_calls[start_index:], start=start_index):
-        tool = next((t for t in (tools or []) if t.name == tool_call.name), None)
+        tool, call_args = _resolve_called_tool(tools, tool_call)
         occurrence_id = _occurrence_id(index, tool_call)
         dag_expose = getattr(tool, "_dag_expose", None) or "full"
         from openprogram.providers.types import Tool as AiTool, ToolCall as AiToolCall
-        validated_args = tool_call.arguments
+        validated_args = call_args
         validation_error = None
         if tool is not None:
             try:
                 validated_args = validate_tool_arguments(AiTool(
                     name=tool.name, description=tool.description, parameters=tool.parameters,
-                ), tool_call)
+                ), tool_call.model_copy(update={"arguments": call_args}))
             except Exception as exc:
                 validation_error = exc
         fail_key = _tool_repeat_key(tool_call.name, validated_args)

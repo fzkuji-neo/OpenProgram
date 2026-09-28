@@ -1286,6 +1286,31 @@ def test_tool_search_handles_unknown_names() -> None:
     assert "no_such_tool" in text
 
 
+def test_tool_search_capitalized_names_use_only_current_scope() -> None:
+    from openprogram.programs import _runtime as runtime
+    from openprogram.programs._runtime import install_allowed_tool_names, tool_search
+
+    @function(name="bash")
+    def bash() -> str:
+        return "ok"
+
+    @function(name="read")
+    def read() -> str:
+        return "ok"
+
+    token = install_allowed_tool_names({"tool_search", "bash", "read"})
+    try:
+        text = _run(tool_search.execute(
+            "c1", {"select": "select:Bash,Read,Write"}, None, None
+        )).content[0].text
+    finally:
+        runtime._allowed_tool_names.reset(token)
+
+    assert "Tool 'bash' is already loaded" in text
+    assert "Tool 'read' is already loaded" in text
+    assert "Write" in text and "Tool 'write'" not in text
+
+
 def test_tool_search_cannot_load_program_outside_resolved_scope() -> None:
     from openprogram.programs._runtime import (
         install_allowed_tool_names,
