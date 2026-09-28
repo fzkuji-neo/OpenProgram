@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from openprogram.webui.ws_actions.chat import _record_canonical_context_stats
+from openprogram.webui.ws_actions.chat import (
+    _record_canonical_context_stats, _record_context_usage,
+)
 
 
 def test_canonical_ws_turn_publishes_measured_context_and_saves(monkeypatch):
@@ -31,6 +33,30 @@ def test_canonical_ws_turn_publishes_measured_context_and_saves(monkeypatch):
         assert conv["head_id"] == "reply-head"
         assert sent[0][:2] == (sid, "user-id")
         assert sent[0][2].last_usage["context_tokens"] == 1000
+        assert saved == [sid]
+    finally:
+        srv._sessions.pop(sid, None)
+
+
+def test_in_flight_usage_updates_badge_before_turn_finishes(monkeypatch):
+    from openprogram.webui import server as srv
+
+    sid = "live-context-test"
+    conv = {"provider_name": "anthropic", "head_id": "user-head"}
+    sent = []
+    saved = []
+    srv._sessions[sid] = conv
+    monkeypatch.setattr(srv, "_broadcast_context_stats",
+                        lambda _sid, _mid, chat_runtime=None:
+                        sent.append(chat_runtime.last_usage))
+    monkeypatch.setattr(srv, "_save_session", saved.append)
+    try:
+        _record_context_usage(sid, "user-id", conv, {
+            "input_tokens": 900, "cache_read_tokens": 100,
+            "output_tokens": 20,
+        })
+        assert sent[0]["context_tokens"] == 1000
+        assert conv["head_id"] == "user-head"
         assert saved == [sid]
     finally:
         srv._sessions.pop(sid, None)

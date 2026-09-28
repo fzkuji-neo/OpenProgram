@@ -175,6 +175,10 @@ def test_query_action_writes_via_dispatcher(env, monkeypatch: pytest.MonkeyPatch
         for e in stream_events
         if e["payload"]["event"].get("type") == "text"
     )
+    live_usage = [c["payload"] for c in captured
+                  if c["payload"].get("type") == "context_usage"]
+    assert len(live_usage) == 1
+    assert live_usage[0]["usage"]["input_tokens"] == 1
 
 
 def test_query_action_failure_emits_error_envelope(env) -> None:
