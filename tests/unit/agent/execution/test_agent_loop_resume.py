@@ -568,3 +568,35 @@ def test_resumed_tool_interrupt_closes_stream_without_provider_replay():
     asyncio.run(run(CancelledError, True))
     asyncio.run(run(ExecInterrupt, True))
     asyncio.run(run(ExecInterrupt, False))
+
+
+@pytest.mark.parametrize("boundary", ["provider.before", "tool.before", "tool.started"])
+def test_resume_handoff_before_dispatch_does_not_run_operation(boundary):
+    continuation = _continuation()
+    calls = {"provider": 0, "tool": 0}
+
+    async def execute(*_args):
+        calls["tool"] += 1
+        return AgentToolResult(content=[TextContent(text="ok")])
+
+    async def hook(kind, _payload):
+        return kind == boundary
+
+    def stream_fn(*_args):
+        calls["provider"] += 1
+        pytest.fail("provider must not start after handoff")
+
+    tool = AgentTool(name="echo", description="echo", parameters={"type": "object"},
+                     label="echo", execute=execute)
+    config = AgentLoopConfig(model=_model(), convert_to_llm=lambda messages: messages,
+                             safe_point_hook=hook)
+
+    async def run():
+        stream = agent_loop_resume(continuation, AgentContext(messages=[], tools=[tool]),
+                                   config, stream_fn=stream_fn)
+        events = [event async for event in stream]
+        assert events[-1].type == "agent_end"
+        assert not any(getattr(event, "is_error", False) for event in events)
+
+    asyncio.run(run())
+    assert calls == {"provider": 0, "tool": int(boundary == "provider.before")}
