@@ -696,7 +696,11 @@ class AgentCheckpointV1:
             blobs[descriptor["ref"]] = raw
             return descriptor
 
-        assistant_ref = add("assistant_message_delta", assistant_message, cap=MAX_AGENT_DELTA_BYTES)
+        # This is the provider's complete assistant message, including
+        # reasoning and tool calls. It is already stored as a separate
+        # content-addressed blob, so the small pending-message/display cap
+        # must not reject a valid long response after the provider finishes.
+        assistant_ref = add("assistant_message_delta", assistant_message)
         snapshot_ref = add("resolved_model_system_tool_snapshot", resolved_snapshot)
         tool_refs = [add(f"tool_result_delta.{index}", result) for index, result in enumerate(tool_results)]
 

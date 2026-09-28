@@ -327,6 +327,21 @@ def test_agent_checkpoint_accepts_turn_display_over_delta_cap():
     continuation.state.validate()
 
 
+def test_agent_checkpoint_preserves_full_assistant_message_over_delta_cap():
+    from openprogram.agent.continuation import MAX_AGENT_DELTA_BYTES
+
+    message = _assistant([TextContent(text="analysis result " * 6000)])
+    raw = message.model_dump(mode="json")
+    assert len(json.dumps(raw, ensure_ascii=False).encode("utf-8")) > MAX_AGENT_DELTA_BYTES
+
+    continuation = _continuation(decision=message)
+    descriptor = continuation.state.payload["assistant_message_delta_ref"]
+    assert descriptor["byte_length"] > MAX_AGENT_DELTA_BYTES
+    assert continuation.state.read_json_ref(
+        _blob_store(continuation.state), "exec-large-assistant", descriptor,
+    ) == raw
+
+
 def test_agent_checkpoint_turn_display_ref_is_owned():
     import json
 
