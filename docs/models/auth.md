@@ -80,3 +80,9 @@ openprogram providers list                 # list credential pools by account
 ```
 
 Every provider supports multiple named accounts, and one account's credential pool can hold multiple API keys. A key that returns 401 / 402 / 429 / 503 is put on a cooldown and the pool hands the next healthy key to the following request — automatically, with selectable strategies (`fill_first` is the default "backup key" behavior; `round_robin`, `random`, and `least_used` are also available). Rotating across whole accounts (instead of the single active one) is a separate per-provider switch, off by default.
+
+### Codex browser sign-in
+
+The local callback listener starts before the authorization page opens. Keep the provider panel open until it reports success. If the page does not open, use **Open sign-in page**. If the callback cannot reach the app, paste the callback URL into the login panel; it must belong to the current sign-in attempt.
+
+A token-exchange HTTP 403 means OpenAI refused the exchange, but does not by itself identify whether account access or the network caused it. The panel distinguishes recognized authorization errors and shows connection retries. Start a fresh sign-in after an expired or already-used authorization code. Cancelling or leaving the panel ends that attempt.

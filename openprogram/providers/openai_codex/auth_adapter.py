@@ -67,6 +67,7 @@ def build_pkce_config():
         scopes=["openid", "profile", "email", "offline_access"],
         callback_port=1455,
         callback_path="/auth/callback",
+        also_prompt_paste=True,
         extra_authorize_params={
             "id_token_add_organizations": "true",
             "codex_cli_simplified_flow": "true",

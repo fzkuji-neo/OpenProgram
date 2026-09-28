@@ -58,6 +58,11 @@ export function ProviderLogin({
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [value, setValue] = useState("");
 
+  const [authUrl, setAuthUrl] = useState("");
+  const [failed, setFailed] = useState(false);
+  const attemptRef = useRef(0);
+  const sessionRef = useRef<string | null>(null);
+  const methodRef = useRef("");
   const cursorRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishedRef = useRef(false);            // terminal state reached
@@ -71,11 +76,20 @@ export function ProviderLogin({
   }, []);
 
   // Clear the poll timer if the panel unmounts mid-flow.
-  useEffect(() => () => stop(), [stop]);
+  useEffect(() => () => {
+    ++attemptRef.current;
+    stop();
+    if (sessionRef.current) void fetch(`/api/providers/${provider.id}/login/cancel`, {
+      method: "POST", headers: JSON_HEADERS,
+      body: JSON.stringify({ session: sessionRef.current }),
+    }).catch(() => {});
+  }, [stop, provider.id]);
 
   const clearLocal = useCallback((message: string) => {
     stop();
     setSession(null);
+    sessionRef.current = null;
+    setAuthUrl("");
     setPrompt(null);
     setBusy(false);
     setValue("");
@@ -84,6 +98,11 @@ export function ProviderLogin({
   }, [stop]);
 
   async function start(method: string) {
+    const attempt = ++attemptRef.current;
+    methodRef.current = method;
+    stop();
+    setAuthUrl("");
+    setFailed(false);
     setBusy(true);
     setMsg("");
     setLines([]);
@@ -100,14 +119,22 @@ export function ProviderLogin({
         body: JSON.stringify(accountLabel ? { method, label: accountLabel } : { method }),
       });
       const d = await r.json();
-      if (d.error || !d.session) {
+      if (attempt !== attemptRef.current) {
+        if (d.session) void fetch(`/api/providers/${provider.id}/login/cancel`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ session: d.session }) });
+        return;
+      }
+      if (!r.ok || d.error || !d.session) {
+        setFailed(true);
         setMsg(d.error || text("Could not start the login.", "启动登录失败。"));
         setBusy(false);
         return;
       }
       sid = d.session;
       setSession(sid);
+      sessionRef.current = sid;
     } catch {
+      if (attempt !== attemptRef.current) return;
+      setFailed(true);
       setMsg(text("Could not start the login.", "启动登录失败。"));
       setBusy(false);
       return;
@@ -115,11 +142,15 @@ export function ProviderLogin({
 
     // Self-rescheduling poll: schedule the next tick only after this one
     // resolves, so exactly one request is ever in flight.
+    let failures = 0;
     const tick = async () => {
+      if (attempt !== attemptRef.current || finishedRef.current) return;
       try {
         const r = await fetch(
           `/api/providers/${provider.id}/login/poll?session=${sid}&cursor=${cursorRef.current}`,
+          { signal: AbortSignal.timeout(15000) },
         );
+        if (attempt !== attemptRef.current || finishedRef.current) return;
         if (r.status === 404) {
           // Already finished? a late 404 is harmless — just stop. Only a 404
           // BEFORE completion means the session really vanished.
@@ -127,14 +158,20 @@ export function ProviderLogin({
           clearLocal(text("Login session expired — try again.", "登录会话已过期，请重试。"));
           return;
         }
+        if (!r.ok) throw new Error("Login status unavailable");
         const d = await r.json();
+        if (attempt !== attemptRef.current || finishedRef.current) return;
+        failures = 0;
+        setMsg("");
         cursorRef.current = Math.max(cursorRef.current, d.cursor ?? 0);
         for (const ev of d.events ?? []) {
           if (ev.type === "open_url") {
             window.open(ev.url, "_blank", "noopener");
-            setLines((l) => [...l, text(`Opened ${ev.url}`, `已打开 ${ev.url}`)]);
+            setAuthUrl(ev.url);
+            setLines([text("Continue in your browser, then return here.", "请在浏览器完成授权，然后返回这里。")]);
           } else if (ev.type === "progress") {
-            setLines((l) => [...l, String(ev.message ?? "")]);
+            const progress = String(ev.message ?? "");
+            setLines([progress === "Completing sign-in…" ? text(progress, "正在完成登录…") : progress]);
           } else if (ev.type === "code") {
             setLines((l) => [...l, `${ev.user_code}  —  ${ev.verification_uri}`]);
           }
@@ -152,15 +189,36 @@ export function ProviderLogin({
           finishedRef.current = true;
           stop();
           setSession(null);
+          sessionRef.current = null;
+          setAuthUrl("");
           setPrompt(null);
+          setValue("");
+          setFailed(!d.ok);
           setBusy(false);
-          setMsg(d.ok ? text("Signed in.", "登录成功。") : (d.error || text("Login failed.", "登录失败。")));
+          const errors: Record<string, string> = {
+            forbidden: text("OpenAI refused token exchange (403). Check the app's network/proxy and account access. The status alone does not identify the cause.", "OpenAI 拒绝兑换登录凭据（403）。请检查 App 使用的网络、代理及账号访问权限；仅凭 403 无法确定具体原因。"),
+            invalid_grant: text("Authorization expired or was already used. Start a new sign-in.", "授权码已过期或已使用，请重新登录。"),
+            access_denied: text("OpenAI denied authorization. Check account or workspace access.", "OpenAI 拒绝授权，请检查账号或工作区访问权限。"),
+            unsupported_country_region_territory: text("OpenAI does not support sign-in from this region.", "OpenAI 不支持从当前地区登录。"),
+            rate_limited: text("Too many attempts. Wait before retrying.", "登录请求过多，请稍后重试。"),
+            unavailable: text("OpenAI authentication is temporarily unavailable.", "OpenAI 登录服务暂时不可用，请稍后重试。"),
+          };
+          setMsg(d.ok ? text("Signed in.", "登录成功。") : (errors[d.error_code] || d.error || text("Login failed.", "登录失败。")));
           if (d.ok) onChanged?.();
           return;
         }
         timerRef.current = setTimeout(tick, 1000);
       } catch {
-        timerRef.current = setTimeout(tick, 1000); // transient — keep polling
+        if (attempt !== attemptRef.current || finishedRef.current) return;
+        failures += 1;
+        setMsg(text(`Connection interrupted. Retrying (${failures})…`, `连接中断，正在重试（${failures}）…`));
+        if (failures >= 10) {
+          cancel();
+          setFailed(true);
+          setMsg(text("Could not reconnect. Start a new sign-in.", "无法恢复连接，请重新登录。"));
+          return;
+        }
+        timerRef.current = setTimeout(tick, Math.min(5000, failures * 1000));
       }
     };
     timerRef.current = setTimeout(tick, 600);
@@ -169,22 +227,30 @@ export function ProviderLogin({
   async function submit() {
     if (!session || !prompt) return;
     const v = value;
+    const originalPrompt = prompt;
+    const attempt = attemptRef.current;
     submittedRef.current = prompt.message;
     setValue("");
     setPrompt(null);
     try {
-      await fetch(`/api/providers/${provider.id}/login/submit`, {
+      const response = await fetch(`/api/providers/${provider.id}/login/submit`, {
         method: "POST",
         headers: JSON_HEADERS,
         body: JSON.stringify({ session, value: v }),
       });
+      if (!response.ok) throw new Error("Submit failed");
     } catch {
+      if (attempt !== attemptRef.current) return;
+      submittedRef.current = null;
+      setPrompt(originalPrompt);
+      setValue(v);
       setMsg(text("Could not submit.", "提交失败。"));
     }
   }
 
   function cancel() {
-    const sid = session;
+    ++attemptRef.current;
+    const sid = sessionRef.current;
     if (sid) {
       void fetch(`/api/providers/${provider.id}/login/cancel`, {
         method: "POST",
@@ -214,6 +280,7 @@ export function ProviderLogin({
           {lines.map((l, i) => (
             <div key={i} style={{ fontSize: "0.75rem", opacity: 0.75 }}>{l}</div>
           ))}
+          {authUrl && <a href={authUrl} target="_blank" rel="noopener noreferrer" style={{ display:"inline-block", marginTop:8 }}>{text("Open sign-in page", "打开登录页面")}</a>}
           {prompt && (
             <div className={styles.detailRow} style={{ gap: "0.4rem", marginTop: "0.3rem" }}>
               <Input
@@ -234,8 +301,9 @@ export function ProviderLogin({
         </div>
       )}
 
+      {failed && methodRef.current && !busy && <Button size="sm" onClick={() => start(methodRef.current)} style={{ marginTop:8 }}>{text("Try signing in again", "重新登录")}</Button>}
       {msg && (
-        <div style={{ fontSize: "0.75rem", opacity: 0.75, marginTop: "0.3rem" }}>{msg}</div>
+        <div role={failed ? "alert" : "status"} style={{ fontSize: "0.8rem", marginTop: "0.5rem", overflowWrap:"anywhere" }}>{msg}</div>
       )}
     </>
   );

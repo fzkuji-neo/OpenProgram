@@ -111,6 +111,24 @@ class PkceConfig:
     also_prompt_paste: bool = False
 
 
+class OAuthExchangeError(RuntimeError):
+    """Safe, structured token-endpoint failure; never retain response bodies."""
+
+    def __init__(self, status: int, category: str) -> None:
+        self.status = status
+        self.category = category
+        hints = {
+            "invalid_grant": "The authorization code expired or was already used. Start a new sign-in.",
+            "access_denied": "The provider denied this sign-in. Check account or workspace access.",
+            "unsupported_country_region_territory": "The provider does not support sign-in from this region.",
+            "forbidden": "The token endpoint refused access. Check the application's network/proxy and account access; this status alone does not identify the cause.",
+            "rate_limited": "Too many sign-in attempts. Wait before starting a new sign-in.",
+            "unavailable": "The authentication service is unavailable. Try a new sign-in later.",
+            "rejected": "The token endpoint rejected this sign-in. Start a new sign-in.",
+        }
+        super().__init__(f"token exchange failed: {status}. {hints[category]}")
+
+
 @dataclass
 class PkceTokens:
     """Raw token-endpoint response; caller converts to :class:`Credential`."""
@@ -191,9 +209,8 @@ class PkceLoginMethod(LoginMethod):
         auth_url = f"{self._cfg.authorize_url}?{urlencode(params)}"
 
         await ui.show_progress("Opening browser for authentication…")
-        await ui.open_url(auth_url)
-
         if self._cfg.manual_paste_only:
+            await ui.open_url(auth_url)
             # The hosted page shows a ``code#state`` string. Ask for it,
             # split on '#', and exchange. (No callback server to race.)
             raw = (await ui.prompt(
@@ -217,16 +234,18 @@ class PkceLoginMethod(LoginMethod):
             try:
                 code = await _race_callback_and_manual_paste(
                     ui=ui, cfg=self._cfg, expected_state=state,
+                    on_ready=lambda: ui.open_url(auth_url),
                 )
             except RuntimeError as exc:
                 if "Can't bind" not in str(exc):
                     raise
                 await ui.show_progress(str(exc))
+                await ui.open_url(auth_url)
                 code = await _ask_manual_paste(ui, state)
         else:
             try:
                 code = await asyncio.wait_for(
-                    _run_callback_server(self._cfg, state),
+                    _run_callback_server(self._cfg, state, on_ready=lambda: ui.open_url(auth_url)),
                     timeout=self._cfg.timeout_seconds,
                 )
             except asyncio.TimeoutError:
@@ -237,6 +256,7 @@ class PkceLoginMethod(LoginMethod):
                     "`ssh -L 1455:localhost:1455 <host>` and retry."
                 )
 
+        await ui.show_progress("Completing sign-in…")
         tokens = await _exchange_code_for_tokens(
             cfg=self._cfg, code=code, verifier=verifier, redirect_uri=redirect_uri,
             challenge=challenge,
@@ -286,6 +306,7 @@ async def _race_callback_and_manual_paste(
     ui: LoginUi,
     cfg: PkceConfig,
     expected_state: str,
+    on_ready=None,
 ) -> str:
     """Start a local HTTP server for the OAuth redirect and a manual-paste
     prompt at the same time. Return whichever resolves first.
@@ -298,7 +319,7 @@ async def _race_callback_and_manual_paste(
     future so they never prompt — that deferral happens in the UI, not
     here.
     """
-    callback_task = asyncio.create_task(_run_callback_server(cfg, expected_state))
+    callback_task = asyncio.create_task(_run_callback_server(cfg, expected_state, on_ready=on_ready))
     prompt_task = asyncio.create_task(_ask_manual_paste(ui, expected_state))
 
     try:
@@ -318,7 +339,7 @@ async def _race_callback_and_manual_paste(
     return done.pop().result()
 
 
-async def _run_callback_server(cfg: PkceConfig, expected_state: str) -> str:
+async def _run_callback_server(cfg: PkceConfig, expected_state: str, on_ready=None) -> str:
     """Bind to localhost:<port>, accept one request, return the ``code``
     parameter after validating state. Raises if the request doesn't
     match or the port can't be bound."""
@@ -360,7 +381,7 @@ async def _run_callback_server(cfg: PkceConfig, expected_state: str) -> str:
         if not code_future.done():
             code_future.set_result(code)
         return web.Response(
-            text="Authorization complete. You can close this window.",
+            text="Authorization received. Return to OpenProgram to finish sign-in.",
             content_type="text/plain",
         )
 
@@ -387,6 +408,8 @@ async def _run_callback_server(cfg: PkceConfig, expected_state: str) -> str:
             f"then retry."
         ) from e
     try:
+        if on_ready is not None:
+            await on_ready()
         return await code_future
     finally:
         await runner.cleanup()
@@ -400,9 +423,8 @@ async def _ask_manual_paste(ui: LoginUi, expected_state: str) -> str:
       * just the query string (``code=…&state=…``)
       * just the code value
 
-    We don't enforce state matching here because the callback server
-    already handles that; if it times out and we fall through to manual
-    paste, we trust the user has the right URL in their clipboard.
+    URLs and query strings must carry this attempt's state. A bare code
+    remains supported for providers that display only the code.
     """
     raw = await ui.prompt(
         "If the browser callback doesn't complete, paste the redirect URL here",
@@ -413,12 +435,16 @@ async def _ask_manual_paste(ui: LoginUi, expected_state: str) -> str:
     if raw.startswith("http"):
         parsed = urlparse(raw)
         qs = parse_qs(parsed.query)
+        if qs.get("state", [""])[0] != expected_state:
+            raise ValueError("This callback belongs to a different sign-in. Use the current sign-in URL.")
         code_values = qs.get("code") or []
         if not code_values:
-            raise ValueError(f"no code in redirect URL: {raw}")
+            raise ValueError("No authorization code in the pasted callback URL.")
         return code_values[0]
     if "code=" in raw:
         qs = parse_qs(raw)
+        if qs.get("state", [""])[0] != expected_state:
+            raise ValueError("This callback belongs to a different sign-in. Use the current sign-in URL.")
         code_values = qs.get("code") or []
         if code_values:
             return code_values[0]
@@ -472,7 +498,15 @@ async def _exchange_code_for_tokens(
             if resp.status_code == 400 and "content-type" in resp.text.lower():
                 resp = await client.post(cfg.token_url, json=params)
         if resp.status_code != 200:
-            raise RuntimeError(f"token exchange failed: {resp.status_code}")
+            category = {403: "forbidden", 429: "rate_limited"}.get(resp.status_code, "unavailable" if resp.status_code >= 500 else "rejected")
+            try:
+                error = resp.json().get("error")
+                code = error.get("code") or error.get("type") if isinstance(error, dict) else error
+                if code in {"invalid_grant", "access_denied", "unsupported_country_region_territory"}:
+                    category = code
+            except (ValueError, TypeError, AttributeError):
+                pass
+            raise OAuthExchangeError(resp.status_code, category)
         data = resp.json()
 
     for key in ("access_token", "refresh_token", "expires_in"):
