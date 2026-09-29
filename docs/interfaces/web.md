@@ -157,4 +157,4 @@ Long conversations open with a small recent history page; earlier messages load 
 
 Activity also shows in-flight function calls, including foreground shell commands awaiting completion. Expand a function to see its command and start time. Active managed programs appear directly in Running programs and remain inspectable and stoppable after the initiating tool returns.
 
-Hover over a pane’s three-dot handle to see its name below the handle. Click the handle to open pane actions; the name is separate from that menu.
+Hover over a pane’s three-dot handle to expand the handle downward and reveal its name inside the same control. It retracts when the pointer leaves. Click the handle to open pane actions; the name is separate from that menu.

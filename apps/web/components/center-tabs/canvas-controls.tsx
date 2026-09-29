@@ -5,7 +5,6 @@ import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, mapNode, type CanvasLayout, type CanvasPreset } from "@/lib/tabs/canvas-layout";
 import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas-drag";
-import { HoverTip } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./canvas-controls.module.css";
 
@@ -138,7 +137,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
               </div>
             </div>
           : tiny ? <button type="button" className={styles.tiny} title={title} onClick={() => zoom(p.id)}><span><TabIcon tab={tab} /><Maximize2 aria-hidden /></span></button> : null}
-        {!single && <HoverTip side="bottom" label={<span className={styles.paneName} data-native-view-occluder="true"><TabIcon tab={tab} /><span>{title}</span></span>}><div role="button" tabIndex={0} className={styles.grip}
+        {!single && <div role="button" tabIndex={0} className={styles.grip} data-native-view-occluder="true"
           aria-label={text(`Pane options: ${title}`, `格子选项：${title}`)} aria-haspopup="menu" aria-expanded={menu?.paneId === p.id}
           onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); gripStart.current = { x: e.clientX, y: e.clientY }; focus(p.id); if (p.content) startPaneDrag(e, p.content); }}
           onClick={e => {
@@ -148,8 +147,9 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
           }}
           onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(p.id, e.clientX, e.clientY); }}
           onKeyDown={e => { if (e.key !== "Enter" && e.key !== " ") return; e.preventDefault(); openMenuBelow(p.id, e.currentTarget); }}>
-          <i /><i /><i />
-        </div></HoverTip>}
+          <span className={styles.gripDots} aria-hidden><i /><i /><i /></span>
+          <span className={styles.gripName} aria-hidden>{title}</span>
+        </div>}
       </div>;
     })}
     {!layout.zoomedPaneId && geometry.dividers.map(d => { const key = `${d.splitId}:${d.index}`; return <div key={key} className={styles.divider} data-active={activeDivider === key || undefined} role="separator" aria-orientation={d.dir === "row" ? "vertical" : "horizontal"} aria-valuenow={Math.round(d.sizes[d.index]*100)} tabIndex={0}
