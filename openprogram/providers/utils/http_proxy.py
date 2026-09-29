@@ -1,6 +1,6 @@
 """Proxy configuration diagnostics for explicit policy-proxy setup.
 
-Resolution order (design record: docs/reference/design/providers/network-proxy.md):
+Resolution order (design record: docs/reference/design/providers/network-proxy.html):
 
 1. ``OPENPROGRAM_PROXY_URL`` — explicit first-party override. All traffic
    routes through it (``http://``, ``https://`` or ``socks5://``);
@@ -12,16 +12,15 @@ Resolution order (design record: docs/reference/design/providers/network-proxy.m
    consistent with every plain ``httpx.AsyncClient()`` and SDK-built client
    in the process.
 
-Managed provider clients do not consume this mount map: direct ``httpx``
-mounts cannot enforce the peer checks required by Runtime URL policy.  The
-remaining rescue command uses this helper only to report configured proxy
-state.  An enforcing proxy must instead be declared through
-``OutboundSecurityConfig.policy_proxy``.
+Managed provider clients snapshot this routing map for audited HTTPS API and
+OAuth origins. They still validate target policy and pin the proxy socket;
+custom origins and untrusted URLs require an explicit enforcing policy proxy.
 """
 
 from __future__ import annotations
 
 import os
+import urllib.request
 
 
 # Loopback never goes through a proxy, NO_PROXY or not: local services
@@ -46,7 +45,26 @@ def get_proxy_mounts() -> dict[str, str | None] | None:
     # invent different semantics, if it ever moves.
     from httpx._utils import get_environment_proxies
 
+    # HTTPX represents NO_PROXY=* as an empty map; keep that explicit bypass
+    # distinct from "no routes" before merging system settings or an override.
+    bypasses = urllib.request.getproxies_environment().get("no", "")
+    if "*" in (value.strip() for value in bypasses.split(",")):
+        return None
     env_map: dict[str, str | None] = dict(get_environment_proxies())
+    # urllib's getproxies() suppresses system fallback even when the only
+    # environment entry is NO_PROXY. Worker launchers commonly set that entry
+    # to protect localhost, so merge the system routes in this one case.
+    if not any(value is not None for value in env_map.values()):
+        system_reader = getattr(urllib.request, "getproxies_macosx_sysconf", None)
+        if system_reader is None:
+            system_reader = getattr(urllib.request, "getproxies_registry", None)
+        if system_reader is not None:
+            system_map = {
+                f"{scheme}://": value
+                for scheme, value in system_reader().items()
+                if scheme in {"http", "https", "all"}
+            }
+            env_map = {**system_map, **env_map}
 
     override = os.environ.get("OPENPROGRAM_PROXY_URL", "").strip()
     if override:
