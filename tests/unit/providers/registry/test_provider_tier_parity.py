@@ -266,3 +266,15 @@ def test_disabled_manual_row_excluded_from_runtime_registry(mem_cfg, _offline):
     finally:
         cr.read_providers_config = orig
     assert "acme/on" in fresh and "acme/off" not in fresh
+
+
+def test_disabling_last_model_survives_legacy_migration(mem_cfg, _offline):
+    mem_cfg['acme'] = {
+        'enabled': True, 'models': [{'id': 'm1', 'api': 'openai-completions'}],
+        'enabled_models': ['m1'],
+    }
+    tg.toggle_model('acme', 'm1', False)
+    assert mem_cfg['acme']['models'] == []
+    assert listing._enabled_ids(mem_cfg['acme']) == set()
+    st._migrate_specs(mem_cfg)
+    assert mem_cfg['acme']['models'] == []

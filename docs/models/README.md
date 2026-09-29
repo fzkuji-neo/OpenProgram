@@ -48,3 +48,5 @@ Configuring credentials does not by itself make models selectable. Each provider
 - [Fast tier](fast-tier.md) — routing requests to a faster service tier
 - [Thinking effort](thinking-effort.md) — reasoning depth levels
 - [Token tracking](token-tracking.md) — how each provider reports usage
+
+You can disable every model in a provider, including the last enabled model. An empty selection stays empty after reload and restart.

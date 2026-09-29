@@ -164,8 +164,8 @@ def _preferred_default_model(provider: str) -> str | None:
         if default_model and (not default_provider or default_provider == provider):
             return default_model
         pcfg = _read_providers_cfg().get(provider, {})
-        spec_ids = [r.get("id") for r in (pcfg.get("models") or []) if r.get("id")]
-        enabled = spec_ids or list(pcfg.get("enabled_models") or [])
+        spec_ids = [r.get("id") for r in (pcfg.get("models") or []) if r.get("id") and r.get("enabled") is not False]
+        enabled = spec_ids if "models" in pcfg else list(pcfg.get("enabled_models") or [])
         if enabled:
             return enabled[0]
     except Exception:

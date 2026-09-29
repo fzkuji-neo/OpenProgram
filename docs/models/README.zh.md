@@ -48,3 +48,5 @@ openprogram providers setup      # 交互式：扫描现有凭据 → 登录 →
 - [fast tier](fast-tier.zh.md) — 把请求路由到更快档位
 - [thinking effort](thinking-effort.zh.md) — 推理深度档位
 - [Token 统计](token-tracking.zh.md) — 各 provider 的用量统计口径
+
+可以取消一个 provider 的全部模型，包括最后一个已启用模型。空选择会在刷新和重启后保留。
