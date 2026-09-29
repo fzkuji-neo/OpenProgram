@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Quote } from "lucide-react";
+import { GitBranch, Quote } from "lucide-react";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
+import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
+import { showToast } from "@/lib/format-utils/toast";
 import styles from "./message-editor.module.css";
 
 export function quoteToChat(sessionId: string, content: string) {
@@ -23,11 +25,29 @@ export function quoteToChat(sessionId: string, content: string) {
   });
 }
 
+export async function quoteInBranch(sessionId: string, messageId: string, content: string) {
+  const socket = getSocket();
+  if (!socket || socket.readyState !== WebSocket.OPEN) throw new Error("Connection unavailable");
+  const response = await fetch("/api/chat/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, msg_id: messageId }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || response.statusText);
+  }
+  runtimeState._postCheckoutScrollTo = messageId;
+  socket.send(JSON.stringify({ action: "load_session", session_id: sessionId }));
+  quoteToChat(sessionId, content);
+}
+
 /** One selection listener per transcript, not per message. */
 export function SelectionQuote({ sessionId }: { sessionId: string | null }) {
   const { text } = useTranslation();
   const anchor = useRef<HTMLSpanElement>(null);
-  const [selection, setSelection] = useState<{ content: string; left: number; top: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [selection, setSelection] = useState<{ messageId: string; content: string; left: number; top: number } | null>(null);
   useEffect(() => {
     const root = anchor.current?.parentElement;
     if (!root || !sessionId) return;
@@ -42,7 +62,8 @@ export function SelectionQuote({ sessionId }: { sessionId: string | null }) {
       const content = selected.toString().trim();
       if (!content) return hide();
       const rect = selected.getRangeAt(0).getBoundingClientRect();
-      setSelection({ content, left: Math.max(12, Math.min(rect.left, window.innerWidth - 160)),
+      const messageId = start.closest<HTMLElement>(".message[data-msg-id]")?.dataset.msgId || "";
+      setSelection({ messageId, content, left: Math.max(12, Math.min(rect.left, window.innerWidth - 320)),
         top: rect.top > 48 ? rect.top - 42 : rect.bottom + 6 });
     };
     root.addEventListener("pointerup", update);
@@ -57,9 +78,21 @@ export function SelectionQuote({ sessionId }: { sessionId: string | null }) {
     };
   }, [sessionId]);
   return <><span ref={anchor} hidden />{selection && sessionId && createPortal(
-    <button className={styles.quotePopup} type="button" style={{ left: selection.left, top: selection.top }}
-      onPointerDown={e => e.preventDefault()} onClick={() => {
+    <div className={styles.quotePopup} role="group" aria-label={text("Quote selection", "引用选中文字")}
+      style={{ left: selection.left, top: selection.top }} onPointerDown={e => e.preventDefault()}>
+      <button type="button" disabled={busy} onClick={() => {
         quoteToChat(sessionId, selection.content); window.getSelection()?.removeAllRanges(); setSelection(null);
-      }}><Quote size={15} />{text("Add to chat", "引用到聊天")}</button>, document.body,
+      }}><Quote size={15} />{text("Add to chat", "加入当前聊天")}</button>
+      <button type="button" disabled={busy || !selection.messageId} onClick={async () => {
+        if (busy) return;
+        setBusy(true);
+        try {
+          await quoteInBranch(sessionId, selection.messageId, selection.content);
+          window.getSelection()?.removeAllRanges(); setSelection(null);
+        } catch (error) {
+          showToast(`${text("Could not start branch", "无法创建分支")}: ${error instanceof Error ? error.message : String(error)}`);
+        } finally { setBusy(false); }
+      }}><GitBranch size={15} />{busy ? text("Opening…", "正在打开…") : text("Chat in new branch", "在新分支聊")}</button>
+    </div>, document.body,
   )}</>;
 }
