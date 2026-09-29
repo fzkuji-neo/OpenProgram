@@ -15,10 +15,13 @@ import {UserBubble} from './components/chat/messages/user-bubble';
 import {SelectionQuote} from './components/chat/messages/quote-to-chat';
 import {useSessionStore} from './lib/session-store';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
-window.edits=[];window.failEdit=true;
+window.edits=[];window.failEdit=true;window.checkouts=[];window.failCheckout=true;window.loads=[];
+import {setSocket} from './lib/runtime-bridge/state';
+setSocket({readyState:1,send:value=>window.loads.push(JSON.parse(value))});
 const canvas=document.createElement('canvas');canvas.width=2;canvas.height=2;const png=canvas.toDataURL('image/png').split(',')[1];window.png=png;window.rawUrls=[];
 window.fetch=async(url,options)=>{
  if(String(url).includes('raw')){window.rawUrls.push(String(url));return new Response(Uint8Array.from(atob(png),c=>c.charCodeAt(0)),{headers:{'Content-Type':'image/png'}});}
+ if(String(url)==='/api/chat/checkout'){window.checkouts.push(JSON.parse(options.body));return new Response(JSON.stringify(window.failCheckout?{error:'Checkout failed'}:{head_id:'right-msg'}),{status:window.failCheckout?503:200});}
  if(String(url)==='/api/chat/edit'){window.edits.push(JSON.parse(options.body));return new Response(JSON.stringify(window.failEdit?{error:'Temporary failure'}:{msg_id:'new'}),{status:window.failEdit?503:200});}
  return new Response('{}',{status:200});
 };
@@ -31,14 +34,14 @@ function Pane({id}){const draft=useSessionStore(s=>s.composerDrafts[id]||'');ret
 createRoot(document.getElementById('mount')).render(<QueryClientProvider client={new QueryClient()}><Pane id="left"/><Pane id="right"/></QueryClientProvider>);
 '''
     bundle = tmp_path/'quote-edit.js'
-    subprocess.run(['node','-e',"require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});",str(ROOT/'apps/web'),str(bundle),entry],cwd=ROOT,check=True,capture_output=True)
+    subprocess.run(['node','-e',"require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'css'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});",str(ROOT/'apps/web'),str(bundle),entry],cwd=ROOT,check=True,capture_output=True)
     shell=tmp_path/'quote-edit.html'
     shell.write_text('<!doctype html><style>section{padding:20px}.message-content{white-space:pre-wrap}textarea{display:block;width:500px}button{min-width:25px;min-height:25px}svg{width:16px;height:16px}</style><div id="mount"></div>')
     with sync_playwright() as pw:
         browser=pw.chromium.launch(headless=True)
         try:
-            page=browser.new_page(); errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-            page.goto(shell.as_uri());page.add_script_tag(path=str(bundle))
+            page=browser.new_page(viewport={'width':1280,'height':1600}); errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+            page.goto(shell.as_uri());page.add_style_tag(path=str(bundle.with_suffix('.css')));page.add_script_tag(path=str(bundle))
             right=page.locator('[data-pane="right"]'); left=page.locator('[data-pane="left"]')
             right.get_by_role('button',name='Quote message',exact=True).click()
             expect(right.get_by_role('textbox',name='right draft')).to_have_value('right draft\n\n> Original message https://example.com\n\n')
@@ -50,6 +53,24 @@ createRoot(document.getElementById('mount')).render(<QueryClientProvider client=
             page.get_by_role('button',name='Add to chat',exact=True).click()
             assert page.evaluate("window.drafts().right").endswith('> Original\n\n')
             assert page.evaluate("window.drafts().left") == 'left draft'
+            # Branching uses the selected pane/message, and failures preserve drafts.
+            page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+            right.locator('.message-content').scroll_into_view_if_needed()
+            before_branch = page.evaluate("window.drafts().right")
+            page.evaluate('''() => {const el=document.querySelector('[data-pane="right"] .message-content');const r=document.createRange();r.setStart(el.lastChild,0);r.setEnd(el.lastChild,8);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}''')
+            right.locator('.message-content').dispatch_event('pointerup')
+            branch=page.get_by_role('button',name='Chat in new branch',exact=True)
+            branch.click()
+            expect(branch).to_be_enabled()
+            assert page.evaluate('window.checkouts[0]') == {'session_id':'right','msg_id':'right-msg'}
+            assert page.evaluate('window.drafts().right') == before_branch
+            assert page.evaluate('window.loads.length') == 0
+            page.evaluate('window.failCheckout=false')
+            branch.click()
+            expect(branch).to_have_count(0)
+            assert page.evaluate('window.loads[0]') == {'action':'load_session','session_id':'right'}
+            assert page.evaluate('window.drafts().right') == before_branch + '\n\n> Original\n\n'
+            assert page.evaluate('window.drafts().left') == 'left draft'
             right.get_by_role('button',name='Edit message',exact=True).click()
             editor=right.get_by_role('textbox',name='Edit message',exact=True)
             expect(editor).to_have_value('Original message https://example.com')
