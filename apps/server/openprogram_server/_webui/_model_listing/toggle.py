@@ -54,6 +54,13 @@ def toggle_model(provider_id: str, model_id: str, enabled: bool) -> dict[str, An
             pcfg = cfg.setdefault(provider_id, {})
             from openprogram.providers.subscription_catalog import SUBSCRIPTION_PROVIDERS
 
+            # Retire this model from legacy state too, so startup migration
+            # cannot restore a selection the user explicitly removed.
+            if not enabled and "enabled_models" in pcfg:
+                pcfg["enabled_models"] = [
+                    mid for mid in pcfg["enabled_models"] if mid != model_id
+                ]
+
             disabled_models = set(pcfg.get("disabled_models") or [])
             existing = next(
                 (

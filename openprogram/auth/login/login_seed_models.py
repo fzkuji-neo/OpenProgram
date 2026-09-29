@@ -40,11 +40,11 @@ def _has_credentials(provider_id: str) -> bool:
 def enable_default_models_on_login(provider_id: str) -> list[str]:
     """Write the default model set for ``provider_id`` as config spec rows,
     marked ``source: "subscription-login"`` — but ONLY when the provider has
-    zero spec rows. Returns the ids written (empty if nothing was written).
+    no models field. Returns the ids written (empty if nothing was written).
 
     Idempotence rule: defaults are written only on a *fresh* provider (no
-    existing ``providers.<p>.models`` rows). Any prior enable/disable leaves a
-    non-empty list, so a disabled default never resurrects.
+    existing ``providers.<p>.models`` field). An explicit empty list records
+    the user choice to disable every model.
     """
     defaults = _DEFAULTS.get(provider_id)
     if not defaults:
@@ -60,7 +60,7 @@ def enable_default_models_on_login(provider_id: str) -> list[str]:
 
         def seed(cfg: dict) -> None:
             pcfg = cfg.setdefault(provider_id, {})
-            if pcfg.get("models"):
+            if "models" in pcfg:
                 return
             for row in defaults:
                 spec = dict(row, source="subscription-login")
