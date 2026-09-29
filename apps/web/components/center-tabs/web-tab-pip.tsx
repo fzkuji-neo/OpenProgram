@@ -446,7 +446,23 @@ export function WebTabPip() {
     };
   }, [bridge, tabId, live, ownerSessionId, interactive]);
 
-  useEffect(() => () => endActiveDragRef.current(false), [tabId]);
+  useEffect(() => {
+    // A native page can take the release before React's captured pointer sees
+    // it. Finish at the window boundary as well so the next gesture can start.
+    const finish = () => endActiveDragRef.current(true);
+    const released = (event: MouseEvent) => { if (event.buttons === 0) finish(); };
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("mouseup", finish);
+    window.addEventListener("blur", finish);
+    window.addEventListener("mousemove", released, true);
+    return () => {
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("mouseup", finish);
+      window.removeEventListener("blur", finish);
+      window.removeEventListener("mousemove", released, true);
+      endActiveDragRef.current(false);
+    };
+  }, [tabId]);
 
   const presented = live && chatBox
     ? pipChatRect(rect, expanded, chatBox, expandedSize)
