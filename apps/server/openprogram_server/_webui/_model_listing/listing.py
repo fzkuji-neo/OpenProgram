@@ -48,11 +48,11 @@ def _enabled_ids(pcfg: dict[str, Any]) -> set[str]:
     Spec rows (``providers.<p>.models``) are the source of truth — a row with
     an explicit ``enabled: false`` (a disabled manual row, kept so the user's
     hand-typed id survives the toggle) does NOT count. The legacy
-    ``enabled_models`` id list is a fallback only when there are no spec rows
-    at all (a not-yet-migrated config).
+    ``enabled_models`` id list is a fallback only when the models field is absent
+    (a not-yet-migrated config). An explicit empty list stays empty.
     """
     rows = pcfg.get("models") or []
-    if rows:
+    if "models" in pcfg:
         return {
             r.get("id") for r in rows
             if r.get("id") and r.get("enabled") is not False
