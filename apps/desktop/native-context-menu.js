@@ -11,7 +11,7 @@ function createNativeContextMenus(Menu) {
       return Promise.reject(new Error("Invalid menu request"));
     }
     let count = 0;
-    let chosen = null;
+    let choose = () => {};
     const ids = new Set();
     function template(items, depth = 0) {
       if (!Array.isArray(items) || depth > 4) throw new Error("Invalid menu items");
@@ -29,7 +29,7 @@ function createNativeContextMenus(Menu) {
             entry.type = "checkbox";
             entry.checked = item.checked;
           }
-          entry.click = () => { if (entry.enabled) chosen = item.id; };
+          entry.click = () => { if (entry.enabled) choose(item.id); };
         }
         return item.separatorBefore ? [{ type: "separator" }, entry] : [entry];
       });
@@ -43,15 +43,18 @@ function createNativeContextMenus(Menu) {
     close(sender);
     return new Promise((resolve, reject) => {
       let done = false;
+      let closeTimer;
       const finish = (choice, error) => {
         if (done) return;
         done = true;
+        clearTimeout(closeTimer);
         if (active.get(sender) === request) active.delete(sender);
         win.removeListener("closed", cancel);
         sender.removeListener("destroyed", cancel);
         sender.removeListener("did-start-navigation", navigate);
         if (error) reject(error); else resolve(choice);
       };
+      choose = (id) => finish(id);
       const cancel = () => {
         finish(null);
         try { menu.closePopup(win); } catch { /* window already destroyed */ }
@@ -69,8 +72,10 @@ function createNativeContextMenus(Menu) {
           window: win,
           x: Math.round(Math.max(0, Math.min(bounds.width - 1, opts.x * scale))),
           y: Math.round(Math.max(0, Math.min(bounds.height - 1, opts.y * scale))),
-          // Electron may emit the item click in the same closing event cycle.
-          callback: () => setImmediate(() => finish(chosen)),
+          // macOS can dispatch the selected item after the popup close callback.
+          // Resolve clicks immediately; allow the native selection event to arrive
+          // before treating a closed popup as dismissal. Explicit cancellation is immediate.
+          callback: () => { closeTimer = setTimeout(() => finish(null), 150); },
         });
       } catch (error) {
         finish(null, error);

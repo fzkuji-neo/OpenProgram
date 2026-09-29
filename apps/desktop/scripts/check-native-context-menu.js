@@ -26,6 +26,7 @@ const { createNativeContextMenus } = require("../native-context-menu");
   assert.equal(menu.template[1].type, "separator");
   assert.equal(menu.template[2].submenu[0].checked, true);
   menu.options.callback();
+  await new Promise(resolve => setTimeout(resolve, 20));
   menu.template[2].submenu[0].click();
   assert.equal(await choice, "group-a", "Choice is resolved after the close event cycle");
   assert.equal(sender.listenerCount("destroyed"), 0);
