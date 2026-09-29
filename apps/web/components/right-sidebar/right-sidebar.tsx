@@ -50,6 +50,7 @@ import {
 import { FileTree } from "../files/file-tree";
 import { RunningPanel } from "./running-panel";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
+import { resourceSessionId } from "@/lib/chat/session-resources";
 import { useCurrentProject } from "@/lib/files/files-shared";
 import { setRightDockApi } from "@/lib/tabs/right-dock";
 import { activateOnKey } from "@/lib/utils";
@@ -99,22 +100,35 @@ export function RightSidebar() {
   const activeTab = useCenterTabs((s) =>
     s.tabs.find((tab) => tab.id === s.activeId),
   );
-  const focusedCanvasSession = useCenterTabs(s => {
-    const tab = s.tabs.find(item => item.id === s.activeId);
-    return tab?.kind === "session" && s.groups.some(group =>
-      group.canvas && group.visibleIds.includes(tab.id));
-  });
+  const canvasGroup = useCenterTabs(s => s.groups.find(group =>
+    group.canvas && group.visibleIds.includes(s.activeId ?? "")));
   const pathname = usePathname();
   const currentSessionId = useSessionStore((s) => s.currentSessionId);
+  const [lastCanvasSessionId, setLastCanvasSessionId] = useState<string | null>(null);
+  const canvasSessionId = useCenterTabs(s => {
+    if (!canvasGroup) return null;
+    if (activeTab?.kind === "session") return resourceSessionId(activeTab);
+    const sessions = s.tabs.filter(tab => tab.kind === "session" && !tab.draft
+      && canvasGroup.visibleIds.includes(tab.id));
+    return sessions.find(tab => tab.sessionId === lastCanvasSessionId)?.sessionId
+      ?? sessions.find(tab => tab.sessionId === currentSessionId)?.sessionId
+      ?? sessions[0]?.sessionId ?? null;
+  });
+  useEffect(() => {
+    if (canvasGroup && activeTab?.kind === "session") {
+      setLastCanvasSessionId(resourceSessionId(activeTab));
+    }
+  }, [canvasGroup, activeTab]);
   // Tab metadata can briefly retain the previous session while /chat resets.
   // Never query or show that session unless the visible route and chat agree.
-  const activitySessionId = activeTab?.kind === "session" && !activeTab.draft
-    && (focusedCanvasSession || (activeTab.sessionId === currentSessionId
-      && pathname === `/s/${encodeURIComponent(currentSessionId ?? "")}`))
-    ? activeTab.sessionId ?? null
-    : null;
-  const currentProject = useCurrentProject(focusedCanvasSession
-    ? { sessionId: activitySessionId, chatKey: activeTab?.sessionId ?? null }
+  const activitySessionId = canvasGroup ? canvasSessionId
+    : activeTab?.kind === "session"
+      ? !activeTab.draft && activeTab.sessionId === currentSessionId
+        && pathname === `/s/${encodeURIComponent(currentSessionId ?? "")}`
+        ? activeTab.sessionId ?? null : null
+      : resourceSessionId(activeTab);
+  const currentProject = useCurrentProject(canvasGroup || activitySessionId
+    ? { sessionId: activitySessionId, chatKey: activitySessionId }
     : undefined);
   const treeProjectId =
     activeTab?.kind === "file"
@@ -320,7 +334,7 @@ export function RightSidebar() {
           <RunningPanel key={activitySessionId || "no-session"} sessionId={activitySessionId} active={open && visible && view === VIEW_RUNNING} />
         </div>
         <div id="sessionResourcesPanel" className="right-view" data-view={VIEW_RESOURCES} data-resource-drop-session={open && view === VIEW_RESOURCES ? activitySessionId || undefined : undefined}>
-          {open && visible && view === VIEW_RESOURCES && <SessionResourcesPanel />}
+          {open && visible && view === VIEW_RESOURCES && <SessionResourcesPanel sessionId={activitySessionId} />}
         </div>
         {/* Detail view: ui.js showDetail() writes innerHTML into
             #detailBody and textContent into #detailTitle. The template

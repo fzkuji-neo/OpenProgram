@@ -1,4 +1,3 @@
-import { findCenterTabGroup } from "./center-tab-groups";
 import { useCenterTabs } from './center-tabs-store';
 import { desktopBridge } from '../desktop/desktop-bridge';
 import { jsonFetch } from '../net/fetch-client';
@@ -10,12 +9,10 @@ export function resourceDropTarget(subject: TabDragSubject, x: number, y: number
   if (subject.kind === 'group' || subject.tabIds.length !== 1 || !desktopBridge()) return null;
   const state = useCenterTabs.getState();
   if (!state.tabs.some(tab => tab.id === subject.tabIds[0] && tab.kind === 'web')) return null;
-  const focused = state.tabs.find(tab => tab.id === state.activeId);
-  const group = focused && findCenterTabGroup(state.groups, focused.id);
-  const active = focused?.kind === "session" ? focused : state.tabs.find(tab => tab.kind === "session" && group?.memberIds.includes(tab.id));
-  if (active?.kind !== 'session' || active.draft || !active.sessionId) return null;
+  // The rendered sidebar owns the scope, including the last focused chat in a
+  // mixed canvas. Re-deriving it from activeId would select the dragged webpage.
   for (const element of document.querySelectorAll<HTMLElement>('[data-resource-drop-session]')) {
-    if (element.dataset.resourceDropSession !== active.sessionId) continue;
+    if (!element.dataset.resourceDropSession) continue;
     const r = element.getBoundingClientRect();
     if (r.width > 0 && r.height > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return element;
   }

@@ -106,3 +106,29 @@ test('pane grip drags a full tab label rather than the three dots',()=>{
   assert.notEqual(grip.style.visibility,'hidden');
  } finally {grip.remove();strip.remove();}
 });
+
+
+test('pane web drag highlights and attaches to the Resources panel conversation',async()=>{
+ let posted;
+ globalThis.innerWidth=1200;globalThis.innerHeight=800;
+ globalThis.bridge={windowId:'main',tabTransfer:{prepare:()=> 'token',cancel:async()=>true}};
+ globalThis.attachFetch=async(path,options)=>{posted={path,body:JSON.parse(options.body)};return {items:[{id:'assoc',resource_id:'page',source:'browser',kind:'web',conversation_session_id:'b',tab_id:'w:c',status:'open'}]};};
+ const ids=['s:a','s:b','w:c'];
+ useCenterTabs.setState({tabs:[{id:ids[0],kind:'session',sessionId:'a',title:'A'},{id:ids[1],kind:'session',sessionId:'b',title:'B'},{id:ids[2],kind:'web',url:'https://example.test',title:'Web'}],activeId:ids[2],groups:[{id:'g',memberIds:ids,visibleIds:ids,focusedId:ids[2]}]});
+ const target=document.createElement('div');target.dataset.resourceDropSession='b';
+ target.getBoundingClientRect=()=>({left:700,right:900,top:100,bottom:500,width:200,height:400});document.body.append(target);
+ const grip=document.createElement('div');grip.innerHTML='<span data-pane-drag-label>Web</span>';document.body.append(grip);
+ grip.setPointerCapture=()=>{};grip.hasPointerCapture=()=>false;
+ const start=()=>startPaneDrag({button:0,target:grip,currentTarget:grip,pointerId:7,clientX:300,clientY:100},'w:c',grip.firstElementChild);
+ const fire=async(type,x=750,y=150)=>{const e=new window.Event(type);Object.assign(e,{pointerId:7,clientX:x,clientY:y});window.dispatchEvent(e);await new Promise(resolve=>setImmediate(resolve));};
+ try {
+  start();await fire('pointermove');
+  assert.equal(target.getAttribute('data-resource-drop-over'),'true','pane drag uses the same Resources feedback as a tab drag');
+  await fire('pointermove',600,150);assert.equal(target.hasAttribute('data-resource-drop-over'),false);
+  await fire('pointermove');await fire('pointercancel');assert.equal(target.hasAttribute('data-resource-drop-over'),false);assert.equal(posted,undefined);
+  start();await fire('pointermove');await fire('pointerup');
+  assert.equal(posted.path,'/api/session/b/resources/attach-web','drop goes to the shown chat, not the first grouped chat');
+  assert.deepEqual(posted.body,{window_id:'main',tab_id:'w:c'});
+  assert.equal(target.hasAttribute('data-resource-drop-over'),false);assert.equal(document.querySelector('[data-pane-drag-preview]'),null);
+ } finally {grip.remove();target.remove();}
+});
