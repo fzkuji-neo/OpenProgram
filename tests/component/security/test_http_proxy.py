@@ -1,5 +1,5 @@
 """Proxy resolution rules — pins the invariants in
-docs/reference/design/providers/network-proxy.md §5."""
+docs/reference/design/providers/network-proxy.html."""
 
 import asyncio
 
@@ -66,7 +66,7 @@ def test_override_replaces_proxies_but_keeps_bypasses(proxy_env):
     assert mounts["all://localhost"] is None  # bypass survives
 
 
-def test_managed_provider_client_does_not_activate_unmanaged_env_proxy(proxy_env):
+def test_managed_provider_client_keeps_managed_transport_with_proxy_snapshot(proxy_env):
     proxy_env.setenv("HTTPS_PROXY", "http://127.0.0.1:7890")
     proxy_env.setenv("NO_PROXY", "example.com")
     client = build_async_client(
@@ -77,5 +77,95 @@ def test_managed_provider_client_does_not_activate_unmanaged_env_proxy(proxy_env
         assert client._transport._consumer == "provider.openai.sdk"
         assert client._transport._configured_origin == "https://api.openai.com"
         assert not client._mounts
+        assert ("https://", "http://127.0.0.1:7890") in client._transport._security.service_proxy_mounts
     finally:
         asyncio.run(client.aclose())
+
+
+@pytest.mark.parametrize("bypass", ["chatgpt.com", "*"])
+def test_no_proxy_bypasses_audited_service(proxy_env, bypass):
+    from dataclasses import replace
+    from openprogram.config_schema import load_outbound_security_config
+    from openprogram.security.safe_http import ManagedHTTPTransport
+    proxy_env.setenv("HTTPS_PROXY", "http://127.0.0.1:7897")
+    proxy_env.setenv("NO_PROXY", bypass)
+    security = replace(load_outbound_security_config("provider.configured_api", config={}), resolver=lambda *_: ("93.184.216.34",))
+    transport = ManagedHTTPTransport("provider.configured_api", configured_origin="https://chatgpt.com", security=security)
+    try:
+        assert transport._service_proxy(transport._evaluate("GET", "https://chatgpt.com/backend-api/codex/models")) is None
+    finally:
+        transport.close()
+
+
+@pytest.mark.parametrize("consumer,origin", [
+    ("provider.configured_api", "https://custom.test"),
+    ("tool.web_fetch", "https://chatgpt.com"),
+])
+def test_ambient_proxy_does_not_expand_untrusted_or_custom_routing(proxy_env, consumer, origin):
+    from dataclasses import replace
+    from openprogram.config_schema import load_outbound_security_config
+    from openprogram.security.safe_http import ManagedHTTPTransport
+    proxy_env.setenv("HTTPS_PROXY", "http://127.0.0.1:7897")
+    security = replace(load_outbound_security_config(consumer, config={}), resolver=lambda *_: ("93.184.216.34",))
+    transport = ManagedHTTPTransport(consumer, configured_origin=origin, security=security)
+    try:
+        assert transport._service_proxy(transport._evaluate("GET", origin)) is None
+    finally:
+        transport.close()
+
+
+def test_system_proxy_routes_official_provider(proxy_env):
+    import httpx._utils
+    from dataclasses import replace
+    from openprogram.config_schema import load_outbound_security_config
+    from openprogram.security.safe_http import ManagedHTTPTransport
+    proxy_env.setattr(httpx._utils, "getproxies", lambda: {"https": "http://127.0.0.1:7897"})
+    security = replace(load_outbound_security_config("provider.configured_api", config={}), resolver=lambda host, port: ("127.0.0.1",) if host == "127.0.0.1" else ("93.184.216.34",))
+    transport = ManagedHTTPTransport("provider.configured_api", configured_origin="https://chatgpt.com", security=security)
+    try:
+        proxy, decision = transport._service_proxy(transport._evaluate("GET", "https://chatgpt.com"))
+        assert str(proxy.url) == "http://127.0.0.1:7897"
+        assert decision.hostname == "127.0.0.1"
+    finally:
+        transport.close()
+
+
+def test_shared_client_replaced_when_proxy_route_changes(proxy_env):
+    from openprogram.providers.utils.http_client import get_shared_async_client, aclose_current_loop_clients
+    async def exercise():
+        try:
+            proxy_env.setenv("HTTPS_PROXY", "http://127.0.0.1:7897")
+            first = get_shared_async_client("codex-proxy-test", consumer="provider.configured_api", configured_origin="https://chatgpt.com")
+            proxy_env.setenv("HTTPS_PROXY", "http://127.0.0.1:7898")
+            second = get_shared_async_client("codex-proxy-test", consumer="provider.configured_api", configured_origin="https://chatgpt.com")
+            assert first is not second
+            assert ("https://", "http://127.0.0.1:7898") in second._transport._security.service_proxy_mounts
+            await asyncio.sleep(0)
+            assert first.is_closed
+        finally:
+            await aclose_current_loop_clients()
+    asyncio.run(exercise())
+
+
+def test_bypass_only_environment_preserves_system_proxy(proxy_env):
+    import urllib.request
+    proxy_env.setenv("NO_PROXY", "localhost,127.0.0.1")
+    proxy_env.setattr(urllib.request, "getproxies_macosx_sysconf", lambda: {"https": "http://127.0.0.1:7897"}, raising=False)
+    mounts = get_proxy_mounts()
+    assert mounts["https://"] == "http://127.0.0.1:7897"
+    assert mounts["all://localhost"] is None
+
+
+def test_explicit_env_route_suppresses_system_proxy(proxy_env):
+    import urllib.request
+    proxy_env.setenv("HTTPS_PROXY", "http://127.0.0.1:7898")
+    proxy_env.setattr(urllib.request, "getproxies_macosx_sysconf", lambda: {"https": "http://127.0.0.1:7897"}, raising=False)
+    assert get_proxy_mounts()["https://"] == "http://127.0.0.1:7898"
+
+
+def test_wildcard_bypass_beats_system_and_override(proxy_env):
+    import urllib.request
+    proxy_env.setenv("NO_PROXY", "*")
+    proxy_env.setenv("OPENPROGRAM_PROXY_URL", "http://127.0.0.1:7898")
+    proxy_env.setattr(urllib.request, "getproxies_macosx_sysconf", lambda: {"https": "http://127.0.0.1:7897"}, raising=False)
+    assert get_proxy_mounts() is None

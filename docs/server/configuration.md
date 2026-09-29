@@ -104,22 +104,26 @@ openprogram config set web.allowed_origins '["https://agent.example.com"]'
 
 ## Network proxy
 
-All LLM provider traffic resolves its proxy the same way, in this order:
+Managed provider requests and model connectivity checks use ordinary proxies
+for exact HTTPS services in the audited provider API and OAuth inventory:
 
-1. **`OPENPROGRAM_PROXY_URL`** — explicit override. When set, every provider
-   request goes through it. Accepts `http://`, `https://`, or `socks5://`
-   URLs. `NO_PROXY` bypasses still apply.
-2. **Standard environment variables** — `http_proxy` / `HTTP_PROXY`,
-   `https_proxy` / `HTTPS_PROXY`, `all_proxy` / `ALL_PROXY`, with
-   `no_proxy` / `NO_PROXY` as the bypass list (hostnames, domain suffixes,
-   or `*`). On macOS and Windows, the operating system's proxy settings are
-   used when none of these variables are set — the same fallback Python's
-   standard library applies.
+1. **`OPENPROGRAM_PROXY_URL`** overrides the ordinary proxy route. It accepts
+   `http://`, `https://`, and `socks5://` URLs. `NO_PROXY` bypasses still apply.
+2. **Standard environment variables** use HTTPX's resolution:
+   `http_proxy` / `HTTP_PROXY`, `https_proxy` / `HTTPS_PROXY`,
+   `all_proxy` / `ALL_PROXY`, and `no_proxy` / `NO_PROXY`. Python also uses
+   macOS and Windows system proxy settings when applicable.
 
-SOCKS proxies are supported out of the box (`httpx[socks]` is a hard
-dependency). CLI-backed providers (Claude Code, Codex CLI, Gemini CLI) run
-as subprocesses that inherit your shell environment, so the external CLI
-applies its own proxy handling.
+The client validates the target first and checks the proxy socket address.
+TLS still verifies the service hostname. Proxy authentication stays on the
+proxy connection, and a failed proxy request does not fall back to direct access.
+An explicit `security.outbound_url.policy_proxy` takes precedence and requires
+an owner assertion that it enforces target policy.
+
+Custom service origins and requests to user-supplied URLs do not implicitly
+inherit ordinary proxies. They retain direct address checks or use an explicit
+enforcing policy proxy. CLI providers inherit the worker process environment;
+the external CLI handles its own routing. SOCKS support is included.
 
 `openprogram rescue` reports the resolved proxy configuration and flags a
 SOCKS proxy whose support package is missing.

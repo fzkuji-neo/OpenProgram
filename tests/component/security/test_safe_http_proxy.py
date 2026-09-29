@@ -266,3 +266,192 @@ def test_proxy_failure_has_no_direct_fallback(monkeypatch):
 async def _empty_async():
     if False:
         yield b""
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.parametrize("proxy_scheme", ["http", "https", "socks5"])
+def test_official_service_requests_use_ambient_proxy(monkeypatch, asynchronous, proxy_scheme):
+    from openprogram.security.safe_http import configured_safe_client, configured_safe_async_client
+    from openprogram.config_schema import load_outbound_security_config
+
+    calls = []
+    monkeypatch.setenv("OPENPROGRAM_PROXY_URL", f"{proxy_scheme}://user:password@127.0.0.1:7897")
+
+    class Pool:
+        def __init__(self, **kwargs):
+            calls.append(kwargs)
+
+        def handle_request(self, request):
+            calls.append(request)
+            response = httpcore.Response(200, headers=[(b"content-type", b"text/plain")], content=b"ok")
+            response.stream = _ClosableStream(response.stream)
+            return response
+
+        async def handle_async_request(self, request):
+            calls.append(request)
+            response = httpcore.Response(200, headers=[(b"content-type", b"text/plain")])
+            response.stream = _AsyncClosableStream()
+            return response
+
+        def close(self):
+            pass
+
+        async def aclose(self):
+            pass
+
+    pool_name = ("Async" if asynchronous else "") + ("SOCKSProxy" if proxy_scheme == "socks5" else "HTTPProxy")
+    monkeypatch.setattr(httpcore, pool_name, Pool)
+    # Freeze a deterministic target resolution while using the real config and proxy resolver.
+    from dataclasses import replace
+    import openprogram.config_schema as schema
+    monkeypatch.setattr(schema, "load_outbound_security_config", lambda consumer: replace(
+        load_outbound_security_config(consumer, config={}), resolver=lambda host, port: ("127.0.0.1",) if host == "127.0.0.1" else ("93.184.216.34",)
+    ))
+    origin = "https://chatgpt.com"
+    consumer = "provider.configured_api" if asynchronous else "webui.model_listing.configured"
+    if asynchronous:
+        async def exercise():
+            async with configured_safe_async_client(consumer, origin) as client:
+                return await client.get(origin + "/backend-api/codex/models", headers={"Authorization": "Bearer service-secret", "Proxy-Authorization": "hostile"})
+        response = asyncio.run(exercise())
+    else:
+        with configured_safe_client(consumer, origin) as client:
+            response = client.get(origin + "/backend-api/codex/models", headers={"Authorization": "Bearer service-secret", "Proxy-Authorization": "hostile"})
+    assert response.content == b"ok"
+    assert calls[0]["proxy_url"] == f"{proxy_scheme}://127.0.0.1:7897"
+    assert calls[0]["proxy_auth"] == (b"user", b"password")
+    assert calls[0]["network_backend"]._decision.resolved_ips == (ipaddress.ip_address("127.0.0.1"),)
+    assert calls[1].url.host == b"chatgpt.com"
+    assert (b"Authorization", b"Bearer service-secret") in calls[1].headers
+    assert not any(name.lower() == b"proxy-authorization" for name, _ in calls[1].headers)
+    assert response.extensions["url_decision"].origin == origin
+
+
+def test_official_service_proxy_rejects_metadata_peer_before_connect(monkeypatch):
+    from dataclasses import replace
+    import openprogram.config_schema as schema
+    original = schema.load_outbound_security_config
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.test:7897")
+    monkeypatch.setattr(schema, "load_outbound_security_config", lambda consumer: replace(
+        original(consumer, config={}), resolver=lambda host, port: ("169.254.169.254",) if host == "proxy.test" else ("93.184.216.34",)
+    ))
+    from openprogram.security.safe_http import configured_safe_client
+    with configured_safe_client("webui.model_listing.configured", "https://chatgpt.com") as client:
+        with pytest.raises(URLPolicyError) as exc:
+            client.get("https://chatgpt.com/backend-api/codex/models")
+    assert exc.value.reason == "METADATA_ADDRESS"
+
+
+def test_official_service_proxy_failure_has_no_direct_fallback(monkeypatch):
+    from dataclasses import replace
+    import httpx
+    import openprogram.config_schema as schema
+    original = schema.load_outbound_security_config
+    calls = []
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7897")
+    monkeypatch.setattr(schema, "load_outbound_security_config", lambda consumer: replace(
+        original(consumer, config={}), resolver=lambda host, port: ("127.0.0.1",) if host == "127.0.0.1" else ("93.184.216.34",)
+    ))
+    monkeypatch.setattr(httpcore, "HTTPProxy", lambda **kwargs: _FailingProxyPool(calls))
+    monkeypatch.setattr(httpcore, "ConnectionPool", lambda **kwargs: pytest.fail("unexpected direct fallback"))
+    from openprogram.security.safe_http import configured_safe_client
+    with configured_safe_client("webui.model_listing.configured", "https://chatgpt.com") as client:
+        with pytest.raises(httpx.ProxyError):
+            client.get("https://chatgpt.com/backend-api/codex/models")
+    assert calls == ["proxy"]
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.parametrize("proxy_url,port", [
+    ("https://proxy.test", 443),
+    ("https://proxy.test:443", 443),
+    ("https://proxy.test:7897", 7897),
+    ("socks5://proxy.test", 1080),
+    ("socks5h://proxy.test", 1080),
+])
+def test_real_proxy_handshake_uses_correct_ports_and_tls_hostnames(monkeypatch, asynchronous, proxy_url, port):
+    from dataclasses import replace
+    import openprogram.config_schema as schema
+    from openprogram.security.safe_http import configured_safe_client, configured_safe_async_client
+    original = schema.load_outbound_security_config
+    calls = []
+    connections = []
+
+    class Stream(httpcore.NetworkStream):
+        def __init__(self):
+            handshake = (
+                [b"\x05\x00", b"\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00"]
+                if proxy_url.startswith("socks5")
+                else [b"HTTP/1.1 200 Connection established\r\n\r\n"]
+            )
+            self.responses = handshake + [
+                b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nok",
+            ]
+
+        def read(self, max_bytes, timeout=None):
+            return self.responses.pop(0) if self.responses else b""
+
+        def write(self, data, timeout=None):
+            pass
+
+        def close(self):
+            pass
+
+        def start_tls(self, ssl_context, server_hostname=None, timeout=None):
+            assert ssl_context.check_hostname
+            calls.append(server_hostname)
+            return self
+
+        def get_extra_info(self, name):
+            return ("127.0.0.1", port) if name == "server_addr" else None
+
+    class AsyncStream(httpcore.AsyncNetworkStream):
+        def __init__(self):
+            self.stream = Stream()
+
+        async def read(self, max_bytes, timeout=None):
+            return self.stream.read(max_bytes, timeout)
+
+        async def write(self, data, timeout=None):
+            self.stream.write(data, timeout)
+
+        async def aclose(self):
+            self.stream.close()
+
+        async def start_tls(self, ssl_context, server_hostname=None, timeout=None):
+            self.stream.start_tls(ssl_context, server_hostname, timeout)
+            return self
+
+        def get_extra_info(self, name):
+            return self.stream.get_extra_info(name)
+
+    class Backend(httpcore.NetworkBackend):
+        def connect_tcp(self, host, port, **kwargs):
+            connections.append((host, port))
+            return Stream()
+
+    class AsyncBackend(httpcore.AsyncNetworkBackend):
+        async def connect_tcp(self, host, port, **kwargs):
+            connections.append((host, port))
+            return AsyncStream()
+
+    monkeypatch.setattr(httpcore, "SyncBackend", Backend)
+    monkeypatch.setattr(httpcore, "AnyIOBackend", AsyncBackend)
+    monkeypatch.setattr(schema, "load_outbound_security_config", lambda consumer: replace(
+        original(consumer, config={}), service_proxy_mounts=(("https://", proxy_url),),
+        resolver=lambda host, port: ("127.0.0.1",) if host == "proxy.test" else ("93.184.216.34",),
+    ))
+    origin = "https://chatgpt.com"
+    if asynchronous:
+        async def exercise():
+            async with configured_safe_async_client("provider.configured_api", origin) as client:
+                request = client.build_request("GET", origin, extensions={"sni_hostname": "hostile.test"})
+                return await client.send(request)
+        response = asyncio.run(exercise())
+    else:
+        with configured_safe_client("webui.model_listing.configured", origin) as client:
+            request = client.build_request("GET", origin, extensions={"sni_hostname": "hostile.test"})
+            response = client.send(request)
+    assert response.text == "ok"
+    assert connections == [("127.0.0.1", port)]
+    assert calls == (["chatgpt.com"] if proxy_url.startswith("socks5") else ["proxy.test", "chatgpt.com"])

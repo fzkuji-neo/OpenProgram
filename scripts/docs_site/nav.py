@@ -539,7 +539,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/providers/models/fast-tier.md",
             "reference/design/providers/models/thinking-effort.md",
             "reference/design/providers/json-schema-structured-output.html",
-            "reference/design/providers/network-proxy.md",
+            "reference/design/providers/network-proxy.html",
             "reference/design/providers/metadata-load-diagnostics.html",
             "reference/design/providers/bailian-model-catalog.md",
             "reference/design/usage-metering.md",

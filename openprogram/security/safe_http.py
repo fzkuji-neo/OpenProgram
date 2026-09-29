@@ -495,6 +495,9 @@ class OutboundSecurityConfig:
     socket_options: tuple[tuple[int, int, int], ...] = ()
     policy_proxy_identity: str | None = None
     policy_proxy: PolicyProxyConfig | None = None
+    # Routing snapshot for audited HTTPS provider services only. Arbitrary URL
+    # consumers keep peer-constrained direct/policy-proxy transports.
+    service_proxy_mounts: tuple[tuple[str, str | None], ...] = ()
 
     def __post_init__(self) -> None:
         if self.ca_bundle is not None and not isinstance(self.ca_bundle, str):
@@ -907,7 +910,7 @@ class _ManagedTransportBase:
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
         self._audit_events.append(event)
-        if reason not in {"ALLOWED", "PROXY_DELEGATED"}:
+        if reason not in {"ALLOWED", "PROXY_DELEGATED", "SERVICE_PROXY"}:
             from .runtime_http_audit import record_runtime_http_denial
 
             record_runtime_http_denial(
@@ -977,6 +980,56 @@ class _ManagedTransportBase:
         self._record("PROXY_DELEGATED", decision.origin)
         return decision
 
+    def _service_proxy(self, target: URLDecision) -> tuple[httpx.Proxy, URLDecision] | None:
+        if self._security.policy_proxy is not None:
+            return None
+        if not self._consumer.startswith(("provider.", "webui.model_listing.")):
+            return None
+        audited_origins = (
+            _AUDITED_FIXED_ORIGINS["provider.fixed_api"]
+            | _AUDITED_FIXED_ORIGINS["provider.oauth.fixed"]
+        )
+        if target.origin not in audited_origins:
+            return None
+        from httpx._utils import URLPattern
+
+        url = httpx.URL(target.normalized_url)
+        mounts = sorted(
+            (URLPattern(pattern), proxy_url)
+            for pattern, proxy_url in self._security.service_proxy_mounts
+        )
+        proxy_url = next((value for pattern, value in mounts if pattern.matches(url)), None)
+        if proxy_url is None:
+            return None
+        try:
+            proxy = httpx.Proxy(proxy_url)
+            if proxy.url.scheme not in {"http", "https", "socks5", "socks5h"}:
+                raise ValueError("unsupported proxy scheme")
+            # Proxy URL credentials are consumed by the proxy handshake only.
+            # Evaluate its authority with HTTP policy, including SOCKS sockets.
+            proxy_port = proxy.url.port or {
+                "http": 80, "https": 443, "socks5": 1080, "socks5h": 1080,
+            }[proxy.url.scheme]
+            authority = str(proxy.url.copy_with(scheme="http", port=proxy_port, path="/", query=None, fragment=None))
+            proxy_origin = normalize_origin(authority)
+            decision = evaluate_url(
+                "runtime.local_probe", "GET", authority,
+                trust_class=URLTrustClass.CONFIGURED_SERVICE,
+                allowed_schemes=_HTTP_SCHEMES,
+                allowed_methods=_READ_METHODS,
+                allowed_ports=None,
+                configured_origin=proxy_origin,
+                exceptions=(OwnerURLException(consumer="runtime.local_probe", origin=proxy_origin),),
+                resolver=self._security.resolver,
+            )
+        except URLPolicyError as exc:
+            self._record(exc.reason, exc.safe_url)
+            raise
+        except (ValueError, TypeError):
+            raise URLPolicyError("INVALID_SERVICE_PROXY", target.origin) from None
+        self._record("SERVICE_PROXY", target.origin)
+        return proxy, decision
+
     @staticmethod
     def _request_metadata(request: httpx.Request, decision: URLDecision):
         headers = [
@@ -987,7 +1040,10 @@ class _ManagedTransportBase:
         headers.append((b"Host", decision.origin.split("://", 1)[1].encode("ascii")))
         headers.append((b"Accept-Encoding", b"gzip, deflate"))
         extensions = dict(request.extensions)
-        extensions["sni_hostname"] = decision.hostname
+        # The core URL retains the validated hostname. Let httpcore derive
+        # each TLS layer's SNI from its own origin (proxy, then service),
+        # rather than forwarding a target override to an HTTPS proxy.
+        extensions.pop("sni_hostname", None)
         return headers, extensions
 
 
@@ -1010,7 +1066,26 @@ class ManagedHTTPTransport(_ManagedTransportBase, httpx.BaseTransport):
         self._pools_lock = threading.Lock()
 
     def _pool(self, decision: URLDecision) -> httpcore.ConnectionPool:
-        if self._security.policy_proxy is None:
+        service_proxy = self._service_proxy(decision)
+        if service_proxy is not None:
+            proxy, proxy_decision = service_proxy
+            kwargs = dict(
+                proxy_url=str(proxy.url),
+                proxy_auth=proxy.raw_auth,
+                ssl_context=self._ssl_context,
+                retries=self._security.retries,
+                network_backend=DecisionNetworkBackend(proxy_decision),
+            )
+            if proxy.url.scheme in {"socks5", "socks5h"}:
+                pool = httpcore.SOCKSProxy(**kwargs)
+            else:
+                pool = httpcore.HTTPProxy(
+                    **kwargs,
+                    proxy_ssl_context=self._ssl_context if proxy.url.scheme == "https" else None,
+                    local_address=self._security.local_address,
+                    socket_options=self._security.socket_options or None,
+                )
+        elif self._security.policy_proxy is None:
             pool = httpcore.ConnectionPool(
                 ssl_context=self._ssl_context,
                 retries=self._security.retries,
@@ -1111,7 +1186,26 @@ class AsyncManagedHTTPTransport(_ManagedTransportBase, httpx.AsyncBaseTransport)
         self._active_pools: set[httpcore.AsyncConnectionPool] = set()
 
     def _pool(self, decision: URLDecision) -> httpcore.AsyncConnectionPool:
-        if self._security.policy_proxy is None:
+        service_proxy = self._service_proxy(decision)
+        if service_proxy is not None:
+            proxy, proxy_decision = service_proxy
+            kwargs = dict(
+                proxy_url=str(proxy.url),
+                proxy_auth=proxy.raw_auth,
+                ssl_context=self._ssl_context,
+                retries=self._security.retries,
+                network_backend=AsyncDecisionNetworkBackend(proxy_decision),
+            )
+            if proxy.url.scheme in {"socks5", "socks5h"}:
+                pool = httpcore.AsyncSOCKSProxy(**kwargs)
+            else:
+                pool = httpcore.AsyncHTTPProxy(
+                    **kwargs,
+                    proxy_ssl_context=self._ssl_context if proxy.url.scheme == "https" else None,
+                    local_address=self._security.local_address,
+                    socket_options=self._security.socket_options or None,
+                )
+        elif self._security.policy_proxy is None:
             pool = httpcore.AsyncConnectionPool(
                 ssl_context=self._ssl_context,
                 retries=self._security.retries,

@@ -40,6 +40,11 @@ if os.environ.get("OPENPROGRAM_TEST_LIVE") != "1":
     import urllib.request  # noqa: E402
 
     urllib.request.getproxies = urllib.request.getproxies_environment
+    # The managed proxy resolver also reads system routes when the process
+    # has only NO_PROXY; keep those platform readers isolated too.
+    for _reader in ("getproxies_macosx_sysconf", "getproxies_registry"):
+        if hasattr(urllib.request, _reader):
+            setattr(urllib.request, _reader, dict)
     try:
         import httpx._utils as _httpx_utils  # noqa: E402
 
