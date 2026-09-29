@@ -190,14 +190,18 @@ test("unsized preview follows its chat pane after layout hydration and resize", 
   const parent = document.body;
   let chatWidth = 500;
   let displayed = false;
+  const legacy = document.createElement("div");
+  legacy.className = "center-pane-chat";
+  parent.append(legacy);
   const chat = document.createElement("div");
+  chat.dataset.centerTabId = "s:a";
   chat.className = "center-pane-chat";
   parent.append(chat);
   const previousRect = parent.getBoundingClientRect;
   parent.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 800);
   chat.getBoundingClientRect = () => new DOMRect(0, 0, chatWidth, 800);
   const previousStyle = globalThis.getComputedStyle;
-  globalThis.getComputedStyle = () => ({ display: displayed ? "flex" : "none" });
+  globalThis.getComputedStyle = el => ({ display: el === chat && displayed ? "flex" : "none" });
   Object.defineProperty(window.HTMLElement.prototype, "offsetParent", { configurable: true, get() { return parent; } });
   try {
     await withPip(async ({ host }) => {
@@ -215,5 +219,6 @@ test("unsized preview follows its chat pane after layout hydration and resize", 
     globalThis.getComputedStyle = previousStyle;
     parent.getBoundingClientRect = previousRect;
     chat.remove();
+    legacy.remove();
   }
 });

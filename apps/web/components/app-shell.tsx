@@ -605,6 +605,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 ? "center-single-pane"
                 : centerPaneClassName(sessionPaneIndex)) + " center-pane-chat"
             }
+            data-center-tab-id={panes[sessionPaneIndex]?.kind === "session" ? panes[sessionPaneIndex].activeTabId : undefined}
             data-center-view={activeTabDagView ? "dag" : "session"}
             style={
               sessionPaneIndex < 0
@@ -627,6 +628,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 return (
                   <div
                     key={pane.key}
+                    data-center-tab-id={pane.tabId}
                     onPointerDownCapture={() => useCenterTabs.getState().setActive(pane.tabId)}
                     className={centerPaneClassName(index)}
                     style={centerPaneStyle(index)}
