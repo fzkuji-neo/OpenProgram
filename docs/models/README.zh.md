@@ -50,3 +50,7 @@ openprogram providers setup      # 交互式：扫描现有凭据 → 登录 →
 - [Token 统计](token-tracking.zh.md) — 各 provider 的用量统计口径
 
 可以取消一个 provider 的全部模型，包括最后一个已启用模型。空选择会在刷新和重启后保留。
+
+打开 Provider 设置时先显示已保存的模型和缓存目录，不等待 provider 的远程模型接口。点击“获取模型”更新远程目录。
+
+Provider 品牌图标随 App 本地提供，不依赖外部图片服务。自定义或没有匹配图标的 provider 显示首字母。

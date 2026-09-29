@@ -393,3 +393,39 @@ def test_unconfigured_subscription_fallback_does_not_retire_models(monkeypatch, 
     monkeypatch.setattr("openprogram.providers.subscription_catalog.load_catalog", lambda pid: ([], None))
     F.fetch_models_remote("xai-subscription")
     assert mem_cfg["xai-subscription"] == saved
+
+
+def test_settings_snapshot_skips_remote_and_preserves_selection(monkeypatch, mem_cfg):
+    monkeypatch.setattr(cat, "is_configured", lambda pid: True)
+    monkeypatch.setattr(F, "fetch_and_normalize", lambda *a, **k: pytest.fail("remote request"))
+    monkeypatch.setattr(pm, "_models_dev_for", lambda pid: {"catalog": {"name": "Catalog"}})
+    mem_cfg["acme"] = {"models": [{"id": "manual", "source": "manual"}]}
+    rows = {row["id"]: row for row in listing.list_models_for_provider("acme", cached_only=True)}
+    assert set(rows) == {"catalog", "manual"}
+    assert rows["manual"]["enabled"] is True
+    assert rows["catalog"]["enabled"] is False
+
+
+def test_settings_snapshot_uses_remote_cache_without_fetch(monkeypatch, mem_cfg):
+    monkeypatch.setattr(F, "fetch_and_normalize", lambda *a, **k: pytest.fail("remote request"))
+    monkeypatch.setattr(pm, "_models_dev_for", lambda pid: pytest.fail("unneeded catalogue read"))
+    listing._browse_cache["acme"] = (0, [{"id": "remote"}])
+    rows = listing.list_models_for_provider("acme", cached_only=True)
+    assert [row["id"] for row in rows] == ["remote"]
+
+
+def test_settings_models_route_uses_snapshot(monkeypatch, mem_cfg):
+    import inspect
+    import json
+    from fastapi import FastAPI
+    from openprogram.webui.routes.identity.providers import register
+    monkeypatch.setattr(cat, "is_configured", lambda pid: True)
+    monkeypatch.setattr(F, "fetch_and_normalize", lambda *a, **k: pytest.fail("remote request"))
+    monkeypatch.setattr(pm, "_models_dev_for", lambda pid: {"local": {"name": "Local"}})
+    app = FastAPI()
+    register(app)
+    endpoints = {route.path: route.endpoint for route in app.routes}
+    for path in ("/api/providers/list", "/api/providers/{name}/models", "/api/providers/{name}/fetch-models"):
+        assert not inspect.iscoroutinefunction(endpoints[path])
+    response = endpoints["/api/providers/{name}/models"]("acme")
+    assert json.loads(response.body)["models"][0]["id"] == "local"
