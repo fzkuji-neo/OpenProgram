@@ -7,7 +7,8 @@ ROOT = Path(__file__).resolve().parents[3]
 pytestmark = pytest.mark.browser
 
 
-def test_quote_and_edit_in_split_conversations(tmp_path):
+@pytest.mark.parametrize("reduced_motion", ["no-preference", "reduce"])
+def test_quote_and_edit_in_split_conversations(tmp_path, reduced_motion):
     from playwright.sync_api import sync_playwright, expect
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
@@ -40,10 +41,32 @@ createRoot(document.getElementById('mount')).render(<QueryClientProvider client=
     with sync_playwright() as pw:
         browser=pw.chromium.launch(headless=True)
         try:
-            page=browser.new_page(viewport={'width':1280,'height':1600}); errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+            page=browser.new_page(viewport={'width':1280,'height':1600}, reduced_motion=reduced_motion); errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
             page.goto(shell.as_uri());page.add_style_tag(path=str(bundle.with_suffix('.css')));page.add_script_tag(path=str(bundle))
             right=page.locator('[data-pane="right"]'); left=page.locator('[data-pane="left"]')
-            right.get_by_role('button',name='Quote message',exact=True).click()
+            def assert_icon_feedback(button):
+                # Observe the real SVG across frames; hovering the button padding
+                # must animate even though the pointer does not touch the glyph.
+                snapshot = "el => JSON.stringify([...el.querySelectorAll('svg, svg *')].map(node => {const s=getComputedStyle(node);return [s.transform,s.opacity,s.strokeDasharray,s.strokeDashoffset];}))"
+                frames = """async el => {const out=[];for(let i=0;i<24;i++){await new Promise(requestAnimationFrame);out.push(JSON.stringify([...el.querySelectorAll('svg, svg *')].map(node=>{const s=getComputedStyle(node);return [s.transform,s.opacity,s.strokeDasharray,s.strokeDashoffset];})));}return out;}"""
+                for interaction in ('hover', 'focus'):
+                    page.mouse.move(0, 0)
+                    button.evaluate('el => el.blur()')
+                    # Wait for the upstream spring/path reset to settle.
+                    page.wait_for_timeout(1100)
+                    before = button.evaluate(snapshot)
+                    if interaction == 'hover':
+                        button.hover(position={'x':2,'y':2})
+                    else:
+                        button.focus()
+                    changed = any(frame != before for frame in button.evaluate(frames))
+                    assert changed == (reduced_motion == 'no-preference'), (button.inner_text(), interaction, reduced_motion)
+                page.mouse.move(0, 0)
+                button.evaluate('el => el.blur()')
+
+            quote = right.get_by_role('button',name='Quote message',exact=True)
+            assert_icon_feedback(quote)
+            quote.click()
             expect(right.get_by_role('textbox',name='right draft')).to_have_value('right draft\n\n> Original message https://example.com\n\n')
             expect(left.get_by_role('textbox',name='left draft')).to_have_value('left draft')
             expect(right.get_by_role('textbox',name='right draft')).to_be_focused()
@@ -53,6 +76,8 @@ createRoot(document.getElementById('mount')).render(<QueryClientProvider client=
             expect(page.get_by_role('button',name='Add to chat',exact=True)).to_have_count(0)
             right.locator('.message-content').dispatch_event('pointerup', {'pointerId':1,'buttons':0})
             expect(page.get_by_role('button',name='Chat in new branch',exact=True)).to_be_visible()
+            assert_icon_feedback(page.get_by_role('button',name='Add to chat',exact=True))
+            assert_icon_feedback(page.get_by_role('button',name='Chat in new branch',exact=True))
             page.get_by_role('button',name='Add to chat',exact=True).click()
             assert page.evaluate("window.drafts().right").endswith('> Original\n\n')
             assert page.evaluate("window.drafts().left") == 'left draft'
