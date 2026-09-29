@@ -390,6 +390,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/runtime/agent-core-configuration-ui.html",
             "reference/design/runtime/agent-tool-configuration-ui.html",
             "reference/design/runtime/agent-capability-configuration-ui.html",
+            "reference/design/runtime/agent-configuration-plan.html",
             "reference/design/runtime/chat-search-settings.html",
             "reference/design/runtime/tool-toggle-management.md",
             "reference/design/runtime/operations/user-input-requests.md",
@@ -668,6 +669,11 @@ DESIGN_AREAS = [
 # Tutorial docs must read top-to-bottom; anything unlisted sorts after these,
 # alphabetically (which is fine for the design-notes archive).
 PAGE_ORDER: dict[str, int] = {
+    "reference/design/runtime/agent-configuration-ui.html": 990,
+    "reference/design/runtime/agent-core-configuration-ui.html": 991,
+    "reference/design/runtime/agent-capability-configuration-ui.html": 992,
+    "reference/design/runtime/agent-tool-configuration-ui.html": 993,
+    "reference/design/runtime/agent-configuration-plan.html": 994,
     "reference/design/runtime/report-delivery-intent.html": 1007,
     "README.md": 0,
     "start/GETTING_STARTED.md": 1,

@@ -1,252 +1,84 @@
-# Agent collaboration: one cross-branch communication primitive
+# Agent collaboration: branches, executions and messages
 
-All of agent collaboration collapses into **a single primitive: cross-branch
-communication**. An agent can spawn other agents and send messages to other
-branches or other sessions. These look like different operations, but
-**underneath they are the same thing**: deliver content to a branch, trigger
-that branch to run a turn,
-and send the result back to the caller automatically. Everything is a tool call,
-and everything is built on the existing event layer.
+This document defines the collaboration contract and identifies the current implementation gaps in §7. The saved Agent configuration contract is maintained in [Agent configuration](agent-configuration-ui.html); admission, resource accounting and cancellation limits are maintained in [resource governance](agent-resource-governance.html). A saved AgentSpec is reusable configuration. A runtime branch is conversation state, and one branch can execute multiple Jobs. Creating a branch does not create a new saved AgentSpec.
 
-> §1 is the vocabulary the whole tool surface is built on; read it first.
+## 0. Shared delivery, distinct lifecycle
 
----
+Collaboration reuses branch addressing, turn dispatch and the existing event layer. The operation decides whether a branch is created and whether work is submitted immediately or after inbox delivery. These choices do not imply a separate execution engine.
 
-## 0. Core: there is only one primitive
-
-The whole collaboration story has exactly one primitive:
-
-> **Cross-branch communication** = **deliver content** to a branch (another
-> branch of the same session, a different session, one created on the spot, or
-> one that already exists) → **trigger** that branch to run a turn (the model
-> reads the delivered content) → the result is **sent back automatically** to
-> the caller (append a new message + trigger the caller to run a turn, and
-> the caller reads it and continues).
-
-Every collaboration operation is a **parameterization** of that primitive:
-
-| Operation | Which use of communication it is | Tool |
+| Operation | Branch effect | Execution effect |
 |---|---|---|
-| **Spawn a sub-agent** | **Create** a branch + deliver a message + auto-reply | `agent` |
-| **Dispatch a task to an existing agent** | Deliver a **tracked task** to an existing branch + auto-reply | `agent(to=…)` |
-| **Message an agent** | Deliver a message to an **existing** branch + auto-reply | `send_message` |
+| `agent(prompt=..., start_from=...)` | Create a branch and run the supplied prompt in one call | Both admit a Job; foreground waits and returns the reply, background returns `execution_id` immediately |
+| `agent(prompt=..., to=...)` | Continue an existing branch | Admit a tracked Job, then run or queue its turn; return `execution_id` |
+| `send_message(message=..., to=...)` | Continue an existing branch | Deliver a message; an actual async turn still creates a Job. An inbox receipt alone does not prove execution admission |
 
-Delivered content is always read and used by the target model. Count is
-arbitrary (spawn can create N, a message can go to many), so it is not a
-distinguishing dimension. Both uses share one deliver → trigger → reply-back
-path.
+The target completion contract returns nonempty results to the caller without requiring the recipient to call `send_message` explicitly. A recipient may omit an additional explicit message; that is what “replying is optional” means. Standard completion-path wiring for automatic follow-up remains unverified as described in §7. Do not interpret message delivery as a guarantee that the target model will follow the message or produce a reply.
 
-`attach` is not an operation. It is how a communication result is drawn as a
-"return edge" on the DAG (marking which branch the result came back from).
+`attach` is a stored pointer and a DAG presentation relationship for a newly created branch. It is neither a message nor a separate execution.
 
----
+## 1. Four object domains and their operations
 
-## 1. Four domains, one word each
+The domains distinguish objects, not mutually exclusive operations. `agent` can create a branch and submit an execution in the same call. Querying or cancelling that execution belongs to execution control; moving branch creation into a second task tool adds no capability.
 
-Collaboration is four domains. Each owns one noun and one set of tools, and
-the words never overlap — a term means the same thing everywhere it appears.
-
-| Domain | Noun | Tools | What it is |
+| Domain | Object | Public surface | Responsibility |
 |---|---|---|---|
-| Planning | **todo** | `todo_create` / `todo_update` / `todo_list` | A hand-written checklist: entries, status, owner, dependencies. Written intent, and nothing runs because an entry exists |
-| Execution | **task** | `job_output` / `job_stop` / `list_jobs` | Work handed out and now running: a task id, a status, a result |
-| Entity | **agent** | `agent` / `list_agents` / `archive_agent` | What does the work: create a new one, hand work to an existing one (`to=`), list the agents, archive one that is finished |
-| Communication | **message** | `send_message` / `read_conversation` | Messaging and reading: deliver a message, read any branch in full |
+| Planning | `todo` | `todo_create` / `todo_update` / `todo_list` | Record intended work; a checklist entry starts nothing |
+| Execution | `Job` / canonical execution | `list_jobs`, `job_output`; control action `execution.cancel` | Observe or control accepted execution, including queued and terminal states |
+| Conversation | Runtime Agent branch | `agent`, `list_agents`, `archive_agent` | Create/continue/address/archive branches, not the saved Agent configuration registry |
+| Communication | Message | `send_message`, `read_conversation` | Deliver content or read authorized history; the triggered turn has its own execution accounting |
 
-Writing "benchmark the parser" on the todo list starts nothing. `agent(…)`
-starts something, and what comes back is a task id. The list says what was
-intended; `list_jobs` says what is running.
+Background Agent calls return `execution_id`. The current runner uses `execution_id == Job.id`; the `job_output(job_id=...)` parameter and its `details.job_id` field retain that name. This is one identity, not two independent tasks. The public tools are `list_jobs` and `job_output`, not `list_tasks` or `task_output`. There is no registered `job_stop` or `task_stop` tool in the current catalog. UI/API cancellation uses the existing `execution.command` envelope with `action="execution.cancel"`, `command_id`, `execution_id`, `expected_version` and an empty `payload`; authentication and action authorization remain mandatory. See [execution control](execution/control.html).
 
-An agent's conversation is a **branch**: a `(session_id, head_id)` pair
-inside a session. Two heads in one session are two branches of one
-conversation; two sessions are two conversations. Every agent address is a
-branch — `"SID:HEAD"`, or the branch's name.
+A branch is addressed by `"SID:HEAD"` or an unambiguous branch name. A saved `agent_id` selects configuration; it is not this branch address. The term “task” may describe work in prose, but public identifiers and tool names use the actual schemas above.
 
-### Only the dispatcher operates on a task
+### `agent` modes and one-call fork
 
-Three things can be done to dispatched work, and only the dispatcher can
-do them:
-
-| What the dispatcher can do | What it means |
+| Call | Behavior |
 |---|---|
-| The result comes back | When the task ends, its reply lands in the dispatcher's conversation automatically, whether or not the dispatcher is still waiting |
-| It can be stopped | `job_stop` cancels the task; one still queued is withdrawn before it ever runs |
-| Cancellation cascades | Stopping a task stops everything that task dispatched, all the way down |
+| `agent(prompt=...)` | Create and execute a new branch; foreground reply by default, background execution ID when requested |
+| `agent(prompt=..., start_from="SID:MSG", description="review")` | Fork the exact historical node, assign a label and execute the prompt immediately |
+| `agent(prompt=..., to="review")` | Submit another execution to the existing branch; no new branch or saved configuration |
 
-`read_conversation` makes every task id readable, so ownership is checked
-rather than assumed: `job_output` and `job_stop` refuse a task another
-session dispatched (§5.10). Calls with no session context (the user, the
-UI) are not gated.
+With `to`, `start_from="inherit"` and `start_from="SID:MSG"` are rejected. The API's default `"clean"` is a placeholder in this mode and does not clear the target's history. `description` names a new branch; `to` always addresses an existing one. There is no need to call both modes to fork and execute:
 
-`send_message` carries none of the three, which is why anyone may write to
-anyone. It delivers a message and the receiver answers or does not. It
-creates no task id, cannot be cancelled, and does not cascade, so a message
-never interrupts work that is already running.
-
-### `agent` has two modes
-
-| Call | What happens |
-|---|---|
-| `agent(prompt=…)` | Creates a new agent and runs it. Blocks for the reply, or returns a task id with `run_in_background=true` |
-| `agent(prompt=…, to="reviewer")` | Creates nothing. The prompt goes to the existing agent named `reviewer` as a tracked task and runs as its next turn, queued behind whatever it is doing now — one turn at a time. Always returns a task id |
-
-Both produce a task; only the first produces an agent. `to` and `start_from`
-are mutually exclusive: the target already has a history, so there is no
-fork point left to choose.
-
-A whole delegation reads in the four words:
-
-```
-todo_create("benchmark the parser")            → todo #1 on the board
-todo_update("1", status="in_progress")
-agent("benchmark the parser", "bench",
-      run_in_background=true)                  → job_id=t_7f2
-list_jobs()                                   → t_7f2 running — bench
-send_message("how far along?", to="bench")     → the agent answers, no task created
-job_output("t_7f2")                           → the result, when it lands
-todo_update("1", status="completed")
-archive_agent(to="bench")                      → archived out of the agent list
+```python
+agent(prompt="Review the result from this node",
+      start_from="SID:MSG", description="review",
+      run_in_background=True)
 ```
 
-### Names shared with Claude Code
+`job_output` checks the current session/job relationship (§5.10). Cancellation uses canonical execution authorization, not a tool-name alias or knowledge of an ID. `send_message` lacks the explicit assignment semantics of `agent(to=...)`, but its execution does not bypass admission, cancellation or resource accounting merely because it began as a message.
 
-`agent`, `list_agents`, `send_message`, `job_output` and `job_stop` carry
-the same meaning here as in Claude Code, deliberately — a model that knows
-those names already knows these tools.
+### Reference naming
 
-One name deliberately differs. Claude Code's `TaskList` is a todo planning
-board, not a view of running work. The planning board here takes the
-`todo_*` prefix instead, so the collision cannot happen and `list_jobs`
-keeps its literal reading: the tasks that are running.
+The comparison with other frameworks is maintained in [Agent collaboration comparison](agent-collab-comparison.html). It supplies design context, not a guarantee that another product exposes identical tool names or semantics. This repository's registered tools and canonical execution interface define the public names used here.
 
-Three tools have no Claude Code counterpart — `list_jobs` (there, a model
-cannot enumerate its background tasks), `archive_agent` (archiving an agent
-out of the agent list, §2.6), and `read_conversation` (another agent's
-history as a readable transcript, rather than the raw session files).
+## 2. Tools and branch addressing
 
----
-
-## 2. The primitive as tools
-
-Wrap the primitive into tools an agent can call. The division of labor
-mirrors Claude Code: **`agent` creates agents, `send_message` talks to
-them, `list_agents` sees them.**
+These entries reuse existing branches, Jobs and execution control. Completion follow-up and other target behavior require the acceptance listed in §7.
 
 ### 2.1 The tools
 
-**`agent` — spawn a new agent (the only tool that creates branches):**
+The existing `agent` entry accepts `prompt`, optional `description`, `agent_id`, `start_from="clean"`, `run_in_background=False`, `to=""` and `archive_when_done=False`. `agent_id` selects a saved configuration; the configuration resolver contract is specified separately. Foreground creation calls `run_agent_turn`, which persists a Job through `spawn_job(wait=True)` and waits for its result. Background creation and existing-branch dispatch also admit Jobs. The foreground tool returns final text rather than the immediate execution-ID response; return shape does not change resource admission.
 
-```
-agent(
-    prompt: str,                        # instruction for the spawned agent
-    description: str = "",              # short label, becomes the branch name
-    agent_id: str = "",                 # agent profile; defaults to the session's
-    start_from: str = "clean",          # "clean" / "inherit" / "SID:MSG_ID"
-    run_in_background: bool = false,    # false=block for the reply; true=job_id
-    to: str = "",                       # dispatch to an EXISTING agent instead
-    archive_when_done: bool = false,    # archive the spawned agent at terminal state (§2.6)
-) -> str
-```
+`start_from` selects a new root (`clean`), the caller's history (`inherit`), or the exact predecessor `SID:MSG`. Existence and history-read authorization must be checked before execution; §7 distinguishes current existence checks from the target shared visibility policy. Archived history may be a fork source because forking creates a new branch instead of delivering to the archived branch.
 
-`start_from` picks where the new branch starts: `"clean"` (default) is a new
-root seeing only the prompt; `"inherit"` forks off the calling turn with the
-full chain; `"SID:MSG_ID"` forks off that exact node (any session),
-inheriting the chain up to it. `run_in_background=true` returns a `job_id`; its
-companions `job_output(job_id)` (block for the result) and
-`job_stop(job_id)` (cancel) manage the background form.
+For a caller node A in session S and `start_from="T:M"`, the new branch executes in T. A background Job records `parent_session_id=T`, `parent_msg_id=M`, `caller_session_id=S`, `caller_msg_id=A`. The attach pointer itself is stored in S beside A; its payload `attach.session_id=T` and terminal `attach.head_id` identify the target result.
 
-`"SID:MSG_ID"` is an exact fork address. Both the session and the message must
-exist before the spawn is admitted; the message is not snapped to a branch's
-current tip. An archived branch may still be used because this operation reads
-recorded history and creates a new branch rather than delivering work to the
-archived branch.
-
-When the address names another session, keep the two session roles separate.
-If session S at node A starts from `"T:M"`, the new branch and the canonical
-Job run in target session T, with M as the exact predecessor. The Job records
-`parent_session_id=T`, `parent_msg_id=M`, `caller_session_id=S`, and
-`caller_msg_id=A`. Its attach card is stored beside A in source session S, but
-the card's `attach.session_id` is T and its terminal `head_id` is the new target
-branch tip. Writing or finalising that card does not move S's HEAD, and the
-spawned turn uses `advance_head=false`, so it does not replace T's selected
-HEAD either. An asynchronous completion may subsequently advance S's HEAD by
-writing the ordinary reply-back turn described in §2.5.
-
-**`to=` — dispatch a tracked task to an EXISTING agent.** With `to` set the
-tool creates no branch: the prompt is handed to the named existing branch
-as a formal task. Addressing is send_message's, verbatim (`"SID:HEAD"`
-snaps onto the branch's current tip; a branch name resolves exact-first,
-then unique prefix; ambiguity lists candidates). What distinguishes a
-dispatch from a message is task tracking:
-
-- A **Task entity** is created (the runner's task record): the dispatcher gets
-  a `job_id` back immediately, `job_output` waits on it, `job_stop`
-  withdraws or cancels it, and `list_jobs` shows it.
-- Delivery reuses the message machinery: an idle target runs the task as
-  the next turn on its branch; a busy target queues it in its inbox
-  (§5.4) — the Task entity is pre-created in `pending` so the id exists
-  while the work waits, and the drain runs the SAME task. The delivered
-  turn is prefixed with a task receipt header (`[task from SID:HEAD] This
-  is a tracked task …`) so the target knows the reply is the task's
-  result, returned to the dispatcher automatically.
-- At terminal state the result flows back as a followup notification into
-  the dispatcher's session, with the reply text carried inline in the
-  notification. A dispatch creates no branch, so there is no attach
-  pointer: attach records that a call created the branch it points at,
-  which is untrue of work handed to an agent that already exists.
-- `to` and `start_from` are mutually exclusive (the target branch keeps its
-  own history; a fork-point choice contradicts that — the call errors).
-  `to` is always asynchronous, so `run_in_background` is ignored.
-  Dispatching to the caller's own current branch is refused (do the work
-  directly). A dispatch spends the message budget, not the spawn budget
-  (§5.1) — it creates no agent.
-
-**`send_message` — talk to an EXISTING agent:**
-
-```
-send_message(
-    message: str,                       # content/instruction delivered to the target
-    to: str,                            # see to values below
-    agent_id: str = "main",             # which agent the target runs as
-) -> str
-```
-
-**`to` values — every value names a branch that already exists:**
-
-| to | Meaning |
+| Render/read operation | Identity to use |
 |---|---|
-| `"sid:head"` | Deliver message to an existing branch. The node names the branch, not a fork point: delivery always lands on the branch's current tip, so a stale head (the branch ran more turns since) is still a valid address and never forks off history. A node that is a shared ancestor of several branches is ambiguous — the error lists the candidates (name + `sid:current-tip`). Snapping applies to live branches only: the head of a branch a merge absorbed resolves to itself (§2.6). To fork off a specific node, use `agent(start_from="sid:msg_id")`. |
-| `"<branch name>"` | Deliver to a named branch. Tried when the value is not `SID:HEAD` syntax: exact name match wins, a unique prefix is accepted next; several matches return an error listing the candidates (name + `sid:head`), zero matches point to `list_agents`. `list_agents` marks each branch's name so the model can address by name directly. |
+| Locate the pointer card and its caller | The stored message/WS envelope's source `session_id` plus pointer ID/caller metadata |
+| Load the attached result | `extra.attach.session_id` plus `extra.attach.head_id`; never search the source DAG for the target node |
+| Draw same-session branch relationships | Only use local DAG edges when source and target sessions match |
+| Present a cross-session attachment | Use the external-attachment card; retain source placement and target session/head references |
 
-The removed spawn addressing (`to="new"` / `"new:sid:msg_id"`) is rejected
-with an error that points to the `agent` tool.
+The UI already separates local attach relationships from external cards. Current full AttachCard navigation opens T without explicitly selecting H; the execution strip can select (T,H). The target is consistent exact-head navigation, with this difference recorded in §7. Neither attach creation nor terminal update moves the selected HEAD of S or T; a later authorized follow-up is a separate turn. The source identity is owned by the stored message/envelope, not duplicated as an independently writable target payload field. Validate both identities when projecting; reject mismatches instead of choosing one arbitrarily. See [DAG attach rendering](dag/rendering.md).
 
-Every delivery (direct or queued, see §5.4) is prefixed with a
-sender-receipt header —
-`[message from SID:HEAD] To reply, use send_message(to="SID:HEAD"). Replying is
-optional …` — so the receiver knows who sent it, how to answer, and that not
-answering is legitimate. Agent-tool spawns carry the bare prompt: a spawned
-agent has no earlier sender to reply to.
+`agent(to=...)` admits a Job for an existing branch; a busy branch queues it. The branch is resolved to its current tip, and ambiguous names fail with candidates. It creates no new attach pointer. `archive_when_done=True` is invalid with `to`; only a call that creates a branch can declare this completion policy.
 
-One use:
+`send_message(message, to, agent_id="main")` uses the same existing-target resolver. A direct async delivery creates a Job and returns a `delivery_id` identifying that run; a busy target first receives an inbox entry, whose delivery receipt is distinct from a later execution ID. No new branch is created. Old `to="new"` forms are invalid; creation belongs to `agent(start_from=..., prompt=...)`. Delivery and admission limits are specified in §5.1–5.2.
 
-- **Message an existing branch/session**: `to="sid:head"` → deliver message
-  to that branch, trigger one turn, and the answer is sent back automatically.
-  Cross-session uses the same path (`to` can be any session).
-
-Both tools drive the same primitive; a spawn is the same
-deliver → trigger → reply-back flow with a freshly created branch as the
-target.
-
-**One flow, whichever tool starts it:**
-1. The target branch is resolved — `agent` creates it (`start_from` picks
-   where it starts); `send_message` resolves `to` onto an existing branch's
-   current tip.
-2. The receipt header plus the message is delivered there.
-3. The target runs one turn and the model reads everything delivered.
-4. The reply comes back on its own. The send returned instantly, so the
-   caller never blocked; when the target finishes, its answer is appended to
-   the caller's conversation and the caller runs a turn to read it.
+An explicit message carries a sender address and instructions for an optional additional `send_message` reply. The target automatic-completion contract is independent of that choice; its current wiring status is listed in §7. A missing target never silently creates a branch.
 
 ### 2.2 Referencing other branches
 
@@ -254,11 +86,11 @@ A message is plain text, exactly like a user message. When the target should
 consider other branches, the sender writes that into `message`: quote the
 conclusion directly (each branch's reply already flowed back to the sender via
 reply-back), or name the branch (`SID:HEAD` or its name) and the target reads
-it itself with `read_conversation`. The target model decides how much of the
-named branch to read, so context stays bounded without a dedicated aggregation
-parameter.
+it itself with `read_conversation`. The target model selects the amount to read,
+subject to the output limits in §5.6 and read authorization in §5.9; no dedicated
+aggregation parameter is added.
 
-### 2.3 `list_agents` — seeing each other (a precondition for communication)
+### 2.3 `list_agents` — discover addressable branches
 
 ```
 list_agents(scope="session", limit=20, agent_id?, source?) -> str   # db.list_sessions + db.list_branches
@@ -302,10 +134,12 @@ Every time the `agent` tool creates a branch,
   forks by hand use the same naming path (both get a Stage 1 placeholder name
   plus Stage 2 automatic renaming); neither may be skipped.**
 
-### 2.5 Where the reply-back node lands: the initiator's current tail, serialized
+### 2.5 Reply placement: the initiator's current HEAD, serialized
 
-For the asynchronous reply-back, `_dispatch_followup` feeds the
-target branch's reply into the delivery session as a **synthetic user-role
+This section specifies target completion semantics and the existing helper behavior, not a verified standard completion-path connection; see §7.
+
+For the asynchronous reply-back, `_dispatch_followup` submits the
+target branch's reply to the delivery session as a **synthetic user-role
 turn**. **Key rule: the reply-back `TurnRequest` leaves `branch_from` unset
 (INHERIT_PARENT) — the dispatcher resolves it to the delivery session's
 current HEAD and advances it.** A per-delivery-session follow-up lock
@@ -314,18 +148,16 @@ sub-tasks finishing produce one serial chain
 `… → notice₁ → answer₁ → notice₂ → answer₂` — each follow-up reads a HEAD
 that already contains the previous answer.
 
-Why the reply is not pinned to the spawn node (`caller_msg_id`): with N
-parallel sub-tasks forked from one turn, every reply-back would land as a
-sibling hanging off that same node, and the single user message that
-triggered the spawns would be answered N times on N parallel branches.
-Anchoring at HEAD keeps all N completions on a single conversation path.
+The reply does not use the spawn node (`caller_msg_id`) as its predecessor:
+with N parallel subtasks forked from one turn, every reply would otherwise
+create a sibling under that node, answering the initiating user message N
+times on N branches. Using the current HEAD serializes all N completions on
+one conversation branch.
 
-The return-flow provenance is not lost by this anchoring: the **attach
-pointer** written at spawn time does hang off
-`predecessor = caller_msg_id`, so the DAG still shows which turn each
-sub-branch forked from and which branch each result flowed back from.
-The sub-branch itself stays a parallel independent branch and **does not
-merge back into the mainline**.
+The **attach pointer** written at spawn time retains
+`predecessor = caller_msg_id`, so the DAG preserves the initiating turn and
+source branch of each result. The sub-branch stays independent and **does not
+merge into the initiator's branch**.
 
 For a cross-session spawn, the pointer remains in the initiator's session but
 references the target `(session_id, head_id)`. Terminal finalisation reads the
@@ -339,93 +171,28 @@ expansion rather than duplicating the reply inline. `send_message` and
 `agent(to=...)` create no branch and no attach pointer, so their replies remain
 inline and receive neither spawn marker.
 
-### 2.6 Archiving: removing an agent from the agent list
+### 2.6 Archiving: a global branch state
 
-Branches live forever in the session DAG — fork, replay, and
-`read_conversation` all depend on that — so without an archive flag
-`list_agents` accumulates every agent ever spawned, and the model keeps
-addressing workers whose job finished long ago. Archiving is that flag:
-`archived: true` on the branch's meta entry, the same `branches` entry that
-carries the name, written with `set_branch_meta` and read with
-`get_branch_meta`. Sharing an entry with the name is safe because every
-writer merges field by field under the index lock: Stage-2 auto-naming
-(branch-naming.md) sets `name` and its own counters and cannot drop the
-archive flag, and it skips archived branches anyway — an agent whose work
-is finished needs no new name.
+Archiving writes `archived: true` to the target branch's metadata. It is global within that local state store, not a caller-to-target visibility relation. If A archives B, C's subsequent `list_agents(scope="session"/"all")` also omits B. `scope="archived"` explicitly lists archived branch records. Existing history is retained; archive is not data deletion or storage compaction.
 
-**Archiving stops new deliveries to a branch and keeps its history.**
+“One-way” refers only to the state transition: the current toolset has no unarchive operation. It does not mean “hidden for the caller only.” Reusing archived history is a new `agent(start_from="SID:MSG", prompt=...)` call with a distinct branch lifecycle. A branch left idle but never archived can still appear; explicit/manual completion policy, not caller-specific filtering, decides that state.
 
-| Operation on an archived branch | Behavior |
+| Operation on an archived branch | Contract |
 |---|---|
-| `list_agents` (`scope="session"` / `"all"`) | Hidden |
-| `list_agents(scope="archived")` | Listed: every archived branch, including one a merge absorbed |
-| `send_message(to=…)` | Refused: `agent SID:HEAD is archived` |
-| `agent(to=…)` | Refused, same message |
-| `read_conversation` | Reads it as usual |
-| `agent(start_from="SID:MSG_ID")` | Forks it as usual |
+| Normal `list_agents` views | Hidden for every caller using the same store |
+| `scope="archived"` | Visible in the archive view, including archived records whose heads were merged |
+| New `send_message` / `agent(to=...)` | Refused by the shared existing-target resolver |
+| Already running execution | Continues; archive does not cancel it |
+| `read_conversation` / historical fork | Permitted only under the applicable history visibility policy; archive itself is not an access grant |
 
-The refusal lives in exactly one place: `resolve_existing_target` (the
-addressing both delivery paths share, §2.1) checks the flag right after it
-snaps an address onto the branch's current tip, so every delivery inherits
-the guard and no caller can route around it. `archive_agent` reaches
-archived branches through that same resolver with `allow_archived=True`.
+Merging and archiving remain separate: a merged branch may leave the live-tip list without being marked archived. The archive view reads stored branch records; a merged head must resolve to its own branch when archiving, not to the branch that absorbed it.
 
-**Archiving is orthogonal to merging.** A merge absorbs a branch into
-another one, and the absorbed head leaves `list_branches` because its
-content is now reachable from the branch that absorbed it. That is a fact
-about where content lives, and it happens on its own: the task runner
-absorbs a background spawn's branch the moment the spawn completes
-successfully. Archiving is a fact about the agent that worked on the
-branch, and it is always an explicit act. Neither implies the other, so the
-two are stored apart (`merged_heads` in the session meta,
-`archived` on the branch entry) and read apart:
+Two entry points share the target archive state:
 
-- `list_agents(scope="archived")` reads the archive flag off the branch
-  entries (`store.list_archived_branches`) rather than filtering the live
-  tip list, so every archived branch is listed whether or not a merge
-  absorbed it. This is what makes `archive_when_done` observable on a spawn
-  that succeeded, which is exactly the case where the merge comes first.
-- The default scope and `scope="all"` list live branch tips, so a merged
-  branch stays out of both, archived or not. That is the merge's own
-  behavior and archiving does not change it.
-- A merged head keeps addressing its own branch. `resolve_existing_target`
-  snaps onto the current tip of a live branch; the head of a branch a merge
-  retired is snapped nowhere and resolves to itself
-  (`store.merged_heads`). Without that rule
-  `archive_agent(to="SID:MERGED_HEAD")` resolves to whichever live branch
-  absorbed the node, archives that branch instead, and reports success for
-  it.
+- `archive_agent(to, reason="")` archives an existing branch. Repeating the manual operation is idempotent. The current implementation allows any local session with the tool capability to archive another branch and does not impose a creator-only check; this is a shared local trust boundary, not multi-user isolation. The target lifecycle action must use the same scoped authorization framework as other branch operations.
+- `agent(archive_when_done=True)` declares a terminal archive policy only for a branch created by that call. It is invalid with `to`. The synchronous path currently writes the flag; the asynchronous helper exists, but standard completion-path integration requires the §7 acceptance before it is claimed implemented.
 
-Two ways to archive:
-
-- **`agent(archive_when_done=true)`** — the spawn declares up front that
-  the agent it creates is a one-shot worker. The branch is marked at
-  terminal state (`completed` / `errored` / `cancelled`), after the result
-  has flowed back to the caller; the synchronous spawn form marks it once
-  the result is in hand. The write is best-effort: a failed meta write is
-  logged and the result still returns. Spawn-only — combined with `to=` the
-  call errors, because a dispatch targets an agent it did not create.
-- **`archive_agent(to, reason="")`** — archive an agent after the fact. `to`
-  takes the same addresses as `send_message` (`"SID:HEAD"` or a branch
-  name). Archiving an already-archived branch is an idempotent notice, not
-  an error.
-
-**Any session may archive any agent.** Archiving is not gated the way
-`job_stop` is (§5.10), because it does not do what `job_stop` does: it
-interrupts no running work and deletes nothing. A task already running on
-the branch runs to its end, `read_conversation` still reads the branch and
-`agent(start_from="SID:MSG_ID")` still forks it. All that changes is that
-the branch leaves `list_agents` and stops accepting `send_message` and
-`agent(to=)`. Any session can see that an agent is finished, so any session
-can say so.
-
-**Archiving is one-way; there is no unarchive.** The flag means "this
-conversation is finished", and a finished conversation whose memory is worth
-reusing is forked with `agent(start_from="SID:MSG_ID")` — a fresh branch
-with its own name and its own lifecycle, which is what reusing it actually
-requires. An unarchive tool would only be a second way to do the same thing.
-
----
+If manual archiving happens first, the executing Job is not cancelled and terminal handling never reopens the branch. The target shared archive operation preserves the first `archived_at` and an explicit manual reason; a later automatic request may fill missing fields but not overwrite them. Current automatic/synchronous writes can refresh the timestamp, so metadata idempotence is a remaining implementation gap. Failure to persist automatic archive is reported separately from the execution result and must not turn a successful result into a failure. Accepted-but-not-started deliveries recheck the target archive state before starting; rejecting them terminates their Job/receipt with an explicit reason rather than silently losing it.
 
 ## 3. What collaboration looks like while it happens
 
@@ -449,232 +216,73 @@ The event layer itself — the bus, the event model, the registry, the veto
 protocol — is documented in
 [proactive/event-layer](../proactive/event-layer.md).
 
----
 
-## 4. End to end: two agents see each other and communicate
+## 4. End-to-end target sequence
 
-A and B run at the same time (different branches of one session, or different
-sessions):
+1. Resolve an existing visible target from `list_agents` or an explicit authorized address.
+2. Submit `send_message` or `agent(to=...)`. Acknowledge inbox receipt separately from Job admission; a rejected admission returns its reason without claiming work started.
+3. Run the target turn under its configured context, resource limits and execution authority. A busy target follows the shared serialization/queue policy; the sender need not block.
+4. For an admitted managed execution, commit terminal result and attach state first. The target completion policy schedules at most one idempotent nonempty follow-up to the caller; failure or empty output must not create an unbounded reply cycle.
+5. Read the result via authorized `job_output`/execution resources even when delegation allowance is exhausted. New dispatches recheck topology, resource, archive and authorization constraints.
 
-1. **See**: A calls `list_agents` → sees B's session and its active
-   branch `(B_session, B_head)`.
-2. **Send**: A calls `send_message("...", to="B_session:B_head")` →
-   returns instantly and A carries on.
-3. **B receives**: the message lands in B's branch (a △ "message from A" on B's
-   side), and B runs a turn to answer it (△). Both frontends see it live via
-   ws.frame.
-4. **Reply back to A**: when B finishes, `_dispatch_followup` automatically
-   appends the reply to the end of A (△) + triggers A to run a turn; A reads
-   it on that turn and can continue.
-5. **Repeatable**: A can `send_message` B again — neither branch blocks and
-   nothing is serialized.
-
-Spawn (the `agent` tool) is another parameterization of the same flow and is
-not listed separately.
-
----
+Automatic follow-up wiring is a required public-entry acceptance item, not proven by a test that calls the helper directly.
 
 ## 5. Robustness and safety
 
 Communication creates branches, triggers other branches to run, and writes
 across sessions. Those side effects need boundaries.
 
-### 5.1 Three budgets bound every chain
+### 5.1 Topology limits and exact exhaustion behavior
 
-Recursive collaboration is allowed — a spawned agent can message further
-agents for multi-level decomposition — and three budgets keep it finite. A
-**chain** is everything that grows out of one user turn. Two of the
-budgets travel with the chain, each on its own counter; the third counts
-siblings inside one turn.
+Depth, message count and fan-out constrain collaboration topology. They are not token budgets, aggregate session admission counts or permissions. [Resource governance](agent-resource-governance.html) owns the separate live/queue/cumulative and token/cost/runtime/idle constraints.
 
-| Budget | Setting | Default | Counter | What spends it |
-|---|---|---|---|---|
-| **Spawn depth** | `agent.max_spawn_depth` | 1 | `depth._chain_generations` | Creating an agent, and nothing else: `agent` without `to=`. The new agent runs one generation in |
-| **Messages** | `agent.max_messages` | 8 | `depth._chain_messages` | Every hop: a spawn, a `send_message` delivery, an `agent(to=…)` dispatch, and a result flowing back |
-| **Fan-out** | `agent.max_spawn_fanout` | 8 | `agent._fanout_used`, per (session, turn) | Creating an agent, counted per turn instead of per chain |
+| Limit | Current setting / default | Scope and accounting |
+|---|---|---|
+| Spawn depth | `agent.max_spawn_depth=1` | Generation along a lineage path; only a newly created branch increases it |
+| Messages | `agent.max_messages=8` | Message depth along a lineage path; a delivery passes sender count + 1 to its target, without incrementing the sender's sibling calls |
+| Fan-out | `agent.max_spawn_fanout=8` | New branches per caller `(session, turn)`; existing-branch dispatch and messages do not spend it |
 
-**Setting any of them to 0 removes that limit entirely** — nothing
-accumulates against it and nothing is refused because of it.
+A topology setting of `0` disables that check; propagated context counters may still exist. Resource limits have different syntax: `null` means unset/inherit and a configured numeric value must be positive. Do not transfer the topology convention `0=unlimited` to the resource schema.
 
-**Reading a result spends a message and no generation.** The turn that
-carries a finished agent's reply back is the *dispatcher's* turn, so it
-runs at the dispatcher's generation count (`Task.caller_chain_generations`,
-re-bound by `JobRunner._dispatch_followup`) and one message further
-along. That keeps the most common multi-agent shape open: send a batch of
-work out, read what comes back, send the next batch. One counter for both
-budgets closes it — the coordinator's follow-up turn inherits the worker's
-count of 1, and every later `agent` call in that chain is refused. The
-message counter is what still ends such a chain: each wave costs messages,
-and the eighth stops it.
+The follow-up helper binds the completed Job's `chain_messages` unchanged and restores `caller_chain_generations`; it does not add another message or generation for reading the result. Thus the message setting is not a shared quota counting all branches' traffic. Fan-out and session admission counts constrain sibling/cumulative work separately. The helper's standard completion-path integration is a pending acceptance item (§7).
 
-```bash
-openprogram config set agent.max_spawn_depth 2   # workers may open one more generation
-openprogram config set agent.max_messages 0      # unlimited conversation between agents
-openprogram config set agent.max_spawn_fanout 16 # wider parallel fan-out per turn
-```
-
-**What the budgets do when they run out.** A call that would overrun is
-refused with a reason the model can act on, and it keeps every other
-tool. Once the **message** budget is spent, `agent`, `job_output` and
-`job_stop` leave the tool list altogether: every form of delegation
-hands a message over, so a chain out of messages can do nothing with
-them, and a tool sitting in the listing makes the model try to call it.
-The generation budget never removes a tool, because a chain out of
-generations still dispatches work to agents that already exist. Neither
-does the fan-out budget: it is spent inside a turn, and the tool list is
-frozen at the turn boundary, so it can only refuse.
-
-Typical behavior at the defaults (spawn depth 1, messages 8, fan-out 8):
-
-- The main agent spawns workers. A worker asked to spawn again is told
-  to do the work itself with its own tools.
-- That same worker keeps `agent(to=…)` and `send_message`: it can hand
-  work to agents that **already exist** and answer whoever wrote to it.
-  Only creating a new generation is closed to it.
-- The main agent spawns a wave of workers, reads their results as they
-  come back, and spawns the next wave. Reading costs messages, never
-  generations, so the workers stay one generation deep however many
-  waves there are.
-- A and B messaging back and forth stop after the 8th message of the
-  chain, whichever of them is holding the turn. The reply hop re-binds
-  the finished task's count instead of adding to it, so one round trip
-  costs 1 and 8 buys eight round trips.
-- A turn that calls `agent` a ninth time is refused and pointed at the
-  eight agents it already has. The next turn starts a fresh fan-out
-  budget, so this stops a runaway turn without becoming a quota on the
-  session.
-
-At `agent.max_spawn_depth: 2` a worker may open one more generation and
-the third refuses. At `0`, `0` and `0` nothing is ever refused, and
-runaway protection falls to the concurrency cap and the per-turn
-iteration cap (§5.2) plus the user's Stop.
-
-**Self-send refusal** is unconditional and independent of all three
-budgets: a `to` pointing at the issuing branch itself is a direct cycle
-and is refused immediately.
-
-**Where the numbers come from.** Each default is calibrated against the
-eight reference implementations surveyed in
-`agent-collab-comparison.html` §05, and the reasoning is kept next to
-each constant in the code (`agent.MAX_SPAWN_DEPTH`,
-`agent.MAX_SPAWN_FANOUT`, `depth.MAX_MESSAGES`).
-
-- **Spawn depth 1** is what openclaw, codex-cli V1, hermes-agent and
-  opencode all settle on. Claude Code's 3 does not transfer: its leaked
-  tree has no depth counter and strips the `Agent` tool from every
-  subagent unless `USER_TYPE=ant`, so an external user's effective depth
-  there is 1, and its async tool allowlist omits `Agent` outright, so a
-  background subagent never spawns whatever the counter says. Depth 3
-  applies only to synchronous nesting, where the parent's tool call
-  blocks for the whole child run. Our unattended path is
-  `run_in_background=True`, and 1 is the value Claude Code enforces
-  there.
-- **Messages 8** is anchored on openclaw, the only reference that counts
-  the same thing: its agent-to-agent ping-pong stops after 5 alternating
-  replies by default and 20 at most. 8 sits between them, which is where
-  a counter that also pays for spawns and dispatches belongs.
-- **Fan-out 8** covers the one runaway nothing else counted. A spawn
-  hands its count to the child and leaves the parent's own untouched, so
-  before this budget a single turn could call `agent` until the
-  50-iteration cap stopped it. openclaw is the only reference with a
-  true fan-out cap (5 live children per parent, range 1 to 20); hermes'
-  3 and pi-mono's 8 validate the length of a batch argument, which does
-  not transfer because `agent` creates one child per call. 8 is two
-  widths of our four-worker pool, so a turn can fill the pool and keep
-  one wave queued behind it.
-
-**Two guards we looked at and did not take.** openclaw rate-limits
-parent-to-child messages to one every 2 seconds, and hermes gives each
-delegated subtask a 600 second timeout.
-
-- The 2 second limit guards openclaw's *steer* path, which aborts the
-  child's in-flight run, drains its queues and restarts it, so two
-  steers close together abort each other mid-abort. Its non-interrupting
-  sibling send has no rate limit at all. `send_message` is the
-  non-interrupting kind: a busy target queues (§5.4) and the message is
-  delivered as its own turn, so there is nothing to thrash.
-- hermes' 600 seconds is a caller-side `Future.result(timeout=…)`, not a
-  kill. On expiry it sets a cooperative interrupt flag and abandons the
-  worker thread, and a child wedged in blocking I/O keeps running. We
-  already have both halves of that and stronger: `job_output(timeout=)`
-  is the same caller-side wait (default 30s, ceiling 600s), and
-  `job_stop` cancels cooperatively, kills the active runtime and forces
-  the entity terminal after 30s. What neither we nor hermes have is a
-  deadline that fires with nobody watching. Adding one means scheduling
-  `cancel_job` at submit time in `JobRunner`, and the bound that makes
-  it rarely necessary is the 50-iteration per-turn cap below.
-
-**How the counts travel.** Both counters live in ContextVars
-(`send_message…depth._chain_messages`, `._chain_generations`). A chain
-crosses three thread boundaries and each one has to hand them over
-explicitly, because a Python thread starts with its ContextVars at their
-defaults:
-
-| Hop | How the counts arrive |
+| Attempt when a limit is exhausted | Required behavior |
 |---|---|
-| Dispatcher → tool body | `copy_context()` in `functions/_runtime.py` carries both into the executor thread |
-| Sender → task worker | Both are persisted on the Task (`chain_messages`, always sender + 1; `chain_generations`, sender + 1 for a spawn and unchanged for a dispatch) and re-bound by `JobRunner._run_one` |
-| Task → reply follow-up | `JobRunner._dispatch_followup` re-binds the finished task's `chain_messages` and its `caller_chain_generations` in its own thread |
+| New branch with exhausted message, depth or fan-out allowance | Reject this creation with its reason; no new branch/Job from the rejected attempt |
+| `agent(to=B)` or `send_message(to=B)` with exhausted message allowance | Reject this delivery even though no branch is created; depth/fan-out alone do not block it |
+| Existing Job, caller's current turn, local nondelegation tools | Do not automatically cancel them merely because a topology count reached its limit |
+| `job_output`, execution snapshots or `execution.cancel` | Remain available under their normal authorization; observation and stopping work consume no delegation allowance |
 
-The reply hop is where the two budgets part company, and each direction
-matters. Messages carry over from the child: the follow-up turn is where
-A reads B's answer and writes the next message, so a follow-up that
-started at 0 would give A a fresh budget on every round and the
-8-message cap would never be reached. Generations go back to the
-dispatcher's count: the follow-up creates nobody, and inheriting the
-child's count left an agent that had read one worker's reply unable to
-create any further agent in that chain.
+Current `agent`/`send_message` admission checks enforce the new-delivery limits. Current `job_output` is also hidden by `can_use=delegation_budget_left`, which conflicts with the target observation contract and is explicitly pending correction. Do not describe this tool-discovery behavior as cancellation of a running Job. There is no registered `job_stop` tool.
 
-The same thread also re-binds `_current_job_id` to the finished task's
-`parent_job_id`, so a task A spawns while reading the reply belongs to
-the same lineage cascading cancel walks (§5.3).
+A spawn consumes message depth and generation, plus caller-turn fan-out. Existing-branch dispatch consumes only message depth among these three, but still admits a new execution under §5.2. A later independent user turn gets its own topology context; accepted Jobs continue to count in the session's cumulative resource total. Direct self-delivery is independently rejected.
 
-The session id those tools read (`run_control._current_session_id`) is
-bound by `TurnBindings` for the length of the turn, alongside the turn
-id, so it is present on every path into `process_user_turn` and not only
-the ones whose caller bound it first. Binding fills in only when nothing
-is bound: an entry point that owns the id for a scope wider than one turn
-(the webui exec thread, a task runner worker, a channel adapter) keeps
-it, so a nested turn for another session cannot repoint the cancel hook
-or `runtime.ask` at a session that registered no turn token.
+The reference comparisons for the chosen defaults remain in [collaboration comparison](agent-collab-comparison.html); current enforcement follows the source and schema above rather than an assumed equivalence to another product.
 
-### 5.2 Concurrency limit + queueing
+### 5.2 Live, queued and cumulative execution resources
 
-- Spawning runs on the `JobRunner` thread pool, capped by
-  `OPENPROGRAM_JOB_WORKERS` (default 4). Spawn eight at once and anything over
-  the cap **queues**, running as slots free up, without overloading anything.
-  This is a global pool, so it bounds what runs at once and not how much
-  work one turn can create. That is the fan-out budget's job (§5.1).
-- Chat turns, spawned ones included, have no inner tool-call hard cap
-  (Codex loops until an assistant message; DeepSeek's ReactLoopAgent has
-  no maxSteps). A caller-supplied `max_iterations` can still stop a nested
-  `runtime.exec` (default 20). Identical failed tools are skipped after two
-  repeats. The user can cancel the turn.
+Resource checks apply in addition to §5.1, not as alternative names for its counters.
 
-### 5.3 Cancellation propagation (cascading)
+| Resource limit | Accounting | At the boundary |
+|---|---|---|
+| `max_live_per_session` and `OPENPROGRAM_JOB_WORKERS` | Active execution in the target session / global worker capacity | An admitted Job waits queued while no execution capacity is available |
+| `max_queued_per_session` | Accepted execution waiting for capacity | A full queue rejects admission with `quota.queue_full`, normally retryable; no Job is fabricated |
+| `max_jobs_per_session` | Cumulative successful Job admissions in the target session, including later terminal Jobs | Reject with `quota.jobs_exhausted`; terminal completion does not refund the count |
+| token / cost / runtime / idle | Governed execution and inherited budget scopes | Apply the resource-governance reservation, cancellation and accounting contract |
 
-- Cancelling a task **also cancels every task it spawned**. Each spawn made
-  from inside a running task records the chain on the Task entity
-  (`parent_job_id`, defaulted from the runner's current-task ContextVar).
-  `JobRunner.cancel_job` walks the persisted entities breadth-first over
-  that chain (visited-set guard, so even a malformed cycle terminates):
-  pending/queued descendants flip straight to cancelled without ever running;
-  running ones go through the same per-task cancel path as the root —
-  session cancel event + `kill_active_runtime` + the 30s force-cancel
-  watchdog. No zombie threads or subprocesses remain.
-- **Descendants are cancelled before the root.** Cancelling the root makes
-  its worker drop out, and the freed pool slot immediately starts the next
-  queued future, which is a descendant the cascade had not reached yet. It
-  then ran a full turn for work the user had already stopped. Walking the
-  chain first means the worker that picks the descendant up finds an
-  entity already at `cancelled` and returns without calling
-  `run_agent_turn`. Ordering only; `cancel_job` still returns the root's
-  post-update entity, and `None` for a task id that resolves to no session.
-- Session-level cancel (the user's Stop on a session) additionally clears the
-  session's send_message inbox (`inbox.clear`): the queued messages are new
-  work that has not started yet, and a user stopping a session wants all of
-  its work to stop. Each dropped entry leaves a system notice in its sender's
-  session so the sender knows the message was never delivered.
+The current governor attributes these session counters to `Job.parent_session_id`, the session in which the execution runs. For a cross-session call S→T, that is T; `caller_session_id=S` identifies the caller and does not silently move the admission charge to S. Caller-turn fan-out and parent budget scopes remain separate constraints. `max_jobs_per_session` therefore is not a renamed depth or fan-out budget.
+
+Background creation, `agent(to=...)` and actual async turns triggered by `send_message` all reach Job admission. A busy `agent(to=...)` already has an admitted Job before its inbox wait; a busy ordinary message can have only a delivery receipt until its turn is submitted. Do not display that receipt as accepted execution or consume a second cumulative admission when an existing queued Job starts.
+
+Foreground branch creation also admits a Job through `run_agent_turn` → `spawn_job(wait=True)` and therefore participates in Job resource limits. Ordinary main chat and other direct runtime entry points must be assessed separately; the name “foreground” alone does not determine accounting.
+
+Setting the topology limits to zero does not disable resource governance or cancellation. “Spawn 30 Jobs and they all queue” is not a universal guarantee: fan-out or queue/cumulative limits can reject requests before capacity queueing.
+
+### 5.3 Cancellation propagation
+
+Use the existing canonical execution cancellation path and `parent_job_id` lineage. Parent cancellation must prevent unstarted descendants from running, request cancellation of active descendants, and preserve stopping state until actual exit is acknowledged. Queued-work withdrawal must not issue a session-wide stop that interrupts another execution. A terminal Job remains queryable and its cumulative admission is not refunded.
+
+The user-visible distinction is requested cancellation versus confirmed termination. Resource release, worker loss, non-preemptible operations and reconciliation follow [resource governance](agent-resource-governance.html); a fixed watchdog timeout alone is not proof that a thread or subprocess exited. Session-wide Stop has broader scope than cancelling one addressed execution, and inbox withdrawals must leave an explicit delivery outcome.
 
 ### 5.4 Sending to a branch that is "already running" (race)
 
@@ -695,7 +303,7 @@ sender's own turn, whose token is the one the check would see.
 - **Draining**: the dispatcher drains the inbox at turn end
   (`_process_turn_once` → `_drain_send_message_inbox`, on both the success and
   the error return), delivering each entry as one async turn through the
-  normal path (`run_agent_turn_async` → auto-followup back to the sender),
+  normal async execution path; completion notification follows the target contract and §7 status,
   continued from the target's current head. Delivery-then-delete: an entry is
   removed only after its delivery turn was submitted — a crash between the two
   may re-deliver (acceptable); the reverse order could lose a message (not
@@ -722,27 +330,19 @@ If B is idle, delivery is immediate (the pre-queue behavior).
 If the sub/target branch fails (crash / timeout / model error), **it still
 replies back**, with `is_error` and the reason in the content ("B failed:
 <reason>"), and the caller's model decides for itself whether to resend, reroute,
-or give up. **No built-in retry or circuit breaker** — the parent is a model, and
-its judgment beats a fixed policy.
+or give up. **No automatic task resubmission is implied.** A new dispatch requires the normal authorization and remaining limits; provider transport retries retain their existing independent policy.
 
-### 5.6 Result truncation
+### 5.6 Result truncation and persisted full text
 
-If the reply-back content exceeds `max_result_chars` (reusing the 30k default
-from `@function`), it is **truncated head and tail and the full text is stored in
-a file**, with the file path included in the reply. Huge intermediate results do
-not blow up the caller's context or block the main flow.
+The current generic string/`ToolReturn` normalizer defaults to 30,000 characters, may reduce the effective cap for context capacity, retains a head/tail excerpt, and optionally writes the full UTF-8 result under `<state_dir>/tool_results/<sanitized-call-id>.txt`. The default profile resolves this to `~/.openprogram/tool_results/...`; it is a state-directory file, not an OS temporary file. Its path is reported only after a successful write. A write failure must not fabricate a path.
 
-### 5.7 Sub-branch identity / least privilege
+This is not currently a universal guarantee for Job results: `job_output` returns `AgentToolResult`, which the shared normalizer passes through without applying its cap; the follow-up helper can also inline full `result_text`. No automatic TTL/garbage collection or target-session ACL for these files is established by the inspected helper.
 
-- `agent_id` picks which agent the sub-branch runs as (different agent =
-  different system prompt + toolset + model).
-- model supports `inherit` (inherit the caller's model), or an explicitly weaker
-  one.
-- **By default a sub-branch has no more privilege than its caller** (least
-  privilege); dangerous tools (deleting files and the like) still go through the
-  §5.8 interception, which `permission_mode=bypass` cannot disable.
-- A sub-branch **sees only the delivered message and the responses after it**,
-  and does not inherit the caller's full history (saves context and isolates).
+The target result contract applies one bounded excerpt to `job_output` and inline follow-up, while retaining the canonical result in the execution/session store. A full-text artifact records execution ID, owning session/project, media type, byte length and content hash; reads use the same visibility checks as the result. Generic filesystem access is not made private merely by omitting its path. Artifact retention follows the owning execution's configured retention; archive alone does not delete it. Until that resource/retention integration exists, report the present path and unknown lifetime without claiming automatic expiry or isolation. Tests must cover cap application to structured results, write failure, authorized reread and retained-file cleanup.
+
+### 5.7 Configuration, context and authority
+
+`agent_id` selects saved execution configuration, independently of branch identity. The saved/inline override and model-selection design is defined in [Agent configuration](agent-configuration-ui.html); selecting another configuration cannot expand the caller's enforced authority. `clean` omits inherited conversation messages, while `inherit` and an exact `SID:MSG` include only authorized chosen history. None of these modes removes system policy or establishes filesystem isolation. Do not describe every child as seeing only its prompt when the caller explicitly selected historical context.
 
 ### 5.8 Unattended interception + validation
 
@@ -752,37 +352,19 @@ not blow up the caller's context or block the main flow.
 - A `to` that names nothing is an error, never a silent creation. The regular
   permission gating applies on top.
 
-### 5.9 Branch visibility
+### 5.9 History visibility and archive authority
 
-Branches are marked **internal (sub-spawned) vs. user-visible**: an internal
-branch can only be triggered by `send_message` and does not appear in the UI's
-session picker (but it is still drawn in the DAG and can be listed by
-list_agents so agents can address it).
+The target shared visibility policy covers `read_conversation`, source history for `start_from`, selected context, attach expansion and result-artifact reads. Validate the caller's principal and project/session scope before loading content. Branch addresses, saved `agent_id` and tool availability alone are not access grants; denied targets must not expose preview, titles or existence through fallback reads. Archiving requires the corresponding lifecycle permission and affects the globally stored branch state (§2.6).
 
-### 5.10 Task ownership (job_output / job_stop)
+Current `read_conversation` resolves a session/head and reads that branch from the local store without a target-level owner/project ACL. Tool capability gating is therefore a broad local trust boundary, not per-Agent privacy. Existing history-read and archive tools must integrate the shared authorization before isolated-Agent or cross-user privacy is claimed. An “internal” branch presentation flag controls UI listing only; it is not an authorization boundary and does not prevent `agent(to=...)` from addressing an otherwise accessible branch.
 
-`read_conversation` can read any branch, so any agent can learn any
-job_id — without a gate, any agent could wait on or kill work it never
-dispatched. `job_output` and `job_stop` therefore verify ownership
-before acting: the current session must be the task's dispatcher
-(`caller_session_id`, or `parent_session_id` for a same-session spawn),
-or an ancestor on the task chain (the current task is an ancestor via
-`parent_job_id`, or the current session dispatched one of the task's
-ancestors — the same lineage cascading cancel walks). Anything else is
-refused: `[job_stop error] task {id} was not dispatched by this
-session`. Calls with no session context (the user, the UI) are not
-gated.
+### 5.10 Result ownership and execution control
 
-`job_stop` on a `to=`-dispatched task is state-dependent:
+Current `job_output` uses `_ownership.check_job_ownership`: a session matching the Job's execution session (`parent_session_id`), caller session, or an ancestor relation may read it. The helper walks at most 64 ancestors with cycle protection. With no current session context it returns no denial; that helper alone does not authenticate a user or an API request.
 
-- **queued** (target was busy, task waiting in its inbox) → the entry is
-  withdrawn from the inbox and the entity flips to `cancelled`. No
-  session-level cancel is sent: the target is busy running someone
-  else's turn, which a withdrawal must not kill.
-- **running** → cancels that one turn on the target branch (the task's
-  cancel event + session cancel bridge + runtime kill + 30s watchdog),
-  not the target agent or its session.
-- **terminal** → idempotent no-op.
+Canonical execution read/control authorization is a separate existing boundary: validate owner authority, target project/session membership, action grants and the required capability (`runtime.control` for control). `execution.cancel` uses the current execution version and a command ID; it is not a `job_stop` alias. Knowing an execution ID does not grant authority. The target history policy in §5.9 reuses this authorization framework instead of assuming all local branch readers are execution owners.
+
+Cancellation follows [execution control](execution/control.html) and [resource governance](agent-resource-governance.html). Queued cancellation prevents starting that execution without stopping an unrelated turn on the same target. Running cancellation moves through stopping and releases resources only after confirmed exit; terminal cancellation is idempotent. Do not promise that any Python thread disappears immediately or that accepting a cancel request proves completion.
 
 ### 5.11 Explicitly out of scope (and why)
 
@@ -797,22 +379,48 @@ gated.
   synthesize them (§2.2). A model synthesizing is more flexible than a preset
   aggregation, so no fixed aggregation operators.
 
----
 
-## 6. Behavior you can check
+## 6. Public-entry acceptance
 
-Each line below is independently observable — in the web UI, or in the
-session event log.
+These are required observations, not a claim that all cases have already passed.
 
-| Behavior | What you see |
+| Case | Observable result |
 |---|---|
-| Spawn (the `agent` tool) | The agent calls once, a new branch runs a turn, and the result automatically follows up back to the caller; spawn events are visible in the event log |
-| Listing | `list_agents` lists the real multiple sessions and each one's branches |
-| Archiving (§2.6) | An archived agent leaves `list_agents` and shows up under `scope="archived"`; `send_message` and `agent(to=)` refuse it while `read_conversation` and `agent(start_from=…)` still work; any session may archive any agent, and the flag is one-way; a spawn that completed and was merged is still listed under `scope="archived"`, and its head still addresses its own branch |
-| Send to an existing branch in the same session | A sends to branch B of the same session, A does not block, B runs a turn, the reply returns to A automatically |
-| Cross-session | A delivery to another session updates both sides live. `send_message` / `agent(to=...)` remain message-only. `agent(start_from="T:M")` creates the branch and canonical Job in T, keeps its card in the initiating session, and marks the source and target DAG nodes `spawn_out` / `spawn_remote` without moving either selected HEAD |
-| Robustness (§5) | A↔B back-and-forth stops when the chain's message budget runs out, and a budget of 0 never stops it; spawning 30 at once queues instead of overloading; cancelling the parent stops every child; messaging a busy B queues and is delivered when its turn ends; the parent is told when a child fails; oversized results are truncated with a file path |
-| Safety (§5.7-5.9) | Under a deny policy a delivery is held for confirmation; a nonexistent `to` raises an error; sub-branches have no more privilege than the parent and stay out of the UI picker |
-| Frontend | Pick a branch in the web UI and send a message; the DAG shows the communication node plus the return-flow edge on hover |
+| C1 Names and identity | Registered tools are `list_jobs`/`job_output`; foreground and background both admit a Job; canonical cancellation uses the versioned execution command |
+| C2 Fork and run | One `agent(start_from="T:M", prompt=..., description=...)` call creates a branch at M and executes its prompt; `to` does not create missing targets |
+| C3 Global archive | After A archives B, C's normal list omits B; archive view retains it and new deliveries fail; history retention does not imply permission to read |
+| C4 Completion archive | Manual-before-terminal, terminal-before-manual and retries preserve the first archive timestamp/manual reason; active work is not cancelled by archive; async public completion actually executes archive policy |
+| C5 Topology exhaustion | Exhausted messages reject `agent(to=B)` without cancelling accepted work; exhausted depth/fan-out reject only branch creation; observation and cancellation remain authorized and available |
+| C6 Resource interaction | Cross-session runs charge target admission; queue-full and cumulative-full report distinct errors; existing queued Jobs do not count twice; synchronous Agent runs obey admission too |
+| C7 Attach location | The card remains in S, while result lookup uses (T,H); both full AttachCard and execution strip select the exact target head without searching S for H |
+| C8 History privacy | Denied `read_conversation`, historical fork, selected context and attach expansion do not expose target content or metadata; permitted equivalents still work |
+| C9 Full result | Structured Job results and inline follow-up are capped, full text can be reread only with authorization, storage failure produces no false path, retention removes only owned eligible artifacts |
+| C10 Completion notifications | Calling the public async Agent/message entry reaches canonical completion and emits the intended follow-up once; empty results, retry, error and cancellation do not generate endless follow-up turns |
 
----
+## 7. Implementation status and evidence
+
+This documentation change performs source inspection and document validation only. Helper-level tests or source definitions do not prove public-entry integration. Runtime changes below remain in the implementation plan, with resource gates governed by the linked resource design.
+
+| Area | Source-observed state | Remaining acceptance |
+|---|---|---|
+| Names / foreground admission | Registered `list_jobs` and `job_output`; both synchronous `run_agent_turn` and async wrappers call Job admission | Keep tool, UI and docs schema names aligned; no reintroduction of retired stop aliases |
+| Fork / global archive | One-call historical fork and globally stored archive flag are present | Preserve first archive metadata across manual/automatic writes; verify queued delivery recheck |
+| Async follow-up and auto-archive | Helpers exist; inspected canonical and borrowed-claim completion paths update attach/wake waiters but do not call those helpers | Connect idempotent completion behavior and test through public entries; synchronous tool-local archive is already called |
+| Message exhaustion | New delegation is gated; `job_output` is also hidden by the same gate | Preserve authorized result/control access at exhausted delegation allowance |
+| History visibility | `read_conversation` reads the local store without target-level owner/project ACL | Integrate shared visibility and verify all history-consuming entries |
+| Cross-session attach | Source placement and target lookup are separate in the data/UI; full-card navigation does not explicitly select H | Align exact-head navigation with execution strip and test both |
+| Result truncation | Generic string wrapper persists full text; structured Job output and inline follow-up are not uniformly capped | Unified cap, authorized artifacts and explicit retention integration |
+
+Source evidence:
+
+- [Agent tool](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/agents/agent/agent/agent.py)
+- [Synchronous and asynchronous admission](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/agent/sub_agent_run.py)
+- [Archive](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/agents/send_message/archive_agent/archive_agent.py)
+- [Message delivery](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/agents/send_message/send_message/send_message.py)
+- [Job output](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/agents/agent/job_output/job_output.py)
+- [History read](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/knowledge/read_conversation.py)
+- [Execution authorization](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/execution/authorization.py)
+- [Completion helpers](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/agent/job/runner/progress.py)
+- [Canonical completion](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/agent/job/runner/dispatch.py)
+- [Borrowed-claim completion](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/agent/job/runner/borrowed.py)
+- [Result persistence](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/_execution_common.py)

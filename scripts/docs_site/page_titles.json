@@ -723,6 +723,10 @@
     "en": "Agent communication",
     "zh": "智能体通信"
   },
+  "reference/design/runtime/agent-configuration-plan.html": {
+    "en": "Agent implementation plan",
+    "zh": "Agent 实施计划"
+  },
   "reference/design/runtime/agent-configuration-ui.html": {
     "en": "Agent settings",
     "zh": "智能体设置"
