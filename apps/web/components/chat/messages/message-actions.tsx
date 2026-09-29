@@ -1,6 +1,6 @@
 "use client";
-import { Quote } from "lucide-react";
 import { quoteToChat } from "./quote-to-chat";
+import { useActionIconAnimation } from "./use-action-icon-animation";
 import { parseAttachments } from "./user-attachments";
 
 /**
@@ -19,7 +19,6 @@ import { parseAttachments } from "./user-attachments";
 import {
   cloneElement,
   isValidElement,
-  useRef,
   useState,
   type ReactElement,
   type ReactNode,
@@ -31,9 +30,9 @@ import { showToast } from "@/lib/format-utils/toast";
 import { setRunActive } from "@/lib/runtime-bridge/chat-handlers";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import {
-  type AnimatedNavIconHandle,
   CheckIcon,
   CopyIcon,
+  QuoteIcon,
   GitBranchIcon,
   RefreshCwIcon,
   SquarePenIcon,
@@ -48,8 +47,7 @@ function wsSend(payload: unknown): boolean {
 }
 
 // Tools / action glyphs are the animated line icons (pqoqubbw, in
-// ../../animated-icons). They self-animate on hover (uncontrolled) —
-// the action button is icon-sized so hovering it animates the glyph.
+// ../../animated-icons). ActionButton drives the entire hover/focus target.
 // chevL/chevR stay static (tiny ‹ › nav carets — not worth animating).
 export const SVG = {
   copy: <CopyIcon />,
@@ -85,14 +83,7 @@ function postJson(url: string, body: unknown): Promise<unknown> {
   });
 }
 
-/**
- * A message-action button whose animated icon is driven by the WHOLE
- * button's hover, not the glyph's small hit area. We clone the icon with
- * a ref and start/stop it from the button's onMouseEnter/Leave — so the
- * entire 26px button is the hover target and the animation replays
- * reliably every time. (Uncontrolled self-hover only fired over the
- * centred 14px glyph and could miss the second hover.)
- */
+/** A message action whose whole button controls its shared animated icon. */
 export function ActionButton({
   icon,
   title,
@@ -106,7 +97,7 @@ export function ActionButton({
   disabled?: boolean;
   extraClass?: string;
 }) {
-  const ref = useRef<AnimatedNavIconHandle>(null);
+  const { ref, handlers } = useActionIconAnimation(disabled);
   const node = isValidElement(icon)
     ? cloneElement(icon as ReactElement, { ref } as Record<string, unknown>)
     : icon;
@@ -118,8 +109,7 @@ export function ActionButton({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      onMouseEnter={() => ref.current?.startAnimation?.()}
-      onMouseLeave={() => ref.current?.stopAnimation?.()}
+      {...handlers}
     >
       {node}
     </button>
@@ -327,7 +317,7 @@ export function MessageActions({
   return (
     <div className="message-actions">
       <MessageTimestamp timestamp={msg.timestamp} />
-      <ActionButton icon={<Quote />} title={tr("Quote message", "引用消息")}
+      <ActionButton icon={<QuoteIcon />} title={tr("Quote message", "引用消息")}
         disabled={!sessionId || !msg.content} onClick={() => {
           if (sessionId) quoteToChat(sessionId, parseAttachments(msg.content).text);
         }} />
