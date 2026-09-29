@@ -1,227 +1,99 @@
-# Agent 协作：一个分支间通信原语
+# Agent 协作：分支、执行与消息
 
-整套 agent 协作收敛成**一个原语：分支间通信**。一个 agent 能派生别的 agent、能给
-别的分支/别的 session 发消息。这些表面上不同
-的操作，**底层是同一件事**：往某条分支投递内容 → 触发那条分支跑一轮 → 结果自动回送
-发起方。全部做成工具调用，全部建在已有的事件层上。
+本文定义协作契约，当前实现差距集中列在 §7。保存 Agent 的配置契约见 [Agent 配置](agent-configuration-ui.zh.html)，准入、资源计量和取消限制见[资源治理](agent-resource-governance.zh.html)。AgentSpec 是可复用配置，运行分支是对话状态，同一分支可以执行多个 Job。创建分支不等于创建一份新的保存 AgentSpec。
 
-> §1 是整个工具面的词汇总纲，先读它。
+## 0. 共享投递机制，分别管理生命周期
 
----
+协作复用分支寻址、轮次派发和现有事件层。不同操作分别决定是否创建分支，以及立即提交执行还是先进入收件箱，不增加另一套执行引擎。
 
-## 0. 核心：只有一个原语
-
-整套协作只有一个原语：
-
-> **分支间通信** = 往一条分支（同 session 另一分支 / 跨 session / 当场新建的 /
-> 已存在的）**投递内容** → **触发**那条分支跑一轮（模型读到投来的内容）→ 结果
-> **自动回送**发起方（追加一条新消息 + 触发发起方跑一轮，发起方醒来读到、继续）。
-
-所有协作操作都是这个原语的**参数化**：
-
-| 操作 | 是通信的哪种用法 | 工具 |
+| 操作 | 分支变化 | 执行变化 |
 |---|---|---|
-| **派生子 agent** | **新建**一条分支 + 投消息 + 自动回 | `agent` |
-| **给已有 agent 派活** | 往**已存在**分支投**受管任务** + 自动回 | `agent(to=…)` |
-| **发消息给某 agent** | 往**已存在**分支投消息 + 自动回 | `send_message` |
+| `agent(prompt=..., start_from=...)` | 一次调用创建分支并执行 prompt | 两种都准入 Job；前台等待并返回结果，后台立即返回 `execution_id` |
+| `agent(prompt=..., to=...)` | 继续已有分支 | 先准入受管 Job，再执行或排队，返回 `execution_id` |
+| `send_message(message=..., to=...)` | 继续已有分支 | 投递消息；实际异步轮次仍创建 Job。只有收件箱回执不代表执行已获准入 |
 
-投来的内容一定被目标模型读取并使用。数量任意（派生能派 N 个、发消息
-也能群发），不是区分维度。两种用法共用一条投递→触发→回送的路径。
+目标完成契约是将非空结果回送发起方，不要求收件方再显式调用 `send_message`。收件方可以不额外发送消息，“回复可选”指的是这条额外消息。标准完成路径是否接入自动回送仍须按 §7 验证。投递成功不能保证目标模型遵从内容或一定生成回复。
 
-`attach` 不是操作，是通信结果在 DAG 上的"回流连线"画法（标记结果从哪条分支回来）。
+`attach` 是指向新建分支的存储引用与 DAG 展示关系，不是消息或独立执行。
 
----
+## 1. 四类对象与操作分工
 
-## 1. 四个域，一词一义
+四域区分对象，不要求一次操作只能涉及一类对象。`agent` 可以在同一次调用中创建分支并提交执行；查询或取消该执行属于执行控制，不需要为了分类再新增创建任务工具。
 
-协作分四个域。每个域有一个名词、一套工具，域之间不重叠：同一个词在哪里
-出现都是同一个意思。
-
-| 域 | 名词 | 工具 | 是什么 |
+| 域 | 对象 | 公开入口 | 职责 |
 |---|---|---|---|
-| 计划 | **todo** | `todo_create` / `todo_update` / `todo_list` | 手写的计划清单：条目、状态、负责人、依赖。只记录打算做什么，有条目不代表有东西在跑 |
-| 执行 | **task** | `job_output` / `job_stop` / `list_jobs` | 派出去正在跑的任务：job_id、状态、结果 |
-| 实体 | **agent** | `agent` / `list_agents` / `archive_agent` | 执行任务的实体：新建一个、给已有的派任务（`to=`）、列出所有 agent、把干完的归档 |
-| 通讯 | **message** | `send_message` / `read_conversation` | 发消息和读历史：投一条消息，读任何分支的全文 |
+| 计划 | `todo` | `todo_create` / `todo_update` / `todo_list` | 记录计划，清单条目不启动执行 |
+| 执行 | `Job` / canonical execution | `list_jobs`、`job_output`；控制动作 `execution.cancel` | 查询或控制已接受的执行，包括排队和终态 |
+| 对话 | 运行中的 Agent 分支 | `agent`、`list_agents`、`archive_agent` | 创建、继续、寻址、归档分支，不操作保存 Agent 的配置注册表 |
+| 通信 | message | `send_message`、`read_conversation` | 投递内容或读取授权历史；触发的轮次仍有独立执行计量 |
 
-在 todo 清单上写"跑一遍 parser 基准"不会启动任何东西。`agent(…)` 才启动东西，
-拿回来的是一个 job_id。清单说的是打算做什么，`list_jobs` 说的是什么正在跑。
+后台 Agent 调用返回 `execution_id`。当前 runner 中 `execution_id == Job.id`，`job_output(job_id=...)` 参数及其 `details.job_id` 字段仍保留这个名称，这是同一身份，不是两份独立任务。公开工具名是 `list_jobs` 和 `job_output`，不是 `list_tasks` 或 `task_output`。当前目录不注册 `job_stop`、`task_stop` 工具。UI/API 取消使用现有 `execution.command`，包含 `action="execution.cancel"`、`command_id`、`execution_id`、`expected_version` 与空 `payload`，仍须通过认证和动作授权，见[执行控制](execution/control.zh.html)。
 
-一个 agent 的对话就是一条**分支**：session 内的 `(session_id, head_id)` 对。
-同 session 两个 head 是一次会话的两条分支，两个 session 是两次会话。agent 的
-地址永远是分支：`"SID:HEAD"`，或者分支名。
+分支地址是 `"SID:HEAD"` 或无歧义分支名；保存的 `agent_id` 选择配置，不是分支地址。“任务”可以作为工作内容的自然语言称呼，公开标识符和工具名以以上实际 schema 为准。
 
-### 只有派活方能操作任务
+### `agent` 模式与一步 fork
 
-派出去的任务上有三件事，三件都只有派活方能做：
-
-| 能做什么 | 含义 |
+| 调用 | 行为 |
 |---|---|
-| 结果必回 | 任务结束时回复自动落进派活方的对话，不管派活方是在等还是已经去做别的 |
-| 可取消 | `job_stop` 取消任务；还在排队的直接撤回，一轮都不跑 |
-| 级联取消 | 停掉一个任务，它派出去的所有任务跟着停，一路到底 |
+| `agent(prompt=...)` | 创建新分支并执行；默认前台返回结果，要求后台时返回执行 ID |
+| `agent(prompt=..., start_from="SID:MSG", description="review")` | 从精确历史节点 fork，设置标签，并立即执行 prompt |
+| `agent(prompt=..., to="review")` | 向已有分支提交下一次执行，不创建分支或保存配置 |
 
-`read_conversation` 能读到任何 job_id，所以归属要查而不是默认：
-`job_output` 和 `job_stop` 拒绝别的 session 派出的任务（§5.10）。没有 session
-上下文的调用（用户、UI）不受这条限制。
+提供 `to` 时，禁止 `start_from="inherit"` 或 `start_from="SID:MSG"`。API 默认的 `"clean"` 在此模式仅是占位值，不清空目标历史。`description` 为新分支命名，`to` 始终指认已有分支。创建并执行只需一次调用：
 
-`send_message` 这三件事都不带，所以任何 agent 都能发。它只投递一条消息，收件方
-回不回都行，不产生 job_id、不能取消、不会级联。发消息不会打断已经在跑的任务。
-
-### `agent` 的两种模式
-
-| 调用 | 发生什么 |
-|---|---|
-| `agent(prompt=…)` | 新建一个 agent 并跑它。阻塞等回复；`run_in_background=true` 则返回 job_id |
-| `agent(prompt=…, to="reviewer")` | 不创建任何东西。prompt 作为受管任务派给已存在的 `reviewer`，作为它的下一轮跑，排在它手上这一轮后面，一次一轮。永远返回 job_id |
-
-两种都产生 task，只有第一种产生 agent。`to` 与 `start_from` 互斥：目标自带
-历史，没有 fork 点可选。
-
-一次完整的委派就是这四个词：
-
-```
-todo_create("跑一遍 parser 基准")              → 板上 todo #1
-todo_update("1", status="in_progress")
-agent("跑一遍 parser 基准", "bench",
-      run_in_background=true)                  → job_id=t_7f2
-list_jobs()                                   → t_7f2 running（bench）
-send_message("进展如何？", to="bench")          → agent 回话，不产生任务
-job_output("t_7f2")                           → 结果到了就拿到
-todo_update("1", status="completed")
-archive_agent(to="bench")                      → 从 agent 列表归档
+```python
+agent(prompt="审查这个节点的结果",
+      start_from="SID:MSG", description="review",
+      run_in_background=True)
 ```
 
-### 与 Claude Code 同名的部分
+`job_output` 检查当前 session/job 关系（§5.10）；取消使用 canonical execution 授权，不能仅凭工具别名或知道 ID 就获得控制权。`send_message` 不表达 `agent(to=...)` 的明确工作委派，但它触发的执行同样遵守准入、取消与资源计量。
 
-`agent`、`list_agents`、`send_message`、`job_output`、`job_stop` 与
-Claude Code 同名同义，这是刻意的：认识那批名字的模型就已经认识这批工具。
+### 参考实现与命名
 
-有一个名字刻意不同。Claude Code 的 `TaskList` 是 todo 规划清单，不是正在运行的
-任务清单。这里的规划清单改用 `todo_*` 前缀，撞不上，`list_jobs` 也就保住了字面
-意思：正在跑的任务。
+其他框架的对照保留在 [Agent 协作对比](agent-collab-comparison.zh.html)。这些资料用于说明设计参考，不保证其他产品具有相同工具名或语义。本仓库注册工具及 canonical execution 接口决定本文使用的公开名称。
 
-三个工具在 Claude Code 里没有对应：`list_jobs`（那边没有让模型查询后台任务的
-工具）、`archive_agent`（把 agent 从 agent 列表里归档，§2.6）、`read_conversation`
-（把别的 agent 的历史读成可读文本，而不是直接读原始会话文件）。
+## 2. 工具与分支寻址
 
----
-
-## 2. 原语的工具形态
-
-把原语包成 agent 能调的工具。分工对齐 Claude Code：**`agent` 新建 agent、
-`send_message` 发消息、`list_agents` 列出 agent**。
+以下接口复用现有分支、Job 与执行控制，完成回送等目标行为须按 §7 验收。
 
 ### 2.1 工具
 
-**`agent` — 派生新 agent（唯一会创建分支的工具）：**
+现有 `agent` 接受 `prompt`、可选 `description`、`agent_id`、`start_from="clean"`、`run_in_background=False`、`to=""` 和 `archive_when_done=False`。`agent_id` 选择保存配置，解析契约由配置文档定义。前台创建调用 `run_agent_turn`，通过 `spawn_job(wait=True)` 持久化 Job 并等待结果。后台创建和已有分支派发同样准入 Job。前台工具返回最终文本，不返回后台形式的即时 execution-ID 回执；返回形式不改变资源准入。
 
-```
-agent(
-    prompt: str,                        # 给被派生 agent 的指令
-    description: str = "",              # 简短 label，成为分支名
-    agent_id: str = "",                 # agent 档案；默认用本会话的
-    start_from: str = "clean",          # "clean" / "inherit" / "SID:MSG_ID"
-    run_in_background: bool = false,    # false=阻塞等回复；true=返回 job_id
-    to: str = "",                       # 改为给已有 agent 派活
-    archive_when_done: bool = false,    # 派生的 agent 终态即归档（§2.6）
-) -> str
-```
+`start_from` 分别选择新根（clean）、调用方历史（inherit）或精确 predecessor `SID:MSG`。执行前应检查存在性及历史读取授权；§7 区分已实现的存在性检查与目标共享可见性策略。已归档历史可以作为 fork 来源，因为 fork 创建新分支，不向已归档分支投递。
 
-`start_from` 决定新分支从哪起：`"clean"`（默认）新根、只见 prompt；
-`"inherit"` 从当前轮 fork、带全链；`"SID:MSG_ID"` 从那个节点（任意
-session）fork、继承到该节点为止的链。`run_in_background=true` 返回 `job_id`，配套
-`job_output(job_id)`（阻塞取结果）和 `job_stop(job_id)`（取消）管理
-异步形态。
+session S 的节点 A 使用 `start_from="T:M"` 时，新分支在 T 执行。后台 Job 记录 `parent_session_id=T`、`parent_msg_id=M`、`caller_session_id=S`、`caller_msg_id=A`。attach 引用本身存储在 S 的 A 旁，其载荷 `attach.session_id=T` 和终态 `attach.head_id` 指认目标结果。
 
-`"SID:MSG_ID"` 是精确 fork 地址。在接收任务前必须同时确认 session 和
-message 存在；这个 message 不会被改为分支当前 tip。已归档分支仍可作为
-fork 来源，因为该操作只读历史并创建新分支，不是向已归档分支投递任务。
-
-地址指向另一个 session 时，必须分开两种 session 角色。session S 的节点 A
-从 `"T:M"` 启动时，新分支和 canonical Job 在目标 session T 执行，M 是精确
-predecessor。Job 记录 `parent_session_id=T`、`parent_msg_id=M`、
-`caller_session_id=S`、`caller_msg_id=A`。attach 卡片存在源 session S 的 A
-旁边，但卡片中的 `attach.session_id` 是 T，终态 `head_id` 是目标分支的
-tip。创建或终态化卡片不移动 S 的 HEAD；派生轮使用 `advance_head=false`，
-也不替换 T 当前选中的 HEAD。异步完成后，第 2.5 节的普通回送 turn 可以再
-推进 S 的 HEAD。
-
-**`to=` — 给已有 agent 派受管任务。** 传了 `to` 就不新建分支：prompt 作为
-一件正式任务派给指认的已有分支。寻址与 send_message 完全一致
-（`"SID:HEAD"` 归位到分支当前末端；分支名先精确匹配、再唯一前缀；歧义列出
-候选）。派活与发消息的区别在任务追踪：
-
-- 创建 **Task 记录**（runner 侧的任务条目）：派活方立即拿到 `job_id`，
-  `job_output` 可等，`job_stop` 可撤回或取消，`list_jobs` 可见。
-- 投递复用消息机制：目标空闲，任务作为它分支上的下一轮立刻跑；目标忙，任务
-  排进它的收件箱（§5.4）。Task 记录以 `pending` 预建，排队期间 id 就存在，
-  drain 时跑的是同一个 task。投出的这一轮带任务来源头
-  （`[task from SID:HEAD] This is a tracked task …`），目标知道这轮的回复
-  就是任务结果，会自动回给派活方。
-- 终态后结果回流：往派活方会话投一条followup通知，回复正文内联在通知里。
-  派活不创建分支，所以没有attach指针：attach记录的是"这次调用创造了它指向的
-  那条分支"，派给一个已经存在的agent不成立。
-- `to` 与 `start_from` 互斥（目标分支自带历史，再选 fork 点自相矛盾，直接
-  报错）。`to` 必然异步，`run_in_background` 被忽略。派给自己当前分支被
-  拒绝（直接继续做）。派活花的是消息预算，不是派生预算（§5.1），因为它不创建
-  agent。
-
-**`send_message` — 和已存在的 agent 通信：**
-
-```
-send_message(
-    message: str,                       # 投给目标的内容/指令
-    to: str,                            # 见下方 to 取值
-    agent_id: str = "main",             # 目标用哪个 agent
-) -> str
-```
-
-**`to` 取值，每个取值都指认一条已存在的分支：**
-
-| to | 含义 |
+| 渲染或读取操作 | 使用的身份 |
 |---|---|
-| `"sid:head"` | 往一条已存在分支投 message。节点指认的是分支，不是 fork 点：投递永远落在该分支的当前末端，旧 head（分支后来又跑过 turn）仍是有效地址，不会从历史节点岔出新分支。节点若是多条分支的公共祖先则报歧义，错误里列出候选（名字 + `sid:当前末端`）。归位只作用于活分支：被合并吸收的那条分支，它的 head 解析到自己（§2.6）。要从指定节点 fork 用 `agent(start_from="sid:msg_id")`。 |
-| `"<分支名>"` | 按名投递。不是 `SID:HEAD` 语法时按名字解析：精确匹配优先，唯一前缀次之；多个命中返回错误并列出候选（名字 + `sid:head`），零命中提示用 `list_agents`。`list_agents` 输出里标出每条分支的名字，模型可以直接按名寻址。 |
+| 定位引用卡片及发起节点 | 存储消息或 WS 外层的源 `session_id`，以及 pointer ID/caller 元数据 |
+| 读取所引用结果 | `extra.attach.session_id` 与 `extra.attach.head_id`，不能在源 DAG 中查目标节点 |
+| 绘制同 session 分支关系 | 仅源与目标 session 相同时使用本地 DAG 连线 |
+| 展示跨 session 引用 | 使用 external attach card，保留目标 session/head 引用及源卡片位置 |
 
-已删除的 spawn 寻址（`to="new"` / `"new:sid:msg_id"`）直接报错，并指向
-`agent` 工具。
+UI 已区分本地 attach 关系和跨 session 卡片。当前完整 AttachCard 打开 T 但未明确选中 H，execution strip 能选择 (T,H)；目标要求一致的精确 head 跳转，此差异列在 §7。创建或终态化 attach 都不移动 S、T 的选中 HEAD，之后获授权的 follow-up 是独立轮次。源身份属于存储消息/事件外层，不在目标载荷再维护一份可独立修改的字段。投影时验证两端身份，不一致时报错，不能任选其一。见 [DAG attach 渲染](dag/rendering.zh.md)。
 
-每次投递（直投或 §5.4 的排队消费）都会加一个发件人回执头：
-`[message from SID:HEAD] To reply, use send_message(to="SID:HEAD"). Replying is
-optional …`。收件方由此知道谁发的、怎么回、以及不回也是正当的。agent
-工具的派生投的是裸 prompt：被派生的 agent 没有需要回信的发送方。
+`agent(to=...)` 为已有分支准入一个 Job，目标忙则排队。地址解析到当前 tip，名字歧义时返回候选。它不创建新 attach。`to` 与 `archive_when_done=True` 不能同时使用，只有创建分支的调用才能声明完成归档策略。
 
-一种用法：
+`send_message(message, to, agent_id="main")` 复用已有目标解析。直接异步投递会创建 Job，返回的 `delivery_id` 指认该执行；目标忙时先创建收件箱条目，此时投递回执与稍后执行 ID 分开。它不创建新分支。旧 `to="new"` 形式无效，创建使用 `agent(start_from=..., prompt=...)`。投递与准入限制见 §5.1–5.2。
 
-- **发消息给已有分支/session**：`to="sid:head"` → 往那条分支投 message，触发它
-  跑一轮，答完自动回送。跨 session 同一路径（to 是任意 session）。
-
-两个工具驱动同一个原语：派生就是同一条投递→触发→回送流程，只是目标分支
-是当场新建的。
-
-**一条流程，谁发起都一样：**
-1. 定目标分支：`agent` 当场新建（`start_from` 定起点）；`send_message` 把
-   `to` 解析到已存在分支的当前末端。
-2. 发件人回执头加上消息，一起投过去。
-3. 目标跑一轮，模型读到投来的全部内容。
-4. 回复自己回来。发送瞬间就返回了，发起方全程不阻塞；目标答完，答案追加到
-   发起方的对话里，发起方跑一轮读到它。
+显式消息包含发件地址和可选额外 `send_message` 回复说明。目标自动完成回送与是否额外发消息分别定义，当前接入状态见 §7。目标不存在时不能静默新建。
 
 ### 2.2 引用别的分支
 
 message 就是纯文本，跟用户消息一样。要让目标参考别的分支，发送方直接写进
 `message`：结论已经通过回送回到发送方手里，直接引用；或者点名分支
 （`SID:HEAD` 或分支名），目标自己用 `read_conversation` 去读。读多少由目标
-模型自己决定，context 天然有界，不需要专门的聚合参数。
+模型自己决定，但仍遵守 §5.6 的输出限制和 §5.9 的读取授权；不增加专门的聚合参数。
 
-### 2.3 `list_agents` — 看见对方（通信的前提）
+### 2.3 `list_agents` — 发现可寻址分支
 
 ```
 list_agents(scope="session", limit=20, agent_id?, source?) -> str   # db.list_sessions + db.list_branches
 ```
 
-`scope` 决定看哪一片：`"session"`（默认）列当前 session 的分支，也就是在这里
+`scope` 决定查询范围：`"session"`（默认）列当前 session 的分支，也就是在这里
 派生出来的 agent；`"all"` 放宽到所有 session，最近活跃优先，不带预览；
 `"archived"` 列当前 session 已归档的分支（§2.6），前两种视图会把它们藏起来。
 
@@ -247,22 +119,24 @@ id、标题、agent、busy/idle 状态（`run_control.is_turn_running`，探测�
   了命名的分级、锁、触发点；本节只强调：**agent 工具派生的分支和用户手动
   fork 的分支，走同一套命名（都要 Stage 1 占位名 + Stage 2 自动改名），不能漏。**
 
-### 2.5 回送节点落在哪：发起方当前尾部，串行成链
+### 2.5 回送位置：发起方当前 HEAD，串行处理
+
+本节描述目标完成语义及已有 helper 行为，不代表标准完成路径已接入，见 §7。
 
 异步回送时，`_dispatch_followup` 把目标分支的回复作为一个
-**synthetic user-role turn** 喂回投递 session。**关键规则：回送的 `TurnRequest`
+**synthetic user-role turn** 提交到投递 session。**关键规则：回送的 `TurnRequest`
 不设 `branch_from`（INHERIT_PARENT），dispatcher 解析为投递 session 当前的
-HEAD 并推进它。**每个投递 session 有一把回送串行锁
-（`JobRunner._followup_lock`），并发完成被串行化：N 个子任务跑完形成一条串行链
+HEAD 并推进它。**每个投递 session 使用独立的回送串行锁
+（`JobRunner._followup_lock`），并发完成被串行化：N 个子任务完成形成一条串行链
 `… → notice₁ → answer₁ → notice₂ → answer₂`，每条回送读到的 HEAD 已包含上一条的回答。
 
-为什么不把回送钉在发起节点（`caller_msg_id`）上：同一轮 fork 出 N 个并行子任务时，
-每条回送都会作为同一节点的 sibling 落下，触发派生的那一条用户消息会在 N 条并行分支
-上被回答 N 次。锚在 HEAD 让 N 次完成始终走同一条会话主线。
+回送不以发起节点（`caller_msg_id`）为 predecessor：同一轮 fork 出 N 个并行子任务时，
+否则每条回送都会成为同一节点的 sibling，触发派生的那一条用户消息会在 N 条并行分支
+上被回答 N 次。使用当前 HEAD 让 N 次完成沿同一条会话分支串行处理。
 
-这样锚定不丢回流出处：派生时写下的 **attach 指针**仍然挂
-`predecessor = caller_msg_id`，DAG 上照样能看出每条子分支从哪一轮 fork 出去、
-每个结果从哪条分支回流。子分支本身是并列的独立一支，**不并回主线**。
+来源关联仍由派生时写入的 **attach 指针**记录，其
+`predecessor = caller_msg_id`。DAG 保留每条子分支的发起轮次与每个结果的来源分支。
+子分支保持独立，**不合并到发起方分支**。
 
 跨会话派生时，指针仍位于发起方 session，但引用目标
 `(session_id, head_id)`。终态化从目标 session 读目标分支及其 ContextCommit，
@@ -273,72 +147,28 @@ HEAD 并推进它。**每个投递 session 有一把回送串行锁
 不再内联一份重复回复。`send_message` 与 `agent(to=...)` 不创建分支和 attach
 指针，因此它们的回复仍内联，也不会得到任何 spawn 标记。
 
-### 2.6 归档：把一个 agent 从 agent 列表里移出
+### 2.6 归档：全局分支状态
 
-分支在 session DAG 里永久存在，fork、回放、`read_conversation` 都依赖这一点，
-所以没有归档标记时 `list_agents` 会攒下历史上派生过的每一个 agent，模型还会
-继续去找那些任务早就做完的 worker。归档就是这个标记：分支 meta 条目上的
-`archived: true`，和分支名同一个 `branches` 条目，用 `set_branch_meta` 写、
-`get_branch_meta` 读。和名字共用一个条目是安全的：每个写入方都在索引锁里按字段
-合并，Stage-2 自动命名（branch-naming.md）只写 `name` 和它自己的计数器，冲不掉
-归档标记；何况已归档的分支根本不进自动命名，活干完的 agent 不需要新名字。
+归档将 `archived: true` 写入目标分支元数据，作用于同一本地状态目录，不是“归档者→目标”的可见关系。A 归档 B 后，C 之后调用 `list_agents(scope="session"/"all")` 同样不再列出 B。`scope="archived"` 明确查看已归档分支记录。历史仍保留，归档不等于删除数据或回收存储空间。
 
-**归档后分支不再接收新的投递，它的历史照常保留。**
+“单向”仅指状态转换：当前工具没有反归档操作，不表示“只对调用方隐藏”。复用归档历史使用 `agent(start_from="SID:MSG", prompt=...)` 创建生命周期独立的新分支。闲置但从未归档的分支仍可出现在列表中；由明确手动操作或完成策略决定归档状态，不按查看者分别过滤。
 
-| 对已归档分支的操作 | 行为 |
+| 对已归档分支的操作 | 契约 |
 |---|---|
-| `list_agents`（`scope="session"` / `"all"`） | 不列 |
-| `list_agents(scope="archived")` | 列出每一条已归档分支，包括已被合并吸收的 |
-| `send_message(to=…)` | 报错：`agent SID:HEAD is archived` |
-| `agent(to=…)` | 同样报错，同一句话 |
-| `read_conversation` | 照读 |
-| `agent(start_from="SID:MSG_ID")` | 照 fork |
+| 普通 `list_agents` 视图 | 同一存储内对所有调用方隐藏 |
+| `scope="archived"` | 在归档视图显示，也包括已被合并的归档分支记录 |
+| 新 `send_message` / `agent(to=...)` | 由共享已有目标解析器拒绝 |
+| 已在执行的 Job | 继续运行，归档不执行取消 |
+| `read_conversation` / 历史 fork | 仍须满足历史可见范围；归档本身不授予读取权限 |
 
-拒收只写在一处：两条投递路径共用的寻址 `resolve_existing_target`（§2.1）在把
-地址归位到分支当前末端之后立刻查这个标记，于是每条投递都自带这道守卫，谁也
-绕不过去。`archive_agent` 用同一个寻址加 `allow_archived=True` 来指认已归档
-分支。
+合并与归档分别存储：已合并分支可以不在活跃 tip 列表中，但不一定带归档标记。归档视图读取分支记录；归档 merged head 时必须指向它自己的分支，而非吸收它的分支。
 
-**归档和合并正交。**合并把一条分支吸收进另一条，被吸收的head从`list_branches`
-里消失，因为它的内容已经能从吸收它的那条分支读到。这讲的是内容存在哪里，而且它
-自动发生：后台派生一旦成功完成，task runner就吸收掉它的分支。归档讲的是分支上
-那个agent已经收工，永远是一次显式动作。两者互不蕴含，于是分开存、分开读
-（`merged_heads`在session meta上，`archived`在分支条目上）：
+两个入口最终设置同一个归档状态：
 
-- `list_agents(scope="archived")`读的是分支条目上的归档标记
-  （`store.list_archived_branches`），不是从活分支末端列表里筛，所以每一条已归档
-  分支都会列出，不管有没有被合并吸收。`archive_when_done`在成功派生上看得见效果，
-  靠的就是这一点：成功恰好就是合并先发生的那种情况。
-- 默认scope和`scope="all"`列的是活分支末端，所以被合并的分支不进这两个视图，
-  归不归档都一样。这是合并本来的行为，归档不改它。
-- 被合并分支的head仍然指认它自己那条分支。`resolve_existing_target`只把地址归位
-  到活分支的当前末端；已退休分支的head不归位到别处，解析到它自己
-  （`store.merged_heads`）。没有这条规则，`archive_agent(to="SID:MERGED_HEAD")`
-  会解析到吸收了这个节点的那条活分支，归档错的那一条，还报成功。
+- `archive_agent(to, reason="")` 归档已有分支，重复手动调用幂等。当前实现允许具备该工具能力的本地 session 归档其他分支，没有 creator-only 检查；这是共享本地信任范围，不构成多用户隔离。目标生命周期操作应复用与其他分支操作一致的作用域授权。
+- `agent(archive_when_done=True)` 仅为该次调用新建的分支声明终态归档策略，与 `to` 同传报错。同步路径已经写标记；异步 helper 存在，但标准完成路径的接入必须通过 §7 验收后才可声称已实现。
 
-两种归档方式：
-
-- **`agent(archive_when_done=true)`**：派生时就声明这个 agent 是一次性 worker。
-  分支在任务终态（`completed` / `errored` / `cancelled`）被打上标记，时点在
-  结果回流之后；同步派生形态则在结果拿到手后打标。这次写入是 best-effort：
-  meta 写失败只记日志，结果照常返回。只对派生生效，和 `to=` 同时传会报错，
-  因为派活指向的是本次调用没有创建的 agent。
-- **`archive_agent(to, reason="")`**：事后归档。`to` 收 `send_message` 那套
-  地址（`"SID:HEAD"` 或分支名）。对已归档分支再归档是一句幂等提示，不是错误。
-
-**任何 session 都能归档任何 agent。** 归档不像 `job_stop`（§5.10）那样设门，
-因为它做的事和 `job_stop` 不是一回事：它不中断任何在跑的工作，也不删任何数据。
-分支上已经在跑的任务照跑到完，`read_conversation` 照读，
-`agent(start_from="SID:MSG_ID")` 照 fork。变的只有两件事：这个分支从 `list_agents`
-里消失，并且不再接收 `send_message` 和 `agent(to=)`。谁都看得出一个 agent 的活
-干完了，那谁都可以说出来。
-
-**归档是单向的，没有反归档。** 这个标记的含义是"这段对话结束了"，而结束的对话若
-还有值得复用的记忆，做法是用 `agent(start_from="SID:MSG_ID")` fork 出一条新分支，
-它有自己的名字和自己的生命周期，复用记忆本来就需要这样一条新分支。反归档工具只会
-是同一件事的第二种写法。
-
----
+手动归档先发生时，不取消正在执行的 Job，终态处理也不能重新开放分支。目标共享归档操作保留首次 `archived_at` 和明确手动原因；自动请求只能补未设置字段，不能覆盖。当前自动/同步写入可能刷新时间戳，因此元数据幂等仍需实现。自动归档保存失败应单独报告，不把已成功的执行结果改成失败。已接受但尚未启动的投递在启动前重查归档状态；拒绝时为 Job/回执记录明确原因，不能静默丢弃。
 
 ## 3. 协作进行时是什么样
 
@@ -356,166 +186,72 @@ HEAD 并推进它。**每个投递 session 有一把回送串行锁
 事件层本身（总线、事件模型、注册表、否决协议）写在
 [proactive/event-layer](../proactive/event-layer.zh.md)。
 
----
 
-## 4. 端到端：两个 agent 互相看见 + 通信
+## 4. 端到端目标流程
 
-A、B 同时在跑（同 session 不同分支，或不同 session）：
+1. 从 `list_agents` 或明确地址解析可见且获授权的已有目标。
+2. 提交 `send_message` 或 `agent(to=...)`，分别确认收件箱接收和 Job 准入；准入拒绝返回原因，不声称已启动。
+3. 目标在自身配置的上下文、资源限制与执行授权下运行。忙目标遵守共享串行/排队策略，发送方无需阻塞。
+4. 对已准入的受管执行，先提交终态结果与 attach 状态，再按完成策略向发起方至多提交一次幂等非空 follow-up；失败或空输出不能产生无界回送循环。
+5. 委派额度耗尽后，仍可授权读取 `job_output`/执行资源；新派发重新检查拓扑、资源、归档与授权限制。
 
-1. **看见**：A 调 `list_agents` → 看到 B 的 session 和它的活跃分支
-   `(B_session, B_head)`。
-2. **发**：A 调 `send_message("...", to="B_session:B_head")` → 瞬间返回，
-   A 继续。
-3. **B 收到**：消息进 B 分支（B 那边一个 △"收到 A 的消息"），B 跑一轮答它（△）。
-   两边前端经 ws.frame 实时看到。
-4. **回送 A**：B 答完，`_dispatch_followup` 自动把回复追加到 A 末尾（△）+ 触发 A
-   跑一轮，A 醒来读到、可继续。
-5. **可循环**：A 再 `send_message` 给 B……两条分支各自不阻塞、不串行。
-
-派生（`agent` 工具）是同一流程的另一种参数化，不另列。
-
----
+自动回送接入是必须通过公开入口验收的项目，直接调用 helper 的测试不能证明该行为已完成。
 
 ## 5. 健壮性与安全
 
 通信会创建分支、触发别的分支跑、跨 session 写，这些副作用必须有边界。
 
-### 5.1 每条链有三个预算
+### 5.1 拓扑限制与精确超限行为
 
-允许递归协作（被派生的agent还能再往下派消息做多层分解），三个预算保证它有限。
-**链**指一次用户轮次产生的全部调用。其中两个预算跟着链走，各有各的计数器；
-第三个数的是一轮之内的兄弟数量。
+深度、消息计数和扇出限制协作拓扑，不等于 token 预算、session 累计准入或权限。[资源治理](agent-resource-governance.zh.html) 单独定义 live/queued/累计数量及 token/cost/runtime/idle 限制。
 
-| 预算 | 配置项 | 默认 | 计数器 | 什么动作花它 |
-|---|---|---|---|---|
-| **派生深度** | `agent.max_spawn_depth` | 1 | `depth._chain_generations` | 只有创建agent才花：不带`to=`的`agent`。新agent往下走一代 |
-| **消息数** | `agent.max_messages` | 8 | `depth._chain_messages` | 每一跳都花：派生、`send_message` 投递、`agent(to=…)` 派活、结果回送 |
-| **扇出** | `agent.max_spawn_fanout` | 8 | `agent._fanout_used`，按（会话，轮次）计 | 创建agent，按轮次计而不是按链计 |
+| 限制 | 当前设置 / 默认值 | 范围与计数 |
+|---|---|---|
+| 派生深度 | `agent.max_spawn_depth=1` | 一条执行关系路径上的代数，仅新建分支增加 |
+| 消息 | `agent.max_messages=8` | 一条执行关系路径上的消息深度；投递把发送方计数 +1 传给目标，不累加发送方同轮的兄弟调用 |
+| 扇出 | `agent.max_spawn_fanout=8` | 调用方 `(session, turn)` 内新建分支数量，已有分支派发与消息不消耗 |
 
-**任一项设成 0 就是取消该上限**：既不累积也不拒绝。
+拓扑设置为 `0` 表示不执行对应限制检查，传递的上下文计数仍可存在。资源 schema 使用不同语义：`null` 表示未设置/继承，明确数值必须为正。不能将拓扑的 `0=不限` 套用到资源字段。
 
-**读结果花的是消息，不花代数。**把已完成agent的回复带回来的那一轮是**派发方**
-自己的轮次，所以它跑在派发方的代数上（`Task.caller_chain_generations`，由
-`JobRunner._dispatch_followup`重新绑定），消息数则往前走一格。多agent最常见
-的形态因此保持通畅：派一批活出去，看回来的结果，再派下一批。两个预算共用一个
-计数器就会把这条路堵死：协调者的followup轮次继承worker的计数1，那条链里后续
-每次调用`agent`都会被拒。真正让这种链停下来的是消息计数：每一波都花消息，
-第8条把它停住。
+follow-up helper 原样绑定已完成 Job 的 `chain_messages`，并恢复 `caller_chain_generations`，读取结果不额外加一次消息或代数。因此消息上限不是统计所有分支通信的共享累计额度。兄弟调用及累计工作量分别受扇出与 session 准入限制。该 helper 的标准完成路径接入仍须按 §7 验收。
 
-```bash
-openprogram config set agent.max_spawn_depth 2   # 允许 worker 再开一代
-openprogram config set agent.max_messages 0      # agent 之间随便聊
-openprogram config set agent.max_spawn_fanout 16 # 一轮铺得更宽
-```
-
-**预算耗尽时的表现**：超额的那次调用被拒绝，理由回给模型，其它工具照常可用。
-**消息预算**耗尽后，`agent`、`job_output`、`job_stop`直接从工具清单里消失：
-任何一种派发都要交出一条消息，消息用完这三个工具就什么也做不成，而工具摆在清单里
-模型就会去调用。代数预算不摘工具，因为代数用完还能把活派给已存在的agent。扇出
-预算也不摘：工具清单在轮次开始时冻结，这个数要到轮次里才花掉，所以它只能拒绝。
-
-默认值（派生深度1、消息8、扇出8）下的典型行为：
-
-- 主 agent 派 worker。worker 再想派生会被告知自己动手做。
-- 同一个 worker 仍然有 `agent(to=…)` 和 `send_message`：能把任务交给**已存在**的
-  agent，能回复给它发消息的 agent。对它关掉的只是"再开一代"。
-- 主agent派出一波worker，读回结果，再派下一波。读结果花消息不花代数，所以
-  不论派多少波，worker始终只在第一代上。
-- A和B来回对话在这条链的第8条消息后停下，不论此刻轮到谁。回送这一跳重新绑定
-  已完成task的计数而不是加一，所以一个来回花1，8条够走八个来回。
-- 一轮里第9次调用`agent`被拒绝，并被指回它已经有的那8个。下一轮的扇出预算
-  重新开始，所以这条上限拦的是失控的那一轮，不是整个会话的配额。
-
-`agent.max_spawn_depth: 2`时worker可以再开一代，第三代被拒。三项都是`0`时
-什么都不拒，防失控就只剩并发上限和每轮迭代上限（§5.2）以及用户按停止。
-
-**自发拒绝**不受三个预算影响，永远生效：to指向发起分支自己是直接环，立即拒绝。
-
-**这几个数是怎么定的。**每个默认值都对着
-`agent-collab-comparison.html` §05那八个参考实现校准过，理由写在各自常量旁边
-（`agent.MAX_SPAWN_DEPTH`、`agent.MAX_SPAWN_FANOUT`、`depth.MAX_MESSAGES`）。
-
-- **派生深度1**是openclaw、codex-cli V1、hermes-agent、opencode共同的选择。
-  Claude Code的3不能照搬：它泄露的源码树里根本没有深度计数器，`Agent`工具在
-  每个子agent的工具池里都被摘掉，除非`USER_TYPE=ant`，所以外部用户在那边的实际
-  深度就是1；它的异步工具白名单里也没有`Agent`，所以后台子agent无论计数器写几
-  都不能再派生。深度3只作用于同步嵌套，那条路上父的工具调用会一直阻塞到孩子跑完。
-  我们的无人值守路径是`run_in_background=True`，在那条路上Claude Code用的正是1。
-- **消息8**锚在openclaw上，八家里只有它数同一样东西：它的agent之间来回循环
-  默认5次交替回复，最多20次。8落在两者之间，一个还要为派生和派活买单的计数器
-  就该落在这个位置。
-- **扇出8**补的是此前没人数的那种失控。派生把计数交给孩子、自己那份不动，所以在这
-  条预算之前，一轮可以一直调`agent`，直到50次迭代上限把它停下。八家里只有openclaw
-  有真正的扇出上限（每个父最多5个活着的孩子，可配1到20）；hermes的3和pi-mono
-  的8校验的是一次调用里那个批量参数的长度，不能照搬，因为`agent`一次只创建一个孩子。
-  8是我们四个worker的两倍宽度，一轮可以把池子填满，后面再排一波。
-
-**看过但没有采用的两条防护。**openclaw给父发给子的消息加了2秒限速，
-hermes给每个被委派的子任务600秒超时。
-
-- 2秒限速守的是openclaw的steer通道：那条路会中止孩子正在跑的那一轮、清空它的
-  队列、再重启一遍，所以两次steer挨太近会在中止过程中互相中止。它那条不中断的
-  send通道完全没有限速。我们的`send_message`属于不中断的那种：目标忙就排队
-  （§5.4），消息作为它自己的一轮被消费，没有可以打断的东西。
-- hermes的600秒是调用方一侧的`Future.result(timeout=…)`，不是杀。到点它只是
-  设一个协作式中断标志然后放弃那个线程，孩子如果卡在阻塞I/O上会继续跑。这两半我们
-  都有，而且更强：`job_output(timeout=)`就是同样的调用方等待（默认30秒，上限
-  600秒），`job_stop`除了协作式取消还会杀掉活动运行时，30秒后强制把实体置终态。
-  我们和hermes都没有的是一个没人盯着也会到点触发的死线。要加就是在`JobRunner`
-  提交时挂一个定时的`cancel_job`，而让它很少用得上的那条边界是下面每轮50次迭代的上限。
-
-**两个计数怎么传下去**。两个计数各存在一个 ContextVar 里
-（`send_message…depth._chain_messages`、`._chain_generations`）。一条链要跨三个
-线程边界，每个边界都得显式把它们交接过去，因为 Python 新起的线程里 ContextVar
-全是默认值：
-
-| 跨越 | 计数怎么到达 |
+| 达到上限后的操作 | 要求的行为 |
 |---|---|
-| dispatcher → 工具体 | `functions/_runtime.py` 里的 `copy_context()` 把两个都带进执行器线程 |
-| 发送方 → task worker | 两个都写在 Task 实体上（`chain_messages` 恒为发送方 + 1；`chain_generations` 派生时 + 1、派活时不动），由 `JobRunner._run_one` 重新绑定 |
-| task → 回送 followup | `JobRunner._dispatch_followup` 在自己的线程里绑定这个已完成 task 的 `chain_messages` 和它的 `caller_chain_generations` |
+| 新建分支时消息、深度或扇出已耗尽 | 拒绝这次创建并返回原因；被拒绝请求不创建分支或 Job |
+| 消息耗尽后 `agent(to=B)` / `send_message(to=B)` | 即使不创建分支也拒绝这次投递；仅深度/扇出耗尽不阻止它们 |
+| 已存在 Job、调用方当前轮次、非委派本地工具 | 不因达到拓扑上限就自动取消 |
+| `job_output`、执行快照、`execution.cancel` | 在各自授权范围内继续可用；查询和停止不消耗委派额度 |
 
-回送这一跳正是两个预算分道的地方，两个方向都要紧。消息从孩子那边接着往下走：
-followup轮次正是A读到B回复、写下一条消息的地方，followup若从0开始，A每一轮
-都拿到全新预算，8条上限永远走不到。代数则退回派发方的计数：followup不创建
-任何agent，继承孩子的计数会让一个刚读完worker回复的agent在这条链里再也创建
-不出新agent。
+当前 `agent`/`send_message` 检查新投递限制；但 `job_output` 也被 `can_use=delegation_budget_left` 隐藏，与目标查询契约冲突，明确列为待修复。不能把工具发现中的隐藏解释为取消正在运行的 Job。当前没有注册 `job_stop` 工具。
 
-同一个线程还把 `_current_job_id` 绑成这个已完成 task 的 `parent_job_id`，
-于是 A 在读回复时派出的 task 落在级联取消要走的同一条谱系上（§5.3）。
+派生在三项中同时消耗消息深度、代数及调用方轮次扇出；已有分支派发只消耗消息深度，但仍须为新执行通过 §5.2 准入。后续独立用户轮次有新的拓扑上下文，已接受 Job 仍计入 session 累计资源数量。向自身当前分支投递另行拒绝。
 
-这些工具读的 session id（`run_control._current_session_id`）由 `TurnBindings`
-在一轮的时长内与 turn id 一并绑定，因此进入 `process_user_turn` 的每条路径上它
-都在，而不只是调用方碰巧先绑过的那几条。绑定只在无人绑定时补上：某个入口若把这个
-id 持有在比一轮更宽的作用域里（webui 执行线程、task runner worker、channel
-adapter），它继续持有，于是一个跑别的 session 的嵌套轮次不会把 cancel hook 或
-`runtime.ask` 指向一个没注册 turn token 的 session。
+默认值的参考对照保留在[协作对比](agent-collab-comparison.zh.html)，当前限制以源码和上述 schema 为准，不依据与其他产品的推定等价关系。
 
-### 5.2 并发上限 + 排队
+### 5.2 live、queued 与累计执行资源
 
-- 派生走`JobRunner`线程池，上限`OPENPROGRAM_JOB_WORKERS`（默认4）。一次派八
-  个：超出上限的**排队**，槽位空出再跑，不会过载。这是个全局池，它限制的是同时在跑
-  多少，不是一轮能造出多少工作，后者归扇出预算管（§5.1）。
-- 聊天轮次，包括派生出来的那些，没有内层工具调用硬上限（Codex 循环到助手文本为止；DeepSeek 的 ReactLoopAgent 没有 maxSteps）。调用方给的`max_iterations`仍可停掉嵌套的`runtime.exec`（默认 20）。连续两次相同失败工具会被跳过。用户可以取消这一轮。
+资源检查在 §5.1 之外同时生效，不是对那三个计数器改名。
 
-### 5.3 取消传播（级联）
+| 资源限制 | 计量对象 | 到达限制时 |
+|---|---|---|
+| `max_live_per_session` 与 `OPENPROGRAM_JOB_WORKERS` | 目标 session 活跃执行 / 全局 worker 容量 | 已准入 Job 无执行容量时保持 queued |
+| `max_queued_per_session` | 已接受但等待执行容量的 Job | 队列满拒绝准入，`quota.queue_full` 通常可重试，不虚构 Job |
+| `max_jobs_per_session` | 目标 session 成功准入 Job 的累计数，包含后来终态的 Job | `quota.jobs_exhausted` 拒绝；终态完成不归还累计数 |
+| token / cost / runtime / idle | 执行及继承的预算范围 | 按资源治理执行预留、取消与计量 |
 
-- 取消一个 task 时，**它派出的所有子 task 也被取消**。任何在运行中 task 内部
-  发起的派生都会在 Task 实体上记下链条（`parent_job_id`，由 runner 的
-  当前 task ContextVar 默认填入）。`JobRunner.cancel_job` 沿这条链对持久化
-  实体做广度优先遍历（visited 集合防环，即使出现畸形环也能终止）：
-  pending/queued 的后代直接翻成 cancelled、不再被拾取；running 的后代走与根
-  相同的单 task 取消路径：session cancel event + `kill_active_runtime` +
-  30 秒强制取消看门狗。不留僵尸线程/子进程。
-- **后代先于根被取消**。取消根会让它的 worker 退出，空出来的线程池槽位立刻启动
-  下一个排队的 future，那正是级联还没走到的后代，于是它为用户已经叫停的工作跑
-  完了一整轮。先走链条，捡起这个后代的 worker 看到的实体已经是 `cancelled`，
-  直接返回，不会调 `run_agent_turn`。只改顺序：`cancel_job` 仍然返回根更新后的
-  实体，task id 解析不到 session 时仍然返回 `None`。
-- session 级取消（用户对某 session 按 Stop）额外清空该 session 的
-  send_message 收件箱（`inbox.clear`）：排队消息是还没开始的新工作，用户停掉
-  一个 session 就是要它的全部工作都停。每条被丢的消息在其发送方 session 落一条
-  系统提示，让发送方知道消息未被投递。
+当前 governor 将 session 计数归属到 `Job.parent_session_id`，也就是实际执行所在 session。S→T 跨 session 调用记在 T；`caller_session_id=S` 表示调用来源，不会把准入账目静默改到 S。调用方轮次扇出和父预算范围仍是独立约束。因此 `max_jobs_per_session` 不是深度或扇出预算的别名。
+
+后台创建、`agent(to=...)` 和 `send_message` 触发的实际异步轮次都会进入 Job 准入。目标忙的 `agent(to=...)` 在等待收件箱前已有准入 Job；普通消息则可能先只有回执，提交轮次时才准入。不能把回执展示成已接受执行，已有排队 Job 启动时也不能重复消耗累计准入数。
+
+前台新建分支同样通过 `run_agent_turn` → `spawn_job(wait=True)` 准入 Job，因此计入 Job 资源限制。普通主聊天及其他直接 runtime 入口需要分别核对，不能仅凭“前台”一词判断是否计量。
+
+拓扑限制设为零不关闭资源治理或取消。“一次派 30 个全部排队”不是通用保证，扇出、队列或累计限制都可能在进入容量队列前拒绝请求。
+
+### 5.3 取消传播
+
+复用 canonical execution 取消路径与 `parent_job_id` 执行关系。取消父执行须阻止尚未启动的后代，向活跃后代发出取消，并在确认实际退出前保持 stopping。撤回排队工作不能发出停止整个 session 的请求而中断其他执行。终态 Job 仍可查询，累计准入数不归还。
+
+界面区分取消已请求与停止已确认。资源释放、worker 丢失、不可抢占操作及恢复以[资源治理](agent-resource-governance.zh.html)为准；固定 watchdog 超时不能证明线程或子进程已经退出。session 级 Stop 比取消指定执行范围更大，撤回的收件箱投递必须留下明确结果。
 
 ### 5.4 发给"正在跑"的分支（竞态）
 
@@ -532,7 +268,7 @@ runner worker）都在 finally 里成对注册/注销 cancel token，token 在�
   处理"。
 - **消费**：dispatcher 在 turn 收尾时清空收件箱（`_process_turn_once` →
   `_drain_send_message_inbox`，成功和 error 两个 return 点都挂），每条经正常
-  路径投出一轮异步 turn（`run_agent_turn_async` → auto-followup 回流发送方），
+  异步执行路径提交轮次；完成通知依照目标契约和 §7 状态处理，
   从目标当前 head 继续。先投递后删除：两步之间崩溃可能重复投递（可接受），
   反过来会丢消息（不可接受）。排队这一跳和直投一样花消息预算（§5.1）。
 - **上限**：每个目标最多积压50条，满了丢最旧并在被丢消息的发送方session落一条
@@ -548,21 +284,19 @@ B 空闲则立即投递（原有行为）。
 ### 5.5 失败回送
 
 子/目标分支失败（崩溃 / 超时 / 模型报错）：**也回送**，回送内容带 `is_error` + 原因
-（"B 失败了：<原因>"），发起方模型读到后自行决定重发/换路/放弃。**不内置重试/熔断**：
-父是模型，由它判断比固定策略好。
+（"B 失败了：<原因>"），发起方模型读到后自行决定重发/换路/放弃。不据此自动重派任务；新派发仍须满足授权与剩余限制，provider 传输重试沿用自身独立策略。
 
-### 5.6 结果截断
+### 5.6 结果截断与全文存储
 
-回送内容超过 `max_result_chars`（复用 `@function` 的 30k 默认）就**截断头尾 + 存完整
-文件**，回送里给文件路径。巨量中间结果不撑爆发起方 context、不阻塞主流程。
+当前通用字符串/`ToolReturn` 规范化器默认上限为 30,000 字符，可按上下文容量进一步降低，保留头尾摘要，并可将 UTF-8 全文写入 `<state_dir>/tool_results/<sanitized-call-id>.txt`。默认 profile 对应 `~/.openprogram/tool_results/...`，它是状态目录文件，不是系统临时文件。只有写入成功才返回路径，写失败不能虚构路径。
 
-### 5.7 子分支的身份 / 最小权限
+这还不是所有 Job 结果的统一保证：`job_output` 返回 `AgentToolResult`，共享规范化器直接传递而不截断；follow-up helper 也可能内联完整 `result_text`。从检查的 helper 无法确认自动 TTL/清理策略，也没有目标 session 文件 ACL。
 
-- `agent_id` 指定子分支用哪个 agent（不同 agent = 不同 system + 工具集 + 模型）。
-- model 支持 `inherit`（继承发起方模型），也可显式指定更弱的。
-- **默认子分支权限不高于发起方**（最小权限）；危险工具（删文件等）仍走 §5.8 拦截，
-  `permission_mode=bypass` 关不掉拦截点。
-- 子分支**只看到投递消息及其后的响应**，不继承发起方完整历史（省 context + 隔离）。
+目标结果契约让 `job_output` 与内联 follow-up 使用同一受限摘要，完整 canonical 结果仍保存在执行/session 存储。全文 artifact 记录执行 ID、所属 session/project、媒体类型、字节数与内容散列；读取使用与结果相同的可见范围检查。不展示路径不等于限制了通用文件系统访问。artifact 保留期跟随所属执行配置，归档本身不删除它。在资源与保留策略接入之前，只报告现有路径和未确认生命周期，不声称会自动过期或已隔离。测试覆盖结构化结果限长、落盘失败、授权后重读及保留文件清理。
+
+### 5.7 配置、上下文与授权
+
+`agent_id` 选择保存的执行配置，与分支身份分别表达。保存/临时配置覆盖和模型选择由 [Agent 配置](agent-configuration-ui.zh.html)定义，更换配置不能扩大调用方强制授权。clean 不继承对话消息，inherit 与精确 SID:MSG 只提供经过授权的选中历史；三种方式都不删除系统策略，也不建立文件系统隔离。调用方明确选择历史时，不能再一概声称子分支只看到 prompt。
 
 ### 5.8 值守拦截 + 校验
 
@@ -570,30 +304,19 @@ B 空闲则立即投递（原有行为）。
   一个拦截点，`permission_mode=bypass` 关不掉它。
 - `to` 指向不存在的东西就报错，不会静默新建。常规权限门控照常叠加在上面。
 
-### 5.9 分支可见性
+### 5.9 历史可见范围与归档授权
 
-分支标记 **内部（子派生）vs 用户可见**：内部分支只能被 `send_message` 触发，不进
-UI 的会话选择列表（但 DAG 照画、能被 list_agents 列出供 agent 寻址）。
+目标共享可见性策略覆盖 `read_conversation`、`start_from` 的来源历史、指定上下文、attach 展开及结果 artifact 读取。加载内容前核对调用主体和 project/session 范围。分支地址、保存 `agent_id` 或拥有工具本身不构成目标访问授权；拒绝目标后不能通过降级读取泄漏预览、标题或存在性。归档需相应生命周期权限，并改变全局保存的分支状态（§2.6）。
 
-### 5.10 任务归属（job_output / job_stop）
+当前 `read_conversation` 解析 session/head 后读取本地分支，没有目标级 owner/project ACL。工具能力检查因此只是较宽的本地信任范围，不代表逐 Agent 隐私隔离。历史读取和归档工具接入共享授权之前，不能声称不同 Agent 或用户的数据已隔离。“内部”分支标记仅控制 UI 展示，不是授权边界，也不禁止 `agent(to=...)` 寻址其他条件满足的分支。
 
-`read_conversation` 能读任意分支，任何 agent 都能拿到任意 job_id。
-不设门槛的话，任何 agent 都能等待或取消别人派出的任务。所以 `job_output` 和
-`job_stop` 执行前核对归属：当前 session 必须是该 task 的派活方
-（`caller_session_id`，同 session spawn 则是 `parent_session_id`），或在
-任务链祖先上（当前 task 经 `parent_job_id` 是它的祖先，或当前 session
-派发过它的某个祖先，与级联取消走的是同一条链）。都不是则拒绝：
-`[job_stop error] task {id} was not dispatched by this session`。无
-session 上下文的调用（用户、UI）不受这条限制。
+### 5.10 结果归属与执行控制
 
-`job_stop` 对 `to=` 派出的任务按状态分三种：
+当前 `job_output` 使用 `_ownership.check_job_ownership`：session 属于 Job 的执行 session（`parent_session_id`）、caller session 或祖先关系时允许读取。helper 最多检查 64 层祖先并防止循环；没有当前 session 上下文时不返回拒绝，这个 helper 本身不负责用户或 API 身份认证。
 
-- **排队中**（目标当时忙，任务在它收件箱里）→ 从收件箱撤回，记录翻
-  `cancelled`。不发 session 级取消：目标正在跑的是别人的轮，撤回不能
-  终止它。
-- **在跑** → 取消目标分支上的那一轮（task 取消事件 + session 取消桥 +
-  runtime 终止 + 30 秒看门狗），不终止目标 agent 或它的 session。
-- **已终态** → 幂等 no-op。
+Canonical execution 读/控制有独立的已有授权边界：检查 owner 权限、目标 project/session、动作授权和所需 capability，控制要求 `runtime.control`。`execution.cancel` 使用当前执行版本与 command ID，不是 `job_stop` 别名。知道 execution ID 不获得控制权。§5.9 的历史策略复用这套授权框架，不假定能读本地分支就拥有执行控制权。
+
+取消规则由[执行控制](execution/control.zh.html)与[资源治理](agent-resource-governance.zh.html)定义。排队取消阻止该执行启动，不停止同目标上无关的轮次；运行取消进入 stopping，确认退出后才释放资源；终态取消幂等。不能保证任意 Python 线程立即消失，也不能把取消请求被接受当成已停止证明。
 
 ### 5.11 明确不做（及理由）
 
@@ -604,21 +327,48 @@ session 上下文的调用（用户、UI）不受这条限制。
 - **内置聚合函数**（投票 / 全部成功等）：综合就是在 `message` 里点名分支、让目标
   模型自己读完综合（§2.2），模型综合比预设聚合灵活，不做固定聚合算子。
 
----
 
-## 6. 可以核对的行为
+## 6. 公开入口验收
 
-下面每一条都能独立看到：在 web 界面里，或者在 session 事件日志里。
+下列是必须观察到的行为，不表示所有场景已经验证通过。
 
-| 行为 | 表现 |
+| 场景 | 可观察结果 |
 |---|---|
-| 派生（`agent` 工具） | agent 调一次，新建分支跑一轮，结果自动回到发起方；派生过程在事件日志里可见 |
-| 列举 | `list_agents` 列出真实的多 session 及各自的分支 |
-| 归档（§2.6） | 已归档 agent 从 `list_agents` 消失、在 `scope="archived"` 里出现；`send_message` 与 `agent(to=)` 拒收，`read_conversation` 与 `agent(start_from=…)` 照常；任何 session 都能归档任何 agent，且标记单向；成功完成、已被合并吸收的派生同样出现在 `scope="archived"` 里，它的 head 也仍然指认它自己那条分支 |
-| 发给同 session 已有分支 | A 发给同 session 的 B 分支，A 不阻塞，B 跑一轮，回复自动回 A |
-| 跨 session | 向另一个 session 投递时两边实时更新。`send_message` / `agent(to=...)` 仍是纯消息投递。`agent(start_from="T:M")` 在 T 创建分支和 canonical Job，卡片留在发起 session，源与目标 DAG 节点分别标记 `spawn_out` / `spawn_remote`，不移动任一选中 HEAD |
-| 健壮性（§5） | A↔B 互发到消息预算用完自动停，预算为 0 时不停；一次派 30 个是排队不是过载；取消父→子全停；给正忙的 B 发消息先排队、等它这轮结束再投；子失败父会被告知；超大结果截断并给出文件路径 |
-| 安全（§5.7-5.9） | deny 策略下投递被拦下等确认；不存在的 to 报错；子分支权限不高于父、不进 UI 选择列表 |
-| 前端 | web 界面里选分支发消息，DAG 出现通信节点，hover 显示回流连线 |
+| C1 名称与身份 | 注册工具为 `list_jobs`/`job_output`；前后台均准入 Job；取消使用带版本的 execution command |
+| C2 fork 并执行 | 一次 `agent(start_from="T:M", prompt=..., description=...)` 在 M 创建分支并执行 prompt；to 不创建缺失目标 |
+| C3 全局归档 | A 归档 B 后，C 普通列表也隐藏 B；归档视图保留记录，新投递拒绝；保留历史不代表获得读取权限 |
+| C4 完成归档 | 手动先发生、终态先发生及重试均保留首次时间戳/手动原因；归档不取消活跃工作；异步公开完成路径实际执行归档策略 |
+| C5 拓扑耗尽 | 消息耗尽拒绝 agent(to=B)，不取消已接受工作；深度/扇出耗尽仅拒绝新建分支；授权查询和取消保持可用 |
+| C6 资源交互 | 跨 session 在目标侧计准入；queue-full 与累计满错误不同；排队 Job 不重复计数；同步 Agent 同样受准入约束 |
+| C7 attach 位置 | 卡片留在 S，结果按 (T,H) 读取；完整 AttachCard 与 execution strip 都选中精确目标 head，不在 S 查 H |
+| C8 历史隐私 | 拒绝 read_conversation、历史 fork、指定上下文和 attach 展开时不泄漏目标内容/元数据；获准场景正常工作 |
+| C9 全文结果 | 结构化 Job 结果和内联 follow-up 都限长，全文仅经授权重读；写失败不返回假路径；保留策略只清理有权处理的自有 artifact |
+| C10 完成通知 | 从公开异步 Agent/消息入口到 canonical 完成后，预期 follow-up 仅触发一次；空结果、重试、失败、取消不产生无界后续轮次 |
 
----
+## 7. 实现状态与依据
+
+本次文档修订只进行源码检查和文档验证。helper 测试或函数定义不能证明公开入口已接入。以下运行变更仍属于实施计划，资源验证由关联资源设计负责。
+
+| 范围 | 源码现状 | 剩余验收 |
+|---|---|---|
+| 命名 / 前台准入 | 注册 list_jobs、job_output；同步 run_agent_turn 与异步 wrapper 都调用 Job 准入 | 工具、UI、文档 schema 保持一致，不恢复已删除 stop 别名 |
+| fork / 全局归档 | 已有一步历史 fork 与全局归档字段 | 手动/自动写入保留首次元数据，验证排队投递重查 |
+| 异步回送与自动归档 | helper 已定义；检查的 canonical 与借用 claim 完成路径更新 attach/唤醒等待者，但不调用这些 helper | 接入幂等完成行为并走公开入口验收；同步工具本地归档已经调用 |
+| 消息耗尽 | 新委派受限，job_output 也被相同 gate 隐藏 | 耗尽委派额度仍保留授权结果读取/控制 |
+| 历史可见范围 | read_conversation 读取本地存储，没有目标级 owner/project ACL | 接入共享可见性并验证所有消费历史入口 |
+| 跨 session attach | 数据/UI 已区分源位置与目标查找；完整卡片跳转未明确选择 H | 与 execution strip 对齐精确 head 跳转并验证两种入口 |
+| 结果截断 | 通用字符串 wrapper 落盘；结构化 Job 输出与内联 follow-up 未统一限长 | 接入统一截断、授权 artifact 和明确保留策略 |
+
+源码依据：
+
+- [Agent tool](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/agents/agent/agent/agent.py)
+- [Synchronous and asynchronous admission](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/agent/sub_agent_run.py)
+- [Archive](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/agents/send_message/archive_agent/archive_agent.py)
+- [Message delivery](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/agents/send_message/send_message/send_message.py)
+- [Job output](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/agents/agent/job_output/job_output.py)
+- [History read](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/tools/knowledge/read_conversation.py)
+- [Execution authorization](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/execution/authorization.py)
+- [Completion helpers](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/agent/job/runner/progress.py)
+- [Canonical completion](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/agent/job/runner/dispatch.py)
+- [Borrowed-claim completion](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/agent/job/runner/borrowed.py)
+- [Result persistence](https://github.com/Fzkuji/OpenProgram/blob/main/openprogram/programs/_execution_common.py)
