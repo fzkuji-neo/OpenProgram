@@ -366,7 +366,7 @@ export function WebTabPip() {
         ? prev
         : next
     ));
-  }, [live, expanded, rect, expandedSize]);
+  }, [live, expanded, rect, expandedSize, groups, activeId, tabId]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -374,10 +374,15 @@ export function WebTabPip() {
     const parent = el.offsetParent;
     if (!(parent instanceof HTMLElement)) return;
     const reclamp = () => {
+      const box = containerBox(el);
+      // Layout hydration and split resizing also move a preview that has no
+      // saved drag rectangle. Always refresh its owner bounds first.
+      setChatBox(prev => prev && prev.x === box.x && prev.y === box.y
+        && prev.width === box.width && prev.height === box.height ? prev : box);
       if (dragRef.current) return;
       const current = useWebTabPip.getState().rect;
       if (!current || expanded) return;
-      const next = clampPipRect(current, containerBox(el));
+      const next = clampPipRect(current, box);
       if (
         next.x !== current.x || next.y !== current.y
         || next.width !== current.width || next.height !== current.height
@@ -390,8 +395,9 @@ export function WebTabPip() {
     ro.observe(el);
     const chat = parent.querySelector(".center-pane-chat");
     if (chat instanceof HTMLElement) ro.observe(chat);
+    reclamp();
     return () => ro.disconnect();
-  }, [live, expanded, setRect]);
+  }, [live, expanded, setRect, tabId, groups, activeId]);
 
   useEffect(() => {
     if (!tabId || !live || interactive) return;
