@@ -80,7 +80,7 @@ async function checkTransferPreparationValidationAndAuthorization() {
 
   const invalidPayloads = [
     { ...testContext.webTransferPayload(["a"]), tabs: [] },
-    testContext.webTransferPayload(["a", "b", "c", "d"]),
+    testContext.webTransferPayload(Array.from({ length: 257 }, (_, index) => `limit-${index}`)),
     {
       ...testContext.webTransferPayload(["a", "b"]),
       tabs: [
@@ -129,6 +129,25 @@ async function checkTransferPreparationValidationAndAuthorization() {
   ];
   for (const payload of invalidPayloads) {
     testContext.assert.equal(testContext.prepareThroughIpc(sourceWin, payload), null);
+  }
+
+  for (const count of [4, 256]) {
+    const ids = Array.from({ length: count }, (_, index) => `group-${count}-${index}`);
+    const groupToken = testContext.prepareThroughIpc(sourceWin, testContext.webTransferPayload(ids));
+    testContext.assert.equal(typeof groupToken, "string");
+    const group = await testContext.ipcHandlers.get("tab-transfer:inspect")(
+      testContext.eventFor(destinationWin),
+      groupToken,
+    );
+    testContext.assert.equal(group.sourceId, sourceCtx.id);
+    testContext.assert.equal(group.payload.source.windowId, sourceCtx.id);
+    testContext.assert.deepEqual(testContext.plain(group.payload.tabs.map(tab => tab.id)), ids);
+    testContext.assert.deepEqual(testContext.plain(group.payload.source.memberIds), ids);
+    testContext.assert.equal(
+      await testContext.ipcHandlers.get("tab-transfer:cancel")(testContext.eventFor(sourceWin), groupToken),
+      true,
+    );
+    testContext.assert.equal(testContext.hooks.tabTransfers.status(sourceCtx, groupToken), null);
   }
 
   const boundaryPayload = testContext.webTransferPayload(["draft-boundary"]);
