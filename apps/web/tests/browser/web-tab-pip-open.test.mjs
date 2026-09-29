@@ -222,3 +222,33 @@ test("unsized preview follows its chat pane after layout hydration and resize", 
     legacy.remove();
   }
 });
+
+test("window release ends a drag when the native page consumes pointerup", async () => {
+  const previousEvent = globalThis.Event;
+  globalThis.Event = window.Event;
+  const pointer = (type, x, y) => {
+    const event = new window.Event(type, { bubbles: true });
+    Object.assign(event, { button: 0, buttons: 1, pointerId: 1, clientX: x, clientY: y });
+    return event;
+  };
+  try {
+    await withPip(async ({ host }) => {
+      const pip = host.querySelector('[data-pip="true"]');
+      const chrome = pip.firstElementChild;
+      await act(async () => {
+        chrome.dispatchEvent(pointer("pointerdown", 900, 100));
+        chrome.dispatchEvent(pointer("pointermove", 800, 160));
+        window.dispatchEvent(new window.Event("mouseup"));
+      });
+      const moved = useWebTabPip.getState().rect;
+      assert.ok(moved, "release must persist the moved rectangle");
+      const handle = pip.querySelector('[data-pip-resize="se"]');
+      await act(async () => {
+        handle.dispatchEvent(pointer("pointerdown", 800, 400));
+        handle.dispatchEvent(pointer("pointermove", 750, 370));
+        window.dispatchEvent(new window.Event("mouseup"));
+      });
+      assert.ok(useWebTabPip.getState().rect.width < moved.width, "next resize must not be blocked by the old drag");
+    });
+  } finally { globalThis.Event = previousEvent; }
+});
