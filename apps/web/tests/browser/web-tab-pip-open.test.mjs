@@ -46,7 +46,11 @@ Object.defineProperty(window, "location", { value: { pathname: "/chat" } });
 Object.defineProperty(window, "navigator", { value: { language: "en", userAgent: "" } });
 window.innerWidth = 1200;
 window.innerHeight = 800;
-window.ResizeObserver = class { observe() {} disconnect() {} unobserve() {} };
+const resizeObservers = new Set();
+window.ResizeObserver = class {
+  constructor(callback) { this.callback = callback; resizeObservers.add(this); }
+  observe() {} disconnect() { resizeObservers.delete(this); } unobserve() {}
+};
 globalThis.ResizeObserver = window.ResizeObserver;
 window.requestAnimationFrame = () => 0;
 window.cancelAnimationFrame = () => {};
@@ -179,4 +183,37 @@ test("browser PiP embeds an interactive sandboxed page and keeps Open page on ch
     assertRevealedExactPage({ page, hidden, session, prefBefore });
     assert.equal(host.querySelector("[data-pip='true']"), null, "opening the Page hides the chat preview");
   });
+});
+
+
+test("unsized preview follows its chat pane after layout hydration and resize", async () => {
+  const parent = document.body;
+  let chatWidth = 500;
+  let displayed = false;
+  const chat = document.createElement("div");
+  chat.className = "center-pane-chat";
+  parent.append(chat);
+  const previousRect = parent.getBoundingClientRect;
+  parent.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 800);
+  chat.getBoundingClientRect = () => new DOMRect(0, 0, chatWidth, 800);
+  const previousStyle = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = () => ({ display: displayed ? "flex" : "none" });
+  Object.defineProperty(window.HTMLElement.prototype, "offsetParent", { configurable: true, get() { return parent; } });
+  try {
+    await withPip(async ({ host }) => {
+      assert.equal(useWebTabPip.getState().rect, null);
+      const pip = host.querySelector('[data-pip="true"]');
+      displayed = true;
+      await act(async () => { for (const ro of [...resizeObservers]) ro.callback(); });
+      assert.ok(parseFloat(pip.style.left) + parseFloat(pip.style.width) <= chatWidth);
+      chatWidth = 350;
+      await act(async () => { for (const ro of [...resizeObservers]) ro.callback(); });
+      assert.ok(parseFloat(pip.style.left) + parseFloat(pip.style.width) <= chatWidth);
+    });
+  } finally {
+    delete window.HTMLElement.prototype.offsetParent;
+    globalThis.getComputedStyle = previousStyle;
+    parent.getBoundingClientRect = previousRect;
+    chat.remove();
+  }
 });
