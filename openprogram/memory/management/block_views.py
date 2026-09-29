@@ -29,6 +29,11 @@ MEMORY_FILE_MODE = 0o600
 
 class BlockViewsMixin:
     def _synchronize(self) -> str:
+        from ..policy import commit_guard
+        with commit_guard(self.memory_dir):
+            return self._synchronize_authorized()
+
+    def _synchronize_authorized(self) -> str:
         # A workspace that still keeps its always-on content at the root
         # hands it to topics/ here, once, so the rest of this runs over
         # one kind of file.

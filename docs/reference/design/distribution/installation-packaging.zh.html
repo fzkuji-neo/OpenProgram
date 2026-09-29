@@ -199,5 +199,6 @@ macOS 桌面资源目录
 <p>暂存步骤在重新打包前，从已安装的未打包目录恢复原文件权限。prebuilds 与 build/Release 下已知的 node-pty spawn-helper 文件会补齐执行位，即使先前刷新已损坏安装权限。其他文件保留已安装权限。权限修复不跟随符号链接。</p>
 <p>参考：已安装的 @electron/asar 中 insertFile 与 extractAll 实现。采用保留未打包源文件元数据的方式，不递归添加执行权限，也不更改操作系统隐私权限。签名与安装沿用现有刷新流程。</p>
 </section>
+<section><h2>本地刷新源码完整性</h2><p>默认 /Applications/OpenProgram.app 只从已提交且干净的 checkout 刷新，并要求包含本地 main 和已获取的 origin/main。目标路径在选择源码检查、runtime 路径和安装锁前完成解析：默认 App 的尾斜杠、点路径及符号链接别名使用相同的检查和锁。实际指向其他位置的自定义 App 保留原有源码检查行为。tracked 修改、暂存修改以及未被忽略的 untracked 文件均在打包前拒绝。打包结束后和安装锁内、修改 App、PATH 安装或 worker 前再次检查。打包期间已提交的 HEAD 变化仍按现有逻辑重新构建；产物固定后再次变化则终止安装。被忽略的构建产物和本地验收记录不会使源码检查失败。GUI Harness 继续使用固定提交的归档，源码、wheel 与 App 的版本检查继续生效。源码完整性回归使用临时 Git 仓库和假的 App/runtime 命令，不更新已安装 App。独立审查与合并后的实现验收仍待完成。</p></section>
 </body>
 </html>

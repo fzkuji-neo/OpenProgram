@@ -35,3 +35,5 @@ Already-extracted memory remains. This source-availability rule does not rewrite
 the existing Memory Git repository. Archiving hides a session, preserves its
 content and links, and does not automatically delete it after an age or capacity
 threshold.
+
+Agent-specific memory modes and separate spaces are configured in [Agents](agents.md). This editor manages the existing shared memory store.

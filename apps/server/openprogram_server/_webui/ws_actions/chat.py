@@ -572,6 +572,28 @@ async def handle_chat(ws, cmd: dict):
     if not text and attachments:
         text = "(see attachment)"
 
+    from .agent_invocation import (
+        AgentInvocationError, prepare_agent_invocation,
+        persist_agent_invocation, request_agent_invocation,
+    )
+    try:
+        agent_invocation = prepare_agent_invocation(cmd)
+    except AgentInvocationError as exc:
+        await ws.send_text(json.dumps({
+            "type": "chat_response", "data": {
+                "type": "error", "code": exc.code, "content": str(exc),
+                "session_id": session_id, "msg_id": str(uuid.uuid4())[:8],
+                "retry_query": text,
+            },
+        }))
+        return
+    if agent_invocation is not None:
+        # A new Agent conversation starts from its configuration. Unrelated
+        # composer defaults must not replace the Agent's effort or tools.
+        thinking_effort = agent_invocation["profile_snapshot"].get("thinking_effort") or None
+        tools_flag = None
+        web_search_flag = None
+
     # /skill <name> [rest of prompt] — expand the message in place by
     # loading the named SKILL.md and prepending its body, so the next
     # LLM turn has the skill's instructions available without us having
@@ -605,8 +627,12 @@ async def handle_chat(ws, cmd: dict):
                     try:
                         from openprogram.agent.management import manager as _A
                         from openprogram.agent.management.gating import gate as _gate
-                        ag = _A.get(agent_id) if hasattr(_A, "get") else None
-                        prof = ag.to_dict().get("skills", {}) if ag else {}
+                        from openprogram.agent.session_config import load_agent_session_binding
+                        bound = load_agent_session_binding(session_id) if session_id else {}
+                        profile = (agent_invocation["profile_snapshot"]
+                                   if agent_invocation is not None else bound.get("profile_snapshot"))
+                        ag = _A.get(agent_id or _db_agent_id(session_id)) if profile is None else None
+                        prof = profile.get("skills", {}) if profile is not None else ag.to_dict().get("skills", {}) if ag else {}
                         gate_error = _gate(
                             name=resolved.name,
                             category=resolved.category or "",
@@ -927,6 +953,8 @@ async def handle_chat(ws, cmd: dict):
         if session_db.get_session(session_id) is None:
             session_db.create_session(session_id, agent_id or _s._default_agent_id(),
                                       project_id=project_id)
+        if agent_invocation is not None:
+            persist_agent_invocation(session_id, agent_invocation, conv)
         run_cfg = save_session_run_config(
             session_id,
             agent_id=_db_agent_id(session_id),
@@ -1118,6 +1146,7 @@ async def handle_chat(ws, cmd: dict):
         "additional_working_dirs": getattr(run_cfg, "additional_working_dirs", []),
     }
     try:
+        _request_payload.update(request_agent_invocation(session_id, agent_invocation))
         _request = TurnRequest(**_request_payload)
         _admission = _adapter.admit(
             _request,

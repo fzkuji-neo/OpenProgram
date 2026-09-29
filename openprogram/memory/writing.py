@@ -146,6 +146,9 @@ def _records(
     """
     rows: list[SourceRecord] = []
     for index, message in enumerate(messages):
+        from .policy import source_matches_execution
+        if not source_matches_execution(message):
+            continue
         role = message.get("role")
         if role not in ("user", "assistant"):
             continue
@@ -533,7 +536,7 @@ def _force_branches(
     return db, _eligible_session_branches(db, session_id, fallback)
 
 
-def write(
+def _write_workspace(
     session_id: str,
     messages: list[dict[str, Any]] | None = None,
     *,
@@ -572,9 +575,15 @@ def write(
     from openprogram.agent.session_db import default_db
     from .runtime.mark_archived_turns import migrate
 
+    rows = messages if messages is not None else _branch(session_id)
+    candidates = rows
+    if force:
+        _db, _branches = _force_branches(session_id, messages)
+        candidates = [row for _, branch in _branches for row in branch]
+    if not _records(session_id, candidates):
+        return None
     root = store.ensure()
     migrate(root, default_db(), store.workspace_id())
-    rows = messages if messages is not None else _branch(session_id)
     if not force:
         write_session(session_id, rows, token_threshold=token_threshold)
         return None
@@ -614,6 +623,34 @@ def write(
                     ),
                 )
             branch_rows = db.get_branch(session_id, head) or []
+    return None
+
+
+def write(session_id: str, messages=None, *, token_threshold: int, force=False):
+    """Restore durable policy separately for each authorized destination."""
+    from .policy import current, eligible, from_snapshot, node_policy, scope
+    rows = messages if messages is not None else _branch(session_id)
+    if force and session_id:
+        _, branches = _force_branches(session_id, messages)
+        rows = [row for _, branch in branches for row in branch]
+    policies = {}
+    outer = current()
+    for row in rows:
+        if not eligible(row):
+            continue
+        raw = node_policy(row)
+        policy = from_snapshot(raw) if raw else None
+        if outer is not None and policy != outer:
+            continue
+        key = (policy.agent_id, policy.epoch, policy.created_at, policy.write_space) if policy else None
+        policies[key] = policy
+    if not session_id:
+        return _write_workspace(session_id, messages, token_threshold=token_threshold, force=force)
+    for policy in policies.values():
+        with scope(policy):
+            left = _write_workspace(session_id, messages, token_threshold=token_threshold, force=force)
+        if left is not None:
+            return left
     return None
 
 

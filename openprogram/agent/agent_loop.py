@@ -1133,9 +1133,14 @@ async def _stream_assistant_response(
             try:
                 from openprogram.memory import get_backend
                 prefetch_block = get_backend().search(latest_user_text)
-            except Exception:
+            except Exception as exc:
+                from openprogram.memory.policy import require_or_empty
+                require_or_empty(exc)
                 prefetch_block = ""
 
+    from openprogram.memory.policy import current as _memory_policy, allowed as _memory_allowed
+    if _memory_policy() is not None and not _memory_allowed():
+        prefetch_block = ""
     sys_prompt = context.system_prompt or None
     if structured_plan is not None and structured_plan.mode == "prompt":
         from openprogram.providers.structured_output import build_prompt_fallback

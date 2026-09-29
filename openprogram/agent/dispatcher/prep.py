@@ -66,6 +66,14 @@ def prepare_turn(
         # what's currently on the active branch.
         history = db.get_branch(req.session_id, req.branch_from)
 
+    from openprogram.memory.policy import bind_history, stamp
+    policy_history = list(history)
+    if req.spawn_caller:
+        caller_session = req.spawned_from_session or req.session_id
+        caller_rows = [row for row in db.get_messages(caller_session) if row.get("id") == req.spawn_caller]
+        policy_history.extend(caller_rows or [{"memory_policy": {}}])
+    bind_history(req, policy_history)
+
     # 2. Persist user message immediately (so a crash mid-stream still
     #    leaves the user's input recorded). Resolve predecessor:
     #      INHERIT_PARENT → tail of active branch, or NULL if empty
@@ -98,7 +106,9 @@ def prepare_turn(
                 session_id=req.session_id,
                 tier=normalize_authority(req).get("authority_tier"),
             ) or ""
-        except Exception:
+        except Exception as exc:
+            from openprogram.memory.policy import require_or_empty
+            require_or_empty(exc)
             memory_prefetch = ""
     user_msg: dict[str, Any] = {
         "id": user_msg_id,
@@ -116,6 +126,7 @@ def prepare_turn(
         # below — the pair lets the UI tag both halves of a turn.
         "agent_id": req.agent_id,
     }
+    user_msg.update(stamp(req))
     if req.spawn_caller and req.spawned_from_session:
         # A cross-session fork has two independent relations: predecessor is
         # the exact target-session context node, while caller identifies the
@@ -236,4 +247,6 @@ def prepare_turn(
         {"session": req.session_id},
     )
 
+    if req.user_already_persisted:
+        db.merge_node_metadata(req.session_id, user_msg_id, stamp(req))
     return session, history

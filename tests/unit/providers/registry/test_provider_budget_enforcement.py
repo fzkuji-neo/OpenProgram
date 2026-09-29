@@ -8,6 +8,7 @@ atomically, and fails closed when accounting is unavailable.
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 
@@ -38,6 +39,7 @@ from openprogram.providers.types import (
     ModelCost,
     SimpleStreamOptions,
     StreamOptions,
+    TextContent,
     Usage,
     ImageContent,
     UserMessage,
@@ -264,11 +266,26 @@ def test_agent_loop_default_provider_denial_precedes_config_credentials(
     assert env["provider"].seen_opts == []
 
 
+def _complete_agent_response(provider):
+    # Credential checks need a completed answer; empty responses intentionally
+    # trigger the agent's continuation policy and additional provider calls.
+    async def stream(model, context, opts):
+        async for event in provider.stream_simple(model, context, opts):
+            if isinstance(event, EventDone):
+                event.message.content = [TextContent(text="done")]
+            yield event
+
+    return stream
+
+
 def test_agent_loop_default_provider_resolves_config_credentials_once_after_preflight(
     wired, monkeypatch,
 ):
     env = wired(limits=ResourceLimits(max_total_tokens=100_000))
-    _bind_agent_provider(monkeypatch, env["provider"])
+    _bind_agent_provider(monkeypatch, SimpleNamespace(
+        requires_credentials=True,
+        stream_simple=_complete_agent_response(env["provider"]),
+    ))
     resolver_calls = []
 
     _drain_agent_loop(
@@ -291,7 +308,7 @@ def test_agent_loop_injected_stream_fn_keeps_config_credential_semantics(wired):
     _drain_agent_loop(
         env["model"],
         lambda provider: resolver_calls.append(provider) or "agent-key",
-        stream_fn=env["provider"].stream_simple,
+        stream_fn=_complete_agent_response(env["provider"]),
     )
 
     assert resolver_calls == ["fakeprov"]

@@ -278,6 +278,11 @@ function handleAck(
   const tabs = useCenterTabs.getState();
   const isActive = sessionAckIsActive(sid);
   tabs.markSessionReady(sid);
+  // The backend has durably accepted the Agent binding/snapshot. A rejected
+  // first send keeps this intent for retry; only an ACK consumes it.
+  if (useSessionStore.getState().composerSettingsBySession[sid]?.agentInvocation) {
+    useSessionStore.getState().setComposerSettings({ agentInvocation: undefined }, sid);
+  }
   if (isActive) useSessionStore.getState().setCurrentConv(sid);
   if (d.msg_id) sessionByMsgId.set(d.msg_id, sid);
 

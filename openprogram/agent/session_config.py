@@ -346,3 +346,27 @@ def _as_str_list(value: Any) -> list[str]:
     if isinstance(value, list):
         return [str(v) for v in value if str(v)]
     return []
+
+
+def load_agent_session_binding(session_id: str) -> dict[str, Any]:
+    """Read an accepted trial's immutable profile from existing session storage.
+
+    Shared by every dispatcher entry, including retry/edit and restored turns.
+    The read-only memory restriction belongs to the session, not to a renderer
+    flag which could disappear after refresh or a later normal chat message.
+    """
+    from copy import deepcopy
+    from openprogram.agent.session_db import default_db
+
+    row = default_db().get_session(session_id) or {}
+    if not row.get("agent_trial"):
+        return {}
+    profile = row.get("agent_profile_snapshot")
+    if not isinstance(profile, dict) or profile.get("id") != row.get("agent_id"):
+        raise ValueError("The saved Agent trial configuration is unavailable")
+    return {
+        "profile_snapshot": deepcopy(profile),
+        "memory_policy_override": {
+            "mode": "off" if (profile.get("memory") or {}).get("mode") == "off" else "read_only",
+        },
+    }

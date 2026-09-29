@@ -39,6 +39,7 @@ import {
 import { HoverTip } from "@/components/ui/tooltip";
 
 import { AgentSelector } from "./agent-selector";
+import { useBoundChat } from "./bound-chat";
 import { pushAgentSettings, pushBranchInfo, pushStatusBadge } from "@/lib/tabs/top-bar-sync";
 
 export { ProjectBadge } from "./project-menu";
@@ -102,7 +103,14 @@ export function AgentBadge({
   model?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const { t } = useTranslation();
+  const { t, text } = useTranslation();
+  const { chatKey } = useBoundChat();
+  const invocation = useSessionStore((state) => kind === "chat" && chatKey
+    ? state.composerSettingsBySession[chatKey]?.agentInvocation : undefined);
+  if (invocation?.resolvedModel) {
+    provider = invocation.resolvedModel.provider;
+    model = invocation.resolvedModel.id;
+  }
 
   // A `topbar-close-menus` event (fired by another top-bar dropdown)
   // closes this menu, so only one is ever open.
@@ -142,7 +150,7 @@ export function AgentBadge({
   // Tooltip carries the "what is this chip" intro, so the chip itself
   // shows only a glyph — plus the model name when one is set.
   const iconRef = useRef<AnimatedNavIconHandle>(null);
-  const tooltip = kind === "chat" ? t("agent.chat_agent") : t("agent.execution_agent");
+  const tooltip = invocation ? `${invocation.label || invocation.agentId}${invocation.trial ? text(" · Draft trial; memory is read-only or off", " · 草稿试运行；记忆只读或关闭") : ""}` : kind === "chat" ? t("agent.chat_agent") : t("agent.execution_agent");
   // Distinct glyph per role: message bubble = chat model, terminal =
   // execution / tool-running model. Both animated (pqoqubbw set).
   const Icon = kind === "chat" ? MessageCircleIcon : TerminalIcon;

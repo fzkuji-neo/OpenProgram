@@ -69,7 +69,8 @@ def get_backend() -> MemoryBackend:
             from .local_backend import LocalMemoryBackend
 
             _backend = LocalMemoryBackend()
-    return _backend
+    from .policy import ScopedBackend, current
+    return ScopedBackend(_backend) if current() is not None else _backend
 
 
 def set_backend(instance: MemoryBackend | None) -> None:

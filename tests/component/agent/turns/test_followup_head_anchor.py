@@ -224,3 +224,29 @@ def test_followup_lock_is_per_delivery_session(monkeypatch):
     b = r._followup_lock("sess_b")
     assert a is not b
     assert r._followup_lock("sess_a") is a
+
+
+def test_followup_keeps_protected_result_read_only(monkeypatch):
+    from openprogram.agent.job import runner as runner_mod
+    from openprogram.agent import dispatcher, session_db
+    from openprogram.memory.policy import MemoryPolicy
+
+    db = session_db.default_db()
+    db.append_message('S', {
+        'id': 'sub_tip', 'role': 'assistant', 'content': 'protected result',
+        'memory_policy': MemoryPolicy('main', mode='read_only', eligible=False).snapshot(),
+    })
+    seen = {}
+    done = threading.Event()
+
+    def process(req, **kwargs):
+        seen['override'] = req.memory_policy_override
+        seen['text'] = req.user_text
+        done.set()
+        return type('_R', (), {})()
+
+    monkeypatch.setattr(dispatcher, 'process_user_turn', process)
+    runner_mod.get_runner()._dispatch_followup(_make_job())
+    assert done.wait(2)
+    assert seen['override'] == {'mode': 'read_only'}
+    assert 'sub answer' in seen['text']

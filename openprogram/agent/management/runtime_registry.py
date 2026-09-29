@@ -6,7 +6,7 @@ multi-agent where each agent's provider/model/thinking effort are
 independent.
 
 Here we build and cache one runtime per agent. Cache key is
-``(agent_id, provider, model)``; if the user edits an agent's model
+``(agent_id, provider, model, thinking_effort)``; if the user edits a model
 pick we invalidate the entry automatically so the next turn creates a
 fresh runtime.
 
@@ -26,26 +26,27 @@ from openprogram.agent.management.manager import AgentSpec
 # Cache
 # ---------------------------------------------------------------------------
 
-_cache: dict[str, Tuple[str, str, Any]] = {}
+_cache: dict[str, Tuple[str, str, str, Any]] = {}
 _cache_lock = threading.Lock()
 
 
 def get_runtime_for(agent: AgentSpec) -> Any:
     """Return the runtime bound to this agent. Builds lazily; caches
-    by (agent_id, provider, model). Invalidates on model change."""
+    by (agent_id, provider, model, effort). Invalidates on config change."""
     key = agent.id
     provider = agent.model.provider or ""
     model_id = agent.model.id or ""
+    effort = agent.thinking_effort
 
     with _cache_lock:
         entry = _cache.get(key)
-        if entry and entry[0] == provider and entry[1] == model_id:
-            return entry[2]
+        if entry and entry[:3] == (provider, model_id, effort):
+            return entry[3]
 
     runtime = _build_runtime(provider, model_id)
-    _apply_thinking_effort(runtime, agent.thinking_effort)
+    _apply_thinking_effort(runtime, effort)
     with _cache_lock:
-        _cache[key] = (provider, model_id, runtime)
+        _cache[key] = (provider, model_id, effort, runtime)
     return runtime
 
 

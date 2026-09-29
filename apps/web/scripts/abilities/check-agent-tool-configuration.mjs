@@ -1,60 +1,54 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-
 import { groupTools } from "../../components/functions/tool-groups.ts";
 
 const root = new URL("../../", import.meta.url);
-const page = readFileSync(new URL("components/agents/agents-page.tsx", root), "utf8");
-const pageStyles = readFileSync(new URL("components/agents/agents-page.module.css", root), "utf8");
-const sidebar = readFileSync(new URL("components/sidebar/sidebar.tsx", root), "utf8");
-const primaryNav = readFileSync(new URL("components/sidebar/sidebar-primary-nav.tsx", root), "utf8");
-const sender = readFileSync(new URL("components/chat/composer/submit/send-chat-message.ts", root), "utf8");
-const route = readFileSync(new URL("../server/openprogram_server/_webui/routes/files/tree.py", root), "utf8");
-const manageHeaderMarkup = page.match(/<ManagePageHeader[\s\S]*?\/>/)?.[0];
-const fontDeclarations = pageStyles.match(/\bfont(?:-size)?\s*:[^;}]+/g) ?? [];
+const read = (name) => readFileSync(new URL(name, root), "utf8");
+const page = read("components/agents/agents-page.tsx");
+const types = read("components/agents/agent-types.ts");
+const capabilities = read("components/agents/agent-capabilities.tsx");
+const models = read("components/agents/model-picker.tsx");
+const controls = read("components/agents/agent-controls.tsx");
+const panels = read("components/agents/agent-panels.tsx");
+const pageStyles = read("components/agents/agents-page.module.css");
+const source = [page, types, capabilities, models, controls, panels].join("\n");
+const primaryNav = read("components/sidebar/sidebar-primary-nav.tsx");
+const sender = read("components/chat/composer/submit/send-chat-message.ts");
+const route = read("../server/openprogram_server/_webui/routes/files/tree.py");
 
-assert.match(page, /fetch\("\/api\/agents"/);
-assert.match(page, /fetch\(`\/api\/agents\/\$\{encodeURIComponent\(draft\.id\)\}`[\s\S]*method:\s*"PATCH"/);
-assert.match(page, /:\s*"\/api\/agents"[\s\S]*fetch\(url,\s*\{[\s\S]*?method:\s*"POST"/);
-assert.match(page, /className=\{styles\.inlineCreate\}[\s\S]*aria-label=\{text\("Agent name", "Agent 名称"\)\}/);
-assert.match(page, /body:\s*JSON\.stringify\(\{\s*name:\s*newName\.trim\(\)\s*\}\)/);
-assert.doesNotMatch(page, /const \[newId, setNewId\]/);
-assert.doesNotMatch(page, /function AgentDialog/);
-assert.match(pageStyles, /\.inlineCreate\{[^}]*display:flex/);
-assert.match(page, /applyAgent\(payload\.agent\);[\s\S]*setCreateOpen\(false\);[\s\S]*setNewName\(""\);[\s\S]*catch \(error\) \{[\s\S]*setNotice/);
-assert.doesNotMatch(page, /catch \(error\) \{[^}]*set(?:CreateOpen|NewName)\(/);
-assert.match(page, /\/default`[\s\S]*method:\s*"POST"/);
-assert.match(page, /method:\s*"DELETE"/);
-assert.match(page, /Overview[\s\S]*Model & Instructions[\s\S]*Programs[\s\S]*Skills[\s\S]*MCP[\s\S]*Sessions/);
-assert.match(page, /mode:\s*"automatic"\s*\|\s*"selected"\s*\|\s*"none"/);
-assert.match(page, /Access preset/);
-assert.match(page, /Tools[\s\S]*Connected Services[\s\S]*Workflows[\s\S]*Applications/);
-assert.match(page, /Browse programs/);
-assert.match(page, /fetch\("\/api\/skills"/);
-assert.match(page, /fetch\("\/api\/mcp\/servers"/);
-assert.match(page, /async function openPicker[\s\S]*Promise\.all\([\s\S]*fetch\("\/api\/programs"/);
-assert.match(page, /ManagePageHeader,\s*ManageRow,\s*managePageStyles/);
+// Structural boundaries, with user-visible flows covered by the real browser test.
+assert.match(page, /ManagePageHeader, managePageStyles/);
+assert.match(controls, /ManageRow/);
 assert.match(page, /settings-page\.module\.css/);
-assert.ok(manageHeaderMarkup, "Agents must reuse ManagePageHeader");
-assert.doesNotMatch(manageHeaderMarkup, /\btabs=/, "Agent configuration tabs belong below the selected Agent header");
 assert.match(page, /from "@\/components\/ui\/tabs"/);
-assert.match(page, /<Tabs[\s\S]*value=\{tab\}[\s\S]*onValueChange/);
-assert.match(page, /styles\.agentPageHeader[\s\S]*<TabsList/);
-assert.match(page, /className=\{`\$\{managePageStyles\.splitBody\} \$\{styles\.agentSplit\}`\}/);
-assert.match(pageStyles, /@media\(max-width:680px\)\{\.agentSplit\{grid-template-columns:1fr/);
-assert.match(page, /function NameDialog[\s\S]*<form className=\{styles\.dialogForm\} onSubmit=[\s\S]*styles\.dialogError[\s\S]*role="alert"/);
-assert.match(pageStyles, /\.dialogForm\{display:grid;gap:1rem\}/);
-assert.match(page, /<ManageRow[\s\S]*styles\.agentSelected/);
-assert.doesNotMatch(page, /styles\.(?:header|layout|agentRail|detailHeader|tabs)\b/);
-assert.doesNotMatch(pageStyles, /\.(?:header|layout|agentRail|detailHeader|tabs)\s*\{/);
-assert.ok(
-  fontDeclarations.every((declaration) =>
-    /^font-size:var\(--fs-(?:sm|base|md|lg)\)$/.test(declaration)
-    || declaration === "font:var(--fs-sm) var(--font-mono)"),
-  `Agents typography must use the shared scale, found: ${fontDeclarations.join(", ")}`,
-);
-assert.match(pageStyles, /\.configTab\{[^}]*font-size:var\(--fs-base\)/);
-assert.match(pageStyles, /\.formGrid label[^}]*font-size:var\(--fs-base\)/);
+assert.match(page, /from "@\/components\/ui\/dialog"/);
+assert.match(page, /<Tabs[\s\S]*value=\{tab\}/);
+assert.match(page, /<AgentListRow/);
+for (const name of ["overview", "model", "programs", "skills", "mcp", "memory", "context", "advanced"]) {
+  assert.match(types, new RegExp(`id: "${name}"`));
+}
+assert.match(page, /\/api\/agents/);
+assert.match(page, /expected_revision: baseline\?\.revision/);
+assert.match(page, /startAgentConversation/);
+assert.match(page, /beforeunload/);
+assert.match(models, /\/api\/providers\/list/);
+assert.match(models, /thinking_levels/);
+assert.doesNotMatch(models, /switchModel|setAgentSettings|method:\s*["'](?:POST|PATCH|PUT)["']/,
+  "The Agent model picker must not mutate current chat or provider defaults");
+for (const endpoint of ["/api/programs", "/api/tools", "/api/tool-profiles", "/api/skills", "/api/mcp/servers"]) {
+  assert.ok(capabilities.includes(endpoint), `Missing lazy catalog ${endpoint}`);
+}
+assert.match(capabilities, /Tools[\s\S]*Connected Services[\s\S]*Applications[\s\S]*Workflows/);
+assert.match(controls, /useActionIconAnimation/);
+assert.doesNotMatch(source, /from ["']lucide-react["']|<svg\b|<path\b/,
+  "Agent controls must reuse the existing animated icon repository");
+assert.match(pageStyles, /\.mobileAgentSelect/);
+assert.match(pageStyles, /@media\(max-width:680px\)/);
+const fontDeclarations = pageStyles.match(/\bfont(?:-size)?\s*:[^;}]+/g) ?? [];
+assert.ok(fontDeclarations.every((declaration) =>
+  /^font-size:var\(--fs-(?:sm|base|md|lg)\)$/.test(declaration)
+  || declaration === "font:var(--fs-sm) var(--font-mono)"),
+  `Agents typography must use the shared scale, found: ${fontDeclarations.join(", ")}`);
 assert.match(primaryNav, /href:\s*"\/agents"[\s\S]*nav\.agents/);
 assert.match(sender, /toolsProfile\s*!==\s*"__agent__"[\s\S]*payload\.tools_profile\s*=\s*toolsProfile/);
 assert.match(route, /_mcp_server[\s\S]*"source": "mcp" if mcp_server else "builtin"/);
@@ -66,9 +60,5 @@ const rows = [
   { name: "drawio__set_page", group: "connected", source: "mcp", server: "drawio" },
 ];
 const grouped = groupTools(rows.filter((tool) => tool.source === "mcp"), "server");
-assert.deepEqual(grouped.map((group) => [group.name, group.items.length]), [
-  ["drawio", 1],
-  ["linear", 2],
-]);
-
+assert.deepEqual(grouped.map((group) => [group.name, group.items.length]), [["drawio", 1], ["linear", 2]]);
 console.log("agent tool configuration checks passed");

@@ -561,7 +561,8 @@ def _promote_source(
     ):
         raise AuthorityError("only the local owner can promote memory")
 
-    with workspace_write_lock(root, timeout_s=1.0):
+    from openprogram.memory.policy import commit_guard
+    with workspace_write_lock(root, timeout_s=1.0), commit_guard(root):
         location = provider_source_location(str(source_id), v2=True)
         if location is None:
             raise ValueError("source_id must be provider/thread/message")
@@ -719,3 +720,18 @@ __all__ = [
     "PROMOTE_NAME", "PROMOTE_SPEC", "memory_promote",
     "STATUS_NAME", "STATUS_SPEC", "memory_status",
 ]
+
+# A registry filter is not an execution boundary: Python function calls and
+# previously disclosed tool handles must observe the same policy.
+from openprogram.memory.policy import guard_tool as _guard_memory_tool
+for _memory_name, _memory_spec, _memory_write in (
+    ('memory_search', SEARCH_SPEC, False), ('memory_grep', GREP_SPEC, False),
+    ('memory_get', GET_SPEC, False), ('memory_browse', BROWSE_SPEC, False),
+    ('memory_status', STATUS_SPEC, False), ('memory_update', UPDATE_SPEC, True),
+    ('memory_promote', PROMOTE_SPEC, True),
+):
+    _memory_spec['parameters']['properties']['space'] = {
+        'type': 'string', 'enum': ['self', 'legacy_global'],
+        'description': 'An authorized memory space; defaults to the execution binding.',
+    }
+    globals()[_memory_name] = _guard_memory_tool(globals()[_memory_name], write=_memory_write)

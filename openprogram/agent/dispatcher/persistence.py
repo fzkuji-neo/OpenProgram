@@ -120,6 +120,8 @@ def persist_assistant_message(
             usage.get("agent_iteration_count") or 0
         ),
     }
+    from openprogram.memory.policy import stamp
+    assistant_msg.update(stamp(req))
     if usage.get("service_tiers"):
         assistant_msg["usage"] = dict(usage)
     if hasattr(req, "_loaded_deferred_tools"):

@@ -140,16 +140,6 @@ function tap(el) {
   el.dispatchEvent(up);
 }
 
-function clickButton(button, { detail = 0, clientX = 0, clientY = 0 } = {}) {
-  const event = new window.Event("click", { bubbles: true, cancelable: true });
-  Object.defineProperties(event, {
-    detail: { value: detail },
-    clientX: { value: clientX },
-    clientY: { value: clientY },
-  });
-  button.dispatchEvent(event);
-}
-
 function labeledButton(host, label) {
   return [...host.querySelectorAll("button")].find(button =>
     button.getAttribute("aria-label") === label || button.getAttribute("title") === label);
@@ -178,22 +168,6 @@ function cueClick() {
       point: { x: 10, y: 20, width: 100, height: 80 },
     },
   });
-}
-
-function installNativeMenu() {
-  const popups = [];
-  const closed = [];
-  const resolvers = [];
-  window.openprogramDesktop = {
-    contextMenu: {
-      popup(request) {
-        popups.push(request);
-        return new Promise(resolve => { resolvers.push(resolve); });
-      },
-      close(id) { closed.push(id); },
-    },
-  };
-  return { popups, closed, resolvers };
 }
 
 async function mounted(check, { controlState = "active", connected = true } = {}) {
@@ -333,64 +307,8 @@ test("idle and closed do not render an enabled Pause", async () => {
   }, { controlState: "closed" });
 });
 
-test("native history uses context menu popup and does not occlude the page", async () => {
-  const menu = installNativeMenu();
-  await mounted(async host => {
-    await act(async () => { cueClick(); });
-    const history = labeledButton(host, "Operation history");
-    await act(async () => clickButton(history, { detail: 1, clientX: 12, clientY: 34 }));
-    assert.equal(menu.popups.length, 1);
-    assert.equal(menu.popups[0].x, 12);
-    assert.equal(menu.popups[0].y, 34);
-    assert.equal(history.getAttribute("aria-expanded"), "true");
-    assert.deepEqual(menu.popups[0].items.map(item => ({ id: item.id, label: item.label, disabled: item.disabled })), [
-      { id: "op-1", label: "click · acknowledged", disabled: true },
-    ]);
-    assert.equal(document.querySelector("[data-native-view-occluder]"), null);
-    assert.equal(document.querySelector('[role="menu"]'), null);
-    assert.equal(document.querySelector('[role="dialog"]'), null);
-    assert.equal(document.body.textContent.includes("click · acknowledged"), false);
-  });
-  assert.equal(menu.closed.length, 1);
-  assert.equal(menu.closed[0], menu.popups[0].requestId);
-});
-
-test("native history ignores a stale dismissal from an earlier popup", async () => {
-  const menu = installNativeMenu();
-  await mounted(async host => {
-    await act(async () => { cueClick(); });
-    const history = labeledButton(host, "Operation history");
-    await act(async () => history.click());
-    const first = menu.popups[0];
-    await act(async () => history.click());
-    assert.deepEqual(menu.closed, [first.requestId]);
-    await act(async () => history.click());
-    const second = menu.popups[1];
-    assert.ok(second);
-    assert.notEqual(second.requestId, first.requestId);
-    await act(async () => { menu.resolvers[0](null); });
-    assert.equal(history.getAttribute("aria-expanded"), "true");
-    assert.equal(document.querySelector('[role="menu"]'), null);
-    await act(async () => { menu.resolvers[1](null); });
-    assert.equal(history.getAttribute("aria-expanded"), "false");
-    assert.equal(window.__focused, history);
-  });
-});
-
-test("history keyboard activation opens the same native menu", async () => {
-  const menu = installNativeMenu();
-  await mounted(async host => {
-    await act(async () => { cueClick(); });
-    const history = labeledButton(host, "Operation history");
-    await act(async () => clickButton(history, { detail: 0 }));
-    assert.equal(menu.popups.length, 1);
-    assert.equal(menu.popups[0].x, 8);
-    assert.equal(menu.popups[0].y, 42);
-    assert.equal(menu.popups[0].items[0].label, "click · acknowledged");
-    assert.equal(menu.popups[0].items[0].disabled, true);
-    assert.equal(document.querySelector('[role="menu"]'), null);
-  });
-});
+// Pointer, keyboard, dismissal and focus behavior for the real renderer menu
+// live in tests/e2e/web/test_browser_control_menu.py (Web and desktop bridge).
 
 test("child pointer and keyboard do not fold; cancel does not toggle; expanded role is group", async () => {
   await mounted(async host => {

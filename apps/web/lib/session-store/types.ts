@@ -104,6 +104,8 @@ export interface AskOne {
  *  Persisted per session (see composerSettingsBySession) so each chat
  *  keeps its own; "" thinking means "model default". */
 export interface ComposerSettings {
+  /** First-turn Agent intent, scoped and persisted with this composer draft. */
+  agentInvocation?: import("@/lib/agents/start-conversation").AgentConversationIntent;
   thinking: string;
   tools: boolean;
   webSearch: boolean;

@@ -668,40 +668,7 @@ agent(prompt, agent_id=&quot;reviewer&quot;, history=&quot;selected&quot;, conte
 <p>Detailed scenario inputs, files, stage gates and implementation order are owned by the implementation-plan document. A passing static documentation check does not satisfy these runtime acceptance criteria.</p>
 </section>
 <section id="status">
-<h2>Implementation status</h2>
-<p>This revision is a complete target design, not an implementation report. Source-confirmed existing features are listed in the baseline section. New schema/revision semantics, atomic CAS, shared Agent selection in functions, per-execution memory controls, eight-section editor, effective-config preview, portable export and migration remain planned. The existing six-tab UI must not be described as proving these additions.</p>
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Evidence type</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Design scope and interfaces</td>
-<td>Specified; reviewable without runtime changes</td>
-</tr>
-<tr>
-<td>Production changes</td>
-<td>Not implemented in this documentation task</td>
-</tr>
-<tr>
-<td>Public-entry RED/GREEN and full gate</td>
-<td>Pending implementation; no fabricated counts</td>
-</tr>
-<tr>
-<td>Installed App / worker / remote deployment</td>
-<td>Unchanged</td>
-</tr>
-<tr>
-<td>Source evidence</td>
-<td>Linked files; exact implementation commits belong to the execution ledger after reviewed code exists</td>
-</tr>
-</tbody>
-</table>
-</div>
+<h2>Implementation status</h2><p>The production Agents page uses eight sections, a shared draft, catalog-based model selection, save-conflict comparison and existing animated icons. Persistence includes description, revision, atomic conditional saves, and a memory policy that defaults new configurations to off while retaining legacy shared read/write access. Web conversations use saved Agents; independent trials persist a read-only-or-off session snapshot. Missing required MCP servers fail before a model request.</p><p>Memory policy applies to execution, background extraction, derived results and recovery entries, with policy-epoch revalidation before commits. The available spaces are self and legacy_global. See <a href="../../../capabilities/agents.md">Configure an Agent</a> for product instructions.</p><p>Full schema 2 migration, transactional multi-file lifecycle writes, the unified Python AgentConfig API, resolver parity across every entry, arbitrary shared-space catalogs, effective-config preview, an embedded trial panel, portable import/export and automatic Agent/model selection remain target designs. The Web implementation does not establish acceptance of the complete plan. Delivery records retain exact commits, test commands and installation evidence.</p>
 </section>
 </main>
 </body>

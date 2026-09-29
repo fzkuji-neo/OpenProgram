@@ -80,10 +80,13 @@ export async function loadAgentSettings(): Promise<void> {
   try {
     let url = "/api/agent_settings";
     const st = useSessionStore.getState();
-    const sid =
+    // Unsent Agent tabs must not create a default-Agent session through
+    // the legacy settings endpoint before their explicit first message.
+    const pendingAgent = st.activeChatKey && st.composerSettingsBySession[st.activeChatKey]?.agentInvocation;
+    const sid = pendingAgent ? null : (
       st.currentSessionId
       ?? runtimeState.currentSessionId
-      ?? (st.activeChatKey && st.activeChatKey !== "__new__" ? st.activeChatKey : null);
+      ?? (st.activeChatKey && st.activeChatKey !== "__new__" ? st.activeChatKey : null));
     if (sid) {
       url += "?session_id=" + encodeURIComponent(sid);
     }

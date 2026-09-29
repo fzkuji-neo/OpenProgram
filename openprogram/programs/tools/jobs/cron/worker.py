@@ -237,7 +237,11 @@ def _run_prompt_job(spec: dict[str, Any], log_path: str) -> None:
                 if memory_refs:
                     from openprogram.memory.references import render_context
 
-                    context = render_context(memory_refs)
+                    from types import SimpleNamespace
+                    from openprogram.memory.policy import execution as memory_execution
+                    memory_request = SimpleNamespace(agent_id=spec["agent_id"], session_id=spec["session_id"])
+                    with memory_execution(memory_request):
+                        context = render_context(memory_refs)
                     if context:
                         prompt = f"{prompt}\n\n{context}"
                 from openprogram.agent.dispatcher import TurnRequest

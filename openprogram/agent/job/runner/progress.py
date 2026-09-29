@@ -442,8 +442,11 @@ class ProgressOperations:
                         f"了用户问题，用你自己的话重新组织一遍，"
                         f"并补充必要的背景或上下文。"
                     )
+                from openprogram.memory.policy import source_writable
+                memory_override = None if source_writable(job.parent_session_id, job.head_id) else {"mode": "read_only"}
                 req = TurnRequest(
                     session_id=deliver_session,
+                    memory_policy_override=memory_override,
                     user_text=followup_text,
                     agent_id=job.agent_id or "main",
                     source="job_followup",

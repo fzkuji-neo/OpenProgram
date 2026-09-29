@@ -257,7 +257,12 @@ class SourceArchiveMixin:
         )
         return f"[{ref if label is None else label}]({relative}#{anchor})"
 
-    def archive_source_records(
+    def archive_source_records(self, records, *, root=None):
+        from ..policy import commit_guard
+        with commit_guard(self.memory_dir):
+            return self._archive_source_records_authorized(records, root=root)
+
+    def _archive_source_records_authorized(
         self,
         records: list[SourceRecord],
         *,

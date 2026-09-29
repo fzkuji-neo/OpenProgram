@@ -29,3 +29,5 @@ OpenProgram 的底座是 Agentic Programming：**Python 控制流程，LLM 提�
 - [Plugins](plugins.zh.md) —— 从 pip / npm / git / 本地路径安装插件，向宿主贡献 commands、skills、MCP server 等
 - [MCP](mcp.zh.md) —— 接入任意 MCP server，其工具直接出现在聊天里
 - [内置工具](tools.zh.md) —— 随框架自带的工具清单（shell、文件、网络检索、图像、PDF 等）及各自需要的 key
+
+- [配置 Agent](agents.zh.md) —— 模型、指令、能力范围、记忆和独立试运行对话

@@ -65,6 +65,8 @@ def make_stream_tap(
             _tool_args_by_id[block["tool_call_id"]] = block
     dirty = False
 
+    from openprogram.memory.policy import stamp as _memory_stamp
+
     def flush() -> None:
         nonlocal dirty
         if not dirty or not placeholder_inserted:
@@ -73,7 +75,7 @@ def make_stream_tap(
             writer.update(
                 assistant_msg_id,
                 output="".join(b["text"] for b in blocks if b["type"] == "text"),
-                metadata={"extra": json.dumps({**(extra if isinstance(extra, dict) else {}), "blocks": blocks}, default=str)},
+                metadata={**_memory_stamp(req), "extra": json.dumps({**(extra if isinstance(extra, dict) else {}), "blocks": blocks}, default=str)},
             )
             dirty = False
         except Exception:
@@ -167,6 +169,7 @@ def make_stream_tap(
                     output=str(evt.get("result") or ""),
                     caller=assistant_msg_id,
                     metadata={
+                        **_memory_stamp(req),
                         "tool_call_id": tid,
                         "is_error": bool(evt.get("is_error")),
                         "outcome": evt.get("outcome"),

@@ -123,6 +123,10 @@ EVENTS: dict[str, EventSpec] = {
         payload_doc="{ok, tokens_before, tokens_after, ...} — a compaction "
                     "run finished",
     ),
+    "memory.degraded": EventSpec(
+        kind="notify",
+        payload_doc="{reason_code: str} — optional execution memory became unavailable",
+    ),
     "memory.ingest_started": EventSpec(
         kind="notify",
         payload_doc="{messages: int} — the session memory watcher began "
@@ -149,6 +153,17 @@ EVENTS: dict[str, EventSpec] = {
         kind="notify",
         payload_doc="{from, to} — one agent dispatched a message to another "
                     "session branch",
+    ),
+    "security.risky_tool_delegated": EventSpec(
+        kind="notify",
+        payload_doc="{session_id, tool, source, authority} — a delegated "
+                    "risky-tool permission check allowed by bypass or an allow "
+                    "rule, not an execution receipt; no argument content",
+    ),
+    "security.path_violation": EventSpec(
+        kind="notify",
+        payload_doc="{session_id, tool, reason} — a delegated write-target "
+                    "check denied access; fixed reason, no path or argument content",
     ),
     "agents.listed": EventSpec(
         kind="notify",
