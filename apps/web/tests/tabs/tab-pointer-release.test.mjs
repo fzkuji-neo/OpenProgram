@@ -8,7 +8,7 @@ import { parseHTML } from 'linkedom';
 const web = dirname(fileURLToPath(new URL('../../package.json', import.meta.url)));
 const dir = await mkdtemp(join(web, '.tab-pointer-test-'));
 after(() => rm(dir, {recursive:true, force:true}));
-await build({absWorkingDir:web, stdin:{contents:`export { useTabPointerDrag } from './components/center-tabs/use-tab-pointer-drag'; export { useCenterTabs } from './lib/tabs/center-tabs-store';`,resolveDir:web},bundle:true,format:'esm',platform:'node',packages:'external',outfile:join(dir,'test.mjs'),tsconfig:join(web,'tsconfig.json'),plugins:[{name:'services',setup(b){
+await build({absWorkingDir:web, stdin:{contents:`export { startPaneDrag } from './lib/tabs/canvas-drag'; export { useTabPointerDrag } from './components/center-tabs/use-tab-pointer-drag'; export { useCenterTabs } from './lib/tabs/center-tabs-store';`,resolveDir:web},bundle:true,format:'esm',platform:'node',packages:'external',outfile:join(dir,'test.mjs'),tsconfig:join(web,'tsconfig.json'),plugins:[{name:'services',setup(b){
  b.onResolve({filter:/desktop-bridge$/},()=>({path:'bridge',namespace:'stub'}));
  b.onResolve({filter:/\/i18n$/},()=>({path:'i18n',namespace:'stub'}));
  b.onResolve({filter:/net\/fetch-client/},()=>({path:'fetch',namespace:'stub'}));
@@ -23,7 +23,7 @@ window.getComputedStyle=()=>({paddingLeft:'0',paddingRight:'0'});
 globalThis.getComputedStyle=window.getComputedStyle;
 const {createElement:h,act}=await import('react');
 const {createRoot}=await import('react-dom/client');
-const {useTabPointerDrag,useCenterTabs}=await import(pathToFileURL(join(dir,'test.mjs')));
+const {startPaneDrag,useTabPointerDrag,useCenterTabs}=await import(pathToFileURL(join(dir,'test.mjs')));
 
 test('pointer press preserves current conversation; release activates and drag/cancel suppress clicks',async()=>{
  let hook; const consumed={current:null}; let activated=0; let detached=0; let posts=0;
@@ -68,4 +68,29 @@ test('pointer press preserves current conversation; release activates and drag/c
  target.remove();
  await fire('pointerdown');await fire('pointerup');await fire('click');assert.equal(useCenterTabs.getState().activeId,'w:b','next genuine click still activates');
  }finally{await act(async()=>root.unmount());host.remove();}
+});
+
+
+test('pane grip drags a full tab label rather than the three dots',()=>{
+ globalThis.bridge=null;
+ const grip=document.createElement('div');grip.innerHTML='<i></i><i></i><i></i><span data-pane-drag-label hidden style="display:none"><svg></svg><span>Google</span></span>';
+ document.body.append(grip);
+ grip.setPointerCapture=()=>{};grip.hasPointerCapture=()=>false;
+ const fire=(type,x,y)=>{const e=new window.Event(type);Object.assign(e,{pointerId:7,clientX:x,clientY:y});window.dispatchEvent(e);};
+ try {
+  startPaneDrag({button:0,target:grip,currentTarget:grip,pointerId:7,clientX:100,clientY:20},'w:b',grip.querySelector('[data-pane-drag-label]'));
+  fire('pointermove',102,21);
+  assert.equal(document.querySelector('[data-pane-drag-preview]'),null);
+  fire('pointermove',350,240);
+  const preview=document.querySelector('[data-pane-drag-preview]');
+  assert.ok(preview);assert.equal(preview.parentElement,document.body);
+  assert.equal(preview.textContent,'Google');assert.ok(preview.querySelector('svg'));
+  assert.equal(preview.querySelectorAll('i').length,0);
+  assert.equal(preview.hasAttribute('hidden'),false);assert.equal(preview.style.width,'220px');
+  assert.equal(preview.style.left,'240px');assert.equal(preview.style.top,'224px');
+  assert.equal(grip.style.visibility,'hidden');
+  fire('pointercancel',350,240);
+  assert.equal(document.querySelector('[data-pane-drag-preview]'),null);
+  assert.notEqual(grip.style.visibility,'hidden');
+ } finally {grip.remove();}
 });

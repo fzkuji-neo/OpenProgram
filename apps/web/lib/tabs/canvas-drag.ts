@@ -46,9 +46,10 @@ export function showCanvasDrop(drop: CanvasDrop | null) {
   const inset = 4;
   Object.assign(preview.style, { left: `${drop.rect.left + inset}px`, top: `${drop.rect.top + inset}px`, width: `${Math.max(0, drop.rect.width - inset * 2)}px`, height: `${Math.max(0, drop.rect.height - inset * 2)}px` });
 }
-export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: string) {
-  if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
-  const el = event.currentTarget, original = el.getAttribute("style"), rect = el.getBoundingClientRect();
+export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: string, label: HTMLElement | null) {
+  if (event.button !== 0 || !label || (event.target as HTMLElement).closest("button")) return;
+  const el = event.currentTarget, original = el.getAttribute("style");
+  let dragLabel: HTMLElement | null = null;
   const start = { x: event.clientX, y: event.clientY }; let started = false;
   const pointerId = event.pointerId;
   el.setPointerCapture(pointerId);
@@ -56,6 +57,7 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
   const payload = bridge && buildTransferPayload({ kind: "tab", tabIds: [tabId] }, bridge.windowId);
   const token = payload ? bridge?.tabTransfer.prepare(payload) : undefined;
   function cleanup() {
+    dragLabel?.remove(); dragLabel = null;
     if (el.hasPointerCapture(pointerId)) el.releasePointerCapture(pointerId);
     window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key); window.removeEventListener("pointercancel", cancel); window.removeEventListener("blur",cancel);
     original === null ? el.removeAttribute("style") : el.setAttribute("style", original);
@@ -65,8 +67,26 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
   function key(e: KeyboardEvent) { if (e.key === "Escape") cancel(); }
   function move(e: PointerEvent) {
     if (!started && Math.hypot(e.clientX-start.x,e.clientY-start.y) < 6) return;
-    if (!started) { started = true; setCanvasDragging(true); }
-    Object.assign(el.style, { position: "fixed", left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, zIndex: "100000", background: "var(--bg-tertiary)", opacity: "1", pointerEvents: "none", borderRadius: "10px", boxShadow: "0 1px 2px rgba(0,0,0,.14), 0 12px 28px rgba(0,0,0,.24)", transform: `translate(${e.clientX-start.x}px,${e.clientY-start.y}px)` });
+    if (!started) {
+      started = true;
+      setCanvasDragging(true);
+      dragLabel = label!.cloneNode(true) as HTMLElement;
+      dragLabel.removeAttribute("hidden");
+      dragLabel.removeAttribute("data-pane-drag-label");
+      dragLabel.setAttribute("data-pane-drag-preview", "true");
+      dragLabel.setAttribute("aria-hidden", "true");
+      dragLabel.inert = true;
+      Object.assign(dragLabel.style, {
+        display: "flex", position: "fixed", width: "220px", height: "32px",
+        minWidth: "0", maxWidth: "calc(100vw - 16px)", margin: "0", padding: "0 8px",
+        zIndex: "2147483647", background: "var(--bg-tertiary)", opacity: "1",
+        pointerEvents: "none", borderRadius: "8px", transition: "none",
+        boxShadow: "0 2px 4px rgba(0,0,0,.14), 0 12px 28px rgba(0,0,0,.24)",
+      });
+      document.body.append(dragLabel);
+      el.style.visibility = "hidden";
+    }
+    if (dragLabel) Object.assign(dragLabel.style, { left: `${e.clientX - 110}px`, top: `${e.clientY - 16}px` });
     showCanvasDrop(canvasDropAt(e.clientX,e.clientY));
   }
   async function up(e: PointerEvent) {
