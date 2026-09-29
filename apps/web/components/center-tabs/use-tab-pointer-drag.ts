@@ -14,7 +14,7 @@
  * dragging; the torn-off window is created at RELEASE.
  */
 import { useLayoutEffect, useRef, useState } from "react";
-import { canvasDropAt, showCanvasDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
+import { canvasDropAt, showCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
 
 import {
   DETACH_HYSTERESIS_PX,
@@ -27,8 +27,7 @@ import {
 } from "@/lib/tabs/tab-drag-coordinator";
 import { buildTransferPayload, desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { attachWebTabResource, resourceDropTarget } from "@/lib/tabs/tab-resource-drop";
-import { useSessionStore } from "@/lib/session-store";
+import { dropWebTabResource, resourceDropTarget } from "@/lib/tabs/tab-resource-drop";
 import { useTranslation } from "@/lib/i18n";
 import {
   cancelCoordinator,
@@ -473,6 +472,7 @@ export function useTabPointerDrag({
     const resourceTarget = resourceDropTarget(drag.subject, e.clientX, e.clientY);
     setResourceTarget(resourceTarget);
     if (resourceTarget) {
+      showResourceDrop(resourceTarget);
       drag.detaching = false;
       drag.overWindow = false;
       drag.lastIntent = null;
@@ -675,21 +675,12 @@ export function useTabPointerDrag({
       clearDragState();
       // Main locks native records at prepare. Await its cancellation before
       // asking the registered renderer to inspect the existing Page.
-      void (async () => {
-        if (prepared.transferToken && !await desktopBridge()?.tabTransfer.cancel(prepared.transferToken)) {
-          throw new Error("transfer_unavailable");
+      void dropWebTabResource(drag.subject.tabIds[0], sessionId, prepared.transferToken).then(success => {
+        if (success) {
+          setDragAnnouncement(text("Webpage added to Resources", "网页已添加到资源"));
+          return;
         }
-        await attachWebTabResource(drag.subject.tabIds[0], sessionId);
-      })().then(() => {
-        const state = useCenterTabs.getState();
-        const active = state.tabs.find(tab => tab.id === state.activeId);
-        if (active?.kind === "session" && active.sessionId === sessionId) {
-          useSessionStore.getState().setRightDockView("resources");
-          useSessionStore.getState().setRightDockOpen(true);
-        }
-        setDragAnnouncement(text("Webpage added to Resources", "网页已绑定到会话资源"));
-      }).catch(() => {
-        const message = text("Could not attach webpage. Try again.", "网页绑定失败，请重试。");
+        const message = text("Could not attach webpage. Try again.", "网页添加失败，请重试。");
         setDragAnnouncement(message);
         setResourceDropError(message);
       });

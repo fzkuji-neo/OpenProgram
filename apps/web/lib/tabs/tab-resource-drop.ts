@@ -3,6 +3,9 @@ import { desktopBridge } from '../desktop/desktop-bridge';
 import { jsonFetch } from '../net/fetch-client';
 import { ingestBrowserResource, type BackendResource } from '../chat/session-resources';
 import type { TabDragSubject } from './tab-drag-coordinator';
+import { useSessionStore } from '../session-store';
+import { showToast } from '../format-utils/toast';
+import { translateText } from '../i18n';
 
 /** Pointer capture keeps event.target on the tab; hit-test the visible target instead. */
 export function resourceDropTarget(subject: TabDragSubject, x: number, y: number): HTMLElement | null {
@@ -30,4 +33,26 @@ export async function attachWebTabResource(tabId: string, sessionId: string): Pr
     throw new Error('attachment_unconfirmed');
   }
   for (const row of result.items) ingestBrowserResource(row, sessionId);
+}
+
+/** Both drag entries wait for the native lock and report the actual result. */
+export async function dropWebTabResource(tabId: string, sessionId: string, transferToken?: string): Promise<boolean> {
+  try {
+    if (transferToken && !await desktopBridge()?.tabTransfer.cancel(transferToken)) {
+      throw new Error('transfer_unavailable');
+    }
+    await attachWebTabResource(tabId, sessionId);
+    // Do not switch an unrelated conversation's panel if the user navigated
+    // elsewhere while the native Page association was pending.
+    if ([...document.querySelectorAll<HTMLElement>('[data-resource-drop-session]')]
+      .some(el => el.dataset.resourceDropSession === sessionId)) {
+      useSessionStore.getState().setRightDockView('resources');
+      useSessionStore.getState().setRightDockOpen(true);
+    }
+    showToast(translateText('Webpage added to Resources', '网页已添加到资源'));
+    return true;
+  } catch {
+    showToast(translateText('Could not attach webpage. Try again.', '网页添加失败，请重试。'), { tone: 'error' });
+    return false;
+  }
 }
