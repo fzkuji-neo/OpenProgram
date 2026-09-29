@@ -1,7 +1,8 @@
 import { useCenterTabs } from "./center-tabs-store";
 import type { CanvasSide, Rect } from "./canvas-layout";
-import { attachWebTabResource, resourceDropTarget } from "./tab-resource-drop";
+import { dropWebTabResource, resourceDropTarget } from "./tab-resource-drop";
 import { desktopBridge, buildTransferPayload } from "../desktop/desktop-bridge";
+import { translateText } from "../i18n";
 export type CanvasDrop = { targetId: string; paneId: string; side: CanvasSide; rect: Rect };
 let preview: HTMLDivElement | null = null;
 let dragging = false;
@@ -46,11 +47,31 @@ export function tabStripDropAt(x: number, y: number): Rect | null {
 export function showCanvasDrop(drop: CanvasDrop | null) {
   showDropPreview(drop?.rect ?? null);
 }
+export function showResourceDrop(target: HTMLElement) {
+  // Include both the navigation row and its visible panel. A row-sized outline
+  // alone is almost entirely covered by the tab following the pointer.
+  const sidebar = target.closest(".right-sidebar");
+  const rects = [...(sidebar?.querySelectorAll<HTMLElement>("[data-resource-drop-session]") ?? [target])]
+    .filter(el => el.dataset.resourceDropSession === target.dataset.resourceDropSession)
+    .map(el => el.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0);
+  if (!rects.length) return;
+  const left = Math.min(...rects.map(r => r.left)), top = Math.min(...rects.map(r => r.top));
+  const right = Math.max(...rects.map(r => r.right)), bottom = Math.max(...rects.map(r => r.bottom));
+  showDropPreview({ left, top, width: right - left, height: bottom - top }, "resources");
+  if (preview) {
+    preview.dataset.compact = String(bottom - top < 80);
+    const label = document.createElement("span");
+    label.className = "canvas-drop-label";
+    label.textContent = translateText("Release to add to Resources", "松开以添加到资源");
+    preview.replaceChildren(label);
+  }
+}
 function showDropPreview(rect: Rect | null, target = "canvas") {
   if (!rect) { preview?.remove(); preview = null; return; }
   // Styled by .canvas-drop-preview (app/styles/base.css): soft system
   // blue with a slight spring as it moves between drop zones.
   if (!preview) { preview = document.createElement("div"); preview.className = "canvas-drop-preview"; document.body.append(preview); }
+  if (preview.dataset.dropTarget !== target) { preview.replaceChildren(); delete preview.dataset.compact; }
   preview.dataset.dropTarget = target;
   const inset = 4;
   Object.assign(preview.style, { left: `${rect.left + inset}px`, top: `${rect.top + inset}px`, width: `${Math.max(0, rect.width - inset * 2)}px`, height: `${Math.max(0, rect.height - inset * 2)}px` });
@@ -106,7 +127,7 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
     if (dragLabel) Object.assign(dragLabel.style, { left: `${e.clientX - 110}px`, top: `${e.clientY - 16}px` });
     const resource = resourceDropTarget({ kind: "tab", tabIds: [tabId] }, e.clientX, e.clientY);
     markResourceTarget(resource);
-    if (resource) { showCanvasDrop(null); return; }
+    if (resource) { showResourceDrop(resource); return; }
     const strip = tabStripDropAt(e.clientX, e.clientY);
     if (strip) showDropPreview(strip, "tab-strip");
     else showCanvasDrop(canvasDropAt(e.clientX,e.clientY));
@@ -119,8 +140,8 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
     const outside = e.clientX < 0 || e.clientY < 0 || e.clientX > innerWidth || e.clientY > innerHeight;
     cleanup();
     if (started && outside && token) { await bridge?.tabTransfer.detach(token); return; }
+    if (resourceSessionId) { await dropWebTabResource(tabId,resourceSessionId,token ?? undefined); return; }
     if (token && !await bridge?.tabTransfer.cancel(token)) return;
-    if (resourceSessionId) { await attachWebTabResource(tabId,resourceSessionId); return; }
     if (drop) useCenterTabs.getState().dockCanvas(tabId,drop.targetId,drop.paneId,drop.side);
     else if (started && inStrip) useCenterTabs.getState().ungroupTab(tabId);
   }
