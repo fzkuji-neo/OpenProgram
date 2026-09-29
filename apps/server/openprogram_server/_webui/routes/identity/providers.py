@@ -165,7 +165,7 @@ def register(app):
         return JSONResponse(content={"ok": True, "provider": name})
 
     @app.get("/api/providers/list")
-    async def api_providers_list():
+    def api_providers_list():
         from openprogram.webui import _model_listing as _mc
         return JSONResponse(content={"providers": _mc.list_providers()})
 
@@ -226,11 +226,11 @@ def register(app):
         return JSONResponse(content=res, status_code=200 if res.get("ok") else 400)
 
     @app.get("/api/providers/{name}/models")
-    async def api_provider_models(name: str):
+    def api_provider_models(name: str):
         from openprogram.webui import _model_listing as _mc
         return JSONResponse(content={
             "provider": name,
-            "models": _mc.list_models_for_provider(name),
+            "models": _mc.list_models_for_provider(name, cached_only=True),
         })
 
     def _clear_stale_defaults():
@@ -360,7 +360,7 @@ def register(app):
         return JSONResponse(content=provider_storage.set_provider_config(name, body))
 
     @app.post("/api/providers/{name}/fetch-models")
-    async def api_fetch_models(name: str):
+    def api_fetch_models(name: str):
         from openprogram.webui import _model_listing as _mc
         return JSONResponse(content=_mc.fetch_models_remote(name))
 
