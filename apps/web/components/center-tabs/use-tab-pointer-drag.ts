@@ -3,8 +3,9 @@
 /**
  * Pointer-driven tab drag (Chrome-style) — the whole engine in one hook.
  *
- * The pressed tab element itself follows the pointer via `transform`: no
- * HTML5 drag, no system ghost, no residue at the origin slot. One in-flight
+ * Inside the strip the pressed tab follows the pointer via `transform`.
+ * Outside it a body overlay preserves its appearance without ancestor clipping.
+ * There is no HTML5 drag or visible duplicate at the origin. One in-flight
  * drag lives in a ref (pointermove writes the transform directly, so there
  * is no re-render per frame); only intent changes (marker / shifts) and the
  * detach cue go through React state.
@@ -64,6 +65,9 @@ interface PointerDragState {
   lastScreenX: number;
   lastScreenY: number;
   originLeft: number;
+  originTop: number;
+  height: number;
+  preview: HTMLElement | null;
   width: number;
   minTx: number;
   maxTx: number;
@@ -78,6 +82,47 @@ interface PointerDragState {
   stripTop: number;
   stripBottom: number;
   teardown(): void;
+}
+
+/** The strip can clip descendants and create stacking contexts. Outside it,
+ * render the same tab appearance in a body-level overlay, with the source
+ * hidden. Keep the original node in place for React and pointer capture. */
+function removeDragPreview(drag: PointerDragState) {
+  drag.preview?.remove();
+  drag.preview = null;
+  drag.element.style.visibility = "";
+}
+
+function updateDragPreview(drag: PointerDragState, outside: boolean) {
+  if (!outside) {
+    removeDragPreview(drag);
+    return;
+  }
+  if (!drag.preview) {
+    const preview = drag.element.cloneNode(true) as HTMLElement;
+    for (const node of [preview, ...preview.querySelectorAll<HTMLElement>("*")]) {
+      node.removeAttribute("id");
+      node.removeAttribute("data-tab-id");
+      node.removeAttribute("data-tab-group-id");
+    }
+    preview.setAttribute("data-tab-drag-preview", "true");
+    preview.setAttribute("aria-hidden", "true");
+    preview.inert = true;
+    const computed = getComputedStyle(drag.element);
+    Object.assign(preview.style, {
+      position: "fixed", left: `${drag.originLeft}px`, top: `${drag.originTop}px`,
+      width: `${drag.width}px`, height: `${drag.height}px`, minWidth: "0",
+      maxWidth: "none", margin: "0", zIndex: "2147483647", pointerEvents: "none",
+      transition: "none", opacity: "1", visibility: "visible",
+      background: computed.backgroundColor, color: computed.color,
+      font: computed.font, boxSizing: "border-box",
+      boxShadow: "0 2px 4px rgba(0,0,0,.14), 0 12px 28px rgba(0,0,0,.24)",
+    });
+    document.body.append(preview);
+    drag.preview = preview;
+  }
+  drag.element.style.visibility = "hidden";
+  drag.preview.style.transform = `translate(${drag.lastTx}px, ${drag.lastTy ?? 0}px)`;
 }
 
 export interface TabPointerDragOptions {
@@ -302,6 +347,9 @@ export function useTabPointerDrag({
       lastScreenX: event.screenX,
       lastScreenY: event.screenY,
       originLeft: 0,
+      originTop: 0,
+      height: 0,
+      preview: null,
       width: 0,
       minTx: 0,
       maxTx: 0,
@@ -311,6 +359,7 @@ export function useTabPointerDrag({
       stripTop: 0,
       stripBottom: 0,
       teardown() {
+        removeDragPreview(this);
         element.removeAttribute("data-pointer-pressed");
         setResourceTarget(null);
         window.removeEventListener("pointermove", move);
@@ -354,6 +403,8 @@ export function useTabPointerDrag({
       const flow = tabsFlowRef.current;
       const unitRect = drag.element.getBoundingClientRect();
       drag.originLeft = unitRect.left;
+      drag.originTop = unitRect.top;
+      drag.height = unitRect.height;
       drag.width = unitRect.width;
       drag.targets = flow ? collectPointerDropTargets(flow) : [];
       // Clamp the dragged tab's BODY to the strip's visible span, so it
@@ -409,12 +460,13 @@ export function useTabPointerDrag({
     } else {
       // Inside the strip band the tab is clamped to the visible slot span (plain
       // reorder). Once the cursor leaves the band the tab itself follows the
-      // pointer freely in both axes — canvas docking, Resources, new window —
-      // so no separate floating cue is needed.
+      // pointer freely in both axes — canvas docking, Resources, new window.
+      // A body overlay keeps that same tab visible outside clipping ancestors.
       const outsideBand = e.clientY < drag.stripTop || e.clientY > drag.stripBottom;
       const tx = outsideBand ? dx : Math.min(Math.max(dx, drag.minTx), drag.maxTx);
       drag.lastTy = outsideBand ? dy : 0;
       drag.lastTx = tx;
+      updateDragPreview(drag, outsideBand);
       drag.element.style.transform = `translate(${tx}px, ${drag.lastTy}px)`;
     }
 
