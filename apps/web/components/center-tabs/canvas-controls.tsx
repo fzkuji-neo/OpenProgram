@@ -85,10 +85,12 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   const single = all.length === 1 && !!all[0].content;
   const titleOf = (tab: CenterTab | undefined) => tab?.title || (tab ? text("Untitled","未命名") : text("Empty pane","空格"));
   const menuPane = menu ? all.find(p => p.id === menu.paneId) : undefined;
+  const menuTab = tabs.find(t => t.id === menuPane?.content);
   const menuZoomed = !!menuPane && layout.zoomedPaneId === menuPane.id;
   return <>
     {menu && <div role="menu" className={styles.menu} data-native-view-occluder="true" onPointerDown={e => e.stopPropagation()} style={{ top: menu.y, left: menu.x }}>
       {menuPane && <>
+        <div className={styles.menuTitle}><TabIcon tab={menuTab} /><span>{titleOf(menuTab)}</span></div>
         {all.length > 1 && <>
           <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { zoom(menuPane.id); closeMenu(); }}>{menuZoomed ? <Minimize2 aria-hidden /> : <Maximize2 aria-hidden />}{menuZoomed ? text("Restore", "还原") : text("Zoom", "放大")}<span className={styles.shortcut}>{mod}⇧↩</span></button>
           <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { close(menuPane.id); closeMenu(); }}><X aria-hidden />{text("Close pane", "关闭格子")}<span className={styles.shortcut}>{mod}W</span></button>
@@ -137,7 +139,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
               </div>
             </div>
           : tiny ? <button type="button" className={styles.tiny} title={title} onClick={() => zoom(p.id)}><span><TabIcon tab={tab} /><Maximize2 aria-hidden /></span></button> : null}
-        {!single && <div role="button" tabIndex={0} className={styles.grip} data-native-view-occluder="true"
+        {!single && <div role="button" tabIndex={0} className={styles.grip} title={title}
           aria-label={text(`Pane options: ${title}`, `格子选项：${title}`)} aria-haspopup="menu" aria-expanded={menu?.paneId === p.id}
           onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); gripStart.current = { x: e.clientX, y: e.clientY }; focus(p.id); if (p.content) startPaneDrag(e, p.content); }}
           onClick={e => {
@@ -147,8 +149,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
           }}
           onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(p.id, e.clientX, e.clientY); }}
           onKeyDown={e => { if (e.key !== "Enter" && e.key !== " ") return; e.preventDefault(); openMenuBelow(p.id, e.currentTarget); }}>
-          <span className={styles.gripDots} aria-hidden><i /><i /><i /></span>
-          <span className={styles.gripName} aria-hidden>{title}</span>
+          <i /><i /><i />
         </div>}
       </div>;
     })}

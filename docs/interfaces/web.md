@@ -156,5 +156,3 @@ Press a top tab to highlight it; release without dragging to switch pages. Dragg
 Long conversations open with a small recent history page; earlier messages load as you scroll. Activity initially reads the task list and loads execution events and debugging details only when you select a task. Brief status refresh failures retry quietly; longer retries use a neutral status notice. An error is shown only when activity remains unavailable without saved records.
 
 Activity also shows in-flight function calls, including foreground shell commands awaiting completion. Expand a function to see its command and start time. Active managed programs appear directly in Running programs and remain inspectable and stoppable after the initiating tool returns.
-
-Hover over a pane’s three-dot handle to expand the handle downward and reveal its name inside the same control. It retracts when the pointer leaves. Click the handle to open pane actions; the name is separate from that menu.
