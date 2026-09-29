@@ -126,3 +126,11 @@ Exact hosts and `*.example.org` (subdomains at any depth, excluding the root) ar
 Each command receives an authenticated local proxy. The macOS sandbox prevents direct connections, including clients that ignore proxy settings. HTTP on port 80 and HTTPS CONNECT on port 443 are supported; clients must support ordinary HTTP proxy settings. Domain rules authorize destination connections, not encrypted HTTPS methods or contents. There is no TLS interception, SOCKS/UDP, arbitrary-port forwarding, local-network access, or upstream proxy chaining. Chunked HTTP uploads and plain HTTP Upgrade are unsupported; HTTPS tunnels carry ordinary HTTPS and WSS traffic.
 
 The proxy and active connections close when the command ends or is cancelled. Linux and Windows/WSL currently reject a configured active domain policy instead of running with unrestricted networking. A missing sandbox also rejects domain-restricted execution even when the ordinary unavailable policy is `warn`. Turning Sandbox off explicitly still disables its restrictions. These settings affect sandboxed commands, not the host's model-provider requests or every other tool transport.
+
+## Interrupted operations
+
+A new interactive owner turn uses its selected Auto or Bypass mode even when an older turn has an unknown external result. Old effects remain recorded as unknown and are not replayed. Resuming the same interrupted execution still requires reconciliation or exact approval. Explicit deny/ask rules and mandatory approvals continue to apply.
+
+When offered, **Always allow** saves the exact supported operation rule in the current project. **Always allow this path** applies only to a Sandbox path approval. One-shot-only requests do not offer persistent approval.
+
+Stop interrupts pending model and asynchronous tool work. Once the producer exits, the turn is stopped even if an external operation has an unknown outcome; that outcome remains visible in Activity. Pause instead waits for the current operation to reach a resumable boundary. The interface reports the pending request; use Stop when an immediate interruption is needed.

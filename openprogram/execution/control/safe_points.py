@@ -163,18 +163,9 @@ class SafePointsOperations:
                     "invalid_state",
                     f"applying cancel cannot finish execution in {execution.status.value}",
                 )
-            unresolved = connection.execute(
-                "SELECT 1 FROM effects WHERE execution_id = ? "
-                "AND status IN ('dispatched', 'uncertain') LIMIT 1",
-                (execution.execution_id,),
-            ).fetchone() is not None
-            target = (
-                ExecutionStatus.RECONCILIATION_REQUIRED
-                if unresolved
-                else ExecutionStatus.CANCELLED
-            )
-            outcome = "reconciliation_required" if unresolved else "cancelled_at_safe_point"
-            reason_code = "effect_reconciliation" if unresolved else cancel.payload.get("reason_code")
+            target = ExecutionStatus.CANCELLED
+            outcome = "cancelled_at_safe_point"
+            reason_code = cancel.payload.get("reason_code")
             ended, cancelled = self.attempts._finish_in_transaction(
                 connection,
                 attempt_id,
@@ -196,14 +187,13 @@ class SafePointsOperations:
                     result_version=cancelled.status_version,
                     rejection_code="superseded_by_cancel",
                 )
-            if not unresolved:
-                cancel = self.executions._transition_command(
-                    connection,
-                    cancel.command_id,
-                    expected_status=CommandStatus.APPLYING,
-                    target=CommandStatus.APPLIED,
-                    result_version=cancelled.status_version,
-                )
+            cancel = self.executions._transition_command(
+                connection,
+                cancel.command_id,
+                expected_status=CommandStatus.APPLYING,
+                target=CommandStatus.APPLIED,
+                result_version=cancelled.status_version,
+            )
             checkpoint = (
                 self.checkpoints._get(connection, cancelled.checkpoint_head_id)
                 if cancelled.checkpoint_head_id
@@ -754,16 +744,20 @@ class SafePointsOperations:
                 "attempt outcome does not match an applying command",
             )
         unresolved = self.effects.list_unresolved(attempt.execution_id)
+        # A stopped producer has finished even when an external result is
+        # unknown. Preserve the effect receipt for inspection, without keeping
+        # the conversation and cancel command occupied indefinitely.
+        needs_reconciliation = bool(unresolved) and target is not ExecutionStatus.CANCELLED
         actual_target = (
-            ExecutionStatus.RECONCILIATION_REQUIRED if unresolved else target
+            ExecutionStatus.RECONCILIATION_REQUIRED if needs_reconciliation else target
         )
         ended, execution = self.attempts.finish(
             attempt_id,
             generation=generation,
             expected_execution_version=expected_execution_version,
             target=actual_target,
-            outcome=("reconciliation_required" if unresolved else outcome),
-            reason_code=("effect_reconciliation" if unresolved else reason_code),
+            outcome=("reconciliation_required" if needs_reconciliation else outcome),
+            reason_code=("effect_reconciliation" if needs_reconciliation else reason_code),
         )
         self.registry.unbind(
             execution.execution_id,

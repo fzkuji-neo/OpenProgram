@@ -151,7 +151,7 @@ async def reconcile_permission_waits(session_id: str, *, service=None) -> None:
     store = service.executions
     resolver = AgentActivationService(lambda record: store.get_agent_turn_input(record.execution_id))
     for wait in DurableWaitStore(store).list_open(session_id=session_id):
-        if wait.kind != "approval" or wait.request.get("approval_reason") != "MODE_APPROVAL":
+        if wait.kind != "approval" or wait.request.get("approval_reason") not in {"MODE_APPROVAL", "RECOVERY_EFFECT_UNCERTAIN"}:
             continue
         execution = store.get_execution(wait.execution_id)
         if execution is None or store.get_agent_turn_input(wait.execution_id) is None:
@@ -166,11 +166,14 @@ async def reconcile_permission_waits(session_id: str, *, service=None) -> None:
         if version <= wait.request.get("permission_version", 0):
             continue
         tool = SimpleNamespace(name=wait.request.get("tool"), _accept_edits_safe=wait.request.get("accept_edits_safe", False))
+        from openprogram.agent.run_control import set_current_execution_id, reset_current_execution_id
+        execution_token = set_current_execution_id(execution.execution_id)
         token = set_worktree(wait.request.get("working_dir"))
         try:
             decision = permission_decision(tool, current, dict(wait.request.get("args") or {}))[0]
         finally:
             reset_worktree(token)
+            reset_current_execution_id(execution_token)
         if decision not in {"allow", "auto"}:
             continue
         try:

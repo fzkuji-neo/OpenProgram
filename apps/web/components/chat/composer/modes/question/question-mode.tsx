@@ -334,6 +334,13 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
                 onClick={() => { patch(idx, { pick: "deny" }); void sendAnswer("execution.wait.decline"); }}>
                 {text("Deny", "拒绝")}
               </button>
+              {(["always", "always_path"] as const).filter(scope => cur.allowedScopes?.includes(scope)).map(scope => (
+                <button key={scope} type="button" className={styles.navBtn}
+                  disabled={answerLocked}
+                  onClick={() => { patch(idx, { pick: scope }); void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope }); }}>
+                  {scope === "always" ? text("Always allow", "始终允许") : text("Always allow this path", "始终允许此路径")}
+                </button>
+              ))}
               <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
                 disabled={answerPending || (answerLocked && submission?.command.action !== "execution.wait.answer")}
                 aria-busy={answerPending}

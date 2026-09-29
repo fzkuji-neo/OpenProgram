@@ -700,7 +700,7 @@ def test_cancel_applies_only_after_the_attempt_finishes(tmp_path) -> None:
     assert registry.snapshot() == ()
 
 
-def test_uncertain_effect_requires_reconciliation_before_cancel_finishes(
+def test_cancelled_producer_finishes_without_claiming_external_effect_outcome(
     tmp_path,
 ) -> None:
     executions, attempts, execution, attempt = _execution(tmp_path, active=True)
@@ -735,9 +735,10 @@ def test_uncertain_effect_requires_reconciliation_before_cancel_finishes(
         command_id="cancel_1",
         reason_code="user_cancelled",
     )
-    assert awaiting.execution.status is ExecutionStatus.RECONCILIATION_REQUIRED
+    assert awaiting.execution.status is ExecutionStatus.CANCELLED
+    assert effects.get("effect_1").status is EffectStatus.DISPATCHED
     assert awaiting.command is not None
-    assert awaiting.command.status is CommandStatus.APPLYING
+    assert awaiting.command.status is CommandStatus.APPLIED
 
     reconciled = service.resolve_effect(
         effect_id="effect_1",
@@ -746,8 +747,8 @@ def test_uncertain_effect_requires_reconciliation_before_cancel_finishes(
         receipt={"provider_message_id": "message_1"},
     )
     assert reconciled.execution.status is ExecutionStatus.CANCELLED
-    assert reconciled.command is not None
-    assert reconciled.command.status is CommandStatus.APPLIED
+    assert reconciled.command is None
+    assert executions.get_command("cancel_1").status is CommandStatus.APPLIED
 
 
 def test_pause_command_is_applied_after_effect_reconciliation(tmp_path) -> None:

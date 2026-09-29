@@ -64,4 +64,32 @@ def uncertain_operations(request) -> list[dict[str, str]]:
 
 
 def approval_context(tool, request) -> list[dict[str, str]]:
-    return [] if is_inspection_tool(tool) else uncertain_operations(request)
+    if is_inspection_tool(tool):
+        return []
+    operations = uncertain_operations(request)
+    # An abandoned turn is not an approval policy for every future turn.
+    # Keep its uncertain receipts intact; same-execution replay is still
+    # fenced by the effect store. Only a real owner activation can use this
+    # distinction, never a caller-supplied execution id.
+    if (operations and request.permission_mode in {"auto", "bypass"}
+            and request.authority_tier == "owner"
+            and request.source in {"web", "tui", "acp"}
+            and request.interaction == "interactive"):
+        from openprogram.agent.run_control import get_current_execution_id
+        from openprogram.execution import default_store
+        from openprogram.execution.conversation_scope import conversation_execution_scope
+        current_id = get_current_execution_id()
+        store = default_store()
+        current = store.get_execution(current_id) if current_id else None
+        if current is not None and current.session_id == request.session_id:
+            _, parents = conversation_execution_scope(store, request.session_id)
+            def belongs_to_current(execution_id):
+                seen = set()
+                while execution_id and execution_id not in seen:
+                    if execution_id == current_id:
+                        return True
+                    seen.add(execution_id)
+                    execution_id = parents.get(execution_id)
+                return False
+            operations = [item for item in operations if belongs_to_current(item["execution_id"])]
+    return operations

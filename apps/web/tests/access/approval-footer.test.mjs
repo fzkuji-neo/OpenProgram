@@ -102,7 +102,7 @@ for (const [label, action] of [["Allow once", "execution.wait.answer"], ["Deny",
   test(`approval ${label} submits one decision directly`, async () => {
     await mounted(decision, async ({ host, button, frames, resolved }) => {
       const footer = host.querySelector('[aria-label="Decision actions"]');
-      assert.equal(footer.querySelectorAll("button").length, 2);
+      assert.equal(footer.querySelectorAll("button").length, 3);
       assert.equal(button("Send"), undefined);
       assert.equal(button("Chat about this"), undefined);
       await act(async () => button(label).click());
@@ -289,5 +289,20 @@ test("failed submission leaves the actual answer and error visible in the output
     assert.equal(frames.length, 2);
     assert.equal(frames[0].command_id, frames[1].command_id);
     assert.deepEqual(frames[0].payload, frames[1].payload);
+  });
+});
+
+
+test("persistent approval scopes are visible and submit their exact scope", async () => {
+  for (const [scope, label] of [["always", "Always allow"], ["always_path", "Always allow this path"]]) {
+    await mounted({ ...decision, allowedScopes: ["once", scope] }, async ({ button, frames }) => {
+      assert.ok(button(label));
+      await act(async () => button(label).click());
+      assert.deepEqual(frames.at(-1).payload.answer, { answer: "approve", scope });
+    });
+  }
+  await mounted({ ...decision, allowedScopes: ["once"] }, async ({ button }) => {
+    assert.equal(button("Always allow"), undefined);
+    assert.equal(button("Always allow this path"), undefined);
   });
 });
