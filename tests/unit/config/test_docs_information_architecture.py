@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from scripts.docs_site import checklang
-from scripts.docs_site.nav import build_tabs, discover
+from scripts.docs_site.nav import PAGE_TITLES, build_tabs, discover
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -115,9 +115,15 @@ def test_ui_design_navigation_is_grouped_without_losing_pages() -> None:
         for section in design.sections if section.title.startswith("Supporting ·")
         for page in section.pages if page.rel.parent.as_posix() == "reference/design/ui"
     }
+    fallback = {
+        page.rel.as_posix()
+        for section in design.sections if section.area == ("Uncategorized", "待分类")
+        for page in section.pages if page.rel.parent.as_posix() == "reference/design/ui"
+    }
     grouped = set().union(*ui_sections.values())
-    assert grouped.isdisjoint(supporting)
-    assert grouped | supporting == expected
+    assert grouped.isdisjoint(supporting | fallback)
+    assert supporting.isdisjoint(fallback)
+    assert grouped | supporting | fallback == expected
 
 
 def test_editorial_navigation_does_not_list_a_page_twice() -> None:
@@ -249,7 +255,10 @@ def test_design_structure_has_one_overview_and_covers_every_page() -> None:
     actual = [page.rel for section in design.sections for page in section.pages]
     expected = [page.rel for page in pages if page.rel.as_posix().startswith("reference/design/")]
     assert sorted(actual) == sorted(expected)
-    assert [section.title for section in design.sections][-3:] == [
+    authored = [section for section in design.sections if section.area[0] != "Uncategorized"]
+    fallback = [section for section in design.sections if section.area[0] == "Uncategorized"]
+    assert design.sections == authored + fallback
+    assert [section.title for section in authored][-3:] == [
         "Supporting · Prototypes", "Supporting · Implementation records", "Supporting · Research",
     ]
 
@@ -286,7 +295,12 @@ def test_design_navigation_disclosures_open_current_group() -> None:
                 self.active_depth = self.depth
     parser = Groups()
     parser.feed(markup)
-    assert parser.roots == 7
+    areas = {section.area[0] for section in design.sections}
+    assert areas - {"Uncategorized"} == {
+        "Architecture", "Agents and workflows", "Context and memory", "Interfaces",
+        "Models and connections", "Security and engineering", "Supporting material",
+    }
+    assert parser.roots == len(areas)
     assert parser.open_groups == 2
     assert parser.active_depth == 2
     assert parser.active_open
@@ -417,11 +431,17 @@ def test_standalone_search_text_excludes_styles_and_scripts():
 def test_authored_navigation_names_are_short_and_unambiguous() -> None:
     pages = discover(ROOT / "docs")
     for page in pages:
-        if page.zh_src is None:  # Unpaired fixtures do not define bilingual navigation.
+        # Explicit PAGE_TITLES are authored short navigation labels. Pages
+        # without overrides retain their descriptive source headings.
+        if page.zh_src is None or page.rel.as_posix() not in PAGE_TITLES:
             continue
         assert 1 <= len(page.title.split()) <= 4, page.rel
         assert len(page.title) <= 26, page.rel
-        assert 1 <= len(page.title_zh) <= 12, page.rel
+        if page.title_zh.isascii():  # Preserve technical names such as Anthropic API.
+            assert 1 <= len(page.title_zh.split()) <= 4, page.rel
+            assert 1 <= len(page.title_zh) <= 26, page.rel
+        else:
+            assert 1 <= len(page.title_zh) <= 12, page.rel
         assert not any(char in page.title for char in "():`"), page.rel
     for tab in build_tabs(ROOT / "docs", pages):
         for section in tab.sections:

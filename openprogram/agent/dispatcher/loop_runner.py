@@ -281,6 +281,9 @@ def resolve_agent_runtime(
         else _dispatcher._load_agent_profile(req.agent_id)
     )
     tools = _resolve_tools(agent_profile, req.tools_override, source=req.source)
+    from openprogram.memory.policy import allowed as _memory_allowed
+    from openprogram.programs.tools.knowledge.memory import MEMORY_TOOL_NAMES
+    tools = [tool for tool in tools or [] if tool.name not in MEMORY_TOOL_NAMES or _memory_allowed(write=tool.name in {"memory_update", "memory_promote"})]
     saved_legacy_goal = saved_runtime_contract is not None and any(
         tool["name"] == "goal" for tool in saved_runtime_contract["tools"]
     )
@@ -348,11 +351,15 @@ def resolve_agent_runtime(
     if not override and getattr(req, "session_id", None):
         from openprogram.agent.session_model import (
             ensure_session_chat_model,
+            read_session_chat_model,
             override_string,
         )
-        provider, model_id = ensure_session_chat_model(
-            req.session_id, getattr(req, "agent_id", None),
-        )
+        if req.profile_snapshot is not None:
+            provider, model_id = read_session_chat_model(req.session_id)
+        else:
+            provider, model_id = ensure_session_chat_model(
+                req.session_id, getattr(req, "agent_id", None),
+            )
         override = override_string(provider, model_id)
         if override:
             req.model_override = override
@@ -650,6 +657,8 @@ def run_loop_blocking(
             "command_id": command_id,
             "agent_id": req.agent_id,
         }
+        from openprogram.memory.policy import stamp
+        metadata.update(stamp(req))
         try:
             from openprogram.agent.authority import normalize_authority, stamp_schema
 

@@ -161,6 +161,10 @@ class Persister:
             },
         }
 
+        from openprogram.memory.policy import node_policy, from_snapshot, restrict_history
+        policies = [node_policy(row) for row in covered if node_policy(row)]
+        if policies:
+            summary_row["memory_policy"] = restrict_history(from_snapshot(policies[-1]), covered).snapshot()
         try:
             db.append_message(session_id, summary_row)
         except Exception:

@@ -61,6 +61,8 @@ def normalize(refs: Any) -> list[dict[str, str]]:
 
 def resolve(refs: Any) -> list[dict[str, Any]]:
     """Resolve refs against the current workspace on every call."""
+    from .policy import check
+    check()
     normalized = normalize(refs)
     if not normalized:
         return []
@@ -82,10 +84,14 @@ def resolve(refs: Any) -> list[dict[str, Any]]:
             "content": unit.content,
             "when": unit.when,
         })
+    check()
     return resolved
 
 
 def render_context(refs: Any, *, max_chars: int = 12_000) -> str:
+    from .policy import allowed
+    if not allowed():
+        return ""
     rows = resolve(refs)
     if not rows:
         return ""

@@ -66,6 +66,7 @@ def read_conversation(
 
     from openprogram.store.session.transcript import render_session_transcript
 
+    from openprogram.memory.policy import consume_sources
     try:
         return render_session_transcript(
             sid,
@@ -74,6 +75,7 @@ def read_conversation(
             end_turn=int(end_turn),
             include_function_calls=bool(include_function_calls),
             max_chars=max(1_000, int(max_chars)),
+            on_consumed=consume_sources,
         )
     except Exception as e:  # noqa: BLE001 — tool results report, never raise
         return f"[read_conversation error] {type(e).__name__}: {e}"

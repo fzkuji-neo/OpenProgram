@@ -24,7 +24,8 @@ def root() -> Path:
     from openprogram.paths import _restrict_to_owner, get_state_dir
 
     state = get_state_dir()
-    path = state / "memory"
+    from .policy import selected_root
+    path = selected_root() or state / "memory"
     path.mkdir(parents=True, exist_ok=True)
     # ``get_state_dir`` protects the profile root when it creates it, but
     # this is the call that brings it into being on a fresh install — the

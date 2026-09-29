@@ -43,7 +43,26 @@ if [[ ! -d "$gui_harness_default" ]]; then
   gui_harness_default="$repo_root/openprogram/programs/applications/gui_harness"
 fi
 gui_harness_repo="${OPENPROGRAM_GUI_HARNESS_REPO:-$gui_harness_default}"
-app_path="${OPENPROGRAM_APP_PATH:-/Applications/OpenProgram.app}"
+# Resolve aliases before deriving either the source guard or installation lock.
+# An alternate spelling of the installed App must address the same transaction.
+canonicalize_app_path() {
+  python3 - "$1" "${2:-}" <<'PY'
+import os
+import sys
+
+target = os.path.realpath(sys.argv[1])
+default = sys.argv[2]
+if default:
+    try:
+        if os.path.samefile(target, default):
+            target = default
+    except FileNotFoundError:
+        pass
+print(target)
+PY
+}
+default_app_path="$(canonicalize_app_path "/Applications/OpenProgram.app")"
+app_path="$(canonicalize_app_path "${OPENPROGRAM_APP_PATH:-$default_app_path}" "$default_app_path")"
 runtime_root="$app_path/Contents/Resources/runtime"
 manifest="$runtime_root/runtime-manifest.json"
 product_runtime_config="$repo_root/scripts/release/product-runtime.json"
@@ -51,12 +70,23 @@ installed_product_runtime="$runtime_root/product-runtime.json"
 installed_asar="$app_path/Contents/Resources/app.asar"
 uv_bin="${OPENPROGRAM_UV_BIN:-$(command -v uv || true)}"
 
-# The default App is shared by every worktree. Refuse to replace it from a
-# checkout that predates the latest locally fetched main: otherwise an older
-# feature branch can silently restore already-fixed server or UI behavior.
-# A caller deliberately validating historical code must use a separate
-# OPENPROGRAM_APP_PATH, not replace the user's normal App.
-if test "$app_path" = "/Applications/OpenProgram.app"; then
+# The default App is shared by every worktree. Recheck this gate after
+# packaging and under the installation lock as another checkout may advance
+# main while this build is running. Ignored build outputs are not source.
+validate_default_app_source() {
+  test "$app_path" = "$default_app_path" || return 0
+  local expected_revision="${1:-}"
+  local current_revision source_status
+  current_revision="$(git -C "$repo_root" rev-parse --verify HEAD)"
+  if test -n "$expected_revision" && test "$current_revision" != "$expected_revision"; then
+    printf '%s\n' "refusing to refresh the default App: HEAD changed after packaging" >&2
+    exit 1
+  fi
+  source_status="$(git -C "$repo_root" status --porcelain --untracked-files=all --ignore-submodules=none)"
+  if test -n "$source_status"; then
+    printf '%s\n' "refusing to refresh the default App: uncommitted source changes; commit or preserve them before refreshing" >&2
+    exit 1
+  fi
   for protected_ref in refs/heads/main refs/remotes/origin/main; do
     if git -C "$repo_root" rev-parse --verify --quiet "$protected_ref" >/dev/null && \
       ! git -C "$repo_root" merge-base --is-ancestor "$protected_ref" HEAD; then
@@ -64,7 +94,8 @@ if test "$app_path" = "/Applications/OpenProgram.app"; then
       exit 1
     fi
   done
-fi
+}
+validate_default_app_source
 
 if test -n "${OPENPROGRAM_LOCAL_PYTHON:-}"; then
   local_python="$OPENPROGRAM_LOCAL_PYTHON"
@@ -210,6 +241,7 @@ attempt=0
 while true; do
   attempt=$((attempt + 1))
   build_revision="$(git -C "$repo_root" rev-parse HEAD)"
+  validate_default_app_source "$build_revision"
   gui_harness_revision=""
   attempt_dir="$wheel_dir/attempt-$attempt"
   mkdir -p "$attempt_dir"
@@ -333,6 +365,7 @@ PY
   node "$asar_cli" pack "$desktop_stage" "$desktop_asar" \
     --unpack-dir node_modules/node-pty
 
+  validate_default_app_source
   gui_harness_head_changed=0
   if test "$sync_gui_harness" = 1 && \
     test "$(git -C "$gui_harness_repo" rev-parse HEAD)" != \
@@ -351,6 +384,7 @@ if ! acquire_pid_lock "$install_lock_file"; then
   exit 1
 fi
 install_lock_owned=1
+validate_default_app_source "$build_revision"
 
 # Re-read all mutable version sources under the same lock as the canonical App
 # installer. The wheel is the immutable payload used by both pip operations.
@@ -366,6 +400,10 @@ test ! -L "$app_path/Contents/Resources/update" && \
   exit 1
 }
 cp "$repo_root/apps/desktop/scripts/install-app.sh" "$installer_stage"
+
+# Everything installed below is staged. Refuse any source/ref change since
+# packaging before quitting the App, stopping the worker or writing packages.
+validate_default_app_source "$build_revision"
 
 if pgrep -f "^/Applications/OpenProgram[.]app/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1; then
   osascript -e 'tell application id "ai.openprogram.desktop" to quit' >/dev/null 2>&1 || true

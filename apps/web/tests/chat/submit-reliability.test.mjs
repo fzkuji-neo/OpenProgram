@@ -461,3 +461,28 @@ test("image queue preview survives composer cleanup and original bytes survive d
   useSendQueue.getState().drain("A");
   assert.equal(host.frames[0].attachments[0].original_data,"b3JpZ2luYWw=");
 });
+
+
+test("new Agent conversations send the submitting draft configuration, including background panes", () => {
+  host.sessions.composerSettingsBySession.local_new = {
+    agentInvocation: {agentId: "research", trial: true, config: {system_prompt: "unsaved instruction", memory: {mode: "read_only"}}},
+  };
+  host.sessions.composerSettingsBySession.B = {agentInvocation: {agentId: "other"}};
+  focus("B");
+  sendChatMessage(sendArgs({sessionId: "local_new", background: true}));
+  assert.equal(host.frames[0].agent_id, "research");
+  assert.equal(host.frames[0].agent_trial, true);
+  assert.equal(host.frames[0].agent_config.system_prompt, "unsaved instruction");
+  assert.equal(host.sessions.composerSettingsBySession.local_new.agentInvocation.agentId, "research", "socket write is not an ACK");
+});
+
+test("saved Agent invocations retain only explicit per-conversation model overrides", () => {
+  host.sessions.composerSettingsBySession.local_new = {
+    agentInvocation: {agentId: "writer", model: {provider: "example", id: "fast"}, thinkingEffort: "low"},
+  };
+  sendChatMessage(sendArgs({sessionId: "local_new"}));
+  assert.equal(host.frames[0].agent_id, "writer");
+  assert.deepEqual(host.frames[0].agent_overrides, {model: {provider: "example", id: "fast"}, thinking_effort: "low"});
+  assert.equal(host.frames[0].agent_config, undefined);
+  assert.equal(host.frames[0].agent_trial, undefined);
+});

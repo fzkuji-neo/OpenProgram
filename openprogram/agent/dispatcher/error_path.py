@@ -103,8 +103,12 @@ def handle_turn_error(
     # render a retryable rate-limit differently from a fatal auth/context
     # failure. See docs/design/providers/reliability/error-taxonomy-propagation.md.
     try:
+        from openprogram.memory.policy import MemoryPolicyError
         from openprogram.providers.utils.errors import taxonomy_fields
-        _e_reason, _e_retryable, _e_retry_after = taxonomy_fields(e)
+        if isinstance(e, MemoryPolicyError):
+            _e_reason, _e_retryable, _e_retry_after = "MEMORY_UNAVAILABLE", False, None
+        else:
+            _e_reason, _e_retryable, _e_retry_after = taxonomy_fields(e)
     except Exception:
         _log.debug("error taxonomy classification failed", exc_info=True)
         _e_reason = _e_retryable = _e_retry_after = None

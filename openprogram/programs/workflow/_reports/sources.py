@@ -21,7 +21,8 @@ def _record(text, week, source, audience="candidate"):
 def memory_candidates(week, query):
     from openprogram.memory import is_enabled, store
     from openprogram.memory.retrieval import inspect
-    if not is_enabled():
+    from openprogram.memory.policy import allowed
+    if not is_enabled() or not allowed():
         return []
     root = store.root()
     violation = validate_read_path(str(root))
@@ -60,6 +61,8 @@ def memory_candidates(week, query):
                        "source_dates": [d for d in dates if isinstance(d, str)],
                        "source_date": max(precise),
                        "trusted_owner": hit.get("speaker_kind") == "owner" and hit.get("speaker_trusted") is True})
+    if not allowed():
+        return []
     return sorted(result, key=lambda item: (item["trusted_owner"], item["source_date"]), reverse=True)
 
 

@@ -125,13 +125,18 @@ class TurnWriter:
             insert_placeholder,
         )
         from openprogram.agent.authority import runtime_authority
-        return insert_placeholder(
+        result = insert_placeholder(
             self.db, self.req.session_id, assistant_msg_id, user_msg_id,
             self.req.source, advance_head=self.advance,
             authority=runtime_authority(
                 self.req, f"agent/{self.req.agent_id}"
             ),
         )
+
+        from openprogram.memory.policy import stamp
+        if result:
+            self.db.merge_node_metadata(self.req.session_id, assistant_msg_id, stamp(self.req))
+        return result
 
     # ── terminal bookkeeping ─────────────────────────────────────
 

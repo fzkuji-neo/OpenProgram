@@ -71,7 +71,9 @@ export function useThinkingEffort(): ThinkingEffortHook {
   // It is NOT sent as-is — the exposed `thinking` is always re-derived
   // against the CURRENT model's options (clamp).
   // Bound to this composer subtree's session scope.
-  const storedRaw = useBoundComposerSettings().thinking;
+  const settings = useBoundComposerSettings();
+  const storedRaw = settings.thinking;
+  const invocation = settings.agentInvocation;
   const setComposerSettings = useBoundSetComposerSettings();
   const stored: ThinkingEffort = storedRaw || DEFAULT_THINKING;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -94,7 +96,9 @@ export function useThinkingEffort(): ThinkingEffortHook {
 
   // Read live every render so a model switch is reflected immediately
   // on the next render (no stale-state window).
-  const options = readThinkingOptions();
+  const options = invocation
+    ? (invocation.thinkingLevels ?? []).map((value) => ({ value }))
+    : readThinkingOptions();
 
   // CLAMP: the value actually exposed (and sent with chat turns) must
   // be one the current model supports. If the stored pick isn't in
@@ -103,13 +107,13 @@ export function useThinkingEffort(): ThinkingEffortHook {
   // xhigh — fall back to the backend default (or the first option).
   // Without this clamp the stale pick reached the API and 400'd:
   // "'minimal' is not supported with the 'gpt-5.5' model".
-  const thinking = options.some((o) => o.value === stored)
-    ? stored
-    : readBackendDefault() ?? options[0]?.value ?? stored;
+  const thinking = invocation
+    ? storedRaw || invocation.defaultThinking || ""
+    : options.some((o) => o.value === stored) ? stored : readBackendDefault() ?? options[0]?.value ?? stored;
 
   const set = useCallback((level: ThinkingEffort) => {
-    setComposerSettings({ thinking: level });
-  }, [setComposerSettings]);
+    setComposerSettings({ thinking: level, ...(invocation ? { agentInvocation: { ...invocation, thinkingEffort: level } } : {}) });
+  }, [setComposerSettings, invocation]);
 
   return { thinking, options, menuOpen, setMenuOpen, set };
 }

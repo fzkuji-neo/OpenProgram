@@ -25,6 +25,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Optional
 
+from openprogram.memory.policy import MemoryPolicyError
+
 _log = logging.getLogger(__name__)
 
 Layer = Literal["L0", "L1", "L2"]
@@ -123,6 +125,8 @@ def assemble(
                     if not comp.condition(agent):
                         continue
                     text = comp.build(agent)
+                except MemoryPolicyError:
+                    raise
                 except Exception:
                     continue
                 if text and str(text).strip():
@@ -170,6 +174,8 @@ def build_system_prompt(
         if not parts:
             return ""
         return _FENCE_OPEN + "\n\n".join(parts) + _FENCE_CLOSE
+    except MemoryPolicyError:
+        raise
     except Exception:
         inline = _attr(agent, "system_prompt", "") or ""
         return str(inline).strip()
@@ -272,13 +278,17 @@ def _build_skills(agent: Any) -> str:
 
 def _build_memory(agent: Any) -> str:
     try:
-        from openprogram.memory import get_backend
-        mem_block = get_backend().system_prompt()
+        from openprogram.memory.policy import prompt_for_agent
+        mem_block = prompt_for_agent(agent)
         if mem_block.strip():
             return mem_block
-    except Exception:
-        # Memory is an optional subsystem: an unavailable or broken
-        # provider degrades to no memory block, never a failed turn.
+    except Exception as exc:
+        from openprogram.memory.policy import MemoryPolicyError, require_or_empty
+        if isinstance(exc, MemoryPolicyError):
+            raise
+        require_or_empty(exc)
+        # Optional memory may degrade; required memory errors propagate
+        # through the assembler and terminate the turn before generation.
         _log.debug("memory system prompt unavailable", exc_info=True)
     return ""
 

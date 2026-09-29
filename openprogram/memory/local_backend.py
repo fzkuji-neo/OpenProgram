@@ -32,14 +32,14 @@ WRITE_TOKEN_THRESHOLD = 16_000
 class LocalMemoryBackend(MemoryBackend):
     """File-based memory: sources + topics + core."""
 
-    _session_id: str = ""
+    supports_execution_policy = True
 
     @property
     def name(self) -> str:
         return "local"
 
     def initialize(self, *, session_id: str = "", **kwargs: Any) -> None:
-        self._session_id = session_id
+        pass  # Execution identity is supplied per call, never cached globally.
 
     # -- Reading --------------------------------------------------------
 
@@ -58,7 +58,11 @@ class LocalMemoryBackend(MemoryBackend):
 
         try:
             text = store.core().read_text(encoding="utf-8").strip()
-        except OSError:
+        except FileNotFoundError:
+            return ""
+        except OSError as exc:
+            from .policy import require_or_empty
+            require_or_empty(exc)
             return ""
         # A bare heading is the empty state, not content worth injecting.
         body = "\n".join(
@@ -121,6 +125,8 @@ class LocalMemoryBackend(MemoryBackend):
         except Exception as exc:  # noqa: BLE001
             # An empty or unindexed workspace is the ordinary case on a
             # fresh install, not something to surface mid-turn.
+            from .policy import require_or_empty
+            require_or_empty(exc)
             logger.debug("memory recall failed: %s", exc)
             return ""
         rendered = "\n\n".join(
@@ -167,7 +173,7 @@ class LocalMemoryBackend(MemoryBackend):
             return None
         try:
             return writing.write(
-                session_id or self._session_id, messages,
+                session_id, messages,
                 token_threshold=config.writer_trigger_tokens, force=force,
             )
         except Exception as exc:  # noqa: BLE001

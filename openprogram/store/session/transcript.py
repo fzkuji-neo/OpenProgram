@@ -97,6 +97,8 @@ def render_session_transcript(
     include_function_calls: bool = True,
     max_chars: int = MAX_TOTAL_CHARS,
     store: Any = None,
+    *,
+    on_consumed: Any = None,
 ) -> str:
     """Serialize one branch of a session into LLM-readable plain text.
 
@@ -182,6 +184,8 @@ def render_session_transcript(
         if used + size > max_chars and body:
             dropped_at = i
             break
+        if on_consumed is not None:
+            on_consumed([msg, *calls_by_caller.get(msg.get("id") or "", [])])
         body.extend(turn)
         used += size
 

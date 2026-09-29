@@ -241,6 +241,8 @@ def fence_memory(raw: str) -> str:
 class MemoryBackend(ABC):
     """Abstract memory backend."""
 
+    supports_execution_policy = False
+
     @property
     @abstractmethod
     def name(self) -> str:

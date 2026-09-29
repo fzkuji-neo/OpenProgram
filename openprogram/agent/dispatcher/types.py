@@ -164,6 +164,10 @@ class TurnRequest:
     goal_previous_execution: Optional[str] = None
     goal_verification: Optional[str] = None
 
+    memory_policy_override: Optional[dict[str, Any]] = None
+    memory_policy_snapshot: Optional[dict[str, Any]] = None
+    memory_degraded_reason: Optional[str] = None
+
     def __post_init__(self) -> None:
         if self.profile_snapshot is not None:
             if not isinstance(self.profile_snapshot, dict):

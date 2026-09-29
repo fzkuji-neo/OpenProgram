@@ -410,15 +410,14 @@ test("Pierre nested folder collapse survives state synchronization and refresh",
   } finally { await act(async()=>root.unmount()); Object.assign(globalThis,saved); }
 });
 
-test("breadcrumb copy confirms success and context menu copies the clicked ancestor", async () => {
+test("breadcrumb copy confirms success only after the clipboard write completes", async () => {
   const parsed = parseHTML('<html><body><div id="root"></div></body></html>');
   const saved = { window: globalThis.window, document: globalThis.document, ResizeObserver: globalThis.ResizeObserver };
   const clipboard = Object.getOwnPropertyDescriptor(globalThis, "navigator");
   Object.assign(globalThis, { window: parsed.window, document: parsed.document, ResizeObserver: class { observe() {} disconnect() {} } });
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-  const writes = []; let finishCopy, menu, select;
+  const writes = []; let finishCopy;
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { writeText: value => { writes.push(value); return new Promise(resolve => { finishCopy = resolve; }); } } } });
-  window.openprogramDesktop = { contextMenu: { popup: request => { menu = request; return new Promise(resolve => { select = resolve; }); }, close() {} } };
   const root = createRoot(document.getElementById("root"));
   const click = async node => act(async () => node.dispatchEvent(new window.Event("click", { bubbles: true })));
   try {
@@ -429,16 +428,9 @@ test("breadcrumb copy confirms success and context menu copies the clicked ances
     assert.ok(document.querySelector('button[aria-label="Copied"] svg'));
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 1550)); });
     assert.ok(document.querySelector('button[aria-label="Copy absolute path"]'));
-    const ancestor = document.querySelector('button[data-path="src"]');
-    await act(async () => ancestor.dispatchEvent(new window.Event("contextmenu", {bubbles:true})));
-    assert.deepEqual(menu.items.map(item => item.id), ["relative","absolute","name"]);
-    await act(async () => select("absolute"));
-    assert.equal(writes.at(-1), "/project/src");
-    await act(async () => finishCopy());
-    await act(async () => ancestor.dispatchEvent(new window.Event("contextmenu", {bubbles:true})));
-    await act(async () => select("relative"));
-    assert.equal(writes.at(-1), "src");
-    await act(async () => finishCopy());
+    assert.deepEqual(writes, ["/project/src/file.txt"]);
+    // Actual ancestor context-menu actions use the Chromium acceptance test in
+    // tests/e2e/web/test_browser_control_menu.py.
   } finally {
     await act(async () => root.unmount());
     Object.assign(globalThis, saved);

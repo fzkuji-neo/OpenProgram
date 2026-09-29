@@ -352,6 +352,10 @@ def log_resolved_tools(req: "TurnRequest", tools: Optional[list]) -> None:
         pass
 
 
+class RequiredMcpUnavailable(ValueError):
+    """A configured required dependency is unavailable for this invocation."""
+
+
 def resolve_tools(
     profile: dict,
     override: object = None,
@@ -368,8 +372,7 @@ def resolve_tools(
     # MCP-level gating helper. MCP tools come out of agent_tools()
     # with the ``<server>__<tool>`` naming convention, so we filter
     # by the ``<server>`` prefix against the agent's ``mcp.disabled/
-    # allowed`` patterns. Required-server check returns None to abort
-    # the turn cleanly.
+    # allowed`` patterns. Required servers fail before provider execution.
     def _apply_profile_gates(tool_list):
         from openprogram.agent.management.gating import match_any, check_required
         agent_tools_config = (profile or {}).get("tools")
@@ -401,17 +404,6 @@ def resolve_tools(
             return tool_list
         def _server_of(name: str) -> str:
             return name.split("__", 1)[0] if "__" in name else ""
-        seen_servers = {_server_of(t.name) for t in (tool_list or []) if _server_of(t.name)}
-        missing = check_required(seen_servers, required)
-        if missing:
-            # Hard fail — return None so caller treats this turn as
-            # tools-disabled with a clear log line.
-            from openprogram.webui import server as _srv
-            try:
-                _srv._log(f"[mcp-gate] required servers missing: {missing}")
-            except Exception:
-                pass
-            return None
         out = []
         for t in tool_list or []:
             srv = _server_of(t.name)
@@ -423,6 +415,12 @@ def resolve_tools(
             if allowed and not match_any(srv, allowed):
                 continue
             out.append(t)
+        seen_servers = {_server_of(t.name) for t in out if _server_of(t.name)}
+        missing = check_required(seen_servers, required)
+        if missing:
+            raise RequiredMcpUnavailable(
+                "Required MCP servers unavailable: " + ", ".join(missing)
+            )
         return out
 
     profile_tools = (profile or {}).get("tools")
@@ -442,10 +440,13 @@ def resolve_tools(
         try:
             from openprogram.programs import agent_tools as _agent_tools
             return _apply_profile_gates(_agent_tools(source=source, only_available=True))
+        except RequiredMcpUnavailable:
+            raise
         except Exception:
+            _apply_profile_gates([])
             return None
     if wanted == []:
-        return []
+        return _apply_profile_gates([])
     try:
         from openprogram.programs import DEFAULT_TOOLS, agent_tools
         from openprogram.agent.management.gating import match_any
@@ -459,7 +460,7 @@ def resolve_tools(
                 # automatic discovery default without rewriting every agent.
                 mode = "automatic"
             if mode == "none":
-                return []
+                return _apply_profile_gates([])
             enabled = wanted.get("enabled")
             disabled_patterns = list(wanted.get("disabled") or [])
             allowed_patterns = list(wanted.get("allowed") or [])
@@ -545,7 +546,10 @@ def resolve_tools(
             from openprogram.programs import apply_tool_policy
             resolved = apply_tool_policy(resolved, source=source, exposure_filter=False)
         return _apply_profile_gates(resolved)
+    except RequiredMcpUnavailable:
+        raise
     except Exception:
+        _apply_profile_gates([])
         return None
 
 

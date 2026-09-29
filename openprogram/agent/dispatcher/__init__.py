@@ -215,6 +215,10 @@ def process_user_turn(
         return result
 
 
+from openprogram.memory.policy import scoped_execution as _memory_execution
+
+
+@_memory_execution
 def process_agent_continuation(
     continuation,
     *,
@@ -250,6 +254,8 @@ def process_agent_continuation(
     if not db.message_exists(req.session_id, assistant_msg_id):
         raise RuntimeError("continuation assistant placeholder is missing")
     history = rendered_history(db, req.session_id, head_id=user_msg_id) or []
+    from openprogram.memory.policy import bind_history
+    bind_history(req, history)
     context = execution_context if execution_context is not None else {}
     # Resume is not a new admission: keep the original user node, assistant
     # placeholder, and assistant id. Bind the same per-turn identity the
@@ -338,6 +344,7 @@ def process_agent_continuation(
     )
 
 
+@_memory_execution
 def _process_turn_once(
     req: TurnRequest,
     *,
@@ -493,6 +500,8 @@ def _process_turn_once(
             session = db.get_session(req.session_id)
             history = rendered_history(db, req.session_id, head_id=user_msg_id) or []
             req.user_already_persisted = True
+            from openprogram.memory.policy import bind_history
+            bind_history(req, history)
         else:
             session, history = prepare_turn(
                 db=db, req=req, writer=_writer,

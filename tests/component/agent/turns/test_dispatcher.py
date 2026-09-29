@@ -137,7 +137,7 @@ def test_emits_chat_ack_then_stream_then_result(tmp_db, captured, collector) -> 
 
 def test_updates_head_id_and_tokens(tmp_db) -> None:
     with patch.object(D, "_run_loop_blocking",
-                      _stub_loop_returning("done", usage={"input_tokens": 42, "output_tokens": 7})):
+                      _stub_loop_returning("done", usage={"input_tokens": 30, "context_tokens": 42, "output_tokens": 7})):
         result = D.process_user_turn(
             D.TurnRequest(session_id="c1", user_text="hi", agent_id="main", source="tui"),
         )

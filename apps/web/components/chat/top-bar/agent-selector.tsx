@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useBoundChat } from "./bound-chat";
 import { api } from "@/lib/net/api";
+import { updatePendingAgentModel } from "@/lib/agents/start-conversation";
 import { useTranslation } from "@/lib/i18n";
 import {
   CHECK_SLOT,
@@ -65,6 +66,7 @@ export function AgentSelector({
           if (!sid) return;
           newSession(sid);
         }
+        if (await updatePendingAgentModel(sid, { provider, id: model })) return;
         await api.switchModel(provider, model, sid);
       }
       const { useSessionStore } = await import("@/lib/session-store");

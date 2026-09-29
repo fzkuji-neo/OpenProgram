@@ -57,6 +57,8 @@ def _job_output_impl(
         return f"[job_output error] unknown execution_id={job_id!r}"
     status = task.status.value
     if status == "completed":
+        from openprogram.memory.policy import consume_node
+        consume_node(task.parent_session_id, task.head_id)
         out = task.result_text or "(spawned agent returned no text)"
         text = f"{out}\n\n[task {job_id} status={status}]"
     elif status == "cancelled":

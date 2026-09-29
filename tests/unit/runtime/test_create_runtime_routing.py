@@ -1,9 +1,9 @@
-"""create_runtime() supports api-routed providers, not just the 6 named ones.
+"""create_runtime() supports api-routed providers, not just the named backends.
 
 The recurring agent confusion: someone greps for "where are providers
-registered", lands on registry.PROVIDERS (6 entries), sees no minimax /
+registered", lands on registry.PROVIDERS, sees no minimax /
 deepseek / etc., and concludes they're unsupported. PROVIDERS is only the
-six first-class backends (three subscription/CLI Runtime classes + three
+five first-class backends (two subscription/CLI Runtime classes + three
 API-key providers with table-level key resolution). Everything else is
 supported via its model's wire `api` + the api_registry — the same path
 chat uses. create_runtime falls through to that, so it matches chat
@@ -42,7 +42,7 @@ def test_providers_table_is_only_the_first_class_backends():
     # If this set grows, that's fine — but it is NOT the list of supported
     # providers, which is enabled_models + the api_registry.
     assert set(PROVIDERS) == {
-        "claude-code", "openai-codex", "gemini-cli",
+        "openai-codex", "gemini-cli",
         "anthropic", "openai", "gemini",
     }
 

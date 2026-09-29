@@ -290,9 +290,14 @@ def _process_session(
 
     try:
         from . import get_backend
-        left = get_backend().write(
-            messages, session_id=session_id, force=True,
-        )
+        backend = get_backend()
+        from .policy import node_policy
+        if any(node_policy(row) is not None for row in messages) and not getattr(backend, "supports_execution_policy", False):
+            left = WriteFailure("Memory backend cannot enforce execution policy", reason_code=MemoryWriteFailureCode.MEMORY_PROVIDER_RESOLUTION_FAILED)
+        else:
+            left = backend.write(
+                messages, session_id=session_id, force=True,
+            )
     except Exception as exc:  # noqa: BLE001
         # Only an explicit transient verdict justifies another poll. An
         # unclassified exception may be a permanent config/auth failure.

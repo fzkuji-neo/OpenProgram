@@ -29,3 +29,5 @@ Ways to extend the agent's capabilities without writing a harness:
 - [Plugins](plugins.md) — install plugins from pip / npm / git / local paths that contribute commands, skills, MCP servers, and more to the host
 - [MCP](mcp.md) — connect any MCP server; its tools appear directly in chat
 - [Built-in tools](tools.md) — the tools that ship with the framework (shell, files, web search, images, PDF, etc.) and the keys each one needs
+
+- [Configure an Agent](agents.md) — models, instructions, capabilities, memory and independent trial conversations

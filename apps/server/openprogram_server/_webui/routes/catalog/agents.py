@@ -1,6 +1,7 @@
 """HTTP management API for persisted Agent profiles."""
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -15,10 +16,12 @@ _SESSION_SCOPES = {
     "per-channel-peer",
     "per-account-channel-peer",
 }
-_THINKING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh"}
+_THINKING_EFFORTS = {"", "minimal", "low", "medium", "high", "xhigh", "max"}
 _DAILY_RESET = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 _PATCH_FIELDS = {
     "name",
+    "description",
+    "memory",
     "model",
     "thinking_effort",
     "system_prompt",
@@ -105,8 +108,13 @@ def _validated_patch(raw: object) -> dict[str, Any]:
     if unknown:
         raise ValueError("unsupported fields: " + ", ".join(sorted(unknown)))
     out: dict[str, Any] = {}
+    if "memory" in raw:
+        from openprogram.agent.management.manager import validate_memory_config
+        out["memory"] = validate_memory_config(raw["memory"], partial=True)
     if "name" in raw:
         out["name"] = _short_text(raw["name"], "name", required=True, limit=80)
+    if "description" in raw:
+        out["description"] = _short_text(raw["description"], "description", limit=2000)
     if "model" in raw:
         model = raw["model"]
         if not isinstance(model, dict):
@@ -117,7 +125,7 @@ def _validated_patch(raw: object) -> dict[str, Any]:
         }
     if "thinking_effort" in raw:
         effort = raw["thinking_effort"]
-        if effort not in _THINKING_EFFORTS:
+        if not isinstance(effort, str) or effort not in _THINKING_EFFORTS:
             raise ValueError("thinking_effort is invalid")
         out["thinking_effort"] = effort
     if "system_prompt" in raw:
@@ -163,10 +171,7 @@ def register(app: FastAPI) -> None:
     def list_agents():
         from openprogram.agent.management import manager as _agents
 
-        try:
-            rows = [agent.to_dict() for agent in _agents.list_all()]
-        except Exception:
-            rows = []
+        rows = [agent.to_dict() for agent in _agents.list_all()]
         return JSONResponse(content={"agents": rows})
 
     @app.post("/api/agents")
@@ -202,24 +207,39 @@ def register(app: FastAPI) -> None:
     def update_agent(agent_id: str, body: dict | None = None):
         from openprogram.agent.management import manager as _agents
 
-        current = _agents.get(agent_id)
-        if current is None:
-            return JSONResponse(content={"error": "agent not found"}, status_code=404)
         raw = dict(body or {})
-        expected = raw.pop("updated_at", None)
-        if expected is not None and expected != current.updated_at:
-            return JSONResponse(
-                content={"error": "agent configuration changed; reload before saving"},
-                status_code=409,
-            )
+        expected_revision = raw.pop("expected_revision", None)
+        expected_updated_at = raw.pop("updated_at", None)
         try:
+            if expected_revision is not None and (
+                isinstance(expected_revision, bool)
+                or not isinstance(expected_revision, int) or expected_revision < 1
+            ):
+                raise ValueError("expected_revision must be a positive integer")
+            if expected_updated_at is not None and (
+                isinstance(expected_updated_at, bool)
+                or not isinstance(expected_updated_at, (int, float))
+                or not math.isfinite(expected_updated_at)
+            ):
+                raise ValueError("updated_at must be a finite timestamp")
             patch = _validated_patch(raw)
+            agent = _agents.update(
+                agent_id, patch,
+                expected_revision=expected_revision,
+                expected_updated_at=expected_updated_at,
+                require_precondition=True,
+                replace_tool_policy=True,
+            )
+        except _agents.AgentNotFound:
+            return JSONResponse(content={"error": "agent not found"}, status_code=404)
+        except _agents.AgentRevisionConflict as exc:
+            return JSONResponse(
+                content={"error": str(exc), "agent": exc.current.to_dict()}, status_code=409,
+            )
+        except _agents.AgentPreconditionRequired as exc:
+            return JSONResponse(content={"error": str(exc)}, status_code=428)
         except ValueError as exc:
             return JSONResponse(content={"error": str(exc)}, status_code=400)
-        tools = patch.pop("tools", None)
-        agent = _agents.update(agent_id, patch) if patch else current
-        if tools is not None:
-            agent = _agents.replace_tools(agent_id, tools)
         return JSONResponse(content={"agent": agent.to_dict()})
 
     @app.post("/api/agents/{agent_id}/default")

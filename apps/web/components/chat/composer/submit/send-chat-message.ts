@@ -243,6 +243,22 @@ export function sendChatMessage({
     web_search: webSearchEnabled,
     permission_mode: permissionMode,
   };
+  const invocation = sessionId
+    ? useSessionStore.getState().composerSettingsBySession[sessionId]?.agentInvocation
+    : undefined;
+  if (invocation) {
+    payload.agent_id = invocation.agentId;
+    if (invocation.trial) {
+      payload.agent_trial = true;
+      payload.agent_config = invocation.config;
+    }
+    if (invocation.model || invocation.thinkingEffort !== undefined) {
+      payload.agent_overrides = {
+        ...(invocation.model ? { model: invocation.model } : {}),
+        ...(invocation.thinkingEffort !== undefined ? { thinking_effort: invocation.thinkingEffort } : {}),
+      };
+    }
+  }
   const sandbox = useSessionStore.getState().composerSettingsBySession[
     sessionId ?? "__new__"
   ]?.sandbox;

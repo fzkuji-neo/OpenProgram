@@ -34,7 +34,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSidebarMenu, type SidebarMenuItem } from "@/components/sidebar/use-sidebar-menu";
 import { CursorClickIcon } from "@/components/animated-icons";
 import styles from "./center-tabs.module.css";
 
@@ -79,7 +78,6 @@ export function BrowserControlBar({
   viewport?: { width: number; height: number };
 }) {
   const { text } = useTranslation();
-  const historyMenu = useSidebarMenu();
   useBrowserControlStore(s => s.showActions);
   useBrowserControlStore(s => s.pending);
   useBrowserControlStore(s => s.resumeError);
@@ -118,18 +116,10 @@ export function BrowserControlBar({
   const showLabel = text("Show actions", "显示操作");
   const historyLabel = text("Operation history", "操作历史");
   const history = operationHistory(resource.resourceId);
-  const historyItems: SidebarMenuItem[] = history.length === 0
-    ? [{ id: "empty", label: text("No operations yet.", "尚无操作。"), disabled: true }]
-    : history.map(item => ({
-      id: item.id,
-      label: `${item.action} · ${item.phase}${item.error ? ` · ${item.error}` : ""}`,
-      disabled: true,
-    }));
   const resumeError = resumeErrorFor(resource.resourceId);
   const resumeDisabled = !connected || (state !== "paused" && state !== "waiting");
   const pauseDisabled = state === "yielding" || state === "unknown" || !connected;
   const showTakeover = takeoverKind === "reveal";
-  const nativeHistory = typeof window !== "undefined" && !!window.openprogramDesktop?.contextMenu;
   const noticeText = resumeError
     || (state === "stop_unconfirmed" ? shownStatus : null)
     || (state === "unknown" ? shownStatus : null);
@@ -232,40 +222,22 @@ export function BrowserControlBar({
       >
         <Eye size={14} aria-hidden="true" />
       </button>
-      {nativeHistory ? (
-        <button
-          type="button"
-          className={styles.webToolbarBtn}
-          title={historyLabel}
-          aria-label={historyLabel}
-          aria-haspopup="menu"
-          aria-expanded={historyMenu.open}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (historyMenu.open) historyMenu.close();
-            else historyMenu.show(event, historyItems);
-          }}
-        >
-          <Clock3 size={14} aria-hidden="true" />
-        </button>
-      ) : (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button" className={styles.webToolbarBtn} title={historyLabel} aria-label={historyLabel}>
-              <Clock3 size={14} aria-hidden="true" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className={MENU_PANEL}>
-            {history.length === 0
-              ? <DropdownMenuItem disabled>{text("No operations yet.", "尚无操作。")}</DropdownMenuItem>
-              : history.map(item => (
-                <DropdownMenuItem key={item.id} disabled>
-                  {item.action} · {item.phase}{item.error ? ` · ${item.error}` : ""}
-                </DropdownMenuItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className={styles.webToolbarBtn} title={historyLabel} aria-label={historyLabel}>
+            <Clock3 size={14} aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className={MENU_PANEL}>
+          {history.length === 0
+            ? <DropdownMenuItem disabled>{text("No operations yet.", "尚无操作。")}</DropdownMenuItem>
+            : history.map(item => (
+              <DropdownMenuItem key={item.id} disabled>
+                {item.action} · {item.phase}{item.error ? ` · ${item.error}` : ""}
+              </DropdownMenuItem>
+            ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       {showTakeover ? (
         <button
           type="button"

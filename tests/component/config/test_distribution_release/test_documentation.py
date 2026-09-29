@@ -21,8 +21,6 @@ def test_normal_user_docs_use_the_short_release_installer() -> None:
     short_command = "curl -fsSL https://openprogram.io/install | sh"
     for relative in (
         "README.md",
-        "docs/README.md",
-        "docs/README.zh.md",
         "docs/install/install.md",
         "docs/install/install.zh.md",
         "docs/install/upgrade.md",
@@ -34,6 +32,13 @@ def test_normal_user_docs_use_the_short_release_installer() -> None:
         contents = (ROOT / relative).read_text(encoding="utf-8")
         assert short_command in contents, relative
         assert "v0.6.1/scripts/install-release.sh" not in contents, relative
+
+
+    # The task-oriented overview links to the installation guide instead of
+    # duplicating commands. Both language entries must reach their own guide.
+    for suffix in ("", ".zh"):
+        overview = (ROOT / f"docs/README{suffix}.md").read_text(encoding="utf-8")
+        assert f"(install/install{suffix}.md)" in overview
 
 
 
@@ -227,7 +232,11 @@ def test_public_install_docs_pin_current_product_version() -> None:
 
     assert f"OPENPROGRAM_VERSION={version} sh" in english
     assert f"OPENPROGRAM_VERSION={version} sh" in chinese
-    assert f"正式版本</strong>：v{version}" in design
+    assert f"Official releases</strong>: v{version}" in design
+    chinese_design = (
+        ROOT / "docs/reference/design/distribution/installation-packaging.zh.html"
+    ).read_text(encoding="utf-8")
+    assert f"正式版本</strong>：v{version}" in chinese_design
     assert f"### Current v{version} release acceptance" in plan
 
 

@@ -102,6 +102,8 @@ def _hard_constraint_violation(
     if tool_name in _WRITE_TOOLS:
         path = parse_command(tool_name, args)
         if _targets_agentics(path):
+            if req.source in {"agent_spawn", "mcp"}:
+                _audit_path(req, tool_name, "protected agentic target")
             return "model tools cannot write auto-imported agentic Python"
     if tool_name == "apply_patch":
         patch = args.get("patch") if isinstance(args, dict) else None
@@ -111,6 +113,8 @@ def _hard_constraint_violation(
                     (p for p in _PATCH_PATH_PREFIXES if line.startswith(p)), None
                 )
                 if prefix and _targets_agentics(line[len(prefix):].strip()):
+                    if req.source in {"agent_spawn", "mcp"}:
+                        _audit_path(req, tool_name, "protected agentic target")
                     return "model tools cannot write auto-imported agentic Python"
 
     if req.source in {"cron", "scheduler"}:
@@ -134,7 +138,12 @@ def _hard_constraint_violation(
     ):
         return f"{req.source} cannot execute {tool_name}"
     if tool_name in _WRITE_TOOLS:
+        raw = (args.get("path") or args.get("file_path")) if isinstance(args, dict) else None
+        if not isinstance(raw, str) or not raw.strip():
+            _audit_path(req, tool_name, "missing write target")
+            return f"{req.source} write requires an explicit target path: {tool_name}"
         if not _path_is_safe(tool_name, args, req):
+            _audit_path(req, tool_name, "unsafe write target")
             return (
                 f"{req.source} cannot write outside its working directories: "
                 f"{tool_name}"
@@ -151,12 +160,29 @@ def _hard_constraint_violation(
         if prefix is None:
             continue
         path = line[len(prefix):].strip()
+        if not path:
+            _audit_path(req, "apply_patch", "empty patch target")
+            return f"{req.source} cannot apply a patch with an empty target path"
         if not _path_is_safe("write", {"file_path": path}, req):
+            _audit_path(req, "apply_patch", "unsafe patch target")
             return (
                 f"{req.source} cannot apply a patch outside its working "
                 "directories"
             )
     return None
+
+
+def _audit_path(req: "TurnRequest", tool_name: str, reason: str) -> None:
+    from .audit import log_path_safety_violation
+    log_path_safety_violation(req.session_id or "", tool_name, reason)
+
+
+def _audit_delegated_risky(tool_name: str, req: "TurnRequest") -> None:
+    if tool_name in _RISKY_TOOLS and req.source in _NON_INTERACTIVE_SOURCES:
+        from .audit import log_delegated_risky_tool
+        log_delegated_risky_tool(
+            req.session_id or "", tool_name, req.source, req.authority_tier or "",
+        )
 
 
 def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, object]:
@@ -195,6 +221,7 @@ def permission_decision(agent_tool, req, args: dict) -> tuple[str, str, str, obj
             if web_use_available(getattr(req, "surface_context", None)):
                 return "allow", "SURFACE_GRANT", "", None
         if req.permission_mode == "bypass" or verdict == "allow":
+            _audit_delegated_risky(name, req)
             return "allow", "BYPASS" if req.permission_mode == "bypass" else "PERMISSION_RULE_ALLOW", "", None
         if req.source in {"cron", "scheduler"} and name in _SCHEDULED_MEMORY_TOOLS:
             return "allow", "SCHEDULED_MEMORY", "", None

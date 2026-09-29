@@ -64,7 +64,7 @@ def start_nightly_reorganizer(
             time.sleep(wait)
         while True:
             try:
-                report = get_backend().reorganize(model=model)
+                report = reorganize_spaces(model=model)
                 logger.info("memory nightly reorganize done: %s", report)
             except Exception as e:  # noqa: BLE001
                 logger.warning("memory nightly reorganize failed: %s", e)
@@ -81,3 +81,19 @@ def _seconds_until(hour: int) -> float:
     if target <= now:
         target += timedelta(days=1)
     return (target - now).total_seconds()
+
+
+def reorganize_spaces(*, model=None):
+    """Maintain the legacy workspace and existing writable Agent spaces."""
+    report = get_backend().reorganize(model=model)
+    from openprogram.agent.management import manager
+    from .policy import resolve, scope, space_path
+    for spec in manager.list_all():
+        policy = resolve(spec.id, spec)
+        if policy.mode != 'read_write' or policy.write_space != 'self':
+            continue
+        if not space_path(policy, 'self').is_dir():
+            continue
+        with scope(policy, space='self'):
+            get_backend().reorganize(model=model)
+    return report

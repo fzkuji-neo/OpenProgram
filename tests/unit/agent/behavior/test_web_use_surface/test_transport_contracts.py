@@ -102,9 +102,10 @@ def test_frontend_and_electron_expose_turn_surface_preview_contract():
     assert "visible_text_excerpt" in main
     assert "Agent can access" in chip
     assert "surfaceRefForChat(sessionId, toolsEnabled)" in chip
-    assert "surface.region" in chip
     assert "· right ·" not in chip
-    assert 'aria-label={`${stateLabel}: ${regionLabel} · ${title}`}' in chip
+    assert 'aria-label={`${stateLabel}: ${title}`}' in chip
+    assert "aria-pressed={toolsEnabled}" in chip
+    assert "onClick={onToggleAccess}" in chip
 
 
 
@@ -157,4 +158,3 @@ def test_renderer_command_payload_carries_runtime_session_for_private_page_acces
             assert payload["data"]["session_id"] == "conversation-a"
     finally:
         reset_current_session_id(token)
-

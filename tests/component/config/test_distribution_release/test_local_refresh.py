@@ -280,10 +280,7 @@ def test_local_app_refresh_rejects_a_different_product_version_before_build(
 
 
 
-@POSIX_SHELL_INTEGRATION
-def test_local_app_refresh_rejects_dirty_version_change_after_build(
-    tmp_path: Path,
-) -> None:
+def _prepare_local_refresh_fixture(tmp_path: Path) -> tuple[Path, Path, dict[str, str]]:
     repo = tmp_path / "repo"
     scripts = repo / "scripts"
     release_scripts = scripts / "release"
@@ -443,6 +440,22 @@ def test_local_app_refresh_rejects_dirty_version_change_after_build(
         "MUTATION_LOG": str(mutation_log),
     }
     Path(env["TMPDIR"]).mkdir()
+    return repo, app, env
+
+
+@POSIX_SHELL_INTEGRATION
+def test_local_app_refresh_rejects_dirty_version_change_after_build(
+    tmp_path: Path,
+) -> None:
+    repo, app, env = _prepare_local_refresh_fixture(tmp_path)
+    scripts = repo / "scripts"
+    desktop = repo / "apps/desktop"
+    desktop_files = json.loads((desktop / "package.json").read_text())["build"]["files"]
+    installed_asar = app / "Contents/Resources/app.asar"
+    fake_bin = tmp_path / "fake-bin"
+    fake_uv = Path(env["OPENPROGRAM_UV_BIN"])
+    local_python = Path(env["OPENPROGRAM_LOCAL_PYTHON"])
+    mutation_log = Path(env["MUTATION_LOG"])
     result = subprocess.run(
         ["bash", str(scripts / "refresh-local-app.sh")],
         check=False,
@@ -606,3 +619,156 @@ def test_local_app_refresh_rejects_dirty_version_change_after_build(
     assert not lock_file.exists()
     assert not list(Path(env["TMPDIR"]).glob("openprogram-local-wheel.*"))
 
+
+
+@POSIX_SHELL_INTEGRATION
+@pytest.mark.parametrize(("change", "target_alias"), [
+    *[(change, "canonical") for change in (
+        "tracked", "staged", "untracked", "stale",
+        "during_build", "untracked_during_build", "main_during_build",
+        "after_build", "head_after_build", "main_after_build",
+        "clean", "committed_during_build",
+    )],
+    *[(change, alias) for alias in ("dot", "slash", "symlink")
+      for change in ("tracked", "stale", "clean", "locked")],
+    ("tracked", "custom"),
+])
+def test_default_local_refresh_requires_committed_source_before_mutation(
+    tmp_path: Path, change: str, target_alias: str,
+) -> None:
+    repo, app, env = _prepare_local_refresh_fixture(tmp_path)
+    script = repo / "scripts/refresh-local-app.sh"
+    # Remap only the canonical App path in the copied public script. No real
+    # Applications path or worker is used, and no production bypass is added.
+    default_app = tmp_path / "default.app" if target_alias == "custom" else app
+    script.write_text(script.read_text().replace(
+        '"/Applications/OpenProgram.app"', f'"{default_app}"',
+    ))
+    if target_alias == "dot":
+        env["OPENPROGRAM_APP_PATH"] += "/."
+    elif target_alias == "slash":
+        env["OPENPROGRAM_APP_PATH"] += "/"
+    elif target_alias == "symlink":
+        alias = tmp_path / "alias" / "OpenProgram.app"
+        alias.parent.mkdir()
+        alias.symlink_to(app, target_is_directory=True)
+        env["OPENPROGRAM_APP_PATH"] = str(alias)
+    fake_bin = tmp_path / "fake-bin"
+    (fake_bin / "git").unlink()  # Git ancestry/status come from a real temp repo.
+    for name in ("pgrep", "pkill", "osascript", "open"):
+        tool = fake_bin / name
+        tool.write_text("#!/bin/sh\nexit 1\n")
+        tool.chmod(0o755)
+    source = repo / "openprogram/source.py"
+    source.parent.mkdir()
+    source.write_text("VALUE = 1\n")
+    (repo / ".gitignore").write_text("tmp/\n")
+    (repo / "tmp").mkdir()
+    (repo / "tmp/ignored-evidence.txt").write_text("local evidence\n")
+    def git(*args: str) -> str:
+        return subprocess.check_output(
+            ["git", "-C", str(repo), *args], text=True,
+            env=os.environ | {"GIT_CONFIG_NOSYSTEM": "1"},
+        ).strip()
+    git("init", "-b", "main")
+    git("config", "user.name", "Refresh Test")
+    git("config", "user.email", "refresh@example.invalid")
+    git("config", "commit.gpgsign", "false")
+    git("config", "core.hooksPath", "/dev/null")
+    git("add", ".")
+    git("commit", "-qm", "committed refresh source")
+    initial_head = git("rev-parse", "HEAD")
+    git("checkout", "-qb", "candidate")
+
+    fake_uv = Path(env["OPENPROGRAM_UV_BIN"])
+    fake_uv.write_text(
+        "#!/bin/sh\nset -eu\n"
+        'printf "build\n" >> "$BUILD_LOG"\n'
+        'out=; while [ "$#" -gt 0 ]; do '
+        'if [ "$1" = "--out-dir" ]; then out="$2"; shift 2; else shift; fi; done\n'
+        '"$REAL_PYTHON" - "$out/openprogram-0.6.6-py3-none-any.whl" <<\'PYWHEEL\'\n'
+        "import sys, zipfile\n"
+        "with zipfile.ZipFile(sys.argv[1], 'w') as z:\n"
+        " z.writestr('openprogram-0.6.6.dist-info/METADATA', "
+        "'Metadata-Version: 2.1\\nName: openprogram\\nVersion: 0.6.6\\n')\n"
+        " z.writestr('openprogram_server/_webui/_frontend/chat.html', "
+        "'<body><div id=\"sidebar\"></div></body>')\n"
+        "PYWHEEL\n"
+        'case "$SOURCE_CHANGE" in\n'
+        ' during_build) printf "VALUE = 2\\n" > "$REPO_ROOT/openprogram/source.py" ;;\n'
+        ' untracked_during_build) touch "$REPO_ROOT/openprogram/new.py" ;;\n'
+        ' main_during_build) git -C "$REPO_ROOT" update-ref refs/heads/main "$NEW_COMMIT" ;;\n'
+        ' committed_during_build) '
+        'if [ "$(git -C "$REPO_ROOT" rev-parse HEAD)" != "$NEW_COMMIT" ]; then '
+        'git -C "$REPO_ROOT" update-ref refs/heads/candidate "$NEW_COMMIT"; fi ;;\n'
+        'esac\n'
+    )
+    # A second committed revision with the same tree models another writer
+    # advancing a ref without unrelated fixture changes.
+    new_commit = subprocess.check_output(
+        ["git", "-C", str(repo), "commit-tree", "HEAD^{tree}", "-p", "HEAD"],
+        input="concurrent commit\n", text=True,
+    ).strip()
+    if change in {"tracked", "staged"}:
+        source.write_text("VALUE = 2\n")
+        if change == "staged":
+            git("add", str(source))
+    elif change == "untracked":
+        (repo / "openprogram/new.py").write_text("VALUE = 2\n")
+    elif change == "stale":
+        git("update-ref", "refs/heads/main", new_commit)
+
+    local_python = Path(env["OPENPROGRAM_LOCAL_PYTHON"])
+    original_python = local_python.read_text()
+    local_python.write_text(original_python.replace(
+        'case "${1:-}" in',
+        'case "$*" in *verify-release-version.py*--wheel*)\n'
+        ' case "$SOURCE_CHANGE" in\n'
+        '  after_build) printf "VALUE = 2\\n" > "$REPO_ROOT/openprogram/source.py" ;;\n'
+        '  head_after_build) git -C "$REPO_ROOT" update-ref refs/heads/candidate "$NEW_COMMIT" ;;\n'
+        '  main_after_build) git -C "$REPO_ROOT" update-ref refs/heads/main "$NEW_COMMIT" ;;\n'
+        ' esac ;; esac\ncase "${1:-}" in',
+    ))
+    build_log = tmp_path / "build.log"
+    env |= {"SOURCE_CHANGE": change, "NEW_COMMIT": new_commit,
+            "BUILD_LOG": str(build_log), "OPENPROGRAM_REFRESH_LOCK_HELD": "1"}
+    lock_file = app.parent / ".openprogram-app-install.lock"
+    if change == "locked":
+        lock_file.write_text(f"{os.getpid()}\n")
+    installed_before = {str(p.relative_to(app)): p.read_bytes()
+                        for p in app.rglob("*") if p.is_file()}
+    result = subprocess.run(
+        ["bash", str(script)], env=env, capture_output=True, text=True, timeout=20,
+    )
+    output = result.stdout + result.stderr
+    mutation_log = Path(env["MUTATION_LOG"])
+    assert result.returncode != 0  # Native runtime actions are deliberately fake.
+    if change in {"clean", "committed_during_build"} or target_alias == "custom":
+        assert mutation_log.exists(), output
+        assert "openprogram worker stop" in mutation_log.read_text(), output
+        assert "refusing to refresh the default App" not in output
+        assert len(build_log.read_text().splitlines()) == (2 if change == "committed_during_build" else 1)
+    elif change == "locked":
+        assert "another OpenProgram App installation is running" in output, output
+        assert not mutation_log.exists(), output
+        assert len(build_log.read_text().splitlines()) == 1
+    else:
+        assert "refusing to refresh the default App" in output, output
+        assert not mutation_log.exists(), output
+        if change in {"stale", "main_during_build", "main_after_build"}:
+            assert "behind refs/heads/main" in output
+        elif change == "head_after_build":
+            assert "HEAD changed after packaging" in output
+        else:
+            assert "uncommitted source changes" in output
+        if change in {"tracked", "staged", "untracked", "stale"}:
+            assert not build_log.exists()
+    assert {str(p.relative_to(app)): p.read_bytes()
+            for p in app.rglob("*") if p.is_file()} == installed_before
+    if change == "locked":
+        assert lock_file.read_text() == f"{os.getpid()}\n"
+    else:
+        assert not lock_file.exists()
+    assert git("rev-parse", "HEAD") == (new_commit if change in {
+        "committed_during_build", "head_after_build",
+    } else initial_head)
