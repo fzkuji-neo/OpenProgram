@@ -6,6 +6,7 @@ import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, mapNode, type CanvasLayout, type CanvasPreset } from "@/lib/tabs/canvas-layout";
 import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas-drag";
 import { useTranslation } from "@/lib/i18n";
+import { PaneDragLabel } from "./tab-items";
 import styles from "./canvas-controls.module.css";
 
 /** Preset glyphs: CSS grid tracks + one cell per pane (grid-area when spanning). */
@@ -141,7 +142,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
           : tiny ? <button type="button" className={styles.tiny} title={title} onClick={() => zoom(p.id)}><span><TabIcon tab={tab} /><Maximize2 aria-hidden /></span></button> : null}
         {!single && <div role="button" tabIndex={0} className={styles.grip} title={title}
           aria-label={text(`Pane options: ${title}`, `格子选项：${title}`)} aria-haspopup="menu" aria-expanded={menu?.paneId === p.id}
-          onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); gripStart.current = { x: e.clientX, y: e.clientY }; focus(p.id); if (p.content) startPaneDrag(e, p.content); }}
+          onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); gripStart.current = { x: e.clientX, y: e.clientY }; focus(p.id); if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]")); }}
           onClick={e => {
             const s = gripStart.current; gripStart.current = null;
             if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 6) return; // a drag, not a click
@@ -150,6 +151,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
           onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(p.id, e.clientX, e.clientY); }}
           onKeyDown={e => { if (e.key !== "Enter" && e.key !== " ") return; e.preventDefault(); openMenuBelow(p.id, e.currentTarget); }}>
           <i /><i /><i />
+          {tab && <PaneDragLabel tab={tab} />}
         </div>}
       </div>;
     })}

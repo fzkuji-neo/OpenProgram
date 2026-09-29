@@ -408,3 +408,15 @@ export function TabItem({
     </div>
   );
 }
+
+/** Offscreen template for a pane grip's drag; shares the strip tab styling. */
+export function PaneDragLabel({ tab }: { tab: CenterTab }) {
+  const { t, text } = useTranslation();
+  return <span data-pane-drag-label hidden style={{ display: "none" }} className={styles.tab}>
+    <span className={styles.tabTarget}>
+      <CompoundMemberIcon tab={tab} animate={false} />
+      <span className={styles.tabName}>{labelOf(tab, t, text)}</span>
+    </span>
+    <span className={styles.tabClose} aria-hidden="true"><X size={12} /></span>
+  </span>;
+}
