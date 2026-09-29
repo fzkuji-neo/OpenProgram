@@ -397,7 +397,7 @@ def list_providers() -> list[dict[str, Any]]:
 
 
 def list_models_for_provider(
-    provider_id: str, force_refresh: bool = False
+    provider_id: str, force_refresh: bool = False, *, cached_only: bool = False
 ) -> list[dict[str, Any]]:
     """All models for a provider + their enabled flag — a LIVE query,
     never a persisted snapshot.
@@ -439,7 +439,24 @@ def list_models_for_provider(
     )
 
     out: list[dict[str, Any]] = []
-    all_rows = _browse_models(provider_id, force_refresh=force_refresh)
+    if cached_only:
+        # Settings must render without waiting for an authenticated network
+        # request. Explicit Fetch remains the remote refresh entry point.
+        from .provider_models import _models_dev_for
+        from openprogram.providers.subscription_catalog import load_catalog
+
+        with _browse_lock:
+            cached = _browse_cache.get(provider_id)
+            cached_rows = [dict(row) for row in cached[1]] if cached else None
+        if cached_rows is not None:
+            all_rows = cached_rows
+        else:
+            saved, _ = load_catalog(provider_id)
+            all_rows = saved or [
+                dict(row, id=mid) for mid, row in _models_dev_for(provider_id).items()
+            ]
+    else:
+        all_rows = _browse_models(provider_id, force_refresh=force_refresh)
     present = {r.get("id") for r in all_rows}
     # Config rows absent from the live browse result — layer them in, or
     # they'd be invisible (and un-toggleable) whenever the provider's

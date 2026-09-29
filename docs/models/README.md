@@ -50,3 +50,7 @@ Configuring credentials does not by itself make models selectable. Each provider
 - [Token tracking](token-tracking.md) — how each provider reports usage
 
 You can disable every model in a provider, including the last enabled model. An empty selection stays empty after reload and restart.
+
+Opening provider settings displays saved models and cached catalogues without waiting for the provider’s remote model endpoint. Use **Fetch models** to update that catalogue.
+
+Provider brand icons are bundled locally, so they remain available without external image services. Custom or unrecognized providers display an initial.

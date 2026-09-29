@@ -56,3 +56,14 @@ assert.equal(
 );
 
 console.log("local runtime assets contract: ok");
+
+const providerIcons = JSON.parse(read("components/settings/provider-icons.json"));
+for (const [provider, icon] of Object.entries(providerIcons)) {
+  assert.match(icon.file, /^[a-z0-9-]+\.svg$/, `${provider}: local SVG filename`);
+  const svg = read(`public/images/providers/${icon.file}`);
+  assert.match(svg, /<svg\b/, `${provider}: valid SVG asset`);
+  assert.doesNotMatch(svg, /<script\b|<foreignObject\b|\bon\w+=|(?:href|src)=["']https?:/i);
+}
+for (const provider of ["openai", "openai-codex", "anthropic", "google", "deepseek", "openrouter"]) {
+  assert.ok(providerIcons[provider], `${provider}: brand logo must be bundled`);
+}
