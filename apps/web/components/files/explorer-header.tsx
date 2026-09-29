@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 
+import { copyText } from "@/lib/clipboard";
 import { useTranslation } from "@/lib/i18n";
 import { matchingIndexes } from "./explorer-search";
 import { HoverTip } from "@/components/ui/tooltip";
@@ -21,26 +22,7 @@ import styles from "./files-panel.module.css";
 
 export type ExplorerSearchMode = "filter" | "highlight";
 
-export async function copyText(value: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return true;
-    }
-  } catch {
-    // Use the selection fallback when clipboard permission is unavailable.
-  }
-  const textarea = document.createElement("textarea");
-  textarea.value = value;
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  document.body.appendChild(textarea);
-  try {
-    textarea.select();
-    return document.execCommand("copy");
-  } catch { return false; }
-  finally { textarea.remove(); }
-}
+export { copyText } from "@/lib/clipboard";
 
 export function ExplorerMatchText({
   value,

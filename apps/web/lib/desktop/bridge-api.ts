@@ -16,6 +16,7 @@ export interface DesktopBridge {
   readonly isDesktop: true;
   readonly platform?: "darwin" | "win32" | "linux";
   readonly windowId: string;
+  writeClipboardText?(text: string): Promise<void>;
   selfUpdateCapture?(nonce: string): Promise<{ ok: boolean; reason?: string }>;
   /** One-time owner token after worker credential rotation. Never persisted. */
   refreshOwnerAuth?(): Promise<string | null>;

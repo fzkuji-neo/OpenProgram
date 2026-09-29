@@ -852,6 +852,7 @@ const {
 });
 
 function registerWebTabIpc() {
+  require("./clipboard").registerClipboardIpc(ipcMain, clipboard, nativeMenuOwner);
   ipcMain.handle("native-menu:popup", (event, opts) => {
     const ctx = nativeMenuOwner(event);
     if (!ctx) throw new Error("Unauthorized menu sender");

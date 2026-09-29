@@ -160,6 +160,10 @@ def render_dag_messages(graph: Graph, read_ids: list[str],
         ts_ms = int((node.created_at or 0) * 1000)
 
         if node.is_user():
+            # ROOT is structural, not a user turn. Historical empty rows must
+            # not become empty user messages (or authority-only messages).
+            if node.id == "ROOT" or not _text(node.output).strip():
+                continue
             last_assistant = None
             from openprogram.agent.authority import render_model_input_from
             messages.append(UserMessage(

@@ -136,12 +136,14 @@ def _build_messages(context: Context, model: Model) -> list[dict[str, Any]]:
     for msg in context.messages:
         if isinstance(msg, UserMessage):
             if isinstance(msg.content, str):
-                result.append({"role": "user", "content": msg.content})
+                if msg.content.strip():
+                    result.append({"role": "user", "content": msg.content})
             else:
                 content_blocks: list[dict[str, Any]] = []
                 for block in msg.content:
                     if isinstance(block, TextContent):
-                        content_blocks.append({"type": "text", "text": block.text})
+                        if block.text.strip():
+                            content_blocks.append({"type": "text", "text": block.text})
                     elif isinstance(block, ImageContent):
                         content_blocks.append({
                             "type": "image_url",
@@ -149,7 +151,8 @@ def _build_messages(context: Context, model: Model) -> list[dict[str, Any]]:
                                 "url": f"data:{block.mime_type};base64,{block.data}",
                             },
                         })
-                result.append({"role": "user", "content": content_blocks})
+                if content_blocks:
+                    result.append({"role": "user", "content": content_blocks})
 
         elif isinstance(msg, AssistantMessage):
             tool_calls = [c for c in msg.content if isinstance(c, ToolCall)]

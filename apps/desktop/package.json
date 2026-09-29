@@ -59,6 +59,7 @@
       "main/web-views.js",
       "menu-geometry.js",
       "native-context-menu.js",
+      "clipboard.js",
       "worker-recovery-state.js",
       "tab-transfer-validation.js",
       "tab-transfer/page-history.js",
