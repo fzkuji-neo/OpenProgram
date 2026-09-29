@@ -32,6 +32,44 @@ function assertResourcesCue() {
  return cue;
 }
 
+for (const pageCount of [1, 0, 2]) {
+ test(`compound tab with ${pageCount} webpage(s) ${pageCount===1?'attaches its webpage':'does not choose a Resources attachment'}`,async()=>{
+  const calls=[];
+  globalThis.bridge={windowId:'main',tabTransfer:{prepare:()=> 'group-token',cancel:async token=>{calls.push(['cancel',token]);return true;},windowAtCursor:async()=>null,detach:async token=>{calls.push(['detach',token]);return 'detached';}}};
+  globalThis.attachFetch=async(path,options)=>{const body=JSON.parse(options.body);calls.push(['attach',path,body]);return {items:[{id:'assoc',resource_id:'page',source:'browser',kind:'web',conversation_session_id:'a',tab_id:body.tab_id,status:'open'}]};};
+  const members=[{id:'s:a',kind:'session',sessionId:'a',title:'A'},...Array.from({length:pageCount},(_,i)=>({id:`w:${i}`,kind:'web',url:`https://page${i}.test`,title:`Page ${i}`}))];
+  if(!pageCount)members.push({id:'s:b',kind:'session',sessionId:'b',title:'B'});
+  const tabs=[...members,{id:'s:other',kind:'session',sessionId:'other',title:'Other'}];
+  const ids=members.map(tab=>tab.id);
+  const group={id:'g',memberIds:ids,visibleIds:ids,focusedId:ids[0]};
+  const groups=[group];
+  useCenterTabs.setState({tabs,groups,activeId:ids[0]});
+  const host=document.createElement('div');document.body.append(host);
+  const target=document.createElement('div');target.dataset.resourceDropSession='a';
+  target.getBoundingClientRect=()=>({left:700,right:900,top:100,bottom:500,width:200,height:400});document.body.append(target);
+  const root=createRoot(host);const strip={current:null};const flow={current:null};let hook;
+  function Harness(){hook=useTabPointerDrag({stripRef:strip,tabsFlowRef:flow,releaseFrozenWidths(){},onTabClick(){},suppressedClickRef:{current:null},tabMenuRef:{current:null},applyDrop:()=>false,setDragAnnouncement(){}});return h('div',{ref:element=>{strip.current=element;flow.current=element}},h('div',{'data-tab-id':ids[0],onPointerDown:event=>hook.onTabPointerDown({kind:'group',tabIds:ids,sourceGroup:group},event)},'Compound'),h('div',{'data-tab-id':'s:other'},'Other'));}
+  await act(async()=>root.render(h(Harness)));
+  const element=host.querySelector('[data-tab-id="s:a"]');
+  const rect={left:0,right:800,top:0,bottom:40,width:800,height:40};strip.current.getBoundingClientRect=()=>rect;strip.current.getClientRects=()=>[rect];
+  for(const [i,el] of [...flow.current.children].entries()){el.getBoundingClientRect=()=>({...rect,left:i*200,right:(i+1)*200,width:200});el.setPointerCapture=()=>{};el.releasePointerCapture=()=>{};}
+  async function fire(type,x=100,y=20){await act(async()=>{const event=new window.Event(type,{bubbles:true,cancelable:true});Object.assign(event,{button:0,buttons:type==='pointerup'?0:1,pointerId:19,clientX:x,clientY:y,screenX:x,screenY:y});element.dispatchEvent(event);});}
+  try {
+   await fire('pointerdown');await fire('pointermove',750,150);
+   if(pageCount===1){
+    assertResourcesCue();assert.equal(target.getAttribute('data-resource-drop-over'),'true');assert.equal(hook.detaching,false,'a supported compound tab must not detach over Resources');
+    await fire('pointerup',750,150);
+    assert.deepEqual(calls,[['cancel','group-token'],['attach','/api/session/a/resources/attach-web',{window_id:'main',tab_id:'w:0'}]],'cancel the group transfer before attaching the webpage, even when the first member is a conversation');
+   }else{
+    assert.equal(document.querySelector('[data-drop-target="resources"]'),null);assert.equal(target.hasAttribute('data-resource-drop-over'),false,'unsupported group must not advertise a Resources drop');
+    await fire('pointercancel');assert.deepEqual(calls,[['cancel','group-token']],'do not select an arbitrary webpage or attach the conversation');
+   }
+   assert.deepEqual(useCenterTabs.getState().tabs,tabs);assert.deepEqual(useCenterTabs.getState().groups,groups);assert.equal(useCenterTabs.getState().activeId,'s:a','attachment preserves the existing canvas');
+   assert.equal(document.querySelector('[data-drop-target="resources"]'),null);
+  } finally {await fire('pointercancel');await act(async()=>root.unmount());host.remove();target.remove();}
+ });
+}
+
 test('pointer press preserves current conversation; release activates and drag/cancel suppress clicks',async()=>{
  let hook; const consumed={current:null}; let activated=0; let detached=0; let posts=0;
  globalThis.bridge={windowId:'main',tabTransfer:{prepare:()=> 'token',cancel:async()=>true,windowAtCursor:async()=>null,detach:async()=>{detached++;return 'new';}}};

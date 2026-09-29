@@ -27,7 +27,7 @@ import {
 } from "@/lib/tabs/tab-drag-coordinator";
 import { buildTransferPayload, desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { dropWebTabResource, resourceDropTarget } from "@/lib/tabs/tab-resource-drop";
+import { dropWebTabResource, resourceDropTabId, resourceDropTarget } from "@/lib/tabs/tab-resource-drop";
 import { useTranslation } from "@/lib/i18n";
 import {
   cancelCoordinator,
@@ -668,14 +668,15 @@ export function useTabPointerDrag({
       })();
       return;
     }
-    if (resourceTarget) {
+    const resourceTabId = resourceDropTabId(drag.subject);
+    if (resourceTarget && resourceTabId) {
       const sessionId = resourceTarget.dataset.resourceDropSession!;
       restorePointerDragElement(drag.element, true);
       dragCoordinator.clear();
       clearDragState();
       // Main locks native records at prepare. Await its cancellation before
       // asking the registered renderer to inspect the existing Page.
-      void dropWebTabResource(drag.subject.tabIds[0], sessionId, prepared.transferToken).then(success => {
+      void dropWebTabResource(resourceTabId, sessionId, prepared.transferToken).then(success => {
         if (success) {
           setDragAnnouncement(text("Webpage added to Resources", "网页已添加到资源"));
           return;
