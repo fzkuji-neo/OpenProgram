@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { GitBranch, Quote } from "lucide-react";
+import { GitBranchIcon, QuoteIcon } from "@/components/animated-icons";
+import { useActionIconAnimation } from "./use-action-icon-animation";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
@@ -49,6 +50,8 @@ export function SelectionQuote({ sessionId }: { sessionId: string | null }) {
   const popup = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [selection, setSelection] = useState<{ messageId: string; content: string; left: number; top: number } | null>(null);
+  const quoteIcon = useActionIconAnimation(busy || !selection);
+  const branchIcon = useActionIconAnimation(busy || !selection?.messageId);
   useEffect(() => {
     const root = anchor.current?.parentElement;
     if (!root || !sessionId) return;
@@ -107,10 +110,10 @@ export function SelectionQuote({ sessionId }: { sessionId: string | null }) {
   return <><span ref={anchor} hidden />{selection && sessionId && createPortal(
     <div ref={popup} className={styles.quotePopup} role="group" aria-label={text("Quote selection", "引用选中文字")}
       style={{ left: selection.left, top: selection.top }} onPointerDown={e => e.preventDefault()}>
-      <button type="button" disabled={busy} onClick={() => {
+      <button type="button" disabled={busy} {...quoteIcon.handlers} onClick={() => {
         quoteToChat(sessionId, selection.content); window.getSelection()?.removeAllRanges(); setSelection(null);
-      }}><Quote size={15} />{text("Add to chat", "加入当前聊天")}</button>
-      <button type="button" disabled={busy || !selection.messageId} onClick={async () => {
+      }}><QuoteIcon ref={quoteIcon.ref} size={15} />{text("Add to chat", "加入当前聊天")}</button>
+      <button type="button" disabled={busy || !selection.messageId} {...branchIcon.handlers} onClick={async () => {
         if (busy) return;
         setBusy(true);
         try {
@@ -119,7 +122,7 @@ export function SelectionQuote({ sessionId }: { sessionId: string | null }) {
         } catch (error) {
           showToast(`${text("Could not start branch", "无法创建分支")}: ${error instanceof Error ? error.message : String(error)}`);
         } finally { setBusy(false); }
-      }}><GitBranch size={15} />{busy ? text("Opening…", "正在打开…") : text("Chat in new branch", "在新分支聊")}</button>
+      }}><GitBranchIcon ref={branchIcon.ref} size={15} aria-hidden="true" />{busy ? text("Opening…", "正在打开…") : text("Chat in new branch", "在新分支聊")}</button>
     </div>, document.body,
   )}</>;
 }
