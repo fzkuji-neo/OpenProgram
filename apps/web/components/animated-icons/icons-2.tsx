@@ -1,7 +1,8 @@
 "use client";
 
 import type { Transition, Variants } from "framer-motion";
-import { motion, useAnimation } from "framer-motion";
+import { motion, useAnimation, useReducedMotion } from "framer-motion";
+import { Quote } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
@@ -267,6 +268,7 @@ GitBranchIcon.displayName = "GitBranchIcon";
 
 // ─── copy (chat message action) ──────────────────────────────────────
 const COPY_TRANSITION: Transition = { type: "spring", stiffness: 160, damping: 17, mass: 1 };
+const COPY_FRONT_VARIANTS: Variants = { normal: { translateY: 0, translateX: 0 }, animate: { translateY: -3, translateX: -3 } };
 
 export const CopyIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>(
   ({ onMouseEnter, onMouseLeave, className, size = 28, ...props }, ref) => {
@@ -314,7 +316,7 @@ export const CopyIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>(
           width={size}
           xmlns="http://www.w3.org/2000/svg"
         >
-          <motion.rect animate={controls} height="14" rx="2" ry="2" transition={COPY_TRANSITION} variants={{ normal: { translateY: 0, translateX: 0 }, animate: { translateY: -3, translateX: -3 } }} width="14" x="8" y="8" />
+          <motion.rect animate={controls} height="14" rx="2" ry="2" transition={COPY_TRANSITION} variants={COPY_FRONT_VARIANTS} width="14" x="8" y="8" />
           <motion.path animate={controls} d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" transition={COPY_TRANSITION} variants={{ normal: { x: 0, y: 0 }, animate: { x: 3, y: 3 } }} />
         </svg>
       </div>
@@ -322,6 +324,53 @@ export const CopyIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>(
   },
 );
 CopyIcon.displayName = "CopyIcon";
+
+// Upstream has no Quote component. Follow Monitor/Pin's official Lucide
+// fallback and reuse the neighboring Copy icon's upstream motion values.
+const AnimatedQuote = motion.create(Quote);
+export const QuoteIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>(
+  ({ onMouseEnter, onMouseLeave, className, size = 28, ...props }, ref) => {
+    const controls = useAnimation();
+    const reducedMotion = useReducedMotion();
+    const isControlledRef = useRef(false);
+    const startAnimation = useCallback(() => {
+      if (!reducedMotion) void controls.start("animate");
+    }, [controls, reducedMotion]);
+    const stopAnimation = useCallback(() => {
+      void controls.start("normal");
+    }, [controls]);
+
+    useImperativeHandle(ref, () => {
+      isControlledRef.current = true;
+      return { startAnimation, stopAnimation };
+    }, [startAnimation, stopAnimation]);
+
+    return (
+      <div
+        className={cn("inline-flex", className)}
+        onMouseEnter={event => {
+          if (isControlledRef.current) onMouseEnter?.(event);
+          else startAnimation();
+        }}
+        onMouseLeave={event => {
+          if (isControlledRef.current) onMouseLeave?.(event);
+          else stopAnimation();
+        }}
+        {...props}
+      >
+        <AnimatedQuote
+          size={size}
+          initial="normal"
+          animate={reducedMotion ? "normal" : controls}
+          transition={reducedMotion ? { duration: 0 } : COPY_TRANSITION}
+          variants={COPY_FRONT_VARIANTS}
+          aria-hidden="true"
+        />
+      </div>
+    );
+  },
+);
+QuoteIcon.displayName = "QuoteIcon";
 
 // ─── check (chat message: copied state) ──────────────────────────────
 const CHECK_PATH_VARIANTS: Variants = {
