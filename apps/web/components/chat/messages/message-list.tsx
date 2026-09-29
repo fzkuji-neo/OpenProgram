@@ -64,6 +64,7 @@ import { MessageRail } from "./message-rail";
 import { AgentBranchBanner } from "./agent-branch-banner";
 import { RuntimeBlock } from "./runtime-block";
 import { SpawnedFromCard } from "./spawned-from-card";
+import { SelectionQuote } from "./quote-to-chat";
 import { UserBubble } from "./user-bubble";
 import { MessageTimestamp } from "./message-actions";
 
@@ -393,7 +394,7 @@ function dispatch(msg: ChatMsg, sessionIdOverride?: string) {
         <div className="attach-row" data-spawned-root={msg.id}>
           <SpawnedFromCard msg={msg} />
         </div>
-        <UserBubble msg={msg} />
+        <UserBubble msg={msg} sessionIdOverride={sessionIdOverride} />
       </>
     );
   }
@@ -408,7 +409,7 @@ function dispatch(msg: ChatMsg, sessionIdOverride?: string) {
     );
   }
   if (msg.role === "user") {
-    return <UserBubble msg={msg} />;
+    return <UserBubble msg={msg} sessionIdOverride={sessionIdOverride} />;
   }
   return <AssistantMessage msg={msg} sessionIdOverride={sessionIdOverride} />;
 }
@@ -823,6 +824,7 @@ export const MessageList = memo(function MessageList({
 
   return (
     <>
+      <SelectionQuote key={sessionId} sessionId={sessionId} />
       <AgentBranchBanner />
       <WorkspaceAlignmentBanner sessionId={sessionId} />
       {paintRows ? (

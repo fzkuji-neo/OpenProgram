@@ -1,4 +1,5 @@
 "use client";
+import { SelectionQuote } from "./messages/quote-to-chat";
 
 /**
  * One session pane in a split view.
@@ -214,6 +215,7 @@ export function PeerSessionPane({
           className="chat-messages"
           style={{ minWidth: 0, minHeight: "100%" }}
         >
+          <SelectionQuote key={sessionId} sessionId={sessionId} />
           {ids.length === 0 ? (
             <div
               style={{

@@ -63,6 +63,8 @@ assert.deepEqual(specialParsed.mentions, [{
   previewPath: "",
 }]);
 assert.equal(specialParsed.text.trim(), "explain");
+assert.equal(extractAttachmentMentions(specialMarker, true).mentions[0].raw, specialMarker,
+  "editing preserves exact encoded paths and whitespace");
 assert.deepEqual(
   extractAttachmentMentions(
     `[attachment: old.txt (txt, 1 KB) @ /tmp/old.txt]\n${specialMarker}`,
@@ -155,7 +157,7 @@ const messageParser = readFileSync(
   new URL("components/chat/messages/user-attachments.tsx", root),
   "utf8",
 );
-assert.match(messageParser, /extractAttachmentMentions\(text\)/,
+assert.match(messageParser, /extractAttachmentMentions\(text, includeRaw\)/,
   "the displayed chip parser must use the behavior-tested marker parser");
 assert.match(messageParser, /path:\s*mention\.previewPath\s*\|\|\s*mention\.path/,
   "the UI must preview the immutable session copy instead of a mutable source path");

@@ -542,7 +542,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           is position:relative and naturally takes inputWrapper's
           height (slashClip is absolute, doesn't contribute), so
           slashClip's bottom:100% lands exactly at the wrapper top. */}
-      <div className={styles.composerStack}>
+      <div className={styles.composerStack} data-composer-session={currentSessionId}>
       <div className={styles.slashClip}>
         <SlashMenu
           visible={slash.visible}

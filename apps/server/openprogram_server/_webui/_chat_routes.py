@@ -25,6 +25,7 @@ import uuid
 import json
 
 from fastapi import APIRouter
+from starlette.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 
@@ -40,7 +41,10 @@ def is_checkout_target(node) -> bool:
     return getattr(node, "caller", None) in (None, "", "ROOT")
 
 
-def _fork_user_turn_and_run(session_id: str, pivot_id: str, new_content: str | None) -> dict:
+def _fork_user_turn_and_run(
+    session_id: str, pivot_id: str, new_content: str | None,
+    attachments: list[dict] | None = None,
+) -> dict:
     """Shared engine for retry / edit.
 
     Finds the nearest user-message ancestor of ``pivot_id``, creates a
@@ -151,6 +155,13 @@ def _fork_user_turn_and_run(session_id: str, pivot_id: str, new_content: str | N
         )
         from openprogram.programs.permission_rule import load_merged_rules
 
+        dispatch_attachments = None
+        if attachments:
+            from .ws_actions.chat import _persist_attachments, _attachments_for_dispatch
+            new_user["content"] = _persist_attachments(
+                session_id, attachments, str(new_user.get("content") or ""),
+            )
+            dispatch_attachments = _attachments_for_dispatch(attachments)
         authority = local_owner_authority()
         run_config = load_session_run_config(session_id)
         provider = conv.get("provider_override")
@@ -172,6 +183,7 @@ def _fork_user_turn_and_run(session_id: str, pivot_id: str, new_content: str | N
             service_tier=conv.get("service_tier"),
             user_msg_id=new_msg_id,
             user_already_persisted=True,
+            attachments=dispatch_attachments,
             **authority,
         )
         admission = adapter.admit(
@@ -322,7 +334,21 @@ async def post_chat_edit(body: dict = None):
             content={"error": "session_id, msg_id, content required"},
             status_code=400,
         )
-    result = _fork_user_turn_and_run(session_id, pivot_id, new_content=str(new_content))
+    attachments = body.get("attachments")
+    if attachments is not None and (
+        not isinstance(attachments, list) or len(attachments) > 20
+        or any(not isinstance(item, dict) or not isinstance(item.get("data"), str)
+               or item.get("type") not in ("image", "document") for item in attachments)
+    ):
+        return JSONResponse(content={"error": "Invalid attachment payload (maximum 20 files)"}, status_code=400)
+    if not isinstance(new_content, str) or (not new_content.strip() and not attachments):
+        return JSONResponse(content={"error": "Message content or attachments required"}, status_code=400)
+    # File persistence and admission perform blocking disk IO. Keep the event
+    # loop available for other sessions while the reservation owns this edit.
+    result = await run_in_threadpool(
+        _fork_user_turn_and_run, session_id, pivot_id,
+        new_content=new_content, attachments=attachments,
+    )
     if "__error__" in result:
         msg, code = result["__error__"]
         return JSONResponse(content={"error": msg}, status_code=code)

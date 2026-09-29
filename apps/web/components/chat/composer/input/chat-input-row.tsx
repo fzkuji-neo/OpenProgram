@@ -35,6 +35,7 @@ interface ChatInputRowProps {
    *  "composer-chat-input"; a split-view pane passes a per-session id so
    *  two mounted composers don't collide on one id. */
   inputId?: string;
+  autoFocus?: boolean;
 
   /* ---- paste chips ------------------------------------------------- */
   pastedEntries: PastedEntry[];
@@ -62,6 +63,7 @@ export function ChatInputRow({
   setCaretPos,
   placeholder,
   inputId = "composer-chat-input",
+  autoFocus,
   pastedEntries,
   pasteMissing,
   removePaste,
@@ -84,7 +86,7 @@ export function ChatInputRow({
         <div className={styles.inputField}>
           {input.length === 0 && (
             <span className={styles.chatPlaceholder} aria-hidden="true">
-              create / run / edit or ask anything... (type / for commands)
+              {placeholder || "create / run / edit or ask anything... (type / for commands)"}
             </span>
           )}
           <textarea
@@ -92,7 +94,8 @@ export function ChatInputRow({
             id={inputId}
             name="chat_input"
             autoComplete="off"
-            aria-label="create / run / edit or ask anything... (type / for commands)"
+            autoFocus={autoFocus}
+            aria-label={placeholder || "create / run / edit or ask anything... (type / for commands)"}
             placeholder=""
             className={styles.chatInput}
             rows={1}
