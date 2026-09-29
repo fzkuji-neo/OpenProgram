@@ -7,11 +7,17 @@ import { useSessionStore } from '../session-store';
 import { showToast } from '../format-utils/toast';
 import { translateText } from '../i18n';
 
+/** A split tab can carry its single webpage into Resources without attaching
+ * the conversation itself. Multiple webpages require an individual pane drag. */
+export function resourceDropTabId(subject: TabDragSubject): string | null {
+  const pages = useCenterTabs.getState().tabs.filter(tab =>
+    subject.tabIds.includes(tab.id) && tab.kind === 'web');
+  return pages.length === 1 ? pages[0].id : null;
+}
+
 /** Pointer capture keeps event.target on the tab; hit-test the visible target instead. */
 export function resourceDropTarget(subject: TabDragSubject, x: number, y: number): HTMLElement | null {
-  if (subject.kind === 'group' || subject.tabIds.length !== 1 || !desktopBridge()) return null;
-  const state = useCenterTabs.getState();
-  if (!state.tabs.some(tab => tab.id === subject.tabIds[0] && tab.kind === 'web')) return null;
+  if (!desktopBridge() || !resourceDropTabId(subject)) return null;
   // The rendered sidebar owns the scope, including the last focused chat in a
   // mixed canvas. Re-deriving it from activeId would select the dragged webpage.
   for (const element of document.querySelectorAll<HTMLElement>('[data-resource-drop-session]')) {

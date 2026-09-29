@@ -125,7 +125,17 @@ BOUNDARY_MANIFEST = (
                 "httpcore.AsyncConnectionPool",
                 "httpcore.HTTPProxy",
                 "httpcore.AsyncHTTPProxy",
+                "httpcore.SOCKSProxy",
+                "httpcore.AsyncSOCKSProxy",
             }
+        ),
+        call_counts=(
+            ("httpcore.ConnectionPool", 1),
+            ("httpcore.AsyncConnectionPool", 1),
+            ("httpcore.HTTPProxy", 2),
+            ("httpcore.AsyncHTTPProxy", 2),
+            ("httpcore.SOCKSProxy", 1),
+            ("httpcore.AsyncSOCKSProxy", 1),
         ),
     ),
     BoundaryExclusion(
@@ -235,6 +245,8 @@ _RAW_CALLS = frozenset(
         "httpcore.AsyncConnectionPool",
         "httpcore.HTTPProxy",
         "httpcore.AsyncHTTPProxy",
+        "httpcore.SOCKSProxy",
+        "httpcore.AsyncSOCKSProxy",
         "aiohttp.ClientSession",
         "urllib3.PoolManager",
         "urllib3.ProxyManager",
