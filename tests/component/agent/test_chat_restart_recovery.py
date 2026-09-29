@@ -58,6 +58,7 @@ def test_explicit_resume_supersedes_unconfirmed_cancel_without_claiming_effect_c
     from openprogram.execution import default_control_service
     goals, chat, store = runtime
     admission, effect = interrupted_chat(store)
+    unresolved = EffectStore(store).get(effect.effect_id)
     current = store.get_execution(admission.execution_id)
     if accepted_only:
         from openprogram.execution.model import CommandKind
@@ -74,8 +75,13 @@ def test_explicit_resume_supersedes_unconfirmed_cancel_without_claiming_effect_c
     assert goals.goal_execution_state(goal, "goal-chat")["can_start_new_turn"] is True
     resumed = chat.resume("goal-chat")
     assert resumed["status"] == "active"
-    assert store.get_command("user-stop").status.value == "rejected"
-    assert EffectStore(store).get(effect.effect_id).status is EffectStatus.DISPATCHED
+    assert store.get_command("user-stop").status.value == ("rejected" if accepted_only else "applied")
+    assert EffectStore(store).get(effect.effect_id) == unresolved
+    assert unresolved.status is EffectStatus.DISPATCHED
+    assert unresolved.receipt == {} and unresolved.resolved_at is None
+    assert EffectStore(store).list_unresolved(admission.execution_id) == [unresolved]
+    assert store.get_execution(admission.execution_id).current_attempt_id is None
+    assert len(store.list_for_session("goal-chat")) == 1
 
 
 @pytest.mark.parametrize("has_goal", [True, False])

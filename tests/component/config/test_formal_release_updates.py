@@ -152,6 +152,8 @@ def test_system_version_reports_managed_release(monkeypatch):
 
 
 def test_automatic_update_design_is_one_accessible_review_page():
+    from scripts.docs_site.nav import build_tabs, discover
+
     design = Path(
         "docs/reference/design/distribution/automatic-updates.html"
     ).read_text(encoding="utf-8")
@@ -204,10 +206,28 @@ def test_automatic_update_design_is_one_accessible_review_page():
     design_index_zh = Path("docs/reference/design/README.zh.md").read_text(
         encoding="utf-8"
     )
-    assert "distribution/automatic-updates.html" in design_index
-    assert "distribution/automatic-updates.html" in design_index_zh
-    assert "Conversational self-update" in design_index
-    assert "对话内自主更新" in design_index_zh
+    assert "](distribution/automatic-updates.html)" in design_index
+    assert "](distribution/automatic-updates.zh.html)" in design_index_zh
+
+    docs_root = Path("docs")
+    design_tab = next(
+        tab for tab in build_tabs(docs_root, discover(docs_root))
+        if tab.key == "design"
+    )
+    assert design_tab.landing == Path("reference/design/README.html")
+    for section_title, relative_path in (
+        ("Distribution", "reference/design/distribution/automatic-updates.html"),
+        ("Programs and workflows", "reference/design/runtime/self-update.html"),
+    ):
+        section = next(
+            section for section in design_tab.sections
+            if section.title == section_title
+        )
+        page = next(page for page in section.pages if page.rel == Path(relative_path))
+        assert page.src.is_file()
+        assert page.out == Path(relative_path)
+        assert page.zh_src is not None and page.zh_src.is_file()
+        assert page.zh_out == Path(relative_path).with_suffix(".zh.html")
 
 
 def test_upgrade_help_discloses_channel_persistence_during_read_only_actions():

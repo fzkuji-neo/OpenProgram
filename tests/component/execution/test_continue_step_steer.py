@@ -690,7 +690,9 @@ def test_late_step_safe_point_after_cancel_finishes_and_retries_cancel(tmp_path)
     assert store.get_execution("exec_1").current_attempt_id is None
 
 
-def test_late_step_safe_point_with_unresolved_effect_requires_reconciliation(tmp_path):
+def test_late_step_cancellation_preserves_unresolved_effect_until_explicit_resolution(tmp_path):
+    from openprogram.execution.state_machine import InvalidCommand
+
     store, attempts, service, paused = _paused(tmp_path)
     started = asyncio.run(
         service.request_step(
@@ -709,7 +711,7 @@ def test_late_step_safe_point_with_unresolved_effect_requires_reconciliation(tmp
         idempotency_key=None,
         metadata={},
     )
-    EffectStore(store).mark_dispatched(effect.effect_id, expected_status=effect.status)
+    unresolved = EffectStore(store).mark_dispatched(effect.effect_id, expected_status=effect.status)
     cancelling = asyncio.run(
         service.request_cancel(
             command_id="cancel_1",
@@ -731,9 +733,20 @@ def test_late_step_safe_point_with_unresolved_effect_requires_reconciliation(tmp
             control_step={"step_id": "late"},
         ),
     )
-    assert completion.execution.status is ExecutionStatus.RECONCILIATION_REQUIRED
+    assert completion.execution.status is ExecutionStatus.CANCELLED
+    assert completion.execution.current_attempt_id is None
     assert completion.command.status is CommandStatus.REJECTED
-    assert store.get_command("cancel_1").status is CommandStatus.APPLYING
+    assert store.get_command("cancel_1").status is CommandStatus.APPLIED
+    assert EffectStore(store).get(effect.effect_id) == unresolved
+    assert unresolved.status is EffectStatus.DISPATCHED
+    assert unresolved.receipt == {} and unresolved.resolved_at is None
+    assert EffectStore(store).list_unresolved(paused.execution_id) == [unresolved]
+    with pytest.raises(InvalidCommand, match="invalid while execution is cancelled"):
+        asyncio.run(service.request_continue(
+            command_id="must-not-replay", execution_id=paused.execution_id,
+            expected_version=completion.execution.status_version, actor={"surface": "test"},
+        ))
+    assert EffectStore(store).get(effect.effect_id) == unresolved
     resolved = service.resolve_effect(
         effect_id="effect_1",
         expected_status=EffectStatus.DISPATCHED,
@@ -741,8 +754,11 @@ def test_late_step_safe_point_with_unresolved_effect_requires_reconciliation(tmp
         receipt={"provider_message_id": "message_1"},
     )
     assert resolved.execution.status is ExecutionStatus.CANCELLED
-    assert resolved.command is not None
-    assert resolved.command.status is CommandStatus.APPLIED
+    assert resolved.command is None
+    assert EffectStore(store).get(effect.effect_id).status is EffectStatus.COMMITTED
+    assert EffectStore(store).get(effect.effect_id).receipt == {"provider_message_id": "message_1"}
+    assert EffectStore(store).list_unresolved(paused.execution_id) == []
+    assert store.get_command("cancel_1").status is CommandStatus.APPLIED
 
 
 def test_pause_and_step_applied_fast_paths_reject_cross_execution_command(tmp_path):
