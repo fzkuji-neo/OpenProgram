@@ -59,6 +59,13 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
   if (event.button !== 0 || !label || (event.target as HTMLElement).closest("button")) return;
   const el = event.currentTarget, original = el.getAttribute("style");
   let dragLabel: HTMLElement | null = null;
+  let resourceTarget: HTMLElement | null = null;
+  function markResourceTarget(target: HTMLElement | null) {
+    if (resourceTarget === target) return;
+    resourceTarget?.removeAttribute("data-resource-drop-over");
+    resourceTarget = target;
+    target?.setAttribute("data-resource-drop-over", "true");
+  }
   const start = { x: event.clientX, y: event.clientY }; let started = false;
   const pointerId = event.pointerId;
   el.setPointerCapture(pointerId);
@@ -66,6 +73,7 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
   const payload = bridge && buildTransferPayload({ kind: "tab", tabIds: [tabId] }, bridge.windowId);
   const token = payload ? bridge?.tabTransfer.prepare(payload) : undefined;
   function cleanup() {
+    markResourceTarget(null);
     dragLabel?.remove(); dragLabel = null;
     if (el.hasPointerCapture(pointerId)) el.releasePointerCapture(pointerId);
     window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key); window.removeEventListener("pointercancel", cancel); window.removeEventListener("blur",cancel);
@@ -96,19 +104,23 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
       el.style.visibility = "hidden";
     }
     if (dragLabel) Object.assign(dragLabel.style, { left: `${e.clientX - 110}px`, top: `${e.clientY - 16}px` });
+    const resource = resourceDropTarget({ kind: "tab", tabIds: [tabId] }, e.clientX, e.clientY);
+    markResourceTarget(resource);
+    if (resource) { showCanvasDrop(null); return; }
     const strip = tabStripDropAt(e.clientX, e.clientY);
     if (strip) showDropPreview(strip, "tab-strip");
     else showCanvasDrop(canvasDropAt(e.clientX,e.clientY));
   }
   async function up(e: PointerEvent) {
     const resource = started ? resourceDropTarget({ kind:"tab",tabIds:[tabId] },e.clientX,e.clientY) : null;
+    const resourceSessionId = resource?.dataset.resourceDropSession;
     const drop = started && !resource ? canvasDropAt(e.clientX,e.clientY) : null;
     const inStrip = tabStripDropAt(e.clientX, e.clientY);
     const outside = e.clientX < 0 || e.clientY < 0 || e.clientX > innerWidth || e.clientY > innerHeight;
     cleanup();
     if (started && outside && token) { await bridge?.tabTransfer.detach(token); return; }
     if (token && !await bridge?.tabTransfer.cancel(token)) return;
-    if (resource) { await attachWebTabResource(tabId,resource.dataset.resourceDropSession!); return; }
+    if (resourceSessionId) { await attachWebTabResource(tabId,resourceSessionId); return; }
     if (drop) useCenterTabs.getState().dockCanvas(tabId,drop.targetId,drop.paneId,drop.side);
     else if (started && inStrip) useCenterTabs.getState().ungroupTab(tabId);
   }

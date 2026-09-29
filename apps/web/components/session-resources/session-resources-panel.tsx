@@ -45,8 +45,9 @@ function retryRecoverablePage(row: SessionResource, tabs: { id: string }[]): voi
   void retryRestoreWebTab(bridge, tabId).catch(() => undefined);
 }
 
-export function SessionResourcesPanel() {
-  const sessionId = useCenterTabs(s => resourceSessionId(s.tabs.find(tab => tab.id === s.activeId)));
+export function SessionResourcesPanel({ sessionId: scope }: { sessionId?: string | null } = {}) {
+  const sessionId = useCenterTabs(s => scope !== undefined ? scope
+    : resourceSessionId(s.tabs.find(tab => tab.id === s.activeId)));
   return <SessionResourceList key={sessionId || "no-session"} sessionId={sessionId} />;
 }
 
