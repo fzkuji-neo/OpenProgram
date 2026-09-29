@@ -46,6 +46,7 @@ export async function quoteInBranch(sessionId: string, messageId: string, conten
 export function SelectionQuote({ sessionId }: { sessionId: string | null }) {
   const { text } = useTranslation();
   const anchor = useRef<HTMLSpanElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [selection, setSelection] = useState<{ messageId: string; content: string; left: number; top: number } | null>(null);
   useEffect(() => {
@@ -66,19 +67,45 @@ export function SelectionQuote({ sessionId }: { sessionId: string | null }) {
       setSelection({ messageId, content, left: Math.max(12, Math.min(rect.left, window.innerWidth - 320)),
         top: rect.top > 48 ? rect.top - 42 : rect.bottom + 6 });
     };
-    root.addEventListener("pointerup", update);
-    root.addEventListener("keyup", update);
-    document.addEventListener("selectionchange", update);
+    let pointerDown = false;
+    const inPopup = (event: Event) => event.target instanceof Node && popup.current?.contains(event.target);
+    const beginSelection = (event: PointerEvent) => {
+      if (inPopup(event)) return;
+      pointerDown = true;
+      hide();
+    };
+    const endSelection = (event: PointerEvent) => {
+      if (inPopup(event)) return;
+      pointerDown = false;
+      update();
+    };
+    const cancelSelection = () => { pointerDown = false; hide(); };
+    const selectionChanged = () => {
+      // Selection changes repeatedly while dragging. Only release/key-up opens the toolbar.
+      if (pointerDown || window.getSelection()?.isCollapsed) hide();
+    };
+    const keyboardSelection = () => { if (!pointerDown) update(); };
+    document.addEventListener("pointerdown", beginSelection, true);
+    document.addEventListener("pointerup", endSelection, true);
+    document.addEventListener("pointercancel", cancelSelection, true);
+    root.addEventListener("keyup", keyboardSelection);
+    document.addEventListener("selectionchange", selectionChanged);
     document.addEventListener("scroll", hide, true);
     window.addEventListener("resize", hide);
+    window.addEventListener("blur", cancelSelection);
     return () => {
-      root.removeEventListener("pointerup", update); root.removeEventListener("keyup", update);
-      document.removeEventListener("selectionchange", update); document.removeEventListener("scroll", hide, true);
+      document.removeEventListener("pointerdown", beginSelection, true);
+      document.removeEventListener("pointerup", endSelection, true);
+      document.removeEventListener("pointercancel", cancelSelection, true);
+      root.removeEventListener("keyup", keyboardSelection);
+      document.removeEventListener("selectionchange", selectionChanged);
+      document.removeEventListener("scroll", hide, true);
       window.removeEventListener("resize", hide);
+      window.removeEventListener("blur", cancelSelection);
     };
   }, [sessionId]);
   return <><span ref={anchor} hidden />{selection && sessionId && createPortal(
-    <div className={styles.quotePopup} role="group" aria-label={text("Quote selection", "引用选中文字")}
+    <div ref={popup} className={styles.quotePopup} role="group" aria-label={text("Quote selection", "引用选中文字")}
       style={{ left: selection.left, top: selection.top }} onPointerDown={e => e.preventDefault()}>
       <button type="button" disabled={busy} onClick={() => {
         quoteToChat(sessionId, selection.content); window.getSelection()?.removeAllRanges(); setSelection(null);

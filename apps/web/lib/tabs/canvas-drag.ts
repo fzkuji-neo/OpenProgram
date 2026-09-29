@@ -38,13 +38,22 @@ export function canvasDropAt(x: number, y: number): CanvasDrop | null {
   if (side === "top" || side === "bottom") { rect.height /= 2; if (side === "bottom") rect.top += rect.height; }
   return { targetId: el.dataset.canvasTarget!, paneId: outer ? "root" : el.dataset.canvasPane!, side, rect };
 }
+export function tabStripDropAt(x: number, y: number): Rect | null {
+  const rect = document.querySelector('[role="tablist"]')?.getBoundingClientRect();
+  return rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
+    ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null;
+}
 export function showCanvasDrop(drop: CanvasDrop | null) {
-  if (!drop) { preview?.remove(); preview = null; return; }
+  showDropPreview(drop?.rect ?? null);
+}
+function showDropPreview(rect: Rect | null, target = "canvas") {
+  if (!rect) { preview?.remove(); preview = null; return; }
   // Styled by .canvas-drop-preview (app/styles/base.css): soft system
   // blue with a slight spring as it moves between drop zones.
   if (!preview) { preview = document.createElement("div"); preview.className = "canvas-drop-preview"; document.body.append(preview); }
+  preview.dataset.dropTarget = target;
   const inset = 4;
-  Object.assign(preview.style, { left: `${drop.rect.left + inset}px`, top: `${drop.rect.top + inset}px`, width: `${Math.max(0, drop.rect.width - inset * 2)}px`, height: `${Math.max(0, drop.rect.height - inset * 2)}px` });
+  Object.assign(preview.style, { left: `${rect.left + inset}px`, top: `${rect.top + inset}px`, width: `${Math.max(0, rect.width - inset * 2)}px`, height: `${Math.max(0, rect.height - inset * 2)}px` });
 }
 export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: string, label: HTMLElement | null) {
   if (event.button !== 0 || !label || (event.target as HTMLElement).closest("button")) return;
@@ -87,13 +96,14 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
       el.style.visibility = "hidden";
     }
     if (dragLabel) Object.assign(dragLabel.style, { left: `${e.clientX - 110}px`, top: `${e.clientY - 16}px` });
-    showCanvasDrop(canvasDropAt(e.clientX,e.clientY));
+    const strip = tabStripDropAt(e.clientX, e.clientY);
+    if (strip) showDropPreview(strip, "tab-strip");
+    else showCanvasDrop(canvasDropAt(e.clientX,e.clientY));
   }
   async function up(e: PointerEvent) {
     const resource = started ? resourceDropTarget({ kind:"tab",tabIds:[tabId] },e.clientX,e.clientY) : null;
     const drop = started && !resource ? canvasDropAt(e.clientX,e.clientY) : null;
-    const strip = document.querySelector('[role="tablist"]')?.getBoundingClientRect();
-    const inStrip = strip && e.clientY >= strip.top && e.clientY <= strip.bottom;
+    const inStrip = tabStripDropAt(e.clientX, e.clientY);
     const outside = e.clientX < 0 || e.clientY < 0 || e.clientX > innerWidth || e.clientY > innerHeight;
     cleanup();
     if (started && outside && token) { await bridge?.tabTransfer.detach(token); return; }

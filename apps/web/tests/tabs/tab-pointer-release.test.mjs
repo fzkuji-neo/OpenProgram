@@ -75,6 +75,9 @@ test('pane grip drags a full tab label rather than the three dots',()=>{
  globalThis.bridge=null;
  const grip=document.createElement('div');grip.innerHTML='<i></i><i></i><i></i><span data-pane-drag-label hidden style="display:none"><svg></svg><span>Google</span></span>';
  document.body.append(grip);
+ const strip=document.createElement('div');strip.setAttribute('role','tablist');
+ strip.getBoundingClientRect=()=>({left:50,top:0,right:800,bottom:40,width:750,height:40});
+ document.body.append(strip);
  grip.setPointerCapture=()=>{};grip.hasPointerCapture=()=>false;
  const fire=(type,x,y)=>{const e=new window.Event(type);Object.assign(e,{pointerId:7,clientX:x,clientY:y});window.dispatchEvent(e);};
  try {
@@ -89,8 +92,17 @@ test('pane grip drags a full tab label rather than the three dots',()=>{
   assert.equal(preview.hasAttribute('hidden'),false);assert.equal(preview.style.width,'220px');
   assert.equal(preview.style.left,'240px');assert.equal(preview.style.top,'224px');
   assert.equal(grip.style.visibility,'hidden');
+  fire('pointermove',350,20);
+  const cue=document.querySelector('.canvas-drop-preview[data-drop-target="tab-strip"]');
+  assert.ok(cue,'returning a pane to the strip shows a docking cue');
+  assert.equal(cue.style.left,'54px');assert.equal(cue.style.width,'742px');
+  fire('pointermove',20,20);
+  assert.equal(document.querySelector('.canvas-drop-preview'),null,'outside strip horizontal bounds clears cue');
+  fire('pointermove',350,20);
+  assert.ok(document.querySelector('.canvas-drop-preview'));
   fire('pointercancel',350,240);
+  assert.equal(document.querySelector('.canvas-drop-preview'),null,'cancel clears cue');
   assert.equal(document.querySelector('[data-pane-drag-preview]'),null);
   assert.notEqual(grip.style.visibility,'hidden');
- } finally {grip.remove();}
+ } finally {grip.remove();strip.remove();}
 });
