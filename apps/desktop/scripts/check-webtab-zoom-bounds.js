@@ -29,6 +29,7 @@ const pipZoomCalls = [];
 const menuOpenCalls = [];
 const menuResizeCalls = [];
 const terminalRegistrations = [];
+const clipboardRegistrations = [];
 const context = {};
 const unexpectedTerminalEffect = () => assert.fail("zoom checks must not launch or control a terminal");
 const sandbox = {
@@ -36,10 +37,15 @@ const sandbox = {
   // shared terminal module has its own production-IPC tests; record its
   // registration here without starting a PTY, timers, or an HTTP connection.
   require(name) {
+    if (name === "./clipboard") {
+      return { registerClipboardIpc: (...args) => clipboardRegistrations.push(args) };
+    }
     assert.equal(name, "./terminal-resource-ipc");
     return { registerTerminalResourceIpc: options => terminalRegistrations.push(options) };
   },
   app: {},
+  clipboard: { writeText: () => assert.fail("zoom checks must not write the clipboard") },
+  nativeMenuOwner: () => assert.fail("zoom checks must not invoke clipboard authorization"),
   UI_ORIGIN: "http://127.0.0.1:18100",
   process: { platform: "linux", env: {} },
   fs: {},
@@ -182,6 +188,10 @@ assert.deepEqual(
 );
 
 sandbox.registerWebTabIpc();
+assert.equal(clipboardRegistrations.length, 1, "clipboard remains wired into Desktop registration");
+assert.equal(clipboardRegistrations[0][0], sandbox.ipcMain);
+assert.equal(clipboardRegistrations[0][1], sandbox.clipboard);
+assert.equal(clipboardRegistrations[0][2], sandbox.nativeMenuOwner);
 assert.equal(terminalRegistrations.length, 1, "shared terminals remain wired into Desktop registration");
 assert.equal(terminalRegistrations[0].ipcMain, sandbox.ipcMain);
 assert.equal(terminalRegistrations[0].contextForSender, sandbox.contextForSender);

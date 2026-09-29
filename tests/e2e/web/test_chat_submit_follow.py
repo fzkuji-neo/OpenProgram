@@ -97,7 +97,7 @@ function Pane({sid, peer = false}) {
     input, isRunning: running, noEnabledModels: false, promptNeedModel() {},
     send: () => true, setComposerInputFor: setInput, setHistoryIndex() {},
     slash: {runCommand: () => false, close() {}}, pendingImages: [],
-    pendingDocs: attachment ? [{id: 'attached', filename: 'note.txt'}] : [],
+    pendingDocs: attachment ? [{id: 'attached', filename: 'note.txt', loading: true}] : [],
     clearAttachmentsAfterSubmit() {}, thinking: 'medium', toolsEnabled: true,
     toolsProfile: '__agent__', webSearchEnabled: false, fastEnabled: false,
     fastSupported: false, runningMessageMode: mode, dispatchFunction: () => false,
@@ -183,7 +183,7 @@ def test_running_submit_follows_without_moving_other_pane(submit_follow_bundle, 
             message = page.get_by_label(f"Message {sid}", exact=True)
             send = page.get_by_role("button", name=f"Send {sid}", exact=True)
 
-            # A rejected attachment must neither clear input nor move the view.
+            # An attachment still loading must neither clear input nor move the view.
             page.get_by_label(f"Attachment {sid}", exact=True).check()
             message.fill("keep the attached draft")
             send.click()

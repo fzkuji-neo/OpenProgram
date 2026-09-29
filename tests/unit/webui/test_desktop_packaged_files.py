@@ -74,7 +74,9 @@ def test_refresh_script_rejects_stale_checkout_for_default_app():
         encoding="utf-8"
     )
 
-    assert 'test "$app_path" = "/Applications/OpenProgram.app"' in refresh
+    assert 'default_app_path="$(canonicalize_app_path "/Applications/OpenProgram.app")"' in refresh
+    assert 'app_path="$(canonicalize_app_path "${OPENPROGRAM_APP_PATH:-$default_app_path}" "$default_app_path")"' in refresh
+    assert 'test "$app_path" = "$default_app_path"' in refresh
     assert "merge-base --is-ancestor" in refresh
     assert "for protected_ref in refs/heads/main refs/remotes/origin/main; do" in refresh
     assert 'merge-base --is-ancestor "$protected_ref" HEAD' in refresh
