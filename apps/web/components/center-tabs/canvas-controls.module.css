@@ -219,25 +219,21 @@
   from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
 }
-.menuTitle {
+/* The pane name is a hover label, separate from the action menu. */
+.paneName {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
+  align-items: flex-start;
+  gap: 7px;
+  max-width: min(360px, calc(100vw - 40px));
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
-.menuTitle svg {
+.paneName svg {
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
-}
-.menuTitle span {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  margin-top: 3px;
 }
 .menuLabel {
   padding: 6px 8px 4px;
