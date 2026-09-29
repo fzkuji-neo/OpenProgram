@@ -487,10 +487,21 @@ def test_local_desktop_install_compares_the_staged_candidate(
 
 
 
+@pytest.fixture
+def isolated_packager(tmp_path: Path) -> Path:
+    packager = tmp_path / "repo" / "apps" / "desktop" / "scripts" / "package-and-install-app.sh"
+    packager.parent.mkdir(parents=True)
+    packager.write_bytes(
+        (ROOT / "apps" / "desktop" / "scripts" / "package-and-install-app.sh").read_bytes()
+    )
+    return packager
+
+
 @pytest.mark.macos
 @MACOS_DESKTOP_INSTALL
 def test_packager_honors_one_stable_user_lock_across_worktrees(
     tmp_path: Path,
+    isolated_packager: Path,
 ) -> None:
     home = tmp_path / "home"
     lock_file = home / "Library" / "Caches" / "OpenProgram" / "app-package.lock"
@@ -503,7 +514,7 @@ def test_packager_honors_one_stable_user_lock_across_worktrees(
     }
 
     competing = subprocess.run(
-        ["bash", str(ROOT / "apps" / "desktop" / "scripts" / "package-and-install-app.sh")],
+        ["bash", str(isolated_packager)],
         check=False,
         env=env,
         capture_output=True,
@@ -521,7 +532,7 @@ def test_packager_honors_one_stable_user_lock_across_worktrees(
 @MACOS_DESKTOP_INSTALL
 @pytest.mark.parametrize("build_only", [True, False])
 def test_packager_build_only_writes_artifact_without_installing(
-    tmp_path: Path, build_only: bool,
+    tmp_path: Path, build_only: bool, isolated_packager: Path,
 ) -> None:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
@@ -571,7 +582,7 @@ def test_packager_build_only_writes_artifact_without_installing(
     completed = subprocess.run(
         [
             "/bin/bash",
-            str(ROOT / "apps" / "desktop" / "scripts" / "package-and-install-app.sh"),
+            str(isolated_packager),
             *(["--output", str(output)] if build_only else []),
         ],
         check=False,
@@ -604,15 +615,17 @@ def test_packager_build_only_writes_artifact_without_installing(
 @MACOS_DESKTOP_INSTALL
 def test_packager_rejects_canonical_aliases_and_cleanup_owned_outputs(
     tmp_path: Path,
+    isolated_packager: Path,
 ) -> None:
-    packager = ROOT / "apps" / "desktop" / "scripts" / "package-and-install-app.sh"
+    repo = isolated_packager.parents[3]
+    packager = isolated_packager
     applications_alias = tmp_path / "applications"
     applications_alias.symlink_to("/Applications", target_is_directory=True)
     outputs = [
         "/Applications/./OpenProgram.app",
         str(applications_alias / "OpenProgram.app"),
-        str(ROOT / "build" / "OpenProgram.app"),
-        str(ROOT / "apps" / "desktop" / "build" / "runtime" / "OpenProgram.app"),
+        str(repo / "build" / "OpenProgram.app"),
+        str(repo / "apps" / "desktop" / "build" / "runtime" / "OpenProgram.app"),
     ]
     env = {
         "HOME": str(tmp_path / "home"),
@@ -631,4 +644,3 @@ def test_packager_rejects_canonical_aliases_and_cleanup_owned_outputs(
         )
         assert rejected.returncode != 0, output
         assert "build output" in rejected.stderr, output
-
