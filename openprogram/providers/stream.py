@@ -244,11 +244,6 @@ async def _metered(stream_fn, model: Model, context, opts, budget, receipt=None)
     Once ``start`` succeeds, any failure or cancellation conservatively keeps
     exposure held because the request may already have reached the provider.
     """
-    if budget is None and receipt is None:
-        async for event in stream_fn(model, context, opts):
-            yield event
-        return
-
     try:
         # An opaque provider may perform I/O while constructing its iterator.
         # Once invoked, absence of a receipt cannot prove the request was free.
@@ -264,8 +259,16 @@ async def _metered(stream_fn, model: Model, context, opts, budget, receipt=None)
             receipt.release()
         raise
 
-    async for event in events:
-        yield event
+    try:
+        async for event in events:
+            yield event
+    except BaseException:
+        import asyncio
+        from .utils.event_stream import close_stream
+        task = asyncio.current_task()
+        stopping = bool(task and task.cancelling()) or bool(opts.signal and opts.signal.is_set())
+        await close_stream(events, timeout=0.5 if stopping else None)
+        raise
 
 
 def _record_usage(model: Model, final, options) -> None:

@@ -18,11 +18,13 @@ export interface BranchRow {
 // 正常情况下每个分支的颜色来自 `runtimeState._branchLaneColorMap`。
 export { LANE_COLORS } from "@/lib/format-utils/lane-colors";
 
-export function wsSend(payload: unknown): void {
+export function wsSend(payload: unknown): boolean {
   const sock = getSocket();
   if (sock && sock.readyState === WebSocket.OPEN) {
     sock.send(JSON.stringify(payload));
+    return true;
   }
+  return false;
 }
 
 // Branch row rename / delete glyphs → animated line icons (pqoqubbw,

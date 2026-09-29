@@ -1,3 +1,4 @@
+import { showToast } from "@/lib/format-utils/toast";
 import { settleFunctionRetry } from "./function-retry";
 /**
  * Chat-page WebSocket handlers.
@@ -326,6 +327,7 @@ type ExecutionCommandFrame = {
     execution_id?: unknown;
     status?: unknown;
     result_version?: unknown;
+    rejection_code?: unknown;
     latest_snapshot?: {
       execution_id?: unknown;
       session_id?: unknown;
@@ -395,10 +397,14 @@ export function handleExecutionCommandUpdated(frame: unknown): void {
     }
     // Accepted may be an intermediate command lifecycle frame; only the
     // terminal applied frame closes the optimistic entry.
-    if (status === "applied") delete runtimeState._optimisticCancels[commandId];
+    if (status === "applied") {
+      if (pending) showToast("Stopped.");
+      delete runtimeState._optimisticCancels[commandId];
+    }
     return;
   }
 
+  showToast(`Execution request failed: ${command.rejection_code || "unknown error"}`, { tone: "error" });
   const snapshot = command.latest_snapshot;
   const snapshotExecutionId = typeof snapshot?.execution_id === "string"
     ? snapshot.execution_id : "";

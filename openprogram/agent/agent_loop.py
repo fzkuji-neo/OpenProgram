@@ -302,7 +302,7 @@ def _finish_interrupted_stream(stream, exc, messages, cancel_event) -> None:
             check_cancelled()
         except CancelledError:
             cancelled = True
-    if isinstance(exc, (CancelledError, ExecInterrupt)) and cancelled:
+    if isinstance(exc, (CancelledError, asyncio.CancelledError, ExecInterrupt)) and cancelled:
         if not stream._result_event.is_set():
             stream.end(messages)
     elif isinstance(exc, ExecInterrupt):
@@ -310,6 +310,29 @@ def _finish_interrupted_stream(stream, exc, messages, cancel_event) -> None:
             stream.fail(exc)
     else:
         raise exc
+
+
+
+def _attach_cancellable_producer(stream, coroutine, cancel_event):
+    """Interrupt pending I/O even when a provider/tool emits no events."""
+    producer = asyncio.ensure_future(coroutine)
+    stream.attach_producer(producer)
+    if cancel_event is None:
+        return
+
+    async def watch_cancel():
+        # The signal is part of request option snapshots; do not attach an
+        # asyncio Future to it (deep-copying a pending Event is invalid).
+        while not cancel_event.is_set():
+            await asyncio.sleep(0.05)
+        if not producer.done():
+            producer.cancel()
+            done, _ = await asyncio.wait({producer}, timeout=1.0)
+            if not done:
+                producer.cancel()
+
+    watcher = asyncio.create_task(watch_cancel())
+    producer.add_done_callback(lambda _: watcher.cancel())
 
 
 def agent_loop(
@@ -350,7 +373,7 @@ def agent_loop(
         except BaseException as e:
             _finish_interrupted_stream(ev_stream, e, new_messages, cancel_event)
 
-    ev_stream.attach_producer(asyncio.ensure_future(_run()))
+    _attach_cancellable_producer(ev_stream, _run(), cancel_event)
     return ev_stream
 
 
@@ -394,7 +417,7 @@ def agent_loop_continue(
         except BaseException as e:
             _finish_interrupted_stream(ev_stream, e, new_messages, cancel_event)
 
-    ev_stream.attach_producer(asyncio.ensure_future(_run()))
+    _attach_cancellable_producer(ev_stream, _run(), cancel_event)
     return ev_stream
 
 
@@ -498,7 +521,7 @@ def agent_loop_resume(
         except BaseException as exc:
             _finish_interrupted_stream(ev_stream, exc, new_messages, cancel_event)
 
-    ev_stream.attach_producer(asyncio.ensure_future(_run()))
+    _attach_cancellable_producer(ev_stream, _run(), cancel_event)
     return ev_stream
 
 
@@ -1057,37 +1080,10 @@ async def _run_loop_with_recovery(
     ev_stream.end(new_messages)
 
 
-async def _cancel_response_stream(response_stream: Any, iterator: Any) -> None:
+async def _cancel_response_stream(response_stream: Any, iterator: Any, *, cleanup_timeout: float | None = None) -> None:
     """Stop a discarded provider response before starting its recovery."""
-    current_task = asyncio.current_task()
-    cancel_producer = getattr(response_stream, "cancel_producer", None)
-    if callable(cancel_producer):
-        try:
-            await cancel_producer()
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            pass
-        if current_task is not None and current_task.cancelling():
-            # EventStream.cancel_producer() intentionally consumes the
-            # producer task's cancellation.  It must not consume a
-            # cancellation requested for this agent task while it awaits the
-            # producer, otherwise recovery would issue another provider call.
-            raise asyncio.CancelledError()
-        return
-
-    close = getattr(iterator, "aclose", None)
-    if not callable(close):
-        close = getattr(response_stream, "aclose", None)
-    if callable(close):
-        try:
-            await close()
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            pass
-        if current_task is not None and current_task.cancelling():
-            raise asyncio.CancelledError()
+    from openprogram.providers.utils.event_stream import close_stream
+    await close_stream(response_stream, iterator, timeout=cleanup_timeout)
 
 
 async def _stream_assistant_response(
@@ -1443,6 +1439,12 @@ async def _stream_assistant_response(
                 )
             except StopAsyncIteration:
                 break
+            except BaseException:
+                await _cancel_response_stream(
+                    response_stream, iterator,
+                    cleanup_timeout=0.5 if cancel_event and cancel_event.is_set() else None,
+                )
+                raise
             _record_job_activity("provider_data")
             if structured_plan is not None and cancel_event and cancel_event.is_set():
                 from openprogram.providers.utils.errors import ExecInterrupt
