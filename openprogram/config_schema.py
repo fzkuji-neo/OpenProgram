@@ -17,7 +17,7 @@ See ``docs/design/cli/redesign.md``.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import re
 from decimal import Decimal, InvalidOperation
 import ipaddress
@@ -274,7 +274,15 @@ def load_outbound_security_config(
     if not isinstance(security, dict):
         raise ValueError("invalid outbound URL security configuration")
     raw = security.get("outbound_url", {})
-    return parse_outbound_url_settings(raw).security_for(consumer)
+    result = parse_outbound_url_settings(raw).security_for(consumer)
+    if consumer.startswith(("provider.", "webui.model_listing.")) and result.policy_proxy is None:
+        from openprogram.providers.utils.http_proxy import get_proxy_mounts
+
+        result = replace(
+            result,
+            service_proxy_mounts=tuple(sorted((get_proxy_mounts() or {}).items())),
+        )
+    return result
 
 
 @dataclass(frozen=True)
