@@ -47,9 +47,12 @@ createRoot(document.getElementById('mount')).render(<QueryClientProvider client=
             expect(right.get_by_role('textbox',name='right draft')).to_have_value('right draft\n\n> Original message https://example.com\n\n')
             expect(left.get_by_role('textbox',name='left draft')).to_have_value('left draft')
             expect(right.get_by_role('textbox',name='right draft')).to_be_focused()
-            # A real DOM text range exposes the contextual quote action.
+            # A selection remains hidden while the pointer is held; release exposes actions.
+            right.locator('.message-content').dispatch_event('pointerdown', {'pointerId':1,'buttons':1})
             page.evaluate('''() => {const el=document.querySelector('[data-pane="right"] .message-content');const node=el.lastChild;const r=document.createRange();r.setStart(node,0);r.setEnd(node,8);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}''')
-            right.locator('.message-content').dispatch_event('pointerup')
+            expect(page.get_by_role('button',name='Add to chat',exact=True)).to_have_count(0)
+            right.locator('.message-content').dispatch_event('pointerup', {'pointerId':1,'buttons':0})
+            expect(page.get_by_role('button',name='Chat in new branch',exact=True)).to_be_visible()
             page.get_by_role('button',name='Add to chat',exact=True).click()
             assert page.evaluate("window.drafts().right").endswith('> Original\n\n')
             assert page.evaluate("window.drafts().left") == 'left draft'

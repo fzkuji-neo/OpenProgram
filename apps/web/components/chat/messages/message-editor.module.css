@@ -15,7 +15,7 @@
   z-index: 10000;
   display: inline-flex;
   align-items: center;
-  gap: 0;
+  gap: 9px;
   padding: 3px;
   max-width: calc(100vw - 24px);
   border: 1px solid color-mix(in srgb, var(--text-bright) 14%, var(--surface-popover));
@@ -43,14 +43,23 @@
   font: inherit;
   cursor: pointer;
 }
-.quotePopup > button + button { border-left: 1px solid var(--border); border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.quotePopup > button + button { position: relative; }
+.quotePopup > button + button::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: color-mix(in srgb, var(--text-bright) 14%, var(--surface-popover));
+}
 .quotePopup > button:disabled { color: var(--text-muted); cursor: wait; }
 .quotePopup svg { flex-shrink: 0; }
 .quotePopup > button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--text-bright) 6%, var(--surface-popover));
+  background: color-mix(in srgb, var(--text-bright) 3%, var(--surface-popover));
 }
 .quotePopup > button:active:not(:disabled) {
-  background: color-mix(in srgb, var(--text-bright) 10%, var(--surface-popover));
+  background: color-mix(in srgb, var(--text-bright) 6%, var(--surface-popover));
   box-shadow: 0 1px 4px #0003;
 }
 .quotePopup > button:focus-visible {
