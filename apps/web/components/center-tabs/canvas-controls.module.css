@@ -26,18 +26,24 @@
   z-index: 2;
   transform: translateX(-50%);
   width: 56px;
+  max-width: calc(100% - 16px);
   height: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
+  overflow: hidden;
   border-radius: 0 0 8px 8px;
   cursor: grab;
   touch-action: none;
-  transition: background 140ms ease, box-shadow 140ms ease;
+  transition: width 180ms ease, height 180ms ease, background 140ms ease, box-shadow 140ms ease;
 }
-.grip:active {
-  cursor: grabbing;
+.gripDots {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 10px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
 }
 .grip i {
   width: 4px;
@@ -45,23 +51,51 @@
   border-radius: 50%;
   background: var(--text-muted);
   opacity: 0.5;
-  transition: opacity 140ms ease, background 140ms ease;
 }
-.pane[data-focused="true"] .grip i {
-  opacity: 0.85;
+.pane[data-focused="true"] .grip i { opacity: 0.85; }
+.gripName {
+  display: block;
+  position: absolute;
+  top: 17px;
+  left: 14px;
+  right: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 100ms ease, transform 180ms ease;
 }
 .grip:hover,
 .grip:focus-visible,
 .grip[aria-expanded="true"] {
-  outline: none;
-  background: color-mix(in oklch, var(--bg-tertiary) 90%, transparent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  width: 300px;
+  height: 44px;
+  background: var(--bg-tertiary);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
 }
-.grip:hover i,
-.grip:focus-visible i,
-.grip[aria-expanded="true"] i {
+.grip:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+.grip:is(:hover, :focus-visible, [aria-expanded="true"]) .gripName {
   opacity: 1;
-  background: var(--text-bright);
+  transform: translateY(0);
+  transition-delay: 60ms;
+}
+.grip:is(:hover, :focus-visible, [aria-expanded="true"]) i { opacity: 1; }
+.grip:active { cursor: grabbing; }
+:global(html[data-canvas-dragging]) .grip {
+  width: 56px;
+  height: 10px;
+  transition: none;
+}
+:global(html[data-canvas-dragging]) .gripName { opacity: 0; transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .grip, .gripName { transition: none; }
 }
 
 /* 空格子：居中一张卡片，列出可放进来的 tab。 */
@@ -218,22 +252,6 @@
 @keyframes menuIn {
   from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
-}
-/* The pane name is a hover label, separate from the action menu. */
-.paneName {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  max-width: min(360px, calc(100vw - 40px));
-  white-space: normal;
-  overflow-wrap: anywhere;
-  line-height: 1.5;
-}
-.paneName svg {
-  flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
-  margin-top: 3px;
 }
 .menuLabel {
   padding: 6px 8px 4px;
