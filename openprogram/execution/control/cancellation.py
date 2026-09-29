@@ -285,9 +285,7 @@ class CancellationOperations:
             return ControlDispatch(
                 command=command, execution=execution, delivered=False
             )
-        if execution.current_attempt_id is None and not self.effects.list_unresolved(
-            execution.execution_id
-        ):
+        if execution.current_attempt_id is None:
             execution = self.executions.transition_execution(
                 execution.execution_id,
                 expected_version=execution.status_version,

@@ -1,3 +1,4 @@
+import { showToast } from "@/lib/format-utils/toast";
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -235,6 +236,8 @@ export function useExecutionDebugger(active: boolean, sessionId: string | null, 
   }, [snapshots, cursors]);
 
   const command = useCallback(async (commandValue: ExecutionCommand): Promise<CommandResult> => {
+    if (commandValue.action === "execution.pause") showToast("Pause requested. Waiting for the current operation to finish; use Stop to interrupt it.");
+    if (commandValue.action === "execution.cancel") showToast("Stop requested. Cancelling the current operation…");
     try {
       const result = await postExecutionCommand(commandValue);
       const resultExecution = result.execution;

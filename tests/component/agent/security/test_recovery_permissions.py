@@ -242,3 +242,24 @@ def test_always_scope_cannot_waive_uncertainty(recovery):
     with pytest.raises(ExecutionConflict, match="scope"):
         approve(recovery, manifest, scope="always")
     assert len(DurableWaitStore(recovery).list_open()) == 1
+
+
+@pytest.mark.parametrize("mode", ["auto", "bypass"])
+def test_new_owner_turn_uses_selected_policy_without_replaying_old_effect(recovery, mode):
+    from openprogram.agent.permissions.policy import permission_decision
+    from openprogram.agent.run_control import set_current_execution_id, reset_current_execution_id
+    old, effect = orphan(recovery)
+    revision = recovery.create_revision(manifest={})
+    new = recovery.create_execution(session_id="recovery", revision_id=revision.revision_id)
+    tool, req, _ = operation(mode=mode)
+    token = set_current_execution_id(new.execution_id)
+    try:
+        assert permission_decision(tool, req, {})[0] == ("auto" if mode == "auto" else "allow")
+        assert EffectStore(recovery).get(effect.effect_id).status is EffectStatus.DISPATCHED
+    finally:
+        reset_current_execution_id(token)
+    token = set_current_execution_id(old.execution_id)
+    try:
+        assert permission_decision(tool, req, {})[:2] == ("ask", "RECOVERY_EFFECT_UNCERTAIN")
+    finally:
+        reset_current_execution_id(token)

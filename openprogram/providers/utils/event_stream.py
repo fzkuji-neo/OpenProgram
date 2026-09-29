@@ -98,6 +98,34 @@ class EventStream(Generic[T, R]):
         return item
 
 
+async def close_stream(stream, iterator=None, *, timeout=None):
+    """Close the owned producer, with bounded cleanup for an explicit stop."""
+    close = getattr(stream, "cancel_producer", None)
+    if not callable(close):
+        close = getattr(iterator if iterator is not None else stream, "aclose", None)
+    if not callable(close):
+        return
+    current = asyncio.current_task()
+    try:
+        if timeout is None:
+            await close()
+        else:
+            cleanup = asyncio.create_task(close())
+            done, _ = await asyncio.wait({cleanup}, timeout=timeout)
+            if not done:
+                cleanup.cancel()
+            def consume(task):
+                if not task.cancelled():
+                    task.exception()
+            cleanup.add_done_callback(consume)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        pass
+    if current is not None and current.cancelling():
+        raise asyncio.CancelledError()
+
+
 class _Sentinel:
     """Sentinel value to signal stream end."""
 

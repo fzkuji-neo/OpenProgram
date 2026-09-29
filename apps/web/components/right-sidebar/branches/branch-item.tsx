@@ -2,6 +2,7 @@
 
 import { cloneElement, useEffect, useRef, useState } from "react";
 
+import { showToast } from "@/lib/format-utils/toast";
 import { useTranslation } from "@/lib/i18n";
 import type { JobResourceView } from "@/lib/net/ws-events";
 import { canonicalExecutionId, queueResourceSummary, jobResourceDetails } from "@/lib/execution/job-resource";
@@ -53,7 +54,7 @@ export function BranchItem({
   onToggleSelect: (headId: string, e: React.MouseEvent) => void;
   onSetBase: (headId: string, e: React.MouseEvent) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, text } = useTranslation();
   const [editing, setEditing] = useState(false);
   // 0ms feedback (interaction-feedback policy): highlight this row as the
   // active branch the moment it's clicked, before the checkout WS +
@@ -92,7 +93,7 @@ export function BranchItem({
 
   function control(action: "pause" | "continue" | "step" | "cancel") {
     if (!executionId) return;
-    wsSend({
+    const sent = wsSend({
       type: "execution.command",
       action: `execution.${action}`,
       command_id: `web-${crypto.randomUUID()}`,
@@ -100,6 +101,9 @@ export function BranchItem({
       expected_version: jobResource?.status_version ?? 0,
       payload: { reason_code: action === "cancel" ? "cancel.user" : undefined },
     });
+    if (!sent) showToast(text("Request was not sent. Reconnect and try again.", "请求未发送，请重连后重试。"), { tone: "error" });
+    else if (action === "pause") showToast(text("Pause requested. Waiting for the current operation; use Stop to interrupt it.", "正在暂停，等待当前操作结束；如需立即中断，请点停止。"));
+    else if (action === "cancel") showToast(text("Stopping…", "正在停止…"));
   }
 
   function commitRename() {
