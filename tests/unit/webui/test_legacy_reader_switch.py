@@ -44,3 +44,17 @@ def test_preferred_default_model_legacy_fallback(monkeypatch, tmp_path):
     monkeypatch.setattr("openprogram.paths.get_config_path",
                         lambda: str(tmp_path / "nope.json"))
     assert rm._preferred_default_model("acme") == "old-1"
+
+
+def test_explicit_empty_models_does_not_restore_legacy_selection():
+    assert _enabled_ids({"models": [], "enabled_models": ["old"]}) == set()
+
+
+def test_preferred_model_respects_empty_and_disabled_rows(monkeypatch, tmp_path):
+    import openprogram.providers.storage as storage
+    cfg = {'acme': {'models': [], 'enabled_models': ['old']}}
+    monkeypatch.setattr(storage, '_read_providers_cfg', lambda: cfg)
+    monkeypatch.setattr('openprogram.paths.get_config_path', lambda: str(tmp_path / 'missing'))
+    assert rm._preferred_default_model('acme') is None
+    cfg['acme']['models'] = [{'id': 'disabled', 'enabled': False}]
+    assert rm._preferred_default_model('acme') is None
