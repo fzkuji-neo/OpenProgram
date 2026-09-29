@@ -383,6 +383,7 @@ export function stopSession(
       previousMessageStatus: optimisticMessage?.status,
     };
   }
+  if (task) showToast("Stop requested. Cancelling the current operation…");
   // 2. Patch the live assistant to cancelled. Keep streamed text.
   //    Only the server-issued execution identity can identify the exact
   //    assistant message. A message id is not an execution owner.
