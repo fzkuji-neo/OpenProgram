@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { useSessionStore } from "@/lib/session-store";
 import { useWebTabPip } from "@/lib/browser/web-tab-pip-store";
 import {
   followPreviewBinding,
@@ -60,15 +59,12 @@ export function applyBrowserConnection(connected: boolean): void {
 }
 
 /** Window-level projection: follow PiP, snapshot recovery, disconnect. One owner. */
-export function BrowserResourceProjection() {
+export function BrowserResourceProjection({ sessionId }: { sessionId: string | null }) {
   const tabs = useCenterTabs(s => s.tabs);
-  const activeId = useCenterTabs(s => s.activeId);
-  const currentSessionId = useSessionStore(s => s.currentSessionId);
   const followEpoch = useBrowserResourceStore(s => s.followEpoch);
   const viewedBranch = useBrowserResourceStore(s => s.viewedBranch);
   const rows = useBrowserResourceStore(s => s.rows);
   const pendingCloses = useBrowserControlStore(s => s.pendingCloses);
-  const sessionId = viewedConversationId(tabs, activeId, currentSessionId);
 
   useEffect(() => {
     applyFollowPreview(sessionId, tabs);
