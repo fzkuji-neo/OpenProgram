@@ -49,7 +49,7 @@ globalThis.requestAnimationFrame = (fn) => setTimeout(fn, 0);
 globalThis.cancelAnimationFrame = clearTimeout;
 globalThis.fetch = window.fetch = async () => Response.json({});
 const routeListeners = new Set();
-let navigations = [], recovery, ctx, ackRequests, ackTasks;
+let navigations = [], routerNavigations = [], recovery, ctx, ackRequests, ackTasks;
 function navigate(path) {
   navigations.push(path);
   window.location.pathname = path;
@@ -59,7 +59,8 @@ function navigate(path) {
 window.history = { state: null, pushState: (_state, _title, path) => navigate(path),
   replaceState: (_state, _title, path) => { window.location.pathname = path; window.location.hash = ""; } };
 globalThis.history = window.history;
-globalThis.reopenRouter = { push: navigate };
+function routerNavigate(path) { routerNavigations.push(path); navigate(path); }
+globalThis.reopenRouter = { push: routerNavigate };
 const { act, createElement, useSyncExternalStore } = await import("react");
 globalThis.reopenRouteHook = () => useSyncExternalStore(
   (notify) => { routeListeners.add(notify); return () => routeListeners.delete(notify); },
@@ -107,7 +108,7 @@ function Receiver() {
 }
 
 async function setup(tabs, activeId, windowId = "main") {
-  localStorage.clear(); sessionStorage.clear(); sockets = []; navigations = []; ackRequests = []; ackTasks = [];
+  localStorage.clear(); sessionStorage.clear(); sockets = []; navigations = []; routerNavigations = []; ackRequests = []; ackTasks = [];
   window.location.pathname = "/chat";
   const intent = { schema: 1, update_id: "su_test", session_id: "origin", attempt: 1,
     reopen_id: "a".repeat(64), launch_kind: "activation", status: "pending", expires_at: Date.now() / 1000 + 60 };
@@ -143,7 +144,7 @@ function transcript(socket, id = "origin") {
 async function mounted(check) {
   const host = document.createElement("div"); document.body.append(host);
   const root = createRoot(host);
-  setNavigate(navigate);
+  setNavigate(routerNavigate);
   try {
     await act(async () => root.render(createElement(Receiver)));
     assert.equal(sockets.length, 1);
@@ -389,5 +390,44 @@ test("clicking the current tab preserves its sidebar page; Back restores its con
     assert.equal(useCenterTabs.getState().navigationRoute, "/skills");
     await act(async () => useCenterTabs.getState().navigateHistory(-1));
     assert.equal(window.location.pathname, "/s/other");
+  });
+});
+
+
+for (const entry of ["click", "activate", "history"]) test(`restoring Agents through ${entry} loads its routed page`, async () => {
+  const agents = { ...other, navigationRoute: "/agents" };
+  await setup([agents, original], original.id, "detached");
+  await mounted(async () => {
+    routerNavigations = [];
+    if (entry === "history") {
+      await act(async () => {
+        useCenterTabs.getState().recordRouteNavigation("/agents");
+        navigate("/agents");
+      });
+      await act(async () => {
+        useCenterTabs.getState().recordRouteNavigation("/s/origin");
+        navigate("/s/origin");
+      });
+      await act(async () => useCenterTabs.getState().navigateHistory(-1));
+    } else if (entry === "activate") {
+      await act(async () => useCenterTabs.getState().setActive(agents.id));
+    } else {
+      await act(async () => lifecycle.onTabClick(agents));
+    }
+    assert.equal(window.location.pathname, "/agents");
+    assert.ok(routerNavigations.includes("/agents"), "a pathname update alone leaves the previous route's null chat page mounted");
+  });
+});
+
+
+for (const from of ["/skills/first", "/chat"]) test(`restoring a skill detail from ${from} selects the correct navigation method`, async () => {
+  const detail = { ...other, navigationRoute: "/skills/second" };
+  await setup([detail, original], original.id, "detached");
+  await mounted(async () => {
+    await act(async () => navigate(from));
+    routerNavigations = [];
+    await act(async () => lifecycle.onTabClick(detail));
+    assert.equal(window.location.pathname, "/skills/second");
+    assert.equal(routerNavigations.includes("/skills/second"), from === "/chat");
   });
 });

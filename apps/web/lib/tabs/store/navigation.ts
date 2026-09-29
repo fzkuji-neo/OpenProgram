@@ -1,6 +1,6 @@
 import { replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence";
 import type { StoreApi } from "zustand";
-import { pushPath } from "../../shallow-nav";
+import { navigateTabRoute } from "../navigation/route";
 import { isSettingsRoute, pageHistory, recordTabPage, restoreTabPage, tabPage } from "../navigation/page-history";
 import { navigationTarget } from "../navigation/selectors";
 import { commitCenterTabsState, independentTab } from "./core";
@@ -47,7 +47,7 @@ export function navigationActions(set: StoreApi<CenterTabsState>["setState"], ge
           ? `/s/${encodeURIComponent(page.sessionId)}`
           : page.kind === "ntp" || page.kind === "session" || (pathname !== "/chat" && !pathname.startsWith("/s/"))
             ? "/chat" : pathname);
-        pushPath(path);
+        navigateTabRoute(path);
       }
     },
 
