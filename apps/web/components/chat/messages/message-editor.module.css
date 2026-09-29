@@ -10,5 +10,34 @@
 .existingItem { display: flex; align-items: center; min-width: 0; max-width: 100%; }
 .existingItem :global(.user-attachments) { margin: 0; min-width: 0; }
 .error { color: var(--danger, #cf5549); font-size: 13px; margin: 8px 12px; }
-.quotePopup { position: fixed; z-index: 10000; display: flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-secondary, #292929); color: var(--text-bright); box-shadow: 0 4px 16px #0003; cursor: pointer; font: 13px var(--font-sans, system-ui); }
-.quotePopup:hover { background: var(--bg-hover, #444); }
+.quotePopup {
+  position: fixed;
+  z-index: 10000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--text-bright) 14%, var(--surface-popover));
+  border-radius: 8px;
+  background: var(--surface-popover, #30302e);
+  color: var(--text-bright);
+  box-shadow: 0 2px 8px #0003, 0 8px 24px #0002;
+  cursor: pointer;
+  font: 500 13px/1 var(--font-sans, system-ui);
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+.quotePopup svg { flex-shrink: 0; }
+.quotePopup:hover {
+  background: color-mix(in srgb, var(--text-bright) 6%, var(--surface-popover));
+}
+.quotePopup:active {
+  background: color-mix(in srgb, var(--text-bright) 10%, var(--surface-popover));
+  box-shadow: 0 1px 4px #0003;
+}
+.quotePopup:focus-visible {
+  outline: 2px solid var(--accent, #5b9cff);
+  outline-offset: 2px;
+}
