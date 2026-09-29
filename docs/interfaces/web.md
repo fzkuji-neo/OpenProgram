@@ -1,5 +1,7 @@
 # Web UI
 
+Conversation menus provide **Copy link** for the selected conversation. The desktop App uses the native clipboard; the browser uses its clipboard API with a selection fallback. A success notification appears only after copying succeeds.
+
 Select text within a chat message and choose **Add to chat**, or use **Quote message** in its action row. The quote is appended to that conversation’s draft without sending it. In split view, each pane quotes into its own composer. Choose **Edit message** on a user message to change its text and URLs, remove existing attachments, or pick, paste and drop images and files. File mentions work with `@`. **Save & resend** creates a new branch; the original message remains available. Press Cmd/Ctrl+Enter to save or Escape to cancel. Failed saves keep your edits and attachments for retry.
 
 Open the conversation’s ⋯ menu and choose **Auto rename** to generate a name from its content using the configured default model. **Rename** still lets you type a name. The current name remains visible while generation runs; failures keep it unchanged. An explicitly chosen name is protected from background automatic naming. This action is also available in the chat pane’s session menu. It does not send a chat message or run tools.

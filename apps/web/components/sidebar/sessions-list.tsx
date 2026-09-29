@@ -1,4 +1,5 @@
 "use client";
+import { copyText } from "@/lib/clipboard";
 
 /**
  * Sessions list (the "Recents" panel in the sidebar).
@@ -272,11 +273,10 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
     wsSend({ action: "update_session_flags", session_id: id, ...fields });
   }
   function copyLink(id: string) {
-    const url = `${location.origin}/s/${id}`;
-    navigator.clipboard?.writeText(url).then(
-      () => showToast(t("sidebar.link_copied")),
-      () => showToast(url),
-    );
+    const url = `${location.origin}/s/${encodeURIComponent(id)}`;
+    void copyText(url).then(success => showToast(
+      success ? t("sidebar.link_copied") : `${t("sidebar.link_copy_failed")} ${url}`,
+    ));
   }
   // The endpoint answers with Content-Disposition: attachment and rides
   // the same session cookie as every other call, so pointing the browser

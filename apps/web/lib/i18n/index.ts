@@ -182,6 +182,7 @@ const DICT = {
   "sidebar.new_group_prompt": { en: "Group name", zh: "分组名称" },
   "sidebar.ungrouped": { en: "Ungrouped", zh: "未分组" },
   "sidebar.remove_from_group": { en: "Remove from group", zh: "移出分组" },
+  "sidebar.link_copy_failed": { en: "Could not copy link:", zh: "未能复制链接：" },
   "sidebar.copy_link": { en: "Copy link", zh: "复制链接" },
   "sidebar.link_copied": { en: "Link copied", zh: "已复制链接" },
   "sidebar.export": { en: "Export", zh: "导出" },

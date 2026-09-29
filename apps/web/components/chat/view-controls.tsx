@@ -1,4 +1,5 @@
 "use client";
+import { copyText } from "@/lib/clipboard";
 
 import { autoRenameSession } from "@/lib/session-auto-rename";
 
@@ -113,11 +114,11 @@ export function ViewControls() {
 
   function copyLink() {
     if (!sessionId) return;
-    const url = `${location.origin}/s/${sessionId}`;
-    navigator.clipboard?.writeText(url).then(
-      () => showToast(t("sidebar.link_copied")),
-      () => showToast(url),
-    );
+    const url = `${location.origin}/s/${encodeURIComponent(sessionId)}`;
+    void copyText(url).then(success => showToast(
+      success ? t("sidebar.link_copied") : `${t("sidebar.link_copy_failed")} ${url}`,
+      success ? undefined : { tone: "error" },
+    ));
   }
 
   function del() {

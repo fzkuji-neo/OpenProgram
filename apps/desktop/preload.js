@@ -15,6 +15,7 @@ const overlaySurface = surfaceArgument
 
 contextBridge.exposeInMainWorld("openprogramDesktop", {
   isDesktop: true,
+  writeClipboardText: (text) => ipcRenderer.invoke("clipboard:write-text", text),
   platform: process.platform,
   windowId,
   refreshOwnerAuth: () => ipcRenderer.invoke("owner-auth:refresh"),
