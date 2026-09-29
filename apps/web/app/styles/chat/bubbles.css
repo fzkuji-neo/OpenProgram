@@ -431,3 +431,13 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+.message.user.is-editing .message-content {
+  width: calc(100% - 36px);
+  max-width: calc(100% - 36px);
+  padding: 4px;
+}
+.peer-session-pane .message.user.is-editing .message-content {
+  width: calc(100% - 8px);
+  max-width: calc(100% - 8px);
+}

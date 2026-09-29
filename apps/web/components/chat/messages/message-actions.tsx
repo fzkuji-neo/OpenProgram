@@ -1,4 +1,7 @@
 "use client";
+import { Quote } from "lucide-react";
+import { quoteToChat } from "./quote-to-chat";
+import { parseAttachments } from "./user-attachments";
 
 /**
  * Per-message hover action bar — React port of the legacy
@@ -146,12 +149,15 @@ export function MessageTimestamp({ timestamp }: { timestamp?: number }) {
 export function MessageActions({
   msg,
   onEdit,
+  sessionIdOverride,
 }: {
   msg: ChatMsg;
   onEdit?: () => void;
+  sessionIdOverride?: string;
 }) {
   const { text: tr } = useTranslation();
-  const sessionId = useSessionStore((s) => s.currentSessionId);
+  const focusedSessionId = useSessionStore((s) => s.currentSessionId);
+  const sessionId = sessionIdOverride ?? focusedSessionId;
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -174,7 +180,7 @@ export function MessageActions({
     setBusy(true);
     postJson("/api/chat/retry", { session_id: sessionId, msg_id: msg.id })
       .then(() => {
-        setRunActive(true);
+        if (useSessionStore.getState().currentSessionId === sessionId) setRunActive(true);
         // The turn result must NOT be pushed onto the pre-fork mirror:
         // flag the session so the result handler reloads wholesale
         // (chat-handlers self-heal) — this load and the stream race.
@@ -263,7 +269,7 @@ export function MessageActions({
           }
           // Prefill composer with the rewound user message
           if (d.user_text) {
-            useSessionStore.getState().setComposerInput(d.user_text);
+            useSessionStore.getState().setComposerInputFor(sessionId!, d.user_text);
           }
           // Reload session so rewound messages disappear
           wsSend({ action: "load_session", session_id: sessionId });
@@ -321,6 +327,10 @@ export function MessageActions({
   return (
     <div className="message-actions">
       <MessageTimestamp timestamp={msg.timestamp} />
+      <ActionButton icon={<Quote />} title={tr("Quote message", "引用消息")}
+        disabled={!sessionId || !msg.content} onClick={() => {
+          if (sessionId) quoteToChat(sessionId, parseAttachments(msg.content).text);
+        }} />
       <ActionButton
         icon={copied ? SVG.check : SVG.copy}
         title={tr("Copy", "复制")}

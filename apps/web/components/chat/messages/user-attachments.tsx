@@ -30,6 +30,8 @@ import { extractAttachmentMentions } from "@/lib/chat/attachment-marker";
 import { AttachmentPreview } from "./attachment-preview";
 
 export interface ParsedAttachment {
+  /** Original wire representation, preserved by the message editor. */
+  raw?: string;
   filename: string;
   /** dim secondary line, e.g. ``pdf · 1531 KB`` or ``text file``. */
   meta: string;
@@ -78,6 +80,7 @@ const ATTACHED_FILE = /\[attach(?:ment|ed file):\s*([^(@\]]+?)\s*@\s*([^\]]+)\]/
  *  attachments render through this too. */
 export function parseAttachments(
   content: string | null | undefined,
+  includeRaw = false,
 ): { attachments: ParsedAttachment[]; text: string } {
   if (!content) return { attachments: [], text: content || "" };
   const attachments: ParsedAttachment[] = [];
@@ -93,7 +96,7 @@ export function parseAttachments(
   // a short prompt, not the file body.
   text = text.replace(FILE_BLOCK, (_m, name: string) => {
     attachments.push({
-      filename: name || "file", meta: "", kind: "file", path: "",
+      ...(includeRaw ? { raw: _m } : {}), filename: name || "file", meta: "", kind: "file", path: "",
     });
     return "";
   });
@@ -101,9 +104,10 @@ export function parseAttachments(
   // [attachment: NAME (EXT, N KB[, COUNT])] mentions (optionally with a
   // backend-injected encoded or historical path). COUNT is the scope badge or an
   // oversize note.
-  const extracted = extractAttachmentMentions(text);
+  const extracted = extractAttachmentMentions(text, includeRaw);
   for (const mention of extracted.mentions) {
     attachments.push({
+      ...(includeRaw ? { raw: mention.raw } : {}),
       filename: mention.filename,
       meta: `${mention.ext} · ${mention.kb} KB`
         + (mention.count ? ` · ${mention.count}` : ""),
@@ -117,6 +121,7 @@ export function parseAttachments(
   // [attached file: NAME @ PATH] — backend fallback with no size/ext.
   text = text.replace(ATTACHED_FILE, (_m, name: string, path?: string) => {
     attachments.push({
+      ...(includeRaw ? { raw: _m } : {}),
       filename: (name || "").trim() || "file",
       meta: "",
       kind: "binary",

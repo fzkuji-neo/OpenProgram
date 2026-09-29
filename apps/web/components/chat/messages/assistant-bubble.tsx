@@ -564,7 +564,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
             <MessageTimestamp timestamp={msg.timestamp} />
           </div>
         ) : (
-          <MessageActions msg={msg} />
+          <MessageActions msg={msg} sessionIdOverride={sessionIdOverride} />
         )}
       </div>
     </div>

@@ -28,6 +28,7 @@ interface PendingDocForEnvelope {
 }
 
 export interface ExtractedAttachmentMention {
+  raw?: string;
   filename: string;
   ext: string;
   kb: string;
@@ -71,7 +72,7 @@ export const JSON_ATTACHED_MENTION =
 const LEGACY_ATTACHED_MENTION =
   /\[attach(?:ed|ment):\s*([^()]+?)\s*\(([^,)]+),\s*([\d.]+)\s*KB(?:,\s*([^)]+))?\)(?:\s*@(?!json\s)\s*([^\]]+))?\]/g;
 
-export function extractAttachmentMentions(content: string): {
+export function extractAttachmentMentions(content: string, includeRaw = false): {
   mentions: ExtractedAttachmentMention[];
   text: string;
 } {
@@ -95,6 +96,7 @@ export function extractAttachmentMentions(content: string): {
       start: match.index,
       end: match.index + match[0].length,
       mention: {
+        ...(includeRaw ? { raw: match[0] } : {}),
         filename: match[1].trim() || "file",
         ext: match[2].trim(),
         kb: match[3],
@@ -109,6 +111,7 @@ export function extractAttachmentMentions(content: string): {
       start: match.index,
       end: match.index + match[0].length,
       mention: {
+        ...(includeRaw ? { raw: match[0] } : {}),
         filename: match[1].trim() || "file",
         ext: match[2].trim(),
         kb: match[3],
