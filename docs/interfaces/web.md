@@ -158,3 +158,5 @@ Long conversations open with a small recent history page; earlier messages load 
 Activity also shows in-flight function calls, including foreground shell commands awaiting completion. Expand a function to see its command and start time. Active managed programs appear directly in Running programs and remain inspectable and stoppable after the initiating tool returns.
 
 The preview stays inside its owner conversation pane, including after startup layout restoration and split resizing. Its title bar and resize controls remain outside adjacent native webpages.
+
+In a split canvas with multiple conversations, clicking or focusing a conversation switches Files, Activity, and Resources to that conversation. Project requests and late responses remain scoped to their conversation, even while the main route still points to another pane.

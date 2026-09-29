@@ -99,16 +99,23 @@ export function RightSidebar() {
   const activeTab = useCenterTabs((s) =>
     s.tabs.find((tab) => tab.id === s.activeId),
   );
+  const focusedCanvasSession = useCenterTabs(s => {
+    const tab = s.tabs.find(item => item.id === s.activeId);
+    return tab?.kind === "session" && s.groups.some(group =>
+      group.canvas && group.visibleIds.includes(tab.id));
+  });
   const pathname = usePathname();
   const currentSessionId = useSessionStore((s) => s.currentSessionId);
   // Tab metadata can briefly retain the previous session while /chat resets.
   // Never query or show that session unless the visible route and chat agree.
   const activitySessionId = activeTab?.kind === "session" && !activeTab.draft
-    && activeTab.sessionId === currentSessionId
-    && pathname === `/s/${encodeURIComponent(currentSessionId ?? "")}`
+    && (focusedCanvasSession || (activeTab.sessionId === currentSessionId
+      && pathname === `/s/${encodeURIComponent(currentSessionId ?? "")}`))
     ? activeTab.sessionId ?? null
     : null;
-  const currentProject = useCurrentProject();
+  const currentProject = useCurrentProject(focusedCanvasSession
+    ? { sessionId: activitySessionId, chatKey: activeTab?.sessionId ?? null }
+    : undefined);
   const treeProjectId =
     activeTab?.kind === "file"
       ? (activeTab.projectId ?? null)
