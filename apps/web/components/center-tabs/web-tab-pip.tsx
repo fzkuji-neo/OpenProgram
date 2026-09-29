@@ -91,13 +91,20 @@ function containerBox(el: HTMLElement): WebTabPipRect {
     width: box.width - insetX * 2, height: box.height - insetY * 2 };
 }
 
+function ownerPane(el: HTMLElement, parent: HTMLElement): HTMLElement | null {
+  const owner = el.dataset.pipOwnerTabId;
+  return [...parent.querySelectorAll<HTMLElement>("[data-center-tab-id]")]
+    .find(pane => pane.dataset.centerTabId === owner)
+    ?? parent.querySelector<HTMLElement>(".center-pane-chat");
+}
+
 function rawContainerBox(el: HTMLElement): WebTabPipRect {
   const parent = el.offsetParent as HTMLElement | null;
   if (!parent) {
     return { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
   }
   const parentRect = parent.getBoundingClientRect();
-  const chat = parent.querySelector(".center-pane-chat");
+  const chat = ownerPane(el, parent);
   if (chat instanceof HTMLElement && getComputedStyle(chat).display !== "none") {
     const rect = chat.getBoundingClientRect();
     return {
@@ -366,7 +373,7 @@ export function WebTabPip() {
         ? prev
         : next
     ));
-  }, [live, expanded, rect, expandedSize, groups, activeId, tabId]);
+  }, [live, expanded, rect, expandedSize, groups, activeId, tabId, ownerTabId]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -393,11 +400,11 @@ export function WebTabPip() {
     const ro = new ResizeObserver(reclamp);
     ro.observe(parent);
     ro.observe(el);
-    const chat = parent.querySelector(".center-pane-chat");
+    const chat = ownerPane(el, parent);
     if (chat instanceof HTMLElement) ro.observe(chat);
     reclamp();
     return () => ro.disconnect();
-  }, [live, expanded, setRect, tabId, groups, activeId]);
+  }, [live, expanded, setRect, tabId, groups, activeId, ownerTabId]);
 
   useEffect(() => {
     if (!tabId || !live || interactive) return;
@@ -688,6 +695,7 @@ export function WebTabPip() {
       className={`${styles.webPip} ${expanded ? styles.webPipExpanded : ""}`}
       data-pip="true"
       data-pip-host="chat"
+      data-pip-owner-tab-id={ownerTabId ?? undefined}
       role="complementary"
       aria-label={title}
       data-state={controlState || "readonly"}
