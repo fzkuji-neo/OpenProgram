@@ -11,7 +11,6 @@ import { CenterTabStrip } from "./center-tabs/center-tab-strip";
 import { CanvasControls } from "./center-tabs/canvas-controls";
 import { canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
-import { BrowserResourceProjection } from "@/lib/browser/browser-resource-projection";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { topLevelTabs } from "@/lib/browser/web-page-management";
 import {
@@ -643,7 +642,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
       {/* Non-chat routes render their own page content via the router. */}
-      <BrowserResourceProjection />
       {!showChat && children}
       {/* Right sidebar — persistent across conversations. Hidden (not
          unmounted) on non-chat routes so its state survives. */}

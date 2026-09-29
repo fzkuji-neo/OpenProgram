@@ -13,6 +13,7 @@ const stubs = {
   '@/lib/i18n': 'export const useTranslation=()=>({t:x=>x,text:x=>x});',
   '@/lib/net/ws-request': 'export const wsRequest=(...args)=>globalThis.sidebarRequest(...args);',
   '../session-resources/session-resources-panel': 'import React from "react"; export const SessionResourcesPanel=({sessionId})=>React.createElement("output",{"data-resources":sessionId},sessionId);',
+  '../net/fetch-client.ts': 'export const jsonFetch=(...args)=>globalThis.sidebarResourceFetch(...args);',
   './context-commit-timeline': 'export const ContextCommitTimeline=()=>null;',
   '../animated-icons': 'import {forwardRef} from "react"; const Icon=forwardRef(()=>null); export const ActivityIcon=Icon,BoxIcon=Icon,FolderOpenIcon=Icon,PanelLeftCloseIcon=Icon,PanelLeftOpenIcon=Icon;',
   '../files/file-tree': 'import React from "react"; export const FileTree=({projectId})=>React.createElement("output",{"data-project":projectId},projectId);',
@@ -28,6 +29,7 @@ window.location={pathname:'/s/a'};
 window.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});
 const {act,createElement}=await import('react');
 const {createRoot}=await import('react-dom/client');
+globalThis.sidebarResourceFetch=async()=>({items:[]});
 const {RightSidebar,useCenterTabs,useSessionStore}=await import(pathToFileURL(join(dir,'test.mjs')));
 
 test('canvas focus switches activity and project without waiting for the legacy route',async()=>{
@@ -59,6 +61,8 @@ test('canvas focus switches activity and project without waiting for the legacy 
 
 
 test('web pane keeps the last visible chat for Resources and its drop target',async()=>{
+  const snapshots=[];
+  globalThis.sidebarResourceFetch=async path=>{snapshots.push(path);return {items:[]};};
   globalThis.sidebarRequest=()=>new Promise(()=>{});
   const a={id:'s:a',kind:'session',sessionId:'a',title:'A'};
   const b={id:'s:b',kind:'session',sessionId:'b',title:'B'};
@@ -73,11 +77,13 @@ test('web pane keeps the last visible chat for Resources and its drop target',as
     await act(async()=>root.render(createElement(RightSidebar)));
     await act(async()=>useCenterTabs.getState().setActive(web.id));
     assert.equal(owner(),'a','web pane must retain the visible conversation');
+    assert.equal(snapshots.at(-1),'/api/session/a/resources','resource polling follows the shown chat');
     assert.equal(host.querySelector('#sessionResourcesPanel').dataset.resourceDropSession,'a');
     await act(async()=>useCenterTabs.getState().setActive(b.id));
     assert.equal(owner(),'b','clicking another chat switches the panel');
     await act(async()=>useCenterTabs.getState().setActive(web.id));
     assert.equal(owner(),'b','web focus must not select the first chat or stale route');
+    assert.equal(snapshots.at(-1),'/api/session/b/resources','legacy currentSessionId must not drive resource polling');
     assert.equal(host.querySelector('#sessionResourcesPanel').dataset.resourceDropSession,'b');
     await act(async()=>useCenterTabs.setState({groups:[]}));
     assert.equal(owner(),null,'standalone unowned webpage must not inherit an unrelated session');

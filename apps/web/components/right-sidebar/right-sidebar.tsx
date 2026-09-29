@@ -27,6 +27,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SessionResourcesPanel } from "../session-resources/session-resources-panel";
+import { BrowserResourceProjection } from "@/lib/browser/browser-resource-projection";
 import { usePathname } from "next/navigation";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
@@ -211,6 +212,7 @@ export function RightSidebar() {
       style={railStyle}
       data-view={view}
     >
+      <BrowserResourceProjection sessionId={activitySessionId} />
       {open && (
         <div
           {...resizeHandleProps}
