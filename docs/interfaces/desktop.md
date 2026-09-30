@@ -1,6 +1,6 @@
 # Desktop App and built-in browser
 
-Settings are an application-wide page. Opening Settings from the account menu, app menu, keyboard shortcut or Browser menu leaves every tab and its Back/Forward history unchanged. Select a tab to return to its content. Settings sections can still be opened directly by URL; older settings entries are removed when saved tabs are restored.
+Settings and sidebar management pages (Agents, Abilities, Applications, History and Scheduler) are application-wide. Opening them or switching sections leaves every tab and its Back/Forward history unchanged. Select any tab, including the already selected tab, to return to its content. Management pages can still be opened directly by URL; older management-page entries are removed when saved or transferred tabs are restored.
 
 
 Local App refresh preserves permissions of unpacked native dependencies and restores execute permission on the node-pty terminal helper when an earlier refresh removed it.

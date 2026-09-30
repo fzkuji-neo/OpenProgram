@@ -288,35 +288,24 @@ test("default launcher remains the origin when opening an existing destination",
   state().navigateHistory(1); assert.equal(active().page, "files");
 });
 
-test("page and session navigation returns to its own launcher", () => {
+test("session navigation returns to its own launcher after management pages", () => {
   reset(); state().openNewTabPage(); const home = active().id;
   state().openSessionTab("ordered-A", "A"); state().openSessionTab("ordered-B", "B");
   state().recordRouteNavigation("/skills");
-  state().navigateHistory(-1); assert.equal(active().sessionId, "ordered-B");
-  assert.equal(state().navigationRoute, undefined);
+  assert.equal(active().sessionId, "ordered-B");
   state().navigateHistory(-1); assert.equal(active().sessionId, "ordered-A");
-  state().navigateHistory(-1); assert.equal(active().id, home);
+  state().navigateHistory(-1); assert.equal(active().id,home);
+  state().navigateHistory(1); assert.equal(active().sessionId, "ordered-A");
 });
-
-test("tab switches restore each tab's sidebar route without adding visits", () => {
-  reset(); state().openNewTabPage(); const first = active().id;
-  state().recordRouteNavigation("/skills"); const before = structuredClone(active());
-  state().openNewTabPage(); const second = active().id;
+test("tab switches restore content after opening sidebar management pages", () => {
+  reset(); state().openSessionTab("first","First"); const first = active().id;
+  state().recordRouteNavigation("/agents"); const before = structuredClone(active());
+  state().openNewTabPage(); state().openSessionTab("second","Second"); const second = active().id;
   state().recordRouteNavigation("/programs");
-  state().setActive(first); assert.equal(state().navigationRoute, "/skills");
-  assert.deepEqual(active(), before);
-  state().navigateHistory(-1); assert.equal(state().navigationRoute, undefined);
-  state().setActive(second); assert.equal(state().navigationRoute, "/programs");
-});
-
-test("sidebar routes also return to the launcher in visit order", () => {
-  reset(); state().openNewTabPage(); const home = active().id;
-  state().recordRouteNavigation("/skills"); state().recordRouteNavigation("/programs");
-  state().navigateHistory(-1); assert.equal(state().navigationRoute, "/skills");
-  state().navigateHistory(-1); assert.equal(active().id, home); assert.equal(state().navigationRoute, undefined);
-  state().navigateHistory(1); assert.equal(state().navigationRoute, "/skills");
-  state().openBuiltinTab("files"); assert.equal(state().canNavigateHistory(1), false);
-  state().navigateHistory(-1); assert.equal(state().navigationRoute, "/skills");
+  state().setActive(first); assert.equal(state().navigationRoute, undefined);
+  assert.deepEqual(active(),before);
+  state().setActive(second); assert.equal(active().sessionId, "second");
+  assert.equal(state().navigationRoute, undefined);
 });
 
 test("launcher round trip preserves a draft acknowledgement and title", () => {
@@ -454,53 +443,101 @@ test("transfers reject duplicate conversation identities without replacing eithe
 });
 
 
-test("application settings leave tab content and forward history unchanged", (t) => {
-  const location = window.location;
-  delete window.location;
+const managementRoutes = ["/agents",
+  "/agents/main",
+  "/settings",
+  "/settings/providers/x",
+  "/skills",
+  "/skills/x",
+  "/programs",
+  "/functions",
+  "/mcp",
+  "/plugins",
+  "/plugin/x",
+  "/applications",
+  "/chats",
+  "/projects",
+  "/memory",
+  "/history",
+  "/scheduler"];
+
+test("application pages leave content and forward history unchanged for all tab kinds", (t) => {
+  const location = window.location; delete window.location;
   t.after(() => { window.location = location; });
-  for (const kind of ["session", "ntp", "files", "browser"]) {
+  for (const kind of ["session","ntp","files","browser","web","terminal","application"]) {
     reset(); state().openNewTabPage();
     if (kind === "session") state().openSessionTab("settings-owner", "Owner");
-    if (kind === "files" || kind === "browser") state().openBuiltinTab(kind);
-    state().recordRouteNavigation("/skills");
-    state().recordRouteNavigation("/programs");
-    state().navigateHistory(-1);
+    if (["files","browser","terminal"].includes(kind)) state().openBuiltinTab(kind);
+    if (kind === "web") state().openWebTab("https://example.com");
+    if (kind === "application") state().openApplicationTab("app", "a".repeat(64), "App");
+    // Launcher origin plus content establishes real forward history.
+    const content = structuredClone(active());
+    if (content.pageHistory?.index > 0) state().navigateHistory(-1);
     const before = structuredClone(state().tabs);
-    for (const path of ["/settings", "/settings/general", "/settings/providers/provider", "/settings/browser#clear-data"]) {
+    const canForward = state().canNavigateHistory(1);
+    for (const path of managementRoutes) {
       state().recordRouteNavigation(path);
-      assert.deepEqual(state().tabs, before, `${kind}: ${path}`);
-      assert.equal(state().navigationRoute, "/skills");
+      assert.deepEqual(state().tabs, before,`${kind}: ${path}`);
+      assert.equal(state().navigationRoute, undefined);
+      assert.equal(state().canNavigateHistory(1),canForward);
     }
-    state().navigateHistory(1);
-    assert.equal(state().navigationRoute, "/programs");
+    if (canForward) {
+      state().navigateHistory(1);
+      const {sessionHistory: _actual, ...actualContent} = active();
+      const {sessionHistory: _expected, ...expectedContent} = content;
+      assert.deepEqual(actualContent, expectedContent);
+    }
   }
 });
-
-test("legacy settings visits are removed on reload without losing current metadata", () => {
-  const base = { id: "s:A", kind: "session", sessionId: "A", title: "Old" };
-  const pages = [base, { ...base, navigationRoute: "/skills" },
-    { ...base, navigationRoute: "/settings/general" },
-    { ...base, navigationRoute: "/settings/providers" },
-    { ...base, navigationRoute: "/programs" }];
-  for (let index = 0; index < pages.length; index++) {
-    const tab = { ...pages[index], title: "Latest", pageHistory: { entries: pages, index } };
-    storage.set("centerTabs", JSON.stringify({ version: 2, tabs: [tab], activeId: base.id }));
-    const restored = readCenterTabsPayload().tabs[0];
-    assert.equal(restored.title, "Latest");
-    assert.equal(restored.navigationRoute, index === 0 ? undefined : index === 4 ? "/programs" : "/skills");
-    assert.equal(restored.pageHistory.entries.length, 3);
-    assert.equal(restored.pageHistory.index, index === 0 ? 0 : index === 4 ? 2 : 1);
-    assert.equal(restored.pageHistory.entries.some(p => p.navigationRoute?.startsWith("/settings")), false);
-    assert.deepEqual(normalizeCenterTabsPayload({ tabs: [restored], activeId: base.id }).tabs[0], restored);
-  }
-});
-
-test("legacy settings without an underlying visit retain their content identity", () => {
-  const tab = { id: "s:orphan", kind: "session", sessionId: "orphan", title: "Draft", draft: true, navigationRoute: "/settings/general" };
-  for (const input of [tab, { ...tab, pageHistory: { entries: [tab, { ...tab, navigationRoute: "/settings/browser" }], index: 1 } }]) {
-    const restored = normalizeCenterTabsPayload({ tabs: [input], activeId: tab.id }).tabs[0];
+test("legacy application visits are removed at every cursor without losing metadata", () => {
+  const base = {id:"s:A",kind:"session",sessionId:"A",title:"Old"};
+  const end = {...base, sessionId:"B",title:"B"};
+  const pages = [base,...managementRoutes.map(navigationRoute=>({...base,navigationRoute})),end];
+  for (let index=0;index<pages.length;index++) {
+    const tab={...pages[index],title:"Latest",pageHistory:{entries:pages,index}};
+    storage.set("centerTabs",JSON.stringify({version:2,tabs:[tab],activeId:base.id}));
+    const restored=readCenterTabsPayload().tabs[0];
+    assert.equal(restored.title,"Latest");
     assert.equal(restored.navigationRoute, undefined);
-    assert.equal(restored.sessionId, "orphan"); assert.equal(restored.draft, true);
-    assert.equal(restored.pageHistory?.entries.some(p => p.navigationRoute?.startsWith("/settings")) ?? false, false);
+    assert.equal(restored.pageHistory.entries.length, 2);
+    assert.equal(restored.pageHistory.index,index===pages.length-1?1:0);
+    assert.equal(restored.pageHistory.entries.some(p=>p.navigationRoute),false);
+    assert.deepEqual(normalizeCenterTabsPayload({tabs:[restored],activeId:base.id}).tabs[0],restored);
   }
+});
+test("orphan management visits retain draft identity and file snapshots", () => {
+  for (const route of managementRoutes) for (const kind of ["session","file"]) {
+    const tab={id:"orphan",kind,sessionId:"orphan",title:"Draft",draft:true,navigationRoute:route,
+      ...(kind==="file" ? {projectId:"p",path:"a.ts",fileNavigationSnapshot:{projectId:"p",path:"a.ts",selectedType:"file",expanded:["src"],scroll:{path:"src",offset:25}}}: {})};
+    for (const input of [tab,{...tab,pageHistory:{entries:[tab],index:0}}]) {
+      const restored=normalizeCenterTabsPayload({tabs:[input],activeId:tab.id}).tabs[0];
+      assert.equal(restored.navigationRoute, undefined);
+      assert.equal(restored.draft, true);assert.equal(restored.title, "Draft");
+      assert.deepEqual(restored.fileNavigationSnapshot,tab.fileNavigationSnapshot);
+      assert.equal(restored.pageHistory?.entries.some(p=>p.navigationRoute)??false,false);
+    }
+  }
+});
+
+test("sidebar management pages never become session tab content", () => {
+  reset(); state().openSessionTab("management-owner", "Research discussion");
+  const before = structuredClone(state().tabs);
+  for (const path of managementRoutes) {
+    state().recordRouteNavigation(path);
+    assert.deepEqual(state().tabs, before, path);
+    assert.equal(state().navigationRoute, undefined, path);
+  }
+});
+test("old Agents route is removed when restoring or transferring a tab", () => {
+  const base = {id:"s:owner", kind:"session", sessionId:"owner", title:"Research discussion"};
+  const tab = {...base, navigationRoute:"/agents", pageHistory:{entries:[base,{...base,navigationRoute:"/agents"}],index:1}};
+  const restored = normalizeCenterTabsPayload({tabs:[tab],activeId:tab.id}).tabs[0];
+  assert.equal(restored.navigationRoute, undefined);
+  assert.deepEqual(restored.pageHistory.entries,[base]);
+});
+
+test("similarly named content routes keep their tab history",()=>{
+  reset();state().openSessionTab("A","A");
+  state().recordRouteNavigation("/agents-not-management");
+  assert.equal(active().navigationRoute,"/agents-not-management");
 });
