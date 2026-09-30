@@ -281,16 +281,24 @@ def test_ten_thousand_node_session_loads_recent_page_without_recursion(
         ws._history_protocol = 1
         asyncio.run(ws_session.handle_load_session(ws, {'session_id': sid}))
         data = next(f['data'] for f in ws.frames if f['type'] == 'session_loaded')
-        assert [m['id'] for m in data['messages']] == [str(i) for i in range(count - 50, count)]
-        assert data['history']['before'] == str(count - 50)
+        assert [m['id'] for m in data['messages']] == [str(i) for i in range(count - 12, count)]
+        assert data['history']['before'] == str(count - 12)
+        assert data['history']['start'] == count - 12
+        assert data['history']['end'] == data['history']['total'] == count
         assert len(data['graph']) == count
         assert data['graph'][-1]['_depth'] == count - 1
+        ws.frames.clear()
         asyncio.run(ws_session.handle_load_session(ws, {
             'session_id': sid, 'history_before': data['history']['before'],
             'history_head': data['history']['head_id'],
+            'history_snapshot': data['history']['snapshot'],
         }))
+        assert [f['type'] for f in ws.frames] == ['session_history_page']
         older = next(f['data'] for f in ws.frames if f['type'] == 'session_history_page')
-        assert [m['id'] for m in older['messages']] == [str(i) for i in range(count - 100, count - 50)]
+        assert [m['id'] for m in older['messages']] == [str(i) for i in range(count - 62, count - 12)]
+        assert older['history']['before'] == str(count - 62)
+        assert older['history']['end'] == data['history']['start']
+        assert older['history']['snapshot'] == data['history']['snapshot']
     finally:
         server._sessions.pop(sid, None)
 

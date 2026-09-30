@@ -136,6 +136,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "build>=1.2",
+    # Documentation rendering is exercised by the normal repository tests.
+    "markdown-it-py>=4.2",
+    "mdit-py-plugins>=0.6.1",
+    "pygments>=2.20",
     # Exercises the optional Amazon Bedrock adapter without AWS credentials.
     "boto3>=1.34",
     # Wheel-content tests invoke the active interpreter's pip module to
