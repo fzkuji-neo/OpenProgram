@@ -22,6 +22,8 @@ def _isolated_runtime(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(api_registry, "_registry", {})
     monkeypatch.setattr(api_registry, "_original_registry", {})
     monkeypatch.setattr(api_registry, "_provider_transform", None)
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
     monkeypatch.setattr(register, "_registered", False)
     importlib.reload(initialization)
 
