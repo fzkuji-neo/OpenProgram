@@ -708,6 +708,7 @@ def test_wheel_contains_both_runtime_shims(tmp_path):
     (project / "openprogram" / "sandbox" / "shims").mkdir(parents=True)
     for relative in (
         "pyproject.toml", "README.md", "LICENSE", "openprogram/__init__.py",
+        "openprogram/_compat.py",
         "openprogram/sandbox/__init__.py", "openprogram/sandbox/shims/sitecustomize.py",
         "openprogram/sandbox/shims/node_preload.cjs",
         "openprogram/programs/__init__.py",
@@ -720,6 +721,7 @@ def test_wheel_contains_both_runtime_shims(tmp_path):
         destination = project / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(repo / relative, destination)
+    shutil.copytree(repo / "openprogram/_platform", project / "openprogram/_platform")
     (project / "openprogram/webui/functions_meta.json").write_text(
         '{"profiles": {"must-not-ship": []}}\n', encoding="utf-8"
     )
@@ -798,5 +800,6 @@ def test_wheel_contains_both_runtime_shims(tmp_path):
         timeout=30,
     )
     assert probe.returncode == 0, probe.stdout + probe.stderr
+    assert "Error in sitecustomize" not in probe.stderr, probe.stderr
     assert not target.exists()
     assert any((runtime_trash / "items").iterdir())
