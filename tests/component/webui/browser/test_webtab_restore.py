@@ -3,7 +3,15 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
+import pytest
+
 from openprogram.webui.ws_actions import webtab
+
+
+@pytest.fixture(autouse=True)
+def isolated_page_inventory(monkeypatch):
+    for name in ("_bindings", "_connection_revisions", "_page_revisions", "_desktop_windows"):
+        monkeypatch.setattr(webtab, name, {})
 
 
 class _WS:
