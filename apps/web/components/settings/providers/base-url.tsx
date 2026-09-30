@@ -21,19 +21,23 @@ export function BaseUrl({
 }) {
   const { text } = useTranslation();
   const [value, setValue] = useState(provider.base_url || "");
+  const [status, setStatus] = useState<string | null>(null);
   const baseDefault = provider.default_base_url
     ? text(`default: ${provider.default_base_url}`, `默认：${provider.default_base_url}`)
     : "";
 
   async function save() {
     try {
-      await fetch(`/api/providers/${encodeURIComponent(provider.id)}/config`, {
+      const response = await fetch(`/api/providers/${encodeURIComponent(provider.id)}/config`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ base_url: value.trim() }),
       });
+      const result = await response.json();
+      if (!response.ok || result.error) { setStatus(result.error || text("Save failed", "保存失败")); return; }
+      setStatus(text("Saved", "已保存"));
       onChanged();
-    } catch { /* ignore */ }
+    } catch { setStatus(text("Save failed", "保存失败")); }
   }
 
   return (
@@ -54,6 +58,7 @@ export function BaseUrl({
           {text("Save", "保存")}
         </Button>
       </div>
+      {status && <span role="status">{status}</span>}
     </div>
   );
 }

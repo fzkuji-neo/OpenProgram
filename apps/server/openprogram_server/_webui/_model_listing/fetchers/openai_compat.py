@@ -21,7 +21,8 @@ def _fetch_openai_compat(provider_id: str, timeout: float) -> Any:
 
     api_key = resolve_api_key_with_auth_store(provider_id)
     env = env_var_for(provider_id)
-    if api_key is None and env:
+    from openprogram.providers.local import is_local_provider
+    if api_key is None and env and not is_local_provider(provider_id):
         return {"error": f"No API key for {provider_id} (set {env})"}
     base = _resolve_base_url(provider_id)
     if not base:
@@ -44,5 +45,7 @@ def _fetch_openai_compat(provider_id: str, timeout: float) -> Any:
         return {"error": f"Non-JSON response from {normalize_origin(base)}/models"}
     except Exception as e:
         return {"error": f"{type(e).__name__} for {normalize_origin(base)}"}
+    if not isinstance(data, dict):
+        return {"error": "unexpected response shape"}
     items = data.get("data") or data.get("models") or []
     return items if isinstance(items, list) else {"error": "unexpected response shape"}

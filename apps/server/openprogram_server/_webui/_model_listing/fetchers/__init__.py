@@ -139,6 +139,9 @@ def fetch_and_normalize(provider_id: str, timeout: float = 15.0) -> dict[str, An
             return {"error": upstream_error}
     items = raw if isinstance(raw, list) else []
     if not items:
+        from openprogram.providers.local import is_local_provider
+        if is_local_provider(provider_id) and isinstance(raw, list):
+            return {"models": []}
         return {"error": "No models returned"}
 
     models: list[dict[str, Any]] = []
@@ -206,7 +209,13 @@ def fetch_and_normalize(provider_id: str, timeout: float = 15.0) -> dict[str, An
         # ``/v1/models`` response from OpenRouter) win when both
         # sources have an opinion. We only fill in what the fetcher
         # didn't already populate.
-        for k, v in _enrich_from_community(provider_id, mid).items():
+        from openprogram.providers.local import is_local_provider
+        community = {} if is_local_provider(provider_id) else _enrich_from_community(provider_id, mid)
+        if is_local_provider(provider_id):
+            entry.setdefault("context_window", 4096)
+            entry.setdefault("max_tokens", 1024)
+            entry["tools"] = it.get("tools")
+        for k, v in community.items():
             entry.setdefault(k, v)
         # Auto-detect reasoning capability from provider's probe module
         # if not already set by the fetcher or enrichment.

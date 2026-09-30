@@ -21,6 +21,7 @@ from __future__ import annotations
 
 
 _SETUP_HINTS: dict[str, str] = {
+    **{pid: "Start your inference server and load a model first. Save its API Base URL, fetch models, and enable the model you want. API keys are optional; add one only when the server requires authentication. localhost refers to the worker machine. Set model token limits to match the server configuration." for pid in ("ollama", "lmstudio", "vllm", "llamacpp", "local")},
     "openai-codex": (
         "OpenAI Codex runs on your Codex CLI login — there's no API key to\n"
         "paste here. If you've already run `codex` and signed in (either a\n"

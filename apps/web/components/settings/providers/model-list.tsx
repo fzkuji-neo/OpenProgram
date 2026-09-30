@@ -300,7 +300,7 @@ function ModelDetailsPanel({ model }: { model: Model }) {
     </div>
   );
 
-  const boolMark = (v?: boolean) =>
+  const boolMark = (v?: boolean | null) =>
     v == null
       ? <span style={valueMutedStyle}>—</span>
       : v

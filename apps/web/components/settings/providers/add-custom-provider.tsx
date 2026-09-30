@@ -31,12 +31,14 @@ export function AddCustomProvider({ onCreated }: { onCreated: (id: string) => vo
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [local, setLocal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   function reset() {
     setLabel("");
     setBaseUrl("");
+    setLocal(false);
     setError(null);
     setOpen(false);
   }
@@ -48,7 +50,7 @@ export function AddCustomProvider({ onCreated }: { onCreated: (id: string) => vo
       const r = await fetch("/api/providers/custom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label.trim(), base_url: baseUrl.trim() }),
+        body: JSON.stringify({ label: label.trim(), base_url: baseUrl.trim(), local }),
       });
       const d = await r.json();
       if (!d.ok) {
@@ -115,6 +117,7 @@ export function AddCustomProvider({ onCreated }: { onCreated: (id: string) => vo
         value={baseUrl}
         onChange={(e) => setBaseUrl(e.target.value)}
       />
+      <label style={{ fontSize: 12 }}><input type="checkbox" checked={local} onChange={(event) => setLocal(event.target.checked)} /> {text("Local server (API key optional)", "本地服务（API key 可选）")}</label>
       {error && <div style={{ fontSize: 11, color: "var(--destructive, #e5484d)" }}>{error}</div>}
       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
         <Button variant="ghost" size="sm" onClick={reset} disabled={busy}>
