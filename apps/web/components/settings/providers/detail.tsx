@@ -225,7 +225,7 @@ export function Detail({
           token survived restart. Backend already handles the auth
           lookup. */}
       {provider.kind === "api" && (
-        <Connectivity ref={connectivityRef} providerId={provider.id} />
+        <Connectivity key={provider.id} ref={connectivityRef} providerId={provider.id} local={provider.local} />
       )}
 
       {(provider.custom || provider.local) && provider.kind !== "cli" && (

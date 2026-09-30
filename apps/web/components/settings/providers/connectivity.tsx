@@ -26,8 +26,8 @@ function isUsableValid(status: string, via?: string, kind?: string): boolean {
  *  shows ✓ + latency or ✗ + an inline error summary. The full raw
  *  upstream response stays on the hover tooltip for paste-into-bug-
  *  report cases. */
-export const Connectivity = forwardRef<ConnectivityHandle, { providerId: string }>(
-  function Connectivity({ providerId }, ref) {
+export const Connectivity = forwardRef<ConnectivityHandle, { providerId: string; local?: boolean }>(
+  function Connectivity({ providerId, local = false }, ref) {
   const { text } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ kind: "ok" | "err" | "warn" | "info"; text: string; title?: string } | null>(null);
@@ -48,6 +48,10 @@ export const Connectivity = forwardRef<ConnectivityHandle, { providerId: string 
       if (isUsableValid(status, via, d.kind)) {
         setResult({ kind: "ok", text: d.latency_ms ? `✓ ${d.latency_ms} ms` : text("✓ valid", "✓ 有效"), title });
         return true;
+      }
+      if (local) {
+        setResult({ kind: "err", text: text("✗ check failed", "✗ 检查失败"), title: d.detail || status });
+        return false;
       }
       if (status === "valid_no_balance" || status === "billing_blocked") {
         setResult({ kind: "err", text: text("✗ out of credits", "✗ 欠费停用"), title });
@@ -76,7 +80,7 @@ export const Connectivity = forwardRef<ConnectivityHandle, { providerId: string 
   }
 
   // Expose "click Check" to the parent so it can auto-run on key save.
-  useImperativeHandle(ref, () => ({ run: test }), [providerId]);
+  useImperativeHandle(ref, () => ({ run: test }), [providerId, local]);
 
   return (
     <div className={styles.detailSection}>
@@ -85,7 +89,9 @@ export const Connectivity = forwardRef<ConnectivityHandle, { providerId: string 
       </div>
       <div className={styles.detailRow}>
         <span className={styles.modelCountSummary} style={{ flex: 1 }}>
-          {text("Confirms the key is usable now — a cheap auth check, plus a tiny completion ping when the provider has no billing endpoint.", "确认密钥现在可用：先做廉价鉴权，提供商没有余额端点时再发一次极小的补全探测。")}
+          {local
+            ? text("Checks the server's model listing and runs a small completion request when a model is available.", "检查服务器的模型列表，有可用模型时发送一次小型补全请求。")
+            : text("Confirms the key is usable now — a cheap auth check, plus a tiny completion ping when the provider has no billing endpoint.", "确认密钥现在可用：先做廉价鉴权，提供商没有余额端点时再发一次极小的补全探测。")}
         </span>
         {result && (
           <span

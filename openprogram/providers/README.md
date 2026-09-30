@@ -26,6 +26,7 @@ their provider packages (e.g. ``openprogram.providers.openai_codex``).
 - **`env_api_keys.py`** — Provider API-key resolution
 - **`fast.py`** — Route-aware Fast capabilities shared by UI projection and dispatch
 - **`initialization.py`** — Explicit, process-wide provider runtime initialization
+- **`local.py`** — Explicit local-server identity; unrelated cloud providers retain auth requirements
 - **`metadata.py`** — Provider-level metadata: display labels, env-var mappings, default
 - **`models.py`** — Model registry and utilities
 - **`recording.py`** — Record provider calls to a JSONL recording file
