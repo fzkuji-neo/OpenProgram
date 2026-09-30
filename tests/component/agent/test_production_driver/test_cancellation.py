@@ -184,8 +184,9 @@ def test_cancel_rejects_a_handle_from_another_attempt(tmp_path):
 
 
 
-def test_cancel_during_dispatched_nonrepeatable_tool_stays_reconciliation(tmp_path):
+def test_cancel_during_dispatched_nonrepeatable_tool_preserves_unknown_effect(tmp_path):
     from openprogram.execution.effects import EffectStatus
+    from openprogram.execution.state_machine import InvalidCommand
 
     store, attempts, control, driver, request, snapshot, execution, active, hook = (
         _prepare_long_turn(tmp_path, "exec-cancel-tool")
@@ -232,9 +233,22 @@ def test_cancel_during_dispatched_nonrepeatable_tool_stays_reconciliation(tmp_pa
         command_id="cancel-uncertain-tool",
         reason_code="user_cancelled",
     )
-    assert finished.execution.status is ExecutionStatus.RECONCILIATION_REQUIRED
+    assert finished.execution.status is ExecutionStatus.CANCELLED
+    assert finished.execution.current_attempt_id is None
+    assert finished.execution.owner_lease == {}
     assert finished.command is not None
-    assert finished.command.status is CommandStatus.APPLYING
+    assert finished.command.status is CommandStatus.APPLIED
     still = control.effects.get(unresolved[0].effect_id)
-    assert still is not None and still.status is EffectStatus.DISPATCHED
-
+    assert still == unresolved[0]
+    assert still.status is EffectStatus.DISPATCHED
+    assert still.receipt == {} and still.resolved_at is None
+    assert control.effects.list_unresolved(execution.execution_id) == unresolved
+    with pytest.raises(InvalidCommand, match="invalid while execution is cancelled"):
+        asyncio.run(control.request_continue(
+            command_id="must-not-replay-uncertain-tool",
+            execution_id=execution.execution_id,
+            expected_version=finished.execution.status_version,
+            actor={"surface": "test"},
+        ))
+    assert control.effects.get(still.effect_id) == still
+    assert control.effects.list_unresolved(execution.execution_id) == unresolved
