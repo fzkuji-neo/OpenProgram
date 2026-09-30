@@ -598,6 +598,8 @@ def test_default_runtime_budget_dispatch_uses_negotiated_registry_snapshot(
 ):
     monkeypatch.setattr(api_registry, "_registry", {})
     monkeypatch.setattr(api_registry, "_original_registry", {})
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
     monkeypatch.setattr(api_registry, "_provider_transform", None)
     monkeypatch.setenv("OPENPROGRAM_FALLBACK_MODELS", "off")
     calls = []
