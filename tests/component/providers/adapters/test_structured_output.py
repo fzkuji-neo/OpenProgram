@@ -380,6 +380,8 @@ def test_lossy_native_projection_reports_first_bounded_schema_path():
 def test_capability_registration_replaces_provider_and_capabilities_together(monkeypatch):
     monkeypatch.setattr(api_registry, "_registry", {})
     monkeypatch.setattr(api_registry, "_original_registry", {})
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
     first = object()
     second = object()
     first_capabilities = _capabilities(native="supported")
@@ -396,6 +398,8 @@ def test_capability_registration_replaces_provider_and_capabilities_together(mon
 def test_provider_transform_preserves_replaced_capabilities(monkeypatch):
     monkeypatch.setattr(api_registry, "_registry", {})
     monkeypatch.setattr(api_registry, "_original_registry", {})
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
     monkeypatch.setattr(api_registry, "_provider_transform", None)
 
     class Wrapped:
@@ -420,6 +424,8 @@ def test_provider_transform_preserves_replaced_capabilities(monkeypatch):
 def test_registry_entry_reads_remain_coherent_during_replacement(monkeypatch):
     monkeypatch.setattr(api_registry, "_registry", {})
     monkeypatch.setattr(api_registry, "_original_registry", {})
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
     monkeypatch.setattr(api_registry, "_provider_transform", None)
     pairs = [
         (object(), _capabilities(native="supported")),

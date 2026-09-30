@@ -288,6 +288,8 @@ def test_cross_provider_unknown_fallback_never_receives_native_options(monkeypat
 
     monkeypatch.setattr(api_registry, "_registry", {})
     monkeypatch.setattr(api_registry, "_original_registry", {})
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
     monkeypatch.setattr(api_registry, "_provider_transform", None)
 
     primary_api = "cross-provider-primary-api"
@@ -355,6 +357,8 @@ def test_cross_provider_unknown_fallback_never_receives_native_options(monkeypat
 def test_registry_replacement_cannot_split_negotiation_from_dispatch(monkeypatch):
     monkeypatch.setattr(api_registry, "_registry", {})
     monkeypatch.setattr(api_registry, "_original_registry", {})
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
     monkeypatch.setattr(api_registry, "_provider_transform", None)
     monkeypatch.setenv("OPENPROGRAM_FALLBACK_MODELS", "off")
     calls = []
@@ -419,6 +423,8 @@ def test_registry_replacement_cannot_split_negotiation_from_dispatch(monkeypatch
 def test_default_agent_dispatch_uses_the_negotiated_registry_snapshot(monkeypatch):
     monkeypatch.setattr(api_registry, "_registry", {})
     monkeypatch.setattr(api_registry, "_original_registry", {})
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
     monkeypatch.setattr(api_registry, "_provider_transform", None)
     monkeypatch.setenv("OPENPROGRAM_FALLBACK_MODELS", "off")
     calls = []
@@ -483,6 +489,8 @@ def test_failover_candidate_dispatch_uses_its_negotiated_registry_snapshot(monke
 
     monkeypatch.setattr(api_registry, "_registry", {})
     monkeypatch.setattr(api_registry, "_original_registry", {})
+    monkeypatch.setattr(api_registry, "_audited_originals", {})
+    monkeypatch.setattr(api_registry, "_audited_accounting", {})
     monkeypatch.setattr(api_registry, "_provider_transform", None)
     calls = []
 
