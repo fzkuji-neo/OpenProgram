@@ -354,7 +354,7 @@ test("Back on /chat clears an acknowledged session and survives remount", async 
   });
 });
 
-test("returning from Files restores a sidebar route without launcher activation overriding it", async () => {
+test("returning from Files restores its launcher after visiting a management page", async () => {
   const home = { id: "ntp:route-origin", kind: "ntp", title: "" };
   await setup([home], home.id, "detached");
   useCenterTabs.setState({ navigationRoute: undefined });
@@ -366,35 +366,34 @@ test("returning from Files restores a sidebar route without launcher activation 
     await act(async () => useCenterTabs.getState().openBuiltinTab("files"));
     assert.equal(window.location.pathname, "/chat");
     await act(async () => useCenterTabs.getState().navigateHistory(-1));
-    assert.equal(window.location.pathname, "/skills");
-    assert.equal(useCenterTabs.getState().navigationRoute, "/skills");
-    await act(async () => useCenterTabs.getState().navigateHistory(-1));
     assert.equal(window.location.pathname, "/chat");
+    assert.equal(useCenterTabs.getState().navigationRoute, undefined);
     assert.equal(useCenterTabs.getState().activeId, home.id);
     await act(async () => useCenterTabs.getState().navigateHistory(1));
-    assert.equal(window.location.pathname, "/skills");
+    assert.equal(window.location.pathname, "/chat");
+    assert.equal(useCenterTabs.getState().tabs.find(tab => tab.id === useCenterTabs.getState().activeId).page, "files");
   });
 });
 
-
-test("clicking the current tab preserves its sidebar page; Back restores its conversation", async () => {
+const managementPaths = ["/agents", "/agents/main", "/settings/general", "/skills/second", "/programs", "/applications", "/chats", "/scheduler"];
+for (const path of managementPaths) test(`clicking the current session tab returns from ${path} to its conversation`, async () => {
   await setup([other], other.id, "detached");
   useCenterTabs.setState({ navigationRoute: undefined });
   await mounted(async () => {
+    const before = structuredClone(useCenterTabs.getState().tabs);
     await act(async () => {
-      useCenterTabs.getState().recordRouteNavigation("/skills");
-      navigate("/skills");
+      useCenterTabs.getState().recordRouteNavigation(path);
+      navigate(path);
     });
+    assert.deepEqual(useCenterTabs.getState().tabs, before);
     await act(async () => lifecycle.onTabClick(useCenterTabs.getState().tabs.find(tab => tab.id === other.id)));
-    assert.equal(window.location.pathname, "/skills");
-    assert.equal(useCenterTabs.getState().navigationRoute, "/skills");
-    await act(async () => useCenterTabs.getState().navigateHistory(-1));
     assert.equal(window.location.pathname, "/s/other");
+    assert.equal(useCenterTabs.getState().navigationRoute, undefined);
+    assert.deepEqual(useCenterTabs.getState().tabs, before);
   });
 });
 
-
-for (const entry of ["click", "activate", "history"]) test(`restoring Agents through ${entry} loads its routed page`, async () => {
+for (const entry of ["click", "activate", "history"]) test(`legacy Agents visit never returns through ${entry}`, async () => {
   const agents = { ...other, navigationRoute: "/agents" };
   await setup([agents, original], original.id, "detached");
   await mounted(async () => {
@@ -404,30 +403,36 @@ for (const entry of ["click", "activate", "history"]) test(`restoring Agents thr
         useCenterTabs.getState().recordRouteNavigation("/agents");
         navigate("/agents");
       });
-      await act(async () => {
-        useCenterTabs.getState().recordRouteNavigation("/s/origin");
-        navigate("/s/origin");
-      });
+      await act(async () => lifecycle.onTabClick(useCenterTabs.getState().tabs.find(tab => tab.id === original.id)));
+      const before = structuredClone(useCenterTabs.getState().tabs);
       await act(async () => useCenterTabs.getState().navigateHistory(-1));
-    } else if (entry === "activate") {
-      await act(async () => useCenterTabs.getState().setActive(agents.id));
+      assert.equal(window.location.pathname, "/s/origin");
+      assert.deepEqual(useCenterTabs.getState().tabs, before);
     } else {
-      await act(async () => lifecycle.onTabClick(agents));
+      if (entry === "activate") await act(async () => useCenterTabs.getState().setActive(agents.id));
+      else await act(async () => lifecycle.onTabClick(useCenterTabs.getState().tabs.find(tab => tab.id === agents.id)));
+      assert.equal(window.location.pathname, "/s/other");
     }
-    assert.equal(window.location.pathname, "/agents");
-    assert.ok(routerNavigations.includes("/agents"), "a pathname update alone leaves the previous route's null chat page mounted");
+    assert.equal(useCenterTabs.getState().navigationRoute, undefined);
+    assert.equal(routerNavigations.includes("/agents"), false);
   });
 });
 
-
-for (const from of ["/skills/first", "/chat"]) test(`restoring a skill detail from ${from} selects the correct navigation method`, async () => {
-  const detail = { ...other, navigationRoute: "/skills/second" };
-  await setup([detail, original], original.id, "detached");
+for (const kind of ["ntp", "file", "web", "terminal"]) test(`clicking the current ${kind} tab returns from Agents to its own content`, async () => {
+  const tab = kind === "ntp" ? {id:"ntp:test",kind,title:""}
+    : kind === "file" ? {id:"f:p:a.ts",kind,title:"a.ts",projectId:"p",path:"a.ts"}
+    : kind === "web" ? {id:"web:test",kind,title:"Example",url:"https://example.com"}
+    : {id:"builtin:terminal",kind:"builtin",page:"terminal",title:"Terminal"};
+  await setup([tab], tab.id, "detached");
+  useCenterTabs.setState({navigationRoute:undefined});
   await mounted(async () => {
-    await act(async () => navigate(from));
-    routerNavigations = [];
-    await act(async () => lifecycle.onTabClick(detail));
-    assert.equal(window.location.pathname, "/skills/second");
-    assert.equal(routerNavigations.includes("/skills/second"), from === "/chat");
+    const before = structuredClone(useCenterTabs.getState().tabs);
+    await act(async () => {
+      useCenterTabs.getState().recordRouteNavigation("/agents");
+      navigate("/agents");
+    });
+    await act(async () => lifecycle.onTabClick(useCenterTabs.getState().tabs.find(item => item.id === tab.id)));
+    assert.equal(window.location.pathname, "/chat");
+    assert.deepEqual(useCenterTabs.getState().tabs, before);
   });
 });
