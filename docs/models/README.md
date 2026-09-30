@@ -43,6 +43,7 @@ Configuring credentials does not by itself make models selectable. Each provider
 
 ## Other pages in this section
 
+- [Local models](local-models.md) — connect to Ollama, LM Studio, vLLM or another local server
 - [Providers](providers.md) — built-in provider catalog, access methods, library usage
 - [Authentication and credentials](auth.md) — credential sources, storage location, importing from other CLIs
 - [Fast tier](fast-tier.md) — routing requests to a faster service tier

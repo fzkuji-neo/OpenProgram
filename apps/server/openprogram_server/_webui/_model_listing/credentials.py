@@ -220,7 +220,12 @@ def _interpret(
         if require_json:
             try:
                 import json
-                json.loads(body)
+                data = json.loads(body)
+                from openprogram.providers.local import is_local_provider
+                if is_local_provider(provider_id):
+                    rows = data.get("data") if isinstance(data, dict) and "data" in data else data.get("models") if isinstance(data, dict) else None
+                    if not isinstance(rows, list) or "error" in data:
+                        return _result(provider_id, UNKNOWN, kind=kind, via=via, http_status=200, latency_ms=latency, detail="Endpoint returned an invalid model listing.")
             except (TypeError, ValueError):
                 return _result(
                     provider_id, UNKNOWN, kind=kind, via=via,
@@ -290,6 +295,17 @@ def _layer2_response(
     status: int, text: str, latency: int,
 ) -> CredentialResult:
     """Map a completion-ping HTTP result onto the probe taxonomy."""
+    from openprogram.providers.local import is_local_provider
+    if status == 200 and is_local_provider(provider_id):
+        try:
+            import json
+            data = json.loads(text)
+            choices = data.get("choices") if isinstance(data, dict) else None
+            valid = isinstance(choices, list) and bool(choices) and isinstance(choices[0], dict) and isinstance(choices[0].get("message"), dict) and "error" not in data
+        except (TypeError, ValueError):
+            valid = False
+        if not valid:
+            return _result(provider_id, UNKNOWN, kind=kind, via=via, http_status=200, latency_ms=latency, model=model, detail="Endpoint returned an invalid chat completion.")
     if status == 200:
         return _result(provider_id, VALID, kind=kind, via=via,
                        http_status=200, latency_ms=latency, model=model)

@@ -43,6 +43,7 @@ openprogram providers setup      # 交互式：扫描现有凭据 → 登录 →
 
 ## 本节其他页面
 
+- [本地模型](local-models.zh.md) — 连接 Ollama、LM Studio、vLLM 或其他本地服务
 - [Provider 一览](providers.zh.md) — 内置 provider 目录、接入方式、库方式使用
 - [认证与凭据](auth.zh.md) — 凭据来源、存放位置、从其他 CLI 导入
 - [fast tier](fast-tier.zh.md) — 把请求路由到更快档位

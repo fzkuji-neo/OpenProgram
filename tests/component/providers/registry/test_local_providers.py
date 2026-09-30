@@ -46,7 +46,8 @@ def local_server(monkeypatch):
                 chunk['choices'] = [{'index':0,'delta':{},'finish_reason':'tool_calls' if body.get('tools') else 'stop'}]
                 self.wfile.write(('data: '+json.dumps(chunk)+'\n\ndata: [DONE]\n\n').encode())
             else:
-                self.wfile.write(json.dumps({'choices':[{'message':{'role':'assistant','content':'pong'},'finish_reason':'stop'}]}).encode())
+                post_payload = getattr(requests, 'post_payload', {'choices':[{'message':{'role':'assistant','content':'pong'},'finish_reason':'stop'}]})
+                self.wfile.write(post_payload.encode() if isinstance(post_payload, str) else json.dumps(post_payload).encode())
 
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -142,3 +143,44 @@ def test_discovery_rejects_malformed_envelopes_but_accepts_empty_list(local_serv
         assert result == {"models":[]}
     else:
         assert "error" in result, result
+
+
+@pytest.mark.parametrize("payload", [{"error":"server failed"}, {}, {"data":None}])
+def test_connectivity_rejects_invalid_model_listing(local_server, payload):
+    from openprogram.webui._model_listing.credentials import validate_credential
+    _, requests = local_server
+    requests.payload.clear()
+    requests.payload.update(payload)
+    result = validate_credential("ollama", use_cache=False, timeout=3)
+    assert not result.ok
+
+
+@pytest.mark.parametrize("payload", ["<html>Unavailable</html>", {"error":"model failed"}, {}])
+def test_connectivity_rejects_invalid_inference_response(local_server, payload):
+    from openprogram.webui._model_listing.credentials import validate_credential
+    _, requests = local_server
+    requests.post_payload = payload
+    result = validate_credential("ollama", model="local-test", use_cache=False, timeout=3)
+    assert not result.ok
+
+
+def test_vision_capability_and_configured_address_reach_public_stream(local_server, monkeypatch):
+    import asyncio
+    from openprogram.auth.resolver import ResolvedConnection
+    from openprogram.providers.enabled_models import _build_model_from_row
+    from openprogram.providers.storage import _normalize_spec_row
+    from openprogram.providers.stream import stream_simple
+    from openprogram.providers.types import Context, ImageContent, SimpleStreamOptions, UserMessage
+    conn = ResolvedConnection(kind="api_key", auth_value="local-account-key", base_url="http://127.0.0.1:1/v1", headers={})
+    monkeypatch.setattr("openprogram.auth.usage.acquire_pooled", lambda *a: (conn, "default", "test-id"))
+    monkeypatch.setattr("openprogram.auth.usage.record_call_success", lambda *a, **k: None)
+    spec = _normalize_spec_row({"id":"local-test", "name":"Vision", "api":"openai-completions", "vision":True})
+    model = _build_model_from_row(spec, "ollama", {"default":{"api":"openai-completions", "base_url":local_server[0]+"/v1"}})
+    assert model.input == ["text", "image"]
+    async def collect():
+        return [event async for event in stream_simple(model, Context(messages=[UserMessage(content=[ImageContent(data="aGVsbG8=", mime_type="image/png")], timestamp=1)]), SimpleStreamOptions(max_tokens=8))]
+    events = asyncio.run(collect())
+    assert events[-1].type == "done", events[-1]
+    _, headers, body = local_server[1][-1]
+    assert headers["Authorization"] == "Bearer local-account-key"
+    assert body["messages"][0]["content"][0]["type"] == "image_url"

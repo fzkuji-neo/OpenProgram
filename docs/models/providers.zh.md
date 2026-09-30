@@ -37,6 +37,10 @@
 流式输出所有 provider 都支持（整个层建立在流式接口上）。多模态输入按模型而非按 provider 决定，来自各 provider 的模型目录数据，界面上以模型实际标注为准。prompt caching 只在上表标注处经代码核实。
 
 
+## 本地模型服务
+
+Ollama、LM Studio、vLLM、llama.cpp 和通用本地服务作为内置 Provider 提供，支持地址配置、可选 API key、模型发现和手动模型 ID。连接多个服务时，可将自定义 Provider 标记为本地服务。配置方式和部署相关 token 限制见[本地模型](local-models.zh.md)。
+
 ## 自定义 provider
 
 上表没覆盖的 OpenAI 兼容端点可以在 Web UI 的 Settings → Providers 里添加：必填项只有显示名和 base URL（不填 id 时从名字自动派生）。之后同一个 Fetch 按钮就能浏览该端点 `/models` 返回的模型列表，启用后无需改代码即可使用。自定义 provider 记在配置的 `providers.<id>` 下，标记 `source: "custom"`。
