@@ -16,7 +16,10 @@ def local_server(monkeypatch):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from openprogram.providers import storage
 
-    requests = []
+    class RequestLog(list):
+        pass
+    requests = RequestLog()
+    payload = {"data": [{"id": "local-test", "context_length": 8192}]}
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
@@ -26,7 +29,7 @@ def local_server(monkeypatch):
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({'data': [{'id': 'local-test', 'context_length': 8192}]}).encode())
+            self.wfile.write(json.dumps(payload).encode())
 
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
@@ -53,6 +56,7 @@ def local_server(monkeypatch):
     monkeypatch.setattr('openprogram.providers.env_api_keys.resolve_api_key_with_auth_store', lambda *a: None)
     monkeypatch.setattr('openprogram.providers.env_api_keys.resolve_provider_key', lambda *a: None)
     monkeypatch.setattr('openprogram.auth.usage.acquire_pooled', lambda *a: None)
+    requests.payload = payload
     yield base, requests
     server.shutdown()
     server.server_close()
@@ -125,3 +129,16 @@ def test_public_stream_preserves_local_tool_calls(local_server):
     calls = [item for item in events[-1].message.content if item.type == "toolCall"]
     assert calls[0].name == "echo"
     assert calls[0].arguments == {"value":"ok"}
+
+
+@pytest.mark.parametrize("payload", [{"error":"server failed"}, {}, {"data":{}}, {"data":None}, {"data":[]}])
+def test_discovery_rejects_malformed_envelopes_but_accepts_empty_list(local_server, payload):
+    from openprogram.webui._model_listing.fetchers import fetch_and_normalize
+    _, requests = local_server
+    requests.payload.clear()
+    requests.payload.update(payload)
+    result = fetch_and_normalize("ollama", timeout=3)
+    if payload == {"data":[]}:
+        assert result == {"models":[]}
+    else:
+        assert "error" in result, result

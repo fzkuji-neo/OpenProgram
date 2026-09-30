@@ -47,5 +47,7 @@ def _fetch_openai_compat(provider_id: str, timeout: float) -> Any:
         return {"error": f"{type(e).__name__} for {normalize_origin(base)}"}
     if not isinstance(data, dict):
         return {"error": "unexpected response shape"}
-    items = data.get("data") or data.get("models") or []
+    if "error" in data:
+        return {"error": "Provider returned an error response"}
+    items = data.get("data") if "data" in data else data.get("models")
     return items if isinstance(items, list) else {"error": "unexpected response shape"}
