@@ -154,6 +154,8 @@ def _normalize_spec_row(row: dict[str, Any]) -> dict[str, Any]:
     Returns a shallow copy; never mutates the input.
     """
     out = dict(row)
+    if "input" not in out and out.get("vision") and "input_modalities" not in out:
+        out["input"] = ["text", "image"]
     if "input" not in out and "input_modalities" in out:
         mods = [m for m in (out.get("input_modalities") or []) if m in _MODEL_INPUT_MODALITIES]
         out["input"] = mods or ["text"]

@@ -37,6 +37,10 @@ Access methods: **API key** = a key stored in the credential store (`providers l
 Streaming output is supported by every provider (the whole layer is built on the streaming interface). Multimodal input is decided per model rather than per provider, based on each provider's model catalog data; trust what the UI shows for a given model. Prompt caching has been verified in code only where noted in the table above.
 
 
+## Local model servers
+
+Ollama, LM Studio, vLLM, llama.cpp and a generic local server are available as built-in providers. They support address configuration, optional API keys, discovery and manual model IDs. For multiple servers, mark a custom provider as local. See [Local models](local-models.md) for configuration and deployment-specific token limits.
+
 ## Custom providers
 
 Any OpenAI-compatible endpoint the table does not cover can be added from the Web UI under Settings → Providers: a display name and a base URL are the only required fields (an id is derived from the name if you don't give one). A host-only URL such as `https://api.example.com` resolves to the conventional `/v1` API root; an explicit path such as `/compatible-mode/v1` is preserved. The endpoint's `/models` list is then browsable with the same Fetch button as built-in providers, and enabled models use the same resolved base URL at runtime. Custom providers are stored in config as `providers.<id>` with `source: "custom"`.

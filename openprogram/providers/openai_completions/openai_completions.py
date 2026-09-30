@@ -293,7 +293,7 @@ async def stream_simple(
     from ..local import is_local_provider
     if is_local_provider(model.provider):
         from ..storage import _resolve_base_url
-        base_url = (_conn.base_url if _conn and _conn.base_url else None) or _resolve_base_url(model.provider) or base_url
+        base_url = _resolve_base_url(model.provider) or base_url
         if not _client_api_key:
             # Explicit SDK value prevents fallback to OPENAI_API_KEY.
             _client_api_key = "openprogram-local-no-key"
