@@ -18,6 +18,7 @@ export interface Provider {
   /** User-added (tier-3) provider — a config-only OpenAI-compatible endpoint.
    *  Drives the "custom" badge + delete action + manual model-add input. */
   custom?: boolean;
+  local?: boolean;
   /**
    * Provider-specific setup instructions surfaced in the detail
    * panel. Backticked spans render as inline <code>; lines starting
@@ -58,7 +59,7 @@ export interface Model {
   vision?: boolean;
   video?: boolean;
   audio?: boolean;
-  tools?: boolean;
+  tools?: boolean | null;
   reasoning?: boolean;
   /** JSON-schema strict output mode */
   structured_output?: boolean;

@@ -292,7 +292,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
     "models": [
         ("Overview", "概览", ["models/README.md", "models/providers.md"]),
         ("Configuration", "配置", [
-            "models/auth.md", "models/fast-tier.md",
+            "models/auth.md", "models/local-models.md", "models/fast-tier.md",
             "models/thinking-effort.md", "models/token-tracking.md"]),
     ],
     "integrations": [
@@ -670,6 +670,7 @@ DESIGN_AREAS = [
 # Tutorial docs must read top-to-bottom; anything unlisted sorts after these,
 # alphabetically (which is fine for the design-notes archive).
 PAGE_ORDER: dict[str, int] = {
+    "models/local-models.md": 3,
     "reference/design/runtime/agent-configuration-ui.html": 990,
     "reference/design/runtime/agent-core-configuration-ui.html": 991,
     "reference/design/runtime/agent-capability-configuration-ui.html": 992,

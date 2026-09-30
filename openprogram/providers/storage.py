@@ -529,7 +529,8 @@ def _normalize_label(text: str) -> str:
 def _known_provider_ids() -> set[str]:
     """Tier-1 (static registry) + tier-2 (models.dev) provider ids."""
     from openprogram.providers import get_providers
-    known = set(get_providers())
+    from .metadata import shipped_provider_ids
+    known = set(get_providers()) | set(shipped_provider_ids())
     try:
         from openprogram.providers.sources import models_dev
         known |= {p.get("id") for p in models_dev.list_providers() if p.get("id")}
@@ -559,7 +560,7 @@ def _id_taken(pid: str, cfg: dict[str, Any]) -> bool:
 
 
 def create_custom_provider(
-    provider_id: str, label: str, base_url: str
+    provider_id: str, label: str, base_url: str, *, local: bool = False
 ) -> dict[str, Any]:
     """Create a config-only custom provider. Returns ``{ok, ...}``.
 
@@ -578,6 +579,12 @@ def create_custom_provider(
     if not base_url:
         return {"ok": False, "error": "base_url is required"}
 
+    if local:
+        from .local import validate_local_url
+        try:
+            validate_local_url(base_url)
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
     with _cache_lock:
 
         def create(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -618,6 +625,7 @@ def create_custom_provider(
             cfg[pid] = {
                 "enabled": True,
                 "source": "custom",
+                "local": local,
                 "label": label or prettify_provider_id(pid),
                 "base_url": base_url,
                 "models": [],
@@ -676,7 +684,7 @@ def _is_custom_provider(provider_id: str) -> bool:
     return isinstance(pcfg, dict) and pcfg.get("source") == "custom"
 
 
-def add_manual_model(provider_id: str, model_id: str, name: str | None = None) -> dict[str, Any]:
+def add_manual_model(provider_id: str, model_id: str, name: str | None = None, *, context_window: int | None = None, max_tokens: int | None = None) -> dict[str, Any]:
     """Add a manually-typed model id as an ENABLED spec row for a provider.
 
     For custom / dir-less providers whose ``/models`` endpoint is unavailable,
@@ -691,6 +699,10 @@ def add_manual_model(provider_id: str, model_id: str, name: str | None = None) -
     mid = (model_id or "").strip()
     if not mid:
         return {"ok": False, "error": "model id is required"}
+    from .local import is_local_provider
+    local = is_local_provider(provider_id)
+    if any(value is not None and (isinstance(value, bool) or not isinstance(value, int) or value <= 0) for value in (context_window, max_tokens)):
+        return {"ok": False, "error": "token limits must be positive integers"}
     known_provider = _is_known_provider(provider_id)
     fallback_api = default_api_for(provider_id) or "openai-completions"
     fallback_base_url = _resolve_base_url(provider_id) or ""
@@ -717,6 +729,13 @@ def add_manual_model(provider_id: str, model_id: str, name: str | None = None) -
                 "base_url": resolved_base_url,
                 "source": "manual",
             }
+            if local:
+                spec.update(context_window=context_window or 4096, max_tokens=max_tokens or 1024, tools=None)
+            else:
+                if context_window is not None:
+                    spec["context_window"] = context_window
+                if max_tokens is not None:
+                    spec["max_tokens"] = max_tokens
             _upsert_spec_row(pcfg, spec)
             return {"ok": True, "provider": provider_id, "model": mid}
 
@@ -738,6 +757,12 @@ def get_provider_config(provider_id: str) -> dict[str, Any]:
 
 
 def set_provider_config(provider_id: str, patch: dict[str, Any]) -> dict[str, Any]:
+    from .local import is_local_provider, validate_local_url
+    if is_local_provider(provider_id) and patch.get("base_url"):
+        try:
+            validate_local_url(patch["base_url"].strip())
+        except ValueError as exc:
+            return {"error": str(exc)}
     with _cache_lock:
 
         def set_config(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -820,7 +845,8 @@ def _resolve_base_url(provider_id: str) -> str | None:
     base = base.rstrip("/")
     # Custom providers use the OpenAI-compatible API. A host-only value means
     # the conventional /v1 API root; an explicit path is already authoritative.
-    if pcfg.get("source") == "custom":
+    from .local import is_local_provider
+    if pcfg.get("source") == "custom" or is_local_provider(provider_id):
         parts = urlsplit(base)
         if parts.path in ("", "/"):
             base = urlunsplit(

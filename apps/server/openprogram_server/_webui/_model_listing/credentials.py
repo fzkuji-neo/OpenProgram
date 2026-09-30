@@ -278,7 +278,7 @@ def _layer1_probe(provider_id: str, kind: str, api_key: str, base: str | None,
         return _interpret(provider_id, kind, res, via="GET /v1beta/models")
     # openai_bearer (default)
     res = _http_get(base.rstrip("/") + "/models",
-                    headers={"Authorization": f"Bearer {api_key}"}, timeout=timeout,
+                    headers={"Authorization": f"Bearer {api_key}"} if api_key else {}, timeout=timeout,
                     configured_url=base)
     return _interpret(
         provider_id, kind, res, via="GET /models", require_json=True
@@ -361,7 +361,7 @@ def _layer2_ping(provider_id: str, kind: str, api_key: str, base: str | None,
             url,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
+                **({"Authorization": f"Bearer {api_key}"} if api_key else {}),
             },
             json_body={
                 "model": model,
@@ -720,7 +720,10 @@ def validate_credential(
     if api_key is None:
         from openprogram.providers.env_api_keys import resolve_api_key_with_auth_store
         api_key = resolve_api_key_with_auth_store(provider_id)
-    if not api_key:
+    from openprogram.providers.local import is_local_provider
+    if not api_key and is_local_provider(provider_id):
+        api_key = ""
+    elif not api_key:
         from openprogram.providers.metadata import env_var_for
         env = env_var_for(provider_id)
         return _result(provider_id, MISSING, kind=kind,

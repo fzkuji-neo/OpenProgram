@@ -179,11 +179,11 @@ def register(app):
         The key for the new provider is added afterwards through the account
         endpoints, so no credential is accepted here."""
         error = check_request_body(
-            body, allowed={"id", "label", "base_url"}, required={"base_url"}
+            body, allowed={"id", "label", "base_url", "local"}, required={"base_url"}
         )
         if error is not None:
             return JSONResponse(content={"error": error}, status_code=400)
-        if not all(
+        if not isinstance(body.get("local", False), bool) or not all(
             isinstance(body.get(field, ""), str)
             for field in ("id", "label", "base_url")
         ):
@@ -192,7 +192,7 @@ def register(app):
             )
         from openprogram.providers import storage as provider_storage
         res = provider_storage.create_custom_provider(
-            body.get("id", ""), body.get("label", ""), body["base_url"]
+            body.get("id", ""), body.get("label", ""), body["base_url"], local=body.get("local", False)
         )
         return JSONResponse(content=res, status_code=200 if res.get("ok") else 400)
 
@@ -211,7 +211,7 @@ def register(app):
     async def api_add_manual_model(name: str, body: Any = Body(default=None)):
         """Add a manually-typed model id (enabled) for a provider whose /models
         list is unavailable. Writes a minimal spec row (source=manual)."""
-        error = check_request_body(body, allowed={"id", "name"}, required={"id"})
+        error = check_request_body(body, allowed={"id", "name", "context_window", "max_tokens"}, required={"id"})
         if error is not None:
             return JSONResponse(content={"error": error}, status_code=400)
         model_label = body.get("name")
@@ -222,7 +222,7 @@ def register(app):
                 content={"error": "invalid manual model body"}, status_code=400
             )
         from openprogram.providers import storage as provider_storage
-        res = provider_storage.add_manual_model(name, body["id"], model_label)
+        res = provider_storage.add_manual_model(name, body["id"], model_label, context_window=body.get("context_window"), max_tokens=body.get("max_tokens"))
         return JSONResponse(content=res, status_code=200 if res.get("ok") else 400)
 
     @app.get("/api/providers/{name}/models")
@@ -357,7 +357,11 @@ def register(app):
                 content={"error": "invalid provider config body"}, status_code=400
             )
         from openprogram.providers import storage as provider_storage
-        return JSONResponse(content=provider_storage.set_provider_config(name, body))
+        result = provider_storage.set_provider_config(name, body)
+        if "error" not in result:
+            from openprogram.webui._model_listing.listing import _reset_browse_cache
+            _reset_browse_cache()
+        return JSONResponse(content=result, status_code=400 if "error" in result else 200)
 
     @app.post("/api/providers/{name}/fetch-models")
     def api_fetch_models(name: str):

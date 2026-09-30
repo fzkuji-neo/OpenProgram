@@ -119,7 +119,8 @@ def _load() -> dict[str, Model]:
             continue
         endpoints = provider_endpoints(provider_id)
         custom_base_url = None
-        if pcfg.get("source") == "custom":
+        from .local import is_local_provider
+        if pcfg.get("source") == "custom" or is_local_provider(provider_id):
             from .storage import _resolve_base_url
             custom_base_url = _resolve_base_url(provider_id)
         for row in (pcfg.get("models") or []):

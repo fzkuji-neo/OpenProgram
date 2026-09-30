@@ -94,7 +94,8 @@ def _browse_models_with_error(
     from openprogram.providers.metadata import is_configured
     from .fetchers import fetch_and_normalize
 
-    md = _models_dev_for(provider_id)  # {id: normalised row} — {} on failure
+    from openprogram.providers.local import is_local_provider
+    md = {} if is_local_provider(provider_id) else _models_dev_for(provider_id)  # {id: normalised row} — {} on failure
 
     official: list[dict[str, Any]] = []
     fetch_failed = False
@@ -247,6 +248,8 @@ def list_providers() -> list[dict[str, Any]]:
         it into tier 1; a custom provider's registered rows do the same), so
         any field computed per-tier eventually diverges — that's the bug class
         62483bac fixed twice and this helper closes for good."""
+        from openprogram.providers.local import is_local_provider
+        local = is_local_provider(pid)
         custom = pcfg.get("source") == "custom"
         e: dict[str, Any] = {
             "id": pid,
@@ -254,6 +257,7 @@ def list_providers() -> list[dict[str, Any]]:
             # other id routes through the override map → models.dev → prettify.
             "label": (pcfg.get("label") or prettify_provider_id(pid)) if custom else label_for(pid),
             "kind": "api",
+            "local": local,
             "enabled": bool(pcfg.get("enabled", False)),
             "configured": is_configured(pid),
             # Synthesised key label for custom providers (Detail shows
@@ -432,9 +436,10 @@ def list_models_for_provider(
     # provider config base_url onto every row (row value still wins) so a
     # spec row copied from a browse row via ``spec_row_for`` — the toggle path
     # — carries the endpoint the runtime needs to dispatch.
+    from openprogram.providers.local import is_local_provider
     cfg_base_url = (
         (_resolve_base_url(provider_id) or "")
-        if pcfg.get("source") == "custom"
+        if pcfg.get("source") == "custom" or is_local_provider(provider_id)
         else (pcfg.get("base_url") or "")
     )
 
@@ -452,9 +457,9 @@ def list_models_for_provider(
             all_rows = cached_rows
         else:
             saved, _ = load_catalog(provider_id)
-            all_rows = saved or [
+            all_rows = saved or ([] if is_local_provider(provider_id) else [
                 dict(row, id=mid) for mid, row in _models_dev_for(provider_id).items()
-            ]
+            ])
     else:
         all_rows = _browse_models(provider_id, force_refresh=force_refresh)
     present = {r.get("id") for r in all_rows}
@@ -502,7 +507,7 @@ def list_models_for_provider(
             "thinking_levels": levels,
             "default_thinking_level": default_lv,
             "thinking_variant": variant,
-            "tools": bool(raw.get("tools", True)),
+            "tools": raw.get("tools") if is_local_provider(provider_id) else bool(raw.get("tools", True)),
             "enabled": mid in enabled_ids,
         })
         if not entry.get("base_url") and cfg_base_url:

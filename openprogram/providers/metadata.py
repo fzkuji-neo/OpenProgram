@@ -33,7 +33,10 @@ from typing import Any
 # Display labels for provider ids. Anything not listed falls back to
 # models.dev's ``name`` field, then a prettified id ("amazon-bedrock"
 # -> "Amazon Bedrock") as a last resort.
+from .local import LOCAL_PROVIDERS, is_local_provider
+
 PROVIDER_LABELS: dict[str, str] = {
+    **{pid: info[0] for pid, info in LOCAL_PROVIDERS.items()},
     "openai": "OpenAI",
     "openai-codex": "OpenAI Codex",
     "anthropic": "Anthropic",
@@ -87,6 +90,7 @@ CLI_PROVIDERS: list[dict[str, Any]] = []
 # else either has no public listing or uses a custom auth / response
 # shape and so ships its own ``providers/<name>/list_models.py`` instead.
 FETCH_MODELS_PROVIDERS = frozenset({
+    *LOCAL_PROVIDERS,
     "openai",
     "openrouter",
     "groq",
@@ -111,6 +115,7 @@ FETCH_MODELS_PROVIDERS = frozenset({
 
 
 ENV_API_KEYS: dict[str, str | None] = {
+    **{pid: pid.upper() + "_API_KEY" for pid in LOCAL_PROVIDERS},
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
     "google": "GOOGLE_GENERATIVE_AI_API_KEY",
@@ -341,6 +346,8 @@ def is_configured(provider_id: str) -> bool:
     from openprogram.auth.provider_policy import UNSUPPORTED_PROVIDERS
     if provider_id in UNSUPPORTED_PROVIDERS:
         return False
+    if is_local_provider(provider_id):
+        return True
     if auth_store_has_credential(provider_id):
         return True
     # CLI-backed: binary presence decides.

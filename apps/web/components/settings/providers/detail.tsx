@@ -48,7 +48,9 @@ export function Detail({
     onDeleted?.();
   }
   const subtitle =
-    provider.kind === "cli"
+    provider.local
+      ? text("Local inference server · API key optional", "本地推理服务 · API key 可选")
+      : provider.kind === "cli"
       ? text(`CLI runtime - binary: ${provider.cli_binary || "?"}`, `CLI 运行时 - binary：${provider.cli_binary || "?"}`)
       : provider.id === "xai-subscription"
           ? text("Runs on your SuperGrok / X Premium+ subscription — no API key", "用你的 SuperGrok / X Premium+ 订阅 — 无需 API key")
@@ -61,6 +63,9 @@ export function Detail({
   const [fetchStatus, setFetchStatus] = useState<string | null>(null);
   const [manualId, setManualId] = useState("");
   const [manualBusy, setManualBusy] = useState(false);
+  const [contextWindow, setContextWindow] = useState("4096");
+  const [maxTokens, setMaxTokens] = useState("1024");
+  const [manualError, setManualError] = useState<string | null>(null);
   const connectivityRef = useRef<ConnectivityHandle>(null);
 
   const reloadModels = useCallback(async () => {
@@ -146,18 +151,21 @@ export function Detail({
     if (!mid) return;
     setManualBusy(true);
     try {
-      await fetch(`/api/providers/${encodeURIComponent(provider.id)}/models`, {
+      const response = await fetch(`/api/providers/${encodeURIComponent(provider.id)}/models`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: mid }),
+        body: JSON.stringify({ id: mid, ...(provider.local ? { context_window: Number(contextWindow), max_tokens: Number(maxTokens) } : {}) }),
       });
+      const result = await response.json();
+      if (!response.ok || result.error) { setManualError(result.error || "Failed to save model"); return; }
+      setManualError(null);
       setManualId("");
       await reloadModels();
       onChanged();
     } catch { /* ignore */ } finally {
       setManualBusy(false);
     }
-  }, [manualId, provider.id, reloadModels, onChanged]);
+  }, [manualId, provider.id, provider.local, contextWindow, maxTokens, reloadModels, onChanged]);
 
   return (
     <div className={styles.detailSurface}>
@@ -207,8 +215,8 @@ export function Detail({
         (provider.login_methods?.length ?? 0) > 0) && (
         <AccountManager key={provider.id} provider={provider} onChanged={autoCheckAndFetch} />
       )}
-      {provider.api_key_env && (
-        <BaseUrl provider={provider} onChanged={onChanged} />
+      {(provider.api_key_env || provider.local) && (
+        <BaseUrl key={provider.id} provider={provider} onChanged={onChanged} />
       )}
       {/* Connectivity check applies to every HTTP provider, not just
           api-key ones. OAuth providers (openai-codex, gemini-subscription,
@@ -220,7 +228,7 @@ export function Detail({
         <Connectivity ref={connectivityRef} providerId={provider.id} />
       )}
 
-      {provider.custom && provider.kind !== "cli" && (
+      {(provider.custom || provider.local) && provider.kind !== "cli" && (
         <div className={styles.detailSection} style={{ display: "grid", gap: 6 }}>
           <div className={styles.detailSectionTitle}>
             <span>{text("Add model by id", "手动添加模型")}</span>
@@ -236,10 +244,15 @@ export function Detail({
               {manualBusy ? text("Adding…", "添加中…") : text("Add", "添加")}
             </Button>
           </div>
+          {provider.local && <div className={styles.detailRow}>
+            <label>{text("Context tokens", "上下文 token 数")}<Input type="number" min="1" value={contextWindow} onChange={(event) => setContextWindow(event.target.value)} /></label>
+            <label>{text("Output tokens", "最大输出 token 数")}<Input type="number" min="1" value={maxTokens} onChange={(event) => setMaxTokens(event.target.value)} /></label>
+          </div>}
+          {manualError && <span role="alert">{manualError}</span>}
           <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
             {text(
-              "Use this when the provider has no /models endpoint. The model is enabled immediately.",
-              "当 Provider 没有 /models 接口时使用。添加后模型会立即启用。",
+              "Add or update a model by its server ID. Set limits to match the server. The model is enabled immediately.",
+              "按服务中的模型 ID 添加或更新模型。限制应与服务配置一致。保存后模型会立即启用。",
             )}
           </span>
         </div>

@@ -290,6 +290,14 @@ async def stream_simple(
         base_url = CLI_CHAT_PROXY_BASE_URL
         extra_headers.update(grok_cli_headers(model.id))
 
+    from ..local import is_local_provider
+    if is_local_provider(model.provider):
+        from ..storage import _resolve_base_url
+        base_url = (_conn.base_url if _conn and _conn.base_url else None) or _resolve_base_url(model.provider) or base_url
+        if not _client_api_key:
+            # Explicit SDK value prevents fallback to OPENAI_API_KEY.
+            _client_api_key = "openprogram-local-no-key"
+            extra_headers["Authorization"] = _openai.Omit()
     if not _client_api_key:
         # No key in the AuthStore. Fail here with a precise message —
         # NEVER hand api_key=None to the SDK, which would silently
