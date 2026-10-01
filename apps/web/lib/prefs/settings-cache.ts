@@ -28,6 +28,12 @@ type Entry<T = unknown> = {
 
 const cache = new Map<string, Entry>();
 
+/** Read a still-fresh response for synchronous page initialization. */
+export function readCachedSettings<T = unknown>(url: string): T | undefined {
+  const entry = cache.get(url) as Entry<T> | undefined;
+  return entry && Date.now() - entry.ts < TTL_MS ? entry.data : undefined;
+}
+
 export async function cachedFetch<T = unknown>(
   url: string,
   init?: RequestInit,

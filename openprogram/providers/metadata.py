@@ -26,6 +26,8 @@ from __future__ import annotations
 import json
 import logging
 import shutil
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
@@ -301,6 +303,28 @@ def doc_url_for(provider_id: str) -> str | None:
     return md.get("doc_url")
 
 
+_credential_status: ContextVar[frozenset[str] | None] = ContextVar("provider_credential_status", default=None)
+
+
+def _credential_provider_ids() -> frozenset[str]:
+    try:
+        from openprogram.auth.credential_provider import get_credential_provider
+        from openprogram.auth.account.aliases import resolve
+        return frozenset(resolve(pool.provider_id) for pool in get_credential_provider().store.list_pools() if pool.credentials)
+    except Exception:
+        return frozenset()
+
+
+@contextmanager
+def credential_status_snapshot():
+    """Reuse credential presence only within one synchronous catalog read."""
+    token = _credential_status.set(_credential_provider_ids())
+    try:
+        yield
+    finally:
+        _credential_status.reset(token)
+
+
 def auth_store_has_credential(provider_id: str) -> bool:
     """True when OpenProgram's own auth store holds a credential for
     ``provider_id`` (alias-aware).
@@ -312,17 +336,9 @@ def auth_store_has_credential(provider_id: str) -> bool:
     is the most authoritative "configured" signal there is, independent of
     whether an env var or external CLI dotfile was also populated.
     """
-    try:
-        from openprogram.auth.credential_provider import get_credential_provider
-        from openprogram.auth.account.aliases import resolve as _canon
-        target = _canon(provider_id)
-        store = get_credential_provider().store
-        return any(
-            _canon(p.provider_id) == target and p.credentials
-            for p in store.list_pools()
-        )
-    except Exception:
-        return False
+    from openprogram.auth.account.aliases import resolve
+    snapshot = _credential_status.get()
+    return resolve(provider_id) in (snapshot if snapshot is not None else _credential_provider_ids())
 
 
 def is_configured(provider_id: str) -> bool:

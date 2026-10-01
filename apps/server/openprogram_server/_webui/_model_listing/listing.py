@@ -185,6 +185,12 @@ def _model_to_dict(model: Any, enabled: bool) -> dict[str, Any]:
 
 
 def list_providers() -> list[dict[str, Any]]:
+    from openprogram.providers.metadata import credential_status_snapshot
+    with credential_status_snapshot():
+        return _list_providers()
+
+
+def _list_providers() -> list[dict[str, Any]]:
     """Unified provider list with enable/configure status and model
     counts.
 

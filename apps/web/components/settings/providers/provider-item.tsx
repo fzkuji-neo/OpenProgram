@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 import { ProviderIcon } from "../provider-icon";
 
 import styles from "../settings-page.module.css";
@@ -9,14 +11,14 @@ import { useTranslation } from "@/lib/i18n";
 /** One row in the left sidebar — provider icon, label, and a colored
  *  status dot (green = enabled, yellow = configured-but-off, grey =
  *  unconfigured). */
-export function ProviderItem({
+export const ProviderItem = memo(function ProviderItem({
   p,
   active,
   onSelect,
 }: {
   p: Provider;
   active: boolean;
-  onSelect: () => void;
+  onSelect: (id: string) => void;
 }) {
   const { text } = useTranslation();
   const dot = p.enabled ? "on" : p.configured ? "off" : "unconfigured";
@@ -24,7 +26,7 @@ export function ProviderItem({
     <button
       type="button"
       className={styles.providerItem + (active ? " " + styles.active : "")}
-      onClick={onSelect}
+      onClick={() => onSelect(p.id)}
       title={p.label}
       aria-label={p.label}
       aria-current={active ? "true" : undefined}
@@ -51,4 +53,4 @@ export function ProviderItem({
       />
     </button>
   );
-}
+});

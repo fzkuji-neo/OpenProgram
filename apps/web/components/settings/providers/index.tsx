@@ -26,7 +26,7 @@ import { AddCustomProvider } from "./add-custom-provider";
 import type { Provider } from "./types";
 import styles from "../settings-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
-import { cachedFetch, invalidate } from "@/lib/prefs/settings-cache";
+import { cachedFetch, invalidate, readCachedSettings } from "@/lib/prefs/settings-cache";
 import { refreshAgentChip } from "./types";
 import { useTranslation } from "@/lib/i18n";
 import { pushPath } from "@/lib/shallow-nav";
@@ -40,13 +40,13 @@ export function ProvidersSection({ initialProviderId }: { initialProviderId?: st
   const { t, text } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<Provider[]>(() => readCachedSettings<{ providers?: Provider[] }>("/api/providers/list")?.providers ?? []);
   // Selection lives in the URL: /settings/providers/<id> selects <id>,
   // /settings/providers (no id) falls back to the first enabled provider.
   // ``initialProviderId`` is the route param so a hard refresh / shared
   // link lands on the right provider; clicking a row shallow-pushes the
   // new URL, which re-renders this with a new initialProviderId.
-  const [fallbackSelectedId, setSelectedId] = useState<string | null>(null);
+  const [fallbackSelectedId, setSelectedId] = useState<string | null>(() => (providers.find(p => p.enabled) ?? providers[0])?.id ?? null);
   const selectedId = initialProviderId ?? fallbackSelectedId;
   const [search, setSearch] = useState("");
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -98,7 +98,7 @@ export function ProvidersSection({ initialProviderId }: { initialProviderId?: st
       setSelectedId(id);
       pushPath(`/settings/providers/${encodeURIComponent(id)}`);
     },
-    [router],
+    [],
   );
 
   const enabled = providers.filter((p) => p.enabled);
@@ -173,7 +173,7 @@ export function ProvidersSection({ initialProviderId }: { initialProviderId?: st
                   key={p.id}
                   p={p}
                   active={selectedId === p.id}
-                  onSelect={() => selectProvider(p.id)}
+                  onSelect={selectProvider}
                 />
               ))}
             </>
@@ -186,7 +186,7 @@ export function ProvidersSection({ initialProviderId }: { initialProviderId?: st
                   key={p.id}
                   p={p}
                   active={selectedId === p.id}
-                  onSelect={() => selectProvider(p.id)}
+                  onSelect={selectProvider}
                 />
               ))}
             </>

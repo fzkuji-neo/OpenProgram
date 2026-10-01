@@ -10,7 +10,7 @@
  *   * ``dicebear`` (default) — generative SVG via @dicebear/core.
  *     Style + seed picked from ``config``; defaults are ``shapes`` +
  *     the display name so old profiles upgrade with no settings
- *     change. The SVG is memoised on ``(style, seed, size)``.
+ *     change. The SVG is reused by ``(style, seed)`` within a bounded cache.
  *
  *   * ``upload`` — render a user-supplied file via ``<img>``. PNG /
  *     JPG / SVG / GIF / WebP / APNG all just work because the browser
@@ -30,11 +30,16 @@
  *   * ``./AvatarPicker`` — the settings-page UI that mutates ``AvatarConfig``
  */
 
-import { useMemo, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createAvatar } from "@dicebear/core";
 
-import { STYLES } from "./styles";
+import { loadedAvatarStyle, loadAvatarStyle } from "./styles";
 import type { AvatarConfig, AvatarKind, AvatarStyle } from "./types";
+
+const svgCache = new Map<string, string>();
+let svgCacheChars = 0;
+const SVG_CACHE_CHARS = 512 * 1024;
+const SVG_CACHE_ENTRIES = 128;
 
 export interface AvatarProps {
   /** Pixel diameter. The component renders a perfect circle at this
@@ -129,14 +134,29 @@ export function Avatar({
   const style: AvatarStyle = config?.style ?? "shapes";
   const seed = config?.seed ?? name ?? "default";
 
-  // Pre-render the DiceBear SVG even when we're in upload / letter
-  // mode so toggling modes in settings doesn't lose its memo cache.
-  // The SVG string is ~1 KB, cheap to keep around.
-  //
+  const [loaded, setLoaded] = useState(() => ({ style, generator: loadedAvatarStyle(style) }));
+  const generator = loadedAvatarStyle(style) ?? (loaded.style === style ? loaded.generator : undefined);
+  useEffect(() => {
+    if (kind !== "dicebear" || loadedAvatarStyle(style)) return;
+    let disposed = false;
+    void loadAvatarStyle(style).then(generator => {
+      if (!disposed) setLoaded({ style, generator });
+    }).catch(() => {}); // Keep the letter fallback; a later mount can retry.
+    return () => { disposed = true; };
+  }, [kind, style]);
+
   // Most styles use a deterministic pastel background so transparent
   // artwork stays visible on both themes. Thumbs is handled separately
   // below because its circular portrait requires no additional background.
   const svg = useMemo(() => {
+    if (kind !== "dicebear" || !generator) return null;
+    const key = style + "|" + seed;
+    const cached = svgCache.get(key);
+    if (cached !== undefined) {
+      svgCache.delete(key);
+      svgCache.set(key, cached);
+      return cached;
+    }
     try {
       // Don't pass ``size`` to createAvatar — some styles
       // (notionists, lorelei) render their character at a tiny
@@ -146,7 +166,7 @@ export function Avatar({
       // viewBox; the wrapping ``<span>`` then scales it down with
       // ``width: 100%; height: 100%`` so the whole character is
       // visible regardless of container size.
-      const raw = createAvatar(STYLES[style] as never, {
+      const raw = createAvatar(generator as never, {
         seed,
         // Render at 200px internally — some character styles
         // (notionists, lorelei) draw their bodies into only a
@@ -189,11 +209,21 @@ export function Avatar({
       // Prefix is a stable hash of (style, seed) so each tile on the
       // settings page gets a distinct namespace, and SSR / client
       // produce identical markup.
-      return _namespaceSvgIds(sized, "av" + _shortHash(style + "|" + seed));
+      const result = _namespaceSvgIds(sized, "av" + _shortHash(style + "|" + seed));
+      if (key.length + result.length <= SVG_CACHE_CHARS) {
+        while (svgCache.size >= SVG_CACHE_ENTRIES || svgCacheChars + key.length + result.length > SVG_CACHE_CHARS) {
+          const oldest = svgCache.keys().next().value!;
+          svgCacheChars -= oldest.length + svgCache.get(oldest)!.length;
+          svgCache.delete(oldest);
+        }
+        svgCache.set(key, result);
+        svgCacheChars += key.length + result.length;
+      }
+      return result;
     } catch {
       return null;
     }
-  }, [style, seed]);
+  }, [kind, style, seed, generator]);
   const sharedStyle: CSSProperties = {
     width: size,
     height: size,
@@ -216,7 +246,7 @@ export function Avatar({
     );
   }
 
-  if (kind === "letter") {
+  if (kind === "letter" || (kind === "dicebear" && !svg)) {
     const letter = (config?.letter || _initialFor(name)).slice(0, 2);
     return (
       <span
