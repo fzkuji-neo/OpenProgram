@@ -7,37 +7,46 @@ function detailHost(path: string): string | null {
   ) ?? null;
 }
 
-let pendingDetail: { host: string; path: string; restore?: string } | null = null;
+// Track only outstanding exported-host requests and the newest destination.
+// A late host must not overwrite a newer tab/history navigation.
+let pending: { hosts: Set<string>; target: string } | null = null;
 
-/** Keep a late route commit from reversing a newer tab activation. */
 export function cancelTabRouteNavigation(target: string): void {
-  if (pendingDetail) {
-    pendingDetail.restore = target === pendingDetail.path ? undefined : target;
-  }
+  if (pending) pending.target = target;
 }
 
-/** Finish after the exported route commits, before recording tab history. */
+/** Finish after an exported route commits, before recording tab history. */
 export function completeTabRouteNavigation(pathname: string): boolean {
-  if (!pendingDetail) return false;
-  if (pathname !== pendingDetail.host) { pendingDetail = null; return false; }
-  const { path, restore } = pendingDetail;
-  pendingDetail = null;
-  if (restore) navigateTabRoute(restore);
-  else window.history.replaceState(window.history.state, "", path);
+  if (!pending) return false;
+  if (!pending.hosts.delete(pathname)) {
+    pending.target = pathname; // A committed sidebar/deep-link navigation wins too.
+    return false;
+  }
+  const target = pending.target;
+  if (detailHost(target.split(/[?#]/, 1)[0]) === pathname) {
+    if (target !== pathname) window.history.replaceState(window.history.state, "", target);
+    if (pending.hosts.size === 0) pending = null;
+  } else {
+    // Keep outstanding newer hosts; their existing request owns the commit.
+    navigateTabRoute(target);
+    if (pending?.hosts.size === 0) pending = null;
+  }
   return true;
 }
 
-/** A sidebar page needs its route component; changing only pathname cannot load it. */
+/** A sidebar page needs its exported component before a shallow detail URL. */
 export function navigateTabRoute(path: string): void {
   const pathname = path.split(/[?#]/, 1)[0];
   const current = typeof window !== "undefined" ? window.location.pathname : "";
   const host = detailHost(pathname);
-  if (pendingDetail?.path === path) return;
-  pendingDetail = null;
+  if (pending) pending.target = path;
   if (pathname === current) return;
   if (host !== null && detailHost(current) !== host && pathname !== host) {
-    pendingDetail = { host, path };
-    navigate(host);
+    pending ??= { hosts: new Set(), target: path };
+    if (!pending.hosts.has(host)) {
+      pending.hosts.add(host);
+      navigate(host);
+    }
     return;
   }
   if (pathname === "/chat" || pathname.startsWith("/s/")

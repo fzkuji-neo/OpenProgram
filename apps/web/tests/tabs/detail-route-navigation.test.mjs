@@ -31,8 +31,10 @@ test("an unrelated committed route cancels pending restoration",()=>{
  route.navigateTabRoute("/skills/example");
  window.location.pathname="/settings/general";
  assert.equal(route.completeTabRouteNavigation("/settings/general"),false);
- assert.equal(route.completeTabRouteNavigation("/skills"),false);
- assert.equal(window.location.pathname,"/settings/general");
+ window.location.pathname="/skills";
+ assert.equal(route.completeTabRouteNavigation("/skills"),true);
+ assert.equal(requested.at(-1),"/settings/general");
+ window.location.pathname="/settings/general";
 });
 
 test("late provider host cannot reverse a newer chat activation",()=>{
@@ -42,4 +44,30 @@ test("late provider host cannot reverse a newer chat activation",()=>{
  window.location.pathname="/settings/providers";
  assert.equal(route.completeTabRouteNavigation("/settings/providers"),true);
  assert.equal(window.location.pathname,"/s/chat");
+});
+
+test("history returning to chat cancels the old provider host",()=>{
+ window.location.pathname="/s/chat";
+ route.navigateTabRoute("/settings/providers/ollama");
+ route.navigateTabRoute("/s/chat");
+ window.location.pathname="/settings/providers";
+ assert.equal(route.completeTabRouteNavigation("/settings/providers"),true);
+ assert.equal(window.location.pathname,"/s/chat");
+});
+test("multiple outstanding hosts retain the latest detail in either commit order",()=>{
+ for(const order of [["/settings/providers","/skills"],["/skills","/settings/providers"]]) {
+  window.location.pathname="/s/chat";
+  route.navigateTabRoute("/settings/providers/ollama");
+  route.navigateTabRoute("/skills/example");
+  for(const host of order) {
+   window.location.pathname=host;
+   assert.equal(route.completeTabRouteNavigation(host),true);
+  }
+  if (window.location.pathname !== "/skills/example") {
+   assert.equal(requested.at(-1),"/skills");
+   window.location.pathname="/skills";
+   assert.equal(route.completeTabRouteNavigation("/skills"),true);
+  }
+  assert.equal(window.location.pathname,"/skills/example");
+ }
 });
