@@ -44,9 +44,10 @@ export function ProvidersSection({ initialProviderId }: { initialProviderId?: st
   // Selection lives in the URL: /settings/providers/<id> selects <id>,
   // /settings/providers (no id) falls back to the first enabled provider.
   // ``initialProviderId`` is the route param so a hard refresh / shared
-  // link lands on the right provider; clicking a row router.push()es the
+  // link lands on the right provider; clicking a row shallow-pushes the
   // new URL, which re-renders this with a new initialProviderId.
-  const [selectedId, setSelectedId] = useState<string | null>(initialProviderId ?? null);
+  const [fallbackSelectedId, setSelectedId] = useState<string | null>(null);
+  const selectedId = initialProviderId ?? fallbackSelectedId;
   const [search, setSearch] = useState("");
   const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -70,14 +71,12 @@ export function ProvidersSection({ initialProviderId }: { initialProviderId?: st
       /* empty */
     }
     setProviders(list);
-    // Only auto-pick a default when the URL named no provider. With a
-    // route param the selection is the param (kept in sync below), so a
-    // refresh on /settings/providers/<id> stays on <id>.
-    if (!preserveSelection && !initialProviderId && list.length > 0) {
+    // This fallback never overrides selection derived from the current URL.
+    if (!preserveSelection && list.length > 0) {
       const first = list.find((p) => p.enabled) || list[0];
       setSelectedId(first.id);
     }
-  }, [initialProviderId]);
+  }, []);
 
   useEffect(() => {
     reload();
@@ -91,11 +90,6 @@ export function ProvidersSection({ initialProviderId }: { initialProviderId?: st
     window.addEventListener("op:provider-models-changed", refreshProviders);
     return () => window.removeEventListener("op:provider-models-changed", refreshProviders);
   }, [reload]);
-
-  // Keep selection aligned with the route param (changes on navigation).
-  useEffect(() => {
-    if (initialProviderId) setSelectedId(initialProviderId);
-  }, [initialProviderId]);
 
   // Navigate to /settings/providers/<id> instead of plain setState so the
   // URL is shareable and survives a refresh.
