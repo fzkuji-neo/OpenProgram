@@ -6,6 +6,7 @@ import {
   isProvisionalSessionBind,
   lastSettledTakeLatest,
   latestScrollTop,
+  noteTakeLatest,
   peekTakeLatest,
   readBottomPadding,
   readChatScroll,
@@ -263,14 +264,17 @@ export function useChatAreaStick(
     const ro = new ResizeObserver(pin);
     ro.observe(msgs);
     return () => {
-      effectGenRef.current += 1;
-      pendingJumpRef.current = false;
-      interactionRef.current += 1;
-      const key = activeKeyRef.current;
-      if (key) setFollowLock(key, false);
-      cancelJumpRef.current?.();
-      cancelJumpRef.current = null;
-      jumpingRef.current = false;
+      // A new key's layout effect may already own a follow operation. Old
+      // listener cleanup must not cancel that incoming viewport operation.
+      if (activeKeyRef.current === chatKey) {
+        effectGenRef.current += 1;
+        pendingJumpRef.current = false;
+        interactionRef.current += 1;
+        if (chatKey) setFollowLock(chatKey, false);
+        cancelJumpRef.current?.();
+        cancelJumpRef.current = null;
+        jumpingRef.current = false;
+      }
       area.removeEventListener("scroll", onScroll);
       area.removeEventListener("pointerdown", onPointerDown);
       area.removeEventListener("pointerup", onPointerUp);
@@ -339,7 +343,13 @@ export function useChatAreaStick(
       ? readChatScroll(window.sessionStorage, chatKey)
       : null;
 
-    const note = sid && chatKey ? peekTakeLatest(sid, chatKey) : null;
+    let note = sid && chatKey ? peekTakeLatest(sid, chatKey) : null;
+    if ((keyChanged || becameVisible) && sid && chatKey) {
+      // Activation is an explicit latest-message request. Pixel restoration
+      // cannot remain correct when asynchronous cards change transcript height.
+      note = noteTakeLatest({ sessionId: sid, scrollerKey: chatKey, turnSeed: newTurnSeed ?? "" });
+      lastPointerRef.current = 0;
+    }
     const settled = sid && chatKey ? lastSettledTakeLatest(sid, chatKey) : 0;
     if (chatKey) setApplied(chatKey, settled);
     const takeLatest = !!(
