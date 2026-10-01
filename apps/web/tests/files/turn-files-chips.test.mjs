@@ -191,6 +191,7 @@ test("successful legacy summaries survive card remount without loading or repeat
  await act(async()=>root.render(createElement(TurnFilesChips,props)));await flush();
  await act(async()=>respond(socket,latestReviewRequest(socket),{files:[{path:"/repo/a.ts",rel:"a.ts",op:"modify",added:2,removed:1}],file_count:1}));
  assert.match(host.textContent,/a.ts/);await act(async()=>root.render(null));
+ useSessionStore.getState().setMessages(sid,[{id,role:"assistant",status:"done",content:"Reloaded"}]);
  const count=socket.sent.filter(f=>f.action==="review_scope").length;
  await act(async()=>root.render(createElement(TurnFilesChips,props)));
  assert.match(host.textContent,/a.ts/,"cached summary renders immediately");await flush();
