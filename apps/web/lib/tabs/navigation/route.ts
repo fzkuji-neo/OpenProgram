@@ -24,7 +24,7 @@ export function completeTabRouteNavigation(pathname: string): boolean {
   }
   const target = pending.target;
   if (detailHost(target.split(/[?#]/, 1)[0]) === pathname) {
-    if (target !== pathname) window.history.replaceState(window.history.state, "", target);
+    if (target !== pathname) window.history.replaceState(null, "", target);
     if (pending.hosts.size === 0) pending = null;
   } else {
     // Keep outstanding newer hosts; their existing request owns the commit.
