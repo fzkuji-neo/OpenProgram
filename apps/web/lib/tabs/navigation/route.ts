@@ -7,15 +7,23 @@ function detailHost(path: string): string | null {
   ) ?? null;
 }
 
-let pendingDetail: { host: string; path: string } | null = null;
+let pendingDetail: { host: string; path: string; restore?: string } | null = null;
+
+/** Keep a late route commit from reversing a newer tab activation. */
+export function cancelTabRouteNavigation(target: string): void {
+  if (pendingDetail) {
+    pendingDetail.restore = target === pendingDetail.path ? undefined : target;
+  }
+}
 
 /** Finish after the exported route commits, before recording tab history. */
 export function completeTabRouteNavigation(pathname: string): boolean {
   if (!pendingDetail) return false;
   if (pathname !== pendingDetail.host) { pendingDetail = null; return false; }
-  const { path } = pendingDetail;
+  const { path, restore } = pendingDetail;
   pendingDetail = null;
-  window.history.replaceState(window.history.state, "", path);
+  if (restore) navigateTabRoute(restore);
+  else window.history.replaceState(window.history.state, "", path);
   return true;
 }
 
