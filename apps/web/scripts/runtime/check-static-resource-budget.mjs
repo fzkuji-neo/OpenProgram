@@ -8,6 +8,7 @@ const webRoot = fileURLToPath(new URL("../../", import.meta.url));
 const outRoot = join(webRoot, "out");
 const entry = join(outRoot, "chat.html");
 const TRANSFER_BUDGET = 2 * 1024 * 1024;
+const INITIAL_SCRIPT_BUDGET = 650 * 1024;
 const CHUNK_BUDGET = 350 * 1024;
 const GZIP_MINIMUM_SIZE = 500;
 
@@ -63,6 +64,8 @@ for (const path of [...initial]) {
 }
 
 const transferBytes = [...initial].reduce((total, path) => total + encodedBytes(path), 0);
+const scriptBytes = [...initial].filter(path => extname(path) === ".js").reduce((total, path) => total + encodedBytes(path), 0);
+assert.ok(scriptBytes <= INITIAL_SCRIPT_BUDGET, `initial JavaScript ${scriptBytes} exceeds ${INITIAL_SCRIPT_BUDGET}`);
 const chunks = [...files(join(outRoot, "_next", "static", "chunks"))]
   .filter((path) => path.endsWith(".js"));
 const largest = chunks
@@ -77,6 +80,7 @@ console.log(JSON.stringify({
   entry: "chat.html",
   initial_resource_count: initial.size,
   initial_encoded_bytes: transferBytes,
+  initial_script_encoded_bytes: scriptBytes,
   largest_chunk: largest.path.slice(outRoot.length + 1),
   largest_chunk_encoded_bytes: largest.bytes,
 }));

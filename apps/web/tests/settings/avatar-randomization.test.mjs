@@ -96,7 +96,7 @@ test("Agent and user settings share the picker and its style registry", () => {
   assert.doesNotMatch(settings, /styles\.avatarBlock/);
   assert.ok(registryBlock);
   const pickerStyleIds = AVATAR_STYLES.map(({ id }) => id);
-  const runtimeStyleIds = [...registryBlock.matchAll(/^\s+(\w+),$/gm)].map(
+  const runtimeStyleIds = [...registryBlock.matchAll(/^\s+(\w+):/gm)].map(
     (match) => match[1],
   );
   assert.equal(new Set(pickerStyleIds).size, pickerStyleIds.length);

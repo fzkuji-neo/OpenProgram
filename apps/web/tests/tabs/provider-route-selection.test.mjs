@@ -8,7 +8,7 @@ const stubs={
  "next/navigation":"export const useRouter=()=>({push(){}});",
  "@tanstack/react-query":"export const useQueryClient=()=>({invalidateQueries(){}});",
  "@/lib/i18n":"export const useTranslation=()=>({t:x=>x,text:x=>x});",
- "@/lib/prefs/settings-cache":"export const cachedFetch=()=>globalThis.loadProviders();export const invalidate=()=>{};",
+ "@/lib/prefs/settings-cache":"export const readCachedSettings=()=>globalThis.cachedProviders;export const cachedFetch=()=>globalThis.loadProviders();export const invalidate=()=>{};",
  "@/lib/shallow-nav":"export const pushPath=()=>{};",
  "@/components/ui/search-input":"export const SearchInput=()=>null;",
  "./detail":"export const Detail=({provider})=>globalThis.providerElement('output',{},provider.id);",
@@ -39,4 +39,11 @@ test('URL provider wins over an earlier pending default selection without reload
  assert.equal(document.querySelector('output').textContent,'ollama');
  assert.equal(calls,1);
  await act(async()=>root.unmount());
+});
+
+test('a fresh cached catalog is visible on the first render before effects',async()=>{
+ const {renderToStaticMarkup}=await import('react-dom/server');
+ globalThis.cachedProviders={providers:[{id:'ollama',label:'Ollama',enabled:true}]};
+ assert.match(renderToStaticMarkup(createElement(ProvidersSection)),/<output>ollama<\/output>/);
+ globalThis.cachedProviders=undefined;
 });
