@@ -23,22 +23,10 @@ import { leaves } from "@/lib/tabs/canvas-layout";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import type { TabDragSubject } from "@/lib/tabs/tab-drag-coordinator";
 import { useTranslation } from "@/lib/i18n";
-import { builtinPageLabel } from "./builtin-page-label";
+import { labelOf } from "./tab-label";
+export { labelOf } from "./tab-label";
 import { shiftStyle } from "./tab-strip-geometry";
 import styles from "./center-tabs.module.css";
-
-export function labelOf(
-  tab: CenterTab,
-  t: ReturnType<typeof useTranslation>["t"],
-  text: ReturnType<typeof useTranslation>["text"],
-): string {
-  if (tab.kind === "ntp") return text("New tab", "新标签页");
-  if (tab.kind === "builtin") return builtinPageLabel(tab.page, text);
-  if (tab.kind === "file") return tab.title;
-  if (tab.kind === "web") return tab.title || tab.url || "";
-  if (tab.draft) return text("New chat", "新会话");
-  return tab.title || t("sidebar.untitled");
-}
 
 interface CompoundTabItemProps {
   group: CenterTabGroup;

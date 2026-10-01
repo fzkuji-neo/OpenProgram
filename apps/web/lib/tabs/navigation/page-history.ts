@@ -1,11 +1,6 @@
 import type { CenterTab } from "../store/types";
 import { sessionHistory } from "./session-history";
 
-/** Settings and sidebar management pages belong to the application shell. */
-export function isApplicationPageRoute(pathname: string | undefined): boolean {
-  return !!pathname && /^\/(?:settings|agents|programs|functions|skills|mcp|plugins|plugin|applications|chats|projects|memory|history|scheduler)(?:[/?#]|$)/.test(pathname);
-}
-
 export type TabPage = Omit<CenterTab, "pageHistory" | "sessionHistory">;
 export interface TabPageHistory { entries: TabPage[]; index: number }
 
@@ -52,14 +47,14 @@ export function restoreTabPage(history: TabPageHistory, index: number): CenterTa
 /** Read only non-recursive snapshots with a matching current identity. */
 export function normalizeTabPageHistory(tab: CenterTab): CenterTab {
   const history = tab.pageHistory;
-  if (history === undefined) return removeApplicationPageVisits(tab);
+  if (history === undefined) return tab;
   const valid = history && Array.isArray(history.entries) && history.entries.length > 0
     && Number.isInteger(history.index) && history.index >= 0 && history.index < history.entries.length
     && history.entries.every(page => page && typeof page.id === "string" && typeof page.title === "string"
       && ["ntp", "builtin", "session", "file", "web", "application"].includes(page.kind)
       && !("pageHistory" in page))
     && history.entries[history.index].id === tab.id && history.entries[history.index].kind === tab.kind;
-  return removeApplicationPageVisits(valid ? tab : tabPage(tab));
+  return valid ? tab : tabPage(tab);
 }
 
 
@@ -71,32 +66,4 @@ export function mapTabPages(tab: CenterTab, update: (page: CenterTab) => CenterT
     ? tabPage(next) : (() => { const updated = update(page); return updated === page ? page : tabPage(updated); })());
   const changed = next !== tab || entries.some((page, index) => index !== tab.pageHistory!.index && page !== tab.pageHistory!.entries[index]);
   return changed ? { ...next, pageHistory: { ...tab.pageHistory, entries } } : tab;
-}
-
-
-/** Remove application-page visits recorded by older clients, including transfers. */
-function removeApplicationPageVisits(tab: CenterTab): CenterTab {
-  const history = tab.pageHistory;
-  const currentIsApplicationPage = isApplicationPageRoute(tab.navigationRoute);
-  if (!currentIsApplicationPage && !history?.entries.some(page => isApplicationPageRoute(page.navigationRoute))) return tab;
-  const { navigationRoute: _route, ...content } = tab;
-  if (!history) return content;
-
-  const entries = history.entries.filter(page => !isApplicationPageRoute(page.navigationRoute));
-  let index = history.entries.slice(0, history.index + 1)
-    .filter(page => !isApplicationPageRoute(page.navigationRoute)).length - 1;
-  const previous = entries[index];
-  // Application pages keep the underlying tab identity. Restore its preceding route,
-  // but retain metadata updated while application pages were open (e.g. draft ACK/title).
-  const restorePrevious = currentIsApplicationPage && previous?.id === tab.id && previous.kind === tab.kind;
-  const next = currentIsApplicationPage
-    ? { ...content, ...(restorePrevious && previous.navigationRoute ? { navigationRoute: previous.navigationRoute } : {}) }
-    : tab;
-  if (currentIsApplicationPage && !restorePrevious) {
-    index += 1;
-    entries.splice(index, 0, tabPage(next));
-  } else {
-    entries[index] = tabPage(next);
-  }
-  return { ...next, pageHistory: { entries, index } };
 }
