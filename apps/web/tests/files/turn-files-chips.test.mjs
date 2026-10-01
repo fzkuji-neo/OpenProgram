@@ -190,7 +190,13 @@ test("successful legacy summaries survive card remount without loading or repeat
  const props={assistantMsgId:id,sessionIdOverride:sid,blocks:[{type:"tool",tool:"apply_patch",is_error:false}]};
  await act(async()=>root.render(createElement(TurnFilesChips,props)));await flush();
  await act(async()=>respond(socket,latestReviewRequest(socket),{files:[{path:"/repo/a.ts",rel:"a.ts",op:"modify",added:2,removed:1}],file_count:1}));
- assert.match(host.textContent,/a.ts/);await act(async()=>root.render(null));
+ assert.match(host.textContent,/a.ts/);
+ const order=useSessionStore.getState().messageOrder[sid];let scans=0;
+ order.includes=function(...args){scans++;return Array.prototype.includes.apply(this,args);};
+ await act(async()=>{for(let i=0;i<100;i++)useSessionStore.setState(s=>({welcomeVisible:!s.welcomeVisible}));});
+ assert.equal(scans,0,"unrelated store updates must not rescan unchanged message ownership");
+ delete order.includes;
+ await act(async()=>root.render(null));
  useSessionStore.getState().setMessages(sid,[{id,role:"assistant",status:"done",content:"Reloaded"}]);
  const count=socket.sent.filter(f=>f.action==="review_scope").length;
  await act(async()=>root.render(createElement(TurnFilesChips,props)));
