@@ -1,6 +1,6 @@
 # Desktop App and built-in browser
 
-Settings and sidebar management pages (Agents, Abilities, Applications, History and Scheduler) are application-wide. Opening them or switching sections leaves every tab and its Back/Forward history unchanged. Select any tab, including the already selected tab, to return to its content. Management pages can still be opened directly by URL; older management-page entries are removed when saved or transferred tabs are restored.
+All pages, including Settings and sidebar management pages, open in the selected tab. Its name follows the current page, and Back/Forward restores that tab's route and name. Switching tabs restores each tab's current page; visiting a page does not rename the conversation.
 
 
 Local App refresh preserves permissions of unpacked native dependencies and restores execute permission on the node-pty terminal helper when an earlier refresh removed it.
