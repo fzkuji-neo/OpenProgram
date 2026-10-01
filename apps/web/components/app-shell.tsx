@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
@@ -40,6 +40,7 @@ import {
   isSplitLayoutAvailable,
 } from "@/lib/tabs/split-layout";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
+import { completeTabRouteNavigation } from "@/lib/tabs/navigation/route";
 import { setNavigate } from "@/lib/navigate";
 import { setLastChatPath } from "@/lib/tabs/last-chat-path";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
@@ -135,7 +136,10 @@ function isChatRoute(pathname: string) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  useEffect(() => { useCenterTabs.getState().recordRouteNavigation(pathname); }, [pathname]);
+  useLayoutEffect(() => {
+    if (completeTabRouteNavigation(pathname)) return;
+    useCenterTabs.getState().recordRouteNavigation(pathname);
+  }, [pathname]);
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
   const { t } = useTranslation();
