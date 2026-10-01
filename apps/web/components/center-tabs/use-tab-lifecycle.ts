@@ -225,7 +225,7 @@ export function useTabLifecycle({
     if (reactivateCurrentSession) {
       setSessionActivationRequest((request) => request + 1);
     }
-    if (tab.navigationRoute) { navigateTabRoute(tab.navigationRoute); return; }
+    if (tab.navigationRoute) return; // The activation effect owns route navigation.
     if (tab.kind !== "session" && !isChatRoute(pathname)) router.push("/chat");
   }
 

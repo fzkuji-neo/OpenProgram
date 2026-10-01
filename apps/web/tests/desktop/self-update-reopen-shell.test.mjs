@@ -57,17 +57,18 @@ function navigate(path) {
   for (const notify of routeListeners) notify();
 }
 window.history = { state: null, pushState: (_state, _title, path) => navigate(path),
-  replaceState: (_state, _title, path) => { window.location.pathname = path; window.location.hash = ""; } };
+  replaceState: (_state, _title, path) => { window.location.pathname = path; window.location.hash = ""; for (const notify of routeListeners) notify(); } };
 globalThis.history = window.history;
 function routerNavigate(path) { routerNavigations.push(path); navigate(path); }
 globalThis.reopenRouter = { push: routerNavigate };
-const { act, createElement, useSyncExternalStore } = await import("react");
+const { act, createElement, useLayoutEffect, useSyncExternalStore } = await import("react");
 globalThis.reopenRouteHook = () => useSyncExternalStore(
   (notify) => { routeListeners.add(notify); return () => routeListeners.delete(notify); },
   () => window.location.pathname,
 );
 const { createRoot } = await import("react-dom/client");
 const { setNavigate } = await import("../../lib/navigate.ts");
+const { completeTabRouteNavigation } = await import("../../lib/tabs/navigation/route.ts");
 const { useTabLifecycle } = await import("../../components/center-tabs/use-tab-lifecycle.ts");
 const { useCenterTabs } = await import("../../lib/tabs/center-tabs-store.ts");
 const { readCenterTabsPayload, persistedState } = await import("../../lib/tabs/center-tabs-persistence.ts");
@@ -98,6 +99,8 @@ globalThis.WebSocket = FixtureSocket;
 const noop = () => {};
 let lifecycle;
 function Receiver() {
+  const pathname = globalThis.reopenRouteHook();
+  useLayoutEffect(() => { completeTabRouteNavigation(pathname); }, [pathname]);
   const activeId = useCenterTabs((s) => s.activeId);
   lifecycle = useTabLifecycle({ activeId, cancelDrag: noop, setFocusedTabId: noop,
     freezeWidthsForMouseClose: noop, releaseFrozenWidths: noop });
