@@ -788,7 +788,13 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
                 ? { timestamp: msgs[index].timestamp }
                 : {}),
             })
-          : m;
+          : cur?.turnFiles && !m.turnFiles && m.role === "assistant"
+              && !isLiveRow(m) && !isLiveRow(cur)
+              && (s.messageOrder[sessionId] ?? []).includes(m.id)
+            // A legacy wire snapshot omits the already-resolved historical
+            // summary. Keep only that field; incoming metadata stays canonical.
+            ? { ...m, turnFiles: cur.turnFiles }
+            : m;
       }
       return {
         messagesById: byId,
