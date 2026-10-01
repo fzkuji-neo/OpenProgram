@@ -34,3 +34,12 @@ test("an unrelated committed route cancels pending restoration",()=>{
  assert.equal(route.completeTabRouteNavigation("/skills"),false);
  assert.equal(window.location.pathname,"/settings/general");
 });
+
+test("late provider host cannot reverse a newer chat activation",()=>{
+ window.location.pathname="/s/chat";
+ route.navigateTabRoute("/settings/providers/ollama");
+ route.cancelTabRouteNavigation("/s/chat");
+ window.location.pathname="/settings/providers";
+ assert.equal(route.completeTabRouteNavigation("/settings/providers"),true);
+ assert.equal(window.location.pathname,"/s/chat");
+});

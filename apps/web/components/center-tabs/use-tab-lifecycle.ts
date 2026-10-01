@@ -24,7 +24,7 @@ import {
   dropDraftChannelChoice,
 } from "@/lib/runtime-bridge/draft-channel-choice";
 import { pushPath } from "@/lib/shallow-nav";
-import { navigateTabRoute } from "@/lib/tabs/navigation/route";
+import { cancelTabRouteNavigation, navigateTabRoute } from "@/lib/tabs/navigation/route";
 import { useTranslation } from "@/lib/i18n";
 import { selectTabsReadyForHumanClose } from "@/lib/browser/browser-control";
 import { documentControllers } from "@/lib/files/document-controller";
@@ -186,10 +186,12 @@ export function useTabLifecycle({
       if (!isChatRoute(pathname) || pathname.startsWith("/s/")) return;
     }
     const route = useCenterTabs.getState().navigationRoute;
-    if (route) { navigateTabRoute(route); return; }
     const tab = useCenterTabs.getState().tabs.find(
       (candidate) => candidate.id === activeId,
     );
+    cancelTabRouteNavigation(route ?? (tab?.kind === "session" && tab.sessionId && !tab.draft
+      ? "/s/" + tab.sessionId : "/chat"));
+    if (route) { navigateTabRoute(route); return; }
     if (tab?.kind === "session") activateSession(tab);
     else if (tab?.kind === "ntp") {
       useSessionStore.getState().setCurrentConv(null);

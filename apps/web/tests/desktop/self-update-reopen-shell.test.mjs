@@ -405,3 +405,22 @@ for (const entry of ["click", "activate"]) test(`retained Agents page restores t
     assert.equal(useCenterTabs.getState().navigationRoute, "/agents");
   });
 });
+
+test("late provider route commit cannot override switching back to the chat tab", async () => {
+ const provider = { ...original, navigationRoute: "/settings/providers/ollama" };
+ await setup([other, provider], other.id, "detached");
+ await mounted(async () => {
+   await act(async () => navigate("/s/other"));
+   const requests = [];
+   setNavigate(path => requests.push(path));
+   const before = structuredClone(useCenterTabs.getState().tabs.find(t => t.id === other.id));
+   await act(async () => lifecycle.onTabClick(useCenterTabs.getState().tabs.find(t => t.id === provider.id)));
+   assert.deepEqual(requests, ["/settings/providers"]);
+   await act(async () => lifecycle.onTabClick(useCenterTabs.getState().tabs.find(t => t.id === other.id)));
+   await act(async () => routerNavigate(requests[0]));
+   assert.equal(window.location.pathname, "/s/other");
+   assert.equal(useCenterTabs.getState().activeId, other.id);
+   assert.deepEqual(useCenterTabs.getState().tabs.find(t => t.id === other.id), before);
+   setNavigate(routerNavigate);
+ });
+});
