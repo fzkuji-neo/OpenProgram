@@ -346,8 +346,8 @@ assert.match(messageList, /className="jump-latest"/);
 assert.match(messageList, /previousKeyRef\.current !== chatKey/);
 assert.match(
   messageList,
-  /seedChanged \|\| becameVisible/,
-  "hiding the singleton then showing it again must reuse the follow/stay rule",
+  /becameVisible && !keyChanged && saved != null/,
+  "showing an already opened singleton must restore its saved reading position",
 );
 assert.doesNotMatch(conversations, /agentic_scroll/);
 assert.doesNotMatch(chatHandlers, /agentic_scroll/);
