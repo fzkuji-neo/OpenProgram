@@ -344,9 +344,9 @@ export function useChatAreaStick(
       : null;
 
     let note = sid && chatKey ? peekTakeLatest(sid, chatKey) : null;
-    if ((keyChanged || becameVisible) && sid && chatKey) {
-      // Activation is an explicit latest-message request. Pixel restoration
-      // cannot remain correct when asynchronous cards change transcript height.
+    if ((keyChanged || becameVisible) && saved == null && sid && chatKey) {
+      // First opening follows latest through delayed layout. An already
+      // opened conversation restores its own reading position instead.
       note = noteTakeLatest({ sessionId: sid, scrollerKey: chatKey, turnSeed: newTurnSeed ?? "" });
       lastPointerRef.current = 0;
     }
@@ -376,17 +376,18 @@ export function useChatAreaStick(
         markProgrammatic();
       }
       scrollTopRef.current = area.scrollTop;
-    } else if (!takeLatest && becameVisible && !keyChanged) {
-      area.scrollTop = resolveChatScrollTop({
-        keyChanged: false,
-        seedChanged: seedChanged || becameVisible,
-        saved,
-        scrollHeight: area.scrollHeight,
-        currentTop: saved ?? scrollTopRef.current,
-        atBottom: stuckRef.current,
-        ownTurn: false,
-      });
+    } else if (!takeLatest && becameVisible && !keyChanged && saved != null) {
+      markProgrammatic();
+      area.scrollTop = saved;
       scrollTopRef.current = area.scrollTop;
+    }
+    if ((keyChanged || becameVisible) && !takeLatest) {
+      stuckRef.current = !history?.after && isChatAtBottom(
+        area,
+        readBottomPadding(columnRef?.current ?? document.getElementById("chatMessages")),
+        readComposerOverlay(area, composerRootRef?.current ?? null),
+      );
+      setDetached(!stuckRef.current);
     }
 
     if (jumpingRef.current && history?.after) {
