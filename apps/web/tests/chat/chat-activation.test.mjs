@@ -32,11 +32,11 @@ function View({id,visible=true}){options.sessionId=id;useChatAreaStick(id,'seed'
 test('activation reaches latest through delayed file growth and manual input cancels following',async()=>{
  const root=createRoot(document.querySelector('#root'));const render=async(id,visible=true)=>act(async()=>root.render(createElement(View,{id,visible})));
  await render('a');assert.equal(top,1000);await render('b');height=1600;await act(async()=>resize());assert.equal(top,1100);
- await render('a');assert.equal(top,1100,'return follows latest rather than saved pixels');
- height=1900;await act(async()=>resize());assert.equal(top,1400,'delayed cards keep latest visible');
+ await render('a');assert.equal(top,1000,'return restores this opened conversation position');
+ height=1900;await act(async()=>resize());assert.equal(top,1000,'growth does not move restored history position');
  await act(async()=>{area.dispatchEvent(new window.Event('wheel'));top=500;area.dispatchEvent(new window.Event('scroll'));});
  height=2100;await act(async()=>resize());assert.equal(top,500,'manual history reading remains fixed');
- await render('a',false);await render('a');assert.equal(top,1600,'reactivated hidden chat reaches latest');
+ await render('a',false);await render('a');assert.equal(top,500,'reactivated opened chat preserves reading position');
  await act(async()=>root.unmount());
 });
 test('older-window activation requests latest and ignores outgoing completion',async()=>{
