@@ -17,6 +17,7 @@ await build({
   stdin: {
     contents: [
       'export { TurnFilesChips } from "./components/chat/messages/turn-files-chips.tsx";',
+      'export { useSessionStore } from "./lib/session-store/index.ts";',
       'export { setSocket } from "./lib/runtime-bridge/state.ts";',
     ].join("\n"),
     resolveDir: webPath,
@@ -90,7 +91,7 @@ class FakeSocket {
 
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { TurnFilesChips, setSocket } = await import(pathToFileURL(bundlePath));
+const { TurnFilesChips, setSocket, useSessionStore } = await import(pathToFileURL(bundlePath));
 
 async function flush() {
   await act(async () => {
@@ -180,4 +181,19 @@ test("legacy file cards hide empty results, retry errors, and ignore stale respo
 
   await act(async () => { root.unmount(); });
   setSocket(null);
+});
+
+test("successful legacy summaries survive card remount without loading or repeated requests", async () => {
+ const socket=new FakeSocket();setSocket(socket);const host=document.querySelector("#root"),root=createRoot(host);
+ const sid="cached-session",id="cached-message";
+ useSessionStore.setState({messageOrder:{[sid]:[id]},messagesById:{[id]:{id,role:"assistant",status:"done",content:""}}});
+ const props={assistantMsgId:id,sessionIdOverride:sid,blocks:[{type:"tool",tool:"apply_patch",is_error:false}]};
+ await act(async()=>root.render(createElement(TurnFilesChips,props)));await flush();
+ await act(async()=>respond(socket,latestReviewRequest(socket),{files:[{path:"/repo/a.ts",rel:"a.ts",op:"modify",added:2,removed:1}],file_count:1}));
+ assert.match(host.textContent,/a.ts/);await act(async()=>root.render(null));
+ const count=socket.sent.filter(f=>f.action==="review_scope").length;
+ await act(async()=>root.render(createElement(TurnFilesChips,props)));
+ assert.match(host.textContent,/a.ts/,"cached summary renders immediately");await flush();
+ assert.equal(socket.sent.filter(f=>f.action==="review_scope").length,count);
+ await act(async()=>root.unmount());setSocket(null);
 });

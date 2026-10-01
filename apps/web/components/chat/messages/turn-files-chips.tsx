@@ -87,6 +87,11 @@ export function TurnFilesChips({
   const sessionId = sessionIdOverride ?? currentSessionId;
   const updateMessage = useSessionStore((state) => state.updateMessage);
   const project = useCurrentProject();
+  const retainedSummary = useSessionStore((state) =>
+    sessionId && state.messageOrder[sessionId]?.includes(assistantMsgId)
+      ? state.messagesById[assistantMsgId]?.turnFiles : undefined,
+  );
+  summary = summary ?? retainedSummary;
   const embedded = useMemo(
     () => summaryFiles(summary, project?.path),
     [project?.path, summary],
@@ -185,13 +190,26 @@ export function TurnFilesChips({
         dispatchLegacyLoad({ type: "resolved", ok: false });
         return;
       }
-      setFiles((data.files ?? []).slice(0, MAX_CARD_FILES));
+      const loadedFiles = (data.files ?? []).slice(0, MAX_CARD_FILES);
+      // Retain historical summaries with their owned message, including empty
+      // results. Preflight and mutations still read current server state.
+      const state = useSessionStore.getState();
+      if (state.messageOrder[sessionId]?.includes(assistantMsgId)) {
+        const sum = (key: "added" | "removed") => (data.file_count ?? data.files?.length ?? 0) === loadedFiles.length && loadedFiles.every((file) => typeof file[key] === "number")
+          ? loadedFiles.reduce((total, file) => total + (file[key] ?? 0), 0) : null;
+        updateMessage(sessionId, assistantMsgId, {
+          turnFiles: { version: 1, files: loadedFiles, file_count: data.file_count ?? data.files?.length ?? 0,
+            added: sum("added"), removed: sum("removed") },
+          reverted: Boolean(data.reverted),
+        });
+      }
+      setFiles(loadedFiles);
       setFileCount(data.file_count ?? data.files?.length ?? 0);
       setReverted(Boolean(data.reverted));
       dispatchLegacyLoad({ type: "resolved", ok: true });
     });
     return () => controller.abort();
-  }, [assistantMsgId, embedded, legacyLoad.attempt, sessionId, visible, writesFailed]);
+  }, [assistantMsgId, embedded, legacyLoad.attempt, sessionId, visible, writesFailed, updateMessage]);
 
   function historyAction(direction: "undo" | "redo") {
     if (!sessionId || busy) return;
