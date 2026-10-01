@@ -8,7 +8,7 @@ registerHooks({resolve(specifier, context, next) {
 const {setNavigate}=await import("../../lib/navigate.ts");
 const route=await import("../../lib/tabs/navigation/route.ts");
 const requested=[];
-globalThis.window={location:{pathname:"/s/chat"},history:{state:null,pushState(_s,_t,path){window.location.pathname=path;},replaceState(_s,_t,path){window.location.pathname=path;}}};
+globalThis.window={location:{pathname:"/s/chat"},history:{state:null,pushState(_s,_t,path){window.location.pathname=path;},replaceState(state,_t,path){assert.equal(state,null,"Next must observe the replacement instead of bypassing its patched history API");window.location.pathname=path;}}};
 setNavigate(path=>requested.push(path));
 test("saved provider detail loads exported host once before restoring detail",()=>{
  route.navigateTabRoute("/settings/providers/ollama");
