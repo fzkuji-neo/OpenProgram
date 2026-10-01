@@ -424,3 +424,24 @@ test("late provider route commit cannot override switching back to the chat tab"
    setNavigate(routerNavigate);
  });
 });
+
+test("Back before provider host commits preserves conversation history", async () => {
+ await setup([other], other.id, "detached");
+ await mounted(async () => {
+   await act(async () => navigate("/s/other"));
+   const requests = [];
+   setNavigate(path => requests.push(path));
+   await act(async () => {
+     useCenterTabs.getState().recordRouteNavigation("/settings/providers/ollama");
+     const { navigateTabRoute } = await import("../../lib/tabs/navigation/route.ts");
+     navigateTabRoute("/settings/providers/ollama");
+   });
+   assert.deepEqual(requests, ["/settings/providers"]);
+   await act(async () => useCenterTabs.getState().navigateHistory(-1));
+   const before = structuredClone(useCenterTabs.getState().tabs);
+   await act(async () => routerNavigate(requests[0]));
+   assert.equal(window.location.pathname, "/s/other");
+   assert.deepEqual(useCenterTabs.getState().tabs, before);
+   setNavigate(routerNavigate);
+ });
+});
