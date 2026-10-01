@@ -3,7 +3,7 @@ import type { useTranslation } from "@/lib/i18n";
 import { builtinPageLabel } from "./builtin-page-label";
 
 const pageLabels: Record<string, [string, string]> = {
-  agents: ["Agents", "智能体"], programs: ["Abilities", "能力"],
+  agents: ["Agents", "Agents"], programs: ["Abilities", "能力"],
   functions: ["Functions", "函数"], skills: ["Skills", "技能"], mcp: ["MCP", "MCP"],
   plugins: ["Plugins", "插件"], plugin: ["Plugins", "插件"],
   applications: ["Applications", "应用"], chats: ["History", "历史"],
@@ -12,10 +12,10 @@ const pageLabels: Record<string, [string, string]> = {
   settings: ["Settings", "设置"],
 };
 const settingsLabels: Record<string, [string, string]> = {
-  general: ["General", "通用"], providers: ["Providers", "模型服务"],
-  channels: ["Channels", "渠道"], browser: ["Browser", "浏览器"],
+  general: ["General", "通用"], providers: ["LLM Providers", "大模型 Provider"],
+  channels: ["Channels", "消息渠道"], browser: ["Browser", "浏览器"],
   system: ["System", "系统"], memory: ["Memory", "记忆"],
-  search: ["Search", "搜索"], usage: ["Token usage", "Token 用量"],
+  search: ["Web Search", "网页搜索"], usage: ["Token Usage", "Token 用量"],
   auth: ["Accounts", "账户"],
 };
 
