@@ -766,6 +766,7 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
       // Drop any old ids for this conv so stale entries don't leak.
       const byId = { ...s.messagesById };
       const incomingIds = new Set(timedMessages.map((message) => message.id));
+      const ownedIds = new Set(s.messageOrder[sessionId] ?? []);
       const removedIds = (s.messageOrder[sessionId] ?? []).filter(
         (oldId) => !incomingIds.has(oldId),
       );
@@ -790,7 +791,7 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
             })
           : cur?.turnFiles && !m.turnFiles && m.role === "assistant"
               && !isLiveRow(m) && !isLiveRow(cur)
-              && (s.messageOrder[sessionId] ?? []).includes(m.id)
+              && ownedIds.has(m.id)
             // A legacy wire snapshot omits the already-resolved historical
             // summary. Keep only that field; incoming metadata stays canonical.
             ? { ...m, turnFiles: cur.turnFiles }

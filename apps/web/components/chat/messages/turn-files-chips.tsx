@@ -87,11 +87,9 @@ export function TurnFilesChips({
   const sessionId = sessionIdOverride ?? currentSessionId;
   const updateMessage = useSessionStore((state) => state.updateMessage);
   const project = useCurrentProject();
-  const retainedSummary = useSessionStore((state) =>
-    sessionId && state.messageOrder[sessionId]?.includes(assistantMsgId)
-      ? state.messagesById[assistantMsgId]?.turnFiles : undefined,
-  );
-  summary = summary ?? retainedSummary;
+  const ownedOrder = useSessionStore((state) => sessionId ? state.messageOrder[sessionId] : undefined);
+  const retainedSummary = useSessionStore((state) => state.messagesById[assistantMsgId]?.turnFiles);
+  summary = summary ?? (ownedOrder?.includes(assistantMsgId) ? retainedSummary : undefined);
   const embedded = useMemo(
     () => summaryFiles(summary, project?.path),
     [project?.path, summary],
