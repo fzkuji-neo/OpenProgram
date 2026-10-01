@@ -526,7 +526,7 @@ test("visible route names restore independently and retain background conversati
 test("settings sections and unknown routes use the current page label", () => {
   const tab = { id: "s:page", kind: "session", title: "Research discussion" };
   for (const [route, expected] of [["/agents", "Agents"], ["/programs", "Abilities"],
-    ["/applications", "Applications"], ["/settings/providers/ollama", "Providers"],
+    ["/applications", "Applications"], ["/settings/providers/ollama", "LLM Providers"],
     ["/settings/general", "General"], ["/scheduler", "Scheduler"], ["/unknown-page", "/unknown-page"]]) {
     assert.equal(label({ ...tab, navigationRoute: route }), expected);
   }
