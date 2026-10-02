@@ -101,7 +101,7 @@ _REF_SNAPSHOT_SCRIPT = r"""
       element: describe(el), ancestors: []};
     for (let parent=el.parentElement; parent && context.ancestors.length < 4; parent=parent.parentElement) {
       const ancestor = {...describe(parent), editable_count: 0, editable_count_truncated: false,
-        direct_text: Array.from(parent.childNodes).filter(node => node.nodeType === Node.TEXT_NODE)
+        direct_text: isEditable(parent) ? "" : Array.from(parent.childNodes).filter(node => node.nodeType === Node.TEXT_NODE)
           .map(node => node.textContent).join(" ").replace(/\s+/g, " ").trim(), text_nodes: []};
       for (const node of parent.querySelectorAll("input,textarea,[contenteditable]")) {
         if (isEditable(node) && isVisible(node)) ancestor.editable_count++;
