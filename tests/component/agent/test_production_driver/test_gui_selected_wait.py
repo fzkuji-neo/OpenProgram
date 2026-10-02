@@ -94,11 +94,20 @@ def test_selected_wait_preserves_agent_cursor_without_auto_resume_window(tmp_pat
     assert wait.status is (WaitStatus.RESOLVED if parent_ready else WaitStatus.OPEN)
     assert bool(frames) is (not parent_ready)
     assert not EffectStore(store).list_unresolved(execution.execution_id)
+    assert wait.request.get('silent_selected_gui_ready', False) is parent_ready
     from openprogram.agent.continuation import AgentContinuation
     from openprogram.execution.checkpoints import ExecutionCheckpointStore
     continuation = AgentContinuation.from_checkpoint(store=store, checkpoint=ExecutionCheckpointStore(store).get(paused.checkpoint_head_id), request=request)
     assert continuation.state.payload["next_tool_index"] == 0
     assert continuation.assistant_message.content[0].id == "gui-call"
+    # Release-time recovery is scoped to the silent, already-resolved outcome;
+    # it must not probe or resolve open permission waits in any execution.
+    async def reject_global_reconciliation():
+        pytest.fail('Release-time recovery must not reconcile all waits')
+    with monkeypatch.context() as scoped:
+        scoped.setattr(control, 'recover_wait_outcomes', reject_global_reconciliation)
+        asyncio.run(driver._recover_selected_gui_ready_wait(active))
+    assert len(resumed) == (1 if parent_ready else 0)
     granted = True
     asyncio.run(control.recover_wait_outcomes())
     assert len(resumed) == 1
