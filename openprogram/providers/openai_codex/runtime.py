@@ -30,7 +30,7 @@ from typing import Any, Optional
 _log = logging.getLogger(__name__).warning
 
 from openprogram.agentic_programming.runtime import Runtime
-from openprogram.auth.context import get_active_account_id
+from openprogram.auth.account.account_selection import get_active_account
 from openprogram.auth.credential_provider import CredentialProvider, get_credential_provider
 from openprogram.auth.store import AuthStore
 from openprogram.auth.types import (
@@ -206,8 +206,8 @@ class OpenAICodexRuntime(Runtime):
     Args:
         model:    Default model id (e.g. "gpt-5.5-mini", "gpt-5.5").
         system:   Optional system prompt (forwarded as `instructions`).
-        profile:  Auth profile to consult. Defaults to the current
-                  ContextVar scope (typically "default"). Explicit
+        profile:  Auth profile to consult. Defaults to the provider's
+                  active account, falling back to the current scope. Explicit
                   override is useful for scripts that want to pin a
                   profile regardless of ambient scope.
 
@@ -234,7 +234,7 @@ class OpenAICodexRuntime(Runtime):
             model = model.split(":", 1)[1]
 
         self._manager = get_credential_provider()
-        self._account_id = profile or get_active_account_id()
+        self._account_id = profile or get_active_account(auth_adapter.PROVIDER_ID)
         self._cached_access_token: str = ""
 
         cred = _ensure_credential(self._manager, self._account_id)

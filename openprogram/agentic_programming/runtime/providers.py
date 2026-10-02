@@ -704,11 +704,22 @@ class ProvidersOperations:
         if final is None:
             raise RuntimeError("Agent session produced no assistant message")
         if final.stop_reason == "error":
-            error = RuntimeError(
-                final.error_message
+            message = (final.error_message
                 or f"Agent session ended with stop_reason='error' but no "
-                f"error_message (model={final.model!r})"
-            )
+                f"error_message (model={final.model!r})")
+            if final.error_retryable is not None or final.error_reason is not None:
+                from openprogram.providers.utils.errors import ErrorReason, LLMError
+
+                error = LLMError(
+                    message=message,
+                    reason=ErrorReason(final.error_reason or "unknown"),
+                    retryable=bool(final.error_retryable),
+                    retry_after_s=final.error_retry_after_s,
+                    provider=final.provider,
+                    model=final.model,
+                )
+            else:
+                error = RuntimeError(message)
             if (model_call_budget is not None and session_max_iterations is not None
                     and self.last_agent_iteration_count >= session_max_iterations):
                 # An explicit Agent iteration cap is not a transport failure;
