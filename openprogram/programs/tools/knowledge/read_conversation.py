@@ -64,10 +64,15 @@ def read_conversation(
     if ":" in sid and not head:
         sid, _, head = sid.partition(":")
 
-    from openprogram.store.session.transcript import render_session_transcript
+    from openprogram.store.session.transcript import render_session_transcript, session_read_violation
 
     from openprogram.memory.policy import consume_sources
     try:
+        from openprogram.agent.session_db import default_db
+        store = default_db()
+        violation = session_read_violation(store, sid)
+        if violation:
+            return "[read_conversation error] " + violation
         return render_session_transcript(
             sid,
             head_id=head or None,
@@ -76,6 +81,7 @@ def read_conversation(
             include_function_calls=bool(include_function_calls),
             max_chars=max(1_000, int(max_chars)),
             on_consumed=consume_sources,
+            store=store,
         )
     except Exception as e:  # noqa: BLE001 — tool results report, never raise
         return f"[read_conversation error] {type(e).__name__}: {e}"

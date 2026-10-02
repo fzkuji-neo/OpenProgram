@@ -75,6 +75,7 @@ def conversation_candidates(week):
     from zoneinfo import ZoneInfo
     from openprogram.agent.authority import normalize_authority
     from openprogram.agent.session_db import default_db
+    from openprogram.store.session.transcript import session_read_violation
     from openprogram.memory.policy import allowed, consume_sources
 
     if not allowed():
@@ -85,7 +86,7 @@ def conversation_candidates(week):
     result, consumed, seen, size = [], [], set(), 0
     for session in db.list_sessions(limit=20):
         sid = session['id']
-        if validate_read_path(str(db._session_dir(sid))):
+        if session_read_violation(db, sid):
             continue
         for message in reversed(db.get_messages(sid, limit=200)):
             authority = normalize_authority(message)
