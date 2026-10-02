@@ -177,11 +177,11 @@ class EvidenceGate:
                 break
 
     def _current_owner(self):
-        from openprogram.agent.turn_request_context import get_turn_request
+        from openprogram.agent.turn_request_context import original_owner_request
         from openprogram.agent.session_db import default_db
         from openprogram.store.session.transcript import session_read_violation, MAX_TEXT_CHARS
         from openprogram.memory.policy import allowed, consume_sources
-        request = get_turn_request()
+        request = original_owner_request()
         if request is None or not _owner(request) or not allowed():
             return
         sid, mid = getattr(request, 'session_id', ''), getattr(request, 'user_msg_id', '')
