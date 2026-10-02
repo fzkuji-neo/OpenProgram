@@ -29,6 +29,8 @@ openprogram programs run <name> -a key=value  # run a program directly
 
 First-party Programs are immutable product components. In a mutable extension or development environment, `programs install` clones an additional third-party harness, installs its declared dependencies, and records the approved source.
 
+`openprogram programs list` includes the registered entry points of owner-authorized published Workflows, including those inside a category such as `workflow/weekly_report/`. Listing does not execute them or import unrecorded projects.
+
 ## How to trigger them
 
 - **Web parameter form**: click **Use** in Programs or a sidebar favorite. A new-tab page becomes a draft chat; an existing chat keeps its draft and running task. Fill in the task requirements and send explicitly. Opening or closing the form does not run the Workflow.
