@@ -882,3 +882,30 @@ def test_local_refresh_completion_preserves_failure_and_reopens_verified_app(
         assert "OpenProgram did not reopen after the refresh" in output
     assert not (app.parent / ".openprogram-app-install.lock").exists()
     assert not list(Path(env["TMPDIR"]).glob("openprogram-local-wheel.*"))
+
+
+@POSIX_SHELL_INTEGRATION
+@pytest.mark.parametrize("primary", [0, 23])
+def test_local_refresh_preserves_cleanup_error_without_masking_primary(
+    tmp_path: Path, primary: int,
+) -> None:
+    repo, app, env = _prepare_completion_refresh_fixture(tmp_path, service=True)
+    env["OWNER_RC"] = str(primary)
+    fake_rm = tmp_path / "fake-bin/rm"
+    fake_rm.write_text(
+        '#!/bin/sh\n'
+        'case "${2:-}" in "$TMPDIR"/openprogram-local-wheel.*) '
+        'test "${2%/*}" != "$TMPDIR" || exit 47 ;; esac\n'
+        'exec /bin/rm "$@"\n'
+    )
+    fake_rm.chmod(0o755)
+    result = subprocess.run(
+        ["bash", str(repo / "scripts/refresh-local-app.sh")], env=env,
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == (primary or 47), result.stdout + result.stderr
+    assert "refreshed " not in result.stdout + result.stderr
+    assert "refresh cleanup failed (exit 47)" in result.stderr
+    assert Path(env["OPEN_LOG"]).read_text().splitlines() == [f"-a {app}"]
+    assert not (app.parent / ".openprogram-app-install.lock").exists()
+    assert list(Path(env["TMPDIR"]).glob("openprogram-local-wheel.*"))
