@@ -209,7 +209,18 @@ def _wrap_agentic_runtime_block(
                 from openprogram.agent import dispatcher
                 profile = (req.profile_snapshot if req.profile_snapshot is not None
                            else dispatcher._load_agent_profile(req.agent_id))
-                selected_model = dispatcher._resolve_model(profile, req.model_override)
+                from openprogram.providers.utils.errors import LLMError
+                selected_model = None
+                model_setup_error = None
+                try:
+                    selected_model = dispatcher._resolve_model(profile, req.model_override)
+                except LLMError as error:
+                    # Model-free Programs still execute; the child retains
+                    # this terminal selection failure for actual model calls.
+                    model_setup_error = {
+                        "message": error.message, "reason": error.reason.value,
+                        "retryable": error.retryable,
+                    }
                 work_dir = current_worktree_path()
 
                 def _run_subprocess():
@@ -246,8 +257,9 @@ def _wrap_agentic_runtime_block(
                             session_id=req.session_id,
                             anchor_msg_id=assistant_msg_id,
                             work_dir=work_dir,
-                            provider=selected_model.provider,
-                            model=selected_model.id,
+                            provider=selected_model.provider if selected_model else None,
+                            model=selected_model.id if selected_model else None,
+                            model_setup_error=model_setup_error,
                             on_event=on_event,
                             # LLM-driven: pass the LLM's tool_call_id so the
                             # subprocess writes its placeholder under the

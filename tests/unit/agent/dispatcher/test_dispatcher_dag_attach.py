@@ -29,36 +29,17 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SessionDB:
                         lambda: db)
     monkeypatch.setattr("openprogram.store.default_store", lambda: db)
 
-    # Make the turn provider-independent. The dispatcher's step-3 setup
-    # attaches BOTH the session GraphStore (``_store``) and a Runtime
-    # (``_current_runtime``) inside a SINGLE try-block guarded by
-    # ``create_runtime()``. On hosts without a configured provider (CI
-    # runners, bare dev boxes) ``create_runtime()`` raises and the except
-    # branch installs NEITHER — so the planner @agentic_function has no
-    # store to write into AND no runtime to inherit, leaving only the
-    # ``user`` + ``llm`` rows the dispatcher writes via ``append_message``
-    # directly. Pre-install both ContextVars here so the test exercises
-    # the @agentic_function → DAG path regardless of whether dispatcher's
-    # own provider-gated setup succeeds. When a provider IS configured the
-    # dispatcher overrides these with its own real instances via reset
-    # tokens; the test still passes because the stub overrides the
-    # runtime's ``_call`` to return deterministic text either way.
-    from openprogram.store import _store as _store_var, SessionNodeWriter
-    from openprogram.agentic_programming.function import (
-        _current_runtime as _runtime_var,
-    )
-    _store_token = _store_var.set(SessionNodeWriter(db, "s1"))
-    _runtime_token = _runtime_var.set(
-        Runtime(call=lambda content, model="default",
-                response_format=None: "outline")
-    )
-    yield db
-    for _var, _tok in ((_runtime_var, _runtime_token),
-                       (_store_var, _store_token)):
-        try:
-            _var.reset(_tok)
-        except Exception:
-            pass
+    # Select an explicit fake model/runtime. A model-setup failure must not
+    # inherit the outer Runtime; this fixture tests DAG persistence rather
+    # than depending on the developer's provider configuration.
+    from types import SimpleNamespace
+    monkeypatch.setattr(D, "_resolve_model", lambda *_args: SimpleNamespace(
+        provider="dag-test", id="fake-model",
+    ))
+    monkeypatch.setattr("openprogram.providers.registry.create_runtime", lambda **_kwargs: Runtime(
+        call=lambda content, model="default", response_format=None: "outline",
+    ))
+    return db
 
 
 def _stub_loop(text: str):
@@ -74,15 +55,13 @@ def _stub_loop(text: str):
         def planner(task: str, runtime: Runtime = None):
             return runtime.exec(f"plan: {task}")
 
-        # Grab the active runtime — set by the dispatcher when a provider
-        # is configured, otherwise pre-installed by the tmp_db fixture.
+        # Grab the selected fake runtime installed by the dispatcher.
         from openprogram.agentic_programming.function import (
             _current_runtime,
         )
         rt = _current_runtime.get(None)
         assert rt is not None, (
-            "_current_runtime must be active — installed by the dispatcher "
-            "(provider configured) or by the tmp_db fixture (no provider)"
+            "_current_runtime must be installed by the dispatcher"
         )
         # Override _call so the LLM "call" returns deterministic text.
         # (Single exec path now — overriding _call is enough; the old
