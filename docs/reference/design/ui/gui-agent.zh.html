@@ -476,6 +476,7 @@ receipt = {
 </section>
 <section id="browser">
 <h2 tabindex="-1">浏览器：复用归属并补齐操作</h2>
+<p>可编辑字段观察保留四层诊断祖先，并可在 <code>field_context.label_binding</code> 中提供十二层祖先以内最近语义容器的简明标签证据。完整扫描最多 120 个后代，必须发现恰好一个可见可编辑控件和一个可见、不可编辑的叶节点 label；有歧义、扫描不完整或位于可编辑值中的标签不绑定。证据记录来源、规范化的完整标签、深度、计数及独立的 redacted/truncated 标记，原生和 ARIA 标签保持不变；密码控件不提供绑定。完整秘密掩码先于现有字符串截断和 32768 字节上下文总预算。预算裁剪可移除无关诊断祖先而保留完整绑定；绑定标签被掩码或截断时不能使用。结构证据本身不授予写入权限。 原生 ref 操作在内部保留观察时的原生标签和完整简明绑定，并在输入前比较新读取的语义证据。绑定改变、消失、新增或变得有歧义时，该观察失效；无关诊断布局文本和 class 不作为操作身份。</p>
 <p>复用 <code>WebUseSessionRegistry</code>、Page token、worker 持有的 WebContentsView/CDP、帧检查和清理。绑定准确的提交 Page 或创建自己拥有的后台 Page，不选择当前活动标签代替；可选 MCP 后端继续作为执行适配器。</p>
 <p>发现 Page 不代表所选 MCP 后端能够启动。已知 MCP 启动失败返回 <code>computer_use_backend_unavailable</code>、<code>availability=unavailable</code>、实际选中的 backend 和已关闭的会话标识，不输出上游原始诊断，也不自动选择其他后端。观察失败时释放 Page 租约和捕获的绑定，删除临时绑定 marker，并在线程停止后关闭自有 MCP event loop。取消、权限失败和未知缺陷保留原有错误语义。</p>
 <p>提供限定的 role/name、label、text、test-ID、相对 Locator 和 frame 进入，复用 Playwright 可操作性检查和有界等待。每动作重新定位；歧义、语义或归属变化返回 stale-target。数字 ref 只在当前观察有效。</p>

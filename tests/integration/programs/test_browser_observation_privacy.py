@@ -580,3 +580,140 @@ def test_readonly_islands_inside_editable_values_are_excluded_from_field_context
             assert field["value"] == "EDITABLE-VALUE-ISLAND"
     finally:
         controller.close()
+
+
+def _field_binding_observe(html):
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""html => {
+            document.body.innerHTML = '<style>[contenteditable]{min-height:20px}</style>' + html;
+        }""", html)
+        before = controller.evaluate_bound_page("() => document.body.innerHTML")
+        observed = controller.execute(action="observe")
+        assert controller.evaluate_bound_page("() => document.body.innerHTML") == before
+        return observed
+    finally:
+        controller.close()
+
+
+def test_deep_container_labels_bind_all_six_fields_without_changing_native_labels():
+    labels = ["姓名", "本周工作", "阅读的论文", "下周计划", "遇到的问题", "需要的支持"]
+    rows = [f'<section><label>{label}</label>' + '<div>' * 10
+            + f'<div contenteditable="true" id="field-{index}">value-{index}</div>'
+            + '</div>' * 10 + '</section>' for index, label in enumerate(labels)]
+    observed = _field_binding_observe('<form>' + ''.join(rows) + '</form>')
+    fields = observed["elements"]
+    assert len(fields) == 6
+    for index, (field, label) in enumerate(zip(fields, labels)):
+        assert field["label"] == ""
+        assert field["value"] == f"value-{index}"
+        assert len(field["field_context"]["ancestors"]) == 4
+        assert field["field_context"]["label_binding"] == {
+            "source": "visible_container_label", "label": label, "ancestor_depth": 11,
+            "editable_count": 1, "label_count": 1, "truncated": False, "redacted": False,
+        }
+
+
+@pytest.mark.parametrize("html", [
+    '<section><label>Work</label><div contenteditable="true">a</div><textarea>b</textarea></section>',
+    '<section><label>Work</label><label>Plan</label><div contenteditable="true">a</div></section>',
+    '<section><label><span>Work</span></label><div contenteditable="true">a</div></section>',
+    '<section><label>Outer</label><div><label>One</label><label>Two</label><div contenteditable="true">a</div></div></section>',
+    '<section>' + '<i></i>' * 121 + '<label>Work</label><div contenteditable="true">a</div></section>',
+    '<section><label>Work</label>' + '<div>' * 12 + '<div contenteditable="true">a</div>' + '</div>' * 12 + '</section>',
+    '<div contenteditable="true"><div contenteditable="false"><label>Value island</label></div>'
+    '<div contenteditable="true">a</div></div>',
+])
+def test_container_labels_fail_closed_for_ambiguous_incomplete_or_editable_scopes(html):
+    observed = _field_binding_observe(html)
+    assert observed["elements"]
+    assert all("label_binding" not in field.get("field_context", {}) for field in observed["elements"])
+
+
+def test_hidden_labels_do_not_conflict_with_visible_native_label():
+    observed = _field_binding_observe('<section><label style="display:none">Hidden</label>'
+                                     '<label for="native">Visible</label><input id="native" value="original"></section>')
+    field = observed["elements"][0]
+    assert field["label"] == "Visible"
+    assert field["value"] == "original"
+    assert field["field_context"]["label_binding"]["label"] == "Visible"
+    assert field["field_context"]["label_binding"]["label_count"] == 1
+
+
+def test_container_label_binding_marks_full_secret_mask_and_label_truncation():
+    observed = _field_binding_observe(f'<section><label>Password</label><input type="password" value="{_SECRET}"></section>'
+                                     f'<section><label>{_SECRET}</label><div contenteditable="true">ordinary</div></section>'
+                                     '<section><label>' + '界' * 401 + '</label><div contenteditable="true">ordinary</div></section>')
+    password, copied, long_label = observed["elements"]
+    assert "label_binding" not in password["field_context"]
+    assert _SECRET not in json.dumps(observed)
+    assert copied["field_context"]["label_binding"]["redacted"] is True
+    assert long_label["field_context"]["label_binding"]["truncated"] is True
+    assert len(long_label["field_context"]["label_binding"]["label"]) == 400
+
+
+def test_compact_label_binding_survives_unrelated_diagnostic_budget_clipping():
+    rows = [f'<section><label>Work-{index}</label>' + ('<div class="' + ' '.join(chr(97+n) * 400 for n in range(6)) + '">') * 10
+            + '<div contenteditable="true">ordinary</div>' + '</div>' * 10 + '</section>' for index in range(12)]
+    observed = _field_binding_observe(''.join(rows))
+    contexts = [field["field_context"] for field in observed["elements"] if "field_context" in field]
+    assert sum(len(json.dumps(context, ensure_ascii=False).encode("utf-8")) for context in contexts) <= 32768
+    assert any(context["truncated"] for context in contexts)
+    assert len(contexts) < 12
+    assert all(context["label_binding"]["truncated"] is False for context in contexts)
+    assert all(context["label_binding"]["redacted"] is False for context in contexts)
+
+
+@pytest.mark.parametrize("html, mutation", [
+    ('<section><label>Work</label><div id="target" contenteditable="true">old</div></section>',
+     "document.querySelector('label').textContent='Plan'"),
+    ('<section><label>Work</label><div id="target" contenteditable="true">old</div></section>',
+     "document.querySelector('section').insertAdjacentHTML('beforeend','<label>Plan</label>')"),
+    ('<section><label>Work</label><div id="target" contenteditable="true">old</div></section>',
+     "document.querySelector('section').insertAdjacentHTML('beforeend','<textarea>second</textarea>')"),
+    ('<section><label>Work</label><input id="target" value="old"></section>',
+     "document.querySelector('label').textContent='Plan'"),
+    ('<section><label for="target">Work</label><input id="target" value="old"></section>',
+     "document.querySelector('label').textContent='Plan'"),
+    ('<section><div id="target" contenteditable="true">old</div></section>',
+     "document.querySelector('section').insertAdjacentHTML('afterbegin','<label>Work</label>')"),
+])
+def test_public_ref_write_rejects_changed_field_label_semantics_before_any_input(html, mutation):
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""html => {
+            document.body.innerHTML = html; window.writeEvents=0;
+            document.body.addEventListener('input', () => window.writeEvents++);
+        }""", html)
+        observed = controller.execute(action="observe")
+        target = observed["elements"][0]
+        controller.evaluate_bound_page("() => {" + mutation + "}")
+        result = controller.execute(action="type", expected_frame_id=observed["frame_id"],
+                                    ref=target["ref"], text="must not write")
+        assert result["ok"] is False
+        assert result["reason_code"] == "stale_observation"
+        assert controller.evaluate_bound_page("() => window.writeEvents") == 0
+        assert controller.evaluate_bound_page("() => document.getElementById('target').value || document.getElementById('target').innerText") == "old"
+    finally:
+        controller.close()
+
+
+@pytest.mark.parametrize("native", [False, True])
+def test_public_ref_write_keeps_unchanged_binding_after_unrelated_diagnostic_change(native):
+    html = ('<label for="target">Work</label><input id="target" value="old">' if native else
+            '<label>Work</label><div id="target" contenteditable="true">old</div>')
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("html => document.body.innerHTML = '<section>' + html + '</section>'", html)
+        observed = controller.execute(action="observe")
+        target = observed["elements"][0]
+        controller.evaluate_bound_page("() => document.querySelector('section').className='unrelated-layout-class'")
+        result = controller.execute(action="type", expected_frame_id=observed["frame_id"],
+                                    ref=target["ref"], text="new")
+        assert result["ok"] is True
+        assert controller.evaluate_bound_page("() => document.getElementById('target').value || document.getElementById('target').innerText") == "new"
+    finally:
+        controller.close()
