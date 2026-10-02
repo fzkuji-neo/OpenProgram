@@ -31,6 +31,7 @@ First-party Programs are immutable product components. In a mutable extension or
 
 ## How to trigger them
 
+- **Web parameter form**: click **Use** in Programs or a sidebar favorite. A new-tab page becomes a draft chat; an existing chat keeps its draft and running task. Fill in the task requirements and send explicitly. Opening or closing the form does not run the Workflow.
 - **In chat**: entry functions register as tools (`as_tool=True`). Describe the task in natural language and the model calls them (e.g. `gui_agent`, `research_agent`, `wiki_agent`).
 - **From the command line**: `openprogram programs run gui_agent -a task="Open Firefox"`.
 - **From Python**: harness functions are ordinary importable Python functions.
