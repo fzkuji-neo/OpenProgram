@@ -183,6 +183,7 @@ webui 显示
 <h3>3. Worker 就绪与可选 MCP 生命周期</h3>
 <p>Worker 在自己的事件循环中以受管理的后台任务立即连接已启用的 MCP server。核心 FastAPI lifespan 和 <code>/healthz</code> 不等待可选传输初始化、npm 下载或 OAuth 同意；canonical execution recovery 仍是启动门槛。用户配置的单 server timeout 和顺序连接保持不变，不能通过延长 worker health deadline 或禁用已有集成来声称就绪。</p>
 <p>等待连接前先把正在启动的 client 发布到现有 registry。状态保持真实：<code>ready=false</code>、无远程工具，现有 error/auth 字段随实际结果更新。初始化成功后才注册工具；失败或禁用的 server 不注册工具。连接等待不代表认证成功或远程能力可用。MCP 启动等待期间仍可访问现有掩码管理 API。</p>
+<p>启动任务在轮到每个尚未启动的 server 时读取当前持久化配置。用户删除配置后不再启动该 server；禁用后保持禁用，不启动进程或注册工具。管理操作已经建立的同名 client 优先于启动时的配置快照。较早的等待连接恢复后不能撤销这些操作。</p>
 <p>App 拥有后台启动任务并观察失败。关闭时先取消并等待未完成的启动，再关闭所有已发布 client 并注销工具，包括尚未完成初始化的 client。自有 OAuth callback 被取消时关闭 socket/thread 并解除 executor waiter，不伪造 code、state 或认证成功；正常 callback 校验和配置的认证行为保持不变。</p>
 <table>
 <thead>
@@ -208,6 +209,7 @@ webui 显示
 <td>启动期间关闭</td>
 <td>取消并等待启动；释放 client、supervisor、callback 资源和注册；不发生关闭后的注册</td>
 </tr>
+<tr><td>启动等待期间删除或禁用后续配置</td><td>较早连接恢复后，后续 server 仍保持不存在或禁用，不产生新进程或工具，管理操作建立的同名 client 保持有效</td></tr>
 <tr>
 <td>自有 callback 取消与成功</td>
 <td>取消解除 waiter 而不伪造 code；正常 code/state 校验保持不变</td>

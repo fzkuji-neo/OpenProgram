@@ -184,6 +184,7 @@ the webui displays it
 <h3>3. Worker readiness and optional MCP lifecycle</h3>
 <p>The worker eagerly begins connecting enabled MCP servers in a managed background task on its own event loop. Core FastAPI lifespan readiness and <code>/healthz</code> do not wait for optional transport initialization, npm download or OAuth consent. Canonical execution recovery remains a startup gate. Owner-configured per-server timeouts and sequential connection order remain unchanged; readiness is not obtained by enlarging the worker health deadline or disabling a configured integration.</p>
 <p>Publish each starting client in the existing registry before awaiting its connection. Status remains truthful: <code>ready=false</code>, no remote tools, and existing error/auth fields as they become known. Tools are registered only after successful initialization; failed or disabled servers do not acquire tools. A pending connection does not imply authentication or usable remote capabilities. The current masked management API remains available while MCP startup is pending.</p>
+<p>Startup uses the current persisted configuration when each queued server is reached. An owner deletion prevents that server from starting; disabling keeps it disabled without launching a process or registering tools. A same-name client installed by a management action takes precedence over the startup snapshot. Resuming an earlier pending connection does not undo these actions.</p>
 <p>The app owns the background task. It observes startup failures, and shutdown cancels and drains pending startup before shutting down every published client and unregistering its tools. This includes clients that have not finished initialization. An owned OAuth callback closes its socket/thread and releases its executor waiter when canceled; it never fabricates a code, state or successful authentication. Normal callback validation and configured authentication behavior remain unchanged.</p>
 <table>
 <thead>
@@ -209,6 +210,7 @@ the webui displays it
 <td>Shutdown during startup</td>
 <td>Startup is canceled and drained; clients, supervisors, callback resources and registrations are released; no late registration</td>
 </tr>
+<tr><td>Owner deletion or disabling during queued startup</td><td>The queued server stays absent or disabled after the earlier connection resumes; no new process or tools appear, and a management replacement remains authoritative</td></tr>
 <tr>
 <td>Owned callback cancellation and success</td>
 <td>Cancellation releases the waiter without a false code; normal callback code/state validation remains intact</td>
