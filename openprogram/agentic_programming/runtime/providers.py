@@ -707,7 +707,13 @@ class ProvidersOperations:
             message = (final.error_message
                 or f"Agent session ended with stop_reason='error' but no "
                 f"error_message (model={final.model!r})")
-            if final.error_retryable is not None or final.error_reason is not None:
+            inferred_unknown = (
+                final.error_reason == "unknown"
+                and final.error_retryable is False
+                and final.error_retryable_inferred
+                and not final.error_transport_exhausted
+            )
+            if not inferred_unknown and (final.error_retryable is not None or final.error_reason is not None):
                 from openprogram.providers.utils.errors import ErrorReason, LLMError
 
                 error = LLMError(

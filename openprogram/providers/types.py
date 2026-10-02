@@ -281,6 +281,9 @@ class AssistantMessage(BaseModel):
     # docs/design/providers/reliability/error-taxonomy-propagation.md.
     error_reason: str | None = None         # ErrorReason value, e.g. "rate_limit"
     error_retryable: bool | None = None
+    # A generic exception's inferred verdict is not a provider retry policy.
+    # Existing producers/wire messages retain authoritative verdicts by default.
+    error_retryable_inferred: bool = False
     error_retry_after_s: float | None = None
     # The provider already consumed its complete transport retry budget.
     # Higher retry layers must not start another identical budget.
