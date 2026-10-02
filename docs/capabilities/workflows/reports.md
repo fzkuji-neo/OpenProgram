@@ -10,7 +10,7 @@ the group Workflow records unavailable controls and continues with local evidenc
 
 | Entry | Purpose | External writes |
 | --- | --- | --- |
-| `personal_weekly_report(task)` | Personal Feishu drafts and explicit Feishu inspection or record updates | Only explicit submission/update requests may write to Feishu |
+| `personal_weekly_report(task)` | Personal Feishu drafts, inspection, filling, submission and record updates | Filling changes form fields without saving; submission/update requires an explicit request |
 | `personal_chat_weekly_report(task)` | Owner's three-section WeChat-group copy (weekly progress, discussion topics, and next-week plans; rendered in Chinese) | Local draft only; never sends WeChat |
 | `group_weekly_report(task)` | Collect group reports, track missing members, and prepare a local summary | Never sends WeChat messages |
 | `tencent_weekly_report(task)` | Approximately 100 Chinese characters of Tencent progress for a leader, intended for Friday afternoon | Local draft only |
@@ -115,6 +115,14 @@ missing evidence rather than invent results. A JSON Schema validates complete fi
 Structured Agents count normal tool rounds against `max_iterations`, not the failed-request allowance. A completed tool round preserves the remaining retry allowance; format repairs and failed requests still share it. Reaching the iteration limit stops execution without replaying completed tools.
 
 Read-only memory search, grep, get and browse use the normal safe-tool policy; explicit deny/ask rules and `memory.read` authority still apply. Personal operation selection and evidence verification, plus every Tencent JSON-producing stage, declare output schemas and reuse Runtime format repair. Personal Feishu format failures propagate as errors; Tencent retains its existing model-recovery state. Neither is treated as missing user input. Tencent request interpretation inherits the deployment timeout.
+
+## Fill the personal Feishu form without submitting
+
+Select `personal_weekly_report` and request `Fill the personal Feishu weekly report without submitting`. The Workflow checks the current records, prepares the six fields, fills them and obtains a fresh field-by-field readback. `FILLED` means the fields were checked and no submission or save was performed. `SUBMITTED` is a separate result that requires an explicit submission request.
+
+Fill-only mode supports a new form only after inspection establishes that no record exists. Existing records and capped forms return `BLOCKED`; they are not duplicated. This mode permits the observed records navigation and the exact requested textbox values, and rejects submission/save clicks, keypresses, coordinates and stale observations before browser execution. Missing or ambiguous field identities, truncated or redacted values, failed actions and uncertain write outcomes cannot produce `FILLED`; uncertain writes are not automatically repeated.
+
+Readback compares the actual observed values exactly when the browser supplies them. Older browser schemas use field-specific ARIA readback with whitespace normalization; they cannot establish byte-for-byte whitespace equality. Browser access and discoverable field labels remain prerequisites for filling.
 
 ## Feishu browser failures
 
