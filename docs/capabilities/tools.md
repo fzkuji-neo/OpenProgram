@@ -114,12 +114,14 @@ Collaboration splits into four domains, one word each — see
 | Domain | Tool | What it does | Requires |
 |---|---|---|---|
 | Planning | `todo_create` / `todo_update` / `todo_list` | The session planning board — a written checklist of intent (create entries, set status / owner / dependencies, list them grouped by status). Writing an entry starts nothing | Nothing |
-| Execution | `list_jobs` / `job_output` / `job_stop` | The work actually running: list this session's background tasks, wait for one's result, or stop one. Only the session that dispatched a task may fetch or stop it | Nothing |
+| Execution | `list_jobs` / `job_output` | List this session's background tasks and wait for or inspect a result. Result access checks the dispatching session and ancestor ownership | Nothing |
 | Entity | `agent` | Spawn a new agent and collect its reply, or with `to=` hand a tracked task to an agent that already exists. `run_in_background=true` returns a task id instead of blocking; `start_from` picks where a new agent begins (`clean` / `inherit` / `SID:MSG_ID`); `archive_when_done=true` archives it once its task ends and the result has come back | Nothing |
 | Entity | `list_agents` | The agent list: which agents exist, their names, addresses, sizes and busy state (`scope="archived"` shows the archived ones) | Nothing |
 | Entity | `archive_agent` | Archive an agent whose work is finished: it leaves `list_agents` and refuses further `send_message` / `agent(to=)` deliveries, while `read_conversation` still reads its history and `agent(start_from="SID:MSG_ID")` still forks it. Any session may archive any agent, since archiving interrupts nothing and deletes nothing; it is one-way, and there is no unarchive | Nothing |
 | Communication | `send_message` | Say something to an existing agent, addressed by `"SID:HEAD"` or by name. No task, no task id, nothing to cancel, which is why anyone may write to anyone | Nothing |
 | Communication | `read_conversation` | Read any agent's history as a plain-text transcript, tool calls included, with turn ranges and a character budget | Nothing |
+
+`job_output` remains available when the collaboration message allowance is exhausted; reading an existing result does not consume that allowance. New Agent deliveries still obey their limits. To cancel a task, use its execution controls; API cancellation uses `execution.command` with `action="execution.cancel"` and the current execution version. This catalog has no `job_stop` tool.
 
 | Tool | What it does | Requires |
 |---|---|---|
