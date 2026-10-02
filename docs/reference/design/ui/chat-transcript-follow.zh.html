@@ -251,81 +251,22 @@ button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
 
 <section id="current">
 <h2>当前实现与已核实缺口</h2>
-<p>现场所有者是 React 的 <code>useChatAreaStick</code>（<code>apps/web/components/chat/messages/use-chat-area-stick.ts</code>），由 <code>MessageList</code> 和 <code>peer-session-pane.tsx</code> 消费。数学辅助已在 <code>apps/web/lib/chat/chat-scroll.ts</code>。旁边仍有三个旧的或并行的写入者。</p>
-
-<div class="doc-scroll" tabindex="0" role="region" aria-label="当前滚动所有者">
-<table>
-<thead><tr><th>所有者</th><th>附着 / 底部</th><th>跟随目标</th><th>调用方</th><th>核实状态</th></tr></thead>
-<tbody>
-<tr>
-  <td>遗留 <code>scrollToBottom</code> / 模块级 <code>stickToBottom</code>（<code>apps/web/lib/runtime-bridge/helpers.ts</code>）</td>
-  <td>全局布尔，默认 true；在 <code>#chatArea</code> 上用 <code>isChatAtBottom</code> 听滚动</td>
-  <td>最后一条 <code>.message</code> 底边 + 16px，否则 <code>scrollHeight</code></td>
-  <td><code>chat-handlers.ts</code>（compaction、local_command、status、follow-up）；<code>conversations.ts</code> 在非 <code>_skipScrollToBottom</code> 时 <code>scrollToBottom({ force: true })</code>；<code>addSystemMessage</code></td>
-  <td class="bad">仍在运行。独立 stick 标志。最后一条 + 16px 与 25vh 垫冲突。MessageList 注释说 React 从不调用它，但 WS handler 仍会调用。</td>
-</tr>
-<tr>
-  <td><code>useStickToBottom</code>（<code>apps/web/lib/format-utils/scroll.ts</code>）</td>
-  <td>同一套最后一条 + 16px 策略的 container-ref 副本</td>
-  <td>最后一条 <code>.message</code> + 16px</td>
-  <td>仅定义</td>
-  <td class="warn">无生产调用方。并行实现，尚未删除。</td>
-</tr>
-<tr>
-  <td><code>useChatAreaStick</code></td>
-  <td><code>stuckRef</code> 来自 <code>isChatAtBottom</code> + <code>history.after</code>；区域上 600ms 指针抑制；Jump 走 <code>animateJumpToLatest</code></td>
-  <td>ResizeObserver <code>pin()</code> 里 <code>area.scrollTop = area.scrollHeight</code>；发送跟随走 <code>resolveChatScrollTop({ ownTurn })</code></td>
-  <td><code>MessageList</code>（<code>lastRole === "user"</code> 当作 <code>ownTurn</code>）；peer pane 传入 <code>areaRef</code> / <code>columnRef</code></td>
-  <td class="warn">预定所有者。下列缺口使发送跟随不可靠。</td>
-</tr>
-<tr>
-  <td><code>loadSessionHistoryWindow</code>（<code>apps/web/lib/runtime-bridge/session-history-loader.ts</code>）</td>
-  <td>无附着状态。在 <code>flushSync</code> 之后为 <code>latest</code> / <code>around</code> / 高度差恢复写入 <code>scrollTop</code>，然后 <code>dispatchEvent("scroll")</code>。</td>
-  <td><code>latest</code> → <code>area.scrollHeight</code>；<code>around</code> → <code>restoreHistoryAnchor</code>；否则 <code>oldTop + heightDelta</code></td>
-  <td>Jump、在 <code>after</code> 时发送、<code>useHistoryWindow</code> 自动加载。区域是 <code>registered?.keys().next().value</code> —— 主栏和 peer 都注册时是任意第一个视口。</td>
-  <td class="bad">第四个滚动所有者，纳入范围。可能贴错 pane，也可能在 hook 之前对过期页贴底。</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>压缩折叠的 <code>easeScrollBy</code> / <code>pinWhile</code>（<code>message-list.tsx</code>）、消息轨 <code>scrollIntoView</code>、父返回 <code>scrollIntoView</code>、分支检出 <code>_postCheckoutScrollTo</code> 也会写滚动。它们保持为具名排除（显式定位），不是跟随策略。</p>
-
-<h3 id="gap-ownturn">ownTurn 身份</h3>
-<p><code>MessageList</code> 把 <code>lastRole === "user"</code> 当作 <code>ownTurn</code>。这只在 store 最后一行仍是用户气泡时为真。</p>
-<p>发送路径已经在 0ms 落下乐观用户行：<code>sendChatMessage</code> 在 socket 接受帧之后调用 <code>appendLocalUserTurn</code>（<code>apps/web/components/chat/composer/submit/send-chat-message.ts</code>）。助手占位并不在同一次更新里创建。<code>apps/web/lib/net/chat-stream.ts</code> 的 <code>handleAck</code> 会重键 pending 用户 id，然后 <code>ensureReply</code> 追加空助手行。ack 之后 <code>lastRole</code> 变成 <code>"assistant"</code>，<code>ownTurn</code> 变为 false。</p>
-<p><code>apps/web/scripts/chat/check-chat-ui.mjs</code> 里的单元契约是对的：自己的发送即使远离底部也要跟随；向上翻时到达的 agent 行不得移动视口。缺口是 <code>ownTurn</code> 从转录尾部身份推断，而不是从发送手势推断。若发送那次 layout 没能闩上 <code>stuckRef</code>，追加助手行的 ack 会被当成外来 agent 轮，视口不动。成为最后一行的 compaction / local_command / system 行同样会关掉 <code>ownTurn</code>。</p>
-<p><code>docs/reference/design/ui/interaction-feedback.md</code> 仍写用户气泡在 <code>chat_ack</code> 落地。发送路径现在在 socket 接受时就追加。跟随必须在那条乐观行（以及 <code>lastRole === "user"</code> 时的 pending 指示）落地时开始，而不是等 ack。本页不重做 send/ack 管线。</p>
-
-<h3 id="gap-layout">布局与增长</h3>
-<p>layout effect 赋值 <code>scrollTop = resolveChatScrollTop(...)</code>，跟随成功时该值是 <code>area.scrollHeight</code>，浏览器在 <code>clientHeight &gt; 0</code> 时钳到 <code>scrollHeight - clientHeight</code>（hook 已跳过 <code>clientHeight &lt;= 0</code>）。该钳位与 Jump 已经使用的 padding 边缘相同；它不是相对最后一条 + 16px 的另一类缺陷。读取仍可能发生在新行高度进入布局之前。ResizeObserver 的 <code>pin()</code> 本可以补完，但前提是 <code>stuckRef</code> 已经为 true、窗口没有 <code>after</code>、Jump 不在动画、并且 <code>performance.now() - lastPointerRef &gt; 600</code>。</p>
-<p><code>lastPointerRef</code> 只在<em>区域</em>上的 pointer/wheel/keydown 更新。Composer 点击不在 <code>#chatArea</code> 上，因此已经在底部的读者发送不会被抑制。先向上翻再在 600ms 内发送的读者<em>会被</em>抑制：layout 贴底用了过小的 <code>scrollHeight</code>，pin 不跑，<code>stuckRef</code> 保持 false，随后的助手行不再跟随。</p>
-<p>600ms 窗口的目的是避免点击执行条 / thinking 行时把被点控件向上拽。它不得抑制 take-latest 手势。发送闩序列见 <a href="#send-latch">发送闩序列</a>：在第一次高度读取前强制 <code>stuckRef = true</code>，现在以及本轮下一次列 resize 时 snap，600ms 仍挡住无关的转录区内增长。</p>
-
-<h3 id="gap-history">在 <code>history.after</code> 置位时发送</h3>
-<pre><code>if (seedChanged &amp;&amp; ownTurn &amp;&amp; sid &amp;&amp; history?.after) {
-  void loadSessionHistoryWindow(sid, "latest");
-}
-area.scrollTop = resolveChatScrollTop({ ... });</code></pre>
-<p>“跳到最新”已经用 <code>isCurrent</code> token <code>await</code> <code>loadSessionHistoryWindow(sid, "latest")</code>，然后再动画。发送却 fire-and-forget 这次加载，并立刻对过期的旧窗口做跟随。加载器本身也可能对任意已注册区域赋值 <code>scrollTop</code>（第四个所有者）。在 <code>useLayoutEffect</code> 里直接 <code>await</code> 不合法；fire-and-forget 会重现该缺陷。采纳路径使用与 Jump 相同的 <code>isCurrent</code> 异步回调，不对过期页 snap，并且在 latest 窗口到达之前不把 attached 设为 true。</p>
-
-<h3 id="gap-anchor">两套锚定策略</h3>
-<p><code>.chat-messages</code> 的垫是 <code>max(25vh, calc(var(--main-composer-height) + 24px))</code>。Composer 绝对覆盖在上面。<code>isChatAtBottom</code> 的松弛是 <code>pad - composer + 8</code>，因此“在最新”表示最后一条气泡还没钻进输入框下面。Jump 和 pin 瞄准 padding 边缘（<code>scrollHeight - clientHeight</code>）。遗留 <code>scrollToBottom</code> 瞄准最后一条底边 + 16px，把内容拉向覆盖层，可能把新用户气泡藏进输入框下。当 WS handler 仍调用遗留 helper、React 又 pin 到 <code>scrollHeight</code> 时，两个目标会打架。</p>
-
+<p><code>useChatAreaStick</code> 负责主视图和分栏的内容定位、发送跟随及 Jump。<code>chat-scroll.ts</code> 提供滚动计算和带 generation 的记录。<code>useHistoryWindow</code> 与历史加载器负责有界分页、各视口的锚点恢复。旧跟随实现已移除。</p>
+<h3 id="gap-ownturn">发送身份与准入</h3>
+<p>接受的普通发送、直接函数调用及运行中 queue/steer 提交，按捕获的 session 和 scroller 发布记录。加载中或失败的附件在创建队列、清除草稿和发布记录之前拒绝准入。完成后的记录按设计继续可读；后来拒绝的提交必须保留原记录及其 generation。</p>
+<h3 id="gap-layout">首次激活与延迟布局</h3>
+<p>没有已存像素位置时，首次激活创建独立 generation，并在延迟布局后定位最新。返回已打开视口恢复已存位置。用户操作取消待执行跟随。已接受且待执行的欢迎页发送保留到对应视图就绪。</p>
+<h3 id="gap-history">旧历史与首次激活</h3>
+<p>初次激活已加载的旧窗口时，请求最新窗口，在验证最新响应并发布之前保持 detached，不提前定位旧窗口。检验这种激活的浏览器 fixture 必须提供响应，才能要求最新定位。检验旧窗口手动阅读的 fixture 则应明确建立已存视口，否则会意外启动另一项激活请求。</p>
+<h3 id="gap-anchor">历史恢复职责</h3>
+<p>加载器使用每个注册视口各自的锚点和 key 恢复位置，不执行最新定位。历史页面变化时，hook 保留手动阅读和取消行为。</p>
 <h3 id="gap-welcome">欢迎页首次发送</h3>
-<p><code>setWelcomeVisible(false)</code> 在 0ms 运行，早于 <code>appendLocalUserTurn</code>。<code>.chat-area:has(#welcome-mount &gt; *)</code> 会设 <code>overflow: hidden</code>。若 stick 的 layout effect 与欢迎子节点同帧，滚动赋值是空操作。stick 依赖不含 <code>welcomeVisible</code>。采纳的重试在发送闩序列中：主壳观察 <code>welcomeVisible</code> 或 <code>#welcome-mount</code> 子节点，锁解开且 take-latest generation 仍当前时 snap 一次。Peer 不走这条路径。</p>
-
-<h3 id="gap-peer">Peer pane 的 composer 松弛</h3>
-<p>传入 <code>areaRef</code> 时（peer pane），<code>readComposerHeight()</code> 被强制为 0，overlay 当作 0，松弛大约偏松一个 composer 盒子。Peer 发布的 <code>--peer-composer-h</code> 是<strong>测得的 composer 根高度 + 24px</strong>（<code>peer-session-pane.tsx</code>），并且同一变量用作 <code>.chat-messages</code> 的 <code>padding-bottom</code>（<code>peer-session-pane.css</code>）。主栏的 <code>--main-composer-height</code> 只是 overlay 高度；垫是 <code>max(25vh, composer + 24)</code>。</p>
-<p>松弛是 <code>max(0, pad - overlay) + 8</code>。把 <code>--peer-composer-h</code> 当 overlay 会得到 <code>(h+24) - (h+24) + 8 = 8</code>，紧 24px。该变量与 <code>--main-composer-height</code> 不是同类。overlay 与 pad 是分开的输入：pad 来自 <code>readBottomPadding(column)</code>；peer overlay 来自 composer 根（或 <code>--peer-composer-h - 24</code>，或第二个 CSS 变量）。单元用例：peer pad <code>h+24</code>，overlay <code>h</code> ⇒ slack <code>24+8</code>。</p>
-<p>Peer 的 <code>useChatAreaStick</code> 使用 <code>scrollKey = sessionId ? \`peer:${sessionId}\` : null</code>。主栏使用 <code>activeChatKey</code>。<code>sendChatMessage</code> 只知道 <code>sessionId</code>。按任一键做 consume-once 的 map 会让两个 hook 抢同一条记录，或永远匹配不上分屏 pane。</p>
-
-<h3 id="gap-tests">测试已经编码的内容</h3>
-<ul>
-  <li><code>check-chat-ui.mjs</code>：切换恢复已存像素；<code>atBottom</code> 时跟随；向上翻时 agent 行保持；自己的发送即使远离底部也跟随；<code>atBottom</code> 默认 true；MessageList 接入 <code>lastRole === "user"</code>。</li>
-  <li><code>jump-latest.test.mjs</code>：松弛公式；Jump portal 在 <code>#chatView</code> 而不是滚动器；原生平滑滚动；淡出；无虚拟列表库。</li>
-  <li><code>apps/web/tests/desktop/self-update-scroll.test.mjs</code> 是持久化契约：带 <code>data-self-update-verification</code> 时跳过 <code>writeChatScroll</code>。<code>apps/desktop/scripts/check-self-update-ui.js</code> 只检查该属性是否出现在 capture 上。</li>
-</ul>
-<p>缺失：hook 时序、指针抑制 vs 发送、<code>history.after</code> 发送、ack 翻转 <code>ownTurn</code>、残留 <code>scrollToBottom</code> 调用方、欢迎页 overflow、peer overlay vs pad、加载器滚动写入、take-latest 键 vs <code>peer:${sessionId}</code>。</p>
+<p>主视图在欢迎页解除滚动限制后重试当前已接受发送。分栏发送不使用该行为。</p>
+<h3 id="gap-peer">分栏视口独立</h3>
+<p>主视图和分栏使用不同 scroller key。接受的 queue/steer 只跟随提交视图；附件拒绝保留两个视口。</p>
+<h3 id="gap-tests">已核实的浏览器 fixture 缺口</h3>
+<p>两个旧窗口浏览器 fixture 没有响应自动首次激活的最新请求，却等待非零初始位置。四个 queue/steer 用例假设加载中附件拒绝后没有记录，但首次激活已经创建了完成后的记录。这些断言与激活及记录生命周期契约冲突。仅修正具体 fixture：明确建立旧历史阅读位置，比较拒绝准入前后的准确记录。不改变首次激活最新请求、延迟增长定位、手动取消或发送语义；保留现有 Node 激活回归的验收含义。</p>
+<p>受控浏览器测试使用生产 hook 和隔离后端响应，不证明已安装 App 或真实 provider 验收。fixture 修复和独立审核证据单独记录。</p>
 </section>
 
 <section id="corpus">

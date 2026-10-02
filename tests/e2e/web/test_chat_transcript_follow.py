@@ -17,7 +17,7 @@ import {useSessionStore} from './lib/session-store';
 import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
 import {seedHistoryWindow,loadSessionHistoryWindow,registerHistoryViewport} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
-import {noteTakeLatest,defaultScrollerKey,peekTakeLatest} from './lib/chat/chat-scroll';
+import {noteTakeLatest,defaultScrollerKey,peekTakeLatest,writeChatScroll} from './lib/chat/chat-scroll';
 import {appendLocalUserTurn} from './lib/net/chat-stream';
 import {sendChatMessage} from './components/chat/composer/submit/send-chat-message';
 function page(id,start=200){let end=start+50;return {messages:Array.from({length:50},(_,i)=>({id:`${id}-${start+i}`,role:'user',content:`Message ${start+i}`,status:'completed'})),history:{snapshot:id,head_id:`${id}-499`,before:`${id}-${start}`,after:end<500?`${id}-${end-1}`:null,start,end,total:500}};}
@@ -27,6 +27,9 @@ window.seed=(id,start)=>{const r=page(id,start);runtimeState.conversations[id]={
 window.reply=(req,fail=false)=>{let start=req.history_latest?450:req.history_around?Number(req.history_around.split('-').at(-1))-25:req.history_before?Number(req.history_before.split('-').at(-1))-50:Number(req.history_after.split('-').at(-1))+1;socket.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'session_history_page',data:{id:fail?'wrong':req.session_id,action:'load_session',request_id:req.request_id,...page(req.session_id,start)}})}));};
 window.pageState=id=>useSessionHistory.getState().pages[id];
 runtimeState.currentSessionId='main';useSessionStore.setState({currentSessionId:'main',activeChatKey:'main'});window.seed('main',200);
+// Test an explicit send from a restored older reading position, rather than
+// leaving an unrelated first-activation latest request unresolved.
+writeChatScroll(window.sessionStorage,'main',5500);
 function Main(){const ids=useSessionStore(s=>s.messageOrder.main??[]);const {detached,jumpToLatest}=useChatAreaStick('main',ids.at(-1)??null,true);useHistoryWindow('main',true);return <><div id="chatArea" tabIndex={0}><div id="chatMessages">{ids.map(id=><div data-msg-id={id} className="row" key={id}>{id}</div>)}</div></div>{detached&&<button onClick={jumpToLatest}>Jump</button>}</>;}
 function Dual(){const left=useRef(null),right=useRef(null),lc=useRef(null),rc=useRef(null);
   const L=useSessionStore(s=>s.messageOrder.left??[]);const R=useSessionStore(s=>s.messageOrder.right??[]);
