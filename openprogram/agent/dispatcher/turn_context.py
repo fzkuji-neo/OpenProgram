@@ -226,7 +226,13 @@ class TurnBindings:
                 def exec(self, *args, **kwargs):
                     raise self.setup_error
 
-            unavailable = UnavailableRuntime(model=req.model_override or "unavailable")
+                async def async_exec(self, *args, **kwargs):
+                    raise self.setup_error
+
+            # Runtime parses colons in constructor model strings. Tagged
+            # local models must not trigger a second provider lookup here.
+            unavailable = UnavailableRuntime(model="unavailable")
+            unavailable.model = req.model_override or "unavailable"
             unavailable.setup_error = exc
             unavailable.provider_id = model.provider if model is not None else None
             self._runtime_token = _current_runtime_var.set(unavailable)
