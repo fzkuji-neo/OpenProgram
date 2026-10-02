@@ -307,7 +307,9 @@ UPDATE_DESC = (
     "and rebuilds derived views. A Scheduler lifecycle may be recorded when "
     "it has durable value; update it when the task closes, or delete it when "
     "nothing should remain. Structured whole-file changes and the older "
-    "unified-diff patch form remain accepted for direct Markdown edits."
+    "unified-diff patch form remain accepted for direct Markdown edits. "
+    "Substantive Topic prose must form a cited record; uncited prose is rejected "
+    "with INVALID_TOPIC_FORMAT before any part of the batch is committed."
 )
 UPDATE_SPEC: dict[str, Any] = {
     "name": UPDATE_NAME,
@@ -325,7 +327,10 @@ UPDATE_SPEC: dict[str, Any] = {
                     "properties": {
                         "path": {"type": "string"},
                         "action": {"type": "string", "enum": ["write", "delete"]},
-                        "content": {"type": "string"},
+                        "content": {
+                            "type": "string",
+                            "description": "Topic Markdown with source-backed records. Substantive uncited prose is rejected atomically with INVALID_TOPIC_FORMAT.",
+                        },
                     },
                     "required": ["path", "action"],
                     "additionalProperties": False,

@@ -427,6 +427,8 @@
   </div>
 
   <!-- ══════════ 03 Transaction ══════════ -->
+  <p class="note">Topic normalization rejects substantive uncited prose with <code>INVALID_TOPIC_FORMAT</code> before pruning empty sections or topics. Changes, patches, editor/CLI staged edits and writer shell commits share this validation. Rejection preserves committed topic/source bytes, Runtime state, revision and Git history. Cited native/legacy records and genuinely empty topics retain their existing rules.</p>
+  <p class="note">An instance-owned trusted pre-install callback records autosave or restore history only after validation and stage preparation, before committed files are moved. Invalid edits never create a manual checkpoint; callback failure never installs. A valid edit still records the exact pre-edit snapshot and the existing checkpoint deadline. Tools and request text cannot supply this callable.</p>
   <h2 id="txn"><span class="num">03</span> Transactions: stage, validate, install</h2>
   <p class="lead">The model never edits the repository directly. It edits a temporary copy, installed only after complete validation. Failed validation discards the copy without changing a byte in the repository.</p>
 

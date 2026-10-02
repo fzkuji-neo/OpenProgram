@@ -497,6 +497,23 @@ not supply, links a block that does not exist, or breaks the topic
 format is refused whole and the workspace is left byte-identical.
 Derived views are rebuilt only after a successful install.
 
+Substantive Topic prose must be represented by a cited record. Normalization
+rejects uncited prose with `INVALID_TOPIC_FORMAT` before pruning record-free
+sections or topics. Heading-only and whitespace-only topics remain empty
+and may be pruned; native block records and cited legacy records retain their
+existing grammar. The complete transaction is rejected, including new Sources,
+Runtime state, revision and Git history. No successful whole-file write may
+acknowledge text that normalization discards. This boundary is shared by
+`memory_update` changes and patches, editor/CLI staged edits and writer shell
+commits.
+
+Autosave and restore history preparation runs through an instance-owned trusted
+callback after validation and stage preparation, before committed files move.
+Rejected edits create no checkpoint; callback errors install nothing. Valid
+autosaves retain the exact pre-edit snapshot and existing checkpoint deadline.
+The callback is not a tool parameter or a value derived from request text.
+
+
 A cross-process lock (`.scriptorium/write.lock`) serialises writers, so
 a background write and a live chat write cannot interleave. Background
 writing takes the lock with a one-second timeout and gives up rather
