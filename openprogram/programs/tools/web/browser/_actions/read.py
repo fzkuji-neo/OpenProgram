@@ -57,22 +57,27 @@ def _accessibility(session_id: str, selector: str | None) -> str:
     sess = _b._require_session(session_id)
     if isinstance(sess, str):
         return sess
+    from .._privacy import password_values, redact_password_values
+    page = sess["page"]
     try:
-        page = sess["page"]
+        secrets = password_values(page)
+    except Exception:
+        return "Error fetching accessibility tree: password redaction is unavailable"
+    try:
         target = page.locator(selector) if selector else page.locator("body")
         if target.count() == 0:
-            return f"(no elements matched `{selector}`)"
-        from .._privacy import password_values, redact_password_values
-        secrets = password_values(page)
-        tree = target.first.aria_snapshot()
-        tree = redact_password_values(tree, secrets + password_values(page))
-        if not tree:
-            return "(empty accessibility tree)"
-        if len(tree) > 8000:
-            tree = tree[:8000] + f"\n\n[truncated, {len(tree) - 8000} more chars]"
-        return tree
+            tree = f"(no elements matched `{selector}`)"
+        else:
+            tree = target.first.aria_snapshot() or "(empty accessibility tree)"
     except Exception as e:
-        return f"Error fetching accessibility tree: {type(e).__name__}: {e}"
+        tree = f"Error fetching accessibility tree: {type(e).__name__}: {e}"
+    try:
+        tree = redact_password_values(tree, secrets + password_values(page))
+    except Exception:
+        return "Error fetching accessibility tree: password redaction is unavailable"
+    if len(tree) > 8000:
+        tree = tree[:8000] + f"\n\n[truncated, {len(tree) - 8000} more chars]"
+    return tree
 
 
 def _screenshot(session_id: str, path: str) -> str:
