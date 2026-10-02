@@ -130,4 +130,4 @@ Linux 无图形桌面和暂不支持的 Wayland 桌面捕获会与缺少依赖�
 
 ## 模型选择
 
-从聊天执行时，GUI 和 Workflow 的内部模型调用继承当前轮次的 provider 和 model。请求 override 优先于会话选择，再使用 agent profile。所选模型的 provider 认证仍需有效。
+从聊天执行时，GUI 和 Workflow 的内部模型调用继承当前轮次的 provider 和 model。请求 override 优先于会话选择，再使用 agent profile。该选择同样传入工具子进程。所选模型的 provider 认证仍需有效；初始化失败时保留所选模型的错误，不自动改用其他 provider。

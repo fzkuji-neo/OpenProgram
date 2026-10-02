@@ -206,6 +206,12 @@ def _wrap_agentic_runtime_block(
                 owner_attempt_id = owner.current_attempt_id if owner else None
                 owner_generation = owner.owner_lease.get("generation") if owner else None
 
+                from openprogram.agent import dispatcher
+                profile = (req.profile_snapshot if req.profile_snapshot is not None
+                           else dispatcher._load_agent_profile(req.agent_id))
+                selected_model = dispatcher._resolve_model(profile, req.model_override)
+                work_dir = current_worktree_path()
+
                 def _run_subprocess():
                     surface_snapshot = req.surface_context
                     captured_surface = None
@@ -239,7 +245,9 @@ def _wrap_agentic_runtime_block(
                             kwargs=subprocess_args,
                             session_id=req.session_id,
                             anchor_msg_id=assistant_msg_id,
-                            work_dir=current_worktree_path(),
+                            work_dir=work_dir,
+                            provider=selected_model.provider,
+                            model=selected_model.id,
                             on_event=on_event,
                             # LLM-driven: pass the LLM's tool_call_id so the
                             # subprocess writes its placeholder under the

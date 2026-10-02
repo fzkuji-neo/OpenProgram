@@ -929,6 +929,7 @@ def _child_entry(
             user_text="",
             agent_id="main",
             source="web",
+            model_override=f"{provider}/{model}" if provider and model else None,
             render_range=render_range,
             permission_rules=_permission_rules_from_snapshot(
                 permission_rules_snapshot

@@ -87,10 +87,8 @@ class TurnBindings:
         # pick up our stub and any ``runtime.exec`` inside the function
         # body would return whatever the stub's ``call`` does (a fixed
         # string or empty) rather than actually calling an LLM. If
-        # real-runtime construction fails (e.g. no provider configured),
-        # fall back to NOT setting _current_runtime so @agentic_function
-        # can create its own runtime as before — DAG persistence
-        # gracefully degrades to off for this turn.
+        # runtime construction fails, internal model calls retain that
+        # error rather than auto-detecting a different provider.
         from openprogram.store import (
             SessionNodeWriter as _GraphStore,
             _store as _store_var,
@@ -191,6 +189,7 @@ class TurnBindings:
         # file_backups/, hence no per-turn file list, no diff, no undo.
         # The store needs a session, not a provider — so it binds regardless.
         self._store_token = _store_var.set(_GraphStore(db, req.session_id))
+        model = None
         try:
             from openprogram.providers.registry import create_runtime as _create_rt
             from openprogram.agent import dispatcher
@@ -214,13 +213,24 @@ class TurnBindings:
             # Nested model calls must honour the same selection as the chat
             # loop, not auto-detect a separately authenticated default provider.
             model = dispatcher._resolve_model(profile, override)
+            req.model_override = f"{model.provider}/{model.id}"
             _dag_runtime = _create_rt(provider=model.provider, model=model.id)
             self._runtime_token = _current_runtime_var.set(_dag_runtime)
-        except Exception:
-            # No provider configured / runtime construction blew up.
-            # Skip only the runtime; @agentic_function will still work, just
-            # without an auto-injected runtime.
-            self._runtime_token = None
+        except Exception as exc:
+            # Preserve the setup error until an internal model call needs it.
+            # Leaving this unbound would select an unrelated global provider,
+            # or inherit another turn's runtime. Non-model tools still work.
+            from openprogram.agentic_programming.runtime import Runtime
+
+            class UnavailableRuntime(Runtime):
+                def exec(self, *args, **kwargs):
+                    raise self.setup_error
+
+            unavailable = UnavailableRuntime(model=req.model_override or "unavailable")
+            unavailable.setup_error = exc
+            unavailable.provider_id = model.provider if model is not None else None
+            self._runtime_token = _current_runtime_var.set(unavailable)
+            _log.debug("nested runtime unavailable for selected turn model", exc_info=True)
         self._render_range_token = _render_range_var.set(req.render_range)
         from openprogram.agent.surface_context import bind as _bind_surface
         self._surface_token = _bind_surface(req.surface_context)
