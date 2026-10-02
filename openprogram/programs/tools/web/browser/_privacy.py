@@ -3,9 +3,20 @@ from __future__ import annotations
 
 import json
 
-PASSWORD_VALUES_SCRIPT = """() => Array.from(
-    document.querySelectorAll('input[type=password]'), element => element.value
-).filter(value => value.length > 0)"""
+PASSWORD_VALUES_SCRIPT = """() => Array.from((() => {
+    const values = new Set();
+    const roots = [document];
+    while (roots.length) {
+        const root = roots.pop();
+        for (const element of root.querySelectorAll('input[type=password]')) {
+            if (element.value) values.add(element.value);
+        }
+        for (const element of root.querySelectorAll('*')) {
+            if (element.shadowRoot) roots.push(element.shadowRoot);
+        }
+    }
+    return values;
+})())"""
 
 
 def password_values(page) -> tuple[str, ...]:

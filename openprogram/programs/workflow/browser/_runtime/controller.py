@@ -687,8 +687,12 @@ class BrowserPageController:
     def _verify(self, page, frame_id: str, assertion: str, value: str) -> dict:
         from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
         secrets = password_values(page)
-        text = redact_password_values(page.inner_text("body"), secrets)
-        snapshot = redact_password_values(page.evaluate(state._OBSERVE_SCRIPT), secrets)
+        if any(secret and secret.casefold() in value.casefold() for secret in secrets):
+            return {"ok": False, "passed": False, "reason_code": "sensitive_assertion"}
+        # Assertions evaluate the real Page. Redaction is an output policy;
+        # it must never turn a visible secret into a successful absence check.
+        text = page.inner_text("body")
+        snapshot = page.evaluate(state._OBSERVE_SCRIPT)
         checks = {
             "text_contains": value in text,
             "text_not_contains": value not in text,
@@ -714,7 +718,7 @@ class BrowserPageController:
         if passed:
             self._verified_mutation = self._mutations
             self._evidence = [evidence]
-        return {"ok": True, "passed": passed, "evidence": evidence}
+        return redact_password_values({"ok": True, "passed": passed, "evidence": evidence}, secrets)
 
     def final_result(self, *, summary: str, reason_code: str | None = None) -> dict:
         return self._owner.submit(
