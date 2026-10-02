@@ -57,6 +57,7 @@ class EvidenceGate:
         self.task, self.audience = task, audience
         self.rows, self.originals, self.size = {}, {}, 0
         self.current_owner_source = None
+        self.prime_receipts, self.primed = [], False
         self.lock = asyncio.Lock()
         self.native = read_conversation
         self.tool = self.native.model_copy(update={'execute': self.execute})
@@ -77,7 +78,93 @@ class EvidenceGate:
                 'for this audience overrides the current-week default. Retrieved references must date '
                 'to that week. Current supplied owner facts may explicitly describe another period, '
                 'subject to independent temporal verification; their source date is never rewritten. Default reporting week: '
-                + self.week + '. Current supplied owner evidence: ' + encode(list(self.rows.values())))
+                + self.week + '. Bound original evidence: ' + encode(list(self.rows.values()))
+                + '\nCurrent supplied owner evidence: ' + encode([r for r in self.rows.values() if r['current_supplied_owner']]))
+
+    def prime(self):
+        """One bounded native discovery/read pass through the caller's actual tool gates."""
+        if self.primed:
+            return
+        self.primed = True
+        from openprogram.agentic_programming.runtime_scope import runtime_scope
+        from openprogram.agentic_programming.runtime.shared import _run_async, _current_tool_policy
+        from openprogram.agent.attended import denied_ask_tools
+        from openprogram.programs import apply_tool_policy
+        from openprogram.programs.tools.agents.send_message.list_agents import list_agents
+        with runtime_scope() as runtime:
+            policy = _current_tool_policy.get(None) or {}
+            tools = apply_tool_policy([list_agents, self.tool], source=policy.get('source'),
+                allow=policy.get('allow'), deny=[*(policy.get('deny') or []), *denied_ask_tools(runtime.session_id)],
+                exposure_filter=False)
+            tools = runtime._gate_inner_tools(tools) or []
+            _run_async(self._prime_reads(tools))
+
+    async def _prime_reads(self, tools):
+        from uuid import uuid4
+        from collections import deque
+        from openprogram.agent.agent_loop import _execute_tool_calls, _create_agent_stream
+        from openprogram.agentic_programming.function import _run_pre_invocation_hooks, _cancellation_check
+        from openprogram.providers.utils.deadline import remaining
+        from openprogram.providers.types import AssistantMessage, ToolCall
+        from openprogram.agent.session_db import default_db
+        from openprogram.memory.policy import allowed
+
+        async def checkpoint(_kind=None, _payload=None):
+            _run_pre_invocation_hooks()
+            _cancellation_check()
+            left = remaining()
+            if left is not None and left <= 0:
+                raise TimeoutError('Weekly original-source read deadline expired')
+            return False
+
+        async def invoke(name, args):
+            await checkpoint()
+            if not allowed() or name not in {t.name for t in tools}:
+                return None
+            message = AssistantMessage(content=[ToolCall(id='weekly-prime-' + uuid4().hex,
+                name=name, arguments=args)], api='program', provider='program',
+                model='weekly-source-prime', timestamp=int(datetime.now().timestamp() * 1000))
+            stream = _create_agent_stream()
+            try:
+                result = await _execute_tool_calls(tools, message, None, stream, safe_point_hook=checkpoint)
+            finally:
+                stream.end([])
+            receipts = result['tool_results']
+            if not receipts:
+                return None
+            receipt = receipts[0]
+            self.prime_receipts.append({'origin': 'weekly_source_prime', 'tool': name,
+                'arguments': dict(args), 'call_id': receipt.tool_call_id,
+                'result': receipt.model_dump(mode='json')})
+            await checkpoint()
+            return None if receipt.is_error else receipt
+
+        listing = await invoke('list_agents', {'scope': 'all', 'limit': 20})
+        if listing is None or _text(listing).startswith('[list_agents error]'):
+            return
+        # Addresses must be both visible in the real listing and actual branch metadata.
+        db = default_db()
+        listed = set(re.findall(r'^  - to=([\w-]+):([\w-]+)(?:\s|$)', _text(listing), re.M))
+        groups = []
+        for session in db.list_sessions(limit=20):
+            sid = session['id']
+            heads = deque((sid, branch['head_msg_id']) for branch in db.list_branches(sid)
+                if not branch.get('archived') and (sid, branch['head_msg_id']) in listed)
+            if heads:
+                groups.append(heads)
+        targets = []
+        while groups and len(targets) < 10:
+            for heads in groups:
+                if heads and len(targets) < 10:
+                    targets.append(heads.popleft())
+            groups = [heads for heads in groups if heads]
+        for sid, head in targets:
+            if len(self.rows) >= 30 or self.size >= 18000 or not allowed():
+                break
+            receipt = await invoke('read_conversation', {'session_id': sid, 'head_id': head,
+                'start_turn': -20, 'end_turn': 0, 'include_function_calls': True, 'max_chars': 6000})
+            if receipt is None:
+                break
 
     def _current_owner(self):
         from openprogram.agent.turn_request_context import get_turn_request
