@@ -1204,7 +1204,7 @@ render();
 </tr>
 </thead>
 <tbody>
-<tr><td>Selected desktop access for task-only GUI</td><td>The public bridge and canonical preflight currently require desktop access before the default capability planner. A controlled missing-desktop/available-browser public-entry check reproduces this admission failure. The retained-function design specifies a pre-step typed wait.</td><td>Not implemented. Required gates cover forced and Agent-tool admission, same-task worker resume, non-replay of committed browser effects, cancellation, revocation, stale generations and crash reconciliation. Existing browser tests and direct-call results do not establish these recovery guarantees.</td></tr>
+<tr><td>Selected desktop access for task-only GUI</td><td>The public bridge retains planner decisions and capability results through a fixed durable function API. Desktop selection suspends before effect registration and opens a canonical system-access wait; authorized browser work does not require desktop grants. Live Runtime objects remain host bindings rather than saved arguments.</td><td>Source implementation has controlled forced-subprocess and Agent-checkpoint tests for same-task resume, worker replacement, cancellation, fresh revocation, expired deadlines, stale ownership and unconfirmed effects. Complete stability checks, independent review and installed default-App permission acceptance remain pending. This does not establish native desktop or VM compatibility.</td></tr>
 
 <tr>
 <td>Existing GUI/browser boundaries</td>

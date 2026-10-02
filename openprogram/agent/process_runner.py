@@ -1079,7 +1079,7 @@ def _child_entry(
         with open(result_path, "wb") as f:
             pickle.dump(payload, f)
     except BaseException as e:  # noqa: BLE001
-        from openprogram.agentic_programming.continuation import FunctionSuspended
+        from openprogram.agentic_programming.continuation import FunctionSuspended, FunctionSystemAccessRequired
         # A recoverable invocation can fail before its wrapper is entered (for
         # example, an unavailable retained dependency or runtime credential).
         # Preserve its completed steps and pending result destination.
@@ -1109,6 +1109,8 @@ def _child_entry(
             if isinstance(e, FunctionSuspended)
             else {"error": f"{type(e).__name__}: {e}"}
         )
+        if isinstance(e, FunctionSystemAccessRequired):
+            outcome["system_access_required"] = True
         try:
             with open(result_path, "wb") as f:
                 pickle.dump(outcome, f)

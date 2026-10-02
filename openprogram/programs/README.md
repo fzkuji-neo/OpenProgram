@@ -29,6 +29,7 @@ relies on.
 ## Files in this directory
 
 - **`_execution_common.py`** — Shared tool-execution wrappers used by ``@function`` and ``@agentic_function``
+- **`_gui_operations.py`** — Fixed host operations for the version-one durable GUI orchestration API
 - **`_helpers.py`** — Small helpers shared by tool `execute` implementations
 - **`_programs.py`** — First-party *programs*
 - **`_providers.py`** — Shared provider-registry scaffolding for tools with pluggable backends

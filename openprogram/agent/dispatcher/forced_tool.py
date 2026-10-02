@@ -115,10 +115,10 @@ def dispatch_forced_tool_call(
             or (
                 tool_name == "gui_agent"
                 and (
-                    str((tool_input or {}).get("surface") or "desktop")
+                    str((tool_input or {}).get("surface") or "")
                     .strip()
                     .lower()
-                    == "browser"
+                    in {"", "browser"}
                     or bool((tool_input or {}).get("backend"))
                 )
             )

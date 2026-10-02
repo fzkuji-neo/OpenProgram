@@ -1239,7 +1239,7 @@ render();
 </tr>
 </thead>
 <tbody>
-<tr><td>仅传 task 的 GUI 按已选桌面能力请求授权</td><td>公共 bridge 与 canonical preflight 目前在默认能力规划前要求桌面权限。受控的“桌面缺授权、浏览器可用”公共入口测试复现这一准入错误。保留函数设计规定 desktop step 之前的 typed wait。</td><td>尚未实现。必须验证 forced 和 Agent 工具准入、同任务 worker 续跑、已提交浏览器副作用不重放、取消、撤销授权、旧 generation 与崩溃后的未确定结果处理。现有浏览器测试与直接函数结果不能证明这些恢复保证。</td></tr>
+<tr><td>仅传 task 的 GUI 按已选桌面能力请求授权</td><td>公共 bridge 通过固定 durable function API 保留规划决策和能力结果。选择桌面能力后，在登记副作用前暂停并创建 canonical system-access wait；已授权的浏览器操作不要求桌面权限。live Runtime 只通过 host binding 传入，不写入保存的参数。</td><td>源码已有受控 forced 子进程和 Agent checkpoint 测试，覆盖同任务续跑、worker 替换、取消、实时撤销授权、截止时间失效、旧所有权和未确认副作用。完整稳定性测试、独立复核及已安装默认 App 的权限验收仍待完成。这些检查不证明原生桌面或 VM 兼容性。</td></tr>
 
 <tr>
 <td>现有 GUI/浏览器边界</td>
