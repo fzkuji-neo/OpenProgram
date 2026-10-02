@@ -38,6 +38,8 @@ openprogram programs run gui_agent -a task="在不置顶窗口的情况下检查
 
 浏览器 `observe` 返回每个元素的 `ref`、`name`、`role` 和 `label`。标签来自 `aria-labelledby`、`aria-label` 或关联的 HTML label，不根据祖先文字猜测。文本输入与 textarea 返回精确的 DOM `value`；contenteditable 返回 rendered `innerText`，并标记 `value_source="inner_text"`。值保留空白，写入后必须重新观察。字段精确验收要求 `value` 是字符串，且 `value_truncated=false`、`value_redacted=false`；ARIA 的空白归一化不能证明精确相等。每个值最多返回 8192 个 Unicode code point，同一 frame 的值合计最多占用 32768 UTF-8 字节。受限制的字段标记 `value_truncated=true`。密码字段及包含已知密码的普通字段不返回 `value`，并标记 `value_redacted=true`。
 
+native `type` 对普通 input 和 textarea 保持原生填写。contenteditable 在原生可编辑性检查后插入纯文本并派发 input 事件，以保留空行，不修改编辑器 CSS。如果编辑器改写了文本或 CSS 折叠了有意义的空白，操作返回 `ok=false`、`reason_code="editable_value_mismatch"` 和 `observe_required=true`。必须先观察当前值再决定后续操作；该结果不授权自动重复写入。
+
 浏览器观察会从 DOM 名称、可见文字、ARIA 树和上游 MCP 快照中隐藏非空密码字段值，也检查子 frame 和开放的 shadow root。字段标签与普通输入值继续可见；观察中任何与密码相同的文字都会隐藏。动作元数据及通用浏览器的 Accessibility 动作采用相同保护，包括错误和无匹配回复。新鲜度检查在内部保留 Page 原始身份，展示脱敏不会使稳定页面失效。生成的 frame ID 和 ref 避免与已知密码发生冲突。验证检查 Page 的真实内容，不使用脱敏后的观察文字。最终结果及 completion evidence 使用相同脱敏处理。包含已知密码或其 JSON 转义形式的断言会返回 `sensitive_assertion` 和 `passed=false`，不回显断言值。
 
 浏览器完成状态采用最近一次成功验证。后续验证被拒绝或失败时，先前的成功证据失效。Page 控制器报告成功前会重新检查文档身份，并对当前内容再次检查已记录的断言；发生导航、文档替换或确认文字消失时，需要重新验证。
