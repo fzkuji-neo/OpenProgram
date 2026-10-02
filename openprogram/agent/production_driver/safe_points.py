@@ -705,7 +705,10 @@ class SafePointsOperations:
             # Direct non-durable hook callers do not carry a revision contract.
             restart_window = window_seconds() if getattr(request, "_execution_revision_id", None) or continuation is not None else 0
             not_started = terminal_receipt.get("outcome") == "not_started"
-            if command is None and restart_window == 0:
+            selected_access = kind == "tool.suspended" and payload.get("system_access_required") is True
+            if selected_access and (payload.get("tool_name") != "gui_agent" or payload.get("call_key") != payload.get("tool_call_id")):
+                raise shared.AgentDriverError("invalid_wait", "Selected GUI wait has no exact tool invocation")
+            if command is None and restart_window == 0 and not selected_access:
                 if not_started:
                     service.effects.resolve_not_started(
                         effect_id, receipt=terminal_receipt,
@@ -759,6 +762,11 @@ class SafePointsOperations:
                     current = service.executions.get_execution(attempt.execution_id)
                     if current is None or current.current_attempt_id != attempt.attempt_id:
                         raise
+            if selected_access and command is None:
+                self._open_selected_gui_system_access_wait(
+                    attempt, request, payload["call_key"], agent_checkpoint=checkpoint,
+                )
+                return True
             if kind != "tool.suspended":
                 remember_completed_action()
             if command is not None and command.kind is CommandKind.STEER and steer_queue is not None:

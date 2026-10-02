@@ -30,6 +30,8 @@ openprogram programs run gui_agent -a task="在不置顶窗口的情况下检查
 
 受信任调用方还可以提供隐藏的控制器设置：`max_steps` 是动作安全上限，默认 150；`max_seconds` 是可选的总耗时安全上限；`app_name` 选择组件记忆；`backend` 指定已有 Page backend；`vm_url` 启用 `vm_use`。`surface="browser"`，或未指定其他 surface 时设置 `backend`，会选择下文的标准浏览器 Agent 路径。其他 surface 设置仍为兼容性偏好。这些设置不出现在公开函数 schema 中。
 
+仅传 `task` 的执行在规划和已授权浏览器操作前不要求桌面权限。规划选择 `computer_use` 后，执行在发送该能力操作前检查原生权限。缺少可申请的系统授权时暂停同一任务；授权后使用保存的规划决策和能力结果继续。取消会阻止续跑，未确认结果的操作不会自动重复。缺少原生依赖仍是能力不可用，不进入权限等待。显式桌面执行保留初始权限检查。已安装默认 App 的真实权限恢复仍需验收。
+
 ## 显式浏览器执行
 
 在有效的 macOS Runtime 执行中，受信任调用方可以选择 `surface="browser"`。该路径使用一个标准 `agent()` 循环和持久、隔离的 `gui_exec` Python 工具，列出上下文授权的 Page，获取一次性 Page 权限并返回不透明句柄。它不会自动创建 Page，也不调用旧能力规划器。默认 backend 为 `open_claude_chrome`；不支持操作校验的显式 MCP backend 返回 `infeasible`，不会静默选择其他 backend。

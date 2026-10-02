@@ -1832,13 +1832,18 @@ async def _execute_tool_calls(
         except _SafePointStop:
             stop_at_safe_point = True
             break
-        except FunctionSuspended:
+        except FunctionSuspended as exc:
             if safe_point_hook is None:
                 raise
+            from openprogram.agentic_programming.continuation import FunctionSystemAccessRequired
+            selected_access = isinstance(exc, FunctionSystemAccessRequired)
+            if selected_access and (tool_call.name != "gui_agent" or exc.call_key != str(tool_call.id)):
+                raise ValueError("Selected GUI wait has no exact tool invocation")
             stop_at_safe_point = bool(await safe_point_hook("tool.suspended", {
                 "tool_call_id": str(tool_call.id), "tool_name": tool_call.name,
                 "next_tool_index": index, "repeat_failures": dict(repeat_failures),
                 "tool_call_ids": [str(call.id) for call in tool_calls],
+                **({"system_access_required": True, "call_key": exc.call_key} if selected_access else {}),
             }))
             if not stop_at_safe_point:
                 raise

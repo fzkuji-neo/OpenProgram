@@ -112,11 +112,13 @@ class ActivationOperations:
                 and not tool_input.get("vm_url")
                 and not (not surface and tool_input.get("backend"))
             )
+            from openprogram.programs._runtime import get
+            tool = get(tool_name)
+            if tool is not None and getattr(tool, "_resumable", False):
+                return shared.CapabilitySet(pause=True, safe_point_kinds=(
+                    ("function.step.after", "agent.wait.before_tool") if desktop_wait else ("function.step.after",)
+                ), state_schema_version=1)
             if not desktop_wait:
-                from openprogram.programs._runtime import get
-                tool = get(tool_name)
-                if tool is not None and getattr(tool, "_resumable", False):
-                    return shared.CapabilitySet(pause=True, safe_point_kinds=("function.step.after",), state_schema_version=1)
                 return shared.CapabilitySet()
             return shared.CapabilitySet(
                 pause=True,
@@ -333,6 +335,15 @@ class ActivationOperations:
                 task.set_exception(exc)
             else:
                 task.set_result(result)
+                # Future callbacks release the old driver handle synchronously.
+                # Resume ready native waits only after both runtime and handle
+                # ownership have ended; startup also recovers this outcome.
+                execution = self.executions.get_execution(attempt.execution_id)
+                if execution is not None and execution.status is shared.ExecutionStatus.PAUSED and execution.reason_code == "system_access_required":
+                    try:
+                        shared.asyncio.run(self._control_service().recover_wait_outcomes())
+                    except Exception:
+                        shared._log.exception("selected system access outcome recovery failed")
 
         shared.threading.Thread(
             target=_run_owned_attempt,
