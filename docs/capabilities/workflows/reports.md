@@ -27,10 +27,9 @@ message date and session/message reference; assistant drafts and unattributed
 messages are excluded. A dated request or plan remains a candidate, not proof of
 completed work. Explicit
 materials take precedence. Records from other weeks, uncertain month/year-only
-dates, untrusted memory and explicit test records are excluded. Other audiences
+dates, pending memory records, untrusted raw memory sources and explicit test records are excluded. Generated memory notes can remain lookup candidates; they are not independently verified owner facts. Other audiences
 require source selection with exact quotes; they are not automatically treated
-as Tencent work. Discovery is bounded, so unavailable or insufficient sources
-still require clarification. Optional `report_roots` selects up to five source
+as Tencent work. Conversation discovery reads at most 20 recent sessions and the last 200 messages per session; combined candidate context is limited to 30 records and 18,000 UTF-8 bytes. Unavailable or insufficient sources require clarification within that inspected scope; this does not establish that no relevant work exists elsewhere. Optional `report_roots` selects up to five source
 directories.
 
 Successful Tencent and `weekly_report` calls return the report body directly. Sources,
