@@ -106,6 +106,8 @@ Search keys take effect on subsequent calls without restarting. An unavailable s
 | `image_analyze` | Describe an image / answer questions about it (local path or URL) | Any vision-model key: OpenAI / Anthropic / Gemini (reuses configured provider keys) |
 | `pdf` | Extract text from a PDF, with offset / limit paging | Bundled with the complete release (`pypdf`) |
 
+Image tools return an error result when the selected provider is unavailable, its request fails, or an image cannot be saved. `mixture_of_agents` also returns an error result for unknown model references, when every reference fails, or when synthesis fails. A successful answer remains successful even when some references fail or its text contains the word Error. Ordinary Python `execute(...)` calls retain their string results.
+
 ## Session and collaboration
 
 Collaboration splits into four domains, one word each — see
