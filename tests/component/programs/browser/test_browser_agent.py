@@ -686,6 +686,51 @@ def test_dom_verification_after_the_last_write_is_completion_authority():
     assert result["completion_evidence"] == [verified["evidence"]]
 
 
+
+@pytest.mark.parametrize("replacement", ["failed", "empty", "unsupported", "stale"])
+def test_rejected_verification_replaces_previous_completion_authority(replacement):
+    controller, api = _controller()
+    try:
+        observation = controller.execute(action="observe")
+        assert controller.execute(action="verify", expected_frame_id=observation["frame_id"],
+                                  assertion="text_contains", value="Name")["passed"] is True
+        if replacement == "failed":
+            assertion, value, frame = "text_contains", "Missing", observation["frame_id"]
+        elif replacement == "empty":
+            assertion, value, frame = "text_contains", "", observation["frame_id"]
+        elif replacement == "unsupported":
+            assertion, value, frame = "unknown_assertion", "Name", observation["frame_id"]
+        else:
+            assertion, value, frame = "text_contains", "Name", "stale-frame"
+        rejected = controller.execute(action="verify", expected_frame_id=frame,
+                                      assertion=assertion, value=value)
+        assert rejected.get("passed") is not True
+        result = controller.final_result(summary="claimed complete")
+        assert result["status"] == "failed"
+        assert result["completion_evidence"] == []
+    finally:
+        controller.close()
+
+
+@pytest.mark.parametrize("change", ["navigation", "document", "content"])
+def test_final_completion_rechecks_browser_evidence_after_external_page_change(change):
+    controller, api = _controller()
+    try:
+        observation = controller.execute(action="observe")
+        assert controller.execute(action="verify", expected_frame_id=observation["frame_id"],
+                                  assertion="text_contains", value="Name")["passed"] is True
+        if change == "navigation":
+            api.page.url = "https://example.com/replacement"
+        elif change == "document":
+            api.page.navigation_time_origin += 1
+        else:
+            api.page.body_text = "Saved confirmation was removed"
+        result = controller.final_result(summary="claimed complete")
+        assert result["status"] == "failed"
+        assert result["completion_evidence"] == []
+    finally:
+        controller.close()
+
 def test_verify_uses_latest_observation_when_frame_id_is_omitted():
     controller, _api = _controller()
     first = controller.execute(action="observe")
