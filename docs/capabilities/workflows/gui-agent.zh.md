@@ -134,4 +134,6 @@ Linux 无图形桌面和暂不支持的 Wayland 桌面捕获会与缺少依赖�
 
 正文不调用模型的 Program 可以在未配置模型时执行。模型或凭据不可用时，在正文调用 Runtime 才报错；不调用模型的步骤可以执行，也不会自动选择其他 provider。
 
+直接运行工具时，内部模型调用同样需要明确的 provider 和 model。缺失或不完整的选择不会使用全局 provider 检测或 provider 的默认模型。
+
 从聊天执行时，GUI 和 Workflow 的内部模型调用继承当前轮次的 provider 和 model。请求 override 优先于会话选择，再使用 agent profile。该选择同样传入工具子进程。所选模型的 provider 认证仍需有效；初始化失败时保留所选模型的错误，不自动改用其他 provider。

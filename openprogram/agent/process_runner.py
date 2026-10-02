@@ -898,6 +898,11 @@ def _child_entry(
             ))
         else:
             try:
+                # Forced calls may omit selection entirely. This child must
+                # never detect a global provider or fill a default model.
+                if not provider or provider == "auto" or not model:
+                    from openprogram.agent.internals._model_tools import _raise_model_unavailable
+                    _raise_model_unavailable(None)
                 rt = create_runtime(provider=provider, model=model)
             except Exception as error:
                 rt = _unavailable_runtime(
