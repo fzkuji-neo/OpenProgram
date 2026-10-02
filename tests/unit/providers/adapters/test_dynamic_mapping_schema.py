@@ -11,10 +11,12 @@ from openprogram.providers.types import Context, Model, Tool, ToolCall
 from openprogram.providers.utils.validation import validate_tool_arguments
 
 
-@pytest.mark.parametrize("annotation", [dict, dict[str, int], Mapping[str, int]])
+@pytest.mark.parametrize("annotation", [dict, dict[str, int], Mapping[str, int], dict[str, int | None], Mapping[str, int | None]])
 def test_mapping_annotations_keep_value_constraint_and_nullable(annotation):
     value = _python_type_to_json_schema(annotation)
-    expected = True if annotation is dict else {"type": "integer"}
+    expected = (True if annotation is dict else
+                {"type": ["integer", "null"]} if annotation in (dict[str, int | None], Mapping[str, int | None])
+                else {"type": "integer"})
     assert value == {"type": "object", "additionalProperties": expected}
     canonical = _widen_optionals_to_null({"type": "object", "properties": {"value": value}})
     assert "additionalProperties" not in canonical
@@ -27,6 +29,8 @@ def test_mapping_annotations_keep_value_constraint_and_nullable(annotation):
     if annotation is not dict:
         with pytest.raises(ValueError):
             validate_tool_arguments(tool, ToolCall(id="bad", name="mapped", arguments={"value": {"task": {"wrong": 7}}}))
+    if annotation in (dict[str, int | None], Mapping[str, int | None]):
+        assert validate_tool_arguments(tool, ToolCall(id="nullable-value", name="mapped", arguments={"value": {"task": None}})) == {"value": {"task": None}}
     assert canonical == original
 
 
