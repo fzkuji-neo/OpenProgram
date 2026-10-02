@@ -311,3 +311,46 @@ def test_spawn_rejection_transport_preserves_usage_without_inventing_job(
     assert data["status"] == "rejected"
     assert data["job_id"] is None
     assert data["usage"] == {"tokens": 7, "unknown_cost_events": 1}
+
+
+def test_exhausted_delegation_keeps_owned_job_output_available(monkeypatch):
+    from openprogram.agent.run_control import _current_session_id
+    from openprogram.programs import agent_tools
+    from openprogram.programs.tools.agents.send_message.send_message import depth
+
+    job = _job(status=JobStatus.COMPLETED)
+    job.result_text = 'existing-result'
+    waited = []
+    runner = SimpleNamespace(
+        get_job=lambda _job_id: job,
+        await_job=lambda job_id, timeout: waited.append(job_id) or job,
+        get_job_resource_view=lambda _job_id: _ResourceView(job.id),
+    )
+    monkeypatch.setattr('openprogram.agent.job.get_runner', lambda: runner)
+    monkeypatch.setattr(depth, 'max_messages', lambda: 2)
+    messages_token = depth._chain_messages.set(2)
+    session_token = _current_session_id.set('session-1')
+    try:
+        tools = {tool.name: tool for tool in agent_tools(toolset='full', only_available=True)}
+        assert 'job_output' in tools
+        assert 'agent' not in tools
+        result = asyncio.run(tools['job_output'].execute(
+            'read-owned-job', {'job_id': job.id, 'block': False}, None, None,
+        ))
+        assert not result.is_error
+        assert 'existing-result' in '\n'.join(block.text for block in result.content)
+        assert waited == [job.id]
+        assert depth.current_chain_messages() == 2
+
+        foreign_token = _current_session_id.set('another-session')
+        try:
+            denied = asyncio.run(tools['job_output'].execute(
+                'read-foreign-job', {'job_id': job.id, 'block': False}, None, None,
+            ))
+            assert 'was not dispatched by this session' in '\n'.join(block.text for block in denied.content)
+            assert waited == [job.id]
+        finally:
+            _current_session_id.reset(foreign_token)
+    finally:
+        _current_session_id.reset(session_token)
+        depth._chain_messages.reset(messages_token)
