@@ -93,6 +93,8 @@ The Function card displays that task result directly: `Succeeded` for a verified
 
 Source and README: `openprogram/programs/packages/gui_harness/`, upstream repository [Fzkuji/GUI-Agent-Harness](https://github.com/Fzkuji/GUI-Agent-Harness).
 
+Page discovery through `web_use` does not verify that its selected MCP backend can start. If the official MCP server cannot start or connect, observation returns `reason_code=computer_use_backend_unavailable`, `availability=unavailable`, the actual backend, and a closed session. OpenProgram releases the failed session and its Page lease; it does not silently select another backend. Check that backend’s dependencies and connection before listing Pages and observing again.
+
 Browser Workflow forms expose only the task and optional target URL. Action limits, timeout and backend remain internal settings with defaults; no Advanced section is shown. Explicit programmatic calls retain their supported overrides.
 
 ## System access diagnostics

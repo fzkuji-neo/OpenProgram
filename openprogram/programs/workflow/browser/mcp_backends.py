@@ -77,6 +77,8 @@ class _SyncMCPClient:
             self._loop.call_soon_threadsafe(self._loop.stop)
         if threading.current_thread() is not self._thread:
             self._thread.join(timeout=5)
+        if not self._thread.is_alive():
+            self._loop.close()
 
 
 class OfficialMCPPageBackend:
@@ -154,19 +156,21 @@ class OfficialMCPPageBackend:
         from openprogram.programs.tools.web.browser._chrome_bootstrap import (
             desktop_app_ws_url,
         )
-        endpoint = desktop_app_ws_url()
-        if not endpoint:
-            raise RuntimeError("computer_use_backend_unavailable")
-        client = self._client_factory(self._command(endpoint))
+        client = None
         try:
+            endpoint = desktop_app_ws_url()
+            if not endpoint:
+                raise RuntimeError("computer_use_backend_unavailable")
+            client = self._client_factory(self._command(endpoint))
             selected = self._bind_chrome(client, marker_name, marker_value)
             if selected is None:
                 raise RuntimeError("exact_page_not_found")
             session.state["mcp_client"] = client
             session.state["upstream_page"] = selected
             return client
-        except Exception:
-            client.close()
+        except BaseException:
+            if client is not None:
+                client.close()
             raise
         finally:
             try:
