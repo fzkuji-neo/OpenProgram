@@ -71,6 +71,13 @@ def _wrap_agentic_runtime_block(
     _run_in_worker = bool(getattr(agent_tool, "_run_in_worker", False))
 
     async def _runtime_block_execute(call_id, args, cancel, on_update):
+        from openprogram.agent.turn_request_context import capture_original_owner_input
+        try:
+            original_owner_input = capture_original_owner_input(req)
+        except Exception:
+            # Unavailable source data cannot prevent an unrelated program
+            # from executing, and cannot become report evidence.
+            original_owner_input = None
         from openprogram.agent.session_db import default_db
         from openprogram.agentic_programming.function import (
             _call_id as _call_id_var,
@@ -273,6 +280,7 @@ def _wrap_agentic_runtime_block(
                             authority=runtime_authority(
                                 req, f"agentic/{tool_name}"
                             ),
+                            original_owner_input=original_owner_input,
                             permission_rules_snapshot=(
                                 _permission_rules_snapshot(req.permission_rules)
                             ),
