@@ -38,6 +38,9 @@ openprogram mcp serve
 
 管理命令与常驻的 OpenProgram 后台 worker 通信；worker 未运行时先 `openprogram worker start` 启动（用 `openprogram status` 查看状态）。
 
+
+Worker 启动时，已配置的 MCP server 在后台连接。可选 server 正在连接或等待 OAuth 时，App 和核心 API 仍可使用。该 server 就绪前，其远程工具不可用；`mcp list` 和 MCP 设置页显示实际状态。每个 server 保留配置的启动和调用 timeout。
+
 ## 配置存哪
 
 `~/.openprogram/mcp_servers.json`（使用 `--profile <name>` 时是 `~/.openprogram-<name>/mcp_servers.json`）。格式：

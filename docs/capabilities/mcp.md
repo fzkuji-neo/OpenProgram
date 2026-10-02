@@ -40,6 +40,9 @@ If the token already exists, reuse the token you saved instead of running
 
 The management commands talk to the resident OpenProgram background worker; if it is not running, start it with `openprogram worker start` (check with `openprogram status`).
 
+
+Configured MCP servers connect in the background when the worker starts. The App and core API stay available while an optional server connects or waits for OAuth. Until that server is ready, its remote tools are unavailable; `mcp list` and the MCP settings page report its actual status. Each server keeps its configured startup and call timeouts.
+
 ## Where the config lives
 
 `~/.openprogram/mcp_servers.json` (with `--profile <name>`, `~/.openprogram-<name>/mcp_servers.json`). Format:
