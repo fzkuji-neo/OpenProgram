@@ -329,5 +329,5 @@ _deadline = start + timeout_s   <span class="cmt"># timeout_s=None ⇒ _deadline
   </div>
 
 </div>
-</body>
+<section><h2>Nested Codex authentication and terminal error contract</h2><p>Codex Runtime uses the provider active account by default, matching direct chat credentials; an explicit profile pins its own account. CredentialProvider refresh remains authoritative. Both synchronous and asynchronous Runtime calls preserve the provider terminal reason, retry verdict and Retry-After through AgentSession. A rejected OAuth token or any explicit non-retryable provider failure makes exactly one provider request; transient failures retain bounded recovery. Public fake-provider acceptance covers active versus pinned accounts, HTTP status classification and terminal failure propagation without external credentials or requests.</p></section></body>
 </html>

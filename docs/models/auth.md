@@ -83,6 +83,8 @@ Every provider supports multiple named accounts, and one account's credential po
 
 ### Codex browser sign-in
 
+Codex model calls inside a Program use the provider's active account, including an account selected with `openprogram providers use openai-codex <account>`. A script can pin a different account with `create_runtime(provider="openai-codex", profile="<account>")`. Terminal authentication failures and other provider errors explicitly marked non-retryable stop the internal call after one request; their error category is preserved through the Program runtime.
+
 The local callback listener starts before the authorization page opens. Keep the provider panel open until it reports success. If the page does not open, use **Open sign-in page**. If the callback cannot reach the app, paste the callback URL into the login panel; it must belong to the current sign-in attempt.
 
 A token-exchange HTTP 403 means OpenAI refused the exchange, but does not by itself identify whether account access or the network caused it. The panel distinguishes recognized authorization errors and shows connection retries. Start a fresh sign-in after an expired or already-used authorization code. Cancelling or leaving the panel ends that attempt.

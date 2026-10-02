@@ -329,5 +329,5 @@ _deadline = start + timeout_s   <span class="cmt"># timeout_s=None ⇒ _deadline
   </div>
 
 </div>
-</body>
+<section><h2>内部 Codex 认证与终止错误契约</h2><p>Codex Runtime 默认使用该 provider 的活动账户，与聊天凭据一致；显式 profile 固定所选账户。CredentialProvider 继续负责凭据刷新。同步和异步 Runtime 调用经过 AgentSession 后保留 provider 的终止原因、重试判定和 Retry-After。OAuth 拒绝及显式不可重试错误只产生一次 provider 请求；暂时错误保留有界恢复。公开入口的假 provider 验收覆盖活动与固定账户、HTTP 状态分类和终止错误传递，不访问外部凭据或服务。</p></section></body>
 </html>
