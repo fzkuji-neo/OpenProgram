@@ -371,6 +371,8 @@ def _python_type_to_json_schema(tp: Any) -> dict[str, Any]:
     from collections.abc import Mapping
     if tp in (dict, Mapping) or origin in (dict, Mapping):
         values = _python_type_to_json_schema(args[1]) if len(args) > 1 else True
+        if len(args) > 1 and get_origin(args[1]) in _union_origins and type(None) in get_args(args[1]):
+            values = _allow_null(values)
         return {"type": "object", "additionalProperties": values}
 
     # Literal[...]
