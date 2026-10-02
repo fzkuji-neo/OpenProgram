@@ -36,7 +36,7 @@ openprogram programs run gui_agent -a task="在不置顶窗口的情况下检查
 
 此路径的 `max_steps` 限制 Agent 迭代次数。每次 Python 调用另有 30 秒和 100 次 broker 操作上限。`allow_general=false` 只提供 GUI 工具；设为 `true` 时还会提供标准工具，但仍受继承权限与拒绝规则约束，并排除递归 `gui_agent`。Python 状态在本次调用中持续保留，截图字节作为正常 Agent 图片内容返回。缺少执行身份或不支持进程隔离时拒绝执行。
 
-浏览器 `observe` 返回每个元素的 `ref`、`name`、`role` 和 `label`。标签来自 `aria-labelledby`、`aria-label` 或关联的 HTML label，不根据祖先文字猜测。文本输入与 textarea 返回精确的 DOM `value`；contenteditable 返回 rendered `innerText`，并标记 `value_source="inner_text"`。值保留空白，写入后必须重新观察。字段精确验收要求 `value` 是字符串，且 `value_truncated=false`、`value_redacted=false`；ARIA 的空白归一化不能证明精确相等。每个值最多返回 8192 个 Unicode code point，同一 frame 的值合计最多占用 32768 UTF-8 字节。受限制的字段标记 `value_truncated=true`。密码字段及包含已知密码的普通字段不返回 `value`，并标记 `value_redacted=true`。
+浏览器 `observe` 返回每个元素的 `ref`、`name`、`role` 和 `label`。标签来自 `aria-labelledby`、`aria-label` 或关联的 HTML label，不根据祖先文字猜测。文本输入与 textarea 返回精确的 DOM `value`；contenteditable 返回 rendered `innerText`，并标记 `value_source="inner_text"`。值保留空白，写入后必须重新观察。字段精确验收要求 `value` 是字符串，且 `value_truncated=false`、`value_redacted=false`；ARIA 的空白归一化不能证明精确相等。每个值最多返回 8192 个 Unicode code point，同一 frame 的值合计最多占用 32768 UTF-8 字节。受限制的字段标记 `value_truncated=true`。密码字段及包含已知密码的普通字段不返回 `value`，并标记 `value_redacted=true`。观察文本与 ARIA 先脱敏，再限制展示长度。已知密码被截断后的前缀（至少 32 个字符）也会脱敏，不能作为验证断言。
 
 `field_context` 是只读 DOM 诊断，不是字段标签，也不授权填写表单。它描述可编辑元素与最多四层祖先，包括 ID、最多六个 class、可见可编辑元素数量、直接文字，以及每层最多六个可见文本末端节点（最多检查 120 个后代）。文本末端节点与可编辑祖先的直接文字均不包含字段内容。文字先脱敏，再按 400 个 code point 限制展示。所有 context 共用 32768 UTF-8 JSON 字节预算；`field_context_truncated=true` 表示诊断不完整，预算耗尽时可以不返回 context。采用字段关联前必须检查实际结构，顺序不能单独证明关联。
 

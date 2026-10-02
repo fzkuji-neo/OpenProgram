@@ -39,7 +39,8 @@ def _password_variants(secrets):
 def contains_password_value(value: str, secrets) -> bool:
     """Detect the same encodings removed from emitted observations."""
     folded = value.casefold()
-    return any(variant.casefold() in folded for variant in _password_variants(secrets))
+    return any((variant[:32] if len(variant) > 32 else variant).casefold() in folded
+               for variant in _password_variants(secrets))
 
 
 def redact_password_values(value, secrets):
@@ -48,6 +49,18 @@ def redact_password_values(value, secrets):
         variants = _password_variants(secrets)
         for secret in sorted(variants, key=len, reverse=True):
             value = value.replace(secret, "[redacted]")
+            # An upstream accessibility tree can cap a displayed value. Remove
+            # its entire matching prefix, not only the marker used to find it.
+            if len(secret) > 32:
+                prefix = secret[:32]
+                start = value.find(prefix)
+                while start >= 0:
+                    matched = 32
+                    while (matched < len(secret) and start + matched < len(value)
+                           and value[start + matched] == secret[matched]):
+                        matched += 1
+                    value = value[:start] + "[redacted]" + value[start + matched:]
+                    start = value.find(prefix, start + len("[redacted]"))
         return value
     if isinstance(value, dict):
         return {key: redact_password_values(item, secrets) for key, item in value.items()}

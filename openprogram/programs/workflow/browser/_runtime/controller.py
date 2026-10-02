@@ -359,8 +359,6 @@ class BrowserPageController:
             aria = page.locator("body").aria_snapshot() or ""
         except Exception:
             aria = ""
-        if len(aria) > 12000:
-            aria = aria[:12000] + "\n[truncated]"
         session = self._session()
         frame_identity = (page.url, session.get("app_tab_id"), session.get("app_target_id"))
         frame = {
@@ -374,7 +372,7 @@ class BrowserPageController:
                 "target_id": session.get("app_target_id"),
             },
             "viewport": self._viewport(page, snapshot),
-            "text": str(snapshot.get("text") or "")[:12000],
+            "text": str(snapshot.get("text") or ""),
             "aria_snapshot": aria,
             "elements": elements,
         }
@@ -414,6 +412,9 @@ class BrowserPageController:
                     else:
                         element["field_context"] = context
             frame = redact_password_values(frame, secrets)
+            frame["text"] = frame["text"][:12000]
+            if len(frame["aria_snapshot"]) > 12000:
+                frame["aria_snapshot"] = frame["aria_snapshot"][:12000] + "\n[truncated]"
         except BaseException:
             for handle in refs.values():
                 with state.suppress(Exception):
