@@ -76,9 +76,10 @@ _REF_SNAPSHOT_SCRIPT = r"""
   const rect = el.getBoundingClientRect();
   const labelledBy = (el.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean)
     .map(id => el.getRootNode().getElementById?.(id)?.textContent || "").join(" ").trim();
-  const label = (labelledBy || el.getAttribute("aria-label")
+  const nativeLabelIdentity = (labelledBy || el.getAttribute("aria-label")
     || Array.from(el.labels || []).map(node => node.innerText || node.textContent || "").join(" ")
-    || "").replace(/\s+/g, " ").trim().slice(0, 240);
+    || "").replace(/\s+/g, " ").trim();
+  const label = nativeLabelIdentity.slice(0, 240);
   const field = {label};
   const editable = el.tagName === "TEXTAREA" || el.isContentEditable || (
     el.tagName === "INPUT" && !["button", "submit", "reset", "image", "checkbox", "radio", "file", "hidden"].includes(el.type)
@@ -168,6 +169,7 @@ _REF_SNAPSHOT_SCRIPT = r"""
       el.tagName.toLowerCase()
     ),
     name,
+    native_label_identity: nativeLabelIdentity,
     ...field,
     disabled: Boolean(el.disabled || el.getAttribute("aria-disabled") === "true"),
     x: rect.x,

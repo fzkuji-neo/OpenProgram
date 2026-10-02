@@ -366,6 +366,7 @@ class BrowserPageController:
                     for field in ("tag", "role", "name", "disabled")
                 }
                 ref_meta[ref]["label"] = actual.get("label")
+                ref_meta[ref]["native_label_identity"] = actual.get("native_label_identity")
                 ref_meta[ref]["label_binding"] = (actual.get("field_context") or {}).get("label_binding")
                 try:
                     ref_meta[ref]["bounds"] = {
@@ -506,7 +507,7 @@ class BrowserPageController:
             or not actual.get("visible")
             or any(
                 actual.get(field) != expected.get(field)
-                for field in ("tag", "role", "name", "disabled", "label")
+                for field in ("tag", "role", "name", "disabled", "label", "native_label_identity")
             )
             or (actual.get("field_context") or {}).get("label_binding") != expected.get("label_binding")
         ):
