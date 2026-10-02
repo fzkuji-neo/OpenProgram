@@ -51,7 +51,7 @@
 
 查找 Harness、MCP、技能、插件与消息渠道的接口约定。
 
-[Harness 标准](integrations/harness-standard.zh.md) · [MCP 集成](integrations/mcp-integration.zh.md) · [MCP 服务端](integrations/mcp-server.zh.html) · [扩展启用控制](extension-gating/README.zh.md) · [消息渠道](channels/design.zh.md)
+[Harness 标准](integrations/harness-standard.zh.md) · [MCP 集成](integrations/mcp-integration.zh.html) · [MCP 服务端](integrations/mcp-server.zh.html) · [扩展启用控制](extension-gating/README.zh.md) · [消息渠道](channels/design.zh.md)
 
 ## 安全与工程
 
