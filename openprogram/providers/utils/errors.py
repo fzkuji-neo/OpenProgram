@@ -342,8 +342,9 @@ def taxonomy_fields(exc: BaseException) -> tuple[str | None, bool | None, float 
         http_status=getattr(exc, "http_status", None) or getattr(exc, "status_code", None),
         error_text=getattr(exc, "error_text", "") or "",
     )
-    if getattr(exc, "retryable", None) is False:
-        retryable = False
+    declared_retryable = getattr(exc, "retryable", None)
+    if isinstance(declared_retryable, bool):
+        retryable = declared_retryable
     return reason.value, retryable, getattr(exc, "retry_after_s", None)
 
 

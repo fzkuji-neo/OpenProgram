@@ -483,6 +483,7 @@ class Agent:
                     else err_retryable
                 ),
                 error_retry_after_s=err_retry_after_s,
+                error_retryable_inferred=getattr(err, "retryable", None) is None,
                 error_transport_exhausted=bool(
                     getattr(err, "transport_exhausted", False)
                 ),
