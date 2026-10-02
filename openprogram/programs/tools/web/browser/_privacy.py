@@ -46,22 +46,30 @@ def contains_password_value(value: str, secrets) -> bool:
 def redact_password_values(value, secrets):
     """Remove secrets before emitting observations; never log the captured values."""
     if isinstance(value, str):
-        variants = _password_variants(secrets)
-        for secret in sorted(variants, key=len, reverse=True):
-            value = value.replace(secret, "[redacted]")
-            # An upstream accessibility tree can cap a displayed value. Remove
-            # its entire matching prefix, not only the marker used to find it.
-            if len(secret) > 32:
-                prefix = secret[:32]
-                start = value.find(prefix)
-                while start >= 0:
-                    matched = 32
-                    while (matched < len(secret) and start + matched < len(value)
-                           and value[start + matched] == secret[matched]):
-                        matched += 1
-                    value = value[:start] + "[redacted]" + value[start + matched:]
-                    start = value.find(prefix, start + len("[redacted]"))
-        return value
+        # Match every candidate against the original text. A shorter shared
+        # prefix must not destroy a later full or longer-prefix match.
+        ranges = []
+        for secret in _password_variants(secrets):
+            marker = secret[:32] if len(secret) > 32 else secret
+            start = value.find(marker)
+            while start >= 0:
+                matched = len(marker)
+                while (matched < len(secret) and start + matched < len(value)
+                       and value[start + matched] == secret[matched]):
+                    matched += 1
+                ranges.append((start, start + matched))
+                start = value.find(marker, start + matched)
+        merged = []
+        for start, end in sorted(ranges):
+            if merged and start <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+            else:
+                merged.append((start, end))
+        parts, cursor = [], 0
+        for start, end in merged:
+            parts.extend((value[cursor:start], "[redacted]"))
+            cursor = end
+        return "".join(parts) + value[cursor:]
     if isinstance(value, dict):
         return {key: redact_password_values(item, secrets) for key, item in value.items()}
     if isinstance(value, list):
