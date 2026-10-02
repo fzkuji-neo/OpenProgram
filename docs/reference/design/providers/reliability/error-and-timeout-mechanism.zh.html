@@ -329,5 +329,5 @@ _deadline = start + timeout_s   <span class="cmt"># timeout_s=None ⇒ _deadline
   </div>
 
 </div>
-<section><h2>内部 Codex 认证与终止错误契约</h2><p>Codex Runtime 默认使用该 provider 的活动账户，与聊天凭据一致；显式 profile 固定所选账户。CredentialProvider 继续负责凭据刷新。同步和异步 Runtime 调用经过 AgentSession 后保留 provider 的终止原因、重试判定和 Retry-After。OAuth 拒绝及显式不可重试错误只产生一次 provider 请求；暂时错误保留有界恢复。公开入口的假 provider 验收覆盖活动与固定账户、HTTP 状态分类和终止错误传递，不访问外部凭据或服务。</p></section></body>
+<section><h2>内部 Codex 认证与终止错误契约</h2><p>Codex Runtime 默认使用该 provider 的活动账户，与聊天凭据一致；显式 profile 固定所选账户。CredentialProvider 继续负责凭据刷新。同步和异步 Runtime 调用经过 AgentSession 后保留 provider 的终止原因、重试判定和 Retry-After。OAuth 拒绝及显式不可重试错误只产生一次 provider 请求；暂时错误保留有界恢复。公开入口的假 provider 验收覆盖活动与固定账户、HTTP 状态分类和终止错误传递，不访问外部凭据或服务。</p><p>没有显式重试判定的普通异常可以在展示分类中成为 UNKNOWN/不可重试。AssistantMessage 保留该分类，并标记 error_retryable_inferred。仅在 UNKNOWN/不可重试且带此推断标记时，Runtime 保留既有的有界重试；显式 provider 判定（true 和 false）、已知分类或耗尽的传输预算仍保留其原有契约。taxonomy_fields 保留原始的布尔 retryable 值；只有缺失判定时才使用推断标记。该标记在既有生产者和序列化消息中默认为 false，并随消息与事件序列化保留。</p></section></body>
 </html>
