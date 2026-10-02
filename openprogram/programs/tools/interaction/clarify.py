@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from openprogram.programs._runtime import function
+from openprogram.programs._runtime import ToolReturn, function
 
 
 NAME = "ask_user_question"
@@ -145,9 +145,9 @@ def interaction_manifest(args: dict) -> dict | None:
     toolset=["core"],
     max_result_chars=10_000,
 )
-def ask_user_question(questions: list | None = None, **kw: Any) -> str:
+def ask_user_question(questions: list | None = None, **kw: Any) -> str | ToolReturn:
     if not questions or not isinstance(questions, list):
-        return "Error: `questions` must be a non-empty array."
+        return ToolReturn(text="Error: `questions` must be a non-empty array.", is_error=True)
 
     # Bridge to the unified runtime.ask base. Needs an interactive
     # runtime in the current execution context (webui / channel / TTY).
@@ -155,14 +155,14 @@ def ask_user_question(questions: list | None = None, **kw: Any) -> str:
         from openprogram.agentic_programming.function import _current_runtime
         from openprogram.agent.questions import UserDeclined, AskTimeout
     except ImportError as e:  # pragma: no cover
-        return f"Error: user-input infrastructure not available: {e}"
+        return ToolReturn(text=f"Error: user-input infrastructure not available: {e}", is_error=True)
 
     rt = _current_runtime.get(None)
     if rt is None or not rt.can_ask():
-        return (
+        return ToolReturn(text=(
             "Error: no interactive frontend is available to ask the user "
             "(no WebUI / channel / TTY in this context)."
-        )
+        ), is_error=True)
 
     rt_questions = _to_runtime_questions(questions)
     try:
