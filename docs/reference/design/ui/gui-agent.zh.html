@@ -476,6 +476,7 @@ receipt = {
 <section id="browser">
 <h2 tabindex="-1">浏览器：复用归属并补齐操作</h2>
 <p>复用 <code>WebUseSessionRegistry</code>、Page token、worker 持有的 WebContentsView/CDP、帧检查和清理。绑定准确的提交 Page 或创建自己拥有的后台 Page，不选择当前活动标签代替；可选 MCP 后端继续作为执行适配器。</p>
+<p>发现 Page 不代表所选 MCP 后端能够启动。已知 MCP 启动失败返回 <code>computer_use_backend_unavailable</code>、<code>availability=unavailable</code>、实际选中的 backend 和已关闭的会话标识，不输出上游原始诊断，也不自动选择其他后端。观察失败时释放 Page 租约和捕获的绑定，删除临时绑定 marker，并在线程停止后关闭自有 MCP event loop。取消、权限失败和未知缺陷保留原有错误语义。</p>
 <p>提供限定的 role/name、label、text、test-ID、相对 Locator 和 frame 进入，复用 Playwright 可操作性检查和有界等待。每动作重新定位；歧义、语义或归属变化返回 stale-target。数字 ref 只在当前观察有效。</p>
 <p>补齐拖拽、多击、修饰键、横向滚动、文件选择/下载、iframe 和弹窗。弹窗按 opener 和准确身份绑定，重新校验目标权限，文件只经授权路径传输；先监听下载/弹窗再触发，避免丢事件。</p>
 <p>UI 脚本不暴露原始 <code>page.evaluate</code>、任意 CDP send、cookies、profile 目录或浏览器启动。可信代码可为有界观察读取 DOM。通用 shell/文件/代码工具仍经正常权限提供，显式开发调试能力同样受策略约束；UI SDK 不能成为无限制浏览器控制入口。</p> <a class="ref" href="#S3">[S3]</a> <a class="ref" href="#S7">[S7]</a> <a class="ref" href="#R5">[R5]</a>
