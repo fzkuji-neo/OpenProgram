@@ -110,7 +110,7 @@ class _FakeElementHandle:
         return self
 
     def dispose(self):
-        return None
+        self.page.disposed_nodes.append(self.node_id)
 
 
 class _FakeArrayHandle:
@@ -162,6 +162,7 @@ class _FakePage:
         self.agent_cursor_script = ""
         self.native_handle_clicks = 0
         self.node_order = ["save", "name"]
+        self.disposed_nodes = []
         self.mutate_after_handle_capture = False
         self.mutate_during_screenshot = False
         self.viewport_size = {"width": 960, "height": 640}
@@ -174,6 +175,8 @@ class _FakePage:
         return _FakeLocator(self)
 
     def evaluate(self, _script: str, argument=None):
+        if _script.lstrip().startswith("() => Array.from("):
+            return []
         if "__openprogramAgentCursor" in _script:
             self.agent_cursor_armed = bool(argument)
             self.agent_cursor_states.append(bool(argument))
@@ -291,6 +294,27 @@ def test_observe_returns_dom_aria_and_refs_without_a_screenshot():
     assert [element["ref"] for element in result["elements"]] == ["e1", "e2"]
     assert not any(call[0] == "screenshot" for call in api.page.calls)
 
+
+
+def test_failed_password_redaction_disposes_new_observation_handles(monkeypatch):
+    controller, api = _controller()
+    original = api.page.evaluate
+    reads = []
+
+    def evaluate(script, argument=None):
+        if script.lstrip().startswith("() => Array.from("):
+            reads.append(True)
+            if len(reads) == 2:
+                raise RuntimeError("password frame detached")
+        return original(script, argument)
+
+    monkeypatch.setattr(api.page, "evaluate", evaluate)
+    try:
+        with pytest.raises(RuntimeError, match="password frame detached"):
+            controller.execute(action="observe")
+        assert set(api.page.disposed_nodes) == set(api.page.node_order)
+    finally:
+        controller.close()
 
 def test_screenshot_is_one_current_viewport_image_on_the_same_frame():
     from openprogram.programs import ToolReturn

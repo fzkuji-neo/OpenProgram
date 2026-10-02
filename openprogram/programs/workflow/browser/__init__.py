@@ -43,7 +43,8 @@ _OBSERVE_SCRIPT = r"""
   };
   const nameOf = (el) => (
     el.getAttribute("aria-label") || el.getAttribute("title")
-    || el.getAttribute("placeholder") || el.innerText || el.value || ""
+    || el.getAttribute("placeholder") || el.innerText
+    || (el.matches("input[type=password]") ? "" : el.value) || ""
   ).replace(/\s+/g, " ").trim().slice(0, 240);
   return {
     text: (document.body?.innerText || "").slice(0, 12000),
@@ -75,7 +76,8 @@ _REF_SNAPSHOT_SCRIPT = r"""
   const rect = el.getBoundingClientRect();
   const name = (
     el.getAttribute("aria-label") || el.getAttribute("title")
-    || el.getAttribute("placeholder") || el.innerText || el.value || ""
+    || el.getAttribute("placeholder") || el.innerText
+    || (el.matches("input[type=password]") ? "" : el.value) || ""
   ).replace(/\s+/g, " ").trim().slice(0, 240);
   return {
     connected: el.isConnected,

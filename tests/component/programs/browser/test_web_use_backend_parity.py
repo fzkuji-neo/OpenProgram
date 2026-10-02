@@ -53,6 +53,8 @@ class _Page:
     marker_value = ""
 
     def evaluate(self, script, argument=None):
+        if script.lstrip().startswith("() => Array.from("):
+            return []
         if "Object.defineProperty" in script:
             self.marker_value = argument[1]
         return None
@@ -87,6 +89,9 @@ class _Controller:
             "target": {"tab_id": "tab-1", "target_id": "target-1"},
         }
         return dict(self.frame)
+
+    def capture_observation(self, capture):
+        return capture()
 
     def execute(self, **arguments):
         from openprogram.programs import ToolReturn

@@ -20,7 +20,7 @@ def pages(monkeypatch):
     controllers, released = [], []
     def create():
         controller = BrowserPageController(browser_api=object())
-        page = SimpleNamespace(viewport_size={"width": 1, "height": 1}, url="https://owned.invalid", title=lambda: "Owned", evaluate=lambda script: {}, inner_text=lambda selector: state["text"])
+        page = SimpleNamespace(viewport_size={"width": 1, "height": 1}, url="https://owned.invalid", title=lambda: "Owned", evaluate=lambda script: [] if script.lstrip().startswith("() => Array.from(") else {}, inner_text=lambda selector: state["text"])
         controller._page = lambda: page
         controller._observe = lambda: {"frame_id": f'f{state["frame"]}', "text": state["text"]}
         controller._fresh = lambda frame: frame == f'f{state["frame"]}'

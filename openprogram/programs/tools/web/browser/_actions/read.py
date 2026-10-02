@@ -62,7 +62,10 @@ def _accessibility(session_id: str, selector: str | None) -> str:
         target = page.locator(selector) if selector else page.locator("body")
         if target.count() == 0:
             return f"(no elements matched `{selector}`)"
+        from .._privacy import password_values, redact_password_values
+        secrets = password_values(page)
         tree = target.first.aria_snapshot()
+        tree = redact_password_values(tree, secrets + password_values(page))
         if not tree:
             return "(empty accessibility tree)"
         if len(tree) > 8000:
