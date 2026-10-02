@@ -708,6 +708,7 @@ def _child_entry(
     execution_id: Optional[str] = None,
     attempt_id: Optional[str] = None,
     generation: Optional[int] = None,
+    model_setup_error: Optional[dict] = None,
 ) -> None:
     # Detach into our own process group so ``killpg`` from the parent
     # takes down every grandchild (browser, subprocess providers, ...).
@@ -887,7 +888,22 @@ def _child_entry(
         # id so child-created questions carry the same cancellation owner.
         _set_eid(execution_id or parent_call_id or session_id)
 
-        rt = create_runtime(provider=provider, model=model)
+        from openprogram.agent.dispatcher.turn_context import _unavailable_runtime
+        if model_setup_error is not None:
+            from openprogram.providers.utils.errors import ErrorReason, LLMError
+            rt = _unavailable_runtime(LLMError(
+                message=model_setup_error["message"],
+                reason=ErrorReason(model_setup_error["reason"]),
+                retryable=model_setup_error["retryable"],
+            ))
+        else:
+            try:
+                rt = create_runtime(provider=provider, model=model)
+            except Exception as error:
+                rt = _unavailable_runtime(
+                    error, model=f"{provider}/{model}" if provider and model else "unavailable",
+                    provider=provider,
+                )
         if response_format_snapshot is not None:
             from openprogram.agentic_programming.runtime import _current_response_format
             from openprogram.providers.structured_output import normalize_response_format
@@ -1213,6 +1229,7 @@ def run_agentic_in_subprocess(
     response_format=None,
     render_range: Optional[dict[str, int]] = None,
     timeout_seconds: Optional[float] = None,
+    model_setup_error: Optional[dict] = None,
 ) -> dict:
     """Run a single @agentic_function tool in a fork()'d subprocess.
 
@@ -1265,7 +1282,7 @@ def run_agentic_in_subprocess(
               answer_queue, stop_queue, response_format_snapshot,
               render_range, usage_ctx_snapshot, sandbox_policy_snapshot,
               authority, permission_rules_snapshot, surface_context_snapshot,
-              provider, model, eid, attempt_id, generation),
+              provider, model, eid, attempt_id, generation, model_setup_error),
         daemon=False,
     )
     p.start()

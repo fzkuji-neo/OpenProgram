@@ -1288,5 +1288,5 @@ function updateMatrix(){let n=0;for(const row of rows){const show=filter.value==
 filter.addEventListener('change',updateMatrix);updateMatrix();
 document.getElementById('section-select').addEventListener('change',e=>{const section=document.getElementById(e.target.value);if(section){history.replaceState(null,'','#'+section.id);section.scrollIntoView();section.querySelector('h2').focus({preventScroll:true});}});
 </script>
-</body>
+<p>不调用模型的 agentic Program 可以在未选择模型时执行。无法解析的选择作为终止模型配置错误传递到子进程，仅在 Program 调用 Runtime.exec 或 async_exec 时抛出。子进程不会通过自动检测其他 provider 替代该选择。会话 GraphStore 独立保持绑定。</p></body>
 </html>

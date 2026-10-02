@@ -31,6 +31,24 @@ if TYPE_CHECKING:
 _log = logging.getLogger(__name__)
 
 
+def _unavailable_runtime(error, *, model: str = "unavailable", provider=None):
+    """Defer model setup failure while retaining non-model Runtime APIs."""
+    from openprogram.agentic_programming.runtime import Runtime
+
+    class UnavailableRuntime(Runtime):
+        def exec(self, *args, **kwargs):
+            raise self.setup_error
+
+        async def async_exec(self, *args, **kwargs):
+            raise self.setup_error
+
+    unavailable = UnavailableRuntime(model="unavailable")
+    unavailable.model = model
+    unavailable.setup_error = error
+    unavailable.provider_id = provider
+    return unavailable
+
+
 class TurnBindings:
     """Holds the ContextVar tokens for one turn, plus the project baseline."""
 
@@ -220,21 +238,12 @@ class TurnBindings:
             # Preserve the setup error until an internal model call needs it.
             # Leaving this unbound would select an unrelated global provider,
             # or inherit another turn's runtime. Non-model tools still work.
-            from openprogram.agentic_programming.runtime import Runtime
-
-            class UnavailableRuntime(Runtime):
-                def exec(self, *args, **kwargs):
-                    raise self.setup_error
-
-                async def async_exec(self, *args, **kwargs):
-                    raise self.setup_error
-
             # Runtime parses colons in constructor model strings. Tagged
             # local models must not trigger a second provider lookup here.
-            unavailable = UnavailableRuntime(model="unavailable")
-            unavailable.model = req.model_override or "unavailable"
-            unavailable.setup_error = exc
-            unavailable.provider_id = model.provider if model is not None else None
+            unavailable = _unavailable_runtime(
+                exc, model=req.model_override or "unavailable",
+                provider=model.provider if model is not None else None,
+            )
             self._runtime_token = _current_runtime_var.set(unavailable)
             _log.debug("nested runtime unavailable for selected turn model", exc_info=True)
         self._render_range_token = _render_range_var.set(req.render_range)
