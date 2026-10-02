@@ -972,3 +972,74 @@ def test_checkpoint_deadline_and_deleted_source_visibility(client, memory, monke
         assert "original-private-text" not in response.text
     monkeypatch.setattr(DB, "get_session", lambda self, sid: {"archived": True})
     assert client.get("/api/memory/source", params={"path": "openprogram/_v2/local_deleted.md"}).json()["content"] == "original-private-text"
+
+
+@pytest.mark.parametrize("autosave", [False, True])
+def test_topic_route_rejects_uncited_section_without_committed_mutation(client, memory, autosave):
+    from openprogram.memory.store import _ensure_git_history
+    from openprogram.memory.management.transaction import workspace_revision
+
+    _ensure_git_history(memory)
+    before = {
+        p.relative_to(memory): p.read_bytes() for p in memory.rglob("*")
+        if p.is_file() and ".git" not in p.relative_to(memory).parts
+    }
+    revision = workspace_revision(memory)
+    head = subprocess.check_output(["git", "-C", str(memory), "rev-parse", "HEAD"])
+    response = client.put("/api/memory/topics/note.md", json={
+        "content": NOTE + "\n## Unsupported section\n\nUncited substantive prose.\n",
+        "base_content": NOTE, "autosave": autosave,
+    })
+    assert response.status_code == 400, response.text
+    assert (memory / "topics/note.md").read_text() == NOTE
+    assert {
+        p.relative_to(memory): p.read_bytes() for p in memory.rglob("*")
+        if p.is_file() and ".git" not in p.relative_to(memory).parts
+    } == before
+    assert workspace_revision(memory) == revision
+    assert subprocess.check_output(["git", "-C", str(memory), "rev-parse", "HEAD"]) == head
+
+
+def test_valid_autosave_checkpoints_exact_dirty_pre_edit_state(client, memory, monkeypatch):
+    from openprogram.memory import checkpoints
+    from openprogram.memory.store import _ensure_git_history
+    from openprogram.memory.workspace_layout import runtime_dir
+
+    _ensure_git_history(memory)
+    dirty = NOTE.replace("A fact worth keeping.", "A pre-existing dirty fact.")
+    (memory / "topics/note.md").write_text(dirty)
+    edited = dirty.replace("A pre-existing dirty fact.", "A new manual edit.")
+    monkeypatch.setattr(checkpoints.time, "time", lambda: 1000)
+    response = client.put("/api/memory/topics/note.md", json={
+        "content": edited, "base_content": dirty, "autosave": True,
+    })
+    assert response.status_code == 200, response.text
+    assert subprocess.check_output(["git", "-C", str(memory), "show", "HEAD:topics/note.md"], text=True) == dirty
+    pending = runtime_dir(memory) / "manual-checkpoint.json"
+    assert json.loads(pending.read_text())["due"] == 1300
+    assert checkpoints.checkpoint(memory) is None
+    monkeypatch.setattr(checkpoints.time, "time", lambda: 1301)
+    assert checkpoints.checkpoint(memory)
+    assert not pending.exists()
+    assert "A new manual edit." in subprocess.check_output(["git", "-C", str(memory), "show", "HEAD:topics/note.md"], text=True)
+
+
+def test_invalid_restore_does_not_commit_pre_restore_dirty_state(client, memory):
+    from openprogram.memory.runtime.state import RuntimeStateStore
+    from openprogram.memory.management.transaction import workspace_revision
+
+    invalid = NOTE + "\n## Unsupported section\n\nUncited substantive prose.\n"
+    (memory / "topics/note.md").write_text(invalid)
+    old_revision = RuntimeStateStore(memory).git_commit("owned unsupported historical version")
+    dirty = NOTE.replace("A fact worth keeping.", "A current dirty fact.")
+    (memory / "topics/note.md").write_text(dirty)
+    before = {p.relative_to(memory): p.read_bytes() for p in memory.rglob("*") if p.is_file() and ".git" not in p.relative_to(memory).parts}
+    revision = workspace_revision(memory)
+    head = subprocess.check_output(["git", "-C", str(memory), "rev-parse", "HEAD"])
+    response = client.post("/api/memory/restore", json={
+        "path": "note.md", "revision": old_revision, "base_content": dirty,
+    })
+    assert response.status_code == 400, response.text
+    assert {p.relative_to(memory): p.read_bytes() for p in memory.rglob("*") if p.is_file() and ".git" not in p.relative_to(memory).parts} == before
+    assert workspace_revision(memory) == revision
+    assert subprocess.check_output(["git", "-C", str(memory), "rev-parse", "HEAD"]) == head

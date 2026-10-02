@@ -290,6 +290,10 @@ BM25持久缓存格式是v8；旧缓存缺少当前speaker或trust字段，因�
 聊天中的写入不会交错。后台写入拿锁只等一秒，拿不到就放弃而不是让用户
 等着；下一轮会再来。
 
+实质性的 Topic 正文必须构成带引用的记录。规范化在清理无记录章节或 topic 之前，以 `INVALID_TOPIC_FORMAT` 拒绝无引用正文。只有标题或空白的 topic 仍视为空内容；原生 block 记录和带引用的旧格式记录继续使用现有语法。整批操作被拒绝，包括新 Source、Runtime 状态、revision 和 Git 历史，不允许成功确认规范化已经丢弃的全文件文本。这个边界由 `memory_update` changes/patch、编辑器和 CLI staged edit、writer shell commit 共享。
+
+autosave和restore通过实例级可信回调在校验与stage准备完成后、移动已提交文件之前准备历史。被拒绝的编辑不会创建checkpoint；回调出错不会安装。有效autosave保留准确的编辑前快照与现有期限。该回调不是tool参数，也不由请求正文生成。
+
 ## 代码地图
 
 包里放着契约和它的一个实现。
