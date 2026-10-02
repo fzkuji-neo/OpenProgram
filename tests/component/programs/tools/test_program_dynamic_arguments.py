@@ -6,13 +6,14 @@ import json
 import pytest
 
 
-@pytest.mark.parametrize("call_args,expected", [
-    ({"program": "owned_mapping_consumer", "args": {"task": "Actual owned task"}}, "Owned task saved"),
-    ({"program": "owned_mapping_consumer", "args": {"task": "Actual owned task", "foreign": 1}}, "Error: bad arguments"),
-    ({"program": "not_an_owned_program", "args": {"task": "Actual owned task"}}, "is not registered"),
-    ({"program": "owned_mapping_consumer", "args": ["wrong object"]}, "Validation failed"),
+@pytest.mark.parametrize("call_args,expected,call_tool", [
+    ({"program": "owned_mapping_consumer", "args": {"task": "Actual owned task"}}, "Owned task saved", "program"),
+    ({"program": "owned_mapping_consumer", "args": {"task": "Actual owned task", "foreign": 1}}, "Error: bad arguments", "program"),
+    ({"program": "not_an_owned_program", "args": {"task": "Actual owned task"}}, "is not registered", "program"),
+    ({"program": "owned_mapping_consumer", "args": ["wrong object"]}, "Validation failed", "program"),
+    ({"values": {"nullable": None, "integer": 7}}, "Owned nullable mapping saved", "owned_nullable_mapping"),
 ])
-def test_program_task_mapping_reaches_consumer_through_native_codex_tool_loop(tmp_path, monkeypatch, call_args, expected, record_property):
+def test_program_task_mapping_reaches_consumer_through_native_codex_tool_loop(tmp_path, monkeypatch, call_args, expected, call_tool, record_property):
     from openprogram import paths
     from openprogram.agentic_programming import agentic_function
     from openprogram.agentic_programming import function as af_runtime
@@ -40,10 +41,15 @@ def test_program_task_mapping_reaches_consumer_through_native_codex_tool_loop(tm
         output.write_text(task)
         return "Owned task saved"
 
+    @tools_runtime.function(name="owned_nullable_mapping")
+    def owned_nullable_mapping(values: dict[str, int | None]):
+        output.write_text(json.dumps(values, sort_keys=True))
+        return "Owned nullable mapping saved"
+
     args = json.dumps(call_args)
     first = _FakeSSEResponse([
-        _sse(_fc_added(0, "owned-program-call", "program")),
-        _sse(_fc_done(0, "owned-program-call", "program", args)),
+        _sse(_fc_added(0, "owned-program-call", call_tool)),
+        _sse(_fc_done(0, "owned-program-call", call_tool, args)),
         _sse(_COMPLETED), "data: [DONE]",
     ])
     last = _FakeSSEResponse([
@@ -70,15 +76,15 @@ def test_program_task_mapping_reaches_consumer_through_native_codex_tool_loop(tm
     store.create_session("owned-mapping", "Owned mapping test")
     worktoken = set_worktree(str(project))
     token = af_runtime._current_runtime.set(runtime)
-    deferred_token = tools_runtime.install_loaded_deferred({"program", "execute_code"})
+    deferred_token = tools_runtime.install_loaded_deferred({"program", "execute_code", "owned_nullable_mapping"})
     try:
         with session_scope(store, "owned-mapping"):
             runtime.exec(content=[{"type": "text", "text": "Invoke the owned task program"}],
-                                  tools=[tools_runtime.get("program"), tools_runtime.get("execute_code")],
+                                  tools=[tools_runtime.get("program"), tools_runtime.get("execute_code"), owned_nullable_mapping],
                                   max_iterations=2)
-            if expected == "Owned task saved":
+            if expected.startswith("Owned "):
                 assert output.exists(), [i.get("output") for i in json.loads(transport.contents[1])["input"] if i.get("type") == "function_call_output"]
-                assert output.read_text() == "Actual owned task"
+                assert output.read_text() == ("Actual owned task" if call_tool == "program" else '{"integer": 7, "nullable": null}')
             else:
                 assert not output.exists()
 
@@ -93,6 +99,7 @@ def test_program_task_mapping_reaches_consumer_through_native_codex_tool_loop(tm
         record_property("public_receipt", json.dumps({"controlled_http_requests": transport.calls,
                         "actual_consumer_ran": output.exists(), "actual_program_tool_result": expected,
                         "program_strict": wire["program"]["strict"],
+                        "call_tool": call_tool,
                         "execute_code_strict": wire["execute_code"]["strict"],
                         "source_origin": tools_runtime.__file__}))
     finally:
