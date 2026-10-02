@@ -104,6 +104,8 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 | `image_analyze` | 描述图片 / 回答关于图片的问题（本地路径或 URL） | 任一视觉模型 key：OpenAI / Anthropic / Gemini（复用已配置的 provider key） |
 | `pdf` | 从 PDF 抽取文本，支持 offset / limit 翻页 | 完整 release 已内置（`pypdf`） |
 
+图像工具在所选 Provider 不可用、调用失败或图片无法保存时返回错误结果。`mixture_of_agents` 在模型引用未知、所有参考调用失败或汇总失败时也返回错误结果。部分参考调用失败但得到有效回答，或成功回答的文本包含 Error 字样时，结果仍然是成功。普通 Python 的 `execute(...)` 调用保持字符串返回值。
+
 ## 会话与协作
 
 协作分四个域，一词一义，见
