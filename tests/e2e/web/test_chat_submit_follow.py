@@ -183,13 +183,16 @@ def test_running_submit_follows_without_moving_other_pane(submit_follow_bundle, 
             message = page.get_by_label(f"Message {sid}", exact=True)
             send = page.get_by_role("button", name=f"Send {sid}", exact=True)
 
+            # Activation may leave a readable completed note. Rejection must
+            # preserve that exact note, not manufacture another follow intent.
+            note_before_rejection = page.evaluate("sid => window.readNote(sid)", sid)
             # An attachment still loading must neither clear input nor move the view.
             page.get_by_label(f"Attachment {sid}", exact=True).check()
             message.fill("keep the attached draft")
             send.click()
             page.wait_for_function("window.finishedSubmits === 1")
             expect(message).to_have_value("keep the attached draft")
-            assert page.evaluate("sid => window.readNote(sid)", sid) is None
+            assert page.evaluate("sid => window.readNote(sid)", sid) == note_before_rejection
             assert page.evaluate("sid => window.readQueue(sid).length", sid) == 0
             assert area.evaluate("a => a.scrollTop") < 2
 
@@ -198,6 +201,10 @@ def test_running_submit_follows_without_moving_other_pane(submit_follow_bundle, 
             send.click()
             page.wait_for_function("window.finishedSubmits === 2")
             expect(message).to_have_value("")
+            accepted_note = page.evaluate("sid => window.readNote(sid)", sid)
+            assert accepted_note["sessionId"] == sid
+            assert accepted_note["scrollerKey"] == ("peer:peer" if sid == "peer" else "main")
+            assert accepted_note["generation"] > (note_before_rejection["generation"] if note_before_rejection else 0)
             page.wait_for_function(
                 "sid => {const a=document.querySelector(`[data-testid='${sid}-area']`);return Math.abs(a.scrollHeight-a.clientHeight-a.scrollTop)<2}",
                 arg=sid,
