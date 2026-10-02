@@ -50,6 +50,8 @@ class _Page:
         self.marker_value = ""
 
     def evaluate(self, script, arg=None):
+        if script.lstrip().startswith("() => Array.from("):
+            return []
         if "Object.defineProperty" in script:
             self.marker_name, self.marker_value = arg
         return None
@@ -71,6 +73,9 @@ class _Controller:
 
     def evaluate_bound_page(self, script, arg=None):
         return self.page.evaluate(script, arg)
+
+    def capture_observation(self, capture):
+        return capture()
 
     def execute(self, **params):
         if params["action"] == "observe":

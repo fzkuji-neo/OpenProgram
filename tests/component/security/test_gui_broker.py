@@ -321,7 +321,7 @@ def test_browser_binding_uses_registry_controller_and_returns_host_image(environ
     png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jS1sAAAAASUVORK5CYII=')
     state = {"text": "before", "frame": 1}
     page = SimpleNamespace(viewport_size={"width": 1, "height": 1}, url="https://owned.invalid", title=lambda: "Owned Page",
-                           evaluate=lambda script: {}, inner_text=lambda selector: state["text"])
+                           evaluate=lambda script: [] if script.lstrip().startswith("() => Array.from(") else {}, inner_text=lambda selector: state["text"])
     controller = BrowserPageController(browser_api=object())
     controller._page = lambda: page
     controller._observe = lambda: {"frame_id": f'f{state["frame"]}', "text": state["text"]}
