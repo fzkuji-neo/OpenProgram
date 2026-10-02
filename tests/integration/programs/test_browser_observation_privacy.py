@@ -323,3 +323,73 @@ def test_password_collision_does_not_corrupt_public_control_identifiers(secret):
         assert result["ok"] is True
     finally:
         controller.close()
+
+
+def test_public_observation_reads_exact_editable_values_and_labels():
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    textarea_value = "  first line\n\nsecond\tline  \n"
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""value => {
+            document.body.innerHTML = '<label for="report">Weekly report</label><textarea id="report"></textarea>' +
+                '<span id="identity">Research summary</span><input aria-labelledby="identity" value="text value">' +
+                '<div contenteditable="true" aria-label="Details"><div> first </div><div> second </div></div>';
+            document.querySelector('textarea').value = value;
+        }""", textarea_value)
+        observed = controller.execute(action="observe")
+        report, text_input, editable = observed["elements"]
+        assert report["label"] == "Weekly report"
+        assert report["value"] == textarea_value
+        assert report["value_truncated"] is False
+        assert report["value_redacted"] is False
+        assert text_input["label"] == "Research summary"
+        assert text_input["value"] == "text value"
+        assert editable["name"] == "Details"
+        expected = controller.evaluate_bound_page("() => document.querySelector('[contenteditable]').innerText")
+        assert editable["value"] == expected
+        changed = controller.execute(action="type", expected_frame_id=observed["frame_id"],
+                                     ref=report["ref"], text="  updated\nreport  ")
+        assert changed["ok"] is True
+        fresh = controller.execute(action="observe")
+        assert fresh["frame_id"] != observed["frame_id"]
+        assert fresh["elements"][0]["value"] == "  updated\nreport  "
+    finally:
+        controller.close()
+
+
+def test_public_observation_marks_field_and_frame_value_truncation():
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""() => {
+            document.body.innerHTML = '<textarea aria-label="Unicode"></textarea>' +
+                Array.from({length:5}, (_,i) => `<textarea aria-label="Report ${i}"></textarea>`).join('');
+            document.querySelector('textarea').value = '😀'.repeat(9000);
+            document.querySelectorAll('textarea').forEach((el,i) => {if(i) el.value = 'x'.repeat(9000);});
+        }""")
+        observed = controller.execute(action="observe")
+        fields = observed["elements"]
+        assert fields[0]["value"] == "😀" * 8192
+        assert all(field["value_truncated"] is True for field in fields)
+        assert sum(len(field["value"].encode("utf-8")) for field in fields) <= 32768
+        assert fields[-1]["value"] == ""
+    finally:
+        controller.close()
+
+
+@pytest.mark.parametrize("secret", [_SECRET, "known-secret-" * 750])
+def test_public_observation_omits_password_and_matching_field_values(secret):
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI("", secret=secret))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""secret => {
+            document.querySelector('input[type=text]').value = secret;
+        }""", secret)
+        observed = controller.execute(action="observe")
+        assert secret not in json.dumps(observed)
+        for field in observed["elements"]:
+            assert "value" not in field
+            assert field["value_redacted"] is True
+            assert field["name"] in {"", "[redacted]"}
+    finally:
+        controller.close()

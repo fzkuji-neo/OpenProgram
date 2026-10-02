@@ -63,12 +63,14 @@ class BrowserPageController:
                 "Control only the exact bound OpenProgram browser Page. Start with "
                 "observe. Use screenshot only for visual verification, canvas, "
                 "or when DOM/ARIA refs cannot identify the target. Every write "
-                "needs the latest frame_id and refs become stale after it."
+                "needs the latest frame_id and refs become stale after it. "
+                "Editable elements provide their actual value; exact readback "
+                "requires value_truncated=false and value_redacted=false."
             ),
             parameters=state._TOOL_PARAMETERS,
             requires_approval=self._requires_approval,
             register_globally=False,
-            max_result_chars=40_000,
+            max_result_chars=100_000,
         )(self.execute)
 
     def _requires_approval(self, action: str = "", url: str = "", **_kw):
@@ -271,6 +273,7 @@ class BrowserPageController:
         frame_id = f"frame_{self._frame_seq}_{state.uuid.uuid4().hex[:8]}"
         handles_array = page.evaluate_handle(state._CAPTURE_HANDLES_SCRIPT)
         elements = []
+        value_budget = 32768  # UTF-8 bytes across editable fields in this frame.
         refs = {}
         ref_meta = {}
         try:
@@ -303,6 +306,9 @@ class BrowserPageController:
                     "name": str(actual.get("name") or ""),
                     "disabled": bool(actual.get("disabled")),
                 }
+                for field in ("label", "value", "value_source", "value_truncated", "value_redacted"):
+                    if field in actual:
+                        metadata[field] = actual[field]
                 refs[ref] = handle
                 ref_meta[ref] = {
                     field: metadata[field]
@@ -355,6 +361,23 @@ class BrowserPageController:
                     refs[ref] = refs.pop(original)
                     ref_meta[ref] = ref_meta.pop(original)
                     element["ref"] = ref
+            for element in elements:
+                value = element.get("value")
+                if isinstance(value, str) and redact_password_values(value, secrets) != value:
+                    del element["value"]
+                    element["value_redacted"] = True
+                    if element.get("name") and value.startswith(element["name"]) and not element.get("label"):
+                        element["name"] = "[redacted]"
+                elif isinstance(value, str):
+                    # Redact the full host-local value before truncating it:
+                    # cutting a long secret first would expose its prefix.
+                    value = value[:8192]
+                    encoded = value.encode("utf-8")
+                    if len(encoded) > value_budget:
+                        value = encoded[:value_budget].decode("utf-8", errors="ignore")
+                    element["value_truncated"] = value != element["value"]
+                    element["value"] = value
+                    value_budget -= len(value.encode("utf-8"))
             frame = redact_password_values(frame, secrets)
         except BaseException:
             for handle in refs.values():
