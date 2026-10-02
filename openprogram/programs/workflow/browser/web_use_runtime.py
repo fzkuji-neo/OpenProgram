@@ -662,6 +662,18 @@ class WebUseSessionRegistry:
             except BaseException as exc:
                 if command == "observe" and not session.closing:
                     self._cleanup_session(session, suppress_errors=True)
+                    if (
+                        session.backend in {"playwright_mcp", "chrome_devtools_mcp"}
+                        and isinstance(exc, RuntimeError)
+                        and str(exc) == "computer_use_backend_unavailable"
+                    ):
+                        return {
+                            "ok": False,
+                            "reason_code": "computer_use_backend_unavailable",
+                            "availability": "unavailable",
+                            "message": "The selected MCP browser backend could not start or connect. Check its dependencies and connection, then observe the Page again.",
+                            **_session_fields(session),
+                        }
                     raise
                 if not isinstance(exc, Exception):
                     raise
