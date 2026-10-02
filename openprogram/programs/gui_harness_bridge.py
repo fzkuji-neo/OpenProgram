@@ -1,10 +1,13 @@
 """Optional adapter from the installed GUI Agent Harness to web_use."""
 from __future__ import annotations
 
-import inspect
 from typing import Callable
+from weakref import WeakSet
+
+from openprogram.agentic_programming.continuation import gui_operation
 
 DEFAULT_MAX_STEPS = 150
+_GUI_ORCHESTRATION_FNS = WeakSet()
 
 
 def _normalize_gui_result(result):
@@ -46,11 +49,13 @@ def install_gui_harness_web_use(original: Callable | None = None):
     if original is None:
         from gui_harness.main import gui_agent as original
     original_impl = getattr(original, "__wrapped__", original)
+    globals()["_GUI_LEGACY_IMPL"] = original_impl
 
     from openprogram.agentic_programming.function import agentic_function
 
     @agentic_function(
         name="gui_agent",
+        resumable=True,
         as_tool=True,
         toolset=("harness",),
         input={
@@ -118,98 +123,29 @@ def install_gui_harness_web_use(original: Callable | None = None):
         runtime=None,
         allow_general: bool = False,
     ) -> dict:
-        """Run the standard browser Agent or the existing desktop/VM controller."""
-        if max_steps is None:
-            steps: int | None = DEFAULT_MAX_STEPS
-        else:
-            n = int(max_steps)
-            steps = n if n > 0 else None
-        seconds = (
-            None
-            if max_seconds is None or float(max_seconds) <= 0
-            else float(max_seconds)
-        )
-        selected_surface = str(surface or "").strip().lower()
-        if selected_surface not in {"", "desktop", "browser", "vm"}:
-            return _normalize_gui_result({
-                "status": "failed",
-                "reason_code": "invalid_surface",
-                "summary": f"Unknown GUI surface: {surface}",
-            })
-        preferred = {
-            "desktop": "computer_use",
-            "browser": "browser_use",
-            "vm": "vm_use",
-        }.get(selected_surface, "")
-        if backend and not preferred:
-            preferred = "browser_use"
-        if preferred == "browser_use":
-            from openprogram.programs.gui_browser_agent import run_browser_gui_agent
-            return _normalize_gui_result(run_browser_gui_agent(
-                task=task, max_steps=steps, max_seconds=seconds, backend=backend,
-                runtime=runtime, allow_general=allow_general,
-            ))
-        # Direct callers that bypass the canonical Agent safe-point still
-        # receive the same registry-derived capability result used by the
-        # canonical Agent safe-point. Canonical dispatch owns the durable wait
-        # only for the recoverable ``waiting`` state.
-        if selected_surface in {"", "desktop"} and not vm_url:
-            from openprogram.system_access import required_access_state
-            access_state = required_access_state(
-                "gui_agent",
-                {"surface": selected_surface, "vm_url": vm_url, "backend": backend},
-            )
-            if access_state and access_state.get("state") != "ready":
-                reason_code = str(
-                    access_state.get("reason_code") or "system_access_required"
-                )
-                return _normalize_gui_result({
-                    "status": "infeasible", "reason_code": reason_code,
-                    "summary": (
-                        "Desktop access is unavailable on this execution host."
-                        if reason_code == "system_access_unavailable"
-                        else "Waiting for system access."
-                    ),
-                    "handoff_instruction": "",
-                    "system_access": list(access_state.get("capabilities", [])),
-                    "completion_verified": False,
-                })
-        call_args = {
-            "task": task,
-            "max_steps": steps if steps is not None else 0,
-            "app_name": app_name,
-            "max_seconds": seconds,
-            "runtime": runtime,
-            "allow_general": allow_general,
-            "browser_backend": backend,
-            "vm_url": vm_url,
-            "preferred_capability": preferred,
+        """Run bounded capabilities with retained decisions and effect receipts."""
+        config = {
+            "task": task, "max_steps": max_steps, "app_name": app_name,
+            "surface": surface, "backend": backend, "max_seconds": max_seconds,
+            "vm_url": vm_url, "allow_general": allow_general,
         }
-        signature = inspect.signature(original_impl)
-        if not any(
-            parameter.kind is inspect.Parameter.VAR_KEYWORD
-            for parameter in signature.parameters.values()
-        ):
-            call_args = {
-                key: value
-                for key, value in call_args.items()
-                if key in signature.parameters
-            }
-        from openprogram.session_resources import resource_use
-        attached_vm = call_args.get("vm_url") or ""
-        kind = "vm" if attached_vm else "desktop"
-        with resource_use(kind, "VM" if attached_vm else (app_name or "Desktop"), attached_vm or app_name):
-            result = _normalize_gui_result(original_impl(**call_args))
-            if isinstance(result, dict) and kind == "desktop":
-                from openprogram.system_access import report
-                result["system_access"] = report()["capabilities"]
-            return result
+        state = gui_operation("initialize", "initialize", config)
+        if state["route"] == "legacy":
+            return gui_operation("legacy", "legacy", config)
+        while state["status"] == "running":
+            decision = gui_operation("plan", "plan", {"config": config, "state": state})
+            state = gui_operation("decide", "decide", {"config": config, "state": state, "decision": decision})
+            if state["status"] == "running":
+                result = gui_operation("capability", "capability", {"config": config, "state": state})
+                state = gui_operation("advance", "advance", {"config": config, "state": state, "result": result})
+        return gui_operation("finish", "finish", {"config": config, "state": state})
 
     # ``programs run`` resolves a registered function's module and then looks
     # up the public function name on that module.  The wrapper is defined here
     # so it can close over the installed harness implementation; publish that
     # same decorated callable instead of adding a second execution wrapper.
     globals()["gui_agent"] = gui_agent
+    _GUI_ORCHESTRATION_FNS.add(gui_agent._fn)
     return gui_agent
 
 
