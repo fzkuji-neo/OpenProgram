@@ -43,7 +43,7 @@ def test_local_app_refresh_reopens_app_after_quit() -> None:
     wait_at = refresh.index(
         'pgrep -f "^${app_path}/Contents/MacOS/OpenProgram( |$)"', open_at
     )
-    fail_at = refresh.index("OpenProgram did not reopen after the refresh")
+    fail_at = refresh.index("OpenProgram did not reopen after the refresh", wait_at)
     assert quit_at < open_at < wait_at < fail_at
 
 
@@ -60,7 +60,7 @@ def test_local_app_refresh_restarts_worker_after_runtime_install() -> None:
         )
     ]
     health = refresh.index(
-        'curl -fsS http://127.0.0.1:18100/healthz', install
+        'http://127.0.0.1:18100/healthz', install
     )
     assert any(install < stop < health for stop in stops)
     final_window = refresh[install:health]
@@ -772,3 +772,113 @@ def test_default_local_refresh_requires_committed_source_before_mutation(
     assert git("rev-parse", "HEAD") == (new_commit if change in {
         "committed_during_build", "head_after_build",
     } else initial_head)
+
+
+def _prepare_completion_refresh_fixture(tmp_path: Path, *, service: bool):
+    repo, app, env = _prepare_local_refresh_fixture(tmp_path)
+    env["OPENPROGRAM_REFRESH_DETACHED"] = "1"
+    fake_bin = tmp_path / "fake-bin"
+    # Keep the public script/build/version gates; replace external build,
+    # signing, launch and process tools, never touching the installed App.
+    uv = Path(env["OPENPROGRAM_UV_BIN"])
+    uv.write_text(uv.read_text().replace("0.6.1", "0.6.6"))
+    local = Path(env["OPENPROGRAM_LOCAL_PYTHON"])
+    local.write_text(
+        '#!/bin/sh\nset -eu\n'
+        'case "$*" in\n'
+        ' *verify-release-version.py*) exec "$REAL_PYTHON" "$@" ;;\n'
+        ' *.py*) exit 0 ;;\n'
+        'esac\n'
+        'case "${1:-}" in -) exec "$REAL_PYTHON" "$@" ;; esac\n'
+        'printf "local %s\\n" "$*" >> "$MUTATION_LOG"\n'
+    )
+    (app / "Contents/Frameworks").mkdir()
+    embedded = app / "Contents/Resources/runtime/python/bin/python3"
+    embedded.write_text(
+        '#!/bin/sh\nset -eu\n'
+        'case "$*" in *"m.version"*) echo 0.6.6; exit 0 ;; esac\n'
+        'printf "embedded %s\\n" "$*" >> "$MUTATION_LOG"\n'
+        'case "$*" in\n'
+        ' *"worker install"*) exit "${INSTALL_RC:-0}" ;;\n'
+        ' *"-I -B - "*) body=$(cat); '
+        'case "$body" in *current_worker_pid*) exit "${OWNER_RC:-0}" ;; esac ;;\n'
+        'esac\nexit 0\n'
+    )
+    for name, body in {
+        "curl": 'printf "%s\\n" "$*" >> "$PROBE_ARGS"; n=0; test ! -f "$PROBE_COUNT" || n=$(cat "$PROBE_COUNT"); '
+                'n=$((n+1)); echo "$n" > "$PROBE_COUNT"; '
+                'test "$n" -ge "${HEALTH_AFTER:-1}" || exit 7\n',
+        "sleep": 'exec /bin/sleep 0.01\n',
+        "pgrep": 'test -f "$OPENED" && test "${REOPEN_VISIBLE:-1}" = 1\n',
+        "open": 'echo "$*" >> "$OPEN_LOG"; touch "$OPENED"; exit "${OPEN_RC:-0}"\n',
+        "codesign": 'case "$*" in *--verify*) exit "${SIGN_RC:-0}" ;; esac\n',
+        "osascript": 'exit 0\n',
+        "pkill": 'exit 0\n',
+    }.items():
+        p = fake_bin / name
+        p.write_text("#!/bin/sh\n" + body)
+        p.chmod(0o755)
+    env.update(PROBE_COUNT=str(tmp_path / "probes"), PROBE_ARGS=str(tmp_path / "probe-args"), OPEN_LOG=str(tmp_path / "opens"),
+               OPENED=str(tmp_path / "opened"))
+    if service:
+        plist = Path(env["HOME"]) / "Library/LaunchAgents/ai.openprogram.worker.plist"
+        plist.parent.mkdir(parents=True)
+        plist.write_text("fake managed service")
+    return repo, app, env
+
+
+@POSIX_SHELL_INTEGRATION
+@pytest.mark.parametrize(("case", "service"), [
+    ("delayed", True), ("delayed", False), ("timeout", True),
+    ("timeout_open_failure", True), ("owner_failure", True),
+    ("sign_failure", True), ("install_failure", True), ("open_failure", True),
+])
+def test_local_refresh_completion_preserves_failure_and_reopens_verified_app(
+    tmp_path: Path, case: str, service: bool,
+) -> None:
+    repo, app, env = _prepare_completion_refresh_fixture(tmp_path, service=service)
+    script = repo / "scripts/refresh-local-app.sh"
+    if case == "delayed":
+        # The old script has only 50 retries plus a final probe.
+        env["HEALTH_AFTER"] = "56"
+    elif case.startswith("timeout"):
+        env["HEALTH_AFTER"] = "999999"
+        script.write_text(script.read_text().replace("health_timeout=120", "health_timeout=1"))
+        if case == "timeout_open_failure":
+            env["OPEN_RC"] = "42"
+    elif case == "owner_failure":
+        env["OWNER_RC"] = "23"
+    elif case == "sign_failure":
+        env["SIGN_RC"] = "31"
+    elif case == "install_failure":
+        env["INSTALL_RC"] = "29"
+    else:
+        env["OPEN_RC"] = "42"
+    result = subprocess.run(
+        ["bash", str(script)], env=env, capture_output=True, text=True, timeout=15,
+    )
+    output = result.stdout + result.stderr
+    expected = {"delayed": 0, "timeout": 7, "timeout_open_failure": 7,
+                "owner_failure": 23, "sign_failure": 31,
+                "install_failure": 29, "open_failure": 42}[case]
+    assert result.returncode == expected, output
+    opens = Path(env["OPEN_LOG"])
+    if case == "sign_failure":
+        assert not opens.exists(), output
+    else:
+        assert opens.read_text().splitlines() == [f"-a {app}"], output
+    calls = Path(env["MUTATION_LOG"]).read_text().splitlines()
+    assert sum("embedded -I -B -m openprogram worker install" == c for c in calls) == int(service and case != "sign_failure")
+    assert sum("embedded -I -B -m openprogram worker start" == c for c in calls) == int(not service and case != "sign_failure")
+    args_file = Path(env["PROBE_ARGS"])
+    if args_file.exists():
+        for probe in args_file.read_text().splitlines():
+            assert "--connect-timeout 1" in probe
+            assert re.search(r"--max-time [12](?: |$)", probe)
+    if case.startswith("timeout"):
+        assert "worker health did not become ready" in output
+        assert str(Path(env["HOME"]) / ".openprogram/worker.log") in output
+    if "open_failure" in case:
+        assert "OpenProgram did not reopen after the refresh" in output
+    assert not (app.parent / ".openprogram-app-install.lock").exists()
+    assert not list(Path(env["TMPDIR"]).glob("openprogram-local-wheel.*"))
