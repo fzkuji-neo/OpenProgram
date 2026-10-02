@@ -559,6 +559,18 @@ receipt = {
 <span id="lifecycle">
 </span>
 <h2 tabindex="-1">失败、取消与重启恢复</h2>
+<h3 id="selected-desktop-access">在已选择能力边界检查桌面权限</h3>
+<p>仅传 task 的 <code>gui_agent</code> 入口允许规划与已授权浏览器操作，不预先要求本地桌面权限。显式桌面执行保留副作用前权限检查。默认能力发现区分可恢复的 OS 授权缺失与不可用的原生依赖：只有选中本地桌面操作后才请求所需授权。浏览器与 VM 操作继续遵守各自的目标准入和授权边界。</p>
+<p>可信宿主编排适配器通过现有 durable function 记录，将每个规划决定和能力结果保留为 JSON。可恢复参数只包含任务与配置，实时 Runtime 由宿主 ContextVar 绑定。固定且有版本的 GUI-operation API 将保留的编排连接到 pinned Harness 的规划器、执行器与总结函数；快照准入仅识别这些操作，不放开任意动态 import、不透明宿主对象或生成代码。公共 <code>resume_state</code>、历史或游标参数不能替换持久执行状态。</p>
+<ol>
+<li>在选择外部操作前提交本轮规划决定。</li>
+<li>选择 <code>computer_use</code> 后，在登记或派发其副作用之前重新检查桌面授权。可恢复的授权缺失产生 typed function suspension，携带保留的调用身份与已选能力；依赖不可用仍终结执行。</li>
+<li>子进程通过 IPC 报告暂停。父进程重新检查执行主机，在自己当前拥有的 attempt 中打开现有 <code>system_access</code> 等待。子进程或模型的报告不能证明授权已成立。</li>
+<li>forced 调用在等待 checkpoint 中保留函数游标。Agent 工具调用先保留函数游标与现有 provider/tool continuation，再打开等待。两个提交之间发生崩溃时，恢复已暂停函数并重新建立必要的等待。</li>
+<li>真实授权后恢复同一任务，取回已提交的规划与浏览器 step 结果，重新检查权限，再首次派发待执行桌面操作。取消、授权撤销、旧 generation 或未确定副作用均阻止派发。</li>
+</ol>
+<p>权限检查独立于 desktop step，并先于该 step：<code>step()</code> 在调用操作前将副作用标为已派发，在 desktop step 内等待会产生未确定副作用并阻止安全恢复。子进程也不能直接打开父进程拥有的等待，因为打开等待会结束当前 attempt。默认 forced 调用同时捕获浏览器能力可用的已授权 Page 上下文与已选原生能力上下文。</p>
+
 <div class="table-wrap">
 <table>
 <thead>
@@ -1227,6 +1239,8 @@ render();
 </tr>
 </thead>
 <tbody>
+<tr><td>仅传 task 的 GUI 按已选桌面能力请求授权</td><td>公共 bridge 与 canonical preflight 目前在默认能力规划前要求桌面权限。受控的“桌面缺授权、浏览器可用”公共入口测试复现这一准入错误。保留函数设计规定 desktop step 之前的 typed wait。</td><td>尚未实现。必须验证 forced 和 Agent 工具准入、同任务 worker 续跑、已提交浏览器副作用不重放、取消、撤销授权、旧 generation 与崩溃后的未确定结果处理。现有浏览器测试与直接函数结果不能证明这些恢复保证。</td></tr>
+
 <tr>
 <td>现有 GUI/浏览器边界</td>
 <td>156 个 OpenProgram 局部测试通过：能力循环、不可行结果、VM 协议、Page runtime、浏览器 Agent。</td>

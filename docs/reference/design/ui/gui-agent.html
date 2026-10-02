@@ -559,6 +559,18 @@ receipt = {
 <span id="lifecycle">
 </span>
 <h2 tabindex="-1">Failure, cancellation and restart recovery</h2>
+<h3 id="selected-desktop-access">Desktop access at the selected capability boundary</h3>
+<p>The task-only <code>gui_agent</code> entry admits planning and authorized browser work without requiring local desktop permissions. Explicit desktop execution retains its pre-effect access check. Default capability discovery separates recoverable missing OS grants from unavailable native dependencies: only a selected local desktop operation requests the required access. Browser and VM operations retain their own target and authorization boundaries.</p>
+<p>A trusted host orchestration adapter retains each planner decision and capability result as JSON through the existing durable function records. Its resumable arguments contain task/configuration data; the live Runtime is bound by a host ContextVar. A fixed, versioned GUI-operation API connects retained orchestration to the pinned Harness planner, executor and conclusion functions. Snapshot admission recognizes only those operations; it does not permit arbitrary dynamic imports, opaque host objects or generated code. No public <code>resume_state</code>, history or cursor parameter can replace the persisted execution state.</p>
+<ol>
+<li>Commit the next planner decision before selecting an external operation.</li>
+<li>For <code>computer_use</code>, recheck desktop access before registering or dispatching its effect. A recoverable missing grant produces typed function suspension with the retained call identity and selected capability; an unavailable backend remains terminal.</li>
+<li>The child reports suspension through IPC. The parent probes the execution host again and opens the existing <code>system_access</code> wait from its current owned attempt. Child or model reports never establish a grant.</li>
+<li>Forced calls retain the function cursor in the wait checkpoint. Agent tool calls retain both the function cursor and the existing provider/tool continuation before opening the wait. A crash between those commits resumes the suspended function and recreates the required wait.</li>
+<li>After actual authorization, resume the same task, recover committed planner and browser-step results, recheck access and dispatch the first pending desktop operation. Cancellation, revoked access, an old generation or an unresolved effect prevents dispatch.</li>
+</ol>
+<p>The access check is a separate pre-step boundary: <code>step()</code> marks an effect dispatched before calling its operation. Waiting inside a desktop step would create an uncertain effect and prevent safe continuation. The child also cannot open the parent-owned wait directly, because opening a wait ends the active attempt. Default forced calls capture authorized Page context for the browser capability as well as the selected native capability.</p>
+
 <div class="table-wrap">
 <table>
 <thead>
@@ -1192,6 +1204,8 @@ render();
 </tr>
 </thead>
 <tbody>
+<tr><td>Selected desktop access for task-only GUI</td><td>The public bridge and canonical preflight currently require desktop access before the default capability planner. A controlled missing-desktop/available-browser public-entry check reproduces this admission failure. The retained-function design specifies a pre-step typed wait.</td><td>Not implemented. Required gates cover forced and Agent-tool admission, same-task worker resume, non-replay of committed browser effects, cancellation, revocation, stale generations and crash reconciliation. Existing browser tests and direct-call results do not establish these recovery guarantees.</td></tr>
+
 <tr>
 <td>Existing GUI/browser boundaries</td>
 <td>156 focused OpenProgram tests pass: capability loop, infeasible results, VM protocol, Page runtime and browser Agent.</td>
