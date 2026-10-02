@@ -133,7 +133,9 @@ def _cmd_list():
             continue
         if not source or not os.path.isfile(source) or not is_owner_controlled_program_path(source):
             continue
-        desc = (getattr(registered, "description", "") or inspect.getdoc(fn) or "").strip().split("\n", 1)[0]
+        desc = (getattr(registered, "tool_description", "")
+                or getattr(registered, "description", "")
+                or inspect.getdoc(fn) or "").strip().split("\n", 1)[0]
         entries.append((name, desc))
         seen.add(name)
 
