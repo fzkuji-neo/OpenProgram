@@ -135,3 +135,5 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 | `cron` | 登记周期性 agent 任务 | 无 |
 | `list_mcp_resources` / `read_mcp_resource` / `list_mcp_prompts` / `get_mcp_prompt` | 把 MCP 的 resources / prompts 原语暴露给模型（`mcp_meta` 目录） | 已配置的 MCP server（见 [MCP](mcp.zh.md)） |
 | `tool_search` | 按需加载延迟工具；下一次模型请求包含其完整 schema | 无 |
+
+已注册的 `canvas` 与 `agent_browser` 对明确的校验、依赖和进程失败设置错误标记。成功的 Canvas 正文与 CLI stdout 即使以 `Error:` 开头也保持成功。普通 Python `execute()` 调用仍返回字符串。
