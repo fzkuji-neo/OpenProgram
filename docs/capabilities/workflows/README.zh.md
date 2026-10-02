@@ -33,6 +33,7 @@ openprogram programs run <name> -a key=value  # 直接运行一个 program
 
 ## 用哪种方式触发
 
+- **Web 参数表单**：点击 Programs 中的 **Use** 或侧栏收藏。新标签页变成草稿聊天；已有聊天保留草稿和执行中的任务。填写任务要求后明确发送。打开或关闭表单不会执行 Workflow。
 - **聊天里**：入口函数以 `as_tool=True` 注册为工具，直接用自然语言描述任务，模型会调用它（如 `gui_agent`、`research_agent`、`wiki_agent`）。
 - **命令行**：`openprogram programs run gui_agent -a task="Open Firefox"`。
 - **Python 里**：harness 的函数就是普通可 import 的 Python 函数。

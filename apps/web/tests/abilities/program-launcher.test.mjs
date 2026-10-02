@@ -9,7 +9,7 @@ registerHooks({
     if (specifier === "react" && context.parentURL?.endsWith("use-pending-run-function.ts")) {
       return { shortCircuit: true, url: "data:text/javascript,export const useEffect = (effect) => globalThis.launchEffects.push(effect);" };
     }
-    if (context.parentURL?.endsWith("use-pending-run-function.ts")) {
+    if (context.parentURL?.endsWith("use-pending-run-function.ts") || context.parentURL?.endsWith("functions-actions.ts")) {
       if (specifier === "@/lib/tabs/center-tabs-store") {
         return { shortCircuit: true, url: "data:text/javascript,export const useCenterTabs = {getState: () => globalThis.launcherTabs};" };
       }
@@ -49,6 +49,7 @@ function reset() {
   notices.length = 0;
   opened.length = 0;
   launcherSession.activeChatKey = "chat-a";
+  globalThis.launcherTabs = { activeId: "s:chat-a", tabs: [{ id: "s:chat-a", kind: "session", sessionId: "chat-a" }] };
   useFunctions.getState().setFunctions([]);
   runtimeState.availableFunctions = [];
 }
@@ -62,6 +63,22 @@ test("Use resolves an uncached workflow and publishes it for favorites", async (
   assert.deepEqual(opened, ["weekly_report"]);
   assert.deepEqual(useFunctions.getState().functions, [workflow]);
   assert.deepEqual(runtimeState.availableFunctions, [workflow]);
+});
+
+test("switching non-session tabs during resolution cancels the old launch", async () => {
+  reset();
+  launcherTabs.activeId = "ntp-a";
+  launcherTabs.tabs = [{ id: "ntp-a", kind: "ntp" }, { id: "ntp-b", kind: "ntp" }];
+  let reply;
+  let started;
+  const ready = new Promise((resolve) => { started = resolve; });
+  globalThis.fetch = () => new Promise((resolve) => { reply = resolve; started(); });
+  const pending = actions.openFunctionForm("weekly_report");
+  await ready;
+  launcherTabs.activeId = "ntp-b";
+  reply(Response.json([{ name: "weekly_report" }]));
+  await pending;
+  assert.deepEqual(opened, []);
 });
 
 test("a failed refresh preserves the last usable catalog", async () => {
