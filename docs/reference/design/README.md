@@ -51,7 +51,7 @@ Keep request construction, model options, account resolution and failure handlin
 
 Find harness, MCP, skills, plugin and channel contracts.
 
-[Harness standard](integrations/harness-standard.md) · [MCP integration](integrations/mcp-integration.md) · [MCP server](integrations/mcp-server.html) · [Extension gating](extension-gating/README.md) · [Channels](channels/design.md)
+[Harness standard](integrations/harness-standard.md) · [MCP integration](integrations/mcp-integration.html) · [MCP server](integrations/mcp-server.html) · [Extension gating](extension-gating/README.md) · [Channels](channels/design.md)
 
 ## Security and engineering
 

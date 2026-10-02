@@ -4,6 +4,6 @@ External integrations — MCP, skills/plugins, and the harness standard for plug
 
 - [`harness-standard.md`](harness-standard.md)
 - [Web Use — built-in-browser-first target design](web-use.html)
-- [`mcp-integration.md`](mcp-integration.md)
+- [`mcp-integration.html`](mcp-integration.html)
 - [MCP server — authenticated stdio design and evidence](mcp-server.html)
 - [`skills-and-plugins.md`](skills-and-plugins.md)

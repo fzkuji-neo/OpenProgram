@@ -443,7 +443,7 @@
     "en": "Harness standard",
     "zh": "运行环境规范"
   },
-  "reference/design/integrations/mcp-integration.md": {
+  "reference/design/integrations/mcp-integration.html": {
     "en": "MCP tools",
     "zh": "MCP 工具"
   },
