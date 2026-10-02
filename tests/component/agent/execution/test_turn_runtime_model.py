@@ -89,10 +89,14 @@ def selected_turn(tmp_path, monkeypatch):
     return db, TurnRequest(session_id='chat', user_text='hi', agent_id='main', source='test', model_override='selected/chat-model')
 
 @pytest.mark.parametrize("has_outer", [False, True])
-def test_failed_selected_runtime_preserves_error_without_global_fallback(selected_turn, monkeypatch, has_outer):
+@pytest.mark.parametrize("model_id", ["chat-model", "qwen:latest"])
+@pytest.mark.parametrize("async_call", [False, True])
+def test_failed_selected_runtime_preserves_error_without_global_fallback(selected_turn, monkeypatch, has_outer, model_id, async_call):
     from openprogram.providers import registry
     from openprogram.agentic_programming.function import agentic_function
     from openprogram.agentic_programming.runtime import Runtime
+    from openprogram.agent import dispatcher
+    monkeypatch.setattr(dispatcher, "_resolve_model", lambda *_: SimpleNamespace(provider="selected", id=model_id))
     calls = []
     original = RuntimeError("selected provider auth unavailable")
     def create(**kw):
@@ -101,7 +105,7 @@ def test_failed_selected_runtime_preserves_error_without_global_fallback(selecte
     monkeypatch.setattr(registry, "create_runtime", create)
     @agentic_function(as_tool=False, expose="hidden")
     def workflow(runtime=None):
-        return runtime.exec(content="test")
+        return asyncio.run(runtime.async_exec(content="test")) if async_call else runtime.exec(content="test")
     db, req = selected_turn
     outer = Runtime(call=lambda *_args, **_kw: "wrong-provider", model="test") if has_outer else None
     outer_token = _current_runtime.set(outer)
@@ -110,7 +114,7 @@ def test_failed_selected_runtime_preserves_error_without_global_fallback(selecte
         with pytest.raises(RuntimeError) as caught:
             workflow()
         assert caught.value is original
-        assert calls == [{"provider": "selected", "model": "chat-model"}]
+        assert calls == [{"provider": "selected", "model": model_id}]
     finally:
         binding.release()
         assert _current_runtime.get(None) is outer
