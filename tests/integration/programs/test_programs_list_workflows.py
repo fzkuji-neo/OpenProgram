@@ -10,7 +10,7 @@ import sys
 import pytest
 
 
-def _project(root: Path, name: str, *, approved: bool) -> Path:
+def _project(root: Path, name: str, *, approved: bool, description: str = "") -> Path:
     from openprogram.programs.workflow._project import catalog
 
     project = root / name
@@ -27,8 +27,8 @@ def _project(root: Path, name: str, *, approved: bool) -> Path:
         (project / "__init__.py").write_text(import_marker + f"from .workflow import {name}\n")
         (project / "workflow.py").write_text(
             "from openprogram.agentic_programming import agentic_function\n"
-            "@agentic_function\n"
-            f"def {name}(task: str):\n"
+            + (f"@agentic_function(description={description!r})\n" if description else "@agentic_function\n")
+            + f"def {name}(task: str):\n"
             '    """Published CLI report."""\n'
             "    raise AssertionError('listing must not execute the workflow')\n",
         )
@@ -47,13 +47,14 @@ def _project(root: Path, name: str, *, approved: bool) -> Path:
 
 
 @pytest.mark.parametrize("category", ["", "weekly_report"])
-def test_programs_list_includes_authorized_published_workflow(tmp_path: Path, category: str):
+@pytest.mark.parametrize("description", ["", "Custom published description"])
+def test_programs_list_includes_authorized_published_workflow(tmp_path: Path, category: str, description: str):
     catalog_root = tmp_path / "catalog"
     catalog_root.mkdir()
     (catalog_root / "__init__.py").write_text("")
     workflow_root = catalog_root / "workflow"
     parent = workflow_root / category if category else workflow_root
-    project = _project(parent, "cli_published_report", approved=True)
+    project = _project(parent, "cli_published_report", approved=True, description=description)
     unapproved = _project(parent, "cli_unapproved_report", approved=False)
     state = tmp_path / ".openprogram"
     state.mkdir()
@@ -75,7 +76,7 @@ def test_programs_list_includes_authorized_published_workflow(tmp_path: Path, ca
     assert not (unapproved / "imported.flag").exists()
     assert "cli_published_report" in result.stdout
     assert result.stdout.count("cli_published_report") == 1
-    assert "Published CLI report." in result.stdout
+    assert (description or "Published CLI report.") in result.stdout
     assert "cli_unapproved_report" not in result.stdout
     assert "auto_workflow" in result.stdout
     assert "Programs (3)" in result.stdout
