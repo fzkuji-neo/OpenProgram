@@ -41,7 +41,7 @@ import threading
 import uuid
 from typing import Any, Optional
 
-from openprogram.programs._runtime import function
+from openprogram.programs._runtime import ToolReturn, function
 
 
 NAME = "agent_browser"
@@ -173,7 +173,7 @@ def _run(
     command: str,
     args: list[str],
     timeout_s: int = 60,
-) -> str:
+) -> str | ToolReturn:
     binary = _resolve_binary()
     backend = sess.get("backend") or []
     cmd = _build_cmd(binary, backend, command, args)
@@ -190,12 +190,12 @@ def _run(
             timeout=timeout_s,
         )
     except subprocess.TimeoutExpired:
-        return f"Error: agent-browser timed out after {timeout_s}s on `{command}`."
+        return ToolReturn(text=f"Error: agent-browser timed out after {timeout_s}s on `{command}`.", is_error=True)
     except FileNotFoundError:
-        return _install_hint()
+        return ToolReturn(text=_install_hint(), is_error=True)
     if out.returncode != 0:
         err = (out.stderr or b"").decode("utf-8", errors="replace").strip()
-        return f"Error: agent-browser exited {out.returncode}: {err[:500]}"
+        return ToolReturn(text=f"Error: agent-browser exited {out.returncode}: {err[:500]}", is_error=True)
     text = (out.stdout or b"").decode("utf-8", errors="replace").strip()
     # Try to pretty-print JSON, otherwise return raw.
     try:
@@ -211,16 +211,16 @@ def _run(
 
 def _require_session(session_id: str) -> Any:
     if not session_id:
-        return "Error: `session_id` is required."
+        return ToolReturn(text="Error: `session_id` is required.", is_error=True)
     sess = _sessions.get(session_id)
     if sess is None:
-        return f"Error: no agent_browser session with id {session_id!r}."
+        return ToolReturn(text=f"Error: no agent_browser session with id {session_id!r}.", is_error=True)
     return sess
 
 
-def _open(*, cdp_url: Optional[str] = None) -> str:
+def _open(*, cdp_url: Optional[str] = None) -> str | ToolReturn:
     if not check_agent_browser():
-        return _install_hint()
+        return ToolReturn(text=_install_hint(), is_error=True)
     # Auto-pick CDP from the sidecar Chrome if user hasn't passed one.
     if not cdp_url:
         cdp_url = os.environ.get("OPENPROGRAM_BROWSER_CDP_URL") or _detect_sidecar_cdp()
@@ -245,85 +245,85 @@ def _open(*, cdp_url: Optional[str] = None) -> str:
     )
 
 
-def _navigate(session_id: str, url: str) -> str:
+def _navigate(session_id: str, url: str) -> str | ToolReturn:
     sess = _require_session(session_id)
-    if isinstance(sess, str):
+    if isinstance(sess, ToolReturn):
         return sess
     if not url:
-        return "Error: `url` is required for navigate."
+        return ToolReturn(text="Error: `url` is required for navigate.", is_error=True)
     from openprogram.security.url_policy import URLPolicyError, normalize_url
     try:
         url = normalize_url(url).normalized_url
     except URLPolicyError as e:
-        return f"Error: {e}"
+        return ToolReturn(text=f"Error: {e}", is_error=True)
     return _run(sess, "navigate", [url])
 
 
-def _snapshot(session_id: str) -> str:
+def _snapshot(session_id: str) -> str | ToolReturn:
     sess = _require_session(session_id)
-    if isinstance(sess, str):
+    if isinstance(sess, ToolReturn):
         return sess
     return _run(sess, "snapshot", [])
 
 
-def _click(session_id: str, ref: str) -> str:
+def _click(session_id: str, ref: str) -> str | ToolReturn:
     sess = _require_session(session_id)
-    if isinstance(sess, str):
+    if isinstance(sess, ToolReturn):
         return sess
     if not ref:
-        return "Error: `ref` is required for click (e.g. `@e3` from snapshot)."
+        return ToolReturn(text="Error: `ref` is required for click (e.g. `@e3` from snapshot).", is_error=True)
     return _run(sess, "click", [ref])
 
 
-def _type(session_id: str, ref: str, text: str, submit: bool) -> str:
+def _type(session_id: str, ref: str, text: str, submit: bool) -> str | ToolReturn:
     sess = _require_session(session_id)
-    if isinstance(sess, str):
+    if isinstance(sess, ToolReturn):
         return sess
     if not ref:
-        return "Error: `ref` is required for type."
+        return ToolReturn(text="Error: `ref` is required for type.", is_error=True)
     if text is None:
-        return "Error: `text` is required for type."
+        return ToolReturn(text="Error: `text` is required for type.", is_error=True)
     args = [ref, text]
     if submit:
         args.append("--submit")
     return _run(sess, "type", args)
 
 
-def _scroll(session_id: str, amount: int) -> str:
+def _scroll(session_id: str, amount: int) -> str | ToolReturn:
     sess = _require_session(session_id)
-    if isinstance(sess, str):
+    if isinstance(sess, ToolReturn):
         return sess
     return _run(sess, "scroll", [str(amount)])
 
 
-def _press(session_id: str, key: str) -> str:
+def _press(session_id: str, key: str) -> str | ToolReturn:
     sess = _require_session(session_id)
-    if isinstance(sess, str):
+    if isinstance(sess, ToolReturn):
         return sess
     if not key:
-        return "Error: `key` is required for press."
+        return ToolReturn(text="Error: `key` is required for press.", is_error=True)
     return _run(sess, "press", [key])
 
 
-def _back(session_id: str) -> str:
+def _back(session_id: str) -> str | ToolReturn:
     sess = _require_session(session_id)
-    if isinstance(sess, str):
+    if isinstance(sess, ToolReturn):
         return sess
     return _run(sess, "back", [])
 
 
-def _console(session_id: str) -> str:
+def _console(session_id: str) -> str | ToolReturn:
     sess = _require_session(session_id)
-    if isinstance(sess, str):
+    if isinstance(sess, ToolReturn):
         return sess
     return _run(sess, "console", [])
 
 
-def _close(session_id: str) -> str:
+def _close(session_id: str) -> str | ToolReturn:
     with _sessions_lock:
         sess = _sessions.pop(session_id, None)
     if sess is None:
-        return f"Error: no agent_browser session with id {session_id!r}."
+        return ToolReturn(text=f"Error: no agent_browser session with id {session_id!r}.", is_error=True)
     # Local sessions can be killed by name. CDP sessions: leave Chrome alone.
     name = sess.get("session_name")
     if name:
@@ -349,6 +349,49 @@ def _list() -> str:
     return "\n".join(lines)
 
 
+def _execute_result(
+    action: Optional[str] = None,
+    session_id: Optional[str] = None,
+    url: Optional[str] = None,
+    ref: Optional[str] = None,
+    text: Optional[str] = None,
+    submit: bool = False,
+    key: Optional[str] = None,
+    amount: Optional[int] = None,
+    cdp_url: Optional[str] = None,
+    **kw: Any,
+) -> ToolReturn:
+    if not action:
+        return ToolReturn(text="Error: `action` is required.", is_error=True)
+    action = action.lower()
+
+    if action == "open":
+        result = _open(cdp_url=cdp_url)
+    elif action == "list":
+        result = _list()
+    elif action == "navigate":
+        result = _navigate(session_id or "", url or "")
+    elif action == "snapshot":
+        result = _snapshot(session_id or "")
+    elif action == "click":
+        result = _click(session_id or "", ref or "")
+    elif action == "type":
+        result = _type(session_id or "", ref or "", text or "", submit=submit)
+    elif action == "scroll":
+        result = _scroll(session_id or "", amount if amount is not None else 500)
+    elif action == "press":
+        result = _press(session_id or "", key or "")
+    elif action == "back":
+        result = _back(session_id or "")
+    elif action == "console":
+        result = _console(session_id or "")
+    elif action == "close":
+        result = _close(session_id or "")
+    else:
+        return ToolReturn(text=f"Error: unknown action {action!r}.", is_error=True)
+    return result if isinstance(result, ToolReturn) else ToolReturn(text=result)
+
+
 def execute(
     action: Optional[str] = None,
     session_id: Optional[str] = None,
@@ -361,35 +404,11 @@ def execute(
     cdp_url: Optional[str] = None,
     **kw: Any,
 ) -> str:
-    if not action:
-        return "Error: `action` is required."
-    action = action.lower()
-
-    # Dispatch.
-    if action == "open":
-        return _open(cdp_url=cdp_url)
-    if action == "list":
-        return _list()
-    if action == "navigate":
-        return _navigate(session_id or "", url or "")
-    if action == "snapshot":
-        return _snapshot(session_id or "")
-    if action == "click":
-        return _click(session_id or "", ref or "")
-    if action == "type":
-        return _type(session_id or "", ref or "", text or "", submit=submit)
-    if action == "scroll":
-        return _scroll(session_id or "", amount if amount is not None else 500)
-    if action == "press":
-        return _press(session_id or "", key or "")
-    if action == "back":
-        return _back(session_id or "")
-    if action == "console":
-        return _console(session_id or "")
-    if action == "close":
-        return _close(session_id or "")
-    return f"Error: unknown action {action!r}."
-
+    """Keep plain calls returning text; registered calls preserve failure signals."""
+    return _execute_result(
+        action=action, session_id=session_id, url=url, ref=ref, text=text,
+        submit=submit, key=key, amount=amount, cdp_url=cdp_url, **kw,
+    ).text or ""
 
 
 # Register as an AgentTool. ``execute`` stays a plain callable so any
@@ -404,6 +423,6 @@ function(
     max_result_chars=60_000,
     check_fn=check_agent_browser,
     url_params=["url"],
-)(execute)
+)(_execute_result)
 
 __all__ = ["NAME", "SPEC", "DESCRIPTION", "execute", "check_agent_browser"]

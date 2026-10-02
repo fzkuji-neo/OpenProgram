@@ -137,3 +137,5 @@ Collaboration splits into four domains, one word each — see
 | `cron` | Register recurring agent tasks | Nothing |
 | `list_mcp_resources` / `read_mcp_resource` / `list_mcp_prompts` / `get_mcp_prompt` | Expose MCP resources / prompts primitives to the model (the `mcp_meta` directory) | A configured MCP server (see [MCP](mcp.md)) |
 | `tool_search` | Load a deferred tool on demand; its full schema is included in the next model request | Nothing |
+
+`canvas` and `agent_browser` registered tools mark explicit validation and dependency/process failures as errors. Successful Canvas content and successful CLI stdout remain successful even when the text begins with `Error:`. Plain Python `execute()` calls keep their string return values.
