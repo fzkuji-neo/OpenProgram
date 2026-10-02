@@ -525,6 +525,23 @@ def test_shared_password_prefix_does_not_hide_longer_matches_from_redactor(monke
         controller.close()
 
 
+def test_overlapping_password_occurrences_are_redacted_in_public_observation():
+    header = "a" * 32
+    secret = header + "B" * 100 + header
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI("", secret=secret))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""text => {
+            const paragraph=document.createElement('p');paragraph.innerText=text;
+            document.body.append(paragraph);
+        }""", secret + secret[32:])
+        observed = controller.execute(action="observe")
+        assert "B" * 64 not in json.dumps(observed, ensure_ascii=False)
+        assert observed["text"] == "[redacted]"
+    finally:
+        controller.close()
+
+
 def test_editable_ancestor_contents_are_excluded_from_context_direct_text():
     controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
     try:
