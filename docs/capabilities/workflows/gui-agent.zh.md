@@ -94,6 +94,8 @@ Function 卡片直接显示这个任务结果：验证成功显示 `Succeeded`�
 
 源码与 README：`openprogram/programs/packages/gui_harness/`，上游仓库 [Fzkuji/GUI-Agent-Harness](https://github.com/Fzkuji/GUI-Agent-Harness)。
 
+通过 `web_use` 发现 Page 不代表所选 MCP 后端能够启动。官方 MCP server 无法启动或连接时，观察返回 `reason_code=computer_use_backend_unavailable`、`availability=unavailable`、实际 backend 和已关闭的会话。OpenProgram 释放失败的会话及 Page 租约，不自动改用其他后端。检查该后端的依赖和连接后，重新列出 Page 并观察。
+
 Browser Workflow 表单只显示任务和可选目标 URL。动作上限、超时与 backend 使用内部默认设置，不显示 Advanced。显式程序调用仍可使用受支持的覆盖值。
 
 ## 系统权限检查
