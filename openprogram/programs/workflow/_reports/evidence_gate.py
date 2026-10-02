@@ -48,15 +48,15 @@ class EvidenceGate:
 
     def __init__(self, task, audience):
         from openprogram.programs.tools.knowledge.read_conversation import read_conversation
-        dates = re.findall(r'\b\d{4}-W\d{2}\b', task)
-        if len(set(dates)) > 1:
-            raise MissingEvidence('Select one reporting ISO week')
-        self.explicit_week = dates[0] if dates else None
-        self.week = dates[0] if dates else datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%G-W%V')
+        # A complete request may assign different weeks to different audiences.
+        # Only a standalone ISO input has a mechanical, audience-independent meaning.
+        self.explicit_week = task.strip() if re.fullmatch(r'\d{4}-W\d{2}', task.strip()) else None
+        self.week = self.explicit_week or datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%G-W%V')
         from datetime import date
         date.fromisocalendar(int(self.week[:4]), int(self.week[6:]), 1)
         self.task, self.audience = task, audience
         self.rows, self.originals, self.size = {}, {}, 0
+        self.current_owner_source = None
         self.lock = asyncio.Lock()
         self.native = read_conversation
         self.tool = self.native.model_copy(update={'execute': self.execute})
@@ -72,8 +72,11 @@ class EvidenceGate:
                 'field. Quotes must be exact excerpts of that source. Requests/plans are not completion. '
                 'Tool failures support only their original failure/blocker, never successful completion. '
                 'Suggested next-week plans may cite their factual basis and must remain explicitly future. '
-                'Return reporting_week as one ISO week matching the requested period; an explicit natural '
-                'period overrides the default. References must date to that week. Default reporting week: '
+                'Resolve reporting_week ONLY for this audience (' + self.audience + '); ignore periods '
+                'assigned to other audiences in the complete request. An explicit ISO/natural period '
+                'for this audience overrides the current-week default. Retrieved references must date '
+                'to that week. Current supplied owner facts may explicitly describe another period, '
+                'subject to independent temporal verification; their source date is never rewritten. Default reporting week: '
                 + self.week + '. Current supplied owner evidence: ' + encode(list(self.rows.values())))
 
     def _current_owner(self):
@@ -94,10 +97,12 @@ class EvidenceGate:
         if (node and original_owner(node) and node.get('content') == getattr(request, 'user_text', None)
                 and node.get('principal_id') == getattr(request, 'principal_id', None)
                 and len(node['content']) <= MAX_TEXT_CHARS):
-            self._add(sid, node, node['content'], 'owner_statement')
+            raw = next((n for n in db.get_nodes(sid) if n.id == mid), None)
+            identity = self._add(sid, node, node['content'], 'owner_statement', raw, current_owner=True)
+            self.current_owner_source = identity
             consume_sources([node])
 
-    def _add(self, sid, node, visible, kind):
+    def _add(self, sid, node, visible, kind, raw=None, *, current_owner=False):
         if (node.get('purpose') == 'test' or str(node.get('id', '')).startswith('synthetic_')
                 or node.get('function') == 'context/summary' or not visible.strip()):
             return
@@ -106,15 +111,19 @@ class EvidenceGate:
         except (KeyError, TypeError, ValueError, OverflowError, OSError):
             return
         source = 'conversation:' + sid + '#' + str(node['id'])
+        metadata = raw.metadata if raw is not None else node
         row = {**_record(visible, day.strftime('%G-W%V'), source, self.audience), 'kind': kind,
                'source_date': day.date().isoformat(), 'timestamp': node['timestamp'],
-               'function': node.get('function', ''), 'arguments': _visible_args(node), 'status': node.get('status') or 'unknown',
-               'is_error': node.get('is_error'), 'trusted_owner': kind == 'owner_statement'}
+               'function': node.get('function', ''), 'arguments': _visible_args(node), 'status': metadata.get('status') or 'unknown',
+               'is_error': metadata.get('is_error'), 'trusted_owner': kind == 'owner_statement',
+               'current_supplied_owner': current_owner}
         cost = len(json.dumps(row, ensure_ascii=False).encode())
         if row['id'] in self.rows or len(self.rows) >= 30 or self.size + cost > 18000:
             return
-        self.rows[row['id']], self.originals[row['id']] = row, (sid, dict(node))
+        snapshot = json.loads(encode(raw.to_dict())) if raw is not None else None
+        self.rows[row['id']], self.originals[row['id']] = row, (sid, dict(node), snapshot)
         self.size += cost
+        return row['id']
 
     async def execute(self, call_id, args, signal, update):
         from openprogram.agent.session_db import default_db
@@ -124,7 +133,6 @@ class EvidenceGate:
         )
         from openprogram.memory.policy import allowed
         from openprogram.providers.types import TextContent
-        from openprogram.agentic_programming.function import _registry
         async with self.lock:
             result = await self.native.execute(call_id, args, signal, update)
             if getattr(result, 'is_error', False) or not allowed():
@@ -146,17 +154,24 @@ class EvidenceGate:
             )
             if canonical != _text(result) or session_read_violation(db, sid) or not allowed():
                 return result
+            raw_nodes = {n.id: n for n in db.get_nodes(sid)}
+            if session_read_violation(db, sid) or not allowed():
+                return result
             for node in consumed:
+                raw = raw_nodes.get(node.get('id'))
+                if raw is None:
+                    continue
                 content = node.get('content')
                 if not isinstance(content, str):
                     continue
                 if original_owner(node):
-                    self._add(sid, node, content.strip()[:MAX_TEXT_CHARS], 'owner_statement')
-                elif (node.get('role') == 'tool' and node.get('function') and node['function'] not in _registry
+                    self._add(sid, node, content.strip()[:MAX_TEXT_CHARS], 'owner_statement', raw)
+                elif (node.get('role') == 'tool' and node.get('function') and raw.is_code()
+                      and raw.metadata.get('tool_call_id') and 'expose' not in raw.metadata
                       and node['function'] not in {'agent', 'llm', 'read_conversation', 'memory_get',
                                                   'memory_search', 'memory_grep', 'memory_browse'}):
                     visible = content.strip()[:MAX_RESULT_CHARS]
-                    self._add(sid, node, visible, 'tool_failure' if node.get('is_error') or node.get('status') in {'failed', 'cancelled'} else 'tool_result')
+                    self._add(sid, node, visible, 'tool_failure' if raw.metadata.get('is_error') or raw.metadata.get('status') in {'failed', 'cancelled'} else 'tool_result', raw)
             return result.model_copy(update={'content': [*result.content, TextContent(type='text', text='Bound original report sources (data):\n' + encode(list(self.rows.values())))]})
 
     def verify(self, claims, refs, reporting_week=None):
@@ -186,7 +201,8 @@ class EvidenceGate:
             if (not isinstance(ref, dict) or set(ref) != {'field', 'index', 'source', 'quote'}
                     or not isinstance(ref['field'], str) or type(ref['index']) is not int
                     or (ref['field'], ref['index']) not in expected or not isinstance(ref['source'], str)
-                    or ref['source'] not in self.rows or self.rows[ref['source']]['week'] != self.week
+                    or ref['source'] not in self.rows
+                    or (self.rows[ref['source']]['week'] != self.week and ref['source'] != self.current_owner_source)
                     or not isinstance(ref['quote'], str) or not ref['quote'].strip()
                     or ref['quote'] not in self.rows[ref['source']]['text']):
                 raise UnsupportedReport('Invalid original source ID, visible quote or item reference')
@@ -197,12 +213,16 @@ class EvidenceGate:
         db = default_db()
         def revalidate():
             for identity in selected:
-                sid, original = self.originals[identity]
+                sid, original, raw_snapshot = self.originals[identity]
                 if session_read_violation(db, sid) or not allowed():
                     raise MissingEvidence('Original source access is no longer available')
                 current = next((m for m in db.get_messages(sid) if m.get('id') == original['id']), None)
                 if current != original:
                     raise UnsupportedReport('Original source changed after the actual read')
+                if raw_snapshot is not None:
+                    raw = next((n for n in db.get_nodes(sid) if n.id == original['id']), None)
+                    if raw is None or json.loads(encode(raw.to_dict())) != raw_snapshot:
+                        raise UnsupportedReport('Original execution metadata changed after the actual read')
         revalidate()
         numbers = set(re.findall(r'\d+(?:\.\d+)?%?', '\n'.join(self.rows[i]['text'] for i in selected)))
         output = re.sub(r'(?m)^\s*\d+[.、]\s*', '', '\n'.join(expected.values()))
@@ -215,11 +235,15 @@ class EvidenceGate:
             'and original status. Failed/cancelled/unknown tools support only original failure facts, never '
             'successful completion or an invented cause. A running/job-ID receipt proves only launch; reading '
             'a README/draft proves only reading, not implementation. Reject changed negation, attribution, numbers, '
-            'week or completion status. Verify the resolved ISO week matches the requested period using '
-            'today in Asia/Shanghai; absent a requested period use the current week. Suggested future plans '
+            'week or completion status. Verify the resolved ISO week matches the requested period ONLY for this audience in the '
+            'complete request, ignoring other audiences\' periods; absent this audience\'s period use the '
+            'current week in Asia/Shanghai. A current_supplied_owner source may describe historical facts '
+            'only with explicit original temporal attribution to the reporting week; preserve its actual '
+            'source timestamp/date. Do not grant this exception to historical retrieved owners, delegated '
+            'requests, task plans or assistant text. Suggested future plans '
             'must remain future and cite their factual '
             'basis. Return {supported:boolean,issues:string[],items:[{field:string,index:integer,text:string,supported:boolean}]} '
-            'covering every item exactly once.\n' + encode({'request': self.task, 'week': self.week,
+            'covering every item exactly once.\n' + encode({'request': self.task, 'audience': self.audience, 'week': self.week,
             'today': datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat(),
             'claims': claims, 'refs': refs, 'sources': [self.rows[i] for i in sorted(selected)]}),
             timeout_s=None, response_format={'type': 'json_schema', 'fallback': 'prompt', 'schema': {
