@@ -1,7 +1,7 @@
 """Bounded, read-only discovery of weekly report evidence and dated memory."""
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import hashlib
 import json
 import os
@@ -64,6 +64,59 @@ def memory_candidates(week, query):
     if not allowed():
         return []
     return sorted(result, key=lambda item: (item["trusted_owner"], item["source_date"]), reverse=True)
+
+
+def conversation_candidates(week):
+    """Read bounded original owner messages with their actual reporting dates.
+
+    These remain candidates: a dated request or plan is not completed work.
+    Generated assistant text and runtime-delegated instructions are excluded.
+    """
+    from zoneinfo import ZoneInfo
+    from openprogram.agent.authority import normalize_authority
+    from openprogram.agent.session_db import default_db
+    from openprogram.memory.policy import allowed, consume_sources
+
+    if not allowed():
+        return []
+    monday = date.fromisocalendar(int(week[:4]), int(week[6:]), 1)
+    sunday = monday + timedelta(days=6)
+    db = default_db()
+    result, consumed, seen, size = [], [], set(), 0
+    for session in db.list_sessions(limit=20):
+        sid = session['id']
+        if validate_read_path(str(db._session_dir(sid))):
+            continue
+        for message in reversed(db.get_messages(sid, limit=200)):
+            authority = normalize_authority(message)
+            if (message.get('role') != 'user' or authority.get('speaker_kind') != 'owner'
+                    or authority.get('authority_tier') != 'owner'
+                    or message.get('purpose') == 'test'
+                    or str(message.get('id', '')).startswith('synthetic_')):
+                continue
+            text = message.get('content')
+            if not isinstance(text, str) or not text.strip() or text in seen:
+                continue
+            try:
+                day = datetime.fromtimestamp(float(message['timestamp']), ZoneInfo('Asia/Shanghai')).date()
+            except (KeyError, ValueError, TypeError, OverflowError, OSError):
+                continue
+            if not monday <= day <= sunday:
+                continue
+            source = 'conversation:' + sid + '#' + str(message['id'])
+            item = {**_record(text, week, source), 'source_date':day.isoformat(),
+                    'source_dates':[day.isoformat()], 'trusted_owner':True}
+            cost = len(json.dumps(item, ensure_ascii=False).encode())
+            if size + cost > 18000 or len(result) >= 30:
+                continue
+            result.append(item)
+            consumed.append(message)
+            seen.add(text)
+            size += cost
+    if not allowed():
+        return []
+    consume_sources(consumed)
+    return sorted(result, key=lambda item: item['source_date'], reverse=True)
 
 
 def expand_memory_candidates(week, queries, existing):
@@ -162,7 +215,7 @@ def collect(week, report_roots=None, query="腾讯工作 周报 本周进展"):
                         continue
                     provenance = row.get("source", "")
                     if isinstance(provenance, str) and (
-                        ".json#" in provenance or provenance.startswith("memory:")
+                        ".json#" in provenance or provenance.startswith(("memory:", "conversation:"))
                     ):
                         # These are our exported evidence references. Query the
                         # original source instead of inheriting its assigned week.
@@ -182,6 +235,10 @@ def collect(week, report_roots=None, query="腾讯工作 周报 本周进展"):
                     elif audience in (None, "personal"):
                         candidates.append(item)
     if not certain:
+        try:
+            candidates.extend(conversation_candidates(week))
+        except (OSError, ValueError, RuntimeError) as exc:
+            warnings.append("Conversations unavailable: " + str(exc))
         try:
             candidates.extend(memory_candidates(week, query))
         except (OSError, ValueError, RuntimeError) as exc:
