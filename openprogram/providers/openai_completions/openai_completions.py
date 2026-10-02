@@ -197,11 +197,10 @@ def _build_tools(context: Context, model: Model) -> list[dict[str, Any]] | None:
     # Schema dialect + strict flag are decided by the unified
     # ``providers._schema`` layer, keyed on (api, model). Chat
     # Completions is always strict-family, so this resolves to the
-    # openai_strict dialect + strict:true when the env toggle is on.
+    # openai_strict dialect + strict:true when enabled, except mapping tools.
     from openprogram.providers._schema import normalize_for, wants_strict_flag
     api = model.api
     mid = model.id
-    use_strict = wants_strict_flag(api, mid)
     return [
         {
             "type": "function",
@@ -209,7 +208,7 @@ def _build_tools(context: Context, model: Model) -> list[dict[str, Any]] | None:
                 "name": tool.name,
                 "description": tool.description,
                 "parameters": normalize_for(api, tool.parameters, mid),
-                "strict": use_strict,
+                "strict": wants_strict_flag(api, mid, tool.parameters),
             },
         }
         for tool in context.tools
