@@ -434,6 +434,8 @@
   </div>
 
   <!-- ══════════ 03 事务 ══════════ -->
+  <p class="note">Topic 规范化在清理空章节或 topic 之前，以 <code>INVALID_TOPIC_FORMAT</code> 拒绝实质性的无引用正文。changes、patch、编辑器和 CLI staged edit、writer shell commit 共享该校验；拒绝时保留已提交 Topic/Source 字节、Runtime 状态、revision 和 Git 历史。带引用的原生/旧格式记录及真正空 topic 保持现有规则。</p>
+  <p class="note">实例级可信安装前回调在校验和stage准备完成后、移动已提交文件之前记录autosave或restore历史。无效编辑不会创建手动checkpoint；回调失败不会安装。有效编辑继续保留准确的编辑前快照和现有checkpoint期限。tools参数或请求正文不能提供该callable。</p>
   <h2 id="txn"><span class="num">03</span>事务：改在暂存，验过才装</h2>
   <p class="lead">模型不直接改记忆库。它改的是一份临时拷贝，只有整份验过才被整体安装；验不过整份丢掉，记忆库一个字节没动。</p>
 
