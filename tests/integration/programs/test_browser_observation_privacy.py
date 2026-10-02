@@ -493,6 +493,38 @@ def test_upstream_truncated_long_password_is_hidden(backend, monkeypatch):
         controller.close()
 
 
+def test_shared_password_prefix_does_not_hide_longer_matches_from_redactor(monkeypatch):
+    from openprogram.programs.workflow.browser.mcp_backends import OfficialMCPPageBackend
+    from openprogram.programs.workflow.browser.web_use_runtime import WebUseSession
+    header = "shared-password-header-0123456789"
+    first, second = header + "A" * 10000, header + "B" * 9000
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI("", secret=first))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""secret => {
+            const password=document.createElement('input');password.type='password';password.value=secret;
+            document.body.append(password);
+            const input=document.querySelector('input[type=text]');input.id='copy';input.value=secret;
+            const label=document.createElement('label');label.htmlFor='copy';label.innerText='Copied password';
+            const text=document.createElement('p');text.innerText=secret;
+            document.body.append(label,text);
+        }""", second)
+        observed = controller.execute(action="observe")
+        assert "B" * 64 not in json.dumps(observed, ensure_ascii=False)
+        assert observed["elements"][1]["label"] == "Copied password"
+        assert "value" not in observed["elements"][1]
+        client = SimpleNamespace(call=lambda *args: SimpleNamespace(
+            content=[SimpleNamespace(text=f'- textbox: {second[:240]}...')]))
+        adapter = OfficialMCPPageBackend("playwright_mcp", lambda: controller)
+        monkeypatch.setattr(adapter, "_ensure_bound", lambda session: client)
+        session = WebUseSession("private", "playwright_mcp", "binding")
+        session.controller = controller
+        session.state["upstream_page"] = 0
+        assert "B" * 64 not in json.dumps(adapter.observe(session, {}), ensure_ascii=False)
+    finally:
+        controller.close()
+
+
 def test_editable_ancestor_contents_are_excluded_from_context_direct_text():
     controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
     try:
