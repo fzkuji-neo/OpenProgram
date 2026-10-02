@@ -462,3 +462,22 @@ def test_long_secret_value_name_is_hidden_even_with_associated_label():
         assert secret[:240] not in field["name"]
     finally:
         controller.close()
+
+
+def test_editable_ancestor_contents_are_excluded_from_context_direct_text():
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""() => {document.body.innerHTML =
+            '<div id="outer" contenteditable="true">OUTER-FIELD-VALUE' +
+            '<div id="inner" contenteditable="true">INNER-FIELD-VALUE</div></div>'; }""")
+        observed = controller.execute(action="observe")
+        inner = next(field for field in observed["elements"]
+                     if field["field_context"]["element"]["id"] == "inner")
+        ancestor = inner["field_context"]["ancestors"][0]
+        assert ancestor["id"] == "outer"
+        assert ancestor["direct_text"] == ""
+        assert ancestor["text_nodes"] == []
+        assert inner["value"] == "INNER-FIELD-VALUE"
+    finally:
+        controller.close()
