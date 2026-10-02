@@ -12,6 +12,7 @@ import pytest
     ({"program": "not_an_owned_program", "args": {"task": "Actual owned task"}}, "is not registered", "program"),
     ({"program": "owned_mapping_consumer", "args": ["wrong object"]}, "Validation failed", "program"),
     ({"values": {"nullable": None, "integer": 7}}, "Owned nullable mapping saved", "owned_nullable_mapping"),
+    ({"values": {"array": [7, None]}}, "Owned nullable mapping saved", "owned_nullable_mapping"),
 ])
 def test_program_task_mapping_reaches_consumer_through_native_codex_tool_loop(tmp_path, monkeypatch, call_args, expected, call_tool, record_property):
     from openprogram import paths
@@ -42,7 +43,7 @@ def test_program_task_mapping_reaches_consumer_through_native_codex_tool_loop(tm
         return "Owned task saved"
 
     @tools_runtime.function(name="owned_nullable_mapping")
-    def owned_nullable_mapping(values: dict[str, int | None]):
+    def owned_nullable_mapping(values: dict[str, int | list[int | None] | None]):
         output.write_text(json.dumps(values, sort_keys=True))
         return "Owned nullable mapping saved"
 
@@ -84,7 +85,7 @@ def test_program_task_mapping_reaches_consumer_through_native_codex_tool_loop(tm
                                   max_iterations=2)
             if expected.startswith("Owned "):
                 assert output.exists(), [i.get("output") for i in json.loads(transport.contents[1])["input"] if i.get("type") == "function_call_output"]
-                assert output.read_text() == ("Actual owned task" if call_tool == "program" else '{"integer": 7, "nullable": null}')
+                assert output.read_text() == ("Actual owned task" if call_tool == "program" else json.dumps(call_args["values"], sort_keys=True))
             else:
                 assert not output.exists()
 
