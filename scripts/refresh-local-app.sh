@@ -198,7 +198,29 @@ cleanup() {
   rm -rf "$wheel_dir"
   release_install_lock
 }
-trap cleanup EXIT
+app_verified_for_reopen=0
+app_reopen_attempted=0
+finish_refresh() {
+  local status=$? reopen_status=0 cleanup_status=0
+  trap - EXIT
+  set +e
+  if test "$app_verified_for_reopen" = 1 && test "$app_reopen_attempted" = 0; then
+    reopen_app
+    reopen_status=$?
+  fi
+  cleanup
+  cleanup_status=$?
+  if test "$status" = 0; then
+    if test "$reopen_status" != 0; then status=$reopen_status
+    elif test "$cleanup_status" != 0; then status=$cleanup_status
+    fi
+  fi
+  if test "$status" = 0; then
+    printf 'refreshed %s from %s\n' "$app_path" "$revision"
+  fi
+  exit "$status"
+}
+trap finish_refresh EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
@@ -522,6 +544,30 @@ codesign --verify --strict \
   "$runtime_root/OpenProgram.app"
 codesign --verify --deep --strict "$app_path"
 
+# Only a complete, verified App can be reopened from failure cleanup.
+reopen_app() {
+  local open_status=0
+  app_reopen_attempted=1
+  if test "${OPENPROGRAM_REFRESH_BACKGROUND:-0}" = 1; then
+    open -g -a "$app_path" || open_status=$?
+  else
+    open -a "$app_path" || open_status=$?
+  fi
+  if test "$open_status" != 0; then
+    printf 'OpenProgram did not reopen after the refresh (open exit %s)\n' "$open_status" >&2
+    return "$open_status"
+  fi
+  for _ in {1..50}; do
+    if pgrep -f "^${app_path}/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.2
+  done
+  printf 'OpenProgram did not reopen after the refresh\n' >&2
+  return 1
+}
+app_verified_for_reopen=1
+
 # A KeepAlive launchd service can restart the worker while the wheel is still
 # being replaced. Stop that interim process after installation so the next
 # worker necessarily imports the refreshed runtime.
@@ -540,14 +586,32 @@ if test -f "$HOME/Library/LaunchAgents/ai.openprogram.worker.plist"; then
   "$app_python" -I -B -m openprogram worker install
 else
   "$app_python" -I -B -m openprogram worker stop >/dev/null 2>&1
+  "$app_python" -I -B -m openprogram worker start
 fi
-
-for _ in {1..50}; do
-  curl -fsS http://127.0.0.1:18100/healthz >/dev/null 2>&1 && break
-  "$app_python" -I -B -m openprogram worker start >/dev/null 2>&1 || true
+# launchd load and detached start return before the web listener is ready.
+# Poll only; repeated start requests can race that same pending cold start.
+health_timeout=120
+health_deadline=$((SECONDS + health_timeout))
+health_status=7
+while test "$SECONDS" -lt "$health_deadline"; do
+  remaining=$((health_deadline - SECONDS))
+  test "$remaining" -gt 0 || break
+  probe_timeout=2
+  test "$remaining" -ge "$probe_timeout" || probe_timeout=$remaining
+  if curl -fsS --connect-timeout 1 --max-time "$probe_timeout" \
+    http://127.0.0.1:18100/healthz >/dev/null 2>&1; then
+    health_status=0
+    break
+  else
+    health_status=$?
+  fi
   sleep 0.2
 done
-curl -fsS http://127.0.0.1:18100/healthz >/dev/null
+if test "$health_status" != 0; then
+  printf 'worker health did not become ready within %s seconds: http://127.0.0.1:18100/healthz (curl exit %s); logs: %s/.openprogram/worker.log\n' \
+    "$health_timeout" "$health_status" "$HOME" >&2
+  exit "$health_status"
+fi
 # A healthy endpoint or matching package revision cannot prove which Python
 # won startup. Verify the actual owner process before declaring refresh done.
 "$app_python" -I -B - "$app_python" <<'PYTHON'
@@ -572,28 +636,5 @@ if (
     raise SystemExit(f"refreshed worker {pid} does not use the embedded App interpreter")
 print(f"verified embedded App worker PID {pid}")
 PYTHON
-# Quit happens earlier so the asar/runtime can be replaced. Always reopen the
-# App afterwards and wait until Launch Services actually has a process —
-# `open` returning is not enough, and a cancelled refresh previously left the
-# App closed.
-if test "${OPENPROGRAM_REFRESH_BACKGROUND:-0}" = 1; then
-  open -g -a "$app_path"
-else
-  open -a "$app_path"
-fi
-app_running=0
-for _ in {1..50}; do
-  if pgrep -f "^${app_path}/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1; then
-    app_running=1
-    break
-  fi
-  sleep 0.2
-done
-if test "$app_running" != 1; then
-  printf 'OpenProgram did not reopen after the refresh\n' >&2
-  exit 1
-fi
-
-cleanup
-trap - EXIT HUP INT TERM
-printf 'refreshed %s from %s\n' "$app_path" "$revision"
+# Reopen on success as well as on a later failure after signature verification.
+reopen_app
