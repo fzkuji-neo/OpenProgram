@@ -172,6 +172,83 @@ def test_public_app_successfully_registers_real_owned_mcp_tools_and_removes_them
     asyncio.run(run())
 
 
+@pytest.mark.parametrize("operation", ["delete", "disable", "patch"])
+def test_public_queued_server_management_stays_authoritative(app_factory, monkeypatch, operation):
+    from openprogram.mcp import registry
+    from openprogram.mcp.client import MCPClient
+    from openprogram.mcp.config import MCPServerConfig, save_configs
+    from openprogram.programs._runtime import _registry
+
+    first = _remote_config()
+    second = MCPServerConfig(name="owned-queued", timeout_seconds=10,
+                             command=[sys.executable, str(Path(__file__).with_name("_mcp_fake_server.py"))])
+    save_configs([first, second])
+
+    async def run():
+        entered, release = asyncio.Event(), asyncio.Event()
+        original_auth = MCPClient._build_remote_auth
+
+        async def pending_auth(client):
+            if client.config.name != first.name:
+                return await original_auth(client)
+            entered.set()
+            await release.wait()
+            raise RuntimeError("owned transport released")
+
+        monkeypatch.setattr(MCPClient, "_build_remote_auth", pending_auth)
+        app = app_factory()
+        patched_client = None
+        registered = []
+        lifecycle = app.router.lifespan_context(app)
+        await lifecycle.__aenter__()
+        try:
+            await asyncio.wait_for(entered.wait(), 2)
+            assert registry.get_client(second.name) is None
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app),
+                                         base_url="http://127.0.0.1:18100",
+                                         headers={"Authorization": f"Bearer {app.state.owner_auth.token}"}) as client:
+                endpoint = f"/api/mcp/servers/{second.name}"
+                if operation == "delete":
+                    response = await client.delete(endpoint)
+                elif operation == "disable":
+                    response = await client.post(endpoint + "/disable")
+                else:
+                    response = await client.patch(endpoint, json={"timeout_seconds": 17})
+                    patched_client = registry.get_client(second.name)
+                assert response.status_code == 200, response.text
+                startup = next(task for task in asyncio.all_tasks()
+                               if task.get_name() == "openprogram-mcp-startup")
+                release.set()
+                await asyncio.wait_for(asyncio.shield(startup), 12)
+                statuses = (await client.get("/api/mcp/servers")).json()["servers"]
+                status = next((row for row in statuses if row["name"] == second.name), None)
+                if operation == "delete":
+                    assert status is None
+                    assert registry.get_client(second.name) is None
+                elif operation == "disable":
+                    assert status["enabled"] is False and status["ready"] is False
+                    assert status["tool_count"] == 0 and status["registered_tool_names"] == []
+                else:
+                    assert registry.get_client(second.name) is patched_client
+                    assert status["timeout_seconds"] == 17 and status["ready"] is True
+                    registered = status["registered_tool_names"]
+                    assert len(registered) == 2
+        finally:
+            release.set()
+            await lifecycle.__aexit__(None, None, None)
+            # Also clean up the original public PATCH client on the failing
+            # baseline, where stale startup replaces its registry ownership.
+            if patched_client is not None:
+                finished_on_exit = patched_client._supervisor_task.done()
+                await patched_client.stop()
+        assert registry.list_clients() == []
+        assert all(name not in _registry for name in registered)
+        if patched_client is not None:
+            assert finished_on_exit
+
+    asyncio.run(run())
+
+
 def test_real_callback_cancel_and_close_release_executor_waiter_and_socket():
     from openprogram.mcp.oauth_flow import LocalhostCallback
 
