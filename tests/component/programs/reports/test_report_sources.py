@@ -207,7 +207,7 @@ def test_conversation_discovery_honors_read_denial(tmp_path, monkeypatch):
     db = SessionStore(tmp_path / 'sessions')
     db.create_session('private', agent_id='main')
     monkeypatch.setattr(session_db, 'default_db', lambda: db)
-    monkeypatch.setattr(sources, 'validate_read_path', lambda p: 'denied')
+    monkeypatch.setattr('openprogram.sandbox.validate_read_path', lambda p: 'denied')
     monkeypatch.setattr(db, 'get_messages', lambda *a, **k: (_ for _ in ()).throw(AssertionError('denied conversation read')))
     assert sources.conversation_candidates('2026-W37') == []
 
@@ -218,3 +218,33 @@ def test_copied_conversation_references_are_not_original_tencent_evidence(tmp_pa
     (tmp_path/'copied.json').write_text(json.dumps([{'id':'derived','week':'2026-W37',
         'audience':'tencent','text':'旧进度','source':'conversation:old#message'}]))
     assert sources.collect('2026-W37', [str(tmp_path)])['materials'] == []
+
+
+def test_real_sandbox_blocks_cached_conversation_and_public_tool(tmp_path, monkeypatch):
+    import asyncio
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from openprogram.store import SessionStore
+    from openprogram.agent import session_db
+    from openprogram.agent.authority import owner_authority
+    from openprogram.sandbox import SandboxPolicy
+    from openprogram.programs.tools.knowledge.read_conversation import read_conversation
+    db = SessionStore(tmp_path / 'sessions')
+    db.create_session('private', agent_id='main')
+    db.append_message('private', {'id':'original', 'role':'user', 'content':'PRIVATE_OWNER_REPORT_FACT',
+        'timestamp':datetime(2026,9,30,tzinfo=ZoneInfo('Asia/Shanghai')).timestamp(),
+        **owner_authority('owner/install/' + 'a' * 16)})
+    monkeypatch.setattr(session_db, 'default_db', lambda: db)
+    monkeypatch.setattr(sources, 'memory_candidates', lambda *a: [])
+    session_dir = db._session_dir('private')
+    file_path = next((session_dir/'history').glob('*.json'))
+    for denied in (str(session_dir) + '/**', str(session_dir/'history') + '/**', str(file_path)):
+        monkeypatch.setattr('openprogram.sandbox.resolve_policy', lambda: SandboxPolicy(deny_read=(denied,)))
+        result = asyncio.run(read_conversation.execute('read', {'session_id':'private'}, None, None))
+        assert 'PRIVATE_OWNER_REPORT_FACT' not in str(result)
+        assert 'denied' in str(result).lower()
+        found = sources.collect('2026-W40', [str(tmp_path/'empty')])
+        assert found['materials'] == [] and found['candidates'] == []
+    monkeypatch.setattr('openprogram.sandbox.resolve_policy', lambda: SandboxPolicy())
+    assert 'PRIVATE_OWNER_REPORT_FACT' in str(asyncio.run(read_conversation.execute('read', {'session_id':'private'}, None, None)))
+    assert sources.collect('2026-W40', [str(tmp_path/'empty')])['candidates'][0]['text'] == 'PRIVATE_OWNER_REPORT_FACT'
