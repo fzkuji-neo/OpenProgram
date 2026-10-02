@@ -453,6 +453,8 @@ def test_long_secret_value_name_is_hidden_even_with_associated_label():
             const input=document.querySelector('input[type=text]');input.id='copied';input.value=secret;
             const label=document.createElement('label');label.htmlFor='copied';label.innerText='Copied password';
             document.body.append(label);
+            const copy=document.createElement('p');copy.innerText=secret + '\\n' + secret;
+            document.body.append(copy);
         }""", secret)
         observed = controller.execute(action="observe")
         field = observed["elements"][1]
@@ -460,6 +462,33 @@ def test_long_secret_value_name_is_hidden_even_with_associated_label():
         assert field["value_redacted"] is True
         assert "value" not in field
         assert secret[:240] not in field["name"]
+        assert secret[:240] not in json.dumps(observed, ensure_ascii=False)
+        assert len(observed["text"]) <= 12000
+    finally:
+        controller.close()
+
+
+@pytest.mark.parametrize("backend", ["playwright_mcp", "chrome_devtools_mcp"])
+def test_upstream_truncated_long_password_is_hidden(backend, monkeypatch):
+    from openprogram.programs.workflow.browser.mcp_backends import OfficialMCPPageBackend
+    from openprogram.programs.workflow.browser.web_use_runtime import WebUseSession
+    secret = "known-secret-" * 750
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI("", secret=secret))
+    client = SimpleNamespace(call=lambda *args: SimpleNamespace(
+        content=[SimpleNamespace(text=f'- textbox: {secret[:240]}...\n- textbox: ordinary-input')]))
+    adapter = OfficialMCPPageBackend(backend, lambda: controller)
+    monkeypatch.setattr(adapter, "_ensure_bound", lambda session: client)
+    session = WebUseSession("private", backend, "binding")
+    session.controller = controller
+    session.state["upstream_page"] = 0
+    try:
+        observed = adapter.observe(session, {})
+        assert secret[:240] not in json.dumps(observed, ensure_ascii=False)
+        assert "ordinary-input" in observed["aria_snapshot"]
+        rejected = controller.execute(action="verify", expected_frame_id=observed["frame_id"],
+                                      assertion="text_not_contains", value=secret[:240])
+        assert rejected["passed"] is False
+        assert secret[:240] not in json.dumps(rejected, ensure_ascii=False)
     finally:
         controller.close()
 
