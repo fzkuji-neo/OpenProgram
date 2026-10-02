@@ -684,9 +684,7 @@ def required_access_state(tool_name: str, args: dict | None) -> dict | None:
     if str(tool_name) != 'gui_agent' or not isinstance(args, dict):
         return None
     surface = str(args.get('surface') or '').strip().lower()
-    if surface not in {'', 'desktop'} or args.get('vm_url'):
-        return None
-    if not surface and args.get('backend'):
+    if surface != 'desktop' or args.get('vm_url'):
         return None
     snapshot = report()
     if snapshot.get('platform') != 'Darwin':
@@ -721,24 +719,36 @@ def required_access_state(tool_name: str, args: dict | None) -> dict | None:
 def access_manifest_for_tool(tool_name: str, args: dict | None) -> dict | None:
     """Return a pre-effect durable wait manifest for local desktop GUI use.
 
-    Browser and VM GUI paths have their own access boundary.  Only the
-    macOS desktop executor has explicit OS capabilities that can be waited on
-    before the GUI agent plans or dispatches an effect.
+    Default tasks select their capability before requesting desktop access.
+    Explicit macOS desktop entries retain their pre-effect access boundary.
     """
     if str(tool_name) != 'gui_agent' or not isinstance(args, dict):
         return None
     surface = str(args.get('surface') or '').strip().lower()
-    if surface not in {'', 'desktop'} or args.get('vm_url'):
-        return None
-    # The bridge treats a backend without an explicit desktop surface as the
-    # browser execution path.
-    if not surface and args.get('backend'):
+    if surface != 'desktop' or args.get('vm_url'):
         return None
     state = required_access_state(tool_name, args)
     if not state or state.get('state') != 'waiting':
         return None
     capabilities = list(state['capabilities'])
     required = list(state['required_capabilities'])
+    return _desktop_access_manifest(args, capabilities, required)
+
+
+def selected_desktop_access_manifest(args: dict, snapshot: dict) -> dict | None:
+    """Declare every native desktop requirement for a retained GUI decision."""
+    required = sorted(spec.id for spec in capability_registry() if 'gui_agent:desktop' in spec.operations)
+    rows = {row['id']: dict(row) for row in snapshot.get('capabilities', ())
+            if isinstance(row, dict) and row.get('id') in required}
+    if snapshot.get('platform') != 'Darwin' or any(
+        rows.get(capability, {}).get('status') in {None, 'unsupported', 'unavailable'}
+        for capability in required
+    ):
+        return None
+    return _desktop_access_manifest({**args, 'surface': 'desktop'}, list(rows.values()), required)
+
+
+def _desktop_access_manifest(args, capabilities, required):
     return {
         'kind': 'system_access',
         'required_capabilities': required,

@@ -231,10 +231,10 @@ def _wrap_agentic_runtime_block(
                         or (
                             tool_name == "gui_agent"
                             and (
-                                str(subprocess_args.get("surface") or "desktop")
+                                str(subprocess_args.get("surface") or "")
                                 .strip()
                                 .lower()
-                                == "browser"
+                                in {"", "browser"}
                                 or bool(subprocess_args.get("backend"))
                             )
                         )
@@ -294,7 +294,9 @@ def _wrap_agentic_runtime_block(
                     _run_subprocess,
                 )
                 if out.get("function_suspended"):
-                    from openprogram.agentic_programming.continuation import FunctionSuspended
+                    from openprogram.agentic_programming.continuation import FunctionSuspended, FunctionSystemAccessRequired
+                    if out.get("system_access_required"):
+                        raise FunctionSystemAccessRequired(out["call_key"])
                     raise FunctionSuspended()
                 cleanup_result = out.get("page_cleanup_result")
                 if out.get("page_cleanup_failed") and isinstance(
