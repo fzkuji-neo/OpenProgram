@@ -514,6 +514,10 @@ class BrowserPageController:
         if action in {"screenshot", "verify"} and not expected_frame_id and self._frame:
             expected_frame_id = self._frame["frame_id"]
         if action == "verify":
+            # A new verification attempt replaces earlier completion authority,
+            # including rejected arguments and stale observations.
+            self._evidence = []
+            self._verified_mutation = -1
             if not self._fresh(expected_frame_id):
                 return {"ok": False, "reason_code": "stale_observation"}
             if not assertion or not isinstance(value, str) or not value.strip():
@@ -684,6 +688,8 @@ class BrowserPageController:
             "frame_id": frame_id,
             "passed": passed,
         }
+        if not self._fresh(frame_id):
+            return self._invalidate_frame()
         if passed:
             self._verified_mutation = self._mutations
             self._evidence = [evidence]
@@ -698,6 +704,20 @@ class BrowserPageController:
 
     def _final_result(self, *, summary: str, reason_code: str | None = None) -> dict:
         verified = bool(self._evidence) and self._verified_mutation == self._mutations
+        if verified:
+            evidence = self._evidence[-1]
+            # Human input and asynchronous Page updates do not increment the
+            # controller's mutation counter. Recheck the exact document and
+            # assertion before delivering a successful task result.
+            self._evidence = []
+            self._verified_mutation = -1
+            try:
+                frame_id = evidence["frame_id"]
+                verified = self._fresh(frame_id) and self._verify(
+                    self._page(), frame_id, evidence["assertion"], evidence["value"],
+                ).get("passed") is True
+            except Exception:
+                verified = False
         reason = reason_code or self._terminal_reason or (
             "verified" if verified else "verification_missing"
         )
