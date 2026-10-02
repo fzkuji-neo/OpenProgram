@@ -251,81 +251,22 @@ button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
 
 <section id="current">
 <h2>Current implementation and verified gaps</h2>
-<p>The live owner is React <code>useChatAreaStick</code> in <code>apps/web/components/chat/messages/use-chat-area-stick.ts</code>, consumed by <code>MessageList</code> and <code>peer-session-pane.tsx</code>. Math helpers already live in <code>apps/web/lib/chat/chat-scroll.ts</code>. Three older or parallel writers still exist beside it.</p>
-
-<div class="doc-scroll" tabindex="0" role="region" aria-label="Current scroll owners">
-<table>
-<thead><tr><th>Owner</th><th>Attach / bottom</th><th>Follow target</th><th>Callers</th><th>Verified state</th></tr></thead>
-<tbody>
-<tr>
-  <td>Legacy <code>scrollToBottom</code> / module <code>stickToBottom</code> in <code>apps/web/lib/runtime-bridge/helpers.ts</code></td>
-  <td>Global boolean, default true; scroll listener on <code>#chatArea</code> using <code>isChatAtBottom</code></td>
-  <td>Last <code>.message</code> bottom + 16px, else <code>scrollHeight</code></td>
-  <td><code>chat-handlers.ts</code> (compaction, local_command, status, follow-up); <code>conversations.ts</code> <code>scrollToBottom({ force: true })</code> unless <code>_skipScrollToBottom</code>; <code>addSystemMessage</code></td>
-  <td class="bad">Still live. Independent stick flag. Last-message + 16px fights the 25vh pad. MessageList comments that React never calls it, but WS handlers still do.</td>
-</tr>
-<tr>
-  <td><code>useStickToBottom</code> in <code>apps/web/lib/format-utils/scroll.ts</code></td>
-  <td>Container-ref copy of the same last-message + 16px policy</td>
-  <td>Last <code>.message</code> + 16px</td>
-  <td>Definition only</td>
-  <td class="warn">No production callers. Parallel implementation, not deleted.</td>
-</tr>
-<tr>
-  <td><code>useChatAreaStick</code></td>
-  <td><code>stuckRef</code> from <code>isChatAtBottom</code> + <code>history.after</code>; 600ms pointer suppression on the area; Jump via <code>animateJumpToLatest</code></td>
-  <td><code>area.scrollTop = area.scrollHeight</code> on ResizeObserver <code>pin()</code>; send-follow via <code>resolveChatScrollTop({ ownTurn })</code></td>
-  <td><code>MessageList</code> (<code>lastRole === "user"</code> as <code>ownTurn</code>); peer pane with <code>areaRef</code> / <code>columnRef</code></td>
-  <td class="warn">Intended owner. Gaps below make send-follow unreliable.</td>
-</tr>
-<tr>
-  <td><code>loadSessionHistoryWindow</code> in <code>apps/web/lib/runtime-bridge/session-history-loader.ts</code></td>
-  <td>None. Writes <code>scrollTop</code> after <code>flushSync</code> for <code>latest</code> / <code>around</code> / height-delta restore, then <code>dispatchEvent("scroll")</code>.</td>
-  <td><code>latest</code> → <code>area.scrollHeight</code>; <code>around</code> → <code>restoreHistoryAnchor</code>; else <code>oldTop + heightDelta</code></td>
-  <td>Jump, send-while-<code>after</code>, <code>useHistoryWindow</code> autoload. Area is <code>registered?.keys().next().value</code> — an arbitrary first viewport when main and peer are both registered.</td>
-  <td class="bad">Fourth scroll owner, in scope. Can snap the wrong pane and can snap a stale page before the hook runs.</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Compaction fold <code>easeScrollBy</code> / <code>pinWhile</code> in <code>message-list.tsx</code>, message-rail <code>scrollIntoView</code>, parent-return <code>scrollIntoView</code>, and branch-checkout <code>_postCheckoutScrollTo</code> also write scroll. They stay named exclusions (explicit locators), not follow policy.</p>
-
-<h3 id="gap-ownturn">ownTurn identity</h3>
-<p><code>MessageList</code> passes <code>lastRole === "user"</code> as <code>ownTurn</code>. That is true only while the last store row is the user bubble.</p>
-<p>Send already lands an optimistic user row at 0ms: <code>sendChatMessage</code> calls <code>appendLocalUserTurn</code> after the socket accepts the frame (<code>apps/web/components/chat/composer/submit/send-chat-message.ts</code>). The assistant placeholder is <em>not</em> created in that update. <code>handleAck</code> in <code>apps/web/lib/net/chat-stream.ts</code> rekeys the pending user id, then <code>ensureReply</code> appends an empty assistant row. After ack, <code>lastRole</code> is <code>"assistant"</code> and <code>ownTurn</code> becomes false.</p>
-<p>The unit contract in <code>apps/web/scripts/chat/check-chat-ui.mjs</code> is correct: own send follows from far up; an agent turn while scrolled up must not move. The gap is that <code>ownTurn</code> is inferred from transcript tail identity, not from the send gesture. If the send layout pass fails to latch <code>stuckRef</code>, the ack that appends the assistant row is treated as a foreign agent turn and the view stays put. Compaction / local_command / system rows that become last also flip <code>ownTurn</code> off.</p>
-<p><code>docs/reference/design/ui/interaction-feedback.md</code> still says the user bubble lands on <code>chat_ack</code>. The send path now appends at socket-accept time. Follow must start when that optimistic row (and the pending-reply indicator while <code>lastRole === "user"</code>) lands, not wait for ack. This page does not redesign the send/ack pipeline.</p>
-
-<h3 id="gap-layout">Layout versus growth</h3>
-<p>The layout effect assigns <code>scrollTop = resolveChatScrollTop(...)</code>, and on follow that value is <code>area.scrollHeight</code>, which the browser clamps to <code>scrollHeight - clientHeight</code> when <code>clientHeight &gt; 0</code> (the hook already skips <code>clientHeight &lt;= 0</code>). That clamp is the same padding edge Jump already uses; it is not a distinct bug from last-message + 16px. The read can still run before the new row’s height is in the layout. ResizeObserver <code>pin()</code> would finish the job, but only if <code>stuckRef</code> is already true, the window has no <code>after</code>, Jump is not animating, and <code>performance.now() - lastPointerRef &gt; 600</code>.</p>
-<p><code>lastPointerRef</code> is updated on pointer/wheel/keydown on the <em>area</em>. A composer click is not on <code>#chatArea</code>, so a send from a reader who was already at the bottom is not suppressed. A reader who scrolled up and then sent within 600ms <em>is</em> suppressed: the layout snap uses a too-small <code>scrollHeight</code>, pin does not run, <code>stuckRef</code> stays false, and the later assistant row does not follow.</p>
-<p>The 600ms window exists to stop execution-strip / thinking-row clicks from yanking the clicked control upward. It must not suppress a take-latest gesture. The send latch is specified under <a href="#send-latch">Send latch sequence</a>: force <code>stuckRef = true</code> before the first height read, snap now and on the next column resize this turn, and leave 600ms in place for unrelated in-transcript growth.</p>
-
-<h3 id="gap-history">Send while <code>history.after</code> is set</h3>
-<pre><code>if (seedChanged &amp;&amp; ownTurn &amp;&amp; sid &amp;&amp; history?.after) {
-  void loadSessionHistoryWindow(sid, "latest");
-}
-area.scrollTop = resolveChatScrollTop({ ... });</code></pre>
-<p>Jump to latest already <code>await</code>s <code>loadSessionHistoryWindow(sid, "latest")</code> with an <code>isCurrent</code> token, then animates. Send fires the load and immediately applies follow against the stale older window. The loader itself may also assign <code>scrollTop</code> on an arbitrary registered area (fourth owner). A naive <code>await</code> inside <code>useLayoutEffect</code> is not legal; fire-and-forget recreates the bug. The adopted path uses the same click-handler-style <code>isCurrent</code> await as Jump, does not snap the stale page, and does not set attached true until the latest window is present.</p>
-
-<h3 id="gap-anchor">Two anchoring policies</h3>
-<p><code>.chat-messages</code> pad is <code>max(25vh, calc(var(--main-composer-height) + 24px))</code>. The composer is absolutely overlaid. <code>isChatAtBottom</code> slack is <code>pad - composer + 8</code> so “at latest” means the last bubble has not tucked under the composer. Jump and pin aim at the padding edge (<code>scrollHeight - clientHeight</code>). Legacy <code>scrollToBottom</code> aims last-message bottom + 16px, which pulls content toward the overlay and can hide a new user bubble under the composer. Those two targets fight when a WS handler still calls the legacy helper while React pins to <code>scrollHeight</code>.</p>
-
+<p><code>useChatAreaStick</code> owns main and peer transcript placement, send following and Jump. <code>chat-scroll.ts</code> provides geometry and generation-stamped notes. <code>useHistoryWindow</code> and the history loader own bounded pagination and per-viewport anchor restoration. Legacy follow writers are absent.</p>
+<h3 id="gap-ownturn">Send identity and admission</h3>
+<p>Accepted normal, direct-function and running queue/steer submissions publish a note for their captured session and scroller. Loading or failed attachments reject admission before queue creation, draft clearing or note publication. Completed notes remain readable by design; a rejected later submit must preserve the existing note and its generation.</p>
+<h3 id="gap-layout">First activation and delayed layout</h3>
+<p>Without saved pixels, first activation creates its own generation and follows latest through delayed layout. Returning to an opened viewport restores saved pixels. A user gesture cancels pending following. A pending accepted welcome send survives activation until its view is ready.</p>
+<h3 id="gap-history">Older history and first activation</h3>
+<p>First activation of an older loaded window requests latest and stays detached until a verified latest response is published. It does not snap the stale window while waiting. A browser fixture exercising this activation must provide that response before expecting latest placement. A fixture exercising manual reading of an older window must instead establish an explicit saved viewport; otherwise it unintentionally starts an unrelated activation request.</p>
+<h3 id="gap-anchor">History restoration ownership</h3>
+<p>The loader restores each registered viewport using its own captured anchor and key. It does not perform latest placement. The hook preserves manual reading and cancellation while history pages change.</p>
 <h3 id="gap-welcome">Welcome first send</h3>
-<p><code>setWelcomeVisible(false)</code> runs at 0ms, before <code>appendLocalUserTurn</code>. <code>.chat-area:has(#welcome-mount &gt; *)</code> sets <code>overflow: hidden</code>. If the stick layout effect runs in the same frame as the welcome child, scroll assignment is a no-op. Stick dependencies do not include <code>welcomeVisible</code>. The adopted retry is specified in the send latch: main shell observes <code>welcomeVisible</code> or <code>#welcome-mount</code> children and snaps once when the lock lifts if the take-latest generation is still current. Peer is out of this path.</p>
-
-<h3 id="gap-peer">Peer pane composer slack</h3>
-<p>When <code>areaRef</code> is passed (peer pane), <code>readComposerHeight()</code> is forced to 0, so overlay is treated as 0 and slack is too loose by roughly the composer box. Peer publishes <code>--peer-composer-h</code> as <strong>measured composer root + 24px</strong> (<code>peer-session-pane.tsx</code>) and uses that same variable as <code>.chat-messages</code> <code>padding-bottom</code> (<code>peer-session-pane.css</code>). Main publishes <code>--main-composer-height</code> as overlay height only; pad is <code>max(25vh, composer + 24)</code>.</p>
-<p>Slack is <code>max(0, pad - overlay) + 8</code>. Treating <code>--peer-composer-h</code> as overlay would yield <code>(h+24) - (h+24) + 8 = 8</code>, 24px too tight. The variable is not analogous to <code>--main-composer-height</code>. Overlay and pad are separate inputs: pad from <code>readBottomPadding(column)</code>; peer overlay from the composer root (or <code>--peer-composer-h - 24</code>, or a second CSS variable). Unit case: peer pad <code>h+24</code>, overlay <code>h</code> ⇒ slack <code>24+8</code>.</p>
-<p>Peer <code>useChatAreaStick</code> is keyed with <code>scrollKey = sessionId ? \`peer:${sessionId}\` : null</code>. Main uses <code>activeChatKey</code>. <code>sendChatMessage</code> only knows <code>sessionId</code>. A consume-once map keyed by either value races two hook instances or never matches a split pane.</p>
-
-<h3 id="gap-tests">What tests already encode</h3>
-<ul>
-  <li><code>check-chat-ui.mjs</code>: switch restores saved pixels; follow when <code>atBottom</code>; stay when agent row and scrolled up; own send follows from far up; <code>atBottom</code> defaults true; MessageList wires <code>lastRole === "user"</code>.</li>
-  <li><code>jump-latest.test.mjs</code>: slack formula; Jump portal on <code>#chatView</code> not the scroller; native smooth scroll; fade; no virtual-list library.</li>
-  <li><code>apps/web/tests/desktop/self-update-scroll.test.mjs</code> is the persistence contract: <code>writeChatScroll</code> is skipped while <code>data-self-update-verification</code> is set. <code>apps/desktop/scripts/check-self-update-ui.js</code> only checks that the attribute is present on a capture.</li>
-</ul>
-<p>Missing: hook timing, pointer suppression vs send, <code>history.after</code> send, ack flipping <code>ownTurn</code>, leftover <code>scrollToBottom</code> callers, welcome overflow, peer overlay vs pad, loader scroll writes, take-latest key vs <code>peer:${sessionId}</code>.</p>
+<p>Main retries the current accepted send after the welcome overflow lock clears. Peer sends do not use this path.</p>
+<h3 id="gap-peer">Separate peer viewports</h3>
+<p>Main and peer operations use separate scroller keys. Accepted queue/steer follows only the submitting pane; attachment rejection leaves both viewports unchanged.</p>
+<h3 id="gap-tests">Verified browser fixture gaps</h3>
+<p>Two historical-window browser fixtures wait for a nonzero initial position while withholding the automatic first-activation latest response. Four queue/steer browser cases assume no note exists after rejecting a loading attachment, although initial activation has already created a completed note. These expectations conflict with the activation and note-lifetime contracts. Fix the specific fixtures by establishing saved historical reading positions and comparing the exact note before and after rejected admission. Keep first-activation latest requests, delayed-growth placement, manual cancellation and send semantics unchanged. Existing Node activation regressions retain their acceptance meaning.</p>
+<p>Controlled browser tests exercise production hooks with isolated backend responses. They do not establish installed-App or live-provider acceptance. Fixture repair and independent review evidence are recorded separately.</p>
 </section>
 
 <section id="corpus">

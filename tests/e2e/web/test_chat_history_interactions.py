@@ -12,6 +12,7 @@ def test_history_jump_failure_cancellation_and_restore(tmp_path):
     entry = r'''
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {writeChatScroll} from './lib/chat/chat-scroll';
 import {useHistoryWindow} from './components/chat/messages/use-history-window';
 import {useSessionStore} from './lib/session-store';
 import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
@@ -29,6 +30,9 @@ window.reply=(req,fail=false)=>{let start=req.history_latest?450:req.history_aro
 window.pageState=id=>useSessionHistory.getState().pages[id];
 window.save=(id,n)=>saveHistoryAnchor(id,{id:`${id}-${n}`,offset:0});window.anchor=id=>readHistoryAnchor(id);
 runtimeState.currentSessionId='main';useSessionStore.setState({currentSessionId:'main',activeChatKey:'main'});window.seed('main',200);
+// This scenario resumes reading an older window; first activation without a
+// saved position would correctly request latest and await its response.
+writeChatScroll(window.sessionStorage,'main',5500);
 function Main(){const ids=useSessionStore(s=>s.messageOrder.main??[]);const {detached,jumpToLatest}=useChatAreaStick('main',ids.at(-1)??null,true);useHistoryWindow('main',true);return <><div id="chatArea" tabIndex={0}><div id="chatMessages">{ids.map(id=><div data-msg-id={id} className="row" key={id}>{id}</div>)}</div></div>{detached&&<button onClick={jumpToLatest}>Jump</button>}</>;}
 let root=createRoot(document.getElementById('mount'));root.render(<Main/>);
 window.unmount=()=>root.unmount();window.mount=()=>{root=createRoot(document.getElementById('mount'));root.render(<Main/>);};
