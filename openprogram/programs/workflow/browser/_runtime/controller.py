@@ -685,9 +685,9 @@ class BrowserPageController:
         return {"ok": False, "reason_code": "unsupported_action"}
 
     def _verify(self, page, frame_id: str, assertion: str, value: str) -> dict:
-        from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
+        from openprogram.programs.tools.web.browser._privacy import contains_password_value, password_values, redact_password_values
         secrets = password_values(page)
-        if any(secret and secret.casefold() in value.casefold() for secret in secrets):
+        if contains_password_value(value, secrets):
             return {"ok": False, "passed": False, "reason_code": "sensitive_assertion"}
         # Assertions evaluate the real Page. Redaction is an output policy;
         # it must never turn a visible secret into a successful absence check.
@@ -728,7 +728,20 @@ class BrowserPageController:
         ).result()
 
     def _final_result(self, *, summary: str, reason_code: str | None = None) -> dict:
+        from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
+        secrets = ()
+        privacy_failed = False
+        if self.session_id:
+            try:
+                secrets = password_values(self._page())
+            except Exception:
+                privacy_failed = True
+                summary = "Browser target is unavailable."
         verified = bool(self._evidence) and self._verified_mutation == self._mutations
+        if privacy_failed:
+            verified = False
+            self._evidence = []
+            self._verified_mutation = -1
         if verified:
             evidence = self._evidence[-1]
             # Human input and asynchronous Page updates do not increment the
@@ -749,8 +762,11 @@ class BrowserPageController:
         status = "cancelled" if reason == "cancelled" else (
             "succeeded" if verified and reason == "verified" else "failed"
         )
+        if privacy_failed:
+            reason = "observation_privacy_unavailable"
+            status = "failed"
         target = {"kind": "web_tab", "tab_id": None, "url": ""}
-        if self.session_id:
+        if self.session_id and not privacy_failed:
             try:
                 session = self._session()
                 target.update({
@@ -760,7 +776,7 @@ class BrowserPageController:
             except Exception:
                 reason = "target_lost"
                 status = "failed"
-        return {
+        return redact_password_values({
             "status": status,
             "reason_code": reason,
             "summary": summary,
@@ -768,7 +784,7 @@ class BrowserPageController:
             "steps_taken": self._mutations,
             "completion_evidence": list(self._evidence) if verified else [],
             "artifacts": [],
-        }
+        }, secrets)
 
     def close(self) -> str | None:
         try:
