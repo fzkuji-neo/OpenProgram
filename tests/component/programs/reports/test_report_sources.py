@@ -171,3 +171,50 @@ def test_detail_failure_preserves_known_actions_and_context_limit(monkeypatch):
     assert found['candidates'][0]['id'] == 'known'
     assert sum(len(json.dumps(r, ensure_ascii=False).encode()) for r in found['candidates']) <= 18000
     assert any('denied' in w for w in found['warnings'])
+
+
+def test_collect_discovers_dated_owner_conversation_without_memory(tmp_path, monkeypatch):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from openprogram.store import SessionStore
+    from openprogram.agent import session_db
+    from openprogram.agent.authority import owner_authority
+    db = SessionStore(tmp_path / 'sessions')
+    db.create_session('weekly', agent_id='main')
+    predecessor = None
+    for mid, role, day, content, authority in [
+        ('old', 'user', '2026-09-06', '上周完成旧评估', owner_authority('owner/install/' + 'a' * 16)),
+        ('draft', 'assistant', '2026-09-09', '模型拟定的成果', {}),
+        ('unknown', 'user', '2026-09-10', '未归属消息', {}),
+        ('current', 'user', '2026-09-11', '本周腾讯评估仍在运行，尚无最终结论', owner_authority('owner/install/' + 'a' * 16)),
+    ]:
+        db.append_message('weekly', {'id':mid, 'role':role, 'predecessor':predecessor,
+            'timestamp':datetime.fromisoformat(day).replace(tzinfo=ZoneInfo('Asia/Shanghai')).timestamp(),
+            'content':content, **authority})
+        predecessor = mid
+    monkeypatch.setattr(session_db, 'default_db', lambda: db)
+    monkeypatch.setattr(sources, 'memory_candidates', lambda *a: [])
+    found = sources.collect('2026-W37', [str(tmp_path / 'empty')])
+    assert [r['text'] for r in found['candidates']] == ['本周腾讯评估仍在运行，尚无最终结论']
+    row = found['candidates'][0]
+    assert row['source'] == 'conversation:weekly#current'
+    assert row['source_date'] == '2026-09-11' and row['trusted_owner'] is True
+
+
+def test_conversation_discovery_honors_read_denial(tmp_path, monkeypatch):
+    from openprogram.agent import session_db
+    from openprogram.store import SessionStore
+    db = SessionStore(tmp_path / 'sessions')
+    db.create_session('private', agent_id='main')
+    monkeypatch.setattr(session_db, 'default_db', lambda: db)
+    monkeypatch.setattr(sources, 'validate_read_path', lambda p: 'denied')
+    monkeypatch.setattr(db, 'get_messages', lambda *a, **k: (_ for _ in ()).throw(AssertionError('denied conversation read')))
+    assert sources.conversation_candidates('2026-W37') == []
+
+
+def test_copied_conversation_references_are_not_original_tencent_evidence(tmp_path, monkeypatch):
+    monkeypatch.setattr(sources, 'memory_candidates', lambda *a: [])
+    monkeypatch.setattr(sources, 'conversation_candidates', lambda *a: [])
+    (tmp_path/'copied.json').write_text(json.dumps([{'id':'derived','week':'2026-W37',
+        'audience':'tencent','text':'旧进度','source':'conversation:old#message'}]))
+    assert sources.collect('2026-W37', [str(tmp_path)])['materials'] == []
