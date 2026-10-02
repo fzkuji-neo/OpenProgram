@@ -329,7 +329,11 @@ def test_browser_binding_uses_registry_controller_and_returns_host_image(environ
     def fill(text):
         state["text"] = text
         state["frame"] += 1
-    controller._ref = lambda ref: (SimpleNamespace(fill=fill), "") if ref == "field" else (None, "target_not_found")
+    def evaluate(script):
+        if script != "element => element.isContentEditable":
+            raise AssertionError(f"unsupported native input evaluation: {script}")
+        return False
+    controller._ref = lambda ref: (SimpleNamespace(fill=fill, evaluate=evaluate), "") if ref == "field" else (None, "target_not_found")
     def capture(binding, **kwargs):
         assert binding == "owned-binding"
         return {"ok": True, "image_data_url": "data:image/png;base64," + base64.b64encode(png).decode()}

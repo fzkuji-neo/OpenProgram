@@ -27,7 +27,11 @@ def pages(monkeypatch):
         def fill(text):
             state["text"] = text
             state["frame"] += 1
-        controller._ref = lambda ref: (SimpleNamespace(fill=fill), "")
+        def evaluate(script):
+            if script != "element => element.isContentEditable":
+                raise AssertionError(f"unsupported native input evaluation: {script}")
+            return False
+        controller._ref = lambda ref: (SimpleNamespace(fill=fill, evaluate=evaluate), "")
         controllers.append(controller)
         return controller
     registry = WebUseSessionRegistry(adapters={name: ControllerBackend(name, create) for name in SUPPORTED_BACKENDS}, binding_validator=lambda binding: {"ok": True}, binding_revision_resolver=lambda binding: {}, page_key_resolver=lambda binding: binding, release_context=lambda context: released.append(context))
