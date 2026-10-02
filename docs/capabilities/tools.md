@@ -129,7 +129,7 @@ Collaboration splits into four domains, one word each — see
 | `mixture_of_agents` | Ask N models in parallel, then synthesize; defaults picked from the model registry, one per provider | At least 2 providers in the model registry |
 | `ask_user_question` | Ask the user 1-N questions with options | Nothing |
 | `enter_plan_mode` / `exit_plan_mode` | Enter / exit plan mode | Nothing |
-| `canvas` | Incrementally write into named blocks of a markdown file | Nothing |
+| `canvas` | Incrementally write into named blocks of a markdown file; `set` with `content=""` clears a block, while omitted content is an error | Nothing |
 | `memory_*` | Read the persistent memory workspace — `memory_search` (by meaning), `memory_grep` (exact string), `memory_get` (one file, section or block), `memory_browse` (what exists), `memory_status` (size and revision), and `memory_update` to correct one thing. Recording the conversation is not among them: that happens in the background. There is one workspace per instance, shared by every agent and every conversation including chat channels ([Chat Channels](../integrations/channels.md#who-can-talk-to-your-bot)). | Nothing |
 | `worktree_*` | Git worktrees: `worktree_create` (also opens a worktree straight from a PR — `pr="123"` / `"#123"` / a GitHub PR URL, via `gh`) / `merge` / `discard` / `list` / `keep` | git |
 | `cron` | Register recurring agent tasks | Nothing |

@@ -148,7 +148,8 @@ def execute(
 ) -> str:
     action = action or read_string_param(kw, "action", "op", "mode")
     block_id = block_id or read_string_param(kw, "block_id", "blockId", "id", "name")
-    content = content or read_string_param(kw, "content", "body", "text")
+    if content is None:
+        content = read_string_param(kw, "content", "body", "text")
     path_arg = path or read_string_param(kw, "path", "file", "canvas_path")
 
     if not action:
