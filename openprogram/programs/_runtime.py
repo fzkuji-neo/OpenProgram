@@ -331,10 +331,12 @@ _PRIMITIVE_TYPES = {
 }
 
 
-def _python_type_to_json_schema(tp: Any) -> dict[str, Any]:
+def _python_type_to_json_schema(tp: Any, *, preserve_null: bool = False) -> dict[str, Any]:
     """Best-effort conversion. Handles primitives, Optional, list[X],
     dict, Literal[...], Union[A, B] (becomes {"oneOf": [...]}).
-    Anything exotic falls back to {} (LLM gets a free-form value)."""
+    Mapping values preserve declared null unions recursively. Ordinary fields
+    retain the existing Optional/default conversion. Anything exotic falls
+    back to {} (LLM gets a free-form value)."""
     if tp is None or tp is type(None):
         return {"type": "null"}
     if tp in _PRIMITIVE_TYPES:
@@ -360,19 +362,19 @@ def _python_type_to_json_schema(tp: Any) -> dict[str, Any]:
         if len(non_none) == 1:
             # Optional[X] → schema of X (caller marks it optional via
             # absence from required list).
-            return _python_type_to_json_schema(non_none[0])
-        return {"oneOf": [_python_type_to_json_schema(a) for a in non_none]}
+            value = _python_type_to_json_schema(non_none[0], preserve_null=preserve_null)
+        else:
+            value = {"oneOf": [_python_type_to_json_schema(a, preserve_null=preserve_null) for a in non_none]}
+        return _allow_null(value) if preserve_null and type(None) in args else value
 
     if origin in (list, tuple):
         if args:
-            return {"type": "array", "items": _python_type_to_json_schema(args[0])}
+            return {"type": "array", "items": _python_type_to_json_schema(args[0], preserve_null=preserve_null)}
         return {"type": "array"}
 
     from collections.abc import Mapping
     if tp in (dict, Mapping) or origin in (dict, Mapping):
-        values = _python_type_to_json_schema(args[1]) if len(args) > 1 else True
-        if len(args) > 1 and get_origin(args[1]) in _union_origins and type(None) in get_args(args[1]):
-            values = _allow_null(values)
+        values = _python_type_to_json_schema(args[1], preserve_null=True) if len(args) > 1 else True
         return {"type": "object", "additionalProperties": values}
 
     # Literal[...]
