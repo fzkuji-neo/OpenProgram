@@ -21,7 +21,11 @@ the group Workflow records unavailable controls and continues with local evidenc
 Select `tencent_weekly_report` in Abilities and enter `Prepare this week's Tencent
 weekly_report`. The Workflow uses the current ISO week in Asia/Shanghai. It first reuses
 original current-week Tencent evidence in the workspace's `reports` directory,
-then considers other report sources and dated OpenProgram memory. Explicit
+then considers other report sources, original owner messages from recent OpenProgram
+sessions and dated OpenProgram memory. Conversation candidates retain their actual
+message date and session/message reference; assistant drafts and unattributed
+messages are excluded. A dated request or plan remains a candidate, not proof of
+completed work. Explicit
 materials take precedence. Records from other weeks, uncertain month/year-only
 dates, untrusted memory and explicit test records are excluded. Other audiences
 require source selection with exact quotes; they are not automatically treated
@@ -99,7 +103,14 @@ material source must be configured separately before enabling a scheduled run.
 
 The five independent report Workflow packages are grouped under `openprogram/programs/workflow/weekly_report/`: `personal_weekly_report` (Feishu), `personal_chat_weekly_report` (owner's WeChat-group copy), `group_weekly_report` (group collection), `tencent_weekly_report` (Tencent), and `weekly_report` (routing). Shared internal helpers live in `workflow/_reports/`. The coordinator is named `weekly_report`. Configured output paths are unchanged. A category directory organizes sources; it is not an additional Workflow.
 
-Personal field generation uses a read-only Agent to retrieve the requested week from memory and local notes. A JSON Schema validates complete fields or sparse edits, with prompt fallback and the existing format-repair attempt before any write. The Feishu Workflow propagates unresolved model failures as errors. An uncertain remote write is a non-retryable failure; inspect the actual record before another attempt.
+Personal field generation uses a read-only Agent with `list_agents(scope="all")` and
+`read_conversation` to retrieve work from other sessions, alongside memory and
+original local notes. Conversation turns expose original UTC timestamps; the
+default reporting period is the current ISO week in `Asia/Shanghai` when no
+period is supplied. Recent session activity does not make older turns current-week
+evidence. Requests, plans, generated drafts and README descriptions do not prove
+completed work. The Agent must preserve failed or incomplete work and state
+missing evidence rather than invent results. A JSON Schema validates complete fields or sparse edits, with prompt fallback and the existing format-repair attempt before any write. The Feishu Workflow propagates unresolved model failures as errors. An uncertain remote write is a non-retryable failure; inspect the actual record before another attempt.
 
 Structured Agents count normal tool rounds against `max_iterations`, not the failed-request allowance. A completed tool round preserves the remaining retry allowance; format repairs and failed requests still share it. Reaching the iteration limit stops execution without replaying completed tools.
 

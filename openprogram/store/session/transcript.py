@@ -14,6 +14,7 @@ turns a past session into a reusable SKILL.md or agentic function.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 # Per-field caps. A transcript is prompt material: one runaway tool
@@ -173,6 +174,12 @@ def render_session_transcript(
 
     for i, msg in turns:
         turn = [_turn_header(msg, i)]
+        try:
+            stamp = float(msg.get("timestamp") or 0)
+            if stamp > 0:
+                turn.append("timestamp: " + datetime.fromtimestamp(stamp, timezone.utc).isoformat())
+        except (TypeError, ValueError, OverflowError, OSError):
+            pass
         text = _clip(msg.get("content"), MAX_TEXT_CHARS)
         if text:
             turn.append(text)
