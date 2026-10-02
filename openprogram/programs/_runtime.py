@@ -368,8 +368,10 @@ def _python_type_to_json_schema(tp: Any) -> dict[str, Any]:
             return {"type": "array", "items": _python_type_to_json_schema(args[0])}
         return {"type": "array"}
 
-    if origin is dict:
-        return {"type": "object"}
+    from collections.abc import Mapping
+    if tp in (dict, Mapping) or origin in (dict, Mapping):
+        values = _python_type_to_json_schema(args[1]) if len(args) > 1 else True
+        return {"type": "object", "additionalProperties": values}
 
     # Literal[...]
     if hasattr(tp, "__class__") and tp.__class__.__name__ == "_LiteralGenericAlias":
@@ -413,10 +415,7 @@ def _has_object_type(schema: dict[str, Any]) -> bool:
 
 
 def _close_objects(schema: Any) -> Any:
-    """Recursively add ``additionalProperties: false`` to every object-typed
-    schema that lacks it. OpenAI strict mode rejects an object schema without
-    it (observed: get_mcp_prompt.arguments → 400 "additionalProperties is
-    required to be supplied and to be false"). Idempotent."""
+    """Close declared object fields while retaining dynamic mapping schemas."""
     if not isinstance(schema, dict):
         return schema
     out = dict(schema)
@@ -424,20 +423,21 @@ def _close_objects(schema: Any) -> Any:
         out["properties"] = {k: _close_objects(v) for k, v in out["properties"].items()}
     if isinstance(out.get("items"), dict):
         out["items"] = _close_objects(out["items"])
+    if isinstance(out.get("additionalProperties"), dict):
+        out["additionalProperties"] = _close_objects(out["additionalProperties"])
     for key in ("oneOf", "anyOf", "allOf"):
         if isinstance(out.get(key), list):
             out[key] = [_close_objects(v) for v in out[key]]
     if _has_object_type(out) and "additionalProperties" not in out:
-        out["additionalProperties"] = False
+        out["additionalProperties"] = "properties" not in out
     return out
 
 
 def _widen_optionals_to_null(params: Any) -> Any:
     """Given a tool's top-level ``parameters`` object schema, widen every
     OPTIONAL property (one not listed in ``required``) so it also accepts
-    ``null``, and close every object type with ``additionalProperties: false``.
-    Both are OpenAI strict-mode requirements (null: task.agent_id → "None is
-    not of type 'string'"; closed objects: get_mcp_prompt.arguments → 400).
+    ``null``. Close nested declared-field objects while preserving anonymous
+    and typed mappings, which provider adapters send without strict mode.
 
     One central place, applied to both generated and hand-written schemas.
     Idempotent; leaves non-object / malformed schemas untouched."""

@@ -271,14 +271,13 @@ def convert_responses_tools(
     """
     from openprogram.providers._schema import normalize_for, wants_strict_flag
 
-    use_strict = wants_strict_flag(api, model_id)
     return [
         {
             "type": "function",
             "name": t.name,
             "description": t.description,
             "parameters": normalize_for(api, t.parameters, model_id),
-            "strict": use_strict,
+            "strict": wants_strict_flag(api, model_id, t.parameters),
         }
         for t in tools
     ]

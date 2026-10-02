@@ -438,12 +438,12 @@ def _build_tools(
     ``strict`` is on (recent model + beta header set by the caller) it
     resolves to the ``openai_strict`` shape Anthropic strict tool use
     requires (additionalProperties:false + all-required), and each tool
-    gets ``strict: true``. Otherwise it's passthrough — current
-    behavior, unchanged.
+    gets ``strict: true`` unless it contains dynamic mapping keys. Mappings
+    retain their canonical schema without the strict flag.
     """
     if not context.tools:
         return None
-    from openprogram.providers._schema import normalize_for
+    from openprogram.providers._schema import normalize_for, wants_strict_flag
     api = getattr(model, "api", None)
     mid = getattr(model, "id", None)
     tools = []
@@ -454,7 +454,7 @@ def _build_tools(
             "description": tool.description,
             "input_schema": normalize_for(api, tool.parameters, mid),
         }
-        if strict:
+        if strict and wants_strict_flag(api, mid, tool.parameters):
             entry["strict"] = True
         # Pass through a tool-level cache breakpoint (set by cache_policy or the
         # caller). Anthropic accepts cache_control on a tool definition.

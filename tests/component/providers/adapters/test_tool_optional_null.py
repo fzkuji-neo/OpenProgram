@@ -46,7 +46,10 @@ def test_registered_memory_get_native_nullable_sections_remain_none():
 
 @pytest.mark.parametrize("kind", ["string", "boolean", "integer", "object", "array"])
 def test_optional_null_uses_default_and_required_null_is_invalid(kind):
-    schema = {"type": "object", "properties": {"value": {"type": kind}}}
+    value = {"type": kind}
+    if kind == "object":
+        value["properties"] = {}  # Fixed object; anonymous objects are dynamic mappings.
+    schema = {"type": "object", "properties": {"value": value}}
     assert _validate(schema, {"value": None}) == {}
     schema["required"] = ["value"]
     tool = Tool(name="fixture", description="Fixture", parameters=schema)
