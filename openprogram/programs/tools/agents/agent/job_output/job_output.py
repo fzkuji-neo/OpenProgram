@@ -3,9 +3,6 @@ from __future__ import annotations
 
 from openprogram.agent.types import AgentToolResult
 from openprogram.programs._runtime import function
-from openprogram.programs.tools.agents.send_message.send_message.depth import (
-    delegation_budget_left,
-)
 from openprogram.providers.types import TextContent
 
 _MAX_TIMEOUT_MS = 600_000
@@ -25,7 +22,6 @@ _DEFAULT_TIMEOUT_MS = 30_000
         "  timeout: max wait time in ms (default 30000, max 600000)."
     ),
     toolset=["core"],
-    can_use=delegation_budget_left,
 )
 def job_output(
     job_id: str,

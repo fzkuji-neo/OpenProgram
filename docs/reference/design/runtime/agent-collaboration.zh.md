@@ -222,7 +222,7 @@ follow-up helper 原样绑定已完成 Job 的 `chain_messages`，并恢复 `cal
 | 已存在 Job、调用方当前轮次、非委派本地工具 | 不因达到拓扑上限就自动取消 |
 | `job_output`、执行快照、`execution.cancel` | 在各自授权范围内继续可用；查询和停止不消耗委派额度 |
 
-当前 `agent`/`send_message` 检查新投递限制；但 `job_output` 也被 `can_use=delegation_budget_left` 隐藏，与目标查询契约冲突，明确列为待修复。不能把工具发现中的隐藏解释为取消正在运行的 Job。当前没有注册 `job_stop` 工具。
+当前 `agent`/`send_message` 检查新投递限制。消息耗尽后 `job_output` 仍可用，并保留原有会话和祖先任务所有权检查。读取结果不增加消息计数、不创建投递。当前没有注册 `job_stop` 工具；UI/API 取消使用现有 `execution.cancel` 命令。
 
 派生在三项中同时消耗消息深度、代数及调用方轮次扇出；已有分支派发只消耗消息深度，但仍须为新执行通过 §5.2 准入。后续独立用户轮次有新的拓扑上下文，已接受 Job 仍计入 session 累计资源数量。向自身当前分支投递另行拒绝。
 
