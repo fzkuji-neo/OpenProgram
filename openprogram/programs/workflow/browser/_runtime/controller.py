@@ -22,6 +22,24 @@ def _safe_observation_id(candidate: str, secrets, used=()) -> str:
     raise RuntimeError("Cannot safely identify browser controls")
 
 
+_CONTENTEDITABLE_TYPE_SCRIPT = """async (element, text) => {
+    if (!element.isConnected || !element.isContentEditable) return false;
+    element.replaceChildren(element.ownerDocument.createTextNode(text));
+    const selection = element.ownerDocument.getSelection();
+    const range = element.ownerDocument.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    element.dispatchEvent(new InputEvent('input', {
+        bubbles: true, composed: true, inputType: 'insertText', data: text
+    }));
+    // Observe synchronous handlers and queued editor state updates.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return element.isConnected && element.isContentEditable && element.innerText === text;
+}"""
+
+
 class BrowserPageController:
     """One call-scoped browser session and its latest observation refs."""
 
@@ -713,6 +731,20 @@ class BrowserPageController:
                 point=dict(bounds) if isinstance(bounds, dict) else None,
             )
         if action == "type":
+            editable = run(lambda: target.evaluate("element => element.isContentEditable"))
+            if editable is True:
+                # Keep native editable/visibility checks and focus; clearing avoids
+                # Chromium paragraph nodes adding a rendered newline to blank lines.
+                try:
+                    run(target.fill, "")
+                    exact = run(target.evaluate, _CONTENTEDITABLE_TYPE_SCRIPT, text)
+                except BaseException:
+                    self._mutated(f"unconfirmed type into {ref}")
+                    raise
+                result = self._mutated(f"typed {len(text)} character(s) into {ref}")
+                if exact is not True:
+                    result.update(ok=False, reason_code="editable_value_mismatch")
+                return result
             run(target.fill, text)
             return self._mutated(f"typed {len(text)} character(s) into {ref}")
         if action == "press":
