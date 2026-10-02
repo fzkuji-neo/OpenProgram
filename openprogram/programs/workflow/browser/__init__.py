@@ -47,7 +47,7 @@ _OBSERVE_SCRIPT = r"""
     || (el.matches("input[type=password]") ? "" : el.value) || ""
   ).replace(/\s+/g, " ").trim().slice(0, 240);
   return {
-    text: (document.body?.innerText || "").slice(0, 12000),
+    text: document.body?.innerText || "",
     viewport_width: window.innerWidth,
     viewport_height: window.innerHeight,
     navigation_time_origin: performance.timeOrigin,
