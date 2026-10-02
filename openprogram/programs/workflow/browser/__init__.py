@@ -124,6 +124,31 @@ _REF_SNAPSHOT_SCRIPT = r"""
       }
       context.ancestors.push(ancestor);
     }
+    if (!el.matches("input[type=password]")) {
+      let depth = 0;
+      for (let parent=el.parentElement; parent && ++depth <= 12; parent=parent.parentElement) {
+        const walker = document.createTreeWalker(parent, NodeFilter.SHOW_ELEMENT);
+        let scanned=0, editableCount=0, labelCount=0, labelNode=null, complete=true;
+        for (let node=walker.nextNode(); node; node=walker.nextNode()) {
+          if (++scanned > 120) {complete=false;break;}
+          if (!isVisible(node)) continue;
+          if (node.matches("input,textarea,[contenteditable]") && isEditable(node)) editableCount++;
+          if (node.tagName === "LABEL" && !insideEditableValue(node)) {
+            labelCount++;
+            labelNode=node;
+          }
+        }
+        if (!complete) break;
+        if (!labelCount) continue;
+        if (editableCount === 1 && labelCount === 1 && !labelNode.childElementCount) {
+          const text=(labelNode.innerText || "").replace(/\s+/g," ").trim();
+          if (text) context.label_binding = {source:"visible_container_label", label:text,
+            ancestor_depth:depth, editable_count:editableCount, label_count:labelCount,
+            truncated:false, redacted:false};
+        }
+        break;
+      }
+    }
     field.field_context = context;
   }
   const name = (

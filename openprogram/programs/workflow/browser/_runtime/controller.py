@@ -24,7 +24,13 @@ def _safe_observation_id(candidate: str, secrets, used=()) -> str:
 
 def _bounded_field_context(context, secrets, budget):
     from openprogram.programs.tools.web.browser._privacy import redact_password_values
+    original_binding = context.get("label_binding", {})
+    original_label = original_binding.get("label")
     context = redact_password_values(context, secrets)
+    binding = context.get("label_binding")
+    if isinstance(binding, dict) and isinstance(original_label, str):
+        binding["redacted"] = bool(binding.get("redacted")) or binding.get("label") != original_label
+        binding["truncated"] = bool(binding.get("truncated")) or len(binding.get("label", "")) > 400
     truncated = bool(context.get("truncated"))
     def bound(value):
         nonlocal truncated
@@ -359,6 +365,8 @@ class BrowserPageController:
                     field: metadata[field]
                     for field in ("tag", "role", "name", "disabled")
                 }
+                ref_meta[ref]["label"] = actual.get("label")
+                ref_meta[ref]["label_binding"] = (actual.get("field_context") or {}).get("label_binding")
                 try:
                     ref_meta[ref]["bounds"] = {
                         "x": float(actual["x"]), "y": float(actual["y"]),
@@ -498,8 +506,9 @@ class BrowserPageController:
             or not actual.get("visible")
             or any(
                 actual.get(field) != expected.get(field)
-                for field in ("tag", "role", "name", "disabled")
+                for field in ("tag", "role", "name", "disabled", "label")
             )
+            or (actual.get("field_context") or {}).get("label_binding") != expected.get("label_binding")
         ):
             return None, "stale_observation"
         return target, None
