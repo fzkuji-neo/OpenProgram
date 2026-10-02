@@ -106,6 +106,16 @@ class BrowserPageController:
             return page.evaluate(expression)
         return page.evaluate(expression, argument)
 
+    def capture_observation(self, capture):
+        """Redact an upstream capture on the owning Page thread, including frames."""
+        def redact():
+            from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
+            page = self._page()
+            secrets = password_values(page)
+            value = capture()
+            return redact_password_values(value, secrets + password_values(page))
+        return self._owner.submit(redact).result()
+
     def set_agent_cursor_armed(self, armed: bool) -> None:
         """Show feedback only for pointer events emitted by one Agent click."""
         self._owner.submit(self._set_agent_cursor_armed, bool(armed)).result()
@@ -233,7 +243,9 @@ class BrowserPageController:
         }
 
     def _observe(self) -> dict[str, state.Any]:
+        from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
         page = self._page()
+        secrets = password_values(page)
         snapshot = page.evaluate(state._OBSERVE_SCRIPT)
         if not isinstance(snapshot, dict):
             raise RuntimeError("browser observation did not return an object")
@@ -314,6 +326,13 @@ class BrowserPageController:
             "aria_snapshot": aria,
             "elements": elements,
         }
+        try:
+            frame = redact_password_values(frame, secrets + password_values(page))
+        except BaseException:
+            for handle in refs.values():
+                with state.suppress(Exception):
+                    handle.dispose()
+            raise
         self._frame = frame
         try:
             self._navigation_time_origin = float(snapshot.get("navigation_time_origin"))
@@ -666,8 +685,10 @@ class BrowserPageController:
         return {"ok": False, "reason_code": "unsupported_action"}
 
     def _verify(self, page, frame_id: str, assertion: str, value: str) -> dict:
-        text = page.inner_text("body")
-        snapshot = page.evaluate(state._OBSERVE_SCRIPT)
+        from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
+        secrets = password_values(page)
+        text = redact_password_values(page.inner_text("body"), secrets)
+        snapshot = redact_password_values(page.evaluate(state._OBSERVE_SCRIPT), secrets)
         checks = {
             "text_contains": value in text,
             "text_not_contains": value not in text,
