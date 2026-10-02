@@ -134,3 +134,7 @@ Repeated delivery of the same waiting task does not reopen native authorization 
 ### Automation errors on macOS
 
 Some desktop commands send Apple Events to System Events or a target application. macOS controls Automation separately for each target; screen recording and Accessibility access do not imply Automation access. If an operation reports an Automation denial, open **System Settings → Privacy & Security → Automation** on the execution Mac and inspect the requesting application's access to the named target. The failed operation remains failed; changing the system setting does not approve or repeat it. Other native command failures retain their actual error instead of being reported as success.
+
+## Model selection
+
+When run from a chat, internal GUI and Workflow model calls inherit the turn's provider and model selection. A per-turn override takes priority over the session selection, followed by the agent profile. Provider authentication must still be valid for that selected model.

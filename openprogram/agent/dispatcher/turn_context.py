@@ -81,7 +81,8 @@ class TurnBindings:
         # already owns the context and must remain authoritative.
         if not _get_execution_id():
             self._execution_id_token = _set_execution_id(assistant_msg_id)
-        # Critical: we use ``create_runtime()`` (real provider) instead
+        # Critical: we use ``create_runtime`` with the chat's selected model
+        # (real provider) instead
         # of a stub. @agentic_function's _inject_runtime would otherwise
         # pick up our stub and any ``runtime.exec`` inside the function
         # body would return whatever the stub's ``call`` does (a fixed
@@ -192,7 +193,28 @@ class TurnBindings:
         self._store_token = _store_var.set(_GraphStore(db, req.session_id))
         try:
             from openprogram.providers.registry import create_runtime as _create_rt
-            _dag_runtime = _create_rt()
+            from openprogram.agent import dispatcher
+            from openprogram.agent.session_model import (
+                ensure_session_chat_model, read_session_chat_model, override_string,
+            )
+
+            profile = (req.profile_snapshot if req.profile_snapshot is not None
+                       else dispatcher._load_agent_profile(req.agent_id))
+            override = req.model_override
+            if not override:
+                if req.profile_snapshot is not None:
+                    provider, model_id = read_session_chat_model(req.session_id)
+                else:
+                    provider, model_id = ensure_session_chat_model(
+                        req.session_id, req.agent_id,
+                    )
+                override = override_string(provider, model_id)
+                if override:
+                    req.model_override = override
+            # Nested model calls must honour the same selection as the chat
+            # loop, not auto-detect a separately authenticated default provider.
+            model = dispatcher._resolve_model(profile, override)
+            _dag_runtime = _create_rt(provider=model.provider, model=model.id)
             self._runtime_token = _current_runtime_var.set(_dag_runtime)
         except Exception:
             # No provider configured / runtime construction blew up.
