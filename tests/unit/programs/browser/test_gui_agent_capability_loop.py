@@ -636,7 +636,9 @@ def test_window_support_uses_shared_access_report(harness_on_path, monkeypatch):
     monkeypatch.setitem(sys.modules, 'Quartz', SimpleNamespace())
     monkeypatch.setitem(sys.modules, 'ApplicationServices', SimpleNamespace())
     monkeypatch.setitem(sys.modules, 'ScreenCaptureKit', SimpleNamespace(SCScreenshotManager=object()))
-    rows = [{'id': 'accessibility', 'status': 'not_granted', 'label': 'Desktop control',
+    rows = [{'id': 'screen_recording', 'status': 'granted', 'label': 'Screen recording',
+             'detail': 'Capture permission granted.', 'instruction': ''},
+            {'id': 'accessibility', 'status': 'not_granted', 'label': 'Desktop control',
              'detail': 'Missing control permission.', 'instruction': 'Open System settings.'}]
     monkeypatch.setattr(system_access, 'report', lambda: {'capabilities': rows, 'executable': 'private-path'})
     result = mac_window.window_support()
