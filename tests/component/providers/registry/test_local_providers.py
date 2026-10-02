@@ -184,3 +184,23 @@ def test_vision_capability_and_configured_address_reach_public_stream(local_serv
     _, headers, body = local_server[1][-1]
     assert headers["Authorization"] == "Bearer local-account-key"
     assert body["messages"][0]["content"][0]["type"] == "image_url"
+
+
+def test_public_cloud_stream_still_requires_provider_credentials(local_server, monkeypatch):
+    import asyncio
+    from openprogram.providers.stream import stream_simple
+    from openprogram.providers.types import Context, Model
+    from openprogram.providers.utils.errors import ErrorReason, LLMError
+
+    monkeypatch.setenv("OPENAI_API_KEY", "unrelated-cloud-secret")
+    monkeypatch.setattr("openprogram.auth.usage.stored_but_unusable", lambda *a: None)
+    model = Model(id="cloud-test", name="Cloud", provider="openai", api="openai-completions", base_url=local_server[0]+"/v1")
+
+    async def collect():
+        return [event async for event in stream_simple(model, Context())]
+
+    with pytest.raises(LLMError) as caught:
+        asyncio.run(collect())
+    assert caught.value.reason == ErrorReason.AUTHENTICATION
+    assert caught.value.retryable is False
+    assert not local_server[1]
