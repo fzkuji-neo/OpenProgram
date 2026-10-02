@@ -369,6 +369,8 @@ class ExecutionOperations:
             "questions": list(manifest.get("questions") or ()),
             **dict(manifest.get("request_metadata") or {}),
         }
+        if call_key is not None and not emit_wait:
+            request_data["silent_selected_gui_ready"] = True
         if agent_checkpoint is not None:
             fragment = CheckpointFragment(
                 safe_point_kind=agent_checkpoint.payload["safe_point"]["kind"],

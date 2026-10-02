@@ -338,12 +338,10 @@ class ActivationOperations:
                 # Future callbacks release the old driver handle synchronously.
                 # Resume ready native waits only after both runtime and handle
                 # ownership have ended; startup also recovers this outcome.
-                execution = self.executions.get_execution(attempt.execution_id)
-                if execution is not None and execution.status is shared.ExecutionStatus.PAUSED and execution.reason_code == "system_access_required":
-                    try:
-                        shared.asyncio.run(self._control_service().recover_wait_outcomes())
-                    except Exception:
-                        shared._log.exception("selected system access outcome recovery failed")
+                try:
+                    shared.asyncio.run(self._recover_selected_gui_ready_wait(attempt))
+                except Exception:
+                    shared._log.exception("selected system access outcome recovery failed")
 
         shared.threading.Thread(
             target=_run_owned_attempt,
@@ -360,6 +358,22 @@ class ActivationOperations:
             driver=self,
             handle=handle,
         )
+
+
+    async def _recover_selected_gui_ready_wait(self, attempt):
+        """Resume only this owner's silent, already-granted GUI wait outcome."""
+        from openprogram.execution.waits import DurableWaitStore, WaitStatus
+        execution = self.executions.get_execution(attempt.execution_id)
+        if (execution is None or execution.status is not shared.ExecutionStatus.PAUSED
+                or execution.reason_code != "system_access_required"):
+            return
+        for wait in DurableWaitStore(self.executions).list_outcomes():
+            if (wait.execution_id == attempt.execution_id and wait.attempt_id == attempt.attempt_id
+                    and wait.status is WaitStatus.RESOLVED and wait.outcome == "granted"
+                    and wait.kind == "system_access" and wait.checkpoint_id == execution.checkpoint_head_id
+                    and wait.request.get("silent_selected_gui_ready") is True):
+                await self._control_service()._resume_wait_if_required(wait=wait, execution=execution)
+                return
 
 
     def _maintain_owner(self, attempt: shared.AttemptRecord, handle: shared.AgentDriverHandle) -> None:
