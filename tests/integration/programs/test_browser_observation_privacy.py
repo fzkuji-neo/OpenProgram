@@ -717,3 +717,43 @@ def test_public_ref_write_keeps_unchanged_binding_after_unrelated_diagnostic_cha
         assert controller.evaluate_bound_page("() => document.getElementById('target').value || document.getElementById('target').innerText") == "new"
     finally:
         controller.close()
+
+
+@pytest.mark.parametrize("source", ["aria-label", "aria-labelledby", "native-label"])
+@pytest.mark.parametrize("changed", [True, False])
+def test_full_native_label_identity_is_private_and_rejects_suffix_changes(source, changed):
+    prefix = "x" * 240
+    label = prefix + "old"
+    if source == "aria-label":
+        html = f'<input id="target" aria-label="{label}" value="old">'
+    elif source == "aria-labelledby":
+        html = f'<span id="title">{label}</span><input id="target" aria-labelledby="title" value="old">'
+    else:
+        # Two controls prevent a compact container binding, isolating native-label identity.
+        html = f'<label for="target">{label}</label><input id="target" value="old"><textarea>other</textarea>'
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""html => {
+            document.body.innerHTML = html; window.writeEvents=0;
+            document.body.addEventListener('input', () => window.writeEvents++);
+        }""", html)
+        observed = controller.execute(action="observe")
+        target = observed["elements"][0]
+        assert target["label"] == prefix
+        assert "label_binding" not in target["field_context"]
+        assert "native_label_identity" not in target
+        if changed:
+            controller.evaluate_bound_page("""args => {
+                if (args.source === 'aria-label') document.getElementById('target').setAttribute('aria-label', args.label);
+                else document.querySelector(args.source === 'aria-labelledby' ? '#title' : 'label').textContent=args.label;
+            }""", {"source": source, "label": prefix + "new"})
+        result = controller.execute(action="type", expected_frame_id=observed["frame_id"],
+                                    ref=target["ref"], text="new value")
+        assert result["ok"] is (not changed)
+        if changed:
+            assert result["reason_code"] == "stale_observation"
+        assert controller.evaluate_bound_page("() => window.writeEvents") == (0 if changed else 1)
+        assert controller.evaluate_bound_page("() => document.getElementById('target').value") == ("old" if changed else "new value")
+    finally:
+        controller.close()
