@@ -210,3 +210,50 @@ def test_secret_absence_assertion_cannot_succeed_after_observation_redaction():
         assert ordinary["passed"] is True
     finally:
         controller.close()
+
+
+@pytest.mark.parametrize("ensure_ascii", [False, True])
+def test_encoded_secret_assertion_and_final_evidence_never_leak(ensure_ascii):
+    secret = 'pāss"word\\line'
+    escaped = json.dumps(secret, ensure_ascii=ensure_ascii)[1:-1]
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI("", secret=secret))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""value => { const p=document.createElement('p');
+            p.innerText=value; document.body.append(p); }""", escaped)
+        observed = controller.execute(action="observe")
+        result = controller.execute(action="verify", expected_frame_id=observed["frame_id"],
+                                    assertion="text_contains", value=escaped)
+        final = controller.final_result(summary=escaped)
+        assert escaped not in [item.get("value") for item in final["completion_evidence"]]
+        assert result.get("passed") is False
+        assert result.get("reason_code") == "sensitive_assertion"
+        assert final["status"] == "failed"
+        assert final["summary"] == "[redacted]"
+    finally:
+        controller.close()
+
+
+def test_final_result_fails_closed_if_password_capture_is_unavailable():
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        observed = controller.execute(action="observe")
+        assert controller.execute(action="verify", expected_frame_id=observed["frame_id"],
+                                  assertion="text_not_contains", value="unseen-text")["passed"]
+        def block_capture():
+            frame = controller._page().main_frame
+            evaluate = frame.evaluate
+            def blocked(expression, *args, **kwargs):
+                if "input[type=password]" in expression:
+                    raise RuntimeError("capture unavailable")
+                return evaluate(expression, *args, **kwargs)
+            frame.evaluate = blocked
+        controller._owner.submit(block_capture).result()
+        final = controller.final_result(summary=_SECRET)
+        assert final["status"] == "failed"
+        assert final["reason_code"] == "observation_privacy_unavailable"
+        assert final["completion_evidence"] == []
+        assert _SECRET not in json.dumps(final)
+        assert final["target"]["url"] == ""
+    finally:
+        controller.close()

@@ -29,13 +29,23 @@ def password_values(page) -> tuple[str, ...]:
     return tuple(values)
 
 
+def _password_variants(secrets):
+    return {variant for secret in secrets if secret for variant in (
+        secret, json.dumps(secret, ensure_ascii=False)[1:-1],
+        json.dumps(secret, ensure_ascii=True)[1:-1],
+    )}
+
+
+def contains_password_value(value: str, secrets) -> bool:
+    """Detect the same encodings removed from emitted observations."""
+    folded = value.casefold()
+    return any(variant.casefold() in folded for variant in _password_variants(secrets))
+
+
 def redact_password_values(value, secrets):
     """Remove secrets before emitting observations; never log the captured values."""
     if isinstance(value, str):
-        variants = {variant for secret in secrets if secret for variant in (
-            secret, json.dumps(secret, ensure_ascii=False)[1:-1],
-            json.dumps(secret, ensure_ascii=True)[1:-1],
-        )}
+        variants = _password_variants(secrets)
         for secret in sorted(variants, key=len, reverse=True):
             value = value.replace(secret, "[redacted]")
         return value
