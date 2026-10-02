@@ -716,11 +716,15 @@
 </table>
 </div>
 
+<h3 id="canvas-content">Canvas 文件内容语义</h3>
+<p><code>canvas</code> 工具独立于尚未实现的渲染面板保存 Markdown 具名块。<code>set</code> 与 <code>append</code> 的显式空字符串属于内容；省略内容或传入 null 时返回错误且不修改文件。<code>set(content="")</code> 保留具名块并将正文清空，随后 <code>get</code> 返回空字符串。显式内容优先于 <code>body</code>、<code>text</code> 别名，空字符串也保持此优先级。普通 Python 调用和已注册工具使用相同语义，保留现有块格式与 sandbox 路径校验。验收通过已注册工具在自有文件执行 set/get，并检查别名兼容、省略内容不改文件与相邻块保留。</p>
+
 <h2 id="status">实现状态</h2>
 <p class="lead">本页第一层描述的是仓库当前行为，第三层是还没做的收尾项，第四层是尚未落地的目标形态。按项目文档惯例，未实现的部分用现在时正面陈述写在正文里，在这里统一标注。</p>
 <div class="tbl">
 <table>
 <tr><th>条目</th><th>状态</th><th>落点</th></tr>
+<tr><td>Canvas 空字符串内容语义</td><td class="n">待独立审查与整合验证</td><td class="src">openprogram/programs/tools/interaction/canvas.py</td></tr>
 <tr><td>一份标记词法：format_marker 加 find_markers，四个生产者共用</td><td class="y">已实现</td><td class="src">openprogram/attachments.py</td></tr>
 <tr><td>允许根策略：readable_roots / sendable_roots / resolve_within（先解符号链接）</td><td class="y">已实现</td><td class="src">openprogram/attachments.py</td></tr>
 <tr><td>网页图片落盘并写标记，同时保留 ImageContent</td><td class="y">已实现</td><td class="src">apps/server/openprogram_server/_webui/ws_actions/chat.py:_persist_attachments</td></tr>

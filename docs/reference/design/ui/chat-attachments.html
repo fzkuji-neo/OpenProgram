@@ -721,11 +721,15 @@
 </table>
 </div>
 
+<h3 id="canvas-content">Canvas file content semantics</h3>
+<p>The <code>canvas</code> tool persists named Markdown blocks independently of the deferred rendering panel. For <code>set</code> and <code>append</code>, an explicitly supplied empty string is content; an omitted or null content argument requires an error without changing the file. <code>set(content="")</code> retains the named block with an empty body, so a subsequent <code>get</code> returns the empty string. Explicit content takes precedence over the <code>body</code> and <code>text</code> aliases, including when it is empty. The plain Python callable and the registered tool share these semantics and retain the existing block format and sandbox path checks. Acceptance uses registered set/get on an owned file and checks alias compatibility, missing-content non-mutation, and preservation of neighboring blocks.</p>
+
 <h2 id="status">Implementation status</h2>
 <p class="lead">Section one describes current repository behavior; section three lists deferred additions, and section four describes the unimplemented target design. Following project documentation conventions, unimplemented designs are stated positively in the body and identified here.</p>
 <div class="tbl">
 <table>
 <tr><th>Item</th><th>Status</th><th>Location</th></tr>
+<tr><td>Empty-string canvas content semantics</td><td class="n">Independent reviews and combined verification pending</td><td class="src">openprogram/programs/tools/interaction/canvas.py</td></tr>
 <tr><td>One marker grammar: format_marker and find_markers shared by four producers</td><td class="y">Implemented</td><td class="src">openprogram/attachments.py</td></tr>
 <tr><td>Allowed-root policy: readable_roots / sendable_roots / resolve_within (resolve symlinks first)</td><td class="y">Implemented</td><td class="src">openprogram/attachments.py</td></tr>
 <tr><td>Persist web images and write markers while retaining ImageContent</td><td class="y">Implemented</td><td class="src">apps/server/openprogram_server/_webui/ws_actions/chat.py:_persist_attachments</td></tr>
