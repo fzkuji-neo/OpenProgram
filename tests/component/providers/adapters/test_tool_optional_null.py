@@ -167,3 +167,22 @@ def test_passthrough_only_boolean_property_schema_retains_native_null(monkeypatc
     tool = Tool(name="fixture", description="Fixture", parameters={"type": "object", "properties": {"free": True}})
     args = {"free": None}
     assert validate_tool_call([tool], ToolCall(id="fixture", name="fixture", arguments=args)) == args
+
+
+@pytest.mark.parametrize("constraint", [
+    {"not": {"type": "null"}},
+    {"if": {"type": "null"}, "then": False},
+    {"if": {"type": "string"}, "then": {"minLength": 1}, "else": False},
+])
+def test_basic_fallback_does_not_remove_null_when_wire_acceptance_is_unknown(monkeypatch, constraint):
+    from openprogram.providers.utils import validation
+    schema = {"type": "object", "properties": {"value": {"type": "string", **constraint}}}
+    tool = Tool(name="fixture", description="Fixture", parameters=schema)
+    call = ToolCall(id="fixture", name="fixture", arguments={"value": None})
+    assert not Draft7Validator(_wire(tool)["parameters"]).is_valid(call.arguments)
+    with pytest.raises(ValueError, match="value"):
+        validate_tool_call([tool], call)
+    monkeypatch.setattr(validation, "JSONSCHEMA_AVAILABLE", False)
+    # The existing fallback remains lightweight, but must not reinterpret an
+    # unsupported null constraint as an omitted/default argument.
+    assert validate_tool_call([tool], call) == {"value": None}
