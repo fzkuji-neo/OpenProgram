@@ -6,6 +6,22 @@ from importlib import import_module
 state = import_module("..", __package__)
 
 
+def _safe_observation_id(candidate: str, secrets, used=()) -> str:
+    """Keep generated control IDs usable without echoing a known secret."""
+    from openprogram.programs.tools.web.browser._privacy import contains_password_value
+    if not contains_password_value(candidate, secrets):
+        return candidate
+    alphabet = [char for char in "abcdefghijklmnopqrstuvwxyz0123456789_-"
+                if not contains_password_value(char, secrets)]
+    if alphabet:
+        for _ in range(64):
+            candidate = "".join(alphabet[int(char, 16) % len(alphabet)]
+                                for char in state.uuid.uuid4().hex)
+            if candidate not in used and not contains_password_value(candidate, secrets):
+                return candidate
+    raise RuntimeError("Cannot safely identify browser controls")
+
+
 class BrowserPageController:
     """One call-scoped browser session and its latest observation refs."""
 
@@ -21,6 +37,8 @@ class BrowserPageController:
         self.max_steps = max(1, int(max_steps))
         self.session_id = ""
         self._frame: dict[str, state.Any] | None = None
+        self._frame_identity = None
+        self._frame_passwords = ()
         self._refs: dict[str, state.Any] = {}
         self._ref_meta: dict[str, dict[str, state.Any]] = {}
         self._frame_seq = 0
@@ -311,6 +329,7 @@ class BrowserPageController:
         if len(aria) > 12000:
             aria = aria[:12000] + "\n[truncated]"
         session = self._session()
+        frame_identity = (page.url, session.get("app_tab_id"), session.get("app_target_id"))
         frame = {
             "frame_id": frame_id,
             "url": page.url,
@@ -327,13 +346,24 @@ class BrowserPageController:
             "elements": elements,
         }
         try:
-            frame = redact_password_values(frame, secrets + password_values(page))
+            secrets += password_values(page)
+            frame["frame_id"] = _safe_observation_id(frame_id, secrets)
+            for element in elements:
+                original = element["ref"]
+                ref = _safe_observation_id(original, secrets, refs)
+                if ref != original:
+                    refs[ref] = refs.pop(original)
+                    ref_meta[ref] = ref_meta.pop(original)
+                    element["ref"] = ref
+            frame = redact_password_values(frame, secrets)
         except BaseException:
             for handle in refs.values():
                 with state.suppress(Exception):
                     handle.dispose()
             raise
         self._frame = frame
+        self._frame_identity = frame_identity
+        self._frame_passwords = secrets
         try:
             self._navigation_time_origin = float(snapshot.get("navigation_time_origin"))
         except (TypeError, ValueError):
@@ -350,11 +380,7 @@ class BrowserPageController:
             return False
         page = self._page()
         session = self._session()
-        if (
-            page.url != self._frame["url"]
-            or session.get("app_tab_id") != self._frame["target"]["tab_id"]
-            or session.get("app_target_id") != self._frame["target"]["target_id"]
-        ):
+        if (page.url, session.get("app_tab_id"), session.get("app_target_id")) != self._frame_identity:
             return False
         if self._navigation_time_origin is not None:
             try:
@@ -402,9 +428,12 @@ class BrowserPageController:
         return target, None
 
     def _mutated(self, detail: str, *, point: dict | None = None) -> dict[str, state.Any]:
+        from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
+        secrets = self._frame_passwords
         identity: dict[str, state.Any] = {}
         try:
             page = self._page()
+            secrets += password_values(page)
             session = self._session()
             identity = {
                 "url": page.url,
@@ -415,6 +444,7 @@ class BrowserPageController:
                     "target_id": session.get("app_target_id"),
                 },
             }
+            secrets += password_values(page)
         except Exception:
             identity = {}
         self._mutations += 1
@@ -427,7 +457,7 @@ class BrowserPageController:
         payload = {"ok": True, "detail": detail, "observe_required": True, **identity}
         if point is not None:
             payload["point"] = point
-        return payload
+        return redact_password_values(payload, secrets)
 
     def _write_allowed(self) -> dict[str, state.Any] | None:
         if self._mutations < self.max_steps:
@@ -795,6 +825,8 @@ class BrowserPageController:
     def _close(self) -> str | None:
         session_id, self.session_id = self.session_id, ""
         self._frame = None
+        self._frame_identity = None
+        self._frame_passwords = ()
         self._dispose_refs()
         self._ref_meta = {}
         self._screenshot_frame = ""
