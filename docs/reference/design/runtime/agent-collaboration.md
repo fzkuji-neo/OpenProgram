@@ -253,7 +253,7 @@ The follow-up helper binds the completed Job's `chain_messages` unchanged and re
 | Existing Job, caller's current turn, local nondelegation tools | Do not automatically cancel them merely because a topology count reached its limit |
 | `job_output`, execution snapshots or `execution.cancel` | Remain available under their normal authorization; observation and stopping work consume no delegation allowance |
 
-Current `agent`/`send_message` admission checks enforce the new-delivery limits. Current `job_output` is also hidden by `can_use=delegation_budget_left`, which conflicts with the target observation contract and is explicitly pending correction. Do not describe this tool-discovery behavior as cancellation of a running Job. There is no registered `job_stop` tool.
+Current `agent`/`send_message` admission checks enforce the new-delivery limits. `job_output` remains available after message exhaustion and retains its normal session and ancestor ownership checks. Reading a result does not spend a message or create a delivery. There is no registered `job_stop` tool; UI/API cancellation uses the existing `execution.cancel` command.
 
 A spawn consumes message depth and generation, plus caller-turn fan-out. Existing-branch dispatch consumes only message depth among these three, but still admits a new execution under §5.2. A later independent user turn gets its own topology context; accepted Jobs continue to count in the session's cumulative resource total. Direct self-delivery is independently rejected.
 
