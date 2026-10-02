@@ -145,4 +145,6 @@ Some desktop commands send Apple Events to System Events or a target application
 
 Programs whose bodies do not call a model can execute without a configured model. An unavailable model or credential fails when the body calls the Runtime; it does not prevent model-free steps from running and does not select another provider automatically.
 
+Direct tool runs also need an explicit provider and model for internal model calls. An omitted or incomplete selection does not use global provider detection or a provider's default model.
+
 When run from a chat, internal GUI and Workflow model calls inherit the turn's provider and model selection. A per-turn override takes priority over the session selection, followed by the agent profile. The selected provider and model also apply to tool subprocesses. Provider authentication must still be valid for that selected model; setup failures retain the selected model's error instead of silently using another provider.
