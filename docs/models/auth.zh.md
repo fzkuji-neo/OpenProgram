@@ -83,6 +83,8 @@ openprogram providers list                 # 按账号列出凭据池
 
 ### Codex 浏览器登录
 
+Program 内部的 Codex 模型调用使用该 provider 的活动账户，包括通过 `openprogram providers use openai-codex <account>` 选择的账户。脚本可以用 `create_runtime(provider="openai-codex", profile="<account>")` 固定其他账户。终止认证错误及 provider 明确标记为不可重试的其他错误只发出一次请求；错误分类在 Program runtime 中保留。
+
 本地回调监听启动后才打开授权页面。请保持服务商面板打开，直到显示登录成功。页面未打开时点击“打开登录页面”。回调无法到达 App 时，可以在登录面板粘贴本次登录的回调 URL。
 
 兑换凭据返回 HTTP 403 表示 OpenAI 拒绝请求，仅凭状态码无法确定是账号权限还是网络原因。面板会区分已识别的授权错误，并显示连接重试。授权码过期或已使用时应重新登录。取消或离开面板会结束本次登录。
