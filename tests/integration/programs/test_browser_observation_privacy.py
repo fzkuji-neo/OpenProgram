@@ -510,3 +510,24 @@ def test_editable_ancestor_contents_are_excluded_from_context_direct_text():
         assert inner["value"] == "INNER-FIELD-VALUE"
     finally:
         controller.close()
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_readonly_islands_inside_editable_values_are_excluded_from_field_context(nested):
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""nested => {document.body.innerHTML =
+            '<section id="field"><span>Weekly report</span><div id="outer" contenteditable="true">' +
+            '<div contenteditable="false">EDITABLE-VALUE-ISLAND' +
+            (nested ? '<div id="inner" contenteditable="true">Inner value</div>' : '') +
+            '</div></div></section>'; }""", nested)
+        observed = controller.execute(action="observe")
+        field = next(field for field in observed["elements"]
+                     if field["field_context"]["element"]["id"] == ("inner" if nested else "outer"))
+        assert "EDITABLE-VALUE-ISLAND" not in json.dumps(field["field_context"])
+        assert "Weekly report" in json.dumps(field["field_context"])
+        if not nested:
+            assert field["value"] == "EDITABLE-VALUE-ISLAND"
+    finally:
+        controller.close()
