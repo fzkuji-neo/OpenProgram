@@ -71,6 +71,40 @@ _UNSUPPORTED_KEYWORDS: frozenset[str] = frozenset({
 })
 
 
+def contains_open_mapping(schema: Any) -> bool:
+    """Whether a schema contains dynamic object keys that strict cannot preserve.
+
+    Only schema-bearing children are inspected; examples and enum values are data.
+    A top-level declared object without additionalProperties keeps the existing
+    fixed-field strict conversion, while explicit open keys remain mappings.
+    """
+    if not isinstance(schema, dict):
+        return False
+    types = schema.get("type")
+    is_object = types == "object" or isinstance(types, list) and "object" in types
+    if is_object:
+        additional = schema.get("additionalProperties")
+        if additional is True or isinstance(additional, dict):
+            return True
+        if "properties" not in schema and "additionalProperties" not in schema:
+            return True
+        if schema.get("patternProperties"):
+            return True
+    for key in ("properties", "patternProperties", "$defs", "definitions"):
+        values = schema.get(key)
+        if isinstance(values, dict) and any(contains_open_mapping(v) for v in values.values()):
+            return True
+    for key in ("items", "additionalProperties", "additionalItems", "not", "if", "then", "else"):
+        value = schema.get(key)
+        if contains_open_mapping(value) or isinstance(value, list) and any(contains_open_mapping(v) for v in value):
+            return True
+    return any(
+        any(contains_open_mapping(v) for v in schema.get(key, []))
+        for key in ("anyOf", "oneOf", "allOf")
+        if isinstance(schema.get(key), list)
+    )
+
+
 def fixup_for_strict(schema: dict[str, Any]) -> dict[str, Any]:
     """Return a deep copy of ``schema`` rewritten for OpenAI strict mode.
 
@@ -95,6 +129,8 @@ def fixup_for_strict(schema: dict[str, Any]) -> dict[str, Any]:
     """
     if not isinstance(schema, dict):
         return schema
+    if contains_open_mapping(schema):
+        raise ValueError("strict tool schema cannot preserve dynamic mapping keys")
     out = copy.deepcopy(schema)
     _rewrite_in_place(out)
     if out.get("type") != "object":

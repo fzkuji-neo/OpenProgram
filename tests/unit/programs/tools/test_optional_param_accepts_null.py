@@ -108,17 +108,16 @@ def test_allow_null_oneof_adds_null_variant():
     assert any(v.get("type") == "null" for v in out["oneOf"])
 
 
-# ── object schemas get additionalProperties:false (OpenAI strict) ──
+# Declared fields remain closed; anonymous objects retain dynamic keys.
 
 def test_object_type_closed():
     out = _close_objects({"type": "object", "properties": {}})
     assert out["additionalProperties"] is False
 
 
-def test_object_or_null_closed():
-    # get_mcp_prompt.arguments is ["object","null"] — must still be closed.
+def test_anonymous_object_or_null_remains_mapping():
     out = _close_objects({"type": ["object", "null"]})
-    assert out["additionalProperties"] is False
+    assert out["additionalProperties"] is True
 
 
 def test_nested_object_closed():
@@ -140,12 +139,12 @@ def test_close_objects_idempotent():
     assert _close_objects(once) == once
 
 
-def test_get_mcp_prompt_arguments_closed():
+def test_get_mcp_prompt_arguments_retain_dynamic_keys():
     from openprogram.programs import agent_tools
     t = next((x for x in agent_tools(toolset="full") if x.name == "get_mcp_prompt"), None)
     assert t is not None
     args = t.parameters["properties"]["arguments"]
-    assert args.get("additionalProperties") is False
+    assert args.get("additionalProperties") == {}  # dict[str, Any] values remain free-form.
 
 
 # ── the actual bug: the agent tool's agent_id ──

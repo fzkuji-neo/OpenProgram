@@ -28,10 +28,10 @@ Public surface:
     picker. The one place that knows who supports strict.
   * ``normalize(schema, dialect) -> schema`` — THE transformer.
   * ``normalize_for(api, schema, model_id=None)`` — sugar:
-    ``normalize(schema, dialect_for(api, model_id))``.
-  * ``wants_strict_flag(api, model_id=None) -> bool`` — whether the
+    schema-aware dialect selection retaining dynamic mapping keys.
+  * ``wants_strict_flag(api, model_id=None, schema=None) -> bool`` — whether the
     provider should also set ``"strict": true`` on the tool (OpenAI
-    family always; Anthropic on supported models). Env-gated.
+    family and supported Anthropic models, except mapping tools). Env-gated.
   * ``anthropic_supports_strict(model_id) -> bool`` — exposed so the
     Anthropic provider can decide whether to send the beta header.
   * ``strict_tools_enabled()`` — the ``OPENPROGRAM_STRICT_TOOLS`` toggle.
@@ -43,6 +43,7 @@ import os
 from typing import Any, Literal
 
 from . import dialects
+from .strict import contains_open_mapping
 
 DialectName = Literal["openai_strict", "gemini_openapi", "passthrough"]
 
@@ -143,14 +144,13 @@ def dialect_for(api: str | None, model_id: str | None = None) -> DialectName:
     return "passthrough"
 
 
-def wants_strict_flag(api: str | None, model_id: str | None = None) -> bool:
-    """Whether the provider should also set ``"strict": true`` on the
-    tool wrapper. True exactly when ``dialect_for`` chose
-    ``openai_strict`` — i.e. the schema is strict-shaped and the API
-    honours the flag. Kept as a separate function (not just an equality
-    check at call sites) so a future "strict-shaped schema but
-    strict:false" need is a one-line change here."""
-    return dialect_for(api, model_id) == "openai_strict"
+def wants_strict_flag(api: str | None, model_id: str | None = None, schema: Any = None) -> bool:
+    """Use strict when the API/model supports it and the tool has no mappings.
+
+    Omitting schema retains the existing API/model capability query used by
+    structured response negotiation.
+    """
+    return dialect_for(api, model_id) == "openai_strict" and not contains_open_mapping(schema)
 
 
 def normalize(schema: Any, dialect: DialectName) -> Any:
@@ -173,8 +173,11 @@ def normalize(schema: Any, dialect: DialectName) -> Any:
 
 
 def normalize_for(api: str | None, schema: Any, model_id: str | None = None) -> Any:
-    """Sugar: ``normalize(schema, dialect_for(api, model_id))``."""
-    return normalize(schema, dialect_for(api, model_id))
+    """Normalize a tool schema without narrowing dynamic mapping keys."""
+    dialect = dialect_for(api, model_id)
+    if dialect == "openai_strict" and contains_open_mapping(schema):
+        dialect = "passthrough"
+    return normalize(schema, dialect)
 
 
 __all__ = [
