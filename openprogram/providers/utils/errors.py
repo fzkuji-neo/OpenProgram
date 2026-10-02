@@ -267,6 +267,8 @@ def classify_error(
     in ``str(exc)`` (e.g. an httpx response body that's separate
     from the exception).
     """
+    if isinstance(exc, LLMError):
+        return exc.reason, exc.retryable
     msg = (str(exc) + " " + (error_text or "")).lower()
 
     if http_status is not None:
@@ -335,8 +337,14 @@ def taxonomy_fields(exc: BaseException) -> tuple[str | None, bool | None, float 
     """
     if isinstance(exc, LLMError):
         return exc.reason.value, exc.retryable, exc.retry_after_s
-    reason, retryable = classify_error(exc)
-    return reason.value, retryable, None
+    reason, retryable = classify_error(
+        exc,
+        http_status=getattr(exc, "http_status", None) or getattr(exc, "status_code", None),
+        error_text=getattr(exc, "error_text", "") or "",
+    )
+    if getattr(exc, "retryable", None) is False:
+        retryable = False
+    return reason.value, retryable, getattr(exc, "retry_after_s", None)
 
 
 def _retry_after_date_seconds(value: str) -> Optional[float]:
