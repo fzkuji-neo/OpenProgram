@@ -103,7 +103,7 @@
 </select>
 </div>
 <section id="scope">
-<h2>嵌套工具的模型选择</h2><p>前台轮次为 GUI 和 Workflow 内部模型调用绑定与聊天循环相同的 provider 和 model。优先级为请求 override、会话选择、冻结或当前 agent profile。冻结 profile 请求只读取会话选择。轮次释放时恢复此前 Runtime 上下文。独立检测出的全局 provider 不代表当前聊天选择。</p><p>组件验收通过 TurnBindings.bind 覆盖 override、会话、冻结 profile 和 profile 默认选择，并验证上下文恢复。已安装 GUI 和周报执行另需确认认证可用及真实工具调用；组件测试不能证明实际执行成功。</p>
+<h2>嵌套工具的模型选择</h2><p>前台轮次为 GUI 和 Workflow 内部模型调用绑定与聊天循环相同的 provider 和 model。优先级为请求 override、会话选择、冻结或当前 agent profile。冻结 profile 请求只读取会话选择。解析后的选择保存在请求中，并与当前工作目录一起传入工具子进程。选定 Runtime 初始化失败时，该错误保留在轮次中，内部模型调用抛出原始错误，不改用其他 provider 或继承外层 Runtime；不调用模型的工具仍可执行。轮次释放时恢复此前 Runtime 上下文。独立检测出的全局 provider 不代表当前聊天选择。</p><p>组件验收通过 TurnBindings.bind 覆盖 override、会话、冻结 profile 和 profile 默认选择，并验证上下文恢复。已安装 GUI 和周报执行另需确认认证可用及真实工具调用；组件测试不能证明实际执行成功。</p>
 <span id="overview">
 </span>
 <h2 tabindex="-1">目标与完成标准</h2>
