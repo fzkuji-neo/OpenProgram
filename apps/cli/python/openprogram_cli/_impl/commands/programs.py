@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
+import inspect
 
 
 def _get_runtime(provider=None, model=None):
@@ -111,6 +112,30 @@ def _cmd_list():
         except (OSError, UnicodeDecodeError):
             pass
         entries.append((name, desc))
+
+    # Published Workflow packages are loaded by the owner-authorized registry,
+    # but are not members of the static module/file enumeration above.
+    from openprogram.agentic_programming.function import _registry
+    from openprogram.programs._programs import is_owner_controlled_program_path
+
+    seen = {name for name, _desc in entries}
+    for name, registered in _registry.copy().items():
+        if name in seen or name.startswith("_"):
+            continue
+        fn = inspect.unwrap(getattr(registered, "_fn", None) or registered)
+        if not str(getattr(fn, "__module__", "")).startswith(
+            ("openprogram.programs.workflow.", "workflows.")
+        ):
+            continue
+        try:
+            source = inspect.getsourcefile(fn)
+        except (OSError, TypeError):
+            continue
+        if not source or not os.path.isfile(source) or not is_owner_controlled_program_path(source):
+            continue
+        desc = (getattr(registered, "description", "") or inspect.getdoc(fn) or "").strip().split("\n", 1)[0]
+        entries.append((name, desc))
+        seen.add(name)
 
     if not entries:
         print("No functions registered.")
