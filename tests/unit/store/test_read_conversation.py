@@ -189,3 +189,13 @@ def test_tool_is_registered_with_a_valid_schema():
     # Every parameter optional: the tool defaults to the current session.
     assert not schema.get("required")
     assert tool.description
+
+
+def test_transcript_exposes_original_utc_timestamp(db):
+    from datetime import datetime, timezone
+    db.create_session('dated', agent_id='a')
+    stamp = datetime(2026, 9, 10, 16, tzinfo=timezone.utc).timestamp()
+    db.append_message('dated', {'id':'original', 'role':'user', 'content':'original work', 'timestamp':stamp})
+    out = render_session_transcript('dated', store=db)
+    assert 'timestamp: 2026-09-10T16:00:00+00:00' in out
+    assert '--- [1] user ---' in out
