@@ -195,8 +195,10 @@ release_install_lock() {
   fi
 }
 cleanup() {
-  rm -rf "$wheel_dir"
+  local status=0
+  rm -rf "$wheel_dir" || status=$?
   release_install_lock
+  return "$status"
 }
 app_verified_for_reopen=0
 app_reopen_attempted=0
@@ -210,6 +212,9 @@ finish_refresh() {
   fi
   cleanup
   cleanup_status=$?
+  if test "$cleanup_status" != 0; then
+    printf 'refresh cleanup failed (exit %s)\n' "$cleanup_status" >&2
+  fi
   if test "$status" = 0; then
     if test "$reopen_status" != 0; then status=$reopen_status
     elif test "$cleanup_status" != 0; then status=$cleanup_status
