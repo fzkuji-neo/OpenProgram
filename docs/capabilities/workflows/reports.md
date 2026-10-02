@@ -123,7 +123,7 @@ Select `personal_weekly_report` and request `Fill the personal Feishu weekly rep
 
 Fill-only mode supports a new form only after inspection establishes that no record exists. Existing records and capped forms return `BLOCKED`; they are not duplicated. This mode permits the observed records navigation and the exact requested textbox values, and rejects submission/save clicks, keypresses, coordinates and stale observations before browser execution. Missing or ambiguous field identities, truncated or redacted values, failed actions and uncertain write outcomes cannot produce `FILLED`; uncertain writes are not automatically repeated.
 
-Readback requires complete actual field values and compares them exactly, including line breaks and repeated spaces. ARIA text alone cannot establish successful filling; browser schemas without actual values cannot return `FILLED`. Browser access and discoverable field labels remain prerequisites for filling.
+Readback requires complete actual field values and compares them exactly, including line breaks and repeated spaces. ARIA text alone cannot establish successful filling; browser schemas without actual values cannot return `FILLED`. The native browser backend supports ordinary form labels and unique visible labels around contenteditable fields. Missing or ambiguous labels stop filling before a field write. Browser access and discoverable field labels remain prerequisites for filling.
 
 ## Feishu browser failures
 
