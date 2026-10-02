@@ -83,3 +83,18 @@ def test_example_data_does_not_disable_fixed_tool_strict():
     schema = {"type": "object", "properties": {}, "examples": [{"type": "object", "additionalProperties": True}]}
     tool = Tool(name="fixed", description="Fixed", parameters=schema)
     assert convert_responses_tools([tool], "openai-codex", "owned")[0]["strict"] is True
+
+
+@pytest.mark.parametrize("annotation,values", [
+    (dict[str, list[int | None]], {"array": [7, None]}),
+    (Mapping[str, list[int | None]], {"array": [7, None]}),
+    (dict[str, dict[str, int | None]], {"nested": {"nullable": None, "integer": 7}}),
+    (Mapping[str, Mapping[str, int | None]], {"nested": {"nullable": None, "integer": 7}}),
+])
+def test_mapping_value_nullable_constraints_survive_nested_collections(annotation, values):
+    canonical = _widen_optionals_to_null({"type": "object", "properties": {"values": _python_type_to_json_schema(annotation)}, "required": ["values"]})
+    tool = Tool(name="nested_mapping", description="Nested mapping", parameters=canonical)
+    assert validate_tool_arguments(tool, ToolCall(id="owned-good", name=tool.name, arguments={"values": values})) == {"values": values}
+    assert normalize_for("openai-codex", canonical, "owned") == canonical
+    with pytest.raises(ValueError):
+        validate_tool_arguments(tool, ToolCall(id="owned-bad", name=tool.name, arguments={"values": {"wrong": {"unexpected": [None]}}}))
