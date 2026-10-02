@@ -229,11 +229,12 @@ async def restart_server(name: str,
 async def _spawn_and_register(cfg: MCPServerConfig) -> None:
     """Internal helper — spawn + register tools + log."""
     client = MCPClient(cfg)
+    # Pending clients must remain visible to management and shutdown.
+    _clients[cfg.name] = client
+    _registered_tool_names.setdefault(cfg.name, [])
     if not cfg.enabled:
         # Track but don't start, so the UI can flip it back on later.
         client.error = "disabled"
-        _clients[cfg.name] = client
-        _registered_tool_names.setdefault(cfg.name, [])
         return
 
     try:
@@ -241,7 +242,8 @@ async def _spawn_and_register(cfg: MCPServerConfig) -> None:
     except Exception:  # noqa: BLE001
         print(f"[mcp] server '{cfg.name}' start failed", file=sys.stderr)
         client.error = client.error or "mcp_server_unavailable"
-    _clients[cfg.name] = client
+    if _clients.get(cfg.name) is not client:
+        return
 
     if client.error:
         print(f"[mcp] server '{cfg.name}' unavailable", file=sys.stderr)
