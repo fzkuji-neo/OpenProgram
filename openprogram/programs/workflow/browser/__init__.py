@@ -92,6 +92,33 @@ _REF_SNAPSHOT_SCRIPT = r"""
       field.value_truncated = false;
       field.value_redacted = false;
     }
+    const describe = node => ({tag: node.tagName.toLowerCase(), id: node.id || "",
+      classes: Array.from(node.classList).slice(0, 6), classes_truncated: node.classList.length > 6});
+    const isEditable = node => node.isContentEditable || ["INPUT", "TEXTAREA"].includes(node.tagName);
+    const isVisible = node => {const style=getComputedStyle(node), rect=node.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;};
+    const context = {source: "dom_structure", diagnostic_only: true, truncated: false,
+      element: describe(el), ancestors: []};
+    for (let parent=el.parentElement; parent && context.ancestors.length < 4; parent=parent.parentElement) {
+      const ancestor = {...describe(parent), editable_count: 0, editable_count_truncated: false,
+        direct_text: Array.from(parent.childNodes).filter(node => node.nodeType === Node.TEXT_NODE)
+          .map(node => node.textContent).join(" ").replace(/\s+/g, " ").trim(), text_nodes: []};
+      for (const node of parent.querySelectorAll("input,textarea,[contenteditable]")) {
+        if (isEditable(node) && isVisible(node)) ancestor.editable_count++;
+        if (ancestor.editable_count > 120) {ancestor.editable_count_truncated=true;break;}
+      }
+      let scanned=0;
+      for (const node of parent.querySelectorAll("*")) {
+        if (++scanned > 120) {context.truncated=true;break;}
+        if (node.childElementCount || isEditable(node) || !isVisible(node)) continue;
+        const text=(node.textContent || "").replace(/\s+/g," ").trim();
+        if (!text) continue;
+        if (ancestor.text_nodes.length === 6) {context.truncated=true;break;}
+        ancestor.text_nodes.push({...describe(node), text, source:"visible_text_leaf"});
+      }
+      context.ancestors.push(ancestor);
+    }
+    field.field_context = context;
   }
   const name = (
     el.getAttribute("aria-label") || el.getAttribute("title")

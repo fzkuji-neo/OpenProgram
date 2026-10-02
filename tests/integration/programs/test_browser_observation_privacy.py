@@ -393,3 +393,52 @@ def test_public_observation_omits_password_and_matching_field_values(secret):
             assert field["name"] in {"", "[redacted]"}
     finally:
         controller.close()
+
+
+def test_readonly_field_context_reports_dom_relationships_without_guessing_labels():
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""() => {document.body.innerHTML = '<h1>Form</h1>' +
+            '<section id="work" class="form-row"><span class="title">本周工作</span>' +
+            '<div contenteditable="true"><p>Existing field value</p></div></section>' +
+            '<section id="plans"><span>下周计划</span><div contenteditable="true"></div></section>'; }""")
+        observed = controller.execute(action="observe")
+        first = observed["elements"][0]
+        assert first["label"] == ""
+        context = first["field_context"]
+        assert context["diagnostic_only"] is True
+        assert context["source"] == "dom_structure"
+        assert context["element"]["tag"] == "div"
+        parent = context["ancestors"][0]
+        assert parent["id"] == "work"
+        assert parent["editable_count"] == 1
+        assert any(node["text"] == "本周工作" for node in parent["text_nodes"])
+        assert all("Existing field value" not in node["text"] for node in parent["text_nodes"])
+        assert context["ancestors"][1]["editable_count"] == 2
+    finally:
+        controller.close()
+
+
+def test_field_context_is_bounded_and_redacted_before_truncation():
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""secret => {
+            const password = document.querySelector('input[type=password]');
+            const sections = Array.from({length:15}, (_,i) => {
+                const section=document.createElement('section');section.id=secret;section.className=secret;
+                const title=document.createElement('span');title.innerText=secret + '界'.repeat(1000);
+                section.append(title);section.append(document.createElement('div'));
+                section.lastChild.contentEditable='true';return section;
+            }); document.body.replaceChildren(password,...sections);
+        }""", _SECRET)
+        observed = controller.execute(action="observe")
+        assert _SECRET not in json.dumps(observed)
+        contexts = [field["field_context"] for field in observed["elements"] if "field_context" in field]
+        assert sum(len(json.dumps(context, ensure_ascii=False).encode("utf-8")) for context in contexts) <= 32768
+        assert any(field.get("field_context_truncated") for field in observed["elements"])
+        assert all(len(context["ancestors"]) <= 4 for context in contexts)
+        assert all(len(ancestor["text_nodes"]) <= 6 for context in contexts for ancestor in context["ancestors"])
+    finally:
+        controller.close()
