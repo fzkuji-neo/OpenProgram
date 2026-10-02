@@ -111,6 +111,10 @@ def _accepts_null(schema: Any, validator: Any) -> bool | None:
     kind = schema.get("type")
     if kind is not None and kind != "null" and not (isinstance(kind, list) and "null" in kind):
         return False
+    if any(keyword in schema for keyword in ("not", "if", "then", "else")):
+        # The lightweight fallback does not evaluate these constraints.
+        # Unknown null acceptance cannot authorize removal of a property.
+        return None
     for keyword in ("allOf", "anyOf", "oneOf"):
         if keyword in schema:
             matches = [_accepts_null(branch, None) for branch in schema[keyword]]
