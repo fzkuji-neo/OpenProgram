@@ -14,7 +14,7 @@ OpenProgram 连接你管理的推理服务。配置前，使用服务自身的�
 
 启用 Provider，保存 API Base URL，点击**获取模型**，启用所需模型，然后在聊天输入区域选择模型。`localhost` 指运行 OpenProgram worker 的机器；远程 worker 应使用该机器能够访问的地址。只包含主机和端口的 URL 自动补充 `/v1`，显式路径保持不变。
 
-本地 Provider 的 API key 可选。服务要求鉴权时，在账户面板中添加 key。OpenProgram 不会把云端 OpenAI key 发送给本地 Provider。需要连接多个服务时，点击**添加自定义 Provider**，填写名称和 URL，勾选**本地服务（API key 可选）**。普通自定义云端 Provider 保留鉴权要求。
+本地 Provider 的 API key 可选。服务要求鉴权时，在账户面板中添加 key。未配置本地 key 时，模型发现、连接检查和流式推理均省略 Authorization header。OpenProgram 不会把云端 OpenAI key 发送给本地 Provider。需要连接多个服务时，点击**添加自定义 Provider**，填写名称和 URL，勾选**本地服务（API key 可选）**。普通自定义云端 Provider 保留鉴权要求。
 
 使用**连接检查**验证服务。成功获取模型列表说明 API 可以响应；指定模型的检查还会验证推理。服务不可用、key 被拒绝或响应无效时会显示失败。
 

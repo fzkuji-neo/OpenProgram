@@ -14,7 +14,7 @@ In **Settings → Providers**, choose a preset:
 
 Enable the provider, save its API Base URL, click **Fetch models**, and enable the desired model. Select that model in the chat composer. `localhost` means the machine running the OpenProgram worker; for a remote worker, enter the address reachable from that worker. A URL containing only a host and port gets `/v1` appended. An explicit path is preserved.
 
-API keys are optional for local providers. If your server requires a key, add it through the provider account panel. OpenProgram does not send a cloud OpenAI key to a local provider. For several servers, use **Add custom provider**, enter a name and URL, and select **Local server (API key optional)**. Ordinary custom cloud providers retain their credential requirements.
+API keys are optional for local providers. If your server requires a key, add it through the provider account panel. Without a local key, discovery, connectivity checks and streaming inference omit the Authorization header. OpenProgram does not send a cloud OpenAI key to a local provider. For several servers, use **Add custom provider**, enter a name and URL, and select **Local server (API key optional)**. Ordinary custom cloud providers retain their credential requirements.
 
 Use **Connectivity** to check the server. A successful model listing confirms that the API endpoint responds; testing a named model additionally checks inference. An unavailable server, rejected key or invalid response is reported as a failure.
 
