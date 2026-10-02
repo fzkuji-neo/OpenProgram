@@ -220,3 +220,110 @@ def test_prime_six_thousand_character_receipt_cannot_bind_dropped_turns(original
     assert 'conversation:large#original-0' in sources
     assert 'conversation:large#original-19' not in sources
     assert gate.size <= 18000
+
+
+@pytest.mark.parametrize('outcome', ['completed', 'denied', 'failed', 'cancelled'])
+def test_actual_prime_host_records_survive_reload_with_program_origin(originals, monkeypatch, outcome):
+    from openprogram.agentic_programming.function import agentic_function, CancelledError
+    from openprogram.context.nodes import Call, ROLE_CODE
+    from openprogram.events import register_tool_gate
+    from openprogram.store import SessionStore, session_scope
+    db = originals[0]
+    db.create_session('report', agent_id='main')
+    gate = EvidenceGate('2026-W40', 'personal_chat')
+    forwarded = []
+    from openprogram.agentic_programming.function import _current_runtime
+    _current_runtime.get().on_stream = forwarded.append
+    unregister = register_tool_gate(lambda event: 'denied read' if outcome == 'denied'
+        and event.payload['tool'] == 'read_conversation' else None)
+    native = gate.native
+    if outcome in {'failed', 'cancelled'}:
+        async def fail(*args):
+            if outcome == 'cancelled':
+                raise CancelledError('source read cancelled')
+            raise ValueError('source read failed')
+        gate.native = native.model_copy(update={'execute': fail})
+    @agentic_function
+    def source_report_program():
+        gate.prime()
+        return 'Original source discovery completed'
+    try:
+        with session_scope(db, 'report'):
+            if outcome == 'cancelled':
+                with pytest.raises(CancelledError):
+                    source_report_program()
+            else:
+                source_report_program()
+    finally:
+        unregister()
+    # Reload on-disk history via a fresh store; no in-memory receipts restore the records.
+    reopened = SessionStore(db.root_path)
+    nodes = reopened.get_nodes('report')
+    parent = next(n for n in nodes if n.name == 'source_report_program')
+    actual = [n for n in nodes if n.metadata.get('origin') == 'weekly_source_prime']
+    assert actual and all(isinstance(n, Call) and n.role == ROLE_CODE and n.caller == parent.id for n in actual)
+    persisted = {n.metadata['tool_call_id']: n for n in actual}
+    for receipt in gate.prime_receipts:
+        node = persisted[receipt['call_id']]
+        assert node.input == receipt['arguments']
+        assert node.metadata['receipt'] == receipt['result']
+        assert node.metadata['source'] == 'weekly_source_prime'
+        assert node.metadata['invocation_origin'] == 'program'
+        assert node.metadata['tool_call_occurrence_id']
+        assert node.metadata['result_json']['content'] == receipt['result']['content']
+    read = next(n for n in actual if n.name == 'read_conversation')
+    expected = {'completed': 'completed', 'denied': 'error', 'failed': 'error', 'cancelled': 'cancelled'}[outcome]
+    assert read.metadata['status'] == expected
+    assert read.metadata['outcome'] == {'denied': 'not_started', 'failed': 'failed'}.get(outcome, outcome)
+    assert {e['tool_call_id'] for e in forwarded if e['type'] == 'tool_result'} == set(persisted)
+    assert all(e['origin'] == 'weekly_source_prime' and e['ref_node_id'] in {n.id for n in actual}
+               for e in forwarded)
+    assert not any(n.is_llm() for n in nodes)
+
+
+def test_bound_host_writer_without_calling_node_stops_before_dispatch(originals):
+    from openprogram.store import session_scope
+    db = originals[0]
+    db.create_session('report', agent_id='main')
+    gate = EvidenceGate('2026-W40', 'personal_chat')
+    with session_scope(db, 'report'), pytest.raises(ValueError, match='no actual calling node'):
+        gate.prime()
+    assert not gate.prime_receipts and not gate.rows
+
+
+def test_host_projection_failure_stops_before_native_tool_execution(originals, monkeypatch):
+    from openprogram.agentic_programming.function import agentic_function
+    from openprogram.store import SessionNodeWriter, session_scope
+    db = originals[0]
+    db.create_session('report', agent_id='main')
+    monkeypatch.setattr(SessionNodeWriter, 'update', lambda *a, **k: None)
+    gate = EvidenceGate('2026-W40', 'personal_chat')
+    @agentic_function
+    def source_report_program():
+        gate.prime()
+    with session_scope(db, 'report'), pytest.raises(ValueError, match='lost its program-origin record'):
+        source_report_program()
+    assert not gate.prime_receipts and not gate.rows
+    node = next(n for n in db.get_nodes('report') if n.name == 'list_agents')
+    assert node.output is None and node.metadata['status'] == 'running'
+
+
+@pytest.mark.parametrize('missing', ['result_json', 'receipt'])
+def test_host_terminal_receipt_persistence_failure_stops_composition(originals, monkeypatch, missing):
+    from openprogram.agentic_programming.function import agentic_function
+    from openprogram.store import SessionNodeWriter, session_scope
+    db = originals[0]
+    db.create_session('report', agent_id='main')
+    native_update = SessionNodeWriter.update
+    def drop(self, node_id, **fields):
+        if missing not in fields.get('metadata', {}):
+            native_update(self, node_id, **fields)
+    monkeypatch.setattr(SessionNodeWriter, 'update', drop)
+    gate = EvidenceGate('2026-W40', 'personal_chat')
+    @agentic_function
+    def source_report_program():
+        gate.prime()
+        pytest.fail('Incomplete host persistence must stop composition')
+    with session_scope(db, 'report'), pytest.raises(ValueError, match='Weekly source prime'):
+        source_report_program()
+    assert not gate.prime_receipts and not gate.rows
