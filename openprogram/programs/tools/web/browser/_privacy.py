@@ -53,12 +53,18 @@ def redact_password_values(value, secrets):
             marker = secret[:32] if len(secret) > 32 else secret
             start = value.find(marker)
             while start >= 0:
-                matched = len(marker)
-                while (matched < len(secret) and start + matched < len(value)
-                       and value[start + matched] == secret[matched]):
-                    matched += 1
+                matched = len(secret)
+                if not value.startswith(secret, start):
+                    low, high = len(marker), min(len(secret), len(value) - start)
+                    while low < high:
+                        middle = (low + high + 1) // 2
+                        if value.startswith(secret[:middle], start):
+                            low = middle
+                        else:
+                            high = middle - 1
+                    matched = low
                 ranges.append((start, start + matched))
-                start = value.find(marker, start + matched)
+                start = value.find(marker, start + 1)
         merged = []
         for start, end in sorted(ranges):
             if merged and start <= merged[-1][1]:
