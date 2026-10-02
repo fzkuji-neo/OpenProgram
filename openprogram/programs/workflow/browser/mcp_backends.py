@@ -199,18 +199,21 @@ class OfficialMCPPageBackend:
         target = identity.get("target") if isinstance(identity.get("target"), dict) else {}
         session.state["target_id"] = str(target.get("target_id") or "")
         client = self._ensure_bound(session)
-        if self.name == "playwright_mcp":
-            upstream = client.call("browser_snapshot", {})
-        else:
-            upstream = client.call(
-                "take_snapshot",
-                {"pageId": session.state["upstream_page"]},
-            )
+        def capture():
+            if self.name == "playwright_mcp":
+                upstream = client.call("browser_snapshot", {})
+            else:
+                upstream = client.call(
+                    "take_snapshot",
+                    {"pageId": session.state["upstream_page"]},
+                )
+            return _result_text(upstream)
+        upstream_text = controller.capture_observation(capture)
         session.state["frame_id"] = identity["frame_id"]
         return {
             **identity,
             "elements": [],
-            "aria_snapshot": _result_text(upstream),
+            "aria_snapshot": upstream_text,
             "backend_observation": self.name,
         }
 
