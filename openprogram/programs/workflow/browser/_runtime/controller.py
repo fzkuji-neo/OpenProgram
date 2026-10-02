@@ -22,6 +22,32 @@ def _safe_observation_id(candidate: str, secrets, used=()) -> str:
     raise RuntimeError("Cannot safely identify browser controls")
 
 
+def _bounded_field_context(context, secrets, budget):
+    from openprogram.programs.tools.web.browser._privacy import redact_password_values
+    context = redact_password_values(context, secrets)
+    truncated = bool(context.get("truncated"))
+    def bound(value):
+        nonlocal truncated
+        if isinstance(value, str):
+            truncated |= len(value) > 400
+            return value[:400]
+        if isinstance(value, dict):
+            return {key: bound(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [bound(item) for item in value]
+        return value
+    context = bound(context)
+    while True:
+        context["truncated"] = truncated
+        size = len(state.json.dumps(context, ensure_ascii=False).encode("utf-8"))
+        if size <= budget:
+            return context, budget - size
+        if not context.get("ancestors"):
+            return None, budget
+        context["ancestors"].pop()
+        truncated = True
+
+
 class BrowserPageController:
     """One call-scoped browser session and its latest observation refs."""
 
@@ -274,6 +300,7 @@ class BrowserPageController:
         handles_array = page.evaluate_handle(state._CAPTURE_HANDLES_SCRIPT)
         elements = []
         value_budget = 32768  # UTF-8 bytes across editable fields in this frame.
+        context_budget = 32768  # UTF-8 JSON bytes across diagnostic contexts.
         refs = {}
         ref_meta = {}
         try:
@@ -306,7 +333,7 @@ class BrowserPageController:
                     "name": str(actual.get("name") or ""),
                     "disabled": bool(actual.get("disabled")),
                 }
-                for field in ("label", "value", "value_source", "value_truncated", "value_redacted"):
+                for field in ("label", "value", "value_source", "value_truncated", "value_redacted", "field_context"):
                     if field in actual:
                         metadata[field] = actual[field]
                 refs[ref] = handle
@@ -378,6 +405,14 @@ class BrowserPageController:
                     element["value_truncated"] = value != element["value"]
                     element["value"] = value
                     value_budget -= len(value.encode("utf-8"))
+                context = element.get("field_context")
+                if isinstance(context, dict):
+                    context, context_budget = _bounded_field_context(context, secrets, context_budget)
+                    element["field_context_truncated"] = context is None or bool(context.get("truncated"))
+                    if context is None:
+                        del element["field_context"]
+                    else:
+                        element["field_context"] = context
             frame = redact_password_values(frame, secrets)
         except BaseException:
             for handle in refs.values():
