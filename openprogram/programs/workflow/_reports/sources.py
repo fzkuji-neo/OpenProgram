@@ -66,6 +66,15 @@ def memory_candidates(week, query):
     return sorted(result, key=lambda item: (item["trusted_owner"], item["source_date"]), reverse=True)
 
 
+def original_owner(message):
+    """Strict original owner attribution; never infer legacy/delegated ownership."""
+    from openprogram.agent.authority import normalize_authority
+    authority = normalize_authority(message)
+    return (message.get('role') == 'user' and authority.get('speaker_kind') == 'owner'
+            and authority.get('authority_tier') == 'owner' and message.get('purpose') != 'test'
+            and not str(message.get('id', '')).startswith('synthetic_'))
+
+
 def conversation_candidates(week):
     """Read bounded original owner messages with their actual reporting dates.
 
@@ -73,7 +82,6 @@ def conversation_candidates(week):
     Generated assistant text and runtime-delegated instructions are excluded.
     """
     from zoneinfo import ZoneInfo
-    from openprogram.agent.authority import normalize_authority
     from openprogram.agent.session_db import default_db
     from openprogram.store.session.transcript import session_read_violation
     from openprogram.memory.policy import allowed, consume_sources
@@ -89,11 +97,7 @@ def conversation_candidates(week):
         if session_read_violation(db, sid):
             continue
         for message in reversed(db.get_messages(sid, limit=200)):
-            authority = normalize_authority(message)
-            if (message.get('role') != 'user' or authority.get('speaker_kind') != 'owner'
-                    or authority.get('authority_tier') != 'owner'
-                    or message.get('purpose') == 'test'
-                    or str(message.get('id', '')).startswith('synthetic_')):
+            if not original_owner(message):
                 continue
             text = message.get('content')
             if not isinstance(text, str) or not text.strip() or text in seen:
