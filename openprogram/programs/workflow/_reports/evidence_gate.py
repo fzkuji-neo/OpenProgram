@@ -135,7 +135,8 @@ class EvidenceGate:
         from openprogram.providers.types import TextContent
         async with self.lock:
             result = await self.native.execute(call_id, args, signal, update)
-            if getattr(result, 'is_error', False) or not allowed():
+            if (getattr(result, 'is_error', False) or _text(result).startswith('[read_conversation error]')
+                    or not allowed()):
                 return result
             sid = (args.get('session_id') or _current_session() or '').strip()
             head = (args.get('head_id') or '').strip()
@@ -149,7 +150,7 @@ class EvidenceGate:
                 sid, head_id=head or None, start_turn=int(args.get('start_turn') or 0),
                 end_turn=int(args.get('end_turn') or 0),
                 include_function_calls=bool(args.get('include_function_calls', True)),
-                max_chars=max(1000, int(args.get('max_chars') or 60000)), store=db,
+                max_chars=max(1000, int(args.get('max_chars', 60000))), store=db,
                 on_consumed=consumed.extend,
             )
             if canonical != _text(result) or session_read_violation(db, sid) or not allowed():
