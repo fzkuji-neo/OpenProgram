@@ -274,6 +274,7 @@ def staged_edit(
     commit_message: str = "memory: edit topics",
     record_history: bool = True,
     allow_removed: bool = False,
+    before_install: Callable[[], None] | None = None,
 ) -> tuple[bool, str]:
     """Apply a hand edit through the workspace stage, or not at all.
 
@@ -314,6 +315,9 @@ def staged_edit(
                         if unit.topic_path == deleting
                     }
                 write(space.stage_dir)
+                # A trusted surface may checkpoint the pre-edit state, but only
+                # after validation succeeds and before committed files move.
+                space._before_install = before_install
                 install_state(space, units, block_ids, allow_removed=allow_removed)
                 try:
                     if record_history:

@@ -65,6 +65,10 @@ def prune_empty_topic_file(path: Path) -> None:
         if BLOCK_SUFFIX.search(paragraph) or citations & defined:
             record_paths.append(headings)
             referenced.update(citations)
+        else:
+            # Empty-topic pruning cannot acknowledge discarded substantive text.
+            # Use the same prose/record grammar as strict Topic validation.
+            raise TopicFormatError(f"memory source footnote required: {path.name}")
     if not record_paths:
         path.unlink()
         return

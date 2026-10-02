@@ -79,6 +79,7 @@ def _staged_edit(
     commit_message: str = "memory: edit topics",
     record_history: bool = True,
     allow_removed: bool = False,
+    before_install: Callable[[], None] | None = None,
 ) -> tuple[bool, str]:
     """Bind this module's lock timeout to the shared staged edit.
 
@@ -95,6 +96,7 @@ def _staged_edit(
         commit_message=commit_message,
         record_history=record_history,
         allow_removed=allow_removed,
+        before_install=before_install,
     )
 
 
@@ -322,16 +324,18 @@ def register(app):
                     staged.write_text(payload["content"], encoding="utf-8")
 
                 autosave = payload.get("autosave") is True and not restoring
+                before_install = None
                 if autosave:
                     from openprogram.memory.checkpoints import mark_pending
-                    mark_pending(root)
-                if restoring:
+                    before_install = lambda: mark_pending(root)
+                elif restoring:
                     from openprogram.memory.management.transaction import git_commit_state
-                    git_commit_state(root, "memory: before restore")
+                    before_install = lambda: git_commit_state(root, "memory: before restore")
                 ok, message = _staged_edit(
                     root, write,
                     commit_message=f"memory: {'restore' if restoring else 'edit'} topics/{relative}",
                     record_history=not autosave, allow_removed=autosave or restoring,
+                    before_install=before_install,
                 )
                 if not ok:
                     return JSONResponse(content={"error": message}, status_code=400)

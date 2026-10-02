@@ -185,3 +185,28 @@ def test_stage_directories_are_cleaned_up_on_both_paths(memory, editor):
     assert _edit(memory, "topics/note.md") == 0
 
     assert _stage_dirs() == before
+
+
+def test_cli_edit_rejects_uncited_section_and_retains_draft(memory, editor, capsys):
+    from openprogram.memory.store import _ensure_git_history
+    from openprogram.memory.management.transaction import workspace_revision
+
+    _ensure_git_history(memory)
+    before = {
+        p.relative_to(memory): p.read_bytes() for p in memory.rglob("*")
+        if p.is_file() and ".git" not in p.relative_to(memory).parts
+    }
+    revision = workspace_revision(memory)
+    head = subprocess.check_output(["git", "-C", str(memory), "rev-parse", "HEAD"])
+    editor.content = NOTE + "\n## Unsupported section\n\nUncited substantive prose.\n"
+    assert _edit(memory, "topics/note.md") == 1
+    out = capsys.readouterr().out
+    assert "Rejected:" in out
+    kept = Path(out.rsplit("kept at ", 1)[1].strip())
+    assert kept.read_text() == editor.content
+    assert {
+        p.relative_to(memory): p.read_bytes() for p in memory.rglob("*")
+        if p.is_file() and ".git" not in p.relative_to(memory).parts
+    } == before
+    assert workspace_revision(memory) == revision
+    assert subprocess.check_output(["git", "-C", str(memory), "rev-parse", "HEAD"]) == head

@@ -28,6 +28,12 @@ latest** compares the latest saved text with the draft inside History;
 **Replace latest with this draft** explicitly retries against that reviewed
 version. A further concurrent change is still rejected.
 
+Topic text must retain its source footnotes. A substantive paragraph without
+a source-backed record is rejected with `INVALID_TOPIC_FORMAT` before any
+write is installed. This also applies to `memory_update` whole-file changes
+and patches. Valid cited records and empty topics keep their existing behavior;
+a rejected batch does not commit new Sources, derived views or Git history.
+
 Source footnotes open a read-only source view. If the local original session
 was deleted, the view says **Original session deleted** and does not expose its
 old source text. No extra source copy is created when deleting a session.

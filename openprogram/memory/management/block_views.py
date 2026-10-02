@@ -214,6 +214,10 @@ class BlockViewsMixin:
         count: int,
         noun: str,
     ) -> str:
+        before_install = getattr(self, "_before_install", None)
+        self._before_install = None
+        if before_install is not None:
+            before_install()
         backup = self.memory_dir / f"{runtime_dir(self.memory_dir).name}-block-backup"
         if backup.exists():
             shutil.rmtree(backup)
