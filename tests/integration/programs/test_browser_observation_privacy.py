@@ -257,3 +257,69 @@ def test_final_result_fails_closed_if_password_capture_is_unavailable():
         assert final["target"]["url"] == ""
     finally:
         controller.close()
+
+
+def test_public_mutation_metadata_hides_known_passwords():
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("value => document.title=value", _SECRET)
+        observed = controller.execute(action="observe")
+        assert observed["title"] == "[redacted]"
+        result = controller.execute(action="scroll", expected_frame_id=observed["frame_id"], amount=1)
+        assert result["ok"] is True
+        assert _SECRET not in json.dumps(result)
+        assert result["title"] == "[redacted]"
+    finally:
+        controller.close()
+
+
+def test_stable_secret_url_uses_raw_identity_for_freshness():
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("value => location.hash=value", _SECRET)
+        observed = controller.execute(action="observe")
+        assert _SECRET not in observed["url"]
+        result = controller.execute(action="verify", expected_frame_id=observed["frame_id"],
+                                    assertion="text_not_contains", value="unseen-marker")
+        assert result.get("passed") is True
+        assert controller.final_result(summary="Stable page verified")["status"] == "succeeded"
+        controller.evaluate_bound_page("() => location.hash='a different page state'")
+        assert controller.execute(action="verify", expected_frame_id=observed["frame_id"],
+                                  assertion="text_not_contains", value="unseen-marker")["reason_code"] == "stale_observation"
+    finally:
+        controller.close()
+
+
+@pytest.mark.parametrize("selector", ['[', '[data-token="%s"]'])
+def test_public_accessibility_errors_hide_known_passwords(monkeypatch, selector):
+    from openprogram.programs.tools.web.browser import browser as browser_tool
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        selector = selector % _SECRET if "%s" in selector else selector + _SECRET
+        def accessibility():
+            monkeypatch.setitem(browser_tool._sessions, "br_private", {"page": controller._page()})
+            return browser_tool.execute(action="accessibility", session_id="br_private", selector=selector)
+        result = controller._owner.submit(accessibility).result()
+        assert _SECRET not in result
+        assert "[redacted]" in result
+    finally:
+        controller.close()
+
+
+@pytest.mark.parametrize("secret", ["e1", "frame", "a"])
+def test_password_collision_does_not_corrupt_public_control_identifiers(secret):
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI("", secret=secret))
+    try:
+        observed = controller.execute(action="observe")
+        ref = observed["elements"][0]["ref"]
+        assert ref != "[redacted]"
+        assert secret not in ref
+        assert secret not in observed["frame_id"]
+        result = controller.execute(action="type", expected_frame_id=observed["frame_id"],
+                                    ref=ref, text="updated-password")
+        assert result["ok"] is True
+    finally:
+        controller.close()
