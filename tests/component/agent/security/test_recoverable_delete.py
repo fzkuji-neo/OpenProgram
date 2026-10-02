@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import errno
 import json
 import os
@@ -509,7 +510,7 @@ def test_session_context_without_active_turn_does_not_inject():
 
 def test_execute_code_honors_sandbox_unavailable_refuse(agent_run, monkeypatch):
     from openprogram import sandbox
-    from openprogram.programs.tools.code.execute_code import execute
+    from openprogram.programs import get_agent_tool
 
     marker = agent_run / "must-not-exist"
     monkeypatch.setattr(
@@ -518,10 +519,14 @@ def test_execute_code_honors_sandbox_unavailable_refuse(agent_run, monkeypatch):
     )
     monkeypatch.setattr(sandbox, "unavailable_reason", lambda: "sandbox binary missing")
 
-    result = execute(code=f"from pathlib import Path; Path({str(marker)!r}).write_text('unsafe')")
+    result = asyncio.run(get_agent_tool("execute_code").execute(
+        "sandbox-refuse", {"code": f"from pathlib import Path; Path({str(marker)!r}).write_text('unsafe')"},
+        None, None,
+    ))
 
     assert not marker.exists()
-    assert "sandbox binary missing" in result
+    assert result.is_error
+    assert "sandbox binary missing" in "\n".join(block.text for block in result.content)
 
 
 def test_execute_code_routes_interpreter_script_and_cwd_through_local_backend(

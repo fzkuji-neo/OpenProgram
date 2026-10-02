@@ -87,7 +87,7 @@ def execute(
     cwd: str | None = None,
     python: str | None = None,
     **kw: Any,
-) -> str:
+) -> str | ToolReturn:
     code = code or read_string_param(kw, "code", "source", "script")
     timeout = float(
         read_int_param(kw, "timeout") or (timeout if timeout is not None else DEFAULT_TIMEOUT)
@@ -135,12 +135,12 @@ def execute(
             )
             if completed.timed_out:
                 elapsed = time.time() - started
-                return (
+                return ToolReturn(text=(
                     f"Error: timed out after {timeout:.1f}s "
                     f"(elapsed {elapsed:.1f}s)\n\n"
                     f"## stdout (partial)\n{completed.stdout[:4000]}\n\n"
                     f"## stderr (partial)\n{completed.stderr[:4000]}"
-                )
+                ), is_error=True)
             return_code = completed.exit_code
             sandbox_error = completed.sandbox_error
             stdout_b = completed.stdout.encode("utf-8")
@@ -169,11 +169,11 @@ def execute(
             partial = (e.stdout or "") if isinstance(e.stdout, str) \
                       else (e.stdout or b"").decode("utf-8", errors="replace")
             elapsed = time.time() - started
-            return (
+            return ToolReturn(text=(
                 f"Error: timed out after {timeout:.1f}s "
                 f"(elapsed {elapsed:.1f}s) via {backend.backend_id}\n\n"
                 f"## stdout (partial)\n{partial[:4000]}"
-            )
+            ), is_error=True)
         return_code = proc.returncode
         stdout_b = stdout_text.encode("utf-8") if isinstance(stdout_text, str) \
                    else (stdout_text or b"")
@@ -208,6 +208,8 @@ def execute(
                 }
             },
         )
+    if return_code != 0:
+        return ToolReturn(text=text, is_error=True)
     return text
 
 

@@ -49,6 +49,8 @@ Office 支持是演示文稿、文档和表格共用的可选本地组件，默�
 | `process` | 管理后台 shell 会话（长跑服务、可轮询输出） | 无 |
 | `execute_code` | 在独立子进程里跑 Python 片段 | 无 |
 
+`execute_code` 返回 stdout、stderr 和已观察到的退出码。非零退出或超时返回错误结果，部分输出仍可用于检查失败原因。只有零退出码表示成功。每次调用使用新的 Python 子进程。
+
 ### 独立命令的执行目录
 
 `bash` 每次调用都启动新的 shell。可通过可选参数 `workdir` 指定本次调用的起始目录，例如 `bash(command="npm test", workdir="apps/web")`。这是工具调用写法；普通 Python 导出的对象是 AgentTool，而不是直接执行 shell 的函数。

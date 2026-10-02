@@ -49,6 +49,8 @@ The same History view combines manual edits and confirmed model file changes for
 | `process` | Manage background shell sessions (long-running services, pollable output) | Nothing |
 | `execute_code` | Run a Python snippet in an isolated subprocess | Nothing |
 
+`execute_code` returns stdout, stderr and the observed exit code. A nonzero exit or timeout is an error result; partial output remains available to diagnose the failure. Success requires a zero exit code. Each call uses a fresh Python subprocess.
+
 ### One-shot command directories
 
 `bash` starts a new shell for every call. Use the optional `workdir` argument to select the starting directory for that call, for example `bash(command="npm test", workdir="apps/web")`. This is tool-call notation; the ordinary Python export is an AgentTool, not a direct shell function.
