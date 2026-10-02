@@ -227,6 +227,9 @@ class LocalhostCallback:
         return self._code, self._state
 
     async def close(self) -> None:
+        # A canceled async waiter leaves its executor Event.wait running.
+        # Release it without manufacturing an authorization result.
+        self._result_event.set()
         srv = self._server
         if srv is not None:
             srv.shutdown()

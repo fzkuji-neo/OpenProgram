@@ -485,7 +485,9 @@ def create_app(*, owner_auth=None, port: int = 18100):
             daemon=True,
         ).start()
 
-    async def _start_mcp_servers():
+    mcp_startup_task = None
+
+    async def _load_mcp_servers():
         """Spawn every enabled MCP server from ``mcp_servers.json``.
 
         Each server's ``tools/list`` output is registered as AgentTool
@@ -498,6 +500,12 @@ def create_app(*, owner_auth=None, port: int = 18100):
             await load_mcp_servers()
         except Exception as e:  # noqa: BLE001
             _log(f"[mcp] startup failed: {type(e).__name__}: {e}")
+
+    async def _start_mcp_servers():
+        nonlocal mcp_startup_task
+        mcp_startup_task = asyncio.create_task(
+            _load_mcp_servers(), name="openprogram-mcp-startup",
+        )
 
     async def _start_skills_watcher():
         """Watch the five skill source directories and push ``skills:changed``
@@ -546,6 +554,13 @@ def create_app(*, owner_auth=None, port: int = 18100):
             _log(f"[plugin-autoupdate] startup failed: {type(e).__name__}: {e}")
 
     async def _stop_mcp_servers():
+        if mcp_startup_task is not None:
+            if not mcp_startup_task.done():
+                mcp_startup_task.cancel()
+            try:
+                await mcp_startup_task
+            except asyncio.CancelledError:
+                pass
         try:
             from openprogram.mcp import shutdown_mcp_servers
             await shutdown_mcp_servers()

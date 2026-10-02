@@ -9,8 +9,9 @@ registered in the shared registry so the LLM sees them alongside
 Design mirrors opencode's MCP client (TypeScript), translated to Python:
 
   * Lazy-friendly but eagerly-loaded: ``load_mcp_servers()`` blocks
-    on each server's ``initialize`` + ``tools/list`` so the registry
-    is complete before the first dispatcher turn runs.
+    on each server's ``initialize`` + ``tools/list`` in a managed
+    background task. Core worker readiness does not wait for optional
+    MCP startup; tools become available only after their server is ready.
   * Persistent connections: a supervisor task per server holds the
     ``stdio_client`` + ``ClientSession`` async-context-manager pair
     for the worker's lifetime. Reduces per-call latency vs. respawn-
