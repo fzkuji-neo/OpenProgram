@@ -93,6 +93,98 @@ def _coerce_types(instance: Any, schema: dict[str, Any]) -> Any:
     return instance
 
 
+def _accepts_null(schema: Any, validator: Any) -> bool | None:
+    if validator is not None:
+        try:
+            return validator.evolve(schema=schema).is_valid(None)
+        except Exception:
+            # Unresolved references are not permission to discard a value.
+            return None
+    if isinstance(schema, bool):
+        return schema
+    if not isinstance(schema, dict) or "$ref" in schema:
+        return None
+    if "enum" in schema and None not in schema["enum"]:
+        return False
+    if "const" in schema and schema["const"] is not None:
+        return False
+    kind = schema.get("type")
+    if kind is not None and kind != "null" and not (isinstance(kind, list) and "null" in kind):
+        return False
+    for keyword in ("allOf", "anyOf", "oneOf"):
+        if keyword in schema:
+            matches = [_accepts_null(branch, None) for branch in schema[keyword]]
+            if None in matches:
+                return None
+            if keyword == "allOf" and not all(matches):
+                return False
+            if keyword == "anyOf" and not any(matches):
+                return False
+            if keyword == "oneOf" and matches.count(True) != 1:
+                return False
+    return True
+
+
+def _restore_optional_nulls(value: Any, schema: Any, wire: Any, validator: Any) -> Any:
+    """Decode strict-added nulls while leaving canonical validation in charge."""
+    if not isinstance(schema, dict) or not isinstance(wire, dict):
+        return value
+    if isinstance(value, list):
+        items, wire_items = schema.get("items", {}), wire.get("items", {})
+        result = [
+            _restore_optional_nulls(
+                item,
+                items[index] if isinstance(items, list) and index < len(items) else items,
+                wire_items[index] if isinstance(wire_items, list) and index < len(wire_items) else wire_items,
+                validator,
+            ) for index, item in enumerate(value)
+        ]
+    elif not isinstance(value, dict):
+        return value
+    else:
+        result = dict(value)
+        properties, wire_properties = schema.get("properties", {}), wire.get("properties", {})
+        for name, prop in properties.items():
+            if name not in result or name not in wire_properties:
+                continue
+            wire_prop = wire_properties[name]
+            if (result[name] is None and name not in schema.get("required", [])
+                    and _accepts_null(prop, validator) is False
+                    and _accepts_null(wire_prop, validator) is True):
+                result.pop(name)
+            else:
+                result[name] = _restore_optional_nulls(result[name], prop, wire_prop, validator)
+    for branch in schema.get("allOf", []):
+        # Strict drops allOf; only properties retained in its wire schema can
+        # be decoded. The original conditional constraints still validate.
+        result = _restore_optional_nulls(result, branch, wire, validator)
+    if validator is not None:
+        for keyword in ("anyOf", "oneOf"):
+            for index, branch in enumerate(schema.get(keyword, [])):
+                wire_branches = wire.get(keyword, [])
+                if index >= len(wire_branches):
+                    continue
+                candidate = _restore_optional_nulls(result, branch, wire_branches[index], validator)
+                if validator.evolve(schema=schema).is_valid(candidate):
+                    return candidate
+    return result
+
+
+def _prepare_arguments(args: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
+    from openprogram.providers._schema import SchemaNormalizationError, normalize
+
+    copied = _coerce_types(copy.deepcopy(args), schema)
+    validator = Draft7Validator(schema) if JSONSCHEMA_AVAILABLE else None
+    if validator is not None and validator.is_valid(copied):
+        return copied
+    try:
+        wire = normalize(schema, "openai_strict")
+    except SchemaNormalizationError:
+        # A passthrough-only schema must retain its canonical validation.
+        return copied
+    return _restore_optional_nulls(copied, schema, wire, validator)
+
+
 def validate_tool_arguments(tool: Tool, tool_call: ToolCall) -> dict[str, Any]:
     """
     Validate and coerce tool arguments against the tool's parameter schema.
@@ -115,11 +207,8 @@ def validate_tool_arguments(tool: Tool, tool_call: ToolCall) -> dict[str, Any]:
     if not JSONSCHEMA_AVAILABLE:
         return _validate_basic(tool, tool_call, args, schema)
     
-    # Clone arguments for coercion (don't mutate original)
-    coerced_args = copy.deepcopy(args)
-    
-    # Apply type coercion first (like AJV's coerceTypes)
-    coerced_args = _coerce_types(coerced_args, schema)
+    # Restore strict optional defaults, then coerce without mutating input.
+    coerced_args = _prepare_arguments(args, schema)
     if tool.name == "web_use":
         from openprogram.web_use_contract import normalize_web_use_arguments
         coerced_args = normalize_web_use_arguments(coerced_args)
@@ -153,7 +242,7 @@ def _validate_basic(tool: Tool, tool_call: ToolCall, args: dict[str, Any], schem
     We still apply the same lightweight type coercion as the full jsonschema
     path so callers get consistent behavior across environments.
     """
-    coerced_args = _coerce_types(copy.deepcopy(args), schema)
+    coerced_args = _prepare_arguments(args, schema)
     if tool.name == "web_use":
         from openprogram.web_use_contract import normalize_web_use_arguments
         coerced_args = normalize_web_use_arguments(coerced_args)
@@ -167,6 +256,9 @@ def _validate_basic(tool: Tool, tool_call: ToolCall, args: dict[str, Any], schem
                 f'Received arguments:\n'
                 f'{_format_json(tool_call.arguments)}'
             )
+        if (coerced_args[field] is None
+                and _accepts_null(schema.get("properties", {}).get(field, {}), None) is False):
+            raise ValueError(f'Validation failed for tool "{tool.name}": {field}: null is not allowed')
 
     return coerced_args
 

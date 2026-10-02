@@ -71,6 +71,7 @@
   </div>
 
   <h2>1. 范围、目标与边界</h2>
+  <p>函数工具参数按原始 tool schema 本地校验。严格 provider 导出把可选字段表示为必填且可为空；共享参数规范化在原始校验之前，把这种新增的 null 还原成省略的对象属性。必填字段和原本允许 null 的值保持语义。仅严格导出属性 schema 实际接受的 null 可以还原，enum、条件及组合约束继续校验。规范化复制输入、保留数组位置，并为非 strict 调用方提供相同的可选参数默认值语义，不改函数签名或放宽原始 schema。</p>
   <div class="grid g3">
     <section class="card"><h4>统一语义</h4><p>Python Runtime、Agent、CLI、WebSocket/API 使用同一份 schema、相同协商结果、相同验证器和错误分类。</p></section>
     <section class="card"><h4>流式兼容</h4><p>保留 provider 的增量文本和 tool 事件，同时明确候选尝试、丢弃、重试与最终结构化结果事件。</p></section>
