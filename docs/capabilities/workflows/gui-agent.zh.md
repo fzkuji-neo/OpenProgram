@@ -40,6 +40,8 @@ openprogram programs run gui_agent -a task="在不置顶窗口的情况下检查
 
 `field_context` 是只读 DOM 诊断，不是字段标签，也不授权填写表单。它描述可编辑元素与最多四层祖先，包括 ID、最多六个 class、可见可编辑元素数量、直接文字，以及每层最多六个可见文本末端节点（最多检查 120 个后代）。文本末端节点与祖先的直接文字均不包含字段内容，包括 contenteditable 值内部的只读节点。文字先脱敏，再按 400 个 code point 限制展示。所有 context 共用 32768 UTF-8 JSON 字节预算；`field_context_truncated=true` 表示诊断不完整，预算耗尽时可以不返回 context。采用字段关联前必须检查实际结构，顺序不能单独证明关联。
 
+native `type` 对普通 input 和 textarea 保持原生填写。contenteditable 在原生可编辑性检查后插入纯文本并派发 input 事件，以保留空行，不修改编辑器 CSS。如果编辑器改写了文本或 CSS 折叠了有意义的空白，操作返回 `ok=false`、`reason_code="editable_value_mismatch"` 和 `observe_required=true`。必须先观察当前值再决定后续操作；该结果不授权自动重复写入。
+
 浏览器观察会从 DOM 名称、可见文字、ARIA 树和上游 MCP 快照中隐藏非空密码字段值，也检查子 frame 和开放的 shadow root。字段标签与普通输入值继续可见；观察中任何与密码相同的文字都会隐藏。动作元数据及通用浏览器的 Accessibility 动作采用相同保护，包括错误和无匹配回复。新鲜度检查在内部保留 Page 原始身份，展示脱敏不会使稳定页面失效。生成的 frame ID 和 ref 避免与已知密码发生冲突。验证检查 Page 的真实内容，不使用脱敏后的观察文字。最终结果及 completion evidence 使用相同脱敏处理。包含已知密码或其 JSON 转义形式的断言会返回 `sensitive_assertion` 和 `passed=false`，不回显断言值。
 
 浏览器完成状态采用最近一次成功验证。后续验证被拒绝或失败时，先前的成功证据失效。Page 控制器报告成功前会重新检查文档身份，并对当前内容再次检查已记录的断言；发生导航、文档替换或确认文字消失时，需要重新验证。
