@@ -31,6 +31,8 @@ openprogram programs run <name> -a key=value  # 直接运行一个 program
 
 第一方 Programs 是 immutable 产品组件。在可变扩展或开发环境中，`programs install` 会克隆额外第三方 harness、安装其声明的依赖并登记批准的来源。
 
+`openprogram programs list` 包含 owner 已授权发布的 Workflow 注册入口，包括 `workflow/weekly_report/` 这类分类目录中的项目。列出条目不会执行 Workflow，也不会导入未登记的项目。
+
 ## 用哪种方式触发
 
 - **聊天里**：入口函数以 `as_tool=True` 注册为工具，直接用自然语言描述任务，模型会调用它（如 `gui_agent`、`research_agent`、`wiki_agent`）。

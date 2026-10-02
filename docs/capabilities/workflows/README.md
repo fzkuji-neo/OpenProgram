@@ -29,6 +29,8 @@ openprogram programs run <name> -a key=value  # run a program directly
 
 First-party Programs are immutable product components. In a mutable extension or development environment, `programs install` clones an additional third-party harness, installs its declared dependencies, and records the approved source.
 
+`openprogram programs list` includes the registered entry points of owner-authorized published Workflows, including those inside a category such as `workflow/weekly_report/`. Listing does not execute them or import unrecorded projects.
+
 ## How to trigger them
 
 - **In chat**: entry functions register as tools (`as_tool=True`). Describe the task in natural language and the model calls them (e.g. `gui_agent`, `research_agent`, `wiki_agent`).
