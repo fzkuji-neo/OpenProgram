@@ -169,3 +169,44 @@ def test_public_controller_browser_primitives_against_real_dom():
             server.shutdown()
             thread.join(timeout=5)
             server.server_close()
+
+
+@pytest.mark.parametrize("mode", ["open", "closed"])
+def test_shadow_password_is_redacted_from_public_observation_and_accessibility(monkeypatch, mode):
+    from openprogram.programs.tools.web.browser import browser as browser_tool
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    secret = "shadow-secret-9843"
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""mode => { const host=document.createElement('div');
+            document.body.append(host); host.attachShadow({mode}).innerHTML =
+            '<input type="password" aria-label="Shadow password" value="shadow-secret-9843">'; }""", mode)
+        observed = controller.execute(action="observe")
+        assert secret not in json.dumps(observed)
+        assert "ordinary-input" in observed["aria_snapshot"]
+
+        def accessibility():
+            monkeypatch.setitem(browser_tool._sessions, "br_private", {"page": controller._page()})
+            return browser_tool.execute(action="accessibility", session_id="br_private")
+        assert secret not in controller._owner.submit(accessibility).result()
+    finally:
+        controller.close()
+
+
+def test_secret_absence_assertion_cannot_succeed_after_observation_redaction():
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI(""))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""secret => { const p=document.createElement('p');
+            p.innerText=secret; document.body.append(p); }""", _SECRET)
+        observed = controller.execute(action="observe")
+        result = controller.execute(action="verify", expected_frame_id=observed["frame_id"],
+                                    assertion="text_not_contains", value=_SECRET)
+        assert result["passed"] is False
+        assert _SECRET not in json.dumps(result)
+        assert controller.final_result(summary="Password absent")["status"] == "failed"
+        ordinary = controller.execute(action="verify", expected_frame_id=observed["frame_id"],
+                                      assertion="text_not_contains", value="never-seen-text")
+        assert ordinary["passed"] is True
+    finally:
+        controller.close()
