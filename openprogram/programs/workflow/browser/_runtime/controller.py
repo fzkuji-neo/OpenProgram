@@ -393,7 +393,7 @@ class BrowserPageController:
                 if isinstance(value, str) and redact_password_values(value, secrets) != value:
                     del element["value"]
                     element["value_redacted"] = True
-                    if element.get("name") and value.startswith(element["name"]) and not element.get("label"):
+                    if element.get("name") and value.startswith(element["name"]):
                         element["name"] = "[redacted]"
                 elif isinstance(value, str):
                     # Redact the full host-local value before truncating it:

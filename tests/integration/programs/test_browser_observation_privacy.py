@@ -442,3 +442,23 @@ def test_field_context_is_bounded_and_redacted_before_truncation():
         assert all(len(ancestor["text_nodes"]) <= 6 for context in contexts for ancestor in context["ancestors"])
     finally:
         controller.close()
+
+
+def test_long_secret_value_name_is_hidden_even_with_associated_label():
+    secret = "known-secret-" * 750
+    controller = BrowserPageController(browser_api=_OwnedBrowserAPI("", secret=secret))
+    try:
+        controller.execute(action="observe")
+        controller.evaluate_bound_page("""secret => {
+            const input=document.querySelector('input[type=text]');input.id='copied';input.value=secret;
+            const label=document.createElement('label');label.htmlFor='copied';label.innerText='Copied password';
+            document.body.append(label);
+        }""", secret)
+        observed = controller.execute(action="observe")
+        field = observed["elements"][1]
+        assert field["label"] == "Copied password"
+        assert field["value_redacted"] is True
+        assert "value" not in field
+        assert secret[:240] not in field["name"]
+    finally:
+        controller.close()
