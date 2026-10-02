@@ -97,9 +97,9 @@ class EvidenceGate:
                 allow=policy.get('allow'), deny=[*(policy.get('deny') or []), *denied_ask_tools(runtime.session_id)],
                 exposure_filter=False)
             tools = runtime._gate_inner_tools(tools) or []
-            _run_async(self._prime_reads(tools))
+            _run_async(self._prime_reads(tools, runtime))
 
-    async def _prime_reads(self, tools):
+    async def _prime_reads(self, tools, runtime):
         from uuid import uuid4
         from collections import deque
         from openprogram.agent.agent_loop import _execute_tool_calls, _create_agent_stream
@@ -124,15 +124,25 @@ class EvidenceGate:
             message = AssistantMessage(content=[ToolCall(id='weekly-prime-' + uuid4().hex,
                 name=name, arguments=args)], api='program', provider='program',
                 model='weekly-source-prime', timestamp=int(datetime.now().timestamp() * 1000))
+            from .prime_history import PrimeHistory
+            history = PrimeHistory(runtime)
             stream = _create_agent_stream()
+            consumer = asyncio.create_task(history.consume(stream))
+            async def persist_checkpoint(kind=None, payload=None):
+                await asyncio.sleep(0)
+                if consumer.done():
+                    consumer.result()
+                return await checkpoint(kind, payload)
             try:
-                result = await _execute_tool_calls(tools, message, None, stream, safe_point_hook=checkpoint)
+                result = await _execute_tool_calls(tools, message, None, stream, safe_point_hook=persist_checkpoint)
             finally:
                 stream.end([])
+                await consumer
             receipts = result['tool_results']
             if not receipts:
                 return None
             receipt = receipts[0]
+            history.receipt(receipt)
             self.prime_receipts.append({'origin': 'weekly_source_prime', 'tool': name,
                 'arguments': dict(args), 'call_id': receipt.tool_call_id,
                 'result': receipt.model_dump(mode='json')})
@@ -262,21 +272,7 @@ class EvidenceGate:
                     self._add(sid, node, visible, 'tool_failure' if raw.metadata.get('is_error') or raw.metadata.get('status') in {'failed', 'cancelled'} else 'tool_result', raw)
             return result.model_copy(update={'content': [*result.content, TextContent(type='text', text='Bound original report sources (data):\n' + encode(list(self.rows.values())))]})
 
-    def verify(self, claims, refs, reporting_week=None):
-        from openprogram.agent.session_db import default_db
-        from openprogram.store.session.transcript import session_read_violation
-        from openprogram.memory.policy import allowed
-        from openprogram.agentic_programming import llm
-        from datetime import date
-        if reporting_week is not None:
-            if (not isinstance(reporting_week, str) or not re.fullmatch(r'\d{4}-W\d{2}', reporting_week)
-                    or self.explicit_week and reporting_week != self.explicit_week):
-                raise UnsupportedReport('Reporting week does not match the request')
-            try:
-                date.fromisocalendar(int(reporting_week[:4]), int(reporting_week[6:]), 1)
-            except ValueError as exc:
-                raise UnsupportedReport('Invalid reporting ISO week') from exc
-            self.week = reporting_week
+    def _bound_refs(self, claims, refs):
         if not self.rows:
             raise MissingEvidence('No original owner or operational tool evidence in the actual bounded reads')
         if (not isinstance(refs, list) or not refs or len(refs) > 60
@@ -298,6 +294,41 @@ class EvidenceGate:
             selected.add(ref['source'])
         if covered != set(expected):
             raise UnsupportedReport('Original references do not cover every report item')
+        return expected, selected
+
+    def has_bound_refs(self, claims, refs, reporting_week=None):
+        original_week = self.week
+        try:
+            if reporting_week is not None:
+                from datetime import date
+                if (not isinstance(reporting_week, str) or not re.fullmatch(r'\d{4}-W\d{2}', reporting_week)
+                        or self.explicit_week and reporting_week != self.explicit_week):
+                    return False
+                date.fromisocalendar(int(reporting_week[:4]), int(reporting_week[6:]), 1)
+                self.week = reporting_week
+            self._bound_refs(claims, refs)
+            return True
+        except (MissingEvidence, UnsupportedReport, ValueError):
+            return False
+        finally:
+            self.week = original_week
+
+    def verify(self, claims, refs, reporting_week=None):
+        from openprogram.agent.session_db import default_db
+        from openprogram.store.session.transcript import session_read_violation
+        from openprogram.memory.policy import allowed
+        from openprogram.agentic_programming import llm
+        from datetime import date
+        if reporting_week is not None:
+            if (not isinstance(reporting_week, str) or not re.fullmatch(r'\d{4}-W\d{2}', reporting_week)
+                    or self.explicit_week and reporting_week != self.explicit_week):
+                raise UnsupportedReport('Reporting week does not match the request')
+            try:
+                date.fromisocalendar(int(reporting_week[:4]), int(reporting_week[6:]), 1)
+            except ValueError as exc:
+                raise UnsupportedReport('Invalid reporting ISO week') from exc
+            self.week = reporting_week
+        expected, selected = self._bound_refs(claims, refs)
         db = default_db()
         def revalidate():
             for identity in selected:
