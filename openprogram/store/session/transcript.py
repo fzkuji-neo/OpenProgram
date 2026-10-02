@@ -90,6 +90,23 @@ def _turn_header(msg: dict[str, Any], index: int) -> str:
     return f"--- [{index}] {role} ---"
 
 
+
+def session_read_violation(store: Any, session_id: str) -> str | None:
+    """Check the backing conversation files even when messages are cached."""
+    from openprogram.sandbox import validate_read_path
+
+    directory = store._session_dir(session_id)
+    history = directory / "history"
+    for path in (directory, directory / "meta.json", history):
+        violation = validate_read_path(str(path))
+        if violation:
+            return violation
+    for path in history.glob("*.json"):
+        violation = validate_read_path(str(path))
+        if violation:
+            return violation
+    return None
+
 def render_session_transcript(
     session_id: str,
     head_id: Optional[str] = None,
