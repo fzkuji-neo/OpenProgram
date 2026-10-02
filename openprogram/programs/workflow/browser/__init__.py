@@ -95,13 +95,19 @@ _REF_SNAPSHOT_SCRIPT = r"""
     const describe = node => ({tag: node.tagName.toLowerCase(), id: node.id || "",
       classes: Array.from(node.classList).slice(0, 6), classes_truncated: node.classList.length > 6});
     const isEditable = node => node.isContentEditable || ["INPUT", "TEXTAREA"].includes(node.tagName);
+    const insideEditableValue = node => {
+      for (let ancestor=node; ancestor; ancestor=ancestor.parentElement) {
+        if (isEditable(ancestor)) return true;
+      }
+      return false;
+    };
     const isVisible = node => {const style=getComputedStyle(node), rect=node.getBoundingClientRect();
       return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;};
     const context = {source: "dom_structure", diagnostic_only: true, truncated: false,
       element: describe(el), ancestors: []};
     for (let parent=el.parentElement; parent && context.ancestors.length < 4; parent=parent.parentElement) {
       const ancestor = {...describe(parent), editable_count: 0, editable_count_truncated: false,
-        direct_text: isEditable(parent) ? "" : Array.from(parent.childNodes).filter(node => node.nodeType === Node.TEXT_NODE)
+        direct_text: insideEditableValue(parent) ? "" : Array.from(parent.childNodes).filter(node => node.nodeType === Node.TEXT_NODE)
           .map(node => node.textContent).join(" ").replace(/\s+/g, " ").trim(), text_nodes: []};
       for (const node of parent.querySelectorAll("input,textarea,[contenteditable]")) {
         if (isEditable(node) && isVisible(node)) ancestor.editable_count++;
@@ -110,7 +116,7 @@ _REF_SNAPSHOT_SCRIPT = r"""
       let scanned=0;
       for (const node of parent.querySelectorAll("*")) {
         if (++scanned > 120) {context.truncated=true;break;}
-        if (node.childElementCount || isEditable(node) || !isVisible(node)) continue;
+        if (node.childElementCount || insideEditableValue(node) || !isVisible(node)) continue;
         const text=(node.textContent || "").replace(/\s+/g," ").trim();
         if (!text) continue;
         if (ancestor.text_nodes.length === 6) {context.truncated=true;break;}
