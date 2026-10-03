@@ -326,10 +326,24 @@ CopyIcon.displayName = "CopyIcon";
 
 // MessageSquareMore visual supplied for the content-reference action.
 const QUOTE_DOT_VARIANTS: Variants = {
-  normal: { opacity: 1, transition: { duration: 0.2 } },
-  animate: (index: number) => ({
-    opacity: [1, 0, 1],
-    transition: { duration: 1.5, repeat: Infinity, delay: index * 0.2 },
+  normal: { opacity: 1 },
+  animate: (custom: number) => ({
+    opacity: [1, 0, 0, 1, 1, 0, 0, 1],
+    transition: {
+      opacity: {
+        times: [
+          0,
+          0.1,
+          0.1 + custom * 0.1,
+          0.1 + custom * 0.1 + 0.1,
+          0.5,
+          0.6,
+          0.6 + custom * 0.1,
+          0.6 + custom * 0.1 + 0.1,
+        ],
+        duration: 1.5,
+      },
+    },
   }),
 };
 export const QuoteIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>(
@@ -819,4 +833,3 @@ export const XIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>(
   },
 );
 XIcon.displayName = "XIcon";
-
