@@ -14,10 +14,12 @@
   --sidebar-width: 288px;
   --detail-width: 300px;
 
-  /* Persisted appearance applies to dragged tabs and pane labels only. */
+  /* Persisted appearance applies to dragged tabs inside/outside the strip and pane labels. */
   --drag-surface-opacity: 80%;
   --drag-backdrop-blur: 16px;
   --drag-shadow-scale: 0.25;
+  --drag-surface-background: color-mix(in oklch, var(--bg-tertiary) var(--drag-surface-opacity), transparent);
+  --drag-surface-backdrop: blur(var(--drag-backdrop-blur)) saturate(1.2);
   --drag-surface-shadow: 0 2px 4px rgba(0, 0, 0, calc(0.14 * var(--drag-shadow-scale))),
     0 12px 28px rgba(0, 0, 0, calc(0.24 * var(--drag-shadow-scale)));
 

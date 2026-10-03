@@ -1,4 +1,4 @@
-/** Appearance of floating tab and pane-label drag previews. */
+/** Shared appearance of dragged tabs and pane-label previews. */
 export const VISUAL_EFFECTS_STORAGE_KEY = "agentic_visual_effects";
 export const VISUAL_EFFECTS_LIMITS = {
   transparency: { min: 0, max: 100 },
@@ -29,7 +29,7 @@ export function parseVisualEffects(raw: string | null): VisualEffects {
 
 /** Shared by both drag implementations and the settings preview. */
 export const DRAG_SURFACE_STYLE = {
-  background: "color-mix(in oklch, var(--bg-tertiary) var(--drag-surface-opacity), transparent)",
-  backdropFilter: "blur(var(--drag-backdrop-blur)) saturate(1.2)",
+  background: "var(--drag-surface-background)",
+  backdropFilter: "var(--drag-surface-backdrop)",
   boxShadow: "var(--drag-surface-shadow)",
 } as const;

@@ -26,8 +26,6 @@
    处全部同色。切 tab 不做任何过渡动画，瞬时切换。 */
 .strip {
   --tab-active-bg: var(--bg-primary);
-  /* 拖动中的 tab：介于活动 tab 与非活动（栏底）之间的中间色，完全不透明。 */
-  --tab-drag-bg: color-mix(in oklch, var(--tab-active-bg) 55%, var(--tabrow-bg));
   height: 40px;
   box-sizing: border-box;
   display: flex;
@@ -413,10 +411,8 @@
   );
 }
 
-/* 指针驱动拖动（Chrome 式）：tab 本体跟手 —— transform 由 JS 直写，
-   transition 必须关掉才不追手；抬 z-index 盖过让位中的邻居。
-   跟手态必须【完全不透明】且有实心底色 —— .tab 默认 background:transparent，
-   不铺底就会透出下面的 tab，看起来"重叠成一团"。 */
+/* Pointer dragging inside the strip shares the floating preview preferences.
+   Only the backdrop is translucent; text and controls keep full opacity. */
 .tab[data-pointer-drag="true"],
 .compoundTab[data-pointer-drag="true"] {
   /* transform 绝不能进 transition —— 它由 JS 每帧直写来跟手（x/y 双轴）。
@@ -425,24 +421,23 @@
   position: relative;
   z-index: 30;
   opacity: 1;
-  background: var(--tab-drag-bg);
+  background: var(--drag-surface-background);
+  backdrop-filter: var(--drag-surface-backdrop);
   color: var(--text-bright);
   border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--drag-surface-shadow);
   transform-origin: center;
 }
 /* 拖动中的 tab 不画左侧分隔条（它已脱离栏内节奏）。 */
 .tab[data-pointer-drag="true"]::before {
   background: transparent;
 }
-/* 拖离 tab 栏（进入画布 / 新窗口意图）：tab 本体继续跟手，保持完全不透明，
-   不缩放、不加蓝色描边，只把阴影加深一点表示"被拎起来"。
-   不再有单独的"New window"浮动胶囊。 */
+/* Detach intent retains the same surface and changes only stacking order. */
 .tab[data-detach-intent="true"],
 .compoundTab[data-detach-intent="true"] {
   opacity: 1;
   z-index: 40;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14), 0 12px 28px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--drag-surface-shadow);
 }
 /* 目标窗口的"在此打开"提示：另一窗口的 tab 悬停到本窗口时，只在顶部标签栏
    显示——整条 .strip 一层淡强调底 + 下缘强调线，外加一枚小胶囊挂在 strip
@@ -2475,7 +2470,7 @@
 
 .webPipGestureFrame { border-radius: 10px 10px 0 0; width: 100%; height: 100%; object-fit: contain; object-position: top left; pointer-events: none; user-select: none; }
 
-/* The dragged element stays opaque and follows the pointer beyond the strip. */
+/* Keep dragged labels above neighboring tabs without clipping their effects. */
 :global(html[data-canvas-dragging]) .strip,
 :global(html[data-canvas-dragging]) .tabsFlow { overflow: visible; z-index: 10000; }
 .tab[data-pointer-drag="true"], .compoundTab[data-pointer-drag="true"] { z-index: 100001; transition: none; }

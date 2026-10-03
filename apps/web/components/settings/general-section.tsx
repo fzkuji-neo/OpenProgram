@@ -690,8 +690,8 @@ export function GeneralSection() {
                 </div>
                 <div className={styles.customCssHint}>
                   {text(
-                    "Applies immediately to floating tab and split-pane title previews. 0% transparency is opaque; 0px blur and 0% shadow disable those effects. Saved on this device.",
-                    "即时应用于拖动标签和分屏标题的预览。透明度 0% 为不透明，模糊 0px 和阴影 0% 分别关闭对应效果。保存在此设备。",
+                    "Applies immediately to tab dragging inside and outside the strip, and split-pane title previews. 0% transparency is opaque; 0px blur and 0% shadow disable those effects. Saved on this device.",
+                    "即时应用于标签栏内外的标签拖动预览和分屏标题预览。透明度 0% 为不透明，模糊 0px 和阴影 0% 分别关闭对应效果。保存在此设备。",
                   )}
                 </div>
               </div>
