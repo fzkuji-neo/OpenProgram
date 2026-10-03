@@ -814,13 +814,25 @@ def test_worker_resident_agentic_tool_does_not_spawn(monkeypatch) -> None:
     assert calls == [("call-1", {})]
 
 
-def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch) -> None:
+def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch, tmp_path) -> None:
     from contextlib import nullcontext
 
     import openprogram.agent.process_runner as process_runner
     import openprogram.agent.session_db as session_db
     import openprogram.webui._exec_dag as exec_dag
     from openprogram.agent import surface_context
+    from openprogram.agent.authority import local_owner_authority
+    from openprogram.agent.permissions.lifecycle import current_permission_request
+    from openprogram.agent.permissions.policy import permission_decision
+    from openprogram.programs.workflow.browser import web_use
+    from openprogram.webui.ws_actions import webtab
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("OPENPROGRAM_CONFIG_DIR", str(tmp_path / ".openprogram"))
+    R.register(web_use._agent_tool, toolsets=web_use.toolset,
+               unsafe_in=web_use.unsafe_in, expose=web_use.tool_visible)
+    monkeypatch.setattr(webtab, "registered_desktop_windows",
+                        lambda: [(object(), "owned-window", 1)])
     from openprogram.agent.dispatcher.runtime_attach import (
         _wrap_agentic_runtime_block,
     )
@@ -830,6 +842,9 @@ def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch) -> No
     class FakeDB:
         def invalidate_cache(self, session_id):
             pass
+
+        def get_session(self, session_id):
+            return {}
 
     async def original_execute(call_id, args, cancel, on_update):
         raise AssertionError("browser gui_agent should run in the subprocess")
@@ -863,16 +878,20 @@ def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch) -> No
     monkeypatch.setattr(exec_dag, "live_progress", lambda *a, **kw: nullcontext())
     monkeypatch.setattr(exec_dag, "build_exec_dag", lambda *a, **kw: None)
 
+    request = TurnRequest(
+        session_id="browser-surface",
+        user_text="",
+        agent_id="main",
+        source="web",
+        profile_snapshot={},
+        **local_owner_authority(),
+    )
+    assert permission_decision(
+        web_use._agent_tool, current_permission_request(request),
+        {"command": "list_pages"},
+    )[:2] == ("allow", "SURFACE_GRANT")
     wrapped = _wrap_agentic_runtime_block(
-        tool,
-        TurnRequest(
-            session_id="browser-surface",
-            user_text="",
-            agent_id="main",
-            source="web",
-        ),
-        lambda event: None,
-        "assistant-1",
+        tool, request, lambda event: None, "assistant-1",
     )
     result = _run(wrapped.execute(
         "call-1",
@@ -886,13 +905,15 @@ def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch) -> No
     assert seen["timeout_seconds"] == 300
     assert released == [captured]
 
-    fallback = surface_context.window_context()
+    def forbid_fallback():
+        raise AssertionError("capture failure must not manufacture a window context")
+
     monkeypatch.setattr(
         surface_context,
         "capture_pages",
         lambda: (_ for _ in ()).throw(RuntimeError("desktop unavailable")),
     )
-    monkeypatch.setattr(surface_context, "window_context", lambda: fallback)
+    monkeypatch.setattr(surface_context, "window_context", forbid_fallback)
     seen.clear()
     released.clear()
     result = _run(wrapped.execute(
@@ -902,8 +923,34 @@ def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch) -> No
         None,
     ))
     assert result.content[0].text == "browser result"
-    assert seen["surface_context_snapshot"] is fallback
-    assert released == [fallback]
+    assert seen["surface_context_snapshot"] is None
+    assert seen["timeout_seconds"] == 300
+    assert released == []
+
+    def forbid_capture():
+        raise AssertionError("missing native grant must not capture Pages")
+
+    monkeypatch.setattr(surface_context, "capture_pages", forbid_capture)
+    monkeypatch.setattr(webtab, "registered_desktop_windows", lambda: [])
+    assert permission_decision(
+        web_use._agent_tool, current_permission_request(request),
+        {"command": "list_pages"},
+    )[:2] != ("allow", "SURFACE_GRANT")
+    for call_id in ("no-desktop", "no-web-use"):
+        if call_id == "no-web-use":
+            R.reset_registry()
+            from openprogram.programs import get_agent_tool
+            assert get_agent_tool("web_use") is None
+            monkeypatch.setattr(webtab, "registered_desktop_windows",
+                                lambda: [(object(), "owned-window", 1)])
+        seen.clear()
+        result = _run(wrapped.execute(
+            call_id, {"task": "read title", "surface": "browser"}, None, None,
+        ))
+        assert result.content[0].text == "browser result"
+        assert seen["surface_context_snapshot"] is None
+        assert seen["timeout_seconds"] == 300
+        assert released == []
 
 
 @pytest.mark.parametrize("reports_runtime_id", [True, False])
