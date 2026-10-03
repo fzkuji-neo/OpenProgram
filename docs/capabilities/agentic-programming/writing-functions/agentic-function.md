@@ -1,93 +1,75 @@
-# @agentic_function
+# Agent calls and ordinary methods
 
-`@agentic_function` wraps a Python function whose body may run LLM calls through
-`llm()`. The wrapper records the function call in the session DAG unless
-`expose="hidden"` is used.
+Use `agent()` for a direct model request. Use an `Agent` subclass when several methods share model settings and instructions. The framework creates call scopes and Context automatically.
 
-This page explains the usage patterns. Metadata rules live in
-[`function-metadata.md`](function-metadata.md).
-
-## Basic pattern
+## Ordinary methods
 
 ```python
-from openprogram import agentic_function
-from openprogram.agentic_programming import llm
+from openprogram import Agent
 
-@agentic_function(input={
-    "text": {"description": "Text to translate."},
-})
-def translate_to_chinese(text: str, runtime=None) -> str:
-    """Translate text to Chinese."""
-    return llm([{"type": "text", "text": (
-        "Translate the following text to Chinese. Return only the translation.\n\n"
-        f"Text:\n{text}"
-    )}])
+class ReviewAgent(Agent):
+    tools = []
+    instructions = "Preserve facts. Return concise text."
+
+    def classify(self, review: str) -> str:
+        """Classify review sentiment."""
+        return self(f"Classify as positive, negative, or neutral:\n{review}")
+
+    def summarize(self, review: str) -> str:
+        """Summarize a review with its sentiment."""
+        sentiment = self.classify(review)
+        return self(f"Summarize this {sentiment} review in one sentence:\n{review}")
+
+reviewer = ReviewAgent(model="configured-model")
+summary = reviewer.summarize("The service was fast.")
 ```
 
-Declare a `runtime` parameter and never pass it yourself: the framework
-injects it on direct Python calls and on tool dispatch alike (a missing or
-`None` value is filled before the signature is enforced), and filters it out
-of the tool schema so the model never sees it. `runtime=None` is the
-conventional spelling; a bare `runtime` without a default also works.
+`classify` and `summarize` are ordinary Python methods. Their scopes retain the parent relationship. `self(...)` makes a model request through the existing Runtime. The docstring describes the function call. The prompt provides the model instruction and data.
 
-The docstring is the function-level description. The `content` block is the
-actual instruction and data for this LLM call.
+An Agent instance stores configuration. It does not implicitly retain a conversation between independent top-level calls. Nested calls use the active execution. Context selects permitted history and resolves configured content for each request.
 
-## Direct composition
-
-Use direct Python calls when the order is fixed.
+## Direct calls and asynchronous code
 
 ```python
-@agentic_function(input={
-    "task": {"description": "Research task."},
-})
-def research_pipeline(task: str, runtime) -> dict:
-    """Run a fixed research pipeline."""
-    survey = survey_topic(topic=task, runtime=runtime)
-    gaps = identify_gaps(survey=survey, runtime=runtime)
-    ideas = generate_ideas(gaps=gaps, runtime=runtime)
-    return {"survey": survey, "gaps": gaps, "ideas": ideas}
+from openprogram import agent, agent_async
+
+answer = agent("Summarize this text", tools=[])
+# In an async function:
+# answer = await agent_async("Summarize this text", tools=[])
+# answer = await reviewer.arun("Summarize this text")
 ```
 
-## LLM-selected tools
+Use `tools=[]` for a request without model tools. With `tools=None`, the runtime resolves available tools and applies the current authorization rules.
 
-Use `runtime.exec(tools=[...])` when the model should choose from a specific
-menu of functions. Note that a bare `runtime.exec(content=...)` is not
-tool-free: with neither `tools=` nor `toolset=` passed, the call resolves the
-full registry toolset by default, so the model can already search, run code,
-and edit files. Pass `toolset="none"` (or `tools=[]`) for a pure reasoning
-call — see [`tool-calling.md`](../choosing-the-next-step/tool-calling.md).
+## Method metadata and explicit tools
+
+Declare `method_options` when a public method needs input form metadata, visibility rules, or explicit tool registration:
 
 ```python
-@agentic_function(input={
-    "task": {"description": "User task."},
-})
-def research_assistant(task: str, runtime) -> str:
-    """Choose and run the appropriate research helper."""
-    return runtime.exec(
-        content=[{"type": "text", "text": (
-            "Choose the appropriate helper for this task and complete the work.\n\n"
-            f"Task:\n{task}"
-        )}],
-        tools=[survey_topic, identify_gaps, generate_ideas],
-    )
+class TextAgent(Agent):
+    tools = []
+    method_options = {
+        "summarize": {
+            "tool": True,
+            "name": "summarize_text",
+            "input": {"text": {"description": "Text to summarize"}},
+            "expose": "io",
+        },
+    }
+
+    def summarize(self, text: str) -> str:
+        """Summarize text."""
+        return self(f"Summarize:\n{text}")
 ```
 
-`@agentic_function` provides `.spec` and `.execute`, so decorated functions can
-be passed directly into `tools=[...]`.
+Recording a method does not make it a tool. `tool=True` explicitly registers the method. Function names and signatures supply the tool schema. Visibility controls history rendering and does not grant tool permissions.
 
-Besides direct composition and tools, a third way to pick the next step is a
-decision menu via `exec(choices=...)` or `decision.make` — see
-[`next-step-decision.md`](../choosing-the-next-step/next-step-decision.md).
+## Ordinary Program functions
 
-## Decorator fields
+The managed loader captures ordinary source-defined functions in authorized Program packages. List public entry functions in `AGENTIC_FUNCTIONS`. Private helpers retain call scopes without becoming tools. This capture does not extend to arbitrary host files or dependencies.
 
-The decorator fields (`expose`, `render_range`, `input`, `system`, …) are
-documented in **one place**:
-[`function-metadata.md`](function-metadata.md) §3. The API reference at
-[`../../../reference/api/agentic-function.md`](../../../reference/api/agentic-function.md) carries
-a condensed quick-reference table.
+For deterministic composition, call methods or functions in Python. For model-selected calls, supply explicitly registered tools. See [tool calling](../choosing-the-next-step/tool-calling.md).
 
-This page covers usage *patterns*; it intentionally does not duplicate
-the field-by-field reference. If you're looking for what a field does,
-go to `function-metadata.md`.
+## Legacy compatibility
+
+`@agentic_function` remains supported for existing programs, explicit metadata, and durable steps. New class-based workflows use `Agent` methods and `method_options`. The [API reference](../../../reference/api/agentic-function.md) documents Context, method options, and the legacy decorator. Existing [function metadata](function-metadata.md) describes the compatibility fields.

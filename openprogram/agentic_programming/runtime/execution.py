@@ -19,6 +19,7 @@ from openprogram.providers.structured_output import StructuredOutputError
 
 from .shared import (
     _ExecCallState,
+    _current_agent_options,
     _build_llm_error,
     _current_call_model,
     _current_direct_content,
@@ -37,6 +38,75 @@ from .shared import (
 )
 
 class ExecutionOperations:
+    def _bind_exec_options(
+        self, *, content, use_model, tools, stream_fn, effort, execution_kind,
+        toolset, tools_source, tools_allow, tools_deny, tool_choice,
+        parallel_tool_calls, max_iterations, web_search,
+    ):
+        # ``tools=[]`` means "no tools" and must be distinguished from
+        # "not specified" (None), which falls back to the default toolset.
+        tools_token = _current_tools.set(tools) if tools is not None else None
+        stream_fn_token = (
+            _current_stream_fn.set(stream_fn) if stream_fn is not None else None
+        )
+        effort_token = _current_effort.set(effort) if effort is not None else None
+        call_model_token = _current_call_model.set(use_model)
+        direct_content_token = (
+            _current_direct_content.set(content)
+            if execution_kind == "llm" and self._call_fn is not None
+            else None
+        )
+        outer_policy = _current_tool_policy.get(None) or {}
+        defaults = _current_agent_options.get()
+        # Denials accumulate; allow lists constrain actual tool names separately.
+        denied = list(dict.fromkeys(
+            list(outer_policy.get("deny") or [])
+            + list(defaults.get("tools_deny") or [])
+            + list(tools_deny or [])
+        ))
+        allow_constraints = list(outer_policy.get("allow_constraints") or [])
+        for allowed in (outer_policy.get("allow"), defaults.get("tools_allow"), tools_allow):
+            if allowed and list(allowed) not in allow_constraints:
+                allow_constraints.append(list(allowed))
+        policy = dict(outer_policy)
+        for key, value in (("toolset", toolset), ("source", tools_source),
+                           ("allow", tools_allow)):
+            if value is not None:
+                policy[key] = value
+        if denied or tools_deny is not None:
+            policy["deny"] = denied
+        if allow_constraints:
+            policy["allow_constraints"] = allow_constraints
+        policy_token = _current_tool_policy.set(policy) if policy else None
+        # Loop options — only explicit values travel. In particular, structured
+        # output negotiation must distinguish an explicit True (which conflicts
+        # with the single hidden submission tool) from the provider default.
+        _loop_opts = {}
+        if tool_choice is not None and tool_choice != "auto":
+            _loop_opts["tool_choice"] = tool_choice
+        if parallel_tool_calls is not None:
+            _loop_opts["parallel_tool_calls"] = parallel_tool_calls
+        if max_iterations is not None:
+            _loop_opts["max_iterations"] = max_iterations
+        if web_search:
+            _loop_opts["web_search"] = True
+        loop_opts_token = _current_loop_opts.set(_loop_opts) if _loop_opts else None
+        return (
+            (_current_tools, tools_token),
+            (_current_stream_fn, stream_fn_token),
+            (_current_effort, effort_token),
+            (_current_call_model, call_model_token),
+            (_current_direct_content, direct_content_token),
+            (_current_tool_policy, policy_token),
+            (_current_loop_opts, loop_opts_token),
+        )
+
+    @staticmethod
+    def _reset_exec_options(tokens):
+        for variable, token in reversed(tokens):
+            if token is not None:
+                variable.reset(token)
+
     def exec(
         self,
         content: list[dict],
@@ -48,13 +118,13 @@ class ExecutionOperations:
         tools_source: Optional[str] = None,
         tools_allow: Optional[list[str]] = None,
         tools_deny: Optional[list[str]] = None,
-        tool_choice: Any = "auto",
+        tool_choice: Any = None,
         parallel_tool_calls: Optional[bool] = None,
-        max_iterations: int = 20,
+        max_iterations: Optional[int] = None,
         choices: Any = None,
         timeout_s: Optional[float] = None,
         on_retry: Optional["Callable[[RetryInfo], None]"] = None,
-        web_search: bool = False,
+        web_search: Optional[bool] = None,
         stream_fn: Any = None,
         effort: Optional[str] = None,
         execution_kind: str = "agent",
@@ -154,6 +224,27 @@ class ExecutionOperations:
         if self._closed:
             raise RuntimeError("Runtime is closed. Create a new runtime instance.")
 
+        # Agent configuration supplies defaults within the current task only.
+        defaults = _current_agent_options.get()
+        model = defaults.get("model") if model is None else model
+        response_format = defaults.get("response_format") if response_format is None else response_format
+        tools = defaults.get("tools") if tools is None else tools
+        toolset = defaults.get("toolset") if toolset is None else toolset
+        tools_source = defaults.get("tools_source") if tools_source is None else tools_source
+        tools_allow = defaults.get("tools_allow") if tools_allow is None else tools_allow
+        tools_deny = defaults.get("tools_deny") if tools_deny is None else tools_deny
+        tool_choice = defaults.get("tool_choice") if tool_choice is None else tool_choice
+        parallel_tool_calls = defaults.get("parallel_tool_calls") if parallel_tool_calls is None else parallel_tool_calls
+        max_iterations = defaults.get("max_iterations") if max_iterations is None else max_iterations
+        timeout_s = defaults.get("timeout_s") if timeout_s is None else timeout_s
+        on_retry = defaults.get("on_retry") if on_retry is None else on_retry
+        web_search = defaults.get("web_search") if web_search is None else web_search
+        stream_fn = defaults.get("stream_fn") if stream_fn is None else stream_fn
+        effort = defaults.get("effort") if effort is None else effort
+        tool_choice = "auto" if tool_choice is None else tool_choice
+        max_iterations = 20 if max_iterations is None else max_iterations
+        web_search = False if web_search is None else web_search
+
         structured_format = None
         if response_format is not None:
             from openprogram.providers.structured_output import (
@@ -204,46 +295,13 @@ class ExecutionOperations:
         call_input = content
 
         # --- Call the LLM (with retry) ---
-        # ``tools=[]`` means "no tools" and must be distinguished from
-        # "not specified" (None), which falls back to the default toolset.
-        tools_token = _current_tools.set(tools) if tools is not None else None
-        stream_fn_token = (
-            _current_stream_fn.set(stream_fn) if stream_fn is not None else None
+        option_tokens = self._bind_exec_options(
+            content=content, use_model=use_model, tools=tools, stream_fn=stream_fn,
+            effort=effort, execution_kind=execution_kind, toolset=toolset,
+            tools_source=tools_source, tools_allow=tools_allow, tools_deny=tools_deny,
+            tool_choice=tool_choice, parallel_tool_calls=parallel_tool_calls,
+            max_iterations=max_iterations, web_search=web_search,
         )
-        effort_token = _current_effort.set(effort) if effort else None
-        call_model_token = _current_call_model.set(use_model)
-        direct_content_token = (
-            _current_direct_content.set(content)
-            if execution_kind == "llm" and self._call_fn is not None
-            else None
-        )
-        _policy_kwargs = {
-            "toolset": toolset,
-            "source": tools_source,
-            "allow": tools_allow,
-            "deny": tools_deny,
-        }
-        _policy_kwargs = {k: v for k, v in _policy_kwargs.items() if v is not None}
-        policy_token = (
-            _current_tool_policy.set(
-                {**(_current_tool_policy.get(None) or {}), **_policy_kwargs}
-            )
-            if _policy_kwargs
-            else None
-        )
-        # Loop options — only explicit values travel. In particular, structured
-        # output negotiation must distinguish an explicit True (which conflicts
-        # with the single hidden submission tool) from the provider default.
-        _loop_opts = {}
-        if tool_choice is not None and tool_choice != "auto":
-            _loop_opts["tool_choice"] = tool_choice
-        if parallel_tool_calls is not None:
-            _loop_opts["parallel_tool_calls"] = parallel_tool_calls
-        if max_iterations is not None:
-            _loop_opts["max_iterations"] = max_iterations
-        if web_search:
-            _loop_opts["web_search"] = True
-        loop_opts_token = _current_loop_opts.set(_loop_opts) if _loop_opts else None
         response_format_token = None
         model_call_budget_token = None
         reply = None
@@ -507,19 +565,7 @@ class ExecutionOperations:
             except (ValueError, LookupError):
                 pass
             _dl.reset_deadline(_deadline_token)
-            if tools_token is not None:
-                _current_tools.reset(tools_token)
-            if stream_fn_token is not None:
-                _current_stream_fn.reset(stream_fn_token)
-            if effort_token is not None:
-                _current_effort.reset(effort_token)
-            _current_call_model.reset(call_model_token)
-            if direct_content_token is not None:
-                _current_direct_content.reset(direct_content_token)
-            if policy_token is not None:
-                _current_tool_policy.reset(policy_token)
-            if loop_opts_token is not None:
-                _current_loop_opts.reset(loop_opts_token)
+            self._reset_exec_options(option_tokens)
             if response_format_token is not None:
                 _current_response_format.reset(response_format_token)
             if model_call_budget_token is not None:
@@ -584,9 +630,23 @@ class ExecutionOperations:
         model: Optional[str] = None,
         timeout_s: Optional[float] = None,
         on_retry: Optional["Callable[[RetryInfo], None]"] = None,
+        tools: Optional[list] = None,
+        toolset: Optional[str] = None,
+        tools_source: Optional[str] = None,
+        tools_allow: Optional[list[str]] = None,
+        tools_deny: Optional[list[str]] = None,
+        tool_choice: Any = None,
+        parallel_tool_calls: Optional[bool] = None,
+        max_iterations: Optional[int] = None,
+        web_search: Optional[bool] = None,
+        stream_fn: Any = None,
+        effort: Optional[str] = None,
+        execution_kind: str = "agent",
     ) -> Any:
-        """Async version of :meth:`exec`. Same ``timeout_s`` /
-        ``on_retry`` semantics; ``await``-friendly throughout.
+        """Async model execution with the same tool and request options as exec.
+
+        This entry does not implement choice-constrained decision resolution.
+        Model calls and retry delays remain awaitable.
 
         Async retries use ``asyncio.sleep`` so the loop yields to the
         event loop and an external cancellation (``asyncio.CancelledError``)
@@ -599,6 +659,27 @@ class ExecutionOperations:
         """
         if self._closed:
             raise RuntimeError("Runtime is closed. Create a new runtime instance.")
+
+        # Agent configuration supplies defaults within the current task only.
+        defaults = _current_agent_options.get()
+        model = defaults.get("model") if model is None else model
+        response_format = defaults.get("response_format") if response_format is None else response_format
+        tools = defaults.get("tools") if tools is None else tools
+        toolset = defaults.get("toolset") if toolset is None else toolset
+        tools_source = defaults.get("tools_source") if tools_source is None else tools_source
+        tools_allow = defaults.get("tools_allow") if tools_allow is None else tools_allow
+        tools_deny = defaults.get("tools_deny") if tools_deny is None else tools_deny
+        tool_choice = defaults.get("tool_choice") if tool_choice is None else tool_choice
+        parallel_tool_calls = defaults.get("parallel_tool_calls") if parallel_tool_calls is None else parallel_tool_calls
+        max_iterations = defaults.get("max_iterations") if max_iterations is None else max_iterations
+        timeout_s = defaults.get("timeout_s") if timeout_s is None else timeout_s
+        on_retry = defaults.get("on_retry") if on_retry is None else on_retry
+        web_search = defaults.get("web_search") if web_search is None else web_search
+        stream_fn = defaults.get("stream_fn") if stream_fn is None else stream_fn
+        effort = defaults.get("effort") if effort is None else effort
+        tool_choice = "auto" if tool_choice is None else tool_choice
+        max_iterations = 20 if max_iterations is None else max_iterations
+        web_search = False if web_search is None else web_search
 
         structured_format = None
         if response_format is not None:
@@ -627,6 +708,13 @@ class ExecutionOperations:
         call_input = content
 
         # --- Call the LLM (with retry) ---
+        option_tokens = self._bind_exec_options(
+            content=content, use_model=use_model, tools=tools, stream_fn=stream_fn,
+            effort=effort, execution_kind=execution_kind, toolset=toolset,
+            tools_source=tools_source, tools_allow=tools_allow, tools_deny=tools_deny,
+            tool_choice=tool_choice, parallel_tool_calls=parallel_tool_calls,
+            max_iterations=max_iterations, web_search=web_search,
+        )
         errors: list[str] = []
         reply = None
         _exec_start = time.monotonic()
@@ -665,9 +753,11 @@ class ExecutionOperations:
             # One exec == one llm node (see exec() for the rationale).
             _llm_node_id = self._open_model_call_node(
                 model=use_model,
+                execution_kind=execution_kind,
                 content_text=content_text,
             )
             self._active_llm_node_id = _llm_node_id
+            self.last_agent_iteration_count = 0
             try:
                 from openprogram.agentic_programming.runtime.execution_stream.adapter import (
                     attach_call_stream_to_exec,
@@ -725,8 +815,16 @@ class ExecutionOperations:
                             )
                         except Exception:
                             pass
-                    raw_reply = await self._async_call(
+                    pending_call = self._async_call(
                         call_input, model=use_model, response_format=response_format
+                    )
+                    raw_reply = (
+                        await asyncio.wait_for(
+                            pending_call,
+                            timeout=max(0.0, _deadline - time.monotonic()),
+                        )
+                        if _deadline is not None
+                        else await pending_call
                     )
                     reply = raw_reply
                     dag_reply = (
@@ -739,12 +837,29 @@ class ExecutionOperations:
                         if structured_format is not None
                         else raw_reply
                     )
-                    self._close_model_call_node(_llm_node_id, reply=dag_reply)
+                    agent_iteration_count = (
+                        0 if execution_kind == "llm"
+                        else int(getattr(self, "last_agent_iteration_count", 0) or 0)
+                    )
+                    provider_request_count = max(
+                        attempts_used,
+                        attempts_used - 1
+                        + int(getattr(self, "last_agent_iteration_count", 0) or 0),
+                    )
+                    self._close_model_call_node(
+                        _llm_node_id,
+                        reply=dag_reply,
+                        execution_kind=execution_kind,
+                        provider_request_count=provider_request_count,
+                        agent_iteration_count=agent_iteration_count,
+                    )
                     _llm_closed = True
                     return reply
                 except ExecInterrupt:
                     raise  # caller hard-stop — bypass the retry layer
                 except (TypeError, NotImplementedError):
+                    raise
+                except ImportError:
                     raise
                 except StructuredOutputError:
                     raise
@@ -824,8 +939,9 @@ class ExecutionOperations:
                 _st = (
                     "cancelled"
                     if (
-                        isinstance(_exc, ExecInterrupt)
-                        and "cancel" in str(_exc).lower()
+                        isinstance(_exc, asyncio.CancelledError)
+                        or (isinstance(_exc, ExecInterrupt)
+                            and "cancel" in str(_exc).lower())
                     )
                     else "error"
                 )
@@ -833,6 +949,12 @@ class ExecutionOperations:
                     _llm_node_id,
                     reply=reply if reply is not None else "",
                     status=_st,
+                    execution_kind=execution_kind,
+                    provider_request_count=attempts_used,
+                    agent_iteration_count=(
+                        0 if execution_kind == "llm"
+                        else int(getattr(self, "last_agent_iteration_count", 0) or 0)
+                    ),
                     error=_exc if _st == "error" else None,
                 )
             current_recovery.reset(_recovery_token)
@@ -843,6 +965,7 @@ class ExecutionOperations:
             except (ValueError, LookupError):
                 pass
             _dl.reset_deadline(_deadline_token)
+            self._reset_exec_options(option_tokens)
             if response_format_token is not None:
                 _current_response_format.reset(response_format_token)
             if model_call_budget_token is not None:

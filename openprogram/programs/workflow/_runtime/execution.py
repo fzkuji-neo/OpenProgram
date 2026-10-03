@@ -31,6 +31,13 @@ from . import state as run_state
 _WORKFLOW_LOCK = threading.RLock()
 
 
+def _completed_result(result):
+    if inspect.isawaitable(result):
+        from openprogram.agentic_programming.runtime.shared import _run_async
+        return _run_async(result)
+    return result
+
+
 def _execute_source(
     source: str,
     state: dict,
@@ -81,8 +88,11 @@ def _execute_source(
         "conditional": bindings._conditional_function(),
         **{name: checkpoints.wrap(name, fn) for name, fn in functions.items()},
     }
-    exec(compile(source, "code.py", "exec"), namespace, namespace)
-    return namespace["workflow"]()
+    from openprogram.programs._source_loader import compile_managed_source, _CAPTURE_NAME
+    from openprogram.agentic_programming.call_scope import managed_function
+    namespace.update({_CAPTURE_NAME: managed_function, "__name__": "workflow_source"})
+    exec(compile_managed_source(source, "code.py"), namespace, namespace)
+    return _completed_result(namespace["workflow"]())
 
 
 def _execute_legacy_snapshot(
@@ -139,13 +149,16 @@ def _execute_legacy_snapshot(
         "conditional": bindings._conditional_function(),
         **{name: checkpoints.wrap(name, fn) for name, fn in functions.items()},
     }
+    from openprogram.programs._source_loader import compile_managed_source, _CAPTURE_NAME
+    from openprogram.agentic_programming.call_scope import managed_function
+    namespace.update({_CAPTURE_NAME: managed_function, "__name__": "workflow_snapshot"})
     for relative in manifest["files"]:
         source = candidate["files"][relative]
-        exec(compile(source, relative, "exec"), namespace, namespace)
+        exec(compile_managed_source(source, relative), namespace, namespace)
     workflow = namespace["workflow"]
     if not inspect.signature(workflow).parameters:
-        return workflow()
-    return workflow(state["task"])
+        return _completed_result(workflow())
+    return _completed_result(workflow(state["task"]))
 
 
 def _decorated_function_names(candidate: dict) -> set[str]:
@@ -240,7 +253,7 @@ def _execute_package_snapshot(
     from openprogram.agentic_programming import function as function_runtime
     from openprogram.programs import _runtime as tool_runtime
 
-    decorated = set().union(
+    decorated = set(packages).union(
         *(_decorated_function_names(package) for package in packages.values())
     )
     missing = object()
@@ -285,6 +298,11 @@ def _execute_package_snapshot(
     previous_dont_write_bytecode = sys.dont_write_bytecode
     sys.dont_write_bytecode = True
     importlib.invalidate_caches()
+    from openprogram.programs._source_loader import ManagedSourceFinder, register_public_entries
+    source_finder = ManagedSourceFinder()
+    for name in packages:
+        source_finder.add(f"workflows.{name}", snapshot / "workflows" / name)
+    sys.meta_path.insert(0, source_finder)
     try:
         package = importlib.import_module(module_prefix)
         loaded = [
@@ -297,13 +315,13 @@ def _execute_package_snapshot(
                     setattr(module, name, replacement)
             for name, function in wrapped.items():
                 vars(module).setdefault(name, function)
+        register_public_entries(package, entrypoint)
         workflow = getattr(package, entrypoint, None)
-        if getattr(workflow, "_fn", None) is None:
-            raise InvalidWorkflow(
-                f"workflow package must export @agentic_function {entrypoint}"
-            )
-        return workflow(state["task"])
+        if not callable(workflow):
+            raise InvalidWorkflow(f"workflow package must export callable {entrypoint}")
+        return _completed_result(workflow(state["task"]))
     finally:
+        sys.meta_path.remove(source_finder)
         sys.dont_write_bytecode = previous_dont_write_bytecode
         sys.path.remove(str(snapshot))
         for name in list(sys.modules):

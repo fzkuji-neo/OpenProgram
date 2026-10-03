@@ -50,7 +50,7 @@ Runtime.exec(content, context=None, response_format=None, model=None,
 
 Calls the LLM, with context computed automatically from the session DAG.
 
-**When called inside an `@agentic_function`:**
+**Inside an Agent method or managed function scope:**
 1. Starting from the current function's DAG node, `render_context` uses `expose` / `render_range` to determine which historical nodes to read this time
 2. `render_dag_messages` renders those nodes into messages
 3. `_call()` is invoked to send the request
@@ -58,7 +58,7 @@ Calls the LLM, with context computed automatically from the session DAG.
 
 **When called with no DAG store installed** (standalone scripts, no dispatcher): `content` is wrapped into a single user message and sent as a single-turn call; nothing is recorded.
 
-A single `@agentic_function` can call `exec()` multiple times; each call is a new `llm` node on the DAG.
+An Agent method or function scope can call `exec()` multiple times; each call is a new `llm` node on the DAG.
 
 #### Parameters
 
@@ -68,7 +68,7 @@ A single `@agentic_function` can call `exec()` multiple times; each call is a ne
 | `context` | `str \| None` | `None` | Legacy parameter, ignored — the provider path builds history from the DAG |
 | `response_format` | `dict \| JsonSchemaOutput \| None` | `None` | A bare JSON Schema or normalized `JsonSchemaOutput` envelope. Verified provider/model combinations use their registered native mapping; otherwise `fallback="auto"` may use the verified hidden strict-tool path, while prompt fallback requires explicit `fallback="prompt"`. Unsupported or lossy combinations fail closed. The terminal value is parsed and validated locally against the original schema and returned as a Python JSON value. `max_validation_retries` is `0`, `1`, or `2` (default `2`); validation repair and truncated generation share this allowance. Also forwarded to `_call()` for subclasses |
 | `model` | `str \| None` | `None` | Override the default model |
-| `tools` | `list \| None` | `None` | The tools available to the LLM for this call. Entries may be `@agentic_function`s, `{"spec":..., "execute":...}` dicts, or objects with `.spec` / `.execute`. If set, the tool loop runs until the model returns plain text. **Default (`None`) is not "no tools"**: the call gets the full registered toolset; pass `toolset="none"` for a reasoning-only call, or `tools=[]` for an explicit empty list |
+| `tools` | `list \| None` | `None` | The tools available to the LLM for this call. Entries may be explicitly registered Agent methods, legacy decorated functions, `{"spec":..., "execute":...}` dicts, or objects with `.spec` / `.execute`. If set, the tool loop runs until the model returns plain text. **Default (`None`) is not "no tools"**: the call gets the full registered toolset; pass `toolset="none"` for a reasoning-only call, or `tools=[]` for an explicit empty list |
 | `toolset` / `tools_source` / `tools_allow` / `tools_deny` | — | `None` | Toolset preset and policy filtering: `toolset` names a preset (`"full"` is the implicit default, `"none"` opts out), `tools_source` filters per channel source, `tools_allow` / `tools_deny` are name allow/deny lists |
 | `tool_choice` | `str \| dict` | `"auto"` | `"auto"` / `"required"` / `"none"` / `{"type":"function","name":"X"}` to force a specific tool. Passed through to the provider (OpenAI / Anthropic / Gemini / Bedrock each map it to their own protocol form) |
 | `parallel_tool_calls` | `bool` | `True` | Allow multiple tool calls in a single turn; `False` is passed through to providers that support the switch |
@@ -117,7 +117,8 @@ fields. Provider candidate text is not part of the public diagnostic contract.
 
 ```python
 await Runtime.async_exec(content, context=None, response_format=None, model=None,
-                         timeout_s=None, on_retry=None) -> Any
+                         timeout_s=None, on_retry=None, tools=None, toolset=None,
+                         max_iterations=None) -> Any
 ```
 
 The async version of `exec()`. It has the same `response_format=None` text
@@ -125,8 +126,7 @@ return and structured Python JSON return/error contract. Internally it calls
 `_async_call()`; a `call=` function may be synchronous or asynchronous, and the
 default provider path uses the same AgentSession structured lifecycle. Same
 `timeout_s` / `on_retry` semantics as `exec()`; retries sleep with
-`asyncio.sleep`, so external cancellation works. It has no public tool-loop
-parameters.
+`asyncio.sleep`, so external cancellation works. It accepts the synchronous tool-loop options, including tools, toolset, max_iterations, and tool authorization filters.
 
 ---
 
@@ -177,68 +177,36 @@ When a front-end session is connected, a runtime can block on user input mid-fun
 
 ## Usage
 
-### Option 1: Pass in a call function
+Supply a host Runtime to Agent. Ordinary methods inherit it automatically. They require no decorator or manual Context management.
 
 ```python
-from openprogram import agentic_function
-from openprogram.agentic_programming.runtime import Runtime
+from openprogram import Agent, Runtime
 
-def my_llm(content, model="sonnet", response_format=None):
-    # Convert content into your provider's format and send the request
-    texts = [b["text"] for b in content if b["type"] == "text"]
+
+def my_llm(content, model="host-model", response_format=None):
+    texts = [block["text"] for block in content if block["type"] == "text"]
     return call_my_api("\n".join(texts), model=model)
 
-runtime = Runtime(call=my_llm, model="sonnet")
+runtime = Runtime(call=my_llm, model="host-model")
 
-@agentic_function
-def observe(task):
-    """Look at the screen."""
-    return runtime.exec(content=[
-        {"type": "text", "text": f"Find: {task}"},
-        {"type": "image", "path": "screenshot.png"},
-    ])
+class Observer(Agent):
+    tools = []
+
+    def observe(self, task: str):
+        """Identify the requested screen element."""
+        return self([
+            {"type": "text", "text": f"Find: {task}"},
+            {"type": "image", "path": "screenshot.png"},
+        ])
+
+observer = Observer(runtime=runtime)
+try:
+    answer = observer.observe("login button")
+finally:
+    runtime.close()
 ```
 
-### Option 2: Subclass
-
-```python
-class MyAnthropicRuntime(Runtime):
-    def __init__(self, api_key, model="sonnet"):
-        super().__init__(model=model)
-        self.client = anthropic.Anthropic(api_key=api_key)
-
-    def _call(self, content, model="sonnet", response_format=None):
-        messages_content = []
-        for block in content:
-            if block["type"] == "text":
-                messages_content.append({"type": "text", "text": block["text"]})
-        response = self.client.messages.create(
-            model=model, max_tokens=1024,
-            messages=[{"role": "user", "content": messages_content}],
-        )
-        return response.content[0].text
-
-runtime = MyAnthropicRuntime(api_key="sk-...", model="claude-sonnet-4-6")
-```
-
-### Multiple Runtimes coexisting
-
-```python
-fast = Runtime(call=gemini_call, model="gemini-2.5-flash")
-strong = Runtime(call=claude_call, model="sonnet")
-
-@agentic_function
-def observe(task):
-    """Quick observation with cheap model."""
-    return fast.exec(content=[...])
-
-@agentic_function
-def plan(goal):
-    """Complex planning with strong model."""
-    return strong.exec(content=[...])
-```
-
----
+The [Agent and Context API](agentic-function.md) defines configuration, explicit sessions, and scopes. Legacy decorators remain compatible.
 
 ## Retry mechanism
 

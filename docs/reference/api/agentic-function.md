@@ -1,12 +1,104 @@
-# agentic_function
+# Agent, Context, and agentic_function
 
-> Source: [`openprogram/agentic_programming/function.py`](https://github.com/fzkuji-neo/OpenProgram/blob/main/openprogram/agentic_programming/function.py)
+`agent()` runs a model tool loop. `Agent` stores reusable configuration and scopes ordinary subclass methods. `Context` supplies named content and history selection. All entries use the existing Runtime and Session DAG.
+
+## Direct calls and Agent classes
+
+No manual Context construction or binding is required for ordinary calls.
+
+```python
+from openprogram import Agent, agent, agent_async
+
+answer = agent("Summarize this text", tools=[])
+
+class Researcher(Agent):
+    instructions = "Return a short, factual answer."
+    tools = []
+
+    def prepare(self, question):
+        """Remove surrounding whitespace."""
+        return question.strip()
+
+    def research(self, question):
+        """Answer the prepared question."""
+        return self(self.prepare(question))
+
+researcher = Researcher(model="configured-model")
+answer = researcher.research("A question")
+# In async code: answer = await researcher.arun("A question")
+# Or: answer = await agent_async("A question", tools=[])
+```
+
+`agent()` accepts a string or content blocks. Common keyword options are `model`, `effort`, `tools`, and `runtime`. See [Runtime](runtime.md) for tool execution options. `tools=None` resolves available tools. `tools=[]` requests no tools. `agent_async()` accepts the same options.
+
+`Agent(model=..., instructions=..., context=..., tools=..., runtime=..., effort=..., **options)` uses instance settings over class defaults. Per-call options override instance settings. `Agent.from_spec(spec, **overrides)` uses an existing AgentSpec configuration without creating a saved Agent entry.
+
+Construction makes no model request and creates no execution session. An invocation inherits an active execution. Otherwise, it owns a separate execution and releases its resources. Reusing an instance does not continue a previous independent conversation.
+
+Ordinary instance, static, and class methods receive automatic call scopes, including single-underscore helpers. Dunder methods and generators are excluded. Method recording does not register a model tool. Set `"tool": True` in that method's `method_options` to request explicit registration. Legacy decorated methods keep their existing registration behavior. `method_options = {"method_name": {"expose": "io", "render_range": {...}}}` supplies method metadata without a decorator.
+
+## Context content and visibility
+
+The framework derives and binds Context automatically. Explicit configuration is optional:
+
+```python
+from openprogram import Agent, Context
+
+context = Context(
+    {"notes": "Use the project terminology."},
+    providers={"current_topic": lambda current: "Agent context"},
+)
+researcher = Agent(context=context, tools=[])
+```
+
+`Context(blocks=None, *, parent=None, providers=None, history_filter=..., call_id=..., store=None, head_id=None)` implements a mutable mapping of named content. `derive()` creates a child with independent content. `Context.current()` returns the task binding, or `None`. `merge(other)` overlays named content and explicit selection without replacing the scope call identity. `bind()` is available for host integrations that need an explicit binding.
+
+Providers are synchronous Python callables that accept the current Context. They run for each model request. A provider failure aborts that request. The framework does not execute expression strings.
+
+`history_filter` defaults to `"dag"`. `"current_call"` retains the current scope and its descendants within the already visible DAG selection. `False` disables history. A callable receives `(node, context)` and filters nodes after existing DAG visibility checks. These settings cannot expand tool permissions.
+
+Context has one model: parent inheritance, named content, request-time evaluation, and history visibility. Agent instance content is an instance binding of that model. Model interactions remain in the execution session. Content is separate from system instructions and tool authority.
+
+## Explicit session lifetime
+
+Use `Context(store=writer, head_id=None)` when several independent calls must continue the same session. The writer is an existing `SessionNodeWriter`:
+
+```python
+from openprogram import Agent, Context
+from openprogram.store import SessionStore, SessionNodeWriter
+
+store = SessionStore(root_path="/var/lib/myapp/sessions")
+store.create_session("research", agent_id="main")
+writer = SessionNodeWriter(store, "research")
+researcher = Agent(context=Context(store=writer), tools=[])
+try:
+    first = researcher("List the project requirements.")
+    second = researcher("Review the requirements from the previous call.")
+finally:
+    store.close()
+```
+
+`head_id` selects an existing branch tip for the initial predecessor. `None` continues the current session head. The caller owns and closes the supplied store. Execution scopes do not close it.
+
+This explicit Context session supplies the event lifetime needed for NOOA-style repeated instance calls. It uses the existing Session DAG. The Agent still stores configuration, and its default calls remain independent.
+
+## Managed Program sources
+
+The managed loader captures source-defined functions within explicitly authorized package roots. These include selected first-party sources, installed and catalogued Program packages, owner-recorded external harnesses, published Programs, and retained source snapshots. Capture includes submodules and nested source definitions. Arbitrary host files, unrelated dependencies, lambdas, generated code, and unavailable source are outside this boundary.
+
+A package lists public entries in `AGENTIC_FUNCTIONS`. A plain entry can supply an explicit `__agentic_options__` mapping for its existing entry metadata. Captured helpers do not become tools. The loader preserves legacy decorators and excludes generator capture.
+
+The shipped text workflow uses ordinary `TextAgent` methods. `summarize_text` calls `agent(..., tools=[])`. Module exports retain their public names and form metadata.
+
+The class-and-method interface takes inspiration from [NVIDIA-labs OO Agents](https://github.com/NVIDIA-NeMo/labs-OO-Agents). OpenProgram does not claim NOOA API compatibility.
+
+## Legacy compatibility
 
 `@agentic_function` turns an ordinary Python function into an Agentic Function: each call is recorded as a `code` node in the session DAG, and the `llm()` calls inside the function body are recorded as `llm` nodes.
 
 This document defines the decorator and authoring conventions for agentic functions.
 
-## Usage
+### Usage
 
 ```python
 from openprogram import agentic_function
@@ -20,7 +112,7 @@ def f(x: str, runtime) -> str:
 
 You can use bare `@agentic_function` or the parameterized form `@agentic_function(...)`.
 
-## Decorator parameters
+### Decorator parameters
 
 ### Agentic-specific parameters
 
@@ -61,17 +153,17 @@ Every `@agentic_function` is also registered as an LLM-callable tool in the shar
 
 The function name, parameter names / types / defaults, and the one-line summary are all read automatically from the function signature and docstring, not repeated in the decorator (see SKILL.md §3).
 
-## Runtime injection
+### Runtime injection
 
 Parameters named `runtime`, `exec_runtime`, or `review_runtime` are auto-injected: if the caller passes none (or `None`), the runtime is taken from the current call chain, or — for an entry-point call — created via `create_runtime()` (auto-detection) and closed again when the function returns. A function may declare more than one runtime parameter; all of them are filled with the same runtime. These parameters never appear in the LLM tool schema or the WebUI form.
 
-## Introspection and safety
+### Introspection and safety
 
 - `fn.spec` — the auto-generated JSON-schema tool spec (`{"name", "description", "parameters"}`); `fn.execute(**kwargs)` invokes the wrapper with LLM-provided kwargs.
 - Self-recursion backstop: a function that re-enters itself more than 5 levels deep raises `RecursionError` (the model is also steered away from self-calls by an injected situational prompt).
 - Pre-invocation hooks (`add_pre_invocation_hook` / `remove_pre_invocation_hook`) run at the top of every call and may raise `CancelledError` to abort it (this is how the WebUI stop button works).
 
-## Recording to the DAG
+### Recording to the DAG
 
 - **Entering the function**: write a `code` node (`output=None`, `status="running"`), and store the function docstring into that node's `metadata.doc`, which is prepended to `function_name(args)` when rendering context.
 - **`llm()` inside the function body**: each call writes an `llm` node.
@@ -79,7 +171,7 @@ Parameters named `runtime`, `exec_runtime`, or `review_runtime` are auto-injecte
 
 When `expose="hidden"`, no nodes are written. In standalone runs (with no DAG store installed), all recording is a no-op and the function executes as usual.
 
-## Durable steps and code selection
+### Durable steps and code selection
 
 Use `@agentic_function(resumable=True)` for synchronous orchestration whose external work is inside explicit steps:
 

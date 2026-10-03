@@ -1,14 +1,104 @@
-<div id="agentic_function"></div>
+# Agent、Context 与 agentic_function
 
-# 智能体函数 API
+`agent()` 执行模型工具循环。`Agent` 保存可复用配置，并为普通子类方法建立作用域。`Context` 提供命名内容与历史选择。所有入口复用现有 Runtime 和 Session DAG。
 
-> Source: [`openprogram/agentic_programming/function.py`](https://github.com/fzkuji-neo/OpenProgram/blob/main/openprogram/agentic_programming/function.py)
+## 直接调用与 Agent 类
+
+普通调用不需要手动构建或绑定 Context。
+
+```python
+from openprogram import Agent, agent, agent_async
+
+answer = agent("Summarize this text", tools=[])
+
+class Researcher(Agent):
+    instructions = "Return a short, factual answer."
+    tools = []
+
+    def prepare(self, question):
+        """Remove surrounding whitespace."""
+        return question.strip()
+
+    def research(self, question):
+        """Answer the prepared question."""
+        return self(self.prepare(question))
+
+researcher = Researcher(model="configured-model")
+answer = researcher.research("A question")
+# 异步代码：answer = await researcher.arun("A question")
+# 或：answer = await agent_async("A question", tools=[])
+```
+
+`agent()` 接收字符串或内容块，可指定 `model`、`effort`、`tools` 和 `runtime`。工具执行选项见 [Runtime](runtime.zh.md)。`tools=None` 选择可用工具，`tools=[]` 禁用工具。`agent_async()` 使用同样的选项。
+
+`Agent(model=..., instructions=..., context=..., tools=..., runtime=..., effort=..., **options)` 用实例设置覆盖类默认值，调用参数再覆盖实例设置。`Agent.from_spec(spec, **overrides)` 使用现有 AgentSpec 配置，不创建已保存 Agent 条目。
+
+构造对象不请求模型，也不创建执行会话。调用继承当前执行；没有外层执行时创建独立执行，并在结束时释放资源。复用实例不自动续接上一次独立会话。
+
+普通实例方法、静态方法与类方法自动建立调用作用域，包括单下划线帮助方法。双下划线特殊方法与生成器不采集。方法记录不会注册模型工具。在对应 `method_options` 设置 `"tool": True` 可显式登记工具。旧装饰器方法保留已有登记行为。 `method_options = {"method_name": {"expose": "io", "render_range": {...}}}` 无需装饰器即可设置方法元数据。
+
+## Context 内容与可见性
+
+框架自动派生并绑定 Context。显式配置是可选的：
+
+```python
+from openprogram import Agent, Context
+
+context = Context(
+    {"notes": "Use the project terminology."},
+    providers={"current_topic": lambda current: "Agent context"},
+)
+researcher = Agent(context=context, tools=[])
+```
+
+`Context(blocks=None, *, parent=None, providers=None, history_filter=..., call_id=..., store=None, head_id=None)` 是命名内容的可变映射。`derive()` 创建具有独立内容的子上下文。`Context.current()` 返回当前任务绑定，无绑定时返回 `None`。`merge(other)` 覆盖命名内容和显式选择规则，不替换作用域调用身份。宿主集成可使用 `bind()` 显式绑定。
+
+提供函数是接收当前 Context 的同步 Python callable，在每次模型请求时运行。提供函数失败会终止该请求。框架不执行表达式字符串。
+
+`history_filter` 默认为 `"dag"`。`"current_call"` 从已可见的 DAG 节点中选择当前作用域与其后代调用，`False` 禁用历史。callable 接收 `(node, context)`，在已有 DAG 可见性检查之后过滤节点。这些设置不能扩大工具权限。
+
+Context 使用同一模型：父继承、命名内容、请求时求值和历史可见性。Agent 实例内容是该模型的实例绑定。模型交互仍归执行会话保存。内容与系统指令、工具权限分别处理。
+
+## 显式会话生命周期
+
+多次独立调用需要续接同一会话时，使用 `Context(store=writer, head_id=None)`。writer 是现有 `SessionNodeWriter`：
+
+```python
+from openprogram import Agent, Context
+from openprogram.store import SessionStore, SessionNodeWriter
+
+store = SessionStore(root_path="/var/lib/myapp/sessions")
+store.create_session("research", agent_id="main")
+writer = SessionNodeWriter(store, "research")
+researcher = Agent(context=Context(store=writer), tools=[])
+try:
+    first = researcher("List the project requirements.")
+    second = researcher("Review the requirements from the previous call.")
+finally:
+    store.close()
+```
+
+`head_id` 选择已有分支末端作为初始前序节点。`None` 续接当前会话末端。调用者拥有并关闭显式 store，执行作用域不会关闭它。
+
+该显式 Context 会话提供 NOOA 式重复实例调用需要的事件生命周期，复用已有 Session DAG。Agent 仍保存配置，默认调用保持独立。
+
+## 受管 Program 源码
+
+受管加载器采集显式授权包目录内的源码函数，包括已选择的第一方源码、已安装及目录登记的 Program 包、所有者登记的外部 harness、已发布 Program 与保留源码快照。采集包含子模块与嵌套源码定义。任意宿主文件、无关依赖、lambda、动态生成代码与不可用源码不在该范围内。
+
+包通过 `AGENTIC_FUNCTIONS` 列出公开入口。普通入口可用显式 `__agentic_options__` 映射提供已有入口元数据。被采集的帮助函数不会自动成为工具。加载器保留旧装饰器，并排除生成器采集。
+
+内置 text workflow 使用普通 `TextAgent` 方法。`summarize_text` 调用 `agent(..., tools=[])`。模块导出保留公开名称与表单元数据。
+
+类与方法接口参考 [NVIDIA-labs OO Agents](https://github.com/NVIDIA-NeMo/labs-OO-Agents)。OpenProgram 不声称 NOOA API 兼容。
+
+## 旧装饰器
 
 `@agentic_function` 把普通 Python 函数变成 Agentic Function:每次调用记录为 session DAG 的一个 `code` 节点,函数体内的 `llm()` 调用记录为 `llm` 节点。
 
 本文定义 agentic function 的装饰器和编写规范。
 
-## 用法
+### 用法
 
 ```python
 from openprogram import agentic_function
@@ -22,7 +112,7 @@ def f(x: str, runtime) -> str:
 
 裸用 `@agentic_function` 或带参数 `@agentic_function(...)` 都可以。
 
-## 装饰器参数
+### 装饰器参数
 
 ### Agentic 专属参数
 
@@ -62,17 +152,17 @@ def f(x: str, runtime) -> str:
 
 函数名、参数名 / 类型 / 默认值、一句话摘要都从函数签名和 docstring 自动读取,不在装饰器里重复(见 SKILL.md §3)。
 
-## Runtime 注入
+### Runtime 注入
 
 名为 `runtime`、`exec_runtime` 或 `review_runtime` 的参数会自动注入:调用方没传(或传 `None`)时,先从当前调用链取 runtime;作为入口调用时经 `create_runtime()`(自动检测)新建,函数返回时再关闭。一个函数可以声明多个 runtime 参数,全部填同一个 runtime。这些参数不会出现在 LLM 工具 schema 和 WebUI 表单里。
 
-## 自省与安全
+### 自省与安全
 
 - `fn.spec` — 自动生成的 JSON-schema 工具 spec(`{"name", "description", "parameters"}`);`fn.execute(**kwargs)` 用 LLM 提供的 kwargs 调用 wrapper。
 - 自递归兜底:函数自我重入超过 5 层抛 `RecursionError`(注入的情境 prompt 也会引导模型不要自调用)。
 - 预调用钩子(`add_pre_invocation_hook` / `remove_pre_invocation_hook`)在每次调用开头运行,可以抛 `CancelledError` 中止本次调用(WebUI 的停止按钮就是这么实现的)。
 
-## 记录到 DAG
+### 记录到 DAG
 
 - **进入函数**:写一个 `code` 节点(`output=None`, `status="running"`),函数 docstring 一并存进该节点的 `metadata.doc`,渲染上下文时拼在 `函数名(参数)` 前面。
 - **函数体内 `llm()`**:每次调用写一个 `llm` 节点。
@@ -80,7 +170,7 @@ def f(x: str, runtime) -> str:
 
 `expose="hidden"` 时不写任何节点。standalone 运行(没安装 DAG store)时记录全部 no-op,函数照常执行。
 
-## 可恢复步骤与代码版本
+### 可恢复步骤与代码版本
 
 为同步编排函数声明 `@agentic_function(resumable=True)`，将外部操作放入 `step("稳定名称", 操作函数, *args, **kwargs)`。步骤输入和结果必须可保存为 JSON；继续执行时，已完成步骤直接返回保存的结果，不再调用操作函数。重复名称按出现次数区分，已执行步骤的顺序和输入必须保持兼容。
 

@@ -86,11 +86,11 @@
     </nav>
   </aside>
 
-  <main class="main">
+  <main class="main"><p>Agent, agent(), agent_async(), and Agent.arun share the same execution core. Ordinary Agent methods and managed Program functions require no per-function decorator. The <a href="../integrations/nooa.html#contract">unified Agent and Context contract</a> owns configuration, context, and scope lifetime.</p>
     <header class="hero">
       <div class="eyebrow">Refactor Plan · Design Only</div>
       <h1>Unify Agent execution semantics and refactor Self Programming Workflow</h1>
-      <p class="lead">Programs use only <code>openprogram.agentic_programming.agent()</code>. Independent sessions, background Jobs and sub-agent branches remain owned by internal adapters, but both paths must enter the same Agent loop instead of maintaining separate planning, tool-call, model-override and error semantics.</p>
+      <p class="lead">Programs use <code>agent()</code> or configured <code>Agent</code> calls. Independent sessions, background Jobs and sub-agent branches remain owned by internal adapters, but both paths must enter the same Agent loop instead of maintaining separate planning, tool-call, model-override and error semantics.</p>
       <div class="meta"><span class="pill target">Goal: one public Agent API</span><span class="pill">Scope: Runtime / Workflow / DAG / Chat UI</span><span class="pill">Migration: staged and reversible</span><span class="pill">Status: Workflow orchestration migrated · App/DAG acceptance pending</span></div>
     </header>
 
@@ -99,7 +99,7 @@
         <h2>1. Conclusions and boundaries</h2>
         <p>This refactoring adds no third Agent abstraction and does not wrap the session Job API in another public function. Public semantics remain in <code>agent()</code>; persistence and branching belong to the execution environment, not the Workflow authoring API.</p>
         <div class="decision">
-          <div class="card decision-main"><h3>Sole public entry</h3><p class="big"><code>agent()</code> is the sole autonomous tool-loop entry inside Workflows and Applications.</p><p>Ordinary Agentic Functions do not call it and permit only one <code>llm()</code>; the full classification contract is in <a href="./self-programming-workflow-model.html">Programming model and categories</a>. Within a Workflow, <code>agent()</code> runs in the current Runtime and forms parent-child Call relationships.</p></div>
+          <div class="card decision-main"><h3>Shared execution entry</h3><p class="big"><code>agent()</code> and configured <code>Agent</code> calls enter the same autonomous tool loop.</p><p>Ordinary Agentic Functions do not call it and permit only one <code>llm()</code>; the full classification contract is in <a href="./self-programming-workflow-model.html">Programming model and categories</a>. Within a Workflow, <code>agent()</code> runs in the current Runtime and forms parent-child Call relationships.</p></div>
           <div class="card"><h3>Internal session adapter</h3><p><code>run_agent_turn()</code> serves only Chat, CLI, background Jobs and genuinely independent sub-agents. It creates session branches, claims workers, restores Jobs and moves session heads; Programs must not import it directly.</p></div>
         </div>
         <div class="scope-list"><div class="card"><strong class="check">Included in this refactoring</strong><span>Unified Agent loops, Workflow selection/creation/repair, DAG ownership, structured output, error propagation, migration tests and UI display contracts.</span></div><div class="card"><strong class="cross">Not introduced by this refactoring</strong><span>A new Workflow DSL, graph execution engine, second Agent profile system, extra persistence database or display of hidden chain-of-thought.</span></div></div>
@@ -265,7 +265,7 @@
           <tr><td><code>_run_planner_turn()</code></td><td>Workflow selection/authoring calls public <code>agent()</code></td><td>Planning inside Programs no longer imports <code>run_agent_turn</code></td><td>Retain as a <code>agent(tools=PLANNER_TOOLS)</code> thin wrapper; removable later</td></tr>
           <tr><td><code>_request_project_decision()</code></td><td>Replace with actual tool behavior of a single orchestration Agent</td><td>Selection JSON followed by authoring creates two Agent semantics and a disconnected DAG</td></tr>
           <tr><td>legacy SINGLE / <code>code.py</code></td><td>Read-only recovery; prohibit creation</td><td>Preserve historical records without creating unmaintainable single-file Workflows</td></tr>
-          <tr><td>Workflow project package</td><td>Continue standard Python packages and <code>@agentic_function</code> exports</td><td>Support multi-file maintenance, Git revisions, static dependency graphs and direct Python calls</td></tr>
+          <tr><td>Workflow project package</td><td>Continue standard Python packages and explicit Agent method or function exports</td><td>Support multi-file maintenance, Git revisions, static dependency graphs and direct Python calls</td></tr>
           <tr><td>Agents profile</td><td>Reuse existing Agents configuration/resolver</td><td>Avoid a second model/tool configuration inside Programs</td></tr>
         </tbody></table>
       </section>
@@ -299,7 +299,7 @@ git diff --check</code></pre>
           <tr><td><a href="https://openai.github.io/openai-agents-python/running_agents/">OpenAI Agents SDK · Running agents</a></td><td>Runner owns the model/tool loop of one logical turn; max turns, sessions and hooks are separate.</td><td>Do not use Runner as a second OpenProgram runtime; retain current Runtime/dispatcher.</td></tr>
           <tr><td><a href="https://openai.github.io/openai-agents-python/tools/">OpenAI Agents SDK · Tools</a></td><td>Python function tools and agent-as-tool are explicit calls; parents can observe child execution.</td><td>Do not implicitly convert Workflows into handoffs; they remain Python packages.</td></tr>
           <tr><td><a href="https://openai.github.io/openai-agents-python/multi_agent/">OpenAI Agents SDK · Orchestration</a></td><td>Distinguish a manager calling a child Agent from handing control to another Agent.</td><td>Inside a Program, <code>agent()</code> does not automatically create session branches; only product-level sub-agent actions switch sessions.</td></tr>
-          <tr><td><a href="https://docs.langchain.com/oss/python/langgraph/workflows-agents">LangGraph · Workflows and agents</a></td><td>Workflows are predefined code paths; Agents dynamically choose tools locally.</td><td>No new graph DSL; static call graphs derive from Python imports and <code>@agentic_function</code> .</td></tr>
+          <tr><td><a href="https://docs.langchain.com/oss/python/langgraph/workflows-agents">LangGraph · Workflows and agents</a></td><td>Workflows are predefined code paths; Agents dynamically choose tools locally.</td><td>No new graph DSL; static call graphs derive from Python imports and explicit entry identities .</td></tr>
           <tr><td><a href="https://docs.langchain.com/oss/python/langgraph/persistence">LangGraph · Persistence</a></td><td>Persistence, threads, checkpoints and interruption recovery should be explicit lifecycle capabilities.</td><td>Do not force every in-Program Agent into a persistent thread; only the session adapter uses durable Jobs.</td></tr>
         </tbody></table>
       </section>

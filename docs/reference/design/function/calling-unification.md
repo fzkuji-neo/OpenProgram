@@ -36,41 +36,11 @@ registry, and ``AgentTool.execute(...)`` runs. Our wrapping classes
 (``AgentTool`` / ``AgentToolResult``) carry runtime extras the wire
 format doesn't have (sidecar gating, sync→async, char-cap, etc.).
 
-## Two decorators, one registry
+## Explicit registration and one registry
 
-Authors get exactly two ways to register an LLM-callable function:
+Agent methods request tool registration with `method_options["method"]["tool"] = True`. Managed Program packages explicitly list public entries in `AGENTIC_FUNCTIONS`. Deterministic `function()` tools and the legacy `agentic_function` adapter remain supported.
 
-```
-@function                             @agentic_function
-─────────────────────────────────────────────────────────────────
-Function-implemented decorator        Class-implemented decorator
-"deterministic Python tool"           "tool whose body spawns an
-                                       inner agent loop"
-
-bash, read, write, edit, glob,        research, gui_agent, idea-
-grep, list, todo_*, web_search,       generator, evaluate, the
-web_fetch, pdf, image_*,              memory_* family, the research
-execute_code, apply_patch, …          stages, …
-
-Decoration replaces the Python name   Decoration replaces the name
-with the AgentTool object itself.     with an agentic_function class
-Python code can't call `bash("ls")`   instance. Python code CAN call
-directly — the only entry is the     `research("topic")` directly
-LLM's tool_call dispatch.             (it triggers __call__ → wrapper);
-                                       LLM can ALSO call via dispatcher.
-                                       Both routes hit the same wrapper.
-```
-
-Both decorators ultimately produce one ``AgentTool`` entry in one
-shared registry (``openprogram.programs._runtime._registry``). The
-``_build_and_register_tool`` helper is the single source of truth for
-"build AgentTool + attach sidecars + register". Both decorators
-delegate to it; adding a new sidecar attribute or gating layer means
-editing one helper, both decorators pick it up.
-
-For the design rationale on why these are two decorators (not one)
-and why ``@agentic_function`` is a class (not a function), see
-"Why two decorators" below.
+All forms use the existing AgentTool registry and authorization rules. Automatic scope capture alone does not expose a tool. The [unified Agent and Context contract](../integrations/nooa.html#contract) owns class authoring and execution lifetime.
 
 ## The shared kwargs (apply to both decorators)
 

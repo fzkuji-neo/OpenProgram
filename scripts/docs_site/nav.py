@@ -565,6 +565,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
         ]),
         ('Extensions and integrations', '扩展与集成', [
             "reference/design/integrations/README.md",
+            "reference/design/integrations/nooa.html",
             "reference/design/integrations/editor-integration.md",
             "reference/design/integrations/extension-management.html",
             "reference/design/integrations/harness-standard.md",
@@ -819,6 +820,7 @@ PAGE_ORDER: dict[str, int] = {
     # together after the alphabetical integration notes.
     "reference/design/integrations/web-use.html": 1039,
     "reference/design/integrations/mcp-server.html": 1040,
+    "reference/design/integrations/nooa.html": 1041,
 
     # Test architecture and execution contracts.
     "reference/design/testing/test-system.html": 1050,

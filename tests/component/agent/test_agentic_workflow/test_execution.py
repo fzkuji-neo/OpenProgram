@@ -44,7 +44,7 @@ def test_small_task_is_persisted_as_a_reusable_multifile_project(
     assert result["status"] == "completed"
     assert calls[0]["prompt"].startswith("rename one variable")
     assert "save substantive deliverables" in calls[0]["prompt"]
-    assert "@agentic_function" in prompts[0]
+    assert "class WorkflowAgent(Agent)" in prompts[0]
     snapshot = _snapshot_package(session_repo, result["run_id"])
     assert (snapshot / "workflow.py").exists()
     assert (snapshot / "steps" / "task.py").exists()
@@ -104,7 +104,7 @@ def test_missing_workflow_is_rejected_with_exact_validation_reason(
     result = _run_task("missing")
 
     assert result["status"] == "completed"
-    assert "must define one @agentic_function literature_review()" in prompts[2]
+    assert "must define one literature_review entry" in prompts[2]
 
 
 
@@ -155,7 +155,8 @@ def test_real_agent_implementation_is_callable_with_public_signature() -> None:
         'start_from: \'str\' = \'clean\', run_in_background: \'bool\' = False, '
         'to: \'str\' = \'\', archive_when_done: \'bool\' = False) -> \'str\''
     )
-    assert agent("probe").startswith("[agent error]")
+    with pytest.raises(RuntimeError):
+        agent("probe")
 
 
 
@@ -418,3 +419,36 @@ def test_capped_project_run_does_not_add_a_revision(
     project = session_repo / "catalog" / result["project_id"]
     assert _git_output(project, "rev-list", "--count", "HEAD") == "1"
 
+
+
+def test_public_entry_publishes_and_executes_agent_class_snapshot(monkeypatch, session_repo):
+    from openprogram.agentic_programming import function as function_runtime
+
+    candidate = json.loads(_package_project())
+    candidate["files"]["workflow.py"] = (
+        "from openprogram.agentic_programming import Agent\n"
+        "from .steps.discover import discover\n\n"
+        "class WorkflowAgent(Agent):\n"
+        "    def run(self, task: str):\n"
+        "        return discover(task)\n\n"
+        "literature_review = WorkflowAgent().run\n"
+    )
+    _planner(monkeypatch, json.dumps({"action": "create"}), json.dumps(candidate))
+    calls = _executor(monkeypatch)
+    _summarizer(monkeypatch)
+    entries = []
+    append = function_runtime._append_function_call_entry
+
+    def capture(**kwargs):
+        entries.append((kwargs["pending_id"], kwargs["function_name"], function_runtime._call_id.get()))
+        return append(**kwargs)
+
+    monkeypatch.setattr(function_runtime, "_append_function_call_entry", capture)
+    result = _run_task("recent papers")
+    assert result["status"] == "completed"
+    assert [call["prompt"] for call in calls] == ["discover recent papers"]
+    parents = [entry for entry in entries if entry[1].endswith("WorkflowAgent.run")]
+    children = [entry for entry in entries if entry[1].endswith("steps.discover.discover")]
+    assert len(parents) == len(children) == 1
+    assert children[0][2] == parents[0][0]
+    assert "WorkflowAgent(Agent)" in (_instance(session_repo, result["run_id"]) / "snapshot" / "workflows" / "literature_review" / "workflow.py").read_text()

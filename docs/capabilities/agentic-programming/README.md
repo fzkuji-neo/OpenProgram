@@ -14,9 +14,9 @@ Read in order; each step builds on the previous one.
 | # | Doc | What it teaches |
 |---|---|---|
 | 1 | [`philosophy.md`](philosophy.md) | Why "agentic programming" — the rationale behind the model |
-| 2 | [`writing-functions/agentic-function.md`](writing-functions/agentic-function.md) | `@agentic_function`: wrap a Python function whose body runs single LLM calls via `llm()`; composition patterns |
+| 2 | [`writing-functions/agentic-function.md`](writing-functions/agentic-function.md) | Direct `agent()` calls, configured `Agent` methods, and legacy decorators |
 | 3 | [`writing-functions/function-metadata.md`](writing-functions/function-metadata.md) | Parameter descriptions, placeholders, hidden arguments, `render_range` — the source of truth for function metadata |
-| 4 | [`writing-functions/pure-python.md`](writing-functions/pure-python.md) | When NOT to use the decorator: plain deterministic helpers |
+| 4 | [`writing-functions/pure-python.md`](writing-functions/pure-python.md) | Ordinary deterministic Python helpers |
 | 5 | [`embedding-in-your-own-stack.md`](embedding-in-your-own-stack.md) | Using the model as a plain library inside your own app or framework — bring your own LLM call, point state at your own directory |
 
 ## Choosing the next step
@@ -33,7 +33,7 @@ right one per task is the core skill:
 
 ## Reference
 
-- [`../../reference/api/agentic-function.md`](../../reference/api/agentic-function.md) — decorator API quick reference
+- [`../../reference/api/agentic-function.md`](../../reference/api/agentic-function.md) — Agent, Context, and compatibility API reference
 - [`../../reference/api/runtime.md`](../../reference/api/runtime.md) — `Runtime.exec()` parameters and behaviour
 - [Agentic function API](../../reference/api/agentic-function.md) — authoring and validation conventions for functions
 - [`../../reference/design/function/calling-unification.md`](../../reference/design/function/calling-unification.md) — internal design notes on the function-calling framework (evolution / refactor plans, not needed for authoring)

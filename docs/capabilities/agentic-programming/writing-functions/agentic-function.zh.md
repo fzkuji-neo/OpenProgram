@@ -1,90 +1,75 @@
-<div id="agentic_function"></div>
+# Agent 调用与普通方法
 
-# @agentic_function 用法
+单次模型请求使用 `agent()`。多个方法共用模型设置和指令时，定义 `Agent` 子类。框架自动建立调用作用域并管理 Context。
 
-`@agentic_function` 包装一个 Python 函数，其函数体可以通过 `llm()`
-发起 LLM 调用。除非使用 `expose="hidden"`，否则该包装器会把这次函数调用记录到
-会话 DAG 中。
-
-本页讲解使用模式。元数据规则见
-[`function-metadata.md`](function-metadata.zh.md)。
-
-## 基本模式
+## 普通方法
 
 ```python
-from openprogram import agentic_function
-from openprogram.agentic_programming import llm
+from openprogram import Agent
 
-@agentic_function(input={
-    "text": {"description": "Text to translate."},
-})
-def translate_to_chinese(text: str, runtime=None) -> str:
-    """Translate text to Chinese."""
-    return llm([{"type": "text", "text": (
-        "Translate the following text to Chinese. Return only the translation.\n\n"
-        f"Text:\n{text}"
-    )}])
+class ReviewAgent(Agent):
+    tools = []
+    instructions = "Preserve facts. Return concise text."
+
+    def classify(self, review: str) -> str:
+        """Classify review sentiment."""
+        return self(f"Classify as positive, negative, or neutral:\n{review}")
+
+    def summarize(self, review: str) -> str:
+        """Summarize a review with its sentiment."""
+        sentiment = self.classify(review)
+        return self(f"Summarize this {sentiment} review in one sentence:\n{review}")
+
+reviewer = ReviewAgent(model="configured-model")
+summary = reviewer.summarize("The service was fast.")
 ```
 
-声明一个 `runtime` 参数，但永远不要自己传它：无论是直接的 Python 调用还是工具
-分发，框架都会自动注入（缺失或为 `None` 的值会在签名校验之前被填上），并把它从
-工具 schema 中过滤掉，模型永远看不到它。`runtime=None` 是惯用写法；不带默认值的
-`runtime` 同样可用。
+`classify` 和 `summarize` 是普通 Python 方法，作用域记录父子关系。`self(...)` 通过现有 Runtime 请求模型。docstring 描述函数调用，prompt 提供模型指令与数据。
 
-docstring 是函数级别的描述。`content` 块才是这次 LLM 调用真正的指令和数据。
+Agent 实例保存配置，不默认在独立顶层调用之间保存会话。嵌套调用使用当前执行。Context 为每次请求选择允许读取的历史，并求值已配置内容。
 
-## 直接组合
-
-当顺序固定时，使用直接的 Python 调用。
+## 直接调用与异步代码
 
 ```python
-@agentic_function(input={
-    "task": {"description": "Research task."},
-})
-def research_pipeline(task: str, runtime) -> dict:
-    """Run a fixed research pipeline."""
-    survey = survey_topic(topic=task, runtime=runtime)
-    gaps = identify_gaps(survey=survey, runtime=runtime)
-    ideas = generate_ideas(gaps=gaps, runtime=runtime)
-    return {"survey": survey, "gaps": gaps, "ideas": ideas}
+from openprogram import agent, agent_async
+
+answer = agent("Summarize this text", tools=[])
+# 在异步函数内：
+# answer = await agent_async("Summarize this text", tools=[])
+# answer = await reviewer.arun("Summarize this text")
 ```
 
-## LLM 选择的工具
+`tools=[]` 禁用模型工具。`tools=None` 由 Runtime 选择可用工具，并执行当前授权规则。
 
-当应当由模型从一份指定的函数菜单中挑选时，使用 `runtime.exec(tools=[...])`。注意
-裸的 `runtime.exec(content=...)` 并非无工具：既不传 `tools=` 也不传 `toolset=`
-时，调用默认解析出完整的注册表工具集，模型已经可以搜索、跑代码、改文件。想要
-纯推理调用请传 `toolset="none"`（或 `tools=[]`）——
-见 [`tool-calling.md`](../choosing-the-next-step/tool-calling.zh.md)。
+## 方法元数据与显式工具
+
+公开方法需要表单元数据、可见性规则或工具登记时，声明 `method_options`：
 
 ```python
-@agentic_function(input={
-    "task": {"description": "User task."},
-})
-def research_assistant(task: str, runtime) -> str:
-    """Choose and run the appropriate research helper."""
-    return runtime.exec(
-        content=[{"type": "text", "text": (
-            "Choose the appropriate helper for this task and complete the work.\n\n"
-            f"Task:\n{task}"
-        )}],
-        tools=[survey_topic, identify_gaps, generate_ideas],
-    )
+class TextAgent(Agent):
+    tools = []
+    method_options = {
+        "summarize": {
+            "tool": True,
+            "name": "summarize_text",
+            "input": {"text": {"description": "Text to summarize"}},
+            "expose": "io",
+        },
+    }
+
+    def summarize(self, text: str) -> str:
+        """Summarize text."""
+        return self(f"Summarize:\n{text}")
 ```
 
-`@agentic_function` 提供了 `.spec` 和 `.execute`，因此被装饰的函数可以直接传入
-`tools=[...]`。
+方法记录不会自动注册工具。`tool=True` 显式登记该方法。函数名称与签名提供工具 schema。可见性控制历史呈现，不授予工具权限。
 
-除了直接组合和工具之外，挑选下一步的第三种方式是通过 `exec(choices=...)` 或
-`decision.make` 给出一个决策菜单——见
-[`next-step-decision.md`](../choosing-the-next-step/next-step-decision.zh.md)。
+## 普通 Program 函数
 
-## 装饰器字段
+受管加载器采集授权 Program 包中的普通源码函数。通过 `AGENTIC_FUNCTIONS` 列出公开入口。私有帮助函数保留调用作用域，不自动成为工具。该采集不作用于任意宿主文件或依赖。
 
-装饰器字段（`expose`、`render_range`、`input`、`system`……）的文档**只在一处**：
-[`function-metadata.md`](function-metadata.zh.md) §3。位于
-[`../../../reference/api/agentic-function.md`](../../../reference/api/agentic-function.zh.md) 的 API 参考
-附带一份精简的速查表。
+确定性编排直接调用 Python 方法或函数。模型选择调用时，提供显式登记的工具，见 [工具调用](../choosing-the-next-step/tool-calling.zh.md)。
 
-本页讲解使用*模式*；它有意不重复逐字段的参考说明。如果你想知道某个字段的作用，
-请前往 `function-metadata.md`。
+## 旧接口兼容
+
+`@agentic_function` 继续支持已有程序、显式元数据和持久步骤。新的类式 workflow 使用 `Agent` 方法和 `method_options`。[API 参考](../../../reference/api/agentic-function.zh.md) 说明 Context、方法选项和旧装饰器。兼容字段见 [函数元数据](function-metadata.zh.md)。

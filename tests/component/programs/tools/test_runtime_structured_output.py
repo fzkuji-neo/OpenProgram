@@ -25,6 +25,21 @@ from openprogram.providers.utils.errors import ErrorReason, LLMError
 from openprogram.providers.utils.errors import ExecInterrupt
 
 
+@pytest.fixture
+def authorized_runtime_request():
+    from openprogram.agent.authority import owner_authority
+    from openprogram.agent.dispatcher.types import TurnRequest
+    from openprogram.agent.turn_request_context import set_turn_request, reset_turn_request
+    request = TurnRequest(session_id="structured-fixture", user_text="Read fixture sources",
+                          agent_id="main", source="python", permission_mode="bypass",
+                          **owner_authority("owner/install/" + "a" * 16))
+    token = set_turn_request(request)
+    try:
+        yield request
+    finally:
+        reset_turn_request(token)
+
+
 SCHEMA = {
     "type": "object",
     "properties": {"answer": {"type": "integer"}},
@@ -330,7 +345,7 @@ def test_public_runtime_aborted_structured_stream_propagates_once_without_persis
     assert not any(event["type"].startswith("structured_") for event in stream_events)
 
 
-def test_ordinary_async_callable_preserves_direct_baseline_without_agent_session(
+def test_ordinary_async_callable_uses_the_shared_agent_session(
     monkeypatch,
 ):
     seen_content = []
@@ -353,11 +368,14 @@ def test_ordinary_async_callable_preserves_direct_baseline_without_agent_session
     runtime = Runtime(call=call, model="dummy")
     runtime.on_stream = stream_events.append
 
-    result = asyncio.run(runtime.async_exec("hello"))
+    try:
+        result = asyncio.run(runtime.async_exec("hello"))
+    finally:
+        runtime.close()
 
     assert result == "ordinary reply"
-    assert seen_content == [[{"type": "text", "text": "hello"}]]
-    assert session_runs == []
+    assert any(block.get("text") == "hello" for block in seen_content[0])
+    assert len(session_runs) == 1
     assert stream_events == []
 
 
@@ -751,7 +769,7 @@ def test_llm_public_entry_uses_existing_structured_repair():
 
 
 @pytest.mark.parametrize("repair,budget,iterations", [(False, 1, 6), (True, 3, 6), (True, 1, 6), (False, 3, 2)])
-def test_structured_agent_normal_tool_rounds_do_not_consume_retry_budget(repair, budget, iterations):
+def test_structured_agent_normal_tool_rounds_do_not_consume_retry_budget(repair, budget, iterations, authorized_runtime_request):
     from openprogram.agentic_programming import agent
     from openprogram.providers.types import ToolCall
     calls, effects = [], []

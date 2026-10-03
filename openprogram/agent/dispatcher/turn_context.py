@@ -1,9 +1,8 @@
 """Turn-scoped context bindings — pipeline step 3 (dispatcher-split).
 
-Attach a Runtime with the session's GraphStore so any @agentic_function
-the agent_loop invokes records its placeholder / internal / exit nodes
-into the same DAG. The Runtime is shared via the ``_current_runtime``
-ContextVar that @agentic_function's _inject_runtime consults.
+Attach Runtime and Context to the session's GraphStore. Agent methods,
+managed source functions and legacy entries record into the same DAG.
+The ``_current_runtime`` ContextVar shares the Runtime with nested calls.
 
 ``TurnBindings.bind`` sets every per-turn ContextVar (session id, turn
 id, worktree cwd, GraphStore, DAG runtime), installs the session-scoped
@@ -55,6 +54,7 @@ class TurnBindings:
     def __init__(self) -> None:
         self.project_baseline = None
         self._runtime_token = None
+        self._context_binding = None
         self._store_token = None
         self._turn_id_token = None
         self._worktree_token = None
@@ -207,6 +207,9 @@ class TurnBindings:
         # file_backups/, hence no per-turn file list, no diff, no undo.
         # The store needs a session, not a provider — so it binds regardless.
         self._store_token = _store_var.set(_GraphStore(db, req.session_id))
+        from openprogram.context import Context
+        self._context_binding = Context(call_id=assistant_msg_id).bind()
+        self._context_binding.__enter__()
         model = None
         try:
             from openprogram.providers.registry import create_runtime as _create_rt
@@ -312,6 +315,9 @@ class TurnBindings:
                 )
                 _release_surface_bindings(_current_surface())
                 _reset_surface(self._surface_token)
+            if self._context_binding is not None:
+                self._context_binding.__exit__(None, None, None)
+                self._context_binding = None
             if self._runtime_token is not None:
                 _current_runtime_var.reset(self._runtime_token)
             if self._store_token is not None:

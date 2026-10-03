@@ -22,7 +22,10 @@ edit, run a build, or spawn further agents.
 
 Registration: AGENTIC_MODULES.
 """
+
 from __future__ import annotations
+
+from openprogram.agentic_programming import Agent
 
 import inspect
 import logging
@@ -50,8 +53,13 @@ SEVERITIES = ("critical", "high", "medium", "low")
 DIFF_MAX_CHARS = 400_000
 
 # Branch names tried as the baseline when the branch has no upstream.
-DEFAULT_BRANCH_CANDIDATES = ("origin/HEAD", "origin/main", "origin/master",
-                             "main", "master")
+DEFAULT_BRANCH_CANDIDATES = (
+    "origin/HEAD",
+    "origin/main",
+    "origin/master",
+    "main",
+    "master",
+)
 
 
 class NoBaselineError(RuntimeError):
@@ -62,12 +70,16 @@ class NoBaselineError(RuntimeError):
 # Git — baseline selection and diff collection
 # ---------------------------------------------------------------------------
 
+
 def _git(args: list[str], cwd: Optional[str]) -> tuple[int, str]:
     """``(returncode, stdout)`` for one git command. stderr is folded
     into the log, never into the returned text, so a caller comparing
     output never has to strip warnings."""
     proc = subprocess.run(
-        ["git", *args], cwd=cwd, capture_output=True, text=True,
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
     )
     if proc.returncode != 0:
         _log.debug("git %s failed: %s", " ".join(args), proc.stderr.strip())
@@ -93,11 +105,12 @@ def resolve_base(cwd: Optional[str] = None) -> str:
     code, _ = _git(["rev-parse", "--git-dir"], cwd)
     if code != 0:
         raise NoBaselineError(
-            "not a git repository — a security review needs a branch to diff")
+            "not a git repository — a security review needs a branch to diff"
+        )
 
     code, upstream = _git(
-        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
-        cwd)
+        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], cwd
+    )
     if code == 0 and upstream:
         code, base = _git(["merge-base", "HEAD", upstream], cwd)
         if code == 0 and base:
@@ -111,7 +124,8 @@ def resolve_base(cwd: Optional[str] = None) -> str:
     raise NoBaselineError(
         "no baseline found: this branch has no upstream and none of "
         f"{', '.join(DEFAULT_BRANCH_CANDIDATES)} exists. Pass base= "
-        "explicitly with the commit or branch to review against.")
+        "explicitly with the commit or branch to review against."
+    )
 
 
 def collect_diff(base: str, cwd: Optional[str] = None) -> tuple[str, list[str]]:
@@ -128,10 +142,14 @@ def collect_diff(base: str, cwd: Optional[str] = None) -> tuple[str, list[str]]:
     Ignored files are left out, so build output and vendored trees do
     not enter the review.
     """
-    code, commit = _git(["rev-parse", "--verify", "--end-of-options", f"{base}^{{commit}}"], cwd)
+    code, commit = _git(
+        ["rev-parse", "--verify", "--end-of-options", f"{base}^{{commit}}"], cwd
+    )
     if code != 0 or not commit:
         raise NoBaselineError("The security review baseline is not an existing commit")
-    code, diff = _git(["diff", "--no-color", "--no-ext-diff", "--no-textconv", commit, "--"], cwd)
+    code, diff = _git(
+        ["diff", "--no-color", "--no-ext-diff", "--no-textconv", commit, "--"], cwd
+    )
     if code != 0:
         raise RuntimeError("Could not collect the security review diff")
     code, names = _git(["diff", "--name-only", "-z", commit, "--"], cwd)
@@ -139,8 +157,7 @@ def collect_diff(base: str, cwd: Optional[str] = None) -> tuple[str, list[str]]:
         raise RuntimeError("Could not enumerate files in the security review diff")
     files = [path for path in names.split("\0") if path]
 
-    code, untracked = _git(
-        ["ls-files", "-z", "--others", "--exclude-standard"], cwd)
+    code, untracked = _git(["ls-files", "-z", "--others", "--exclude-standard"], cwd)
     if code != 0:
         raise RuntimeError("Could not enumerate untracked security review files")
     for path in untracked.split("\0"):
@@ -148,9 +165,22 @@ def collect_diff(base: str, cwd: Optional[str] = None) -> tuple[str, list[str]]:
             continue
         # --no-index exits 1 when the files differ, which is always.
         code, added = _git(
-            ["diff", "--no-color", "--no-ext-diff", "--no-textconv", "--no-index", "--", os.devnull, path], cwd)
+            [
+                "diff",
+                "--no-color",
+                "--no-ext-diff",
+                "--no-textconv",
+                "--no-index",
+                "--",
+                os.devnull,
+                path,
+            ],
+            cwd,
+        )
         if code not in (0, 1):
-            raise RuntimeError(f"Could not collect the security review diff for {path!r}")
+            raise RuntimeError(
+                f"Could not collect the security review diff for {path!r}"
+            )
         if added:
             diff = f"{diff}\n{added}" if diff else added
             files.append(path)
@@ -165,27 +195,37 @@ def clip_diff(diff: str) -> str:
     names the gap."""
     if len(diff) <= DIFF_MAX_CHARS:
         return diff
-    return (diff[:DIFF_MAX_CHARS]
-            + "\n\n[diff truncated at "
-            + f"{DIFF_MAX_CHARS} characters — the changes below this point "
-              "were NOT shown. Say so in your reply and review only what "
-              "you were given.]")
+    return (
+        diff[:DIFF_MAX_CHARS]
+        + "\n\n[diff truncated at "
+        + f"{DIFF_MAX_CHARS} characters — the changes below this point "
+        "were NOT shown. Say so in your reply and review only what "
+        "you were given.]"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Review turn — the seam tests stub
 # ---------------------------------------------------------------------------
 
-def _run_review_turn(session_id: str, prompt: str, *, agent_id: str,
-                     spawn_caller: Optional[str]) -> str:
+
+def _run_review_turn(
+    session_id: str, prompt: str, *, agent_id: str, spawn_caller: Optional[str]
+) -> str:
     """One read-only review turn. Module-level so tests stub it."""
     from openprogram.agentic_programming.function import _current_runtime
+
     if _current_runtime.get(None) is not None or not session_id:
         from openprogram.agentic_programming.agent import agent
         from openprogram.programs import agent_tools
-        return agent(prompt=prompt, tools=agent_tools(names=list(REVIEW_TOOLS)),
-                     execution_kind="security_review")
+
+        return agent(
+            prompt=prompt,
+            tools=agent_tools(names=list(REVIEW_TOOLS)),
+            execution_kind="security_review",
+        )
     from openprogram.agent.sub_agent_run import run_agent_turn
+
     res = run_agent_turn(
         session_id=session_id,
         prompt=prompt,
@@ -223,14 +263,16 @@ def _clean_findings(raw: object) -> list[dict]:
             line = int(item.get("line"))
         except (TypeError, ValueError):
             line = 0
-        out.append({
-            "severity": severity,
-            "file": str(item.get("file") or "").strip(),
-            "line": line,
-            "title": title,
-            "scenario": str(item.get("scenario") or "").strip(),
-            "recommendation": str(item.get("recommendation") or "").strip(),
-        })
+        out.append(
+            {
+                "severity": severity,
+                "file": str(item.get("file") or "").strip(),
+                "line": line,
+                "title": title,
+                "scenario": str(item.get("scenario") or "").strip(),
+                "recommendation": str(item.get("recommendation") or "").strip(),
+            }
+        )
     out.sort(key=lambda f: SEVERITIES.index(f["severity"]))
     return out
 
@@ -245,9 +287,15 @@ def _review_prompt(base: str, diff: str, files: list[str]) -> str:
     )
 
 
-def review_diff(base: str, diff: str, files: list[str], session_id: str = "",
-                *, agent_id: str = "main",
-                spawn_caller: Optional[str] = None) -> list[dict]:
+def review_diff(
+    base: str,
+    diff: str,
+    files: list[str],
+    session_id: str = "",
+    *,
+    agent_id: str = "main",
+    spawn_caller: Optional[str] = None,
+) -> list[dict]:
     """You are performing a security review of one change. The diff
     below is the entire scope of the review.
 
@@ -348,8 +396,12 @@ def review_diff(base: str, diff: str, files: list[str], session_id: str = "",
     Use {"findings": []} when there is nothing to report.
     """
     sid = session_id or current_session_id()
-    raw = _run_review_turn(sid, _review_prompt(base, diff, files),
-                           agent_id=agent_id, spawn_caller=spawn_caller)
+    raw = _run_review_turn(
+        sid,
+        _review_prompt(base, diff, files),
+        agent_id=agent_id,
+        spawn_caller=spawn_caller,
+    )
     data = parse_json(raw or "")
     if not isinstance(data, dict) or not isinstance(data.get("findings"), list):
         raise ValueError("security review reply was not valid JSON")
@@ -360,58 +412,91 @@ def review_diff(base: str, diff: str, files: list[str], session_id: str = "",
 # run_security_review — the entry point
 # ---------------------------------------------------------------------------
 
-@agentic_function(render_range={"callers": 0}, input={
-    "base": {"description": "Commit or branch to review against "
-                            "(empty: pick the branch's baseline automatically)"},
-    "session_id": {"hidden": True},
-    "spawn_caller": {"hidden": True},
-    "agent_id": {"hidden": True},
-})
-def run_security_review(base: str = "", session_id: str = "",
-                        spawn_caller: Optional[str] = None,
-                        agent_id: str = "main") -> dict:
-    """Review this branch's changes for security vulnerabilities.
 
-    Collects everything that changed since the baseline — commits,
-    staged changes, unstaged edits, and newly added files — and has a
-    read-only agent audit it for injection, broken authentication and
-    authorization, leaked secrets, unsafe deserialization and dynamic
-    execution, concurrency and TOCTOU bugs, resource exhaustion, risky
-    dependencies, and information disclosure through errors.
+class RunSecurityReviewAgent(Agent):
+    method_options = {
+        "run_security_review": {
+            "render_range": {"callers": 0},
+            "input": {
+                "base": {
+                    "description": "Commit or branch to review against "
+                    "(empty: pick the branch's baseline automatically)"
+                },
+                "session_id": {"hidden": True},
+                "spawn_caller": {"hidden": True},
+                "agent_id": {"hidden": True},
+            },
+            "name": "run_security_review",
+            "tool": True,
+        },
+    }
 
-    Only what this change introduced or made worse is reported. A
-    weakness the branch did not touch is left alone, so the result is a
-    list the author can act on now.
+    def run_security_review(
+        self,
+        base: str = "",
+        session_id: str = "",
+        spawn_caller: Optional[str] = None,
+        agent_id: str = "main",
+    ) -> dict:
+        """Review this branch's changes for security vulnerabilities.
 
-    ``base`` empty picks the baseline automatically: the merge base
-    with the branch's upstream, or with the repository's default branch
-    when there is no upstream. A repository with neither raises
-    ``NoBaselineError`` naming what was missing rather than guessing a
-    range.
+        Collects everything that changed since the baseline — commits,
+        staged changes, unstaged edits, and newly added files — and has a
+        read-only agent audit it for injection, broken authentication and
+        authorization, leaked secrets, unsafe deserialization and dynamic
+        execution, concurrency and TOCTOU bugs, resource exhaustion, risky
+        dependencies, and information disclosure through errors.
 
-    A branch with no changes returns no findings immediately, without
-    spawning a review agent.
+        Only what this change introduced or made worse is reported. A
+        weakness the branch did not touch is left alone, so the result is a
+        list the author can act on now.
 
-    Returns ``{"findings", "base", "files_reviewed"}``, findings
-    ordered critical first, each carrying ``severity``, ``file``,
-    ``line``, ``title``, ``scenario`` and ``recommendation``.
-    """
-    from openprogram.worktree.context import current_worktree_path
-    sid = session_id or current_session_id()
-    cwd = current_worktree_path()
+        ``base`` empty picks the baseline automatically: the merge base
+        with the branch's upstream, or with the repository's default branch
+        when there is no upstream. A repository with neither raises
+        ``NoBaselineError`` naming what was missing rather than guessing a
+        range.
 
-    base = (base or "").strip() or resolve_base(cwd)
-    diff, files = collect_diff(base, cwd)
-    if not diff.strip():
-        return {"findings": [], "base": base, "files_reviewed": 0}
+        A branch with no changes returns no findings immediately, without
+        spawning a review agent.
 
-    findings = review_diff(diff=diff, base=base, files=files, session_id=sid,
-                           agent_id=agent_id, spawn_caller=spawn_caller)
-    return {"findings": findings, "base": base, "files_reviewed": len(files)}
+        Returns ``{"findings", "base", "files_reviewed"}``, findings
+        ordered critical first, each carrying ``severity``, ``file``,
+        ``line``, ``title``, ``scenario`` and ``recommendation``.
+        """
+        from openprogram.worktree.context import current_worktree_path
+
+        sid = session_id or current_session_id()
+        cwd = current_worktree_path()
+
+        base = (base or "").strip() or resolve_base(cwd)
+        diff, files = collect_diff(base, cwd)
+        if not diff.strip():
+            return {"findings": [], "base": base, "files_reviewed": 0}
+
+        findings = review_diff(
+            diff=diff,
+            base=base,
+            files=files,
+            session_id=sid,
+            agent_id=agent_id,
+            spawn_caller=spawn_caller,
+        )
+        return {"findings": findings, "base": base, "files_reviewed": len(files)}
+
+
+run_security_review = RunSecurityReviewAgent().run_security_review
 
 
 __all__ = [
-    "run_security_review", "review_diff", "resolve_base", "collect_diff",
-    "clip_diff", "NoBaselineError", "REVIEW_TOOLS", "SEVERITIES",
-    "DIFF_MAX_CHARS", "DEFAULT_BRANCH_CANDIDATES",
+    "run_security_review",
+    "review_diff",
+    "resolve_base",
+    "collect_diff",
+    "clip_diff",
+    "NoBaselineError",
+    "REVIEW_TOOLS",
+    "SEVERITIES",
+    "DIFF_MAX_CHARS",
+    "DEFAULT_BRANCH_CANDIDATES",
 ]

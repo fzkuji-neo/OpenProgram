@@ -228,10 +228,20 @@ class ProvidersOperations:
             # Explicit `tools=[]` — caller wanted no tools, honour it.
             agent_tools = None
 
+        for constraint in policy.get("allow_constraints") or []:
+            from openprogram.programs import apply_tool_policy as _apply_policy
+
+            agent_tools = _apply_policy(agent_tools or [], allow=constraint,
+                                        exposure_filter=False) or None
+
         # Prompt-composition: prefer DAG-derived history when a store
         # is installed; fall back to wrapping ``content`` as a single
         # UserMessage for standalone runs.
-        dag_messages = self._render_history_messages(content)
+        from openprogram.context.model import Context
+
+        request_context = Context.current()
+        request_context = request_context.derive() if request_context is not None else Context()
+        dag_messages = self._render_history_messages(content, request_context)
         if dag_messages is not None:
             history = dag_messages[:-1]
             current = dag_messages[-1]
@@ -384,6 +394,48 @@ class ProvidersOperations:
                         yield event
 
                 _stream_fn = budgeted_stream_fn
+        previous_transform = budget_context_transform
+
+        async def context_transform(messages, cancel_event):
+            # Resolve on each provider request, before its budget checks.
+            resolved = request_context.resolve_blocks()
+            named_blocks = []
+            for name, value in resolved.items():
+                if value is None or value == "":
+                    continue
+                if not isinstance(value, str):
+                    import json
+                    value = json.dumps(value, ensure_ascii=False, default=str)
+                named_blocks.append({"type": "text", "text": f"{name}:\n{value}"})
+            result = list(messages)
+            if named_blocks:
+                # Keep the named content in the user role. It cannot change
+                # the system prompt or registered tool authority.
+                from openprogram.providers.types import TextContent
+                for index in range(len(result) - 1, -1, -1):
+                    message = result[index]
+                    if getattr(message, "role", None) == "user":
+                        content_blocks = list(message.content) if isinstance(message.content, list) else [TextContent(text=message.content)]
+                        result[index] = message.model_copy(update={"content": [TextContent(text=block["text"]) for block in named_blocks] + content_blocks})
+                        break
+            if previous_transform is not None:
+                result = await previous_transform(result, cancel_event)
+            # Save the values used by this request, not provider callables.
+            from openprogram.store import _store
+            store = _store.get()
+            node_id = getattr(self, "_active_llm_node_id", None)
+            if store is not None and node_id:
+                node = store.load().nodes.get(node_id)
+                if node is not None:
+                    requests = list((node.metadata or {}).get("context_requests") or [])
+                    requests.append({"blocks": [dict(block, text=block["text"][:8000]) for block in named_blocks]})
+                    request_content = next((message.model_dump(mode="json")
+                                            for message in reversed(result)
+                                            if getattr(message, "role", None) == "user"), None)
+                    store.update(node_id, metadata={"context_requests": requests,
+                                                    "request_content": request_content})
+            return result
+
         # Inner tools go through the SAME gate as the outer agent loop.
         # Without this a program spawned from a turn handed its agent raw
         # tools: no hard constraints, no authority tier, no deny rules —
@@ -412,7 +464,7 @@ class ProvidersOperations:
             web_search=loop_opts.get("web_search"),
             response_format=structured_format,
             stream_fn=_stream_fn,
-            transform_context=budget_context_transform,
+            transform_context=context_transform,
         )
 
         # Forward agent stream events to self.on_stream so callers (the webui
@@ -733,6 +785,8 @@ class ProvidersOperations:
                 error.retryable = False  # type: ignore[attr-defined]
             if getattr(final, "error_transport_exhausted", False):
                 error.transport_exhausted = True  # type: ignore[attr-defined]
+            if message == "ValueError: Protected request content exceeds the model input budget":
+                error.retryable = False
             raise error
 
         if final.usage is not None:
@@ -781,11 +835,6 @@ class ProvidersOperations:
         self, content: list[dict], model: str = "default", response_format: dict = None
     ) -> Any:
         """Async version of _call(). Override for async providers."""
-        if response_format is None and self._call_fn is not None:
-            result = self._call_fn(content, model=model, response_format=None)
-            if asyncio.iscoroutine(result):
-                return await result
-            return result
         if self.api_model is not None:
             return await self._async_call_via_providers(
                 content,

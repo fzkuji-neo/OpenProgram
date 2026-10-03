@@ -396,6 +396,15 @@ _current_direct_content: contextvars.ContextVar[Optional[list[dict]]] = (
 )
 
 
+_current_agent_options: contextvars.ContextVar[dict] = contextvars.ContextVar(
+    "_current_agent_options", default={}
+)
+
+_current_instructions: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "openprogram_agent_instructions", default=None,
+)
+
+
 def _exec_system_prompt(inline: str, tools: Optional[list]) -> str:
     """Assemble the function-body system prompt through the ONE assembler
     (dag/overview.md §7).
@@ -405,6 +414,9 @@ def _exec_system_prompt(inline: str, tools: Optional[list]) -> str:
     layer. Any failure degrades to the bare inline string — a function call
     must never die because a context component misbehaved.
     """
+    instructions = _current_instructions.get()
+    if instructions is not None:
+        inline = instructions
     try:
         from openprogram.context.components import build_system_prompt
         from openprogram.agent.internals._model_tools import load_agent_profile

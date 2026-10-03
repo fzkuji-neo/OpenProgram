@@ -177,6 +177,9 @@ def render_dag_messages(graph: Graph, read_ids: list[str],
             ))
 
         elif node.is_llm():
+            request_content = (node.metadata or {}).get("request_content")
+            if request_content is not None:
+                messages.append(UserMessage.model_validate(request_content))
             am = _assistant(
                 _elide(_text(node.output), node), ts_ms,
                 model=node.name or "",

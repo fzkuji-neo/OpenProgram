@@ -124,3 +124,25 @@ __all__ = [
     "StreamFn",
     "ThinkingLevel",
 ]
+
+
+# The public entry and this existing package have the same import name. Keep
+# the package object so imports such as openprogram.agent.types retain Python
+# package semantics, and forward calls to the agent programming entry.
+import sys as _sys
+from types import ModuleType as _ModuleType
+
+
+class _CallableAgentPackage(_ModuleType):
+    def __call__(self, prompt, **options):
+        from openprogram.agentic_programming.agent import agent
+        return agent(prompt, **options)
+
+    @property
+    def __signature__(self):
+        import inspect
+        from openprogram.agentic_programming.agent import agent
+        return inspect.signature(agent)
+
+
+_sys.modules[__name__].__class__ = _CallableAgentPackage

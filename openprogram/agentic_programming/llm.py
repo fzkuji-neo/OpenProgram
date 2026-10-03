@@ -1,4 +1,4 @@
-"""One model request using the ambient agentic-programming Runtime."""
+"""Make one model request through the current or an owned execution scope."""
 from __future__ import annotations
 
 from typing import Any
@@ -19,9 +19,6 @@ def llm(
 
     runtime = _current_runtime.get(None)
     if runtime is None:
-        from openprogram.agentic_programming.function import _call_id
-        if not _call_id.get():
-            raise RuntimeError("llm() requires an ambient Runtime; call it inside an @agentic_function")
         from openprogram.agentic_programming.runtime_scope import runtime_scope
 
         with runtime_scope():
