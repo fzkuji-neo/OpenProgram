@@ -48,18 +48,15 @@ export function showCanvasDrop(drop: CanvasDrop | null) {
   showDropPreview(drop?.rect ?? null);
 }
 export function showResourceDrop(target: HTMLElement) {
-  // Include both the navigation row and its visible panel. A row-sized outline
-  // alone is almost entirely covered by the tab following the pointer.
+  // Keep feedback on the Resources row even when dropping inside its panel.
   const sidebar = target.closest(".right-sidebar");
-  const rects = [...(sidebar?.querySelectorAll<HTMLElement>("[data-resource-drop-session]") ?? [target])]
-    .filter(el => el.dataset.resourceDropSession === target.dataset.resourceDropSession)
-    .map(el => el.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0);
-  if (!rects.length) return;
-  const left = Math.min(...rects.map(r => r.left)), top = Math.min(...rects.map(r => r.top));
-  const right = Math.max(...rects.map(r => r.right)), bottom = Math.max(...rects.map(r => r.bottom));
-  showDropPreview({ left, top, width: right - left, height: bottom - top }, "resources");
+  const row = sidebar?.querySelector<HTMLElement>('.right-nav-item[data-view="resources"]');
+  const highlight = row && row.dataset.resourceDropSession === target.dataset.resourceDropSession ? row : target;
+  const rect = highlight.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) { showDropPreview(null); return; }
+  showDropPreview({ left: rect.left, top: rect.top, width: rect.width, height: rect.height }, "resources");
   if (preview) {
-    preview.dataset.compact = String(bottom - top < 80);
+    preview.dataset.compact = "true";
     const label = document.createElement("span");
     label.className = "canvas-drop-label";
     label.textContent = translateText("Release to add to Resources", "松开以添加到资源");
