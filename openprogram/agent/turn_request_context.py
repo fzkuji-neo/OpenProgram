@@ -175,6 +175,7 @@ def inner_turn_request(source: str) -> Optional[Any]:
         source=getattr(outer, "source", "web") or "web",
         permission_mode=getattr(outer, "permission_mode", None),
         permission_rules=getattr(outer, "permission_rules", None),
+        surface_context=getattr(outer, "surface_context", None),
         additional_working_dirs=list(
             getattr(outer, "additional_working_dirs", None) or ()
         ),

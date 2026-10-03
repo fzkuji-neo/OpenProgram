@@ -710,6 +710,7 @@ def _child_entry(
     generation: Optional[int] = None,
     model_setup_error: Optional[dict] = None,
     original_owner_input=None,
+    permission_mode_snapshot: Optional[str] = None,
 ) -> None:
     # Detach into our own process group so ``killpg`` from the parent
     # takes down every grandchild (browser, subprocess providers, ...).
@@ -953,6 +954,8 @@ def _child_entry(
             source="web",
             model_override=f"{provider}/{model}" if provider and model else None,
             render_range=render_range,
+            surface_context=surface_context_snapshot,
+            permission_mode="ask" if permission_mode_snapshot is None else permission_mode_snapshot,
             permission_rules=_permission_rules_from_snapshot(
                 permission_rules_snapshot
             ),
@@ -1241,6 +1244,7 @@ def run_agentic_in_subprocess(
     timeout_seconds: Optional[float] = None,
     model_setup_error: Optional[dict] = None,
     original_owner_input=None,
+    permission_mode_snapshot: Optional[str] = None,
 ) -> dict:
     """Run a single @agentic_function tool in a fork()'d subprocess.
 
@@ -1294,7 +1298,7 @@ def run_agentic_in_subprocess(
               render_range, usage_ctx_snapshot, sandbox_policy_snapshot,
               authority, permission_rules_snapshot, surface_context_snapshot,
               provider, model, eid, attempt_id, generation, model_setup_error,
-              original_owner_input),
+              original_owner_input, permission_mode_snapshot),
         daemon=False,
     )
     p.start()
