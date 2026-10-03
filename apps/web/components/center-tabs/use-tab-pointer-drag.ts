@@ -29,6 +29,7 @@ import { buildTransferPayload, desktopBridge } from "@/lib/desktop/desktop-bridg
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { dropWebTabResource, resourceDropTabId, resourceDropTarget } from "@/lib/tabs/tab-resource-drop";
 import { useTranslation } from "@/lib/i18n";
+import { DRAG_SURFACE_STYLE } from "@/lib/prefs/visual-effects-config";
 import {
   cancelCoordinator,
   isSplitCapacityRejection,
@@ -114,10 +115,8 @@ function updateDragPreview(drag: PointerDragState, outside: boolean) {
       maxWidth: "none", margin: "0", zIndex: "2147483647", pointerEvents: "none",
       transition: "none", opacity: "1", visibility: "visible",
       // Blur the backdrop while keeping the dragged label and controls opaque.
-      background: "color-mix(in oklch, var(--bg-tertiary) 80%, transparent)",
-      backdropFilter: "blur(16px) saturate(1.2)", color: computed.color,
+      ...DRAG_SURFACE_STYLE, color: computed.color,
       font: computed.font, boxSizing: "border-box",
-      boxShadow: "0 2px 4px rgba(0,0,0,.14), 0 12px 28px rgba(0,0,0,.24)",
     });
     document.body.append(preview);
     drag.preview = preview;

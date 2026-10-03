@@ -1,3 +1,4 @@
+import { DEFAULT_VISUAL_EFFECTS, VISUAL_EFFECTS_LIMITS, VISUAL_EFFECTS_STORAGE_KEY } from "./visual-effects-config";
 import {
   LEGACY_THEME_PREFERENCES,
   THEME_MODES,
@@ -16,6 +17,24 @@ function themeStorageGet(key) {
 }
 function themeStorageSet(key, value) {
   try { window.localStorage.setItem(key, value); } catch (_) {}
+}
+var EFFECTS_KEY = ${JSON.stringify(VISUAL_EFFECTS_STORAGE_KEY)};
+var EFFECTS_DEFAULTS = ${JSON.stringify(DEFAULT_VISUAL_EFFECTS)};
+var EFFECTS_LIMITS = ${JSON.stringify(VISUAL_EFFECTS_LIMITS)};
+function applyVisualEffectsPreference() {
+  var saved = null;
+  try { saved = JSON.parse(themeStorageGet(EFFECTS_KEY) || 'null'); } catch (_) {}
+  var effects = Object.assign({}, EFFECTS_DEFAULTS);
+  Object.keys(effects).forEach(function (key) {
+    var value = saved && typeof saved === 'object' ? saved[key] : undefined;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      effects[key] = Math.round(Math.max(EFFECTS_LIMITS[key].min, Math.min(EFFECTS_LIMITS[key].max, value)));
+    }
+  });
+  var root = document.documentElement.style;
+  root.setProperty('--drag-surface-opacity', String(100 - effects.transparency) + '%');
+  root.setProperty('--drag-backdrop-blur', String(effects.blur) + 'px');
+  root.setProperty('--drag-shadow-scale', String(effects.shadow / 100));
 }
 function normalizeAccentHex(value) {
   if (typeof value !== 'string') return null;
@@ -144,6 +163,7 @@ function applyThemePreference(source) {
   traceTheme(source, previousTheme);
 }
 applyThemePreference('bootstrap');
+applyVisualEffectsPreference();
 if (window.openprogramDesktop?.theme?.trace) {
   new MutationObserver(function (records) {
     var change = records.find(function (r) {
@@ -156,6 +176,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', fun
   if (readMode() === 'auto') applyThemePreference('system');
 });
 window.addEventListener('storage', function (event) {
+  if (event.key === EFFECTS_KEY || event.key === null) applyVisualEffectsPreference();
   if (
     event.key === 'agentic_theme_style'
     || event.key === 'agentic_theme_mode'

@@ -1,14 +1,9 @@
-/* QuestionMode / FormMode —— 输入框里的"问用户"形态。视觉与 fn-form
-   （函数参数表单）完全对齐：同一套主题变量、同一套字段/选项/按钮几何，
-   这样三种输入框变形（fn-form / question / form）读起来是一个家族。
-   参考 ../fn-form/fn-form.module.css。 */
-
-/* 顶部条 = fn-form 的 .header：锁定与底部发送行同高、带下分割线。 */
+/* Session-owned question cards: one vertical list with question / answer pairs. */
 .header {
   position: relative;
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 12px 16px;
   min-height: 48px;
   border-bottom: 1px solid var(--border);
   box-sizing: border-box;
@@ -23,30 +18,75 @@
   color: var(--text-primary);
 }
 
-/* 主体 = fn-form 的 .body：纵向 gap、与发送行间的下分割线。左右 12px 与
-   header / 函数表单内边距对齐。 */
 .body {
   display: flex;
   flex-direction: column;
-  /* 与 fn-form 的 .body 完全统一：问题/选项/输入框 是并列组件，
-     gap 12px；「上一题/下一题」就是 body 的最后一行（.actions）。 */
-  gap: 12px;
-  padding: 12px;
+  gap: 16px;
+  padding: 16px;
   box-sizing: border-box;
-  /* Wrapper height is content-sized (capped by availableComposerHeight).
-     flex + min-height:0 lets this pane take the leftover and scroll
-     when the card hits that cap. */
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
+  min-width: 0;
 }
 
-.prompt {
-  font-weight: 600;
+.questionList {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.questionItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.groupPrompt {
+  color: var(--text-primary);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.summaryPrompt,
+.summaryAnswer {
   font-family: var(--font-sans);
   font-size: var(--fs-base);
   line-height: 1.5;
-  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.summaryPrompt { color: var(--text-secondary); }
+.summaryAnswer { color: var(--text-primary); }
+
+.submissionStatus {
+  padding: 12px 16px 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.prompt {
+  font-weight: 400;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .detail {
@@ -63,20 +103,25 @@
   border: 1px solid var(--border);
 }
 
-/* 选项 = fn-form 的 .chip / .options（圆角矩形、tinted-fill、无边框）。 */
+/* Choices remain readable on separate rows, including long labels. */
 .options {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 6px;
 }
 
 .opt {
-  padding: 0 12px;
-  height: 28px;
+  padding: 5px 10px;
+  min-height: 30px;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: left;
   line-height: 1.5;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   border-radius: 6px;
   border: none;
   background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
@@ -130,8 +175,7 @@
   font-size: var(--fs-base);
 }
 
-/* 操作行 —— body 的最后一行：单步 [发送]；多步 [‹上一题, 下一题›]，
-   靠右。 */
+/* One submit action sends the complete set of answers. */
 .actions {
   display: flex;
   align-items: center;
@@ -149,7 +193,7 @@
   margin-left: auto;
 }
 
-/* 次按钮（上一题）：中性 tint 圆角矩形。 */
+/* Secondary action. */
 .navBtn {
   height: 28px;
   line-height: 1.5;
@@ -176,7 +220,7 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
-/* 主按钮（下一题 / 发送）：淡橙 tint，跟发送按钮一个调子。 */
+/* Primary action follows the existing submit accent. */
 .navBtnPrimary {
   background: color-mix(in srgb, var(--accent-orange) 16%, transparent);
   color: var(--accent-orange);
@@ -205,9 +249,9 @@
   resize: vertical;
 }
 
-/* Keep decisions anchored while the independently scrolling body grows. */
+/* Actions follow the complete question list. */
 .footer {
   flex: 0 0 auto;
-  padding: 0 12px 12px;
+  padding: 0 16px 16px;
   margin-top: auto;
 }

@@ -131,6 +131,12 @@ The floating webpage preview fills the space below its compact header, with 10px
 
 Opening `/settings` directly lands on `/settings/general`. Model credentials stay on `/settings/providers`; see [configuring models](../models/README.md).
 
+### Tab drag appearance
+
+In Settings → General, **Tab drag appearance** controls the floating preview of a dragged tab or split-pane title. Adjust Transparency from 0–100%, Background blur from 0–40px, and Shadow strength from 0–100%. Changes apply immediately; the preview shows the same settings as the actual dragged label. The defaults are 20% transparency, 16px blur, and 25% shadow strength. Restore defaults resets these three controls without changing the theme or other preferences.
+
+Preferences are saved in this browser and shared by its same-origin windows. Reloading or switching between light and dark themes preserves the values. At 0% transparency the background is opaque; 0px blur and 0% shadow disable those respective effects. These controls do not change ordinary buttons or Resources drop-target outlines.
+
 ### Conversation activity
 
 **Activity** replaces the separate Running and Debugger entries. It follows the selected conversation only when its tab, visible route and chat state agree; new tabs, unsent drafts and non-conversation pages show an empty prompt instead of the previous conversation. Opening a Program from Abilities starts a draft tab; opening its parameters does not create execution history. Activity counts conversation branches, not messages or execution attempts. Consecutive messages on one branch remain one row; a real fork creates a separate row. Select a branch to inspect its individual executions, called sub-agents and managed background programs. Programs stay under the execution that started them. A called Agent may have a separate execution conversation; only the explicitly linked execution and its descendants are included, not every task in that conversation.

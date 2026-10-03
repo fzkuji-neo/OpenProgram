@@ -10,9 +10,9 @@ A complete registered `name(parameter=literal, ...)` expression in ordinary inpu
 
 ## Decision output cards
 
-`DecisionOutputs` renders session-scoped `PendingDecision` requests in the message stream and split panes. Each keyed card reuses `QuestionMode` for `ask`, `confirm`, `ask_many`, `form` and `approval`. Answer fields and navigation are local to the card. New questions do not autofocus. Multiple questions remain independently addressable in stable presentation order.
+`DecisionOutputs` renders session-scoped `PendingDecision` requests in the message stream and split panes. Each keyed card reuses `QuestionMode` for `ask`, `confirm`, `ask_many`, `form` and `approval`. Answer fields and submission controls are local to the card. New questions do not autofocus. Multiple questions remain independently addressable in stable presentation order.
 
-Text and choice questions show their own input and submit controls. Multi-question requests collect ordered answers; forms submit field objects. Approval cards retain the available scopes, operation details and explicit allow/deny actions. Asking a question does not authorize an operation.
+Questions and form fields appear in one vertical list, with each prompt directly above its answer control. Multi-question requests display every question together, without a previous/next wizard, and submit the complete ordered answer list once. Forms submit field objects. Submitted receipts retain this question-and-answer layout, use field titles, and display readable values instead of JSON. Approval cards retain the available scopes, operation details and explicit allow/deny actions. Asking a question does not authorize an operation.
 
 Submission immediately displays the actual answer and a sending state inside the card. Only a matching applied command confirms delivery. Unknown outcomes retain the original command identifier and payload for retry, show the available error code, and never imply success. Explicit rejections reconcile the current request before another answer. A closed request is not displayed as an accepted answer. Confirmed answers and declines remain as session UI receipts; the normal composer draft is unaffected.
 

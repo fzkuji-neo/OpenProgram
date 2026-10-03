@@ -3,6 +3,7 @@
 import { useSessionStore, type PendingDecision } from "@/lib/session-store";
 import { useDecisionSubmissions, type DecisionSubmission } from "@/lib/chat/decision-submissions";
 import { useTranslation } from "@/lib/i18n";
+import { AnswerSummary } from "../composer/modes/question/answer-summary";
 import { QuestionMode } from "../composer/modes/question/question-mode";
 import { useDecisionDiscussion } from "../composer/modes/question/use-decision-discussion";
 import styles from "./decision-output.module.css";
@@ -29,22 +30,13 @@ function DecisionOutput({ decision, submission }: {
   const status = submission?.status;
   const terminal = status === "answered" || status === "declined" || status === "closed";
   const answer = submission?.command.payload.answer;
-  const answerText = typeof answer === "string" ? answer : answer === undefined
-    ? undefined : JSON.stringify(answer, null, 2);
   return (
     <section className={styles.card} data-decision-output={decision.id}
       data-decision-status={status ?? "open"} data-session-id={decision.sessionId}
       aria-label={text("User decision", "用户决定")}>
       {terminal ? (
         <div className={styles.receipt}>
-          <div className={styles.prompt}>{decision.prompt}</div>
-          {decision.questions?.map((question, index) => (
-            <div key={index}>{question.prompt}</div>
-          ))}
-          {answerText !== undefined && <div>
-            <div className={styles.label}>{text("Submitted answer", "已提交的回答")}</div>
-            <pre className={styles.answer}>{answerText}</pre>
-          </div>}
+          <AnswerSummary decision={decision} answer={answer} />
           {submission?.error && <div role="alert">{submission.error}</div>}
           <div role="status" className={styles.label}>
             {status === "answered" ? text("Answer confirmed", "回答已确认")

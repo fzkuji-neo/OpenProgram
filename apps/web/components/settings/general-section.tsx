@@ -31,6 +31,8 @@ import {
   type ThemeMode,
   type ThemeStyle,
 } from "@/lib/prefs/theme-pref";
+import { useVisualEffectsPref } from "@/lib/prefs/visual-effects-pref";
+import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from "@/lib/prefs/visual-effects-config";
 import styles from "./settings-page.module.css";
 
 const FONT_OPTIONS: FontKey[] = ["system", "inter", "serif", "mono"];
@@ -492,6 +494,12 @@ export function GeneralSection() {
   };
 
   const accentValue = accent ?? packageAccent;
+  const { effects, setEffect, resetEffects } = useVisualEffectsPref();
+  const effectControls: { key: VisualEffectKey; label: string; unit: string }[] = [
+    { key: "transparency", label: text("Transparency", "透明度"), unit: "%" },
+    { key: "blur", label: text("Background blur", "背景模糊"), unit: "px" },
+    { key: "shadow", label: text("Shadow strength", "阴影强度"), unit: "%" },
+  ];
 
   return (
     <div className={styles.page}>
@@ -638,6 +646,52 @@ export function GeneralSection() {
                   {text(
                     "Overrides the current theme package accent. Empty / reset uses that package's default.",
                     "覆盖当前主题包的强调色。留空或重置则使用该主题包的默认强调色。",
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.row + " " + styles.rowTop}>
+              <div className={styles.label}>{text("Tab drag appearance", "标签拖动外观")}</div>
+              <div className={styles.control + " " + styles.effectsControl}>
+                <div className={styles.effectsSliders}>
+                  {effectControls.map(({ key, label, unit }) => (
+                    <div className={styles.effectsSliderRow} key={key}>
+                      <label htmlFor={`visual-effect-${key}`}>{label}</label>
+                      <input
+                        id={`visual-effect-${key}`}
+                        type="range"
+                        min={VISUAL_EFFECTS_LIMITS[key].min}
+                        max={VISUAL_EFFECTS_LIMITS[key].max}
+                        step={1}
+                        value={effects[key]}
+                        aria-valuetext={`${effects[key]} ${unit}`}
+                        onChange={(event) => setEffect(key, Number(event.target.value))}
+                      />
+                      <output htmlFor={`visual-effect-${key}`}>{effects[key]}{unit}</output>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.effectsPreviewBackground} aria-hidden="true">
+                  <span className={styles.effectsPreviewBackdrop}>Aa 123 • Aa 123</span>
+                  <div className={styles.effectsPreviewTab} style={DRAG_SURFACE_STYLE}>
+                    <svg viewBox="0 0 16 16" width="16" height="16" fill="none">
+                      <rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" />
+                      <path d="M2 6h12" stroke="currentColor" />
+                    </svg>
+                    <span>{text("Dragged tab", "拖动中的标签")}</span>
+                  </div>
+                </div>
+                <div className={styles.effectsFooter}>
+                  <span className={styles.customCssHint}>{text("Preview", "预览")}</span>
+                  <Button variant="outline" size="sm" className={"text-fs-base " + styles.settingsAction} onClick={resetEffects}>
+                    {text("Restore defaults", "恢复默认")}
+                  </Button>
+                </div>
+                <div className={styles.customCssHint}>
+                  {text(
+                    "Applies immediately to floating tab and split-pane title previews. 0% transparency is opaque; 0px blur and 0% shadow disable those effects. Saved on this device.",
+                    "即时应用于拖动标签和分屏标题的预览。透明度 0% 为不透明，模糊 0px 和阴影 0% 分别关闭对应效果。保存在此设备。",
                   )}
                 </div>
               </div>

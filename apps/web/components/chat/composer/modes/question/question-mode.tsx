@@ -2,22 +2,9 @@
 
 import { approvalDisplayText, readSandboxEscalation, type SandboxEscalation } from "./approval-display-text";
 
-/**
- * QuestionMode —— 一切「问用户」的唯一组件（不再分 single / multi / form /
- * approval 几套）。所有 runtime.ask / confirm / approval / form / ask_many
- * 都归一成「一组步骤 steps」：单题就是 1 步，ask_many 是 N 步，form 是 1 步
- * （那一步渲染字段表单）。一套外壳：
- *
- *   header：标题「需要你的输入」+ 进度点 ● ○ ○ + 几分之几（哪怕只有 1 步也
- *           显示 ● 1/1，统一）。
- *   body  ：当前步的内容（选项 / 表单字段 / 批准摘要 + 选项）。
- *   底部  ：经 onAction 报给 composer 的「‹ 上一题 / 下一题 ›」一组，最后一步
- *           「下一题」变「发送」。单步时只有一颗「发送」。
- *
- * 选项一律「只选中」（可再点取消、可切换），点底部按钮才推进 / 提交。
- * 底部右侧「Chat about this」位于发送左侧，打开反馈输入框，发送后才结束等待并继续讨论。
- *
- * 设计：docs/design/ui/composer-interaction-modes.md。
+/** Questions and form fields share one vertically arranged card.
+ * All answers are submitted together through the existing acknowledged wait
+ * command. Tool approvals retain their explicit scope and operation controls.
  */
 
 import { useState } from "react";
@@ -30,7 +17,7 @@ import { useTranslation } from "@/lib/i18n";
 
 import styles from "./question-mode.module.css";
 import { useWaitAnswer } from "./use-wait-answer";
-import multi from "./multi-ask-mode.module.css";
+import { AnswerSummary } from "./answer-summary";
 import approvalStyles from "../approval/approval-mode.module.css";
 import formStyles from "./form-mode.module.css";
 
@@ -154,13 +141,10 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
     try { await onChatAbout(feedback); } finally { setDiscussionPending(false); }
   }
   const steps = toSteps(q);
-  const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>(() => steps.map(seedAnswer));
 
-  const cur = steps[idx];
-  const curAns = answers[idx];
-  const atFirst = idx === 0;
-  const atLast = idx === steps.length - 1;
+  const cur = steps[0];
+  const curAns = answers[0];
   const allAnswered = steps.every((s, i) => stepAnswered(s, answers[i]));
 
   const patch = (i: number, next: Answer) =>
@@ -217,30 +201,10 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
     void sendAnswer("execution.wait.answer", answer);
   }
 
-  // 底部按钮组：单步 → [发送]；多步 → [‹上一题, 下一题›/发送]。就是 body
-  // 的最后一行、右对齐——普通表单排法，不再上报 composer 做绝对定位。
-  const navButtons = (() => {
-    const prev = {
-      label: text("‹ Previous", "‹ 上一题"),
-      onClick: () => setIdx((i) => Math.max(0, i - 1)),
-      disabled: atFirst || answerLocked,
-      primary: false,
-    };
-    const nextOrSend = atLast
-      ? { label: answerPending ? text("Sending…", "发送中…") : answerLocked ? text("Retry", "重试") : text("Send", "发送"), onClick: submit, disabled: !answerLocked && !allAnswered, primary: true }
-      : {
-          label: text("Next ›", "下一题 ›"),
-          onClick: () => setIdx((i) => Math.min(steps.length - 1, i + 1)),
-          disabled: false,
-          primary: true,
-        };
-    return steps.length > 1 ? [prev, nextOrSend] : [nextOrSend];
-  })();
+  const submitLabel = answerPending ? text("Submitting…", "提交中…")
+    : answerLocked ? text("Retry answer", "重试回答") : text("Submit answers", "提交回答");
 
-  // Enter submits (last step) or advances (earlier steps), so the
-  // autofocused free-text input has a keyboard path at all — previously
-  // Enter did nothing and the mouse was the only way to send.
-  // Ctrl/Cmd+Enter submits outright, matching fn-form.
+  // Keep multiline answers and IME composition independent of submission.
   function onKey(e: React.KeyboardEvent) {
     if (e.key !== "Enter") return;
     // Enter commits an IME candidate (CN/JP/KR) — never treat that as send.
@@ -259,60 +223,36 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
     if (t.closest("button") && !e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
     if (e.ctrlKey || e.metaKey) {
-      if (allAnswered) submit();
+      if (allAnswered || answerLocked) submit();
       return;
     }
-    if (atLast) {
-      if (allAnswered) submit();
-    } else {
-      setIdx((i) => Math.min(steps.length - 1, i + 1));
-    }
+    if (allAnswered || answerLocked) submit();
   }
 
   if (!cur) return null;
 
   return (
     <>
-      <div className={styles.header} data-fn-form-header data-decision onKeyDown={onKey}>
-        <div className={styles.badge}>{discussionOpen ? text("Discuss this operation", "讨论这项操作") : text("Your input is needed", "需要你的输入")}</div>
-        {/* 进度点 + 几分之几 —— 哪怕只有 1 步也显示（统一）。 */}
-        {!discussionOpen && <div className={multi.progress}>
-          {steps.map((_, i) => (
-            <button
-              type="button"
-              disabled={answerLocked}
-              aria-current={i === idx ? "step" : undefined}
-              key={i}
-              className={
-                multi.dot +
-                (i === idx ? " " + multi.dotActive : "") +
-                (stepAnswered(steps[i], answers[i]) ? " " + multi.dotDone : "")
-              }
-              onClick={() => { if (!discussionOpen && !answerLocked) setIdx(i); }}
-              title={text(`Question ${i + 1}`, `第 ${i + 1} 题`)}
-            />
-          ))}
-          <span className={multi.count}>
-            {idx + 1}/{steps.length}
-          </span>
-        </div>}
-      </div>
-      {submission && <div className={styles.body} role="status" aria-live="polite" data-answer-status={submission.status}>
-        <div>{answerPending ? text("Sending answer…", "正在提交回答…") : submission.error}</div>
-        {submission.command.payload.answer !== undefined && <div className="whitespace-pre-wrap break-words">
-          {text("Your answer: ", "你的回答：")}{typeof submission.command.payload.answer === "string"
-            ? submission.command.payload.answer : JSON.stringify(submission.command.payload.answer)}
-        </div>}
+      {(cur.kind === "approval" || discussionOpen) && <div className={styles.header} data-fn-form-header data-decision onKeyDown={onKey}>
+        <div className={styles.badge}>{discussionOpen ? text("Discuss this request", "讨论这个请求") : text("Approval required", "需要批准")}</div>
+      </div>}
+      {submission && <div className={styles.submissionStatus} role="status" aria-live="polite" data-answer-status={submission.status}>
+        {answerPending ? text("Submitting answer…", "正在提交回答…") : submission.error}
       </div>}
       <div className={styles.body} data-fn-form-body onKeyDown={onKey}>
         {cur.kind === "approval" ? (
-          <StepBody step={cur} answer={curAns} onChange={(a) => patch(idx, a)} />
+          <StepBody step={cur} answer={curAns} onChange={(a) => patch(0, a)} />
         ) : discussionOpen ? (
-          <div className={styles.prompt}>{cur.prompt}</div>
+          <AnswerSummary decision={q} answer={undefined} />
+        ) : answerLocked && submission?.command.payload.answer !== undefined ? (
+          <AnswerSummary decision={q} answer={submission.command.payload.answer} />
         ) : (
-          <fieldset disabled={discussionPending || answerLocked} className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
-            <StepBody step={cur} answer={curAns} onChange={(a) => patch(idx, a)} />
-          </fieldset>
+          <div className={styles.questionList}>
+            {q.kind === "ask_many" && q.prompt && <div className={styles.groupPrompt}>{q.prompt}</div>}
+            {steps.map((step, index) => <fieldset key={index} disabled={discussionPending || answerLocked} className={styles.questionItem}>
+              <StepBody step={step} answer={answers[index]} onChange={(a) => patch(index, a)} />
+            </fieldset>)}
+          </div>
         )}
         {discussionOpen && (
           <label className={formStyles.field}>
@@ -331,20 +271,20 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
             <div className={styles.actionButtons}>
               <button type="button" className={styles.navBtn}
                 disabled={answerPending || (answerLocked && submission?.command.action !== "execution.wait.decline")}
-                onClick={() => { patch(idx, { pick: "deny" }); void sendAnswer("execution.wait.decline"); }}>
+                onClick={() => { patch(0, { pick: "deny" }); void sendAnswer("execution.wait.decline"); }}>
                 {text("Deny", "拒绝")}
               </button>
               {(["always", "always_path"] as const).filter(scope => cur.allowedScopes?.includes(scope)).map(scope => (
                 <button key={scope} type="button" className={styles.navBtn}
                   disabled={answerLocked}
-                  onClick={() => { patch(idx, { pick: scope }); void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope }); }}>
+                  onClick={() => { patch(0, { pick: scope }); void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope }); }}>
                   {scope === "always" ? text("Always allow", "始终允许") : text("Always allow this path", "始终允许此路径")}
                 </button>
               ))}
               <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
                 disabled={answerPending || (answerLocked && submission?.command.action !== "execution.wait.answer")}
                 aria-busy={answerPending}
-                onClick={() => { patch(idx, { pick: "once" }); void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope: "once" }); }}>
+                onClick={() => { patch(0, { pick: "once" }); void sendAnswer("execution.wait.answer", { answer: APPROVE_ANSWER, scope: "once" }); }}>
                 {answerPending ? text("Sending…", "提交中…") : text("Allow once", "同意")}
               </button>
             </div>
@@ -361,19 +301,13 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
               </button>
             </> : <button type="button" className={styles.navBtn} disabled={answerLocked}
               onClick={() => setDiscussionOpen(true)} title={text("Discuss before proceeding", "先讨论再继续")}>
-              {text("Chat about this", "Chat about this")}
+              {text("Discuss", "先讨论")}
             </button>}
-          {!discussionOpen && navButtons.map((b, i) => (
-            <button
-              key={i}
-              type="button"
-              className={`${styles.navBtn} ${b.primary ? styles.navBtnPrimary : ""}`}
-              onClick={b.onClick}
-              disabled={discussionPending || answerPending || b.disabled}
-            >
-              {b.label}
-            </button>
-          ))}
+          {!discussionOpen && <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
+            onClick={submit} aria-busy={answerPending}
+            disabled={discussionPending || answerPending || (!answerLocked && !allAnswered)}>
+            {submitLabel}
+          </button>}
           </div>}
         </div>
     </>
@@ -499,6 +433,7 @@ function StepBody({
               key={opt}
               type="button"
               className={styles.opt + (aa.picked.has(opt) ? " " + styles.optPicked : "")}
+              aria-pressed={aa.picked.has(opt)}
               onClick={() => toggle(opt)}
             >
               {aa.picked.has(opt) ? "✓ " : ""}{opt}
@@ -510,6 +445,7 @@ function StepBody({
         <input
           className={styles.input}
           value={aa.custom}
+          aria-label={step.prompt}
           placeholder={step.options.length
             ? text("Or type your own…", "或自己输入…")
             : text("Type your answer…", "输入你的回答…")}
@@ -519,7 +455,7 @@ function StepBody({
             const picked = !step.multi && aa.picked.size ? new Set<string>() : aa.picked;
             onChange({ picked, custom });
           }}
-                  />
+        />
       ) : null}
     </>
   );
