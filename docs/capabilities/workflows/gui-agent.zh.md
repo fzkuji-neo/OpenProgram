@@ -84,7 +84,7 @@ native `type` 对普通 input 和 textarea 保持原生填写。contenteditable 
 
 桌面观察会包含当前前台应用和截图坐标范围。如果目标应用窗口被最小化或位于另一个 macOS Space，并且经过一次有界的 Window 菜单恢复后仍不可用，运行会以 infeasible 停止，并要求用户移动或取消最小化该窗口；它不会持续创建新窗口。
 
-桌面坐标输入始终作用于当前前台 GUI。控制器取得准确的 macOS 进程和窗口目标后，`computer_use` 也可以只截取该窗口，并通过 Accessibility 执行控件支持的按压、文本赋值或滚动动作，不激活目标。一个不激活应用、不接收鼠标事件的提示层会跟随该窗口并标记当前动作，不移动系统鼠标。浏览器动作在选中的 Page 后台执行，不激活标签页、不置顶 OpenProgram 窗口，也不移动系统鼠标。根据已记录的结果，控制器可以在不同能力之间切换。
+桌面坐标输入始终作用于当前前台 GUI。控制器取得准确的 macOS 进程和窗口目标后，`computer_use` 也可以只截取该窗口，并通过 Accessibility 执行控件支持的按压、文本赋值或滚动动作，不激活目标。控制期间，目标窗口左上角显示紫色 GUI Agent 提示；成功按压控件后，小鼠标标记显示本轮操作时的目标中心。后续同一窗口步骤会恢复上一轮标记，直到下一次成功动作更新它。输入和滚动使用相应图标。提示随窗口移动，只绘于目标窗口仍可见的区域；局部遮挡不会隐藏整个提示层，完全遮挡、最小化或关闭时不显示。正常步骤结束后，提示短暂显示“本轮已结束 · 上一动作”；失败或取消立即清除。提示层不激活应用、不接收鼠标事件，也不移动系统鼠标。浏览器动作在选中的 Page 后台执行，不激活标签页、不置顶 OpenProgram 窗口，也不移动系统鼠标。根据已记录的结果，控制器可以在不同能力之间切换。
 
 所有运行共用终态字段：`status`（`succeeded`、`infeasible` 或 `failed`）、`success`、`reason_code`、`summary` 和 `handoff_instruction`。成功与否由 runner 决定，不由 conclusion 模型决定。只有 `succeeded` 的 `success` 为 true；infeasible 和 failed 一律返回 `success=false`。infeasible 还保留 blocker、标记和用户接手说明。自动能力路径还包含有序能力调用历史和耗时。
 
