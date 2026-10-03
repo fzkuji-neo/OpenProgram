@@ -19,30 +19,27 @@ def _agent_function(session_id: str, spawn_caller: Optional[str]) -> Callable:
         archive_when_done: bool = False,
     ) -> str:
         if run_in_background:
-            return "[agent error] run_in_background not supported in workflow context"
+            raise ValueError("run_in_background is not supported in workflow context")
         if to:
-            return "[agent error] to= dispatch not supported in workflow context"
+            raise ValueError("to= dispatch is not supported in workflow context")
         if archive_when_done:
-            return "[agent error] archive_when_done not supported in workflow context"
+            raise ValueError("archive_when_done is not supported in workflow context")
         if start_from != "clean":
-            return "[agent error] start_from must be 'clean' in workflow context"
+            raise ValueError("start_from must be 'clean' in workflow context")
 
-        try:
-            result = run_agent_turn(
-                session_id=session_id,
-                prompt=prompt,
-                agent_id=agent_id or "main",
-                branch_from=None,
-                label=description or "workflow agent",
-                spawn_caller=spawn_caller,
-                advance_head=False,
-                tools_override=None,
-            )
-            if result.failed:
-                raise RuntimeError(result.error or "workflow agent turn failed")
-            return result.final_text or ""
-        except Exception as exc:
-            return f"[agent error] {exc}"
+        result = run_agent_turn(
+            session_id=session_id,
+            prompt=prompt,
+            agent_id=agent_id or "main",
+            branch_from=None,
+            label=description or "workflow agent",
+            spawn_caller=spawn_caller,
+            advance_head=False,
+            tools_override=None,
+        )
+        if result.failed:
+            raise RuntimeError(result.error or "workflow agent turn failed")
+        return result.final_text or ""
 
     return agent
 

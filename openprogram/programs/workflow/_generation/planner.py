@@ -47,13 +47,9 @@ def _workflow_import_catalog() -> str:
     if not root.exists() or root.is_symlink():
         return "(none)"
     rows = []
-    for project_dir in sorted(root.iterdir()):
-        if (
-            not project_dir.is_dir()
-            or project_dir.is_symlink()
-            or project_dir.name.startswith(".")
-            or not (project_dir / ".git").exists()
-        ):
+    projects = catalog._project_directories(root)
+    for project_dir in projects:
+        if sum(path.name == project_dir.name for path in projects) != 1:
             continue
         try:
             candidate, revision = repository._checkout_head(project_dir)
@@ -228,7 +224,7 @@ def _request_project_candidate(
             if (
                 require_new_name
                 and entrypoint
-                and (catalog._workflow_projects_root() / entrypoint).exists()
+                and catalog._project_directory(entrypoint).exists()
             ):
                 raise InvalidWorkflow(f"workflow project already exists: {entrypoint}")
             repository._resolve_workflow_dependencies(
@@ -272,7 +268,7 @@ def _request_valid_source(
         )
     )
     candidate = source
-    while True:
+    for attempt in range(1, prompts.PROJECT_AUTHOR_ATTEMPTS + 1):
         try:
             reply = _run_planner_turn(
                 session_id,
@@ -290,6 +286,11 @@ def _request_valid_source(
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
             state["last_error"] = error
+            if attempt == prompts.PROJECT_AUTHOR_ATTEMPTS:
+                raise InvalidWorkflow(
+                    "workflow source author failed after "
+                    f"{prompts.PROJECT_AUTHOR_ATTEMPTS} attempts: {error}"
+                ) from exc
             if "reply" in locals() and not candidate:
                 candidate = reply
             prompt = prompts._rewrite_prompt(task, candidate, state, error, functions)

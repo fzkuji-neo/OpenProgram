@@ -46,8 +46,10 @@ def _read_workflow_dependencies(
     data = tomllib.loads(content)
     tool = data.get("tool", {}).get("openprogram", {})
     raw = tool.get("workflow-dependencies")
-    if not isinstance(raw, dict):
+    if raw is None:
         return {}
+    if not isinstance(raw, dict):
+        raise InvalidWorkflow("workflow dependency pins must be a table")
     dependencies: dict[str, str] = {}
     for name, value in raw.items():
         project_id = catalog._safe_project_id(str(name))
@@ -224,6 +226,36 @@ def _resolve_workflow_dependencies(
                             f"workflow dependency {dependency} is unavailable: {exc}"
                         ) from exc
                     revision = index["active_revision"]
+                dependency_dir = catalog._project_directory(dependency)
+                if pinned_snapshot is not None:
+                    snapshot_package = pinned_snapshot / "workflows" / dependency
+                else:
+                    snapshot_package = None
+                if snapshot_package is not None and snapshot_package.exists():
+                    data = tomllib.loads(
+                        (snapshot_package / "pyproject.toml").read_text(encoding="utf-8")
+                    )
+                    declared = data.get("tool", {}).get("openprogram", {}).get(
+                        "workflow-dependencies", {}
+                    )
+                else:
+                    declared = _read_workflow_dependencies(dependency_dir, revision)
+                if not isinstance(declared, dict):
+                    raise InvalidWorkflow("invalid workflow dependency pins")
+                for child, child_revision in declared.items():
+                    catalog._safe_project_id(child)
+                    if not re.fullmatch(r"[0-9a-f]{40}", str(child_revision)):
+                        raise InvalidWorkflow("invalid pinned workflow dependency revision")
+                    existing = pins.get(child)
+                    if existing is not None and str(existing) != str(child_revision):
+                        raise InvalidWorkflow(
+                            f"conflicting workflow dependency revisions for {child}"
+                        )
+                    if child in resolved and resolved[child][1] != str(child_revision):
+                        raise InvalidWorkflow(
+                            f"conflicting workflow dependency revisions for {child}"
+                        )
+                    pins[child] = str(child_revision)
                 if (
                     dependency_candidate["project_metadata"].get("entrypoint")
                     != dependency
@@ -260,10 +292,28 @@ def _replace_snapshot(
     )
     try:
         _write_candidate_directory(staging, candidate)
+        all_pins = {
+            name: revision for name, (_dependency, revision) in dependencies.items()
+        }
+        entrypoint = str(candidate["project_metadata"].get("entrypoint") or "")
+        if entrypoint:
+            atomic_write_text(
+                staging / "workflows" / entrypoint / "pyproject.toml",
+                catalog._project_pyproject(
+                    entrypoint, candidate["project_metadata"],
+                    workflow_dependencies=all_pins,
+                ),
+            )
         for name, (dependency, _revision) in dependencies.items():
             package = staging / "workflows" / name
             package.mkdir()
-            _write_repository_candidate(package, name, dependency)
+            _write_repository_candidate(
+                package, name, dependency,
+                workflow_dependencies={
+                    child: revision for child, revision in all_pins.items()
+                    if child != name
+                },
+            )
             _read_repository_candidate(
                 package,
                 expected_project_id=name,
@@ -451,6 +501,7 @@ def _publish_snapshot(
     action: str,
     metadata: dict,
     workflow_dependencies: Optional[dict[str, str]] = None,
+    expected_revision: str = "",
 ) -> tuple[str, str]:
     root = catalog._workflow_projects_root()
     if root.is_symlink():
@@ -506,7 +557,11 @@ def _publish_snapshot(
                 if staging.exists():
                     shutil.rmtree(staging)
         else:
-            catalog._read_project_index(project_dir)
+            current = catalog._read_project_index(project_dir)
+            if expected_revision and current["active_revision"] != expected_revision:
+                raise InvalidWorkflow(
+                    "workflow project changed during revision; regenerate from its current revision"
+                )
             if _git(project_dir, "status", "--porcelain"):
                 raise InvalidWorkflow("workflow project has uncommitted changes")
             worktree = Path(tempfile.mkdtemp(prefix=f".{project_id}-", dir=root))
@@ -558,7 +613,9 @@ def _publish_snapshot(
     return project_id, head
 
 
-def _publish_candidate(candidate: dict, *, project_id: str, action: str) -> dict:
+def _publish_candidate(
+    candidate: dict, *, project_id: str, action: str, expected_revision: str = ""
+) -> dict:
     """Snapshot a validated candidate in a scratch dir and atomically publish."""
     with tempfile.TemporaryDirectory(
         prefix="openprogram-workflow-author-",
@@ -571,6 +628,10 @@ def _publish_candidate(candidate: dict, *, project_id: str, action: str) -> dict
             active_revision = catalog._read_project_index(project_dir)[
                 "active_revision"
             ]
+            if expected_revision and active_revision != expected_revision:
+                raise InvalidWorkflow(
+                    "workflow project changed during revision; regenerate from its current revision"
+                )
             base_candidate, _ = _checkout_revision(project_dir, active_revision)
             if _candidates_equal(candidate, base_candidate):
                 raise InvalidWorkflow("revision unchanged")
@@ -583,5 +644,6 @@ def _publish_candidate(candidate: dict, *, project_id: str, action: str) -> dict
             action=action,
             metadata=candidate["project_metadata"],
             workflow_dependencies=workflow_dependencies,
+            expected_revision=expected_revision,
         )
     return {"workflow_id": published_id, "revision": revision}

@@ -39,4 +39,5 @@ def revise_workflow(workflow_id: str, request: str) -> dict:
         candidate,
         project_id=index["project_id"],
         action="revise",
+        expected_revision=index["active_revision"],
     )

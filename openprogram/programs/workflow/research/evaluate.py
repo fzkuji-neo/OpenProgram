@@ -66,6 +66,9 @@ def compete(
         dict with: winner_index, winner_output, winner_name,
                    scores, reasoning, all_candidates
     """
+    if not functions:
+        raise ValueError("At least one candidate function is required")
+    outputs = []
     runtime_token = _current_runtime.set(exec_runtime)
     try:
         if len(functions) == 1:
@@ -83,6 +86,7 @@ def compete(
         candidates = []
         for fn in functions:
             output = fn(**kwargs)
+            outputs.append(output)
             candidates.append({"name": fn.__name__, "output": str(output)})
     finally:
         _current_runtime.reset(runtime_token)
@@ -94,17 +98,17 @@ def compete(
     finally:
         _current_runtime.reset(runtime_token)
 
-    try:
-        result = parse_json(reply)
-    except ValueError:
-        result = {"winner": 1, "scores": [5] * len(candidates), "reasoning": reply[:200]}
-
-    idx = result.get("winner", 1) - 1
-    idx = max(0, min(idx, len(candidates) - 1))
+    result = reply if isinstance(reply, dict) else parse_json(reply)
+    if not isinstance(result, dict):
+        raise ValueError("Candidate evaluation must return an object")
+    winner = result.get("winner")
+    if type(winner) is not int or not 1 <= winner <= len(candidates):
+        raise ValueError("Candidate evaluation returned an invalid winner")
+    idx = winner - 1
 
     return {
         "winner_index": idx,
-        "winner_output": candidates[idx]["output"],
+        "winner_output": outputs[idx],
         "winner_name": candidates[idx]["name"],
         "scores": result.get("scores", []),
         "reasoning": result.get("reasoning", ""),

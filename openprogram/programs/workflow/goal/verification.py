@@ -249,6 +249,8 @@ def finish(store, execution, goal, request) -> None:
     problem = None
     report = None
     try:
+        if source is None:
+            raise ValueError("Verifier execution input is missing")
         require_candidate(sid, request, execution_id=execution.execution_id)
         problem = blockers(store, sid, execution.execution_id, goal)
         user_inputs = {row["id"]: digest(message_snapshot(row)) for row in goals._db().get_branch(sid)

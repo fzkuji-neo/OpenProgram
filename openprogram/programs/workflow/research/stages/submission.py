@@ -12,6 +12,7 @@ import os
 from openprogram.agentic_programming import llm
 from openprogram.agentic_programming.function import _current_runtime, agentic_function
 from openprogram.agentic_programming.runtime import Runtime
+from .._paths import expanded_project_dir, read_artifact, write_artifact
 
 
 @agentic_function(render_range={"depth": 0, "siblings": 0})
@@ -33,7 +34,7 @@ def check_submission(paper_content: str, venue: str) -> str:
        - Title and abstract match submission system
 
     3. References:
-       - All from Google Scholar (not DBLP or other sources)
+       - Verify against publisher or official paper metadata
        - Published versions preferred over arXiv
        - No duplicate citations (arXiv + published of same paper)
        - Recent baselines (within 2 years)
@@ -58,7 +59,9 @@ def check_submission(paper_content: str, venue: str) -> str:
        - No hidden files (.git) with author info
 
     Output: Checklist with [PASS]/[FAIL]/[WARN] for each item.
-    Flag critical issues that could cause desk rejection.
+    Flag critical issues that could cause desk rejection. Checks requiring
+    rendered PDFs, metadata, external venue rules, or repository inspection
+    must be marked WARN/unverified unless the input supplies that evidence.
     """
     return llm([
         {"type": "text", "text": (
@@ -83,28 +86,28 @@ def run_submission_check(
     Returns:
         dict with checklist results.
     """
-    project_dir = os.path.expanduser(project_dir)
+    project_dir = str(expanded_project_dir(project_dir))
     paper_dir = os.path.join(project_dir, "paper")
 
     # Read paper
     parts = []
     for fname in sorted(os.listdir(paper_dir)):
         if fname.endswith(".tex"):
-            with open(os.path.join(paper_dir, fname), "r") as f:
-                parts.append(f.read())
+            parts.append(read_artifact(os.path.join(paper_dir, fname)))
     paper_content = "\n\n".join(parts)
+    if not paper_content.strip():
+        raise ValueError("No paper source is available for submission checks")
 
     runtime_token = _current_runtime.set(runtime)
     try:
         result = check_submission(
-            paper_content=paper_content[:15000],
+            paper_content=paper_content,
             venue=venue,
         )
     finally:
         _current_runtime.reset(runtime_token)
 
     # Save report
-    with open(os.path.join(project_dir, "SUBMISSION_CHECKLIST.md"), "w") as f:
-        f.write(f"# Submission Checklist — {venue}\n\n{result}")
+    write_artifact(os.path.join(project_dir, "SUBMISSION_CHECKLIST.md"), f"# Submission Checklist — {venue}\n\n{result}")
 
     return {"checklist": result}

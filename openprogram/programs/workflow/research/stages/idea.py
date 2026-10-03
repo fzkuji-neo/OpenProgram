@@ -13,6 +13,7 @@ from openprogram.agentic_programming import llm
 from openprogram.agentic_programming.function import _current_runtime, agentic_function
 from openprogram.agentic_programming.runtime import Runtime
 from openprogram.programs.workflow.research._paths import (
+    expanded_project_dir, read_artifact, write_artifact,
     find_project_artifact,
     writable_project_dir,
 )
@@ -49,21 +50,24 @@ def generate_ideas(topic: str, gaps: str) -> str:
 def check_novelty(idea: str) -> str:
     """Check if a research idea is novel.
 
-    Search your knowledge for existing work that:
+    Use retrieved source records to identify existing work that:
     - Solves the same problem with the same approach
     - Uses a very similar method on the same task
     - Has already been published at a top venue
 
     Be honest: if the idea is incremental, say so.
-    If truly novel, explain what makes it different from closest work.
+    If no source evidence establishes novelty, mark confidence low and novelty
+    unverified. A bounded search does not establish that no prior work exists.
 
     Output JSON:
     {"novel": true/false, "confidence": 0.0-1.0,
      "closest_work": "description of most similar existing work",
      "differentiation": "what makes this idea different"}
     """
+    from .literature import retrieve_sources
+    sources = retrieve_sources(idea[:1000])
     return llm([
-        {"type": "text", "text": idea},
+        {"type": "text", "text": f"Idea:\n{idea}\n\nRetrieved sources:\n{sources}"},
     ])
 
 
@@ -104,7 +108,7 @@ def run_idea(
     Returns:
         dict with ideas, novelty checks, and ranking.
     """
-    project_dir = os.path.expanduser(project_dir)
+    project_dir = str(expanded_project_dir(project_dir))
 
     # Read gaps from literature stage
     gaps_path = find_project_artifact(
@@ -114,12 +118,11 @@ def run_idea(
         "synthesis/gaps.md",
     )
     if gaps_path is not None:
-        with open(gaps_path, "r") as f:
-            gaps = f.read()
+        gaps = read_artifact(gaps_path)
     else:
         import warnings
         warnings.warn(
-            "Gaps file not found in the project directory or its deliverables mirror. "
+            "Gaps file not found in the project directory. "
             "Run the 'literature' stage first for better results.",
             stacklevel=2,
         )
@@ -139,11 +142,11 @@ def run_idea(
 
     # Save
     output_dir = writable_project_dir(project_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    with open(output_dir / "IDEA_REPORT.md", "w") as f:
-        f.write(f"# Idea Report: {topic}\n\n")
-        f.write(f"## Generated Ideas\n{ideas}\n\n")
-        f.write(f"## Novelty Assessment\n{novelty}\n\n")
-        f.write(f"## Ranking\n{ranking}\n")
+    write_artifact(output_dir / "IDEA_REPORT.md", (
+        f"# Idea Report: {topic}\n\n"
+        f"## Generated Ideas\n{ideas}\n\n"
+        f"## Novelty Assessment\n{novelty}\n\n"
+        f"## Ranking\n{ranking}\n"
+    ))
 
     return {"ideas": ideas, "novelty": novelty, "ranking": ranking}

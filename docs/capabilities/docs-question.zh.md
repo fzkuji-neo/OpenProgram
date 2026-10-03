@@ -1,6 +1,6 @@
 # 询问 OpenProgram 自身
 
-"OpenProgram 能不能做 X""怎么配 Y"这类问题，这份文档站本来就有答案；模型凭着对别的 agent 产品的印象回答，正是错误答案的来源。`run_docs_question` 靠读这些页面来回答：它派一个只读的 agent，工作范围锁在仓库的 `docs/` 目录内，并报出答案来自哪几页。
+"OpenProgram 能不能做 X""怎么配 Y"这类问题，这份文档站本来就有答案；模型凭着对别的 agent 产品的印象回答，正是错误答案的来源。`run_docs_question` 靠读这些页面来回答：它使用只读工具运行一个 agent，prompt 将查询范围限定为仓库的 `docs/` 目录，并报出答案来自哪几页。
 
 在 Functions 面板里以 `run_docs_question` 运行，或从 Python 调用：
 
@@ -36,10 +36,12 @@ result = run_docs_question("能让一个会话一直做到条件成立吗？")
 {"answer": "…", "sources": ["capabilities/goal.md"], "covered": True}
 ```
 
-`sources` 是相对 `docs/` 的路径，按引用顺序去重。指向不存在页面的引用会被丢掉，所以编出来的页名不会作为出处递到你手上。`covered` 为 `false` 时，`sources` 装的是 agent 找到的最接近的相关页，而不是回答了问题的页。
+`sources` 是相对 `docs/` 的路径，按引用顺序去重。不存在、不是 Markdown 页面或解析后位于文档目录之外的引用会被丢掉，所以编出来的页名不会作为出处递到你手上。`covered=true` 的回答必须至少包含一个有效页面引用，否则 Workflow 报错。`covered` 为 `false` 时，`sources` 装的是 agent 找到的最接近的相关页，而不是回答了问题的页。
 
 空问题在派 agent 之前就被拒掉；agent 的回复无法表达成这个结构时直接报错，而不是返回半个答案。
 
 ## 答案的来源
 
 [概览](README.zh.md)以及本站其他 Tab 下的全部内容。答案不对，要修的是它引的那一页：这个函数报的是文档，它不读代码。
+
+在运行中的 Python Workflow 内调用时使用现有 Runtime，不启动另一个会话执行器。

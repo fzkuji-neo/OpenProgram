@@ -48,9 +48,10 @@ class EvidenceGate:
 
     def __init__(self, task, audience):
         from openprogram.programs.tools.knowledge.read_conversation import read_conversation
-        # A complete request may assign different weeks to different audiences.
-        # Only a standalone ISO input has a mechanical, audience-independent meaning.
-        self.explicit_week = task.strip() if re.fullmatch(r'\d{4}-W\d{2}', task.strip()) else None
+        # A unique explicit ISO week also applies inside a natural-language task.
+        # Multiple audiences with different periods still require semantic resolution.
+        weeks = set(re.findall(r'(?<![A-Za-z0-9_-])\d{4}-W\d{2}(?![A-Za-z0-9_-])', task))
+        self.explicit_week = next(iter(weeks)) if len(weeks) == 1 else None
         self.week = self.explicit_week or datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%G-W%V')
         from datetime import date
         date.fromisocalendar(int(self.week[:4]), int(self.week[6:]), 1)
@@ -149,14 +150,20 @@ class EvidenceGate:
             await checkpoint()
             return None if receipt.is_error else receipt
 
-        listing = await invoke('list_agents', {'scope': 'all', 'limit': 20})
+        listing = await invoke('list_agents', {'scope': 'all', 'limit': 100})
         if listing is None or _text(listing).startswith('[list_agents error]'):
             return
         # Addresses must be both visible in the real listing and actual branch metadata.
         db = default_db()
         listed = set(re.findall(r'^  - to=([\w-]+):([\w-]+)(?:\s|$)', _text(listing), re.M))
         groups = []
-        for session in db.list_sessions(limit=20):
+        sessions = db.list_sessions(limit=100)
+        # Keep discovery bounded, but prefer titled projects mentioned by the task
+        # over the first ten unrelated conversations most recently opened.
+        terms = set(re.findall(r'[A-Za-z][A-Za-z0-9_]{2,}|[\u4e00-\u9fff]{2,}', self.task.lower()))
+        sessions.sort(key=lambda session: sum(term in str(session.get('title') or '').lower()
+                                              for term in terms), reverse=True)
+        for session in sessions:
             sid = session['id']
             heads = deque((sid, branch['head_msg_id']) for branch in db.list_branches(sid)
                 if not branch.get('archived') and (sid, branch['head_msg_id']) in listed)
@@ -206,6 +213,10 @@ class EvidenceGate:
         try:
             day = datetime.fromtimestamp(float(node['timestamp']), ZoneInfo('Asia/Shanghai'))
         except (KeyError, TypeError, ValueError, OverflowError, OSError):
+            return
+        # Other weeks must not exhaust the context budget before relevant receipts.
+        # With multiple explicit periods, the model still resolves the audience week.
+        if not current_owner and self.explicit_week and day.strftime('%G-W%V') != self.week:
             return
         source = 'conversation:' + sid + '#' + str(node['id'])
         metadata = raw.metadata if raw is not None else node

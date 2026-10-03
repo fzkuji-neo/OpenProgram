@@ -70,7 +70,7 @@ def _title_of(path: Path) -> str:
             for line in fh:
                 if line.startswith("#"):
                     return line.lstrip("#").strip()
-    except OSError:
+    except (OSError, UnicodeError):
         return ""
     return ""
 
@@ -90,7 +90,15 @@ def list_pages(root: Optional[Path] = None) -> list[tuple[str, str]]:
         rel = path.relative_to(root)
         if rel.parts[0] in _NOT_PAGES or rel.name.endswith(".zh.md"):
             continue
+        try:
+            path.resolve().relative_to(root.resolve())
+        except (ValueError, OSError):
+            continue
+        if not path.is_file():
+            continue
         rows.append((rel.as_posix(), _title_of(path)))
+        if len(rows) >= MAX_LISTED_PAGES:
+            break
     return rows[:MAX_LISTED_PAGES]
 
 
@@ -102,14 +110,17 @@ def normalize_source(raw: str, root: Optional[Path] = None) -> str:
     All of those mean the same page, so they are folded to the one form
     the caller gets. Returns "" for anything that does not land inside
     ``docs/`` — a citation that is not a docs page is not a source."""
-    text = (raw or "").strip().strip("`").split("#", 1)[0].strip()
+    if not isinstance(raw, str):
+        return ""
+    text = raw.strip().strip("`").split("#", 1)[0].strip()
     if not text:
         return ""
     root = root or docs_root()
     candidate = Path(text)
     if candidate.is_absolute():
         try:
-            return candidate.resolve().relative_to(root.resolve()).as_posix()
+            rel = candidate.resolve().relative_to(root.resolve())
+            return rel.as_posix() if candidate.is_file() and rel.suffix == ".md" else ""
         except (ValueError, OSError):
             # Not a real filesystem path under docs/: the agent wrote a
             # site-style path rooted at the docs tree. Fall through and
@@ -120,8 +131,13 @@ def normalize_source(raw: str, root: Optional[Path] = None) -> str:
         posix = posix[len("docs/"):]
     if not posix or ".." in Path(posix).parts:
         return ""
-    # A citation only counts when it names a page that exists.
-    return posix if (root / posix).is_file() else ""
+    # Resolve symlinks before accepting a docs-relative citation.
+    candidate = root / posix
+    try:
+        candidate.resolve().relative_to(root.resolve())
+    except (ValueError, OSError):
+        return ""
+    return posix if candidate.is_file() and candidate.suffix == ".md" else ""
 
 
 def _prompt(question: str, root: Path) -> str:
@@ -140,6 +156,12 @@ def _run_docs_turn(session_id: str, prompt: str, *, agent_id: str,
                    spawn_caller: Optional[str]) -> str:
     """One read-only documentation-reading turn. Module-level so tests
     stub it."""
+    from openprogram.agentic_programming.function import _current_runtime
+    if _current_runtime.get(None) is not None or not session_id:
+        from openprogram.agentic_programming.agent import agent
+        from openprogram.programs import agent_tools
+        return agent(prompt=prompt, tools=agent_tools(names=list(DOCS_TOOLS)),
+                     execution_kind="docs_question")
     from openprogram.agent.sub_agent_run import run_agent_turn
     res = run_agent_turn(
         session_id=session_id,
@@ -171,20 +193,28 @@ def _parse_answer(raw: str, root: Optional[Path] = None) -> dict:
     data = parse_json(raw or "")
     if not isinstance(data, dict) or not isinstance(data.get("covered"), bool):
         raise ValueError("docs question reply was not valid JSON")
-    answer = str(data.get("answer") or "").strip()
+    answer = data.get("answer")
+    if not isinstance(answer, str):
+        raise ValueError("docs question answer must be text")
+    answer = answer.strip()
     if not answer:
         raise ValueError("docs question reply carried no answer text")
     sources: list[str] = []
-    for item in (data.get("sources") or []):
+    raw_sources = data.get("sources", [])
+    if not isinstance(raw_sources, list):
+        raise ValueError("docs question sources must be an array")
+    for item in raw_sources:
         if not isinstance(item, str):
             continue
         rel = normalize_source(item, root)
         if rel and rel not in sources:
             sources.append(rel)
-    return {"answer": answer, "sources": sources, "covered": bool(data["covered"])}
+    if data["covered"] and not sources:
+        raise ValueError("A covered documentation answer must cite an existing page")
+    return {"answer": answer, "sources": sources, "covered": data["covered"]}
 
 
-@agentic_function(input={
+@agentic_function(render_range={"callers": 0, "subcalls": 0}, input={
     "question": {"description": "A question about OpenProgram itself",
                  "multiline": True},
     "session_id": {"hidden": True},

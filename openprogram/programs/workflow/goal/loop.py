@@ -106,8 +106,8 @@ def next_work_prompt(
     elif user_declined:
         text = (
             f"{prompt}\n\n[goal] 用户未回答上一个问题"
-            f"（{reason or '需要一个决定'}）。自行选择最合理方案继续，"
-            "在结果中写清你的决定与理由。"
+            f"（{reason or '需要一个决定'}）。不要把未回答视为授权，"
+            "也不要猜测或执行依赖该回答的事项。继续完成不依赖回答的工作。"
         )
     else:
         text = (

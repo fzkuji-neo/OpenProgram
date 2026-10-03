@@ -156,6 +156,9 @@ def collect(week, report_roots=None, query="腾讯工作 周报 本周进展"):
     Reads original source JSON; execution checkpoints and derived exports are not evidence.
     Directory and byte limits bound discovery; symlinks are never traversed.
     """
+    if not isinstance(week, str) or not re.fullmatch(r"\d{4}-W\d{2}", week):
+        raise ValueError("Expected week YYYY-Www")
+    date.fromisocalendar(int(week[:4]), int(week[6:]), 1)
     roots = ["reports"] if report_roots is None else report_roots
     if not isinstance(roots, list) or not 1 <= len(roots) <= 5 or any(not isinstance(p, str) for p in roots):
         raise ValueError("report_roots must contain 1–5 paths")
@@ -175,6 +178,7 @@ def collect(week, report_roots=None, query="腾讯工作 周报 本周进展"):
             try:
                 with os.scandir(directory) as listing:
                     entries = [Path(entry.path) for entry in islice(listing, 200 - scanned)]
+                entries.sort(key=lambda path: (week not in path.name, path.name))
             except OSError as exc:
                 warnings.append(str(exc))
                 continue
@@ -254,7 +258,7 @@ def collect(week, report_roots=None, query="腾讯工作 周报 本周进展"):
         cost = len(json.dumps(item, ensure_ascii=False).encode())
         if size + cost > 18000 or len(bounded) >= 30:
             warnings.append("Additional source records exceed this run's context budget")
-            break
+            continue
         bounded.append(item)
         size += cost
     return {"materials": bounded if certain else [],

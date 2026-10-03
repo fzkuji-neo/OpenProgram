@@ -53,19 +53,15 @@ def _run_refine_turn(session_id: str, prompt: str, *, agent_id: str,
 
 def _parse_refinement(raw: str) -> tuple[str, list[str]]:
     """``(spec, checklist)`` from a refinement reply."""
-    try:
-        data = parse_json(raw or "")
-        if isinstance(data, dict) and isinstance(data.get("spec"), str) \
-                and data["spec"].strip():
-            items = [it.strip() for it in (data.get("checklist") or [])
-                     if isinstance(it, str) and it.strip()]
-            return data["spec"].strip(), items[:20]
-    except ValueError:
-        pass
-    text = (raw or "").strip()
-    if len(text) >= 200:
-        return text, []
-    raise ValueError("goal refinement reply had no valid spec")
+    data = parse_json(raw or "")
+    spec = data.get("spec")
+    checklist = data.get("checklist")
+    if not isinstance(spec, str) or not spec.strip():
+        raise ValueError("goal refinement reply had no valid spec")
+    if not isinstance(checklist, list) or any(
+            not isinstance(item, str) or not item.strip() for item in checklist):
+        raise ValueError("goal refinement checklist must be an array of nonempty strings")
+    return spec.strip(), [item.strip() for item in checklist]
 
 
 def refine_goal_spec_candidate(goal_text: str, session_id: str = "", *,

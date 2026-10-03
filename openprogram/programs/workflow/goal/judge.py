@@ -48,7 +48,7 @@ def _format_rows(rows: list[dict]) -> list[str]:
         content = _clip(m.get("content"), 2000)
         parts.append(f"[{role}] {content}" if content else f"[{role}]")
         for blk in _message_blocks(m):
-            if blk.get("type") != "tool":
+            if not isinstance(blk, dict) or blk.get("type") != "tool":
                 continue
             status = "FAILED: " if blk.get("is_error") else ""
             result = _clip(blk.get("result"), 600)
@@ -148,8 +148,14 @@ def _parse_decision(raw: str, checklist_len: int = 0) -> dict:
         "met", "unmet", "blocked", "impossible", "waiting_external", "needs_user",
     }:
         raise ValueError("goal decision reply was not valid JSON")
+    for field in ("need_user", "can_continue"):
+        if field in data and not isinstance(data[field], bool):
+            raise ValueError(f"goal decision {field} must be a boolean")
+    raw_options = data.get("options", [])
+    if not isinstance(raw_options, list):
+        raise ValueError("goal decision options must be an array")
     options: list[dict] = []
-    for opt in (data.get("options") or [])[:4]:
+    for opt in raw_options[:4]:
         if isinstance(opt, str) and opt.strip():
             options.append({"label": opt.strip(), "description": ""})
         elif isinstance(opt, dict) and str(opt.get("label") or "").strip():
@@ -163,13 +169,19 @@ def _parse_decision(raw: str, checklist_len: int = 0) -> dict:
             and len(flags) == checklist_len
             and all(isinstance(f, bool) for f in flags)):
         checklist = list(flags)
+    elif checklist_len:
+        raise ValueError("goal decision must assess the complete current checklist")
+    if verdict == "met" and checklist is not None and not all(checklist):
+        raise ValueError("goal decision cannot be met with unfinished checklist items")
+    if verdict == "needs_user" and not str(data.get("question") or "").strip():
+        raise ValueError("goal decision needs_user must include a question")
     return {
         "verdict": verdict,
         "met": verdict == "met",
         "reason": str(data.get("reason") or ""),
-        "need_user": bool(data.get("need_user")),
+        "need_user": data.get("need_user", False) or verdict == "needs_user",
         "question": str(data.get("question") or ""),
-        "can_continue": bool(data.get("can_continue")),
+        "can_continue": data.get("can_continue", False),
         "options": options,
         "checklist": checklist,
     }
@@ -388,7 +400,7 @@ def evaluate_goal(
                 return "unmet", reason, "", [], False
             return "met", data["reason"], "", [], False
         question = str(data.get("question") or "").strip()
-        if verdict == "needs_user" and question:
+        if (verdict == "needs_user" or data.get("need_user")) and question:
             return (
                 "needs_user",
                 str(data.get("reason") or ""),

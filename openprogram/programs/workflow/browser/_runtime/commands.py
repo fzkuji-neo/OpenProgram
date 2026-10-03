@@ -8,11 +8,13 @@ state = import_module("..", __package__)
 
 def _run_browser_task_commands(
     *, task: str, backend: str,
-    max_steps: int | None, max_seconds: float | None, runtime,
+    max_steps: int | None, max_seconds: float | None, runtime, url: str = "",
 ) -> dict:
     """Optional GUI Agent Harness over the same public command contract."""
     if runtime is None:
         raise ValueError("browser_agent requires a runtime argument")
+    if not (task or "").strip():
+        raise ValueError("task must not be empty")
     from openprogram.agent import surface_context
     from ..web_use_runtime import get_registry
 
@@ -36,6 +38,12 @@ def _run_browser_task_commands(
             "backend": backend,
         }
 
+    if url and not state._is_http_url(url):
+        return page_unavailable(
+            "Initial URL must use http or https.",
+            reason_code="unsupported_url",
+        )
+
     context = surface_context.current()
     captured_here = context is None
     if context is None:
@@ -45,7 +53,7 @@ def _run_browser_task_commands(
             context = surface_context.window_context()
     release_context_on_exit = captured_here
     auto_opened_context: dict[str, state.Any] | None = None
-    initial_url = ""
+    initial_url = url or ""
 
     def release_captured_context() -> None:
         nonlocal release_context_on_exit
@@ -174,7 +182,7 @@ def _run_browser_task_commands(
             or ""
         )
         opened = surface_context.open_page(
-            state.DEFAULT_GUI_BROWSER_START_URL,
+            initial_url or state.DEFAULT_GUI_BROWSER_START_URL,
             window_id=requested_window_id,
             background=True,
         )
@@ -196,7 +204,7 @@ def _run_browser_task_commands(
         context = opened
         release_context_on_exit = True
         owner_id = "harness:" + str(context.get("context_id") or "unknown")
-        initial_url = state.DEFAULT_GUI_BROWSER_START_URL
+        initial_url = initial_url or state.DEFAULT_GUI_BROWSER_START_URL
         auto_opened_context = context
     if not page_inventory and not surface_context.tool_enabled(context):
         close_failure = close_auto_opened_page()
@@ -279,6 +287,8 @@ def _run_browser_task_commands(
             ), None)
             if not page_context_token:
                 result = {"ok": False, "reason_code": "page_context_required"}
+            elif selected_page is None:
+                result = {"ok": False, "reason_code": "page_context_not_found"}
             else:
                 next_observation = registry.execute(
                     command="observe", backend=backend, owner_id=owner_id,
@@ -301,11 +311,12 @@ def _run_browser_task_commands(
                             and (page.get("window_id"), page.get("tab_id"))
                             == bound_page_identity
                         )
-                    registry.execute(
-                        command="close",
-                        web_session_id=previous_session_id,
-                        owner_id=owner_id,
-                    )
+                    if previous_session_id != next_session_id:
+                        registry.execute(
+                            command="close",
+                            web_session_id=previous_session_id,
+                            owner_id=owner_id,
+                        )
                     result = {
                         "ok": True,
                         "switched": True,
@@ -335,7 +346,19 @@ def _run_browser_task_commands(
             "Act on the exact Page observation. Use DOM/ARIA refs by default. "
             "Use screenshot only when refs cannot identify a visual target."
         ),
-        parameters=state._GUI_TOOL_PARAMETERS,
+        parameters={
+            **state._GUI_TOOL_PARAMETERS,
+            "properties": {
+                **state._GUI_TOOL_PARAMETERS["properties"],
+                "action": {
+                    **state._GUI_TOOL_PARAMETERS["properties"]["action"],
+                    "enum": [
+                        action for action in state._GUI_TOOL_PARAMETERS["properties"]["action"]["enum"]
+                        if action != "observe"
+                    ],
+                },
+            },
+        },
         register_globally=False,
     )(dispatch)
     if max_seconds is not None and float(max_seconds) > 0:
@@ -429,11 +452,21 @@ def _run_browser_task_commands(
                 })
             missed_tool_calls = 0
             result = last["result"]
-            if last["action"] == "verify" and isinstance(result, dict) and result.get("passed"):
+            if (
+                last["action"] == "verify"
+                and isinstance(result, dict)
+                and result.get("ok") is not False
+                and result.get("passed") is True
+            ):
                 return finish({
                     "status": "succeeded", "reason_code": "verified",
                     "summary": summary or "Browser task completed and verified.",
                     "backend": backend, "web_session_id": session_id,
+                    "target": observed.get("target") or {},
+                    "completion_evidence": (
+                        [dict(result["evidence"])]
+                        if isinstance(result.get("evidence"), dict) else []
+                    ),
                 })
             if last["action"] == "screenshot":
                 pending_screenshot_result = result

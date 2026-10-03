@@ -184,7 +184,7 @@ class BrowserPageController:
             secrets = password_values(page)
             value = capture()
             return redact_password_values(value, secrets + password_values(page))
-        return self._owner.submit(redact).result()
+        return self._owner.submit(state.copy_context().run, redact).result()
 
     def set_agent_cursor_armed(self, armed: bool) -> None:
         """Show feedback only for pointer events emitted by one Agent click."""
@@ -248,8 +248,12 @@ class BrowserPageController:
     def pointer_scale(self) -> float | None:
         return self._owner.submit(self._pointer_scale).result()
 
-    def hover_external_ref(self, attribute: str, frame_id: str) -> dict:
-        return self._owner.submit(self._hover_external_ref, attribute, frame_id).result()
+    def hover_external_ref(self, attribute: str, frame_id: str, *, before_dispatch=None) -> dict:
+        return self._owner.submit(
+            state.copy_context().run,
+            self._hover_external_ref, attribute, frame_id,
+            before_dispatch=before_dispatch,
+        ).result()
 
     def clear_external_ref(self, attribute: str) -> None:
         def clear():
@@ -260,7 +264,7 @@ class BrowserPageController:
                     )
         self._owner.submit(clear).result()
 
-    def _hover_external_ref(self, attribute: str, frame_id: str) -> dict:
+    def _hover_external_ref(self, attribute: str, frame_id: str, *, before_dispatch=None) -> dict:
         page = self._page()
         targets = [frame.locator(f"[{attribute}]") for frame in page.frames]
         try:
@@ -272,10 +276,14 @@ class BrowserPageController:
             if len(matches) != 1 or scale is None:
                 return self._invalidate_frame()
             target = matches[0]
+            if before_dispatch is not None:
+                before_dispatch()
             target.scroll_into_view_if_needed()
             bounds = target.bounding_box()
             if not bounds:
                 return self._invalidate_frame()
+            if before_dispatch is not None:
+                before_dispatch()
             page.mouse.move((bounds["x"] + bounds["width"] / 2) * scale,
                             (bounds["y"] + bounds["height"] / 2) * scale)
             return self._mutated("hovered external reference")

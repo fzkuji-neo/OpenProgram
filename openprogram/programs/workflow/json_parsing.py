@@ -15,17 +15,25 @@ import re
 
 def parse_json(text: str) -> dict:
     """Extract the first JSON object from text, handling markdown fences."""
+    if not isinstance(text, str):
+        raise ValueError("JSON response must be text")
     # Try direct parse
     try:
-        return json.loads(text)
-    except (json.JSONDecodeError, TypeError):
+        value = json.loads(text)
+        if isinstance(value, dict):
+            return value
+        # A valid scalar/array is not the object requested by the caller.
+        raise ValueError("JSON response must contain an object")
+    except json.JSONDecodeError:
         pass
 
     # Try markdown-fenced JSON
-    match = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", text, re.DOTALL)
-    if match:
+    for match in re.finditer(r"```(?:json)?\s*\n?(.*?)\n?\s*```", text,
+                             re.DOTALL | re.IGNORECASE):
         try:
-            return json.loads(match.group(1))
+            value = json.loads(match.group(1))
+            if isinstance(value, dict):
+                return value
         except json.JSONDecodeError:
             pass
 
@@ -38,37 +46,16 @@ def parse_json(text: str) -> dict:
 
 
 def _extract_first_json_object(text: str) -> dict | None:
-    """Find the first valid JSON object in text by bracket balancing.
-
-    More reliable than regex — handles nested braces correctly.
-    """
+    """Decode object candidates with JSON's own string/escape rules."""
+    decoder = json.JSONDecoder()
     start = text.find("{")
     while start != -1:
-        depth = 0
-        in_string = False
-        escape = False
-        for i in range(start, len(text)):
-            c = text[i]
-            if escape:
-                escape = False
-                continue
-            if c == "\\":
-                escape = True
-                continue
-            if c == '"' and not escape:
-                in_string = not in_string
-                continue
-            if in_string:
-                continue
-            if c == "{":
-                depth += 1
-            elif c == "}":
-                depth -= 1
-                if depth == 0:
-                    try:
-                        return json.loads(text[start:i + 1])
-                    except json.JSONDecodeError:
-                        break  # This { didn't work, try next one
+        try:
+            value, _ = decoder.raw_decode(text, start)
+            if isinstance(value, dict):
+                return value
+        except json.JSONDecodeError:
+            pass
         start = text.find("{", start + 1)
     return None
 

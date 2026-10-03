@@ -104,7 +104,7 @@ def _recover_web_use_page(failure: dict, *, backend: str):
     owner_id = surface_context.web_use_owner_id(surface_context.current())
     tab_id, window_id = failure.get("recovery_tab_id"), failure.get("recovery_window_id")
     if tab_id and window_id:
-        context = surface_context.capture_pages()
+        context = surface_context.capture_pages(surface_context.current())
         if not isinstance(context, dict) or not context.get("context_id"):
             return failure
         try:
