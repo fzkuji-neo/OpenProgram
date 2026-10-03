@@ -28,8 +28,9 @@ def search_workflows(task: str) -> dict:
     matches: list[tuple[int, dict]] = []
     root = catalog._workflow_projects_root()
     if root.exists() and not root.is_symlink():
-        for project_dir in sorted(root.iterdir()):
-            if not project_dir.is_dir() or project_dir.name.startswith("."):
+        projects = catalog._project_directories(root)
+        for project_dir in projects:
+            if sum(path.name == project_dir.name for path in projects) != 1:
                 continue
             try:
                 row = catalog._read_project_index(project_dir)

@@ -156,24 +156,13 @@ def _apply_goal_action(session_id: str, action: str, **values) -> dict:
         goal["last_reason"] = "Role settings saved; models will be validated on resume."
         _goal.save_goal(session_id, goal)
     elif action == "budget":
+        from .goal import _positive_int, _positive_float
         budget = dict(goal.get("budget") or {})
         for key in ("max_turns", "max_tokens", "max_elapsed_s", "max_cost_usd"):
             if key in values:
                 raw = values[key]
-                if raw in (None, "", 0, 0.0):
-                    budget[key] = None
-                    continue
-                try:
-                    parsed = (
-                        float(raw)
-                        if key in {"max_elapsed_s", "max_cost_usd"}
-                        else int(raw)
-                    )
-                except (TypeError, ValueError) as exc:
-                    raise ValueError(f"{key} must be a positive number or zero") from exc
-                if not math.isfinite(float(parsed)) or parsed < 0:
-                    raise ValueError(f"{key} must be a positive number or zero")
-                budget[key] = parsed or None
+                parse = _positive_float if key in {"max_elapsed_s", "max_cost_usd"} else _positive_int
+                budget[key] = parse(raw, name=key)
         goal["budget"] = budget
         goal["max_turns"] = budget.get("max_turns")
         _goal.save_goal(session_id, goal)

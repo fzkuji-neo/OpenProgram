@@ -289,6 +289,13 @@ def _validate_project_candidate(
         except SyntaxError as exc:
             detail = "".join(traceback.format_exception_only(type(exc), exc)).strip()
             raise InvalidWorkflow(detail) from exc
+        for nested in ast.walk(tree):
+            if isinstance(nested, ast.Import):
+                raise InvalidWorkflow("workflow packages may not use import statements")
+            if isinstance(nested, ast.ImportFrom) and nested not in tree.body:
+                raise InvalidWorkflow("workflow package imports must be at module top level")
+            if isinstance(nested, ast.ClassDef):
+                raise InvalidWorkflow("workflow package classes are forbidden")
         for node in tree.body:
             if (
                 isinstance(node, ast.Expr)

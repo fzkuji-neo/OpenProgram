@@ -30,7 +30,7 @@ answer = ask_user("Who wrote this report?")
 
 `runtime.ask(prompt, options=None, multi=False, allow_custom=True, timeout=300.0, default=None)` returns an answer, raises `UserDeclined`, or raises `AskTimeout` when no timeout default is supplied. `runtime.confirm` and `runtime.form` share the question transport. Cancellation raises the execution cancellation exception.
 
-`ask_user` retains its global CLI handler and TTY fallback. In a runtime with a question transport it calls `runtime.ask`; an explicit decline or timeout maps to `None` for compatibility. Unexpected runtime, persistence and transport errors propagate. Headless calls without a handler or usable runtime still return `None`.
+`ask_user` retains its global CLI handler and TTY fallback. A `run_with_follow_up` handler is scoped to the execution context and inherits that context in its background thread; it does not replace the frontend handler or capture another concurrent Workflow's question. Each `FollowUp` accepts one answer, and a repeated answer fails immediately. In a runtime with a question transport it calls `runtime.ask`; an explicit decline or timeout maps to `None` for compatibility. Unexpected runtime, persistence and transport errors propagate. Headless calls without a handler or usable runtime still return `None`.
 
 ## Live Workflow ownership
 

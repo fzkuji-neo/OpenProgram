@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 
 from openprogram.agentic_programming import agentic_function, llm
+from .._paths import expanded_project_dir, read_artifact
 
 
 # ---------------------------------------------------------------------------
@@ -28,6 +29,8 @@ def write_section(section: str, project_context: str) -> str:
     Rules:
     - Start each subsection with WHY (motivation), then HOW (what you did).
     - Every claim needs evidence from experiments or citations.
+    - Plans and expectations are not completed experiments. Do not invent
+      measurements, citations, datasets, or implementation status.
     - Use continuous paragraphs, never bullet lists or \\item.
     - Introduction: background → problem → existing gaps → our approach → contributions.
       Only describe model advantages, NO technical details (save for Method).
@@ -50,33 +53,30 @@ def write_section(section: str, project_context: str) -> str:
 
 def gather_context(project_dir: str, section: str) -> str:
     """Gather context from project directory for writing a section."""
-    project_dir = os.path.expanduser(project_dir)
+    project_dir = str(expanded_project_dir(project_dir))
     parts = []
 
-    # Outline
-    outline_path = os.path.join(project_dir, "outline", "outline.md")
-    if os.path.exists(outline_path):
-        with open(outline_path, "r") as f:
-            parts.append(f"## Outline\n{f.read()[:3000]}")
-
-    # Section-specific notes (text files only)
-    _TEXT_EXTS = {".md", ".txt", ".tex", ".csv", ".json", ".py", ".bib", ".yaml", ".yml"}
-    section_dir = os.path.join(project_dir, section)
-    if os.path.isdir(section_dir):
-        for fname in sorted(os.listdir(section_dir)):
-            if fname.startswith(".") or fname == "README.md":
+    for rel_path in ("outline/outline.md", "IDEA_REPORT.md", "related_work/survey.md", "related_work/gaps.md"):
+        path = os.path.join(project_dir, rel_path)
+        if os.path.isfile(path):
+            parts.append(f"## Source: {rel_path}\n{read_artifact(path)}")
+    text_exts = {".md", ".txt", ".tex", ".csv", ".json", ".py", ".bib", ".yaml", ".yml"}
+    source_dirs = [section, "experiments"]
+    if section == "related_work":
+        source_dirs.append("related_work")
+    for source_dir in dict.fromkeys(source_dirs):
+        directory = os.path.join(project_dir, source_dir)
+        if not os.path.isdir(directory):
+            continue
+        for name in sorted(os.listdir(directory)):
+            path = os.path.join(directory, name)
+            if name.startswith(".") or name == "README.md" or os.path.splitext(name)[1] not in text_exts:
                 continue
-            if not any(fname.endswith(ext) for ext in _TEXT_EXTS):
-                continue
-            fpath = os.path.join(section_dir, fname)
-            if os.path.isfile(fpath):
-                try:
-                    with open(fpath, "r") as f:
-                        parts.append(f"## Notes: {fname}\n{f.read()[:2000]}")
-                except (UnicodeDecodeError, IOError):
-                    pass
-
-    return "\n\n".join(parts) if parts else "No context available yet."
+            if os.path.isfile(path):
+                parts.append(f"## Source: {source_dir}/{name}\n{read_artifact(path)}")
+    if not parts:
+        raise ValueError(f"No project evidence is available for section {section}")
+    return "\n\n".join(parts)
 
 
 # ---------------------------------------------------------------------------

@@ -32,6 +32,13 @@ def _structured(result: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _is_error(result: Any) -> bool:
+    return bool(
+        getattr(result, "isError", False)
+        or getattr(result, "is_error", False)
+    )
+
+
 class _SyncMCPClient:
     """Keep the async MCP supervisor alive on one private event loop."""
 
@@ -82,6 +89,8 @@ class _SyncMCPClient:
 
 
 class OfficialMCPPageBackend:
+    supports_operation_guard = True
+
     def __init__(
         self,
         name: str,
@@ -195,15 +204,20 @@ class OfficialMCPPageBackend:
                 return page_id
         return None
 
-    def observe(self, session, arguments: Mapping[str, Any]):
+    def observe(self, session, arguments: Mapping[str, Any], *, before_dispatch=None):
         controller = self._controller(session)
-        identity = controller.execute(action="observe")
+        identity = controller.execute(
+            action="observe",
+            **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}),
+        )
         if not isinstance(identity, dict) or "frame_id" not in identity:
             return identity
         target = identity.get("target") if isinstance(identity.get("target"), dict) else {}
         session.state["target_id"] = str(target.get("target_id") or "")
         client = self._ensure_bound(session)
         def capture():
+            if before_dispatch is not None:
+                before_dispatch()
             if self.name == "playwright_mcp":
                 upstream = client.call("browser_snapshot", {})
             else:
@@ -211,6 +225,8 @@ class OfficialMCPPageBackend:
                     "take_snapshot",
                     {"pageId": session.state["upstream_page"]},
                 )
+            if _is_error(upstream):
+                raise RuntimeError("backend_observation_failed")
             return _result_text(upstream)
         upstream_text = controller.capture_observation(capture)
         session.state["frame_id"] = identity["frame_id"]
@@ -290,13 +306,15 @@ class OfficialMCPPageBackend:
             return None
         return mapping[action]
 
-    def act(self, session, arguments: Mapping[str, Any]):
+    def act(self, session, arguments: Mapping[str, Any], *, before_dispatch=None):
         controller = self._controller(session)
         frame_id = str(arguments.get("expected_frame_id") or "")
         action = str(arguments.get("action") or "")
-        if action == "screenshot":
+        if action in {"screenshot", "wait"}:
             return controller.execute(
-                action="screenshot", expected_frame_id=frame_id,
+                action=action, expected_frame_id=frame_id,
+                **({"amount": arguments["amount"]} if action == "wait" and "amount" in arguments else {}),
+                **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}),
             )
         rejected = controller.prepare_external_action(arguments)
         if rejected is not None:
@@ -338,6 +356,8 @@ class OfficialMCPPageBackend:
             with suppress(Exception):
                 set_cursor(True)
         try:
+            if before_dispatch is not None:
+                before_dispatch()
             result = client.call(call[0], call[1])
         except Exception:
             if hover_attribute is not None:
@@ -348,11 +368,7 @@ class OfficialMCPPageBackend:
             if cursor_armed:
                 with suppress(Exception):
                     set_cursor(False)
-        is_error = bool(
-            getattr(result, "isError", False)
-            or getattr(result, "is_error", False)
-        )
-        if is_error:
+        if _is_error(result):
             if hover_attribute is not None:
                 with suppress(Exception):
                     controller.clear_external_ref(hover_attribute)
@@ -364,24 +380,32 @@ class OfficialMCPPageBackend:
                 "observe_required": True,
             }
         if hover_attribute is not None:
-            return controller.hover_external_ref(hover_attribute, frame_id)
+            return controller.hover_external_ref(
+                hover_attribute, frame_id,
+                **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}),
+            )
         mutation = controller.record_external_mutation(f"{self.name}:{action}")
         return {
             **mutation,
             "result": _result_text(result),
         }
 
-    def verify(self, session, arguments: Mapping[str, Any]):
+    def verify(self, session, arguments: Mapping[str, Any], *, before_dispatch=None):
         params = dict(arguments)
         params["action"] = "verify"
-        return self._controller(session).execute(**params)
+        return self._controller(session).execute(
+            **params,
+            **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}),
+        )
 
     def close(self, session) -> None:
         client = session.state.pop("mcp_client", None)
-        if client is not None:
-            client.close()
-        if session.controller is not None:
-            session.controller.close()
+        try:
+            if client is not None:
+                client.close()
+        finally:
+            if session.controller is not None:
+                session.controller.close()
 
 
 __all__ = ["OfficialMCPPageBackend"]

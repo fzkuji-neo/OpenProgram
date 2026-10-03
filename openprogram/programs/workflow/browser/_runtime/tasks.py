@@ -24,7 +24,6 @@ def _run_browser_task(
     controller.binding_id = binding_id
     controller.max_steps = max(1, min(int(max_steps), 100))
     result: dict
-    turn_request_token = None
     pending_screenshot_result: state.Any = None
     try:
         if url and not state._is_http_url(url):
@@ -34,19 +33,6 @@ def _run_browser_task(
             )
         else:
             # deferred browser tool loop; runtime owns restricted AgentTool execution
-            if binding_id:
-                from dataclasses import replace
-                from openprogram.agent.turn_request_context import (
-                    get_turn_request,
-                    set_turn_request,
-                )
-
-                outer_request = get_turn_request()
-                if outer_request is not None:
-                    turn_request_token = set_turn_request(replace(
-                        outer_request,
-                        permission_mode="bypass",
-                    ))
             call_limit = min(controller.max_steps * 3 + 3, 303)
             deadline = state.time.monotonic() + max(1, min(int(max_seconds), 1800))
             last_summary = ""
@@ -206,9 +192,6 @@ def _run_browser_task(
                     if hasattr(controller, "_planner_screenshot_result"):
                         controller._planner_screenshot_result = None
         finally:
-            if turn_request_token is not None:
-                from openprogram.agent.turn_request_context import reset_turn_request
-                reset_turn_request(turn_request_token)
             cleanup_error = controller.close()
     if cleanup_error:
         result["cleanup_error"] = cleanup_error

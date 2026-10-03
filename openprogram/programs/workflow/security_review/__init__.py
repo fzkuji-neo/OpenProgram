@@ -38,12 +38,9 @@ from openprogram.programs.workflow.json_parsing import parse_json
 
 _log = logging.getLogger(__name__)
 
-# Read-only. A reviewer that can write is a reviewer that can "fix"
-# what it thinks it found, and a security opinion is worth nothing if
-# producing it changed the thing under review. bash is included for
-# `git show`/`git log` style inspection and is used at the agent's
-# discretion; no edit, write, apply_patch, or task.
-REVIEW_TOOLS = ("read", "grep", "glob", "list", "bash")
+# The complete Git diff is supplied by the caller. Surrounding source
+# inspection needs file tools, not a shell capable of modifying it.
+REVIEW_TOOLS = ("read", "grep", "glob", "list")
 
 SEVERITIES = ("critical", "high", "medium", "low")
 
@@ -74,7 +71,7 @@ def _git(args: list[str], cwd: Optional[str]) -> tuple[int, str]:
     )
     if proc.returncode != 0:
         _log.debug("git %s failed: %s", " ".join(args), proc.stderr.strip())
-    return proc.returncode, proc.stdout.strip()
+    return proc.returncode, proc.stdout if "-z" in args else proc.stdout.strip()
 
 
 def resolve_base(cwd: Optional[str] = None) -> str:
@@ -131,19 +128,29 @@ def collect_diff(base: str, cwd: Optional[str] = None) -> tuple[str, list[str]]:
     Ignored files are left out, so build output and vendored trees do
     not enter the review.
     """
-    _, diff = _git(["diff", "--no-color", base, "--"], cwd)
-    _, names = _git(["diff", "--name-only", base, "--"], cwd)
-    files = [f for f in names.splitlines() if f.strip()]
+    code, commit = _git(["rev-parse", "--verify", "--end-of-options", f"{base}^{{commit}}"], cwd)
+    if code != 0 or not commit:
+        raise NoBaselineError("The security review baseline is not an existing commit")
+    code, diff = _git(["diff", "--no-color", "--no-ext-diff", "--no-textconv", commit, "--"], cwd)
+    if code != 0:
+        raise RuntimeError("Could not collect the security review diff")
+    code, names = _git(["diff", "--name-only", "-z", commit, "--"], cwd)
+    if code != 0:
+        raise RuntimeError("Could not enumerate files in the security review diff")
+    files = [path for path in names.split("\0") if path]
 
-    _, untracked = _git(
-        ["ls-files", "--others", "--exclude-standard"], cwd)
-    for path in untracked.splitlines():
-        path = path.strip()
+    code, untracked = _git(
+        ["ls-files", "-z", "--others", "--exclude-standard"], cwd)
+    if code != 0:
+        raise RuntimeError("Could not enumerate untracked security review files")
+    for path in untracked.split("\0"):
         if not path:
             continue
         # --no-index exits 1 when the files differ, which is always.
-        _, added = _git(
-            ["diff", "--no-color", "--no-index", "--", os.devnull, path], cwd)
+        code, added = _git(
+            ["diff", "--no-color", "--no-ext-diff", "--no-textconv", "--no-index", "--", os.devnull, path], cwd)
+        if code not in (0, 1):
+            raise RuntimeError(f"Could not collect the security review diff for {path!r}")
         if added:
             diff = f"{diff}\n{added}" if diff else added
             files.append(path)
@@ -172,6 +179,12 @@ def clip_diff(diff: str) -> str:
 def _run_review_turn(session_id: str, prompt: str, *, agent_id: str,
                      spawn_caller: Optional[str]) -> str:
     """One read-only review turn. Module-level so tests stub it."""
+    from openprogram.agentic_programming.function import _current_runtime
+    if _current_runtime.get(None) is not None or not session_id:
+        from openprogram.agentic_programming.agent import agent
+        from openprogram.programs import agent_tools
+        return agent(prompt=prompt, tools=agent_tools(names=list(REVIEW_TOOLS)),
+                     execution_kind="security_review")
     from openprogram.agent.sub_agent_run import run_agent_turn
     res = run_agent_turn(
         session_id=session_id,
@@ -347,7 +360,7 @@ def review_diff(base: str, diff: str, files: list[str], session_id: str = "",
 # run_security_review — the entry point
 # ---------------------------------------------------------------------------
 
-@agentic_function(input={
+@agentic_function(render_range={"callers": 0}, input={
     "base": {"description": "Commit or branch to review against "
                             "(empty: pick the branch's baseline automatically)"},
     "session_id": {"hidden": True},

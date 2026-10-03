@@ -156,3 +156,5 @@ Programs whose bodies do not call a model can execute without a configured model
 Direct tool runs also need an explicit provider and model for internal model calls. An omitted or incomplete selection does not use global provider detection or a provider's default model.
 
 When run from a chat, internal GUI and Workflow model calls inherit the turn's provider and model selection. A per-turn override takes priority over the session selection, followed by the agent profile. The selected provider and model also apply to tool subprocesses. Provider authentication must still be valid for that selected model; setup failures retain the selected model's error instead of silently using another provider.
+
+Browser workflows retain an explicit initial URL when a backend is selected. Official MCP backends support guarded waits and propagate snapshot failures. Page recovery stays within the current window scope and does not replay the failed action. A verified result retains its actual evidence and observed target.

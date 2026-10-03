@@ -8,12 +8,14 @@ blind spots. The loop: review → fix → re-review → until pass.
 from __future__ import annotations
 
 import os
-import time
+import re
+import math
 from typing import Optional
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.function import _current_runtime, agentic_function
+from openprogram.agentic_programming.function import _current_runtime, agentic_function, check_cancelled
 from openprogram.agentic_programming.runtime import Runtime
+from .._paths import expanded_project_dir, read_artifact, write_artifact
 from openprogram.programs.workflow.json_parsing import parse_json
 
 
@@ -61,7 +63,10 @@ def fix_paper(paper_content: str, review_feedback: str,
     Rewrite actual paragraphs — don't just describe what should change.
     Maintain LaTeX formatting.
 
-    Output the COMPLETE fixed paper content.
+    Output the COMPLETE fixed paper content. Preserve every file boundary
+    marker exactly as "% === filename.tex ==="; include all original files
+    once, with no markdown fences or added files. Never invent experiment
+    results or citations to satisfy review feedback.
     """
     return llm([
         {"type": "text", "text": (
@@ -74,12 +79,13 @@ def fix_paper(paper_content: str, review_feedback: str,
 
 def _read_paper(paper_dir: str) -> str:
     """Read all .tex files from paper directory."""
-    paper_dir = os.path.expanduser(paper_dir)
+    paper_dir = str(expanded_project_dir(paper_dir))
     parts = []
     for fname in sorted(os.listdir(paper_dir)):
         if fname.endswith(".tex"):
-            with open(os.path.join(paper_dir, fname), "r") as f:
-                parts.append(f"% === {fname} ===\n{f.read()}")
+            parts.append(f"% === {fname} ===\n{read_artifact(os.path.join(paper_dir, fname))}")
+    if not parts or not any(part.partition("\n")[2].strip() for part in parts):
+        raise ValueError("No paper source is available for review")
     return "\n\n".join(parts)
 
 
@@ -94,8 +100,7 @@ def _save_review_log(log_path: str, rounds: list):
             for w in r["weaknesses"]:
                 lines.append(f"- Weakness: {w}")
         lines.append("")
-    with open(log_path, "w") as f:
-        f.write("\n".join(lines))
+    write_artifact(log_path, "\n".join(lines))
 
 
 def review_loop(
@@ -126,66 +131,73 @@ def review_loop(
     if review_runtime is None:
         review_runtime = exec_runtime
 
-    paper_dir = os.path.expanduser(paper_dir)
+    paper_dir = str(expanded_project_dir(paper_dir))
     paper_content = _read_paper(paper_dir)
     log_path = os.path.join(os.path.dirname(paper_dir), "AUTO_REVIEW.md")
     reviews = []
 
-    from openprogram.providers.registry import create_runtime
+    if type(max_rounds) is not int or max_rounds < 1:
+        raise ValueError("max_rounds must be a positive integer")
+    if isinstance(pass_threshold, bool) or not isinstance(pass_threshold, (int, float)) or not 1 <= pass_threshold <= 10:
+        raise ValueError("pass_threshold must be between 1 and 10")
+    names = sorted(name for name in os.listdir(paper_dir) if name.endswith(".tex"))
+    marker = re.compile(r"^% === ([^\r\n]+\.tex) ===[ \t]*$", re.MULTILINE)
 
     for round_num in range(1, max_rounds + 1):
-        # Review phase — fresh runtime each round
-        with create_runtime(model=review_runtime.model) as round_review_rt:
-            truncated = paper_content[:15000]
-            if len(paper_content) > 15000:
-                import warnings
-                warnings.warn(
-                    f"Paper content truncated from {len(paper_content)} to 15000 chars for review",
-                    stacklevel=2,
-                )
-            runtime_token = _current_runtime.set(round_review_rt)
-            try:
-                reply = review_paper(
-                    paper_content=truncated,
-                    venue=venue,
-                )
-            finally:
-                _current_runtime.reset(runtime_token)
-
+        check_cancelled()
+        # Preserve caller provider configuration, credentials and working context.
+        runtime_token = _current_runtime.set(review_runtime)
         try:
-            review = parse_json(reply)
-        except ValueError:
-            review = {"score": 0, "passed": False, "weaknesses": [],
-                      "strengths": [], "parse_error": reply[:500]}
+            reply = review_paper(paper_content=paper_content, venue=venue)
+        finally:
+            _current_runtime.reset(runtime_token)
+        review = reply if isinstance(reply, dict) else parse_json(reply)
+        if not isinstance(review, dict):
+            raise ValueError("Paper review must return an object")
+        score = review.get("score")
+        if isinstance(score, bool) or not isinstance(score, (int, float)) or not math.isfinite(score) or not 1 <= score <= 10:
+            raise ValueError("Paper review score must be a finite number between 1 and 10")
+        review["passed"] = score >= pass_threshold
         review["round"] = round_num
         review["full_review"] = reply
         reviews.append(review)
         _save_review_log(log_path, reviews)
-
         if callback and callback({"type": "review", **review}) is False:
             break
-
-        if review.get("score", 0) >= pass_threshold:
+        if review["passed"]:
             return {"passed": True, "rounds": round_num,
-                    "final_score": review["score"], "reviews": reviews}
-
-        # Fix phase — fresh runtime each round
-        with create_runtime(model=exec_runtime.model) as round_exec_rt:
-            runtime_token = _current_runtime.set(round_exec_rt)
-            try:
-                paper_content = fix_paper(
-                    paper_content=paper_content[:15000],
-                    review_feedback=reply[:5000],
-                    round_num=round_num,
-                )
-            finally:
-                _current_runtime.reset(runtime_token)
-
-        if callback:
-            callback({"type": "fix", "round": round_num})
+                    "final_score": score, "reviews": reviews}
+        # Do not generate an unreviewed fix after the final allowed review.
+        if round_num == max_rounds:
+            break
+        runtime_token = _current_runtime.set(exec_runtime)
+        try:
+            fixed = fix_paper(paper_content=paper_content, review_feedback=reply if isinstance(reply, str) else str(reply), round_num=round_num)
+        finally:
+            _current_runtime.reset(runtime_token)
+        if not isinstance(fixed, str):
+            raise ValueError("Paper repair must return complete text")
+        matches = list(marker.finditer(fixed))
+        if sorted(match.group(1) for match in matches) != names or len(matches) != len(names):
+            raise ValueError("Paper repair must preserve every original file boundary exactly once")
+        if fixed[:matches[0].start()].strip():
+            raise ValueError("Paper repair includes text outside file boundaries")
+        files = {}
+        for index, match in enumerate(matches):
+            end = matches[index + 1].start() if index + 1 < len(matches) else len(fixed)
+            content = fixed[match.end():end].strip()
+            if not content or "```" in content:
+                raise ValueError("Paper repair contains empty or fenced file content")
+            files[match.group(1)] = content + "\n"
+        check_cancelled()
+        for name, content in files.items():
+            write_artifact(os.path.join(paper_dir, name), content)
+        paper_content = _read_paper(paper_dir)
+        if callback and callback({"type": "fix", "round": round_num}) is False:
+            break
 
     return {
-        "passed": False, "rounds": max_rounds,
+        "passed": False, "rounds": len(reviews),
         "final_score": reviews[-1].get("score", 0) if reviews else 0,
         "reviews": reviews,
     }

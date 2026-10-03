@@ -48,7 +48,7 @@ The diff is a window rather than the whole program, so the reviewer reads the su
 
 ## Read-only by construction
 
-The review agent gets `read`, `grep`, `glob`, `list` and `bash` — no `write`, `edit`, `apply_patch`, or agent spawning. A reviewer that can write is a reviewer that can "fix" what it thinks it found, and a security opinion is worth nothing if producing it changed the thing under review. Fixes come back as recommendations for you to apply.
+The review agent gets `read`, `grep`, `glob` and `list` — no `write`, `edit`, `apply_patch`, or agent spawning. A reviewer that can write is a reviewer that can "fix" what it thinks it found, and a security opinion is worth nothing if producing it changed the thing under review. Fixes come back as recommendations for you to apply.
 
 ## What it returns
 
@@ -79,3 +79,5 @@ An empty `findings` list is a normal result and means the change looks clean. Th
 ## Compared to a code review
 
 This is a security review, not a code review: style, missing tests, and design opinions are out of scope, and so is any weakness the branch did not touch. Use it as the last pass before proposing a change, alongside whatever review your team already runs.
+
+The baseline must resolve to an existing commit. A Git collection failure reports an error instead of returning no findings. Diff collection disables external diff commands and text-conversion drivers. Within a running Python Workflow, the inspection agent uses the current Runtime.

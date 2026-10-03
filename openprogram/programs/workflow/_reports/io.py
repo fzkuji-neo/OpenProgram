@@ -25,7 +25,10 @@ def decode_object(value: str, max_bytes: int = 300_000) -> dict:
             result[key] = item
         return result
 
-    result = json.loads(value, object_pairs_hook=unique)
+    def invalid_constant(value):
+        raise ValueError("Non-finite JSON number: " + value)
+
+    result = json.loads(value, object_pairs_hook=unique, parse_constant=invalid_constant)
     if not isinstance(result, dict):
         raise ValueError("Report input must be a JSON object")
     return result
@@ -38,7 +41,7 @@ def model_object(value) -> dict:
 
 def encode(value) -> str:
     """Serialize Workflow state and model context without evaluating input."""
-    return json.dumps(value, ensure_ascii=False, indent=2)
+    return json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False)
 
 
 def save_report(
@@ -52,6 +55,8 @@ def save_report(
     """Save a unique draft directory through the existing checked write tool."""
     if not re.fullmatch(r"\d{4}-W(?:0[1-9]|[1-4]\d|5[0-3])", week):
         raise ValueError("Expected week YYYY-Www")
+    from datetime import date
+    date.fromisocalendar(int(week[:4]), int(week[6:]), 1)
     resolved, _ = resolve_path(output_dir or "reports/group-weekly")
     target = Path(resolved).absolute() / week / uuid.uuid4().hex
     # Do not mkdir before the public file tool has checked write permission.
@@ -107,6 +112,8 @@ def load_checkpoint(path: str) -> dict:
     """Read bounded state using current read policy; snapshots are untrusted input."""
     from openprogram.sandbox import validate_read_path
 
+    resolved, _ = resolve_path(path)
+    path = str(Path(resolved).absolute())
     violation = validate_read_path(path)
     if violation:
         raise OSError("sandbox policy: " + violation)

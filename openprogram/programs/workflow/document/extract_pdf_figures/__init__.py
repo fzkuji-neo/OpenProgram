@@ -27,11 +27,13 @@ pixel-to-point coordinate map.
 from __future__ import annotations
 
 import json
+import math
 import re
 import tempfile
 from pathlib import Path
 
 from openprogram.agentic_programming import agentic_function, llm
+from ..pdf_layout import _parse_page_spec, _readable_pdf
 
 # Page-preview resolution shown to the model, and the (higher) crop
 # resolution used for the saved figure PNGs.
@@ -63,14 +65,7 @@ _PROMPT = (
 
 
 def _parse_pages(spec: str, n_pages: int) -> tuple[int, int]:
-    spec = (spec or "").strip()
-    if not spec:
-        return (1, n_pages)
-    if "-" in spec:
-        lo, _, hi = spec.partition("-")
-        return (int(lo or 1), int(hi or n_pages))
-    p = int(spec)
-    return (p, p)
+    return _parse_page_spec(spec, n_pages)
 
 
 def _parse_json_array(reply: str) -> list[dict]:
@@ -81,12 +76,25 @@ def _parse_json_array(reply: str) -> list[dict]:
         text = re.sub(r"\n?```$", "", text).strip()
     start, end = text.find("["), text.rfind("]")
     if start == -1 or end == -1 or end < start:
-        return []
+        raise ValueError("Figure detection did not return a JSON array")
     try:
         data = json.loads(text[start : end + 1])
-    except json.JSONDecodeError:
-        return []
-    return [d for d in data if isinstance(d, dict)] if isinstance(data, list) else []
+    except json.JSONDecodeError as exc:
+        raise ValueError("Figure detection returned invalid JSON") from exc
+    if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
+        raise ValueError("Figure detection must return an array of objects")
+    return data
+
+
+def _bbox(raw, *, scale: float) -> tuple[float, float, float, float]:
+    if not isinstance(raw, list) or len(raw) != 4:
+        raise ValueError("Figure bounding boxes must contain four numbers")
+    if any(isinstance(value, bool) or not isinstance(value, (int, float)) for value in raw):
+        raise ValueError("Figure bounding boxes must contain four numbers")
+    values = tuple(float(value) * scale for value in raw)
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError("Figure bounding boxes must be finite")
+    return values
 
 
 def _slug(label: str) -> str:
@@ -137,82 +145,87 @@ def extract_pdf_figures(
             "reinstall the complete OpenProgram release"
         ) from exc
 
-    src = Path(pdf_path)
-    if not src.is_absolute():
-        raise ValueError(f"pdf_path must be absolute, got {pdf_path!r}")
-    if not src.exists():
-        raise FileNotFoundError(f"PDF not found: {pdf_path}")
+    from openprogram.sandbox import validate_write_path
+    src = _readable_pdf(pdf_path)
+    if type(include_caption) is not bool:
+        raise ValueError("include_caption must be a boolean")
+    dst = Path(out_dir).expanduser() if out_dir else src.with_name(f"{src.stem}_figures")
+    if not dst.is_absolute():
+        raise ValueError("out_dir must be absolute")
+    dst = dst.resolve()
+    violation = validate_write_path(dst)
+    if violation:
+        raise PermissionError(violation)
 
-    dst = Path(out_dir) if out_dir else src.with_name(f"{src.stem}_figures")
-    dst.mkdir(parents=True, exist_ok=True)
+    with fitz.open(str(src)) as doc:
+        lo, hi = _parse_pages(pages, len(doc))
+        dst.mkdir(parents=True, exist_ok=True)
+        preview_scale = _PREVIEW_DPI / 72.0
+        px_to_pt = 72.0 / _PREVIEW_DPI
 
-    doc = fitz.open(str(src))
-    lo, hi = _parse_pages(pages, len(doc))
-    preview_scale = _PREVIEW_DPI / 72.0
-    px_to_pt = 72.0 / _PREVIEW_DPI
+        results: list[dict] = []
+        with tempfile.TemporaryDirectory(prefix="pdf-figures-") as tmp:
+            for page_idx in range(lo - 1, hi):
+                page = doc[page_idx]
+                page_no = page_idx + 1
+                rect = page.rect
 
-    results: list[dict] = []
-    with tempfile.TemporaryDirectory(prefix="pdf-figures-") as tmp:
-        for page_idx in range(lo - 1, hi):
-            page = doc[page_idx]
-            page_no = page_idx + 1
-            rect = page.rect
+                # 1. Render the page preview the model reasons over.
+                preview = Path(tmp) / f"page{page_no}.png"
+                pix = page.get_pixmap(
+                    matrix=fitz.Matrix(preview_scale, preview_scale), alpha=False
+                )
+                pix.save(str(preview))
 
-            # 1. Render the page preview the model reasons over.
-            preview = Path(tmp) / f"page{page_no}.png"
-            pix = page.get_pixmap(
-                matrix=fitz.Matrix(preview_scale, preview_scale), alpha=False
-            )
-            pix.save(str(preview))
+                # 2. Vision LLM → figure boxes (in preview pixels).
+                prompt = _PROMPT.format(w=pix.width, h=pix.height)
+                reply = llm([
+                    {"type": "text", "text": prompt},
+                    {"type": "image", "path": str(preview)},
+                ])
+                figures = _parse_json_array(str(reply))
 
-            # 2. Vision LLM → figure boxes (in preview pixels).
-            prompt = _PROMPT.format(w=pix.width, h=pix.height)
-            reply = llm([
-                {"type": "text", "text": prompt},
-                {"type": "image", "path": str(preview)},
-            ])
-            figures = _parse_json_array(str(reply))
+                # 3. Map boxes back to PDF points and crop the page.
+                for i, fig in enumerate(figures):
+                    fbox = fig.get("figure_bbox")
+                    x0, y0, x1, y1 = _bbox(fbox, scale=px_to_pt)
+                    x0, x1 = sorted((x0, x1))
+                    y0, y1 = sorted((y0, y1))
+                    if include_caption:
+                        cbox = fig.get("caption_bbox")
+                        if cbox is not None:
+                            cx0, cy0, cx1, cy1 = _bbox(cbox, scale=px_to_pt)
+                            cx0, cx1 = sorted((cx0, cx1))
+                            cy0, cy1 = sorted((cy0, cy1))
+                            x0, y0 = min(x0, cx0), min(y0, cy0)
+                            x1, y1 = max(x1, cx1), max(y1, cy1)
+                    # pad, normalise, clip to the page
+                    x0, x1 = sorted((x0, x1))
+                    y0, y1 = sorted((y0, y1))
+                    x0 = max(rect.x0, x0 - _PAD_PT)
+                    y0 = max(rect.y0, y0 - _PAD_PT)
+                    x1 = min(rect.x1, x1 + _PAD_PT)
+                    y1 = min(rect.y1, y1 + _PAD_PT)
+                    if (x1 - x0) < _MIN_FIG_PT or (y1 - y0) < _MIN_FIG_PT:
+                        raise ValueError("Figure bounding box is outside the page or too small")
 
-            # 3. Map boxes back to PDF points and crop the page.
-            for i, fig in enumerate(figures):
-                fbox = fig.get("figure_bbox")
-                if not (isinstance(fbox, list) and len(fbox) == 4):
-                    continue
-                x0, y0, x1, y1 = (float(v) * px_to_pt for v in fbox)
-                if include_caption:
-                    cbox = fig.get("caption_bbox")
-                    if isinstance(cbox, list) and len(cbox) == 4:
-                        cx0, cy0, cx1, cy1 = (float(v) * px_to_pt for v in cbox)
-                        x0, y0 = min(x0, cx0), min(y0, cy0)
-                        x1, y1 = max(x1, cx1), max(y1, cy1)
-                # pad, normalise, clip to the page
-                x0, x1 = sorted((x0, x1))
-                y0, y1 = sorted((y0, y1))
-                x0 = max(rect.x0, x0 - _PAD_PT)
-                y0 = max(rect.y0, y0 - _PAD_PT)
-                x1 = min(rect.x1, x1 + _PAD_PT)
-                y1 = min(rect.y1, y1 + _PAD_PT)
-                if (x1 - x0) < _MIN_FIG_PT or (y1 - y0) < _MIN_FIG_PT:
-                    continue
-
-                label = str(fig.get("label") or f"figure {i + 1}")
-                fname = f"p{page_no:02d}_{_slug(label)}.png"
-                out_path = dst / fname
-                try:
+                    label = str(fig.get("label") or f"figure {i + 1}")
+                    fname = f"p{page_no:02d}_{i + 1:02d}_{_slug(label)}.png"
+                    out_path = dst / fname
+                    violation = validate_write_path(out_path)
+                    if violation:
+                        raise PermissionError(violation)
                     crop = page.get_pixmap(
                         clip=fitz.Rect(x0, y0, x1, y1),
                         matrix=fitz.Matrix(_CROP_DPI / 72.0, _CROP_DPI / 72.0),
                         alpha=False,
                     )
                     crop.save(str(out_path))
-                except Exception:
-                    continue
-                results.append({
-                    "page": page_no,
-                    "label": label,
-                    "caption": str(fig.get("caption") or ""),
-                    "image_path": str(out_path.resolve()),
-                })
+                    results.append({
+                        "page": page_no,
+                        "label": label,
+                        "caption": str(fig.get("caption") or ""),
+                        "image_path": str(out_path.resolve()),
+                    })
 
-    doc.close()
     return results

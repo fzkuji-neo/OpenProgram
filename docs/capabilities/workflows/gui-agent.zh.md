@@ -149,3 +149,5 @@ Linux 无图形桌面和暂不支持的 Wayland 桌面捕获会与缺少依赖�
 直接运行工具时，内部模型调用同样需要明确的 provider 和 model。缺失或不完整的选择不会使用全局 provider 检测或 provider 的默认模型。
 
 从聊天执行时，GUI 和 Workflow 的内部模型调用继承当前轮次的 provider 和 model。请求 override 优先于会话选择，再使用 agent profile。该选择同样传入工具子进程。所选模型的 provider 认证仍需有效；初始化失败时保留所选模型的错误，不自动改用其他 provider。
+
+浏览器 workflow 在选择 backend 时保留明确传入的初始 URL。官方 MCP backend 支持受取消检查约束的等待，并传递 snapshot 失败。页面恢复保留当前窗口范围，不重复执行失败的动作；确认完成的结果保留实际证据和观察到的目标。

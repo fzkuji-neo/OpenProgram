@@ -8,10 +8,30 @@ categorized survey notes organized by topic.
 from __future__ import annotations
 
 import os
+import json
 
 from openprogram.agentic_programming import llm
 from openprogram.agentic_programming.function import _current_runtime, agentic_function
 from openprogram.agentic_programming.runtime import Runtime
+from .._paths import expanded_project_dir, write_artifact
+
+
+def retrieve_sources(topic: str) -> str:
+    """Acquire paper metadata before asking a model to synthesize it."""
+    from openprogram.agentic_programming.function import check_cancelled
+    from openprogram.programs.tools.web.web_search.providers.arxiv import ArxivProvider
+    if not isinstance(topic, str) or not topic.strip():
+        raise ValueError("research topic must be nonempty")
+    check_cancelled()
+    records = ArxivProvider().search(topic, num_results=12)
+    check_cancelled()
+    sources = [
+        {"title": r.title, "url": r.url, "abstract_excerpt": r.snippet, **r.extras}
+        for r in records if r.title and r.url
+    ]
+    if not sources:
+        raise RuntimeError("Official paper search returned no source records")
+    return json.dumps(sources, ensure_ascii=False)
 
 
 @agentic_function(render_range={"depth": 0, "siblings": 0})
@@ -30,12 +50,15 @@ def survey_topic(topic: str) -> str:
     Organize papers into logical categories/subtopics.
     Prioritize recent work (within 2 years) and top venues.
     Use published versions over arXiv when available.
-    Do NOT fabricate papers — only cite real, verifiable work.
+    Cite only the supplied retrieved records and include their exact URLs.
+    Abstract excerpts are incomplete: do not assert numerical results or
+    PDF verification. Missing source evidence must remain explicitly unknown.
 
     Output: A structured markdown survey organized by subtopic.
     """
+    sources = retrieve_sources(topic)
     return llm([
-        {"type": "text", "text": f"Research topic: {topic}"},
+        {"type": "text", "text": f"Research topic: {topic}\n\nRetrieved source records:\n{sources}"},
     ])
 
 
@@ -73,7 +96,7 @@ def run_literature(
     Returns:
         dict with survey text and identified gaps.
     """
-    project_dir = os.path.expanduser(project_dir)
+    project_dir = str(expanded_project_dir(project_dir))
 
     runtime_token = _current_runtime.set(runtime)
     try:
@@ -84,12 +107,7 @@ def run_literature(
 
     # Save to project
     rw_dir = os.path.join(project_dir, "related_work")
-    os.makedirs(rw_dir, exist_ok=True)
-
-    with open(os.path.join(rw_dir, "survey.md"), "w") as f:
-        f.write(f"# Literature Survey: {topic}\n\n{survey}")
-
-    with open(os.path.join(rw_dir, "gaps.md"), "w") as f:
-        f.write(f"# Research Gaps\n\n{gaps}")
+    write_artifact(os.path.join(rw_dir, "survey.md"), f"# Literature Survey: {topic}\n\n{survey}")
+    write_artifact(os.path.join(rw_dir, "gaps.md"), f"# Research Gaps\n\n{gaps}")
 
     return {"survey": survey, "gaps": gaps}

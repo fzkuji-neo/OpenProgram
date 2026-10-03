@@ -6,6 +6,7 @@ import base64
 import functools
 import hashlib
 import json
+import math
 import re
 import time
 import traceback
@@ -14,6 +15,9 @@ from pathlib import Path
 from typing import Callable
 
 from openprogram.agentic_programming.function import CancelledError
+from openprogram.agentic_programming.continuation import (
+    FunctionCompatibilityError, FunctionSuspended,
+)
 from openprogram.providers.structured_output import JsonSchemaOutput
 from openprogram.store.session.git_session import atomic_write_text
 
@@ -75,7 +79,9 @@ def _mark_run_exception(instance: Path, state: dict, exc: BaseException) -> None
         "completed", "failed", "cancelled", "interrupted", "capped"
     }:
         return
-    if isinstance(exc, CancelledError):
+    if isinstance(exc, FunctionSuspended):
+        state["status"] = "suspended"
+    elif isinstance(exc, CancelledError):
         state["status"] = "cancelled"
     elif isinstance(exc, KeyboardInterrupt):
         state["status"] = "interrupted"
@@ -114,13 +120,16 @@ def _load_state(path: Path) -> dict:
 
 def _json_value(value: object) -> object:
     try:
-        json.dumps(value)
-        return value
-    except (TypeError, ValueError):
-        return str(value)
+        # Return the actual JSON representation, rather than Python containers
+        # or bridged scalar subclasses accepted only by the encoder.
+        return json.loads(json.dumps(value, ensure_ascii=False, allow_nan=False))
+    except (TypeError, ValueError, RecursionError):
+        return json.loads(json.dumps(str(value), ensure_ascii=False))
 
 
 def _encode_value(value: object) -> object:
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("workflow checkpoint floats must be finite")
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
     if isinstance(value, bytes):
@@ -245,6 +254,15 @@ def _direct_result_requested(task: str) -> bool:
     return bool(chinese or english)
 
 
+def _save_outcome(path: Path, state: dict) -> None:
+    """Save a confirmed outcome before requesting an optional model summary."""
+    state["handoff"] = {
+        "summary": f"Workflow status: {state['status']}.",
+        "return_result": _direct_result_requested(str(state.get("task") or "")),
+    }
+    _save_state(path, state)
+
+
 def _summarize_workflow(state: dict) -> dict:
     """Create a short handoff from the task and trace, never the result body."""
     task = str(state.get("task") or "")
@@ -276,7 +294,8 @@ def _summarize_workflow(state: dict) -> dict:
     if short_direct_handoff:
         fallback = result_text
     else:
-        fallback = f"Workflow finished {len(trace)} recorded call(s)"
+        status = str(state.get("status") or "unknown")
+        fallback = f"Workflow status: {status}; {len(trace)} recorded call(s)"
         if names:
             fallback += ": " + ", ".join(names[:8])
         fallback += "."
@@ -401,6 +420,13 @@ class _Checkpoints:
             )
             if existing is not None and existing.get("status") == "completed":
                 return _decode_value(existing["result_data"])
+            if existing is not None and existing.get("status") in {
+                "in_progress", "unknown"
+            }:
+                raise FunctionCompatibilityError(
+                    f"workflow call {name}:{index} has no confirmed outcome; "
+                    "automatic replay is unsafe"
+                )
             if self.state["executions"] >= MAX_ITEMS_EXECUTED:
                 self.state["capped"] = True
                 _save_state(self.path, self.state)
@@ -427,7 +453,15 @@ class _Checkpoints:
             _save_state(self.path, self.state)
             try:
                 value = function(*args, **kwargs)
-                encoded = _encode_value(value)
+            except FunctionSuspended as exc:
+                record.update(
+                    status=("unknown" if isinstance(exc, FunctionCompatibilityError)
+                            else "suspended"),
+                    error=traceback.format_exc(),
+                    finished_at=time.time(),
+                )
+                _save_state(self.path, self.state)
+                raise
             except BaseException:
                 record.update(
                     status="failed",
@@ -436,6 +470,19 @@ class _Checkpoints:
                 )
                 _save_state(self.path, self.state)
                 raise
+            try:
+                encoded = _encode_value(value)
+            except (TypeError, ValueError, RecursionError) as exc:
+                # The call already returned; a checkpoint serialization failure
+                # must not authorize repeating its external work.
+                record.update(
+                    status="unknown", error=traceback.format_exc(),
+                    finished_at=time.time(),
+                )
+                _save_state(self.path, self.state)
+                raise FunctionCompatibilityError(
+                    f"workflow call {name}:{index} returned an unsavable result"
+                ) from exc
             record.update(
                 status="completed",
                 result=_json_value(value),

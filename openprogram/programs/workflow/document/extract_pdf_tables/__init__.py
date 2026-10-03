@@ -21,7 +21,7 @@ from pathlib import Path
 
 from openprogram.agentic_programming import agentic_function, llm
 
-from ..pdf_layout import pdf_pages, render_page_png
+from ..pdf_layout import pdf_pages, render_page_png, _parse_page_spec, _readable_pdf
 
 _PROMPT = (
     "You are given ONE page of a PDF. Extract EVERY table on this page "
@@ -42,14 +42,7 @@ _PROMPT = (
 
 
 def _parse_pages(spec: str, n_pages: int) -> tuple[int, int]:
-    spec = (spec or "").strip()
-    if not spec:
-        return (1, n_pages)
-    if "-" in spec:
-        lo, _, hi = spec.partition("-")
-        return (int(lo or 1), int(hi or n_pages))
-    p = int(spec)
-    return (p, p)
+    return _parse_page_spec(spec, n_pages)
 
 
 @agentic_function(input={
@@ -84,39 +77,36 @@ def extract_pdf_tables(
             "reinstall the complete OpenProgram release"
         ) from exc
 
-    src = Path(pdf_path)
-    if not src.is_absolute():
-        raise ValueError(f"pdf_path must be absolute, got {pdf_path!r}")
-    if not src.exists():
-        raise FileNotFoundError(f"PDF not found: {pdf_path}")
+    src = _readable_pdf(pdf_path)
 
-    doc = fitz.open(str(src))
-    n_pages = len(doc)
-    lo, hi = _parse_pages(pages, n_pages)
-    layouts = pdf_pages(src, pages=(lo, hi))
+    with fitz.open(str(src)) as doc:
+        n_pages = len(doc)
+        lo, hi = _parse_pages(pages, n_pages)
+        layouts = pdf_pages(src, pages=(lo, hi))
 
-    results: list[dict] = []
-    with tempfile.TemporaryDirectory(prefix="pdf-tables-") as tmp:
-        for pl in layouts:
-            if pl.scanned:
-                # No text layer — hand the LLM a rendered page image.
-                img = render_page_png(
-                    doc[pl.page - 1], Path(tmp) / f"p{pl.page}.png"
-                )
-                content = [
-                    {"type": "text", "text": _PROMPT},
-                    {"type": "image", "path": str(img)},
-                ]
-            else:
-                content = [{"type": "text", "text": (
-                    f"{_PROMPT}\n"
-                    f"Page {pl.page} (fixed-width positioned text — every "
-                    f"word sits at its real position, so columns align):\n\n"
-                    f"{pl.text}"
-                )}]
-            reply = str(llm(content)).strip()
-            if reply and reply.upper() != "NONE":
-                results.append({"page": pl.page, "markdown": reply})
+        results: list[dict] = []
+        with tempfile.TemporaryDirectory(prefix="pdf-tables-") as tmp:
+            for pl in layouts:
+                if pl.scanned:
+                    # No text layer — hand the LLM a rendered page image.
+                    img = render_page_png(
+                        doc[pl.page - 1], Path(tmp) / f"p{pl.page}.png"
+                    )
+                    content = [
+                        {"type": "text", "text": _PROMPT},
+                        {"type": "image", "path": str(img)},
+                    ]
+                else:
+                    content = [{"type": "text", "text": (
+                        f"{_PROMPT}\n"
+                        f"Page {pl.page} (fixed-width positioned text — every "
+                        f"word sits at its real position, so columns align):\n\n"
+                        f"{pl.text}"
+                    )}]
+                reply = str(llm(content)).strip()
+                if not reply:
+                    raise ValueError(f"Table extraction returned no response for page {pl.page}")
+                if reply and reply.upper() != "NONE":
+                    results.append({"page": pl.page, "markdown": reply})
 
-    doc.close()
     return results

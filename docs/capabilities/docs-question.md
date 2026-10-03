@@ -1,6 +1,6 @@
 # Asking about OpenProgram itself
 
-"Can OpenProgram do X?" and "how do I configure Y?" are questions this documentation site already answers, and a model answering them from memory of some other agent product is how a confident wrong answer reaches you. `run_docs_question` answers such a question by reading these pages: it spawns one agent that can only read, works only inside the repository's `docs/` tree, and reports which pages the answer came from.
+"Can OpenProgram do X?" and "how do I configure Y?" are questions this documentation site already answers, and a model answering them from memory of some other agent product is how a confident wrong answer reaches you. `run_docs_question` answers such a question by reading these pages: it runs one agent with read-only tools and a prompt scoped to the repository's `docs/` tree, and reports which pages the answer came from.
 
 Run it as `run_docs_question` in the Programs panel, or from Python:
 
@@ -36,10 +36,12 @@ The third case is the one worth having. "The documentation does not cover this" 
 {"answer": "…", "sources": ["capabilities/goal.md"], "covered": True}
 ```
 
-`sources` are paths relative to `docs/`, deduplicated, in the order cited. A cited path that is not an existing page is dropped, so an invented page name never reaches you as a citation. When `covered` is `false`, `sources` holds the nearest related pages the agent did find rather than the pages that answered the question.
+`sources` are paths relative to `docs/`, deduplicated, in the order cited. A cited path that is not an existing Markdown page inside the resolved documentation tree is dropped, so an invented page name never reaches you as a citation. A `covered=true` response must retain at least one valid page citation; otherwise the workflow reports an error. When `covered` is `false`, `sources` holds the nearest related pages the agent did find rather than the pages that answered the question.
 
 An empty question is rejected before any agent runs, and a reply the agent cannot express as this structure raises rather than returning a half-answer.
 
 ## Where the answers come from
 
 Everything under [Overview](README.md) and the other tabs of this site. If an answer is wrong, the page it cites is what needs fixing — the function reports the documentation, it does not read the code.
+
+An invocation inside a running Python Workflow uses its existing Runtime; it does not start another session executor.

@@ -469,6 +469,7 @@ def browser_agent(
     if backend:
         return _run_browser_task_commands(
             task=task,
+            url=url,
             backend=backend,
             max_steps=max_steps,
             max_seconds=max_seconds,
@@ -536,9 +537,13 @@ def web_use(
         # Reopen the exact lost target, but never replay a possibly completed write.
         url = result.get("recovery_url")
         if result.get("reason_code") in {"target_lost", "page_context_stale", "page_closed", "binding_not_found", "page_context_not_found"} and isinstance(url, str) and url.startswith(("http://", "https://")):
+            recovery_reason = result.get("reason_code")
             result = _recover_web_use_page(result, backend=backend)
             if isinstance(result, dict) and result.get("ok") is not False:
                 result.update(recovered_page=True, observe_required=True,
+                              recovery_reason_code=recovery_reason,
+                              recovery_previous_command=command,
+                              previous_action_replayed=False,
                               message="The page was observed again. Continue using this fresh observation; the previous action was not replayed.")
                 return result
         return ToolReturn(json_data=result, is_error=True)

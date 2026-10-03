@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 
 def _pymupdf():
@@ -52,6 +53,47 @@ _LAYOUT_TARGET_WIDTH = 110   # characters the widest page row maps to
 # A page whose text layer yields fewer than this many words is treated
 # as scanned / image-only — render it to a PNG for the LLM instead.
 _MIN_WORDS_FOR_TEXT = 12
+
+
+def _page_range(pages: tuple[int, int] | None, count: int) -> tuple[int, int]:
+    if pages is None:
+        return 1, count
+    if (not isinstance(pages, tuple) or len(pages) != 2
+            or any(type(value) is not int for value in pages)):
+        raise ValueError("pages must contain two integer page numbers")
+    lo, hi = pages
+    if not 1 <= lo <= hi <= count:
+        raise ValueError(f"pages must be an ascending range within 1-{count}")
+    return lo, hi
+
+
+def _parse_page_spec(spec: str, count: int) -> tuple[int, int]:
+    if not isinstance(spec, str):
+        raise ValueError("pages must be a page number or range string")
+    text = spec.strip()
+    if not text:
+        return _page_range(None, count)
+    if not re.fullmatch(r"\d+(?:\s*-\s*\d*)?|\s*-\s*\d+", text):
+        raise ValueError("pages must be a page number or range such as '2-7'")
+    if "-" in text:
+        lo, hi = text.split("-", 1)
+        return _page_range((int(lo.strip() or 1), int(hi.strip() or count)), count)
+    page = int(text)
+    return _page_range((page, page), count)
+
+
+def _readable_pdf(path: str | Path) -> Path:
+    from openprogram.sandbox import validate_read_path
+    source = Path(path).expanduser()
+    if not source.is_absolute():
+        raise ValueError("pdf_path must be absolute")
+    source = source.resolve()
+    violation = validate_read_path(source)
+    if violation:
+        raise PermissionError(violation)
+    if not source.is_file():
+        raise FileNotFoundError(f"PDF not found: {source}")
+    return source
 
 
 @dataclass
@@ -125,15 +167,10 @@ def pdf_pages(
 ) -> list[PageLayout]:
     """Render a PDF (or page range) as a list of :class:`PageLayout`."""
     fitz = _pymupdf()
-    doc = fitz.open(str(pdf_path))
-    n = len(doc)
-    if pages is None:
-        lo, hi = 1, n
-    else:
-        lo, hi = max(1, pages[0]), min(n, pages[1])
-    out = [page_layout(doc[i]) for i in range(lo - 1, hi)]
-    doc.close()
-    return out
+    source = _readable_pdf(pdf_path)
+    with fitz.open(str(source)) as doc:
+        lo, hi = _page_range(pages, len(doc))
+        return [page_layout(doc[i]) for i in range(lo - 1, hi)]
 
 
 __all__ = ["PageLayout", "page_layout", "render_page_png", "pdf_pages"]

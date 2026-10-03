@@ -40,8 +40,8 @@ def auto_workflow(task: str) -> dict:
         "project_action": "auto",
     }
     run_state._save_state(instance / "state.json", state)
-    candidates = search_workflows_mod.search_workflows(task).get("workflows") or []
     try:
+        candidates = search_workflows_mod.search_workflows(task).get("workflows") or []
         decision = planner._request_auto_decision(
             task,
             candidates,

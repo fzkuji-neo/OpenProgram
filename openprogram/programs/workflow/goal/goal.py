@@ -15,22 +15,30 @@ from .roles import role_lifetime
 def _positive_int(value, *, name: str) -> int | None:
     if value in (None, ""):
         return None
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be an integer")
     try:
         parsed = int(value)
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, OverflowError) as exc:
         raise ValueError(f"{name} must be an integer") from exc
+    if (not isinstance(value, str) and parsed != value) or parsed < 0:
+        raise ValueError(f"{name} must be a positive integer or zero")
     return parsed if parsed > 0 else None
 
 
 def _positive_float(value, *, name: str) -> float | None:
     if value in (None, ""):
         return None
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a number")
     try:
         parsed = float(value)
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{name} must be a number") from exc
     if not math.isfinite(parsed):
         raise ValueError(f"{name} must be finite")
+    if parsed < 0:
+        raise ValueError(f"{name} must be a positive number or zero")
     if not parsed > 0:
         return None
     return parsed

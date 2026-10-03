@@ -8,14 +8,14 @@ ask_user —— 在 @agentic_function 执行途中向用户提问。
   - FollowUp                      "函数暂停"的载体对象
   - run_with_follow_up(func, ...) 把 ask_user 转成非阻塞返回值
 
-实现是 stateless 的：所有 handler 都通过 ``set_ask_user`` 注册到一个
-模块级全局变量，跨线程安全（_ask_user_lock 保护）。没有 ContextVar，
-没有 per-node 注册——WebUI / channels / CLI 都用同一个 global 路径。
+``set_ask_user`` 注册全局 frontend handler；``run_with_follow_up`` 的
+临时 handler 只属于当前执行上下文，不影响其他并发 Workflow。
 """
 
 from __future__ import annotations
 
 import queue as _queue
+import contextvars
 import sys
 import threading
 from typing import Callable, Optional
@@ -27,6 +27,9 @@ from typing import Callable, Optional
 
 _ask_user_handler_global: Optional[Callable] = None
 _ask_user_lock = threading.Lock()
+_follow_up_handler: contextvars.ContextVar[Optional[Callable]] = contextvars.ContextVar(
+    "workflow_follow_up_handler", default=None,
+)
 
 
 def set_ask_user(handler: Optional[Callable[[str], str]]) -> None:
@@ -53,9 +56,15 @@ def has_ask_user_handler() -> bool:
     handler. Use this to decide whether to skip interactive steps like
     ``clarify`` that would just bounce off a None answer.
     """
+    if _follow_up_handler.get() is not None:
+        return True
     with _ask_user_lock:
         if _ask_user_handler_global is not None:
             return True
+    from openprogram.agentic_programming.function import _current_runtime
+    runtime = _current_runtime.get(None)
+    if runtime is not None and runtime.can_ask():
+        return True
     if sys.stdin is not None and sys.stdin.isatty():
         return True
     return False
@@ -80,10 +89,16 @@ def ask_user(question: str) -> Optional[str]:
     pending_id = _begin_ask_user_node(question)
 
     # 1. 全局 handler（给 CLI / 后台服务用：set_ask_user 注册）
-    with _ask_user_lock:
-        handler = _ask_user_handler_global
+    handler = _follow_up_handler.get()
+    if handler is None:
+        with _ask_user_lock:
+            handler = _ask_user_handler_global
     if handler is not None:
-        answer = handler(question)
+        try:
+            answer = handler(question)
+        except BaseException:
+            _finish_ask_user_node(pending_id, None)
+            raise
         _finish_ask_user_node(pending_id, answer)
         return answer
 
@@ -110,6 +125,9 @@ def ask_user(question: str) -> Optional[str]:
             answer = input(f"[follow-up] {question}\n> ")
         except EOFError:
             answer = None
+        except BaseException:
+            _finish_ask_user_node(pending_id, None)
+            raise
         _finish_ask_user_node(pending_id, answer)
         return answer
 
@@ -202,10 +220,16 @@ class FollowUp:
         self.question = question
         self._answer_q = _answer_q
         self._result_q = _result_q
+        self._answer_lock = threading.Lock()
+        self._answered = False
 
     def answer(self, text: str):
         """给出答案并等下一个结果。"""
-        self._answer_q.put(text)
+        with self._answer_lock:
+            if self._answered:
+                raise RuntimeError("This follow-up question has already been answered")
+            self._answered = True
+            self._answer_q.put(text)
         result = self._result_q.get()
         if isinstance(result, _WrappedException):
             raise result.exception
@@ -253,18 +277,17 @@ def run_with_follow_up(func, *args, **kwargs):
         return answer_q.get()
 
     def _run():
-        with _ask_user_lock:
-            prev_handler = _ask_user_handler_global
-        set_ask_user(_handler)
+        token = _follow_up_handler.set(_handler)
         try:
             val = func(*args, **kwargs)
             result_q.put(val)
         except BaseException as e:
             result_q.put(_WrappedException(e))
         finally:
-            set_ask_user(prev_handler)
+            _follow_up_handler.reset(token)
 
-    thread = threading.Thread(target=_run, daemon=True)
+    context = contextvars.copy_context()
+    thread = threading.Thread(target=context.run, args=(_run,), daemon=True)
     thread.start()
 
     result = result_q.get()

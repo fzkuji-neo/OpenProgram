@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from openprogram.agentic_programming.function import CancelledError
+from openprogram.agentic_programming.continuation import FunctionSuspended
 from openprogram.store.session.git_session import atomic_write_text
 
 from ..errors import InvalidWorkflow, WorkflowExecutionCapped
@@ -75,13 +76,9 @@ def _execute_source(
             "agent", bindings._agent_function(session_id, spawn_caller)
         ),
         "goal": checkpoints.wrap("goal", bindings._goal_function()),
-        "validate_and_retry": checkpoints.wrap(
-            "validate_and_retry", bindings._validate_and_retry_function()
-        ),
+        "validate_and_retry": bindings._validate_and_retry_function(),
         "route": checkpoints.wrap("route", bindings._route_function()),
-        "conditional": checkpoints.wrap(
-            "conditional", bindings._conditional_function()
-        ),
+        "conditional": bindings._conditional_function(),
         **{name: checkpoints.wrap(name, fn) for name, fn in functions.items()},
     }
     exec(compile(source, "code.py", "exec"), namespace, namespace)
@@ -137,14 +134,9 @@ def _execute_legacy_snapshot(
             "agent", bindings._agent_function(session_id, spawn_caller)
         ),
         "goal": checkpoints.wrap("goal", bindings._goal_function()),
-        "validate_and_retry": checkpoints.wrap(
-            "validate_and_retry",
-            bindings._validate_and_retry_function(),
-        ),
+        "validate_and_retry": bindings._validate_and_retry_function(),
         "route": checkpoints.wrap("route", bindings._route_function()),
-        "conditional": checkpoints.wrap(
-            "conditional", bindings._conditional_function()
-        ),
+        "conditional": bindings._conditional_function(),
         **{name: checkpoints.wrap(name, fn) for name, fn in functions.items()},
     }
     for relative in manifest["files"]:
@@ -217,8 +209,12 @@ def _execute_package_snapshot(
         "conditional": bindings._conditional_function(),
         **functions,
     }
+    # Control-flow callbacks are Python functions, not checkpoint JSON values.
+    # Their actual capability calls carry checkpoints independently.
     wrapped = {
-        name: checkpoints.wrap(name, function) for name, function in managed.items()
+        name: (function if name in {"validate_and_retry", "conditional"}
+               else checkpoints.wrap(name, function))
+        for name, function in managed.items()
     }
     replacements = {id(managed[name]): function for name, function in wrapped.items()}
     from openprogram.agentic_programming.agent import agent as package_agent
@@ -447,11 +443,12 @@ def _run_legacy_instance_locked(
         state["status"] = "capped"
         run_state._save_state(state_path, state)
         return run_state._result(state, run_id)
-    except (KeyboardInterrupt, CancelledError):
+    except (KeyboardInterrupt, CancelledError, FunctionSuspended):
         raise
     except BaseException:
         state["last_error"] = traceback.format_exc()
         state["status"] = "failed"
+        run_state._save_outcome(state_path, state)
         state["handoff"] = run_state._summarize_workflow(state)
         run_state._save_state(state_path, state)
         return run_state._result(state, run_id)
@@ -462,6 +459,7 @@ def _run_legacy_instance_locked(
     state.update(
         status="completed", result=run_state._json_value(result), last_error=""
     )
+    run_state._save_outcome(state_path, state)
     state["handoff"] = run_state._summarize_workflow(state)
     run_state._save_state(state_path, state)
     return run_state._result(state, run_id)
@@ -493,7 +491,7 @@ def _run_instance_locked(
             state["status"] = "capped"
             run_state._save_state(state_path, state)
             return run_state._result(state, run_id)
-        except (KeyboardInterrupt, CancelledError):
+        except (KeyboardInterrupt, CancelledError, FunctionSuspended):
             raise
         except BaseException:  # generated verification/errors all revise
             error = traceback.format_exc()
@@ -519,6 +517,7 @@ def _run_instance_locked(
         state.update(
             status="completed", result=run_state._json_value(result), last_error=""
         )
+        run_state._save_outcome(state_path, state)
         state["handoff"] = run_state._summarize_workflow(state)
         run_state._save_state(state_path, state)
         return run_state._result(state, run_id)
@@ -566,7 +565,7 @@ def _run_project_instance_locked(
         state["status"] = "capped"
         run_state._save_state(state_path, state)
         return run_state._result(state, run_id)
-    except (KeyboardInterrupt, CancelledError) as exc:
+    except (KeyboardInterrupt, CancelledError, FunctionSuspended) as exc:
         run_state._mark_run_exception(instance, state, exc)
         raise
     except BaseException:
@@ -575,6 +574,7 @@ def _run_project_instance_locked(
         # Published changes go through the explicit revise entry.
         state["last_error"] = traceback.format_exc()
         state["status"] = "failed"
+        run_state._save_outcome(state_path, state)
         state["handoff"] = run_state._summarize_workflow(state)
         run_state._save_state(state_path, state)
         return run_state._result(state, run_id)
@@ -585,6 +585,7 @@ def _run_project_instance_locked(
     state.update(
         status="completed", result=run_state._json_value(result), last_error=""
     )
+    run_state._save_outcome(state_path, state)
     state["handoff"] = run_state._summarize_workflow(state)
     run_state._save_state(state_path, state)
     return run_state._result(state, run_id)
@@ -611,6 +612,7 @@ def _run_single(
             "agent", bindings._agent_function(session_id, spawn_caller)
         )(task)
         state.update(status="completed", result=str(result), last_error="")
+        run_state._save_outcome(state_path, state)
         state["handoff"] = run_state._summarize_workflow(state)
         run_state._save_state(state_path, state)
         return run_state._result(state, run_id)
@@ -628,7 +630,7 @@ def _execute_workflow(
     instance = run_state._instance_dir(session_id, run_id)
     with _WORKFLOW_LOCK:
         state = run_state._load_state(instance / "state.json")
-        if state.get("status") == "cancelled":
+        if state.get("status") in {"completed", "cancelled", "capped"}:
             return run_state._result(state, run_id)
         functions = bindings._registered_agentic_functions()
         try:
@@ -671,7 +673,10 @@ def _execute_workflow(
             raise InvalidWorkflow(
                 f"workflow run {run_id} has no snapshot or legacy code to resume"
             )
-        except (KeyboardInterrupt, CancelledError) as exc:
+        except (KeyboardInterrupt, CancelledError, FunctionSuspended) as exc:
+            run_state._mark_run_exception(instance, state, exc)
+            raise
+        except Exception as exc:
             run_state._mark_run_exception(instance, state, exc)
             raise
 
