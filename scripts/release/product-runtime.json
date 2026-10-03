@@ -28,7 +28,7 @@
       "distribution": "gui-agent-harness",
       "import": "gui_harness",
       "repository": "https://github.com/Fzkuji/GUI-Agent-Harness.git",
-      "commit": "42b4496cdd3e59c30cc385123b0aef227e123578"
+      "commit": "aa0aa0099e130891ed6733edff3d6936ff8bd472"
     },
     "research": {
       "distribution": "research-agent-harness",
