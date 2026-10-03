@@ -117,7 +117,7 @@ def main():
     DB.create_session('page-scope', 'main', source='test')
     req = TurnRequest(session_id='page-scope', user_text='', agent_id='main', source='test', permission_mode='auto', profile_snapshot={}, **local_owner_authority())
     owned_context = None
-    if scenario in {'existing', 'foreign', 'plan'}:
+    if scenario in {'existing', 'foreign', 'plan', 'active_plan', 'live_plan', 'live_deny', 'live_ask'}:
         from openprogram.agent import surface_context
         import copy
         owned_context = surface_context.capture_pages()
@@ -133,6 +133,29 @@ def main():
     if scenario in {'deny', 'ask'}:
         from types import SimpleNamespace
         req.permission_rules = SimpleNamespace(allow=[], deny=['web_use'] if scenario == 'deny' else [], ask=['web_use'] if scenario == 'ask' else [])
+    if scenario == 'active_plan':
+        from openprogram.agent import plan_mode
+        req.permission_mode = 'ask'
+        token = plan_mode.current_session_id.set(req.session_id)
+        try:
+            entered = asyncio.run(get_agent_tool('enter_plan_mode').execute('enter-owned-plan', {}, None, None))
+            assert not entered.is_error
+        finally:
+            plan_mode.current_session_id.reset(token)
+        assert plan_mode.is_plan_mode(req.session_id)
+    if scenario in {'live_plan', 'live_deny', 'live_ask'}:
+        req.source = 'web'
+        from openprogram.agent.permissions.state import update_permission
+        update_permission(req.session_id, 'plan' if scenario == 'live_plan' else 'auto', 0, local_owner_authority(), db=DB)
+        if scenario in {'live_deny', 'live_ask'}:
+            from openprogram.agent.session_config import save_session_run_config
+            behavior = scenario.removeprefix('live_')
+            save_session_run_config(req.session_id, agent_id='main', permission_rules={behavior: ['web_use']})
+    from openprogram.agent.permissions.lifecycle import current_permission_request
+    from openprogram.agent.permissions.policy import permission_decision
+    from openprogram.agent import plan_mode
+    parent_effective = current_permission_request(req)
+    parent_decision = permission_decision(get_agent_tool('web_use'), parent_effective, {'command': 'list_pages'})
     tool = get_agent_tool('page_scope_probe')
     assert tool is page_scope_probe._agent_tool
     wrapped = _wrap_agentic_runtime_block(tool, req, lambda _e: None, 'anchor')
@@ -141,7 +164,9 @@ def main():
     data = json.loads(text) if not result.is_error else {'outer_error': text}
     if owned_context is not None:
         surface_context.release_bindings(owned_context)
-    data.update(parent_identity=source_identity(), parent_pid=os.getpid(), renderer_calls=calls, remaining_bindings=len(webtab._bindings), scenario=scenario)
+    data.update(parent_request_mode=req.permission_mode, parent_effective_mode=parent_effective.permission_mode,
+                parent_active_plan=plan_mode.is_plan_mode(req.session_id), parent_decision=parent_decision[:3],
+                parent_identity=source_identity(), parent_pid=os.getpid(), renderer_calls=calls, remaining_bindings=len(webtab._bindings), scenario=scenario)
     Path(os.environ['PAGE_PROBE_RECEIPT']).write_text(json.dumps(data))
 
 if __name__ == '__main__':
