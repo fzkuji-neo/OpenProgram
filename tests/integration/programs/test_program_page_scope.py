@@ -74,3 +74,22 @@ def test_existing_page_scope_and_constraints_survive_spawn(tmp_path, scenario):
         assert not any(c['op'] in {'activate', 'resolve'} for c in data['renderer_calls'])
     if scenario == 'plan':
         assert data['child_mode'] == data['inner_mode'] == 'plan'
+
+
+@pytest.mark.parametrize('scenario', ['active_plan', 'live_plan', 'live_deny', 'live_ask'])
+def test_effective_parent_policy_survives_existing_page_scope(tmp_path, scenario):
+    data = _probe(tmp_path, scenario)
+    assert data['child_scope'] == data['inner_scope']
+    assert data['listed_error'] is True, data
+    assert data['observed'] is None
+    assert data['remaining_bindings'] == 0
+    assert not any(c['op'] in {'activate', 'resolve'} for c in data['renderer_calls'])
+    if scenario in {'active_plan', 'live_plan'}:
+        assert data['parent_decision'][:2] == ['deny', 'PLAN_MODE_DENY']
+        assert data['child_mode'] == data['inner_mode'] == 'plan'
+    elif scenario == 'live_deny':
+        assert data['parent_decision'][:2] == ['deny', 'PERMISSION_RULE_DENY']
+        assert '[denied]' in data['listed_text']
+    else:
+        assert data['parent_decision'][:2] == ['ask', 'PERMISSION_RULE_ASK']
+        assert 'interactive local owner' in data['listed_text']

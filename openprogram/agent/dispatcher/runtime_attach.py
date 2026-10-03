@@ -231,6 +231,12 @@ def _wrap_agentic_runtime_block(
                 work_dir = current_worktree_path()
 
                 def _run_subprocess():
+                    from openprogram.agent import plan_mode
+                    from openprogram.agent.permissions.lifecycle import current_permission_request
+
+                    effective_req = current_permission_request(req)
+                    if plan_mode.is_plan_mode(req.session_id):
+                        effective_req.permission_mode = "plan"
                     surface_snapshot = req.surface_context
                     captured_surface = None
                     if surface_snapshot is None:
@@ -240,7 +246,7 @@ def _wrap_agentic_runtime_block(
 
                         web_tool = get_agent_tool("web_use")
                         decision = permission_decision(
-                            web_tool, req, {"command": "list_pages"},
+                            web_tool, effective_req, {"command": "list_pages"},
                         ) if web_tool is not None else None
                         if decision is not None and decision[:2] == ("allow", "SURFACE_GRANT"):
                             try:
@@ -277,10 +283,10 @@ def _wrap_agentic_runtime_block(
                             ),
                             original_owner_input=original_owner_input,
                             permission_rules_snapshot=(
-                                _permission_rules_snapshot(req.permission_rules)
+                                _permission_rules_snapshot(effective_req.permission_rules)
                             ),
                             surface_context_snapshot=surface_snapshot,
-                            permission_mode_snapshot=req.permission_mode,
+                            permission_mode_snapshot=effective_req.permission_mode,
                             render_range=req.render_range,
                             timeout_seconds=timeout_seconds,
                         )
