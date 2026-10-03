@@ -124,7 +124,9 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
       Object.assign(dragLabel.style, {
         display: "flex", position: "fixed", width: "220px", height: "32px",
         minWidth: "0", maxWidth: "calc(100vw - 16px)", margin: "0", padding: "0 8px",
-        zIndex: "2147483647", background: "var(--bg-tertiary)", opacity: "1",
+        zIndex: "2147483647", opacity: "1",
+        background: "color-mix(in oklch, var(--bg-tertiary) 80%, transparent)",
+        backdropFilter: "blur(16px) saturate(1.2)",
         pointerEvents: "none", borderRadius: "8px", transition: "none",
         boxShadow: "0 2px 4px rgba(0,0,0,.14), 0 12px 28px rgba(0,0,0,.24)",
       });
