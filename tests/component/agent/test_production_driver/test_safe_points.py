@@ -1,5 +1,6 @@
 """driver safe points tests."""
 from __future__ import annotations
+from pathlib import Path
 from ._support import (
     AttemptStore,
     CapabilitySet,
@@ -937,3 +938,301 @@ def test_function_suspension_retains_pending_agent_tool_slot(tmp_path, monkeypat
     asyncio.run(control.request_continue(command_id="resume-function", execution_id=execution.execution_id, expected_version=paused.status_version, actor={"surface": "test"}, activator=activate))
     resumed_hook = driver._safe_point_hook(captured["attempt"], request, threading.Event(), continuation=continuation)
     assert resumed_hook("tool.before", {"tool_call_id": "function-call", "tool_name": "web_use", "arguments": {}}) is False
+
+
+# Owned synchronous steps exercise the same admission boundary as GUI operations.
+def _pause_admission_write(folder, value):
+    with (Path(folder) / "dispatches").open("a") as stream:
+        stream.write(value + "\n")
+    return value
+
+
+def _pause_admission_program(folder):
+    from openprogram.agentic_programming.continuation import step
+
+    first = step("first", _pause_admission_write, folder, "first")
+    second = step("second", _pause_admission_write, folder, "second")
+    return first + second
+
+
+def _pause_admission_owner(tmp_path, monkeypatch, program_fn=_pause_admission_program):
+    import importlib
+
+    from openprogram.execution import RuntimeControlService
+    from openprogram.execution.driver import DriverRegistry
+    from openprogram.agentic_programming.function import agentic_function
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("OPENPROGRAM_CONFIG_DIR", str(tmp_path / ".openprogram"))
+    module = importlib.import_module("openprogram.agentic_programming.function")
+    monkeypatch.setattr(module, "_registry", dict(module._registry))
+    store = ExecutionStore(tmp_path / "function.db")
+    revision = store.create_revision(manifest={"entrypoint": "pause-admission"})
+    execution = store.create_execution(
+        session_id="owned-session", revision_id=revision.revision_id,
+        capabilities=CapabilitySet(pause=True, safe_point_kinds=("function.step.after",),
+                                   state_schema_version=1),
+    )
+    attempts = AttemptStore(store)
+    leased, execution = attempts.lease(
+        execution.execution_id, expected_version=execution.status_version,
+        owner_id="owned-function", ttl_seconds=30,
+    )
+    active, execution = attempts.activate(
+        leased.attempt_id, generation=leased.generation,
+        expected_execution_version=execution.status_version,
+    )
+    program = agentic_function(program_fn, name="pause-admission",
+                               resumable=True, as_tool=False)
+    return store, active, RuntimeControlService(store, attempts, DriverRegistry()), program
+
+
+def _pause_admission_effects(store, execution_id):
+    from openprogram.execution.effects import EffectStore
+
+    with store._connect() as connection:
+        rows = connection.execute(
+            "SELECT * FROM effects WHERE execution_id = ? ORDER BY created_at", (execution_id,),
+        ).fetchall()
+    return [EffectStore(store)._record(row) for row in rows]
+
+
+def test_function_pause_racing_admission_resumes_same_cursor_once(tmp_path, monkeypatch):
+    import pytest
+
+    from openprogram.agentic_programming.continuation import FunctionSuspended, function_execution
+    from openprogram.execution.effects import EffectStore, EffectStatus
+
+    # Repeat both deterministic scheduling windows with isolated owners.
+    for window in ("register", "mark_dispatched"):
+        with monkeypatch.context() as scoped:
+            folder = tmp_path / window
+            folder.mkdir()
+            store, active, control, program = _pause_admission_owner(folder, scoped)
+            original = getattr(EffectStore, window)
+            pauses = []
+
+            def before_admission(self, *args, **kwargs):
+                step = (kwargs["metadata"]["function_step"]["step"] if window == "register"
+                        else self.get(args[0]).metadata["function_step"]["step"])
+                if step == "second" and not pauses:
+                    pauses.append(step)
+                    current = store.get_execution(active.execution_id)
+                    asyncio.run(control.request_pause(
+                        command_id="owned-pause", execution_id=current.execution_id,
+                        expected_version=current.status_version, actor={"surface": "test"},
+                    ))
+                return original(self, *args, **kwargs)
+
+            scoped.setattr(EffectStore, window, before_admission)
+            with pytest.raises(FunctionSuspended) as suspended:
+                with function_execution(store, attempt_id=active.attempt_id,
+                                        generation=active.generation, call_key="same-call"):
+                    program(str(folder))
+            assert type(suspended.value) is FunctionSuspended
+            paused = store.get_execution(active.execution_id)
+            assert paused.status is ExecutionStatus.PAUSED
+            assert (folder / "dispatches").read_text().splitlines() == ["first"]
+            effects = _pause_admission_effects(store, active.execution_id)
+            assert effects[0].status is EffectStatus.COMMITTED
+            assert not EffectStore(store).list_unresolved(active.execution_id)
+            if window == "mark_dispatched":
+                intent = effects[1]
+                assert intent.status is EffectStatus.NOT_COMMITTED
+                assert intent.attempt_id == active.attempt_id
+                assert intent.receipt == {"outcome": "not_started", "execution_started": False,
+                                          "pause_before_dispatch": True}
+            else:
+                assert len(effects) == 1
+            asyncio.run(control.request_continue(
+                command_id="owned-continue", execution_id=paused.execution_id,
+                expected_version=paused.status_version, actor={"surface": "test"},
+            ))
+            resumed = store.get_execution(active.execution_id)
+            for _ in range(2):
+                with function_execution(store, attempt_id=resumed.current_attempt_id,
+                                        generation=resumed.owner_lease["generation"], call_key="same-call"):
+                    assert program(str(folder)) == "firstsecond"
+            assert (folder / "dispatches").read_text().splitlines() == ["first", "second"]
+            assert [e.status for e in _pause_admission_effects(store, active.execution_id)].count(
+                EffectStatus.COMMITTED) == 2
+
+
+def test_function_cancel_wins_admission_pause_race(tmp_path, monkeypatch):
+    import pytest
+
+    from openprogram.agentic_programming.continuation import function_execution
+    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.execution.effects import EffectStore, EffectStatus
+
+    for window in ("register", "mark_dispatched"):
+        with monkeypatch.context() as scoped:
+            folder = tmp_path / window
+            folder.mkdir()
+            store, active, control, program = _pause_admission_owner(folder, scoped)
+            original = getattr(EffectStore, window)
+
+            def cancel_before_admission(self, *args, **kwargs):
+                current = store.get_execution(active.execution_id)
+                asyncio.run(control.request_pause(
+                    command_id="pause", execution_id=current.execution_id,
+                    expected_version=current.status_version, actor={"surface": "test"},
+                ))
+                current = store.get_execution(active.execution_id)
+                asyncio.run(control.request_cancel(
+                    command_id="cancel", execution_id=current.execution_id,
+                    expected_version=current.status_version, actor={"surface": "test"},
+                    reason_code="user_cancel",
+                ))
+                return original(self, *args, **kwargs)
+
+            scoped.setattr(EffectStore, window, cancel_before_admission)
+            with pytest.raises(CancelledError):
+                with function_execution(store, attempt_id=active.attempt_id,
+                                        generation=active.generation, call_key="cancelled-call"):
+                    program(str(folder))
+            assert store.get_execution(active.execution_id).status is ExecutionStatus.CANCELLING
+            assert not (folder / "dispatches").exists()
+            effects = _pause_admission_effects(store, active.execution_id)
+            assert all(e.status is EffectStatus.NOT_COMMITTED for e in effects)
+            assert all(e.receipt["pause_before_dispatch"] is False for e in effects)
+
+
+def test_function_unrelated_admission_conflicts_are_not_suspensions(tmp_path, monkeypatch):
+    import pytest
+
+    from openprogram.agentic_programming.continuation import function_execution
+    from openprogram.execution.effects import EffectStore, EffectConflict
+
+    for code in ("admission_closed", "idempotency_collision", "stale_attempt"):
+        with monkeypatch.context() as scoped:
+            folder = tmp_path / code
+            folder.mkdir()
+            store, active, _control, program = _pause_admission_owner(folder, scoped)
+            conflict = EffectConflict(code, "owned non-pause failure")
+
+            def fail_registration(self, **kwargs):
+                raise conflict
+
+            scoped.setattr(EffectStore, "register", fail_registration)
+            with pytest.raises(EffectConflict) as caught:
+                with function_execution(store, attempt_id=active.attempt_id,
+                                        generation=active.generation, call_key="failed-call"):
+                    program(str(folder))
+            assert caught.value is conflict
+            assert store.get_execution(active.execution_id).status is ExecutionStatus.RUNNING
+            assert not (folder / "dispatches").exists()
+
+
+def test_function_pause_after_dispatch_keeps_committed_effect(tmp_path, monkeypatch):
+    import pytest
+
+    from openprogram.agentic_programming.continuation import FunctionSuspended, function_execution
+    from openprogram.execution.effects import EffectStore, EffectStatus
+
+    store, active, control, program = _pause_admission_owner(tmp_path, monkeypatch)
+    original = EffectStore.mark_dispatched
+    pauses = []
+
+    def pause_after_admission(self, *args, **kwargs):
+        result = original(self, *args, **kwargs)
+        if not pauses:
+            pauses.append(result.effect_id)
+            current = store.get_execution(active.execution_id)
+            asyncio.run(control.request_pause(
+                command_id="after-dispatch", execution_id=current.execution_id,
+                expected_version=current.status_version, actor={"surface": "test"},
+            ))
+        return result
+
+    monkeypatch.setattr(EffectStore, "mark_dispatched", pause_after_admission)
+    with pytest.raises(FunctionSuspended):
+        with function_execution(store, attempt_id=active.attempt_id,
+                                generation=active.generation, call_key="after-call"):
+            program(str(tmp_path))
+    effects = _pause_admission_effects(store, active.execution_id)
+    assert len(effects) == 1 and effects[0].status is EffectStatus.COMMITTED
+    assert "pause_before_dispatch" not in effects[0].receipt
+    assert (tmp_path / "dispatches").read_text().splitlines() == ["first"]
+
+
+
+def test_function_stale_owner_at_registration_still_fails(tmp_path, monkeypatch):
+    import pytest
+
+    from openprogram.agentic_programming.continuation import function_execution
+    from openprogram.execution.effects import EffectConflict, EffectStore
+
+    store, active, _control, program = _pause_admission_owner(tmp_path, monkeypatch)
+    original = EffectStore.register
+
+    def finish_owner_before_registration(self, **kwargs):
+        current = store.get_execution(active.execution_id)
+        AttemptStore(store).finish(
+            active.attempt_id, generation=active.generation,
+            expected_execution_version=current.status_version,
+            target=ExecutionStatus.FAILED, outcome="owned test owner ended",
+        )
+        return original(self, **kwargs)
+
+    monkeypatch.setattr(EffectStore, "register", finish_owner_before_registration)
+    with pytest.raises(EffectConflict) as caught:
+        with function_execution(store, attempt_id=active.attempt_id,
+                                generation=active.generation, call_key="stale-call"):
+            program(str(tmp_path))
+    assert caught.value.code == "stale_attempt"
+    assert store.get_execution(active.execution_id).status is ExecutionStatus.FAILED
+    assert not (tmp_path / "dispatches").exists()
+
+
+def _pause_admission_unknown_write(folder):
+    _pause_admission_write(folder, "unconfirmed")
+    raise RuntimeError("owned connection lost before receipt")
+
+
+def _pause_admission_unknown_program(folder):
+    from openprogram.agentic_programming.continuation import step
+
+    return step("unknown", _pause_admission_unknown_write, folder)
+
+
+def test_function_pause_after_dispatch_keeps_unknown_effect_for_reconciliation(tmp_path, monkeypatch):
+    import pytest
+
+    from openprogram.agentic_programming.continuation import function_execution
+    from openprogram.execution.effects import EffectStore, EffectStatus
+    from openprogram.execution.state_machine import InvalidCommand
+
+    store, active, control, program = _pause_admission_owner(
+        tmp_path, monkeypatch, _pause_admission_unknown_program,
+    )
+    original = EffectStore.mark_dispatched
+
+    def pause_after_admission(self, *args, **kwargs):
+        result = original(self, *args, **kwargs)
+        current = store.get_execution(active.execution_id)
+        asyncio.run(control.request_pause(
+            command_id="pause-unknown", execution_id=current.execution_id,
+            expected_version=current.status_version, actor={"surface": "test"},
+        ))
+        return result
+
+    monkeypatch.setattr(EffectStore, "mark_dispatched", pause_after_admission)
+    with pytest.raises(RuntimeError, match="owned connection lost"):
+        with function_execution(store, attempt_id=active.attempt_id,
+                                generation=active.generation, call_key="unknown-call"):
+            program(str(tmp_path))
+    effects = _pause_admission_effects(store, active.execution_id)
+    assert len(effects) == 1 and effects[0].status is EffectStatus.DISPATCHED
+    assert not effects[0].receipt
+    recovered = control.recover_owner_loss(
+        active.execution_id, attempt_id=active.attempt_id, generation=active.generation,
+    )
+    assert recovered.execution.status is ExecutionStatus.RECONCILIATION_REQUIRED
+    with pytest.raises(InvalidCommand):
+        asyncio.run(control.request_continue(
+            command_id="cannot-replay", execution_id=active.execution_id,
+            expected_version=recovered.execution.status_version, actor={"surface": "test"},
+        ))
+    assert (tmp_path / "dispatches").read_text().splitlines() == ["unconfirmed"]
+    assert _pause_admission_effects(store, active.execution_id)[0].status is EffectStatus.DISPATCHED
