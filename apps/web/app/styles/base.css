@@ -945,9 +945,14 @@ html[data-canvas-dragging] .desktop-tab-row { z-index: 100000; }
 .canvas-drop-preview[data-drop-target="tab-strip"] { z-index: 100001; }
 .canvas-drop-preview[data-drop-target="resources"] {
   background: color-mix(in oklch, var(--accent-blue) 8%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--accent-blue) 70%, transparent);
+  outline: 1.5px solid color-mix(in oklch, var(--accent-blue) 70%, transparent);
+  outline-offset: 0;
+  box-shadow: none;
   backdrop-filter: none;
   transition: none;
+}
+.canvas-drop-preview[data-drop-target="resources"][data-compact="true"] {
+  border-radius: var(--ui-list-radius);
 }
 .canvas-drop-label {
   position: absolute;

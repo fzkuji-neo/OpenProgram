@@ -80,7 +80,7 @@ function showDropPreview(rect: Rect | null, target = "canvas") {
   if (!preview) { preview = document.createElement("div"); preview.className = "canvas-drop-preview"; document.body.append(preview); }
   if (preview.dataset.dropTarget !== target) { preview.replaceChildren(); delete preview.dataset.compact; }
   preview.dataset.dropTarget = target;
-  const inset = 4;
+  const inset = target === "resources" ? 0 : 4;
   Object.assign(preview.style, { left: `${rect.left + inset}px`, top: `${rect.top + inset}px`, width: `${Math.max(0, rect.width - inset * 2)}px`, height: `${Math.max(0, rect.height - inset * 2)}px` });
 }
 export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: string, label: HTMLElement | null) {
