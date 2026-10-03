@@ -323,3 +323,92 @@ def test_legacy_report_imports_share_implementation():
     import importlib
     for name in ("io", "output", "sources", "wechat", "wechat_visual"):
         assert importlib.import_module(f"openprogram.programs.workflow.report_{name}") is importlib.import_module(f"openprogram.programs.workflow._reports.{name}")
+
+
+def test_authorized_plain_program_definitions_and_aliases(tmp_path, monkeypatch):
+    import importlib
+    from openprogram.programs._source_loader import register_public_entries
+    from openprogram.programs import _runtime
+    function_module = importlib.import_module("openprogram.agentic_programming.function")
+    monkeypatch.setattr(function_module, "_registry", dict(function_module._registry))
+    monkeypatch.setattr(_runtime, "_registry", dict(_runtime._registry))
+    monkeypatch.setattr(_runtime, "_unexposed", set(_runtime._unexposed))
+
+    source = tmp_path / "plain_capture_program"
+    source.mkdir()
+    (source / "__init__.py").write_text(
+        "from .work import plain_capture_program, count\ninitial = count(1)\n"
+    )
+    (source / "work.py").write_text(
+        "from __future__ import annotations\n"
+        "def count(n: int):\n"
+        "    '''Count recursive calls.'''\n"
+        "    return 1 if n == 0 else 1 + count(n - 1)\n"
+        "alias = count\n"
+        "def plain_capture_program(task: str):\n"
+        "    return alias(int(task))\n"
+        "def stream():\n"
+        "    yield 1\n"
+    )
+    name = "openprogram.programs.workflow.plain_capture_program"
+    monkeypatch.setattr(_programs, "owner_controlled_program_sources", lambda: [{"path": str(source)}])
+    monkeypatch.setattr(_registry._workflow_source_finder, "sources", {name: str(source)})
+    sys.meta_path.insert(0, _registry._workflow_source_finder)
+    calls = []
+    append = function_module._append_function_call_entry
+    def capture(**kwargs):
+        calls.append(kwargs["function_name"])
+        return append(**kwargs)
+    monkeypatch.setattr(function_module, "_append_function_call_entry", capture)
+    try:
+        package = importlib.import_module(name)
+        assert calls == []
+        work = importlib.import_module(name + ".work")
+        assert work.alias is work.count
+        assert work.count._is_managed_function
+        assert work.count.__doc__ == "Count recursive calls."
+        assert not getattr(work.stream, "_is_managed_function", False)
+        register_public_entries(package, "plain_capture_program")
+        assert package.plain_capture_program.__wrapped__ is work.plain_capture_program.__wrapped__
+        assert package.plain_capture_program("2") == 3
+    finally:
+        for key in list(sys.modules):
+            if key == name or key.startswith(name + "."):
+                sys.modules.pop(key, None)
+
+
+def test_unavailable_public_exports_remain_scoped_python_calls(monkeypatch):
+    import types
+    from openprogram import Agent
+    from openprogram.programs import _runtime
+    from openprogram.programs._source_loader import register_public_entries
+    from openprogram.agentic_programming import function as function_runtime
+
+    monkeypatch.setattr(_runtime, "_registry", {})
+    monkeypatch.setattr(_runtime, "_unexposed", set())
+    calls = []
+    append = function_runtime._append_function_call_entry
+    def capture(**kwargs):
+        calls.append(kwargs["function_name"])
+        return append(**kwargs)
+    monkeypatch.setattr(function_runtime, "_append_function_call_entry", capture)
+
+    def unavailable_source_export():
+        return "plain"
+    unavailable_source_export.__agentic_options__ = {"available_if": lambda: False}
+
+    class UnavailableProgramAgent(Agent):
+        method_options = {"run": {"available_if": lambda: False}}
+        def run(self):
+            return "bound"
+
+    module = types.ModuleType("unavailable_program")
+    module.plain = unavailable_source_export
+    module.bound = UnavailableProgramAgent().run
+    module.AGENTIC_FUNCTIONS = [module.plain, module.bound]
+    register_public_entries(module)
+    assert not _runtime._registry
+    assert getattr(module.plain, "_agent_tool", None) is None
+    assert module.plain() == "plain"
+    assert module.bound() == "bound"
+    assert len(calls) == 2

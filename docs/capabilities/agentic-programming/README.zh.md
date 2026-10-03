@@ -12,9 +12,9 @@
 | # | 文档 | 讲什么 |
 |---|---|---|
 | 1 | [`philosophy.md`](philosophy.zh.md) | 为什么是“agentic programming”——该模型背后的设计理据 |
-| 2 | [`writing-functions/agentic-function.md`](writing-functions/agentic-function.zh.md) | `@agentic_function`：封装一个 Python 函数，其函数体通过 `llm()` 发起单次 LLM 调用；组合模式 |
+| 2 | [`writing-functions/agentic-function.md`](writing-functions/agentic-function.zh.md) | 直接 `agent()` 调用、配置化 `Agent` 方法与旧接口兼容 |
 | 3 | [`writing-functions/function-metadata.md`](writing-functions/function-metadata.zh.md) | 参数描述、占位符、隐藏参数、`render_range`——函数元数据的唯一可信来源 |
-| 4 | [`writing-functions/pure-python.md`](writing-functions/pure-python.zh.md) | 何时**不要**用该装饰器：纯确定性的辅助函数 |
+| 4 | [`writing-functions/pure-python.md`](writing-functions/pure-python.zh.md) | 普通确定性 Python 帮助函数 |
 | 5 | [`embedding-in-your-own-stack.zh.md`](embedding-in-your-own-stack.zh.md) | 把这套模型当普通库嵌进你自己的应用或框架——自带 LLM 调用，状态放你自己的目录 |
 
 ## 选择下一步
@@ -30,7 +30,7 @@ OpenProgram 提供三种方式来决定函数内部“接下来执行什么”�
 
 ## 参考
 
-- [`../../reference/api/agentic-function.md`](../../reference/api/agentic-function.zh.md) —— 装饰器 API 速查
+- [`../../reference/api/agentic-function.md`](../../reference/api/agentic-function.zh.md) —— Agent、Context 与兼容 API 参考
 - [`../../reference/api/runtime.md`](../../reference/api/runtime.zh.md) —— `Runtime.exec()` 的参数与行为
 - [Agentic function API](../../reference/api/agentic-function.zh.md) —— 函数编写与校验规范
 - [`../../reference/design/function/calling-unification.md`](../../reference/design/function/calling-unification.zh.md) —— 函数调用框架的内部设计笔记（演进 / 重构计划，编写函数时无需阅读）

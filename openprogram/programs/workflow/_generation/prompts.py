@@ -118,7 +118,7 @@ Reply with one JSON object and no prose:
   "readme": "Markdown describing applicability, outputs, and limits",
   "files": {
     "__init__.py": "from .workflow import short_stable_python_name\\n",
-    "workflow.py": "from openprogram.agentic_programming import agentic_function\\n\\n@agentic_function\\ndef short_stable_python_name(task: str):\\n    ...\\n",
+    "workflow.py": "from openprogram import Agent\\n\\nclass WorkflowAgent(Agent):\\n    def run(self, task: str):\\n        ...\\n\\nshort_stable_python_name = WorkflowAgent().run\\n",
     "steps/__init__.py": "",
     "steps/example.py": "from openprogram.agentic_programming import agent\\n\\ndef example(task: str):\\n    ...\\n",
     "tests/test_workflow.py": "from workflows.short_stable_python_name import short_stable_python_name\\n"
@@ -127,12 +127,14 @@ Reply with one JSON object and no prose:
 
 Return the complete project, not a patch. The project name must be a valid
 lowercase Python identifier and is also the public function name. Export that
-function from __init__.py. Define it in workflow.py with the existing
-@agentic_function decorator and exactly one task parameter. Put reusable
+entry from __init__.py. Define an Agent subclass in workflow.py.
+Give its run method exactly one task parameter after self.
+Export the bound method as short_stable_python_name = WorkflowAgent().run.
+Do not add an agentic_function decorator. Put reusable
 responsibilities in separate steps/, goals/, or helpers/ modules and include
 tests/test_workflow.py. Include actual pytest behavior tests for output and invalid
 input, not an import-only file or just a callable assertion. Test the entry's
-__wrapped__ body with external calls mocked using the monkeypatch fixture. Publication
+public callable with external calls mocked using the monkeypatch fixture. Publication
 runs these tests with network disabled in an OS sandbox, so tests must not call
 live providers or submit external requests. Use ordinary relative imports inside
 the package.
@@ -146,16 +148,20 @@ saved plan on resume. Ask users only for missing task facts or required approval
 Do not override user constraints or application limits with model-generated values.
 Plain import statements such as `import json` are forbidden. Every Python
 module top level may contain only a module docstring, allowed `from ... import
-...` statements, an optional `__all__` assignment, and function definitions;
-module-level constants or other assignments are forbidden. Put constants and
-computed values inside functions. Absolute imports are allowed only from
+...` statements, an optional `__all__` assignment, functions, and Agent classes.
+The public entry assignment may select a method from an Agent instance.
+Put class configuration in model, instructions, context, and method_options.
+Use Context with fixed blocks or synchronous callable providers.
+Do not execute arbitrary expressions in class configuration.
+Put other constants and computed values inside functions.
+Absolute imports are allowed only from `openprogram`, `openprogram.context`,
 `openprogram.agentic_programming`,
 `openprogram.programs.workflow`, or one listed `workflows.<package>`.
 Standard-library imports such as `pathlib`, `datetime`, `re`, and `json` are
 forbidden; delegate filesystem, browser, and other external work to an existing
-registered agentic function or to `agent()`.
+registered Agent method or to `agent()`.
 Import llm, agent, goal, and control-flow helpers from
-openprogram.agentic_programming. Import existing OpenProgram agentic functions
+openprogram.agentic_programming. Import existing OpenProgram Agent methods
 from their normal openprogram.programs.workflow module. Do not embed
 the current task in source code; pass task into helpers. Reuse another listed
 Workflow only with `from workflows.<package> import <package>`. Do not use dynamic

@@ -18,6 +18,8 @@ Public API:
 """
 from __future__ import annotations
 
+from openprogram.context.model import Context, DELETE
+
 from openprogram.context.engine import (
     CONTEXT_ENGINE_REGISTRY,
     ContextEngine,
@@ -46,6 +48,8 @@ __all__ = [
     "BudgetAllocation",
     "CompactResult",
     "CONTEXT_ENGINE_REGISTRY",
+    "Context",
+    "DELETE",
     "ContextEngine",
     "DefaultContextEngine",
     "ReferenceMap",

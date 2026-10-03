@@ -13,6 +13,9 @@ PROJECT_SCHEMA_VERSION = 1
 PROJECT_RUNTIME_NAMES = {
     "llm",
     "agent",
+    "agent_async",
+    "Agent",
+    "Context",
     "goal",
     "validate_and_retry",
     "route",
@@ -209,7 +212,9 @@ def _allowed_package_import(
         and node.names[0].name == workflow_parts[1]
     )
     return (
-        module == "openprogram.agentic_programming"
+        module == "openprogram"
+        or module == "openprogram.context"
+        or module == "openprogram.agentic_programming"
         or module.startswith("openprogram.agentic_programming.")
         or module.startswith("openprogram.programs.workflow.")
         or module.startswith("openprogram.programs.tools.")
@@ -241,7 +246,7 @@ def _valid_dunder_all(node: ast.Assign) -> bool:
 def _name_binders(tree: ast.Module, name: str) -> list[tuple[str, str, str]]:
     binders: list[tuple[str, str, str]] = []
     for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name == name:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == name:
             binders.append(("function", "", node.name))
         elif isinstance(node, ast.ImportFrom):
             for alias in node.names:
@@ -250,6 +255,67 @@ def _name_binders(tree: ast.Module, name: str) -> list[tuple[str, str, str]]:
                         (f"import:{node.level}:{node.module or ''}", alias.name, name)
                     )
     return binders
+
+
+def _agent_entry_method(node: ast.AST, tree: ast.Module, entrypoint: str):
+    """Resolve an explicit export such as workflow = Researcher().run."""
+    if (not isinstance(node, ast.Assign) or len(node.targets) != 1
+            or not isinstance(node.targets[0], ast.Name)
+            or node.targets[0].id != entrypoint
+            or not isinstance(node.value, ast.Attribute)):
+        return None
+    constructor = node.value.value
+    if (not isinstance(constructor, ast.Call) or constructor.args or constructor.keywords
+            or not isinstance(constructor.func, ast.Name)):
+        return None
+    classes = [item for item in tree.body if isinstance(item, ast.ClassDef)
+               and item.name == constructor.func.id]
+    if len(classes) != 1:
+        return None
+    cls = classes[0]
+    methods = [item for item in cls.body
+               if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and item.name == node.value.attr and not item.decorator_list]
+    if len(methods) != 1:
+        return None
+    return methods[0]
+
+
+def _validate_agent_class(node: ast.ClassDef, tree: ast.Module, path: str) -> None:
+    """Allow Agent declarations without arbitrary class creation at import time."""
+    binding = _name_binders(tree, "Agent")
+    if binding not in ([('import:0:openprogram', 'Agent', 'Agent')],
+                       [('import:0:openprogram.agentic_programming', 'Agent', 'Agent')]):
+        raise InvalidWorkflow(f"Agent must keep its OpenProgram import: {path}")
+    if (node.decorator_list or node.keywords or len(node.bases) != 1
+            or not isinstance(node.bases[0], ast.Name) or node.bases[0].id != "Agent"):
+        raise InvalidWorkflow(f"Class {node.name} must inherit directly from Agent.")
+    for member in node.body:
+        if isinstance(member, ast.Expr) and isinstance(member.value, ast.Constant):
+            if isinstance(member.value.value, str):
+                continue
+        if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if any(_decorator_name(item) not in {"staticmethod", "classmethod"}
+                   for item in member.decorator_list):
+                raise InvalidWorkflow(f"Agent method {member.name} has an unsupported decorator.")
+            continue
+        if isinstance(member, (ast.Assign, ast.AnnAssign)):
+            value = member.value
+            if value is None:
+                continue
+            # Class configuration must not execute arbitrary calls at import time.
+            for part in ast.walk(value):
+                if isinstance(part, ast.Call):
+                    if not isinstance(part.func, ast.Name) or part.func.id != "Context":
+                        raise InvalidWorkflow("Agent configuration only permits Context construction.")
+                    if _name_binders(tree, "Context") not in (
+                        [('import:0:openprogram', 'Context', 'Context')],
+                        [('import:0:openprogram.context', 'Context', 'Context')],
+                        [('import:0:openprogram.agentic_programming', 'Context', 'Context')],
+                    ):
+                        raise InvalidWorkflow("Context must keep its OpenProgram import.")
+            continue
+        raise InvalidWorkflow(f"Agent class {node.name} contains an unsupported statement.")
 
 
 def _validate_project_candidate(
@@ -294,8 +360,6 @@ def _validate_project_candidate(
                 raise InvalidWorkflow("workflow packages may not use import statements")
             if isinstance(nested, ast.ImportFrom) and nested not in tree.body:
                 raise InvalidWorkflow("workflow package imports must be at module top level")
-            if isinstance(nested, ast.ClassDef):
-                raise InvalidWorkflow("workflow package classes are forbidden")
         for node in tree.body:
             if (
                 isinstance(node, ast.Expr)
@@ -318,6 +382,8 @@ def _validate_project_candidate(
             if isinstance(node, ast.Assign):
                 if _valid_dunder_all(node):
                     continue
+                if path == "workflow.py" and _agent_entry_method(node, tree, metadata["entrypoint"]) is not None:
+                    continue
                 if any(
                     isinstance(target, ast.Name) and target.id == "__all__"
                     for target in node.targets
@@ -325,9 +391,12 @@ def _validate_project_candidate(
                     raise InvalidWorkflow(
                         "workflow package __all__ must be a string literal list or tuple"
                     )
-            if not isinstance(node, ast.FunctionDef):
+            if isinstance(node, ast.ClassDef):
+                _validate_agent_class(node, tree, path)
+                continue
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 raise InvalidWorkflow(
-                    f"workflow package top level may contain only imports and functions: {path}"
+                    f"workflow package top level must contain imports, functions, or Agent classes: {path}"
                 )
             if node.name in PROJECT_RUNTIME_NAMES:
                 raise InvalidWorkflow(
@@ -372,7 +441,7 @@ def _validate_project_candidate(
         used_decorators = {
             name
             for node in tree.body
-            if isinstance(node, ast.FunctionDef)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             for item in node.decorator_list
             if (name := _decorator_name(item)) in {"agentic_function", "traced"}
         }
@@ -391,24 +460,24 @@ def _validate_project_candidate(
     entries = [
         node
         for node in trees["workflow.py"].body
-        if isinstance(node, ast.FunctionDef) and node.name == entrypoint
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == entrypoint
     ]
-    if len(entries) != 1 or "agentic_function" not in {
-        _decorator_name(item) for item in entries[0].decorator_list
-    }:
+    bound_entries = [method for node in trees["workflow.py"].body
+                     if (method := _agent_entry_method(node, trees["workflow.py"], entrypoint)) is not None]
+    if len(entries) + len(bound_entries) != 1:
+        raise InvalidWorkflow(f"workflow.py must define one {entrypoint} entry.")
+    entry = entries[0] if entries else bound_entries[0]
+    if public_entries and public_entries != [("workflow.py", entrypoint)]:
         raise InvalidWorkflow(
-            f"workflow.py must define one @agentic_function {entrypoint}()"
+            f"Only workflow.py:{entrypoint} may register a public function."
         )
-    if public_entries != [("workflow.py", entrypoint)]:
-        raise InvalidWorkflow(
-            "workflow package must define exactly one public "
-            f"@agentic_function: workflow.py:{entrypoint}"
-        )
-    args = entries[0].args
+    args = entry.args
+    positional = args.args[1:] if bound_entries else args.args
     if (
         args.posonlyargs
-        or len(args.args) != 1
-        or args.args[0].arg != "task"
+        or (bound_entries and (not args.args or args.args[0].arg != "self"))
+        or len(positional) != 1
+        or positional[0].arg != "task"
         or args.kwonlyargs
         or args.vararg
         or args.kwarg

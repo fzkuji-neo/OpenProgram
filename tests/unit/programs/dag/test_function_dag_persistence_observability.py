@@ -181,7 +181,7 @@ def test_exit_base_exception_still_restores_traced_call_id() -> None:
 
 
 @pytest.mark.parametrize("parameter", ["runtime", "exec_runtime", "review_runtime"])
-def test_owned_runtime_alias_is_closed_after_entry_abort(
+def test_owned_runtime_alias_does_not_construct_provider_before_entry_abort(
     parameter: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -193,7 +193,13 @@ def test_owned_runtime_alias_is_closed_after_entry_abort(
             self.close_calls += 1
 
     owned = CloseCounter()
-    monkeypatch.setattr("openprogram.providers.registry.create_runtime", lambda: owned)
+    create_calls = []
+
+    def create():
+        create_calls.append(True)
+        return owned
+
+    monkeypatch.setattr("openprogram.providers.registry.create_runtime", create)
     namespace: dict = {}
     exec(f"def work({parameter}=None):\n    return 'unreachable'", namespace)
     work = agentic_function(as_tool=False)(namespace["work"])
@@ -201,7 +207,8 @@ def test_owned_runtime_alias_is_closed_after_entry_abort(
     with pytest.raises(KeyboardInterrupt):
         _run_with_store(_AbortStore(), work)
 
-    assert owned.close_calls == 1
+    assert create_calls == []
+    assert owned.close_calls == 0
     assert _current_runtime.get() is None
 
 
@@ -224,3 +231,47 @@ def test_close_failure_does_not_replace_persistence_base_exception(
         _run_with_store(store, work)
     assert _current_runtime.get() is None
     assert _call_id.get() is None
+
+
+def test_ordinary_call_failure_restores_shared_scope_without_provider(monkeypatch):
+    from openprogram.agentic_programming.call_scope import managed_function
+    from openprogram.context.model import Context
+    from types import SimpleNamespace
+
+    nodes = {}
+    updates = []
+
+    class Writer:
+        def append(self, node):
+            nodes[node.id] = node
+
+        def load(self):
+            return SimpleNamespace(nodes=nodes)
+
+        def update(self, node_id, **fields):
+            updates.append((node_id, fields))
+
+    def unexpected_provider():
+        pytest.fail("An ordinary call must not construct a model provider")
+
+    monkeypatch.setattr("openprogram.providers.registry.create_runtime", unexpected_provider)
+
+    @managed_function
+    def fail(private_argument):
+        """Document the ordinary function scope."""
+        assert Context.current().call_id == _call_id.get()
+        raise ValueError("ordinary failure")
+
+    previous_context = Context.current()
+    previous_store = _store.get()
+    with pytest.raises(ValueError, match="ordinary failure"):
+        _run_with_store(Writer(), lambda: fail(object()))
+    assert Context.current() is previous_context
+    assert _store.get() is previous_store
+    assert _call_id.get() is None
+    assert _current_runtime.get() is None
+    assert len(nodes) == 1
+    node = next(iter(nodes.values()))
+    assert node.input == {}
+    assert node.metadata["doc"] == "Document the ordinary function scope."
+    assert updates[0][1]["output"] == {"error": "ordinary failure"}

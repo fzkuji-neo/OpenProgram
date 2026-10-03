@@ -123,3 +123,38 @@ def test_browser_gui_loops_do_not_call_runtime_exec_directly():
     ])
 
     assert "runtime.exec(" not in source
+
+
+def test_standalone_agent_async_selects_explicit_provider_before_construction(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from openprogram.agentic_programming import agent_async
+    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.store import _store
+
+    selections = []
+    closed = []
+
+    class FakeRuntime:
+        async def async_exec(self, **kwargs):
+            assert kwargs['model'] == 'chosen:model-id'
+            return {'text': 'selected'}
+
+        def close(self):
+            closed.append(True)
+
+    def create(**kwargs):
+        selections.append(kwargs)
+        return FakeRuntime()
+
+    monkeypatch.setattr('openprogram.providers.registry.create_runtime', create)
+    runtime_token = _current_runtime.set(None)
+    store_token = _store.set(SimpleNamespace(session_id='selection-test'))
+    try:
+        assert asyncio.run(agent_async('hello', model='chosen:model-id')) == 'selected'
+        assert selections == [{'provider': 'chosen', 'model': 'model-id'}]
+        assert closed == [True]
+        assert _current_runtime.get() is None
+    finally:
+        _store.reset(store_token)
+        _current_runtime.reset(runtime_token)

@@ -86,7 +86,7 @@
     </nav>
   </aside>
 
-  <main class="main">
+  <main class="main"><p>Agent、agent()、agent_async() 与 Agent.arun 使用同一执行内核。普通 Agent 方法与受管 Program 函数不需要逐函数装饰器。<a href="../integrations/nooa.zh.html#contract">统一 Agent 与 Context 契约</a>定义配置、上下文与作用域生命周期。</p>
     <header class="hero">
       <div class="eyebrow">重构计划 · 仅设计</div>
       <h1>统一 Agent 执行语义，重构 Self Programming Workflow</h1>
@@ -99,7 +99,7 @@
         <h2>1. 结论与边界</h2>
         <p>这次重构不新增第三个 Agent 抽象，也不把 session Job API 包装成另一个公共函数。公共语义保持在 <code>agent()</code>；持久化和分支属于运行环境，不属于 Workflow 编写接口。</p>
         <div class="decision">
-          <div class="card decision-main"><h3>唯一公共入口</h3><p class="big"><code>agent()</code> 是 Workflow 和 Application 内唯一的自主工具循环入口。</p><p>普通 Agentic Function 不调用它，只允许一次 <code>llm()</code>；完整分类合同见<a href="self-programming-workflow-model.zh.html">编程模型与分类</a>。Workflow 内的 <code>agent()</code> 在当前 Runtime 中运行并形成父子 Call 关系。</p></div>
+          <div class="card decision-main"><h3>共用执行入口</h3><p class="big"><code>agent()</code> 与配置化 <code>Agent</code> 调用使用同一自主工具循环。</p><p>普通 Agentic Function 不调用它，只允许一次 <code>llm()</code>；完整分类合同见<a href="self-programming-workflow-model.zh.html">编程模型与分类</a>。Workflow 内的 <code>agent()</code> 在当前 Runtime 中运行并形成父子 Call 关系。</p></div>
           <div class="card"><h3>内部 session 适配</h3><p><code>run_agent_turn()</code> 只服务于 Chat、CLI、后台 Job 和真正独立的 sub-agent。它负责创建会话分支、抢占 worker、恢复 Job 和移动 session head，不得被 Programs 直接导入。</p></div>
         </div>
         <div class="scope-list"><div class="card"><strong class="check">纳入本次重构</strong><span>Agent loop 统一、Workflow 选择/创建/修复、DAG 归属、结构化输出、错误传播、迁移测试和 UI 展示合同。</span></div><div class="card"><strong class="cross">不在本次重构中新增</strong><span>新的 Workflow DSL、新的图执行引擎、第二套 Agent profile、额外的持久化数据库、隐藏 chain-of-thought 展示。</span></div></div>
@@ -181,11 +181,11 @@
           <defs><marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#747981"/></marker></defs>
           <rect x="430" y="18" width="260" height="58" rx="11" fill="#17191c" stroke="#454b54"/><text x="560" y="52" text-anchor="middle" fill="#e8e9eb" font-size="16">auto_workflow(task)</text><path d="M560 76V112" stroke="#747981" stroke-width="2" marker-end="url(#arrow3)"/>
           <rect x="260" y="120" width="600" height="118" rx="14" fill="#241d1b" stroke="#ee7d55"/><text x="288" y="151" fill="#ee7d55" font-size="12" font-weight="700">AGENT · 选择复用或创建</text><text x="288" y="181" fill="#e8e9eb" font-size="16">search_workflows → 阅读候选 → 选择 reuse / create</text><text x="288" y="209" fill="#a3a7ae" font-size="12">不自动 revise 已发布Workflow；创建统一进入 create_workflow</text>
-          <path d="M560 238V274" stroke="#747981" stroke-width="2" marker-end="url(#arrow3)"/><rect x="360" y="282" width="400" height="76" rx="12" fill="#17191c" stroke="#67c78a"/><text x="560" y="313" text-anchor="middle" fill="#e8e9eb" font-size="16">确定性校验器与发布器</text><text x="560" y="338" text-anchor="middle" fill="#a3a7ae" font-size="12">包 · @agentic_function 导出 · 导入 · 策略 · 源码版本</text>
+          <path d="M560 238V274" stroke="#747981" stroke-width="2" marker-end="url(#arrow3)"/><rect x="360" y="282" width="400" height="76" rx="12" fill="#17191c" stroke="#67c78a"/><text x="560" y="313" text-anchor="middle" fill="#e8e9eb" font-size="16">确定性校验器与发布器</text><text x="560" y="338" text-anchor="middle" fill="#a3a7ae" font-size="12">包 · 显式入口导出 · 导入 · 策略 · 源码版本</text>
           <path d="M360 320H210V402" fill="none" stroke="#ef6b62" stroke-width="1.8" marker-end="url(#arrow3)"/><text x="225" y="311" fill="#ef6b62" font-size="11">创建校验失败</text>
           <rect x="54" y="410" width="312" height="94" rx="12" fill="#21191a" stroke="#ef6b62"/><text x="78" y="440" fill="#ef6b62" font-size="12" font-weight="700">AGENT · 有限次数的编写重试</text><text x="78" y="468" fill="#e8e9eb" font-size="14">输入明确诊断，重写未发布candidate</text><text x="78" y="490" fill="#a3a7ae" font-size="11">仅属于create发布前验证，不修改已发布Workflow</text><path d="M210 410V386H560V358" fill="none" stroke="#ef6b62" stroke-width="1.5" marker-end="url(#arrow3)"/>
           <path d="M760 320H930V402" fill="none" stroke="#67c78a" stroke-width="1.8" marker-end="url(#arrow3)"/><text x="805" y="311" fill="#67c78a" font-size="11">已验证</text>
-          <rect x="754" y="410" width="312" height="94" rx="12" fill="#18201c" stroke="#67c78a"/><text x="778" y="440" fill="#67c78a" font-size="12" font-weight="700">执行选定的工作流</text><text x="778" y="468" fill="#e8e9eb" font-size="14">直接调用已发布 @agentic_function</text><text x="778" y="490" fill="#a3a7ae" font-size="11">内部 llm / agent / goal / Functions 全部进入同一 DAG</text>
+          <rect x="754" y="410" width="312" height="94" rx="12" fill="#18201c" stroke="#67c78a"/><text x="778" y="440" fill="#67c78a" font-size="12" font-weight="700">执行选定的工作流</text><text x="778" y="468" fill="#e8e9eb" font-size="14">直接调用已发布入口</text><text x="778" y="490" fill="#a3a7ae" font-size="11">内部 llm / agent / goal / Functions 全部进入同一 DAG</text>
           <path d="M910 504V548H560" fill="none" stroke="#747981" stroke-width="1.8" marker-end="url(#arrow3)"/><rect x="360" y="556" width="400" height="76" rx="12" fill="#17191c" stroke="#4bc6d8"/><text x="560" y="587" text-anchor="middle" fill="#e8e9eb" font-size="16">summary() · 工作流交接</text><text x="560" y="612" text-anchor="middle" fill="#a3a7ae" font-size="12">2–3 句概述 + 关键步骤 + 完成状态；结果文件留在项目目录</text>
         </svg></div>
         <div class="callout">Selection Agent 只输出 reuse/create 决策，不写文件。选择create后由 <code>create_workflow</code> 的author与确定性validator生成并发布多文件Python package；显式修改由 <code>revise_workflow</code> 独立负责。</div>
@@ -265,7 +265,7 @@
           <tr><td><code>_run_planner_turn()</code></td><td>Workflow selection/authoring 调用 public <code>agent()</code></td><td>Programs 内规划不再 import <code>run_agent_turn</code></td><td>保留为 <code>agent(tools=PLANNER_TOOLS)</code> 薄包装；后续可删除</td></tr>
           <tr><td><code>_request_project_decision()</code></td><td>用单一编排 Agent 的实际工具行为替代</td><td>先输出 selection JSON 再编写造成两次 Agent 语义和断裂 DAG</td></tr>
           <tr><td>legacy SINGLE / <code>code.py</code></td><td>只读恢复，禁止新建</td><td>保留历史记录但不继续产生不可维护单文件 Workflow</td></tr>
-          <tr><td>工作流项目包</td><td>继续使用标准 Python package 和 <code>@agentic_function</code> 导出</td><td>支持多文件维护、Git revision、静态依赖图和直接 Python 调用</td></tr>
+          <tr><td>工作流项目包</td><td>继续使用标准 Python package 和显式 Agent 方法或函数导出</td><td>支持多文件维护、Git revision、静态依赖图和直接 Python 调用</td></tr>
           <tr><td>Agents profile</td><td>复用现有 Agents 配置与 resolver</td><td>避免 Program 内出现第二套模型/工具配置</td></tr>
         </tbody></table>
       </section>
@@ -299,7 +299,7 @@ git diff --check</code></pre>
           <tr><td><a href="https://openai.github.io/openai-agents-python/running_agents/">OpenAI Agents SDK · 运行 agent</a></td><td>Runner 维护一个逻辑 turn 的模型—工具循环；max turns、session、hooks 分开表达。</td><td>不把 Runner 作为 OpenProgram 的第二个运行时；继续使用现有 Runtime/dispatcher。</td></tr>
           <tr><td><a href="https://openai.github.io/openai-agents-python/tools/">OpenAI Agents SDK · 工具</a></td><td>Python function tool 和 agent-as-tool 都是明确调用，父级可观察子执行。</td><td>不把 Workflow 隐式转换为 handoff；Workflow 仍是 Python package。</td></tr>
           <tr><td><a href="https://openai.github.io/openai-agents-python/multi_agent/">OpenAI Agents SDK · 编排</a></td><td>区分 manager 调用子 agent 与把控制权 handoff 给另一 agent。</td><td>Program 内 <code>agent()</code> 不自动创建 session 分支；只有产品级 sub-agent 操作才切 session。</td></tr>
-          <tr><td><a href="https://docs.langchain.com/oss/python/langgraph/workflows-agents">LangGraph · 工作流与 agent</a></td><td>Workflow 是预定代码路径，Agent 在局部动态决定工具调用。</td><td>不新增图 DSL；静态调用图从 Python imports 与 <code>@agentic_function</code> 生成。</td></tr>
+          <tr><td><a href="https://docs.langchain.com/oss/python/langgraph/workflows-agents">LangGraph · 工作流与 agent</a></td><td>Workflow 是预定代码路径，Agent 在局部动态决定工具调用。</td><td>不新增图 DSL；静态调用图从 Python imports 与显式入口身份 生成。</td></tr>
           <tr><td><a href="https://docs.langchain.com/oss/python/langgraph/persistence">LangGraph · 持久化</a></td><td>持久化、thread、checkpoint 和中断恢复应是显式生命周期能力。</td><td>不把所有 Program 内 Agent 强制变成持久 thread；仅 session adapter 使用 durable Job。</td></tr>
         </tbody></table>
       </section>

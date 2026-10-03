@@ -66,9 +66,11 @@ def _messages_to_content(system_prompt: Optional[str], messages: list) -> list[d
             if text is not None:
                 blocks.append({"type": "text", "text": text, "role": role})
                 continue
-            # Non-text part (image / tool_use / tool_result). Render a marker
-            # so the callable at least knows something was there.
             ptype = getattr(part, "type", "?")
+            if ptype in {"image", "video", "audio"}:
+                blocks.append({**part.model_dump(exclude_none=True), "role": role})
+                continue
+            # Keep a marker for non-content provider protocol blocks.
             blocks.append({"type": "text", "text": f"[{ptype}]", "role": role})
     return blocks
 
@@ -108,12 +110,19 @@ def make_callable_stream_fn(
         )
 
         direct_content = _current_direct_content.get(None)
-        if direct_content is not None:
-            content = direct_content
-        else:
-            system_prompt = getattr(context, "system_prompt", None)
-            messages = getattr(context, "messages", None) or []
-            content = _messages_to_content(system_prompt, messages)
+        system_prompt = getattr(context, "system_prompt", None)
+        messages = getattr(context, "messages", None) or []
+        content = _messages_to_content(system_prompt, messages)
+        # Keep the direct callable shape only if the prepared user content
+        # is unchanged. Named blocks and compacted projections must reach
+        # the callable through the same request that was budgeted.
+        if direct_content is not None and len(messages) == 1:
+            user_content = messages[0].content
+            normalized = ([{"type": "text", "text": user_content}]
+                          if isinstance(user_content, str) else
+                          [block.model_dump(exclude_none=True) for block in user_content])
+            if normalized == direct_content:
+                content = direct_content
 
         model_id = _current_call_model.get(None) or getattr(model, "id", None) or "callable"
 

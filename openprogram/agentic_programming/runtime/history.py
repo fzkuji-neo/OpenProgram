@@ -190,7 +190,7 @@ class HistoryOperations:
         return self._skills_prompt_block
 
 
-    def _render_history_messages(self, content) -> Optional[list]:
+    def _render_history_messages(self, content, context=None) -> Optional[list]:
         """Build the provider message list for an in-progress exec()
         from the DAG.
 
@@ -209,7 +209,11 @@ class HistoryOperations:
           4. Append a fresh UserMessage built from ``content``.
         """
         from openprogram.store import _store
+        from openprogram.context.model import Context
 
+        context = context if context is not None else Context.current()
+        if context is None:
+            context = Context()
         store = _store.get()
         if store is None:
             return None
@@ -220,7 +224,7 @@ class HistoryOperations:
             from openprogram.agentic_programming.function import _call_id
 
             graph = store.load()
-            frame_node_id = _call_id.get()
+            frame_node_id = _call_id.get() or context.call_id
 
             frame_entry_seq = -1
             render_range = None
@@ -244,6 +248,10 @@ class HistoryOperations:
                 if not caller or caller not in graph.nodes:
                     break
                 head_id = caller
+            if context.head_id is not None and context.head_id not in graph.nodes:
+                raise ValueError(f"Context head {context.head_id!r} does not exist.")
+            if head_id is None and context.head_id is not None:
+                head_id = context.head_id
             if head_id is None:
                 head_id = (
                     max(
@@ -259,6 +267,11 @@ class HistoryOperations:
                 frame_entry_seq=frame_entry_seq,
                 render_range=render_range,
             )
+            read_ids = context.select_history(graph, read_ids, call_id=frame_node_id)
+            model_node_id = getattr(self, "_active_llm_node_id", None)
+            if model_node_id and model_node_id in graph.nodes:
+                read_ids = [node_id for node_id in read_ids if node_id != model_node_id]
+                store.update(model_node_id, reads=read_ids)
             # Resolve the session's history/ dir so an over-cap node's
             # truncation marker can cite the exact node file the agent can
             # ``read`` back. Best-effort: any failure → generic marker.
@@ -301,10 +314,8 @@ class HistoryOperations:
             # alone and missed the current frame.
             ctx, _sp = _build_pi_context(frame_prefix_blocks + (content or []))
             return history + [ctx.messages[0]]
-        except Exception:
-            # If anything goes wrong building DAG messages, fall back
-            # to the legacy render_messages path. Never break exec().
-            return None
+        except Exception as exc:
+            raise RuntimeError("Cannot construct context from the session DAG.") from exc
 
 
     def _open_model_call_node(
@@ -332,8 +343,7 @@ class HistoryOperations:
         ``_call_via_providers`` once the prompt is already built. See
         :meth:`_enter_model_frame`.
 
-        ``reads`` is intentionally left empty for now — wiring the exact
-        read-id set the prompt consumed is a future refinement.
+        History construction fills ``reads`` with the selected DAG sources.
         """
         try:
             from openprogram.store import _store
@@ -344,13 +354,24 @@ class HistoryOperations:
             if store is None:
                 return None
 
+            caller = _call_id.get() or ""
+            predecessor = None
+            if not caller:
+                from openprogram.context.model import Context
+                context = Context.current()
+                predecessor = context.head_id if context is not None else None
+                if predecessor is None:
+                    pair = store.store._open(store.session_id)
+                    predecessor = pair[1].head_id if pair is not None else None
+                predecessor = predecessor or "ROOT"
             node = Call(
                 role=ROLE_LLM,
+                predecessor=predecessor,
                 name=model or self.model or "",
                 input=({"system": system_prompt} if system_prompt else None),
                 output=None,
                 reads=[],
-                caller=_call_id.get() or "",
+                caller=caller,
                 metadata={
                     "status": "running",
                     "execution_kind": execution_kind,

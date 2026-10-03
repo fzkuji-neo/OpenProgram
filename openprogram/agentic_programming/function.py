@@ -326,6 +326,8 @@ def create_pending_call_node(
         "expose": expose,
         "status": "running",
     }
+    from .call_scope import execution_task_id
+    meta['task_id'] = execution_task_id()
     active_tool_call_id = current_tool_call_id()
     active_occurrence_id = current_tool_call_occurrence_id()
     if active_occurrence_id:
@@ -651,43 +653,17 @@ def _inject_runtime(sig, args, kwargs):
 
 
 def _apply_system(system, bound_args):
-    """Apply a function's decorator ``system=`` onto its injected
-    runtime(s) for the duration of the call.
-
-    ``runtime.exec`` reads the system prompt off ``runtime.system``, so
-    the decorator's ``system=`` only reaches the model if it is stamped
-    there. Returns a restore list consumed by :func:`_restore_system`
-    so a caller's own ``system`` is not clobbered by a nested call.
-    """
+    """Bind function instructions in this task without mutating a Runtime."""
     if not system:
-        return []
-    saved = []
-    seen = set()
-    for pname in _RUNTIME_PARAMS:
-        rt = bound_args.get(pname)
-        if rt is None or id(rt) in seen:
-            continue
-        seen.add(id(rt))
-        had = hasattr(rt, "system")
-        prev = getattr(rt, "system", None)
-        try:
-            rt.system = system
-        except Exception:
-            continue
-        saved.append((rt, had, prev))
-    return saved
+        return None
+    from .runtime.shared import _current_instructions
+    return _current_instructions.set(system)
 
 
-def _restore_system(saved):
-    """Undo :func:`_apply_system`."""
-    for rt, had, prev in saved:
-        try:
-            if had:
-                rt.system = prev
-            else:
-                delattr(rt, "system")
-        except Exception:
-            pass
+def _restore_system(token):
+    if token is not None:
+        from .runtime.shared import _current_instructions
+        _current_instructions.reset(token)
 
 
 def _close_owned_runtime(owned_runtime) -> None:
@@ -858,49 +834,16 @@ class agentic_function:
         # from the user-facing Functions panel.
         tool_visible: bool = True,
     ):
-        if expose is None:
-            expose = default_expose()
-        if expose not in ("io", "llm", "full", "hidden"):
-            raise ValueError(
-                f"expose must be 'io', 'llm', 'full', or 'hidden', "
-                f"got {expose!r}"
-            )
-        self.expose = expose
-        self.render_range = render_range
-        self.input_meta = input or {}
-        self.system = system
-        self.as_tool = as_tool
-        self.resumable = resumable
-        self.tool_name = name
-        self.tool_description = description
-        self.tool_parameters = parameters
-        self.tool_label = label
-        self.toolset = tuple(toolset)
-        self.unsafe_in = tuple(unsafe_in)
-        self.check_fn = check_fn
-        self.requires_env = tuple(requires_env)
-        self.max_result_chars = max_result_chars
-        self.persist_full = persist_full
-        self.head_ratio = head_ratio
-        self.requires_approval = requires_approval
-        self.cache = cache
-        self.cache_ttl = cache_ttl
-        self.timeout = timeout
-        self.can_use = can_use
-        self.available_if = available_if
-        self.defer = defer
-        self.register_globally = register_globally
-        self.tool_visible = tool_visible
-        # Filled in by ``_register_as_tool`` once a function is
-        # attached. Held here so callers can introspect (``fn._agent_tool``)
-        # without doing a registry lookup.
-        self._agent_tool = None
-        self._fn = None
-        self._wrapper = None
-
+        from .agent_method import MethodOptions
+        values = dict(locals())
+        values.pop('self')
+        values.pop('fn')
+        values.pop('MethodOptions')
+        values['capture_io'] = True
+        if values['expose'] is None:
+            values['expose'] = default_expose()
+        self.__dict__.update(MethodOptions(**values).__dict__)
         if fn is not None:
-            # Used as @agentic_function without parentheses — fn is
-            # already in hand, attach right now.
             self._attach(fn)
 
     def __call__(self, *args, **kwargs):
@@ -983,626 +926,17 @@ class agentic_function:
         return self._wrapper(**kwargs)
 
     def _register_as_tool(self) -> None:
-        """Bridge this @agentic_function into the shared AgentTool registry.
-
-        Sits next to ``@function``-decorated tools in the same
-        ``openprogram.programs._runtime._registry``, so the LLM can
-        call this function via tool_call dispatch and so all 6 gating
-        layers (available_if / toolset / mode preset / check_fn /
-        deny rules / defer) apply uniformly.
-
-        Delegates AgentTool construction + sidecar attach + register
-        to ``_build_and_register_tool`` — the same helper ``@function``
-        uses. The only piece unique to the agentic side is the
-        ``_execute`` closure that funnels the LLM-passed kwargs through
-        ``self._wrapper`` (the wrapper carries pre-invocation hooks,
-        runtime injection, DAG entry/exit, and inner agent-loop
-        spawning).
-
-        Note: the file-local ``_registry`` (line 82) is kept and
-        populated separately; ``program`` (the tool) and the webui use it to
-        look up the agentic_function *instance* (for ``.expose`` /
-        ``.render_range`` / ``._fn`` / etc.) — that's distinct from
-        looking up an ``AgentTool`` for dispatcher invocation, which
-        is what the shared registry serves.
-        """
-        if self._fn is None or self._wrapper is None:
-            return  # nothing to wrap yet
-
-        # Lazy imports to avoid a hard cycle on package init —
-        # @agentic_function may be imported before openprogram.programs
-        # is fully constructed.
-        from openprogram.agent.types import AgentToolResult
-        from openprogram.programs._execution_common import (
-            invoke_callable,
-            timeout_tool_result,
-            _normalize_result,
-        )
-        from openprogram.programs._runtime import (
-            _build_and_register_tool,
-            _effective_max_chars,
-            _persist_full_result,
-            _cache_key,
-            _cache_get,
-            _cache_set,
-            DEFAULT_MAX_RESULT_CHARS,
-            DEFAULT_HEAD_RATIO,
-        )
-
-        name = self.tool_name or self._fn.__name__
-        # Reuse the dict-shape spec the legacy path already produced
-        # so the parameter schema stays consistent (hidden params
-        # filtered, type-hint extraction handled by the existing
-        # ``_build_agentic_tool_spec`` helper).
-        spec = _build_agentic_tool_spec(self._fn, self.input_meta)
-        parameters = self.tool_parameters or spec.get("parameters") or {
-            "type": "object", "properties": {}
-        }
-        description = (
-            self.tool_description or spec.get("description") or self._fn.__name__
-        )
-        max_chars = self.max_result_chars or DEFAULT_MAX_RESULT_CHARS
-        head_ratio = (
-            self.head_ratio if self.head_ratio is not None else DEFAULT_HEAD_RATIO
-        )
-        persist_full = self.persist_full
-        wrapper = self._wrapper
-        use_cache = self.cache
-        cache_ttl = self.cache_ttl
-        exec_timeout = self.timeout
-
-        async def _execute(call_id, args, cancel, on_update):
-            # Funnel the LLM-passed kwargs through the wrapper (which
-            # carries the agentic semantics) then normalise the return
-            # value through the same truncation / persist-full path
-            # @function uses. cache / timeout mirror @function's
-            # semantics: memoize on (name, args); hard-kill after
-            # ``timeout`` seconds with an is_error result.
-            kwargs = dict(args or {})
-            cancel_token = (
-                _current_cancel.set(cancel) if cancel is not None else None
-            )
-            tool_call_token = None
-            identity_consumed_token = None
-            try:
-                from openprogram.programs._runtime import (
-                    _current_tool_call_id,
-                    _tool_call_identity_consumed,
-                )
-
-                tool_call_token = _current_tool_call_id.set(call_id)
-                identity_consumed_token = _tool_call_identity_consumed.set(False)
-            except Exception:
-                pass
-
-            try:
-                if use_cache:
-                    key = _cache_key(name, kwargs)
-                    hit = _cache_get(key)
-                    if hit is not None:
-                        return hit
-
-                try:
-                    raw = await invoke_callable(
-                        wrapper, kwargs,
-                        timeout=exec_timeout,
-                        is_async=inspect.iscoroutinefunction(wrapper),
-                        # No-timeout sync still runs on the loop thread.
-                        run_sync_in_executor=False,
-                    )
-                except asyncio.TimeoutError:
-                    if exec_timeout is None:
-                        raise
-                    setter = getattr(cancel, "set", None)
-                    if callable(setter):
-                        setter()
-                    pending = _forced_node_id.get() or _call_id.get() or call_id
-                    if pending:
-                        _update_function_call_exit(
-                            pending_id=pending,
-                            output=None,
-                            error=(
-                                f"function {name} timed out after "
-                                f"{exec_timeout}s"
-                            ),
-                            status="error",
-                            expose=self.expose,
-                            started_at=None,
-                            ended_at=time.time(),
-                        )
-                    return timeout_tool_result(name, exec_timeout)
-            finally:
-                if tool_call_token is not None:
-                    try:
-                        _current_tool_call_id.reset(tool_call_token)
-                    except Exception:
-                        pass
-                if identity_consumed_token is not None:
-                    try:
-                        _tool_call_identity_consumed.reset(identity_consumed_token)
-                    except Exception:
-                        pass
-                if cancel_token is not None:
-                    _current_cancel.reset(cancel_token)
-
-            if isinstance(raw, AgentToolResult):
-                result = raw
-            else:
-                result = _normalize_result(
-                    raw,
-                    call_id=call_id,
-                    max_chars=_effective_max_chars(max_chars),
-                    persist_full=persist_full,
-                    head_ratio=head_ratio,
-                    persist=_persist_full_result,
-                )
-            if use_cache and not result.is_error:
-                _cache_set(_cache_key(name, kwargs), result, cache_ttl)
-            return result
-
-        self._agent_tool = _build_and_register_tool(
-            name=name,
-            description=description,
-            parameters=parameters,
-            label=self.tool_label,
-            execute=_execute,
-            requires_approval=self.requires_approval,
-            check_fn=self.check_fn,
-            requires_env=self.requires_env,
-            can_use=self.can_use,
-            defer=self.defer,
-            toolsets=self.toolset,
-            unsafe_in=self.unsafe_in,
-            expose=self.tool_visible,
-            register_globally=self.register_globally,
-        )
-        # Mark the AgentTool so the dispatcher can route an LLM-issued
-        # call to this @agentic_function through the same runtime-block
-        # rendering that the manual /run path uses, instead of the
-        # collapsed tool-call card.
-        try:
-            setattr(self._agent_tool, "_is_agentic", True)
-            setattr(self._agent_tool, "_resumable", self.resumable)
-            setattr(self._agent_tool, "_source_module", self._fn.__module__)
-            setattr(self._agent_tool, "_dag_expose", self.expose)
-        except Exception:
-            pass
+        from .agent_method import register_method
+        register_method(self)
 
     def _make_wrapper(self, fn: Callable) -> Callable:
-        sig = inspect.signature(fn)
-
-        if inspect.iscoroutinefunction(fn):
-            return self._make_async_wrapper(fn, sig)
-        return self._make_sync_wrapper(fn, sig)
-
-    def _make_async_wrapper(self, fn: Callable, sig: inspect.Signature) -> Callable:
-        from .continuation import FunctionSuspended
-        self_ref = self
-        expose = self.expose
-        render_range = self.render_range
-        system = self.system
-
-        @functools.wraps(fn)
-        async def wrapper(*args, **kwargs):
-            # Cancel check / other pre-invocation hooks — may raise to abort.
-            _run_pre_invocation_hooks()
-
-            # Auto-inject runtime if needed
-            new_args, new_kwargs, runtime_token, owned_runtime = _inject_runtime(sig, args, kwargs)
-
-            import uuid as _uuid
-            # Reuse the id the parent dispatch path pre-created for this
-            # run (if any) so the exit update keys on the node already on
-            # disk and the append below no-ops. Only honour it for a
-            # top-level run (no enclosing @agentic_function) — a nested
-            # sub-call must mint its own id, never claim the parent card.
-            _forced_nid = _forced_node_id.get()
-            _tool_call_id = current_tool_call_id()
-            _tool_occurrence_id = current_tool_call_occurrence_id()
-            _parent_id = _call_id.get() or ""
-            _identity_id = (
-                _tool_occurrence_id
-                or (_tool_call_id if not tool_call_identity_consumed() else "")
-            )
-            if _identity_id and _parent_id:
-                _pending_call_id = tool_node_id(_parent_id, _identity_id)
-            elif _forced_nid and not _parent_id:
-                _pending_call_id = _forced_nid
-            else:
-                _pending_call_id = _uuid.uuid4().hex[:12]
-            _started_at = time.time()
-
-            bound = sig.bind(*new_args, **new_kwargs)
-            bound.apply_defaults()
-            bound_args = dict(bound.arguments)
-            effective_render_range = (
-                render_range if render_range is not None
-                else _render_range_override.get()
-            )
-
-            try:
-                _append_function_call_entry(
-                    pending_id=_pending_call_id,
-                    function_name=fn.__name__,
-                    arguments=bound_args,
-                    expose=expose,
-                    render_range=effective_render_range,
-                    started_at=_started_at,
-                    docstring=inspect.getdoc(fn) or "",
-                )
-            except BaseException:
-                if runtime_token is not None:
-                    _current_runtime.reset(runtime_token)
-                _close_owned_runtime(owned_runtime)
-                raise
-            # The provider occurrence belongs to this wrapper only. Keep it
-            # available while the placeholder is created, then consume the
-            # qualified identity so nested/sibling calls mint fresh ids.
-            if _tool_occurrence_id or _tool_call_id:
-                try:
-                    from openprogram.programs._runtime import (
-                        _current_tool_call_occurrence_id,
-                        _tool_call_identity_consumed,
-                    )
-
-                    if _tool_occurrence_id:
-                        _current_tool_call_occurrence_id.set(None)
-                    _tool_call_identity_consumed.set(True)
-                except Exception:
-                    pass
-            # Stamp ``_call_id`` so anything further down the call
-            # tree (rt.exec → ModelCall.caller, ask_user → user
-            # Call.caller) attributes its writes to this invocation.
-            _call_token = _call_id.set(_pending_call_id)
-            _system_saved = _apply_system(system, bound_args)
-            output = None
-            error = None
-            status = "completed"
-            _usage_token = None
-            try:
-                from openprogram.usage.context import (
-                    _current as _usage_cur, UsageContext,
-                    current_usage_context as _cur_uctx,
-                )
-                _prev = _cur_uctx()
-                _usage_token = _usage_cur.set(UsageContext(
-                    call_kind="exec",
-                    call_label=fn.__name__,
-                    session_id=_prev.session_id,
-                    parent_session_id=_prev.parent_session_id,
-                    agent_id=_prev.agent_id,
-                ))
-            except Exception:
-                pass
-            # Self-recursion backstop (async variant): bump the
-            # per-name depth counter and abort if this function has
-            # re-entered itself past the limit. The model is steered
-            # away from self-calls by the situational prompt; this only
-            # catches a runaway loop. See ``_make_sync_wrapper``.
-            _self_name_async = getattr(self, "tool_name", None) or fn.__name__
-            _prev_depth_async = _recursion_depth.get(None) or {}
-            _cur_depth_async = _prev_depth_async.get(_self_name_async, 0)
-            if _cur_depth_async >= _MAX_AGENTIC_RECURSION_DEPTH:
-                raise RecursionError(
-                    f"agentic function {_self_name_async} exceeded max "
-                    f"nesting depth {_MAX_AGENTIC_RECURSION_DEPTH} — "
-                    "possible runaway recursion"
-                )
-            _depth_token_async = _recursion_depth.set({
-                **_prev_depth_async,
-                _self_name_async: _cur_depth_async + 1,
-            })
-            try:
-                output = await fn(*new_args, **new_kwargs)
-                return output
-            except FunctionSuspended:
-                status = "paused"
-                raise
-            except CancelledError:
-                error = "Cancelled by user"
-                status = "cancelled"
-                raise
-            except Exception as e:
-                error = str(e)
-                status = "error"
-                raise
-            finally:
-                _recursion_depth.reset(_depth_token_async)
-                _restore_system(_system_saved)
-                try:
-                    _update_function_call_exit(
-                        pending_id=_pending_call_id,
-                        output=output,
-                        error=error,
-                        status=status,
-                        expose=expose,
-                        started_at=_started_at,
-                        ended_at=time.time(),
-                    )
-                finally:
-                    _call_id.reset(_call_token)
-                    if _usage_token is not None:
-                        _usage_cur.reset(_usage_token)
-                    if runtime_token is not None:
-                        _current_runtime.reset(runtime_token)
-                    _close_owned_runtime(owned_runtime)
-
-        wrapper._is_agentic = True
-        return wrapper
-
-    def _make_sync_wrapper(self, fn: Callable, sig: inspect.Signature) -> Callable:
-        from .continuation import FunctionSuspended
-        self_ref = self
-        expose = self.expose
-        render_range = self.render_range
-        system = self.system
-
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            # Cancel check / other pre-invocation hooks — may raise to abort.
-            _run_pre_invocation_hooks()
-
-            # Auto-inject runtime if needed
-            new_args, new_kwargs, runtime_token, owned_runtime = _inject_runtime(sig, args, kwargs)
-
-            import uuid as _uuid
-            # Reuse the parent-pre-created id for a top-level run (see the
-            # async wrapper's matching note) so head / predecessor stay
-            # stamped once and the exit update targets the on-disk node.
-            _forced_nid = _forced_node_id.get()
-            _tool_call_id = current_tool_call_id()
-            _tool_occurrence_id = current_tool_call_occurrence_id()
-            _parent_id = _call_id.get() or ""
-            _identity_id = (
-                _tool_occurrence_id
-                or (_tool_call_id if not tool_call_identity_consumed() else "")
-            )
-            if _identity_id and _parent_id:
-                _pending_call_id = tool_node_id(_parent_id, _identity_id)
-            elif _forced_nid and not _parent_id:
-                _pending_call_id = _forced_nid
-            else:
-                from .continuation import current_function_node_id
-                _pending_call_id = current_function_node_id() or _uuid.uuid4().hex[:12]
-            _started_at = time.time()
-
-            bound = sig.bind(*new_args, **new_kwargs)
-            bound.apply_defaults()
-            bound_args = dict(bound.arguments)
-            effective_render_range = (
-                render_range if render_range is not None
-                else _render_range_override.get()
-            )
-
-            try:
-                _append_function_call_entry(
-                    pending_id=_pending_call_id,
-                    function_name=fn.__name__,
-                    arguments=bound_args,
-                    expose=expose,
-                    render_range=effective_render_range,
-                    started_at=_started_at,
-                    docstring=inspect.getdoc(fn) or "",
-                )
-            except BaseException:
-                if runtime_token is not None:
-                    _current_runtime.reset(runtime_token)
-                _close_owned_runtime(owned_runtime)
-                raise
-            if _tool_occurrence_id or _tool_call_id:
-                try:
-                    from openprogram.programs._runtime import (
-                        _current_tool_call_occurrence_id,
-                        _tool_call_identity_consumed,
-                    )
-
-                    if _tool_occurrence_id:
-                        _current_tool_call_occurrence_id.set(None)
-                    _tool_call_identity_consumed.set(True)
-                except Exception:
-                    pass
-            _call_token = _call_id.set(_pending_call_id)
-            # Apply the decorator's system= onto the injected runtime(s)
-            # for the duration of this call so nested runtime.exec()
-            # picks it up. Saved/restored so a caller's system survives.
-            _system_saved = _apply_system(system, bound_args)
-            output = None
-            error = None
-            status = "completed"
-            _usage_token = None
-            try:
-                from openprogram.usage.context import (
-                    _current as _usage_cur, UsageContext,
-                    current_usage_context as _cur_uctx,
-                )
-                _prev = _cur_uctx()
-                _usage_token = _usage_cur.set(UsageContext(
-                    call_kind="exec",
-                    call_label=fn.__name__,
-                    session_id=_prev.session_id,
-                    parent_session_id=_prev.parent_session_id,
-                    agent_id=_prev.agent_id,
-                ))
-            except Exception:
-                pass
-            # Self-recursion backstop: the inner model is told (via the
-            # situational prompt in runtime._render_history_messages)
-            # that it is already running inside this function and must
-            # not call it — the tool stays visible but the model is
-            # steered away. This depth counter is only a safety net: if
-            # a runaway model re-enters the SAME function past the
-            # limit, abort instead of nesting forever. Per-function-name
-            # so wiki_agent → gui_agent → … never collide.
-            _self_name = getattr(self, "tool_name", None) or fn.__name__
-            _prev_depth = _recursion_depth.get(None) or {}
-            _cur_depth = _prev_depth.get(_self_name, 0)
-            if _cur_depth >= _MAX_AGENTIC_RECURSION_DEPTH:
-                raise RecursionError(
-                    f"agentic function {_self_name} exceeded max "
-                    f"nesting depth {_MAX_AGENTIC_RECURSION_DEPTH} — "
-                    "possible runaway recursion"
-                )
-            _depth_token = _recursion_depth.set({
-                **_prev_depth,
-                _self_name: _cur_depth + 1,
-            })
-            try:
-                if self.resumable:
-                    from .continuation import invoke
-                    output = invoke(fn, self.tool_name or fn.__name__, new_args, new_kwargs)
-                else:
-                    output = fn(*new_args, **new_kwargs)
-                return output
-            except FunctionSuspended:
-                status = "paused"
-                raise
-            except CancelledError:
-                error = "Cancelled by user"
-                status = "cancelled"
-                raise
-            except Exception as e:
-                error = str(e)
-                status = "error"
-                raise
-            finally:
-                _recursion_depth.reset(_depth_token)
-                _restore_system(_system_saved)
-                try:
-                    _update_function_call_exit(
-                        pending_id=_pending_call_id,
-                        output=output,
-                        error=error,
-                        status=status,
-                        expose=expose,
-                        started_at=_started_at,
-                        ended_at=time.time(),
-                    )
-                finally:
-                    _call_id.reset(_call_token)
-                    if _usage_token is not None:
-                        _usage_cur.reset(_usage_token)
-                    if runtime_token is not None:
-                        _current_runtime.reset(runtime_token)
-                    _close_owned_runtime(owned_runtime)
-
-        wrapper._is_agentic = True
-        return wrapper
+        from .agent_method import wrap_agent_method
+        return wrap_agent_method(fn, self)
 
 
-_PY_TO_JSON_TYPE = {
-    str: "string",
-    int: "integer",
-    float: "number",
-    bool: "boolean",
-    list: "array",
-    dict: "object",
-    type(None): "null",
-}
-
-
-def _coerce_enum(values: list, json_type) -> list:
-    """Coerce enum values to a JSON scalar type so type/enum agree.
-
-    ``json_type`` is the schema ``type`` string ("integer"/"number"/
-    "boolean"/"string"/...). Values that can't be coerced are left as-is
-    (so a genuinely bad option surfaces rather than being silently
-    dropped). Non-scalar / unknown types pass through unchanged.
-    """
-    def one(v):
-        try:
-            if json_type == "integer":
-                return int(v)
-            if json_type == "number":
-                return float(v)
-            if json_type == "boolean":
-                if isinstance(v, bool):
-                    return v
-                return str(v).strip().lower() in ("true", "1", "yes")
-            if json_type == "string":
-                return str(v)
-        except (TypeError, ValueError):
-            return v
-        return v
-    return [one(v) for v in values]
-
-
-def _type_to_json_schema(ann) -> dict:
-    """Map a Python type annotation to a JSON Schema fragment."""
-    import typing
-
-    if ann is inspect.Parameter.empty:
-        return {}
-
-    origin = typing.get_origin(ann)
-    args = typing.get_args(ann)
-
-    # Optional[X] / Union[X, None]
-    if origin is typing.Union:
-        non_none = [a for a in args if a is not type(None)]
-        if len(non_none) == 1:
-            schema = _type_to_json_schema(non_none[0])
-            return schema
-        # Bare union — let the model send any; unconstrained
-        return {}
-
-    if ann in _PY_TO_JSON_TYPE:
-        return {"type": _PY_TO_JSON_TYPE[ann]}
-
-    if origin in (list, tuple):
-        if args:
-            return {"type": "array", "items": _type_to_json_schema(args[0])}
-        return {"type": "array"}
-
-    if origin is dict:
-        return {"type": "object"}
-
-    return {}
-
-
-def _build_agentic_tool_spec(fn: Callable, input_meta: dict) -> dict:
-    """Generate an OpenAI Responses-API-compatible tool spec from a Python fn."""
-    sig = inspect.signature(fn)
-    properties: dict[str, dict] = {}
-    required: list[str] = []
-    for name, param in sig.parameters.items():
-        if name in _RUNTIME_PARAMS:
-            continue
-        meta = input_meta.get(name) or {}
-        if meta.get("hidden"):
-            continue
-
-        schema = _type_to_json_schema(param.annotation) or {"type": "string"}
-        description = meta.get("description")
-        if description:
-            schema["description"] = description
-        elif meta.get("placeholder"):
-            schema["description"] = f"e.g. {meta['placeholder']}"
-        options = meta.get("options")
-        if options:
-            # Coerce enum values to match the param's declared JSON type.
-            # UI ``options`` are often authored as display strings
-            # (e.g. ["5","10","15"]) for a param annotated ``int`` — that
-            # produces {"type":"integer","enum":["5",...]}, a type/enum
-            # contradiction OpenAI strict-mode tool validation rejects
-            # (HTTP 400), which breaks EVERY chat turn (all tool schemas
-            # ship together). Normalise so the enum always agrees with
-            # the type, regardless of how the harness wrote its options.
-            schema["enum"] = _coerce_enum(list(options), schema.get("type"))
-
-        properties[name] = schema
-        if param.default is inspect.Parameter.empty:
-            required.append(name)
-
-    parameters: dict = {"type": "object", "properties": properties}
-    if required:
-        parameters["required"] = required
-
-    description = (fn.__doc__ or "").strip() or f"Call {fn.__name__}."
-    return {
-        "name": fn.__name__,
-        "description": description,
-        "parameters": parameters,
-    }
+def _build_agentic_tool_spec(fn, input_meta):
+    from .agent_method import _build_agentic_tool_spec as build
+    return build(fn, input_meta)
 
 
 def traced(fn):
@@ -1618,88 +952,34 @@ def traced(fn):
         def search_papers(query):
             ...
     """
+    if inspect.isgeneratorfunction(fn) or inspect.isasyncgenfunction(fn):
+        return fn
+    from .call_scope import CallScope
     sig = inspect.signature(fn)
 
-    def _enter(args, kwargs):
-        import uuid as _uuid
-        pending_call_id = _uuid.uuid4().hex[:12]
-        started_at = time.time()
-
+    def scope(args, kwargs):
         try:
             bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
-            bound_args = {k: v for k, v in bound.arguments.items()
-                          if k not in ("self", "cls", "runtime", "callback")}
+            arguments = {k: v for k, v in bound.arguments.items()
+                         if k not in ("self", "cls", "runtime", "callback")}
         except TypeError:
-            bound_args = {}
+            arguments = {}
+        return CallScope(fn.__name__, docstring=inspect.getdoc(fn) or '',
+                         arguments=arguments, capture_io=True, expose="io")
 
-        _append_function_call_entry(
-            pending_id=pending_call_id,
-            function_name=fn.__name__,
-            arguments=bound_args,
-            expose="io",
-            render_range=None,
-            started_at=started_at,
-            docstring=inspect.getdoc(fn) or "",
-        )
-        call_token = _call_id.set(pending_call_id)
-        return pending_call_id, started_at, call_token
-
-    def _exit(pending_call_id, started_at, call_token, output, error, status):
-        try:
-            _update_function_call_exit(
-                pending_id=pending_call_id,
-                output=output,
-                error=error,
-                status=status,
-                expose="io",
-                started_at=started_at,
-                ended_at=time.time(),
-            )
-        finally:
-            _call_id.reset(call_token)
-
-    # Coroutine functions get an async wrapper — calling fn() without
-    # awaiting would record the coroutine object's repr as the output
-    # and a duration covering only coroutine creation.
     if inspect.iscoroutinefunction(fn):
         @functools.wraps(fn)
-        async def async_wrapper(*args, **kwargs):
-            pending_call_id, started_at, call_token = _enter(args, kwargs)
-            output = None
-            error = None
-            status = "completed"
-            try:
-                output = await fn(*args, **kwargs)
-                return output
-            except Exception as e:
-                error = str(e)
-                status = "error"
-                raise
-            finally:
-                _exit(pending_call_id, started_at, call_token,
-                      output, error, status)
-
-        async_wrapper._is_traced = True
-        return async_wrapper
-
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        pending_call_id, started_at, call_token = _enter(args, kwargs)
-        output = None
-        error = None
-        status = "completed"
-        try:
-            output = fn(*args, **kwargs)
-            return output
-        except Exception as e:
-            error = str(e)
-            status = "error"
-            raise
-        finally:
-            _exit(pending_call_id, started_at, call_token,
-                  output, error, status)
-
+        async def wrapper(*args, **kwargs):
+            with scope(args, kwargs) as call:
+                call.output = await fn(*args, **kwargs)
+                return call.output
+    else:
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            with scope(args, kwargs) as call:
+                call.output = fn(*args, **kwargs)
+                return call.output
     wrapper._is_traced = True
     return wrapper
 

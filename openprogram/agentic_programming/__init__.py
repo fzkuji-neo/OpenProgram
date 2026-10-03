@@ -1,24 +1,8 @@
-"""
-openprogram.agentic_programming — core engine.
+"""Agent configuration, task-local Context, and shared execution primitives.
 
-Primitives:
-
-    1. @agentic_function  — turn a Python function into one that can call an LLM
-    2. llm                 — make one model request through the ambient Runtime
-    3. agent               — make a tool loop through the ambient Runtime
-    4. decision.make       — let the LLM make the next-step decision
-
-Infrastructure:
-
-    Runtime                — base class for provider calls and accounting
-
-Execution traces are persisted as a flat DAG in
-``openprogram.context.storage`` (SQLite). Older revisions kept a
-parallel in-memory ``Context`` tree + a JSONL trace + an event pubsub
-layer; those have all been retired in favour of the DAG.
-
-Zero downstream dependencies: providers / programs / webui depend on
-agentic_programming, never the other way around.
+Agent methods create call scopes automatically. Context supplies named content
+and history visibility. Runtime uses the existing providers and Session DAG.
+The agentic_function entry remains available for external compatibility.
 """
 
 from openprogram.agentic_programming.function import (
@@ -26,7 +10,9 @@ from openprogram.agentic_programming.function import (
 )
 from openprogram.agentic_programming.runtime import Runtime
 from openprogram.agentic_programming.llm import llm
-from openprogram.agentic_programming.agent import agent
+from openprogram.agentic_programming.agent import agent, agent_async
+from openprogram.agentic_programming.agent_class import Agent
+from openprogram.context import Context
 from openprogram.agentic_programming import decision
 from openprogram.agentic_programming.session import Session
 from openprogram.agentic_programming.control_flow import (
@@ -43,6 +29,9 @@ __all__ = [
     "StructuredOutputError",
     "llm",
     "agent",
+    "agent_async",
+    "Agent",
+    "Context",
     "decision",
     "Session",
     "validate_and_retry",

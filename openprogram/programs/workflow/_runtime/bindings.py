@@ -84,26 +84,25 @@ def _registered_agentic_functions() -> dict[str, Callable]:
     """Resolve Python-callable entries defined by AGENTIC_MODULES."""
     from openprogram.programs._registry import AGENTIC_MODULES
 
+    from openprogram.programs._runtime import all_tools
+    allowed_modules = {
+        f"openprogram.programs.workflow.{name}"
+        for name in AGENTIC_MODULES
+        if name not in {"search_workflows", "create_workflow", "revise_workflow", "auto_workflow"}
+    }
+    for module_name in allowed_modules:
+        try:
+            importlib.import_module(module_name)
+        except Exception:
+            continue
     found: dict[str, Callable] = {}
-    for module_name in AGENTIC_MODULES:
-        if module_name in {
-            "search_workflows",
-            "create_workflow",
-            "revise_workflow",
-            "auto_workflow",
-        }:
+    for tool in all_tools():
+        source = getattr(tool, "_source_module", "")
+        if not getattr(tool, "_is_agentic", False) or not any(
+            source == name or source.startswith(name + ".") for name in allowed_modules
+        ):
             continue
-        try:
-            module = importlib.import_module(
-                f"openprogram.programs.workflow.{module_name}"
-            )
-        except Exception:
-            continue
-        try:
-            for value in vars(module).values():
-                inner = getattr(value, "_fn", None)
-                if inner is not None and inner.__module__ == module.__name__:
-                    found[inner.__name__] = value
-        except Exception:
-            continue
+        function = getattr(tool, "_python_callable", None)
+        if callable(function):
+            found[tool.name] = function
     return found

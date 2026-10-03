@@ -54,7 +54,7 @@ Runtime.exec(content, context=None, response_format=None, model=None,
 
 调用 LLM,上下文从 session DAG 自动算出。
 
-**在 `@agentic_function` 内部调用时:**
+**在 Agent 方法或受管函数作用域内调用时：**
 1. 从当前函数的 DAG 节点出发,`render_context` 按 `expose` / `render_range` 算出本次要读哪些历史节点
 2. `render_dag_messages` 把这些节点渲染成 messages
 3. 调用 `_call()` 发送请求
@@ -62,7 +62,7 @@ Runtime.exec(content, context=None, response_format=None, model=None,
 
 **没安装 DAG store 时**(standalone 脚本、无 dispatcher):`content` 包成单条 user message 作单轮调用发送,不做任何记录。
 
-一个 `@agentic_function` 可以多次调用 `exec()`,每次都是 DAG 上的一个新 `llm` 节点。
+Agent 方法或函数作用域可以多次调用 `exec()`,每次都是 DAG 上的一个新 `llm` 节点。
 
 #### 参数
 
@@ -72,7 +72,7 @@ Runtime.exec(content, context=None, response_format=None, model=None,
 | `context` | `str \| None` | `None` | 遗留参数,已被忽略——provider 路径从 DAG 构建历史 |
 | `response_format` | `dict \| JsonSchemaOutput \| None` | `None` | 裸 JSON Schema 或规范化 `JsonSchemaOutput` 包络。已验证的 provider/model 组合使用已注册的原生映射；否则 `fallback="auto"` 可使用已验证的隐藏 strict-tool 路径，提示词回退必须显式设置 `fallback="prompt"`。不支持或有损的组合直接失败。终态按原始 schema 做本地解析与校验，并返回 Python JSON 值；`max_validation_retries` 可以是 `0`、`1` 或 `2`（默认 `2`）；校验修复与截断重新生成共享此次数。同时仍转发给 `_call()` 供子类使用 |
 | `model` | `str \| None` | `None` | 覆盖默认模型 |
-| `tools` | `list \| None` | `None` | 本次调用 LLM 可用的工具。每项可以是 `@agentic_function`、`{"spec":..., "execute":...}` 字典、或带 `.spec` / `.execute` 的对象。设了就跑工具循环直到模型返回纯文本。**默认(`None`)不是"无工具"**:调用会拿到完整的注册工具集;纯推理调用传 `toolset="none"`,要显式空列表传 `tools=[]` |
+| `tools` | `list \| None` | `None` | 本次调用 LLM 可用的工具。每项可以是显式登记的 Agent 方法、旧装饰器函数、`{"spec":..., "execute":...}` 字典、或带 `.spec` / `.execute` 的对象。设了就跑工具循环直到模型返回纯文本。**默认(`None`)不是"无工具"**:调用会拿到完整的注册工具集;纯推理调用传 `toolset="none"`,要显式空列表传 `tools=[]` |
 | `toolset` / `tools_source` / `tools_allow` / `tools_deny` | — | `None` | 工具集预设与策略过滤:`toolset` 指名预设(`"full"` 是隐式默认,`"none"` 表示退出),`tools_source` 按渠道来源过滤,`tools_allow` / `tools_deny` 是名单允许/拒绝列表 |
 | `tool_choice` | `str \| dict` | `"auto"` | `"auto"` / `"required"` / `"none"` / `{"type":"function","name":"X"}` 强制某工具。透传到 provider(OpenAI / Anthropic / Gemini / Bedrock 各自映射协议形态) |
 | `parallel_tool_calls` | `bool` | `True` | 允许一轮多个工具调用;`False` 透传到支持该开关的 provider |
@@ -120,14 +120,15 @@ provider 候选正文不属于公共诊断合同。
 
 ```python
 await Runtime.async_exec(content, context=None, response_format=None, model=None,
-                         timeout_s=None, on_retry=None) -> Any
+                         timeout_s=None, on_retry=None, tools=None, toolset=None,
+                         max_iterations=None) -> Any
 ```
 
 `exec()` 的异步版本,具有相同的 `response_format=None` 文本返回以及结构化
 Python JSON 返回/异常合同。内部调用 `_async_call()`;`call=` 函数可同步或异步,
 默认 provider 路径使用同一 AgentSession structured lifecycle。`timeout_s` /
 `on_retry` 语义与 `exec()` 相同;重试用 `asyncio.sleep` 休眠,外部取消能生效。
-它没有公开的工具循环参数。
+它接受同步工具循环选项，包括 tools、toolset、max_iterations 和工具授权过滤。
 
 ---
 
@@ -177,68 +178,36 @@ await Runtime._async_call(content, model="default", response_format=None) -> Any
 
 ## 使用方式
 
-### 方式一:传入 call 函数
+宿主提供 Runtime，Agent 自动继承它。普通方法不需要装饰器或手动 Context 管理。
 
 ```python
-from openprogram import agentic_function
-from openprogram.agentic_programming.runtime import Runtime
+from openprogram import Agent, Runtime
 
-def my_llm(content, model="sonnet", response_format=None):
-    # 把 content 转成你的 provider 格式,发请求
-    texts = [b["text"] for b in content if b["type"] == "text"]
+
+def my_llm(content, model="host-model", response_format=None):
+    texts = [block["text"] for block in content if block["type"] == "text"]
     return call_my_api("\n".join(texts), model=model)
 
-runtime = Runtime(call=my_llm, model="sonnet")
+runtime = Runtime(call=my_llm, model="host-model")
 
-@agentic_function
-def observe(task):
-    """Look at the screen."""
-    return runtime.exec(content=[
-        {"type": "text", "text": f"Find: {task}"},
-        {"type": "image", "path": "screenshot.png"},
-    ])
+class Observer(Agent):
+    tools = []
+
+    def observe(self, task: str):
+        """Identify the requested screen element."""
+        return self([
+            {"type": "text", "text": f"Find: {task}"},
+            {"type": "image", "path": "screenshot.png"},
+        ])
+
+observer = Observer(runtime=runtime)
+try:
+    answer = observer.observe("login button")
+finally:
+    runtime.close()
 ```
 
-### 方式二:子类化
-
-```python
-class MyAnthropicRuntime(Runtime):
-    def __init__(self, api_key, model="sonnet"):
-        super().__init__(model=model)
-        self.client = anthropic.Anthropic(api_key=api_key)
-
-    def _call(self, content, model="sonnet", response_format=None):
-        messages_content = []
-        for block in content:
-            if block["type"] == "text":
-                messages_content.append({"type": "text", "text": block["text"]})
-        response = self.client.messages.create(
-            model=model, max_tokens=1024,
-            messages=[{"role": "user", "content": messages_content}],
-        )
-        return response.content[0].text
-
-runtime = MyAnthropicRuntime(api_key="sk-...", model="claude-sonnet-4-6")
-```
-
-### 多个 Runtime 共存
-
-```python
-fast = Runtime(call=gemini_call, model="gemini-2.5-flash")
-strong = Runtime(call=claude_call, model="sonnet")
-
-@agentic_function
-def observe(task):
-    """Quick observation with cheap model."""
-    return fast.exec(content=[...])
-
-@agentic_function
-def plan(goal):
-    """Complex planning with strong model."""
-    return strong.exec(content=[...])
-```
-
----
+[Agent 与 Context API](agentic-function.zh.md) 说明配置、显式会话与作用域。旧装饰器继续兼容。
 
 ## Retry 机制
 

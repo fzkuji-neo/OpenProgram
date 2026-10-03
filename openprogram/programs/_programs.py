@@ -687,8 +687,7 @@ def program_function_names() -> set[str]:
 # Startup hook --------------------------------------------------------
 
 def import_installed_programs() -> list[str]:
-    """Import every installed program so its ``@agentic_function``
-    decorators fire and self-register into the shared registry.
+    """Capture each explicitly installed Program and register its public exports.
 
     For in-tree clones (the standard layout) each clone's own directory
     is put on ``sys.path`` first so ``import <package>`` resolves against
@@ -711,15 +710,26 @@ def import_installed_programs() -> list[str]:
             if repo_dir not in sys.path:
                 sys.path.insert(0, repo_dir)
         try:
-            # Import the harness's ``agentics`` sub-package — that's the
-            # registration contract (it exposes AGENTIC_FUNCTIONS, whose
-            # @agentic_function decorators fire on import and self-register).
-            # Importing the bare top-level package is NOT enough: the
-            # decorators live under ``<package>/agentics/``, which a parent
-            # __init__ doesn't pull in (and shouldn't — top-level packages
-            # are kept dep-light / lazy). Same contract the auto-discovery
-            # path uses, so first-party and third-party register identically.
-            importlib.import_module(f"{prog.package}.agentics")
+            # Capture only the catalogue-selected package. Its agentics
+            # module exports the public AGENTIC_FUNCTIONS entries.
+            from openprogram.programs._source_loader import install_program_source, register_public_entries
+            package_spec = importlib.util.find_spec(prog.package)
+            if package_spec is not None and package_spec.submodule_search_locations:
+                roots = list(package_spec.submodule_search_locations)
+                if len(roots) == 1:
+                    # The explicit installed-program catalogue authorizes this
+                    # package, not adjacent packages or its dependencies.
+                    root = roots[0]
+                    package_name = prog.package
+                    install_program_source(
+                        package_name, root,
+                        lambda root=root, package_name=package_name: (
+                            is_owner_controlled_program_path(root)
+                            or _has_installed_distribution(package_name)
+                        ),
+                    )
+            module = importlib.import_module(f"{prog.package}.agentics")
+            register_public_entries(module)
             if prog.function == "gui_agent":
                 from openprogram.programs.gui_harness_bridge import (
                     install_gui_harness_web_use,

@@ -157,9 +157,17 @@ def test_function_runtime_compacts_its_tool_continuation(monkeypatch):
         return runtime.exec('Analyze only; retain evidence.', stream_fn=stream,
             tools=[AgentTool(name='check', label='check', description='check',
                 parameters={'type': 'object'}, execute=execute)])
+    from openprogram.agent.authority import owner_authority
+    from openprogram.agent.dispatcher.types import TurnRequest
+    from openprogram.agent.turn_request_context import set_turn_request, reset_turn_request
+    request = TurnRequest(session_id="compaction-fixture", user_text="Analyze fixture evidence",
+                          agent_id="main", source="python", permission_mode="bypass",
+                          **owner_authority("owner/install/" + "a" * 16))
+    token = set_turn_request(request)
     try:
         assert inspect(runtime=runtime) == 'done'
     finally:
+        reset_turn_request(token)
         runtime.close()
     assert len(executed) == 1 and len(requests) == 2 and summaries
     assert estimate_history_tokens(requests[-1].messages) < 11000
@@ -303,3 +311,43 @@ def test_bedrock_thinking_cannot_expand_resolved_total_limit(monkeypatch, reques
     else:
         amazon_bedrock.stream_simple_bedrock(model, result, options)
         assert captured[0]['max_tokens'] == options.max_tokens < model.context_window
+
+
+def test_context_bind_publishes_writer_for_direct_runtime_and_restores(tmp_path):
+    from openprogram.agentic_programming import Runtime
+    from openprogram.context import Context
+    from openprogram.context.nodes import Call, ROLE_USER
+    from openprogram.store import SessionStore, SessionNodeWriter, _store
+
+    store = SessionStore(tmp_path / "sessions")
+    store.create_session("bound", agent_id="main")
+    store.create_session("other", agent_id="main")
+    writer = SessionNodeWriter(store, "bound")
+    other = SessionNodeWriter(store, "other")
+    branch = Call(role=ROLE_USER, output="selected-branch", predecessor="ROOT")
+    sibling = Call(role=ROLE_USER, output="unselected-branch", predecessor="ROOT")
+    writer.append(branch)
+    writer.append(sibling)
+    seen = []
+    runtime = Runtime(call=lambda content, **kwargs: seen.append(content) or "direct-result")
+    previous_writer = _store.get()
+    previous_context = Context.current()
+    try:
+        with Context(store=writer, head_id=branch.id).bind():
+            assert _store.get() is writer
+            assert runtime.exec("direct-input", toolset="none") == "direct-result"
+            with pytest.raises(ValueError, match="differs from the active"):
+                with Context(store=other).bind():
+                    pass
+            assert _store.get() is writer
+        assert _store.get() is previous_writer
+        assert Context.current() is previous_context
+        with Context(store=writer).bind():
+            runtime.exec("continued-input", toolset="none")
+        text = "\n".join(block.get("text", "") for block in seen[0])
+        assert "selected-branch" in text and "unselected-branch" not in text
+        assert any("direct-input" in block.get("text", "") for block in seen[1])
+        assert len(writer.load().nodes) == 4
+    finally:
+        runtime.close()
+        store.close()

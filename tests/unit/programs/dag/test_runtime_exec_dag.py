@@ -266,15 +266,34 @@ def test_exec_stream_fn_injection(store):
     assert llm_nodes[0].output == "from fake stream"
 
 
-def test_llm_requires_ambient_runtime():
+def test_llm_owns_standalone_runtime(monkeypatch):
+    created = []
+    closed = []
+
+    class FakeRuntime:
+        def exec(self, **kwargs):
+            assert _store_var.get() is not None
+            assert kwargs['content'] == [{'type': 'text', 'text': 'hello'}]
+            return 'standalone result'
+
+        def close(self):
+            closed.append(True)
+
+    def create():
+        created.append(True)
+        return FakeRuntime()
+
+    monkeypatch.setattr('openprogram.providers.registry.create_runtime', create)
     token = _current_runtime.set(None)
+    store_token = _store_var.set(None)
     try:
-        with pytest.raises(
-            RuntimeError,
-            match=r"llm\(\) requires an ambient Runtime",
-        ):
-            llm("hello")
+        assert llm('hello') == 'standalone result'
+        assert created == [True]
+        assert closed == [True]
+        assert _current_runtime.get() is None
+        assert _store_var.get() is None
     finally:
+        _store_var.reset(store_token)
         _current_runtime.reset(token)
 
 

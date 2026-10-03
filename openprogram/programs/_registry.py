@@ -1,42 +1,13 @@
-"""Explicit + auto-discovered registry of @agentic_function modules.
+"""Load explicit shipped Programs and owner-authorized external sources.
 
-Two mechanisms, in order:
+Program definitions receive structural call scopes during source compilation.
+Only package entrypoints and AGENTIC_FUNCTIONS exports register as tools.
+Registration uses the shared Agent method adapter. Legacy decorators remain
+supported and retain their own registration and recording settings.
 
-  1. **AGENTIC_MODULES** — hand-maintained list of internal agentic
-     module names (``openprogram/programs/workflow/<name>/``). Loaded
-     explicitly so that import order and dependency conditions are
-     obvious.
-
-  2. **Built-in Workflows** — explicitly named modules under
-     ``openprogram/programs/workflow/``.
-
-  3. **Published workflow projects** — Git-backed packages under
-     ``openprogram/programs/workflow/`` recorded in ``program-sources.json``
-     by publish (or one-time migration). Importing their public package
-     fires the existing ``@agentic_function`` decorator; execution still
-     uses the shared registry and runtime. Unrecorded directories are not
-     imported.
-
-  4. **Auto-discovered external harnesses** — owner-recorded symlinks and
-     directories under ``openprogram/programs/packages/`` are treated as
-     external harnesses. For each, we find its Python package
-     (``<harness>/<pkg>/__init__.py``) and import ``<pkg>.agentics``.
-     That sub-package must expose ``AGENTIC_FUNCTIONS = [...]`` — the
-     ``@agentic_function`` decorators on the listed callables fire on
-     import and register themselves with the shared AgentTool registry.
-
-The auto-discovery convention replaces the old per-harness
-``file_override`` mechanism: run ``openprogram programs install`` to record
-the directory or development symlink; the harness's own
-``<pkg>/agentics/__init__.py`` exports ``AGENTIC_FUNCTIONS``. No edit to this
-file is required.
-
-What's *exposed* to LLMs (Layer 2 of the selection cascade) is a
-separate concern — a registered tool is exposed unless it opted out
-with ``expose=False``, and ``exposed_names()`` in ``_runtime`` is the
-live set. Membership in any registration mechanism here says "load
-this module so its decorators run"; ``expose=False`` on the decorator
-says "keep this one out of every LLM tool table".
+Published packages use exact authorized package names. Installed catalogue
+packages and owner-recorded harnesses capture only their selected source roots;
+Python dependencies and adjacent packages retain normal import behavior.
 """
 
 from __future__ import annotations
@@ -96,12 +67,23 @@ def load_agentic_modules(
     the whole import. Set ``OPENPROGRAM_DEBUG_REGISTRY=1`` to surface
     swallowed errors.
     """
+    # Shipped Programs are explicit source selections, as in WORKFLOW_MODULES.
+    _workflow_source_finder.builtin_sources = {
+        f"openprogram.programs.workflow.{name}": os.path.join(
+            os.path.dirname(__file__), "workflow", *name.split("."),
+        )
+        for name in WORKFLOW_MODULES
+    }
+    if _workflow_source_finder not in sys.meta_path:
+        sys.meta_path.insert(0, _workflow_source_finder)
     # 1. Internal explicit list
     for mod_name in WORKFLOW_MODULES:
         try:
-            importlib.import_module(
+            module = importlib.import_module(
                 f"openprogram.programs.workflow.{mod_name}"
             )
+            from openprogram.programs._source_loader import register_public_entries
+            register_public_entries(module)
         except Exception as e:
             _debug_registry_error(mod_name, e)
             continue
@@ -115,14 +97,13 @@ def load_agentic_modules(
             _debug_registry_error(f"workflow:{mod_name}", e)
             continue
 
-    # 3. Published Workflow projects — importing the package registers its
-    #    public @agentic_function with the same shared tool registry.
+    # 3. Published Workflow projects use the same shared tool registry.
     _load_workflow_projects()
 
     # 4. First-party *programs* — the agentic harnesses shipped as
     #    separate pip-installable packages (gui_harness / research_harness
     #    / wiki_agent_harness). Importing an installed package fires its
-    #    @agentic_function decorator and self-registers the entry point.
+    #    explicit exports register the entry point.
     #    Absent packages are skipped silently — this is the supported way
     #    to ship gui_agent / research_agent / wiki_agent, replacing the
     #    old per-machine symlinks under agentics/. See functions/_programs.py.
@@ -232,6 +213,7 @@ class _WorkflowSourceFinder:
 
     def __init__(self):
         self.sources: dict[str, str] = {}
+        self.builtin_sources: dict[str, str] = {}
 
     def find_spec(self, fullname, path=None, target=None):
         if fullname == "workflows":
@@ -242,20 +224,36 @@ class _WorkflowSourceFinder:
         if alias and path:
             return None  # A snapshot namespace owns its pinned package bytes.
         canonical = "openprogram.programs.workflow." + fullname.split(".")[1] if alias else fullname
-        source = self.sources.get(canonical)
-        if source is None:
+        sources = {**self.builtin_sources, **self.sources}
+        package = next((name for name in sources
+                        if canonical == name or canonical.startswith(name + ".")), None)
+        if package is None:
             return None
+        source = sources[package]
         from openprogram.programs._programs import owner_controlled_program_sources
 
         allowed = {row["path"] for row in owner_controlled_program_sources()}
-        if source not in allowed or os.path.islink(source):
+        if (source not in allowed and self.builtin_sources.get(package) != source) or os.path.islink(source):
             raise ModuleNotFoundError(f"Workflow source is no longer authorized: {fullname}")
         if alias:
             return importlib.machinery.ModuleSpec(fullname, _WorkflowAliasLoader(canonical))
+        relative = canonical[len(package):].lstrip(".").split(".") if canonical != package else []
+        if relative and not os.path.isdir(source):
+            return None
+        base = os.path.join(source, *relative)
+        filename = os.path.join(base, "__init__.py")
+        is_package = os.path.isfile(filename)
+        if not is_package:
+            filename = base + ".py"
+        if not os.path.isfile(filename):
+            return None
+        authorized_root = source if os.path.isdir(source) else os.path.dirname(source)
+        if os.path.commonpath((os.path.realpath(filename), os.path.realpath(authorized_root))) != os.path.realpath(authorized_root):
+            raise ModuleNotFoundError(f"Workflow module is outside its authorized source: {fullname}")
+        from openprogram.programs._source_loader import ManagedSourceLoader
         return importlib.util.spec_from_file_location(
-            fullname,
-            os.path.join(source, "__init__.py"),
-            submodule_search_locations=[source],
+            fullname, filename, loader=ManagedSourceLoader(fullname, filename),
+            submodule_search_locations=[base] if is_package else None,
         )
 
 
@@ -263,7 +261,7 @@ _workflow_source_finder = _WorkflowSourceFinder()
 
 
 def _load_workflow_projects() -> None:
-    """Import each published workflow package so its decorator registers it."""
+    """Import authorized packages and register their explicit public entries."""
     try:
         from openprogram.programs._programs import owner_controlled_program_sources
         from openprogram.programs.workflow._project import catalog
@@ -314,7 +312,9 @@ def _load_workflow_projects() -> None:
         importlib.invalidate_caches()
         for module_name in sources:
             try:
-                importlib.import_module(module_name)
+                module = importlib.import_module(module_name)
+                from openprogram.programs._source_loader import register_public_entries
+                register_public_entries(module, module_name.rsplit(".", 1)[-1])
             except Exception as exc:
                 _debug_registry_error(module_name, exc)
     finally:
@@ -417,14 +417,8 @@ def _find_python_package(harness_root: str) -> Optional[str]:
 
 
 def _import_external_harness(harness_root: str) -> None:
-    """Import ``<pkg>.agentics`` for the harness rooted at ``harness_root``.
+    """Capture the authorized package and register AGENTIC_FUNCTIONS exports."""
 
-    The ``AGENTIC_FUNCTIONS`` convention: that sub-package exports a list
-    of decorated callables; we just import the module — the decorators
-    on those callables fire on import and self-register into the shared
-    AgentTool registry. We don't have to iterate ``AGENTIC_FUNCTIONS``
-    ourselves; reading it is optional.
-    """
     pkg_dir = _find_python_package(harness_root)
     if pkg_dir is None:
         return
@@ -440,7 +434,12 @@ def _import_external_harness(harness_root: str) -> None:
         sys.path.insert(0, sys_path_root)
 
     pkg_name = os.path.basename(pkg_dir)
-    importlib.import_module(f"{pkg_name}.agentics")
+    from openprogram.programs._source_loader import install_program_source, register_public_entries
+    from openprogram.programs._programs import is_owner_controlled_program_path
+    install_program_source(pkg_name, pkg_dir,
+                           lambda: is_owner_controlled_program_path(pkg_dir))
+    module = importlib.import_module(f"{pkg_name}.agentics")
+    register_public_entries(module)
 
 
 # ---------------------------------------------------------------------------
@@ -474,12 +473,16 @@ def _load_external_file(
     slug = re.sub(r"[^A-Za-z0-9_]", "_", mod_name).strip("_") or "mod"
     digest = hashlib.sha256(os.path.realpath(abs_path).encode()).hexdigest()[:12]
     full_mod = f"openprogram.programs._external.{slug}_{digest}"
-    spec = importlib.util.spec_from_file_location(full_mod, abs_path)
+    from openprogram.programs._source_loader import ManagedSourceLoader, register_public_entries
+    spec = importlib.util.spec_from_file_location(
+        full_mod, abs_path, loader=ManagedSourceLoader(full_mod, abs_path),
+    )
     if spec is None or spec.loader is None:
         return
     module = importlib.util.module_from_spec(spec)
     sys.modules[full_mod] = module
     spec.loader.exec_module(module)
+    register_public_entries(module, mod_name)
     # WebUI `_load_function` still looks up workflow.{mod_name}. Alias
     # only when that key is free or already this same file — never clobber
     # a builtin like workflow.browser / goal / text.
@@ -560,7 +563,7 @@ def iter_agentic_files(
         for fn in getattr(mod, "AGENTIC_FUNCTIONS", []) or []:
             # ``fn`` is the agentic_function wrapper object; the original
             # callable is stored under ``_fn``.
-            inner = getattr(fn, "_fn", None) or fn
+            inner = getattr(fn, "_fn", None) or _inspect.unwrap(fn)
             try:
                 src_file = _inspect.getsourcefile(inner)
             except (TypeError, OSError):

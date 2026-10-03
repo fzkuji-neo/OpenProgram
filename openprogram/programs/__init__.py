@@ -537,24 +537,12 @@ def list_registered_agent_tools() -> list[str]:
 
 
 def resolve_function_module(name: str):
-    """Return the imported Python module that defines an @agentic_function
-    of the given name.
-
-    Walks the agentic local registry (populated when @agentic_function
-    fires its side-effect on import) and returns the module the
-    callable belongs to. Used by the ``openprogram programs run <name>``
-    CLI path and the webui's function-source / function-edit endpoints.
-
-    Raises ``ImportError`` if the name isn't a registered agentic
-    function — the caller decides how to surface that.
-    """
-    from openprogram.agentic_programming.function import (
-        _registry as _agentic_local_registry,
-    )
+    """Resolve a registered Program's source module from shared tool metadata."""
     import importlib
-    instance = _agentic_local_registry.get(name)
-    if instance is not None and instance._fn is not None:
-        return importlib.import_module(instance._fn.__module__)
+    tool = _get_agent_tool(name)
+    source = getattr(tool, "_source_module", None) if tool is not None else None
+    if source:
+        return importlib.import_module(source)
     # Fallback: standard agentics layout — agentics/<name>/__init__.py
     # might exist even if registration didn't fire (e.g. listed in
     # AGENTIC_MODULES but skipped at load time).

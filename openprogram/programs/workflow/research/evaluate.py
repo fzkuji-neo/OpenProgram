@@ -20,27 +20,42 @@ Usage:
 
 from __future__ import annotations
 
+from openprogram.agentic_programming import Agent
+
 from typing import Optional
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.function import _current_runtime, agentic_function
+from openprogram.agentic_programming.function import _current_runtime
 from openprogram.agentic_programming.runtime import Runtime
 from openprogram.programs.workflow.json_parsing import parse_json
 
 
-@agentic_function(render_range={"callers": 0})
-def _evaluate_candidates(task: str, candidates: list[dict]) -> dict:
-    """Pick the best candidate output for an academic writing task.
-    Score each on: accuracy, quality, academic rigor, naturalness.
-    Return JSON: {"winner": <1-based>, "scores": [...], "reasoning": "..."}"""
-    parts = [f"Task: {task}\n"]
-    for i, c in enumerate(candidates):
-        parts.append(f"--- Candidate {i+1} ({c['name']}) ---")
-        parts.append(c["output"][:3000])
+class EvaluateCandidatesAgent(Agent):
+    method_options = {
+        "_evaluate_candidates": {
+            "render_range": {"callers": 0},
+            "name": "_evaluate_candidates",
+            "tool": True,
+        },
+    }
 
-    return llm([
-        {"type": "text", "text": "\n".join(parts)},
-    ])
+    def _evaluate_candidates(self, task: str, candidates: list[dict]) -> dict:
+        """Pick the best candidate output for an academic writing task.
+        Score each on: accuracy, quality, academic rigor, naturalness.
+        Return JSON: {"winner": <1-based>, "scores": [...], "reasoning": "..."}"""
+        parts = [f"Task: {task}\n"]
+        for i, c in enumerate(candidates):
+            parts.append(f"--- Candidate {i + 1} ({c['name']}) ---")
+            parts.append(c["output"][:3000])
+
+        return llm(
+            [
+                {"type": "text", "text": "\n".join(parts)},
+            ]
+        )
+
+
+_evaluate_candidates = EvaluateCandidatesAgent()._evaluate_candidates
 
 
 def compete(

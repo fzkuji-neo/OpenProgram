@@ -1,7 +1,7 @@
 """
 writing — paper writing stage.
 
-All prompts live in @agentic_function docstrings. The docstring IS the
+All prompts live in Agent method docstrings. The docstring IS the
 instruction sent to the LLM; content= carries only data.
 
 For tasks with multiple approaches (e.g. polishing), competing functions
@@ -10,9 +10,11 @@ with different docstrings are evaluated via evaluate.compete().
 
 from __future__ import annotations
 
+from openprogram.agentic_programming import Agent
+
 import os
 
-from openprogram.agentic_programming import agentic_function, llm
+from openprogram.agentic_programming import llm
 from .._paths import expanded_project_dir, read_artifact
 
 
@@ -20,35 +22,52 @@ from .._paths import expanded_project_dir, read_artifact
 # Section writing
 # ---------------------------------------------------------------------------
 
-@agentic_function(render_range={"depth": 0, "siblings": 0})
-def write_section(section: str, project_context: str) -> str:
-    """Write one section of an academic paper in LaTeX.
 
-    Write at the level expected by a top venue (NeurIPS/ICML/ICLR).
+class WriteSectionAgent(Agent):
+    method_options = {
+        "write_section": {
+            "render_range": {"depth": 0, "siblings": 0},
+            "name": "write_section",
+            "tool": True,
+        },
+    }
 
-    Rules:
-    - Start each subsection with WHY (motivation), then HOW (what you did).
-    - Every claim needs evidence from experiments or citations.
-    - Plans and expectations are not completed experiments. Do not invent
-      measurements, citations, datasets, or implementation status.
-    - Use continuous paragraphs, never bullet lists or \\item.
-    - Introduction: background → problem → existing gaps → our approach → contributions.
-      Only describe model advantages, NO technical details (save for Method).
-    - Method: precise symbols, \\boldsymbol for vectors/matrices, \\mathbb{R} for dims.
-    - Experiments: observation → reason (from model design) → conclusion for each result.
-    - Related Work: summarize approaches per subsection, end with limitations vs ours.
-    - Use \\citep{} for parenthetical, \\citet{} for textual. Never use citations as subjects.
-    - Present tense for methods/results, past tense only for specific historical events.
-    - No AI-flavor words (leverage, delve, tapestry, utilize). Use simple, clear vocabulary.
+    def write_section(self, section: str, project_context: str) -> str:
+        """Write one section of an academic paper in LaTeX.
 
-    Output ONLY the LaTeX content for the section. No explanation.
-    """
-    return llm([
-        {"type": "text", "text": (
-            f"Section to write: {section}\n\n"
-            f"Project context:\n{project_context}"
-        )},
-    ])
+        Write at the level expected by a top venue (NeurIPS/ICML/ICLR).
+
+        Rules:
+        - Start each subsection with WHY (motivation), then HOW (what you did).
+        - Every claim needs evidence from experiments or citations.
+        - Plans and expectations are not completed experiments. Do not invent
+          measurements, citations, datasets, or implementation status.
+        - Use continuous paragraphs, never bullet lists or \\item.
+        - Introduction: background → problem → existing gaps → our approach → contributions.
+          Only describe model advantages, NO technical details (save for Method).
+        - Method: precise symbols, \\boldsymbol for vectors/matrices, \\mathbb{R} for dims.
+        - Experiments: observation → reason (from model design) → conclusion for each result.
+        - Related Work: summarize approaches per subsection, end with limitations vs ours.
+        - Use \\citep{} for parenthetical, \\citet{} for textual. Never use citations as subjects.
+        - Present tense for methods/results, past tense only for specific historical events.
+        - No AI-flavor words (leverage, delve, tapestry, utilize). Use simple, clear vocabulary.
+
+        Output ONLY the LaTeX content for the section. No explanation.
+        """
+        return llm(
+            [
+                {
+                    "type": "text",
+                    "text": (
+                        f"Section to write: {section}\n\n"
+                        f"Project context:\n{project_context}"
+                    ),
+                },
+            ]
+        )
+
+
+write_section = WriteSectionAgent().write_section
 
 
 def gather_context(project_dir: str, section: str) -> str:
@@ -56,7 +75,12 @@ def gather_context(project_dir: str, section: str) -> str:
     project_dir = str(expanded_project_dir(project_dir))
     parts = []
 
-    for rel_path in ("outline/outline.md", "IDEA_REPORT.md", "related_work/survey.md", "related_work/gaps.md"):
+    for rel_path in (
+        "outline/outline.md",
+        "IDEA_REPORT.md",
+        "related_work/survey.md",
+        "related_work/gaps.md",
+    ):
         path = os.path.join(project_dir, rel_path)
         if os.path.isfile(path):
             parts.append(f"## Source: {rel_path}\n{read_artifact(path)}")
@@ -70,7 +94,11 @@ def gather_context(project_dir: str, section: str) -> str:
             continue
         for name in sorted(os.listdir(directory)):
             path = os.path.join(directory, name)
-            if name.startswith(".") or name == "README.md" or os.path.splitext(name)[1] not in text_exts:
+            if (
+                name.startswith(".")
+                or name == "README.md"
+                or os.path.splitext(name)[1] not in text_exts
+            ):
                 continue
             if os.path.isfile(path):
                 parts.append(f"## Source: {source_dir}/{name}\n{read_artifact(path)}")
@@ -83,199 +111,308 @@ def gather_context(project_dir: str, section: str) -> str:
 # Translation
 # ---------------------------------------------------------------------------
 
-@agentic_function(render_range={"depth": 0, "siblings": 0})
-def translate_zh2en(text: str) -> str:
-    """Translate Chinese academic draft to English LaTeX.
 
-    Translate at the quality level of a top ICML/ICLR submission. Zero
-    tolerance for logic holes and language flaws.
+class TranslateZh2EnAgent(Agent):
+    method_options = {
+        "translate_zh2en": {
+            "render_range": {"depth": 0, "siblings": 0},
+            "name": "translate_zh2en",
+            "tool": True,
+        },
+    }
 
-    Rules:
-    - No bold, italic, or quotes — keep LaTeX clean.
-    - Rigorous logic, precise wording, concise and coherent.
-    - Use common words, avoid obscure vocabulary.
-    - No dashes (—), use clauses or appositives instead.
-    - No \\item lists, use continuous paragraphs.
-    - Remove AI flavor, write naturally.
-    - Present tense for methods/results, past tense for historical events.
-    - Escape special chars: % → \\%, _ → \\_, & → \\&.
+    def translate_zh2en(self, text: str) -> str:
+        """Translate Chinese academic draft to English LaTeX.
 
-    Output:
-    - Part 1 [LaTeX]: English LaTeX only.
-    - Part 2 [Translation]: Chinese back-translation for verification.
-    """
-    return llm([
-        {"type": "text", "text": text},
-    ])
+        Translate at the quality level of a top ICML/ICLR submission. Zero
+        tolerance for logic holes and language flaws.
+
+        Rules:
+        - No bold, italic, or quotes — keep LaTeX clean.
+        - Rigorous logic, precise wording, concise and coherent.
+        - Use common words, avoid obscure vocabulary.
+        - No dashes (—), use clauses or appositives instead.
+        - No \\item lists, use continuous paragraphs.
+        - Remove AI flavor, write naturally.
+        - Present tense for methods/results, past tense for historical events.
+        - Escape special chars: % → \\%, _ → \\_, & → \\&.
+
+        Output:
+        - Part 1 [LaTeX]: English LaTeX only.
+        - Part 2 [Translation]: Chinese back-translation for verification.
+        """
+        return llm(
+            [
+                {"type": "text", "text": text},
+            ]
+        )
 
 
-@agentic_function(render_range={"depth": 0, "siblings": 0})
-def translate_en2zh(text: str) -> str:
-    """Translate English LaTeX to readable Chinese text.
+translate_zh2en = TranslateZh2EnAgent().translate_zh2en
 
-    Produce a literal Chinese translation that helps researchers quickly
-    understand complex English paper paragraphs.
 
-    Rules:
-    - Remove all \\cite{}, \\ref{}, \\label{} commands.
-    - Extract text from \\textbf{}, \\emph{} — ignore formatting.
-    - Convert LaTeX math to natural language (e.g. $\\alpha$ → alpha).
-    - Strict literal translation, preserve original sentence structure.
-    - Do NOT polish or reorganize — reflect the original faithfully.
+class TranslateEn2ZhAgent(Agent):
+    method_options = {
+        "translate_en2zh": {
+            "render_range": {"depth": 0, "siblings": 0},
+            "name": "translate_en2zh",
+            "tool": True,
+        },
+    }
 
-    Output: Pure Chinese text only, no LaTeX code.
-    """
-    return llm([
-        {"type": "text", "text": text},
-    ])
+    def translate_en2zh(self, text: str) -> str:
+        """Translate English LaTeX to readable Chinese text.
+
+        Produce a literal Chinese translation that helps researchers quickly
+        understand complex English paper paragraphs.
+
+        Rules:
+        - Remove all \\cite{}, \\ref{}, \\label{} commands.
+        - Extract text from \\textbf{}, \\emph{} — ignore formatting.
+        - Convert LaTeX math to natural language (e.g. $\\alpha$ → alpha).
+        - Strict literal translation, preserve original sentence structure.
+        - Do NOT polish or reorganize — reflect the original faithfully.
+
+        Output: Pure Chinese text only, no LaTeX code.
+        """
+        return llm(
+            [
+                {"type": "text", "text": text},
+            ]
+        )
+
+
+translate_en2zh = TranslateEn2ZhAgent().translate_en2zh
 
 
 # ---------------------------------------------------------------------------
 # Polishing — two competing approaches
 # ---------------------------------------------------------------------------
 
-@agentic_function(render_range={"depth": 0, "siblings": 0})
-def polish_rigorous(text: str) -> str:
-    """Deep polish for top-tier conference submission (rigor-focused).
 
-    Polish at the NeurIPS/ICLR/ICML editorial standard — academic rigor,
-    clarity, and zero-error publishing quality.
+class PolishRigorousAgent(Agent):
+    method_options = {
+        "polish_rigorous": {
+            "render_range": {"depth": 0, "siblings": 0},
+            "name": "polish_rigorous",
+            "tool": True,
+        },
+    }
 
-    Rules:
-    - Optimize sentence structure for top-venue conventions.
-    - Eliminate non-native stiffness, make prose flow naturally.
-    - Fix ALL spelling, grammar, punctuation, and article errors.
-    - Formal register: use "it is" not "it's", "does not" not "doesn't".
-    - Simple & clear vocabulary, no fancy or obscure words.
-    - No noun possessives for methods (use "the performance of X" not "X's performance").
-    - Preserve LaTeX commands (\\cite{}, \\ref{}, \\eg, \\ie).
-    - Keep existing formatting (\\textbf{} if present), add no new emphasis.
-    - Never convert paragraphs to lists.
+    def polish_rigorous(self, text: str) -> str:
+        """Deep polish for top-tier conference submission (rigor-focused).
 
-    Output:
-    - Part 1 [LaTeX]: Polished English LaTeX code only.
-    - Part 2 [Translation]: Chinese translation.
-    - Part 3 [Log]: Brief summary of changes.
-    """
-    return llm([
-        {"type": "text", "text": text},
-    ])
+        Polish at the NeurIPS/ICLR/ICML editorial standard — academic rigor,
+        clarity, and zero-error publishing quality.
+
+        Rules:
+        - Optimize sentence structure for top-venue conventions.
+        - Eliminate non-native stiffness, make prose flow naturally.
+        - Fix ALL spelling, grammar, punctuation, and article errors.
+        - Formal register: use "it is" not "it's", "does not" not "doesn't".
+        - Simple & clear vocabulary, no fancy or obscure words.
+        - No noun possessives for methods (use "the performance of X" not "X's performance").
+        - Preserve LaTeX commands (\\cite{}, \\ref{}, \\eg, \\ie).
+        - Keep existing formatting (\\textbf{} if present), add no new emphasis.
+        - Never convert paragraphs to lists.
+
+        Output:
+        - Part 1 [LaTeX]: Polished English LaTeX code only.
+        - Part 2 [Translation]: Chinese translation.
+        - Part 3 [Log]: Brief summary of changes.
+        """
+        return llm(
+            [
+                {"type": "text", "text": text},
+            ]
+        )
 
 
-@agentic_function(render_range={"depth": 0, "siblings": 0})
-def polish_natural(text: str) -> str:
-    """Polish for naturalness — remove mechanical/AI writing patterns.
+polish_rigorous = PolishRigorousAgent().polish_rigorous
 
-    Make the academic text sound like it was written by a native
-    English-speaking researcher.
 
-    Rules:
-    - Replace overused AI words: leverage→use, delve→investigate,
-      tapestry→context, conceptualize→design, unveil→show, etc.
-    - Remove mechanical connectors: "First and foremost", "It is worth noting".
-    - Reduce dashes (—), use commas, parentheses, or clauses.
-    - No bold/italic emphasis in body text.
-    - Keep LaTeX commands intact.
-    - If text is already natural with no AI signatures, output it unchanged
-      and note "[检测通过] — natural, no changes needed."
+class PolishNaturalAgent(Agent):
+    method_options = {
+        "polish_natural": {
+            "render_range": {"depth": 0, "siblings": 0},
+            "name": "polish_natural",
+            "tool": True,
+        },
+    }
 
-    Output:
-    - Part 1 [LaTeX]: Rewritten code (or original if already good).
-    - Part 2 [Translation]: Chinese translation.
-    - Part 3 [Log]: Changes made, or "[检测通过]".
-    """
-    return llm([
-        {"type": "text", "text": text},
-    ])
+    def polish_natural(self, text: str) -> str:
+        """Polish for naturalness — remove mechanical/AI writing patterns.
+
+        Make the academic text sound like it was written by a native
+        English-speaking researcher.
+
+        Rules:
+        - Replace overused AI words: leverage→use, delve→investigate,
+          tapestry→context, conceptualize→design, unveil→show, etc.
+        - Remove mechanical connectors: "First and foremost", "It is worth noting".
+        - Reduce dashes (—), use commas, parentheses, or clauses.
+        - No bold/italic emphasis in body text.
+        - Keep LaTeX commands intact.
+        - If text is already natural with no AI signatures, output it unchanged
+          and note "[检测通过] — natural, no changes needed."
+
+        Output:
+        - Part 1 [LaTeX]: Rewritten code (or original if already good).
+        - Part 2 [Translation]: Chinese translation.
+        - Part 3 [Log]: Changes made, or "[检测通过]".
+        """
+        return llm(
+            [
+                {"type": "text", "text": text},
+            ]
+        )
+
+
+polish_natural = PolishNaturalAgent().polish_natural
 
 
 # ---------------------------------------------------------------------------
 # Logic check
 # ---------------------------------------------------------------------------
 
-@agentic_function(render_range={"depth": 0, "siblings": 0})
-def check_logic(text: str) -> str:
-    """Final manuscript check — only flag fatal errors.
 
-    Do a final pass over the manuscript. Check ONLY for showstoppers:
-    - Logical contradictions between statements
-    - Terminology inconsistency (same concept, different names)
-    - Severe grammar errors that affect comprehension
-    - Data inconsistency (numbers in text vs tables/figures)
+class CheckLogicAgent(Agent):
+    method_options = {
+        "check_logic": {
+            "render_range": {"depth": 0, "siblings": 0},
+            "name": "check_logic",
+            "tool": True,
+        },
+    }
 
-    High tolerance: style preferences and minor wording are NOT in scope.
-    If nothing serious found, output: "[检测通过，无实质性问题]"
-    Otherwise: brief Chinese bullet points with location and issue.
-    """
-    return llm([
-        {"type": "text", "text": text},
-    ])
+    def check_logic(self, text: str) -> str:
+        """Final manuscript check — only flag fatal errors.
+
+        Do a final pass over the manuscript. Check ONLY for showstoppers:
+        - Logical contradictions between statements
+        - Terminology inconsistency (same concept, different names)
+        - Severe grammar errors that affect comprehension
+        - Data inconsistency (numbers in text vs tables/figures)
+
+        High tolerance: style preferences and minor wording are NOT in scope.
+        If nothing serious found, output: "[检测通过，无实质性问题]"
+        Otherwise: brief Chinese bullet points with location and issue.
+        """
+        return llm(
+            [
+                {"type": "text", "text": text},
+            ]
+        )
+
+
+check_logic = CheckLogicAgent().check_logic
 
 
 # ---------------------------------------------------------------------------
 # Experiment analysis
 # ---------------------------------------------------------------------------
 
-@agentic_function(render_range={"depth": 0, "siblings": 0})
-def analyze_results(data: str) -> str:
-    """Analyze experimental data and write LaTeX analysis paragraphs.
 
-    Write at the quality level of a top-tier conference submission, with
-    sharp insight into experimental results.
+class AnalyzeResultsAgent(Agent):
+    method_options = {
+        "analyze_results": {
+            "render_range": {"depth": 0, "siblings": 0},
+            "name": "analyze_results",
+            "tool": True,
+        },
+    }
 
-    Rules:
-    - ALL conclusions must be strictly based on the input data.
-      NEVER fabricate data, exaggerate improvements, or invent phenomena.
-    - Focus on comparisons and trends, not raw number reporting.
-    - Analysis pattern for each finding:
-      Observation (B beats A) → Reason (B has X, A lacks it) → Conclusion
-      (proves importance of X / necessity of introducing Y).
-    - Use \\paragraph{Core Conclusion} + analysis text format (Title Case).
-    - No bold/italic, no list environments, pure text paragraphs.
-    - Escape special chars: %, _, &.
+    def analyze_results(self, data: str) -> str:
+        """Analyze experimental data and write LaTeX analysis paragraphs.
 
-    Output:
-    - Part 1 [LaTeX]: Analysis paragraphs.
-    - Part 2 [Translation]: Chinese translation for verification.
-    """
-    return llm([
-        {"type": "text", "text": data},
-    ])
+        Write at the quality level of a top-tier conference submission, with
+        sharp insight into experimental results.
+
+        Rules:
+        - ALL conclusions must be strictly based on the input data.
+          NEVER fabricate data, exaggerate improvements, or invent phenomena.
+        - Focus on comparisons and trends, not raw number reporting.
+        - Analysis pattern for each finding:
+          Observation (B beats A) → Reason (B has X, A lacks it) → Conclusion
+          (proves importance of X / necessity of introducing Y).
+        - Use \\paragraph{Core Conclusion} + analysis text format (Title Case).
+        - No bold/italic, no list environments, pure text paragraphs.
+        - Escape special chars: %, _, &.
+
+        Output:
+        - Part 1 [LaTeX]: Analysis paragraphs.
+        - Part 2 [Translation]: Chinese translation for verification.
+        """
+        return llm(
+            [
+                {"type": "text", "text": data},
+            ]
+        )
+
+
+analyze_results = AnalyzeResultsAgent().analyze_results
 
 
 # ---------------------------------------------------------------------------
 # Compression / expansion
 # ---------------------------------------------------------------------------
 
-@agentic_function(render_range={"depth": 0, "siblings": 0})
-def compress_text(text: str) -> str:
-    """Reduce word count by 5-15 words through sentence optimization.
 
-    Preserve ALL information, technical details, and experimental parameters.
-    Use clause compression, passive-to-active conversion, redundancy removal.
+class CompressTextAgent(Agent):
+    method_options = {
+        "compress_text": {
+            "render_range": {"depth": 0, "siblings": 0},
+            "name": "compress_text",
+            "tool": True,
+        },
+    }
 
-    Output:
-    - Part 1 [LaTeX]: Compressed text.
-    - Part 2 [Translation]: Chinese translation.
-    - Part 3 [Log]: What was compressed.
-    """
-    return llm([
-        {"type": "text", "text": text},
-    ])
+    def compress_text(self, text: str) -> str:
+        """Reduce word count by 5-15 words through sentence optimization.
+
+        Preserve ALL information, technical details, and experimental parameters.
+        Use clause compression, passive-to-active conversion, redundancy removal.
+
+        Output:
+        - Part 1 [LaTeX]: Compressed text.
+        - Part 2 [Translation]: Chinese translation.
+        - Part 3 [Log]: What was compressed.
+        """
+        return llm(
+            [
+                {"type": "text", "text": text},
+            ]
+        )
 
 
-@agentic_function(render_range={"depth": 0, "siblings": 0})
-def expand_text(text: str) -> str:
-    """Add 5-15 words by deepening logic, adding connectors, upgrading expressions.
+compress_text = CompressTextAgent().compress_text
 
-    Only add content grounded in the original text's reasoning. NEVER fabricate.
-    Add logical transitions, methodology details, or result interpretation.
 
-    Output:
-    - Part 1 [LaTeX]: Expanded text.
-    - Part 2 [Translation]: Chinese translation.
-    - Part 3 [Log]: What was added.
-    """
-    return llm([
-        {"type": "text", "text": text},
-    ])
+class ExpandTextAgent(Agent):
+    method_options = {
+        "expand_text": {
+            "render_range": {"depth": 0, "siblings": 0},
+            "name": "expand_text",
+            "tool": True,
+        },
+    }
+
+    def expand_text(self, text: str) -> str:
+        """Add 5-15 words by deepening logic, adding connectors, upgrading expressions.
+
+        Only add content grounded in the original text's reasoning. NEVER fabricate.
+        Add logical transitions, methodology details, or result interpretation.
+
+        Output:
+        - Part 1 [LaTeX]: Expanded text.
+        - Part 2 [Translation]: Chinese translation.
+        - Part 3 [Log]: What was added.
+        """
+        return llm(
+            [
+                {"type": "text", "text": text},
+            ]
+        )
+
+
+expand_text = ExpandTextAgent().expand_text
