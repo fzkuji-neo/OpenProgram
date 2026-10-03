@@ -48,15 +48,25 @@ export function showCanvasDrop(drop: CanvasDrop | null) {
   showDropPreview(drop?.rect ?? null);
 }
 export function showResourceDrop(target: HTMLElement) {
-  // Keep feedback on the Resources row even when dropping inside its panel.
+  // An inactive Resources view accepts drops only on its navigation row.
+  // An expanded view highlights its panel separately, below that row.
   const sidebar = target.closest(".right-sidebar");
   const row = sidebar?.querySelector<HTMLElement>('.right-nav-item[data-view="resources"]');
   const highlight = row && row.dataset.resourceDropSession === target.dataset.resourceDropSession ? row : target;
-  const rect = highlight.getBoundingClientRect();
+  let rect: Rect = highlight.getBoundingClientRect();
+  const panel = sidebar?.querySelector<HTMLElement>('#sessionResourcesPanel[data-resource-drop-session]');
+  if (row && row.getAttribute("aria-expanded") === "true" && panel
+      && panel.dataset.resourceDropSession === target.dataset.resourceDropSession) {
+    const bounds = panel.getBoundingClientRect();
+    const top = Math.max(bounds.top, row.getBoundingClientRect().bottom + 4);
+    if (bounds.width > 0 && bounds.bottom > top) {
+      rect = { left: bounds.left, top, width: bounds.width, height: bounds.bottom - top };
+    }
+  }
   if (rect.width <= 0 || rect.height <= 0) { showDropPreview(null); return; }
   showDropPreview({ left: rect.left, top: rect.top, width: rect.width, height: rect.height }, "resources");
   if (preview) {
-    preview.dataset.compact = "true";
+    preview.dataset.compact = String(rect.height < 80);
     const label = document.createElement("span");
     label.className = "canvas-drop-label";
     label.textContent = translateText("Release to add to Resources", "松开以添加到资源");
