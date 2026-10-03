@@ -26,6 +26,7 @@ from openprogram.execution.checkpoints import CheckpointFragment
 from openprogram.execution.driver import DriverRegistry
 from openprogram.execution.effects import (
     EffectClassification,
+    EffectConflict,
     EffectStatus,
     EffectStore,
 )
@@ -931,20 +932,41 @@ def _step(name, fn, args, kwargs, before_dispatch=None):
     context.boundary()
     if before_dispatch is not None:
         before_dispatch()
-    effects.register(
-        effect_id=effect_id,
-        execution_id=context.execution_id,
-        attempt_id=context.attempt_id,
-        action_id=action_id,
-        classification=EffectClassification.UNKNOWN,
-        idempotency_key=None,
-        metadata={
-            "function_step": identity,
-            "input_hash": input_hash,
-            "code_hash": context.frames[-1]["code_hash"],
-        },
-    )
-    effects.mark_dispatched(effect_id, expected_status=EffectStatus.PLANNED)
+    try:
+        effects.register(
+            effect_id=effect_id,
+            execution_id=context.execution_id,
+            attempt_id=context.attempt_id,
+            action_id=action_id,
+            classification=EffectClassification.UNKNOWN,
+            idempotency_key=None,
+            metadata={
+                "function_step": identity,
+                "input_hash": input_hash,
+                "code_hash": context.frames[-1]["code_hash"],
+            },
+        )
+        effects.mark_dispatched(effect_id, expected_status=EffectStatus.PLANNED)
+    except EffectConflict as exc:
+        if exc.code != "admission_closed":
+            raise
+        from openprogram.agentic_programming.function import CancelledError
+
+        try:
+            context.boundary()
+        except (FunctionSuspended, CancelledError) as stopped:
+            # Only a host-known, undispatched intent can be settled. Keep
+            # ownership fencing and all other admission failures intact.
+            planned = effects.get(effect_id)
+            if planned is not None and planned.status is EffectStatus.PLANNED:
+                effects.resolve_not_started(
+                    effect_id,
+                    receipt={"outcome": "not_started", "execution_started": False,
+                             "pause_before_dispatch": isinstance(stopped, FunctionSuspended)},
+                    attempt_id=context.attempt_id, generation=context.generation,
+                )
+            raise
+        raise
     result = fn(*args, **kwargs)
     # Persist result and effect receipt atomically. A crash before this transaction
     # remains unresolved rather than reissuing a possibly completed external write.
