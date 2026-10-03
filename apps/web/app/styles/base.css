@@ -943,6 +943,12 @@ html[data-canvas-dragging] .desktop-tab-row { z-index: 100000; }
     height 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15);
 }
 .canvas-drop-preview[data-drop-target="tab-strip"] { z-index: 100001; }
+.canvas-drop-preview[data-drop-target="resources"] {
+  background: color-mix(in oklch, var(--accent-blue) 8%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--accent-blue) 70%, transparent);
+  backdrop-filter: none;
+  transition: none;
+}
 .canvas-drop-label {
   position: absolute;
   top: 48px;
