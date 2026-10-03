@@ -3,6 +3,7 @@ import type { CanvasSide, Rect } from "./canvas-layout";
 import { dropWebTabResource, resourceDropTarget } from "./tab-resource-drop";
 import { desktopBridge, buildTransferPayload } from "../desktop/desktop-bridge";
 import { translateText } from "../i18n";
+import { DRAG_SURFACE_STYLE } from "../prefs/visual-effects-config";
 export type CanvasDrop = { targetId: string; paneId: string; side: CanvasSide; rect: Rect };
 let preview: HTMLDivElement | null = null;
 let dragging = false;
@@ -125,10 +126,8 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
         display: "flex", position: "fixed", width: "220px", height: "32px",
         minWidth: "0", maxWidth: "calc(100vw - 16px)", margin: "0", padding: "0 8px",
         zIndex: "2147483647", opacity: "1",
-        background: "color-mix(in oklch, var(--bg-tertiary) 80%, transparent)",
-        backdropFilter: "blur(16px) saturate(1.2)",
+        ...DRAG_SURFACE_STYLE,
         pointerEvents: "none", borderRadius: "8px", transition: "none",
-        boxShadow: "0 2px 4px rgba(0,0,0,.14), 0 12px 28px rgba(0,0,0,.24)",
       });
       document.body.append(dragLabel);
       el.style.visibility = "hidden";

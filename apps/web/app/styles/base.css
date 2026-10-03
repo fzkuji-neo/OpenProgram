@@ -14,6 +14,13 @@
   --sidebar-width: 288px;
   --detail-width: 300px;
 
+  /* Persisted appearance applies to dragged tabs and pane labels only. */
+  --drag-surface-opacity: 80%;
+  --drag-backdrop-blur: 16px;
+  --drag-shadow-scale: 0.25;
+  --drag-surface-shadow: 0 2px 4px rgba(0, 0, 0, calc(0.14 * var(--drag-shadow-scale))),
+    0 12px 28px rgba(0, 0, 0, calc(0.24 * var(--drag-shadow-scale)));
+
   /* Two-set sizing system — see docs/design/surface-system.md.
      Every interactive primitive picks ONE set in full (height +
      radius bundled together). No sm/md/lg ladder inside a set.

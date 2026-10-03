@@ -12,7 +12,7 @@ Use the permission menu in Web or the installed App, or `/permissions` in the te
 
 Bypass does not override explicit deny or ask rules, mandatory plan-exit or self-update approval, plugin restrictions, identity capabilities, or Sandbox.
 
-Questions and approvals appear as independent cards in the conversation. Answer inside the card; the main message box remains available for ordinary messages. The card shows the submitted answer, delivery progress and a confirmation or retry state. Confirmed receipts remain visible until the page is reloaded; pending requests are restored on reconnect.
+Questions and approvals appear as independent cards in the conversation. Each question appears above its answer control. Multiple questions and form fields are listed together; fill them in and click Submit answers once. Submitted answers remain paired with their questions. The main message box remains available for ordinary messages. The card shows the submitted answer, delivery progress and a confirmation or retry state. Confirmed receipts remain visible until the page is reloaded; pending requests are restored on reconnect.
 
 Tool approvals show the current operation and two actions: Allow once and Deny.
 Clicking either submits that decision directly. The request closes only after
@@ -32,8 +32,7 @@ only the current proposal, without a before/after history. Arbitrary shell
 commands do not declare all their file targets, so this file-specific check does
 not cover arbitrary command side effects.
 
-Ordinary questions retain their answer controls and Chat about this discussion
-entry. Tool approval does not include a discussion editor.
+Ordinary questions retain their answer controls and Discuss entry. Tool approval does not include a discussion editor.
 
 ## Change permissions during a task
 
