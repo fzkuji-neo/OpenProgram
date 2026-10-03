@@ -2,7 +2,6 @@
 
 import type { Transition, Variants } from "framer-motion";
 import { motion, useAnimation, useReducedMotion } from "framer-motion";
-import { Quote } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
@@ -325,9 +324,14 @@ export const CopyIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>(
 );
 CopyIcon.displayName = "CopyIcon";
 
-// Upstream has no Quote component. Follow Monitor/Pin's official Lucide
-// fallback and reuse the neighboring Copy icon's upstream motion values.
-const AnimatedQuote = motion.create(Quote);
+// MessageSquareMore visual supplied for the content-reference action.
+const QUOTE_DOT_VARIANTS: Variants = {
+  normal: { opacity: 1, transition: { duration: 0.2 } },
+  animate: (index: number) => ({
+    opacity: [1, 0, 1],
+    transition: { duration: 1.5, repeat: Infinity, delay: index * 0.2 },
+  }),
+};
 export const QuoteIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>(
   ({ onMouseEnter, onMouseLeave, className, size = 28, ...props }, ref) => {
     const controls = useAnimation();
@@ -358,14 +362,30 @@ export const QuoteIcon = forwardRef<AnimatedNavIconHandle, AnimatedNavIconProps>
         }}
         {...props}
       >
-        <AnimatedQuote
-          size={size}
-          initial="normal"
-          animate={reducedMotion ? "normal" : controls}
-          transition={reducedMotion ? { duration: 0 } : COPY_TRANSITION}
-          variants={COPY_FRONT_VARIANTS}
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           aria-hidden="true"
-        />
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          {[8, 12, 16].map((x, index) => (
+            <motion.path
+              key={x}
+              d={`M${x} 10h.01`}
+              custom={index}
+              initial="normal"
+              animate={reducedMotion ? "normal" : controls}
+              variants={QUOTE_DOT_VARIANTS}
+            />
+          ))}
+        </svg>
       </div>
     );
   },
