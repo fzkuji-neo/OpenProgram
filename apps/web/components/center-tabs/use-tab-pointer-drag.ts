@@ -113,7 +113,8 @@ function updateDragPreview(drag: PointerDragState, outside: boolean) {
       width: `${drag.width}px`, height: `${drag.height}px`, minWidth: "0",
       maxWidth: "none", margin: "0", zIndex: "2147483647", pointerEvents: "none",
       transition: "none", opacity: "1", visibility: "visible",
-      background: computed.backgroundColor, color: computed.color,
+      // Inactive strip tabs are transparent; the detached preview needs a solid surface.
+      background: "var(--bg-tertiary)", color: computed.color,
       font: computed.font, boxSizing: "border-box",
       boxShadow: "0 2px 4px rgba(0,0,0,.14), 0 12px 28px rgba(0,0,0,.24)",
     });
