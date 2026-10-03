@@ -421,11 +421,12 @@
   position: relative;
   z-index: 30;
   opacity: 1;
-  background: var(--drag-surface-background);
-  backdrop-filter: var(--drag-surface-backdrop);
+  /* Drag surfaces take precedence over active, hover and pressed styling. */
+  background: var(--drag-surface-background) !important;
+  backdrop-filter: var(--drag-surface-backdrop) !important;
   color: var(--text-bright);
   border-radius: 8px;
-  box-shadow: var(--drag-surface-shadow);
+  box-shadow: var(--drag-surface-shadow) !important;
   transform-origin: center;
 }
 /* 拖动中的 tab 不画左侧分隔条（它已脱离栏内节奏）。 */
