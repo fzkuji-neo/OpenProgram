@@ -411,6 +411,17 @@
   );
 }
 
+/* Press and drag share one background treatment. Keyboard focus is separate. */
+.tab[data-pointer-pressed="true"],
+.compoundTab[data-pointer-pressed="true"],
+.tab[data-pointer-drag="true"],
+.compoundTab[data-pointer-drag="true"] {
+  /* Active and hover styles must not replace the shared surface. */
+  background: var(--drag-surface-background) !important;
+  backdrop-filter: var(--drag-surface-backdrop) !important;
+  color: var(--text-bright);
+}
+
 /* Pointer dragging inside the strip shares the floating preview preferences.
    Only the backdrop is translucent; text and controls keep full opacity. */
 .tab[data-pointer-drag="true"],
@@ -421,10 +432,6 @@
   position: relative;
   z-index: 30;
   opacity: 1;
-  /* Drag surfaces take precedence over active, hover and pressed styling. */
-  background: var(--drag-surface-background) !important;
-  backdrop-filter: var(--drag-surface-backdrop) !important;
-  color: var(--text-bright);
   border-radius: 8px;
   box-shadow: var(--drag-surface-shadow) !important;
   transform-origin: center;
@@ -2456,11 +2463,6 @@
 .webPipFrameViewport { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .webPipFrame { position: absolute; display: block; width: 1920px; height: 1080px; border: 0; background: white; transform-origin: top left; }
 .webPipDragging .webPipFrame { pointer-events: none; }
-
-.tab[data-pointer-pressed="true"], .compoundTab[data-pointer-pressed="true"] {
-  background: var(--bg-tertiary);
-  box-shadow: inset 0 0 0 1px var(--accent-blue);
-}
 
 .resourceDropError {
   position: absolute; right: 48px; top: 4px; z-index: 1001;
