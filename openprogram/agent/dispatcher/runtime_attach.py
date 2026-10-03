@@ -233,27 +233,22 @@ def _wrap_agentic_runtime_block(
                 def _run_subprocess():
                     surface_snapshot = req.surface_context
                     captured_surface = None
-                    browser_surface = (
-                        tool_name == "browser_agent"
-                        or (
-                            tool_name == "gui_agent"
-                            and (
-                                str(subprocess_args.get("surface") or "")
-                                .strip()
-                                .lower()
-                                in {"", "browser"}
-                                or bool(subprocess_args.get("backend"))
-                            )
-                        )
-                    )
-                    if surface_snapshot is None and browser_surface:
+                    if surface_snapshot is None:
                         from openprogram.agent import surface_context
+                        from openprogram.agent.permissions.policy import permission_decision
+                        from openprogram.programs import get_agent_tool
 
-                        try:
-                            captured_surface = surface_context.capture_pages()
-                        except RuntimeError:
-                            captured_surface = surface_context.window_context()
-                        surface_snapshot = captured_surface
+                        web_tool = get_agent_tool("web_use")
+                        decision = permission_decision(
+                            web_tool, req, {"command": "list_pages"},
+                        ) if web_tool is not None else None
+                        if decision is not None and decision[:2] == ("allow", "SURFACE_GRANT"):
+                            try:
+                                captured_surface = surface_context.capture_pages()
+                            except RuntimeError:
+                                # An unavailable inventory cannot create a Page grant.
+                                pass
+                            surface_snapshot = captured_surface
                     timeout_seconds = agentic_subprocess_timeout_seconds(
                         tool_name, subprocess_args,
                     )
@@ -285,6 +280,7 @@ def _wrap_agentic_runtime_block(
                                 _permission_rules_snapshot(req.permission_rules)
                             ),
                             surface_context_snapshot=surface_snapshot,
+                            permission_mode_snapshot=req.permission_mode,
                             render_range=req.render_range,
                             timeout_seconds=timeout_seconds,
                         )
