@@ -11,11 +11,11 @@
  *     ``AnimatedNavIconHandle`` / ``AnimatedNavIconProps`` — every icon
  *     exposes the same start/stop imperative API, so a caller holds a
  *     single ref type.
- * Icons missing upstream (Monitor, Pin, Quote) use official Lucide glyphs with
- * the same controlled-ref pattern; Pin reuses the folder-open variants
- * and Quote reuses the copy variants.
+ * Icons missing upstream (Monitor, Pin) use official Lucide glyphs with
+ * the same controlled-ref pattern; Pin reuses the folder-open variants.
+ * Quote uses the user-supplied MessageSquareMore glyph and blinking dots.
  * Other path data, variants, and transitions remain upstream's.
- * Per project rule we never hand-author SVGs.
+ * Custom glyphs require explicitly supplied artwork.
  *
  * Driven from the *container's* hover: the caller attaches a ref and
  * calls start/stopAnimation from the row's / button's onMouseEnter/Leave,
