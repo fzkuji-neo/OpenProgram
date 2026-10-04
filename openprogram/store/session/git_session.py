@@ -249,9 +249,11 @@ class GitSession:
             meta_mtime, meta_size = 0, 0
         return (hist, meta_mtime, meta_size)
 
-    def mark_synced(self) -> None:
-        """Record that in-memory state matches disk right now."""
-        self._synced_fingerprint = self.stat_fingerprint()
+    def mark_synced(self, fingerprint: Optional[tuple[int, int, int]] = None) -> None:
+        """Record a loaded snapshot's fingerprint, or the current write state."""
+        self._synced_fingerprint = (
+            self.stat_fingerprint() if fingerprint is None else fingerprint
+        )
 
     def stale(self) -> bool:
         """True when another process changed this session on disk since
