@@ -6,8 +6,7 @@ Choose **New Agent**, enter a name and choose a model, then edit its configurati
 
 | Section | What it changes |
 | --- | --- |
-| Overview | Display name, description and configuration summary |
-| Model & Instructions | Provider, model, reasoning effort and system prompt |
+| General | Display name, description, provider, model, reasoning effort and system prompt |
 | Programs | Automatic tool availability, selected programs or no programs |
 | Skills | Available skills and exclusions |
 | MCP | Allowed, excluded and required servers |
@@ -21,7 +20,7 @@ The model picker reads the provider catalog without changing another conversatio
 
 ## Specialist Agents
 
-Image creator, Decision advisor, Lightweight helper and Coordinator are ordinary saved Agents. Select one from the list to start a conversation or edit it. The list shows its purpose; configuration sections sit beside the editor. New Agent creates an independent configuration; Duplicate copies a saved Agent's settings.
+Image creator, Decision advisor, Lightweight helper and Coordinator are ordinary saved Agents. Select one from the list to start a conversation or edit it. The list shows its purpose; configuration sections are tabs above the editor. New Agent creates an independent configuration; Duplicate copies a saved Agent's settings.
 
 | Agent | Purpose | Capabilities |
 | --- | --- | --- |
@@ -30,7 +29,7 @@ Image creator, Decision advisor, Lightweight helper and Coordinator are ordinary
 | Lightweight helper | Extract, classify, format, summarize, or predict candidate next messages when asked | No tools |
 | Coordinator | Plan dependencies, delegate authorized tasks and check results | Read/search and Agent coordination tools |
 
-Choose a low-cost model for the lightweight helper and a strong reasoning model for the coordinator in Model & Instructions. Their names do not guarantee price or quality. Image generation uses a separately configured backend and does not include image editing. Predicted messages are suggestions rather than authorization; a planning-only request does not authorize delegated execution.
+Choose a low-cost model for the lightweight helper and a strong reasoning model for the coordinator in General. Their names do not guarantee price or quality. Image generation uses a separately configured backend and does not include image editing. Predicted messages are suggestions rather than authorization; a planning-only request does not authorize delegated execution.
 
 The specialist Agents start with memory, Skills and MCP disabled. Their Context is built by the existing runtime. Each saved Agent can be edited or duplicated independently, without changing the default Agent.
 

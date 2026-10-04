@@ -192,14 +192,28 @@ def _patches(page):
     return page.evaluate("window.httpCalls.filter(call=>call.method==='PATCH')")
 
 
+def test_general_edits_identity_model_and_prompt_together(agents_browser):
+    from playwright.sync_api import expect
+
+    page = agents_browser(1440)
+    expect(page.get_by_role('textbox', name='Display name', exact=True)).to_be_visible()
+    expect(page.get_by_label('Model', exact=True)).to_be_visible()
+    expect(page.get_by_role('textbox', name=re.compile('^System prompt'))).to_have_value('Saved system prompt')
+    expect(page.get_by_role('tablist', name='Agent configuration')).to_have_attribute('aria-orientation', 'horizontal')
+    assert page.get_by_role('button', name='Edit Model', exact=True).count() == 0
+    assert page.get_by_role('tablist', name='Agent configuration').bounding_box()['height'] < 60
+    assert page.get_by_role('textbox', name='Display name', exact=True).evaluate('el=>getComputedStyle(el).fontWeight') == '400'
+    expect(page.get_by_role('button', name='Save changes', exact=True)).to_be_visible()
+
+
 @pytest.mark.parametrize('width', [1440, 390])
 def test_agents_keyboard_memory_and_responsive_layout(agents_browser, width):
     from playwright.sync_api import expect
 
     page = agents_browser(width)
     tabs = page.get_by_role('tablist', name='Agent configuration')
-    expect(tabs.get_by_role('tab')).to_have_count(8)
-    overview = tabs.get_by_role('tab', name='Overview', exact=True)
+    expect(tabs.get_by_role('tab')).to_have_count(7)
+    overview = tabs.get_by_role('tab', name='General', exact=True)
     overview.focus()
     page.keyboard.press('End')
     expect(tabs.get_by_role('tab', name='Advanced', exact=True)).to_be_focused()
@@ -207,15 +221,15 @@ def test_agents_keyboard_memory_and_responsive_layout(agents_browser, width):
     expect(overview).to_be_focused()
     expect(overview).to_have_attribute('aria-selected', 'true')
     navigation = page.get_by_role('tablist', name='Agent configuration')
-    expect(navigation).to_have_attribute('aria-orientation', 'horizontal' if width <= 800 else 'vertical')
-    page.keyboard.press('ArrowRight' if width <= 800 else 'ArrowDown')
-    expect(page.get_by_role('tab', name='Model & Instructions', exact=True)).to_be_focused()
+    expect(navigation).to_have_attribute('aria-orientation', 'horizontal')
+    page.keyboard.press('ArrowRight')
+    expect(page.get_by_role('tab', name='Programs', exact=True)).to_be_focused()
     resized_width = 1280 if width <= 800 else 390
     page.set_viewport_size({'width': resized_width, 'height': 1000})
-    expect(navigation).to_have_attribute('aria-orientation', 'vertical' if resized_width > 800 else 'horizontal')
+    expect(navigation).to_have_attribute('aria-orientation', 'horizontal')
     overview.focus()
-    page.keyboard.press('ArrowDown' if resized_width > 800 else 'ArrowRight')
-    expect(page.get_by_role('tab', name='Model & Instructions', exact=True)).to_be_focused()
+    page.keyboard.press('ArrowRight')
+    expect(page.get_by_role('tab', name='Programs', exact=True)).to_be_focused()
     page.set_viewport_size({'width': width, 'height': 1000})
     _tab(page, 'Memory')
     off = page.get_by_role('radio', name=re.compile('^Off'))
@@ -230,7 +244,7 @@ def test_agents_keyboard_memory_and_responsive_layout(agents_browser, width):
     page.get_by_role('button', name='Save changes', exact=True).click()
     expect(page.get_by_role('button', name='Save changes', exact=True)).to_be_disabled()
     assert _patches(page)[-1]['body']['memory']['mode'] == 'read_only'
-    _tab(page, 'Model & Instructions')
+    _tab(page, 'General')
     page.get_by_label('Model', exact=True).click()
     dialog = page.get_by_role('dialog', name='Choose model', exact=True)
     expect(dialog).to_be_visible()
@@ -253,10 +267,10 @@ def test_agent_draft_spans_tabs_and_survives_save_failure(agents_browser):
     page.get_by_role('textbox', name='Description', exact=True).fill('Local description')
     _tab(page, 'Memory')
     page.get_by_role('radio', name=re.compile('^Off')).check()
-    _tab(page, 'Model & Instructions')
+    _tab(page, 'General')
     prompt = page.get_by_role('textbox', name=re.compile('^System prompt'))
     prompt.fill('Draft instructions')
-    _tab(page, 'Overview')
+    _tab(page, 'General')
     expect(page.get_by_role('textbox', name='Display name', exact=True)).to_have_value('General edited')
     page.evaluate('window.failSave=true')
     page.get_by_role('button', name='Save changes', exact=True).click()
@@ -272,7 +286,7 @@ def test_agent_draft_spans_tabs_and_survives_save_failure(agents_browser):
     expect(page.get_by_role('button', name='Save changes', exact=True)).to_be_disabled()
     _tab(page, 'Memory')
     expect(page.get_by_role('radio', name=re.compile('^Off'))).to_be_checked()
-    _tab(page, 'Overview')
+    _tab(page, 'General')
     page.get_by_role('textbox', name='Description', exact=True).fill('Discard this value')
     page.get_by_role('button', name='Discard changes', exact=True).click()
     expect(page.get_by_role('textbox', name='Description', exact=True)).to_have_value('Local description')
@@ -283,7 +297,7 @@ def test_agent_conflict_preserves_draft_until_explicit_choice(agents_browser):
     from playwright.sync_api import expect
 
     page = agents_browser()
-    _tab(page, 'Model & Instructions')
+    _tab(page, 'General')
     prompt = page.get_by_role('textbox', name=re.compile('^System prompt'))
     prompt.fill('Local conflicting instructions')
     page.evaluate('window.conflict=true')
@@ -312,7 +326,7 @@ def test_agent_model_change_keeps_incompatible_effort(agents_browser):
     from playwright.sync_api import expect
 
     page = agents_browser()
-    _tab(page, 'Model & Instructions')
+    _tab(page, 'General')
     effort = page.get_by_role('combobox', name='Thinking effort', exact=True)
     expect(effort).to_have_value('high')
     page.get_by_label('Model', exact=True).click()
@@ -339,7 +353,7 @@ def test_agent_trial_uses_unsaved_readonly_snapshot_and_chat_uses_saved_id(agent
     page.get_by_role('button', name='New conversation', exact=True).click()
     page.wait_for_function('window.agentCalls.length===1')
     assert page.evaluate('window.agentCalls[0]') == {'agentId': 'general'}
-    _tab(page, 'Model & Instructions')
+    _tab(page, 'General')
     prompt = page.get_by_role('textbox', name=re.compile('^System prompt'))
     prompt.fill('Unsaved trial instructions')
     page.get_by_role('button', name='Try in new conversation', exact=True).click()
@@ -525,7 +539,7 @@ def test_agent_draft_remount_preserves_edits_and_detects_server_revision(agents_
     from playwright.sync_api import expect
 
     page = agents_browser()
-    _tab(page, 'Model & Instructions')
+    _tab(page, 'General')
     prompt = page.get_by_role('textbox', name=re.compile('^System prompt'))
     prompt.fill('Keep this draft while visiting another page')
     _tab(page, 'Memory')
@@ -537,7 +551,7 @@ def test_agent_draft_remount_preserves_edits_and_detects_server_revision(agents_
     page.evaluate('window.mountAgents()')
     expect(page.get_by_role('tab', name='Memory', exact=True)).to_have_attribute('aria-selected', 'true')
     expect(page.get_by_role('radio', name=re.compile('^Off'))).to_be_checked()
-    _tab(page, 'Model & Instructions')
+    _tab(page, 'General')
     expect(prompt).to_have_value('Keep this draft while visiting another page')
     assert not _patches(page)
     page.evaluate('window.unmountAgents()')
@@ -583,7 +597,7 @@ def test_agent_empty_list_can_create_first_configuration(agents_browser):
     dialog.get_by_role('button', name='Create', exact=True).click()
     expect(dialog).not_to_be_visible()
     expect(page.get_by_role('textbox', name='Display name', exact=True)).to_have_value('First Agent')
-    expect(page.get_by_role('tab')).to_have_count(8)
+    expect(page.get_by_role('tab')).to_have_count(7)
     _tab(page, 'Memory')
     expect(page.get_by_role('radio', name=re.compile('^Off'))).to_be_checked()
     assert page.evaluate("window.httpCalls.filter(call=>call.method==='POST').map(call=>call.body)") == [{'name': 'First Agent', 'model': {'provider': '', 'id': ''}, 'thinking_effort': ''}]
@@ -679,7 +693,7 @@ def test_saved_specialists_and_plain_creation_without_templates(agents_browser, 
     page.screenshot(animations='disabled', path=str(tmp_path / 'agents-desktop-dark.png'))
     page.locator('html').evaluate("el=>el.dataset.theme='light'")
     page.screenshot(animations='disabled', path=str(tmp_path / 'agents-desktop.png'))
-    _tab(page, 'Model & Instructions')
+    _tab(page, 'General')
     expect(page.get_by_role('textbox', name=re.compile('^System prompt'))).to_have_value(re.compile('candidate'))
     page.get_by_role('button', name='New Agent', exact=True).click()
     dialog = page.get_by_role('dialog', name='New Agent', exact=True)

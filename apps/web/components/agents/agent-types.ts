@@ -38,10 +38,9 @@ export type Agent = AgentConfigDTO & {
   updated_at: number;
 };
 export type Text = (english: string, chinese: string) => string;
-export type TabId = "overview" | "model" | "programs" | "skills" | "mcp" | "memory" | "context" | "advanced";
+export type TabId = "overview" | "programs" | "skills" | "mcp" | "memory" | "context" | "advanced";
 export const TABS: Array<{ id: TabId; en: string; zh: string }> = [
-  { id: "overview", en: "Overview", zh: "概览" },
-  { id: "model", en: "Model & Instructions", zh: "模型与指令" },
+  { id: "overview", en: "General", zh: "常规" },
   { id: "programs", en: "Programs", zh: "Programs" },
   { id: "skills", en: "Skills", zh: "Skills" },
   { id: "mcp", en: "MCP", zh: "MCP" },

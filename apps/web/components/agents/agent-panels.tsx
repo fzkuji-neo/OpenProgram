@@ -5,37 +5,23 @@ import { FileTextIcon, CopyIcon } from "@/components/animated-icons";
 import { jsonFetch } from "@/lib/net/fetch-client";
 import { AgentButton } from "./agent-controls";
 import { ModelPicker, type ModelCatalog } from "./model-picker";
-import type { Agent, MemorySpace, Text, TabId } from "./agent-types";
+import type { Agent, MemorySpace, Text } from "./agent-types";
 import styles from "./agents-page.module.css";
 
 type Props = { draft: Agent; update: (patch: Partial<Agent>) => void; text: Text };
 function Intro({ title, children }: { title: string; children: React.ReactNode }) {
   return <div className={styles.panelIntro}><h3>{title}</h3><p>{children}</p></div>;
 }
-export function OverviewPanel({ draft, update, text, go }: Props & { go: (tab: TabId) => void }) {
-  return <><Intro title={text("About this Agent", "Agent 信息")}>{text("Name, purpose and current settings.", "名称、用途与当前配置。")}</Intro>
+export function OverviewPanel({ draft, update, text, catalog, dirty }: Props & { catalog: ModelCatalog; dirty: boolean }) {
+  return <div className={styles.generalForm}>
     <div className={`${styles.formGrid} ${styles.identityGrid}`}>
       <label>{text("Display name", "显示名称")}<input value={draft.name} maxLength={80} onChange={(event) => update({ name: event.target.value })} /></label>
       <label>{text("Agent ID", "Agent ID")}<input value={draft.id} disabled /></label>
       <label className={styles.fullField}>{text("Description", "描述")}<textarea className={styles.descriptionField} rows={2} value={draft.description} maxLength={2000} onChange={(event) => update({ description: event.target.value })} placeholder={text("When to use this Agent", "说明何时使用此 Agent")} /></label>
     </div>
-    <div className={styles.summaryList}>
-      <Summary label={text("Model", "模型")} value={draft.model.id || text("Inherit default", "继承默认值")} go={() => go("model")} text={text} />
-      <Summary label="Programs" value={draft.tools.mode === "automatic" ? text("All available", "全部可用项") : draft.tools.mode === "none" ? text("Disabled", "已关闭") : text("Selected scope", "指定范围")} go={() => go("programs")} text={text} />
-      <Summary label={text("Long-term memory", "长期记忆")} value={draft.memory.mode === "off" ? text("Off", "关闭") : draft.memory.mode === "read_only" ? text("Read only", "只读") : text("Read and write", "读写")} go={() => go("memory")} text={text} />
-      <Summary label={text("Context", "上下文")} value={draft.session_scope === "main" ? text("Shared", "共享会话") : draft.session_scope === "per-peer" ? text("Per contact", "按联系人") : draft.session_scope === "per-channel-peer" ? text("Per channel and contact", "按频道和联系人") : text("Per account, channel and contact", "按账号、频道和联系人")} go={() => go("context")} text={text} />
-    </div>
-  </>;
-}
-function Summary({ label, value, go, text }: { label: string; value: string; go: () => void; text: Text }) {
-  return <div className={styles.summaryRow}><span>{label}</span><strong>{value}</strong><AgentButton variant="ghost" onClick={go} aria-label={text(`Edit ${label}`, `编辑${label}`)}>{text("Edit", "编辑")}</AgentButton></div>;
-}
-export function ModelPanel({ draft, update, text, catalog }: Props & { catalog: ModelCatalog }) {
-  return <><Intro title={text("Model & Instructions", "模型与指令")}>{text("Existing conversations keep their model and explicit reasoning choice; inherited reasoning uses the current Agent default.", "已有对话保留模型和明确选择的思考强度；未设置思考强度时使用当前 Agent 默认值。")}</Intro>
-    <div className={styles.modelFields}><ModelPicker draft={draft} update={update} text={text} catalog={catalog} />
-      <label className={styles.dialogField}>{text("System prompt", "系统指令")}<textarea rows={10} maxLength={100000} value={draft.system_prompt} onChange={(event) => update({ system_prompt: event.target.value })} /><small>{text("Workspace instruction files are listed in Advanced.", "Workspace 指令文件在高级分区中查看。")}</small></label>
-    </div>
-  </>;
+    <div className={styles.modelFields}><ModelPicker draft={draft} update={update} text={text} catalog={catalog} announceEffortError={dirty} /></div>
+    <label className={styles.dialogField}>{text("System prompt", "系统指令")}<textarea className={styles.instructionsField} rows={10} maxLength={100000} value={draft.system_prompt} onChange={(event) => update({ system_prompt: event.target.value })} /><small>{text("Workspace instruction files are listed in Advanced.", "Workspace 指令文件在高级分区中查看。")}</small></label>
+  </div>;
 }
 export function MemoryPanel({ draft, update, text }: Props) {
   const memory = draft.memory;
