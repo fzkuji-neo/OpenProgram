@@ -22,13 +22,15 @@ if(params.has('manual')){
  const layout=normalizeCenterTabLayout({tabIds:tabs.map(t=>t.id),groups:[{id:'manual-group',memberIds:tabs.map(t=>t.id),visibleIds:tabs.map(t=>t.id),focusedId:chat.id}]});
  useCenterTabs.setState({tabs,groups:layout.groups});
 }
+let sequence=0;
 const complete=(name='report.md')=>{
- applyChatWsMessage({type:'chat_ack',data:{session_id:'s',msg_id:'u'}});
- applyChatWsMessage({type:'chat_response',data:{type:'result',session_id:'s',msg_id:'u',content:`Created [${name}](/project/${name}).`}});
+ const id=`u${++sequence}`;
+ applyChatWsMessage({type:'chat_ack',data:{session_id:'s',msg_id:id}});
+ applyChatWsMessage({type:'chat_response',data:{type:'result',session_id:'s',msg_id:id,content:`Created [${name}](/project/${name}).`}});
 };
 Object.assign(window,{complete,layout:()=>useCenterTabs.getState()});
 function Fixture(){
- const msg=useSessionStore(s=>s.messagesById['u_reply']);
+ const msg=useSessionStore(s=>Object.values(s.messagesById).filter(msg=>msg.role==='assistant').at(-1));
  const tabs=useCenterTabs(s=>s.tabs),groups=useCenterTabs(s=>s.groups);
  const ids=groups[0]?.visibleIds.filter(id=>id!==chat.id)??[];
  const layouts=new Map(ids.map(id=>[id,{className:'file-pane',style:{width:'50%',height:'100%'}}]));

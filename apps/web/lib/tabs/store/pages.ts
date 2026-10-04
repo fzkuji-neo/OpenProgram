@@ -1,5 +1,6 @@
 import { filePreviewLayout } from "../file-preview-layout";
-import { normalizeCenterTabLayout } from "@/lib/tabs/center-tab-groups";
+import { findCenterTabGroup, normalizeCenterTabLayout } from "@/lib/tabs/center-tab-groups";
+import { documentControllers } from "@/lib/files/document-controller";
 import { builtinTabId, fileTabId, nextBrowserHomeId, nextNtpId } from "@/lib/tabs/center-tab-ids";
 import { replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence";
 import { openReviewTabLayout } from "@/lib/tabs/review-tab-layout";
@@ -15,6 +16,16 @@ export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: St
     openFilePreview: (sessionId, target, automatic = false) => {
       let opened = false;
       set(state => {
+        if (automatic) {
+          const chat = state.tabs.find(tab => tab.kind === "session" && tab.sessionId === sessionId);
+          const group = chat && findCenterTabGroup(state.groups, chat.id);
+          if (group?.memberIds.some(id => {
+            const tab = state.tabs.find(item => item.id === id);
+            if (tab?.kind !== "file" || !tab.path) return false;
+            const key = tab.readOnly ? `attachment:${tab.fileSessionId}:${tab.path}` : `project:${tab.projectId}:${tab.path}`;
+            return documentControllers.get(key)?.canReplacePreview() === false;
+          })) return {};
+        }
         const next = filePreviewLayout(state, sessionId, target, automatic);
         if (!next) return {};
         opened = true;

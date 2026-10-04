@@ -366,6 +366,12 @@ export class DocumentController {
       || this.richEditor?.getState?.().dirty || this.state.status === "dirty" || this.state.status === "saving");
   }
 
+  canReplacePreview(): boolean {
+    // A native editing engine can have input still being edited before it
+    // emits a dirty notification. Keep that pane visible until explicit open.
+    return !this.hasLocalChanges() && this.richEditor?.getState?.().readonly !== false;
+  }
+
   async checkForUpdates(signal?: AbortSignal): Promise<void> {
     if (this.state.status === "closed" || !this.state.snapshot) return;
     const before = this.state.snapshot;
