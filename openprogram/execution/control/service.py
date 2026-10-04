@@ -110,15 +110,17 @@ class RuntimeControlService(AgentSafePointOperations, WaitsOperations, Cancellat
         if execution.status not in TERMINAL_EXECUTION_STATUSES:
             return
         observer = self._terminal_observer
-        try:
-            if execution.status is ExecutionStatus.CANCELLED:
+        if execution.status is ExecutionStatus.CANCELLED:
+            try:
                 from ..projections import ExecutionProjectionReadModel
                 ExecutionProjectionReadModel(self.executions).project_cancelled_assistant(execution)
-        finally:
-            if observer is not None:
-                # Resource-release observers must run even if the chat
-                # projection fails. Its durable outbox keeps the retry.
-                observer(execution)
+            except Exception:
+                # The transition already persisted a DAG outbox obligation.
+                # Display retries must not reject a canonical cancellation.
+                _log.exception("cancelled chat projection deferred for %s", execution.execution_id)
+        if observer is not None:
+            # Resource-release failures remain visible to control callers.
+            observer(execution)
 
 
     def _observe_paused(self, execution: ExecutionRecord) -> None:

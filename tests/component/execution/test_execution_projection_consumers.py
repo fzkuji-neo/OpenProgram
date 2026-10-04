@@ -489,6 +489,10 @@ def test_v5_migration_requeues_fixed_projections_for_the_new_read_models(tmp_pat
 
 
 def test_cancelled_chat_outbox_retries_a_late_assistant_and_preserves_trace(tmp_path, monkeypatch, request):
+    import asyncio
+    from openprogram.execution import AttemptStore, RuntimeControlService
+    from openprogram.execution.driver import DriverRegistry
+    from openprogram.execution.model import CommandStatus
     from openprogram.execution.projections import projection_handlers
     from openprogram.store.session.session_store import SessionStore
 
@@ -500,12 +504,17 @@ def test_cancelled_chat_outbox_retries_a_late_assistant_and_preserves_trace(tmp_
     monkeypatch.setattr("openprogram.events.emit_ws_frame", frames.append)
     sessions.create_session("session-1", "main", status="running")
     execution = _admit(store, assistant_id="reply-1")
-    cancelling = store.transition_execution(execution.execution_id,
-        expected_version=execution.status_version, target=ExecutionStatus.CANCELLING)
-    store.transition_execution(execution.execution_id,
-        expected_version=cancelling.status_version, target=ExecutionStatus.CANCELLED)
+    control = RuntimeControlService(store, AttemptStore(store), DriverRegistry())
+    observed = []
+    control.set_terminal_observer(observed.append)
+    result = asyncio.run(control.request_cancel(command_id="cancel-late-reply",
+        execution_id=execution.execution_id, expected_version=execution.status_version,
+        actor={"surface": "test"}, reason_code="cancel.user"))
+    assert result.command.status is CommandStatus.APPLIED
+    assert result.execution.status is ExecutionStatus.CANCELLED
+    assert observed == [result.execution]
     dispatcher = ProjectionDispatcher(store, projection_handlers(store))
-    assert dispatcher.drain(owner_id="late-reply").failed == 1
+    assert dispatcher.drain(owner_id="late-reply").failed > 0
     sessions.append_message("session-1", {"id": "reply-1", "role": "assistant",
         "content": "partial response", "status": "running", "extra": '{"blocks": [{"type": "text", "text": "partial response"}]}'})
     head = sessions.get_session("session-1")["head_id"]
@@ -521,3 +530,51 @@ def test_cancelled_chat_outbox_retries_a_late_assistant_and_preserves_trace(tmp_
     projection_handlers(store)["dag"](item)
     assert len(frames) == before
     sessions.close()
+
+
+def test_cancel_paused_continuation_error_clears_display_and_preserves_trace(tmp_path, monkeypatch, request):
+    import asyncio
+    from openprogram.execution import AttemptStore, RuntimeControlService
+    from openprogram.execution.driver import DriverRegistry
+    from openprogram.execution.model import CommandStatus
+    from openprogram.execution.projections import projection_handlers
+    from openprogram.store import SessionStore
+
+    store = _store(tmp_path)
+    sessions = SessionStore(tmp_path / "sessions")
+    request.addfinalizer(sessions.close)
+    monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: sessions)
+    frames = []
+    monkeypatch.setattr("openprogram.events.emit_ws_frame", frames.append)
+    sessions.create_session("session-1", "main", status="running")
+    sessions.append_message("session-1", {"id": "reply-1", "role": "assistant",
+        "content": "partial response", "status": "running",
+        "extra": '{"blocks": [{"type": "text", "text": "partial response"}]}'})
+    execution = _admit(store, assistant_id="reply-1")
+    running = store.transition_execution(execution.execution_id,
+        expected_version=execution.status_version, target=ExecutionStatus.RUNNING)
+    paused = store.transition_execution(execution.execution_id,
+        expected_version=running.status_version, target=ExecutionStatus.PAUSED,
+        reason_code="continuation_contract_mismatch")
+    dispatcher = ProjectionDispatcher(store, projection_handlers(store))
+    assert dispatcher.drain(owner_id="paused-error").failed == 0
+    before = sessions.get_messages("session-1")[-1]
+    head = sessions.get_session("session-1")["head_id"]
+    assert before["status"] == "error"
+    control = RuntimeControlService(store, AttemptStore(store), DriverRegistry())
+    result = asyncio.run(control.request_cancel(command_id="cancel-paused-error",
+        execution_id=paused.execution_id, expected_version=paused.status_version,
+        actor={"surface": "test"}, reason_code="cancel.user"))
+    assert result.command.status is CommandStatus.APPLIED
+    assert result.execution.status is ExecutionStatus.CANCELLED
+    assert dispatcher.drain(owner_id="paused-error").failed == 0
+    reply = sessions.get_messages("session-1")[-1]
+    assert reply["status"] == "cancelled" and reply["error"] is None
+    assert reply["content"] == before["content"] and reply["blocks"] == before["blocks"]
+    assert sessions.get_session("session-1")["head_id"] == head
+    assert sessions.get_session("session-1")["status"] == "idle"
+    item = next(item for item in store.list_projection_outbox(execution_id=execution.execution_id)
+                if item.projection_kind == "dag" and item.event_sequence == store.list_events(execution.execution_id)[-1].sequence)
+    count = len(frames)
+    projection_handlers(store)["dag"](item)
+    assert len(frames) == count

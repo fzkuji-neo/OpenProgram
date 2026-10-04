@@ -150,7 +150,7 @@ class ExecutionProjectionReadModel:
         if node is None:
             raise RuntimeError("Cancelled execution is waiting for its assistant node")
         metadata = node.metadata or {}
-        if metadata.get("status") not in {None, "running", "paused", "interrupted", "cancelled"}:
+        if metadata.get("status") not in {None, "running", "paused", "interrupted", "error", "cancelled"}:
             return
         changed = metadata.get("status") != "cancelled"
         if changed:
