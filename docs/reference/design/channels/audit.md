@@ -531,7 +531,7 @@ OpenProgram runs two paradigms:
 ```
 Paradigm A: agentic programming
   Python drives → if/else/for/while control flow
-  @agentic_function creates a Context node
+  Agent method creates a Context node
   Runtime.exec requests the LLM only when explicitly called
   entry point: Python code written by the programmer
 
@@ -542,7 +542,7 @@ Paradigm B: agent loop (the path channel/webui chat takes)
 ```
 
 Channels attach to Paradigm B. Paradigm A still needs to send: a cron-driven
-`@agentic_function` that greets the user needs no adapter instance, no stream
+`Agent` method that greets the user needs no adapter instance, no stream
 subscription, and no session lifecycle binding.
 
 OpenClaw's "everything goes through the adapter" and hermes's
@@ -555,7 +555,7 @@ injection. OpenProgram's deployment forms break that assumption:
 Deployment scenario                                where is the adapter instance
 ────────────────────────────────────────────────────────────────────────────────
 openprogram worker running                         in the worker process
-user script importing @agentic_function            nowhere
+user script importing Agent method            nowhere
 cron in a separate process outside the worker      nowhere
 Jupyter notebook experiment                        nowhere
 pytest test                                        nowhere
@@ -568,9 +568,9 @@ is the implementation beneath them, which is why both route through
 `_transport`.
 
 Two consequences follow. Any future move to an async-first base must keep a
-synchronous wrapper at module top level so an `@agentic_function` can send
+synchronous wrapper at module top level so an `Agent` method can send
 without dealing with asyncio. And streaming edit should stay reachable from
-Paradigm A: an `@agentic_function` reporting intermediate progress should be
+Paradigm A: an `Agent` method reporting intermediate progress should be
 able to hold a `MessageHandle` and edit it, rather than the capability being
 locked to the dispatcher's pipeline.
 

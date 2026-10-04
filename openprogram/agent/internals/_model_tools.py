@@ -567,7 +567,7 @@ def _access_preset_names(name: str) -> list[str]:
             tool.name for tool in agent_tools(
                 toolset="full", include_disabled=True
             )
-            if not getattr(tool, "_is_agentic", False)
+            if not getattr(tool, "_is_agent_method", False)
         ]
     from openprogram.programs.meta_storage import load_functions_meta
     data = load_functions_meta({"profiles": {}, "active": "FULL"})

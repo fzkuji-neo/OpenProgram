@@ -1,6 +1,6 @@
 # Write, test, and publish a Workflow
 
-A Workflow is a Python package with one public `@agentic_function` entry point. People and OpenProgram's author Agent use the same package validator and Git publication format. Functions compose through ordinary Python imports and calls.
+A Workflow is a Python package with one public `Agent` method entry point. People and OpenProgram's author Agent use the same package validator and Git publication format. Functions compose through ordinary Python imports and calls.
 
 ## Define the contract before writing code
 
@@ -100,13 +100,19 @@ project_report = "workflows.project_report:project_report"
 `workflow.py` defines exactly one public function, named after the package, with exactly one positional `task` argument:
 
 ```python
-from openprogram.agentic_programming import agentic_function
+from openprogram import Agent
 from .steps.prepare import prepare
 
+class ExampleAgent(Agent):
+    method_options = {
+        'project_report': {'tool': True},
+    }
 
-@agentic_function
-def project_report(task: str) -> str:
-    return prepare(task)
+    def project_report(self, task: str) -> str:
+        return prepare(task)
+
+_example_agent = ExampleAgent()
+project_report = _example_agent.project_report
 ```
 
 `__init__.py` re-exports it:
@@ -121,7 +127,7 @@ Leave `steps/__init__.py` empty. In `steps/prepare.py`:
 
 ```python
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.function import CancelledError
+from openprogram.agentic_programming.call_state import CancelledError
 from openprogram.programs.workflow.goal import goal
 from openprogram.programs.workflow.json_parsing import parse_json
 

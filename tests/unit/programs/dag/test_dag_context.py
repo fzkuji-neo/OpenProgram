@@ -135,7 +135,7 @@ def test_graph_convenience_builders(graph):
 
 
 def test_graph_update_existing_node(graph):
-    """Used by the @agentic_function exit path: append on entry with
+    """Used by the Agent method exit path: append on entry with
     output=None, update output on exit."""
     n = graph.add(Call(role=ROLE_CODE, name="fn", output=None))
     graph.update(n.id, output="final_result")

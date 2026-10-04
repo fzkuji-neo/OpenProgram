@@ -108,11 +108,9 @@ def test_gui_agent_replans_from_complete_capability_history(
 def test_gui_controller_import_does_not_require_desktop_perception(
     harness_on_path, monkeypatch,
 ):
-    from openprogram.agentic_programming import function as function_module
     from openprogram.programs import _runtime as program_runtime
 
     isolated_roots = ("gui_harness", "cv2", "ultralytics")
-    preserved_registry = dict(function_module._registry)
     preserved_tools = program_runtime.snapshot_registry()
     preserved = {
         name: module
@@ -138,14 +136,7 @@ def test_gui_controller_import_does_not_require_desktop_perception(
         for name in tuple(sys.modules):
             if name not in preserved and name.split(".", 1)[0] in isolated_roots:
                 sys.modules.pop(name, None)
-        function_module._registry.clear()
-        function_module._registry.update(preserved_registry)
         program_runtime.restore_registry(preserved_tools)
-    assert function_module._registry.keys() == preserved_registry.keys()
-    assert all(
-        function_module._registry[name] is registered
-        for name, registered in preserved_registry.items()
-    )
     restored_tools = program_runtime.snapshot_registry()
     assert restored_tools.keys() == preserved_tools.keys()
     assert all(

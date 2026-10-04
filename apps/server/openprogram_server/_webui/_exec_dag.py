@@ -1,6 +1,6 @@
 """Execution-DAG: reconstruction, live streaming, run-state repair.
 
-Three concerns, all over the flat DAG that ``@agentic_function`` and
+Three concerns, all over the flat DAG that ``Agent method`` and
 the runtime write into SessionDB as a ``/run`` executes:
 
   ``build_exec_dag()`` — turn a run's DAG subtree into the TNode dict
@@ -159,7 +159,7 @@ def build_exec_dag_by_id(session_id: str,
     whose id is ``root_node_id`` (not by ``(name, predecessor)``).
 
     Used by the refresh-rebuild path: a manually-invoked
-    @agentic_function persists as a top-level code node with
+    Agent method persists as a top-level code node with
     ``caller="ROOT"``. Calling the same function twice in one session
     yields two such nodes — both ``ROOT``-anchored, so the name-based
     :func:`build_exec_dag` ("last match wins") would resolve both cards
@@ -193,7 +193,7 @@ def build_exec_dag(session_id: str, func_name: str,
     triggered, with its nested function / LLM calls as children.
 
     Works both *after* a run (the top ``func_name`` node is persisted)
-    and *mid-run*: the ``@agentic_function`` wrapper persists a node
+    and *mid-run*: the ``Agent method`` wrapper persists a node
     only on return, so while the top function is still looping its node
     does not exist yet — but its nested calls (``gui_step`` etc.) are
     already persisted, pointing at the top node's allocated-but-
@@ -320,7 +320,7 @@ def _poll(session_id: str, msg_id: str, func_name: str,
 
     ``on_event`` (optional) routes envelopes through a caller-provided
     callback instead of importing the worker's ``_broadcast_*``. This
-    is what lets the @agentic_function subprocess push live progress
+    is what lets the Agent method subprocess push live progress
     to clients: the parent worker registers ``on_event`` to drain the
     subprocess's mp.Queue and re-broadcast, so the subprocess just
     drops envelopes onto the queue and the parent does the actual
@@ -351,7 +351,7 @@ def _poll(session_id: str, msg_id: str, func_name: str,
         """
         try:
             # On the final flush the terminal code node was just written
-            # by the @agentic_function subprocess straight to git; the
+            # by the Agent method subprocess straight to git; the
             # parent worker's cached SessionMemoryIndex hasn't observed
             # it, so a plain build would re-read the stale running tree.
             # Drop the cache first so the forced flush reflects the
@@ -462,7 +462,7 @@ def live_progress(session_id: str, msg_id: str, func_name: str, on_event=None):
             result = loaded_func(**call_kwargs)
 
     A daemon poller thread starts on enter and stops on exit (success
-    or exception), so a long ``@agentic_function`` run shows its
+    or exception), so a long ``Agent method`` run shows its
     Execution DAG + History graph filling in live.
     """
     stop = threading.Event()
@@ -475,7 +475,7 @@ def live_progress(session_id: str, msg_id: str, func_name: str, on_event=None):
     finally:
         stop.set()
         # Wait (bounded) for the poller's forced final flush to emit the
-        # terminal tree before we return. In the @agentic_function
+        # terminal tree before we return. In the Agent method
         # subprocess the process exits right after this block; without
         # the join the daemon poller is killed mid-flush and the
         # completed tree never reaches the queue, so the card stays
@@ -621,7 +621,7 @@ def reconcile_interrupted_runs() -> int:
     """Finish durable cancellations and mark abandoned runs interrupted.
 
     Two writers stamp ``status="running"``:
-      * ``@agentic_function`` on entry (FunctionCall sub-call nodes),
+      * ``Agent method`` on entry (FunctionCall sub-call nodes),
         flipping to ``success`` / ``error`` in its ``finally``.
       * The chat dispatcher on assistant placeholder insert (step 3b),
         flipping to ``completed`` / ``error`` / ``cancelled`` at turn

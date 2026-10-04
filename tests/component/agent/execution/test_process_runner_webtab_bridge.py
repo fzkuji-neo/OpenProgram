@@ -1133,7 +1133,7 @@ def test_timeout_waits_for_late_open_cleanup_failure(
     releaser = Thread(target=release_late_open, daemon=True)
     releaser.start()
     started_at = time.monotonic()
-    result = process_runner.run_agentic_in_subprocess(
+    result = process_runner.run_agent_method_in_subprocess(
         tool_name="gui_agent",
         kwargs={},
         session_id="s-late-open",

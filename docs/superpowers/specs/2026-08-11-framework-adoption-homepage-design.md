@@ -41,7 +41,7 @@ The section heading is `Use an agent or build your own.` It contains four paths:
 - GUI Agent: operate desktop applications and GUI environments.
 - Research Agent: support literature research, experiments, and paper work.
 - Wiki Agent: organize source material into a maintainable knowledge base.
-- Build your own: show a compact `@agentic_function` example and link to the authoring documentation.
+- Build your own: show a compact `Agent` method example and link to the authoring documentation.
 
 Each ready-made harness links to its existing repository or usage guide. State that GUI Agent, Research Agent, and Wiki Agent ship inside every supported release; third-party harnesses are additional extensions.
 

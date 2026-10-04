@@ -1,5 +1,5 @@
 """
-ask_user —— 在 @agentic_function 执行途中向用户提问。
+ask_user —— 在 Agent method 执行途中向用户提问。
 
 这不是范式原语，是一个内置工具函数。它需要"暂停执行→等回答→恢复"的能力，
 所以一起捆绑了：
@@ -61,7 +61,7 @@ def has_ask_user_handler() -> bool:
     with _ask_user_lock:
         if _ask_user_handler_global is not None:
             return True
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
     runtime = _current_runtime.get(None)
     if runtime is not None and runtime.can_ask():
         return True
@@ -72,7 +72,7 @@ def has_ask_user_handler() -> bool:
 
 def ask_user(question: str) -> Optional[str]:
     """
-    在 @agentic_function 执行中向用户提问。
+    在 Agent method 执行中向用户提问。
 
     回调查找顺序：
       1. 全局 handler（由 set_ask_user 注册，WebUI / 后台服务用）
@@ -81,7 +81,7 @@ def ask_user(question: str) -> Optional[str]:
     返回用户答案；如果没有任何 handler 可用，返回 None。
 
     DAG 集成：把这次询问建模成一个 user-role Call —— caller 是
-    LLM/代码（predecessor 指向 enclosing @agentic_function），
+    LLM/代码（predecessor 指向 enclosing Agent method），
     callee 是人类（产生 output = 用户的回答）。入口 append 占位
     （output=None，metadata.status="awaiting"），handler 返回后
     update output。跟用户主动发消息通过 ``input is not None`` 区分。
@@ -105,7 +105,7 @@ def ask_user(question: str) -> Optional[str]:
     # 2. 事件层 runtime.ask：webui 路径走这条活链路（发 question.asked
     #    事件 → 前端问题卡片 → 用户答 → resume）。仅当处于有前端的执行
     #    上下文（can_ask）时才用，否则落到 TTY / None。
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
     rt = _current_runtime.get(None)
     if rt is not None and rt.can_ask():
         from openprogram.agent.questions import UserDeclined, AskTimeout
@@ -150,7 +150,7 @@ def _begin_ask_user_node(question: str) -> Optional[str]:
     try:
         from openprogram.store import _store
         from openprogram.context.nodes import Call, ROLE_USER
-        from openprogram.agentic_programming.function import _call_id
+        from openprogram.agentic_programming.call_state import _call_id
     except Exception:
         return None
 

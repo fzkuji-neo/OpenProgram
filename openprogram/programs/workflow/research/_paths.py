@@ -47,7 +47,7 @@ def writable_project_dir(project_dir: str) -> Path:
 def read_artifact(path: str | Path) -> str:
     """Read complete text with sandbox, cancellation and approval checks."""
     from openprogram.agent.permissions.file_state import check_current
-    from openprogram.agentic_programming.function import check_cancelled
+    from openprogram.agentic_programming.call_state import check_cancelled
     from openprogram.sandbox import validate_read_path
     from openprogram.store.snapshot import read_tracking
 
@@ -65,7 +65,7 @@ def read_artifact(path: str | Path) -> str:
 
 def write_artifact(path: str | Path, content: str) -> None:
     """Publish through the normal checkpointed writer and surface refusals."""
-    from openprogram.agentic_programming.function import check_cancelled
+    from openprogram.agentic_programming.call_state import check_cancelled
     from openprogram.programs.tools.files.write import execute as write
 
     target = Path(path).absolute()

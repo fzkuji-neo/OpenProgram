@@ -3,23 +3,23 @@
 本文描述在一次模型调用内，LLM 在每一轮如何"做出选择"——挑选一个函数去执行，或者输出文本并结束。
 
 > 配套文档：[`calling-unification.md`](../../../reference/design/function/calling-unification.zh.md)
-> 介绍了整个函数调用框架的设计——`@function` / `@agentic_function` 装饰器、共享注册表、6 层
+> 介绍了整个函数调用框架的设计——`@function` / `Agent` method 装饰器、共享注册表、6 层
 > 门控、延迟加载等。本页只涵盖"挑选下一步"这部分的循环机制。
 
 ## 一句话总结
 
-给 LLM 一组工具（`@agentic_function` 或工具 dict）；每一轮它返回一条 assistant 消息。如果消息内容
+给 LLM 一组工具（`Agent` method 或工具 dict）；每一轮它返回一条 assistant 消息。如果消息内容
 **包含 `ToolCall`，说明它挑选了一个函数**——框架执行该函数，把结果回灌进历史，然后让它再次挑选。如果消息
 **只有文本、没有 `ToolCall`，说明它选择了"结束"**——这段文本作为最终回复返回。该循环运行在
 `openprogram/agent/agent_loop.py::_run_loop` 中。
 
 ## 入口：`runtime.exec`
 
-在 `@agentic_function` 内部，调用
+在 `Agent` method 内部，调用
 `runtime.exec(content, tools=..., tool_choice=..., max_iterations=...)`：
 
 - `tools` 是 LLM 可挑选的函数菜单。每一项可以是
-  `@agentic_function`、`{"spec":..., "execute":...}` dict，或带有
+  `Agent` method、`{"spec":..., "execute":...}` dict，或带有
   `.spec` / `.execute` 的对象。
 - **工具默认开启。** 如果既不传 `tools=` 也不传 `toolset=`，`exec`
   会解析出**完整**的注册表工具集，任何函数不必逐个声明就能搜索、跑代码、改文件。
@@ -96,9 +96,9 @@ inner_iterations > max_iterations      only when the caller set a cap (runtime.e
 内层循环退出后，`get_follow_up_messages` 可能提供后续消息，这些消息成为下一轮的
 `pending_messages`；否则本次运行彻底结束并推送 `AgentEventAgentEnd`。
 
-## 与 `@agentic_function` 的关系
+## 与 `Agent` method 的关系
 
-作为工具传给 `exec(tools=[...])` 的 `@agentic_function`，在模型眼中只是一个可挑选的函数。模型挑选它 →
+作为工具传给 `exec(tools=[...])` 的 `Agent` method，在模型眼中只是一个可挑选的函数。模型挑选它 →
 `_execute_tool_calls` 调用其 `.execute` → 如果该函数体内又调用了
 `runtime.exec`，则同一挑选循环的又一层被打开。
 在嵌套的 agentic function 下，"挑选下一个要运行的函数"就是同一机制的递归展开。

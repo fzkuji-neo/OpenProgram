@@ -29,10 +29,19 @@ from openprogram.providers.utils.errors import ExecInterrupt
 def authorized_runtime_request():
     from openprogram.agent.authority import owner_authority
     from openprogram.agent.dispatcher.types import TurnRequest
-    from openprogram.agent.turn_request_context import set_turn_request, reset_turn_request
-    request = TurnRequest(session_id="structured-fixture", user_text="Read fixture sources",
-                          agent_id="main", source="python", permission_mode="bypass",
-                          **owner_authority("owner/install/" + "a" * 16))
+    from openprogram.agent.turn_request_context import (
+        set_turn_request,
+        reset_turn_request,
+    )
+
+    request = TurnRequest(
+        session_id="structured-fixture",
+        user_text="Read fixture sources",
+        agent_id="main",
+        source="python",
+        permission_mode="bypass",
+        **owner_authority("owner/install/" + "a" * 16),
+    )
     token = set_turn_request(request)
     try:
         yield request
@@ -166,7 +175,14 @@ def test_transport_retry_does_not_refresh_validation_retry_budget(monkeypatch):
     runtime = Runtime(call=call, model="dummy", max_retries=4)
     runtime.on_stream = events.append
     with pytest.raises(StructuredOutputValidationError):
-        runtime.exec("question", response_format={"type": "json_schema", "schema": SCHEMA, "max_validation_retries": 1})
+        runtime.exec(
+            "question",
+            response_format={
+                "type": "json_schema",
+                "schema": SCHEMA,
+                "max_validation_retries": 1,
+            },
+        )
 
     assert len(calls) == 3
     assert [
@@ -205,12 +221,12 @@ def test_cancellation_does_not_start_validation_repair(monkeypatch):
 
     def check_cancelled():
         if calls:
-            from openprogram.agentic_programming.function import CancelledError
+            from openprogram.agentic_programming.call_state import CancelledError
 
             raise CancelledError("cancelled")
 
     monkeypatch.setattr(
-        "openprogram.agentic_programming.function.check_cancelled", check_cancelled
+        "openprogram.agentic_programming.call_state.check_cancelled", check_cancelled
     )
     with pytest.raises(ExecInterrupt, match="cancelled"):
         Runtime(call=call, model="dummy", max_retries=2).exec(
@@ -490,7 +506,16 @@ def test_async_transport_retry_does_not_refresh_validation_retry_budget(monkeypa
     runtime = Runtime(call=call, model="dummy", max_retries=4)
     runtime.on_stream = events.append
     with pytest.raises(StructuredOutputValidationError):
-        asyncio.run(runtime.async_exec("question", response_format={"type": "json_schema", "schema": SCHEMA, "max_validation_retries": 1}))
+        asyncio.run(
+            runtime.async_exec(
+                "question",
+                response_format={
+                    "type": "json_schema",
+                    "schema": SCHEMA,
+                    "max_validation_retries": 1,
+                },
+            )
+        )
 
     assert len(calls) == 3
     assert [
@@ -531,12 +556,12 @@ def test_async_cancellation_does_not_start_validation_repair(monkeypatch):
 
     def check_cancelled():
         if calls:
-            from openprogram.agentic_programming.function import CancelledError
+            from openprogram.agentic_programming.call_state import CancelledError
 
             raise CancelledError("cancelled")
 
     monkeypatch.setattr(
-        "openprogram.agentic_programming.function.check_cancelled", check_cancelled
+        "openprogram.agentic_programming.call_state.check_cancelled", check_cancelled
     )
     with pytest.raises(ExecInterrupt, match="cancelled"):
         asyncio.run(
@@ -559,12 +584,12 @@ def test_async_cancellation_after_repair_failure_blocks_outer_retry(monkeypatch)
 
     def check_cancelled():
         if len(calls) >= 2:
-            from openprogram.agentic_programming.function import CancelledError
+            from openprogram.agentic_programming.call_state import CancelledError
 
             raise CancelledError("cancelled")
 
     monkeypatch.setattr(
-        "openprogram.agentic_programming.function.check_cancelled", check_cancelled
+        "openprogram.agentic_programming.call_state.check_cancelled", check_cancelled
     )
     monkeypatch.setattr(
         "openprogram.agentic_programming.runtime._retry_sleep_seconds",
@@ -753,12 +778,13 @@ def test_explicit_prompt_fallback_adds_schema_instruction():
 
 def test_llm_public_entry_uses_existing_structured_repair():
     from openprogram.agentic_programming import llm
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
+
     calls = []
 
     def call(content, **kwargs):
         calls.append(content)
-        return 'I will prepare the report.' if len(calls) == 1 else '{"answer": 7}'
+        return "I will prepare the report." if len(calls) == 1 else '{"answer": 7}'
 
     token = _current_runtime.set(Runtime(call=call, model="dummy", max_retries=3))
     try:
@@ -768,10 +794,16 @@ def test_llm_public_entry_uses_existing_structured_repair():
     assert len(calls) == 2
 
 
-@pytest.mark.parametrize("repair,budget,iterations", [(False, 1, 6), (True, 3, 6), (True, 1, 6), (False, 3, 2)])
-def test_structured_agent_normal_tool_rounds_do_not_consume_retry_budget(repair, budget, iterations, authorized_runtime_request):
+@pytest.mark.parametrize(
+    "repair,budget,iterations",
+    [(False, 1, 6), (True, 3, 6), (True, 1, 6), (False, 3, 2)],
+)
+def test_structured_agent_normal_tool_rounds_do_not_consume_retry_budget(
+    repair, budget, iterations, authorized_runtime_request
+):
     from openprogram.agentic_programming import agent
     from openprogram.providers.types import ToolCall
+
     calls, effects = [], []
 
     async def stream(model, context, options=None):
@@ -779,25 +811,45 @@ def test_structured_agent_normal_tool_rounds_do_not_consume_retry_budget(repair,
         n = len(calls)
         message = AssistantMessage(
             content=[ToolCall(id=f"lookup-{n}", name="lookup", arguments={})]
-            if n < 5 else [TextContent(text='invalid prose' if repair and n == 5 else '{"answer": 7}')],
-            api=model.api, provider=model.provider, model=model.id,
-            timestamp=n, stop_reason="toolUse" if n < 5 else "stop",
+            if n < 5
+            else [
+                TextContent(
+                    text="invalid prose" if repair and n == 5 else '{"answer": 7}'
+                )
+            ],
+            api=model.api,
+            provider=model.provider,
+            model=model.id,
+            timestamp=n,
+            stop_reason="toolUse" if n < 5 else "stop",
         )
         yield EventStart(partial=message)
         yield EventDone(reason=message.stop_reason, message=message)
 
     runtime = Runtime(call=lambda *a, **k: "unused", model="dummy", max_retries=budget)
     runtime._stream_fn = stream
-    tools = [{"spec": {"name": "lookup", "description": "Read a source",
-                       "parameters": {"type": "object", "properties": {}}},
-              "execute": lambda: effects.append(1) or "evidence"}]
-    options = dict(tools=tools, max_iterations=iterations,
-                   response_format={"type": "json_schema", "schema": SCHEMA, "fallback": "prompt"})
+    tools = [
+        {
+            "spec": {
+                "name": "lookup",
+                "description": "Read a source",
+                "parameters": {"type": "object", "properties": {}},
+            },
+            "execute": lambda: effects.append(1) or "evidence",
+        }
+    ]
+    options = dict(
+        tools=tools,
+        max_iterations=iterations,
+        response_format={"type": "json_schema", "schema": SCHEMA, "fallback": "prompt"},
+    )
     if iterations == 2 or (repair and budget == 1):
         with pytest.raises((LLMError, StructuredOutputValidationError)):
             agent("Read four sources then answer", runtime=runtime, **options)
         assert len(calls) == (2 if iterations == 2 else 5)
         assert len(effects) == (2 if iterations == 2 else 4)
     else:
-        assert agent("Read four sources then answer", runtime=runtime, **options) == {"answer": 7}
+        assert agent("Read four sources then answer", runtime=runtime, **options) == {
+            "answer": 7
+        }
         assert len(calls) == 5 + int(repair) and len(effects) == 4

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from openprogram.agentic_programming import Agent
+
 from contextvars import copy_context
 import inspect
 import pickle
@@ -44,7 +46,7 @@ def test_spawn_payload_contains_explicit_sandbox_snapshot(monkeypatch):
         lambda: {"enabled": True, "policy": {"network": False}},
     )
 
-    process_runner.run_agentic_in_subprocess(
+    process_runner.run_agent_method_in_subprocess(
         tool_name="demo",
         kwargs={},
         session_id="s",
@@ -95,7 +97,7 @@ def test_spawn_payload_preserves_turn_render_range(monkeypatch):
 
     monkeypatch.setattr(process_runner.mp, "get_context", lambda _kind: FakeContext())
 
-    process_runner.run_agentic_in_subprocess(
+    process_runner.run_agent_method_in_subprocess(
         tool_name="demo",
         kwargs={},
         session_id="s",
@@ -151,7 +153,7 @@ def test_subprocess_timeout_kills_the_process_tree(monkeypatch):
     monkeypatch.setattr(process_runner.mp, "get_context", lambda _kind: FakeContext())
     monkeypatch.setattr("openprogram._compat.kill_process_tree", kill_process_tree)
 
-    result = process_runner.run_agentic_in_subprocess(
+    result = process_runner.run_agent_method_in_subprocess(
         tool_name="demo",
         kwargs={},
         session_id="s",
@@ -214,7 +216,7 @@ def test_blocked_non_page_event_does_not_report_page_cleanup_failure(monkeypatch
     monkeypatch.setattr(process_runner.mp, "get_context", lambda _kind: FakeContext())
 
     try:
-        result = process_runner.run_agentic_in_subprocess(
+        result = process_runner.run_agent_method_in_subprocess(
             tool_name="demo",
             kwargs={},
             session_id="s-event",
@@ -338,7 +340,7 @@ def test_subprocess_timeout_reports_late_background_page_cleanup(
     monkeypatch.setattr(webtab, "release_binding", lambda _binding_id: None)
 
     started_at = time.monotonic()
-    result = process_runner.run_agentic_in_subprocess(
+    result = process_runner.run_agent_method_in_subprocess(
         tool_name="gui_agent",
         kwargs={},
         session_id="s",
@@ -386,7 +388,7 @@ def test_child_entry_builds_the_session_selected_custom_runtime(
 ):
     from openprogram.agent import process_runner
     from openprogram.store import _current_turn_id, _store
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
     from openprogram.store.session.session_store import SessionStore
     import openprogram.agent.session_db as session_db
     import openprogram.agent.run_control as run_control
@@ -444,8 +446,8 @@ def test_child_entry_force_invokes_hidden_agentic_tool(monkeypatch, tmp_path, to
     from types import SimpleNamespace
 
     from openprogram.agent import process_runner
-    from openprogram.agentic_programming.function import (
-        agentic_function,
+    from openprogram.agentic_programming.call_state import (
+
         _current_runtime,
     )
     from openprogram.store import _current_turn_id, _store
@@ -458,9 +460,13 @@ def test_child_entry_force_invokes_hidden_agentic_tool(monkeypatch, tmp_path, to
     import openprogram.providers.enabled_models as enabled_models
     import openprogram.providers.models as provider_models
 
-    @agentic_function(tool_visible=False)
-    def hidden_child_probe():
-        return "ran"
+    class _HiddenChildProbeAgent(Agent):
+        method_options = {'hidden_child_probe': {'tool_visible': False, 'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'hidden_child_probe'}}
+
+        def hidden_child_probe(self, ):
+            return "ran"
+
+    hidden_child_probe = _HiddenChildProbeAgent().hidden_child_probe
 
     from openprogram.programs import agent_tools
     assert agent_tools(names=["hidden_child_probe"]) == []

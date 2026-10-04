@@ -1,13 +1,13 @@
 # Error Handling and Retry Decision Logic for Model Calls
 
-This document describes the logic by which the system "makes choices" at each layer between the start and the failure/success of a single model call within an `@agentic_function`: when to retry, when to give up, and when to declare a permanent error.
+This document describes the logic by which the system "makes choices" at each layer between the start and the failure/success of a single model call within an `Agent` method: when to retry, when to give up, and when to declare a permanent error.
 
 ## Call Chain
 
 A single `runtime.exec()` triggers a model call, which passes top-down through:
 
 ```
-runtime.exec() inside @agentic_function
+runtime.exec() inside Agent method
   └─ Runtime.exec() ............. retry loop (this layer)
        └─ _call → _call_via_providers
             └─ AgentSession.run() .... automatic retry layer

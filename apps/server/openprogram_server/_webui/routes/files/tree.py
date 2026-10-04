@@ -100,7 +100,7 @@ def register(app):
         }
         out = []
         for t in agent_tools(toolset="full", include_disabled=True):
-            if getattr(t, "_is_agentic", False):
+            if getattr(t, "_is_agent_method", False):
                 continue
             desc = (t.description or "").strip().split("\n")[0]
             mcp_server = getattr(t, "_mcp_server", None)
@@ -132,7 +132,7 @@ def register(app):
         from openprogram.programs import agent_tools
         return sorted(
             t.name for t in agent_tools(toolset="full", include_disabled=True)
-            if not getattr(t, "_is_agentic", False)
+            if not getattr(t, "_is_agent_method", False)
         )
 
     # These two profiles always exist, cannot be modified or deleted.

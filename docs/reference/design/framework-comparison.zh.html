@@ -131,9 +131,9 @@
   <div class="q" style="border-top-color:#5aad4e">
     <div class="k">最强</div>
     <h4>会话是一张图，代码执行也是图上的节点</h4>
-    <p>十二个参考对象中没有确认第二个实现把<b>函数调用树写入对话历史</b>。模型工具调用结果，以及启用会话 DAG 记录、非 <code>expose=hidden</code> 且持久化成功的 <code>@agentic_function</code> 调用层，会规范化为会话 DAG 的 code 节点，与 user、llm 节点共用 caller/predecessor 边并保存在同一会话 git 仓库。多个 head 可引用不同历史分支。</p>
+    <p>十二个参考对象中没有确认第二个实现把<b>函数调用树写入对话历史</b>。模型工具调用结果，以及启用会话 DAG 记录、非 <code>expose=hidden</code> 且持久化成功的 <code>Agent method</code> 调用层，会规范化为会话 DAG 的 code 节点，与 user、llm 节点共用 caller/predecessor 边并保存在同一会话 git 仓库。多个 head 可引用不同历史分支。</p>
     <p>OpenClaw 和 pi-mono 都有 transcript 分支：OpenClaw Control UI 提供 fork、rewind 和 branch，pi-mono 的 JSONL 记录带 parentId 且 <code>/tree</code> 可切换。OpenProgram 的额外差异是 user、llm 以及统一承载工具结果和嵌套调用的 code 节点共用 DAG。Transcript 分支与 worktree 是独立机制：默认 agent 分支共享当前工作目录，只有显式绑定 <code>worktree_id</code> 的 job 才隔离文件修改。</p>
-    <span class="ev">context/git/dag.py · store/session/session_store.py · agentic_programming/function.py</span>
+    <span class="ev">context/git/dag.py · store/session/session_store.py · agentic_programming/call_state.py</span>
   </div>
   <div class="q" style="border-top-color:#e0445a">
     <div class="k">最弱</div>
@@ -157,7 +157,7 @@
 
 <!-- ══════════════════════════ LAYER 1 ══════════════════════════ -->
 <h2 id="now"><span class="num">01</span>我们是什么<span class="ly ly1">现状</span></h2>
-<p class="lead">一个 Python 通用 agent harness。安装后提供 <code>openprogram</code> 命令和常驻 worker；TUI、网页、Electron 桌面与四个聊天渠道经 dispatcher 共用 <code>process_user_turn</code>，Python 库入口由 <code>Agent.run</code> 或 Runtime 直接进入 <code>agent_loop</code>。会话 transcript 的事实源是每会话一个 git 仓库；SQLite 用于 usage 账本；记忆正文是 Markdown，检索使用可重建的内存 BM25/embedding 索引。工作流可定义为带 <code>@agentic_function</code> 的 Python 函数，符合记录条件且持久化成功的嵌套函数调用写入同一张会话 DAG。</p>
+<p class="lead">一个 Python 通用 agent harness。安装后提供 <code>openprogram</code> 命令和常驻 worker；TUI、网页、Electron 桌面与四个聊天渠道经 dispatcher 共用 <code>process_user_turn</code>，Python 库入口由 <code>Agent.run</code> 或 Runtime 直接进入 <code>agent_loop</code>。会话 transcript 的事实源是每会话一个 git 仓库；SQLite 用于 usage 账本；记忆正文是 Markdown，检索使用可重建的内存 BM25/embedding 索引。工作流可定义为带 <code>Agent method</code> 的 Python 函数，符合记录条件且持久化成功的嵌套函数调用写入同一张会话 DAG。</p>
 
 <div class="card scroll">
 <svg viewBox="0 0 960 300" role="img" aria-label="OpenProgram形态：四个聊天接入面经dispatcher进入常驻worker，worker之下是git会话仓库与工具面">
@@ -666,7 +666,7 @@
   <td class="y">OpenProgram 的已确认差异是 transcript 分支、user/llm/code 统一 DAG 和每会话 git 存储。OpenClaw 与 pi-mono 已具备 transcript 多分支，不能据此声明该能力只有 OpenProgram 与 pi-mono。OpenProgram 自身也不会自动为每个 transcript 分支创建独立 worktree；文件隔离只适用于显式绑定 <code>worktree_id</code> 的 job。</td>
 </tr>
 <tr class="us">
-  <td class="name">@agentic_function<br>流程固化成代码</td>
+  <td class="name">Agent method<br>流程固化成代码</td>
   <td>一个Python装饰器。启用会话 DAG 记录、非 <code>expose=hidden</code> 且持久化成功时，对应调用层会记成会话 DAG 上的 code 节点，和用户消息、模型消息、工具结果共用同一套边，写进同一个git仓库。</td>
   <td>没有对应物。<b>pi-mono</b>的扩展、<b>opencode</b>的<code>tool/*.ts</code>、<b>hermes</b>的skills都能注册新工具，但工具执行对它们是一个黑盒，只有入参和返回值进历史。<br>反方向的对应物是<b>codex的code mode</b>：模型当场写代码调工具。</td>
   <td class="y">持久化成功的内部步骤可与对话一起回看；顶层手动函数可通过 Retry/Edit 形成 sibling branch。任意嵌套步骤的状态恢复或重放尚未实现。</td>

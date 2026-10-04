@@ -80,20 +80,19 @@ def clean_runtime_control():
 
 def _append_execution(store, session_id, execution_id, *, status="running"):
     store.create_session(session_id, "main")
-    SessionNodeWriter(store, session_id).append(Call(
-        id=execution_id,
-        role=ROLE_CODE,
-        name="cancellation_probe",
-        output="partial output",
-        metadata={"status": status, "execution_kind": "agentic_function"},
-    ))
+    SessionNodeWriter(store, session_id).append(
+        Call(
+            id=execution_id,
+            role=ROLE_CODE,
+            name="cancellation_probe",
+            output="partial output",
+            metadata={"status": status, "execution_kind": "agent_method"},
+        )
+    )
 
 
 def _node(store, session_id, execution_id):
-    return next(
-        node for node in store.get_nodes(session_id)
-        if node.id == execution_id
-    )
+    return next(node for node in store.get_nodes(session_id) if node.id == execution_id)
 
 
 def _wait_status(store, session_id, execution_id, wanted, timeout=2.0):
@@ -120,11 +119,14 @@ def _canonical_running_execution(tmp_path, monkeypatch, execution_id="exec-1"):
     )
     attempts = AttemptStore(canonical)
     leased, reserved = attempts.lease(
-        execution_id, expected_version=execution.status_version,
-        owner_id="question-owner", ttl_seconds=30,
+        execution_id,
+        expected_version=execution.status_version,
+        owner_id="question-owner",
+        ttl_seconds=30,
     )
     _active, running = attempts.activate(
-        leased.attempt_id, generation=leased.generation,
+        leased.attempt_id,
+        generation=leased.generation,
         expected_execution_version=reserved.status_version,
     )
     service = RuntimeControlService(canonical, attempts, DriverRegistry())
@@ -138,19 +140,29 @@ def test_token_trips_and_durable_question_wait_is_cancelled(tmp_path, monkeypatc
     canonical, running = _canonical_running_execution(tmp_path, monkeypatch)
     event = threading.Event()
     run_control.register_cancel_event(
-        session_id, event, execution_id="exec-1",
+        session_id,
+        event,
+        execution_id="exec-1",
     )
     run_control.set_current_session_id(session_id)
     run_control.set_current_execution_id("exec-1")
     wait = DurableWaitStore(canonical).open_wait(
-        wait_id="q1", execution_id=running.execution_id,
+        wait_id="q1",
+        execution_id=running.execution_id,
         attempt_id=running.current_attempt_id,
-        generation=running.owner_lease["generation"], kind="ask",
+        generation=running.owner_lease["generation"],
+        kind="ask",
         request={
-            "prompt": "continue?", "options": [], "multi": False,
-            "allow_custom": True, "detail": "", "schema": {}, "questions": [],
+            "prompt": "continue?",
+            "options": [],
+            "multi": False,
+            "allow_custom": True,
+            "detail": "",
+            "schema": {},
+            "questions": [],
         },
-        policy_snapshot={"version": 1}, expires_at=time.time() + 60,
+        policy_snapshot={"version": 1},
+        expires_at=time.time() + 60,
     )
     question = PendingQuestion(
         id="q1",
@@ -199,21 +211,25 @@ def test_ask_requires_declared_durable_wait(store):
 def test_grace_terminates_only_that_execution_owner(store):
     session_id = "grace-kill"
     store.create_session(session_id, "main")
-    SessionNodeWriter(store, session_id).append(Call(
-        id="exec-a",
-        role=ROLE_CODE,
-        name="cancellation_probe",
-        output="a",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
-    SessionNodeWriter(store, session_id).append(Call(
-        id="exec-b",
-        role=ROLE_CODE,
-        name="cancellation_probe",
-        output="b",
-        predecessor="exec-a",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
+    SessionNodeWriter(store, session_id).append(
+        Call(
+            id="exec-a",
+            role=ROLE_CODE,
+            name="cancellation_probe",
+            output="a",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
+    SessionNodeWriter(store, session_id).append(
+        Call(
+            id="exec-b",
+            role=ROLE_CODE,
+            name="cancellation_probe",
+            output="b",
+            predecessor="exec-a",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
     proc_a = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(30)"],
     )
@@ -342,24 +358,30 @@ def test_root_waits_for_live_descendant_before_cancelled(store):
     session_id = "descendant-finalize"
     store.create_session(session_id, "main")
     writer = SessionNodeWriter(store, session_id)
-    writer.append(Call(
-        id="root",
-        role=ROLE_CODE,
-        name="root",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
-    writer.append(Call(
-        id="child",
-        role=ROLE_CODE,
-        name="child",
-        caller="root",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
+    writer.append(
+        Call(
+            id="root",
+            role=ROLE_CODE,
+            name="root",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
+    writer.append(
+        Call(
+            id="child",
+            role=ROLE_CODE,
+            name="child",
+            caller="root",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
     child_live = True
     updates: list[dict] = []
     run_control.set_execution_update_hook(updates.append)
     run_control.register_execution_owner(
-        "child", session_id, is_alive=lambda: child_live,
+        "child",
+        session_id,
+        is_alive=lambda: child_live,
     )
 
     record = run_control.cancel_execution("root")
@@ -383,29 +405,37 @@ def test_root_finalizes_after_live_grandchild_retires(store):
     session_id = "deep-descendant-finalize"
     store.create_session(session_id, "main")
     writer = SessionNodeWriter(store, session_id)
-    writer.append(Call(
-        id="root",
-        role=ROLE_CODE,
-        name="root",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
-    writer.append(Call(
-        id="child",
-        role=ROLE_CODE,
-        name="child",
-        caller="root",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
-    writer.append(Call(
-        id="grandchild",
-        role=ROLE_CODE,
-        name="grandchild",
-        caller="child",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
+    writer.append(
+        Call(
+            id="root",
+            role=ROLE_CODE,
+            name="root",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
+    writer.append(
+        Call(
+            id="child",
+            role=ROLE_CODE,
+            name="child",
+            caller="root",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
+    writer.append(
+        Call(
+            id="grandchild",
+            role=ROLE_CODE,
+            name="grandchild",
+            caller="child",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
     grandchild_live = True
     run_control.register_execution_owner(
-        "grandchild", session_id, is_alive=lambda: grandchild_live,
+        "grandchild",
+        session_id,
+        is_alive=lambda: grandchild_live,
     )
 
     record = run_control.cancel_execution("root")
@@ -417,9 +447,15 @@ def test_root_finalizes_after_live_grandchild_retires(store):
     grandchild_live = False
     run_control.retire_execution_owner("grandchild")
 
-    assert _wait_status(
-        store, session_id, "grandchild", "cancelled",
-    ) == "cancelled"
+    assert (
+        _wait_status(
+            store,
+            session_id,
+            "grandchild",
+            "cancelled",
+        )
+        == "cancelled"
+    )
     assert _wait_status(store, session_id, "root", "cancelled") == "cancelled"
 
 
@@ -452,7 +488,8 @@ def test_grace_retries_until_owner_terminates(store):
 
 
 def test_grace_retries_after_transient_finalize_failure(
-    store, monkeypatch,
+    store,
+    monkeypatch,
 ):
     session_id = "retry-finalize"
     _append_execution(store, session_id, "exec-1")
@@ -466,7 +503,10 @@ def test_grace_retries_after_transient_finalize_failure(
             failures += 1
             raise OSError("transient persistence failure")
         return original_update(
-            session_id, node_id, metadata=metadata, **kwargs,
+            session_id,
+            node_id,
+            metadata=metadata,
+            **kwargs,
         )
 
     monkeypatch.setattr(store, "update_node", flaky_update)
@@ -537,7 +577,8 @@ def test_known_owner_registration_does_not_scan_unrelated_sessions(monkeypatch):
 
     store = _Store()
     monkeypatch.setattr(
-        "openprogram.agent.session_db.default_db", lambda: store,
+        "openprogram.agent.session_db.default_db",
+        lambda: store,
     )
     from openprogram.agent.job import store as job_store
 
@@ -545,9 +586,8 @@ def test_known_owner_registration_does_not_scan_unrelated_sessions(monkeypatch):
     monkeypatch.setattr(
         job_store,
         "load_job",
-        lambda session_id, execution_id: job_lookups.append(
-            (session_id, execution_id)
-        ) or None,
+        lambda session_id, execution_id: job_lookups.append((session_id, execution_id))
+        or None,
     )
 
     event = threading.Event()
@@ -555,9 +595,13 @@ def test_known_owner_registration_does_not_scan_unrelated_sessions(monkeypatch):
     done = threading.Event()
 
     def claim() -> None:
-        result.append(run_control.claim_cancel_event(
-            "target-owner", event, execution_id="exec-canonical",
-        ))
+        result.append(
+            run_control.claim_cancel_event(
+                "target-owner",
+                event,
+                execution_id="exec-canonical",
+            )
+        )
         done.set()
 
     thread = threading.Thread(target=claim)
@@ -571,7 +615,9 @@ def test_known_owner_registration_does_not_scan_unrelated_sessions(monkeypatch):
     finally:
         release.set()
         run_control.unregister_cancel_event(
-            "target-owner", event, execution_id="exec-canonical",
+            "target-owner",
+            event,
+            execution_id="exec-canonical",
         )
         thread.join(timeout=1)
 
@@ -608,7 +654,7 @@ def test_known_owner_registration_skips_job_runner_cache_miss_scan(monkeypatch):
     runner._lock = threading.RLock()
     runner._jobs = {}
     store = _Store()
-    monkeypatch.setattr('openprogram.agent.job.runner.shared._runner', runner)
+    monkeypatch.setattr("openprogram.agent.job.runner.shared._runner", runner)
     monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: store)
     monkeypatch.setattr("openprogram.store.default_store", lambda: store)
     from openprogram.agent.job import store as job_store
@@ -616,17 +662,20 @@ def test_known_owner_registration_skips_job_runner_cache_miss_scan(monkeypatch):
     monkeypatch.setattr(
         job_store,
         "load_job",
-        lambda session_id, execution_id: job_lookups.append(
-            (session_id, execution_id)
-        ) or None,
+        lambda session_id, execution_id: job_lookups.append((session_id, execution_id))
+        or None,
     )
 
     event = threading.Event()
 
     def claim() -> None:
-        result.append(run_control.claim_cancel_event(
-            "known-session", event, execution_id="exec-not-in-runner",
-        ))
+        result.append(
+            run_control.claim_cancel_event(
+                "known-session",
+                event,
+                execution_id="exec-not-in-runner",
+            )
+        )
         done.set()
 
     thread = threading.Thread(target=claim)
@@ -639,7 +688,9 @@ def test_known_owner_registration_skips_job_runner_cache_miss_scan(monkeypatch):
     finally:
         release.set()
         run_control.unregister_cancel_event(
-            "known-session", event, execution_id="exec-not-in-runner",
+            "known-session",
+            event,
+            execution_id="exec-not-in-runner",
         )
         thread.join(timeout=1)
 
@@ -655,17 +706,18 @@ def test_forced_tool_passes_canonical_execution_id(monkeypatch):
 
     class _Tool:
         name = "wc"
-        _is_agentic = True
+        _is_agent_method = True
 
     monkeypatch.setattr(
-        "openprogram.programs.agent_tools", lambda names=None: [_Tool()],
+        "openprogram.programs.agent_tools",
+        lambda names=None: [_Tool()],
     )
     monkeypatch.setattr(
         "openprogram.programs._runtime.get",
         lambda name, *a, **k: _Tool() if name == _Tool.name else None,
     )
     monkeypatch.setattr(
-        "openprogram.agent.process_runner.run_agentic_in_subprocess",
+        "openprogram.agent.process_runner.run_agent_method_in_subprocess",
         lambda **kw: captured.update(kw) or dict(runner_out),
     )
     page_context = {"context_id": "page-context", "surfaces": []}
@@ -676,13 +728,16 @@ def test_forced_tool_passes_canonical_execution_id(monkeypatch):
         lambda context: released.append(context),
     )
     monkeypatch.setattr(
-        "openprogram.agent.run_control.set_current_session_id", lambda sid: object(),
+        "openprogram.agent.run_control.set_current_session_id",
+        lambda sid: object(),
     )
     monkeypatch.setattr(
-        "openprogram.agent.run_control.reset_current_session_id", lambda t: None,
+        "openprogram.agent.run_control.reset_current_session_id",
+        lambda t: None,
     )
     monkeypatch.setattr(
-        "openprogram.agent.run_control.clear_cancel", lambda sid: None,
+        "openprogram.agent.run_control.clear_cancel",
+        lambda sid: None,
     )
     monkeypatch.setattr(
         "openprogram.agent.run_control.mark_execution_terminal",
@@ -763,11 +818,13 @@ def test_forced_tool_passes_canonical_execution_id(monkeypatch):
     assert terminal == []
 
     runner_out.clear()
-    runner_out.update({
-        "error": "agentic subprocess timed out after 300 seconds",
-        "killed": True,
-        "timed_out": True,
-    })
+    runner_out.update(
+        {
+            "error": "agentic subprocess timed out after 300 seconds",
+            "killed": True,
+            "timed_out": True,
+        }
+    )
     forced_tool.dispatch_forced_tool_call(
         session_id="s1",
         anchor_msg_id="|node:timedout",
@@ -796,7 +853,7 @@ def test_forced_tool_exit_does_not_retire_successor_token(monkeypatch):
 
     class _Tool:
         name = "wc"
-        _is_agentic = True
+        _is_agent_method = True
 
     class _DB:
         @staticmethod
@@ -807,7 +864,8 @@ def test_forced_tool_exit_does_not_retire_successor_token(monkeypatch):
 
     def run_then_handover(**_kwargs):
         successor["token"] = run_control.begin_turn(
-            "direct-session", "successor_reply",
+            "direct-session",
+            "successor_reply",
         )
         return {"runtime_msg_id": None}
 
@@ -816,7 +874,7 @@ def test_forced_tool_exit_does_not_retire_successor_token(monkeypatch):
         lambda name, *args, **kwargs: _Tool() if name == _Tool.name else None,
     )
     monkeypatch.setattr(
-        "openprogram.agent.process_runner.run_agentic_in_subprocess",
+        "openprogram.agent.process_runner.run_agent_method_in_subprocess",
         run_then_handover,
     )
     monkeypatch.setattr("openprogram.agent.session_db.default_db", _DB)
@@ -844,7 +902,9 @@ def test_register_on_cancelled_execution_does_not_retrip(store):
     token = run_control.CancellationToken(session_id, execution_id)
     token._event = ev
     run_control.register_execution_owner(
-        execution_id, session_id, token=token,
+        execution_id,
+        session_id,
+        token=token,
     )
     assert ev.is_set() is False
     assert token.is_cancelled() is False

@@ -1,4 +1,5 @@
 """Persisted Goal execution nodes expose their actual prompt and reply."""
+
 import json
 
 import pytest
@@ -13,15 +14,26 @@ def test_goal_tree_restores_llm_prompt_and_output(tmp_path, monkeypatch, reply):
     store = SessionStore(tmp_path / "sessions")
     store.create_session("goal-test", "main")
     writer = SessionNodeWriter(store, "goal-test")
-    root = Call(role=ROLE_CODE, name="goal", input={"prompt": "Write review"}, output="done")
+    root = Call(
+        role=ROLE_CODE, name="goal", input={"prompt": "Write review"}, output="done"
+    )
     writer.append(root)
-    writer.append(Call(role=ROLE_LLM, name="test-model", caller=root.id,
-        input={"system": "system text"}, output=reply,
-        metadata={"prompt_text": "Verify the article", "status": "completed"}))
+    writer.append(
+        Call(
+            role=ROLE_LLM,
+            name="test-model",
+            caller=root.id,
+            input={"system": "system text"},
+            output=reply,
+            metadata={"prompt_text": "Verify the article", "status": "completed"},
+        )
+    )
     monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: store)
     tree = build_exec_dag_by_id("goal-test", root.id)
     node = tree["children"][0]
-    expected = reply if isinstance(reply, str) else json.dumps(reply, ensure_ascii=False)
+    expected = (
+        reply if isinstance(reply, str) else json.dumps(reply, ensure_ascii=False)
+    )
     assert node["params"]["_content"] == "Verify the article"
     assert node["params"]["system"] == "system text"
     assert node["output"] == expected
@@ -43,7 +55,8 @@ def test_legacy_llm_input_remains_visible(tmp_path, monkeypatch):
 
 
 def test_tree_projection_restores_ordered_stream_snapshot_and_tool_child(
-    tmp_path, monkeypatch,
+    tmp_path,
+    monkeypatch,
 ):
     """History/DAG projection carries the same ordered content after owner loss."""
     store = SessionStore(tmp_path / "sessions")
@@ -67,23 +80,38 @@ def test_tree_projection_restores_ordered_stream_snapshot_and_tool_child(
                     "generation": 3,
                     "revision": 8,
                     "phase": "completed",
-                    "attempts": [{
-                        "attempt_id": "attempt-0",
-                        "attempt_index": 0,
-                        "status": "completed",
-                        "blocks": [
-                            {"block_id": "before", "block_index": 0,
-                             "kind": "text", "content": "Before tools",
-                             "status": "finished"},
-                            {"block_id": "tool", "block_index": 1,
-                             "kind": "tool_ref", "tool_call_id": "call-1",
-                             "ref_node_id": "tool-node", "tool_name": "read_file",
-                             "status": "finished"},
-                            {"block_id": "after", "block_index": 2,
-                             "kind": "text", "content": "After tools",
-                             "status": "finished"},
-                        ],
-                    }],
+                    "attempts": [
+                        {
+                            "attempt_id": "attempt-0",
+                            "attempt_index": 0,
+                            "status": "completed",
+                            "blocks": [
+                                {
+                                    "block_id": "before",
+                                    "block_index": 0,
+                                    "kind": "text",
+                                    "content": "Before tools",
+                                    "status": "finished",
+                                },
+                                {
+                                    "block_id": "tool",
+                                    "block_index": 1,
+                                    "kind": "tool_ref",
+                                    "tool_call_id": "call-1",
+                                    "ref_node_id": "tool-node",
+                                    "tool_name": "read_file",
+                                    "status": "finished",
+                                },
+                                {
+                                    "block_id": "after",
+                                    "block_index": 2,
+                                    "kind": "text",
+                                    "content": "After tools",
+                                    "status": "finished",
+                                },
+                            ],
+                        }
+                    ],
                 },
             },
         },
@@ -115,13 +143,15 @@ def test_tree_projection_restores_ordered_stream_snapshot_and_tool_child(
 
 def test_nested_tool_event_maps_call_id_to_one_durable_dag_node(tmp_path):
     from openprogram.agentic_programming.runtime.history import HistoryOperations
-    from openprogram.agentic_programming.function import tool_node_id
+    from openprogram.agentic_programming.call_state import tool_node_id
     from openprogram.store import _store as store_var
 
     store = SessionStore(tmp_path / "sessions")
     store.create_session("tool-map", "main")
     writer = SessionNodeWriter(store, "tool-map")
-    parent = Call(id="llm-parent", role=ROLE_LLM, output="", metadata={"status": "running"})
+    parent = Call(
+        id="llm-parent", role=ROLE_LLM, output="", metadata={"status": "running"}
+    )
     writer.append(parent)
     token = store_var.set(writer)
     try:
@@ -134,13 +164,16 @@ def test_nested_tool_event_maps_call_id_to_one_durable_dag_node(tmp_path):
             arguments={"path": "a.txt"},
         )
         assert node_id == tool_node_id(parent.id, "occ-round-1")
-        assert ops._ensure_nested_tool_node(
-            parent_node_id=parent.id,
-            tool_call_id="call-1",
-            occurrence_id="occ-round-1",
-            tool_name="read_file",
-            arguments={"path": "a.txt"},
-        ) == node_id
+        assert (
+            ops._ensure_nested_tool_node(
+                parent_node_id=parent.id,
+                tool_call_id="call-1",
+                occurrence_id="occ-round-1",
+                tool_name="read_file",
+                arguments={"path": "a.txt"},
+            )
+            == node_id
+        )
         second_id = ops._ensure_nested_tool_node(
             parent_node_id=parent.id,
             tool_call_id="call-1",
@@ -168,8 +201,8 @@ def test_nested_tool_event_maps_call_id_to_one_durable_dag_node(tmp_path):
 
 def test_nested_agentic_siblings_consume_outer_tool_identity(tmp_path):
     """Repeated direct subcalls get separate DAG nodes under one tool call."""
-    from openprogram.agentic_programming.function import agentic_function
-    from openprogram.agentic_programming.function import _call_id
+    from openprogram import Agent
+    from openprogram.agentic_programming.call_state import _call_id
     from openprogram.programs._runtime import (
         _current_tool_call_id,
         _current_tool_call_occurrence_id,
@@ -180,16 +213,40 @@ def test_nested_agentic_siblings_consume_outer_tool_identity(tmp_path):
     store = SessionStore(tmp_path / "sessions-siblings")
     store.create_session("siblings", "main")
     writer = SessionNodeWriter(store, "siblings")
-    parent = Call(id="llm-parent", role=ROLE_LLM, output="", metadata={"status": "running"})
+    parent = Call(
+        id="llm-parent", role=ROLE_LLM, output="", metadata={"status": "running"}
+    )
     writer.append(parent)
 
-    @agentic_function(expose="full", as_tool=False)
-    def child(value):
-        return value
+    class ChildAgent(Agent):
+        method_options = {
+            "child": {
+                "expose": "full",
+                "as_tool": False,
+                "name": "child",
+                "tool": True,
+            },
+        }
 
-    @agentic_function(expose="full", as_tool=False)
-    def outer():
-        return [child("first"), child("second")]
+        def child(self, value):
+            return value
+
+    child = ChildAgent().child
+
+    class OuterAgent(Agent):
+        method_options = {
+            "outer": {
+                "expose": "full",
+                "as_tool": False,
+                "name": "outer",
+                "tool": True,
+            },
+        }
+
+        def outer(self):
+            return [child("first"), child("second")]
+
+    outer = OuterAgent().outer
 
     store_token = store_var.set(writer)
     caller_token = _call_id.set(parent.id)
@@ -218,7 +275,9 @@ def test_hidden_nested_tool_does_not_precreate_or_persist_payload(tmp_path):
     store = SessionStore(tmp_path / "sessions-hidden")
     store.create_session("hidden", "main")
     writer = SessionNodeWriter(store, "hidden")
-    parent = Call(id="llm-hidden", role=ROLE_LLM, output="", metadata={"status": "running"})
+    parent = Call(
+        id="llm-hidden", role=ROLE_LLM, output="", metadata={"status": "running"}
+    )
     writer.append(parent)
     token = store_var.set(writer)
     try:
@@ -243,7 +302,9 @@ def test_cancelled_nested_tool_keeps_cancelled_terminal_status(tmp_path):
     store = SessionStore(tmp_path / "sessions-cancelled")
     store.create_session("cancelled", "main")
     writer = SessionNodeWriter(store, "cancelled")
-    parent = Call(id="llm-cancelled", role=ROLE_LLM, output="", metadata={"status": "running"})
+    parent = Call(
+        id="llm-cancelled", role=ROLE_LLM, output="", metadata={"status": "running"}
+    )
     writer.append(parent)
     token = store_var.set(writer)
     try:
@@ -270,34 +331,53 @@ def test_cancelled_nested_tool_keeps_cancelled_terminal_status(tmp_path):
     assert child.metadata["outcome"] == "cancelled"
 
 
-def test_exposure_policy_filters_code_descendants_in_tree_projection(tmp_path, monkeypatch):
+def test_exposure_policy_filters_code_descendants_in_tree_projection(
+    tmp_path, monkeypatch
+):
     store = SessionStore(tmp_path / "sessions-exposure")
     store.create_session("exposure", "main")
     writer = SessionNodeWriter(store, "exposure")
     root = Call(id="root", role=ROLE_CODE, name="workflow", output="done")
     writer.append(root)
     io_node = Call(
-        id="io", role=ROLE_CODE, name="io_tool", caller=root.id, output="done",
+        id="io",
+        role=ROLE_CODE,
+        name="io_tool",
+        caller=root.id,
+        output="done",
         metadata={"status": "completed", "expose": "io"},
     )
     writer.append(io_node)
     io_child = Call(
-        id="io-child", role=ROLE_LLM, name="hidden-model", caller=io_node.id,
+        id="io-child",
+        role=ROLE_LLM,
+        name="hidden-model",
+        caller=io_node.id,
         output="should not be nested",
     )
     writer.append(io_child)
     llm_node = Call(
-        id="llm", role=ROLE_CODE, name="llm_tool", caller=root.id, output="done",
+        id="llm",
+        role=ROLE_CODE,
+        name="llm_tool",
+        caller=root.id,
+        output="done",
         metadata={"status": "completed", "expose": "llm"},
     )
     writer.append(llm_node)
     llm_child = Call(
-        id="llm-child", role=ROLE_LLM, name="visible-model", caller=llm_node.id,
+        id="llm-child",
+        role=ROLE_LLM,
+        name="visible-model",
+        caller=llm_node.id,
         output="visible",
     )
     writer.append(llm_child)
     code_child = Call(
-        id="llm-code-child", role=ROLE_CODE, name="implementation", caller=llm_node.id,
+        id="llm-code-child",
+        role=ROLE_CODE,
+        name="implementation",
+        caller=llm_node.id,
         output="should not be nested",
     )
     writer.append(code_child)

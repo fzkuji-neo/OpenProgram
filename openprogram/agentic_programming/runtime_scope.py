@@ -3,8 +3,10 @@ from contextlib import ExitStack, contextmanager
 from tempfile import TemporaryDirectory
 import uuid
 
+from .runtime.questions import QuestionsOperations
 
-class _LazyRuntime:
+
+class _LazyRuntime(QuestionsOperations):
     """Resolve the existing provider Runtime only when it is used."""
     def __init__(self):
         object.__setattr__(self, '_runtime', None)
@@ -35,18 +37,59 @@ class _LazyRuntime:
             object.__setattr__(self, '_runtime', runtime)
         return self._runtime
 
+    def can_ask(self):
+        if self._runtime is not None:
+            return self._runtime.can_ask()
+        return super().can_ask()
+
+    def ask(self, *args, **kwargs):
+        if self._runtime is not None:
+            return self._runtime.ask(*args, **kwargs)
+        return super().ask(*args, **kwargs)
+
+    @contextmanager
+    def _active_runtime(self, model=None):
+        from .call_state import _current_runtime
+        runtime = self._resolve(model)
+        token = _current_runtime.set(runtime)
+        try:
+            yield runtime
+        finally:
+            _current_runtime.reset(token)
+
     def exec(self, *args, **kwargs):
-        return self._resolve(kwargs.get('model')).exec(*args, **kwargs)
+        with self._active_runtime(kwargs.get('model')) as runtime:
+            return runtime.exec(*args, **kwargs)
 
     async def async_exec(self, *args, **kwargs):
-        return await self._resolve(kwargs.get('model')).async_exec(*args, **kwargs)
+        with self._active_runtime(kwargs.get('model')) as runtime:
+            return await runtime.async_exec(*args, **kwargs)
 
     def __getattr__(self, name):
         if name in self._settings:
             return self._settings[name]
-        if name == 'system' and self._runtime is None:
-            return None
-        return getattr(self._resolve(), name)
+        if self._runtime is None:
+            if name in ('system', 'last_usage', 'api_model', '_question_transport',
+                        'on_stream', '_skills_config', '_skills_cache_key', 'api_key'):
+                return None
+            if name == 'last_blocks':
+                return []
+            if name == 'last_agent_iteration_count':
+                return 0
+            if name in ('usage_is_cumulative', 'has_session', '_closed'):
+                return False
+            if name in ('model', 'provider_id'):
+                from .runtime.shared import _current_agent_options
+                model = _current_agent_options.get().get('model') or self._settings.get('model')
+                if model and (':' in model or '/' in model):
+                    delimiter = ':' if ':' in model else '/'
+                    provider, model_id = model.split(delimiter, 1)
+                    return provider if name == 'provider_id' else model_id
+                return (model or 'default') if name == 'model' else None
+            if name == 'thinking_level':
+                return 'off'
+            raise AttributeError(name)
+        return getattr(self._runtime, name)
 
     def __setattr__(self, name, value):
         self._settings[name] = value
@@ -61,7 +104,7 @@ class _LazyRuntime:
 @contextmanager
 def execution_scope(runtime=None):
     """Reuse ambient resources; release only resources owned by this entry."""
-    from .function import _close_owned_runtime, _current_runtime
+    from .call_state import _close_owned_runtime, _current_runtime
     from openprogram.store import _store, SessionNodeWriter, SessionStore
     from openprogram.agent.turn_request_context import current_turn_request
     from openprogram.agent.dispatcher.types import TurnRequest

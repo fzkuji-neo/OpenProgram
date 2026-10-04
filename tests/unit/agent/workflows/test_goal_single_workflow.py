@@ -11,7 +11,7 @@ import pytest
 def test_goal_records_execution_owner_not_function_call(tmp_path, monkeypatch, resume, owner):
     goal_pkg = importlib.import_module("openprogram.programs.workflow.goal")
     goal_module = importlib.import_module("openprogram.programs.workflow.goal.goal")
-    function_module = importlib.import_module("openprogram.agentic_programming.function")
+    function_module = importlib.import_module("openprogram.agentic_programming.call_state")
     from openprogram.agent.run_control import (
         reset_current_execution_id, set_current_execution_id,
     )
@@ -77,7 +77,7 @@ def test_one_goal_function_selects_only_the_initial_context(
     goal_pkg = importlib.import_module("openprogram.programs.workflow.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
 
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
@@ -173,7 +173,7 @@ def test_goal_accepts_numeric_strings_from_programs_run(monkeypatch) -> None:
 def test_headless_goal_reports_budget_stop_instead_of_empty_success(monkeypatch) -> None:
     goal_pkg = importlib.import_module("openprogram.programs.workflow.goal")
     goal_module = importlib.import_module("openprogram.programs.workflow.goal.goal")
-    function_module = importlib.import_module("openprogram.agentic_programming.function")
+    function_module = importlib.import_module("openprogram.agentic_programming.call_state")
     monkeypatch.setattr(function_module, "current_session_id", lambda: "")
     monkeypatch.setattr(goal_pkg, "refine_goal_spec_candidate", lambda *_a, **_k: ("SPEC", []))
     monkeypatch.setattr(goal_pkg, "budget_exhausted", lambda *_a, **_k: "elapsed_time")

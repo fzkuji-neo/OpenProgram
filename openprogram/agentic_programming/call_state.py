@@ -1,17 +1,4 @@
-"""
-agentic_function — decorator class that records function execution into the DAG.
-
-Usage is identical to a decorator function:
-
-    @agentic_function
-    def observe(task): ...
-
-    @agentic_function(expose="full", render_range={"callers": 1})
-    def navigate(target): ...
-
-Internally it's a class (like torch.no_grad), but users interact with it
-as a decorator. The class form allows clean documentation and introspection.
-"""
+"""Task-local call state, cancellation hooks, schemas, and trace helpers."""
 
 from __future__ import annotations
 
@@ -31,7 +18,7 @@ _log = logging.getLogger(__name__)
 # Entry-point functions auto-create a runtime; child functions inherit it.
 _current_runtime: ContextVar = ContextVar('_current_runtime', default=None)
 
-# DAG call_id of the @agentic_function currently being executed in this
+# DAG call_id of the Agent method currently being executed in this
 # task. The decorator sets it at entry; Python's ContextVar set/reset
 # token gives us scope-bound semantics for free, so nested invocations
 # automatically restore the outer caller's id on exit. Downstream code
@@ -85,21 +72,21 @@ _RUNTIME_PARAMS = {"runtime", "exec_runtime", "review_runtime"}
 
 
 class CancelledError(BaseException):
-    """Raised by a pre-invocation hook to abort an @agentic_function call.
+    """Raised by a pre-invocation hook to abort an Agent method call.
 
     Inherits from BaseException (not Exception) so user-written except clauses
-    inside @agentic_function bodies don't accidentally swallow cancellation.
+    inside Agent method bodies don't accidentally swallow cancellation.
     """
 
 
-# Pre-invocation hooks — called at the top of every @agentic_function wrapper
+# Pre-invocation hooks — called at the top of every Agent method wrapper
 # BEFORE the user function runs. Any hook can raise (typically CancelledError)
 # to abort the call; the exception propagates to the caller unchanged.
 _pre_invocation_hooks: list[Callable] = []
 
 
 def add_pre_invocation_hook(hook: Callable) -> None:
-    """Register a hook called at the top of every @agentic_function invocation.
+    """Register a hook called at the top of every Agent method invocation.
 
     The hook takes no arguments. It may raise to abort the call (e.g. a
     webui stop button raising CancelledError).
@@ -195,7 +182,7 @@ def current_session_id() -> str:
 
 
 def current_call_id() -> str:
-    """DAG node id of the @agentic_function currently executing, or ""."""
+    """DAG node id of the Agent method currently executing, or ""."""
     try:
         return _call_id.get() or ""
     except LookupError:
@@ -258,12 +245,6 @@ def default_expose() -> str:
     return val if val in _VALID_EXPOSE else "io"
 
 
-# Global registry of all @agentic_function-decorated functions.
-# Maps function name → agentic_function instance.
-# Used by the visualizer to look up source code for any decorated function.
-_registry: dict[str, "agentic_function"] = {}
-
-
 def create_pending_call_node(
     *,
     pending_id: str,
@@ -278,7 +259,7 @@ def create_pending_call_node(
     retry_of: Optional[str] = None,
     store=None,
 ):
-    """Build the placeholder code ``Call`` for an @agentic_function run.
+    """Build the placeholder code ``Call`` for an Agent method run.
 
     The node has ``output=None`` (the function hasn't returned yet) and
     ``metadata.status='running'``; the matching
@@ -289,7 +270,7 @@ def create_pending_call_node(
       * the wrapper's :func:`_append_function_call_entry` (in-process /
         child), which reads ``caller`` / ``forced_predecessor`` off the
         ContextVars, and
-      * the PARENT dispatch path (``run_agentic_function_call``), which
+      * the PARENT dispatch path (``run_program_call``), which
         pre-creates this card before spawning the child so head moves and
         the pending card lands on disk within milliseconds.
 
@@ -320,7 +301,7 @@ def create_pending_call_node(
         session_id = getattr(store, "session_id", None)
         if session_id:
             from openprogram.agent.run_control import admit_child_execution
-            admit_child_execution(session_id, caller)
+            admit_child_execution(session_id, caller, store=getattr(store, "store", None))
 
     meta: dict = {
         "expose": expose,
@@ -346,7 +327,7 @@ def create_pending_call_node(
     if docstring:
         meta["doc"] = docstring
     # Top-level manual function call (fn-form / Functions panel / retry) —
-    # no enclosing @agentic_function on the stack, so ``caller`` is empty.
+    # no enclosing Agent method on the stack, so ``caller`` is empty.
     # Without a conv predecessor the code node has no place in the
     # conversation chain and the DAG viewport renders it as a detached
     # root. Stamp the session's current head as ``predecessor``
@@ -386,9 +367,9 @@ def create_pending_call_node(
         predecessor=meta.pop("predecessor", None) or None,
         input=_sanitize_function_args(arguments or {}),
         output=None,
-        # ``caller`` is the logical caller — the @agentic_function whose
+        # ``caller`` is the logical caller — the Agent method whose
         # body is the one invoking us. Empty string when this is a
-        # top-level call (no enclosing @agentic_function on the stack).
+        # top-level call (no enclosing Agent method on the stack).
         caller=caller,
         metadata=meta,
     )
@@ -404,7 +385,7 @@ def _append_function_call_entry(
     started_at,
     docstring: str = "",
 ) -> None:
-    """Append a placeholder code Call at @agentic_function entry.
+    """Append a placeholder code Call at Agent method entry.
 
     ``render_range`` is stamped into metadata so ``render_context``
     (which reads frame settings off the in-DAG code Call) can apply
@@ -431,7 +412,7 @@ def _append_function_call_entry(
     admission = nullcontext()
     if parent_id:
         from openprogram.agent.run_control import child_execution_admission
-        admission = child_execution_admission(store.session_id, parent_id)
+        admission = child_execution_admission(store.session_id, parent_id, store=getattr(store, "store", None))
 
     with admission:
         node = create_pending_call_node(
@@ -544,6 +525,9 @@ def _sanitize_function_args(params: dict) -> dict:
     """
     out: dict = {}
     for k, v in params.items():
+        if k in ("self", "cls"):
+            out[k] = f"<{type(v).__module__}.{type(v).__qualname__}>"
+            continue
         if k in _RUNTIME_PARAMS:
             out[k] = f"<{type(v).__name__}>"
             continue
@@ -654,7 +638,7 @@ def _inject_runtime(sig, args, kwargs):
 
 def _apply_system(system, bound_args):
     """Bind function instructions in this task without mutating a Runtime."""
-    if not system:
+    if system is None:
         return None
     from .runtime.shared import _current_instructions
     return _current_instructions.set(system)
@@ -683,269 +667,16 @@ def _close_owned_runtime(owned_runtime) -> None:
         )
 
 
-class agentic_function:
-    """
-    Class decorator for functions whose body spawns an inner agent loop.
-
-    Two roles per decorated function:
-
-      1. **Python-direct-invoke**: ``research("topic")`` triggers
-         ``__call__`` → runs the wrapper → executes the function body
-         (which usually calls ``runtime.exec(...)`` to drive an inner
-         LLM round). Used when another @agentic_function composes this
-         one as a Python building block — no LLM round-trip on the
-         outer side, just nested execution.
-
-      2. **LLM tool dispatch**: every instance bridges itself into the
-         shared ``openprogram.programs._runtime._registry`` via
-         ``_register_as_tool`` (delegating to the same
-         ``_build_and_register_tool`` helper ``@function`` uses). From
-         the dispatcher's perspective the result is an ``AgentTool``
-         indistinguishable from one produced by ``@function``, so all
-         6 selection layers (``available_if`` / toolset / mode preset
-         / ``check_fn`` / deny rules / ``defer``) apply uniformly.
-
-    Both roles share one underlying ``self._wrapper`` that carries the
-    DAG-recording semantics: on entry a placeholder code Call (status
-    ``running``, ``output=None``) is appended to the GraphStore; on
-    exit the same node is updated with the return value (or error)
-    and timing. Set ``expose="hidden"`` to skip DAG recording.
-
-    Args:
-        expose:     What outside observers see of me after I complete. [DEFAULT: "io"]
-
-                    "io"     — only name + return value (internals hidden)
-                    "llm"    — only my LLM exchanges (my own name + return
-                               value and my nested code sub-calls hidden)
-                    "full"   — docstring + params + output + LLM reply + internals
-                    "hidden" — no DAG node at all
-
-                    ``expose`` is stamped into the code Call's metadata;
-                    ``render_context`` uses it to decide whether a later
-                    LLM call can see this function's internal nodes.
-
-        render_range: What slice of the DAG I bring into my own LLM calls.
-
-                    Dict stamped into the code Call's metadata; the
-                    runtime's ``render_context`` reads it to bound the
-                    history a nested ``runtime.exec`` sees.
-                    Shape: {"callers": N, "subcalls": M}.
-
-                    Effective default when omitted (``None``):
-                      callers  = None  — uncapped pre-frame (the full
-                                         conversation history that
-                                         existed when this function
-                                         started flows in)
-                      subcalls = -1    — uncapped in-frame (the frame
-                                         naturally sees its own
-                                         progress: earlier runtime.exec
-                                         results and returned sub-
-                                         function io). Trimming a
-                                         child @agentic_function's
-                                         internals is done by the
-                                         child's ``expose`` setting,
-                                         not by subcalls counting.
-
-                    Common patterns:
-                      {"callers": 0}                  — isolated from
-                                                        prior conversation
-                      {"subcalls": 0}                 — wall off in-frame
-                                                        (rarely needed)
-                      {"subcalls": 3}                 — cap in-frame at
-                                                        3 most recent
-                                                        (loop budget)
-
-        input:      UI metadata for function parameters (used by the visualizer
-                    to render structured input forms).
-
-                    Dict mapping parameter names to their UI config:
-                    {
-                        "text": {
-                            "description": "The text to analyze",
-                            "placeholder": "e.g. I love this product!",
-                            "multiline": True,
-                        },
-                        "style": {
-                            "description": "Output style",
-                            "placeholder": "academic",
-                            "options": ["academic", "casual", "concise"],
-                        },
-                    }
-
-                    Supported fields per parameter:
-                      description  — short label shown next to the parameter name
-                      placeholder  — example text shown in the input field
-                      multiline    — True for textarea, False for single-line input
-                      options      — list of allowed values (renders as dropdown)
-                      hidden       — True to hide from the form (e.g. runtime)
-                      advanced     — True for a user-settable field collapsed
-                                     below the form's primary fields
-
-                    Parameters not listed inherit defaults from the function
-                    signature (type hints, defaults, docstring Args:).
-    """
-
-    def __init__(
-        self,
-        fn: Optional[Callable] = None,
-        *,
-        # —— agentic-specific ——
-        # None ⇒ take the project default (env-overridable, "io"
-        # normally). An explicit expose= on the decorator always wins;
-        # the env switch only moves what "unspecified" means, which is
-        # what an ablation over exposure levels needs.
-        expose: Optional[str] = None,
-        render_range: Optional[dict] = None,
-        input: Optional[dict] = None,
-        system: Optional[str] = None,
-        # —— shared with @function ——
-        # The function-calling refactor unified these names with the
-        # @function decorator so an @agentic_function and an @function
-        # produce equivalent ``AgentTool`` entries in the same
-        # ``openprogram.programs._runtime._registry``. The agentic
-        # decorator adds DAG recording + inner agent loop spawning on
-        # top of the shared registration machinery.
-        as_tool: bool = True,
-        resumable: bool = False,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        parameters: Optional[dict] = None,
-        label: Optional[str] = None,
-        toolset: tuple = (),
-        unsafe_in: tuple = (),
-        check_fn: Optional[Callable] = None,
-        requires_env: tuple = (),
-        can_use: Optional[Callable] = None,
-        max_result_chars: Optional[int] = None,
-        persist_full: bool = False,
-        head_ratio: Optional[float] = None,
-        requires_approval=None,
-        cache: bool = False,
-        cache_ttl: float = 300.0,
-        timeout: Optional[float] = None,
-        # Layer 1 + Layer 6 (same shapes as @function)
-        available_if: Optional[Callable[[], bool]] = None,
-        defer: bool = False,
-        register_globally: bool = True,
-        # Layer-2 exposure (tool-level, distinct from the DAG `expose`
-        # semantics above): False registers the tool with
-        # register(..., expose=False) so it stays out of every LLM
-        # tools array while remaining Python-callable and runnable
-        # from the user-facing Functions panel.
-        tool_visible: bool = True,
-    ):
-        from .agent_method import MethodOptions
-        values = dict(locals())
-        values.pop('self')
-        values.pop('fn')
-        values.pop('MethodOptions')
-        values['capture_io'] = True
-        if values['expose'] is None:
-            values['expose'] = default_expose()
-        self.__dict__.update(MethodOptions(**values).__dict__)
-        if fn is not None:
-            self._attach(fn)
-
-    def __call__(self, *args, **kwargs):
-        # After attachment ``__call__`` is the Python-direct-invoke
-        # path: forward to the wrapper so ``research("topic")`` works
-        # like a regular function. The decorator-style entry path
-        # (``@agentic_function(...)`` returning the partially-built
-        # instance which is then called with the function object)
-        # routes here too, but only once — when ``_fn`` is still None.
-        if self._fn is not None:
-            return self._wrapper(*args, **kwargs)
-        # Decorator entry: the LHS is ``@agentic_function(...)``; the
-        # call we're handling now is the one Python makes with the
-        # decorated function as the single positional arg.
-        fn = args[0]
-        attached = self._attach(fn)
-        # If Layer 1 gated us out, ``_attach`` returns the raw fn
-        # unchanged. Return that so the module-level name points at a
-        # plain callable rather than a half-built agentic_function.
-        return attached if attached is not None else self
-
-    def _attach(self, fn: Callable):
-        """Bind ``fn`` to this instance, build wrapper, run gates, and
-        optionally register as an AgentTool.
-
-        Single attach path used by both no-parens (``__init__``) and
-        with-parens (``__call__``) decorator forms. Returns ``fn``
-        unchanged when Layer 1 (``available_if``) gates the function
-        out — callers in ``__call__`` use that to short-circuit the
-        return value; ``__init__`` ignores the return.
-
-        Layer 1 (Claude Code "conditional import" equivalent): if the
-        predicate is set and returns falsy (or raises), we skip the
-        wrapper, both registries, and the AgentTool bridge. The raw
-        fn is what callers get back, so module-level use degrades
-        gracefully to "this is just a plain function" rather than a
-        broken agentic instance.
-        """
-        if self.available_if is not None:
-            try:
-                if not self.available_if():
-                    return fn
-            except Exception:
-                return fn
-        if self.resumable and inspect.iscoroutinefunction(fn):
-            raise ValueError("resumable functions currently require synchronous explicit steps")
-        self._fn = fn
-        self._wrapper = self._make_wrapper(fn)
-        functools.update_wrapper(self, fn)
-        _registry[fn.__name__] = self
-        if self.as_tool:
-            self._register_as_tool()
-        return None
-
-    def __get__(self, obj, objtype=None):
-        """Support instance methods."""
-        if obj is None:
-            return self
-        return functools.partial(self._wrapper, obj)
-
-    @property
-    def spec(self) -> dict:
-        """JSON-schema tool spec auto-generated from signature + docstring.
-
-        Mirrors openprogram.programs.<name>.SPEC so an @agentic_function can be
-        passed directly to runtime.exec(tools=[fn]). Runtime-injected params
-        (runtime, exec_runtime, review_runtime) and any `hidden: True` entries
-        in input_meta are excluded — they aren't LLM-controllable.
-        """
-        if self._fn is None:
-            raise RuntimeError("agentic_function.spec accessed before a function was attached")
-        return _build_agentic_tool_spec(self._fn, self.input_meta)
-
-    def execute(self, **kwargs):
-        """Call the wrapped function with LLM-provided kwargs.
-
-        Used when this @agentic_function is exposed as a tool. Return value is
-        converted to a string by the tool-loop driver if it isn't one already.
-        """
-        return self._wrapper(**kwargs)
-
-    def _register_as_tool(self) -> None:
-        from .agent_method import register_method
-        register_method(self)
-
-    def _make_wrapper(self, fn: Callable) -> Callable:
-        from .agent_method import wrap_agent_method
-        return wrap_agent_method(fn, self)
-
-
-def _build_agentic_tool_spec(fn, input_meta):
-    from .agent_method import _build_agentic_tool_spec as build
+def _build_agent_tool_spec(fn, input_meta):
+    from .agent_method import _build_agent_tool_spec as build
     return build(fn, input_meta)
 
 
 def traced(fn):
     """Lightweight decorator that records function execution into the DAG.
 
-    Unlike @agentic_function, this does NOT involve any LLM logic — it
-    simply appends a placeholder code Call at entry and fills it in at
-    exit, so the function appears in the session DAG. No-op when no
-    ``_store`` is installed (standalone scripts).
+    Record explicit arguments, results, and terminal state in the existing DAG.
+    Recording does not create a Runtime or a store.
 
     Usage:
         @traced
@@ -984,18 +715,16 @@ def traced(fn):
     return wrapper
 
 
-def _is_agentic_obj(obj) -> bool:
-    """Check if an object is an @agentic_function (class instance or wrapper)."""
-    if isinstance(obj, agentic_function):
-        return True
-    return getattr(obj, '_is_agentic', False)
+def _is_agent_method(obj) -> bool:
+    """Return whether a callable is a configured Agent method."""
+    return getattr(obj, '_is_agent_method', False)
 
 
-def _calls_agentic(func, mod) -> bool:
-    """Check if a function calls any @agentic_function.
+def _calls_agent_methods(func, mod) -> bool:
+    """Check if a function calls any Agent method.
 
     Inspects the function's bytecode references (co_names) and checks
-    whether any referenced name in the module is an @agentic_function.
+    whether any referenced name in the module is an Agent method.
     This identifies orchestrator functions that should be traced.
     """
     # Unwrap decorated functions to get the original code
@@ -1006,7 +735,7 @@ def _calls_agentic(func, mod) -> bool:
         return False
     for ref_name in code_names:
         ref_obj = getattr(mod, ref_name, None)
-        if ref_obj is not None and _is_agentic_obj(ref_obj):
+        if ref_obj is not None and _is_agent_method(ref_obj):
             return True
     return False
 
@@ -1014,10 +743,10 @@ def _calls_agentic(func, mod) -> bool:
 def auto_trace_module(mod, exclude=None, trace_pkg=None):
     """Auto-apply @traced to orchestrator functions in a module.
 
-    Only traces functions that call @agentic_function (orchestrators).
+    Only traces functions that call Agent method (orchestrators).
     Leaf functions (pure utilities like compute_iou) are skipped.
 
-    Skips functions that are already @agentic_function or @traced,
+    Skips functions that are already Agent method or @traced,
     private functions (starting with _), and third-party imports.
 
     Args:
@@ -1041,7 +770,7 @@ def auto_trace_module(mod, exclude=None, trace_pkg=None):
         if not callable(obj) or not inspect.isfunction(obj):
             continue
         # Skip already decorated
-        if getattr(obj, '_is_agentic', False) or getattr(obj, '_is_traced', False):
+        if getattr(obj, '_is_agent_method', False) or getattr(obj, '_is_traced', False):
             continue
         # Only trace functions defined within the package
         try:
@@ -1050,8 +779,8 @@ def auto_trace_module(mod, exclude=None, trace_pkg=None):
             continue
         if not fn_file.startswith(trace_pkg):
             continue
-        # Only trace orchestrators (functions that call @agentic_function)
-        if _calls_agentic(obj, mod):
+        # Only trace orchestrators (functions that call Agent method)
+        if _calls_agent_methods(obj, mod):
             setattr(mod, name, traced(obj))
 
 

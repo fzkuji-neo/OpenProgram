@@ -18,7 +18,7 @@ The WebSocket layer in `apps/web/lib/net/use-ws.ts` also rebroadcasts store fram
 <span id="模块规模1400-行且多职责重构窗口另排"></span>
 ## Modules with multiple responsibilities
 
-Re-measure module size and responsibility boundaries when scheduling this work. Candidates include `openprogram/agentic_programming/runtime.py`, `openprogram/store/session/session_store.py`, `openprogram/agentic_programming/function.py`, `openprogram/auth/cli.py` and `openprogram/programs/_runtime.py`. Vendored yoga-layout and ink runtime code under `apps/cli/src/runtime/` is outside this refactoring proposal.
+Re-measure module size and responsibility boundaries when scheduling this work. Candidates include `openprogram/agentic_programming/runtime.py`, `openprogram/store/session/session_store.py`, `openprogram/agentic_programming/call_state.py`, `openprogram/auth/cli.py` and `openprogram/programs/_runtime.py`. Vendored yoga-layout and ink runtime code under `apps/cli/src/runtime/` is outside this refactoring proposal.
 
 ## Regression review checklist
 
@@ -39,7 +39,7 @@ The former repository issue snapshot mixes previously corrected behavior, unveri
 | Desktop startup | The window appears with its intended layout instead of visibly resizing from the corner | Installed desktop App |
 | CLI resume | The CLI resume argument reaches the Ink runtime with the intended session | `apps/cli/python/openprogram_cli/_impl/ink.py`, `apps/cli/src/index.tsx` |
 | SSO, speech and plugin isolation | Documentation distinguishes implemented methods/providers from unimplemented entries; community plugin execution matches its isolation contract | `auth/methods/sso.py`, `tts.py`, `plugins/sandbox.py`, plugin loader |
-| Function recovery | Same-frame resume is distinguished from creating a sibling retry; indirect call cycles are addressed by the documented recursion policy | `ws_actions/chat.py`, `agentic_programming/function.py` |
+| Function recovery | Same-frame resume is distinguished from creating a sibling retry; indirect call cycles are addressed by the documented recursion policy | `ws_actions/chat.py`, `agentic_programming/call_state.py` |
 | Function metadata | Dynamic metadata and literal source declarations follow the documented form contract | Function forms and metadata documentation |
 | Distribution | Linux desktop artifacts, upgrade failure recovery, manual workflow publication and sandbox behavior gates match the supported installation documentation | Installation, source upgrades and Workflow publishing |
 | Command registry | Duplicate names across registries have a defined lookup order and an unambiguous menu | `runCommand` and command menu |

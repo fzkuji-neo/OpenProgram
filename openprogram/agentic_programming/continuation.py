@@ -235,17 +235,77 @@ def _validate_source(source):
                 )
 
 
+def _source_callable(fn):
+    """Return retained source without discarding a bound Agent receiver."""
+    owner = getattr(fn, "__self__", None) or getattr(fn, "_agent_owner", None)
+    source = getattr(fn, "_agent_method_source", None) or getattr(fn, "_fn", None) or fn
+    source = inspect.unwrap(source)
+    if inspect.ismethod(source):
+        owner = source.__self__
+        source = source.__func__
+    if owner is not None and inspect.isfunction(source):
+        return types.MethodType(source, owner)
+    return source
+
+
+def _receiver_state(owner):
+    excluded = {"runtime", "context", "model", "effort", "instructions", "tools",
+                "_options", "_method_tools"}
+    state = {name: value for name, value in vars(owner).items()
+             if name not in excluded and not callable(value)}
+    configuration = {name: getattr(owner, name, None)
+                     for name in ("model", "effort", "instructions", "tools")}
+    configuration.update(getattr(owner, "_options", {}))
+    configuration.pop("runtime", None)
+    configuration.pop("context", None)
+    _result_json(state)
+    _result_json(configuration)
+    return {"state": json.loads(_json(state)), "configuration": json.loads(_json(configuration))}
+
+
 def _snapshot(fn):
     """Capture reachable Python helpers; pin imported symbols by module content."""
     functions = {}
     function_ids = {}
     objects = {}
+    receivers = {}
+    receiver_ids = {}
+
+    def capture_receiver(owner, source):
+        from openprogram.agentic_programming.agent_class import Agent
+        if not isinstance(owner, Agent):
+            raise FunctionCompatibilityError("Durable bound methods require an Agent receiver")
+        if id(owner) not in receiver_ids:
+            identity = f"receiver-{len(receivers)}"
+            receiver_ids[id(owner)] = identity
+            receivers[identity] = {**_receiver_state(owner), "methods": {}}
+        identity = receiver_ids[id(owner)]
+        tree = ast.parse(textwrap.dedent(getattr(source, "__durable_source__", None)
+                                       or inspect.getsource(source)))
+        parameter = next(iter(inspect.signature(source).parameters), "self")
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == parameter:
+                method = getattr(owner, node.attr, None)
+                if node.attr not in {"runtime", "context", "model", "effort", "instructions", "tools"} and not callable(method):
+                    _result_json(method)
+                    receivers[identity]["state"][node.attr] = json.loads(_json(method))
+                if callable(method) and node.attr not in receivers[identity]["methods"]:
+                    raw = _source_callable(method)
+                    if inspect.ismethod(raw):
+                        receivers[identity]["methods"][node.attr] = None
+                        receivers[identity]["methods"][node.attr] = capture(raw.__func__)
+                        capture_receiver(owner, raw.__func__)
+        return identity
 
     def capture(value):
-        if getattr(value, "resumable", False) and inspect.isfunction(
-            getattr(value, "_fn", None)
-        ):
-            value = value._fn
+        if callable(value) and (getattr(value, "resumable", False) or inspect.ismethod(value)
+                               or getattr(value, "_agent_owner", None) is not None
+                               or getattr(value, "_is_agent_method", False)
+                               or getattr(value, "_is_managed_function", False)):
+            value = _source_callable(value)
+        if inspect.ismethod(value):
+            receiver = capture_receiver(value.__self__, value.__func__)
+            return {"bound_method": capture(value.__func__), "receiver": receiver}
         if (
             inspect.isfunction(value)
             and value.__module__ == __name__
@@ -370,6 +430,7 @@ def _snapshot(fn):
         "root": root,
         "functions": functions,
         "values": objects,
+        "receivers": receivers,
         "schema": 1,
         "runtime": [sys.implementation.cache_tag, sys.platform, platform.machine()],
     }
@@ -384,6 +445,7 @@ def _restore(snapshot):
         raise FunctionCompatibilityError("Retained Python runtime is unavailable")
     loaded = {}
     namespaces = {}
+    restored_receivers = {}
     for identity, record in snapshot["functions"].items():
         namespace = {"__builtins__": __builtins__, "__name__": record["module"]}
         exec(compile(record["source"], "<retained-function>", "exec"), namespace)
@@ -393,6 +455,21 @@ def _restore(snapshot):
         namespaces[identity] = namespace
 
     def restore(item):
+        if "bound_method" in item:
+            identity = item["receiver"]
+            if identity not in restored_receivers:
+                from openprogram.agentic_programming.agent_class import Agent
+                from openprogram.agentic_programming.call_state import _current_runtime
+                from openprogram.context import Context
+                record = snapshot["receivers"][identity]
+                methods = {name: restore(source) for name, source in record["methods"].items()}
+                retained_type = type("RetainedAgent", (Agent,), methods)
+                receiver = object.__new__(retained_type)
+                Agent.__init__(receiver, **record["configuration"],
+                               runtime=_current_runtime.get(), context=Context.current())
+                receiver.__dict__.update(json.loads(_json(record["state"])))
+                restored_receivers[identity] = receiver
+            return types.MethodType(restore(item["bound_method"]), restored_receivers[identity])
         if "api" in item:
             if item.get("version") != 1 or item["api"] not in {
                 "step",
@@ -556,7 +633,7 @@ class _Execution:
         return None
 
     def boundary(self):
-        from openprogram.agentic_programming.function import CancelledError
+        from openprogram.agentic_programming.call_state import CancelledError
 
         execution = self.store.get_execution(self.execution_id)
         if execution.status.value in {"cancelling", "cancelled"}:
@@ -663,6 +740,23 @@ def function_execution(
 
 
 def invoke(fn, name, args, kwargs):
+    fn = _source_callable(fn)
+    if inspect.isfunction(fn) and args:
+        from openprogram.agentic_programming.agent_class import Agent
+        if isinstance(args[0], Agent):
+            fn = types.MethodType(fn, args[0])
+            args = args[1:]
+    if inspect.ismethod(fn):
+        bound = inspect.signature(fn).bind(*args, **kwargs)
+        values = dict(bound.arguments)
+        runtime = values.pop("runtime", None)
+        if name == "gui_agent" and fn.__module__ == "openprogram.programs.gui_harness_bridge":
+            from openprogram.programs import gui_harness_bridge
+            if fn.__func__ in gui_harness_bridge._GUI_ORCHESTRATION_FNS:
+                from openprogram.programs._gui_operations import host_runtime
+                with host_runtime(runtime):
+                    return _invoke(fn, name, (), values)
+        return _invoke(fn, name, (), values, runtime=runtime)
     # Only the registered source-defined GUI entry has a live host argument.
     # It is never serialized or included in the retained invocation digest.
     if name == "gui_agent" and fn.__module__ == "openprogram.programs.gui_harness_bridge":
@@ -677,16 +771,17 @@ def invoke(fn, name, args, kwargs):
     return _invoke(fn, name, args, kwargs)
 
 
-def _invoke(fn, name, args, kwargs):
+def _invoke(fn, name, args, kwargs, *, runtime=None):
     context = _current.get()
     if context is None:
-        return fn(*args, **kwargs)
+        return fn(*args, **kwargs, **({"runtime": runtime} if runtime is not None else {}))
     if context.frames:
         raise FunctionCompatibilityError(
             "Nested durable functions require an explicit step boundary"
         )
     key = context.call_key
-    arguments = _digest({"args": args, "kwargs": kwargs})
+    arguments = _digest({"args": args, "kwargs": kwargs,
+                         **({"receiver": _receiver_state(fn.__self__)} if inspect.ismethod(fn) else {})})
     saved = context.load("function.admitted", key)
     if saved is None:
         _validate_orchestration(fn)
@@ -734,7 +829,7 @@ def _invoke(fn, name, args, kwargs):
     context.frames.append(frame)
     try:
         context.boundary()
-        result = fn(*args, **kwargs)
+        result = fn(*args, **kwargs, **({"runtime": runtime} if runtime is not None else {}))
         if frame["cursor"] < len(frame["saved"]):
             raise FunctionCompatibilityError(
                 "New code removed a previously executed step"
@@ -814,7 +909,7 @@ def workflow(name, fn, *args, **kwargs):
     )
     token = _current.set(child)
     try:
-        return invoke(getattr(fn, "_fn", fn), name, args, kwargs)
+        return invoke(_source_callable(fn), name, args, kwargs)
     finally:
         _current.reset(token)
 
@@ -837,7 +932,7 @@ def parallel(branches):
             prepared.append(
                 (
                     name,
-                    getattr(fn, "_fn", fn),
+                    _source_callable(fn),
                     args,
                     kwargs,
                     replace(
@@ -950,7 +1045,7 @@ def _step(name, fn, args, kwargs, before_dispatch=None):
     except EffectConflict as exc:
         if exc.code != "admission_closed":
             raise
-        from openprogram.agentic_programming.function import CancelledError
+        from openprogram.agentic_programming.call_state import CancelledError
 
         try:
             context.boundary()
@@ -1077,33 +1172,46 @@ def retained_function_names(store, execution_id):
 
 
 def source_capability(source, name):
-    """Read-only capability discovery; never imports an untrusted program."""
+    """Inspect explicit Agent method options without importing source."""
     try:
         tree = ast.parse(source)
-        node = next(
-            (
-                item
-                for item in tree.body
-                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
-                and item.name == name
-            ),
-            None,
-        )
-        if node is None or not any(
-            isinstance(decorator, ast.Call)
-            and any(
-                keyword.arg == "resumable"
-                and isinstance(keyword.value, ast.Constant)
-                and keyword.value.value is True
-                for keyword in decorator.keywords
-            )
-            for decorator in node.decorator_list
-        ):
-            return {"supported": False, "reason": "No durable step contract"}
-        _validate_source(ast.unparse(node))
-        return {"supported": True, "boundary": "function.step.after", "state": "json"}
+        for declaration in tree.body:
+            if not isinstance(declaration, ast.ClassDef):
+                continue
+            options = {}
+            for assignment in declaration.body:
+                if isinstance(assignment, ast.Assign) and any(isinstance(target, ast.Name) and target.id == "method_options" for target in assignment.targets):
+                    options = _literal_method_options(assignment.value)
+            for method in declaration.body:
+                if not isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                configuration = options.get(method.name, {})
+                identity = configuration.get("name", method.name)
+                if name not in {method.name, identity, f"{declaration.name}.{method.name}"} and not name.endswith(f".{declaration.name}.{method.name}"):
+                    continue
+                if configuration.get("resumable") is not True:
+                    return {"supported": False, "reason": "No durable step contract"}
+                _validate_source(ast.unparse(method))
+                return {"supported": True, "boundary": "function.step.after", "state": "json"}
+        return {"supported": False, "reason": "No durable Agent method contract"}
     except (FunctionCompatibilityError, ValueError, SyntaxError) as exc:
         return {"supported": False, "reason": str(exc)}
+
+
+def _literal_method_options(node):
+    """Read literal metadata while ignoring callable configuration fields."""
+    if not isinstance(node, ast.Dict):
+        return {}
+    result = {}
+    for key, value in zip(node.keys, node.values):
+        if not isinstance(key, ast.Constant) or not isinstance(key.value, str) or not isinstance(value, ast.Dict):
+            continue
+        options = {}
+        for option, setting in zip(value.keys, value.values):
+            if isinstance(option, ast.Constant) and option.value in {"name", "resumable"} and isinstance(setting, ast.Constant):
+                options[option.value] = setting.value
+        result[key.value] = options
+    return result
 
 
 def current_function_node_id():

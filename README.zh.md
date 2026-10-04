@@ -75,25 +75,32 @@ openprogram --print "请用一句话介绍你自己"
   </picture>
 </p>
 
-Agent 可以是使用 `@agentic_function` 装饰的 Python 函数。文档字符串描述函数，参数提供输入，`llm()` 请求模型输出。分支和验证由普通 Python 代码处理。
+Agent 可以是使用 Agent 方法 装饰的 Python 函数。文档字符串描述函数，参数提供输入，`llm()` 请求模型输出。分支和验证由普通 Python 代码处理。
 
 以下片段假设已经提供 `search_logs` 辅助函数和可用的运行时：
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 
-@agentic_function
-def triage(ticket: str, runtime=None) -> str:
-    """对工单分类，然后起草回复。"""
-    kind = llm(ticket, choices=["bug", "feature", "question"])
-    if kind == "bug":
-        logs = search_logs(ticket)
-        return llm(f"根据以下日志回复：\n{logs}")
-    return llm("起草简短回复。")
+class ExampleAgent(Agent):
+    method_options = {
+        'triage': {'tool': True},
+    }
+
+    def triage(self, ticket: str, runtime=None) -> str:
+        """对工单分类，然后起草回复。"""
+        kind = llm(ticket, choices=["bug", "feature", "question"])
+        if kind == "bug":
+            logs = search_logs(ticket)
+            return llm(f"根据以下日志回复：\n{logs}")
+        return llm("起草简短回复。")
+
+_example_agent = ExampleAgent()
+triage = _example_agent.triage
 ```
 
-参数和行为见[函数参考](docs/reference/api/agentic-function.zh.md)。
+参数和行为见[函数参考](docs/reference/api/agent.zh.md)。
 
 ### DAG 上下文
 
@@ -117,7 +124,7 @@ def triage(ticket: str, runtime=None) -> str:
   </picture>
 </p>
 
-Python 定义必需步骤，并在继续执行前检查模型决策。Agent 可以通过文件工具创建和修改自己的 `@agentic_function` 文件；监听器加载符合条件的修改，供后续调用使用。编写、复用和验证方法见[工作流](docs/capabilities/agentic-workflow.zh.md)。
+Python 定义必需步骤，并在继续执行前检查模型决策。Agent 可以通过文件工具创建和修改自己的 Agent 方法 文件；监听器加载符合条件的修改，供后续调用使用。编写、复用和验证方法见[工作流](docs/capabilities/agentic-workflow.zh.md)。
 
 ### 事件
 

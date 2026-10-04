@@ -57,7 +57,7 @@ openprogram programs install <ref> --upgrade    # git pull + 重新解析依赖
    报告并直接不注册；它绝不会破坏加载过程。
 4. **登记owner批准的来源。** 下次启动时，registry只导入已登记的
    `<package>.agentics`，
-   `@agentic_function` 装饰器触发，函数随即出现在
+   `Agent` method 装饰器触发，函数随即出现在
    chat / Programs 页面 / `openprogram programs run` 中。
 
 防护机制：对于已存在的 **dev symlink**，`install`会校验Harness契约并登记该链接，
@@ -160,7 +160,7 @@ OPENPROGRAM_DEBUG_REGISTRY=1 openprogram programs list
 
 | 现象 | 原因 / 修复 |
 |---|---|
-| 重启后 harness 函数没有出现 | 文件夹不匹配契约——确认 `<pkg>/agentics/__init__.py` 存在并导出 `AGENTIC_FUNCTIONS`。用 `OPENPROGRAM_DEBUG_REGISTRY=1` 运行。 |
+| 重启后 harness 函数没有出现 | 文件夹不匹配契约——确认 `<pkg>/agentics/__init__.py` 存在并导出 `PROGRAM_ENTRIES`。用 `OPENPROGRAM_DEBUG_REGISTRY=1` 运行。 |
 | 安装时出现 `[!] … no package with an agentics/__init__.py was found` | 同上——该仓库不满足契约（第二部分）。 |
 | harness 自身依赖出现 `ModuleNotFoundError` | Program 环境准备失败——重新执行 `openprogram programs install <source>` 并检查错误。 |
 | harness 内部的导入失败（`from <pkg>.x import y`） | package 目录的命名与导入根不一致，或缺少 `__init__.py`。package 文件夹名必须等于导入名。 |
@@ -182,12 +182,12 @@ OPENPROGRAM_DEBUG_REGISTRY=1 openprogram programs list
 └── <package>/                       ← 一个可导入的 package（ascii 名称）
     ├── __init__.py                  ← 保持依赖轻量
     └── agentics/
-        └── __init__.py              ← 暴露 AGENTIC_FUNCTIONS = [...]
+        └── __init__.py              ← 暴露 PROGRAM_ENTRIES = [...]
 ```
 
 注册的入口点是 **`agentics` 子 package**——在启动时
 OpenProgram 导入 `<package>.agentics`；该次导入会触发
-`@agentic_function` 装饰器，它们自行注册到共享的
+`Agent` method 装饰器，它们自行注册到共享的
 registry 中。harness 根目录也可以附带（vendor）其他 package——
 发现机制会找到带有 `agentics/` 子 package 的那一个，并将 harness 根
 放到 `sys.path` 上，于是 harness 自身的绝对导入
@@ -197,16 +197,24 @@ registry 中。harness 根目录也可以附带（vendor）其他 package——
 
 ```python
 # <package>/agentics/__init__.py
-from openprogram.agentic_programming.function import agentic_function
+from openprogram import Agent
 
 
-@agentic_function
-def my_tool(text: str = "") -> str:
-    "一行：说明它做什么（会显示在目录中）。"
-    return text.upper()
 
 
-AGENTIC_FUNCTIONS = [my_tool]
+PROGRAM_ENTRIES = [my_tool]
+
+class ExampleAgent(Agent):
+    method_options = {
+        'my_tool': {'tool': True},
+    }
+
+    def my_tool(self, text: str = "") -> str:
+        "一行：说明它做什么（会显示在目录中）。"
+        return text.upper()
+
+_example_agent = ExampleAgent()
+my_tool = _example_agent.my_tool
 ```
 
 ```python
@@ -241,9 +249,9 @@ dependencies = []          # harness 自身的依赖——绝不要写 openprogr
    # agentics/__init__.py —— 缺少依赖的机器不能破坏加载
    try:
        from my_package.main import my_tool
-       AGENTIC_FUNCTIONS = [my_tool]
+       PROGRAM_ENTRIES = [my_tool]
    except ImportError:
-       AGENTIC_FUNCTIONS = []
+       PROGRAM_ENTRIES = []
    ```
 
 三个第一方 harness 都遵循这一确切形态——把它们中的任何一个
@@ -265,7 +273,7 @@ openprogram programs uninstall My-Harness                # 清理
 
 发布前的检查清单：
 
-- [ ] `<package>/agentics/__init__.py` 暴露了 `AGENTIC_FUNCTIONS`
+- [ ] `<package>/agentics/__init__.py` 暴露了 `PROGRAM_ENTRIES`
 - [ ] pyproject/requirements 中没有 `openprogram`（硬性规则 1）
 - [ ] 在只安装了 OpenProgram 的纯净 venv 中
       `python -c "import <package>.agentics"` 成功（硬性规则 2）

@@ -529,7 +529,7 @@ def test_reconcile_finishes_a_durable_cancellation_intent(store):
         metadata={
             "status": "cancelling",
             "reason_code": "cancel.user",
-            "execution_kind": "agentic_function",
+            "execution_kind": "agent_method",
         },
     ))
     store.update_session("s1", status="cancelling")

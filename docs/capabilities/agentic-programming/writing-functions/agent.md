@@ -66,10 +66,10 @@ Recording a method does not make it a tool. `tool=True` explicitly registers the
 
 ## Ordinary Program functions
 
-The managed loader captures ordinary source-defined functions in authorized Program packages. List public entry functions in `AGENTIC_FUNCTIONS`. Private helpers retain call scopes without becoming tools. This capture does not extend to arbitrary host files or dependencies.
+The managed loader captures ordinary source-defined functions in authorized Program packages. List public entry functions in `PROGRAM_ENTRIES`. Private helpers retain call scopes without becoming tools. This capture does not extend to arbitrary host files or dependencies.
 
 For deterministic composition, call methods or functions in Python. For model-selected calls, supply explicitly registered tools. See [tool calling](../choosing-the-next-step/tool-calling.md).
 
-## Legacy compatibility
+## Method behavior
 
-`@agentic_function` remains supported for existing programs, explicit metadata, and durable steps. New class-based workflows use `Agent` methods and `method_options`. The [API reference](../../../reference/api/agentic-function.md) documents Context, method options, and the legacy decorator. Existing [function metadata](function-metadata.md) describes the compatibility fields.
+Agent methods retain explicit metadata, tool registration, authorization, and durable steps through `method_options`. The [API reference](../../../reference/api/agent.md) documents Context, method options, and method configuration. Existing [function metadata](function-metadata.md) describes the method fields.

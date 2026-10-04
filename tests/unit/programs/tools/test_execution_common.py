@@ -1,4 +1,4 @@
-"""Shared invoke/timeout helper used by @function and @agentic_function."""
+"""Shared invoke/timeout helper used by @function and Agent method."""
 from __future__ import annotations
 
 import asyncio

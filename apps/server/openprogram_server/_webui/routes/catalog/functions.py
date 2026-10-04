@@ -95,10 +95,10 @@ def register(app):
                 })
             except (OSError, TypeError):
                 pass
-        # @agentic_function registry
-        from openprogram.agentic_programming.function import _registry
+        # Agent method registry
+        from openprogram.programs._runtime import _registry
         if name in _registry:
-            reg_fn = inspect.unwrap(_registry[name]._fn)
+            reg_fn = inspect.unwrap(_registry[name]._python_callable)
             try:
                 source = inspect.getsource(reg_fn)
                 return JSONResponse(content={

@@ -71,7 +71,7 @@ if str(_implementation_dir) not in __path__:
 # lookup in providers/metadata.py) drag in webui.server, which imports
 # functions.agentics.ask_user, which fires the whole agentic registry load
 # while openprogram.programs._runtime is still mid-init — breaking every
-# harness whose @agentic_function runs at module scope.
+# harness whose Agent method runs at module scope.
 def __getattr__(name):
     if name in ("start_server", "stop_server"):
         from openprogram.webui import server
@@ -84,7 +84,7 @@ def start_web(port: int = 18100, open_browser: bool = False):
     Start the web UI server in a background thread.
 
     Opens a browser window showing the execution tree. Updates in real-time
-    as @agentic_function calls are made.
+    as Agent method calls are made.
 
     Args:
         port: Port to serve on (default 18100).

@@ -6,7 +6,7 @@
 
 | 框架 | 文档中的主要抽象 | 文档中的编排模型 | 文档中的重点 |
 |---|---|---|---|
-| **OpenProgram** | `@agentic_function` 与执行运行时 | 普通控制流、模型选择工具以及共享执行 DAG | Agent 可以编写可审查的 agentic function；运行时管理上下文、工具、记忆、界面与多 Agent 协作 |
+| **OpenProgram** | `Agent` method 与执行运行时 | 普通控制流、模型选择工具以及共享执行 DAG | Agent 可以编写可审查的 agentic function；运行时管理上下文、工具、记忆、界面与多 Agent 协作 |
 | **LangGraph** | 包含节点与边的 Graph API，或使用 `@entrypoint` 和 `@task` 的 Functional API | 显式状态图，或在同一运行时上使用标准 Python 控制流 | 持久执行、持久化、流式输出和人工参与控制 |
 | **AutoGen** | AgentChat 的 Agent 与团队，或 Core 的 Agent 与运行时 | Agent 消息、团队模式以及事件驱动的 Core API | 对话式单/多 Agent 应用和可扩展的多 Agent 运行时 |
 | **CrewAI** | Agent、任务、crew 和 flow | 基于角色的 Agent crew 与事件驱动 flow 结合 | 协作 Agent 团队与结构化工作流自动化 |

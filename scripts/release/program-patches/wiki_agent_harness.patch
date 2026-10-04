@@ -1,0 +1,341 @@
+diff --git a/README.md b/README.md
+index 185c8d5..42873d6 100644
+--- a/README.md
++++ b/README.md
+@@ -59,7 +59,7 @@ This harness sits in between:
+ git clone https://github.com/Fzkuji/OpenProgram && cd OpenProgram
+ ./scripts/install.sh            # Windows: .\scripts\install.ps1
+ 
+-# 2. Add this harness — clones it into OpenProgram's programs/agentic_functions/
++# 2. Add this harness — clones it into OpenProgram's programs/applications/
+ #    and installs its deps (Jinja2 + PyYAML). The first-run wizard also
+ #    offers this. Restart OpenProgram; it's auto-detected and
+ #    `wiki_agent` becomes available.
+@@ -69,20 +69,20 @@ openprogram programs install wiki
+ <details>
+ <summary><b>How OpenProgram detects this harness (and how to build your own)</b></summary>
+ 
+-OpenProgram walks `openprogram/programs/agentic_functions/` at startup and loads
++OpenProgram walks `openprogram/programs/applications/` at startup and loads
+ any cloned repo that satisfies the harness contract:
+ 
+ ```
+-Wiki-Agent-Harness/                  ← cloned into programs/agentic_functions/
++Wiki-Agent-Harness/                  ← cloned into programs/applications/
+ ├── pyproject.toml                   ← declares THIS repo's own deps only (Jinja2, PyYAML)
+ └── wiki_agent_harness/              ← importable package
+     ├── __init__.py                  ← kept dependency-light
+     └── agentics/
+-        └── __init__.py              ← exposes AGENTIC_FUNCTIONS = [wiki_agent]
++        └── __init__.py              ← exposes PROGRAM_ENTRIES = [wiki_agent]
+ ```
+ 
+-Importing `wiki_agent_harness.agentics` fires the `@agentic_function`
+-decorators, which self-register the functions. Two rules keep this safe:
++Importing `wiki_agent_harness.agentics` exposes bound `Agent` methods through
++`PROGRAM_ENTRIES`; methods with `as_tool=True` register their tool metadata. Two rules keep this safe:
+ the top-level `__init__` must import cleanly on a machine without the
+ harness's optional deps, and `pyproject.toml` must NOT declare
+ `openprogram` as a dependency (the host already provides it; declaring it
+@@ -120,7 +120,7 @@ runtime, so this repo's `pyproject.toml` doesn't pin it.
+ This installs the Python package `wiki_agent_harness` (the `Wiki` class)
+ and the CLI command `wah` (also `python -m wiki_agent_harness`). The
+ plain-Python wiki pieces work standalone; the `wiki_agent`
+-`@agentic_function` itself needs the OpenProgram host.
++`Agent` method itself needs the OpenProgram host.
+ 
+ ## Quick start (Python)
+ 
+diff --git a/wiki_agent_harness/agentics/__init__.py b/wiki_agent_harness/agentics/__init__.py
+index edd98ad..b9e5e0a 100644
+--- a/wiki_agent_harness/agentics/__init__.py
++++ b/wiki_agent_harness/agentics/__init__.py
+@@ -1,6 +1,6 @@
+ """Agentic entry points for the wiki harness.
+ 
+-Exposes a single ``@agentic_function`` — :func:`wiki_agent` — that
++Exposes a single ``Agent`` method — :func:`wiki_agent` — that
+ dispatches a natural-language wiki request to the right internal
+ operation (ingest / enrich / browse / lint / search). The dispatcher
+ itself uses :func:`openprogram.agentic_programming.decision.make` to
+@@ -15,8 +15,8 @@ from __future__ import annotations
+ 
+ try:
+     from .wiki_agent import wiki_agent
+-    AGENTIC_FUNCTIONS = [wiki_agent]
++    PROGRAM_ENTRIES = [wiki_agent]
+ except ImportError:
+-    AGENTIC_FUNCTIONS = []
++    PROGRAM_ENTRIES = []
+ 
+-__all__ = ["AGENTIC_FUNCTIONS"]
++__all__ = ["PROGRAM_ENTRIES"]
+diff --git a/wiki_agent_harness/agentics/wiki_agent/__init__.py b/wiki_agent_harness/agentics/wiki_agent/__init__.py
+index 870d123..0b1d1cc 100644
+--- a/wiki_agent_harness/agentics/wiki_agent/__init__.py
++++ b/wiki_agent_harness/agentics/wiki_agent/__init__.py
+@@ -4,7 +4,7 @@ from __future__ import annotations
+ from typing import Any
+ 
+ from openprogram.agentic_programming import decision
+-from openprogram.agentic_programming.function import agentic_function
++from openprogram import Agent
+ from openprogram.agentic_programming.runtime import Runtime
+ 
+ 
+@@ -19,7 +19,7 @@ def _conclusion(task: str, result: Any, runtime: Runtime) -> str:
+     what was found, the tree, the lint report) and answers the user's
+     task: what was done and what came of it. Returns plain text.
+     """
+-    from openprogram.programs.agentic_functions.json_parsing import parse_json
++    from openprogram.programs.workflow.json_parsing import parse_json
+     import json as _json
+ 
+     try:
+@@ -48,89 +48,87 @@ def _conclusion(task: str, result: Any, runtime: Runtime) -> str:
+         return reply[:1000]
+ 
+ 
+-@agentic_function(
+-    input={
+-        "task": {
+-            "description": (
+-                "Natural-language description of what to do with the wiki. "
+-                "Examples: 'ingest these notes about transformers', "
+-                "'enrich the Methodology landing page', 'browse the vault', "
+-                "'check for broken links', 'find pages about distillation'."
+-            ),
+-            "placeholder": "e.g. Ingest the conversation above into the wiki.",
+-            "multiline": True,
+-        },
+-        # Advanced knobs — kept as function parameters (CLI / code callers
+-        # may still pass them) but hidden from the one-line input form and
+-        # the LLM tool spec. vault falls back to runtime workdir;
+-        # purpose / audience default to empty and are optional.
+-        "vault": {"hidden": True},
+-        "purpose": {"hidden": True},
+-        "audience": {"hidden": True},
+-        "runtime": {"hidden": True},
+-    },
+-)
+-def wiki_agent(
+-    task: str,
+-    vault: str = "",
+-    purpose: str = "",
+-    audience: str = "",
+-    runtime: Runtime = None,
+-) -> dict:
+-    """Maintain a wiki vault — route to ingest, enrich, browse, lint, or search depending on the task."""
+-    from wiki_agent_harness import Wiki
+-
+-    root = vault.strip() or None
+-    if root is None and runtime is not None:
+-        wd = getattr(runtime, "workdir", None)
+-        if wd:
+-            root = str(wd)
+-
+-    w = Wiki(
+-        root=root, runtime=runtime,
+-        purpose=purpose or "",
+-        audience=audience or "",
+-    )
++class WikiAgent(Agent):
++    method_options = {
++        "wiki_agent": {
++            "as_tool": True,
++            "input": {
++                "task": {
++                    "description": "Natural-language description of what to do with the wiki. Examples: 'ingest these notes about transformers', 'enrich the Methodology landing page', 'browse the vault', 'check for broken links', 'find pages about distillation'.",
++                    "placeholder": "e.g. Ingest the conversation above into the wiki.",
++                    "multiline": True,
++                },
++                "vault": {"hidden": True},
++                "purpose": {"hidden": True},
++                "audience": {"hidden": True},
++                "runtime": {"hidden": True},
++            },
++            "capture_io": True,
++            "name": "wiki_agent",
++        }
++    }
++
++    def wiki_agent(self,
++        task: str,
++        vault: str = "",
++        purpose: str = "",
++        audience: str = "",
++        runtime: Runtime = None,
++    ) -> dict:
++        """Maintain a wiki vault — route to ingest, enrich, browse, lint, or search depending on the task."""
++        from wiki_agent_harness import Wiki
++
++        root = vault.strip() or None
++        if root is None and runtime is not None:
++            wd = getattr(runtime, "workdir", None)
++            if wd:
++                root = str(wd)
++
++        w = Wiki(
++            root=root, runtime=runtime,
++            purpose=purpose or "",
++            audience=audience or "",
++        )
+ 
+-    state = (
+-        f"vault root: {w.root}\n\n"
++        state = (
++            f"vault root: {w.root}\n\n"
+         f"folder tree:\n{w.tree()}\n\n"
+         f"stats: {w.stats()}\n\n"
+         f"lint (head):\n{w.lint()[:600]}"
+-    )
+-
+-    def _do_ingest() -> dict:
+-        import hashlib
+-        session_id = f"wiki-ingest-{hashlib.sha256(task.encode()).hexdigest()[:6]}"
+-        return w.ingest_session(
+-            session_id,
+-            [{"role": "user", "content": task}],
+-            runtime=runtime,
+         )
+ 
+-    def _do_enrich() -> dict:
+-        return w.enrich_all(runtime=runtime)
+-
+-    def _do_browse() -> dict:
+-        return {"action": "browse", "vault": str(w.root),
+-                "tree": w.tree(), "stats": w.stats()}
+-
+-    def _do_lint() -> dict:
+-        return {"action": "lint", "vault": str(w.root), "report": w.lint()}
+-
+-    def _do_search() -> dict:
+-        return {
+-            "action": "search", "task": task,
+-            "results": [
+-                {"path": h.path, "title": h.title, "snippet": h.snippet,
+-                 "template": h.template, "score": h.score}
+-                for h in w.search(task, limit=10)
+-            ],
+-        }
+-
+-    result = decision.make(
+-        (
+-            f"Pick the wiki operation that best matches the user task.\n\n"
++        def _do_ingest() -> dict:
++            import hashlib
++            session_id = f"wiki-ingest-{hashlib.sha256(task.encode()).hexdigest()[:6]}"
++            return w.ingest_session(
++                session_id,
++                [{"role": "user", "content": task}],
++                runtime=runtime,
++            )
++
++        def _do_enrich() -> dict:
++            return w.enrich_all(runtime=runtime)
++
++        def _do_browse() -> dict:
++            return {"action": "browse", "vault": str(w.root),
++                    "tree": w.tree(), "stats": w.stats()}
++
++        def _do_lint() -> dict:
++            return {"action": "lint", "vault": str(w.root), "report": w.lint()}
++
++        def _do_search() -> dict:
++            return {
++                "action": "search", "task": task,
++                "results": [
++                    {"path": h.path, "title": h.title, "snippet": h.snippet,
++                     "template": h.template, "score": h.score}
++                    for h in w.search(task, limit=10)
++                ],
++            }
++
++        result = decision.make(
++            (
++                f"Pick the wiki operation that best matches the user task.\n\n"
+             f"User task:\n{task}\n\n"
+             f"Current vault state:\n{state}\n\n"
+             f"Routing hints:\n"
+@@ -139,22 +137,24 @@ def wiki_agent(
+             f"  - 'show' / 'list' / 'what's in' / 'tree' → browse\n"
+             f"  - 'check' / 'broken links' / 'health' → lint\n"
+             f"  - anything else (looks like a query against existing content) → search"
+-        ),
+-        {
+-            "ingest":  _do_ingest,
+-            "enrich":  _do_enrich,
+-            "browse":  _do_browse,
+-            "lint":    _do_lint,
+-            "search":  _do_search,
+-        },
+-    )
++            ),
++            {
++                "ingest":  _do_ingest,
++                "enrich":  _do_enrich,
++                "browse":  _do_browse,
++                "lint":    _do_lint,
++                "search":  _do_search,
++            },
++        )
+ 
+-    try:
+-        summary = _conclusion(task, result, runtime)
+-        if isinstance(result, dict):
+-            result = {**result, "summary": summary}
+-    except Exception as e:
+-        import sys
+-        print(f"  [conclusion] ERROR: {e}", file=sys.stderr)
+-
+-    return result
++        try:
++            summary = _conclusion(task, result, runtime)
++            if isinstance(result, dict):
++                result = {**result, "summary": summary}
++        except Exception as e:
++            import sys
++            print(f"  [conclusion] ERROR: {e}", file=sys.stderr)
++
++        return result
++
++wiki_agent = WikiAgent().wiki_agent
+diff --git a/wiki_agent_harness/ingest.py b/wiki_agent_harness/ingest.py
+index 0972b0e..1717599 100644
+--- a/wiki_agent_harness/ingest.py
++++ b/wiki_agent_harness/ingest.py
+@@ -23,7 +23,9 @@ from datetime import datetime
+ from pathlib import Path
+ from typing import Any, Callable, Iterable
+ 
+-from openprogram.agentic_programming import agentic_function, llm
++from openprogram import Agent
++from openprogram.agentic_programming.call_state import default_expose
++from openprogram.agentic_programming import llm
+ 
+ from . import index as _idx
+ from . import ops
+@@ -72,9 +74,20 @@ def render_conversation(
+ # ---------------------------------------------------------------------------
+ 
+ 
+-@agentic_function(as_tool=False)
+-def _analyze_session(prompt: str, runtime: Any) -> str:
+-    return llm([{"type": "text", "text": prompt}])
++class AnalyzeSessionAgent(Agent):
++    method_options = {
++        "_analyze_session": {
++            "as_tool": False,
++            "capture_io": True,
++            "expose": default_expose(),
++            "name": "_analyze_session",
++        }
++    }
++
++    def _analyze_session(self, prompt: str, runtime: Any) -> str:
++        return llm([{"type": "text", "text": prompt}])
++
++_analyze_session = AnalyzeSessionAgent()._analyze_session
+ 
+ 
+ def ingest_session(

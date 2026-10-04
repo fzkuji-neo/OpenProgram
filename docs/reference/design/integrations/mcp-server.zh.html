@@ -315,7 +315,7 @@
       <h3 style="color:#4f8ef7">按轮次 token，两个入口语义不同</h3>
       <div class="noun">openprogram/agent/run_control.py</div>
       <div class="row"><div class="t">模型</div><div class="v">按轮次的 <code>CancelToken</code>，<b>从不按会话</b>：<code>threading.Event</code> 加 <code>retired</code> 标志，轮次结束后到的 stop 不会漏进下一轮。</div></div>
-      <div class="row"><div class="t">全局钩子</div><div class="v">import 时装 <code>add_pre_invocation_hook</code> 与 <code>set_cancellation_check</code>，每个 <code>@agentic_function</code> 入口和每次 <code>Runtime.exec</code> 都会中止。</div></div>
+      <div class="row"><div class="t">全局钩子</div><div class="v">import 时装 <code>add_pre_invocation_hook</code> 与 <code>set_cancellation_check</code>，每个 <code>Agent method</code> 入口和每次 <code>Runtime.exec</code> 都会中止。</div></div>
       <div class="row good"><div class="t">统一入口</div><div class="v">取消只接受 canonical <code>execution_id</code>，先持久化 cancellation intent，再唤醒对应 owner 与待答问题。ACP、MCP、Channels 和 Web 使用同一 Control Service；没有 execution identity 的 session 请求不会激活。</div></div>
     </div>
 

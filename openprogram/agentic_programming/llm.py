@@ -15,7 +15,7 @@ def llm(
     timeout_s: float | None = None,
 ) -> str | dict:
     """Return a model response, with the declared structured-output repair budget."""
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
 
     runtime = _current_runtime.get(None)
     if runtime is None:

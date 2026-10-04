@@ -112,7 +112,7 @@ def _select(selector, current):
 
 def automatic_effort(prompt, runtimes):
     """Classify task complexity once; defaults remain valid without a reply."""
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
     from openprogram.agentic_programming.llm import llm
 
     if not prompt or not any(getattr(getattr(r, "api_model", None), "thinking_levels", [])
@@ -185,7 +185,7 @@ def prepare_roles(saved, current, *, model, effort, timeout_s,
 
 @contextmanager
 def use_role(runtime, config):
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
 
     previous = _current_runtime.get(None)
     if previous is not None and previous is not runtime:

@@ -67,6 +67,6 @@ The Program installer is reserved for third-party Programs and developer source 
 ## Next steps
 
 - [Models & providers](../models/README.md) — how each provider connects, multi-account, key rotation
-- [Agentic Programming](../capabilities/agentic-programming/README.md) — write your own `@agentic_function`
+- [Agentic Programming](../capabilities/agentic-programming/README.md) — write your own `Agent` method
 - [Interfaces](../interfaces/README.md) — terminal TUI, web UI, and channels
 - [Daily use](daily-use.md) — session management, branching, and rollback

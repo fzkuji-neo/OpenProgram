@@ -7,6 +7,8 @@ picked (its value is returned), and the dict ``(value, "desc")`` form.
 
 from __future__ import annotations
 
+from openprogram.agentic_programming import Agent
+
 from openprogram.agentic_programming import decision
 from openprogram.agentic_programming.runtime import Runtime
 
@@ -142,15 +144,19 @@ def test_decide_raises_decisionerror_when_retries_exhausted():
         decision.make("Pick one.", [_greet, _farewell], runtime=rt, max_retries=0)
 
 
-def test_decide_picks_up_ambient_runtime_inside_agentic_function():
-    """Inside an @agentic_function, decision.make() needs no runtime= — it reads
+def test_decide_picks_up_ambient_runtime_inside_agent_method():
+    """Inside an Agent method, decision.make() needs no runtime= — it reads
     the ambient runtime the decorator installs."""
-    from openprogram.agentic_programming.function import agentic_function
+    from openprogram.agentic_programming import Agent
 
     rt = _CannedRuntime('{"call": "_farewell"}')
 
-    @agentic_function
-    def router(runtime=None):
-        return decision.make("Pick one.", [_greet, _farewell])
+    class _RouterAgent(Agent):
+        method_options = {'router': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'router'}}
+
+        def router(self, runtime=None):
+            return decision.make("Pick one.", [_greet, _farewell])
+
+    router = _RouterAgent().router
 
     assert router(runtime=rt) == "bye"

@@ -97,7 +97,7 @@ Cancel API 触发时：
 3. `process_user_turn` 已经把 cancel_event bridge 进 asyncio.Event（`agent_loop` 调用），LLM provider stream 会在下一个 chunk 检查到 cancel 然后中断。
 4. BashTool / 其他 subprocess 使用精确 execution id 调用
    `process_runner.kill_active_subprocess`。Tool 层的 cancel 是合作式：每个
-   `@agentic_function` 的 pre-invocation hook 检查 `is_cancelled`，下一个 tool call
+   `Agent` method 的 pre-invocation hook 检查 `is_cancelled`，下一个 tool call
    入口会 raise `CancelledError`。
 5. 兜底 timeout：cancel 后 30 秒 worker 还没退出，runner 把 entity 标 `cancelled`（error="cancel timed out, worker may be stuck"），然后 detach worker thread（不强杀，等 GC）。
 
@@ -306,7 +306,7 @@ agent 自己想撤。
 | **D2 状态机** | running → cancelled（或如果 worker 在 timeout 内未退则 forced cancelled） |
 | **D3 worker pool** | thread 一直 occupy 到 worker 真的退出；pool slot 在 worker function return 后释放 |
 | **D4 持久化** | cancel 请求立刻 commit；worker 退出后再 commit 一次（最终状态） |
-| **D5 cancel** | 这是设计核心。cancel_event.set() → (a) `process_user_turn` 内 asyncio.Event 触发 → agent_loop 在下一个 stream chunk break → LLM call 中止；(b) `is_cancelled(session)` hook 让下一个 `@agentic_function` raise CancelledError；(c) BashTool 通过 `kill_active_runtime` 杀子进程；(d) 30 秒兜底 timeout 强转 status |
+| **D5 cancel** | 这是设计核心。cancel_event.set() → (a) `process_user_turn` 内 asyncio.Event 触发 → agent_loop 在下一个 stream chunk break → LLM call 中止；(b) `is_cancelled(session)` hook 让下一个 `Agent` method raise CancelledError；(c) BashTool 通过 `kill_active_runtime` 杀子进程；(d) 30 秒兜底 timeout 强转 status |
 | **D6 session 绑定** | 不变 |
 | **D7 sub-agent** | sub-agent loop 拿到 cancel 后走 dispatcher 现有的 cancelled 分支：placeholder 已经 insert，error 折进同一行 → status=cancelled，部分输出落盘 |
 | **D8 ContextCommit** | attach card 状态从 running → cancelled；content 写部分输出 + `[cancelled at T]` 标记；generator 看 cancelled 也可以选择性展开（初版：不展开 cancelled，只显示 marker）|

@@ -13,7 +13,7 @@
 **harness 就是任何你放进 `<openprogram>/programs/workflow/` 并通过
 `<pkg>/agentics/__init__.py` 暴露其函数的东西。** host 在启动时（以及在
 开启热重载时，每当该文件夹变化时）遍历该文件夹，找到内层 package，导入
-`<pkg>.agentics`，随后 `@agentic_function` 装饰器自行完成注册。除此之外
+`<pkg>.agentics`，随后 `Agent` method 装饰器自行完成注册。除此之外
 无需任何东西，也不会改动任何 host 文件。
 
 ```
@@ -21,7 +21,7 @@
 └── <pkg>/                         ← 可导入的 package；文件夹名 == 导入名
     ├── __init__.py                ← 标记其为 package（可再导出一些便利项）
     └── agentics/
-        └── __init__.py            ← 入口点 —— 暴露 AGENTIC_FUNCTIONS
+        └── __init__.py            ← 入口点 —— 暴露 PROGRAM_ENTRIES
 ```
 
 如果克隆进来的文件夹不符合这个形状，host 会 **静默忽略它**（非 harness
@@ -29,7 +29,7 @@
 
 ## 1. 入口点：`<pkg>/agentics/__init__.py`
 
-必须定义 `AGENTIC_FUNCTIONS` —— 一个由 `@agentic_function` 装饰的可调用对象
+必须定义 `PROGRAM_ENTRIES` —— 一个由 `Agent` method 装饰的可调用对象
 组成的列表。导入此模块会触发装饰器，将这些函数注册进共享的工具 registry。
 该列表同时也是 harness 声明的公开接口面。
 
@@ -40,17 +40,17 @@
 """Entry point for the Foo harness."""
 try:
     from .foo_agent import foo_agent, foo_helper
-    AGENTIC_FUNCTIONS = [foo_agent, foo_helper]
+    PROGRAM_ENTRIES = [foo_agent, foo_helper]
 except Exception:          # 缺失可选依赖、不支持的平台，等等
     # host 在发现阶段会导入此模块。如果该 harness 无法在本机加载
     #（某个重依赖未安装、本 OS 没有对应 backend，等等），就什么都不
     # 暴露，而不是抛异常 —— 按发现契约："能跑 → 列出，不能跑 → 跳过"。
     # host 会在 OPENPROGRAM_DEBUG_REGISTRY=1 下记录原因。
-    AGENTIC_FUNCTIONS = []
+    PROGRAM_ENTRIES = []
 ```
 
 规则：
-- `AGENTIC_FUNCTIONS` **必须始终被定义**（哪怕是 `[]`）。
+- `PROGRAM_ENTRIES` **必须始终被定义**（哪怕是 `[]`）。
 - `try/except` 是 **强制的** —— 无法在本机运行的 harness 必须产出 `[]`，
   而不是把 `ImportError` 传播出去。正是这一点让"什么都能克隆进来、能跑的
   亮起、其余的保持熄灭"得以成立。
@@ -78,8 +78,13 @@ vault 路径；GUI：vision 模型 + 平台 backend）。**标准规定的是机
 1. **优先使用按调用传入的参数。** 任何随每次调用而变化的东西，都作为带有
    合理默认值的函数参数：
    ```python
-   @agentic_function(name="foo_agent")
-   def foo_agent(task: str, max_steps: int = 15, runtime=None) -> dict: ...
+   from openprogram import Agent
+
+   class HarnessAgent(Agent):
+       method_options = {"foo_agent": {"tool": True, "name": "foo_agent"}}
+
+       def foo_agent(self, task: str, max_steps: int = 15, runtime=None) -> dict:
+           ...
    ```
 2. **runtime 是被注入的，绝不自行构造。** 需要 LLM 的 harness 函数声明一个
    `runtime` 参数；host 会注入当前活跃的 runtime。对于 in-host 路径，harness
@@ -123,7 +128,7 @@ vault 路径；GUI：vision 模型 + 平台 backend）。**标准规定的是机
 
 - harness 在自己的代码里 *可以* 是平台特定的（GUI harness 驱动桌面；它的
   macOS / Linux backend 不同，Windows 可能尚未实现）。这是被允许的。
-- **用 `AGENTIC_FUNCTIONS = []` 来表达"此处不支持"**，通过 §1 的
+- **用 `PROGRAM_ENTRIES = []` 来表达"此处不支持"**，通过 §1 的
   `try/except` 或一个显式的 `platform.system()` 检查 —— 绝不要在导入期抛出
   未捕获的 `NotImplementedError`。安装 / 注册始终成功；某个函数是否被 *列出*
   反映的是它能否在本 OS 上运行。
@@ -144,7 +149,7 @@ vault 路径；GUI：vision 模型 + 平台 backend）。**标准规定的是机
 
 - [ ] repo 克隆进 `agentics/<Repo-Name>/`；其内部有一个 package
       `<pkg>/`，其文件夹名等于其导入名。
-- [ ] `<pkg>/agentics/__init__.py` 定义 `AGENTIC_FUNCTIONS = [...]`。
+- [ ] `<pkg>/agentics/__init__.py` 定义 `PROGRAM_ENTRIES = [...]`。
 - [ ] 该模块把其导入包在 `try/except` 中 → 失败时为 `[]`。
 - [ ] 导入廉价：导入期不联网 / 不下载模型 / 不抓取 GUI。
 - [ ] LLM 访问通过被注入的 `runtime` 参数，而非自建。
@@ -153,7 +158,7 @@ vault 路径；GUI：vision 模型 + 平台 backend）。**标准规定的是机
       home 路径。
 - [ ] `pyproject.toml` 中 `openprogram` 不是 git 依赖。
 - [ ] 声明了自己的第三方依赖；重 / 原生依赖放在一个 extra 之后。
-- [ ] 平台不支持 → `AGENTIC_FUNCTIONS = []`，而非崩溃。
+- [ ] 平台不支持 → `PROGRAM_ENTRIES = []`，而非崩溃。
 
 ## 附录：实现状态
 
@@ -161,9 +166,9 @@ vault 路径；GUI：vision 模型 + 平台 backend）。**标准规定的是机
 
 | Harness | 符合程度 | 待补齐的差距 |
 |---|---|---|
-| **Wiki** | 最接近 | `agentics/__init__.py`、`AGENTIC_FUNCTIONS`、`try/except` 均已具备。默认 vault 路径仍用着已废弃的 `~/.agentic/memory/wiki`，应移至 `get_state_dir()` 下。 |
-| **GUI** | 部分符合 | 暴露了函数，但没有单一的、带 `AGENTIC_FUNCTIONS` 的 `<pkg>/agentics/__init__.py`；装饰器散落在多个模块里，仍需补上入口模块。重依赖已部分放在 extra 之后。Windows 路径需降级为 `[]`，而非崩溃。 |
-| **Research** | 不符合 | 没有 `agentics/` 子 package —— 它使用自己的 `registry.py`，host 的自动发现看不到。需补上 `research_harness/agentics/__init__.py` 暴露 `AGENTIC_FUNCTIONS`。 |
+| **Wiki** | 最接近 | `agentics/__init__.py`、`PROGRAM_ENTRIES`、`try/except` 均已具备。默认 vault 路径仍用着已废弃的 `~/.agentic/memory/wiki`，应移至 `get_state_dir()` 下。 |
+| **GUI** | 部分符合 | 暴露了函数，但没有单一的、带 `PROGRAM_ENTRIES` 的 `<pkg>/agentics/__init__.py`；装饰器散落在多个模块里，仍需补上入口模块。重依赖已部分放在 extra 之后。Windows 路径需降级为 `[]`，而非崩溃。 |
+| **Research** | 不符合 | 没有 `agentics/` 子 package —— 它使用自己的 `registry.py`，host 的自动发现看不到。需补上 `research_harness/agentics/__init__.py` 暴露 `PROGRAM_ENTRIES`。 |
 
 三者都仍把 `openprogram @ git+…` 声明为依赖，而 §4 排除了这种做法；去掉它
 是一个共通的修复。

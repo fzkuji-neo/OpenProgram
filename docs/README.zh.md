@@ -48,7 +48,7 @@
 ## 常用任务
 
 - [安装程序](capabilities/installing-harnesses.zh.md)，进行桌面自动化和研究工作。
-- [编写函数](capabilities/agentic-programming/writing-functions/agentic-function.zh.md)或[编写工作流](capabilities/workflows/authoring.zh.md)。
+- [编写函数](capabilities/agentic-programming/writing-functions/agent.zh.md)或[编写工作流](capabilities/workflows/authoring.zh.md)。
 - [配置模型](models/README.zh.md)和[连接渠道](integrations/channels.zh.md)。
 - [使用记忆](capabilities/memory.zh.md)和[管理目标](capabilities/goal.zh.md)。
 - 查阅[全局 CLI 参数](reference/cli/README.zh.md)、[配置键](reference/config-keys.zh.md)或[模型服务配置](reference/provider-registry.zh.md)。

@@ -436,12 +436,14 @@ footer{border-top:1px solid var(--border);padding:34px 0;color:var(--faint);font
           <a class="use-card" href="/docs/capabilities/installing-harnesses.html">
             <span class="use-tag">Build your own</span>
             <h3>Your agent, ordinary Python</h3>
-            <p>Use a decorated function for the task contract and call the model only where the workflow needs judgement.</p>
-<pre><code><span class="dec">@agentic_function</span>
-<span class="kw">def</span> <span class="fn">triage</span>(ticket: <span class="fn">str</span>, runtime=<span class="kw">None</span>):
-    kind = <span class="agent-call">runtime.exec</span>(ticket,
-        choices=[<span class="str">"bug"</span>, <span class="str">"feature"</span>])
-    <span class="kw">return</span> handle(ticket, kind)</code></pre>
+            <p>Define an Agent class with ordinary methods. Context follows its calls automatically.</p>
+<pre><code><span class="kw">from</span> openprogram <span class="kw">import</span> Agent
+
+<span class="kw">class</span> <span class="fn">Triage</span>(Agent):
+    instructions = <span class="str">"Classify tickets as bug or feature."</span>
+
+    <span class="kw">def</span> <span class="fn">run</span>(self, ticket: <span class="fn">str</span>):
+        <span class="kw">return</span> self(ticket, tools=[])</code></pre>
             <span class="use-link">Read the harness guide →</span>
           </a>
         </div>

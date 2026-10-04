@@ -7,6 +7,7 @@ from collections import deque
 from pathlib import Path
 
 from ..catalog.programs_cache import parsed_source, watch
+from ..._functions import _program_source_entries
 
 
 def package_calls(root: Path, relative: str, entry_name: str | None = None) -> dict:
@@ -14,6 +15,9 @@ def package_calls(root: Path, relative: str, entry_name: str | None = None) -> d
     warnings: set[str] = set()
     functions: dict[str, tuple[Path, ast.AST, dict[str, str]]] = {}
     entries: list[str] = []
+    owners: dict[str, str] = {}
+    modules: dict[str, str] = {}
+    aliases: dict[str, str] = {}
     sources: list[Path] = []
     # Analyze import packages, not repository artifacts (benchmarks, runs, tests).
     for package in sorted(root.iterdir()):
@@ -68,11 +72,27 @@ def package_calls(root: Path, relative: str, entry_name: str | None = None) -> d
             if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 key = f'{module}.{item.name}'
                 functions[key] = path, item, imports
-                if any(
-                    isinstance(d, ast.Call) and ast.unparse(d.func).split('.')[-1] in {'agentic_function', 'workflow'}
-                    for d in item.decorator_list
-                ):
-                    entries.append(key)
+                modules[key] = module
+            elif isinstance(item, ast.ClassDef):
+                for method in item.body:
+                    if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        key = f'{module}.{item.name}.{method.name}'
+                        functions[key] = path, method, imports
+                        owners[key] = f'{module}.{item.name}'
+                        modules[key] = module
+        declared = _program_source_entries(path.read_text(encoding='utf-8'))
+        for name, declaration in declared.items():
+            method = declaration['node']
+            owner = declaration['owner']
+            target = f'{module}.{owner}.{method.name}' if owner else f'{module}.{method.name}'
+            key = f'{module}.{name}'
+            if target in functions:
+                aliases[key] = target
+                entries.append(key)
+                functions[key] = functions[target]
+                modules[key] = module
+                if owner:
+                    owners[key] = f'{module}.{owner}'
     if entry_name:
         entries = [key for key in entries if key.rsplit('.', 1)[-1] == entry_name]
     nodes = [{'id': relative, 'name': root.name, 'path': relative,
@@ -93,10 +113,10 @@ def package_calls(root: Path, relative: str, entry_name: str | None = None) -> d
             continue
         seen.add(node_id)
         path, function, imports = functions[key]
-        nodes.append({'id': node_id, 'name': function.name,
+        nodes.append({'id': node_id, 'name': key.rsplit('.', 1)[-1],
                       'path': f'{relative}/{path.relative_to(root)}:{function.lineno}',
-                      'program_kind': 'vanilla_function', 'depth': depth})
-        module = key.rpartition('.')[0]
+                      'program_kind': 'agent_method' if key in owners else 'vanilla_function', 'depth': depth})
+        module = modules[key]
         imports = dict(imports)
         local_names = {arg.arg for arg in [*function.args.posonlyargs, *function.args.args, *function.args.kwonlyargs]}
         local_names.update(
@@ -118,7 +138,9 @@ def package_calls(root: Path, relative: str, entry_name: str | None = None) -> d
             if isinstance(item, ast.Call):
                 name = ast.unparse(item.func)
                 head, _, tail = name.partition('.')
-                target = imports.get(head, f'{module}.{head}') + (f'.{tail}' if tail else '')
+                target = (owners[key] + f'.{tail}' if head in {'self', 'cls'} and key in owners
+                          else imports.get(head, f'{module}.{head}') + (f'.{tail}' if tail else ''))
+                target = next((alias for alias, resolved in aliases.items() if resolved == target), target)
                 if target in functions:
                     pending.append((node_id, target, depth + 1, 'conditional' if conditional else 'call'))
                 elif isinstance(item.func, (ast.Subscript, ast.Call)) or (

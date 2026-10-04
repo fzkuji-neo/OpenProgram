@@ -47,7 +47,7 @@
    the next chat message will carry are faded. Transition so the range
    updating after a turn reads as a soft change, not a flash. */
 /* Nodes keep a solid fill regardless of context / head membership —
-   sub-call nodes from nested @agentic_function calls should look the
+   sub-call nodes from nested Agent method calls should look the
    same as top-level nodes. Edges still dim to convey context range. */
 .history-node.out-of-context { opacity: 1; }
 

@@ -937,7 +937,7 @@ export function handleChatResponse(data: ChatResponseData): void {
   // while the background turn was finishing). The clear helper itself
   // flips the legacy button if the cleared session is the active one.
   //
-  // 例外：聊天回合中途完成的内联 @agentic_function / spawn 结果也走
+  // 例外：聊天回合中途完成的内联 Agent method / spawn 结果也走
   // display:"runtime" 的 result/error 帧（_execute/chat.py 即时转发），
   // 它结束的是子卡片、不是回合本身——误清 occupancy 会让停止键在流式
   // 输出中途消失（正在推理却像已停止）。frame 的 msg_id 是子块自己的

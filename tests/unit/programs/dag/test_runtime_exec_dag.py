@@ -1,5 +1,5 @@
 """runtime.exec → DAG: each successful LLM call appends an llm-role
-Call. ``caller`` carries the enclosing ``@agentic_function`` pending
+Call. ``caller`` carries the enclosing ``Agent method`` pending
 id (when called from inside one), or empty string at the top level.
 
 Prompt-composition logic is untouched — these tests don't assert what
@@ -8,6 +8,8 @@ the LLM saw, only what got recorded into the DAG afterwards.
 
 from __future__ import annotations
 
+from openprogram.agentic_programming import Agent
+
 import inspect
 from pathlib import Path
 from typing import get_type_hints
@@ -15,9 +17,9 @@ from typing import get_type_hints
 import pytest
 
 from openprogram.agentic_programming import agent, llm
-from openprogram.agentic_programming.function import (
+from openprogram.agentic_programming.call_state import (
     _current_runtime,
-    agentic_function,
+
 )
 from openprogram.agentic_programming.runtime import Runtime
 from openprogram.store import SessionNodeWriter, SessionStore, _store as _store_var
@@ -52,16 +54,20 @@ def store(tmp_path: Path):
         _store_var.reset(token)
 
 
-# Top-level exec (no enclosing @agentic_function)
+# Top-level exec (no enclosing Agent method)
 
 
 def test_exec_without_function_frame_appends_llm_call(store):
     rt = _FakeRuntime(reply="hello back")
 
-    @agentic_function
-    def chat(prompt, runtime=None):
-        # Inside the function so exec has a Context tree to attach to.
-        return runtime.exec(prompt)
+    class _ChatAgent(Agent):
+        method_options = {'chat': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'chat'}}
+
+        def chat(self, prompt, runtime=None):
+            # Inside the function so exec has a Context tree to attach to.
+            return runtime.exec(prompt)
+
+    chat = _ChatAgent().chat
 
     chat("hi there", runtime=rt)
 
@@ -71,15 +77,19 @@ def test_exec_without_function_frame_appends_llm_call(store):
     assert llm_nodes[0].output == "hello back"
 
 
-# exec inside an @agentic_function — caller set
+# exec inside an Agent method — caller set
 
 
 def test_exec_inside_function_stamps_caller(store):
     rt = _FakeRuntime(reply="reply")
 
-    @agentic_function
-    def plan(task, runtime=None):
-        return runtime.exec(f"plan: {task}")
+    class _PlanAgent(Agent):
+        method_options = {'plan': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'plan'}}
+
+        def plan(self, task, runtime=None):
+            return runtime.exec(f"plan: {task}")
+
+    plan = _PlanAgent().plan
 
     plan("write a haiku", runtime=rt)
 
@@ -95,16 +105,24 @@ def test_exec_inside_function_stamps_caller(store):
 def test_exec_nested_calls_stamp_correct_frame(store):
     rt = _FakeRuntime(reply="r")
 
-    @agentic_function
-    def inner(x, runtime=None):
-        return runtime.exec(f"inner: {x}")
+    class _InnerAgent(Agent):
+        method_options = {'inner': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'inner'}}
 
-    @agentic_function
-    def outer(x, runtime=None):
-        # First inner runs to completion; then we exec from outer's body.
-        a = inner(x, runtime=runtime)
-        b = runtime.exec(f"outer: {x}")
-        return a + b
+        def inner(self, x, runtime=None):
+            return runtime.exec(f"inner: {x}")
+
+    inner = _InnerAgent().inner
+
+    class _OuterAgent(Agent):
+        method_options = {'outer': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'outer'}}
+
+        def outer(self, x, runtime=None):
+            # First inner runs to completion; then we exec from outer's body.
+            a = inner(x, runtime=runtime)
+            b = runtime.exec(f"outer: {x}")
+            return a + b
+
+    outer = _OuterAgent().outer
 
     outer("q", runtime=rt)
     g = store.load()
@@ -126,9 +144,13 @@ def test_exec_without_store_writes_nothing():
     rt = _FakeRuntime(reply="x")
     # No ``_store.set(...)`` here — standalone mode.
 
-    @agentic_function
-    def f(runtime=None):
-        return runtime.exec("hi")
+    class _FAgent(Agent):
+        method_options = {'f': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'f'}}
+
+        def f(self, runtime=None):
+            return runtime.exec("hi")
+
+    f = _FAgent().f
 
     result = f(runtime=rt)
     assert result == "x"
@@ -144,9 +166,13 @@ def test_exec_llm_node_lifecycle_running_then_completed(store):
     completed/error/cancelled, not success."""
     rt = _FakeRuntime(reply="done")
 
-    @agentic_function
-    def plan(task, runtime=None):
-        return runtime.exec(f"plan: {task}")
+    class _PlanAgent(Agent):
+        method_options = {'plan': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'plan'}}
+
+        def plan(self, task, runtime=None):
+            return runtime.exec(f"plan: {task}")
+
+    plan = _PlanAgent().plan
 
     plan("x", runtime=rt)
 
@@ -164,14 +190,18 @@ def test_tool_loop_subcall_attributes_to_llm_node(store):
 
     Simulates the tool-loop attribution that ``_call_via_providers`` does:
     while the model 'runs', _call_id is pointed at the in-flight llm node
-    (exposed via runtime._active_llm_node_id), so any @agentic_function the
+    (exposed via runtime._active_llm_node_id), so any Agent method the
     model invokes lands under the llm node.
     """
-    from openprogram.agentic_programming.function import _call_id
+    from openprogram.agentic_programming.call_state import _call_id
 
-    @agentic_function
-    def child(x, runtime=None):
-        return f"child:{x}"
+    class _ChildAgent(Agent):
+        method_options = {'child': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'child'}}
+
+        def child(self, x, runtime=None):
+            return f"child:{x}"
+
+    child = _ChildAgent().child
 
     class _ToolLoopRuntime(Runtime):
         """_call mimics a provider tool loop: it points _call_id at the
@@ -191,9 +221,13 @@ def test_tool_loop_subcall_attributes_to_llm_node(store):
 
     rt = _ToolLoopRuntime()
 
-    @agentic_function
-    def parent(task, runtime=None):
-        return runtime.exec(f"parent: {task}")
+    class _ParentAgent(Agent):
+        method_options = {'parent': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'parent'}}
+
+        def parent(self, task, runtime=None):
+            return runtime.exec(f"parent: {task}")
+
+    parent = _ParentAgent().parent
 
     parent("go", runtime=rt)
 
@@ -252,9 +286,13 @@ def test_exec_stream_fn_injection(store):
         provider="callable", base_url="",
     )
 
-    @agentic_function
-    def ask(q, runtime=None):
-        return runtime.exec(f"q: {q}", stream_fn=fake_stream)
+    class _AskAgent(Agent):
+        method_options = {'ask': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'ask'}}
+
+        def ask(self, q, runtime=None):
+            return runtime.exec(f"q: {q}", stream_fn=fake_stream)
+
+    ask = _AskAgent().ask
 
     result = ask("hello", runtime=rt)
 
@@ -462,9 +500,13 @@ def test_llm_does_not_create_session_branch_and_records_observability(store):
     runtime = Runtime(call=lambda *_args, **_kwargs: "done", model="session-model")
     session_count = len(store.store.list_sessions())
 
-    @agentic_function
-    def summarize(runtime=None):
-        return llm("summary")
+    class _SummarizeAgent(Agent):
+        method_options = {'summarize': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'summarize'}}
+
+        def summarize(self, runtime=None):
+            return llm("summary")
+
+    summarize = _SummarizeAgent().summarize
 
     assert summarize(runtime=runtime) == "done"
     runtime.close()
@@ -494,9 +536,13 @@ def test_llm_transport_retry_is_not_an_agent_iteration(store, monkeypatch):
     )
     runtime = Runtime(call=call, model="session-model", max_retries=2)
 
-    @agentic_function
-    def retry_once(runtime=None):
-        return llm("retry")
+    class _RetryOnceAgent(Agent):
+        method_options = {'retry_once': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'retry_once'}}
+
+        def retry_once(self, runtime=None):
+            return llm("retry")
+
+    retry_once = _RetryOnceAgent().retry_once
 
     assert retry_once(runtime=runtime) == "done"
     runtime.close()

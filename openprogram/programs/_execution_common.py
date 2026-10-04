@@ -1,4 +1,4 @@
-"""Shared tool-execution wrappers used by ``@function`` and ``@agentic_function``.
+"""Shared tool-execution wrappers used by ``@function`` and Agent methods.
 
 Lives under ``programs/`` so ``agentic_programming`` can import it without
 ``programs`` depending on the agentic package (avoids the cycle).
@@ -17,18 +17,18 @@ What stays local, and why
 * Job-budget overlay (``current_job_operation_timeout``), LLM-clamped
   ``timeout_min``/``timeout_max``, ``on_update`` tail buffer, and
   ``Exception → is_error AgentToolResult`` live only on ``@function``.
-  ``@agentic_function`` has none of these.
+  Agent methods have none of these.
 * Cancel delivery differs: ``@function`` injects an ``asyncio.Event``
-  kwarg; ``@agentic_function`` binds ``_current_cancel``. Same Event
+  kwarg; Agent methods bind ``_current_cancel``. Same Event
   object, two plumbing paths — do not unify.
 * ``CancelledError → status=cancelled`` DAG write lives only in
-  ``@agentic_function``'s sync/async wrappers. ``@function`` has no
+  Agent methods sync/async wrappers. ``@function`` has no
   DAG node; it re-raises ``asyncio.CancelledError``.
-* On timeout, ``@agentic_function`` also ``cancel.set()`` and patches
+* On timeout, Agent methods also call ``cancel.set()`` and update
   the DAG node. ``@function`` only returns an is_error result (plus
   job ``reason_code``). Those side effects stay on the agentic side.
 * No-timeout sync invoke: ``@function`` always uses an executor;
-  ``@agentic_function`` still runs on the event-loop thread. Pass
+  Agent methods still run on the event-loop thread. Pass
   ``run_sync_in_executor=`` to preserve each.
 """
 from __future__ import annotations
@@ -331,7 +331,7 @@ async def invoke_callable(
     Sync callables run in a worker thread with the current Context copied
     across when ``run_sync_in_executor`` is true *or* a timeout is set
     (``wait_for`` cannot interrupt a blocking loop thread). The
-    ``@agentic_function`` no-timeout path passes ``run_sync_in_executor=False``
+    Agent methods no-timeout path passes ``run_sync_in_executor=False``
     so the body still runs on the event-loop thread.
 
     Raises ``asyncio.TimeoutError`` and ``asyncio.CancelledError``

@@ -194,7 +194,7 @@ def _entity_paths() -> dict[str, Path]:
                 if callables.get(relative):
                     entities.setdefault(relative, source)
 
-    for source_path, rows in _registered_agentic_callables().items():
+    for source_path, rows in _registered_agent_methods().items():
         if len(rows) == 1:
             entities.setdefault(source_path, rows[0]["source"])
         else:
@@ -251,7 +251,7 @@ def _agentic_entry_name(relative: str) -> str | None:
     """Registered Agentic function for this catalog path, if any."""
     if not relative.startswith("workflow/"):
         return None
-    for source_path, rows in _registered_agentic_callables().items():
+    for source_path, rows in _registered_agent_methods().items():
         if relative == source_path:
             if len(rows) == 1:
                 return rows[0]["name"]
@@ -269,7 +269,7 @@ def _analysis_entry_name(relative: str) -> str | None:
     if registered:
         return registered
     parent = Path(relative).parent.as_posix()
-    if parent in _registered_agentic_callables():
+    if parent in _registered_agent_methods():
         return None
     if relative.startswith("workflow/"):
         return Path(relative).stem
@@ -282,7 +282,7 @@ def _logic_program_kind(relative: str) -> str | None:
     parent = Path(relative).parent.as_posix()
     if (
         relative.startswith("workflow/")
-        and parent in _registered_agentic_callables()
+        and parent in _registered_agent_methods()
         and _agentic_entry_name(relative) is None
     ):
         return None
@@ -312,7 +312,7 @@ def _registered_vanilla_callables() -> dict[str, list[dict[str, str]]]:
 
     indexed: dict[str, list[dict[str, str]]] = {}
     for tool in agent_tools(toolset="full", include_disabled=True):
-        if getattr(tool, "_is_agentic", False) or getattr(tool, "_mcp_server", None):
+        if getattr(tool, "_is_agent_method", False) or getattr(tool, "_mcp_server", None):
             continue
         module = str(getattr(tool, "_source_module", ""))
         if not module.startswith(_VANILLA_MODULE_PREFIX):
@@ -331,13 +331,13 @@ def _registered_vanilla_callables() -> dict[str, list[dict[str, str]]]:
 
 
 @request_memo
-def _registered_agentic_callables() -> dict[str, list[dict]]:
+def _registered_agent_methods() -> dict[str, list[dict]]:
     """Index Agentic Programs by source path, independent of folder depth."""
-    from openprogram.agentic_programming.function import _registry
+    from openprogram.programs._runtime import _registry
 
     indexed: dict[str, list[dict]] = {}
     for name, registered in _registry.copy().items():
-        fn = inspect.unwrap(getattr(registered, "_fn", None) or registered)
+        fn = inspect.unwrap(getattr(registered, "_python_callable", None) or registered)
         module = str(getattr(fn, "__module__", ""))
         if not module.startswith(_AGENTIC_MODULE_PREFIX):
             continue
@@ -385,7 +385,7 @@ def _agentic_entries(
 ) -> list[dict]:
     """List immediate categories, registered functions, or package files."""
     if indexed is None:
-        indexed = _registered_agentic_callables()
+        indexed = _registered_agent_methods()
     if relative in indexed:
         rows = indexed[relative]
         if len(rows) > 1 or _is_workflow_package(relative):
@@ -464,7 +464,7 @@ def _agentic_entries(
 
 def _list_entries(relative: str) -> dict:
     registered_agentic = (
-        _registered_agentic_callables()
+        _registered_agent_methods()
         if relative.startswith("workflow/")
         else {}
     )
@@ -705,7 +705,7 @@ def _package_symbol_index(
     entities: dict[str, Path],
 ) -> dict[tuple[str, str], str]:
     """Map ``(package path, top-level name)`` to the entity that defines it."""
-    registered = _registered_agentic_callables()
+    registered = _registered_agent_methods()
     index: dict[tuple[str, str], str] = {}
     for path, source in entities.items():
         if not path.startswith("workflow/"):
@@ -740,7 +740,7 @@ def _resolve_package_import(
     specific = symbols.get((target, attr))
     if specific:
         return specific
-    registered = _registered_agentic_callables()
+    registered = _registered_agent_methods()
     if target not in registered:
         return target
     if attr == _agentic_entry_name(target):
@@ -765,7 +765,7 @@ def _direct_calls(
         reverse=True,
     )
     # Published workflows have import identities independent of catalog folders.
-    for path, rows in _registered_agentic_callables().items():
+    for path, rows in _registered_agent_methods().items():
         if path in entities:
             for row in rows:
                 prefixes.extend((
@@ -849,35 +849,49 @@ def _analysis_nodes(
 
     if not entry_name:
         return list(trees), trees, warnings
-    functions = {
-        node.name: node
-        for tree in trees
-        for node in tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-    }
-    entry = functions.get(entry_name)
+    from ..._functions import _program_source_entries
+    functions = {}
+    owners = {}
+    entry = None
+    for tree in trees:
+        for item in tree.body:
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                functions[item.name] = item
+            elif isinstance(item, ast.ClassDef):
+                for method in item.body:
+                    if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        functions[f"{item.name}.{method.name}"] = method
+                        owners[id(method)] = item.name
+        declared = _program_source_entries(ast.unparse(tree))
+        declaration = declared.get(entry_name)
+        if declaration:
+            owner = declaration["owner"]
+            method = declaration["node"].name
+            entry = functions.get(f"{owner}.{method}" if owner else method)
     if entry is None:
-        return list(trees), trees, warnings
+        entry = functions.get(entry_name)
+    if entry is None:
+        warnings.add("entry_not_resolved")
+        return [], trees, warnings
     reachable: list[ast.AST] = []
     pending = deque([entry])
-    seen: set[str] = set()
+    seen: set[int] = set()
     while pending:
         node = pending.popleft()
-        if node.name in seen:
+        if id(node) in seen:
             continue
-        seen.add(node.name)
+        seen.add(id(node))
         reachable.append(node)
         for call in ast.walk(node):
             if not isinstance(call, ast.Call):
                 continue
             func = call.func
-            name = (
-                func.id if isinstance(func, ast.Name)
-                else func.attr if isinstance(func, ast.Attribute)
-                else None
-            )
+            name = func.id if isinstance(func, ast.Name) else None
+            if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                if func.value.id in {"self", "cls"} and id(node) in owners:
+                    name = f"{owners[id(node)]}.{func.attr}"
             helper = functions.get(name) if name else None
-            if helper is not None and helper.name not in seen:
+            if helper is not None and id(helper) not in seen:
                 pending.append(helper)
     return reachable, trees, warnings
 
@@ -1106,13 +1120,11 @@ def _canonical_catalog_path(path: str) -> str:
 
 def _cache_identity() -> tuple:
     from openprogram.programs._runtime import _registry as tools
-    from openprogram.agentic_programming.function import _registry as workflows
     from openprogram.programs._programs import owner_controlled_program_sources
     return (
         tuple(str(root) for root in _catalog_roots()),
         repr(owner_controlled_program_sources()),
         tuple((name, id(tool), getattr(tool, "description", "")) for name, tool in tools.copy().items()),
-        tuple((name, id(fn)) for name, fn in workflows.copy().items()),
     )
 
 

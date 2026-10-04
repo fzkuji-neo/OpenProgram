@@ -737,7 +737,7 @@ async def handle_chat(ws, cmd: dict):
 
     # Local builtin commands execute backend-side. Status/clear return a
     # local reply and stop. A command may instead return one ``invoke``
-    # descriptor: dispatch that registered @agentic_function through the
+    # descriptor: dispatch that registered Agent method through the
     # same forced-call boundary as Programs. /goal uses this path, so the
     # command and form execute the same Goal Workflow rather than separate
     # chat-turn and function loops.
@@ -834,7 +834,7 @@ async def handle_chat(ws, cmd: dict):
                     }))
                     return
                 from openprogram.webui.routes.chat import (
-                    run_agentic_function_call,
+                    run_agent_method_call,
                 )
                 _run_options = {}
                 if _validated_surface:
@@ -842,7 +842,7 @@ async def handle_chat(ws, cmd: dict):
                         "window_id"
                     ]
                     _run_options["surface_ref"] = _validated_surface
-                _run = run_agentic_function_call(
+                _run = run_agent_method_call(
                     _name, _kwargs, session_id, **_run_options,
                 )
                 if "error" in _run:
@@ -1402,7 +1402,7 @@ async def handle_retry_function(ws, cmd: dict):
     Branches panel. Old messages are never stripped.
     """
     from openprogram.webui import server as _s
-    from openprogram.webui.routes.chat import run_agentic_function_call
+    from openprogram.webui.routes.chat import run_agent_method_call
 
     session_id = cmd.get("session_id")
     func_name = cmd.get("function")
@@ -1503,7 +1503,7 @@ async def handle_retry_function(ws, cmd: dict):
         options["origin_window_id"] = origin_window_id
     if surface_ref:
         options["surface_ref"] = surface_ref
-    result = run_agentic_function_call(
+    result = run_agent_method_call(
         func_name, kwargs, session_id, **options,
     )
     if "error" in result:
@@ -1513,7 +1513,7 @@ async def handle_retry_function(ws, cmd: dict):
         "type": "chat_ack",
         # ``function_run`` tells the frontend this ack is a function
         # dispatch whose top-level card was PRE-CREATED on disk at dispatch
-        # time (run_agentic_function_call), so it can hydrate the transcript
+        # time (run_agent_method_call), so it can hydrate the transcript
         # immediately instead of waiting for the first tree_update (~1.85s
         # after the spawned child's import finishes). See wsHandleChatAck.
         "data": {"session_id": result.get("session_id", session_id),

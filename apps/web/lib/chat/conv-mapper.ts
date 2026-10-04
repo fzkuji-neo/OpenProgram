@@ -246,7 +246,7 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
       return;
     }
 
-    // LLM-issued @agentic_function runtime-block placeholder: only `caller`
+    // LLM-issued Agent method runtime-block placeholder: only `caller`
     // expresses ownership. `predecessor` is the conversation-order edge, so
     // a direct run may legitimately follow an assistant while staying top-level.
     if (_isRuntimePlaceholder && m.role === "assistant") {

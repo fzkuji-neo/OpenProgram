@@ -33,7 +33,7 @@ def _run_planner_turn(
 def _function_catalog(functions: dict[str, Callable]) -> str:
     rows = []
     for name, function in sorted(functions.items()):
-        inner = getattr(function, "_fn", function)
+        inner = function
         module = str(getattr(inner, "__module__", "") or "")
         if module.startswith("openprogram.programs.workflow."):
             rows.append(f"- from {module} import {name}")

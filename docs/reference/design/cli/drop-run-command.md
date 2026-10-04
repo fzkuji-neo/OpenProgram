@@ -1,6 +1,6 @@
-# Unified `@agentic_function` Execution Path
+# Unified `Agent` method Execution Path
 
-There is one execution path for `@agentic_function` calls. Whether the user
+There is one execution path for `Agent` method calls. Whether the user
 triggers a function from the UI or the model selects it as a tool, execution
 lands in the same runtime-block wrapper.
 
@@ -12,7 +12,7 @@ Web UI
     openprogram.webui.routes.chat.post_function
       dispatcher.dispatch_forced_tool_call(...)
         dispatcher._wrap_agentic_runtime_block(...)
-          @agentic_function wrapper
+          Agent method wrapper
             runtime.exec(...)
 ```
 

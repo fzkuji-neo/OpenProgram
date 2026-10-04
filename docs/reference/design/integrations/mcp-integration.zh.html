@@ -8,7 +8,7 @@ server 如何配置与连接，以及 MCP 工具如何到达 LLM。
 关联代码：<code>openprogram/mcp/</code>。</p>
 </blockquote>
 <h2>一句话概括</h2>
-<p>把外部 MCP server 提供的工具注册成框架内的 <code>AgentTool</code>,LLM 调它跟调本地 <code>@function</code>/<code>@agentic_function</code> 完全一样。worker 启动时 spawn 配置文件里所有 enabled server 子进程,通过 stdio 跑 JSON-RPC,把它们的 <code>tools/list</code> 包装好挂进 <code>_registry</code>。</p>
+<p>把外部 MCP server 提供的工具注册成框架内的 <code>AgentTool</code>,LLM 调它跟调本地 <code>@function</code>/<code>Agent method</code> 完全一样。worker 启动时 spawn 配置文件里所有 enabled server 子进程,通过 stdio 跑 JSON-RPC,把它们的 <code>tools/list</code> 包装好挂进 <code>_registry</code>。</p>
 <h2>角色 — 我们做 client,不做 server</h2>
 <p>MCP 是协议,定义&quot;工具的提供方&quot;(server)和&quot;工具的消费方&quot;(client)。</p>
 <table>
@@ -37,7 +37,7 @@ server 如何配置与连接，以及 MCP 工具如何到达 LLM。
 <p><code>openprogram/mcp/</code> 是 <strong>top-level module</strong>,跟 <code>openprogram/channels/</code> 平级。<strong>不</strong>放在 <code>openprogram/programs/</code> 下。</p>
 <p>理由:</p>
 <ul>
-<li>MCP 是<strong>外部协议适配器层</strong>,跟&quot;function 的实现&quot;是两件事。我们的 function 体系(<code>@function</code> / <code>@agentic_function</code> / <code>agentics/</code> 下的代码)是本地实现的工具;MCP 是从外部进程取来的工具。两层概念正交。</li>
+<li>MCP 是<strong>外部协议适配器层</strong>,跟&quot;function 的实现&quot;是两件事。我们的 function 体系(<code>@function</code> / <code>Agent method</code> / <code>agentics/</code> 下的代码)是本地实现的工具;MCP 是从外部进程取来的工具。两层概念正交。</li>
 <li>opencode (<code>src/mcp/</code>) 和 Claude Code (<code>src/services/mcp/</code>) 都把 MCP 当独立 module,跟本地 tool 实现完全分开。</li>
 <li>我们项目里 <code>channels/</code>(消息渠道)就是已有的&quot;外部协议适配器&quot;先例 —— 它把外部消息源接进来。MCP 也是接外部东西,只是接的是工具源,<strong>位置应该跟 channels 一致</strong>。</li>
 </ul>
@@ -127,11 +127,11 @@ server 如何配置与连接，以及 MCP 工具如何到达 LLM。
 </code></pre>
 <p>四个文件每个一职责:配置、单连接、翻译、管理。</p>
 <h2>调用路径 — 只有 LLM 自动调用一条</h2>
-<pre><code>你在 webui 输入 &quot;画个流程图&quot;
+<pre><code>你在 webui 输入 "画个流程图"
   ↓
 worker → agent_loop → 调 LLM API,带上所有工具(本地 + MCP)
   ↓
-LLM 决策,输出 tool_call(name=&quot;drawio__open_drawio_xml&quot;, args={...})
+LLM 决策,输出 tool_call(name="drawio__open_drawio_xml", args={...})
   ↓
 agent_loop 在 _registry 查到 AgentTool,await execute(args)
   ↓ execute 是 adapter.register_remote_tool 里建的 closure
@@ -145,7 +145,7 @@ adapter.convert_call_result 把 MCP content blocks 转成 AgentToolResult
   ↓
 agent_loop 把结果塞进 chat history,再调一次 LLM
   ↓
-LLM 看到工具结果,生成最终文本回复 &quot;画好了&quot;
+LLM 看到工具结果,生成最终文本回复 "画好了"
   ↓
 webui 显示
 </code></pre>

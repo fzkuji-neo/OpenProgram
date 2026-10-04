@@ -15,7 +15,7 @@ import math
 from typing import Optional
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.function import _current_runtime, check_cancelled
+from openprogram.agentic_programming.call_state import _current_runtime, check_cancelled
 from openprogram.agentic_programming.runtime import Runtime
 from .._paths import expanded_project_dir, read_artifact, write_artifact
 from openprogram.programs.workflow.json_parsing import parse_json

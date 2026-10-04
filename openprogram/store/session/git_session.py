@@ -170,7 +170,7 @@ class GitSession:
         self._lock = threading.Lock()
         self._initialized: Optional[bool] = None
         # Disk fingerprint as of the last moment THIS process knew memory
-        # and disk agreed (rebuild or own write). @agentic_function runs
+        # and disk agreed (rebuild or own write). Agent method runs
         # execute in a fork()'d subprocess that appends history and moves
         # HEAD on disk directly — the parent's cached SessionMemoryIndex
         # can't see that. SessionStore._open compares this against

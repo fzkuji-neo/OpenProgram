@@ -20,7 +20,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from openprogram.agentic_programming.function import (
+from openprogram.agentic_programming.call_state import (
     CancelledError,
     add_pre_invocation_hook,
     set_cancellation_check,
@@ -1283,11 +1283,11 @@ def mark_execution_terminal(
         return True
 
 
-def admit_child_execution(session_id: str, parent_execution_id: str) -> None:
+def admit_child_execution(session_id: str, parent_execution_id: str, *, store=None) -> None:
     """Refuse spawn when any ancestor is cancelling or cancelled."""
     from openprogram.agent.session_db import default_db
 
-    store = default_db()
+    store = default_db() if store is None else store
     current: str | None = parent_execution_id
     seen: set[str] = set()
     while current and current not in seen:
@@ -1310,10 +1310,12 @@ def admit_child_execution(session_id: str, parent_execution_id: str) -> None:
 def child_execution_admission(
     session_id: str,
     parent_execution_id: str,
+    *,
+    store=None,
 ):
     """Hold admission through the child's durable entry write."""
     with _execution_cancel_lock:
-        admit_child_execution(session_id, parent_execution_id)
+        admit_child_execution(session_id, parent_execution_id, store=store)
         yield
 
 
@@ -1761,7 +1763,7 @@ def _active_token() -> "CancellationToken | None":
 def _cancel_hook() -> None:
     """Pre-invocation hook: raise CancelledError if this turn was stopped.
 
-    Registered with agentic_function's hook list, so every @agentic_function
+    Registered with Agent method execution hook list, so every Agent method
     entry (and every Runtime.exec call) aborts once the turn is cancelled.
     """
     if _worker_stopping.is_set():
@@ -1775,10 +1777,10 @@ def _cancel_hook() -> None:
 def check_cancelled() -> None:
     """Public cancel checkpoint usable from inside long-running tool code.
 
-    Same semantics as ``_cancel_hook`` but exported so non-@agentic_function
+    Same semantics as ``_cancel_hook`` but exported so ordinary function
     code paths (e.g. GUI-Agent observe / OCR / detector pipelines) can yield
     to the stop signal between heavy synchronous stages without waiting for
-    the next @agentic_function boundary. Safe no-op when no turn is bound
+    the next Agent method boundary. Safe no-op when no turn is bound
     (e.g. CLI / unit test contexts).
     """
     _cancel_hook()

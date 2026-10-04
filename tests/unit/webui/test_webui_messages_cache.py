@@ -231,16 +231,16 @@ def test_deepest_leaf_db_finds_subtree_tip(server) -> None:
     assert srv._deepest_leaf_db("c1", "missing") is None
 
 
-def test_agentic_function_result_persists_via_append_msg(server) -> None:
+def test_agent_method_result_persists_via_append_msg(server) -> None:
     """The webui "run" action ends by calling _append_msg with the
-    @agentic_function's return value as an assistant message. After
+    Agent method's return value as an assistant message. After
     task #17 that single _append_msg writes through to SessionDB,
     so a fresh worker can hydrate the run result without depending
     on _save_conversation having flushed."""
     srv, db = server
     conv = srv._get_or_create_session("c1", agent_id="main")
     # Simulate run action: the assistant result. fn-form no longer
-    # writes a user-side anchor row — the @agentic_function's code node
+    # writes a user-side anchor row — the Agent method's code node
     # (predecessor=ROOT) is the canonical record, so the only _append_msg
     # here is the assistant result.
     srv._append_msg(conv, {

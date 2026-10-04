@@ -17,7 +17,7 @@ Edges (dag/overview.md §3 — two edges, never conflated):
                      sentinel; spawn branch roots carry None.
   - ``caller``       sub-call nesting: who invoked me to execute.
                      ``"ROOT"`` or ``""`` on chain-level turns; only a
-                     node inside an @agentic_function's execution
+                     node inside an Agent method's execution
                      subtree names another call.
   - ``reads``        context edges. For LLM calls: the prior nodes
                      whose content shaped this prompt. Stored as a
@@ -242,7 +242,7 @@ class Graph:
         return node
 
     def update(self, node_id: str, **fields: Any) -> Call:
-        """In-place update of an existing node (used at @agentic_function
+        """In-place update of an existing node (used at Agent method
         exit to fill ``output`` / status into the placeholder appended
         at entry). DAG-purists: this is intentional — function-call
         nodes are append-on-entry / fill-on-exit to support real-time
@@ -301,7 +301,7 @@ class Graph:
         result: Any = None,
     ) -> Call:
         # ``caller`` may reference a node id that doesn't yet exist
-        # (parent @agentic_function whose own node is appended after
+        # (parent Agent method whose own node is appended after
         # its children). We don't enforce presence — read-side code does
         # the resolution.
         node = Call(
@@ -646,7 +646,7 @@ def render_context(
         head_seq:         ordering cap — drop candidates with
                           seq > head_seq. Not a selector; membership
                           comes from ``head_id``.
-        frame_entry_seq:  seq value when the current ``@agentic_function``
+        frame_entry_seq:  seq value when the current ``Agent method``
                           started. Nodes with seq > frame_entry_seq are
                           "in-frame" (the function's own sub-calls);
                           nodes with seq <= frame_entry_seq are
@@ -762,7 +762,7 @@ def render_context(
     io_owners: set[str] = set()
     llm_owners: set[str] = set()
     try:
-        from openprogram.agentic_programming.function import default_expose
+        from openprogram.agentic_programming.call_state import default_expose
         _fallback = default_expose()
     except Exception:
         _fallback = "io"

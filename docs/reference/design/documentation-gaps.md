@@ -61,7 +61,7 @@ This file records the divergences between the design docs and the actual code, o
 - **Current state**: the DAG state is complete (the frame node is marked `status="error"`, all child nodes are preserved), `_render_history_messages` loads history from the DAG, and the infrastructure is in place.
 - **Plan**: provide a `resume_function(session_id, node_id)` entry point — set the frame node's status back to `running`, re-call `runtime.exec` with the same frame_node_id, and the DAG history is automatically reconnected. Add a "retry" button in the webui to trigger it.
 - **Core change**: needs a "re-entry" entry point + restoring the contextvars (_call_id, etc.) + rebuilding the runtime/agent context.
-- **Location**: `openprogram/agentic_programming/function.py` (the wrapper layer), `openprogram/agentic_programming/runtime.py` (the exec layer).
+- **Location**: `openprogram/agentic_programming/call_state.py` (the wrapper layer), `openprogram/agentic_programming/runtime.py` (the exec layer).
 
 ### 8. Bash tool file-modification tracking
 - Known limitation: it currently only scans the top-level files of the cwd, subdirectory changes are not covered (to be changed to a recursive scan later).

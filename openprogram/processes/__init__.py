@@ -15,7 +15,7 @@ from .store import ACTIVE, ProcessStore, public_record
 
 def current_owner():
     from openprogram.agent.run_control import get_current_execution_id, get_current_session_id
-    from openprogram.agentic_programming.function import current_call_id
+    from openprogram.agentic_programming.call_state import current_call_id
     session_id = get_current_session_id()
     execution_id = get_current_execution_id()
     if not session_id:

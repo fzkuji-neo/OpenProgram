@@ -9,7 +9,7 @@
 - `decision.make(prompt, options)` —— 纯决策,模型不干活、直接挑。
 - `runtime.exec(..., choices=options)` —— 模型先跑一个完整 turn(推理、调工具),收尾才是一个决策。
 
-`decision.make` 需要 runtime 去发模型调用,但 runtime 从 `@agentic_function` 装饰器设好的 `_current_runtime` ContextVar 自动取,所以在 agentic 函数内部调它不用传 runtime;在 agentic 函数外面调才需要显式传 `runtime=`。
+`decision.make` 需要 runtime 去发模型调用,但 runtime 从 `Agent` method 装饰器设好的 `_current_runtime` ContextVar 自动取,所以在 agentic 函数内部调它不用传 runtime;在 agentic 函数外面调才需要显式传 `runtime=`。
 
 ## 和原生 tool call 的区别
 
@@ -25,18 +25,25 @@
 
 ## 入口一:`decision.make` —— 纯决策
 
-`@agentic_function` 里调一次 `decision.make`,不传 runtime、不写任何 `if`:
+`Agent` method 里调一次 `decision.make`,不传 runtime、不写任何 `if`:
 
 ```python
-from openprogram.agentic_programming import agentic_function, decision
+from openprogram import Agent, decision
 
-@agentic_function
-def route_message(msg: str) -> str:
-    return decision.make("挑一个方式处理这条消息。", {
-        "analyze":  analyze_sentiment,        # 一个函数
-        "fallback": fallback_reply,           # 一个函数
-        "done":     "CONVERSATION_OVER",      # 一个值
-    })
+class ExampleAgent(Agent):
+    method_options = {
+        'route_message': {'tool': True},
+    }
+
+    def route_message(self, msg: str) -> str:
+        return decision.make("挑一个方式处理这条消息。", {
+            "analyze":  analyze_sentiment,        # 一个函数
+            "fallback": fallback_reply,           # 一个函数
+            "done":     "CONVERSATION_OVER",      # 一个值
+        })
+
+_example_agent = ExampleAgent()
+route_message = _example_agent.route_message
 ```
 
 `decision.make` 渲染菜单、调模型、解析回复,然后**把选择直接解析成下一步的结果**:
@@ -51,18 +58,27 @@ def route_message(msg: str) -> str:
 更常见的需求是:模型先跑一个完整 turn(推理、调工具、该干什么干什么),**收尾时**的 return 才是一个决策。用 `exec` 的 `choices=` 参数:
 
 ```python
-@agentic_function
-def handle_ticket(ticket: str) -> dict:
-    """读工单、查资料、然后决定派给哪个流程。"""
-    return runtime.exec(
-        f"处理这个工单:{ticket}",
-        toolset="default",          # 前面:模型用工具查资料、跑命令
-        choices={                   # 收尾:return 必须是这里选一个
-            "refund":    issue_refund,
-            "escalate":  escalate_to_human,
-            "close":     {"status": "closed"},
-        },
-    )
+from openprogram import Agent
+
+class ExampleAgent(Agent):
+    method_options = {
+        'handle_ticket': {'tool': True},
+    }
+
+    def handle_ticket(self, ticket: str) -> dict:
+        """读工单、查资料、然后决定派给哪个流程。"""
+        return runtime.exec(
+            f"处理这个工单:{ticket}",
+            toolset="default",          # 前面:模型用工具查资料、跑命令
+            choices={                   # 收尾:return 必须是这里选一个
+                "refund":    issue_refund,
+                "escalate":  escalate_to_human,
+                "close":     {"status": "closed"},
+            },
+        )
+
+_example_agent = ExampleAgent()
+handle_ticket = _example_agent.handle_ticket
 ```
 
 `exec(choices=...)` 做的事:把选项菜单和一句"先干活、最后用 JSON 挑一个收尾"的指令(`DECISION_FINISH_INSTRUCTION`)拼进 prompt,然后跑正常的 exec turn——`tools` / `toolset` 给的工具该调调、模型该推理推理。turn 结束时模型的最终回复必须是一个 `{"call": ...}` JSON,`exec` 用 `resolve_decision` 把它解析掉:选了函数就执行返回结果,选了值就返回值。
@@ -142,4 +158,4 @@ schema 是 `{字段名: 字段类型}`,字段类型可以**递归嵌套**,这样
 
 ## 与 tool call 循环的关系
 
-这套机制和 `tool-calling.md` 里 `agent_loop.py` 的 tool call 循环不冲突,是并列的两种"让模型选下一步"的实现。`@agentic_function` 既可以作为 `exec(tools=[...])` 的原生工具,也可以作为决策选项——同一个函数,两套调用路径。选哪套取决于:要不要依赖 provider tool use、要不要"选项是个值而不是函数"、要不要把每次决策和重试都作为可追溯的 DAG 节点。
+这套机制和 `tool-calling.md` 里 `agent_loop.py` 的 tool call 循环不冲突,是并列的两种"让模型选下一步"的实现。`Agent` method 既可以作为 `exec(tools=[...])` 的原生工具,也可以作为决策选项——同一个函数,两套调用路径。选哪套取决于:要不要依赖 provider tool use、要不要"选项是个值而不是函数"、要不要把每次决策和重试都作为可追溯的 DAG 节点。

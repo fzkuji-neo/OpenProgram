@@ -19,7 +19,7 @@ from typing import Any, Mapping
 from urllib.parse import urlparse
 
 from openprogram.agentic_programming import agent
-from openprogram.agentic_programming.function import CancelledError
+from openprogram.agentic_programming.call_state import CancelledError
 from openprogram.programs import ToolReturn
 from openprogram.programs._runtime import function
 from openprogram.providers.utils.errors import ExecInterrupt

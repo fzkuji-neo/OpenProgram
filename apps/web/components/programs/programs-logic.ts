@@ -1,4 +1,4 @@
-export type ProgramKind = "vanilla_function" | "agentic_function" | "workflow" | "runtime_primitive";
+export type ProgramKind = "vanilla_function" | "agent_method" | "workflow" | "runtime_primitive";
 
 export type LogicNode = {
   id: string;

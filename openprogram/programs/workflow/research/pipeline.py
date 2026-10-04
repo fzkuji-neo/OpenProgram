@@ -31,7 +31,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from openprogram.agentic_programming.function import _current_runtime, check_cancelled
+from openprogram.agentic_programming.call_state import _current_runtime, check_cancelled
 from openprogram.agentic_programming.runtime import Runtime
 from ._paths import expanded_project_dir, read_artifact, write_artifact
 

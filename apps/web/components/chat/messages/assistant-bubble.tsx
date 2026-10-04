@@ -189,7 +189,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
   const AGENTIC_TOOL_NAMES = new Set(["gui_agent", "research_agent", "wiki_agent"]);
   // Agentic runtime cards are matched to their call site by ORDER, not
   // by id: `_wrap_agentic_runtime_block` persists no placeholder row —
-  // the canonical record is the @agentic_function's own DAG code node,
+  // the canonical record is the Agent method's own DAG code node,
   // whose id is a graph node id carrying no back-reference to the LLM's
   // `tool_call_id`. Both sides are single-turn sequences built in
   // execution order (blocks by `chat-stream`/`conv-mapper` in emit

@@ -2,7 +2,7 @@
 
 Proves the backend half of "drop a harness in → it's usable":
   * fingerprint changes when a harness dir appears
-  * rescan() imports it and the registry gains its @agentic_function
+  * rescan() imports it and the registry gains its Agent method
   * a second rescan reports nothing new (idempotent)
 
 Runs offline in a temp dir; never touches the real applications/ or state.
@@ -31,25 +31,30 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 
 
 def _make_harness(applications: Path, repo: str, pkg: str, fn: str) -> None:
-    p = applications / repo / pkg / "applications"
+    p = applications / repo / pkg / "agentics"
     p.mkdir(parents=True)
     (applications / repo / pkg / "__init__.py").write_text("", encoding="utf-8")
     (p / "__init__.py").write_text(textwrap.dedent(f'''
-        from openprogram.agentic_programming.function import agentic_function
-        @agentic_function(name="{fn}")
-        def {fn}(x: str = "") -> str:
-            "auto-detected harness fn"
-            return x
-        AGENTIC_FUNCTIONS = [{fn}]
+        from openprogram import Agent
+        class Harness(Agent):
+            method_options = {{"{fn}": {{"tool": True, "name": "{fn}"}}}}
+            def {fn}(self, x: str = "") -> str:
+                "Auto-detected harness method."
+                return x
+        harness = Harness()
+        {fn} = harness.{fn}
+        PROGRAM_ENTRIES = [{fn}]
     ''').lstrip(), encoding="utf-8")
 
 
 def main() -> int:
+    base = Path(tempfile.mkdtemp(prefix="op_watch_"))
+    original_home = os.environ.get("HOME")
+    os.environ["HOME"] = str(base)
     from openprogram.programs import watcher as W
     from openprogram.programs._registry import rescan
     from openprogram.programs._runtime import get as get_tool
-
-    base = Path(tempfile.mkdtemp(prefix="op_watch_"))
+    from openprogram.programs._programs import record_program_source
     applications = base / "applications"
     applications.mkdir()
     try:
@@ -61,6 +66,8 @@ def main() -> int:
 
         # "install" a harness as a real directory
         _make_harness(applications, "Watched-Harness", "watched_pkg", "watched_fn")
+        record_program_source(applications / "Watched-Harness", source="smoke-test",
+                              kind="local", base=str(applications))
 
         # fingerprint must change (this is what wakes the watcher)
         fp1 = W._fingerprint(str(applications))
@@ -71,7 +78,7 @@ def main() -> int:
         result = rescan(str(applications))
         check("rescan reports the new fn as added",
               "watched_fn" in result.get("added", []), str(result.get("added")))
-        check("new @agentic_function is live in the registry",
+        check("new Agent method is live in the registry",
               get_tool("watched_fn") is not None, "watched_fn registered")
 
         # second rescan is idempotent — nothing new
@@ -84,6 +91,10 @@ def main() -> int:
                 sys.path.remove(p)
         for m in [m for m in sys.modules if m.startswith("watched_pkg")]:
             del sys.modules[m]
+        if original_home is None:
+            os.environ.pop("HOME", None)
+        else:
+            os.environ["HOME"] = original_home
         shutil.rmtree(base, ignore_errors=True)
         print("# cleaned up")
 

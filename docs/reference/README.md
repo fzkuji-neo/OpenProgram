@@ -9,7 +9,7 @@ Look up Python APIs, CLI commands and configuration here. Use the product guides
 ## Python API
 
 - [API overview](API.md): core components and imports.
-- [Functions](api/agentic-function.md): decorator parameters, metadata and execution behavior.
+- [Functions](api/agent.md): decorator parameters, metadata and execution behavior.
 - [Runtime](api/runtime.md): model requests and runtime contracts.
 - [Providers](api/providers.md): runtime creation and provider interfaces.
 

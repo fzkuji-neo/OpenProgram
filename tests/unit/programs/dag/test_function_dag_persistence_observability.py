@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+from openprogram.agentic_programming import Agent
+
 import asyncio
 import logging
 
 import pytest
 
-from openprogram.agentic_programming.function import (
+from openprogram.agentic_programming.call_state import (
     _call_id,
     _current_runtime,
-    agentic_function,
+
     traced,
 )
 from openprogram.agentic_programming.runtime import Runtime
@@ -61,11 +63,15 @@ def test_entry_failure_is_logged_without_changing_sync_result(
     runtime: Runtime,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    @agentic_function
-    def work(runtime=None):
-        return "ok"
+    class _WorkAgent(Agent):
+        method_options = {'work': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'work'}}
 
-    with caplog.at_level(logging.WARNING, logger="openprogram.agentic_programming.function"):
+        def work(self, runtime=None):
+            return "ok"
+
+    work = _WorkAgent().work
+
+    with caplog.at_level(logging.WARNING, logger="openprogram.agentic_programming.call_state"):
         result = _run_with_store(
             _FailingStore(fail_append=True),
             lambda: work(runtime=runtime),
@@ -83,11 +89,15 @@ def test_exit_failure_is_logged_without_changing_async_result(
     runtime: Runtime,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    @agentic_function
-    async def work(runtime=None):
-        return "ok"
+    class _WorkAgent(Agent):
+        method_options = {'work': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'work'}}
 
-    with caplog.at_level(logging.WARNING, logger="openprogram.agentic_programming.function"):
+        async def work(self, runtime=None):
+            return "ok"
+
+    work = _WorkAgent().work
+
+    with caplog.at_level(logging.WARNING, logger="openprogram.agentic_programming.call_state"):
         result = _run_with_store(
             _FailingStore(fail_update=True),
             lambda: asyncio.run(work(runtime=runtime)),
@@ -104,9 +114,13 @@ def test_exit_failure_is_logged_without_changing_async_result(
 def test_exit_persistence_failure_does_not_replace_function_error(
     runtime: Runtime,
 ) -> None:
-    @agentic_function
-    def work(runtime=None):
-        raise ValueError("function error")
+    class _WorkAgent(Agent):
+        method_options = {'work': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'work'}}
+
+        def work(self, runtime=None):
+            raise ValueError("function error")
+
+    work = _WorkAgent().work
 
     with pytest.raises(ValueError, match="function error"):
         _run_with_store(
@@ -122,7 +136,7 @@ def test_traced_uses_the_same_persistence_diagnostic(
     def work():
         return "ok"
 
-    with caplog.at_level(logging.WARNING, logger="openprogram.agentic_programming.function"):
+    with caplog.at_level(logging.WARNING, logger="openprogram.agentic_programming.call_state"):
         result = _run_with_store(_FailingStore(fail_update=True), work)
 
     assert result == "ok"
@@ -133,15 +147,23 @@ def test_hidden_and_no_store_remain_silent(
     runtime: Runtime,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    @agentic_function(expose="hidden")
-    def hidden(runtime=None):
-        return "ok"
+    class _HiddenAgent(Agent):
+        method_options = {'hidden': {'expose': "hidden", 'tool': True, 'capture_io': True, 'name': 'hidden'}}
 
-    @agentic_function
-    def standalone(runtime=None):
-        return "ok"
+        def hidden(self, runtime=None):
+            return "ok"
 
-    with caplog.at_level(logging.WARNING, logger="openprogram.agentic_programming.function"):
+    hidden = _HiddenAgent().hidden
+
+    class _StandaloneAgent(Agent):
+        method_options = {'standalone': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'standalone'}}
+
+        def standalone(self, runtime=None):
+            return "ok"
+
+    standalone = _StandaloneAgent().standalone
+
+    with caplog.at_level(logging.WARNING, logger="openprogram.agentic_programming.call_state"):
         assert _run_with_store(_FailingStore(fail_append=True), lambda: hidden(runtime=runtime)) == "ok"
         assert standalone(runtime=runtime) == "ok"
 
@@ -149,9 +171,13 @@ def test_hidden_and_no_store_remain_silent(
 
 
 def test_persistence_base_exception_is_not_downgraded(runtime: Runtime) -> None:
-    @agentic_function
-    def work(runtime=None):
-        return "unreachable"
+    class _WorkAgent(Agent):
+        method_options = {'work': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'work'}}
+
+        def work(self, runtime=None):
+            return "unreachable"
+
+    work = _WorkAgent().work
 
     with pytest.raises(KeyboardInterrupt):
         _run_with_store(_AbortStore(), lambda: work(runtime=runtime))
@@ -160,9 +186,13 @@ def test_persistence_base_exception_is_not_downgraded(runtime: Runtime) -> None:
 
 
 def test_exit_base_exception_still_restores_agentic_context(runtime: Runtime) -> None:
-    @agentic_function
-    def work(runtime=None):
-        return "ok"
+    class _WorkAgent(Agent):
+        method_options = {'work': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'work'}}
+
+        def work(self, runtime=None):
+            return "ok"
+
+    work = _WorkAgent().work
 
     with pytest.raises(KeyboardInterrupt):
         _run_with_store(_ExitAbortStore(), lambda: work(runtime=runtime))
@@ -201,8 +231,15 @@ def test_owned_runtime_alias_does_not_construct_provider_before_entry_abort(
 
     monkeypatch.setattr("openprogram.providers.registry.create_runtime", create)
     namespace: dict = {}
-    exec(f"def work({parameter}=None):\n    return 'unreachable'", namespace)
-    work = agentic_function(as_tool=False)(namespace["work"])
+    namespace['Agent'] = Agent
+    exec(
+        "class WorkAgent(Agent):\n"
+        "    method_options = {'work': {'tool': False, 'capture_io': True, 'name': 'work'}}\n"
+        f"    def work(self, {parameter}=None):\n"
+        "        return 'unreachable'\n",
+        namespace,
+    )
+    work = namespace['WorkAgent']().work
 
     with pytest.raises(KeyboardInterrupt):
         _run_with_store(_AbortStore(), work)
@@ -222,9 +259,13 @@ def test_close_failure_does_not_replace_persistence_base_exception(
         _BadCloseRuntime,
     )
 
-    @agentic_function(as_tool=False)
-    def work(exec_runtime=None):
-        return "ok"
+    class _WorkAgent(Agent):
+        method_options = {'work': {'tool': False, 'expose': 'io', 'capture_io': True, 'name': 'work'}}
+
+        def work(self, exec_runtime=None):
+            return "ok"
+
+    work = _WorkAgent().work
 
     store = _AbortStore() if phase == "entry" else _ExitAbortStore()
     with pytest.raises(KeyboardInterrupt):

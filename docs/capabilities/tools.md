@@ -127,7 +127,7 @@ Collaboration splits into four domains, one word each — see
 
 | Tool | What it does | Requires |
 |---|---|---|
-| `program` | Invoke any registered `@agentic_function` | Nothing |
+| `program` | Invoke any registered `Agent` method | Nothing |
 | `mixture_of_agents` | Ask N models in parallel, then synthesize; defaults picked from the model registry, one per provider | At least 2 providers in the model registry |
 | `ask_user_question` | Ask the user 1-N questions with options | An interactive frontend; missing input infrastructure, invalid question arrays, and noninteractive contexts return tool errors |
 | `enter_plan_mode` / `exit_plan_mode` | Enter / exit plan mode | Nothing |

@@ -1,18 +1,18 @@
-"""Run @agentic_function tools in an isolated subprocess so the stop
+"""Run Agent method tools in an isolated subprocess so the stop
 button can SIGKILL the entire process group in milliseconds without
 waiting for cooperative cancel points.
 
 Why this exists: the chat-path / forced-tool-call wrapper used to run
 the tool body on the worker's own thread. Canonical execution cancellation
 can mark
-the session cancelled and the @agentic_function pre-invocation hook
+the session cancelled and the Agent method pre-invocation hook
 would eventually raise CancelledError — but only at the *next* hook
 point, which for a gui_agent in the middle of a vision call could be
 800–1500ms away. Users compared this to Claude Code's instant stop
 and asked for the same UX.
 
 Design:
-  - Parent calls ``run_agentic_in_subprocess(...)``.
+  - Parent calls ``run_agent_method_in_subprocess(...)``.
   - We fork (mp.get_context("fork")) so we inherit ContextVars,
     registry state, loaded modules — no re-import latency.
   - Child puts itself in its own process group (``os.setpgrp``) so
@@ -732,7 +732,7 @@ def _child_entry(
     # with this subprocess's actual identity. The snapshot carries the
     # parent's session_id (valuable — keeps attribution to the session that
     # triggered this tool), but the parent's call_kind is typically "chat"
-    # which is wrong for an @agentic_function subprocess. Set it to "exec"
+    # which is wrong for an Agent method subprocess. Set it to "exec"
     # with the tool's name as call_label so metering can distinguish
     # research_agent / gui_agent / wiki_agent etc.
     try:
@@ -856,7 +856,7 @@ def _child_entry(
             _store as _store_var,
             _current_turn_id as _turn_id_var,
         )
-        from openprogram.agentic_programming.function import (
+        from openprogram.agentic_programming.call_state import (
             _current_runtime as _current_runtime_var,
         )
         from openprogram.agent.session_db import default_db
@@ -996,7 +996,7 @@ def _child_entry(
         wrapped = _wrap_agentic_runtime_block(tool, req, _on_event, anchor_msg_id)
 
         import asyncio
-        from openprogram.agentic_programming.function import (
+        from openprogram.agentic_programming.call_state import (
             _render_range_override,
         )
         loop = asyncio.new_event_loop()
@@ -1005,7 +1005,7 @@ def _child_entry(
             # If parent passed its own call_id (LLM-driven path: this is
             # the LLM's tool_call_id), reuse it so the placeholder we
             # write here upserts the same row the parent wrote, and the
-            # nested @agentic_function nodes anchor under the same
+            # nested Agent method nodes anchor under the same
             # runtime_id the parent's build_exec_dag looks up. Without
             # this the subprocess generated ``forced_<random>`` and we
             # ended up with two placeholders for one call — the parent's
@@ -1221,7 +1221,7 @@ def _capture_sandbox_snapshot() -> dict:
     from openprogram.sandbox import policy_snapshot
     return policy_snapshot()
 
-def run_agentic_in_subprocess(
+def run_agent_method_in_subprocess(
     *,
     tool_name: str,
     kwargs: dict,
@@ -1246,7 +1246,7 @@ def run_agentic_in_subprocess(
     original_owner_input=None,
     permission_mode_snapshot: Optional[str] = None,
 ) -> dict:
-    """Run a single @agentic_function tool in a fork()'d subprocess.
+    """Run a single Agent method tool in a fork()'d subprocess.
 
     Blocks until the child exits (normally, via the optional wall-clock
     timeout, or via SIGKILL from ``kill_active_subprocess``). Returns whatever

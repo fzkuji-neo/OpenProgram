@@ -11,7 +11,7 @@ from openprogram.agentic_programming import Agent
 import os
 
 from openprogram.agentic_programming import agent, llm
-from openprogram.agentic_programming.function import _current_runtime
+from openprogram.agentic_programming.call_state import _current_runtime
 from openprogram.agentic_programming.runtime import Runtime
 from .._paths import expanded_project_dir, read_artifact, write_artifact
 

@@ -481,7 +481,7 @@ OpenProgram 内部并存两条范式：
 ```
 范式 A: agentic programming
   Python 主控 → if/else/for/while 控制流
-  @agentic_function 创建 Context 节点
+  Agent method 创建 Context 节点
   Runtime.exec 在被显式调用时才请求 LLM
   入口: 程序员写的 Python 代码
 
@@ -491,7 +491,7 @@ OpenProgram 内部并存两条范式：
   入口: 外部 message
 ```
 
-Channel 挂在范式 B 上。范式 A 同样需要发送：一个 cron 驱动的 `@agentic_function`
+Channel 挂在范式 B 上。范式 A 同样需要发送：一个 cron 驱动的 `Agent` method
 要给用户问好，不需要 adapter 实例、不需要订阅 stream、也不需要绑定 session lifecycle。
 
 OpenClaw 的“统一走 adapter”和 hermes 的 `DeliveryRouter(adapters: dict)`，在单
@@ -503,7 +503,7 @@ daemon 进程模型下都是合理设计——cron scheduler、platform adapter�
 部署场景                                    adapter instance 在哪
 ────────────────────────────────────────────────────────────────
 openprogram worker 跑                        worker 进程里
-用户写 Python 脚本 import @agentic_function  没有
+用户写 Python 脚本 import Agent method  没有
 cron 跑在 worker 外的另一个进程               没有
 Jupyter notebook 实验                        没有
 pytest 测试                                  没有
@@ -514,8 +514,8 @@ pytest 测试                                  没有
 它们下面的实现，这正是两者都走 `_transport` 的原因。
 
 由此有两条推论。将来若改为 async-first 的 base，必须在模块顶层保留同步包装，让
-`@agentic_function` 不必接触 asyncio 也能发送。以及 streaming edit 应当对范式 A 保持
-可达：一个上报中间进展的 `@agentic_function` 应该能持有 `MessageHandle` 自己编辑，
+`Agent` method 不必接触 asyncio 也能发送。以及 streaming edit 应当对范式 A 保持
+可达：一个上报中间进展的 `Agent` method 应该能持有 `MessageHandle` 自己编辑，
 而不是把这个能力绑死在 dispatcher 的 pipeline 上。
 
 ---

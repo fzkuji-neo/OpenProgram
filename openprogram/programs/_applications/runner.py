@@ -93,7 +93,7 @@ def main():
             sys.dont_write_bytecode = True
             sys.path.insert(0, request["root"])
             if "model.invoke" in definition["capabilities"]:
-                from openprogram.agentic_programming.function import _current_runtime
+                from openprogram.agentic_programming.call_state import _current_runtime
                 from openprogram.store import SessionStore, SessionNodeWriter, _store
                 from .catalog import home
                 session_store = SessionStore(root_path=home() / "runs")

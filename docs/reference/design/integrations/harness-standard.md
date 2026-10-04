@@ -15,7 +15,7 @@
 that exposes its functions through `<pkg>/agentics/__init__.py`.** The host
 walks that folder on startup (and, with hot-reload, whenever it changes),
 finds the inner package, imports `<pkg>.agentics`, and the
-`@agentic_function` decorators self-register. Nothing else is required and
+Agent method executions self-register. Nothing else is required and
 no host file is edited.
 
 ```
@@ -23,7 +23,7 @@ no host file is edited.
 └── <pkg>/                         ← importable package; folder name == import name
     ├── __init__.py                ← marks it a package (may re-export niceties)
     └── agentics/
-        └── __init__.py            ← THE ENTRY POINT — exposes AGENTIC_FUNCTIONS
+        └── __init__.py            ← THE ENTRY POINT — exposes PROGRAM_ENTRIES
 ```
 
 If a cloned folder doesn't match this shape, the host **silently ignores
@@ -32,7 +32,7 @@ it** (a non-harness folder must never break the load). So "auto-detect"
 
 ## 1. The entry point: `<pkg>/agentics/__init__.py`
 
-Must define `AGENTIC_FUNCTIONS` — a list of `@agentic_function`-decorated
+Must define `PROGRAM_ENTRIES` — a list of `Agent` method-decorated
 callables. Importing this module fires the decorators, which register the
 functions into the shared tool registry. The list is also the harness's
 declared public surface.
@@ -44,18 +44,18 @@ declared public surface.
 """Entry point for the Foo harness."""
 try:
     from .foo_agent import foo_agent, foo_helper
-    AGENTIC_FUNCTIONS = [foo_agent, foo_helper]
+    PROGRAM_ENTRIES = [foo_agent, foo_helper]
 except Exception:          # missing optional dep, unsupported platform, …
     # The host imports this module during discovery. If the harness can't
     # load on this machine (a heavy dep isn't installed, this OS has no
     # backend, …), expose NOTHING rather than raising — "can run → listed,
     # can't → skipped", per the discovery contract. The host logs the
     # cause under OPENPROGRAM_DEBUG_REGISTRY=1.
-    AGENTIC_FUNCTIONS = []
+    PROGRAM_ENTRIES = []
 ```
 
 Rules:
-- `AGENTIC_FUNCTIONS` **must always be defined** (even if `[]`).
+- `PROGRAM_ENTRIES` **must always be defined** (even if `[]`).
 - The `try/except` is **mandatory** — a harness that can't run on this
   machine must yield `[]`, not propagate an `ImportError`. This is what
   makes "clone anything in, the ones that can run light up, the rest stay
@@ -84,8 +84,13 @@ work dir; Wiki: a vault path; GUI: vision model + platform backend). The
 1. **Per-call parameters first.** Anything that varies per invocation is a
    function argument with a sane default:
    ```python
-   @agentic_function(name="foo_agent")
-   def foo_agent(task: str, max_steps: int = 15, runtime=None) -> dict: ...
+   from openprogram import Agent
+
+   class HarnessAgent(Agent):
+       method_options = {"foo_agent": {"tool": True, "name": "foo_agent"}}
+
+       def foo_agent(self, task: str, max_steps: int = 15, runtime=None) -> dict:
+           ...
    ```
 2. **The runtime is injected, never constructed.** A harness function that
    needs an LLM declares a `runtime` parameter; the host injects the
@@ -135,7 +140,7 @@ work dir; Wiki: a vault path; GUI: vision model + platform backend). The
 - A harness MAY be platform-specific in its own code (GUI harness drives
   the desktop; its macOS / Linux backends differ, and Windows may be
   unimplemented). That's allowed.
-- **Express "unsupported here" as `AGENTIC_FUNCTIONS = []`**, via the §1
+- **Express "unsupported here" as `PROGRAM_ENTRIES = []`**, via the §1
   `try/except` or an explicit `platform.system()` check — never as an
   uncaught `NotImplementedError` at import. Install/registration always
   succeeds; whether a function is *listed* reflects whether it can run on
@@ -159,7 +164,7 @@ work dir; Wiki: a vault path; GUI: vision model + platform backend). The
 
 - [ ] Repo clones into `agentics/<Repo-Name>/`; inside is a package
       `<pkg>/` whose folder name equals its import name.
-- [ ] `<pkg>/agentics/__init__.py` defines `AGENTIC_FUNCTIONS = [...]`.
+- [ ] `<pkg>/agentics/__init__.py` defines `PROGRAM_ENTRIES = [...]`.
 - [ ] That module wraps its imports in `try/except` → `[]` on failure.
 - [ ] Import is cheap: no network / model-download / GUI grab at import.
 - [ ] LLM access via an injected `runtime` parameter, not self-built.
@@ -168,7 +173,7 @@ work dir; Wiki: a vault path; GUI: vision model + platform backend). The
       hardcoded home path.
 - [ ] `openprogram` is NOT a git dependency in `pyproject.toml`.
 - [ ] Own third-party deps declared; heavy/native ones behind an extra.
-- [ ] Platform-unsupported → `AGENTIC_FUNCTIONS = []`, not a crash.
+- [ ] Platform-unsupported → `PROGRAM_ENTRIES = []`, not a crash.
 
 ## Appendix: Implementation Status
 
@@ -177,9 +182,9 @@ The remaining gaps:
 
 | Harness | Conformance | Gap to close |
 |---|---|---|
-| **Wiki** | closest | `agentics/__init__.py`, `AGENTIC_FUNCTIONS`, and the `try/except` are all present. The default vault path still uses the retired `~/.agentic/memory/wiki` and belongs under `get_state_dir()`. |
-| **GUI** | partial | Exposes functions but has no single `<pkg>/agentics/__init__.py` with `AGENTIC_FUNCTIONS`; the decorators are spread across modules, so the entry module still has to be added. Heavy deps are partly behind an extra already. The Windows path must degrade to `[]` rather than crash. |
-| **Research** | non-conforming | Has no `agentics/` sub-package — it uses its own `registry.py`, which the host's auto-discovery cannot see. It needs `research_harness/agentics/__init__.py` exposing `AGENTIC_FUNCTIONS`. |
+| **Wiki** | closest | `agentics/__init__.py`, `PROGRAM_ENTRIES`, and the `try/except` are all present. The default vault path still uses the retired `~/.agentic/memory/wiki` and belongs under `get_state_dir()`. |
+| **GUI** | partial | Exposes functions but has no single `<pkg>/agentics/__init__.py` with `PROGRAM_ENTRIES`; the decorators are spread across modules, so the entry module still has to be added. Heavy deps are partly behind an extra already. The Windows path must degrade to `[]` rather than crash. |
+| **Research** | non-conforming | Has no `agentics/` sub-package — it uses its own `registry.py`, which the host's auto-discovery cannot see. It needs `research_harness/agentics/__init__.py` exposing `PROGRAM_ENTRIES`. |
 
 All three still declare `openprogram @ git+…` as a dependency, which §4
 rules out; removing it is a shared fix.

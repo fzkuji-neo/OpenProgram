@@ -3,7 +3,7 @@ import asyncio
 
 import pytest
 
-from openprogram.agentic_programming import agentic_function
+from openprogram.agentic_programming import Agent
 from openprogram.agent.types import AgentToolResult
 from openprogram.programs._runtime import ToolReturn
 from openprogram.providers.types import TextContent
@@ -19,13 +19,20 @@ def test_failed_function_result_persists_error(tmp_path, monkeypatch, async_body
     outcome = (ToolReturn(text='browser unavailable', is_error=True) if result_type == 'return'
                else AgentToolResult(content=[TextContent(text='browser unavailable')], is_error=True))
 
-    def sync_probe():
-        return outcome
+    class ProbeAgent(Agent):
+        method_options = {
+            'sync_probe': {'tool': True, 'register_globally': False, 'name': 'sync_probe'},
+            'async_probe': {'tool': True, 'register_globally': False, 'name': 'async_probe'},
+        }
 
-    async def async_probe():
-        return outcome
+        def sync_probe(self):
+            return outcome
 
-    probe = agentic_function(register_globally=False)(async_probe if async_body else sync_probe)
+        async def async_probe(self):
+            return outcome
+
+    instance = ProbeAgent()
+    probe = instance.async_probe if async_body else instance.sync_probe
     token = _store.set(SessionNodeWriter(db, 's'))
     try:
         returned = asyncio.run(probe()) if async_body else probe()

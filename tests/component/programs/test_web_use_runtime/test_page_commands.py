@@ -1,4 +1,5 @@
 """web use page commands tests."""
+
 from __future__ import annotations
 from ._support import (
     SimpleNamespace,
@@ -17,9 +18,14 @@ def test_list_pages_returns_group_aware_snapshot_with_page_tokens():
     )
 
     registry = WebUseSessionRegistry(
-        adapters={name: _Adapter(name) for name in (
-            "playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome",
-        )},
+        adapters={
+            name: _Adapter(name)
+            for name in (
+                "playwright_mcp",
+                "chrome_devtools_mcp",
+                "open_claude_chrome",
+            )
+        },
         binding_validator=_allow_binding,
     )
     context = {
@@ -29,27 +35,53 @@ def test_list_pages_returns_group_aware_snapshot_with_page_tokens():
         "inventory_revision": 9,
         "active_tab_entry_id": "group:g3",
         "focused_page": "p4",
-        "tab_entries": [{
-            "id": "group:g3", "mode": "split", "pages": ["p3", "p4"],
-            "split": {
-                "axis": "horizontal", "ratio": 0.5,
-                "panes": [
-                    {"pane_id": "pane:g3:0", "order": 0, "page": "p3"},
-                    {"pane_id": "pane:g3:1", "order": 1, "page": "p4"},
+        "tab_entries": [
+            {
+                "id": "group:g3",
+                "mode": "split",
+                "pages": ["p3", "p4"],
+                "split": {
+                    "axis": "horizontal",
+                    "ratio": 0.5,
+                    "panes": [
+                        {"pane_id": "pane:g3:0", "order": 0, "page": "p3"},
+                        {"pane_id": "pane:g3:1", "order": 1, "page": "p4"},
+                    ],
+                },
+            }
+        ],
+        "windows": [
+            {
+                "window_id": "window-1",
+                "inventory_revision": 9,
+                "active_tab_entry_id": "group:g3",
+                "focused_page": "p4",
+                "tab_entries": [
+                    {
+                        "id": "group:g3",
+                        "mode": "split",
+                        "pages": ["p3", "p4"],
+                    }
                 ],
-            },
-        }],
-        "windows": [{
-            "window_id": "window-1", "inventory_revision": 9,
-            "active_tab_entry_id": "group:g3", "focused_page": "p4",
-            "tab_entries": [{
-                "id": "group:g3", "mode": "split", "pages": ["p3", "p4"],
-            }],
-            "pages": ["p3", "p4"],
-        }],
+                "pages": ["p3", "p4"],
+            }
+        ],
         "surfaces": [
-            {"surface_key": "p3", "window_id": "window-1", "binding_id": "binding-3", "tab_entry_id": "group:g3", "placement": {"mode": "split", "pane_id": "pane:g3:0", "order": 0}},
-            {"surface_key": "p4", "window_id": "window-1", "binding_id": "binding-4", "tab_entry_id": "group:g3", "placement": {"mode": "split", "pane_id": "pane:g3:1", "order": 1}, "focused": True},
+            {
+                "surface_key": "p3",
+                "window_id": "window-1",
+                "binding_id": "binding-3",
+                "tab_entry_id": "group:g3",
+                "placement": {"mode": "split", "pane_id": "pane:g3:0", "order": 0},
+            },
+            {
+                "surface_key": "p4",
+                "window_id": "window-1",
+                "binding_id": "binding-4",
+                "tab_entry_id": "group:g3",
+                "placement": {"mode": "split", "pane_id": "pane:g3:1", "order": 1},
+                "focused": True,
+            },
         ],
     }
 
@@ -64,13 +96,17 @@ def test_list_pages_returns_group_aware_snapshot_with_page_tokens():
     assert result["windows"] == context["windows"]
     assert [page["page"] for page in result["pages"]] == ["p4", "p3"]
     assert [page["window_id"] for page in result["pages"]] == [
-        "window-1", "window-1",
+        "window-1",
+        "window-1",
     ]
-    assert all(page["page_context_token"].startswith("pct_") for page in result["pages"])
+    assert all(
+        page["page_context_token"].startswith("pct_") for page in result["pages"]
+    )
     assert result["pages"][0]["placement"] == {
-        "mode": "split", "pane_id": "pane:g3:1", "order": 1,
+        "mode": "split",
+        "pane_id": "pane:g3:1",
+        "order": 1,
     }
-
 
 
 def test_closing_one_page_session_keeps_sibling_page_binding_alive(monkeypatch):
@@ -82,29 +118,42 @@ def test_closing_one_page_session_keeps_sibling_page_binding_alive(monkeypatch):
     owner = object()
     binding_1 = webtab.register_binding(owner, "window-1", "tab-1", "target-1")
     binding_2 = webtab.register_binding(owner, "window-1", "tab-2", "target-2")
-    monkeypatch.setattr(webtab, "request_on_ws", lambda _ws, command, _timeout=5.0: {
-        "ok": True,
-        "window_id": "window-1",
-        "tab_id": command["tab_id"],
-        "target_id": "target-1" if command["tab_id"] == "tab-1" else "target-2",
-    })
+    monkeypatch.setattr(
+        webtab,
+        "request_on_ws",
+        lambda _ws, command, _timeout=5.0: {
+            "ok": True,
+            "window_id": "window-1",
+            "tab_id": command["tab_id"],
+            "target_id": "target-1" if command["tab_id"] == "tab-1" else "target-2",
+        },
+    )
     registry = WebUseSessionRegistry(
-        adapters={name: _Adapter(name) for name in (
-            "playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome",
-        )},
+        adapters={
+            name: _Adapter(name)
+            for name in (
+                "playwright_mcp",
+                "chrome_devtools_mcp",
+                "open_claude_chrome",
+            )
+        },
     )
     context = {
         "context_id": "ctx-pages",
         "surfaces": [
             {
-                "surface_key": "p1", "aliases": ["p1"],
-                "binding_id": binding_1, "tab_id": "tab-1",
+                "surface_key": "p1",
+                "aliases": ["p1"],
+                "binding_id": binding_1,
+                "tab_id": "tab-1",
                 "page_key": webtab.binding_page_key(binding_1),
                 **webtab.binding_revisions(binding_1),
             },
             {
-                "surface_key": "p2", "aliases": ["p2"],
-                "binding_id": binding_2, "tab_id": "tab-2",
+                "surface_key": "p2",
+                "aliases": ["p2"],
+                "binding_id": binding_2,
+                "tab_id": "tab-2",
                 "page_key": webtab.binding_page_key(binding_2),
                 **webtab.binding_revisions(binding_2),
             },
@@ -112,22 +161,30 @@ def test_closing_one_page_session_keeps_sibling_page_binding_alive(monkeypatch):
     }
     listed = registry.list_pages(context=context, owner_id="owner-1")
     first = registry.execute(
-        command="observe", backend="open_claude_chrome", owner_id="owner-1",
+        command="observe",
+        backend="open_claude_chrome",
+        owner_id="owner-1",
         page_context_token=listed["pages"][0]["page_context_token"],
     )
     second = registry.execute(
-        command="observe", backend="open_claude_chrome", owner_id="owner-1",
+        command="observe",
+        backend="open_claude_chrome",
+        owner_id="owner-1",
         page_context_token=listed["pages"][1]["page_context_token"],
     )
 
     registry.execute(
-        command="close", web_session_id=first["web_session_id"],
+        command="close",
+        web_session_id=first["web_session_id"],
         owner_id="owner-1",
     )
     acted = registry.execute(
-        command="act", web_session_id=second["web_session_id"],
-        owner_id="owner-1", arguments={
-            "action": "click", "expected_frame_id": "frame-1",
+        command="act",
+        web_session_id=second["web_session_id"],
+        owner_id="owner-1",
+        arguments={
+            "action": "click",
+            "expected_frame_id": "frame-1",
         },
     )
 
@@ -135,7 +192,6 @@ def test_closing_one_page_session_keeps_sibling_page_binding_alive(monkeypatch):
     assert webtab.binding_revisions(binding_1) == {}
     assert webtab.binding_revisions(binding_2)
     registry.release_owner("owner-1")
-
 
 
 @pytest.mark.parametrize(
@@ -154,11 +210,14 @@ def test_closing_one_page_session_keeps_sibling_page_binding_alive(monkeypatch):
     ],
 )
 def test_browser_capability_without_page_opens_background_page(
-    monkeypatch, runtime_behavior, teardown_raises,
-    expected_status, expected_reason,
+    monkeypatch,
+    runtime_behavior,
+    teardown_raises,
+    expected_status,
+    expected_reason,
 ):
     from openprogram.agent import surface_context
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
     from openprogram.programs._execution_common import ToolReturn
     from openprogram.programs.workflow import browser as browser_module
     from openprogram.programs.workflow.browser import web_use_runtime
@@ -173,11 +232,13 @@ def test_browser_capability_without_page_opens_background_page(
     opened_context = {
         "context_id": "ctx-opened",
         "window_id": "window-1",
-        "surfaces": [{
-            "binding_id": "surface-opened",
-            "page_key": "page-opened",
-            "capabilities": ["observe", "interact", "navigate"],
-        }],
+        "surfaces": [
+            {
+                "binding_id": "surface-opened",
+                "page_key": "page-opened",
+                "capabilities": ["observe", "interact", "navigate"],
+            }
+        ],
     }
     opens = []
     closed = []
@@ -230,32 +291,38 @@ def test_browser_capability_without_page_opens_background_page(
             if runtime_behavior == "cancel":
                 raise ExecInterrupt("cancelled during model execution")
             if runtime_behavior == "screenshot_timeout":
-                asyncio.run(kwargs["tools"][0].execute(
-                    "call-1",
-                    {"action": "screenshot", "expected_frame_id": "f1"},
-                    asyncio.Event(),
-                    None,
-                ))
+                asyncio.run(
+                    kwargs["tools"][0].execute(
+                        "call-1",
+                        {"action": "screenshot", "expected_frame_id": "f1"},
+                        asyncio.Event(),
+                        None,
+                    )
+                )
                 return "The screenshot was captured."
             if runtime_behavior == "verify":
-                asyncio.run(kwargs["tools"][0].execute(
-                    "call-1",
-                    {
-                        "action": "verify",
-                        "expected_frame_id": "f1",
-                        "assertion": "title_contains",
-                        "value": "Google",
-                    },
-                    asyncio.Event(),
-                    None,
-                ))
+                asyncio.run(
+                    kwargs["tools"][0].execute(
+                        "call-1",
+                        {
+                            "action": "verify",
+                            "expected_frame_id": "f1",
+                            "assertion": "title_contains",
+                            "value": "Google",
+                        },
+                        asyncio.Event(),
+                        None,
+                    )
+                )
             return "The background Page title is Google."
 
     registry = _Registry()
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: registry)
     monkeypatch.setattr(surface_context, "current", lambda: None)
     monkeypatch.setattr(
-        surface_context, "capture_pages", lambda _context=None: context,
+        surface_context,
+        "capture_pages",
+        lambda _context=None: context,
     )
     monkeypatch.setattr(
         surface_context,
@@ -263,13 +330,19 @@ def test_browser_capability_without_page_opens_background_page(
         lambda url, **kwargs: opens.append((url, kwargs)) or opened_context,
     )
     monkeypatch.setattr(
-        surface_context, "resolve_binding", lambda _page="": "surface-opened",
+        surface_context,
+        "resolve_binding",
+        lambda _page="": "surface-opened",
     )
     monkeypatch.setattr(
-        surface_context, "resolve_page_key", lambda _page="": "page-opened",
+        surface_context,
+        "resolve_page_key",
+        lambda _page="": "page-opened",
     )
     monkeypatch.setattr(
-        surface_context, "release_bindings", lambda value: released.append(value),
+        surface_context,
+        "release_bindings",
+        lambda value: released.append(value),
     )
     monkeypatch.setattr(
         surface_context,
@@ -286,9 +359,7 @@ def test_browser_capability_without_page_opens_background_page(
     }
     if runtime_behavior in {"screenshot_timeout", "timeout"}:
         ticks = iter(
-            (0.0, 0.0, 2.0)
-            if runtime_behavior == "screenshot_timeout" else
-            (0.0, 2.0)
+            (0.0, 0.0, 2.0) if runtime_behavior == "screenshot_timeout" else (0.0, 2.0)
         )
         release_screenshot = browser_module._release_screenshot_payload
 
@@ -331,10 +402,12 @@ def test_browser_capability_without_page_opens_background_page(
         assert result["status"] == expected_status
         assert result["reason_code"] == expected_reason
         assert result["backend"] == DEFAULT_BACKEND
-    assert opens == [(
-        "https://www.google.com/",
-        {"window_id": "window-1", "background": True},
-    )]
+    assert opens == [
+        (
+            "https://www.google.com/",
+            {"window_id": "window-1", "background": True},
+        )
+    ]
     assert closed == []
     assert context in released
     assert registry.released_owners
@@ -342,7 +415,6 @@ def test_browser_capability_without_page_opens_background_page(
         assert any(call["command"] == "close" for call in registry.calls)
     if runtime_behavior == "screenshot_timeout":
         assert registry.revoked
-
 
 
 def test_malformed_auto_open_still_closes_unusable_page(monkeypatch):
@@ -370,7 +442,9 @@ def test_malformed_auto_open_still_closes_unusable_page(monkeypatch):
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: _Registry())
     monkeypatch.setattr(surface_context, "current", lambda: None)
     monkeypatch.setattr(
-        surface_context, "capture_pages", lambda _context=None: context,
+        surface_context,
+        "capture_pages",
+        lambda _context=None: context,
     )
     monkeypatch.setattr(
         surface_context,
@@ -397,7 +471,6 @@ def test_malformed_auto_open_still_closes_unusable_page(monkeypatch):
     assert released_owners
 
 
-
 def test_malformed_auto_open_reports_close_failure(monkeypatch):
     from openprogram.agent import surface_context
     from openprogram.programs.workflow import browser as browser_module
@@ -422,7 +495,9 @@ def test_malformed_auto_open_reports_close_failure(monkeypatch):
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: _Registry())
     monkeypatch.setattr(surface_context, "current", lambda: None)
     monkeypatch.setattr(
-        surface_context, "capture_pages", lambda _context=None: context,
+        surface_context,
+        "capture_pages",
+        lambda _context=None: context,
     )
     monkeypatch.setattr(
         surface_context,
@@ -432,7 +507,8 @@ def test_malformed_auto_open_reports_close_failure(monkeypatch):
     monkeypatch.setattr(
         surface_context,
         "close_page",
-        lambda value: closed.append(value) or {
+        lambda value: closed.append(value)
+        or {
             "ok": False,
             "error": "the background Page could not be closed",
         },
@@ -451,7 +527,6 @@ def test_malformed_auto_open_reports_close_failure(monkeypatch):
     assert "Close the remaining background Page" in result["handoff_instruction"]
 
 
-
 def test_browser_capability_reuses_existing_origin_page(monkeypatch):
     from openprogram.agent import surface_context
     from openprogram.programs.workflow import browser as browser_module
@@ -462,14 +537,16 @@ def test_browser_capability_reuses_existing_origin_page(monkeypatch):
         "context_id": "ctx-existing",
         "window_id": "window-1",
         "primary_surface_key": "p1",
-        "surfaces": [{
-            "surface_key": "p1",
-            "window_id": "window-1",
-            "tab_id": "tab-existing",
-            "binding_id": "surface-existing",
-            "page_key": "page-existing",
-            "capabilities": ["observe", "interact", "navigate"],
-        }],
+        "surfaces": [
+            {
+                "surface_key": "p1",
+                "window_id": "window-1",
+                "tab_id": "tab-existing",
+                "binding_id": "surface-existing",
+                "page_key": "page-existing",
+                "capabilities": ["observe", "interact", "navigate"],
+            }
+        ],
     }
     captures = []
     opened = []
@@ -512,17 +589,19 @@ def test_browser_capability_reuses_existing_origin_page(monkeypatch):
 
     class _Runtime:
         def exec(self, **kwargs):
-            asyncio.run(kwargs["tools"][0].execute(
-                "call-1",
-                {
-                    "action": "verify",
-                    "expected_frame_id": "f1",
-                    "assertion": "title_contains",
-                    "value": "Existing",
-                },
-                asyncio.Event(),
-                None,
-            ))
+            asyncio.run(
+                kwargs["tools"][0].execute(
+                    "call-1",
+                    {
+                        "action": "verify",
+                        "expected_frame_id": "f1",
+                        "assertion": "title_contains",
+                        "value": "Existing",
+                    },
+                    asyncio.Event(),
+                    None,
+                )
+            )
             return "The existing Page was verified."
 
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: _Registry())
@@ -540,14 +619,16 @@ def test_browser_capability_reuses_existing_origin_page(monkeypatch):
     )
 
     result = browser_module._run_browser_task_commands(
-        task="inspect the page", backend="playwright_mcp",
-        max_steps=150, max_seconds=None, runtime=_Runtime(),
+        task="inspect the page",
+        backend="playwright_mcp",
+        max_steps=150,
+        max_seconds=None,
+        runtime=_Runtime(),
     )
 
     assert result["status"] == "succeeded"
     assert captures[0] is window_context
     assert opened == []
-
 
 
 def test_browser_capability_without_desktop_returns_infeasible_handoff(
@@ -567,22 +648,25 @@ def test_browser_capability_without_desktop_returns_infeasible_handoff(
     monkeypatch.setattr(
         surface_context,
         "open_page",
-        lambda *_args, **_kwargs: opens.append((_args, _kwargs)) or {
+        lambda *_args, **_kwargs: opens.append((_args, _kwargs))
+        or {
             "ok": False,
             "reason_code": "desktop_unavailable",
             "error": "OpenProgram desktop app is not connected.",
         },
     )
     result = browser_module._run_browser_task_commands(
-        task="inspect the page", backend="playwright_mcp",
-        max_steps=150, max_seconds=None, runtime=SimpleNamespace(),
+        task="inspect the page",
+        backend="playwright_mcp",
+        max_steps=150,
+        max_seconds=None,
+        runtime=SimpleNamespace(),
     )
 
     assert result["status"] == "infeasible"
     assert result["reason_code"] == "desktop_unavailable"
     assert "Launch or reconnect" in result["handoff_instruction"]
     assert opens == []
-
 
 
 def test_direct_list_pages_returns_empty_inventory_without_mounted_page(monkeypatch):
@@ -595,17 +679,28 @@ def test_direct_list_pages_returns_empty_inventory_without_mounted_page(monkeypa
 
     owner = _Owner()
     monkeypatch.setattr(server, "_ws_connections", [owner])
-    asyncio.run(webtab.handle_webtab_register(owner, {
-        "action": "webtab_register", "window_id": "window-1",
-    }))
-    monkeypatch.setattr(webtab, "request_on_ws", lambda ws, command, timeout=5.0: {
-        "ok": True,
-        "window_id": "window-1",
-        "pages": [],
-    })
+    asyncio.run(
+        webtab.handle_webtab_register(
+            owner,
+            {
+                "action": "webtab_register",
+                "window_id": "window-1",
+            },
+        )
+    )
+    monkeypatch.setattr(
+        webtab,
+        "request_on_ws",
+        lambda ws, command, timeout=5.0: {
+            "ok": True,
+            "window_id": "window-1",
+            "pages": [],
+        },
+    )
 
     result = module.execute_direct_web_use(
-        {"command": "list_pages"}, owner_id="mcp:empty-window",
+        {"command": "list_pages"},
+        owner_id="mcp:empty-window",
     )
 
     assert result["ok"] is True
@@ -614,23 +709,28 @@ def test_direct_list_pages_returns_empty_inventory_without_mounted_page(monkeypa
     assert result["active_tab_entry_id"] == ""
     assert result["focused_page"] == ""
 
-    monkeypatch.setattr(webtab, "request_on_ws", lambda ws, command, timeout=5.0: {
-        "ok": True,
-        "window_id": "window-1",
-        "pages": [{}],
-    })
+    monkeypatch.setattr(
+        webtab,
+        "request_on_ws",
+        lambda ws, command, timeout=5.0: {
+            "ok": True,
+            "window_id": "window-1",
+            "pages": [{}],
+        },
+    )
     with pytest.raises(RuntimeError, match="no valid Page"):
         module.execute_direct_web_use(
-            {"command": "list_pages"}, owner_id="mcp:invalid-window",
+            {"command": "list_pages"},
+            owner_id="mcp:invalid-window",
         )
     webtab.release_connection(owner)
-
 
 
 def test_public_page_token_keeps_the_turn_owner_across_calls(monkeypatch):
     from openprogram.agent import surface_context
     from openprogram.agent.run_control import (
-        reset_current_session_id, set_current_session_id,
+        reset_current_session_id,
+        set_current_session_id,
     )
     from openprogram.programs.workflow import browser as module
     from openprogram.programs.workflow.browser import (
@@ -669,7 +769,8 @@ def test_public_page_token_keeps_the_turn_owner_across_calls(monkeypatch):
     try:
         listed = module.web_use(command="list_pages")
         observed = module.web_use(
-            command="observe", backend="playwright_mcp",
+            command="observe",
+            backend="playwright_mcp",
             page_context_token=listed["pages"][0]["page_context_token"],
         )
     finally:
@@ -748,7 +849,6 @@ def test_list_pages_round_trips_origin_window_through_child_bridge(monkeypatch):
     assert calls == [({"op": "capture_pages", "window_id": "window-1"}, 5.0)]
 
 
-
 def test_same_owner_repeated_observe_reuses_exact_page_session():
     from openprogram.programs.workflow.browser.web_use_runtime import (
         WebUseSessionRegistry,
@@ -756,25 +856,39 @@ def test_same_owner_repeated_observe_reuses_exact_page_session():
 
     released = []
     registry = WebUseSessionRegistry(
-        adapters={name: _Adapter(name) for name in (
-            "playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome",
-        )},
+        adapters={
+            name: _Adapter(name)
+            for name in (
+                "playwright_mcp",
+                "chrome_devtools_mcp",
+                "open_claude_chrome",
+            )
+        },
         release_context=lambda context: released.append(context["context_id"]),
         binding_validator=_allow_binding,
     )
     first = registry.execute(
-        command="observe", backend="playwright_mcp",
-        binding_id="binding-1", page_key="page-1", owner_id="turn:one",
+        command="observe",
+        backend="playwright_mcp",
+        binding_id="binding-1",
+        page_key="page-1",
+        owner_id="turn:one",
         page_context={"context_id": "ctx-first"},
     )
     repeated = registry.execute(
-        command="observe", backend="playwright_mcp",
-        binding_id="binding-2", page_key="page-1", owner_id="turn:one",
+        command="observe",
+        backend="playwright_mcp",
+        binding_id="binding-2",
+        page_key="page-1",
+        owner_id="turn:one",
         page_context={"context_id": "ctx-unused"},
     )
     other_owner = registry.execute(
-        command="observe", backend="playwright_mcp",
-        binding_id="binding-3", page_key="page-1", owner_id="turn:two",
+        command="observe",
+        backend="playwright_mcp",
+        binding_id="binding-3",
+        page_key="page-1",
+        owner_id="turn:two",
         page_context={"context_id": "ctx-other"},
     )
 
@@ -782,11 +896,11 @@ def test_same_owner_repeated_observe_reuses_exact_page_session():
     assert repeated["session_reused"] is True
     assert other_owner == {"ok": False, "reason_code": "page_in_use"}
     registry.execute(
-        command="close", web_session_id=first["web_session_id"],
+        command="close",
+        web_session_id=first["web_session_id"],
         owner_id="turn:one",
     )
     assert released == ["ctx-first"]
-
 
 
 def test_act_fills_expected_frame_id_and_resolves_pending_session():
@@ -795,19 +909,27 @@ def test_act_fills_expected_frame_id_and_resolves_pending_session():
     )
 
     adapters = {
-        name: _Adapter(name) for name in (
-            "playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome",
+        name: _Adapter(name)
+        for name in (
+            "playwright_mcp",
+            "chrome_devtools_mcp",
+            "open_claude_chrome",
         )
     }
     registry = WebUseSessionRegistry(
-        adapters=adapters, binding_validator=_allow_binding,
+        adapters=adapters,
+        binding_validator=_allow_binding,
     )
     observed = registry.execute(
-        command="observe", backend="playwright_mcp",
-        binding_id="binding-1", owner_id="owner-1",
+        command="observe",
+        backend="playwright_mcp",
+        binding_id="binding-1",
+        owner_id="owner-1",
     )
     acted = registry.execute(
-        command="act", web_session_id="pending", owner_id="owner-1",
+        command="act",
+        web_session_id="pending",
+        owner_id="owner-1",
         arguments={"action": "click", "ref": "e1"},
     )
     assert acted["ok"] is True
@@ -816,11 +938,15 @@ def test_act_fills_expected_frame_id_and_resolves_pending_session():
         "act",
         {"action": "click", "expected_frame_id": "frame-1", "ref": "e1"},
     )
-    assert registry.execute(
-        command="act", web_session_id="pending", owner_id="owner-missing",
-        arguments={"action": "click", "ref": "e1"},
-    )["reason_code"] == "web_session_not_found"
-
+    assert (
+        registry.execute(
+            command="act",
+            web_session_id="pending",
+            owner_id="owner-missing",
+            arguments={"action": "click", "ref": "e1"},
+        )["reason_code"]
+        == "web_session_not_found"
+    )
 
 
 def test_observe_with_page_token_does_not_capture_active(monkeypatch):
@@ -837,11 +963,13 @@ def test_observe_with_page_token_does_not_capture_active(monkeypatch):
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: _Registry())
     monkeypatch.setattr(surface_context, "current", lambda: None)
     monkeypatch.setattr(
-        surface_context, "capture_active",
+        surface_context,
+        "capture_active",
         lambda: captures.append("active") or {"context_id": "ctx"},
     )
     monkeypatch.setattr(
-        surface_context, "capture_pages",
+        surface_context,
+        "capture_pages",
         lambda *_args, **_kwargs: captures.append("pages") or {"context_id": "ctx"},
     )
 
@@ -854,7 +982,6 @@ def test_observe_with_page_token_does_not_capture_active(monkeypatch):
     result = result.json_data
     assert result["reason_code"] == "page_context_not_found"
     assert captures == []
-
 
 
 def test_observe_with_url_opens_desktop_tab_when_no_page(monkeypatch):
@@ -884,13 +1011,15 @@ def test_observe_with_url_opens_desktop_tab_when_no_page(monkeypatch):
     monkeypatch.setattr(
         surface_context,
         "open_page",
-        lambda url, **kwargs: opens.append((url, kwargs)) or {
+        lambda url, **kwargs: opens.append((url, kwargs))
+        or {
             "context_id": "page_ctx_opened",
             "surfaces": [{"binding_id": "surface_opened"}],
         },
     )
     monkeypatch.setattr(
-        surface_context, "capture_active",
+        surface_context,
+        "capture_active",
         lambda: (_ for _ in ()).throw(AssertionError("should open, not capture")),
     )
 
@@ -926,14 +1055,17 @@ def test_resource_web_open_creates_a_background_page(monkeypatch):
 
     opens = []
     monkeypatch.setattr(
-        surface_context, "open_page",
-        lambda url, **kwargs: opens.append((url, kwargs)) or {
+        surface_context,
+        "open_page",
+        lambda url, **kwargs: opens.append((url, kwargs))
+        or {
             "context_id": "resource-opened",
             "surfaces": [{"binding_id": "resource-surface"}],
         },
     )
     monkeypatch.setattr(
-        page_recovery, "_start_session_on_opened_page",
+        page_recovery,
+        "_start_session_on_opened_page",
         lambda **kwargs: {"ok": True, "web_session_id": "resource-session"},
     )
 
@@ -947,10 +1079,10 @@ def test_resource_web_open_creates_a_background_page(monkeypatch):
     assert opens == [("https://example.test/", {"background": True})]
 
 
-
 @pytest.mark.parametrize("entry", ["web_use", "direct"])
 def test_public_url_observe_keeps_binding_for_first_session_act(
-    monkeypatch, entry,
+    monkeypatch,
+    entry,
 ):
     from openprogram.agent import surface_context
     from openprogram.programs.workflow import browser as module
@@ -973,12 +1105,16 @@ def test_public_url_observe_keeps_binding_for_first_session_act(
     open_commands = []
     monkeypatch.setattr(server, "_ws_connections", [owner])
     monkeypatch.setattr(
-        webtab, "request_on_ws", _public_open_transport(webtab, open_commands),
+        webtab,
+        "request_on_ws",
+        _public_open_transport(webtab, open_commands),
     )
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: registry)
     monkeypatch.setattr(surface_context, "current", lambda: None)
     monkeypatch.setattr(
-        surface_context, "web_use_owner_id", lambda context=None: "owner-native",
+        surface_context,
+        "web_use_owner_id",
+        lambda context=None: "owner-native",
     )
     url = "http://127.0.0.1:62147/page/1"
     try:
@@ -1003,9 +1139,13 @@ def test_public_url_observe_keeps_binding_for_first_session_act(
         assert observed["web_session_id"].startswith("cs_")
         assert observed.get("closed") is not True
         assert "page_context_token" not in observed
-        assert open_commands == [{
-            "op": "open", "url": url, "background": True,
-        }]
+        assert open_commands == [
+            {
+                "op": "open",
+                "url": url,
+                "background": True,
+            }
+        ]
         assert webtab._bindings
         binding_id = next(iter(webtab._bindings))
         assert webtab.request_bound_tab(binding_id).get("ok") is True
@@ -1045,39 +1185,46 @@ def test_public_url_observe_keeps_binding_for_first_session_act(
         registry.close_all()
 
 
-
 def test_invalid_arguments_keep_live_session_unmarked_closed():
     from openprogram.programs.workflow.browser.web_use_runtime import (
         WebUseSessionRegistry,
     )
 
     adapters = {
-        name: _Adapter(name) for name in (
-            "playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome",
+        name: _Adapter(name)
+        for name in (
+            "playwright_mcp",
+            "chrome_devtools_mcp",
+            "open_claude_chrome",
         )
     }
     registry = WebUseSessionRegistry(
-        adapters=adapters, binding_validator=_allow_binding,
+        adapters=adapters,
+        binding_validator=_allow_binding,
     )
     observed = registry.execute(
-        command="observe", backend="open_claude_chrome",
-        binding_id="binding-1", owner_id="owner-1",
+        command="observe",
+        backend="open_claude_chrome",
+        binding_id="binding-1",
+        owner_id="owner-1",
         page_context={"context_id": "ctx-1"},
     )
     rejected = registry.execute(
-        command="act", web_session_id=observed["web_session_id"],
-        owner_id="owner-1", arguments={},
+        command="act",
+        web_session_id=observed["web_session_id"],
+        owner_id="owner-1",
+        arguments={},
     )
     assert rejected["reason_code"] == "invalid_arguments"
     assert rejected.get("closed") is not True
     assert rejected["web_session_id"] == observed["web_session_id"]
     still = registry.execute(
-        command="observe", web_session_id=observed["web_session_id"],
+        command="observe",
+        web_session_id=observed["web_session_id"],
         owner_id="owner-1",
     )
     assert still.get("ok") is not False
     assert still.get("closed") is not True
-
 
 
 def test_act_with_url_rejects_non_http_scheme(monkeypatch):
@@ -1099,7 +1246,6 @@ def test_act_with_url_rejects_non_http_scheme(monkeypatch):
     assert result["ok"] is False
     assert result["reason_code"] == "unsupported_url"
     assert "SCHEME_FORBIDDEN" in result["error"]
-
 
 
 def test_act_with_url_reports_desktop_unavailable(monkeypatch):
@@ -1128,10 +1274,10 @@ def test_act_with_url_reports_desktop_unavailable(monkeypatch):
     assert "background web tab" in result["error"]
 
 
-
 @pytest.mark.parametrize("entry", ["web_use", "direct"])
 def test_open_page_cleanup_contract_reaches_public_web_use_entries(
-    monkeypatch, entry,
+    monkeypatch,
+    entry,
 ):
     from openprogram.agent import surface_context
     from openprogram.programs.workflow import browser as module
@@ -1148,7 +1294,9 @@ def test_open_page_cleanup_contract_reaches_public_web_use_entries(
     }
     monkeypatch.setattr(surface_context, "current", lambda: None)
     monkeypatch.setattr(
-        surface_context, "open_page", lambda _url, **_kwargs: cleanup,
+        surface_context,
+        "open_page",
+        lambda _url, **_kwargs: cleanup,
     )
     arguments = {
         "command": "act",
@@ -1167,30 +1315,42 @@ def test_open_page_cleanup_contract_reaches_public_web_use_entries(
     assert result == cleanup
 
 
-
 @pytest.mark.parametrize("subprocess_mode", [False, True])
 @pytest.mark.parametrize("session_id", ["resource-owner-session", ""])
-def test_public_web_use_open_carries_trusted_resource_owner(monkeypatch, subprocess_mode, session_id):
+def test_public_web_use_open_carries_trusted_resource_owner(
+    monkeypatch, subprocess_mode, session_id
+):
     from openprogram.agent import surface_context
-    from openprogram.agent.run_control import set_current_session_id, reset_current_session_id
+    from openprogram.agent.run_control import (
+        set_current_session_id,
+        reset_current_session_id,
+    )
     from openprogram.programs.workflow import browser as module
     from openprogram.webui import server
     from openprogram.webui.ws_actions import webtab
 
     monkeypatch.setattr(surface_context, "current", lambda: None)
-    monkeypatch.setenv("OPENPROGRAM_IN_AGENTIC_SUBPROCESS", "1" if subprocess_mode else "0")
+    monkeypatch.setenv(
+        "OPENPROGRAM_IN_AGENTIC_SUBPROCESS", "1" if subprocess_mode else "0"
+    )
     ws = object()
     monkeypatch.setattr(server, "_ws_connections", {ws})
     monkeypatch.setattr(webtab, "registered_desktop_windows", lambda: [(ws, "main", 1)])
     commands = []
+
     def request(command, *args, **kwargs):
         commands.append(command)
         return {"ok": False, "error": "test transport stopped after capture"}
+
     monkeypatch.setattr(webtab, "_request", request)
-    monkeypatch.setattr(webtab, "request_on_ws", lambda ws, command, **kw: request(command))
+    monkeypatch.setattr(
+        webtab, "request_on_ws", lambda ws, command, **kw: request(command)
+    )
     token = set_current_session_id(session_id)
     try:
-        module.web_use(command="observe", arguments={"url": "https://example.test/resource-owner"})
+        module.web_use(
+            command="observe", arguments={"url": "https://example.test/resource-owner"}
+        )
     finally:
         reset_current_session_id(token)
     assert len(commands) == 1

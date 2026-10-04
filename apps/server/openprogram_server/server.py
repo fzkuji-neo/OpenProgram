@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 from openprogram.programs.workflow.ask_user import set_ask_user, ask_user
-from openprogram.agentic_programming.function import agentic_function
 from openprogram.agentic_programming.runtime import Runtime
 
 # Stop / cancel primitives live in openprogram.agent.run_control
@@ -37,7 +36,7 @@ from openprogram.agent.run_control import (
     set_current_session_id as _set_current_session_id,
     reset_current_session_id as _reset_current_session_id,
 )
-from openprogram.agentic_programming.function import CancelledError as _CancelledError
+from openprogram.agentic_programming.call_state import CancelledError as _CancelledError
 from openprogram.webui._exec_dag import (
     build_exec_dag, live_progress, reconcile_interrupted_runs,
 )

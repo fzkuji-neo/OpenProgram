@@ -111,20 +111,42 @@ def _serve_cancel(store: SessionStore) -> tuple[HTTPServer, str]:
 
 def test_cli_execution_cancel_is_idempotent(store, monkeypatch):
     store.create_session("cli-session", "main")
-    SessionNodeWriter(store, "cli-session").append(Call(
-        id="cli-exec",
-        role=ROLE_CODE,
-        name="cancellation_probe",
-        output="partial output",
-        metadata={"status": "queued", "execution_kind": "agentic_function"},
-    ))
+    SessionNodeWriter(store, "cli-session").append(
+        Call(
+            id="cli-exec",
+            role=ROLE_CODE,
+            name="cancellation_probe",
+            output="partial output",
+            metadata={"status": "queued", "execution_kind": "agent_method"},
+        )
+    )
     server, origin = _serve_cancel(store)
     try:
         code1, out1 = _run_cli(
-            monkeypatch, ["execution", "cancel", "cli-exec", "--expected-version", "0", "--command-id", "cancel-cli-1"], origin,
+            monkeypatch,
+            [
+                "execution",
+                "cancel",
+                "cli-exec",
+                "--expected-version",
+                "0",
+                "--command-id",
+                "cancel-cli-1",
+            ],
+            origin,
         )
         code2, out2 = _run_cli(
-            monkeypatch, ["execution", "cancel", "cli-exec", "--expected-version", "0", "--command-id", "cancel-cli-1"], origin,
+            monkeypatch,
+            [
+                "execution",
+                "cancel",
+                "cli-exec",
+                "--expected-version",
+                "0",
+                "--command-id",
+                "cancel-cli-1",
+            ],
+            origin,
         )
     finally:
         server.shutdown()
@@ -138,8 +160,7 @@ def test_cli_execution_cancel_is_idempotent(store, monkeypatch):
     assert "PID" not in out1 and "pid" not in out1
     assert "SIG" not in out1 and "signal" not in out1.lower()
     node = next(
-        node for node in store.get_nodes("cli-session")
-        if node.id == "cli-exec"
+        node for node in store.get_nodes("cli-session") if node.id == "cli-exec"
     )
     assert node.metadata["status"] == "cancelled"
     assert node.metadata["reason_code"] == "cancel.user"
@@ -158,13 +179,15 @@ def _worker_main(ready, signalled, store_path, session_id, exec_id):
     store = Store(store_path)
     store_module.shared._default_store = store
     store.create_session(session_id, "main")
-    Writer(store, session_id).append(Node(
-        id=exec_id,
-        role=CODE,
-        name="cancellation_probe",
-        output="partial",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
+    Writer(store, session_id).append(
+        Node(
+            id=exec_id,
+            role=CODE,
+            name="cancellation_probe",
+            output="partial",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
     live = True
     token = rc.CancellationToken(session_id, exec_id)
     rc.register_execution_owner(
@@ -201,8 +224,7 @@ def _worker_main(ready, signalled, store_path, session_id, exec_id):
 
 def _node_status(store, session_id, execution_id):
     return next(
-        node for node in store.get_nodes(session_id)
-        if node.id == execution_id
+        node for node in store.get_nodes(session_id) if node.id == execution_id
     ).metadata["status"]
 
 
@@ -221,7 +243,9 @@ def test_cli_cancel_signals_owner_in_worker_process(tmp_path, monkeypatch):
         origin = f"http://127.0.0.1:{port}"
         local_before = "remote-exec" in run_control._owners
         code, out = _run_cli(
-            monkeypatch, ["execution", "cancel", "remote-exec", "--expected-version", "0"], origin,
+            monkeypatch,
+            ["execution", "cancel", "remote-exec", "--expected-version", "0"],
+            origin,
         )
         persisted = ready.get(timeout=20)
         token_tripped = ready.get(timeout=5)

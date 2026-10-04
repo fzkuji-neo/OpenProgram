@@ -34,11 +34,7 @@ def _client(tmp_path: Path, monkeypatch) -> TestClient:
     )
     _write(
         root / "workflow" / "paper_search" / "workflow.py",
-        "def paper_search():\n"
-        "    return run()\n"
-        "\n"
-        "def run():\n"
-        "    pass\n",
+        "def paper_search():\n    return run()\n\ndef run():\n    pass\n",
     )
     _write(root / "applications" / "research_app" / "pyproject.toml", "")
     _write(root / "applications" / "gui_harness" / "pyproject.toml", "")
@@ -50,14 +46,18 @@ def _client(tmp_path: Path, monkeypatch) -> TestClient:
 
     monkeypatch.setattr(programs, "PROGRAMS_ROOT", root)
     monkeypatch.setattr(
-        _programs, "owner_controlled_program_sources", lambda base=None: [],
+        _programs,
+        "owner_controlled_program_sources",
+        lambda base=None: [],
     )
     app = FastAPI()
     programs.register(app)
     return TestClient(app)
 
 
-def test_programs_explorer_lists_program_catalog_lazily(tmp_path: Path, monkeypatch) -> None:
+def test_programs_explorer_lists_program_catalog_lazily(
+    tmp_path: Path, monkeypatch
+) -> None:
     client = _client(tmp_path, monkeypatch)
 
     root = client.get("/api/programs/explorer").json()
@@ -68,22 +68,21 @@ def test_programs_explorer_lists_program_catalog_lazily(tmp_path: Path, monkeypa
     ]
     assert root["default_selection"] == "workflow/alpha"
 
-    vanilla = client.get(
-        "/api/programs/explorer", params={"path": "tools"}
-    ).json()
+    vanilla = client.get("/api/programs/explorer", params={"path": "tools"}).json()
     assert [
         (entry["name"], entry["path"], entry["program_kind"], entry["has_children"])
         for entry in vanilla["entries"]
     ] == [
         ("web", "tools/web", None, True),
     ]
-    web = client.get(
-        "/api/programs/explorer", params={"path": "tools/web"}
-    ).json()
+    web = client.get("/api/programs/explorer", params={"path": "tools/web"}).json()
     assert [
         (
-            entry["name"], entry["path"], entry["program_kind"],
-            entry["has_children"], entry["logic_path"],
+            entry["name"],
+            entry["path"],
+            entry["program_kind"],
+            entry["has_children"],
+            entry["logic_path"],
         )
         for entry in web["entries"]
     ] == [
@@ -103,9 +102,7 @@ def test_programs_explorer_lists_program_catalog_lazily(tmp_path: Path, monkeypa
         ),
     ]
 
-    workflows = client.get(
-        "/api/programs/explorer", params={"path": "workflow"}
-    ).json()
+    workflows = client.get("/api/programs/explorer", params={"path": "workflow"}).json()
     assert [entry["name"] for entry in workflows["entries"]] == [
         "alpha",
         "literature_review",
@@ -138,7 +135,8 @@ def test_programs_explorer_lists_program_catalog_lazily(tmp_path: Path, monkeypa
 
 
 def test_multi_callable_package_remains_an_expandable_group(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     client = _client(tmp_path, monkeypatch)
     root = tmp_path / "openprogram" / "programs"
@@ -170,7 +168,9 @@ def test_multi_callable_package_remains_an_expandable_group(
         "memory_status",
         "memory_update",
     }
-    assert all(entry["program_kind"] == "vanilla_function" for entry in memory["entries"])
+    assert all(
+        entry["program_kind"] == "vanilla_function" for entry in memory["entries"]
+    )
 
 
 def test_known_application_directories_resolve_to_registered_callables() -> None:
@@ -217,9 +217,7 @@ def test_installed_app_uses_owner_recorded_program_catalog(
     applications = client.get(
         "/api/programs/explorer", params={"path": "applications"}
     ).json()
-    workflows = client.get(
-        "/api/programs/explorer", params={"path": "workflow"}
-    ).json()
+    workflows = client.get("/api/programs/explorer", params={"path": "workflow"}).json()
 
     assert [entry["name"] for entry in applications["entries"]] == ["gui_harness"]
     assert [entry["name"] for entry in workflows["entries"]] == [
@@ -245,7 +243,10 @@ def test_programs_logic_builds_transitive_workflow_calls(
         ("paper_search", 2),
     ]
     assert payload["edges"] == [
-        {"source": "workflow/research_pipeline", "target": "workflow/literature_review"},
+        {
+            "source": "workflow/research_pipeline",
+            "target": "workflow/literature_review",
+        },
         {"source": "workflow/literature_review", "target": "workflow/paper_search"},
     ]
 
@@ -257,11 +258,7 @@ def test_programs_logic_includes_agentic_programming_primitive_chain(
     root = tmp_path / "openprogram" / "programs"
     _write(
         root / "workflow" / "research_pipeline" / "workflow.py",
-        "from openprogram.agentic_programming import agentic_function, agent\n"
-        "\n"
-        "@agentic_function\n"
-        "def research_pipeline(task: str):\n"
-        "    return agent(task)\n",
+        "from openprogram.agentic_programming import agent\nfrom openprogram import Agent\n\nclass ResearchPipelineAgent(Agent):\n    method_options = {\n        'research_pipeline': {\n            'name': 'research_pipeline',\n            'tool': True\n        },\n    }\n\n    def research_pipeline(self, task: str):\n        return agent(task)\n\n\nresearch_pipeline = ResearchPipelineAgent().research_pipeline\n",
     )
 
     payload = client.get(
@@ -269,8 +266,7 @@ def test_programs_logic_includes_agentic_programming_primitive_chain(
     ).json()
 
     assert [
-        (node["name"], node["program_kind"], node["depth"])
-        for node in payload["nodes"]
+        (node["name"], node["program_kind"], node["depth"]) for node in payload["nodes"]
     ] == [
         ("research_pipeline", "workflow", 0),
         ("agent", "runtime_primitive", 1),
@@ -297,19 +293,20 @@ def test_programs_explorer_ignores_symlinks_outside_root(
     client = _client(tmp_path, monkeypatch)
     root = tmp_path / "openprogram" / "programs"
     external = tmp_path / "external"
-    _write(external / "workflow.py", "import openprogram.programs.workflow.paper_search\n")
+    _write(
+        external / "workflow.py", "import openprogram.programs.workflow.paper_search\n"
+    )
     (root / "workflow" / "leak").symlink_to(external, target_is_directory=True)
     (root / "workflow" / "leak.py").symlink_to(external / "workflow.py")
 
-    workflows = client.get(
-        "/api/programs/explorer", params={"path": "workflow"}
-    ).json()
+    workflows = client.get("/api/programs/explorer", params={"path": "workflow"}).json()
 
     assert "leak" not in {entry["name"] for entry in workflows["entries"]}
     assert "leak.py" not in {entry["name"] for entry in workflows["entries"]}
-    assert client.get(
-        "/api/programs/logic", params={"path": "workflow/leak"}
-    ).status_code == 404
+    assert (
+        client.get("/api/programs/logic", params={"path": "workflow/leak"}).status_code
+        == 404
+    )
 
     _write(
         external / "linked.py",
@@ -321,9 +318,7 @@ def test_programs_explorer_ignores_symlinks_outside_root(
     payload = client.get(
         "/api/programs/logic", params={"path": "workflow/research_pipeline"}
     ).json()
-    assert "workflow/alpha" not in {
-        edge["target"] for edge in payload["edges"]
-    }
+    assert "workflow/alpha" not in {edge["target"] for edge in payload["edges"]}
     assert payload["analysis_complete"] is True
 
 
@@ -352,7 +347,10 @@ def test_programs_logic_resolves_relative_workflow_imports(
     ).json()
 
     assert payload["edges"] == [
-        {"source": "workflow/research_pipeline", "target": "workflow/literature_review"},
+        {
+            "source": "workflow/research_pipeline",
+            "target": "workflow/literature_review",
+        },
         {"source": "workflow/literature_review", "target": "workflow/paper_search"},
     ]
 
@@ -371,16 +369,12 @@ def test_programs_logic_skips_oversized_python_sources(
         "/api/programs/logic", params={"path": "workflow/research_pipeline"}
     ).json()
 
-    assert "workflow/alpha" not in {
-        edge["target"] for edge in payload["edges"]
-    }
+    assert "workflow/alpha" not in {edge["target"] for edge in payload["edges"]}
     assert payload["analysis_complete"] is False
     assert payload["analysis_warnings"] == ["oversized_source"]
 
 
-def test_programs_logic_reports_source_file_limit(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_programs_logic_reports_source_file_limit(tmp_path: Path, monkeypatch) -> None:
     client = _client(tmp_path, monkeypatch)
     root = tmp_path / "openprogram" / "programs" / "workflow" / "research_pipeline"
     for index in range(201):
@@ -394,9 +388,7 @@ def test_programs_logic_reports_source_file_limit(
     assert "source_file_limit" in payload["analysis_warnings"]
 
 
-def test_programs_logic_reports_unparseable_source(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_programs_logic_reports_unparseable_source(tmp_path: Path, monkeypatch) -> None:
     client = _client(tmp_path, monkeypatch)
     root = tmp_path / "openprogram" / "programs" / "workflow" / "research_pipeline"
     _write(
@@ -413,7 +405,8 @@ def test_programs_logic_reports_unparseable_source(
 
 
 def test_workflow_package_lists_supporting_source_files(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     from openprogram.webui.routes.catalog import programs
 
@@ -433,7 +426,7 @@ def test_workflow_package_lists_supporting_source_files(
         ],
     }
     monkeypatch.setattr(programs, "PROGRAMS_ROOT", root)
-    monkeypatch.setattr(programs, "_registered_agentic_callables", lambda: indexed)
+    monkeypatch.setattr(programs, "_registered_agent_methods", lambda: indexed)
 
     entries = {
         entry["name"]: entry
@@ -453,50 +446,79 @@ def test_workflow_package_lists_supporting_source_files(
 
 def test_packages_replace_legacy_application_category(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
-    response = client.get('/api/programs/explorer')
+    response = client.get("/api/programs/explorer")
     assert response.status_code == 200
-    paths = [entry['path'] for entry in response.json()['entries']]
-    assert 'packages' in paths
-    assert 'applications' not in paths
+    paths = [entry["path"] for entry in response.json()["entries"]]
+    assert "packages" in paths
+    assert "applications" not in paths
 
 
 def test_owned_weekly_folder_exposes_five_callable_children(tmp_path, monkeypatch):
     import types
     from openprogram.webui.routes.catalog import programs
+
     client = _client(tmp_path, monkeypatch)
     external = tmp_path / "owned" / "programs"
-    names = ("weekly_report", "personal_weekly_report", "personal_chat_weekly_report", "group_weekly_report", "tencent_weekly_report")
-    monkeypatch.setattr(programs, "_catalog_roots", lambda: [programs.PROGRAMS_ROOT.resolve(), external])
-    monkeypatch.setattr("openprogram.agentic_programming.function._registry", registered := {})
+    names = (
+        "weekly_report",
+        "personal_weekly_report",
+        "personal_chat_weekly_report",
+        "group_weekly_report",
+        "tencent_weekly_report",
+    )
+    monkeypatch.setattr(
+        programs, "_catalog_roots", lambda: [programs.PROGRAMS_ROOT.resolve(), external]
+    )
+    monkeypatch.setattr("openprogram.programs._runtime._registry", registered := {})
     for name in names:
         directory = external / "workflow" / "weekly_report" / name
         source = directory / "workflow.py"
         code = f"def {name}(task):\n    return task\n"
         if name == "weekly_report":
-            code = ("from workflows.personal_weekly_report import personal_weekly_report\n"
-                    "from workflows.personal_chat_weekly_report import personal_chat_weekly_report\n"
-                    "from workflows.group_weekly_report import group_weekly_report\n"
-                    "from workflows.tencent_weekly_report import tencent_weekly_report\n"
-                    "def invoke(task):\n    personal_weekly_report(task)\n    personal_chat_weekly_report(task)\n    group_weekly_report(task)\n    tencent_weekly_report(task)\n"
-                    "def weekly_report(task):\n    invoke(task)\n")
+            code = (
+                "from workflows.personal_weekly_report import personal_weekly_report\n"
+                "from workflows.personal_chat_weekly_report import personal_chat_weekly_report\n"
+                "from workflows.group_weekly_report import group_weekly_report\n"
+                "from workflows.tencent_weekly_report import tencent_weekly_report\n"
+                "def invoke(task):\n    personal_weekly_report(task)\n    personal_chat_weekly_report(task)\n    group_weekly_report(task)\n    tencent_weekly_report(task)\n"
+                "def weekly_report(task):\n    invoke(task)\n"
+            )
         _write(source, code)
         (directory / ".git").mkdir()
-        namespace = {"__name__":f"openprogram.programs.workflow.{name}"}
-        exec(compile(f"def {name}(task):\n    return task\n", str(source), "exec"), namespace)
-        registered[name] = types.SimpleNamespace(_fn=namespace[name], description=name)
-    root = client.get("/api/programs/explorer", params={"path":"workflow"}).json()
+        namespace = {"__name__": f"openprogram.programs.workflow.{name}"}
+        exec(
+            compile(f"def {name}(task):\n    return task\n", str(source), "exec"),
+            namespace,
+        )
+        registered[name] = types.SimpleNamespace(
+            _is_agent_method=True,
+            _python_callable=namespace[name],
+            _source_module=namespace["__name__"],
+            description=name,
+        )
+    root = client.get("/api/programs/explorer", params={"path": "workflow"}).json()
     folder = next(row for row in root["entries"] if row["name"] == "weekly_report")
-    assert folder["kind"] == "folder" and folder["has_children"] and folder["program_kind"] is None
-    result = client.get("/api/programs/explorer", params={"path":"workflow/weekly_report"})
+    assert (
+        folder["kind"] == "folder"
+        and folder["has_children"]
+        and folder["program_kind"] is None
+    )
+    result = client.get(
+        "/api/programs/explorer", params={"path": "workflow/weekly_report"}
+    )
     assert result.status_code == 200
     entries = result.json()["entries"]
     assert {row["callable_name"] for row in entries} == set(names)
-    assert all(row["program_kind"] == "workflow" and not row["has_children"] for row in entries)
+    assert all(
+        row["program_kind"] == "workflow" and not row["has_children"] for row in entries
+    )
 
-    logic = client.get("/api/programs/logic", params={"path":"workflow/weekly_report/weekly_report"}).json()
-    assert {edge["target"] for edge in logic["edges"] if edge["source"] == logic["root"]} == {
-        "workflow/weekly_report/" + name for name in names if name != "weekly_report"
-    }
+    logic = client.get(
+        "/api/programs/logic", params={"path": "workflow/weekly_report/weekly_report"}
+    ).json()
+    assert {
+        edge["target"] for edge in logic["edges"] if edge["source"] == logic["root"]
+    } == {"workflow/weekly_report/" + name for name in names if name != "weekly_report"}
 
 
 def test_unregistered_workflow_folder_is_not_a_callable_leaf(tmp_path, monkeypatch):
@@ -507,31 +529,48 @@ def test_unregistered_workflow_folder_is_not_a_callable_leaf(tmp_path, monkeypat
     workflows = client.get("/api/programs/explorer", params={"path": "workflow"}).json()
     names = {entry["name"] for entry in workflows["entries"]}
     assert "weekly_report" not in names
-    assert client.get(
-        "/api/programs/explorer", params={"path": "workflow/weekly_report"},
-    ).status_code == 404
+    assert (
+        client.get(
+            "/api/programs/explorer",
+            params={"path": "workflow/weekly_report"},
+        ).status_code
+        == 404
+    )
 
 
-def test_incremental_logic_reuses_unchanged_source_and_detects_edits(tmp_path, monkeypatch):
+def test_incremental_logic_reuses_unchanged_source_and_detects_edits(
+    tmp_path, monkeypatch
+):
     client = _client(tmp_path, monkeypatch)
     from openprogram.webui.routes.catalog import programs
+
     source_reads = []
     original = Path.read_text
+
     def read(path, *args, **kwargs):
         if path.suffix == ".py" and path.is_relative_to(tmp_path):
             source_reads.append(path)
         return original(path, *args, **kwargs)
+
     monkeypatch.setattr(Path, "read_text", read)
     url = "/api/programs/logic?path=workflow/research_pipeline"
     cold = client.get(url).json()
     assert source_reads
     source_reads.clear()
-    warm = client.get(url, params={"path": "workflow/research_pipeline", "revision": cold.get("revision", "missing")}).json()
+    warm = client.get(
+        url,
+        params={
+            "path": "workflow/research_pipeline",
+            "revision": cold.get("revision", "missing"),
+        },
+    ).json()
     assert source_reads == []
     assert warm == {"revision": cold["revision"], "unchanged": True}
     source = programs.PROGRAMS_ROOT / "workflow/research_pipeline/workflow.py"
     source.write_text("def research_pipeline(task):\n    return task\n")
-    changed = client.get(url, params={"path": "workflow/research_pipeline", "revision": cold["revision"]}).json()
+    changed = client.get(
+        url, params={"path": "workflow/research_pipeline", "revision": cold["revision"]}
+    ).json()
     assert changed["revision"] != cold["revision"]
     assert changed["edges"] == []
     assert source_reads == [source]
@@ -540,49 +579,73 @@ def test_incremental_logic_reuses_unchanged_source_and_detects_edits(tmp_path, m
 def test_incremental_explorer_detects_additions_and_deletions(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     from openprogram.webui.routes.catalog import programs
+
     url = "/api/programs/explorer?path=workflow"
     first = client.get(url).json()
     assert "revision" in first
     added = programs.PROGRAMS_ROOT / "workflow/new_item.py"
     added.write_text("def new_item(): pass\n")
-    changed = client.get(url, params={"path": "workflow", "revision": first["revision"]}).json()
+    changed = client.get(
+        url, params={"path": "workflow", "revision": first["revision"]}
+    ).json()
     assert any(row["path"] == "workflow/new_item" for row in changed["entries"])
     added.unlink()
-    removed = client.get(url, params={"path": "workflow", "revision": changed["revision"]}).json()
+    removed = client.get(
+        url, params={"path": "workflow", "revision": changed["revision"]}
+    ).json()
     assert all(row["path"] != "workflow/new_item" for row in removed["entries"])
 
 
 def test_incremental_loading_measurement(tmp_path, monkeypatch):
     from time import perf_counter
     from statistics import median
+
     client = _client(tmp_path, monkeypatch)
     from openprogram.webui.routes.catalog import programs
+
     for i in range(60):
-        _write(programs.PROGRAMS_ROOT / f"workflow/sample_{i}.py", f"def sample_{i}(): return {i}\n")
+        _write(
+            programs.PROGRAMS_ROOT / f"workflow/sample_{i}.py",
+            f"def sample_{i}(): return {i}\n",
+        )
     reads = []
     original = Path.read_text
+
     def read(path, *args, **kwargs):
-        if path.suffix == ".py" and path.is_relative_to(tmp_path): reads.append(path)
+        if path.suffix == ".py" and path.is_relative_to(tmp_path):
+            reads.append(path)
         return original(path, *args, **kwargs)
+
     monkeypatch.setattr(Path, "read_text", read)
     start = perf_counter()
-    cold = client.get("/api/programs/logic", params={"path": "workflow/research_pipeline"})
+    cold = client.get(
+        "/api/programs/logic", params={"path": "workflow/research_pipeline"}
+    )
     cold_ms = (perf_counter() - start) * 1000
     cold_reads = len(reads)
     reads.clear()
     timings = []
     for _ in range(10):
         start = perf_counter()
-        result = client.get("/api/programs/logic", params={"path": "workflow/research_pipeline", "revision": cold.json()["revision"]})
+        result = client.get(
+            "/api/programs/logic",
+            params={
+                "path": "workflow/research_pipeline",
+                "revision": cold.json()["revision"],
+            },
+        )
         timings.append((perf_counter() - start) * 1000)
         assert result.json()["unchanged"] is True
     assert reads == []
-    print(f"Programs fixture: cold={cold_ms:.2f}ms/{cold_reads} source reads; warm median={median(timings):.2f}ms/0 reads; body={len(cold.content)}->{len(result.content)} bytes")
+    print(
+        f"Programs fixture: cold={cold_ms:.2f}ms/{cold_reads} source reads; warm median={median(timings):.2f}ms/0 reads; body={len(cold.content)}->{len(result.content)} bytes"
+    )
 
 
 def test_cached_source_rechecks_symlink_containment(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     from openprogram.webui.routes.catalog import programs
+
     link = programs.PROGRAMS_ROOT / "workflow/linked.py"
     link.symlink_to(programs.PROGRAMS_ROOT / "workflow/paper_search/workflow.py")
     first = client.get("/api/programs/logic", params={"path": "workflow/linked"})
@@ -591,5 +654,8 @@ def test_cached_source_rechecks_symlink_containment(tmp_path, monkeypatch):
     outside.write_text("def secret(): pass\n")
     link.unlink()
     link.symlink_to(outside)
-    second = client.get("/api/programs/logic", params={"path": "workflow/linked", "revision": first.json()["revision"]})
+    second = client.get(
+        "/api/programs/logic",
+        params={"path": "workflow/linked", "revision": first.json()["revision"]},
+    )
     assert second.status_code == 404

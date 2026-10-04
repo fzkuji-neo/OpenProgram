@@ -131,10 +131,6 @@ test -f "$installed_asar" || {
 # Reject foreign signatures and prepare the persistent local identity before
 # any installed-App mutation. Never replace a Developer ID distribution here.
 "$local_python" "$repo_root/scripts/release/local-macos-signing.py" prepare --app "$app_path"
-sync_gui_harness=0
-if test "$(git -C "$gui_harness_repo" rev-parse --is-inside-work-tree 2>/dev/null || :)" = true; then
-  sync_gui_harness=1
-fi
 
 "$local_python" "$repo_root/scripts/release/verify-release-version.py" \
   --installed-app "$app_path" --require-source-match
@@ -269,38 +265,21 @@ while true; do
   attempt=$((attempt + 1))
   build_revision="$(git -C "$repo_root" rev-parse HEAD)"
   validate_default_app_source "$build_revision"
-  gui_harness_revision=""
   attempt_dir="$wheel_dir/attempt-$attempt"
   mkdir -p "$attempt_dir"
   product_runtime_stage="$attempt_dir/product-runtime.json"
 
-  gui_harness_stage="$attempt_dir/gui-harness"
-  if test "$sync_gui_harness" = 1; then
-    cp "$product_runtime_config" "$product_runtime_stage"
-    gui_harness_revision="$(git -C "$gui_harness_repo" rev-parse HEAD)"
-    gui_harness_pin="$("$local_python" - "$product_runtime_stage" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as stream:
-    print(json.load(stream)["programs"]["gui"]["commit"])
-PY
-)"
-    test "$gui_harness_revision" = "$gui_harness_pin" || {
-      printf 'GUI Harness checkout %s does not match product runtime pin %s\n' \
-        "$gui_harness_revision" "$gui_harness_pin" >&2
-      exit 1
-    }
-    gui_harness_archive="$attempt_dir/gui-harness.tar"
-    mkdir -p "$gui_harness_stage"
-    git -C "$gui_harness_repo" archive --format=tar \
-      --output="$gui_harness_archive" "$gui_harness_revision"
-    tar -C "$gui_harness_stage" -xf "$gui_harness_archive"
-    test -f "$gui_harness_stage/pyproject.toml" || {
-      printf 'the committed GUI Harness snapshot is incomplete\n' >&2
-      exit 1
-    }
-  fi
+  cp "$product_runtime_config" "$product_runtime_stage"
+  for program_name in gui research wiki; do
+    program_stage="$attempt_dir/program-$program_name"
+    if test "$program_name" = gui; then
+      "$local_python" "$repo_root/scripts/release/stage-program-source.py" \
+        "$program_name" "$program_stage" --checkout "$gui_harness_repo"
+    else
+      "$local_python" "$repo_root/scripts/release/stage-program-source.py" \
+        "$program_name" "$program_stage"
+    fi
+  done
 
   rm -rf "$repo_root/apps/desktop/dist"
   "$repo_root/scripts/release/stage-release-assets.sh"
@@ -393,14 +372,7 @@ PY
     --unpack-dir node_modules/node-pty
 
   validate_default_app_source
-  gui_harness_head_changed=0
-  if test "$sync_gui_harness" = 1 && \
-    test "$(git -C "$gui_harness_repo" rev-parse HEAD)" != \
-      "$gui_harness_revision"; then
-    gui_harness_head_changed=1
-  fi
-  test "$(git -C "$repo_root" rev-parse HEAD)" = "$build_revision" && \
-    test "$gui_harness_head_changed" = 0 && break
+  test "$(git -C "$repo_root" rev-parse HEAD)" = "$build_revision" && break
   printf 'HEAD changed during packaging; rebuilding the current checkout\n'
 done
 
@@ -468,25 +440,20 @@ remove_stale_package_tree "$app_python"
   --no-deps --force-reinstall "$wheel"
 "$app_python" -I -m pip install --disable-pip-version-check \
   --break-system-packages --no-deps --force-reinstall "$wheel"
-if test "$sync_gui_harness" = 1; then
+for program_name in gui research wiki; do
+  program_stage="$attempt_dir/program-$program_name"
   "$local_python" -m pip install --disable-pip-version-check \
-    --no-deps --force-reinstall "$gui_harness_stage"
+    --no-deps --force-reinstall "$program_stage"
   "$app_python" -I -m pip install --disable-pip-version-check \
-    --break-system-packages --no-deps --force-reinstall "$gui_harness_stage"
-fi
+    --break-system-packages --no-deps --force-reinstall "$program_stage"
+done
 if test "$(uname -s)" = Darwin; then
   "$app_python" -I -c \
       'import AppKit, ApplicationServices, AVFoundation, EventKit, Quartz, ScreenCaptureKit'
-  if test "$sync_gui_harness" = 1; then
-    "$app_python" -I -c \
+  "$app_python" -I -c \
       'from gui_harness.adapters.mac_window import window_support'
-  fi
 fi
-if test "$sync_gui_harness" = 1; then
-  cp "$product_runtime_stage" "$installed_product_runtime"
-else
-  cp "$runtime_assets_stage/product-runtime.json" "$installed_product_runtime"
-fi
+cp "$product_runtime_stage" "$installed_product_runtime"
 mkdir -p "$runtime_root/bin" "$runtime_root/assets/tui"
 # Office installations live in the user cache and are preserved across App refreshes.
 rm -rf "$runtime_root/assets/office"

@@ -35,7 +35,7 @@
     "en": "Self-programming agents",
     "zh": "自编程智能体"
   },
-  "capabilities/agentic-programming/writing-functions/agentic-function.md": {
+  "capabilities/agentic-programming/writing-functions/agent.md": {
     "en": "Agentic functions",
     "zh": "智能体函数"
   },
@@ -223,7 +223,7 @@
     "en": "Overview",
     "zh": "概览"
   },
-  "reference/api/agentic-function.md": {
+  "reference/api/agent.md": {
     "en": "Function API",
     "zh": "函数 API"
   },

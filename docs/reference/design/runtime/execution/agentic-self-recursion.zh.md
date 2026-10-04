@@ -3,7 +3,7 @@
 > agentic 函数通过处境引导防止调用自身，并以递归深度上限兜底。
 > 本文档基于真实代码逐条对应 file:line，可照着核对。
 > 相关代码：
-> - `openprogram/agentic_programming/function.py`
+> - `openprogram/agentic_programming/call_state.py`
 > - `openprogram/agentic_programming/runtime.py`
 > - 测试：`tests/unit/programs/runtime/test_self_recursion_guard.py`(8 用例)
 

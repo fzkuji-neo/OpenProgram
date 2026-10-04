@@ -295,21 +295,32 @@ PATCH /api/agents/general
 <section id="execution">
 <h2>Public calls and execution boundaries</h2>
 <p>Proposed API, not available yet. Extend the existing Python agent() and llm() with agent_id, config, overrides and history selection. Do not create a parallel executor. llm() has no Python/Program/MCP tool loop, including when the selected Agent allows those tools. Preserve explicit web_search=True for provider-native search, subject to the same native-action capability checks; selecting an Agent alone never enables search. Output validation and return types remain unchanged.</p>
-<pre>
-<code>@agentic_function
-def extract(document):
-    return agent(document, agent_id=&quot;my-agent&quot;,
-                 overrides={&quot;memory&quot;: {&quot;mode&quot;: &quot;off&quot;}},
-                 response_format=Result)
+<pre>from openprogram import Agent
 
-@agentic_function
-def classify(document):
-    return llm(document,
-               config=AgentConfig(model=&quot;provider:model&quot;, memory={&quot;mode&quot;: &quot;off&quot;}),
-               response_format=Label)
+
 
 # Explicit history sharing; records stay in the same execution DAG.
-agent(prompt, agent_id=&quot;reviewer&quot;, history=&quot;selected&quot;, context_nodes=[node_id])</code>
+agent(prompt, agent_id="reviewer", history="selected", context_nodes=[node_id])
+
+class ExampleAgent(Agent):
+    method_options = {
+        'extract': {'tool': True},
+        'classify': {'tool': True},
+    }
+
+    def extract(self, document):
+        return agent(document, agent_id="my-agent",
+                     overrides={"memory": {"mode": "off"}},
+                     response_format=Result)
+
+    def classify(self, document):
+        return llm(document,
+                   config=AgentConfig(model="provider:model", memory={"mode": "off"}),
+                   response_format=Label)
+
+_example_agent = ExampleAgent()
+extract = _example_agent.extract
+classify = _example_agent.classify
 </pre>
 <div class="table-wrap">
 <table>

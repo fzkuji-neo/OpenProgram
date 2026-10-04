@@ -19,7 +19,7 @@ class _FakeLocator:
         return _FakeLocator(self.page, index)
 
     def aria_snapshot(self):
-        return "- document:\n  - button \"Save\"\n  - textbox \"Name\""
+        return '- document:\n  - button "Save"\n  - textbox "Name"'
 
     def element_handle(self):
         if self.index is None or self.index >= len(self.page.node_order):
@@ -27,7 +27,9 @@ class _FakeLocator:
         return _FakeElementHandle(self.page, self.page.node_order[self.index])
 
     def element_handles(self):
-        handles = [_FakeElementHandle(self.page, node_id) for node_id in self.page.node_order]
+        handles = [
+            _FakeElementHandle(self.page, node_id) for node_id in self.page.node_order
+        ]
         if self.page.mutate_after_handle_capture:
             self.page.node_order.insert(0, "capture-window-save")
         return handles
@@ -116,8 +118,7 @@ class _FakeElementHandle:
 class _FakeArrayHandle:
     def __init__(self, page):
         self.handles = [
-            _FakeElementHandle(page, node_id)
-            for node_id in page.node_order[:120]
+            _FakeElementHandle(page, node_id) for node_id in page.node_order[:120]
         ]
         if page.mutate_after_handle_capture:
             page.node_order.insert(0, "capture-window-save")
@@ -269,10 +270,10 @@ def _controller():
 
 
 def test_browser_agent_is_an_explicit_internal_agentic_module():
-    from openprogram.programs._registry import AGENTIC_MODULES
+    from openprogram.programs._registry import PROGRAM_MODULES
 
-    # AGENTIC_MODULES stores workflow-relative short names.
-    assert "browser" in AGENTIC_MODULES
+    # PROGRAM_MODULES stores workflow-relative short names.
+    assert "browser" in PROGRAM_MODULES
 
 
 def test_observe_returns_dom_aria_and_refs_without_a_screenshot():
@@ -295,7 +296,6 @@ def test_observe_returns_dom_aria_and_refs_without_a_screenshot():
     assert not any(call[0] == "screenshot" for call in api.page.calls)
 
 
-
 def test_failed_password_redaction_disposes_new_observation_handles(monkeypatch):
     controller, api = _controller()
     original = api.page.evaluate
@@ -315,6 +315,7 @@ def test_failed_password_redaction_disposes_new_observation_handles(monkeypatch)
         assert set(api.page.disposed_nodes) == set(api.page.node_order)
     finally:
         controller.close()
+
 
 def test_screenshot_is_one_current_viewport_image_on_the_same_frame():
     from openprogram.programs import ToolReturn
@@ -347,28 +348,34 @@ def test_bound_screenshot_uses_hidden_desktop_capture(monkeypatch):
     monkeypatch.setattr(
         webtab,
         "request_bound_screenshot",
-        lambda binding_id, **kwargs: calls.append((binding_id, kwargs)) or {
+        lambda binding_id, **kwargs: calls.append((binding_id, kwargs))
+        or {
             "ok": True,
-            "image_data_url": "data:image/png;base64," + base64.b64encode(
-                b"\x89PNG hidden"
-            ).decode("ascii"),
+            "image_data_url": "data:image/png;base64,"
+            + base64.b64encode(b"\x89PNG hidden").decode("ascii"),
         },
     )
 
     observation = controller.execute(action="observe")
     result = controller.execute(
-        action="screenshot", expected_frame_id=observation["frame_id"],
+        action="screenshot",
+        expected_frame_id=observation["frame_id"],
     )
 
     assert isinstance(result, ToolReturn)
     assert result.images == [b"\x89PNG hidden"]
     assert not any(call[0] == "screenshot" for call in api.page.calls)
-    assert calls == [("surface-background", {
-        "timeout": 5.0,
-        "expected_page_revision": 3,
-        "expected_access_revision": 4,
-        "expected_geometry_revision": 5,
-    })]
+    assert calls == [
+        (
+            "surface-background",
+            {
+                "timeout": 5.0,
+                "expected_page_revision": 3,
+                "expected_access_revision": 4,
+                "expected_geometry_revision": 5,
+            },
+        )
+    ]
 
 
 def test_planner_screenshot_tool_result_is_metadata_only_and_dag_safe():
@@ -401,16 +408,19 @@ def test_planner_screenshot_tool_result_is_metadata_only_and_dag_safe():
         nonlocal calls
         calls += 1
         if calls == 1:
-            reply = message([
-                ToolCall(
-                    id="screenshot-1",
-                    name="browser_page",
-                    arguments={
-                        "action": "screenshot",
-                        "expected_frame_id": observation["frame_id"],
-                    },
-                ),
-            ], "toolUse")
+            reply = message(
+                [
+                    ToolCall(
+                        id="screenshot-1",
+                        name="browser_page",
+                        arguments={
+                            "action": "screenshot",
+                            "expected_frame_id": observation["frame_id"],
+                        },
+                    ),
+                ],
+                "toolUse",
+            )
         else:
             reply = message([TextContent(text="done")], "stop")
         yield EventStart(partial=reply)
@@ -512,7 +522,8 @@ def test_agent_click_cursor_is_internal_and_only_armed_for_agent_clicks():
 
     observed = controller.execute(action="observe")
     controller.execute(
-        action="screenshot", expected_frame_id=observed["frame_id"],
+        action="screenshot",
+        expected_frame_id=observed["frame_id"],
     )
     clicked = controller.execute(
         action="click",
@@ -561,7 +572,9 @@ def test_observed_disabled_ref_is_not_clicked():
     observation = controller.execute(action="observe")
 
     result = controller.execute(
-        action="click", expected_frame_id=observation["frame_id"], ref="e1",
+        action="click",
+        expected_frame_id=observation["frame_id"],
+        ref="e1",
     )
 
     assert result == {"ok": False, "reason_code": "target_disabled"}
@@ -636,11 +649,17 @@ def test_visual_point_click_requires_same_frame_screenshot_and_css_viewport():
     assert observation["viewport"]["height"] == 640
 
     assert controller.execute(
-        action="click", expected_frame_id=observation["frame_id"], x=100, y=80,
+        action="click",
+        expected_frame_id=observation["frame_id"],
+        x=100,
+        y=80,
     ) == {"ok": False, "reason_code": "visual_observation_required"}
     controller.execute(action="screenshot", expected_frame_id=observation["frame_id"])
     result = controller.execute(
-        action="click", expected_frame_id=observation["frame_id"], x=100, y=80,
+        action="click",
+        expected_frame_id=observation["frame_id"],
+        x=100,
+        y=80,
     )
 
     assert result["ok"] is True
@@ -654,7 +673,10 @@ def test_visual_point_click_rejects_a_changed_screenshot_viewport():
     api.page.scroll_y = 10
 
     result = controller.execute(
-        action="click", expected_frame_id=observation["frame_id"], x=100, y=80,
+        action="click",
+        expected_frame_id=observation["frame_id"],
+        x=100,
+        y=80,
     )
 
     assert result == {"ok": False, "reason_code": "stale_observation"}
@@ -667,7 +689,8 @@ def test_screenshot_rejects_viewport_change_during_capture():
     api.page.mutate_during_screenshot = True
 
     result = controller.execute(
-        action="screenshot", expected_frame_id=observation["frame_id"],
+        action="screenshot",
+        expected_frame_id=observation["frame_id"],
     )
 
     assert result == {"ok": False, "reason_code": "stale_observation"}
@@ -681,7 +704,10 @@ def test_visual_point_click_rejects_out_of_bounds_coordinates(x, y):
     controller.execute(action="screenshot", expected_frame_id=observation["frame_id"])
 
     result = controller.execute(
-        action="click", expected_frame_id=observation["frame_id"], x=x, y=y,
+        action="click",
+        expected_frame_id=observation["frame_id"],
+        x=x,
+        y=y,
     )
 
     assert result == {"ok": False, "reason_code": "invalid_coordinate"}
@@ -691,9 +717,7 @@ def test_visual_point_click_rejects_out_of_bounds_coordinates(x, y):
 def test_dom_verification_after_the_last_write_is_completion_authority():
     controller, _api = _controller()
     first = controller.execute(action="observe")
-    controller.execute(
-        action="click", expected_frame_id=first["frame_id"], ref="e1"
-    )
+    controller.execute(action="click", expected_frame_id=first["frame_id"], ref="e1")
     second = controller.execute(action="observe")
 
     verified = controller.execute(
@@ -710,24 +734,39 @@ def test_dom_verification_after_the_last_write_is_completion_authority():
     assert result["completion_evidence"] == [verified["evidence"]]
 
 
-
 @pytest.mark.parametrize("replacement", ["failed", "empty", "unsupported", "stale"])
 def test_rejected_verification_replaces_previous_completion_authority(replacement):
     controller, api = _controller()
     try:
         observation = controller.execute(action="observe")
-        assert controller.execute(action="verify", expected_frame_id=observation["frame_id"],
-                                  assertion="text_contains", value="Name")["passed"] is True
+        assert (
+            controller.execute(
+                action="verify",
+                expected_frame_id=observation["frame_id"],
+                assertion="text_contains",
+                value="Name",
+            )["passed"]
+            is True
+        )
         if replacement == "failed":
-            assertion, value, frame = "text_contains", "Missing", observation["frame_id"]
+            assertion, value, frame = (
+                "text_contains",
+                "Missing",
+                observation["frame_id"],
+            )
         elif replacement == "empty":
             assertion, value, frame = "text_contains", "", observation["frame_id"]
         elif replacement == "unsupported":
-            assertion, value, frame = "unknown_assertion", "Name", observation["frame_id"]
+            assertion, value, frame = (
+                "unknown_assertion",
+                "Name",
+                observation["frame_id"],
+            )
         else:
             assertion, value, frame = "text_contains", "Name", "stale-frame"
-        rejected = controller.execute(action="verify", expected_frame_id=frame,
-                                      assertion=assertion, value=value)
+        rejected = controller.execute(
+            action="verify", expected_frame_id=frame, assertion=assertion, value=value
+        )
         assert rejected.get("passed") is not True
         result = controller.final_result(summary="claimed complete")
         assert result["status"] == "failed"
@@ -741,8 +780,15 @@ def test_final_completion_rechecks_browser_evidence_after_external_page_change(c
     controller, api = _controller()
     try:
         observation = controller.execute(action="observe")
-        assert controller.execute(action="verify", expected_frame_id=observation["frame_id"],
-                                  assertion="text_contains", value="Name")["passed"] is True
+        assert (
+            controller.execute(
+                action="verify",
+                expected_frame_id=observation["frame_id"],
+                assertion="text_contains",
+                value="Name",
+            )["passed"]
+            is True
+        )
         if change == "navigation":
             api.page.url = "https://example.com/replacement"
         elif change == "document":
@@ -755,12 +801,11 @@ def test_final_completion_rechecks_browser_evidence_after_external_page_change(c
     finally:
         controller.close()
 
+
 def test_verify_uses_latest_observation_when_frame_id_is_omitted():
     controller, _api = _controller()
     first = controller.execute(action="observe")
-    controller.execute(
-        action="click", expected_frame_id=first["frame_id"], ref="e1"
-    )
+    controller.execute(action="click", expected_frame_id=first["frame_id"], ref="e1")
     controller.execute(action="observe")
 
     verified = controller.execute(
@@ -964,9 +1009,8 @@ def test_browser_agent_keeps_forcing_one_browser_page_call_until_verified(monkey
             verified = state["calls"] == 4 and reason_code is None
             return {
                 "status": "succeeded" if verified else "failed",
-                "reason_code": reason_code or (
-                    "verified" if verified else "verification_missing"
-                ),
+                "reason_code": reason_code
+                or ("verified" if verified else "verification_missing"),
                 "summary": summary,
                 "steps_taken": 1 if state["calls"] >= 2 else 0,
                 "completion_evidence": [{"passed": True}] if verified else [],
@@ -1030,7 +1074,10 @@ def test_browser_agent_sends_one_screenshot_to_next_point_click_request(monkeypa
                 assert "PNG fake" not in content[0]["text"]
                 frame_id = controller._frame["frame_id"]
                 controller.execute(
-                    action="click", expected_frame_id=frame_id, x=100, y=80,
+                    action="click",
+                    expected_frame_id=frame_id,
+                    x=100,
+                    y=80,
                 )
             elif self.calls == 3:
                 assert [block["type"] for block in content] == ["text"]
@@ -1074,12 +1121,14 @@ def test_screenshot_payload_is_released_when_provider_request_is_cancelled(monke
             if self.calls == 1:
                 frame_id = controller._frame["frame_id"]
                 captured["result"] = controller.execute(
-                    action="screenshot", expected_frame_id=frame_id,
+                    action="screenshot",
+                    expected_frame_id=frame_id,
                 )
                 return ""
             captured["content"] = kwargs["content"]
             assert [block["type"] for block in captured["content"]] == [
-                "text", "image",
+                "text",
+                "image",
             ]
             raise ExecInterrupt("cancelled")
 
@@ -1109,7 +1158,8 @@ def test_unsent_final_screenshot_payload_is_released(monkeypatch):
             if self.calls == 6:
                 frame_id = controller._frame["frame_id"]
                 captured["result"] = controller.execute(
-                    action="screenshot", expected_frame_id=frame_id,
+                    action="screenshot",
+                    expected_frame_id=frame_id,
                 )
             return ""
 
@@ -1125,7 +1175,8 @@ def test_unsent_final_screenshot_payload_is_released(monkeypatch):
 
 @pytest.mark.parametrize("cancelled", [False, True])
 def test_same_request_screenshot_is_released_when_runtime_raises(
-    monkeypatch, cancelled,
+    monkeypatch,
+    cancelled,
 ):
     from openprogram.programs.workflow import browser as module
     from openprogram.providers.utils.errors import ExecInterrupt
@@ -1138,7 +1189,8 @@ def test_same_request_screenshot_is_released_when_runtime_raises(
         def exec(self, **_kwargs):
             frame_id = controller._frame["frame_id"]
             captured["result"] = controller.execute(
-                action="screenshot", expected_frame_id=frame_id,
+                action="screenshot",
+                expected_frame_id=frame_id,
             )
             if cancelled:
                 raise ExecInterrupt("cancelled after tool execution")
@@ -1201,12 +1253,14 @@ def test_screenshot_point_capability_expires_after_image_request(
                     pass
             elif self.calls == 3:
                 assert [block["type"] for block in content] == ["text"]
-                attempted.append(controller.execute(
-                    action="click",
-                    expected_frame_id=frame_id,
-                    x=100,
-                    y=80,
-                ))
+                attempted.append(
+                    controller.execute(
+                        action="click",
+                        expected_frame_id=frame_id,
+                        x=100,
+                        y=80,
+                    )
+                )
                 controller._terminal_reason = "test_complete"
             else:
                 raise AssertionError("unexpected extra planner request")
@@ -1302,12 +1356,13 @@ def test_browser_open_forwards_exact_page_revisions_to_app_session(monkeypatch):
     ],
 )
 def test_runtime_cancellation_returns_cancelled_and_closes(monkeypatch, interrupt):
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
     from openprogram.programs.workflow import browser as module
     from openprogram.providers.utils.errors import ExecInterrupt
 
     raised = (
-        CancelledError("cancelled") if interrupt == "agentic"
+        CancelledError("cancelled")
+        if interrupt == "agentic"
         else interrupt or ExecInterrupt("cancelled")
     )
 
@@ -1449,9 +1504,12 @@ def test_browser_workflow_form_excludes_execution_settings():
 
     meta = browser_agent.input_meta
     signature = inspect.signature(browser_agent)
-    visible = [name for name in signature.parameters
-               if not meta.get(name, {}).get("hidden")
-               and not meta.get(name, {}).get("advanced")]
+    visible = [
+        name
+        for name in signature.parameters
+        if not meta.get(name, {}).get("hidden")
+        and not meta.get(name, {}).get("advanced")
+    ]
     assert visible == ["task", "url"]
     assert signature.parameters["max_steps"].default == 20
     assert signature.parameters["max_seconds"].default == 300
@@ -1475,22 +1533,38 @@ def test_bound_pointer_inputs_use_native_presentation_scale(monkeypatch, scale):
     controller.binding_id = "fixed-preview"
     controller.geometry_revision = 9
     queries = []
-    monkeypatch.setattr(webtab, "request_bound_tab", lambda binding_id, **kwargs:
-        queries.append((binding_id, kwargs)) or {"ok": True, "input_scale": scale})
-    monkeypatch.setattr(webtab, "request_bound_screenshot", lambda *_a, **_k: {
-        "ok": True, "image_data_url": "data:image/png;base64," + base64.b64encode(b"png").decode(),
-    })
+    monkeypatch.setattr(
+        webtab,
+        "request_bound_tab",
+        lambda binding_id, **kwargs: queries.append((binding_id, kwargs))
+        or {"ok": True, "input_scale": scale},
+    )
+    monkeypatch.setattr(
+        webtab,
+        "request_bound_screenshot",
+        lambda *_a, **_k: {
+            "ok": True,
+            "image_data_url": "data:image/png;base64,"
+            + base64.b64encode(b"png").decode(),
+        },
+    )
     observed = controller.execute(action="observe")
     controller.execute(action="screenshot", expected_frame_id=observed["frame_id"])
-    result = controller.execute(action="click", expected_frame_id=observed["frame_id"], x=480, y=320)
+    result = controller.execute(
+        action="click", expected_frame_id=observed["frame_id"], x=480, y=320
+    )
     assert result["ok"] is True
     assert ("mouse_click", 480 * scale, 320 * scale) in api.page.calls
     observed = controller.execute(action="observe")
-    result = controller.execute(action="scroll", expected_frame_id=observed["frame_id"], amount=600)
+    result = controller.execute(
+        action="scroll", expected_frame_id=observed["frame_id"], amount=600
+    )
     assert result["ok"] is True
     assert ("wheel", 0, 600) in api.page.calls
-    assert all(binding == "fixed-preview" and kwargs["expected_geometry_revision"] == 9
-               for binding, kwargs in queries)
+    assert all(
+        binding == "fixed-preview" and kwargs["expected_geometry_revision"] == 9
+        for binding, kwargs in queries
+    )
 
 
 def test_bound_pointer_rejects_stale_native_geometry(monkeypatch):
@@ -1500,6 +1574,8 @@ def test_bound_pointer_rejects_stale_native_geometry(monkeypatch):
     controller.binding_id = "fixed-preview"
     monkeypatch.setattr(webtab, "request_bound_tab", lambda *_a, **_k: {"ok": False})
     observed = controller.execute(action="observe")
-    result = controller.execute(action="scroll", expected_frame_id=observed["frame_id"], amount=600)
+    result = controller.execute(
+        action="scroll", expected_frame_id=observed["frame_id"], amount=600
+    )
     assert result == {"ok": False, "reason_code": "stale_observation"}
     assert not any(call[0] == "wheel" for call in api.page.calls)

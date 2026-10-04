@@ -14,7 +14,7 @@ import threading
 import pytest
 
 from openprogram.agent import run_control as ps
-from openprogram.agentic_programming.function import CancelledError
+from openprogram.agentic_programming.call_state import CancelledError
 
 
 @pytest.fixture(autouse=True)
@@ -149,7 +149,9 @@ def test_exact_cancel_without_persisted_execution_still_trips_token():
         assert event.is_set() is True
     finally:
         ps.unregister_cancel_event(
-            "s1", event, execution_id="missing-execution",
+            "s1",
+            event,
+            execution_id="missing-execution",
         )
 
 
@@ -187,7 +189,9 @@ def test_exact_cancel_rejected_as_terminal_does_not_trip_stale_token(
         assert event.is_set() is False
     finally:
         ps.unregister_cancel_event(
-            "s1", event, execution_id="completed",
+            "s1",
+            event,
+            execution_id="completed",
         )
 
 
@@ -277,7 +281,7 @@ def test_exact_cleanup_lease_rejects_handover_until_release():
 
 
 def test_cancel_hook_raises_inside_a_cancelled_turn():
-    """@agentic_function entry and Runtime.exec go through this hook."""
+    """Agent method entry and Runtime.exec go through this hook."""
     ps.begin_turn("s1", "e1")
     tok = ps.set_current_session_id("s1")
     try:

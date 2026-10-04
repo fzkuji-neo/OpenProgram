@@ -9,7 +9,7 @@ structured dict the model reads.
 It is a thin bridge over the unified ``runtime.ask`` user-input base
 (``runtime.ask(questions=[...])``) — same ``question.asked`` event,
 same composer popup card as ``runtime.ask`` from inside an
-@agentic_function. The only difference is the entry point: here the
+Agent method. The only difference is the entry point: here the
 *model* drives it via tool-use; there *code* calls it directly.
 
 Legacy: this used to be the single-question ``clarify`` tool. The
@@ -152,7 +152,7 @@ def ask_user_question(questions: list | None = None, **kw: Any) -> str | ToolRet
     # Bridge to the unified runtime.ask base. Needs an interactive
     # runtime in the current execution context (webui / channel / TTY).
     try:
-        from openprogram.agentic_programming.function import _current_runtime
+        from openprogram.agentic_programming.call_state import _current_runtime
         from openprogram.agent.questions import UserDeclined, AskTimeout
     except ImportError as e:  # pragma: no cover
         return ToolReturn(text=f"Error: user-input infrastructure not available: {e}", is_error=True)

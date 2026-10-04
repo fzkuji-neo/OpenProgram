@@ -216,7 +216,7 @@ def render_dag_messages(graph: Graph, read_ids: list[str],
                     timestamp=ts_ms,
                 ))
                 continue
-            # Direct @agentic_function (no tool_call_id): render as a
+            # Direct Agent method (no tool_call_id): render as a
             # user→assistant text pair (the legacy convention).
             last_assistant = None
             call_text = _format_call_signature(node)

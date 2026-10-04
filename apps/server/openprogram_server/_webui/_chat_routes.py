@@ -36,7 +36,7 @@ def is_checkout_target(node) -> bool:
     """A HEAD/checkout/fork target is a CHAIN-level turn. On disk those
     carry ``caller`` of "ROOT" (user turns, ROOT-hung code records) or
     "" (reply nodes); a node whose caller is another call lives inside
-    an @agentic_function's execution subtree and is not a conversation
+    an Agent method's execution subtree and is not a conversation
     branch. Mirrored by ``_isChainTurn`` in dag/render/inspector.ts."""
     return getattr(node, "caller", None) in (None, "", "ROOT")
 
@@ -382,7 +382,7 @@ async def post_chat_checkout(body: dict = None):
     if not db.message_exists(session_id, target_id):
         return JSONResponse(content={"error": "unknown msg"}, status_code=404)
     # Reject checkout to function-internal nodes — a node whose
-    # ``caller`` is another call lives inside an @agentic_function's
+    # ``caller`` is another call lives inside an Agent method's
     # execution subtree (LLM exec rows, nested code calls). Those are
     # not conversation branches; switching HEAD into one yields a
     # nonsense transcript mixing internal exec output with the

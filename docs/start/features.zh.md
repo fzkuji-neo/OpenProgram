@@ -7,7 +7,7 @@ README 中的 [核心特性](../README.zh.md) 表格
 
 ## 自动上下文
 
-每一次 `@agentic_function` 调用都会作为一个节点记录进会话的
+每一次 `Agent` method 调用都会作为一个节点记录进会话的
 扁平对话 DAG —— 与用户消息、LLM 调用共存于同一个 DAG。
 嵌套调用会自动串接：
 
@@ -25,8 +25,17 @@ login_flow ✓ 8.8s
 装饰器上有两个开关，控制一次调用向后续 LLM 调用贡献什么：
 
 ```python
-@agentic_function(expose="full", render_range={"callers": 1})
-def navigate(target): ...
+from openprogram import Agent
+
+class ExampleAgent(Agent):
+    method_options = {
+        'navigate': {'tool': True, 'expose': 'full', 'render_range': {'callers': 1}},
+    }
+
+    def navigate(self, target): ...
+
+_example_agent = ExampleAgent()
+navigate = _example_agent.navigate
 ```
 
 `expose` 决定后续调用能看到这次调用内部的多少 ——
@@ -38,9 +47,9 @@ def navigate(target): ...
 
 ## 编写函数的函数
 
-编写、修复和搭建 `@agentic_function` 本身就是
+编写、修复和搭建 `Agent` method 本身就是
 agent 的工作，用普通的文件编辑工具并按照
-[Agentic function API](../reference/api/agentic-function.zh.md) 完成。
+[Agentic function API](../reference/api/agent.zh.md) 完成。
 没有专门的 `create()` / `fix()` 框架调用：
 它们无非是包了一次 LLM 调用加一次文件写入，而 agent
 可以直接做这些事。

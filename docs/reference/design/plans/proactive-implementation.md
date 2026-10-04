@@ -79,7 +79,7 @@ concurrency 1–2, is preemptible by user tasks, and yields on 429 (design
 
 ## 6. A known gap, deliberately not blocking
 
-`@function` tool execution does not write a DAG node; only `@agentic_function`
+`@function` tool execution does not write a DAG node; only `Agent` method
 does. The DAG tree is therefore incomplete as a causal record. If auditing had
 to rely on the DAG for causal traceback, this would have to be filled first.
 Instead the design records the full event set independently in `events.jsonl`,

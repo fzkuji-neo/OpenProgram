@@ -129,7 +129,7 @@ def test_standalone_agent_async_selects_explicit_provider_before_construction(mo
     import asyncio
     from types import SimpleNamespace
     from openprogram.agentic_programming import agent_async
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
     from openprogram.store import _store
 
     selections = []

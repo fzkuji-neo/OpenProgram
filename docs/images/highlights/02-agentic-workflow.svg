@@ -30,7 +30,7 @@
   <text x="80" y="428" font-family="Instrument Sans" font-size="25" fill="#B4B4C0">validates it. A bad pick is bounced back to <tspan font-family="Geist Mono" font-size="22" fill="#E0A93B">re-decide</tspan>, so a</text>
   <text x="80" y="464" font-family="Instrument Sans" font-size="25" fill="#B4B4C0">workflow can't skip its own checks.</text>
 
-  <text x="80" y="528" font-family="Instrument Sans" font-size="25" fill="#B4B4C0">And it grows itself: the agent writes an <tspan font-family="Geist Mono" font-size="21" fill="#7FC4FF">@agentic_function</tspan></text>
+  <text x="80" y="528" font-family="Instrument Sans" font-size="25" fill="#B4B4C0">And it grows itself: the agent writes an <tspan font-family="Geist Mono" font-size="21" fill="#7FC4FF">Agent method</tspan></text>
   <text x="80" y="564" font-family="Instrument Sans" font-size="25" fill="#B4B4C0">with plain file edits, a watcher hot-loads it, and it's a live</text>
   <text x="80" y="600" font-family="Instrument Sans" font-size="25" fill="#B4B4C0">tool on the next turn — no create() / fix() machinery.</text>
 
@@ -93,7 +93,7 @@
       <rect x="0" y="16" width="140" height="60" rx="10" fill="#1F1A2E" stroke="#463A5E" stroke-width="1.3"/>
       <text x="13" y="40" font-family="Instrument Sans" font-weight="700" font-size="14" fill="#C9A6FF">agent writes</text>
       <text x="13" y="57" font-family="Geist Mono" font-size="11.5" fill="#8A8A96">Write / Edit</text>
-      <text x="13" y="71" font-family="Geist Mono" font-size="10.5" fill="#6E6E7A">@agentic_function</text>
+      <text x="13" y="71" font-family="Geist Mono" font-size="10.5" fill="#6E6E7A">Agent method</text>
     </g>
     <path d="M140 46 L166 46" stroke="#8A7AB8" stroke-width="2.2" fill="none"/>
     <polygon points="174,46 164,41 164,51" fill="#8A7AB8"/>

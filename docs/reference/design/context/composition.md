@@ -147,7 +147,7 @@ The registered components are listed below with their `order` and `condition`. T
 
 | order | Content | condition | Delivered by |
 |---|---|---|---|
-| 1 | this call's situation | called inside an @agentic_function | _situational_prefix + _compute_call_path, prefixed to the call's message |
+| 1 | this call's situation | called inside an Agent method | _situational_prefix + _compute_call_path, prefixed to the call's message |
 | 2 | per-turn memory prefetch | relevant memory retrieved | `_inject_memory_prefetch`, a prefix block inside the current user message |
 | 3 | this call's user input + attachments | always | the user message itself |
 | 4 | output format / schema | required by this step | inlined into the situation block |
@@ -165,7 +165,7 @@ Kanban multi-agent coordination, Nous subscription guidance, and the Hermes prof
 
 This section gives the prompt template for each key component: the model-facing prompt body (in English, matching the existing skills and situational blocks), its placeholders, and its registration parameters (layer/order/condition). A component's `build()` produces this text directly. The format follows `_situational_prefix` (`[…]` tags) and Hermes GUIDANCE (`# heading` + `<tag>` blocks).
 
-### 1. situation (L2 · order 1 · condition: called inside an @agentic_function)
+### 1. situation (L2 · order 1 · condition: called inside an Agent method)
 
 The `_situational_prefix` block does more than prevent recursion: it also carries the function's responsibility, call path, program position, and output destination.
 
@@ -322,7 +322,7 @@ The "call tree" in L1 history is **generated automatically by the framework from
 
 | The called thing | Will it call the LLM | Default |
 |---|---|---|
-| agentic function (`@agentic_function`) | yes | **enters the tree**, shown as `function(input) → output`, and **recurses** the same criterion on its internals |
+| agentic function (`Agent` method) | yes | **enters the tree**, shown as `function(input) → output`, and **recurses** the same criterion on its internals |
 | plain function / tool (read/bash/arxiv_search…) | no (just does the work) | **collapsed**, not in the tree |
 | the in-function LLM inference itself | — | **not in the tree** (what's past is past; the useful output has already become that function's output) |
 
@@ -597,7 +597,7 @@ What it shows: `generate_ideas` / `check_novelty` are **agentic functions inside
 
 ## 7. Situation Injection
 
-Whenever an `@agentic_function` internally calls `runtime.exec`, the framework automatically injects a `<situation>` block telling the model its current execution situation.
+Whenever an `Agent` method internally calls `runtime.exec`, the framework automatically injects a `<situation>` block telling the model its current execution situation.
 
 ### What the `<situation>` block contains
 

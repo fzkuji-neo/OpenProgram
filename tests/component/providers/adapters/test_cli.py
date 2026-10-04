@@ -6,8 +6,9 @@ import subprocess
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
 
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming.runtime import Runtime
+
 
 # Note: subprocess-based OpenAICodexRuntime tests were removed when the
 # runtime switched to HTTP direct (chatgpt.com/backend-api or api.openai.com).
@@ -24,14 +25,15 @@ def test_visualizer_codex_runtime_enables_search(monkeypatch):
         captured["kwargs"] = kwargs
         return object()
 
-    monkeypatch.setattr("openprogram.providers.registry.create_runtime", fake_create_runtime)
+    monkeypatch.setattr(
+        "openprogram.providers.registry.create_runtime", fake_create_runtime
+    )
 
     server._create_runtime_for_visualizer("openai-codex")
 
     assert captured["provider"] == "openai-codex"
     assert "session_id" not in captured["kwargs"]
     assert captured["kwargs"]["search"] is True
-
 
 
 # Note: ClaudeCodeRuntime and the shared CliRunner (CLAUDE_CODE_PLUGIN

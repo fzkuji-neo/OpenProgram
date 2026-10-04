@@ -11,7 +11,7 @@ import json
 import logging
 from typing import Optional
 
-from openprogram.agentic_programming.function import current_session_id
+from openprogram.agentic_programming.call_state import current_session_id
 from openprogram.programs.workflow.json_parsing import parse_json
 
 # Cross-function calls go through the package object so monkeypatches on
@@ -81,7 +81,7 @@ def render_session_view(session_id: str, *,
 def _run_decision_turn(session_id: str, prompt: str, *, agent_id: str,
                        spawn_caller: Optional[str]) -> str:
     """Inspect within the Goal runtime; standalone session helpers may spawn."""
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
 
     # A Goal already owns a Runtime and its canonical execution. Starting a
     # JobRunner here can run startup recovery against that still-live owner.

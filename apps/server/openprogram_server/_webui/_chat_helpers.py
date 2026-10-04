@@ -112,7 +112,7 @@ def parse_chat_input(text: str) -> dict:
         }
 
     # All ``action="run"`` parse branches (create / edit / run / bare
-    # function name) were removed when @agentic_function dispatch
+    # function name) were removed when Agent method dispatch
     # unified onto ``dispatcher.dispatch_forced_tool_call``. UI-level
     # function invocation now goes through ``POST /api/function/{name}``
     # — chat text never short-circuits into a direct function call.

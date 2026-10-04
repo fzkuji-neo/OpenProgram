@@ -104,7 +104,7 @@ entity). When the Cancel API fires:
 3. `process_user_turn` already bridges cancel_event into an asyncio.Event (the `agent_loop` call), and the LLM provider stream checks for the cancel on the next chunk and then breaks.
 4. BashTool / other subprocesses use the exact execution id with
    `process_runner.kill_active_subprocess`. Cancellation at the tool layer is
-   cooperative: each `@agentic_function`'s pre-invocation hook checks
+   cooperative: each `Agent` method's pre-invocation hook checks
    `is_cancelled`, and the next tool-call entry raises `CancelledError`.
 5. Fallback timeout: if the worker still hasn't exited 30 seconds after the cancel, the runner marks the entity `cancelled` (error="cancel timed out, worker may be stuck") and detaches the worker thread (no hard kill; let GC handle it).
 
@@ -322,7 +322,7 @@ Stop in the UI or the agent decides to abort.
 | **D2 state machine** | running → cancelled (or forced cancelled if the worker doesn't exit within the timeout) |
 | **D3 worker pool** | The thread stays occupied until the worker actually exits; the pool slot is released after the worker function returns |
 | **D4 persistence** | The cancel request is committed immediately; commit again after the worker exits (final state) |
-| **D5 cancel** | This is the design core. cancel_event.set() → (a) the asyncio.Event inside `process_user_turn` fires → agent_loop breaks on the next stream chunk → the LLM call aborts; (b) the `is_cancelled(session)` hook makes the next `@agentic_function` raise CancelledError; (c) BashTool kills subprocesses via `kill_active_runtime`; (d) the 30-second fallback timeout force-transitions the status |
+| **D5 cancel** | This is the design core. cancel_event.set() → (a) the asyncio.Event inside `process_user_turn` fires → agent_loop breaks on the next stream chunk → the LLM call aborts; (b) the `is_cancelled(session)` hook makes the next `Agent` method raise CancelledError; (c) BashTool kills subprocesses via `kill_active_runtime`; (d) the 30-second fallback timeout force-transitions the status |
 | **D6 session binding** | Unchanged |
 | **D7 sub-agent** | After the sub-agent loop gets the cancel, it follows the dispatcher's existing cancelled branch: the placeholder is already inserted, the error folds into the same row → status=cancelled, and partial output lands on disk |
 | **D8 ContextCommit** | The attach card status goes from running → cancelled; content writes partial output + a `[cancelled at T]` marker; the generator can also selectively expand cancelled (first version: don't expand cancelled, just show the marker) |

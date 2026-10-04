@@ -18,7 +18,7 @@ export function programsForSelection<T extends ProgramEntry>(
   }
   if (
     selection === "__functions__"
-    || selection === "__agentic_functions__"
+    || selection === "__agent_methods__"
     || selection === "__applications__"
   ) {
     return programs;
@@ -37,7 +37,7 @@ export function toolsForSelection<T extends CatalogEntry>(
   }
   if (
     selection === "__functions__" ||
-    selection === "__agentic_functions__" ||
+    selection === "__agent_methods__" ||
     selection === "__applications__"
   ) {
     return tools;

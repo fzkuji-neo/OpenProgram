@@ -32,7 +32,7 @@ Agentic Programming 把控制权还给程序员：
 
 把一个复杂任务拆解成函数调用图。图上的每个节点，你决定：
 - **不需要推理的** —— 用普通 Python 函数
-- **需要理解 / 生成 / 判断的** —— 用 `@agentic_function` 装饰，函数体里调 `llm(...)`
+- **需要理解 / 生成 / 判断的** —— 用 `Agent` method 装饰，函数体里调 `llm(...)`
 
 LLM 变成一个工具，被你调用、被你约束、被你组合。
 
@@ -40,20 +40,27 @@ LLM 变成一个工具，被你调用、被你约束、被你组合。
 
 整个范式只有三样东西：
 
-### 1. `@agentic_function`
+### 1. `Agent` method
 
 一个装饰器。被它装饰的函数，docstring 作为描述性上下文随调用传递，函数体里的 `llm(...)` 发起一次模型调用。装饰器提供环境 runtime。
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 
-@agentic_function
-def summarize(text: str, runtime=None) -> str:
-    """Summarize a text in one sentence, preserving the core point."""
-    return llm([{"type": "text", "text": (
-        f"Summarize in one sentence, preserving the core point:\n\n{text}"
-    )}])
+class ExampleAgent(Agent):
+    method_options = {
+        'summarize': {'tool': True},
+    }
+
+    def summarize(self, text: str, runtime=None) -> str:
+        """Summarize a text in one sentence, preserving the core point."""
+        return llm([{"type": "text", "text": (
+            f"Summarize in one sentence, preserving the core point:\n\n{text}"
+        )}])
+
+_example_agent = ExampleAgent()
+summarize = _example_agent.summarize
 ```
 
 外部调用者感觉不到差别 —— `summarize(article)` 看起来和任何 Python 函数一样。
@@ -82,14 +89,14 @@ LLM 调用的运行时抽象。负责：
 
 ### LLM 也写代码
 
-LLM 不只是运行时的推理引擎，它也可以**写代码**——生成、修改、修复符合 API 文档的 `@agentic_function`。这件事不需要专门的 `create()` / `fix()` 框架函数；agent 直接用普通文件编辑工具完成。后台 watcher 会重扫 `programs/workflow/` 并热加载新模块：import 时 `@agentic_function` 装饰器触发、自行注册，刚写完的函数无需重启即可调用。
+LLM 不只是运行时的推理引擎，它也可以**写代码**——生成、修改、修复符合 API 文档的 `Agent` method。这件事不需要专门的 `create()` / `fix()` 框架函数；agent 直接用普通文件编辑工具完成。后台 watcher 会重扫 `programs/workflow/` 并热加载新模块：import 时 `Agent` method 装饰器触发、自行注册，刚写完的函数无需重启即可调用。
 
 代码是数据，LLM 是编译器，函数是产品 —— 循环闭合。
 
 ### 双模式
 
 Agentic Programming 同时是：
-- **一个库** —— 你写 `@agentic_function`，手动搭 pipeline
+- **一个库** —— 你写 `Agent` method，手动搭 pipeline
 - **一个跑着的产品** —— 在 CLI 或 WebUI 里聊天，让 agent 帮你把函数写出来；生成的文件落到 `programs/workflow/` 并热加载
 
 初学者从提需求开始，拿到手的就是完整可读的 Python 文件。想深挖的人再 import 手写。这是一个**可以被逐步理解**的工具。

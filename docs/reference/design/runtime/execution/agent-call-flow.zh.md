@@ -17,7 +17,7 @@
 ```
 入口 A: 用户消息 → dispatcher ──直接─────────────┐
                                                   ├─→ agent_loop(共享引擎)
-入口 B: @agentic_function 体内 → runtime.exec ──经 AgentSession─┘
+入口 B: Agent method 体内 → runtime.exec ──经 AgentSession─┘
 ```
 
 | 入口 | 职责 | 到 agent_loop 的路径 | 写什么 DAG 记录 | 实现 |
@@ -32,10 +32,10 @@ dispatcher 和 exec 服务两种不同场景,外围插件不重叠:dispatcher �
 
 ### 关键:exec 在 agent_loop **之下**,所以能嵌套
 
-当 dispatcher 跑 turn,模型调了 `@agentic_function` 工具(如 wiki_agent)→ 工具体内 `runtime.exec` → 又起一个 agent_loop。所以 exec 既是"入口 B",又被 agent_loop 里的工具反向调用:
+当 dispatcher 跑 turn,模型调了 `Agent` method 工具(如 wiki_agent)→ 工具体内 `runtime.exec` → 又起一个 agent_loop。所以 exec 既是"入口 B",又被 agent_loop 里的工具反向调用:
 
 ```
-dispatcher → agent_loop → 模型调工具 → @agentic_function 体 → runtime.exec → agent_loop(嵌套)→ ...
+dispatcher → agent_loop → 模型调工具 → Agent method 体 → runtime.exec → agent_loop(嵌套)→ ...
 ```
 
 这是 agentic programming 的根本能力(函数体内可嵌套调 LLM),也是 wiki_agent 递归的来源。如果 exec 在 loop 之上,工具就无法自己再调 LLM。
@@ -157,7 +157,7 @@ process_user_turn (改后)
     → agent_loop([prompt], context, config) (agent_loop.py:232)
       → _stream_assistant_response → LLM 回复
       → 如果是 tool_use → _execute_tool_calls → tool.execute
-        → 如果工具是 @agentic_function → wrapper 写 code 节点
+        → 如果工具是 Agent method → wrapper 写 code 节点
         → 工具返回 → agent_loop 继续
       → 最终拿到纯文本回复
     ← 返回 final_text
@@ -169,7 +169,7 @@ process_user_turn (改后)
 ### 路径 2: runtime.exec legacy
 
 ```
-@agentic_function 函数体里调 runtime.exec(content=[...])
+Agent method 函数体里调 runtime.exec(content=[...])
 → exec (runtime.py:789)
   → self._call(content) → 用户自定义函数,返回文本
   → _append_model_call_node(reply=...) → 写 llm 节点到 DAG
@@ -179,7 +179,7 @@ process_user_turn (改后)
 ### 路径 3: runtime.exec providers
 
 ```
-@agentic_function 函数体里调 runtime.exec(content=[...])
+Agent method 函数体里调 runtime.exec(content=[...])
 → exec (runtime.py:789)
   → _call_via_providers (runtime.py:1306)
     → 构建 AgentSession
@@ -228,7 +228,7 @@ AgentOptions,让 exec 可注入流(`test_exec_stream_fn_injection`)。
 3. **流式事件不兼容**:exec 的 `on_stream` 发 flat dict,dispatcher 的 `on_event` 要 webui envelope。
 4. **最关键——会写重复节点**:试着在 dispatcher 里用 `_open/_close_model_call_node` 加一个 llm 节点,结果 DAG 里出现 `[user, assistant, assistant]`——因为 **dispatcher 的 assistant 会话消息(`persist_assistant_message`)本身就是顶层 LLM 调用的 DAG 记录**。再加 llm 节点就重复了。`test_dispatcher_integration.py::test_real_loop_text_only` 直接抓到这个重复。
 
-**结论**:dispatcher 顶层 LLM 调用**已经**有 DAG 表示(role=assistant 的会话消息节点),工具调用挂在它下面。不需要也不应该再加 llm 节点。"code→code 缺 llm 节点"问题只发生在 **`@agentic_function` 内部 exec 的 tool loop**,由上文的配对 llm 节点写入覆盖。dispatcher 保持现状。
+**结论**:dispatcher 顶层 LLM 调用**已经**有 DAG 表示(role=assistant 的会话消息节点),工具调用挂在它下面。不需要也不应该再加 llm 节点。"code→code 缺 llm 节点"问题只发生在 **`Agent` method 内部 exec 的 tool loop**,由上文的配对 llm 节点写入覆盖。dispatcher 保持现状。
 
 dispatcher 和 exec 的关系不是"dispatcher 走 exec",而是**两个并列的 LLM 调用入口**,各自把顶层调用记进 DAG(dispatcher → assistant 会话节点;exec → llm 节点),共享下层的 agent_loop 引擎和 DAG 节点写入 API。这跟其他框架一致(OpenClaw 也有独立 dispatcher 层)。
 
@@ -315,4 +315,4 @@ close_model_call_node(node_id, *, reply, status="success", blocks=None, usage=No
 - `openprogram/agent/dispatcher/persistence.py` — persist_assistant_message(改调统一原语)
 - `openprogram/agent/internals/_turn_lifecycle.py` — insert_placeholder / fold_error(删重复写入)
 - `openprogram/store/session/_msg_adapter.py` — _node_to_msg(序列化收口点,role 还原)
-- `openprogram/agentic_programming/function.py` — @agentic_function wrapper
+- `openprogram/agentic_programming/call_state.py` — Agent method wrapper

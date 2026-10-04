@@ -67,10 +67,10 @@ for node in SessionNodeWriter(store, "review-42").load():
     print(node.name, node.caller, node.output)
 ```
 
-Ordinary public Agent methods receive call scopes. To expose a method as a model tool, set `tool=True` in its `method_options`. This explicit registration supplies `.spec` and `.execute`. Recording alone does not grant tool access. See the [Agent and Context API](../../reference/api/agentic-function.md).
+Ordinary public Agent methods receive call scopes. To expose a method as a model tool, set `tool=True` in its `method_options`. This explicit registration supplies `.spec` and `.execute`. Recording alone does not grant tool access. See the [Agent and Context API](../../reference/api/agent.md).
 
-## Legacy compatibility and host hooks
+## Method behavior and host hooks
 
-Existing `@agentic_function` programs remain supported. `set_cancellation_check` and `set_session_id_provider` remain available from `openprogram.agentic_programming.function` for host cancellation and question routing.
+Agent methods provide the complete execution contract. `set_cancellation_check` and `set_session_id_provider` remain available from `openprogram.agentic_programming.call_state` for host cancellation and question routing.
 
-The embedded import path uses library APIs. It does not replace the complete installed product. Import checks are in `tests/embed/`. See [Runtime](../../reference/api/runtime.md) and the [programming guide](writing-functions/agentic-function.md).
+The embedded import path uses library APIs. It does not replace the complete installed product. Import checks are in `tests/embed/`. See [Runtime](../../reference/api/runtime.md) and the [programming guide](writing-functions/agent.md).

@@ -48,7 +48,7 @@ from ._runtime import (
 )
 
 # Side-effect imports — ``tools`` holds @function-decorated leaf
-# tools and ``workflow`` holds @agentic_function bodies. Each
+# tools and ``workflow`` holds Agent method bodies. Each
 # subpackage's
 # ``__init__`` triggers the decorator side-effects so every shipped
 # function lands in the shared ``_registry`` by the time the parent
@@ -511,7 +511,7 @@ def get_agent_tool(name: str) -> AgentTool | None:
 
     Honours the Layer 2 exposure whitelist: returns ``None`` for
     decorated-but-not-exposed names so internal helpers (e.g. private
-    @agentic_function bodies whose name is not in ``EXPOSED_TOOLS``)
+    Agent method bodies whose name is not in ``EXPOSED_TOOLS``)
     don't leak through this API. Internal Python code that needs to
     invoke a non-exposed helper directly should use the Python-level
     name (the function or class instance), not this registry lookup.
@@ -545,14 +545,14 @@ def resolve_function_module(name: str):
         return importlib.import_module(source)
     # Fallback: standard agentics layout — agentics/<name>/__init__.py
     # might exist even if registration didn't fire (e.g. listed in
-    # AGENTIC_MODULES but skipped at load time).
+    # PROGRAM_MODULES but skipped at load time).
     try:
         return importlib.import_module(
             f"openprogram.programs.workflow.{name}"
         )
     except ImportError:
         raise ImportError(
-            f"No @agentic_function named {name!r} found in the "
+            f"No Agent method named {name!r} found in the "
             f"agentic registry or under openprogram/programs/workflow/."
         )
 

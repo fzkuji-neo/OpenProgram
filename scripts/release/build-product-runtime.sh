@@ -109,13 +109,9 @@ cleanup() { rm -rf "$program_staging"; restore_previous_runtime; }
 trap cleanup EXIT HUP INT TERM
 
 for program_name in gui research wiki; do
-  program_repo="$(read_config "programs.$program_name.repository")"
-  program_commit="$(read_config "programs.$program_name.commit")"
   program_dir="$program_staging/$program_name"
-  git init -q "$program_dir"
-  git -C "$program_dir" remote add origin "$program_repo"
-  git -C "$program_dir" fetch -q --depth 1 origin "$program_commit"
-  git -C "$program_dir" checkout -q --detach FETCH_HEAD
+  "$json_python" "$repo_root/scripts/release/stage-program-source.py" \
+    "$program_name" "$program_dir"
   if test "$program_name" = gui; then
     "$uv_bin" pip install --python "$python_bin" --strict \
       --break-system-packages --no-deps "$program_dir"

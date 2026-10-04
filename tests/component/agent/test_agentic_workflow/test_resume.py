@@ -1,4 +1,5 @@
 """workflow resume tests."""
+
 from __future__ import annotations
 from ._support import (
     Path,
@@ -26,7 +27,8 @@ from ._support import (
 
 
 def test_resume_historical_run_keeps_artifact_unchanged(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _candidate, revision = _install_workflow_project(session_repo, _project())
     _executor(monkeypatch)
@@ -54,19 +56,27 @@ def test_resume_historical_run_keeps_artifact_unchanged(
     assert not (instance / "code.py").exists()
 
 
-
 def test_resume_legacy_code_run_keeps_artifact_unchanged(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     instance = session_repo / "workflows" / "legacy"
     instance.mkdir(parents=True)
     source = "def workflow():\n    return 'legacy ok'\n"
     (instance / "code.py").write_text(source)
-    TL._save_state(instance / "state.json", {
-        "run_id": "legacy", "task": "legacy", "status": "interrupted",
-        "executions": 0, "items": [], "revisions": [], "result": "",
-        "last_error": "",
-    })
+    TL._save_state(
+        instance / "state.json",
+        {
+            "run_id": "legacy",
+            "task": "legacy",
+            "status": "interrupted",
+            "executions": 0,
+            "items": [],
+            "revisions": [],
+            "result": "",
+            "last_error": "",
+        },
+    )
     _summarizer(monkeypatch, "Completed legacy resume.")
     artifact_before = (instance / "code.py").read_bytes()
 
@@ -76,7 +86,6 @@ def test_resume_legacy_code_run_keeps_artifact_unchanged(
     assert result["result"] is None
     assert (instance / "code.py").read_bytes() == artifact_before
     assert _state(session_repo, "legacy")["result"] == "legacy ok"
-
 
 
 @pytest.mark.parametrize("artifact_kind", ["package", "legacy", "single"])
@@ -91,7 +100,7 @@ def test_resume_persists_control_exit_and_keeps_cancelled_terminal(
     exit_kind: str,
     expected_status: str,
 ) -> None:
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
 
     run_id = f"{artifact_kind}-{exit_kind}"
     instance = session_repo / "workflows" / run_id
@@ -146,7 +155,7 @@ def test_resume_persists_control_exit_and_keeps_cancelled_terminal(
     if expected_status == "cancelled":
         monkeypatch.setattr(
             TL,
-            "_registered_agentic_functions",
+            "_registered_program_entries",
             lambda: pytest.fail("cancelled resume must not prepare execution"),
         )
 
@@ -162,26 +171,29 @@ def test_resume_persists_control_exit_and_keeps_cancelled_terminal(
         assert _state(session_repo, run_id)["last_error"] == ""
 
 
-
 def test_single_resume_persists_cancel_before_checkpoint_setup(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
 
     run_id = "single-setup-cancelled"
     instance = session_repo / "workflows" / run_id
     instance.mkdir(parents=True)
     (instance / "code.py").write_text("SINGLE\n", encoding="utf-8")
-    TL._save_state(instance / "state.json", {
-        "run_id": run_id,
-        "task": "resume before checkpoint setup",
-        "status": "interrupted",
-        "executions": 0,
-        "items": [],
-        "revisions": [],
-        "result": "",
-        "last_error": "",
-    })
+    TL._save_state(
+        instance / "state.json",
+        {
+            "run_id": run_id,
+            "task": "resume before checkpoint setup",
+            "status": "interrupted",
+            "executions": 0,
+            "items": [],
+            "revisions": [],
+            "result": "",
+            "last_error": "",
+        },
+    )
 
     def cancel_before_checkpoint(*_args):
         raise CancelledError("stop setup")
@@ -197,19 +209,28 @@ def test_single_resume_persists_cancel_before_checkpoint_setup(
     assert state["items"] == []
 
 
-
 def test_resume_without_snapshot_does_not_reselect_project(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     instance = session_repo / "workflows" / "bare"
     instance.mkdir(parents=True)
-    TL._save_state(instance / "state.json", {
-        "run_id": "bare", "task": "research papers", "status": "interrupted",
-        "executions": 0, "items": [], "revisions": [], "result": "",
-        "last_error": "",
-    })
+    TL._save_state(
+        instance / "state.json",
+        {
+            "run_id": "bare",
+            "task": "research papers",
+            "status": "interrupted",
+            "executions": 0,
+            "items": [],
+            "revisions": [],
+            "result": "",
+            "last_error": "",
+        },
+    )
     monkeypatch.setattr(
-        TL, "_search_projects",
+        TL,
+        "_search_projects",
         lambda *_args, **_kwargs: pytest.fail("resume must not re-search"),
     )
 
@@ -219,14 +240,17 @@ def test_resume_without_snapshot_does_not_reselect_project(
     assert not (session_repo / "catalog").exists()
 
 
-
 def test_llm_is_injected_and_checkpointed(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    _planner(monkeypatch, _code('''
+    _planner(
+        monkeypatch,
+        _code("""
         first = llm("summarize", model="test-model", effort="low")
         return llm("use " + first)
-    '''))
+    """),
+    )
     _executor(monkeypatch)
     calls = _llm_executor(
         monkeypatch,
@@ -242,15 +266,18 @@ def test_llm_is_injected_and_checkpointed(
     assert [item["function"] for item in result["items"]] == ["llm", "llm"]
 
 
-
 def test_same_function_name_uses_call_order_keys_and_replays_each_call(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    _planner(monkeypatch, _code('''
+    _planner(
+        monkeypatch,
+        _code("""
         agent("one")
         agent("two")
         raise KeyboardInterrupt("killed")
-    '''))
+    """),
+    )
     calls = _executor(monkeypatch)
 
     with pytest.raises(KeyboardInterrupt, match="killed"):
@@ -259,14 +286,17 @@ def test_same_function_name_uses_call_order_keys_and_replays_each_call(
     run_id = next((session_repo / "workflows").iterdir()).name
     records = _state(session_repo, run_id)["items"]
     assert [(r["function"], r["call_index"]) for r in records] == [
-        ("agent", 0), ("agent", 1)
+        ("agent", 0),
+        ("agent", 1),
     ]
     entry_path = _snapshot_package(session_repo, run_id) / "workflow.py"
-    entry_path.write_text(_project_entry('''
+    entry_path.write_text(
+        _project_entry("""
         agent("one")
         agent("two")
         return "finished"
-    '''))
+    """)
+    )
 
     result = TL.resume_workflow(run_id)
 
@@ -275,18 +305,21 @@ def test_same_function_name_uses_call_order_keys_and_replays_each_call(
     assert len({record["key"] for record in result["items"]}) == 2
 
 
-
 def test_execution_failure_keeps_error_and_checkpoints_without_repair(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    helper = '''
+    helper = """
         def prepare():
             return agent("prepare", description="prepare")
-    '''
-    initial = _code('''
+    """
+    initial = _code(
+        """
         value = prepare()
         raise RuntimeError("verification failed")
-    ''', helpers=helper)
+    """,
+        helpers=helper,
+    )
     prompts = _planner(monkeypatch, initial)
     calls = _executor(monkeypatch, lambda _prompt, _kwargs: "prepared")
 
@@ -303,9 +336,9 @@ def test_execution_failure_keeps_error_and_checkpoints_without_repair(
     assert _git_output(project, "rev-list", "--count", "HEAD") == "1"
 
 
-
-def test_registered_agentic_function_is_injected_and_checkpointed(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+def test_registered_agent_method_is_injected_and_checkpointed(
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     calls: list[str] = []
 
@@ -313,7 +346,9 @@ def test_registered_agentic_function_is_injected_and_checkpointed(
         calls.append(value)
         return value.upper()
 
-    monkeypatch.setattr(TL, "_registered_agentic_functions", lambda: {"registered": registered})
+    monkeypatch.setattr(
+        TL, "_registered_program_entries", lambda: {"registered": registered}
+    )
     _planner(monkeypatch, _code('return registered("value")'))
     _executor(monkeypatch)
     _summarizer(monkeypatch, "Completed registered processing.")
@@ -326,9 +361,9 @@ def test_registered_agentic_function_is_injected_and_checkpointed(
     assert result["items"][0]["function"] == "registered"
 
 
-
 def test_single_run_resumes_after_interruption(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _planner(monkeypatch, "SINGLE")
     attempts = 0
@@ -351,20 +386,23 @@ def test_single_run_resumes_after_interruption(
     assert attempts == 2
 
 
-
 def test_caught_callable_error_writes_failed_after_checkpoint(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     def failing():
         raise ValueError("bad call")
 
-    monkeypatch.setattr(TL, "_registered_agentic_functions", lambda: {"failing": failing})
-    _planner(monkeypatch, _code('''
+    monkeypatch.setattr(TL, "_registered_program_entries", lambda: {"failing": failing})
+    _planner(
+        monkeypatch,
+        _code("""
         try:
             failing()
         except ValueError:
             return "handled"
-    '''))
+    """),
+    )
     _executor(monkeypatch)
 
     result = _run_task("caught")
@@ -377,16 +415,16 @@ def test_caught_callable_error_writes_failed_after_checkpoint(
     assert record["finished_at"] is not None
 
 
-
 def test_cancel_signal_propagates_without_planner_rewrite(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
 
     def cancel():
         raise CancelledError("stop")
 
-    monkeypatch.setattr(TL, "_registered_agentic_functions", lambda: {"cancel": cancel})
+    monkeypatch.setattr(TL, "_registered_program_entries", lambda: {"cancel": cancel})
     prompts = _planner(monkeypatch, _code("cancel()"))
     _executor(monkeypatch)
 
@@ -398,9 +436,9 @@ def test_cancel_signal_propagates_without_planner_rewrite(
     assert _state(session_repo, run_id)["status"] == "cancelled"
 
 
-
 def test_same_run_id_concurrent_resume_executes_once(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _planner(monkeypatch, _code('raise KeyboardInterrupt("pause")'))
     _executor(monkeypatch)
@@ -426,9 +464,9 @@ def test_same_run_id_concurrent_resume_executes_once(
     assert len(calls) == 1
 
 
-
 def test_resume_accepts_legacy_zero_argument_project_snapshot(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _planner(monkeypatch, _code('raise KeyboardInterrupt("pause")'))
     _executor(monkeypatch)
@@ -437,20 +475,23 @@ def test_resume_accepts_legacy_zero_argument_project_snapshot(
     run_id = next((session_repo / "workflows").iterdir()).name
     instance = _instance(session_repo, run_id)
     TL.shutil.rmtree(instance / "snapshot")
-    legacy = TL._validate_legacy_project_candidate({
-        "project_metadata": {
-            "name": "Legacy workflow",
-            "summary": "Legacy resume fixture",
-            "tags": ["legacy"],
+    legacy = TL._validate_legacy_project_candidate(
+        {
+            "project_metadata": {
+                "name": "Legacy workflow",
+                "summary": "Legacy resume fixture",
+                "tags": ["legacy"],
+            },
+            "readme": "# Legacy workflow\n",
+            "files": {
+                "steps/placeholder.py": "def placeholder():\n    return None\n",
+                "entry.py": TL._validated_reply(
+                    _code('return agent("legacy resumed")')
+                ),
+            },
         },
-        "readme": "# Legacy workflow\n",
-        "files": {
-            "steps/placeholder.py": "def placeholder():\n    return None\n",
-            "entry.py": TL._validated_reply(
-                _code('return agent("legacy resumed")')
-            ),
-        },
-    }, allow_legacy_entry=True)
+        allow_legacy_entry=True,
+    )
     TL._write_candidate_directory(instance / "snapshot", legacy)
     state = _state(session_repo, run_id)
     state["project_metadata"] = legacy["project_metadata"]
@@ -464,9 +505,9 @@ def test_resume_accepts_legacy_zero_argument_project_snapshot(
     assert [call["prompt"] for call in calls] == ["legacy resumed"]
 
 
-
 def test_resume_does_not_publish_even_if_publish_required(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _candidate, revision = _install_workflow_project(session_repo, _project())
     _executor(monkeypatch)
@@ -491,24 +532,26 @@ def test_resume_does_not_publish_even_if_publish_required(
     assert _dir_bytes(session_repo / "catalog") == catalog_before
 
 
-
 def test_cancelled_project_run_does_not_publish_candidate(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
 
     monkeypatch.setattr(
-        TL, "_registered_agentic_functions", lambda: {
-            "cancel": lambda: (_ for _ in ()).throw(CancelledError("stop"))
-        },
+        TL,
+        "_registered_program_entries",
+        lambda: {"cancel": lambda: (_ for _ in ()).throw(CancelledError("stop"))},
     )
     prompts = _planner(
         monkeypatch,
         json.dumps({"action": "create"}),
-        _project(files={
-            "steps/cancel.py": "def run_cancel():\n    return cancel()\n",
-            "entry.py": "def workflow():\n    return run_cancel()\n",
-        }),
+        _project(
+            files={
+                "steps/cancel.py": "def run_cancel():\n    return cancel()\n",
+                "entry.py": "def workflow():\n    return run_cancel()\n",
+            }
+        ),
     )
     _executor(monkeypatch)
 
@@ -520,19 +563,27 @@ def test_cancelled_project_run_does_not_publish_candidate(
     assert _git_output(project, "rev-list", "--count", "HEAD") == "1"
 
 
-
 def test_resume_failed_legacy_code_run_keeps_artifact_unchanged(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     instance = session_repo / "workflows" / "legacy-fail"
     instance.mkdir(parents=True)
     source = "def workflow():\n    raise RuntimeError('boom')\n"
     (instance / "code.py").write_text(source, encoding="utf-8")
-    TL._save_state(instance / "state.json", {
-        "run_id": "legacy-fail", "task": "legacy", "status": "failed",
-        "executions": 0, "items": [], "revisions": [], "result": "",
-        "last_error": "RuntimeError: boom",
-    })
+    TL._save_state(
+        instance / "state.json",
+        {
+            "run_id": "legacy-fail",
+            "task": "legacy",
+            "status": "failed",
+            "executions": 0,
+            "items": [],
+            "revisions": [],
+            "result": "",
+            "last_error": "RuntimeError: boom",
+        },
+    )
     planner_calls: list[str] = []
 
     def forbidden(_sid, prompt, **_kwargs):
@@ -551,11 +602,11 @@ def test_resume_failed_legacy_code_run_keeps_artifact_unchanged(
     assert not list(instance.glob("code.*.py"))
 
 
-
 def test_auto_workflow_create_cancel_persists_cancelled_run(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
 
     _planner(monkeypatch, json.dumps({"action": "create"}))
 
@@ -571,4 +622,3 @@ def test_auto_workflow_create_cancel_persists_cancelled_run(
     assert len(states) == 1
     assert states[0]["status"] == "cancelled"
     assert not any(state["status"] == "running" for state in states)
-

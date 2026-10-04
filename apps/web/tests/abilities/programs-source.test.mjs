@@ -17,7 +17,7 @@ const capabilities = [
 
 test("four workflow entries are management capabilities by name or path", () => {
   for (const entry of capabilities) {
-    const programKind = entry.name === "auto_workflow" ? "workflow" : "agentic_function";
+    const programKind = entry.name === "auto_workflow" ? "workflow" : "agent_method";
     assert.equal(isWorkflowCapability({ ...entry, program_kind: programKind }), true);
     assert.equal(workflowCapabilityName({ path: entry.path, program_kind: programKind }), entry.name);
   }
@@ -53,11 +53,11 @@ test("ordinary programs stay on their source kind", () => {
   assert.equal(isWorkflowCapability({
     name: "docs_question",
     path: "workflow/docs_question",
-    program_kind: "agentic_function",
+    program_kind: "agent_method",
   }), false);
   assert.equal(programSourceCategory({
     name: "translate",
     path: "workflow/translate",
-    program_kind: "agentic_function",
-  }), "agentic_function");
+    program_kind: "agent_method",
+  }), "agent_method");
 });

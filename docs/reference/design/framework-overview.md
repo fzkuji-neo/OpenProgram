@@ -44,7 +44,7 @@ user types a sentence
    │
    ├─▶ 4. turn context bound (ContextVar)           :366–436
    │       _current_turn_id.set(assistant_msg_id) :379   ← every coroutine in the turn reads the same turn id
-   │       _store.set(SessionNodeWriter)            :435   ← deep runtime / tools / @agentic_function write the same DAG
+   │       _store.set(SessionNodeWriter)            :435   ← deep runtime / tools / Agent method write the same DAG
    │       assistant_msg_id = user_msg_id+"_reply" :164
    │       assistant placeholder row written + set_head  :460; status="running" :464
    │
@@ -81,7 +81,7 @@ loop and runs `agent_loop` to completion. It returns a `TurnResult`
 
 `_current_turn_id.set(assistant_msg_id)` (`:379`) is what makes depth-independent
 attribution work. A ContextVar propagates along asyncio tasks, so **any**
-coroutine within the turn — tool execution, `@agentic_function`,
+coroutine within the turn — tool execution, `Agent` method,
 `send_message` — reads the same turn id, which routes file backups and
 sub-branch parent anchors to the correct assistant message. `_store` is bound the
 same way (`:435`) so deep runtime code writes into the same SQLite DAG without
@@ -187,7 +187,7 @@ Chat turns have no inner-loop hard cap (Codex / DeepSeek style). `runtime.exec` 
 ### DAG updates run throughout, not as a separate step
 
 The user node (`:298`), the assistant placeholder, every tool result, and the
-nodes inside an `@agentic_function` all land in the same `SessionNodeWriter` through
+nodes inside an `Agent` method all land in the same `SessionNodeWriter` through
 the `_store` ContextVar. At the end of the turn `commit_turn`
 (`openprogram/store/session/session_store.py::commit_turn`) commits the whole working tree as one turn — append-only,
 with no mutable "current state" mirror file, so two agents writing concurrently

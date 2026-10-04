@@ -1,13 +1,13 @@
 # 模型调用的错误处理与重试决策逻辑
 
-本文档描述一次 `@agentic_function` 内的模型调用从发起到失败/成功之间,系统在每一层"做选择"的逻辑:什么时候重试、什么时候放弃、什么时候判定为永久错误。
+本文档描述一次 `Agent` method 内的模型调用从发起到失败/成功之间,系统在每一层"做选择"的逻辑:什么时候重试、什么时候放弃、什么时候判定为永久错误。
 
 ## 调用链
 
 一次 `runtime.exec()` 触发模型调用,自上而下经过:
 
 ```
-@agentic_function 内 runtime.exec()
+Agent method 内 runtime.exec()
   └─ Runtime.exec() ............. 重试循环(本层)
        └─ _call → _call_via_providers
             └─ AgentSession.run() .... 自动重试层

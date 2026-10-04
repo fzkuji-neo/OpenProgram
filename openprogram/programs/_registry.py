@@ -1,9 +1,9 @@
 """Load explicit shipped Programs and owner-authorized external sources.
 
 Program definitions receive structural call scopes during source compilation.
-Only package entrypoints and AGENTIC_FUNCTIONS exports register as tools.
-Registration uses the shared Agent method adapter. Legacy decorators remain
-supported and retain their own registration and recording settings.
+Only package entrypoints and PROGRAM_ENTRIES exports register as tools.
+Registration uses the shared Agent method adapter. Public entries retain
+their configured registration and recording settings.
 
 Published packages use exact authorized package names. Installed catalogue
 packages and owner-recorded harnesses capture only their selected source roots;
@@ -25,7 +25,7 @@ from typing import Iterator, Optional
 logger = logging.getLogger(__name__)
 
 
-WORKFLOW_MODULES: list[str] = [
+PROGRAM_MODULES: list[str] = [
     # Framework primitive: ask the human during an execution.
     "ask_user",
     # Single-model Workflows: exactly one llm() call site.
@@ -43,8 +43,7 @@ WORKFLOW_MODULES: list[str] = [
     "auto_workflow",
 ]
 
-AGENTIC_MODULES = WORKFLOW_MODULES
-BUILTIN_WORKFLOW_MODULES: list[str] = []
+BUILTIN_PROGRAM_MODULES: list[str] = []
 
 
 # Names that should never be treated as external harnesses even if their
@@ -55,11 +54,11 @@ _NOT_A_HARNESS = {
 }
 
 
-def load_agentic_modules(
-    agentic_functions_dir: str,
+def load_program_modules(
+    programs_dir: str,
     applications_dir: str | None = None,
 ) -> None:
-    """Import every entry in AGENTIC_MODULES, then discover owner-recorded
+    """Import every entry in PROGRAM_MODULES, then discover owner-recorded
     external harnesses under ``applications_dir``.
 
     Failures are swallowed per-entry so a missing external harness
@@ -67,17 +66,17 @@ def load_agentic_modules(
     the whole import. Set ``OPENPROGRAM_DEBUG_REGISTRY=1`` to surface
     swallowed errors.
     """
-    # Shipped Programs are explicit source selections, as in WORKFLOW_MODULES.
+    # Shipped Programs are explicit source selections, as in PROGRAM_MODULES.
     _workflow_source_finder.builtin_sources = {
         f"openprogram.programs.workflow.{name}": os.path.join(
             os.path.dirname(__file__), "workflow", *name.split("."),
         )
-        for name in WORKFLOW_MODULES
+        for name in PROGRAM_MODULES
     }
     if _workflow_source_finder not in sys.meta_path:
         sys.meta_path.insert(0, _workflow_source_finder)
     # 1. Internal explicit list
-    for mod_name in WORKFLOW_MODULES:
+    for mod_name in PROGRAM_MODULES:
         try:
             module = importlib.import_module(
                 f"openprogram.programs.workflow.{mod_name}"
@@ -90,7 +89,7 @@ def load_agentic_modules(
 
     # 2. Shipped Workflow modules — explicit so arbitrary files added to the
     #    owner-controlled workflow catalog are never imported as trusted code.
-    for mod_name in BUILTIN_WORKFLOW_MODULES:
+    for mod_name in BUILTIN_PROGRAM_MODULES:
         try:
             importlib.import_module(f"openprogram.programs.workflow.{mod_name}")
         except Exception as e:
@@ -245,9 +244,15 @@ class _WorkflowSourceFinder:
         is_package = os.path.isfile(filename)
         if not is_package:
             filename = base + ".py"
-        if not os.path.isfile(filename):
-            return None
         authorized_root = source if os.path.isdir(source) else os.path.dirname(source)
+        if not os.path.isfile(filename):
+            if os.path.isdir(base):
+                if os.path.commonpath((os.path.realpath(base), os.path.realpath(authorized_root))) != os.path.realpath(authorized_root):
+                    raise ModuleNotFoundError(f"Workflow module is outside its authorized source: {fullname}")
+                namespace = importlib.machinery.ModuleSpec(fullname, loader=None, is_package=True)
+                namespace.submodule_search_locations = [base]
+                return namespace
+            return None
         if os.path.commonpath((os.path.realpath(filename), os.path.realpath(authorized_root))) != os.path.realpath(authorized_root):
             raise ModuleNotFoundError(f"Workflow module is outside its authorized source: {fullname}")
         from openprogram.programs._source_loader import ManagedSourceLoader
@@ -337,7 +342,7 @@ def _iter_external_harness_dirs(applications_dir: str) -> Iterator[tuple[str, st
     harness = clone it into agentics/, done" work without symlinks
     (symlinks need admin/developer mode on Windows). A hyphenated name
     like ``Wiki-Agent-Harness`` is the canonical shape — Python can't
-    import it directly, so the AGENTIC_MODULES loop ignores it, but this
+    import it directly, so the PROGRAM_MODULES loop ignores it, but this
     loop picks it up via its inner Python package (see
     :func:`_find_python_package`).
 
@@ -345,7 +350,7 @@ def _iter_external_harness_dirs(applications_dir: str) -> Iterator[tuple[str, st
     plain ``.py`` files (single-module agentics, loaded elsewhere), and
     the official first-party programs — those are loaded explicitly by
     ``_programs.import_installed_programs`` (step 2 of
-    :func:`load_agentic_modules`), so re-discovering their clone dirs
+    :func:`load_program_modules`), so re-discovering their clone dirs
     here would import them a second time.
     """
     if not os.path.isdir(applications_dir):
@@ -417,7 +422,7 @@ def _find_python_package(harness_root: str) -> Optional[str]:
 
 
 def _import_external_harness(harness_root: str) -> None:
-    """Capture the authorized package and register AGENTIC_FUNCTIONS exports."""
+    """Capture the authorized package and register PROGRAM_ENTRIES exports."""
 
     pkg_dir = _find_python_package(harness_root)
     if pkg_dir is None:
@@ -439,7 +444,7 @@ def _import_external_harness(harness_root: str) -> None:
     install_program_source(pkg_name, pkg_dir,
                            lambda: is_owner_controlled_program_path(pkg_dir))
     module = importlib.import_module(f"{pkg_name}.agentics")
-    register_public_entries(module)
+    register_public_entries(module, require_exports=True)
 
 
 # ---------------------------------------------------------------------------
@@ -501,14 +506,14 @@ def _load_external_file(
 # ---------------------------------------------------------------------------
 
 
-def iter_agentic_files(
-    agentic_functions_dir: str,
+def iter_program_files(
+    programs_dir: str,
     applications_dir: str | None = None,
 ) -> Iterator[tuple[str, str, bool]]:
     """Yield ``(module_name, file_path, is_harness)`` for every loadable
     agentic — used by the WebUI function browser and ``programs list``.
 
-    - Internal entries: ``module_name`` is the AGENTIC_MODULES name;
+    - Internal entries: ``module_name`` is the PROGRAM_MODULES name;
       ``file_path`` is the on-disk ``.py``.
     - External harnesses: ``module_name`` is the harness's inner Python
       package name; ``file_path`` is its ``agentics/__init__.py``.
@@ -516,15 +521,15 @@ def iter_agentic_files(
     Entries whose file is missing on this machine are silently skipped.
     """
     # Internal explicit list
-    for mod_name in AGENTIC_MODULES:
+    for mod_name in PROGRAM_MODULES:
         parts = mod_name.split(".")
-        simple = os.path.join(agentic_functions_dir, *parts[:-1], f"{parts[-1]}.py") if len(parts) > 1 else os.path.join(agentic_functions_dir, f"{mod_name}.py")
-        pkg = os.path.join(agentic_functions_dir, *parts, "__init__.py")
+        simple = os.path.join(programs_dir, *parts[:-1], f"{parts[-1]}.py") if len(parts) > 1 else os.path.join(programs_dir, f"{mod_name}.py")
+        pkg = os.path.join(programs_dir, *parts, "__init__.py")
         if os.path.isfile(simple):
             yield mod_name, simple, False
         elif os.path.isfile(pkg):
-            named = os.path.join(agentic_functions_dir, *parts, f"{parts[-1]}.py")
-            workflow_py = os.path.join(agentic_functions_dir, *parts, "workflow.py")
+            named = os.path.join(programs_dir, *parts, f"{parts[-1]}.py")
+            workflow_py = os.path.join(programs_dir, *parts, "workflow.py")
             if os.path.isfile(named):
                 yield mod_name, named, False
             elif os.path.isfile(workflow_py):
@@ -533,8 +538,8 @@ def iter_agentic_files(
                 yield mod_name, pkg, False
 
     # Auto-discovered external harnesses — yield the actual source file
-    # of every function listed in AGENTIC_FUNCTIONS, so the WebUI scanner
-    # (which parses `@agentic_function` decorators) can introspect them.
+    # of every function listed in PROGRAM_ENTRIES, so the WebUI scanner
+    # can inspect the public source and method metadata.
     import inspect as _inspect
     if applications_dir is None:
         try:
@@ -550,7 +555,7 @@ def iter_agentic_files(
         if not os.path.isfile(agentics_init):
             continue
         # Make sure the harness package is importable, then read its
-        # AGENTIC_FUNCTIONS export.
+        # PROGRAM_ENTRIES export.
         sys_path_root = os.path.dirname(pkg_dir)
         if sys_path_root not in sys.path:
             sys.path.insert(0, sys_path_root)
@@ -560,10 +565,8 @@ def iter_agentic_files(
         except Exception as e:
             _debug_registry_error(f"iter:{pkg_name}", e)
             continue
-        for fn in getattr(mod, "AGENTIC_FUNCTIONS", []) or []:
-            # ``fn`` is the agentic_function wrapper object; the original
-            # callable is stored under ``_fn``.
-            inner = getattr(fn, "_fn", None) or _inspect.unwrap(fn)
+        for fn in getattr(mod, "PROGRAM_ENTRIES", []) or []:
+            inner = _inspect.unwrap(fn)
             try:
                 src_file = _inspect.getsourcefile(inner)
             except (TypeError, OSError):
@@ -579,6 +582,7 @@ def iter_agentic_files(
 
 
 def _debug_registry_error(name: str, e: Exception) -> None:
+    logger.warning("Cannot load Program %s: %s", name, e)
     if os.environ.get("OPENPROGRAM_DEBUG_REGISTRY"):
         import traceback
         print(f"[registry] failed to load {name}: "
@@ -591,7 +595,7 @@ def _debug_registry_error(name: str, e: Exception) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _default_agentic_functions_dir() -> Optional[str]:
+def _default_programs_dir() -> Optional[str]:
     """The live ``programs/workflow/`` directory, or None if it can't be
     located. Used as :func:`rescan`'s default scan root."""
     try:
@@ -605,11 +609,10 @@ def rescan(applications_dir: Optional[str] = None) -> dict:
     """Re-run agentic discovery to pick up harnesses installed since boot.
 
     This is the single core both the manual "refresh" button and the
-    background watcher call. It re-invokes :func:`load_agentic_modules`,
+    background watcher call. It re-invokes :func:`load_program_modules`,
     which is idempotent — already-imported modules are skipped by Python's
-    module cache, and a newly-present harness gets imported now, firing
-    its ``@agentic_function`` decorators so they self-register into the
-    shared tool registry. After this returns, the new functions are
+    module cache. A newly-present harness is imported and its public entries
+    register through the shared tool registry. The new functions are
     immediately live for the agent and visible to ``/api/functions``.
 
     Returns ``{"added": [tool_label, ...], "total": <count>}`` — ``added``
@@ -623,10 +626,10 @@ def rescan(applications_dir: Optional[str] = None) -> dict:
     *removes* tools; it only ever adds.
     """
     from openprogram.programs._runtime import all_tools
-    scan_dir = _default_agentic_functions_dir()
+    scan_dir = _default_programs_dir()
     before = {t.label for t in all_tools()}
     if scan_dir:
-        load_agentic_modules(scan_dir, applications_dir)
+        load_program_modules(scan_dir, applications_dir)
     after_tools = all_tools()
     after = {t.label for t in after_tools}
     return {"added": sorted(after - before), "total": len(after_tools)}

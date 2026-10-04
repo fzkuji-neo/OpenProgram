@@ -24,7 +24,7 @@ SCHEMA_VERSION = 2
 # new call sites extend it freely. Listed here for discoverability and so
 # the UI can give friendly names to the common ones.
 CALL_KIND_CHAT = "chat"            # interactive user turn (engine main path)
-CALL_KIND_EXEC = "exec"            # @agentic_function runtime turn
+CALL_KIND_EXEC = "exec"            # Agent method runtime turn
 CALL_KIND_COMPACTION = "compaction"
 CALL_KIND_SUMMARIZE = "summarize"
 CALL_KIND_MEMORY = "memory"

@@ -11,7 +11,7 @@ for _name in ("io", "output", "sources", "wechat", "wechat_visual"):
     _sys.modules[f"{__name__}.report_{_name}"] = _module
 del _name, _module, _importlib, _sys
 
-from openprogram.programs._registry import load_agentic_modules as _load_modules
+from openprogram.programs._registry import load_program_modules as _load_modules
 
 _load_modules(_os.path.dirname(__file__))
 

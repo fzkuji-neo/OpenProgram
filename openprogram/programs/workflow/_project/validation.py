@@ -20,7 +20,6 @@ PROJECT_RUNTIME_NAMES = {
     "validate_and_retry",
     "route",
     "conditional",
-    "agentic_function",
     "traced",
 }
 
@@ -343,7 +342,7 @@ def _validate_project_candidate(
 
     clean_files: dict[str, str] = {}
     trees: dict[str, ast.Module] = {}
-    public_entries: list[tuple[str, str]] = []
+    bound_exports = []
     for raw_path, raw_source in files.items():
         path = _validate_package_path(raw_path)
         if path in clean_files:
@@ -382,7 +381,10 @@ def _validate_project_candidate(
             if isinstance(node, ast.Assign):
                 if _valid_dunder_all(node):
                     continue
-                if path == "workflow.py" and _agent_entry_method(node, tree, metadata["entrypoint"]) is not None:
+                if (path == "workflow.py" and len(node.targets) == 1
+                        and isinstance(node.targets[0], ast.Name)
+                        and _agent_entry_method(node, tree, node.targets[0].id) is not None):
+                    bound_exports.append(node.targets[0].id)
                     continue
                 if any(
                     isinstance(target, ast.Name) and target.id == "__all__"
@@ -403,7 +405,7 @@ def _validate_project_candidate(
                     f"workflow project cannot redefine managed function: {node.name}"
                 )
             decorators = [_decorator_name(item) for item in node.decorator_list]
-            if any(name not in {"agentic_function", "traced"} for name in decorators):
+            if any(name != "traced" for name in decorators):
                 raise InvalidWorkflow(
                     f"workflow function uses an unsupported decorator: {node.name}"
                 )
@@ -415,8 +417,6 @@ def _validate_project_candidate(
                 raise InvalidWorkflow(
                     "workflow package decorators may not override function names"
                 )
-            if "agentic_function" in decorators:
-                public_entries.append((path, node.name))
         clean_files[path] = raw_source.rstrip() + "\n"
         trees[path] = tree
 
@@ -443,7 +443,7 @@ def _validate_project_candidate(
             for node in tree.body
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             for item in node.decorator_list
-            if (name := _decorator_name(item)) in {"agentic_function", "traced"}
+            if (name := _decorator_name(item)) == "traced"
         }
         for decorator in used_decorators:
             binders = _name_binders(tree, decorator)
@@ -457,6 +457,8 @@ def _validate_project_candidate(
                 )
 
     entrypoint = metadata["entrypoint"]
+    if bound_exports and bound_exports != [entrypoint]:
+        raise InvalidWorkflow("Workflow packages must define exactly one public Program entry.")
     entries = [
         node
         for node in trees["workflow.py"].body
@@ -467,10 +469,6 @@ def _validate_project_candidate(
     if len(entries) + len(bound_entries) != 1:
         raise InvalidWorkflow(f"workflow.py must define one {entrypoint} entry.")
     entry = entries[0] if entries else bound_entries[0]
-    if public_entries and public_entries != [("workflow.py", entrypoint)]:
-        raise InvalidWorkflow(
-            f"Only workflow.py:{entrypoint} may register a public function."
-        )
     args = entry.args
     positional = args.args[1:] if bound_entries else args.args
     if (

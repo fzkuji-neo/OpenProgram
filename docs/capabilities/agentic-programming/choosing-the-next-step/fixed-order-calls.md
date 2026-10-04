@@ -12,51 +12,63 @@ hard-coded in Python.
 
 ## Design points
 
-- Use the `@agentic_function` decorator
-- Call multiple sub-`@agentic_function`s in a fixed order
+- Use the Agent method execution
+- Call multiple sub-`Agent` methods in a fixed order
 - `llm()` is optional: skip it (pure chaining), or call it multiple times
   (each call creates one `llm` child node)
 - Data flows between sub-functions through plain Python variables
 - One function may call `llm()` multiple times AND call any number of other
-  `@agentic_function`s
+  `Agent` methods
 
 ## Example: no LLM call, pure chaining
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 
-@agentic_function(input={
-    "task": {"description": "Research topic."},
-})
-def research_pipeline(task: str, runtime=None) -> dict:
-    """Run the full research pipeline: survey, find gaps, generate ideas."""
-    survey = survey_topic(topic=task, runtime=runtime)
-    gaps = identify_gaps(survey=survey, runtime=runtime)
-    ideas = generate_ideas(gaps=gaps, runtime=runtime)
+class ExampleAgent(Agent):
+    method_options = {
+        'research_pipeline': {'tool': True, 'input': {'task': {'description': 'Research topic.'}}},
+    }
 
-    return {"survey": survey, "gaps": gaps, "ideas": ideas}
+    def research_pipeline(self, task: str, runtime=None) -> dict:
+        """Run the full research pipeline: survey, find gaps, generate ideas."""
+        survey = survey_topic(topic=task, runtime=runtime)
+        gaps = identify_gaps(survey=survey, runtime=runtime)
+        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+
+        return {"survey": survey, "gaps": gaps, "ideas": ideas}
+
+_example_agent = ExampleAgent()
+research_pipeline = _example_agent.research_pipeline
 ```
 
 ## Example: one `llm()` call to summarise
 
 ```python
-@agentic_function(input={
-    "task": {"description": "Research topic."},
-})
-def research_pipeline(task: str, runtime=None) -> str:
-    """Run the full research pipeline and summarise the results."""
-    survey = survey_topic(topic=task, runtime=runtime)
-    gaps = identify_gaps(survey=survey, runtime=runtime)
-    ideas = generate_ideas(gaps=gaps, runtime=runtime)
+from openprogram import Agent
 
-    return llm([
-        {"type": "text", "text": (
-            f"Survey:\n{survey}\n\n"
-            f"Gaps:\n{gaps}\n\n"
-            f"Ideas:\n{ideas}"
-        )},
-    ])
+class ExampleAgent(Agent):
+    method_options = {
+        'research_pipeline': {'tool': True, 'input': {'task': {'description': 'Research topic.'}}},
+    }
+
+    def research_pipeline(self, task: str, runtime=None) -> str:
+        """Run the full research pipeline and summarise the results."""
+        survey = survey_topic(topic=task, runtime=runtime)
+        gaps = identify_gaps(survey=survey, runtime=runtime)
+        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+
+        return llm([
+            {"type": "text", "text": (
+                f"Survey:\n{survey}\n\n"
+                f"Gaps:\n{gaps}\n\n"
+                f"Ideas:\n{ideas}"
+            )},
+        ])
+
+_example_agent = ExampleAgent()
+research_pipeline = _example_agent.research_pipeline
 ```
 
 ## Session DAG

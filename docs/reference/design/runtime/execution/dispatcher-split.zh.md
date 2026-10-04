@@ -38,7 +38,7 @@ dispatcher/
                      head_for_finalize）
   titles.py          _default_title、_maybe_auto_title、trigger_compaction
   forced_tool.py     dispatch_forced_tool_call（webui 强制单工具调用）
-  runtime_attach.py  _wrap_agentic_runtime_block —— 把 @agentic_function 调用
+  runtime_attach.py  _wrap_agentic_runtime_block —— 把 Agent method 调用
                      渲染为 runtime-block 轮次
 ```
 

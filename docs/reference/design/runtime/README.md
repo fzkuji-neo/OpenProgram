@@ -31,7 +31,7 @@ The cost: a user who wants to run two independent conversations has to manage tw
 
 ## ContextVar auto-injects the runtime
 
-The `@agentic_function` decorator reads the `_current_runtime` ContextVar; if the current function
+The Agent method execution reads the `_current_runtime` ContextVar; if the current function
 was not passed a `runtime=` argument, it uses that. If the entry function has none either, it automatically calls `create_runtime()`.
 
 **Why not have functions declare the runtime explicitly?**
@@ -49,7 +49,7 @@ ContextVar is isolated per thread + coroutine, making it naturally concurrency-s
 ## Session-provider and API-provider share one abstraction
 
 Whether the backend is the Claude Code CLI (has a session) or the Anthropic API (no session),
-`@agentic_function` authors see the same interface, `runtime.exec(content=[...])`.
+`Agent` method authors see the same interface, `runtime.exec(content=[...])`.
 The framework uses the `has_session` attribute to distinguish the two provider classes and take different internal paths:
 
 | | session provider (CLI) | API provider |
@@ -82,7 +82,7 @@ all live in the runtime.
 ## DAG writes: entering and exiting a function both write a code node, exec writes an llm node
 
 ```
-enter @agentic_function       → write a code node (status=running)
+enter Agent method       → write a code node (status=running)
                               → set the _call_id ContextVar to point at this node
 runtime.exec() in the body    → write an llm node under the current _call_id
                               → the node's caller = _call_id
@@ -102,7 +102,7 @@ Writing twice (entry + exit backfill) suits real-time observability better than 
 ## Embedding seams
 
 The core runs embedded in a host that is not OpenProgram — somebody else's
-service or agent framework using `@agentic_function` + the execution DAG as a
+service or agent framework using `Agent` method + the execution DAG as a
 component (see
 [Embedding in your own stack](../../../capabilities/agentic-programming/embedding-in-your-own-stack.md)).
 The contract, executed by `tests/component/runtime/test_standalone_embed.py` rather than
@@ -138,7 +138,7 @@ a ~52-second one.
 ## Related implementation files
 
 - `openprogram/agentic_programming/runtime.py` — Runtime base class, `exec` / `_call` protocol, retry loop
-- `openprogram/agentic_programming/function.py` — decorator / `_inject_runtime` / `_call_id` / `_current_runtime` ContextVar
+- `openprogram/agentic_programming/call_state.py` — decorator / `_inject_runtime` / `_call_id` / `_current_runtime` ContextVar
 - `openprogram/providers/__init__.py` — `detect_provider` / `create_runtime` auto-detection
 - `openprogram/providers/<vendor>/runtime.py` — each provider's `_call` implementation
 - `openprogram/context/nodes.py` `render_context` — DAG → reads computation (the actual semantics of `render_range`)

@@ -1,4 +1,4 @@
-# @agentic_function 按固定顺序调用子函数
+# Agent method 按固定顺序调用子函数
 
 调用大模型（可选），按代码写死的顺序调用多个子函数。
 
@@ -11,58 +11,76 @@
 
 ## 设计要点
 
-- 用 `@agentic_function` 装饰器
-- 按固定顺序调用多个子 `@agentic_function`
+- 用 `Agent` method 装饰器
+- 按固定顺序调用多个子 `Agent` method
 - `exec()` 可选：不调（纯串联），或调多次（每次创建一个 exec 子节点）
 - 子函数之间通过 Python 变量传递数据
-- 一个函数可以调多次 `exec()`，也可以调任意多个其他 `@agentic_function`
+- 一个函数可以调多次 `exec()`，也可以调任意多个其他 `Agent` method
 
 ## 示例：不调 exec，纯串联
 
 ```python
-@agentic_function
-def research_pipeline(task: str, runtime: Runtime) -> dict:
-    """执行完整研究流程：调研 → 找 gap → 生成想法。
+from openprogram import Agent
 
-    Args:
-        task: 研究主题。
-        runtime: LLM 运行时实例。
+class ExampleAgent(Agent):
+    method_options = {
+        'research_pipeline': {'tool': True},
+    }
 
-    Returns:
-        包含 survey、gaps、ideas 的结果字典。
-    """
-    survey = survey_topic(topic=task, runtime=runtime)
-    gaps = identify_gaps(survey=survey, runtime=runtime)
-    ideas = generate_ideas(gaps=gaps, runtime=runtime)
+    def research_pipeline(self, task: str, runtime: Runtime) -> dict:
+        """执行完整研究流程：调研 → 找 gap → 生成想法。
 
-    return {"survey": survey, "gaps": gaps, "ideas": ideas}
+        Args:
+            task: 研究主题。
+            runtime: LLM 运行时实例。
+
+        Returns:
+            包含 survey、gaps、ideas 的结果字典。
+        """
+        survey = survey_topic(topic=task, runtime=runtime)
+        gaps = identify_gaps(survey=survey, runtime=runtime)
+        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+
+        return {"survey": survey, "gaps": gaps, "ideas": ideas}
+
+_example_agent = ExampleAgent()
+research_pipeline = _example_agent.research_pipeline
 ```
 
 ## 示例：调一次 exec 做总结
 
 ```python
-@agentic_function
-def research_pipeline(task: str, runtime: Runtime) -> str:
-    """执行完整研究流程并总结结果。
+from openprogram import Agent
 
-    Args:
-        task: 研究主题。
-        runtime: LLM 运行时实例。
+class ExampleAgent(Agent):
+    method_options = {
+        'research_pipeline': {'tool': True},
+    }
 
-    Returns:
-        整合后的研究总结。
-    """
-    survey = survey_topic(topic=task, runtime=runtime)
-    gaps = identify_gaps(survey=survey, runtime=runtime)
-    ideas = generate_ideas(gaps=gaps, runtime=runtime)
+    def research_pipeline(self, task: str, runtime: Runtime) -> str:
+        """执行完整研究流程并总结结果。
 
-    return runtime.exec(content=[
-        {"type": "text", "text": (
-            f"Survey:\n{survey}\n\n"
-            f"Gaps:\n{gaps}\n\n"
-            f"Ideas:\n{ideas}"
-        )},
-    ])
+        Args:
+            task: 研究主题。
+            runtime: LLM 运行时实例。
+
+        Returns:
+            整合后的研究总结。
+        """
+        survey = survey_topic(topic=task, runtime=runtime)
+        gaps = identify_gaps(survey=survey, runtime=runtime)
+        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+
+        return runtime.exec(content=[
+            {"type": "text", "text": (
+                f"Survey:\n{survey}\n\n"
+                f"Gaps:\n{gaps}\n\n"
+                f"Ideas:\n{ideas}"
+            )},
+        ])
+
+_example_agent = ExampleAgent()
+research_pipeline = _example_agent.research_pipeline
 ```
 
 <div id="context-tree"></div>

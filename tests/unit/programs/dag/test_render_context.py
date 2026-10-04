@@ -80,7 +80,7 @@ def test_empty_graph_returns_empty_list():
 def test_in_frame_visible_by_default():
     """A frame naturally sees its own in-frame progress. Default
     ``subcalls`` is -1 (uncapped); expose handles hiding internals
-    of child @agentic_functions, not subcalls counting."""
+    of child Agent methods, not subcalls counting."""
     g = Graph()
     u = _user(g, "q")
     m = _llm(g, "a")

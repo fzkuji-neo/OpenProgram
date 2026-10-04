@@ -2,7 +2,7 @@
 
 Two handlers:
   POST /api/chat/branch — fork a conv at a specific message
-  POST /api/function/{name} — directly run an @agentic_function via the
+  POST /api/function/{name} — directly run an Agent method via the
       forced-tool-call dispatch path (same code path as an LLM-issued
       tool call; see dispatcher.dispatch_forced_tool_call).
 
@@ -127,9 +127,9 @@ def register(app):
 
     @app.post("/api/function/{name}")
     async def post_function(name: str, body: dict = None):
-        """Directly invoke an @agentic_function through the forced
+        """Directly invoke an Agent method through the forced
         tool-call dispatch path. Replaces the former ``/api/run`` —
-        all @agentic_function runs (UI-triggered or LLM-issued) now
+        all Agent method runs (UI-triggered or LLM-issued) now
         share ``dispatcher._wrap_agentic_runtime_block``.
 
         Body:
@@ -219,7 +219,7 @@ def register(app):
             dispatch_options["origin_window_id"] = effective_window_id
         if surface_ref:
             dispatch_options["surface_ref"] = surface_ref
-        result = run_agentic_function_call(
+        result = run_agent_method_call(
             name,
             kwargs,
             session_id,
@@ -238,7 +238,7 @@ def apply_user_goal_context_mode(name: str, kwargs: dict) -> dict:
     return kwargs
 
 
-def run_agentic_function_call(
+def run_agent_method_call(
     name: str,
     kwargs: dict,
     session_id: str | None = None,
@@ -249,7 +249,7 @@ def run_agentic_function_call(
     surface_ref: dict | None = None,
     retry_of: str | None = None,
 ) -> dict:
-    """Dispatch an @agentic_function via the forced tool-call path and
+    """Dispatch an Agent method via the forced tool-call path and
     return ``{"session_id", "msg_id"}`` (or ``{"error", "status_code",
     ...}`` on a validation failure).
 
@@ -262,7 +262,7 @@ def run_agentic_function_call(
     chain — function calls sit on the same chain chat turns use:
 
     * ``None`` (default — a NEW run from fn-form / welcome) → passed as an
-      EMPTY caller, which makes the @agentic_function decorator stamp the
+      EMPTY caller, which makes the Agent method decorator stamp the
       run's ``predecessor`` with the session's CURRENT HEAD (see
       ``function.py`` — the "top-level manual call" branch). The run
       chains SEQUENTIALLY off the previous turn's terminal node, exactly
@@ -282,7 +282,7 @@ def run_agentic_function_call(
     """
     from openprogram.webui import server as _s
 
-    # Synchronously validate the tool exists AND is @agentic_function
+    # Synchronously validate the tool exists AND is Agent method
     # BEFORE we create a session / write a user msg / spawn the
     # subprocess. Without this gate, picking a non-agentic function
     # in fn-form would land in dispatch_forced_tool_call's raise
@@ -299,10 +299,10 @@ def run_agentic_function_call(
                 "status_code": 500}
     if _tool is None:
         return {"error": f"tool not found: {name!r}", "status_code": 404}
-    if not getattr(_tool, "_is_agentic", False):
+    if not getattr(_tool, "_is_agent_method", False):
         return {
             "error": (
-                f"tool {name!r} is not an @agentic_function — "
+                f"tool {name!r} is not an Agent method — "
                 "only agentic tools can be invoked via fn-form. "
                 "Use the chat interface or LLM tool-call path "
                 "for ordinary tools."
@@ -401,7 +401,7 @@ def run_agentic_function_call(
             "status_code": 409,
         }
     # A NEW run (anchor left unset) passes an EMPTY caller so the
-    # @agentic_function decorator stamps its the predecessor field with the
+    # Agent method decorator stamps its the predecessor field with the
     # session's current head (function.py's top-level-call branch) — the
     # run chains off the previous turn's terminal node like a new chat
     # turn. An explicit anchor (the Retry button) is honoured verbatim as
@@ -438,7 +438,7 @@ def run_agentic_function_call(
         }
     # msg_id is only a WS-routing handle for the response stream; it is
     # never written to the DAG. The code node written by the
-    # @agentic_function is the canonical record: a NEW run (empty anchor)
+    # Agent method is the canonical record: a NEW run (empty anchor)
     # gets the predecessor field = the session head (or ROOT for an empty
     # session); a Retry (explicit pred:<id> anchor) forks off that id.
     # Ensure the session ROOT node exists so a run that anchors at ROOT
@@ -467,7 +467,7 @@ def run_agentic_function_call(
     #
     # ``anchor_msg_id`` encodes the fork point: a retry passes ``pred:<id>``
     # (fork off that id, empty caller); fn-form passes ``""`` (chain off the
-    # session head). Mirror the @agentic_function wrapper's resolution so
+    # session head). Mirror the Agent method wrapper's resolution so
     # the pre-created node is byte-identical to what the child would write.
     _forced_node_id = None
     _pending_node = None
@@ -477,15 +477,13 @@ def run_agentic_function_call(
     _precreate_error = None
     for _attempt in range(2):
         try:
-            from openprogram.agentic_programming.function import (
+            from openprogram.agentic_programming.call_state import (
                 create_pending_call_node as _mk_node,
-                _registry as _fn_registry,
             )
             from openprogram.store import SessionNodeWriter as _GS2
-            _inst = _fn_registry.get(name) or next(
-                (v for v in _fn_registry.values()
-                 if getattr(v, "tool_name", None) == name), None,
-            )
+            from openprogram.programs._runtime import get as _get_method_tool
+            _registered_tool = _get_method_tool(name)
+            _inst = getattr(_registered_tool, "_method_options", None)
             _expose = getattr(_inst, "expose", "io") if _inst else "io"
             _hidden = _expose == "hidden"
             _caller = ""

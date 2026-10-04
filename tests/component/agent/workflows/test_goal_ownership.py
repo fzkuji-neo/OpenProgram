@@ -18,11 +18,16 @@ def test_ownership_is_shared_across_processes_and_released(tmp_path):
         "from openprogram.programs.workflow.goal.ownership import goal_owner\n"
         "with goal_owner(SessionDB(sys.argv[1]), 's') as owned: print(owned)\n"
     )
+
     def probe():
         return subprocess.run(
             [sys.executable, "-c", script, str(db.root_path)],
-            text=True, capture_output=True, timeout=10, check=True,
+            text=True,
+            capture_output=True,
+            timeout=10,
+            check=True,
         ).stdout.strip()
+
     with goal_owner(db, "s"):
         assert probe() == "False"
     assert probe() == "True"
@@ -65,7 +70,9 @@ def test_abrupt_owner_exit_releases_lock(tmp_path):
     )
     process = subprocess.Popen(
         [sys.executable, "-c", script, str(db.root_path)],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        text=True,
     )
     try:
         assert process.stdout.readline().strip() == "True"
@@ -85,12 +92,15 @@ def test_abrupt_owner_exit_releases_lock(tmp_path):
 
 def test_public_goal_rejects_a_second_owner_before_model_work(tmp_path, monkeypatch):
     import openprogram.programs.workflow.goal as goal_pkg
+
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     ownership = importlib.import_module("openprogram.programs.workflow.goal.ownership")
     db = SessionDB(tmp_path / "sessions")
     db.create_session("s", "main")
     monkeypatch.setattr(goal_pkg, "_db", lambda: db)
-    monkeypatch.setattr("openprogram.agentic_programming.function.current_session_id", lambda: "s")
+    monkeypatch.setattr(
+        "openprogram.agentic_programming.call_state.current_session_id", lambda: "s"
+    )
     with ownership.goal_owner(db, "s"):
         with pytest.raises(ValueError, match="already executing"):
             module.goal("do not start a duplicate")

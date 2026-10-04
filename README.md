@@ -90,25 +90,32 @@ Use `openprogram setup` to change provider settings. Continue with [getting star
   </picture>
 </p>
 
-An agent can be a Python function decorated with `@agentic_function`. Its docstring describes the function, arguments supply inputs, and `llm()` requests model output. Ordinary Python handles branching and validation.
+An agent can be a Python class with ordinary methods. Its docstring describes the function, arguments supply inputs, and `llm()` requests model output. Ordinary Python handles branching and validation.
 
 This excerpt assumes a `search_logs` helper and an active runtime:
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 
-@agentic_function
-def triage(ticket: str, runtime=None) -> str:
-    """Classify the ticket, then draft a reply."""
-    kind = llm(ticket, choices=["bug", "feature", "question"])
-    if kind == "bug":
-        logs = search_logs(ticket)
-        return llm(f"Reply using:\n{logs}")
-    return llm("Draft a short reply.")
+class ExampleAgent(Agent):
+    method_options = {
+        'triage': {'tool': True},
+    }
+
+    def triage(self, ticket: str, runtime=None) -> str:
+        """Classify the ticket, then draft a reply."""
+        kind = llm(ticket, choices=["bug", "feature", "question"])
+        if kind == "bug":
+            logs = search_logs(ticket)
+            return llm(f"Reply using:\n{logs}")
+        return llm("Draft a short reply.")
+
+_example_agent = ExampleAgent()
+triage = _example_agent.triage
 ```
 
-See [function reference](docs/reference/api/agentic-function.md) for parameters and behavior.
+See [function reference](docs/reference/api/agent.md) for parameters and behavior.
 
 ### DAG context
 
@@ -132,7 +139,7 @@ User turns, model calls and function calls are recorded as DAG nodes. Context se
   </picture>
 </p>
 
-Python defines required steps and checks model decisions before execution continues. Agents can create and revise their `@agentic_function` files using file tools; the watcher loads eligible changes for later calls. See [workflows](docs/capabilities/agentic-workflow.md) for authoring, reuse and validation.
+Python defines required steps and checks model decisions before execution continues. Agents can create and revise their `Agent` method files using file tools; the watcher loads eligible changes for later calls. See [workflows](docs/capabilities/agentic-workflow.md) for authoring, reuse and validation.
 
 ### Events
 

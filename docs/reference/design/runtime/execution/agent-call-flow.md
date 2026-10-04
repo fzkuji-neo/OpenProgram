@@ -17,7 +17,7 @@ Code evidence (`agent_loop` has only two call sites in the entire repo: `dispatc
 ```
 Entry A: user message → dispatcher ──directly─────────────┐
                                                   ├─→ agent_loop (shared engine)
-Entry B: inside @agentic_function body → runtime.exec ──via AgentSession─┘
+Entry B: inside Agent method body → runtime.exec ──via AgentSession─┘
 ```
 
 | Entry | Responsibility | Path to agent_loop | What DAG record it writes | Implementation |
@@ -32,10 +32,10 @@ dispatcher and exec serve two different scenarios, and their peripheral plugins 
 
 ### Key: exec Sits **Below** agent_loop, So It Can Nest
 
-When the dispatcher runs a turn and the model calls an `@agentic_function` tool (e.g. wiki_agent) → the tool body calls `runtime.exec` → which starts another agent_loop. So exec is both "Entry B" and is called in reverse by a tool inside agent_loop:
+When the dispatcher runs a turn and the model calls an `Agent` method tool (e.g. wiki_agent) → the tool body calls `runtime.exec` → which starts another agent_loop. So exec is both "Entry B" and is called in reverse by a tool inside agent_loop:
 
 ```
-dispatcher → agent_loop → model calls tool → @agentic_function body → runtime.exec → agent_loop (nested) → ...
+dispatcher → agent_loop → model calls tool → Agent method body → runtime.exec → agent_loop (nested) → ...
 ```
 
 This is the fundamental capability of agentic programming (a function body can nest LLM calls), and it is the source of wiki_agent's recursion. If exec sat above the loop, a tool could not call the LLM itself.
@@ -157,7 +157,7 @@ user sends a message
     → agent_loop([prompt], context, config) (agent_loop.py:232)
       → _stream_assistant_response → LLM reply
       → if tool_use → _execute_tool_calls → tool.execute
-        → if the tool is an @agentic_function → the wrapper writes a code node
+        → if the tool is an Agent method → the wrapper writes a code node
         → tool returns → agent_loop continues
       → eventually get a plain-text reply
     ← return final_text
@@ -169,7 +169,7 @@ user sends a message
 ### Path 2: runtime.exec legacy
 
 ```
-inside an @agentic_function body, call runtime.exec(content=[...])
+inside an Agent method body, call runtime.exec(content=[...])
 → exec (runtime.py:789)
   → self._call(content) → user-defined function, returns text
   → _append_model_call_node(reply=...) → write the llm node to the DAG
@@ -179,7 +179,7 @@ inside an @agentic_function body, call runtime.exec(content=[...])
 ### Path 3: runtime.exec providers
 
 ```
-inside an @agentic_function body, call runtime.exec(content=[...])
+inside an Agent method body, call runtime.exec(content=[...])
 → exec (runtime.py:789)
   → _call_via_providers (runtime.py:1306)
     → build AgentSession
@@ -232,7 +232,7 @@ Having `_run_loop_blocking` call runtime.exec instead does not work, for four re
 3. **The streaming events are incompatible**: exec's `on_stream` emits a flat dict, while the dispatcher's `on_event` expects a webui envelope.
 4. **Most critical — duplicate nodes would be written**: trying to add an llm node in the dispatcher with `_open/_close_model_call_node` produced `[user, assistant, assistant]` in the DAG — because **the dispatcher's assistant session message (`persist_assistant_message`) is itself the DAG record of the top-level LLM call**. Adding another llm node duplicates it. `test_dispatcher_integration.py::test_real_loop_text_only` caught this duplication directly.
 
-**Conclusion**: the dispatcher's top-level LLM call **already** has a DAG representation (the role=assistant session-message node), with tool calls hanging below it. There is no need — and it would be wrong — to add another llm node. The "code→code missing an llm node" problem occurs only in the **tool loop of exec inside an `@agentic_function`**, which the paired llm-node write above covers. The dispatcher stays as is.
+**Conclusion**: the dispatcher's top-level LLM call **already** has a DAG representation (the role=assistant session-message node), with tool calls hanging below it. There is no need — and it would be wrong — to add another llm node. The "code→code missing an llm node" problem occurs only in the **tool loop of exec inside an `Agent` method**, which the paired llm-node write above covers. The dispatcher stays as is.
 
 The relationship between dispatcher and exec is not "dispatcher goes through exec" but rather **two parallel LLM-call entry points**, each recording its top-level call into the DAG (dispatcher → assistant session node; exec → llm node), sharing the lower agent_loop engine and the DAG node-write API. This is consistent with other frameworks (OpenClaw also has a separate dispatcher layer).
 
@@ -319,4 +319,4 @@ Tests that reference the removed legacy-call seam: `test_openai.py:61`, `test_an
 - `openprogram/agent/dispatcher/persistence.py` — persist_assistant_message (switched to call the unified primitive)
 - `openprogram/agent/internals/_turn_lifecycle.py` — insert_placeholder / fold_error (delete the duplicated writes)
 - `openprogram/store/session/_msg_adapter.py` — _node_to_msg (the serialization chokepoint, role restoration)
-- `openprogram/agentic_programming/function.py` — @agentic_function wrapper
+- `openprogram/agentic_programming/call_state.py` — Agent method wrapper

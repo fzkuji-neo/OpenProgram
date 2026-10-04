@@ -1,5 +1,8 @@
 """workflow execution tests."""
+
 from __future__ import annotations
+
+from openprogram.programs import _runtime as program_runtime
 from ._support import (
     Path,
     TL,
@@ -23,18 +26,18 @@ from ._support import (
 
 
 def test_agentic_workflow_is_not_registered() -> None:
-    from openprogram.agentic_programming import function as agentic_runtime
+    from openprogram.agentic_programming import call_state as agentic_runtime
     from openprogram.programs._runtime import exposed_names, get
 
     assert get("agentic_workflow") is None
     assert "agentic_workflow" not in exposed_names()
-    assert "agentic_workflow" not in agentic_runtime._registry
+    assert "agentic_workflow" not in program_runtime._registry
     assert not hasattr(TL, "agentic_workflow")
 
 
-
 def test_small_task_is_persisted_as_a_reusable_multifile_project(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     prompts = _planner(monkeypatch, "SINGLE")
     calls = _executor(monkeypatch)
@@ -55,16 +58,16 @@ def test_small_task_is_persisted_as_a_reusable_multifile_project(
     assert not (session_repo / "todos.json").exists()
 
 
-
 def test_execution_errors_stay_private_in_public_payload(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     private_error = "SUBSTANTIVE_PRIVATE_FINDING_91c2"
 
     def fail() -> None:
         raise RuntimeError(private_error)
 
-    monkeypatch.setattr(TL, "_registered_agentic_functions", lambda: {"lookup": fail})
+    monkeypatch.setattr(TL, "_registered_program_entries", lambda: {"lookup": fail})
     _planner(
         monkeypatch,
         _code('lookup()\nreturn "unreachable"'),
@@ -81,23 +84,24 @@ def test_execution_errors_stay_private_in_public_payload(
     assert all("error" not in item for item in result["items"])
 
 
-
 def test_missing_workflow_is_rejected_with_exact_validation_reason(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     missing = json.loads(_package_project())
     missing["files"]["workflow.py"] = (
-        "from openprogram.agentic_programming import agentic_function\n\n"
-        "def helper(task):\n    return task\n"
+        "from openprogram import Agent\n\ndef helper(task):\n    return task\n"
     )
     prompts = _planner(
         monkeypatch,
         json.dumps({"action": "create"}),
         json.dumps(missing),
-        _project(files={
-            "steps/run.py": "def run(task):\n    return 'ok'\n",
-            "entry.py": "def workflow(task):\n    return run(task)\n",
-        }),
+        _project(
+            files={
+                "steps/run.py": "def run(task):\n    return 'ok'\n",
+                "entry.py": "def workflow(task):\n    return run(task)\n",
+            }
+        ),
     )
     _executor(monkeypatch)
 
@@ -107,14 +111,17 @@ def test_missing_workflow_is_rejected_with_exact_validation_reason(
     assert "must define one literature_review entry" in prompts[2]
 
 
-
 def test_execution_cap_counts_only_real_calls(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    _planner(monkeypatch, _code('''
+    _planner(
+        monkeypatch,
+        _code("""
         for i in range(41):
             agent(f"work-{i}")
-    '''))
+    """),
+    )
     calls = _executor(monkeypatch)
 
     result = _run_task("many")
@@ -124,16 +131,19 @@ def test_execution_cap_counts_only_real_calls(
     assert len(result["items"]) == 40
 
 
-
 def test_agent_uses_existing_spawn_signature(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    _planner(monkeypatch, _code('''
+    _planner(
+        monkeypatch,
+        _code("""
         return agent(
             "special", description="delegate", agent_id="research",
             start_from="inherit", archive_when_done=True
         )
-    '''))
+    """),
+    )
     calls = _executor(monkeypatch)
 
     result = _run_task("delegate")
@@ -145,41 +155,48 @@ def test_agent_uses_existing_spawn_signature(
     assert calls[0]["archive_when_done"] is True
 
 
-
 def test_real_agent_implementation_is_callable_with_public_signature() -> None:
     agent = TL._agent_function("test-session", None)
 
     assert callable(agent)
     assert str(inspect.signature(agent)) == (
-        '(prompt: \'str\', description: \'str\' = \'\', agent_id: \'str\' = \'\', '
-        'start_from: \'str\' = \'clean\', run_in_background: \'bool\' = False, '
-        'to: \'str\' = \'\', archive_when_done: \'bool\' = False) -> \'str\''
+        "(prompt: 'str', description: 'str' = '', agent_id: 'str' = '', "
+        "start_from: 'str' = 'clean', run_in_background: 'bool' = False, "
+        "to: 'str' = '', archive_when_done: 'bool' = False) -> 'str'"
     )
     with pytest.raises(RuntimeError):
         agent("probe")
 
 
-
 def test_new_runs_for_same_task_are_independent(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _planner(
         monkeypatch,
-        _project(files={
-            "steps/run.py": "def run(task):\n    return agent(task)\n",
-            "entry.py": "def workflow(task):\n    return run(task)\n",
-        }),
+        _project(
+            files={
+                "steps/run.py": "def run(task):\n    return agent(task)\n",
+                "entry.py": "def workflow(task):\n    return run(task)\n",
+            }
+        ),
     )
     calls = _executor(monkeypatch)
     created = TL.create_workflow("same")
 
     first = TL._run_published_workflow(
-        "same", created["workflow_id"], created["revision"],
-        session_id=TL.current_session_id(), spawn_caller=None,
+        "same",
+        created["workflow_id"],
+        created["revision"],
+        session_id=TL.current_session_id(),
+        spawn_caller=None,
     )
     second = TL._run_published_workflow(
-        "same", created["workflow_id"], created["revision"],
-        session_id=TL.current_session_id(), spawn_caller=None,
+        "same",
+        created["workflow_id"],
+        created["revision"],
+        session_id=TL.current_session_id(),
+        spawn_caller=None,
     )
 
     assert first["run_id"] != second["run_id"]
@@ -188,17 +205,20 @@ def test_new_runs_for_same_task_are_independent(
     assert _state(session_repo, second["run_id"])["task"] == "same"
 
 
-
 def test_capped_status_cannot_be_caught_by_generated_code(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    _planner(monkeypatch, _code('''
+    _planner(
+        monkeypatch,
+        _code("""
         try:
             for i in range(41):
                 agent(f"work-{i}")
         except RuntimeError:
             return "caught"
-    '''))
+    """),
+    )
     calls = _executor(monkeypatch)
 
     result = _run_task("cap")
@@ -207,25 +227,28 @@ def test_capped_status_cannot_be_caught_by_generated_code(
     assert len(calls) == 40
 
 
-
-def test_generated_environment_excludes_runtime_and_agentic_function(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+def test_generated_environment_excludes_runtime_and_agent_method(
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     monkeypatch.setattr(
-        TL, "_registered_agentic_functions", lambda: {"registered": lambda: "ok"}
+        TL, "_registered_program_entries", lambda: {"registered": lambda: "ok"}
     )
-    _planner(monkeypatch, _code('''
+    _planner(
+        monkeypatch,
+        _code("""
         missing = []
         try:
             runtime
         except NameError:
             missing.append("runtime")
         try:
-            agentic_function
+            Agent
         except NameError:
-            missing.append("agentic_function")
+            missing.append("Agent")
         return agent(",".join(missing) + ":" + registered())
-    '''))
+    """),
+    )
     _executor(monkeypatch)
     _summarizer(monkeypatch, "Completed environment validation.")
 
@@ -236,9 +259,9 @@ def test_generated_environment_excludes_runtime_and_agentic_function(
     assert [item["function"] for item in result["items"]] == ["registered", "agent"]
 
 
-
-def test_public_entry_executes_standard_agentic_function_package(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+def test_public_entry_executes_standard_agent_method_package(
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _planner(
         monkeypatch,
@@ -263,17 +286,15 @@ def test_public_entry_executes_standard_agentic_function_package(
         (project / "pyproject.toml").read_text(encoding="utf-8")
     )
     assert metadata["project"]["entry-points"]["openprogram.workflows"] == {
-        "literature_review": (
-            "workflows.literature_review:literature_review"
-        ),
+        "literature_review": ("workflows.literature_review:literature_review"),
     }
     snapshot = _instance(session_repo, result["run_id"]) / "snapshot"
     assert (snapshot / "workflows" / "literature_review" / "workflow.py").exists()
 
 
-
 def test_package_execution_uses_agent_loop_primitive_not_sub_agent_adapter(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _planner(
         monkeypatch,
@@ -302,9 +323,9 @@ def test_package_execution_uses_agent_loop_primitive_not_sub_agent_adapter(
     assert calls == ["discover recent papers"]
 
 
-
 def test_public_entry_snapshots_transitive_workflow_dependencies(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _leaf, leaf_revision = _install_workflow_project(
         session_repo,
@@ -313,8 +334,7 @@ def test_public_entry_snapshots_transitive_workflow_dependencies(
             summary="Fetch paper metadata",
             files={
                 "steps/fetch.py": (
-                    "def fetch(task):\n"
-                    "    return agent('fetch ' + task)\n"
+                    "def fetch(task):\n    return agent('fetch ' + task)\n"
                 ),
                 "entry.py": "def workflow(task):\n    return fetch(task)\n",
             },
@@ -357,24 +377,26 @@ def test_public_entry_snapshots_transitive_workflow_dependencies(
         "paper_search": middle_revision,
     }
     packages = {
-        path.name for path in (
+        path.name
+        for path in (
             _instance(session_repo, result["run_id"]) / "snapshot" / "workflows"
         ).iterdir()
     }
     assert packages == {"literature_review", "paper_search", "paper_fetch"}
 
 
-
 def test_public_entry_passes_task_to_parameterized_project(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    parameterized = _project(files={
-        "steps/discover.py": (
-            "def discover(task):\n"
-            "    return agent(f'discover {task}')\n"
-        ),
-        "entry.py": "def workflow(task):\n    return discover(task)\n",
-    })
+    parameterized = _project(
+        files={
+            "steps/discover.py": (
+                "def discover(task):\n    return agent(f'discover {task}')\n"
+            ),
+            "entry.py": "def workflow(task):\n    return discover(task)\n",
+        }
+    )
     prompts = _planner(
         monkeypatch,
         json.dumps({"action": "create"}),
@@ -391,24 +413,21 @@ def test_public_entry_passes_task_to_parameterized_project(
     assert [call["prompt"] for call in calls] == ["discover recent papers"]
 
 
-
 def test_capped_project_run_does_not_add_a_revision(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _planner(
         monkeypatch,
         json.dumps({"action": "create"}),
-        _project(files={
-            "steps/calls.py": (
-                "def run_calls():\n"
-                "    for i in range(41):\n"
-                "        agent(str(i))\n"
-            ),
-            "entry.py": (
-                "def workflow():\n"
-                "    return run_calls()\n"
-            ),
-        }),
+        _project(
+            files={
+                "steps/calls.py": (
+                    "def run_calls():\n    for i in range(41):\n        agent(str(i))\n"
+                ),
+                "entry.py": ("def workflow():\n    return run_calls()\n"),
+            }
+        ),
     )
     calls = _executor(monkeypatch)
 
@@ -420,9 +439,10 @@ def test_capped_project_run_does_not_add_a_revision(
     assert _git_output(project, "rev-list", "--count", "HEAD") == "1"
 
 
-
-def test_public_entry_publishes_and_executes_agent_class_snapshot(monkeypatch, session_repo):
-    from openprogram.agentic_programming import function as function_runtime
+def test_public_entry_publishes_and_executes_agent_class_snapshot(
+    monkeypatch, session_repo
+):
+    from openprogram.agentic_programming import call_state as function_runtime
 
     candidate = json.loads(_package_project())
     candidate["files"]["workflow.py"] = (
@@ -440,7 +460,13 @@ def test_public_entry_publishes_and_executes_agent_class_snapshot(monkeypatch, s
     append = function_runtime._append_function_call_entry
 
     def capture(**kwargs):
-        entries.append((kwargs["pending_id"], kwargs["function_name"], function_runtime._call_id.get()))
+        entries.append(
+            (
+                kwargs["pending_id"],
+                kwargs["function_name"],
+                function_runtime._call_id.get(),
+            )
+        )
         return append(**kwargs)
 
     monkeypatch.setattr(function_runtime, "_append_function_call_entry", capture)
@@ -448,7 +474,18 @@ def test_public_entry_publishes_and_executes_agent_class_snapshot(monkeypatch, s
     assert result["status"] == "completed"
     assert [call["prompt"] for call in calls] == ["discover recent papers"]
     parents = [entry for entry in entries if entry[1].endswith("WorkflowAgent.run")]
-    children = [entry for entry in entries if entry[1].endswith("steps.discover.discover")]
+    children = [
+        entry for entry in entries if entry[1].endswith("steps.discover.discover")
+    ]
     assert len(parents) == len(children) == 1
     assert children[0][2] == parents[0][0]
-    assert "WorkflowAgent(Agent)" in (_instance(session_repo, result["run_id"]) / "snapshot" / "workflows" / "literature_review" / "workflow.py").read_text()
+    assert (
+        "WorkflowAgent(Agent)"
+        in (
+            _instance(session_repo, result["run_id"])
+            / "snapshot"
+            / "workflows"
+            / "literature_review"
+            / "workflow.py"
+        ).read_text()
+    )

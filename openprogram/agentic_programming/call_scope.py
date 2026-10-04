@@ -39,7 +39,7 @@ class CallScope:
         self._stack = ExitStack()
 
     def __enter__(self):
-        from . import function as f
+        from . import call_state as f
         from openprogram.context.model import Context
         self.parent_id = f.current_call_id()
         occurrence = f.current_tool_call_occurrence_id()
@@ -93,7 +93,7 @@ class CallScope:
             raise
 
     def __exit__(self, exc_type, exc, tb):
-        from . import function as f
+        from . import call_state as f
         from .continuation import FunctionSuspended
         if isinstance(exc, FunctionSuspended):
             self.status = 'paused'
@@ -127,15 +127,16 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
     if (not inspect.isfunction(fn) or inspect.isgeneratorfunction(fn)
             or inspect.isasyncgenfunction(fn)
             or any(getattr(fn, marker, False) for marker in
-                   ('_is_managed_function', '_is_agentic', '_is_traced'))):
+                   ('_is_managed_function', '_is_agent_method', '_is_traced'))):
         return fn
     label = name or f'{fn.__module__}.{fn.__qualname__}'
 
-    def scope(args, kwargs):
-        context = context_factory(args, kwargs) if context_factory else None
+    sig = inspect.signature(fn)
+
+    def scope(args, kwargs, context):
         arguments = {}
         if capture_io:
-            bound = inspect.signature(fn).bind(*args, **kwargs)
+            bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
             arguments = {key: value for key, value in bound.arguments.items()
                          if key not in ('self', 'cls')}
@@ -146,13 +147,24 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
     @contextmanager
     def invocation_scope(args, kwargs):
         from .runtime_scope import execution_scope
-        call = scope(args, kwargs)
+        from .call_state import (
+            _RUNTIME_PARAMS, _inject_runtime, _current_runtime, _close_owned_runtime,
+        )
+        context = context_factory(args, kwargs) if context_factory else None
+        explicit = sig.bind_partial(*args, **kwargs)
+        runtime = next((explicit.arguments.get(name) for name in _RUNTIME_PARAMS
+                        if explicit.arguments.get(name) is not None), None)
         with ExitStack() as stack:
-            if call.context is not None:
-                stack.enter_context(call.context.bind())
-            stack.enter_context(execution_scope())
-            stack.enter_context(call)
-            yield call
+            if context is not None:
+                stack.enter_context(context.bind())
+            stack.enter_context(execution_scope(runtime=runtime))
+            new_args, new_kwargs, token, owned = _inject_runtime(sig, args, kwargs)
+            if token is not None:
+                stack.callback(_current_runtime.reset, token)
+            if owned is not None:
+                stack.callback(_close_owned_runtime, owned)
+            call = stack.enter_context(scope(new_args, new_kwargs, context))
+            yield call, new_args, new_kwargs
 
     if inspect.iscoroutinefunction(fn):
         @functools.wraps(fn)
@@ -160,10 +172,10 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
             if capture_suspended.get():
                 return await fn(*args, **kwargs)
             from .runtime_scope import execution_scope
-            from .function import _run_pre_invocation_hooks
+            from .call_state import _run_pre_invocation_hooks
             _run_pre_invocation_hooks()
-            with invocation_scope(args, kwargs) as call:
-                call.output = await fn(*args, **kwargs)
+            with invocation_scope(args, kwargs) as (call, new_args, new_kwargs):
+                call.output = await fn(*new_args, **new_kwargs)
                 return call.output
     else:
         @functools.wraps(fn)
@@ -171,10 +183,10 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
             if capture_suspended.get():
                 return fn(*args, **kwargs)
             from .runtime_scope import execution_scope
-            from .function import _run_pre_invocation_hooks
+            from .call_state import _run_pre_invocation_hooks
             _run_pre_invocation_hooks()
-            with invocation_scope(args, kwargs) as call:
-                call.output = fn(*args, **kwargs)
+            with invocation_scope(args, kwargs) as (call, new_args, new_kwargs):
+                call.output = fn(*new_args, **new_kwargs)
                 return call.output
     wrapper._is_managed_function = True
     return wrapper

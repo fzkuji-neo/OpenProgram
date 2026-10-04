@@ -1,7 +1,7 @@
 """Persist actual report-origin dispatcher events through the host writer."""
 from __future__ import annotations
 
-from openprogram.agentic_programming.function import current_call_id
+from openprogram.agentic_programming.call_state import current_call_id
 from openprogram.store import _store
 
 

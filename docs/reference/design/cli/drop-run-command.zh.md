@@ -1,6 +1,6 @@
-# 统一 `@agentic_function` 执行路径
+# 统一 `Agent` method 执行路径
 
-`@agentic_function` 的调用只有一条执行路径。无论是用户从 UI 触发，还是模型
+`Agent` method 的调用只有一条执行路径。无论是用户从 UI 触发，还是模型
 把它选为工具，执行都落在同一个 runtime-block 包装里。
 
 ## 执行路径
@@ -11,7 +11,7 @@ Web UI
     openprogram.webui.routes.chat.post_function
       dispatcher.dispatch_forced_tool_call(...)
         dispatcher._wrap_agentic_runtime_block(...)
-          @agentic_function wrapper
+          Agent method wrapper
             runtime.exec(...)
 ```
 

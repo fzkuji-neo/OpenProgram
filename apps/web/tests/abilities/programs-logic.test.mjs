@@ -170,7 +170,7 @@ test("graph layout sits a node next to the neighbors it connects to", () => {
 
 test("a four-level graph fits the standard Programs detail width", () => {
   const nodes = ["workflow", "goal", "agent", "llm"].map((id, depth) => ({
-    id, name: id, path: `agentic_programming/${id}`, program_kind: "agentic_function", depth,
+    id, name: id, path: `agentic_programming/${id}`, program_kind: "agent_method", depth,
   }));
   const layout = buildGraphLayout({
     root: "workflow",

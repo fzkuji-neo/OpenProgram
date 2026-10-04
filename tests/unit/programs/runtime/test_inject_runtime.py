@@ -1,7 +1,7 @@
 """Regression: _inject_runtime must inject into a REQUIRED runtime param.
 
 A forced tool call (fn-form / dispatch_forced_tool_call) invokes an
-@agentic_function with only its declared input kwargs — never `runtime`.
+Agent method with only its declared input kwargs — never `runtime`.
 The function's signature usually makes `runtime` a required positional
 (e.g. `def f(pdf_path, runtime, …)`). _inject_runtime used a full
 `sig.bind`, which raises "missing a required argument: 'runtime'" before
@@ -14,7 +14,7 @@ import inspect
 
 import pytest
 
-from openprogram.agentic_programming.function import (
+from openprogram.agentic_programming.call_state import (
     _inject_runtime,
     _current_runtime,
 )

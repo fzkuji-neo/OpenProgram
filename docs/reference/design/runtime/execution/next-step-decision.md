@@ -7,7 +7,7 @@ The implementation lives in `openprogram/agentic_programming/decision.py` inside
 - `decision.make(prompt, options)` — pure decision; the model does no work, it just picks.
 - `runtime.exec(..., choices=options)` — the model first runs a full turn (reasoning, calling tools), and only the wrap-up is a decision.
 
-`decision.make` needs the runtime to issue the model call, but the runtime is taken automatically from the `_current_runtime` ContextVar set up by the `@agentic_function` decorator, so calling it inside an agentic function does not require passing the runtime; you only need to pass `runtime=` explicitly when calling it outside an agentic function.
+`decision.make` needs the runtime to issue the model call, but the runtime is taken automatically from the `_current_runtime` ContextVar set up by the Agent method execution, so calling it inside an agentic function does not require passing the runtime; you only need to pass `runtime=` explicitly when calling it outside an agentic function.
 
 ## Difference from native tool call
 
@@ -23,18 +23,25 @@ When to choose this mechanism: you don't want to depend on the provider's tool u
 
 ## Entry point one: `decision.make` — pure decision
 
-Inside an `@agentic_function`, call `decision.make` once, without passing the runtime and without writing any `if`:
+Inside an `Agent` method, call `decision.make` once, without passing the runtime and without writing any `if`:
 
 ```python
-from openprogram.agentic_programming import agentic_function, decision
+from openprogram import Agent, decision
 
-@agentic_function
-def route_message(msg: str) -> str:
-    return decision.make("Pick a way to handle this message.", {
-        "analyze":  analyze_sentiment,        # a function
-        "fallback": fallback_reply,           # a function
-        "done":     "CONVERSATION_OVER",      # a value
-    })
+class ExampleAgent(Agent):
+    method_options = {
+        'route_message': {'tool': True},
+    }
+
+    def route_message(self, msg: str) -> str:
+        return decision.make("Pick a way to handle this message.", {
+            "analyze":  analyze_sentiment,        # a function
+            "fallback": fallback_reply,           # a function
+            "done":     "CONVERSATION_OVER",      # a value
+        })
+
+_example_agent = ExampleAgent()
+route_message = _example_agent.route_message
 ```
 
 `decision.make` renders the menu, calls the model, parses the reply, and then **resolves the choice directly into the result of the next step**:
@@ -49,18 +56,27 @@ In both cases what's returned is "the result of the next step" itself. The calle
 A more common need is: the model first runs a full turn (reasoning, calling tools, doing whatever needs doing), and only the **wrap-up** return is a decision. Use the `choices=` parameter of `exec`:
 
 ```python
-@agentic_function
-def handle_ticket(ticket: str) -> dict:
-    """Read the ticket, look up references, then decide which flow to route it to."""
-    return runtime.exec(
-        f"Handle this ticket: {ticket}",
-        toolset="default",          # earlier: the model uses tools to look up references and run commands
-        choices={                   # wrap-up: the return must pick one from here
-            "refund":    issue_refund,
-            "escalate":  escalate_to_human,
-            "close":     {"status": "closed"},
-        },
-    )
+from openprogram import Agent
+
+class ExampleAgent(Agent):
+    method_options = {
+        'handle_ticket': {'tool': True},
+    }
+
+    def handle_ticket(self, ticket: str) -> dict:
+        """Read the ticket, look up references, then decide which flow to route it to."""
+        return runtime.exec(
+            f"Handle this ticket: {ticket}",
+            toolset="default",          # earlier: the model uses tools to look up references and run commands
+            choices={                   # wrap-up: the return must pick one from here
+                "refund":    issue_refund,
+                "escalate":  escalate_to_human,
+                "close":     {"status": "closed"},
+            },
+        )
+
+_example_agent = ExampleAgent()
+handle_ticket = _example_agent.handle_ticket
 ```
 
 What `exec(choices=...)` does: it splices the option menu and an instruction to "work first, then pick one in JSON to wrap up" (`DECISION_FINISH_INSTRUCTION`) into the prompt, then runs a normal exec turn — the tools given via `tools` / `toolset` get called as needed, and the model reasons as needed. When the turn ends, the model's final reply must be a `{"call": ...}` JSON, which `exec` resolves with `resolve_decision`: if a function was picked it is executed and its result returned, if a value was picked the value is returned.
@@ -140,4 +156,4 @@ If `chosen` is a function, it runs `chosen(**kwargs)` and returns the result; if
 
 ## Relationship to the tool call loop
 
-This mechanism does not conflict with the tool call loop of `agent_loop.py` in `tool-calling.md`; they are two parallel implementations of "let the model pick the next step". An `@agentic_function` can serve both as a native tool for `exec(tools=[...])` and as a decision option — the same function, two calling paths. Which one to choose depends on: whether you want to depend on provider tool use, whether you want "an option that is a value rather than a function", and whether you want each decision and retry to be a traceable DAG node.
+This mechanism does not conflict with the tool call loop of `agent_loop.py` in `tool-calling.md`; they are two parallel implementations of "let the model pick the next step". An `Agent` method can serve both as a native tool for `exec(tools=[...])` and as a decision option — the same function, two calling paths. Which one to choose depends on: whether you want to depend on provider tool use, whether you want "an option that is a value rather than a function", and whether you want each decision and retry to be a traceable DAG node.

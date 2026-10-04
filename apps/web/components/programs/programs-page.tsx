@@ -100,7 +100,7 @@ function kindLabel(
   if (isWorkflowCapability(entry)) return text("Workflow capability", "Workflow 管理能力");
   if (kind === "workflow") return text("Workflow", "工作流");
   if (entry?.entity_kind === "package") return text("Package", "程序包");
-  if (kind === "agentic_function") return text("Workflow", "工作流");
+  if (kind === "agent_method") return text("Workflow", "工作流");
   if (kind === "runtime_primitive") return text("Agentic Programming primitive", "Agentic Programming 原语");
   if (kind === "vanilla_function") return text("Tool", "工具");
   if (!kind && entry && !entry.callable_name) return text("Source module", "源码模块");

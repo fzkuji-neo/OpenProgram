@@ -4,7 +4,7 @@ from __future__ import annotations
 import inspect
 from typing import Optional
 
-from openprogram.agentic_programming.function import current_session_id
+from openprogram.agentic_programming.call_state import current_session_id
 from openprogram.programs.workflow.json_parsing import parse_json
 
 # Cross-function calls go through the package object so monkeypatches on
@@ -20,7 +20,7 @@ REFINE_TOOLS = ("read", "glob", "grep", "list", "web_search")
 def _run_refine_turn(session_id: str, prompt: str, *, agent_id: str,
                      spawn_caller: Optional[str]) -> str:
     """Inspect within the Goal runtime; standalone session helpers may spawn."""
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
 
     # Reuse the current Goal owner instead of initializing a JobRunner whose
     # startup recovery can incorrectly interrupt the outer execution.

@@ -1,6 +1,6 @@
 """decision — next-step decision making for agentic functions.
 
-Lets the LLM decide what an ``@agentic_function`` does next: it picks one
+Lets the LLM decide what an ``Agent method`` does next: it picks one
 option from a declared set, and the framework resolves that pick into the
 next step's result.
 
@@ -11,7 +11,7 @@ Two entry points, same options and same resolution:
   - ``runtime.exec(..., choices=options)`` — the model runs a full turn
     (reasoning, tool calls) and only the *finish* is a decision.
 
-    # inside an @agentic_function
+    # inside an Agent method
     return decision.make("Pick how to handle this message.", {
         "analyze":  analyze_sentiment,        # a function
         "fallback": fallback_reply,           # a function
@@ -25,7 +25,7 @@ Resolution leaves no branching for the caller:
   - the LLM picked a value    → that value is returned as-is
 
 The decision itself encodes what happens next, so the calling
-``@agentic_function`` never inspects "which option" or writes an ``if``.
+``Agent method`` never inspects "which option" or writes an ``if``.
 
 Option containers
 -----------------
@@ -600,11 +600,11 @@ DECISION_FINISH_INSTRUCTION = (
 def _resolve_runtime(runtime):
     """Return ``runtime`` or the ambient one of the enclosing function."""
     if runtime is None:
-        from openprogram.agentic_programming.function import _current_runtime
+        from openprogram.agentic_programming.call_state import _current_runtime
         runtime = _current_runtime.get(None)
     if runtime is None:
         raise RuntimeError(
-            "no runtime available — call this inside an @agentic_function, "
+            "no runtime available — call this inside an Agent method, "
             "or pass runtime= explicitly."
         )
     return runtime
@@ -716,19 +716,19 @@ def make(
 ) -> Any:
     """Let the LLM pick the next step from a set of options — no work first.
 
-    The next-step decision primitive of the agentic-function paradigm:
+    The next-step decision primitive of the Agent method API:
     it hands the model a set of options and resolves the pick into the
     next step's result — a picked function is run and its return value
     handed back, a picked value is returned as-is. The calling
-    ``@agentic_function`` writes no ``if``; the decision itself is the
+    ``Agent method`` writes no ``if``; the decision itself is the
     branch.
 
-        @agentic_function
-        def route_message(msg: str) -> str:
-            return decision.make("Pick how to handle this message.", {
-                "analyze": analyze_sentiment,     # a function
-                "done":    "CONVERSATION_OVER",   # a value
-            })
+        class Router(Agent):
+            def route_message(self, msg: str) -> str:
+                return decision.make("Pick how to handle this message.", {
+                    "analyze": analyze_sentiment,
+                    "done": "CONVERSATION_OVER",
+                })
 
     ``decision.make`` is the *pure-decision* shorthand: the model picks straight
     away. When the model should **do work first** (call tools, reason)
@@ -742,7 +742,7 @@ def make(
                   any value; ``{name: (value, "desc")}`` to add a
                   description) or a list of callables / option tuples.
         runtime:  Runtime for the model call. Defaults to the ambient
-                  runtime of the enclosing ``@agentic_function``.
+                  runtime of the enclosing ``Agent method``.
         context:  Optional dict for filling ``source="context"`` params
                   of function options.
         max_retries: LLM re-pick attempts on a parse/validate failure.

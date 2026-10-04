@@ -177,7 +177,7 @@ messages = L1[统一调用树 …追加增长,完成节点释放 io…]      ←
 
 | order | 内容 | condition | 由谁承载 |
 |---|---|---|---|
-| 1 | 本次处境 situation | @agentic_function 内调用 | _situational_prefix + _compute_call_path，前缀到本次调用的消息里 |
+| 1 | 本次处境 situation | Agent method 内调用 | _situational_prefix + _compute_call_path，前缀到本次调用的消息里 |
 | 2 | per-turn memory prefetch | 检索到相关记忆 | `_inject_memory_prefetch`，作为当前用户消息内的前缀块 |
 | 3 | 本次用户输入 + 附件 | 恒 | 用户消息本身 |
 | 4 | 输出格式 / schema | 本步要求 | 内联进 situation 块 |
@@ -202,7 +202,7 @@ Kanban 多 agent 协调、Nous 订阅指导、Hermes profile 机制在我们这�
 文本。格式沿用 `_situational_prefix`（`[…]` 标签）与 Hermes GUIDANCE（`# 标题` + `<tag>`
 分块）。
 
-### 1. situation（L2 · order 1 · condition: 在 @agentic_function 内调用）
+### 1. situation（L2 · order 1 · condition: 在 Agent method 内调用）
 
 `_situational_prefix` 块不只防递归：它同时带上函数的职责、调用路径、程序位置和输出去向。
 
@@ -371,7 +371,7 @@ L1 历史里的"调用树",**框架自动从调用栈 / DAG 生成,零大模型�
 
 | 被调用的 | 会不会调大模型 | 默认 |
 |---|---|---|
-| agentic 函数(`@agentic_function`) | 会 | **进树**,显示 `函数(input) → output`,并对它内部**递归**同样判据 |
+| agentic 函数(`Agent` method) | 会 | **进树**,显示 `函数(input) → output`,并对它内部**递归**同样判据 |
 | 普通函数 / 工具(read/bash/arxiv_search…) | 不会(只是去做事) | **折叠**,不进树 |
 | 函数内部的大模型推理本身 | — | **不进树**(过去了就过去了;有用的产出已成为该函数的 output) |
 
@@ -671,7 +671,7 @@ io 已释放** —— 它是历史的安全网,不是删光。整会话上下文
 
 ## 七、处境注入
 
-每个 `@agentic_function` 内部调用 `runtime.exec` 时，框架自动注入一个 `<situation>` 块，告诉模型当前的执行处境。
+每个 `Agent` method 内部调用 `runtime.exec` 时，框架自动注入一个 `<situation>` 块，告诉模型当前的执行处境。
 
 ### `<situation>` 块包含什么
 

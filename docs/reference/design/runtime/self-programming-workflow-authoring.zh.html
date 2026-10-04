@@ -38,7 +38,7 @@
           <div class="card"><h3>用户手动路径</h3><span class="sig">用户 → auto_workflow(task)</span><p>一次请求完成搜索、一次可见选择、必要时创建、随后执行；每一步仍在DAG中独立可见。</p></div>
         </div>
         <div class="callout warn"><code>auto_workflow</code> 是便捷编排入口，不是候选 Workflow，也不是组件。搜索结果必须排除它，生成代码不得 import 它，Agent 工具集合不得暴露它。</div>
-        <div class="callout"><code>workflow/</code> 只用于按代码类型归类。目录、辅助文件和内部子目录都不是 Program；Programs、Registry 和调用图只把实际注册的 <code>@agentic_function</code> 作为可运行实体。目录层级不得改变公开名称、调用方式或运行语义。</div>
+        <div class="callout"><code>workflow/</code> 只用于按代码类型归类。目录、辅助文件和内部子目录都不是 Program；Programs、Registry 和调用图只把实际注册的 <code>Agent method</code> 作为可运行实体。目录层级不得改变公开名称、调用方式或运行语义。</div>
       </section>
 
       <section id="parameter-ownership">
@@ -58,7 +58,7 @@
             <tr><td>已有项目以 Git revision、snapshot 和 <code>project_ref.json</code> 固定运行输入。</td><td>版本和恢复能力必须独立于编排入口。</td><td>保留项目格式、快照、checkpoint 和显式 resume。</td></tr>
             <tr><td>普通执行失败保留原错误和 checkpoint，不改写已发布 Workflow。</td><td>一次普通执行不得静默修改已发布源码。</td><td>发布前结构/测试修复留在 create；已发布修改只能显式 revise。</td></tr>
             <tr><td><code>auto_workflow</code> 出现在用户表单和 Programs 页（自动入口 · 仅用户手动），不出现在 Agent 工具清单。</td><td>用户需要完整入口，Agent 已有自己的任务路由，二者语义不同。</td><td><code>auto_workflow</code> 用户可见、Agent 不可见。</td></tr>
-            <tr><td><code>@agentic_function(tool_visible=)</code> 传入 Layer-2 <code>register(..., expose)</code>；默认 <code>True</code>，现有函数仍全部曝光。</td><td>需要用装饰器表达“用户可见、Agent 工具不可见”。</td><td><code>auto_workflow</code> 以 <code>tool_visible=False</code> 注册。</td></tr>
+            <tr><td><code>method_options = dict(tool_visible=)</code> 传入 Layer-2 <code>register(..., expose)</code>；默认 <code>True</code>，现有函数仍全部曝光。</td><td>需要用装饰器表达“用户可见、Agent 工具不可见”。</td><td><code>auto_workflow</code> 以 <code>tool_visible=False</code> 注册。</td></tr>
             <tr><td>执行期 repair 已删除。<code>create_workflow</code> 内保留发布前 bounded author 重试（<code>PROJECT_AUTHOR_ATTEMPTS</code>）。</td><td>普通运行失败不得自动发布新 revision。</td><td>已发布修改只走显式 <code>revise_workflow</code>。</td></tr>
             <tr><td>四个公开入口已迁入 <code>workflow/</code>，旧源码目录已删除。</td><td>分类路径与运行身份必须持续保持独立。</td><td>Programs只把分类目录用于导航，函数节点和函数级调用图来自Registry与所选入口的可达AST。</td></tr>
             <tr><td>新项目使用多文件package合同，但产品页仍描述无参数 <code>workflow()</code>、禁止全部import和执行期自动重写。</td><td>人类作者会按旧合同编写；真实规则只能从validator报错中逐项推断。</td><td>以现行validator为唯一规则来源，提供英中作者页和共享CLI静态校验。</td></tr>
@@ -301,7 +301,7 @@ Registry / Programs 展示的运行实体：
       <section id="migration"><span id="handoff"></span>
         <h2>8. 实施计划</h2>
         <p>每个阶段独立提交，并依次经过公共RED、最小GREEN、规格审查和质量审查。前一阶段未通过两类审查时不进入下一阶段。现有 <code>tests/component/agent/test_agentic_workflow.py</code> 锚定单体入口，各阶段必须同步迁移对应测试归属，避免最后删入口时测试整体失效。</p>
-        <div class="phase"><div class="phase-id">阶段 0</div><div><h3>曝光机制接线</h3><p>给 <code>@agentic_function</code> 增加工具级曝光参数并传入Layer-2 <code>register(..., expose)</code>；复用已有 <code>_unexposed</code>/<code>exposed_names()</code>。</p><div class="gate">Gate：最小注册合同测试证明参数生效；默认行为不变（现有函数仍全部曝光）。</div></div></div>
+        <div class="phase"><div class="phase-id">阶段 0</div><div><h3>曝光机制接线</h3><p>给 <code>Agent method</code> 增加工具级曝光参数并传入Layer-2 <code>register(..., expose)</code>；复用已有 <code>_unexposed</code>/<code>exposed_names()</code>。</p><div class="gate">Gate：最小注册合同测试证明参数生效；默认行为不变（现有函数仍全部曝光）。</div></div></div>
         <div class="phase"><div class="phase-id">阶段 1</div><div><h3>提取只读搜索</h3><p>从现有模块抽出 <code>search_workflows</code> 公共合同；返回固定revision、Schema、权限和匹配信息；排除 <code>auto_workflow</code> 与legacy项目。搜索相关测试迁到新入口。</p><div class="gate">Gate：调用前后catalog与run目录字节不变；Agent可读取候选但没有执行节点。</div></div></div>
         <div class="phase"><div class="phase-id">阶段 2</div><div><h3>拆出创建与修订</h3><p>将candidate、验证、依赖固定和publish迁入 <code>create_workflow</code>；再以显式目标和新revision实现 <code>revise_workflow</code>。创建不执行用户任务。删除执行期repair路径；author/validate/publish测试迁到新入口。</p><div class="gate">Gate：create只新增一个项目；revise只新增一个revision；失败、取消、terminal error均不发布；不存在执行期自动发布路径。</div></div></div>
         <div class="phase"><div class="phase-id">阶段 3</div><div><h3>建立用户级 auto_workflow</h3><p>使用前两阶段公共能力实现search → visible select → reuse/create → run。完整DAG显示每个步骤；调用表单仅含 <code>task</code> 并继承会话Project；用Phase 0机制注册为Agent不可见。</p><div class="gate">Gate：用户表单可见，Agent工具清单不可见；reuse和create两条真实App路径可区分。</div></div></div>
@@ -350,7 +350,7 @@ Registry / Programs 展示的运行实体：
           <thead><tr><th>能力</th><th>当前证据</th><th>状态</th></tr></thead>
           <tbody>
             <tr><td>Git Workflow package、snapshot、checkpoint与显式resume</td><td>当前运行时已有对应实现；本设计要求保留。</td><td><span class="tag current">已有</span></td></tr>
-            <tr><td><code>@agentic_function</code> 工具级曝光接线到Layer-2</td><td><code>@agentic_function(tool_visible=)</code> 传入 Layer-2 <code>register(..., expose)</code>；默认 <code>True</code>，现有函数仍全部曝光。</td><td><span class="tag current">已实现</span></td></tr>
+            <tr><td><code>Agent method</code> 工具级曝光接线到Layer-2</td><td><code>method_options = dict(tool_visible=)</code> 传入 Layer-2 <code>register(..., expose)</code>；默认 <code>True</code>，现有函数仍全部曝光。</td><td><span class="tag current">已实现</span></td></tr>
             <tr><td>独立 <code>search_workflows</code></td><td>公共只读入口返回固定 revision、Schema、权限和命中依据；排除 <code>auto_workflow</code> 与无入口 legacy 项目；不调用模型、不写文件、不执行、不发布。</td><td><span class="tag current">已实现</span></td></tr>
             <tr><td>独立 <code>create_workflow</code> / <code>revise_workflow</code></td><td>create 只新增项目且不执行用户任务；revise 在候选与 active revision 内容相同时拒绝发布（<code>revision unchanged</code>），否则只新增一个 revision；依赖 revision 写入 <code>pyproject.toml</code> 的 <code>workflow-dependencies</code>；失败与取消不发布。</td><td><span class="tag current">已实现</span></td></tr>
             <tr><td>用户级 <code>auto_workflow</code></td><td>源码位于 <code>openprogram/programs/workflow/auto_workflow.py</code>；用户表单与 Programs 自动入口可见；以 <code>tool_visible=False</code> 注册；编排 search → 可见 selection Agent（public <code>agent()</code>，<code>AUTO_DECISION_ATTEMPTS=3</code>）→ reuse/create → 按 pin 执行；不自动 revise。该入口是单文件完整 Workflow，当前没有独立 steps、依赖或测试包，因此不增加同名目录。</td><td><span class="tag current">已实现</span></td></tr>

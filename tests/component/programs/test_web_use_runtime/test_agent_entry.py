@@ -1,4 +1,5 @@
 """web use agent entry tests."""
+
 from __future__ import annotations
 import sys
 from types import ModuleType
@@ -13,12 +14,17 @@ from ._support import (
 def _desktop_access(monkeypatch):
     from openprogram import system_access
 
-    monkeypatch.setattr(system_access, "report", lambda: {
-        "platform": "Darwin", "capabilities": [
-            {"id": name, "status": "granted"}
-            for name in ("screen_recording", "accessibility")
-        ],
-    })
+    monkeypatch.setattr(
+        system_access,
+        "report",
+        lambda: {
+            "platform": "Darwin",
+            "capabilities": [
+                {"id": name, "status": "granted"}
+                for name in ("screen_recording", "accessibility")
+            ],
+        },
+    )
 
 
 def _capabilities(monkeypatch, *, selected="browser_use", actions=1, effect=None):
@@ -29,33 +35,50 @@ def _capabilities(monkeypatch, *, selected="browser_use", actions=1, effect=None
         plans.append(kwargs)
         if len(kwargs["history"]) < actions:
             return {"call": selected, "args": {"task": kwargs["task"]}}
-        return {"call": "terminal", "args": {"status": "succeeded", "reason": "Verified"}}
+        return {
+            "call": "terminal",
+            "args": {"status": "succeeded", "reason": "Verified"},
+        }
 
     def call(name, args, **kwargs):
         calls.append((name, args, kwargs))
         if effect is not None:
             return effect(name, args, **kwargs)
-        return {"status": "succeeded", "success": True,
-                "completion_verified": True, "summary": "inspected"}
+        return {
+            "status": "succeeded",
+            "success": True,
+            "completion_verified": True,
+            "summary": "inspected",
+        }
 
     def terminal(decision, history):
         assert history and history[-1]["type"] == "capability_call"
         assert history[-1]["output"]["completion_verified"] is True
         return {"accepted": True, **decision["args"]}
 
-    package, tasks, result = (ModuleType(name) for name in (
-        "gui_harness", "gui_harness.tasks", "gui_harness.tasks.result",
-    ))
+    package, tasks, result = (
+        ModuleType(name)
+        for name in (
+            "gui_harness",
+            "gui_harness.tasks",
+            "gui_harness.tasks.result",
+        )
+    )
     package.__path__ = tasks.__path__ = []
     tasks.capability_loop = SimpleNamespace(
         CAPABILITIES=("browser_use", "computer_use", "vm_use"),
-        capability_status=lambda **kwargs: {name: {"available": name == selected}
-            for name in ("browser_use", "computer_use", "vm_use")},
-        plan_next_capability=plan, call_capability=call,
+        capability_status=lambda **kwargs: {
+            name: {"available": name == selected}
+            for name in ("browser_use", "computer_use", "vm_use")
+        },
+        plan_next_capability=plan,
+        call_capability=call,
         validate_terminal_decision=terminal,
     )
     result.conclusion = lambda **kwargs: {"summary": "inspected"}
-    result.save_workflow_record = lambda value, app_name: records.append((value, app_name))
+    result.save_workflow_record = lambda value, app_name: records.append(
+        (value, app_name)
+    )
     for module in (package, tasks, result):
         monkeypatch.setitem(sys.modules, module.__name__, module)
     _desktop_access(monkeypatch)
@@ -73,12 +96,14 @@ def test_registered_gui_agent_can_select_computer_use_backend(monkeypatch):
     def original(**kwargs):
         calls.append(("original", kwargs))
         return {"status": "succeeded", "mode": "unified"}
+
     wrapped = install_gui_harness_web_use(original)
     tool = _runtime.get("gui_agent")
     assert tool is not None
 
     result = wrapped(
-        task="click Save", backend="chrome_devtools_mcp",
+        task="click Save",
+        backend="chrome_devtools_mcp",
         runtime=SimpleNamespace(),
     )
     assert result["status"] == "infeasible"
@@ -87,9 +112,8 @@ def test_registered_gui_agent_can_select_computer_use_backend(monkeypatch):
     assert calls == []
 
 
-
 def test_programs_cli_resolves_registered_gui_agent(monkeypatch, capsys):
-    from openprogram.agentic_programming.function import _registry
+    from openprogram.programs._runtime import _registry
     from openprogram.cli.commands.programs import _cmd_run
     from openprogram.programs import gui_harness_bridge
     from openprogram.programs.gui_harness_bridge import (
@@ -105,8 +129,10 @@ def test_programs_cli_resolves_registered_gui_agent(monkeypatch, capsys):
     )
 
     capabilities = _capabilities(monkeypatch)
+
     def legacy(**_kwargs):
         raise AssertionError("task-only CLI must use the capability loop")
+
     wrapped = install_gui_harness_web_use(legacy)
 
     _cmd_run("gui_agent", ["task=inspect"])
@@ -116,24 +142,42 @@ def test_programs_cli_resolves_registered_gui_agent(monkeypatch, capsys):
     assert [call[0] for call in capabilities.calls] == ["browser_use"]
 
 
-
 def test_registered_gui_agent_browser_surface_uses_standard_entry(monkeypatch):
     from openprogram.programs import gui_browser_agent
-    from openprogram.programs.gui_harness_bridge import DEFAULT_MAX_STEPS, install_gui_harness_web_use
+    from openprogram.programs.gui_harness_bridge import (
+        DEFAULT_MAX_STEPS,
+        install_gui_harness_web_use,
+    )
+
     calls = []
+
     def standard_entry(**kwargs):
         calls.append(kwargs)
-        return {"status": "succeeded", "reason_code": "verified_browser_assertion", "summary": "done"}
+        return {
+            "status": "succeeded",
+            "reason_code": "verified_browser_assertion",
+            "summary": "done",
+        }
+
     monkeypatch.setattr(gui_browser_agent, "run_browser_gui_agent", standard_entry)
+
     def original(**kwargs):
         raise AssertionError("browser must not use the legacy planner")
+
     runtime = object()
     wrapped = install_gui_harness_web_use(original)
     result = wrapped(task="inspect the page", surface="browser", runtime=runtime)
     assert result["success"] is True
-    assert calls == [{"task": "inspect the page", "max_steps": DEFAULT_MAX_STEPS,
-                      "max_seconds": None, "runtime": runtime, "allow_general": False, "backend": ""}]
-
+    assert calls == [
+        {
+            "task": "inspect the page",
+            "max_steps": DEFAULT_MAX_STEPS,
+            "max_seconds": None,
+            "runtime": runtime,
+            "allow_general": False,
+            "backend": "",
+        }
+    ]
 
 
 def test_gui_agent_app_name_does_not_select_browser_surface(monkeypatch):
@@ -164,7 +208,6 @@ def test_gui_agent_app_name_does_not_select_browser_surface(monkeypatch):
     assert all(plan["preferred_capability"] == "" for plan in capabilities.plans)
 
 
-
 def test_gui_agent_wrapper_resolves_step_budget(monkeypatch):
     from openprogram.programs.gui_harness_bridge import (
         DEFAULT_MAX_STEPS,
@@ -189,7 +232,6 @@ def test_gui_agent_wrapper_resolves_step_budget(monkeypatch):
     assert seen[-1]["max_steps"] == 20
 
 
-
 def test_gui_agent_wrapper_forces_success_false_when_infeasible_declared(monkeypatch):
     from openprogram.programs.gui_harness_bridge import (
         install_gui_harness_web_use,
@@ -211,7 +253,6 @@ def test_gui_agent_wrapper_forces_success_false_when_infeasible_declared(monkeyp
     assert result["infeasible_declared"] is True
     assert result["handoff_instruction"] == "Human must log in and retry."
     assert result["summary"] == "Human must log in and retry."
-
 
 
 def test_gui_agent_wrapper_calls_raw_harness_function_once(monkeypatch):
@@ -239,25 +280,45 @@ def test_gui_agent_wrapper_calls_raw_harness_function_once(monkeypatch):
     assert len(calls) == 1
 
 
-
 def test_gui_agent_wrapper_records_one_public_gui_agent_node(tmp_path, monkeypatch):
-    from openprogram.agentic_programming.function import agentic_function
+    from openprogram import Agent
     from openprogram.agentic_programming.runtime import Runtime
     from openprogram.programs.gui_harness_bridge import (
         install_gui_harness_web_use,
     )
     from openprogram.store import SessionNodeWriter, SessionStore, _store
 
-    @agentic_function
-    def gui_step(task, runtime=None):
-        return {"task": task, "success": True, "summary": "done", "completion_verified": True}
+    class GuiStepAgent(Agent):
+        method_options = {
+            "gui_step": {"name": "gui_step", "tool": True},
+        }
 
-    @agentic_function
-    def gui_agent(task, runtime=None, **_kwargs):
-        raise AssertionError("task-only must not call the decorated legacy root")
+        def gui_step(self, task, runtime=None):
+            return {
+                "task": task,
+                "success": True,
+                "summary": "done",
+                "completion_verified": True,
+            }
 
-    capabilities = _capabilities(monkeypatch, effect=lambda _name, args, **kwargs:
-        gui_step(args["task"], runtime=kwargs["runtime"]))
+    gui_step = GuiStepAgent().gui_step
+
+    class GuiAgentAgent(Agent):
+        method_options = {
+            "gui_agent": {"name": "gui_agent", "tool": True},
+        }
+
+        def gui_agent(self, task, runtime=None, **_kwargs):
+            raise AssertionError("task-only must not call the decorated legacy root")
+
+    gui_agent = GuiAgentAgent().gui_agent
+
+    capabilities = _capabilities(
+        monkeypatch,
+        effect=lambda _name, args, **kwargs: gui_step(
+            args["task"], runtime=kwargs["runtime"]
+        ),
+    )
 
     store = SessionStore(tmp_path / "sessions")
     store.create_session("s1", agent_id="main")
@@ -275,16 +336,26 @@ def test_gui_agent_wrapper_records_one_public_gui_agent_node(tmp_path, monkeypat
     assert len(capabilities.calls) == 1
 
 
-@pytest.mark.parametrize("max_steps,expected_calls,status", [
-    (None, 2, "succeeded"), (0, 2, "succeeded"), (-3, 2, "succeeded"),
-    (1, 1, "failed"), (20, 2, "succeeded"),
-])
-def test_task_only_gui_agent_enforces_actual_action_budget(monkeypatch, max_steps, expected_calls, status):
+@pytest.mark.parametrize(
+    "max_steps,expected_calls,status",
+    [
+        (None, 2, "succeeded"),
+        (0, 2, "succeeded"),
+        (-3, 2, "succeeded"),
+        (1, 1, "failed"),
+        (20, 2, "succeeded"),
+    ],
+)
+def test_task_only_gui_agent_enforces_actual_action_budget(
+    monkeypatch, max_steps, expected_calls, status
+):
     from openprogram.programs.gui_harness_bridge import install_gui_harness_web_use
 
     capabilities = _capabilities(monkeypatch, actions=2)
+
     def legacy(**kwargs):
         raise AssertionError("task-only must not call the legacy root")
+
     wrapped = install_gui_harness_web_use(legacy)
     result = wrapped(task="two actions", max_steps=max_steps, runtime=SimpleNamespace())
     assert len(capabilities.calls) == expected_calls
@@ -293,7 +364,6 @@ def test_task_only_gui_agent_enforces_actual_action_budget(monkeypatch, max_step
     assert result["success"] is (status == "succeeded")
     if status == "failed":
         assert result["reason_code"] == "safety_step_limit"
-
 
 
 def test_gui_agent_harness_uses_selected_computer_use_backend(monkeypatch):
@@ -311,7 +381,8 @@ def test_gui_agent_harness_uses_selected_computer_use_backend(monkeypatch):
             self.calls.append(kwargs)
             if kwargs["command"] == "observe":
                 return {
-                    "ok": True, "frame_id": "frame-1",
+                    "ok": True,
+                    "frame_id": "frame-1",
                     "web_session_id": "cs-1",
                     "backend": kwargs.get("backend") or "chrome_devtools_mcp",
                 }
@@ -323,28 +394,36 @@ def test_gui_agent_harness_uses_selected_computer_use_backend(monkeypatch):
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: registry)
     context = {
         "context_id": "ctx-1",
-        "surfaces": [{
-            "binding_id": "binding-1",
-            "capabilities": ["observe", "interact", "navigate"],
-        }],
+        "surfaces": [
+            {
+                "binding_id": "binding-1",
+                "capabilities": ["observe", "interact", "navigate"],
+            }
+        ],
     }
     monkeypatch.setattr(surface_context, "current", lambda: context)
-    monkeypatch.setattr(surface_context, "resolve_binding", lambda _page="": "binding-1")
+    monkeypatch.setattr(
+        surface_context, "resolve_binding", lambda _page="": "binding-1"
+    )
     monkeypatch.setattr(surface_context, "resolve_page_key", lambda _page="": "page-1")
 
     class _Runtime:
         def exec(self, **kwargs):
             tool = kwargs["tools"][0]
-            asyncio.run(tool.execute(
-                "call-1",
-                {
-                    "action": "verify", "expected_frame_id": "frame-1",
-                    "page_context_token": "pct-current",
-                    "assertion": "text_contains", "value": "done",
-                },
-                asyncio.Event(),
-                None,
-            ))
+            asyncio.run(
+                tool.execute(
+                    "call-1",
+                    {
+                        "action": "verify",
+                        "expected_frame_id": "frame-1",
+                        "page_context_token": "pct-current",
+                        "assertion": "text_contains",
+                        "value": "done",
+                    },
+                    asyncio.Event(),
+                    None,
+                )
+            )
             return "verified"
 
     result = module.browser_agent(
@@ -353,9 +432,7 @@ def test_gui_agent_harness_uses_selected_computer_use_backend(monkeypatch):
         runtime=_Runtime(),
     )
     assert result["status"] == "succeeded"
-    verify_call = next(
-        call for call in registry.calls if call["command"] == "verify"
-    )
+    verify_call = next(call for call in registry.calls if call["command"] == "verify")
     assert "page_context_token" not in verify_call["arguments"]
     assert registry.calls[0] == {
         "command": "observe",
@@ -366,10 +443,10 @@ def test_gui_agent_harness_uses_selected_computer_use_backend(monkeypatch):
         "page_context": context,
     }
     assert registry.calls[-1] == {
-        "command": "close", "web_session_id": "cs-1",
+        "command": "close",
+        "web_session_id": "cs-1",
         "owner_id": "harness:ctx-1",
     }
-
 
 
 def test_gui_agent_prompt_receives_group_aware_page_inventory(monkeypatch):
@@ -385,24 +462,40 @@ def test_gui_agent_prompt_receives_group_aware_page_inventory(monkeypatch):
         "inventory_revision": 9,
         "active_tab_entry_id": "group:g3",
         "focused_page": "p4",
-        "tab_entries": [{
-            "id": "group:g3", "mode": "split", "pages": ["p3", "p4"],
-        }],
+        "tab_entries": [
+            {
+                "id": "group:g3",
+                "mode": "split",
+                "pages": ["p3", "p4"],
+            }
+        ],
         "windows": [
             {
-                "window_id": "window-1", "inventory_revision": 9,
-                "active_tab_entry_id": "group:g3", "focused_page": "p4",
-                "tab_entries": [{
-                    "id": "group:g3", "mode": "split", "pages": ["p3", "p4"],
-                }],
+                "window_id": "window-1",
+                "inventory_revision": 9,
+                "active_tab_entry_id": "group:g3",
+                "focused_page": "p4",
+                "tab_entries": [
+                    {
+                        "id": "group:g3",
+                        "mode": "split",
+                        "pages": ["p3", "p4"],
+                    }
+                ],
                 "pages": ["p3", "p4"],
             },
             {
-                "window_id": "window-2", "inventory_revision": 4,
-                "active_tab_entry_id": "tab:tab-d", "focused_page": "p5",
-                "tab_entries": [{
-                    "id": "tab:tab-d", "mode": "single", "pages": ["p5"],
-                }],
+                "window_id": "window-2",
+                "inventory_revision": 4,
+                "active_tab_entry_id": "tab:tab-d",
+                "focused_page": "p5",
+                "tab_entries": [
+                    {
+                        "id": "tab:tab-d",
+                        "mode": "single",
+                        "pages": ["p5"],
+                    }
+                ],
                 "pages": ["p5"],
             },
         ],
@@ -421,16 +514,38 @@ def test_gui_agent_prompt_receives_group_aware_page_inventory(monkeypatch):
                 "tab_entries": inventory_context["tab_entries"],
                 "windows": inventory_context["windows"],
                 "pages": [
-                    {"page": "p3", "window_id": "window-1", "tab_id": "tab-c", "visible": True, "focused": False, "page_context_token": "pct_3"},
-                    {"page": "p4", "window_id": "window-1", "tab_id": "tab-d", "visible": True, "focused": True, "page_context_token": "pct_4"},
-                    {"page": "p5", "window_id": "window-2", "tab_id": "tab-d", "visible": True, "focused": True, "page_context_token": "pct_5"},
+                    {
+                        "page": "p3",
+                        "window_id": "window-1",
+                        "tab_id": "tab-c",
+                        "visible": True,
+                        "focused": False,
+                        "page_context_token": "pct_3",
+                    },
+                    {
+                        "page": "p4",
+                        "window_id": "window-1",
+                        "tab_id": "tab-d",
+                        "visible": True,
+                        "focused": True,
+                        "page_context_token": "pct_4",
+                    },
+                    {
+                        "page": "p5",
+                        "window_id": "window-2",
+                        "tab_id": "tab-d",
+                        "visible": True,
+                        "focused": True,
+                        "page_context_token": "pct_5",
+                    },
                 ],
             }
 
         def execute(self, **kwargs):
             if kwargs["command"] == "observe":
                 return {
-                    "ok": True, "frame_id": "frame-1",
+                    "ok": True,
+                    "frame_id": "frame-1",
                     "web_session_id": "cs-1",
                 }
             if kwargs["command"] == "verify":
@@ -441,27 +556,36 @@ def test_gui_agent_prompt_receives_group_aware_page_inventory(monkeypatch):
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: registry)
     monkeypatch.setattr(surface_context, "current", lambda: inventory_context)
     monkeypatch.setattr(
-        surface_context, "capture_pages", lambda _context=None: inventory_context,
+        surface_context,
+        "capture_pages",
+        lambda _context=None: inventory_context,
     )
     prompts = []
 
     class _Runtime:
         def exec(self, **kwargs):
             prompts.append(kwargs["content"][0]["text"])
-            asyncio.run(kwargs["tools"][0].execute(
-                "call-1",
-                {
-                    "action": "verify", "expected_frame_id": "frame-1",
-                    "assertion": "text_contains", "value": "done",
-                },
-                asyncio.Event(),
-                None,
-            ))
+            asyncio.run(
+                kwargs["tools"][0].execute(
+                    "call-1",
+                    {
+                        "action": "verify",
+                        "expected_frame_id": "frame-1",
+                        "assertion": "text_contains",
+                        "value": "done",
+                    },
+                    asyncio.Event(),
+                    None,
+                )
+            )
             return "verified"
 
     result = module._run_browser_task_commands(
-        task="Verify the split page", backend="chrome_devtools_mcp",
-        max_steps=2, max_seconds=30, runtime=_Runtime(),
+        task="Verify the split page",
+        backend="chrome_devtools_mcp",
+        max_steps=2,
+        max_seconds=30,
+        runtime=_Runtime(),
     )
 
     assert result["status"] == "succeeded"

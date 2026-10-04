@@ -55,7 +55,7 @@ Distillation is a judgment task: deciding what in a transcript generalizes and w
 
 This follows the precedent set when the `create()` / `edit()` / `improve()` wrappers were removed from agentic programming: a function whose entire body is one LLM call plus a file write is a layer the agent does not need.
 
-The skill also decides the output form. A procedure requiring runtime judgment becomes a `SKILL.md`; a mechanical one becomes an `@agentic_function` written per the [agentic-programming](../../function/calling-unification.md) conventions.
+The skill also decides the output form. A procedure requiring runtime judgment becomes a `SKILL.md`; a mechanical one becomes an `Agent` method written per the [agentic-programming](../../function/calling-unification.md) conventions.
 
 ## Output lands in the existing skill pipeline
 
@@ -65,7 +65,7 @@ That is the reason the feature needs no subsystem of its own: the storage, the d
 
 ## Revision closes the loop
 
-Distillation covers refinement, not only first creation. The skill body directs the agent, before writing, to look for an existing skill on the same topic — same goal and preconditions, not merely a similar name — and to revise a match in place: keep what held, replace what the new session disproved, merge new decision points and traps into the flow. A distilled `@agentic_function` follows the same rule and is edited rather than duplicated, keeping its name stable for callers.
+Distillation covers refinement, not only first creation. The skill body directs the agent, before writing, to look for an existing skill on the same topic — same goal and preconditions, not merely a similar name — and to revise a match in place: keep what held, replace what the new session disproved, merge new decision points and traps into the flow. A distilled `Agent` method follows the same rule and is edited rather than duplicated, keeping its name stable for callers.
 
 This is the refine step of the record → replay → refine loop. A skill that fails in use is corrected through the same path — the failing run is itself a session to distill — and the complaint form ("that skill didn't work, update it with what we learned") is among the triggers in the skill's description, so it routes here without a separate mechanism.
 

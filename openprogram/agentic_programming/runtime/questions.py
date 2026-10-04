@@ -17,7 +17,7 @@ class QuestionsOperations:
     def _ui_session_id(self) -> str:
         """前端路由用的 webui session（dispatcher 在执行上下文里设的
         ContextVar），不是 Runtime 自己的 op-xxx id。无 webui 时为空串。"""
-        from openprogram.agentic_programming.function import current_session_id
+        from openprogram.agentic_programming.call_state import current_session_id
 
         return current_session_id()
 
@@ -60,7 +60,7 @@ class QuestionsOperations:
 
         def _on_asked(q):
             # 经本 runtime 的提问通道把问题送出去：worker 进程默认走事件层
-            # （前端卡片 + 总线）；@agentic_function 跑的子进程被 process_runner
+            # （前端卡片 + 总线）；Agent method 跑的子进程被 process_runner
             # 换成 QueueTransport（经 mp.Queue 送回父进程 registry）。
             emit_question_asked(
                 {
@@ -147,7 +147,7 @@ class QuestionsOperations:
             if outcome == "answered":
                 return value if isinstance(value, list) else []
             if outcome == "cancelled":
-                from openprogram.agentic_programming.function import CancelledError
+                from openprogram.agentic_programming.call_state import CancelledError
                 raise CancelledError(prompt or "ask")
             if outcome == "declined":
                 raise UserDeclined(prompt or "ask")
@@ -167,7 +167,7 @@ class QuestionsOperations:
         if outcome == "answered":
             return value
         if outcome == "cancelled":
-            from openprogram.agentic_programming.function import CancelledError
+            from openprogram.agentic_programming.call_state import CancelledError
             raise CancelledError(prompt or "ask")
         if outcome == "declined":
             raise UserDeclined(prompt or "ask")
@@ -198,7 +198,7 @@ class QuestionsOperations:
                 return value.strip() in ("确认", "yes", "y", "true", "ok", "是")
             return bool(value)
         if outcome == "cancelled":
-            from openprogram.agentic_programming.function import CancelledError
+            from openprogram.agentic_programming.call_state import CancelledError
             raise CancelledError(prompt)
         if outcome == "declined":
             return False
@@ -239,7 +239,7 @@ class QuestionsOperations:
         if outcome == "answered":
             return value if isinstance(value, dict) else {}
         if outcome == "cancelled":
-            from openprogram.agentic_programming.function import CancelledError
+            from openprogram.agentic_programming.call_state import CancelledError
             raise CancelledError(prompt)
         if outcome == "declined":
             raise UserDeclined(prompt)

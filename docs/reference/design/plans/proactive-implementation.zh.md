@@ -66,7 +66,7 @@ tool allowlist。它跑在一个独立小池里，并发 1–2，可被用户任
 
 ## 6. 一个已知缺口，但不阻塞
 
-`@function` 的 tool 执行不写 DAG 节点，只有 `@agentic_function` 写，因此 DAG 树作为
+`@function` 的 tool 执行不写 DAG 节点，只有 `Agent` method 写，因此 DAG 树作为
 因果记录是不完整的。如果审计必须靠 DAG 做因果回溯，就得先补上这一块。本设计改为在
 `events.jsonl` 里独立记录全量事件，于是 DAG 的缺口成了一个已知项，而不是前置条件。
 

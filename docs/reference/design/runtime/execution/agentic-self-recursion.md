@@ -4,7 +4,7 @@
 > with a recursion-depth ceiling as a backstop. This document maps to the real code
 > line by line via file:line, so you can check along.
 > Related code:
-> - `openprogram/agentic_programming/function.py`
+> - `openprogram/agentic_programming/call_state.py`
 > - `openprogram/agentic_programming/runtime.py`
 > - Tests: `tests/unit/programs/runtime/test_self_recursion_guard.py` (8 cases)
 

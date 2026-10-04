@@ -18,7 +18,7 @@ export type MessageStatus =
 export interface FnParam {
   name: string;
   /** Friendly label shown in the function form. Falls back to `name`
-   *  when omitted; backend `@agentic_function(input={...})` can set
+   *  when omitted; backend `Agent.method_options input metadata` can set
    *  `label: "..."` to rename cryptic param names (e.g. `fn` → "function"). */
   label?: string;
   type?: string;
@@ -259,7 +259,7 @@ export interface ChatMsg {
    *  each turn by author. */
   agentId?: string;
   /** Runtime-block child rows belonging to this assistant turn (LLM-
-   *  issued @agentic_function calls — gui_agent / research_agent /
+   *  issued Agent method calls — gui_agent / research_agent /
    *  wiki_agent). Populated at the data-loading layer (conv-mapper for
    *  history, chat-stream for live runs) so the parent assistant
    *  bubble can render them INSIDE its own card instead of as

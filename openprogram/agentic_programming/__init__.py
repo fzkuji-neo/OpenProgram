@@ -2,11 +2,10 @@
 
 Agent methods create call scopes automatically. Context supplies named content
 and history visibility. Runtime uses the existing providers and Session DAG.
-The agentic_function entry remains available for external compatibility.
 """
 
-from openprogram.agentic_programming.function import (
-    agentic_function, traced, auto_trace_module, auto_trace_package,
+from openprogram.agentic_programming.call_state import (
+    traced, auto_trace_module, auto_trace_package,
 )
 from openprogram.agentic_programming.runtime import Runtime
 from openprogram.agentic_programming.llm import llm
@@ -20,7 +19,6 @@ from openprogram.agentic_programming.control_flow import (
 )
 
 __all__ = [
-    "agentic_function",
     "traced",
     "auto_trace_module",
     "auto_trace_package",

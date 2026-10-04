@@ -1,4 +1,4 @@
-"""Convert an ``@agentic_function`` spec into other frameworks' tool formats.
+"""Convert an ``Agent method`` spec into other frameworks' tool formats.
 
 ``fn.spec`` is flat — ``{"name", "description", "parameters"}`` — which is what
 the Responses API and this repo's own dispatcher consume. Hosts driving their
@@ -19,13 +19,13 @@ _EMPTY_PARAMETERS = {"type": "object", "properties": {}}
 def to_openai_tool(function: Any) -> dict:
     """Return one OpenAI Chat Completions ``tools`` entry for ``function``.
 
-    Accepts an ``@agentic_function`` (anything exposing ``.spec``) or an
+    Accepts an ``Agent method`` (anything exposing ``.spec``) or an
     already-built flat spec dict.
     """
     spec = getattr(function, "spec", function)
     if not isinstance(spec, dict):
         raise TypeError(
-            f"expected an @agentic_function or a spec dict, got {type(function).__name__}"
+            f"expected an Agent method or a spec dict, got {type(function).__name__}"
         )
     name = spec.get("name")
     if not name:
@@ -43,7 +43,7 @@ def to_openai_tool(function: Any) -> dict:
 
 
 def to_openai_tools(functions) -> list[dict]:
-    """Map ``to_openai_tool`` over an iterable of @agentic_functions."""
+    """Map ``to_openai_tool`` over an iterable of Agent methods."""
     return [to_openai_tool(f) for f in functions]
 
 

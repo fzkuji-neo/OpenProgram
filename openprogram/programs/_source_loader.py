@@ -67,11 +67,16 @@ class ManagedSourceLoader(importlib.machinery.SourceFileLoader):
             capture_suspended.reset(token)
 
 
-def register_public_entries(module, entrypoint=None):
+def register_public_entries(module, entrypoint=None, *, require_exports=False):
     """Adapt only explicitly exported functions to the existing tool registry."""
     from openprogram.agentic_programming.agent_method import wrap_agent_method, register_agent_method
     from openprogram.agentic_programming.call_scope import managed_function
-    entries = list(getattr(module, "AGENTIC_FUNCTIONS", ()) or ())
+    if require_exports and not hasattr(module, "PROGRAM_ENTRIES"):
+        raise ImportError(
+            f"Program module {module.__name__} must export PROGRAM_ENTRIES. "
+            "Use ordinary functions or bound Agent methods with the current OpenProgram API."
+        )
+    entries = list(getattr(module, "PROGRAM_ENTRIES", ()) or ())
     if entrypoint:
         entry = getattr(module, entrypoint, None)
         if entry is not None:
@@ -81,9 +86,6 @@ def register_public_entries(module, entrypoint=None):
         if getattr(entry, "_agent_tool", None) is not None:
             continue
         if not (inspect.isfunction(entry) or inspect.ismethod(entry)):
-            # Existing legacy decorator objects register themselves.
-            if getattr(entry, "_is_agentic", False):
-                continue
             raise TypeError("Program entries must be Python functions or Agent methods")
         is_method = inspect.ismethod(entry)
         original = entry
@@ -92,10 +94,22 @@ def register_public_entries(module, entrypoint=None):
         if inspect.isgeneratorfunction(original) or inspect.isasyncgenfunction(original):
             raise TypeError("Program entries cannot be generator functions")
         if id(entry) not in replacements:
-            metadata = getattr(entry, "__agentic_options__", {})
-            if is_method:
-                metadata = {**getattr(entry.__self__, "method_options", {}).get(entry.__name__, {}), **metadata}
-            options = {"as_tool": True, **metadata}
+            metadata = getattr(entry, "_method_options", {})
+            if not isinstance(metadata, dict):
+                from dataclasses import fields, is_dataclass
+                metadata = ({field.name: getattr(metadata, field.name) for field in fields(metadata)}
+                            if is_dataclass(metadata) else {})
+            owner = getattr(entry, "_agent_owner", None)
+            if owner is None and is_method:
+                owner = entry.__self__
+            owner_metadata = getattr(owner, "method_options", {}).get(entry.__name__, {}) if owner is not None else {}
+            metadata = {**owner_metadata, **metadata, **getattr(entry, "__agent_options__", {})}
+            options = dict(metadata)
+            if "as_tool" not in options and "tool" not in options:
+                options["tool"] = True
+            register_tool = options.get("as_tool")
+            if register_tool is None:
+                register_tool = options.get("tool", False)
             available_if = options.pop("available_if", None)
             available = True
             if available_if is not None:
@@ -107,13 +121,13 @@ def register_public_entries(module, entrypoint=None):
             if entrypoint and entry is getattr(module, entrypoint, None):
                 options.setdefault("name", entrypoint)
             # Agent methods already carry their scope and instance binding.
-            if is_method or getattr(entry, "_is_agentic", False):
+            if is_method or getattr(entry, "_is_agent_method", False):
                 wrapper = entry
             elif execution_metadata:
                 wrapper = wrap_agent_method(original, options)
             else:
                 wrapper = entry if getattr(entry, "_is_managed_function", False) else managed_function(original)
-            if available:
+            if available and register_tool:
                 tool = register_agent_method(wrapper, options)
                 if tool is not None:
                     tool._python_callable = wrapper
@@ -123,8 +137,8 @@ def register_public_entries(module, entrypoint=None):
     for name, value in list(vars(module).items()):
         if id(value) in replacements:
             setattr(module, name, replacements[id(value)])
-    if hasattr(module, "AGENTIC_FUNCTIONS"):
-        module.AGENTIC_FUNCTIONS = [replacements.get(id(fn), fn) for fn in entries[:len(module.AGENTIC_FUNCTIONS)]]
+    if hasattr(module, "PROGRAM_ENTRIES"):
+        module.PROGRAM_ENTRIES = [replacements.get(id(fn), fn) for fn in entries[:len(module.PROGRAM_ENTRIES)]]
 
 
 class ManagedSourceFinder:
@@ -153,6 +167,12 @@ class ManagedSourceFinder:
         if not is_package:
             filename = base + ".py"
         if not os.path.isfile(filename):
+            if os.path.isdir(base):
+                if os.path.commonpath((os.path.realpath(base), root)) != root:
+                    raise ModuleNotFoundError(f"Program module is outside its authorized source: {fullname}")
+                namespace = importlib.machinery.ModuleSpec(fullname, loader=None, is_package=True)
+                namespace.submodule_search_locations = [base]
+                return namespace
             raise ModuleNotFoundError(f"Program module does not exist: {fullname}")
         if os.path.commonpath((os.path.realpath(filename), root)) != root:
             raise ModuleNotFoundError(f"Program module is outside its authorized source: {fullname}")

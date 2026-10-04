@@ -5,7 +5,7 @@ import pytest
 
 from openprogram.store.session.context import session_context
 from openprogram.store import _store as _store_var, _current_turn_id as _turn_var
-from openprogram.agentic_programming.function import _current_runtime as _rt_var
+from openprogram.agentic_programming.call_state import _current_runtime as _rt_var
 
 
 def test_installs_and_resets_store(monkeypatch, tmp_path):

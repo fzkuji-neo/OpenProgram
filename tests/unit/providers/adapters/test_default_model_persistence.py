@@ -223,7 +223,7 @@ def test_restored_session_function_run_uses_its_agent_model(monkeypatch):
 
     class Tool:
         name = "agentic_probe"
-        _is_agentic = True
+        _is_agent_method = True
 
     monkeypatch.setattr(
         "openprogram.programs.agent_tools",
@@ -291,7 +291,7 @@ def test_restored_session_function_run_uses_its_agent_model(monkeypatch):
 
     monkeypatch.setattr(production_driver, "CanonicalAgentAdapter", _Adapter)
     monkeypatch.setattr(
-        "openprogram.agentic_programming.function.create_pending_call_node",
+        "openprogram.agentic_programming.call_state.create_pending_call_node",
         lambda **k: None,
     )
 
@@ -307,7 +307,7 @@ def test_restored_session_function_run_uses_its_agent_model(monkeypatch):
         SimpleNamespace(Thread=inline_thread),
     )
 
-    result = routes_chat.run_agentic_function_call(
+    result = routes_chat.run_agent_method_call(
         "agentic_probe", {}, "restored-s1",
     )
     assert "error" not in result

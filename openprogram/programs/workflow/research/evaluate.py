@@ -1,8 +1,8 @@
 """
-evaluate — prompt competition via competing @agentic_functions.
+evaluate — prompt competition via competing Agent methods.
 
 Instead of external prompt files, each competing approach is an
-@agentic_function whose docstring IS the prompt. The evaluator
+Agent method whose docstring IS the prompt. The evaluator
 runs each function on the same input, then uses a (potentially
 different) LLM to pick the best output.
 
@@ -25,7 +25,7 @@ from openprogram.agentic_programming import Agent
 from typing import Optional
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.function import _current_runtime
+from openprogram.agentic_programming.call_state import _current_runtime
 from openprogram.agentic_programming.runtime import Runtime
 from openprogram.programs.workflow.json_parsing import parse_json
 
@@ -65,13 +65,13 @@ def compete(
     eval_runtime: Runtime,
     task: str = "Pick the best academic writing output",
 ) -> dict:
-    """Run prompt competition between @agentic_functions.
+    """Run prompt competition between Agent methods.
 
     Each function is called with the same kwargs. Their outputs are
     evaluated by eval_runtime (ideally a different model).
 
     Args:
-        functions:    List of @agentic_function callables to compete.
+        functions:    List of Agent method callables to compete.
         kwargs:       Keyword arguments to pass to each function.
         exec_runtime: Runtime for candidate generation.
         eval_runtime: Runtime for evaluation (different model recommended).

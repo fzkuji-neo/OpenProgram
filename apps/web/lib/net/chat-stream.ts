@@ -139,7 +139,7 @@ interface ChatResponseData {
   attempts?: { content: string; timestamp: number; tree?: unknown; usage?: unknown }[];
   current_attempt?: number;
   /** predecessor for runtime-block placeholder rows written by the
-   *  dispatcher's @agentic_function wrapper — anchors the row to the
+   *  dispatcher's Agent method wrapper — anchors the row to the
    *  assistant reply that called the tool. */
   predecessor?: string;
   status?: string;
@@ -159,7 +159,7 @@ interface ChatResponseData {
   steering?: boolean;
 }
 
-/** Names of LLM-callable @agentic_function tools. When the LLM invokes
+/** Names of LLM-callable Agent method tools. When the LLM invokes
  *  one of these we DON'T want it to show up under the assistant bubble
  *  as a folded chat-tool card — the dispatcher writes a separate
  *  ``display=runtime`` placeholder row for it which renders as a
@@ -438,7 +438,7 @@ function handleResponse(d: ChatResponseData | undefined): void {
   // Runtime-block placeholder rows are written by the dispatcher
   // (``_wrap_agentic_runtime_block``) as separate ChatMsgs with their
   // own server-assigned id (NOT the ``_reply`` suffix). They carry the
-  // execution DAG for an LLM-issued @agentic_function call and render
+  // execution DAG for an LLM-issued Agent method call and render
   // as a standalone RuntimeBlock. Detect by ``display=runtime`` and
   // route by the raw msg_id, so we mutate the right row (not the
   // owning assistant reply).
@@ -482,7 +482,7 @@ function handleResponse(d: ChatResponseData | undefined): void {
           : rootStatus === "running"
             ? "running"
             : undefined;
-    // LLM-issued @agentic_function path: the dispatcher anchors
+    // LLM-issued Agent method path: the dispatcher anchors
     // live_progress on the runtime-block id (not a `_reply` row), so a
     // tree_update arrives with msg_id == runtime_id. If that row exists
     // — either as a top-level ChatMsg or nested inside a parent
@@ -592,7 +592,7 @@ function handleResponse(d: ChatResponseData | undefined): void {
 }
 
 /** True iff the predecessor refers to an assistant ChatMsg already in the
- *  store. LLM-issued @agentic_function runtime blocks have predecessor =
+ *  store. LLM-issued Agent method runtime blocks have predecessor =
  *  assistant reply id; fn-form / direct-run runtime blocks have
  *  predecessor = user msg id. Only the former gets merged INSIDE the
  *  assistant bubble; the latter stays as a top-level row. */
@@ -623,7 +623,7 @@ function _mergeRuntimeIntoParent(
 }
 
 /** Materialize / update a runtime-block row for an LLM-issued
- *  @agentic_function call. Two routing paths:
+ *  Agent method call. Two routing paths:
  *    - parent is an assistant ChatMsg → merge into the assistant's
  *      ``runtimeChildren`` so the bubble renders the runtime card
  *      inside its own body (no separate top-level row).

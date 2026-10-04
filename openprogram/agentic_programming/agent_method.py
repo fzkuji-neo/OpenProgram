@@ -4,9 +4,10 @@ import asyncio
 import functools
 import inspect
 import time
+import types
 from dataclasses import dataclass
 from typing import Callable, Optional
-from .function import (
+from .call_state import (
     _RUNTIME_PARAMS, _run_pre_invocation_hooks, _inject_runtime,
     _current_runtime, _close_owned_runtime, _recursion_depth,
     _MAX_AGENTIC_RECURSION_DEPTH, _render_range_override,
@@ -65,12 +66,6 @@ def method_options(options=None):
 
 def wrap_agent_method(fn, options=None):
     options = method_options(options)
-    if options.available_if is not None:
-        try:
-            if not options.available_if():
-                return fn
-        except Exception:
-            return fn
     if options.resumable and inspect.iscoroutinefunction(fn):
         raise ValueError('Resumable functions require synchronous explicit steps')
     return _make_wrapper(options, fn)
@@ -78,52 +73,51 @@ def wrap_agent_method(fn, options=None):
 
 def register_agent_method(bound_fn, options=None):
     options = method_options(options)
-    options._fn = getattr(bound_fn, '__wrapped__', bound_fn)
-    # A bound signature excludes self and must remain bound for tool schema.
-    if inspect.ismethod(bound_fn):
-        options._fn = bound_fn
+    # Preserve the public bound signature. Unwrapping a method wrapper here
+    # can reintroduce the receiver into the model tool schema.
+    options._fn = bound_fn
     options._wrapper = bound_fn
     register_method(options)
     target = bound_fn.__func__ if inspect.ismethod(bound_fn) else bound_fn
     for key, value in vars(options).items():
         setattr(target, key, value)
-    target._fn = inspect.unwrap(bound_fn)
-    target.spec = _build_agentic_tool_spec(options._fn, options.input_meta)
-    target.execute = lambda **kwargs: bound_fn(**kwargs)
-    target._is_agentic = True
-    from .function import _registry
-    _registry[options.tool_name or options._fn.__name__] = bound_fn
+    source = inspect.unwrap(bound_fn)
+    owner = getattr(bound_fn, "_agent_owner", None) or getattr(bound_fn, "__self__", None)
+    if owner is not None and inspect.isfunction(source):
+        parameters = list(inspect.signature(source).parameters)
+        if parameters and parameters[0] == "self":
+            source = types.MethodType(source, owner)
+        elif parameters and parameters[0] == "cls":
+            source = types.MethodType(source, owner if inspect.isclass(owner) else type(owner))
+    target._fn = source
+    schema = _build_agent_tool_spec(options._fn, options.input_meta)
+    target.spec = {
+        "name": options.tool_name or schema["name"],
+        "description": options.tool_description or schema.get("description", ""),
+        "parameters": options.tool_parameters or schema.get("parameters", {}),
+    }
+    target.execute = bound_fn
+    target._is_agent_method = True
+    if options._agent_tool is not None:
+        options._agent_tool._python_callable = bound_fn
+        options._agent_tool._method_options = options
     return options._agent_tool
 
 def register_method(self) -> None:
-    """Bridge this @agentic_function into the shared AgentTool registry.
-
-    Sits next to ``@function``-decorated tools in the same
-    ``openprogram.programs._runtime._registry``, so the LLM can
-    call this function via tool_call dispatch and so all 6 gating
-    layers (available_if / toolset / mode preset / check_fn /
-    deny rules / defer) apply uniformly.
-
-    Delegates AgentTool construction + sidecar attach + register
-    to ``_build_and_register_tool`` — the same helper ``@function``
-    uses. The only piece unique to the agentic side is the
-    ``_execute`` closure that funnels the LLM-passed kwargs through
-    ``self._wrapper`` (the wrapper carries pre-invocation hooks,
-    runtime injection, DAG entry/exit, and inner agent-loop
-    spawning).
-
-    Note: the file-local ``_registry`` (line 82) is kept and
-    populated separately; ``program`` (the tool) and the webui use it to
-    look up the agentic_function *instance* (for ``.expose`` /
-    ``.render_range`` / ``._fn`` / etc.) — that's distinct from
-    looking up an ``AgentTool`` for dispatcher invocation, which
-    is what the shared registry serves.
-    """
+    """Register a configured method in the existing shared tool registry."""
+    if not self.as_tool:
+        return
+    if self.available_if is not None:
+        try:
+            if not self.available_if():
+                return
+        except Exception:
+            return
     if self._fn is None or self._wrapper is None:
         return  # nothing to wrap yet
 
     # Lazy imports to avoid a hard cycle on package init —
-    # @agentic_function may be imported before openprogram.programs
+    # Agent methods may be imported before openprogram.programs
     # is fully constructed.
     from openprogram.agent.types import AgentToolResult
     from openprogram.programs._execution_common import (
@@ -146,8 +140,8 @@ def register_method(self) -> None:
     # Reuse the dict-shape spec the legacy path already produced
     # so the parameter schema stays consistent (hidden params
     # filtered, type-hint extraction handled by the existing
-    # ``_build_agentic_tool_spec`` helper).
-    spec = _build_agentic_tool_spec(self._fn, self.input_meta)
+    # ``_build_agent_tool_spec`` helper).
+    spec = _build_agent_tool_spec(self._fn, self.input_meta)
     parameters = self.tool_parameters or spec.get("parameters") or {
         "type": "object", "properties": {}
     }
@@ -270,11 +264,11 @@ def register_method(self) -> None:
         register_globally=self.register_globally,
     )
     # Mark the AgentTool so the dispatcher can route an LLM-issued
-    # call to this @agentic_function through the same runtime-block
+    # call to this Agent method through the same runtime-block
     # rendering that the manual /run path uses, instead of the
     # collapsed tool-call card.
     try:
-        setattr(self._agent_tool, "_is_agentic", True)
+        setattr(self._agent_tool, "_is_agent_method", True)
         setattr(self._agent_tool, "_resumable", self.resumable)
         setattr(self._agent_tool, "_source_module", self._fn.__module__)
         setattr(self._agent_tool, "_python_callable", self._wrapper)
@@ -308,12 +302,13 @@ def _call_setup(self, fn, sig, args, kwargs, stack):
     bound.apply_defaults()
     name = self.tool_name or fn.__name__
     previous = _recursion_depth.get(None) or {}
-    depth = previous.get(name, 0)
+    identity = fn
+    depth = previous.get(identity, 0)
     if depth >= _MAX_AGENTIC_RECURSION_DEPTH:
         raise RecursionError(
-            f"agentic function {name} exceeded max nesting depth "
+            f"Agent method {name} exceeded max nesting depth "
             f"{_MAX_AGENTIC_RECURSION_DEPTH}")
-    token = _recursion_depth.set({**previous, name: depth + 1})
+    token = _recursion_depth.set({**previous, identity: depth + 1})
     stack.callback(_recursion_depth.reset, token)
     render_range = self.render_range if self.render_range is not None else _render_range_override.get()
     pending_id = None
@@ -323,9 +318,8 @@ def _call_setup(self, fn, sig, args, kwargs, stack):
         if not current_tool_call_id() and not _forced_node_id.get():
             pending_id = current_function_node_id()
     call = stack.enter_context(CallScope(
-        (self.tool_name or (f'{fn.__module__}.{fn.__qualname__}'
-                           if isinstance(self, MethodOptions) else fn.__name__)),
-        docstring=inspect.getdoc(fn) or '', arguments=dict(bound.arguments),
+        (self.tool_name or f'{fn.__module__}.{fn.__qualname__}'),
+        docstring=inspect.getdoc(fn) or '', arguments={key: value for key, value in bound.arguments.items() if key not in ("self", "cls")},
         expose=self.expose, render_range=render_range, capture_io=self.capture_io, pending_id=pending_id))
     stack.callback(_restore_system, _apply_system(self.system, bound.arguments))
     try:
@@ -350,7 +344,7 @@ def _make_async_wrapper(self, fn: Callable, sig: inspect.Signature) -> Callable:
             call, new_args, new_kwargs = _call_setup(self, fn, sig, args, kwargs, stack)
             call.output = await fn(*new_args, **new_kwargs)
             return call.output
-    wrapper._is_agentic = True
+    wrapper._is_agent_method = True
     return wrapper
 
 def _make_sync_wrapper(self, fn: Callable, sig: inspect.Signature) -> Callable:
@@ -368,7 +362,7 @@ def _make_sync_wrapper(self, fn: Callable, sig: inspect.Signature) -> Callable:
             else:
                 call.output = fn(*new_args, **new_kwargs)
             return call.output
-    wrapper._is_agentic = True
+    wrapper._is_agent_method = True
     return wrapper
 
 _PY_TO_JSON_TYPE = {
@@ -441,13 +435,13 @@ def _type_to_json_schema(ann) -> dict:
     return {}
 
 
-def _build_agentic_tool_spec(fn: Callable, input_meta: dict) -> dict:
+def _build_agent_tool_spec(fn: Callable, input_meta: dict) -> dict:
     """Generate an OpenAI Responses-API-compatible tool spec from a Python fn."""
     sig = inspect.signature(fn)
     properties: dict[str, dict] = {}
     required: list[str] = []
     for name, param in sig.parameters.items():
-        if name in _RUNTIME_PARAMS:
+        if name in _RUNTIME_PARAMS or name in ("self", "cls"):
             continue
         meta = input_meta.get(name) or {}
         if meta.get("hidden"):

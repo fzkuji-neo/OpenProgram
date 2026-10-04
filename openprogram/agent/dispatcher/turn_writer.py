@@ -101,7 +101,7 @@ class TurnWriter:
                     caller=req.spawn_caller or _ROOT_ID,
                     # Explicit root-level fork (branch_from=None) and
                     # the session's first turn both anchor at ROOT
-                    # explicitly — same convention as @agentic_function
+                    # explicitly — same convention as Agent method
                     # root-level runs.
                     predecessor=user_caller_id or _ROOT_ID,
                     metadata=user_meta,

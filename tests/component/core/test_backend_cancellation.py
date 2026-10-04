@@ -54,7 +54,9 @@ def test_pre_cancelled_execution_never_starts_shell_or_cancels_next_turn(tmp_pat
     token = begin_turn(sid)
     try:
         token.cancel()
-        command = _python(f"from pathlib import Path; Path({str(marker)!r}).touch()", tmp_path)
+        command = _python(
+            f"from pathlib import Path; Path({str(marker)!r}).touch()", tmp_path
+        )
         result = LocalBackend().run(command, timeout=2, cwd=str(tmp_path))
         assert result.exit_code != 0
         assert "cancelled" in result.stderr
@@ -71,16 +73,20 @@ def test_pre_cancelled_execution_never_starts_shell_or_cancels_next_turn(tmp_pat
 def test_uncertain_cancellation_cleanup_does_not_return_a_completion(monkeypatch):
     import subprocess
     import pytest
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
     from openprogram.backend import local
     from openprogram.agent.run_control import (
-        begin_turn, end_turn, set_current_session_id, reset_current_session_id,
+        begin_turn,
+        end_turn,
+        set_current_session_id,
+        reset_current_session_id,
     )
 
     for terminated, drained in [(False, True), (True, False)]:
-        sid = 'backend-uncertain-cancellation'
+        sid = "backend-uncertain-cancellation"
         binding = set_current_session_id(sid)
         token = begin_turn(sid)
+
         class Process:
             returncode = -9
             calls = 0
@@ -89,8 +95,8 @@ def test_uncertain_cancellation_cleanup_does_not_return_a_completion(monkeypatch
                 self.calls += 1
                 token.cancel()
                 if self.calls == 1 or not drained:
-                    raise subprocess.TimeoutExpired('child', timeout, b'partial')
-                return 'partial', ''
+                    raise subprocess.TimeoutExpired("child", timeout, b"partial")
+                return "partial", ""
 
             def kill(self):
                 pass
@@ -106,13 +112,15 @@ def test_uncertain_cancellation_cleanup_does_not_return_a_completion(monkeypatch
                 return terminated
 
             def release(self):
-                raise AssertionError('cancelled ownership must not be released')
+                raise AssertionError("cancelled ownership must not be released")
 
-        monkeypatch.setattr(local, 'ProcessTreeOwner', Owner)
-        monkeypatch.setattr(local, '_invocation', lambda *_a, **_kw: ('unused', True, None, False))
+        monkeypatch.setattr(local, "ProcessTreeOwner", Owner)
+        monkeypatch.setattr(
+            local, "_invocation", lambda *_a, **_kw: ("unused", True, None, False)
+        )
         try:
             with pytest.raises(CancelledError):
-                LocalBackend().run('unused', timeout=2)
+                LocalBackend().run("unused", timeout=2)
         finally:
             end_turn(sid, token)
             reset_current_session_id(binding)

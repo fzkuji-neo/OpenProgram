@@ -28,7 +28,7 @@ class Runtime(call=None, model="default", max_retries=None, api_key=None, skills
 |------|------|------|
 | `model` | `str` | The default model name |
 | `max_retries` | `int` | The resolved retry budget |
-| `system` | `str` | Assignable system prompt used by `exec()` on the provider path (the `@agentic_function(system=...)` decorator sets it for the duration of a call) |
+| `system` | `str` | Assignable system prompt used by `exec()` on the provider path (the `method_options["method"]["system"]` sets it for the duration of a call) |
 | `thinking_level` | `str` | Reasoning-effort knob: `"off"` (default) / `"low"` / `"medium"` / `"high"` / `"xhigh"`; passed through to the provider |
 | `session_id` | `str` | Stable id across successive `exec()` calls (`"op-<hex>"`); providers use it as the prompt-cache key |
 | `on_stream` | `Callable \| None` | Optional callback `fn(event_dict)` for streaming events (text / thinking / tool_use / tool_result) |
@@ -68,7 +68,7 @@ An Agent method or function scope can call `exec()` multiple times; each call is
 | `context` | `str \| None` | `None` | Legacy parameter, ignored — the provider path builds history from the DAG |
 | `response_format` | `dict \| JsonSchemaOutput \| None` | `None` | A bare JSON Schema or normalized `JsonSchemaOutput` envelope. Verified provider/model combinations use their registered native mapping; otherwise `fallback="auto"` may use the verified hidden strict-tool path, while prompt fallback requires explicit `fallback="prompt"`. Unsupported or lossy combinations fail closed. The terminal value is parsed and validated locally against the original schema and returned as a Python JSON value. `max_validation_retries` is `0`, `1`, or `2` (default `2`); validation repair and truncated generation share this allowance. Also forwarded to `_call()` for subclasses |
 | `model` | `str \| None` | `None` | Override the default model |
-| `tools` | `list \| None` | `None` | The tools available to the LLM for this call. Entries may be explicitly registered Agent methods, legacy decorated functions, `{"spec":..., "execute":...}` dicts, or objects with `.spec` / `.execute`. If set, the tool loop runs until the model returns plain text. **Default (`None`) is not "no tools"**: the call gets the full registered toolset; pass `toolset="none"` for a reasoning-only call, or `tools=[]` for an explicit empty list |
+| `tools` | `list \| None` | `None` | The tools available to the LLM for this call. Entries may be explicitly registered Agent methods, `{"spec":..., "execute":...}` dicts, or objects with `.spec` / `.execute`. If set, the tool loop runs until the model returns plain text. **Default (`None`) is not "no tools"**: the call gets the full registered toolset; pass `toolset="none"` for a reasoning-only call, or `tools=[]` for an explicit empty list |
 | `toolset` / `tools_source` / `tools_allow` / `tools_deny` | — | `None` | Toolset preset and policy filtering: `toolset` names a preset (`"full"` is the implicit default, `"none"` opts out), `tools_source` filters per channel source, `tools_allow` / `tools_deny` are name allow/deny lists |
 | `tool_choice` | `str \| dict` | `"auto"` | `"auto"` / `"required"` / `"none"` / `{"type":"function","name":"X"}` to force a specific tool. Passed through to the provider (OpenAI / Anthropic / Gemini / Bedrock each map it to their own protocol form) |
 | `parallel_tool_calls` | `bool` | `True` | Allow multiple tool calls in a single turn; `False` is passed through to providers that support the switch |
@@ -206,7 +206,7 @@ finally:
     runtime.close()
 ```
 
-The [Agent and Context API](agentic-function.md) defines configuration, explicit sessions, and scopes. Legacy decorators remain compatible.
+The [Agent and Context API](agent.md) defines configuration, explicit sessions, and scopes. Method configurations remain compatible.
 
 ## Retry mechanism
 

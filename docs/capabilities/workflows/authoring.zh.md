@@ -1,6 +1,6 @@
 # 编写、测试和发布 Workflow
 
-Workflow 是一个 Python 包，公开一个 `@agentic_function` 入口。人工编写和 OpenProgram 的编写 Agent 使用同一包验证器与 Git 发布格式。函数通过普通 Python import 和调用进行组合。
+Workflow 是一个 Python 包，公开一个 `Agent` method 入口。人工编写和 OpenProgram 的编写 Agent 使用同一包验证器与 Git 发布格式。函数通过普通 Python import 和调用进行组合。
 
 ## 编码前明确合同
 
@@ -79,13 +79,19 @@ project_report = "workflows.project_report:project_report"
 `workflow.py` 恰好定义一个与包同名的公开函数，只接受一个位置参数 `task`：
 
 ```python
-from openprogram.agentic_programming import agentic_function
+from openprogram import Agent
 from .steps.prepare import prepare
 
+class ExampleAgent(Agent):
+    method_options = {
+        'project_report': {'tool': True},
+    }
 
-@agentic_function
-def project_report(task: str) -> str:
-    return prepare(task)
+    def project_report(self, task: str) -> str:
+        return prepare(task)
+
+_example_agent = ExampleAgent()
+project_report = _example_agent.project_report
 ```
 
 `__init__.py` 重新导出入口：
@@ -100,7 +106,7 @@ __all__ = ["project_report"]
 
 ```python
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.function import CancelledError
+from openprogram.agentic_programming.call_state import CancelledError
 from openprogram.programs.workflow.goal import goal
 from openprogram.programs.workflow.json_parsing import parse_json
 

@@ -1,5 +1,8 @@
 """workflow composition tests."""
+
 from __future__ import annotations
+
+from openprogram.programs import _runtime as program_runtime
 from ._support import (
     Path,
     TL,
@@ -20,7 +23,8 @@ from ._support import (
 
 
 def test_workflow_import_catalog_ignores_non_project_directories(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     root = tmp_path / "workflows"
     project = root / "literature_review"
@@ -30,12 +34,15 @@ def test_workflow_import_catalog_ignores_non_project_directories(
 
     def checkout(path: Path) -> tuple[dict, str]:
         visited.append(path)
-        return ({
-            "project_metadata": {
-                "entrypoint": "literature_review",
-                "summary": "Review literature",
+        return (
+            {
+                "project_metadata": {
+                    "entrypoint": "literature_review",
+                    "summary": "Review literature",
+                },
             },
-        }, "abc123")
+            "abc123",
+        )
 
     monkeypatch.setattr(TL, "_workflow_projects_root", lambda: root)
     monkeypatch.setattr(TL, "_checkout_head", checkout)
@@ -45,7 +52,6 @@ def test_workflow_import_catalog_ignores_non_project_directories(
         "  # Review literature @ abc123"
     )
     assert visited == [project]
-
 
 
 def test_package_rejects_relative_import_outside_own_package() -> None:
@@ -58,7 +64,6 @@ def test_package_rejects_relative_import_outside_own_package() -> None:
 
     with pytest.raises(TL.InvalidWorkflow, match="import is not allowed"):
         TL._validate_project_candidate(candidate)
-
 
 
 def test_package_accepts_registered_vanilla_function_import() -> None:
@@ -75,9 +80,9 @@ def test_package_accepts_registered_vanilla_function_import() -> None:
     assert "steps/discover.py" in validated["files"]
 
 
-
 def test_public_entry_executes_static_workflow_dependency(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _dependency, dependency_revision = _install_workflow_project(
         session_repo,
@@ -86,13 +91,9 @@ def test_public_entry_executes_static_workflow_dependency(
             summary="Search papers",
             files={
                 "steps/search.py": (
-                    "def search(task):\n"
-                    "    return agent('search ' + task)\n"
+                    "def search(task):\n    return agent('search ' + task)\n"
                 ),
-                "entry.py": (
-                    "def workflow(task):\n"
-                    "    return search(task)\n"
-                ),
+                "entry.py": ("def workflow(task):\n    return search(task)\n"),
             },
         ),
     )
@@ -124,9 +125,9 @@ def test_public_entry_executes_static_workflow_dependency(
     assert [item["function"] for item in state["items"]] == ["agent"]
 
 
-
 def test_author_prompt_lists_reusable_workflow_import(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _candidate, revision = _install_workflow_project(
         session_repo,
@@ -138,7 +139,6 @@ def test_author_prompt_lists_reusable_workflow_import(
     assert "from workflows.paper_search import paper_search" in prompt
     assert "Search papers" in prompt
     assert revision in prompt
-
 
 
 def test_static_workflow_dependency_must_exist(session_repo: Path) -> None:
@@ -153,10 +153,7 @@ def test_static_workflow_dependency_must_exist(session_repo: Path) -> None:
         TL.InvalidWorkflow,
         match="workflow dependency missing_workflow is unavailable",
     ):
-        TL._resolve_workflow_dependencies(
-            TL._validate_project_candidate(candidate)
-        )
-
+        TL._resolve_workflow_dependencies(TL._validate_project_candidate(candidate))
 
 
 def test_static_workflow_dependency_cycle_is_rejected(session_repo: Path) -> None:
@@ -169,15 +166,9 @@ def test_static_workflow_dependency_cycle_is_rejected(session_repo: Path) -> Non
 
     with pytest.raises(
         TL.InvalidWorkflow,
-        match=(
-            "workflow dependency cycle: "
-            "literature_review -> literature_review"
-        ),
+        match=("workflow dependency cycle: literature_review -> literature_review"),
     ):
-        TL._resolve_workflow_dependencies(
-            TL._validate_project_candidate(candidate)
-        )
-
+        TL._resolve_workflow_dependencies(TL._validate_project_candidate(candidate))
 
 
 def test_workflow_dependency_snapshot_keeps_resolved_commit(
@@ -192,7 +183,8 @@ def test_workflow_dependency_snapshot_keeps_resolved_commit(
         },
     )
     _candidate, initial_revision = _install_workflow_project(
-        session_repo, initial,
+        session_repo,
+        initial,
     )
     parent = json.loads(_package_project())
     parent["files"]["steps/discover.py"] = (
@@ -206,14 +198,18 @@ def test_workflow_dependency_snapshot_keeps_resolved_commit(
 
     dependencies = TL._replace_snapshot(instance, parent_candidate)
 
-    revised = TL._validate_project_candidate(json.loads(_project(
-        name="paper_search",
-        summary="Search papers",
-        files={
-            "steps/search.py": "def search(task):\n    return 'revised'\n",
-            "entry.py": "def workflow(task):\n    return search(task)\n",
-        },
-    )))
+    revised = TL._validate_project_candidate(
+        json.loads(
+            _project(
+                name="paper_search",
+                summary="Search papers",
+                files={
+                    "steps/search.py": "def search(task):\n    return 'revised'\n",
+                    "entry.py": "def workflow(task):\n    return search(task)\n",
+                },
+            )
+        )
+    )
     revision_instance = session_repo / "paper-search-revision"
     revision_instance.mkdir()
     TL._replace_snapshot(revision_instance, revised)
@@ -227,8 +223,7 @@ def test_workflow_dependency_snapshot_keeps_resolved_commit(
     assert dependencies == {"paper_search": initial_revision}
     assert revised_revision != initial_revision
     snapshot_source = (
-        instance / "snapshot" / "workflows" / "paper_search"
-        / "steps" / "search.py"
+        instance / "snapshot" / "workflows" / "paper_search" / "steps" / "search.py"
     ).read_text(encoding="utf-8")
     assert "initial" in snapshot_source
     assert "revised" not in snapshot_source
@@ -241,22 +236,21 @@ def test_workflow_dependency_snapshot_keeps_resolved_commit(
 
     assert rebuilt_dependencies == {"paper_search": initial_revision}
     rebuilt_source = (
-        instance / "snapshot" / "workflows" / "paper_search"
-        / "steps" / "search.py"
+        instance / "snapshot" / "workflows" / "paper_search" / "steps" / "search.py"
     ).read_text(encoding="utf-8")
     assert "initial" in rebuilt_source
     assert "revised" not in rebuilt_source
 
 
-
 def test_package_import_does_not_replace_process_tool_registrations(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    from openprogram.agentic_programming import function as function_runtime
+    from openprogram.agentic_programming import call_state as function_runtime
     from openprogram.programs import _runtime as tool_runtime
 
     name = "literature_review"
-    before_agentic = function_runtime._registry.get(name)  # noqa: SLF001
+    before_agentic = program_runtime._registry.get(name)  # noqa: SLF001
     before_tool = tool_runtime._registry.get(name)  # noqa: SLF001
     before_unexposed = name in tool_runtime._unexposed  # noqa: SLF001
     _planner(
@@ -269,24 +263,26 @@ def test_package_import_does_not_replace_process_tool_registrations(
 
     _run_task("recent papers")
 
-    assert function_runtime._registry.get(name) is before_agentic  # noqa: SLF001
+    assert program_runtime._registry.get(name) is before_agentic  # noqa: SLF001
     assert tool_runtime._registry.get(name) is before_tool  # noqa: SLF001
     assert (name in tool_runtime._unexposed) is before_unexposed  # noqa: SLF001
 
 
-
 def test_parameterized_project_can_compose_llm_agent_and_goal(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
-    project = _project(files={
-        "steps/run.py": (
-            "def run(task):\n"
-            "    plan = llm('plan ' + task)\n"
-            "    result = agent('execute ' + plan)\n"
-            "    return goal('verify ' + result + ' until complete')\n"
-        ),
-        "entry.py": "def workflow(task):\n    return run(task)\n",
-    })
+    project = _project(
+        files={
+            "steps/run.py": (
+                "def run(task):\n"
+                "    plan = llm('plan ' + task)\n"
+                "    result = agent('execute ' + plan)\n"
+                "    return goal('verify ' + result + ' until complete')\n"
+            ),
+            "entry.py": "def workflow(task):\n    return run(task)\n",
+        }
+    )
     _planner(monkeypatch, json.dumps({"action": "create"}), project)
     llm_calls = _llm_executor(monkeypatch, lambda _prompt, _kwargs: "the plan")
     agent_calls = _executor(monkeypatch, lambda _prompt, _kwargs: "the result")
@@ -314,9 +310,9 @@ def test_parameterized_project_can_compose_llm_agent_and_goal(
     ] == ["llm", "agent", "goal"]
 
 
-
 def test_run_published_workflow_uses_pinned_dependency_not_active_head(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     _leaf, leaf_revision = _install_workflow_project(
         session_repo,
@@ -348,14 +344,18 @@ def test_run_published_workflow_uses_pinned_dependency_not_active_head(
     )
     assert parent_dependencies == {"paper_search": leaf_revision}
 
-    revised_leaf = TL._validate_project_candidate(json.loads(_project(
-        name="paper_search",
-        summary="Search papers",
-        files={
-            "steps/search.py": "def search(task):\n    return 'revised'\n",
-            "entry.py": "def workflow(task):\n    return search(task)\n",
-        },
-    )))
+    revised_leaf = TL._validate_project_candidate(
+        json.loads(
+            _project(
+                name="paper_search",
+                summary="Search papers",
+                files={
+                    "steps/search.py": "def search(task):\n    return 'revised'\n",
+                    "entry.py": "def workflow(task):\n    return search(task)\n",
+                },
+            )
+        )
+    )
     leaf_instance = session_repo / "leaf-revised"
     leaf_instance.mkdir()
     TL._replace_snapshot(leaf_instance, revised_leaf)
@@ -382,4 +382,3 @@ def test_run_published_workflow_uses_pinned_dependency_not_active_head(
     assert result["status"] == "completed"
     assert _state(session_repo, result["run_id"])["result"] == "initial"
     assert result["workflow_dependencies"] == {"paper_search": leaf_revision}
-
