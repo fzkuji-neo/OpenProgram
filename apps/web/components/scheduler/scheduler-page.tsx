@@ -9,7 +9,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SearchInput } from "@/components/ui/search-input";
-import { ManagePageHeader, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
+import {
+  ManageEmptyState, ManageIconButton, ManagePage, ManagePageHeader, ManageRow,
+  ManageSubnav, ManageSummary, managePageStyles as shared,
+} from "@/components/ui/manage-page";
+import { PlusIcon, RefreshCwIcon } from "@/components/animated-icons";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./scheduler-page.module.css";
 import {
@@ -64,6 +68,7 @@ export function SchedulerPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [pageError, setPageError] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -92,11 +97,11 @@ export function SchedulerPage() {
   const visible = useMemo(() => filterTasks(tasks, filter, search) as Task[], [filter, search, tasks]);
   const counts = useMemo(() => taskCounts(tasks) as Record<TaskFilter, number>, [tasks]);
 
-  const filters: Array<{ id: TaskFilter; label: string; icon: React.ReactNode }> = [
-    { id: "all", label: text("All tasks", "全部任务"), icon: <CalendarClock /> },
-    { id: "once", label: text("One-time", "一次性"), icon: typeIcon("once") },
-    { id: "recurring", label: text("Recurring", "周期任务"), icon: <Clock3 /> },
-    { id: "monitor", label: text("Monitors", "监控任务"), icon: typeIcon("monitor") },
+  const filters: Array<{ id: TaskFilter; label: string }> = [
+    { id: "all", label: text("All tasks", "全部任务") },
+    { id: "once", label: text("One-time", "一次性") },
+    { id: "recurring", label: text("Recurring", "周期任务") },
+    { id: "monitor", label: text("Monitors", "监控任务") },
   ];
 
   function begin(template?: Partial<typeof EMPTY_FORM>) {
@@ -155,7 +160,6 @@ export function SchedulerPage() {
   }
 
   async function remove(task: Task) {
-    if (!confirm(text(`Delete “${task.title}”?`, `删除“${task.title}”？`))) return;
     setPageError("");
     try {
       const response = await fetch(`/api/scheduler/tasks/${task.id}`, { method: "DELETE" });
@@ -166,45 +170,58 @@ export function SchedulerPage() {
     }
   }
 
+  const activeCount = tasks.filter((task) => task.enabled).length;
+  const filterTabs = filters.map((item) => ({ id: item.id, label: item.label, count: counts[item.id] }));
+
   return (
-    <div className="main" style={{ minWidth: 0, overflow: "hidden" }}>
-      <div className={`${shared.view} ${styles.view}`}>
+    <ManagePage className={styles.view}>
         <ManagePageHeader
           title={t("nav.scheduler")}
           toolbar={(
-            <SearchInput
-              className={styles.headerSearch}
-              placeholder={text("Search tasks...", "搜索任务...")}
-              value={search}
-              onChange={setSearch}
-            />
+            <>
+              {loadedOnce && tasks.length > 0 && (
+                <ManageSummary>{text(`${activeCount} of ${tasks.length} active`, `${activeCount}/${tasks.length} 个启用`)}</ManageSummary>
+              )}
+              <SearchInput
+                className={styles.headerSearch}
+                placeholder={text("Search tasks...", "搜索任务...")}
+                value={search}
+                onChange={setSearch}
+              />
+            </>
           )}
-          actions={[{ label: text("Create", "创建"), onClick: () => begin(), primary: true }]}
+          actions={[
+            { label: text("Refresh", "刷新"), onClick: () => void reload(), icon: RefreshCwIcon, iconOnly: true, disabled: loading },
+            { label: text("New task", "新建任务"), onClick: () => begin(), icon: PlusIcon, primary: true },
+          ]}
+        />
+        <ManageSubnav
+          tabs={filterTabs}
+          activeTab={filter}
+          onTabChange={(id) => setFilter(id as TaskFilter)}
+          ariaLabel={text("Task types", "任务类型")}
+          panelId="scheduler-panel"
         />
         {pageError && <div className={shared.errorBar} role="alert">{pageError}</div>}
-        <main className={styles.layout}>
-          <nav className={styles.nav} aria-label={text("Task types", "任务类型")}>
-            {filters.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`${shared.tabBtn} ${styles.navButton} ${filter === item.id ? shared.active : ""}`}
-                onClick={() => setFilter(item.id)}
-                aria-current={filter === item.id ? "page" : undefined}
-              >
-                <span className={shared.tabIcon} aria-hidden="true">{item.icon}</span>
-                <span className={styles.filterLabel}>{item.label}</span>
-                <span className={shared.tabCount}>{counts[item.id]}</span>
-              </button>
-            ))}
-          </nav>
+        <main
+          id="scheduler-panel"
+          role="tabpanel"
+          aria-labelledby={`scheduler-panel-tab-${filter}`}
+          className={styles.layout}
+        >
           <div className={styles.content}>
-
-            {loading ? (
+            {loading && !loadedOnce ? (
               <div className={shared.empty}>{text("Loading…", "加载中…")}</div>
-            ) : !loadedOnce ? null : visible.length > 0 ? (
+            ) : !loadedOnce ? (
+              <ManageEmptyState
+                icon={<CalendarClock />}
+                title={text("Scheduled tasks are unavailable", "暂时无法加载定时任务")}
+                description={text("Check the error above, then try again.", "请查看上方错误后重试。")}
+                action={<Button variant="outline" onClick={() => void reload()}>{text("Retry", "重试")}</Button>}
+              />
+            ) : visible.length > 0 ? (
               <section aria-label={text("Scheduled tasks", "定时任务")}>
-                <div className={styles.sectionHeader}>
+                <div className={shared.sectionHeader}>
                   <span>{filterLabel(filter, text)}</span>
                   <span>{visible.length}</span>
                 </div>
@@ -232,12 +249,23 @@ export function SchedulerPage() {
                         </>
                       )}
                       actions={(
-                        <div className={styles.actions}>
-                          <button onClick={() => void toggle(task)} type="button" aria-label={actionAccessibleName(task.enabled ? text("Pause", "暂停") : text("Resume", "恢复"), task.title)} title={task.enabled ? text("Pause", "暂停") : text("Resume", "恢复")}>
+                        <>
+                          <ManageIconButton
+                            onClick={() => void toggle(task)}
+                            label={actionAccessibleName(task.enabled ? text("Pause", "暂停") : text("Resume", "恢复"), task.title)}
+                            tooltip={task.enabled ? text("Pause", "暂停") : text("Resume", "恢复")}
+                          >
                             {task.enabled ? <Pause /> : <Play />}
-                          </button>
-                          <button onClick={() => void remove(task)} type="button" aria-label={actionAccessibleName(text("Delete", "删除"), task.title)} title={text("Delete", "删除")}><Trash2 /></button>
-                        </div>
+                          </ManageIconButton>
+                          <ManageIconButton
+                            danger
+                            onClick={() => setPendingDelete(task)}
+                            label={actionAccessibleName(text("Delete", "删除"), task.title)}
+                            tooltip={text("Delete", "删除")}
+                          >
+                            <Trash2 />
+                          </ManageIconButton>
+                        </>
                       )}
                     />
                   ))}
@@ -246,11 +274,32 @@ export function SchedulerPage() {
             ) : shouldShowSuggestions(tasks, filter, search) ? (
               <Suggestions onChoose={begin} text={text} />
             ) : (
-              <div className={shared.empty}>{text("No matching tasks", "没有匹配的任务")}</div>
+              <ManageEmptyState
+                compact
+                icon={<CalendarClock />}
+                title={search.trim() ? text("No matching tasks", "没有匹配的任务") : text("Nothing here yet", "这里还没有任务")}
+                description={search.trim()
+                  ? text("Try a different search or task type.", "换个关键词或任务类型试试。")
+                  : text("Tasks of this type will appear here.", "此类型的任务会显示在这里。")}
+              />
             )}
           </div>
         </main>
-      </div>
+
+      <Dialog open={pendingDelete !== null} onOpenChange={(next) => { if (!next) setPendingDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{text("Delete scheduled task", "删除定时任务")}</DialogTitle>
+            <DialogDescription>
+              {text(`“${pendingDelete?.title ?? ""}” will stop running and be removed.`, `“${pendingDelete?.title ?? ""}”将停止运行并被删除。`)}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDelete(null)}>{text("Cancel", "取消")}</Button>
+            <Button variant="destructive" onClick={() => { const task = pendingDelete; setPendingDelete(null); if (task) void remove(task); }}>{text("Delete", "删除")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -283,14 +332,8 @@ export function SchedulerPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </ManagePage>
   );
-}
-
-function typeIcon(type: TaskType) {
-  if (type === "once") return <Bell />;
-  if (type === "monitor") return <Eye />;
-  return <CalendarClock />;
 }
 
 function typeLabel(type: TaskType, text: (en: string, zh: string) => string) {
@@ -306,10 +349,11 @@ function filterLabel(filter: TaskFilter, text: (en: string, zh: string) => strin
   return text("Recurring tasks", "周期任务");
 }
 
+// The type badge already names the kind of task; the schedule column only
+// carries the time or cron expression.
 function formatSchedule(task: Task, text: (en: string, zh: string) => string) {
-  if (task.type === "once" && task.run_at) return new Date(task.run_at).toLocaleString();
-  if (task.type === "monitor") return `${text("Monitor", "监控")} · ${task.cron}`;
-  return `${text("Recurring", "周期")} · ${task.cron}`;
+  if (task.type === "once") return task.run_at ? new Date(task.run_at).toLocaleString() : text("Not scheduled", "未设置时间");
+  return task.cron || "";
 }
 
 function Suggestions({ onChoose, text }: {
@@ -323,15 +367,14 @@ function Suggestions({ onChoose, text }: {
   ];
   return (
     <section className={styles.suggestions}>
-      <div className={styles.emptyIntro}>
-        <CalendarClock aria-hidden="true" />
-        <div>
-          <strong>{text("No scheduled tasks", "还没有定时任务")}</strong>
-          <span>{text("Create a task or start from a suggestion.", "创建任务，或从建议开始。")}</span>
-        </div>
-        <Button onClick={() => onChoose()}>{text("Create task", "创建任务")}</Button>
-      </div>
-      <div className={styles.sectionHeader}>
+      <ManageEmptyState
+        compact
+        icon={<CalendarClock />}
+        title={text("No scheduled tasks", "还没有定时任务")}
+        description={text("Run a prompt once, on a schedule, or as a monitor. Create a task or start from a suggestion.", "让提示词单次、周期或以监控方式运行。创建任务，或从建议开始。")}
+        action={<Button onClick={() => onChoose()}><PlusIcon size={16} aria-hidden />{text("New task", "新建任务")}</Button>}
+      />
+      <div className={shared.sectionHeader}>
         <span>{text("Start from a suggestion", "从建议开始")}</span>
       </div>
       <div className={styles.suggestionList}>

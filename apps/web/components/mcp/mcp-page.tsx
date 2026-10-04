@@ -16,7 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { PlugZapIcon, PlusIcon } from "@/components/animated-icons";
 import { SearchInput } from "@/components/ui/search-input";
-import { ManagePageHeader, ManageRow, ManageSubnav, managePageStyles as shared } from "@/components/ui/manage-page";
+import { ManageEmptyState, ManagePageHeader, ManageRow, ManageSubnav, managePageStyles as shared } from "@/components/ui/manage-page";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { jsonFetch } from "@/lib/net/fetch-client";
@@ -329,9 +329,14 @@ export function McpPage({
             {loading && servers.length === 0 ? (
               <div className={shared.empty}>{text("Loading...", "加载中...")}</div>
             ) : shownServers.length === 0 ? (
-              <div className={shared.empty}>{filterValue.trim()
-                ? text("No matches", "没有匹配结果")
-                : text("No servers yet. Add one to make its tools available.", "还没有服务器。添加后即可使用其工具。")}</div>
+              filterValue.trim()
+                ? <div className={shared.empty}>{text("No matches", "没有匹配结果")}</div>
+                : <ManageEmptyState
+                    compact
+                    icon={<PlugZapIcon size={20} />}
+                    title={text("No MCP servers yet", "还没有 MCP 服务器")}
+                    description={text("Add a server, or install one from Discover, to make its tools available.", "添加服务器，或在“发现”中安装，即可使用其工具。")}
+                  />
             ) : (
               shownServers.map((s) => {
                 const state = stateBadge(s);

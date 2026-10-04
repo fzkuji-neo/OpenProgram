@@ -13,7 +13,7 @@ import { ChatsPage } from "@/components/chats/chats-page";
 import { MemoryPage } from "@/components/memory";
 import { ProjectsPage } from "@/components/projects/projects-page";
 import { SearchInput } from "@/components/ui/search-input";
-import { ManagePageHeader, managePageStyles as shared } from "@/components/ui/manage-page";
+import { ManagePage, ManagePageHeader, managePageStyles as shared } from "@/components/ui/manage-page";
 import { useTranslation } from "@/lib/i18n";
 import { pushPath } from "@/lib/shallow-nav";
 
@@ -68,8 +68,7 @@ export function HistoryPage() {
   }, [kind, text, router]);
 
   return (
-    <div className="main" style={{ minWidth: 0, overflow: "hidden" }}>
-      <div className={shared.view}>
+    <ManagePage>
         <ManagePageHeader
           title={t("nav.history")}
           tabs={[
@@ -79,9 +78,11 @@ export function HistoryPage() {
           ]}
           activeTab={kind}
           onTabChange={goKind}
+          tabLabel={text("History sections", "历史分区")}
+          panelId="history-panel"
           toolbar={(
             <SearchInput
-              className="min-w-[140px] w-[clamp(150px,24vw,280px)]"
+              className="min-w-[96px] flex-1 sm:flex-none sm:min-w-[140px] sm:w-[clamp(150px,24vw,280px)]"
               value={query}
               onChange={setQuery}
               placeholder={text("Search chats, projects, memory...", "搜索会话、项目、记忆...")}
@@ -89,6 +90,12 @@ export function HistoryPage() {
           )}
           actions={actions}
         />
+        <div
+          id="history-panel"
+          role="tabpanel"
+          aria-labelledby={`history-panel-tab-${kind}`}
+          className={shared.panel}
+        >
         {kind === "chats" && (
           <ChatsPage
             embedded
@@ -107,7 +114,7 @@ export function HistoryPage() {
             query={query}
           />
         )}
-      </div>
-    </div>
+        </div>
+    </ManagePage>
   );
 }

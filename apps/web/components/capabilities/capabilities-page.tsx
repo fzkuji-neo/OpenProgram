@@ -15,7 +15,7 @@ import { PluginsPage } from "@/components/plugins/plugins-page";
 import { ProgramsPage } from "@/components/programs/programs-page";
 import { SkillsPage } from "@/components/skills/skills-page";
 import { SearchInput } from "@/components/ui/search-input";
-import { ManagePageHeader, managePageStyles as shared } from "@/components/ui/manage-page";
+import { ManagePage, ManagePageHeader, managePageStyles as shared } from "@/components/ui/manage-page";
 import { useTranslation } from "@/lib/i18n";
 import { pushPath } from "@/lib/shallow-nav";
 import { usePluginsStore } from "@/lib/abilities/plugins-store";
@@ -91,8 +91,7 @@ export function CapabilitiesPage() {
   }, [kind, t, text, refreshPlugins, fetchSkills]);
 
   return (
-    <div className="main" style={{ minWidth: 0, overflow: "hidden" }}>
-      <div className={shared.view}>
+    <ManagePage>
         <ManagePageHeader
           title={t("nav.ability")}
           tabs={[
@@ -148,7 +147,6 @@ export function CapabilitiesPage() {
           />
         )}
         </div>
-      </div>
-    </div>
+    </ManagePage>
   );
 }
