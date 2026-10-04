@@ -79,7 +79,7 @@ summary { cursor: pointer; font-weight: 600; }
 <code>openprogram.cli</code>, <code>python -m openprogram</code>及 CLI 模块入口保持兼容；内部文件移动必须保留行为。</p>
 <p><code>openprogram/webui/</code> 仍是 Server 兼容入口。包括 Agent profiles 在内的路由实现位于
 <code>apps/server/openprogram_server/_webui/routes/</code> 并按产品域分组。兼容包解析应用模块，不重复实现。</p>
-<p><code>scripts/install-release.sh</code> 仍为公开安装入口，其实现位于 <code>scripts/release/</code>。根 npm workspace 与 lockfile 协调 Web、Desktop 和 CLI 依赖。使用方不能假定每个应用下都有独立 lockfile 或单独依赖安装。</p>
+<p><code>scripts/install-release.sh</code> 仍为公开安装入口，其实现位于 <code>scripts/release/</code>。根 npm workspace 与 lockfile 协调 Web、Desktop 和 CLI 依赖。使用方不能假定每个应用下都有独立 lockfile 或单独依赖安装。依赖补丁保持应用清单、根 workspace 锁文件和实际安装版本一致。同一依赖的重复更新分支都保留提交 ancestry，版本变更只应用一次。合并后的源代码在发布前执行统一的验证清单。</p>
 <p>默认本地运行时使用端口 <code>18100</code> 和 <code>~/.openprogram</code>。已安装 App 验收使用 <code>/Applications/OpenProgram.app</code>；仓库布局变更必须同时保留打包、已安装 import 和源码 checkout 执行。</p>
 <h2 id="verification">验证<a class="header-anchor" href="#verification">#</a></h2>
 <p>本 <a href="https://github.com/fzkuji-neo/OpenProgram/blob/main/tests/contracts/repository/test_repository_layout.py">仓库合同</a>
