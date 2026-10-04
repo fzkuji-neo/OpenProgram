@@ -5,7 +5,7 @@ import { usePluginsStore, type PluginRow } from "@/lib/abilities/plugins-store";
 import { useTranslation } from "@/lib/i18n";
 import { Switch } from "@/components/ui/switch";
 import { SearchInput } from "@/components/ui/search-input";
-import { ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
+import { ManageEmptyState, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
 import { BlocksIcon } from "@/components/animated-icons";
 import { PluginTrustWarning } from "../dialogs/plugin-trust-warning";
 import { PluginOptionsDialog } from "../dialogs/plugin-options-dialog";
@@ -63,9 +63,12 @@ export function InstalledList({ externalFilter }: { externalFilter?: string } = 
 
   if (plugins.length === 0) {
     return (
-      <div className={shared.empty}>
-        {text("No plugins yet. Install from the marketplace, or add a local folder.", "还没有插件。可以从市场安装，或添加一个本地文件夹。")}
-      </div>
+      <ManageEmptyState
+        compact
+        icon={<BlocksIcon size={20} />}
+        title={text("No plugins yet", "还没有插件")}
+        description={text("Install from Discover, or add a local folder with Add plugin.", "可以在“发现”中安装，或通过“添加插件”添加本地文件夹。")}
+      />
     );
   }
 

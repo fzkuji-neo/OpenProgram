@@ -129,6 +129,88 @@ function ManageActionButton({ a }: { a: ManageAction }) {
 }
 
 /**
+ * Outer frame of every top-level management page (Agents, Abilities,
+ * Applications, History, Scheduler): the shell's `.main` column plus the
+ * full-height flex view. Pages render a ManagePageHeader as the first
+ * child so all of them start at the same width, height and padding.
+ */
+export function ManagePage({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className="main" style={{ minWidth: 0, overflow: "hidden" }}>
+      <div className={cn(styles.view, className)}>{children}</div>
+    </div>
+  );
+}
+
+/** Quiet count / status text shown before the header's search and actions. */
+export function ManageSummary({ children }: { children: ReactNode }) {
+  return <span className={styles.headerSummary} aria-live="polite">{children}</span>;
+}
+
+/**
+ * One empty / first-run state for every management page: a framed icon,
+ * a heading, one line of explanation and an optional call to action.
+ * `compact` drops the vertical centering for empty states inside a list.
+ */
+export function ManageEmptyState({
+  icon,
+  title,
+  description,
+  action,
+  compact = false,
+  children,
+}: {
+  icon?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+  compact?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <div className={cn(styles.emptyState, compact && styles.emptyStateCompact)}>
+      {icon && <span className={styles.emptyIcon} aria-hidden>{icon}</span>}
+      <h2 className={styles.emptyTitle}>{title}</h2>
+      {description && <p className={styles.emptyDescription}>{description}</p>}
+      {action && <div className={styles.emptyAction}>{action}</div>}
+      {children}
+    </div>
+  );
+}
+
+/** 28px icon-only row action (pause, delete, ...) with a tooltip label. */
+export function ManageIconButton({
+  label,
+  tooltip,
+  onClick,
+  children,
+  disabled,
+  danger = false,
+}: {
+  /** Accessible name; include the target ("Pause Daily brief"). */
+  label: string;
+  /** Short hover text; defaults to the accessible name. */
+  tooltip?: string;
+  onClick: () => void;
+  children: ReactNode;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(styles.iconAction, danger && styles.iconActionDanger)}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={tooltip ?? label}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
  * The 64px page header: title, optional tab pills, right-aligned custom
  * toolbar content and actions. Every consumer renders the same element
  * tree so heights, gaps and button styling do not drift.
