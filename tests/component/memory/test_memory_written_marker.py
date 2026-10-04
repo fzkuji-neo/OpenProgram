@@ -861,10 +861,10 @@ def test_batch_metadata_merge_rebuilds_each_store_once_after_the_batch(
         reader_rebuilds += 1
         return original_reader_rebuild(*args, **kwargs)
 
-    def count_mark_synced():
+    def count_mark_synced(*args, **kwargs):
         nonlocal mark_synced_calls
         mark_synced_calls += 1
-        return original_mark_synced()
+        return original_mark_synced(*args, **kwargs)
 
     monkeypatch.setattr(writer_index, "rebuild_from_paths", count_writer_rebuild)
     monkeypatch.setattr(reader_index, "rebuild_from_paths", count_reader_rebuild)
