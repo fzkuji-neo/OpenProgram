@@ -33,7 +33,7 @@
   --accent-orange: #2563eb;
   --accent-fill: #2563eb;
   --accent-orange-hover: #1d4ed8;
-  --accent-green: #6e9b76;
+  --accent-green: #3f7a4e; /* 4.86:1 as text on the light page; #6e9b76 was 3.0:1 */
   --accent-red: #c24e42;
   --accent-yellow: #96701f;
   --accent-purple: #a371f7;

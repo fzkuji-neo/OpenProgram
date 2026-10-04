@@ -48,7 +48,7 @@
   --accent-orange: #c15f3c;
   --accent-fill: #c15f3c;
   --accent-orange-hover: #a94e30;
-  --accent-green: #6e9b76;
+  --accent-green: #3f7a4e; /* 4.86:1 as text on the light page; #6e9b76 was 3.0:1 */
   --accent-red: #c24e42;
   /* Deeper amber for the same reason — `#d4a346` is 2.18:1 as text
      on cream; this one is 3.60:1. */
