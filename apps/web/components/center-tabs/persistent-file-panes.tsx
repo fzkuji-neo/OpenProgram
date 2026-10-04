@@ -2,10 +2,11 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { FileTabPane } from "./file-tab-pane";
 
-export function PersistentFilePanes({ tabs, activeFileIds, layouts }: { tabs: Array<{ id: string; kind: string; projectId?: string; path?: string }>; activeFileIds: Set<string>; layouts: Map<string, { className: string; style?: CSSProperties }> }) {
+type FilePaneTab = { id: string; kind: string; projectId?: string; path?: string; readOnly?: boolean; fileSessionId?: string };
+export function PersistentFilePanes({ tabs, activeFileIds, layouts }: { tabs: FilePaneTab[]; activeFileIds: Set<string>; layouts: Map<string, { className: string; style?: CSSProperties }> }) {
   const [visited, setVisited] = useState<string[]>([]);
   useEffect(() => {
-    const activeFiles = tabs.filter((tab) => tab.kind === "file" && activeFileIds.has(tab.id) && tab.projectId && tab.path);
+    const activeFiles = tabs.filter((tab) => tab.kind === "file" && activeFileIds.has(tab.id) && (tab.projectId || (tab.readOnly && tab.fileSessionId)) && tab.path);
     setVisited((current) => {
       const next = current.filter((id) => tabs.some((tab) => tab.id === id));
       for (const tab of activeFiles) if (!next.includes(tab.id)) next.push(tab.id);
@@ -14,10 +15,9 @@ export function PersistentFilePanes({ tabs, activeFileIds, layouts }: { tabs: Ar
   }, [tabs, activeFileIds]);
   return <>{visited.map((id) => {
     const tab = tabs.find((candidate) => candidate.id === id);
-    if (!tab?.projectId || !tab.path) return null;
+    if (!tab?.path || (!tab.projectId && !tab.readOnly)) return null;
     return <div key={id} data-file-pane-id={id} className={layouts.get(id)?.className} style={{ ...layouts.get(id)?.style, display: activeFileIds.has(id) ? layouts.get(id)?.style?.display : "none", minWidth: 0, minHeight: 0 }}>
-      <FileTabPane projectId={tab.projectId} path={tab.path} />
+      <FileTabPane projectId={tab.projectId || ""} path={tab.path} sessionId={tab.fileSessionId} readOnly={tab.readOnly} />
     </div>;
   })}</>;
 }
-

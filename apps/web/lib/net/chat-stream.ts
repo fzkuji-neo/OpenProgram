@@ -1010,6 +1010,7 @@ function finalize(sid: string, rid: string, d: ChatResponseData): void {
         : "done";
 
   const patch: Partial<ChatMsg> = { status, rawType: d.type, retryStatus: undefined };
+  if (cur.status !== "done" && status === "done" && store.currentSessionId === sid) patch.autoPreviewFiles = true;
   if (status === "error") {
     if (d.reason) patch.errorReason = d.reason;
     if (typeof d.retryable === "boolean") patch.errorRetryable = d.retryable;

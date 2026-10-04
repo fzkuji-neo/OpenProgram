@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FileTextIcon, RefreshCwIcon } from "@/components/animated-icons";
+import { useActionIconAnimation } from "@/components/chat/messages/use-action-icon-animation";
 import { useTranslation } from "@/lib/i18n";
 import { EditorArea, FileViewer } from "./file-viewer";
 import { getOrCreateDocumentController } from "@/lib/files/document-controller";
@@ -26,6 +28,9 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
   const controller = useMemo(() => getOrCreateDocumentController({ projectId, path, sessionId, readOnly }),
     [projectId, path, sessionId, readOnly]);
   const [state, setState] = useState(controller.getState());
+  const host = useRef<HTMLDivElement>(null);
+  const refreshIcon = useActionIconAnimation(state.restoring || state.renaming);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const [mode, setMode] = useState<"preview" | "edit">("preview");
   const [converting, setConverting] = useState(false);
   const conversion = useRef<{ path: string; key: string; bytes: File } | null>(null);
@@ -63,6 +68,27 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
     if (currentBytes && currentBytes !== editedBytes.current && isText) void currentBytes.text().then((value) => { if (active) setContent(value); });
     return () => { active = false; };
   }, [currentBytes, isText]);
+
+  useEffect(() => {
+    const abort = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const check = async () => {
+      if (!document.hidden && host.current?.getClientRects().length) {
+        try { await controller.checkForUpdates(AbortSignal.any([abort.signal, AbortSignal.timeout(4000)])); if (!abort.signal.aborted) setUpdateError(null); }
+        catch (failure) { if (!abort.signal.aborted) setUpdateError(text("Could not check file updates. Refresh to retry.", "无法检查文件更新，请点击刷新重试。")); }
+      }
+      if (!abort.signal.aborted) timer = setTimeout(check, 5000);
+    };
+    timer = setTimeout(check, 5000);
+    return () => { abort.abort(); clearTimeout(timer); };
+  }, [controller, text]);
+
+  async function refresh() {
+    await perform(async () => {
+      await controller.refresh();
+      selectionRequest.current++; setSelected(null); setUpdateError(null);
+    });
+  }
 
   async function perform(action: () => Promise<unknown>) {
     try { await action(); setError(null); }
@@ -168,14 +194,18 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
     content: isText ? content : undefined, binary: !isText,
     size: currentBytes?.size ?? 0, mtime: state.snapshot.mtime ?? 0, revision: state.snapshot.revision } : null;
 
-  return <div className={styles.window} data-document-window="true" onKeyDown={(event) => {
+  return <div ref={host} className={styles.window} data-document-window="true" onKeyDown={(event) => {
     if (!readOnly && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
       event.preventDefault();
       void perform(() => controller.flush());
     }
   }}>
     <div className={styles.toolbar} role="toolbar" aria-label={text("Document", "文档")}>
-      <span className={styles.title}>{path.split("/").pop()}</span><span className={styles.spacer} />
+      <span className={styles.title}><FileTextIcon size={16} aria-hidden />{path.split("/").pop()}</span><span className={styles.spacer} />
+      <button type="button" className={styles.button} disabled={!state.snapshot || state.restoring || state.renaming}
+        onClick={() => void refresh()} {...refreshIcon.handlers}>
+        <RefreshCwIcon ref={refreshIcon.ref} size={14} aria-hidden />{text("Refresh", "刷新")}
+      </button>
       <button className={`${styles.button} ${mode === "preview" && !selected ? styles.active : ""}`}
         aria-pressed={mode === "preview" && !selected} onClick={() => void showCurrent()}>{text("Preview", "预览")}</button>
       {!readOnly && (isText || (isOffice && office?.editable) || isRaster) && <button className={`${styles.button} ${mode === "edit" && !selected ? styles.active : ""}`}
@@ -192,6 +222,10 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
       {!readOnly && <button className={styles.button} aria-expanded={historyOpen}
         onClick={() => historyOpen ? setHistoryOpen(false) : void openHistory()}>{text("History", "历史")}</button>}
     </div>
+    {(state.externalChanged || updateError) && <div className={styles.updateNotice} role="status">
+      {state.externalChanged ? text("File changed. Refresh to load the latest version.", "文件已修改。点击刷新加载最新版本。") : updateError}
+      {controller.hasLocalChanges() && <span>{text("Your local edits are preserved.", "本地编辑已保留。")}</span>}
+    </div>}
     {(error || state.error) && <div className={styles.error} role="alert">
       {error || state.error}
       {(state.status === "error" || state.status === "conflict") && <span>
@@ -241,7 +275,7 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
       </div>}
       <div hidden={(mode === "edit" && (isRaster || editorOpened)) || Boolean(selected)} style={{ height: "100%" }}>
         {snapshot ? <FileViewer projectId={projectId} path={path} abs={readOnly} sessionId={sessionId}
-          snapshot={snapshot} sourceBlob={readOnly ? undefined : currentBytes} /> : <span>{text("Loading…", "加载中…")}</span>}
+          snapshot={snapshot} sourceBlob={currentBytes} /> : <span>{text("Loading…", "加载中…")}</span>}
       </div>
       </>}
     </div>

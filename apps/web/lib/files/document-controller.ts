@@ -14,6 +14,7 @@ export interface DocumentControllerState {
   error: string | null;
   restoring: boolean;
   renaming: boolean;
+  externalChanged: boolean;
 }
 export type DocumentListener = (state: DocumentControllerState) => void;
 const controllers = new Map<string, DocumentController>();
@@ -69,6 +70,7 @@ export class DocumentController {
   private richDirty = false;
   private richLeaseRevoked = false;
   private finalization: Promise<void> | null = null;
+  private refreshTask: Promise<void> | null = null;
   private richExport: Promise<void> | null = null;
   private richExportTimer: ReturnType<typeof setTimeout> | null = null;
   private richExportMaxTimer: ReturnType<typeof setTimeout> | null = null;
@@ -83,6 +85,7 @@ export class DocumentController {
     this.maxDebounceMs = options.maxDebounceMs ?? 2000;
     this.state = { identity: this.identity, snapshot: null, draft: null, generation: 0, editorRevision: 0,
       status: "idle", error: null, restoring: false,
+      externalChanged: false,
       renaming: [...renames].some((rename) => matchesRename(this.identity, rename)) };
     controllers.set(documentIdentityKey(this.identity), this);
   }
@@ -97,7 +100,7 @@ export class DocumentController {
   }
   release(listener?: DocumentListener): void {
     if (listener) this.listeners.delete(listener);
-    if (!this.listeners.size && !this.state.draft && !this.pending && !this.request && !this.restoreTask && !this.richEditor && this.initialized)
+    if (!this.listeners.size && !this.state.draft && !this.pending && !this.request && !this.restoreTask && !this.refreshTask && !this.richEditor && this.initialized)
       this.evict();
   }
   private evict(): void {
@@ -186,19 +189,20 @@ export class DocumentController {
       this.fail(new Error("The original draft revision is unavailable. Export the draft or discard it explicitly."), true);
   }
 
-  async readDisk(): Promise<DocumentSnapshot> {
+  async readDisk(signal?: AbortSignal): Promise<DocumentSnapshot> {
     const identity = this.identity;
     const params = identity.kind === "project"
       ? new URLSearchParams({ project_id: identity.projectId, path: identity.path })
       : new URLSearchParams({ session_id: identity.sessionId, path: identity.path });
-    const response = await this.fetcher(`${identity.kind === "project" ? "/api/documents/content" : "/api/file-raw"}?${params}`);
+    const response = await this.fetcher(`${identity.kind === "project" ? "/api/documents/content" : "/api/file-raw"}?${params}`, { cache: "no-store", signal });
+    const diskVersion = response.headers.get("x-document-version") || undefined;
     if (!response.ok) throw new Error(`Unable to read document (${response.status}).`);
     if (identity.kind === "attachment") {
       const bytes = await response.blob();
       let binary = false;
       try { binary = new TextDecoder("utf-8", { fatal: true }).decode(await bytes.arrayBuffer()).includes("\0"); }
       catch { binary = true; }
-      return { bytes, revision: "", binary };
+      return { bytes, revision: "", binary, diskVersion };
     }
     const revision = response.headers.get("x-document-revision");
     if (!revisionValid(revision)) throw new Error("The document revision is missing or invalid.");
@@ -210,7 +214,7 @@ export class DocumentController {
       const decoded = new TextDecoder("utf-8", { fatal: true }).decode(await bytes.arrayBuffer());
       binary = decoded.includes("\0");
     } catch { binary = true; }
-    return { bytes, revision, binary };
+    return { bytes, revision, binary, diskVersion };
   }
 
   load(): Promise<DocumentSnapshot> {
@@ -357,6 +361,64 @@ export class DocumentController {
     return this.request;
   }
 
+  hasLocalChanges(): boolean {
+    return Boolean(this.state.draft || this.pending || this.request || this.richDirty
+      || this.richEditor?.getState?.().dirty || this.state.status === "dirty" || this.state.status === "saving");
+  }
+
+  async checkForUpdates(signal?: AbortSignal): Promise<void> {
+    if (this.state.status === "closed" || !this.state.snapshot) return;
+    const before = this.state.snapshot;
+    // A confirmed save carries a content revision, but no disk metadata. Bind
+    // metadata only after reading and matching those same bytes.
+    if (!before.diskVersion) {
+      if (this.identity.kind === "attachment") return;
+      const disk = await this.readDisk(signal);
+      if (signal?.aborted || this.getState().status === "closed" || this.state.snapshot !== before) return;
+      if (disk.revision !== before.revision) this.setState({ externalChanged: true });
+      else this.setState({ snapshot: { ...before, diskVersion: disk.diskVersion }, externalChanged: false });
+      return;
+    }
+    const identity = this.identity;
+    const params = identity.kind === "project"
+      ? new URLSearchParams({ project_id: identity.projectId, path: identity.path })
+      : new URLSearchParams({ session_id: identity.sessionId, path: identity.path });
+    const response = await this.fetcher(`/api/documents/stat?${params}`, { cache: "no-store", signal });
+    if (!response.ok) throw new Error(`Unable to check file updates (${response.status}).`);
+    const result = await response.json();
+    if (typeof result.version !== "string" || !result.version) throw new Error("File update status is unavailable.");
+    if (signal?.aborted || this.getState().status === "closed" || this.state.snapshot !== before) return;
+    this.setState({ externalChanged: result.version !== before.diskVersion });
+  }
+
+  /** Read disk again without publishing or discarding an editor's local state. */
+  refresh(): Promise<void> {
+    if (this.refreshTask) return this.refreshTask;
+    const task = (async () => {
+      await this.load();
+      if (this.state.restoring || this.state.renaming || this.state.status === "closed") return;
+      if (this.hasLocalChanges()) throw new Error("Save or discard your local changes before refreshing. Your draft was retained.");
+      this.setState({ restoring: true });
+      this.richEditor?.setInputEnabled?.(false);
+      try {
+        // Commit native input still being edited (for example a spreadsheet
+        // cell) before any engine replacement. Failed publication retains it.
+        if (this.richEditor?.getState?.().readonly === false) {
+          await this.flushRichEditor();
+          await this.drain(true);
+        }
+        const disk = await this.readDisk();
+        if (this.hasLocalChanges()) throw new Error("Your local changes were retained. Refresh again after saving.");
+        await this.resetRichEditor();
+        this.baselineRevision = disk.revision;
+        this.setState({ snapshot: disk, draft: null, status: "idle", error: null, externalChanged: false });
+        if (this.identity.kind === "project") invalidateFileRead(this.identity.projectId, this.identity.path);
+      } finally { this.richEditor?.setInputEnabled?.(true); this.setState({ restoring: false }); }
+    })();
+    this.refreshTask = task.finally(() => { this.refreshTask = null; this.release(); });
+    return this.refreshTask;
+  }
+
   async publishNewDocument(path: string, bytes: Blob, idempotencyKey: string): Promise<void> {
     if (this.identity.kind !== "project") throw new Error("This attachment is read-only.");
     const identity = identityFor({ projectId: this.identity.projectId, path });
@@ -443,6 +505,7 @@ export class DocumentController {
   }
   async discardDraft(): Promise<void> { await this.reloadDisk(); }
   async reloadDisk(): Promise<void> {
+    if (this.refreshTask) await this.refreshTask.catch(() => undefined);
     if (this.restoreTask) await this.restoreTask.catch(() => undefined);
     this.setState({ restoring: true });
     this.clearTimers();
@@ -472,6 +535,7 @@ export class DocumentController {
     return response.blob();
   }
   restore(version: string, side: "before" | "after" = "after"): Promise<void> {
+    if (this.refreshTask) return Promise.reject(new Error("Wait for the document refresh to finish."));
     if (this.state.renaming) return Promise.reject(new Error("Wait for the document rename to finish."));
     if (this.restoreTask) return this.restoreTask;
     this.setState({ restoring: true });
@@ -492,6 +556,7 @@ export class DocumentController {
   }
   async prepareRename(): Promise<void> {
     this.setState({ renaming: true });
+    if (this.refreshTask) await this.refreshTask;
     this.richEditor?.setInputEnabled?.(false);
     await this.flushRichEditor();
     // Finish reads started before the rename barrier so preflight sees any
@@ -518,6 +583,7 @@ export class DocumentController {
       const editor = this.richEditor;
       editor?.setInputEnabled?.(false);
       try {
+        if (this.refreshTask) await this.refreshTask;
         await this.flush();
         if (editor) {
           await editor.destroy();

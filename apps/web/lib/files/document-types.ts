@@ -3,7 +3,7 @@ export type DocumentIdentity =
   | { kind: "project"; projectId: string; path: string }
   | { kind: "attachment"; sessionId: string; path: string; readOnly: true };
 
-export interface DocumentSnapshot { bytes: Blob; revision: string; mtime?: number; binary?: boolean; }
+export interface DocumentSnapshot { bytes: Blob; revision: string; mtime?: number; binary?: boolean; diskVersion?: string; }
 export interface DocumentHistoryEntry { version_id: string; project_id: string; path: string; editor_id?: string; actor?: string; created_at?: number; status?: string; before_revision?: string; after_revision?: string; }
 export interface DocumentHistoryPage { entries: DocumentHistoryEntry[]; next_cursor?: string | null; model_index?: { state: "partial" | "complete" | "unavailable"; unavailable_count?: number }; }
 export interface DocumentControllerOptions { projectId?: string; path: string; sessionId?: string; readOnly?: boolean; editorId?: string; fetchImpl?: typeof fetch; draftStore?: IndexedDbDocumentDraftStore; debounceMs?: number; maxDebounceMs?: number; }

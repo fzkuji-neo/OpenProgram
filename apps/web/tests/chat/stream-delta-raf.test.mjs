@@ -363,3 +363,19 @@ test("host execution outcome survives live stream and history mapping", async ()
   const mapped = convToChatMsgs([{role: "assistant", id: RID, content: "", blocks: reply().blocks}]);
   assert.equal(mapped.flatMap(m => m.blocks ?? []).find(b => b.tool_call_id === "denied")?.outcome, "not_started");
 });
+
+test('only a new foreground successful reply requests automatic file presentation',()=>{
+  const finish=(sid,id,type='result')=>{
+    applyChatWsMessage({type:'chat_ack',data:{session_id:sid,msg_id:id}});
+    useSessionStore.setState({currentSessionId:'file-foreground'});
+    applyChatWsMessage({type:'chat_response',data:{type,session_id:sid,msg_id:id,content:'[File](/project/report.pdf)'}});
+    return useSessionStore.getState().messagesById[id+'_reply'];
+  };
+  useSessionStore.setState({currentSessionId:'file-foreground'});
+  assert.equal(finish('file-background','file-bg').autoPreviewFiles,undefined);
+  assert.equal(finish('file-foreground','file-error','error').autoPreviewFiles,undefined);
+  assert.equal(finish('file-foreground','file-ok').autoPreviewFiles,true);
+  useSessionStore.getState().updateMessage('file-foreground','file-ok_reply',{autoPreviewFiles:false});
+  applyChatWsMessage({type:'chat_response',data:{type:'result',session_id:'file-foreground',msg_id:'file-ok',content:'[File](/project/report.pdf)'}});
+  assert.equal(useSessionStore.getState().messagesById['file-ok_reply'].autoPreviewFiles,false);
+});

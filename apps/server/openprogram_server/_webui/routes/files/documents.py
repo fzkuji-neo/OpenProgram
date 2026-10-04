@@ -4,9 +4,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import re
+from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
 from openprogram.store.document_history import (
@@ -52,11 +53,18 @@ async def _raw_body(request: Request, maximum: int = MAX_BYTES) -> bytes:
     return b"".join(chunks)
 
 
+def disk_version(target: Path) -> str:
+    info = target.stat()
+    return f"{info.st_dev}:{info.st_ino}:{info.st_size}:{info.st_mtime_ns}:{info.st_ctime_ns}"
+
+
 def _current_content(project_id: str, path: str) -> Response:
     target, relative = resolve_document(project_id, path)
+    before = disk_version(target)
     raw, mode = DocumentHistory._read_bounded(target)
+    version = before if before == disk_version(target) else ""
     return Response(raw, media_type="application/octet-stream", headers={
-        "X-Document-Path": quote(relative, safe="/"),
+        "X-Document-Path": quote(relative, safe="/"), "X-Document-Version": version,
         "X-Document-Revision": hashlib.sha256(raw).hexdigest(), "X-Document-Mode": str(mode),
         "Content-Disposition": "inline; filename*=UTF-8''" + quote(target.name, safe=""),
         "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox",
@@ -73,6 +81,31 @@ def register(app):
             return await asyncio.to_thread(_current_content, project_id, path)
         except DocumentHistoryError as exc:
             return _error(exc)
+        except FileNotFoundError:
+            return _error(DocumentHistoryError("document not found", "NOT_FOUND"))
+
+    @router.get("/api/documents/stat")
+    async def get_stat(path: str, project_id: str = "", session_id: str = ""):
+        def metadata():
+            if project_id:
+                target, _ = resolve_document(project_id, path)
+            else:
+                from openprogram import attachments
+                target = attachments.resolve_session_attachment(
+                    path, session_id or None, attachments.readable_roots(session_id or None),
+                    allow_missing=True,
+                )
+                if target is None:
+                    raise HTTPException(status_code=403, detail="path not allowed")
+            if not target.is_file():
+                raise HTTPException(status_code=404, detail="not a file")
+            return {"version": disk_version(target)}
+        try:
+            return JSONResponse(await asyncio.to_thread(metadata), headers={"Cache-Control": "no-store"})
+        except DocumentHistoryError as exc:
+            return _error(exc)
+        except OSError:
+            raise HTTPException(status_code=404, detail="file metadata unavailable")
 
     @router.put("/api/documents/content")
     async def put_content(request: Request, project_id: str, path: str):

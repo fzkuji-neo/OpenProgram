@@ -29,6 +29,9 @@ export interface CenterTab {
   projectId?: string;
   /** File tabs only — project-relative, "/"-separated. */
   path?: string;
+  readOnly?: boolean;
+  fileSessionId?: string;
+  previewOwnerSessionId?: string;
   /** File tabs only — the turn this file was opened FROM. Both set
    *  ⇒ the pane can fetch that turn's diff and defaults to showing
    *  it instead of the raw file. */
@@ -144,6 +147,7 @@ export interface CenterTabsState {
     path: string,
     options?: FileTabOptions,
   ) => void;
+  openFilePreview: (sessionId: string, target: { projectId: string; path: string; readOnly?: boolean }, automatic?: boolean) => boolean;
   /** Focus-or-create a web tab for `url` (must already be a valid
    *  http(s) URL — run user input through normalizeWebUrl first). */
   openWebTab: (url: string, agentRequest?: boolean) => void;

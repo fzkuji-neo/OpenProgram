@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Pause, Play, Square, Target } from "lucide-react";
+import { CheckIcon, HistoryIcon } from "@/components/animated-icons";
+import { useActionIconAnimation } from "./messages/use-action-icon-animation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -253,6 +255,14 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
   const progress = checklist.length
     ? `${text("Todos", "待办")} ${done}/${checklist.length}`
     : null;
+  const completionIcon = useActionIconAnimation();
+  const elapsed = goal.usage?.active_elapsed_s;
+  const hasElapsed = typeof elapsed === "number" && Number.isFinite(elapsed) && elapsed >= 0;
+  const elapsedLabel = goal.usage?.active_time_known === false
+    ? text(`at least ${formatElapsed(elapsed)}`, `至少 ${formatElapsed(elapsed)}`) : formatElapsed(elapsed);
+  const completionLabel = goal.status === "achieved"
+    ? hasElapsed ? text(`Goal achieved in ${elapsedLabel}`, `目标已达成，用时 ${elapsedLabel}`) : text("Goal achieved", "目标已达成")
+    : `${text("Goal", "目标")} · ${statusLabel(goal.status, zh, goal.phase)}`;
   const terminal = terminalStatuses.has(goal.status || "");
   const unsaved = draft.dirty;
   const execution = useGoalExecution(sessionId, goal, !historical && (open || !!goal.stop_requested));
@@ -318,19 +328,13 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
 
   return (
     <>
-      {historical ? <div className="attach-card" data-goal-id={goal.goal_id}>
-        <div className="attach-card-header">
-          <div className="attach-card-icon" aria-hidden="true"><Target size={18} /></div>
-          <div className="attach-card-meta">
-            <div className="attach-card-label">Goal · {statusLabel(goal.status, zh, goal.phase)}</div>
-            <div className="attach-card-sub">{goal.text}</div>
-          </div>
-          <button ref={trigger} type="button" className="attach-card-open" onClick={() => setOpen(true)}
-            aria-label={text("Open Goal details", "打开 Goal 详情")}>
-            {text("Details", "详情")}
-          </button>
-        </div>
-      </div> : !terminal || stopPending ? <button
+      {historical ? <button ref={trigger} type="button" className={styles.completion}
+        data-goal-id={goal.goal_id} aria-label={text("Open Goal details", "打开 Goal 详情")}
+        title={goal.text} onClick={() => setOpen(true)} {...completionIcon.handlers}>
+        {goal.status === "achieved" ? <CheckIcon ref={completionIcon.ref} size={16} aria-hidden />
+          : <HistoryIcon ref={completionIcon.ref} size={16} aria-hidden />}
+        <span>{completionLabel}</span>
+      </button> : !terminal || stopPending ? <button
         ref={trigger}
         type="button"
         className={`runtime-badge workdir-badge ${styles.trigger}`}

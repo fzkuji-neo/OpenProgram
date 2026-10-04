@@ -1,3 +1,4 @@
+import { filePreviewLayout } from "../file-preview-layout";
 import { normalizeCenterTabLayout } from "@/lib/tabs/center-tab-groups";
 import { builtinTabId, fileTabId, nextBrowserHomeId, nextNtpId } from "@/lib/tabs/center-tab-ids";
 import { replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence";
@@ -9,8 +10,18 @@ import { sessionHistory } from "../navigation/session-history";
 import { commitCenterTabsState, focusOrCreate, independentTab } from "./core";
 import type { CenterTab, CenterTabsState } from "./types";
 
-export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"], closedSessionAckTombstones: Set<string>): Pick<CenterTabsState, "openFileTab" | "openBuiltinTab" | "openApplicationTab" | "openReviewTab" | "setTabDirty" | "setTabDagView" | "retargetFileTab" | "openNewTabPage" | "closeTab"> {
+export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"], closedSessionAckTombstones: Set<string>): Pick<CenterTabsState, "openFilePreview" | "openFileTab" | "openBuiltinTab" | "openApplicationTab" | "openReviewTab" | "setTabDirty" | "setTabDagView" | "retargetFileTab" | "openNewTabPage" | "closeTab"> {
   return {
+    openFilePreview: (sessionId, target, automatic = false) => {
+      let opened = false;
+      set(state => {
+        const next = filePreviewLayout(state, sessionId, target, automatic);
+        if (!next) return {};
+        opened = true;
+        return commitCenterTabsState(state, next);
+      });
+      return opened;
+    },
     openFileTab: (projectId, path, options) =>
       set((s) => {
         const id = fileTabId(projectId, path);

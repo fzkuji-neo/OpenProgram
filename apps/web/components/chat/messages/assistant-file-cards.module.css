@@ -1,0 +1,8 @@
+.files { display:grid; gap:8px; margin-top:14px; }
+.row { display:flex; align-items:center; gap:12px; width:100%; min-width:0; padding:13px 14px; border:1px solid var(--border-subtle); border-radius:12px; background:var(--bg-secondary); color:var(--text-secondary); font:inherit; text-align:left; cursor:pointer; }
+.row:hover { background:var(--bg-tertiary); color:var(--text-primary); }
+.row:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:3px; }
+.icon { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:38px; height:38px; border-radius:9px; background:var(--bg-primary); }
+.label { display:grid; gap:3px; min-width:0; flex:1; }
+.label strong { color:var(--text-primary); font-size:13px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.label small { font-size:12px; }
