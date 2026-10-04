@@ -42,7 +42,8 @@ import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { RuntimeBlock } from "./runtime-block";
 import { TurnFilesChips } from "./turn-files-chips";
 import { shouldRenderTurnFiles } from "./turn-files-presentation";
-import { AttachmentChips, parseAttachments } from "./user-attachments";
+import { AssistantFileCards } from "./assistant-file-cards";
+import { parseAttachments } from "./user-attachments";
 
 /** Categorized, actionable headline for a failed turn, by error reason
  *  (see docs/design/providers/reliability/error-taxonomy-propagation.md). Returns null
@@ -540,8 +541,8 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
               </span>
             </div>
           ) : null}
-          {!streaming && outboundFiles.length > 0 ? (
-            <AttachmentChips items={outboundFiles} />
+          {!streaming && msg.status !== "error" && msg.status !== "cancelled" ? (
+            <AssistantFileCards msg={msg} sessionId={bubbleSessionId} attachments={outboundFiles} />
           ) : null}
           {!streaming && msg.id && shouldRenderTurnFiles(msg.turnFiles, msg.blocks) ? (
             <TurnFilesChips

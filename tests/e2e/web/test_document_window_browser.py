@@ -44,7 +44,7 @@ def browser_page(bundles):
                 request.fulfill(content_type="text/javascript", body=bundles[path[1:-3]])
             elif path == "/api/documents/content":
                 if request.request.method == "GET":
-                    request.fulfill(body=state["body"], headers={"x-document-revision": state["revision"]})
+                    request.fulfill(body=state["body"], headers={"x-document-revision": state["revision"], "x-document-version": state["revision"]})
                 else:
                     if state.get("put_status"):
                         request.fulfill(status=state["put_status"], json={"error":"injected publication failure"})
@@ -58,6 +58,8 @@ def browser_page(bundles):
                     state["body"] = raw
                     state["revision"] = hashlib.sha256(raw).hexdigest()
                     request.fulfill(json={"ok": True, "status": "committed", "revision": state["revision"]})
+            elif path == "/api/documents/stat":
+                request.fulfill(json={"version": state["revision"]})
             elif path == "/api/documents/history":
                 request.fulfill(json={"entries": state.get("history_entries", [{"version_id": "version1", "actor": "user"}]), "next_cursor": None, "model_index": state.get("model_index", {"state":"complete"})})
             elif path == "/api/documents/history/content":
@@ -610,3 +612,39 @@ def test_incomplete_model_history_cannot_restore_unconfirmed_after_version(brows
     expect(page.get_by_role("button",name="Restore",exact=True)).to_be_disabled()
     expect(page.get_by_role("button",name="Before",exact=True)).to_be_enabled()
     assert state["writes"]==[] and errors==[]
+
+
+def test_document_refresh_reads_current_disk_without_implicit_replacement(browser_page):
+    from playwright.sync_api import expect
+    page, state, errors = browser_page
+    page.goto("https://document.test/")
+    expect(page.get_by_text("old", exact=True)).to_be_visible()
+    state["body"] = b"changed on disk"
+    state["revision"] = "b" * 64
+    expect(page.get_by_role("button", name="Refresh", exact=True)).to_be_visible()
+    expect(page.get_by_text("old", exact=True)).to_be_visible()
+    page.get_by_role("button", name="Refresh", exact=True).click()
+    expect(page.get_by_text("changed on disk", exact=True)).to_be_visible()
+    assert state["writes"] == []
+    assert errors == []
+
+
+def test_changed_file_banner_and_refresh_keep_unsaved_edits(browser_page):
+    from playwright.sync_api import expect
+    page, state, errors = browser_page
+    page.goto("https://document.test/")
+    expect(page.get_by_text("old", exact=True)).to_be_visible()
+    state["body"] = b"external"
+    state["revision"] = hashlib.sha256(state["body"]).hexdigest()
+    expect(page.get_by_text("File changed. Refresh to load the latest version.", exact=True)).to_be_visible(timeout=10000)
+    page.get_by_role("button", name="Refresh", exact=True).click()
+    expect(page.get_by_text("external", exact=True)).to_be_visible()
+    expect(page.get_by_text("File changed. Refresh to load the latest version.", exact=True)).to_have_count(0)
+    state["put_status"] = 503
+    page.get_by_role("button", name="Edit", exact=True).click()
+    editor = page.locator("textarea:visible")
+    editor.fill("unsaved")
+    page.get_by_role("button", name="Refresh", exact=True).click()
+    expect(editor).to_have_value("unsaved")
+    expect(page.get_by_text("Save or discard your local changes before refreshing. Your draft was retained.", exact=True)).to_be_visible()
+    assert errors == []

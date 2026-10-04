@@ -149,14 +149,16 @@ def register(app) -> None:
             raise HTTPException(status_code=403, detail="path not allowed")
         if not target.is_file():
             raise HTTPException(status_code=404, detail="not a file")
+        from .documents import disk_version
         headers = {"X-Content-Type-Options": "nosniff",
-                   "Content-Security-Policy": "sandbox"}
+                   "Content-Security-Policy": "sandbox",
+                   "Cache-Control": "no-store", "X-Document-Version": disk_version(target)}
         guessed = mimetypes.guess_type(str(target))[0]
         if guessed and guessed.startswith("image/"):
             return FileResponse(target, media_type=guessed, headers=headers)
         if guessed == "application/pdf":
             return FileResponse(target, media_type=guessed,
-                                headers={"X-Content-Type-Options": "nosniff"})
+                                headers={key: value for key, value in headers.items() if key != "Content-Security-Policy"})
         return FileResponse(target, media_type="application/octet-stream",
                             filename=target.name, headers=headers)
 

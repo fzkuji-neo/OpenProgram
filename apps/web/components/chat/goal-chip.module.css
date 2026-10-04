@@ -158,3 +158,8 @@
   .actions { align-items: stretch; }
   .actions > button { width: 100%; }
 }
+
+.completion { display:flex; align-items:center; gap:7px; width:fit-content; max-width:100%; margin:8px 0 18px; padding:4px 0; border:0; background:transparent; color:var(--text-secondary); font:inherit; font-size:12px; line-height:1.5; cursor:pointer; text-align:left; }
+.completion svg { flex-shrink:0; }
+.completion:hover { color:var(--text-primary); }
+.completion:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:4px; border-radius:4px; }

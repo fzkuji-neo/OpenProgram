@@ -266,8 +266,10 @@ export function useTabLifecycle({
     }
     try {
       for (const tab of fileTabs) {
-        const controller = tab.projectId && tab.path
-          ? documentControllers.get(`project:${tab.projectId}:${tab.path}`) : undefined;
+        const controller = tab.path && (tab.projectId || tab.fileSessionId)
+          ? documentControllers.get(tab.readOnly
+            ? `attachment:${tab.fileSessionId}:${tab.path}`
+            : `project:${tab.projectId}:${tab.path}`) : undefined;
         await controller?.close();
       }
     } catch {

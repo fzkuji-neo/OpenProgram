@@ -53,7 +53,8 @@ window.show('pending');
             expect(transcript.get_by_text("RAW_PRIVATE_REPORT", exact=False)).to_be_visible()
             assert page.locator("img[src=x]").count() == 0
             page.evaluate("window.historyCard()")
-            expect(page.locator(".attach-card")).to_have_count(1)
+            expect(page.locator("button[data-goal-id='old']")).to_have_count(1)
+            expect(page.locator(".attach-card")).to_have_count(0)
             page.get_by_role("button", name="打开 Goal 详情").focus()
             page.keyboard.press("Enter")
             expect(page.get_by_role("dialog")).to_be_visible()

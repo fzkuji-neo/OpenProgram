@@ -387,3 +387,38 @@ def test_authenticated_model_history_content_and_opaque_cursor(documents, monkey
         assert client.get("/api/documents/history/content",params=params,headers={"Authorization":"Bearer bad"}).status_code in (401,403)
     finally:
         sessions.close()
+
+
+def test_document_stat_tracks_changes_without_returning_content(documents):
+    client, root, _, _ = documents
+    target = root / 'preview.txt'
+    target.write_text('old')
+    params = {'project_id': 'p1', 'path': 'preview.txt'}
+    before = client.get('/api/documents/stat', params=params)
+    assert before.status_code == 200, before.text
+    assert set(before.json()) == {'version'}
+    content = client.get('/api/documents/content', params=params)
+    assert content.headers['x-document-version'] == before.json()['version']
+    assert before.headers['cache-control'] == 'no-store'
+    target.write_text('updated')
+    assert client.get('/api/documents/stat', params=params).json()['version'] != before.json()['version']
+    assert client.get('/api/documents/stat', params={**params, 'path': '../outside.txt'}).status_code in (400, 403)
+    assert client.get('/api/documents/stat', params={**params, 'path': 'missing.txt'}).status_code == 404
+    assert client.get('/api/documents/stat', params=params, headers={'Authorization': 'Bearer bad'}).status_code in (401, 403)
+
+
+def test_document_stat_uses_attachment_roots(documents, monkeypatch, tmp_path):
+    client, root, _, _ = documents
+    from openprogram import attachments
+    monkeypatch.setattr(attachments, 'readable_roots', lambda *args, **kw: [root])
+    target = root / 'preview.pdf'
+    target.write_bytes(b'%PDF')
+    params = {'session_id': 's', 'path': str(target)}
+    stat = client.get('/api/documents/stat', params=params)
+    assert stat.status_code == 200, stat.text
+    raw = client.get('/api/file-raw', params=params)
+    assert raw.headers['x-document-version'] == stat.json()['version']
+    assert raw.headers['cache-control'] == 'no-store'
+    outside = tmp_path / 'outside.pdf'
+    outside.write_bytes(b'%PDF')
+    assert client.get('/api/documents/stat', params={**params, 'path': str(outside)}).status_code == 403

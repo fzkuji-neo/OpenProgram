@@ -174,7 +174,7 @@ test("historical Goal reuses details without reading or editing the current Goal
   api.getGoal = async () => { reads++; throw new Error("historical record must not query current Goal"); };
   const view = await mount(createElement(GoalDetails, { sessionId: "s1", goal: archived, historical: true }));
   try {
-    assert.equal(view.host.querySelectorAll(".attach-card").length, 1);
+    assert.equal(view.host.querySelectorAll("button[data-goal-id]").length, 1);
     await view.open();
     assert.equal(view.host.querySelector("textarea").value, "Archived objective");
     assert.ok(view.host.querySelector("textarea").hasAttribute("readonly"));
@@ -949,4 +949,16 @@ test("function form removes advanced execution fields without replacement contro
     assert.equal(host.querySelector('details, summary'), null);
     assert.doesNotMatch(host.textContent, /Advanced|effort|model/);
   } finally { await act(async () => root.unmount()); host.remove(); }
+});
+
+ test("completed Goal is a compact status row with its own duration", async () => {
+  reset();
+  const goal={...snapshot(3,"achieved"),usage:{active_elapsed_s:582,active_time_known:true}};
+  const view=await mount(createElement(GoalDetails,{sessionId:"s1",goal,historical:true}));
+  try {
+    assert.equal(view.host.querySelectorAll(".attach-card").length,0);
+    assert.match(view.host.textContent,/Goal achieved in 9m 42s/);
+    await view.open();
+    assert.ok(view.host.querySelector("textarea").hasAttribute("readonly"));
+  } finally {await view.close();}
 });
