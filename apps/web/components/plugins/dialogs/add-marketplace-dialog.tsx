@@ -48,7 +48,7 @@ export function AddMarketplaceDialog({ onClose }: Props) {
         <div className={styles.dialogTitle}>{text("Add Marketplace", "添加 Marketplace")}</div>
         <div className={styles.dialogBody}>
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 12, marginBottom: 4, color: "var(--text-dim)" }}>Index URL</div>
+            <div style={{ fontSize: 12, marginBottom: 4, color: "var(--text-dim)" }}>{text("Index URL", "索引 URL")}</div>
             <input
               className={styles.input}
               value={url}

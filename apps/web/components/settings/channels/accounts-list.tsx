@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import styles from "./channels.module.css";
+import { PlusIcon } from "@/components/animated-icons";
 import { useTranslation } from "@/lib/i18n";
 import { AddAccountDialog } from "./add-account-dialog";
 import { PLATFORMS, PLATFORM_LABEL } from "./types";
@@ -61,13 +62,13 @@ export function AccountsList({ accounts, statuses, onChange }: Props) {
           onClick={() => setAddOpen(true)}
           type="button"
         >
-          + {text("Add bot", "添加 bot")}
+          <PlusIcon size={16} aria-hidden />{text("Add bot", "添加 bot")}
         </button>
       </div>
 
       {accounts.length === 0 ? (
         <div className={styles.emptyHint}>
-          {text("No bots yet. Click \"+ Add bot\" to paste a token, or run ", "还没有 bot。点击“+ 添加 bot”粘贴 token，或运行 ")}
+          {text("No bots yet. Click \"Add bot\" to paste a token, or run ", "还没有 bot。点击“添加 bot”粘贴 token，或运行 ")}
           <code>openprogram channels accounts login wechat</code>{" "}
           {text("to scan a WeChat QR.", "扫描 WeChat 二维码。")}
         </div>

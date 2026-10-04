@@ -122,16 +122,21 @@ Wayland display（例如通过 SSH 使用服务器），Web UI 会改为显示�
 
 | 路由 | 用途 |
 |---|---|
+| `/agents` | Agents：创建、配置 Agent（模型、能力、记忆、上下文），并用它开始对话 |
+| `/applications` | 应用：从本地文件夹安装软件，然后打开、启用、在新标签页隐藏、更新或卸载 |
+| `/scheduler` | 定时任务：一次性、周期和监控任务，按类型筛选；可暂停、恢复或删除每个任务 |
 | `/chats` | History 枢纽：会话列表（`/history` 同页）；Projects 和 Memory 是同一页上的 tab |
 | `/programs` | Abilities 枢纽：Programs 目录（调用树 / 图）。Plugins、Skills、MCP 是旁边的 tab |
 | `/skills` | Abilities → Skills：浏览已装 SKILL.md、发现和新建；每个 skill 有详情页 |
-| `/plugins` | Abilities → Plugins：已安装 / 市场 / 错误 |
+| `/plugins` | Abilities → Plugins：已安装 / 发现（市场）/ 问题 |
 | `/mcp` | Abilities → MCP：从目录添加、编辑配置、查看状态 |
 | `/memory` | History → Memory：wiki、journal 和核心记忆 |
 | `/projects` | History → Projects：权限规则、默认设置、关联会话 |
 | `/settings` | 设置：providers（模型与凭据）、search、general（含主题、运行版本，以及存在 Electron bridge 时的 Desktop 更新状态）、system、usage、auth、channels |
 
 `/settings` 直接打开会跳到 `/settings/general`。模型凭据仍在 `/settings/providers`，见[配置模型](../models/README.zh.md)。
+
+窗口较窄（宽度不超过 900px）时，左侧栏默认收起为图标栏，直到你展开它；展开后导航到其他页面会再次收起。宽度低于 760px 时，设置导航同样默认显示为图标栏，窗口缩小到该宽度时也会自动收起。你手动展开或收起侧栏的选择会被保留。
 
 ### 标签拖动外观
 

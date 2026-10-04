@@ -1,4 +1,4 @@
-.content { display: flex; flex-direction: column; gap: 24px; width: 100%; max-width: 960px; margin: 0 auto; }
+.content { display: flex; flex-direction: column; gap: 24px; width: 100%; }
 .notice { padding: 8px 24px; font-size: 12px; color: var(--accent-green); border-bottom: 1px solid var(--border); }
 
 /* Install panel: same surface as the shared catalog cards. */
@@ -19,7 +19,7 @@
 /* Installed list: one bordered card per application. */
 .list { display: flex; flex-direction: column; gap: 8px; }
 .application { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--ui-list-radius); transition: border-color 150ms ease-out, background 150ms ease-out; }
-.application:hover { border-color: color-mix(in srgb, var(--text-tertiary) 65%, var(--border)); background: color-mix(in srgb, var(--bg-secondary) 40%, transparent); }
+.application:hover { border-color: var(--border-light); background: color-mix(in srgb, var(--bg-secondary) 40%, transparent); }
 .appIcon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-secondary); color: var(--text-tertiary); }
 .appMain { flex: 1; min-width: 0; }
 .appTitle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -35,6 +35,7 @@
 
 @media (max-width: 760px) {
   .directory { flex-direction: column; }
+  .directory input { flex: none; }
   .application { flex-wrap: wrap; }
   .appActions { width: 100%; padding-left: 48px; flex-wrap: wrap; }
 }

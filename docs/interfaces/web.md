@@ -120,16 +120,21 @@ The floating webpage preview fills the space below its compact header, with 10px
 
 | Route | Purpose |
 |---|---|
+| `/agents` | Agents: create, configure and start conversations with Agents (model, abilities, memory, context) |
+| `/applications` | Applications: install software from a local folder, then open, enable, hide from the new tab page, update or uninstall it |
+| `/scheduler` | Scheduler: one-time, recurring and monitor tasks, filtered by type; pause, resume or delete each task |
 | `/chats` | History hub: session list (also `/history`); Projects and Memory are tabs on the same page |
 | `/programs` | Abilities hub: Programs catalog (call tree / graph). Plugins, Skills, and MCP are sibling tabs |
 | `/skills` | Abilities → Skills: browse installed SKILL.md files, discover and create skills; each skill has a detail page |
-| `/plugins` | Abilities → Plugins: installed / marketplace / errors |
+| `/plugins` | Abilities → Plugins: Installed / Discover (marketplace) / Issues |
 | `/mcp` | Abilities → MCP: add from the directory, edit configs, view per-server status |
 | `/memory` | History → Memory: wiki, journal, and core memories |
 | `/projects` | History → Projects: per-project permission rules, default settings, associated sessions |
 | `/settings` | Settings: providers (models and credentials), search, general (including theme, runtime version, and Desktop update status when the Electron bridge is present), system, usage, auth, channels |
 
 Opening `/settings` directly lands on `/settings/general`. Model credentials stay on `/settings/providers`; see [configuring models](../models/README.md).
+
+In narrow windows (900px wide or less) the left sidebar starts collapsed to its icon rail until you open it, and an opened sidebar closes again after you navigate. Below 760px the Settings navigation starts as an icon rail too, and collapses when the window is resized to that width. A sidebar you open or close yourself keeps that choice.
 
 ### Tab drag appearance
 

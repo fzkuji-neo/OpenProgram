@@ -6,7 +6,7 @@ import { useTranslation } from "@/lib/i18n";
 import { Switch } from "@/components/ui/switch";
 import { SearchInput } from "@/components/ui/search-input";
 import { ManageEmptyState, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
-import { BlocksIcon } from "@/components/animated-icons";
+import { BlocksIcon, SearchIcon } from "@/components/animated-icons";
 import { PluginTrustWarning } from "../dialogs/plugin-trust-warning";
 import { PluginOptionsDialog } from "../dialogs/plugin-options-dialog";
 import { ValidatePluginDialog } from "../dialogs/validate-plugin";
@@ -107,13 +107,13 @@ export function InstalledList({ externalFilter }: { externalFilter?: string } = 
               checked={p.enabled}
               disabled={busy === p.name}
               onCheckedChange={() => { void tryToggle(p); }}
-              aria-label={p.enabled ? text("Disable", "禁用") : text("Enable", "启用")}
+              aria-label={p.enabled ? text(`Disable ${p.name}`, `禁用 ${p.name}`) : text(`Enable ${p.name}`, `启用 ${p.name}`)}
             />
           }
         />
       ))}
       {shown.length === 0 && (
-        <div className={shared.empty}>{text("No matches.", "没有匹配结果。")}</div>
+        <ManageEmptyState compact icon={<SearchIcon size={20} />} title={text("No matching plugins", "没有匹配的插件")} description={text("Try a different search.", "换个关键词试试。")} />
       )}
       </div>
 

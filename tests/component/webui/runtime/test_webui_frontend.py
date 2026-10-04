@@ -283,3 +283,20 @@ def test_unknown_api_path_is_404_not_spa(client):
     r = client.get("/api/definitely-not-a-route")
     assert r.status_code == 404
     assert "text/html" not in r.headers.get("content-type", "")
+
+
+def test_head_on_pages_matches_get_without_body(client):
+    # Next.js <Link> prefetch issues HEAD for every page route; a GET-only
+    # catch-all answered 405 and filled the console on each load.
+    for path in ("/chat", "/skills/pdf", "/s/abc123"):
+        get = client.get(path)
+        head = client.head(path)
+        assert head.status_code == 200, path
+        assert head.content == b"", path
+        assert head.headers["content-type"] == get.headers["content-type"], path
+        assert head.headers["cache-control"] == get.headers["cache-control"], path
+
+
+def test_head_on_unknown_api_path_is_404(client):
+    r = client.head("/api/definitely-not-a-route")
+    assert r.status_code == 404

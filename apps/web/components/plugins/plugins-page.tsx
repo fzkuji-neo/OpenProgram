@@ -6,7 +6,7 @@ import { ManagePageHeader, ManageSubnav, managePageStyles as shared } from "@/co
 import { usePluginsStore } from "@/lib/abilities/plugins-store";
 import { useTranslation } from "@/lib/i18n";
 import { useModalA11y } from "@/lib/hooks/use-modal-a11y";
-import { Download } from "lucide-react";
+import { PlusIcon } from "@/components/animated-icons";
 import { InstalledList } from "./views/installed-list";
 import { MarketplaceBrowser } from "./views/marketplace-browser";
 import { PluginErrors } from "./views/plugin-errors";
@@ -62,13 +62,13 @@ export function PluginsPage({
         activeTab={tab}
         onTabChange={(id) => setTab(id as typeof tab)}
         summary={text(
-          `${enabledCount} available · ${errCount} issues`,
+          `${enabledCount} available · ${errCount} ${errCount === 1 ? "issue" : "issues"}`,
           `可用 ${enabledCount} 个 · ${errCount} 个问题`,
         )}
         action={{
           label: text("Add plugin", "添加插件"),
           onClick: () => setLocalInstallOpen(true),
-          icon: <Download />,
+          icon: PlusIcon,
           primary: true,
         }}
         ariaLabel={text("Plugin sections", "插件分区")}

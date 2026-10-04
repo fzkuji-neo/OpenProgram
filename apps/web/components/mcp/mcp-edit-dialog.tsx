@@ -252,9 +252,9 @@ export function EditDialog({
                 setState({ ...state, transport: e.target.value as EditTarget["transport"] })}
               className="ui-text-input flex h-[var(--ui-button-h)] w-full rounded-[var(--ui-button-radius)] border border-[var(--border)] bg-[var(--bg-input)] px-3 font-mono text-sm focus:outline-none focus:border-[color:var(--accent-blue)]"
             >
-              <option value="local">local (stdio subprocess)</option>
-              <option value="http">http (Streamable HTTP)</option>
-              <option value="sse">sse (legacy Server-Sent Events)</option>
+              <option value="local">{text("local (stdio subprocess)", "local（stdio 子进程）")}</option>
+              <option value="http">{text("http (Streamable HTTP)", "http（可流式 HTTP）")}</option>
+              <option value="sse">{text("sse (legacy Server-Sent Events)", "sse（旧版 Server-Sent Events）")}</option>
             </select>
           </div>
 
@@ -325,7 +325,7 @@ export function EditDialog({
 
               {state.authKind === "bearer" && (
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="mcp-bearer">Bearer token</Label>
+                  <Label htmlFor="mcp-bearer">{text("Bearer token", "Bearer 令牌")}</Label>
                   <Input
                     id="mcp-bearer"
                     type="password"

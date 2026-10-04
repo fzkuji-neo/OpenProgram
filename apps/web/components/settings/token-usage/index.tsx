@@ -6,6 +6,8 @@ import styles from "../settings-page.module.css";
 import local from "./usage.module.css";
 import { cachedFetch } from "@/lib/prefs/settings-cache";
 import { useTranslation } from "@/lib/i18n";
+import { ChartNoAxesColumn } from "lucide-react";
+import { ManageEmptyState, ManageSubnav } from "@/components/ui/manage-page";
 
 // ── API types ───────────────────────────────────────────────────────────────
 
@@ -107,7 +109,7 @@ function fmtDate(ts: number): string {
 // ── dimension tabs ──────────────────────────────────────────────────────────
 
 type Dimension = "call_kind" | "model_id" | "call_label";
-const DIMENSIONS: { key: Dimension; labelKey: string }[] = [
+const DIMENSIONS: { key: Dimension; labelKey: "usage.dim.kind" | "usage.dim.model" | "usage.dim.label" }[] = [
   { key: "call_kind", labelKey: "usage.dim.kind" },
   { key: "model_id", labelKey: "usage.dim.model" },
   { key: "call_label", labelKey: "usage.dim.label" },
@@ -122,6 +124,7 @@ function StackedBarChart({
   series: Record<string, TrendPoint[]>;
   categories: string[];
 }) {
+  const { text } = useTranslation();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [w, setW] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
@@ -203,7 +206,7 @@ function StackedBarChart({
   if (nDays === 0) {
     return (
       <div className={local.chartWrap} ref={wrapRef} style={{ height: H }}>
-        <div className={local.chartEmpty}>暂无数据</div>
+        <div className={local.chartEmpty}>{text("No usage recorded in this period", "此时段暂无用量记录")}</div>
       </div>
     );
   }
@@ -357,7 +360,7 @@ function CategoryBars({
 // ── main component ───────────────────────────────────────────────────────────
 
 export function TokenUsageSection() {
-  const { t } = useTranslation();
+  const { t, text } = useTranslation();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [dim, setDim] = useState<Dimension>("call_kind");
   const [trendData, setTrendData] = useState<Record<string, GroupedTrendResp>>(
@@ -411,11 +414,11 @@ export function TokenUsageSection() {
             { label: t("usage.card.output"), value: fmtNum(totals.output_tokens) },
             { label: t("usage.card.cache"), value: fmtNum(totals.cache_read_tokens) },
             { label: t("usage.card.total"), value: fmtNum(totals.total_tokens) },
-            { label: t("usage.card.cost"), value: totals.cost_known ? fmtCost(totals.cost) : "Unknown" },
+            { label: t("usage.card.cost"), value: totals.cost_known ? fmtCost(totals.cost) : text("Unknown", "未知") },
             { label: t("usage.card.calls"), value: fmtNum(totals.events) },
           ]
         : [],
-    [totals, t]
+    [totals, t, text]
   );
 
   // current dimension's data
@@ -429,6 +432,18 @@ export function TokenUsageSection() {
     if (dim === "model_id") {
       return summary.by_model.map((r) => ({
         name: r.model,
+        input_tokens: r.input_tokens,
+        output_tokens: r.output_tokens,
+        total_tokens: r.total_tokens,
+        cost: r.cost,
+        events: r.events,
+      }));
+    }
+    if (dim === "call_label") {
+      // Raw label (even empty) so the name matches the trend series key the
+      // bar colours are looked up by; CategoryBars shows an empty name as "—".
+      return summary.by_label.map((r) => ({
+        name: r.label,
         input_tokens: r.input_tokens,
         output_tokens: r.output_tokens,
         total_tokens: r.total_tokens,
@@ -455,7 +470,15 @@ export function TokenUsageSection() {
       <div className={styles.pageBody}>
         {loading && <div className={local.muted}>{t("usage.loading")}</div>}
         {error && <div className={local.muted}>{t("usage.error")}</div>}
-        {!loading && !error && totals && (
+        {!loading && !error && totals && totals.events === 0 && (
+          <ManageEmptyState
+            compact
+            icon={<ChartNoAxesColumn />}
+            title={text("No usage recorded yet", "暂无用量记录")}
+            description={t("usage.empty")}
+          />
+        )}
+        {!loading && !error && totals && totals.events > 0 && (
           <>
             {/* stat cards */}
             <div className={local.cards}>
@@ -467,21 +490,24 @@ export function TokenUsageSection() {
               ))}
             </div>
 
-            {/* dimension tabs */}
-            <div className={local.dimTabs}>
-              {DIMENSIONS.map((d) => (
-                <button
-                  key={d.key}
-                  className={`${local.dimTab} ${dim === d.key ? local.dimTabActive : ""}`}
-                  onClick={() => setDim(d.key)}
-                >
-                  {t(d.labelKey as any)}
-                </button>
-              ))}
-            </div>
+            {/* dimension tabs — the shared subnav (tablist + arrow keys) */}
+            <ManageSubnav
+              className={local.dimSubnav}
+              tabs={DIMENSIONS.map((d) => ({ id: d.key, label: t(d.labelKey) }))}
+              activeTab={dim}
+              onTabChange={(id) => setDim(id as Dimension)}
+              ariaLabel={text("Usage breakdown", "用量维度")}
+              panelId="usage-breakdown"
+            />
 
             {/* stacked bar chart + legend */}
-            <div className={local.section}>
+            <div
+              className={local.section}
+              id="usage-breakdown"
+              role="tabpanel"
+              aria-labelledby={`usage-breakdown-tab-${dim}`}
+            >
+              <h3 className={local.sectionTitle}>{t("usage.trend")} · {text("Last 30 days", "最近 30 天")}</h3>
               <StackedBarChart series={series} categories={categories} />
               <Legend categories={categories} />
             </div>

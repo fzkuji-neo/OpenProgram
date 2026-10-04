@@ -81,7 +81,9 @@ export default function RootLayout({
                 // 的，等 React 水合再改就会先画一帧展开、再播收起动画。
                 // CSS 里 html[data-sidebar-closed] #sidebar 强制收起宽度；
                 // 水合完成后由 Sidebar 组件移除该属性接管。
-                if (localStorage.getItem('sidebarOpen') === '0') {
+                var sidebarOpen = localStorage.getItem('sidebarOpen');
+                if (sidebarOpen === '0' || (sidebarOpen === null && window.matchMedia
+                    && window.matchMedia('(max-width: 900px)').matches)) {
                   document.documentElement.setAttribute('data-sidebar-closed', '');
                 }
               } catch (e) {}
