@@ -181,6 +181,7 @@ class MessagesOperations:
             shared._node_to_msg(n, session_id) for n in idx.all_nodes()
             if (n.metadata or {}).get("display") != "root"
             and not (n.metadata or {}).get("rewound")
+            and not (n.metadata or {}).get("structural")
             # ``context/*`` nodes record what the context pipeline sent
             # (dag/overview.md §7). They are machinery, not conversation, and
             # stay out of every chat/transcript view. ``get_nodes`` is the
@@ -194,4 +195,3 @@ class MessagesOperations:
         if limit is not None:
             msgs = msgs[-limit:]
         return msgs
-

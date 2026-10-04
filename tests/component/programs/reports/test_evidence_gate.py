@@ -174,7 +174,7 @@ def test_natural_previous_week_uses_resolved_week_and_original_dates(records, mo
 
 def test_missing_status_remains_unknown_and_tool_own_week_is_not_caller_week(records):
     records[1]('unknown','tool','started',caller='assistant',function='bash',day='2026-09-23',status=None,is_error=None)
-    gate=EvidenceGate('2026-W40','personal_chat')
+    gate=EvidenceGate('Summarize original sources','personal_chat')
     read(gate)
     row=next(r for r in gate.rows.values() if r['source'].endswith('#unknown'))
     assert row['status']=='unknown' and row['is_error'] is None and row['week']=='2026-W39'

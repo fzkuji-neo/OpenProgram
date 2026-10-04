@@ -12,7 +12,7 @@ def _store(tmp_path) -> ExecutionStore:
     return ExecutionStore(tmp_path / "runtime" / "executions.sqlite3")
 
 
-def _admit(store: ExecutionStore):
+def _admit(store: ExecutionStore, *, assistant_id=None):
     revision = store.create_revision(
         revision_id="revision-1", manifest={"entrypoint": "workflow.run"}
     )
@@ -27,6 +27,7 @@ def _admit(store: ExecutionStore):
         trusted_actor={"subject": "user-1", "session_id": "session-1"},
         config_snapshot_ref="blob:config-1",
         user_message_id="msg-1",
+        assistant_message_id=assistant_id,
         capabilities=CapabilitySet(pause=True),
     )
 
@@ -485,3 +486,38 @@ def test_v5_migration_requeues_fixed_projections_for_the_new_read_models(tmp_pat
             row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
     assert {"execution_projection_current", "execution_projection_events"}.issubset(tables)
+
+
+def test_cancelled_chat_outbox_retries_a_late_assistant_and_preserves_trace(tmp_path, monkeypatch, request):
+    from openprogram.execution.projections import projection_handlers
+    from openprogram.store.session.session_store import SessionStore
+
+    store = _store(tmp_path)
+    sessions = SessionStore(tmp_path / "sessions")
+    request.addfinalizer(sessions.close)
+    monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: sessions)
+    frames = []
+    monkeypatch.setattr("openprogram.events.emit_ws_frame", frames.append)
+    sessions.create_session("session-1", "main", status="running")
+    execution = _admit(store, assistant_id="reply-1")
+    cancelling = store.transition_execution(execution.execution_id,
+        expected_version=execution.status_version, target=ExecutionStatus.CANCELLING)
+    store.transition_execution(execution.execution_id,
+        expected_version=cancelling.status_version, target=ExecutionStatus.CANCELLED)
+    dispatcher = ProjectionDispatcher(store, projection_handlers(store))
+    assert dispatcher.drain(owner_id="late-reply").failed == 1
+    sessions.append_message("session-1", {"id": "reply-1", "role": "assistant",
+        "content": "partial response", "status": "running", "extra": '{"blocks": [{"type": "text", "text": "partial response"}]}'})
+    head = sessions.get_session("session-1")["head_id"]
+    assert dispatcher.drain(owner_id="late-reply").failed == 0
+    reply = sessions.get_messages("session-1")[-1]
+    assert reply["status"] == "cancelled" and reply["content"] == "partial response"
+    assert reply["blocks"] == [{"type": "text", "text": "partial response"}]
+    assert sessions.get_session("session-1")["head_id"] == head
+    assert sessions.get_session("session-1")["status"] == "idle"
+    item = next(item for item in store.list_projection_outbox(execution_id=execution.execution_id)
+                if item.projection_kind == "dag" and item.event_sequence == store.list_events(execution.execution_id)[-1].sequence)
+    before = len(frames)
+    projection_handlers(store)["dag"](item)
+    assert len(frames) == before
+    sessions.close()

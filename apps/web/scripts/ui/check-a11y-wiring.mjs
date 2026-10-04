@@ -79,7 +79,21 @@ for (const file of files) {
   const src = readFileSync(file, "utf8");
   // The tell for a hand-rolled modal: a backdrop element whose click
   // dismisses it. Radix-based dialogs never look like this.
-  if (!/className=\{?["'`]?[^"'`\n]*[Bb]ackdrop/.test(src)) continue;
+  const tree = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let dismissibleBackdrop = false;
+  function visit(node) {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      const attrs = node.attributes.properties.filter(ts.isJsxAttribute);
+      const className = attrs.find(attr => attr.name.getText(tree) === "className");
+      if (className && /[Bb]ackdrop/.test(className.getText(tree))
+          && attrs.some(attr => attr.name.getText(tree) === "onClick")) {
+        dismissibleBackdrop = true;
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(tree);
+  if (!dismissibleBackdrop) continue;
   if (src.includes("useModalA11y")) continue;
   modalGaps.push(file.slice(root.length));
 }

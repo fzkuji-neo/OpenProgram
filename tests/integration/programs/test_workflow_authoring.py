@@ -28,7 +28,7 @@ def _package(root: Path, *, passing: bool = True) -> Path:
         "__init__.py": "from .workflow import manual_report\n",
         "workflow.py": "from openprogram import Agent\nfrom .steps.prepare import prepare\nclass ManualReportAgent(Agent):\n    method_options = {\n        'manual_report': {\n            'name': 'manual_report',\n            'tool': True\n        },\n    }\n\n    def manual_report(self, task: str):\n        return prepare(task)\n\n\nmanual_report = ManualReportAgent().manual_report\n",
         "steps/prepare.py": "def prepare(task: str):\n    return task + '!'\n",
-        "tests/test_workflow.py": "from workflows.manual_report import manual_report\ndef test_output():\n    assert manual_report.__wrapped__('example') == "
+        "tests/test_workflow.py": "from workflows.manual_report import manual_report\ndef test_output():\n    assert manual_report('example') == "
         + ("'example!'\n" if passing else "'wrong'\n"),
     }
     for name, value in files.items():
@@ -160,8 +160,10 @@ def test_behavior_sandbox_protects_host_and_source(tmp_path, monkeypatch):
         listener.listen()
         port = listener.getsockname()[1]
         (tests / "test_policy.py").write_text(
-            "import os\nimport socket\nfrom pathlib import Path\nimport pytest\n"
+            "import os\nimport socket\nfrom pathlib import Path\nimport pytest\nfrom openprogram import Agent\n"
+            "class Probe(Agent):\n    def run(self):\n        return 'done'\n"
             "def test_policy():\n"
+            "    assert Probe().run() == 'done'\n"
             "    assert 'OPENAI_API_KEY' not in os.environ\n"
             f"    with pytest.raises(OSError):\n        Path({str(secret)!r}).read_text()\n"
             f"    with pytest.raises(OSError):\n        Path({str(outside)!r}).write_text('escaped')\n"
@@ -172,6 +174,13 @@ def test_behavior_sandbox_protects_host_and_source(tmp_path, monkeypatch):
     assert report["sandboxed"] and report["executed_tests"]
     assert not outside.exists()
     assert frozen.read_text() == "original"
+    from openprogram.store import SessionStore
+    sessions = SessionStore(instance / "runtime-sessions")
+    try:
+        assert any(node.is_code() and node.name.endswith("Probe.run")
+                   for node in sessions.get_nodes("behavior-tests"))
+    finally:
+        sessions.close()
 
 
 @pytest.mark.sandbox
@@ -199,14 +208,16 @@ def test_macos_behavior_tests_cannot_leave_detached_processes(
 ):
     if sys.platform != "darwin" or sandbox.unavailable_reason():
         pytest.skip("Requires macOS Seatbelt")
-    project = _package(tmp_path / "authored")
-    monkeypatch.setattr(paths, "get_state_dir", lambda: tmp_path / "state")
-    (project / "tests" / "test_workflow.py").write_text(
+    from openprogram.programs.workflow._project import authoring
+
+    instance = tmp_path / "candidate"
+    tests = instance / "snapshot" / "workflows" / "probe" / "tests"
+    tests.mkdir(parents=True)
+    (tests / "test_workflow.py").write_text(
+        "import subprocess\nimport pytest\n"
         "def test_detached_process():\n"
-        "    import subprocess\n    import pytest\n"
         "    with pytest.raises(OSError):\n"
         "        subprocess.Popen(['/bin/sleep', '20'], start_new_session=True)\n"
     )
-    code, report = _invoke(monkeypatch, capsys, "test", str(project))
-    assert code == 0, report
-    assert report["executed_tests"]
+    report = authoring._run_tests(instance, "probe")
+    assert report["sandboxed"] and report["executed_tests"]

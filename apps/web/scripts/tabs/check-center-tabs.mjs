@@ -248,10 +248,12 @@ assert.doesNotMatch(strip, /detachRequested|detachedShown|followRequested|detach
 // tabs, and there is no separate floating "New window" cue.
 assert.doesNotMatch(css, /data-detached-away/,
   "the opacity:0 collapse existed only to hide a live window — it must be gone");
-assert.match(css, /--tab-drag-bg: color-mix\(in oklch, var\(--tab-active-bg\) \d+%, var\(--tabrow-bg\)\)/,
-  "the dragged tab colour must sit between the active tab and the tab row");
-assert.match(css, /\.tab\[data-pointer-drag="true"\][\s\S]*?opacity: 1;[\s\S]*?background: var\(--tab-drag-bg\)/,
-  "the dragged tab must be fully opaque with the in-between drag colour");
+for (const selector of ['.tab[data-pointer-drag="true"]', '.compoundTab[data-pointer-drag="true"]']) {
+  assert.equal(finalDeclaration(selector, "background"), "var(--drag-surface-background)",
+    "tab dragging must use the shared configurable surface");
+  assert.equal(finalDeclaration(selector, "backdrop-filter"), "var(--drag-surface-backdrop)");
+  assert.equal(finalDeclaration(selector, "opacity"), "1", "dragged labels remain fully opaque");
+}
 assert.match(css, /\[data-detach-intent="true"\] \{[^}]*opacity: 1;/,
   "leaving the strip must not make the dragged tab translucent");
 assert.doesNotMatch(css, /\[data-detach-intent="true"\] \{[^}]*(outline|scale):/,
@@ -622,11 +624,6 @@ assert.doesNotMatch(
 );
 assert.match(pointerDragRule, /z-index: 30;/);
 assert.match(pointerDragRule, /opacity: 1;/, "the follow-the-pointer tab must be fully opaque");
-assert.match(
-  pointerDragRule,
-  /background: var\(--tab-drag-bg\);/,
-  "the dragged tab needs an opaque in-between fill so neighbours cannot show through",
-);
 // The detach state stays fully opaque and lifts above the strip so it
 // cannot overlap neighbours' content.
 const detachRule = css.slice(

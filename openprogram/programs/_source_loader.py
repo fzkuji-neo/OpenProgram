@@ -52,14 +52,19 @@ class ManagedSourceLoader(importlib.machinery.SourceFileLoader):
     Existing decorators execute in their original order, before capture.
     Generators retain normal Python behavior and do not create call scopes.
     """
+    def __init__(self, fullname, path, *, entry_owned=True):
+        super().__init__(fullname, path)
+        self.entry_owned = entry_owned
+
     def get_code(self, fullname):
         source = self.get_data(self.path)
         return compile_managed_source(source, self.path)
 
     def exec_module(self, module):
         from openprogram.agentic_programming.call_scope import managed_function, capture_suspended
+        from functools import partial
         # Keep the binding: nested definitions can execute after module import.
-        module.__dict__[_CAPTURE_NAME] = managed_function
+        module.__dict__[_CAPTURE_NAME] = partial(managed_function, entry_owned=self.entry_owned)
         token = capture_suspended.set(True)
         try:
             super().exec_module(module)

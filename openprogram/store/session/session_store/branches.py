@@ -271,6 +271,8 @@ class BranchesOperations:
         def _conversation_node(child: shared.Call) -> bool:
             """Whether a node participates in the predecessor conversation."""
             md = child.metadata or {}
+            if md.get("structural"):
+                return False
             if md.get("display") in ("root", "runtime"):
                 return False
             if md.get("function") == "attach":
@@ -494,4 +496,3 @@ class BranchesOperations:
             idx.set_head(root_pred)
         self._persist_meta(git, idx)
         return len(to_delete)
-

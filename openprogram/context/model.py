@@ -106,7 +106,17 @@ class Context(MutableMapping[str, Any]):
                     stack.callback(_forced_predecessor.reset, token)
             token = _current.set(self)
             stack.callback(_current.reset, token)
-            yield self
+            try:
+                yield self
+            except GeneratorExit:
+                # An abandoned producer's generator may be collected in a
+                # different Context. Those tokens cannot reset that Context;
+                # close all callbacks without an unraisable GC exception.
+                try:
+                    stack.close()
+                except ValueError:
+                    pass
+                raise
 
     def __getitem__(self, name: str) -> Any:
         if name in self._providers:

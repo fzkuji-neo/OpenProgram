@@ -66,9 +66,9 @@ class Agent:
 
     def _effective_context(self, override=_UNSET):
         ambient = Context.current()
-        result = self.context.derive() if self.context is not None and override is not None else Context()
-        if ambient is not None:
-            result = result.merge(ambient)
+        result = ambient.derive() if ambient is not None else Context()
+        if self.context is not None and override is not None:
+            result = result.merge(self.context)
         if override is not _UNSET and override is not None:
             if not isinstance(override, Context):
                 raise TypeError("Agent context must be a Context or None.")

@@ -12,6 +12,24 @@ from tests.component.security.test_gui_browser_resources import pages
 pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="strict macOS sandbox")
 
 
+@pytest.fixture(autouse=True)
+def browser_owner_request(owned):
+    """The public GUI call has an explicitly authorized human caller."""
+    from openprogram.agent.authority import owner_authority
+    from openprogram.agent.dispatcher import TurnRequest
+    from openprogram.agent.turn_request_context import set_turn_request, reset_turn_request
+
+    token = set_turn_request(TurnRequest(
+        session_id="session", user_text="Run the browser task", agent_id="main",
+        source="python", permission_mode="bypass",
+        **owner_authority("owner/install/0123456789abcdef"),
+    ))
+    try:
+        yield
+    finally:
+        reset_turn_request(token)
+
+
 def runtime_for_browser(*, stale=False, value="after", denied=False):
     from openprogram.agentic_programming.runtime import Runtime
     from openprogram.providers.types import (
@@ -38,6 +56,8 @@ def runtime_for_browser(*, stale=False, value="after", denied=False):
     async def provider(model, context, options):
         seen.append(context)
         if len(seen) == 1:
+            if not denied:
+                assert any(tool.name == "gui_exec" for tool in (context.tools or [])), context.tools
             text = "\n".join(
                 getattr(block, "text", "")
                 for message in context.messages
@@ -404,3 +424,19 @@ def test_cleanup_cannot_return_late_success(owned, pages, monkeypatch, late):
         _current_cancel.reset(token)
         runtime.close()
     assert not pages[0]._sessions and not pages[0]._page_leases
+
+
+def test_standalone_default_ask_does_not_expose_gui_effects(owned, pages, monkeypatch):
+    from openprogram.agent.turn_request_context import set_turn_request, reset_turn_request
+    wrapped = install(owned, pages, monkeypatch)
+    runtime, seen = runtime_for_browser(denied=True)
+    token = set_turn_request(None)
+    try:
+        result = wrapped(task="Enter after", surface="browser", max_steps=3, runtime=runtime)
+    finally:
+        reset_turn_request(token)
+        runtime.close()
+    assert result["status"] == "failed"
+    assert all(tool.name != "gui_exec" for tool in seen[0].tools)
+    assert pages[2]["text"] == "before"
+    assert owned.effects.list_unresolved("exec") == []

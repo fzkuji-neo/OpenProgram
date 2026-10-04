@@ -977,7 +977,7 @@ def test_owner_loss_pausing_without_checkpoint_rejects_pause(tmp_path) -> None:
     assert reconciling.command.status is CommandStatus.APPLYING
 
 
-def test_owner_loss_cancelling_finishes_or_requires_reconciliation(tmp_path) -> None:
+def test_owner_loss_cancelling_finishes_and_preserves_unknown_effects(tmp_path) -> None:
     executions, attempts, execution, attempt = _execution(tmp_path, active=True)
     service = RuntimeControlService(executions, attempts, DriverRegistry())
     asyncio.run(
@@ -1023,9 +1023,11 @@ def test_owner_loss_cancelling_finishes_or_requires_reconciliation(tmp_path) -> 
 
     reconciling = service.recover_owner_loss(execution.execution_id)
 
-    assert reconciling.execution.status is ExecutionStatus.RECONCILIATION_REQUIRED
+    assert reconciling.execution.status is ExecutionStatus.CANCELLED
     assert reconciling.command is not None
-    assert reconciling.command.status is CommandStatus.APPLYING
+    assert reconciling.command.status is CommandStatus.APPLIED
+    assert effects.get(effect.effect_id).status is EffectStatus.DISPATCHED
+    assert effects.list_unresolved(execution.execution_id)
 
     repeated = service.recover_owner_loss(execution.execution_id)
     assert repeated.execution == reconciling.execution
@@ -1273,3 +1275,21 @@ def test_cancel_completion_races_terminal_reconciliation(tmp_path, outcome):
         with pytest.raises(CommandConflict):
             asyncio.run(cancel)
     assert executions.get_command("cancel_race") == persisted[0]
+
+
+def test_cancel_escalation_notifies_terminal_observer_once(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    store, attempts, execution, attempt = _execution(tmp_path, active=True)
+    service = RuntimeControlService(store, attempts, DriverRegistry())
+    observed = []
+    service.set_terminal_observer(lambda record: observed.append(record.execution_id))
+    asyncio.run(service.request_cancel(command_id="cancel-escalated",
+        execution_id=execution.execution_id, expected_version=execution.status_version,
+        actor={"surface": "test"}, reason_code="cancel.user"))
+    async def terminate(**kwargs):
+        return SimpleNamespace(terminated=True)
+    monkeypatch.setattr(service, "terminate_attempt", terminate)
+    service._escalate_cancel("cancel-escalated", execution.execution_id,
+                            attempt.attempt_id, attempt.generation, "cancel.user")
+    assert observed == [execution.execution_id]
+    assert store.get_execution(execution.execution_id).status is ExecutionStatus.CANCELLED

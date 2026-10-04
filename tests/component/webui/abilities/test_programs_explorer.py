@@ -329,7 +329,7 @@ def test_programs_logic_resolves_relative_workflow_imports(
     root = tmp_path / "openprogram" / "programs"
     _write(
         root / "workflow" / "research_pipeline" / "workflow.py",
-        "from ..literature_review import run\n"
+        "from ..literature_review import literature_review as run\n"
         "\n"
         "def research_pipeline(task: str):\n"
         "    return run()\n",
@@ -491,6 +491,7 @@ def test_owned_weekly_folder_exposes_five_callable_children(tmp_path, monkeypatc
             namespace,
         )
         registered[name] = types.SimpleNamespace(
+            name=name,
             _is_agent_method=True,
             _python_callable=namespace[name],
             _source_module=namespace["__name__"],

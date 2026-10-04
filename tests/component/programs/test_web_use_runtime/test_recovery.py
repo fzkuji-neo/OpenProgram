@@ -108,7 +108,7 @@ def test_existing_changed_page_is_observed_without_opening_duplicate(monkeypatch
     monkeypatch.setattr(web_use_runtime, "get_registry", Registry)
     monkeypatch.setattr(surface_context, "current", lambda: {"context_id": "owner"})
     monkeypatch.setattr(
-        surface_context, "capture_pages", lambda: {"context_id": "inventory"}
+        surface_context, "capture_pages", lambda current: {"context_id": "inventory"}
     )
     monkeypatch.setattr(
         surface_context, "open_page", lambda _: pytest.fail("must not open duplicate")
@@ -150,7 +150,7 @@ def test_page_recovery_releases_unconsumed_capability_on_failure(monkeypatch):
     monkeypatch.setattr(web_use_runtime, "get_registry", Registry)
     monkeypatch.setattr(surface_context, "current", lambda: {"context_id": "owner"})
     monkeypatch.setattr(
-        surface_context, "capture_pages", lambda: {"context_id": "inventory"}
+        surface_context, "capture_pages", lambda current: {"context_id": "inventory"}
     )
     result = browser._recover_web_use_page(
         {
@@ -183,7 +183,7 @@ def test_closed_page_reopens_in_original_window(monkeypatch):
     monkeypatch.setattr(
         surface_context,
         "capture_pages",
-        lambda: {
+        lambda current: {
             "context_id": "inventory",
             "windows": [{"window_id": "win"}, {"window_id": "other"}],
         },
@@ -225,7 +225,7 @@ def test_recovery_cancelled_during_inventory_does_not_open_page(monkeypatch):
         if cancelled:
             raise CancelledError("stopped")
 
-    def inventory():
+    def inventory(current):
         nonlocal cancelled
         cancelled = True
         return {"context_id": "inventory"}

@@ -391,7 +391,8 @@ class SessionStore(IndexOperations, StorageOperations, SessionsOperations, Messa
             stack: list[tuple[str, int]] = [(root, 0)]
             while stack:
                 cur, depth = stack.pop()
-                kids = children.get(cur, [])
+                kids = [child_id for child_id in children.get(cur, [])
+                        if not (idx.nodes_by_id[child_id].metadata or {}).get("structural")]
                 if not kids:
                     if depth > deepest_depth:
                         deepest_depth = depth
@@ -425,4 +426,3 @@ class SessionStore(IndexOperations, StorageOperations, SessionsOperations, Messa
             # retry in that case instead of forgetting unsaved registry data.
             if not self._index_dirty:
                 shared.atexit.unregister(self._flush_index)
-

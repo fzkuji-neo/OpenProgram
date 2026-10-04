@@ -773,6 +773,7 @@ class SafePointsOperations:
         if execution.status in TERMINAL_EXECUTION_STATUSES:
             from openprogram.programs.workflow.goal.chat import after_terminal
             after_terminal(self.executions, execution)
+            self._observe_terminal(execution)
         return AttemptCompletion(
             execution=execution,
             attempt=ended,

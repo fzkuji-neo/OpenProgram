@@ -105,13 +105,11 @@ class CancellationOperations:
             ))
             if not receipt.terminated:
                 return
-            recovery = self.recover_owner_loss(
+            self.recover_owner_loss(
                 execution_id,
                 attempt_id=attempt_id,
                 generation=generation,
             )
-            if recovery.execution.status in TERMINAL_EXECUTION_STATUSES:
-                self._observe_terminal(recovery.execution)
         except Exception:
             _log.exception("cancel escalation failed for %s", execution_id)
 
@@ -387,4 +385,3 @@ class CancellationOperations:
                 )
                 self._schedule_cancel_escalation(command, execution)
             return dispatch
-

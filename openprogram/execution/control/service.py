@@ -110,12 +110,15 @@ class RuntimeControlService(AgentSafePointOperations, WaitsOperations, Cancellat
         if execution.status not in TERMINAL_EXECUTION_STATUSES:
             return
         observer = self._terminal_observer
-        if observer is not None:
-            # The observer persists a retryable projection intent before it
-            # returns when the JobStore is unavailable.  Any failure to
-            # persist that intent is therefore visible to the caller rather
-            # than silently losing the release obligation.
-            observer(execution)
+        try:
+            if execution.status is ExecutionStatus.CANCELLED:
+                from ..projections import ExecutionProjectionReadModel
+                ExecutionProjectionReadModel(self.executions).project_cancelled_assistant(execution)
+        finally:
+            if observer is not None:
+                # Resource-release observers must run even if the chat
+                # projection fails. Its durable outbox keeps the retry.
+                observer(execution)
 
 
     def _observe_paused(self, execution: ExecutionRecord) -> None:
@@ -348,4 +351,3 @@ class RuntimeControlService(AgentSafePointOperations, WaitsOperations, Cancellat
             delivered=True,
             ack=ack,
         )
-

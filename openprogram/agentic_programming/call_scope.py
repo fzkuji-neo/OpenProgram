@@ -57,7 +57,8 @@ class CallScope:
         if parent is None:
             parent = Context()
         excluded = set(parent.excluded_call_ids)
-        from openprogram.store import _store, SessionNodeWriter
+        from openprogram.store import _store
+        from openprogram.store.session.session_node_writer import SessionNodeWriter
         writer = _store.get()
         task_id = execution_task_id()
         if isinstance(writer, SessionNodeWriter):
@@ -72,7 +73,7 @@ class CallScope:
                 pending_id=self.id, function_name=self.function_name,
                 arguments=self.arguments if self.capture_io else {}, expose=self.expose,
                 render_range=self.render_range, started_at=self.started_at,
-                docstring=self.docstring)
+                docstring=self.docstring, structural=not self.capture_io)
             if isinstance(writer, SessionNodeWriter) and self.expose != 'hidden':
                 writer.update(self.id, metadata={'task_id': task_id})
             if occurrence or tool_id:
@@ -114,16 +115,18 @@ class CallScope:
 
 
 def managed_function(fn, *, context_factory=None, name=None, expose="full",
-                     render_range=None, capture_io=False, input=None):
+                     render_range=None, capture_io=False, input=None, entry_owned=True):
     """Bind a structural call scope before a synchronous or async body runs.
 
     Generators remain unwrapped because creation does not execute their body.
     ``context_factory`` receives the invocation's positional and keyword values.
+    Ambient-only helpers record under an active call without creating an entry.
     """
     if isinstance(fn, (staticmethod, classmethod)):
         return type(fn)(managed_function(fn.__func__, context_factory=context_factory, name=name,
                                                expose=expose, render_range=render_range,
-                                               capture_io=capture_io, input=input))
+                                               capture_io=capture_io, input=input,
+                                               entry_owned=entry_owned))
     if (not inspect.isfunction(fn) or inspect.isgeneratorfunction(fn)
             or inspect.isasyncgenfunction(fn)
             or any(getattr(fn, marker, False) for marker in
@@ -132,6 +135,15 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
     label = name or f'{fn.__module__}.{fn.__qualname__}'
 
     sig = inspect.signature(fn)
+
+    def capture_enabled():
+        if capture_suspended.get():
+            return False
+        if entry_owned:
+            return True
+        from openprogram.store import _store
+        from .call_state import current_call_id
+        return _store.get() is not None and bool(current_call_id())
 
     def scope(args, kwargs, context):
         arguments = {}
@@ -169,7 +181,7 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
     if inspect.iscoroutinefunction(fn):
         @functools.wraps(fn)
         async def wrapper(*args, **kwargs):
-            if capture_suspended.get():
+            if not capture_enabled():
                 return await fn(*args, **kwargs)
             from .runtime_scope import execution_scope
             from .call_state import _run_pre_invocation_hooks
@@ -180,7 +192,7 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
     else:
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
-            if capture_suspended.get():
+            if not capture_enabled():
                 return fn(*args, **kwargs)
             from .runtime_scope import execution_scope
             from .call_state import _run_pre_invocation_hooks
