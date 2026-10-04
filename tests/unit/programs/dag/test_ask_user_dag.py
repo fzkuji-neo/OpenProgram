@@ -129,7 +129,7 @@ def test_ask_user_caller_empty_when_top_level(store):
         methods.append(method)
         current = method.caller
     assert current == ''
-    assert any(method.name.rsplit('.', 1)[-1] == 'ask_user' for method in methods)
+    assert methods == []
 
 
 # Status transitions

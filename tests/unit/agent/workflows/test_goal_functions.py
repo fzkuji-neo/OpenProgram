@@ -167,6 +167,7 @@ def test_goal_decision_turn_failure_propagates(monkeypatch, stub_view) -> None:
 
 
 def test_run_decision_turn_passes_judge_model(monkeypatch) -> None:
+    from openprogram.agentic_programming.call_state import _current_runtime
     captured = {}
 
     def fake_agent(**kwargs):
@@ -179,17 +180,21 @@ def test_run_decision_turn_passes_judge_model(monkeypatch) -> None:
         "openprogram.setup._read_config",
         lambda: {"goal": {"judge_model": "cheap/model"}},
     )
-    assert GJ._run_decision_turn(
-        "s1", "p", agent_id="main", spawn_caller="a1") == "ok"
-    assert captured["model"] == "cheap/model"
+    token = _current_runtime.set(SimpleNamespace(last_blocks=[]))
+    try:
+        assert GJ._run_decision_turn(
+            "s1", "p", agent_id="main", spawn_caller="a1") == "ok"
+        assert captured["model"] == "cheap/model"
 
-    captured.clear()
-    monkeypatch.setattr(
-        "openprogram.setup._read_config",
-        lambda: {"goal": {"judge_model": ""}},
-    )
-    GJ._run_decision_turn("s1", "p", agent_id="main", spawn_caller="a1")
-    assert captured.get("model") in (None, "")
+        captured.clear()
+        monkeypatch.setattr(
+            "openprogram.setup._read_config",
+            lambda: {"goal": {"judge_model": ""}},
+        )
+        GJ._run_decision_turn("s1", "p", agent_id="main", spawn_caller="a1")
+        assert captured.get("model") in (None, "")
+    finally:
+        _current_runtime.reset(token)
 
 
 def test_headless_decision_uses_an_independent_read_only_turn(monkeypatch) -> None:
