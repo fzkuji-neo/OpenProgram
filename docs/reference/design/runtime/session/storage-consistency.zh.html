@@ -65,7 +65,10 @@
     <tr><td>并发注册表访问</td><td>并发 update/list/flush</td><td>无迭代异常，JSON 始终可解析，最终内存与磁盘一致。</td></tr>
   </tbody></table></div>
 
-  <h2>Windows 会话目录删除</h2><p>显式删除会话、过期会话清理和容量清理共用平台删除适配器。普通 Git 对象因 Windows 只读属性导致删除失败时，清除该属性并仅重试该次删除一次。其他权限失败保持调用方原有的尽力处理行为；不修改 ACL，也不跟随链接改变目标权限。缺失历史的清理条件和归档保留规则保持不变。</p><p>验收通过公开 SessionStore reopen 和 delete_session 入口使用只读 Git 对象。原生 Windows 单元回归检查目录确实消失，而非仅从索引移除。实现遵循标准 <a href="https://docs.python.org/3/library/shutil.html#rmtree-example">shutil 只读文件删除示例</a>，使用兼容 Python 3.11 的错误回调与只读属性检查。</p><p>适配器和公开回归已通过独立规格与质量审查。原生验收由 Windows 单元 CI 执行，本地模拟不能替代。</p><h2>Merged heads 原子更新</h2>
+  <h2 id="cache-snapshot">缓存快照更新</h2>
+<p>缓存重建和首次加载在读取历史与元数据之前获取磁盘指纹，重建后的索引只记录这个已获取的指纹。读取期间的原子替换会改变磁盘指纹，下一次公共读取因此再次重建。旧快照不得使用较新的磁盘指纹标记为已同步。动态 DAG 上下文和终止状态沿用现有存储与锁。</p>
+<p>验收使用两个真实 SessionStore 实例：读取旧快照之后、标记同步之前完成历史或元数据写入；随后 get_nodes 或 get_session 能看到新值。覆盖已有缓存和首次加载，取消重试保留原有时限并读取真实取消状态。</p>
+<h2>Windows 会话目录删除</h2><p>显式删除会话、过期会话清理和容量清理共用平台删除适配器。普通 Git 对象因 Windows 只读属性导致删除失败时，清除该属性并仅重试该次删除一次。其他权限失败保持调用方原有的尽力处理行为；不修改 ACL，也不跟随链接改变目标权限。缺失历史的清理条件和归档保留规则保持不变。</p><p>验收通过公开 SessionStore reopen 和 delete_session 入口使用只读 Git 对象。原生 Windows 单元回归检查目录确实消失，而非仅从索引移除。实现遵循标准 <a href="https://docs.python.org/3/library/shutil.html#rmtree-example">shutil 只读文件删除示例</a>，使用兼容 Python 3.11 的错误回调与只读属性检查。</p><p>适配器和公开回归已通过独立规格与质量审查。原生验收由 Windows 单元 CI 执行，本地模拟不能替代。</p><h2>Merged heads 原子更新</h2>
 <p><code>mark_merged(session_id, head_ids)</code> 是集合并集操作。并发 merge 可以来自子 agent 完成、task runner 和 Web 分支操作；两个调用必须保留双方写入，不能由后写者覆盖先写者。</p>
 <h3>状态合同</h3><table><thead><tr><th>属性</th><th>要求</th></tr></thead><tbody><tr><td>原子性</td><td>读取现有列表、去重追加、写回 <code>idx.meta</code> 在同一个 <code>idx._lock</code> 临界区完成。</td></tr><tr><td>顺序</td><td>保留既有顺序；每个调用按输入顺序追加此前不存在的非空、strip 后 ID。</td></tr><tr><td>幂等</td><td>重复 ID 不产生重复项；没有新增值时不写磁盘。</td></tr><tr><td>持久化</td><td>锁内只更新内存；<code>_persist_meta</code> 在锁外执行，避免文件 I/O 持有 index 状态锁。并发调用最终至少有一个持久化快照包含完整并集。</td></tr></tbody></table>
 <div class="note">本节约束 <code>mark_merged</code> 的 read-modify-write。它不扩展为通用 transaction API，不修改 branch naming、DAG 节点删除或 session index flush 协议。</div>

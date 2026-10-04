@@ -195,6 +195,9 @@ class StorageOperations:
                         # later step that re-opens (e.g. commit_turn) would
                         # persist the rebuilt object's stale head over their
                         # in-memory update.
+                        # A foreign atomic write can finish during this load.
+                        # Keep the pre-read stamp so the next read detects it.
+                        fingerprint = git.stat_fingerprint()
                         disk_meta = git.read_meta()
                         disk_hist = git.list_history()
                         # A concurrent reader can land here between
@@ -215,7 +218,7 @@ class StorageOperations:
                                 shared._node_conv_predecessor,
                                 shared._node_caller,
                             )
-                            git.mark_synced()
+                            git.mark_synced(fingerprint)
                 # A cached session may be the callback target of an active
                 # CheckpointStore transaction (its get_head/CAS callbacks
                 # re-enter SessionStore while the intent lock is held).  The
@@ -228,13 +231,14 @@ class StorageOperations:
             git = verified_git or shared.GitSession(sdir)
             idx = shared.SessionMemoryIndex()
             if git.exists():
+                fingerprint = git.stat_fingerprint()
                 idx.rebuild_from_paths(
                     git.list_history(),
                     git.read_meta(),
                     shared._node_conv_predecessor,
                     shared._node_caller,
                 )
-                git.mark_synced()
+                git.mark_synced(fingerprint)
             with self._lock:
                 # New key lands at the MRU (end) of the OrderedDict.
                 self._sessions[session_id] = (git, idx)
@@ -321,4 +325,3 @@ class StorageOperations:
                     meta["head_id"] = idx.head_id
                 git.write_meta(meta)
             return git.commit_all(message)
-
