@@ -563,6 +563,13 @@
   white-space: nowrap;
 }
 
+/* At narrow app widths the main sidebar is position:fixed. Reserve its
+   collapsed 49px rail so page chrome is never covered (same rule as the
+   Settings frame); an expanded sidebar stays a temporary overlay. */
+@media (max-width: 900px) {
+  .view { padding-left: 49px; }
+}
+
 @media (max-width: 760px) {
   .topbar {
     height: auto;
@@ -579,6 +586,7 @@
     overflow-x: auto;
     scrollbar-width: thin;
   }
+  .tabs .tabIcon { display: none; }
   .toolbar {
     order: 3;
     width: 100%;

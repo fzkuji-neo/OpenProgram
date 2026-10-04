@@ -176,3 +176,29 @@
   width: 14px;
   flex-shrink: 0;
 }
+
+/* Narrow widths: stack the project list above the detail (as Memory does)
+   instead of squeezing the detail beside a 287px rail. Scoped to Projects;
+   the Functions page shares the base grid classes. */
+@media (max-width: 760px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .rail {
+    position: static;
+    max-height: 30vh;
+    overflow-y: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .content {
+    padding: 14px 16px 16px;
+  }
+  .tabs {
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 0 16px;
+    overflow-x: auto;
+  }
+}

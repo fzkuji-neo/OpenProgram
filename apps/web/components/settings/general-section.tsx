@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   desktopBridge,
   type DesktopBridge,
@@ -291,7 +292,13 @@ function ApplicationSection() {
   const { t, text } = useTranslation();
   const [updateState, setUpdateState] = useState<DesktopUpdateState | null>(null);
   const [hostVersion, setHostVersion] = useState("unknown");
-  const [installType, setInstallType] = useState("unknown");
+  const [rawInstallType, setInstallType] = useState("unknown");
+  // The backend reports an enum (openprogram/updater/detect.py); show words.
+  const installType = rawInstallType === "source_checkout"
+    ? text("Source checkout", "源码检出")
+    : rawInstallType === "managed_release"
+      ? text("Managed release", "托管发行版")
+      : text("Unknown", "未知");
   const [bridge, setBridge] = useState<DesktopBridge | null>(null);
   const [updateActionError, setUpdateActionError] = useState<string | null>(null);
 
@@ -380,11 +387,10 @@ function ApplicationSection() {
                 {text("Automatically check for updates", "自动检查更新")}
               </label>
               <div className={styles.control}>
-                <input
+                <Switch
                   id="automatic-update-checks"
-                  type="checkbox"
                   checked={updateState?.automaticChecks ?? true}
-                  onChange={(event) => { void runUpdateAction(() => bridge.updates.setAutomaticChecks(event.target.checked)); }}
+                  onCheckedChange={(checked) => { void runUpdateAction(() => bridge.updates.setAutomaticChecks(checked)); }}
                 />
               </div>
             </div>
@@ -704,10 +710,9 @@ export function GeneralSection() {
               <div className={styles.control}>
                 <div className={styles.customCssToolbar}>
                   <label className={styles.customCssEnable}>
-                    <input
-                      type="checkbox"
+                    <Switch
                       checked={customCssEnabled}
-                      onChange={(e) => setCustomCssEnabled(e.target.checked)}
+                      onCheckedChange={setCustomCssEnabled}
                     />
                     {text("Enable custom CSS", "启用自定义 CSS")}
                   </label>

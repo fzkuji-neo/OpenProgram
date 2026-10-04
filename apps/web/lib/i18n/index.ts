@@ -104,6 +104,7 @@ const DICT = {
   "settings.tab.permissions": { en: "Permissions", zh: "权限" },
   "settings.tab.general": { en: "General", zh: "通用" },
   "settings.tab.system": { en: "System", zh: "系统" },
+  "settings.tab.browser": { en: "Browser", zh: "浏览器" },
 
   // Token usage page
   "usage.desc": {

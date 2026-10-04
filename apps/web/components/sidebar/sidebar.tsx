@@ -30,6 +30,7 @@ import {
   PanelLeftOpenIcon,
   PlusIcon,
 } from "../animated-icons";
+import { usePathname } from "next/navigation";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import { activateOnKey } from "@/lib/utils";
@@ -48,10 +49,22 @@ import { runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { useResizableRail } from "../layout/use-resizable-rail";
 
+// At or below this width the expanded sidebar is a fixed overlay over the
+// page (base.css), so it starts collapsed and closes after navigation.
+const NARROW_QUERY = "(max-width: 900px)";
+
+function isNarrowViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.(NARROW_QUERY).matches === true;
+}
+
 function readPersistedSidebarOpen(): boolean {
   if (typeof window === "undefined") return true;
   try {
-    return localStorage.getItem("sidebarOpen") !== "0";
+    const stored = localStorage.getItem("sidebarOpen");
+    // No stored choice yet: open on wide screens, collapsed when the
+    // expanded sidebar would only cover the page.
+    if (stored === null) return !isNarrowViewport();
+    return stored !== "0";
   } catch {
     return true;
   }
@@ -104,6 +117,19 @@ export const Sidebar = memo(function Sidebar() {
     }
   }, [open]);
 
+  // On narrow screens the expanded sidebar overlays the page; dismiss it
+  // once the user navigates. Not persisted, so the stored choice stands.
+  const pathname = usePathname();
+  const lastPathname = useRef(pathname);
+  useEffect(() => {
+    if (lastPathname.current === pathname) return;
+    lastPathname.current = pathname;
+    if (isNarrowViewport()) {
+      setOpen(false);
+      runtimeState.sidebarOpen = false;
+    }
+  }, [pathname]);
+
   function toggleSidebar() {
     setOpen((prev) => {
       const next = !prev;
@@ -141,6 +167,12 @@ export const Sidebar = memo(function Sidebar() {
       draftId = s.openDraftSessionTab();
     }
     newSession(draftId);
+    // Same route (/chat), so the pathname effect below does not fire;
+    // dismiss the narrow-screen overlay here too.
+    if (isNarrowViewport()) {
+      setOpen(false);
+      runtimeState.sidebarOpen = false;
+    }
     return draftId;
   }, []);
 

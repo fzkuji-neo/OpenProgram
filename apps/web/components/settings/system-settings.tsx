@@ -18,7 +18,7 @@ interface Row {
   key: string;
   group: string;
   label: string;
-  widget: "number" | "toggle" | "enum" | "status" | "text";
+  widget: "number" | "toggle" | "enum" | "status" | "text" | "json";
   apply: "live" | "next_start";
   help?: string;
   value?: unknown;
@@ -64,7 +64,9 @@ export function SystemSettings() {
       return;
     }
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, value: res.value } : r)));
-    const when = res.applied === "next_start" ? "takes effect next start" : "saved";
+    const when = res.applied === "next_start"
+      ? text("Saved · takes effect on next start", "已保存 · 下次启动后生效")
+      : text("Saved", "已保存");
     setStatus((s) => ({ ...s, [key]: `✓ ${when}${res.note ? ` · ${res.note}` : ""}` }));
   }
 
@@ -73,10 +75,27 @@ export function SystemSettings() {
     if (!groups.includes(r.group)) groups.push(r.group);
   });
 
+  // The header stays put while rows load, like the Memory page, so the
+  // title does not pop in after the body.
+  const pageHeader = (
+    <div className={styles.pageHeader}>
+      <h2 className={styles.pageTitle}>{t("settings.tab.system")}</h2>
+      <p className={styles.pageMeta}>
+        {text(
+          "Settings with no dedicated page. Some take effect on the next start.",
+          "没有独立页面的设置。部分项会在下次启动后生效。",
+        )}
+      </p>
+    </div>
+  );
+
   if (!loaded) {
     return (
       <div className={styles.page}>
-        <div style={{ padding: 24, color: "var(--text-muted)" }}>{text("Loading…", "加载中…")}</div>
+        {pageHeader}
+        <div className={styles.pageBody}>
+          <div className={styles.rowHelp}>{text("Loading…", "加载中…")}</div>
+        </div>
       </div>
     );
   }
@@ -85,15 +104,7 @@ export function SystemSettings() {
   // <section> per group with its .sectionTitle + a .card wrapping the rows.
   return (
     <div className={styles.page}>
-      <div className={styles.pageHeader}>
-        <h2 className={styles.pageTitle}>{t("settings.tab.system")}</h2>
-        <p className={styles.pageMeta}>
-          {text(
-            "Settings with no dedicated page. Some take effect on the next start.",
-            "没有独立页面的设置。部分项会在下次启动后生效。",
-          )}
-        </p>
-      </div>
+      {pageHeader}
       <div className={styles.pageBody}>
         <SystemAccess />
         {groups.map((g) => (
@@ -109,23 +120,15 @@ export function SystemSettings() {
                       <div className={styles.label}>
                         <div>{r.label}</div>
                         {r.help ? (
-                          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>
-                            {r.help}
-                          </div>
+                          <div className={styles.rowHelp}>{r.help}</div>
                         ) : null}
                         {st ? (
-                          <div
-                            style={{
-                              fontSize: 12,
-                              marginTop: 3,
-                              color: st.startsWith("✗") ? "#ef4444" : "#10b981",
-                            }}
-                          >
+                          <div className={st.startsWith("✗") ? styles.rowStatusError : styles.rowStatusOk}>
                             {st}
                           </div>
                         ) : r.apply === "next_start" ? (
-                          <div style={{ fontSize: 12, marginTop: 3, color: "var(--text-muted)" }}>
-                            takes effect next start
+                          <div className={styles.rowStatus}>
+                            {text("Takes effect on next start", "下次启动后生效")}
                           </div>
                         ) : null}
                       </div>
@@ -144,11 +147,12 @@ export function SystemSettings() {
 }
 
 function Control({ row, onSave }: { row: Row; onSave: (k: string, v: unknown) => void }) {
+  const { text } = useTranslation();
   if (row.widget === "status") {
     const ok = !!row.value;
     return (
-      <span style={{ fontSize: 13, color: ok ? "#10b981" : "var(--text-muted)" }}>
-        {ok ? "✓ configured" : "✗ not configured"}
+      <span className={ok ? styles.rowStatusOk : styles.rowStatus}>
+        {ok ? `✓ ${text("Configured", "已配置")}` : `✗ ${text("Not configured", "未配置")}`}
       </span>
     );
   }
@@ -175,17 +179,24 @@ function Control({ row, onSave }: { row: Row; onSave: (k: string, v: unknown) =>
       </select>
     );
   }
-  // Plain text + numeric input mode — a port number is typed, not nudged
-  // one at a time, so no <input type="number"> spinner arrows. The backend
-  // validates the range and reports out-of-range inline.
+  // Plain text input — a port number is typed, not nudged one at a time,
+  // so no <input type="number"> spinner arrows; numbers get the numeric
+  // keyboard. Text and JSON values (bind address, allowed origins) get a
+  // wider, left-aligned field. The backend validates and reports inline.
+  const isNumber = row.widget === "number";
+  const initial = typeof row.value === "object" && row.value !== null
+    ? JSON.stringify(row.value)
+    : String(row.value ?? "");
   return (
     <input
       type="text"
-      inputMode="numeric"
-      defaultValue={String(row.value ?? "")}
+      inputMode={isNumber ? "numeric" : undefined}
+      spellCheck={false}
+      data-kind={isNumber ? "number" : "text"}
+      defaultValue={initial}
       className={styles.systemControl}
       onBlur={(e) => {
-        if (e.target.value !== String(row.value)) onSave(row.key, e.target.value);
+        if (e.target.value !== initial) onSave(row.key, e.target.value);
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();

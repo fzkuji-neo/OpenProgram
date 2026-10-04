@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import styles from "./settings-page.module.css";
+import { managePageStyles as shared } from "@/components/ui/manage-page";
 
 type Capability = {
   id: string;
@@ -139,7 +140,6 @@ export function SystemAccess() {
     <p className={styles.pageMeta}>{text("Capabilities are read from the execution host registry. Checking status never opens a prompt; use an action on a row to request or open settings.", "权限能力由执行主机的统一注册表提供。检查状态不会弹出授权窗口；只有点击具体行的操作才会申请授权或打开设置。")}</p>
     {!report && !error && <p role="status">{text("Checking…", "正在检查…")}</p>}
     {report && <>
-      <p className={styles.pageMeta}>{report.application ? `${report.application} · ` : ""}{report.host} · {report.platform}</p>
       {report.platform === "Darwin" && local && report.capabilities.some(row => row.status !== "granted" && row.request_mode === "native") &&
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           <Button variant="secondary" disabled={!!pending} onClick={() => void setupAll()}>
@@ -147,18 +147,21 @@ export function SystemAccess() {
           </Button>
         </div>}
       {groups.map(([group, rows]) => <div className={styles.card} key={group}>
-        <h4>{groupLabel(group, text)}</h4>
+        <h4 className={styles.accessGroupTitle}>{groupLabel(group, text)}</h4>
         {rows.map(row => {
           const status = labels[row.status] || row.status;
           const canSettings = (row.settings_available === undefined ? row.can_open_settings !== false : row.settings_available === true) && row.status !== "unsupported" && row.status !== "unavailable";
           const canRequest = row.can_request === true && row.status === "not_granted" && row.request_mode !== "settings";
           return <div className={`${styles.row} ${styles.rowTop}`} key={row.id}>
             <div className={styles.label}>
-              <div>{text(row.label || fallbackLabel(row.id, text), row.label_zh || fallbackLabel(row.id, text))} · {status}</div>
-              <p className={styles.pageMeta}>{row.detail || (row.status === "granted" ? text("The execution program has this access.", "当前执行程序已获得授权。") : row.status === "not_granted" ? text("This access has not been granted to the execution program.", "当前执行程序尚未获得这项系统授权。") : row.status === "unknown" ? text("The host cannot verify this access yet.", "当前主机尚不能确认这项权限。") : row.status === "unsupported" ? text("This capability is not supported by the current host.", "当前主机暂不支持这项能力。") : text("This capability is unavailable in the current environment.", "当前环境无法提供这项能力。"))}</p>
-              {row.instruction && row.status !== "granted" && <p className={styles.pageMeta}>{row.instruction}</p>}
-              {(row.required || row.required_for?.length) && <p className={styles.pageMeta}>{text("Used by: ", "使用于：")}{(row.required_for || []).join(", ")}</p>}
-              {row.operations?.length ? <p className={styles.pageMeta}>{text("Operations: ", "操作：")}{row.operations.join(", ")}</p> : null}
+              <div className={styles.accessRowTitle}>
+                {text(row.label || fallbackLabel(row.id, text), row.label_zh || fallbackLabel(row.id, text))}
+                <span className={`${shared.badge} ${row.status === "granted" ? shared.badgeGreen : row.status === "not_granted" ? shared.badgeYellow : ""}`}>{status}</span>
+              </div>
+              <p className={styles.rowHelp}>{row.detail || (row.status === "granted" ? text("The execution program has this access.", "当前执行程序已获得授权。") : row.status === "not_granted" ? text("This access has not been granted to the execution program.", "当前执行程序尚未获得这项系统授权。") : row.status === "unknown" ? text("The host cannot verify this access yet.", "当前主机尚不能确认这项权限。") : row.status === "unsupported" ? text("This capability is not supported by the current host.", "当前主机暂不支持这项能力。") : text("This capability is unavailable in the current environment.", "当前环境无法提供这项能力。"))}</p>
+              {row.instruction && row.status !== "granted" && <p className={styles.rowHelp}>{row.instruction}</p>}
+              {(row.required || row.required_for?.length) && <p className={styles.rowHelp}>{text("Used by: ", "使用于：")}{(row.required_for || []).join(", ")}</p>}
+              {row.operations?.length ? <p className={styles.rowHelp}>{text("Operations: ", "操作：")}{row.operations.join(", ")}</p> : null}
             </div>
             {report.platform === "Darwin" && local && row.status !== "granted" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {canRequest && <Button variant="secondary" disabled={!!pending} onClick={() => void request(row)}>{pending === row.id ? text("Requesting…", "正在申请…") : text("Request authorization", "请求授权")}</Button>}
@@ -167,7 +170,15 @@ export function SystemAccess() {
           </div>;
         })}
       </div>)}
-      <details><summary>{text("Execution process", "执行程序")}</summary><code>{report.executable}</code></details>
+      <div className={styles.card}>
+        <div className={`${styles.row} ${styles.rowTop}`}>
+          <div className={styles.label}>
+            <div>{text("Execution host", "执行主机")}</div>
+            <p className={styles.rowHelp}>{report.application ? `${report.application} · ` : ""}{report.host} · {report.platform}</p>
+            <details className={styles.accessDetails}><summary>{text("Execution process", "执行程序")}</summary><code>{report.executable}</code></details>
+          </div>
+        </div>
+      </div>
     </>}
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}</p>}
