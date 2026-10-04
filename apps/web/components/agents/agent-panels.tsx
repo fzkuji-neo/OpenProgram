@@ -20,7 +20,6 @@ export function OverviewPanel({ draft, update, text, catalog, dirty }: Props & {
       <label className={styles.fullField}>{text("Description", "描述")}<textarea className={styles.descriptionField} rows={2} value={draft.description} maxLength={2000} onChange={(event) => update({ description: event.target.value })} placeholder={text("When to use this Agent", "说明何时使用此 Agent")} /></label>
     </div>
     <div className={styles.modelFields}><ModelPicker draft={draft} update={update} text={text} catalog={catalog} announceEffortError={dirty} /></div>
-    <label className={styles.dialogField}>{text("System prompt", "系统指令")}<textarea className={styles.instructionsField} rows={10} maxLength={100000} value={draft.system_prompt} onChange={(event) => update({ system_prompt: event.target.value })} /><small>{text("Workspace instruction files are listed in Advanced.", "Workspace 指令文件在高级分区中查看。")}</small></label>
   </div>;
 }
 export function MemoryPanel({ draft, update, text }: Props) {
@@ -67,8 +66,9 @@ export function AdvancedPanel({ draft, update, text }: Props) {
     try { await navigator.clipboard.writeText(path); setCopied(path); }
     catch { setError(text("Unable to copy this path", "无法复制路径")); }
   }
-  return <><Intro title={text("Advanced", "高级")}>{text("Channel identity and this Agent's workspace files.", "频道身份与此 Agent 的 Workspace 文件。")}</Intro>
+  return <><Intro title={text("Advanced", "高级")}>{text("Channel identity, optional instructions and workspace files.", "频道身份、可选指令与 Workspace 文件。")}</Intro>
     <div className={styles.formGrid}><label>{text("Channel identity", "频道身份")}<input value={draft.identity.name} maxLength={80} onChange={(event) => update({ identity: { ...draft.identity, name: event.target.value } })} /></label><label>{text("Mention patterns", "提及规则")}<input value={draft.identity.mention_patterns.join(", ")} onChange={(event) => update({ identity: { ...draft.identity, mention_patterns: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) } })} /><small>{text("Comma-separated patterns.", "使用逗号分隔。")}</small></label></div>
+    <label className={styles.dialogField}>{text("System prompt", "系统指令")}<textarea className={styles.instructionsField} rows={6} maxLength={100000} value={draft.system_prompt} onChange={(event) => update({ system_prompt: event.target.value })} /><small>{text("Optional. Leave empty to use instructions from the call and Context.", "可选。留空时使用调用处与 Context 提供的指令。")}</small></label>
     <section className={styles.workspaceSection}><h4>{text("Workspace files", "Workspace 文件")}</h4><p className={styles.note}>{text("Files are managed in the Agent workspace. Their contents are not copied when duplicating an Agent.", "文件在 Agent Workspace 中管理。复制 Agent 时不复制文件内容。")}</p>{error ? <p role="alert" className={styles.inlineError}>{error} <button type="button" onClick={() => setAttempt((value) => value + 1)}>{text("Retry", "重试")}</button></p> : workspace ? <><p className={styles.workspacePath}>{workspace.path}</p>{workspace.files.map((file) => <div className={styles.workspaceFile} key={file.name}><span><FileTextIcon size={16} aria-hidden /></span><div><strong>{file.name}</strong><small>{file.exists ? file.path : text("Optional file not created", "可选文件尚未创建")}</small></div><AgentButton variant="ghost" icon={CopyIcon} aria-label={text(`Copy ${file.name} path`, `复制 ${file.name} 路径`)} onClick={() => void copy(file.path)}>{copied === file.path ? text("Copied", "已复制") : text("Copy path", "复制路径")}</AgentButton></div>)}</> : <p role="status">{text("Loading workspace…", "正在加载 Workspace…")}</p>}</section>
   </>;
 }

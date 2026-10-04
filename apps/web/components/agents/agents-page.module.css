@@ -23,7 +23,6 @@
 .createDialog{max-height:calc(100dvh - 40px);overflow-y:auto}
 
 .collectionCount{color:var(--text-muted);font-size:var(--fs-sm)}
-.agentSplit{grid-template-columns:236px minmax(0,1fr)}
 .agentNav{min-height:0;display:flex;flex-direction:column;gap:12px;padding:16px 10px;border-right:1px solid var(--border);background:var(--bg-primary)}
 .agentNav>.searchField{margin:0 2px;flex:none}
 .agentList{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:4px}
@@ -51,11 +50,11 @@
 .modelFields{gap:8px}
 .modelSelection{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:20px;align-items:start}
 .modelChoice{display:flex;flex-direction:column;gap:7px;min-width:0}
-.instructionsField{min-height:240px;resize:vertical;font-weight:400}
+.dialogField .instructionsField{margin-top:0;min-height:160px;resize:vertical;font-weight:400}
 .saveBar{flex:none;display:flex;align-items:center;gap:8px;padding:12px 24px;border-top:1px solid var(--border);background:var(--bg-primary);font-size:var(--fs-sm)}
 .saveBar>span{flex:1;color:var(--text-muted);line-height:1.5}
 .saveBar>button{flex:none}
 .saveBar>.inlineError{color:var(--destructive)}
 .creationFields{display:flex;flex-direction:column;gap:10px;min-width:0;margin:0;padding:0;border:0}
-@media(max-width:1100px){.agentSplit{grid-template-columns:208px minmax(0,1fr)}.agentPageHeader{flex-wrap:wrap;gap:8px 12px}.agentHeading{flex-basis:calc(100% - 84px)}.conversationActions{margin-left:48px}.agentPageHeader{position:relative;padding-right:48px}.moreMenu{position:absolute;right:16px;top:18px}.modeGrid{grid-template-columns:1fr}}
+@media(max-width:1100px){.agentPageHeader{flex-wrap:wrap;gap:8px 12px}.agentHeading{flex-basis:calc(100% - 84px)}.conversationActions{margin-left:48px}.agentPageHeader{position:relative;padding-right:48px}.moreMenu{position:absolute;right:16px;top:18px}.modeGrid{grid-template-columns:1fr}}
 @media(max-width:680px){.agentSplit{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}.agentNav{padding:10px 16px;border-right:0;border-bottom:1px solid var(--border)}.agentNav>.searchField,.agentList{display:none}.mobileAgentSelect{display:flex;align-items:center;gap:12px;font-size:var(--fs-base);color:var(--text-muted)}.mobileAgentSelect select{flex:1;min-width:0;height:var(--ui-button-h);padding:0 8px;border:1px solid var(--border);border-radius:var(--ui-button-radius);background:var(--bg-secondary);color:var(--text-primary);font-size:var(--fs-base)}.agentPageHeader{padding:14px 44px 14px 16px}.detailAvatar{width:28px;height:28px}.agentHeading{flex-basis:calc(100% - 42px)}.conversationActions{margin-left:0;gap:4px;flex-basis:100%}.conversationActions>button{padding:0 9px;font-size:var(--fs-sm)}.configTabsList{padding:0 16px;gap:20px}.editorBody{padding:20px 16px}.identityGrid,.formGrid,.modelSelection{grid-template-columns:1fr}.fullField{grid-column:auto}.modelSelection{gap:14px}.saveBar{padding:10px 12px;flex-wrap:wrap;justify-content:flex-end}.saveBar>span{flex-basis:100%}.scopeCard{align-items:flex-start;flex-direction:column}.catalogRow{grid-template-columns:minmax(0,1fr) auto}.catalogRow .requiredButton,.catalogRow .requiredActive{grid-column:1/-1;justify-self:start}.workspaceFile{grid-template-columns:22px minmax(0,1fr)}.workspaceFile button{grid-column:2;justify-self:start}.conflictLabels,.conflictValues{gap:8px}}

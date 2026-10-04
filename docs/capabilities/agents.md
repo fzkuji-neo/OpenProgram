@@ -6,13 +6,13 @@ Choose **New Agent**, enter a name and choose a model, then edit its configurati
 
 | Section | What it changes |
 | --- | --- |
-| General | Display name, description, provider, model, reasoning effort and system prompt |
+| General | Display name, description, provider, model and reasoning effort |
 | Programs | Automatic tool availability, selected programs or no programs |
 | Skills | Available skills and exclusions |
 | MCP | Allowed, excluded and required servers |
 | Memory | Off, read only or read and write; readable and writable spaces |
 | Context | Channel conversation isolation, idle reset and daily reset |
-| Advanced | Channel identity, mention patterns and workspace file paths |
+| Advanced | Channel identity, mention patterns, optional instructions and workspace file paths |
 
 Changes across sections share one draft. **Save** writes the complete configuration. Changing Agents or starting a destructive action offers Save, Discard or Cancel. Failed saves retain the draft. If another editor saved first, compare your draft with the latest version before choosing which to keep. Keeping your draft does not immediately overwrite the newer version; review it and save again.
 

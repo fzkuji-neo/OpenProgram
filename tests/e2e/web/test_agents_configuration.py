@@ -192,13 +192,16 @@ def _patches(page):
     return page.evaluate("window.httpCalls.filter(call=>call.method==='PATCH')")
 
 
-def test_general_edits_identity_model_and_prompt_together(agents_browser):
+@pytest.mark.parametrize('width', [1440, 1000])
+def test_general_edits_parameters_without_prompt_editor(agents_browser, width):
     from playwright.sync_api import expect
 
-    page = agents_browser(1440)
+    page = agents_browser(width)
+    shared_width = page.evaluate("parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'))")
+    assert abs(page.get_by_role('complementary', name='Agent list').bounding_box()['width'] - (shared_width - 1)) <= 1
     expect(page.get_by_role('textbox', name='Display name', exact=True)).to_be_visible()
     expect(page.get_by_label('Model', exact=True)).to_be_visible()
-    expect(page.get_by_role('textbox', name=re.compile('^System prompt'))).to_have_value('Saved system prompt')
+    expect(page.get_by_role('textbox', name=re.compile('^System prompt'))).to_have_count(0)
     expect(page.get_by_role('tablist', name='Agent configuration')).to_have_attribute('aria-orientation', 'horizontal')
     assert page.get_by_role('button', name='Edit Model', exact=True).count() == 0
     assert page.get_by_role('tablist', name='Agent configuration').bounding_box()['height'] < 60
@@ -208,6 +211,9 @@ def test_general_edits_identity_model_and_prompt_together(agents_browser):
     # standard page padding rather than leaving a fixed-width empty column.
     panel = page.get_by_role('tabpanel', name='General', exact=True)
     assert panel.evaluate('el=>Math.abs(el.parentElement.clientWidth-el.clientWidth)') <= 1
+    _tab(page, 'Advanced')
+    expect(page.get_by_role('textbox', name=re.compile('^System prompt'))).to_have_value('Saved system prompt')
+    assert page.get_by_role('textbox', name=re.compile('^System prompt')).evaluate('el=>getComputedStyle(el).minHeight') == '160px'
 
 
 @pytest.mark.parametrize('width', [1440, 390])
@@ -271,7 +277,7 @@ def test_agent_draft_spans_tabs_and_survives_save_failure(agents_browser):
     page.get_by_role('textbox', name='Description', exact=True).fill('Local description')
     _tab(page, 'Memory')
     page.get_by_role('radio', name=re.compile('^Off')).check()
-    _tab(page, 'General')
+    _tab(page, 'Advanced')
     prompt = page.get_by_role('textbox', name=re.compile('^System prompt'))
     prompt.fill('Draft instructions')
     _tab(page, 'General')
@@ -301,7 +307,7 @@ def test_agent_conflict_preserves_draft_until_explicit_choice(agents_browser):
     from playwright.sync_api import expect
 
     page = agents_browser()
-    _tab(page, 'General')
+    _tab(page, 'Advanced')
     prompt = page.get_by_role('textbox', name=re.compile('^System prompt'))
     prompt.fill('Local conflicting instructions')
     page.evaluate('window.conflict=true')
@@ -357,7 +363,7 @@ def test_agent_trial_uses_unsaved_readonly_snapshot_and_chat_uses_saved_id(agent
     page.get_by_role('button', name='New conversation', exact=True).click()
     page.wait_for_function('window.agentCalls.length===1')
     assert page.evaluate('window.agentCalls[0]') == {'agentId': 'general'}
-    _tab(page, 'General')
+    _tab(page, 'Advanced')
     prompt = page.get_by_role('textbox', name=re.compile('^System prompt'))
     prompt.fill('Unsaved trial instructions')
     page.get_by_role('button', name='Try in new conversation', exact=True).click()
@@ -543,7 +549,7 @@ def test_agent_draft_remount_preserves_edits_and_detects_server_revision(agents_
     from playwright.sync_api import expect
 
     page = agents_browser()
-    _tab(page, 'General')
+    _tab(page, 'Advanced')
     prompt = page.get_by_role('textbox', name=re.compile('^System prompt'))
     prompt.fill('Keep this draft while visiting another page')
     _tab(page, 'Memory')
@@ -555,7 +561,7 @@ def test_agent_draft_remount_preserves_edits_and_detects_server_revision(agents_
     page.evaluate('window.mountAgents()')
     expect(page.get_by_role('tab', name='Memory', exact=True)).to_have_attribute('aria-selected', 'true')
     expect(page.get_by_role('radio', name=re.compile('^Off'))).to_be_checked()
-    _tab(page, 'General')
+    _tab(page, 'Advanced')
     expect(prompt).to_have_value('Keep this draft while visiting another page')
     assert not _patches(page)
     page.evaluate('window.unmountAgents()')
@@ -697,7 +703,7 @@ def test_saved_specialists_and_plain_creation_without_templates(agents_browser, 
     page.screenshot(animations='disabled', path=str(tmp_path / 'agents-desktop-dark.png'))
     page.locator('html').evaluate("el=>el.dataset.theme='light'")
     page.screenshot(animations='disabled', path=str(tmp_path / 'agents-desktop.png'))
-    _tab(page, 'General')
+    _tab(page, 'Advanced')
     expect(page.get_by_role('textbox', name=re.compile('^System prompt'))).to_have_value('')
     page.get_by_role('button', name='New Agent', exact=True).click()
     dialog = page.get_by_role('dialog', name='New Agent', exact=True)
