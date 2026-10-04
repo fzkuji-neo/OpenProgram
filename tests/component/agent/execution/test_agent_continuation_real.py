@@ -1775,7 +1775,11 @@ def test_chat_function_continues_original_tool_call_with_selected_code(
             publish_pause=False,
             checkpoint_root=False,
         ):
-            result = latest["function"](str(tmp_path))
+            token = program_runtime._current_tool_call_id.set(call_id)
+            try:
+                result = latest["function"](str(tmp_path))
+            finally:
+                program_runtime._current_tool_call_id.reset(token)
         return AgentToolResult(content=[TextContent(text=result)])
 
     def factory(name):
@@ -1850,6 +1854,7 @@ def test_chat_function_continues_original_tool_call_with_selected_code(
     function_nodes = [
         node
         for node in real_agent_chat.sessions.get_nodes(real_agent_chat.session_id)
-        if node.is_code() and node.name in {"_version_a", "_version_b"}
+        if node.is_code() and node.name == "first" and (node.metadata or {}).get("structural")
     ]
     assert len(function_nodes) == 1
+    assert function_nodes[0].metadata["tool_call_id"] == "original-function-call"

@@ -152,7 +152,7 @@ class PageScopeProbeAgent(Agent):
             child_mode=req.permission_mode,
             inner_mode=inner.permission_mode,
             web_use_source=inspect.unwrap(browser.web_use).__code__.co_filename,
-            controller_source=BrowserPageController.execute.__code__.co_filename,
+            controller_source=inspect.unwrap(BrowserPageController.execute).__code__.co_filename,
         )
         result["source_identity"] = source_identity()
         return json.dumps(result)

@@ -920,7 +920,7 @@ def _called_import_modules(
                 source_module = _module_prefix(relative.as_posix())
                 package = (
                     source_module
-                    if path.is_dir()
+                    if path.is_dir() or path.name == "__init__.py"
                     else source_module.rpartition(".")[0]
                 )
                 module = importlib.util.resolve_name(

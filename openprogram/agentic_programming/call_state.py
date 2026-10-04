@@ -384,6 +384,7 @@ def _append_function_call_entry(
     render_range,
     started_at,
     docstring: str = "",
+    structural: bool = False,
 ) -> None:
     """Append a placeholder code Call at Agent method entry.
 
@@ -410,9 +411,10 @@ def _append_function_call_entry(
 
     parent_id = _call_id.get() or ""
     admission = nullcontext()
-    if parent_id:
+    session_id = getattr(store, "session_id", None)
+    if parent_id and session_id:
         from openprogram.agent.run_control import child_execution_admission
-        admission = child_execution_admission(store.session_id, parent_id, store=getattr(store, "store", None))
+        admission = child_execution_admission(session_id, parent_id, store=getattr(store, "store", None))
 
     with admission:
         node = create_pending_call_node(
@@ -427,6 +429,8 @@ def _append_function_call_entry(
         )
         if node is None:
             return
+        if structural:
+            node.metadata["structural"] = True
         try:
             store.append(node)
         except Exception as exc:

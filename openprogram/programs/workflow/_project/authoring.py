@@ -27,10 +27,18 @@ import pytest
 sys.path.insert(0, sys.argv[1])
 import openprogram.programs
 snapshot = Path(sys.argv[2])
+from openprogram import Context
+from openprogram.store import SessionStore, SessionNodeWriter
+store = SessionStore(sys.argv[4])
 spec = importlib.machinery.ModuleSpec("workflows", loader=None, is_package=True)
 spec.submodule_search_locations = [str(snapshot / "workflows")]
 sys.modules["workflows"] = importlib.util.module_from_spec(spec)
-raise SystemExit(pytest.main(["-q", "--tb=short", "-p", "no:cacheprovider", "-c", "/dev/null", "--rootdir", str(snapshot), "--confcutdir", str(snapshot), str(snapshot / "workflows" / sys.argv[3] / "tests")]))
+try:
+    with Context(store=SessionNodeWriter(store, "behavior-tests")).bind():
+        result = pytest.main(["-q", "--tb=short", "-p", "no:cacheprovider", "-c", "/dev/null", "--rootdir", str(snapshot), "--confcutdir", str(snapshot), str(snapshot / "workflows" / sys.argv[3] / "tests")])
+finally:
+    store.close()
+raise SystemExit(result)
 '''
 
 
@@ -52,6 +60,15 @@ def _run_tests(instance: Path, entrypoint: str) -> dict:
     temporary = instance / "tmp"
     home.mkdir()
     temporary.mkdir()
+    # Git initialization belongs to the trusted host. The sandboxed runner
+    # reuses this standard DAG writer without gaining subprocess permission.
+    from openprogram.store import SessionStore
+    sessions_root = instance / "runtime-sessions"
+    sessions = SessionStore(sessions_root)
+    try:
+        sessions.create_session("behavior-tests", "standalone", source="python")
+    finally:
+        sessions.close()
     policy = sandbox._with_hard_floor(sandbox.SandboxPolicy(
         deny_write=(*sandbox.DEFAULT_DENY_WRITE, str(snapshot), str(snapshot / "**"), str(runner)),
         network=False,
@@ -59,7 +76,7 @@ def _run_tests(instance: Path, entrypoint: str) -> dict:
     command = shlex.join([
         sys.executable, "-I", "-B", str(runner),
         str(Path(openprogram.__file__).resolve().parent.parent),
-        str(snapshot), entrypoint,
+        str(snapshot), entrypoint, str(sessions_root),
     ])
     argv, shell = sandbox.wrap_command(
         command, str(instance), policy, private_tmp=True, allow_subprocesses=False,

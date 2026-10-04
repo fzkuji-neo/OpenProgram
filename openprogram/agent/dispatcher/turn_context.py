@@ -55,6 +55,7 @@ class TurnBindings:
         self.project_baseline = None
         self._runtime_token = None
         self._context_binding = None
+        self._call_id_token = None
         self._store_token = None
         self._turn_id_token = None
         self._worktree_token = None
@@ -208,6 +209,8 @@ class TurnBindings:
         # The store needs a session, not a provider — so it binds regardless.
         self._store_token = _store_var.set(_GraphStore(db, req.session_id))
         from openprogram.context import Context
+        from openprogram.agentic_programming.call_state import _call_id
+        self._call_id_token = _call_id.set(assistant_msg_id)
         self._context_binding = Context(call_id=assistant_msg_id).bind()
         self._context_binding.__enter__()
         model = None
@@ -318,6 +321,10 @@ class TurnBindings:
             if self._context_binding is not None:
                 self._context_binding.__exit__(None, None, None)
                 self._context_binding = None
+            if self._call_id_token is not None:
+                from openprogram.agentic_programming.call_state import _call_id
+                _call_id.reset(self._call_id_token)
+                self._call_id_token = None
             if self._runtime_token is not None:
                 _current_runtime_var.reset(self._runtime_token)
             if self._store_token is not None:

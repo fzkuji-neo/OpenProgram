@@ -11,7 +11,7 @@ from .call_state import (
     _RUNTIME_PARAMS, _run_pre_invocation_hooks, _inject_runtime,
     _current_runtime, _close_owned_runtime, _recursion_depth,
     _MAX_AGENTIC_RECURSION_DEPTH, _render_range_override,
-    current_tool_call_id, _forced_node_id, _apply_system, _restore_system,
+    _forced_node_id, _apply_system, _restore_system,
     _current_cancel, _call_id, _update_function_call_exit, default_expose,
 )
 
@@ -314,8 +314,8 @@ def _call_setup(self, fn, sig, args, kwargs, stack):
     pending_id = None
     if not inspect.iscoroutinefunction(fn):
         from .continuation import current_function_node_id
-        # Tool and forced identities have precedence in CallScope.
-        if not current_tool_call_id() and not _forced_node_id.get():
+        # A continuation reuses its durable node even after provider scope exits.
+        if not _forced_node_id.get():
             pending_id = current_function_node_id()
     call = stack.enter_context(CallScope(
         (self.tool_name or f'{fn.__module__}.{fn.__qualname__}'),

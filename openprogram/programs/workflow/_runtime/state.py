@@ -294,8 +294,7 @@ def _summarize_workflow(state: dict) -> dict:
     if short_direct_handoff:
         fallback = result_text
     else:
-        status = str(state.get("status") or "unknown")
-        fallback = f"Workflow status: {status}; {len(trace)} recorded call(s)"
+        fallback = f"Workflow finished {len(trace)} recorded call(s)"
         if names:
             fallback += ": " + ", ".join(names[:8])
         fallback += "."

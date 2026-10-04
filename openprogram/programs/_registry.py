@@ -257,7 +257,8 @@ class _WorkflowSourceFinder:
             raise ModuleNotFoundError(f"Workflow module is outside its authorized source: {fullname}")
         from openprogram.programs._source_loader import ManagedSourceLoader
         return importlib.util.spec_from_file_location(
-            fullname, filename, loader=ManagedSourceLoader(fullname, filename),
+            fullname, filename, loader=ManagedSourceLoader(
+                fullname, filename, entry_owned=self.builtin_sources.get(package) != source),
             submodule_search_locations=[base] if is_package else None,
         )
 

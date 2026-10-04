@@ -296,15 +296,13 @@ class RecoveryOperations:
                     reject_command = True
             else:
                 command_kind = CommandKind.CANCEL
-                if unresolved:
-                    target = ExecutionStatus.RECONCILIATION_REQUIRED
-                    reason_code = "effect_reconciliation"
-                    outcome = "reconciliation_required"
-                else:
-                    target = ExecutionStatus.CANCELLED
-                    reason_code = execution.reason_code or "owner_lost"
-                    outcome = "owner_lost_during_cancel"
-                    apply_command = True
+                # The producer has stopped under a durable cancel intent.
+                # Unknown external effects stay unresolved, just as they do
+                # in finish_attempt(CANCELLED); they do not keep it running.
+                target = ExecutionStatus.CANCELLED
+                reason_code = execution.reason_code or "cancelled"
+                outcome = "owner_lost_during_cancel"
+                apply_command = True
 
             if restart_checkpoint is not None:
                 execution = self.executions._transition_execution(
@@ -437,6 +435,7 @@ class RecoveryOperations:
             )
         if recovered.status in TERMINAL_EXECUTION_STATUSES:
             self._forget_cancel_delivery(execution_id)
+            self._observe_terminal(recovered)
         return RecoveryCompletion(
             execution=recovered,
             attempt=attempt,
@@ -587,7 +586,7 @@ class RecoveryOperations:
                 "SELECT 1 FROM effects WHERE execution_id = ? "
                 "AND status IN ('dispatched', 'uncertain') LIMIT 1", (execution_id,),
             ).fetchone() is not None
-            if unresolved:
+            if unresolved and target is not ExecutionStatus.CANCELLED:
                 target, outcome = ExecutionStatus.RECONCILIATION_REQUIRED, "reconciliation_required"
                 reason_code = "effect_reconciliation"
             elif reason_code == "finish_repair_stalled":
@@ -610,6 +609,7 @@ class RecoveryOperations:
         self.registry.unbind(execution_id, attempt_id=attempt_id, generation=generation)
         if completed.status in TERMINAL_EXECUTION_STATUSES:
             self._forget_cancel_delivery(execution_id)
+            self._observe_terminal(completed)
         return True
 
 

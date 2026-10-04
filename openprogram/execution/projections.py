@@ -113,6 +113,8 @@ class ExecutionProjectionReadModel:
             self._project_failed_assistant(execution)
         if item.projection_kind == "dag" and execution.status.value in {"running", "completed"}:
             self._project_recovered_assistant(execution)
+        if item.projection_kind == "dag" and execution.status.value == "cancelled":
+            self.project_cancelled_assistant(execution)
         if item.projection_kind == "ui" and current_advanced:
             # The durable snapshot above remains the reconnect source of
             # truth.  This frame only updates already-connected clients.
@@ -122,6 +124,51 @@ class ExecutionProjectionReadModel:
             emit_ws_frame(execution_update_frame(
                 payload["execution"], payload["event_cursor"], data=payload,
             ))
+
+    def project_cancelled_assistant(self, execution: ExecutionRecord) -> None:
+        """Close this turn's display without changing its text or effect receipts.
+
+        Control invokes this immediately; the durable DAG outbox retries it
+        after storage failures or an interrupted producer.
+        """
+        from openprogram.agent.session_db import default_db
+        from openprogram.store import SessionNodeWriter
+
+        current = self.store.get_execution(execution.execution_id)
+        source = self.store.get_execution_input(execution.execution_id)
+        if (current is None or current.status_version != execution.status_version
+                or current.status.value != "cancelled"
+                or source is None or not source.assistant_message_id):
+            return
+        if execution.parent_execution_id:
+            parent = self.store.get_execution_input(execution.parent_execution_id)
+            if parent is not None and parent.assistant_message_id == source.assistant_message_id:
+                return
+        db = default_db()
+        writer = SessionNodeWriter(db, execution.session_id, advance_head=False)
+        node = writer.load().nodes.get(source.assistant_message_id)
+        if node is None:
+            raise RuntimeError("Cancelled execution is waiting for its assistant node")
+        metadata = node.metadata or {}
+        if metadata.get("status") not in {None, "running", "paused", "interrupted", "cancelled"}:
+            return
+        changed = metadata.get("status") != "cancelled"
+        if changed:
+            writer.update(source.assistant_message_id, metadata={
+                "status": "cancelled", "finished_at": execution.terminal_at,
+                "error": None, "error_type": None,
+            })
+        if not any(item.status.value in _RUNNING_STATUSES
+                   for item in self.store.list_nonterminal(session_id=execution.session_id)):
+            if (db.get_session(execution.session_id) or {}).get("status") != "idle":
+                db.update_session(execution.session_id, status="idle")
+                changed = True
+        if not changed:
+            return
+        from openprogram.events import emit_ws_frame
+        emit_ws_frame({"type": "session_reload", "data": {
+            "session_id": execution.session_id, "reason": "execution_cancelled",
+        }})
 
     def _project_recovered_assistant(self, execution: ExecutionRecord) -> None:
         """Clear a prior continuation error only after canonical recovery."""

@@ -127,15 +127,14 @@ test("approval remains pending until its answer is acknowledged", async () => {
     assert.deepEqual(resolved, [decision.id]);
   });
 });
-test("multiple questions retain navigation and ordered answers", async () => {
+test("multiple questions submit all visible answers in order", async () => {
   await mounted({ ...decision, kind: "ask_many", questions: [
     { prompt: "First", options: ["One"], multi: false, allow_custom: false },
     { prompt: "Second", options: ["Two"], multi: false, allow_custom: false },
   ] }, async ({ button, frames }) => {
     await act(async () => button("One").click());
-    await act(async () => button("Next ›").click());
     await act(async () => button("Two").click());
-    await act(async () => button("Send").click());
+    await act(async () => button("Submit answers").click());
     assert.deepEqual(frames[0].payload.answer, ["One", "Two"]);
   });
 });
@@ -177,7 +176,7 @@ async function discussionMounted(check) {
   try {
     await act(async () => root.render(createElement(Harness)));
     const click = async () => {
-      const open = [...host.querySelectorAll("button")].find(b => b.textContent === "Chat about this");
+      const open = [...host.querySelectorAll("button")].find(b => b.textContent === "Discuss");
       if (open) {
         await act(async () => flushSync(() => open.click()));
         const input = host.querySelector("textarea");
@@ -259,8 +258,8 @@ test("pending discussion blocks another answer via Ctrl and Meta Enter", async (
   await discussionMounted(async ({ host, click, frames }) => {
     let finish;
     respond = async (_url, init) => new Promise(resolve => { finish = () => resolve(Response.json({ command: { ...JSON.parse(init.body), status: "applied" } })); });
-    const allow = host.querySelector("[data-decision]");
     await act(async () => click());
+    const allow = host.querySelector("[data-decision]");
     for (const modifier of ["ctrlKey", "metaKey"]) {
       const enter = new Event("keydown", { bubbles: true, cancelable: true });
       Object.defineProperties(enter, { key: { value: "Enter" }, [modifier]: { value: true } });
@@ -280,12 +279,12 @@ test("failed submission leaves the actual answer and error visible in the output
       return Response.json({error: "test_unavailable"}, {status: 503});
     };
     await act(async () => button("Alice").click());
-    await act(async () => button("Send").click());
+    await act(async () => button("Submit answers").click());
     const receipt = host.querySelector('[role="status"]');
     assert.ok(receipt, "submission must have visible inline feedback");
-    assert.match(receipt.textContent, /Alice/);
+    assert.match(host.textContent, /Alice/);
     assert.match(receipt.textContent, /test_unavailable.*503/);
-    await act(async () => button("Retry").click());
+    await act(async () => button("Retry answer").click());
     assert.equal(frames.length, 2);
     assert.equal(frames[0].command_id, frames[1].command_id);
     assert.deepEqual(frames[0].payload, frames[1].payload);

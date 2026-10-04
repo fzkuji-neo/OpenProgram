@@ -97,22 +97,22 @@ def test_local_app_refresh_probes_node_after_relocation() -> None:
 
 
 
-def test_local_app_refresh_installs_committed_gui_harness_snapshot() -> None:
+def test_local_app_refresh_installs_committed_program_snapshots() -> None:
     refresh = (ROOT / "scripts" / "refresh-local-app.sh").read_text(
         encoding="utf-8"
     )
-    assert 'git -C "$gui_harness_repo" archive' in refresh
-    assert '"$gui_harness_revision"' in refresh
     assert '"$local_python" -m pip install' in refresh
     assert '"$app_python" -I -m pip install' in refresh
-    assert '--force-reinstall "$gui_harness_stage"' in refresh
+    assert '--force-reinstall "$program_stage"' in refresh
     assert "from gui_harness.adapters.mac_window import window_support" in refresh
-    assert 'json.load(stream)["programs"]["gui"]["commit"]' in refresh
-    assert 'test "$gui_harness_revision" = "$gui_harness_pin"' in refresh
+    assert 'for program_name in gui research wiki; do' in refresh
+    assert '"$repo_root/scripts/release/stage-program-source.py"' in refresh
+    assert '"$program_name" "$program_stage" --checkout "$gui_harness_repo"' in refresh
     snapshot = refresh.index('cp "$product_runtime_config" "$product_runtime_stage"')
-    validate = refresh.index('"$local_python" - "$product_runtime_stage"')
+    stage = refresh.index('"$repo_root/scripts/release/stage-program-source.py"')
+    validate = refresh.index('"$runtime_root/bin/verify-product-runtime.py" "$runtime_root"')
     install = refresh.index('cp "$product_runtime_stage" "$installed_product_runtime"')
-    assert snapshot < validate < install
+    assert snapshot < stage < install < validate
 
 
 
@@ -320,6 +320,11 @@ def _prepare_local_refresh_fixture(tmp_path: Path) -> tuple[Path, Path, dict[str
     (release_scripts / "office").mkdir()
     (release_scripts / "office/stage.py").write_text(
         "import pathlib, sys; pathlib.Path(sys.argv[sys.argv.index('--output') + 1]).mkdir(parents=True, exist_ok=True)\n"
+    )
+    # Program source pin/patch verification has its own acceptance tests.
+    # This fixture isolates refresh version/lock/signal behavior without a fetch.
+    (release_scripts / "stage-program-source.py").write_text(
+        "import pathlib, sys; pathlib.Path(sys.argv[2]).mkdir(parents=True, exist_ok=True)\n"
     )
     (release_scripts / "install-release.sh").write_text(
         'OPENPROGRAM_VERSION="${OPENPROGRAM_VERSION:-0.6.6}"\n',

@@ -69,7 +69,7 @@ class SessionNodeWriter:
         seq = idx.append(node, predecessor=predecessor, caller=caller)
         self.store.spill_large_node(self.session_id, node)
         git.write_history(seq, node.role, node.id, node.to_dict())
-        if not caller and self.advance_head:
+        if not caller and self.advance_head and not meta.get("structural"):
             idx.set_head(node.id)
         activity_at = _time.time()
         idx.set_meta(updated_at=activity_at)

@@ -79,6 +79,40 @@ def test_unconfigured_child_keeps_parent_model_instructions_and_denial():
         runtime.close()
 
 
+@pytest.mark.parametrize("override", ["unset", "call", None])
+def test_agent_context_overrides_ambient_content_at_public_call(override):
+    import json
+    from openprogram import Context, Runtime
+
+    ambient = Context({"topic": "ambient", "outer": "inherited"}, history_filter="current_call")
+    configured = Context({"topic": "instance", "inner": "configured"})
+    observations = []
+
+    def provider(content, **kwargs):
+        context = Context.current()
+        observations.append(context.history_filter)
+        return json.dumps(context.resolve_blocks())
+
+    runtime = Runtime(call=provider)
+    instance = Agent(context=configured, runtime=runtime, tools=[])
+    kwargs = {} if override == "unset" else {
+        "context": Context({"topic": "call"}) if override == "call" else None,
+    }
+    try:
+        with ambient.bind():
+            result = json.loads(instance("request", **kwargs))
+            assert Context.current() is ambient
+        expected = {"topic": "ambient", "outer": "inherited"}
+        if override is not None:
+            expected.update(topic="call" if override == "call" else "instance", inner="configured")
+        assert result == expected
+        assert observations == ["current_call"]
+        assert configured.resolve_blocks() == {"topic": "instance", "inner": "configured"}
+        assert ambient.resolve_blocks() == {"topic": "ambient", "outer": "inherited"}
+    finally:
+        runtime.close()
+
+
 
 @pytest.mark.parametrize("names", list(itertools.permutations(("Agent", "Runtime", "agent"))))
 def test_public_agent_entry_and_internal_package_support_import_order(names, monkeypatch):

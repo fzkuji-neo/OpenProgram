@@ -174,7 +174,7 @@ test('pane web drag highlights and attaches to the Resources panel conversation'
  try {
   start();await fire('pointermove');
   assert.equal(target.getAttribute('data-resource-drop-over'),'true','pane drag uses the same Resources feedback as a tab drag');
-  const cue=assertResourcesCue();assert.equal(cue.style.left,'704px');assert.equal(cue.style.width,'192px');
+  const cue=assertResourcesCue();assert.equal(cue.style.left,'700px');assert.equal(cue.style.width,'200px');
   await fire('pointermove',600,150);assert.equal(target.hasAttribute('data-resource-drop-over'),false);assert.equal(document.querySelector('[data-drop-target="resources"]'),null,'leaving Resources removes the pane drop preview');
   await fire('pointermove');assertResourcesCue();await fire('pointercancel');assert.equal(target.hasAttribute('data-resource-drop-over'),false);assert.equal(document.querySelector('[data-drop-target="resources"]'),null,'cancel removes the pane Resources preview');assert.equal(posted,undefined);assert.equal(toasts.length,0);
   start();await fire('pointermove');await fire('pointerup');

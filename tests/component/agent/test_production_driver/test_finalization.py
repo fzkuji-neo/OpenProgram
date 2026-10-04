@@ -415,12 +415,14 @@ def test_expired_finish_repair_notifies_goal_before_deleting_intent(tmp_path, mo
     assert service.replay_finish_repairs() == 0
 
 
-def test_finish_repair_replay_binds_current_cancel_command(tmp_path):
+@pytest.mark.parametrize("expired,unknown_effect", [(False, False), (True, True)])
+def test_finish_repair_replay_binds_current_cancel_command(tmp_path, expired, unknown_effect):
     from openprogram.execution.control import RuntimeControlService
     from openprogram.execution.driver import DriverRegistry
 
     store, execution = _admitted(tmp_path, execution_id="exec-finish-cancel-replay")
-    attempts = AttemptStore(store)
+    clock = [100.0]
+    attempts = AttemptStore(store, clock=lambda: clock[0])
     attempt, leased = attempts.lease(
         execution.execution_id,
         expected_version=execution.status_version,
@@ -432,6 +434,14 @@ def test_finish_repair_replay_binds_current_cancel_command(tmp_path):
         generation=attempt.generation,
         expected_execution_version=leased.status_version,
     )
+    from openprogram.execution.effects import EffectStore, EffectClassification, EffectStatus
+    effects = EffectStore(store, clock=lambda: clock[0])
+    if unknown_effect:
+        effect = effects.register(effect_id="unknown-effect", execution_id=execution.execution_id,
+                                  attempt_id=active.attempt_id, action_id="external-action",
+                                  classification=EffectClassification.NONREPEATABLE,
+                                  idempotency_key=None, metadata={})
+        effects.mark_dispatched(effect.effect_id, expected_status=effect.status)
     _command, cancelling, duplicate = store.accept_command_with_transition(
         command_id="cancel-replay",
         execution_id=execution.execution_id,
@@ -453,6 +463,8 @@ def test_finish_repair_replay_binds_current_cancel_command(tmp_path):
         reason_code=None,
     )
 
+    if expired:
+        clock[0] = 131.0
     service = RuntimeControlService(store, attempts, DriverRegistry())
     assert service.replay_finish_repairs() == 1
     current = store.get_execution(execution.execution_id)
@@ -460,6 +472,9 @@ def test_finish_repair_replay_binds_current_cancel_command(tmp_path):
     assert current is not None and current.status is ExecutionStatus.CANCELLED
     assert command is not None and command.status is CommandStatus.APPLIED
     assert store.list_finish_repairs() == []
+    if unknown_effect:
+        assert effects.get(effect.effect_id).status is EffectStatus.DISPATCHED
+        assert len(effects.list_unresolved(execution.execution_id)) == 1
 
 
 

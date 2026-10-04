@@ -493,7 +493,7 @@ def test_page_inventory_cannot_recreate_binding_after_disconnect(monkeypatch):
 
 
 
-def test_bound_browser_task_bypasses_only_the_nested_default_ask(monkeypatch):
+def test_bound_browser_task_inherits_outer_permission_mode(monkeypatch):
     from types import SimpleNamespace
 
     from openprogram.agent.dispatcher import TurnRequest
@@ -557,7 +557,7 @@ def test_bound_browser_task_bypasses_only_the_nested_default_ask(monkeypatch):
             binding_id="binding-1",
         )
         assert len(seen_modes) == 12
-        assert set(seen_modes) == {"bypass"}
+        assert set(seen_modes) == {"ask"}
         assert get_turn_request() is outer
     finally:
         reset_turn_request(token)
@@ -575,4 +575,3 @@ def test_chat_query_owner_always_releases_captured_surface_bindings():
     finish_at = source.index("_s._finish_owned_run", finally_at)
 
     assert capture_at < finally_at < release_at < finish_at
-
