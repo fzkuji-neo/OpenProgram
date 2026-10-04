@@ -1,5 +1,6 @@
 """Agents editor acceptance through the actual React page, without live services."""
 from pathlib import Path
+import json
 import re
 import subprocess
 
@@ -30,6 +31,7 @@ const makeAgent=(id,name,extra={})=>({id,name,description:'Saved description',de
   memory:{mode:'read_write',read_spaces:['self'],write_space:'self',required:false},
   session_scope:'per-account-channel-peer',
   session_idle_minutes:0,session_daily_reset:'',revision:1,created_at:1,updated_at:1,...extra});
+window.templates=__AGENT_TEMPLATE_CATALOG__;
 window.agents=initial.emptyAgents?[]:[makeAgent('general','General'),makeAgent('researcher','Researcher')];
 if(initial.tools&&window.agents[0])window.agents[0].tools=initial.tools;
 const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
@@ -37,10 +39,12 @@ window.fetch=async(input,options={})=>{
   const url=String(input);const method=options.method||'GET';
   const body=options.body?JSON.parse(options.body):null;
   window.httpCalls.push({url,method,body});
+  if(url==='/api/agent-templates')return reply({templates:window.templates});
   if(url==='/api/agents'&&method==='GET')return window.failList?reply({error:'Agent list temporarily unavailable'},503):reply({agents:window.agents});
   if(url==='/api/agents'&&method==='POST'){
     if(window.failCreate)return reply({error:'Create temporarily unavailable'},503);
-    const agent=makeAgent('created',body.name,{default:window.agents.length===0,memory:{mode:'off',read_spaces:['self'],write_space:'self',required:false}});window.agents.push(agent);return reply({agent});
+    const template=window.templates.find(row=>row.id===body.template_id);
+    const agent=makeAgent('created',body.name,{default:window.agents.length===0,memory:{mode:'off',read_spaces:['self'],write_space:'self',required:false},...(template?.configuration||{}),...(body.model?{model:body.model}:{}),...(body.thinking_effort!==undefined?{thinking_effort:body.thinking_effort}:{})});window.agents.push(agent);return reply({agent});
   }
   if(url==='/api/providers/list')return reply({providers:[{id:'test',label:'Fixture provider',enabled:true,configured:true}]});
   if(url==='/api/providers/test/models')return reply({models:[
@@ -113,10 +117,12 @@ const fs=require('node:fs'),path=require('node:path'),esbuild=require('esbuild')
 
 @pytest.fixture(scope='module')
 def agents_bundle(tmp_path_factory):
+    from openprogram.agent.management.templates import list_templates
+    entry = _ENTRY.replace('__AGENT_TEMPLATE_CATALOG__', json.dumps(list_templates()))
     directory = tmp_path_factory.mktemp('agents-configuration')
     bundle = directory / 'agents.js'
     subprocess.run(
-        ['node', '-e', _BUILD, str(ROOT / 'apps/web'), str(bundle), _ENTRY],
+        ['node', '-e', _BUILD, str(ROOT / 'apps/web'), str(bundle), entry],
         cwd=ROOT, check=True, capture_output=True, text=True,
     )
     shell = directory / 'agents.html'
@@ -418,7 +424,7 @@ def test_agent_switch_and_create_require_explicit_draft_choice(agents_browser):
     expect(create_dialog).not_to_be_visible()
     expect(name).to_have_value('New analyst')
     creates = page.evaluate("window.httpCalls.filter(call=>call.method==='POST'&&call.url==='/api/agents')")
-    assert creates[-1]['body'] == {'name': 'New analyst'}
+    assert creates[-1]['body'] == {'name': 'New analyst', 'template_id': '', 'model': {'provider': '', 'id': ''}, 'thinking_effort': ''}
 
 
 def test_agent_lifecycle_actions_guard_drafts_and_keep_default_protected(agents_browser):
@@ -563,7 +569,7 @@ def test_agent_empty_list_can_create_first_configuration(agents_browser):
     expect(page.get_by_role('tab')).to_have_count(8)
     _tab(page, 'Memory')
     expect(page.get_by_role('radio', name=re.compile('^Off'))).to_be_checked()
-    assert page.evaluate("window.httpCalls.filter(call=>call.method==='POST').map(call=>call.body)") == [{'name': 'First Agent'}]
+    assert page.evaluate("window.httpCalls.filter(call=>call.method==='POST').map(call=>call.body)") == [{'name': 'First Agent', 'template_id': '', 'model': {'provider': '', 'id': ''}, 'thinking_effort': ''}]
 
 
 @pytest.mark.parametrize('change', ['toggle', 'all', 'none', 'preset'])
@@ -643,3 +649,30 @@ def test_old_save_response_preserves_newer_remounted_draft(agents_browser):
     expect(page.get_by_role('button', name='Save changes', exact=True)).to_be_disabled()
     assert _patches(page)[-1]['body']['expected_revision'] == 2
     assert page.evaluate('window.agents[0].description') == 'New edit after returning'
+
+
+def test_agent_template_creation_selects_model_without_premature_submit(agents_browser):
+    from playwright.sync_api import expect
+
+    page = agents_browser(390)
+    page.get_by_role('button', name='New Agent', exact=True).click()
+    dialog = page.get_by_role('dialog', name='New Agent', exact=True)
+    templates = dialog.get_by_role('combobox', name='Template', exact=True)
+    expect(templates.locator('option')).to_have_count(5)
+    templates.select_option('utility')
+    expect(dialog.get_by_role('textbox', name='Agent name', exact=True)).to_have_value('Lightweight helper')
+    expect(dialog).to_contain_text('does not guarantee lower cost')
+    dialog.get_by_label('Model', exact=True).click()
+    model_dialog = page.get_by_role('dialog', name='Choose model', exact=True)
+    model_dialog.get_by_role('button', name=re.compile('^Fast model')).click()
+    assert not page.evaluate("window.httpCalls.some(call=>call.method==='POST')")
+    dialog.get_by_role('combobox', name='Thinking effort', exact=True).select_option('')
+    dialog.get_by_role('button', name='Create', exact=True).click()
+    expect(dialog).not_to_be_visible()
+    created = page.evaluate("window.agents.find(agent=>agent.id==='created')")
+    assert created['model'] == {'provider': 'test', 'id': 'fast'}
+    assert created['tools']['mode'] == 'none'
+    assert created['memory']['mode'] == 'off'
+    assert 'candidate' in created['system_prompt']
+    posts = page.evaluate("window.httpCalls.filter(call=>call.method==='POST')")
+    assert len(posts) == 1 and posts[0]['body']['template_id'] == 'utility'

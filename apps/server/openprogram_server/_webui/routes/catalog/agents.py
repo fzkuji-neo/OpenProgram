@@ -167,6 +167,11 @@ def _validated_patch(raw: object) -> dict[str, Any]:
 
 
 def register(app: FastAPI) -> None:
+    @app.get("/api/agent-templates")
+    def agent_templates():
+        from openprogram.agent.management.templates import list_templates
+        return JSONResponse(content={"templates": list_templates()})
+
     @app.get("/api/agents")
     def list_agents():
         from openprogram.agent.management import manager as _agents
@@ -180,16 +185,22 @@ def register(app: FastAPI) -> None:
 
         raw = body or {}
         try:
+            template_id = _short_text(raw.get("template_id", ""), "template_id", limit=40)
+            options = _validated_patch({key: raw[key] for key in ("model", "thinking_effort") if key in raw})
+            model = options.get("model", {})
+            creation = {"template_id": template_id, "provider": model.get("provider", ""),
+                        "model_id": model.get("id", ""), "thinking_effort": options.get("thinking_effort")}
             explicit_id = raw.get("id")
             if explicit_id is not None:
                 name = _short_text(raw.get("name", ""), "name", limit=80)
                 agent = _agents.create(
                     _short_text(explicit_id, "id", required=True, limit=40),
                     name=name,
+                    **creation,
                 )
             else:
                 name = _short_text(raw.get("name"), "name", required=True, limit=80)
-                agent = _agents.create_from_name(name)
+                agent = _agents.create_from_name(name, **creation)
         except (TypeError, ValueError) as exc:
             return JSONResponse(content={"error": str(exc)}, status_code=400)
         return JSONResponse(content={"agent": agent.to_dict()}, status_code=201)
