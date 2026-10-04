@@ -265,11 +265,14 @@ export function useTabLifecycle({
       return;
     }
     try {
+      const closing = new Set([...tabsToClose.map(tab => tab.id), ...closingInstances.current.keys()]);
+      const fileKey = (tab: CenterTab) => tab.kind === "file" && tab.path && (tab.projectId || tab.fileSessionId)
+        ? tab.readOnly ? `attachment:${tab.fileSessionId}:${tab.path}` : `project:${tab.projectId}:${tab.path}`
+        : null;
       for (const tab of fileTabs) {
-        const controller = tab.path && (tab.projectId || tab.fileSessionId)
-          ? documentControllers.get(tab.readOnly
-            ? `attachment:${tab.fileSessionId}:${tab.path}`
-            : `project:${tab.projectId}:${tab.path}`) : undefined;
+        const key = fileKey(tab);
+        if (!key || useCenterTabs.getState().tabs.some(owner => !closing.has(owner.id) && fileKey(owner) === key)) continue;
+        const controller = documentControllers.get(key);
         await controller?.close();
       }
     } catch {
