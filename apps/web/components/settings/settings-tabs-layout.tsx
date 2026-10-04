@@ -11,7 +11,7 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import styles from "./settings-page.module.css";
 import { useTranslation } from "@/lib/i18n";
 import { ChromeIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "../animated-icons";
@@ -22,7 +22,11 @@ export type SettingsTab = "providers" | "usage" | "search" | "channels" | "brows
 function readSettingsNavOpen(): boolean {
   if (typeof window === "undefined") return true;
   try {
-    return localStorage.getItem("settingsNavOpen") !== "0";
+    const stored = localStorage.getItem("settingsNavOpen");
+    // No stored choice: a 288px labelled nav would leave the page only a
+    // sliver at narrow widths, so start on the icon rail there.
+    if (stored === null) return !window.matchMedia?.("(max-width: 760px)").matches;
+    return stored !== "0";
   } catch {
     return true;
   }
@@ -46,6 +50,16 @@ export function SettingsTabsLayout({
   const { t, text } = useTranslation();
   const [navOpen, setNavOpen] = useState(true);
   useLayoutEffect(() => { setNavOpen(readSettingsNavOpen()); }, []);
+  // Shrinking the window below 760px collapses the nav to its icon rail
+  // (not persisted), so a stored "open" from a wide window cannot squeeze
+  // the page into a sliver.
+  useEffect(() => {
+    const query = window.matchMedia?.("(max-width: 760px)");
+    if (!query) return;
+    const onChange = (event: MediaQueryListEvent) => { if (event.matches) setNavOpen(false); };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
 
   function toggleNav() {
     setNavOpen((current) => {
@@ -67,6 +81,8 @@ export function SettingsTabsLayout({
     if (pathname.startsWith("/settings/memory")) return "memory";
     if (pathname.startsWith("/settings/general")) return "general";
     if (pathname.startsWith("/settings/system")) return "system";
+    // Credential pools (/settings/auth) belong with LLM Providers.
+    if (pathname.startsWith("/settings/auth")) return "providers";
     if (pathname.startsWith("/settings/providers")) return "providers";
     return "general";
   })();
@@ -78,7 +94,7 @@ export function SettingsTabsLayout({
     { id: "providers" as const, href: "/settings/providers", label: t("settings.tab.providers"), Icon: Bot },
     { id: "memory" as const, href: "/settings/memory", label: t("settings.tab.memory"), Icon: Brain },
     { id: "search" as const, href: "/settings/search", label: t("settings.tab.search"), Icon: Search },
-    { id: "browser" as const, href: "/settings/browser", label: text("Browser", "浏览器"), Icon: ChromeIcon },
+    { id: "browser" as const, href: "/settings/browser", label: t("settings.tab.browser"), Icon: ChromeIcon },
     { id: "channels" as const, href: "/settings/channels", label: t("settings.tab.channels"), Icon: RadioTower },
     { id: "usage" as const, href: "/settings/usage", label: t("settings.tab.usage"), Icon: ChartNoAxesColumn },
     { id: "system" as const, href: "/settings/system", label: t("settings.tab.system"), Icon: MonitorCog },
@@ -122,7 +138,7 @@ export function SettingsTabsLayout({
                   aria-label={label}
                   title={!navOpen ? label : undefined}
                 >
-                  <span className={styles.railItemIcon}><Icon size={20} /></span>
+                  <span className={styles.railItemIcon}><Icon size={16} /></span>
                   <span className={styles.railItemLabel}>{label}</span>
                 </Link>
               ))}

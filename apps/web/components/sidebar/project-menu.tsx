@@ -44,7 +44,7 @@ export function ProjectMenu({project, children, onOpen, onNewSession, onSaved}: 
   }
   function showMenu(event: MouseEvent<HTMLElement>) {
     menu.show(event, [
-      { id: "new-chat", label: text("New chat", "新建聊天"), onSelect: onNewSession },
+      { id: "new-chat", label: text("New chat", "新会话"), onSelect: onNewSession },
       { id: "open", label: text("Open project", "打开项目"), onSelect: onOpen },
       { id: "pin", label: pinned ? text("Unpin", "取消置顶") : text("Pin", "置顶"), onSelect: togglePin },
       { id: "edit", label: text("Edit project", "编辑项目"), onSelect: () => setEditing(true) },
@@ -65,7 +65,7 @@ export function ProjectMenu({project, children, onOpen, onNewSession, onSaved}: 
         {children(<button data-state={open ? "open" : "closed"} aria-haspopup="menu" aria-expanded={open} data-active={editing || addingSection || operation !== null} type="button" aria-label={text(`Options for ${project.name}`, `${project.name} 的选项`)} onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();if(open)menu.close();else showMenu(event);}} className={styles.trigger+" "+sidebarProjectActionClass+" text-text-muted opacity-0 group-hover:opacity-100 focus:opacity-100"}><MoreHorizontal size={14}/></button>)}
       </div>
       <Menu.Portal><Menu.Content side="bottom" align="start" sideOffset={4} onCloseAutoFocus={event=>event.preventDefault()} className={MENU_PANEL+" "+styles.menu+" min-w-[220px]"}>
-        <Menu.Item className={item} onSelect={onNewSession}><MessageSquarePlus size={14} className={styles.menuIcon}/>{text("New chat", "新建聊天")}</Menu.Item>
+        <Menu.Item className={item} onSelect={onNewSession}><MessageSquarePlus size={14} className={styles.menuIcon}/>{text("New chat", "新会话")}</Menu.Item>
         <Menu.Item className={item} onSelect={onOpen}><FolderOpen size={14} className={styles.menuIcon}/>{text("Open project", "打开项目")}</Menu.Item>
         <Menu.Item className={item}
           onMouseEnter={()=>pinRef.current?.startAnimation()} onMouseLeave={()=>pinRef.current?.stopAnimation()}

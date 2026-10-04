@@ -1,4 +1,4 @@
-.content { display: flex; flex-direction: column; gap: 24px; width: 100%; max-width: 960px; margin: 0 auto; }
+.content { display: flex; flex-direction: column; gap: 24px; width: 100%; }
 .notice { padding: 8px 24px; font-size: 12px; color: var(--accent-green); border-bottom: 1px solid var(--border); }
 
 /* Install panel: same surface as the shared catalog cards. */
@@ -35,6 +35,7 @@
 
 @media (max-width: 760px) {
   .directory { flex-direction: column; }
+  .directory input { flex: none; }
   .application { flex-wrap: wrap; }
   .appActions { width: 100%; padding-left: 48px; flex-wrap: wrap; }
 }

@@ -356,8 +356,9 @@ function BookmarkMenuNodes({
   nodes: BookmarkNode[];
   onNavigate(url: string): void;
 }) {
+  const { text } = useTranslation();
   if (nodes.length === 0) {
-    return <DropdownMenuItem className={itemCls(false)} disabled>Empty folder</DropdownMenuItem>;
+    return <DropdownMenuItem className={itemCls(false)} disabled>{text("Empty folder", "空文件夹")}</DropdownMenuItem>;
   }
   return nodes.map((node) => node.kind === "folder" ? (
     <DropdownMenuSub key={node.id}>

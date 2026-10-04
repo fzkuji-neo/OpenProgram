@@ -144,7 +144,7 @@ export function ProjectsPage({
         },
         "project_relocated",
       );
-      if (d && !d.ok) setError(d.error || text("Relocation failed.", "移动失败。"));
+      if (d && !d.ok) setError(d.error || text("Could not relocate the project.", "重新定位项目失败。"));
       refresh();
     } catch (e) {
       setError(String(e));
@@ -202,9 +202,9 @@ export function ProjectsPage({
 
         {error && <div className={shared.errorBar} role="alert">{error}</div>}
 
-        <div className={fx.body}>
+        <div className={cls(fx.body, styles.body)}>
           {/* 左栏：项目列表（复用 Functions 的 profilesNav） */}
-          <div className={fx.profilesNav}>
+          <div className={cls(fx.profilesNav, styles.rail)}>
             {filtered.map((p) => (
               <button
                 type="button"
@@ -242,7 +242,7 @@ export function ProjectsPage({
           </div>
 
           {/* 右栏：选中项目的内容 */}
-          <div className={fx.content}>
+          <div className={cls(fx.content, styles.content)}>
             {!selected && !loaded ? (
               <div className={shared.empty}>{text("Loading…", "加载中…")}</div>
             ) : !selected ? (
@@ -261,7 +261,7 @@ export function ProjectsPage({
                     <h2 className={styles.detailTitle}>{selected.name}</h2>
                     <span className={styles.detailPath} title={selected.path}>{selected.path}</span>
                   </div>
-                  {selected.hidden&&<Button variant="outline" onClick={async()=>{try{const result=await wsRequest<{ok:boolean;error?:string}>("restore_project",{project_id:selected.id},"restore_project_result");if(!result?.ok)throw new Error(result?.error||"Could not restore project");await refresh();window.dispatchEvent(new Event("project-changed"));}catch(err){setError(String(err));}}}>{text("Restore to sidebar", "恢复到侧边栏")}</Button>}
+                  {selected.hidden&&<Button variant="outline" onClick={async()=>{try{const result=await wsRequest<{ok:boolean;error?:string}>("restore_project",{project_id:selected.id},"restore_project_result");if(!result?.ok)throw new Error(result?.error||text("Could not restore project", "无法恢复项目"));await refresh();window.dispatchEvent(new Event("project-changed"));}catch(err){setError(err instanceof Error?err.message:String(err));}}}>{text("Restore to sidebar", "恢复到侧边栏")}</Button>}
                   <Button variant="outline" onClick={()=>setEditing(true)}>{text("Edit project", "编辑项目")}</Button>
                 </div>
                 {(selected.path_missing || selected.path_replaced || (selected.location_state && selected.location_state !== "available")) && (
@@ -340,7 +340,7 @@ export function ProjectsPage({
                       {tk === "settings"
                         ? text("Settings", "设置")
                         : tk === "sessions"
-                          ? `${text("Chats", "会话")} (${selected.session_count})`
+                          ? <>{text("Chats", "会话")} <span className={shared.tabCount}>{selected.session_count}</span></>
                           : text("Info", "信息")}
                     </button>
                   ))}
@@ -390,7 +390,9 @@ export function ProjectsPage({
                     <Field label={text("Type", "类型")}>
                       {selected.is_default ? text("Default (home)", "默认（家目录）") : text("Custom", "自定义")}
                     </Field>
-                    <Field label={text("Status", "状态")}>{selected.status}</Field>
+                    <Field label={text("Status", "状态")}>
+                      {({ active: text("Active", "进行中"), paused: text("Paused", "已暂停"), done: text("Done", "已完成") } as Record<string, string>)[selected.status] ?? selected.status}
+                    </Field>
                     <Field label={text("Chats", "会话数")}>{selected.session_count}</Field>
                     <Field label="ID"><code>{selected.id}</code></Field>
                   </dl>

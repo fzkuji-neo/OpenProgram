@@ -86,12 +86,22 @@ export function ApplicationsPage() {
         </form>
         {launcher.dialog}{folderPickerDialog}
 
-        {loaded && applications.length === 0 ? (
+        {!loaded && !error ? (
+          <div className={shared.empty} role="status">{text("Loading applications…", "正在加载应用…")}</div>
+        ) : !loaded ? (
+          <ManageEmptyState
+            compact
+            icon={<BoxesIcon size={20} />}
+            title={text("Applications are unavailable", "暂时无法加载应用")}
+            description={text("Check the error above, then try again.", "请查看上方错误后重试。")}
+            action={<Button variant="outline" className={styles.outlineButton} disabled={busy} onClick={() => void change(refresh, "")}>{text("Retry", "重试")}</Button>}
+          />
+        ) : applications.length === 0 ? (
           <ManageEmptyState
             compact
             icon={<BoxesIcon size={20} />}
             title={text("No applications installed", "尚未安装应用")}
-            description={text("Install one from a local folder above. Tools and Workflows are managed in Abilities.", "可从上方的本地文件夹安装。工具与 Workflow 在能力页管理。")}
+            description={text("Install one from a local folder above. Tools and Workflows are managed in Abilities.", "可从上方的本地文件夹安装。工具与工作流在能力页管理。")}
           />
         ) : applications.length > 0 && (
           <section className={styles.list} aria-label={text("Installed applications", "已安装应用")}>
@@ -108,12 +118,12 @@ export function ApplicationsPage() {
                     <h3>{title}</h3>
                     <span className={shared.badge}>v{application.version}</span>
                     <span className={shared.badge}>{application.scope === "project" ? text("Per project", "按项目") : text("Global", "全局")}</span>
-                    {!application.enabled && <span className={`${shared.badge} ${shared.badgeYellow}`}>{text("Disabled", "已停用")}</span>}
+                    {!application.enabled && <span className={`${shared.badge} ${shared.badgeYellow}`}>{text("Disabled", "已禁用")}</span>}
                   </div>
                   <p className={styles.appMeta}>{application.id}</p>
-                  <p className={styles.source} title={application.source}>{text("Source", "来源")}: {application.source}</p>
+                  <p className={styles.source} title={application.source}>{text(`Source: ${application.source}`, `来源：${application.source}`)}</p>
                   <div className={styles.toggles}>
-                    <label><Switch className={styles.switch} checked={application.enabled} disabled={busy} aria-label={text("Enabled", "启用")} onCheckedChange={checked => update(application, { enabled: checked })} /><span aria-hidden>{text("Enabled", "启用")}</span></label>
+                    <label><Switch className={styles.switch} checked={application.enabled} disabled={busy} aria-label={text("Enabled", "已启用")} onCheckedChange={checked => update(application, { enabled: checked })} /><span aria-hidden>{text("Enabled", "已启用")}</span></label>
                     <label><Switch className={styles.switch} checked={!application.hidden} disabled={busy} aria-label={text("Show in new tab", "在新标签页显示")} onCheckedChange={checked => update(application, { hidden: !checked })} /><span aria-hidden>{text("Show in new tab", "在新标签页显示")}</span></label>
                   </div>
                 </div>
