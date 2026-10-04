@@ -4,15 +4,9 @@ from . import manager
 
 _BUILTINS = (
     {
-        "id": "image", "name": "Image creator", "name_zh": "绘图助手",
-        "description": "Generate images from a brief and return the saved results.",
-        "description_zh": "根据要求生成图片，返回实际保存的结果。",
-        "tools": {"mode": "selected", "allowed": ["image_generate"], "web_search": False},
-    },
-    {
-        "id": "decision", "name": "Decision advisor", "name_zh": "决策顾问",
-        "description": "Compare options against explicit criteria and explain a recommendation.",
-        "description_zh": "根据明确标准比较选项，给出建议及依据。",
+        "id": "decision", "name": "Decision", "name_zh": "决策",
+        "description": "Select one option from the supplied choices in a single model call.",
+        "description_zh": "一次调用模型，从给定选项中选择一项。",
         "tools": {"mode": "none", "web_search": False},
     },
     {
