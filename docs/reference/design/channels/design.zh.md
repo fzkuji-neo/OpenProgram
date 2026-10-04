@@ -142,7 +142,7 @@
    上限 chunk). adapter 不再持有任何 SDK 直发路径.
 ```
 
-## 3. 用例 B：cron / @agentic_function 主动发消息
+## 3. 用例 B：cron / Agent method 主动发消息
 
 ```python
 from openprogram.channels.outbound import send
@@ -170,7 +170,7 @@ send("telegram", "default", "1234", "早上好")
 
 | 入口 | 用途 | 状态 | 谁调 |
 |---|---|---|---|
-| `outbound.send` | 一次性发, 不需要长跑进程 | 无状态 | cron 脚本 / jupyter / @agentic_function / webui (回复) |
+| `outbound.send` | 一次性发, 不需要长跑进程 | 无状态 | cron 脚本 / jupyter / Agent method / webui (回复) |
 | `Channel.send_text` + `edit_text` | 持有 message_id 后续 edit | 有状态 | dispatch_inbound progress streaming |
 
 底下都调同一个 `_transport.post_message` / `patch_message`。HTTP 调用 / 凭据加载 / chunking 只有一份代码。
@@ -318,7 +318,7 @@ openprogram/channels/
 | `_attachments.py` | 入站附件下载 + turn 输入转换 | base.handle_inbound |
 | `_message.py` | ChannelMessage + Attachment 中性结构 | adapter 入口 |
 | `base.py` | Channel ABC + MessageHandle + handle_inbound + run_forever | adapter 子类、worker、dispatch_inbound |
-| `outbound.py` | 入口 A (一次性发 / send_file) | cron 脚本、jupyter、@agentic_function |
+| `outbound.py` | 入口 A (一次性发 / send_file) | cron 脚本、jupyter、Agent method |
 | `_conversation.py` | dispatch_inbound 主流程 + per-session 锁 | base.handle_inbound |
 | `_session_store.py` | session 加载/保存 | dispatch_inbound |
 | `_session_routing.py` | session_key 计算 | dispatch_inbound |

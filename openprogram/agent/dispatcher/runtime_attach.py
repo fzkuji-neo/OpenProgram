@@ -1,9 +1,9 @@
-"""Runtime attach — wrap an @agentic_function block as a turn-visible
+"""Runtime attach — wrap an Agent method block as a turn-visible
 runtime block.
 
 Extracted from dispatcher/__init__.py (dispatcher-split step 3, the
 runtime_attach piece). ``_wrap_agentic_runtime_block`` takes an
-@agentic_function AgentTool and returns a tool whose execute persists a
+Agent method AgentTool and returns a tool whose execute persists a
 ``display=runtime`` placeholder, streams the live Execution DAG, and
 finalizes the row — so an LLM-issued call renders identically to a manual
 ``/run <fn>``. It depends only on the stdlib + ``types`` here; everything
@@ -49,25 +49,25 @@ def _wrap_agentic_runtime_block(
     on_event: EventCallback,
     assistant_msg_id: str,
 ):
-    """Wrap an @agentic_function AgentTool's execute so an LLM-issued
+    """Wrap an Agent method AgentTool's execute so an LLM-issued
     call renders the same way as a manual ``/run <fn>`` invocation —
     a ``display=runtime`` row with the full Execution DAG, duration,
     parameters, and return preview.
 
     Before exec: set ``_call_id`` to the real caller so the
-    @agentic_function decorator writes its top DAG node with
+    Agent method decorator writes its top DAG node with
     ``predecessor`` pointing at that caller (build_exec_dag walks from
     that id to reconstruct the tree). No placeholder node is created.
 
     During exec: poll build_exec_dag and broadcast tree_update
     envelopes so live UIs fill the Execution DAG without a refresh.
-    The code node written by @agentic_function is the canonical record.
+    The code node written by Agent method is the canonical record.
     """
     from openprogram.agent.types import AgentTool as _AgentTool
 
     orig_execute = agent_tool.execute
     tool_name = agent_tool.name
-    _is_agentic_tool = bool(getattr(agent_tool, "_is_agentic", False))
+    _is_agent_method_tool = bool(getattr(agent_tool, "_is_agent_method", False))
     _run_in_worker = bool(getattr(agent_tool, "_run_in_worker", False))
 
     async def _runtime_block_execute(call_id, args, cancel, on_update):
@@ -79,7 +79,7 @@ def _wrap_agentic_runtime_block(
             # from executing, and cannot become report evidence.
             original_owner_input = None
         from openprogram.agent.session_db import default_db
-        from openprogram.agentic_programming.function import (
+        from openprogram.agentic_programming.call_state import (
             _call_id as _call_id_var,
             _forced_predecessor as _forced_pred_var,
             _forced_node_id as _forced_node_var,
@@ -88,7 +88,7 @@ def _wrap_agentic_runtime_block(
         from openprogram.webui._exec_dag import build_exec_dag
 
         db = default_db()
-        # The code node written by @agentic_function is the canonical
+        # The code node written by Agent method is the canonical
         # record — no placeholder is persisted or broadcast. Live
         # progress comes via tree_update events from the live_progress
         # poller below.
@@ -103,7 +103,7 @@ def _wrap_agentic_runtime_block(
         # A top-level card the PARENT pre-created before spawning encodes
         # its node id as a ``|node:<id>`` suffix on the anchor. Strip it
         # first (it rides on both the ``pred:`` and raw-caller forms) and
-        # publish it as ``_forced_node_id`` so the @agentic_function
+        # publish it as ``_forced_node_id`` so the Agent method
         # wrapper REUSES that id instead of minting + appending a second
         # top-level node.
         _anchor = assistant_msg_id
@@ -157,7 +157,7 @@ def _wrap_agentic_runtime_block(
             from openprogram.webui._exec_dag import (
                 live_progress as _live_progress,
             )
-            # In the @agentic_function subprocess the worker's
+            # In the Agent method subprocess the worker's
             # ``_broadcast_*`` globals point at an empty ws-clients set
             # — there's no parent process here. Route progress
             # envelopes through ``on_event`` instead so the subprocess
@@ -176,7 +176,7 @@ def _wrap_agentic_runtime_block(
             _in_subproc = os.environ.get(
                 "OPENPROGRAM_IN_AGENTIC_SUBPROCESS"
             ) == "1"
-            if _is_agentic_tool and not _run_in_worker and not _in_subproc:
+            if _is_agent_method_tool and not _run_in_worker and not _in_subproc:
                 # Route through a fork()'d subprocess so canonical
                 # execution cancellation's
                 # SIGKILL kills the tool in milliseconds. The child
@@ -194,7 +194,7 @@ def _wrap_agentic_runtime_block(
                 # upserts) — acceptable.
                 from openprogram.agent.process_runner import (
                     agentic_subprocess_timeout_seconds,
-                    run_agentic_in_subprocess,
+                    run_agent_method_in_subprocess,
                 )
                 import asyncio as _asyncio
                 # Bridge events back. The child's wrapper will emit
@@ -259,7 +259,7 @@ def _wrap_agentic_runtime_block(
                         tool_name, subprocess_args,
                     )
                     try:
-                        return run_agentic_in_subprocess(
+                        return run_agent_method_in_subprocess(
                             tool_name=tool_name,
                             kwargs=subprocess_args,
                             session_id=req.session_id,
@@ -487,7 +487,7 @@ def _wrap_agentic_runtime_block(
             )
         except Exception:
             text_out = ""
-        # The @agentic_function ran in a spawn()'d subprocess (see
+        # The Agent method ran in a spawn()'d subprocess (see
         # process_runner.py). That child wrote every nested code /
         # tool / LLM Call directly to the session's git history via
         # its OWN SessionStore. The parent worker's cached
@@ -549,7 +549,7 @@ def _wrap_agentic_runtime_block(
         execute=_runtime_block_execute,
     )
     for _attr in (
-        "_is_agentic", "_dag_expose", "_defer", "_run_in_worker", "_mcp_server",
+        "_is_agent_method", "_python_callable", "_method_options", "_dag_expose", "_defer", "_run_in_worker", "_mcp_server",
         "_runtime_implementation", "_requires_approval", "_accept_edits_safe",
         "_permission_preflight", "_permission_managed", "_permission_visible",
     ):

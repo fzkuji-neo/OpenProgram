@@ -5,7 +5,7 @@ DAG modeling:
   role = user            (callee — the human producing the answer)
   input = {"question":}  (what the LLM/code asked)
   output = the answer    (what the user produced)
-  caller = enclosing  (the @agentic_function or LLM that asked)
+  caller = enclosing  (the Agent method or LLM that asked)
   metadata.status        "awaiting" → "answered" / "unanswered"
 
 When no store is installed, ask_user still works via the global
@@ -19,7 +19,7 @@ from contextlib import contextmanager
 
 import pytest
 
-from openprogram.agentic_programming.function import _call_id
+from openprogram.agentic_programming.call_state import _call_id
 from openprogram.store import SessionNodeWriter, SessionStore, _store as _store_var
 from openprogram.programs.workflow.ask_user import (
     ask_user, set_ask_user,
@@ -100,22 +100,36 @@ def test_ask_user_records_user_call_with_question_and_answer(store):
 
 
 def test_ask_user_caller_set_to_frame_when_inside_function(store):
-    """Inside an @agentic_function frame, the placeholder Call's
+    """Inside an Agent method frame, the placeholder Call's
     caller points at the enclosing function's pending id."""
     with _install_handler(lambda q: "ok"), _install_frame("plan_pending_id"):
         ask_user("clarify?")
     g = store.load()
     n = next(x for x in g if x.is_user())
-    assert n.caller == "plan_pending_id"
+    current = n.caller
+    methods = []
+    while current in g.nodes:
+        method = g.nodes[current]
+        methods.append(method)
+        current = method.caller
+    assert current == 'plan_pending_id'
+    assert any(method.name.rsplit('.', 1)[-1] == 'ask_user' for method in methods)
 
 
 def test_ask_user_caller_empty_when_top_level(store):
-    """Outside any @agentic_function frame → caller is empty."""
+    """Outside any Agent method frame → caller is empty."""
     with _install_handler(lambda q: "yes"):
         ask_user("global question")
     g = store.load()
     n = next(x for x in g if x.is_user())
-    assert n.caller == ""
+    current = n.caller
+    methods = []
+    while current in g.nodes:
+        method = g.nodes[current]
+        methods.append(method)
+        current = method.caller
+    assert current == ''
+    assert any(method.name.rsplit('.', 1)[-1] == 'ask_user' for method in methods)
 
 
 # Status transitions

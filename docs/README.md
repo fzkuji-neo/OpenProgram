@@ -48,7 +48,7 @@ Use this documentation to install OpenProgram, work with agents, configure servi
 ## Common tasks
 
 - [Install programs](capabilities/installing-harnesses.md) for desktop automation and research.
-- [Write functions](capabilities/agentic-programming/writing-functions/agentic-function.md) or [author workflows](capabilities/workflows/authoring.md).
+- [Write functions](capabilities/agentic-programming/writing-functions/agent.md) or [author workflows](capabilities/workflows/authoring.md).
 - [Configure models](models/README.md) and [connect channels](integrations/channels.md).
 - [Use memory](capabilities/memory.md) and [manage goals](capabilities/goal.md).
 - Look up [global CLI flags](reference/cli/README.md), [configuration keys](reference/config-keys.md) or [provider settings](reference/provider-registry.md).

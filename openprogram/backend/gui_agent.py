@@ -9,7 +9,7 @@ import time
 
 from openprogram.agent import AgentTool
 from openprogram.agent.run_control import get_current_execution_id
-from openprogram.agentic_programming.function import current_call_id
+from openprogram.agentic_programming.call_state import current_call_id
 from openprogram.execution.attempts import AttemptStatus
 from openprogram.execution.model import ExecutionStatus
 from openprogram.programs import ToolReturn

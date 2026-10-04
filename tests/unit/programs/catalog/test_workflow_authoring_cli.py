@@ -38,14 +38,16 @@ def _write_project(
     workflow_import = (
         "import os\n"
         if invalid_import
-        else "from openprogram.agentic_programming import agentic_function\n"
+        else "from openprogram.agentic_programming import Agent\n"
     )
     (project / "workflow.py").write_text(
         workflow_import
         + "from .steps.work import work\n\n"
-        + "@agentic_function\n"
-        + f"def {display_name}(task: str):\n"
-        + "    return work(task)\n",
+        + "class WorkflowAgent(Agent):\n"
+        + f"    method_options = {{{display_name!r}: {{'tool': True, 'name': {display_name!r}}}}}\n"
+        + f"    def {display_name}(self, task: str):\n"
+        + "        return work(task)\n"
+        + f"{display_name} = WorkflowAgent().{display_name}\n",
         encoding="utf-8",
     )
     (project / "steps" / "work.py").write_text(
@@ -223,9 +225,11 @@ def test_directory_validation_rejects_a_second_public_entry(tmp_path: Path) -> N
     project = _write_project(tmp_path)
     with (project / "workflow.py").open("a", encoding="utf-8") as stream:
         stream.write(
-            "\n@agentic_function\n"
-            "def extra_workflow(task: str):\n"
-            "    return task\n"
+            "\nclass ExtraAgent(Agent):\n"
+            "    method_options = {'extra_workflow': {'tool': True, 'name': 'extra_workflow'}}\n"
+            "    def extra_workflow(self, task: str):\n"
+            "        return task\n"
+            "extra_workflow = ExtraAgent().extra_workflow\n"
         )
 
     with pytest.raises(validation.InvalidWorkflow, match="exactly one public"):
@@ -291,20 +295,21 @@ def test_directory_validation_rejects_import_shadowed_entrypoint_export(
         validation.validate_workflow_directory(project)
 
 
-def test_directory_validation_rejects_rebound_agentic_decorator(
+def test_directory_validation_rejects_rebound_agent_class(
     tmp_path: Path,
 ) -> None:
     project = _write_project(tmp_path)
     (project / "workflow.py").write_text(
-        "from openprogram.agentic_programming import agentic_function\n"
+        "from openprogram.agentic_programming import Agent\n"
         "from .steps.work import work\n"
         "\n"
-        "def agentic_function(function):\n"
-        "    return function\n"
+        "def Agent():\n"
+        "    return object()\n"
         "\n"
-        "@agentic_function\n"
-        "def demo_workflow(task: str):\n"
-        "    return work(task)\n",
+        "class WorkflowAgent(Agent):\n"
+        "    def demo_workflow(self, task: str):\n"
+        "        return work(task)\n"
+        "demo_workflow = WorkflowAgent().demo_workflow\n",
         encoding="utf-8",
     )
 

@@ -1,6 +1,6 @@
 """The TurnRequest in force for the current execution context.
 
-An ``@agentic_function`` body running ``runtime.exec()`` builds its own
+An ``Agent method`` body running ``runtime.exec()`` builds its own
 inner ``AgentSession``. That session's tools used to be handed to the
 agent loop raw — no approval wrapper, no authority, no hard constraints —
 so an agent spawned from inside a program was effectively unsupervised

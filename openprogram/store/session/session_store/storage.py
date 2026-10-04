@@ -178,7 +178,7 @@ class StorageOperations:
                     return None
             if cached:
                 git, idx = cached
-                # @agentic_function runs execute in a fork()'d subprocess
+                # Agent method runs execute in a fork()'d subprocess
                 # that appends history and moves HEAD on disk directly —
                 # this process's cached index can't see that, so a
                 # mid-run load_session answered from stale memory (the

@@ -58,7 +58,7 @@ def test_failed_inspection_receipt_cannot_confirm_completion() -> None:
 
 @pytest.mark.parametrize("session_id", ["", "s1"])
 def test_judge_rejects_met_with_actual_turn_error_receipts(monkeypatch, session_id) -> None:
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
     reply = '{"met":true,"reason":"done"}'
     blocks = [{"type": "tool", "tool": "bash", "is_error": True}]
     monkeypatch.setattr(GJ, "current_session_id", lambda: "")
@@ -84,20 +84,14 @@ def test_parse_decision_checklist_cleaning() -> None:
         '{"met": false, "reason": "r", "checklist": [true, false, true]}',
         checklist_len=3)
     assert ok["checklist"] == [True, False, True]
-    # Wrong length → None (this round carries no per-item info).
-    short = GJ._parse_decision(
+    invalid = [
         '{"met": false, "reason": "r", "checklist": [true]}',
-        checklist_len=3)
-    assert short["checklist"] is None
-    # Missing → None.
-    missing = GJ._parse_decision('{"met": false, "reason": "r"}',
-                                 checklist_len=3)
-    assert missing["checklist"] is None
-    # Non-bool content → None.
-    dirty = GJ._parse_decision(
+        '{"met": false, "reason": "r"}',
         '{"met": false, "reason": "r", "checklist": [true, "yes", 1]}',
-        checklist_len=3)
-    assert dirty["checklist"] is None
+    ]
+    for reply in invalid:
+        with pytest.raises(ValueError, match='complete current checklist'):
+            GJ._parse_decision(reply, checklist_len=3)
     # No checklist expected → always None, even when the judge invents one.
     invented = GJ._parse_decision(
         '{"met": false, "reason": "r", "checklist": [true]}')
@@ -175,19 +169,19 @@ def test_goal_decision_turn_failure_propagates(monkeypatch, stub_view) -> None:
 def test_run_decision_turn_passes_judge_model(monkeypatch) -> None:
     captured = {}
 
-    def fake_run(**kwargs):
+    def fake_agent(**kwargs):
         captured.update(kwargs)
-        return AgentTurnResult(final_text="ok")
+        return 'ok'
 
-    monkeypatch.setattr(
-        "openprogram.agent.sub_agent_run.run_agent_turn", fake_run)
+    monkeypatch.setattr(importlib.import_module('openprogram.agentic_programming.agent'), 'agent', fake_agent)
+    monkeypatch.setattr('openprogram.programs.agent_tools', lambda **_kw: [])
     monkeypatch.setattr(
         "openprogram.setup._read_config",
         lambda: {"goal": {"judge_model": "cheap/model"}},
     )
     assert GJ._run_decision_turn(
         "s1", "p", agent_id="main", spawn_caller="a1") == "ok"
-    assert captured["model_override"] == "cheap/model"
+    assert captured["model"] == "cheap/model"
 
     captured.clear()
     monkeypatch.setattr(
@@ -195,7 +189,7 @@ def test_run_decision_turn_passes_judge_model(monkeypatch) -> None:
         lambda: {"goal": {"judge_model": ""}},
     )
     GJ._run_decision_turn("s1", "p", agent_id="main", spawn_caller="a1")
-    assert captured["model_override"] is None
+    assert captured.get("model") in (None, "")
 
 
 def test_headless_decision_uses_an_independent_read_only_turn(monkeypatch) -> None:
@@ -223,7 +217,7 @@ def test_headless_decision_uses_an_independent_read_only_turn(monkeypatch) -> No
 
 @pytest.mark.parametrize("phase", ["refine", "judge"])
 def test_session_goal_inspects_in_current_runtime_without_starting_jobs(monkeypatch, phase):
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
     captured = {}
     runtime = SimpleNamespace(last_blocks=[])
     reply = '{"verdict":"met","reason":"verified"}'
@@ -261,27 +255,25 @@ def test_session_goal_inspects_in_current_runtime_without_starting_jobs(monkeypa
 # ---------------------------------------------------------------------------
 
 def test_parse_refinement_valid_and_fenced() -> None:
-    assert GR._parse_refinement('{"spec": "do X then Y"}') == ("do X then Y", [])
-    assert GR._parse_refinement('```json\n{"spec": " S "}\n```') == ("S", [])
+    assert GR._parse_refinement('{"spec": "do X then Y", "checklist": []}') == ('do X then Y', [])
+    assert GR._parse_refinement('```json\n{"spec": " S ", "checklist": []}\n```') == ('S', [])
 
 
-def test_parse_refinement_with_checklist() -> None:
-    spec, items = GR._parse_refinement(
-        '{"spec": "S", "checklist": [" a ", "", 3, "b"]}')
-    assert spec == "S"
-    assert items == ["a", "b"]                # cleaned, non-strings dropped
-    # More than 20 items are truncated.
-    raw = ('{"spec": "S", "checklist": '
-           + str([f"item {i}" for i in range(30)]).replace("'", '"') + "}")
-    _, capped = GR._parse_refinement(raw)
-    assert len(capped) == 20
+def test_parse_refinement_requires_nonempty_string_checklist_items() -> None:
+    spec, items = GR._parse_refinement('{"spec": "S", "checklist": [" a ", "b"]}')
+    assert spec == 'S'
+    assert items == ['a', 'b']
+    with pytest.raises(ValueError, match='array of nonempty strings'):
+        GR._parse_refinement('{"spec": "S", "checklist": ["a", "", 3, "b"]}')
+    checklist = [f'item {i}' for i in range(30)]
+    import json
+    assert GR._parse_refinement(json.dumps({'spec': 'S', 'checklist': checklist}))[1] == checklist
 
 
-def test_parse_refinement_prose_fallback_empty_checklist() -> None:
-    prose = "A substantial plain-prose specification. " * 10
-    spec, items = GR._parse_refinement(prose)
-    assert spec == prose.strip()
-    assert items == []                        # fail-open: no checklist
+def test_parse_refinement_rejects_prose_without_json() -> None:
+    prose = 'A substantial plain-prose specification. ' * 10
+    with pytest.raises(ValueError):
+        GR._parse_refinement(prose)
 
 
 def test_parse_refinement_invalid_raises() -> None:

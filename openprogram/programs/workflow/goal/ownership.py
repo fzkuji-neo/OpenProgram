@@ -36,7 +36,7 @@ def goal_owner(store, session_id: str):
 def exclusive_goal(function):
     @wraps(function)
     def run(*args, **kwargs):
-        from openprogram.agentic_programming.function import current_session_id
+        from openprogram.agentic_programming.call_state import current_session_id
         import openprogram.programs.workflow.goal as goal_pkg
 
         session_id = current_session_id()

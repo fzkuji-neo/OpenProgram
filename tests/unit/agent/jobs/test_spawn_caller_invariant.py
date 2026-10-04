@@ -101,10 +101,10 @@ def test_agent_sync_clean_passes_spawn_caller(store, captured_run):
 
 
 def test_agent_sync_clean_uses_call_id_when_turn_id_missing(store, captured_run):
-    """Composer-launched @agentic_function has no assistant turn id.
+    """Composer-launched Agent method has no assistant turn id.
     spawn_caller must be the function's DAG node (_call_id), not ROOT."""
     from openprogram.agent.run_control import _current_session_id
-    from openprogram.agentic_programming.function import _call_id
+    from openprogram.agentic_programming.call_state import _call_id
     from openprogram.programs.tools.agents.agent.agent.agent import _agent_impl
     from openprogram.store import _current_turn_id
 

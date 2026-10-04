@@ -98,7 +98,7 @@ a{color:#9db8ff}
 <main>
   <div class="eyebrow">OpenProgram · Design · Runtime</div>
   <h1>Nested Agentic LLM streaming</h1>
-  <p class="lede">Complete product design, not a spike. Goal: in the <b>@agentic_function</b> execution tree, provide <code>llm()</code> / <code>runtime.exec(..., execution_kind="llm")</code> with <strong>per-node, per-channel</strong> real-time token streams, covering ExecutionStrip cards, right-side details, collapsible thinking, cancellation, reconnection, parallel LLMs, and both in-process and subprocess paths.<b>Define the contract first, then implement the same design in phases</b>—consistent with the context-manager design philosophy.</p>
+  <p class="lede">Complete product design, not a spike. Goal: in the <b>Agent method</b> execution tree, provide <code>llm()</code> / <code>runtime.exec(..., execution_kind="llm")</code> with <strong>per-node, per-channel</strong> real-time token streams, covering ExecutionStrip cards, right-side details, collapsible thinking, cancellation, reconnection, parallel LLMs, and both in-process and subprocess paths.<b>Define the contract first, then implement the same design in phases</b>—consistent with the context-manager design philosophy.</p>
   <div class="meta">
     <span class="pill acc">Authoritative draft · Open questions require user decisions</span>
     <span class="pill">Aligned with existing <code>chat_response</code> / <code>stream_event</code> / <code>tree_update</code></span>
@@ -255,29 +255,29 @@ a{color:#9db8ff}
   <!-- 3 -->
   <section id="s3">
     <h2>3. Sequence diagram</h2>
-<pre class="mermaid">sequenceDiagram
-  participant AF as @agentic_function
+<pre>sequenceDiagram
+  participant AF as Agent method
   participant RT as Runtime.exec(llm)
   participant DAG as SessionStore/DAG
   participant BR as Broadcast(WS)
   participant FE as Web FE
 
-  AF->>RT: llm(prompt)
-  RT->>DAG: _open_model_call_node (running)
+  AF-&gt;&gt;RT: llm(prompt)
+  RT-&gt;&gt;DAG: _open_model_call_node (running)
   Note over BR,FE: tree_update (child appears, output="")
-  BR-->>FE: tree_update
-  FE->>FE: TreeStep running; create PartialStream[nodeId]
+  BR--&gt;&gt;FE: tree_update
+  FE-&gt;&gt;FE: TreeStep running; create PartialStream[nodeId]
 
   loop tokens
-    RT->>BR: llm_delta(node_id, channel, delta, seq?)
-    BR-->>FE: llm_delta
-    FE->>FE: buffer.append; rAF updates note/details
+    RT-&gt;&gt;BR: llm_delta(node_id, channel, delta, seq?)
+    BR--&gt;&gt;FE: llm_delta
+    FE-&gt;&gt;FE: buffer.append; rAF updates note/details
   end
 
-  RT->>DAG: _close_model_call_node(output, status)
+  RT-&gt;&gt;DAG: _close_model_call_node(output, status)
   Note over BR,FE: terminal tree_update (output=full text)
-  BR-->>FE: tree_update
-  FE->>FE: replace with tree text; clear PartialStream[nodeId]
+  BR--&gt;&gt;FE: tree_update
+  FE-&gt;&gt;FE: replace with tree text; clear PartialStream[nodeId]
 </pre>
     <div class="callout">FE buffer lifecycle: <b>create</b> on the first llm_delta for node_id (or pre-create an empty buffer when a running exec node appears) → <b>append</b> on every delta → <b>clear</b> on terminal tree_update, cancellation, session unload, or node disappearance.</div>
   </section>
@@ -498,7 +498,7 @@ llmStreamsBySession: {
       </div>
       <div class="mock" id="mock-tree" aria-live="polite"></div>
       <p style="font-size:12px;color:var(--faint);margin-top:8px">Simulation: open → llm_delta×N → tree_update close. See buffer lifecycle in the log on the right.</p>
-      <pre id="mock-log" style="max-height:160px"></pre>
+      <pre></pre>
     </div>
     <div class="panel" id="tab-parallel">
       <p>Two nodes append in parallel with isolated keys: </p>

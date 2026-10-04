@@ -8,7 +8,7 @@ in everyday use*.
 
 ## Automatic Context
 
-Every `@agentic_function` call is recorded as a node in the
+Every `Agent` method call is recorded as a node in the
 session's flat conversation DAG — the same DAG that holds user
 messages and LLM calls. Nested calls thread automatically:
 
@@ -27,8 +27,17 @@ Two decorator knobs control what a call contributes to later
 LLM calls:
 
 ```python
-@agentic_function(expose="full", render_range={"callers": 1})
-def navigate(target): ...
+from openprogram import Agent
+
+class ExampleAgent(Agent):
+    method_options = {
+        'navigate': {'tool': True, 'expose': 'full', 'render_range': {'callers': 1}},
+    }
+
+    def navigate(self, target): ...
+
+_example_agent = ExampleAgent()
+navigate = _example_agent.navigate
 ```
 
 `expose` sets how much of the call's internals later calls see —
@@ -40,9 +49,9 @@ the function itself sees (`0` walls it off completely);
 
 ## Functions that author functions
 
-Writing, fixing and scaffolding `@agentic_function`s is itself
+Writing, fixing and scaffolding `Agent` methods is itself
 agent work — done with ordinary file-editing tools following
-the [agentic function API](../reference/api/agentic-function.md).
+the [agentic function API](../reference/api/agent.md).
 There are no dedicated `create()` / `fix()` framework calls:
 they only ever wrapped one LLM call plus a file write, which an
 agent does directly.

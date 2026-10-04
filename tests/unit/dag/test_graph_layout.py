@@ -96,7 +96,7 @@ def test_manual_function_hangs_off_root():
     prior assistant reply ``l1``), exactly like a new chat turn — so it
     carries a real ``predecessor`` and continues the trunk lane rather
     than forking. Only a retry (sharing a fork point) is predecessor-less
-    off ROOT and gets its own lane; see ``run_agentic_function_call``."""
+    off ROOT and gets its own lane; see ``run_agent_method_call``."""
     by = _annotate([
         _root(),
         {"id": "u1", "role": "user", "caller": "ROOT", "predecessor": "ROOT", "created_at": 1},

@@ -27,8 +27,8 @@ code right next to the bundled agentic functions:
 The registration contract is the ``agentics`` SUB-package, not the
 top-level package: :func:`import_installed_programs` puts each clone's
 directory on ``sys.path`` and imports ``<package>.agentics`` at
-registry-load time — importing it fires the ``@agentic_function``
-decorators, which self-register into the shared registry. The top-level
+registry-load time. Its PROGRAM_ENTRIES exports register explicit callables
+in the shared registry. The top-level
 ``<package>/__init__`` is deliberately NOT the entry point and must stay
 dependency-light: discovery imports it (as the parent) on every startup,
 including on machines without the harness's optional deps. Missing
@@ -459,7 +459,7 @@ class Program:
     """One in-tree agentic harness program.
 
     Attributes:
-        function: The user-facing ``@agentic_function`` name the package
+        function: The user-facing Program entry name the package
             registers (what the welcome screen / DEFAULT_TOOLS calls).
         package: The importable package name inside the repo (``import
             <package>``). Its ``__init__`` imports the entry point so the
@@ -711,7 +711,7 @@ def import_installed_programs() -> list[str]:
                 sys.path.insert(0, repo_dir)
         try:
             # Capture only the catalogue-selected package. Its agentics
-            # module exports the public AGENTIC_FUNCTIONS entries.
+            # module exports the public PROGRAM_ENTRIES entries.
             from openprogram.programs._source_loader import install_program_source, register_public_entries
             package_spec = importlib.util.find_spec(prog.package)
             if package_spec is not None and package_spec.submodule_search_locations:
@@ -729,7 +729,7 @@ def import_installed_programs() -> list[str]:
                         ),
                     )
             module = importlib.import_module(f"{prog.package}.agentics")
-            register_public_entries(module)
+            register_public_entries(module, require_exports=True)
             if prog.function == "gui_agent":
                 from openprogram.programs.gui_harness_bridge import (
                     install_gui_harness_web_use,
@@ -737,6 +737,11 @@ def import_installed_programs() -> list[str]:
                 install_gui_harness_web_use()
             registered.append(prog.function)
         except Exception as e:  # noqa: BLE001 — never let one break import
+            import logging
+            logging.getLogger(__name__).warning(
+                "Cannot load installed Program %s: %s. Use the current Agent API and PROGRAM_ENTRIES exports.",
+                prog.package, e,
+            )
             if os.environ.get("OPENPROGRAM_DEBUG_REGISTRY"):
                 import traceback
                 print(f"[programs] failed to import {prog.package}.agentics: "

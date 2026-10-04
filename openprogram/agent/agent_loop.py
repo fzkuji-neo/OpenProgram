@@ -284,7 +284,7 @@ def _job_operation_timeout(declared: float | None) -> float | None:
 
 
 def _finish_interrupted_stream(stream, exc, messages, cancel_event) -> None:
-    from openprogram.agentic_programming.function import CancelledError, check_cancelled
+    from openprogram.agentic_programming.call_state import CancelledError, check_cancelled
     from openprogram.providers.utils.errors import ExecInterrupt
 
     cancelled = isinstance(exc, (CancelledError, asyncio.CancelledError)) or bool(
@@ -1857,7 +1857,7 @@ async def _execute_tool_calls(
                 is_error=True,
             )
         except BaseException as e:
-            # User-triggered cancel (openprogram.agentic_programming.function.CancelledError
+            # User-triggered cancel (openprogram.agentic_programming.call_state.CancelledError
             # is a BaseException so user-written `except Exception` inside tool bodies
             # cannot swallow it). Push a tool_end event so the UI sees the call
             # closed, then re-raise to abort the agent loop. The outer _run handler

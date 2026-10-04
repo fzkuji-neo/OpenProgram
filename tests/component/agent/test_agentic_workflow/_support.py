@@ -1,9 +1,9 @@
 """Behavior tests for self-programmed task-list workflows."""
 
-
 from __future__ import annotations
 
 
+import ast
 import json
 
 
@@ -50,15 +50,42 @@ def _code(body: str, helpers: str = "") -> str:
     return f"```python\n{source}\n```"
 
 
-def _project_entry(body: str) -> str:
-    source = TL._validated_reply(_code(body)).replace(
-        "def workflow():", "def research_workflow(task):", 1,
+def _agent_entry_source(source: str, name: str) -> str:
+    """Build an ordinary Agent method as a published fixture entry."""
+    tree = ast.parse(source)
+    method = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == name
+    )
+    method_source = (
+        ast.get_source_segment(source, method)
+        .replace(
+            f"def {name}(",
+            f"def {name}(self, ",
+            1,
+        )
+        .replace("(self, )", "(self)")
+    )
+    module_source = "\n\n".join(
+        ast.get_source_segment(source, node) for node in tree.body if node is not method
     )
     return (
-        "from openprogram.agentic_programming import agentic_function\n\n"
-        "@agentic_function\n"
-        + source
+        "from openprogram import Agent\n\n" + module_source + "\n\n"
+        "class WorkflowAgent(Agent):\n"
+        f"    method_options = {{{name!r}: {{'tool': True, 'name': {name!r}}}}}\n\n"
+        + textwrap.indent(method_source, "    ")
+        + f"\n\n{name} = WorkflowAgent().{name}\n"
     )
+
+
+def _project_entry(body: str) -> str:
+    source = TL._validated_reply(_code(body)).replace(
+        "def workflow():",
+        "def research_workflow(task):",
+        1,
+    )
+    return _agent_entry_source(source, "research_workflow")
 
 
 def _project(
@@ -69,21 +96,27 @@ def _project(
     readme: str = "# Research workflow\n\nReusable research steps.\n",
     files: dict[str, str] | None = None,
 ) -> str:
-    project_files = dict(files or {
-        "steps/discover.py": (
-            "def discover(task):\n"
-            "    return agent('discover papers')\n"
-        ),
-        "entry.py": "def workflow(task):\n    return discover(task)\n",
-    })
+    project_files = dict(
+        files
+        or {
+            "steps/discover.py": (
+                "def discover(task):\n    return agent('discover papers')\n"
+            ),
+            "entry.py": "def workflow(task):\n    return discover(task)\n",
+        }
+    )
     if "entry.py" in project_files:
         project_files["entry.py"] = project_files["entry.py"].replace(
-            "def workflow():", "def workflow(task):", 1,
+            "def workflow():",
+            "def workflow(task):",
+            1,
         )
         entrypoint = re.sub(r"[^a-z0-9_]+", "_", name.lower()).strip("_")
         entrypoint = entrypoint or "generated_workflow"
         entry_source = project_files.pop("entry.py").replace(
-            "def workflow(", f"def {entrypoint}(", 1,
+            "def workflow(",
+            f"def {entrypoint}(",
+            1,
         )
         imports = []
         for path, source in sorted(project_files.items()):
@@ -92,72 +125,72 @@ def _project(
             names = re.findall(r"(?m)^def ([a-zA-Z_][a-zA-Z0-9_]*)\(", source)
             if names:
                 module = path[:-3].replace("/", ".")
-                imports.append(
-                    f"from .{module} import {', '.join(names)}"
-                )
-        project_files.update({
-            "__init__.py": (
-                f"from .workflow import {entrypoint}\n\n"
-                f"__all__ = [{entrypoint!r}]\n"
-            ),
-            "workflow.py": (
-                "from openprogram.agentic_programming import agentic_function\n"
-                + ("\n".join(imports) + "\n" if imports else "")
-                + "\n@agentic_function\n"
-                + entry_source
-            ),
-            "steps/__init__.py": project_files.get("steps/__init__.py", ""),
-            "tests/test_workflow.py": (
-                f"from workflows.{entrypoint} import {entrypoint}\n\n"
-                "def test_entrypoint_is_callable():\n"
-                f"    assert callable({entrypoint})\n"
-            ),
-        })
+                imports.append(f"from .{module} import {', '.join(names)}")
+        project_files.update(
+            {
+                "__init__.py": (
+                    f"from .workflow import {entrypoint}\n\n"
+                    f"__all__ = [{entrypoint!r}]\n"
+                ),
+                "workflow.py": (
+                    ("\n".join(imports) + "\n" if imports else "")
+                    + _agent_entry_source(entry_source, entrypoint)
+                ),
+                "steps/__init__.py": project_files.get("steps/__init__.py", ""),
+                "tests/test_workflow.py": (
+                    f"from workflows.{entrypoint} import {entrypoint}\n\n"
+                    "def test_entrypoint_is_callable():\n"
+                    f"    assert callable({entrypoint})\n"
+                ),
+            }
+        )
         name = entrypoint
-    return json.dumps({
-        "project_metadata": {
-            "name": name,
-            "summary": summary,
-            "tags": tags or ["research"],
+    return json.dumps(
+        {
+            "project_metadata": {
+                "name": name,
+                "summary": summary,
+                "tags": tags or ["research"],
+            },
+            "readme": readme,
+            "files": project_files,
         },
-        "readme": readme,
-        "files": project_files,
-    }, ensure_ascii=False)
+        ensure_ascii=False,
+    )
 
 
 def _package_project() -> str:
-    return json.dumps({
-        "project_metadata": {
-            "name": "literature_review",
-            "summary": "Research and synthesize a topic",
-            "tags": ["research"],
+    return json.dumps(
+        {
+            "project_metadata": {
+                "name": "literature_review",
+                "summary": "Research and synthesize a topic",
+                "tags": ["research"],
+            },
+            "readme": "# Literature review\n\nReusable research workflow.\n",
+            "files": {
+                "__init__.py": (
+                    "from .workflow import literature_review\n\n"
+                    "__all__ = ['literature_review']\n"
+                ),
+                "workflow.py": (
+                    "from openprogram import Agent\nfrom .steps.discover import discover\n\nclass LiteratureReviewAgent(Agent):\n    method_options = {\n        'literature_review': {\n            'name': 'literature_review',\n            'tool': True\n        },\n    }\n\n    def literature_review(self, task: str):\n        return discover(task)\n\n\nliterature_review = LiteratureReviewAgent().literature_review\n"
+                ),
+                "steps/__init__.py": "",
+                "steps/discover.py": (
+                    "from openprogram.agentic_programming import agent\n\n"
+                    "def discover(task: str):\n"
+                    "    return agent('discover ' + task)\n"
+                ),
+                "tests/test_workflow.py": (
+                    "from workflows.literature_review import literature_review\n\n"
+                    "def test_entrypoint_is_callable():\n"
+                    "    assert callable(literature_review)\n"
+                ),
+            },
         },
-        "readme": "# Literature review\n\nReusable research workflow.\n",
-        "files": {
-            "__init__.py": (
-                "from .workflow import literature_review\n\n"
-                "__all__ = ['literature_review']\n"
-            ),
-            "workflow.py": (
-                "from openprogram.agentic_programming import agentic_function\n"
-                "from .steps.discover import discover\n\n"
-                "@agentic_function\n"
-                "def literature_review(task: str):\n"
-                "    return discover(task)\n"
-            ),
-            "steps/__init__.py": "",
-            "steps/discover.py": (
-                "from openprogram.agentic_programming import agent\n\n"
-                "def discover(task: str):\n"
-                "    return agent('discover ' + task)\n"
-            ),
-            "tests/test_workflow.py": (
-                "from workflows.literature_review import literature_review\n\n"
-                "def test_entrypoint_is_callable():\n"
-                "    assert callable(literature_review)\n"
-            ),
-        },
-    }, ensure_ascii=False)
+        ensure_ascii=False,
+    )
 
 
 @pytest.fixture
@@ -165,10 +198,15 @@ def session_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     # These tests own planning, revisions and runtime behavior; the real OS
     # publication gate is covered by integration/programs/test_workflow_authoring.py.
     from openprogram.programs.workflow._project import authoring
-    monkeypatch.setattr(authoring, "_run_tests", lambda *_args: {"executed_tests": True, "sandboxed": True})
+
+    monkeypatch.setattr(
+        authoring,
+        "_run_tests",
+        lambda *_args: {"executed_tests": True, "sandboxed": True},
+    )
     monkeypatch.setattr(TL, "_session_repo", lambda _sid: tmp_path)
     monkeypatch.setattr(TL, "_workflow_projects_root", lambda: tmp_path / "catalog")
-    monkeypatch.setattr(TL, "_registered_agentic_functions", lambda: {})
+    monkeypatch.setattr(TL, "_registered_program_entries", lambda: {})
     monkeypatch.setattr(TL, "current_session_id", lambda: "s1")
     return tmp_path
 
@@ -181,24 +219,30 @@ def _planner(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
     def project_reply(reply: str, prompt: str) -> str:
         if reply.strip() == "SINGLE":
             task = prompt.split("<task>\n", 1)[1].split("\n</task>", 1)[0]
-            return _project(files={
-                "steps/task.py": (
-                    "def run_task(task):\n"
-                    f"    return agent({(task + chr(10) + chr(10) + TL.DELIVERY_INSTRUCTIONS)!r})\n"
-                ),
-                "entry.py": "def workflow(task):\n    return run_task(task)\n",
-            })
+            return _project(
+                files={
+                    "steps/task.py": (
+                        "def run_task(task):\n"
+                        f"    return agent({(task + chr(10) + chr(10) + TL.DELIVERY_INSTRUCTIONS)!r})\n"
+                    ),
+                    "entry.py": "def workflow(task):\n    return run_task(task)\n",
+                }
+            )
         source = TL._extract_source(reply)
         if "def workflow():" not in source:
-            return _project(files={
-                "steps/placeholder.py": "def project_marker():\n    return None\n",
-                "entry.py": source,
-            })
+            return _project(
+                files={
+                    "steps/placeholder.py": "def project_marker():\n    return None\n",
+                    "entry.py": source,
+                }
+            )
         helper = source.replace("def workflow():", "def run_workflow_step():", 1)
-        return _project(files={
-            "steps/legacy.py": helper,
-            "entry.py": "def workflow(task):\n    return run_workflow_step()\n",
-        })
+        return _project(
+            files={
+                "steps/legacy.py": helper,
+                "entry.py": "def workflow(task):\n    return run_workflow_step()\n",
+            }
+        )
 
     def fake(_sid, prompt, **_kwargs):
         prompts.append(prompt)
@@ -226,12 +270,22 @@ def _planner(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
 def _executor(monkeypatch: pytest.MonkeyPatch, fn=None) -> list[dict]:
     calls: list[dict] = []
 
-    def fake(prompt, description="", agent_id="", start_from="clean",
-             run_in_background=False, to="", archive_when_done=False):
+    def fake(
+        prompt,
+        description="",
+        agent_id="",
+        start_from="clean",
+        run_in_background=False,
+        to="",
+        archive_when_done=False,
+    ):
         kwargs = {
-            "description": description, "agent_id": agent_id,
-            "start_from": start_from, "run_in_background": run_in_background,
-            "to": to, "archive_when_done": archive_when_done,
+            "description": description,
+            "agent_id": agent_id,
+            "start_from": start_from,
+            "run_in_background": run_in_background,
+            "to": to,
+            "archive_when_done": archive_when_done,
         }
         calls.append({"prompt": prompt, **kwargs})
         return fn(prompt, kwargs) if fn else f"done: {prompt}"
@@ -244,14 +298,25 @@ def _executor(monkeypatch: pytest.MonkeyPatch, fn=None) -> list[dict]:
 def _llm_executor(monkeypatch: pytest.MonkeyPatch, fn=None) -> list[dict]:
     calls: list[dict] = []
 
-    def fake(prompt, *, model="", effort="", response_format=None,
-             choices=None, web_search=False, timeout_s=None):
+    def fake(
+        prompt,
+        *,
+        model="",
+        effort="",
+        response_format=None,
+        choices=None,
+        web_search=False,
+        timeout_s=None,
+    ):
         if "<workflow_summary>" in prompt:
             return {"summary": "Completed the workflow.", "return_result": False}
         kwargs = {
-            "model": model, "effort": effort,
-            "response_format": response_format, "choices": choices,
-            "web_search": web_search, "timeout_s": timeout_s,
+            "model": model,
+            "effort": effort,
+            "response_format": response_format,
+            "choices": choices,
+            "web_search": web_search,
+            "timeout_s": timeout_s,
         }
         calls.append({"prompt": prompt, **kwargs})
         return fn(prompt, kwargs) if fn else f"done: {prompt}"
@@ -354,9 +419,13 @@ def _install_legacy_project(repo: Path, name: str) -> None:
     TL._git(project, "add", "--all")
     TL._git(
         project,
-        "-c", "user.name=OpenProgram",
-        "-c", "user.email=openprogram@localhost",
-        "commit", "-m", "legacy fixture",
+        "-c",
+        "user.name=OpenProgram",
+        "-c",
+        "user.email=openprogram@localhost",
+        "commit",
+        "-m",
+        "legacy fixture",
     )
 
 
@@ -368,4 +437,3 @@ def _workflow_run_states(session_repo: Path) -> list[dict]:
         json.loads(path.read_text(encoding="utf-8"))
         for path in runs_dir.glob("*/state.json")
     ]
-

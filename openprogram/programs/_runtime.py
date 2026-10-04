@@ -1032,12 +1032,12 @@ def _build_and_register_tool(
     register".
 
     Used by both ``@function`` (called inline at the end of the
-    decorator body) and ``@agentic_function._register_as_tool`` (called
+    decorator body) and ``register_agent_method`` (called
     after the wrapper is constructed). Keeping the construction in one
     place means the sidecar contract — which attrs are required, what
     types they hold — has one definition. Adding a new gating layer
     or sidecar attr in the future only requires editing this helper;
-    both decorators pick it up.
+    both registration paths use it.
     """
     agent_tool = AgentTool(
         name=name,

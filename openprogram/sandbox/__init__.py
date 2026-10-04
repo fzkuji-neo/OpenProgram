@@ -10,7 +10,7 @@ The policy is resolved from ``~/.openprogram/config.json`` (the
 is wrapped. That matters more than it sounds: the switch used to live on
 a ``ContextVar`` and was lost at every boundary that starts a fresh
 context — the web UI's asyncio task handing work to a bare thread, the
-``spawn`` subprocess behind ``@agentic_function``, and any nested CLI.
+``spawn`` subprocess behind ``Agent method``, and any nested CLI.
 A file every process reads cannot be lost at a boundary, and cannot be
 skipped by an approval-layer bypass either, because it is read below the
 approval layer. Callers that already hold a policy pass it explicitly to

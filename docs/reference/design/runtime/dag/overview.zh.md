@@ -411,7 +411,7 @@ replay 一次调用 = 用 manifest 记录的策略渲染，而不是今天的策
 - `head_id` 与分支名存在会话的 `meta.json`；
 - store 只持久化原始节点 + meta；context commit 属于 commit 子系统。
 
-`@agentic_function` 的函数体在 **spawn** 的子进程里跑（全新解释器而非 fork——父进
+`Agent` method 的函数体在 **spawn** 的子进程里跑（全新解释器而非 fork——父进
 程已加载 PyTorch/libomp，fork 后子进程首次 BLAS 调用会 SIGSEGV），stop 可对进程组
 SIGKILL。子进程用自己的 SessionStore 写 code 子树；父进程执行结束后 invalidate 缓
 存以读取磁盘真相。函数调用的单一事实来源是 SessionStore 的 code 子树；实时

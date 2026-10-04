@@ -30,7 +30,7 @@
 4. 前端两个大文件已拆完。剩余为 Python 侧的多职责模块，具体行数不在本设计文档中
    固定；排期时应以当前源码和职责边界重新测量。
    当前候选包括 `openprogram/agentic_programming/runtime.py`、
-   `openprogram/store/session/session_store.py`、`openprogram/agentic_programming/function.py`、
+   `openprogram/store/session/session_store.py`、`openprogram/agentic_programming/call_state.py`、
    `openprogram/auth/cli.py` 和 `openprogram/programs/_runtime.py`。
    `apps/cli/src/runtime/` 下的 yoga-layout 与 ink 运行时属 vendored 移植代码，
    不算多职责问题。
@@ -54,7 +54,7 @@
 | 桌面启动 | 窗口以预期布局出现，不出现从角落调整大小的过程 | 已安装 App |
 | CLI 恢复 | resume 参数将正确会话传入 Ink runtime | `apps/cli/python/openprogram_cli/_impl/ink.py`、`apps/cli/src/index.tsx` |
 | SSO、语音与插件隔离 | 文档区分已实现方法/provider 与未实现入口；community 插件执行符合隔离合同 | `auth/methods/sso.py`、`tts.py`、`plugins/sandbox.py`、plugin loader |
-| 函数恢复 | 区分原帧恢复与新建兄弟重试；间接调用循环符合递归约束 | `ws_actions/chat.py`、`agentic_programming/function.py` |
+| 函数恢复 | 区分原帧恢复与新建兄弟重试；间接调用循环符合递归约束 | `ws_actions/chat.py`、`agentic_programming/call_state.py` |
 | 函数元数据 | 动态 metadata 和源码字面量声明符合表单合同 | 函数表单与元数据文档 |
 | 分发 | Linux 桌面产物、升级失败恢复、Workflow 手动发布与沙箱行为门禁符合安装文档 | 安装、源码升级、Workflow 发布 |
 | 命令注册表 | 重名命令有明确解析顺序，菜单无歧义 | `runCommand` 与命令菜单 |

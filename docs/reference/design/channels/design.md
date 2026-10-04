@@ -155,7 +155,7 @@ This document describes the structure and message flow. For the requirements and
    of their own.
 ```
 
-## 3. Use Case B: cron / @agentic_function Proactively Sends a Message
+## 3. Use Case B: cron / Agent method Proactively Sends a Message
 
 ```python
 from openprogram.channels.outbound import send
@@ -183,7 +183,7 @@ This is why outbound.send is a separate entry point instead of going through an 
 
 | Entry point | Purpose | State | Caller |
 |---|---|---|---|
-| `outbound.send` | one-shot send, no long-running process needed | stateless | cron script / jupyter / @agentic_function / webui (reply) |
+| `outbound.send` | one-shot send, no long-running process needed | stateless | cron script / jupyter / Agent method / webui (reply) |
 | `Channel.send_text` + `edit_text` | holds message_id for subsequent edits | stateful | dispatch_inbound progress streaming |
 
 Both call the same `_transport.post_message` / `patch_message` underneath. There is only one copy of the HTTP call / credential loading / chunking code.
@@ -334,7 +334,7 @@ How to read it: each module deals only with the callers it declares; there are n
 | `_attachments.py` | inbound attachment download + turn-input conversion | base.handle_inbound |
 | `_message.py` | ChannelMessage + Attachment neutral structures | adapter entry |
 | `base.py` | Channel ABC + MessageHandle + handle_inbound + run_forever | adapter subclasses, worker, dispatch_inbound |
-| `outbound.py` | entry A (one-shot send / send_file) | cron script, jupyter, @agentic_function |
+| `outbound.py` | entry A (one-shot send / send_file) | cron script, jupyter, Agent method |
 | `_conversation.py` | dispatch_inbound main flow + per-session lock | base.handle_inbound |
 | `_session_store.py` | session load/save | dispatch_inbound |
 | `_session_routing.py` | session_key computation | dispatch_inbound |

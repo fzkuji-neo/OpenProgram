@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openprogram.agentic_programming import function as agentic_fn
+from openprogram.agentic_programming import call_state
 from openprogram.agentic_programming import Agent
 
 from ._generation import planner
@@ -32,10 +32,10 @@ class CreateWorkflowAgent(Agent):
         """
         candidate = planner._request_project_candidate(
             task,
-            bindings._registered_agentic_functions(),
-            session_id=agentic_fn.current_session_id(),
+            bindings._registered_program_entries(),
+            session_id=call_state.current_session_id(),
             agent_id="main",
-            spawn_caller=agentic_fn.current_call_id() or None,
+            spawn_caller=call_state.current_call_id() or None,
             require_new_name=True,
         )
         return repository._publish_candidate(candidate, project_id="", action="create")

@@ -13,14 +13,14 @@ import os
 import json
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.function import _current_runtime
+from openprogram.agentic_programming.call_state import _current_runtime
 from openprogram.agentic_programming.runtime import Runtime
 from .._paths import expanded_project_dir, write_artifact
 
 
 def retrieve_sources(topic: str) -> str:
     """Acquire paper metadata before asking a model to synthesize it."""
-    from openprogram.agentic_programming.function import check_cancelled
+    from openprogram.agentic_programming.call_state import check_cancelled
     from openprogram.programs.tools.web.web_search.providers.arxiv import ArxivProvider
 
     if not isinstance(topic, str) or not topic.strip():

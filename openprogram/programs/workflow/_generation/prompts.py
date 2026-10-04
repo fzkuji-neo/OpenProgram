@@ -130,7 +130,7 @@ lowercase Python identifier and is also the public function name. Export that
 entry from __init__.py. Define an Agent subclass in workflow.py.
 Give its run method exactly one task parameter after self.
 Export the bound method as short_stable_python_name = WorkflowAgent().run.
-Do not add an agentic_function decorator. Put reusable
+Define methods without per-method decorators. Put reusable
 responsibilities in separate steps/, goals/, or helpers/ modules and include
 tests/test_workflow.py. Include actual pytest behavior tests for output and invalid
 input, not an import-only file or just a callable assertion. Test the entry's

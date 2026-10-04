@@ -5,7 +5,7 @@ import time
 
 from openprogram.agent import surface_context
 from openprogram.agentic_programming.agent import agent
-from openprogram.agentic_programming.function import check_cancelled, current_call_id
+from openprogram.agentic_programming.call_state import check_cancelled, current_call_id
 from openprogram.backend.gui_agent import GuiAgentTools
 from openprogram.backend.gui_browser_resources import GuiBrowserResources
 from openprogram.execution.control import default_control_service

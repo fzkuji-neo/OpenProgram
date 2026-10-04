@@ -1,3 +1,5 @@
+from openprogram.programs import _runtime as program_runtime
+
 """Real function steps survive version selection without replaying completed writes."""
 
 from pathlib import Path
@@ -6,7 +8,7 @@ import time
 
 import pytest
 
-from openprogram.agentic_programming.function import agentic_function
+from openprogram import Agent
 from openprogram.execution import AttemptStore, ExecutionStore, RuntimeControlService
 from openprogram.execution.driver import DriverRegistry
 from openprogram.execution.model import CapabilitySet
@@ -148,20 +150,40 @@ def test_registered_function_resumes_selected_code_without_repeating_effect(
     tmp_path, monkeypatch, policy, suffix, original_fn, replacement_fn, fresh_process
 ):
     # Exercise the public decorator before any internal continuation imports.
-    from openprogram.agentic_programming.function import _registry
+    from openprogram.programs._runtime import _registry
     import importlib
 
     monkeypatch.setattr(
-        importlib.import_module("openprogram.agentic_programming.function"),
+        importlib.import_module("openprogram.programs._runtime"),
         "_registry",
         dict(_registry),
     )
-    original = agentic_function(
-        original_fn, name="durable-demo", resumable=True, as_tool=False
-    )
-    replacement = agentic_function(
-        replacement_fn, name="durable-demo", resumable=True, as_tool=False
-    )
+
+    class RegisteredProgram1Agent(Agent):
+        method_options = {
+            "run": {
+                "name": "durable-demo",
+                "resumable": True,
+                "as_tool": False,
+                "tool": True,
+            }
+        }
+        run = staticmethod(original_fn)
+
+    original = RegisteredProgram1Agent().run
+
+    class RegisteredProgram2Agent(Agent):
+        method_options = {
+            "run": {
+                "name": "durable-demo",
+                "resumable": True,
+                "as_tool": False,
+                "tool": True,
+            }
+        }
+        run = staticmethod(replacement_fn)
+
+    replacement = RegisteredProgram2Agent().run
     from openprogram.agentic_programming.continuation import (
         FunctionSuspended,
         function_execution,
@@ -251,21 +273,7 @@ def test_registered_function_resumes_selected_code_without_repeating_effect(
         import subprocess
         import sys
 
-        script = """
-import json, sys
-from openprogram.execution import ExecutionStore
-from openprogram.agentic_programming.continuation import function_execution
-from openprogram.agentic_programming.function import agentic_function
-import tests.integration.execution.test_function_version_resume as source
-folder, policy = sys.argv[1:]
-del source._version_a
-store = ExecutionStore(folder + '/executions.db')
-execution = store.get_execution('execution')
-replacement = agentic_function(source._version_b, name='durable-demo', as_tool=False, resumable=True)
-with function_execution(store, attempt_id=execution.current_attempt_id, generation=execution.owner_lease['generation'], call_key='original-call', policy=policy):
-    result = replacement(folder)
-print(json.dumps(result))
-"""
+        script = "\nimport json, sys\nfrom openprogram.execution import ExecutionStore\nfrom openprogram.agentic_programming.continuation import function_execution\nfrom openprogram import Agent\nimport tests.integration.execution.test_function_version_resume as source\nfolder, policy = sys.argv[1:]\ndel source._version_a\nstore = ExecutionStore(folder + '/executions.db')\nexecution = store.get_execution('execution')\nclass RegisteredProgram1Agent(Agent):\n    method_options = {\"run\": {'name': 'durable-demo', 'as_tool': False, 'resumable': True, 'tool': True}}\n    run = staticmethod(source._version_b)\n\nreplacement = RegisteredProgram1Agent().run\nwith function_execution(store, attempt_id=execution.current_attempt_id, generation=execution.owner_lease['generation'], call_key='original-call', policy=policy):\n    result = replacement(folder)\nprint(json.dumps(result))\n"
         completed = subprocess.run(
             [sys.executable, "-c", script, str(tmp_path), policy],
             capture_output=True,
@@ -648,17 +656,20 @@ def _hidden_state_function(folder):
 def test_hidden_mutable_state_is_rejected_before_external_work(tmp_path, monkeypatch):
     import importlib
 
-    function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
-    )
-    monkeypatch.setattr(function_module, "_registry", dict(function_module._registry))
+    function_module = importlib.import_module("openprogram.programs._runtime")
+    monkeypatch.setattr(program_runtime, "_registry", dict(program_runtime._registry))
     from openprogram.agentic_programming.continuation import (
         FunctionCompatibilityError,
         function_execution,
     )
 
     store, active, _service = _active_execution(tmp_path)
-    function = agentic_function(_hidden_state_function, resumable=True, as_tool=False)
+
+    class RegisteredProgram3Agent(Agent):
+        method_options = {"run": {"resumable": True, "as_tool": False, "tool": True}}
+        run = staticmethod(_hidden_state_function)
+
+    function = RegisteredProgram3Agent().run
     with pytest.raises(FunctionCompatibilityError, match="Mutable helper state"):
         with function_execution(
             store,
@@ -688,17 +699,20 @@ def _local_import_function(folder):
 def test_untracked_step_import_is_rejected_before_external_work(tmp_path, monkeypatch):
     import importlib
 
-    function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
-    )
-    monkeypatch.setattr(function_module, "_registry", dict(function_module._registry))
+    function_module = importlib.import_module("openprogram.programs._runtime")
+    monkeypatch.setattr(program_runtime, "_registry", dict(program_runtime._registry))
     from openprogram.agentic_programming.continuation import (
         FunctionCompatibilityError,
         function_execution,
     )
 
     store, active, _service = _active_execution(tmp_path)
-    function = agentic_function(_local_import_function, resumable=True, as_tool=False)
+
+    class RegisteredProgram4Agent(Agent):
+        method_options = {"run": {"resumable": True, "as_tool": False, "tool": True}}
+        run = staticmethod(_local_import_function)
+
+    function = RegisteredProgram4Agent().run
     with pytest.raises(FunctionCompatibilityError, match="module scope"):
         with function_execution(
             store,
@@ -725,10 +739,8 @@ def test_opaque_package_is_rejected_before_external_work(tmp_path, monkeypatch):
     import importlib
     import sys
 
-    function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
-    )
-    monkeypatch.setattr(function_module, "_registry", dict(function_module._registry))
+    function_module = importlib.import_module("openprogram.programs._runtime")
+    monkeypatch.setattr(program_runtime, "_registry", dict(program_runtime._registry))
     from openprogram.agentic_programming.continuation import (
         FunctionCompatibilityError,
         function_execution,
@@ -746,7 +758,14 @@ def test_opaque_package_is_rejected_before_external_work(tmp_path, monkeypatch):
             importlib.import_module("durable_dependency"),
         )
         store, active, _service = _active_execution(tmp_path)
-        function = agentic_function(_package_function, resumable=True, as_tool=False)
+
+        class RegisteredProgram6Agent(Agent):
+            method_options = {
+                "run": {"resumable": True, "as_tool": False, "tool": True}
+            }
+            run = staticmethod(_package_function)
+
+        function = RegisteredProgram6Agent().run
         with pytest.raises(FunctionCompatibilityError, match="Opaque"):
             with function_execution(
                 store,
@@ -776,17 +795,20 @@ def _dynamic_import_function(folder):
 def test_dynamic_import_is_rejected_before_external_work(tmp_path, monkeypatch):
     import importlib
 
-    function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
-    )
-    monkeypatch.setattr(function_module, "_registry", dict(function_module._registry))
+    function_module = importlib.import_module("openprogram.programs._runtime")
+    monkeypatch.setattr(program_runtime, "_registry", dict(program_runtime._registry))
     from openprogram.agentic_programming.continuation import (
         FunctionCompatibilityError,
         function_execution,
     )
 
     store, active, _service = _active_execution(tmp_path)
-    function = agentic_function(_dynamic_import_function, resumable=True, as_tool=False)
+
+    class RegisteredProgram5Agent(Agent):
+        method_options = {"run": {"resumable": True, "as_tool": False, "tool": True}}
+        run = staticmethod(_dynamic_import_function)
+
+    function = RegisteredProgram5Agent().run
     with pytest.raises(FunctionCompatibilityError, match="Dynamic"):
         with function_execution(
             store,

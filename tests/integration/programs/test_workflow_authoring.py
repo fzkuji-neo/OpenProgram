@@ -15,14 +15,21 @@ def _package(root: Path, *, passing: bool = True) -> Path:
     (project / "steps").mkdir(parents=True)
     (project / "tests").mkdir()
     files = {
-        "pyproject.toml": catalog._project_pyproject("manual_report", {
-            "name": "manual_report", "summary": "Manual workflow", "tags": [], "entrypoint": "manual_report",
-        }),
+        "pyproject.toml": catalog._project_pyproject(
+            "manual_report",
+            {
+                "name": "manual_report",
+                "summary": "Manual workflow",
+                "tags": [],
+                "entrypoint": "manual_report",
+            },
+        ),
         "README.md": "# Manual report\n",
         "__init__.py": "from .workflow import manual_report\n",
-        "workflow.py": "from openprogram.agentic_programming import agentic_function\nfrom .steps.prepare import prepare\n@agentic_function\ndef manual_report(task: str):\n    return prepare(task)\n",
+        "workflow.py": "from openprogram import Agent\nfrom .steps.prepare import prepare\nclass ManualReportAgent(Agent):\n    method_options = {\n        'manual_report': {\n            'name': 'manual_report',\n            'tool': True\n        },\n    }\n\n    def manual_report(self, task: str):\n        return prepare(task)\n\n\nmanual_report = ManualReportAgent().manual_report\n",
         "steps/prepare.py": "def prepare(task: str):\n    return task + '!'\n",
-        "tests/test_workflow.py": "from workflows.manual_report import manual_report\ndef test_output():\n    assert manual_report.__wrapped__('example') == " + ("'example!'\n" if passing else "'wrong'\n"),
+        "tests/test_workflow.py": "from workflows.manual_report import manual_report\ndef test_output():\n    assert manual_report.__wrapped__('example') == "
+        + ("'example!'\n" if passing else "'wrong'\n"),
     }
     for name, value in files.items():
         (project / name).write_text(value, encoding="utf-8")
@@ -39,11 +46,17 @@ def _invoke(monkeypatch, capsys, *args):
 
 
 @pytest.mark.sandbox
-def test_manual_test_and_publish_use_a_sandboxed_snapshot(tmp_path, monkeypatch, capsys):
+def test_manual_test_and_publish_use_a_sandboxed_snapshot(
+    tmp_path, monkeypatch, capsys
+):
     if sys.platform not in {"darwin", "linux"} or sandbox.unavailable_reason():
         pytest.skip("OS behavior-test sandbox is unavailable")
     project = _package(tmp_path / "authored")
-    before = {path.relative_to(project): path.read_bytes() for path in project.rglob("*") if path.is_file()}
+    before = {
+        path.relative_to(project): path.read_bytes()
+        for path in project.rglob("*")
+        if path.is_file()
+    }
     published = tmp_path / "catalog" / "workflow"
     monkeypatch.setattr(paths, "get_state_dir", lambda: tmp_path / "state")
     monkeypatch.setattr(catalog, "_workflow_projects_root", lambda: published)
@@ -51,15 +64,23 @@ def test_manual_test_and_publish_use_a_sandboxed_snapshot(tmp_path, monkeypatch,
     assert code == 0, report
     assert report["executed_tests"] and report["sandboxed"]
     assert not published.exists()
-    assert {path.relative_to(project): path.read_bytes() for path in project.rglob("*") if path.is_file()} == before
+    assert {
+        path.relative_to(project): path.read_bytes()
+        for path in project.rglob("*")
+        if path.is_file()
+    } == before
     code, report = _invoke(monkeypatch, capsys, "publish", str(project))
     assert code == 0, report
     assert len(report["revision"]) == 40
-    assert (published / "manual_report" / "workflow.py").read_bytes() == before[Path("workflow.py")]
+    assert (published / "manual_report" / "workflow.py").read_bytes() == before[
+        Path("workflow.py")
+    ]
     code, report = _invoke(monkeypatch, capsys, "publish", str(project))
     assert code == 1
     assert "already exists" in report["error"]
-    (project / "steps" / "prepare.py").write_text("def prepare(task: str):\n    return task + '!!'\n")
+    (project / "steps" / "prepare.py").write_text(
+        "def prepare(task: str):\n    return task + '!!'\n"
+    )
     test_file = project / "tests" / "test_workflow.py"
     test_file.write_text(test_file.read_text().replace("example!", "example!!"))
     code, report = _invoke(monkeypatch, capsys, "publish", str(project), "--replace")
@@ -92,7 +113,9 @@ def test_unavailable_sandbox_never_publishes(tmp_path, monkeypatch, capsys):
     published = tmp_path / "catalog" / "workflow"
     monkeypatch.setattr(paths, "get_state_dir", lambda: tmp_path / "state")
     monkeypatch.setattr(catalog, "_workflow_projects_root", lambda: published)
-    monkeypatch.setattr(sandbox, "unavailable_reason", lambda: "test backend unavailable")
+    monkeypatch.setattr(
+        sandbox, "unavailable_reason", lambda: "test backend unavailable"
+    )
     code, report = _invoke(monkeypatch, capsys, "publish", str(project))
     assert code == 1
     assert "sandbox" in report["error"]
@@ -159,7 +182,9 @@ def test_generated_candidate_uses_the_same_publication_gate(tmp_path, monkeypatc
     from openprogram.programs.workflow.errors import InvalidWorkflow
 
     project = _package(tmp_path / "authored", passing=False)
-    candidate = repository._read_repository_candidate(project, expected_project_id="manual_report")
+    candidate = repository._read_repository_candidate(
+        project, expected_project_id="manual_report"
+    )
     published = tmp_path / "catalog" / "workflow"
     monkeypatch.setattr(paths, "get_state_dir", lambda: tmp_path / "state")
     monkeypatch.setattr(catalog, "_workflow_projects_root", lambda: published)
@@ -169,7 +194,9 @@ def test_generated_candidate_uses_the_same_publication_gate(tmp_path, monkeypatc
 
 
 @pytest.mark.sandbox
-def test_macos_behavior_tests_cannot_leave_detached_processes(tmp_path, monkeypatch, capsys):
+def test_macos_behavior_tests_cannot_leave_detached_processes(
+    tmp_path, monkeypatch, capsys
+):
     if sys.platform != "darwin" or sandbox.unavailable_reason():
         pytest.skip("Requires macOS Seatbelt")
     project = _package(tmp_path / "authored")

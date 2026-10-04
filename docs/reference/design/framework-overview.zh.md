@@ -32,7 +32,7 @@
    │
    ├─▶ 4. 绑定 turn 上下文（ContextVar）            :366–436
    │       _current_turn_id.set(assistant_msg_id) :379   ← turn 内任何协程都读得到同一 turn id
-   │       _store.set(SessionNodeWriter)            :435   ← 深层 runtime/工具/@agentic_function 写同一 DAG
+   │       _store.set(SessionNodeWriter)            :435   ← 深层 runtime/工具/Agent method 写同一 DAG
    │       assistant_msg_id = user_msg_id+"_reply" :164
    │       写 assistant 占位行 + set_head           :460；status="running" :464
    │
@@ -63,7 +63,7 @@
 
 ### turn_id 绑 ContextVar——框架解耦的另一根脊柱
 
-`_current_turn_id.set(assistant_msg_id)`（`:379`）是关键：ContextVar 沿 asyncio task 传播，turn 内**任何**协程（工具执行、`@agentic_function`、`send_message`）都读得到同一 turn id，从而把文件备份、子分支父锚点都归到正确的 assistant 消息上。同时绑 `_store`（`:435`）让深层 runtime 写同一 SQLite DAG，无需层层透传。`finally` 块成功/异常/提前 return 都会 `reset`。
+`_current_turn_id.set(assistant_msg_id)`（`:379`）是关键：ContextVar 沿 asyncio task 传播，turn 内**任何**协程（工具执行、`Agent` method、`send_message`）都读得到同一 turn id，从而把文件备份、子分支父锚点都归到正确的 assistant 消息上。同时绑 `_store`（`:435`）让深层 runtime 写同一 SQLite DAG，无需层层透传。`finally` 块成功/异常/提前 return 都会 `reset`。
 
 ### 上下文组装：单轮 / 多轮 / 分支
 
@@ -120,7 +120,7 @@
 
 ### DAG 更新——贯穿全程，不是单独一步
 
-user 节点（`:298`）、assistant 占位、每个工具结果、`@agentic_function` 内部节点，都通过 `_store` ContextVar 落入同一 `SessionNodeWriter`，turn 末 `commit_turn`（`openprogram/store/session/session_store.py` 的 `commit_turn`）把整棵工作树作为一次 turn 提交——append-only、无可变"当前态"镜像文件，两个 agent 并发写不会撞同一文件。
+user 节点（`:298`）、assistant 占位、每个工具结果、`Agent` method 内部节点，都通过 `_store` ContextVar 落入同一 `SessionNodeWriter`，turn 末 `commit_turn`（`openprogram/store/session/session_store.py` 的 `commit_turn`）把整棵工作树作为一次 turn 提交——append-only、无可变"当前态"镜像文件，两个 agent 并发写不会撞同一文件。
 
 ---
 

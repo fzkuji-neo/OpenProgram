@@ -5,13 +5,13 @@ every round — pick a function to run, or emit text and finish.
 
 > Companion doc: [`calling-unification.md`](../../../reference/design/function/calling-unification.md)
 > covers the design of the whole function-calling framework — the
-> `@function` / `@agentic_function` decorators, the shared registry, 6-layer
+> `@function` / Agent method executions, the shared registry, 6-layer
 > gating, deferred loading, etc. This page only covers the loop mechanics of
 > the "pick the next step" part.
 
 ## One-sentence summary
 
-Give the LLM a set of tools (`@agentic_function`s or tool dicts); each round
+Give the LLM a set of tools (`Agent` methods or tool dicts); each round
 it returns one assistant message. If the message content **contains a
 `ToolCall`, it picked a function** — the framework executes it, feeds the
 result back into the history, and lets it pick again. If the message is
@@ -21,11 +21,11 @@ as the final reply. The loop runs in
 
 ## Entry point: `runtime.exec`
 
-Inside an `@agentic_function`, call
+Inside an `Agent` method, call
 `runtime.exec(content, tools=..., tool_choice=..., max_iterations=...)`:
 
 - `tools` is the menu of functions the LLM may pick from. Each entry can be
-  an `@agentic_function`, a `{"spec":..., "execute":...}` dict, or an object
+  an `Agent` method, a `{"spec":..., "execute":...}` dict, or an object
   with `.spec` / `.execute`.
 - **Tools are on by default.** With neither `tools=` nor `toolset=` passed,
   `exec` resolves the FULL registry toolset, so any function can search, run
@@ -121,9 +121,9 @@ After the inner loop exits, `get_follow_up_messages` may supply follow-up
 messages which become `pending_messages` for another round; otherwise the
 run ends for good and pushes `AgentEventAgentEnd`.
 
-## Relation to `@agentic_function`
+## Relation to `Agent` method
 
-An `@agentic_function` passed as a tool to `exec(tools=[...])` is, in the
+An `Agent` method passed as a tool to `exec(tools=[...])` is, in the
 model's eyes, just one pickable function. The model picks it →
 `_execute_tool_calls` invokes its `.execute` → if that function body calls
 `runtime.exec` again, another layer of the same picking loop opens.

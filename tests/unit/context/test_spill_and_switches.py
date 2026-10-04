@@ -10,6 +10,8 @@ read of the stamp left behind.
 
 from __future__ import annotations
 
+from openprogram.agentic_programming import Agent
+
 from pathlib import Path
 
 import pytest
@@ -113,7 +115,7 @@ def test_spill_switch_off_writes_no_file(store, tmp_path, monkeypatch):
 
 
 def test_expose_default_reads_the_env(monkeypatch):
-    from openprogram.agentic_programming.function import default_expose
+    from openprogram.agentic_programming.call_state import default_expose
 
     monkeypatch.delenv("OPENPROGRAM_EXPOSE_DEFAULT", raising=False)
     assert default_expose() == "io"
@@ -126,19 +128,27 @@ def test_expose_default_reads_the_env(monkeypatch):
 
 
 def test_explicit_expose_still_wins_over_the_default(monkeypatch):
-    from openprogram.agentic_programming.function import agentic_function
+    from openprogram.agentic_programming import Agent
 
     monkeypatch.setenv("OPENPROGRAM_EXPOSE_DEFAULT", "full")
 
-    @agentic_function(expose="llm", register_globally=False)
-    def explicit() -> str:
-        """Doc."""
-        return "x"
+    class _ExplicitAgent(Agent):
+        method_options = {'explicit': {'expose': "llm", 'register_globally': False, 'tool': True, 'capture_io': True, 'name': 'explicit'}}
 
-    @agentic_function(register_globally=False)
-    def implicit() -> str:
-        """Doc."""
-        return "x"
+        def explicit(self, ) -> str:
+            """Doc."""
+            return "x"
+
+    explicit = _ExplicitAgent().explicit
+
+    class _ImplicitAgent(Agent):
+        method_options = {'implicit': {'register_globally': False, 'tool': True, 'capture_io': True, 'name': 'implicit'}}
+
+        def implicit(self, ) -> str:
+            """Doc."""
+            return "x"
+
+    implicit = _ImplicitAgent().implicit
 
     assert explicit.expose == "llm"
     assert implicit.expose == "full"

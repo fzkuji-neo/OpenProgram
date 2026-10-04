@@ -2,13 +2,13 @@
 
 This document defines what metadata a function in this framework must carry — whether or not it calls an LLM — where that metadata lives, and which components consume it.
 
-Scope: every function decorated with `@agentic_function`, plus any plain Python callable passed into `render_options` or any other component of the decision-menu protocol. (`runtime.exec(tools=[...])` does not accept plain callables — entries must be an `@agentic_function`, a `{"spec", "execute"}` dict, or an object with `.spec`/`.execute`; anything else raises `TypeError`.)
+Scope: every function defined as an ordinary Agent method, plus any plain Python callable passed into `render_options` or any other component of the decision-menu protocol. (`runtime.exec(tools=[...])` does not accept plain callables — entries must be an `Agent` method, a `{"spec", "execute"}` dict, or an object with `.spec`/`.execute`; anything else raises `TypeError`.)
 
 ## 1. Why this spec exists
 
 Historically the same piece of information lived in multiple places:
 
-- Parameter descriptions could be written in the docstring `Args:` section or in `@agentic_function(input={...})`
+- Parameter descriptions could be written in the docstring `Args:` section or in `method_options = dict(input={...})`
 - Decision-menu callers hand-wrote a verbose `available` registry dict at the call site, repeating information already present on the function
 - Different consumers (tool_use spec, WebUI, decision menu, meta tooling) followed slightly different read-order conventions
 
@@ -40,28 +40,28 @@ Every piece of information has exactly one source-of-truth. This table is the sp
 | Parameter defaults | annotation default | `param.default` |
 | One-line summary (what / when-to-pick) | first paragraph of docstring (up to first blank line) | `inspect.getdoc(fn)`, first paragraph |
 | Per-call LLM instructions (prompt + data for one specific `llm()`) | the prompt passed to that `llm()` call | passed directly at call time |
-| Per-parameter description | `@agentic_function(input={"x": {"description": ...}})` | `fn.input_meta["x"]["description"]` |
-| Per-parameter enum | `@agentic_function(input={"x": {"options": [...]}})` | `fn.input_meta["x"]["options"]` |
-| Whether the parameter is LLM-visible | `@agentic_function(input={"x": {"hidden": True}})` | `fn.input_meta["x"]["hidden"]` |
-| WebUI placeholder | `@agentic_function(input={"x": {"placeholder": "..."}})` | `fn.input_meta["x"]["placeholder"]` |
-| WebUI multiline input | `@agentic_function(input={"x": {"multiline": True}})` | `fn.input_meta["x"]["multiline"]` |
-| Dynamic option source | `@agentic_function(input={"x": {"options_from": "functions"}})` | `fn.input_meta["x"]["options_from"]` |
-| Framework-auto-injected parameters | two constants in two files, both `{"runtime", "exec_runtime", "review_runtime"}`: `_RUNTIME_PARAMS` in `agentic_programming/function.py` (injection + tool-spec filtering) and `_AUTO_PARAMS` in `agentic_programming/decision.py` (menu hiding + dispatch) | module level |
-| Override of the ambient LLM system prompt | `@agentic_function(system="...")` | `fn.system` |
-| DAG expose mode | `@agentic_function(expose="io"\|"llm"\|"full"\|"hidden")` — controls what **callers** see of this function in their DAG render | `fn.expose` |
-| DAG render range | `@agentic_function(render_range={"callers": N, "subcalls": M})` — controls how much DAG history **this function's own** `llm()` calls read. Both are node-count slices on `seq`: `callers` = most-recent N nodes written **before** this function's frame started (default `None` = uncapped, `0` = wall off all prior context); `subcalls` = most-recent N nodes written **since** this function's frame started (default `-1` = uncapped — the frame sees its own progress; child internals are hidden by *their* `expose` setting, not by subcalls counting; set `N>=0` only to actively cap prompt size in a loop). | `fn.render_range` |
+| Per-parameter description | `method_options = dict(input={"x": {"description": ...}})` | `fn.input_meta["x"]["description"]` |
+| Per-parameter enum | `method_options = dict(input={"x": {"options": [...]}})` | `fn.input_meta["x"]["options"]` |
+| Whether the parameter is LLM-visible | `method_options = dict(input={"x": {"hidden": True}})` | `fn.input_meta["x"]["hidden"]` |
+| WebUI placeholder | `method_options = dict(input={"x": {"placeholder": "..."}})` | `fn.input_meta["x"]["placeholder"]` |
+| WebUI multiline input | `method_options = dict(input={"x": {"multiline": True}})` | `fn.input_meta["x"]["multiline"]` |
+| Dynamic option source | `method_options = dict(input={"x": {"options_from": "functions"}})` | `fn.input_meta["x"]["options_from"]` |
+| Framework-auto-injected parameters | two constants in two files, both `{"runtime", "exec_runtime", "review_runtime"}`: `_RUNTIME_PARAMS` in `agentic_programming/call_state.py` (injection + tool-spec filtering) and `_AUTO_PARAMS` in `agentic_programming/decision.py` (menu hiding + dispatch) | module level |
+| Override of the ambient LLM system prompt | `method_options = dict(system="...")` | `fn.system` |
+| DAG expose mode | `method_options = dict(expose="io"\|"llm"\|"full"\|"hidden")` — controls what **callers** see of this function in their DAG render | `fn.expose` |
+| DAG render range | `method_options = dict(render_range={"callers": N, "subcalls": M})` — controls how much DAG history **this function's own** `llm()` calls read. Both are node-count slices on `seq`: `callers` = most-recent N nodes written **before** this function's frame started (default `None` = uncapped, `0` = wall off all prior context); `subcalls` = most-recent N nodes written **since** this function's frame started (default `-1` = uncapped — the frame sees its own progress; child internals are hidden by *their* `expose` setting, not by subcalls counting; set `N>=0` only to actively cap prompt size in a loop). | `fn.render_range` |
 | Skill trigger words / agent discovery | sibling `SKILL.md` frontmatter | loaded separately by the skill loader |
 
-**Core principle**: anything expressible in the signature / annotation is not repeated in the decorator; anything expressible in `input=` is not repeated in the docstring.
+**Core principle**: anything expressible in the signature / annotation is not repeated in method_options; anything expressible in `input=` is not repeated in the docstring.
 
-The decorator also accepts the shared tool-registration / gating kwargs (`name`, `description`, `toolset`, `unsafe_in`, `requires_approval`, `available_if`, `defer`, ...) documented in `docs/reference/design/function/calling-unification.md`; `cache` / `cache_ttl` (memoize results on name + args) and `timeout` (hard-kill the body after N seconds, returning an error result) behave as in `@function`.
+The method configuration accepts the shared tool-registration / gating kwargs (`name`, `description`, `toolset`, `unsafe_in`, `requires_approval`, `available_if`, `defer`, ...) documented in `docs/reference/design/function/calling-unification.md`; `cache` / `cache_ttl` (memoize results on name + args) and `timeout` (hard-kill the body after N seconds, returning an error result) behave as in `@function`.
 
-### Effective defaults for a bare `@agentic_function`
+### Effective defaults for ordinary Agent methods
 
 | Aspect | Default | Resulting behavior |
 |---|---|---|
-| `expose` | `"io"` | Callers see my name + input + output. My internal `llm()` calls are hidden from them. |
-| `render_range` | `None` → `render_context` falls through to `callers=None, subcalls=-1` | Pre-frame history is uncapped. In-frame nodes (the frame's own progress: earlier `llm()` results, returned sub-function io) are also uncapped. Child `@agentic_function` internals stay hidden because the child carries `expose="io"`, not because subcalls trims them. |
+| `expose` | `"full"` for ordinary methods, `"io"` for explicit tools | Callers see my name + input + output. My internal `llm()` calls are hidden from them. |
+| `render_range` | `None` → `render_context` falls through to `callers=None, subcalls=-1` | Pre-frame history is uncapped. In-frame nodes (the frame's own progress: earlier `llm()` results, returned sub-function io) are also uncapped. A child configured with `expose="io"` hides its internals, not because subcalls trims them. |
 | top-level chat turn | `frame_entry_seq=-1`, no pre-frame | Same code path as any other frame — all nodes are in-frame and visible. No special-casing. |
 | tools | full toolset | A bare `runtime.exec` with neither `tools=` nor `toolset=` resolves the full registry toolset by default — tools are ON. Pass `tools=[...]` for an explicit menu; pass `toolset="none"` or `tools=[]` for a tool-free reasoning call. A nested `exec` inside a tool body inherits the outer `tools=` list via the `_current_tools` contextvar. |
 | `system` | `None` | Use the runtime's existing system prompt as-is. |
@@ -100,56 +100,51 @@ Docstring writing rules:
 
 ## 5. `input=` vs. docstring `Args:` section
 
-Historically the same parameter description could appear both in the docstring `Args:` section and in `@agentic_function(input={...})`. This spec makes `input=` the source-of-truth.
+Historically the same parameter description could appear both in the docstring `Args:` section and in `method_options = dict(input={...})`. This spec makes `input=` the source-of-truth.
 
 ### Recommended style (required for new code)
 
 Minimal example:
 
 ```python
-@agentic_function(input={
-    "text":  {"description": "Text to polish."},
-    "style": {"description": "Output style.", "options": ["academic", "casual"]},
-})
-def polish(text: str, style: str, runtime: Runtime) -> str:
-    """Polish a text in the given style."""
-    ...
+from openprogram import Agent
+
+class ExampleAgent(Agent):
+    method_options = {
+        'polish': {'tool': True, 'input': {'text': {'description': 'Text to polish.'}, 'style': {'description': 'Output style.', 'options': ['academic', 'casual']}}},
+    }
+
+    def polish(self, text: str, style: str, runtime: Runtime) -> str:
+        """Polish a text in the given style."""
+        ...
+
+_example_agent = ExampleAgent()
+polish = _example_agent.polish
 ```
 
 Fuller example exercising more metadata features (placeholder, multiline, hidden, mixed types):
 
 ```python
-@agentic_function(input={
-    "essay": {
-        "description": "Essay to review.",
-        "placeholder": "Paste the essay text here...",
-        "multiline": True,
-    },
-    "rubric_id": {
-        "description": "Which rubric to apply.",
-        "options": ["ielts_writing", "toefl_writing", "gre_argument"],
-    },
-    "max_score": {
-        "description": "Upper bound for the numeric score.",
-    },
-    "show_rubric_internals": {
-        "description": "Include rubric breakdown in the output.",
-    },
-    "session_id": {
-        # System-supplied; LLM does not see this.
-        "hidden": True,
-    },
-})
-def review_essay(
-    essay: str,
-    rubric_id: str,
-    max_score: int,
-    show_rubric_internals: bool,
-    session_id: str,           # filled by Python via context, not LLM
-    runtime: Runtime,          # auto-injected
-) -> dict:
-    """Score an essay against a named rubric and return a structured report."""
-    ...
+from openprogram import Agent
+
+class ExampleAgent(Agent):
+    method_options = {
+        'review_essay': {'tool': True, 'input': {'essay': {'description': 'Essay to review.', 'placeholder': 'Paste the essay text here...', 'multiline': True}, 'rubric_id': {'description': 'Which rubric to apply.', 'options': ['ielts_writing', 'toefl_writing', 'gre_argument']}, 'max_score': {'description': 'Upper bound for the numeric score.'}, 'show_rubric_internals': {'description': 'Include rubric breakdown in the output.'}, 'session_id': {'hidden': True}}},
+    }
+
+    def review_essay(self,
+        essay: str,
+        rubric_id: str,
+        max_score: int,
+        show_rubric_internals: bool,
+        session_id: str,           # filled by Python via context, not LLM
+        runtime: Runtime,          # auto-injected
+    ) -> dict:
+        """Score an essay against a named rubric and return a structured report."""
+        ...
+
+_example_agent = ExampleAgent()
+review_essay = _example_agent.review_essay
 ```
 
 The docstring keeps only the one-line summary — **no `Args:` section and no `Returns:` section**. If the meaning of return-value fields matters to downstream LLM-driven calls, encode it with a structured return type (e.g. `TypedDict` or a dataclass) so consumers can introspect it; do not duplicate the schema in a docstring paragraph.
@@ -157,19 +152,28 @@ The docstring keeps only the one-line summary — **no `Args:` section and no `R
 ### Legacy style (still supported)
 
 ```python
-@agentic_function
-def polish(text: str, style: str, runtime: Runtime) -> str:
-    """Polish a text in the given style.
+from openprogram import Agent
 
-    Args:
-        text: Text to polish.
-        style: Output style.
-        runtime: LLM runtime.
+class ExampleAgent(Agent):
+    method_options = {
+        'polish': {'tool': True},
+    }
 
-    Returns:
-        Polished text.
-    """
-    ...
+    def polish(self, text: str, style: str, runtime: Runtime) -> str:
+        """Polish a text in the given style.
+
+        Args:
+            text: Text to polish.
+            style: Output style.
+            runtime: LLM runtime.
+
+        Returns:
+            Polished text.
+        """
+        ...
+
+_example_agent = ExampleAgent()
+polish = _example_agent.polish
 ```
 
 Legacy functions still run, but the `Args:` section is dead text — **no docstring-`Args:` parser exists anywhere in the framework** (see §10). `_build_agentic_tool_spec` falls back as follows:
@@ -186,7 +190,7 @@ no description; only parameter name + type
 
 ## 6. Plain Python callables (undecorated)
 
-`@agentic_function` is not required for the decision-menu path: plain callables can be passed to `render_options` (and as `decision.make` / `choices=` options), but they carry less metadata. They can **not** be passed to `runtime.exec(tools=[...])` — `_adapt_tools` raises `TypeError` for anything that is not an `@agentic_function`, a `{"spec", "execute"}` dict, or an object with `.spec`/`.execute`.
+`Agent` method is not required for the decision-menu path: plain callables can be passed to `render_options` (and as `decision.make` / `choices=` options), but they carry less metadata. They can **not** be passed to `runtime.exec(tools=[...])` — `_adapt_tools` raises `TypeError` for anything that is not an `Agent` method, a `{"spec", "execute"}` dict, or an object with `.spec`/`.execute`.
 
 | Field | Decorated | Undecorated |
 |---|---|---|
@@ -195,7 +199,7 @@ no description; only parameter name + type
 | Hidden flag | `input={"x": {"hidden": True}}` | only `_AUTO_PARAMS` names (`runtime`, etc.) are auto-hidden |
 | Recorded in session DAG | yes | no |
 
-Use plain callables for: simple decision branches with few parameters, no WebUI surface, and no need for rich menu hints. Upgrade to `@agentic_function` as soon as you need enums, hidden parameters, or detailed descriptions.
+Use plain callables for: simple decision branches with few parameters, no WebUI surface, and no need for rich menu hints. Upgrade to `Agent` method as soon as you need enums, hidden parameters, or detailed descriptions.
 
 ## 7. Auto-injected parameters
 
@@ -207,13 +211,13 @@ The following parameter names are reserved by convention: if a function's signat
 | `exec_runtime` | The runtime used for execution (multi-runtime setups) |
 | `review_runtime` | The runtime used for review (multi-runtime setups) |
 
-These names live in two constants in two files: `_RUNTIME_PARAMS` in `agentic_programming/function.py` (runtime injection + filtering from tool specs) and `_AUTO_PARAMS` in `agentic_programming/decision.py` (hiding from decision menus + dispatch). To add a new auto-injected name, edit both. Do not mark them per-callsite via `input={"x": {"hidden": True}}`.
+These names live in two constants in two files: `_RUNTIME_PARAMS` in `agentic_programming/call_state.py` (runtime injection + filtering from tool specs) and `_AUTO_PARAMS` in `agentic_programming/decision.py` (hiding from decision menus + dispatch). To add a new auto-injected name, edit both. Do not mark them per-callsite via `input={"x": {"hidden": True}}`.
 
 ## 8. WebUI rendering behavior
 
-The WebUI does not introspect live Python objects: it AST/regex-parses the source files (`openprogram/webui/_functions.py`). Consequently `input=` must be written as a literal dict in the decorator call to show up in the form — metadata built dynamically (variables, helper calls) is invisible to the WebUI.
+The WebUI does not introspect live Python objects: it AST/regex-parses the source files (`openprogram/webui/_functions.py`). Consequently `input=` must be written as a literal dict in the method configuration call to show up in the form — metadata built dynamically (variables, helper calls) is invisible to the WebUI.
 
-The WebUI form renders each parameter by the following rules (implemented in `apps/web/components/chat/composer/modes/fn-form/fn-form.tsx` and `fn-form-fields.tsx`). When authoring `@agentic_function(input={...})`, use this table to predict what kind of input control your function will produce:
+The WebUI form renders each parameter by the following rules (implemented in `apps/web/components/chat/composer/modes/fn-form/fn-form.tsx` and `fn-form-fields.tsx`). When configuring `method_options["method"]["input"]`, use this table to predict what kind of input control your function will produce:
 
 | Parameter trait | WebUI control |
 |---|---|
@@ -234,7 +238,7 @@ The following fields were discussed and are **intentionally not introduced now**
 
 | Field | Intended use | Why deferred |
 |---|---|---|
-| `effects=["fs", "net", "state"]` | Mark function side effects for permission gating / dangerous-op blocking | A gating surface already exists on the decorator (`requires_approval`, `check_fn`, `unsafe_in`, `available_if`, `defer`); a declarative `effects=` field on top of it remains future work |
+| `effects=["fs", "net", "state"]` | Mark function side effects for permission gating / dangerous-op blocking | A gating surface already exists on the method configuration (`requires_approval`, `check_fn`, `unsafe_in`, `available_if`, `defer`); a declarative `effects=` field on top of it remains future work |
 | `permissions=[...]` | Required permission scope before calling | Same as above |
 | `idempotent=True` | Whether the function can be safely retried | No auto-retry component exists |
 | `latency_hint="long"` | Scheduler hint | No scheduler exists |
@@ -246,14 +250,14 @@ Revisit this section once a real upstream consumer appears.
 
 The recommended order for migrating existing code to this spec; not strictly required:
 
-1. Add a shared helper `_parse_docstring_args(fn) -> dict[name, description]` in `agentic_programming/function.py`
+1. Add a shared helper `_parse_docstring_args(fn) -> dict[name, description]` in `agentic_programming/call_state.py`
 2. `_build_agentic_tool_spec` calls this helper as a fallback (currently the spec does not read docstring `Args:` at all)
 3. `render_options` calls the same helper for the same fallback
-4. Existing `@agentic_function` functions do not need immediate rewriting; convert opportunistically when you touch them
+4. Existing All executable entries use ordinary Agent methods and explicit method_options
 
 ## 11. Style checklist
 
-When writing a new `@agentic_function`:
+When writing a new `Agent` method:
 
 - [ ] First paragraph of the docstring is a one-line summary (state what the function does / when to pick it, directly)
 - [ ] No `Args:` or `Returns:` sections in the docstring (unless you specifically want them for debugging / reading)
@@ -266,8 +270,8 @@ When writing a new `@agentic_function`:
 
 ## 12. References
 
-- `openprogram/agentic_programming/function.py` — `@agentic_function` decorator implementation
+- `openprogram/agentic_programming/call_state.py` — Agent method execution implementation
 - `openprogram/agentic_programming/decision.py` — options-menu rendering, reply parsing, and the next-step decision primitive (`decision.make`, `render_options`, `parse_args`, `DecisionError`)
-- `docs/capabilities/agentic-programming/writing-functions/agentic-function.md` — decorator usage guide
+- `docs/capabilities/agentic-programming/writing-functions/agent.md` — method configuration usage guide
 - `docs/reference/design/function/calling-unification.md` — function/tool calling framework
 - `docs/capabilities/agentic-programming/choosing-the-next-step/tool-calling.md` — per-turn native tool-use loop mechanics

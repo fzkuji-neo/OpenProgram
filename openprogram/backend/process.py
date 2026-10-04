@@ -6,7 +6,7 @@ import subprocess
 import time
 
 from openprogram._compat import ProcessTreeOwner
-from openprogram.agentic_programming.function import CancelledError, check_cancelled
+from openprogram.agentic_programming.call_state import CancelledError, check_cancelled
 from openprogram.backend.base import decode_maybe
 
 

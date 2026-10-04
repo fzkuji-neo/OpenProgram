@@ -10,7 +10,7 @@
 ## Python API
 
 - [API 总览](API.zh.md)：核心组件和导入方式。
-- [函数](api/agentic-function.zh.md)：装饰器参数、元数据和执行行为。
+- [函数](api/agent.zh.md)：装饰器参数、元数据和执行行为。
 - [运行时](api/runtime.zh.md)：模型请求与运行时约定。
 - [模型服务](api/providers.zh.md)：运行时创建和模型服务接口。
 

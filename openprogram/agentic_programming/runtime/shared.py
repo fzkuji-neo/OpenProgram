@@ -2,7 +2,7 @@
 runtime — LLM call interface with automatic DAG integration.
 
 Runtime is a class that wraps an LLM provider. You instantiate it once
-with your provider config, then call rt.exec() inside @agentic_functions.
+with your provider config, then call rt.exec() inside Agent methods.
 
 exec() automatically:
     1. Builds the prompt's message history from the DAG (the
@@ -11,19 +11,19 @@ exec() automatically:
     3. Appends a ModelCall node recording the reply into the DAG
 
 Usage:
-    from openprogram import agentic_function
+    from openprogram import Agent
     from openprogram.agentic_programming.runtime import Runtime
 
-    rt = Runtime(call=my_llm_func)
-    # or: subclass Runtime and override _call()
+    class Observer(Agent):
+        def observe(self, task):
+            return self.runtime.exec(content=[
+                {"type": "text", "text": task},
+                {"type": "image", "path": "screenshot.png"},
+            ])
 
-    @agentic_function
-    def observe(task):
-        '''Look at the screen and describe what you see.'''
-        return rt.exec(content=[
-            {"type": "text", "text": "Find the login button."},
-            {"type": "image", "path": "screenshot.png"},
-        ])
+    observer = Observer(runtime=Runtime(call=my_llm_func))
+    observer.observe("Find the login button.")
+
 """
 
 from __future__ import annotations

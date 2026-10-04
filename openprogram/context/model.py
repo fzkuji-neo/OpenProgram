@@ -85,7 +85,7 @@ class Context(MutableMapping[str, Any]):
     def bind(self):
         """Bind this context and restore the previous task binding."""
         from openprogram.store import _store, SessionNodeWriter
-        from openprogram.agentic_programming.function import _call_id, _forced_predecessor
+        from openprogram.agentic_programming.call_state import _call_id, _forced_predecessor
 
         with ExitStack() as stack:
             writer = _store.get()

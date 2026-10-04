@@ -80,14 +80,14 @@ def _conditional_function() -> Callable:
     return conditional
 
 
-def _registered_agentic_functions() -> dict[str, Callable]:
-    """Resolve Python-callable entries defined by AGENTIC_MODULES."""
-    from openprogram.programs._registry import AGENTIC_MODULES
+def _registered_program_entries() -> dict[str, Callable]:
+    """Resolve Python-callable entries defined by PROGRAM_MODULES."""
+    from openprogram.programs._registry import PROGRAM_MODULES
 
     from openprogram.programs._runtime import all_tools
     allowed_modules = {
         f"openprogram.programs.workflow.{name}"
-        for name in AGENTIC_MODULES
+        for name in PROGRAM_MODULES
         if name not in {"search_workflows", "create_workflow", "revise_workflow", "auto_workflow"}
     }
     for module_name in allowed_modules:
@@ -98,7 +98,7 @@ def _registered_agentic_functions() -> dict[str, Callable]:
     found: dict[str, Callable] = {}
     for tool in all_tools():
         source = getattr(tool, "_source_module", "")
-        if not getattr(tool, "_is_agentic", False) or not any(
+        if not getattr(tool, "_is_agent_method", False) or not any(
             source == name or source.startswith(name + ".") for name in allowed_modules
         ):
             continue

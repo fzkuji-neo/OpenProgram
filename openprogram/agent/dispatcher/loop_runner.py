@@ -318,7 +318,7 @@ def resolve_agent_runtime(
         if assistant_msg_id is not None:
             wrapped = []
             for tool in tools:
-                if getattr(tool, "_is_agentic", False):
+                if getattr(tool, "_is_agent_method", False):
                     wrapped.append(_wrap_agentic_runtime_block(
                         tool, req, event_sink, assistant_msg_id,
                     ))
@@ -441,7 +441,7 @@ def run_loop_blocking(
             reset_worktree(_worktree_token)
     if agentic_tool_names_out is not None:
         agentic_tool_names_out.update(
-            tool.name for tool in tools if getattr(tool, "_is_agentic", False)
+            tool.name for tool in tools if getattr(tool, "_is_agent_method", False)
         )
     # One assembler (dag/overview.md §7). The tool-runtime block, the Layer 6
     # deferred-tool catalog and the plan-mode reminder are registered

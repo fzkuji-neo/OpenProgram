@@ -1,4 +1,5 @@
 """workflow result visibility tests."""
+
 from __future__ import annotations
 from ._support import (
     Path,
@@ -18,7 +19,8 @@ from ._support import (
 
 
 def test_single_agent_returns_handoff_and_keeps_full_result_internal(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     conclusion = "完整结论。" * 400
     _planner(monkeypatch, "SINGLE")
@@ -33,7 +35,8 @@ def test_single_agent_returns_handoff_and_keeps_full_result_internal(
     assert result["result"] is None
     assert _state(session_repo, result["run_id"])["result"] == conclusion
     assert conclusion in json.dumps(
-        _state(session_repo, result["run_id"]), ensure_ascii=False,
+        _state(session_repo, result["run_id"]),
+        ensure_ascii=False,
     )
     assert conclusion not in json.dumps(result, ensure_ascii=False)
     assert conclusion not in summary_calls[0]["prompt"]
@@ -41,15 +44,18 @@ def test_single_agent_returns_handoff_and_keeps_full_result_internal(
     assert "Usually begin with a brief overview" in summary_prompt
     assert "2-3 sentences are often enough" in summary_prompt
     assert "use a short numbered list" in summary_prompt
-    assert "End with a clear assessment of whether the task was completed" in summary_prompt
+    assert (
+        "End with a clear assessment of whether the task was completed"
+        in summary_prompt
+    )
     assert "Do not force citations, references, or artifact paths" in summary_prompt
     assert '"summary": "formatted Markdown"' in summary_prompt
     assert '"summary": "1-5 short bullets"' not in summary_prompt
 
 
-
 def test_programmed_workflow_returns_handoff_and_keeps_full_result_internal(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     conclusion = "完整结论。" * 400
     _planner(monkeypatch, _code(f"return {conclusion!r}"))
@@ -64,19 +70,24 @@ def test_programmed_workflow_returns_handoff_and_keeps_full_result_internal(
     assert conclusion not in json.dumps(result, ensure_ascii=False)
 
 
-
 def test_intermediate_result_reused_as_argument_stays_private(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     private_finding = "SUBSTANTIVE_PRIVATE_FINDING_7d14"
     monkeypatch.setattr(
-        TL, "_registered_agentic_functions", lambda: {"lookup": lambda: private_finding},
+        TL,
+        "_registered_program_entries",
+        lambda: {"lookup": lambda: private_finding},
     )
-    _planner(monkeypatch, _code("""
+    _planner(
+        monkeypatch,
+        _code("""
         finding = lookup()
         agent("save this report: " + finding)
         return "done"
-    """))
+    """),
+    )
     _executor(monkeypatch, lambda _prompt, _kwargs: "saved")
     summary_calls = _summarizer(monkeypatch, "任务已完成。")
 
@@ -89,9 +100,9 @@ def test_intermediate_result_reused_as_argument_stays_private(
     assert all("argument_summary" not in item for item in result["items"])
 
 
-
 def test_explicit_direct_return_includes_raw_result(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     direct_result = "直接返回给用户的完整内容"
     _planner(monkeypatch, _code(f"return {direct_result!r}"))
@@ -106,13 +117,17 @@ def test_explicit_direct_return_includes_raw_result(
     assert result["result"] == direct_result
 
 
-
-@pytest.mark.parametrize("task", (
-    "请勿在聊天中返回完整正文，写入文件",
-    "不将完整内容在聊天中返回，只给摘要",
-))
+@pytest.mark.parametrize(
+    "task",
+    (
+        "请勿在聊天中返回完整正文，写入文件",
+        "不将完整内容在聊天中返回，只给摘要",
+    ),
+)
 def test_agent_preview_cannot_authorize_raw_result(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path, task: str,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
+    task: str,
 ) -> None:
     raw_result = "PRIVATE REPORT BODY\n" + ("confidential detail " * 40)
     _planner(monkeypatch, _code(f"return {raw_result!r}"))
@@ -123,7 +138,6 @@ def test_agent_preview_cannot_authorize_raw_result(
     assert result["return_result"] is False
     assert result["result"] is None
     assert raw_result not in json.dumps(result, ensure_ascii=False)
-
 
 
 def test_direct_result_authorization_handles_common_wording() -> None:
@@ -152,28 +166,32 @@ def test_direct_result_authorization_handles_common_wording() -> None:
     assert all(TL._direct_result_requested(task) for task in allowed)
 
 
-
 def test_summary_function_uses_trace_without_raw_deliverable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw_deliverable = "正文机密内容" * 2000
     calls = _summarizer(monkeypatch, "完成两项分析并保存到 /tmp/report.md。")
-    handoff = TL._summarize_workflow({
-        "task": "分析两份文件并生成报告",
-        "status": "completed",
-        "result": raw_deliverable,
-        "items": [{
-            "function": "registered",
+    handoff = TL._summarize_workflow(
+        {
+            "task": "分析两份文件并生成报告",
             "status": "completed",
-            "argument_summary": "生成报告并保存到 /tmp/report.md",
-            "result_summary": "正文发现：不应进入 workflow summary",
-        }, {
-            "function": "agent",
-            "status": "completed",
-            "argument_summary": "验证产物",
-            "result_summary": "Saved artifact: /tmp/report.md; warning: none",
-        }],
-    })
+            "result": raw_deliverable,
+            "items": [
+                {
+                    "function": "registered",
+                    "status": "completed",
+                    "argument_summary": "生成报告并保存到 /tmp/report.md",
+                    "result_summary": "正文发现：不应进入 workflow summary",
+                },
+                {
+                    "function": "agent",
+                    "status": "completed",
+                    "argument_summary": "验证产物",
+                    "result_summary": "Saved artifact: /tmp/report.md; warning: none",
+                },
+            ],
+        }
+    )
 
     assert handoff == {
         "summary": "完成两项分析并保存到 /tmp/report.md。",
@@ -193,27 +211,30 @@ def test_summary_function_uses_trace_without_raw_deliverable(
     }
 
 
-
-def test_summary_failure_never_exposes_raw_result(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_summary_failure_never_exposes_raw_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def fail(*_args, **_kwargs):
         raise RuntimeError("summary provider unavailable")
 
     monkeypatch.setattr(TL, "_llm_function", lambda: fail)
-    handoff = TL._summarize_workflow({
-        "task": "generate report",
-        "status": "completed",
-        "result": "FULL REPORT BODY",
-        "items": [{"function": "agent", "status": "completed"}],
-    })
+    handoff = TL._summarize_workflow(
+        {
+            "task": "generate report",
+            "status": "completed",
+            "result": "FULL REPORT BODY",
+            "items": [{"function": "agent", "status": "completed"}],
+        }
+    )
 
     assert handoff["return_result"] is False
     assert "FULL REPORT BODY" not in handoff["summary"]
     assert handoff["summary_error"] == "RuntimeError: summary provider unavailable"
 
 
-
 def test_summary_failure_is_persisted_but_not_public(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     raw_result = "PRIVATE REPORT BODY\n" + ("confidential detail " * 40)
     _planner(monkeypatch, _code(f"return {raw_result!r}"))
@@ -233,18 +254,19 @@ def test_summary_failure_is_persisted_but_not_public(
     assert raw_result not in json.dumps(result, ensure_ascii=False)
 
 
-
 def test_non_string_summary_uses_safe_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     def malformed(*_args, **_kwargs):
         return {"summary": {"report_body": "SUBSTANTIVE FINDING"}}
 
     monkeypatch.setattr(TL, "_llm_function", lambda: malformed)
-    handoff = TL._summarize_workflow({
-        "task": "generate report",
-        "status": "completed",
-        "result": "FULL REPORT BODY",
-        "items": [{"function": "agent", "status": "completed"}],
-    })
+    handoff = TL._summarize_workflow(
+        {
+            "task": "generate report",
+            "status": "completed",
+            "result": "FULL REPORT BODY",
+            "items": [{"function": "agent", "status": "completed"}],
+        }
+    )
 
     assert handoff == {
         "summary": (
@@ -257,7 +279,6 @@ def test_non_string_summary_uses_safe_fallback(monkeypatch: pytest.MonkeyPatch) 
     assert "SUBSTANTIVE FINDING" not in handoff["summary"]
 
 
-
 def test_summary_failure_uses_short_zero_call_handoff(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -265,12 +286,14 @@ def test_summary_failure_uses_short_zero_call_handoff(
         raise RuntimeError("structured summary unavailable")
 
     monkeypatch.setattr(TL, "_llm_function", lambda: fail)
-    handoff = TL._summarize_workflow({
-        "task": "research recent papers",
-        "status": "completed",
-        "result": "Research report saved to llm_knowledge_2026_research.md.",
-        "items": [],
-    })
+    handoff = TL._summarize_workflow(
+        {
+            "task": "research recent papers",
+            "status": "completed",
+            "result": "Research report saved to llm_knowledge_2026_research.md.",
+            "items": [],
+        }
+    )
 
     assert handoff["summary"] == (
         "Research report saved to llm_knowledge_2026_research.md."
@@ -278,19 +301,19 @@ def test_summary_failure_uses_short_zero_call_handoff(
     assert handoff["return_result"] is False
 
 
-
 def test_plain_helper_uses_agent_and_its_result_in_workflow(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     source = _code(
-        'return consume(produce())',
-        helpers='''
+        "return consume(produce())",
+        helpers="""
         def produce():
             return agent("produce", description="produce")
 
         def consume(value):
             return agent("consume " + value, description="consume")
-        ''',
+        """,
     )
     _planner(monkeypatch, source)
     calls = _executor(
@@ -305,9 +328,9 @@ def test_plain_helper_uses_agent_and_its_result_in_workflow(
     assert [item["function"] for item in result["items"]] == ["agent", "agent"]
 
 
-
 def test_checkpoint_preserves_path_result_and_mixed_key_arguments(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     calls = 0
 
@@ -316,11 +339,16 @@ def test_checkpoint_preserves_path_result_and_mixed_key_arguments(
         calls += 1
         return Path("/tmp/result")
 
-    monkeypatch.setattr(TL, "_registered_agentic_functions", lambda: {"registered": registered})
-    _planner(monkeypatch, _code('''
+    monkeypatch.setattr(
+        TL, "_registered_program_entries", lambda: {"registered": registered}
+    )
+    _planner(
+        monkeypatch,
+        _code("""
         registered({1: "integer", "1": "string"})
         raise KeyboardInterrupt("pause")
-    '''))
+    """),
+    )
     _executor(monkeypatch)
     with pytest.raises(KeyboardInterrupt):
         _run_task("types")
@@ -335,4 +363,3 @@ def test_checkpoint_preserves_path_result_and_mixed_key_arguments(
     assert result["status"] == "completed"
     assert result["summary"] == "Completed typed replay."
     assert calls == 1
-

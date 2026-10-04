@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import importlib
 import inspect
 import json
@@ -13,7 +12,7 @@ import traceback
 from pathlib import Path
 from typing import Callable, Optional
 
-from openprogram.agentic_programming.function import CancelledError
+from openprogram.agentic_programming.call_state import CancelledError
 from openprogram.agentic_programming.continuation import FunctionSuspended
 from openprogram.store.session.git_session import atomic_write_text
 
@@ -161,18 +160,6 @@ def _execute_legacy_snapshot(
     return _completed_result(workflow(state["task"]))
 
 
-def _decorated_function_names(candidate: dict) -> set[str]:
-    names = set()
-    for source in candidate["files"].values():
-        for node in ast.parse(source).body:
-            if isinstance(node, ast.FunctionDef) and any(
-                validation._decorator_name(item) == "agentic_function"
-                for item in node.decorator_list
-            ):
-                names.add(node.name)
-    return names
-
-
 def _snapshot_packages(snapshot: Path) -> dict[str, dict]:
     root = snapshot / "workflows"
     packages = {}
@@ -250,41 +237,13 @@ def _execute_package_snapshot(
         }
     )
 
-    from openprogram.agentic_programming import function as function_runtime
     from openprogram.programs import _runtime as tool_runtime
 
-    decorated = set(packages).union(
-        *(_decorated_function_names(package) for package in packages.values())
-    )
     missing = object()
-    prior_agentic = {
-        name: function_runtime._registry.get(name, missing)  # noqa: SLF001
-        for name in decorated
-    }
-    prior_tools = {
-        name: tool_runtime._registry.get(name, missing)  # noqa: SLF001
-        for name in decorated
-    }
-    prior_toolsets = {
-        name: (
-            set(tool_runtime._toolset_membership[name])  # noqa: SLF001
-            if name in tool_runtime._toolset_membership
-            else missing  # noqa: SLF001
-        )
-        for name in decorated
-    }
-    prior_unsafe = {
-        name: (
-            set(tool_runtime._unsafe_in_channel[name])  # noqa: SLF001
-            if name in tool_runtime._unsafe_in_channel
-            else missing  # noqa: SLF001
-        )
-        for name in decorated
-    }
-    prior_unexposed = {
-        name: name in tool_runtime._unexposed  # noqa: SLF001
-        for name in decorated
-    }
+    prior_tools = dict(tool_runtime._registry)
+    prior_toolsets = {name: set(groups) for name, groups in tool_runtime._toolset_membership.items()}
+    prior_unsafe = {name: set(channels) for name, channels in tool_runtime._unsafe_in_channel.items()}
+    prior_unexposed = set(tool_runtime._unexposed)
     prior_modules = {
         name: module for name, module in sys.modules.items() if is_snapshot_module(name)
     }
@@ -331,31 +290,27 @@ def _execute_package_snapshot(
         sys.modules.pop("workflows", None)
         if prior_workflows is not missing:
             sys.modules["workflows"] = prior_workflows
-        for name, value in prior_agentic.items():
-            if value is missing:
-                function_runtime._registry.pop(name, None)  # noqa: SLF001
+        # Restore registrations created by these pinned package bytes only.
+        # Dependencies outside the snapshot keep their own registry state.
+        changed = {
+            name for name, tool in tool_runtime._registry.items()
+            if is_snapshot_module(getattr(tool, "_source_module", ""))
+        } | set(packages)
+        for name in changed:
+            if name in prior_tools:
+                tool_runtime._registry[name] = prior_tools[name]
             else:
-                function_runtime._registry[name] = value  # noqa: SLF001
-        for name, value in prior_tools.items():
-            if value is missing:
-                tool_runtime._registry.pop(name, None)  # noqa: SLF001
+                tool_runtime._registry.pop(name, None)
+            for live, prior in ((tool_runtime._toolset_membership, prior_toolsets),
+                                (tool_runtime._unsafe_in_channel, prior_unsafe)):
+                if name in prior:
+                    live[name] = prior[name]
+                else:
+                    live.pop(name, None)
+            if name in prior_unexposed:
+                tool_runtime._unexposed.add(name)
             else:
-                tool_runtime._registry[name] = value  # noqa: SLF001
-        for name, value in prior_toolsets.items():
-            if value is missing:
-                tool_runtime._toolset_membership.pop(name, None)  # noqa: SLF001
-            else:
-                tool_runtime._toolset_membership[name] = value  # noqa: SLF001
-        for name, value in prior_unsafe.items():
-            if value is missing:
-                tool_runtime._unsafe_in_channel.pop(name, None)  # noqa: SLF001
-            else:
-                tool_runtime._unsafe_in_channel[name] = value  # noqa: SLF001
-        for name, was_unexposed in prior_unexposed.items():
-            if was_unexposed:
-                tool_runtime._unexposed.add(name)  # noqa: SLF001
-            else:
-                tool_runtime._unexposed.discard(name)  # noqa: SLF001
+                tool_runtime._unexposed.discard(name)
         importlib.invalidate_caches()
 
 
@@ -650,7 +605,7 @@ def _execute_workflow(
         state = run_state._load_state(instance / "state.json")
         if state.get("status") in {"completed", "cancelled", "capped"}:
             return run_state._result(state, run_id)
-        functions = bindings._registered_agentic_functions()
+        functions = bindings._registered_program_entries()
         try:
             if (instance / "snapshot").exists():
                 state["status"] = "running"
@@ -710,7 +665,7 @@ def _run_published_workflow(
     project_action: str = "reuse",
 ) -> dict:
     """Execute one published workflow at a pinned revision. Never publishes."""
-    functions = bindings._registered_agentic_functions()
+    functions = bindings._registered_program_entries()
     if run_id is None:
         run_id = run_state._new_run_id()
         instance = run_state._instance_dir(session_id, run_id)

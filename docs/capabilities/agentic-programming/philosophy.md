@@ -32,7 +32,7 @@ Agentic Programming gives control back to the programmer:
 
 Decompose a complex task into a function call graph. For each node on the graph, you decide:
 - **Doesn't need reasoning** — use a plain Python function
-- **Needs understanding / generation / judgment** — decorate it with `@agentic_function`, and call `llm(...)` inside the function body
+- **Needs understanding / generation / judgment** — decorate it with `Agent` method, and call `llm(...)` inside the function body
 
 The LLM becomes a tool that you call, constrain, and compose.
 
@@ -40,20 +40,27 @@ The LLM becomes a tool that you call, constrain, and compose.
 
 The entire paradigm is just three things:
 
-### 1. `@agentic_function`
+### 1. `Agent` method
 
 A decorator. For a function it decorates, the docstring travels with the call as descriptive context, and `llm(...)` inside the body triggers one model call. The decorator supplies the ambient runtime.
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 
-@agentic_function
-def summarize(text: str, runtime=None) -> str:
-    """Summarize a text in one sentence, preserving the core point."""
-    return llm([{"type": "text", "text": (
-        f"Summarize in one sentence, preserving the core point:\n\n{text}"
-    )}])
+class ExampleAgent(Agent):
+    method_options = {
+        'summarize': {'tool': True},
+    }
+
+    def summarize(self, text: str, runtime=None) -> str:
+        """Summarize a text in one sentence, preserving the core point."""
+        return llm([{"type": "text", "text": (
+            f"Summarize in one sentence, preserving the core point:\n\n{text}"
+        )}])
+
+_example_agent = ExampleAgent()
+summarize = _example_agent.summarize
 ```
 
 External callers can't tell the difference — `summarize(article)` looks just like any Python function.
@@ -82,14 +89,14 @@ So context management stops being prompt plumbing and becomes a property you dec
 
 ### The LLM Writes Code Too
 
-The LLM isn't just the runtime's reasoning engine; it can also **write code** — generating, modifying, and fixing `@agentic_function`s that conform to the documented API. This needs no dedicated `create()` / `fix()` framework functions; the agent authors new functions with ordinary file edits. A background watcher rescans `programs/workflow/` and hot-loads new modules: their `@agentic_function` decorators fire on import and self-register, so a freshly written function is callable without a restart.
+The LLM isn't just the runtime's reasoning engine; it can also **write code** — generating, modifying, and fixing `Agent` methods that conform to the documented API. This needs no dedicated `create()` / `fix()` framework functions; the agent authors new functions with ordinary file edits. A background watcher rescans `programs/workflow/` and hot-loads new modules: their Agent method executions fire on import and self-register, so a freshly written function is callable without a restart.
 
 Code is data, the LLM is the compiler, and functions are the product — the loop closes.
 
 ### Dual Mode
 
 Agentic Programming is at the same time:
-- **A library** — you write `@agentic_function`s and wire up the pipeline by hand
+- **A library** — you write `Agent` methods and wire up the pipeline by hand
 - **A running product** — chat in the CLI or WebUI and ask the agent to write the function for you; the generated file lands in `programs/workflow/` and hot-loads
 
 Beginners start by asking, and what they get is a complete, readable Python file. Those who want to dig deeper can then import and hand-write. This is a tool that **can be understood incrementally**.

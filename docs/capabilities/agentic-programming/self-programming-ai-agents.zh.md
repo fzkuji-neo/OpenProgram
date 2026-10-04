@@ -3,7 +3,7 @@
 # 自编程 AI Agent
 
 自编程 AI agent 可以在工作过程中创建或修改可执行工作流。在 OpenProgram 中，
-这些工作流使用 `@agentic_function` 装饰器：agent 用常规工具编辑源文件，
+这些工作流使用 `Agent` method 装饰器：agent 用常规工具编辑源文件，
 runtime 验证并加载函数，后续轮次可通过与现有工具相同的注册表调用它。
 
 这项能力的范围小于不受限制的自我修改。OpenProgram 不允许模型静默替换 runtime
@@ -17,20 +17,26 @@ runtime 验证并加载函数，后续轮次可通过与现有工具相同的注
 Agentic function 将确定性控制流与模型决策结合：
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 
+class ExampleAgent(Agent):
+    method_options = {
+        'review_then_revise': {'tool': True},
+    }
 
-@agentic_function
-def review_then_revise(draft: str, runtime=None) -> str:
-    """Review a draft, then revise it against the review."""
-    review = runtime.exec(
-        content=f"Identify concrete defects in this draft:\n\n{draft}",
-        toolset="none",
-    )
-    return runtime.exec(
-        content=f"Revise the draft using this review:\n\n{review}\n\n{draft}",
-        toolset="none",
-    )
+    def review_then_revise(self, draft: str, runtime=None) -> str:
+        """Review a draft, then revise it against the review."""
+        review = runtime.exec(
+            content=f"Identify concrete defects in this draft:\n\n{draft}",
+            toolset="none",
+        )
+        return runtime.exec(
+            content=f"Revise the draft using this review:\n\n{review}\n\n{draft}",
+            toolset="none",
+        )
+
+_example_agent = ExampleAgent()
+review_then_revise = _example_agent.review_then_revise
 ```
 
 Python 函数体固定所需的执行顺序，模型处理两个语义步骤。每次调用都可在
@@ -54,7 +60,7 @@ openprogram
 根据审查意见修订，仅暴露最终输出，并包含冒烟测试。提交前向我展示 diff。
 ```
 
-随附的 [Agentic function API](../../reference/api/agentic-function.zh.md)
+随附的 [Agentic function API](../../reference/api/agent.zh.md)
 定义文件布局、装饰器合同、验证步骤和冒烟测试。
 Watcher 可以加载已批准的函数，无需重启 worker。
 
@@ -76,5 +82,5 @@ Watcher 可以加载已批准的函数，无需重启 worker。
 当操作已有稳定实现时，使用现有工具。
 
 完整执行合同见 [Agentic Programming 指南](README.zh.md)、
-[`@agentic_function` 参考](../../reference/api/agentic-function.zh.md)和
+[`Agent` method 参考](../../reference/api/agent.zh.md)和
 [设计理由](philosophy.zh.md)。

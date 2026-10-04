@@ -73,7 +73,7 @@ if TYPE_CHECKING:
     pass
 
 # Dispatcher installs a per-turn (SessionStore, session_id) wrapper here
-# so deep code (Runtime.exec, ask_user, @agentic_function decorator) can
+# so deep code (Runtime.exec, ask_user, Agent method decorator) can
 # write DAG nodes via the same handle without threading args through
 # every layer. Default None = standalone, no persistence (still works,
 # just writes nothing).
@@ -101,7 +101,7 @@ def session_scope(store, session_id: str):
     """Route DAG writes to ``store``/``session_id`` for the duration.
 
     The public face of ``_store`` for embedders: inside the block,
-    ``Runtime.exec`` and ``@agentic_function`` persist their nodes to
+    ``Runtime.exec`` and ``Agent method`` persist their nodes to
     the given session; on exit the previous binding is restored.
     """
     token = _store.set(SessionNodeWriter(store, session_id))

@@ -1,4 +1,4 @@
-# Agent、Context 与 agentic_function
+# Agent 与 Context
 
 `agent()` 执行模型工具循环。`Agent` 保存可复用配置，并为普通子类方法建立作用域。`Context` 提供命名内容与历史选择。所有入口复用现有 Runtime 和 Session DAG。
 
@@ -35,7 +35,7 @@ answer = researcher.research("A question")
 
 构造对象不请求模型，也不创建执行会话。调用继承当前执行；没有外层执行时创建独立执行，并在结束时释放资源。复用实例不自动续接上一次独立会话。
 
-普通实例方法、静态方法与类方法自动建立调用作用域，包括单下划线帮助方法。双下划线特殊方法与生成器不采集。方法记录不会注册模型工具。在对应 `method_options` 设置 `"tool": True` 可显式登记工具。旧装饰器方法保留已有登记行为。 `method_options = {"method_name": {"expose": "io", "render_range": {...}}}` 无需装饰器即可设置方法元数据。
+普通实例方法、静态方法与类方法自动建立调用作用域，包括单下划线帮助方法。双下划线特殊方法与生成器不采集。方法记录不会注册模型工具。在对应 `method_options` 设置 `"tool": True` 可显式登记工具。 `method_options = {"method_name": {"expose": "io", "render_range": {...}}}` 无需装饰器即可设置方法元数据。
 
 ## Context 内容与可见性
 
@@ -86,50 +86,57 @@ finally:
 
 受管加载器采集显式授权包目录内的源码函数，包括已选择的第一方源码、已安装及目录登记的 Program 包、所有者登记的外部 harness、已发布 Program 与保留源码快照。采集包含子模块与嵌套源码定义。任意宿主文件、无关依赖、lambda、动态生成代码与不可用源码不在该范围内。
 
-包通过 `AGENTIC_FUNCTIONS` 列出公开入口。普通入口可用显式 `__agentic_options__` 映射提供已有入口元数据。被采集的帮助函数不会自动成为工具。加载器保留旧装饰器，并排除生成器采集。
+包通过 `PROGRAM_ENTRIES` 列出公开入口。普通入口可用显式 `__agent_options__` 映射提供已有入口元数据。被采集的帮助函数不会自动成为工具。加载器保留方法配置，并排除生成器采集。
 
 内置 text workflow 使用普通 `TextAgent` 方法。`summarize_text` 调用 `agent(..., tools=[])`。模块导出保留公开名称与表单元数据。
 
 类与方法接口参考 [NVIDIA-labs OO Agents](https://github.com/NVIDIA-NeMo/labs-OO-Agents)。OpenProgram 不声称 NOOA API 兼容。
 
-## 旧装饰器
+## 方法配置
 
-`@agentic_function` 把普通 Python 函数变成 Agentic Function:每次调用记录为 session DAG 的一个 `code` 节点,函数体内的 `llm()` 调用记录为 `llm` 节点。
+普通 Agent 方法产生 code 节点，模型请求产生 llm 节点。Agent 承担方法元数据、执行控制与显式登记。Context 动态构建每次请求。
 
-本文定义 agentic function 的装饰器和编写规范。
+Agent 定义方法执行、配置与登记，Context 动态构建每次请求。
 
 ### 用法
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 
-@agentic_function
-def f(x: str, runtime) -> str:
-    """One-line summary of what f does."""
-    return llm([{"type": "text", "text": f"...{x}..."}])
+class ExampleAgent(Agent):
+    method_options = {
+        'f': {'tool': True},
+    }
+
+    def f(self, x: str, runtime) -> str:
+        """One-line summary of what f does."""
+        return llm([{"type": "text", "text": f"...{x}..."}])
+
+_example_agent = ExampleAgent()
+f = _example_agent.f
 ```
 
-裸用 `@agentic_function` 或带参数 `@agentic_function(...)` 都可以。
+每个普通方法自动建立调用作用域。通过类的 `method_options` 映射配置指定方法。
 
-### 装饰器参数
+### 方法配置
 
-### Agentic 专属参数
+### 执行与 Context 设置
 
 | 参数 | 类型 | 默认 | 说明 |
 |------|------|------|------|
-| `expose` | `str` | `"io"` | **朝外**:别人渲染 DAG 时能看到我的什么。`"io"` = 对外只露函数名和返回值,内部(LLM 交换、子调用)隐藏;`"llm"` = 反过来,只露内部 LLM 交换,藏函数自己的名字/返回值和嵌套的 code 子调用;`"full"` = 全可见(docstring + 参数 + 输出 + LLM 回复 + 内部);`"hidden"` = 根本不写 DAG 节点。其余值在装饰时抛 `ValueError` |
+| `expose` | `str` | 普通方法 `"full"`；登记工具 `"io"` | **朝外**:别人渲染 DAG 时能看到我的什么。`"io"` = 对外只露函数名和返回值,内部(LLM 交换、子调用)隐藏;`"llm"` = 反过来,只露内部 LLM 交换,藏函数自己的名字/返回值和嵌套的 code 子调用;`"full"` = 全可见(docstring + 参数 + 输出 + LLM 回复 + 内部);`"hidden"` = 根本不写 DAG 节点。其余值在装饰时抛 `ValueError` |
 | `render_range` | `dict` | `None` | **朝内**:本函数内部 `llm()` 拼 prompt 时,从 DAG 读多少历史节点。形状 `{"callers": N, "subcalls": M}`,两个数字都是 **节点计数(按 `seq` 切片)**:<br>• `callers` — 本函数 frame **启动前**的节点,取最近 N 个(`None` 默认 = 不限,`0` = 全墙)<br>• `subcalls` — 本函数 frame **启动后**已写入的节点,取最近 N 个(`-1` 默认 = 不限,frame 自然看见自己的进度;`N>=0` = 只想截 prompt 时显式设;`0` = 完全墙掉 in-frame)<br>`{"callers":0,"subcalls":0}` = 跟外界和自己 frame 全断绝 |
 | `input` | `dict` | `None` | 每个参数的 UI 元数据,WebUI 据此渲染输入表单。每个参数支持的字段:`description`(参数名旁的标签)、`placeholder`(示例文字)、`multiline`(`True` = textarea)、`options`(允许值列表,渲染为下拉框并写进 JSON-schema `enum`)、`hidden`(`True` = 从表单和 LLM 工具 schema 里排除) |
 | `system` | `str` | `None` | 本函数 LLM 调用的 system prompt(调用期间盖到注入的 runtime 上,调用后恢复) |
 
 ### 工具注册参数
 
-每个 `@agentic_function` 还会注册进共享注册表(`openprogram.programs`),成为 LLM 可调用的工具,与 `@function` 装饰的工具并列。以下参数控制这次注册,名字和语义与 `@function` 一致:
+设置 `tool=True` 的 Agent 方法注册进共享注册表(`openprogram.programs`),成为 LLM 可调用的工具,与 `@function` 装饰的工具并列。以下参数控制这次注册,名字和语义与 `@function` 一致:
 
 | 参数 | 类型 | 默认 | 说明 |
 |------|------|------|------|
-| `as_tool` | `bool` | `True` | 注册为 LLM 可调用工具。`False` = 只能 Python 直接调用 |
+| `tool` / `as_tool` | `bool` | `False` | 注册为 LLM 可调用工具。`False` = 只能 Python 直接调用 |
 | `name` | `str` | `None` | 工具名覆盖。默认取函数的 `__name__` |
 | `description` | `str` | `None` | 工具描述覆盖。默认取函数 docstring |
 | `parameters` | `dict` | `None` | JSON-schema 参数覆盖。默认由签名类型注解加 `input` 元数据自动生成(runtime 注入参数和 `hidden` 参数被排除) |
@@ -146,11 +153,11 @@ def f(x: str, runtime) -> str:
 | `cache` | `bool` | `False` | 工具分发调用按 `(name, args)` 记忆化结果 |
 | `cache_ttl` | `float` | `300.0` | `cache=True` 时的缓存寿命(秒) |
 | `timeout` | `float` | `None` | 工具分发调用的硬性墙钟超时(秒),到点模型收到错误结果 |
-| `available_if` | `Callable` | `None` | 导入时门禁:返回假值(或抛异常)则整个装饰器跳过,模块级名字保持普通函数——不包 wrapper、不注册 |
+| `available_if` | `Callable` | `None` | 工具登记门禁：返回假值或抛异常时不登记工具，普通方法作用域仍有效 |
 | `defer` | `bool` | `False` | 注册为延迟工具(schema 按需加载,不随每次调用发送) |
 | `register_globally` | `bool` | `True` | `False` = 构建工具但不进全局注册表 |
 
-函数名、参数名 / 类型 / 默认值、一句话摘要都从函数签名和 docstring 自动读取,不在装饰器里重复(见 SKILL.md §3)。
+函数名、参数名 / 类型 / 默认值、一句话摘要都从函数签名和 docstring 自动读取,不在 method_options 中重复。
 
 ### Runtime 注入
 
@@ -172,7 +179,7 @@ def f(x: str, runtime) -> str:
 
 ### 可恢复步骤与代码版本
 
-为同步编排函数声明 `@agentic_function(resumable=True)`，将外部操作放入 `step("稳定名称", 操作函数, *args, **kwargs)`。步骤输入和结果必须可保存为 JSON；继续执行时，已完成步骤直接返回保存的结果，不再调用操作函数。重复名称按出现次数区分，已执行步骤的顺序和输入必须保持兼容。
+为同步编排函数声明 `method_options = {"report": {"resumable": True}}`，将外部操作放入 `step("稳定名称", 操作函数, *args, **kwargs)`。步骤输入和结果必须可保存为 JSON；继续执行时，已完成步骤直接返回保存的结果，不再调用操作函数。重复名称按出现次数区分，已执行步骤的顺序和输入必须保持兼容。
 
 嵌套编排使用 `workflow("名称", 函数, *args, **kwargs)`。并行编排使用 `parallel({"分支名": (函数, args, kwargs)})`；各分支独立保存进度，所有分支停止后才释放任务所有权。
 

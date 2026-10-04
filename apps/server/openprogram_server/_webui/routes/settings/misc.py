@@ -242,7 +242,7 @@ def register(app):
 
     @app.post("/api/register")
     async def register_external(body: dict = None):
-        """Register an external module's @agentic_function callables."""
+        """Register an external module's Agent method callables."""
         if not body or "module" not in body:
             return JSONResponse(content={"error": "no module path"}, status_code=400)
         module_path = body["module"]

@@ -100,12 +100,12 @@ def test_multiple_text_blocks_keep_separate_parts(rt, store):
     assert parts[1].text == "line 2"
 
 
-# Inside an @agentic_function frame
+# Inside an Agent method frame
 
 
 def test_dag_prompt_inside_io_function_frame(rt, store):
     """Simulate the state ``_call_via_providers`` would see when
-    ``runtime.exec`` is invoked from inside an @agentic_function
+    ``runtime.exec`` is invoked from inside an Agent method
     body with expose='io':
 
       n0  user        "find weather"
@@ -114,7 +114,7 @@ def test_dag_prompt_inside_io_function_frame(rt, store):
 
     Then the body calls runtime.exec. _call_id is set to n2.id.
     """
-    from openprogram.agentic_programming.function import _call_id
+    from openprogram.agentic_programming.call_state import _call_id
     from openprogram.context.nodes import Call, ROLE_USER, ROLE_LLM, ROLE_CODE
 
     _u = Call(role=ROLE_USER, output="find weather")
@@ -162,7 +162,7 @@ def test_dag_prompt_inside_io_function_frame(rt, store):
 def test_render_range_callers_zero_hides_history(rt, store):
     """When inside a frame with render_range={'callers':0}, prior chat
     history is walled off — only in-frame nodes + current turn appear."""
-    from openprogram.agentic_programming.function import _call_id
+    from openprogram.agentic_programming.call_state import _call_id
     from openprogram.context.nodes import Call, ROLE_USER, ROLE_LLM, ROLE_CODE
 
     _u = Call(role=ROLE_USER, output="prior chat user")
@@ -203,7 +203,7 @@ def test_render_range_callers_zero_hides_history(rt, store):
 def test_call_path_appears_in_situation(rt, store):
     """When a frame node has a caller chain (parent → child), the
     <situation> block must include 'Call path: research_agent → idea'."""
-    from openprogram.agentic_programming.function import _call_id
+    from openprogram.agentic_programming.call_state import _call_id
     from openprogram.context.nodes import Call, ROLE_CODE
 
     parent = Call(

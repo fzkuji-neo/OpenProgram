@@ -20,7 +20,7 @@ diff plus whatever surrounding source it needs to tell a real
 vulnerability from a shape that merely looks like one, and it cannot
 edit, run a build, or spawn further agents.
 
-Registration: AGENTIC_MODULES.
+Registration: PROGRAM_MODULES.
 """
 
 from __future__ import annotations
@@ -33,8 +33,7 @@ import os
 import subprocess
 from typing import Optional
 
-from openprogram.agentic_programming.function import (
-    agentic_function,
+from openprogram.agentic_programming.call_state import (
     current_session_id,
 )
 from openprogram.programs.workflow.json_parsing import parse_json
@@ -213,7 +212,7 @@ def _run_review_turn(
     session_id: str, prompt: str, *, agent_id: str, spawn_caller: Optional[str]
 ) -> str:
     """One read-only review turn. Module-level so tests stub it."""
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
 
     if _current_runtime.get(None) is not None or not session_id:
         from openprogram.agentic_programming.agent import agent

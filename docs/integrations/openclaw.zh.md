@@ -49,41 +49,53 @@ import os
 # 把源码 checkout 加入脚本 path
 sys.path.insert(0, os.path.expanduser("~/.openclaw/workspace/OpenProgram"))
 
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 from openprogram.providers.registry import create_runtime
+
+class ExampleAgent(Agent):
+    method_options = {
+        'decompose': {'tool': True},
+        'assess': {'tool': True},
+        'plan': {'tool': True},
+    }
+
+    def decompose(self, task, runtime=None):
+        """把复杂任务拆解成可执行的步骤。"""
+        return llm([
+            {"type": "text", "text": f"把这个任务拆解成 3-5 个具体、可执行的步骤：\n{task}\n\n编号，要具体。"},
+        ])
+
+    def assess(self, step, runtime=None):
+        """评估一个步骤的难度和时间。"""
+        return llm([
+            {"type": "text", "text": f"对这个步骤给出：难度（简单/中等/困难）和时间估计。\n格式：[难度] ~X小时\n\n步骤：{step}"},
+        ])
+
+    def plan(self, task, runtime=None):
+        """为任务创建详细计划。"""
+        steps_text = decompose(task=task, runtime=runtime)
+
+        lines = [l.strip() for l in steps_text.split("\n") if l.strip() and l.strip()[0].isdigit()]
+        assessments = []
+        for line in lines[:5]:
+            a = assess(step=line, runtime=runtime)
+            assessments.append(f"{line}\n   → {a}")
+
+        return "\n\n".join(assessments)
+
+_example_agent = ExampleAgent()
+decompose = _example_agent.decompose
+assess = _example_agent.assess
+plan = _example_agent.plan
 
 runtime = create_runtime(provider="anthropic", model="claude-haiku-4-5")
 
 
-@agentic_function
-def decompose(task, runtime=None):
-    """把复杂任务拆解成可执行的步骤。"""
-    return llm([
-        {"type": "text", "text": f"把这个任务拆解成 3-5 个具体、可执行的步骤：\n{task}\n\n编号，要具体。"},
-    ])
 
 
-@agentic_function
-def assess(step, runtime=None):
-    """评估一个步骤的难度和时间。"""
-    return llm([
-        {"type": "text", "text": f"对这个步骤给出：难度（简单/中等/困难）和时间估计。\n格式：[难度] ~X小时\n\n步骤：{step}"},
-    ])
 
 
-@agentic_function
-def plan(task, runtime=None):
-    """为任务创建详细计划。"""
-    steps_text = decompose(task=task, runtime=runtime)
-
-    lines = [l.strip() for l in steps_text.split("\n") if l.strip() and l.strip()[0].isdigit()]
-    assessments = []
-    for line in lines[:5]:
-        a = assess(step=line, runtime=runtime)
-        assessments.append(f"{line}\n   → {a}")
-
-    return "\n\n".join(assessments)
 
 
 if __name__ == "__main__":
@@ -123,35 +135,46 @@ OpenClaw 和 OpenProgram 使用同一套 AgentSkills 兼容的 `SKILL.md` 格式
 """
 OpenClaw agent 调用的代码审查脚本。
 """
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 from openprogram.providers.registry import create_runtime
+
+class ExampleAgent(Agent):
+    method_options = {
+        'review_code': {'tool': True},
+        'suggest_tests': {'tool': True},
+        'code_analysis': {'tool': True},
+    }
+
+    def review_code(self, code, language="python", runtime=None):
+        """审查代码的 bug、风格问题和改进建议。"""
+        return llm([
+            {"type": "text", "text": f"审查这段 {language} 代码。列出：\n1. Bug（如果有）\n2. 风格问题\n3. 改进建议\n\n```{language}\n{code}\n```"},
+        ])
+
+    def suggest_tests(self, code, runtime=None):
+        """为代码建议测试用例。"""
+        return llm([
+            {"type": "text", "text": f"为这段代码建议 3 个测试用例。每个给出：测试名称、输入、期望输出。\n\n```python\n{code}\n```"},
+        ])
+
+    def code_analysis(self, code, runtime=None):
+        """完整代码分析：审查 + 测试建议。"""
+        review = review_code(code=code, runtime=runtime)
+        tests = suggest_tests(code=code, runtime=runtime)
+        return f"## 代码审查\n{review}\n\n## 建议测试\n{tests}"
+
+_example_agent = ExampleAgent()
+review_code = _example_agent.review_code
+suggest_tests = _example_agent.suggest_tests
+code_analysis = _example_agent.code_analysis
 
 runtime = create_runtime(provider="anthropic", model="claude-haiku-4-5")
 
 
-@agentic_function
-def review_code(code, language="python", runtime=None):
-    """审查代码的 bug、风格问题和改进建议。"""
-    return llm([
-        {"type": "text", "text": f"审查这段 {language} 代码。列出：\n1. Bug（如果有）\n2. 风格问题\n3. 改进建议\n\n```{language}\n{code}\n```"},
-    ])
 
 
-@agentic_function
-def suggest_tests(code, runtime=None):
-    """为代码建议测试用例。"""
-    return llm([
-        {"type": "text", "text": f"为这段代码建议 3 个测试用例。每个给出：测试名称、输入、期望输出。\n\n```python\n{code}\n```"},
-    ])
 
-
-@agentic_function
-def code_analysis(code, runtime=None):
-    """完整代码分析：审查 + 测试建议。"""
-    review = review_code(code=code, runtime=runtime)
-    tests = suggest_tests(code=code, runtime=runtime)
-    return f"## 代码审查\n{review}\n\n## 建议测试\n{tests}"
 ```
 
 ## 用法 3：MCP Tool 封装
@@ -166,26 +189,34 @@ MCP 兼容的 tool server，暴露 agentic function。
 import json
 import sys
 
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 from openprogram.providers.registry import create_runtime
+
+class ExampleAgent(Agent):
+    method_options = {
+        'summarize_text': {'tool': True},
+    }
+
+    def summarize_text(self, text, style="bullet_points", runtime=None):
+        """按指定风格总结文本。"""
+        style_instructions = {
+            "bullet_points": "用 3-5 个要点总结。",
+            "one_paragraph": "用一段话总结。",
+            "eli5": "用 5 岁小孩能听懂的话解释。",
+        }
+        instruction = style_instructions.get(style, style_instructions["bullet_points"])
+
+        return llm([
+            {"type": "text", "text": f"{instruction}\n\n文本：\n{text}"},
+        ])
+
+_example_agent = ExampleAgent()
+summarize_text = _example_agent.summarize_text
 
 runtime = create_runtime(provider="anthropic", model="claude-haiku-4-5")
 
 
-@agentic_function
-def summarize_text(text, style="bullet_points", runtime=None):
-    """按指定风格总结文本。"""
-    style_instructions = {
-        "bullet_points": "用 3-5 个要点总结。",
-        "one_paragraph": "用一段话总结。",
-        "eli5": "用 5 岁小孩能听懂的话解释。",
-    }
-    instruction = style_instructions.get(style, style_instructions["bullet_points"])
-
-    return llm([
-        {"type": "text", "text": f"{instruction}\n\n文本：\n{text}"},
-    ])
 
 
 if __name__ == "__main__":
@@ -212,4 +243,4 @@ if __name__ == "__main__":
 ## 建议
 
 3. **回看执行 trace** — 每次函数调用都记录在 session DAG 里，用 Web UI 或 `openprogram sessions list` 找到会话后回看。
-4. **保持函数小而精** — 每个 `@agentic_function` 只做一件事，用 Python 组合它们。
+4. **保持函数小而精** — 每个 `Agent` method 只做一件事，用 Python 组合它们。

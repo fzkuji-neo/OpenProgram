@@ -295,20 +295,31 @@ PATCH /api/agents/general
 <section id="execution">
 <h2>公开调用与执行边界</h2>
 <p>以下 API 是目标接口，尚未实现。在现有 Python agent()、llm() 中加入 agent_id、config、overrides 与历史选择，不建立另一套执行器。llm() 不执行 Python/Program/MCP 工具循环，即使选中 Agent 允许这些工具。保留显式 web_search=True 的 provider 原生搜索，并执行相同原生能力权限检查；仅选择 Agent 不会自动启用搜索。输出校验与返回类型保持不变。</p>
-<pre>
-<code>@agentic_function
-def extract(document):
-    return agent(document, agent_id=&quot;my-agent&quot;,
-                 overrides={&quot;memory&quot;: {&quot;mode&quot;: &quot;off&quot;}},
-                 response_format=Result)
+<pre>from openprogram import Agent
 
-@agentic_function
-def classify(document):
-    return llm(document,
-               config=AgentConfig(model=&quot;provider:model&quot;, memory={&quot;mode&quot;: &quot;off&quot;}),
-               response_format=Label)
 
-agent(prompt, agent_id=&quot;reviewer&quot;, history=&quot;selected&quot;, context_nodes=[node_id])</code>
+
+agent(prompt, agent_id="reviewer", history="selected", context_nodes=[node_id])
+
+class ExampleAgent(Agent):
+    method_options = {
+        'extract': {'tool': True},
+        'classify': {'tool': True},
+    }
+
+    def extract(self, document):
+        return agent(document, agent_id="my-agent",
+                     overrides={"memory": {"mode": "off"}},
+                     response_format=Result)
+
+    def classify(self, document):
+        return llm(document,
+                   config=AgentConfig(model="provider:model", memory={"mode": "off"}),
+                   response_format=Label)
+
+_example_agent = ExampleAgent()
+extract = _example_agent.extract
+classify = _example_agent.classify
 </pre>
 <div class="table-wrap">
 <table>

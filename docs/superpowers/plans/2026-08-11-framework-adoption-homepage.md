@@ -82,7 +82,7 @@ https://github.com/Fzkuji/Research-Agent-Harness
 https://github.com/Fzkuji/Wiki-Agent-Harness
 ```
 
-Add a fourth build-your-own card containing the existing compact `@agentic_function` triage example and a link to the authoring documentation.
+Add a fourth build-your-own card containing the existing compact `Agent` method triage example and a link to the authoring documentation.
 
 - [ ] **Step 3: Add early Quick Start**
 

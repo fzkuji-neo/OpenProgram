@@ -7,7 +7,7 @@ official documentation.
 
 | Framework | Documented primary abstraction | Documented orchestration model | Documented emphasis |
 |---|---|---|---|
-| **OpenProgram** | `@agentic_function` plus an execution runtime | Ordinary control flow, model-selected tools, and a shared execution DAG | Agents that can author reviewable agentic functions; runtime-managed context, tools, memory, interfaces, and multi-agent work |
+| **OpenProgram** | `Agent` method plus an execution runtime | Ordinary control flow, model-selected tools, and a shared execution DAG | Agents that can author reviewable agentic functions; runtime-managed context, tools, memory, interfaces, and multi-agent work |
 | **LangGraph** | Graph API with nodes and edges, or Functional API with `@entrypoint` and `@task` | Explicit state graphs or standard Python control flow over the same runtime | Durable execution, persistence, streaming, and human-in-the-loop control |
 | **AutoGen** | AgentChat agents and teams, or Core agents and runtimes | Agent messages, team patterns, and an event-driven Core API | Conversational single/multi-agent applications and scalable multi-agent runtimes |
 | **CrewAI** | Agents, tasks, crews, and flows | Role-based agent crews combined with event-driven flows | Collaborative agent teams plus structured workflow automation |

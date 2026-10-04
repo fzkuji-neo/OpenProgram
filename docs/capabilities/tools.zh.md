@@ -125,7 +125,7 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 
 | 工具 | 做什么 | 需要什么 |
 |---|---|---|
-| `program` | 调用任意已注册的 `@agentic_function` | 无 |
+| `program` | 调用任意已注册的 `Agent` method | 无 |
 | `mixture_of_agents` | 并行问N个模型再综合;默认从模型注册表选,每个provider取一个 | 模型注册表里至少2个provider |
 | `ask_user_question` | 向用户提 1–N 个带选项的问题 | 需要交互前端；输入基础设施不可用、问题数组无效或无交互上下文时返回工具错误 |
 | `enter_plan_mode` / `exit_plan_mode` | 进入 / 退出计划模式 | 无 |

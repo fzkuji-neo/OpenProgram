@@ -103,7 +103,7 @@ git commit -m "feat: define MCP server tool contracts"
 - 修改：`openprogram/mcp/adapter.py`
 - 修改：`openprogram/agent/agent_loop.py`
 - 修改：`openprogram/agent/permissions/approval.py`
-- 修改：`openprogram/agentic_programming/function.py`
+- 修改：`openprogram/agentic_programming/call_state.py`
 - 修改：`openprogram/programs/tools/files/bash/bash.py`
 - 修改：`tests/unit/test_tools_runtime.py`
 - 修改：`tests/agent/test_loop_options.py`
@@ -136,7 +136,7 @@ uv run --locked pytest -q tests/unit/test_tools_runtime.py tests/agent/test_loop
 **提交：**
 
 ```bash
-git add openprogram/agent/types.py openprogram/programs/_runtime.py openprogram/mcp/adapter.py openprogram/agent/agent_loop.py openprogram/agent/permissions/approval.py openprogram/agentic_programming/function.py openprogram/programs/tools/files/bash/bash.py tests/unit/test_tools_runtime.py tests/agent/test_loop_options.py tests/agent/test_tool_gate.py tests/unit/test_acp_server.py
+git add openprogram/agent/types.py openprogram/programs/_runtime.py openprogram/mcp/adapter.py openprogram/agent/agent_loop.py openprogram/agent/permissions/approval.py openprogram/agentic_programming/call_state.py openprogram/programs/tools/files/bash/bash.py tests/unit/test_tools_runtime.py tests/agent/test_loop_options.py tests/agent/test_tool_gate.py tests/unit/test_acp_server.py
 git commit -m "refactor: type runtime tool error results"
 ```
 

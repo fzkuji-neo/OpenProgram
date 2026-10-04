@@ -10,7 +10,7 @@ The audience is Python developers evaluating agent harnesses. The primary action
 
 ## Visual direction
 
-Keep the selected near-black identity and teal-to-violet accent. Use the bundled Inter font for prose and the system monospace stack for code. The signature element remains the annotated `@agentic_function` example; real Web, code, and TUI screenshots provide product evidence below it. Decoration stays limited to the hero ambient gradient and code highlighting.
+Keep the selected near-black identity and teal-to-violet accent. Use the bundled Inter font for prose and the system monospace stack for code. The signature element remains the annotated `Agent` method example; real Web, code, and TUI screenshots provide product evidence below it. Decoration stays limited to the hero ambient gradient and code highlighting.
 
 ## Information structure
 

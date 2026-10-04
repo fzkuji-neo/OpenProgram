@@ -46,7 +46,7 @@ role="user"   ─ 用户消息       output = 消息文本
 role="llm"    ─ 一次 LLM 调用   input = {system: "..."}
                                 output = 模型回复
                                 reads  = prompt 中包含的节点 ids
-                                called_by = 调起这次 LLM 调用的 @agentic_function id（如果有）
+                                called_by = 调起这次 LLM 调用的 Agent method id（如果有）
 role="code"   ─ 一次函数调用    input  = arguments dict
                                 output = 函数返回值
                                 called_by = 调起这个函数的 LLM 或父函数 id
@@ -66,7 +66,7 @@ reads        上下文引用    "我看了哪些节点"      fan-in 的 LLM prom
 
 `caller` 与 `predecessor` 都是 `Call` 的顶层字段，metadata 里没有镜像。
 
-`Graph` 是一个轻量容器：`nodes: dict[id → Call]` + `_next_seq` 整数。`add(node)` 自动分配 seq；`update(node_id, **fields)` 用于"入口 append 占位、出口 update output"的 @agentic_function 生命周期（这是 DAG 中**唯一**违反 append-only 的操作，专门支持实时观察）。
+`Graph` 是一个轻量容器：`nodes: dict[id → Call]` + `_next_seq` 整数。`add(node)` 自动分配 seq；`update(node_id, **fields)` 用于"入口 append 占位、出口 update output"的 Agent method 生命周期（这是 DAG 中**唯一**违反 append-only 的操作，专门支持实时观察）。
 
 **算法 helper**：
 
@@ -77,7 +77,7 @@ branch_terminals(spawn_id, graph)    沿 called_by 链找每个分支的末端
 branch_internal(spawn_id, term, g)   单个分支从 spawn 到 terminal 的内部节点链
 fold_history(current_id, graph)      把历史按 turn 折叠：每个 prior turn 留 (user, final-llm) 对
 compute_reads(graph,                 按 expose / render_range 算出
-              head_seq=...,           @agentic_function 下次 LLM 调用的 reads
+              head_seq=...,           Agent method 下次 LLM 调用的 reads
               frame_entry_seq=...,
               render_range=...)
 ```
@@ -103,7 +103,7 @@ nodes_fts     FTS5 虚表  text / session_id / node_id  全文搜索
 
 `nodes.predecessor` 列保留但**装的是 `metadata.parent_id`**——legacy 消息树的父 id。dispatcher / channels / webui 对消息树的依赖（fork / rewind / list_branches 等）通过这个 SQL 索引继续工作，不影响新 DAG 模型的纯净性。
 
-`append(node)` 是单调 append-only——重复 append 同 id 报错。`append` 时自动给 `node.seq` 赋值（如果 caller 没指定）。`update(node_id, **fields)` 用于 @agentic_function 出口填占位节点的 output，同时刷 FTS。`load()` 把整个 session 重建成内存 Graph。`search(query, limit)` 走 FTS5 在 session 内搜，模块级 `search_across_sessions(db, query)` 跨 session 搜。
+`append(node)` 是单调 append-only——重复 append 同 id 报错。`append` 时自动给 `node.seq` 赋值（如果 caller 没指定）。`update(node_id, **fields)` 用于 Agent method 出口填占位节点的 output，同时刷 FTS。`load()` 把整个 session 重建成内存 Graph。`search(query, limit)` 走 FTS5 在 session 内搜，模块级 `search_across_sessions(db, query)` 跨 session 搜。
 
 ### 0.3 Session 抽象 `session.py`
 
@@ -134,7 +134,7 @@ message dict ↔ Call 的双向映射在这一层：
 - `add_user_message(content)` — 在 graph 上加一条 user-role Call
 - `record_function_call(name, arguments, called_by, result)` — 调用方自己执行完函数后调这个登记结果
 
-`DagRuntime` 是个"给定 graph + reads，调一次 LLM"的纯函数 wrapper，不感知 `@agentic_function`，`reads` 谁来算由调用方负责——`chat.py` 的 chat 循环用它。跟它并列的是 `agentic_programming/runtime.py` 里的 `Runtime`（provider 基类，`@agentic_function` 注入的就是它）：`Runtime.exec` 自己感知 `@agentic_function`——从 ContextVar 取当前 graph/frame、调 `compute_reads` 算 reads、把 llm 节点写回 DAG（见 §0.7）。两者都不再有任何内存里的 tree Context。
+`DagRuntime` 是个"给定 graph + reads，调一次 LLM"的纯函数 wrapper，不感知 `Agent method`，`reads` 谁来算由调用方负责——`chat.py` 的 chat 循环用它。跟它并列的是 `agentic_programming/runtime.py` 里的 `Runtime`（provider 基类，`Agent method` 注入的就是它）：`Runtime.exec` 自己感知 `Agent method`——从 ContextVar 取当前 graph/frame、调 `compute_reads` 算 reads、把 llm 节点写回 DAG（见 §0.7）。两者都不再有任何内存里的 tree Context。
 
 ### 0.6 Chat 循环 `chat.py`
 
@@ -152,24 +152,24 @@ message dict ↔ Call 的双向映射在这一层：
 
 `parse_tool_call(text)` 容忍 LLM 用 bare JSON、围栏 JSON、或者文本里夹 JSON 多种格式表达"调用工具"。
 
-### 0.7 @agentic_function ↔ DAG 集成
+### 0.7 Agent method ↔ DAG 集成
 
 集成靠两个 ContextVar，没有粘合层（旧的 `bridge.py` 已删）：
 
 - `_store`（`context/storage.py`）—— 本回合的 `GraphStore`。
-- `_call_id`（`agentic_programming/function.py`）—— 当前正在执行的 `@agentic_function` 的 code 节点 id；写在它内部的任何节点都拿这个做 `called_by`。
+- `_call_id`（`agentic_programming/call_state.py`）—— 当前正在执行的 `Agent method` 的 code 节点 id；写在它内部的任何节点都拿这个做 `called_by`。
 
 **turn 入口**（`dispatcher.process_user_turn`，以及 webui 的 `run` 路径）：
 - `_store.set(GraphStore(db_path, session_id))` —— 装上本会话的 DAG store
 - `run` 路径还会 `_call_id.set(命令消息 id)`，把整个 program 执行子树挂到那条命令下
 - `finally` 里 reset 这两个 token
 
-**`@agentic_function` 装饰器**（`function.py`）：
+**`Agent method` 装饰器**（`function.py`）：
 - 入口生成 `pending_id`，`_append_function_call_entry` → 若 `_store` 已装，`store.append(Call(role=code, output=None, status="running", called_by=_call_id.get()))` ——webui / 调试器能实时看到正在跑的函数。函数 docstring 一并写进该节点的 `metadata.doc`，`render_dag_messages` 渲染 code 节点时把它拼在 `函数名(参数)` 前面,所以函数自己的 LLM 调用能在上下文里看到"这个函数是干什么的"
-- 入口 `_call_id.set(pending_id)` ——内部的 `runtime.exec` / 嵌套 `@agentic_function` 据此做 `called_by` 标记
-- 装饰器的 `system=` 在调用期间盖到注入的 runtime 上(`_apply_system` / `_restore_system`,save/restore),`runtime.exec` 读 `runtime.system` 才拿得到——所以 `@agentic_function(system=...)` 是经由 runtime 生效的,不进 DAG 节点
+- 入口 `_call_id.set(pending_id)` ——内部的 `runtime.exec` / 嵌套 `Agent method` 据此做 `called_by` 标记
+- 装饰器的 `system=` 在调用期间盖到注入的 runtime 上(`_apply_system` / `_restore_system`,save/restore),`runtime.exec` 读 `runtime.system` 才拿得到——所以 `Agent method(system=...)` 是经由 runtime 生效的,不进 DAG 节点
 - 出口 `_update_function_call_exit` → `store.update(pending_id, output=..., status=...)` ——填回同一个节点的 output / status，**不写第二个节点**；异常路径写 `output={"error": ...}` + `status="error"`
-- `_store` 没装时全部 no-op（standalone 跑 @agentic_function 不依赖持久化）
+- `_store` 没装时全部 no-op（standalone 跑 Agent method 不依赖持久化）
 
 **`Runtime.exec`**（`agentic_programming/runtime.py`）：
 - `store = _store.get()`；为 `None` 时退化成普通 LLM 调用，完全不碰 DAG
@@ -180,7 +180,7 @@ message dict ↔ Call 的双向映射在这一层：
 
 ```
 顶层聊天                       seq ≤ head_seq 的所有节点，按 seq 升序
-@agentic_function 内部          frame_entry_seq 之前 + frame 内部新增节点
+Agent method 内部          frame_entry_seq 之前 + frame 内部新增节点
 expose='io' 的 code Call        把它内部 llm Call（called_by == this）从 reads 里去掉
 expose='full'                  保留内部所有 llm Call
 render_range['callers']         pre-frame 节点最多保留多少（默认 None 不限，0 = 完全隔离）
@@ -740,7 +740,7 @@ FunctionCall(function_name,  → Call(role="code", name=function_name, input=arg
 called_by / reads 双套边               有        无            无         无
 seq 时间排序（不混入图结构）           有        无            无         无
 统一持久化（chat + agent 同 DAG）      有        部分          无         无
-@agentic_function 入口 placeholder      有        无            无         无
+Agent method 入口 placeholder      有        无            无         无
 + 出口 in-place update（实时观察）
 FTS5 节点级全文搜索                    有        无            无         无
 SessionDB 兼容适配器                   有        —             —          —
@@ -783,8 +783,8 @@ Per-agent engine override          有            无            有         有
 
 - 扁平 DAG：所有事件都是同一种 `Call` 节点，靠 `role` 字段区分（user / llm / code）——一种数据结构表达全部历史，分支/嵌套/合并都靠 `called_by` 和 `reads` 两套边表达
 - `seq` 整数承担时间排序，跟"图的边"完全解耦——纯净 DAG 模型
-- 聊天对话 + `@agentic_function` 内部调用统一落在同一张 DAG，按 seq 自然交错，没有"主聊天 DAG vs agent 内部 DAG"的切分
-- `@agentic_function` 入口 append placeholder + 出口 update output 模式——函数运行期间 DAG 上就能看到 `status="running"` 节点，方便实时观察 / 调试 / webui 进度展示
+- 聊天对话 + `Agent method` 内部调用统一落在同一张 DAG，按 seq 自然交错，没有"主聊天 DAG vs agent 内部 DAG"的切分
+- `Agent method` 入口 append placeholder + 出口 update output 模式——函数运行期间 DAG 上就能看到 `status="running"` 节点，方便实时观察 / 调试 / webui 进度展示
 - DAG re-parent 持久化（compact 后原始分支不丢，可回放）
 - LLM summary 失败 structural 兜底（agent loop 永远不因 compaction 崩溃）
 - 三闸门 + 保护前 N + 引用追踪同时启用

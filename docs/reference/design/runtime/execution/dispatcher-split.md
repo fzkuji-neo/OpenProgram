@@ -44,7 +44,7 @@ dispatcher/
                      record_failure / head_for_finalize)
   titles.py          _default_title, _maybe_auto_title, trigger_compaction
   forced_tool.py     dispatch_forced_tool_call (webui forced single tool call)
-  runtime_attach.py  _wrap_agentic_runtime_block — render an @agentic_function
+  runtime_attach.py  _wrap_agentic_runtime_block — render an Agent method
                      call as a runtime-block turn
 ```
 

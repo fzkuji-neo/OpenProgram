@@ -1,4 +1,4 @@
-# Agent, Context, and agentic_function
+# Agent and Context
 
 `agent()` runs a model tool loop. `Agent` stores reusable configuration and scopes ordinary subclass methods. `Context` supplies named content and history selection. All entries use the existing Runtime and Session DAG.
 
@@ -35,7 +35,7 @@ answer = researcher.research("A question")
 
 Construction makes no model request and creates no execution session. An invocation inherits an active execution. Otherwise, it owns a separate execution and releases its resources. Reusing an instance does not continue a previous independent conversation.
 
-Ordinary instance, static, and class methods receive automatic call scopes, including single-underscore helpers. Dunder methods and generators are excluded. Method recording does not register a model tool. Set `"tool": True` in that method's `method_options` to request explicit registration. Legacy decorated methods keep their existing registration behavior. `method_options = {"method_name": {"expose": "io", "render_range": {...}}}` supplies method metadata without a decorator.
+Ordinary instance, static, and class methods receive automatic call scopes, including single-underscore helpers. Dunder methods and generators are excluded. Method recording does not register a model tool. Set `"tool": True` in that method's `method_options` to request explicit registration. `method_options = {"method_name": {"expose": "io", "render_range": {...}}}` supplies method metadata without a decorator.
 
 ## Context content and visibility
 
@@ -86,51 +86,59 @@ This explicit Context session supplies the event lifetime needed for NOOA-style 
 
 The managed loader captures source-defined functions within explicitly authorized package roots. These include selected first-party sources, installed and catalogued Program packages, owner-recorded external harnesses, published Programs, and retained source snapshots. Capture includes submodules and nested source definitions. Arbitrary host files, unrelated dependencies, lambdas, generated code, and unavailable source are outside this boundary.
 
-A package lists public entries in `AGENTIC_FUNCTIONS`. A plain entry can supply an explicit `__agentic_options__` mapping for its existing entry metadata. Captured helpers do not become tools. The loader preserves legacy decorators and excludes generator capture.
+A package lists public entries in `PROGRAM_ENTRIES`. A plain entry can supply an explicit `__agent_options__` mapping for its existing entry metadata. Captured helpers do not become tools. The loader preserves explicit method metadata and excludes generator capture.
 
 The shipped text workflow uses ordinary `TextAgent` methods. `summarize_text` calls `agent(..., tools=[])`. Module exports retain their public names and form metadata.
 
 The class-and-method interface takes inspiration from [NVIDIA-labs OO Agents](https://github.com/NVIDIA-NeMo/labs-OO-Agents). OpenProgram does not claim NOOA API compatibility.
 
-## Legacy compatibility
+## Method behavior
 
-`@agentic_function` turns an ordinary Python function into an Agentic Function: each call is recorded as a `code` node in the session DAG, and the `llm()` calls inside the function body are recorded as `llm` nodes.
+Ordinary Agent methods create code nodes. Model requests create llm nodes. Agent owns method metadata, execution controls, and explicit registration. Context dynamically constructs each request.
 
-This document defines the decorator and authoring conventions for agentic functions.
+Agent owns method execution and registration. Context resolves request content and visible history.
 
 ### Usage
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming import llm
 
-@agentic_function
-def f(x: str, runtime) -> str:
-    """One-line summary of what f does."""
-    return llm([{"type": "text", "text": f"...{x}..."}])
+class ExampleAgent(Agent):
+    method_options = {
+        'f': {'tool': True},
+    }
+
+    def f(self, x: str, runtime) -> str:
+        """One-line summary of what f does."""
+        return llm([{"type": "text", "text": f"...{x}..."}])
+
+_example_agent = ExampleAgent()
+f = _example_agent.f
 ```
 
-You can use bare `@agentic_function` or the parameterized form `@agentic_function(...)`.
+Every ordinary method receives a call scope. Configure named methods in the class `method_options` mapping.
 
-### Decorator parameters
+### Method configuration
 
-### Agentic-specific parameters
+### Execution and Context settings
 
 | Parameter | Type | Default | Description |
 |------|------|------|------|
+| `capture_io` | `bool` | ordinary method: `False`; explicit tool: `True` | Record arguments and return values when enabled. Structural call identity remains available without full values. |
 | `resumable` | `bool` | `False` | Opt in to explicit durable steps, JSON state, and function code selection after restart. See below. |
-| `expose` | `str` | `"io"` | **Outward-facing**: what others can see about me when they render the DAG. `"io"` = only the function's name and return value are visible externally, while its internals (LLM exchanges, sub-calls) are hidden; `"llm"` = the reverse, exposing only the internal LLM exchanges and hiding the function's own name/return value and nested code sub-calls; `"full"` = everything visible (docstring + params + output + LLM replies + internals); `"hidden"` = no DAG nodes are written at all. Any other value raises `ValueError` at decoration time |
+| `expose` | `str` | ordinary method: `"full"`; registered tool: `"io"` | **Outward-facing**: what others can see about me when they render the DAG. `"io"` = only the function's name and return value are visible externally, while its internals (LLM exchanges, sub-calls) are hidden; `"llm"` = the reverse, exposing only the internal LLM exchanges and hiding the function's own name/return value and nested code sub-calls; `"full"` = everything visible (docstring + params + output + LLM replies + internals); `"hidden"` = no DAG nodes are written at all. Any other value raises `ValueError` when the Agent class configures the method |
 | `render_range` | `dict` | `None` | **Inward-facing**: how many history nodes to read from the DAG when this function's internal `llm()` call assembles its prompt. Shape `{"callers": N, "subcalls": M}`, where both numbers are **node counts (sliced by `seq`)**:<br>• `callers` — nodes written **before** this function's frame started; take the most recent N (`None` default = unlimited, `0` = a full wall)<br>• `subcalls` — nodes already written **after** this function's frame started; take the most recent N (`-1` default = unlimited, so the frame naturally sees its own progress; `N>=0` = set explicitly when you want to truncate the prompt; `0` = wall off in-frame entirely)<br>`{"callers":0,"subcalls":0}` = cut off from both the outside world and your own frame |
 | `input` | `dict` | `None` | Per-parameter UI metadata; the WebUI renders the input form from it. Supported fields per parameter: `description` (label next to the name), `placeholder` (example text), `multiline` (`True` = textarea), `options` (list of allowed values, rendered as a dropdown and emitted as a JSON-schema `enum`), `hidden` (`True` = exclude from the form and from the LLM tool schema) |
 | `system` | `str` | `None` | The system prompt for this function's LLM calls (applied over the injected runtime for the duration of the call, then restored afterward) |
 
 ### Tool-registration parameters
 
-Every `@agentic_function` is also registered as an LLM-callable tool in the shared registry (`openprogram.programs`), alongside `@function`-decorated tools. These parameters control that registration and share their names and semantics with `@function`:
+An Agent method with `tool=True` registers as an LLM-callable tool in the shared registry (`openprogram.programs`), alongside `@function`-decorated tools. These parameters control that registration and share their names and semantics with `@function`:
 
 | Parameter | Type | Default | Description |
 |------|------|------|------|
-| `as_tool` | `bool` | `True` | Register this function as an LLM-callable tool. `False` = Python-direct-invoke only |
+| `tool` / `as_tool` | `bool` | `False` | Register this function as an LLM-callable tool. `False` = Python-direct-invoke only |
 | `name` | `str` | `None` | Tool name override. Default: the function's `__name__` |
 | `description` | `str` | `None` | Tool description override. Default: the function's docstring |
 | `parameters` | `dict` | `None` | JSON-schema parameter override. Default: auto-generated from the signature's type hints plus `input` metadata (runtime-injected and `hidden` parameters excluded) |
@@ -147,11 +155,11 @@ Every `@agentic_function` is also registered as an LLM-callable tool in the shar
 | `cache` | `bool` | `False` | Memoize results on `(name, args)` for tool-dispatched calls |
 | `cache_ttl` | `float` | `300.0` | Cache lifetime in seconds when `cache=True` |
 | `timeout` | `float` | `None` | Hard wall-clock kill for a tool-dispatched call, in seconds; on expiry the model receives an error result |
-| `available_if` | `Callable` | `None` | Import-time gate: if it returns falsy (or raises), the decorator is skipped entirely and the module-level name stays a plain function — no wrapper, no registration |
+| `available_if` | `Callable` | `None` | Tool-registration gate: if it returns falsy (or raises), tool registration is skipped. Ordinary method scopes remain active |
 | `defer` | `bool` | `False` | Register as a deferred tool (schema loaded on demand instead of shipped with every call) |
 | `register_globally` | `bool` | `True` | `False` = build the tool but keep it out of the global registry |
 
-The function name, parameter names / types / defaults, and the one-line summary are all read automatically from the function signature and docstring, not repeated in the decorator (see SKILL.md §3).
+The signature and docstring supply method names, parameter types, defaults, and summaries. `method_options` supplies fields that the signature does not represent.
 
 ### Runtime injection
 
@@ -173,16 +181,23 @@ When `expose="hidden"`, no nodes are written. In standalone runs (with no DAG st
 
 ### Durable steps and code selection
 
-Use `@agentic_function(resumable=True)` for synchronous orchestration whose external work is inside explicit steps:
+Set `method_options = {"report": {"resumable": True}}` for synchronous orchestration whose external work is inside explicit steps:
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 from openprogram.agentic_programming.continuation import step
 
-@agentic_function(resumable=True)
-def report(topic: str):
-    research = step("research", collect_research, topic)
-    return step("write", write_report, research)
+class ExampleAgent(Agent):
+    method_options = {
+        'report': {'tool': True, 'resumable': True},
+    }
+
+    def report(self, topic: str):
+        research = step("research", collect_research, topic)
+        return step("write", write_report, research)
+
+_example_agent = ExampleAgent()
+report = _example_agent.report
 ```
 
 Define `collect_research` and `write_report` as ordinary source-defined functions. Step inputs and results must be JSON-compatible. A completed step returns its saved result on continuation, without calling its action again. Repeated step names are distinguished by occurrence; keep their order and completed inputs stable. Put nested orchestration in `workflow("name", function, *args, **kwargs)`. `parallel({"branch": (function, args, kwargs)})` runs named workflows concurrently and waits for every branch before releasing ownership. Each branch has independent durable progress.

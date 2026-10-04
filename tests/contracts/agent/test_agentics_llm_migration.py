@@ -1,4 +1,5 @@
 """Batch 2a coverage for agentics runtime.exec migration."""
+
 from __future__ import annotations
 
 import ast
@@ -11,8 +12,12 @@ import pytest
 from tests.support.repository import tracked_python_files
 
 MIGRATED_FUNCTIONS = {
-    "openprogram.programs.workflow.document.extract_pdf_figures": ("extract_pdf_figures",),
-    "openprogram.programs.workflow.document.extract_pdf_tables": ("extract_pdf_tables",),
+    "openprogram.programs.workflow.document.extract_pdf_figures": (
+        "extract_pdf_figures",
+    ),
+    "openprogram.programs.workflow.document.extract_pdf_tables": (
+        "extract_pdf_tables",
+    ),
     "openprogram.programs.workflow.text": (
         "summarize_text",
         "translate_to_chinese",
@@ -48,9 +53,7 @@ MIGRATED_FUNCTIONS = {
         "review_paper",
         "fix_paper",
     ),
-    "openprogram.programs.workflow.research.stages.submission": (
-        "check_submission",
-    ),
+    "openprogram.programs.workflow.research.stages.submission": ("check_submission",),
 }
 
 
@@ -65,7 +68,7 @@ MIGRATED_FUNCTIONS = {
 def test_migrated_functions_do_not_thread_runtime(module_name, function_name):
     function = getattr(importlib.import_module(module_name), function_name)
 
-    assert "runtime" not in inspect.signature(function._fn).parameters
+    assert "runtime" not in inspect.signature(function).parameters
 
 
 def test_migrated_function_passes_content_blocks_to_llm(monkeypatch):
@@ -75,26 +78,27 @@ def test_migrated_function_passes_content_blocks_to_llm(monkeypatch):
         calls.append((prompt, kwargs))
         return "summary"
 
-    module = importlib.import_module(
-        "openprogram.programs.workflow.text"
-    )
+    module = importlib.import_module("openprogram.programs.workflow.text")
     monkeypatch.setattr(module, "llm", fake_llm)
 
     assert module.summarize_text("source text") == "summary"
 
-    assert calls == [([{
-        "type": "text",
-        "text": "Please summarize:\n\nsource text",
-    }], {})]
+    assert calls == [
+        (
+            [
+                {
+                    "type": "text",
+                    "text": "Please summarize:\n\nsource text",
+                }
+            ],
+            {},
+        )
+    ]
 
 
 def test_only_deferred_tool_loops_still_call_runtime_exec():
     root = (
-        Path(__file__).parents[3]
-        / "openprogram"
-        / "programs"
-        / "functions"
-        / "agentic"
+        Path(__file__).parents[3] / "openprogram" / "programs" / "functions" / "agentic"
     )
     excluded = {
         "Research-Agent-Harness",
@@ -124,7 +128,9 @@ def test_only_deferred_tool_loops_still_call_runtime_exec():
 def test_polish_chooses_style_without_a_user_setting(monkeypatch):
     module = importlib.import_module("openprogram.programs.workflow.text")
     calls = []
-    monkeypatch.setattr(module, "llm", lambda prompt, **kwargs: calls.append(prompt) or "polished")
+    monkeypatch.setattr(
+        module, "llm", lambda prompt, **kwargs: calls.append(prompt) or "polished"
+    )
     assert module.polish_text("A research abstract") == "polished"
     assert len(calls) == 1
     assert "Choose an appropriate style" in calls[0][0]["text"]

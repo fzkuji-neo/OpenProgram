@@ -62,7 +62,7 @@
 - **现状**：DAG 状态完整（frame 节点标 `status="error"`，子节点全保留），`_render_history_messages` 从 DAG 加载历史，基础设施已就位。
 - **方案**：提供 `resume_function(session_id, node_id)` 入口——把 frame 节点 status 改回 `running`，用同一个 frame_node_id 重新调 `runtime.exec`，DAG 历史自动接上。webui 加"重试"按钮触发。
 - **核心改动**：需要一个"重入"入口 + 恢复 contextvar（_call_id 等）+ 重建 runtime/agent 上下文。
-- **位置**：`openprogram/agentic_programming/function.py`（wrapper 层）、`openprogram/agentic_programming/runtime.py`（exec 层）
+- **位置**：`openprogram/agentic_programming/call_state.py`（wrapper 层）、`openprogram/agentic_programming/runtime.py`（exec 层）
 
 ### 8. Bash 工具文件修改追踪
 - 已知限制：当前只扫 cwd 顶层文件，子目录变更未覆盖（待后续改为递归扫描）。

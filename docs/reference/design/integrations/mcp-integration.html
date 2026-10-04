@@ -9,7 +9,7 @@ and connected, and how MCP tools reach the LLM. Related code:
 <code>openprogram/mcp/</code>.</p>
 </blockquote>
 <h2>MCP client role</h2>
-<p>Register the tools provided by an external MCP server as in-framework <code>AgentTool</code>s, so the LLM calls them exactly the way it calls a local <code>@function</code>/<code>@agentic_function</code>. On worker startup, spawn a subprocess for every enabled server in the config file, run JSON-RPC over stdio, wrap their <code>tools/list</code>, and mount the result into <code>_registry</code>.</p>
+<p>Register the tools provided by an external MCP server as in-framework <code>AgentTool</code>s, so the LLM calls them exactly the way it calls a local <code>@function</code>/<code>Agent method</code>. On worker startup, spawn a subprocess for every enabled server in the config file, run JSON-RPC over stdio, wrap their <code>tools/list</code>, and mount the result into <code>_registry</code>.</p>
 <h2>Role — we are the client, not the server</h2>
 <p>MCP is a protocol that defines a &quot;tool provider&quot; (server) and a &quot;tool consumer&quot; (client).</p>
 <table>
@@ -38,7 +38,7 @@ and connected, and how MCP tools reach the LLM. Related code:
 <p><code>openprogram/mcp/</code> is a <strong>top-level module</strong>, a sibling of <code>openprogram/channels/</code>. It does <strong>not</strong> live under <code>openprogram/programs/</code>.</p>
 <p>Rationale:</p>
 <ul>
-<li>MCP is an <strong>external-protocol adapter layer</strong>, which is a different thing from &quot;the implementation of a function.&quot; Our function system (<code>@function</code> / <code>@agentic_function</code> / the code under <code>agentics/</code>) is locally-implemented tools; MCP is tools fetched from an external process. The two layers are orthogonal concepts.</li>
+<li>MCP is an <strong>external-protocol adapter layer</strong>, which is a different thing from &quot;the implementation of a function.&quot; Our function system (<code>@function</code> / <code>Agent method</code> / the code under <code>agentics/</code>) is locally-implemented tools; MCP is tools fetched from an external process. The two layers are orthogonal concepts.</li>
 <li>Both opencode (<code>src/mcp/</code>) and Claude Code (<code>src/services/mcp/</code>) treat MCP as a standalone module, fully separate from local tool implementations.</li>
 <li>In our project, <code>channels/</code> (message channels) is the existing precedent for an &quot;external-protocol adapter&quot; — it brings external message sources in. MCP also brings something external in, just a tool source instead, so its <strong>location should match channels</strong>.</li>
 </ul>
@@ -128,11 +128,11 @@ and connected, and how MCP tools reach the LLM. Related code:
 </code></pre>
 <p>Four files, one responsibility each: config, single connection, translation, management.</p>
 <h2>Call path — there is only one, LLM-initiated automatically</h2>
-<pre><code>You type &quot;draw a flowchart&quot; in the webui
+<pre><code>You type "draw a flowchart" in the webui
   ↓
 worker → agent_loop → calls the LLM API with all tools (local + MCP)
   ↓
-LLM decides, emits tool_call(name=&quot;drawio__open_drawio_xml&quot;, args={...})
+LLM decides, emits tool_call(name="drawio__open_drawio_xml", args={...})
   ↓
 agent_loop looks up the AgentTool in _registry, awaits execute(args)
   ↓ execute is the closure built in adapter.register_remote_tool
@@ -146,7 +146,7 @@ adapter.convert_call_result turns the MCP content blocks into an AgentToolResult
   ↓
 agent_loop stuffs the result into chat history and calls the LLM once more
   ↓
-the LLM sees the tool result and generates the final text reply &quot;Done&quot;
+the LLM sees the tool result and generates the final text reply "Done"
   ↓
 the webui displays it
 </code></pre>

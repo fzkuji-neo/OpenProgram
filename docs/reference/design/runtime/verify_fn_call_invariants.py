@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Invariant checker for the function-call DAG model.
 
-Run AFTER one fn-form (manual) @agentic_function call (e.g. gui_agent)
+Run AFTER one fn-form (manual) Agent method call (e.g. gui_agent)
 has completed in a session, then point this at that session id. It
 reads the persisted SessionStore nodes directly and asserts the
 invariants from the REFACTOR-CHARTER (I1..I9). No business code is

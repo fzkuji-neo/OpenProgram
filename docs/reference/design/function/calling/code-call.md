@@ -1,4 +1,4 @@
-# @agentic_function Calling Sub-Functions in a Fixed Order
+# Agent method Calling Sub-Functions in a Fixed Order
 
 Optionally calls the LLM, then invokes multiple sub-functions in the order hard-coded in the source.
 
@@ -11,58 +11,76 @@ Optionally calls the LLM, then invokes multiple sub-functions in the order hard-
 
 ## Design Points
 
-- Use the `@agentic_function` decorator
-- Call multiple sub-`@agentic_function`s in a fixed order
+- Use the Agent method execution
+- Call multiple sub-`Agent` methods in a fixed order
 - `exec()` is optional: don't call it (pure chaining), or call it multiple times (each call creates an exec child node)
 - Data is passed between sub-functions through Python variables
-- A single function can call `exec()` multiple times, and can call any number of other `@agentic_function`s
+- A single function can call `exec()` multiple times, and can call any number of other `Agent` methods
 
 ## Example: No exec, Pure Chaining
 
 ```python
-@agentic_function
-def research_pipeline(task: str, runtime: Runtime) -> dict:
-    """Run the full research flow: survey → find gap → generate ideas.
+from openprogram import Agent
 
-    Args:
-        task: Research topic.
-        runtime: LLM runtime instance.
+class ExampleAgent(Agent):
+    method_options = {
+        'research_pipeline': {'tool': True},
+    }
 
-    Returns:
-        A result dict containing survey, gaps, and ideas.
-    """
-    survey = survey_topic(topic=task, runtime=runtime)
-    gaps = identify_gaps(survey=survey, runtime=runtime)
-    ideas = generate_ideas(gaps=gaps, runtime=runtime)
+    def research_pipeline(self, task: str, runtime: Runtime) -> dict:
+        """Run the full research flow: survey → find gap → generate ideas.
 
-    return {"survey": survey, "gaps": gaps, "ideas": ideas}
+        Args:
+            task: Research topic.
+            runtime: LLM runtime instance.
+
+        Returns:
+            A result dict containing survey, gaps, and ideas.
+        """
+        survey = survey_topic(topic=task, runtime=runtime)
+        gaps = identify_gaps(survey=survey, runtime=runtime)
+        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+
+        return {"survey": survey, "gaps": gaps, "ideas": ideas}
+
+_example_agent = ExampleAgent()
+research_pipeline = _example_agent.research_pipeline
 ```
 
 ## Example: Calling exec Once to Summarize
 
 ```python
-@agentic_function
-def research_pipeline(task: str, runtime: Runtime) -> str:
-    """Run the full research flow and summarize the result.
+from openprogram import Agent
 
-    Args:
-        task: Research topic.
-        runtime: LLM runtime instance.
+class ExampleAgent(Agent):
+    method_options = {
+        'research_pipeline': {'tool': True},
+    }
 
-    Returns:
-        The consolidated research summary.
-    """
-    survey = survey_topic(topic=task, runtime=runtime)
-    gaps = identify_gaps(survey=survey, runtime=runtime)
-    ideas = generate_ideas(gaps=gaps, runtime=runtime)
+    def research_pipeline(self, task: str, runtime: Runtime) -> str:
+        """Run the full research flow and summarize the result.
 
-    return runtime.exec(content=[
-        {"type": "text", "text": (
-            f"Survey:\n{survey}\n\n"
-            f"Gaps:\n{gaps}\n\n"
-            f"Ideas:\n{ideas}"
-        )},
-    ])
+        Args:
+            task: Research topic.
+            runtime: LLM runtime instance.
+
+        Returns:
+            The consolidated research summary.
+        """
+        survey = survey_topic(topic=task, runtime=runtime)
+        gaps = identify_gaps(survey=survey, runtime=runtime)
+        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+
+        return runtime.exec(content=[
+            {"type": "text", "text": (
+                f"Survey:\n{survey}\n\n"
+                f"Gaps:\n{gaps}\n\n"
+                f"Ideas:\n{ideas}"
+            )},
+        ])
+
+_example_agent = ExampleAgent()
+research_pipeline = _example_agent.research_pipeline
 ```
 
 ## Context Tree

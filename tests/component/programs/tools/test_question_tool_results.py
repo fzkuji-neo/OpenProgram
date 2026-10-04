@@ -1,4 +1,5 @@
 """Question results at the registered entry without real user prompts."""
+
 from __future__ import annotations
 
 import asyncio
@@ -7,21 +8,33 @@ import builtins
 import pytest
 
 from openprogram.agent.questions import AskTimeout, UserDeclined
-from openprogram.agentic_programming.function import _current_runtime
+from openprogram.agentic_programming.call_state import _current_runtime
 from openprogram.programs._runtime import get
 from openprogram.programs.tools.interaction import clarify
 
 
-QUESTIONS = [{"question": "Controlled question", "header": "Owned", "options": [
-    {"label": "A", "description": "First choice"}, {"label": "B"},
-]}]
+QUESTIONS = [
+    {
+        "question": "Controlled question",
+        "header": "Owned",
+        "options": [
+            {"label": "A", "description": "First choice"},
+            {"label": "B"},
+        ],
+    }
+]
 
 
 def invoke(questions=QUESTIONS):
     assert get("ask_user_question") is clarify.ask_user_question
-    return asyncio.run(get("ask_user_question").execute(
-        "controlled-question-call", {"questions": questions}, None, None,
-    ))
+    return asyncio.run(
+        get("ask_user_question").execute(
+            "controlled-question-call",
+            {"questions": questions},
+            None,
+            None,
+        )
+    )
 
 
 def text(result):
@@ -87,10 +100,13 @@ def test_valid_answer_and_question_manifest_remain_compatible():
     assert seen[0][0]["options"] == ["A", "B"]
 
 
-@pytest.mark.parametrize("exception,expected", [
-    (UserDeclined, "The user declined to answer."),
-    (AskTimeout, "The user did not answer in time."),
-])
+@pytest.mark.parametrize(
+    "exception,expected",
+    [
+        (UserDeclined, "The user declined to answer."),
+        (AskTimeout, "The user did not answer in time."),
+    ],
+)
 def test_existing_control_status_text_is_preserved(exception, expected):
     class Frontend:
         def can_ask(self):

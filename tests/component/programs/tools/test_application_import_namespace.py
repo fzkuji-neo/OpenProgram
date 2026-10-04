@@ -7,9 +7,7 @@ from pathlib import Path
 import pytest
 
 
-APPLICATIONS = (
-    Path(__file__).parents[3] / "openprogram" / "programs" / "applications"
-)
+APPLICATIONS = Path(__file__).parents[3] / "openprogram" / "programs" / "applications"
 REMOVED_NAMESPACE = "openprogram.programs.agentic_functions"
 
 

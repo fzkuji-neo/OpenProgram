@@ -18,7 +18,7 @@ Two entry points share the same option shapes and parsing:
 taken automatically from the `_current_runtime` ContextVar. That ContextVar
 is only set when a function on the call chain declares a runtime-class
 parameter (`runtime` / `exec_runtime` / `review_runtime`) — an entry-point
-`@agentic_function` without one makes `decision.make` raise `RuntimeError`.
+`Agent` method without one makes `decision.make` raise `RuntimeError`.
 So declare `runtime=None` on the function and you do not pass it on; only
 outside an agentic function do you pass `runtime=` explicitly.
 
@@ -39,19 +39,26 @@ that returns a value directly (typically routing markers like `done` /
 
 ## Entry one: `decision.make` — pure decision
 
-Inside an `@agentic_function`, call `decision.make` once — no runtime passed,
+Inside an `Agent` method, call `decision.make` once — no runtime passed,
 no `if` written:
 
 ```python
-from openprogram.agentic_programming import agentic_function, decision
+from openprogram import Agent, decision
 
-@agentic_function
-def route_message(msg: str, runtime=None) -> str:
-    return decision.make("Pick one way to handle this message.", {
-        "analyze":  analyze_sentiment,        # a function
-        "fallback": fallback_reply,           # a function
-        "done":     "CONVERSATION_OVER",      # a value
-    })
+class ExampleAgent(Agent):
+    method_options = {
+        'route_message': {'tool': True},
+    }
+
+    def route_message(self, msg: str, runtime=None) -> str:
+        return decision.make("Pick one way to handle this message.", {
+            "analyze":  analyze_sentiment,        # a function
+            "fallback": fallback_reply,           # a function
+            "done":     "CONVERSATION_OVER",      # a value
+        })
+
+_example_agent = ExampleAgent()
+route_message = _example_agent.route_message
 ```
 
 `decision.make` renders the menu, calls the model, parses the reply, then
@@ -72,18 +79,27 @@ calls, whatever the job takes), and the **closing** return must be a
 decision. Use `exec`'s `choices=` parameter:
 
 ```python
-@agentic_function
-def handle_ticket(ticket: str, runtime=None) -> dict:
-    """Read the ticket, look things up, then decide which flow to route to."""
-    return runtime.exec(
-        f"Handle this ticket: {ticket}",
-        toolset="default",          # before: the model uses tools to research, run commands
-        choices={                   # closing: the return must be one of these
-            "refund":    issue_refund,
-            "escalate":  escalate_to_human,
-            "close":     {"status": "closed"},
-        },
-    )
+from openprogram import Agent
+
+class ExampleAgent(Agent):
+    method_options = {
+        'handle_ticket': {'tool': True},
+    }
+
+    def handle_ticket(self, ticket: str, runtime=None) -> dict:
+        """Read the ticket, look things up, then decide which flow to route to."""
+        return runtime.exec(
+            f"Handle this ticket: {ticket}",
+            toolset="default",          # before: the model uses tools to research, run commands
+            choices={                   # closing: the return must be one of these
+                "refund":    issue_refund,
+                "escalate":  escalate_to_human,
+                "close":     {"status": "closed"},
+            },
+        )
+
+_example_agent = ExampleAgent()
+handle_ticket = _example_agent.handle_ticket
 ```
 
 What `exec(choices=...)` does: it splices the option menu plus a "work
@@ -225,7 +241,7 @@ option that declared a schema returns `{"decision": name, **kwargs}`).
 This mechanism does not conflict with the tool-call loop of
 `agent_loop.py` described in `tool-calling.md` — they are two parallel
 implementations of "let the model pick the next step". An
-`@agentic_function` can serve both as a native tool for `exec(tools=[...])`
+`Agent` method can serve both as a native tool for `exec(tools=[...])`
 and as a decision option — same function, two call paths. Which to use
 hinges on: whether you want to depend on provider tool use, whether an
 option needs to be a value rather than a function, and whether every

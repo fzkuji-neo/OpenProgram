@@ -40,7 +40,7 @@ has no intermediate status.
    empty slot. A slot holding `msg_id` / `execution_id` is what makes
    stop able to send `execution.cancel`.
 4. **Only the turn's own terminal frame releases occupancy.** A
-   nested `display:"runtime"` result (inline @agentic_function, spawn
+   nested `display:"runtime"` result (inline Agent method, spawn
    attach) finalizes its card, not the turn. Late `running_task`
    frames for a turn the user already cancelled must not revive the
    slot.

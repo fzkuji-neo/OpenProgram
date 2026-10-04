@@ -207,14 +207,14 @@ def _release_after_spawn_failure(
 def _spawn_parent_id() -> str | None:
     """The DAG node a clean spawn should hang off.
 
-    Prefer the executing @agentic_function's code node (``_call_id``): a
+    Prefer the executing Agent method's code node (``_call_id``): a
     composer-launched function has no assistant turn, and an LLM-issued
     function should own its inner ``agent()`` calls. Fall back to the
     dispatcher turn id, including the ``|node:<id>`` suffix process_runner
     threads for a pre-created function node.
     """
     try:
-        from openprogram.agentic_programming.function import current_call_id
+        from openprogram.agentic_programming.call_state import current_call_id
         cid = current_call_id()
         if cid:
             return cid

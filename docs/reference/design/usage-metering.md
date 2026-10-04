@@ -25,7 +25,7 @@ Three properties decide the design:
 
 3. **Separated responsibilities.** Billing accounting, compaction threshold estimation, and hot-path budget caching have different lifecycles and consumers, and live in different objects.
 
-Paths that reach the provider outside the chat loop — `context/summarize.py`, `programs/tools/mixture_of_agents`, `memory/llm_bridge.py`, and `@agentic_function` subprocesses (`process_runner.py`) — are all covered by the same collection point plus an explicit source scope.
+Paths that reach the provider outside the chat loop — `context/summarize.py`, `programs/tools/mixture_of_agents`, `memory/llm_bridge.py`, and `Agent` method subprocesses (`process_runner.py`) — are all covered by the same collection point plus an explicit source scope.
 
 `providers/models.py:calculate_cost(model, usage)` already computes cost from `Model.cost`. The metering layer calls it at the collection point; no new pricing logic exists.
 
@@ -132,7 +132,7 @@ The backend is abstracted as an interface (append/query), defaulting to SQLite, 
 
 ## 8. Subprocess Boundary
 
-A `@agentic_function` runs its body in a subprocess, and the subprocess's internal LLM calls (gui_agent, etc.) have a default_tracker that is an in-process singleton the main process cannot see.
+A `Agent` method runs its body in a subprocess, and the subprocess's internal LLM calls (gui_agent, etc.) have a default_tracker that is an in-process singleton the main process cannot see.
 
 **The subprocess writes the shared SQLite ledger directly; the ledger is the source of truth.**
 - The subprocess opens the same usage.db (WAL is multi-process safe), its own recorder appends directly, and `origin_pid` marks the source. No second accounting pass by the main process is needed (avoiding double counting).

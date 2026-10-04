@@ -102,39 +102,31 @@ def test_generated_reference_pages_are_listed_only_when_present(
 # The spawned agent is read-only and scoped
 # ---------------------------------------------------------------------------
 
-def test_tools_are_read_only(monkeypatch) -> None:
-    from openprogram.agent import sub_agent_run
-
+def test_tools_are_read_only(monkeypatch, fake_docs) -> None:
+    import importlib
     seen = []
 
-    class Result:
-        failed = False
-        final_text = _reply()
-        error = None
-
-    monkeypatch.setattr(sub_agent_run, "run_agent_turn",
-                        lambda *a, **k: seen.append(k) or Result())
-    DQ._run_docs_turn("s1", "prompt", agent_id="main", spawn_caller=None)
-
-    tools = seen[0]["tools_override"]
+    monkeypatch.setattr('openprogram.programs.agent_tools', lambda *, names: names)
+    monkeypatch.setattr(importlib.import_module('openprogram.agentic_programming.agent'), 'agent',
+                        lambda **kwargs: seen.append(kwargs) or _reply())
+    DQ.run_docs_question('Can it set a goal?', session_id='s1')
+    tools = seen[0]['tools']
     assert set(tools) == set(DQ.DOCS_TOOLS)
-    for forbidden in ("write", "edit", "apply_patch", "bash", "task"):
+    for forbidden in ('write', 'edit', 'apply_patch', 'bash', 'task'):
         assert forbidden not in tools
-    # The question is the whole brief — no session history pulled in.
-    assert seen[0]["render_range"] == {"callers": 0, "subcalls": 0}
+    assert DQ.run_docs_question.render_range == {'callers': 0, 'subcalls': 0}
 
 
 def test_failed_turn_raises(monkeypatch) -> None:
-    from openprogram.agent import sub_agent_run
+    import importlib
 
-    class Result:
-        failed = True
-        final_text = ""
-        error = "provider down"
+    def failed_agent(**kwargs):
+        raise RuntimeError('provider down')
 
-    monkeypatch.setattr(sub_agent_run, "run_agent_turn", lambda *a, **k: Result())
-    with pytest.raises(RuntimeError, match="provider down"):
-        DQ._run_docs_turn("s1", "p", agent_id="main", spawn_caller=None)
+    monkeypatch.setattr('openprogram.programs.agent_tools', lambda **kwargs: [])
+    monkeypatch.setattr(importlib.import_module('openprogram.agentic_programming.agent'), 'agent', failed_agent)
+    with pytest.raises(RuntimeError, match='provider down'):
+        DQ._run_docs_turn('s1', 'p', agent_id='main', spawn_caller=None)
 
 
 # ---------------------------------------------------------------------------
@@ -225,8 +217,8 @@ def test_sources_are_deduplicated_in_order(fake_docs) -> None:
 # ---------------------------------------------------------------------------
 
 def test_module_is_registered() -> None:
-    from openprogram.programs._registry import AGENTIC_MODULES
-    assert "docs_question" in AGENTIC_MODULES
+    from openprogram.programs._registry import PROGRAM_MODULES
+    assert "docs_question" in PROGRAM_MODULES
 
 
 def test_docs_root_points_at_the_repository_docs_tree() -> None:

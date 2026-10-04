@@ -25,7 +25,7 @@ LLM 调用最终都过 `providers/stream.py` 的 `stream_simple()`（流式）/ 
 
 3. **职责分离**。计费记账、compaction 阈值估算、热路径 budget 缓存的生命周期与消费者各不相同，分属不同对象。
 
-聊天主循环之外抵达 provider 的路径——`context/summarize.py`、`programs/tools/mixture_of_agents`、`memory/llm_bridge.py`，以及 `@agentic_function` 子进程（`process_runner.py`）——都由同一个收口点加一个显式来源 scope 覆盖。
+聊天主循环之外抵达 provider 的路径——`context/summarize.py`、`programs/tools/mixture_of_agents`、`memory/llm_bridge.py`，以及 `Agent` method 子进程（`process_runner.py`）——都由同一个收口点加一个显式来源 scope 覆盖。
 
 `providers/models.py:calculate_cost(model, usage)` 已能从 `Model.cost` 算成本。metering 层在收口点调用它，不新建定价逻辑。
 
@@ -132,7 +132,7 @@ WAL 模式，支持子进程并发追加。SQLite 用 stdlib `sqlite3`，零外�
 
 ## 8. 子进程边界
 
-`@agentic_function` 在子进程跑函数体，子进程内 LLM 调用（gui_agent 等）的 default_tracker 是进程内单例，主进程收不到。
+`Agent` method 在子进程跑函数体，子进程内 LLM 调用（gui_agent 等）的 default_tracker 是进程内单例，主进程收不到。
 
 **子进程直接写共享 SQLite ledger，ledger 即真相来源。**
 - 子进程打开同一 usage.db（WAL 多进程安全），自己 recorder 直接 append，`origin_pid` 标记来源。无需主进程二次入账（避免双计）。

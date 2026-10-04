@@ -494,7 +494,7 @@ Sessions persist in a git-backed store (`openprogram/store/session/`):
 - the store persists raw nodes + meta only; context commits belong to the
   commit subsystem.
 
-The function body of an `@agentic_function` runs in a **spawned** subprocess
+The function body of an `Agent` method runs in a **spawned** subprocess
 (fresh interpreter, not fork — the parent has PyTorch/libomp loaded and a fork
 would SIGSEGV on the child's first BLAS call), so stop can SIGKILL the process
 group. The subprocess writes its code subtree through its own SessionStore; the

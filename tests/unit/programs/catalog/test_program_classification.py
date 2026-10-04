@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import openprogram
-from openprogram.programs._registry import AGENTIC_MODULES, BUILTIN_WORKFLOW_MODULES
+from openprogram.programs._registry import PROGRAM_MODULES, BUILTIN_PROGRAM_MODULES
 from openprogram.webui.routes.catalog.programs import _called_agentic_primitives
 
 
@@ -69,16 +69,16 @@ def test_complex_capabilities_live_under_workflow_not_agentic_root():
 
 def test_auto_workflow_is_a_builtin_workflow_not_an_agentic_helper():
     assert (PROGRAMS / "workflow" / "auto_workflow.py").is_file()
-    assert "auto_workflow" in AGENTIC_MODULES
-    assert BUILTIN_WORKFLOW_MODULES == []
+    assert "auto_workflow" in PROGRAM_MODULES
+    assert BUILTIN_PROGRAM_MODULES == []
 
 
 def test_agentic_modules_do_not_register_demos():
-    assert "interaction_demo" not in AGENTIC_MODULES
-    assert "llm_call_example" not in AGENTIC_MODULES
-    assert "word_count" not in AGENTIC_MODULES
-    assert "test_framework" not in AGENTIC_MODULES
-    assert "test_resume" not in AGENTIC_MODULES
+    assert "interaction_demo" not in PROGRAM_MODULES
+    assert "llm_call_example" not in PROGRAM_MODULES
+    assert "word_count" not in PROGRAM_MODULES
+    assert "test_framework" not in PROGRAM_MODULES
+    assert "test_resume" not in PROGRAM_MODULES
 
 
 def test_vanilla_callables_do_not_reach_model_primitives():
@@ -90,7 +90,7 @@ def test_vanilla_callables_do_not_reach_model_primitives():
 
 
 def test_registered_workflow_modules_have_source_files():
-    for name in AGENTIC_MODULES:
+    for name in PROGRAM_MODULES:
         source = _module_path(name)
         assert source.is_file(), name
 

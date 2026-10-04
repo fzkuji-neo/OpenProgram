@@ -1,4 +1,4 @@
-"""Forced tool-call dispatch — run a single @agentic_function without
+"""Forced tool-call dispatch — run a single Agent method without
 invoking the LLM.
 
 Extracted from dispatcher/__init__.py (dispatcher-split step 2). This is
@@ -41,12 +41,12 @@ def dispatch_forced_tool_call(
     cancel_event: Optional[threading.Event] = None,
     surface_context_snapshot: Optional[dict] = None,
 ) -> dict:
-    """Run a single @agentic_function without invoking the LLM.
+    """Run a single Agent method without invoking the LLM.
 
     Shares the exact same wrapper / placeholder / finalize plumbing as
     an LLM-issued tool call (see ``_wrap_agentic_runtime_block``).
     Used by the Functions panel / fn-form / former ``/run`` UI path,
-    so all @agentic_function invocations land on one execution path.
+    so all Agent method invocations land on one execution path.
 
     Caller is responsible for having already persisted the user-side
     command message under ``anchor_msg_id`` — this function only adds
@@ -83,9 +83,9 @@ def dispatch_forced_tool_call(
                 f"`openprogram setup` → programs), then restart."
             )
         raise ValueError(f"tool not found: {tool_name!r}")
-    if not getattr(tool, "_is_agentic", False):
+    if not getattr(tool, "_is_agent_method", False):
         raise ValueError(
-            f"tool {tool_name!r} is not an @agentic_function — only "
+            f"tool {tool_name!r} is not an Agent method — only "
             "agentic tools can be forced via this path"
         )
 
@@ -97,7 +97,7 @@ def dispatch_forced_tool_call(
     # mp.Queue so WS clients see the same envelopes as before.
     from openprogram.agent.process_runner import (
         agentic_subprocess_timeout_seconds,
-        run_agentic_in_subprocess,
+        run_agent_method_in_subprocess,
     )
     from openprogram.agent.run_control import (
         set_current_session_id as _set_cid,
@@ -132,7 +132,7 @@ def dispatch_forced_tool_call(
             except RuntimeError:
                 captured_surface = surface_context.window_context()
             surface_snapshot = captured_surface
-        out = run_agentic_in_subprocess(
+        out = run_agent_method_in_subprocess(
             tool_name=tool_name,
             kwargs=dict(tool_input or {}),
             session_id=session_id,

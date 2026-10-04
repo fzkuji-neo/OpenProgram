@@ -14,7 +14,7 @@ import uuid
 from pathlib import Path
 from typing import Callable
 
-from openprogram.agentic_programming.function import CancelledError
+from openprogram.agentic_programming.call_state import CancelledError
 from openprogram.agentic_programming.continuation import (
     FunctionCompatibilityError, FunctionSuspended,
 )

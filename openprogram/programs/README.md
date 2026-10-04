@@ -28,12 +28,12 @@ relies on.
 
 ## Files in this directory
 
-- **`_execution_common.py`** — Shared tool-execution wrappers used by ``@function`` and ``@agentic_function``
+- **`_execution_common.py`** — Shared tool-execution wrappers used by ``@function`` and Agent methods
 - **`_gui_operations.py`** — Fixed host operations for the version-one durable GUI orchestration API
 - **`_helpers.py`** — Small helpers shared by tool `execute` implementations
 - **`_programs.py`** — First-party *programs*
 - **`_providers.py`** — Shared provider-registry scaffolding for tools with pluggable backends
-- **`_registry.py`** — Explicit + auto-discovered registry of @agentic_function modules
+- **`_registry.py`** — Explicit + auto-discovered registry of Program sources
 - **`_runtime.py`** — @function decorator + runtime layer
 - **`application_client.py`** — Use installed application operations from Programs and local CLI clients
 - **`gui_browser_agent.py`** — Browser GUI tasks through the standard Agent and isolated Python tool
@@ -45,7 +45,6 @@ relies on.
 ## Sub-packages
 
 - **`_applications/`** — Installed application packages, isolated views and business operations
-- **`agentic_functions/`** — Compatibility exports for harnesses from before the workflow move
 - **`applications/`** — Complete programs installed and loaded through their package entry points
 - **`packages/`** — Owner-installed Program packages; unregistered directories are not imported
 - **`tools/`** — Deterministic LLM-callable functions, grouped by source purpose

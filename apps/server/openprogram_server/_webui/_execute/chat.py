@@ -197,7 +197,7 @@ def run_query(
             # Final-result / error envelopes for the OWNING chat turn
             # arrive last; we surface them after our own context_stats
             # broadcast below, so swallow here. BUT envelopes that
-            # belong to an inline @agentic_function runtime-block
+            # belong to an inline Agent method runtime-block
             # (display=runtime, written by _wrap_agentic_runtime_block)
             # must be forwarded immediately so the chat panel can
             # finalize the RuntimeBlock card without a refresh.
@@ -212,7 +212,7 @@ def run_query(
                 )
         elif payload.get("display") == "runtime":
             # Runtime-block placeholder / tree_update envelopes emitted
-            # by the @agentic_function wrapper. Without this branch the
+            # by the Agent method wrapper. Without this branch the
             # chat path swallows them and the user only sees the
             # RuntimeBlock after a page refresh (which re-hydrates from
             # SessionStore). Forward verbatim so chat-stream.ts'

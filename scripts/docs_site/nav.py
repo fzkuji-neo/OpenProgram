@@ -257,7 +257,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "capabilities/agentic-programming/embedding-in-your-own-stack.md"]),
         ("Writing functions", "编写函数", [
             "capabilities/agentic-programming/writing-functions/pure-python.md",
-            "capabilities/agentic-programming/writing-functions/agentic-function.md",
+            "capabilities/agentic-programming/writing-functions/agent.md",
             "capabilities/agentic-programming/writing-functions/function-metadata.md"]),
         ("Choosing the next step", "选择下一步", [
             "capabilities/agentic-programming/choosing-the-next-step/tool-calling.md",
@@ -310,7 +310,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
         ("Overview", "概览", ["reference/README.md"]),
         ("API", "API", [
             "reference/API.md", "reference/api/runtime.md",
-            "reference/api/providers.md", "reference/api/agentic-function.md"]),
+            "reference/api/providers.md", "reference/api/agent.md"]),
         ("CLI and configuration", "CLI 与配置", [
             "reference/cli.md", "reference/config.md",
             "reference/diagnostics.md",

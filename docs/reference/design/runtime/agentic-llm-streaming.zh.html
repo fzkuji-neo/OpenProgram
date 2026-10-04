@@ -98,7 +98,7 @@ a{color:#9db8ff}
 <main>
   <div class="eyebrow">OpenProgram · 设计 · Runtime</div>
   <h1>嵌套 Agentic LLM 流式传输</h1>
-  <p class="lede">完整产品设计（非 spike）。目标：在 <b>@agentic_function</b> 执行树里，对每次 <code>llm()</code> / <code>runtime.exec(..., execution_kind="llm")</code> 做<strong>按节点、按通道</strong>的实时 token 流，覆盖 ExecutionStrip 卡片、右侧详情、思考折叠、取消、重连、并行 LLM，以及 in-process / subprocess 两条路径。<b>先定契约，再按阶段实现同一设计</b>——与 context-manager 设计哲学一致。</p>
+  <p class="lede">完整产品设计（非 spike）。目标：在 <b>Agent method</b> 执行树里，对每次 <code>llm()</code> / <code>runtime.exec(..., execution_kind="llm")</code> 做<strong>按节点、按通道</strong>的实时 token 流，覆盖 ExecutionStrip 卡片、右侧详情、思考折叠、取消、重连、并行 LLM，以及 in-process / subprocess 两条路径。<b>先定契约，再按阶段实现同一设计</b>——与 context-manager 设计哲学一致。</p>
   <div class="meta">
     <span class="pill acc">权威草案 · 待用户拍板开放问题</span>
     <span class="pill">对齐现有 <code>chat_response</code> / <code>stream_event</code> / <code>tree_update</code></span>
@@ -255,29 +255,29 @@ a{color:#9db8ff}
   <!-- 3 -->
   <section id="s3">
     <h2>3. 时序图</h2>
-<pre class="mermaid">sequenceDiagram
-  participant AF as @agentic_function
+<pre>sequenceDiagram
+  participant AF as Agent method
   participant RT as Runtime.exec(llm)
   participant DAG as SessionStore/DAG
   participant BR as Broadcast(WS)
   participant FE as Web FE
 
-  AF->>RT: llm(prompt)
-  RT->>DAG: _open_model_call_node (running)
+  AF-&gt;&gt;RT: llm(prompt)
+  RT-&gt;&gt;DAG: _open_model_call_node (running)
   Note over BR,FE: tree_update（子节点出现，output=""）
-  BR-->>FE: tree_update
-  FE->>FE: TreeStep running；建 PartialStream[nodeId]
+  BR--&gt;&gt;FE: tree_update
+  FE-&gt;&gt;FE: TreeStep running；建 PartialStream[nodeId]
 
   loop tokens
-    RT->>BR: llm_delta(node_id, channel, delta, seq?)
-    BR-->>FE: llm_delta
-    FE->>FE: buffer.append；rAF 刷新 note/详情
+    RT-&gt;&gt;BR: llm_delta(node_id, channel, delta, seq?)
+    BR--&gt;&gt;FE: llm_delta
+    FE-&gt;&gt;FE: buffer.append；rAF 刷新 note/详情
   end
 
-  RT->>DAG: _close_model_call_node(output, status)
+  RT-&gt;&gt;DAG: _close_model_call_node(output, status)
   Note over BR,FE: tree_update 终态（output=全文）
-  BR-->>FE: tree_update
-  FE->>FE: 用树文本覆盖；clear PartialStream[nodeId]
+  BR--&gt;&gt;FE: tree_update
+  FE-&gt;&gt;FE: 用树文本覆盖；clear PartialStream[nodeId]
 </pre>
     <div class="callout">FE 缓冲生命周期：<b>create</b> 于首个针对该 node_id 的 llm_delta（或见到 running exec 节点时预创建空缓冲）→ <b>append</b> 于每个 delta → <b>clear</b> 于终态 tree_update / cancelled / session 卸载 / 节点从树消失。</div>
   </section>
@@ -498,7 +498,7 @@ llmStreamsBySession: {
       </div>
       <div class="mock" id="mock-tree" aria-live="polite"></div>
       <p style="font-size:12px;color:var(--faint);margin-top:8px">模拟：open → llm_delta×N → tree_update close。缓冲生命周期见右侧日志。</p>
-      <pre id="mock-log" style="max-height:160px"></pre>
+      <pre></pre>
     </div>
     <div class="panel" id="tab-parallel">
       <p>两个 node 并行 append，键隔离：</p>

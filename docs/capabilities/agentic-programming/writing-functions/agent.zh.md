@@ -66,10 +66,10 @@ class TextAgent(Agent):
 
 ## 普通 Program 函数
 
-受管加载器采集授权 Program 包中的普通源码函数。通过 `AGENTIC_FUNCTIONS` 列出公开入口。私有帮助函数保留调用作用域，不自动成为工具。该采集不作用于任意宿主文件或依赖。
+受管加载器采集授权 Program 包中的普通源码函数。通过 `PROGRAM_ENTRIES` 列出公开入口。私有帮助函数保留调用作用域，不自动成为工具。该采集不作用于任意宿主文件或依赖。
 
 确定性编排直接调用 Python 方法或函数。模型选择调用时，提供显式登记的工具，见 [工具调用](../choosing-the-next-step/tool-calling.zh.md)。
 
-## 旧接口兼容
+## 方法功能
 
-`@agentic_function` 继续支持已有程序、显式元数据和持久步骤。新的类式 workflow 使用 `Agent` 方法和 `method_options`。[API 参考](../../../reference/api/agentic-function.zh.md) 说明 Context、方法选项和旧装饰器。兼容字段见 [函数元数据](function-metadata.zh.md)。
+Agent 方法通过 `method_options` 承担输入元数据、工具登记、权限与持久步骤。[API 参考](../../../reference/api/agent.zh.md) 说明 Context、方法选项和方法配置。各字段见 [函数元数据](function-metadata.zh.md)。

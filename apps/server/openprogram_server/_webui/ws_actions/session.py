@@ -391,7 +391,7 @@ def splice_compaction_event_rows(
 
 
 def _is_top_function_run(m: dict, by_id: dict[str, dict]) -> bool:
-    """True if ``m`` is a top-level @agentic_function ENTRY node — the
+    """True if ``m`` is a top-level Agent method ENTRY node — the
     root of one complete run (manual /run, fn-form, welcome button, or a
     retry sibling), NOT an internal sub-call of another function.
 
@@ -423,11 +423,11 @@ def _is_top_function_run(m: dict, by_id: dict[str, dict]) -> bool:
 def _rebuild_runtime_cards(
     chain: list[dict], all_msgs: list[dict], session_id: str,
 ) -> list[dict]:
-    """Turn a manually-invoked @agentic_function's code node into the
+    """Turn a manually-invoked Agent method's code node into the
     same Function-call card the live runtime shows.
 
     A top-level code node (``predecessor`` is ROOT / an anchor / anything
-    that is not an LLM reply) is the root of one @agentic_function call.
+    that is not an LLM reply) is the root of one Agent method call.
     On refresh it arrives as a bare ``role="tool"`` row whose parent is
     not an assistant, so ``aggregate_tool_messages`` can't fold it — the
     mapper then renders it as a ``role="system"`` text blob instead of a
@@ -805,7 +805,7 @@ async def handle_load_session(ws, cmd: dict):
     # hydrate it from SessionDB so the full aggregation below runs —
     # otherwise we'd fall to the empty-stub ``else`` and the page would
     # render the Welcome screen for a session that actually has history
-    # (e.g. a manually-invoked @agentic_function's top-level code node).
+    # (e.g. a manually-invoked Agent method's top-level code node).
     if conv is None and session_id:
         from openprogram.agent.session_db import default_db as _db_probe
         try:
@@ -967,7 +967,7 @@ async def handle_load_session(ws, cmd: dict):
                 spliced.extend(extras)
             chain = spliced
         # Splice runtime-block placeholder rows written by the
-        # dispatcher's @agentic_function wrapper. They hang off the
+        # dispatcher's Agent method wrapper. They hang off the
         # assistant reply that called the tool via predecessor but are
         # not on the conv chain itself (the chain's head is the
         # assistant reply, not its runtime child). The chat needs
@@ -991,7 +991,7 @@ async def handle_load_session(ws, cmd: dict):
                 extras.sort(key=lambda x: x.get("timestamp") or 0)
                 spliced2.extend(extras)
             chain = spliced2
-        # Rebuild Function-call cards from top-level @agentic_function
+        # Rebuild Function-call cards from top-level Agent method
         # code nodes (manual /run, fn-form). Without this a refreshed
         # manual call renders as a bare system-text blob instead of the
         # RuntimeBlock card the live runtime shows; its nested sub-nodes
@@ -1008,7 +1008,7 @@ async def handle_load_session(ws, cmd: dict):
         )
         # Version switcher for a Function-call card must count only the
         # COMPLETE runs that are true alternatives of THIS run — i.e. the
-        # other top-level @agentic_function entry nodes sharing this run's
+        # other top-level Agent method entry nodes sharing this run's
         # conversation predecessor (a retry forks off the original's
         # predecessor; a new run chains off the head, so it has no
         # alternatives). Plain ``sibling_index`` counts every node sharing

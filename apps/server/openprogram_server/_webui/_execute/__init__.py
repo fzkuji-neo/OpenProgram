@@ -5,10 +5,10 @@ Split into:
   - this module: common setup, branch dispatch, unified try/except/finally
   - chat.py: action="query" body (run_query)
 
-The former ``action="run"`` path (manual @agentic_function trigger via
+The former ``action="run"`` path (manual Agent method trigger via
 ``/run`` slash command or fn-form) was removed in favour of
 ``dispatcher.dispatch_forced_tool_call`` — UI-triggered and LLM-issued
-@agentic_function calls now share one execution path.
+Agent method calls now share one execution path.
 
 Two other actions handled inline here (small enough not to warrant
 their own modules):
@@ -736,7 +736,7 @@ def execute_in_context(
         if _s._is_cancelled(session_id) or isinstance(e, _s._CancelledError):
             _s._clear_cancel(session_id)
             # tree Context retired — no live tree to walk / persist on
-            # cancel. The DAG nodes the @agentic_function wrapper wrote
+            # cancel. The DAG nodes the Agent method wrapper wrote
             # before cancellation are already in SessionDB.
             try:
                 conv = _s._get_or_create_session(session_id)

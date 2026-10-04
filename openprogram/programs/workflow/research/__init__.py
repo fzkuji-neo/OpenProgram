@@ -14,7 +14,7 @@ Stages:
     6. review      — cross-model review and iterative improvement
     7. submission  — pre-submission checklist
 
-All prompts are @agentic_function docstrings. No external prompt files.
+All prompts are Agent method docstrings. No external prompt files.
 """
 
 from openprogram.programs.workflow.research.pipeline import research_pipeline, STAGES

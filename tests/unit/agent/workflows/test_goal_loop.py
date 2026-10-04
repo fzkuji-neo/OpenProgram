@@ -93,7 +93,7 @@ def _run_goal(
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "goal-call")
@@ -310,7 +310,16 @@ def test_second_resume_preserves_consumed_answers_and_work_evidence(db, monkeypa
     prompts = []
     monkeypatch.setattr(agent_module, "agent", lambda **kw: prompts.append(kw["prompt"]) or "done")
     monkeypatch.setattr(G, "evaluate_goal", capture)
-    module.goal("survey", resume=True)
+    # Rebuild persisted fake role models through an isolated provider factory.
+    # No provider registry can reconstruct a user-supplied callable callback.
+    roles_module = importlib.import_module('openprogram.programs.workflow.goal.roles')
+
+    def recreate_fake_role(provider, model):
+        assert (provider, model) == ('callable', 'callable')
+        return _Runtime()
+
+    monkeypatch.setattr(roles_module, '_create_runtime', recreate_fake_role)
+    module.goal("survey", resume=True, runtime=_Runtime())
     assert "RAG_ONLY_482" in prompts[0]
     assert "RAG_ONLY_482" in views[0]
     assert "artifact-482.md" in prompts[0]
@@ -446,7 +455,7 @@ def test_resume_with_exhausted_budget_does_not_start_work(
 ) -> None:
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
-    function_module = importlib.import_module("openprogram.agentic_programming.function")
+    function_module = importlib.import_module("openprogram.agentic_programming.call_state")
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(G, "_emit_goal_update", lambda *_a, **_k: None)
     monkeypatch.setattr(G, "_emit_goal_notice", lambda *_a, **_k: None)
@@ -470,7 +479,7 @@ def test_answer_arriving_during_judgment_supersedes_stale_verdict(
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "goal-call")
@@ -565,9 +574,12 @@ def test_budget_action_rejects_negative_or_non_finite_limits(
 ) -> None:
     monkeypatch.setattr(G, "_emit_goal_update", lambda *_a, **_k: None)
     G.save_goal("s1", {"text": "x", "status": "paused", "version": 0})
-    for key, value in (("max_turns", -1), ("max_cost_usd", "nan")):
-        with pytest.raises(ValueError, match="positive number or zero"):
-            G.apply_goal_action("s1", "budget", **{key: value})
+    for key, value, message in (
+        ('max_turns', -1, 'positive integer or zero'),
+        ('max_cost_usd', 'nan', 'must be finite'),
+    ):
+        with pytest.raises(ValueError, match=message):
+            G.apply_goal_action('s1', 'budget', **{key: value})
 
 
 def test_edit_supersedes_old_pending_questions(
@@ -633,7 +645,7 @@ def test_goal_clear_during_work_does_not_get_overwritten(
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "goal-call")
@@ -712,7 +724,7 @@ def test_goal_keeps_same_run_updates_at_the_cas_boundary(
 def test_cas_rebase_never_overwrites_a_stopped_or_replaced_run(
     db: SessionDB, monkeypatch: pytest.MonkeyPatch, action: str,
 ) -> None:
-    from openprogram.agentic_programming.function import CancelledError
+    from openprogram.agentic_programming.call_state import CancelledError
     save = G.save_goal
     injected = False
     monkeypatch.setattr("openprogram.agent.run_control.mark_cancelled", lambda *_a, **_k: None)
@@ -781,7 +793,7 @@ def test_new_goal_replaces_running_goal_without_old_controller_adopting_it(
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "old-call")
@@ -822,7 +834,7 @@ def test_goal_clear_during_judge_does_not_get_overwritten(
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "goal-call")
@@ -851,7 +863,7 @@ def test_goal_is_active_and_clearable_during_refinement(
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "goal-call")
@@ -885,7 +897,7 @@ def test_goal_cancellation_finishes_shared_state(
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "goal-call")
@@ -911,7 +923,7 @@ def test_refinement_cancellation_finishes_shared_state(
 ) -> None:
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "goal-call")
@@ -936,7 +948,7 @@ def test_work_agent_failure_finishes_shared_state(
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "goal-call")
@@ -1076,7 +1088,7 @@ def test_judge_evidence_is_tail_truncated(
     module = importlib.import_module("openprogram.programs.workflow.goal.goal")
     agent_module = importlib.import_module("openprogram.agentic_programming.agent")
     function_module = importlib.import_module(
-        "openprogram.agentic_programming.function"
+        "openprogram.agentic_programming.call_state"
     )
     monkeypatch.setattr(function_module, "current_session_id", lambda: "s1")
     monkeypatch.setattr(function_module, "current_call_id", lambda: "goal-call")

@@ -11,7 +11,7 @@ example:
 
 ## Design points
 
-- Do **not** use the `@agentic_function` decorator
+- Do **not** use the Agent method execution
 - Do **not** call `llm()`
 - No `runtime` parameter needed
 - Use a standard Google-style docstring
@@ -47,28 +47,22 @@ def extract_emails(text: str) -> list[str]:
 
 ## Session DAG
 
-Pure Python functions leave no node on the session DAG (unless decorated
-with `@traced`).
+Ordinary helpers in managed Program sources and ordinary Agent methods receive call scopes automatically. Arbitrary host functions do not receive source capture. Deterministic behavior alone does not determine whether a call appears in the DAG.
 
-If you want the call recorded on the DAG, add `@traced`:
+Use an ordinary Agent method when a deterministic helper belongs to a recorded workflow. It does not need a model request or tool registration. Set `tool=True` only when the model should be allowed to call it.
 
 ```python
-from openprogram.agentic_programming.function import traced
+from openprogram import Agent
 
-@traced
-def word_count(text: str) -> int:
-    """Count the number of words in a text."""
-    return len(text.split())
+class TextAgent(Agent):
+    def word_count(self, text: str) -> int:
+        """Count words."""
+        return len(text.split())
 ```
 
-The node records the function name, the bound arguments (with `self`/`cls`/`runtime`/`callback` stripped), and the return value, with `expose` fixed to `'io'`. `async def` functions are also supported.
+## Deterministic and model operations
 
-## Pure Python vs. @agentic_function
-
-| Criterion | Pure Python | @agentic_function |
-|---------|----------|-------------------|
-| Fixed input → fixed output | ✓ | |
-| Needs semantic understanding | | ✓ |
-| Needs natural-language generation | | ✓ |
-| Needs classification / judgement / reasoning | | ✓ |
-| Has a clear algorithm / rule | ✓ | |
+| Operation | Implementation |
+|---|---|
+| Fixed algorithm, data conversion, counting | Ordinary Python helper or Agent method |
+| Natural-language generation, classification, reasoning | Explicit `agent()` or `self(...)` model request |

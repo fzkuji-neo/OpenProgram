@@ -95,7 +95,7 @@ export function FunctionsPage() {
       count: catalogTools.length,
     },
     {
-      id: "__agentic_functions__",
+      id: "__agent_methods__",
       name: text("Workflows", "工作流"),
       icon: <BotIcon size={16} />,
       count: functions.filter((program) => program.category !== "app").length,
@@ -195,7 +195,7 @@ export function FunctionsPage() {
     if (id === "__favorites__") return;
     const sectionId = id === "__functions__"
       ? "program-source-functions"
-      : id === "__agentic_functions__"
+      : id === "__agent_methods__"
         ? "program-source-agentic"
         : "program-source-applications";
     requestAnimationFrame(() => {

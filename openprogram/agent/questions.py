@@ -206,7 +206,7 @@ def _pending_from_wait(wait) -> PendingQuestion:
 # socket / 终端）。这里 QuestionTransport.publish(data) 把一次提问送到它的目的地，
 # 子类换通道：
 #   * EventLayerTransport —— 经事件层把问题发成前端卡片 + 进总线（worker 进程用）。
-#   * QueueTransport      —— 经 mp.Queue 把问题送回父进程（@agentic_function 跑的
+#   * QueueTransport      —— 经 mp.Queue 把问题送回父进程（Agent method 跑的
 #                             子进程用：子进程的 EventBus 没有订阅者，WS 在父进程，
 #                             直接走事件层等于对空气喊；必须走父子之间唯一的队列）。
 #

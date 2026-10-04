@@ -4,7 +4,7 @@ This page covers the ready-made agents included in every supported OpenProgram r
 
 ## What they are
 
-An agentic workflow is a finished workflow built with [Agentic Programming](../agentic-programming/README.md) — called a **harness** or **agentic program** in the code: a self-contained git repository holding a set of `@agentic_function`s. The fixed release versions register into OpenProgram and appear like built-in functions in chat, on the Web UI Programs page, and in `openprogram programs run`.
+An agentic workflow is a finished workflow built with [Agentic Programming](../agentic-programming/README.md) — called a **harness** or **agentic program** in the code: a self-contained git repository holding a set of `Agent` methods. The fixed release versions register into OpenProgram and appear like built-in functions in chat, on the Web UI Programs page, and in `openprogram programs run`.
 
 Three first-party workflows:
 
@@ -40,7 +40,7 @@ First-party Programs are immutable product components. In a mutable extension or
 
 ## Writing your own
 
-Any repository that follows the directory contract (`<package>/agentics/__init__.py` exposing `AGENTIC_FUNCTIONS`) can be installed with the same `programs install` command. See [Installing and writing harnesses](../installing-harnesses.md) for the contract, a minimal template, and the publishing flow.
+Any repository that follows the directory contract (`<package>/agentics/__init__.py` exposing `PROGRAM_ENTRIES`) can be installed with the same `programs install` command. See [Installing and writing harnesses](../installing-harnesses.md) for the contract, a minimal template, and the publishing flow.
 
 That harness contract is different from a single self-programming Workflow package. For the package contract, a complete tested example, relative paths, and the `workflows validate/test/publish` commands, see [Write, test, and publish a Workflow](authoring.md). Generated `create_workflow` and `revise_workflow` packages use the same required behavior-test gate.
 

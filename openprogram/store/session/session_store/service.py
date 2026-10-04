@@ -72,7 +72,7 @@ class SessionStore(IndexOperations, StorageOperations, SessionsOperations, Messa
         """Drop the in-memory ``SessionMemoryIndex`` for ``session_id`` so
         the next ``_open`` rebuilds it from disk.
 
-        Needed because @agentic_function tools run in a spawn()'d
+        Needed because Agent method tools run in a spawn()'d
         subprocess (see ``openprogram/agent/process_runner.py``) that
         writes Call nodes directly to the per-session git history with
         its OWN ``SessionStore`` instance. The parent worker's cached

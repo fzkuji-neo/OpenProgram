@@ -41,7 +41,7 @@ interface UseFunctionDispatchOptions {
   setCurrentConv(sid: string): void;
 }
 
-/** The single client entry for a user-started @agentic_function run. */
+/** The single client entry for a user-started Agent method run. */
 export function useFunctionDispatch({
   currentSessionId,
   activeChatKey,

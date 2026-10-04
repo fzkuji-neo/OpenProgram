@@ -91,7 +91,7 @@ class Runtime(HistoryOperations, QuestionsOperations, ExecutionOperations, Provi
             set()
         )  # Functions whose docstrings have been sent
         # 提问通道（runtime.ask 的出口）。默认 None → 走事件层（前端卡片 + 总线）。
-        # @agentic_function 跑的子进程里，process_runner 会换成 QueueTransport
+        # Agent method 跑的子进程里，process_runner 会换成 QueueTransport
         # （经 mp.Queue 把问题送回父进程）。对齐 logging：通道显式挂在对象上。
         self._question_transport = None
 

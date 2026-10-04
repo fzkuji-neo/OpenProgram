@@ -2,7 +2,7 @@
 
 One global file (``~/.openprogram/usage.db``, profile-aware) with immutable
 ``usage_events``, request receipts and resource reservations. Indexed by time,
-by model+time, by session, by kind+time. WAL mode so the @agentic_function
+by model+time, by session, by kind+time. WAL mode so the Agent method
 subprocesses can append concurrently with the main worker.
 
 Append is idempotent on ``event_id`` (INSERT OR IGNORE) so a retried write
@@ -234,7 +234,7 @@ class UsageLedger:
     def _connect(self) -> sqlite3.Connection:
         import os
         # A connection can't cross a fork; reopen if the pid changed so a
-        # @agentic_function subprocess gets its own handle to the shared db.
+        # Agent method subprocess gets its own handle to the shared db.
         if self._conn is not None and self._conn_pid == os.getpid():
             return self._conn
         path = self._path()

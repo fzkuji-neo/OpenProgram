@@ -93,12 +93,12 @@ def _cmd_configure(provider: str | None):
 
 def _cmd_list():
     """List the registered agentic functions (functions/_registry.py)."""
-    from openprogram.programs._registry import iter_agentic_files
-    import openprogram.programs.workflow as _agentic_functions_pkg
+    from openprogram.programs._registry import iter_program_files
+    import openprogram.programs.workflow as _programs_pkg
 
     entries: list[tuple[str, str]] = []
-    for mod_name, filepath, _is_harness in iter_agentic_files(
-        os.path.dirname(_agentic_functions_pkg.__file__)
+    for mod_name, filepath, _is_harness in iter_program_files(
+        os.path.dirname(_programs_pkg.__file__)
     ):
         name = mod_name
         desc = ""
@@ -115,14 +115,14 @@ def _cmd_list():
 
     # Published Workflow packages are loaded by the owner-authorized registry,
     # but are not members of the static module/file enumeration above.
-    from openprogram.agentic_programming.function import _registry
+    from openprogram.programs._runtime import _registry
     from openprogram.programs._programs import is_owner_controlled_program_path
 
     seen = {name for name, _desc in entries}
     for name, registered in _registry.copy().items():
         if name in seen or name.startswith("_"):
             continue
-        fn = inspect.unwrap(getattr(registered, "_fn", None) or registered)
+        fn = inspect.unwrap(getattr(registered, "_python_callable", None) or registered)
         if not str(getattr(fn, "__module__", "")).startswith(
             ("openprogram.programs.workflow.", "workflows.")
         ):

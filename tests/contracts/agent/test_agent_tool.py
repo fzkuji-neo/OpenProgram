@@ -1,4 +1,5 @@
 """agent tool — same-session spawn from inside a turn."""
+
 from __future__ import annotations
 
 import atexit
@@ -35,17 +36,30 @@ def store(tmp_path, monkeypatch):
     monkeypatch.setattr(sdb_mod, "default_store", lambda: s)
     monkeypatch.setattr(store_mod, "default_store", lambda: s)
     monkeypatch.setattr(
-        "openprogram.store.session.session_store.default_store", lambda: s,
+        "openprogram.store.session.session_store.default_store",
+        lambda: s,
     )
     s.create_session("p1", "main", title="parent")
-    s.append_message("p1", {
-        "id": "u1", "role": "user", "content": "hi",
-        "timestamp": 0, "predecessor": None,
-    })
-    s.append_message("p1", {
-        "id": "a1", "role": "assistant", "content": "ok",
-        "timestamp": 0, "predecessor": "u1",
-    })
+    s.append_message(
+        "p1",
+        {
+            "id": "u1",
+            "role": "user",
+            "content": "hi",
+            "timestamp": 0,
+            "predecessor": None,
+        },
+    )
+    s.append_message(
+        "p1",
+        {
+            "id": "a1",
+            "role": "assistant",
+            "content": "ok",
+            "timestamp": 0,
+            "predecessor": "u1",
+        },
+    )
     s.commit_turn("p1", "init")
     try:
         yield s
@@ -83,6 +97,7 @@ def fake_dispatcher(monkeypatch):
         captured["predecessor"] = req.branch_from
         captured["history_override"] = req.history_override
         from openprogram.agent.session_db import default_db
+
         s = default_db()
         u_id = "u_" + str(len(captured))
         a_id = "a_" + str(len(captured))
@@ -97,26 +112,44 @@ def fake_dispatcher(monkeypatch):
                 register_head=req.advance_head,
             )
         else:
-            s.append_message(req.session_id, {
-                "id": u_id, "role": "user", "content": req.user_text,
-                "timestamp": 0, "predecessor": req.branch_from,
-                "source": req.source,
+            s.append_message(
+                req.session_id,
+                {
+                    "id": u_id,
+                    "role": "user",
+                    "content": req.user_text,
+                    "timestamp": 0,
+                    "predecessor": req.branch_from,
+                    "source": req.source,
+                    "agent_id": req.agent_id,
+                },
+            )
+        s.append_message(
+            req.session_id,
+            {
+                "id": a_id,
+                "role": "assistant",
+                "content": "(spawned reply)",
+                "timestamp": 0,
+                "predecessor": u_id,
                 "agent_id": req.agent_id,
-            })
-        s.append_message(req.session_id, {
-            "id": a_id, "role": "assistant", "content": "(spawned reply)",
-            "timestamp": 0, "predecessor": u_id,
-            "agent_id": req.agent_id,
-        })
+            },
+        )
         return _R("(spawned reply)")
 
     monkeypatch.setattr(disp, "process_user_turn", fake_run)
     return captured
 
 
-def _call_agent(*, prompt: str, description: str = "", agent_id: str = "",
-               start_from: str = "inherit",
-               session_id: str | None = None, turn_id: str | None = None):
+def _call_agent(
+    *,
+    prompt: str,
+    description: str = "",
+    agent_id: str = "",
+    start_from: str = "inherit",
+    session_id: str | None = None,
+    turn_id: str | None = None,
+):
     """Invoke the agent tool's underlying Python (skipping the @function
     wrapper which is for LLM-facing dispatch). ContextVars must be set
     so _resolve_parent finds them."""
@@ -129,7 +162,9 @@ def _call_agent(*, prompt: str, description: str = "", agent_id: str = "",
         tok2 = _current_turn_id.set(turn_id)
         try:
             return _agent_impl(
-                prompt=prompt, description=description, agent_id=agent_id,
+                prompt=prompt,
+                description=description,
+                agent_id=agent_id,
                 start_from=start_from,
             )
         finally:
@@ -143,8 +178,10 @@ def test_agent_inherit_default(store, fake_dispatcher):
     """Default start_from=inherit: forks off the caller turn, history
     inherited. Result string carries ``branch=<sid>:<head_id>``."""
     out = _call_agent(
-        prompt="find the answer", description="finder",
-        session_id="p1", turn_id="a1",
+        prompt="find the answer",
+        description="finder",
+        session_id="p1",
+        turn_id="a1",
     )
     assert "(spawned reply)" in out
     assert "[spawned agent branch=p1:" in out
@@ -160,13 +197,16 @@ def test_agent_clean_mode_starts_new_root(store, fake_dispatcher):
     """start_from=clean: new root (caller=None) in the same session.
     Result string still carries branch=<sid>:<head_id> — same session."""
     out = _call_agent(
-        prompt="find the answer", description="finder", start_from="clean",
-        session_id="p1", turn_id="a1",
+        prompt="find the answer",
+        description="finder",
+        start_from="clean",
+        session_id="p1",
+        turn_id="a1",
     )
     assert "(spawned reply)" in out
     assert "[spawned agent branch=p1:" in out
     assert fake_dispatcher["predecessor"] is None
-    assert fake_dispatcher["history_override"] == []   # empty start
+    assert fake_dispatcher["history_override"] == []  # empty start
 
 
 def test_agent_resolves_parent_agent_when_not_supplied(store, fake_dispatcher):
@@ -176,8 +216,10 @@ def test_agent_resolves_parent_agent_when_not_supplied(store, fake_dispatcher):
 
 def test_agent_explicit_agent_id_wins(store, fake_dispatcher):
     _call_agent(
-        prompt="x", agent_id="researcher",
-        session_id="p1", turn_id="a1",
+        prompt="x",
+        agent_id="researcher",
+        session_id="p1",
+        turn_id="a1",
     )
     assert fake_dispatcher["agent_id"] == "researcher"
 
@@ -197,8 +239,11 @@ def test_agent_without_turn_returns_error(store, fake_dispatcher):
 def test_agent_fork_off_node_address(store, fake_dispatcher):
     """start_from="SID:MSG_ID" forks the new branch off that exact node."""
     out = _call_agent(
-        prompt="continue from there", description="forker",
-        start_from="p1:u1", session_id="p1", turn_id="a1",
+        prompt="continue from there",
+        description="forker",
+        start_from="p1:u1",
+        session_id="p1",
+        turn_id="a1",
     )
     assert "(spawned reply)" in out
     assert "[spawned agent branch=p1:" in out
@@ -207,16 +252,20 @@ def test_agent_fork_off_node_address(store, fake_dispatcher):
 
 def test_agent_fork_unknown_session_errors(store, fake_dispatcher):
     out = _call_agent(
-        prompt="x", start_from="nosuch:u1",
-        session_id="p1", turn_id="a1",
+        prompt="x",
+        start_from="nosuch:u1",
+        session_id="p1",
+        turn_id="a1",
     )
     assert "[agent error]" in out and "not found" in out
 
 
 def test_agent_unknown_start_from_returns_error(store, fake_dispatcher):
     out = _call_agent(
-        prompt="x", start_from="weird",
-        session_id="p1", turn_id="a1",
+        prompt="x",
+        start_from="weird",
+        session_id="p1",
+        turn_id="a1",
     )
     assert "[agent error]" in out
     assert "unknown start_from" in out
@@ -255,6 +304,7 @@ def test_current_tool_call_id_visible_inside_tool_body():
 
 def test_current_tool_call_id_is_none_outside_a_tool_call():
     from openprogram.programs._runtime import current_tool_call_id
+
     assert current_tool_call_id() is None
 
 
@@ -272,6 +322,7 @@ def test_agent_exposes_start_from_to_the_llm():
     reserved name; this test keeps it that way.
     """
     from openprogram.programs._runtime import all_tools
+
     tool = next(t for t in all_tools() if t.name == "agent")
     props = (tool.parameters or {}).get("properties", {})
     assert "start_from" in props, sorted(props)
@@ -285,7 +336,7 @@ def test_no_function_tool_declares_a_parameter_the_runtime_drops():
     and never injected back, so a tool parameter with either name is dead
     on arrival: the LLM cannot set it and the framework never fills it in.
     (``cancel`` / ``on_update`` are stripped *and* injected, so they stay
-    legal.) ``@agentic_function`` uses a separate schema generator and
+    legal.) ``Agent method`` uses a separate schema generator and
     intentionally exposes ordinary parameters with these names.
 
     Scope is "the .py files this repo owns", which git already answers
@@ -309,10 +360,21 @@ def test_no_function_tool_declares_a_parameter_the_runtime_drops():
     repo = pathlib.Path(__file__).resolve().parents[3]
     try:
         listing = subprocess.run(
-            ["git", "-C", str(repo), "ls-files", "-z",
-             "--cached", "--others", "--exclude-standard",
-             "--", "openprogram/*.py"],
-            capture_output=True, text=True, timeout=60,
+            [
+                "git",
+                "-C",
+                str(repo),
+                "ls-files",
+                "-z",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+                "--",
+                "openprogram/*.py",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
         )
     except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover
         pytest.skip(f"git unavailable, cannot scope the sweep: {exc}")
@@ -342,8 +404,7 @@ def test_no_function_tool_declares_a_parameter_the_runtime_drops():
             args = {a.arg for a in node.args.args + node.args.kwonlyargs}
             for bad in sorted(args & dead):
                 offenders.append(
-                    f"{path.relative_to(repo)}:{node.lineno} "
-                    f"{node.name}({bad}=…)"
+                    f"{path.relative_to(repo)}:{node.lineno} {node.name}({bad}=…)"
                 )
     assert swept, "no decorated definitions found — the sweep is broken"
     assert not offenders, (
@@ -352,14 +413,20 @@ def test_no_function_tool_declares_a_parameter_the_runtime_drops():
     )
 
 
-def test_agentic_function_ctx_and_context_parameters_are_llm_controllable():
+def test_agent_method_ctx_and_context_parameters_are_llm_controllable():
     import asyncio
 
-    from openprogram.agentic_programming.function import agentic_function
+    from openprogram import Agent
 
-    @agentic_function(register_globally=False)
-    def sample(ctx: str, context: str) -> str:
-        return f"{ctx}:{context}"
+    class SampleAgent(Agent):
+        method_options = {
+            "sample": {"register_globally": False, "name": "sample", "tool": True},
+        }
+
+        def sample(self, ctx: str, context: str) -> str:
+            return f"{ctx}:{context}"
+
+    sample = SampleAgent().sample
 
     for parameters in (sample.spec["parameters"], sample._agent_tool.parameters):
         for name in ("ctx", "context"):
@@ -379,6 +446,7 @@ def test_agentic_function_ctx_and_context_parameters_are_llm_controllable():
 # create. The chain counter bounds generations downward; this bounds
 # siblings, which nothing else counts.
 # --------------------------------------------------------------------------
+
 
 def test_fanout_refuses_the_spawn_past_the_limit(store, fake_dispatcher):
     from openprogram.programs.tools.agents.agent.agent.agent import MAX_SPAWN_FANOUT
@@ -405,6 +473,7 @@ def test_fanout_is_counted_per_turn(store, fake_dispatcher):
 
 def test_fanout_zero_disables_the_cap(store, fake_dispatcher, monkeypatch):
     from openprogram.programs.tools.agents.agent.agent.agent import MAX_SPAWN_FANOUT
+
     monkeypatch.setattr(
         "openprogram.setup._read_config",
         lambda: {"agent": {"max_spawn_fanout": 0}},
@@ -418,11 +487,13 @@ def test_fanout_slot_is_not_spent_by_a_refused_spawn(store, fake_dispatcher):
     """The generation guard runs first, so a chain that is out of
     generations never burns its turn's fan-out slots."""
     from openprogram.programs.tools.agents.agent.agent.agent import (
-        MAX_SPAWN_DEPTH, _fanout_used,
+        MAX_SPAWN_DEPTH,
+        _fanout_used,
     )
     from openprogram.programs.tools.agents.send_message.send_message.depth import (
         set_chain_generations,
     )
+
     tok = set_chain_generations(MAX_SPAWN_DEPTH)
     try:
         out = _call_agent(prompt="nope", session_id="p1", turn_id="a1")

@@ -1,42 +1,20 @@
-# `openprogram/agentic_programming/`
+# Agent execution
 
-> openprogram.agentic_programming — core engine.
+`Agent` configures model calls and automatically records ordinary subclass methods. `Context` controls named content, dynamic providers, session references, and DAG history selection.
 
-## Overview
+```python
+from openprogram import Agent, Context
 
-Primitives:
+class Researcher(Agent):
+    def analyze(self, task):
+        return self(task)
 
-    1. @agentic_function  — turn a Python function into one that can call an LLM
-    2. llm                 — make one model request through the ambient Runtime
-    3. agent               — make a tool loop through the ambient Runtime
-    4. decision.make       — let the LLM make the next-step decision
+researcher = Researcher(context=Context({"topic": "agent memory"}))
+researcher.analyze("Compare the methods.")
+```
 
-Infrastructure:
+`llm` makes one model request. `agent` runs a tool loop. `decision.make` selects a callable or value. `Runtime` handles providers, tool authorization, request budgets, usage, and model records.
 
-    Runtime                — base class for provider calls and accounting
+Execution uses the existing Session DAG. Explicit resumable Agent methods use `continuation.step`, `workflow`, and `parallel` with JSON state. Configure them through `method_options`; application methods require no decorator.
 
-Execution traces are persisted as a flat DAG in
-``openprogram.context.storage`` (SQLite). Older revisions kept a
-parallel in-memory ``Context`` tree + a JSONL trace + an event pubsub
-layer; those have all been retired in favour of the DAG.
-
-Zero downstream dependencies: providers / programs / webui depend on
-agentic_programming, never the other way around.
-
-## Files in this directory
-
-- **`agent.py`** — Agent: tool loop = repeatedly call llm + execute tools until done
-- **`continuation.py`** — Durable, explicitly delimited function steps on the canonical execution store
-- **`decision.py`** — decision
-- **`function.py`** — agentic_function
-- **`llm.py`** — One model request using the ambient agentic-programming Runtime
-- **`runtime_scope.py`** — Lazily own a Runtime for standalone model operations
-- **`session.py`** — Session management
-- **`tool_format.py`** — Convert an ``@agentic_function`` spec into other frameworks' tool formats
-
-## Sub-packages
-
-- **`control_flow/`** — Control flow primitives for agentic workflows
-- **`runtime/`** — LLM calls with automatic DAG integration
-
-_Auto-generated from `__init__.py` docstring — keep that as the source of truth; re-run `python scripts/gen_dir_readmes.py` from the repo root to refresh._
+`agent_class.py` defines Agent configuration. `agent_method.py` implements method options and tool registration. `call_scope.py` manages call lifetime. `call_state.py` stores task-local call state. `tool_format.py` converts method tool specifications to external formats.

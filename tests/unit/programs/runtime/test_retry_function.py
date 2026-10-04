@@ -95,7 +95,7 @@ def test_retry_redispatches_with_original_kwargs(monkeypatch):
         return {"session_id": session_id, "msg_id": "abc"}
 
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call", _fake_run
+        "openprogram.webui.routes.chat.run_agent_method_call", _fake_run
     )
 
     ws = _FakeWS()
@@ -133,7 +133,7 @@ def test_retry_targets_clicked_node_and_acks_canonical_execution(monkeypatch):
         }
 
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call", _fake_run,
+        "openprogram.webui.routes.chat.run_agent_method_call", _fake_run,
     )
     ws = _FakeWS()
     asyncio.run(chat.handle_retry_function(ws, {
@@ -157,7 +157,7 @@ def test_retry_requires_exact_node_id_instead_of_latest_name(monkeypatch):
     dispatched = []
     errors = []
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call",
+        "openprogram.webui.routes.chat.run_agent_method_call",
         lambda *args, **kwargs: dispatched.append((args, kwargs)),
     )
     monkeypatch.setattr(
@@ -193,7 +193,7 @@ def test_retry_anchors_at_original_calls_predecessor(monkeypatch):
         return {"session_id": session_id, "msg_id": "abc"}
 
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call", _fake_run
+        "openprogram.webui.routes.chat.run_agent_method_call", _fake_run
     )
     asyncio.run(chat.handle_retry_function(
         _FakeWS(), {
@@ -223,7 +223,7 @@ def test_retry_targets_exact_top_level_call_not_nested(monkeypatch):
         return {"session_id": session_id, "msg_id": "abc"}
 
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call", _fake_run
+        "openprogram.webui.routes.chat.run_agent_method_call", _fake_run
     )
     asyncio.run(chat.handle_retry_function(
         _FakeWS(), {
@@ -243,7 +243,7 @@ def test_retry_preserves_registered_origin_window(monkeypatch):
     _patch_db(monkeypatch, [node])
     seen = {}
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call",
+        "openprogram.webui.routes.chat.run_agent_method_call",
         lambda *args, **kwargs: seen.update(kwargs) or {
             "session_id": args[2], "msg_id": "abc",
         },
@@ -273,7 +273,7 @@ def test_retry_legacy_node_uses_click_time_origin_page(monkeypatch):
     _patch_db(monkeypatch, [node])
     seen = {}
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call",
+        "openprogram.webui.routes.chat.run_agent_method_call",
         lambda *args, **kwargs: seen.update(kwargs) or {
             "session_id": args[2], "msg_id": "abc",
         },
@@ -333,7 +333,7 @@ def test_retry_uses_versioned_persisted_origin_not_current_page(
     _patch_db(monkeypatch, [node])
     seen = {}
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call",
+        "openprogram.webui.routes.chat.run_agent_method_call",
         lambda *args, **kwargs: seen.update(kwargs) or {
             "session_id": args[2], "msg_id": "transport",
             "execution_id": "execution",
@@ -392,7 +392,7 @@ def test_retry_rejects_invalid_or_disconnected_persisted_origin(
     dispatched = []
     errors = []
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call",
+        "openprogram.webui.routes.chat.run_agent_method_call",
         lambda *args, **kwargs: dispatched.append((args, kwargs)),
     )
     monkeypatch.setattr(
@@ -426,7 +426,7 @@ def test_retry_rejects_surface_from_another_window(monkeypatch):
     _patch_db(monkeypatch, [node])
     dispatched = []
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call",
+        "openprogram.webui.routes.chat.run_agent_method_call",
         lambda *args, **kwargs: dispatched.append((args, kwargs)) or {
             "session_id": args[2], "msg_id": "abc",
         },
@@ -467,7 +467,7 @@ def test_retry_never_strips_messages_and_errors_without_prior_call(monkeypatch):
 
     dispatched = []
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call",
+        "openprogram.webui.routes.chat.run_agent_method_call",
         lambda *a, **k: dispatched.append(a) or {"session_id": "s1", "msg_id": "x"},
     )
     errors = []
@@ -493,7 +493,7 @@ def test_retry_never_strips_messages_and_errors_without_prior_call(monkeypatch):
 def test_retry_noop_on_missing_args(monkeypatch):
     dispatched = []
     monkeypatch.setattr(
-        "openprogram.webui.routes.chat.run_agentic_function_call",
+        "openprogram.webui.routes.chat.run_agent_method_call",
         lambda *a, **k: dispatched.append(a),
     )
     ws = _FakeWS()
@@ -538,7 +538,7 @@ def test_new_run_rejected_while_run_active(monkeypatch):
     )
     class _Tool:
         name = "word_count"
-        _is_agentic = True
+        _is_agent_method = True
 
     monkeypatch.setattr(
         "openprogram.programs.agent_tools", lambda names=None: [_Tool()]
@@ -564,7 +564,7 @@ def test_new_run_rejected_while_run_active(monkeypatch):
         lambda **kw: dispatched.append(kw),
     )
 
-    result = routes_chat.run_agentic_function_call("word_count", {"text": "hi"}, "s1")
+    result = routes_chat.run_agent_method_call("word_count", {"text": "hi"}, "s1")
     assert result.get("status_code") == 409
     assert result.get("code") == "run_active"
     # Never spawned a competing dispatch.
@@ -583,7 +583,7 @@ def _fresh_store(tmp_path):
     s = SessionStore(tmp_path / "sessions-git")
     s.create_session("s1", "main", title="t")
     # A ROOT anchor (the fn-form / retry predecessor), like
-    # run_agentic_function_call writes before dispatching.
+    # run_agent_method_call writes before dispatching.
     s.append_message("s1", {"id": "ROOT", "role": "user", "content": "",
                             "timestamp": 0, "predecessor": None,
                             "display": "root"})
@@ -635,7 +635,7 @@ def test_is_top_function_run_keys_on_caller_not_predecessor():
 
 def test_new_run_passes_empty_caller_so_decorator_stamps_head(monkeypatch):
     # A NEW run (anchor left unset) must pass an EMPTY caller to dispatch,
-    # so the @agentic_function decorator stamps metadata.predecessor with
+    # so the Agent method decorator stamps metadata.predecessor with
     # the session's current head — chaining off the previous turn like a
     # new chat turn (distinct predecessor → its own 1/1 card). It must NOT
     # hardcode "ROOT" (which lumped every run into one None-parent group,
@@ -654,7 +654,7 @@ def test_new_run_passes_empty_caller_so_decorator_stamps_head(monkeypatch):
 
     class _Tool:
         name = "word_count"
-        _is_agentic = True
+        _is_agent_method = True
 
     monkeypatch.setattr(
         "openprogram.programs.agent_tools", lambda names=None: [_Tool()]
@@ -730,7 +730,7 @@ def test_new_run_passes_empty_caller_so_decorator_stamps_head(monkeypatch):
 
     monkeypatch.setattr(production_driver, "CanonicalAgentAdapter", _Adapter)
     monkeypatch.setattr(
-        "openprogram.agentic_programming.function.create_pending_call_node",
+        "openprogram.agentic_programming.call_state.create_pending_call_node",
         lambda **k: None,
     )
     monkeypatch.setattr(
@@ -751,7 +751,7 @@ def test_new_run_passes_empty_caller_so_decorator_stamps_head(monkeypatch):
         routes_chat, "threading", SimpleNamespace(Thread=_inline_thread)
     )
 
-    routes_chat.run_agentic_function_call("word_count", {"text": "hi"}, "s1")
+    routes_chat.run_agent_method_call("word_count", {"text": "hi"}, "s1")
     # Empty caller → decorator's top-level-call branch stamps the head.
     assert captured.get("anchor_msg_id") == ""
 

@@ -55,7 +55,7 @@ For a third-party Program or developer source overlay, the command performs four
    reported and will simply not register; it never breaks the load.
 4. **Record the owner-approved source.** On the next launch the registry imports
    only recorded `<package>.agentics` packages, the
-   `@agentic_function` decorators fire, and the functions appear in
+   Agent method executions fire, and the functions appear in
    chat / the Programs page / `openprogram programs run`.
 
 Guard rails: for an existing **dev symlink**, `install` verifies the harness
@@ -165,7 +165,7 @@ Then use it — the harness's functions are callable like any built-in
 
 | Symptom | Cause / fix |
 |---|---|
-| Harness functions don't appear after restart | Folder doesn't match the contract — confirm `<pkg>/agentics/__init__.py` exists and exports `AGENTIC_FUNCTIONS`. Run with `OPENPROGRAM_DEBUG_REGISTRY=1`. |
+| Harness functions don't appear after restart | Folder doesn't match the contract — confirm `<pkg>/agentics/__init__.py` exists and exports `PROGRAM_ENTRIES`. Run with `OPENPROGRAM_DEBUG_REGISTRY=1`. |
 | `[!] … no package with an agentics/__init__.py was found` at install | Same as above — the repo doesn't satisfy the contract (Part 2). |
 | `ModuleNotFoundError` for the harness's own deps | The Program environment preparation failed — rerun `openprogram programs install <source>` and inspect its error. |
 | Imports inside the harness fail (`from <pkg>.x import y`) | The package dir isn't named like the import root, or a missing `__init__.py`. The package folder name must equal the import name. |
@@ -187,12 +187,12 @@ install for every OpenProgram user.
 └── <package>/                       ← an importable package (ascii name)
     ├── __init__.py                  ← kept dependency-light
     └── agentics/
-        └── __init__.py              ← exposes AGENTIC_FUNCTIONS = [...]
+        └── __init__.py              ← exposes PROGRAM_ENTRIES = [...]
 ```
 
 The registration entry point is the **`agentics` sub-package** — at
 startup OpenProgram imports `<package>.agentics`; that import fires the
-`@agentic_function` decorators, which self-register into the shared
+Agent method executions, which self-register into the shared
 registry. The harness root may also vendor other packages — discovery
 finds the one with an `agentics/` sub-package and puts the harness root
 on `sys.path`, so the harness's own absolute imports
@@ -202,16 +202,24 @@ on `sys.path`, so the harness's own absolute imports
 
 ```python
 # <package>/agentics/__init__.py
-from openprogram.agentic_programming.function import agentic_function
+from openprogram import Agent
 
 
-@agentic_function
-def my_tool(text: str = "") -> str:
-    "One line: what this does (shown in catalogs)."
-    return text.upper()
 
 
-AGENTIC_FUNCTIONS = [my_tool]
+PROGRAM_ENTRIES = [my_tool]
+
+class ExampleAgent(Agent):
+    method_options = {
+        'my_tool': {'tool': True},
+    }
+
+    def my_tool(self, text: str = "") -> str:
+        "One line: what this does (shown in catalogs)."
+        return text.upper()
+
+_example_agent = ExampleAgent()
+my_tool = _example_agent.my_tool
 ```
 
 ```python
@@ -248,9 +256,9 @@ That's a complete installable harness.
    # agentics/__init__.py — deps-less machines must not break the load
    try:
        from my_package.main import my_tool
-       AGENTIC_FUNCTIONS = [my_tool]
+       PROGRAM_ENTRIES = [my_tool]
    except ImportError:
-       AGENTIC_FUNCTIONS = []
+       PROGRAM_ENTRIES = []
    ```
 
 The three first-party harnesses follow this exact shape — read any of
@@ -272,7 +280,7 @@ openprogram programs uninstall My-Harness                # clean up
 
 Checklist before you publish:
 
-- [ ] `<package>/agentics/__init__.py` exposes `AGENTIC_FUNCTIONS`
+- [ ] `<package>/agentics/__init__.py` exposes `PROGRAM_ENTRIES`
 - [ ] no `openprogram` in pyproject/requirements (hard rule 1)
 - [ ] `python -c "import <package>.agentics"` succeeds in a bare venv
       with only OpenProgram installed (hard rule 2)

@@ -2,7 +2,7 @@
 
 The dispatcher binds a ``SessionNodeWriter`` into the ``_store``
 ContextVar for the duration of a turn, so deep code
-(``agentic_programming/runtime.py``, ``agentic_programming/function.py``,
+(``agentic_programming/runtime.py``, ``agentic_programming/call_state.py``,
 ``agent/internals/_turn_lifecycle.py``) writes DAG nodes without
 threading ``(store, session_id)`` through every layer:
 
@@ -104,7 +104,7 @@ class SessionNodeWriter:
             return g
         _git, idx = pair
         # Deep-copy so callers see a point-in-time copy; the live
-        # index keeps mutating as @agentic_function fills placeholders.
+        # index keeps mutating as Agent method fills placeholders.
         for node in idx.nodes_by_seq:
             frozen = copy.deepcopy(node)
             g.nodes[frozen.id] = frozen
@@ -115,7 +115,7 @@ class SessionNodeWriter:
     def update(self, node_id: str, **fields: Any) -> None:
         """In-place update of an existing node.
 
-        Used by ``@agentic_function`` exit (fill in output + metadata
+        Used by ``Agent method`` exit (fill in output + metadata
         after the function returns) and by error recovery in
         ``_turn_lifecycle.fold_error_into_placeholder``. Updates land
         on both the in-memory index and the on-disk history file

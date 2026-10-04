@@ -48,15 +48,20 @@ class Agent:
         for name, method_config in self.method_options.items():
             as_tool = method_config.get("as_tool")
             enabled = method_config.get("tool", False) if as_tool is None else as_tool
+            if not enabled and not method_config.get("resumable", False):
+                continue
+            method = getattr(self, name)
+            bound = _instance_tool_callable(method)
+            bound._agent_owner = getattr(method, "__self__", None)
+            bound._agent_method_name = name
+            bound._method_options = dict(method_config)
+            bound.resumable = method_config.get("resumable", False)
+            setattr(self, name, bound)
             if enabled:
-                available = method_config.get("available_if")
-                if available is not None and not available():
-                    continue
-                bound = _instance_tool_callable(getattr(self, name))
-                setattr(self, name, bound)
                 tool = register_agent_method(bound, method_config)
                 bound.execute = bound
-                self._method_tools[name] = tool
+                if tool is not None:
+                    self._method_tools[name] = tool
 
 
     def _effective_context(self, override=_UNSET):
@@ -152,22 +157,11 @@ class Agent:
                 fn = fn._agent_method_source
             elif getattr(fn, "_is_managed_function", False):
                 fn = fn.__wrapped__
-            if getattr(fn, "_is_agentic", False):
+            if getattr(fn, "_is_agent_method", False):
                 continue
-            factory = None
-            if kind is None:
-                factory = lambda args, kwargs: args[0]._effective_context()
             options = cls.method_options.get(name, {})
-            scope_options = {key: options[key] for key in ("expose", "render_range", "capture_io", "input") if key in options}
-            if options:
-                from openprogram.agentic_programming.agent_method import wrap_agent_method
-                execution_options = dict(options)
-                # Tool availability controls registration. An ordinary Python
-                # invocation still creates its class method call scope.
-                execution_options.pop("available_if", None)
-                wrapped = wrap_agent_method(fn, execution_options)
-            else:
-                wrapped = managed_function(fn, context_factory=factory, **scope_options)
+            from openprogram.agentic_programming.agent_method import wrap_agent_method
+            wrapped = wrap_agent_method(fn, options)
             if kind is None:
                 wrapped = _configured_method(wrapped)
             wrapped._is_agent_configured_method = True
@@ -179,7 +173,7 @@ class Agent:
 def _configuration_scope(instance, *, context=_UNSET, instructions=_UNSET, runtime=_UNSET):
     from openprogram.agentic_programming.runtime_scope import execution_scope
     from openprogram.agentic_programming.runtime.shared import _current_instructions, _current_agent_options
-    from openprogram.agentic_programming.function import _current_runtime
+    from openprogram.agentic_programming.call_state import _current_runtime
     runtime = instance.runtime if runtime is _UNSET else runtime
     instructions = instance.instructions if instructions is _UNSET else instructions
     token = _current_instructions.set(_current_instructions.get() if instructions is None else instructions)

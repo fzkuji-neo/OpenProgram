@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openprogram.agentic_programming import function as agentic_fn
+from openprogram.agentic_programming import call_state
 from openprogram.agentic_programming import Agent
 from openprogram.programs.workflow.errors import InvalidWorkflow
 from openprogram.programs.workflow._generation import planner
@@ -29,8 +29,8 @@ class AutoWorkflowAgent(Agent):
 
     def auto_workflow(self, task: str) -> dict:
         """User-only orchestration: search, select reuse or create, then run."""
-        session_id = agentic_fn.current_session_id()
-        spawn_caller = agentic_fn.current_call_id() or None
+        session_id = call_state.current_session_id()
+        spawn_caller = call_state.current_call_id() or None
         run_id = run_state._new_run_id()
         instance = run_state._instance_dir(session_id, run_id)
         instance.mkdir(parents=True, exist_ok=False)

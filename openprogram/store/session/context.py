@@ -88,7 +88,7 @@ def session_context(
         _current_turn_id as _turn_id_var,
         SessionNodeWriter,
     )
-    from openprogram.agentic_programming.function import (
+    from openprogram.agentic_programming.call_state import (
         _current_runtime as _runtime_var,
     )
 

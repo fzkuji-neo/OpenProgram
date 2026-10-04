@@ -47,7 +47,7 @@ def main() -> int:
     # Force dispatcher to pick the Claude Max provider regardless of
     # the agent profile's stored ``model`` field by passing
     # ``model_override`` on TurnRequest. ``AGENTIC_PROVIDER`` env only
-    # influences create_runtime() (used by @agentic_function); dispatcher
+    # influences create_runtime() (used by Agent method); dispatcher
     # itself reads from the agent profile, so env-var pinning alone
     # silently still talks to the user's default provider.
     MODEL_OVERRIDE = "claude-code/claude-sonnet-4"

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from openprogram.agentic_programming import function as agentic_fn
+from openprogram.agentic_programming import call_state
 from openprogram.agentic_programming import Agent
 
 from ._generation import planner
@@ -35,10 +35,10 @@ class ReviseWorkflowAgent(Agent):
         index, base, _ = repository._active_project(workflow_id)
         candidate = planner._request_project_candidate(
             request,
-            bindings._registered_agentic_functions(),
-            session_id=agentic_fn.current_session_id(),
+            bindings._registered_program_entries(),
+            session_id=call_state.current_session_id(),
             agent_id="main",
-            spawn_caller=agentic_fn.current_call_id() or None,
+            spawn_caller=call_state.current_call_id() or None,
             base=base,
         )
         return repository._publish_candidate(

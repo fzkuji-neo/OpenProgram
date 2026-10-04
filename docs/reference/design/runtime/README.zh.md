@@ -31,7 +31,7 @@ runtime.close()       = 关 session
 
 ## ContextVar 自动注入 runtime
 
-`@agentic_function` 装饰器读 `_current_runtime` ContextVar,如果当前函数
+`Agent` method 装饰器读 `_current_runtime` ContextVar,如果当前函数
 没传 `runtime=` 参数就用它;入口函数也没有,就自动 `create_runtime()`。
 
 **为什么不让函数显式声明 runtime?**
@@ -49,7 +49,7 @@ ContextVar 按线程 + 协程隔离,天然并发安全。
 ## Session-provider vs API-provider 共用一套抽象
 
 无论底层是 Claude Code CLI(有 session)还是 Anthropic API(无 session),
-对 `@agentic_function` 作者都是一样的接口 `runtime.exec(content=[...])`。
+对 `Agent` method 作者都是一样的接口 `runtime.exec(content=[...])`。
 框架靠 `has_session` 属性区分两类 provider 在内部走不同路径:
 
 | | session provider (CLI) | API provider |
@@ -82,7 +82,7 @@ provider 层只关心"把请求发出去、把回复拿回来"。重试 / 节流
 ## DAG 写入:进出函数都写 code 节点,exec 写 llm 节点
 
 ```
-进入 @agentic_function       → 写一个 code 节点 (status=running)
+进入 Agent method       → 写一个 code 节点 (status=running)
                               → 设 _call_id ContextVar 指向此节点
 函数体里 runtime.exec()      → 在当前 _call_id 下写一个 llm 节点
                               → 节点的 caller = _call_id
@@ -102,7 +102,7 @@ id,以便函数体内 LLM 调用有 frame 可参照)。
 ## 嵌入接缝
 
 核心可以嵌在不是 OpenProgram 的宿主里运行——别人的服务或 agent 框架把
-`@agentic_function` + 执行 DAG 当作一个组件来用（见
+`Agent` method + 执行 DAG 当作一个组件来用（见
 [嵌入到你自己的技术栈](../../../capabilities/agentic-programming/embedding-in-your-own-stack.zh.md)）。
 这份契约由 `tests/component/runtime/test_standalone_embed.py` 执行，不只是纸面声明：
 
@@ -131,7 +131,7 @@ id,以便函数体内 LLM 调用有 frame 可参照)。
 ## 相关实现文件
 
 - `openprogram/agentic_programming/runtime.py` — Runtime 基类、`exec` / `_call` 协议、retry 循环
-- `openprogram/agentic_programming/function.py` — 装饰器 / `_inject_runtime` / `_call_id` / `_current_runtime` ContextVar
+- `openprogram/agentic_programming/call_state.py` — 装饰器 / `_inject_runtime` / `_call_id` / `_current_runtime` ContextVar
 - `openprogram/providers/__init__.py` — `detect_provider` / `create_runtime` 自动检测
 - `openprogram/providers/<vendor>/runtime.py` — 各 provider 的 `_call` 实现
 - `openprogram/context/nodes.py` `render_context` — DAG → reads 计算(`render_range` 的实际语义)

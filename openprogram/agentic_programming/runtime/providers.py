@@ -254,7 +254,7 @@ class ProvidersOperations:
             # too — otherwise standalone calls receive no situational guidance.
             standalone_prefix: list = []
             try:
-                from openprogram.agentic_programming.function import (
+                from openprogram.agentic_programming.call_state import (
                     _recursion_depth,
                 )
 
@@ -264,7 +264,7 @@ class ProvidersOperations:
                     standalone_prefix = [
                         {
                             "type": "text",
-                            "text": _situational_prefix(_cur_fn, ""),
+                            "text": _situational_prefix(getattr(_cur_fn, "__name__", str(_cur_fn)), ""),
                         }
                     ]
             except Exception:
@@ -354,7 +354,7 @@ class ProvidersOperations:
                     deadline = model_call_budget["deadline"]
                     if deadline is not None and time.monotonic() >= deadline:
                         raise TimeoutError("structured output model-call deadline expired")
-                    from openprogram.agentic_programming.function import (
+                    from openprogram.agentic_programming.call_state import (
                         CancelledError as _CE,
                         check_cancelled,
                     )
@@ -555,7 +555,7 @@ class ProvidersOperations:
                                         and time.monotonic() >= deadline
                                     )
                                     if forward_structured_event:
-                                        from openprogram.agentic_programming.function import (
+                                        from openprogram.agentic_programming.call_state import (
                                             CancelledError as _CE,
                                             check_cancelled,
                                         )
@@ -722,7 +722,7 @@ class ProvidersOperations:
         _llm_id = getattr(self, "_active_llm_node_id", None)
         if _llm_id is not None:
             try:
-                from openprogram.agentic_programming.function import _call_id
+                from openprogram.agentic_programming.call_state import _call_id
 
                 _frame_token = _call_id.set(_llm_id)
             except Exception:
@@ -734,7 +734,7 @@ class ProvidersOperations:
         finally:
             if _frame_token is not None:
                 try:
-                    from openprogram.agentic_programming.function import _call_id
+                    from openprogram.agentic_programming.call_state import _call_id
 
                     _call_id.reset(_frame_token)
                 except Exception:

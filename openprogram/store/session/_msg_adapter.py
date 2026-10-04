@@ -79,7 +79,7 @@ def _msg_to_node(msg: dict) -> Call:
         meta.pop("predecessor", None)
         # Discriminator: a model-emitted tool_use code node carries a
         # tool_call_id (so the renderer can round-trip it as a real
-        # ToolCall/ToolResult pair). Direct @agentic_function code nodes
+        # ToolCall/ToolResult pair). Direct Agent method code nodes
         # have none and render as a user/assistant text pair. The id IS
         # the tool_call_id (base_id == "{assistant}_t_{tid}" or the tid),
         # surfaced explicitly here so render.py needn't parse the id.

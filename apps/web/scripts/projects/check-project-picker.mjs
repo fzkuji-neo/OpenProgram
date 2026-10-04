@@ -72,7 +72,7 @@ assert.match(
 );
 assert.match(
   workflowSource,
-  /@agentic_function\([\s\S]*?input=\{[\s\S]*?"task"[\s\S]*?def auto_workflow\(task: str\)/,
+  /method_options\s*=\s*\{[\s\S]*?"input"\s*:[\s\S]*?"task"[\s\S]*?def auto_workflow\(self, task: str\)/,
   "auto_workflow must expose only its task parameter",
 );
 assert.match(explorerHeader, /className=\{styles\.treeRootPath\}/);

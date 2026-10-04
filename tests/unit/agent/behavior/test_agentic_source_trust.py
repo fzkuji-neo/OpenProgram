@@ -10,7 +10,7 @@ def _harness(root, name: str):
     pkg = repo / "demo_pkg" / "agentics"
     pkg.mkdir(parents=True)
     (repo / "demo_pkg" / "__init__.py").write_text("", encoding="utf-8")
-    (pkg / "__init__.py").write_text("AGENTIC_FUNCTIONS = []\n", encoding="utf-8")
+    (pkg / "__init__.py").write_text("PROGRAM_ENTRIES = []\n", encoding="utf-8")
     return repo
 
 
@@ -56,7 +56,7 @@ def test_external_file_loader_rejects_unrecorded_source(tmp_path, monkeypatch):
         raise AssertionError("unrecorded Python source was loaded")
 
 
-def test_load_agentic_modules_skips_unrecorded_directory(tmp_path, monkeypatch):
+def test_load_program_modules_skips_unrecorded_directory(tmp_path, monkeypatch):
     from openprogram.programs import _programs, _registry
     import openprogram.paths as paths
 
@@ -67,13 +67,13 @@ def test_load_agentic_modules_skips_unrecorded_directory(tmp_path, monkeypatch):
     _harness(base, "untrusted")
     monkeypatch.setattr(paths, "get_state_dir", lambda: state)
     monkeypatch.setattr(_programs, "applications_dir", lambda: str(base))
-    monkeypatch.setattr(_registry, "AGENTIC_MODULES", [])
+    monkeypatch.setattr(_registry, "PROGRAM_MODULES", [])
     monkeypatch.setattr(_programs, "import_installed_programs", lambda: [])
     loaded = []
     monkeypatch.setattr(_registry, "_import_external_harness", loaded.append)
     _programs.record_program_source(trusted, source="file:///owner/trusted")
 
-    _registry.load_agentic_modules(str(base))
+    _registry.load_program_modules(str(base))
 
     assert loaded == [str(trusted.resolve())]
 

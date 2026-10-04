@@ -29,7 +29,9 @@ def test_canonical_execution_recovery_runs_before_legacy_dag_recovery(
         return 0
 
     monkeypatch.setattr(server, "_recover_execution_control", recover_execution_control)
-    monkeypatch.setattr(server, "reconcile_interrupted_runs", reconcile_interrupted_runs)
+    monkeypatch.setattr(
+        server, "reconcile_interrupted_runs", reconcile_interrupted_runs
+    )
     monkeypatch.setattr("openprogram.mcp.load_mcp_servers", _async_noop)
     monkeypatch.setattr("openprogram.mcp.shutdown_mcp_servers", _async_noop)
     monkeypatch.setattr("openprogram.skills.watcher.start_watcher", lambda **_: None)
@@ -56,9 +58,7 @@ def test_canonical_execution_recovery_failure_blocks_startup(monkeypatch):
     def fail_recovery():
         raise RuntimeError("canonical recovery unavailable")
 
-    monkeypatch.setattr(
-        "openprogram.execution.default_control_service", fail_recovery
-    )
+    monkeypatch.setattr("openprogram.execution.default_control_service", fail_recovery)
     monkeypatch.setattr(
         server,
         "reconcile_interrupted_runs",
@@ -131,7 +131,9 @@ def test_rewind_recovery_is_lazy_and_not_a_lifespan_gate(monkeypatch):
         called.set()
         return 0
 
-    monkeypatch.setattr("openprogram.agent._rewind.recover_all_rewinds", recover_all_rewinds)
+    monkeypatch.setattr(
+        "openprogram.agent._rewind.recover_all_rewinds", recover_all_rewinds
+    )
     monkeypatch.setattr(server, "_recover_execution_control", _async_noop)
     monkeypatch.setattr(server, "reconcile_interrupted_runs", lambda: 0)
     monkeypatch.setattr("openprogram.mcp.load_mcp_servers", _async_noop)
@@ -147,7 +149,8 @@ def test_rewind_recovery_is_lazy_and_not_a_lifespan_gate(monkeypatch):
 
 
 def test_legacy_dag_recovery_waits_on_real_session_lock_after_health(
-    tmp_path, monkeypatch,
+    tmp_path,
+    monkeypatch,
 ):
     """A real session lock cannot prevent the public lifespan from yielding."""
     from openprogram.execution import ExecutionStore
@@ -167,7 +170,9 @@ def test_legacy_dag_recovery_waits_on_real_session_lock_after_health(
         finished.set()
         return result
 
-    monkeypatch.setattr(server, "reconcile_interrupted_runs", reconcile_interrupted_runs)
+    monkeypatch.setattr(
+        server, "reconcile_interrupted_runs", reconcile_interrupted_runs
+    )
     monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: sessions)
     monkeypatch.setattr("openprogram.execution.default_store", lambda: executions)
     monkeypatch.setattr(server, "_recover_execution_control", _async_noop)
@@ -196,7 +201,8 @@ def test_legacy_dag_recovery_waits_on_real_session_lock_after_health(
 
 
 def test_dag_recovery_preserves_canonical_paused_execution_after_wait_resolution(
-    tmp_path, monkeypatch,
+    tmp_path,
+    monkeypatch,
 ):
     """A resolved wait can leave a paused execution before continuation owns it."""
     from openprogram.context.nodes import Call, ROLE_CODE
@@ -211,13 +217,15 @@ def test_dag_recovery_preserves_canonical_paused_execution_after_wait_resolution
     sessions.create_session("system-recovery", "main")
     sessions.update_session("system-recovery", status="running")
     sessions.update_session("system-recovery", status="running")
-    SessionNodeWriter(sessions, "system-recovery").append(Call(
-        id="assistant-system-recovery",
-        role=ROLE_CODE,
-        name="agentic_workflow",
-        output="",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
+    SessionNodeWriter(sessions, "system-recovery").append(
+        Call(
+            id="assistant-system-recovery",
+            role=ROLE_CODE,
+            name="agentic_workflow",
+            output="",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
     executions = ExecutionStore(tmp_path / "executions.sqlite")
     revision = executions.create_revision(manifest={"entrypoint": "agent"})
     execution = executions.admit_execution(
@@ -240,13 +248,15 @@ def test_dag_recovery_preserves_canonical_paused_execution_after_wait_resolution
         reason_code="system_access_required",
     )
     current_node_id = "assistant-current-recovery"
-    SessionNodeWriter(sessions, "system-recovery").append(Call(
-        id=current_node_id,
-        role=ROLE_CODE,
-        name="agentic_workflow",
-        output="",
-        metadata={"status": "running", "execution_kind": "agentic_function"},
-    ))
+    SessionNodeWriter(sessions, "system-recovery").append(
+        Call(
+            id=current_node_id,
+            role=ROLE_CODE,
+            name="agentic_workflow",
+            output="",
+            metadata={"status": "running", "execution_kind": "agent_method"},
+        )
+    )
     current = executions.admit_execution(
         execution_id="execution-current-recovery",
         run_id="run-current-recovery",
@@ -283,7 +293,8 @@ def test_dag_recovery_preserves_canonical_paused_execution_after_wait_resolution
     assert node.metadata.get("error") is None
     assert node.output == ""
     current_node = next(
-        item for item in sessions.get_nodes("system-recovery")
+        item
+        for item in sessions.get_nodes("system-recovery")
         if item.id == current_node_id
     )
     assert current_node.metadata["status"] == "running"
@@ -315,17 +326,25 @@ def test_projection_cleans_only_synthetic_marker_and_preserves_cancel_output():
             updates.append((node_id, fields))
 
     changed = _exec_dag._repair_canonical_node(
-        node, SimpleNamespace(status=ExecutionStatus.CANCELLED), _Shim(),
+        node,
+        SimpleNamespace(status=ExecutionStatus.CANCELLED),
+        _Shim(),
     )
 
     assert changed is True
-    assert updates == [(
-        "cancelled-system-recovery",
-        {"metadata": {
-            "status": "cancelled", "error": None, "error_type": None,
-            "interrupted_at": None,
-        }},
-    )]
+    assert updates == [
+        (
+            "cancelled-system-recovery",
+            {
+                "metadata": {
+                    "status": "cancelled",
+                    "error": None,
+                    "error_type": None,
+                    "interrupted_at": None,
+                }
+            },
+        )
+    ]
     assert node.output == "user-visible cancellation output"
 
 
@@ -348,14 +367,21 @@ def test_projection_leaves_real_canonical_interruption_unchanged():
         def update(self, node_id, **fields):
             updates.append((node_id, fields))
 
-    assert _exec_dag._repair_canonical_node(
-        node, SimpleNamespace(status=ExecutionStatus.INTERRUPTED), _Shim(),
-    ) is False
+    assert (
+        _exec_dag._repair_canonical_node(
+            node,
+            SimpleNamespace(status=ExecutionStatus.INTERRUPTED),
+            _Shim(),
+        )
+        is False
+    )
     assert updates == []
 
 
 @pytest.mark.parametrize("shared_parent", [False, True])
-def test_hydration_projects_cancelled_wait_without_erasing_output(tmp_path, monkeypatch, shared_parent):
+def test_hydration_projects_cancelled_wait_without_erasing_output(
+    tmp_path, monkeypatch, shared_parent
+):
     from openprogram.context.nodes import Call, ROLE_CODE
     from openprogram.execution import CapabilitySet, ExecutionStore
     from openprogram.execution.model import ExecutionStatus
@@ -365,34 +391,57 @@ def test_hydration_projects_cancelled_wait_without_erasing_output(tmp_path, monk
 
     sessions = SessionStore(tmp_path / "sessions")
     sessions.create_session("cancel-wait", "main")
-    SessionNodeWriter(sessions, "cancel-wait").append(Call(
-        id="cancel-anchor", role=ROLE_CODE, name="gui_agent",
-        output="recorded partial output", metadata={"status": "running"},
-    ))
+    SessionNodeWriter(sessions, "cancel-wait").append(
+        Call(
+            id="cancel-anchor",
+            role=ROLE_CODE,
+            name="gui_agent",
+            output="recorded partial output",
+            metadata={"status": "running"},
+        )
+    )
     executions = ExecutionStore(tmp_path / "executions.sqlite")
     revision = executions.create_revision(manifest={"entrypoint": "agent"})
     execution = executions.admit_execution(
-        execution_id="cancel-execution", run_id="cancel-run", session_id="cancel-wait",
-        revision_id=revision.revision_id, input_ref="input:cancel", input_hash="hash:cancel",
+        execution_id="cancel-execution",
+        run_id="cancel-run",
+        session_id="cancel-wait",
+        revision_id=revision.revision_id,
+        input_ref="input:cancel",
+        input_hash="hash:cancel",
         entrypoint="openprogram.agent.production_driver:AgentProductionDriver",
-        trusted_actor={"subject": "owner"}, config_snapshot_ref="config:cancel",
-        assistant_message_id="cancel-anchor", capabilities=CapabilitySet(pause=True),
+        trusted_actor={"subject": "owner"},
+        config_snapshot_ref="config:cancel",
+        assistant_message_id="cancel-anchor",
+        capabilities=CapabilitySet(pause=True),
     )
     if shared_parent:
         execution = executions.admit_execution(
-            execution_id="cancel-child", run_id="cancel-run", session_id="cancel-wait",
+            execution_id="cancel-child",
+            run_id="cancel-run",
+            session_id="cancel-wait",
             parent_execution_id=execution.execution_id,
-            revision_id=revision.revision_id, input_ref="input:child", input_hash="hash:child",
+            revision_id=revision.revision_id,
+            input_ref="input:child",
+            input_hash="hash:child",
             entrypoint="openprogram.agent.production_driver:AgentProductionDriver",
-            trusted_actor={"subject": "owner"}, config_snapshot_ref="config:child",
-            assistant_message_id="cancel-anchor", capabilities=CapabilitySet(pause=True),
+            trusted_actor={"subject": "owner"},
+            config_snapshot_ref="config:child",
+            assistant_message_id="cancel-anchor",
+            capabilities=CapabilitySet(pause=True),
         )
-    execution = executions.transition_execution(execution.execution_id,
-        expected_version=execution.status_version, target=ExecutionStatus.CANCELLING,
-        reason_code="cancel.user")
-    executions.transition_execution(execution.execution_id,
-        expected_version=execution.status_version, target=ExecutionStatus.CANCELLED,
-        reason_code="cancel.user")
+    execution = executions.transition_execution(
+        execution.execution_id,
+        expected_version=execution.status_version,
+        target=ExecutionStatus.CANCELLING,
+        reason_code="cancel.user",
+    )
+    executions.transition_execution(
+        execution.execution_id,
+        expected_version=execution.status_version,
+        target=ExecutionStatus.CANCELLED,
+        reason_code="cancel.user",
+    )
     monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: sessions)
     monkeypatch.setattr("openprogram.execution.default_store", lambda: executions)
     _exec_dag.reconcile_session_projection("cancel-wait")
@@ -404,16 +453,25 @@ def test_hydration_projects_cancelled_wait_without_erasing_output(tmp_path, monk
 def test_stop_server_requests_exit_and_waits_for_thread(monkeypatch):
     from types import SimpleNamespace
     from openprogram.webui import server
+
     events = []
     fake_server = SimpleNamespace(should_exit=False)
+
     class Loop:
-        def is_closed(self): return False
+        def is_closed(self):
+            return False
+
         def call_soon_threadsafe(self, fn, *args):
             events.append("exit")
             fn(*args)
+
     class Thread:
-        def join(self, timeout): events.append("join")
-        def is_alive(self): return False
+        def join(self, timeout):
+            events.append("join")
+
+        def is_alive(self):
+            return False
+
     monkeypatch.setattr(server, "_uvicorn_server", fake_server)
     monkeypatch.setattr(server, "_loop", Loop())
     monkeypatch.setattr(server, "_server_thread", Thread())
@@ -426,19 +484,26 @@ def test_stop_server_requests_exit_and_waits_for_thread(monkeypatch):
 def test_shutdown_rejects_new_websocket_work(monkeypatch):
     import json
     from openprogram.webui import server
+
     stop = threading.Event()
     stop.set()
     monkeypatch.setattr(server, "_server_stopping", stop)
     messages = []
+
     class Socket:
-        async def send_text(self, value): messages.append(json.loads(value))
-    asyncio.run(server._handle_ws_command(Socket(), {"action": "chat", "message": "work"}))
+        async def send_text(self, value):
+            messages.append(json.loads(value))
+
+    asyncio.run(
+        server._handle_ws_command(Socket(), {"action": "chat", "message": "work"})
+    )
     assert messages[0]["data"]["code"] == "worker_stopping"
 
 
 def test_worker_shutdown_blocks_new_invocations_without_user_cancel(monkeypatch):
     from openprogram.agent import run_control
     from openprogram.providers.utils.errors import ExecInterrupt
+
     signal = threading.Event()
     monkeypatch.setattr(run_control, "_worker_stopping", signal)
     run_control.begin_worker_shutdown()

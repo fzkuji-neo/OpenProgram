@@ -358,10 +358,10 @@ def wrap_with_approval(
         execute=_gated_execute,
     )
     # Carry over sidecar flags the dispatcher reads downstream.
-    # _is_agentic in particular is how runtime-block rendering is
-    # triggered for LLM-invoked @agentic_function calls.
+    # _is_agent_method in particular is how runtime-block rendering is
+    # triggered for LLM-invoked Agent method calls.
     for _attr in (
-        "_is_agentic", "_dag_expose", "_defer", "_run_in_worker", "_mcp_server",
+        "_is_agent_method", "_python_callable", "_method_options", "_dag_expose", "_defer", "_run_in_worker", "_mcp_server",
         "_runtime_implementation", "_requires_approval", "_accept_edits_safe",
     ):
         try:

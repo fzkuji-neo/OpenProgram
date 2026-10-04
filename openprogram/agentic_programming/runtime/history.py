@@ -35,7 +35,7 @@ class HistoryOperations:
 
         Provider events arrive before the tool body returns. The node is
         therefore created here as a normal ``code`` Call, with the same stable
-        id that an ``@agentic_function`` wrapper uses when it is the tool.
+        id that an ``Agent method`` wrapper uses when it is the tool.
         This keeps ``tool_ref.ref_node_id`` valid during live rendering and
         after a reload without copying tool payloads into the stream.
         """
@@ -44,7 +44,7 @@ class HistoryOperations:
         try:
             from openprogram.store import _store
             from openprogram.context.nodes import Call, ROLE_CODE
-            from openprogram.agentic_programming.function import tool_node_id
+            from openprogram.agentic_programming.call_state import tool_node_id
 
             # ``hidden`` means no DAG node and therefore no persisted input or
             # output. This decision is made before loading or appending so a
@@ -111,7 +111,7 @@ class HistoryOperations:
             return
         try:
             from openprogram.store import _store
-            from openprogram.agentic_programming.function import tool_node_id
+            from openprogram.agentic_programming.call_state import tool_node_id
 
             store = _store.get()
             if store is None:
@@ -123,7 +123,7 @@ class HistoryOperations:
                 return
             current = node.metadata or {}
             current_status = current.get("status")
-            # An @agentic_function wrapper may have already recorded the
+            # An Agent method wrapper may have already recorded the
             # actual return value. Do not replace it with the provider's
             # envelope after it became terminal.
             if current_status in {"completed", "error", "cancelled"}:
@@ -202,7 +202,7 @@ class HistoryOperations:
 
         Algorithm:
           1. Load the DAG state from the store.
-          2. Read the enclosing ``@agentic_function`` call id from
+          2. Read the enclosing ``Agent method`` call id from
              ``_call_id`` ContextVar; pull its node from the graph to
              get seq + render_range.
           3. Compute reads → render pi-ai messages.
@@ -221,7 +221,7 @@ class HistoryOperations:
         try:
             from openprogram.context.nodes import render_context
             from openprogram.context.render import render_dag_messages
-            from openprogram.agentic_programming.function import _call_id
+            from openprogram.agentic_programming.call_state import _call_id
 
             graph = store.load()
             frame_node_id = _call_id.get() or context.call_id
@@ -330,7 +330,7 @@ class HistoryOperations:
         LLM call. Returns its node id (or None when no store is installed).
 
         One ``runtime.exec`` == one llm node (the same way one
-        ``@agentic_function`` == one code node). The node is written with
+        ``Agent method`` == one code node). The node is written with
         ``output=None`` / ``status=running`` here; :meth:`_close_model_call_node`
         fills in the reply and flips the status on return.
 
@@ -348,7 +348,7 @@ class HistoryOperations:
         try:
             from openprogram.store import _store
             from openprogram.context.nodes import Call, ROLE_LLM
-            from openprogram.agentic_programming.function import _call_id
+            from openprogram.agentic_programming.call_state import _call_id
 
             store = _store.get()
             if store is None:

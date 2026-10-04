@@ -7,6 +7,8 @@ registry filtering.
 """
 from __future__ import annotations
 
+from openprogram.agentic_programming import Agent
+
 import asyncio
 import importlib
 import json
@@ -675,10 +677,10 @@ def test_agentic_subprocess_failure_reaches_agent_loop_as_typed_error(
         label="probe",
         execute=original_execute,
     )
-    setattr(tool, "_is_agentic", True)
+    setattr(tool, "_is_agent_method", True)
     monkeypatch.setattr(
         process_runner,
-        "run_agentic_in_subprocess",
+        "run_agent_method_in_subprocess",
         lambda **kwargs: subprocess_result,
     )
     monkeypatch.setattr(session_db, "default_db", lambda: FakeDB())
@@ -786,11 +788,11 @@ def test_worker_resident_agentic_tool_does_not_spawn(monkeypatch) -> None:
         label="probe",
         execute=original_execute,
     )
-    setattr(tool, "_is_agentic", True)
+    setattr(tool, "_is_agent_method", True)
     setattr(tool, "_run_in_worker", True)
     monkeypatch.setattr(
         process_runner,
-        "run_agentic_in_subprocess",
+        "run_agent_method_in_subprocess",
         lambda **_kwargs: (_ for _ in ()).throw(AssertionError("spawned")),
     )
     monkeypatch.setattr(session_db, "default_db", lambda: FakeDB())
@@ -856,7 +858,7 @@ def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch, tmp_p
         label="probe",
         execute=original_execute,
     )
-    setattr(tool, "_is_agentic", True)
+    setattr(tool, "_is_agent_method", True)
     captured = {"context_id": "page_ctx_live", "surfaces": []}
     released = []
     seen = {}
@@ -872,7 +874,7 @@ def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch, tmp_p
         return {"text": "browser result"}
 
     monkeypatch.setattr(
-        process_runner, "run_agentic_in_subprocess", run_subprocess,
+        process_runner, "run_agent_method_in_subprocess", run_subprocess,
     )
     monkeypatch.setattr(session_db, "default_db", lambda: FakeDB())
     monkeypatch.setattr(exec_dag, "live_progress", lambda *a, **kw: nullcontext())
@@ -985,7 +987,7 @@ def test_gui_agent_parent_cleanup_failure_reaches_message_result(
     )
     from openprogram.agent.dispatcher.types import TurnRequest
     from openprogram.agent.types import AgentTool
-    from openprogram.agentic_programming.function import create_pending_call_node
+    from openprogram.agentic_programming.call_state import create_pending_call_node
     from openprogram.store import SessionNodeWriter, SessionStore
 
     store = SessionStore(tmp_path / "sessions-git")
@@ -1002,7 +1004,7 @@ def test_gui_agent_parent_cleanup_failure_reaches_message_result(
         label="probe",
         execute=original_execute,
     )
-    setattr(tool, "_is_agentic", True)
+    setattr(tool, "_is_agent_method", True)
     cleanup_result = {
         "status": "infeasible",
         "success": False,
@@ -1053,7 +1055,7 @@ def test_gui_agent_parent_cleanup_failure_reaches_message_result(
 
     monkeypatch.setattr(
         process_runner,
-        "run_agentic_in_subprocess",
+        "run_agent_method_in_subprocess",
         run_subprocess,
     )
     monkeypatch.setattr(session_db, "default_db", lambda: store)
@@ -1122,7 +1124,7 @@ def test_gui_agent_max_seconds_bounds_the_subprocess(monkeypatch) -> None:
         label="probe",
         execute=original_execute,
     )
-    setattr(tool, "_is_agentic", True)
+    setattr(tool, "_is_agent_method", True)
     seen = {}
 
     def run_subprocess(**kwargs):
@@ -1130,7 +1132,7 @@ def test_gui_agent_max_seconds_bounds_the_subprocess(monkeypatch) -> None:
         return {"text": "done"}
 
     monkeypatch.setattr(
-        process_runner, "run_agentic_in_subprocess", run_subprocess,
+        process_runner, "run_agent_method_in_subprocess", run_subprocess,
     )
     monkeypatch.setattr(session_db, "default_db", lambda: FakeDB())
     monkeypatch.setattr(exec_dag, "live_progress", lambda *a, **kw: nullcontext())
@@ -1173,7 +1175,7 @@ def test_approval_wrapper_preserves_worker_resident_marker() -> None:
         label="probe",
         execute=execute,
     )
-    setattr(tool, "_is_agentic", True)
+    setattr(tool, "_is_agent_method", True)
     setattr(tool, "_run_in_worker", True)
 
     wrapped = wrap_with_approval(
@@ -1408,27 +1410,27 @@ def test_deferred_catalog_text_format() -> None:
 
 
 # ---------------------------------------------------------------------------
-# @agentic_function bridge — shared registry
+# Agent method bridge — shared registry
 # ---------------------------------------------------------------------------
 
-def test_agentic_function_registers_into_shared_registry() -> None:
-    """An @agentic_function should produce an AgentTool entry in
+def test_agent_method_registers_into_shared_registry() -> None:
+    """An Agent method should produce an AgentTool entry in
     ``openprogram.programs._runtime._registry`` so the dispatcher
     treats it identically to @function-decorated tools (toolset
     membership, 6 gating layers, deferred loading)."""
-    from openprogram.agentic_programming.function import agentic_function
+    from openprogram.agentic_programming import Agent
 
-    @agentic_function(
-        as_tool=True,
-        toolset=["core"],
-        description="Test agentic function registered as a tool.",
-    )
-    def my_agentic_tool(question: str) -> str:
-        """One-line description for the LLM."""
-        return f"answered: {question}"
+    class _MyAgenticToolAgent(Agent):
+        method_options = {'my_agentic_tool': {'toolset': ["core"], 'description': "Test agentic function registered as a tool.", 'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'my_agentic_tool'}}
+
+        def my_agentic_tool(self, question: str) -> str:
+            """One-line description for the LLM."""
+            return f"answered: {question}"
+
+    my_agentic_tool = _MyAgenticToolAgent().my_agentic_tool
 
     t = get("my_agentic_tool")
-    assert t is not None, "agentic_function should appear in _registry"
+    assert t is not None, "agent_method should appear in _registry"
     assert t.description.startswith("Test agentic"), \
         "description override should win over docstring"
     # Sidecar attrs forwarded from agentic kwargs
@@ -1438,29 +1440,37 @@ def test_agentic_function_registers_into_shared_registry() -> None:
     assert t in filter_for(toolset="core")
 
 
-def test_agentic_function_as_tool_false_skips_registration() -> None:
+def test_agent_method_as_tool_false_skips_registration() -> None:
     """``as_tool=False`` keeps the agentic semantics (DAG, inner agent
     loop) but does NOT expose the function to the LLM."""
-    from openprogram.agentic_programming.function import agentic_function
+    from openprogram.agentic_programming import Agent
 
-    @agentic_function(as_tool=False, name="private_helper")
-    def private_helper(x: str) -> str:
-        """Should NOT appear in tool registry."""
-        return x
+    class _PrivateHelperAgent(Agent):
+        method_options = {'private_helper': {'name': "private_helper", 'tool': False, 'expose': 'io', 'capture_io': True}}
+
+        def private_helper(self, x: str) -> str:
+            """Should NOT appear in tool registry."""
+            return x
+
+    private_helper = _PrivateHelperAgent().private_helper
 
     assert get("private_helper") is None
 
 
-def test_agentic_function_register_globally_false() -> None:
+def test_agent_method_register_globally_false() -> None:
     """``register_globally=False`` skips the shared AgentTool registry
     but still attaches the wrapper to the instance (so Python-direct
     invoke still works). Mirror of @function's ``register_globally`` kwarg."""
-    from openprogram.agentic_programming.function import agentic_function
+    from openprogram.agentic_programming import Agent
 
-    @agentic_function(register_globally=False, name="off_grid")
-    def off_grid(x: str) -> str:
-        """Should not appear in shared _registry."""
-        return f"local-{x}"
+    class _OffGridAgent(Agent):
+        method_options = {'off_grid': {'register_globally': False, 'name': "off_grid", 'tool': True, 'expose': 'io', 'capture_io': True}}
+
+        def off_grid(self, x: str) -> str:
+            """Should not appear in shared _registry."""
+            return f"local-{x}"
+
+    off_grid = _OffGridAgent().off_grid
 
     # Not in the shared registry — dispatcher can't find it
     assert get("off_grid") is None
@@ -1470,41 +1480,49 @@ def test_agentic_function_register_globally_false() -> None:
     assert off_grid._agent_tool.name == "off_grid"
 
 
-def test_agentic_function_tool_visible_false_registers_unexposed() -> None:
+def test_agent_method_tool_visible_false_registers_unexposed() -> None:
     """``tool_visible=False`` wires Layer-2 exposure through the
     decorator: the tool registers (Python-callable, in _registry) but
     stays out of ``exposed_names()`` — the "user-visible, agent-tool
     invisible" contract auto_workflow needs."""
-    from openprogram.agentic_programming.function import agentic_function
+    from openprogram.agentic_programming import Agent
     from openprogram.programs._runtime import exposed_names
 
-    @agentic_function(tool_visible=False, name="user_only_probe")
-    def user_only_probe(x: str) -> str:
-        return x
+    class _UserOnlyProbeAgent(Agent):
+        method_options = {'user_only_probe': {'tool_visible': False, 'name': "user_only_probe", 'tool': True, 'expose': 'io', 'capture_io': True}}
+
+        def user_only_probe(self, x: str) -> str:
+            return x
+
+    user_only_probe = _UserOnlyProbeAgent().user_only_probe
 
     assert get("user_only_probe") is not None
     assert "user_only_probe" not in exposed_names()
 
-    @agentic_function(name="default_visible_probe")
-    def default_visible_probe(x: str) -> str:
-        return x
+    class _DefaultVisibleProbeAgent(Agent):
+        method_options = {'default_visible_probe': {'name': "default_visible_probe", 'tool': True, 'expose': 'io', 'capture_io': True}}
+
+        def default_visible_probe(self, x: str) -> str:
+            return x
+
+    default_visible_probe = _DefaultVisibleProbeAgent().default_visible_probe
 
     assert "default_visible_probe" in exposed_names()
 
 
-def test_agentic_function_available_if_false_returns_raw_fn() -> None:
-    """Layer 1 gating on the with-parens form: when ``available_if``
-    returns False, the decorator returns the raw fn unchanged so
-    module-level callers don't end up with a half-built agentic
-    instance. Confirms ``__call__`` honors the Layer 1 early-exit."""
-    from openprogram.agentic_programming.function import agentic_function
+def test_agent_method_available_if_false_remains_callable_without_registration() -> None:
+    """An unavailable method remains callable and does not register a tool."""
+    from openprogram.agentic_programming import Agent
 
-    @agentic_function(available_if=lambda: False, name="gated_agentic")
-    def gated(x: str) -> str:
-        return x
+    class _GatedAgent(Agent):
+        method_options = {'gated': {'available_if': lambda: False, 'name': "gated_agentic", 'tool': True, 'expose': 'io', 'capture_io': True}}
 
-    # Returned object should be the raw fn, not an agentic_function instance
-    assert not hasattr(gated, "_wrapper")
+        def gated(self, x: str) -> str:
+            return x
+
+    gated = _GatedAgent().gated
+
+    assert gated('value') == 'value'
     assert get("gated_agentic") is None
 
 
@@ -1556,18 +1574,18 @@ def test_full_preset_is_exactly_the_exposed_universe() -> None:
 
 def test_full_preset_leaks_no_private_helper(monkeypatch) -> None:
     """Private helpers stay out of ``full``: leaf tools opt out with
-    ``expose=False``, and internal @agentic_functions with
+    ``expose=False``, and internal Agent methods with
     ``as_tool=False`` never enter the shared registry at all. Deleting
     the hand-written whitelist must not let either reach the LLM."""
     import openprogram.programs as F
-    module = importlib.import_module("openprogram.agentic_programming.function")
-    # This invariant must not depend on another test having registered a
-    # private helper in the same xdist worker.
-    monkeypatch.setattr(module, "_registry", dict(module._registry))
 
-    @module.agentic_function(as_tool=False)
-    def full_preset_agentic_private_probe() -> str:
-        return "private"
+    class _FullPresetAgenticPrivateProbeAgent(Agent):
+        method_options = {'full_preset_agentic_private_probe': {'tool': False, 'expose': 'io', 'capture_io': True, 'name': 'full_preset_agentic_private_probe'}}
+
+        def full_preset_agentic_private_probe(self, ) -> str:
+            return "private"
+
+    full_preset_agentic_private_probe = _FullPresetAgenticPrivateProbeAgent().full_preset_agentic_private_probe
 
     @function(name="full_preset_private_probe", expose=False)
     def p() -> str:
@@ -1576,9 +1594,9 @@ def test_full_preset_leaks_no_private_helper(monkeypatch) -> None:
     resolved = {t.name for t in F.agent_tools(toolset="full",
                                               include_disabled=True)}
     assert "full_preset_private_probe" not in resolved
-    internal = {n for n, f in module._registry.items() if not f.as_tool}
-    assert internal, "expected at least one as_tool=False agentic helper"
-    assert not (internal & resolved)
+    assert full_preset_agentic_private_probe() == 'private'
+    assert 'full_preset_agentic_private_probe' not in resolved
+    assert get('full_preset_agentic_private_probe') is None
 
 
 def test_exposure_disabled_via_monkeypatch(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1611,7 +1629,7 @@ def test_dispatcher_wrappers_preserve_tool_dag_exposure(expose, live_permission)
 
     tool = AgentTool(name="private_probe", description="probe", label="probe",
                      parameters={"type": "object", "properties": {}}, execute=execute)
-    tool._is_agentic = True
+    tool._is_agent_method = True
     tool._dag_expose = expose
     request = TurnRequest(session_id="exposure", user_text="", agent_id="main", source="web")
     approved = wrap_with_approval(tool, request, lambda event: None, _live=live_permission)

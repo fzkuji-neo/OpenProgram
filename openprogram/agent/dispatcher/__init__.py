@@ -419,7 +419,7 @@ def _process_turn_once(
 
     # Usage metering: label every LLM call in this turn with its source.
     # Default to "chat", but DON'T clobber a source an outer scope already
-    # set (an @agentic_function runtime / subagent wraps the turn in
+    # set (an Agent method runtime / subagent wraps the turn in
     # ``usage_scope(call_kind="exec"|"subagent")`` before calling us). Set
     # the contextvar directly (not a ``with``) so it spans the whole sync
     # turn, mirroring the plan-mode contextvar set just below.
@@ -562,7 +562,7 @@ def _process_turn_once(
             loop_history = history
         # _agentic_tool_names is filled by _run_loop_blocking once it
         # resolves the tool list — used below in step 5 to filter
-        # @agentic_function calls out of the assistant message's
+        # Agent method calls out of the assistant message's
         # tool_calls/blocks (they render as their own runtime-block row
         # instead of as collapsed tool cards under the assistant bubble).
         # The stream tap shares the same set so it can skip persisting
@@ -643,7 +643,7 @@ def _process_turn_once(
             started_at=started_at,
         )
     finally:
-        # Release the @agentic_function runtime hook. Runs on success,
+        # Release the Agent method runtime hook. Runs on success,
         # exception, AND inside the early-return above (finally fires
         # before return is actually executed).
         _bindings.release()

@@ -101,7 +101,7 @@ class TurnBindings:
             self._execution_id_token = _set_execution_id(assistant_msg_id)
         # Critical: we use ``create_runtime`` with the chat's selected model
         # (real provider) instead
-        # of a stub. @agentic_function's _inject_runtime would otherwise
+        # of a stub. Agent method's _inject_runtime would otherwise
         # pick up our stub and any ``runtime.exec`` inside the function
         # body would return whatever the stub's ``call`` does (a fixed
         # string or empty) rather than actually calling an LLM. If
@@ -112,7 +112,7 @@ class TurnBindings:
             _store as _store_var,
             _current_turn_id as _turn_id_var,
         )
-        from openprogram.agentic_programming.function import (
+        from openprogram.agentic_programming.call_state import (
             _current_runtime as _current_runtime_var,
             _render_range_override as _render_range_var,
         )
@@ -194,7 +194,7 @@ class TurnBindings:
         else:
             self.project_baseline = None
         # Expose the GraphStore via ContextVar so deep code (Runtime.exec,
-        # ask_user, @agentic_function decorator, and the file-checkpoint
+        # ask_user, Agent method decorator, and the file-checkpoint
         # helper behind write/edit/apply_patch) writes land in the same DAG
         # without threading the store through every layer.
         #
@@ -282,7 +282,7 @@ class TurnBindings:
             _store as _store_var,
             _current_turn_id as _turn_id_var,
         )
-        from openprogram.agentic_programming.function import (
+        from openprogram.agentic_programming.call_state import (
             _current_runtime as _current_runtime_var,
             _render_range_override as _render_range_var,
         )

@@ -116,7 +116,7 @@ class GoalAgent(Agent):
             raise ValueError("context_mode must be 'isolated' or 'session'")
 
         from openprogram.agentic_programming.agent import agent
-        from openprogram.agentic_programming.function import (
+        from openprogram.agentic_programming.call_state import (
             CancelledError,
             current_call_id,
             current_session_id,
@@ -468,7 +468,7 @@ class GoalAgent(Agent):
 
         def round_used_tools() -> bool:
             try:
-                from openprogram.agentic_programming.function import _current_runtime
+                from openprogram.agentic_programming.call_state import _current_runtime
 
                 blocks = getattr(_current_runtime.get(), "last_blocks", None)
                 return (

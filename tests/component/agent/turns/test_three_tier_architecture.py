@@ -1,4 +1,5 @@
 """Test three-tier architecture: goal → agent → llm."""
+
 from __future__ import annotations
 
 import json
@@ -13,55 +14,56 @@ from tests.support.workflow_tl import TL
 def session_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(TL, "_session_repo", lambda _sid: tmp_path)
     monkeypatch.setattr(TL, "_workflow_projects_root", lambda: tmp_path / "catalog")
-    monkeypatch.setattr(TL, "_registered_agentic_functions", lambda: {})
+    monkeypatch.setattr(TL, "_registered_program_entries", lambda: {})
     monkeypatch.setattr(TL, "current_session_id", lambda: "s1")
     monkeypatch.setattr(
-        TL, "_summarize_workflow",
+        TL,
+        "_summarize_workflow",
         lambda state: {"summary": str(state["result"]), "return_result": False},
     )
     return tmp_path
 
 
 def test_workflow_can_call_all_three_tiers(
-    monkeypatch: pytest.MonkeyPatch, session_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    session_repo: Path,
 ) -> None:
     """Workflow 程序里可以调用 llm、agent、goal 三层。"""
 
     def _planner(_sid, _prompt, **_kwargs):
         if "<workflow project candidates>" in _prompt:
             return json.dumps({"action": "create"})
-        return json.dumps({
-            "project_metadata": {
-                "name": "three_tier_workflow",
-                "summary": "Exercise llm, agent, and goal",
-                "tags": ["test"],
+        return json.dumps(
+            {
+                "project_metadata": {
+                    "name": "three_tier_workflow",
+                    "summary": "Exercise llm, agent, and goal",
+                    "tags": ["test"],
+                },
+                "readme": "# Three tier workflow\n",
+                "files": {
+                    "steps/tiers.py": (
+                        "def run_tiers():\n"
+                        "    summary = llm('总结一下任务')\n"
+                        "    agent('执行任务：' + summary)\n"
+                        "    return goal('优化结果，直到测试通过')\n"
+                    ),
+                    "__init__.py": (
+                        "from .workflow import three_tier_workflow\n\n"
+                        "__all__ = ['three_tier_workflow']\n"
+                    ),
+                    "workflow.py": (
+                        "from openprogram import Agent\nfrom .steps.tiers import run_tiers\n\nclass ThreeTierWorkflowAgent(Agent):\n    method_options = {\n        'three_tier_workflow': {\n            'name': 'three_tier_workflow',\n            'tool': True\n        },\n    }\n\n    def three_tier_workflow(self, task):\n        return run_tiers()\n\n\nthree_tier_workflow = ThreeTierWorkflowAgent().three_tier_workflow\n"
+                    ),
+                    "tests/test_workflow.py": (
+                        "from workflows.three_tier_workflow import three_tier_workflow\n\n"
+                        "def test_three_tier_workflow():\n"
+                        "    assert callable(three_tier_workflow)\n"
+                    ),
+                },
             },
-            "readme": "# Three tier workflow\n",
-            "files": {
-                "steps/tiers.py": (
-                    "def run_tiers():\n"
-                    "    summary = llm('总结一下任务')\n"
-                    "    agent('执行任务：' + summary)\n"
-                    "    return goal('优化结果，直到测试通过')\n"
-                ),
-                "__init__.py": (
-                    "from .workflow import three_tier_workflow\n\n"
-                    "__all__ = ['three_tier_workflow']\n"
-                ),
-                "workflow.py": (
-                    "from openprogram.agentic_programming import agentic_function\n"
-                    "from .steps.tiers import run_tiers\n\n"
-                    "@agentic_function\n"
-                    "def three_tier_workflow(task):\n"
-                    "    return run_tiers()\n"
-                ),
-                "tests/test_workflow.py": (
-                    "from workflows.three_tier_workflow import three_tier_workflow\n\n"
-                    "def test_three_tier_workflow():\n"
-                    "    assert callable(three_tier_workflow)\n"
-                ),
-            },
-        }, ensure_ascii=False)
+            ensure_ascii=False,
+        )
 
     llm_calls = []
     agent_calls = []

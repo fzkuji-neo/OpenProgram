@@ -23,7 +23,7 @@ import pytest
 from openprogram.context.persistence import SUMMARY_NODE_NAME
 from openprogram.context.nodes import Call, ROLE_CODE
 from openprogram.store import SessionNodeWriter
-from openprogram.agentic_programming.function import create_pending_call_node
+from openprogram.agentic_programming.call_state import create_pending_call_node
 from openprogram.store.session.session_store import SessionStore
 from openprogram.webui.graph_builder import build_session_graph
 

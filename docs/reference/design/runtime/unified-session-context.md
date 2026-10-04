@@ -42,8 +42,8 @@ SessionNodeWriter(db, session_id)                   # thin wrapper: append/updat
 ContextVars (per turn, must be set+reset in pairs):
    _store           = SessionNodeWriter(...)         # deep code reads it to write the DAG / render docs
    _current_turn_id = assistant_msg_id            # which message a file backup is attributed to
-   _current_runtime = create_runtime()            # used for @agentic_function auto-injection
-   _call_id         = (set by the @agentic_function wrapper)  # node called_by attribution
+   _current_runtime = create_runtime()            # used for Agent method auto-injection
+   _call_id         = (set by the Agent method wrapper)  # node called_by attribution
 ```
 
 work-dir and session are **two independent persistence layers**: work-dir stores research output files

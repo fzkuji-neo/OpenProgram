@@ -32,7 +32,7 @@ class Runtime(call=None, model="default", max_retries=None, api_key=None, skills
 |------|------|------|
 | `model` | `str` | 默认模型名称 |
 | `max_retries` | `int` | 解析后的重试预算 |
-| `system` | `str` | 可赋值的 system prompt,`exec()` 在 provider 路径上读取(`@agentic_function(system=...)` 装饰器会在调用期间设置它) |
+| `system` | `str` | 可赋值的 system prompt,`exec()` 在 provider 路径上读取(`method_options["method"]["system"]` 会在调用期间设置它) |
 | `thinking_level` | `str` | 推理力度旋钮:`"off"`(默认)/ `"low"` / `"medium"` / `"high"` / `"xhigh"`,透传给 provider |
 | `session_id` | `str` | 跨多次 `exec()` 稳定的 id(`"op-<hex>"`),provider 拿它当 prompt-cache key |
 | `on_stream` | `Callable \| None` | 可选回调 `fn(event_dict)`,接收流式事件(text / thinking / tool_use / tool_result) |
@@ -72,7 +72,7 @@ Agent 方法或函数作用域可以多次调用 `exec()`,每次都是 DAG 上�
 | `context` | `str \| None` | `None` | 遗留参数,已被忽略——provider 路径从 DAG 构建历史 |
 | `response_format` | `dict \| JsonSchemaOutput \| None` | `None` | 裸 JSON Schema 或规范化 `JsonSchemaOutput` 包络。已验证的 provider/model 组合使用已注册的原生映射；否则 `fallback="auto"` 可使用已验证的隐藏 strict-tool 路径，提示词回退必须显式设置 `fallback="prompt"`。不支持或有损的组合直接失败。终态按原始 schema 做本地解析与校验，并返回 Python JSON 值；`max_validation_retries` 可以是 `0`、`1` 或 `2`（默认 `2`）；校验修复与截断重新生成共享此次数。同时仍转发给 `_call()` 供子类使用 |
 | `model` | `str \| None` | `None` | 覆盖默认模型 |
-| `tools` | `list \| None` | `None` | 本次调用 LLM 可用的工具。每项可以是显式登记的 Agent 方法、旧装饰器函数、`{"spec":..., "execute":...}` 字典、或带 `.spec` / `.execute` 的对象。设了就跑工具循环直到模型返回纯文本。**默认(`None`)不是"无工具"**:调用会拿到完整的注册工具集;纯推理调用传 `toolset="none"`,要显式空列表传 `tools=[]` |
+| `tools` | `list \| None` | `None` | 本次调用 LLM 可用的工具。每项可以是显式登记的 Agent 方法、`{"spec":..., "execute":...}` 字典、或带 `.spec` / `.execute` 的对象。设了就跑工具循环直到模型返回纯文本。**默认(`None`)不是"无工具"**:调用会拿到完整的注册工具集;纯推理调用传 `toolset="none"`,要显式空列表传 `tools=[]` |
 | `toolset` / `tools_source` / `tools_allow` / `tools_deny` | — | `None` | 工具集预设与策略过滤:`toolset` 指名预设(`"full"` 是隐式默认,`"none"` 表示退出),`tools_source` 按渠道来源过滤,`tools_allow` / `tools_deny` 是名单允许/拒绝列表 |
 | `tool_choice` | `str \| dict` | `"auto"` | `"auto"` / `"required"` / `"none"` / `{"type":"function","name":"X"}` 强制某工具。透传到 provider(OpenAI / Anthropic / Gemini / Bedrock 各自映射协议形态) |
 | `parallel_tool_calls` | `bool` | `True` | 允许一轮多个工具调用;`False` 透传到支持该开关的 provider |
@@ -207,7 +207,7 @@ finally:
     runtime.close()
 ```
 
-[Agent 与 Context API](agentic-function.zh.md) 说明配置、显式会话与作用域。旧装饰器继续兼容。
+[Agent 与 Context API](agent.zh.md) 说明配置、显式会话与作用域。方法配置继续兼容。
 
 ## Retry 机制
 

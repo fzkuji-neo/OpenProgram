@@ -40,7 +40,7 @@ def make_stream_tap(
     """Return the wrapped ``on_event`` used for the agent-loop run.
 
     ``agentic_tool_names`` is the (shared, mutable) set the loop runner
-    fills once it resolves the tool list — @agentic_function calls are
+    fills once it resolves the tool list — Agent method calls are
     rendered as a runtime-block row (persisted by the wrapper in
     ``_wrap_agentic_runtime_block``), so the tap skips them here to
     avoid duplicating the call in chat.
@@ -140,7 +140,7 @@ def make_stream_tap(
                 if not tid:
                     return
                 meta = _tool_args_by_id.get(tid, {})
-                # @agentic_function tool calls are rendered as a
+                # Agent method tool calls are rendered as a
                 # runtime-block row (persisted by the wrapper in
                 # _wrap_agentic_runtime_block) — don't ALSO persist
                 # them as collapsed role=tool entries, that would

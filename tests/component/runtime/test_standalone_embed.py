@@ -46,18 +46,19 @@ def test_public_surface_imports_without_heavy_modules():
 
     code = (
         "import sys\n"
-        "from openprogram import agentic_function, Runtime, decision, Session\n"
+        "from openprogram import Agent, Runtime, decision, Session\n"
         "loaded = [m for m in "
         f"{HEAVY_MODULES!r}"
         " if m in sys.modules]\n"
         "assert not loaded, loaded\n"
-        "assert callable(agentic_function)\n"
+        "assert callable(Agent)\n"
         "assert callable(decision.make)\n"
         "print('ok')\n"
     )
     proc = subprocess.run(
         [sys.executable, "-c", code],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert proc.returncode == 0, (
         f"embedded import failed:\nstdout={proc.stdout}\nstderr={proc.stderr}"
@@ -69,13 +70,14 @@ def test_top_level_names_are_exported():
     """The four embedding entry points resolve off the package root."""
     import openprogram
 
-    from openprogram import agentic_function, Runtime, decision, Session
+    from openprogram import Runtime, decision, Session
+    from openprogram import Agent
 
-    assert agentic_function is openprogram.agentic_function
+    assert Agent is openprogram.Agent
     assert Runtime is openprogram.Runtime
     assert Session is openprogram.Session
     assert decision is openprogram.decision
-    for name in ("agentic_function", "Runtime", "decision", "Session"):
+    for name in ("Agent", "Runtime", "decision", "Session"):
         assert name in openprogram.__all__
 
 
@@ -109,22 +111,30 @@ def no_implicit_state_dir(monkeypatch):
 
 
 def test_function_executes_with_host_supplied_call(no_implicit_state_dir):
-    """An @agentic_function runs off a host-provided call fn, no store, no paths."""
-    from openprogram import agentic_function, Runtime
+    """An @Agent runs off a host-provided call fn, no store, no paths."""
+    from openprogram import Runtime
+    from openprogram import Agent
 
     runtime = Runtime(call=echo_call, model="test")
 
-    @agentic_function
-    def summarize(text, runtime=None):
-        """Echo the text back."""
-        return runtime.exec(text)
+    class SummarizeAgent(Agent):
+        method_options = {
+            "summarize": {"name": "summarize", "tool": True},
+        }
+
+        def summarize(self, text, runtime=None):
+            """Echo the text back."""
+            return runtime.exec(text)
+
+    summarize = SummarizeAgent().summarize
 
     assert "hello embedded" in summarize("hello embedded", runtime=runtime)
 
 
 def test_execution_persists_to_explicit_directory(tmp_path, no_implicit_state_dir):
     """Session state lands in the caller's directory and reads back as a DAG."""
-    from openprogram import agentic_function, Runtime
+    from openprogram import Runtime
+    from openprogram import Agent
     from openprogram.store import SessionNodeWriter, SessionStore, session_scope
 
     store = SessionStore(tmp_path / "host_sessions")
@@ -133,10 +143,16 @@ def test_execution_persists_to_explicit_directory(tmp_path, no_implicit_state_di
 
     runtime = Runtime(call=echo_call, model="test")
 
-    @agentic_function
-    def summarize(text, runtime=None):
-        """Echo the text back."""
-        return runtime.exec(text)
+    class SummarizeAgent(Agent):
+        method_options = {
+            "summarize": {"name": "summarize", "tool": True},
+        }
+
+        def summarize(self, text, runtime=None):
+            """Echo the text back."""
+            return runtime.exec(text)
+
+    summarize = SummarizeAgent().summarize
 
     with session_scope(store, "embedded"):
         summarize("persist me", runtime=runtime)
@@ -157,17 +173,24 @@ def test_execution_persists_to_explicit_directory(tmp_path, no_implicit_state_di
 
 def test_runs_without_any_store(no_implicit_state_dir):
     """No store installed → executes normally, persists nothing."""
-    from openprogram import agentic_function, Runtime
+    from openprogram import Runtime
+    from openprogram import Agent
     from openprogram.store import _store
 
     assert _store.get() is None
 
     runtime = Runtime(call=echo_call, model="test")
 
-    @agentic_function
-    def plain(text, runtime=None):
-        """Echo the text back."""
-        return runtime.exec(text)
+    class PlainAgent(Agent):
+        method_options = {
+            "plain": {"name": "plain", "tool": True},
+        }
+
+        def plain(self, text, runtime=None):
+            """Echo the text back."""
+            return runtime.exec(text)
+
+    plain = PlainAgent().plain
 
     assert "no persistence" in plain("no persistence", runtime=runtime)
 
@@ -182,14 +205,21 @@ def test_executes_with_webui_absent(no_implicit_state_dir):
     """
     import builtins
 
-    from openprogram import agentic_function, Runtime
+    from openprogram import Runtime
+    from openprogram import Agent
 
     runtime = Runtime(call=echo_call, model="test")
 
-    @agentic_function
-    def summarize(text, runtime=None):
-        """Echo the text back."""
-        return runtime.exec(text)
+    class SummarizeAgent(Agent):
+        method_options = {
+            "summarize": {"name": "summarize", "tool": True},
+        }
+
+        def summarize(self, text, runtime=None):
+            """Echo the text back."""
+            return runtime.exec(text)
+
+    summarize = SummarizeAgent().summarize
 
     real_import = builtins.__import__
     blocked = ("openprogram.webui", "fastapi", "uvicorn", "textual")
@@ -199,8 +229,11 @@ def test_executes_with_webui_absent(no_implicit_state_dir):
             raise ImportError(f"No module named {name!r}")
         return real_import(name, *args, **kwargs)
 
-    cached = {m: sys.modules.pop(m) for m in list(sys.modules)
-              if m == "openprogram.webui" or m.startswith("openprogram.webui.")}
+    cached = {
+        m: sys.modules.pop(m)
+        for m in list(sys.modules)
+        if m == "openprogram.webui" or m.startswith("openprogram.webui.")
+    }
     builtins.__import__ = without_webui
     try:
         assert "headless" in summarize("headless run", runtime=runtime)
@@ -221,14 +254,21 @@ def test_missing_subsystem_fails_fast(no_implicit_state_dir):
     import builtins
     import time
 
-    from openprogram import agentic_function, Runtime
+    from openprogram import Runtime
+    from openprogram import Agent
 
     runtime = Runtime(call=echo_call, model="test")
 
-    @agentic_function
-    def summarize(text, runtime=None):
-        """Echo the text back."""
-        return runtime.exec(text)
+    class SummarizeAgent(Agent):
+        method_options = {
+            "summarize": {"name": "summarize", "tool": True},
+        }
+
+        def summarize(self, text, runtime=None):
+            """Echo the text back."""
+            return runtime.exec(text)
+
+    summarize = SummarizeAgent().summarize
 
     real_import = builtins.__import__
 
@@ -237,8 +277,11 @@ def test_missing_subsystem_fails_fast(no_implicit_state_dir):
             raise ImportError(f"No module named {name!r}")
         return real_import(name, *args, **kwargs)
 
-    cached = {m: sys.modules.pop(m) for m in list(sys.modules)
-              if m == "openprogram.agent" or m.startswith("openprogram.agent.")}
+    cached = {
+        m: sys.modules.pop(m)
+        for m in list(sys.modules)
+        if m == "openprogram.agent" or m.startswith("openprogram.agent.")
+    }
     builtins.__import__ = without_agent
     started = time.monotonic()
     try:
@@ -253,13 +296,19 @@ def test_missing_subsystem_fails_fast(no_implicit_state_dir):
 
 def test_spec_is_openai_tool_shaped(no_implicit_state_dir):
     """``fn.spec`` converts to the tools format a host's own loop expects."""
-    from openprogram import agentic_function
+    from openprogram import Agent
     from openprogram.agentic_programming.tool_format import to_openai_tool
 
-    @agentic_function
-    def lookup(city: str, runtime=None):
-        """Look up the weather for a city."""
-        return runtime.exec(city)
+    class LookupAgent(Agent):
+        method_options = {
+            "lookup": {"name": "lookup", "tool": True},
+        }
+
+        def lookup(self, city: str, runtime=None):
+            """Look up the weather for a city."""
+            return runtime.exec(city)
+
+    lookup = LookupAgent().lookup
 
     tool = to_openai_tool(lookup)
     assert tool["type"] == "function"

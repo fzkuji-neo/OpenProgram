@@ -60,22 +60,21 @@ def _append_execution(
     caller: str = "",
     predecessor: str = "",
 ) -> None:
-    SessionNodeWriter(store, session_id).append(Call(
-        id=execution_id,
-        role=ROLE_CODE,
-        name="cancellation_probe",
-        output="partial output",
-        caller=caller,
-        predecessor=predecessor,
-        metadata={"status": status, "execution_kind": "agentic_function"},
-    ))
+    SessionNodeWriter(store, session_id).append(
+        Call(
+            id=execution_id,
+            role=ROLE_CODE,
+            name="cancellation_probe",
+            output="partial output",
+            caller=caller,
+            predecessor=predecessor,
+            metadata={"status": status, "execution_kind": "agent_method"},
+        )
+    )
 
 
 def _node(store: SessionStore, session_id: str, execution_id: str) -> Call:
-    return next(
-        node for node in store.get_nodes(session_id)
-        if node.id == execution_id
-    )
+    return next(node for node in store.get_nodes(session_id) if node.id == execution_id)
 
 
 def _field(value: Any, name: str) -> Any:
@@ -103,15 +102,23 @@ def test_cancel_execution_targets_one_execution_and_persists_intent(store):
     store.create_session(session_id, "main")
     _append_execution(store, session_id, "exec-1", status="running")
     _append_execution(
-        store, session_id, "exec-2", status="running", predecessor="exec-1",
+        store,
+        session_id,
+        "exec-2",
+        status="running",
+        predecessor="exec-1",
     )
     first = threading.Event()
     second = threading.Event()
     run_control.register_cancel_event(
-        session_id, first, execution_id="exec-1",
+        session_id,
+        first,
+        execution_id="exec-1",
     )
     run_control.register_cancel_event(
-        session_id, second, execution_id="exec-2",
+        session_id,
+        second,
+        execution_id="exec-2",
     )
 
     result = run_control.cancel_execution("exec-1")
@@ -135,9 +142,7 @@ def test_cancel_execution_never_overwrites_a_terminal_result(store):
     with pytest.raises(run_control.ExecutionNotCancellable):
         run_control.cancel_execution("completed")
 
-    assert _node(store, session_id, "completed").metadata["status"] == (
-        "completed"
-    )
+    assert _node(store, session_id, "completed").metadata["status"] == ("completed")
 
 
 def test_cancel_execution_is_idempotent_after_cancelled(store):
@@ -150,9 +155,7 @@ def test_cancel_execution_is_idempotent_after_cancelled(store):
 
     assert _field(first, "status") == "cancelled"
     assert _field(second, "status") == "cancelled"
-    assert _node(store, session_id, "cancelled").metadata["status"] == (
-        "cancelled"
-    )
+    assert _node(store, session_id, "cancelled").metadata["status"] == ("cancelled")
 
 
 def test_parent_cancel_uses_caller_edges_without_duplicate_parent_storage(store):
@@ -160,13 +163,25 @@ def test_parent_cancel_uses_caller_edges_without_duplicate_parent_storage(store)
     store.create_session(session_id, "main")
     _append_execution(store, session_id, "root", status="running")
     _append_execution(
-        store, session_id, "child", status="running", caller="root",
+        store,
+        session_id,
+        "child",
+        status="running",
+        caller="root",
     )
     _append_execution(
-        store, session_id, "grandchild", status="running", caller="child",
+        store,
+        session_id,
+        "grandchild",
+        status="running",
+        caller="child",
     )
     _append_execution(
-        store, session_id, "unrelated", status="running", predecessor="root",
+        store,
+        session_id,
+        "unrelated",
+        status="running",
+        predecessor="root",
     )
     events = {
         execution_id: threading.Event()
@@ -174,7 +189,9 @@ def test_parent_cancel_uses_caller_edges_without_duplicate_parent_storage(store)
     }
     for execution_id, event in events.items():
         run_control.register_cancel_event(
-            session_id, event, execution_id=execution_id,
+            session_id,
+            event,
+            execution_id=execution_id,
         )
 
     run_control.cancel_execution("root")
@@ -183,17 +200,13 @@ def test_parent_cancel_uses_caller_edges_without_duplicate_parent_storage(store)
     assert events["child"].is_set()
     assert events["grandchild"].is_set()
     assert not events["unrelated"].is_set()
-    assert _node(store, session_id, "root").metadata["reason_code"] == (
-        "cancel.user"
-    )
+    assert _node(store, session_id, "root").metadata["reason_code"] == ("cancel.user")
     for execution_id in ("child", "grandchild"):
         node = _node(store, session_id, execution_id)
         assert node.metadata["status"] == "cancelling"
         assert node.metadata["reason_code"] == "cancel.parent"
         assert "parent_execution_id" not in node.metadata
-    assert _node(store, session_id, "unrelated").metadata["status"] == (
-        "running"
-    )
+    assert _node(store, session_id, "unrelated").metadata["status"] == ("running")
 
 
 def test_queued_execution_without_an_owner_finishes_cancelled(store):
@@ -213,15 +226,23 @@ def test_queued_execution_without_an_owner_finishes_cancelled(store):
 def test_unknown_execution_does_not_expose_or_mutate_another_session(store):
     store.create_session("private-session", "main")
     _append_execution(
-        store, "private-session", "private-exec", status="running",
+        store,
+        "private-session",
+        "private-exec",
+        status="running",
     )
 
     with pytest.raises(run_control.ExecutionNotFound):
         run_control.cancel_execution("missing-exec")
 
-    assert _node(
-        store, "private-session", "private-exec",
-    ).metadata["status"] == "running"
+    assert (
+        _node(
+            store,
+            "private-session",
+            "private-exec",
+        ).metadata["status"]
+        == "running"
+    )
 
 
 def test_persist_cancelling_before_the_token_is_tripped(store):
@@ -230,7 +251,9 @@ def test_persist_cancelling_before_the_token_is_tripped(store):
     _append_execution(store, session_id, "exec-1", status="running")
     event = threading.Event()
     run_control.register_cancel_event(
-        session_id, event, execution_id="exec-1",
+        session_id,
+        event,
+        execution_id="exec-1",
     )
     entered = threading.Event()
     release = threading.Event()
@@ -270,9 +293,7 @@ def test_failed_and_interrupted_are_not_overwritten(store):
         run_control.cancel_execution("interrupted")
 
     assert _node(store, session_id, "failed").metadata["status"] == "failed"
-    assert _node(store, session_id, "interrupted").metadata["status"] == (
-        "interrupted"
-    )
+    assert _node(store, session_id, "interrupted").metadata["status"] == ("interrupted")
 
 
 def test_repeat_cancel_on_cancelling_does_not_reset_grace(store):
@@ -302,17 +323,23 @@ def test_late_cancel_of_retired_execution_does_not_trip_the_next(store):
     _append_execution(store, session_id, "exec-a", status="running")
     event_a = threading.Event()
     run_control.register_cancel_event(
-        session_id, event_a, execution_id="exec-a",
+        session_id,
+        event_a,
+        execution_id="exec-a",
     )
     run_control.cancel_execution("exec-a")
     run_control.unregister_cancel_event(
-        session_id, event_a, execution_id="exec-a",
+        session_id,
+        event_a,
+        execution_id="exec-a",
     )
 
     _append_execution(store, session_id, "exec-b", status="running")
     event_b = threading.Event()
     run_control.register_cancel_event(
-        session_id, event_b, execution_id="exec-b",
+        session_id,
+        event_b,
+        execution_id="exec-b",
     )
     again = run_control.cancel_execution("exec-a")
 
@@ -327,7 +354,9 @@ def test_spawn_after_ancestor_cas_is_refused_with_cancel_parent(store):
     _append_execution(store, session_id, "parent", status="running")
     event = threading.Event()
     run_control.register_cancel_event(
-        session_id, event, execution_id="parent",
+        session_id,
+        event,
+        execution_id="parent",
     )
     entered = threading.Event()
     release = threading.Event()
@@ -352,7 +381,7 @@ def test_spawn_after_ancestor_cas_is_refused_with_cancel_parent(store):
 
 
 def test_child_entry_commit_is_atomic_with_parent_cancel(store):
-    from openprogram.agentic_programming.function import (
+    from openprogram.agentic_programming.call_state import (
         _append_function_call_entry,
         _call_id,
     )
@@ -460,27 +489,31 @@ def test_persist_assistant_message_does_not_overwrite_cancelling(store):
 
     session_id = "persist-cas"
     store.create_session(session_id, "main")
-    SessionNodeWriter(store, session_id).append(Call(
-        id="user-1",
-        role=ROLE_USER,
-        output="run",
-        predecessor="ROOT",
-    ))
-    SessionNodeWriter(store, session_id).append(Call(
-        id="user-1_reply",
-        role=ROLE_LLM,
-        output="",
-        predecessor="user-1",
-        metadata={"status": "running", "execution_kind": "agent"},
-    ))
+    SessionNodeWriter(store, session_id).append(
+        Call(
+            id="user-1",
+            role=ROLE_USER,
+            output="run",
+            predecessor="ROOT",
+        )
+    )
+    SessionNodeWriter(store, session_id).append(
+        Call(
+            id="user-1_reply",
+            role=ROLE_LLM,
+            output="",
+            predecessor="user-1",
+            metadata={"status": "running", "execution_kind": "agent"},
+        )
+    )
     event = threading.Event()
     run_control.register_cancel_event(
-        session_id, event, execution_id="user-1_reply",
+        session_id,
+        event,
+        execution_id="user-1_reply",
     )
     run_control.cancel_execution("user-1_reply")
-    assert _node(store, session_id, "user-1_reply").metadata["status"] == (
-        "cancelling"
-    )
+    assert _node(store, session_id, "user-1_reply").metadata["status"] == ("cancelling")
 
     req = TurnRequest(
         session_id=session_id,
@@ -510,7 +543,7 @@ def test_persist_assistant_message_does_not_overwrite_cancelling(store):
 
 
 def test_append_function_call_refuses_spawn_after_parent_cancelling(store):
-    from openprogram.agentic_programming import function as fnmod
+    from openprogram.agentic_programming import call_state as fnmod
     from openprogram.store import _store
 
     session_id = "spawn-real-path"
@@ -518,7 +551,9 @@ def test_append_function_call_refuses_spawn_after_parent_cancelling(store):
     _append_execution(store, session_id, "parent", status="running")
     event = threading.Event()
     run_control.register_cancel_event(
-        session_id, event, execution_id="parent",
+        session_id,
+        event,
+        execution_id="parent",
     )
     run_control.cancel_execution("parent")
     assert _node(store, session_id, "parent").metadata["status"] == "cancelling"
@@ -571,6 +606,7 @@ def test_cancel_execution_withdraws_a_queued_job(store, monkeypatch):
         status=JobStatus.QUEUED,
     )
     from openprogram.agent.job import get_runner
+
     save_job(session_id, job)
     # Startup migration marks a projection without canonical identity as
     # unavailable before any public control call can observe it.
@@ -618,11 +654,15 @@ def test_cancel_execution_signals_a_running_job_with_a_live_owner(store):
     run_control.set_execution_update_hook(updates.append)
     event = threading.Event()
     assert run_control.claim_cancel_event(
-        session_id, event, execution_id="j_runningcancel",
+        session_id,
+        event,
+        execution_id="j_runningcancel",
     )
     child_event = threading.Event()
     assert run_control.claim_cancel_event(
-        child_session_id, child_event, execution_id="j_runningchild",
+        child_session_id,
+        child_event,
+        execution_id="j_runningchild",
         foreground=False,
     )
     run_control.CANCEL_GRACE_S = 0.05
@@ -636,10 +676,14 @@ def test_cancel_execution_signals_a_running_job_with_a_live_owner(store):
         assert not child_event.is_set()
     finally:
         run_control.unregister_cancel_event(
-            session_id, event, execution_id="j_runningcancel",
+            session_id,
+            event,
+            execution_id="j_runningcancel",
         )
         run_control.unregister_cancel_event(
-            child_session_id, child_event, execution_id="j_runningchild",
+            child_session_id,
+            child_event,
+            execution_id="j_runningchild",
         )
         for owner in list(run_control._owners.values()):
             owner.retired = True

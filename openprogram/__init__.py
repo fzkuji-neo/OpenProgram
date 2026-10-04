@@ -1,18 +1,16 @@
 """Public entries for configured Agents and task-local Context.
 
 Imports are lazy. Importing openprogram does not create a Runtime, session,
-provider, tool registration, or user interface. Legacy agentic_function remains
-available for external compatibility.
+provider, tool registration, or user interface.
 """
 
-__all__ = ["agentic_function", "Runtime", "decision", "Session", "Agent", "Context", "agent", "agent_async"]
+__all__ = ["Runtime", "decision", "Session", "Agent", "Context", "agent", "agent_async"]
 
 _LAZY = {
     "Agent": ("openprogram.agentic_programming.agent_class", "Agent"),
     "Context": ("openprogram.context", "Context"),
     "agent": ("openprogram.agent", None),
     "agent_async": ("openprogram.agentic_programming.agent", "agent_async"),
-    "agentic_function": ("openprogram.agentic_programming.function", "agentic_function"),
     "Runtime": ("openprogram.agentic_programming.runtime", "Runtime"),
     "Session": ("openprogram.agentic_programming.session", "Session"),
     "decision": ("openprogram.agentic_programming.decision", None),

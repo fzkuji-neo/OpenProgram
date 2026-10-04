@@ -304,7 +304,7 @@
       <h3 style="color:#4f8ef7">Per-turn tokens; two entry points have different semantics</h3>
       <div class="noun">openprogram/agent/run_control.py</div>
       <div class="row"><div class="t">Model</div><div class="v">Per-turn <code>CancelToken</code>, <b>never per-session</b>: <code>threading.Event</code> plus the <code>retired</code> flag; a stop arriving after a turn ends cannot affect the next turn.</div></div>
-      <div class="row"><div class="t">Global hook</div><div class="v">Install at import: <code>add_pre_invocation_hook</code> and <code>set_cancellation_check</code>; each <code>@agentic_function</code> entry and each <code>Runtime.exec</code> aborts.</div></div>
+      <div class="row"><div class="t">Global hook</div><div class="v">Install at import: <code>add_pre_invocation_hook</code> and <code>set_cancellation_check</code>; each <code>Agent method</code> entry and each <code>Runtime.exec</code> aborts.</div></div>
       <div class="row good"><div class="t">Unified entry point</div><div class="v">Cancellation accepts only the canonical <code>execution_id</code>, persists cancellation intent first, then wakes the corresponding owner and pending questions. ACP, MCP, Channels, and Web share one Control Service; session requests without an execution identity do not activate it.</div></div>
     </div>
 

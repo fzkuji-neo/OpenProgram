@@ -141,7 +141,7 @@ workspace lock, and rolls back all already-applied paths after an I/O failure.
 tools deep in the stack don't need the session threaded through every
 call:
 - `_store` — the `(SessionStore, session_id)` shim. Used by the backup
-  helper, read-tracking, and `@agentic_function` DAG writes. Unset
+  helper, read-tracking, and `Agent method` DAG writes. Unset
   outside a turn ⇒ those features no-op gracefully.
 - `_current_turn_id` — the assistant message id of the turn in flight;
   keys the per-turn file backups.

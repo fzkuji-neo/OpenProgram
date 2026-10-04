@@ -25,7 +25,7 @@ terminology.
 Authoring surface                     LLM API wire / providers/types.py
 ─────────────────────────────────────────────────────────────────
 @function decorator                    Tool / ToolCall / ToolResultMessage
-@agentic_function decorator            tools=[...] field
+Agent method configuration            tools=[...] field
 agent_tools() / get_agent_tool() …    tool_calls=[...] field
 ```
 
@@ -38,11 +38,11 @@ format doesn't have (sidecar gating, sync→async, char-cap, etc.).
 
 ## Explicit registration and one registry
 
-Agent methods request tool registration with `method_options["method"]["tool"] = True`. Managed Program packages explicitly list public entries in `AGENTIC_FUNCTIONS`. Deterministic `function()` tools and the legacy `agentic_function` adapter remain supported.
+Agent methods request tool registration with `method_options["method"]["tool"] = True`. Managed Program packages explicitly list public entries in `PROGRAM_ENTRIES`. Deterministic `function()` tools and ordinary Agent methods use the same registry.
 
 All forms use the existing AgentTool registry and authorization rules. Automatic scope capture alone does not expose a tool. The [unified Agent and Context contract](../integrations/nooa.html#contract) owns class authoring and execution lifetime.
 
-## The shared kwargs (apply to both decorators)
+## Shared method and tool settings
 
 ```
 kwarg                       what it controls
@@ -51,7 +51,7 @@ name, description,          model-facing surface (the JSON the
 parameters, label           LLM sees)
                             auto-derived from def signature +
                             docstring if omitted (only @function;
-                            @agentic_function reuses
+                            Agent method reuses
                             _build_agentic_tool_spec)
 
 max_result_chars,           result truncation — head+tail with
@@ -111,7 +111,7 @@ Claude Code's `tools.ts`). Layer 2 is registration-driven exposure
 Layer  When                  How configured                Effect when rejected
 ─────────────────────────────────────────────────────────────────────────────────
 1   at import / decoration  @function(available_if=...)    tool never enters
-                            @agentic_function(             _registry → invisible
+                            method_options             _registry → invisible
                               available_if=...)            everywhere
                                                             (Claude Code's
                                                             `feature() ?
@@ -401,133 +401,36 @@ neither Claude Code, Hermes, nor OpenClaw ship:
    user / role allowed to use it" (can_use)
 ```
 
-## Why two decorators, not one
+## Agent method registration
 
-The two decorators wrap different *kinds of work*:
+Agent defines ordinary methods. `method_options` assigns configuration by method name. `tool=True` explicitly registers a method, while ordinary helpers retain call scopes without tool exposure.
 
-- **@function** wraps deterministic Python code. The body runs once
-  per LLM tool_call and returns its result. No LLM rounds inside.
-  Examples: ``bash`` runs subprocess, ``web_search`` calls an API,
-  ``read`` reads a file. The decorated function is **only** called
-  by the LLM via dispatcher — no Python code does ``bash("ls")``
-  directly. So it's safe for the decorator to REPLACE the Python
-  name with the ``AgentTool`` object (the original function is
-  gone from the module namespace after decoration).
+```python
+from openprogram import Agent
 
-- **@agentic_function** wraps "an inner agent loop" — the body
-  itself runs an LLM via ``runtime.exec(...)`` and may call other
-  ``@agentic_function``s recursively. These functions are called by
-  the LLM **and** also called directly from Python — one
-  ``@agentic_function`` typically composes several others, e.g.
-  ``research_pipeline`` calls ``survey_topic`` → ``generate_ideas``
-  → ``rank_ideas`` as plain Python. So the decorated name must
-  **remain a Python callable**. We can't replace it with an
-  ``AgentTool`` like @function does.
+class ResearchAgent(Agent):
+    method_options = {
+        "research": {
+            "tool": True,
+            "name": "research",
+            "toolset": ["research"],
+            "expose": "io",
+        },
+    }
 
-Hence: @agentic_function is a **class decorator**. The decorated
-name becomes a class instance that:
+    def research(self, topic: str, runtime=None) -> str:
+        """Research a topic."""
+        return self(topic)
 
-- Has ``__call__`` so ``research("topic")`` runs the wrapper
-  (synchronously or as a coroutine, matching the original fn)
-- Has a sidecar ``_agent_tool`` referencing an ``AgentTool`` that
-  was registered in the shared registry
-- Has methods (``.execute``, ``.spec``) and attributes
-  (``.expose``, ``.render_range``, ``._fn``, ``._wrapper``) that
-  other code (``program``, the webui, DAG visualizer) reads
-
-Both decorators contribute ``AgentTool`` entries to one shared
-registry, so the dispatcher / agent_loop / provider adapter only
-ever deal with ``AgentTool`` — they don't distinguish the two
-decorators. The split is invisible past the registry layer.
-
-The same logic could in principle be a single class decorator with
-a ``mode="leaf" | "agentic"`` flag, but that hides the genuine
-semantic difference inside a flag. Two decorators makes the choice
-explicit at the call site: ``@function`` on a leaf, ``@agentic_function``
-on an agentic body.
-
-## Decoration → registration trace
-
-### @function (leaf)
-
-```
-@function(name="bash", toolset=["core"], unsafe_in=["wechat"], ...)
-def bash(command: str) -> str: ...
-
-→ function(name="bash", ...) is called with no fn → returns _inner
-
-→ _inner(bash) is called → re-enters function(bash, name="bash", ...)
-
-  Inside function():
-    - parse docstring + type hints (or use overrides)
-    - build _execute async closure that calls bash(**args)
-    - _build_and_register_tool(
-          name="bash", description=…, parameters=…, label=…,
-          execute=_execute, check_fn=…, defer=…, toolsets=[…],
-          unsafe_in=[…], register_globally=True)
-      → constructs AgentTool
-      → setattr sidecar attrs (_check_fn / _requires_env / _can_use /
-                                _defer / _requires_approval)
-      → register(agent_tool, toolsets=…, unsafe_in=…)
-        → _registry["bash"] = agent_tool
-        → _toolset_membership["bash"] = {"core"}
-        → _unsafe_in_channel["bash"] = {"wechat"}
-      → returns AgentTool
-    - returns AgentTool
-
-→ module-level name `bash` now points at the AgentTool
+researcher = ResearchAgent()
+PROGRAM_ENTRIES = [researcher.research]
 ```
 
-### @agentic_function (composite)
+The Agent class installs method call handling. This handling runs cancellation hooks, runtime injection, Context derivation, DAG entry and terminal updates, and error restoration. Method options retain schema, caching, timeout, availability, approval, and explicit-step recovery settings.
 
-```
-@agentic_function(name="research", toolset=["research"], expose="io", ...)
-def research(topic: str) -> str: ...
+Agent construction registers methods that explicitly request tool exposure. Registration uses the same existing AgentTool registry and sidecars as deterministic tools. `available_if` gates registration without removing ordinary method scopes.
 
-→ agentic_function(name="research", ...) instantiates the class
-  with fn=None — __init__ stores config + leaves _fn / _wrapper unset
-
-→ Python passes `research` (the function) to the instance:
-  instance(research) → triggers __call__(research)
-
-  Inside __call__:
-    - _fn is None → this is the decorator entry path
-    - delegates to self._attach(research):
-        - Layer 1 (available_if) check
-        - self._fn = research
-        - self._wrapper = self._make_wrapper(research)
-              → wrapper does:
-                  pre-invocation hooks (cancel check),
-                  _inject_runtime (auto-fill the `runtime` kwarg),
-                  DAG entry node,
-                  call research(**args) (which probably runs
-                    runtime.exec(...) for an inner LLM round),
-                  DAG exit node,
-                  return value
-        - functools.update_wrapper(self, research)
-        - _registry["research"] = self     ← local registry
-                                              (for program /
-                                               webui instance lookup)
-        - if as_tool=True:
-            self._register_as_tool()
-              → builds _execute closure that funnels through
-                self._wrapper
-              → _build_and_register_tool(
-                    name="research", description=…, parameters=…,
-                    label=…, execute=_execute, sidecar kwargs, …)
-              → AgentTool lands in the SAME shared _registry as
-                @function tools
-              → self._agent_tool = the returned AgentTool
-
-  Returns self (the instance, now fully attached).
-
-→ module-level name `research` now points at the agentic_function
-  instance. It's both:
-    - directly callable as Python (research("topic") → __call__ →
-      wrapper → fn body)
-    - present in the shared registry as an AgentTool (LLM can
-      tool_call it)
-```
+The managed loader records package ownership and lists public entries in `PROGRAM_ENTRIES`. It does not add a public decorator or expand authority. The [Agent and Context contract](../integrations/nooa.html#contract) owns execution lifetime.
 
 ## Resolution path (dispatcher → provider)
 
@@ -612,20 +515,15 @@ openprogram/programs/<name>/<name>.py                  one per tool
   @function on a plain def                             (for the 38 leaf
                                                        tools shipped today)
 
-openprogram/agentic_programming/function.py
-  class agentic_function                               class decorator
-    __init__ / __call__ / _attach                      attach path
-    _register_as_tool                                  bridge to shared
-                                                       registry
-    _make_wrapper (sync + async variants)              DAG-aware wrapper
-  _build_agentic_tool_spec                              schema builder
-                                                       (filters runtime
-                                                       params, hidden
-                                                       input_meta)
-  _registry (file-local)                                instance-lookup
-                                                       table for
-                                                       program /
-                                                       webui
+openprogram/agentic_programming/agent_class.py
+  Agent class, configuration, ordinary method scopes
+  method_options, explicit tool registration
+openprogram/agentic_programming/agent_method.py
+  MethodOptions, method execution, schema and registration
+openprogram/agentic_programming/call_state.py
+  Task-local call identity, runtime injection, cancellation hooks
+openprogram/agentic_programming/call_scope.py
+  Shared scope entry, exit, Context and DAG state
 
 openprogram/agent/dispatcher/__init__.py
   install_loaded_deferred(...)                         called at session
@@ -640,7 +538,7 @@ openprogram/agent/agent_loop.py
                                                        schemas appear on
                                                        the next call)
 
-openprogram/programs/workflow/*/__init__.py           @agentic_function
+openprogram/programs/workflow/*/__init__.py           Agent method
                                                        modules (each its
                                                        own directory).
                                                        Includes harness
@@ -669,20 +567,20 @@ The unit suite (``tests/unit/programs/runtime/test_tools_runtime.py``,
 - Layer 1 (available_if) skips registration on False / exception
 - Layer 6 defer sidecar + tool_search promotes to provider list +
   unknown name handling + catalog text format
-- @agentic_function registers as AgentTool by default (as_tool=True)
-- @agentic_function(as_tool=False) skips shared registry
-- @agentic_function(register_globally=False) skips shared registry
+- Agent method registers as AgentTool only with explicit tool=True or as_tool=True
+- method_options["method"]["tool"] = False skips shared registry
+- method_options["method"]["register_globally"] = False skips shared registry
   but still attaches `_agent_tool`
-- @agentic_function(available_if=lambda: False) returns raw fn
+- method_options["method"]["available_if"] returning False skips tool registration but retains scope handling
 
 ## Stable boundary
 
-The registry/decorator/dispatcher boundary is stable. Work that
+The registry/method/dispatcher boundary is stable. Work that
 **doesn't** touch it:
 
 - Adding new @function tools (write the function + decorate; it is
   exposed by default — no whitelist edit)
-- Adding new @agentic_function harnesses (same)
+- Adding Agent methods with explicit tool=True metadata
 - Hiding an internal helper from the LLM (`expose=False` kwarg only)
 - Defining a named subset (TOOLSETS dict) or letting the user define one
   (Functions-page folder → functions_meta.json)

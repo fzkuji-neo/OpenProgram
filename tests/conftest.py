@@ -28,8 +28,14 @@ _HOST_HOME = Path.home()
 # ---------------------------------------------------------------------------
 if os.environ.get("OPENPROGRAM_TEST_LIVE") != "1":
     for _var in (
-        "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy",
-        "ALL_PROXY", "all_proxy", "NO_PROXY", "no_proxy",
+        "HTTP_PROXY",
+        "http_proxy",
+        "HTTPS_PROXY",
+        "https_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+        "NO_PROXY",
+        "no_proxy",
         "OPENPROGRAM_PROXY_URL",
     ):
         os.environ.pop(_var, None)
@@ -74,9 +80,7 @@ if os.environ.get("OPENPROGRAM_TEST_LIVE") != "1":
 if os.environ.get("OPENPROGRAM_TEST_REAL_HOME") != "1":
     import tempfile  # noqa: E402
 
-    _TEST_HOME_MANAGER = tempfile.TemporaryDirectory(
-        prefix="openprogram-test-home-"
-    )
+    _TEST_HOME_MANAGER = tempfile.TemporaryDirectory(prefix="openprogram-test-home-")
     _TEST_HOME = _TEST_HOME_MANAGER.name
     os.environ["HOME"] = _TEST_HOME
     os.environ["USERPROFILE"] = _TEST_HOME
@@ -97,6 +101,7 @@ if os.environ.get("OPENPROGRAM_TEST_REAL_HOME") != "1":
 # real failures — see docs/design or the providers/integration tests).
 # ---------------------------------------------------------------------------
 
+
 def _has_default_provider() -> bool:
     """True if a real model call can actually be made here.
 
@@ -113,6 +118,7 @@ def _has_default_provider() -> bool:
     try:
         from openprogram.agent.dispatcher import _load_agent_profile
         from openprogram.agent.internals._model_tools import resolve_model
+
         return resolve_model(_load_agent_profile("main") or {}) is not None
     except Exception:
         return False
@@ -138,6 +144,7 @@ def _has_default_provider() -> bool:
 # a belt-and-suspenders guard: individual tests should still clean up after
 # themselves, but no single leak can cascade into unrelated failures.
 
+
 # Capture the pristine shipped registry at conftest import time — i.e. before
 # any test (and any test's registry-clearing fixture) has run — so the snapshot
 # is guaranteed complete. A lazily-built session fixture could otherwise be
@@ -145,6 +152,7 @@ def _has_default_provider() -> bool:
 def _capture_shipped_registry():
     import openprogram.programs  # noqa: F401  (import side-effect: registers tools)
     from openprogram.programs._runtime import snapshot_registry
+
     return snapshot_registry()
 
 
@@ -222,7 +230,7 @@ def _reset_process_sandbox_policy():
     """Un-pin a process-wide sandbox policy a test left installed.
 
     ``install_policy_snapshot`` writes a module global on purpose: a cron
-    worker and an ``@agentic_function`` subprocess each run one job and
+    worker and an ``Agent method`` subprocess each run one job and
     must not be widened afterwards. Under pytest every test shares that
     one process, so a test that runs the real ``_run_prompt_job`` pins a
     workspace-write policy for the whole rest of the session. Later tests
@@ -245,6 +253,7 @@ def _reset_spawn_fanout():
     the previous eight filled.
     """
     from openprogram.programs.tools.agents.agent.agent.agent import _fanout_used
+
     _fanout_used.clear()
     yield
     _fanout_used.clear()

@@ -150,7 +150,7 @@ class ExecutionOperations:
             model:            Override the default model for this call.
 
             tools:            Optional list of tools the LLM may call. Each
-                              entry may be an AgentTool, an @agentic_function, a
+                              entry may be an AgentTool, an Agent method, a
                               {"spec":..., "execute":...} dict, or an object
                               with .spec and .execute attributes. When set,
                               runs a tool loop until the model returns plain
@@ -253,7 +253,7 @@ class ExecutionOperations:
 
             structured_format = normalize_response_format(response_format)
         # Cancel check — lets long-running loops inside one function also abort.
-        from openprogram.agentic_programming.function import _run_pre_invocation_hooks
+        from openprogram.agentic_programming.call_state import _run_pre_invocation_hooks
 
         _run_pre_invocation_hooks()
 
@@ -387,7 +387,7 @@ class ExecutionOperations:
                         override_reason=_ER.TIMEOUT,
                     ) from cause
 
-                from openprogram.agentic_programming.function import (
+                from openprogram.agentic_programming.call_state import (
                     CancelledError as _CE,
                     check_cancelled,
                 )
@@ -692,7 +692,7 @@ class ExecutionOperations:
         model_call_budget_token = None
 
         # Cancel check — lets long-running loops inside one function also abort.
-        from openprogram.agentic_programming.function import _run_pre_invocation_hooks
+        from openprogram.agentic_programming.call_state import _run_pre_invocation_hooks
 
         _run_pre_invocation_hooks()
 
@@ -791,7 +791,7 @@ class ExecutionOperations:
                         override_reason=_ER.TIMEOUT,
                     ) from cause
 
-                from openprogram.agentic_programming.function import (
+                from openprogram.agentic_programming.call_state import (
                     CancelledError as _CE,
                     check_cancelled,
                 )

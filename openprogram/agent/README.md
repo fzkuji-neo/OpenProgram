@@ -33,7 +33,7 @@ The Runtime layer composes these to build whatever agent behavior is needed.
 - **`inbox.py`** — Per-session send_message inbox
 - **`messages.py`** — Custom message types and LLM converters for the agent layer
 - **`plan_mode.py`** — Plan-mode session flag
-- **`process_runner.py`** — Run @agentic_function tools in an isolated subprocess so the stop
+- **`process_runner.py`** — Run Agent method tools in an isolated subprocess so the stop
 - **`provider_lifecycle.py`** — Balanced diagnostic events for one provider request, independent of turn IDs
 - **`questions.py`** — User-input requests
 - **`retry.py`** — Retry logic for agent errors

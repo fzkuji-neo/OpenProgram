@@ -5,7 +5,7 @@ assistant-persistence piece). ``persist_assistant_message`` is phase 5 of
 process_user_turn: resolve the model/provider columns, backfill usage via
 Anthropic's count-tokens endpoint when the proxy dropped usage chunks,
 build the assistant row (terminal status + token columns + ordered
-blocks), strip @agentic_function calls out of the slim tool_calls list
+blocks), strip Agent method calls out of the slim tool_calls list
 (they render as their own runtime-block row), and persist — updating the
 turn-start placeholder in place when one exists, else appending.
 
@@ -50,7 +50,7 @@ def persist_assistant_message(
     """Persist the assistant turn (phase 5). Returns
     ``(assistant_msg, blocks, tool_calls, usage)`` — the caller rebinds
     ``usage`` / ``tool_calls`` because this may rewrite usage (Anthropic
-    count fallback) and filters @agentic_function calls out of tool_calls.
+    count fallback) and filters Agent method calls out of tool_calls.
     """
     # 5. Persist assistant message.
     # Attach usage + model so session_db.append_message stamps real
@@ -157,14 +157,14 @@ def persist_assistant_message(
             "token_model":  model_id,
         })
     # Keep the unfiltered tool_calls (for tool_call_id → result
-    # lookup, including @agentic_function calls) before stripping
+    # lookup, including Agent method calls) before stripping
     # the agentic ones from the legacy slim list. The ordered blocks
     # need to keep the agentic tool entries so the frontend can
     # position the RuntimeBlock at the exact spot in the LLM output
     # where the call happened.
     _tool_calls_all = list(tool_calls)
     blocks: list[dict] = []
-    # Strip @agentic_function calls from the slim tool_calls list —
+    # Strip Agent method calls from the slim tool_calls list —
     # they render as their own runtime-block message (see
     # _wrap_agentic_runtime_block) rather than as collapsed cards
     # under the assistant bubble.

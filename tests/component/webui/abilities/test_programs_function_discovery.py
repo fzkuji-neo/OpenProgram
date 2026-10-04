@@ -10,7 +10,9 @@ from openprogram.webui._functions import (
 def test_goal_launcher_keeps_original_prompt_schema_through_ownership_wrapper():
     import openprogram.programs.workflow.goal  # register the public entry
 
-    row = next(row for row in _discover_workflow_functions(set()) if row["name"] == "goal")
+    row = next(
+        row for row in _discover_workflow_functions(set()) if row["name"] == "goal"
+    )
     assert "prompt" in row["params"]
     assert row["filepath"].endswith("/goal/goal.py")
 
@@ -34,12 +36,7 @@ def test_goal_source_endpoint_returns_goal_instead_of_ownership_wrapper(monkeypa
 
 
 def test_workflow_category_exports_only_named_public_entries() -> None:
-    workflow_dir = (
-        Path(__file__).parents[4]
-        / "openprogram"
-        / "programs"
-        / "workflow"
-    )
+    workflow_dir = Path(__file__).parents[4] / "openprogram" / "programs" / "workflow"
     names = set()
     for filename in (
         "search_workflows.py",
@@ -48,7 +45,9 @@ def test_workflow_category_exports_only_named_public_entries() -> None:
     ):
         programs = _extract_all_functions(str(workflow_dir / filename), "agentic")
         names.update(program["name"] for program in programs)
-    auto_source = Path(__file__).parents[4] / "openprogram/programs/workflow/auto_workflow.py"
+    auto_source = (
+        Path(__file__).parents[4] / "openprogram/programs/workflow/auto_workflow.py"
+    )
     names.update(
         program["name"]
         for program in _extract_all_functions(str(auto_source), "workflow")
@@ -68,8 +67,7 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
 
     root_entries = _list_entries("")
     workflow = next(
-        entry for entry in root_entries["entries"]
-        if entry["path"] == "workflow"
+        entry for entry in root_entries["entries"] if entry["path"] == "workflow"
     )
     assert workflow["program_kind"] is None
     assert workflow["has_children"] is True
@@ -78,10 +76,7 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
         for entry in root_entries["entries"]
     )
 
-    children = {
-        entry["path"]: entry
-        for entry in _list_entries("workflow")["entries"]
-    }
+    children = {entry["path"]: entry for entry in _list_entries("workflow")["entries"]}
     assert children["workflow/search_workflows"]["has_children"] is False
     assert children["workflow/create_workflow"]["callable_name"] == "create_workflow"
     assert children["workflow/revise_workflow"]["program_kind"] == "workflow"
@@ -113,7 +108,12 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
     assert goal_by_name["goal"]["logic_path"] == "workflow/goal"
     assert goal_by_name["goal"]["program_kind"] == "workflow"
     assert {
-        "command", "judge", "loop", "notices", "refinement", "state",
+        "command",
+        "judge",
+        "loop",
+        "notices",
+        "refinement",
+        "state",
     } <= set(goal_by_name)
     command = goal_by_name["command"]
     assert "callable_name" not in command
@@ -128,7 +128,8 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
     # State now reaches presentation/verification/chat transitively, so absence
     # from the entire graph is not the package-resolution contract.
     notice_targets = {
-        edge["target"] for edge in notices_logic["edges"]
+        edge["target"]
+        for edge in notices_logic["edges"]
         if edge["source"] == "workflow/goal/notices"
     }
     assert notice_targets == {"workflow/goal/state"}
@@ -144,10 +145,9 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
     assert ("workflow/goal/loop", "workflow/goal/judge") not in goal_edges
     assert ("workflow/goal", "workflow/goal/judge") in goal_edges
     docs_entry = _list_entries("workflow/docs_question")["entries"]
-    assert [
-        (entry["callable_name"], entry["logic_path"])
-        for entry in docs_entry
-    ] == [("run_docs_question", "workflow/docs_question")]
+    assert [(entry["callable_name"], entry["logic_path"]) for entry in docs_entry] == [
+        ("run_docs_question", "workflow/docs_question")
+    ]
 
     management_entries = [
         children[path]
@@ -178,13 +178,12 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
         root = next(node for node in logic["nodes"] if node["id"] == logic["root"])
         assert root["name"] == entry["name"]
 
-    search_logic = _program_logic(
-        "workflow/search_workflows"
-    )
+    search_logic = _program_logic("workflow/search_workflows")
     assert search_logic["edges"] == []
     auto_logic = _program_logic("workflow/auto_workflow")
     assert {
-        edge["target"] for edge in auto_logic["edges"]
+        edge["target"]
+        for edge in auto_logic["edges"]
         if edge["source"] == auto_logic["root"]
     } >= {
         "workflow/search_workflows",
@@ -192,58 +191,65 @@ def test_programs_treats_workflow_as_category_not_program() -> None:
     }
 
     old_source = (
-        Path(__file__).parents[4]
-        / "openprogram/programs/workflow/agentic_workflow"
+        Path(__file__).parents[4] / "openprogram/programs/workflow/agentic_workflow"
     )
     assert not old_source.exists()
 
 
 def test_goal_form_keeps_prompt_primary_and_preserves_explicit_controls() -> None:
-    source = (
-        Path(__file__).parents[4]
-        / "openprogram/programs/workflow/goal/goal.py"
-    )
+    source = Path(__file__).parents[4] / "openprogram/programs/workflow/goal/goal.py"
     goal = next(
-        info for info in _extract_all_functions(str(source), "workflow")
+        info
+        for info in _extract_all_functions(str(source), "workflow")
         if info["name"] == "goal"
     )
     visible = [p["name"] for p in goal["params_detail"] if not p.get("hidden")]
     assert visible == ["prompt"]
     advanced = {p["name"] for p in goal["params_detail"] if p.get("advanced")}
     assert advanced == {
-        "model", "effort", "judge_model", "judge_effort", "judge_timeout_s",
-        "max_rounds", "max_tokens", "max_elapsed_s", "max_cost_usd",
-        "timeout_s", "context_mode",
+        "model",
+        "effort",
+        "judge_model",
+        "judge_effort",
+        "judge_timeout_s",
+        "max_rounds",
+        "max_tokens",
+        "max_elapsed_s",
+        "max_cost_usd",
+        "timeout_s",
+        "context_mode",
     }
     assert not advanced.intersection({"runtime", "resume", "expected_goal"})
 
 
 def test_gui_agent_form_exposes_primary_and_advanced_parameters() -> None:
-    source = (
-        Path(__file__).parents[4]
-        / "openprogram/programs/gui_harness_bridge.py"
-    )
+    source = Path(__file__).parents[4] / "openprogram/programs/gui_harness_bridge.py"
     gui = next(
-        info for info in _extract_all_functions(str(source), "app")
+        info
+        for info in _extract_all_functions(str(source), "app")
         if info["name"] == "gui_agent"
     )
 
     primary = [
-        param["name"] for param in gui["params_detail"]
-        if not param.get("hidden")
+        param["name"] for param in gui["params_detail"] if not param.get("hidden")
     ]
     advanced = {
-        param["name"] for param in gui["params_detail"]
-        if param.get("advanced")
+        param["name"] for param in gui["params_detail"] if param.get("advanced")
     }
     user_params = {
-        param["name"] for param in gui["params_detail"]
+        param["name"]
+        for param in gui["params_detail"]
         if not param.get("hidden") or param.get("advanced")
     }
 
     assert primary == ["task"]
     assert advanced == {
-        "max_steps", "max_seconds", "app_name", "surface", "backend", "vm_url",
+        "max_steps",
+        "max_seconds",
+        "app_name",
+        "surface",
+        "backend",
+        "vm_url",
     }
     assert user_params == {*primary, *advanced}
 
@@ -251,12 +257,7 @@ def test_gui_agent_form_exposes_primary_and_advanced_parameters() -> None:
 def test_function_info_preserves_advanced_input_metadata(tmp_path: Path) -> None:
     source = tmp_path / "advanced_function.py"
     source.write_text(
-        '@agentic_function(input={\n'
-        '    "max_steps": {"hidden": True, "advanced": True},\n'
-        '})\n'
-        'def advanced_function(task: str, max_steps: int = 3) -> str:\n'
-        '    """Run one task."""\n'
-        '    return task\n',
+        'from openprogram import Agent\nclass AdvancedFunctionAgent(Agent):\n    method_options = {\n        \'advanced_function\': {\n            \'input\': {\n    "max_steps": {"hidden": True, "advanced": True},\n},\n            \'name\': \'advanced_function\',\n            \'tool\': True\n        },\n    }\n\n    def advanced_function(self, task: str, max_steps: int = 3) -> str:\n        """Run one task."""\n        return task\n\n\nadvanced_function = AdvancedFunctionAgent().advanced_function\n',
         encoding="utf-8",
     )
 
@@ -275,13 +276,13 @@ def test_registered_workflow_is_available_to_favorites(
 ) -> None:
     from types import SimpleNamespace
 
-    from openprogram.agentic_programming.function import _registry
+    from openprogram.programs._runtime import _registry
 
     source = tmp_path / "favorite_workflow.py"
     source.write_text(
-        'def favorite_workflow(task: str) -> str:\n'
+        "def favorite_workflow(task: str) -> str:\n"
         '    """Prepare a report."""\n'
-        '    return task\n',
+        "    return task\n",
         encoding="utf-8",
     )
     namespace = {"__name__": "workflows.favorite_workflow"}
@@ -289,7 +290,11 @@ def test_registered_workflow_is_available_to_favorites(
     monkeypatch.setitem(
         _registry,
         "favorite_workflow",
-        SimpleNamespace(_fn=namespace["favorite_workflow"]),
+        SimpleNamespace(
+            _is_agent_method=True,
+            _python_callable=namespace["favorite_workflow"],
+            _source_module="workflows.favorite_workflow",
+        ),
     )
 
     workflows = _discover_workflow_functions(set())
@@ -302,7 +307,8 @@ def test_registered_workflow_is_available_to_favorites(
 
 
 def test_nested_multi_entry_agentic_file_expands_as_virtual_group(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     from openprogram.webui.routes.catalog import programs
 
@@ -317,25 +323,25 @@ def test_nested_multi_entry_agentic_file_expands_as_virtual_group(
     }
     monkeypatch.setattr(programs, "PROGRAMS_ROOT", tmp_path)
     monkeypatch.setattr(
-        programs, "_registered_agentic_callables", lambda: indexed,
+        programs,
+        "_registered_agent_methods",
+        lambda: indexed,
     )
 
     category = programs._list_entries("workflow/deep/category")
     group = next(entry for entry in category["entries"] if entry["name"] == "tools")
     assert group["program_kind"] is None
     assert group["has_children"] is True
-    entries = programs._list_entries(
-        "workflow/deep/category/tools"
-    )["entries"]
+    entries = programs._list_entries("workflow/deep/category/tools")["entries"]
     assert [entry["name"] for entry in entries] == ["alpha", "beta"]
 
 
 def test_agentic_registry_discovery_uses_a_stable_snapshot(monkeypatch) -> None:
     import importlib
 
-    from openprogram.webui.routes.catalog.programs import _registered_agentic_callables
+    from openprogram.webui.routes.catalog.programs import _registered_agent_methods
 
-    function = importlib.import_module("openprogram.agentic_programming.function")
+    function = importlib.import_module("openprogram.programs._runtime")
     original = function._registry
 
     class MutatingRegistry(dict):
@@ -352,14 +358,15 @@ def test_agentic_registry_discovery_uses_a_stable_snapshot(monkeypatch) -> None:
 
     monkeypatch.setattr(function, "_registry", MutatingRegistry(original))
 
-    indexed = _registered_agentic_callables()
+    indexed = _registered_agent_methods()
 
     assert "workflow/search_workflows" in indexed
     assert "workflow/auto_workflow" in indexed
 
 
 def test_multi_entry_call_graph_scopes_imports_to_selected_function(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     from openprogram.webui.routes.catalog import programs
 
@@ -390,16 +397,16 @@ def test_multi_entry_call_graph_scopes_imports_to_selected_function(
     }
     monkeypatch.setattr(programs, "_inside_programs", lambda _path: True)
     monkeypatch.setattr(
-        programs, "_registered_agentic_callables", lambda: indexed,
+        programs,
+        "_registered_agent_methods",
+        lambda: indexed,
     )
     monkeypatch.setattr(programs, "_entity_paths", lambda: entities)
 
     alpha = programs._program_logic("workflow/group/zz_alpha")
     beta = programs._program_logic("workflow/group/zz_beta")
 
-    assert {
-        (edge["source"], edge["target"]) for edge in alpha["edges"]
-    } == {
+    assert {(edge["source"], edge["target"]) for edge in alpha["edges"]} == {
         (
             "workflow/group/zz_alpha",
             "workflow/dep",

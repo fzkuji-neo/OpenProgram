@@ -42,8 +42,8 @@ SessionNodeWriter(db, session_id)                   瘦包装:append/update/load
 ContextVars(per turn,必须 set+reset 配对):
    _store           = SessionNodeWriter(...)         深层代码读它写 DAG / 渲染 doc
    _current_turn_id = assistant_msg_id            文件备份归属到哪条消息
-   _current_runtime = create_runtime()            @agentic_function 自动注入用
-   _call_id         = (由 @agentic_function 包装设)  节点 called_by 归属
+   _current_runtime = create_runtime()            Agent method 自动注入用
+   _call_id         = (由 Agent method 包装设)  节点 called_by 归属
 ```
 
 work-dir 与 session 是**两套独立持久化**:work-dir 存 research 产物文件

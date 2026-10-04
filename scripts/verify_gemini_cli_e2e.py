@@ -35,7 +35,7 @@ def main() -> int:
 
     # Force dispatcher to pick the Gemini-CLI provider by passing
     # ``model_override`` on TurnRequest. ``AGENTIC_PROVIDER`` env only
-    # influences create_runtime() (used by @agentic_function); dispatcher
+    # influences create_runtime() (used by Agent method); dispatcher
     # itself reads from the agent profile, so env-var pinning alone
     # silently still talks to the user's default provider.
     MODEL_OVERRIDE = "gemini-subscription/gemini-2.5-flash"

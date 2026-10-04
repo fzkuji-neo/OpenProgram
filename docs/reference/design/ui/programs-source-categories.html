@@ -166,7 +166,7 @@
   <p><strong>Verification:</strong> focused explorer and registry RED/GREEN tests, import smoke test, Programs UI check, TypeScript compile, build, default 18100 packaged-App DOM and screenshot, and <code>git diff --check</code>.</p>
 
   <h2>Application import compatibility</h2>
-  <p>Program packages loaded from <code>openprogram/programs/packages</code> must import built-in Agentic Functions through the canonical <code>openprogram.programs.workflow</code> namespace. The removed <code>openprogram.programs.agentic_functions</code> namespace is not restored as a second compatibility package.</p>
+  <p>Program packages loaded from <code>openprogram/programs/packages</code> must import built-in Agentic Functions through the canonical <code>openprogram.programs.workflow</code> namespace. The removed <code>openprogram.programs.Agents</code> namespace is not restored as a second compatibility package.</p>
   <p><strong>Acceptance:</strong> the packaged <code>gui_agent</code> public entry can begin a desktop run without a module-import error; the GUI, research, and wiki application packages contain no production import of the removed namespace.</p>
 
   <h2>Implementation status</h2>

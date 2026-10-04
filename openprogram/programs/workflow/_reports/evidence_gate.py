@@ -104,7 +104,7 @@ class EvidenceGate:
         from uuid import uuid4
         from collections import deque
         from openprogram.agent.agent_loop import _execute_tool_calls, _create_agent_stream
-        from openprogram.agentic_programming.function import _run_pre_invocation_hooks, _cancellation_check
+        from openprogram.agentic_programming.call_state import _run_pre_invocation_hooks, _cancellation_check
         from openprogram.providers.utils.deadline import remaining
         from openprogram.providers.types import AssistantMessage, ToolCall
         from openprogram.agent.session_db import default_db

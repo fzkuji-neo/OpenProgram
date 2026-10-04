@@ -166,7 +166,7 @@
   <p><strong>验证：</strong> 浏览器/注册表专项 RED/GREEN 测试、import 冒烟测试、Programs UI 检查、TypeScript 编译、构建、默认 18100 打包 App DOM 与截图，以及 <code>git diff --check</code>.</p>
 
   <h2>Application import 兼容性</h2>
-  <p>从以下路径加载的 Program 包： <code>openprogram/programs/packages</code> 必须通过规范 <code>openprogram.programs.workflow</code> 命名空间导入内置 Agentic Function。已移除的 <code>openprogram.programs.agentic_functions</code> 命名空间不恢复为第二兼容包。</p>
+  <p>从以下路径加载的 Program 包： <code>openprogram/programs/packages</code> 必须通过规范 <code>openprogram.programs.workflow</code> 命名空间导入内置 Agentic Function。已移除的 <code>openprogram.programs.Agents</code> 命名空间不恢复为第二兼容包。</p>
   <p><strong>验收：</strong> 已打包的 <code>gui_agent</code> 公开入口可以开始桌面运行而不发生模块导入错误；GUI、research 和 wiki 应用包的生产代码不导入已移除命名空间。</p>
 
   <h2>实现状态</h2>

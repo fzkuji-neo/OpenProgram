@@ -1,7 +1,7 @@
 # Self-Programming AI Agents
 
 A self-programming AI agent can create or revise executable workflows while it
-works. In OpenProgram, those workflows use the `@agentic_function` decorator:
+works. In OpenProgram, those workflows use the Agent method execution:
 the agent edits a source file with normal tools, the runtime validates and loads the
 function, and later turns can call it from the same registry as existing tools.
 
@@ -15,20 +15,26 @@ execution, and normal source control.
 An agentic function combines deterministic control flow with model decisions:
 
 ```python
-from openprogram import agentic_function
+from openprogram import Agent
 
+class ExampleAgent(Agent):
+    method_options = {
+        'review_then_revise': {'tool': True},
+    }
 
-@agentic_function
-def review_then_revise(draft: str, runtime=None) -> str:
-    """Review a draft, then revise it against the review."""
-    review = runtime.exec(
-        content=f"Identify concrete defects in this draft:\n\n{draft}",
-        toolset="none",
-    )
-    return runtime.exec(
-        content=f"Revise the draft using this review:\n\n{review}\n\n{draft}",
-        toolset="none",
-    )
+    def review_then_revise(self, draft: str, runtime=None) -> str:
+        """Review a draft, then revise it against the review."""
+        review = runtime.exec(
+            content=f"Identify concrete defects in this draft:\n\n{draft}",
+            toolset="none",
+        )
+        return runtime.exec(
+            content=f"Revise the draft using this review:\n\n{review}\n\n{draft}",
+            toolset="none",
+        )
+
+_example_agent = ExampleAgent()
+review_then_revise = _example_agent.review_then_revise
 ```
 
 The Python body fixes the required order. The model handles the two semantic
@@ -52,7 +58,7 @@ test. Show me the diff before committing it.
 ```
 
 The bundled
-[Agentic function API](../../reference/api/agentic-function.md)
+[Agentic function API](../../reference/api/agent.md)
 defines the file layout, decorator contract, validation steps, and smoke tests.
 A watcher can load an approved function without restarting the worker.
 
@@ -75,6 +81,6 @@ the entire operation is deterministic. Use an existing tool when the operation
 already has a stable implementation.
 
 Read the [Agentic Programming guide](README.md),
-the [`@agentic_function` reference](../../reference/api/agentic-function.md), and the
+the [`Agent` method reference](../../reference/api/agent.md), and the
 [design rationale](philosophy.md) for the full
 execution contract.

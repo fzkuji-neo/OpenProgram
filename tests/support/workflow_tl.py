@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import importlib
 
-from openprogram.agentic_programming import function as agentic_fn
+from openprogram.agentic_programming import call_state as agentic_fn
 import openprogram.programs.workflow as pkg
 from openprogram.programs.workflow import errors
 
@@ -50,7 +50,7 @@ _OWNERS = {
     "_publish_snapshot": repository,
     "_read_project_index": catalog,
     "_read_repository_metadata": catalog,
-    "_registered_agentic_functions": bindings,
+    "_registered_program_entries": bindings,
     "_replace_snapshot": repository,
     "_request_auto_decision": planner,
     "_request_project_candidate": planner,

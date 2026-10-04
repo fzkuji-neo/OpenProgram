@@ -6,7 +6,7 @@
 
 ## 是什么
 
-Agentic Workflow 是用 [Agentic Programming](../agentic-programming/README.zh.md) 写成的成品工作流——代码里叫 **harness** 或 **agentic program**：一个自包含的 git 仓库，里面是一组 `@agentic_function`。release 中固定的版本会注册进 OpenProgram，像内置函数一样出现在聊天、Web UI 的 Programs 页和 `openprogram programs run` 里。
+Agentic Workflow 是用 [Agentic Programming](../agentic-programming/README.zh.md) 写成的成品工作流——代码里叫 **harness** 或 **agentic program**：一个自包含的 git 仓库，里面是一组 `Agent` method。release 中固定的版本会注册进 OpenProgram，像内置函数一样出现在聊天、Web UI 的 Programs 页和 `openprogram programs run` 里。
 
 三个第一方 workflow：
 
@@ -42,7 +42,7 @@ openprogram programs run <name> -a key=value  # 直接运行一个 program
 
 ## 编写你自己的
 
-任何满足目录契约（`<package>/agentics/__init__.py` 暴露 `AGENTIC_FUNCTIONS`）的仓库都能被同一条 `programs install` 命令安装。契约、最小模板和发布流程见[安装与编写 Harness](../installing-harnesses.zh.md)。
+任何满足目录契约（`<package>/agentics/__init__.py` 暴露 `PROGRAM_ENTRIES`）的仓库都能被同一条 `programs install` 命令安装。契约、最小模板和发布流程见[安装与编写 Harness](../installing-harnesses.zh.md)。
 
 Harness 契约与单个 Workflow 包不同。包合同、完整测试示例、相对路径以及 `workflows validate/test/publish` 命令见[编写、测试和发布 Workflow](authoring.zh.md)。生成式 `create_workflow` 和 `revise_workflow` 也使用同一强制行为测试要求。
 

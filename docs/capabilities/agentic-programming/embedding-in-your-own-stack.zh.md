@@ -67,10 +67,10 @@ for node in SessionNodeWriter(store, "review-42").load():
     print(node.name, node.caller, node.output)
 ```
 
-普通公开 Agent 方法自动具有调用作用域。将方法暴露为模型工具时，在 `method_options` 中设置 `tool=True`。显式登记提供 `.spec` 与 `.execute`。记录本身不授予工具权限，见 [Agent 与 Context API](../../reference/api/agentic-function.zh.md)。
+普通公开 Agent 方法自动具有调用作用域。将方法暴露为模型工具时，在 `method_options` 中设置 `tool=True`。显式登记提供 `.spec` 与 `.execute`。记录本身不授予工具权限，见 [Agent 与 Context API](../../reference/api/agent.zh.md)。
 
-## 旧接口兼容与宿主 hook
+## 方法功能与宿主 hook
 
-已有 `@agentic_function` 程序继续可用。`openprogram.agentic_programming.function` 保留 `set_cancellation_check` 和 `set_session_id_provider`，用于宿主取消与问题路由。
+Agent 方法提供完整执行约定。`openprogram.agentic_programming.call_state` 保留 `set_cancellation_check` 和 `set_session_id_provider`，用于宿主取消与问题路由。
 
-嵌入 import 路径调用库 API，不替代完整安装产品。import 检查位于 `tests/embed/`。参见 [Runtime](../../reference/api/runtime.zh.md) 和 [编程指南](writing-functions/agentic-function.zh.md)。
+嵌入 import 路径调用库 API，不替代完整安装产品。import 检查位于 `tests/embed/`。参见 [Runtime](../../reference/api/runtime.zh.md) 和 [编程指南](writing-functions/agent.zh.md)。
