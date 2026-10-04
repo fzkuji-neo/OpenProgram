@@ -31,20 +31,20 @@ const makeAgent=(id,name,extra={})=>({id,name,description:'Saved description',de
   memory:{mode:'read_write',read_spaces:['self'],write_space:'self',required:false},
   session_scope:'per-account-channel-peer',
   session_idle_minutes:0,session_daily_reset:'',revision:1,created_at:1,updated_at:1,...extra});
-window.templates=__AGENT_TEMPLATE_CATALOG__;
+window.builtinAgents=__SAVED_BUILTIN_AGENTS__;
 window.agents=initial.emptyAgents?[]:[makeAgent('general','General'),makeAgent('researcher','Researcher')];
+if(initial.builtins)window.agents.push(...window.builtinAgents);
+if(initial.legacyEffort&&window.agents[0])window.agents[0].model={provider:'test',id:'fast'};
 if(initial.tools&&window.agents[0])window.agents[0].tools=initial.tools;
 const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
 window.fetch=async(input,options={})=>{
   const url=String(input);const method=options.method||'GET';
   const body=options.body?JSON.parse(options.body):null;
   window.httpCalls.push({url,method,body});
-  if(url==='/api/agent-templates')return reply({templates:window.templates});
   if(url==='/api/agents'&&method==='GET')return window.failList?reply({error:'Agent list temporarily unavailable'},503):reply({agents:window.agents});
   if(url==='/api/agents'&&method==='POST'){
     if(window.failCreate)return reply({error:'Create temporarily unavailable'},503);
-    const template=window.templates.find(row=>row.id===body.template_id);
-    const agent=makeAgent('created',body.name,{default:window.agents.length===0,memory:{mode:'off',read_spaces:['self'],write_space:'self',required:false},...(template?.configuration||{}),...(body.model?{model:body.model}:{}),...(body.thinking_effort!==undefined?{thinking_effort:body.thinking_effort}:{})});window.agents.push(agent);return reply({agent});
+    const agent=makeAgent('created',body.name,{default:window.agents.length===0,memory:{mode:'off',read_spaces:['self'],write_space:'self',required:false},...(body.model?{model:body.model}:{}),...(body.thinking_effort!==undefined?{thinking_effort:body.thinking_effort}:{})});window.agents.push(agent);return reply({agent});
   }
   if(url==='/api/providers/list')return reply({providers:[{id:'test',label:'Fixture provider',enabled:true,configured:true}]});
   if(url==='/api/providers/test/models')return reply({models:[
@@ -117,9 +117,15 @@ const fs=require('node:fs'),path=require('node:path'),esbuild=require('esbuild')
 
 @pytest.fixture(scope='module')
 def agents_bundle(tmp_path_factory):
-    from openprogram.agent.management.templates import list_templates
-    entry = _ENTRY.replace('__AGENT_TEMPLATE_CATALOG__', json.dumps(list_templates()))
+    from openprogram.agent.management import manager
+    from openprogram.agent.management.builtin_agents import create_builtin_agents
     directory = tmp_path_factory.mktemp('agents-configuration')
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(manager, '_state_root', lambda: directory / 'state')
+        (directory / 'state').mkdir()
+        manager.create('main', name='Existing default', make_default=True)
+        saved_agents = [row.to_dict() for row in create_builtin_agents()]
+    entry = _ENTRY.replace('__SAVED_BUILTIN_AGENTS__', json.dumps(saved_agents))
     bundle = directory / 'agents.js'
     subprocess.run(
         ['node', '-e', _BUILD, str(ROOT / 'apps/web'), str(bundle), entry],
@@ -200,6 +206,17 @@ def test_agents_keyboard_memory_and_responsive_layout(agents_browser, width):
     page.keyboard.press('Home')
     expect(overview).to_be_focused()
     expect(overview).to_have_attribute('aria-selected', 'true')
+    navigation = page.get_by_role('tablist', name='Agent configuration')
+    expect(navigation).to_have_attribute('aria-orientation', 'horizontal' if width <= 800 else 'vertical')
+    page.keyboard.press('ArrowRight' if width <= 800 else 'ArrowDown')
+    expect(page.get_by_role('tab', name='Model & Instructions', exact=True)).to_be_focused()
+    resized_width = 1280 if width <= 800 else 390
+    page.set_viewport_size({'width': resized_width, 'height': 1000})
+    expect(navigation).to_have_attribute('aria-orientation', 'vertical' if resized_width > 800 else 'horizontal')
+    overview.focus()
+    page.keyboard.press('ArrowDown' if resized_width > 800 else 'ArrowRight')
+    expect(page.get_by_role('tab', name='Model & Instructions', exact=True)).to_be_focused()
+    page.set_viewport_size({'width': width, 'height': 1000})
     _tab(page, 'Memory')
     off = page.get_by_role('radio', name=re.compile('^Off'))
     readonly = page.get_by_role('radio', name=re.compile('^Read only'))
@@ -424,7 +441,7 @@ def test_agent_switch_and_create_require_explicit_draft_choice(agents_browser):
     expect(create_dialog).not_to_be_visible()
     expect(name).to_have_value('New analyst')
     creates = page.evaluate("window.httpCalls.filter(call=>call.method==='POST'&&call.url==='/api/agents')")
-    assert creates[-1]['body'] == {'name': 'New analyst', 'template_id': '', 'model': {'provider': '', 'id': ''}, 'thinking_effort': ''}
+    assert creates[-1]['body'] == {'name': 'New analyst', 'model': {'provider': '', 'id': ''}, 'thinking_effort': ''}
 
 
 def test_agent_lifecycle_actions_guard_drafts_and_keep_default_protected(agents_browser):
@@ -569,7 +586,7 @@ def test_agent_empty_list_can_create_first_configuration(agents_browser):
     expect(page.get_by_role('tab')).to_have_count(8)
     _tab(page, 'Memory')
     expect(page.get_by_role('radio', name=re.compile('^Off'))).to_be_checked()
-    assert page.evaluate("window.httpCalls.filter(call=>call.method==='POST').map(call=>call.body)") == [{'name': 'First Agent', 'template_id': '', 'model': {'provider': '', 'id': ''}, 'thinking_effort': ''}]
+    assert page.evaluate("window.httpCalls.filter(call=>call.method==='POST').map(call=>call.body)") == [{'name': 'First Agent', 'model': {'provider': '', 'id': ''}, 'thinking_effort': ''}]
 
 
 @pytest.mark.parametrize('change', ['toggle', 'all', 'none', 'preset'])
@@ -651,28 +668,43 @@ def test_old_save_response_preserves_newer_remounted_draft(agents_browser):
     assert page.evaluate('window.agents[0].description') == 'New edit after returning'
 
 
-def test_agent_template_creation_selects_model_without_premature_submit(agents_browser):
+def test_saved_specialists_and_plain_creation_without_templates(agents_browser, tmp_path):
     from playwright.sync_api import expect
 
-    page = agents_browser(390)
+    page = agents_browser(1280, initial={"builtins": True})
+    for name in ("Image creator", "Decision advisor", "Lightweight helper", "Coordinator"):
+        expect(page.get_by_role('button', name=re.compile('^' + name))).to_be_visible()
+    page.get_by_role('button', name=re.compile('^Lightweight helper')).click()
+    expect(page.get_by_role('heading', name='Lightweight helper', exact=True)).to_be_visible()
+    page.screenshot(animations='disabled', path=str(tmp_path / 'agents-desktop-dark.png'))
+    page.locator('html').evaluate("el=>el.dataset.theme='light'")
+    page.screenshot(animations='disabled', path=str(tmp_path / 'agents-desktop.png'))
+    _tab(page, 'Model & Instructions')
+    expect(page.get_by_role('textbox', name=re.compile('^System prompt'))).to_have_value(re.compile('candidate'))
     page.get_by_role('button', name='New Agent', exact=True).click()
     dialog = page.get_by_role('dialog', name='New Agent', exact=True)
-    templates = dialog.get_by_role('combobox', name='Template', exact=True)
-    expect(templates.locator('option')).to_have_count(5)
-    templates.select_option('utility')
-    expect(dialog.get_by_role('textbox', name='Agent name', exact=True)).to_have_value('Lightweight helper')
-    expect(dialog).to_contain_text('does not guarantee lower cost')
+    expect(dialog.get_by_role('combobox', name='Template', exact=True)).to_have_count(0)
+    dialog.get_by_role('textbox', name='Agent name', exact=True).fill('Small tasks')
     dialog.get_by_label('Model', exact=True).click()
     model_dialog = page.get_by_role('dialog', name='Choose model', exact=True)
     model_dialog.get_by_role('button', name=re.compile('^Fast model')).click()
     assert not page.evaluate("window.httpCalls.some(call=>call.method==='POST')")
-    dialog.get_by_role('combobox', name='Thinking effort', exact=True).select_option('')
     dialog.get_by_role('button', name='Create', exact=True).click()
     expect(dialog).not_to_be_visible()
     created = page.evaluate("window.agents.find(agent=>agent.id==='created')")
     assert created['model'] == {'provider': 'test', 'id': 'fast'}
-    assert created['tools']['mode'] == 'none'
     assert created['memory']['mode'] == 'off'
-    assert 'candidate' in created['system_prompt']
     posts = page.evaluate("window.httpCalls.filter(call=>call.method==='POST')")
-    assert len(posts) == 1 and posts[0]['body']['template_id'] == 'utility'
+    assert len(posts) == 1 and 'template_id' not in posts[0]['body']
+
+
+def test_saved_legacy_effort_does_not_show_pre_edit_error(agents_browser, tmp_path):
+    from playwright.sync_api import expect
+
+    page = agents_browser(390, initial={"legacyEffort": True, "builtins": True})
+    expect(page.get_by_role('alert')).to_have_count(0)
+    expect(page.get_by_role('heading', name='General', exact=True)).to_be_visible()
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    page.screenshot(animations='disabled', path=str(tmp_path / 'agents-narrow.png'))
+    page.get_by_role('textbox', name='Description', exact=True).fill('Updated purpose')
+    expect(page.get_by_role('alert').filter(has_text='Choose a supported thinking effort')).to_be_visible()
