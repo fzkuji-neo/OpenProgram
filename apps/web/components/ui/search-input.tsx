@@ -6,6 +6,7 @@ import { SearchIcon, XIcon } from "@/components/animated-icons"
 import type { AnimatedNavIconHandle } from "@/components/animated-icons"
 
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/lib/i18n"
 
 interface SearchInputProps {
   value: string
@@ -28,6 +29,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
     const innerRef = React.useRef<HTMLInputElement>(null)
     const searchRef = React.useRef<AnimatedNavIconHandle>(null)
     const clearRef = React.useRef<AnimatedNavIconHandle>(null)
+    const { text } = useTranslation()
     React.useImperativeHandle(ref, () => innerRef.current as HTMLInputElement)
 
     return (
@@ -62,7 +64,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
               innerRef.current?.focus()
             }}
             className="shrink-0 text-[var(--text-dim)] hover:text-[var(--text-primary)] transition-colors"
-            aria-label="Clear"
+            aria-label={text("Clear search", "清除搜索")}
             onMouseEnter={() => clearRef.current?.startAnimation?.()}
             onMouseLeave={() => clearRef.current?.stopAnimation?.()}
           >

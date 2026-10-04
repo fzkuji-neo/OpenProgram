@@ -18,7 +18,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./chats-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
-import { ManageEmptyState } from "@/components/ui/manage-page";
+import { ManageEmptyState, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { formatRelativeTime } from "@/lib/format-utils/format";
 import { pushPath } from "@/lib/shallow-nav";
@@ -182,11 +182,11 @@ export function ChatsPage({
         value={statusFilter}
         onChange={setStatusFilter}
         options={[
-          // Wording matches the sidebar's Recents → Status filter;
-          // these drive the same `archived` flag.
-          { value: "all", label: t("sidebar.status_all") },
-          { value: "active", label: t("sidebar.status_active") },
-          { value: "archived", label: t("sidebar.status_archived") },
+          // Same `archived` flag as the sidebar's Recents → Status filter;
+          // prefixed like the sort select so the trigger says what it filters.
+          { value: "all", label: text(`Status: ${t("sidebar.status_all")}`, `状态：${t("sidebar.status_all")}`) },
+          { value: "active", label: text(`Status: ${t("sidebar.status_active")}`, `状态：${t("sidebar.status_active")}`) },
+          { value: "archived", label: text(`Status: ${t("sidebar.status_archived")}`, `状态：${t("sidebar.status_archived")}`) },
         ]}
       />
     </>
@@ -235,7 +235,11 @@ export function ChatsPage({
 
           <div className={styles.content}>
             {embedded && (
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 12 }}>
+              <div className={styles.contentToolbar}>
+                <span className={styles.contentToolbarLabel}>
+                  {navGroups.flatMap((group) => group.items).find((it) => it.id === filter)?.name}
+                  <span>{items.length}</span>
+                </span>
                 {selects}
               </div>
             )}
@@ -251,7 +255,7 @@ export function ChatsPage({
                 description={query
                   ? text("Try a different search term or status filter.", "换个关键词或状态筛选试试。")
                   : filter === "all"
-                    ? text("Use New chat in the sidebar; conversations appear here grouped by recency.", "使用侧栏的“新建聊天”开始；会话会按时间分组显示在这里。")
+                    ? text(`Use ${t("nav.new_chat")} in the sidebar; conversations appear here grouped by recency.`, `使用侧栏的“${t("nav.new_chat")}”开始；会话会按时间分组显示在这里。`)
                     : text("Pick another range on the left.", "在左侧选择其他时间范围。")}
               />
             ) : grouped ? (
@@ -260,10 +264,11 @@ export function ChatsPage({
                   .filter(([, rows]) => rows.length)
                   .map(([b, rows]) => (
                     <div className={styles.section} key={b}>
-                      <div className={styles.sectionHeader}>
-                        {bucketLabel(b, locale, fixedLabels)} ({rows.length})
+                      <div className={shared.sectionHeader}>
+                        <span>{bucketLabel(b, locale, fixedLabels)}</span>
+                        <span>{rows.length}</span>
                       </div>
-                      <div>
+                      <div className={styles.rowList}>
                         {rows.map((c) => (
                           <ChatRow
                             key={c.id}
@@ -278,7 +283,7 @@ export function ChatsPage({
                   ))}
               </>
             ) : (
-              <div>
+              <div className={styles.rowList}>
                 {items.map((c) => (
                   <ChatRow
                     key={c.id}
@@ -313,20 +318,19 @@ function ChatRow({
   // Same label the sidebar renders: channel brand prefix, placeholder
   // titles resolved to the preview, "[attached: …]" markers stripped.
   const title = labelFor(conv, untitled);
-  const initial = title.replace(/^[\s[]+/, "").slice(0, 1).toUpperCase() || "?";
+  // Shared management row: a real <button> to open, same anatomy as the
+  // Projects > Chats list. The count slot is last activity — the same
+  // timestamp the list sorts and buckets by, so the row's own time can't
+  // contradict its date section.
   return (
-    <div className={styles.row} onClick={onClick}>
-      <div className={styles.rowAvatar}>{initial}</div>
-      <div className={styles.rowBody}>
-        <div className={styles.rowTitle}>{title}</div>
-        <div className={styles.rowMeta}>
-          <span title={String(conv.id)}>{conv.id.slice(0, 12)}</span>
-        </div>
-      </div>
-      {/* Last activity — the same timestamp the list sorts and buckets
-          by, so the row's own time can't contradict its date section. */}
-      <div className={styles.rowTime}>{formatRelativeTime(activityTs(conv), locale)}</div>
-    </div>
+    <ManageRow
+      icon={<MessageCircleIcon size={16} />}
+      name={title}
+      description={conv.id.slice(0, 12)}
+      count={formatRelativeTime(activityTs(conv), locale)}
+      title={String(conv.id)}
+      onClick={onClick}
+    />
   );
 }
 
@@ -420,8 +424,10 @@ function ChatsNavRow({
   const iconRef = useRef<AnimatedNavIconHandle>(null);
   const Icon = id === "all" ? MessageCircleIcon : ClockIcon;
   return (
-    <div
+    <button
+      type="button"
       className={styles.navItem + (active ? " " + styles.active : "")}
+      aria-current={active ? "true" : undefined}
       onClick={onSelect}
       onMouseEnter={() => iconRef.current?.startAnimation?.()}
       onMouseLeave={() => iconRef.current?.stopAnimation?.()}
@@ -431,6 +437,6 @@ function ChatsNavRow({
       </span>
       <span className={styles.navName}>{name}</span>
       <span className={styles.navCount}>{count}</span>
-    </div>
+    </button>
   );
 }

@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ManagePageHeader, managePageStyles } from "@/components/ui/manage-page";
+import { ManageEmptyState, ManagePageHeader, managePageStyles } from "@/components/ui/manage-page";
 import {
   ExplorerHeader,
   ExplorerMatchText,
@@ -490,12 +490,27 @@ export function ProgramsPage({
             </div>
           </aside>
           <section className={styles.logicPane}>
-            {error ? <div className={styles.empty} role="alert"><span className={styles.error}>{error}</span></div> : !selected ? (
-              <div className={styles.empty}><Network size={32} /><strong>{text("No Programs found", "没有找到 Program")}</strong><span>{text("Install a Program package or add a Tool or Workflow.", "安装程序包，或添加 Tool、Workflow。")}</span></div>
+            {error ? (
+              <div role="alert">
+                <ManageEmptyState
+                  compact
+                  icon={<Network />}
+                  title={text("Programs are unavailable", "暂时无法加载 Program")}
+                  description={error}
+                  action={<Button variant="outline" onClick={() => void refreshPrograms()}>{text("Retry", "重试")}</Button>}
+                />
+              </div>
+            ) : !selected ? (
+              <ManageEmptyState
+                compact
+                icon={<Network />}
+                title={text("No Programs found", "没有找到 Program")}
+                description={text("Install a Program package or add a Tool or Workflow.", "安装程序包，或添加 Tool、Workflow。")}
+              />
             ) : loadingLogic ? (
               <div className={styles.empty}><RefreshCw className={styles.spin} size={25} /><span>{text("Loading call logic…", "正在加载调用逻辑…")}</span></div>
             ) : !logic || !selectedNode ? (
-              <div className={styles.empty}><Network size={32} /><span>{text("Call logic is unavailable.", "调用逻辑不可用。")}</span></div>
+              <ManageEmptyState compact icon={<Network />} title={text("Call logic is unavailable", "调用逻辑不可用")} />
             ) : (
               <div className={styles.logicContent}>
                 <div className={styles.breadcrumb}>{ROOT_LABEL}/{selectedNode.path}</div>

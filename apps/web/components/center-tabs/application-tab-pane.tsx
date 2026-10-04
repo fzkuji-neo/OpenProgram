@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { applicationRequest, type ApplicationInstance, type ApplicationRun } from "@/lib/net/applications";
+import { useTranslation } from "@/lib/i18n";
 
 export function ApplicationTabPane({ instanceId }: { instanceId: string }) {
+  const { text } = useTranslation();
   const [instance, setInstance] = useState<ApplicationInstance | null>(null);
   const [error, setError] = useState("");
   const channel = useRef<MessageChannel | null>(null);
@@ -60,7 +62,7 @@ export function ApplicationTabPane({ instanceId }: { instanceId: string }) {
   }
 
   if (error) return <div role="alert" className="p-6 text-sm text-text-muted">{error}</div>;
-  if (!instance) return <div className="p-6 text-sm text-text-muted">Loading…</div>;
+  if (!instance) return <div className="p-6 text-sm text-text-muted">{text("Loading…", "加载中…")}</div>;
   const definition = instance.application;
   return <iframe
     title={definition.display_title || definition.title}

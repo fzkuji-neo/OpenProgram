@@ -61,7 +61,7 @@ export function MemorySettings() {
       setDraft(Object.fromEntries(memoryRows.map((row: SettingRow) => [row.key, row.value])));
       setSettingsReady(true);
     }).catch((error) => {
-      setMessage(text(`Could not load Memory settings: ${error}`, `无法加载 Memory 设置：${error}`));
+      setMessage(text(`Could not load Memory settings: ${error}`, `无法加载记忆设置：${error}`));
     }).finally(() => setLoaded(true));
 
     void api.listEnabledModels().then(setModels).catch(() => setModels([]));
@@ -199,8 +199,8 @@ export function MemorySettings() {
         </SettingsSection>
 
         <SettingsSection title={text("Context and history", "上下文与历史")}>
-          <SettingsRow label={text("Core Memory in every chat", "每次聊天注入 Core Memory")} description={text("Inject the compact Core view into each system prompt.", "把精简的 Core 视图加入每次系统提示词。") }>
-            <Switch aria-label={text("Core Memory in every chat", "每次聊天注入 Core Memory")} disabled={controlsDisabled} checked={Boolean(draft["memory.core.inject"])} onCheckedChange={(value) => update("memory.core.inject", value)} />
+          <SettingsRow label={text("Core Memory in every chat", "每次聊天注入核心记忆")} description={text("Inject the compact Core view into each system prompt.", "把精简的核心视图加入每次系统提示词。") }>
+            <Switch aria-label={text("Core Memory in every chat", "每次聊天注入核心记忆")} disabled={controlsDisabled} checked={Boolean(draft["memory.core.inject"])} onCheckedChange={(value) => update("memory.core.inject", value)} />
           </SettingsRow>
           <SettingsRow label={text("Recent view size", "Recent 视图大小")} description={text("Number of latest records retained after the next Memory write.", "下次 Memory 写入后保留的最新记录数量。") }>
             <select aria-label={text("Recent view size", "Recent 视图大小")} disabled={controlsDisabled} className={styles.select} value={Number(draft["memory.recent.limit"] ?? 50)} onChange={(event) => update("memory.recent.limit", Number(event.target.value))}>

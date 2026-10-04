@@ -5,7 +5,7 @@ import { useSkills, type Skill } from "@/lib/abilities/skills-store";
 import { Switch } from "@/components/ui/switch";
 import { SearchInput } from "@/components/ui/search-input";
 import { ManageEmptyState, ManageIconButton, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
-import { ChevronsDownUp, ChevronsUpDown, TextSearch } from "lucide-react";
+import { ChevronRight, ChevronsDownUp, ChevronsUpDown, TextSearch } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { pushPath } from "@/lib/shallow-nav";
 import {
@@ -14,6 +14,7 @@ import {
   FolderCodeIcon,
   FolderOpenIcon,
   GraduationCapIcon,
+  SearchIcon,
 } from "@/components/animated-icons";
 
 // --- tree node model -----------------------------------------------------
@@ -327,10 +328,12 @@ export function SkillsList({ externalFilter }: { externalFilter?: string } = {})
       {optionalSkills.length > 0 && (
         <div className="mt-6 border-t border-[var(--border)] pt-3">
           <button
+            type="button"
+            aria-expanded={showOptional}
             onClick={() => setShowOptional((v) => !v)}
             className="flex w-full items-center gap-2 text-xs text-[var(--text-secondary)] hover:text-nav-color-hover select-none"
           >
-            <span className="w-3 text-center">{showOptional ? "▾" : "▸"}</span>
+            <ChevronRight size={14} aria-hidden className={"shrink-0 transition-transform " + (showOptional ? "rotate-90" : "")} />
             <span>{text("Optional", "可选")} ({optionalSkills.length})</span>
           </button>
           {showOptional && (
@@ -352,6 +355,16 @@ export function SkillsList({ externalFilter }: { externalFilter?: string } = {})
             </div>
           )}
         </div>
+      )}
+      {skills.length > 0 && filtered.length === 0 && (
+        <ManageEmptyState
+          compact
+          icon={<SearchIcon size={20} />}
+          title={text("No matching skills", "没有匹配的技能")}
+          description={searchBody
+            ? text("Try a different search.", "换个关键词试试。")
+            : text("Try a different search, or turn on Search SKILL.md.", "换个关键词，或开启“搜索 SKILL.md”。")}
+        />
       )}
       {skills.length === 0 && (
         <ManageEmptyState

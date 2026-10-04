@@ -27,7 +27,7 @@ export function SearchProviderSetup({ provider }: { provider: SearchProvider }) 
             target="_blank"
             rel="noopener noreferrer"
           >
-            {text("Get API key", "获取 API key")} <span aria-hidden>→</span>
+            {provider.env_var ? text("Get API key", "获取 API key") : text("Open website", "打开官网")} <span aria-hidden>→</span>
           </a>
           {provider.docs_url && provider.docs_url !== provider.signup_url && (
             <Button asChild variant="outline" size="sm">

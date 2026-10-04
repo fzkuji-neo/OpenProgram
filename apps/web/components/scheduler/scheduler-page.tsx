@@ -56,7 +56,7 @@ const EMPTY_FORM = {
 };
 
 export function SchedulerPage() {
-  const { t, text } = useTranslation();
+  const { t, text, locale } = useTranslation();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [memoryRefs, setMemoryRefs] = useState<MemoryRef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +68,11 @@ export function SchedulerPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [pageError, setPageError] = useState("");
+  // The dialog keeps showing pendingDelete through its exit animation, so
+  // open state is separate from the task being confirmed.
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function reload() {
     setLoading(true);
@@ -159,19 +163,32 @@ export function SchedulerPage() {
     }
   }
 
-  async function remove(task: Task) {
+  async function remove(task: Task): Promise<boolean> {
     setPageError("");
     try {
       const response = await fetch(`/api/scheduler/tasks/${task.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error(text("Could not delete task", "无法删除任务"));
       setTasks((current) => current.filter((row) => row.id !== task.id));
+      return true;
     } catch (reason) {
       setPageError(reason instanceof Error ? reason.message : text("Could not delete task", "无法删除任务"));
+      return false;
     }
   }
 
+  async function confirmDelete() {
+    if (!pendingDelete || deleting) return;
+    setDeleting(true);
+    const ok = await remove(pendingDelete);
+    setDeleting(false);
+    if (ok) setDeleteOpen(false);
+  }
+
   const activeCount = tasks.filter((task) => task.enabled).length;
-  const filterTabs = filters.map((item) => ({ id: item.id, label: item.label, count: counts[item.id] }));
+  const filterTabs = filters.map((item) => ({ id: item.id, label: item.label, count: loadedOnce ? counts[item.id] : undefined }));
+  // A reload replaces the whole list, so hold row mutations until it lands
+  // instead of letting an older snapshot overwrite a newer change.
+  const rowsBusy = loading || deleting;
 
   return (
     <ManagePage className={styles.view}>
@@ -180,7 +197,7 @@ export function SchedulerPage() {
           toolbar={(
             <>
               {loadedOnce && tasks.length > 0 && (
-                <ManageSummary>{text(`${activeCount} of ${tasks.length} active`, `${activeCount}/${tasks.length} 个启用`)}</ManageSummary>
+                <ManageSummary>{text(`${activeCount} of ${tasks.length} active`, `已启用 ${activeCount}/${tasks.length} 个`)}</ManageSummary>
               )}
               <SearchInput
                 className={styles.headerSearch}
@@ -192,7 +209,7 @@ export function SchedulerPage() {
           )}
           actions={[
             { label: text("Refresh", "刷新"), onClick: () => void reload(), icon: RefreshCwIcon, iconOnly: true, disabled: loading },
-            { label: text("New task", "新建任务"), onClick: () => begin(), icon: PlusIcon, primary: true },
+            { label: text("New task", "新建任务"), onClick: () => begin(), icon: PlusIcon, primary: true, disabled: !loadedOnce || loading },
           ]}
         />
         <ManageSubnav
@@ -203,13 +220,13 @@ export function SchedulerPage() {
           panelId="scheduler-panel"
         />
         {pageError && <div className={shared.errorBar} role="alert">{pageError}</div>}
-        <main
-          id="scheduler-panel"
-          role="tabpanel"
-          aria-labelledby={`scheduler-panel-tab-${filter}`}
-          className={styles.layout}
-        >
-          <div className={styles.content}>
+        <main className={styles.layout}>
+          <div
+            id="scheduler-panel"
+            role="tabpanel"
+            aria-labelledby={`scheduler-panel-tab-${filter}`}
+            className={styles.content}
+          >
             {loading && !loadedOnce ? (
               <div className={shared.empty}>{text("Loading…", "加载中…")}</div>
             ) : !loadedOnce ? (
@@ -233,7 +250,7 @@ export function SchedulerPage() {
                       name={task.title}
                       description={(
                         <span className={styles.description}>
-                          <code className={styles.schedule}>{formatSchedule(task, text)}</code>
+                          <code className={styles.schedule}>{formatSchedule(task, text, locale)}</code>
                           {(task.prompt || task.command) && <span>{task.prompt || task.command}</span>}
                         </span>
                       )}
@@ -241,16 +258,17 @@ export function SchedulerPage() {
                         <>
                           <span className={shared.badge}>{typeLabel(task.type, text)}</span>
                           <span className={`${shared.badge} ${task.enabled ? shared.badgeGreen : ""}`}>
-                            {task.enabled ? text("Active", "启用") : text("Paused", "暂停")}
+                            {task.enabled ? text("Active", "已启用") : text("Paused", "已暂停")}
                           </span>
                           {!!task.memory_refs?.length && (
-                            <span className={styles.memory}><Link2 />{task.memory_refs.length} MemoryRef</span>
+                            <span className={styles.memory}><Link2 aria-hidden />{text(`${task.memory_refs.length} memory ${task.memory_refs.length === 1 ? "reference" : "references"}`, `${task.memory_refs.length} 条记忆引用`)}</span>
                           )}
                         </>
                       )}
                       actions={(
                         <>
                           <ManageIconButton
+                            disabled={rowsBusy}
                             onClick={() => void toggle(task)}
                             label={actionAccessibleName(task.enabled ? text("Pause", "暂停") : text("Resume", "恢复"), task.title)}
                             tooltip={task.enabled ? text("Pause", "暂停") : text("Resume", "恢复")}
@@ -259,7 +277,8 @@ export function SchedulerPage() {
                           </ManageIconButton>
                           <ManageIconButton
                             danger
-                            onClick={() => setPendingDelete(task)}
+                            disabled={rowsBusy}
+                            onClick={() => { setPendingDelete(task); setDeleteOpen(true); }}
                             label={actionAccessibleName(text("Delete", "删除"), task.title)}
                             tooltip={text("Delete", "删除")}
                           >
@@ -286,7 +305,7 @@ export function SchedulerPage() {
           </div>
         </main>
 
-      <Dialog open={pendingDelete !== null} onOpenChange={(next) => { if (!next) setPendingDelete(null); }}>
+      <Dialog open={deleteOpen} onOpenChange={(next) => { if (!deleting) setDeleteOpen(next); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{text("Delete scheduled task", "删除定时任务")}</DialogTitle>
@@ -295,8 +314,8 @@ export function SchedulerPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingDelete(null)}>{text("Cancel", "取消")}</Button>
-            <Button variant="destructive" onClick={() => { const task = pendingDelete; setPendingDelete(null); if (task) void remove(task); }}>{text("Delete", "删除")}</Button>
+            <Button variant="outline" disabled={deleting} onClick={() => setDeleteOpen(false)}>{text("Cancel", "取消")}</Button>
+            <Button variant="destructive" disabled={deleting} onClick={() => void confirmDelete()}>{deleting ? text("Deleting…", "删除中…") : text("Delete", "删除")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -305,12 +324,12 @@ export function SchedulerPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{text("Create scheduled task", "创建定时任务")}</DialogTitle>
-            <DialogDescription>{text("The task runs under the current owner's frozen permission boundary.", "任务在当前 owner 的冻结权限边界内执行。")}</DialogDescription>
+            <DialogDescription>{text("The task runs with the current owner's permissions, frozen when it is created.", "任务按创建时冻结的当前所有者权限执行。")}</DialogDescription>
           </DialogHeader>
           <div className={styles.form}>
             <label>{text("Title", "标题")}<input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
             <label>{text("Type", "类型")}<select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as TaskType })}>
-              <option value="once">{text("One time", "一次性")}</option>
+              <option value="once">{text("One-time", "一次性")}</option>
               <option value="recurring">{text("Recurring", "周期")}</option>
               <option value="monitor">{text("Monitor", "监控")}</option>
             </select></label>
@@ -320,8 +339,8 @@ export function SchedulerPage() {
               <label>{text("Cron expression", "Cron 表达式")}<input value={form.cron} onChange={(event) => setForm({ ...form, cron: event.target.value })} placeholder="0 9 * * 1-5" /></label>
             )}
             <label>{text("Task prompt", "任务提示")}<textarea value={form.prompt} onChange={(event) => setForm({ ...form, prompt: event.target.value })} rows={4} /></label>
-            <label>{text("Memory context (optional)", "Memory 上下文（可选）")}<select value={form.memoryId} onChange={(event) => setForm({ ...form, memoryId: event.target.value })}>
-              <option value="">{text("No Memory reference", "不引用 Memory")}</option>
+            <label>{text("Memory context (optional)", "记忆上下文（可选）")}<select value={form.memoryId} onChange={(event) => setForm({ ...form, memoryId: event.target.value })}>
+              <option value="">{text("No Memory reference", "不引用记忆")}</option>
               {memoryRefs.map((ref) => <option value={ref.memory_id} key={ref.memory_id}>{ref.topic_path} · {ref.content.slice(0, 70)}</option>)}
             </select></label>
             {error && <div className={styles.error} role="alert">{error}</div>}
@@ -351,8 +370,8 @@ function filterLabel(filter: TaskFilter, text: (en: string, zh: string) => strin
 
 // The type badge already names the kind of task; the schedule column only
 // carries the time or cron expression.
-function formatSchedule(task: Task, text: (en: string, zh: string) => string) {
-  if (task.type === "once") return task.run_at ? new Date(task.run_at).toLocaleString() : text("Not scheduled", "未设置时间");
+function formatSchedule(task: Task, text: (en: string, zh: string) => string, locale: string) {
+  if (task.type === "once") return task.run_at ? new Date(task.run_at).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", { dateStyle: "medium", timeStyle: "short" }) : text("Not scheduled", "未设置时间");
   return task.cron || "";
 }
 

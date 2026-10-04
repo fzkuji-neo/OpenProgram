@@ -15,7 +15,7 @@ import { BrowserImportDialog } from "@/components/center-tabs/browser-home-page"
 import styles from "./settings-page.module.css";
 
 export function BrowserSettings() {
-  const { text } = useTranslation();
+  const { t, text } = useTranslation();
   const bridge = desktopBridge();
   const [bookmarksVisible, setBookmarksVisible] = useState(showBookmarksBar);
   const [showImport, setShowImport] = useState(false);
@@ -48,10 +48,13 @@ export function BrowserSettings() {
     }
   }
 
+  // Only the desktop bridge can clear browser storage.
+  const canClear = Boolean(bridge?.browserData);
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
-        <h2 className={styles.pageTitle}>{text("Browser", "浏览器")}</h2>
+        <h2 className={styles.pageTitle}>{t("settings.tab.browser")}</h2>
         <p className={styles.pageMeta}>
           {text(
             "Manage the built-in browser appearance and local browsing data.",
@@ -106,18 +109,20 @@ export function BrowserSettings() {
               <div className={styles.control}>
                 <Switch
                   checked={clearHistory}
+                  disabled={!canClear}
                   onCheckedChange={setClearHistory}
                   aria-label={text("Browsing history", "浏览历史")}
                 />
               </div>
             </div>
             <div className={styles.row}>
-              <span className={styles.label}>Cookies</span>
+              <span className={styles.label}>{text("Cookies", "Cookie")}</span>
               <div className={styles.control}>
                 <Switch
                   checked={clearCookies}
+                  disabled={!canClear}
                   onCheckedChange={setClearCookies}
-                  aria-label="Cookies"
+                  aria-label={text("Cookies", "Cookie")}
                 />
               </div>
             </div>
@@ -129,7 +134,7 @@ export function BrowserSettings() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  disabled={clearing || !bridge?.browserData || (!clearHistory && !clearCookies)}
+                  disabled={clearing || !canClear || (!clearHistory && !clearCookies)}
                   onClick={() => void clearData()}
                 >
                   {clearing ? text("Clearing…", "正在清除…") : text("Clear data", "清除资料")}
@@ -137,6 +142,11 @@ export function BrowserSettings() {
               </div>
             </div>
             {clearResult ? <p className={styles.pageMeta} role="status">{clearResult}</p> : null}
+            {!canClear ? (
+              <p className={styles.pageMeta}>
+                {text("Clearing browsing data is available in the desktop app.", "清除浏览数据仅在桌面 App 中可用。")}
+              </p>
+            ) : null}
           </div>
         </section>
       </div>

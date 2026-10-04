@@ -71,6 +71,12 @@
   --theme-accent-fill: var(--accent-fill);
   --theme-accent-fill-hover: var(--accent-orange-hover);
   --accent-blue: var(--theme-accent);
+  /* Quiet-text aliases used by management pages (counts, summaries,
+     inactive subnav tabs, icon tiles). They were never defined, so those
+     rules silently inherited body-text colour. Resolve per theme; not
+     --text-muted, which drops 10-12px text to 3:1 in the light themes. */
+  --text-tertiary: var(--text-secondary);
+  --text-dim: var(--text-secondary);
   --accent-green: #6e9b76;
   --accent-red: #c24e42;
   --accent-yellow: #d4a346;
@@ -543,13 +549,15 @@ textarea:focus-visible {
 /* ===== Responsive ===== */
 /* Narrow viewport: BOTH sidebars are always position: fixed so the
    collapse/expand animation only changes their own width and never
-   reflows the main column. The main column reserves fixed 48px
-   gutters on each side for the collapsed rails. Expanding a sidebar
-   simply grows its width over the main column — covering the topbar
-   badges and chat content under it — without pushing main around.
-   This kills the previous mid-transition jump where collapsing made
-   main first shrink (sidebar entering flow at full width) and then
-   expand back as the sidebar's width animated to 48px. */
+   reflows the main column. Expanding a sidebar simply grows its width
+   over the main column without pushing it around. This kills the
+   previous mid-transition jump where collapsing made main first shrink
+   (sidebar entering flow at full width) and then expand back as the
+   sidebar's width animated to 48px.
+   Gutters: the chat surface stays edge-to-edge (see the note at the end
+   of this block). Page frames reserve the collapsed 49px rail themselves:
+   Settings (.view in settings-page.module.css) and the management pages
+   (.view in ui/manage-page.module.css). */
 @media (max-width: 900px) {
   .sidebar {
     position: fixed; top: 0; bottom: 0; z-index: 100;
