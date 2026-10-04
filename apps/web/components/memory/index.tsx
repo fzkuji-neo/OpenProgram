@@ -26,6 +26,7 @@ import { useTranslation } from "@/lib/i18n";
 import {
   type AnimatedNavIconHandle,
   ActivityIcon,
+  ClockIcon as TimelineIcon,
   FileTextIcon,
   RefreshCwIcon,
   SparklesIcon,
@@ -250,7 +251,7 @@ export function MemoryPage({
         <div className={styles.layout}>
           <nav className={styles.tabBar} aria-label={text("Memory sections", "Memory 分区")}>
             <TabButton active={tab === "topics"} onClick={() => setTab("topics")} icon={<FileTextIcon size={13} />}>{text("Topics", "主题")}</TabButton>
-            <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ClockIcon className={styles.fileIcon} />}>{text("Timeline", "时间线")}</TabButton>
+            <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<TimelineIcon size={13} />}>{text("Timeline", "时间线")}</TabButton>
             <TabButton active={tab === "recent"} onClick={() => setTab("recent")} icon={<ActivityIcon size={13} />}>{text("Recent", "最近")}</TabButton>
             <TabButton active={tab === "core"} onClick={() => setTab("core")} icon={<SparklesIcon size={13} />}>{text("Core", "核心")}</TabButton>
           </nav>
@@ -261,13 +262,20 @@ export function MemoryPage({
               <div className={styles.tree}>
               {/* Search + refresh */}
               <div className={styles.treeToolbar}>
-                {query === undefined && (
+                {query === undefined ? (
                 <SearchInput
                   className="flex-1"
                   placeholder={text("Search topics...", "搜索主题...")}
                   value={search}
                   onChange={setSearch}
                 />
+                ) : (
+                  // The hub header owns search; label the row so the
+                  // refresh button does not float on its own.
+                  <span className={styles.treeToolbarLabel}>
+                    {text("Topics", "主题")}
+                    {!topicsLoading && <span>{filteredTopics.length}</span>}
+                  </span>
                 )}
                 <button
                   className={sidebarToggleClass}

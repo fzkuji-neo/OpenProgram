@@ -235,7 +235,11 @@ export function ChatsPage({
 
           <div className={styles.content}>
             {embedded && (
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 12 }}>
+              <div className={styles.contentToolbar}>
+                <span className={styles.contentToolbarLabel}>
+                  {navGroups.flatMap((group) => group.items).find((it) => it.id === filter)?.name}
+                  <span>{items.length}</span>
+                </span>
                 {selects}
               </div>
             )}

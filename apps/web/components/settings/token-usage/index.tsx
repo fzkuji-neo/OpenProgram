@@ -122,6 +122,7 @@ function StackedBarChart({
   series: Record<string, TrendPoint[]>;
   categories: string[];
 }) {
+  const { text } = useTranslation();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [w, setW] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
@@ -203,7 +204,7 @@ function StackedBarChart({
   if (nDays === 0) {
     return (
       <div className={local.chartWrap} ref={wrapRef} style={{ height: H }}>
-        <div className={local.chartEmpty}>暂无数据</div>
+        <div className={local.chartEmpty}>{text("No usage recorded in this period", "此时段暂无用量记录")}</div>
       </div>
     );
   }

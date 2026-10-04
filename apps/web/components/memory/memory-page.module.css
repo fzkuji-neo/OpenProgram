@@ -842,6 +842,23 @@
   flex-shrink: 0;
 }
 
+.treeToolbarLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.treeToolbarLabel > span {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
 
 .searchClear:hover {
   color: var(--text-bright);

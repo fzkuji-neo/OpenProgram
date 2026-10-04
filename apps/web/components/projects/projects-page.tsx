@@ -13,9 +13,9 @@ import fx from "@/components/functions/functions-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
 import { useFolderPicker } from "@/components/ui/folder-picker";
 import styles from "./projects-page.module.css";
-import { managePageStyles as shared } from "@/components/ui/manage-page";
+import { ManageEmptyState, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
 import { useTranslation } from "@/lib/i18n";
-import { FoldersIcon, FolderPlusIcon } from "@/components/animated-icons";
+import { FoldersIcon, FolderPlusIcon, MessageCircleIcon } from "@/components/animated-icons";
 import { wsRequest } from "@/lib/net/ws-request";
 import { formatRelativeTime } from "@/lib/format-utils/format";
 import { ProjectEditor, type EditableProject } from "@/components/sidebar/project-editor";
@@ -189,9 +189,11 @@ export function ProjectsPage({
           {/* 左栏：项目列表（复用 Functions 的 profilesNav） */}
           <div className={fx.profilesNav}>
             {filtered.map((p) => (
-              <div
+              <button
+                type="button"
                 key={p.id}
-                className={cls(fx.profileItem, p.id === selectedId && fx.active)}
+                className={cls(fx.profileItem, styles.railItem, p.id === selectedId && fx.active, p.id === selectedId && styles.railItemActive)}
+                aria-current={p.id === selectedId ? "true" : undefined}
                 onClick={() => setSelectedId(p.id)}
               >
                 <span className={fx.profileIcon}>{p.icon || <FoldersIcon size={16} />}</span>
@@ -209,27 +211,37 @@ export function ProjectsPage({
                 ) : (
                   <span className={styles.statusSlotPad} aria-hidden="true" />
                 )}
-              </div>
+              </button>
             ))}
             <div className={fx.profileSep} />
-            <div
-              className={cls(fx.profileItem, fx.profileNew)}
+            <button
+              type="button"
+              className={cls(fx.profileItem, styles.railItem, styles.addRow)}
               onClick={addProject}
             >
               <span className={fx.profileIcon}><FolderPlusIcon size={16} /></span>
-              <span className={fx.profileName}>{text("Open folder…", "打开文件夹…")}</span>
-            </div>
+              <span className={fx.profileName}>{text("Add project folder…", "添加项目文件夹…")}</span>
+            </button>
           </div>
 
           {/* 右栏：选中项目的内容 */}
           <div className={fx.content}>
             {!selected ? (
-              <div className={fx.empty}>{text("Select a project.", "选择一个项目。")}</div>
+              <ManageEmptyState
+                compact
+                icon={<FoldersIcon size={20} />}
+                title={projects.length ? text("Select a project", "选择一个项目") : text("No projects yet", "还没有项目")}
+                description={text("A project is a folder on disk. Its chats, default settings and permission rules travel with it.", "项目对应磁盘上的一个文件夹，其会话、默认设置和权限规则随项目保存。")}
+                action={projects.length ? undefined : <Button onClick={addProject}><FolderPlusIcon size={16} aria-hidden />{text("Add project folder…", "添加项目文件夹…")}</Button>}
+              />
             ) : (
               <>
                 <div className={styles.detailHead}>
-                  <span className={styles.detailTitle}>{selected.name}</span>
-                  <span className={styles.detailPath}>{selected.path}</span>
+                  <span className={styles.detailIcon} aria-hidden="true">{selected.icon || <FoldersIcon size={20} />}</span>
+                  <div className={styles.detailHeading}>
+                    <h2 className={styles.detailTitle}>{selected.name}</h2>
+                    <span className={styles.detailPath} title={selected.path}>{selected.path}</span>
+                  </div>
                   {selected.hidden&&<Button variant="outline" onClick={async()=>{try{const result=await wsRequest<{ok:boolean;error?:string}>("restore_project",{project_id:selected.id},"restore_project_result");if(!result?.ok)throw new Error(result?.error||"Could not restore project");await refresh();window.dispatchEvent(new Event("project-changed"));}catch(err){setError(String(err));}}}>{text("Restore to sidebar", "恢复到侧边栏")}</Button>}
                   <Button variant="outline" onClick={()=>setEditing(true)}>{text("Edit project", "编辑项目")}</Button>
                 </div>
@@ -292,11 +304,13 @@ export function ProjectsPage({
                   </div>
                 )}
 
-                <div className={styles.tabs}>
+                <div className={styles.tabs} role="tablist" aria-label={text("Project sections", "项目分区")}>
                   {(["settings", "sessions", "info"] as Tab[]).map((tk) => (
                     <button
                       key={tk}
                       type="button"
+                      role="tab"
+                      aria-selected={tab === tk}
                       onClick={() => setTab(tk)}
                       className={cls(styles.tab, tab === tk && styles.tabActive)}
                     >
@@ -323,36 +337,31 @@ export function ProjectsPage({
                 {tab === "sessions" && (
                   <div className={styles.tabBody}>
                     {sessions.length === 0 ? (
-                      <div className={fx.empty}>{text("No chats in this project.", "该项目还没有会话。")}</div>
+                      <ManageEmptyState
+                        compact
+                        icon={<MessageCircleIcon size={20} />}
+                        title={text("No chats in this project", "该项目还没有会话")}
+                        description={text("Chats started in this folder appear here.", "在此文件夹中开始的会话会显示在这里。")}
+                      />
                     ) : (
-                      <ul className={styles.sessionList}>
-                        {sessions.map((s) => {
-                          const title = s.title || s.id;
-                          const initial = title.replace(/^\s+/, "").slice(0, 1).toUpperCase() || "?";
-                          return (
-                            <li
-                              key={s.id}
-                              className={styles.sessionRow}
-                              onClick={() => pushPath("/s/" + s.id)}
-                            >
-                              <span className={styles.sessionAvatar}>{initial}</span>
-                              <div className={styles.sessionBody}>
-                                <div className={styles.sessionTitle}>{title}</div>
-                                <div className={styles.sessionMeta}>{s.id.slice(0, 12)}</div>
-                              </div>
-                              <span className={styles.sessionTime}>
-                                {formatRelativeTime(s.created_at ?? 0, locale)}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
+                      <div className={styles.sessionList}>
+                        {sessions.map((s) => (
+                          <ManageRow
+                            key={s.id}
+                            icon={<MessageCircleIcon size={16} />}
+                            name={s.title || s.id}
+                            description={s.preview || s.id.slice(0, 12)}
+                            count={formatRelativeTime(s.created_at ?? 0, locale)}
+                            onClick={() => pushPath("/s/" + s.id)}
+                          />
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}
 
                 {tab === "info" && (
-                  <div className={styles.tabBody}>
+                  <dl className={cls(styles.tabBody, styles.fields)}>
                     <Field label={text("Path", "路径")}><code>{selected.path}</code></Field>
                     <Field label={text("Type", "类型")}>
                       {selected.is_default ? text("Default (home)", "默认（家目录）") : text("Custom", "自定义")}
@@ -360,7 +369,7 @@ export function ProjectsPage({
                     <Field label={text("Status", "状态")}>{selected.status}</Field>
                     <Field label={text("Chats", "会话数")}>{selected.session_count}</Field>
                     <Field label="ID"><code>{selected.id}</code></Field>
-                  </div>
+                  </dl>
                 )}
               </>
             )}
@@ -375,12 +384,9 @@ export function ProjectsPage({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{
-        fontSize: 11, fontWeight: 600, textTransform: "uppercase",
-        letterSpacing: "0.04em", color: "var(--text-muted)", marginBottom: 4,
-      }}>{label}</div>
-      <div style={{ fontSize: 14, color: "var(--text-primary)" }}>{children}</div>
+    <div className={styles.field}>
+      <dt>{label}</dt>
+      <dd>{children}</dd>
     </div>
   );
 }
