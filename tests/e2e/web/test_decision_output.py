@@ -14,6 +14,7 @@ pytestmark = pytest.mark.browser
 ENTRY = r'''
 import React from 'react';
 import {createRoot} from 'react-dom/client';
+import {flushSync} from 'react-dom';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {Composer} from './components/chat/composer';
 import {DecisionOutputs} from './components/chat/messages/decision-output';
@@ -60,8 +61,8 @@ window.addDecision = (sid = 'main', kind = 'ask') => {
   if (kind === 'form') q.schema = {member:{type:'string',title:'Member'}};
   if (kind === 'approval') {q.tool='shell';q.args={command:'echo synthetic'};}
   if (kind === 'ask_many') q.questions = [
-    {prompt:'First item',options:['Alpha'],multi:false,allow_custom:false},
-    {prompt:'Second item',options:['Beta'],multi:false,allow_custom:false},
+    {prompt:'First item',options:['Alpha','Gamma'],option_descriptions:{Alpha:'The first option',Gamma:'The alternative'},multi:false,allow_custom:true},
+    {prompt:'Second item',options:['Beta','Delta'],multi:true,allow_custom:true},
   ];
   useSessionStore.getState().enqueueDecision(q);
 };
@@ -73,9 +74,10 @@ function Pane({sid}) {
  </section></SessionScopeProvider>;
 }
 const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
-createRoot(document.getElementById('mount')).render(<QueryClientProvider client={client}>
-  <Pane sid="main"/><Pane sid="peer"/>
-</QueryClientProvider>);
+const root = createRoot(document.getElementById('mount'));
+const view = () => <QueryClientProvider client={client}><Pane sid="main"/><Pane sid="peer"/></QueryClientProvider>;
+root.render(view());
+window.remountPanels = () => {flushSync(() => root.render(null)); root.render(view());};
 '''
 
 
@@ -85,11 +87,16 @@ def decision_bundle(tmp_path_factory):
     bundle = directory / "decision.js"
     subprocess.run([
         "node", "-e",
-        "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});",
+        "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'local-css'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});",
         str(ROOT / "apps/web"), str(bundle), ENTRY,
     ], cwd=ROOT, check=True, capture_output=True)
     shell = directory / "decision.html"
-    shell.write_text("<!doctype html><style>section[data-pane]{width:700px;margin:20px}button,input,textarea{margin:5px}svg{max-width:24px;max-height:24px}</style><div id='mount'></div>")
+    shell.write_text("<!doctype html><html data-theme='light'><link rel='stylesheet' href='decision.css'><style>" +
+        (ROOT / "apps/web/app/styles/themes/light.css").read_text() +
+        ":root{--font-sans:Inter,-apple-system,BlinkMacSystemFont,sans-serif;--fs-base:14px;--fs-sm:12px;--chat-column-max:1140px}"
+        "*{box-sizing:border-box}body{margin:0;font-family:var(--font-sans)}"
+        "section[data-pane]{position:relative;display:inline-block;vertical-align:top;height:900px;width:min(650px,calc(100vw - 32px));margin:16px}svg{max-width:24px;max-height:24px}"
+        "</style><div id='mount'></div></html>")
     return shell, bundle
 
 
@@ -118,8 +125,8 @@ def test_question_arrival_preserves_draft_focus_and_chat_submit(decision_page):
     page.evaluate("window.addDecision('main'); window.addDecision('peer')")
     expect(main).to_be_focused()
     expect(main).to_have_value("This is a queued chat message")
-    expect(page.locator('[data-output="main"] [data-decision-output="main-ask"]')).to_be_visible()
-    expect(page.locator('[data-input] [data-decision-output]')).to_have_count(0)
+    expect(page.locator('[data-input="main"] [data-decision-output="main-ask"]')).to_be_visible()
+    expect(page.locator('[data-output] [data-decision-status="open"]')).to_have_count(0)
     expect(page.locator('[data-output="main"] [data-decision-output="peer-ask"]')).to_have_count(0)
     page.locator('[data-input="main"]').get_by_role("button", name="Send message", exact=True).click()
     expect(main).to_have_value("")
@@ -139,15 +146,15 @@ def test_answer_feedback_retry_keeps_identity_and_receipt(decision_page):
     page.evaluate("window.addDecision('main'); window.addDecision('peer')")
     card = page.locator('[data-decision-output="main-ask"]')
     card.get_by_placeholder("Type your answer…").fill("TestAlice")
-    card.get_by_role("button", name="Send", exact=True).click()
+    card.get_by_role("button", name="Submit", exact=True).click()
     expect(card).to_have_attribute("data-decision-status", "sending")
-    expect(card.get_by_role("status")).to_contain_text("TestAlice")
-    expect(card.get_by_role("button", name="Sending…", exact=True)).to_be_disabled()
+    expect(card).to_contain_text("TestAlice")
+    expect(card.get_by_role("button", name="Submitting…", exact=True)).to_be_disabled()
     page.evaluate("window.releaseAnswer(503)")
     expect(card).to_have_attribute("data-decision-status", "unknown")
     expect(card.get_by_role("status")).to_contain_text("HTTP 503")
-    expect(card.get_by_placeholder("Type your answer…")).to_be_disabled()
-    card.get_by_role("button", name="Retry", exact=True).click()
+    expect(card.get_by_placeholder("Type your answer…")).to_have_count(0)
+    card.get_by_role("button", name="Retry answer", exact=True).click()
     page.wait_for_function("window.commands.length === 2")
     assert page.evaluate("window.commands[0]") == page.evaluate("window.commands[1]")
     page.evaluate("window.releaseAnswer()")
@@ -160,7 +167,7 @@ def test_answer_feedback_retry_keeps_identity_and_receipt(decision_page):
 @pytest.mark.parametrize("kind,answer", [
     ("form", {"member": "TestAlice"}),
     ("approval", {"answer": "approve", "scope": "once"}),
-    ("ask_many", ["Alpha", "Beta"]),
+    ("ask_many", ["Alpha", ["Beta"]]),
 ])
 def test_decision_variants_submit_from_output(decision_page, kind, answer):
     from playwright.sync_api import expect
@@ -171,11 +178,104 @@ def test_decision_variants_submit_from_output(decision_page, kind, answer):
         card.get_by_label("Member", exact=True).fill("TestAlice")
     elif kind == "ask_many":
         card.get_by_role("button", name="Alpha", exact=True).click()
-        card.get_by_role("button", name="Next ›", exact=True).click()
+        card.get_by_role("button", name="Next", exact=True).click()
         card.get_by_role("button", name="Beta", exact=True).click()
-    card.get_by_role("button", name="Allow once" if kind == "approval" else "Send", exact=True).click()
+    card.get_by_role("button", name="Allow once" if kind == "approval" else "Submit", exact=True).click()
     page.wait_for_function("window.commands.length === 1")
     assert page.evaluate("window.commands[0].payload.answer") == answer
     page.evaluate("window.releaseAnswer()")
     expect(card.get_by_role("status")).to_have_text("Answer confirmed")
     expect(page.locator('[data-input="main"] textarea')).to_be_visible()
+
+
+def test_navigation_custom_multi_shortcuts_and_collapse(decision_page):
+    from playwright.sync_api import expect
+    page = decision_page
+    page.evaluate("window.addDecision('main', 'ask_many')")
+    card = page.locator('[data-decision-output="main-ask_many"]')
+    expect(card.get_by_label("Question 1 of 2", exact=True)).to_have_text("1/2")
+    expect(card.get_by_text("The first option", exact=True)).to_be_visible()
+    expect(card.get_by_role("button", name="Next", exact=True)).to_be_disabled()
+    expect(card.get_by_role("button", name="Beta", exact=True)).to_have_count(0)
+    other = card.get_by_placeholder("Type your own answer here")
+    other.fill("Custom first")
+    card.get_by_role("button", name="Hide request", exact=True).click()
+    expect(other).to_have_count(0)
+    card.get_by_role("button", name="Expand request", exact=True).click()
+    expect(other).to_have_value("Custom first")
+    card.get_by_role("button", name="Next", exact=True).click()
+    expect(card.get_by_label("Question 2 of 2", exact=True)).to_have_text("2/2")
+    assert page.evaluate("window.commands") == []
+    card.get_by_role("button", name="Back", exact=True).click()
+    expect(other).to_have_value("Custom first")
+    card.get_by_role("button", name="Gamma", exact=True).focus()
+    page.keyboard.press("1")
+    expect(card.get_by_role("button", name="Alpha", exact=True)).to_have_attribute("aria-pressed", "true")
+    expect(other).to_have_value("")
+    page.keyboard.press("Control+Enter")
+    card.get_by_role("button", name="Beta", exact=True).click()
+    card.get_by_role("button", name="Delta", exact=True).click()
+    other.fill("3")
+    other.press("9")
+    expect(other).to_have_value("39")
+    assert page.evaluate("window.commands") == []
+    other.press("Control+Enter")
+    page.wait_for_function("window.commands.length === 1")
+    assert page.evaluate("window.commands[0].payload.answer") == ["Alpha", ["Beta", "Delta", "39"]]
+    page.evaluate("window.releaseAnswer()")
+    expect(page.locator('[data-output="main"] [data-decision-output]')).to_have_count(1)
+
+
+def test_skip_declines_request_and_collapse_sends_nothing(decision_page):
+    from playwright.sync_api import expect
+    page = decision_page
+    page.evaluate("window.addDecision('main', 'ask_many')")
+    card = page.locator('[data-decision-output="main-ask_many"]')
+    card.get_by_role("button", name="Collapse request", exact=True).click()
+    assert page.evaluate("window.commands") == []
+    card.get_by_role("button", name="Expand request", exact=True).click()
+    card.get_by_role("button", name="Skip", exact=True).click()
+    page.wait_for_function("window.commands.length === 1")
+    assert page.evaluate("window.commands[0].action") == "execution.wait.decline"
+    assert "answer" not in page.evaluate("window.commands[0].payload")
+    page.evaluate("window.releaseAnswer()")
+    expect(card).to_have_attribute("data-decision-status", "declined")
+    expect(card.get_by_role("status")).to_have_text("Declined")
+
+
+def test_narrow_short_panel_uses_composer_width_and_keeps_actions_visible(decision_page):
+    page = decision_page
+    page.set_viewport_size({"width": 380, "height": 500})
+    page.evaluate("window.addDecision('main', 'ask_many')")
+    card = page.locator('[data-decision-output="main-ask_many"]')
+    card.wait_for()
+    panel = card.bounding_box()
+    assert panel["x"] >= 0 and panel["x"] + panel["width"] <= 380
+    next_button = card.get_by_role("button", name="Next", exact=True).bounding_box()
+    assert next_button["y"] + next_button["height"] <= panel["y"] + panel["height"]
+    options = card.locator('[data-choice-number="1"]').bounding_box()
+    assert options["width"] >= panel["width"] - 60
+    assert page.evaluate("document.documentElement.scrollWidth") <= 380
+
+
+def test_panel_remount_retains_answers_and_ime_does_not_submit(decision_page):
+    from playwright.sync_api import expect
+    page = decision_page
+    page.evaluate("window.addDecision('main', 'ask_many')")
+    card = page.locator('[data-decision-output="main-ask_many"]')
+    card.get_by_role("button", name="Alpha", exact=True).click()
+    card.get_by_role("button", name="Next", exact=True).click()
+    other = card.get_by_placeholder("Type your own answer here")
+    other.fill("Custom second")
+    page.evaluate("window.remountPanels()")
+    expect(card.get_by_label("Question 2 of 2", exact=True)).to_have_text("2/2")
+    expect(other).to_have_value("Custom second")
+    other.evaluate("el => el.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',ctrlKey:true,isComposing:true,bubbles:true}))")
+    assert page.evaluate("window.commands") == []
+    card.get_by_role("button", name="Back", exact=True).click()
+    expect(card.get_by_role("button", name="Alpha", exact=True)).to_have_attribute("aria-pressed", "true")
+    card.get_by_role("button", name="Next", exact=True).click()
+    expect(other).to_have_value("Custom second")
+    card.get_by_role("button", name="Submit", exact=True).click()
+    page.wait_for_function("window.commands.length === 1")
+    assert page.evaluate("window.commands[0].payload.answer") == ["Alpha", ["Custom second"]]

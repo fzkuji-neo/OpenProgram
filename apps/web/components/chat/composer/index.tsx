@@ -22,6 +22,7 @@
  */
 "use client";
 
+import { PendingDecisionPanels } from "../messages/decision-output";
 import { QueuedMessages } from "../messages/queued-messages";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -528,6 +529,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
             document.body,
           )
         : null}
+      <div className={styles.decisionColumn}><PendingDecisionPanels sessionId={activeChatKey ?? currentSessionId} /></div>
       <QueuedMessages key={activeChatKey ?? currentSessionId ?? "new"} sessionId={activeChatKey ?? currentSessionId} />
       <EnvironmentRow
         sessionId={currentSessionId}

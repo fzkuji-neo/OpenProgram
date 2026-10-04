@@ -105,7 +105,7 @@ def _to_runtime_questions(questions: list[dict]) -> list[dict]:
         opts = q.get("options") or []
         labels = [str(o.get("label", "")) for o in opts if o.get("label")]
         # Fold option descriptions into the prompt as a hint line so the
-        # user sees what each choice means (the popup renders only labels).
+        # user sees what each choice means (older clients display the plain prompt).
         desc_lines = [
             f"  • {o.get('label')}: {o.get('description')}"
             for o in opts
@@ -116,6 +116,11 @@ def _to_runtime_questions(questions: list[dict]) -> list[dict]:
             prompt = prompt + "\n" + "\n".join(desc_lines)
         out.append({
             "prompt": prompt,
+            "question_title": str(q.get("question", "")),
+            "option_descriptions": {
+                str(o["label"]): str(o["description"])
+                for o in opts if o.get("label") and o.get("description")
+            },
             "options": labels,
             "multi": bool(q.get("multiSelect")),
             "allow_custom": True,

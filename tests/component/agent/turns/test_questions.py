@@ -246,3 +246,24 @@ def test_agent_loop_stops_before_a_declared_interaction_effect():
         "policy_snapshot": {"version": 1, "on_answer": "continue", "on_decline": "fail", "on_timeout": "fail"},
         "timeout": 30.0,
     })]
+
+
+def test_runtime_preserves_option_presentation_through_declared_wait(_execution):
+    from openprogram.agent.run_control import reset_preapproved_wait_id
+    from openprogram.programs.tools.interaction.clarify import interaction_manifest
+
+    manifest = interaction_manifest({"questions": [{
+        "question": "Which output?", "options": [
+            {"label": "Chart", "description": "Show the values"}, {"label": "Table"},
+        ],
+    }]})
+    request = {key: manifest[key] for key in (
+        "prompt", "options", "multi", "allow_custom", "detail", "schema", "questions",
+    )}
+    store, execution_id, attempt = _execution
+    token = _resolved_wait(store, execution_id, attempt, kind="ask_many",
+                           request=request, answer=["Chart"])
+    try:
+        assert _FakeRuntime().ask(questions=manifest["questions"]) == ["Chart"]
+    finally:
+        reset_preapproved_wait_id(token)

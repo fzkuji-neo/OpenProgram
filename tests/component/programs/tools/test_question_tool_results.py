@@ -98,6 +98,9 @@ def test_valid_answer_and_question_manifest_remain_compatible():
     assert seen == [clarify.interaction_manifest({"questions": QUESTIONS})["questions"]]
     assert seen[0][0]["allow_custom"] is True
     assert seen[0][0]["options"] == ["A", "B"]
+    assert seen[0][0]["question_title"] == "Controlled question"
+    assert seen[0][0]["option_descriptions"] == {"A": "First choice"}
+    assert "A: First choice" in seen[0][0]["prompt"]  # Plain clients keep their hint.
 
 
 @pytest.mark.parametrize(

@@ -60,8 +60,10 @@ const { QuestionMode } = await import("../../components/chat/composer/modes/ques
 globalThis.WebSocket = { OPEN: 1 };
 const decision = { id: "wait-one", kind: "approval", prompt: "Allow this command?", detail: "echo test", options: [], allowedScopes: ["once", "always"], multi: false, allow_custom: false, executionId: "exec-one", expectedVersion: 3, waitGeneration: 0 };
 const { useDecisionSubmissions } = await import("../../lib/chat/decision-submissions.ts");
+const { useDecisionDrafts } = await import("../../lib/chat/decision-drafts.ts");
 async function mounted(q, check) {
   useDecisionSubmissions.setState({submissions: {}});
+  useDecisionDrafts.setState({drafts: {}});
   const frames = [], resolved = [], discussed = [];
   globalThis.approvalSocket = { readyState: 1, send: value => frames.push(JSON.parse(value)) };
   respond = async (_url, init) => {
@@ -74,7 +76,7 @@ async function mounted(q, check) {
   const root = createRoot(host);
   try {
     await act(async () => root.render(createElement(QuestionMode, { decision: q, onResolve: id => resolved.push(id), onChatAbout: () => discussed.push(q.id) })));
-    const button = label => [...host.querySelectorAll("button")].find(b => b.textContent.replace("✓ ", "") === label);
+    const button = label => [...host.querySelectorAll("button")].find(b => (b.getAttribute("aria-label") ?? b.textContent.replace("✓ ", "")) === label);
     await check({ host, button, frames, resolved, discussed });
   } finally { await act(async () => root.unmount()); host.remove(); }
 }
@@ -127,14 +129,20 @@ test("approval remains pending until its answer is acknowledged", async () => {
     assert.deepEqual(resolved, [decision.id]);
   });
 });
-test("multiple questions submit all visible answers in order", async () => {
+test("multiple questions navigate locally and submit all answers in order", async () => {
   await mounted({ ...decision, kind: "ask_many", questions: [
     { prompt: "First", options: ["One"], multi: false, allow_custom: false },
     { prompt: "Second", options: ["Two"], multi: false, allow_custom: false },
   ] }, async ({ button, frames }) => {
+    assert.ok(!button("Two"), "only the current question is visible");
     await act(async () => button("One").click());
+    await act(async () => button("Next").click());
+    assert.deepEqual(frames, []);
+    await act(async () => button("Back").click());
+    assert.equal(button("One").getAttribute("aria-pressed"), "true");
+    await act(async () => button("Next").click());
     await act(async () => button("Two").click());
-    await act(async () => button("Submit answers").click());
+    await act(async () => button("Submit").click());
     assert.deepEqual(frames[0].payload.answer, ["One", "Two"]);
   });
 });
@@ -146,6 +154,7 @@ const { useSessionStore } = await import("../../lib/session-store/index.ts");
 
 async function discussionMounted(check) {
   useDecisionSubmissions.setState({submissions: {}});
+  useDecisionDrafts.setState({drafts: {}});
   const requests = [], sent = [], removed = [], notices = [], frames = [];
   globalThis.approvalSocket = { readyState: 1, send: value => frames.push(JSON.parse(value)) };
   const onToast = e => notices.push(e.detail); window.addEventListener("op:toast", onToast);
@@ -176,7 +185,7 @@ async function discussionMounted(check) {
   try {
     await act(async () => root.render(createElement(Harness)));
     const click = async () => {
-      const open = [...host.querySelectorAll("button")].find(b => b.textContent === "Discuss");
+      const open = [...host.querySelectorAll("button")].find(b => b.getAttribute("aria-label") === "Discuss");
       if (open) {
         await act(async () => flushSync(() => open.click()));
         const input = host.querySelector("textarea");
@@ -279,7 +288,7 @@ test("failed submission leaves the actual answer and error visible in the output
       return Response.json({error: "test_unavailable"}, {status: 503});
     };
     await act(async () => button("Alice").click());
-    await act(async () => button("Submit answers").click());
+    await act(async () => button("Submit").click());
     const receipt = host.querySelector('[role="status"]');
     assert.ok(receipt, "submission must have visible inline feedback");
     assert.match(host.textContent, /Alice/);

@@ -86,7 +86,7 @@ export interface PendingDecision {
    *  description, enum, default, …}). The answer is an object (field → value).
    *  See runtime.form / docs/design/runtime/user-input-requests.md Phase 4a. */
   schema?: Record<string, FormFieldSchema>;
-  /** ask_many-only: a group shown vertically and submitted together.
+  /** ask_many-only: a group navigated one question at a time and submitted together.
    *  The answer is an ordered list (one
    *  per question). See runtime.ask_many. */
   questions?: AskOne[];
@@ -95,6 +95,9 @@ export interface PendingDecision {
 /** One question inside an ask_many group. */
 export interface AskOne {
   prompt: string;
+  /** Presentation metadata; option strings remain the canonical answer values. */
+  question_title?: string;
+  option_descriptions?: Record<string, string>;
   options: string[];
   multi: boolean;
   allow_custom: boolean;

@@ -5,7 +5,8 @@
   margin: 12px 0;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
   color: var(--text-primary);
   overflow: hidden;
 }

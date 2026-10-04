@@ -50,7 +50,7 @@ function DecisionOutput({ decision, submission }: {
 }
 
 /** Session-owned output, separate from the chat draft and its submit action. */
-export function DecisionOutputs({ sessionId }: { sessionId: string | null }) {
+function DecisionCards({ sessionId, pendingOnly }: { sessionId: string | null; pendingOnly: boolean }) {
   const pending = useSessionStore((s) => s.pendingDecisions);
   const submissions = useDecisionSubmissions((s) => s.submissions);
   if (!sessionId) return null;
@@ -66,7 +66,21 @@ export function DecisionOutputs({ sessionId }: { sessionId: string | null }) {
   const ordered = Array.from(decisions.values());
   ordered.forEach(displayOrder);
   ordered.sort((a, b) => displayOrder(a) - displayOrder(b));
-  return <>{ordered.map((decision) => (
+  return <>{ordered.filter(decision => {
+    const status = submissions[decision.id]?.status;
+    const terminal = status === "answered" || status === "declined" || status === "closed";
+    return pendingOnly ? !terminal : terminal;
+  }).map((decision) => (
     <DecisionOutput key={decision.id} decision={decision} submission={submissions[decision.id]} />
   ))}</>;
+}
+
+/** Completed receipts stay in conversation history. */
+export function DecisionOutputs({ sessionId }: { sessionId: string | null }) {
+  return <DecisionCards sessionId={sessionId} pendingOnly={false} />;
+}
+
+/** Pending panels share the composer's width without owning its draft. */
+export function PendingDecisionPanels({ sessionId }: { sessionId: string | null }) {
+  return <DecisionCards sessionId={sessionId} pendingOnly />;
 }

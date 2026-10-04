@@ -81,8 +81,7 @@
      空间够就扩）；输入框右缘对齐消息头像列。紧凑时同列一样每侧留
      56px（inputArea 24px padding + 这里再收 32px），左侧车道让给
      消息刻度条。 */
-  max-width: min(var(--chat-column-max), calc(100% - 64px));
-  margin: 0 auto;
+
   background: var(--composer-surface);
   backdrop-filter: var(--composer-backdrop-filter);
   -webkit-backdrop-filter: var(--composer-backdrop-filter);
@@ -1063,3 +1062,9 @@
 /* "Select a model first" hint — shown in the bottom-left controls slot
    (where the effort pill normally lives) when no chat model is picked.
    Muted/warning tone so it reads as guidance, not an error. */
+
+/* Pending requests and the input use one shared column width. */
+.inputWrapper, .decisionColumn {
+  max-width: min(var(--chat-column-max), calc(100% - 64px));
+  margin: 0 auto;
+}
