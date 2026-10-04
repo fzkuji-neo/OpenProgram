@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./chats-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
+import { ManageEmptyState } from "@/components/ui/manage-page";
 import { useTranslation, type Locale } from "@/lib/i18n";
 import { formatRelativeTime } from "@/lib/format-utils/format";
 import { pushPath } from "@/lib/shallow-nav";
@@ -239,18 +240,20 @@ export function ChatsPage({
               </div>
             )}
             {items.length === 0 ? (
-              <div className={styles.empty}>
-                <div className={styles.emptyIcon}>
-                  <MessageCircleIcon size={40} />
-                </div>
-                <div className={styles.emptyText}>
-                  {query
-                    ? text("No chats match your search", "没有匹配的会话")
-                    : filter === "all"
-                      ? text("No conversations yet. Start one above.", "暂无会话。可以从上方开始。")
-                      : text("Nothing in this range", "这个时间范围内没有内容")}
-                </div>
-              </div>
+              <ManageEmptyState
+                compact
+                icon={<MessageCircleIcon size={20} />}
+                title={query
+                  ? text("No chats match your search", "没有匹配的会话")
+                  : filter === "all"
+                    ? text("No conversations yet", "还没有会话")
+                    : text("Nothing in this range", "这个时间范围内没有内容")}
+                description={query
+                  ? text("Try a different search term or status filter.", "换个关键词或状态筛选试试。")
+                  : filter === "all"
+                    ? text("Use New chat in the sidebar; conversations appear here grouped by recency.", "使用侧栏的“新建聊天”开始；会话会按时间分组显示在这里。")
+                    : text("Pick another range on the left.", "在左侧选择其他时间范围。")}
+              />
             ) : grouped ? (
               <>
                 {grouped
