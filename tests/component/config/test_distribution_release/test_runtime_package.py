@@ -265,7 +265,7 @@ def test_product_runtime_installs_complete_default_capabilities() -> None:
         "\"sentence-transformers>=6.1,<7; sys_platform != 'darwin' "
         "or platform_machine != 'x86_64'" in pyproject
     )
-    assert '"pypdf>=5.0"' in pyproject
+    assert '"pypdf>=6.19.0"' in pyproject
     assert '"rich>=13.0"' in pyproject
     assert '"sentence_transformers"' not in verifier
     assert "_reject_excluded_runtime_wheels()" in verifier
