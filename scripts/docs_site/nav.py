@@ -750,6 +750,7 @@ PAGE_ORDER: dict[str, int] = {
     "reference/design/implementation-status.html": 1,
     "reference/design/repository-structure.html": 2,
     "reference/design/repository-structure-implementation.html": 3,
+    "reference/design/repository-integration.html": 4,
     "reference/design/docs-site.html": 4,
     # The context notes read in order: the layer, then compaction, then how the
     # blocks are composed and compared, then the two rendered companions.
