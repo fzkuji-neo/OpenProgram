@@ -1,6 +1,6 @@
 import { filePreviewLayout } from "../file-preview-layout";
 import { findCenterTabGroup, normalizeCenterTabLayout } from "@/lib/tabs/center-tab-groups";
-import { documentControllers } from "@/lib/files/document-controller";
+import { documentControllers } from "@/lib/files/document-controller-registry";
 import { builtinTabId, fileTabId, nextBrowserHomeId, nextNtpId } from "@/lib/tabs/center-tab-ids";
 import { replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence";
 import { openReviewTabLayout } from "@/lib/tabs/review-tab-layout";

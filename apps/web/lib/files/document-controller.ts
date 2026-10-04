@@ -2,6 +2,7 @@ import { IndexedDbDocumentDraftStore, type DocumentDraftPending, type DocumentDr
 import { discardFileDraft, loadFileDraft } from "./file-drafts";
 import { invalidateFileRead } from "./files-shared";
 import type { DocumentControllerOptions, DocumentHistoryPage, DocumentIdentity, DocumentSnapshot, RichDocumentEditor } from "./document-types";
+import { documentControllers as controllers } from "./document-controller-registry";
 
 export type DocumentStatus = "idle" | "dirty" | "saving" | "error" | "conflict" | "closed";
 export interface DocumentControllerState {
@@ -17,7 +18,6 @@ export interface DocumentControllerState {
   externalChanged: boolean;
 }
 export type DocumentListener = (state: DocumentControllerState) => void;
-const controllers = new Map<string, DocumentController>();
 const renames = new Set<{ projectId: string; paths: string[] }>();
 function matchesRename(identity: DocumentIdentity, rename: { projectId: string; paths: string[] }): boolean {
   return identity.kind === "project" && identity.projectId === rename.projectId &&
