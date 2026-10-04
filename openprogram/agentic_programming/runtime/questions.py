@@ -134,6 +134,10 @@ class QuestionsOperations:
                     "options": list(q.get("options") or []),
                     "multi": bool(q.get("multi")),
                     "allow_custom": q.get("allow_custom", True) is not False,
+                    **({"question_title": str(q["question_title"])} if "question_title" in q else {}),
+                    **({"option_descriptions": {key: value for key, value in q["option_descriptions"].items()
+                                                if isinstance(key, str) and isinstance(value, str)}}
+                       if isinstance(q.get("option_descriptions"), dict) else {}),
                 }
                 for q in (questions or [])
             ]

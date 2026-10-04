@@ -2,13 +2,13 @@
 
 import { approvalDisplayText, readSandboxEscalation, type SandboxEscalation } from "./approval-display-text";
 
-/** Questions and form fields share one vertically arranged card.
+/** Questions use a current-question panel above the composer.
  * All answers are submitted together through the existing acknowledged wait
  * command. Tool approvals retain their explicit scope and operation controls.
  */
 
 import { useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageCircle, X } from "lucide-react";
 import { OperationCode } from "./operation-code";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -18,6 +18,7 @@ import { useTranslation } from "@/lib/i18n";
 import styles from "./question-mode.module.css";
 import { useWaitAnswer } from "./use-wait-answer";
 import { AnswerSummary } from "./answer-summary";
+import { useDecisionDrafts, type DecisionDraft, type DecisionAnswer } from "@/lib/chat/decision-drafts";
 import approvalStyles from "../approval/approval-mode.module.css";
 import formStyles from "./form-mode.module.css";
 
@@ -25,14 +26,6 @@ import formStyles from "./form-mode.module.css";
  *  locale-independent token accepted by ``_approval.await_user_approval``.
  *  Not user-visible — the button labels are translated separately. */
 const APPROVE_ANSWER = "approve";
-
-/** 提示语收尾：已是问号/冒号/句号等终止符就原样；否则补一个中文冒号「：」，
- *  让「请填写名字」这类祈使句读起来像在等你输入。 */
-function withColon(s: string): string {
-  const t = s.trimEnd();
-  if (!t) return t;
-  return /[?？:：。.!！]$/.test(t) ? t : t + "：";
-}
 
 interface QuestionModeProps {
   decision: PendingDecision;
@@ -45,7 +38,7 @@ type ApprovalPick = "once" | "always" | "always_path" | "deny";
 
 /** 一步（一道题）的统一形状。kind 决定 body 怎么渲染、答案怎么收集。 */
 type Step =
-  | { kind: "choice"; prompt: string; options: string[]; multi: boolean; allowCustom: boolean }
+  | { kind: "choice"; prompt: string; options: string[]; multi: boolean; allowCustom: boolean; optionDescriptions?: Record<string, string> }
   | {
       kind: "approval";
       prompt: string;
@@ -60,10 +53,7 @@ type Step =
 
 /** 一步的工作答案。choice → 选中集 + 自由文本；approval → 允许一次/总是允许/拒绝；
  *  form → 字段值对象。 */
-type Answer =
-  | { picked: Set<string>; custom: string }
-  | { pick: ApprovalPick | null }
-  | { fields: Record<string, string | number | boolean> };
+type Answer = DecisionAnswer;
 
 /** 把一个 decision 拍平成统一的 steps 数组。单题 → 1 步；ask_many → N 步。 */
 function toSteps(q: PendingDecision): Step[] {
@@ -86,10 +76,11 @@ function toSteps(q: PendingDecision): Step[] {
     const qs: AskOne[] = q.questions ?? [];
     return qs.map((one) => ({
       kind: "choice",
-      prompt: one.prompt,
+      prompt: one.question_title ?? one.prompt,
       options: one.options,
       multi: one.multi,
       allowCustom: one.allow_custom,
+      optionDescriptions: one.option_descriptions,
     }));
   }
   // ask / confirm —— 单题选择。
@@ -131,24 +122,41 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
   const [discussionPending, setDiscussionPending] = useState(false);
   const { sendAnswer, submission, answerPending, answerLocked } = useWaitAnswer(q, onResolve);
 
-  const [discussionOpen, setDiscussionOpen] = useState(false);
-  const [feedback, setFeedback] = useState("");
-  const [feedbackLocked, setFeedbackLocked] = useState(false);
+  const steps = toSteps(q);
+  const draftKey = JSON.stringify([q.sessionId, q.id]);
+  const [initialDraft] = useState<DecisionDraft>(() => ({
+    answers: steps.map(seedAnswer), stepIndex: 0, collapsed: false,
+    discussionOpen: false, feedback: "", feedbackLocked: false,
+  }));
+  const draft = useDecisionDrafts(state => state.drafts[draftKey]) ?? initialDraft;
+  const { answers, stepIndex, collapsed, discussionOpen, feedback, feedbackLocked } = draft;
+  function updateDraft(patch: Partial<DecisionDraft>) {
+    const store = useDecisionDrafts.getState();
+    store.setDraft(draftKey, { ...(store.drafts[draftKey] ?? initialDraft), ...patch });
+  }
+  const setDiscussionOpen = (value: boolean) => updateDraft({ discussionOpen: value });
+  const setFeedback = (value: string) => updateDraft({ feedback: value });
+  const setFeedbackLocked = (value: boolean) => updateDraft({ feedbackLocked: value });
   async function sendDiscussion() {
     if (discussionPending || !feedback.trim()) return;
     setFeedbackLocked(true);
     setDiscussionPending(true);
     try { await onChatAbout(feedback); } finally { setDiscussionPending(false); }
   }
-  const steps = toSteps(q);
-  const [answers, setAnswers] = useState<Answer[]>(() => steps.map(seedAnswer));
+  const cur = steps[stepIndex];
+  const curAns = answers[stepIndex];
+  const allAnswered = steps.every((step, index) => stepAnswered(step, answers[index]));
+  const currentAnswered = cur && stepAnswered(cur, curAns);
+  const lastStep = stepIndex === steps.length - 1;
+  const patch = (index: number, next: Answer) =>
+    updateDraft({ answers: answers.map((answer, key) => key === index ? next : answer) });
 
-  const cur = steps[0];
-  const curAns = answers[0];
-  const allAnswered = steps.every((s, i) => stepAnswered(s, answers[i]));
-
-  const patch = (i: number, next: Answer) =>
-    setAnswers((cur) => cur.map((a, k) => (k === i ? next : a)));
+  function advance() {
+    if (discussionPending || answerPending) return;
+    if (answerLocked || lastStep) {
+      if (allAnswered || answerLocked) submit();
+    } else if (currentAnswered) updateDraft({ stepIndex: stepIndex + 1 });
+  }
 
   function submit() {
     if (discussionOpen || discussionPending || answerPending) return;
@@ -202,44 +210,57 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
   }
 
   const submitLabel = answerPending ? text("Submitting…", "提交中…")
-    : answerLocked ? text("Retry answer", "重试回答") : text("Submit answers", "提交回答");
+    : answerLocked ? text("Retry answer", "重试回答") : lastStep ? text("Submit", "提交") : text("Next", "下一题");
 
-  // Keep multiline answers and IME composition independent of submission.
+  // Shortcuts are scoped to this request. Text and IME input stay editable.
   function onKey(e: React.KeyboardEvent) {
-    if (e.key !== "Enter") return;
-    // Enter commits an IME candidate (CN/JP/KR) — never treat that as send.
+    if (collapsed) return;
     const native = e.nativeEvent as KeyboardEvent;
     if (native.isComposing || native.keyCode === 229) return;
+    const target = e.target as HTMLElement;
+    if (!discussionOpen && !answerLocked && !e.ctrlKey && !e.metaKey && !e.altKey
+        && /^[1-9]$/.test(e.key) && !target.closest("input, textarea, select, [contenteditable]")) {
+      const option = e.currentTarget.querySelector<HTMLElement>(`[data-choice-number="${e.key}"]`);
+      if (option) { e.preventDefault(); option.focus(); if (option.tagName === "BUTTON") option.click(); }
+      return;
+    }
+    if (e.key !== "Enter" || e.shiftKey) return;
     if (discussionOpen) {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        void sendDiscussion();
-      }
+      if (e.ctrlKey || e.metaKey) { e.preventDefault(); void sendDiscussion(); }
       return;
     }
-    if (e.shiftKey) return;
-    const t = e.target as HTMLElement;
-    if (t.tagName === "TEXTAREA") return;
-    if (t.closest("button") && !e.ctrlKey && !e.metaKey) return;
+    if (target.tagName === "TEXTAREA") return;
+    if (target.closest("button") && !e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
-    if (e.ctrlKey || e.metaKey) {
-      if (allAnswered || answerLocked) submit();
-      return;
-    }
-    if (allAnswered || answerLocked) submit();
+    advance();
   }
 
   if (!cur) return null;
 
   return (
-    <>
-      {(cur.kind === "approval" || discussionOpen) && <div className={styles.header} data-fn-form-header data-decision onKeyDown={onKey}>
-        <div className={styles.badge}>{discussionOpen ? text("Discuss this request", "讨论这个请求") : text("Approval required", "需要批准")}</div>
-      </div>}
+    <div className={styles.panel} data-question-card onKeyDown={onKey}>
+      <div className={styles.header} data-fn-form-header data-decision>
+        {!discussionOpen && <span className={styles.progress}
+          aria-label={text(`Question ${stepIndex + 1} of ${steps.length}`, `第 ${stepIndex + 1} 题，共 ${steps.length} 题`)}>
+          {stepIndex + 1}/{steps.length}
+        </span>}
+        <div className={styles.badge}>{discussionOpen ? text("Discuss this request", "讨论这个请求")
+          : cur.kind === "approval" ? text("Approval required", "需要批准") : cur.prompt}</div>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.iconBtn} aria-expanded={!collapsed}
+            aria-label={collapsed ? text("Expand request", "展开请求") : text("Collapse request", "折叠请求")}
+            onClick={() => updateDraft({ collapsed: !collapsed })}>
+            {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {!collapsed && <button type="button" className={styles.iconBtn}
+            aria-label={text("Hide request", "收起请求")} onClick={() => updateDraft({ collapsed: true })}><X size={16} /></button>}
+        </div>
+      </div>
+      {!collapsed && <>
       {submission && <div className={styles.submissionStatus} role="status" aria-live="polite" data-answer-status={submission.status}>
         {answerPending ? text("Submitting answer…", "正在提交回答…") : submission.error}
       </div>}
-      <div className={styles.body} data-fn-form-body onKeyDown={onKey}>
+      <div className={styles.body} data-fn-form-body>
         {cur.kind === "approval" ? (
           <StepBody step={cur} answer={curAns} onChange={(a) => patch(0, a)} />
         ) : discussionOpen ? (
@@ -249,9 +270,9 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
         ) : (
           <div className={styles.questionList}>
             {q.kind === "ask_many" && q.prompt && <div className={styles.groupPrompt}>{q.prompt}</div>}
-            {steps.map((step, index) => <fieldset key={index} disabled={discussionPending || answerLocked} className={styles.questionItem}>
-              <StepBody step={step} answer={answers[index]} onChange={(a) => patch(index, a)} />
-            </fieldset>)}
+            <fieldset key={stepIndex} disabled={discussionPending || answerLocked} className={styles.questionItem}>
+              <StepBody step={cur} answer={curAns} onChange={(answer) => patch(stepIndex, answer)} />
+            </fieldset>
           </div>
         )}
         {discussionOpen && (
@@ -266,7 +287,7 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
           </label>
         )}
       </div>
-        <div className={`${styles.actions} ${styles.footer}`} onKeyDown={onKey} role="group" aria-label={text("Decision actions", "答复操作")}>
+        <div className={`${styles.actions} ${styles.footer}`} role="group" aria-label={text("Decision actions", "答复操作")}>
           {cur.kind === "approval" && !discussionOpen && (
             <div className={styles.actionButtons}>
               <button type="button" className={styles.navBtn}
@@ -289,6 +310,9 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
               </button>
             </div>
           )}
+          {cur.kind !== "approval" && !discussionOpen && stepIndex > 0 && <button type="button"
+            className={styles.navBtn} disabled={answerLocked || discussionPending}
+            onClick={() => updateDraft({ stepIndex: stepIndex - 1 })}>{text("Back", "上一题")}</button>}
           {cur.kind !== "approval" && <div className={styles.actionButtons}>
             {discussionOpen ? <>
               <button type="button" className={styles.navBtn} disabled={feedbackLocked}
@@ -299,18 +323,25 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
                 {discussionPending ? text("Sending…", "发送中…") : feedbackLocked
                   ? text("Retry discussion", "重试讨论") : text("Send discussion", "发送讨论")}
               </button>
-            </> : <button type="button" className={styles.navBtn} disabled={answerLocked}
-              onClick={() => setDiscussionOpen(true)} title={text("Discuss before proceeding", "先讨论再继续")}>
-              {text("Discuss", "先讨论")}
+            </> : <button type="button" className={`${styles.navBtn} ${styles.discussBtn}`} disabled={answerLocked}
+              onClick={() => setDiscussionOpen(true)} aria-label={text("Discuss", "先讨论")}
+              title={text("Discuss before proceeding", "先讨论再继续")}>
+              <MessageCircle size={15} aria-hidden="true" />
             </button>}
-          {!discussionOpen && <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
-            onClick={submit} aria-busy={answerPending}
-            disabled={discussionPending || answerPending || (!answerLocked && !allAnswered)}>
-            {submitLabel}
-          </button>}
+          {!discussionOpen && <>
+            <button type="button" className={styles.navBtn} disabled={answerLocked || discussionPending}
+              title={text("Skip this request without submitting answers", "跳过整组请求，不提交回答")}
+              onClick={() => void sendAnswer("execution.wait.decline")}>{text("Skip", "跳过")}</button>
+            <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
+              onClick={advance} aria-label={submitLabel} aria-busy={answerPending}
+              disabled={discussionPending || answerPending || (!answerLocked && (!currentAnswered || (lastStep && !allAnswered)))}>
+              {submitLabel}<kbd className={styles.submitKey} aria-hidden="true">Ctrl ↵</kbd>
+            </button>
+          </>}
           </div>}
         </div>
-    </>
+      </>}
+    </div>
   );
 }
 
@@ -331,7 +362,7 @@ function StepBody({
       onChange({ fields: { ...fields, [name]: v } });
     return (
       <>
-        <div className={styles.prompt}>{withColon(step.prompt)}</div>
+        <div className={styles.prompt}>{step.prompt}</div>
         {step.detail ? <div className={styles.detail}>{step.detail}</div> : null}
         <div className={formStyles.fields}>
           {Object.keys(step.schema).map((name) => {
@@ -396,7 +427,7 @@ function StepBody({
       && typeof step.args?.command === "string" ? step.args.command : null;
     return (
       <>
-        <div className={styles.prompt}>{esc ? prompt : withColon(prompt)}</div>
+        <div className={styles.prompt}>{prompt}</div>
         {command ? <OperationCode value={command} language="bash" /> : null}
         {esc && summary ? <pre className={approvalStyles.summary}>{summary}</pre> : null}
         {step.args && Object.keys(step.args).length > 0 ? (
@@ -425,29 +456,37 @@ function StepBody({
   };
   return (
     <>
-      <div className={styles.prompt}>{withColon(step.prompt)}</div>
+      {step.multi && <div className={styles.choiceHint}>{text("Select one or more", "可选择一项或多项")}</div>}
       {step.options.length > 0 ? (
         <div className={styles.options}>
-          {step.options.map((opt) => (
+          {step.options.map((opt, index) => (
             <button
               key={opt}
               type="button"
               className={styles.opt + (aa.picked.has(opt) ? " " + styles.optPicked : "")}
-              aria-pressed={aa.picked.has(opt)}
+              aria-pressed={aa.picked.has(opt)} aria-label={opt} data-choice-number={index + 1}
               onClick={() => toggle(opt)}
             >
-              {aa.picked.has(opt) ? "✓ " : ""}{opt}
+              <span className={styles.optionContent}>
+                <span className={styles.optionTitle}>{opt}</span>
+                {step.optionDescriptions?.[opt] && <span className={styles.optionDescription}>{step.optionDescriptions[opt]}</span>}
+              </span>
+              <kbd className={styles.keycap} aria-hidden="true">{index + 1}</kbd>
             </button>
           ))}
         </div>
       ) : null}
       {step.allowCustom ? (
+        <label className={`${styles.customOption} ${aa.custom.trim() ? styles.optPicked : ""}`}>
+          {step.options.length > 0 && <span className={styles.customTitle}>
+            {text("Other", "其他")}<kbd className={styles.keycap} aria-hidden="true">{step.options.length + 1}</kbd>
+          </span>}
         <input
           className={styles.input}
           value={aa.custom}
-          aria-label={step.prompt}
+          aria-label={step.prompt} data-choice-number={step.options.length + 1}
           placeholder={step.options.length
-            ? text("Or type your own…", "或自己输入…")
+            ? text("Type your own answer here", "输入自定义回答")
             : text("Type your answer…", "输入你的回答…")}
           onChange={(e) => {
             const custom = e.target.value;
@@ -456,6 +495,7 @@ function StepBody({
             onChange({ picked, custom });
           }}
         />
+        </label>
       ) : null}
     </>
   );

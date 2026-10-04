@@ -1,11 +1,11 @@
-/* Session-owned question cards: one vertical list with question / answer pairs. */
+/* Current-question flow using the existing theme and typography. */
 .header {
   position: relative;
   display: flex;
   align-items: center;
   padding: 12px 16px;
   min-height: 48px;
-  border-bottom: 1px solid var(--border);
+  gap: 10px;
   box-sizing: border-box;
   flex-shrink: 0;
 }
@@ -21,8 +21,10 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
+  gap: 12px;
+  padding: 0 16px 16px;
+  overflow-y: auto;
+  min-height: 0;
   box-sizing: border-box;
   min-width: 0;
 }
@@ -107,21 +109,22 @@
 .options {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 6px;
 }
 
 .opt {
-  padding: 5px 10px;
-  min-height: 30px;
+  padding: 10px 12px;
+  min-height: 48px;
   max-width: 100%;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   text-align: left;
   line-height: 1.5;
-  display: inline-flex;
+  display: flex;
+  gap: 16px;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   border-radius: 6px;
   border: none;
   background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
@@ -129,7 +132,7 @@
   font-family: var(--font-sans);
   font-size: var(--fs-base);
   cursor: pointer;
-  transition: background 180ms ease, color 180ms ease;
+  transition: none;
   user-select: none;
   box-sizing: border-box;
 }
@@ -140,12 +143,13 @@
 }
 
 .optPicked {
-  background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
-  color: var(--accent-blue);
+  background: var(--bg-selected);
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--border-light);
 }
 
 .optPicked:hover {
-  background: color-mix(in srgb, var(--accent-blue) 26%, transparent);
+  background: var(--bg-selected);
 }
 
 /* 单行输入 = fn-form 的 .input（bg-primary + border + 32px + 8 radius）。 */
@@ -255,3 +259,28 @@
   padding: 0 16px 16px;
   margin-top: auto;
 }
+
+.panel { display: flex; flex-direction: column; max-height: min(64dvh, 640px); min-width: 0; }
+.progress { flex: 0 0 auto; padding: 2px 7px; border-radius: 8px; background: color-mix(in srgb, var(--accent-yellow) 22%, transparent); color: var(--text-primary); font-size: var(--fs-base); line-height: 1.5; }
+.badge { min-width: 0; overflow-wrap: anywhere; flex: 1; line-height: 1.5; }
+.headerActions { display: flex; gap: 4px; flex-shrink: 0; }
+.iconBtn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; color: var(--text-secondary); border-radius: 6px; cursor: pointer; }
+.iconBtn:hover { background: var(--bg-selected); color: var(--text-primary); }
+.iconBtn:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+.optionContent { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.optionTitle { color: var(--text-primary); font-weight: 500; }
+.optionDescription, .choiceHint { color: var(--text-secondary); line-height: 1.5; }
+.keycap { border: 1px solid var(--border); border-radius: 4px; min-width: 20px; padding: 0 4px; text-align: center; flex-shrink: 0; color: var(--text-secondary); font-family: var(--font-sans); font-size: var(--fs-sm); line-height: 1.4; font-weight: 400; }
+.customOption { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; border-radius: 6px; background: color-mix(in srgb, var(--text-secondary) 10%, transparent); }
+.customTitle { display: flex; justify-content: space-between; gap: 12px; font-size: var(--fs-base); }
+.submitKey { margin-left: 8px; font-family: var(--font-sans); font-size: var(--fs-sm); opacity: .7; }
+@media (max-width: 480px) {
+  .header { padding: 10px 12px; gap: 6px; }
+  .body { padding: 0 12px 12px; }
+  .footer { padding: 0 12px 12px; }
+  .navBtn { padding: 0 8px; }
+  .submitKey { display: none; }
+}
+
+.discussBtn { width: 28px; padding: 0; }
+.badge { max-height: 4.5em; overflow-y: auto; }
