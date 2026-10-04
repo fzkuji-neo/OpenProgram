@@ -209,6 +209,25 @@ def _wait(predicate, timeout: float = 4.0, detail=None):
     raise AssertionError(f"condition did not become true{suffix}")
 
 
+def _cancelled_chat_is_finalized(h, execution_id: str) -> bool:
+    # Canonical cancellation commits before chat and resource projections.
+    if h.store.get_execution(execution_id).status is not ExecutionStatus.CANCELLED:
+        return False
+    reply = next(
+        (
+            item
+            for item in h.sessions.get_branch(h.session_id)
+            if item.get("id", "").endswith("_reply")
+        ),
+        {},
+    )
+    return (
+        reply.get("status") == "cancelled"
+        and h.sessions.get_session(h.session_id)["status"] == "idle"
+        and not h.server._is_run_active(h.session_id)
+    )
+
+
 @pytest.fixture
 def real_agent_chat(tmp_path, monkeypatch):
     """Use registered provider/tool callbacks, never a synthetic safe point."""
@@ -1579,8 +1598,7 @@ def test_cancel_resumed_local_shell_reaps_child_and_finalizes_chat(
     running = real_agent_chat.store.get_execution(execution.execution_id)
     _command(real_agent_chat, "execution.cancel", running, "cancel-shell")
     _wait(
-        lambda: real_agent_chat.store.get_execution(execution.execution_id).status
-        is ExecutionStatus.CANCELLED,
+        lambda: _cancelled_chat_is_finalized(real_agent_chat, execution.execution_id),
         timeout=2.0,
         detail=lambda: {
             "execution": real_agent_chat.store.get_execution(
@@ -1646,8 +1664,7 @@ def test_cancel_at_resumed_provider_boundary_finalizes(real_agent_chat, monkeypa
     finally:
         release.set()
     _wait(
-        lambda: h.store.get_execution(execution.execution_id).status
-        is ExecutionStatus.CANCELLED
+        lambda: _cancelled_chat_is_finalized(h, execution.execution_id)
     )
     branch = h.sessions.get_branch(h.session_id)
     reply = next(item for item in branch if item.get("id", "").endswith("_reply"))
