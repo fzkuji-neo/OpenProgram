@@ -201,6 +201,30 @@
   padding: 16px 24px 24px;
 }
 
+/* Embedded (History hub) list toolbar: current range + count on the
+   left, sort and status selects on the right. */
+.contentToolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.contentToolbarLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.contentToolbarLabel > span {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Chat row — card-style, hover state mirrors program card */
 .row {
   display: flex;
