@@ -71,29 +71,18 @@ def test_migrated_functions_do_not_thread_runtime(module_name, function_name):
     assert "runtime" not in inspect.signature(function).parameters
 
 
-def test_migrated_function_passes_content_blocks_to_llm(monkeypatch):
+def test_migrated_summary_uses_agent_without_tools(monkeypatch):
     calls = []
 
-    def fake_llm(prompt, **kwargs):
+    def fake_agent(prompt, **kwargs):
         calls.append((prompt, kwargs))
         return "summary"
 
     module = importlib.import_module("openprogram.programs.workflow.text")
-    monkeypatch.setattr(module, "llm", fake_llm)
+    monkeypatch.setattr(module, "agent", fake_agent)
 
     assert module.summarize_text("source text") == "summary"
-
-    assert calls == [
-        (
-            [
-                {
-                    "type": "text",
-                    "text": "Please summarize:\n\nsource text",
-                }
-            ],
-            {},
-        )
-    ]
+    assert calls == [("Please summarize:\n\nsource text", {"tools": []})]
 
 
 def test_only_deferred_tool_loops_still_call_runtime_exec():

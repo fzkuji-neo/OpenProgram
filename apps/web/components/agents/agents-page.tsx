@@ -9,7 +9,7 @@ import { useTranslation } from "@/lib/i18n";
 import { HttpError, jsonFetch } from "@/lib/net/fetch-client";
 import { startAgentConversation } from "@/lib/agents/start-conversation";
 import settingsStyles from "@/components/settings/settings-page.module.css";
-import { AgentButton, AgentListRow } from "./agent-controls";
+import { AgentButton, AgentListRow, AgentRoleIcon } from "./agent-controls";
 import { AdvancedPanel, ContextPanel, MemoryPanel, ModelPanel, OverviewPanel } from "./agent-panels";
 import { CapabilityPanel } from "./agent-capabilities";
 import { ModelPicker, selectedModel, useAgentModels, type ModelSelection } from "./model-picker";
@@ -22,10 +22,6 @@ type CachedDraft = { draft: Agent; baseline: Agent; tab: TabId };
 const cachedDrafts = new Map<string, CachedDraft>();
 let lastSelected = "";
 type PendingAction = { run: (saved: Agent | null) => void | Promise<void> };
-type AgentTemplate = {
-  id: string; name: string; name_zh: string; description: string; description_zh: string;
-  model_hint: string; model_hint_zh: string; preferred_effort: string;
-};
 function changed(a: Agent, b: Agent) { return JSON.stringify(configuration(a)) !== JSON.stringify(configuration(b)); }
 function errorMessage(error: unknown) { return error instanceof Error ? error.message : String(error); }
 
@@ -36,6 +32,7 @@ export function AgentsPage() {
   const [draft, setDraft] = useState<Agent | null>(null);
   const [tab, setTab] = useState<TabId>("overview");
   const [search, setSearch] = useState("");
+  const [horizontalConfig, setHorizontalConfig] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,11 +41,6 @@ export function AgentsPage() {
   const [conflict, setConflict] = useState<Agent | null>(null);
   const [dialog, setDialog] = useState<"create" | "duplicate" | "delete" | null>(null);
   const [newName, setNewName] = useState("");
-  const [templates, setTemplates] = useState<AgentTemplate[]>([]);
-  const [templateId, setTemplateId] = useState("");
-  const [templateError, setTemplateError] = useState("");
-  const [templateLoading, setTemplateLoading] = useState(false);
-  const [templateAttempt, setTemplateAttempt] = useState(0);
   const [newModel, setNewModel] = useState<ModelSelection>({ model: { provider: "", id: "" }, thinking_effort: "" });
   const [deleteId, setDeleteId] = useState("");
   const [dialogError, setDialogError] = useState("");
@@ -57,26 +49,21 @@ export function AgentsPage() {
   const dialogOpener = useRef<HTMLElement | null>(null);
   const busyRef = useRef(false);
   const models = useAgentModels();
-  const template = templates.find((item) => item.id === templateId);
   const creationModel = selectedModel(newModel, models);
   const creationEffortInvalid = Boolean(newModel.thinking_effort && !creationModel?.thinking_levels?.includes(newModel.thinking_effort));
   const dirty = Boolean(draft && baseline && changed(draft, baseline));
   const model = draft ? selectedModel(draft, models) : undefined;
   const effortInvalid = Boolean(draft?.thinking_effort && model && !model.thinking_levels?.includes(draft.thinking_effort));
   const formError = draft && !draft.name.trim() ? text("Enter an Agent name.", "请输入 Agent 名称。")
-    : effortInvalid ? text("Choose a supported thinking effort in Model & Instructions.", "请在模型与指令中选择支持的思考强度。") : "";
+    : effortInvalid && dirty ? text("Choose a supported thinking effort in Model & Instructions.", "请在模型与指令中选择支持的思考强度。") : "";
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
-    if (dialog !== "create") return;
-    const controller = new AbortController();
-    setTemplateLoading(true); setTemplateError("");
-    void jsonFetch<{ templates: AgentTemplate[] }>("/api/agent-templates", { signal: controller.signal })
-      .then((data) => { if (!controller.signal.aborted) setTemplates(data.templates); })
-      .catch((error) => { if (!controller.signal.aborted) setTemplateError(errorMessage(error)); })
-      .finally(() => { if (!controller.signal.aborted) setTemplateLoading(false); });
-    return () => controller.abort();
-  }, [dialog, templateAttempt]);
+    const layout = window.matchMedia("(max-width:800px)");
+    const sync = () => setHorizontalConfig(layout.matches);
+    sync(); layout.addEventListener("change", sync);
+    return () => layout.removeEventListener("change", sync);
+  }, []);
   useEffect(() => {
     if (draft && baseline) {
       cachedDrafts.set(draft.id, { draft: clone(draft), baseline: clone(baseline), tab });
@@ -184,26 +171,19 @@ export function AgentsPage() {
     captureDialogOpener();
     if (menu.current) menu.current.open = false;
     guard((saved) => {
-      setTemplateId(""); setNewModel({ model: { provider: "", id: "" }, thinking_effort: "" });
+      setNewModel({ model: { provider: "", id: "" }, thinking_effort: "" });
       setDialogError(""); setDeleteId(""); setNewName(kind === "duplicate" && saved ? `${saved.name} ${text("Copy", "副本")}` : ""); setDialog(kind);
     });
-  }
-  function selectTemplate(id: string) {
-    const next = templates.find((item) => item.id === id);
-    const oldName = template ? text(template.name, template.name_zh) : "";
-    if (!newName.trim() || newName === oldName) setNewName(next ? text(next.name, next.name_zh) : "");
-    setTemplateId(id);
-    setNewModel((current) => ({ ...current, thinking_effort: next && creationModel?.thinking_levels?.includes(next.preferred_effort) ? next.preferred_effort : "" }));
   }
   async function submitName() {
     if (!newName.trim() || busyRef.current) return;
     const duplicate = dialog === "duplicate";
-    if (!duplicate && (creationEffortInvalid || (templateId && !template))) return;
+    if (!duplicate && creationEffortInvalid) return;
     if (duplicate && !baseline) return;
     lock(true); setDialogError("");
     try {
       const url = duplicate ? `/api/agents/${encodeURIComponent(baseline!.id)}/duplicate` : "/api/agents";
-      const body = duplicate ? { name: newName.trim() } : { name: newName.trim(), template_id: templateId, ...newModel };
+      const body = duplicate ? { name: newName.trim() } : { name: newName.trim(), ...newModel };
       const payload = await jsonFetch<{ agent: Agent }>(url, { method: "POST", body: JSON.stringify(body) });
       if (!mounted.current) return;
       const created = normalizeAgent(payload.agent); setAgents((rows) => [...rows, created]); applyAgent(created);
@@ -257,20 +237,20 @@ export function AgentsPage() {
   const activeName = draft?.name || draft?.id || "";
   const canStart = !models.loading && !models.error && Boolean(model) && !effortInvalid;
   return <div className={`main ${styles.agentsMain}`}><div className={`${managePageStyles.view} ${styles.agentView}`}>
-    <ManagePageHeader title="Agents" toolbar={<span className={styles.unsaved} role="status">{dirty ? text("Unsaved changes", "有未保存的修改") : draft ? text("Saved", "已保存") : ""}</span>} actions={[{ label: text("New Agent", "新建 Agent"), onClick: () => openDialog("create"), icon: PlusIcon, disabled: busy || loading || Boolean(loadError), primary: true }]} />
+    <ManagePageHeader title="Agents" toolbar={<span className={styles.collectionCount}>{text(`${agents.length} Agents`, `${agents.length} 个 Agent`)}</span>} actions={[{ label: text("New Agent", "新建 Agent"), onClick: () => openDialog("create"), icon: PlusIcon, disabled: busy || loading || Boolean(loadError), primary: true }]} />
     {notice ? <div className={notice.tone === "error" ? styles.errorBanner : styles.successBanner} role={notice.tone === "error" ? "alert" : "status"}><span>{notice.message}</span></div> : null}
     {loading ? <div className={styles.centerState} role="status">{text("Loading Agents…", "正在加载 Agents…")}</div> : loadError ? <div className={styles.centerState} role="alert"><p>{text("Unable to load Agents", "无法加载 Agents")}</p><p>{loadError}</p><AgentButton onClick={() => { setLoading(true); void loadAgents().catch((error) => setLoadError(errorMessage(error))).finally(() => setLoading(false)); }}>{text("Retry", "重试")}</AgentButton></div> : <div className={`${managePageStyles.splitBody} ${styles.agentSplit}`}>
       <aside className={styles.agentNav} aria-label={text("Agent list", "Agent 列表")}>
-        <label className={styles.searchField}><SearchIcon size={15} aria-hidden /><input aria-label={text("Search Agents", "搜索 Agents")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={text("Search Agents…", "搜索 Agents…")} /></label>
+        <label className={styles.searchField}><SearchIcon size={15} aria-hidden /><input aria-label={text("Search Agents", "搜索 Agents")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={text("Find an Agent…", "查找 Agent…")} /></label>
         <label className={styles.mobileAgentSelect}>{text("Agent", "Agent")}<select value={draft?.id || ""} disabled={busy} onChange={(event) => { const agent = agents.find((item) => item.id === event.target.value); if (agent) guard(() => applyAgent(agent, true)); }}>{agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name || agent.id}{agent.default ? ` (${text("Default", "默认")})` : ""}</option>)}</select></label>
-        <div className={styles.agentList}>{visible.map((agent) => <AgentListRow key={agent.id} className={agent.id === draft?.id ? styles.agentSelected : undefined} onClick={() => { if (agent.id !== draft?.id) guard(() => applyAgent(agent, true)); }} name={agent.name || agent.id} description={agent.description || `${agent.model.id || text("Default model", "默认模型")} · ${agent.memory.mode === "off" ? text("Memory off", "记忆关闭") : agent.memory.mode === "read_only" ? text("Memory read only", "记忆只读") : text("Memory read/write", "记忆读写")}`} meta={agent.default ? <span className={managePageStyles.badge}>{text("Default", "默认")}</span> : null} />)}{!visible.length && agents.length ? <p className={styles.note}>{text("No matching Agents", "没有匹配的 Agent")}</p> : null}</div>
+        <div className={styles.agentList}>{visible.map((agent) => <AgentListRow key={agent.id} className={`${styles.agentRow} ${agent.id === draft?.id ? styles.agentSelected : ""}`} roleId={agent.id} onClick={() => { if (agent.id !== draft?.id) guard(() => applyAgent(agent, true)); }} name={agent.name || agent.id} description={agent.description || text("General conversations and tasks", "通用对话与任务")} meta={agent.default ? <span className={managePageStyles.badge}>{text("Default", "默认")}</span> : null} />)}{!visible.length && agents.length ? <p className={styles.note}>{text("No matching Agents", "没有匹配的 Agent")}</p> : null}</div>
       </aside>
       <main className={styles.editor}>{!draft ? <div className={styles.emptyState}><BotIcon size={28} /><h2>{text("Create your first Agent", "创建第一个 Agent")}</h2><p>{text("Configure a model, capabilities, and optional memory.", "配置模型、能力和可选的长期记忆。")}</p><AgentButton icon={PlusIcon} onClick={() => openDialog("create")}>{text("New Agent", "新建 Agent")}</AgentButton></div> : <div className={`${settingsStyles.page} ${styles.editorPage}`}>
-        <div className={`${settingsStyles.pageHeader} ${styles.agentPageHeader}`}><span className={styles.detailAvatar}><BotIcon size={20} aria-hidden /></span><div className={styles.agentHeading}><h2 className={settingsStyles.pageTitle}>{activeName}</h2><p className={settingsStyles.pageMeta}>{draft.id} · {text("Revision", "修订") } {baseline?.revision}</p></div>
+        <div className={`${settingsStyles.pageHeader} ${styles.agentPageHeader}`}><span className={styles.detailAvatar}><AgentRoleIcon roleId={draft.id} size={24} /></span><div className={styles.agentHeading}><h2 className={settingsStyles.pageTitle}>{activeName}</h2><p className={settingsStyles.pageMeta}>{draft.description || text("General conversations and tasks", "通用对话与任务")}</p></div>
+        <div className={styles.conversationActions}><AgentButton variant="default" icon={MessageCircleIcon} disabled={busy} onClick={() => guard((saved) => start(false, saved))}>{text("New conversation", "新对话")}</AgentButton><AgentButton variant="ghost" icon={MessageCircleIcon} disabled={busy || !canStart || Boolean(formError)} aria-label={text("Try in new conversation", "在新对话试运行")} title={text("Start a new conversation with the draft; memory is read only or off.", "使用草稿开始新对话；记忆只读或关闭。")} onClick={() => void start(true)}>{text("Try draft", "试运行草稿")}</AgentButton></div>
           <details ref={menu} key={draft.id} className={styles.moreMenu}><summary aria-label={text("Agent actions", "Agent 操作")}><SettingsIcon size={18} aria-hidden /></summary><div><AgentButton icon={CheckIcon} variant="ghost" disabled={draft.default || busy} onClick={() => { if (menu.current) menu.current.open = false; guard(makeDefault); }}>{text("Set as default", "设为默认")}</AgentButton><AgentButton icon={CopyIcon} variant="ghost" disabled={busy} onClick={() => openDialog("duplicate")}>{text("Duplicate Agent", "复制 Agent")}</AgentButton><AgentButton variant="ghost" className={styles.danger} disabled={draft.default || busy} onClick={() => openDialog("delete")}>{text("Delete Agent", "删除 Agent")}</AgentButton></div></details>
         </div>
-        <div className={styles.conversationActions}><AgentButton variant="outline" icon={MessageCircleIcon} disabled={busy} onClick={() => guard((saved) => start(false, saved))}>{text("New conversation", "新对话")}</AgentButton><AgentButton variant="ghost" icon={MessageCircleIcon} disabled={busy || !canStart || Boolean(formError)} onClick={() => void start(true)}>{text("Try in new conversation", "在新对话试运行")}</AgentButton><span>{text("New conversation uses saved settings; a trial uses your draft with memory read only or off.", "新对话使用已保存配置；试运行使用草稿，记忆最多只读。")}</span></div>
-        <Tabs className={styles.configTabs} value={tab} onValueChange={(value) => setTab(value as TabId)}><TabsList className={styles.configTabsList} aria-label={text("Agent configuration", "Agent 配置")}>{TABS.map((item) => <TabsTrigger className={styles.configTab} value={item.id} key={item.id}>{text(item.en, item.zh)}</TabsTrigger>)}</TabsList>
+        <Tabs orientation={horizontalConfig ? "horizontal" : "vertical"} className={styles.configTabs} value={tab} onValueChange={(value) => setTab(value as TabId)}><TabsList className={styles.configTabsList} aria-label={text("Agent configuration", "Agent 配置")}>{TABS.map((item) => <TabsTrigger className={`${styles.configTab} ${["programs", "memory", "advanced"].includes(item.id) ? styles.configGroupStart : ""}`} value={item.id} key={item.id}>{text(item.en, item.zh)}</TabsTrigger>)}</TabsList>
           <div className={`${settingsStyles.pageBody} ${styles.editorBody}`}><fieldset className={styles.editorFields} disabled={busy}>
             <TabsContent className={styles.tabPanel} value="overview"><OverviewPanel draft={draft} update={updateDraft} text={text} go={setTab} /></TabsContent>
             <TabsContent className={styles.tabPanel} value="model"><ModelPanel draft={draft} update={updateDraft} text={text} catalog={models} /></TabsContent>
@@ -280,7 +260,7 @@ export function AgentsPage() {
             <TabsContent className={styles.tabPanel} value="advanced"><AdvancedPanel draft={draft} update={updateDraft} text={text} /></TabsContent>
           </fieldset></div>
         </Tabs>
-        <div className={styles.saveBar}>{formError ? <span role="alert" className={styles.inlineError}>{formError}</span> : <span>{dirty ? text("Changes apply after saving.", "保存后生效。") : text("This Agent's configuration is saved.", "此 Agent 的配置已保存。")}</span>}<AgentButton variant="ghost" disabled={!dirty || busy} onClick={discard}>{text("Discard changes", "放弃修改")}</AgentButton><AgentButton icon={CheckIcon} disabled={!dirty || busy || Boolean(formError)} onClick={() => void save()}>{busy ? text("Working…", "处理中…") : text("Save changes", "保存修改")}</AgentButton></div>
+        <div className={styles.saveBar}>{formError ? <span role="alert" className={styles.inlineError}>{formError}</span> : <span>{dirty ? text("Changes apply after saving.", "保存后生效。") : text("All changes saved", "修改已保存")}</span>}<AgentButton variant="ghost" disabled={!dirty || busy} onClick={discard}>{text("Discard changes", "放弃修改")}</AgentButton><AgentButton icon={CheckIcon} disabled={!dirty || busy || Boolean(formError)} onClick={() => void save()}>{busy ? text("Working…", "处理中…") : text("Save changes", "保存修改")}</AgentButton></div>
       </div>}</main>
     </div>}
     <Dialog open={pending !== null} onOpenChange={(open) => { if (!open && !busy) setPending(null); }}><DialogContent onCloseAutoFocus={restoreDialogFocus}><DialogHeader><DialogTitle>{text("Unsaved changes", "未保存的修改")}</DialogTitle><DialogDescription>{text("Save or discard your changes before continuing.", "继续前保存或放弃修改。")}</DialogDescription></DialogHeader><DialogFooter><AgentButton variant="ghost" disabled={busy} onClick={() => setPending(null)}>{text("Cancel", "取消")}</AgentButton><AgentButton variant="outline" disabled={busy} onClick={() => void resolveLeave("discard")}>{text("Discard", "放弃")}</AgentButton><AgentButton disabled={busy || Boolean(formError)} onClick={() => void resolveLeave("save")}>{text("Save and continue", "保存并继续")}</AgentButton></DialogFooter></DialogContent></Dialog>
@@ -288,11 +268,7 @@ export function AgentsPage() {
       {conflict && draft ? <div className={styles.conflictBody}><div className={styles.conflictLabels}><strong>{text("Your draft", "你的草稿")}</strong><strong>{text("Server configuration", "服务端配置")}</strong></div>{Object.entries(configuration(draft)).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(configuration(conflict)[key as keyof ReturnType<typeof configuration>])).map(([key, value]) => <section key={key}><h4>{key}</h4><div className={styles.conflictValues}><pre>{typeof value === "string" ? value || "—" : JSON.stringify(value, null, 2)}</pre><pre>{typeof configuration(conflict)[key as keyof ReturnType<typeof configuration>] === "string" ? String(configuration(conflict)[key as keyof ReturnType<typeof configuration>]) || "—" : JSON.stringify(configuration(conflict)[key as keyof ReturnType<typeof configuration>], null, 2)}</pre></div></section>)}</div> : null}
       <DialogFooter><AgentButton variant="ghost" onClick={() => setConflict(null)}>{text("Cancel", "取消")}</AgentButton><AgentButton variant="outline" onClick={() => { if (conflict) { applyAgent(conflict); setTab(tab); } }}>{text("Load server version", "加载服务端版本")}</AgentButton><AgentButton onClick={keepDraft}>{text("Keep my draft", "保留我的草稿")}</AgentButton></DialogFooter>
     </DialogContent></Dialog>
-    <Dialog open={dialog === "create" || dialog === "duplicate"} onOpenChange={(open) => { if (!open && !busy) setDialog(null); }}><DialogContent className={styles.createDialog} onCloseAutoFocus={restoreDialogFocus}><form className={styles.dialogForm} onSubmit={(event) => { event.preventDefault(); void submitName(); }}><DialogHeader><DialogTitle>{dialog === "duplicate" ? text("Duplicate Agent", "复制 Agent") : text("New Agent", "新建 Agent")}</DialogTitle><DialogDescription>{dialog === "duplicate" ? text("Copy saved configuration. Conversations, memory records, and workspace file contents are not copied.", "复制已保存配置，不复制对话、记忆记录或 Workspace 文件内容。") : text("Choose a template, model and name. All settings stay editable; memory starts off.", "选择模板、模型和名称。所有配置都可修改，记忆默认关闭。")}</DialogDescription></DialogHeader>{dialog === "create" ? <fieldset className={styles.templateFields} disabled={busy}>
-        <label className={styles.dialogField}>{text("Template", "模板")}<select value={templateId} disabled={templateLoading} onChange={(event) => selectTemplate(event.target.value)}><option value="">{text("Blank Agent", "空白 Agent")}</option>{templates.map((item) => <option key={item.id} value={item.id}>{text(item.name, item.name_zh)}</option>)}</select></label>
-        {templateLoading ? <p role="status">{text("Loading templates…", "正在加载模板…")}</p> : null}
-        {templateError ? <p className={styles.inlineError} role="alert">{templateError} <button type="button" onClick={() => setTemplateAttempt((value) => value + 1)}>{text("Retry templates", "重新加载模板")}</button></p> : null}
-        {template ? <div className={styles.templateSummary}><p>{text(template.description, template.description_zh)}</p><small>{text(template.model_hint, template.model_hint_zh)}</small></div> : null}
+    <Dialog open={dialog === "create" || dialog === "duplicate"} onOpenChange={(open) => { if (!open && !busy) setDialog(null); }}><DialogContent className={styles.createDialog} onCloseAutoFocus={restoreDialogFocus}><form className={styles.dialogForm} onSubmit={(event) => { event.preventDefault(); void submitName(); }}><DialogHeader><DialogTitle>{dialog === "duplicate" ? text("Duplicate Agent", "复制 Agent") : text("New Agent", "新建 Agent")}</DialogTitle><DialogDescription>{dialog === "duplicate" ? text("Copy saved configuration. Conversations, memory records, and workspace file contents are not copied.", "复制已保存配置，不复制对话、记忆记录或 Workspace 文件内容。") : text("Give your Agent a name and choose its model.", "为 Agent 命名并选择模型。")}</DialogDescription></DialogHeader>{dialog === "create" ? <fieldset className={styles.creationFields} disabled={busy}>
         <ModelPicker draft={newModel} update={(patch) => setNewModel((current) => ({ ...current, ...patch }))} catalog={models} text={text} idPrefix="new-agent" />
       </fieldset> : null}<label className={styles.dialogField}>{text("Agent name", "Agent 名称")}<input autoFocus value={newName} maxLength={80} disabled={busy} onChange={(event) => setNewName(event.target.value)} /></label>{dialogError ? <p className={styles.dialogError} role="alert">{dialogError}</p> : null}<DialogFooter><AgentButton type="button" variant="ghost" disabled={busy} onClick={() => setDialog(null)}>{text("Cancel", "取消")}</AgentButton><AgentButton type="submit" disabled={busy || !newName.trim() || (dialog === "create" && creationEffortInvalid)}>{dialog === "duplicate" ? text("Duplicate", "复制") : text("Create", "创建")}</AgentButton></DialogFooter></form></DialogContent></Dialog>
     <Dialog open={dialog === "delete"} onOpenChange={(open) => { if (!open && !busy) setDialog(null); }}><DialogContent onCloseAutoFocus={restoreDialogFocus}><DialogHeader><DialogTitle>{text("Delete Agent", "删除 Agent")}</DialogTitle><DialogDescription>{text("This removes the Agent configuration, workspace, and sessions. Shared Programs, Skills and MCP services are kept.", "这会删除此 Agent 的配置、Workspace 和会话。共享的 Programs、Skills 与 MCP 服务保留。")}</DialogDescription></DialogHeader><label className={styles.dialogField}>{text(`Type ${baseline?.id || ""} to confirm`, `输入 ${baseline?.id || ""} 以确认`)}<input value={deleteId} disabled={busy} onChange={(event) => setDeleteId(event.target.value)} /></label>{dialogError ? <p className={styles.dialogError} role="alert">{dialogError}</p> : null}<DialogFooter><AgentButton variant="ghost" disabled={busy} onClick={() => setDialog(null)}>{text("Cancel", "取消")}</AgentButton><AgentButton variant="destructive" disabled={busy || deleteId !== baseline?.id} onClick={() => void remove()}>{text("Delete Agent", "删除 Agent")}</AgentButton></DialogFooter></DialogContent></Dialog>

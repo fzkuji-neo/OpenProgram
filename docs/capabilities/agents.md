@@ -2,7 +2,7 @@
 
 Open **Agents** in the sidebar. An Agent saves a reusable configuration: model, instructions, available capabilities, memory access and channel conversation settings. It does not have to represent a specialized task.
 
-Choose **New Agent**, select a template or **Blank Agent**, choose a model and enter a name, then edit its configuration. The internal ID is generated automatically. Search the list by name, ID or description.
+Choose **New Agent**, enter a name and choose a model, then edit its configuration. The internal ID is generated automatically. Search the list by name, ID or description.
 
 | Section | What it changes |
 | --- | --- |
@@ -19,35 +19,32 @@ Changes across sections share one draft. **Save** writes the complete configurat
 
 The model picker reads the provider catalog without changing another conversation's model. Inherit uses the current default model. An unavailable model or unsupported reasoning effort remains visible until you explicitly change it. Missing required MCP servers prevent execution before a model request.
 
-## Start from a template
+## Specialist Agents
 
-Templates create ordinary, editable Agent configurations. They use the same `Agent` and `Context` execution paths, with memory off by default.
+Image creator, Decision advisor, Lightweight helper and Coordinator are ordinary saved Agents. Select one from the list to start a conversation or edit it. The list shows its purpose; configuration sections sit beside the editor. New Agent creates an independent configuration; Duplicate copies a saved Agent's settings.
 
-| Template | Use it for | Starting capabilities |
+| Agent | Purpose | Capabilities |
 | --- | --- | --- |
 | Image creator | Generate images from a brief | `image_generate`; requires a configured image backend |
-| Decision advisor | Compare options, recommend a choice and identify missing evidence | No tools |
-| Lightweight helper | Extract, classify, format, summarize briefly or predict candidate next messages when asked | No tools |
-| Coordinator | Plan dependencies, delegate authorized tasks and check the combined result | Read/search and Agent coordination tools |
+| Decision advisor | Compare options and explain a recommendation | No tools |
+| Lightweight helper | Extract, classify, format, summarize, or predict candidate next messages when asked | No tools |
+| Coordinator | Plan dependencies, delegate authorized tasks and check results | Read/search and Agent coordination tools |
 
-The creation dialog uses the existing model catalog. Select a low-cost model for the lightweight helper and a strong reasoning model for the coordinator. Templates do not guarantee a price or quality level, and inheriting the default model does not make a task cheaper. A supported reasoning effort is suggested when you select a template; you can change it before creation. Image generation uses its separately configured backend; this template does not add image editing.
+Choose a low-cost model for the lightweight helper and a strong reasoning model for the coordinator in Model & Instructions. Their names do not guarantee price or quality. Image generation uses a separately configured backend and does not include image editing. Predicted messages are suggestions rather than authorization; a planning-only request does not authorize delegated execution.
 
-Predicted next messages are suggestions, not confirmed user intent or authorization. The coordinator produces a plan without delegating when the request is only to plan. These are model instructions; actual permissions remain governed by the existing execution policy.
+The specialist Agents start with memory, Skills and MCP disabled. Their Context is built by the existing runtime. Each saved Agent can be edited or duplicated independently, without changing the default Agent.
 
-All template configurations start with Skills and MCP disabled. Enable specific capabilities in the editor as needed. Creating a template instance does not change existing Agents or your default Agent. Each instance can be edited or duplicated independently.
-
-Python code can create and use the same saved template configuration:
+Python can call a saved Agent directly:
 
 ```python
 from openprogram import Agent
 from openprogram.agent.management import manager
 
-spec = manager.create_from_name("Small tasks", template_id="utility")
-helper = Agent.from_spec(spec)
+helper = Agent.from_spec(manager.get("utility"))
 result = helper("Extract the city from: the event is in Singapore.")
 ```
 
-Use `provider`, `model_id`, and `thinking_effort` in `create_from_name()` to select an explicit model. Omitting them inherits the configured model and its reasoning default. Creating a saved configuration writes to the Agent registry; calling the resulting Agent uses the normal model runtime.
+For an explicit installation, `create_builtin_agents()` in `openprogram.agent.management.builtin_agents` creates missing specialist records and preserves existing records. Registry reads do not install Agents or recreate deleted ones.
 
 ## Start a conversation or try a draft
 

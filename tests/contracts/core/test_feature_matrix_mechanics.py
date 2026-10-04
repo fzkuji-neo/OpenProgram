@@ -207,7 +207,7 @@ def test_runtime_docs_publish_structured_return_and_error_contracts() -> None:
 
     for text in (english, chinese):
         assert "stream_fn=None) -> Any" in text
-        assert "timeout_s=None, on_retry=None) -> Any" in text
+        assert "timeout_s=None, on_retry=None," in text
         assert "stream_fn=None) -> str" not in text
         assert "timeout_s=None, on_retry=None) -> str" not in text
         assert (

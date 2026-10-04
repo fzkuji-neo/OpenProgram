@@ -2,7 +2,7 @@
 
 import { forwardRef, type ComponentProps } from "react";
 import { ManageRow, type ManageTabIcon } from "@/components/ui/manage-page";
-import { BotIcon } from "@/components/animated-icons";
+import { BotIcon, BrainIcon, PenToolIcon, ZapIcon, WorkflowIcon, type AnimatedNavIconHandle } from "@/components/animated-icons";
 import { Button } from "@/components/ui/button";
 import { useActionIconAnimation } from "@/components/chat/messages/use-action-icon-animation";
 
@@ -14,7 +14,12 @@ export const AgentButton = forwardRef<HTMLButtonElement, ComponentProps<typeof B
   </Button>;
 });
 
-export function AgentListRow(props: ComponentProps<typeof ManageRow>) {
+export const AgentRoleIcon = forwardRef<AnimatedNavIconHandle, { roleId: string; size?: number }>(function AgentRoleIcon({ roleId, size = 18 }, ref) {
+  const Icon = roleId === "image" ? PenToolIcon : roleId === "decision" ? BrainIcon : roleId === "utility" ? ZapIcon : roleId === "planner" ? WorkflowIcon : BotIcon;
+  return <Icon ref={ref} size={size} aria-hidden />;
+});
+
+export function AgentListRow({ roleId = "", ...props }: ComponentProps<typeof ManageRow> & { roleId?: string }) {
   const animation = useActionIconAnimation();
-  return <div {...animation.handlers}><ManageRow {...props} icon={<BotIcon ref={animation.ref} size={17} aria-hidden />} /></div>;
+  return <div {...animation.handlers}><ManageRow {...props} icon={<AgentRoleIcon ref={animation.ref} roleId={roleId} />} /></div>;
 }

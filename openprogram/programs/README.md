@@ -33,8 +33,9 @@ relies on.
 - **`_helpers.py`** — Small helpers shared by tool `execute` implementations
 - **`_programs.py`** — First-party *programs*
 - **`_providers.py`** — Shared provider-registry scaffolding for tools with pluggable backends
-- **`_registry.py`** — Explicit + auto-discovered registry of Program sources
+- **`_registry.py`** — Load explicit shipped Programs and owner-authorized external sources
 - **`_runtime.py`** — @function decorator + runtime layer
+- **`_source_loader.py`** — Definition-time call scopes for explicitly authorized Program sources
 - **`application_client.py`** — Use installed application operations from Programs and local CLI clients
 - **`gui_browser_agent.py`** — Browser GUI tasks through the standard Agent and isolated Python tool
 - **`gui_harness_bridge.py`** — Optional adapter from the installed GUI Agent Harness to web_use

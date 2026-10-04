@@ -13,17 +13,17 @@ function Intro({ title, children }: { title: string; children: React.ReactNode }
   return <div className={styles.panelIntro}><h3>{title}</h3><p>{children}</p></div>;
 }
 export function OverviewPanel({ draft, update, text, go }: Props & { go: (tab: TabId) => void }) {
-  return <><Intro title={text("Overview", "概览")}>{text("A reusable configuration for conversations and agent calls.", "可用于对话与 Agent 调用的配置。")}</Intro>
-    <div className={styles.formGrid}>
+  return <><Intro title={text("About this Agent", "Agent 信息")}>{text("Name, purpose and current settings.", "名称、用途与当前配置。")}</Intro>
+    <div className={`${styles.formGrid} ${styles.identityGrid}`}>
       <label>{text("Display name", "显示名称")}<input value={draft.name} maxLength={80} onChange={(event) => update({ name: event.target.value })} /></label>
-      <label>{text("Agent ID", "Agent ID")}<input value={draft.id} disabled /><small>{text("Created automatically and cannot be changed.", "自动生成，创建后不可修改。")}</small></label>
+      <label>{text("Agent ID", "Agent ID")}<input value={draft.id} disabled /></label>
       <label className={styles.fullField}>{text("Description", "描述")}<textarea className={styles.descriptionField} rows={2} value={draft.description} maxLength={2000} onChange={(event) => update({ description: event.target.value })} placeholder={text("When to use this Agent", "说明何时使用此 Agent")} /></label>
     </div>
     <div className={styles.summaryList}>
       <Summary label={text("Model", "模型")} value={draft.model.id || text("Inherit default", "继承默认值")} go={() => go("model")} text={text} />
       <Summary label="Programs" value={draft.tools.mode === "automatic" ? text("All available", "全部可用项") : draft.tools.mode === "none" ? text("Disabled", "已关闭") : text("Selected scope", "指定范围")} go={() => go("programs")} text={text} />
       <Summary label={text("Long-term memory", "长期记忆")} value={draft.memory.mode === "off" ? text("Off", "关闭") : draft.memory.mode === "read_only" ? text("Read only", "只读") : text("Read and write", "读写")} go={() => go("memory")} text={text} />
-      <Summary label={text("Context", "上下文")} value={draft.session_scope} go={() => go("context")} text={text} />
+      <Summary label={text("Context", "上下文")} value={draft.session_scope === "main" ? text("Shared", "共享会话") : draft.session_scope === "per-peer" ? text("Per contact", "按联系人") : draft.session_scope === "per-channel-peer" ? text("Per channel and contact", "按频道和联系人") : text("Per account, channel and contact", "按账号、频道和联系人")} go={() => go("context")} text={text} />
     </div>
   </>;
 }

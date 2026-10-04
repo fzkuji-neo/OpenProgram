@@ -426,18 +426,11 @@ def create(
     identity_name: str = "",
     mention_patterns: Optional[list[str]] = None,
     make_default: bool = False,
-    template_id: str = "",
 ) -> AgentSpec:
     """Create a new agent. ``agent_id`` must match
     ``^[a-z][a-z0-9_-]{0,39}$``. Raises ``ValueError`` on bad id or
     if one already exists with that id.
     """
-    template = None
-    if not isinstance(template_id, str):
-        raise ValueError("template_id must be a string")
-    if template_id:
-        from openprogram.agent.management.templates import get_template
-        template = get_template(template_id)
     if not _VALID_ID.match(agent_id):
         raise ValueError(
             f"Invalid agent id {agent_id!r} — must start with a letter "
@@ -453,7 +446,7 @@ def create(
             name=name or agent_id.replace("_", " ").replace("-", " ").title(),
             default=make_default or not idx.get("default_id"),
             model=AgentModelRef(provider=provider, id=model_id),
-            thinking_effort=thinking_effort if thinking_effort is not None else ("" if template else "medium"),
+            thinking_effort=thinking_effort if thinking_effort is not None else "medium",
             system_prompt=system_prompt,
             skills={"disabled": []},
             tools={"mode": "automatic"},
@@ -464,11 +457,6 @@ def create(
             created_at=now,
             updated_at=now,
         )
-        if template:
-            initial = {**spec.to_dict(), **template["configuration"]}
-            if system_prompt:
-                initial["system_prompt"] = system_prompt
-            spec = AgentSpec.from_dict(initial)
         agent_dir(agent_id).mkdir(parents=True, exist_ok=True)
         sessions_dir(agent_id)
         workspace_dir(agent_id)
@@ -499,7 +487,7 @@ def create(
         return spec
 
 
-def create_from_name(name: str, *, template_id: str = "", provider: str = "",
+def create_from_name(name: str, *, provider: str = "",
                      model_id: str = "", thinking_effort: str | None = None) -> AgentSpec:
     """Create an agent whose internal id is derived from its display name."""
     ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
@@ -511,7 +499,7 @@ def create_from_name(name: str, *, template_id: str = "", provider: str = "",
     suffix = 2
     while True:
         try:
-            return create(agent_id, name=name, template_id=template_id,
+            return create(agent_id, name=name,
                           provider=provider, model_id=model_id,
                           thinking_effort=thinking_effort)
         except ValueError:
