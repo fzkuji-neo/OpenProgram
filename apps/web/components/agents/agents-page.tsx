@@ -10,7 +10,7 @@ import { HttpError, jsonFetch } from "@/lib/net/fetch-client";
 import { startAgentConversation } from "@/lib/agents/start-conversation";
 import settingsStyles from "@/components/settings/settings-page.module.css";
 import { AgentButton, AgentListRow, AgentRoleIcon } from "./agent-controls";
-import { AdvancedPanel, ContextPanel, MemoryPanel, ModelPanel, OverviewPanel } from "./agent-panels";
+import { AdvancedPanel, ContextPanel, MemoryPanel, OverviewPanel } from "./agent-panels";
 import { CapabilityPanel } from "./agent-capabilities";
 import { ModelPicker, selectedModel, useAgentModels, type ModelSelection } from "./model-picker";
 import { clone, configuration, normalizeAgent, trialConfiguration, TABS, type Agent, type TabId } from "./agent-types";
@@ -32,7 +32,6 @@ export function AgentsPage() {
   const [draft, setDraft] = useState<Agent | null>(null);
   const [tab, setTab] = useState<TabId>("overview");
   const [search, setSearch] = useState("");
-  const [horizontalConfig, setHorizontalConfig] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,15 +54,9 @@ export function AgentsPage() {
   const model = draft ? selectedModel(draft, models) : undefined;
   const effortInvalid = Boolean(draft?.thinking_effort && model && !model.thinking_levels?.includes(draft.thinking_effort));
   const formError = draft && !draft.name.trim() ? text("Enter an Agent name.", "请输入 Agent 名称。")
-    : effortInvalid && dirty ? text("Choose a supported thinking effort in Model & Instructions.", "请在模型与指令中选择支持的思考强度。") : "";
+    : effortInvalid && dirty ? text("Choose a supported thinking effort in General.", "请在常规分区选择支持的思考强度。") : "";
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => {
-    const layout = window.matchMedia("(max-width:800px)");
-    const sync = () => setHorizontalConfig(layout.matches);
-    sync(); layout.addEventListener("change", sync);
-    return () => layout.removeEventListener("change", sync);
-  }, []);
   useEffect(() => {
     if (draft && baseline) {
       cachedDrafts.set(draft.id, { draft: clone(draft), baseline: clone(baseline), tab });
@@ -246,14 +239,13 @@ export function AgentsPage() {
         <div className={styles.agentList}>{visible.map((agent) => <AgentListRow key={agent.id} className={`${styles.agentRow} ${agent.id === draft?.id ? styles.agentSelected : ""}`} roleId={agent.id} onClick={() => { if (agent.id !== draft?.id) guard(() => applyAgent(agent, true)); }} name={agent.name || agent.id} description={agent.description || text("General conversations and tasks", "通用对话与任务")} meta={agent.default ? <span className={managePageStyles.badge}>{text("Default", "默认")}</span> : null} />)}{!visible.length && agents.length ? <p className={styles.note}>{text("No matching Agents", "没有匹配的 Agent")}</p> : null}</div>
       </aside>
       <main className={styles.editor}>{!draft ? <div className={styles.emptyState}><BotIcon size={28} /><h2>{text("Create your first Agent", "创建第一个 Agent")}</h2><p>{text("Configure a model, capabilities, and optional memory.", "配置模型、能力和可选的长期记忆。")}</p><AgentButton icon={PlusIcon} onClick={() => openDialog("create")}>{text("New Agent", "新建 Agent")}</AgentButton></div> : <div className={`${settingsStyles.page} ${styles.editorPage}`}>
-        <div className={`${settingsStyles.pageHeader} ${styles.agentPageHeader}`}><span className={styles.detailAvatar}><AgentRoleIcon roleId={draft.id} size={24} /></span><div className={styles.agentHeading}><h2 className={settingsStyles.pageTitle}>{activeName}</h2><p className={settingsStyles.pageMeta}>{draft.description || text("General conversations and tasks", "通用对话与任务")}</p></div>
+        <div className={`${settingsStyles.pageHeader} ${styles.agentPageHeader}`}><span className={styles.detailAvatar}><AgentRoleIcon roleId={draft.id} size={24} /></span><div className={styles.agentHeading}><h2 className={settingsStyles.pageTitle}>{activeName}</h2><p className={settingsStyles.pageMeta}>{draft.id}</p></div>
         <div className={styles.conversationActions}><AgentButton variant="default" icon={MessageCircleIcon} disabled={busy} onClick={() => guard((saved) => start(false, saved))}>{text("New conversation", "新对话")}</AgentButton><AgentButton variant="ghost" icon={MessageCircleIcon} disabled={busy || !canStart || Boolean(formError)} aria-label={text("Try in new conversation", "在新对话试运行")} title={text("Start a new conversation with the draft; memory is read only or off.", "使用草稿开始新对话；记忆只读或关闭。")} onClick={() => void start(true)}>{text("Try draft", "试运行草稿")}</AgentButton></div>
           <details ref={menu} key={draft.id} className={styles.moreMenu}><summary aria-label={text("Agent actions", "Agent 操作")}><SettingsIcon size={18} aria-hidden /></summary><div><AgentButton icon={CheckIcon} variant="ghost" disabled={draft.default || busy} onClick={() => { if (menu.current) menu.current.open = false; guard(makeDefault); }}>{text("Set as default", "设为默认")}</AgentButton><AgentButton icon={CopyIcon} variant="ghost" disabled={busy} onClick={() => openDialog("duplicate")}>{text("Duplicate Agent", "复制 Agent")}</AgentButton><AgentButton variant="ghost" className={styles.danger} disabled={draft.default || busy} onClick={() => openDialog("delete")}>{text("Delete Agent", "删除 Agent")}</AgentButton></div></details>
         </div>
-        <Tabs orientation={horizontalConfig ? "horizontal" : "vertical"} className={styles.configTabs} value={tab} onValueChange={(value) => setTab(value as TabId)}><TabsList className={styles.configTabsList} aria-label={text("Agent configuration", "Agent 配置")}>{TABS.map((item) => <TabsTrigger className={`${styles.configTab} ${["programs", "memory", "advanced"].includes(item.id) ? styles.configGroupStart : ""}`} value={item.id} key={item.id}>{text(item.en, item.zh)}</TabsTrigger>)}</TabsList>
+        <Tabs orientation="horizontal" className={styles.configTabs} value={tab} onValueChange={(value) => setTab(value as TabId)}><TabsList className={styles.configTabsList} aria-label={text("Agent configuration", "Agent 配置")}>{TABS.map((item) => <TabsTrigger className={styles.configTab} value={item.id} key={item.id}>{text(item.en, item.zh)}</TabsTrigger>)}</TabsList>
           <div className={`${settingsStyles.pageBody} ${styles.editorBody}`}><fieldset className={styles.editorFields} disabled={busy}>
-            <TabsContent className={styles.tabPanel} value="overview"><OverviewPanel draft={draft} update={updateDraft} text={text} go={setTab} /></TabsContent>
-            <TabsContent className={styles.tabPanel} value="model"><ModelPanel draft={draft} update={updateDraft} text={text} catalog={models} /></TabsContent>
+            <TabsContent className={styles.tabPanel} value="overview"><OverviewPanel draft={draft} update={updateDraft} text={text} catalog={models} dirty={dirty} /></TabsContent>
             {(["programs", "skills", "mcp"] as const).map((kind) => <TabsContent className={styles.tabPanel} value={kind} key={kind}><CapabilityPanel kind={kind} draft={draft} update={updateDraft} text={text} /></TabsContent>)}
             <TabsContent className={styles.tabPanel} value="memory"><MemoryPanel draft={draft} update={updateDraft} text={text} /></TabsContent>
             <TabsContent className={styles.tabPanel} value="context"><ContextPanel draft={draft} update={updateDraft} text={text} /></TabsContent>

@@ -24,7 +24,7 @@ assert.match(page, /from "@\/components\/ui\/tabs"/);
 assert.match(page, /from "@\/components\/ui\/dialog"/);
 assert.match(page, /<Tabs[\s\S]*value=\{tab\}/);
 assert.match(page, /<AgentListRow/);
-for (const name of ["overview", "model", "programs", "skills", "mcp", "memory", "context", "advanced"]) {
+for (const name of ["overview", "programs", "skills", "mcp", "memory", "context", "advanced"]) {
   assert.match(types, new RegExp(`id: "${name}"`));
 }
 assert.match(page, /\/api\/agents/);
