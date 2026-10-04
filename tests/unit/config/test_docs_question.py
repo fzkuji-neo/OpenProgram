@@ -1,4 +1,4 @@
-"""Unit tests for the docs_question agentic function
+"""Unit tests for the docs_question workflow
 (``openprogram/programs/workflow/docs_question/``): the entry point's
 input validation, the page listing it builds its prompt from, source
 path normalization, and the shape it returns once the spawned agent has
@@ -117,7 +117,7 @@ def test_tools_are_read_only(monkeypatch, fake_docs) -> None:
     assert DQ.run_docs_question.render_range == {'callers': 0, 'subcalls': 0}
 
 
-def test_failed_turn_raises(monkeypatch) -> None:
+def test_failed_turn_raises(monkeypatch, fake_docs) -> None:
     import importlib
 
     def failed_agent(**kwargs):
@@ -126,7 +126,7 @@ def test_failed_turn_raises(monkeypatch) -> None:
     monkeypatch.setattr('openprogram.programs.agent_tools', lambda **kwargs: [])
     monkeypatch.setattr(importlib.import_module('openprogram.agentic_programming.agent'), 'agent', failed_agent)
     with pytest.raises(RuntimeError, match='provider down'):
-        DQ._run_docs_turn('s1', 'p', agent_id='main', spawn_caller=None)
+        DQ.run_docs_question(question='p', session_id='s1')
 
 
 # ---------------------------------------------------------------------------

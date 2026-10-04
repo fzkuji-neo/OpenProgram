@@ -435,7 +435,8 @@ class RecoveryOperations:
             )
         if recovered.status in TERMINAL_EXECUTION_STATUSES:
             self._forget_cancel_delivery(execution_id)
-            self._observe_terminal(recovered)
+            if recovered.status is ExecutionStatus.CANCELLED:
+                self._observe_terminal(recovered)
         return RecoveryCompletion(
             execution=recovered,
             attempt=attempt,
@@ -609,7 +610,8 @@ class RecoveryOperations:
         self.registry.unbind(execution_id, attempt_id=attempt_id, generation=generation)
         if completed.status in TERMINAL_EXECUTION_STATUSES:
             self._forget_cancel_delivery(execution_id)
-            self._observe_terminal(completed)
+            if completed.status is ExecutionStatus.CANCELLED:
+                self._observe_terminal(completed)
         return True
 
 
