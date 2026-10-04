@@ -104,7 +104,7 @@ dependencies = [
     "rich>=13.0",
     # Built-in `pdf` and `read` tools extract text with pypdf. This is a
     # complete-product capability, so release runtimes must always carry it.
-    "pypdf>=5.0",
+    "pypdf>=6.19.0",
     # Window-scoped GUI capture and Accessibility actions; no ML perception required.
     "pyobjc-framework-ScreenCaptureKit>=10; sys_platform == 'darwin'",
     "pyobjc-framework-ApplicationServices>=10; sys_platform == 'darwin'",
