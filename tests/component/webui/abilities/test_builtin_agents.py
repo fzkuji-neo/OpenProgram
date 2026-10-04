@@ -13,8 +13,10 @@ def test_builtin_agents_are_saved_independent_and_preserve_owner_edits(tmp_path,
     before = manager.get("main").to_dict()
     from openprogram.agent.management.builtin_agents import create_builtin_agents
     rows = create_builtin_agents(model_refs={"utility": manager.AgentModelRef("fixture", "small")})
-    assert {row.id for row in rows} == {"image", "decision", "utility", "planner"}
+    assert {row.id for row in rows} == {"decision", "utility", "planner"}
     assert manager.get("main").to_dict() == before
+    assert manager.get("image") is None
+    assert manager.get("decision").name == "Decision"
     assert manager.get("utility").model.id == "small"
     assert all(row.memory["mode"] == "off" for row in rows)
     assert all(row.system_prompt == "" for row in rows)
@@ -22,14 +24,16 @@ def test_builtin_agents_are_saved_independent_and_preserve_owner_edits(tmp_path,
     seen_instructions = []
     def call(content, **kwargs):
         seen_instructions.append(_current_instructions.get())
-        return "extracted"
+        return '{"call":"B"}' if any("Pick." in block.get("text", "") for block in content) else "extracted"
     runtime = Runtime(call=call)
     token = _current_instructions.set("Instructions supplied by the caller")
     try:
         instance = Agent.from_spec(manager.get("utility"), runtime=runtime)
         assert instance.instructions is None
         assert instance("Extract one field") == "extracted"
-        assert seen_instructions == ["Instructions supplied by the caller"]
+        picker = Agent.from_spec(manager.get("decision"), runtime=runtime)
+        assert picker.choose("Pick.", {"A": "First", "B": "Second"}) == "B"
+        assert seen_instructions == ["Instructions supplied by the caller"] * 2
     finally:
         _current_instructions.reset(token)
         runtime.close()
@@ -40,8 +44,8 @@ def test_builtin_agents_are_saved_independent_and_preserve_owner_edits(tmp_path,
     app = FastAPI()
     agents.register(app)
     with TestClient(app) as client:
-        assert len(client.get("/api/agents").json()["agents"]) == 5
+        assert len(client.get("/api/agents").json()["agents"]) == 4
         assert client.get("/api/agent-templates").status_code == 404
         manager.delete("decision")
-        assert len(client.get("/api/agents").json()["agents"]) == 4
+        assert len(client.get("/api/agents").json()["agents"]) == 3
         assert manager.get("decision") is None

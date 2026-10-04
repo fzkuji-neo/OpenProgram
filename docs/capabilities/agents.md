@@ -20,16 +20,15 @@ The model picker reads the provider catalog without changing another conversatio
 
 ## Specialist Agents
 
-Image creator, Decision advisor, Lightweight helper and Coordinator are saved fixed-parameter configurations of the Agent class. They do not include preset role system prompts; supply the task through the call and its Context. Select one from the list to start a conversation or edit it. The list shows its purpose; configuration sections are tabs above the editor. New Agent creates an independent configuration; Duplicate copies a saved Agent's settings.
+Decision, Lightweight helper and Coordinator are saved fixed-parameter configurations of the Agent class. They do not include preset role system prompts; supply the task through the call and its Context. Select one from the list to start a conversation or edit it. The list shows its purpose; configuration sections are tabs above the editor. New Agent creates an independent configuration; Duplicate copies a saved Agent's settings.
 
 | Agent | Purpose | Capabilities |
 | --- | --- | --- |
-| Image creator | Generate images from a brief | `image_generate`; requires a configured image backend |
-| Decision advisor | Compare options and explain a recommendation | No tools |
+| Decision | Select one of the supplied options with `Agent.choose()` | One model turn, no tools or automatic re-pick |
 | Lightweight helper | Extract, classify, format, summarize, or predict candidate next messages when asked | No tools |
 | Coordinator | Plan dependencies, delegate authorized tasks and check results | Read/search and Agent coordination tools |
 
-Choose a low-cost model for the lightweight helper and a strong reasoning model for the coordinator in General. Their names do not guarantee price or quality. Image generation uses a separately configured backend and does not include image editing. Predicted messages are suggestions rather than authorization; a planning-only request does not authorize delegated execution.
+Choose a low-cost model for the lightweight helper and a strong reasoning model for the coordinator in General. Their names do not guarantee price or quality. Predicted messages are suggestions rather than authorization; a planning-only request does not authorize delegated execution.
 
 The specialist Agents start with memory, Skills and MCP disabled. Their Context is built by the existing runtime. Each saved Agent can be edited or duplicated independently, without changing the default Agent.
 
@@ -42,6 +41,16 @@ from openprogram.agent.management import manager
 helper = Agent.from_spec(manager.get("utility"))
 result = helper("Extract the city from: the event is in Singapore.")
 ```
+
+
+For a single selection, supply option IDs and labels. The return value is the selected ID:
+
+```python
+selector = Agent.from_spec(manager.get("decision"))
+selected = selector.choose("Classify this message.", {"A": "Question", "B": "Statement"})
+```
+
+`choose()` uses the current Context and DAG, disables tools and web search, and does not request a second selection if the answer is invalid. Invalid answers raise `DecisionError`. Model and reasoning settings are caller configuration; this entry does not add a reasoning or advice workflow. Ordinary `__call__()` remains available for normal model responses.
 
 For an explicit installation, `create_builtin_agents()` in `openprogram.agent.management.builtin_agents` creates missing specialist records and preserves existing records. Registry reads do not install Agents or recreate deleted ones.
 

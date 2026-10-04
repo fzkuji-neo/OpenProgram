@@ -20,16 +20,15 @@
 
 ## 专用 Agent
 
-绘图助手、决策顾问、轻量助手和统筹规划是 Agent 类的已保存固定参数配置，不包含预设的角色 system prompt；任务由调用处及 Context 提供。可以从列表选择、开始对话或编辑。列表显示用途，配置标签位于编辑区顶部。新建 Agent 创建独立配置，复制操作复用已有 Agent 的保存配置。
+决策、轻量助手和统筹规划是 Agent 类的已保存固定参数配置，不包含预设的角色 system prompt；任务由调用处及 Context 提供。可以从列表选择、开始对话或编辑。列表显示用途，配置标签位于编辑区顶部。新建 Agent 创建独立配置，复制操作复用已有 Agent 的保存配置。
 
 | Agent | 用途 | 能力 |
 | --- | --- | --- |
-| 绘图助手 | 根据要求生成图片 | `image_generate`，需要已配置的图片后端 |
-| 决策顾问 | 比较选项，说明建议依据 | 不启用工具 |
+| 决策 | 通过 `Agent.choose()` 从给定选项中选择一项 | 一次模型调用，不使用工具或自动重选 |
 | 轻量助手 | 提取、分类、格式转换、摘要，以及按需预测候选下一句 | 不启用工具 |
 | 统筹规划 | 规划依赖、委派已授权任务、检查结果 | 读取、检索和 Agent 协作工具 |
 
-在常规分区中，为轻量助手选择低价模型，为统筹规划选择较强的推理模型。名称不保证费用或输出质量。绘图使用单独配置的图片后端，不包含图片编辑。预测的下一句话只是候选，不代表授权；只要求规划不授权执行委派。
+在常规分区中，为轻量助手选择低价模型，为统筹规划选择较强的推理模型。名称不保证费用或输出质量。预测的下一句话只是候选，不代表授权；只要求规划不授权执行委派。
 
 专用 Agent 初始关闭记忆、Skills 和 MCP。Context 由现有执行机制构建。每个保存的 Agent 可独立修改和复制，不修改默认 Agent。
 
@@ -42,6 +41,16 @@ from openprogram.agent.management import manager
 helper = Agent.from_spec(manager.get("utility"))
 result = helper("从这句话提取城市：活动在新加坡举行。")
 ```
+
+
+单选调用提供选项 ID 和内容，返回选中的 ID：
+
+```python
+selector = Agent.from_spec(manager.get("decision"))
+selected = selector.choose("判断这句话的类别。", {"A": "提问", "B": "陈述"})
+```
+
+`choose()` 使用当前 Context 和 DAG，关闭工具与网页搜索。非法答案抛出 `DecisionError`，不再次请求模型重选。模型和思考参数由调用者配置；该入口不增加推理或顾问工作流程。普通 `__call__()` 仍可用于常规模型回答。
 
 `openprogram.agent.management.builtin_agents` 的 `create_builtin_agents()` 是显式安装操作，只创建缺少的专用记录并保留已有记录。读取列表不安装 Agent，也不重建已删除的 Agent。
 

@@ -2,7 +2,7 @@
 
 import { forwardRef, type ComponentProps } from "react";
 import { ManageRow, type ManageTabIcon } from "@/components/ui/manage-page";
-import { BotIcon, BrainIcon, PenToolIcon, ZapIcon, WorkflowIcon, type AnimatedNavIconHandle } from "@/components/animated-icons";
+import { BotIcon, ZapIcon, WorkflowIcon, type AnimatedNavIconHandle } from "@/components/animated-icons";
 import { Button } from "@/components/ui/button";
 import { useActionIconAnimation } from "@/components/chat/messages/use-action-icon-animation";
 
@@ -15,7 +15,7 @@ export const AgentButton = forwardRef<HTMLButtonElement, ComponentProps<typeof B
 });
 
 export const AgentRoleIcon = forwardRef<AnimatedNavIconHandle, { roleId: string; size?: number }>(function AgentRoleIcon({ roleId, size = 18 }, ref) {
-  const Icon = roleId === "image" ? PenToolIcon : roleId === "decision" ? BrainIcon : roleId === "utility" ? ZapIcon : roleId === "planner" ? WorkflowIcon : BotIcon;
+  const Icon = roleId === "utility" ? ZapIcon : roleId === "planner" ? WorkflowIcon : BotIcon;
   return <Icon ref={ref} size={size} aria-hidden />;
 });
 

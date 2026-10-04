@@ -105,6 +105,38 @@ class Agent:
             call = managed_function(agent)
             return call(prompt, **self._call_options(overrides))
 
+    def choose(self, prompt: str, options: dict[str, str], *, context=_UNSET,
+               model: str = "", effort: str = "", timeout_s: float | None = None) -> str:
+        """Return one supplied option ID without tools or automatic re-picking."""
+        if not isinstance(options, dict) or not options or any(
+            not isinstance(key, str) or not key.strip() or not isinstance(label, str)
+            for key, label in options.items()
+        ):
+            raise ValueError("Choice options must map non-empty string IDs to string labels.")
+        from openprogram.agentic_programming.llm import llm
+        from openprogram.agentic_programming.call_scope import managed_function
+        from openprogram.agentic_programming.runtime.shared import (
+            _current_agent_options, _current_response_format, _current_model_call_budget,
+        )
+        with _configuration_scope(self, context=context):
+            # A selection has its own output contract, independent of any
+            # surrounding tool loop or structured-output repair defaults.
+            token = _current_agent_options.set(dict(
+                _current_agent_options.get(), response_format=None,
+                tools=[], web_search=False, tool_choice="none",
+            ))
+            format_token = _current_response_format.set(None)
+            budget_token = _current_model_call_budget.set(None)
+            try:
+                return managed_function(llm)(
+                    prompt, choices={key: (key, label) for key, label in options.items()},
+                    model=model, effort=effort, timeout_s=timeout_s,
+                )
+            finally:
+                _current_model_call_budget.reset(budget_token)
+                _current_response_format.reset(format_token)
+                _current_agent_options.reset(token)
+
     async def arun(self, prompt: str | list[dict], **overrides) -> Any:
         """Run one asynchronous agent call with explicit option overrides."""
         from openprogram.agentic_programming.agent import agent_async

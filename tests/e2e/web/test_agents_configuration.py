@@ -696,8 +696,9 @@ def test_saved_specialists_and_plain_creation_without_templates(agents_browser, 
     from playwright.sync_api import expect
 
     page = agents_browser(1280, initial={"builtins": True})
-    for name in ("Image creator", "Decision advisor", "Lightweight helper", "Coordinator"):
+    for name in ("Decision", "Lightweight helper", "Coordinator"):
         expect(page.get_by_role('button', name=re.compile('^' + name))).to_be_visible()
+    expect(page.get_by_role('button', name=re.compile('^Image creator'))).to_have_count(0)
     page.get_by_role('button', name=re.compile('^Lightweight helper')).click()
     expect(page.get_by_role('heading', name='Lightweight helper', exact=True)).to_be_visible()
     page.screenshot(animations='disabled', path=str(tmp_path / 'agents-desktop-dark.png'))
