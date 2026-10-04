@@ -71,6 +71,12 @@
   --theme-accent-fill: var(--accent-fill);
   --theme-accent-fill-hover: var(--accent-orange-hover);
   --accent-blue: var(--theme-accent);
+  /* Quiet-text aliases used by management pages (counts, summaries,
+     inactive subnav tabs, icon tiles). They were never defined, so those
+     rules silently inherited body-text colour. Resolve per theme; not
+     --text-muted, which drops 10-12px text to 3:1 in the light themes. */
+  --text-tertiary: var(--text-secondary);
+  --text-dim: var(--text-secondary);
   --accent-green: #6e9b76;
   --accent-red: #c24e42;
   --accent-yellow: #d4a346;

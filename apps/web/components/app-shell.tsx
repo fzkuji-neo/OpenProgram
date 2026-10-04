@@ -643,13 +643,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             : null}
           <PersistentFilePanes tabs={tabs} layouts={new Map(panes.flatMap((pane, index) => pane.kind === "session" ? [] : [[pane.tabId, { className: centerPaneClassName(index), style: centerPaneStyle(index) }]]))} activeFileIds={new Set(panes.flatMap((pane) => pane.kind === "session" ? [] : tabs.find((tab) => tab.id === pane.tabId)?.kind === "file" ? [pane.tabId] : []))} />
           {showChat ? <WebTabPip /> : null}
-          {/* With every tab closed (and on first launch) the canvas has no
-             pane at all; show the launcher instead of an empty surface. */}
-          {showChat && tabs.length === 0 ? (
-            <div className="center-single-pane" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-              <NewTabPage />
-            </div>
-          ) : null}
         </div>
       </div>
       {/* Non-chat routes render their own page content via the router. */}

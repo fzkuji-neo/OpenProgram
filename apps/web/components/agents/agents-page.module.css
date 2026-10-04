@@ -1,5 +1,5 @@
 
-.successBanner,.errorBanner{height:38px;flex:none;display:flex;align-items:center;gap:8px;padding:0 24px;border-bottom:1px solid var(--border);font-size:var(--fs-sm)}.successBanner{color:var(--success,#62b47a);background:color-mix(in srgb,var(--success,#62b47a) 7%,var(--bg-primary))}.errorBanner{color:var(--destructive);background:color-mix(in srgb,var(--destructive) 7%,var(--bg-primary))}.successBanner button,.errorBanner button{margin-left:auto;border:0;background:transparent;color:inherit;text-decoration:underline}
+.successBanner,.errorBanner{height:38px;flex:none;display:flex;align-items:center;gap:8px;padding:0 24px;border-bottom:1px solid var(--border);font-size:var(--fs-sm)}.successBanner{color:var(--accent-green);background:color-mix(in srgb,var(--accent-green) 7%,var(--bg-primary))}.errorBanner{color:var(--destructive);background:color-mix(in srgb,var(--destructive) 7%,var(--bg-primary))}.successBanner button,.errorBanner button{margin-left:auto;border:0;background:transparent;color:inherit;text-decoration:underline}
 
 
 
@@ -40,7 +40,7 @@
 .conversationActions{display:flex;align-items:center;gap:6px;flex:none;min-width:0}
 .configTabs{display:flex;flex-direction:column;flex:1;min-height:0;min-width:0}
 .configTabsList{height:46px;flex:none;display:flex;flex-direction:row;align-items:stretch;justify-content:flex-start;gap:18px;padding:0 24px;border-bottom:1px solid var(--border);border-radius:0;background:transparent;overflow-x:auto;overflow-y:hidden}
-.configTab{height:46px;flex:none;justify-content:center;padding:0 2px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--text-muted);font-size:var(--fs-sm);font-weight:500;box-shadow:none}
+.configTab{height:46px;flex:none;justify-content:center;padding:0 2px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--text-secondary);font-size:var(--fs-sm);font-weight:500;box-shadow:none}
 .configTab[data-state="active"]{background:transparent;color:var(--text-bright);border-bottom-color:var(--accent-blue);box-shadow:none}
 .editorBody{min-height:0;overflow:auto;padding:24px}
 .tabPanel{width:100%;margin:0}

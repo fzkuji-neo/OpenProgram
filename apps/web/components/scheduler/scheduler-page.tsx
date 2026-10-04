@@ -68,7 +68,11 @@ export function SchedulerPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [pageError, setPageError] = useState("");
+  // The dialog keeps showing pendingDelete through its exit animation, so
+  // open state is separate from the task being confirmed.
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function reload() {
     setLoading(true);
@@ -159,19 +163,32 @@ export function SchedulerPage() {
     }
   }
 
-  async function remove(task: Task) {
+  async function remove(task: Task): Promise<boolean> {
     setPageError("");
     try {
       const response = await fetch(`/api/scheduler/tasks/${task.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error(text("Could not delete task", "无法删除任务"));
       setTasks((current) => current.filter((row) => row.id !== task.id));
+      return true;
     } catch (reason) {
       setPageError(reason instanceof Error ? reason.message : text("Could not delete task", "无法删除任务"));
+      return false;
     }
   }
 
+  async function confirmDelete() {
+    if (!pendingDelete || deleting) return;
+    setDeleting(true);
+    const ok = await remove(pendingDelete);
+    setDeleting(false);
+    if (ok) setDeleteOpen(false);
+  }
+
   const activeCount = tasks.filter((task) => task.enabled).length;
-  const filterTabs = filters.map((item) => ({ id: item.id, label: item.label, count: counts[item.id] }));
+  const filterTabs = filters.map((item) => ({ id: item.id, label: item.label, count: loadedOnce ? counts[item.id] : undefined }));
+  // A reload replaces the whole list, so hold row mutations until it lands
+  // instead of letting an older snapshot overwrite a newer change.
+  const rowsBusy = loading || deleting;
 
   return (
     <ManagePage className={styles.view}>
@@ -192,7 +209,7 @@ export function SchedulerPage() {
           )}
           actions={[
             { label: text("Refresh", "刷新"), onClick: () => void reload(), icon: RefreshCwIcon, iconOnly: true, disabled: loading },
-            { label: text("New task", "新建任务"), onClick: () => begin(), icon: PlusIcon, primary: true },
+            { label: text("New task", "新建任务"), onClick: () => begin(), icon: PlusIcon, primary: true, disabled: !loadedOnce || loading },
           ]}
         />
         <ManageSubnav
@@ -203,13 +220,13 @@ export function SchedulerPage() {
           panelId="scheduler-panel"
         />
         {pageError && <div className={shared.errorBar} role="alert">{pageError}</div>}
-        <main
-          id="scheduler-panel"
-          role="tabpanel"
-          aria-labelledby={`scheduler-panel-tab-${filter}`}
-          className={styles.layout}
-        >
-          <div className={styles.content}>
+        <main className={styles.layout}>
+          <div
+            id="scheduler-panel"
+            role="tabpanel"
+            aria-labelledby={`scheduler-panel-tab-${filter}`}
+            className={styles.content}
+          >
             {loading && !loadedOnce ? (
               <div className={shared.empty}>{text("Loading…", "加载中…")}</div>
             ) : !loadedOnce ? (
@@ -251,6 +268,7 @@ export function SchedulerPage() {
                       actions={(
                         <>
                           <ManageIconButton
+                            disabled={rowsBusy}
                             onClick={() => void toggle(task)}
                             label={actionAccessibleName(task.enabled ? text("Pause", "暂停") : text("Resume", "恢复"), task.title)}
                             tooltip={task.enabled ? text("Pause", "暂停") : text("Resume", "恢复")}
@@ -259,7 +277,8 @@ export function SchedulerPage() {
                           </ManageIconButton>
                           <ManageIconButton
                             danger
-                            onClick={() => setPendingDelete(task)}
+                            disabled={rowsBusy}
+                            onClick={() => { setPendingDelete(task); setDeleteOpen(true); }}
                             label={actionAccessibleName(text("Delete", "删除"), task.title)}
                             tooltip={text("Delete", "删除")}
                           >
@@ -286,7 +305,7 @@ export function SchedulerPage() {
           </div>
         </main>
 
-      <Dialog open={pendingDelete !== null} onOpenChange={(next) => { if (!next) setPendingDelete(null); }}>
+      <Dialog open={deleteOpen} onOpenChange={(next) => { if (!deleting) setDeleteOpen(next); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{text("Delete scheduled task", "删除定时任务")}</DialogTitle>
@@ -295,8 +314,8 @@ export function SchedulerPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingDelete(null)}>{text("Cancel", "取消")}</Button>
-            <Button variant="destructive" onClick={() => { const task = pendingDelete; setPendingDelete(null); if (task) void remove(task); }}>{text("Delete", "删除")}</Button>
+            <Button variant="outline" disabled={deleting} onClick={() => setDeleteOpen(false)}>{text("Cancel", "取消")}</Button>
+            <Button variant="destructive" disabled={deleting} onClick={() => void confirmDelete()}>{deleting ? text("Deleting…", "删除中…") : text("Delete", "删除")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

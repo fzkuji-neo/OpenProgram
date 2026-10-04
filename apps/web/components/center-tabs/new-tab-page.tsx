@@ -29,13 +29,6 @@ export function NewTabPage() {
     return () => { disposed = true; clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, []);
   function openNewChat() {
-    // Rendered as the zero-tab fallback there is no active NTP tab to
-    // claim (claiming would be a no-op), so open a fresh draft tab.
-    const state = useCenterTabs.getState();
-    if (!state.tabs.some((tab) => tab.id === state.activeId)) {
-      newSession(state.openDraftSessionTab());
-      return;
-    }
     const draftId = useCenterTabs.getState().claimDraftSessionTab();
     newSession(draftId);
   }

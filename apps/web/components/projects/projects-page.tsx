@@ -48,6 +48,7 @@ interface SessionSummary {
 }
 
 type Tab = "settings" | "sessions" | "info";
+const PROJECT_TABS: Tab[] = ["settings", "sessions", "info"];
 
 function cls(...xs: (string | false | undefined)[]) {
   return xs.filter(Boolean).join(" ");
@@ -69,6 +70,7 @@ export function ProjectsPage({
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [localQuery, setLocalQuery] = useState("");
   const { pickFolder, folderPickerDialog } = useFolderPicker();
   const query = queryProp !== undefined ? queryProp : localQuery;
@@ -83,11 +85,13 @@ export function ProjectsPage({
         const list = data.projects || [];
         setProjects(list);
         setSelectedId((cur) => cur ?? (list[0]?.id ?? null));
+        setLoaded(true);
         return;
       }
       await new Promise((r) => setTimeout(r, 300));
     }
-  }, []);
+    setError(text("Could not load projects", "无法加载项目"));
+  }, [text]);
 
   useEffect(() => {
     function onChanged() { refresh(); }
@@ -163,6 +167,19 @@ export function ProjectsPage({
     }
   }, [pickFolder, refresh]);
 
+  // Arrow/Home/End keyboard model shared with ManageSubnav.
+  function moveProjectTab(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next = index;
+    if (event.key === "ArrowRight") next = (index + 1) % PROJECT_TABS.length;
+    else if (event.key === "ArrowLeft") next = (index - 1 + PROJECT_TABS.length) % PROJECT_TABS.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = PROJECT_TABS.length - 1;
+    else return;
+    event.preventDefault();
+    setTab(PROJECT_TABS[next]);
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button[role=tab]")[next]?.focus();
+  }
+
   const view = (
       <div className={fx.view} style={embedded ? { flex: 1, minHeight: 0, height: "auto" } : undefined}>
         {folderPickerDialog}
@@ -198,8 +215,8 @@ export function ProjectsPage({
               >
                 <span className={fx.profileIcon}>{p.icon || <FoldersIcon size={16} />}</span>
                 <span className={fx.profileName}>{p.name}</span>
-                {p.hidden && <span className={styles.badge}>{text("Hidden", "已隐藏")}</span>}
-                {p.is_default && <span className={styles.badge}>{text("Default", "默认")}</span>}
+                {p.hidden && <span className={shared.badge}>{text("Hidden", "已隐藏")}</span>}
+                {p.is_default && <span className={shared.badge}>{text("Default", "默认")}</span>}
                 {(p.path_missing || p.path_replaced ||
                   ["missing", "replaced", "migrating", "pending", "error"].includes(p.location_state ?? "")) ? (
                   <AlertTriangle
@@ -226,7 +243,9 @@ export function ProjectsPage({
 
           {/* 右栏：选中项目的内容 */}
           <div className={fx.content}>
-            {!selected ? (
+            {!selected && !loaded ? (
+              <div className={shared.empty}>{text("Loading…", "加载中…")}</div>
+            ) : !selected ? (
               <ManageEmptyState
                 compact
                 icon={<FoldersIcon size={20} />}
@@ -305,13 +324,17 @@ export function ProjectsPage({
                 )}
 
                 <div className={styles.tabs} role="tablist" aria-label={text("Project sections", "项目分区")}>
-                  {(["settings", "sessions", "info"] as Tab[]).map((tk) => (
+                  {PROJECT_TABS.map((tk, index) => (
                     <button
                       key={tk}
                       type="button"
                       role="tab"
+                      id={`project-tab-${tk}`}
                       aria-selected={tab === tk}
+                      aria-controls="project-tabpanel"
+                      tabIndex={tab === tk ? 0 : -1}
                       onClick={() => setTab(tk)}
+                      onKeyDown={(event) => moveProjectTab(event, index)}
                       className={cls(styles.tab, tab === tk && styles.tabActive)}
                     >
                       {tk === "settings"
@@ -323,6 +346,7 @@ export function ProjectsPage({
                   ))}
                 </div>
 
+                <div id="project-tabpanel" role="tabpanel" aria-labelledby={`project-tab-${tab}`}>
                 {tab === "settings" && (
                   <div className={styles.tabBody}>
                     <div className={styles.sectionTitle}>{text("Default Settings", "默认设置")}</div>
@@ -371,6 +395,7 @@ export function ProjectsPage({
                     <Field label="ID"><code>{selected.id}</code></Field>
                   </dl>
                 )}
+                </div>
               </>
             )}
           </div>

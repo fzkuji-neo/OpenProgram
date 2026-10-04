@@ -2,16 +2,6 @@
    Programs 页的 module.css（import fx），保证高度/间距完全一致。这里只放
    Projects 特有的类。 */
 
-.badge {
-  font-size: 11px;
-  font-weight: 500;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--bg-tertiary);
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
 /* Rail rows are <button>s; reset the native button chrome so they keep the
    shared profilesNav row geometry. */
 .railItem {
@@ -20,9 +10,11 @@
   background: transparent;
   text-align: left;
 }
+/* base.css strips button outlines; mark keyboard focus with the hover
+   surface instead. */
 .railItem:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  background: var(--bg-hover);
+  color: var(--nav-color-hover);
 }
 .railItem.railItemActive {
   background: var(--bg-tertiary);
@@ -103,7 +95,7 @@
   font: inherit;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
 }
 

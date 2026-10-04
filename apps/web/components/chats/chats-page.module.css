@@ -205,16 +205,19 @@
    left, sort and status selects on the right. */
 .contentToolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
   margin-bottom: 12px;
 }
 .contentToolbarLabel {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: 8px;
   margin-right: auto;
   min-width: 0;
+  white-space: nowrap;
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
