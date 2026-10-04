@@ -20,7 +20,7 @@ The model picker reads the provider catalog without changing another conversatio
 
 ## Specialist Agents
 
-Image creator, Decision advisor, Lightweight helper and Coordinator are ordinary saved Agents. Select one from the list to start a conversation or edit it. The list shows its purpose; configuration sections are tabs above the editor. New Agent creates an independent configuration; Duplicate copies a saved Agent's settings.
+Image creator, Decision advisor, Lightweight helper and Coordinator are saved fixed-parameter configurations of the Agent class. They do not include preset role system prompts; supply the task through the call and its Context. Select one from the list to start a conversation or edit it. The list shows its purpose; configuration sections are tabs above the editor. New Agent creates an independent configuration; Duplicate copies a saved Agent's settings.
 
 | Agent | Purpose | Capabilities |
 | --- | --- | --- |

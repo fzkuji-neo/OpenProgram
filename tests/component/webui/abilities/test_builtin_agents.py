@@ -17,10 +17,21 @@ def test_builtin_agents_are_saved_independent_and_preserve_owner_edits(tmp_path,
     assert manager.get("main").to_dict() == before
     assert manager.get("utility").model.id == "small"
     assert all(row.memory["mode"] == "off" for row in rows)
-    runtime = Runtime(call=lambda content, **kwargs: "extracted")
+    assert all(row.system_prompt == "" for row in rows)
+    from openprogram.agentic_programming.runtime.shared import _current_instructions
+    seen_instructions = []
+    def call(content, **kwargs):
+        seen_instructions.append(_current_instructions.get())
+        return "extracted"
+    runtime = Runtime(call=call)
+    token = _current_instructions.set("Instructions supplied by the caller")
     try:
-        assert Agent.from_spec(manager.get("utility"), runtime=runtime)("Extract one field") == "extracted"
+        instance = Agent.from_spec(manager.get("utility"), runtime=runtime)
+        assert instance.instructions is None
+        assert instance("Extract one field") == "extracted"
+        assert seen_instructions == ["Instructions supplied by the caller"]
     finally:
+        _current_instructions.reset(token)
         runtime.close()
     manager.update("utility", {"name": "My helper", "system_prompt": "Owner instructions"})
     saved = manager.get("utility").to_dict()

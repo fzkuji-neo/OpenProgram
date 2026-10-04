@@ -45,7 +45,7 @@
 .configTab{height:46px;flex:none;justify-content:center;padding:0 2px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--text-muted);font-size:var(--fs-sm);font-weight:500;box-shadow:none}
 .configTab[data-state="active"]{background:transparent;color:var(--text-bright);border-bottom-color:var(--accent-blue);box-shadow:none}
 .editorBody{min-height:0;overflow:auto;padding:24px}
-.tabPanel{width:min(840px,100%);margin:0}
+.tabPanel{width:100%;margin:0}
 .generalForm{display:flex;flex-direction:column;gap:22px}
 .identityGrid{grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px 20px}
 .modelFields{gap:8px}

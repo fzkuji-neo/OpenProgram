@@ -118,10 +118,10 @@ class Agent:
 
     @classmethod
     def from_spec(cls, spec, **overrides):
-        """Use a saved AgentSpec configuration without creating a registry entry."""
+        """Use saved parameters, inheriting caller instructions when none are saved."""
         policy = spec.tools or {}
         options = dict(model=spec.model.id, effort=spec.thinking_effort,
-                       instructions=spec.system_prompt)
+                       instructions=spec.system_prompt or None)
         options.update(toolset=policy.get("toolset"), tools_deny=policy.get("disabled"))
         if policy.get("mode") == "none" or policy.get("enabled") is False:
             options["tools"] = []

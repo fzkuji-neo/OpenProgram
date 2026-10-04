@@ -204,6 +204,10 @@ def test_general_edits_identity_model_and_prompt_together(agents_browser):
     assert page.get_by_role('tablist', name='Agent configuration').bounding_box()['height'] < 60
     assert page.get_by_role('textbox', name='Display name', exact=True).evaluate('el=>getComputedStyle(el).fontWeight') == '400'
     expect(page.get_by_role('button', name='Save changes', exact=True)).to_be_visible()
+    # On a wide screen the form uses the editor width, retaining only its
+    # standard page padding rather than leaving a fixed-width empty column.
+    panel = page.get_by_role('tabpanel', name='General', exact=True)
+    assert panel.evaluate('el=>Math.abs(el.parentElement.clientWidth-el.clientWidth)') <= 1
 
 
 @pytest.mark.parametrize('width', [1440, 390])
@@ -694,7 +698,7 @@ def test_saved_specialists_and_plain_creation_without_templates(agents_browser, 
     page.locator('html').evaluate("el=>el.dataset.theme='light'")
     page.screenshot(animations='disabled', path=str(tmp_path / 'agents-desktop.png'))
     _tab(page, 'General')
-    expect(page.get_by_role('textbox', name=re.compile('^System prompt'))).to_have_value(re.compile('candidate'))
+    expect(page.get_by_role('textbox', name=re.compile('^System prompt'))).to_have_value('')
     page.get_by_role('button', name='New Agent', exact=True).click()
     dialog = page.get_by_role('dialog', name='New Agent', exact=True)
     expect(dialog.get_by_role('combobox', name='Template', exact=True)).to_have_count(0)
