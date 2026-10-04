@@ -88,7 +88,7 @@ The compatibility package resolves the application modules without duplicating t
 <p><code>scripts/install-release.sh</code> remains the public installer entry, while its
 implementation resides under <code>scripts/release/</code>. The root npm workspace and lock
 file coordinate Web, Desktop and CLI dependencies. Consumers must not assume a
-separate lock file or dependency installation below each application.</p>
+separate lock file or dependency installation below each application. A dependency patch keeps the application manifest, root workspace lock and installed package version aligned. Integrating duplicate dependency branches preserves both commit ancestries without duplicating the version change. The combined source runs the shared verification manifest before publication.</p>
 <p>The default local runtime uses port <code>18100</code> and <code>~/.openprogram</code>. Installed-App
 acceptance uses <code>/Applications/OpenProgram.app</code>; repository layout changes must
 preserve packaging and installed imports as well as source-checkout execution.</p>
