@@ -62,6 +62,8 @@
   cursor: pointer;
   transition: background 150ms ease-out, color 150ms ease-out;
   font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .tabIcon {
   display: inline-flex;
@@ -126,6 +128,121 @@
   text-align: center;
   color: var(--text-dim);
   font-size: 14px;
+}
+
+.headerSummary {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- shared empty / first-run state ---------------------------------
+   One anatomy for every management page: framed icon, heading, one
+   explanatory line, optional action. Centered in whatever column it sits
+   in; `.emptyStateCompact` keeps it near the top of a list body. */
+.emptyState {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 48px 24px;
+  text-align: center;
+}
+.emptyStateCompact {
+  flex: none;
+  justify-content: flex-start;
+  padding: 56px 24px 40px;
+}
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+}
+.emptyIcon svg {
+  width: 20px;
+  height: 20px;
+}
+.emptyTitle {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.emptyDescription {
+  max-width: 420px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.emptyAction {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* 28px icon-only row action. */
+.iconAction {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ui-list-radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 150ms ease-out, color 150ms ease-out;
+}
+.iconAction:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+.iconActionDanger:hover:not(:disabled) {
+  color: var(--accent-red);
+}
+.iconAction:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.iconAction:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.iconAction svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Section label above a list ("Installed · 3"). */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.sectionHeader > span:last-child:not(:first-child) {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- shared list row ---------------------------------------------

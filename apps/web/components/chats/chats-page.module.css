@@ -283,16 +283,3 @@
   border-bottom: 1px solid var(--border);
 }
 
-.empty {
-  padding: 64px 0;
-  text-align: center;
-  color: var(--text-muted);
-}
-.emptyIcon {
-  font-size: 32px;
-  opacity: 0.6;
-  margin-bottom: 12px;
-}
-.emptyText {
-  font-size: 14px;
-}
