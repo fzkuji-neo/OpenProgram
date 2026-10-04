@@ -66,6 +66,13 @@ window.addDecision = (sid = 'main', kind = 'ask') => {
   ];
   useSessionStore.getState().enqueueDecision(q);
 };
+window.addIdentifierChoice = (withDescription = false) => useSessionStore.getState().enqueueDecision({
+ id:'main-identifier-choice',sessionId:'main',executionId:'exec-main',expectedVersion:7,
+ waitGeneration:1,kind:'ask_many',prompt:'',options:[],multi:false,allow_custom:true,
+ questions:[{prompt:'Choose an identifier', options:['__proto__','constructor','Normal'],
+ option_descriptions:withDescription ? JSON.parse('{"__proto__":"Explicit identifier description"}') : {},
+ multi:false,allow_custom:true}]
+});
 window.readQueue = sid => queueFor(sid);
 function Pane({sid}) {
  return <SessionScopeProvider sid={sid}><section data-pane={sid}>
@@ -279,3 +286,55 @@ def test_panel_remount_retains_answers_and_ime_does_not_submit(decision_page):
     card.get_by_role("button", name="Submit", exact=True).click()
     page.wait_for_function("window.commands.length === 1")
     assert page.evaluate("window.commands[0].payload.answer") == ["Alpha", ["Custom second"]]
+
+
+def test_discussion_remount_retains_command_and_inflight_fence(decision_page):
+    from playwright.sync_api import expect
+    page = decision_page
+    page.evaluate("window.addDecision('main')")
+    card = page.locator('[data-decision-output="main-ask"]')
+    card.get_by_role("button", name="Discuss", exact=True).click()
+    feedback = card.get_by_placeholder("Add your question, concern, or a different approach…")
+    feedback.fill("Please explain the choices")
+    card.get_by_role("button", name="Send discussion", exact=True).click()
+    page.wait_for_function("window.commands.length === 1")
+    first = page.evaluate("window.commands[0]")
+    assert first["action"] == "execution.wait.decline"
+    page.evaluate("window.remountPanels()")
+    expect(feedback).to_have_value("Please explain the choices")
+    card.get_by_role("button", name="Retry discussion", exact=True).click()
+    assert page.evaluate("window.commands.length") == 1
+    page.evaluate("window.releaseAnswer(503)")
+    page.evaluate("window.remountPanels()")
+    card.get_by_role("button", name="Retry discussion", exact=True).click()
+    page.wait_for_function("window.commands.length === 2")
+    assert page.evaluate("window.commands[1]") == first
+    page.evaluate("window.releaseAnswer()")
+    expect(page.locator('[data-input="main"] [data-question-card]')).to_have_count(0)
+    queue = page.evaluate("window.readQueue('main')")
+    assert len(queue) == 1
+    assert queue[0]["text"].startswith("Please explain the choices")
+    page.evaluate("window.remountPanels()")
+    assert page.evaluate("window.readQueue('main')") == queue
+    assert page.evaluate("window.commands.length") == 2
+
+
+@pytest.mark.parametrize("with_description", [False, True])
+def test_identifier_labels_keep_string_answers_and_explicit_descriptions(decision_page, with_description):
+    from playwright.sync_api import expect
+    page = decision_page
+    page.evaluate("window.addIdentifierChoice", with_description)
+    card = page.locator('[data-decision-output="main-identifier-choice"]')
+    option = card.get_by_role("button", name="__proto__", exact=True)
+    expect(option).to_be_visible()
+    expect(card.get_by_role("button", name="constructor", exact=True)).to_have_text("constructor2")
+    if with_description:
+        expect(option).to_contain_text("Explicit identifier description")
+    else:
+        expect(option).to_have_text("__proto__1")
+    option.click()
+    card.get_by_role("button", name="Submit", exact=True).click()
+    page.wait_for_function("window.commands.length === 1")
+    assert page.evaluate("window.commands[0].payload.answer") == ["__proto__"]
+    page.evaluate("window.releaseAnswer()")
+    expect(card).to_have_attribute("data-decision-status", "answered")

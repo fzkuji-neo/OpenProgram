@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "@/lib/i18n";
 import type { PendingDecision } from "@/lib/session-store/types";
-import { postExecutionCommand, type WaitCommand } from "@/lib/net/execution-client";
+import { postExecutionCommand } from "@/lib/net/execution-client";
 import { enqueueMessage, useSendQueue } from "@/lib/chat/send-queue";
+import { useDecisionSubmissions } from "@/lib/chat/decision-submissions";
 import { showToast } from "@/lib/format-utils/toast";
 
 interface Options {
@@ -15,7 +16,6 @@ interface Options {
 
 export function useDecisionDiscussion({ decision, thinking, dequeue }: Options) {
   const { text } = useTranslation();
-  const requests = useRef(new Map<string, { command: WaitCommand; message: string; feedback: string; busy: boolean; sent: boolean }>());
 
   return useCallback(async (feedback: string) => {
     if (!decision?.sessionId || !decision.executionId) return;
@@ -31,7 +31,9 @@ export function useDecisionDiscussion({ decision, thinking, dequeue }: Options) 
       ].filter(Boolean).join("\n"),
     ].filter(Boolean).join("\n");
     const message = `${input}\n\n${text("Regarding:", "讨论内容：")}\n${context}`;
-    let request = requests.current.get(d.id);
+    const requestKey = JSON.stringify([d.sessionId, d.id]);
+    const requests = useDecisionSubmissions.getState();
+    let request = requests.discussions[requestKey];
     if (!request) {
       request = { busy: false, sent: false, message, feedback: input, command: {
         type: "execution.command", action: "execution.wait.decline",
@@ -39,7 +41,7 @@ export function useDecisionDiscussion({ decision, thinking, dequeue }: Options) 
         execution_id: d.executionId, expected_version: d.expectedVersion,
         payload: { wait_id: d.id, generation: d.waitGeneration, reason: `${text("Discussion requested before proceeding.", "用户希望先讨论再继续。")}\n${message}` },
       } };
-      requests.current.set(d.id, request);
+      requests.setDiscussion(requestKey, request);
     }
     if (request.busy || request.sent) return;
     if (request.feedback !== input) {

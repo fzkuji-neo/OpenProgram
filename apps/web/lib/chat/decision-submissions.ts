@@ -9,13 +9,27 @@ export interface DecisionSubmission {
   error?: string;
 }
 
+export interface DecisionDiscussion {
+  command: WaitCommand;
+  message: string;
+  feedback: string;
+  busy: boolean;
+  sent: boolean;
+}
+
 // Session UI receipts, not Workflow checkpoints. Keeping the command while
 // navigating also prevents an uncertain delivery from acquiring a new ID.
 export const useDecisionSubmissions = create<{
   submissions: Record<string, DecisionSubmission>;
+  discussions: Record<string, DecisionDiscussion>;
+  setDiscussion: (key: string, request: DecisionDiscussion) => void;
   setSubmission: (id: string, submission: DecisionSubmission) => void;
 }>((set) => ({
   submissions: {},
+  discussions: {},
+  setDiscussion: (key, request) => set(state => ({
+    discussions: { ...state.discussions, [key]: request },
+  })),
   setSubmission: (id, submission) => set(state => ({
     submissions: { ...state.submissions, [id]: submission },
   })),

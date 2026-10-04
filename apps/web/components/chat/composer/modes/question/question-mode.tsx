@@ -469,7 +469,9 @@ function StepBody({
             >
               <span className={styles.optionContent}>
                 <span className={styles.optionTitle}>{opt}</span>
-                {step.optionDescriptions?.[opt] && <span className={styles.optionDescription}>{step.optionDescriptions[opt]}</span>}
+                {step.optionDescriptions && Object.hasOwn(step.optionDescriptions, opt)
+                  && typeof step.optionDescriptions[opt] === "string"
+                  && <span className={styles.optionDescription}>{step.optionDescriptions[opt]}</span>}
               </span>
               <kbd className={styles.keycap} aria-hidden="true">{index + 1}</kbd>
             </button>

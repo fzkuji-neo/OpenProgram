@@ -62,7 +62,7 @@ const decision = { id: "wait-one", kind: "approval", prompt: "Allow this command
 const { useDecisionSubmissions } = await import("../../lib/chat/decision-submissions.ts");
 const { useDecisionDrafts } = await import("../../lib/chat/decision-drafts.ts");
 async function mounted(q, check) {
-  useDecisionSubmissions.setState({submissions: {}});
+  useDecisionSubmissions.setState({submissions: {}, discussions: {}});
   useDecisionDrafts.setState({drafts: {}});
   const frames = [], resolved = [], discussed = [];
   globalThis.approvalSocket = { readyState: 1, send: value => frames.push(JSON.parse(value)) };
@@ -153,7 +153,7 @@ const { useSendQueue, registerChatSender } = await import("../../lib/chat/send-q
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
 
 async function discussionMounted(check) {
-  useDecisionSubmissions.setState({submissions: {}});
+  useDecisionSubmissions.setState({submissions: {}, discussions: {}});
   useDecisionDrafts.setState({drafts: {}});
   const requests = [], sent = [], removed = [], notices = [], frames = [];
   globalThis.approvalSocket = { readyState: 1, send: value => frames.push(JSON.parse(value)) };
