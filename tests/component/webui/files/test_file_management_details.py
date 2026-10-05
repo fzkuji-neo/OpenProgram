@@ -110,3 +110,97 @@ def test_size_counts_search_ignored_cache_directories(project_root):
         size = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'continue', 'token': size['token']})['data']
     assert size.get('bytes') == 8, size
     assert size['state'] == 'complete'
+
+
+def test_size_sample_survives_worker_cache_reload(project_root, monkeypatch):
+    from openprogram.webui.ws_actions.files import metadata
+    cmd = {'project_id': 'p1', 'path': 'src'}
+    sample = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']
+    assert sample['state'] == 'complete'
+    metadata._CACHE.clear()
+    monkeypatch.setattr(metadata, '_CACHE_FILE', None, raising=False)
+    def no_walk(*args):
+        raise AssertionError('cached size must not recursively read the directory')
+    monkeypatch.setattr(metadata, '_walk', no_walk)
+    cached = _run(ws_files.handle_project_folder_size, cmd)['data']
+    assert cached['state'] == 'cached'
+    assert cached['bytes'] == sample['bytes']
+    assert cached['updated_at'] == sample['updated_at']
+    assert cached['complete'] is True
+
+
+def test_size_sample_survives_a_fresh_worker_process(project_root):
+    import subprocess
+    import sys
+    from pathlib import Path
+    cmd = {'project_id': 'p1', 'path': 'src'}
+    sample = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']
+    code = """
+import asyncio, json, sys, types
+sys.path.insert(0, 'apps/server')
+from openprogram.store.project import project_store
+from openprogram.store.project.identity import capture_directory_identity
+from openprogram.webui.ws_actions import files
+from openprogram.webui.ws_actions.files import metadata
+root = sys.argv[1]
+project_store.get_project = lambda _: types.SimpleNamespace(id='p1', path=root, **capture_directory_identity(root))
+def no_walk(*args):
+    raise AssertionError('cache lookup must not walk')
+metadata._walk = no_walk
+class WS:
+    async def send_text(self, value): print(value)
+asyncio.run(files.handle_project_folder_size(WS(), {'project_id': 'p1', 'path': 'src'}))
+"""
+    output = subprocess.run([sys.executable, '-c', code, str(project_root)],
+                            cwd=Path(__file__).resolve().parents[4], capture_output=True, text=True, check=True)
+    import json
+    cached = json.loads(output.stdout)['data']
+    assert cached['state'] == 'cached'
+    assert cached['bytes'] == sample['bytes']
+    assert cached['complete'] is True
+
+
+def test_persistent_incomplete_sample_preserves_skipped_entries(project_root, monkeypatch):
+    from openprogram.webui.ws_actions.files import metadata
+    (project_root / 'src' / 'link').symlink_to(project_root.parent)
+    cmd = {'project_id': 'p1', 'path': 'src'}
+    sample = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']
+    assert sample['state'] == 'incomplete'
+    metadata._CACHE.clear()
+    monkeypatch.setattr(metadata, '_CACHE_FILE', None)
+    cached = _run(ws_files.handle_project_folder_size, cmd)['data']
+    assert cached['state'] == 'cached'
+    assert cached['complete'] is False
+    assert cached['bytes'] == sample['bytes']
+    assert cached['skipped'] == 1
+    assert cached['token'] is None
+    assert metadata.cached_size('p1', 'src') is None
+
+
+def test_size_cache_unavailable_or_corrupt_still_allows_queries(project_root, monkeypatch, tmp_path):
+    from openprogram.webui.ws_actions.files import metadata
+    from openprogram import paths
+    state = tmp_path / 'state'
+    state.mkdir()
+    monkeypatch.setattr(paths, 'get_state_dir', lambda: state)
+    (state / 'folder-sizes.json').write_text('{invalid JSON')
+    cmd = {'project_id': 'p1', 'path': 'src'}
+    assert _run(ws_files.handle_project_folder_size, cmd)['data']['state'] == 'unknown'
+    from openprogram.store.session import git_session
+    def unavailable(*args):
+        raise OSError('read-only storage')
+    monkeypatch.setattr(git_session, 'atomic_write_text', unavailable)
+    sample = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']
+    assert sample['state'] == 'complete'
+    assert _run(ws_files.handle_project_folder_size, cmd)['data']['bytes'] == sample['bytes']
+
+
+def test_persisted_size_is_bound_to_directory_identity(project_root, monkeypatch):
+    from openprogram.webui.ws_actions.files import metadata
+    cmd = {'project_id': 'p1', 'path': 'src'}
+    assert _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']['state'] == 'complete'
+    (project_root / 'src').rename(project_root / 'old-src')
+    (project_root / 'src').mkdir()
+    metadata._CACHE.clear()
+    monkeypatch.setattr(metadata, '_CACHE_FILE', None)
+    assert _run(ws_files.handle_project_folder_size, cmd)['data']['state'] == 'unknown'
