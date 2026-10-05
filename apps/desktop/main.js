@@ -79,6 +79,7 @@ const themeChrome = require("./theme-chrome");
 const {
   browserWindowChromeOptions,
   applyNativeTitleBarChrome,
+  registerNativeTitleBarIpc,
 } = require("./window-chrome");
 
 // 单实例：worker 单端口 18100（详见 docs/reference/design/cli/single-port.md）
@@ -1483,6 +1484,12 @@ async function createWindow(options = {}) {
     },
   });
   applyNativeTitleBarChrome(win, process.platform, currentChrome);
+  win.webContents.on("did-finish-load", () => {
+    applyNativeTitleBarChrome(win, process.platform, currentChrome);
+  });
+  win.on("leave-full-screen", () => {
+    applyNativeTitleBarChrome(win, process.platform, currentChrome);
+  });
   if (!detached) {
     attachWindowStatePersistence(win, {
       filePath: stateFile(),
@@ -1643,6 +1650,7 @@ registerSingleMainWindow({
     registerTabTransferIpc();
     registerOwnerAuthIpc();
     registerUpdateIpc();
+    registerNativeTitleBarIpc({ ipcMain, BrowserWindow, platform: process.platform, getChrome: () => currentChrome });
     ipcMain.on("theme:trace", (event, payload) => {
       // Only the app document can write diagnostics, not embedded websites.
       if (!BrowserWindow.getAllWindows().some((win) => !win.isDestroyed() && win.webContents === event.sender)) return;

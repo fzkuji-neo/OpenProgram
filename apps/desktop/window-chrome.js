@@ -1,6 +1,14 @@
 "use strict";
 
 const WINDOWS_TITLEBAR_HEIGHT = 40;
+const MACOS_BUTTON_FRAME_HEIGHT = 16;
+
+function macOSButtonPosition(zoom = 1) {
+  return {
+    x: 18,
+    y: Math.max(0, Math.round((WINDOWS_TITLEBAR_HEIGHT * zoom - MACOS_BUTTON_FRAME_HEIGHT) / 2)),
+  };
+}
 
 /** Native-window options that make the product tab strip the title bar.
  *
@@ -12,7 +20,7 @@ function browserWindowChromeOptions(platform, chrome) {
   if (platform === "darwin") {
     return {
       titleBarStyle: "hiddenInset",
-      trafficLightPosition: { x: 18, y: 13 },
+      trafficLightPosition: macOSButtonPosition(),
     };
   }
   if (platform === "win32") {
@@ -31,6 +39,12 @@ function browserWindowChromeOptions(platform, chrome) {
 
 function applyNativeTitleBarChrome(win, platform, chrome) {
   if (!win || win.isDestroyed?.()) return;
+  if (platform === "darwin") {
+    if (win.webContents?.isDestroyed?.()) return;
+    const currentZoom = Number(win.webContents?.getZoomFactor?.());
+    const zoom = Number.isFinite(currentZoom) && currentZoom > 0 ? currentZoom : 1;
+    win.setWindowButtonPosition?.(macOSButtonPosition(zoom));
+  }
   if (platform === "win32") {
     // Keep the application menu for keyboard accelerators, but never spend a
     // permanent second row on File/Edit/View/Window.
@@ -43,8 +57,19 @@ function applyNativeTitleBarChrome(win, platform, chrome) {
   }
 }
 
+function registerNativeTitleBarIpc({ ipcMain, BrowserWindow, platform, getChrome }) {
+  if (platform !== "darwin") return;
+  ipcMain.on("window:sync-chrome", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    // Overlay views and subframes must not reposition their host window.
+    if (!win || win.webContents !== event.sender || event.senderFrame !== event.sender.mainFrame) return;
+    applyNativeTitleBarChrome(win, platform, getChrome());
+  });
+}
+
 module.exports = {
   WINDOWS_TITLEBAR_HEIGHT,
   browserWindowChromeOptions,
   applyNativeTitleBarChrome,
+  registerNativeTitleBarIpc,
 };

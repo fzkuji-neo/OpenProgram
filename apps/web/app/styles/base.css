@@ -639,7 +639,8 @@ html.is-desktop {
 .desktop-tab-row > *:not(.desktop-resize-edge) { flex: 1; min-width: 0; }
 /* 5px no-drag inset on the window's top/left/right edges (and corners)
    so macOS can still hit-test native resize. Traffic lights start at
-   x:18,y:13; tabs sit 6px below the top — the inset does not cover
+   x:18 with their vertical center synchronized to the scaled tab row;
+   tabs sit 6px below the top — the inset does not cover
    those targets. */
 html.is-desktop .desktop-resize-edge {
   position: absolute;
