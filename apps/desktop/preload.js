@@ -13,6 +13,13 @@ const overlaySurface = surfaceArgument
   ? surfaceArgument.slice("--openprogram-surface=".length)
   : "";
 
+// Chromium emits resize for application zoom as well as window resizing.
+// Notify only; native coordinates and current zoom remain owned by main.
+if (process.platform === "darwin" && !overlaySurface && typeof window !== "undefined") {
+  const syncWindowChrome = () => ipcRenderer.send("window:sync-chrome");
+  window.addEventListener("resize", syncWindowChrome);
+}
+
 contextBridge.exposeInMainWorld("openprogramDesktop", {
   isDesktop: true,
   writeClipboardText: (text) => ipcRenderer.invoke("clipboard:write-text", text),

@@ -26,7 +26,7 @@ assert.deepEqual(browserWindowChromeOptions("win32", chrome), {
 });
 assert.deepEqual(browserWindowChromeOptions("darwin", chrome), {
   titleBarStyle: "hiddenInset",
-  trafficLightPosition: { x: 18, y: 13 },
+  trafficLightPosition: { x: 18, y: 12 },
 });
 assert.deepEqual(browserWindowChromeOptions("linux", chrome), {});
 
