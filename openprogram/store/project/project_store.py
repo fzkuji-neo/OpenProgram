@@ -747,6 +747,9 @@ def resolve_project(path: str | Path | None = None, *, name: str | None = None) 
                      if not project.is_default and project.path
                      and Path(project.path).expanduser().resolve() == p.resolve()), None)
     if existing is not None:
+        from .identity import is_portable, captured_identity_matches
+        if p.is_dir() and is_portable(existing) and not captured_identity_matches(existing, p):
+            raise ProjectStoreError("project location has changed; locate the original folder or confirm a replacement")
         return set_project_hidden(existing.id, False) if existing.hidden else existing
 
     from .identity import read_marker, captured_identity_matches

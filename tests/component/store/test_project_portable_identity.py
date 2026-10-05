@@ -163,3 +163,33 @@ def test_failed_session_repair_stays_pending(tmp_path, store, monkeypatch):
     assert refresh_project_location(project.id) == "pending"
     assert projects.get_project(project.id).path == str(moved)
     assert projects.get_project(project.id).migration_error == "session update failed"
+
+
+def test_first_execution_after_move_uses_new_project_location(tmp_path, store):
+    from openprogram.agent.internals._workdir import apply_default_workdir
+    folder = tmp_path / "paper"
+    folder.mkdir()
+    store.create_session("s1", "main", project_path=str(folder))
+    moved = tmp_path / "moved"
+    folder.rename(moved)
+    class Runtime:
+        workdir = None
+        def set_workdir(self, path):
+            self.workdir = path
+    runtime = Runtime()
+    assert apply_default_workdir(runtime, "s1") == moved
+    assert runtime.workdir == str(moved)
+
+
+def test_opening_replacement_does_not_return_original_project(tmp_path, store):
+    folder = tmp_path / "paper"
+    folder.mkdir()
+    store.create_session("s1", "main", project_path=str(folder), title="Original notes")
+    project = projects.project_for_session("s1")
+    folder.rename(tmp_path / "original")
+    folder.mkdir()
+    with pytest.raises(projects.ProjectStoreError, match="location"):
+        projects.resolve_project(folder)
+    assert not (folder / ".openprogram" / "project.json").exists()
+    assert store.get_session("s1")["title"] == "Original notes"
+    assert projects.get_project(project.id).session_ids == ["s1"]
