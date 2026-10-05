@@ -214,56 +214,49 @@
 }
 
 /* ----- Buttons -------------------------------------------------------
-   Pill-shaped, tinted-fill — same pattern as skills catalog buttons
-   (apps/web/components/skills/discovery/catalog-list.tsx). Three intents:
-   primary action, neutral secondary, destructive. */
+   Same tokens as the shared ui/button (height, radius, raised surface,
+   hover lift) so Channels matches every other Settings page. Three
+   intents: primary (theme accent text), neutral, destructive. */
 .primaryBtn,
 .secondaryBtn,
 .dangerBtn {
   cursor: pointer;
   border: none;
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius: var(--ui-button-radius);
+  font-size: var(--ui-button-font-size, 0.875rem);
   font-weight: 500;
   font-family: var(--font-sans);
-  padding: 6px 14px;
-  height: 32px;
+  padding: 0 14px;
+  height: var(--ui-button-h);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  gap: 6px;
+  background: var(--secondary);
   transition: background 0.15s, color 0.15s;
 }
-.primaryBtn {
-  background: color-mix(in srgb, var(--accent-blue) 22%, transparent);
-  color: var(--accent-blue);
-}
-.primaryBtn:hover {
-  background: color-mix(in srgb, var(--accent-blue) 32%, transparent);
-}
-.primaryBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.secondaryBtn {
-  background: var(--bg-tertiary);
-  color: var(--text-bright);
-}
-.secondaryBtn:hover {
-  background: color-mix(in srgb, var(--text-bright) 10%, var(--bg-tertiary));
-}
-
+.primaryBtn,
+.secondaryBtn,
 .dangerBtn {
-  background: color-mix(in srgb, var(--accent-red) 18%, transparent);
-  color: var(--accent-red);
-  padding: 4px 12px;
-  height: 28px;
-  font-size: 12px;
+  white-space: nowrap;
 }
-.dangerBtn:hover {
-  background: color-mix(in srgb, var(--accent-red) 28%, transparent);
+.primaryBtn svg,
+.secondaryBtn svg,
+.dangerBtn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
+.primaryBtn { color: var(--primary); }
+.secondaryBtn { color: var(--text-primary); }
+.dangerBtn { color: var(--destructive); }
+.primaryBtn:hover:not(:disabled),
+.secondaryBtn:hover:not(:disabled),
+.dangerBtn:hover:not(:disabled) {
+  background: var(--accent);
+}
+.primaryBtn:disabled,
+.secondaryBtn:disabled,
 .dangerBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;

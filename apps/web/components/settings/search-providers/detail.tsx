@@ -122,7 +122,7 @@ export function SearchProviderDetail({
       {/* Live connectivity check — runs a tiny real query against the
           backend so users can confirm the key actually works before
           relying on it from the chat plus-menu. */}
-      <SearchConnectivity providerId={provider.id} disabled={!provider.configured} />
+      <SearchConnectivity providerId={provider.id} disabled={!provider.configured} needsKey={Boolean(provider.env_var)} />
 
       {!provider.env_var && (
         <div className={styles.searchDescription}>

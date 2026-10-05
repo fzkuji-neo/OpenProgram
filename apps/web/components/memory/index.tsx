@@ -26,6 +26,7 @@ import { useTranslation } from "@/lib/i18n";
 import {
   type AnimatedNavIconHandle,
   ActivityIcon,
+  ClockIcon as TimelineIcon,
   FileTextIcon,
   RefreshCwIcon,
   SparklesIcon,
@@ -46,6 +47,7 @@ import type {
 } from "./types";
 import styles from "./memory-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
+import { ManageEmptyState } from "@/components/ui/manage-page";
 import { sidebarToggleClass } from "@/components/sidebar/nav-classes";
 import { MemorySourcePreview } from "./source-preview";
 import { MemoryDocument } from "./document";
@@ -238,7 +240,7 @@ export function MemoryPage({
         <span className={styles.title}>{t("nav.memory")}</span>
         <Link className={styles.settingsLink} href="/settings/memory">
           <Settings2 size={15} />
-          {text("Memory settings", "Memory 设置")}
+          {text("Memory settings", "记忆设置")}
         </Link>
       </div>
       )}
@@ -248,9 +250,9 @@ export function MemoryPage({
           the topbar, ignoring the tab bar's height). */}
       <div className={styles.body}>
         <div className={styles.layout}>
-          <nav className={styles.tabBar} aria-label={text("Memory sections", "Memory 分区")}>
+          <nav className={styles.tabBar} aria-label={text("Memory sections", "记忆分区")}>
             <TabButton active={tab === "topics"} onClick={() => setTab("topics")} icon={<FileTextIcon size={13} />}>{text("Topics", "主题")}</TabButton>
-            <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ClockIcon className={styles.fileIcon} />}>{text("Timeline", "时间线")}</TabButton>
+            <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<TimelineIcon size={13} />}>{text("Timeline", "时间线")}</TabButton>
             <TabButton active={tab === "recent"} onClick={() => setTab("recent")} icon={<ActivityIcon size={13} />}>{text("Recent", "最近")}</TabButton>
             <TabButton active={tab === "core"} onClick={() => setTab("core")} icon={<SparklesIcon size={13} />}>{text("Core", "核心")}</TabButton>
           </nav>
@@ -261,13 +263,20 @@ export function MemoryPage({
               <div className={styles.tree}>
               {/* Search + refresh */}
               <div className={styles.treeToolbar}>
-                {query === undefined && (
+                {query === undefined ? (
                 <SearchInput
                   className="flex-1"
                   placeholder={text("Search topics...", "搜索主题...")}
                   value={search}
                   onChange={setSearch}
                 />
+                ) : (
+                  // The hub header owns search; label the row so the
+                  // refresh button does not float on its own.
+                  <span className={styles.treeToolbarLabel}>
+                    {text("Topics", "主题")}
+                    {!topicsLoading && <span>{filteredTopics.length}</span>}
+                  </span>
                 )}
                 <button
                   className={sidebarToggleClass}
@@ -330,10 +339,10 @@ export function MemoryPage({
                     <h2>{text("No topics yet", "还没有主题")}</h2>
                     <p>{text(
                       "Durable memory created from conversations and the background writer will appear here. Core rules are managed separately.",
-                      "由对话和后台写入器生成的持久记忆会显示在这里；Core 规则单独管理。",
+                      "由对话和后台写入器生成的持久记忆会显示在这里；核心规则单独管理。",
                     )}</p>
                     <Link className={styles.emptySettingsLink} href="/settings/memory">
-                      {text("Open Memory settings", "打开 Memory 设置")}
+                      {text("Open Memory settings", "打开记忆设置")}
                     </Link>
                   </div>
                 ) : (
@@ -470,7 +479,7 @@ export function MemoryPage({
               <div className={`${styles.tree} ${styles.treeEmpty}`} />
               <div className={styles.rightPane}>
                 <div className={styles.coreControls}>
-                  <div className={styles.coreViewSwitch} role="group" aria-label={text("Core view", "Core 视图")}>
+                  <div className={styles.coreViewSwitch} role="group" aria-label={text("Core view", "核心视图")}>
                     <button
                       className={coreView === "injected" ? styles.coreViewButtonActive : styles.coreViewButton}
                       aria-pressed={coreView === "injected"}
@@ -497,7 +506,7 @@ export function MemoryPage({
                       <div
                         className={styles.coreTokenMeter}
                         role="progressbar"
-                        aria-label={text("Core token budget usage", "Core token 预算使用量")}
+                        aria-label={text("Core token budget usage", "核心记忆 token 预算使用量")}
                         aria-valuemin={0}
                         aria-valuemax={coreMeta.budgetTokens}
                         aria-valuenow={coreMeta.injectedTokens}
@@ -529,7 +538,7 @@ export function MemoryPage({
                   <LoadingSkeleton />
                 ) : coreView === "records" ? (
                   <MemoryDocument
-                    title={text("Core source records", "Core 源记录")}
+                    title={text("Core source records", "核心源记录")}
                     meta={["topics/core.md"]}
                     key="core.md"
                     path="core.md"
@@ -545,10 +554,19 @@ export function MemoryPage({
                       </div>
                     </div>
                     <div className={styles.preview}>
-                      <div
-                        className={styles.markdown}
-                        dangerouslySetInnerHTML={{ __html: coreInjected ? renderMarkdown(coreInjected) : `<em>${text("No Core memory is currently injected", "当前没有注入 Core 记忆")}</em>` }}
-                      />
+                      {coreInjected ? (
+                        <div
+                          className={styles.markdown}
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(coreInjected) }}
+                        />
+                      ) : (
+                        <ManageEmptyState
+                          compact
+                          icon={<SparklesIcon size={20} />}
+                          title={text("No Core memory is currently injected", "当前没有注入核心记忆")}
+                          description={text("Core rules you add are injected into every conversation's prompt.", "你添加的核心规则会注入每个对话的提示词。")}
+                        />
+                      )}
                     </div>
                   </div>
                 )}

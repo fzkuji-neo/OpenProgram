@@ -17,7 +17,7 @@ import type {
   ReactNode,
   RefAttributes,
 } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import type {
   AnimatedNavIconHandle,
@@ -64,10 +64,16 @@ function ManageTabButton({
   ariaControls?: string;
 }) {
   const iconRef = useRef<AnimatedNavIconHandle>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // Narrow tab rows scroll horizontally; keep the selected tab visible.
+  useEffect(() => {
+    if (active) buttonRef.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [active]);
   const Icon = tab.icon;
   const label = tab.count === undefined ? tab.label : `${tab.label} (${tab.count})`;
   return (
     <button
+      ref={buttonRef}
       type="button"
       id={id}
       role="tab"
@@ -290,6 +296,7 @@ export function ManageSubnav({
   action,
   ariaLabel,
   panelId,
+  className,
 }: {
   tabs: ManageTab[];
   activeTab: string;
@@ -298,6 +305,8 @@ export function ManageSubnav({
   action?: ManageAction;
   ariaLabel: string;
   panelId: string;
+  /** Extra class on the bar, e.g. to sit flush inside a padded page body. */
+  className?: string;
 }) {
   function moveTab(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
     let next = index;
@@ -312,7 +321,7 @@ export function ManageSubnav({
   }
 
   return (
-    <div className={styles.subnav}>
+    <div className={cn(styles.subnav, className)}>
       <div className={styles.subnavTabs} role="tablist" aria-label={ariaLabel}>
         {tabs.map((tb, index) => (
           <ManageTabButton
@@ -328,12 +337,14 @@ export function ManageSubnav({
           />
         ))}
       </div>
-      <div className={styles.subnavEnd}>
-        {summary !== undefined && (
-          <div className={styles.subnavSummary} aria-live="polite">{summary}</div>
-        )}
-        {action && <ManageActionButton a={action} />}
-      </div>
+      {(summary !== undefined || action) && (
+        <div className={styles.subnavEnd}>
+          {summary !== undefined && (
+            <div className={styles.subnavSummary} aria-live="polite">{summary}</div>
+          )}
+          {action && <ManageActionButton a={action} />}
+        </div>
+      )}
     </div>
   );
 }

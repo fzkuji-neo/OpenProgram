@@ -244,7 +244,9 @@ def mount_frontend(app) -> None:
             status_code=503,
         )
 
-    @app.get("/{full_path:path}", include_in_schema=False)
+    # HEAD as well as GET: Next.js <Link> prefetch probes page routes with
+    # HEAD, and a GET-only catch-all answered every probe with 405.
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     async def _serve_frontend(full_path: str):  # noqa: ANN202
         rel = full_path.strip("/")
         # Machine prefixes never fall back to HTML: an unregistered
