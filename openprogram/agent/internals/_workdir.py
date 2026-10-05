@@ -129,16 +129,19 @@ def bound_project_execution_blocked(session_id: str) -> Optional[str]:
     if not session_id:
         return None
     try:
-        from openprogram.store.project.location import bound_execution_state
+        from openprogram.store.project.location import bound_execution_state, refresh_project_location
+        from openprogram.store.project.project_store import get_project
         from openprogram.store.session.migration import session_hold_active
         from openprogram.paths import get_state_dir
         proj = _main_project(session_id)
         if proj is not None and not getattr(proj, "is_default", False):
             if session_hold_active(Path(get_state_dir()) / "sessions", session_id):
                 return "migrating"
+            refresh_project_location(proj.id)
+            proj = get_project(proj.id) or proj
         return bound_execution_state(proj)
     except Exception:
-        return None
+        return "error"
 
 
 def apply_default_workdir(runtime, session_id: str) -> Optional[Path]:

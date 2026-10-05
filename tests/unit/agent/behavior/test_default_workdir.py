@@ -84,6 +84,7 @@ def test_apply_default_workdir_unknown_session(store):
 
 class _FakeProject:
     def __init__(self, path, is_default=False, directory_identity="test-identity"):
+        self.id = "test-project"
         self.path = path
         self.is_default = is_default
         if directory_identity == "test-identity":
