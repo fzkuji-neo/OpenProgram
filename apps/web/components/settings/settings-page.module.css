@@ -1593,9 +1593,7 @@
   resize: vertical;
 }
 .customCssArea:focus {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -1px;
-  border-color: transparent;
+  border-color: var(--accent-blue);
 }
 .customCssHint {
   box-sizing: border-box;

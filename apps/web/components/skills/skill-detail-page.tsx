@@ -318,7 +318,7 @@ export function SkillDetailPage({ name }: { name: string }) {
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
                   spellCheck={false}
-                  className="w-full min-h-[60vh] rounded-md border border-[var(--border)] bg-[var(--bg-input)] p-3 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)] focus:ring-2 focus:ring-[var(--accent-blue)]/20"
+                  className="w-full min-h-[60vh] rounded-md border border-[var(--border)] bg-[var(--bg-input)] p-3 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
                 />
               ) : (
                 <div className="prose prose-invert max-w-none text-sm">

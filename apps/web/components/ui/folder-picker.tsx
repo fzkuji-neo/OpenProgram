@@ -117,7 +117,7 @@ export function useFolderPicker(): {
               value={manualPath}
               onChange={(event) => setManualPath(event.target.value)}
               placeholder={text("/home/user/project", "/home/user/project")}
-              className="h-10 w-full rounded-md border border-border bg-background px-3 font-mono text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+              className="h-10 w-full rounded-md border border-border bg-background px-3 font-mono text-sm text-foreground outline-none focus:border-[color:var(--accent-blue)]"
               aria-invalid={manualError ? true : undefined}
             />
           </label>
