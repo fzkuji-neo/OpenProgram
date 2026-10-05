@@ -4,9 +4,12 @@ const WINDOWS_TITLEBAR_HEIGHT = 40;
 const MACOS_BUTTON_FRAME_HEIGHT = 16;
 
 function macOSButtonPosition(zoom = 1) {
+  const inset = Math.max(0, Math.round((WINDOWS_TITLEBAR_HEIGHT * zoom - MACOS_BUTTON_FRAME_HEIGHT) / 2));
   return {
-    x: 18,
-    y: Math.max(0, Math.round((WINDOWS_TITLEBAR_HEIGHT * zoom - MACOS_BUTTON_FRAME_HEIGHT) / 2)),
+    // The native circle's vertical frame inset is 1 DIP larger than its
+    // horizontal inset. Compensate so its visible top and left margins match.
+    x: inset + 1,
+    y: inset,
   };
 }
 

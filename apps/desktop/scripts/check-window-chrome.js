@@ -11,7 +11,7 @@ const win = {
   setWindowButtonPosition: position => positions.push(position),
 };
 applyNativeTitleBarChrome(win, "darwin", { text: "#aaa" });
-assert.deepEqual(positions, [{ x: 18, y: 10 }],
+assert.deepEqual(positions, [{ x: 11, y: 10 }],
   "native controls must follow the actual renderer zoom and tab-row center");
 
 // Run the actual preload, and deliver its notifications to the production
@@ -53,7 +53,7 @@ zoom = 1.25;
 resize();
 zoom = Math.sqrt(1 / 1.2);
 resize();
-assert.deepEqual(positions, [{ x: 18, y: 12 }, { x: 18, y: 17 }, { x: 18, y: 10 }]);
+assert.deepEqual(positions, [{ x: 13, y: 12 }, { x: 18, y: 17 }, { x: 11, y: 10 }]);
 
 positions.length = 0;
 const receiver = handlers.get("window:sync-chrome");
@@ -67,11 +67,11 @@ assert.equal(preload("linux").has("resize"), false);
 for (const invalid of [NaN, 0, -1, Infinity]) {
   zoom = invalid;
   resize();
-  assert.deepEqual(positions.pop(), { x: 18, y: 12 });
+  assert.deepEqual(positions.pop(), { x: 13, y: 12 });
 }
 zoom = 0.25;
 resize();
-assert.deepEqual(positions.pop(), { x: 18, y: 0 });
+assert.deepEqual(positions.pop(), { x: 1, y: 0 });
 applyNativeTitleBarChrome({ isDestroyed: () => true }, "darwin", {});
 applyNativeTitleBarChrome({ webContents: { isDestroyed: () => true } }, "darwin", {});
 assert.deepEqual(positions, []);
