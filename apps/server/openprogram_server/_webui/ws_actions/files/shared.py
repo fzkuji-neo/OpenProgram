@@ -435,12 +435,21 @@ def _owner_process_alive(row: dict) -> bool:
     return _process_alive(pid) and process_start_identity(pid) == start
 
 
+def _invalidate_size_samples(project_id, payload, result):
+    if result.get('ok'):
+        from .metadata import invalidate_cached_sizes
+        invalidate_cached_sizes(project_id, [payload.get('path', ''),
+                                            *([payload['new_path']] if 'new_path' in payload else [])])
+
+
 def _durable_file_action(project_id: str, action: str, key: object,
                          payload: dict, fn):
     """Claim, execute, and persist one retry-safe file mutation."""
     if not isinstance(key, str) or not key:
         with _workspace_mutation_lock(project_id):
-            return fn()
+            result = fn()
+            _invalidate_size_samples(project_id, payload, result)
+            return result
     from openprogram.store.file_operations import (
         FileOperationConflict, default_file_operation_store, fingerprint,
     )
@@ -521,6 +530,7 @@ def _durable_file_action(project_id: str, action: str, key: object,
                 result["operation_id"] = operation_id
                 return result
             result = _normalise_mutation_result(result)
+            _invalidate_size_samples(project_id, payload, result)
             store.complete(operation_id, result)
             result = dict(result)
             result["operation_id"] = operation_id
