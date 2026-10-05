@@ -546,6 +546,8 @@ def ensure_footprint_ignored(project_path: str | Path) -> None:
         op_dir = Path(project_path).expanduser() / ".openprogram"
         op_dir.mkdir(parents=True, exist_ok=True)
         gi = op_dir / ".gitignore"
+        if op_dir.is_symlink() or gi.is_symlink():
+            return
         current = gi.read_text(encoding="utf-8") if gi.exists() else ""
         if current != "*\n":
             gi.write_text("*\n", encoding="utf-8")
@@ -564,15 +566,19 @@ def get_project(project_id: str) -> Optional[Project]:
         return Project.from_dict(d) if d else None
 
 
-def _upsert(project: Project, *, capture_identity: bool = False) -> Project:
+def _upsert(project: Project, *, capture_identity: bool = False, replace_identity: bool = False) -> Project:
     """Write a project record. Identity is captured only when asked.
 
     Metadata edits and ordinary registry maintenance must not restamp
-    native identity onto a replacement folder at the same path.
+    folder identity onto a replacement folder at the same path.
     """
     if capture_identity and not project.is_default and project.path:
         from .identity import capture_directory_identity
-        captured = capture_directory_identity(project.path)
+        try:
+            captured = capture_directory_identity(project.path, replace=replace_identity)
+        except (OSError, ValueError, TimeoutError) as exc:
+            raise ProjectStoreError(f"cannot save project identity: {exc}") from exc
+        ensure_footprint_ignored(project.path)
         project.directory_identity = captured["directory_identity"]
         project.native_bookmark = captured["native_bookmark"]
         project.volume_id = captured["volume_id"]
@@ -730,9 +736,8 @@ def resolve_project(path: str | Path | None = None, *, name: str | None = None) 
     """Resolve (and register) the project for a working directory.
 
     New registrations use opaque UUIDs. Existing path-derived ids are
-    never recomputed. Copies, Git remotes and leftover session markers
-    do not authorize adoption — only continuous native directory
-    identity does.
+    never recomputed. Portable folder markers reconnect moved projects.
+    A copy opened while the original is present receives a new identity.
     """
     if path is None:
         return get_default_project()
@@ -744,9 +749,14 @@ def resolve_project(path: str | Path | None = None, *, name: str | None = None) 
     if existing is not None:
         return set_project_hidden(existing.id, False) if existing.hidden else existing
 
-    claimed = _claim_by_native_identity(p)
-    if claimed is not None:
-        return claimed
+    from .identity import read_marker, captured_identity_matches
+    marker = read_marker(p)
+    owners = [project for project in list_projects()
+              if marker and not project.is_default and project.directory_identity == marker]
+    if len(owners) > 1:
+        raise ProjectStoreError("project identity belongs to multiple registrations; locate the intended project")
+    if owners and not captured_identity_matches(owners[0], owners[0].path):
+        return relocate_project(owners[0].id, p, require_identity=True)
 
     pid = _new_project_id()
     while get_project(pid) is not None:
@@ -758,23 +768,7 @@ def resolve_project(path: str | Path | None = None, *, name: str | None = None) 
         is_default=False,
         location_state="available",
     )
-    return _upsert(proj, capture_identity=True)
-
-
-def _claim_by_native_identity(p: Path) -> Optional[Project]:
-    """Adopt a folder only when native identity matches a registered project."""
-    from .identity import captured_identity_matches
-    matches = [
-        project for project in list_projects()
-        if not project.is_default and captured_identity_matches(project, p)
-    ]
-    if len(matches) != 1:
-        return None
-    project = matches[0]
-    if Path(project.path).expanduser().resolve() == p.resolve():
-        return project
-    _log.info("native identity matched project %s at %s", project.id, p)
-    return relocate_project(project.id, p, require_identity=True)
+    return _upsert(proj, capture_identity=True, replace_identity=bool(owners))
 
 
 def relocate_project(
@@ -806,6 +800,11 @@ def relocate_project(
             raise ProjectStoreError("destination belongs to another project")
         if proj.is_default:
             raise ProjectStoreError("the default project cannot be relocated")
+        from .identity import read_marker
+        marker = read_marker(p)
+        if marker and any(other.id != project_id and other.directory_identity == marker
+                          for other in list_projects()):
+            raise ProjectStoreError("destination identity belongs to another project")
         matches = captured_identity_matches(proj, p)
         if require_identity and not matches:
             raise ProjectStoreError("directory identity does not match")

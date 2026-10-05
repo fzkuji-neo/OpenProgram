@@ -1,52 +1,94 @@
-"""Project location recovery without periodic or HOME scans.
-
-Kept as the historical import path. Startup and native events live in
-``location.py``. ``discover_moved_projects`` only reconciles registered
-projects (bookmark / inode), never walks HOME.
-"""
+"""Bounded cross-platform project lookup on startup and explicit access."""
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
+from collections import deque
+from pathlib import Path
 
-from .location import (
-    LocationObserver,
-    reconcile_registered_projects,
-    refresh_project_location,
-)
+from . import identity, project_store as projects
+from .location import reconcile_registered_projects, refresh_project_location
 
 _log = logging.getLogger(__name__)
-_active_observer: LocationObserver | None = None
+_SKIP = {"node_modules", "vendor", "venv", "build", "dist", "target", "__pycache__"}
 
 
-def refresh_observer_paths() -> None:
-    if _active_observer is not None:
-        _active_observer.refresh()
+def find_project_folder(project, *, roots=None, max_directories: int = 4000) -> Path | None:
+    """Return one marker match in a completed bounded search, or no match.
 
-
-def discover_moved_projects(roots=None, *, max_directories=20000) -> list[str]:
-    """Identity/bookmark reconcile only. ``roots`` is ignored.
-
-    The unused arguments remain so older tests that patched this
-    function keep the same signature. Recursive directory search was
-    removed; callers that need a folder walk must not add one back.
+    Limits count all directory entries, including files, to bound large flat
+    directories. Symbolic links and hidden directories are never traversed.
     """
-    del roots, max_directories
-    return reconcile_registered_projects()
+    if not identity.is_portable(project) or max_directories < 1:
+        return None
+    if roots is None:
+        roots = [Path(p.path).expanduser().parent for p in projects.list_projects()
+                 if not p.is_default and p.path]
+    home = Path.home().resolve()
+    selected = set()
+    for item in roots:
+        root = Path(item).expanduser()
+        if root.is_symlink():
+            continue
+        root = root.resolve()
+        # A moved parent no longer exists at its recorded path. Use its
+        # nearest surviving ancestor, without expanding into a home scan.
+        while not root.is_dir() and root.parent != root:
+            root = root.parent
+        if root == home or root in home.parents:
+            continue
+        if root.is_dir():
+            selected.add(root)
+    queue = deque((root, 0) for root in sorted(selected))
+    visited = set()
+    matches = set()
+    entries = 0
+    while queue:
+        folder, depth = queue.popleft()
+        if folder in visited:
+            continue
+        visited.add(folder)
+        if identity.read_marker(folder) == project.directory_identity:
+            matches.add(folder)
+            if len(matches) > 1:
+                return None
+        if depth >= 3:
+            continue
+        try:
+            with os.scandir(folder) as children:
+                for child in children:
+                    entries += 1
+                    if entries > max_directories:
+                        return None
+                    if child.name.startswith(".") or child.name in _SKIP:
+                        continue
+                    if child.is_dir(follow_symlinks=False):
+                        queue.append((Path(child.path), depth + 1))
+        except OSError:
+            return None
+    return next(iter(matches)) if len(matches) == 1 else None
+
+
+def discover_moved_projects(roots=None, *, max_directories=4000) -> list[str]:
+    moved = []
+    for project in projects.list_projects():
+        if project.is_default or not project.path:
+            continue
+        before = project.path
+        state = refresh_project_location(project.id, roots=roots, max_directories=max_directories)
+        current = projects.get_project(project.id)
+        if current and current.path != before and state == "available":
+            moved.append(project.id)
+    return moved
 
 
 async def run_discovery(stop: asyncio.Event, notify) -> None:
-    """Native observer owned by the server. Stops without idle retries."""
-    observer = LocationObserver(notify)
-    global _active_observer
-    _active_observer = observer
+    """Startup reconciliation; later access checks run at their public entry."""
     try:
-        await asyncio.to_thread(observer.start)
-        await stop.wait()
+        moved = await asyncio.to_thread(reconcile_registered_projects)
+        if moved:
+            notify()
     except Exception:
-        _log.exception("Project location observer failed")
-        if not stop.is_set():
-            await stop.wait()
-    finally:
-        _active_observer = None
-        await asyncio.to_thread(observer.stop)
+        _log.exception("Project location reconciliation failed")
+    await stop.wait()

@@ -62,8 +62,8 @@ def _add_turn(db, session_id: str) -> None:
 def test_bind_allowed_while_session_has_no_turns(env, tmp_path: Path):
     db = env
     from openprogram.store.project import project_store as P
-    proj = P.resolve_project(tmp_path / "proj_a", name="a")
     (tmp_path / "proj_a").mkdir(exist_ok=True)
+    proj = P.resolve_project(tmp_path / "proj_a", name="a")
     db.create_session("s1", "main")
 
     ws = FakeWS()

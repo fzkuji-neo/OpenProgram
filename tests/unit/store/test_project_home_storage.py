@@ -79,6 +79,8 @@ def test_copied_session_markers_do_not_auto_adopt_after_original_gone(
     proj = projects.project_for_session("s1")
     copy = tmp_path / "copy"
     shutil.copytree(original, copy)
+    # Old session metadata alone is not a portable project identity.
+    (copy / '.openprogram' / 'project.json').unlink()
     marker = copy / ".openprogram" / "sessions" / "s1"
     marker.mkdir(parents=True, exist_ok=True)
     (marker / "meta.json").write_text('{"id":"s1"}', encoding="utf-8")
