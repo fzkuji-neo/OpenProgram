@@ -19,6 +19,7 @@ export const pierreTreeCSS = `
 [data-file-tree-virtualized-scroll="true"] { padding-inline: 0; overflow-x: auto; }
 [data-type="item"] { width: ${fileColumnsWidth}; box-sizing: border-box; margin-inline: 0; padding-inline: 8px; }
 [data-file-tree-virtualized-list="true"], [data-file-tree-sticky-overlay="true"] { width: ${fileColumnsWidth}; }
+[data-item-section="spacing"] { max-width: max(0px, calc(var(--op-files-name-width, 220px) - 96px)); flex-shrink: 0; overflow: hidden; }
 [data-item-section="content"] { flex: 1 1 0; }
 [data-item-section="decoration"] { width: 440px; }
 [data-item-section="decoration"] > span { display: grid; grid-template-columns: 100px 200px 140px; width: 440px; max-width: none; }

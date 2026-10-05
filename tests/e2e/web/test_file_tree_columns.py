@@ -20,14 +20,15 @@ import{PierreFileTree,PierreSearchTree}from'./components/files/pierre-file-tree'
 function App(){
  const[sort,setSort]=React.useState('name:asc:folders:visible:tracked');
  const[selected,setSelected]=React.useState(null),[expanded,setExpanded]=React.useState(new Set(['parent']));
- const[search,setSearch]=React.useState(false);
- const entries=React.useMemo(()=>[{path:'parent',type:'dir',size:0,mtime:1704067200},
+ const[search,setSearch]=React.useState(false),[deepView,setDeepView]=React.useState(false);
+ const deepPaths=Array.from({length:10},(_,i)=>Array(i+1).fill('deep').join('/'));
+ const entries=React.useMemo(()=>deepView?[...deepPaths.map(path=>({path,type:'dir',size:0})),{path:deepPaths[9]+'/deep-file.txt',type:'file',size:16912}]:[{path:'parent',type:'dir',size:0,mtime:1704067200},
  ...Array.from({length:80},(_,i)=>({path:'parent/'+String(i).padStart(3,'0')+'-a-very-long-filename.txt',type:'file',size:i===0?0:16912,mtime:1704067200})),
- {path:'.env',type:'file',size:0}],[]);
- return <><button onClick={()=>setSearch(x=>!x)}>Toggle search</button><output>{sort}</output>
+ {path:'.env',type:'file',size:0}],[deepView]);
+ return <><button onClick={()=>{setDeepView(true);setExpanded(new Set(deepPaths))}}>Deep folders</button><button onClick={()=>setSearch(x=>!x)}>Toggle search</button><output>{sort}</output>
  <div id="panel" style={{height:300,width:320}}>{search?
- <PierreSearchTree projectId="columns" matches={[entries[1]]} currentPath={null} onSelect={()=>{}} onOpen={()=>{}} onContextMenu={()=>{}}/>:
- <PierreFileTree projectId="columns" entries={entries} expanded={expanded} selected={selected}
+ <PierreSearchTree projectId="columns" matches={[{path:'parent/child.txt',type:'file',size:0,mtime:1704067200}]} currentPath={null} onSelect={()=>{}} onOpen={()=>{}} onContextMenu={()=>{}}/>:
+ <PierreFileTree key={deepView?"deep":"normal"} projectId="columns" entries={entries} expanded={expanded} selected={selected}
  sort={sort} onSortChange={setSort} onExpandedChange={setExpanded} onSelect={setSelected} onOpen={()=>{}} onContextMenu={()=>{}}/>}</div></>;
 }createRoot(document.getElementById('root')).render(<App/>);`,resolveDir:process.cwd()+'/apps/web',loader:'tsx'},
 bundle:true,jsx:'automatic',format:'iife',outfile:process.argv[1],plugins:[{name:'fixture',setup(b){
@@ -98,6 +99,19 @@ b.onLoad({filter:/.*/,namespace:'fixture'},({path})=>({contents:path==='i18n'?
             page.wait_for_timeout(50)
             assert abs(bounds(sticky.locator('[data-item-section="decoration"] > span > span').nth(2))["left"] - bounds(header.get_by_role("columnheader", name="Kind", exact=True))["left"]) < 2
             expect(scroller).not_to_have_js_property("scrollLeft", 0)
+            # Deep hierarchy indentation stays within Name, even in narrow panels.
+            panel.evaluate("e=>e.style.height='500px'")
+            page.get_by_role("button", name="Deep folders").click()
+            for width in (240, 320):
+                panel.evaluate("(e,w)=>e.style.width=w+'px'", width)
+                scroller.evaluate("e=>{e.scrollTop=0;e.scrollLeft=0;e.dispatchEvent(new Event('scroll'))}")
+                deep = panel.locator('[data-item-path="' + '/'.join(["deep"] * 10) + '/deep-file.txt"]')
+                expect(deep).to_be_visible()
+                page.wait_for_timeout(50)
+                deep_size = deep.locator('[data-item-section="decoration"] > span > span').first
+                assert abs(bounds(deep_size)["left"] - bounds(header.get_by_role("columnheader", name="Size", exact=True))["left"]) < 2
+                assert bounds(deep_size)["right"] <= bounds(panel)["right"] + 1
+                assert bounds(deep.locator('[data-item-section="content"]'))["width"] >= 40
             page.get_by_role("button", name="Toggle search").click()
             expect(header.get_by_role("button")).to_have_count(0)
             expect(header.get_by_role("columnheader")).to_have_count(4)
