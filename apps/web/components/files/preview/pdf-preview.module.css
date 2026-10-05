@@ -18,3 +18,5 @@
 .thumbnail { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; margin: 8px 0; }
 .thumbnail canvas { background: white; box-shadow: 0 1px 4px #0004; }
 .thumbnail[aria-current=page] { outline: 2px solid #4a90e2; outline-offset: -2px; }
+
+.toolbar select:focus, .toolbar input:focus { border-color: var(--accent-blue); }

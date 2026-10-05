@@ -379,11 +379,15 @@ button:focus-visible:not([role="tab"]),
 /* Text-entry controls use their existing border as the only focus boundary.
    Important resets prevent page-specific outlines and Tailwind shadows from
    adding another frame. Compound controls keep their borderless inner field. */
-input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"],
-          [type="file"], [type="button"], [type="submit"], [type="reset"],
-          [type="image"], [type="hidden"]):focus,
-textarea:focus,
-select:focus {
+/* Preserve the existing native-control reset, including non-text inputs. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"],
+                 [type="file"], [type="button"], [type="submit"], [type="reset"],
+                 [type="image"], [type="hidden"]), textarea, select):not(:where(.pdfViewer *)):focus {
   outline: none !important;
   box-shadow: none !important;
   border-color: var(--accent-blue);
