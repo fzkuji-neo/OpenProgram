@@ -344,8 +344,8 @@ export function ProjectMenu({
             title={
               unavailable
                 ? text(
-                    "Folder missing — click to locate its new place",
-                    "目录缺失 — 点击定位它的新位置",
+                    "Folder unavailable — click to locate it",
+                    "目录不可用 — 点击重新定位",
                   )
                 : p.path ||
                   (p.is_default
@@ -366,7 +366,7 @@ export function ProjectMenu({
                 size={14}
                 strokeWidth={2}
                 className={`${CHECK_SLOT} text-[var(--accent-orange)]`}
-                aria-label={text("Folder missing", "目录缺失")}
+                aria-label={text("Folder unavailable", "目录不可用")}
               />
             ) : active ? (
               <Check size={14} className={CHECK_SLOT} />

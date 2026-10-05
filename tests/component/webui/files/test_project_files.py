@@ -92,6 +92,7 @@ def test_tree_root_dirs_first_case_insensitive(project_root):
     assert "error" not in data
     names = [(e["name"], e["type"]) for e in data["entries"]]
     expected = [
+        (".openprogram", "dir"),
         ("Alpha_dir", "dir"),
         ("src", "dir"),
         (".hidden", "file"),
@@ -151,7 +152,7 @@ def test_tree_pages_use_opaque_stable_cursor(project_root):
     })["data"]
     assert second["snapshot_id"] == first["snapshot_id"]
     assert [e["name"] for e in second["entries"]] == [
-        "item-096.txt", "item-097.txt", "item-098.txt", "item-099.txt",
+        "item-095.txt", "item-096.txt", "item-097.txt", "item-098.txt", "item-099.txt",
         "item-100.txt", "item-101.txt", "item-102.txt",
         "item-103.txt", "item-104.txt",
         *(["sneaky_link"] if (project_root / "sneaky_link").is_symlink() else []),
@@ -531,7 +532,8 @@ def test_zero_match_search_counts_full_candidate_basis_and_evicts_old_snapshot(
         ws_files._QUERY_CURSOR_TOKENS.clear()
     monkeypatch.setattr(ws_files, "_QUERY_MAX_TOTAL_ITEMS", 15_000)
     monkeypatch.setattr(ws_files, "_QUERY_MAX_TOTAL_BYTES", 8 * 1024 * 1024)
-    for index in range(ws_files._QUERY_MAX_SNAPSHOT_ITEMS - 6):
+    # Include the portable identity directory and its marker in the budget.
+    for index in range(ws_files._QUERY_MAX_SNAPSHOT_ITEMS - 8):
         (project_root / f"candidate-{index:05d}.txt").write_text(
             "x", encoding="utf-8",
         )

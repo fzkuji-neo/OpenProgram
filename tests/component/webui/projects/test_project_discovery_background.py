@@ -1,33 +1,18 @@
-"""Location observer publishes invalidation and releases native resources."""
+"""Startup reconciliation publishes invalidation without idle discovery."""
 import asyncio
-import inspect
 
 from openprogram.store.project import project_store as projects
 from openprogram.store.project.discovery import run_discovery
 
 
-def _bookmark_locations(monkeypatch):
-    # Native bookmark availability is platform-specific; this suite tests
-    # observer notification and registry locking after a resolved move.
-    locations = {}
-    monkeypatch.setattr('openprogram.store.project.native.create_bookmark',
-                        lambda path: str(path))
-    monkeypatch.setattr('openprogram.store.project.native.resolve_bookmark',
-                        lambda bookmark: locations.get(bookmark))
-    return locations
-
-
 def test_background_move_updates_registry_and_notifies(tmp_path, monkeypatch):
-    locations = _bookmark_locations(monkeypatch)
     monkeypatch.setattr('openprogram.paths.get_state_dir', lambda: str(tmp_path / 'state'))
-    monkeypatch.setattr('pathlib.Path.home', lambda: tmp_path)
     monkeypatch.setattr(
         'openprogram.store.session.session_store.default_store',
         lambda: type('Store', (), {'relocate_project_sessions': lambda *args, **kwargs: 0})())
     old = tmp_path / 'old'; old.mkdir()
     project = projects.resolve_project(old)
     old.rename(tmp_path / 'new')
-    locations[str(old)] = str(tmp_path / 'new')
     async def exercise():
         stop = asyncio.Event()
         notices = []
@@ -40,14 +25,12 @@ def test_background_move_updates_registry_and_notifies(tmp_path, monkeypatch):
 
 
 def test_registry_is_available_while_session_locations_update(tmp_path, monkeypatch):
-    locations = _bookmark_locations(monkeypatch)
     from concurrent.futures import ThreadPoolExecutor
     from openprogram.store.project.discovery import discover_moved_projects
     monkeypatch.setattr('openprogram.paths.get_state_dir', lambda: str(tmp_path / 'state'))
     old = tmp_path / 'old'; old.mkdir()
     project = projects.resolve_project(old)
     old.rename(tmp_path / 'new')
-    locations[str(old)] = str(tmp_path / 'new')
     acquired_results = []
     def relocate_sessions(*args, **kwargs):
         def acquire_registry():
@@ -64,23 +47,15 @@ def test_registry_is_available_while_session_locations_update(tmp_path, monkeypa
     assert acquired_results == [True]
 
 
-def test_discovery_loop_has_no_periodic_timeout(tmp_path):
-    source = inspect.getsource(run_discovery)
-    assert "timeout=60" not in source
-    assert "wait_for(stop.wait(), timeout" not in source
 
-
-def test_observer_stop_releases_native_stream(tmp_path, monkeypatch):
-    from openprogram.store.project.location import LocationObserver
-    monkeypatch.setattr('openprogram.paths.get_state_dir', lambda: str(tmp_path / 'state'))
-    folder = tmp_path / 'proj'
-    folder.mkdir()
-    projects.resolve_project(folder)
-    observer = LocationObserver(lambda: None)
-    observer.start()
-    native = observer._native
-    observer.stop()
-    assert observer._native is None
-    if native is not None:
-        assert native._stream is None
-        assert native._thread is None or not native._thread.is_alive()
+def test_startup_reconciles_once_then_waits_for_shutdown(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        'openprogram.store.project.discovery.reconcile_registered_projects',
+        lambda: calls.append("reconcile") or [])
+    async def exercise():
+        stop = asyncio.Event()
+        stop.set()
+        await asyncio.wait_for(run_discovery(stop, lambda: calls.append("notify")), timeout=5)
+    asyncio.run(exercise())
+    assert calls == ["reconcile"]
