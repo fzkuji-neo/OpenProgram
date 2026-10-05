@@ -179,6 +179,41 @@ def test_agents_exposes_memory_configuration(agents_browser):
     expect(page.get_by_role('tab', name='Memory', exact=True)).to_be_visible()
 
 
+@pytest.mark.parametrize('theme', ['beige-dark', 'beige-light', 'dark', 'light', 'aurora', 'aurora-light'])
+def test_agent_fields_have_one_flush_focus_border(agents_browser, theme):
+    from playwright.sync_api import expect
+
+    page = agents_browser()
+    page.locator('html').evaluate('(el, theme) => el.dataset.theme = theme', theme)
+    fields = [page.get_by_role('textbox', name='Display name', exact=True),
+              page.get_by_role('textbox', name='Description', exact=True)]
+    for field in fields:
+        expect(field).to_be_visible()
+        before = field.bounding_box()
+        field.click()
+        expect(field).to_be_focused()
+        style = field.evaluate('el => { const s = getComputedStyle(el); return {outline: s.outlineStyle, shadow: s.boxShadow, border: s.borderTopWidth}; }')
+        assert style == {'outline': 'none', 'shadow': 'none', 'border': '1px'}
+        assert field.bounding_box() == before
+        page.keyboard.press('Tab')
+        page.keyboard.press('Shift+Tab')
+        expect(field).to_be_focused()
+        assert field.evaluate('el => getComputedStyle(el).outlineStyle') == 'none'
+    search = page.get_by_role('textbox', name='Search Agents', exact=True)
+    search.click()
+    assert search.evaluate('el => getComputedStyle(el).borderTopWidth') == '0px'
+    assert search.evaluate('el => getComputedStyle(el).outlineStyle') == 'none'
+    assert search.evaluate('el => getComputedStyle(el.parentElement).borderTopWidth') == '1px'
+    _tab(page, 'Context')
+    for field in [page.get_by_label('Session scope'),
+                  page.get_by_label('Idle reset (minutes)'), page.get_by_label('Daily reset')]:
+        before = field.bounding_box()
+        field.focus()
+        expect(field).to_be_focused()
+        assert field.evaluate('el => { const s = getComputedStyle(el); return [s.outlineStyle, s.boxShadow, s.borderTopWidth]; }') == ['none', 'none', '1px']
+        assert field.bounding_box() == before
+
+
 
 def _tab(page, name):
     page.get_by_role('tab', name=name, exact=True).click()

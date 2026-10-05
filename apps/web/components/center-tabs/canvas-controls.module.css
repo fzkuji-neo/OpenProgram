@@ -331,17 +331,16 @@
 .saveInput {
   flex: 1;
   min-width: 0;
-  padding: 4px 8px;
-  border: 0;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-primary);
-  box-shadow: inset 0 0 0 1px var(--border);
   color: var(--text-bright);
   font: inherit;
 }
 .saveInput:focus {
   outline: none;
-  box-shadow: inset 0 0 0 1px var(--accent-blue), 0 0 0 3px color-mix(in oklch, var(--accent-blue) 22%, transparent);
+  border-color: var(--accent-blue);
 }
 .saveButton {
   padding: 4px 10px;

@@ -43,7 +43,6 @@
 .dialog .field:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent-blue) 28%, var(--border)); }
 .dialog .field:focus {
   border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue) 13%, transparent), 0 0 14px color-mix(in srgb, var(--accent-blue) 10%, transparent);
   outline: none;
 }
 .section { display: grid; gap: 10px; min-width: 0; }
