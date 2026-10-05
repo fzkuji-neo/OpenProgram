@@ -221,6 +221,7 @@ def invalidate_cached_sizes(project_id, paths):
             continue
         targets.append(os.path.normpath(os.path.join(root, canonical)))
     def affected(candidate):
+        candidate = os.path.normpath(candidate)
         return any(os.path.commonpath([candidate, target]) in {candidate, target}
                    for target in targets)
     with _LOCK:

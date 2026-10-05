@@ -246,3 +246,29 @@ def test_mutation_cancels_affected_scan_and_retains_unrelated_sample(project_roo
                    {**cmd, 'operation': 'continue', 'token': page['token']})['data']
     assert resumed['error_code'] == 'INVALID_REQUEST'
     assert _run(ws_files.handle_project_folder_size, unrelated)['data']['state'] == 'cached'
+
+
+def test_mutation_invalidates_project_root_sample_and_scan(project_root, monkeypatch):
+    from openprogram.webui.ws_actions.files import metadata
+    cmd = {'project_id': 'p1', 'path': ''}
+    page = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']
+    while page.get('token'):
+        page = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'continue', 'token': page['token']})['data']
+    assert page['state'] in {'complete', 'incomplete'}
+    monkeypatch.setattr(metadata, '_BATCH', 1)
+    active = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']
+    assert active['state'] == 'partial'
+    try:
+        result = _run(ws_files.handle_project_file_write,
+                      {'project_id': 'p1', 'path': 'src/x.py', 'content': 'root sample changes'})['data']
+        assert result.get('ok'), result
+        metadata._CACHE.clear()
+        monkeypatch.setattr(metadata, '_CACHE_FILE', None)
+        assert _run(ws_files.handle_project_folder_size, cmd)['data']['state'] == 'unknown'
+        resumed = _run(ws_files.handle_project_folder_size,
+                       {**cmd, 'operation': 'continue', 'token': active['token']})['data']
+        assert resumed['error_code'] == 'INVALID_REQUEST'
+        assert 'expired' in resumed['error']
+    finally:
+        with metadata._LOCK:
+            metadata._drop(active['token'])
