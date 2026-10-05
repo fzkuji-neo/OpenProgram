@@ -28,6 +28,8 @@ import {
 import { hostname, slugFromUrl } from "./helpers";
 import type { CatalogState, Source } from "./types";
 import { activateOnKey } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
+import { managePageStyles as shared } from "@/components/ui/manage-page";
 
 export function DiscoverySources({ query }: { query?: string } = {}) {
   const { text } = useTranslation();
@@ -342,7 +344,7 @@ export function DiscoverySources({ query }: { query?: string } = {}) {
         <h3 className="text-sm font-semibold text-[var(--text-bright)] mb-1">{text("Skill catalogs", "技能目录")}</h3>
         <p className="text-xs text-[var(--text-tertiary)] mb-3">
           {text("Discovery only finds and downloads skills. Installed skills appear in the ", "发现页只负责查找和下载技能。已安装技能会显示在")}
-          <strong>{text("Browse", "浏览")}</strong>
+          <strong>{text("Installed", "已安装")}</strong>
           {text(" tab. Enable, disable or delete them there.", "标签页，可以在那里启用、禁用或删除。")}
         </p>
         <ul className="space-y-2">
@@ -376,18 +378,17 @@ export function DiscoverySources({ query }: { query?: string } = {}) {
                   onClick={() => toggleExpand(s.url)}
                   className="flex items-start gap-3 p-3 cursor-pointer hover:bg-bg-hover hover:text-nav-color-hover select-none"
                 >
-                  <span
-                    className="mt-[2px] text-[var(--text-tertiary)] shrink-0 w-3 text-center"
+                  <ChevronRight
+                    size={14}
                     aria-hidden
-                  >
-                    {open ? "▾" : "▸"}
-                  </span>
+                    className={"mt-[3px] shrink-0 text-[var(--text-tertiary)] transition-transform " + (open ? "rotate-90" : "")}
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-[var(--text-bright)]">{s.label}</span>
                       {installed > 0 && (
                         <span
-                          className="rounded border border-emerald-500/40 bg-emerald-500/15 px-2 py-[1px] text-[10px] uppercase tracking-wide text-emerald-400"
+                          className={`${shared.badge} ${shared.badgeGreen}`}
                           title={text(`Installed under ${s.slug}/`, `安装在 ${s.slug}/ 下`)}
                         >
                           {catalogTotal !== undefined
@@ -397,7 +398,7 @@ export function DiscoverySources({ query }: { query?: string } = {}) {
                       )}
                       {outdatedCount > 0 && (
                         <span
-                          className="rounded border border-amber-500/40 bg-amber-500/15 px-2 py-[1px] text-[10px] uppercase tracking-wide text-amber-400"
+                          className={`${shared.badge} ${shared.badgeYellow}`}
                           title={text("Local SKILL.md content differs from upstream", "本地 SKILL.md 与上游不同")}
                         >
                           {text(`${outdatedCount} outdated`, `${outdatedCount} 个过期`)}

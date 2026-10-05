@@ -176,10 +176,16 @@
   font-size: 12px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 760px) {
+  /* The header toolbar has its own full-width row here; let search fill it. */
   .headerSearch {
-    width: 132px;
+    width: auto;
+    flex: 1 1 120px;
+    min-width: 0;
   }
+}
+
+@media (max-width: 700px) {
 
   .content {
     padding-right: 14px;
@@ -187,7 +193,9 @@
   }
 
   .description {
-    align-items: flex-start;
+    /* stretch, not flex-start: the prompt span must take the column width
+       for its ellipsis to apply. */
+    align-items: stretch;
     flex-direction: column;
     gap: 2px;
   }
@@ -198,12 +206,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-}
-
-@container scheduler (max-width: 520px) {
-  .headerSearch {
-    width: 90px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

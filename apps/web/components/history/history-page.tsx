@@ -61,7 +61,7 @@ export function HistoryPage() {
   const actions = useMemo(() => {
     if (kind === "memory") {
       return [
-        { label: text("Memory settings", "Memory 设置"), onClick: () => router.push("/settings/memory"), icon: SettingsIcon },
+        { label: text("Memory settings", "记忆设置"), onClick: () => router.push("/settings/memory"), icon: SettingsIcon },
       ];
     }
     return [];
@@ -82,7 +82,7 @@ export function HistoryPage() {
           panelId="history-panel"
           toolbar={(
             <SearchInput
-              className="min-w-[96px] flex-1 sm:flex-none sm:min-w-[140px] sm:w-[clamp(150px,24vw,280px)]"
+              className="min-w-[96px] flex-1 min-[761px]:flex-none min-[761px]:min-w-[140px] min-[761px]:w-[clamp(150px,24vw,280px)]"
               value={query}
               onChange={setQuery}
               placeholder={text("Search chats, projects, memory...", "搜索会话、项目、记忆...")}

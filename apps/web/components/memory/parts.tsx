@@ -11,7 +11,8 @@ import { parseFrontmatter, renderMarkdown } from "./markdown";
 import { formatDate } from "./format";
 import { DocIcon, TypeBadge } from "./icons";
 import { useTranslation } from "@/lib/i18n";
-import { type AnimatedNavIconHandle, XIcon } from "@/components/animated-icons";
+import { type AnimatedNavIconHandle, ClockIcon, FileTextIcon, XIcon } from "@/components/animated-icons";
+import { ManageEmptyState } from "@/components/ui/manage-page";
 import type { EditorState, TopicPage } from "./types";
 import styles from "./memory-page.module.css";
 
@@ -21,13 +22,15 @@ export function TabButton({ active, onClick, icon, children }: { active: boolean
   const iconRef = useRef<AnimatedNavIconHandle>(null);
   return (
     <button
+      type="button"
       className={`${sidebarNavItemClass} ${styles.tabBtn} ${active ? sidebarNavItemActiveClass : ""}`}
+      aria-current={active ? "page" : undefined}
       onClick={onClick}
       onMouseEnter={() => iconRef.current?.startAnimation?.()}
       onMouseLeave={() => iconRef.current?.stopAnimation?.()}
     >
       <span className={sidebarNavIconClass}>{isValidElement(icon)
-        ? cloneElement(icon as ReactElement, { ref: iconRef, size: 20 } as Record<string, unknown>)
+        ? cloneElement(icon as ReactElement, { ref: iconRef, size: 16 } as Record<string, unknown>)
         : icon}</span>
       <span className={sidebarNavLabelClass}>{children}</span>
     </button>
@@ -133,7 +136,8 @@ export function EditorPanel({ title, badge, meta, state, onChange, onViewMode, o
             <button
               className={styles.dangerBtn}
               onClick={onDelete}
-              title={text("Delete page", "删除页面")}
+              title={text("Delete topic", "删除主题")}
+              aria-label={text("Delete topic", "删除主题")}
               onMouseEnter={() => delIconRef.current?.startAnimation?.()}
               onMouseLeave={() => delIconRef.current?.stopAnimation?.()}
             >
@@ -146,7 +150,7 @@ export function EditorPanel({ title, badge, meta, state, onChange, onViewMode, o
       {loading ? <LoadingSkeleton /> : detail || (state.viewMode === "edit" ? (
         <textarea
           className={styles.textarea}
-          aria-label={text("Memory source", "Memory 源文本")}
+          aria-label={text("Memory source", "记忆源文本")}
           value={state.content}
           onChange={(e) => onChange(e.target.value)}
           spellCheck={false}
@@ -196,41 +200,21 @@ export function LoadingSkeleton() {
   );
 }
 
+// Both empty treatments use the app-wide ManageEmptyState anatomy: compact
+// in a rail (EmptyState); inside the right pane's framed card, matching the
+// Topics emptyPanel, for Placeholder.
+function emptyIcon(icon: "doc" | "clock") {
+  return icon === "doc" ? <FileTextIcon size={20} /> : <ClockIcon size={20} />;
+}
+
 export function EmptyState({ icon, text, sub }: { icon: "doc" | "clock"; text: string; sub: string }) {
-  return (
-    <div className={styles.emptyState}>
-      {icon === "doc" ? (
-        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" opacity="0.3">
-          <rect x="8" y="6" width="32" height="36" rx="4"/>
-          <path d="M16 18h16M16 24h16M16 30h10"/>
-        </svg>
-      ) : (
-        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" opacity="0.3">
-          <circle cx="24" cy="24" r="18"/>
-          <path d="M24 14v10l6 4"/>
-        </svg>
-      )}
-      <p>{text}</p>
-      <span>{sub}</span>
-    </div>
-  );
+  return <ManageEmptyState compact icon={emptyIcon(icon)} title={text} description={sub} />;
 }
 
 export function Placeholder({ icon, text }: { icon: "doc" | "clock"; text: string }) {
   return (
     <div className={styles.placeholder}>
-      {icon === "doc" ? (
-        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.2" width="44" height="44" opacity="0.2">
-          <rect x="8" y="6" width="32" height="36" rx="4"/>
-          <path d="M16 18h16M16 24h16M16 30h10"/>
-        </svg>
-      ) : (
-        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.2" width="44" height="44" opacity="0.2">
-          <circle cx="24" cy="24" r="18"/>
-          <path d="M24 14v10l6 4"/>
-        </svg>
-      )}
-      <p>{text}</p>
+      <ManageEmptyState icon={emptyIcon(icon)} title={text} />
     </div>
   );
 }

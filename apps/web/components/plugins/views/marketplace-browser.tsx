@@ -8,6 +8,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { Button } from "@/components/ui/button";
 import { AddMarketplaceDialog } from "../dialogs/add-marketplace-dialog";
 import { ManageCatalogCard, managePageStyles as shared } from "@/components/ui/manage-page";
+import { PlusIcon } from "@/components/animated-icons";
 
 interface IndexItem {
   name?: string;
@@ -131,7 +132,7 @@ export function MarketplaceBrowser({ externalFilter }: { externalFilter?: string
           onChange={(e) => setSort(e.target.value as SortKey)}
           className="shrink-0 rounded-[var(--ui-button-radius)] border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors focus:border-[color:var(--accent-blue)]"
         >
-          <option value="default">{text("Sort: default", "排序：默认")}</option>
+          <option value="default">{text("Sort: Default", "排序：默认")}</option>
           <option value="name">{text("Name", "名称")}</option>
           <option value="official">{text("Official first", "官方优先")}</option>
         </select>
@@ -151,7 +152,7 @@ export function MarketplaceBrowser({ externalFilter }: { externalFilter?: string
             "由 OpenProgram 维护的一键安装项。每个条目都包含来源和包管理器信息，不需要注册 marketplace。",
           )}
         </p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={shared.catalogGrid}>
           {shownBuiltin.map((it) => (
             <PluginCard
               key={it.name || it.spec || it.url}
@@ -186,7 +187,7 @@ export function MarketplaceBrowser({ externalFilter }: { externalFilter?: string
               <option key={m.id} value={m.id}>{m.name}</option>
             ))}
           </select>
-          <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>+ {text("Add", "添加")}</Button>
+          <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}><PlusIcon size={16} aria-hidden />{text("Add", "添加")}</Button>
           {selectedId && (
             <Button
               size="sm"
@@ -210,7 +211,7 @@ export function MarketplaceBrowser({ externalFilter }: { externalFilter?: string
           <div className="text-xs text-[var(--text-tertiary)]">{text("Pick a marketplace to browse its plugins.", "选择一个 Marketplace 浏览插件。")}</div>
         )}
         {shownItems.length > 0 && (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={shared.catalogGrid}>
             {shownItems.map((it, i) => (
               <PluginCard
                 key={it.name || i}

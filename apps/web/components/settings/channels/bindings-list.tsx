@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import styles from "./channels.module.css";
+import { PlusIcon } from "@/components/animated-icons";
 import { useTranslation } from "@/lib/i18n";
 import { AddBindingDialog } from "./add-binding-dialog";
 import { PLATFORM_LABEL } from "./types";
@@ -71,15 +72,15 @@ export function BindingsList({ bindings, accounts, onChange }: Props) {
           onClick={() => setAddOpen(true)}
           type="button"
         >
-          + {text("Add rule", "添加规则")}
+          <PlusIcon size={16} aria-hidden />{text("Add rule", "添加规则")}
         </button>
       </div>
 
       {bindings.length === 0 ? (
         <div className={styles.emptyHint}>
           {text(
-            "No rules yet. Every incoming message goes to the default agent. To route specific groups / users to a different agent, click \"+ Add rule\".",
-            "还没有规则。所有入站消息都会进入默认 Agent。要把特定群组 / 用户路由到不同 Agent，请点击“+ 添加规则”。",
+            "No rules yet. Every incoming message goes to the default agent. To route specific groups / users to a different agent, click \"Add rule\".",
+            "还没有规则。所有入站消息都会进入默认 Agent。要把特定群组 / 用户路由到不同 Agent，请点击“添加规则”。",
           )}
         </div>
       ) : (

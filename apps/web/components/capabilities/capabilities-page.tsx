@@ -106,10 +106,11 @@ export function CapabilitiesPage() {
           panelId="ability-panel"
           toolbar={(
             <SearchInput
-              className="min-w-[96px] flex-1 sm:flex-none sm:min-w-[140px] sm:w-[clamp(150px,24vw,280px)]"
+              className="min-w-[96px] flex-1 min-[761px]:flex-none min-[761px]:min-w-[140px] min-[761px]:w-[clamp(150px,24vw,280px)]"
               value={query}
               onChange={setQuery}
-              placeholder={text("Search Programs, Plugins, Skills, MCP servers...", "搜索程序、插件、技能、MCP 服务器...")}
+              placeholder={text("Search abilities…", "搜索能力…")}
+              aria-label={text("Search Programs, Plugins, Skills and MCP servers", "搜索程序、插件、技能和 MCP 服务器")}
             />
           )}
           actions={actions}

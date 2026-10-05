@@ -41,8 +41,8 @@ export type Text = (english: string, chinese: string) => string;
 export type TabId = "overview" | "programs" | "skills" | "mcp" | "memory" | "context" | "advanced";
 export const TABS: Array<{ id: TabId; en: string; zh: string }> = [
   { id: "overview", en: "General", zh: "常规" },
-  { id: "programs", en: "Programs", zh: "Programs" },
-  { id: "skills", en: "Skills", zh: "Skills" },
+  { id: "programs", en: "Programs", zh: "程序" },
+  { id: "skills", en: "Skills", zh: "技能" },
   { id: "mcp", en: "MCP", zh: "MCP" },
   { id: "memory", en: "Memory", zh: "长期记忆" },
   { id: "context", en: "Context", zh: "上下文" },

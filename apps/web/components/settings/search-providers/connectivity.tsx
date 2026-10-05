@@ -9,9 +9,12 @@ import { useTranslation } from "@/lib/i18n";
 export function SearchConnectivity({
   providerId,
   disabled,
+  needsKey = true,
 }: {
   providerId: string;
   disabled: boolean;
+  /** False for keyless backends, so the copy does not mention an API key. */
+  needsKey?: boolean;
 }) {
   const { text } = useTranslation();
   const [busy, setBusy] = useState(false);
@@ -69,7 +72,9 @@ export function SearchConnectivity({
       </div>
       <div className={styles.detailRow}>
         <span className={styles.modelCountSummary} style={{ flex: 1 }}>
-          {text("Runs a tiny live query to validate the API key.", "运行一个小型实时查询来验证 API key。")}
+          {needsKey
+            ? text("Runs a tiny live query to validate the API key.", "运行一个小型实时查询来验证 API key。")
+            : text("Runs a tiny live query to confirm this backend responds.", "运行一个小型实时查询，确认该后端可用。")}
         </span>
         {result && (
           <span
@@ -87,7 +92,11 @@ export function SearchConnectivity({
           size="sm"
           onClick={test}
           disabled={busy || disabled}
-          title={disabled ? text("Configure the API key first", "请先配置 API key") : undefined}
+          title={disabled
+            ? needsKey
+              ? text("Configure the API key first", "请先配置 API key")
+              : text("Backend not available yet", "后端暂不可用")
+            : undefined}
         >
           {text("Check", "检查")}
         </Button>

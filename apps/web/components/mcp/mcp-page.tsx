@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslation } from "@/lib/i18n";
-import { PlugZapIcon, PlusIcon } from "@/components/animated-icons";
+import { PlugZapIcon, PlusIcon, SearchIcon } from "@/components/animated-icons";
 import { SearchInput } from "@/components/ui/search-input";
 import { ManageEmptyState, ManagePageHeader, ManageRow, ManageSubnav, managePageStyles as shared } from "@/components/ui/manage-page";
 import { Switch } from "@/components/ui/switch";
@@ -282,7 +282,7 @@ export function McpPage({
           activeTab={tab}
           onTabChange={(id) => setTab(id as McpTab)}
           summary={text(
-            `${readyCount} available · ${issueCount} issues`,
+            `${readyCount} available · ${issueCount} ${issueCount === 1 ? "issue" : "issues"}`,
             `可用 ${readyCount} 个 · ${issueCount} 个问题`,
           )}
           action={{
@@ -330,7 +330,7 @@ export function McpPage({
               <div className={shared.empty}>{text("Loading...", "加载中...")}</div>
             ) : shownServers.length === 0 ? (
               filterValue.trim()
-                ? <div className={shared.empty}>{text("No matches", "没有匹配结果")}</div>
+                ? <ManageEmptyState compact icon={<SearchIcon size={20} />} title={text("No matching MCP servers", "没有匹配的 MCP 服务器")} description={text("Try a different search.", "换个关键词试试。")} />
                 : <ManageEmptyState
                     compact
                     icon={<PlugZapIcon size={20} />}
@@ -357,7 +357,7 @@ export function McpPage({
                       <span className={shared.badge}>{s.type}</span>
                       <span className={`${shared.badge} ${s.ready ? shared.badgeGreen : s.error && s.error !== "disabled" ? shared.badgeRed : ""}`}>{stateLabel}</span>
                     </>}
-                    count={text(`${s.tool_count} tools`, `${s.tool_count} 个工具`)}
+                    count={text(`${s.tool_count} ${s.tool_count === 1 ? "tool" : "tools"}`, `${s.tool_count} 个工具`)}
                     onClick={() => setSelected(s.name)}
                     title={text("Open MCP server details", "打开 MCP 服务器详情")}
                     actions={<Switch
