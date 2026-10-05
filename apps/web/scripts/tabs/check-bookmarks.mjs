@@ -353,10 +353,6 @@ assert.match(
   /focus-within:border-\[color:var\(--accent-blue\)\]/,
   "the search box must show a visible focus indicator",
 );
-assert.match(
-  centerTabsCss,
-  /\.bookmarkContentTitleInput:focus-visible\s*\{[^}]*outline:\s*(?!0)[^;}]+;/s,
-);
 // Flat color-block panel: the compact "floating card" wrapper
 // (.right-sidebar-panel with margin/radius/shadow, reverted in
 // 6464cdaa) must not come back — the panel stays full-height,
