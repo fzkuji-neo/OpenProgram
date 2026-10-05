@@ -111,7 +111,8 @@ def test_pdf_toolbar_has_one_visible_focus_border(pdf_page):
     # The existing component harness preserves local class names. Load the
     # actual global and component styles to exercise their cascade together.
     for path in ['app/styles/base.css', 'app/styles/themes/dark.css',
-                 'components/files/preview/pdf-preview.module.css']:
+                 'components/files/preview/pdf-preview.module.css',
+                 'components/files/preview/preview.module.css']:
         page.add_style_tag(path=str(Path('apps/web') / path))
     page.locator('html').evaluate("el => el.dataset.theme = 'dark'")
     page.evaluate("body => showFile('fixture.pdf', body)", PDF_FIXTURE)
@@ -130,6 +131,11 @@ def test_pdf_toolbar_has_one_visible_focus_border(pdf_page):
     expect(field).to_have_css('outline-style', 'none')
     expect(field).to_have_css('box-shadow', 'none')
     assert field.bounding_box() == before
+    checkbox = page.get_by_role('checkbox', name='Remove line breaks when copying')
+    checkbox.focus()
+    expect(checkbox).to_be_focused()
+    expect(checkbox).to_have_css('outline-style', 'solid')
+    expect(checkbox).to_have_css('outline-width', '2px')
     assert errors == []
 
 
