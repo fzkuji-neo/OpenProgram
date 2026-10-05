@@ -104,6 +104,35 @@ def pdf_page(pdf_bundle, request):
             browser.close()
 
 
+def test_pdf_toolbar_has_one_visible_focus_border(pdf_page):
+    from playwright.sync_api import expect
+
+    page, errors = pdf_page
+    # The existing component harness preserves local class names. Load the
+    # actual global and component styles to exercise their cascade together.
+    for path in ['app/styles/base.css', 'app/styles/themes/dark.css',
+                 'components/files/preview/pdf-preview.module.css']:
+        page.add_style_tag(path=str(Path('apps/web') / path))
+    page.locator('html').evaluate("el => el.dataset.theme = 'dark'")
+    page.evaluate("body => showFile('fixture.pdf', body)", PDF_FIXTURE)
+    expect(page.get_by_text('1 / 2', exact=True)).to_be_visible()
+    accent = page.evaluate("""() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--accent-blue)'; document.body.append(probe);
+      const color = getComputedStyle(probe).color; probe.remove(); return color;
+    }""")
+    field = page.get_by_role('combobox', name='Zoom', exact=True)
+    before = field.bounding_box()
+    field.focus()
+    expect(field).to_be_focused()
+    expect(field).to_have_css('border-top-color', accent)
+    expect(field).to_have_css('border-top-width', '1px')
+    expect(field).to_have_css('outline-style', 'none')
+    expect(field).to_have_css('box-shadow', 'none')
+    assert field.bounding_box() == before
+    assert errors == []
+
+
 def test_pdf_pages_pixels_zoom_and_text_search(pdf_page):
     from playwright.sync_api import expect
 

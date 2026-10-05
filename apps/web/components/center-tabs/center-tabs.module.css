@@ -1079,7 +1079,7 @@
   outline: none;
   font-size: 11.5px;
 }
-.webFindBar input:focus { border-color: var(--text-dim); }
+.webFindBar input:focus { border-color: var(--accent-blue); }
 .webFindBar span { min-width: 34px; text-align: center; }
 .webFindBar button {
   width: 24px;
