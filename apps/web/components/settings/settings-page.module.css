@@ -633,6 +633,20 @@
   border-right: 1px solid var(--border);
   min-height: 0;
 }
+/* Narrow windows: a 42% list beside the detail leaves both columns a
+   sliver (truncated names, one-word lines). Stack the list above the
+   detail as its own scrolling band instead. */
+@media (max-width: 760px) {
+  .providersLayout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .providersSidebar {
+    max-height: 38vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
 /* Search is the only control in the sidebar header row. */
 .providersStickyHeader {
   padding: 0 0 8px;
