@@ -222,7 +222,7 @@ test("file tree refresh preserves expanded paths and file sizes, and path copy u
   const parsed = parseHTML('<html><body><div id="root"></div></body></html>');
   const saved = { window: globalThis.window, document: globalThis.document, ResizeObserver: globalThis.ResizeObserver, IntersectionObserver: globalThis.IntersectionObserver };
   globalThis.window = parsed.window; globalThis.document = parsed.document;
-  const browserGlobals = ["HTMLDivElement", "ShadowRoot", "HTMLElement", "HTMLStyleElement", "Element", "HTMLTemplateElement", "SVGElement", "HTMLInputElement", "Node", "MutationObserver", "customElements"];
+  const browserGlobals = ["Event", "HTMLDivElement", "ShadowRoot", "HTMLElement", "HTMLStyleElement", "Element", "HTMLTemplateElement", "SVGElement", "HTMLInputElement", "Node", "MutationObserver", "customElements"];
   for (const key of browserGlobals) { saved[key] = globalThis[key]; globalThis[key] = parsed.window[key]; }
   Object.defineProperties(parsed.window.HTMLElement.prototype, {
     scrollTop: { configurable: true, writable: true, value: 0 },
@@ -350,6 +350,15 @@ test("file tree refresh preserves expanded paths and file sizes, and path copy u
     assert.equal(query('[data-item-path="src/nested/"]'), null);
     await click('[data-item-path="src/"]');
     assert.ok(query('[data-item-path="src/nested/empty.txt"]'), "refresh of a collapsed ancestor retains expanded child caches");
+    const metadata = query('[data-item-path="src/data.bin"] [data-item-section="decoration"] > span').children;
+    assert.match(metadata[1].textContent, /1970/, "listing mtime reaches the public tree");
+    assert.equal(metadata[2].textContent, "BIN file");
+    const beforeSort = requests.length;
+    await click('[role="columnheader"][aria-label="Size"] button');
+    assert.ok(requests.slice(beforeSort).some(p => p.path === "" && p.sort === "size:desc:folders:hidden:ignored"), "header uses existing server sorting");
+    assert.equal(document.querySelector('[role="columnheader"][aria-label="Size"]').getAttribute("aria-sort"), "descending");
+    await click('[role="columnheader"][aria-label="Size"] button');
+    assert.ok(requests.some(p => p.sort === "size:asc:folders:hidden:ignored"));
     await act(async () => root.render(h(api.FileTree, { projectId: "other-project" })));
     assert.doesNotMatch(path(), /data.bin/);
     assert.equal(query('[data-item-path="src/data.bin"]'), null);

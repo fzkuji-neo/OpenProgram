@@ -1,0 +1,108 @@
+"""Public virtual tree columns: geometry, metadata, scrolling and sort intent."""
+from pathlib import Path
+import subprocess
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[3]
+pytestmark = pytest.mark.browser
+
+
+def test_file_columns_align_and_scroll_with_real_virtual_rows(tmp_path: Path) -> None:
+    from playwright.sync_api import expect, sync_playwright
+
+    bundle = tmp_path / "columns.js"
+    script = r"""
+const {build}=require('esbuild');
+build({stdin:{contents:`
+import React from 'react';import{createRoot}from'react-dom/client';
+import{PierreFileTree,PierreSearchTree}from'./components/files/pierre-file-tree';
+function App(){
+ const[sort,setSort]=React.useState('name:asc:folders:visible:tracked');
+ const[selected,setSelected]=React.useState(null),[expanded,setExpanded]=React.useState(new Set(['parent']));
+ const[search,setSearch]=React.useState(false);
+ const entries=React.useMemo(()=>[{path:'parent',type:'dir',size:0,mtime:1704067200},
+ ...Array.from({length:80},(_,i)=>({path:'parent/'+String(i).padStart(3,'0')+'-a-very-long-filename.txt',type:'file',size:i===0?0:16912,mtime:1704067200})),
+ {path:'.env',type:'file',size:0}],[]);
+ return <><button onClick={()=>setSearch(x=>!x)}>Toggle search</button><output>{sort}</output>
+ <div id="panel" style={{height:300,width:320}}>{search?
+ <PierreSearchTree projectId="columns" matches={[entries[1]]} currentPath={null} onSelect={()=>{}} onOpen={()=>{}} onContextMenu={()=>{}}/>:
+ <PierreFileTree projectId="columns" entries={entries} expanded={expanded} selected={selected}
+ sort={sort} onSortChange={setSort} onExpandedChange={setExpanded} onSelect={setSelected} onOpen={()=>{}} onContextMenu={()=>{}}/>}</div></>;
+}createRoot(document.getElementById('root')).render(<App/>);`,resolveDir:process.cwd()+'/apps/web',loader:'tsx'},
+bundle:true,jsx:'automatic',format:'iife',outfile:process.argv[1],plugins:[{name:'fixture',setup(b){
+b.onResolve({filter:/^\.\/file-management$/},()=>({path:'size',namespace:'fixture'}));
+b.onResolve({filter:/^@\/lib\/i18n$/},()=>({path:'i18n',namespace:'fixture'}));
+b.onLoad({filter:/.*/,namespace:'fixture'},({path})=>({contents:path==='i18n'?
+'export const useTranslation=()=>({text:en=>en,locale:"en"});':
+'export const formatFileBytes=x=>x===0?"0 B":"16.5 KiB"; export const useFolderSize=()=>({value:{bytes:16912,state:"cached",complete:true}});',loader:'js'}));
+}}]}).catch(e=>{console.error(e);process.exit(1)});
+"""
+    subprocess.run(["node", "-e", script, str(bundle)], cwd=ROOT, check=True)
+    with sync_playwright() as runtime:
+        browser = runtime.chromium.launch()
+        try:
+            page = browser.new_page(timezone_id="UTC")
+            page.set_content('<div id="root"></div>')
+            page.add_script_tag(path=str(bundle))
+            panel = page.locator("#panel")
+            header = panel.get_by_role("row", name="File columns")
+            expect(header.get_by_role("button", name="Name", exact=True)).to_be_visible()
+            scroller = panel.locator("[data-file-tree-virtualized-scroll]")
+            row = panel.locator('[data-item-path="parent/000-a-very-long-filename.txt"]')
+            cells = row.locator('[data-item-section="decoration"] > span > span')
+            expect(cells).to_have_count(3)
+            expect(cells.nth(0)).to_have_text("0 B")
+            expect(cells.nth(1)).to_contain_text("2024")
+            expect(cells.nth(2)).to_have_text("TXT file")
+            for font in (13, 16):
+                for width in (240, 320, 480, 900):
+                    panel.evaluate("(e,v)=>{e.style.width=v.width+'px';e.style.setProperty('--right-panel-text-size',v.font+'px');e.style.setProperty('--right-panel-meta-size',v.font+'px')}", {"width": width, "font": font})
+                    scroller.evaluate("e=>{e.scrollLeft=0;e.scrollTop=0;e.dispatchEvent(new Event('scroll'))}")
+                    page.wait_for_function("w=>Math.abs(document.querySelector('[data-file-columns-header]').clientWidth-w)<25", arg=width)
+                    page.wait_for_timeout(50)
+                    def bounds(locator):
+                        return locator.evaluate("e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width}}")
+                    view = bounds(panel)
+                    size = bounds(cells.nth(0))
+                    assert size["left"] >= view["left"] and size["right"] <= view["right"] + 1
+                    assert bounds(row.locator('[data-item-section="content"]'))["right"] <= size["left"] + 1
+                    for index, label in enumerate(("Size", "Date Modified", "Kind")):
+                        assert abs(bounds(header.get_by_role("columnheader", name=label, exact=True))["left"] - bounds(cells.nth(index))["left"]) < 2
+                    if width < 720:
+                        assert bounds(cells.nth(1))["left"] >= view["right"] - 25
+                        scroller.evaluate("e=>{e.scrollLeft=e.scrollWidth;e.dispatchEvent(new Event('scroll'))}")
+                        expect(cells.nth(2)).to_be_in_viewport()
+                        page.wait_for_timeout(50)
+                        assert abs(bounds(header.get_by_role("columnheader", name="Kind", exact=True))["left"] - bounds(cells.nth(2))["left"]) < 2
+                    else:
+                        assert bounds(cells.nth(2))["right"] <= view["right"] + 1
+            # Sorting only changes key/direction; display preferences survive.
+            header.get_by_role("button", name="Size", exact=True).click()
+            expect(page.locator("output")).to_have_text("size:desc:folders:visible:tracked")
+            header.get_by_role("button", name="Size", exact=True).click()
+            expect(page.locator("output")).to_have_text("size:asc:folders:visible:tracked")
+            expect(header.get_by_role("columnheader", name="Size", exact=True)).to_have_attribute("aria-sort", "ascending")
+            # Header stays fixed; sticky ancestor metadata stays column-aligned.
+            top = bounds(header)["top"]
+            scroller.evaluate("e=>{e.scrollTop=600;e.dispatchEvent(new Event('scroll'))}")
+            expect(scroller).to_have_js_property("scrollTop", 600)
+            assert bounds(header)["top"] == top
+            sticky = panel.locator('[data-file-tree-sticky-row="true"]').first
+            expect(sticky).to_be_visible()
+            assert abs(bounds(sticky.locator('[data-item-section="decoration"] > span > span').nth(0))["left"] - bounds(header.get_by_role("columnheader", name="Size", exact=True))["left"]) < 2
+            # Narrow sticky rows and keyboard-revealed header columns share scrolling.
+            panel.evaluate("e=>e.style.width='320px'")
+            page.wait_for_timeout(50)
+            header.get_by_role("button", name="Kind", exact=True).focus()
+            page.wait_for_timeout(50)
+            assert abs(bounds(sticky.locator('[data-item-section="decoration"] > span > span').nth(2))["left"] - bounds(header.get_by_role("columnheader", name="Kind", exact=True))["left"]) < 2
+            expect(scroller).not_to_have_js_property("scrollLeft", 0)
+            page.get_by_role("button", name="Toggle search").click()
+            expect(header.get_by_role("button")).to_have_count(0)
+            expect(header.get_by_role("columnheader")).to_have_count(4)
+            synthetic = panel.locator('[data-item-path="parent/"]').locator('[data-item-section="decoration"] > span > span')
+            expect(synthetic.nth(1)).to_have_text("")
+            expect(synthetic.nth(2)).to_have_text("Folder")
+        finally:
+            browser.close()
