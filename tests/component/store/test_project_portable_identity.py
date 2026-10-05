@@ -193,3 +193,48 @@ def test_opening_replacement_does_not_return_original_project(tmp_path, store):
     assert not (folder / ".openprogram" / "project.json").exists()
     assert store.get_session("s1")["title"] == "Original notes"
     assert projects.get_project(project.id).session_ids == ["s1"]
+
+
+def test_concurrent_open_registers_one_project_that_survives_move(tmp_path, store, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier, BrokenBarrierError
+    folder = tmp_path / "paper"
+    folder.mkdir()
+    new_id = projects._new_project_id
+    allocating = Barrier(2, timeout=2)
+    def competing_ids():
+        # Expose two callers deciding to register before either publishes.
+        # A serialized registration has one allocator and expires this barrier.
+        try:
+            allocating.wait()
+        except BrokenBarrierError:
+            pass
+        return new_id()
+    monkeypatch.setattr(projects, "_new_project_id", competing_ids)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(projects.resolve_project, folder)
+        second = pool.submit(projects.resolve_project, folder)
+        a, b = first.result(timeout=5), second.result(timeout=5)
+    assert a.id == b.id
+    assert len(projects.list_projects()) == 1
+    moved = tmp_path / "moved"
+    folder.rename(moved)
+    assert projects.resolve_project(moved).id == a.id
+
+
+def test_legacy_upgrade_refuses_another_projects_marker(tmp_path, store):
+    from openprogram.store.project.identity import inode_token
+    first, second = (tmp_path / name for name in ("first", "second"))
+    first.mkdir()
+    second.mkdir()
+    owner = projects.resolve_project(first)
+    legacy = projects.resolve_project(second)
+    legacy.directory_identity = inode_token(second)
+    projects._upsert(legacy)
+    shutil.copyfile(first / ".openprogram" / "project.json", second / ".openprogram" / "project.json")
+    assert refresh_project_location(legacy.id) == "pending"
+    assert projects.get_project(legacy.id).directory_identity == legacy.directory_identity
+    assert projects.get_project(owner.id).directory_identity == owner.directory_identity
+    moved = tmp_path / "moved"
+    first.rename(moved)
+    assert projects.resolve_project(moved).id == owner.id

@@ -572,18 +572,23 @@ def _upsert(project: Project, *, capture_identity: bool = False, replace_identit
     Metadata edits and ordinary registry maintenance must not restamp
     folder identity onto a replacement folder at the same path.
     """
-    if capture_identity and not project.is_default and project.path:
-        from .identity import capture_directory_identity
-        try:
-            captured = capture_directory_identity(project.path, replace=replace_identity)
-        except (OSError, ValueError, TimeoutError) as exc:
-            raise ProjectStoreError(f"cannot save project identity: {exc}") from exc
-        ensure_footprint_ignored(project.path)
-        project.directory_identity = captured["directory_identity"]
-        project.native_bookmark = captured["native_bookmark"]
-        project.volume_id = captured["volume_id"]
     with _reg_lock:
         reg = _read_registry()
+        if capture_identity and not project.is_default and project.path:
+            from .identity import capture_directory_identity, read_marker
+            marker = read_marker(project.path)
+            if marker and not replace_identity and any(
+                    row.get("id") != project.id and row.get("directory_identity") == marker
+                    for row in reg.values()):
+                raise ProjectStoreError("destination identity belongs to another project")
+            try:
+                captured = capture_directory_identity(project.path, replace=replace_identity)
+            except (OSError, ValueError, TimeoutError) as exc:
+                raise ProjectStoreError(f"cannot save project identity: {exc}") from exc
+            ensure_footprint_ignored(project.path)
+            project.directory_identity = captured["directory_identity"]
+            project.native_bookmark = captured["native_bookmark"]
+            project.volume_id = captured["volume_id"]
         reg[project.id] = project.to_dict()
         _write_registry(reg)
     return project
@@ -743,35 +748,39 @@ def resolve_project(path: str | Path | None = None, *, name: str | None = None) 
         return get_default_project()
 
     p = Path(path).expanduser()
-    existing = next((project for project in list_projects()
-                     if not project.is_default and project.path
-                     and Path(project.path).expanduser().resolve() == p.resolve()), None)
-    if existing is not None:
-        from .identity import is_portable, captured_identity_matches
-        if p.is_dir() and is_portable(existing) and not captured_identity_matches(existing, p):
-            raise ProjectStoreError("project location has changed; locate the original folder or confirm a replacement")
-        return set_project_hidden(existing.id, False) if existing.hidden else existing
+    # The path/token decision and publication are one registry transaction.
+    # Session relocation runs after releasing it so readers remain available.
+    with _reg_lock:
+        existing = next((project for project in list_projects()
+                         if not project.is_default and project.path
+                         and Path(project.path).expanduser().resolve() == p.resolve()), None)
+        if existing is not None:
+            from .identity import is_portable, captured_identity_matches
+            if p.is_dir() and is_portable(existing) and not captured_identity_matches(existing, p):
+                raise ProjectStoreError("project location has changed; locate the original folder or confirm a replacement")
+            return set_project_hidden(existing.id, False) if existing.hidden else existing
 
-    from .identity import read_marker, captured_identity_matches
-    marker = read_marker(p)
-    owners = [project for project in list_projects()
-              if marker and not project.is_default and project.directory_identity == marker]
-    if len(owners) > 1:
-        raise ProjectStoreError("project identity belongs to multiple registrations; locate the intended project")
-    if owners and not captured_identity_matches(owners[0], owners[0].path):
-        return relocate_project(owners[0].id, p, require_identity=True)
-
-    pid = _new_project_id()
-    while get_project(pid) is not None:
-        pid = _new_project_id()
-    proj = Project(
-        id=pid,
-        name=name or p.name or pid,
-        path=str(p.resolve()),
-        is_default=False,
-        location_state="available",
-    )
-    return _upsert(proj, capture_identity=True, replace_identity=bool(owners))
+        from .identity import read_marker, captured_identity_matches
+        marker = read_marker(p)
+        owners = [project for project in list_projects()
+                  if marker and not project.is_default and project.directory_identity == marker]
+        if len(owners) > 1:
+            raise ProjectStoreError("project identity belongs to multiple registrations; locate the intended project")
+        if not (owners and not captured_identity_matches(owners[0], owners[0].path)):
+            pid = _new_project_id()
+            while get_project(pid) is not None:
+                pid = _new_project_id()
+            proj = Project(
+                id=pid,
+                name=name or p.name or pid,
+                path=str(p.resolve()),
+                is_default=False,
+                location_state="available",
+            )
+            return _upsert(proj, capture_identity=True, replace_identity=bool(owners))
+    owner = owners[0]
+    return relocate_project(owner.id, p, expected_path=owner.path,
+                            expected_revision=owner.location_revision, require_identity=True)
 
 
 def relocate_project(
