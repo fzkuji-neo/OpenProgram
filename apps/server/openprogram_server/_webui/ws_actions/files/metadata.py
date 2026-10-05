@@ -209,6 +209,42 @@ def _cached_sample(info):
     return cached
 
 
+def invalidate_cached_sizes(project_id, paths):
+    """Discard affected ancestor/subtree samples after a Files mutation."""
+    root, _, error = _project_info(project_id)
+    if error:
+        return
+    targets = []
+    for path in paths:
+        canonical, error = _query_path(path)
+        if error:
+            continue
+        targets.append(os.path.normpath(os.path.join(root, canonical)))
+    def affected(candidate):
+        return any(os.path.commonpath([candidate, target]) in {candidate, target}
+                   for target in targets)
+    with _LOCK:
+        _load_cache()
+        changed = False
+        for candidate in list(_CACHE):
+            try:
+                match = affected(candidate)
+            except ValueError:
+                match = False  # Different Windows drives cannot share ancestors.
+            if match:
+                _CACHE.pop(candidate)
+                changed = True
+        for token, scan in list(_SCANS.items()):
+            try:
+                match = affected(scan['absolute_path'])
+            except ValueError:
+                match = False
+            if match:
+                _drop(token)
+        if changed:
+            _save_cache()
+
+
 def cached_size(project_id, path):
     """Use only recent complete samples for a new size-sorted snapshot."""
     info = file_info(project_id, path)
@@ -241,7 +277,8 @@ def folder_size(project_id, path, operation='peek', token=None):
             while len(_SCANS) >= _MAX_SCANS:
                 _drop(next(iter(_SCANS)))
             token = secrets.token_urlsafe(24)
-            _SCANS[token] = {'key': key, 'revision': info['revision'], 'iterator': _walk(project_id, canonical),
+            _SCANS[token] = {'key': key, 'revision': info['revision'], 'absolute_path': info['absolute_path'],
+                             'iterator': _walk(project_id, canonical),
                              'bytes': 0, 'entries': 0, 'skipped': 0, 'used': now,
                              'timer': threading.Timer(_TTL, _expire, (token,))}
             _SCANS[token]['timer'].daemon = True

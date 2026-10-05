@@ -1,6 +1,7 @@
 """Public file management query regression tests."""
 from .test_project_files import project_root, _run
 from openprogram.webui.ws_actions import files as ws_files
+import pytest
 
 
 def test_sort_before_pagination(project_root):
@@ -204,3 +205,44 @@ def test_persisted_size_is_bound_to_directory_identity(project_root, monkeypatch
     metadata._CACHE.clear()
     monkeypatch.setattr(metadata, '_CACHE_FILE', None)
     assert _run(ws_files.handle_project_folder_size, cmd)['data']['state'] == 'unknown'
+
+
+@pytest.mark.parametrize('action,extra', [
+    ('delete', {}), ('write', {'content': 'updated contents'}),
+    ('rename', {'new_path': 'moved.txt'}),
+    ('copy', {'new_path': 'src/nested/copy.txt'}),
+    ('create', {'kind': 'file'}),
+])
+def test_file_mutation_invalidates_persisted_ancestor_size(project_root, monkeypatch, action, extra):
+    from openprogram.webui.ws_actions.files import metadata
+    (project_root / 'src' / 'nested').mkdir()
+    (project_root / 'src' / 'nested' / 'one').write_bytes(b'12345')
+    cmd = {'project_id': 'p1', 'path': 'src'}
+    sample = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']
+    assert sample['state'] == 'complete'
+    metadata._CACHE.clear()
+    monkeypatch.setattr(metadata, '_CACHE_FILE', None)
+    path = 'src/nested/new' if action == 'create' else 'src/nested/one'
+    result = _run(getattr(ws_files, f'handle_project_file_{action}'),
+                  {'project_id': 'p1', 'path': path, 'idempotency_key': f'cache-{action}', **extra})['data']
+    assert result.get('ok'), result
+    metadata._CACHE.clear()
+    monkeypatch.setattr(metadata, '_CACHE_FILE', None)
+    assert _run(ws_files.handle_project_folder_size, cmd)['data']['state'] == 'unknown'
+
+
+def test_mutation_cancels_affected_scan_and_retains_unrelated_sample(project_root, monkeypatch):
+    from openprogram.webui.ws_actions.files import metadata
+    unrelated = {'project_id': 'p1', 'path': 'Alpha_dir'}
+    assert _run(ws_files.handle_project_folder_size, {**unrelated, 'operation': 'start'})['data']['state'] == 'complete'
+    monkeypatch.setattr(metadata, '_BATCH', 1)
+    cmd = {'project_id': 'p1', 'path': 'src'}
+    page = _run(ws_files.handle_project_folder_size, {**cmd, 'operation': 'start'})['data']
+    assert page['state'] == 'partial'
+    result = _run(ws_files.handle_project_file_write,
+                  {'project_id': 'p1', 'path': 'src/x.py', 'content': 'new bytes'})['data']
+    assert result.get('ok'), result
+    resumed = _run(ws_files.handle_project_folder_size,
+                   {**cmd, 'operation': 'continue', 'token': page['token']})['data']
+    assert resumed['error_code'] == 'INVALID_REQUEST'
+    assert _run(ws_files.handle_project_folder_size, unrelated)['data']['state'] == 'cached'
