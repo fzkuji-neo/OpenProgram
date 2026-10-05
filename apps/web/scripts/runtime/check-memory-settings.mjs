@@ -88,7 +88,7 @@ assert.match(settingsCss, /\.rowDescription\s*\{[^}]*font-size:\s*13px/s);
 assert.match(settingsCss, /\.controls\s*\{[^}]*flex:\s*0 1 auto;[^}]*min-width:\s*7\.5rem/s);
 assert.match(settingsCss, /\.select\s*\{[^}]*min-width:\s*0/s);
 assert.match(settingsCss, /@media \(max-width: 820px\)[\s\S]*?\.settingsRow\s*\{[^}]*flex-direction:\s*column;[^}]*align-items:\s*stretch;[^}]*gap:\s*10px;[^}]*\}[\s\S]*?\.controls\s*\{[^}]*min-width:\s*0;[^}]*\}[\s\S]*?\.select\s*\{[^}]*max-width:\s*100%;[^}]*\}/s);
-assert.match(settingsCss, /\.select:focus-visible\s*\{[^}]*outline:\s*none;[^}]*border-color:\s*var\(--text-secondary\)/s);
+assert.match(settingsCss, /\.select:focus\s*\{[^}]*outline:\s*none;[^}]*border-color:\s*var\(--accent-blue\)/s);
 assert.doesNotMatch(settingsCss, /\.select:focus-visible\s*,\s*\.saveButton:focus-visible/);
 assert.match(settingsCss, /\.chromeValue\s*\{[^}]*font-family:\s*var\(--font-sans\)/s);
 assert.match(settingsCss, /\.monoValue\s*\{[^}]*font-family:\s*var\(--font-mono\)/s);

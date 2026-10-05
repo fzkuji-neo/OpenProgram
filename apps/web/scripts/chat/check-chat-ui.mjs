@@ -217,13 +217,8 @@ assert.match(
   baseCss,
   /button:focus-visible:not\(\[role="tab"\]\),\s*\[role="button"\]:focus-visible\s*\{[^}]*box-shadow:\s*none\s*!important;[^}]*filter:\s*brightness\(1\.08\);/s,
 );
-// Shared text Input and SearchInput keep only their inner accent border;
-// the global :focus-visible halo must not stack on either field.
-const inputTsx = source("components/ui/input.tsx");
-assert.match(inputTsx, /["']ui-text-input |ui-text-input /);
-assert.match(baseCss, /\.search-input-field:focus-visible\s*\{[^}]*outline:\s*none/s);
-assert.match(baseCss, /\.ui-text-input:focus-visible\s*\{[^}]*outline:\s*none/s);
-assert.match(baseCss, /input:focus-visible,\s*select:focus-visible,\s*textarea:focus-visible\s*\{[^}]*outline:\s*none/s);
+// Text-field focus and compound search borders are verified through the real
+// Agents page in tests/e2e/web/test_agents_configuration.py.
 for (const themeCss of [darkTheme, beigeDarkTheme]) {
   assert.match(themeCss, /--focus-ring:\s*color-mix\(in srgb, var\(--text-bright\) 50%, transparent\);/);
 }
