@@ -105,7 +105,7 @@ for (const state of ["incomplete", "complete"]) test(`refresh preserves ${state}
   }
 });
 
-test("renewed visibility and details activation revalidate one shared size job", async () => {
+test("renewed visibility and details reuse one shared sample until explicit refresh", async () => {
   const parsed = parseHTML('<html><body><div id="root"></div></body></html>');
   const saved = { window: globalThis.window, document: globalThis.document, IntersectionObserver: globalThis.IntersectionObserver };
   globalThis.window = parsed.window; globalThis.document = parsed.document;
@@ -130,12 +130,50 @@ test("renewed visibility and details activation revalidate one shared size job",
     await act(async () => root.render(null));
     bytes = 999; starts = 0;
     await act(async () => root.render(h(Fragment, null, row("sidebar"), row("central"))));
-    assert.equal(starts, 1, "both visible views must share the verification");
-    assert.equal((document.body.textContent.match(/999 B/g) ?? []).length, 2);
+    assert.equal(starts, 0, "both visible views reuse the cached sample without a scan");
+    assert.equal((document.body.textContent.match(/12 B/g) ?? []).length, 2);
     bytes = 50; starts = 0;
     await act(async () => root.render(h(Fragment, null, row("sidebar"), row("central"), h(api.FileDetails, { projectId, path: "src", onClose: noop, inline: true }))));
-    assert.equal(starts, 1, "opening details verifies the existing shared sample");
+    assert.equal(starts, 0, "opening details reuses the existing shared sample");
+    assert.equal((document.body.textContent.match(/12 B/g) ?? []).length, 3);
+    await act(async () => api.invalidateFolderSizes(projectId));
+    assert.equal(starts, 1, "explicit refresh scans once for all subscribers");
     assert.equal((document.body.textContent.match(/50 B/g) ?? []).length, 3);
+  } finally {
+    await act(async () => root.unmount());
+    Object.assign(globalThis, saved); delete globalThis.__fileManagementQuery;
+  }
+});
+
+for (const complete of [true, false]) test(`persisted terminal sample is displayed without scanning (complete=${complete})`, async () => {
+  const parsed = parseHTML('<html><body><div id="root"></div></body></html>');
+  const saved = { window: globalThis.window, document: globalThis.document, IntersectionObserver: globalThis.IntersectionObserver };
+  globalThis.window = parsed.window; globalThis.document = parsed.document;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  globalThis.IntersectionObserver = class {
+    constructor(callback) { this.callback = callback; }
+    observe() { queueMicrotask(() => this.callback([{ isIntersecting: true }])); }
+    disconnect() {}
+  };
+  const requests = [];
+  globalThis.__fileManagementQuery = async (action, payload) => {
+    if (action === "project_file_info") return { type: "dir", name: "src", absolute_path: "/src", size: null, mtime: 1, created_at: null, permissions: "drwxr-xr-x" };
+    requests.push(payload.operation ?? "peek");
+    return payload.operation === "start" ? { state: "complete", bytes: 999, complete: true } : { state: "cached", bytes: 12, complete, skipped: complete ? 0 : 1, token: null };
+  };
+  const root = createRoot(document.getElementById("root"));
+  const projectId = `persisted-${complete}`;
+  try {
+    await act(async () => root.render(h(api.FolderSize, { projectId, path: "src" })));
+    assert.equal(document.body.textContent, "12 B");
+    assert.deepEqual(requests, ["peek"], "a terminal cache hit must not start a recursive scan");
+    await act(async () => root.render(h(api.FileDetails, { projectId, path: "src", onClose: noop, inline: true })));
+    assert.match(document.body.textContent, complete ? /≈ 12 B/ : /≥ 12 B/);
+    assert.deepEqual(requests, ["peek"]);
+    const recalculate = [...document.querySelectorAll("button")].find(button => button.textContent === "Recalculate");
+    await act(async () => recalculate.dispatchEvent(new window.Event("click", { bubbles: true })));
+    assert.deepEqual(requests, ["peek", "start"]);
+    assert.match(document.body.textContent, /≈ 999 B/);
   } finally {
     await act(async () => root.unmount());
     Object.assign(globalThis, saved); delete globalThis.__fileManagementQuery;
@@ -211,7 +249,7 @@ test("file tree refresh preserves expanded paths and file sizes, and path copy u
     if (action === "project_folder_size") {
       sizeRequests++;
       if (holdSize) {
-        if (!payload.operation) return {state:"cached",bytes:1024,complete:false};
+        if (!payload.operation) return {state:"partial",bytes:1024,complete:false,token:"existing"};
         return new Promise(resolve => sizeWaiters.push(resolve));
       }
       return { state: "complete", bytes: 2048, complete: true };

@@ -152,7 +152,7 @@ export function formatFileBytes(bytes: number) {
 
 // One queue is shared by the sidebar and central Files view. Automatic work
 // only starts for visible rows and stops after a bounded number of chunks.
-interface SizeJob { projectId: string; path: string; value: SizeResult; listeners: Set<() => void>; running: boolean; cancelled: boolean; generation: number }
+interface SizeJob { projectId: string; path: string; value: SizeResult; listeners: Set<() => void>; running: boolean; cancelled: boolean; generation: number; needsRefresh: boolean }
 const jobs = new Map<string, SizeJob>();
 const queue: Array<{ job: SizeJob; run: () => Promise<void> }> = [];
 let running = 0;
@@ -171,7 +171,7 @@ function getJob(projectId: string, path: string) {
   const key = JSON.stringify([projectId, path]);
   let job = jobs.get(key);
   if (!job) {
-    job = { projectId, path, value: { state: "unknown" }, listeners: new Set(), running: false, cancelled: false, generation: 0 };
+    job = { projectId, path, value: { state: "unknown" }, listeners: new Set(), running: false, cancelled: false, generation: 0, needsRefresh: false };
     jobs.set(key, job);
     if (jobs.size > 256) for (const [old, value] of jobs) { if (!value.listeners.size && !value.running) jobs.delete(old); if (jobs.size <= 256) break; }
   }
@@ -185,6 +185,7 @@ async function scan(job: SizeJob, restart = false, priority = false) {
   }
   job.running = true; job.cancelled = false;
   const generation = job.generation;
+  restart ||= job.needsRefresh;
   const task = { job, run: async () => {
     try {
       if (!job.listeners.size || job.cancelled || generation !== job.generation) return;
@@ -193,8 +194,12 @@ async function scan(job: SizeJob, restart = false, priority = false) {
         const cached = await fileManagementQuery<SizeResult>("project_folder_size", job.projectId, job.path);
         if (generation !== job.generation) return;
         if (cached?.error) { publish(job, cached); return; }
-        if (cached && cached.state !== "unknown") publish(job, cached);
+        if (cached && cached.state !== "unknown") {
+          publish(job, cached);
+          if (cached.state === "cached" && cached.bytes != null && !cached.token) return;
+        }
       }
+      job.needsRefresh = false;
       for (let chunk = 0; chunk < 20 && job.listeners.size && !job.cancelled; chunk++) {
         const token = restart && chunk === 0 ? null : job.value.token;
         publish(job, { ...job.value, state: "scanning" });
@@ -215,6 +220,7 @@ async function scan(job: SizeJob, restart = false, priority = false) {
 export function invalidateFolderSizes(projectId: string) {
   for (const job of jobs.values()) if (job.projectId === projectId) {
     job.generation++;
+    job.needsRefresh = true;
     if (job.value.token) void fileManagementQuery("project_folder_size", projectId, job.path, { operation: "cancel", token: job.value.token });
     publish(job, { ...job.value, token: null, state: job.value.bytes == null ? "unknown" : "cached" });
   }
@@ -225,7 +231,7 @@ export function useFolderSize(projectId: string, path: string, enabled: boolean,
   useEffect(() => {
     if (!enabled) return;
     if (job.value.state === "complete") publish(job, { ...job.value, state: "cached" });
-    if (["unknown", "cached"].includes(job.value.state)) void scan(job, false, priority);
+    if (job.value.state === "unknown" || job.needsRefresh) void scan(job, false, priority);
   }, [enabled, job, priority, job.generation]);
   return { value, start: (restart = false) => void scan(job, restart, true), cancel: () => {
     job.cancelled = true;
