@@ -180,10 +180,16 @@ def test_bookmark_bar_icons_overflow_and_all_bookmarks(tmp_path: Path) -> None:
                   localStorage.setItem('agentic_locale','en');
                   window.bookmarkTree=root;
                   const {createElement:h,createRoot,BookmarkBar}=TabBundle;
-                  createRoot(document.getElementById('root')).render(h(BookmarkBar,{ownerId:'test',onNavigate(url){window.navigated=url}}));
+                  createRoot(document.getElementById('root')).render(h('div',{className:'webPane'},
+                    h('div',{className:'webChrome'},
+                      h('div',{className:'webToolbar'},h('input',{className:'webAddress','aria-label':'Address'})),
+                      h(BookmarkBar,{ownerId:'test',onNavigate(url){window.navigated=url}}))));
                 }""", base)
                 website = page.get_by_role('button', name='Website', exact=True)
                 expect(website.locator('img')).to_be_visible()
+                assert website.bounding_box()['width'] > 50
+                assert website.bounding_box()['height'] == 30
+                assert page.get_by_role('textbox',name='Address').bounding_box()['height'] == 30
                 assert requests and not requests[0].get('Referer')
                 more = page.get_by_role('button', name='Show hidden bookmarks', exact=True)
                 all_bookmarks = page.get_by_role('button', name='All bookmarks', exact=True)

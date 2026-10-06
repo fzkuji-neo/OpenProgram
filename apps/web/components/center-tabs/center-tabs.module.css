@@ -1005,14 +1005,7 @@
 .webChrome:has(> .bookmarkBar) .webToolbarBtn,
 .webChrome:has(> .bookmarkBar) .bookmarkBarItem,
 .webChrome:has(> .bookmarkBar) .bookmarkBarMore,
-.webChrome:has(> .bookmarkBar) .bookmarkBarDivider {
-  width: 1px;
-  height: 16px;
-  flex-shrink: 0;
-  margin: 0 6px;
-  background: var(--border);
-}
-.bookmarkBarMoreSlot {
+.webChrome:has(> .bookmarkBar) .bookmarkBarMoreSlot {
   height: var(--web-chrome-row);
 }
 .webChrome:has(> .bookmarkBar) .webToolbarBtn,
@@ -1204,6 +1197,13 @@
   width: 26px;
   padding: 0;
   justify-content: center;
+}
+.bookmarkBarDivider {
+  width: 1px;
+  height: 16px;
+  flex-shrink: 0;
+  margin: 0 6px;
+  background: var(--border);
 }
 .bookmarkBarMoreSlot {
   width: 26px;
