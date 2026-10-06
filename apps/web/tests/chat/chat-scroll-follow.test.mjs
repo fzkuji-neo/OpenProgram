@@ -437,3 +437,17 @@ test("reading checkpoints expire at one hour and cannot cross App runtimes", () 
     assert.equal(readChatScroll(storage, "timed"), null);
   } finally { Date.now = realNow; }
 });
+
+test("reading restoration remains available without secure-context UUID support", async () => {
+  const vm = await import("node:vm");
+  const ts = await import("typescript");
+  const source = readFileSync(new URL("../../lib/chat/chat-scroll.ts", import.meta.url), "utf8");
+  const context = { exports: {}, crypto: {} };
+  vm.runInNewContext(ts.default.transpileModule(source, {
+    compilerOptions: { target: ts.default.ScriptTarget.ES2022, module: ts.default.ModuleKind.CommonJS },
+  }).outputText, context);
+  let data = "{}";
+  const storage = { getItem: () => data, setItem: (_key, value) => { data = value; } };
+  context.exports.writeChatScroll(storage, "http-session", 120, false);
+  assert.equal(context.exports.readChatScroll(storage, "http-session"), 120);
+});
