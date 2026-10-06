@@ -54,6 +54,7 @@ interface MenuState {
   y: number;
   theme?: string;
   width?: number;
+  reset?: boolean;
 }
 
 function mainMenuBridge(): MainMenuBridge | null {
@@ -168,6 +169,7 @@ function NestedContextMenu({
   x: number;
   y: number;
   width?: number;
+  reset?: boolean;
 }) {
   const close = () => mainMenuBridge()?.close();
   const hoverClose = items.some(item => item.keepOpen) ? undefined : scheduleHoverClose;
@@ -213,6 +215,7 @@ function ContextMenuOverlayPage() {
     width: Math.max(0, Number(params.get("width")) || 0),
   }), [params]);
   const [menuState, setMenuState] = useState(initialState);
+  const [generation, setGeneration] = useState(0);
   const items = menuState.items;
 
   const firstEnabled = items.findIndex((item) => !item.disabled);
@@ -222,6 +225,7 @@ function ContextMenuOverlayPage() {
   const requestedWidth = menuState.width || 0;
 
   useEffect(() => mainMenuBridge()?.onUpdate?.((state) => {
+    if (state.reset) setGeneration(value => value + 1);
     setMenuState(previous => ({
       ...previous,
       ...state,
@@ -326,6 +330,7 @@ function ContextMenuOverlayPage() {
   if (nested) {
     return (
       <NestedContextMenu
+        key={generation}
         items={items}
         x={menuState.x}
         y={menuState.y}

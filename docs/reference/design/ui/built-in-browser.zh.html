@@ -498,7 +498,8 @@
       <p>可见验收只使用安装的 <code>/Applications/OpenProgram.app</code>、默认 18100 worker 和 <code>~/.openprogram</code>。文档更新不改变 Agent 的网页控制协议。</p>
     </section>
     <p class="footnote">本页是当前设计的规范性说明。实现发生变化时直接更新本页；历史修订由 Git 保存。</p>
-  </main>
+  <section class="section" id="favicon-lifetime"><div class="section-head"><h2>图标和书签菜单生命周期</h2></div><p>每个桌面窗口保留一个已分离的书签级联菜单视图。再次打开时重新挂载并更新菜单数据，不加载新文档。普通菜单保持原来的关闭行为。窗口清理销毁可见与缓存视图；已分离视图不能发送菜单操作。</p><p>渲染进程共用图标缓存，同一来源的并发请求合并，成功解码的32像素绘制结果保留30分钟，失败结果保留5分钟，最多256项。组件直接绘制缓存结果，不重新请求图片；来源变化使用新的缓存项。加载超时为5秒，不发送Referer，不使用第三方图标服务。跨域图片只绘制，不读取像素；可以读取且完全透明的图片仍使用回退图标。App重启后可以通过浏览器缓存重新加载，不新增持久化图标数据库。</p><p><code>bookmark-bar.tsx</code>负责书签布局与菜单，<code>browser-controls.tsx</code>负责浏览器操作，<code>favicon-cache.ts</code>负责加载和有界缓存，<code>tab-favicon.tsx</code>负责显示。原生网页重复报告当前已加载的图标来源时，不清空或重新请求；页面导航仍清除原页面所有权。</p><p>验收：真实书签文件夹关闭后重开，即使服务端返回Cache-Control:no-store也不产生第二次图标请求。并发实例共用请求，失败和透明图片正确回退，来源变化后恢复，溢出图标保持隐藏，缓存过期和淘汰后允许重试。桌面测试覆盖视图复用、隐藏视图拒绝操作、位置更新和最终销毁。</p><p>参考：<a href="https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage">Canvas drawImage</a>；<a href="https://www.electronjs.org/docs/latest/api/web-contents-view">Electron WebContentsView</a>。实现状态：评审与最终验证待完成。</p></section>
+</main>
 
   <aside class="rail" aria-label="页内导航">
     <div class="rail-title">On this page</div>

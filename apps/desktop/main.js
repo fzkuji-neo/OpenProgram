@@ -750,7 +750,7 @@ function cleanupWindowContext(ctx) {
     activeBrowserImport.controller.abort();
   }
   stopWindowRecovery(ctx);
-  closeMainMenu(ctx);
+  closeMainMenu(ctx, true);
   tabTransfers.contextDestroyed(ctx);
   clearOwnedViews(ctx);
   ctx.views.clear();

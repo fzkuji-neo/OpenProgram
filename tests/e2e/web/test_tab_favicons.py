@@ -21,10 +21,13 @@ esbuild.build({
   stdin: {
     contents: [
       'export { createElement } from "react";',
+      'export { flushSync } from "react-dom";',
+      'export { TabFavicon } from "./components/center-tabs/tab-favicon.tsx";',
       'export { createRoot } from "react-dom/client";',
       'export { WebTabPane } from "./components/center-tabs/web-tab-pane.tsx";',
       'export { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";',
-      'export { BookmarkBar } from "./components/center-tabs/browser-controls.tsx";',
+      'export { BookmarkBar } from "./components/center-tabs/bookmark-bar.tsx";',
+      'export { loadFavicon } from "./lib/browser/favicon-cache.ts";',
       'export { useCenterTabs } from "./lib/tabs/center-tabs-store.ts";',
       'export { TabItem, CompoundTabItem } from "./components/center-tabs/tab-items.tsx";',
     ].join("\n"),
@@ -119,15 +122,15 @@ def test_tab_favicons_remain_visible(tmp_path: Path, compound: bool) -> None:
             icon = page.locator('[class*="tabIcon"]').first
             expect(icon.locator('svg')).to_be_visible()
             # A loaded but transparent image must not replace the fallback.
-            page.wait_for_function("!document.querySelector('[class*=tabIcon] img') || document.querySelector('[class*=tabIcon] img').complete")
+            page.evaluate("TabBundle.loadFavicon(iconURL(null))")
             expect(icon.locator('svg')).to_be_visible()
             page.evaluate("showIcon(iconURL('red'))")
-            expect(icon.locator('img')).to_be_visible()
+            expect(icon.locator('canvas')).to_be_visible()
             expect(icon.locator('svg')).to_have_count(0)
             page.evaluate("showIcon('data:image/png;base64,broken')")
             expect(icon.locator('svg')).to_be_visible()
             page.evaluate("showIcon(iconURL('blue'))")
-            expect(icon.locator('img')).to_be_visible()
+            expect(icon.locator('canvas')).to_be_visible()
             expect(icon.locator('svg')).to_have_count(0)
             page.evaluate("showIcon('')")
             expect(icon.locator('svg')).to_be_visible()
@@ -145,13 +148,14 @@ def test_bookmark_bar_icons_overflow_and_all_bookmarks(tmp_path: Path) -> None:
     requests = []
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            is_icon = self.path == '/favicon.ico'
+            is_icon = self.path in ('/favicon.ico', '/nested-icon.svg')
             if is_icon:
                 requests.append(dict(self.headers))
             body = ('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="red"/></svg>' if is_icon else '<div id="root"></div>').encode()
             self.send_response(200)
             self.send_header('Content-Type', 'image/svg+xml' if is_icon else 'text/html')
             self.send_header('Content-Length', str(len(body)))
+            self.send_header('Cache-Control', 'no-store')
             self.end_headers()
             self.wfile.write(body)
         def log_message(self, *_args):
@@ -174,7 +178,7 @@ def test_bookmark_bar_icons_overflow_and_all_bookmarks(tmp_path: Path) -> None:
                   const leaf = (id, title) => ({kind:'bookmark', id, title, url:base+'/'+id});
                   const root = {kind:'folder',id:'root',title:'',children:[
                     {kind:'folder',id:'bar',title:'Bookmarks bar',children:[leaf('first','Website'),
-                      {kind:'folder',id:'folder',title:'Folder',children:[leaf('nested','Nested website')]},
+                      {kind:'folder',id:'folder',title:'Folder',children:[{...leaf('nested','Nested website'), faviconUrl:base+'/nested-icon.svg'}]},
                       ...Array.from({length:12},(_,i)=>leaf('more'+i,'Long bookmark '+i))]},
                     {kind:'folder',id:'other',title:'Other bookmarks',children:[leaf('other-site','Other website')]}
                   ]};
@@ -188,7 +192,7 @@ def test_bookmark_bar_icons_overflow_and_all_bookmarks(tmp_path: Path) -> None:
                       h(BookmarkBar,{ownerId:'test',onNavigate(url){window.navigated=url}}))));
                 }""", base)
                 website = page.get_by_role('button', name='Website', exact=True)
-                expect(website.locator('img')).to_be_visible()
+                expect(website.locator('canvas')).to_be_visible()
                 assert website.bounding_box()['width'] > 50
                 assert website.bounding_box()['height'] == 30
                 assert page.get_by_role('textbox',name='Address').bounding_box()['height'] == 30
@@ -199,12 +203,25 @@ def test_bookmark_bar_icons_overflow_and_all_bookmarks(tmp_path: Path) -> None:
                 expect(all_bookmarks).to_be_visible()
                 assert more.bounding_box()['x'] < all_bookmarks.bounding_box()['x']
                 expect(page.get_by_role('button', name='Other bookmarks', exact=True)).to_have_count(0)
-                overflow_icon = page.locator('.bookmarkBarOverflowed img').last
-                overflow_icon.evaluate('(img) => img.decode()')
+                overflow_icon = page.locator('.bookmarkBarOverflowed canvas').last
+                expect(overflow_icon).to_have_count(1)
                 expect(overflow_icon).to_be_hidden()
+                folder = page.get_by_role('button', name='Folder', exact=True)
+                folder.click()
+                nested_icon = page.get_by_role('menuitem', name='Nested website', exact=True).locator('.tabFavicon')
+                expect(nested_icon).to_be_visible()
+                expect(nested_icon).to_have_css("opacity", "1")
+                loaded_requests = len(requests)
+                page.keyboard.press('Escape')
+                expect(page.locator('[role=menuitem]').filter(has_text='Nested website')).to_have_count(0)
+                folder.click()
+                expect(nested_icon).to_be_visible()
+                expect(nested_icon).to_have_css("opacity", "1")
+                assert len(requests) == loaded_requests, 'Reopening a folder must reuse decoded icons, even with no-store responses'
+                page.keyboard.press('Escape')
                 more.click()
                 hidden = page.get_by_role('menuitem', name='Long bookmark 11', exact=True)
-                expect(hidden.locator('img')).to_be_visible()
+                expect(hidden.locator('canvas')).to_be_visible()
                 hidden.click()
                 assert page.evaluate('window.navigated') == base + '/more11'
                 all_bookmarks.click()
@@ -215,8 +232,8 @@ def test_bookmark_bar_icons_overflow_and_all_bookmarks(tmp_path: Path) -> None:
                   localStorage.setItem('openprogram.bookmarks',JSON.stringify({version:2,root:bookmarkTree}));
                   window.dispatchEvent(new Event('openprogram:bookmarks-changed'));
                 }""")
-                expect(website.locator('img')).to_be_visible()
-                expect(website.locator('img')).to_have_attribute('src',base + '/favicon.ico')
+                expect(website.locator('canvas')).to_be_visible()
+                assert website.locator('canvas').evaluate('(canvas) => Array.from(canvas.getContext("2d").getImageData(16,16,1,1).data)') == [255, 0, 0, 255]
                 page.set_viewport_size({"width":1100,"height":450})
                 expect(all_bookmarks).to_be_visible()
                 assert more.bounding_box()['x'] < all_bookmarks.bounding_box()['x']
@@ -267,5 +284,36 @@ def test_bookmark_uses_current_tab_icon_for_duplicate_urls(tmp_path: Path) -> No
             saved = page.evaluate("JSON.parse(localStorage.getItem('openprogram.bookmarks')).root.children[0]")
             assert saved['title'] == 'Current popup'
             assert saved['url'] == 'http://bookmark.test/site'
+        finally:
+            browser.close()
+
+
+def test_cached_icon_remount_has_no_placeholder(tmp_path: Path) -> None:
+    from playwright.sync_api import expect, sync_playwright
+
+    bundle = tmp_path / "cached-tabs.js"
+    _bundle_tabs(bundle)
+    with sync_playwright() as runtime:
+        browser = runtime.chromium.launch()
+        try:
+            page = browser.new_page()
+            page.route("http://icons.test/", lambda route: route.fulfill(body='<div id="root"></div>', content_type="text/html"))
+            page.goto("http://icons.test/")
+            page.evaluate("window.process = {env: {NODE_ENV: 'test'}}")
+            page.add_script_tag(path=str(bundle))
+            page.evaluate("""() => {
+              const {createElement:h,createRoot,TabFavicon,flushSync}=TabBundle;
+              const root=createRoot(document.getElementById('root'));
+              const url='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="red"/></svg>');
+              window.remount=()=>{
+                flushSync(()=>root.render(null));
+                flushSync(()=>root.render(h(TabFavicon,{url})));
+                return Boolean(document.querySelector('#root svg'));
+              };
+              remount();
+            }""")
+            expect(page.locator('#root .tabFavicon')).to_be_visible()
+            expect(page.locator('#root svg')).to_have_count(0)
+            assert page.evaluate('remount()') is False, 'A decoded icon must be available in the first remount frame'
         finally:
             browser.close()

@@ -19,6 +19,7 @@ const dagEdgeRenderer = read("lib/runtime-bridge/dag/render/edges.ts");
 const bridge = readDesktopBridgeSource();
 const bridgeTypes = read("lib/desktop/desktop-bridge-types.ts");
 const browserControls = read("components/center-tabs/browser-controls.tsx");
+const bookmarkBar = read("components/center-tabs/bookmark-bar.tsx");
 const mainMenu = read("components/center-tabs/main-menu.tsx");
 const tabMenu = read("components/center-tabs/use-tab-menu.ts");
 const mainOverlay = read("app/menu-overlay/main-menu/page.tsx");
@@ -166,7 +167,7 @@ assert.match(dagNodeRenderer, /var\(--dag-ghost/);
 assert.match(dagEdgeRenderer, /var\(--dag-ghost/);
 
 assert.match(bridgeTypes, /theme\?:\s*ThemeId/);
-for (const caller of [browserControls, mainMenu, tabMenu]) {
+for (const caller of [browserControls, bookmarkBar, mainMenu, tabMenu]) {
   assert.match(caller, /activeThemeId\(\)/);
   assert.doesNotMatch(caller, /theme\s*===\s*["']dark["']/);
 }

@@ -12,7 +12,7 @@
   "scripts": {
     "postinstall": "node scripts/check-native-dependencies.js",
     "dev": "electron .",
-    "check:native-menu": "node scripts/check-native-context-menu.js",
+    "check:native-menu": "node scripts/check-native-context-menu.js && node --test scripts/check-bookmark-menu-cache.cjs",
     "check": "npm run check:native-menu && npm run check:webtabs && npm run check:no-browser-extensions && npm run check:webtab-zoom-bounds && npm run check:tab-transfer-store && npm run check:window-state && npm run check:window-lifecycle && npm run check:theme-chrome && npm run check:window-chrome && npm run check:browser-import && npm run check:installed-transfer-client && npm run check:worker-auth && npm run check:worker-recovery && npm run check:packaged-runtime && npm run check:updates && npm run check:windows && npm run check:agent-terminal && npm run check:terminal-resources",
     "check:webtabs": "node scripts/check-webtab-navigation.js",
     "check:no-browser-extensions": "node scripts/check-no-browser-extensions.js",

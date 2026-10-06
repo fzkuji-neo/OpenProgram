@@ -11,6 +11,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const launcher = read("../../components/center-tabs/new-tab-page.tsx");
 const browserHome = read("../../components/center-tabs/browser-home-page.tsx");
 const browserControls = read("../../components/center-tabs/browser-controls.tsx");
+const bookmarkBar = read("../../components/center-tabs/bookmark-bar.tsx");
 const browserGlyph = read("../../components/center-tabs/browser-glyph.tsx");
 const browserPrefs = read("../../lib/browser/browser-prefs.ts");
 const ntpShortcuts = read("../../lib/tabs/ntp-shortcuts.ts");
@@ -123,30 +124,30 @@ assert.match(browserControls, /item\("home", "Home", "主页", \{ disabled: !can
 assert.match(browserControls, /item\("open-external", "Open in browser", "在浏览器中打开", \{ disabled: !canOpenExternal \}\)/);
 assert.match(browserControls, /row\("home", <House size=\{14\} \/>, "Home", "主页", false, !canGoHome\)/);
 assert.match(browserControls, /row\("open-external", <ExternalLink size=\{14\} \/>, "Open in browser", "在浏览器中打开", false, !canOpenExternal\)/);
-assert.match(browserControls, /function BookmarkBar/);
-assert.match(browserControls, /bookmarkBarLayout\(tree\)/);
-assert.doesNotMatch(browserControls, /setNodes\(readBookmarkTree\(\)\.children\)/);
-assert.match(browserControls, /bookmarkOverflowFolder/);
-assert.match(browserControls, /openBuiltinTab\("bookmarks"\)/);
-assert.match(browserControls, /new ResizeObserver\(updateOverflow\)/);
-assert.match(browserControls, /items\.slice\(overflowStart\)/);
-assert.match(browserControls, /styles\.bookmarkBarMoreSlot/);
-assert.match(browserControls, /\[items\.length, tree, visible\]/);
+assert.match(bookmarkBar, /function BookmarkBar/);
+assert.match(bookmarkBar, /bookmarkBarLayout\(tree\)/);
+assert.doesNotMatch(bookmarkBar, /setNodes\(readBookmarkTree\(\)\.children\)/);
+assert.match(bookmarkBar, /bookmarkOverflowFolder/);
+assert.match(bookmarkBar, /openBuiltinTab\("bookmarks"\)/);
+assert.match(bookmarkBar, /new ResizeObserver\(updateOverflow\)/);
+assert.match(bookmarkBar, /items\.slice\(overflowStart\)/);
+assert.match(bookmarkBar, /styles\.bookmarkBarMoreSlot/);
+assert.match(bookmarkBar, /\[items\.length, tree, visible\]/);
 assert.match(webTabPane, /const menuOwnerId = useId\(\)/);
 assert.match(browserControls, /browserActionPrefix\(ownerId\)/);
-assert.match(browserControls, /bookmarkFolderActionPrefix\(ownerId, folder\.id\)/);
+assert.match(bookmarkBar, /bookmarkFolderActionPrefix\(ownerId, folder\.id\)/);
 assert.match(
-  browserControls,
+  bookmarkBar,
   /iconUrl:\s*bookmarkFaviconSources\(node\)\.url/,
   "desktop bookmark-folder payloads may preserve an imported website favicon",
 );
-assert.doesNotMatch(browserControls, /faviconUrl\(node\.url\)/);
-assert.match(browserControls, /icon:\s*"folder"/);
+assert.doesNotMatch(bookmarkBar, /faviconUrl\(node\.url\)/);
+assert.match(bookmarkBar, /icon:\s*"folder"/);
 assert.match(
-  browserControls,
+  bookmarkBar,
   /onMouseEnter=\{\(event\) => \{[\s\S]*?mainMenu\.cancelClose\?\.\(\);[\s\S]*?openFolderMenu\(event\.currentTarget\);[\s\S]*?\}\}/,
 );
-assert.match(browserControls, /cascade:\s*true/);
+assert.match(bookmarkBar, /cascade:\s*true/);
 const browserMenuOwners = [...webTabPane.matchAll(/<BrowserMenu[\s\S]*?ownerId=\{([^}]+)\}/g)]
   .map((match) => match[1]);
 const bookmarkBarOwners = [...webTabPane.matchAll(/<BookmarkBar\s+ownerId=\{([^}]+)\}/g)]
@@ -225,9 +226,9 @@ assert.equal(
   3,
   "desktop bookmark favicons must render in nested triggers, nested rows, and flat rows",
 );
-const bookmarkMenuNodes = browserControls.slice(
-  browserControls.indexOf("function BookmarkMenuNodes"),
-  browserControls.indexOf("function BookmarkFavicon"),
+const bookmarkMenuNodes = bookmarkBar.slice(
+  bookmarkBar.indexOf("function BookmarkMenuNodes"),
+  bookmarkBar.indexOf("function BookmarkFavicon"),
 );
 assert.match(
   bookmarkMenuNodes,

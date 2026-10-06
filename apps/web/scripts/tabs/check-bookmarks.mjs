@@ -67,6 +67,7 @@ const centerTabsCss = normalizedText(
 );
 const mainMenu = normalizedText(mainMenuPath);
 const browserControls = normalizedText(browserControlsPath);
+const bookmarkBar = normalizedText(new URL("../../components/center-tabs/bookmark-bar.tsx", import.meta.url));
 const contextMenuOverlay = normalizedText(contextMenuOverlayPath);
 const desktopBridge = readDesktopBridgeSource();
 const desktopBridgeTypes = normalizedText(desktopBridgeTypesPath);
@@ -103,15 +104,15 @@ assert.match(browserHome, /importBookmarkTree/, "browser import must write the s
 // flattening every descendant into a long path label. Both the web fallback
 // and desktop top-layer overlay use a bounded 280px panel with truncated
 // labels and real cascading submenus.
-assert.doesNotMatch(browserControls, /bookmarkMenuEntries/,
+assert.doesNotMatch(bookmarkBar, /bookmarkMenuEntries/,
   "bookmark-bar menus must not flatten nested folders into path strings");
-assert.match(browserControls, /children:\s*node\.children\.length[\s\S]*?folderItems\(node, ownerId, rootFolderId\)/,
+assert.match(bookmarkBar, /children:\s*node\.children\.length[\s\S]*?folderItems\(node, ownerId, rootFolderId\)/,
   "desktop bookmark folder items must keep recursive children");
-assert.match(browserControls, /<DropdownMenuSub key=\{node\.id\}>/,
+assert.match(bookmarkBar, /<DropdownMenuSub key=\{node\.id\}>/,
   "web bookmark folder menus must render nested submenus");
-assert.match(browserControls, /width:\s*280/,
+assert.match(bookmarkBar, /width:\s*280/,
   "desktop bookmark folder menus must request a finite width");
-assert.match(browserControls, /w-\[280px\][^"`]*max-w-\[calc\(100vw-16px\)\]/,
+assert.match(bookmarkBar, /w-\[280px\][^"`]*max-w-\[calc\(100vw-16px\)\]/,
   "web bookmark folder menus must stay inside a bounded panel");
 assert.match(contextMenuOverlay, /children\?: ContextMenuItem\[\]/,
   "desktop context-menu payload must support nested folder items");
@@ -121,15 +122,15 @@ assert.match(contextMenuOverlay, /min-w-0 flex-1 truncate/,
   "desktop bookmark titles must truncate instead of widening the menu");
 assert.match(contextMenuOverlay, /data-\[highlighted\]:bg-bg-hover/,
   "desktop nested bookmark rows need a visible keyboard highlight");
-assert.match(browserControls, /data-\[highlighted\]:bg-bg-hover/,
+assert.match(bookmarkBar, /data-\[highlighted\]:bg-bg-hover/,
   "web nested bookmark rows need a visible keyboard highlight");
-assert.match(browserControls, /onMouseLeave=\{\(\) => mainMenu\.scheduleClose\?\.\(120\)\}/,
+assert.match(bookmarkBar, /onMouseLeave=\{\(\) => mainMenu\.scheduleClose\?\.\(120\)\}/,
   "desktop bookmark folder triggers must schedule close after pointer leave");
-assert.match(browserControls, /mainMenu\.cancelClose\?\.\(\);[\s\S]*?openFolderMenu\(event\.currentTarget\)/,
+assert.match(bookmarkBar, /mainMenu\.cancelClose\?\.\(\);[\s\S]*?openFolderMenu\(event\.currentTarget\)/,
   "desktop bookmark folder triggers must cancel a pending close before opening");
-assert.match(browserControls, /hidden=\{index >= overflowStart\}/,
+assert.match(bookmarkBar, /hidden=\{index >= overflowStart\}/,
   "bookmark-bar items moved into the overflow menu must not remain partially visible");
-assert.match(browserControls, /children\[index\]\.offsetWidth/,
+assert.match(bookmarkBar, /children\[index\]\.offsetWidth/,
   "bookmark-bar overflow measurement must retain the natural width of hidden items");
 assert.match(centerTabsCss, /\.bookmarkBarOverflowed\s*\{[^}]*position:\s*absolute;[^}]*visibility:\s*hidden;[^}]*pointer-events:\s*none;/s,
   "overflowed bookmark buttons must stay measurable without being clipped into view");
