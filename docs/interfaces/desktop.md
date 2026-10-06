@@ -33,6 +33,8 @@ The Browser menu owns browser-specific actions: new browser tab, Bookmarks, Hist
 
 Web tabs display the site favicon in both ordinary and split tabs. While an icon loads, or if it is unavailable, invalid, or fully transparent, the desktop App shows the standard browser icon instead. Reopening a retained page restores its current icon without reloading the page.
 
+If a webpage asks to confirm leaving during Reload, Back, Forward, or navigation, the App displays a confirmation. **Stay on page** is the default and cancellation action. Choose **Leave page** to continue the pending operation; unsaved changes may be lost.
+
 ## Page navigation, popups, and right-click actions
 
 The webpage decides whether an action navigates its current page or requests a new browsing context. Ordinary links, form submissions, and same-page navigation stay in the current Browser tab. Links with `target="_blank"` and scripts that call `window.open()` create a distinct Browser tab and activate it immediately.

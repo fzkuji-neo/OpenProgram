@@ -317,6 +317,30 @@ function createWebViews({
         sendWebTabPopup(record, popupUrl);
         return { action: "deny" };
       });
+      wc.on("will-prevent-unload", (event) => {
+        const owner = ownerOf(record);
+        if (!owner || recordFor(owner, id) !== record || wc.isDestroyed() || record.confirmingUnload) return;
+        record.confirmingUnload = true;
+        try {
+          const choice = dialog.showMessageBoxSync(owner.win, {
+            type: "question",
+            title: "Leave this page?",
+            message: "Changes you made may not be saved.",
+            buttons: ["Stay on page", "Leave page"],
+            defaultId: 0,
+            cancelId: 0,
+            noLink: true,
+          });
+          // For this Electron event, preventDefault permits the blocked unload.
+          if (choice === 1 && !wc.isDestroyed() && ownerOf(record) === owner && recordFor(owner, id) === record) {
+            event.preventDefault();
+          }
+        } catch {
+          // A failed confirmation must never discard the page's unsaved work.
+        } finally {
+          record.confirmingUnload = false;
+        }
+      });
       wc.on("context-menu", (_event, params) => {
         showWebTabContextMenu(record, params);
       });
