@@ -6,7 +6,7 @@ a leaf: it shares the runtime-block placeholder/finalize plumbing with an
 LLM-issued tool call, but pulls everything it needs through in-function
 local imports, so it depends only on the stdlib + ``types`` here. The
 package ``__init__`` re-exports ``dispatch_forced_tool_call`` so
-``from openprogram.agent.dispatcher import dispatch_forced_tool_call``
+``from openprogram.agent.turn_runtime import dispatch_forced_tool_call``
 (webui/routes/chat.py) resolves unchanged.
 
 See docs/design/runtime/dispatcher-split.md.
@@ -17,7 +17,7 @@ import logging
 from typing import Optional
 import threading
 
-from openprogram.agent.dispatcher.types import EventCallback, _noop
+from openprogram.agent.turn_runtime.types import EventCallback, _noop
 
 _log = logging.getLogger(__name__)
 

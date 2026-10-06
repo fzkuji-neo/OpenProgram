@@ -11,7 +11,7 @@ heavy (SessionDB, SessionNodeWriter, build_exec_dag, the subprocess runner)
 is pulled in via in-function local imports, so this stays a leaf.
 
 The package ``__init__`` re-exports ``_wrap_agentic_runtime_block`` so
-``from openprogram.agent.dispatcher import _wrap_agentic_runtime_block``
+``from openprogram.agent.turn_runtime import _wrap_agentic_runtime_block``
 (process_runner.py) and the in-package callers resolve unchanged. The
 phase-3 create_runtime + GraphStore wiring that currently lives inside
 process_user_turn will join this module in a later step.
@@ -25,7 +25,7 @@ import logging
 import os
 import time
 
-from openprogram.agent.dispatcher.types import (
+from openprogram.agent.turn_runtime.types import (
     EventCallback,
     TurnRequest,
     _subprocess_terminal_status,
@@ -213,7 +213,7 @@ def _wrap_agentic_runtime_block(
                 owner_attempt_id = owner.current_attempt_id if owner else None
                 owner_generation = owner.owner_lease.get("generation") if owner else None
 
-                from openprogram.agent import dispatcher
+                from openprogram.agent import turn_runtime as dispatcher
                 profile = (req.profile_snapshot if req.profile_snapshot is not None
                            else dispatcher._load_agent_profile(req.agent_id))
                 from openprogram.providers.utils.errors import LLMError

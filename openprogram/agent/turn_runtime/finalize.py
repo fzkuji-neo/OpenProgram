@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from openprogram.agent.dispatcher.titles import (
+from openprogram.agent.turn_runtime.titles import (
     _maybe_auto_title,
     maybe_auto_name_branch,
 )

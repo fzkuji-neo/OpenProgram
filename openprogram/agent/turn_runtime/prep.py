@@ -17,12 +17,12 @@ import time
 from typing import Any, Optional, TYPE_CHECKING
 
 from openprogram.events import emit_safe
-from openprogram.agent.dispatcher.types import _InheritParent
-from openprogram.agent.dispatcher.titles import _default_title
+from openprogram.agent.turn_runtime.types import _InheritParent
+from openprogram.agent.turn_runtime.titles import _default_title
 
 if TYPE_CHECKING:
-    from openprogram.agent.dispatcher.types import EventCallback, TurnRequest
-    from openprogram.agent.dispatcher.turn_writer import TurnWriter
+    from openprogram.agent.turn_runtime.types import EventCallback, TurnRequest
+    from openprogram.agent.turn_runtime.turn_writer import TurnWriter
 
 _log = logging.getLogger(__name__)
 

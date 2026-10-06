@@ -11,7 +11,10 @@ from openprogram.context import Context
 _UNSET = object()
 
 
-class Agent:
+from .turn_api import TurnOperations
+
+
+class Agent(TurnOperations):
     """Configure model calls and automatically scope ordinary subclass methods.
 
     Context stores explicit named content. Each independent invocation owns a
@@ -185,7 +188,7 @@ class Agent:
             if method_name not in declarations and hasattr(cls, method_name):
                 declarations[method_name] = inspect.getattr_static(cls, method_name)
         for name, descriptor in declarations.items():
-            if name.startswith("__"):
+            if name.startswith("__") or name in TurnOperations.__dict__:
                 continue
             kind = type(descriptor) if isinstance(descriptor, (staticmethod, classmethod)) else None
             fn = descriptor.__func__ if kind else descriptor

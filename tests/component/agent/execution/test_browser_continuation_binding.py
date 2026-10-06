@@ -21,7 +21,11 @@ def test_public_continuation_binds_exact_turn_and_releases_on_error(monkeypatch,
         if save_fails:
             raise RuntimeError("discovery save failed")
 
-    monkeypatch.setattr("openprogram.store.SessionNodeWriter", lambda *_: SimpleNamespace(update=save))
+    from openprogram.store import SessionNodeWriter
+    class Writer(SessionNodeWriter):
+        def update(self, *_a, **_k):
+            return save(*_a, **_k)
+    monkeypatch.setattr("openprogram.store.SessionNodeWriter", Writer)
     monkeypatch.setattr("openprogram.providers.registry.create_runtime", lambda: None)
     before = (_current_turn_id.get(), get_current_session_id())
 

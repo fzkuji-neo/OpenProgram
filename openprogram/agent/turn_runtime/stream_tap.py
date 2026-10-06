@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Callable
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
-    from openprogram.agent.dispatcher.types import EventCallback, TurnRequest
+    from openprogram.agent.turn_runtime.types import EventCallback, TurnRequest
 
 _log = logging.getLogger(__name__)
 

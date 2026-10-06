@@ -18,16 +18,16 @@ import logging
 import time
 from typing import Optional, TYPE_CHECKING
 
-from openprogram.agent.dispatcher.types import TurnResult
-from openprogram.agent.dispatcher.finalize import finalize_error_turn
+from openprogram.agent.turn_runtime.types import TurnResult
+from openprogram.agent.turn_runtime.finalize import finalize_error_turn
 from openprogram.agent.internals._turn_lifecycle import (
     fold_error_into_placeholder as _fold_error_into_placeholder,
     write_standalone_error_node as _write_standalone_error_node,
 )
 
 if TYPE_CHECKING:
-    from openprogram.agent.dispatcher.types import EventCallback, TurnRequest
-    from openprogram.agent.dispatcher.turn_writer import TurnWriter
+    from openprogram.agent.turn_runtime.types import EventCallback, TurnRequest
+    from openprogram.agent.turn_runtime.turn_writer import TurnWriter
 
 _log = logging.getLogger(__name__)
 

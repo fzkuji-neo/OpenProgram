@@ -15,6 +15,20 @@ from .call_state import (
     _current_cancel, _call_id, _update_function_call_exit, default_expose,
 )
 
+class _ToolCancellation:
+    """A tool deadline stops its own work while observing parent cancellation."""
+    def __init__(self, parent):
+        import threading
+        self.parent = parent
+        self.local = threading.Event()
+
+    def set(self):
+        self.local.set()
+
+    def is_set(self):
+        return self.local.is_set() or bool(self.parent is not None and self.parent.is_set())
+
+
 @dataclass
 class MethodOptions:
     expose: str | None = None
@@ -166,6 +180,8 @@ def register_method(self) -> None:
         # semantics: memoize on (name, args); hard-kill after
         # ``timeout`` seconds with an is_error result.
         kwargs = dict(args or {})
+        if exec_timeout is not None:
+            cancel = _ToolCancellation(cancel)
         cancel_token = (
             _current_cancel.set(cancel) if cancel is not None else None
         )

@@ -7,7 +7,7 @@ depend only on the stdlib, so they live in a leaf module
 that everything else (and external callers) can import without pulling in
 the heavy agent-loop / provider chain. ``__init__`` re-exports every name
 here, so ``dispatcher.TurnRequest`` and
-``from openprogram.agent.dispatcher import TurnRequest`` resolve unchanged.
+``from openprogram.agent.turn_runtime import TurnRequest`` resolve unchanged.
 
 See docs/design/runtime/dispatcher-split.md.
 """

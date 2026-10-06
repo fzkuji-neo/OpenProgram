@@ -76,3 +76,28 @@ class TextAgent(Agent):
 ## 方法功能
 
 Agent 方法通过 `method_options` 承担输入元数据、工具登记、权限与持久步骤。[API 参考](../../../reference/api/agent.zh.md) 说明 Context、方法选项和方法配置。各字段见 [函数元数据](function-metadata.zh.md)。
+
+## 持续会话
+
+`Agent.run_turn()` 执行持久化会话轮次。`ChatAgent` 是 App、Web、TUI 和渠道入口使用的聊天子类，两者共用历史、权限、工具、流式事件、压缩和持久化运行时。
+
+```python
+from openprogram import Agent, Context, TurnRequest
+from openprogram.agent.session_db import default_db
+
+context = Context.for_session(default_db(), "example-conversation",
+                              blocks={"reference": "用户提供的参考内容"})
+worker = Agent(context=context)
+result = worker.run_turn(
+    TurnRequest(session_id="example-conversation", user_text="总结参考内容",
+                agent_id="main", source="python"),
+    on_event=lambda event: print(event["type"]),
+)
+print(result.final_text)
+```
+
+后续轮次使用同一个 session ID。`Context.for_session` 选择存储，不创建模型客户端。可选的 `head_id` 指定分支前驱；`Context(history_filter=False)` 排除历史图内容，保留当前输入。具名内容和 provider 以用户内容参与请求，不改变系统指令或工具权限。
+
+`arun_turn()` 和 `aresume_turn()` 是异步入口。事件回调在执行线程运行，与 asyncio 消费者通信时使用线程安全的传递方式。取消等待任务会通知执行轮次，并等待协作式清理；同步调用可通过 `cancel_event` 传入 `threading.Event`。
+
+`resume_turn(continuation)` 使用已有断点和冻结请求，不重复追加用户消息，也不重新应用实例中改变的设置。持久化暂停、执行中追加输入和恢复准入仍由现有执行驱动及控制服务负责，不创建第二套任务管理。普通函数不记录节点，嵌套 Agent 保持独立 DAG，工具超时不取消父聊天。

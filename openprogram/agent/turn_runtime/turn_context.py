@@ -25,7 +25,7 @@ from openprogram.agent.run_control import (
 )
 
 if TYPE_CHECKING:
-    from openprogram.agent.dispatcher.types import TurnRequest
+    from openprogram.agent.turn_runtime.types import TurnRequest
 
 _log = logging.getLogger(__name__)
 
@@ -207,16 +207,21 @@ class TurnBindings:
         # _store AND _current_turn_id, so it silently no-op'd: no
         # file_backups/, hence no per-turn file list, no diff, no undo.
         # The store needs a session, not a provider — so it binds regardless.
-        self._store_token = _store_var.set(_GraphStore(db, req.session_id))
         from openprogram.context import Context
+        ambient = Context.current()
+        writer = (ambient.store if ambient is not None and ambient.store is not None
+                  else _GraphStore(db, req.session_id))
+        self._store_token = _store_var.set(writer)
         from openprogram.agentic_programming.call_state import _call_id
         self._call_id_token = _call_id.set(assistant_msg_id)
-        self._context_binding = Context(call_id=assistant_msg_id).bind()
+        active = (ambient if ambient is not None else Context()).derive(
+            store=writer, call_id=assistant_msg_id)
+        self._context_binding = active.bind()
         self._context_binding.__enter__()
         model = None
         try:
             from openprogram.providers.registry import create_runtime as _create_rt
-            from openprogram.agent import dispatcher
+            from openprogram.agent import turn_runtime as dispatcher
             from openprogram.agent.session_model import (
                 ensure_session_chat_model, read_session_chat_model, override_string,
             )
