@@ -325,6 +325,7 @@ export interface DesktopContextMenuItem {
   /** Checkbox selections may update without dismissing the HTML menu. */
   keepOpen?: boolean;
   iconUrl?: string;
+  iconFallbackUrl?: string;
   icon?: "folder";
   disabled?: boolean;
   checked?: boolean;
