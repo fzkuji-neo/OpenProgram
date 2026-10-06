@@ -139,6 +139,7 @@ runtime_scope = execution_scope
 
 
 _agent_owner = ContextVar("dag_agent_owner", default=None)
+_parent_agent_writer = ContextVar("parent_agent_writer", default=None)
 _record_agent_method = ContextVar("record_agent_method", default=True)
 
 
@@ -185,6 +186,7 @@ def agent_scope(owner):
                 stack.callback(_checkpoint_owner.reset, token)
             writer = SessionNodeWriter(parent_writer.store, child_id)
             for var, value in (
+                (_parent_agent_writer, parent_writer),
                 (_store, writer), (state._call_id, None),
                 (state._forced_node_id, None), (state._forced_predecessor, None),
                 (_current_tool_call_id, None), (_current_tool_call_occurrence_id, None),
@@ -228,3 +230,15 @@ def agent_request_scope():
     else:
         with agent_scope(object()) as link:
             yield link
+
+
+def context_for_agent_graph(context):
+    """Carry supplied parent content without re-importing its graph identity."""
+    from openprogram.store import _store
+    parent = _parent_agent_writer.get()
+    source = context.store
+    if (parent is not None and source is not None
+            and source.store is parent.store and source.session_id == parent.session_id):
+        return context.derive(store=_store.get(), head_id=None, call_id=None,
+                              excluded_call_ids=())
+    return context
