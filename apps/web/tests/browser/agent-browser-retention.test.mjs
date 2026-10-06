@@ -316,3 +316,36 @@ test("restoration does not activate or reload a Page whose public access was rev
     assert.equal(sent.find(message=>message.req_id==='restore-scoped')?.reason_code,'page_not_accessible');
   } finally { globalThis.fetch=originalFetch; resetBrowserResources(); }
 });
+
+test("human tab close keeps its native Page alive until explicit resource close", async () => {
+  const { revealExistingWebTab, topLevelTabs } = await import("../../lib/browser/web-page-management.ts");
+  const sent = [], destroyed = [];
+  setSocket({ readyState: WebSocket.OPEN, send: payload => sent.push(JSON.parse(payload)) });
+  const bridge = window.openprogramDesktop;
+  const previousDestroy = bridge.webTab.destroyConfirmed;
+  bridge.webTab.destroyConfirmed = async id => { destroyed.push(id); return true; };
+  useCenterTabs.setState({ tabs: [], activeId: null, groups: [], splitWebTabId: null });
+  const store = useCenterTabs.getState();
+  store.openSessionTab("retained-owner", "Conversation");
+  const id = store.ensureExclusiveWebTab("https://retained-native.test");
+  store.markAgentWebTab(id, "retained-owner");
+  ensureWebView(bridge, id, "https://retained-native.test");
+  revealExistingWebTab(id, useCenterTabs.getState());
+  store.updateWebTab(id, { url: "https://retained-native.test/user-navigation" });
+  store.closeTab(id, { retainSessionResources: true });
+  const hidden = useCenterTabs.getState();
+  destroyStaleWebViews(bridge, hidden.tabs.map(tab => tab.id));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.ok(hidden.tabs.some(tab => tab.id === id));
+  assert.ok(!topLevelTabs(hidden.tabs, hidden.groups).some(tab => tab.id === id));
+  assert.ok(!destroyed.includes(id));
+  assert.deepEqual(sent.filter(message => message.tab_id === id && message.action === "webtab_closed"), []);
+  revealExistingWebTab(id, useCenterTabs.getState());
+  assert.equal(useCenterTabs.getState().tabs.find(tab => tab.id === id).url, "https://retained-native.test/user-navigation");
+  store.closeTab(id);
+  destroyStaleWebViews(bridge, useCenterTabs.getState().tabs.map(tab => tab.id));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(destroyed.filter(tabId => tabId === id).length, 1);
+  assert.equal(sent.filter(message => message.tab_id === id && message.action === "webtab_closed").length, 1);
+  bridge.webTab.destroyConfirmed = previousDestroy;
+});

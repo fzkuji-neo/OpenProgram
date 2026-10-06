@@ -53,7 +53,7 @@ export interface CenterTab {
   agentSessionId?: string;
   agentBranchId?: string;
   agentExecutionId?: string;
-  /** Explicitly keep an agent page in the top strip. */
+  /** Explicit top-strip visibility: false retains a session Page only in Resources. */
   webPinned?: boolean;
   /** Web tabs only — favicon URL reported by the desktop shell; the
    *  strip falls back to the Chrome icon when absent or unloadable. */
@@ -195,6 +195,6 @@ export interface CenterTabsState {
   openNewTabPage: () => void;
   /** Close a tab; closing the active one activates the right
    *  visible neighbor, else the left. The final tab leaves an empty view. */
-  closeTab: (id: string) => void;
+  closeTab: (id: string, options?: { retainSessionResources?: boolean }) => void;
   renameSessionTab: (sessionId: string, title: string) => void;
 }

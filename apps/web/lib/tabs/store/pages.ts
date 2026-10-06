@@ -5,7 +5,7 @@ import { builtinTabId, fileTabId, nextBrowserHomeId, nextNtpId } from "@/lib/tab
 import { replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence";
 import { openReviewTabLayout } from "@/lib/tabs/review-tab-layout";
 import type { StoreApi } from "zustand";
-import { topLevelTabs } from "../../browser/web-page-management";
+import { topLevelTabs, webTabSessionIds } from "../../browser/web-page-management";
 import { mapTabPages } from "../navigation/page-history";
 import { sessionHistory } from "../navigation/session-history";
 import { commitCenterTabsState, focusOrCreate, independentTab } from "./core";
@@ -150,7 +150,7 @@ export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: St
         });
       }),
 
-    closeTab: (id) =>
+    closeTab: (id, options) =>
       set((s) => {
         const idx = s.tabs.findIndex((t) => t.id === id);
         if (idx < 0) return {};
@@ -160,9 +160,12 @@ export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: St
           for (const entry of sessionHistory(page).entries)
             if (entry.sessionId) closedSessionAckTombstones.add(entry.sessionId);
         }
-        const tabs = s.tabs.filter((t) => t.id !== id);
+        const retain = options?.retainSessionResources && webTabSessionIds(closingTab).length > 0;
+        const tabs = retain
+          ? s.tabs.map(tab => tab.id === id ? { ...tab, webPinned: false } : tab)
+          : s.tabs.filter(tab => tab.id !== id);
         const groups = normalizeCenterTabLayout({
-          tabIds: tabs.map((tab) => tab.id), groups: s.groups,
+          tabIds: tabs.filter(tab => tab.id !== id).map(tab => tab.id), groups: s.groups,
         }).groups;
         const visibleTabs = topLevelTabs(tabs, groups);
         let activeId = s.activeId;

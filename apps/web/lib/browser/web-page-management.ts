@@ -1,10 +1,12 @@
 import type { CenterTab } from "../tabs/center-tabs-store";
 import type { CenterTabGroup } from "../tabs/center-tab-groups";
+import { listedBrowserResources } from "../chat/session-resources";
 
 /** Explicit split layouts and user-revealed pages remain in the strip; other session-owned standalone pages live in their session resource panel. */
 export function topLevelTabs(tabs: readonly CenterTab[], groups: readonly CenterTabGroup[]) {
   const grouped = new Set(groups.flatMap(group => group.memberIds));
-  return tabs.filter(tab => tab.kind !== "web" || !tab.agentOpened || !tab.agentSessionId || tab.webPinned || grouped.has(tab.id));
+  return tabs.filter(tab => tab.kind !== "web" || grouped.has(tab.id) || tab.webPinned === true
+    || (tab.webPinned !== false && (!tab.agentOpened || !tab.agentSessionId)));
 }
 
 type CenterTabsRevealStore = {
@@ -40,6 +42,20 @@ export function groupWebPages(tabs: readonly CenterTab[]) {
   return [...groups.values()];
 }
 
+/** Session association is independent of who originally opened the Page. */
+export function webTabSessionIds(tab: CenterTab): string[] {
+  if (tab.kind !== "web") return [];
+  const windowId = typeof window === "undefined" ? undefined : window.openprogramDesktop?.windowId;
+  return [...new Set([
+    ...(tab.agentSessionId ? [tab.agentSessionId] : []),
+    ...listedBrowserResources().flatMap(row => {
+      const sessionId = row.conversationSessionId || row.scopeSessionId || row.sessionId;
+      const sameWindow = !windowId || !row.windowId || row.windowId === windowId;
+      return sameWindow && row.tabId === tab.id && row.status !== "closed" && sessionId ? [sessionId] : [];
+    }),
+  ])];
+}
+
 /** Private retained Pages are accessible only to their recorded conversation.
  * Explicit top-level tabs are shared; exclusive operation admission stays server-owned. */
 export function agentCanAccessWebTab(
@@ -49,5 +65,5 @@ export function agentCanAccessWebTab(
 ): boolean {
   const tab = state.tabs.find(item => item.id === tabId && item.kind === "web");
   return !!tab && (topLevelTabs(state.tabs, state.groups).some(item => item.id === tabId)
-    || (!!sessionId && tab.agentSessionId === sessionId));
+    || (!!sessionId && webTabSessionIds(tab).includes(sessionId)));
 }
