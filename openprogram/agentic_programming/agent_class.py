@@ -65,14 +65,15 @@ class Agent:
 
 
     def _effective_context(self, override=_UNSET):
+        from .runtime_scope import context_for_agent_graph
         ambient = Context.current()
         result = ambient.derive() if ambient is not None else Context()
         if self.context is not None and override is not None:
-            result = result.merge(self.context)
+            result = result.merge(context_for_agent_graph(self.context))
         if override is not _UNSET and override is not None:
             if not isinstance(override, Context):
                 raise TypeError("Agent context must be a Context or None.")
-            result = result.merge(override)
+            result = result.merge(context_for_agent_graph(override))
         return result.derive(call_id=ambient.call_id if ambient is not None else None,
                              excluded_call_ids=ambient.excluded_call_ids if ambient is not None else ())
 

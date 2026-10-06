@@ -204,3 +204,37 @@ def test_child_choice_result_is_recorded_in_parent(chat):
         assert link.output == 'A'
     finally:
         runtime.close()
+
+
+@pytest.mark.parametrize('entry', ['constructor', 'override', 'plain'])
+def test_explicit_parent_context_preserves_content_not_graph(chat, entry):
+    from openprogram import Context, Runtime
+    from openprogram.agentic_programming import agent
+    observed = []
+    def provider(content, **kwargs):
+        ctx = Context.current()
+        observed.append((ctx.resolve_blocks(), _store.get().session_id,
+                         set(_store.get().load().nodes)))
+        return 'done'
+    class Parent(Agent):
+        def run(self):
+            current = Context.current()
+            parent_id = _store.get().session_id
+            if entry == 'constructor':
+                result = Agent(context=current, runtime=runtime, tools=[])('child')
+            elif entry == 'override':
+                result = Agent(runtime=runtime, tools=[])('child', context=current)
+            else:
+                result = agent('child', context=current, runtime=runtime, tools=[])
+            return parent_id, result
+    runtime = Runtime(call=provider)
+    try:
+        with Context({'facts': 'payload'}, history_filter=False).bind():
+            parent_id, result = Parent().run()
+        assert result == 'done'
+        blocks, child_id, ids = observed[0]
+        assert blocks == {'facts': 'payload'}
+        assert child_id != parent_id
+        assert 'request' not in ids
+    finally:
+        runtime.close()

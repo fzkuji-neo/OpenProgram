@@ -131,6 +131,8 @@ def _entry_context(instructions, context):
         if context is not None:
             if not isinstance(context, Context):
                 raise TypeError("Agent context must be a Context or None.")
+            from .runtime_scope import context_for_agent_graph
+            context = context_for_agent_graph(context)
             ambient = Context.current()
             stack.enter_context((ambient.merge(context) if ambient is not None else context.derive()).bind())
         if instructions is not None:
