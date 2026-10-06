@@ -73,6 +73,8 @@ Thinking, partial replies and tool steps are saved while a response is running a
 
 Local shell commands stop their process group before reporting cancellation. Resumed conversations persist the original assistant as cancelled and return the session to idle, so reloading preserves the stopped state.
 
+Active replies use three distinct indicators: thinking changes the size and thickness of two counter-rotating rings; function calls continuously rotate open contours that change between circle, triangle and square; text generation uses counter-rotating arcs with changing lengths. The indicator follows the current phase and stops when the reply ends or waits for approval. Colors follow the theme, and reduced-motion settings show static shapes.
+
 ### Collapsible thinking
 
 The model's thinking process renders as a collapsible block, collapsed by default. While streaming, only the latest line shows; click to expand the full content.
