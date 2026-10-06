@@ -1,55 +1,73 @@
-/* "思考中" 轨道环 spinner（.thinking-spinner）。
-   对应组件：components/chat/messages/assistant-bubble.tsx、message-list.tsx */
-
-/* ===== thinking-spinner — "a bubble orbiting inside a fixed ring" =====
- * Replaces the old orange pulsing dot on the "thinking…" line. The
- * outer ring is a FIXED blue→purple gradient — it does NOT breathe or
- * change size (calm and tidy). A small solid bubble orbits along the
- * inside of the ring to signal work in progress. Echoes the logo. */
-.thinking-spinner {
-  display: inline-block;
-  position: relative;
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  vertical-align: middle;
+/* Shared 18px activity mark. SVG attributes also provide static fallbacks. */
+.activity-indicator { display:inline-flex; width:18px; height:18px; flex:none; vertical-align:middle; }
+.activity-indicator > svg { display:block; width:100%; height:100%; overflow:visible; }
+.message-actions-footer > .activity-indicator { margin-right:6px; }
+.activity-color-start { stop-color:var(--accent-blue); }
+.activity-color-end { stop-color:var(--accent-purple); }
+.activity-orbit, .activity-tool-orbit { transform-origin:9px 9px; }
+.activity-orbit-outer { animation:activityOrbit 3.6s linear infinite; }
+.activity-orbit-inner { animation:activityOrbit 3.6s linear infinite reverse; }
+.activity-thinking .activity-outer { animation:activityThinkOuter 3.6s ease-in-out infinite; }
+.activity-thinking .activity-inner { animation:activityThinkInner 3.6s ease-in-out infinite; }
+.activity-thinking .activity-outer.activity-secondary { animation-name:activityThinkOuterSecondary; }
+.activity-thinking .activity-inner.activity-secondary { animation-name:activityThinkInnerSecondary; }
+.activity-tool-orbit { animation:activityOrbit 2.4s linear infinite; }
+.activity-outline { animation:activityMorph 3.6s cubic-bezier(.4,0,.6,1) infinite; }
+.activity-generating .activity-orbit-outer { animation-duration:2.4s; }
+.activity-generating .activity-outer { stroke-width:1.35px; animation:activityGenerateOuter 1.8s ease-in-out infinite; }
+.activity-generating .activity-inner { stroke-width:1.25px; animation:activityGenerateInner 1.8s ease-in-out infinite; }
+.activity-generating .activity-outer.activity-secondary { stroke-width:1.05px; opacity:.35; animation-name:activityGenerateOuterSecondary; }
+.activity-generating .activity-inner.activity-secondary { stroke-width:1px; opacity:.5; animation-name:activityGenerateInnerSecondary; }
+@keyframes activityOrbit { to { transform:rotate(360deg); } }
+@keyframes activityThinkOuter {
+  0%,100% { r:6.9px; stroke-width:1.25px; stroke-dasharray:165 195; }
+  25% { r:7.95px; stroke-width:1.75px; stroke-dasharray:215 145; }
+  50% { r:6.9px; stroke-width:1.25px; stroke-dasharray:165 195; }
+  75% { r:5.85px; stroke-width:.75px; stroke-dasharray:115 245; }
 }
-/* fixed gradient ring */
-.thinking-spinner::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(from 180deg, var(--accent-blue), var(--accent-purple), var(--accent-blue));
-  /* 外环环宽 ~2px，和内圈 border(2px) 一样粗：内壁半径 6.8px，
-     环从 ~7.2 到 9(box边) ≈ 2px。 */
-  -webkit-mask: radial-gradient(circle, transparent 6.8px, #000 7.2px);
-  mask: radial-gradient(circle, transparent 6.8px, #000 7.2px);
+@keyframes activityThinkInner {
+  0%,50%,100% { r:2.85px; stroke-width:1.15px; stroke-dasharray:125 235; }
+  25% { r:1.9px; stroke-width:.65px; stroke-dasharray:100 260; }
+  75% { r:3.8px; stroke-width:1.65px; stroke-dasharray:150 210; }
 }
-/* the orbiting bubble: a small solid disc pinned to the top of the
-   spinner, rotated about the spinner's center so it travels around the
-   inside of the ring. transform-origin is the geometric center of the
-   18x18 box relative to the 5x5 bubble that sits at the top. */
-.thinking-spinner::after {
-  content: "";
-  position: absolute;
-  /* 小圈放大到 8px（半径 4）；外环内壁 ~7.4px，轨道半径设 2px →
-     小圈外缘到圆心 6px < 7.4px，留约 1.4px 空隙、不重叠。
-     轨道半径 2 → 小圈中心 y=9-2=7 → top = 7-4 = 3px。 */
-  top: 3px;
-  left: 50%;
-  width: 8px;               /* 放大：6 -> 8 */
-  height: 8px;
-  margin-left: -4px;
-  border-radius: 50%;
-  background: transparent;  /* hollow */
-  border: 2px solid var(--accent-purple);
-  box-sizing: border-box;
-  /* 绕 box 中心(9,9) 转：相对小圈自身左上角(5,3) → (9-5, 9-3) = (4, 6) */
-  transform-origin: 4px 6px;
-  animation: thinkingOrbit 1.15s linear infinite;
+@keyframes activityThinkOuterSecondary {
+  0%,50%,100% { r:6.9px; stroke-width:1.15px; stroke-dasharray:64 296; stroke-dashoffset:-203; }
+  25% { r:7.95px; stroke-width:1.61px; stroke-dasharray:46 314; stroke-dashoffset:-253; }
+  75% { r:5.85px; stroke-width:.69px; stroke-dasharray:82 278; stroke-dashoffset:-153; }
 }
-@keyframes thinkingOrbit {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+@keyframes activityThinkInnerSecondary {
+  0%,50%,100% { r:2.85px; stroke-width:1.05px; stroke-dasharray:78 282; }
+  25% { r:1.9px; stroke-width:.59px; stroke-dasharray:100 260; }
+  75% { r:3.8px; stroke-width:1.5px; stroke-dasharray:56 304; }
+}
+@keyframes activityMorph {
+  0%,16.6667%,100% { d:var(--activity-circle); }
+  33.3333%,50% { d:var(--activity-triangle); }
+  66.6667%,83.3333% { d:var(--activity-square); }
+}
+@keyframes activityGenerateOuter {
+  0%,50%,100% { stroke-dasharray:200 160; }
+  25% { stroke-dasharray:265 95; }
+  75% { stroke-dasharray:135 225; }
+}
+@keyframes activityGenerateInner {
+  0%,50%,100% { stroke-dasharray:165 195; stroke-dashoffset:0; }
+  25% { stroke-dasharray:110 250; stroke-dashoffset:0; }
+  75% { stroke-dasharray:220 140; stroke-dashoffset:0; }
+}
+@keyframes activityGenerateOuterSecondary {
+  0%,50%,100% { stroke-dasharray:97 263; stroke-dashoffset:-223; }
+  25% { stroke-dasharray:32 328; stroke-dashoffset:-288; }
+  75% { stroke-dasharray:162 198; stroke-dashoffset:-158; }
+}
+@keyframes activityGenerateInnerSecondary {
+  0%,50%,100% { stroke-dasharray:110 250; stroke-dashoffset:-195; }
+  25% { stroke-dasharray:165 195; stroke-dashoffset:-140; }
+  75% { stroke-dasharray:55 305; stroke-dashoffset:-250; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .activity-indicator * { animation:none!important; }
+}
+@media (forced-colors:active) {
+  .activity-indicator g { stroke:CanvasText; }
 }

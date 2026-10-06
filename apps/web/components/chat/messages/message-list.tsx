@@ -1,4 +1,5 @@
 "use client";
+import { ActivityIndicator } from "./activity-indicator";
 
 /**
  * Message list — the React message stream.
@@ -537,7 +538,7 @@ function PendingReplyIndicator({ timestamp }: { timestamp?: number }) {
         role="status"
         aria-live="polite"
       >
-        <span className="thinking-spinner" aria-hidden="true" />
+        <ActivityIndicator phase="thinking" />
         <span className="pending-label">{text("thinking…", "思考中…")}</span>
         <MessageTimestamp timestamp={timestamp ?? fallbackTimestamp} />
       </div>

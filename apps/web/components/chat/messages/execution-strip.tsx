@@ -34,6 +34,8 @@ import {
   BrainIcon,
   CpuIcon,
 } from "@/components/animated-icons";
+import { ActivityIndicator } from "./activity-indicator";
+import type { ActivityPhase } from "@/lib/chat/activity-phase";
 import { MessageTimestamp } from "./message-actions";
 
 /** spawn 类工具：在摘要里算"子代理"，不算普通函数调用。
@@ -106,7 +108,7 @@ function Collapse({ open, children }: {
 
 /** 时间线外壳：一行淡文字摘要 ›，点击展开竖线时间线。
  *
- *  流式与历史消息都默认收起。流式摘要仍以 shimmer 表示进行中；用户手动
+ *  流式与历史消息都默认收起。流式摘要以状态动画表示进行中；用户手动
  *  展开或收起后，本轮后续步骤和终态更新不覆盖该选择。 */
 export function ExecutionStrip({
   label,
@@ -114,9 +116,11 @@ export function ExecutionStrip({
   children,
   after,
   subagentHeads,
+  activity = "tool",
 }: {
   label: string;
   streaming?: boolean;
+  activity?: ActivityPhase;
   children: React.ReactNode;
   /** Content that collapses with the trace but stays outside its vertical line. */
   after?: React.ReactNode;
@@ -140,7 +144,8 @@ export function ExecutionStrip({
           ? text("Collapse execution trace", "收起执行过程")
           : text("Expand execution trace", "展开执行过程")}
       >
-        <span className={streaming ? "tl-label-shimmer" : undefined}>{label}</span>
+        {streaming ? <ActivityIndicator phase={activity} /> : null}
+        <span className="tl-summary-label">{label}</span>
         <span className="tl-chev" aria-hidden="true">›</span>
       </button>
       <Collapse open={open}>
@@ -298,7 +303,7 @@ export function StepRow({
           aria-hidden="true"
         >
           {running ? (
-            <span className="tl-spin" />
+            <ActivityIndicator phase={icon === "thinking" ? "thinking" : icon === "llm" ? "generating" : "tool"} />
           ) : error ? (
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none"
                  stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -387,7 +392,7 @@ function parseParams(input?: string): Record<string, unknown> | undefined {
 }
 
 /** 普通函数调用步骤：点行 → 右栏详情；有子调用时图标外圈表示可展开。
- *  running：流式中结果还没回来的调用——图标位换呼吸点。 */
+ *  running：流式中结果还没回来的调用——图标位使用函数状态动画。 */
 export function FunctionStep({
   block,
   tree,
