@@ -1,4 +1,5 @@
 "use client";
+import { ActivityIndicator } from "./messages/activity-indicator";
 import { SelectionQuote } from "./messages/quote-to-chat";
 
 /**
@@ -24,6 +25,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { ArrowDown } from "lucide-react";
 
 import { useMessageIds, useSessionStore } from "@/lib/session-store";
+import { activityPhase } from "@/lib/chat/activity-phase";
 import { useSessionHistory } from "@/lib/chat/session-history";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
@@ -141,6 +143,20 @@ export function PeerSessionPane({
   const streaming = useSessionStore((s) =>
     sessionId ? Boolean(s.runningTasks[sessionId]) : false,
   );
+  const phase = useSessionStore((s) => {
+    if (!sessionId || !s.runningTasks[sessionId]) return null;
+    if (s.pendingDecisions.some((decision) => decision.kind === "approval"
+      && decision.sessionId === sessionId && s.executionUpdateOrders[decision.executionId]?.sessionId === sessionId
+      && !s.executionUpdateOrders[decision.executionId]?.terminal)) return null;
+    for (let i = ids.length - 1; i >= 0; i--) {
+      const msg = s.messagesById[ids[i]];
+      if (msg?.role === "user") break;
+      if (msg?.function === "attach") continue;
+      if (msg?.display === "runtime" && !activityPhase(msg)) continue;
+      if (msg?.role === "assistant") return activityPhase(msg);
+    }
+    return "thinking" as const;
+  });
   const chatKey = scrollKey;
   const snap = useSessionStore.getState();
   const alwaysLive = collectAlwaysLive(ids, (id) => snap.messagesById[id]);
@@ -199,7 +215,7 @@ export function PeerSessionPane({
         >
           {showTitle ? title : null}
         </span>
-        {streaming ? <span className="thinking-spinner" aria-hidden="true" /> : null}
+        {streaming && phase ? <ActivityIndicator phase={phase} /> : null}
       </div> : null}
       {/* `minWidth: 0` on both the scroller and the column: without it a
           flex child refuses to shrink below its content's intrinsic

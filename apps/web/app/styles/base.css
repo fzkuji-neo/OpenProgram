@@ -905,7 +905,7 @@ html[data-sidebar-closed] #sidebar .sidebar-nav-action {
 
 /* ===== Reduced motion =====
    Blanket opt-out for users who asked the OS to stop animating things.
-   Roughly twenty infinite animations (.spinner, .thinking-spinner::after,
+   Roughly twenty infinite animations (.spinner, .activity-indicator,
    .typing-indicator .dot, .indicator-dot.pulse-*, skeleton shimmers,
    .convRunning::before, .history-node.is-running, the marching-ants edges
    above, …) each used to keep running because only a handful of rules had
