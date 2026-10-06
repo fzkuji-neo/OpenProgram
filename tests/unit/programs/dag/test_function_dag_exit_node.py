@@ -165,20 +165,17 @@ def test_nested_agent_methods_chain_in_dag(runtime, store):
 
     g = store.load()
     fcs = [n for n in g if n.is_code()]
-    # Two inner + one outer = three nodes
-    names = [n.function_name for n in fcs]
-    assert names.count("inner") == 2
-    assert names.count("outer") == 1
-
     outer_fc = next(n for n in fcs if n.function_name == "outer")
-    # Top-level call has no enclosing function
-    assert outer_fc.caller == ""
-
-    # Both inner calls are made from within outer's body → their
-    # logical caller is outer, regardless of chronological order.
-    inner_fcs = [n for n in fcs if n.function_name == "inner"]
-    for fc in inner_fcs:
-        assert fc.caller == outer_fc.id
+    links = [n for n in fcs if n.metadata.get('child_session_id')]
+    assert len(links) == 2
+    assert not any(n.function_name == 'inner' for n in fcs)
+    assert outer_fc.caller == ''
+    for link in links:
+        assert link.caller == outer_fc.id
+        child = SessionNodeWriter(store.store, link.metadata['child_session_id']).load()
+        inner_fc = next(n for n in child if n.function_name == 'inner')
+        assert not inner_fc.caller
+        assert inner_fc.output == link.output
 
 
 # Entry-append / exit-update lifecycle

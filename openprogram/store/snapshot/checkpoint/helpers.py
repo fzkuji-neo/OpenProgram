@@ -3,9 +3,14 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 
 from .store import CheckpointStore
+
+
+# Graph isolation does not transfer ownership of the user turn's file edits.
+_checkpoint_owner = ContextVar("checkpoint_owner", default=None)
 
 
 @contextmanager
@@ -15,6 +20,8 @@ def _locked_checkpoint():
 
     shim = _store.get()
     turn_id = _current_turn_id.get()
+    if _checkpoint_owner.get() is not None:
+        shim, turn_id = _checkpoint_owner.get()
     if shim is None or not turn_id:
         yield None
         return

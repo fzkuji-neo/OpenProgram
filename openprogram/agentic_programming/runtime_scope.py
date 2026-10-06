@@ -1,5 +1,6 @@
 """Own standalone execution resources without constructing a provider early."""
 from contextlib import ExitStack, contextmanager
+from contextvars import ContextVar
 from tempfile import TemporaryDirectory
 import uuid
 
@@ -135,3 +136,95 @@ def execution_scope(runtime=None):
 
 
 runtime_scope = execution_scope
+
+
+_agent_owner = ContextVar("dag_agent_owner", default=None)
+_record_agent_method = ContextVar("record_agent_method", default=True)
+
+
+@contextmanager
+def agent_scope(owner):
+    """Give a nested Agent a graph without inheriting parent graph identities.
+
+    Authority, runtime options and cancellation remain bound by the caller.
+    A freshly dispatched tool belongs to the dispatching graph; its ordinary
+    helpers do not. A different Agent invoked from its body owns a child graph.
+    """
+    from . import call_state as state
+    from .call_scope import CallScope
+    from openprogram.context import Context
+    from openprogram.store import SessionNodeWriter, _store
+    from openprogram.programs._runtime import (
+        _current_tool_call_id, _current_tool_call_occurrence_id,
+        _tool_call_identity_consumed,
+    )
+    current = _agent_owner.get()
+    direct_tool = bool(state.current_tool_call_occurrence_id() or (
+        state.current_tool_call_id() and not state.tool_call_identity_consumed()))
+    new_owner = owner is not current and not (
+        isinstance(owner, type) and isinstance(current, owner))
+    parent_writer = _store.get()
+    isolate = new_owner and not direct_tool and bool(state.current_call_id())
+    with ExitStack() as stack:
+        link = None
+        if isolate and isinstance(parent_writer, SessionNodeWriter):
+            owner_type = owner if isinstance(owner, type) else type(owner)
+            label = f"agent/{owner_type.__module__}.{owner_type.__qualname__}"
+            link = stack.enter_context(CallScope(label, capture_io=True))
+            child_id = uuid.uuid4().hex
+            parent_writer.store.create_session(
+                child_id, getattr(getattr(owner, "_spec", None), "id", None) or "agent",
+                source="agent", parent_session_id=parent_writer.session_id,
+                parent_call_id=link.id,
+            )
+            parent_writer.update(link.id, metadata={"child_session_id": child_id})
+            from openprogram.store import _current_turn_id
+            from openprogram.store.snapshot.checkpoint.helpers import _checkpoint_owner
+            if _checkpoint_owner.get() is None:
+                token = _checkpoint_owner.set((parent_writer, _current_turn_id.get()))
+                stack.callback(_checkpoint_owner.reset, token)
+            writer = SessionNodeWriter(parent_writer.store, child_id)
+            for var, value in (
+                (_store, writer), (state._call_id, None),
+                (state._forced_node_id, None), (state._forced_predecessor, None),
+                (_current_tool_call_id, None), (_current_tool_call_occurrence_id, None),
+                (_tool_call_identity_consumed, False),
+            ):
+                token = var.set(value)
+                stack.callback(var.reset, token)
+            ambient = Context.current()
+            context = (ambient if ambient is not None else Context()).derive(
+                store=writer, head_id=None, call_id=None, excluded_call_ids=())
+            stack.enter_context(context.bind())
+        token = _agent_owner.set(owner)
+        stack.callback(_agent_owner.reset, token)
+        token = _record_agent_method.set(new_owner or direct_tool)
+        stack.callback(_record_agent_method.reset, token)
+        yield link
+
+
+_prepared_agent_call = ContextVar('prepared_agent_call', default=False)
+
+
+@contextmanager
+def prepared_agent_call():
+    """Let Agent.__call__/arun use the scope already owned by that instance."""
+    token = _prepared_agent_call.set(True)
+    try:
+        yield
+    finally:
+        _prepared_agent_call.reset(token)
+
+
+@contextmanager
+def agent_request_scope():
+    """A standalone agent() invocation owns its graph, even inside a tool."""
+    if _prepared_agent_call.get():
+        token = _prepared_agent_call.set(False)
+        try:
+            yield None
+        finally:
+            _prepared_agent_call.reset(token)
+    else:
+        with agent_scope(object()) as link:
+            yield link

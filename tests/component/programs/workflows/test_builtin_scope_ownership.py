@@ -23,7 +23,7 @@ def test_builtin_helper_without_an_execution_does_not_create_a_session(monkeypat
         _store.reset(store_token)
 
 
-def test_builtin_helper_keeps_ancestry_under_a_public_agent_method(tmp_path):
+def test_builtin_helper_does_not_record_under_a_public_agent_method(tmp_path):
     from openprogram.programs.workflow.goal import state
 
     class InspectGoal(Agent):
@@ -43,10 +43,8 @@ def test_builtin_helper_keeps_ancestry_under_a_public_agent_method(tmp_path):
         assert InspectGoal().inspect()["status"] == "active"
         nodes = writer.load().nodes.values()
         parent = next(node for node in nodes if node.name.endswith("InspectGoal.inspect"))
-        helper = next(node for node in nodes if node.name.endswith("state.normalize_goal"))
-        assert helper.caller == parent.id
+        assert not any(node.name.endswith("state.normalize_goal") for node in nodes)
         assert parent.metadata["structural"] is True
-        assert helper.metadata["structural"] is True
         assert store.get_session("owned")["head_id"] == "user"
         assert [message["id"] for message in store.get_messages("owned")] == ["user"]
         assert [branch["head_msg_id"] for branch in store.list_branches("owned")] == ["user"]

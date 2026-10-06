@@ -23,7 +23,8 @@ def execution_task_id():
 
 class CallScope:
     def __init__(self, function_name, *, docstring='', arguments=None, expose='full',
-                 render_range=None, capture_io=False, pending_id=None, context=None):
+                 render_range=None, capture_io=False, pending_id=None, context=None, record=True):
+        self.record = record
         self.function_name = function_name
         self.docstring = docstring
         self.arguments = arguments or {}
@@ -42,6 +43,10 @@ class CallScope:
         from . import call_state as f
         from openprogram.context.model import Context
         self.parent_id = f.current_call_id()
+        if not self.record:
+            self.id = self.parent_id
+            self.context = self.context if self.context is not None else Context.current()
+            return self
         occurrence = f.current_tool_call_occurrence_id()
         tool_id = f.current_tool_call_id()
         identity = occurrence or (tool_id if not f.tool_call_identity_consumed() else '')
@@ -94,6 +99,8 @@ class CallScope:
             raise
 
     def __exit__(self, exc_type, exc, tb):
+        if not self.record:
+            return False
         from . import call_state as f
         from .continuation import FunctionSuspended
         if isinstance(exc, FunctionSuspended):
@@ -146,6 +153,7 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
         return _store.get() is not None and bool(current_call_id())
 
     def scope(args, kwargs, context):
+        from .call_state import current_call_id
         arguments = {}
         if capture_io:
             bound = sig.bind(*args, **kwargs)
@@ -154,7 +162,8 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
                          if key not in ('self', 'cls')}
         return CallScope(label, docstring=inspect.getdoc(fn) or '', context=context,
                          arguments=arguments, expose=expose, render_range=render_range,
-                         capture_io=capture_io)
+                         capture_io=capture_io,
+                         record=not bool(current_call_id()))
 
     @contextmanager
     def invocation_scope(args, kwargs):

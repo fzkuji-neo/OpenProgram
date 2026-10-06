@@ -285,7 +285,7 @@ def _make_wrapper(self, fn: Callable) -> Callable:
 
 def _call_setup(self, fn, sig, args, kwargs, stack):
     from .call_scope import CallScope
-    from .runtime_scope import execution_scope
+    from .runtime_scope import execution_scope, _record_agent_method
     _run_pre_invocation_hooks()
     # Establish ownership before injection so no provider is constructed
     # for a function that does not make a model request.
@@ -301,10 +301,11 @@ def _call_setup(self, fn, sig, args, kwargs, stack):
     bound = sig.bind(*new_args, **new_kwargs)
     bound.apply_defaults()
     name = self.tool_name or fn.__name__
+    record_call = _record_agent_method.get() or self.resumable
     previous = _recursion_depth.get(None) or {}
     identity = fn
     depth = previous.get(identity, 0)
-    if depth >= _MAX_AGENTIC_RECURSION_DEPTH:
+    if record_call and depth >= _MAX_AGENTIC_RECURSION_DEPTH:
         raise RecursionError(
             f"Agent method {name} exceeded max nesting depth "
             f"{_MAX_AGENTIC_RECURSION_DEPTH}")
@@ -320,7 +321,10 @@ def _call_setup(self, fn, sig, args, kwargs, stack):
     call = stack.enter_context(CallScope(
         (self.tool_name or f'{fn.__module__}.{fn.__qualname__}'),
         docstring=inspect.getdoc(fn) or '', arguments={key: value for key, value in bound.arguments.items() if key not in ("self", "cls")},
-        expose=self.expose, render_range=render_range, capture_io=self.capture_io, pending_id=pending_id))
+        expose=self.expose, render_range=render_range, capture_io=self.capture_io, pending_id=pending_id,
+        record=record_call))
+    record_token = _record_agent_method.set(False)
+    stack.callback(_record_agent_method.reset, record_token)
     stack.callback(_restore_system, _apply_system(self.system, bound.arguments))
     try:
         from openprogram.usage.context import _current, UsageContext, current_usage_context
