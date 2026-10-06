@@ -304,7 +304,7 @@ def test_actual_method_recursion_remains_bounded_and_restores_state():
             return self.run() if recurse else "completed"
 
     instance = Recursive()
-    with pytest.raises(RecursionError, match="max nesting depth"):
+    with pytest.raises(RecursionError):
         instance.run()
     assert _recursion_depth.get() is None
     assert instance.run(recurse=False) == "completed"

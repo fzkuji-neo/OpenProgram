@@ -97,13 +97,15 @@ class Agent:
     def __call__(self, prompt: str | list[dict], **overrides) -> Any:
         """Run one synchronous agent call with explicit option overrides."""
         from openprogram.agentic_programming.agent import agent
-        from openprogram.agentic_programming.call_scope import managed_function
+        from openprogram.agentic_programming.runtime_scope import prepared_agent_call
         context = overrides.pop("context", _UNSET)
         instructions = overrides.pop("instructions", self.instructions)
         with _configuration_scope(self, context=context, instructions=instructions,
-                                  runtime=overrides.get("runtime", _UNSET)):
-            call = managed_function(agent)
-            return call(prompt, **self._call_options(overrides))
+                                  runtime=overrides.get("runtime", _UNSET)) as link, prepared_agent_call():
+            result = agent(prompt, **self._call_options(overrides))
+            if link is not None:
+                link.output = result
+            return result
 
     def choose(self, prompt: str, options: dict[str, str], *, context=_UNSET,
                model: str = "", effort: str = "", timeout_s: float | None = None) -> str:
@@ -118,7 +120,7 @@ class Agent:
         from openprogram.agentic_programming.runtime.shared import (
             _current_agent_options, _current_response_format, _current_model_call_budget,
         )
-        with _configuration_scope(self, context=context):
+        with _configuration_scope(self, context=context) as link:
             # A selection has its own output contract, independent of any
             # surrounding tool loop or structured-output repair defaults.
             token = _current_agent_options.set(dict(
@@ -128,10 +130,13 @@ class Agent:
             format_token = _current_response_format.set(None)
             budget_token = _current_model_call_budget.set(None)
             try:
-                return managed_function(llm)(
+                result = managed_function(llm)(
                     prompt, choices={key: (key, label) for key, label in options.items()},
                     model=model, effort=effort, timeout_s=timeout_s,
                 )
+                if link is not None:
+                    link.output = result
+                return result
             finally:
                 _current_model_call_budget.reset(budget_token)
                 _current_response_format.reset(format_token)
@@ -140,13 +145,15 @@ class Agent:
     async def arun(self, prompt: str | list[dict], **overrides) -> Any:
         """Run one asynchronous agent call with explicit option overrides."""
         from openprogram.agentic_programming.agent import agent_async
-        from openprogram.agentic_programming.call_scope import managed_function
+        from openprogram.agentic_programming.runtime_scope import prepared_agent_call
         context = overrides.pop("context", _UNSET)
         instructions = overrides.pop("instructions", self.instructions)
         with _configuration_scope(self, context=context, instructions=instructions,
-                                  runtime=overrides.get("runtime", _UNSET)):
-            call = managed_function(agent_async)
-            return await call(prompt, **self._call_options(overrides))
+                                  runtime=overrides.get("runtime", _UNSET)) as link, prepared_agent_call():
+            result = await agent_async(prompt, **self._call_options(overrides))
+            if link is not None:
+                link.output = result
+            return result
 
     @classmethod
     def from_spec(cls, spec, **overrides):
@@ -196,6 +203,8 @@ class Agent:
             wrapped = wrap_agent_method(fn, options)
             if kind is None:
                 wrapped = _configured_method(wrapped)
+            else:
+                wrapped = _class_scoped_method(wrapped, cls)
             wrapped._is_agent_configured_method = True
             wrapped._agent_method_source = fn
             setattr(cls, name, kind(wrapped) if kind else wrapped)
@@ -203,7 +212,7 @@ class Agent:
 
 @contextmanager
 def _configuration_scope(instance, *, context=_UNSET, instructions=_UNSET, runtime=_UNSET):
-    from openprogram.agentic_programming.runtime_scope import execution_scope
+    from openprogram.agentic_programming.runtime_scope import execution_scope, agent_scope
     from openprogram.agentic_programming.runtime.shared import _current_instructions, _current_agent_options
     from openprogram.agentic_programming.call_state import _current_runtime
     runtime = instance.runtime if runtime is _UNSET else runtime
@@ -211,7 +220,7 @@ def _configuration_scope(instance, *, context=_UNSET, instructions=_UNSET, runti
     token = _current_instructions.set(_current_instructions.get() if instructions is None else instructions)
     owned = None
     try:
-        with instance._effective_context(context).bind():
+        with agent_scope(instance) as link, instance._effective_context(context).bind():
             spec = getattr(instance, "_spec", None)
             if runtime is None and _current_runtime.get(None) is None and spec is not None and spec.model.provider:
                 from openprogram.providers.registry import create_runtime
@@ -219,7 +228,7 @@ def _configuration_scope(instance, *, context=_UNSET, instructions=_UNSET, runti
             with execution_scope(runtime=runtime):
                 defaults_token = _current_agent_options.set(instance._call_options({}))
                 try:
-                    yield
+                    yield link
                 finally:
                     _current_agent_options.reset(defaults_token)
     finally:
@@ -245,13 +254,40 @@ def _configured_method(fn):
     if inspect.iscoroutinefunction(fn):
         @wraps(fn)
         async def async_method(self, *args, **kwargs):
-            with _configuration_scope(self):
-                return await fn(self, *args, **kwargs)
+            with _configuration_scope(self) as link:
+                result = await fn(self, *args, **kwargs)
+                if link is not None:
+                    link.output = result
+                return result
         return async_method
     @wraps(fn)
     def method(self, *args, **kwargs):
-        with _configuration_scope(self):
-            return fn(self, *args, **kwargs)
+        with _configuration_scope(self) as link:
+            result = fn(self, *args, **kwargs)
+            if link is not None:
+                link.output = result
+            return result
+    return method
+
+
+def _class_scoped_method(fn, owner):
+    from .runtime_scope import agent_scope
+    if inspect.iscoroutinefunction(fn):
+        @wraps(fn)
+        async def async_method(*args, **kwargs):
+            with agent_scope(owner) as link:
+                result = await fn(*args, **kwargs)
+                if link is not None:
+                    link.output = result
+                return result
+        return async_method
+    @wraps(fn)
+    def method(*args, **kwargs):
+        with agent_scope(owner) as link:
+            result = fn(*args, **kwargs)
+            if link is not None:
+                link.output = result
+            return result
     return method
 
 

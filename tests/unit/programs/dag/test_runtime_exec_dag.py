@@ -127,14 +127,13 @@ def test_exec_nested_calls_stamp_correct_frame(store):
     outer("q", runtime=rt)
     g = store.load()
     code_by_name = {n.name: n for n in g if n.is_code()}
-    inner_id = code_by_name["inner"].id
     outer_id = code_by_name["outer"].id
-
-    # Two LLM calls expected: one inside inner, one inside outer's body.
-    llm_nodes = [n for n in g if n.is_llm()]
-    assert len(llm_nodes) == 2
-    callers = sorted(n.caller for n in llm_nodes)
-    assert callers == sorted([inner_id, outer_id])
+    link = next(n for n in g if n.metadata.get('child_session_id'))
+    child = SessionNodeWriter(store.store, link.metadata['child_session_id']).load()
+    inner = next(n for n in child if n.name == 'inner')
+    assert [n.caller for n in g if n.is_llm()] == [outer_id]
+    assert [n.caller for n in child if n.is_llm()] == [inner.id]
+    assert not inner.caller
 
 
 # No DAG side-effects when no store is installed
@@ -212,11 +211,14 @@ def test_tool_loop_subcall_attributes_to_llm_node(store):
         def _call(self, content, model="default", response_format=None):
             node_id = getattr(self, "_active_llm_node_id", None)
             if node_id is not None:
+                from openprogram.programs._runtime import _current_tool_call_id
+                tool_token = _current_tool_call_id.set("dispatch-child")
                 tok = _call_id.set(node_id)
                 try:
                     child("v", runtime=self)
                 finally:
                     _call_id.reset(tok)
+                    _current_tool_call_id.reset(tool_token)
             return "final"
 
     rt = _ToolLoopRuntime()

@@ -14,29 +14,9 @@
 
 ## 1. Overview and Motivation
 
-An entire session is **one single DAG with a unique root**. Every user message,
-every LLM call, every function call is a node in the same graph, sharing one
-monotonically increasing `seq`. The graph is simultaneously:
+Each Agent execution owns its DAG. Chat records user messages, model requests and directly dispatched tools; ordinary helpers create no durable nodes. Calling another Agent creates an independent DAG; the parent stores the invocation result and a child_session_id reference. Permission, cancellation and file-checkpoint ownership remain with the originating execution, independent of graph ownership.
 
-- the **persistence record** — the only durable account of what happened;
-- the **runtime context** — every LLM call's context is a rendering of one
-  path through this graph;
-- the **display source** — chat transcript, call tree, and minimap are all
-  projections of the same nodes.
-
-This fusion is the point of the design. Observability stacks (LangSmith,
-Datadog) split each request into an independent trace and group traces with a
-session tag, because they only observe after the fact and never read the record
-back. This system does read it back: `render_context` retrieves history by
-walking the same graph under the same `seq`, so turns must live in one connected
-graph. A unique root plus a shared `seq` is the hard constraint that makes it
-one graph — without the root, each top-level node would be an isolated root of
-its own disconnected graph.
-
-What is claimable as novel is the fusion itself: the recorded call tree *is*
-the runtime context, each call queries it by frame scope + per-function expose,
-and all nodes are retained for fork and replay. The individual ingredients
-(ContextVar call-stack tracking, graph forking) are common; the whole is not.
+Context inheritance and persistence are separate responsibilities. Inheriting Context does not turn ordinary computation into history. Retain caller, predecessor, reads and seq within each graph. Child caller edges and history anchors do not reference parent nodes; metadata expresses cross-graph relationships.
 
 <div id="alternatives-nearly-all-use-span"></div>
 <div id="conclusion"></div>
@@ -95,9 +75,9 @@ external reference for span structure is the [OpenTelemetry trace model](https:/
 
 ### Costs and implementation boundary
 
-Recording each invocation increases storage and indexing work. Sampling away
-canonical nodes would remove history needed for context reconstruction, branching
-and replay; any sampled telemetry must be derived separately. The call tree and
+Keep complete records of semantic operations. Ordinary helpers are outside the
+canonical record policy; excluding them is not sampling away required history.
+Optional diagnostics remain separate. The call tree and
 conversation chain also need independent validation. Token, cost and evaluation
 metadata require explicit definitions rather than being inferred from timing.
 
@@ -147,12 +127,11 @@ Defined in `openprogram/context/nodes.py`.
 | LLM reply | llm | this turn's user (top-level) or the enclosing code node | this turn's user |
 | LLM calls a tool | code | that llm node | — |
 | User manually calls a function | code | empty | current branch head (or `"ROOT"` at root level) |
-| Function calls an LLM / sub-function | llm / code | the enclosing code node | — |
+| Agent requests a model / direct tool | llm / code | owning operation in this graph | — |
 
-Loops are not nodes: a loop running N times is N siblings under the same parent
-(ordered by `seq`); visualization may fold repeats into ×N, but the data keeps
-all N nodes. A function call is exactly one code node — no anchor, placeholder,
-or auxiliary node ever accompanies it.
+Loops are not nodes. Actual model/tool operations in a loop are recorded;
+ordinary recursion adds no nodes. Another Agent records its internals in its
+own graph.
 
 ### Status vocabulary
 
@@ -505,7 +484,9 @@ and must produce the same card.
 
 ## Appendix: Implementation Status
 
-Every section of this document is implemented. The data model, edges,
+Agent graph ownership and omission of ordinary helpers are under verification;
+see [execution recording](persistence-observability.html) for implementation status.
+The existing data-model evidence below does not establish this change as released. The data model, edges,
 invariants, spawn primitive, edge-pure branch walks (§2–§5), §6 path-native
 membership, §7 (single assembler, `context/system_prompt` nodes,
 memory-prefetch relocation), and §8 (`covers_ids`-based summary nodes, the

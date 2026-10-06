@@ -76,7 +76,7 @@ User orchestration calls `llm()` for a single model request. `Runtime.exec()` re
 
 ### 3. `Context`
 
-The automatic record of execution. Every user turn, every LLM call, and every function call is one node on a single **flat DAG**; the edges are `caller` (which function invoked this node) and `reads` (which nodes an LLM call saw in its prompt). Each node records inputs, outputs, token usage, elapsed time, and failure reason.
+Each Agent execution owns its DAG. Chat records user messages, model requests and directly dispatched tools; ordinary helpers create no durable nodes. Calling another Agent creates an independent DAG; the parent stores the invocation result and a child_session_id reference. Permission, cancellation and file-checkpoint ownership remain with the originating execution, independent of graph ownership.
 
 The DAG is not just a trace — it is also **where each LLM call's history comes from**: `llm()` renders its message history from the DAG through the ambient runtime. Two decorator knobs shape that flow per function:
 

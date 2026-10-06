@@ -47,15 +47,18 @@ def agent(
     Returns:
         Final text, or the validated JSON value when response_format is set
     """
-    from openprogram.agentic_programming.runtime_scope import execution_scope
+    from openprogram.agentic_programming.runtime_scope import execution_scope, agent_request_scope
 
-    with _entry_context(instructions, context), execution_scope(runtime=runtime) as active:
-        return _execute_agent(active, prompt, model=model, effort=effort, tools=tools,
+    with agent_request_scope() as link, _entry_context(instructions, context), execution_scope(runtime=runtime) as active:
+        result = _execute_agent(active, prompt, model=model, effort=effort, tools=tools,
             tools_deny=tools_deny, response_format=response_format,
             max_iterations=max_iterations, timeout_s=timeout_s,
             tool_choice=tool_choice, parallel_tool_calls=parallel_tool_calls,
             execution_kind=execution_kind, return_raw=return_raw, toolset=toolset, tools_allow=tools_allow,
             tools_source=tools_source, on_retry=on_retry, web_search=web_search, stream_fn=stream_fn)
+        if link is not None:
+            link.output = result
+        return result
 
 
 def _execute_agent(runtime, prompt, **options):
@@ -99,7 +102,7 @@ def _execute_agent(runtime, prompt, **options):
 
 async def agent_async(prompt: str | list[dict], **options) -> Any:
     """Run the agent tool loop asynchronously with the same options as agent()."""
-    from openprogram.agentic_programming.runtime_scope import execution_scope
+    from openprogram.agentic_programming.runtime_scope import execution_scope, agent_request_scope
     runtime = options.pop("runtime", None)
     instructions = options.pop("instructions", None)
     context = options.pop("context", None)
@@ -111,8 +114,10 @@ async def agent_async(prompt: str | list[dict], **options) -> Any:
     content = [{"type": "text", "text": prompt}] if isinstance(prompt, str) else prompt
     if not isinstance(content, list):
         raise TypeError("agent_async() prompt must be a string or a list of content blocks")
-    with _entry_context(instructions, context), execution_scope(runtime=runtime) as active:
+    with agent_request_scope() as link, _entry_context(instructions, context), execution_scope(runtime=runtime) as active:
         result = await active.async_exec(content=content, **options)
+        if link is not None:
+            link.output = result
     if response_format is not None or return_raw:
         return result
     return result["text"] if isinstance(result, dict) and "text" in result else str(result)
