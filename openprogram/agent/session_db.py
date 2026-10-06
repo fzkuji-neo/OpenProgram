@@ -19,8 +19,11 @@ SessionDB = SessionStore
 
 
 def default_db() -> SessionStore:
-    """Process-wide singleton. Channels worker + webui server share
-    this instance."""
+    """Use the active Context store, or the process-wide conversation store."""
+    from openprogram.context.model import Context
+    context = Context.current()
+    if context is not None and context.store is not None:
+        return context.store.store
     return default_store()
 
 

@@ -17,10 +17,17 @@ from .call_state import (
 
 class _ToolCancellation:
     """A tool deadline stops its own work while observing parent cancellation."""
-    def __init__(self, parent):
+    def __init__(self, parent, timeout):
         import threading
         self.parent = parent
         self.local = threading.Event()
+        self.deadline = time.monotonic() + timeout
+        self.timeout = timeout
+        self.node_id = None
+
+    def expired(self):
+        return (time.monotonic() >= self.deadline
+                and not (self.parent is not None and self.parent.is_set()))
 
     def set(self):
         self.local.set()
@@ -181,7 +188,7 @@ def register_method(self) -> None:
         # ``timeout`` seconds with an is_error result.
         kwargs = dict(args or {})
         if exec_timeout is not None:
-            cancel = _ToolCancellation(cancel)
+            cancel = _ToolCancellation(cancel, exec_timeout)
         cancel_token = (
             _current_cancel.set(cancel) if cancel is not None else None
         )
@@ -219,7 +226,7 @@ def register_method(self) -> None:
                 setter = getattr(cancel, "set", None)
                 if callable(setter):
                     setter()
-                pending = _forced_node_id.get() or _call_id.get() or call_id
+                pending = cancel.node_id if isinstance(cancel, _ToolCancellation) else None
                 if pending:
                     _update_function_call_exit(
                         pending_id=pending,
@@ -339,6 +346,9 @@ def _call_setup(self, fn, sig, args, kwargs, stack):
         docstring=inspect.getdoc(fn) or '', arguments={key: value for key, value in bound.arguments.items() if key not in ("self", "cls")},
         expose=self.expose, render_range=render_range, capture_io=self.capture_io, pending_id=pending_id,
         record=record_call))
+    signal = _current_cancel.get()
+    if self.as_tool and isinstance(signal, _ToolCancellation) and signal.node_id is None:
+        signal.node_id = call.id
     record_token = _record_agent_method.set(False)
     stack.callback(_record_agent_method.reset, record_token)
     stack.callback(_restore_system, _apply_system(self.system, bound.arguments))
@@ -362,7 +372,13 @@ def _make_async_wrapper(self, fn: Callable, sig: inspect.Signature) -> Callable:
             return await fn(*args, **kwargs)
         with ExitStack() as stack:
             call, new_args, new_kwargs = _call_setup(self, fn, sig, args, kwargs, stack)
-            call.output = await fn(*new_args, **new_kwargs)
+            try:
+                call.output = await fn(*new_args, **new_kwargs)
+            except asyncio.CancelledError:
+                signal = _current_cancel.get()
+                if isinstance(signal, _ToolCancellation) and signal.expired():
+                    raise TimeoutError(f"function {fn.__name__} timed out after {signal.timeout}s") from None
+                raise
             return call.output
     wrapper._is_agent_method = True
     return wrapper
