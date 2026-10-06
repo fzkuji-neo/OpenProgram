@@ -41,6 +41,7 @@ import { pushBranchInfo } from "@/lib/tabs/top-bar-sync";
 import { showToast } from "@/lib/format-utils/toast";
 import {
   readChatScroll,
+  readChatFollowLatest,
   restoreChatScrollIfCurrent,
 } from "@/lib/chat/chat-scroll";
 
@@ -630,7 +631,7 @@ export function loadSessionData(data: LegacyConv): void {
   if (!incoming?.breakdown) {
     warmContextBreakdown(id, headId);
   }
-  if (area && savedScroll !== null) {
+  if (area && savedScroll !== null && !readChatFollowLatest(sessionStorage, id)) {
     requestAnimationFrame(() => {
       restoreChatScrollIfCurrent(
         area,

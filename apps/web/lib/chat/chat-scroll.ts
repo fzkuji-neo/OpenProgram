@@ -25,14 +25,31 @@ interface ResolveChatScrollOptions {
   ownTurn?: boolean;
 }
 
-function readMap(storage: StorageLike): Record<string, number> {
+export const CHAT_READING_POSITION_TTL_MS = 60 * 60 * 1000;
+const runtimeId = crypto.randomUUID();
+type SavedChatScroll = { top: number; atBottom: boolean; savedAt: number; runtimeId: string };
+
+function isRecent(position: SavedChatScroll | undefined): boolean {
+  if (!position || position.runtimeId !== runtimeId) return false;
+  const age = Date.now() - position.savedAt;
+  return age >= 0 && age < CHAT_READING_POSITION_TTL_MS;
+}
+
+function readMap(storage: StorageLike): Record<string, SavedChatScroll> {
   try {
     const parsed = JSON.parse(storage.getItem(CHAT_SCROLL_STORAGE_KEY) || "{}");
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    const positions: Record<string, number> = {};
+    const positions: Record<string, SavedChatScroll> = {};
     for (const [key, value] of Object.entries(parsed)) {
       if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
-        positions[key] = value;
+        positions[key] = { top: value, atBottom: false, savedAt: 0, runtimeId: "" };
+      } else if (value && typeof value === "object" && "top" in value
+        && typeof value.top === "number" && Number.isFinite(value.top) && value.top >= 0) {
+        positions[key] = {
+          top: value.top, atBottom: "atBottom" in value && value.atBottom === true,
+          savedAt: "savedAt" in value && typeof value.savedAt === "number" ? value.savedAt : 0,
+          runtimeId: "runtimeId" in value && typeof value.runtimeId === "string" ? value.runtimeId : "",
+        };
       }
     }
     return positions;
@@ -45,18 +62,31 @@ export function readChatScroll(
   storage: StorageLike,
   chatKey: string,
 ): number | null {
-  return readMap(storage)[chatKey] ?? null;
+  const position = readMap(storage)[chatKey];
+  return isRecent(position) ? position.top : null;
+}
+
+/** Latest-follow intent is distinct from a fixed reading offset. */
+export function readChatFollowLatest(storage: StorageLike, chatKey: string): boolean {
+  const position = readMap(storage)[chatKey];
+  return isRecent(position) && position.atBottom;
 }
 
 export function writeChatScroll(
   storage: StorageLike,
   chatKey: string,
   scrollTop: number,
+  atBottom?: boolean,
 ): void {
   if (!chatKey || !Number.isFinite(scrollTop)) return;
   try {
     const positions = readMap(storage);
-    positions[chatKey] = Math.max(0, scrollTop);
+    const top = Math.max(0, scrollTop);
+    const previous = positions[chatKey];
+    positions[chatKey] = {
+      top, savedAt: Date.now(), runtimeId,
+      atBottom: atBottom ?? (previous?.top === top && previous.atBottom),
+    };
     storage.setItem(CHAT_SCROLL_STORAGE_KEY, JSON.stringify(positions));
   } catch {
     /* Session storage can be unavailable in hardened browser contexts. */
