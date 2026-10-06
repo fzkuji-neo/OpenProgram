@@ -138,3 +138,94 @@ def test_agent_resume_preserves_frozen_request_and_subtype(monkeypatch):
     monkeypatch.setattr(D, 'execute_continuation', execute)
     result = ChatAgent(instructions='changed').resume_turn(continuation)
     assert result.final_text == 'resumed' and seen == [ChatAgent]
+
+
+def test_explicit_context_model_pin_isolated_from_default_store(tmp_path, monkeypatch):
+    from tests.unit.agent.dispatcher.test_dispatcher_integration import _stub_model, make_text_stream_fn
+    default, explicit = SessionStore(tmp_path/'default'), SessionStore(tmp_path/'explicit')
+    for store, provider, model in [(default,'wrong','default-model'), (explicit,'right','explicit-model')]:
+        store.create_session('same', 'main')
+        store.update_session('same', provider_override=provider, model_override=model)
+    seen = []
+    def resolve(profile, override=None):
+        seen.append(override)
+        return _stub_model()
+    monkeypatch.setattr('openprogram.agent.session_db.default_db', lambda: default)
+    monkeypatch.setattr(D, '_resolve_model', resolve)
+    monkeypatch.setattr(D, '_load_agent_profile', lambda _: {'id':'main','tools':{'mode':'none'}})
+    try:
+        worker = Agent(context=Context.for_session(explicit,'same'), stream_fn=make_text_stream_fn(['ok']))
+        result = worker.run_turn(D.TurnRequest('same','hello','main','python'))
+        assert not result.failed, result.error
+        assert seen[0] == 'right/explicit-model'
+        assert not default.get_messages('same')
+    finally:
+        default.close()
+        explicit.close()
+
+
+def test_tool_timeout_marks_only_actual_tool_node(tmp_path):
+    from openprogram.context.nodes import Call, ROLE_LLM
+    from openprogram.store import SessionNodeWriter, _store
+    from openprogram.agentic_programming.call_state import _call_id
+    store = SessionStore(tmp_path)
+    store.create_session('chat','main')
+    writer=SessionNodeWriter(store,'chat')
+    writer.append(Call(id='parent',role=ROLE_LLM,metadata={'status':'running'}))
+    st, ct = _store.set(writer), _call_id.set('parent')
+    parent=threading.Event()
+    class Slow(Agent):
+        method_options={'slow':{'tool':True,'timeout':0.01,'register_globally':False}}
+        async def slow(self):
+            await asyncio.sleep(1)
+    try:
+        result=asyncio.run(Slow().slow._agent_tool.execute('slow-call',{},parent,None))
+        assert result.is_error and not parent.is_set()
+        graph=writer.load()
+        assert graph.nodes['parent'].metadata['status']=='running'
+        children=[node for node in graph if node.id!='parent']
+        assert len(children)==1
+        assert children[0].metadata['status']=='error'
+        assert 'timed out' in str(children[0].output)
+    finally:
+        _call_id.reset(ct)
+        _store.reset(st)
+        store.close()
+
+
+def test_context_store_is_used_by_shared_session_metadata(tmp_path):
+    from openprogram.agent.session_db import default_db
+    store = SessionStore(tmp_path)
+    try:
+        with Context.for_session(store, 'explicit').bind():
+            assert default_db() is store
+    finally:
+        store.close()
+
+
+def test_real_chat_continues_after_tool_timeout(tmp_path, monkeypatch):
+    from tests.unit.agent.dispatcher.test_dispatcher_integration import _stub_model
+    from tests.component.providers.scripted_provider import ScriptedProvider, ScriptedToolCall, ScriptedText
+    from openprogram import ChatAgent
+    class Tools(Agent):
+        method_options={'slow':{'tool':True,'timeout':0.01,'register_globally':False}}
+        async def slow(self):
+            await asyncio.sleep(1)
+    tool=Tools().slow._agent_tool
+    provider=ScriptedProvider()
+    provider.add_response(ScriptedToolCall(tool.name,{},'slow-call'))
+    provider.add_response(ScriptedText('continued after timeout'))
+    monkeypatch.setattr(D,'_resolve_model',lambda *a,**k:_stub_model())
+    monkeypatch.setattr(D,'_load_agent_profile',lambda _: {'id':'main','tools':{'mode':'none'}})
+    monkeypatch.setattr(D.loop_runner,'_resolve_tools',lambda *a,**k:[tool])
+    store=SessionStore(tmp_path)
+    parent=threading.Event()
+    try:
+        worker=ChatAgent(context=Context.for_session(store,'chat'),stream_fn=provider.stream_simple)
+        result=worker.run_turn(D.TurnRequest('chat','use the tool','main','python'),cancel_event=parent)
+        assert not result.failed, result.error
+        assert result.final_text=='continued after timeout'
+        assert provider.call_count==2 and not parent.is_set()
+        assert any(message.role=='toolResult' and message.is_error for message in provider.calls[1].context.messages)
+    finally:
+        store.close()

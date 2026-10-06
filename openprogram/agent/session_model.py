@@ -33,6 +33,10 @@ def read_session_chat_model(session_id: Optional[str]) -> tuple[Optional[str], O
     """Return the session pin, or (None, None). Does not consult agent.json."""
     if not session_id:
         return None, None
+    from openprogram.context import Context
+    context = Context.current()
+    if context is not None and context.store is not None:
+        return _read_db_pin(session_id)
     provider, model = _read_memory_pin(session_id)
     if provider and model:
         return provider, model
@@ -59,17 +63,19 @@ def ensure_session_chat_model(
 
 
 def write_session_chat_model(session_id: str, provider: str, model: str) -> None:
+    from openprogram.context import Context
+    context = Context.current()
     try:
-        from openprogram.webui import server as _s
-        conv = getattr(_s, "_sessions", {}).get(session_id)
-        if isinstance(conv, dict):
-            conv["provider_override"] = provider
-            conv["model_override"] = model
+        if context is None or context.store is None:
+            from openprogram.webui import server as _s
+            conv = getattr(_s, "_sessions", {}).get(session_id)
+            if isinstance(conv, dict):
+                conv["provider_override"] = provider
+                conv["model_override"] = model
     except Exception as exc:
         _log.warning("session pin memory write failed session=%s: %s", session_id, exc)
     try:
-        from openprogram.agent.session_db import default_db
-        default_db().update_session(
+        Context.turn_store(session_id).update_session(
             session_id,
             provider_override=provider,
             model_override=model,
@@ -102,8 +108,8 @@ def _read_memory_pin(session_id: str) -> tuple[Optional[str], Optional[str]]:
 
 def _read_db_pin(session_id: str) -> tuple[Optional[str], Optional[str]]:
     try:
-        from openprogram.agent.session_db import default_db
-        meta = default_db().get_session(session_id) or {}
+        from openprogram.context import Context
+        meta = Context.turn_store(session_id).get_session(session_id) or {}
         extra = meta.get("extra_meta") or {}
         if isinstance(extra, str):
             extra = json.loads(extra)
