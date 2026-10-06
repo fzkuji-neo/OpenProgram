@@ -98,6 +98,9 @@ test('live tools remain visible alongside text and retry has one thinking indica
   const html=renderToStaticMarkup(createElement(AssistantBubble,{msg}));
   assert.match(html, /data-activity-phase="tool"/);
   assert.doesNotMatch(html, /data-activity-phase="generating"/);
+  const parallelThinking=renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,
+    blocks:[...msg.blocks,{type:'thinking',text:'Current'}]}}));
+  assert.equal([...parallelThinking.matchAll(/data-active="true"/g)].length,1);
   const retry=renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,retryStatus:{attempt:2,reason:'transport'}}}));
   assert.match(retry,/Retrying 2/);
   assert.equal([...retry.matchAll(/data-activity-phase=/g)].length,1);

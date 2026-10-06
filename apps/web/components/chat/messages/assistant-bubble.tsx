@@ -404,10 +404,9 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                   <ExecutionStrip
                     key={`seg_${si}`}
                     activity={phase ?? "thinking"}
-                    streaming={activeMotion && (
-                      (phase !== "generating" && seg.items.some(({ i }) => i === lastBlockIdx))
-                      || (phase === "tool" && seg.items.some(({ b }) => !!b.tool_call_id && runningToolIds.has(b.tool_call_id)))
-                    )}
+                    streaming={activeMotion && (phase === "tool"
+                      ? seg.items.some(({ b }) => !!b.tool_call_id && runningToolIds.has(b.tool_call_id))
+                      : phase !== "generating" && seg.items.some(({ i }) => i === lastBlockIdx))}
                     subagentHeads={spawnHeads(seg.cards)}
                     label={execStripLabel(
                       seg.items.map(({ b }) => b), spawnNames(seg.cards), text)}
