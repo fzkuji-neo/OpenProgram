@@ -524,3 +524,44 @@ window.loadTranscript=()=>useSessionStore.getState().setMessages('cold',Array.fr
             assert page.evaluate("document.getElementById('chatArea').scrollTop") == 300
         finally:
             browser.close()
+
+
+def test_session_reload_preserves_reading_anchor_when_latest_page_is_shorter(tmp_path):
+    from playwright.sync_api import sync_playwright, expect
+    entry = r'''
+import React from 'react';import {createRoot} from 'react-dom/client';
+import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useHistoryWindow} from './components/chat/messages/use-history-window';
+import {useSessionStore} from './lib/session-store';
+import {registerSessionHistory} from './lib/chat/session-history';
+import {seedHistoryWindow} from './lib/runtime-bridge/session-history-loader';
+import {loadSessionData} from './lib/runtime-bridge/conversations';
+import {runtimeState} from './lib/runtime-bridge/state';
+window.fetch=async()=>new Response('{}',{headers:{'Content-Type':'application/json'}});
+function capture(start){return {id:'reload',messages:Array.from({length:500-start},(_,i)=>({id:`m-${start+i}`,role:'user',content:'Message',status:'completed'})),history:{snapshot:'capture',head_id:'m-499',before:start>0?`m-${start}`:null,after:null,start,end:500,total:500}};}
+const initial=capture(400);runtimeState.currentSessionId='reload';runtimeState.conversations.reload=initial;
+useSessionStore.setState({currentSessionId:'reload',activeChatKey:'reload'});seedHistoryWindow('reload',initial.messages,initial.history);registerSessionHistory('reload',initial.history);useSessionStore.getState().setMessages('reload',initial.messages);
+function Main(){const ids=useSessionStore(s=>s.messageOrder.reload??[]);useHistoryWindow('reload',true);const {detached,jumpToLatest}=useChatAreaStick('reload',ids.at(-1)??null,true);return <><div id="chatArea"><div id="chatMessages"><div id="messages-mount">{ids.map(id=><div data-msg-id={id} className="row" key={id}>{id}</div>)}</div></div></div>{detached&&<button onClick={jumpToLatest}>Jump</button>}</>;}
+createRoot(document.getElementById('mount')).render(<Main/>);
+window.reloadSession=()=>loadSessionData(capture(450));
+'''
+    bundle = tmp_path / 'reload.js'
+    subprocess.run(['node', '-e', "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});", str(ROOT/'apps/web'),str(bundle),entry],cwd=ROOT,check=True,capture_output=True)
+    shell=tmp_path/'reload.html'
+    shell.write_text("<!doctype html><style>#chatArea{height:500px;overflow:auto;overflow-anchor:none}.row{height:120px}</style><div id='mount'></div>")
+    with sync_playwright() as pw:
+        browser=pw.chromium.launch(headless=True)
+        try:
+            page=browser.new_page();page.on('pageerror',lambda e: print('PAGE ERROR',e));page.goto(shell.as_uri());page.add_script_tag(path=str(bundle))
+            page.wait_for_selector('[data-msg-id="m-480"]')
+            page.evaluate("const a=document.getElementById('chatArea');a.dispatchEvent(new WheelEvent('wheel',{deltaY:-200}));a.scrollTop=9600;a.dispatchEvent(new Event('scroll'))")
+            page.evaluate("new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))")
+            page.evaluate('window.reloadSession()')
+            page.evaluate("new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))")
+            assert page.locator('.row').count() == 50
+            page.evaluate("new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))")
+            offset=page.evaluate("document.querySelector('[data-msg-id=\"m-480\"]').getBoundingClientRect().top-document.getElementById('chatArea').getBoundingClientRect().top")
+            assert abs(offset)<3, f'reloaded history must preserve m-480 anchor, offset={offset}'
+            expect(page.get_by_role('button',name='Jump',exact=True)).to_be_visible()
+        finally:
+            browser.close()
