@@ -92,9 +92,9 @@ export function WebTabPane({ tabId, url, suspended = false }: { tabId: string; u
   return <IframeWebTabPane tabId={tabId} url={url} menuOwnerId={menuOwnerId} />;
 }
 
-function BookmarkButton({ url, title }: { url: string; title: string }) {
+function BookmarkButton({ tabId, url, title }: { tabId: string; url: string; title: string }) {
   const { text } = useTranslation();
-  const faviconUrl = useCenterTabs(state => state.tabs.find(tab => tab.kind === "web" && tab.url === url)?.faviconUrl);
+  const faviconUrl = useCenterTabs(state => state.tabs.find(tab => tab.id === tabId)?.faviconUrl);
   useEffect(() => updateBookmarkFavicon(url, faviconUrl), [url, faviconUrl]);
   const [bookmarked, setBookmarked] = useState(() => isBookmarked(url));
 
@@ -600,7 +600,7 @@ function DesktopWebTabPane({
           autoComplete="off"
           aria-label={text("Address", "地址")}
         />
-        <BookmarkButton url={effectiveUrl} title={title || effectiveUrl} />
+        <BookmarkButton tabId={tabId} url={effectiveUrl} title={title || effectiveUrl} />
         <BookmarksLibraryButton />
         <button
           type="button"
@@ -755,7 +755,7 @@ function IframeWebTabPane({ tabId, url, menuOwnerId }: { tabId: string; url: str
           autoComplete="off"
           aria-label={text("Address", "地址")}
         />
-        <BookmarkButton url={url} title={title} />
+        <BookmarkButton tabId={tabId} url={url} title={title} />
         <BookmarksLibraryButton />
         <button
           type="button"
