@@ -348,6 +348,7 @@ function createWebViews({
         record.faviconRequest?.abort();
         record.faviconRequest = null;
         record.faviconSourceUrl = "";
+        record.faviconCandidates = "";
         record.faviconUrl = "";
       };
       // Clear before sending navigation state or recording the new history row.
@@ -389,13 +390,17 @@ function createWebViews({
       });
       wc.on("page-title-updated", noteVisit);
       wc.on("page-favicon-updated", (_event, favicons) => {
+        const sources = (Array.isArray(favicons) ? favicons.slice(0, 4) : []).filter(url => typeof url === "string");
+        const candidates = JSON.stringify(sources);
+        if (record.faviconUrl && record.faviconCandidates === candidates) return;
         clearFavicon();
+        record.faviconCandidates = candidates;
         sendState(record);
         const request = new AbortController();
         record.faviconRequest = request;
         const timeout = setTimeout(() => request.abort(), 5_000);
         void (async () => {
-          for (const url of (Array.isArray(favicons) ? favicons.slice(0, 4) : [])) {
+          for (const url of sources) {
             if (typeof url !== "string" || request.signal.aborted) continue;
             let icon = "";
             try { icon = await readFavicon(wc.session, url, request.signal); }

@@ -23,6 +23,11 @@ module.exports = function createChecks(t) {
     t.hooks.ensureView(ctx, record.id, "https://site.test/");
     t.assert.equal(win.sent.at(-1)[1].faviconUrl, record.faviconUrl);
 
+    const loadedCalls = calls.length;
+    controlled.emitWebContents("page-favicon-updated", {}, ["https://site.test/icon.png"]);
+    await tick();
+    t.assert.equal(calls.length, loadedCalls, "same-page favicon events reuse the current icon");
+    t.assert.equal(record.faviconUrl, "data:image/png;base64,AQID");
     controlled.emitWebContents("page-favicon-updated", {}, ["https://site.test/late.png"]);
     const staleRequest = calls.at(-1);
     controlled.emitWebContents("did-navigate");

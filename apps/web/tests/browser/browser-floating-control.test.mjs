@@ -33,7 +33,7 @@ await build({
   plugins: [{ name: "floating-services", setup(b) {
     b.onResolve({ filter: /net\/fetch-client/ }, () => ({ path: "fetch-client", namespace: "test-services" }));
     b.onResolve({ filter: /^next\/navigation$/ }, () => ({ path: "next-nav", namespace: "test-services" }));
-    b.onResolve({ filter: /(?:^|\/|\.)browser-controls$/ }, () => ({ path: "browser-controls", namespace: "test-services" }));
+    b.onResolve({ filter: /(?:^|\/|\.)(?:browser-controls|bookmark-bar)$/ }, () => ({ path: "browser-controls", namespace: "test-services" }));
     b.onLoad({ filter: /.*/, namespace: "test-services" }, a => ({ contents:
       a.path === "next-nav"
         ? "export const useRouter = () => ({ push() {}, replace() {} }); export const usePathname = () => '/chat';"

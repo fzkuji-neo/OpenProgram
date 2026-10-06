@@ -35,7 +35,8 @@ import {
 import { LANE_COLORS } from "@/lib/format-utils/lane-colors";
 import { normalizeWebUrl, useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { BrowserGlyph } from "./browser-glyph";
-import { BookmarkBar, BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
+import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
+import { BookmarkBar } from "./bookmark-bar";
 import styles from "./center-tabs.module.css";
 
 function hostColor(host: string): string {

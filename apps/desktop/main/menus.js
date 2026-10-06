@@ -69,26 +69,28 @@ function createMenus({
     );
   }
 
-  function closeMainMenu(ctx) {
+  function closeMainMenu(ctx, dispose = false) {
     cancelMainMenuClose(ctx);
-    if (!ctx || !ctx.mainMenuView) return;
+    if (!ctx) return;
     const view = ctx.mainMenuView;
+    const retain = view && ctx.mainMenuCascade && !dispose && !view.webContents.isDestroyed();
     ctx.mainMenuView = null;
     ctx.mainMenuAnchor = null;
     ctx.mainMenuCascade = false;
     ctx.mainMenuPendingUpdate = null;
-    try {
-      if (!ctx.win.isDestroyed()) ctx.win.contentView.removeChildView(view);
-    } catch (_e) {
-      /* already detached */
+    if (view) {
+      try {
+        if (!ctx.win.isDestroyed()) ctx.win.contentView.removeChildView(view);
+      } catch (_e) { /* already detached */ }
+      if (retain) ctx.bookmarkMenuView = view;
+      else {
+        try { view.webContents.close(); } catch (_e) { /* already closed */ }
+      }
+      if (!ctx.win.isDestroyed()) ctx.win.webContents.send("main-menu:closed");
     }
-    try {
-      view.webContents.close();
-    } catch (_e) {
-      /* already closed */
-    }
-    if (ctx.win && !ctx.win.isDestroyed()) {
-      ctx.win.webContents.send("main-menu:closed");
+    if (dispose && ctx.bookmarkMenuView) {
+      try { ctx.bookmarkMenuView.webContents.close(); } catch (_e) { /* already closed */ }
+      ctx.bookmarkMenuView = null;
     }
   }
 
@@ -121,17 +123,16 @@ function createMenus({
     const requestedItems = Array.isArray(opts && opts.items) ? opts.items : null;
     const requestedAnchor = (opts && opts.anchor) || {};
 
-    // Adjacent bookmark folders share one live overlay. Replacing its data is
-    // immediate and preserves already decoded favicons; rebuilding the whole
-    // WebContentsView on every mouseenter made each folder look as if its icons
-    // were being fetched again.
-    if (
-      requestedCascade
-      && requestedItems
-      && ctx.mainMenuCascade
-      && ctx.mainMenuView
-      && !ctx.mainMenuView.webContents.isDestroyed()
-    ) {
+    // One reusable bookmark document per window retains its decoded icon cache.
+    const reusable = ctx.mainMenuCascade ? ctx.mainMenuView : ctx.bookmarkMenuView;
+    if (requestedCascade && requestedItems && reusable && !reusable.webContents.isDestroyed()) {
+      if (ctx.mainMenuView !== reusable) {
+        closeMainMenu(ctx);
+        ctx.bookmarkMenuView = null;
+        ctx.mainMenuView = reusable;
+        ctx.mainMenuCascade = true;
+        ctx.win.contentView.addChildView(reusable);
+      }
       const { width: contentW, height: contentH } = ctx.win.getContentBounds();
       const winW = Number(requestedAnchor.vw) || contentW;
       const winH = Number(requestedAnchor.vh) || contentH;
@@ -144,12 +145,14 @@ function createMenus({
         width: Number.isFinite(Number(opts && opts.width))
           ? Number(opts.width) / menuZoom
           : undefined,
+        reset: true,
       };
-      ctx.mainMenuView.setBounds(geometry.bounds);
-      if (ctx.mainMenuView.webContents.isLoadingMainFrame()) {
-        ctx.mainMenuPendingUpdate = update;
-      } else {
-        ctx.mainMenuView.webContents.send("main-menu:update", update);
+      reusable.webContents.setZoomFactor(menuZoom);
+      reusable.setBounds(geometry.bounds);
+      if (reusable.webContents.isLoadingMainFrame()) ctx.mainMenuPendingUpdate = update;
+      else {
+        reusable.webContents.send("main-menu:update", update);
+        reusable.webContents.focus();
       }
       return;
     }
@@ -285,7 +288,13 @@ function createMenus({
           view.webContents.focus();
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (ctx.mainMenuView === view) closeMainMenu(ctx, true);
+        else if (ctx.bookmarkMenuView === view) {
+          ctx.bookmarkMenuView = null;
+          try { view.webContents.close(); } catch (_e) { /* already closed */ }
+        }
+      });
     // Outside click steals focus from this view → close.
     view.webContents.on("blur", () => {
       if (ctx.mainMenuView === view) closeMainMenu(ctx);
