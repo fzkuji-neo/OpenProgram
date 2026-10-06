@@ -291,7 +291,8 @@ class DefaultContextEngine(ContextEngine):
         started = time.time()
         from openprogram.context.persistence import rendered_history
 
-        db = default_db()
+        from openprogram.context.model import Context
+        db = Context.turn_store(session_id)
         # §4 step 1: compaction consumes the RENDERED view — active
         # summary first, then the kept turns — so a re-compaction eats
         # "previous summary + more turns" instead of re-summarising raw
@@ -524,7 +525,8 @@ class DefaultContextEngine(ContextEngine):
         from openprogram.store.session.session_node_writer import SessionNodeWriter
         from openprogram.agent.session_db import default_db
 
-        db = default_db()
+        from openprogram.context.model import Context
+        db = Context.turn_store(session_id)
         shim = SessionNodeWriter(db, session_id)
         graph = shim.load()
 
@@ -548,6 +550,10 @@ class DefaultContextEngine(ContextEngine):
             render_context(graph, head_id=head_id, frame_entry_seq=-1)
             if head_id and head_id in graph.nodes else []
         )
+
+        active_context = Context.current()
+        if active_context is not None:
+            read_ids = active_context.select_history(graph, read_ids)
 
         # Drop abandoned assistant turns. A stream that died mid-flight
         # (crashed worker, dropped connection) leaves an llm node with

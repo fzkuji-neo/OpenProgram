@@ -4,9 +4,12 @@ Imports are lazy. Importing openprogram does not create a Runtime, session,
 provider, tool registration, or user interface.
 """
 
-__all__ = ["Runtime", "decision", "Session", "Agent", "Context", "agent", "agent_async"]
+__all__ = ["Runtime", "decision", "Session", "Agent", "ChatAgent", "TurnRequest", "TurnResult", "Context", "agent", "agent_async"]
 
 _LAZY = {
+    "ChatAgent": ("openprogram.agent.chat", "ChatAgent"),
+    "TurnRequest": ("openprogram.agent.turn_runtime.types", "TurnRequest"),
+    "TurnResult": ("openprogram.agent.turn_runtime.types", "TurnResult"),
     "Agent": ("openprogram.agentic_programming.agent_class", "Agent"),
     "Context": ("openprogram.context", "Context"),
     "agent": ("openprogram.agent", None),

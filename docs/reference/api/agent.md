@@ -211,3 +211,11 @@ This contract restores execution at explicit steps, not arbitrary Python stack f
 Do not share mutable Python globals, closures or defaults between steps. Pass persistent state through JSON step inputs and results; process-local mutations are not a recovery protocol.
 
 Import step dependencies at module scope. Imports inside retained helpers, dynamic import APIs and generated code are rejected before executing steps. Source-defined Python helpers are retained recursively. Opaque module and class dependencies currently support only the pinned standard library; third-party and user package objects are rejected because an initializer alone does not identify their implementation.
+
+## Session turns and continuation
+
+`Agent.run_turn(request, *, context=None, on_event=None, cancel_event=None, execution_context=None)` returns `TurnResult`. Import `TurnRequest` and `TurnResult` from `openprogram`. Instance configuration applies before a fresh turn; `Context.for_session(store, session_id, head_id=..., blocks=..., providers=...)` binds its persistent store and branch. A request for a different session is rejected. `Context.session_id` exposes the selected graph identity.
+
+`arun_turn(request, **options)` runs the same operation asynchronously with cooperative cancellation. `resume_turn(continuation, **options)` and `aresume_turn(...)` reuse the checkpoint's request without repeating admission. Event callbacks receive the existing runtime event dictionaries and run on the execution thread. Durable pause and steering retain the existing execution-control owner and safe-point protocol.
+
+`ChatAgent` inherits this contract and is the production conversation type. Overriding the turn entry methods does not automatically wrap them as ordinary helper calls. The old `openprogram.agent.dispatcher` imports alias the shared `openprogram.agent.turn_runtime` modules; they do not implement another execution loop.

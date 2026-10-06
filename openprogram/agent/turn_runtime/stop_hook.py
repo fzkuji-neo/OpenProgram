@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Callable, Optional
 
-from openprogram.agent.dispatcher.types import INHERIT_PARENT
+from openprogram.agent.turn_runtime.types import INHERIT_PARENT
 
 LAST_TEXT_MAX_CHARS = 4000
 

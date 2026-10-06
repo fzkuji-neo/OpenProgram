@@ -58,6 +58,65 @@ class Context(MutableMapping[str, Any]):
             self._blocks.pop(name, None)
 
     @classmethod
+    def for_session(cls, store, session_id: str, *, head_id=UNSET, **options):
+        """Select a persistent session without creating or loading a provider."""
+        from openprogram.store import SessionNodeWriter
+        return cls(store=SessionNodeWriter(store, session_id), head_id=head_id, **options)
+
+    @property
+    def session_id(self):
+        """The selected execution graph, independent of named content."""
+        return getattr(self.store, 'session_id', None)
+
+    @classmethod
+    def turn_store(cls, session_id):
+        """Resolve a turn's store from its explicit Context or the default."""
+        current = cls.current()
+        if current is not None and current.store is not None:
+            if current.session_id != session_id:
+                raise ValueError('Context belongs to a different session.')
+            return current.store.store
+        from openprogram.agent.session_db import default_db
+        return default_db()
+
+    def render_blocks(self):
+        """Resolve named content once for a provider request."""
+        import json
+        from openprogram.providers.types import TextContent
+        blocks = []
+        for name, value in self.resolve_blocks().items():
+            if value is None or value == '':
+                continue
+            value = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, default=str)
+            blocks.append(TextContent(text=f'{name}:\n{value}'))
+        return blocks
+
+    def add_to_messages(self, messages, *, blocks=None):
+        """Add named content to a user message, never system authority."""
+        from openprogram.providers.types import TextContent
+        blocks = self.render_blocks() if blocks is None else blocks
+        result = list(messages)
+        if blocks:
+            for index in range(len(result) - 1, -1, -1):
+                message = result[index]
+                if getattr(message, 'role', None) == 'user':
+                    content = list(message.content) if isinstance(message.content, list) else [TextContent(text=message.content)]
+                    result[index] = message.model_copy(update={'content': blocks + content})
+                    break
+        return result
+
+    def filter_history(self, history):
+        """Narrow an already authorized branch before model preparation."""
+        if self.history_filter is False:
+            return []
+        if self.store is None or (self.history_filter in (None, 'dag') and not self.excluded_call_ids):
+            return list(history)
+        graph = self.store.load()
+        ids = [row['id'] for row in history if row.get('id') in graph.nodes]
+        selected = set(self.select_history(graph, ids))
+        return [row for row in history if row.get('id') in selected]
+
+    @classmethod
     def current(cls) -> Context | None:
         """Return the context bound to this task."""
         return _current.get()

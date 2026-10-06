@@ -24,7 +24,7 @@ must use these, never a third name):
 Leaf module: depends only on the stdlib, ``types`` (TurnRequest /
 EventCallback / _noop), and ``_model_tools`` (profile + model resolution,
 the same source ``__init__`` uses). The package ``__init__`` re-exports
-these so existing callers — ``from openprogram.agent.dispatcher import
+these so existing callers — ``from openprogram.agent.turn_runtime import
 trigger_compaction`` (webui/ws_actions/chat.py) and the dispatcher tests'
 ``D.trigger_compaction`` — resolve unchanged.
 
@@ -38,7 +38,7 @@ import re
 import threading
 from typing import Optional
 
-from openprogram.agent.dispatcher.types import EventCallback, TurnRequest, _noop
+from openprogram.agent.turn_runtime.types import EventCallback, TurnRequest, _noop
 from openprogram.agent.internals._model_tools import (
     load_agent_profile as _load_agent_profile,
     resolve_model as _resolve_model,

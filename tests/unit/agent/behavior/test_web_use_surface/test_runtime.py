@@ -24,7 +24,7 @@ def test_web_use_is_registered_as_surface_aware_public_tool():
 
 
 def test_surface_tool_is_injected_after_tools_are_resolved():
-    source = (REPO_ROOT / "openprogram/agent/dispatcher/loop_runner.py").read_text(
+    source = (REPO_ROOT / "openprogram/agent/turn_runtime/loop_runner.py").read_text(
         encoding="utf-8"
     )
 

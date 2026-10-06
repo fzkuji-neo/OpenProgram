@@ -777,6 +777,7 @@ PAGE_ORDER: dict[str, int] = {
     # two rendered companions (our tool surface, then the eight reference
     # implementations compared).
     "reference/design/runtime/agent-collaboration.md": 1002,
+    "reference/design/runtime/unified-agent.html": 1002,
     "reference/design/runtime/agent-collab-architecture.html": 1003,
     "reference/design/runtime/agent-collab-comparison.html": 1004,
     # Unified lifecycle and debugger control contract for all runtime owners.

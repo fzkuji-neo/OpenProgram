@@ -41,13 +41,13 @@ from openprogram.agent.internals._model_tools import (
     log_resolved_tools as _log_resolved_tools,
     resolve_tools as _resolve_tools,
 )
-from openprogram.agent.dispatcher.runtime_attach import _wrap_agentic_runtime_block
+from openprogram.agent.turn_runtime.runtime_attach import _wrap_agentic_runtime_block
 from openprogram.agent.continuation import runtime_contract_snapshot
 from openprogram.agent.continuation import validate_runtime_contract
 from openprogram.agent.continuation import provider_context_from_effect
 
 if TYPE_CHECKING:
-    from openprogram.agent.dispatcher.types import EventCallback, TurnRequest
+    from openprogram.agent.turn_runtime.types import EventCallback, TurnRequest
 
 
 def _ordered_block_from_content(block: object) -> dict | None:
@@ -272,7 +272,7 @@ def resolve_agent_runtime(
     saved_runtime_contract: Mapping | None = None,
 ):
     """Resolve the exact model, prompt, tools, and durable runtime contract."""
-    from openprogram.agent import dispatcher as _dispatcher
+    from openprogram.agent import turn_runtime as _dispatcher
     from openprogram.agent.surface_context import render_for_model as _render_surface_context
 
     event_sink = on_event or (lambda _event: None)
@@ -418,6 +418,10 @@ def run_loop_blocking(
     see tests/unit/agent/dispatcher/test_dispatcher_integration.py. None means use
     the default (real provider via stream_simple).
     """
+    from openprogram.agentic_programming.turn_api import _current_turn_agent
+    owner = _current_turn_agent.get()
+    if stream_fn is None and owner is not None:
+        stream_fn = owner._options.get('stream_fn')
     from openprogram.agent.agent_loop import agent_loop, agent_loop_resume
     from openprogram.agent.types import AgentContext, AgentLoopConfig
     # Continuation already binds TurnBindings in process_agent_continuation.
@@ -453,7 +457,8 @@ def run_loop_blocking(
     # full schema on the next call. The catalog component only lists the
     # *initial* deferred names so the LLM can discover them from turn 1.
     from openprogram.agent.session_db import default_db
-    db = default_db()
+    from openprogram.context import Context
+    db = Context.turn_store(req.session_id)
     if continuation is not None:
         # Resume is not a new user turn.  Re-running the context engine would
         # perform its normal auto-compact/system-prompt bookkeeping and could
@@ -507,6 +512,10 @@ def run_loop_blocking(
         from openprogram.context.system_prompt_node import record_system_prompt
         record_system_prompt(db, req.session_id, recordable_system_prompt)
         session = db.get_session(req.session_id) or {}
+        from openprogram.context import Context
+        request_context = Context.current()
+        if request_context is not None:
+            history = request_context.filter_history(history)
         prep = _ctx_engine.prepare(
             agent=agent_profile,
             session=session,
@@ -767,6 +776,10 @@ def run_loop_blocking(
     async def _permission_context(messages, _cancel):
         from openprogram.providers.types import TextContent, UserMessage
         from openprogram.agent.permissions import current_permission_request
+        from openprogram.context import Context
+        request_context = Context.current()
+        if request_context is not None and continuation is None:
+            messages = request_context.add_to_messages(messages)
         current = current_permission_request(req)
         version = getattr(current, "_permission_version", 0)
         if not version:
@@ -782,8 +795,12 @@ def run_loop_blocking(
 
     from openprogram.providers.fast import resolve_service_tier
 
+    turn_options = agent_profile.get('_agent_turn_options') or {}
     config = AgentLoopConfig(
         model=model,
+        max_iterations=turn_options.get('max_iterations'),
+        tool_choice=turn_options.get('tool_choice'),
+        parallel_tool_calls=turn_options.get('parallel_tool_calls'),
         convert_to_llm=_default_convert_to_llm,
         transform_context=_permission_context,
         # Pass session_id so providers that support it

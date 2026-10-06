@@ -192,3 +192,11 @@ f = _example_agent.f
 步骤之间不得依赖可变的 Python 全局变量、闭包或默认参数。需要持续保存的状态应通过步骤的 JSON 输入和结果传递，进程内变量修改不能作为恢复依据。
 
 步骤依赖需要在模块级导入；辅助函数内部导入、动态导入 API 和动态生成代码会在执行步骤前被拒绝。Python 辅助函数源码递归保存。模块和类对象目前仅支持固定的标准库身份，第三方及用户包对象会被拒绝，因为只保存包初始化文件无法确定完整实现。
+
+## 会话轮次与恢复
+
+`Agent.run_turn(request, *, context=None, on_event=None, cancel_event=None, execution_context=None)` 返回 `TurnResult`。从 `openprogram` 导入 `TurnRequest` 和 `TurnResult`。新轮次执行前应用实例配置；`Context.for_session(store, session_id, head_id=..., blocks=..., providers=...)` 绑定持久化存储和分支。请求与 Context 的会话不一致时拒绝执行。`Context.session_id` 返回所选图的标识。
+
+`arun_turn(request, **options)` 提供协作式取消的异步执行。`resume_turn(continuation, **options)` 与 `aresume_turn(...)` 复用断点请求，不重复执行准入。事件回调在执行线程接收现有运行时事件字典。持久化暂停和执行中追加输入沿用已有执行控制及安全点协议。
+
+`ChatAgent` 继承这套契约，是实际聊天使用的类型。子类重写轮次入口时，不会将其自动包装为普通函数调用。旧 `openprogram.agent.dispatcher` 导入与共享 `openprogram.agent.turn_runtime` 指向同一模块，不再维护另一份执行循环。

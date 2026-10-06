@@ -398,26 +398,9 @@ class ProvidersOperations:
 
         async def context_transform(messages, cancel_event):
             # Resolve on each provider request, before its budget checks.
-            resolved = request_context.resolve_blocks()
-            named_blocks = []
-            for name, value in resolved.items():
-                if value is None or value == "":
-                    continue
-                if not isinstance(value, str):
-                    import json
-                    value = json.dumps(value, ensure_ascii=False, default=str)
-                named_blocks.append({"type": "text", "text": f"{name}:\n{value}"})
-            result = list(messages)
-            if named_blocks:
-                # Keep the named content in the user role. It cannot change
-                # the system prompt or registered tool authority.
-                from openprogram.providers.types import TextContent
-                for index in range(len(result) - 1, -1, -1):
-                    message = result[index]
-                    if getattr(message, "role", None) == "user":
-                        content_blocks = list(message.content) if isinstance(message.content, list) else [TextContent(text=message.content)]
-                        result[index] = message.model_copy(update={"content": [TextContent(text=block["text"]) for block in named_blocks] + content_blocks})
-                        break
+            rendered_blocks = request_context.render_blocks()
+            named_blocks = [block.model_dump() for block in rendered_blocks]
+            result = request_context.add_to_messages(messages, blocks=rendered_blocks)
             if previous_transform is not None:
                 result = await previous_transform(result, cancel_event)
             # Save the values used by this request, not provider callables.
