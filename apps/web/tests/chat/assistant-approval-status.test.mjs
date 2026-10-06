@@ -108,6 +108,18 @@ test('live tools remain visible alongside text and retry has one thinking indica
   assert.doesNotMatch(renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,status:'cancelled'}})),/data-activity-phase=/);
 });
 
+test('the owning terminal execution stops activity even when the last message flag trails completion', () => {
+  const msg={id:'m1',role:'assistant',status:'streaming',content:'Finished',blocks:[{type:'text',text:'Finished'}]};
+  const htmlFor=executionOrder=>{
+    globalThis.approvalState={currentSessionId:'s1',pendingDecisions:[],executionUpdateOrders:{e1:executionOrder}};
+    return renderToStaticMarkup(createElement(AssistantBubble,{msg,sessionIdOverride:'s1'}));
+  };
+  assert.doesNotMatch(htmlFor({...order,terminal:true}),/data-activity-phase=/);
+  assert.match(htmlFor(order),/data-activity-phase="generating"/);
+  assert.match(htmlFor({...order,terminal:true,sessionId:'s2'}),/data-activity-phase="generating"/);
+  assert.match(htmlFor({...order,terminal:true,messageIds:['old-message']}),/data-activity-phase="generating"/);
+});
+
 for (const [status,label] of [['cancelled','Cancelled'],['interrupted','Interrupted']]) {
   test(`${status} empty and partial replies show terminal status`, () => {
     for (const blocks of [[],[{type:'text',text:'Saved partial reply'}]]) {
