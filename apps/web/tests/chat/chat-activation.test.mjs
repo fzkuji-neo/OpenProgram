@@ -28,7 +28,7 @@ const {useChatAreaStick}=await import(pathToFileURL(output));
 const area=document.querySelector('#area'),column=document.querySelector('#messages');let height=1500,top=0;
 Object.defineProperties(area,{scrollHeight:{get:()=>height},clientHeight:{get:()=>500},scrollTop:{get:()=>top,set:v=>{top=Math.max(0,Math.min(v,height-500));}}});
 const options={sessionId:'a',areaRef:{current:area},columnRef:{current:column}};
-function View({id,visible=true}){options.sessionId=id;useChatAreaStick(id,'seed',visible,options);return null;}
+function View({id,visible=true,seed='seed'}){options.sessionId=id;useChatAreaStick(id,seed,visible,options);return null;}
 test('activation reaches latest through delayed file growth and manual input cancels following',async()=>{
  const root=createRoot(document.querySelector('#root'));const render=async(id,visible=true)=>act(async()=>root.render(createElement(View,{id,visible})));
  await render('a');assert.equal(top,1000);await render('b');height=1600;await act(async()=>resize());assert.equal(top,1100);
@@ -78,4 +78,18 @@ test('recent returns restore reading; one-hour absence and long app blur show la
   await act(async()=>window.dispatchEvent(new window.Event('blur')));now+=3600000;
   await act(async()=>window.dispatchEvent(new window.Event('focus')));assert.equal(top,2000,'long app absence follows latest');
  } finally {await act(async()=>root.unmount());Date.now=realNow;}
+});
+
+test('cold activation keeps latest intent when asynchronous transcript arrives after initial resize',async()=>{
+ const root=createRoot(document.querySelector('#root'));
+ height=500;top=0;globalThis.historyState={pages:{}};
+ await act(async()=>root.render(createElement(View,{id:'cold-load',seed:null})));
+ await act(async()=>resize());
+ height=9500;
+ await act(async()=>root.render(createElement(View,{id:'cold-load',seed:'loaded-last-message'})));
+ await act(async()=>resize());
+ assert.equal(top,9000,'loaded transcript must retain first-activation latest intent');
+ height=10000;await act(async()=>resize());
+ assert.equal(top,9500,'subsequent markdown growth keeps following without an initial suppression window');
+ await act(async()=>root.unmount());
 });
