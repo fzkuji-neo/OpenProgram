@@ -263,9 +263,15 @@ def test_nested_agentic_siblings_consume_outer_tool_identity(tmp_path):
         store_var.reset(store_token)
 
     children = [n for n in writer.load().nodes.values() if n.function_name == "child"]
-    assert len(children) == 2
-    assert len({n.id for n in children}) == 2
-    assert all(n.caller != "" for n in children)
+    assert children == []
+    links = [n for n in writer.load().nodes.values() if n.metadata.get('child_session_id')]
+    assert len(links) == 2
+    assert len({n.metadata['child_session_id'] for n in links}) == 2
+    for link in links:
+        child_graph = SessionNodeWriter(store, link.metadata['child_session_id']).load()
+        child = next(n for n in child_graph if n.name == 'child')
+        assert not child.caller
+        assert not child.metadata.get('tool_call_occurrence_id')
 
 
 def test_hidden_nested_tool_does_not_precreate_or_persist_payload(tmp_path):

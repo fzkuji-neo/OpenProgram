@@ -305,7 +305,7 @@ def _call_setup(self, fn, sig, args, kwargs, stack):
     previous = _recursion_depth.get(None) or {}
     identity = fn
     depth = previous.get(identity, 0)
-    if record_call and depth >= _MAX_AGENTIC_RECURSION_DEPTH:
+    if depth >= _MAX_AGENTIC_RECURSION_DEPTH:
         raise RecursionError(
             f"Agent method {name} exceeded max nesting depth "
             f"{_MAX_AGENTIC_RECURSION_DEPTH}")

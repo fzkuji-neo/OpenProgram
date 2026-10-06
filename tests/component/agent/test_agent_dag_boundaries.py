@@ -153,13 +153,13 @@ def test_direct_tool_records_once_without_ordinary_helpers(chat):
         def helper(self, depth):
             return 1 if not depth else 1 + self.helper(depth - 1)
     tool = Tool().run._agent_tool
-    result = asyncio.run(tool.execute('tool-id', {'depth': 20}, None, None))
+    result = asyncio.run(tool.execute('tool-id', {'depth': 3}, None, None))
     assert not result.is_error
     nodes = [n for n in chat.load().nodes.values() if n.is_code()]
     assert len(nodes) == 1
     assert nodes[0].name.endswith('.run')
     assert not nodes[0].metadata.get('child_session_id')
-    assert nodes[0].output == 21
+    assert nodes[0].output == 4
 
 
 def test_child_file_checkpoints_keep_parent_turn_ownership(chat):

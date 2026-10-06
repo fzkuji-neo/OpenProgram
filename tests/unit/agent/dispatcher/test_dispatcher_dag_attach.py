@@ -106,16 +106,17 @@ def test_dispatcher_attaches_store_so_agent_method_lands_in_dag(tmp_db):
     assert "code" in roles            # planner code Call
     assert "llm" in roles             # runtime.exec inside planner
 
-    # planner exit update filled in result
-    planner_nodes = [n for n in g if n.is_code() and n.name == "planner"]
-    assert len(planner_nodes) == 1
-    assert planner_nodes[0].output == "outline"
-    assert planner_nodes[0].metadata.get("status") == "completed"
-
-    # planner's internal LLM call has caller = planner.id
-    llm_nodes = [n for n in g if n.is_llm() and n.output == "outline"]
+    # The direct nested Agent owns a child graph; only its result is in chat.
+    assert not any(n.name == 'planner' for n in g)
+    link = next(n for n in g if n.metadata.get('child_session_id'))
+    assert link.output == 'outline'
+    child = GraphStore(tmp_db, link.metadata['child_session_id']).load()
+    planner = next(n for n in child if n.name == 'planner')
+    assert planner.output == 'outline'
+    assert planner.metadata['status'] == 'completed'
+    llm_nodes = [n for n in child if n.is_llm() and n.output == 'outline']
     assert len(llm_nodes) == 1
-    assert llm_nodes[0].caller == planner_nodes[0].id
+    assert llm_nodes[0].caller == planner.id
 
 
 def test_dispatcher_detaches_runtime_on_exception(tmp_db):

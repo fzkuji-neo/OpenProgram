@@ -332,7 +332,10 @@ def test_gui_agent_wrapper_records_one_public_gui_agent_node(tmp_path, monkeypat
 
     names = [node.name for node in writer.load() if node.is_code()]
     assert names.count("gui_agent") == 1
-    assert names.count("gui_step") == 1
+    assert names.count("gui_step") == 0
+    link = next(n for n in writer.load() if n.metadata.get('child_session_id'))
+    child = SessionNodeWriter(store, link.metadata['child_session_id']).load()
+    assert sum(n.name == 'gui_step' for n in child) == 1
     assert len(capabilities.calls) == 1
 
 
