@@ -26,7 +26,8 @@ interface ResolveChatScrollOptions {
 }
 
 export const CHAT_READING_POSITION_TTL_MS = 60 * 60 * 1000;
-const runtimeId = crypto.randomUUID();
+// This scopes reading positions to a document; it is not a security token.
+const runtimeId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 type SavedChatScroll = { top: number; atBottom: boolean; savedAt: number; runtimeId: string };
 
 function isRecent(position: SavedChatScroll | undefined): boolean {
