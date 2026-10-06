@@ -22,6 +22,8 @@ esbuild.build({
     contents: [
       'export { createElement } from "react";',
       'export { createRoot } from "react-dom/client";',
+      'export { WebTabPane } from "./components/center-tabs/web-tab-pane.tsx";',
+      'export { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";',
       'export { BookmarkBar } from "./components/center-tabs/browser-controls.tsx";',
       'export { useCenterTabs } from "./lib/tabs/center-tabs-store.ts";',
       'export { TabItem, CompoundTabItem } from "./components/center-tabs/tab-items.tsx";',
@@ -221,3 +223,46 @@ def test_bookmark_bar_icons_overflow_and_all_bookmarks(tmp_path: Path) -> None:
         server.shutdown()
         server.server_close()
         thread.join()
+
+
+def test_bookmark_uses_current_tab_icon_for_duplicate_urls(tmp_path: Path) -> None:
+    from playwright.sync_api import sync_playwright
+
+    bundle = tmp_path / "tabs.js"
+    _bundle_tabs(bundle)
+    with sync_playwright() as runtime:
+        browser = runtime.chromium.launch()
+        try:
+            page = browser.new_page()
+            page.route("**/*", lambda route: route.fulfill(
+                body='<div id="root"></div>', content_type="text/html",
+            ))
+            page.goto("http://bookmark.test/")
+            page.evaluate("window.process = {env: {NODE_ENV: 'test'}}")
+            page.add_script_tag(path=str(bundle))
+            page.evaluate("""() => {
+              localStorage.setItem('agentic_locale', 'en');
+              const {createElement: h, createRoot, WebTabPane, useCenterTabs, AppRouterContext} = TabBundle;
+              const url = 'http://bookmark.test/site';
+              const first = useCenterTabs.getState().ensureWebTab(url);
+              const current = useCenterTabs.getState().openPopupWebTab(url, first);
+              const icon = color => 'data:image/svg+xml;base64,' + btoa(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="' + color + '"/></svg>');
+              window.bookmarkFixture = {current, initial: icon('blue'), updated: icon('red')};
+              useCenterTabs.getState().updateWebTab(current, {faviconUrl: bookmarkFixture.initial, title: 'Current popup'});
+              createRoot(document.getElementById('root')).render(h(AppRouterContext.Provider, {
+                value: {push(){}, replace(){}, prefetch(){}, refresh(){}, back(){}, forward(){}}
+              }, h(WebTabPane, {tabId: current, url})));
+            }""")
+            page.get_by_role("button", name="Bookmark", exact=True).click()
+            page.wait_for_function("""() => JSON.parse(localStorage.getItem('openprogram.bookmarks'))
+              .root.children[0].faviconUrl === bookmarkFixture.initial""")
+            page.evaluate("""() => TabBundle.useCenterTabs.getState().updateWebTab(
+              bookmarkFixture.current, {faviconUrl: bookmarkFixture.updated})""")
+            page.wait_for_function("""() => JSON.parse(localStorage.getItem('openprogram.bookmarks'))
+              .root.children[0].faviconUrl === bookmarkFixture.updated""")
+            saved = page.evaluate("JSON.parse(localStorage.getItem('openprogram.bookmarks')).root.children[0]")
+            assert saved['title'] == 'Current popup'
+            assert saved['url'] == 'http://bookmark.test/site'
+        finally:
+            browser.close()
