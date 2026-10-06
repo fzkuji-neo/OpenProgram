@@ -32,11 +32,46 @@ function createWebViews({
       id: record.id,
       ...(u ? { url: u } : {}),
       ...(ti ? { title: ti } : {}),
+      faviconUrl: record.faviconUrl || "",
       loading: wc.isLoading(),
       canGoBack: wc.navigationHistory.canGoBack(),
       canGoForward: wc.navigationHistory.canGoForward(),
       ...extra,
     });
+  }
+
+  // Read through the page's session without a public arbitrary-URL IPC. Inline
+  // bytes let the renderer inspect alpha without a cross-origin canvas read.
+  async function readFavicon(session, url, signal) {
+    const limit = 256 * 1024;
+    if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(url)) {
+      return url.length <= Math.ceil(limit * 4 / 3) + 128 ? url : "";
+    }
+    if (!isWebUrl(url)) return "";
+    const response = await session.fetch(url, { signal, credentials: "omit" });
+    if (!response.ok || Number(response.headers.get("content-length")) > limit) {
+      await response.body?.cancel();
+      return "";
+    }
+    const mime = response.headers.get("content-type")?.split(";")[0].trim() || "image/x-icon";
+    if (!/^image\/[a-z0-9.+-]+$/i.test(mime) && mime !== "application/octet-stream") {
+      await response.body?.cancel();
+      return "";
+    }
+    const reader = response.body?.getReader();
+    if (!reader) return "";
+    const chunks = [];
+    let size = 0;
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > limit) { await reader.cancel(); return ""; }
+        chunks.push(Buffer.from(value));
+      }
+    } finally { reader.releaseLock(); }
+    return size ? `data:${mime === "application/octet-stream" ? "image/x-icon" : mime};base64,${Buffer.concat(chunks).toString("base64")}` : "";
   }
 
   function forwardFindResult(record, result) {
@@ -285,6 +320,15 @@ function createWebViews({
       wc.on("context-menu", (_event, params) => {
         showWebTabContextMenu(record, params);
       });
+      const clearFavicon = () => {
+        record.faviconRequest?.abort();
+        record.faviconRequest = null;
+        record.faviconSourceUrl = "";
+        record.faviconUrl = "";
+      };
+      // Clear before sending navigation state or recording the new history row.
+      wc.on("did-navigate", clearFavicon);
+      wc.on("destroyed", clearFavicon);
       for (const ev of [
         "did-navigate",
         "did-navigate-in-page",
@@ -311,7 +355,7 @@ function createWebViews({
         safeRecordVisit({
           url: wc.getURL(),
           title: wc.getTitle(),
-          faviconUrl: record.faviconUrl || "",
+          faviconUrl: record.faviconSourceUrl || "",
           visitedAt: Date.now(),
         });
       };
@@ -321,15 +365,26 @@ function createWebViews({
       });
       wc.on("page-title-updated", noteVisit);
       wc.on("page-favicon-updated", (_event, favicons) => {
-        record.faviconUrl = Array.isArray(favicons) ? favicons[0] || "" : "";
-        sendState(record, { faviconUrl: record.faviconUrl });
-        noteVisit();
-      });
-      // 新页面没有 favicon 时不会再触发 page-favicon-updated——导航提交时先清
-      // 掉上一页的图标，否则 tab 会一直挂着旧站点的 icon。
-      wc.on("did-navigate", () => {
-        record.faviconUrl = "";
-        sendState(record, { faviconUrl: "" });
+        clearFavicon();
+        sendState(record);
+        const request = new AbortController();
+        record.faviconRequest = request;
+        const timeout = setTimeout(() => request.abort(), 5_000);
+        void (async () => {
+          for (const url of (Array.isArray(favicons) ? favicons.slice(0, 4) : [])) {
+            if (typeof url !== "string" || request.signal.aborted) continue;
+            let icon = "";
+            try { icon = await readFavicon(wc.session, url, request.signal); }
+            catch { /* Missing/blocked icons use the renderer's Lucide fallback. */ }
+            if (request.signal.aborted || record.faviconRequest !== request || wc.isDestroyed()) return;
+            if (!icon) continue;
+            record.faviconSourceUrl = url;
+            record.faviconUrl = icon;
+            sendState(record);
+            noteVisit();
+            return;
+          }
+        })().finally(() => clearTimeout(timeout));
       });
       wc.on("found-in-page", (_event, result) => forwardFindResult(record, result));
       wc.on("did-navigate", () => clearActionCue(record, true));
@@ -341,6 +396,7 @@ function createWebViews({
       });
       if (url && isTabUrl(url)) void loadView(record, url).catch(() => {});
     }
+    if (record) sendState(record);
     return record;
   }
 
