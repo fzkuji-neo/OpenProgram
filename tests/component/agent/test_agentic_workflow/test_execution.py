@@ -477,8 +477,8 @@ def test_public_entry_publishes_and_executes_agent_class_snapshot(
     children = [
         entry for entry in entries if entry[1].endswith("steps.discover.discover")
     ]
-    assert len(parents) == len(children) == 1
-    assert children[0][2] == parents[0][0]
+    assert len(parents) == 1
+    assert children == []  # Ordinary helpers do not create DAG nodes.
     assert (
         "WorkflowAgent(Agent)"
         in (
