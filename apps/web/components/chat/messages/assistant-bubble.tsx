@@ -44,6 +44,8 @@ import { TurnFilesChips } from "./turn-files-chips";
 import { shouldRenderTurnFiles } from "./turn-files-presentation";
 import { AssistantFileCards } from "./assistant-file-cards";
 import { parseAttachments } from "./user-attachments";
+import { ActivityIndicator } from "./activity-indicator";
+import { activityPhase, type ActivityPhase } from "@/lib/chat/activity-phase";
 
 /** Categorized, actionable headline for a failed turn, by error reason
  *  (see docs/design/providers/reliability/error-taxonomy-propagation.md). Returns null
@@ -106,17 +108,12 @@ const MarkdownText = memo(function MarkdownText({ text }: { text: string }) {
   );
 });
 
-function TypingIndicator() {
-  // No name here — the bubble header already shows the agent name, so
-  // "<name> is thinking" repeated it. Just the breathing dot + label,
-  // sitting in the same content column as the answer text that replaces
-  // it (``pending-body`` lives inside ``chat-stream-body`` alongside
-  // ``chat-text``), so there's no horizontal jump when the reply lands.
+function TypingIndicator({ phase }: { phase: ActivityPhase }) {
   const { text } = useTranslation();
   return (
     <div className="pending-body">
-      <span className="thinking-spinner" aria-hidden="true" />
-      <span className="pending-label">{text("thinking…", "思考中…")}</span>
+      <ActivityIndicator phase={phase} />
+      <span className="pending-label">{phase === "tool" ? text("Running function…", "调用函数中…") : text("thinking…", "思考中…")}</span>
     </div>
   );
 }
@@ -150,6 +147,8 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
     msg.status === "pending" ||
     msg.status === "running" ||
     msg.status === "cancelling";
+  const phase = waitingApproval ? null : activityPhase(msg);
+  const activeMotion = streaming && !!phase && !msg.retryStatus;
   const tools = msg.tools ?? [];
   // Files the turn handed back via ``send_file`` ride the reply text as
   // the same ``[attachment: … @ /abs]`` marker an inbound attachment
@@ -361,7 +360,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                       <ThinkingStep
                         key={`thk_${i}`}
                         text={b.text || ""}
-                        running={streaming && i === lastBlockIdx}
+                        running={activeMotion && i === lastBlockIdx}
                       />,
                     );
                     return;
@@ -390,7 +389,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                       key={`fn_${i}`}
                       block={b}
                       tree={tree}
-                      running={!!b.tool_call_id && runningToolIds.has(b.tool_call_id)}
+                      running={activeMotion && !!b.tool_call_id && runningToolIds.has(b.tool_call_id)}
                       sessionId={bubbleSessionId}
                     />,
                   );
@@ -404,7 +403,10 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 rendered.push(
                   <ExecutionStrip
                     key={`seg_${si}`}
-                    streaming={streaming && seg.items.some(({ i }) => i === lastBlockIdx)}
+                    activity={phase ?? "thinking"}
+                    streaming={activeMotion && (phase === "tool"
+                      ? seg.items.some(({ b }) => !!b.tool_call_id && runningToolIds.has(b.tool_call_id))
+                      : phase !== "generating" && seg.items.some(({ i }) => i === lastBlockIdx))}
                     subagentHeads={spawnHeads(seg.cards)}
                     label={execStripLabel(
                       seg.items.map(({ b }) => b), spawnNames(seg.cards), text)}
@@ -440,7 +442,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 rendered.push(
                   <ExecutionStrip
                     key="legacy_subagents"
-                    streaming={streaming}
+                    streaming={activeMotion}
                     subagentHeads={spawnHeads(attachFifo)}
                     label={execStripLabel([], spawnNames(attachFifo), text)}
                   >
@@ -461,9 +463,6 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                   </div>,
                 );
               });
-              // 进行中不再叠加尾部呼吸点：折叠摘要条的 shimmer 已经表达
-              // "正在思考/运行"，再挂一个 spinner 就是三种信号打架（用户
-              // 截图里的乱象之一）。正文 token 一到，chat-text 自然接上。
               return rendered;
             })()
           ) : (
@@ -471,7 +470,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
               {/* 无 blocks 的旧会话仍用普通时间线行，不切回卡片 UI。 */}
               {attachFifo.length > 0 ? (
                 <ExecutionStrip
-                  streaming={streaming}
+                  streaming={activeMotion}
                   subagentHeads={spawnHeads(attachFifo)}
                   label={execStripLabel([], spawnNames(attachFifo), text)}
                 >
@@ -497,7 +496,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 </div>
               ) : null}
               {hasContent && msg.status !== "error" ? <MarkdownText text={contentText} /> : null}
-              {streaming && !hasContent && !waitingApproval && !verdict && !msg.retryStatus ? <TypingIndicator /> : null}
+              {streaming && !hasContent && !waitingApproval && !verdict && !msg.retryStatus ? <TypingIndicator phase={phase ?? "thinking"} /> : null}
             </>
           )}
           {!msg.goalVerification && (msg.status === "cancelled" || msg.status === "interrupted") ? (
@@ -512,11 +511,11 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
             </div>
           ) : null}
           {verdict ? (
-            <ExecutionStrip label={verdict.summary} streaming={streaming}>
+            <ExecutionStrip label={verdict.summary} streaming={activeMotion} activity="generating">
               <StepRow
                 icon="llm"
                 title={text("Verification report", "验收报告")}
-                running={streaming}
+                running={activeMotion}
                 copyText={verdict.json}
                 detail={{
                   path: `chat-report:${bubbleSessionId || ""}:${msg.id}`,
@@ -527,9 +526,9 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
               />
             </ExecutionStrip>
           ) : null}
-          {streaming && msg.retryStatus ? (
+          {streaming && !waitingApproval && msg.retryStatus ? (
             <div className="pending-body" role="status" aria-live="polite">
-              <span className="thinking-spinner" aria-hidden="true" />
+              <ActivityIndicator phase="thinking" />
               <span className="pending-label">
                 {text("Retrying", "正在重试")}
                 {` ${msg.retryStatus.attempt}${msg.retryStatus.maxAttempts ? `/${msg.retryStatus.maxAttempts}` : ""}`}
@@ -561,9 +560,12 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
           eyes land, instead of back up at the header. */}
       <div className="message-actions-footer">
         {streaming ? (
-          <div className="message-actions">
-            <MessageTimestamp timestamp={msg.timestamp} />
-          </div>
+          <>
+            {activeMotion && phase === "generating" ? <ActivityIndicator phase="generating" /> : null}
+            <div className="message-actions">
+              <MessageTimestamp timestamp={msg.timestamp} />
+            </div>
+          </>
         ) : (
           <MessageActions msg={msg} sessionIdOverride={sessionIdOverride} />
         )}

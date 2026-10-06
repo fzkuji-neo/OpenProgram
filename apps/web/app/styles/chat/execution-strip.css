@@ -54,25 +54,6 @@
   text-align: left;
 }
 .tl-toggle:hover { color: var(--text-secondary); }
-/* 流式进行中：折叠摘要小字的扫光 shimmer = "正在思考/运行"。
-   渐变裁剪文字实现，明暗主题都跟随文字变量。 */
-.tl-label-shimmer {
-  background: linear-gradient(
-    90deg,
-    var(--text-muted) 35%,
-    var(--text-primary) 50%,
-    var(--text-muted) 65%
-  );
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: tlShimmer 1.8s linear infinite;
-}
-@keyframes tlShimmer {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
-}
 /* 新步骤行淡入下滑：流式中往底部拼接新行时不突兀。 */
 .tl-step { animation: tlStepIn 0.22s ease both; }
 @keyframes tlStepIn {
@@ -238,13 +219,8 @@
 }
 .tl-mono.tl-result { margin-top: 6px; color: var(--text-secondary); }
 .tl-mono.is-error { color: var(--accent-red); }
-.tl-spin {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-cyan, #3bc9db);
-  animation: dag-breathe 1.4s ease-in-out infinite;
-}
+.tl-step-icon .activity-indicator { width:18px; height:18px; }
+.tl-sub .tl-step-icon .activity-indicator { width:14px; height:14px; }
 /* 嵌套层级：图标缩一号、竖线更淡，同一套样式递归。 */
 .tl-sub { position: relative; margin: 2px 0 2px 8px; padding-left: 34px; }
 .tl-sub::before {
