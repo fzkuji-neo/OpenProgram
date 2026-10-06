@@ -127,7 +127,7 @@ assert.match(browserControls, /function BookmarkBar/);
 assert.match(browserControls, /bookmarkBarLayout\(tree\)/);
 assert.doesNotMatch(browserControls, /setNodes\(readBookmarkTree\(\)\.children\)/);
 assert.match(browserControls, /bookmarkOverflowFolder/);
-assert.match(browserControls, /trailingFolders\.map/);
+assert.match(browserControls, /openBuiltinTab\("bookmarks"\)/);
 assert.match(browserControls, /new ResizeObserver\(updateOverflow\)/);
 assert.match(browserControls, /items\.slice\(overflowStart\)/);
 assert.match(browserControls, /styles\.bookmarkBarMoreSlot/);
@@ -137,7 +137,7 @@ assert.match(browserControls, /browserActionPrefix\(ownerId\)/);
 assert.match(browserControls, /bookmarkFolderActionPrefix\(ownerId, folder\.id\)/);
 assert.match(
   browserControls,
-  /iconUrl:\s*node\.faviconUrl/,
+  /iconUrl:\s*bookmarkFaviconSources\(node\)\.url/,
   "desktop bookmark-folder payloads may preserve an imported website favicon",
 );
 assert.doesNotMatch(browserControls, /faviconUrl\(node\.url\)/);
@@ -199,7 +199,7 @@ assert.equal(
 );
 assert.match(contextMenu, /params\.get\("cascade"\) === "1"/);
 assert.match(contextMenu, /mainMenuBridge\(\)\?\.onUpdate\?\./);
-assert.match(contextMenu, /onError=.*setBroken/);
+assert.match(contextMenu, /<TabFavicon url=\{item\.iconUrl\}/);
 assert.match(bridgeTypes, /iconUrl\?: string/);
 assert.match(bridgeTypes, /icon\?: "folder"/);
 assert.match(bridgeTypes, /cascade\?: boolean/);

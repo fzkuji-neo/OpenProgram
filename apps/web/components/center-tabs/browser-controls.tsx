@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Check,
   ChevronRight,
+  ChevronsRight,
   Clock3,
   Download,
   Folder,
@@ -43,6 +44,7 @@ import {
 } from "@/components/chat/top-bar/menu-styles";
 import {
   bookmarkBarLayout,
+  bookmarkFaviconSources,
   readBookmarkTree,
   subscribeBookmarks,
   type BookmarkFolder,
@@ -66,6 +68,7 @@ import {
 import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import styles from "./center-tabs.module.css";
+import { TabFavicon } from "./tab-favicon";
 
 function useBookmarksBarPreference() {
   const [visible, setVisible] = useState(showBookmarksBar);
@@ -334,7 +337,8 @@ function folderItems(
   } : {
     id: `${prefix}bookmark:${node.id}`,
     label: node.title || node.url,
-    iconUrl: node.faviconUrl,
+    iconUrl: bookmarkFaviconSources(node).url,
+    iconFallbackUrl: bookmarkFaviconSources(node).fallbackUrl,
   });
 }
 
@@ -387,12 +391,7 @@ function BookmarkMenuNodes({
 }
 
 function BookmarkFavicon({ node }: { node: Extract<BookmarkNode, { kind: "bookmark" }> }) {
-  const [broken, setBroken] = useState(false);
-  const icon = node.faviconUrl;
-  return !broken && icon ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={icon} alt="" width={14} height={14} className="shrink-0" onError={() => setBroken(true)} />
-  ) : <Bookmark size={14} className="shrink-0" />;
+  return <TabFavicon {...bookmarkFaviconSources(node)} />;
 }
 
 function BookmarkFolderButton({
@@ -424,7 +423,7 @@ function BookmarkFolderButton({
   const buttonLabel = label || folder.title;
   const buttonClass = `${appearance === "overflow" ? styles.bookmarkBarMore : styles.bookmarkBarItem}${hidden ? ` ${styles.bookmarkBarOverflowed}` : ""}`;
   const buttonContent = appearance === "overflow" ? (
-    <ChevronRight size={14} />
+    <ChevronsRight size={14} />
   ) : (
     <><Folder size={14} fill="currentColor" /><span>{folder.title}</span></>
   );
@@ -548,7 +547,7 @@ export function BookmarkBar({ ownerId, onNavigate }: { ownerId: string; onNaviga
   const { text } = useTranslation();
   const visible = useBookmarksBarPreference();
   const [tree, setTree] = useState(readBookmarkTree);
-  const { items, trailingFolders } = bookmarkBarLayout(tree);
+  const { items } = bookmarkBarLayout(tree);
   const itemsRef = useRef<HTMLDivElement>(null);
   const [overflowStart, setOverflowStart] = useState(items.length);
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
@@ -574,7 +573,7 @@ export function BookmarkBar({ ownerId, onNavigate }: { ownerId: string; onNaviga
   const bookmarkOverflowFolder: BookmarkFolder = {
     kind: "folder",
     id: "bookmark-bar-overflow",
-    title: text("All bookmarks", "所有书签"),
+    title: text("Hidden bookmarks", "隐藏的书签"),
     children: items.slice(overflowStart),
   };
 
@@ -633,22 +632,6 @@ export function BookmarkBar({ ownerId, onNavigate }: { ownerId: string; onNaviga
           />
         ))}
       </div>
-      {trailingFolders.map((folder) => (
-        <BookmarkFolderButton
-          key={folder.id}
-          folder={folder}
-          ownerId={ownerId}
-          onNavigate={onNavigate}
-          open={openFolderId === folder.id}
-          armed={openFolderId !== null}
-          wasJustClosed={() =>
-            performance.now() - closedAtRef.current < 120
-            && closedKeyRef.current === folder.id
-          }
-          onArm={() => armFolder(folder.id)}
-          onDisarm={disarmFolder}
-        />
-      ))}
       <span className={styles.bookmarkBarMoreSlot}>
         {overflowStart < items.length ? (
           <BookmarkFolderButton
@@ -668,6 +651,20 @@ export function BookmarkBar({ ownerId, onNavigate }: { ownerId: string; onNaviga
           />
         ) : null}
       </span>
+      <span className={styles.bookmarkBarDivider} aria-hidden="true" />
+      <button
+        type="button"
+        className={styles.bookmarkBarItem}
+        onClick={() => {
+          desktopBridge()?.mainMenu?.close();
+          useCenterTabs.getState().openBuiltinTab("bookmarks");
+        }}
+        aria-label={text("All bookmarks", "所有书签")}
+        title={text("All bookmarks", "所有书签")}
+      >
+        <Folder size={14} />
+        <span>{text("All bookmarks", "所有书签")}</span>
+      </button>
     </div>
   );
 }

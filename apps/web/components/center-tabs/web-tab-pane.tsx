@@ -42,6 +42,7 @@ import {
   isBookmarked,
   subscribeBookmarks,
   toggleBookmark,
+  updateBookmarkFavicon,
 } from "@/lib/tabs/bookmarks";
 import { normalizeWebUrl, useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
@@ -93,6 +94,8 @@ export function WebTabPane({ tabId, url, suspended = false }: { tabId: string; u
 
 function BookmarkButton({ url, title }: { url: string; title: string }) {
   const { text } = useTranslation();
+  const faviconUrl = useCenterTabs(state => state.tabs.find(tab => tab.kind === "web" && tab.url === url)?.faviconUrl);
+  useEffect(() => updateBookmarkFavicon(url, faviconUrl), [url, faviconUrl]);
   const [bookmarked, setBookmarked] = useState(() => isBookmarked(url));
 
   useEffect(() => {
@@ -105,7 +108,7 @@ function BookmarkButton({ url, title }: { url: string; title: string }) {
     <button
       type="button"
       className={styles.webToolbarBtn}
-      onClick={() => toggleBookmark({ url, title })}
+      onClick={() => toggleBookmark({ url, title, faviconUrl })}
       title={text(bookmarked ? "Remove bookmark" : "Bookmark", bookmarked ? "移除书签" : "添加书签")}
       aria-label={text(bookmarked ? "Remove bookmark" : "Bookmark", bookmarked ? "移除书签" : "添加书签")}
     >

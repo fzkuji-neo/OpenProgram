@@ -23,23 +23,32 @@ function hasVisiblePixels(image: HTMLImageElement): boolean {
   }
 }
 
-export function TabFavicon({ url }: { url?: string }) {
-  return <FaviconImage key={url || ""} url={url} />;
+export function TabFavicon({ url, fallbackUrl }: { url?: string; fallbackUrl?: string }) {
+  return <FaviconImage key={`${url || ""}\n${fallbackUrl || ""}`} url={url} fallbackUrl={fallbackUrl} />;
 }
 
-function FaviconImage({ url }: { url?: string }) {
+function FaviconImage({ url, fallbackUrl }: { url?: string; fallbackUrl?: string }) {
+  const [source, setSource] = useState(url);
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
+  const fail = () => {
+    if (fallbackUrl && source !== fallbackUrl) {
+      setSource(fallbackUrl);
+      setStatus("loading");
+    } else setStatus("failed");
+  };
   return (
     <span className={styles.tabFaviconSlot}>
       {status !== "ready" && <ChromeIcon size={14} />}
-      {url && status !== "failed" && (
+      {source && status !== "failed" && (
         <img
+          key={source}
           className={styles.tabFavicon}
-          src={url}
+          src={source}
           alt=""
+          referrerPolicy="no-referrer"
           style={{ visibility: status === "ready" ? "visible" : "hidden" }}
-          onLoad={(event) => setStatus(hasVisiblePixels(event.currentTarget) ? "ready" : "failed")}
-          onError={() => setStatus("failed")}
+          onLoad={(event) => hasVisiblePixels(event.currentTarget) ? setStatus("ready") : fail()}
+          onError={fail}
         />
       )}
     </span>

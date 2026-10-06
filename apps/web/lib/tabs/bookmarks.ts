@@ -105,6 +105,36 @@ function parseNode(value: unknown): BookmarkNode | null {
   return leaf;
 }
 
+/** Resolve locally stored images and the website's own conventional favicon. */
+export function bookmarkFaviconSources(bookmark: Bookmark): { url?: string; fallbackUrl?: string } {
+  const saved = bookmark.faviconUrl;
+  const safe = (value?: string) => {
+    if (!value) return undefined;
+    if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(value)) return value;
+    try {
+      const parsed = new URL(value);
+      return /^https?:$/.test(parsed.protocol) && !parsed.username && !parsed.password ? parsed.href : undefined;
+    } catch { return undefined; }
+  };
+  let originIcon: string | undefined;
+  try {
+    const page = new URL(bookmark.url);
+    if (/^https?:$/.test(page.protocol) && !page.username && !page.password) {
+      originIcon = `${page.origin}/favicon.ico`;
+    }
+  } catch { /* Non-web bookmarks keep the browser fallback. */ }
+  const icon = safe(saved);
+  return { url: icon || originIcon, fallbackUrl: icon && icon !== originIcon ? originIcon : undefined };
+}
+
+/** Keep exact-URL bookmarks current without erasing icons during navigation. */
+export function updateBookmarkFavicon(url: string, faviconUrl?: string): void {
+  if (!faviconUrl || bookmarkFaviconSources({ url, title: "", faviconUrl }).url !== faviconUrl) return;
+  const root = readBookmarkTree();
+  if (!flattenBookmarks(root).some(item => item.url === url && item.faviconUrl !== faviconUrl)) return;
+  saveTree(mapTree(root, node => node.kind === "bookmark" && node.url === url ? { ...node, faviconUrl } : node));
+}
+
 export function readBookmarkTree(): BookmarkFolder {
   if (typeof window === "undefined") return emptyRoot();
   let parsed: unknown;

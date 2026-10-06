@@ -18,8 +18,9 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { Bookmark, Check, ChevronRight, Folder } from "lucide-react";
+import { Check, ChevronRight, Folder } from "lucide-react";
 
+import { TabFavicon } from "@/components/center-tabs/tab-favicon";
 import { itemCls, MENU_PANEL, MENU_SEPARATOR } from "@/components/chat/top-bar/menu-styles";
 import { MenuOptionContent } from "@/components/ui/menu-option-content";
 import { isThemeId } from "@/lib/prefs/theme-pref";
@@ -30,6 +31,7 @@ interface ContextMenuItem {
   description?: string;
   keepOpen?: boolean;
   iconUrl?: string;
+  iconFallbackUrl?: string;
   icon?: "folder";
   disabled?: boolean;
   checked?: boolean;
@@ -84,14 +86,10 @@ function parseItems(raw: string | null): ContextMenuItem[] {
 }
 
 function ItemIcon({ item }: { item: ContextMenuItem }) {
-  const [broken, setBroken] = useState(false);
   if (item.checked) return <Check size={13} aria-hidden="true" />;
   if (item.icon === "folder") return <Folder size={13} fill="currentColor" aria-hidden="true" />;
   if (!item.iconUrl) return null;
-  return broken ? <Bookmark size={13} aria-hidden="true" /> : (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={item.iconUrl} alt="" width={13} height={13} onError={() => setBroken(true)} />
-  );
+  return <TabFavicon url={item.iconUrl} fallbackUrl={item.iconFallbackUrl} />;
 }
 
 function hasItemIcon(item: ContextMenuItem) {

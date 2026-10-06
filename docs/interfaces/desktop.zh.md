@@ -38,6 +38,8 @@ Browser 菜单只管理浏览器动作：新建浏览器 tab、Bookmarks、Histo
 网页加载时，刷新按钮会变为 **Stop loading（停止加载）**，显示 X 图标，浏览器工具栏下方显示动态细线。点击停止加载即可取消；加载结束或停止后细线消失。启用减少动态效果时，细线保持静态。
 
 
+书签栏将放不下的条目放入双箭头菜单，最右侧用分隔线隔开“所有书签”入口，点击后进入书签管理页。“其他书签”和“移动端书签”仍保留原文件夹、顺序和内容。书签栏、文件夹菜单和管理页依次使用已保存的网站图标、网站自身 `/favicon.ico`、浏览器默认图标。添加书签会保留当前网页图标，再次访问相同书签 URL 时按网页提供的新图标更新；图标请求不发送 referrer，不使用第三方图标服务。
+
 ## 页面跳转、popup 与右键操作
 
 网页决定一次操作是在当前页面跳转，还是请求新的浏览上下文。普通链接、表单提交和页内导航保留在当前 Browser tab；带 `target="_blank"` 的链接和调用 `window.open()` 的脚本会创建独立 Browser tab，并立即激活新 tab。
@@ -46,7 +48,7 @@ Browser 菜单只管理浏览器动作：新建浏览器 tab、Bookmarks、Histo
 
 ## Bookmarks 与 History
 
-书签栏直接显示导入或本地维护的 Bookmarks bar 内容。非空的 Other bookmarks 与 Mobile bookmarks 保持为独立文件夹入口。超出宽度的项目进入有限宽度的溢出菜单；嵌套文件夹逐级展开，并在当前窗口高度内滚动。
+书签栏直接显示导入或本地维护的 Bookmarks bar 内容。超出宽度的项目进入双箭头溢出菜单，右侧分隔线后的“所有书签”打开管理页；Other bookmarks 与 Mobile bookmarks 保持原目录结构，在管理页中访问。嵌套文件夹逐级展开，并在当前窗口高度内滚动。
 
 Bookmarks manager 提供文件夹树、当前目录列表、搜索、favicon 和条目菜单。History 按本地日期分组，每行只显示时间、favicon、标题和域名。Desktop Browser 数据与后端状态分开：History 与持久化 `webtabs` partition 位于 Electron 的当前用户应用数据目录，聊天、项目、Programs 和 worker 配置仍位于 `~/.openprogram/`。清除浏览数据不会删除这些后端状态。
 

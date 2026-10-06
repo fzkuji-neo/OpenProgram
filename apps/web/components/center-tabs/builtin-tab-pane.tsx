@@ -26,6 +26,8 @@ import {
   X,
 } from "lucide-react";
 
+import { bookmarkFaviconSources } from "@/lib/tabs/bookmarks";
+import { TabFavicon } from "./tab-favicon";
 import { ChromeIcon } from "@/components/animated-icons";
 import {
   DropdownMenu,
@@ -132,14 +134,9 @@ function bookmarkSearchResults(folder: BookmarkFolder, needle: string): Bookmark
 }
 
 function BookmarkFavicon({ node }: { node: BookmarkNode }) {
-  const [broken, setBroken] = useState(false);
-  if (node.kind === "folder") {
-    return <Folder size={17} aria-hidden="true" />;
-  }
-  if (!node.faviconUrl || broken) {
-    return <ChromeIcon size={16} aria-hidden="true" />;
-  }
-  return <img src={node.faviconUrl} alt="" onError={() => setBroken(true)} />;
+  return node.kind === "folder"
+    ? <Folder size={17} aria-hidden="true" />
+    : <TabFavicon {...bookmarkFaviconSources(node)} />;
 }
 
 function BookmarksPage() {
