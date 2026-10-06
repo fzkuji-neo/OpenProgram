@@ -2,10 +2,12 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { FileTree, useFileTree } from "@pierre/trees/react";
-import { pierreTreeIcons as icons, pierreTreeCSS as css } from "./pierre-tree-theme";
+import { pierreTreeIcons as icons, pierreTreeCSS as css, fileColumnWidths } from "./pierre-tree-theme";
 import { formatFileBytes, useFolderSize } from "./file-management";
+import { useTranslation } from "@/lib/i18n";
+import { FileColumnsHeader, fileKind } from "./file-tree-columns";
 
-export interface PierreTreeEntry { path: string; type: "file" | "dir"; size: number }
+export interface PierreTreeEntry { path: string; type: "file" | "dir"; size: number; mtime?: number }
 export interface PierreScrollState { path: string; offset: number }
 export interface PierreTreeHandle {
   reveal(path: string): boolean;
@@ -19,6 +21,8 @@ interface Props {
   expanded: Set<string>;
   selected: string | null;
   query?: string;
+  sort?: string;
+  onSortChange?(value: string): void;
   matches?: ReadonlySet<string>;
   onRowsRendered?(paths: ReadonlySet<string>): void;
   onActivate?(path: string, type: "file" | "dir"): void;
@@ -32,6 +36,11 @@ const modelPath = (entry: PierreTreeEntry) => entry.path + (entry.type === "dir"
 
 /** Pierre owns rows, focus and virtualization; the application owns filesystem state. */
 export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function PierreFileTree(props, ref) {
+  const { text: translate, locale } = useTranslation();
+  const dateFormat = useMemo(() => new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }), [locale]);
+  const labels = useRef({ translate, dateFormat });
+  labels.current = { translate, dateFormat };
+  const header = useRef<HTMLDivElement>(null);
   const latest = useRef(props);
   latest.current = props;
   const host = useRef<HTMLDivElement>(null);
@@ -60,8 +69,11 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       if (!entry) return null;
       const size = sizes.current.get(entry.path);
       const text = entry.type === "file" ? formatFileBytes(entry.size) : size?.text ?? "";
-      const part = { text, color: entry.type === "dir" && size?.scanning ? "var(--op-size-scanning, var(--text-tertiary))" : undefined };
-      return { text, parts: latest.current.matches?.has(entry.path) ? [{ text: "• ", color: "var(--trees-accent)" }, part] : [part] };
+      const part = { text: `${latest.current.matches?.has(entry.path) ? "• " : ""}${text}`, color: entry.type === "dir" && size?.scanning ? "var(--op-size-scanning, var(--text-tertiary))" : undefined };
+      const date = entry.mtime == null ? null : new Date(entry.mtime * 1000);
+      const modified = date && Number.isFinite(date.getTime()) ? labels.current.dateFormat.format(date) : "";
+      const kind = fileKind(entry.path, entry.type, labels.current.translate);
+      return { text: [text, modified, kind].join(" · "), title: [text, modified, kind].filter(Boolean).join(" · "), parts: [part, { text: modified }, { text: kind }] };
     },
   });
   // Pierre exposes row indices but keeps its native scroll element in shadow DOM.
@@ -116,7 +128,7 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
     syncing.current = false;
   }, [model, props.entries, props.expanded, props.selected]);
   useEffect(() => { model.setSearch(props.query || null); }, [model, props.query]);
-  useEffect(() => { model.setIcons(icons); }, [model, props.matches]);
+  useEffect(() => { model.setIcons(icons); }, [model, props.matches, locale]);
   useEffect(() => model.subscribe(() => {
     if (syncing.current) return;
     const next = new Set<string>();
@@ -131,11 +143,41 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
   useEffect(() => {
     let frame = 0;
     let observer: MutationObserver | undefined;
+    let resize: ResizeObserver | undefined;
+    let cleanupScroll: (() => void) | undefined;
     const connect = () => {
       const root = host.current?.querySelector("file-tree-container")?.shadowRoot;
       if (!root) { frame = requestAnimationFrame(connect); return; }
-      // React mounts the Pierre host before its shadow renderer is ready.
-      // Subscribe only after that renderer exists, then follow virtual rows.
+      const scroll = root.querySelector<HTMLElement>("[data-file-tree-virtualized-scroll]");
+      const columns = header.current;
+      if (!scroll || !columns) { frame = requestAnimationFrame(connect); return; }
+      // Keep the native vertical scrollbar in the viewport and use its horizontal
+      // scroll position for the external header, including sticky ancestor rows.
+      const sync = () => { columns.scrollLeft = scroll.scrollLeft; };
+      const syncBody = () => { scroll.scrollLeft = columns.scrollLeft; };
+      const measure = () => {
+        const width = scroll.clientWidth;
+        if (!width) return;
+        const extras = fileColumnWidths.modified + fileColumnWidths.kind + fileColumnWidths.padding;
+        const name = Math.max(120, width - fileColumnWidths.size - (width >= 720 ? extras : 0));
+        host.current?.style.setProperty("--op-files-name-width", `${name}px`);
+        columns.style.width = `${width}px`;
+        sync();
+      };
+      const wheel = (event: WheelEvent) => {
+        const delta = event.deltaX || (event.shiftKey ? event.deltaY : 0);
+        if (!delta) return;
+        event.preventDefault();
+        scroll.scrollLeft += delta * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroll.clientWidth : 1);
+      };
+      scroll.addEventListener("scroll", sync, { passive: true });
+      columns.addEventListener("scroll", syncBody, { passive: true });
+      columns.addEventListener("wheel", wheel, { passive: false });
+      cleanupScroll = () => { scroll.removeEventListener("scroll", sync); columns.removeEventListener("scroll", syncBody); columns.removeEventListener("wheel", wheel); };
+      resize = new ResizeObserver(measure);
+      resize.observe(scroll);
+      measure();
+      // Subscribe only after the shadow renderer exists, then follow virtual rows.
       const update = () => {
         const paths = new Set<string>();
         const rendered = new Set<string>();
@@ -154,7 +196,7 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       update();
     };
     connect();
-    return () => { cancelAnimationFrame(frame); observer?.disconnect(); };
+    return () => { cancelAnimationFrame(frame); observer?.disconnect(); resize?.disconnect(); cleanupScroll?.(); };
   }, [model]);
   const fromEvent = (event: React.SyntheticEvent) => {
     for (const target of event.nativeEvent.composedPath()) {
@@ -163,8 +205,9 @@ export const PierreFileTree = forwardRef<PierreTreeHandle, Props>(function Pierr
       if (path) return metadata.current.get(normalize(path));
     }
   };
-  return <div ref={host} style={{ height: "100%", minHeight: 0 }}>
-    <FileTree model={model} style={{ height: "100%", display: "block" }}
+  return <div ref={host} style={{ height: "100%", minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <FileColumnsHeader ref={header} sort={props.sort} onSortChange={props.onSortChange} />
+    <FileTree model={model} style={{ flex: "1 1 0", minHeight: 0, display: "block" }}
       onClick={event => { const entry = fromEvent(event); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
       onKeyDown={event => { if (event.key !== "Enter") return; const path = model.getFocusedPath(); const entry = path && metadata.current.get(normalize(path)); if (entry) { if (props.onActivate) props.onActivate(entry.path, entry.type); else if (entry.type === "file") props.onOpen(entry.path); } }}
       onContextMenu={event => { const entry = fromEvent(event); if (entry) props.onContextMenu(event, entry.path, entry.type); }} />
