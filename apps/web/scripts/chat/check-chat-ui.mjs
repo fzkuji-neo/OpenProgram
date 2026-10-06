@@ -346,7 +346,8 @@ assert.match(
 );
 assert.doesNotMatch(conversations, /agentic_scroll/);
 assert.doesNotMatch(chatHandlers, /agentic_scroll/);
-assert.match(conversations, /readChatScroll\(sessionStorage, id\)/);
+assert.doesNotMatch(conversations, /restoreChatScrollIfCurrent|readChatScroll/,
+  "session data reload must leave viewport restoration to the history and follow hooks");
 assert.match(chatHandlers, /writeChatScroll\(sessionStorage, chatKey, area\.scrollTop\)/);
 
 // ── A mid-turn load_session must not wipe the streaming reply ────────
