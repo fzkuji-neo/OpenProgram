@@ -26,6 +26,7 @@ The Runtime layer composes these to build whatever agent behavior is needed.
 - **`agent_loop.py`** — Agent loop
 - **`attended.py`** — Attended / unattended mode
 - **`authority.py`** — Runtime-owned speaker attribution and two-tier authorization
+- **`chat.py`** — Conversation policy on the public Agent execution contract
 - **`continuation.py`** — Durable Agent checkpoint payloads and resumable loop input
 - **`exec.py`** — Shared subprocess execution utilities
 - **`failure_policy.py`** — Bounded diagnostic state for repeated tool failures, not permission policy
@@ -51,12 +52,13 @@ The Runtime layer composes these to build whatever agent behavior is needed.
 ## Sub-packages
 
 - **`compaction/`** — Context compaction for long agent sessions
-- **`dispatcher/`** — Single entry point for every conversation turn
+- **`dispatcher/`** — Compatibility imports for the shared Agent turn runtime
 - **`internals/`** — Agent package internals
 - **`job/`** — Async job lifecycle
 - **`management/`** — Multi-agent support
 - **`permissions/`** — Session permission policy and execution lifecycle
 - **`production_driver/`** — Internal production driver for canonical Agent executions
 - **`resource_governance/`** — Resource admission, limits and job diagnostics
+- **`turn_runtime/`** — Shared persistent-turn execution for Agent and ChatAgent
 
 _Auto-generated from `__init__.py` docstring — keep that as the source of truth; re-run `python scripts/gen_dir_readmes.py` from the repo root to refresh._

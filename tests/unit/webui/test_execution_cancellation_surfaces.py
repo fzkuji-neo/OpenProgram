@@ -37,7 +37,7 @@ def test_surfaces_send_execution_cancel_and_use_cancel_copy():
         ROOT / "apps/cli/src/screens/repl/useWsEvents.ts"
     ).read_text(encoding="utf-8")
     forced = (
-        ROOT / "openprogram/agent/dispatcher/forced_tool.py"
+        ROOT / "openprogram/agent/turn_runtime/forced_tool.py"
     ).read_text(encoding="utf-8")
 
     assert 'action: "execution.cancel"' in composer
