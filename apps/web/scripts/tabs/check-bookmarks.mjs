@@ -83,7 +83,7 @@ const rightDockCss = readRightDockCss(new URL("../../", import.meta.url)).replac
 );
 assert.match(webTab, /function BookmarkButton/);
 assert.match(webTab, /toggleBookmark\(\{ url, title, faviconUrl \}\)/);
-assert.match(webTab, /<BookmarkButton url=\{effectiveUrl\} title=\{title \|\| effectiveUrl\} \/>/);
+assert.match(webTab, /<BookmarkButton tabId=\{tabId\} url=\{effectiveUrl\} title=\{title \|\| effectiveUrl\} \/>/);
 assert.doesNotMatch(browserHome, /readBookmarks|removeBookmark|subscribeBookmarks/);
 // The right dock no longer has a bookmarks view; a stale persisted
 // "bookmarks" value must fall back rather than restore a dead view.
