@@ -35,6 +35,9 @@ Web tabs display the site favicon in both ordinary and split tabs. While an icon
 
 If a webpage asks to confirm leaving during Reload, Back, Forward, or navigation, the App displays a confirmation. **Stay on page** is the default and cancellation action. Choose **Leave page** to continue the pending operation; unsaved changes may be lost.
 
+While a page loads, Reload becomes **Stop loading** (an X icon), and an animated line appears below the browser toolbar. Click Stop loading to cancel. The line disappears when loading finishes or stops; reduced-motion settings keep it static.
+
+
 ## Page navigation, popups, and right-click actions
 
 The webpage decides whether an action navigates its current page or requests a new browsing context. Ordinary links, form submissions, and same-page navigation stay in the current Browser tab. Links with `target="_blank"` and scripts that call `window.open()` create a distinct Browser tab and activate it immediately.

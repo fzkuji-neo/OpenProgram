@@ -572,15 +572,15 @@ function DesktopWebTabPane({
         </button>
         <button
           type="button"
-          className={styles.webToolbarBtn}
+          className={`${styles.webToolbarBtn} ${loading ? styles.webStopLoading : ""}`}
           onClick={() => {
             if (loading) bridge.webTab.stop(tabId);
             else {
               bridge.webTab.reload(tabId);
             }
           }}
-          title={loading ? text("Stop", "停止") : text("Reload", "重新加载")}
-          aria-label={loading ? text("Stop", "停止") : text("Reload", "重新加载")}
+          title={loading ? text("Stop loading", "停止加载") : text("Reload", "重新加载")}
+          aria-label={loading ? text("Stop loading", "停止加载") : text("Reload", "重新加载")}
         >
           {loading ? <X size={14} /> : <RotateCw size={14} />}
         </button>
@@ -629,6 +629,13 @@ function DesktopWebTabPane({
         />
       </div>
       <BookmarkBar ownerId={menuOwnerId} onNavigate={navigateTo} />
+      {loading && (
+        <div
+          className={styles.webLoadingProgress}
+          role="status"
+          aria-label={text("Loading page", "正在加载网页")}
+        />
+      )}
       </div>
       {findOpen ? (
         <div className={styles.webFindBar}>
