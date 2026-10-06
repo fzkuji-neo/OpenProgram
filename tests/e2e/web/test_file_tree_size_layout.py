@@ -34,6 +34,8 @@ function App(){
  onSelect={setSelected} onOpen={()=>{}} onContextMenu={()=>{}}/></div>;
 }createRoot(document.getElementById('root')).render(<App/>);`,resolveDir:process.cwd()+'/apps/web',loader:'tsx'},
 bundle:true,jsx:'automatic',format:'iife',outfile:process.argv[1],plugins:[{name:'size-fixture',setup(b){
+b.onResolve({filter:/^@\/lib\/i18n$/},()=>({path:'i18n',namespace:'translation'}));
+b.onLoad({filter:/.*/,namespace:'translation'},()=>({contents:'export const useTranslation=()=>({text:en=>en,locale:"en"});',loader:'js'}));
 b.onResolve({filter:/^\.\/file-management$/},()=>({path:'size',namespace:'fixture'}));
 b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:
 'export const formatFileBytes=x=>({16912:"16.5 KiB",0:"0 B",1024:"1.0 KiB"}[x]); export const useFolderSize=()=>({value:{bytes:1024,state:"cached",complete:true}});',loader:'js'}));
@@ -59,13 +61,13 @@ b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:
                         if path.endswith(LONG_FILE):
                             row.click()
                             expect(row).to_have_attribute("data-item-selected", "true")
-                        decoration = row.locator('[data-item-section="decoration"]')
+                        decoration = row.locator('[data-item-section="decoration"] > span > span').first
                         expect(decoration).to_have_text(size)
                         expect(decoration).to_be_visible()
                         geometry = row.evaluate("""e=>{
                             const name=e.querySelector('[data-item-section="content"]').getBoundingClientRect();
-                            const size=e.querySelector('[data-item-section="decoration"]').getBoundingClientRect();
-                            const text=e.querySelector('[data-item-section="decoration"] > span');
+                            const size=e.querySelector('[data-item-section="decoration"] > span > span').getBoundingClientRect();
+                            const text=e.querySelector('[data-item-section="decoration"] > span > span');
                             return {nameRight:name.right,sizeLeft:size.left,sizeRight:size.right,
                                     rowRight:e.getBoundingClientRect().right,width:size.width,
                                     textWidth:text.clientWidth,textScrollWidth:text.scrollWidth};

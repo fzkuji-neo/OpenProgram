@@ -892,7 +892,7 @@ export function FileTree({
     return <div className={styles.treeHint}>{message}</div>;
   }
 
-  const pierreSearchEntries = useMemo(() => searchMatches.map(({ path, entry }) => ({ path, type: entry.type, size: entry.size })), [searchMatches]);
+  const pierreSearchEntries = useMemo(() => searchMatches.map(({ path, entry }) => ({ path, type: entry.type, size: entry.size, mtime: entry.mtime })), [searchMatches]);
   function renderSearchResults(): React.ReactNode {
     return (
       <div role="list" aria-label={text("Project search results", "项目搜索结果")} style={{ height: "100%", display: "flex", flexDirection: "column" }}><div className={styles.treeHint}>{text("Matching files and their parent folders", "匹配文件及其父目录")}</div>
@@ -923,7 +923,7 @@ export function FileTree({
       if (!Array.isArray(entries)) return;
       for (const entry of entries) {
         const path = joinPath(dir, entry.name);
-        result.push({ path, type: entry.type, size: entry.size });
+        result.push({ path, type: entry.type, size: entry.size, mtime: entry.mtime });
         if (entry.type === "dir") visit(path);
       }
     };
@@ -947,7 +947,7 @@ export function FileTree({
       </div> : null}
       {dirs[""] === "loading" || dirs[""] === undefined ? <div className={styles.treeHint}>{text("Loading…", "加载中…")}</div> : null}
       <div style={{ flex: 1, minHeight: 0 }}>
-        <PierreFileTree key={projectId} ref={pierreRef} projectId={projectId} entries={pierreEntries} query={searchMode === "highlight" && !fuzzySearch ? filter : undefined} matches={filter.trim() ? new Set(searchMatches.map(match => match.path)) : undefined} expanded={expanded} selected={(filter.trim() ? currentSearchPath : null) ?? selected?.path ?? activePath ?? null}
+        <PierreFileTree key={projectId} ref={pierreRef} projectId={projectId} sort={sort} onSortChange={setSort} entries={pierreEntries} query={searchMode === "highlight" && !fuzzySearch ? filter : undefined} matches={filter.trim() ? new Set(searchMatches.map(match => match.path)) : undefined} expanded={expanded} selected={(filter.trim() ? currentSearchPath : null) ?? selected?.path ?? activePath ?? null}
           onRowsRendered={paths => {
             if (pendingScrollRestore && pierreRef.current?.restoreScrollState(pendingScrollRestore)) setPendingScrollRestore(null);
             for (const dir of visibleDirectories) {
