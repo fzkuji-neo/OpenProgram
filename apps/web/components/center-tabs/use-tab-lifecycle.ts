@@ -340,7 +340,7 @@ export function useTabLifecycle({
     if (!closingInstance) return;
     const currentTab = useCenterTabs.getState().tabs.find((x) => x.id === tab.id);
     if (!currentTab) return;
-    closeTab(tab.id);
+    closeTab(tab.id, { retainSessionResources: true });
     if (useCenterTabs.getState().activeId === null) {
       // Clear the closed conversation before /chat route synchronization.
       useSessionStore.getState().setCurrentConv(null);

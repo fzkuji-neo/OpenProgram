@@ -29,7 +29,7 @@ test("human onTabsClose waits on the shared browser close helper before animatin
   assert.match(close, /for \(const tab of ready\) closingInstances\.current\.set\(tab\.id, tab\)/);
   assert.doesNotMatch(close, /for \(const tab of tabsToClose\) closingInstances/);
   const finish = lifecycle.slice(lifecycle.indexOf("function finishClose"));
-  assert.match(finish, /closeTab\(tab\.id\)/);
+  assert.match(finish, /closeTab\(tab\.id, \{ retainSessionResources: true \}\)/);
   assert.doesNotMatch(finish, /selectTabsReadyForHumanClose|requestCloseBrowserPage/);
 });
 

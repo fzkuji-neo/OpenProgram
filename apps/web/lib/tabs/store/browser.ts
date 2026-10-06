@@ -14,7 +14,7 @@ export function browserActions(set: StoreApi<CenterTabsState>["setState"], get: 
           () => ({ id, kind: "web", title: hostnameOf(url), url }), [],
           tab => ({
             ...tab, url, title: tab.url !== url ? hostnameOf(url) : tab.title,
-            webPinned: !agentRequest && tab.agentOpened ? true : tab.webPinned
+            webPinned: !agentRequest ? true : tab.webPinned
           }));
       }),
 
