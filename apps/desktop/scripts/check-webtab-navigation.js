@@ -1109,6 +1109,7 @@ Promise.all([
     await checkDownloadsLifecycle();
     await checkTerminalProcessIdentity();
     await checkFocusedRoutingAndCleanup();
+    await require("./webtab-checks/unload")(webtabCheckContext, fakeElectron.dialog);
     await checkPopupCreatesIndependentRendererTab();
     assertTransferApiRegistered();
     await checkTransferPreparationValidationAndAuthorization();

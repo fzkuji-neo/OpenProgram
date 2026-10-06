@@ -231,6 +231,7 @@
     <section class="section" id="decisions">
       <div class="section-head"><span class="section-no">01</span><h2>产品决策</h2></div>
       <p class="section-intro">当前问题来自内容入口、浏览器主页和资料管理共用一个页面。设计先分离职责，再定义每个页面出现的控件。</p>
+      <div class="decision"><strong>刷新时确认未保存的网页内容</strong><p>网页使用 beforeunload 阻止刷新或导航时，在其当前所属窗口显示原生确认框。默认按钮和取消操作都是留在页面；选择离开页面后，仅允许当前被阻止的操作继续。页面失去所属窗口、已经销毁或对话框失败时保持页面。普通刷新不额外确认。使用 Electron 的 <a href="https://www.electronjs.org/docs/latest/api/web-contents/#event-will-prevent-unload">will-prevent-unload</a> 事件；本次不修改标签关闭和 App 退出策略。</p></div>
       <div class="decision"><strong>网页标签始终显示可见图标</strong><p>普通标签和分栏成员优先显示网站 favicon；加载中、加载失败或解码后完全透明时，显示已有的动态 Lucide 浏览器图标。桌面主进程使用页面所属 session 读取图标，只允许 HTTP(S) 和图片 data URL，限制为 256 KiB 和五秒；以图片 data URL 传给渲染端，支持检测透明像素。导航和销毁取消读取，过期结果不能覆盖当前页面。重新打开保留的页面时，状态快照带上当前 favicon。历史记录保存网站原始图标 URL。</p></div>
       <div class="decision"><strong>New pane 只做选择</strong><p>空白 Pane 只显示 Files、New chat、Browser、Terminal。地址栏、快捷网站、Bookmarks 和 History 不出现在这里。</p></div>
       <div class="decision"><strong>四个入口使用同级彩色识别</strong><p>Files、New chat、Browser、Terminal 都使用相同尺寸的圆角图标容器和 Lucide 线性图标；Files 使用蓝色、New chat 使用绿色、Browser 保留橙紫色、Terminal 使用紫色。颜色只帮助识别内容类型，不改变卡片层级、交互状态或可访问名称，也不引入品牌 Logo、外部素材和额外动画。</p></div>
