@@ -139,15 +139,18 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
       && order?.sessionId === bubbleSessionId && !order.terminal
       && order.messageIds.includes(msg.id);
   }));
+  const settledExecution = useSessionStore((s) => Object.values(s.executionUpdateOrders).some((order) =>
+    order.terminal && order.sessionId === bubbleSessionId && order.messageIds.includes(msg.id),
+  ));
   // Align the side avatar to the first line of text (re-measures as the
   // message grows / blocks expand).
   const { containerRef, avatarTop } = useAvatarAlign(msg.id);
-  const streaming =
+  const streaming = !settledExecution && (
     msg.status === "streaming" ||
     msg.status === "pending" ||
     msg.status === "running" ||
-    msg.status === "cancelling";
-  const phase = waitingApproval ? null : activityPhase(msg);
+    msg.status === "cancelling");
+  const phase = waitingApproval || !streaming ? null : activityPhase(msg);
   const activeMotion = streaming && !!phase && !msg.retryStatus;
   const tools = msg.tools ?? [];
   // Files the turn handed back via ``send_file`` ride the reply text as
