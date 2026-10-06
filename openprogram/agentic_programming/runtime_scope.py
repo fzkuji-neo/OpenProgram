@@ -139,12 +139,14 @@ runtime_scope = execution_scope
 
 
 _agent_owner = ContextVar("dag_agent_owner", default=None)
+# A tool implementation owns its methods, but not the dispatching Agent's graph.
+_agent_graph_owner = ContextVar("dag_graph_owner", default=None)
 _parent_agent_writer = ContextVar("parent_agent_writer", default=None)
 _record_agent_method = ContextVar("record_agent_method", default=True)
 
 
 @contextmanager
-def agent_scope(owner):
+def agent_scope(owner, *, request=False):
     """Give a nested Agent a graph without inheriting parent graph identities.
 
     Authority, runtime options and cancellation remain bound by the caller.
@@ -165,7 +167,8 @@ def agent_scope(owner):
     new_owner = owner is not current and not (
         isinstance(owner, type) and isinstance(current, owner))
     parent_writer = _store.get()
-    isolate = new_owner and not direct_tool and bool(state.current_call_id())
+    needs_graph = new_owner or (request and _agent_graph_owner.get() is not owner)
+    isolate = needs_graph and not direct_tool and bool(state.current_call_id())
     with ExitStack() as stack:
         link = None
         if isolate and isinstance(parent_writer, SessionNodeWriter):
@@ -198,6 +201,9 @@ def agent_scope(owner):
             context = (ambient if ambient is not None else Context()).derive(
                 store=writer, head_id=None, call_id=None, excluded_call_ids=())
             stack.enter_context(context.bind())
+        if needs_graph and not direct_tool:
+            token = _agent_graph_owner.set(owner)
+            stack.callback(_agent_graph_owner.reset, token)
         token = _agent_owner.set(owner)
         stack.callback(_agent_owner.reset, token)
         token = _record_agent_method.set(new_owner or direct_tool)
