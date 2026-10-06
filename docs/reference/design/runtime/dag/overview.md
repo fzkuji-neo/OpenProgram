@@ -484,7 +484,7 @@ and must produce the same card.
 
 ## Appendix: Implementation Status
 
-Agent graph ownership and omission of ordinary helpers are under verification;
+Agent graph ownership and omission of ordinary helpers have source and regression coverage;
 see [execution recording](persistence-observability.html) for implementation status.
 The existing data-model evidence below does not establish this change as released. The data model, edges,
 invariants, spawn primitive, edge-pure branch walks (§2–§5), §6 path-native
