@@ -46,7 +46,7 @@ function FaviconImage({ url, fallbackUrl }: { url?: string; fallbackUrl?: string
           src={source}
           alt=""
           referrerPolicy="no-referrer"
-          style={{ visibility: status === "ready" ? "visible" : "hidden" }}
+          style={{ opacity: status === "ready" ? 1 : 0 }}
           onLoad={(event) => hasVisiblePixels(event.currentTarget) ? setStatus("ready") : fail()}
           onError={fail}
         />

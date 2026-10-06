@@ -199,6 +199,9 @@ def test_bookmark_bar_icons_overflow_and_all_bookmarks(tmp_path: Path) -> None:
                 expect(all_bookmarks).to_be_visible()
                 assert more.bounding_box()['x'] < all_bookmarks.bounding_box()['x']
                 expect(page.get_by_role('button', name='Other bookmarks', exact=True)).to_have_count(0)
+                overflow_icon = page.locator('.bookmarkBarOverflowed img').last
+                overflow_icon.evaluate('(img) => img.decode()')
+                expect(overflow_icon).to_be_hidden()
                 more.click()
                 hidden = page.get_by_role('menuitem', name='Long bookmark 11', exact=True)
                 expect(hidden.locator('img')).to_be_visible()
