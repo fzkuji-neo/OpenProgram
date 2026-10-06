@@ -263,7 +263,7 @@ button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
 <h3 id="gap-history">Older history and first activation</h3>
 <p>First activation of an older loaded window requests latest and stays detached until a verified latest response is published. It does not snap the stale window while waiting. A browser fixture exercising this activation must provide that response before expecting latest placement. A fixture exercising manual reading of an older window must instead establish an explicit saved viewport; otherwise it unintentionally starts an unrelated activation request.</p>
 <h3 id="gap-anchor">History restoration ownership</h3>
-<p>The loader restores each registered viewport using its own captured anchor and key. It does not perform latest placement. The hook preserves manual reading and cancellation while history pages change.</p>
+<p>The loader restores each registered viewport using its own captured anchor and key. It does not perform latest placement. The hook preserves manual reading and cancellation while history pages change. Session reloads do not schedule a second pixel restore: a saved offset from the cached window may exceed the shorter latest page and incorrectly clamp reading to its bottom.</p>
 <h3 id="gap-welcome">Welcome first send</h3>
 <p>Main retries the current accepted send after the welcome overflow lock clears. Peer sends do not use this path.</p>
 <h3 id="gap-peer">Separate peer viewports</h3>

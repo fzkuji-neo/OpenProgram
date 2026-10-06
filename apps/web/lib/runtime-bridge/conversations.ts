@@ -39,11 +39,6 @@ import {
 } from "@/lib/chat/context-breakdown-cache";
 import { pushBranchInfo } from "@/lib/tabs/top-bar-sync";
 import { showToast } from "@/lib/format-utils/toast";
-import {
-  readChatScroll,
-  readChatFollowLatest,
-  restoreChatScrollIfCurrent,
-} from "@/lib/chat/chat-scroll";
 
 interface LegacyConv {
   id?: string;
@@ -605,8 +600,6 @@ export function loadSessionData(data: LegacyConv): void {
   delete branchesByConv[id];
   fetchBranches(id).then(() => refreshBranchBadge());
 
-  const area = document.getElementById("chatArea");
-  const savedScroll = readChatScroll(sessionStorage, id);
   renderSessionMessages(map[id]);
   const fts = (data.function_trees as TreeNode[] | undefined) || [];
   for (const ft of fts) {
@@ -631,16 +624,9 @@ export function loadSessionData(data: LegacyConv): void {
   if (!incoming?.breakdown) {
     warmContextBreakdown(id, headId);
   }
-  if (area && savedScroll !== null && !readChatFollowLatest(sessionStorage, id)) {
-    requestAnimationFrame(() => {
-      restoreChatScrollIfCurrent(
-        area,
-        id,
-        runtimeState.currentSessionId ?? null,
-        savedScroll,
-      );
-    });
-  }
+  // Viewport hooks restore history anchors after this data commit. Saved
+  // pixels from a larger cached window are invalid in the latest page.
+
 }
 
 /* ===== Tree → messages =========================================== */
