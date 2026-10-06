@@ -1,6 +1,6 @@
 # Web UI
 
-Opening a conversation for the first time shows its latest message. Switching between already opened conversations keeps each conversation’s reading position. Delayed file-card loading keeps that position; scrolling upward pauses following so you can read history. Successfully loaded file-change summaries remain available when you return to the conversation, while file history actions still check the current state.
+Opening a conversation after restarting or refreshing the app shows the latest messages. Within the same run, returning less than one hour after leaving restores your reading state: a conversation left at the bottom follows new messages and delayed layout; a conversation scrolled into history restores that position. Returning after at least one hour away shows latest. The same one-hour rule applies after the app loses focus. There is no timer that moves a conversation while you are reading it; scrolling upward cancels following. Successfully loaded file-change summaries remain available when you return to the conversation, while file history actions still check the current state.
 
 Conversation menus provide **Copy link** for the selected conversation. The desktop App uses the native clipboard; the browser uses its clipboard API with a selection fallback. A success notification appears only after copying succeeds.
 

@@ -15,6 +15,10 @@ import {
   noteTakeLatest,
   peekTakeLatest,
   readComposerOverlay,
+  readChatScroll,
+  CHAT_READING_POSITION_TTL_MS,
+  readChatFollowLatest,
+  writeChatScroll,
   retainTakeLatestViewport,
   settleTakeLatest,
   snapToLatest,
@@ -396,4 +400,40 @@ test("stopAreaScroll holds the current top", () => {
   stopAreaScroll(area);
   assert.equal(area.scrollTop, 40);
   assert.equal(area.behavior, "auto");
+});
+
+test("scroll storage preserves bottom intent, detached positions, and legacy entries", () => {
+  let data = JSON.stringify({ legacy: 240, invalid: { top: -1, atBottom: true } });
+  const storage = { getItem: () => data, setItem: (_key, value) => { data = value; } };
+  assert.equal(readChatScroll(storage, "legacy"), null);
+  assert.equal(readChatFollowLatest(storage, "legacy"), false);
+  assert.equal(readChatScroll(storage, "invalid"), null);
+  writeChatScroll(storage, "main", 1200, true);
+  writeChatScroll(storage, "main", 1200); // beforeunload repeats the current offset
+  assert.equal(readChatFollowLatest(storage, "main"), true);
+  writeChatScroll(storage, "main", 400, false);
+  assert.equal(readChatFollowLatest(storage, "main"), false);
+  assert.equal(readChatScroll(storage, "main"), 400);
+  assert.equal(readChatScroll(storage, "legacy"), null);
+  writeChatScroll(storage, "peer:main", 900, true);
+  assert.equal(readChatFollowLatest(storage, "main"), false);
+  assert.equal(readChatFollowLatest(storage, "peer:main"), true);
+});
+
+test("reading checkpoints expire at one hour and cannot cross App runtimes", () => {
+  const realNow = Date.now;
+  let now = 1900000000000, data = "{}";
+  Date.now = () => now;
+  const storage = { getItem: () => data, setItem: (_key, value) => { data = value; } };
+  try {
+    writeChatScroll(storage, "timed", 420, false);
+    now += CHAT_READING_POSITION_TTL_MS - 1;
+    assert.equal(readChatScroll(storage, "timed"), 420);
+    now += 1;
+    assert.equal(readChatScroll(storage, "timed"), null);
+    writeChatScroll(storage, "timed", 420, false);
+    const records = JSON.parse(data); records.timed.runtimeId = "previous-app-runtime";
+    data = JSON.stringify(records);
+    assert.equal(readChatScroll(storage, "timed"), null);
+  } finally { Date.now = realNow; }
 });

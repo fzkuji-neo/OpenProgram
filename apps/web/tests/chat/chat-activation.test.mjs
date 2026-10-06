@@ -32,10 +32,12 @@ function View({id,visible=true}){options.sessionId=id;useChatAreaStick(id,'seed'
 test('activation reaches latest through delayed file growth and manual input cancels following',async()=>{
  const root=createRoot(document.querySelector('#root'));const render=async(id,visible=true)=>act(async()=>root.render(createElement(View,{id,visible})));
  await render('a');assert.equal(top,1000);await render('b');height=1600;await act(async()=>resize());assert.equal(top,1100);
- await render('a');assert.equal(top,1000,'return restores this opened conversation position');
- height=1900;await act(async()=>resize());assert.equal(top,1000,'growth does not move restored history position');
+ await render('a');assert.equal(top,1100,'a conversation left at bottom follows its current bottom');
+ height=1900;await act(async()=>resize());assert.equal(top,1400,'delayed growth stays at bottom after returning');
  await act(async()=>{area.dispatchEvent(new window.Event('wheel'));top=500;area.dispatchEvent(new window.Event('scroll'));});
  height=2100;await act(async()=>resize());assert.equal(top,500,'manual history reading remains fixed');
+ await render('b');await render('a');assert.equal(top,500,'returning restores manually detached reading');
+ height=2300;await act(async()=>resize());assert.equal(top,500,'delayed growth does not move a detached reader');
  await render('a',false);await render('a');assert.equal(top,500,'reactivated opened chat preserves reading position');
  await act(async()=>root.unmount());
 });
@@ -47,4 +49,33 @@ test('older-window activation requests latest and ignores outgoing completion',a
  await act(async()=>root.render(createElement(View,{id:'other'})));const incoming=top;
  await act(async()=>complete());assert.equal(top,incoming,'stale completion cannot move incoming view');
  await act(async()=>root.unmount());
+});
+
+test('saved latest intent survives remount and a temporarily shorter transcript',async()=>{
+ saved.set('chatScrollByKey',JSON.stringify({persisted:{top:3000,atBottom:true},legacy:240}));
+ height=800;top=0;globalThis.historyState={pages:{}};
+ const root=createRoot(document.querySelector('#root'));
+ await act(async()=>root.render(createElement(View,{id:'persisted'})));assert.equal(top,300);
+ height=4100;await act(async()=>resize());assert.equal(top,3600,'restored latest follows final layout instead of clamped old pixels');
+ await act(async()=>root.render(createElement(View,{id:'legacy'})));assert.equal(top,3600,'legacy positions without freshness information open at latest');
+ await act(async()=>root.unmount());
+});
+
+test('recent returns restore reading; one-hour absence and long app blur show latest',async()=>{
+ const realNow=Date.now;let now=1900000000000;Date.now=()=>now;
+ const root=createRoot(document.querySelector('#root'));
+ const render=async id=>act(async()=>root.render(createElement(View,{id})));
+ try {
+  height=2500;top=0;globalThis.historyState={pages:{}};
+  await render('timed');
+  await act(async()=>{area.dispatchEvent(new window.Event('wheel'));top=300;area.dispatchEvent(new window.Event('scroll'));});
+  now+=3*3600000;await act(async()=>resize());assert.equal(top,300,'active reading has no time-based jump');
+  await render('timed-other');now+=3600000-1;await render('timed');assert.equal(top,300,'expiry starts when leaving, not the last scroll');
+  await render('timed-other');now+=3600000;await render('timed');assert.equal(top,2000,'one-hour absence opens latest');
+  await act(async()=>{area.dispatchEvent(new window.Event('wheel'));top=400;area.dispatchEvent(new window.Event('scroll'));});
+  await act(async()=>window.dispatchEvent(new window.Event('blur')));now+=3600000-1;
+  await act(async()=>window.dispatchEvent(new window.Event('focus')));assert.equal(top,400,'short app absence preserves reading');
+  await act(async()=>window.dispatchEvent(new window.Event('blur')));now+=3600000;
+  await act(async()=>window.dispatchEvent(new window.Event('focus')));assert.equal(top,2000,'long app absence follows latest');
+ } finally {await act(async()=>root.unmount());Date.now=realNow;}
 });

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import {
   animateJumpToLatest,
+  CHAT_READING_POSITION_TTL_MS,
   isChatAtBottom,
   isProvisionalSessionBind,
   lastSettledTakeLatest,
@@ -10,6 +11,7 @@ import {
   peekTakeLatest,
   readBottomPadding,
   readChatScroll,
+  readChatFollowLatest,
   readComposerOverlay,
   resolveChatScrollTop,
   relocateTakeLatest,
@@ -116,7 +118,7 @@ export function useChatAreaStick(
     scrollTopRef.current = area.scrollTop;
     const key = activeKeyRef.current;
     if (key && !area.hasAttribute("data-self-update-verification")) {
-      writeChatScroll(window.sessionStorage, key, area.scrollTop);
+      writeChatScroll(window.sessionStorage, key, area.scrollTop, true);
     }
   };
 
@@ -193,11 +195,11 @@ export function useChatAreaStick(
       if (pointerArmedRef.current && !programmaticRef.current) {
         cancelPending();
       }
-      syncDetached();
+      const atBottom = syncDetached();
       scrollTopRef.current = area.scrollTop;
       const key = activeKeyRef.current;
       if (key && !area.hasAttribute("data-self-update-verification")) {
-        writeChatScroll(window.sessionStorage, key, area.scrollTop);
+        writeChatScroll(window.sessionStorage, key, area.scrollTop, atBottom);
       }
     };
 
@@ -285,6 +287,35 @@ export function useChatAreaStick(
     };
   }, [paintRows, chatKey, sessionId, areaRef, columnRef, composerRootRef]);
 
+  // Save departure before the shared DOM is reused by another conversation.
+  useLayoutEffect(() => {
+    if (!paintRows || !chatKey) return;
+    return () => {
+      const area = areaRef ? areaRef.current : document.getElementById("chatArea");
+      if (area?.hasAttribute("data-self-update-verification")) return;
+      writeChatScroll(window.sessionStorage, chatKey, scrollTopRef.current, stuckRef.current);
+    };
+  }, [chatKey, paintRows, areaRef]);
+
+  useEffect(() => {
+    if (!paintRows || !chatKey || !sessionId) return;
+    let blurredAt: number | null = null;
+    const onBlur = () => { blurredAt ??= Date.now(); };
+    const onFocus = () => {
+      const elapsed = blurredAt == null ? 0 : Date.now() - blurredAt;
+      blurredAt = null;
+      if (elapsed < CHAT_READING_POSITION_TTL_MS) return;
+      saveHistoryAnchor(sessionId, null);
+      noteTakeLatest({ sessionId, scrollerKey: chatKey, turnSeed: "" });
+    };
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [chatKey, sessionId, paintRows]);
+
   useLayoutEffect(() => {
     const area = areaRef ? areaRef.current : document.getElementById("chatArea");
     if (!area) return;
@@ -302,11 +333,6 @@ export function useChatAreaStick(
     historyWindowRef.current = windowKey;
 
     if (previousKeyRef.current && keyChanged) {
-      writeChatScroll(
-        window.sessionStorage,
-        previousKeyRef.current,
-        scrollTopRef.current,
-      );
       const outgoingKey = previousKeyRef.current;
       const outgoingSid = previousSidRef.current;
       if (
@@ -343,10 +369,12 @@ export function useChatAreaStick(
       ? readChatScroll(window.sessionStorage, chatKey)
       : null;
 
+    const followedLatest = !!chatKey && readChatFollowLatest(window.sessionStorage, chatKey);
     let note = sid && chatKey ? peekTakeLatest(sid, chatKey) : null;
-    if ((keyChanged || becameVisible) && saved == null && sid && chatKey) {
-      // First opening follows latest through delayed layout. An already
-      // opened conversation restores its own reading position instead.
+    if ((keyChanged || becameVisible) && (saved == null || followedLatest) && sid && chatKey) {
+      // Restore latest-follow intent through delayed layout; detached readers
+      // keep their saved pixels and history anchors.
+      saveHistoryAnchor(sid, null);
       note = noteTakeLatest({ sessionId: sid, scrollerKey: chatKey, turnSeed: newTurnSeed ?? "" });
       lastPointerRef.current = 0;
     }

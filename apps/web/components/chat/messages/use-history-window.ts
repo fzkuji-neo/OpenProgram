@@ -5,6 +5,7 @@ import { startHistoryAutoload } from '@/lib/chat/history-autoload';
 import { captureHistoryAnchor, readHistoryAnchor, restoreHistoryAnchor, saveHistoryAnchor } from '@/lib/chat/history-viewport';
 import { loadSessionHistoryWindow, registerHistoryViewport } from '@/lib/runtime-bridge/session-history-loader';
 import { useSessionStore } from '@/lib/session-store';
+import { readChatScroll, readChatFollowLatest } from '@/lib/chat/chat-scroll';
 
 /** Owns the visible pane's history lifecycle, not message rendering. */
 export function useHistoryWindow(sessionId: string | null, enabled: boolean, areaRef?: RefObject<HTMLElement>, chatKey?: string | null): void {
@@ -18,7 +19,9 @@ export function useHistoryWindow(sessionId: string | null, enabled: boolean, are
     const release=registerHistoryViewport(sessionId,area,chatKey??sessionId);
     let stopped=false, frame=0, interacted=false, ready=false;
     let dispose: (()=>void) | undefined;
-    const saved=readHistoryAnchor(sessionId);
+    const key=chatKey??sessionId;
+    const restoreReading=readChatScroll(sessionStorage,key)!==null && !readChatFollowLatest(sessionStorage,key);
+    const saved=restoreReading?readHistoryAnchor(sessionId):null;
     const onInteract=()=>{interacted=true;};
     const save=()=>{
       if (area.hasAttribute("data-self-update-verification")) return;
