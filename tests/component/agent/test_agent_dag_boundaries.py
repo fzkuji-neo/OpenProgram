@@ -238,3 +238,32 @@ def test_explicit_parent_context_preserves_content_not_graph(chat, entry):
         assert 'request' not in ids
     finally:
         runtime.close()
+
+
+@pytest.mark.parametrize('entry', ['call', 'arun', 'choose'])
+def test_tool_internal_agent_request_owns_child_graph(chat, entry):
+    from openprogram import Runtime
+    runtime = Runtime(call=lambda content, **kwargs: '{"call":"A"}' if entry == 'choose' else 'answer')
+    class Tool(Agent):
+        method_options = {'run': {'tool': True, 'register_globally': False}}
+        if entry == 'arun':
+            async def run(self):
+                return await self.arun('child', tools=[])
+        else:
+            def run(self):
+                if entry == 'choose':
+                    return self.choose('child', {'A':'option'})
+                return self('child', tools=[])
+    try:
+        result = asyncio.run(Tool(runtime=runtime).run._agent_tool.execute('outer-tool', {}, None, None))
+        assert not result.is_error
+        graph = chat.load()
+        assert not any(n.is_llm() for n in graph)
+        link = next(n for n in graph if n.metadata.get('child_session_id'))
+        child = SessionNodeWriter(chat.store, link.metadata['child_session_id']).load()
+        assert any(n.is_llm() for n in child)
+        assert all(not n.caller or n.caller in child.nodes for n in child)
+        assert link.output == ('A' if entry == 'choose' else 'answer')
+        assert _store.get() is chat and _call_id.get() == 'request'
+    finally:
+        runtime.close()

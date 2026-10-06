@@ -102,7 +102,7 @@ class Agent:
         context = overrides.pop("context", _UNSET)
         instructions = overrides.pop("instructions", self.instructions)
         with _configuration_scope(self, context=context, instructions=instructions,
-                                  runtime=overrides.get("runtime", _UNSET)) as link, prepared_agent_call():
+                                  runtime=overrides.get("runtime", _UNSET), request=True) as link, prepared_agent_call():
             result = agent(prompt, **self._call_options(overrides))
             if link is not None:
                 link.output = result
@@ -121,7 +121,7 @@ class Agent:
         from openprogram.agentic_programming.runtime.shared import (
             _current_agent_options, _current_response_format, _current_model_call_budget,
         )
-        with _configuration_scope(self, context=context) as link:
+        with _configuration_scope(self, context=context, request=True) as link:
             # A selection has its own output contract, independent of any
             # surrounding tool loop or structured-output repair defaults.
             token = _current_agent_options.set(dict(
@@ -150,7 +150,7 @@ class Agent:
         context = overrides.pop("context", _UNSET)
         instructions = overrides.pop("instructions", self.instructions)
         with _configuration_scope(self, context=context, instructions=instructions,
-                                  runtime=overrides.get("runtime", _UNSET)) as link, prepared_agent_call():
+                                  runtime=overrides.get("runtime", _UNSET), request=True) as link, prepared_agent_call():
             result = await agent_async(prompt, **self._call_options(overrides))
             if link is not None:
                 link.output = result
@@ -212,7 +212,8 @@ class Agent:
 
 
 @contextmanager
-def _configuration_scope(instance, *, context=_UNSET, instructions=_UNSET, runtime=_UNSET):
+def _configuration_scope(instance, *, context=_UNSET, instructions=_UNSET, runtime=_UNSET,
+                         request=False):
     from openprogram.agentic_programming.runtime_scope import execution_scope, agent_scope
     from openprogram.agentic_programming.runtime.shared import _current_instructions, _current_agent_options
     from openprogram.agentic_programming.call_state import _current_runtime
@@ -221,7 +222,7 @@ def _configuration_scope(instance, *, context=_UNSET, instructions=_UNSET, runti
     token = _current_instructions.set(_current_instructions.get() if instructions is None else instructions)
     owned = None
     try:
-        with agent_scope(instance) as link, instance._effective_context(context).bind():
+        with agent_scope(instance, request=request) as link, instance._effective_context(context).bind():
             spec = getattr(instance, "_spec", None)
             if runtime is None and _current_runtime.get(None) is None and spec is not None and spec.model.provider:
                 from openprogram.providers.registry import create_runtime

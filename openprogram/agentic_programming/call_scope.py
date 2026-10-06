@@ -127,7 +127,7 @@ def managed_function(fn, *, context_factory=None, name=None, expose="full",
 
     Generators remain unwrapped because creation does not execute their body.
     ``context_factory`` receives the invocation's positional and keyword values.
-    Ambient-only helpers record under an active call without creating an entry.
+    Ambient-only helpers reuse the active call without recording another node.
     """
     if isinstance(fn, (staticmethod, classmethod)):
         return type(fn)(managed_function(fn.__func__, context_factory=context_factory, name=name,
