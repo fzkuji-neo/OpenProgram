@@ -406,7 +406,7 @@ WebSocket 帧与刷新加载都是它的投影，必须产出同一张卡片。
 
 ## 附录：实现状态
 
-Agent 图所有权和普通辅助函数不记录的改动正在验证；完整实施状态见
+Agent 图所有权和普通辅助函数不记录的改动已有代码与回归测试；完整实施状态见
 [执行记录设计](persistence-observability.zh.html)。下列既有数据模型说明不代表本次修改已完成发布。数据模型、边、不变量、spawn 原语、纯沿边分支行走
 （§2–§5）、§6 的路径原生渲染、§7（唯一装配器、`context/system_prompt` 节点、
 memory prefetch 迁移）与 §8（基于 `covers` 的 summary 节点、只进不退的老化边界、

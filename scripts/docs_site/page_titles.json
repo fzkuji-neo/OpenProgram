@@ -780,8 +780,8 @@
     "zh": "设计概览"
   },
   "reference/design/runtime/dag/persistence-observability.html": {
-    "en": "Persistence diagnostics",
-    "zh": "持久化诊断"
+    "en": "Agent DAG ownership",
+    "zh": "Agent 图所有权"
   },
   "reference/design/runtime/dag/rendering.md": {
     "en": "Rendering specification",
