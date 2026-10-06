@@ -278,8 +278,10 @@ async function checkSenderOwnership() {
   testContext.hooks.syncVisibleViews(ctxA, [{ id: "owned-a", bounds: initialBounds }]);
   testContext.hooks.syncVisibleViews(ctxB, [{ id: "owned-b", bounds: initialBounds }]);
 
+  a.record.faviconUrl = "data:image/png;base64,ICON";
   // State events follow the record's current owner instead of a fixed window.
   testContext.hooks.sendState(a.record);
+  testContext.assert.equal(winA.sent.at(-1)[1].faviconUrl, a.record.faviconUrl, "snapshots retain favicon state");
   testContext.assert.equal(winA.sent.at(-1)[0], "webtab:state");
   ctxA.views.delete("owned-a");
   a.record.ownerId = ctxB.id;

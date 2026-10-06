@@ -26,6 +26,7 @@ import { useTranslation } from "@/lib/i18n";
 import { labelOf } from "./tab-label";
 export { labelOf } from "./tab-label";
 import { shiftStyle } from "./tab-strip-geometry";
+import { TabFavicon } from "./tab-favicon";
 import styles from "./center-tabs.module.css";
 
 interface CompoundTabItemProps {
@@ -51,7 +52,6 @@ interface CompoundTabItemProps {
 
 function CompoundMemberIcon({ tab, animate }: { tab: CenterTab; animate: boolean }) {
   const iconRef = useRef<AnimatedNavIconHandle>(null);
-  const [brokenFavicon, setBrokenFavicon] = useState("");
   useEffect(() => {
     if (animate) iconRef.current?.startAnimation?.();
     else iconRef.current?.stopAnimation?.();
@@ -65,16 +65,7 @@ function CompoundMemberIcon({ tab, animate }: { tab: CenterTab; animate: boolean
       ) : tab.kind === "file" ? (
         <FileTypeIcon name={tab.path ?? ""} size={14} />
       ) : tab.kind === "web" ? (
-        tab.faviconUrl && tab.faviconUrl !== brokenFavicon ? (
-          <img
-            className={styles.tabFavicon}
-            src={tab.faviconUrl}
-            alt=""
-            onError={() => setBrokenFavicon(tab.faviconUrl ?? "")}
-          />
-        ) : (
-          <ChromeIcon size={13} />
-        )
+        <TabFavicon url={tab.faviconUrl} />
       ) : tab.kind === "builtin" ? (
         tab.page === "files"
           ? <FileText size={13} />
@@ -267,8 +258,6 @@ export function TabItem({
   // 入场动画只在挂载那一次播；播完摘掉 class（.tabEnter 的 overflow:hidden
   // 不能留着，否则会裁掉活动 tab 的 fillet）。
   const [entering, setEntering] = useState(enter);
-  // 记住加载失败的那个 URL（而不是一个 bool），换站点后新图标还能再试。
-  const [brokenFavicon, setBrokenFavicon] = useState("");
   useEffect(() => {
     if (active) tabRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
     if (!active || typeof ResizeObserver === "undefined") return;
@@ -338,16 +327,7 @@ export function TabItem({
       ) : tab.kind === "file" ? (
             <FileTypeIcon name={tab.path ?? ""} size={14} />
           ) : tab.kind === "web" ? (
-            tab.faviconUrl && tab.faviconUrl !== brokenFavicon ? (
-              <img
-                className={styles.tabFavicon}
-                src={tab.faviconUrl}
-                alt=""
-                onError={() => setBrokenFavicon(tab.faviconUrl ?? "")}
-              />
-            ) : (
-              <ChromeIcon size={13} />
-            )
+            <TabFavicon url={tab.faviconUrl} />
           ) : tab.kind === "builtin" ? (
             tab.page === "files"
               ? <FileText size={13} />

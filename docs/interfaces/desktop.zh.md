@@ -31,6 +31,8 @@ Terminal Pane 在 macOS 使用 login shell，在 Windows 通过 ConPTY 使用 Wi
 
 Browser 菜单只管理浏览器动作：新建浏览器 tab、Bookmarks、History、书签栏显示、profile 导入、清除浏览数据和 Browser settings。窗口与 Pane 操作仍归 OpenProgram 窗口菜单管理。
 
+普通网页标签和分栏标签都显示网站 favicon。图标加载中、不可用、无效或完全透明时，桌面 App 显示统一的浏览器图标。重新打开保留的页面时会恢复其当前图标，不需要重新加载页面。
+
 ## 页面跳转、popup 与右键操作
 
 网页决定一次操作是在当前页面跳转，还是请求新的浏览上下文。普通链接、表单提交和页内导航保留在当前 Browser tab；带 `target="_blank"` 的链接和调用 `window.open()` 的脚本会创建独立 Browser tab，并立即激活新 tab。

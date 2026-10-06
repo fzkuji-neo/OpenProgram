@@ -732,7 +732,19 @@
 .tabActive .tabIcon,
 .compoundTabActive .tabIcon { color: var(--text-bright); }
 
+.tabFaviconSlot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .tabFavicon {
+  position: absolute;
+  inset: 0;
   width: 16px;
   height: 16px;
   object-fit: contain;

@@ -1,6 +1,7 @@
 // popups checks, sharing the same native harness and call order.
 module.exports = function createChecks(testContext) {
 async function checkPopupCreatesIndependentRendererTab() {
+  await require("./favicons")(testContext).checkFaviconLifecycle();
   const win = testContext.fakeWindow(41);
   const ctx = testContext.registerContext("popup-window", win);
   const opener = testContext.hooks.ensureView(

@@ -31,6 +31,8 @@ Create a pane and select **Browser**, or open a new browser tab from the app tab
 
 The Browser menu owns browser-specific actions: new browser tab, Bookmarks, History, bookmarks-bar visibility, profile import, clear browsing data, and Browser settings. Window and pane actions remain in the OpenProgram window menu.
 
+Web tabs display the site favicon in both ordinary and split tabs. While an icon loads, or if it is unavailable, invalid, or fully transparent, the desktop App shows the standard browser icon instead. Reopening a retained page restores its current icon without reloading the page.
+
 ## Page navigation, popups, and right-click actions
 
 The webpage decides whether an action navigates its current page or requests a new browsing context. Ordinary links, form submissions, and same-page navigation stay in the current Browser tab. Links with `target="_blank"` and scripts that call `window.open()` create a distinct Browser tab and activate it immediately.
