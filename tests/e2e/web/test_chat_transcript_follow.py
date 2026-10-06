@@ -481,3 +481,46 @@ window.wheel=()=>{const a=document.getElementById('chatArea');a.dispatchEvent(ne
             assert remain2 > 8
         finally:
             browser.close()
+
+
+def test_cold_activation_follows_async_transcript_and_later_growth(tmp_path):
+    from playwright.sync_api import sync_playwright, expect
+    entry = r'''
+import React from 'react';import {createRoot} from 'react-dom/client';
+import {useChatAreaStick} from './components/chat/messages/use-chat-area-stick';
+import {useSessionStore} from './lib/session-store';
+useSessionStore.setState({currentSessionId:'cold',activeChatKey:'cold'});
+function Main(){const ids=useSessionStore(s=>s.messageOrder.cold??[]);const {detached,jumpToLatest}=useChatAreaStick('cold',ids.at(-1)??null,true);return <><div id="chatArea"><div id="chatMessages">{ids.map(id=><div className="row" key={id}>{id}</div>)}</div></div>{detached&&<button onClick={jumpToLatest}>Jump</button>}</>;}
+createRoot(document.getElementById('mount')).render(<Main/>);
+window.loadTranscript=()=>useSessionStore.getState().setMessages('cold',Array.from({length:60},(_,i)=>({id:`row-${i}`,role:'user',content:'Message',status:'completed'})));
+'''
+    bundle = tmp_path / "cold.js"
+    subprocess.run([
+        "node", "-e",
+        "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'empty'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});",
+        str(ROOT / "apps/web"), str(bundle), entry,
+    ], cwd=ROOT, check=True, capture_output=True)
+    shell = tmp_path / "cold.html"
+    shell.write_text("<!doctype html><style>#chatArea{height:500px;overflow:auto;overflow-anchor:none}.row{height:120px}</style><div id='mount'></div>")
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.goto(shell.as_uri())
+            page.add_script_tag(path=str(bundle))
+            page.wait_for_selector("#chatArea")
+            # Initial ResizeObserver delivery occurs before the delayed response.
+            page.evaluate("new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))")
+            page.evaluate("window.loadTranscript()")
+            at_bottom = "Math.abs(document.getElementById('chatArea').scrollHeight-document.getElementById('chatArea').scrollTop-document.getElementById('chatArea').clientHeight)<3"
+            page.wait_for_function(at_bottom)
+            expect(page.get_by_role("button", name="Jump", exact=True)).to_have_count(0)
+            page.evaluate("document.querySelectorAll('.row').forEach(r=>r.style.height='160px')")
+            page.wait_for_function(at_bottom)
+            # Explicit reading still cancels follow after the delayed load.
+            page.evaluate("const a=document.getElementById('chatArea');a.dispatchEvent(new WheelEvent('wheel',{deltaY:-200}));a.scrollTop=300;a.dispatchEvent(new Event('scroll'))")
+            page.evaluate("document.querySelectorAll('.row').forEach(r=>r.style.height='180px')")
+            page.evaluate("new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))")
+            assert page.evaluate("document.getElementById('chatArea').scrollTop") == 300
+        finally:
+            browser.close()

@@ -75,7 +75,7 @@ export function useChatAreaStick(
   const stuckRef = useRef(true);
   const jumpingRef = useRef(false);
   const cancelJumpRef = useRef<(() => void) | null>(null);
-  const lastPointerRef = useRef(0);
+  const lastPointerRef = useRef(-Infinity);
   const scrollTopRef = useRef(0);
   const programmaticRef = useRef(false);
   const pointerArmedRef = useRef(false);
@@ -376,7 +376,7 @@ export function useChatAreaStick(
       // keep their saved pixels and history anchors.
       saveHistoryAnchor(sid, null);
       note = noteTakeLatest({ sessionId: sid, scrollerKey: chatKey, turnSeed: newTurnSeed ?? "" });
-      lastPointerRef.current = 0;
+      lastPointerRef.current = -Infinity;
     }
     const settled = sid && chatKey ? lastSettledTakeLatest(sid, chatKey) : 0;
     if (chatKey) setApplied(chatKey, settled);
@@ -541,6 +541,12 @@ export function useChatAreaStick(
         setDetached(false);
       }
     } else if (!jumpingRef.current && !keyChanged) {
+      // New rows commit before ResizeObserver runs. Preserve latest intent
+      // across that height change instead of treating it as user detachment.
+      if (stuckRef.current && atLatestWindow()
+          && performance.now() - lastPointerRef.current > GROWTH_SUPPRESS_MS) {
+        applySnap(area);
+      }
       stuckRef.current = !hasNewer && isChatAtBottom(
         area,
         readBottomPadding(columnRef?.current ?? document.getElementById("chatMessages")),
