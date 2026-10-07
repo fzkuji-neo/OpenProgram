@@ -377,7 +377,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                       <ThinkingStep
                         key={`thk_${i}`}
                         text={b.text || ""}
-                        running={activeMotion && i === lastBlockIdx}
+                        running={activeMotion && phase === "thinking" && i === lastBlockIdx}
                       />,
                     );
                     return;
@@ -506,11 +506,11 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
             </div>
           ) : null}
           {verdict ? (
-            <ExecutionStrip label={verdict.summary} streaming={activeMotion} activity="generating">
+            <ExecutionStrip label={verdict.summary} streaming={activeMotion && phase === "generating"} activity="generating">
               <StepRow
                 icon="llm"
                 title={text("Verification report", "验收报告")}
-                running={activeMotion}
+                running={activeMotion && phase === "generating"}
                 copyText={verdict.json}
                 detail={{
                   path: `chat-report:${bubbleSessionId || ""}:${msg.id}`,
@@ -523,7 +523,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
           ) : null}
           {streaming && !waitingApproval && msg.retryStatus ? (
             <div className="pending-body" role="status" aria-live="polite">
-              <ActivityIndicator phase="thinking" />
+              {phase === "thinking" ? <ActivityIndicator phase="thinking" /> : null}
               <span className="pending-label">
                 {text("Retrying", "正在重试")}
                 {` ${msg.retryStatus.attempt}${msg.retryStatus.maxAttempts ? `/${msg.retryStatus.maxAttempts}` : ""}`}
