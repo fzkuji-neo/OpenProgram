@@ -19,6 +19,24 @@ def _run_browser_task(
         raise ValueError("browser task requires a runtime argument")
     if not (task or "").strip():
         raise ValueError("task must not be empty")
+    from openprogram.agent import surface_context
+    context = surface_context.current()
+    if not binding_id and not surface_context.tool_enabled(context):
+        if any(
+            isinstance(surface, dict) and surface.get("preview_status") == "disabled"
+            for surface in (context or {}).get("surfaces") or []
+        ):
+            return {
+                "status": "failed", "reason_code": "page_not_accessible",
+                "summary": "The selected Page is disabled for this turn.",
+                "steps_taken": 0, "completion_evidence": [], "artifacts": [],
+            }
+        # A chat can own retained Pages without displaying one. Reuse the
+        # shared inventory driver instead of guessing the active window.
+        return state._run_browser_task_commands(
+            task=task, url=url, backend="", max_steps=max_steps,
+            max_seconds=max_seconds, runtime=runtime,
+        )
     controller = state._new_controller()
     controller.initial_url = url or ""
     controller.binding_id = binding_id
@@ -34,7 +52,6 @@ def _run_browser_task(
                 reason_code="unsupported_url",
             )
         else:
-            from openprogram.agent import surface_context
             if not controller.binding_id and surface_context.tool_enabled(surface_context.current()):
                 controller.binding_id = surface_context.resolve_binding("")
                 controller.initial_url = ""
