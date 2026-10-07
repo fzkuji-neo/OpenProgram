@@ -191,3 +191,33 @@ def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypat
         if controller.session_id:
             controller.close()
         server.shutdown(); server.server_close(); thread.join()
+
+
+@pytest.mark.parametrize('backend_name', ['playwright_mcp', 'chrome_devtools_mcp'])
+def test_mcp_file_capability_uses_real_owned_input_and_verifies_selection(controller, tmp_path, monkeypatch, backend_name):
+    from types import SimpleNamespace
+    from openprogram.programs.workflow.browser.mcp_backends import OfficialMCPPageBackend
+    class SnapshotClient:
+        def call(self, name, params):
+            assert name in {'browser_snapshot', 'take_snapshot'}
+            return SimpleNamespace(isError=False, content=[SimpleNamespace(
+                text='button unrelated [ref=e1]')])
+    backend = OfficialMCPPageBackend(backend_name, lambda: controller)
+    monkeypatch.setattr(backend, '_ensure_bound', lambda session: SnapshotClient())
+    session = SimpleNamespace(controller=controller, state={'upstream_page': 7})
+    path = tmp_path / 'fixture.txt'
+    path.write_text('non-sensitive fixture')
+    frame = backend.observe(session, {})
+    field = frame['elements'][0]
+    assert field['ref'].startswith('file_')
+    result = backend.act(session, dict(action='upload', ref=field['ref'],
+                                      expected_frame_id=frame['frame_id'], path=str(path)))
+    assert result['ok'] is True
+    assert result['server_acceptance_verified'] is False
+    fresh = backend.observe(session, {})
+    field = fresh['elements'][0]
+    assert field['files'] == ['fixture.txt']
+    result = backend.verify(session, dict(assertion='file_selected', ref=field['ref'],
+                                          expected_frame_id=fresh['frame_id'], value='fixture.txt'))
+    assert result['passed'] is True
+    assert str(path) not in str(fresh)
