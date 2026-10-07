@@ -269,51 +269,6 @@ class BrowserPageController:
                     )
         self._submit(clear)
 
-    def upload_external_ref(self, attribute: str, arguments: dict, *, before_dispatch=None) -> dict:
-        """Import the exact upstream element without reusing its ref number."""
-        def upload():
-            if before_dispatch is not None:
-                before_dispatch()
-            stale = self._require_fresh(str(arguments.get("expected_frame_id") or ""))
-            if stale is not None:
-                return stale
-            matches = []
-            for frame in self._page().frames:
-                locator = frame.locator(f"[{attribute}]")
-                count = locator.count()
-                if count > 1:
-                    return self._invalidate_frame()
-                if count == 1:
-                    matches.append(locator)
-            if len(matches) != 1:
-                return self._invalidate_frame()
-            handle = matches[0].element_handle()
-            if handle is None:
-                return self._invalidate_frame()
-            ref = "external_" + state.uuid.uuid4().hex
-            try:
-                actual = handle.evaluate(state._REF_SNAPSHOT_SCRIPT)
-                if not isinstance(actual, dict) or not actual.get("connected"):
-                    return self._invalidate_frame()
-                self._refs[ref] = handle
-                self._ref_meta[ref] = {
-                    field: actual.get(field)
-                    for field in ("tag", "role", "name", "disabled", "label", "native_label_identity", "input_type")
-                }
-                self._ref_meta[ref]["label_binding"] = (actual.get("field_context") or {}).get("label_binding")
-                return self._execute(**{**arguments, "action": "upload", "ref": ref},
-                                     before_dispatch=before_dispatch)
-            finally:
-                self._refs.pop(ref, None)
-                self._ref_meta.pop(ref, None)
-                with state.suppress(Exception):
-                    handle.dispose()
-        result = self._submit(upload)
-        self._last_action = "upload"
-        self._last_result = result
-        self._action_seq += 1
-        return result
-
     def _hover_external_ref(self, attribute: str, frame_id: str, *, before_dispatch=None) -> dict:
         page = self._page()
         targets = [frame.locator(f"[{attribute}]") for frame in page.frames]

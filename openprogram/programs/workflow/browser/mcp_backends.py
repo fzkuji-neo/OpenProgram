@@ -230,9 +230,29 @@ class OfficialMCPPageBackend:
             return _result_text(upstream)
         upstream_text = controller.capture_observation(capture)
         session.state["frame_id"] = identity["frame_id"]
+        # File capabilities are issued by the same controller that reads and
+        # transmits the bytes. Never reinterpret an upstream eN/uid as a native
+        # ref, or resolve a file input by its label/order after observation.
+        file_refs = {}
+        file_elements = []
+        for element in identity.get("elements") or []:
+            if element.get("input_type") != "file":
+                continue
+            public_ref = "file_" + uuid.uuid4().hex
+            file_refs[public_ref] = str(element["ref"])
+            file_elements.append({**element, "ref": public_ref,
+                                  "ref_backend": "native_file"})
+        session.state["file_refs"] = file_refs
+        session.state["file_refs_frame"] = identity["frame_id"]
         return {
             **identity,
-            "elements": [],
+            "elements": file_elements,
+            "file_input_instruction": (
+                "For upload and file_selected verification, use only the file_ "
+                "refs in elements with this frame_id. Do not click Choose File "
+                "first or use MCP snapshot refs for uploads. File selection "
+                "does not prove server acceptance."
+            ),
             "aria_snapshot": upstream_text,
             "backend_observation": self.name,
         }
@@ -311,36 +331,16 @@ class OfficialMCPPageBackend:
         frame_id = str(arguments.get("expected_frame_id") or "")
         action = str(arguments.get("action") or "")
         if action == "upload":
-            rejected = controller.prepare_external_action(arguments)
-            if rejected is not None:
-                return rejected
-            ref = str(arguments.get("ref") or "").lstrip("@")
-            if not ref:
-                return {"ok": False, "reason_code": "file_input_required"}
-            # Upstream eN/uid references are not controller eN references.
-            attribute = "data-openprogram-upload-" + uuid.uuid4().hex
-            script = f"(element) => element.setAttribute('{attribute}', '')"
-            name, params = (
-                ("browser_evaluate", {"target": ref, "function": script})
-                if self.name == "playwright_mcp" else
-                ("evaluate_script", {"pageId": session.state["upstream_page"],
-                                     "args": [ref], "function": script})
+            params, error = self._file_arguments(session, arguments)
+            if error is not None:
+                return error
+            return controller.execute(
+                **params,
+                **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}),
             )
-            try:
-                client = self._ensure_bound(session)
-                if before_dispatch is not None:
-                    before_dispatch()
-                result = client.call(name, params)
-                if _is_error(result):
-                    controller.invalidate_external_frame()
-                    return {"ok": False, "reason_code": "stale_observation",
-                            "observe_required": True}
-                return controller.upload_external_ref(
-                    attribute, dict(arguments), before_dispatch=before_dispatch,
-                )
-            finally:
-                with suppress(Exception):
-                    controller.clear_external_ref(attribute)
+        if str(arguments.get("ref") or "").lstrip("@").startswith("file_"):
+            return {"ok": False, "reason_code": "file_ref_action_required",
+                    "message": "File refs support upload and file_selected verification only."}
         if action in {"screenshot", "wait"}:
             return controller.execute(
                 action=action, expected_frame_id=frame_id,
@@ -421,9 +421,29 @@ class OfficialMCPPageBackend:
             "result": _result_text(result),
         }
 
+    @staticmethod
+    def _file_arguments(session, arguments):
+        frame_id = str(arguments.get("expected_frame_id") or "")
+        if not frame_id or frame_id != session.state.get("file_refs_frame"):
+            return None, {"ok": False, "reason_code": "stale_observation",
+                          "observe_required": True}
+        ref = str(arguments.get("ref") or "").lstrip("@")
+        native_ref = session.state.get("file_refs", {}).get(ref)
+        if native_ref is None:
+            return None, {"ok": False, "reason_code": "file_input_required",
+                          "message": "Use a file_ ref from the latest observation elements.",
+                          "observe_required": True}
+        return {**arguments, "ref": native_ref}, None
+
     def verify(self, session, arguments: Mapping[str, Any], *, before_dispatch=None):
         params = dict(arguments)
         params["action"] = "verify"
+        if params.get("assertion") == "file_selected":
+            params, error = self._file_arguments(session, params)
+            if error is not None:
+                return error
+        elif str(params.get("ref") or "").lstrip("@").startswith("file_"):
+            return {"ok": False, "reason_code": "file_ref_action_required"}
         return self._controller(session).execute(
             **params,
             **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}),
