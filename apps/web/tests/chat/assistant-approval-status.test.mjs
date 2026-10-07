@@ -90,7 +90,7 @@ test('public assistant rendering distinguishes thinking, tools and text, and sto
   assert.doesNotMatch(render([decision],{e1:order}), /data-activity-phase=/);
 });
 
-test('live tools remain visible alongside text and retry has one thinking indicator', () => {
+test('live tools suppress motion alongside text and retry keeps its status label', () => {
   globalThis.approvalState={currentSessionId:'s1',pendingDecisions:[],executionUpdateOrders:{}};
   const msg={id:'m1',role:'assistant',status:'running',content:'Update',
     tools:[{id:'t1',tool:'search',status:'running'}],
@@ -103,8 +103,9 @@ test('live tools remain visible alongside text and retry has one thinking indica
   assert.equal([...parallelThinking.matchAll(/data-active="true"/g)].length,1);
   const retry=renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,retryStatus:{attempt:2,reason:'transport'}}}));
   assert.match(retry,/Retrying 2/);
-  assert.equal([...retry.matchAll(/data-activity-phase=/g)].length,1);
-  assert.match(retry,/data-activity-phase="thinking"/);
+  assert.doesNotMatch(retry,/data-activity-phase=/);
+  const modelRetry=renderToStaticMarkup(createElement(AssistantBubble,{msg:{id:"m1",role:"assistant",status:"running",retryStatus:{attempt:2}}}));
+  assert.match(modelRetry,/data-activity-phase="thinking"/);
   assert.doesNotMatch(renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,status:'cancelled'}})),/data-activity-phase=/);
 });
 
