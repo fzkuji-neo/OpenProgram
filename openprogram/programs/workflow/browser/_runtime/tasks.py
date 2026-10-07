@@ -32,6 +32,10 @@ def _run_browser_task(
                 reason_code="unsupported_url",
             )
         else:
+            from openprogram.agent import surface_context
+            if not controller.binding_id and surface_context.tool_enabled(surface_context.current()):
+                controller.binding_id = surface_context.resolve_binding("")
+                controller.initial_url = ""
             # deferred browser tool loop; runtime owns restricted AgentTool execution
             call_limit = min(controller.max_steps * 3 + 3, 303)
             deadline = state.time.monotonic() + max(1, min(int(max_seconds), 1800))
@@ -88,6 +92,7 @@ def _run_browser_task(
                         tool_choice={"type": "function", "name": "browser_page"},
                         parallel_tool_calls=False,
                         max_iterations=1,
+                        stop_after_tool_round=True,
                         timeout_s=max(1, remaining),
                         execution_kind="browser_agent",
                         runtime=runtime,

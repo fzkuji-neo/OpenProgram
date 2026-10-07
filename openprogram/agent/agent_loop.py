@@ -585,6 +585,8 @@ async def _run_loop_with_recovery(
             tool_choice=config.tool_choice,
             parallel_tool_calls=config.parallel_tool_calls,
         )
+    if config.stop_after_tool_round and config.response_format is not None:
+        raise ValueError("stop_after_tool_round cannot be combined with response_format")
     structured_attempt = 1
     pending_validation_error: Exception | None = None
 
@@ -691,9 +693,11 @@ async def _run_loop_with_recovery(
                         "The model did not call the hidden structured-output submission tool",
                         code="missing_submission",
                     )
-                raise RuntimeError(
+                error = RuntimeError(
                     f"Agent iteration limit ({iteration_cap}) reached with pending work"
                 )
+                error.retryable = False
+                raise error
             if not first_turn:
                 ev_stream.push(AgentEventTurnStart())
             else:
@@ -1056,6 +1060,11 @@ async def _run_loop_with_recovery(
                     return
 
             ev_stream.push(AgentEventTurnEnd(message=message, tool_results=tool_results))
+
+            if config.stop_after_tool_round and tool_results:
+                ev_stream.push(AgentEventAgentEnd(messages=new_messages))
+                ev_stream.end(new_messages)
+                return
 
             if steering_after_tools:
                 pending_messages = steering_after_tools

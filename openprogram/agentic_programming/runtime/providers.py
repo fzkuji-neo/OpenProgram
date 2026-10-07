@@ -444,6 +444,7 @@ class ProvidersOperations:
             tool_choice=loop_opts.get("tool_choice"),
             parallel_tool_calls=loop_opts.get("parallel_tool_calls"),
             max_iterations=session_max_iterations,
+            stop_after_tool_round=bool(loop_opts.get("stop_after_tool_round")),
             web_search=loop_opts.get("web_search"),
             response_format=structured_format,
             stream_fn=_stream_fn,

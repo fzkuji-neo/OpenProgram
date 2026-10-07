@@ -144,6 +144,8 @@ Providers only expose supported operations. Web `release` releases a control ses
 
 Trusted Python integrations can register a `ResourceProvider` with `openprogram.resource_interface.registry.register(...)`, declaring a JSON Schema for every supported operation and a callable adapter. The adapter is responsible for its native authorization and resource lifecycle. Registration rejects duplicate provider names and validates arguments before invoking the adapter. This is a trusted integration API, not a loader for arbitrary code supplied by the Agent or a webpage. Integrations can use the existing `openprogram.session_resources.resource_use(...)` context to report session usage in Resources. Enabled installed applications automatically register `application.<id>` from their operation manifest. Their session-associated instances open in Resources using the existing isolated application view.
 
+Browser tasks reuse an explicitly selected Page without reloading it or opening a replacement. Each action returns to the browser workflow for a new observation and verification. Reaching an execution safety limit stops the task instead of retrying completed actions; cleanup retains the calling conversation identity.
+
 ## Programs loading
 
 Abilities → Programs keeps its directory tree, selected Program and loaded call graph when you leave and return. Expanded folders and the selected graph are checked in the background every five seconds while the page is visible, and when focus returns. Unchanged files reuse their analysis. Refresh checks for changes without resetting your selection or expanded folders. A failed check retains the last loaded content so you can retry.

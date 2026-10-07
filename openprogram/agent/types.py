@@ -66,6 +66,8 @@ class AgentLoopConfig(SimpleStreamOptions):
     # ``tool_choice`` / ``parallel_tool_calls`` ride in via the
     # SimpleStreamOptions base and are forwarded to the provider call.
     max_iterations: int | None = None
+    # Caller-owned workflows consume receipts before requesting the next step.
+    stop_after_tool_round: bool = False
 
     # Converts AgentMessage[] to LLM-compatible Message[]
     convert_to_llm: Callable[[list[AgentMessage]], list[Message] | Awaitable[list[Message]]]

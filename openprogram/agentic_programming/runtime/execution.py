@@ -41,7 +41,7 @@ class ExecutionOperations:
     def _bind_exec_options(
         self, *, content, use_model, tools, stream_fn, effort, execution_kind,
         toolset, tools_source, tools_allow, tools_deny, tool_choice,
-        parallel_tool_calls, max_iterations, web_search,
+        parallel_tool_calls, max_iterations, web_search, stop_after_tool_round,
     ):
         # ``tools=[]`` means "no tools" and must be distinguished from
         # "not specified" (None), which falls back to the default toolset.
@@ -88,6 +88,8 @@ class ExecutionOperations:
             _loop_opts["parallel_tool_calls"] = parallel_tool_calls
         if max_iterations is not None:
             _loop_opts["max_iterations"] = max_iterations
+        if stop_after_tool_round:
+            _loop_opts["stop_after_tool_round"] = True
         if web_search:
             _loop_opts["web_search"] = True
         loop_opts_token = _current_loop_opts.set(_loop_opts) if _loop_opts else None
@@ -121,6 +123,7 @@ class ExecutionOperations:
         tool_choice: Any = None,
         parallel_tool_calls: Optional[bool] = None,
         max_iterations: Optional[int] = None,
+        stop_after_tool_round: bool = False,
         choices: Any = None,
         timeout_s: Optional[float] = None,
         on_retry: Optional["Callable[[RetryInfo], None]"] = None,
@@ -245,6 +248,8 @@ class ExecutionOperations:
         max_iterations = 20 if max_iterations is None else max_iterations
         web_search = False if web_search is None else web_search
 
+        if stop_after_tool_round and response_format is not None:
+            raise ValueError("stop_after_tool_round cannot be combined with response_format")
         structured_format = None
         if response_format is not None:
             from openprogram.providers.structured_output import (
@@ -301,6 +306,7 @@ class ExecutionOperations:
             tools_source=tools_source, tools_allow=tools_allow, tools_deny=tools_deny,
             tool_choice=tool_choice, parallel_tool_calls=parallel_tool_calls,
             max_iterations=max_iterations, web_search=web_search,
+            stop_after_tool_round=stop_after_tool_round,
         )
         response_format_token = None
         model_call_budget_token = None
@@ -638,6 +644,7 @@ class ExecutionOperations:
         tool_choice: Any = None,
         parallel_tool_calls: Optional[bool] = None,
         max_iterations: Optional[int] = None,
+        stop_after_tool_round: bool = False,
         web_search: Optional[bool] = None,
         stream_fn: Any = None,
         effort: Optional[str] = None,
@@ -681,6 +688,8 @@ class ExecutionOperations:
         max_iterations = 20 if max_iterations is None else max_iterations
         web_search = False if web_search is None else web_search
 
+        if stop_after_tool_round and response_format is not None:
+            raise ValueError("stop_after_tool_round cannot be combined with response_format")
         structured_format = None
         if response_format is not None:
             from openprogram.providers.structured_output import (
@@ -714,6 +723,7 @@ class ExecutionOperations:
             tools_source=tools_source, tools_allow=tools_allow, tools_deny=tools_deny,
             tool_choice=tool_choice, parallel_tool_calls=parallel_tool_calls,
             max_iterations=max_iterations, web_search=web_search,
+            stop_after_tool_round=stop_after_tool_round,
         )
         errors: list[str] = []
         reply = None
