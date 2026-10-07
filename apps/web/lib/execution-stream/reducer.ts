@@ -260,9 +260,20 @@ export function applyExecutionStreamEvent(
   }
 
   if (op === "sync_required") {
+    if (cur.terminal || event.generation < cur.generation) {
+      return { ok: true, state: cur };
+    }
+    if (event.reason === "owner_unavailable") {
+      // This is the answer to a recovery request, not another request.
+      // Keep the transcript while waiting for a future authoritative event.
+      return {
+        ok: true,
+        state: { ...cur, syncing: false, last_error: "owner_unavailable" },
+      };
+    }
     return {
       ok: true,
-      state: { ...cur, syncing: true, phase: "syncing" },
+      state: { ...cur, syncing: true },
       requestSnapshot: true,
     };
   }
@@ -271,7 +282,7 @@ export function applyExecutionStreamEvent(
   if (event.generation !== cur.generation) {
     return {
       ok: false,
-      state: { ...cur, syncing: true, phase: "syncing" },
+      state: { ...cur, syncing: true },
       reason: "generation_mismatch",
       requestSnapshot: true,
     };
@@ -284,7 +295,7 @@ export function applyExecutionStreamEvent(
   if (base !== cur.revision) {
     return {
       ok: false,
-      state: { ...cur, syncing: true, phase: "syncing" },
+      state: { ...cur, syncing: true },
       reason: "gap",
       requestSnapshot: true,
     };
@@ -437,7 +448,7 @@ export function applyExecutionStreamEvent(
       // Unknown state-changing op → sync, do not advance blindly.
       return {
         ok: false,
-        state: { ...cur, syncing: true, phase: "syncing" },
+        state: { ...cur, syncing: true },
         reason: `unknown_op:${op}`,
         requestSnapshot: true,
       };
