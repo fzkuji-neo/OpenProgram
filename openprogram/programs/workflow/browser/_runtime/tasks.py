@@ -216,4 +216,6 @@ def _run_browser_task(
         if result.get("status") == "succeeded":
             result["status"] = "failed"
             result["reason_code"] = "cleanup_failed"
+            result.pop("observation", None)
+            result["completion_evidence"] = []
     return result
