@@ -574,7 +574,14 @@ def test_scaled_preview_preserves_mcp_reference_namespace(monkeypatch, backend, 
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_upload_delegates_to_owned_controller_without_upstream_file_access(monkeypatch, backend):
     registry, controllers, clients, _ = _registry(monkeypatch)
+    original_frame = controllers[backend]._new_frame
+    def file_frame():
+        frame = original_frame()
+        frame['elements'] = [{'ref': 'e1', 'input_type': 'file', 'name': 'Attachment'}]
+        return frame
+    monkeypatch.setattr(controllers[backend], '_new_frame', file_frame)
     observed = _observe(registry, backend)
+    file_ref = observed['elements'][0]['ref']
     calls = []
     def select(**kwargs):
         kwargs['before_dispatch']()
@@ -584,7 +591,7 @@ def test_upload_delegates_to_owned_controller_without_upstream_file_access(monke
     before = _write_count(backend, controllers, clients)
     try:
         result = registry.execute(command='act', web_session_id=observed['web_session_id'], owner_id='owner-1', before_dispatch=lambda: None,
-            arguments={'action': 'upload', 'ref': 'e1', 'path': '/approved/fixture.txt', 'expected_frame_id': observed['frame_id']})
+            arguments={'action': 'upload', 'ref': file_ref, 'path': '/approved/fixture.txt', 'expected_frame_id': observed['frame_id']})
         assert result['ok'] is True, result
         assert result['server_acceptance_verified'] is False
         assert len(calls) == 1
