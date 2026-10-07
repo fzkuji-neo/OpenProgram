@@ -514,6 +514,9 @@ class WebUseSessionRegistry:
                 }
 
             if command in {"act", "verify"}:
+                if session.state.get("observation_required"):
+                    return {"ok": False, "reason_code": "stale_observation",
+                            "observe_required": True, **_session_fields(session)}
                 if not str(params.get("expected_frame_id") or "").strip():
                     frame_id = _session_frame_id(session)
                     if frame_id:
@@ -568,6 +571,16 @@ class WebUseSessionRegistry:
                     reason_code = str(
                         validation.get("reason_code") or "page_context_stale"
                     )
+                    if reason_code == "desktop_response_timeout":
+                        session.state.pop("frame_id", None)
+                        session.state.pop("viewport", None)
+                        session.state["observation_required"] = True
+                        return {
+                            "ok": False, "reason_code": reason_code,
+                            "message": "The desktop did not respond in time. No action was dispatched. Observe this session again before acting.",
+                            "observe_required": True, "recovery_command": "observe",
+                            **_session_fields(session),
+                        }
                     recovery_url = session.state.get("last_url") or _controller_display(session).get("target", "")
                     recovery_identity = session.state.get("page_identity") or {}
                     self._cleanup_session(session, suppress_errors=True)
@@ -712,6 +725,8 @@ class WebUseSessionRegistry:
             frame_id = _result_frame_id(result)
             if frame_id:
                 session.state["frame_id"] = frame_id
+                if command == "observe":
+                    session.state.pop("observation_required", None)
             cleaned = bool(created_session and not frame_id)
             if cleaned:
                 self._cleanup_session(session, suppress_errors=True)
