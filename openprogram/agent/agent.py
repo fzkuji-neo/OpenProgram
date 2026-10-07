@@ -65,6 +65,7 @@ class AgentOptions:
         tool_choice: Any | None = None,
         parallel_tool_calls: bool | None = None,
         max_iterations: int | None = None,
+        stop_after_tool_round: bool = False,
         web_search: bool | None = None,
         response_format: Any | None = None,
     ):
@@ -82,6 +83,7 @@ class AgentOptions:
         self.tool_choice = tool_choice
         self.parallel_tool_calls = parallel_tool_calls
         self.max_iterations = max_iterations
+        self.stop_after_tool_round = stop_after_tool_round
         self.web_search = web_search
         self.response_format = response_format
 
@@ -137,6 +139,7 @@ class Agent:
         self._tool_choice: Any | None = opts.tool_choice
         self._parallel_tool_calls: bool | None = opts.parallel_tool_calls
         self._max_iterations: int | None = opts.max_iterations
+        self._stop_after_tool_round = opts.stop_after_tool_round
         self._web_search: bool | None = opts.web_search
         self._response_format = opts.response_format
 
@@ -361,6 +364,7 @@ class Agent:
             tool_choice=self._tool_choice,
             parallel_tool_calls=self._parallel_tool_calls,
             max_iterations=self._max_iterations,
+            stop_after_tool_round=self._stop_after_tool_round,
             web_search=self._web_search,
             response_format=self._response_format,
             convert_to_llm=self._convert_to_llm,

@@ -123,6 +123,9 @@ class BrowserPageController:
             max_result_chars=100_000,
         )(self.execute)
 
+    def _submit(self, callback, *args, **kwargs):
+        return self._owner.submit(state.copy_context().run, callback, *args, **kwargs).result()
+
     def _requires_approval(self, action: str = "", url: str = "", **_kw):
         if action not in {
             "navigate", "click", "type", "press", "scroll", "hover", "select",
@@ -166,9 +169,9 @@ class BrowserPageController:
 
     def evaluate_bound_page(self, expression: str, argument: state.Any = None) -> state.Any:
         """Evaluate against the Page on the controller's Playwright thread."""
-        return self._owner.submit(
+        return self._submit(
             self._evaluate_bound_page, expression, argument,
-        ).result()
+        )
 
     def _evaluate_bound_page(self, expression: str, argument: state.Any) -> state.Any:
         page = self._page()
@@ -184,11 +187,11 @@ class BrowserPageController:
             secrets = password_values(page)
             value = capture()
             return redact_password_values(value, secrets + password_values(page))
-        return self._owner.submit(state.copy_context().run, redact).result()
+        return self._submit(redact)
 
     def set_agent_cursor_armed(self, armed: bool) -> None:
         """Show feedback only for pointer events emitted by one Agent click."""
-        self._owner.submit(self._set_agent_cursor_armed, bool(armed)).result()
+        self._submit(self._set_agent_cursor_armed, bool(armed))
 
     def _set_agent_cursor_armed(self, armed: bool) -> None:
         try:
@@ -209,9 +212,9 @@ class BrowserPageController:
 
     def prepare_external_action(self, arguments: state.Mapping[str, state.Any]) -> dict | None:
         """Validate an MCP action without moving Playwright objects off-owner."""
-        return self._owner.submit(
+        return self._submit(
             self._prepare_external_action, dict(arguments),
-        ).result()
+        )
 
     def _prepare_external_action(self, arguments: dict[str, state.Any]) -> dict | None:
         frame_id = str(arguments.get("expected_frame_id") or "")
@@ -240,20 +243,19 @@ class BrowserPageController:
         return self._write_allowed()
 
     def invalidate_external_frame(self) -> dict[str, state.Any]:
-        return self._owner.submit(self._invalidate_frame).result()
+        return self._submit(self._invalidate_frame)
 
     def record_external_mutation(self, detail: str) -> dict[str, state.Any]:
-        return self._owner.submit(self._mutated, detail).result()
+        return self._submit(self._mutated, detail)
 
     def pointer_scale(self) -> float | None:
-        return self._owner.submit(self._pointer_scale).result()
+        return self._submit(self._pointer_scale)
 
     def hover_external_ref(self, attribute: str, frame_id: str, *, before_dispatch=None) -> dict:
-        return self._owner.submit(
-            state.copy_context().run,
+        return self._submit(
             self._hover_external_ref, attribute, frame_id,
             before_dispatch=before_dispatch,
-        ).result()
+        )
 
     def clear_external_ref(self, attribute: str) -> None:
         def clear():
@@ -262,7 +264,7 @@ class BrowserPageController:
                     frame.locator(f"[{attribute}]").evaluate_all(
                         "(nodes, attr) => nodes.forEach(n => n.removeAttribute(attr))", attribute,
                     )
-        self._owner.submit(clear).result()
+        self._submit(clear)
 
     def _hover_external_ref(self, attribute: str, frame_id: str, *, before_dispatch=None) -> dict:
         page = self._page()
@@ -581,7 +583,7 @@ class BrowserPageController:
             kwargs = {"before_dispatch": before_dispatch} if before_dispatch is not None else {}
             return self._execute(action, expected_frame_id, ref, url, text, key,
                                  value, amount, assertion, x, y, **kwargs)
-        result = self._owner.submit(state.copy_context().run, dispatch).result()
+        result = self._submit(dispatch)
         self._last_action = action
         self._last_result = result
         self._action_seq += 1
@@ -627,7 +629,7 @@ class BrowserPageController:
         )(dispatch)
 
     def revoke_screenshot(self) -> None:
-        self._owner.submit(self._revoke_screenshot).result()
+        self._submit(self._revoke_screenshot)
 
     def _revoke_screenshot(self) -> None:
         self._screenshot_frame = ""
@@ -860,11 +862,11 @@ class BrowserPageController:
         return redact_password_values({"ok": True, "passed": passed, "evidence": evidence}, secrets)
 
     def final_result(self, *, summary: str, reason_code: str | None = None) -> dict:
-        return self._owner.submit(
+        return self._submit(
             self._final_result,
             summary=summary,
             reason_code=reason_code,
-        ).result()
+        )
 
     def _final_result(self, *, summary: str, reason_code: str | None = None) -> dict:
         from openprogram.programs.tools.web.browser._privacy import password_values, redact_password_values
@@ -927,7 +929,7 @@ class BrowserPageController:
 
     def close(self) -> str | None:
         try:
-            return self._owner.submit(self._close).result()
+            return self._submit(self._close)
         finally:
             self._owner.shutdown(wait=True)
 

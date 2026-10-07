@@ -417,6 +417,7 @@ def _run_browser_task_commands(
                     tool_choice="auto",
                     parallel_tool_calls=False,
                     max_iterations=1,
+                    stop_after_tool_round=True,
                     timeout_s=timeout_s,
                     execution_kind="browser_agent",
                     runtime=runtime,

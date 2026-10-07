@@ -147,6 +147,8 @@ Desktop App 或 worker 进程重启后，你尚未关闭的网页会在后台自
 
 可信 Python 集成可以通过 `openprogram.resource_interface.registry.register(...)` 注册 `ResourceProvider`，为每种操作声明 JSON Schema 和调用适配器。适配器负责自身的授权和生命周期。重复名称会被拒绝，参数在调用前验证。这是可信集成 API，不接受 Agent 或网页提供任意代码。集成可以通过已有 `openprogram.session_resources.resource_use(...)` 在 Resources 上报会话使用情况；已启用的安装应用根据操作清单自动注册 `application.<id>`。关联当前会话的实例显示在 Resources，并复用现有隔离应用视图。
 
+浏览器任务复用明确选中的 Page，不因任务携带网址而重载或另开页面。每个动作完成后返回浏览器工作流，继续观察和验证。执行达到安全上限时停止任务，不重试已经完成的动作；清理时保留调用会话身份。
+
 ## Programs 加载
 
 离开再返回“能力 → Programs”时，目录树、选中的 Program 和已加载的调用图保持显示。页面可见时每五秒后台检测展开目录和所选调用图，重新聚焦也会检测；未变化的文件复用分析结果。点击刷新不会重置选择或已展开目录。检测失败时保留已有内容，便于重试。

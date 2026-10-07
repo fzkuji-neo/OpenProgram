@@ -16,6 +16,7 @@ def agent(
     tools_deny: list[str] | None = None,
     response_format: dict[str, Any] | JsonSchemaOutput | None = None,
     max_iterations: int | None = None,
+    stop_after_tool_round: bool = False,
     timeout_s: float | None = None,
     tool_choice: Any = None,
     parallel_tool_calls: bool | None = None,
@@ -42,6 +43,7 @@ def agent(
         tools_deny: Tool names that must remain unavailable for this turn
         execution_kind: Runtime execution label for this tool loop
         max_iterations: Max tool loop rounds
+        stop_after_tool_round: Return after one completed tool round to a caller-owned loop
         timeout_s: Timeout in seconds
 
     Returns:
@@ -53,6 +55,7 @@ def agent(
         result = _execute_agent(active, prompt, model=model, effort=effort, tools=tools,
             tools_deny=tools_deny, response_format=response_format,
             max_iterations=max_iterations, timeout_s=timeout_s,
+            **({"stop_after_tool_round": True} if stop_after_tool_round else {}),
             tool_choice=tool_choice, parallel_tool_calls=parallel_tool_calls,
             execution_kind=execution_kind, return_raw=return_raw, toolset=toolset, tools_allow=tools_allow,
             tools_source=tools_source, on_retry=on_retry, web_search=web_search, stream_fn=stream_fn)

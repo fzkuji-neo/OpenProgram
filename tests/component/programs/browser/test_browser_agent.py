@@ -1579,3 +1579,105 @@ def test_bound_pointer_rejects_stale_native_geometry(monkeypatch):
     )
     assert result == {"ok": False, "reason_code": "stale_observation"}
     assert not any(call[0] == "wheel" for call in api.page.calls)
+
+
+@pytest.mark.parametrize("denied", [False, True])
+def test_browser_task_real_runtime_executes_each_step_once(monkeypatch, denied):
+    from openprogram.agentic_programming.runtime import Runtime
+    from openprogram.programs.workflow import browser as module
+    from openprogram.providers.types import AssistantMessage, EventStart, EventDone, ToolCall
+
+    controller, api = _controller()
+    api.page.url = 'http://localhost/form'
+    monkeypatch.setattr(module, '_new_controller', lambda: controller)
+    calls = []
+
+    async def stream(_model, _context, _options):
+        calls.append([t.name for t in _context.tools or []])
+        frame = controller._frame
+        action = ({'action': 'click', 'ref': next(iter(controller._refs))}
+                  if len(calls) == 1 else
+                  {'action': 'verify', 'assertion': 'text_contains', 'value': 'Saved'})
+        reply = AssistantMessage(content=[ToolCall(id=f'step-{len(calls)}', name='browser_page',
+            arguments={**action, 'expected_frame_id': frame['frame_id']})],
+            api='completion', provider='test', model='test', stop_reason='toolUse', timestamp=1)
+        yield EventStart(partial=reply)
+        yield EventDone(reason='toolUse', message=reply)
+
+    runtime = Runtime(call=lambda *_args, **_kwargs: 'unused', max_retries=1)
+    runtime._stream_fn = stream
+    from openprogram.agent.authority import local_owner_authority
+    from openprogram.agent.dispatcher import TurnRequest
+    from openprogram.agent.turn_request_context import set_turn_request, reset_turn_request
+    from openprogram.agent.session_config import PermissionRules
+    token = set_turn_request(TurnRequest(session_id='test-browser', agent_id='main', user_text='Click Save',
+        permission_mode='bypass', source='web',
+        permission_rules=PermissionRules(deny=['browser_page']) if denied else None,
+        **local_owner_authority()))
+    try:
+        result = module.browser_agent(task='Click Save and verify Saved', runtime=runtime, max_steps=1)
+        if denied:
+            assert result['status'] == 'failed'
+            assert not api.page.calls
+            assert not result['completion_evidence']
+            return
+        assert result['status'] == 'succeeded', result
+        assert len(calls) == 2
+        assert len([row for row in api.page.calls if row[0] == 'click']) == 1
+        assert api.closed == ['br_test']
+    finally:
+        reset_turn_request(token)
+        runtime.close()
+
+
+def test_controller_cleanup_preserves_calling_conversation(monkeypatch):
+    from openprogram.agent.run_control import set_current_session_id, reset_current_session_id, get_current_session_id
+    controller, api = _controller()
+    original = api.execute
+    identities = []
+    def execute(action, **kwargs):
+        identities.append((action, get_current_session_id()))
+        return original(action, **kwargs)
+    monkeypatch.setattr(api, 'execute', execute)
+    token = set_current_session_id('conversation-one')
+    closed = False
+    try:
+        controller.execute(action='observe')
+        controller.close()
+        closed = True
+        assert identities == [('open', 'conversation-one'), ('close', 'conversation-one')]
+    finally:
+        reset_current_session_id(token)
+        if not closed:
+            controller.close()
+
+
+@pytest.mark.parametrize("stale", [False, True])
+def test_browser_task_reuses_explicit_page_without_navigation(monkeypatch, stale):
+    from openprogram.agent import surface_context
+    from openprogram.programs.workflow import browser as module
+    controller, api = _controller()
+    monkeypatch.setattr(module, '_new_controller', lambda: controller)
+    if stale:
+        def unavailable(action, **kwargs):
+            assert action == 'open'
+            assert api.open_arguments is None  # No retry with a replacement Page.
+            api.open_arguments = dict(kwargs)
+            raise RuntimeError('Page binding is stale')
+        monkeypatch.setattr(api, 'execute', unavailable)
+    token = surface_context.bind({'primary_surface_key':'page-one', 'surfaces':[
+        {'surface_key':'page-one', 'binding_id':'exact-binding', 'capabilities':['observe']}]})
+    class Runtime:
+        def exec(self, **kwargs):
+            controller._terminal_reason = 'cancelled'
+            return ''
+    try:
+        result = module.browser_agent(task='Use the current form', url='https://example.test/form', runtime=Runtime())
+        if stale:
+            assert result['status'] == 'failed'
+            assert 'Page binding is stale' in result['summary']
+            assert not api.page.calls
+        assert api.open_arguments['binding_id'] == 'exact-binding'
+        assert not api.open_arguments['url']
+    finally:
+        surface_context.reset(token)
