@@ -36,15 +36,15 @@ esbuild.buildSync({absWorkingDir:process.argv[1], stdin:{contents:
             page.evaluate("""() => {
               const {createRoot,createElement:h,ActivityIndicator} = ActivityBundle;
               window.root = createRoot(document.getElementById('root'));
-              window.show = phases => root.render(phases.map(phase => h(ActivityIndicator,{key:phase,phase})));
+              window.show = visible => root.render(visible ? h(ActivityIndicator) : null);
               window.seek = time => document.getAnimations().forEach(a => {a.pause();a.currentTime=time;});
-              show(['thinking','tool','generating']);
+              show(true);
             }""")
-            expect(page.locator('.activity-indicator')).to_have_count(2)
+            expect(page.locator('.activity-indicator')).to_have_count(1)
             page.evaluate("seek(0)")
             boxes = page.locator('.activity-indicator').evaluate_all("els => els.map(e=>({w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height,hidden:e.getAttribute('aria-hidden')}))")
-            assert boxes == [{"w": 18, "h": 18, "hidden": "true"}] * 2
-            assert page.locator('linearGradient').evaluate_all("els=>new Set(els.map(e=>e.id)).size") == 2
+            assert boxes == [{"w": 18, "h": 18, "hidden": "true"}]
+            assert page.locator('linearGradient').evaluate_all("els=>new Set(els.map(e=>e.id)).size") == 1
             outer = page.locator('.activity-thinking .activity-outer').first
             inner = page.locator('.activity-thinking .activity-inner').first
             geometry = "e=>{const s=getComputedStyle(e);return [parseFloat(s.r),parseFloat(s.strokeWidth)]}"
@@ -54,22 +54,16 @@ esbuild.buildSync({absWorkingDir:process.argv[1], stdin:{contents:
             page.evaluate("seek(2700)")
             assert outer.evaluate(geometry) == pytest.approx([5.85, .75])
             assert inner.evaluate(geometry) == pytest.approx([3.8, 1.65])
-            expect(page.locator('[data-activity-phase="tool"]')).to_have_count(0)
-            arcs = page.locator('.activity-generating .activity-outer').first
-            page.evaluate("seek(450)")
-            long_arc = arcs.evaluate("e=>getComputedStyle(e).strokeDasharray")
-            page.evaluate("seek(1350)")
-            assert arcs.evaluate("e=>getComputedStyle(e).strokeDasharray") != long_arc
             assert page.locator('.activity-indicator').evaluate_all("els=>els.every(e=>e.getBoundingClientRect().width===18&&e.getBoundingClientRect().height===18)")
             for color in ['rgb(20, 60, 180)', 'rgb(210, 110, 60)']:
                 page.evaluate("color=>document.documentElement.style.setProperty('--accent-blue',color)", color)
                 assert page.locator('.activity-color-start').first.evaluate("e=>getComputedStyle(e).stopColor") == color
             # Remove the manually paused test animations before testing native media behavior.
-            page.evaluate("show([])")
+            page.evaluate("show(false)")
             expect(page.locator('.activity-indicator')).to_have_count(0)
             page.emulate_media(reduced_motion="reduce")
-            page.evaluate("show(['thinking','tool','generating'])")
-            expect(page.locator('.activity-indicator')).to_have_count(2)
+            page.evaluate("show(true)")
+            expect(page.locator('.activity-indicator')).to_have_count(1)
             assert page.locator('.activity-indicator').evaluate_all("els=>els.every(e=>e.getAnimations({subtree:true}).length===0)")
             assert outer.evaluate("e=>getComputedStyle(e).animationName") == 'none'
             assert outer.evaluate(geometry) == pytest.approx([6.9, 1.25])
@@ -78,9 +72,8 @@ esbuild.buildSync({absWorkingDir:process.argv[1], stdin:{contents:
             assert outer.evaluate("e=>getComputedStyle(e).stroke") != 'none'
             assert not outer.evaluate("e=>getComputedStyle(e).stroke").startswith('url(')
             page.emulate_media(reduced_motion="no-preference", forced_colors="none")
-            page.evaluate("show(['tool'])")
+            page.evaluate("show(false)")
             expect(page.locator('.activity-indicator')).to_have_count(0)
-            expect(page.locator('[data-activity-phase="thinking"]')).to_have_count(0)
             page.evaluate("root.unmount()")
             expect(page.locator('.activity-indicator')).to_have_count(0)
             assert page.evaluate("document.getAnimations().length") == 0
@@ -88,7 +81,7 @@ esbuild.buildSync({absWorkingDir:process.argv[1], stdin:{contents:
             browser.close()
 
 
-def test_agentic_call_phase_and_execution_layout(tmp_path: Path) -> None:
+def test_existing_function_structure_without_added_logos(tmp_path: Path) -> None:
     """Exercise actual stream events, store, bubble, disclosure and CSS together."""
     from playwright.sync_api import expect, sync_playwright
 
@@ -109,6 +102,7 @@ window.event({type:'tool_result',tool:'bash',tool_call_id:'old',result:''});
 window.event({type:'text',text:'The page is ready. Checking the current function.'});
 window.event({type:'tool_use',tool:'gui_agent',tool_call_id:'gui',input:'{"task":"Check the currently open page"}'});
 window.snapshot=()=>useSessionStore.getState().messagesById[rid];
+window.replaceReply=(patch)=>useSessionStore.getState().updateMessage(sid,rid,patch);
 function App(){const msg=useSessionStore(s=>s.messagesById[rid]);return <AssistantBubble msg={msg} sessionIdOverride={sid}/>;}
 createRoot(document.getElementById('root')).render(<QueryClientProvider client={new QueryClient()}><App/></QueryClientProvider>);
 '''
@@ -135,7 +129,7 @@ createRoot(document.getElementById('root')).render(<QueryClientProvider client={
             assert page.evaluate("snapshot().tools.some(t=>t.tool==='gui_agent')") is False
             expect(active.locator('.activity-indicator')).to_have_count(0)
             page.screenshot(path=str(tmp_path/'before-layout.png'))
-            labels = page.locator('.tl-summary-label')
+            labels = page.locator('.tl-toggle > span:first-child')
             left = labels.last.bounding_box()['x']
             assert left == pytest.approx(labels.first.bounding_box()['x'], abs=.5)
             assert left == pytest.approx(page.locator('.chat-text').bounding_box()['x'], abs=.5)
@@ -148,12 +142,12 @@ createRoot(document.getElementById('root')).render(<QueryClientProvider client={
             page.wait_for_function("document.querySelector('.tl[data-open=\"1\"] .tl-collapse').getAnimations().length===0")
             page.wait_for_function("[...document.querySelectorAll('.tl[data-open=\"1\"] .tl-step')].every(e=>e.getAnimations().every(a=>a.playState==='finished'))")
             title = row.locator('.tl-step-title').bounding_box()
-            assert title['x'] - left == pytest.approx(28, abs=.5)
+            assert title['x'] - left == pytest.approx(48, abs=.5)
             icon = row.locator('.tl-step-icon').bounding_box()
-            assert icon['x'] == pytest.approx(left, abs=.5)
+            assert icon['x'] == pytest.approx(left + 4, abs=.5)
             assert icon['width'] == 20
             assert icon['y']+icon['height']/2 == pytest.approx(title['y']+title['height']/2,abs=.5)
-            assert row.bounding_box()['y'] - active.bounding_box()['y'] - active.bounding_box()['height'] <= 10
+            assert row.bounding_box()['y'] - active.bounding_box()['y'] - active.bounding_box()['height'] <= 16
             page.screenshot(path=str(tmp_path/'active-layout.png'))
             page.set_viewport_size({'width':390,'height':620})
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
@@ -162,9 +156,9 @@ createRoot(document.getElementById('root')).render(<QueryClientProvider client={
             expect(page.locator('.activity-indicator')).to_have_count(0)
             expect(row.locator('.activity-indicator')).to_have_count(0)
             assert labels.last.bounding_box()['x'] == pytest.approx(labels.first.bounding_box()['x'],abs=.5)
-            # Only a new model delta resumes motion; pending calls suppress all rings.
+            # Content and execution rows keep their original renderer, without added logos.
             page.evaluate("event({type:'thinking',text:'Checking the result.'})")
-            expect(active.locator('[data-activity-phase="thinking"]')).to_have_count(1)
+            expect(page.locator('.activity-indicator')).to_have_count(0)
             page.evaluate("event({type:'tool_use',tool:'bash',tool_call_id:'next',input:'{}'})")
             expect(page.locator('.activity-indicator')).to_have_count(0)
             page.evaluate("event({type:'thinking',text:'Concurrent thinking.'})")
@@ -176,8 +170,17 @@ createRoot(document.getElementById('root')).render(<QueryClientProvider client={
             page.evaluate("event({type:'tool_result',tool:'bash',tool_call_id:'next',result:'ok'})")
             page.evaluate("event({type:'text',text:'Finished.'})")
             expect(active.locator('.activity-indicator')).to_have_count(0)
-            expect(page.locator('.message-actions-footer [data-activity-phase="generating"]')).to_have_count(1)
+            expect(page.locator('.activity-indicator')).to_have_count(0)
             expect(active).to_have_attribute('aria-expanded','true')
+            # The only logo slot is the original empty model reply placeholder.
+            page.evaluate("replaceReply({blocks:[],tools:[],content:'',thinking:'',retryStatus:undefined,status:'running'})")
+            expect(page.locator('.activity-indicator')).to_have_count(1)
+            page.evaluate("replaceReply({runtimeChildren:[{id:'legacy-call',role:'assistant',display:'runtime',function:'custom_agent',status:'running',content:''}]})")
+            expect(page.locator('.activity-indicator')).to_have_count(0)
+            page.evaluate("replaceReply({runtimeChildren:[],function:'custom_agent',display:'runtime'})")
+            expect(page.locator('.activity-indicator')).to_have_count(0)
+            page.evaluate("replaceReply({function:undefined,display:undefined,status:'done'})")
+            expect(page.locator('.activity-indicator')).to_have_count(0)
             assert not errors, errors
         finally:
             browser.close()

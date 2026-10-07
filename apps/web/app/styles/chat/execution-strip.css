@@ -6,7 +6,7 @@
    步骤行（圆形图标压线、标题 + 单行摘要、动作悬停出现、点行展开）。
    函数内部的 context_tree 递归成缩进一层的子时间线（.tl-sub）。 */
 .tl {
-  margin: 4px 0 2px;
+  margin: 6px 0 4px;
   --timeline-line: light-dark(rgba(36, 36, 32, 0.22), rgba(226, 225, 218, 0.28));
   --timeline-thinking: light-dark(#7c3aed, #b78cff);
   --timeline-function: light-dark(#d14a1f, #ff9a66);
@@ -41,11 +41,9 @@
   display: inline-flex;
   align-items: center;
   height: 28px;
-  max-width: 100%;
-  gap: 6px;
+  gap: 8px;
   color: var(--text-muted);
   font-size: 13px;
-  line-height: 20px;
   cursor: pointer;
   user-select: none;
   margin: 0 0 1.5px;
@@ -56,8 +54,25 @@
   text-align: left;
 }
 .tl-toggle:hover { color: var(--text-secondary); }
-.tl-summary-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tl-toggle > .activity-indicator { width: 16px; height: 16px; }
+/* 流式进行中：折叠摘要小字的扫光 shimmer = "正在思考/运行"。
+   渐变裁剪文字实现，明暗主题都跟随文字变量。 */
+.tl-label-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--text-muted) 35%,
+    var(--text-primary) 50%,
+    var(--text-muted) 65%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: tlShimmer 1.8s linear infinite;
+}
+@keyframes tlShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
 /* 新步骤行淡入下滑：流式中往底部拼接新行时不突兀。 */
 .tl-step { animation: tlStepIn 0.22s ease both; }
 @keyframes tlStepIn {
@@ -65,17 +80,16 @@
   to { opacity: 1; transform: none; }
 }
 .tl-chev {
-  flex: none;
   font-size: 11px;
   transition: transform var(--transition);
   display: inline-block;
 }
 .tl[data-open="1"] .tl-chev { transform: rotate(90deg); }
-.tl-body { position: relative; margin: 4px 0 0; padding-left: 28px; }
+.tl-body { position: relative; margin: 6px 0 4px; padding-left: 38px; }
 .tl-body::before {
   content: "";
   position: absolute;
-  left: 9.25px; /* Center of the top-level 20px marker. */
+  left: 13.25px; /* 对准图标圆心（icon 在 4..24，圆心 14） */
   top: 16px;
   bottom: 16px;
   width: 1.5px;
@@ -98,7 +112,7 @@
 .tl-step-head:hover { background: var(--bg-hover); }
 .tl-step-icon {
   position: absolute;
-  left: -28px; /* Top-level text is indented 28px; the icon starts at the summary edge. */
+  left: -36px; /* 头行在 padding 38 + step 2 处，图标落在 4..24 */
   top: 50%;
   transform: translateY(-50%);
   width: 20px;
@@ -174,9 +188,6 @@
   padding: 0;
 }
 .tl-step-icon.is-error { color: var(--accent-red); }
-/* Compact top-level rows share the summary's left edge; nested rows retain their offsets. */
-.tl-body > .tl-step { padding: 2px 0; }
-.tl-body > .tl-step > .tl-step-head { padding: 3px 0; gap: 8px; }
 .tl-step-title { flex: 0 0 auto; }
 .tl-step-title.is-error { color: var(--accent-red); }
 .tl-step-note {
@@ -227,8 +238,13 @@
 }
 .tl-mono.tl-result { margin-top: 6px; color: var(--text-secondary); }
 .tl-mono.is-error { color: var(--accent-red); }
-.tl-step-icon .activity-indicator { width:18px; height:18px; }
-.tl-sub .tl-step-icon .activity-indicator { width:14px; height:14px; }
+.tl-spin {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-cyan, #3bc9db);
+  animation: dag-breathe 1.4s ease-in-out infinite;
+}
 /* 嵌套层级：图标缩一号、竖线更淡，同一套样式递归。 */
 .tl-sub { position: relative; margin: 2px 0 2px 8px; padding-left: 34px; }
 .tl-sub::before {
