@@ -169,7 +169,7 @@ createRoot(document.getElementById('root')).render(<QueryClientProvider client={
             assert title['x'] - left == pytest.approx(28, abs=.5)
             icon = row.locator('.tl-step-icon').bounding_box()
             assert icon['x'] == pytest.approx(left, abs=.5)
-            assert icon['width'] == 18
+            assert icon['width'] == 20
             assert icon['y']+icon['height']/2 == pytest.approx(title['y']+title['height']/2,abs=.5)
             assert row.bounding_box()['y'] - active.bounding_box()['y'] - active.bounding_box()['height'] <= 10
             page.screenshot(path=str(tmp_path/'active-layout.png'))

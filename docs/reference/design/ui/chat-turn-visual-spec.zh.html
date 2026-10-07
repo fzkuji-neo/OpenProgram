@@ -60,11 +60,12 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 /* ── 执行时间线（无外框） ── */
 /* 开关 = GPT 式纯文字：无按钮底色、无内边距偏移，与正文左对齐；
    hover 只提亮文字。 */
-.tl-toggle{display:inline-flex;align-items:center;gap:8px;color:var(--text-muted);
+.tl-toggle{display:inline-flex;align-items:center;gap:6px;max-width:100%;color:var(--text-muted);
   font-size:13px;cursor:pointer;user-select:none;height:28px;margin:0 0 1.5px;padding:0;
   letter-spacing:.2px;border:none;background:transparent}
 .tl-toggle:hover{color:var(--text-secondary)}
-.tl-toggle .chev{font-size:11px;transition:transform .15s;display:inline-block}
+.tl-toggle>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-toggle .chev{flex:none;font-size:11px;transition:transform .15s;display:inline-block}
 .tl.open .tl-toggle .chev{transform:rotate(90deg)}
 .runtime-program-run{display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:24px;align-items:start}
 .runtime-program-avatar{display:grid;place-items:center;width:28px;height:28px;border:1px solid var(--border-light);
@@ -76,17 +77,19 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .tl-collapse{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s ease}
 .tl.open .tl-collapse{grid-template-rows:1fr}
 .tl-collapse-inner{overflow:hidden;min-height:0}
-.tl-body{position:relative;margin:6px 0 4px;padding-left:38px}
-.tl-body::before{content:"";position:absolute;left:13.25px;top:16px;bottom:16px;width:1.5px;
+.tl-body{position:relative;margin:4px 0 0;padding-left:28px}
+.tl-body::before{content:"";position:absolute;left:9.25px;top:16px;bottom:16px;width:1.5px;
   background:var(--timeline-line);border-radius:1px}
 .step{position:relative;padding:2px 0 2px 2px}
 .step-head{position:relative;display:flex;align-items:center;gap:10px;color:var(--text-secondary);
   font-size:13px;cursor:pointer;border-radius:6px;padding:3px 8px;user-select:none}
+.tl-body>.step{padding:2px 0}
+.tl-body>.step>.step-head{padding:3px 0;gap:8px}
 .step-head:hover{background:var(--bg-hover)}
 .step-head:focus-visible{outline:1px solid var(--accent-cyan);outline-offset:1px;background:var(--bg-hover)}
 /* 图标锚在标题行内部（与文字天然对齐），底色遮住背后的竖线。
    可展开行始终显示圆形状态：收起实心、展开空心；叶子行无圈。 */
-.step-icon{position:absolute;left:-36px;top:50%;transform:translateY(-50%);width:20px;height:20px;
+.step-icon{position:absolute;left:-28px;top:50%;transform:translateY(-50%);width:20px;height:20px;
   --marker-size:26px;--marker-radius:13px;display:flex;align-items:center;justify-content:center;
   background:var(--bg-primary);color:var(--text-secondary);isolation:isolate}
 .step[data-step-toggle]>.step-head>.step-icon{border-radius:50%;
@@ -462,7 +465,7 @@ Agent 回复发起的 function 及其执行树只属于该回复的执行时间�
   </div>
 </div>
 <div class="rule">状态就画在图标位：运行中 = 对应状态动画，失败 = 红 ✗，正常 = 类型图标（按类配色）；可展开性和开合状态也只在图标位表达——有子内容时始终显示圆形状态，收起实心、展开空心，叶子行不画圈。圆圈继承当前行的类型色；收起态为单一、均匀、不透明的浅色面，不是 hover 效果，鼠标移动不会改变它。<br>
-几何：主层 tl-body 左内边距 38px，20px 图标落在 4..24（中心 14），1.5px 竖线压在 13.25px；子层左内边距 34px，17px 图标（中心 12.5），竖线压在 11.75px。图标盒、圆心和竖线位置保持不变；收起态直接绘制主层 26px、子层 23px 的完整色面，内部和边缘颜色完全一致，并遮住背后的时间线。独立外圈固定为 2px，展开和收起时都不变化；展开态在图标盒外增加 1px 页面底色内遮罩，恰好覆盖到圆环内缘，灰色时间线只能从圆环外缘下方开始。总外径不改变行高和列宽。内部色面只改变自身宽高、纵向位置和透明度：26/23px 圆形缩为 1.5×12px 竖段并渐变透明，竖段上缘落在对应圆环下缘，最终由原有 1.5px 中性时间线单独显示连接关系。<br>
+几何：主层 tl-body 左内边距 28px，20px 图标落在 0..20（中心 10），1.5px 竖线压在 9.25px；子层左内边距 34px，17px 图标（中心 12.5），竖线压在 11.75px。图标盒、圆心和竖线位置保持不变；收起态直接绘制主层 26px、子层 23px 的完整色面，内部和边缘颜色完全一致，并遮住背后的时间线。独立外圈固定为 2px，展开和收起时都不变化；展开态在图标盒外增加 1px 页面底色内遮罩，恰好覆盖到圆环内缘，灰色时间线只能从圆环外缘下方开始。总外径不改变行高和列宽。内部色面只改变自身宽高、纵向位置和透明度：26/23px 圆形缩为 1.5×12px 竖段并渐变透明，竖段上缘落在对应圆环下缘，最终由原有 1.5px 中性时间线单独显示连接关系。<br>
 动画：圆形色面、圆环配色和子内容在同一帧开始。色面、子内容高度和子时间线起点使用同一个 220ms cubic-bezier(.2,.7,.2,1)；子时间线自身的 -3px→0 位移之外，线起点再执行 -9.5px→-0.5px，使它和上方 12px 竖段在所有中间帧保持相接。圆环配色与内容透明度使用 140–180ms ease；折叠按相反方向执行。实现只依据同一个 open 状态，不增加中间状态。暗色与浅色模式分别使用独立的鲜艳类型色；浅色模式时间线使用 22% 中性色，深色模式使用 28%，均低于类型图标和文字的视觉权重。prefers-reduced-motion 下所有过渡缩短为 0.01ms。<br>
 不增加独立箭头，不预留箭头槽，也不显示“⋯ N 步”。右侧只保留 Copy、Switch 等动作，动作右缘不受行是否可展开影响。带下划线的标题始终是详情入口；辅助动作只在鼠标压着的那一行出现，进入和离开均即时切换，不做 opacity 过渡。:hover 必须挂在 step-head 而非整个 step——嵌套树里子行悬停不会同时显示祖先行的动作；键盘操作只由 :focus-visible 保持动作可见，鼠标点击留下的 focus 不会让旧行残留。点击图标、摘要或行内空白只展开/折叠，不打开详情。<br>
 嵌套层级：函数内部还有子调用时（Agent method 的执行树、工具的多层 call-tree），展开就是<b>缩进一层的子时间线</b>——同一套行样式递归下去，层数不限。<br>
@@ -970,6 +973,6 @@ document.getElementById('reset-subagent').addEventListener('click',resetSubagent
 <p>性能契约：捕获消息既无压缩覆盖、也无需要图注解的 spawn/attach 关系时，有界聊天加载跳过图构建。需要注解时，共享图构建器执行相同语义过滤但不计算视口几何；打开 DAG 仍请求完整布局。首次持久化恢复的复杂度仍随存储节点数线性增长。Markdown 缓存使用256项 LRU 和 8 MiB 预算，按 UTF-16 源文与清洗输出长度估算；单项超预算时仍渲染但不缓存。缓存策略绝不绕过清洗。</p>
 <p>性能验收通过公开加载处理器与生产浏览器组件使用已持久化合成消息，分别记录耗时、帧间隔与保留堆内存。稳定回归检查断言跳过的工作、语义等价、缓存淘汰和有界保留，不断言特定机器计时。性能优化已实现并通过独立规格与质量审查。公开处理器回归验证跳过图工作与压缩等价；浏览器回归验证字节预算淘汰、LRU 提升和超大条目不缓存。耗时与保留堆比较属于合成测量，不保证完整 App 工作负载的性能。</p>
 <p>实现状态：已实现。30万条消息合成来源的浏览器测试验证有界双向分页、延迟传输下快速反向滚动、已保存消息恢复、实时行保留和加载期间跳转。后端索引读取、快照清理与 Web 回归测试集通过。冷构建仍读取权威分支一次；合成测量不能证明真实大型附件或工具输出的延迟。</p></section>
-<section id="generation-motion"><h2>生成状态动画</h2><p>统一的 18px SVG 组件区分三种活动状态，不改变执行协议。思考状态使用两个开口圆环，反向旋转，并在 3.6 秒周期内交替改变半径和线宽。外圈半径为 5.85–7.95px，内圈为 1.9–3.8px；线宽分别为 0.75–1.75px 和 0.65–1.65px。函数状态使用两个保留 50 度缺口的轮廓，在 3.6 秒内依次从圆变为三角形、正方形和圆，同时每 2.4 秒连续转一圈。正文生成使用反向旋转、弧长变化的双层圆弧，不做思考状态的半径和线宽变化。</p><p>已确认的本地 GIF 是视觉依据。Claude 仅是用户描述的参考，没有检查其实现，也不引入相关依赖。不采用固定不规则轮廓或细胞式变形。动画只使用 SVG 与 CSS，不使用逐帧定时器或额外模型请求；颜色来自主题强调色。减少动态效果时显示静态开口双层轮廓，强制颜色模式使用系统文字色。</p><p>消息仍保留流式标记时，所属执行的权威终态也必须停止动画；仅相同会话和消息对应的终态生效。活动状态由现有消息状态、正在运行的工具记录与有序内容块决定：运行中的工具优先；否则最后的思考或文本块决定思考或生成状态；工具完成后等待新内容显示思考。空回复显示思考。仅当前执行摘要显示动画，正文随后到达时将动画移到回复页脚。待回复提示、重试提示、正在执行的时间线步骤和分栏标题复用同一组件。审批所属消息与终态回复不显示活动生成动画。分栏根据自身会话判断状态，不读取当前聚焦会话。</p><p>验收：通过 AssistantBubble 公开渲染入口检查空回复、运行工具、正文生成、再次思考、重试、审批与终态。浏览器检查缺口、持续旋转、半径与线宽范围、固定 18px 布局、主题色、减少动态效果和强制颜色。时间线展开与详情行为保持不变。后端状态、提供商接入、已完成步骤的类型图标和无关 UI 不在范围内。</p><p>布局与调用归属：进行中和已完成摘要的文字都与回复正文左对齐。16px 动画放在摘要文字之后、展开箭头之前；长摘要在可用宽度内截断。展开后的顶层步骤文字缩进 28px，18px 图标与竖线对齐，列表上方间距为 4px。嵌套步骤保持原有尺寸。阶段、摘要与步骤共用运行状态判断：有普通工具记录时以其状态为准；否则，尚无结果、错误或终态的工具块表示执行中，覆盖未进入普通工具列表的 agentic 工具。空字符串结果也表示已返回。审批、重试与所属执行终态继续优先。验收覆盖真实流事件到 AssistantBubble 的 gui_agent 调用、窄窗口对齐，以及停止动画时文字位置稳定。布局与调用归属修复的审查和发布证据记录在 generation-motion-layout 任务报告中。</p><p data-generation-status="review-passed">实现状态：共享动画组件与状态选择已通过独立规格审查和质量审查。公开渲染与浏览器检查验证状态切换、图形尺寸、主题色、减少动态效果和强制颜色。最终检查与本地 App 更新证据记录于有界 generation-motion 任务报告。</p></section>
+<section id="generation-motion"><h2>生成状态动画</h2><p>统一的 18px SVG 组件区分三种活动状态，不改变执行协议。思考状态使用两个开口圆环，反向旋转，并在 3.6 秒周期内交替改变半径和线宽。外圈半径为 5.85–7.95px，内圈为 1.9–3.8px；线宽分别为 0.75–1.75px 和 0.65–1.65px。函数状态使用两个保留 50 度缺口的轮廓，在 3.6 秒内依次从圆变为三角形、正方形和圆，同时每 2.4 秒连续转一圈。正文生成使用反向旋转、弧长变化的双层圆弧，不做思考状态的半径和线宽变化。</p><p>已确认的本地 GIF 是视觉依据。Claude 仅是用户描述的参考，没有检查其实现，也不引入相关依赖。不采用固定不规则轮廓或细胞式变形。动画只使用 SVG 与 CSS，不使用逐帧定时器或额外模型请求；颜色来自主题强调色。减少动态效果时显示静态开口双层轮廓，强制颜色模式使用系统文字色。</p><p>消息仍保留流式标记时，所属执行的权威终态也必须停止动画；仅相同会话和消息对应的终态生效。活动状态由现有消息状态、正在运行的工具记录与有序内容块决定：运行中的工具优先；否则最后的思考或文本块决定思考或生成状态；工具完成后等待新内容显示思考。空回复显示思考。仅当前执行摘要显示动画，正文随后到达时将动画移到回复页脚。待回复提示、重试提示、正在执行的时间线步骤和分栏标题复用同一组件。审批所属消息与终态回复不显示活动生成动画。分栏根据自身会话判断状态，不读取当前聚焦会话。</p><p>验收：通过 AssistantBubble 公开渲染入口检查空回复、运行工具、正文生成、再次思考、重试、审批与终态。浏览器检查缺口、持续旋转、半径与线宽范围、固定 18px 布局、主题色、减少动态效果和强制颜色。时间线展开与详情行为保持不变。后端状态、提供商接入、已完成步骤的类型图标和无关 UI 不在范围内。</p><p>布局与调用归属：进行中和已完成摘要的文字都与回复正文左对齐。16px 动画放在摘要文字之后、展开箭头之前；长摘要在可用宽度内截断。展开后的顶层步骤文字缩进 28px，20px 图标与竖线对齐，列表上方间距为 4px。嵌套步骤保持原有尺寸。阶段、摘要与步骤共用运行状态判断：有普通工具记录时以其状态为准；否则，尚无结果、错误或终态的工具块表示执行中，覆盖未进入普通工具列表的 agentic 工具。空字符串结果也表示已返回。审批、重试与所属执行终态继续优先。验收覆盖真实流事件到 AssistantBubble 的 gui_agent 调用、窄窗口对齐，以及停止动画时文字位置稳定。布局与调用归属修复的审查和发布证据记录在 generation-motion-layout 任务报告中。</p><p data-generation-status="review-passed">实现状态：共享动画组件与状态选择已通过独立规格审查和质量审查。公开渲染与浏览器检查验证状态切换、图形尺寸、主题色、减少动态效果和强制颜色。最终检查与本地 App 更新证据记录于有界 generation-motion 任务报告。</p></section>
 </body>
 </html>
