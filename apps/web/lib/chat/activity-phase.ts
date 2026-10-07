@@ -15,13 +15,14 @@ export function isRunningToolBlock(msg: ChatMsg, block: AssistantBlock): boolean
 /** Presentation only: execution ownership and terminal status remain authoritative. */
 export function activityPhase(msg: ChatMsg): ActivityPhase | null {
   if (!["pending", "running", "streaming", "cancelling"].includes(msg.status ?? "")) return null;
-  if (msg.retryStatus) return "thinking";
   if (msg.display === "runtime" || msg.function) return "tool";
   if (msg.tools?.some((tool) => tool.status === "running")
       || msg.blocks?.some((block) => isRunningToolBlock(msg, block))) return "tool";
+  if (msg.retryStatus) return "thinking";
   const last = msg.blocks?.at(-1);
   if (last?.type === "thinking") return "thinking";
   if (last?.type === "text" && last.text) return "generating";
-  if (last?.type === "tool") return "thinking";
+  // A returned call is not evidence that model thinking has resumed.
+  if (last?.type === "tool") return null;
   return msg.content ? "generating" : "thinking";
 }
