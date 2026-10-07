@@ -100,7 +100,8 @@ def test_uncertain_upload_is_not_replayed(controller, tmp_path, monkeypatch):
     assert controller._mutations == 1
 
 
-def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypatch, tmp_path):
+@pytest.mark.parametrize('cancel_after_read', [False, True])
+def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypatch, tmp_path, cancel_after_read):
     import threading
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from openprogram.agentic_programming.runtime import Runtime
@@ -134,6 +135,17 @@ def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypat
     controller = BrowserPageController(browser_api=API(''))
     monkeypatch.setattr(browser, '_new_controller', lambda: controller)
     path = tmp_path/'fixture.txt'; path.write_bytes(b'fixture bytes only')
+    from openprogram.agent import run_control
+    from openprogram.programs.workflow.browser._runtime import file_inputs
+    cancel_token = run_control.CancellationToken('upload-cancel-fixture')
+    cancel_binding = run_control._current_token.set(cancel_token)
+    original_read = file_inputs.file_payload
+    if cancel_after_read:
+        def read_and_cancel(path):
+            result = original_read(path)
+            cancel_token.cancel()
+            return result
+        monkeypatch.setattr(file_inputs, 'file_payload', read_and_cancel)
     calls = []
     async def stream(_model, context, _options):
         calls.append(context)
@@ -156,13 +168,25 @@ def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypat
     token = set_turn_request(TurnRequest(session_id='upload-fixture',agent_id='main',user_text='Upload the fixture',
         permission_mode='bypass',source='web',**local_owner_authority()))
     try:
-        result = browser.browser_agent(task='Upload fixture.txt and verify server acceptance',runtime=runtime,max_steps=1)
+        try:
+            result = browser.browser_agent(task='Upload fixture.txt and verify server acceptance',runtime=runtime,max_steps=1)
+        except run_control.CancelledError:
+            if not cancel_after_read:
+                raise
+            result = {'status': 'cancelled'}
+        if cancel_after_read:
+            assert result['status'] == 'cancelled'
+            assert controller._mutations == 0
+            assert len(calls) == 2
+            assert uploads == []
+            return
         assert result['status'] == 'succeeded', result
         assert result['steps_taken'] == 1
         assert len(calls) == 3
         assert uploads == [b'fixture bytes only']
         assert result['completion_evidence'][0]['value'] == 'Accepted fixture file'
     finally:
+        run_control._current_token.reset(cancel_binding)
         reset_turn_request(token); runtime.close()
         if controller.session_id:
             controller.close()
