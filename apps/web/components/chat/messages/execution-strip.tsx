@@ -144,8 +144,8 @@ export function ExecutionStrip({
           ? text("Collapse execution trace", "收起执行过程")
           : text("Expand execution trace", "展开执行过程")}
       >
-        {streaming ? <ActivityIndicator phase={activity} /> : null}
         <span className="tl-summary-label">{label}</span>
+        {streaming ? <ActivityIndicator phase={activity} /> : null}
         <span className="tl-chev" aria-hidden="true">›</span>
       </button>
       <Collapse open={open}>

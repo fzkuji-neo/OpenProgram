@@ -19,3 +19,18 @@ test('empty pending replies think, legacy text generates and terminal records st
     assert.equal(activityPhase({status,content:'Text',tools:[{status:'running'}]}),null);
   }
 });
+
+test('block-only calls stay in tool phase until a result or terminal outcome, with flat status taking precedence', () => {
+  for (const tool of ['gui_agent','research_agent','wiki_agent']) {
+    const block={type:'tool',tool,tool_call_id:'agentic'};
+    const msg={status:'streaming',blocks:[block]};
+    assert.equal(activityPhase(msg),'tool');
+    for (const end of [{result:''},{result:'ok'},{is_error:true},{outcome:'cancelled'},{outcome:'completed'},{outcome:'unknown'}]) {
+      assert.equal(activityPhase({...msg,blocks:[{...block,...end}]}),'thinking');
+    }
+    assert.equal(activityPhase({...msg,tools:[{id:'agentic',status:'done'}]}),'thinking');
+    assert.equal(activityPhase({...msg,blocks:[block,{type:'text',text:'Progress'}]}),'tool');
+    assert.equal(activityPhase({...msg,status:'done'}),null);
+    assert.equal(activityPhase({...msg,retryStatus:{attempt:2}}),'thinking');
+  }
+});

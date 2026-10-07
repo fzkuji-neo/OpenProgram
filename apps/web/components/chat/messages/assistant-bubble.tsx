@@ -45,7 +45,7 @@ import { shouldRenderTurnFiles } from "./turn-files-presentation";
 import { AssistantFileCards } from "./assistant-file-cards";
 import { parseAttachments } from "./user-attachments";
 import { ActivityIndicator } from "./activity-indicator";
-import { activityPhase, type ActivityPhase } from "@/lib/chat/activity-phase";
+import { activityPhase, isRunningToolBlock, type ActivityPhase } from "@/lib/chat/activity-phase";
 
 /** Categorized, actionable headline for a failed turn, by error reason
  *  (see docs/design/providers/reliability/error-taxonomy-propagation.md). Returns null
@@ -166,9 +166,6 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
   // 工具调用打断后再来的 delta 开新段），所以进行中和落定/刷新走的是
   // 同一份交替时间线数据——边跑边往下长，落定时由 finalize 用后端权威
   // blocks 覆盖一次（顺序一致，视觉不动）。
-  const runningToolIds = new Set(
-    tools.filter((t) => t.status === "running").map((t) => t.id),
-  );
   // Legacy/final frames may retain the flat fields without ordered blocks.
   // Adapt those existing records to the shared timeline, without inventing
   // interleaving that the stored data does not contain.
@@ -392,7 +389,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                       key={`fn_${i}`}
                       block={b}
                       tree={tree}
-                      running={activeMotion && !!b.tool_call_id && runningToolIds.has(b.tool_call_id)}
+                      running={activeMotion && isRunningToolBlock(msg, b)}
                       sessionId={bubbleSessionId}
                     />,
                   );
@@ -408,7 +405,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                     key={`seg_${si}`}
                     activity={phase ?? "thinking"}
                     streaming={activeMotion && (phase === "tool"
-                      ? seg.items.some(({ b }) => !!b.tool_call_id && runningToolIds.has(b.tool_call_id))
+                      ? seg.items.some(({ b }) => isRunningToolBlock(msg, b))
                       : phase !== "generating" && seg.items.some(({ i }) => i === lastBlockIdx))}
                     subagentHeads={spawnHeads(seg.cards)}
                     label={execStripLabel(
