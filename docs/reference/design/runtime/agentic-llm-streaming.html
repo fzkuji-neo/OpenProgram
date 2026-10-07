@@ -524,7 +524,7 @@ llmStreamsBySession: {
     Related <a href="operations/streaming-resume.md">streaming-resume</a> ·
     When machine <code>7cea4eda-…</code> is unreachable, use this repository / GitHub as authoritative.
   </footer>
-<p>Only result, error, and retry_result frames finalize chat bookkeeping. Nested execution_stream frames belong to their stream reducer and never clear the parent run, overwrite reply text, or refresh branch metadata. Snapshot recovery is single-flight per node: repeated gaps do not enqueue duplicate recovery requests. An owner_unavailable response ends the recovery request while preserving existing content; terminal nodes never return to syncing. Future stream events may request recovery again.</p>
+<p>Only result, error, and retry_result frames finalize chat bookkeeping. Nested execution_stream frames belong to their stream reducer and never clear the parent run, overwrite reply text, or refresh branch metadata. A recovery response cannot itself trigger another identical recovery request. An owner_unavailable response ends the recovery request while preserving existing content; terminal nodes never return to syncing. Future stream events may request recovery again.</p>
 </main>
 <script>
 (function(){
