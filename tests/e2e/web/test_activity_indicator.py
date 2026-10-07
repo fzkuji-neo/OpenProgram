@@ -90,6 +90,7 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {AssistantBubble} from './components/chat/messages/assistant-bubble';
+import {RuntimeBlock} from './components/chat/messages/runtime-block';
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/chat-stream';
 window.fetch=async()=>new Response('{}',{headers:{'content-type':'application/json'}});
@@ -104,7 +105,9 @@ window.event({type:'tool_use',tool:'gui_agent',tool_call_id:'gui',input:'{"task"
 window.snapshot=()=>useSessionStore.getState().messagesById[rid];
 window.replaceReply=(patch)=>useSessionStore.getState().updateMessage(sid,rid,patch);
 function App(){const msg=useSessionStore(s=>s.messagesById[rid]);return <AssistantBubble msg={msg} sessionIdOverride={sid}/>;}
-createRoot(document.getElementById('root')).render(<QueryClientProvider client={new QueryClient()}><App/></QueryClientProvider>);
+const root=createRoot(document.getElementById('root'));
+root.render(<QueryClientProvider client={new QueryClient()}><App/></QueryClientProvider>);
+window.showRuntime=()=>root.render(<RuntimeBlock msg={{id:'long-function',role:'assistant',display:'runtime',function:'long_function_name_'.repeat(30),status:'running',content:''}}/>);
 '''
     bundle = tmp_path / 'layout.js'
     subprocess.run(['node', '-e', "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'css'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});", str(WEB), str(bundle), entry], cwd=ROOT, check=True, capture_output=True)
@@ -118,7 +121,7 @@ createRoot(document.getElementById('root')).render(<QueryClientProvider client={
             page.goto('http://activity.test/')
             if bundle.with_suffix('.css').exists():
                 page.add_style_tag(path=str(bundle.with_suffix('.css')))
-            for sheet in ['base.css','chat/bubbles.css','chat/stream-blocks.css','chat/execution-strip.css','chat/message-actions.css','chat/thinking-spinner.css','chat/typing-indicator.css']:
+            for sheet in ['base.css','chat/bubbles.css','chat/stream-blocks.css','chat/execution-strip.css','chat/message-actions.css','chat/thinking-spinner.css','chat/typing-indicator.css','chat/runtime-program.css']:
                 page.add_style_tag(path=str(WEB / 'app/styles' / sheet))
             page.add_style_tag(content=':root{color-scheme:light;--bg-primary:#faf9f6;--bg-secondary:#f1f0ed;--text-primary:#343432;--text-secondary:#626260;--text-muted:#92928e;--accent-blue:#cf7d8b;--accent-purple:#a268d4} body{background:var(--bg-primary);font-family:Arial,sans-serif;margin:0} #root{padding:24px;max-width:720px}')
             page.add_script_tag(path=str(bundle))
@@ -180,6 +183,13 @@ createRoot(document.getElementById('root')).render(<QueryClientProvider client={
             page.evaluate("replaceReply({runtimeChildren:[],function:'custom_agent',display:'runtime'})")
             expect(page.locator('.activity-indicator')).to_have_count(0)
             page.evaluate("replaceReply({function:undefined,display:undefined,status:'done'})")
+            expect(page.locator('.activity-indicator')).to_have_count(0)
+            page.evaluate('showRuntime()')
+            runtime_label = page.locator('.runtime-program-content .tl-toggle > span:first-child')
+            expect(runtime_label).to_be_visible()
+            assert runtime_label.evaluate('e=>getComputedStyle(e).textOverflow') == 'ellipsis'
+            assert runtime_label.evaluate('e=>e.scrollWidth>e.clientWidth')
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
             expect(page.locator('.activity-indicator')).to_have_count(0)
             assert not errors, errors
         finally:

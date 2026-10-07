@@ -30,7 +30,7 @@
 .runtime-program-content .tl-toggle {
   max-width: 100%;
 }
-.runtime-program-content .tl-summary-label {
+.runtime-program-content .tl-toggle > span:first-child {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
