@@ -15,7 +15,7 @@ await build({
   absWorkingDir: web, entryPoints: ['components/chat/messages/assistant-bubble.tsx'],
   external: ['react'], bundle: true, platform: 'node', format: 'esm', packages: 'external', jsx: 'automatic', outfile: file,
   plugins: [{ name: 'bubble-services', setup(b) {
-    b.onResolve({ filter: /^(@\/|\.\/)/ }, a => a.importer.endsWith('assistant-bubble.tsx') && !['@/lib/format-utils/format','@/lib/chat/activity-phase','./activity-indicator'].includes(a.path) ? { path: a.path, namespace: 'stub' } : null);
+    b.onResolve({ filter: /^(@\/|\.\/)/ }, a => a.importer.endsWith('assistant-bubble.tsx') && !['@/lib/format-utils/format','./activity-indicator'].includes(a.path) ? { path: a.path, namespace: 'stub' } : null);
     b.onLoad({ filter: /.*/, namespace: 'stub' }, a => ({ resolveDir: web, contents:
       a.path.includes('session-store') ? 'export const useSessionStore = selector => selector(globalThis.approvalState);' :
       a.path.includes('agent-style') ? 'export const agentColor=()=>"", agentInitial=()=>"", agentDisplayName=()=>"Agent", useAgentProfile=()=>({name:"Agent"});' :
@@ -26,7 +26,7 @@ await build({
       a.path.includes('user-attachments') ? 'export const parseAttachments=text=>({attachments:[],text}), AttachmentChips=()=>null;' :
       a.path.includes('turn-files-presentation') ? 'export const shouldRenderTurnFiles=()=>false;' :
       a.path.includes('assistant-file-cards') ? 'export const AssistantFileCards=()=>null;' :
-      'import {createElement} from "react"; import {ActivityIndicator} from "' + join(web,'components/chat/messages/activity-indicator.tsx') + '"; export const Avatar=()=>null, AttachCard=()=>null, ExecutionStrip=({children,streaming,activity="tool"})=>createElement("section",{"data-active":String(!!streaming)},streaming?createElement(ActivityIndicator,{phase:activity}):null,children), execStripLabel=()=>"", FunctionStep=()=>null, StepRow=()=>null, SPAWNING_TOOL_NAMES=new Set(), SubAgentStep=()=>null, ThinkingStep=({text})=>text, MessageActions=()=>null, MessageTimestamp=()=>null, RuntimeBlock=()=>null, TurnFilesChips=()=>null;'
+      'import {createElement} from "react"; export const Avatar=()=>null, AttachCard=()=>null, ExecutionStrip=({children,streaming})=>createElement("section",{"data-active":String(!!streaming)},children), execStripLabel=()=>"", FunctionStep=()=>null, StepRow=()=>null, SPAWNING_TOOL_NAMES=new Set(), SubAgentStep=()=>null, ThinkingStep=({text})=>text, MessageActions=()=>null, MessageTimestamp=()=>null, RuntimeBlock=()=>null, TurnFilesChips=()=>null;'
     }));
   }}],
 });
@@ -73,21 +73,21 @@ test('assistant replies do not display the usage footer', () => {
   assert.doesNotMatch(renderBlocks([{type:'text',text:'Answer'}],'done',{input_tokens:89000,output_tokens:327,service_tiers:['priority']}), /runtime-usage-footer|Fast served|89.0k/);
 });
 
-test('public assistant rendering distinguishes thinking, tools and text, and stops at terminal states', () => {
-  assert.match(renderBlocks([]), /data-activity-phase="thinking"/);
-  assert.match(renderBlocks([{type:'thinking',text:'Current'}]), /data-activity-phase="thinking"/);
-  assert.match(renderBlocks([{type:'text',text:'Answer'}]), /data-activity-phase="generating"/);
+test('only the original empty reply placeholder has the new logo', () => {
+  assert.match(renderBlocks([]), /class="activity-indicator activity-thinking"/);
+  assert.doesNotMatch(renderBlocks([{type:'thinking',text:'Current'}]), /class="activity-indicator/);
+  assert.doesNotMatch(renderBlocks([{type:'text',text:'Answer'}]), /class="activity-indicator/);
   globalThis.approvalState={currentSessionId:'s1',pendingDecisions:[],executionUpdateOrders:{}};
   const activeTool=renderToStaticMarkup(createElement(AssistantBubble,{msg:{
     id:'m1',role:'assistant',status:'running',content:'Update',
     tools:[{id:'t1',tool:'search',status:'running'}],
     blocks:[{type:'text',text:'Update'},{type:'tool',tool:'search',tool_call_id:'t1'}],
   }}));
-  assert.doesNotMatch(activeTool, /data-activity-phase=/);
+  assert.doesNotMatch(activeTool, /class="activity-indicator/);
   for (const status of ['done','error','cancelled','interrupted']) {
-    assert.doesNotMatch(renderBlocks([{type:'thinking',text:'Current'}],status), /data-activity-phase=/);
+    assert.doesNotMatch(renderBlocks([{type:'thinking',text:'Current'}],status), /class="activity-indicator/);
   }
-  assert.doesNotMatch(render([decision],{e1:order}), /data-activity-phase=/);
+  assert.doesNotMatch(render([decision],{e1:order}), /class="activity-indicator/);
 });
 
 test('live tools suppress motion alongside text and retry keeps its status label', () => {
@@ -96,29 +96,29 @@ test('live tools suppress motion alongside text and retry keeps its status label
     tools:[{id:'t1',tool:'search',status:'running'}],
     blocks:[{type:'tool',tool:'search',tool_call_id:'t1'},{type:'text',text:'Update'}]};
   const html=renderToStaticMarkup(createElement(AssistantBubble,{msg}));
-  assert.doesNotMatch(html, /data-activity-phase=/);
-  assert.doesNotMatch(html, /data-activity-phase="generating"/);
+  assert.doesNotMatch(html, /class="activity-indicator/);
+  assert.doesNotMatch(html, /class="activity-indicator/);
   const parallelThinking=renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,
     blocks:[...msg.blocks,{type:'thinking',text:'Current'}]}}));
   assert.equal([...parallelThinking.matchAll(/data-active="true"/g)].length,1);
   const retry=renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,retryStatus:{attempt:2,reason:'transport'}}}));
   assert.match(retry,/Retrying 2/);
-  assert.doesNotMatch(retry,/data-activity-phase=/);
+  assert.doesNotMatch(retry,/class="activity-indicator/);
   const modelRetry=renderToStaticMarkup(createElement(AssistantBubble,{msg:{id:"m1",role:"assistant",status:"running",retryStatus:{attempt:2}}}));
-  assert.match(modelRetry,/data-activity-phase="thinking"/);
-  assert.doesNotMatch(renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,status:'cancelled'}})),/data-activity-phase=/);
+  assert.doesNotMatch(modelRetry,/class="activity-indicator/);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,status:'cancelled'}})),/class="activity-indicator/);
 });
 
 test('the owning terminal execution stops activity even when the last message flag trails completion', () => {
-  const msg={id:'m1',role:'assistant',status:'streaming',content:'Finished',blocks:[{type:'text',text:'Finished'}]};
+  const msg={id:'m1',role:'assistant',status:'streaming',content:'',blocks:[]};
   const htmlFor=executionOrder=>{
     globalThis.approvalState={currentSessionId:'s1',pendingDecisions:[],executionUpdateOrders:{e1:executionOrder}};
     return renderToStaticMarkup(createElement(AssistantBubble,{msg,sessionIdOverride:'s1'}));
   };
-  assert.doesNotMatch(htmlFor({...order,terminal:true}),/data-activity-phase=/);
-  assert.match(htmlFor(order),/data-activity-phase="generating"/);
-  assert.match(htmlFor({...order,terminal:true,sessionId:'s2'}),/data-activity-phase="generating"/);
-  assert.match(htmlFor({...order,terminal:true,messageIds:['old-message']}),/data-activity-phase="generating"/);
+  assert.doesNotMatch(htmlFor({...order,terminal:true}),/class="activity-indicator/);
+  assert.match(htmlFor(order),/class="activity-indicator/);
+  assert.match(htmlFor({...order,terminal:true,sessionId:'s2'}),/class="activity-indicator/);
+  assert.match(htmlFor({...order,terminal:true,messageIds:['old-message']}),/class="activity-indicator/);
 });
 
 for (const [status,label] of [['cancelled','Cancelled'],['interrupted','Interrupted']]) {

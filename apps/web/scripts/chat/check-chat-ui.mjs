@@ -1465,7 +1465,7 @@ assert.match(executionStrip, /aria-expanded=\{open\}/);
 const timelineBaseIconRule = chatCss.match(/\.tl-step-icon\s*\{([^}]*)\}/)?.[1] ?? "";
 assert.match(
   timelineBaseIconRule,
-  /position:\s*absolute;[^}]*left:\s*-28px;[^}]*top:\s*50%;[^}]*transform:\s*translateY\(-50%\);[^}]*width:\s*20px;[^}]*height:\s*20px/s,
+  /position:\s*absolute;[^}]*left:\s*-36px;[^}]*top:\s*50%;[^}]*transform:\s*translateY\(-50%\);[^}]*width:\s*20px;[^}]*height:\s*20px/s,
   "the top-level timeline icon must align to the compact text indent",
 );
 assert.match(
@@ -1485,7 +1485,7 @@ assert.doesNotMatch(
 );
 assert.match(
   chatCss,
-  /\.tl-body::before\s*\{[^}]*left:\s*9\.25px;[^}]*width:\s*1\.5px/s,
+  /\.tl-body::before\s*\{[^}]*left:\s*13\.25px;[^}]*width:\s*1\.5px/s,
   "the top-level timeline line must remain centered behind the icon",
 );
 assert.match(
@@ -1664,8 +1664,8 @@ for (const [_, selectors, declarations] of timelineIconCssRules) {
 const designBaseIconRule = chatVisualSpec.match(/\.step-icon\s*\{([^}]*)\}/)?.[1] ?? "";
 assert.match(
   designBaseIconRule,
-  /left:\s*-28px;[^}]*top:\s*50%;[^}]*transform:\s*translateY\(-50%\);[^}]*width:\s*20px;[^}]*height:\s*20px/s,
-  "the design must match the compact top-level icon geometry",
+  /left:\s*-36px;[^}]*top:\s*50%;[^}]*transform:\s*translateY\(-50%\);[^}]*width:\s*20px;[^}]*height:\s*20px/s,
+  "the design must match the original top-level icon geometry",
 );
 assert.match(
   designBaseIconRule,
@@ -1679,7 +1679,7 @@ assert.doesNotMatch(
 );
 assert.match(
   chatVisualSpec,
-  /\.tl-body::before\s*\{[^}]*left:\s*9\.25px;[^}]*width:\s*1\.5px/s,
+  /\.tl-body::before\s*\{[^}]*left:\s*13\.25px;[^}]*width:\s*1\.5px/s,
   "the design must preserve the top-level line center",
 );
 assert.match(

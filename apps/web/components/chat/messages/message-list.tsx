@@ -538,7 +538,7 @@ function PendingReplyIndicator({ timestamp }: { timestamp?: number }) {
         role="status"
         aria-live="polite"
       >
-        <ActivityIndicator phase="thinking" />
+        <ActivityIndicator />
         <span className="pending-label">{text("thinking…", "思考中…")}</span>
         <MessageTimestamp timestamp={timestamp ?? fallbackTimestamp} />
       </div>
