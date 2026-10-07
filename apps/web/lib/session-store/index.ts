@@ -58,31 +58,10 @@ import type {
 } from "./types";
 import { messagePatchUnchanged } from "./message-patch";
 import {
-  validMessageTimestamp,
   withMessageTimestamp,
 } from "./message-timestamp";
 
-/** A row the stream is still writing into — its content lives only in
- *  the store until the turn finalizes. */
-function isLiveRow(m: ChatMsg): boolean {
-  return (
-    m.status === "streaming"
-    || m.status === "running"
-    || m.status === "cancelling"
-    || m.status === "pending"
-  );
-}
-
-/** A row that carries nothing the user can see: the server's mid-turn
- *  placeholder (output="", no blocks/tools/thinking yet). */
-function isEmptyRow(m: ChatMsg): boolean {
-  return (
-    !m.content &&
-    !m.thinking &&
-    !(m.blocks && m.blocks.length) &&
-    !(m.tools && m.tools.length)
-  );
-}
+import { reconcileMessageSnapshot } from './message-snapshot';
 
 /** Every transcript row gets its time at first materialization. Persisted
  * rows keep their authoritative value; live/legacy rows missing one use the
@@ -772,30 +751,8 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
       );
       for (const oldId of s.messageOrder[sessionId] ?? []) delete byId[oldId];
       for (const [index, m] of timedMessages.entries()) {
-        // A load_session reply can land mid-turn (WS reconnect,
-        // session_reload, Switch-back from a sub-agent, or the
-        // tree_update hydrate that runs *by design* during a run).
-        // The backend's placeholder row for the in-flight turn is
-        // empty (output="", status="running"), so a naive overwrite
-        // would replace everything streamed so far with a blank
-        // bubble. Keep the live row when the reload has nothing to
-        // add — deltas keep flowing into it and the finalize frame
-        // writes the authoritative content.
-        const cur = s.messagesById[m.id];
-        byId[m.id] = cur && isLiveRow(cur) && isEmptyRow(m)
-          ? withMessageTimestamp({
-              ...cur,
-              ...(validMessageTimestamp(msgs[index]?.timestamp)
-                ? { timestamp: msgs[index].timestamp }
-                : {}),
-            })
-          : cur?.turnFiles && !m.turnFiles && m.role === "assistant"
-              && !isLiveRow(m) && !isLiveRow(cur)
-              && ownedIds.has(m.id)
-            // A legacy wire snapshot omits the already-resolved historical
-            // summary. Keep only that field; incoming metadata stays canonical.
-            ? { ...m, turnFiles: cur.turnFiles }
-            : m;
+        const current = ownedIds.has(m.id) ? s.messagesById[m.id] : undefined;
+        byId[m.id] = withMessageTimestamp(reconcileMessageSnapshot(current, msgs[index]), m.timestamp);
       }
       return {
         messagesById: byId,

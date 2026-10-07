@@ -502,7 +502,7 @@ function handleResponse(d: ChatResponseData | undefined): void {
       const exact = incoming.path
         ? roots.findIndex((root) => root.path === incoming.path)
         : -1;
-      const runningSameFunction = exact < 0
+      const runningSameFunction = !incoming.path && exact < 0
         ? roots.findIndex((root) =>
             root.status === "running"
             && root.name === (incoming.name || d.function))
