@@ -40,11 +40,11 @@ esbuild.buildSync({absWorkingDir:process.argv[1], stdin:{contents:
               window.seek = time => document.getAnimations().forEach(a => {a.pause();a.currentTime=time;});
               show(['thinking','tool','generating']);
             }""")
-            expect(page.locator('.activity-indicator')).to_have_count(3)
+            expect(page.locator('.activity-indicator')).to_have_count(2)
             page.evaluate("seek(0)")
             boxes = page.locator('.activity-indicator').evaluate_all("els => els.map(e=>({w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height,hidden:e.getAttribute('aria-hidden')}))")
-            assert boxes == [{"w": 18, "h": 18, "hidden": "true"}] * 3
-            assert page.locator('linearGradient').evaluate_all("els=>new Set(els.map(e=>e.id)).size") == 3
+            assert boxes == [{"w": 18, "h": 18, "hidden": "true"}] * 2
+            assert page.locator('linearGradient').evaluate_all("els=>new Set(els.map(e=>e.id)).size") == 2
             outer = page.locator('.activity-thinking .activity-outer').first
             inner = page.locator('.activity-thinking .activity-inner').first
             geometry = "e=>{const s=getComputedStyle(e);return [parseFloat(s.r),parseFloat(s.strokeWidth)]}"
@@ -54,21 +54,7 @@ esbuild.buildSync({absWorkingDir:process.argv[1], stdin:{contents:
             page.evaluate("seek(2700)")
             assert outer.evaluate(geometry) == pytest.approx([5.85, .75])
             assert inner.evaluate(geometry) == pytest.approx([3.8, 1.65])
-            tool = page.locator('.activity-tool .activity-outer')
-            shapes = []
-            for time in [0, 1200, 2400]:
-                page.evaluate("time => seek(time)", time)
-                shapes.append(tool.evaluate("e=>getComputedStyle(e).d"))
-                # Each contour remains open: endpoints stay separated throughout morphs.
-                assert tool.evaluate("e=>{const l=e.getTotalLength(),a=e.getPointAtLength(0),b=e.getPointAtLength(l);return Math.hypot(a.x-b.x,a.y-b.y)}") > 2
-            assert len(set(shapes)) == 3
-            orbit = page.locator('.activity-tool-orbit')
-            page.evaluate("seek(1800)")
-            assert orbit.evaluate("e=>getComputedStyle(e).transform") != "none"
-            page.evaluate("seek(2100)")
-            assert orbit.evaluate("e=>getComputedStyle(e).transform") != page.evaluate("""() => {
-              seek(1800);return getComputedStyle(document.querySelector('.activity-tool-orbit')).transform;
-            }""")
+            expect(page.locator('[data-activity-phase="tool"]')).to_have_count(0)
             arcs = page.locator('.activity-generating .activity-outer').first
             page.evaluate("seek(450)")
             long_arc = arcs.evaluate("e=>getComputedStyle(e).strokeDasharray")
@@ -83,17 +69,17 @@ esbuild.buildSync({absWorkingDir:process.argv[1], stdin:{contents:
             expect(page.locator('.activity-indicator')).to_have_count(0)
             page.emulate_media(reduced_motion="reduce")
             page.evaluate("show(['thinking','tool','generating'])")
-            expect(page.locator('.activity-indicator')).to_have_count(3)
+            expect(page.locator('.activity-indicator')).to_have_count(2)
             assert page.locator('.activity-indicator').evaluate_all("els=>els.every(e=>e.getAnimations({subtree:true}).length===0)")
             assert outer.evaluate("e=>getComputedStyle(e).animationName") == 'none'
             assert outer.evaluate(geometry) == pytest.approx([6.9, 1.25])
             page.emulate_media(forced_colors="active")
-            page.wait_for_function("!getComputedStyle(document.querySelector('.activity-tool .activity-outer')).stroke.startsWith('url(')")
-            assert tool.evaluate("e=>getComputedStyle(e).stroke") != 'none'
-            assert not tool.evaluate("e=>getComputedStyle(e).stroke").startswith('url(')
+            page.wait_for_function("!getComputedStyle(document.querySelector('.activity-thinking .activity-outer')).stroke.startsWith('url(')")
+            assert outer.evaluate("e=>getComputedStyle(e).stroke") != 'none'
+            assert not outer.evaluate("e=>getComputedStyle(e).stroke").startswith('url(')
             page.emulate_media(reduced_motion="no-preference", forced_colors="none")
             page.evaluate("show(['tool'])")
-            expect(page.locator('[data-activity-phase="tool"]')).to_have_count(1)
+            expect(page.locator('.activity-indicator')).to_have_count(0)
             expect(page.locator('[data-activity-phase="thinking"]')).to_have_count(0)
             page.evaluate("root.unmount()")
             expect(page.locator('.activity-indicator')).to_have_count(0)
@@ -147,21 +133,17 @@ createRoot(document.getElementById('root')).render(<QueryClientProvider client={
             active = summaries.last
             # Agentic calls intentionally have no flat ChatToolCall record.
             assert page.evaluate("snapshot().tools.some(t=>t.tool==='gui_agent')") is False
-            expect(active.locator('[data-activity-phase="tool"]')).to_have_count(1)
+            expect(active.locator('.activity-indicator')).to_have_count(0)
             page.screenshot(path=str(tmp_path/'before-layout.png'))
             labels = page.locator('.tl-summary-label')
             left = labels.last.bounding_box()['x']
             assert left == pytest.approx(labels.first.bounding_box()['x'], abs=.5)
             assert left == pytest.approx(page.locator('.chat-text').bounding_box()['x'], abs=.5)
-            mark = active.locator('.activity-indicator').bounding_box()
-            label = labels.last.bounding_box()
-            assert mark['x'] >= label['x'] + label['width']
-            assert mark['width'] == 16
-            assert 'activityMorph' in active.evaluate("e=>e.getAnimations({subtree:true}).map(a=>a.animationName)")
             active.click()
             expect(active).to_have_attribute('aria-expanded','true')
             row = page.locator('.tl-body .tl-step-head').last
-            expect(row.locator('[data-activity-phase="tool"]')).to_have_count(1)
+            expect(row.locator('.activity-indicator')).to_have_count(0)
+            expect(row.locator('.lucide-wrench')).to_have_count(1)
             # Wait for the production disclosure transition to settle.
             page.wait_for_function("document.querySelector('.tl[data-open=\"1\"] .tl-collapse').getAnimations().length===0")
             page.wait_for_function("[...document.querySelectorAll('.tl[data-open=\"1\"] .tl-step')].every(e=>e.getAnimations().every(a=>a.playState==='finished'))")

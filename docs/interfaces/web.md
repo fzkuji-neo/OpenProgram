@@ -73,7 +73,7 @@ Thinking, partial replies and tool steps are saved while a response is running a
 
 Local shell commands stop their process group before reporting cancellation. Resumed conversations persist the original assistant as cancelled and return the session to idle, so reloading preserves the stopped state.
 
-Active replies use three distinct indicators: thinking changes the size and thickness of two counter-rotating rings; function calls continuously rotate open contours that change between circle, triangle and square; text generation uses counter-rotating arcs with changing lengths. The indicator follows the current phase and stops when the reply ends or waits for approval. Colors follow the theme, and reduced-motion settings show static shapes.
+Active replies use two indicators: thinking changes the size and thickness of two counter-rotating rings; text generation uses counter-rotating arcs with changing lengths. Function calls keep their existing call structure and icons without extra animation. The indicator follows the current phase and stops when the reply ends or waits for approval. Colors follow the theme, and reduced-motion settings show static shapes.
 
 ### Collapsible thinking
 

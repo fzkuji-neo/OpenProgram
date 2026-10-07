@@ -83,7 +83,7 @@ test('public assistant rendering distinguishes thinking, tools and text, and sto
     tools:[{id:'t1',tool:'search',status:'running'}],
     blocks:[{type:'text',text:'Update'},{type:'tool',tool:'search',tool_call_id:'t1'}],
   }}));
-  assert.match(activeTool, /data-activity-phase="tool"/);
+  assert.doesNotMatch(activeTool, /data-activity-phase=/);
   for (const status of ['done','error','cancelled','interrupted']) {
     assert.doesNotMatch(renderBlocks([{type:'thinking',text:'Current'}],status), /data-activity-phase=/);
   }
@@ -96,7 +96,7 @@ test('live tools remain visible alongside text and retry has one thinking indica
     tools:[{id:'t1',tool:'search',status:'running'}],
     blocks:[{type:'tool',tool:'search',tool_call_id:'t1'},{type:'text',text:'Update'}]};
   const html=renderToStaticMarkup(createElement(AssistantBubble,{msg}));
-  assert.match(html, /data-activity-phase="tool"/);
+  assert.doesNotMatch(html, /data-activity-phase=/);
   assert.doesNotMatch(html, /data-activity-phase="generating"/);
   const parallelThinking=renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,
     blocks:[...msg.blocks,{type:'thinking',text:'Current'}]}}));
