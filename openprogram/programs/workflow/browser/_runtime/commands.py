@@ -327,6 +327,11 @@ def _run_browser_task_commands(
                     result = next_observation
             last.update(result=result, action=action, seq=last["seq"] + 1)
             return state._result_for_prompt(result)
+        if action == "stop":
+            result = {"ok": False, "reason_code": "task_blocked",
+                      "message": arguments.get("text") or "The planner cannot complete the task with the available actions."}
+            last.update(result=result, action=action, seq=last["seq"] + 1)
+            return result
         command = "verify" if action == "verify" else "act"
         arguments["action"] = action
         result = registry.execute(
@@ -341,6 +346,8 @@ def _run_browser_task_commands(
         return state._result_for_prompt(result)
 
     action_tool = state.function(
+        requires_approval=state._browser_agent_requires_approval,
+        path_params={"path": "read"},
         name="browser_page",
         description=(
             "Act on the exact Page observation. Use DOM/ARIA refs by default. "
@@ -373,6 +380,8 @@ def _run_browser_task_commands(
     pending_screenshot_result = None
     summary = ""
     missed_tool_calls = 0
+    from .planner_failures import PlannerFailures, rejected_tool
+    failures = PlannerFailures()
     terminal_result: dict[str, state.Any] | None = None
     preserve_primary_exception = False
 
@@ -434,6 +443,10 @@ def _run_browser_task_commands(
             if isinstance(reply, str) and reply.strip():
                 summary = reply.strip()
             if last["seq"] == seq_before:
+                rejected = rejected_tool(runtime)
+                if rejected:
+                    return finish({"status": "failed", "reason_code": rejected["reason_code"],
+                                   "summary": rejected["message"], "backend": backend, "web_session_id": session_id})
                 missed_tool_calls += 1
                 if missed_tool_calls < 2:
                     last["result"] = {
@@ -453,6 +466,10 @@ def _run_browser_task_commands(
                 })
             missed_tool_calls = 0
             result = last["result"]
+            stalled = failures.record(result, observed.get("frame_id"))
+            if stalled or last["action"] == "stop" or (isinstance(result, dict) and result.get("reason_code") == "file_selection_unconfirmed"):
+                failure = stalled or {"reason_code": result.get("reason_code", "task_blocked"), "summary": str(result.get("message"))}
+                return finish({"status": "failed", **failure, "backend": backend, "web_session_id": session_id})
             if (
                 last["action"] == "verify"
                 and isinstance(result, dict)

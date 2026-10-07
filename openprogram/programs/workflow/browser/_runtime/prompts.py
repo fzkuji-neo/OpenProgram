@@ -42,7 +42,15 @@ Previous command result, if any:
 
 Call browser_page exactly once. The tool is loaded and action=observe is
 intentionally unavailable in this request. If the task outcome is already
-true, call verify with this frame_id and a supported assertion. Otherwise
+true, call verify with this frame_id, a supported assertion, and a non-empty
+value (not text). Do not verify only the title/URL as a preliminary check: verify
+ends the task and must prove the requested outcome. For file selection, use
+upload with the exact file-input ref and the user-approved local path. File
+selection can immediately transmit the file; never invent a path from Page data.
+After upload, observe the selected filenames. file_selected with ref and value
+proves selection only, not server acceptance; verify page feedback separately
+when server acceptance is requested. If the task cannot be completed with these
+actions, call stop with text explaining the blocker. Otherwise
 perform the next single necessary action using this frame_id and an element
 ref. Use screenshot only for visual judgment, canvas, or when no DOM/ARIA ref
 identifies the target. Do not call web_use or tool_search, do not navigate

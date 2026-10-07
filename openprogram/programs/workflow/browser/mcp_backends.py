@@ -310,6 +310,9 @@ class OfficialMCPPageBackend:
         controller = self._controller(session)
         frame_id = str(arguments.get("expected_frame_id") or "")
         action = str(arguments.get("action") or "")
+        if action == "upload":
+            return controller.execute(**dict(arguments),
+                **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}))
         if action in {"screenshot", "wait"}:
             return controller.execute(
                 action=action, expected_frame_id=frame_id,

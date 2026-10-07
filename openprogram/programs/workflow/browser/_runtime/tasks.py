@@ -25,6 +25,8 @@ def _run_browser_task(
     controller.max_steps = max(1, min(int(max_steps), 100))
     result: dict
     pending_screenshot_result: state.Any = None
+    from .planner_failures import PlannerFailures, rejected_tool
+    failures = PlannerFailures()
     try:
         if url and not state._is_http_url(url):
             result = controller.final_result(
@@ -56,7 +58,7 @@ def _run_browser_task(
             pending_screenshot: dict[str, str] | None = None
             action_tool = controller.tool_for_actions([
                 "navigate", "click", "type", "press", "scroll", "hover",
-                "select", "screenshot", "verify",
+                "select", "upload", "stop", "screenshot", "verify",
             ])
             for call_index in range(call_limit):
                 remaining = deadline - state.time.monotonic()
@@ -128,13 +130,21 @@ def _run_browser_task(
                         summary="Browser task completed and verified."
                     )
                     break
-                if getattr(controller, "_terminal_reason", ""):
+                rejected = rejected_tool(runtime) if not action_executed else None
+                if rejected:
+                    result = controller.final_result(reason_code=rejected["reason_code"], summary=rejected["message"])
                     break
                 prior_result = (
                     controller._last_result
                     if action_executed
                     else {"ok": False, "reason_code": "tool_not_executed"}
                 )
+                stalled = failures.record(prior_result, observation.get("frame_id"))
+                if stalled or getattr(controller, "_terminal_reason", ""):
+                    failure = stalled or {"reason_code": controller._terminal_reason,
+                                          "summary": str((prior_result or {}).get("message") or controller._terminal_reason)}
+                    result = controller.final_result(**failure)
+                    break
                 if action_executed and getattr(controller, "_last_action", "") == "screenshot":
                     pending_screenshot_result = prior_result
                     pending_screenshot = state._screenshot_image_block(prior_result)
