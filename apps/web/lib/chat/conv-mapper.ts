@@ -200,6 +200,7 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
     const isErr = m.status === "error"
       || (m as { is_error?: boolean }).is_error === true;
     return {
+      path: m.id,
       name: m.role === "assistant" ? "LLM" : (m.function || "call"),
       status: m.status,
       output: content,

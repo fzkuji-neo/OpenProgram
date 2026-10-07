@@ -13,7 +13,6 @@ import { settleFunctionRetry } from "./function-retry";
 
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import {
-  extractMessagesFromTree,
   fetchBranches,
   newSession,
   refreshBranchBadge,
@@ -57,7 +56,6 @@ import {
   warmContextBreakdown,
   writeContextBreakdownCache,
 } from "@/lib/chat/context-breakdown-cache";
-import { convToChatMsgs } from "@/lib/chat/conv-mapper";
 import {
   acknowledgePendingUserText,
   clearPendingFirstAck,
@@ -766,6 +764,7 @@ function hydrateTranscriptForTreeUpdate(data: ChatResponseData): void {
       currentSessionId: runtimeState.currentSessionId,
       sessionId: sid,
       path,
+      messageId: typeof data.msg_id === "string" ? data.msg_id : undefined,
       messagesById: store.messagesById,
       messageOrder: store.messageOrder,
       hydratedPaths: hydratedTreePaths,
@@ -1166,15 +1165,9 @@ function handleStatusResponse(
     const idx = trees.findIndex((t) => t.path === rootKey || t.name === ct.name);
     if (idx >= 0) trees[idx] = ct;
     else trees.push(ct);
-    if (sid && runtimeState.conversations[sid]) {
-      // Store-only write: the tree-derived transcript replaces the
-      // session's rows in the store; the conv mirror stays untouched
-      // (one-shot load snapshot, never incrementally written).
-      useSessionStore.getState().setMessages(
-        sid,
-        convToChatMsgs(extractMessagesFromTree(ct as never) as never[]),
-      );
-    }
+    // A status tree is execution metadata, not a transcript snapshot.
+    // It has neither stable message IDs nor ordered assistant blocks.
+
   }
 }
 

@@ -39,13 +39,31 @@ import { MessageActions, MessageTimestamp } from "./message-actions";
 import { useAvatarAlign } from "./use-avatar-align";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
-import { RuntimeBlock } from "./runtime-block";
 import { TurnFilesChips } from "./turn-files-chips";
 import { shouldRenderTurnFiles } from "./turn-files-presentation";
 import { AssistantFileCards } from "./assistant-file-cards";
 import { parseAttachments } from "./user-attachments";
 import { ActivityIndicator } from "./activity-indicator";
 import { activityPhase, isRunningToolBlock, type ActivityPhase } from "@/lib/chat/activity-phase";
+
+/** Older agent calls can lack an ordered tool block. They still use the
+ * same execution rows as current chat, never a second runtime-card renderer. */
+function LegacyRuntimeTrace({ children: calls }: { children: ChatMsg[] }) {
+  const { text } = useTranslation();
+  return (
+    <ExecutionStrip label={`${text("Functions", "函数")} ×${calls.length}`}>
+      {calls.map((call) => (
+        <FunctionStep key={call.id}
+          block={{ type: "tool", tool: call.function || "call", tool_call_id: call.id,
+            result: call.content || undefined, is_error: call.status === "error",
+            outcome: call.status === "cancelled" ? "cancelled" : undefined }}
+          tree={call.contextTree as TNode | undefined}
+          running={call.status === "running" || call.status === "streaming"}
+        />
+      ))}
+    </ExecutionStrip>
+  );
+}
 
 /** Categorized, actionable headline for a failed turn, by error reason
  *  (see docs/design/providers/reliability/error-taxonomy-propagation.md). Returns null
@@ -306,9 +324,8 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
               // still sees the answer.
               const hasTextBlock = effBlocks.some((b) => b.type === "text");
               // ── 分段：text 块常驻；连续的 thinking/tool 块聚成一段
-              // 执行痕迹。已落定的轮次把每段折成一条摘要条（点击展开
-              // 逐块序列）；流式进行中的轮次平铺，让用户实时看到它在
-              // 干嘛。段内出现 agent/send_message 调用时，把对应的
+              // 执行痕迹。流式与结束后都保留同一个可展开的摘要条。
+              // 段内出现 agent/send_message 调用时，把对应的
               // Spawned 卡（一行态）挂在该段摘要条下面——在哪调用就
               // 画在哪。
               type ExecSeg = {
@@ -338,6 +355,9 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                   seg.cards.push(attachFifo.shift()!);
                 }
               });
+              const callRootsFifo = [
+                ...((msg.callRoots as unknown as TNode[] | undefined) ?? []),
+              ];
               const rendered: React.ReactNode[] = [];
               segs.forEach((seg, si) => {
                 if (seg.kind === "text") {
@@ -351,9 +371,6 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 // → 子代理行；agentic 工具 → 函数行 + context_tree 递归
                 // 子层级；普通工具 → 函数行。
                 const steps: React.ReactNode[] = [];
-                const callRootsFifo = [
-                  ...((msg.callRoots as unknown as TNode[] | undefined) ?? []),
-                ];
                 seg.items.forEach(({ b, i }) => {
                   if (b.type === "thinking") {
                     steps.push(
@@ -420,21 +437,8 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                   <MarkdownText key="legacy_content" text={contentText} />,
                 );
               }
-              // Render any leftover runtime children that none of the
-              // tool blocks matched (legacy sessions whose extra.blocks
-              // never recorded the agentic tool). Keeps RuntimeBlocks
-              // from going missing on old data.
               if (fifo.length > 0) {
-                rendered.push(
-                  <div
-                    key="legacy_runtime"
-                    className="assistant-runtime-children"
-                  >
-                    {fifo.map((c) => (
-                      <RuntimeBlock key={c.id} msg={c} nested />
-                    ))}
-                  </div>,
-                );
+                rendered.push(<LegacyRuntimeTrace key="legacy_runtime">{fifo}</LegacyRuntimeTrace>);
               }
               // 兜底：blocks 里没记 agent/task 调用块的老数据。仍使用
               // 同一时间线行，不退回 AttachCard，避免刷新前后形态变化。
@@ -484,17 +488,8 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                   <AttachCard msg={card} />
                 </div>
               ))}
-              {/* Streaming fallback (msg.blocks not yet built): runtime
-                  children BEFORE the chat-text so the final reply sits
-                  below the function call card — matches the persisted
-                  block order on refresh. */}
-              {runtimeChildren.length > 0 ? (
-                <div className="assistant-runtime-children">
-                  {runtimeChildren.map((c) => (
-                    <RuntimeBlock key={c.id} msg={c} nested />
-                  ))}
-                </div>
-              ) : null}
+              {runtimeChildren.length > 0
+                ? <LegacyRuntimeTrace>{runtimeChildren}</LegacyRuntimeTrace> : null}
               {hasContent && msg.status !== "error" ? <MarkdownText text={contentText} /> : null}
               {streaming && !hasContent && !waitingApproval && !verdict && !msg.retryStatus ? <TypingIndicator phase={phase ?? "thinking"} /> : null}
             </>

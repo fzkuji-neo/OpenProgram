@@ -379,3 +379,53 @@ test('only a new foreground successful reply requests automatic file presentatio
   applyChatWsMessage({type:'chat_response',data:{type:'result',session_id:'file-foreground',msg_id:'file-ok',content:'[File](/project/report.pdf)'}});
   assert.equal(useSessionStore.getState().messagesById['file-ok_reply'].autoPreviewFiles,false);
 });
+
+test("partial history cannot remove streamed tools or reopen a completed reply", async () => {
+  const { convToChatMsgs } = await import('../../lib/chat/conv-mapper.ts');
+  const sid='trace-reload', uid='trace-turn', rid=uid+'_reply';
+  const send=event=>applyChatWsMessage({type:'chat_response',data:{type:'stream_event',session_id:sid,msg_id:uid,event}});
+  applyChatWsMessage({type:'chat_ack',data:{session_id:sid,msg_id:uid}});
+  send({type:'text',text:'Checking. '});
+  send({type:'tool_use',tool:'web_use',tool_call_id:'a',input:'{}'});
+  send({type:'tool_result',tool:'web_use',tool_call_id:'a',result:'first result'});
+  send({type:'tool_use',tool:'web_use',tool_call_id:'b',input:'{}'});
+  const stale=()=>convToChatMsgs([{id:rid,role:'assistant',status:'running',content:'Checking. ',blocks:[{type:'text',text:'Checking. '}]}]);
+  useSessionStore.getState().setMessages(sid,stale());
+  assert.deepEqual(useSessionStore.getState().messagesById[rid].blocks.filter(b=>b.type==='tool').map(b=>b.tool_call_id),['a','b']);
+  send({type:'tool_result',tool:'web_use',tool_call_id:'b',result:'second result'});
+  applyChatWsMessage({type:'chat_response',data:{type:'result',session_id:sid,msg_id:uid,content:'Done'}});
+  useSessionStore.getState().setMessages(sid,stale());
+  assert.equal(useSessionStore.getState().messagesById[rid].status,'done');
+  assert.equal(useSessionStore.getState().messagesById[rid].blocks.at(-1).result,'second result');
+  // A deliberate branch/window change is authoritative about membership.
+  useSessionStore.getState().setMessages(sid,[{id:'other-branch',role:'assistant',content:'Other',status:'done'}]);
+  assert.deepEqual(useSessionStore.getState().messageOrder[sid],['other-branch']);
+});
+
+test("two same-name live call roots keep their distinct node identities", async () => {
+  const {convToChatMsgs}=await import('../../lib/chat/conv-mapper.ts');
+  const sid='call-identities',uid='call-owner',rid=uid+'_reply';
+  applyChatWsMessage({type:'chat_ack',data:{session_id:sid,msg_id:uid}});
+  applyChatWsMessage({type:'chat_response',data:{type:'stream_event',session_id:sid,msg_id:uid,event:{type:'tool_use',tool:'web_use',tool_call_id:'a',input:'{}'}}});
+  for(const path of ['first-node','second-node']) applyChatWsMessage({type:'chat_response',data:{type:'tree_update',session_id:sid,msg_id:rid,function:'web_use',tree:{path,name:'web_use',status:'running'}}});
+  assert.deepEqual(useSessionStore.getState().messagesById[rid].callRoots.map(r=>r.path),['first-node','second-node']);
+  const restored=convToChatMsgs([{id:rid,role:'assistant',status:'completed',content:'Done'},...['first-node','second-node'].map(id=>({id,role:'tool',function:'web_use',caller:rid,status:'completed',content:id}))]);
+  assert.deepEqual(restored[0].callRoots.map(r=>r.path),['first-node','second-node']);
+});
+
+test('newer persisted results and terminal metadata are accepted without losing omitted trace', async () => {
+  const {convToChatMsgs}=await import('../../lib/chat/conv-mapper.ts');
+  const sid='new-history', rid='history-reply';
+  const block={type:'tool',tool:'list',tool_call_id:'one',input:'{}'};
+  const load=(status,blocks,content='')=>useSessionStore.getState().setMessages(sid,convToChatMsgs([{id:rid,role:'assistant',content,status,blocks}]));
+  load('running',[block]);
+  load('running',[{...block,result:'persisted result'}]);
+  assert.equal(useSessionStore.getState().messagesById[rid].blocks[0].result,'persisted result');
+  load('error',undefined,'Provider disconnected');
+  assert.equal(useSessionStore.getState().messagesById[rid].status,'error');
+  assert.equal(useSessionStore.getState().messagesById[rid].content,'Provider disconnected');
+  assert.equal(useSessionStore.getState().messagesById[rid].blocks[0].result,'persisted result');
+  load('completed',[{...block,result:'authoritative retry result'}],'Recovered');
+  assert.equal(useSessionStore.getState().messagesById[rid].blocks[0].result,'authoritative retry result');
+  assert.equal(useSessionStore.getState().messagesById[rid].content,'Recovered');
+});
