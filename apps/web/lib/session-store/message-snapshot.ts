@@ -5,11 +5,29 @@ export function isLiveMessage(message: ChatMsg): boolean {
   return ['streaming', 'running', 'cancelling', 'pending'].includes(message.status ?? '');
 }
 
+function missingTreeProgress(current: Array<Record<string, unknown>> = [], incoming: Array<Record<string, unknown>> = []): boolean {
+  return current.some((node, index) => {
+    const next = node.path ? incoming.find(item => item.path === node.path) : incoming[index];
+    if (!next) return true;
+    if (node.status !== 'running' && next.status === 'running') return true;
+    return missingTreeProgress(
+      Array.isArray(node.children) ? node.children : [],
+      Array.isArray(next.children) ? next.children : [],
+    );
+  });
+}
+
 /** A history request can finish after a newer stream frame. Compare only
  * append-only presentation progress for the same row, never branch membership. */
 function hasMissingProgress(current: ChatMsg, incoming: ChatMsg): boolean {
-  if (current.content && !incoming.content) return true;
-  if (current.thinking && !incoming.thinking) return true;
+  if (current.content.length > incoming.content.length) return true;
+  if ((current.thinking?.length ?? 0) > (incoming.thinking?.length ?? 0)) return true;
+  if ((current.runtimeChildren ?? []).some(child => {
+    const next = incoming.runtimeChildren?.find(item => item.id === child.id);
+    return !next || hasMissingProgress(child, next)
+      || (!isLiveMessage(child) && isLiveMessage(next));
+  })) return true;
+  if (missingTreeProgress(current.callRoots, incoming.callRoots)) return true;
   const blocks = incoming.blocks ?? [];
   return (current.blocks ?? []).some((block, index) => {
     const next = block.type === 'tool' && block.tool_call_id
