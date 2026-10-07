@@ -47,7 +47,7 @@ export const useExecutionStreamStore = create<ExecutionStreamStore>((set, get) =
     const key = nodeKey(event.session_id, event.execution_id, event.node_id);
     const prev = get().byNode[key] || null;
     const result = applyExecutionStreamEvent(prev, event);
-    if (result.requestSnapshot && !prev?.syncing && snapshotRequester) {
+    if (result.requestSnapshot && snapshotRequester) {
       try {
         snapshotRequester(event);
       } catch {
