@@ -20,6 +20,27 @@ def _step_prompt(
             "metadata": prior_result.json_data,
             "is_error": prior_result.is_error,
         }
+    if page_inventory is None:
+        page_context = (
+            "Runtime has already validated and bound the exact Page shown in "
+            "the observation. Page inventory and page switching are not exposed "
+            "in this request; this does not mean that no Page exists. Use the "
+            "bound Page without rediscovery or rebinding."
+        )
+        switch_instruction = (
+            "If the task requires a different Page, call stop and explain that "
+            "page switching is unavailable in this request."
+        )
+    else:
+        page_context = (
+            "Pages in the registered OpenProgram windows:\n"
+            + state.json.dumps(page_inventory, ensure_ascii=False, default=str)
+        )
+        switch_instruction = (
+            "When a different Page or popup is required, call switch_page with "
+            "its current page_context_token. Never infer a Page switch from "
+            "popup creation alone."
+        )
     return f"""Continue this browser task in the exact bound OpenProgram Page.
 
 Task: {task}
@@ -34,8 +55,7 @@ actions.
 Current observation:
 {state.json.dumps(observation, ensure_ascii=False, default=str)}
 
-Pages in the registered OpenProgram windows:
-{state.json.dumps(page_inventory or [], ensure_ascii=False, default=str)}
+{page_context}
 
 Previous command result, if any:
 {state.json.dumps(prior_result, ensure_ascii=False, default=str)}
@@ -54,9 +74,8 @@ actions, call stop with text explaining the blocker. Otherwise
 perform the next single necessary action using this frame_id and an element
 ref. Use screenshot only for visual judgment, canvas, or when no DOM/ARIA ref
 identifies the target. Do not call web_use or tool_search, do not navigate
-away to rediscover the current Page, and do not answer with only text. When a
-different Page or popup is required, call switch_page with its current
-page_context_token. Never infer a Page switch from popup creation alone.
+away to rediscover the current Page, and do not answer with only text.
+{switch_instruction}
 """
 
 

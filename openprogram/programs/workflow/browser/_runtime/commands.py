@@ -481,6 +481,7 @@ def _run_browser_task_commands(
                     "summary": summary or "Browser task completed and verified.",
                     "backend": backend, "web_session_id": session_id,
                     "target": observed.get("target") or {},
+                    **({"observation": result["observation"]} if isinstance(result.get("observation"), dict) else {}),
                     "completion_evidence": (
                         [dict(result["evidence"])]
                         if isinstance(result.get("evidence"), dict) else []
