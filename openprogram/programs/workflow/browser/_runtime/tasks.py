@@ -34,7 +34,7 @@ def _run_browser_task(
         # A chat can own retained Pages without displaying one. Reuse the
         # shared inventory driver instead of guessing the active window.
         return state._run_browser_task_commands(
-            task=task, url=url, backend="", max_steps=max_steps,
+            task=task, url=url, backend="", max_steps=max(1, min(int(max_steps), 100)),
             max_seconds=max_seconds, runtime=runtime,
         )
     controller = state._new_controller()

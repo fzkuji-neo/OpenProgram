@@ -273,12 +273,15 @@ def _run_browser_task_commands(
             "backend": backend,
         }
 
+    mutation_limit = min(int(max_steps), 100) if max_steps is not None and int(max_steps) > 0 else None
+    mutations = 0
+    mutating_actions = {"navigate", "click", "type", "press", "scroll", "hover", "select", "upload"}
     last: dict[str, state.Any] = {
         "result": None, "action": "", "seq": 0, "screenshot_result": None,
     }
 
     def dispatch(action: str, **arguments):
-        nonlocal observed, session_id, page_inventory, bound_page_identity
+        nonlocal observed, session_id, page_inventory, bound_page_identity, mutations
         page_context_token = str(arguments.pop("page_context_token", "") or "")
         if action == "switch_page":
             selected_page = next((
@@ -332,6 +335,11 @@ def _run_browser_task_commands(
                       "message": arguments.get("text") or "The planner cannot complete the task with the available actions."}
             last.update(result=result, action=action, seq=last["seq"] + 1)
             return result
+        if action in mutating_actions and mutation_limit is not None and mutations >= mutation_limit:
+            result = {"ok": False, "reason_code": "step_limit",
+                      "message": "Browser task reached its state-changing action limit."}
+            last.update(result=result, action=action, seq=last["seq"] + 1)
+            return result
         command = "verify" if action == "verify" else "act"
         arguments["action"] = action
         result = registry.execute(
@@ -340,6 +348,8 @@ def _run_browser_task_commands(
             owner_id=owner_id,
             arguments=arguments,
         )
+        if action in mutating_actions and isinstance(result, dict) and result.get("ok") is True:
+            mutations += 1
         last.update(result=result, action=action, seq=last["seq"] + 1)
         if isinstance(result, state.ToolReturn) and result.images:
             last["screenshot_result"] = result
@@ -387,6 +397,7 @@ def _run_browser_task_commands(
 
     def finish(result: dict[str, state.Any]) -> dict[str, state.Any]:
         nonlocal terminal_result
+        result["steps_taken"] = mutations
         terminal_result = result
         return result
 
@@ -467,7 +478,7 @@ def _run_browser_task_commands(
             missed_tool_calls = 0
             result = last["result"]
             stalled = failures.record(result, observed.get("frame_id"))
-            if stalled or last["action"] == "stop" or (isinstance(result, dict) and result.get("reason_code") == "file_selection_unconfirmed"):
+            if stalled or last["action"] == "stop" or (isinstance(result, dict) and result.get("reason_code") in {"file_selection_unconfirmed", "step_limit"}):
                 failure = stalled or {"reason_code": result.get("reason_code", "task_blocked"), "summary": str(result.get("message"))}
                 return finish({"status": "failed", **failure, "backend": backend, "web_session_id": session_id})
             if (
