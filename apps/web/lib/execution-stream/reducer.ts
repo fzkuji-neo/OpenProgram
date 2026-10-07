@@ -278,6 +278,10 @@ export function applyExecutionStreamEvent(
     };
   }
 
+  // A late delta cannot restart recovery for a completed node.
+  if (cur.terminal) {
+    return { ok: false, state: cur, reason: "late_update_rejected" };
+  }
   // Incremental ops.
   if (event.generation !== cur.generation) {
     return {
@@ -300,10 +304,6 @@ export function applyExecutionStreamEvent(
       requestSnapshot: true,
     };
   }
-  if (cur.terminal) {
-    return { ok: false, state: cur, reason: "late_update_rejected" };
-  }
-
   let next: NodeStreamState = { ...cur, revision: rev, syncing: false };
 
   switch (op) {
