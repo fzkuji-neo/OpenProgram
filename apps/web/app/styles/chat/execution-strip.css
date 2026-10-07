@@ -6,7 +6,7 @@
    步骤行（圆形图标压线、标题 + 单行摘要、动作悬停出现、点行展开）。
    函数内部的 context_tree 递归成缩进一层的子时间线（.tl-sub）。 */
 .tl {
-  margin: 6px 0 4px;
+  margin: 4px 0 2px;
   --timeline-line: light-dark(rgba(36, 36, 32, 0.22), rgba(226, 225, 218, 0.28));
   --timeline-thinking: light-dark(#7c3aed, #b78cff);
   --timeline-function: light-dark(#d14a1f, #ff9a66);
@@ -41,9 +41,11 @@
   display: inline-flex;
   align-items: center;
   height: 28px;
-  gap: 8px;
+  max-width: 100%;
+  gap: 6px;
   color: var(--text-muted);
   font-size: 13px;
+  line-height: 20px;
   cursor: pointer;
   user-select: none;
   margin: 0 0 1.5px;
@@ -54,6 +56,8 @@
   text-align: left;
 }
 .tl-toggle:hover { color: var(--text-secondary); }
+.tl-summary-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-toggle > .activity-indicator { width: 16px; height: 16px; }
 /* 新步骤行淡入下滑：流式中往底部拼接新行时不突兀。 */
 .tl-step { animation: tlStepIn 0.22s ease both; }
 @keyframes tlStepIn {
@@ -61,16 +65,17 @@
   to { opacity: 1; transform: none; }
 }
 .tl-chev {
+  flex: none;
   font-size: 11px;
   transition: transform var(--transition);
   display: inline-block;
 }
 .tl[data-open="1"] .tl-chev { transform: rotate(90deg); }
-.tl-body { position: relative; margin: 6px 0 4px; padding-left: 38px; }
+.tl-body { position: relative; margin: 4px 0 0; padding-left: 28px; }
 .tl-body::before {
   content: "";
   position: absolute;
-  left: 13.25px; /* 对准图标圆心（icon 在 4..24，圆心 14） */
+  left: 8.25px; /* Center of the top-level 18px marker. */
   top: 16px;
   bottom: 16px;
   width: 1.5px;
@@ -169,6 +174,10 @@
   padding: 0;
 }
 .tl-step-icon.is-error { color: var(--accent-red); }
+/* Compact top-level rows share the summary's left edge; nested rows retain their offsets. */
+.tl-body > .tl-step { padding: 2px 0; }
+.tl-body > .tl-step > .tl-step-head { padding: 3px 0; gap: 8px; }
+.tl-body > .tl-step > .tl-step-head > .tl-step-icon { left: -28px; width: 18px; height: 18px; }
 .tl-step-title { flex: 0 0 auto; }
 .tl-step-title.is-error { color: var(--accent-red); }
 .tl-step-note {
