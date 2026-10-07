@@ -19,12 +19,14 @@ _ACTION_FIELD_NAMES = (
     "y",
     "url",
     "text",
+    "path",
     "key",
     "value",
     "amount",
     "assertion",
 )
 _VERIFY_LIFT_FIELDS = (
+    "ref",
     "expected_frame_id",
     "assertion",
     "value",
@@ -45,6 +47,7 @@ _ASSERTION_ENUM = (
     "url_contains",
     "title_contains",
     "element_present",
+    "file_selected",
 )
 _ACT_ACTION_ENUM = (
     "screenshot",
@@ -55,6 +58,7 @@ _ACT_ACTION_ENUM = (
     "scroll",
     "hover",
     "select",
+    "upload",
 )
 
 
@@ -93,6 +97,7 @@ def _action_properties() -> dict[str, Any]:
         "y": {"type": "number"},
         "url": _url_property(),
         "text": {"type": "string"},
+        "path": {"type": "string", "description": "User-approved local file to upload, at most 50 MiB. May immediately transmit its contents."},
         "key": {"type": "string"},
         "value": {"type": "string"},
         "amount": {"type": "integer"},
@@ -120,6 +125,7 @@ def _verify_arguments_schema() -> dict[str, Any]:
                 "enum": ["verify"],
                 "description": "Use verify inside arguments.",
             },
+            "ref": {"type": "string", "description": "Exact file-input ref for file_selected."},
             "expected_frame_id": _expected_frame_id_property(),
             "assertion": {
                 "type": "string",
@@ -141,6 +147,7 @@ def _observe_arguments_schema() -> dict[str, Any]:
                 "type": "string",
                 "description": "Observation detail, for example interactive.",
             },
+            "ref": {"type": "string", "description": "Exact file-input ref for file_selected."},
             "expected_frame_id": _expected_frame_id_property(),
         },
         "additionalProperties": False,

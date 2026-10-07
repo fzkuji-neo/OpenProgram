@@ -569,3 +569,26 @@ def test_scaled_preview_preserves_mcp_reference_namespace(monkeypatch, backend, 
         else:
             assert hovered[0][0] in params["function"]
             assert hovered[0][1] == observed["frame_id"]
+
+
+@pytest.mark.parametrize('backend', BACKENDS)
+def test_upload_delegates_to_owned_controller_without_upstream_file_access(monkeypatch, backend):
+    registry, controllers, clients, _ = _registry(monkeypatch)
+    observed = _observe(registry, backend)
+    calls = []
+    def select(**kwargs):
+        kwargs['before_dispatch']()
+        calls.append(kwargs)
+        return {'ok': True, 'observe_required': True, 'server_acceptance_verified': False}
+    monkeypatch.setattr(controllers[backend], 'execute', select)
+    before = _write_count(backend, controllers, clients)
+    try:
+        result = registry.execute(command='act', web_session_id=observed['web_session_id'], owner_id='owner-1', before_dispatch=lambda: None,
+            arguments={'action': 'upload', 'ref': 'e1', 'path': '/approved/fixture.txt', 'expected_frame_id': observed['frame_id']})
+        assert result['ok'] is True, result
+        assert result['server_acceptance_verified'] is False
+        assert len(calls) == 1
+        assert calls[0]['path'] == '/approved/fixture.txt'
+        assert _write_count(backend, controllers, clients) == before
+    finally:
+        registry.release_owner('owner-1')

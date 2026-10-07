@@ -149,3 +149,7 @@ Browser tasks reuse an explicitly selected Page without reloading it or opening 
 ## Programs loading
 
 Abilities → Programs keeps its directory tree, selected Program and loaded call graph when you leave and return. Expanded folders and the selected graph are checked in the background every five seconds while the page is visible, and when focus returns. Unchanged files reuse their analysis. Refresh checks for changes without resetting your selection or expanded folders. A failed check retains the last loaded content so you can retry.
+
+Browser tasks can select a user-approved local file with `upload`, a fresh file-input `ref`, and `path` (up to 50 MiB). Upload uses the normal permission gate even for an already selected Page, because selecting a file can immediately transmit its contents. File read restrictions still apply. Observations expose selected filenames, not file contents or local paths. `file_selected` verifies selection only; confirming upload acceptance requires a separate assertion against the website response. An uncertain upload is not automatically repeated.
+
+Verification uses `assertion` and a non-empty `value`; `text` is for typing or reporting a blocker. Three consecutive failed actions or unmet assertions on the same observation stop with the actual failure reason. Permission or execution rejection stops without repeating the action. A reported blocker never counts as completion, and action counts measure Page mutations rather than model calls.

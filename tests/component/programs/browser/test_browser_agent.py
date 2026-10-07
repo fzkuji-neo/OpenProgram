@@ -830,7 +830,9 @@ def test_verify_rejects_empty_values_without_recording_evidence(value):
         value=value,
     )
 
-    assert verified == {"ok": False, "reason_code": "invalid_assertion"}
+    assert verified["ok"] is False
+    assert verified["reason_code"] == "invalid_assertion"
+    assert "value" in verified["message"]
     assert controller.final_result(summary="done")["status"] == "failed"
 
 
@@ -980,8 +982,8 @@ def test_public_browser_agent_uses_restricted_tool_and_closes(monkeypatch):
     )
 
     assert result["status"] == "failed"
-    assert result["reason_code"] == "verification_missing"
-    assert runtime.calls == 15
+    assert result["reason_code"] == "tool_not_executed"
+    assert runtime.calls == 3
     assert controller.closed is True
 
 
@@ -1006,7 +1008,7 @@ def test_browser_agent_keeps_forcing_one_browser_page_call_until_verified(monkey
             return self.tool
 
         def final_result(self, *, summary: str, reason_code: str | None = None):
-            verified = state["calls"] == 4 and reason_code is None
+            verified = state["calls"] == 3 and reason_code is None
             return {
                 "status": "succeeded" if verified else "failed",
                 "reason_code": reason_code
@@ -1040,7 +1042,7 @@ def test_browser_agent_keeps_forcing_one_browser_page_call_until_verified(monkey
         runtime=_Runtime(),
     )
 
-    assert state["calls"] == 4
+    assert state["calls"] == 3
     assert result["status"] == "succeeded"
     assert result["reason_code"] == "verified"
     assert result["summary"] == "Browser task completed and verified."
@@ -1149,27 +1151,30 @@ def test_unsent_final_screenshot_payload_is_released(monkeypatch):
     controller, _api = _controller()
     monkeypatch.setattr(module, "_new_controller", lambda: controller)
     captured = {}
+    now = [0.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: now[0])
 
     class _Runtime:
         calls = 0
 
         def exec(self, **_kwargs):
             self.calls += 1
-            if self.calls == 6:
-                frame_id = controller._frame["frame_id"]
-                captured["result"] = controller.execute(
-                    action="screenshot",
-                    expected_frame_id=frame_id,
-                )
+            frame_id = controller._frame["frame_id"]
+            captured["result"] = controller.execute(
+                action="screenshot",
+                expected_frame_id=frame_id,
+            )
+            now[0] = 2.0
             return ""
 
     result = module.browser_agent(
         task="Inspect the visual target",
         max_steps=1,
+        max_seconds=1,
         runtime=_Runtime(),
     )
 
-    assert result["reason_code"] == "verification_missing"
+    assert result["reason_code"] == "timeout"
     assert captured["result"].images == []
 
 
