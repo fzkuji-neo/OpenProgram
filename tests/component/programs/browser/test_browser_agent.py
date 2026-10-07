@@ -1151,6 +1151,8 @@ def test_unsent_final_screenshot_payload_is_released(monkeypatch):
     controller, _api = _controller()
     monkeypatch.setattr(module, "_new_controller", lambda: controller)
     captured = {}
+    now = [0.0]
+    monkeypatch.setattr(module.time, "monotonic", lambda: now[0])
 
     class _Runtime:
         calls = 0
@@ -1162,15 +1164,17 @@ def test_unsent_final_screenshot_payload_is_released(monkeypatch):
                 action="screenshot",
                 expected_frame_id=frame_id,
             )
+            now[0] = 2.0
             return ""
 
     result = module.browser_agent(
         task="Inspect the visual target",
         max_steps=1,
+        max_seconds=1,
         runtime=_Runtime(),
     )
 
-    assert result["reason_code"] == "verification_missing"
+    assert result["reason_code"] == "timeout"
     assert captured["result"].images == []
 
 
