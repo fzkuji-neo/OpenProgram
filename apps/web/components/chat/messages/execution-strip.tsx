@@ -145,7 +145,7 @@ export function ExecutionStrip({
           : text("Expand execution trace", "展开执行过程")}
       >
         <span className="tl-summary-label">{label}</span>
-        {streaming ? <ActivityIndicator phase={activity} /> : null}
+        {streaming && activity !== "tool" ? <ActivityIndicator phase={activity} /> : null}
         <span className="tl-chev" aria-hidden="true">›</span>
       </button>
       <Collapse open={open}>
@@ -302,8 +302,8 @@ export function StepRow({
           }
           aria-hidden="true"
         >
-          {running ? (
-            <ActivityIndicator phase={icon === "thinking" ? "thinking" : icon === "llm" ? "generating" : "tool"} />
+          {running && !error && (icon === "thinking" || icon === "llm") ? (
+            <ActivityIndicator phase={icon === "thinking" ? "thinking" : "generating"} />
           ) : error ? (
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none"
                  stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -392,7 +392,7 @@ function parseParams(input?: string): Record<string, unknown> | undefined {
 }
 
 /** 普通函数调用步骤：点行 → 右栏详情；有子调用时图标外圈表示可展开。
- *  running：流式中结果还没回来的调用——图标位使用函数状态动画。 */
+ *  running：流式中结果还没回来的调用；详情状态更新，图标保持原有扳手。 */
 export function FunctionStep({
   block,
   tree,

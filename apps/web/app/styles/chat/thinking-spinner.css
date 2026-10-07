@@ -4,15 +4,13 @@
 .message-actions-footer > .activity-indicator { margin-right:6px; }
 .activity-color-start { stop-color:var(--accent-blue); }
 .activity-color-end { stop-color:var(--accent-purple); }
-.activity-orbit, .activity-tool-orbit { transform-origin:9px 9px; }
+.activity-orbit { transform-origin:9px 9px; }
 .activity-orbit-outer { animation:activityOrbit 3.6s linear infinite; }
 .activity-orbit-inner { animation:activityOrbit 3.6s linear infinite reverse; }
 .activity-thinking .activity-outer { animation:activityThinkOuter 3.6s ease-in-out infinite; }
 .activity-thinking .activity-inner { animation:activityThinkInner 3.6s ease-in-out infinite; }
 .activity-thinking .activity-outer.activity-secondary { animation-name:activityThinkOuterSecondary; }
 .activity-thinking .activity-inner.activity-secondary { animation-name:activityThinkInnerSecondary; }
-.activity-tool-orbit { animation:activityOrbit 2.4s linear infinite; }
-.activity-outline { animation:activityMorph 3.6s cubic-bezier(.4,0,.6,1) infinite; }
 .activity-generating .activity-orbit-outer { animation-duration:2.4s; }
 .activity-generating .activity-outer { stroke-width:1.35px; animation:activityGenerateOuter 1.8s ease-in-out infinite; }
 .activity-generating .activity-inner { stroke-width:1.25px; animation:activityGenerateInner 1.8s ease-in-out infinite; }
@@ -39,11 +37,6 @@
   0%,50%,100% { r:2.85px; stroke-width:1.05px; stroke-dasharray:78 282; }
   25% { r:1.9px; stroke-width:.59px; stroke-dasharray:100 260; }
   75% { r:3.8px; stroke-width:1.5px; stroke-dasharray:56 304; }
-}
-@keyframes activityMorph {
-  0%,16.6667%,100% { d:var(--activity-circle); }
-  33.3333%,50% { d:var(--activity-triangle); }
-  66.6667%,83.3333% { d:var(--activity-square); }
 }
 @keyframes activityGenerateOuter {
   0%,50%,100% { stroke-dasharray:200 160; }
