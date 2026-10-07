@@ -350,48 +350,9 @@ assert.doesNotMatch(conversations, /restoreChatScrollIfCurrent|readChatScroll/,
   "session data reload must leave viewport restoration to the history and follow hooks");
 assert.match(chatHandlers, /writeChatScroll\(sessionStorage, chatKey, area\.scrollTop\)/);
 
-// ── A mid-turn load_session must not wipe the streaming reply ────────
-// `load_session` lands DURING a run on several paths that need no user
-// action: WS reconnect (use-ws onopen), a `session_reload` frame,
-// switching back from a sub-agent, and `hydrateTranscriptForTreeUpdate`
-// — which fires mid-turn by design. The server's row for the in-flight
-// turn is an empty placeholder (output="", status="running"), so a
-// naive rebuild replaces everything streamed so far with a blank
-// bubble. `setMessages` must keep the live row when the reload has
-// nothing to add.
-const setMessagesBody = sessionStore.slice(
-  sessionStore.indexOf("setMessages: (sessionId, msgs)"),
-  sessionStore.indexOf("appendMessage: (sessionId, msg)"),
-);
-assert.ok(setMessagesBody, "setMessages not found in the session store");
-assert.match(
-  setMessagesBody,
-  /isLiveRow\(cur\)\s*&&\s*isEmptyRow\(m\)[\s\S]*withMessageTimestamp\([\s\S]*\.\.\.cur[\s\S]*validMessageTimestamp\(msgs\[index\]\?\.timestamp\)[\s\S]*timestamp:\s*msgs\[index\]\.timestamp/,
-  "setMessages must preserve an in-flight streaming row when the "
-    + "incoming load_session payload row is an empty placeholder while accepting its authoritative timestamp",
-);
-// The two predicates are what make that guard correct — a live row is
-// any not-yet-finalized status, and emptiness must consider every
-// channel the stream writes into, not just `content`.
-const isLive = sessionStore.slice(
-  sessionStore.indexOf("function isLiveRow"),
-  sessionStore.indexOf("function isEmptyRow"),
-);
-for (const s of ["streaming", "running", "pending"]) {
-  assert.match(isLive, new RegExp(`"${s}"`), `isLiveRow must treat "${s}" as live`);
-}
-const isEmpty = sessionStore.slice(
-  sessionStore.indexOf("function isEmptyRow"),
-  sessionStore.indexOf("interface ConvState"),
-);
-for (const field of ["content", "thinking", "blocks", "tools"]) {
-  assert.match(
-    isEmpty,
-    new RegExp(`m\\.${field}`),
-    `isEmptyRow must check m.${field} — the stream writes into it, so a `
-      + "row holding only that would be treated as empty and overwritten",
-  );
-}
+// Snapshot progress is covered through the public stream/history reducer in
+// tests/chat/stream-delta-raf.test.mjs and the timestamp checks in
+// check-provisional-send.mjs. Do not assert the old empty-row implementation.
 
 // ── Agentic runtime cards are matched by ORDER, never by a `_rt_` id ──
 // `_wrap_agentic_runtime_block` persists no placeholder row, so no id
