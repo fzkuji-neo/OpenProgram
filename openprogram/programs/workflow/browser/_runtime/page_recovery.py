@@ -83,6 +83,15 @@ def _start_session_on_opened_page(*, context, owner_id: str, backend: str, argum
         observed.pop("page_context_token", None)
     if state._opened_observation_is_live(observed):
         return observed
+    if (
+        isinstance(observed, dict)
+        and observed.get("reason_code") == "desktop_response_timeout"
+        and observed.get("web_session_id")
+        and observed.get("closed") is not True
+    ):
+        # The registry owns this binding even before its first successful frame.
+        # Releasing it here would invalidate the returned recovery session.
+        return observed
     surface_context.release_bindings(context)
     if not isinstance(observed, dict):
         return {
