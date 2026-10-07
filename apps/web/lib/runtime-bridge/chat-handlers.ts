@@ -930,6 +930,10 @@ export function handleChatResponse(data: ChatResponseData): void {
     return;
   }
 
+  // Nested execution streams and future protocol extensions are not final
+  // replies. Only the terminal envelope types may change parent bookkeeping.
+  if (type !== "result" && type !== "error" && type !== "retry_result") return;
+
   // Final response (result / error / retry_result) -- task done.
   // Clear per-session running state from the response's session_id
   // (NOT runtimeState.currentSessionId — the user may have switched away

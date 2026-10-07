@@ -524,6 +524,7 @@ llmStreamsBySession: {
     关联 <a href="./operations/streaming-resume.zh.md">streaming-resume</a> ·
     机器 <code>7cea4eda-…</code> 不可达时以本仓库 / GitHub 为准。
   </footer>
+<p>只有 result、error、retry_result 帧结束聊天回合的状态处理。嵌套 execution_stream 帧由流状态归约器处理，不清除父回合运行状态、不覆盖回复内容、不刷新分支元数据。每个节点同时只发起一次快照恢复请求，重复缺口不重复排队。owner_unavailable 回执结束本次恢复并保留已有内容；终态节点不重新进入同步中。后续新的流事件仍可重新请求恢复。</p>
 </main>
 <script>
 (function(){
