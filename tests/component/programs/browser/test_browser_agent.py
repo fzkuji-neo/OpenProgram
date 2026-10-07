@@ -830,7 +830,9 @@ def test_verify_rejects_empty_values_without_recording_evidence(value):
         value=value,
     )
 
-    assert verified == {"ok": False, "reason_code": "invalid_assertion"}
+    assert verified["ok"] is False
+    assert verified["reason_code"] == "invalid_assertion"
+    assert "value" in verified["message"]
     assert controller.final_result(summary="done")["status"] == "failed"
 
 
@@ -980,8 +982,8 @@ def test_public_browser_agent_uses_restricted_tool_and_closes(monkeypatch):
     )
 
     assert result["status"] == "failed"
-    assert result["reason_code"] == "verification_missing"
-    assert runtime.calls == 15
+    assert result["reason_code"] == "tool_not_executed"
+    assert runtime.calls == 3
     assert controller.closed is True
 
 
@@ -1006,7 +1008,7 @@ def test_browser_agent_keeps_forcing_one_browser_page_call_until_verified(monkey
             return self.tool
 
         def final_result(self, *, summary: str, reason_code: str | None = None):
-            verified = state["calls"] == 4 and reason_code is None
+            verified = state["calls"] == 3 and reason_code is None
             return {
                 "status": "succeeded" if verified else "failed",
                 "reason_code": reason_code
@@ -1040,7 +1042,7 @@ def test_browser_agent_keeps_forcing_one_browser_page_call_until_verified(monkey
         runtime=_Runtime(),
     )
 
-    assert state["calls"] == 4
+    assert state["calls"] == 3
     assert result["status"] == "succeeded"
     assert result["reason_code"] == "verified"
     assert result["summary"] == "Browser task completed and verified."
@@ -1155,6 +1157,9 @@ def test_unsent_final_screenshot_payload_is_released(monkeypatch):
 
         def exec(self, **_kwargs):
             self.calls += 1
+            if self.calls < 6:
+                controller.execute(action="verify", expected_frame_id=controller._frame["frame_id"],
+                                   assertion="text_contains", value="not present yet")
             if self.calls == 6:
                 frame_id = controller._frame["frame_id"]
                 captured["result"] = controller.execute(

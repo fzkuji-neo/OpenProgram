@@ -87,6 +87,10 @@ _REF_SNAPSHOT_SCRIPT = r"""
     || "").replace(/\s+/g, " ").trim();
   const label = nativeLabelIdentity.slice(0, 240);
   const field = {label};
+  if (el.tagName === "INPUT") field.input_type = el.type;
+  if (el.matches("input[type=file]")) {
+    field.files = Array.from(el.files || []).slice(0, 20).map(file => file.name);
+  }
   const editable = el.tagName === "TEXTAREA" || el.isContentEditable || (
     el.tagName === "INPUT" && !["button", "submit", "reset", "image", "checkbox", "radio", "file", "hidden"].includes(el.type)
   );
@@ -332,6 +336,8 @@ _TOOL_PARAMETERS = {
                 "scroll",
                 "hover",
                 "select",
+                "upload",
+                "stop",
                 "wait",
                 "verify",
             ],
@@ -353,9 +359,10 @@ _TOOL_PARAMETERS = {
             "description": "Viewport CSS y coordinate; click only after screenshot.",
         },
         "url": {"type": "string"},
-        "text": {"type": "string"},
+        "text": {"type": "string", "description": "Text to type, or blocker explanation for stop. Never the expected verification value."},
+        "path": {"type": "string", "description": "For upload: user-approved local file, up to 50 MiB. Selecting a file can immediately send it to the website."},
         "key": {"type": "string"},
-        "value": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 1, "description": "Required non-empty expected value for verify; filename for file_selected. Also used by select."},
         "amount": {"type": "integer"},
         "assertion": {
             "type": "string",
@@ -365,6 +372,7 @@ _TOOL_PARAMETERS = {
                 "url_contains",
                 "title_contains",
                 "element_present",
+                "file_selected",
             ],
         },
     },
@@ -421,6 +429,9 @@ def _is_http_url(url: str) -> bool:
 
 
 def _browser_agent_requires_approval(url: str = "", **_kw):
+    arguments = _kw.get("arguments") or _kw
+    if isinstance(arguments, dict) and arguments.get("action") == "upload":
+        return "Upload the selected local file to the bound website; this can transmit file contents immediately."
     if url and not _is_local(url):
         return f"browser_agent will open external origin {_origin(url)}"
     return False

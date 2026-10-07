@@ -119,6 +119,7 @@ class BrowserPageController:
             ),
             parameters=state._TOOL_PARAMETERS,
             requires_approval=self._requires_approval,
+            path_params={"path": "read"},
             register_globally=False,
             max_result_chars=100_000,
         )(self.execute)
@@ -127,6 +128,8 @@ class BrowserPageController:
         return self._owner.submit(state.copy_context().run, callback, *args, **kwargs).result()
 
     def _requires_approval(self, action: str = "", url: str = "", **_kw):
+        if action == "upload":
+            return "Upload the selected local file to the bound website; this can transmit file contents immediately."
         if action not in {
             "navigate", "click", "type", "press", "scroll", "hover", "select",
         }:
@@ -367,7 +370,7 @@ class BrowserPageController:
                     "name": str(actual.get("name") or ""),
                     "disabled": bool(actual.get("disabled")),
                 }
-                for field in ("label", "value", "value_source", "value_truncated", "value_redacted", "field_context"):
+                for field in ("label", "value", "value_source", "value_truncated", "value_redacted", "field_context", "input_type", "files"):
                     if field in actual:
                         metadata[field] = actual[field]
                 refs[ref] = handle
@@ -375,6 +378,7 @@ class BrowserPageController:
                     field: metadata[field]
                     for field in ("tag", "role", "name", "disabled")
                 }
+                ref_meta[ref]["input_type"] = actual.get("input_type")
                 ref_meta[ref]["label"] = actual.get("label")
                 ref_meta[ref]["native_label_identity"] = actual.get("native_label_identity")
                 ref_meta[ref]["label_binding"] = (actual.get("field_context") or {}).get("label_binding")
@@ -517,7 +521,7 @@ class BrowserPageController:
             or not actual.get("visible")
             or any(
                 actual.get(field) != expected.get(field)
-                for field in ("tag", "role", "name", "disabled", "label", "native_label_identity")
+                for field in ("tag", "role", "name", "disabled", "label", "native_label_identity", "input_type")
             )
             or (actual.get("field_context") or {}).get("label_binding") != expected.get("label_binding")
         ):
@@ -557,6 +561,8 @@ class BrowserPageController:
         return redact_password_values(payload, secrets)
 
     def _write_allowed(self) -> dict[str, state.Any] | None:
+        if self._terminal_reason == "file_selection_unconfirmed":
+            return {"ok": False, "reason_code": self._terminal_reason, "message": "File selection has an uncertain outcome; automatic replay is disabled."}
         if self._mutations < self.max_steps:
             return None
         self._terminal_reason = "step_limit"
@@ -575,14 +581,14 @@ class BrowserPageController:
         assertion: str = "",
         x: float | None = None,
         y: float | None = None,
-        *, before_dispatch=None,
+        *, path: str = "", before_dispatch=None,
     ) -> state.Any:
         def dispatch():
             if before_dispatch is not None:
                 before_dispatch()
             kwargs = {"before_dispatch": before_dispatch} if before_dispatch is not None else {}
             return self._execute(action, expected_frame_id, ref, url, text, key,
-                                 value, amount, assertion, x, y, **kwargs)
+                                 value, amount, assertion, x, y, path=path, **kwargs)
         result = self._submit(dispatch)
         self._last_action = action
         self._last_result = result
@@ -624,6 +630,7 @@ class BrowserPageController:
             ),
             parameters=parameters,
             requires_approval=self._requires_approval,
+            path_params={"path": "read"},
             register_globally=False,
             max_result_chars=40_000,
         )(dispatch)
@@ -648,13 +655,19 @@ class BrowserPageController:
         assertion: str = "",
         x: float | None = None,
         y: float | None = None,
-        *, before_dispatch=None,
+        *, path: str = "", before_dispatch=None,
     ) -> state.Any:
         def run(fn, *args, **kwargs):
             if before_dispatch is not None:
                 before_dispatch()
             return fn(*args, **kwargs)
 
+        if action == "stop":
+            self._terminal_reason = "task_blocked"
+            self._evidence = []
+            self._verified_mutation = -1
+            return {"ok": False, "reason_code": "task_blocked",
+                    "message": text or "The planner cannot complete the task with the available actions."}
         if action == "observe":
             return run(self._observe)
         if action in {"screenshot", "verify"} and not expected_frame_id and self._frame:
@@ -667,8 +680,9 @@ class BrowserPageController:
             if not self._fresh(expected_frame_id):
                 return {"ok": False, "reason_code": "stale_observation"}
             if not assertion or not isinstance(value, str) or not value.strip():
-                return {"ok": False, "reason_code": "invalid_assertion"}
-            return run(self._verify, self._page(), expected_frame_id, assertion, value)
+                return {"ok": False, "reason_code": "invalid_assertion",
+                        "message": "verify requires assertion and a non-empty value. Put the expected result in value; text is only for typing or stop."}
+            return run(self._verify, self._page(), expected_frame_id, assertion, value, ref)
         stale = self._require_fresh(expected_frame_id)
         if stale:
             return stale
@@ -786,6 +800,36 @@ class BrowserPageController:
                 f"clicked {ref}",
                 point=dict(bounds) if isinstance(bounds, dict) else None,
             )
+        if action == "upload":
+            from .file_inputs import file_payload
+            if self._ref_meta.get((ref or "").lstrip("@"), {}).get("input_type") != "file":
+                return {"ok": False, "reason_code": "file_input_required", "message": "upload requires a file-input ref from the latest observation."}
+            if self._ref_meta.get((ref or "").lstrip("@"), {}).get("disabled"):
+                return {"ok": False, "reason_code": "target_disabled"}
+            payload, error = file_payload(path)
+            if error:
+                return error
+            # Guards run again after the local read, immediately before transmission.
+            if before_dispatch is not None:
+                before_dispatch()
+            if not self._fresh(expected_frame_id):
+                return self._invalidate_frame()
+            target, ref_error = self._ref(ref)
+            if target is None:
+                return {"ok": False, "reason_code": ref_error}
+            try:
+                target.set_input_files(payload)
+            except BaseException as exc:
+                self._mutated("unconfirmed file selection")
+                self._terminal_reason = "file_selection_unconfirmed"
+                if isinstance(exc, state._CANCELLATION_ERRORS) or not isinstance(exc, Exception):
+                    raise
+                return {"ok": False, "reason_code": self._terminal_reason,
+                        "message": "File selection has an uncertain outcome; inspect the Page instead of uploading again.",
+                        "observe_required": True}
+            result = self._mutated("selected one file")
+            result["server_acceptance_verified"] = False
+            return result
         if action == "type":
             editable = run(lambda: target.evaluate("element => element.isContentEditable"))
             if editable is True:
@@ -825,7 +869,7 @@ class BrowserPageController:
             return self._mutated(f"selected an option in {ref}")
         return {"ok": False, "reason_code": "unsupported_action"}
 
-    def _verify(self, page, frame_id: str, assertion: str, value: str) -> dict:
+    def _verify(self, page, frame_id: str, assertion: str, value: str, ref: str = "") -> dict:
         from openprogram.programs.tools.web.browser._privacy import contains_password_value, password_values, redact_password_values
         secrets = password_values(page)
         if contains_password_value(value, secrets):
@@ -844,6 +888,12 @@ class BrowserPageController:
                 for item in snapshot.get("elements") or []
             ),
         }
+        if assertion == "file_selected":
+            target, error = self._ref(ref)
+            if target is None:
+                return {"ok": False, "reason_code": error}
+            files = target.evaluate("el => el.matches('input[type=file]') && el.isConnected ? Array.from(el.files || []).map(file => file.name) : []")
+            checks["file_selected"] = isinstance(files, list) and value in files
         if assertion not in checks:
             return {"ok": False, "reason_code": "unsupported_assertion"}
         passed = bool(checks[assertion])
@@ -853,6 +903,7 @@ class BrowserPageController:
             "value": value,
             "frame_id": frame_id,
             "passed": passed,
+            **({"ref": ref, "server_acceptance_verified": False} if assertion == "file_selected" else {}),
         }
         if not self._fresh(frame_id):
             return self._invalidate_frame()
@@ -893,7 +944,7 @@ class BrowserPageController:
             try:
                 frame_id = evidence["frame_id"]
                 verified = self._fresh(frame_id) and self._verify(
-                    self._page(), frame_id, evidence["assertion"], evidence["value"],
+                    self._page(), frame_id, evidence["assertion"], evidence["value"], evidence.get("ref", ""),
                 ).get("passed") is True
             except Exception:
                 verified = False
