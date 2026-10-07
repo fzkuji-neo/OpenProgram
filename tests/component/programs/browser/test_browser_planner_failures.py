@@ -5,7 +5,7 @@ from tests.component.programs.browser.test_browser_agent import _controller
 
 
 @pytest.mark.parametrize('route', ['legacy', 'commands'])
-@pytest.mark.parametrize('mode', ['invalid', 'repair', 'stop', 'deny'])
+@pytest.mark.parametrize('mode', ['invalid', 'unmet', 'repair', 'stop', 'deny'])
 def test_invalid_verify_is_repaired_or_stops_with_actual_error(monkeypatch, mode, route):
     from openprogram.agentic_programming.runtime import Runtime
     from openprogram.programs.workflow import browser
@@ -36,6 +36,8 @@ def test_invalid_verify_is_repaired_or_stops_with_actual_error(monkeypatch, mode
         calls.append(context)
         args = dict(action='verify', expected_frame_id=controller._frame['frame_id'],
                     assertion='title_contains', text='Fixture', value=None)
+        if mode == 'unmet':
+            args['value'] = 'Absent title'
         if mode == 'repair' and len(calls) > 1:
             args['value'] = 'Fixture'
         if mode == 'stop':
@@ -56,9 +58,11 @@ def test_invalid_verify_is_repaired_or_stops_with_actual_error(monkeypatch, mode
             result = browser.browser_agent(task='Check title', runtime=runtime, max_steps=2)
         else:
             result = browser._run_browser_task_commands(task='Check title', runtime=runtime, max_steps=2, max_seconds=30, backend='playwright_mcp')
-        assert len(calls) == {'repair': 2, 'invalid': 3, 'stop': 1, 'deny': 1}[mode]
-        assert result['reason_code'] == {'repair': 'verified', 'invalid': 'invalid_assertion', 'stop': 'task_blocked', 'deny': 'tool_execution_failed'}[mode]
+        assert len(calls) == {'repair': 2, 'invalid': 3, 'unmet': 3, 'stop': 1, 'deny': 1}[mode]
+        assert result['reason_code'] == {'repair': 'verified', 'invalid': 'invalid_assertion', 'unmet': 'assertion_not_met', 'stop': 'task_blocked', 'deny': 'tool_execution_failed'}[mode]
         assert controller._mutations == 0
+        if mode == 'unmet':
+            assert 'Absent title' in result['summary']
         if mode == 'invalid':
             assert 'value' in result['summary']
             assert not result.get('completion_evidence')

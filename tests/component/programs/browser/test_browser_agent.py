@@ -1157,15 +1157,11 @@ def test_unsent_final_screenshot_payload_is_released(monkeypatch):
 
         def exec(self, **_kwargs):
             self.calls += 1
-            if self.calls < 6:
-                controller.execute(action="verify", expected_frame_id=controller._frame["frame_id"],
-                                   assertion="text_contains", value="not present yet")
-            if self.calls == 6:
-                frame_id = controller._frame["frame_id"]
-                captured["result"] = controller.execute(
-                    action="screenshot",
-                    expected_frame_id=frame_id,
-                )
+            frame_id = controller._frame["frame_id"]
+            captured["result"] = controller.execute(
+                action="screenshot",
+                expected_frame_id=frame_id,
+            )
             return ""
 
     result = module.browser_agent(
