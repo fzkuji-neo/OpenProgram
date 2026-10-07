@@ -429,3 +429,20 @@ test('newer persisted results and terminal metadata are accepted without losing 
   assert.equal(useSessionStore.getState().messagesById[rid].blocks[0].result,'authoritative retry result');
   assert.equal(useSessionStore.getState().messagesById[rid].content,'Recovered');
 });
+
+test('partial history preserves nested calls, call trees and legacy text progress', async () => {
+  const {convToChatMsgs}=await import('../../lib/chat/conv-mapper.ts');
+  const sid='nested-history',id='nested-reply';
+  const store=useSessionStore.getState();
+  const rows=[{id,role:'assistant',status:'running',content:'Observed full narration'},
+    ...['first','second'].map(id=>({id,role:'assistant',type:'status',display:'runtime',caller:'nested-reply',function:id,status:'completed',content:id+' result'}))];
+  store.setMessages(sid,convToChatMsgs(rows));
+  store.updateMessage(sid,id,{callRoots:[{path:'a',name:'call',children:[{path:'a1'}]},{path:'b',name:'call'}]});
+  store.setMessages(sid,convToChatMsgs([rows[0],rows[1]]));
+  assert.deepEqual(useSessionStore.getState().messagesById[id].runtimeChildren.map(c=>c.id),['first','second']);
+  store.setMessages(sid,[{...useSessionStore.getState().messagesById[id],callRoots:[{path:'a',name:'call'}]}]);
+  store.setMessages(sid,[{...useSessionStore.getState().messagesById[id],content:'Observed'}]);
+  assert.equal(useSessionStore.getState().messagesById[id].content,'Observed full narration');
+  assert.equal(useSessionStore.getState().messagesById[id].callRoots.length,2);
+  assert.equal(useSessionStore.getState().messagesById[id].callRoots[0].children[0].path,'a1');
+});
