@@ -311,8 +311,36 @@ class OfficialMCPPageBackend:
         frame_id = str(arguments.get("expected_frame_id") or "")
         action = str(arguments.get("action") or "")
         if action == "upload":
-            return controller.execute(**dict(arguments),
-                **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}))
+            rejected = controller.prepare_external_action(arguments)
+            if rejected is not None:
+                return rejected
+            ref = str(arguments.get("ref") or "").lstrip("@")
+            if not ref:
+                return {"ok": False, "reason_code": "file_input_required"}
+            # Upstream eN/uid references are not controller eN references.
+            attribute = "data-openprogram-upload-" + uuid.uuid4().hex
+            script = f"(element) => element.setAttribute('{attribute}', '')"
+            name, params = (
+                ("browser_evaluate", {"target": ref, "function": script})
+                if self.name == "playwright_mcp" else
+                ("evaluate_script", {"pageId": session.state["upstream_page"],
+                                     "args": [ref], "function": script})
+            )
+            try:
+                client = self._ensure_bound(session)
+                if before_dispatch is not None:
+                    before_dispatch()
+                result = client.call(name, params)
+                if _is_error(result):
+                    controller.invalidate_external_frame()
+                    return {"ok": False, "reason_code": "stale_observation",
+                            "observe_required": True}
+                return controller.upload_external_ref(
+                    attribute, dict(arguments), before_dispatch=before_dispatch,
+                )
+            finally:
+                with suppress(Exception):
+                    controller.clear_external_ref(attribute)
         if action in {"screenshot", "wait"}:
             return controller.execute(
                 action=action, expected_frame_id=frame_id,

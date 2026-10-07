@@ -415,7 +415,9 @@ def request_bound_tab(
         command["expected_geometry_revision"] = expected_geometry_revision
     result = request_on_ws(ws, command, timeout)
     if not result.get("ok"):
-        release_binding(binding_id)
+        # A missing acknowledgement does not prove that the Page closed.
+        if result.get("reason_code") != RESPONSE_TIMEOUT_REASON_CODE:
+            release_binding(binding_id)
         return result
     if (
         result.get("window_id") != window_id

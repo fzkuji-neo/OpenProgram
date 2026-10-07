@@ -5,6 +5,7 @@ from __future__ import annotations
 import ipaddress
 import os
 import re
+import socket
 import ssl
 import tempfile
 import threading
@@ -948,6 +949,8 @@ class _ManagedTransportBase:
             )
         except URLPolicyError as exc:
             self._record(exc.reason, exc.safe_url)
+            if exc.reason == "DNS_ERROR" and isinstance(exc.__cause__, socket.gaierror):
+                raise httpx.ConnectError(f"DNS resolution failed: {exc.safe_url}") from exc
             raise
         self._record("ALLOWED", decision.origin)
         return decision
@@ -976,6 +979,8 @@ class _ManagedTransportBase:
             )
         except URLPolicyError as exc:
             self._record(exc.reason, exc.safe_url)
+            if exc.reason == "DNS_ERROR" and isinstance(exc.__cause__, socket.gaierror):
+                raise httpx.ConnectError(f"DNS resolution failed: {exc.safe_url}") from exc
             raise
         self._record("PROXY_DELEGATED", decision.origin)
         return decision
@@ -1024,6 +1029,8 @@ class _ManagedTransportBase:
             )
         except URLPolicyError as exc:
             self._record(exc.reason, exc.safe_url)
+            if exc.reason == "DNS_ERROR" and isinstance(exc.__cause__, socket.gaierror):
+                raise httpx.ConnectError(f"DNS resolution failed: {exc.safe_url}") from exc
             raise
         except (ValueError, TypeError):
             raise URLPolicyError("INVALID_SERVICE_PROXY", target.origin) from None
