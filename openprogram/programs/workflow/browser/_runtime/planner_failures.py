@@ -8,7 +8,7 @@ class PlannerFailures:
         self.frame_id = None
 
     def record(self, result, frame_id):
-        if not isinstance(result, dict) or result.get('ok') is not False:
+        if not isinstance(result, dict) or (result.get('ok') is not False and result.get('passed') is not False):
             self.count = 0
             self.frame_id = None
             return None
@@ -16,8 +16,11 @@ class PlannerFailures:
         self.frame_id = frame_id
         if self.count < 3:
             return None
-        reason = str(result.get('reason_code') or 'tool_error')
-        message = str(result.get('message') or reason)
+        reason = str(result.get('reason_code') or ('assertion_not_met' if result.get('passed') is False else 'tool_error'))
+        evidence = result.get('evidence') or {}
+        detail = (f"Verification did not satisfy {evidence.get('assertion')}: {evidence.get('value')}"
+                  if result.get('passed') is False else reason)
+        message = str(result.get('message') or detail)
         return {'reason_code': reason,
                 'summary': f'Browser planner stopped after {self.count} failed attempts on the same observation: {message}'}
 
