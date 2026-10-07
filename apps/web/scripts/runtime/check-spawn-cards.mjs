@@ -89,7 +89,7 @@ applyChatWsMessage({
     session_id: SID,
     msg_id: RID,
     function: "web_use",
-    tree: { path: "web-use-running", name: "web_use", status: "running" },
+    tree: { path: "web-use-node-1", name: "web_use", status: "running" },
   },
 });
 assert.equal(
@@ -99,7 +99,7 @@ assert.equal(
 );
 assert.deepEqual(
   reply().callRoots,
-  [{ path: "web-use-running", name: "web_use", status: "running" }],
+  [{ path: "web-use-node-1", name: "web_use", status: "running" }],
   "the function tree must attach to the owning assistant timeline",
 );
 applyChatWsMessage({
@@ -115,7 +115,7 @@ applyChatWsMessage({
 assert.deepEqual(
   reply().callRoots,
   [{ path: "web-use-node-1", name: "web_use", status: "completed" }],
-  "the terminal exact tree must replace its synthetic running tree",
+  "the terminal tree must update the same running node identity",
 );
 
 // The spawning tool call, then the spawn announcing itself as running.
