@@ -910,7 +910,12 @@ class BrowserPageController:
         if passed:
             self._verified_mutation = self._mutations
             self._evidence = [evidence]
-        return redact_password_values({"ok": True, "passed": passed, "evidence": evidence}, secrets)
+        return redact_password_values({
+            "ok": True, "passed": passed, "evidence": evidence,
+            # Preserve the bounded observation for the caller's answer. The
+            # assertion verifies only its named condition, not every field.
+            **({"observation": self._frame} if passed else {}),
+        }, secrets)
 
     def final_result(self, *, summary: str, reason_code: str | None = None) -> dict:
         return self._submit(
@@ -929,6 +934,7 @@ class BrowserPageController:
             except Exception:
                 privacy_failed = True
                 summary = "Browser target is unavailable."
+        observation = None
         verified = bool(self._evidence) and self._verified_mutation == self._mutations
         if privacy_failed:
             verified = False
@@ -943,9 +949,12 @@ class BrowserPageController:
             self._verified_mutation = -1
             try:
                 frame_id = evidence["frame_id"]
-                verified = self._fresh(frame_id) and self._verify(
+                verification = self._verify(
                     self._page(), frame_id, evidence["assertion"], evidence["value"], evidence.get("ref", ""),
-                ).get("passed") is True
+                ) if self._fresh(frame_id) else {}
+                verified = verification.get("passed") is True
+                if verified:
+                    observation = verification.get("observation")
             except Exception:
                 verified = False
         reason = reason_code or self._terminal_reason or (
@@ -974,7 +983,8 @@ class BrowserPageController:
             "summary": summary,
             "target": target,
             "steps_taken": self._mutations,
-            "completion_evidence": list(self._evidence) if verified else [],
+            "completion_evidence": list(self._evidence) if status == "succeeded" else [],
+            **({"observation": observation} if status == "succeeded" and isinstance(observation, dict) else {}),
             "artifacts": [],
         }, secrets)
 
