@@ -1072,7 +1072,7 @@ assert.match(queuedMessages, /Waiting to add to current turn…/);
 assert.match(controlsCluster, /While running: Steer/);
 assert.match(controlsCluster, /While running: Queue/);
 assert.doesNotMatch(userBubble, /Steered|已注入/);
-assert.match(assistantBubble, /segment.kind === "steering"/);
+assert.match(assistantBubble, /seg\.kind === "steering"/);
 assert.match(chatHandlers, /data\.turn_continues !== true/);
 assert.match(
   messageActions,
