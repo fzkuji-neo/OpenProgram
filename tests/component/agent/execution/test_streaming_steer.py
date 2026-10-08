@@ -58,6 +58,13 @@ def test_steer_interrupts_silent_text_stream_and_continues_once(real_agent_chat,
         if phase != "start":
             assert ("partial thought" if phase == "thinking" else "partial answer") in serialized
         assert serialized.count("use the correction") == 1
+        if phase == "thinking":
+            from openprogram.providers._shared.transform_messages import transform_messages
+            from openprogram.providers.types import ThinkingContent
+            projected = transform_messages(contexts[1].messages, h.model)
+            assert not any(isinstance(block, ThinkingContent)
+                           for msg in projected if msg.role == "assistant" for block in msg.content)
+            assert "partial thought" in serialized  # Original display/checkpoint remains intact.
         from openprogram.store.session.session_store import SessionStore
         cold = SessionStore(h.sessions.root_path)
         branch = cold.get_branch(h.session_id)
