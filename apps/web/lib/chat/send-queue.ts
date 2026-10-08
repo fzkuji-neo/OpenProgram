@@ -10,13 +10,13 @@
  * a session's running task clears, the head entry is sent as an
  * ordinary turn.
  *
- * Deliberately client-memory only — no persistence, no server round
- * trip. A reload drops the queue, which is the honest reading of
- * "these were never sent". Keyed by session so switching tabs or
- * running two panes never crosses streams.
+ * Ordinary unsent drafts remain in memory. Text steering commands and held
+ * steering drafts survive same-window refresh until their delivery is resolved.
+ * Each queue belongs to one conversation.
  */
 
 import { create } from "zustand";
+import { loadPendingSteers, savePendingSteers } from "./pending-steer-storage";
 import type { ChatAttachment } from "@/components/chat/composer/submit/send-chat-message";
 import { queuedMessagePayload, snapshotQueuedAttachments, type QueuedAttachments } from "./queued-attachments";
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
@@ -66,7 +66,7 @@ export interface QueuedMessage extends QueuedAttachments {
   injecting?: boolean;
   /** Retained verbatim until its durable acknowledgement is known. */
   steerCommand?: ExecutionCommand;
-  steerError?: "unconfirmed" | "unavailable" | "too_long" | "retry" | "cancelled";
+  steerError?: "unconfirmed" | "unavailable" | "too_long" | "retry" | "cancelled" | "ended";
 }
 
 /** What the composer hands over; the store stamps id + queuedAt. */
@@ -92,8 +92,13 @@ const EMPTY: QueuedMessage[] = [];
 
 let seq = 0;
 
-export const useSendQueue = create<SendQueueState>((set, get) => ({
-  queues: {},
+export const useSendQueue = create<SendQueueState>((rawSet, get) => {
+  const set = (patch: Partial<SendQueueState> | ((state: SendQueueState) => Partial<SendQueueState>)) => {
+    rawSet(patch);
+    savePendingSteers(get().queues);
+  };
+  return {
+  queues: loadPendingSteers(),
 
   enqueue: (sessionId, draft) => {
     const id = `q${++seq}_${Date.now().toString(36)}`;
@@ -178,7 +183,7 @@ export const useSendQueue = create<SendQueueState>((set, get) => ({
   drain: (sessionId) => {
     const head = (get().queues[sessionId] ?? EMPTY)[0];
     if (!head || !sendImpl) return;
-    if (head.steerError === "cancelled" || head.deliveryError || head.editing || head.injecting || head.steerCommand) return;
+    if (["cancelled", "ended"].includes(head.steerError ?? "") || head.deliveryError || head.editing || head.injecting || head.steerCommand) return;
     // Still busy — the next running-task clear will call us again.
     if (useSessionStore.getState().runningTasks[sessionId]) return;
     // Pop BEFORE sending: sendChatMessage re-enters the store (running
@@ -209,7 +214,8 @@ export const useSendQueue = create<SendQueueState>((set, get) => ({
     // Socket closed mid-drain: retain the complete payload at the head.
     restore();
   },
-}));
+};
+});
 
 /** Move one entry to the front without cancelling an execution. */
 export function promoteToHead(sessionId: string, id: string): void {
@@ -250,6 +256,14 @@ export function reconcileAfterSessionLoad(
   sessionId: string,
   runActive: boolean,
 ): void {
+  // Confirm restored receipts only after authoritative session hydration.
+  if (queueFor(sessionId).some(row => row.steerCommand)) {
+    void import("./steer-message").then(({steerQueuedMessage}) => {
+      for (const row of queueFor(sessionId)) {
+        if (row.steerCommand) void steerQueuedMessage(sessionId, row.id);
+      }
+    });
+  }
   const sessions = useSessionStore.getState();
   if (runActive) {
     // 只在没有真实 task 时占位；已有 execution_id 的不覆盖（否则停止键
@@ -300,4 +314,13 @@ export function requeueRejected(sessionId: string, text: string): void {
       ],
     },
   }));
+}
+
+/** Stop holds every steering attempt, including pre-admission snapshot reads.
+ * Posted commands remain intact until their receipt establishes delivery. */
+export function holdSteeringForStop(sessionId: string): void {
+  const queue = useSendQueue.getState();
+  for (const row of queueFor(sessionId)) {
+    if (row.injecting || row.steerCommand) queue.setSteering(sessionId, row.id, {steerError:"cancelled"});
+  }
 }

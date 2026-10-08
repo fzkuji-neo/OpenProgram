@@ -110,3 +110,51 @@ def test_stop_with_pending_steer_keeps_reply_in_cold_history(real_agent_chat):
     finally:
         h.provider.release.set()
         h.tools.release["first"].set()
+
+
+def test_multiple_steers_replayed_during_tool_batch_keep_order_and_tools(real_agent_chat, monkeypatch):
+    h = real_agent_chat
+    h.provider.add_response(
+        ScriptedText("before tools"),
+        ScriptedToolCall("first", {}, "first-call"),
+        ScriptedToolCall("second", {}, "second-call"),
+    )
+    h.provider.add_response(ScriptedText("after both instructions"))
+    h.tools.blocked.add("first")
+    contexts = []
+    original = h.provider.stream_simple
+
+    async def capture(model, context, options=None):
+        contexts.append(context.model_copy(deep=True))
+        async for event in original(model, context, options):
+            yield event
+
+    monkeypatch.setattr(h.provider, "stream_simple", capture)
+    execution = _chat(h)
+    try:
+        _wait(lambda: "first" in h.tools.calls)
+        snapshot = h.store.get_execution(execution.execution_id)
+        _steer(h, snapshot, "batch-first", "FIRST CORRECTION")
+        _steer(h, snapshot, "batch-first", "FIRST CORRECTION")  # Lost-ACK replay.
+        _steer(h, snapshot, "batch-second", "SECOND CORRECTION")
+        assert len(contexts) == 1
+        assert h.store.get_command("batch-first").status.value == "accepted"
+        h.tools.release["first"].set()
+        _wait(lambda: h.store.get_execution(execution.execution_id).status.value == "completed")
+        assert h.tools.calls == ["first", "second"]
+        assert len(contexts) == 2
+        messages = str([message.model_dump() for message in contexts[1].messages])
+        assert messages.count("FIRST CORRECTION") == 1
+        assert messages.count("SECOND CORRECTION") == 1
+        assert messages.index("FIRST CORRECTION") < messages.index("SECOND CORRECTION")
+        assert "first:ok" in messages and "second:ok" in messages
+        from openprogram.store.session.session_store import SessionStore
+        branch = SessionStore(h.sessions.root_path).get_branch(h.session_id)
+        assert sum("FIRST CORRECTION" in str(msg.get("content")) for msg in branch) == 1
+        assert sum("SECOND CORRECTION" in str(msg.get("content")) for msg in branch) == 1
+        assert "after both instructions" in str(branch)
+        assert all(h.store.get_command(cid).status.value == "applied"
+                   for cid in ("batch-first", "batch-second"))
+    finally:
+        h.tools.release["first"].set()
+        h.provider.release.set()
