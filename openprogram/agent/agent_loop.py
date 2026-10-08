@@ -9,7 +9,7 @@ import asyncio
 import inspect
 import json
 import time
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Any, AsyncGenerator
 
 from openprogram.providers.types import (
@@ -58,6 +58,11 @@ from .types import (
 # Identical failed tools are already skipped after two repeats.
 # runtime.exec still defaults to 20.
 MAX_INNER_ITERATIONS = None
+
+
+@dataclass
+class _SteeredResponse:
+    message: AssistantMessage
 
 
 class _SafePointStop(BaseException):
@@ -716,6 +721,7 @@ async def _run_loop_with_recovery(
                 pending_messages = []
 
             # Stream assistant response
+            steered_response = False
             from openprogram.providers.structured_output import StructuredOutputGenerationError
             try:
                 message = await _stream_assistant_response(
@@ -728,6 +734,9 @@ async def _run_loop_with_recovery(
                     provider_snapshot,
                     structured_attempt if structured_plan is not None else None,
                 )
+                if isinstance(message, _SteeredResponse):
+                    steered_response = True
+                    message = message.message
             except _SafePointStop:
                 ev_stream.push(AgentEventAgentEnd(messages=new_messages))
                 return
@@ -873,7 +882,7 @@ async def _run_loop_with_recovery(
                 block.text for block in message.content
                 if isinstance(block, TextContent)
             ).strip()
-            if structured_plan is None and not has_more_tool_calls and (
+            if structured_plan is None and not steered_response and not has_more_tool_calls and (
                 message.stop_reason == "length" or not visible_text
             ):
                 await finish_provider_response(message)
@@ -1027,6 +1036,7 @@ async def _run_loop_with_recovery(
                             if isinstance(call, ToolCall)
                         ],
                         "next_tool_index": 0,
+                        "interrupted_by_steer": steered_response,
                         "usage": _durable_message(message.usage),
                     },
                 ))
@@ -1107,7 +1117,7 @@ async def _stream_assistant_response(
     structured_plan: Any | None = None,
     provider_snapshot: Any | None = None,
     output_attempt: int | None = None,
-) -> AssistantMessage:
+) -> AssistantMessage | _SteeredResponse:
     """
     Stream an assistant response from the LLM.
     Mirrors streamAssistantResponse() in TypeScript.
@@ -1442,6 +1452,7 @@ async def _stream_assistant_response(
         response_stream = fn(config.model, llm_context, stream_opts)
 
         iterator = response_stream.__aiter__()
+        next_steer_check = 0.0
         while True:
             if structured_plan is not None and cancel_event and cancel_event.is_set():
                 from openprogram.providers.utils.errors import ExecInterrupt
@@ -1449,11 +1460,72 @@ async def _stream_assistant_response(
                 raise ExecInterrupt("cancelled")
             timeout = _job_operation_timeout(None)
             try:
-                event = (
-                    await iterator.__anext__()
-                    if timeout is None
-                    else await asyncio.wait_for(iterator.__anext__(), timeout=timeout)
+                # A separate read-only probe observes durable steer commands.
+                # Only a closed provider response enters the existing safe point.
+                can_steer = config.safe_point_hook is not None and structured_plan is None and not (
+                    partial_message and any(isinstance(item, ToolCall) for item in partial_message.content)
                 )
+                if not can_steer:
+                    event = (
+                        await iterator.__anext__() if timeout is None
+                        else await asyncio.wait_for(iterator.__anext__(), timeout=timeout)
+                    )
+                else:
+                    next_event = asyncio.ensure_future(iterator.__anext__())
+                    deadline = time.monotonic() + timeout if timeout is not None else None
+                    interrupt = False
+                    try:
+                        while True:
+                            now = time.monotonic()
+                            if now >= next_steer_check:
+                                probe = {}
+                                await config.safe_point_hook("provider.poll", probe)
+                                next_steer_check = time.monotonic() + 0.1
+                                if probe.get("steer_pending"):
+                                    interrupt = True
+                                    break
+                            if deadline is not None and now >= deadline:
+                                raise asyncio.TimeoutError()
+                            wait = max(0, next_steer_check - now)
+                            if deadline is not None:
+                                wait = min(wait, max(0, deadline - now))
+                            ready, _ = await asyncio.wait({next_event}, timeout=wait)
+                            if ready:
+                                event = next_event.result()
+                                break
+                    finally:
+                        if not next_event.done():
+                            next_event.cancel()
+                            ready, _ = await asyncio.wait({next_event}, timeout=0.5)
+                            if not ready:
+                                # Do not overlap a new request with an unclosed reader.
+                                next_event.add_done_callback(lambda task: task.exception() if not task.cancelled() else None)
+                                raise RuntimeError("Provider did not stop after stream interruption")
+                        if next_event.done() and not next_event.cancelled():
+                            next_event.exception()
+                    if interrupt:
+                        cleanup = asyncio.create_task(_cancel_response_stream(response_stream, iterator))
+                        try:
+                            closed, _ = await asyncio.wait({cleanup}, timeout=0.5)
+                            if not closed:
+                                raise RuntimeError("Provider cleanup did not finish after steering")
+                            cleanup.result()
+                        finally:
+                            if not cleanup.done():
+                                cleanup.cancel()
+                            cleanup.add_done_callback(lambda task: task.exception() if not task.cancelled() else None)
+                        message = (partial_message.model_copy(deep=True) if partial_message is not None else AssistantMessage(
+                            content=[], api=config.model.api, provider=config.model.provider, model=config.model.id,
+                        ))
+                        message.stop_reason = "stop"
+                        if added_partial:
+                            context.messages[-1] = message
+                        else:
+                            context.messages.append(message)
+                            ev_stream.push(AgentEventMessageStart(message=message))
+                        ev_stream.push(AgentEventMessageEnd(message=message))
+                        response.status = "completed"
+                        return _SteeredResponse(message)
             except StopAsyncIteration:
                 break
             except BaseException:

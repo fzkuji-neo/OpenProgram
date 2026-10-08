@@ -66,7 +66,7 @@ export interface QueuedMessage extends QueuedAttachments {
   injecting?: boolean;
   /** Retained verbatim until its durable acknowledgement is known. */
   steerCommand?: ExecutionCommand;
-  steerError?: "unconfirmed" | "unavailable" | "too_long" | "retry";
+  steerError?: "unconfirmed" | "unavailable" | "too_long" | "retry" | "cancelled";
 }
 
 /** What the composer hands over; the store stamps id + queuedAt. */
@@ -144,7 +144,7 @@ export const useSendQueue = create<SendQueueState>((set, get) => ({
     const rows = get().queues[sessionId];
     const row = rows?.find(item => item.id === id);
     if (!row || row.editing || row.injecting || row.steerCommand) return;
-    set(s => ({ queues: { ...s.queues, [sessionId]: rows.map(item => item.id === id ? {...item, deliveryError:false} : item) } }));
+    set(s => ({ queues: { ...s.queues, [sessionId]: rows.map(item => item.id === id ? {...item, deliveryError:false, steerError:undefined} : item) } }));
     get().drain(sessionId);
   },
   removeDraft: (sessionId, id) => {
@@ -178,7 +178,7 @@ export const useSendQueue = create<SendQueueState>((set, get) => ({
   drain: (sessionId) => {
     const head = (get().queues[sessionId] ?? EMPTY)[0];
     if (!head || !sendImpl) return;
-    if (head.deliveryError || head.editing || head.injecting || head.steerCommand) return;
+    if (head.steerError === "cancelled" || head.deliveryError || head.editing || head.injecting || head.steerCommand) return;
     // Still busy — the next running-task clear will call us again.
     if (useSessionStore.getState().runningTasks[sessionId]) return;
     // Pop BEFORE sending: sendChatMessage re-enters the store (running
