@@ -54,6 +54,17 @@ export async function loadOlderSessionHistory(id: string): Promise<void> {
   await loadSessionHistoryWindow(id, 'older');
 }
 
+function readingAnchor(id: string): string | undefined {
+  const area = viewports.get(id)?.keys().next().value
+    ?? (runtimeState.currentSessionId === id ? document.getElementById('chatArea') : null);
+  return area ? captureHistoryAnchor(area)?.id : undefined;
+}
+export async function retrySessionHistory(id: string): Promise<boolean> {
+  const anchor = readingAnchor(id);
+  if (!anchor) return false;
+  return loadSessionHistoryWindow(id, 'around', anchor);
+}
+
 /** Network and data coordination. All viewport operations live in history-viewport. */
 export async function loadSessionHistoryWindow(id: string, direction: HistoryDirection, around?: string, options?: { isCurrent: () => boolean }): Promise<boolean> {
   if (options && !options.isCurrent()) return false;
@@ -77,6 +88,7 @@ export async function loadSessionHistoryWindow(id: string, direction: HistoryDir
     });
     return loadSessionHistoryWindow(id, direction, around, options);
   }
+  if (expected?.renewalRequired && (direction === 'older' || direction === 'newer')) return false;
   if (!expected || expected.loading || (direction === 'older' && !expected.before)
       || (direction === 'newer' && !expected.after)) return false;
   const socket = getSocket();
@@ -90,15 +102,18 @@ export async function loadSessionHistoryWindow(id: string, direction: HistoryDir
     : direction === 'around' ? {history_around: around} : {history_latest: true};
   type PageReply = {id: string; messages: HistoryRow[]; history: HistoryPage; error_code?: string};
   let page = await wsRequest<PageReply>(
-    'load_session', {session_id:id, history_head:expected.head_id, history_snapshot:expected.snapshot, ...field},
+    'load_session', {session_id:id, ...(!expected.renewalRequired ? {history_head:expected.head_id, history_snapshot:expected.snapshot} : {}), ...field},
     'session_history_page', {requestId:true}, 15000,
   );
   if (useSessionHistory.getState().pages[id]?.generation !== expected.generation) return false;
-  let renewed = false;
-  if (page?.error_code === 'invalid_request' && getSocket() === socket && (!options || options.isCurrent())) {
-    const registered = viewports.get(id);
-    const area = registered?.keys().next().value ?? (runtimeState.currentSessionId === id ? document.getElementById('chatArea') : null);
-    const anchor = around ?? (area ? captureHistoryAnchor(area)?.id : undefined);
+  let renewed = !!expected.renewalRequired;
+  if (!renewed && page?.error_code === 'invalid_request' && getSocket() === socket && (!options || options.isCurrent())) {
+    updateSessionHistory(id, expected.generation, { renewalRequired: true });
+    const anchor = around ?? readingAnchor(id);
+    if (!anchor && direction !== 'latest') {
+      updateSessionHistory(id, expected.generation, { loading: false, error: true });
+      return false;
+    }
     // Retry once without the expired cursor. A new snapshot can have a new head.
     page = await wsRequest<PageReply>('load_session', {
       session_id: id, ...(anchor ? {history_around: anchor} : {history_latest: true}),
@@ -150,7 +165,7 @@ export async function loadSessionHistoryWindow(id: string, direction: HistoryDir
   conv.messages=messages as typeof conv.messages;
   flushSync(()=>{
     store.setMessages(id,merged);
-    updateSessionHistory(id,expected.generation,{...history,loading:false,error:false});
+    updateSessionHistory(id,expected.generation,{...history,loading:false,error:false,renewalRequired:false});
   });
   const liveIds = new Set(merged.map(m=>m.id));
   const liveRegistered = viewports.get(id);

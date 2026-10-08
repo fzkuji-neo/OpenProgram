@@ -108,3 +108,12 @@ test('a new session generation clears old retry delays',async t=>{
   t.mock.timers.tick(1000); f.frame(); assert.equal(f.requests.length,3);
   await f.settle({loading:false,before:null});
  });
+
+test('failed snapshot renewal stops automatic retries against an invalid cursor', async t => {
+ const f=fixture(t);f.area.scrollTop=0;f.frame();
+ await f.settle({error:true,renewalRequired:true});
+ t.mock.timers.tick(60000);f.frame();f.area.dispatchEvent(new Event('scroll'));f.frame();
+ assert.equal(f.requests.length,1);
+ f.update({error:false,renewalRequired:false,before:'renewed'});f.frame();
+ assert.equal(f.requests.length,2);await f.settle({before:null});
+});

@@ -36,3 +36,9 @@ test('delayed snapshot preserves new rows and progress, but removes unchanged br
  const old={id:'old',text:'prior branch'},before={id:'stream',text:'a'},live={id:'stream',text:'abc'},newRow={id:'user',text:'new input'};
  assert.deepEqual(retainChangedRows([old,before],[old,live,newRow],[{id:'stream',text:'ab'}]),[live,newRow]);
 });
+
+test('unchanged active rows accept terminal snapshots while missing optimistic rows survive',()=>{
+ const old={id:'reply',status:'streaming',text:'Partial'},optimistic={id:'pending',status:'pending'};
+ const done={id:'reply',status:'done',text:'Complete answer'};
+ assert.deepEqual(retainChangedRows([old,optimistic],[old,optimistic],[done]),[done,optimistic]);
+});

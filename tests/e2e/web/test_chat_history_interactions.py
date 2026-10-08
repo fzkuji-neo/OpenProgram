@@ -20,6 +20,7 @@ import {loadSessionHistoryWindow,seedHistoryWindow} from './lib/runtime-bridge/s
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {saveHistoryAnchor,readHistoryAnchor} from './lib/chat/history-viewport';
 import {PeerSessionPane} from './components/chat/peer-session-pane';
+import {loadSessionData,renderSessionMessages} from './lib/runtime-bridge/conversations';
 import {requestSessionLoad,acceptSessionLoad,failSessionLoad,preserveSessionReadRows} from './lib/runtime-bridge/session-load';
 import {TranscriptReadStatus} from './components/chat/messages/transcript-read-status';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
@@ -41,12 +42,14 @@ function Main(){const ids=useSessionStore(s=>s.messageOrder.main??[]);const {det
 let root=createRoot(document.getElementById('mount'));root.render(<Main/>);
 window.unmount=()=>root.unmount();window.mount=()=>{root=createRoot(document.getElementById('mount'));root.render(<Main/>);};
 window.remount=()=>{window.unmount();window.mount();};
-window.readFixture=()=>{root.unmount();root=createRoot(document.getElementById('mount'));root.render(<TranscriptReadStatus sessionId="read"/>);};
+window.readFixture=()=>{const old={id:'reply',role:'assistant',content:'Partial',status:'streaming'};runtimeState.conversations.read={id:'read',messages:[old]};useSessionStore.getState().setMessages('read',[old]);root.unmount();root=createRoot(document.getElementById('mount'));root.render(<TranscriptReadStatus sessionId="read"/>);};
 window.read=()=>requestSessionLoad({action:'load_session',session_id:'read'});
 window.failRead=req=>failSessionLoad(socket,{request_id:req.request_id});
-window.acceptRead=req=>acceptSessionLoad(socket,{id:'read',request_id:req.request_id,messages:[]},data=>useSessionStore.getState().setMessages('read',preserveSessionReadRows('read',data.messages)));
+window.acceptRead=req=>acceptSessionLoad(socket,{id:'read',request_id:req.request_id,messages:[{id:'reply',role:'assistant',content:'Complete answer',status:'done'}]},loadSessionData);
 window.liveRow=()=>useSessionStore.getState().appendMessage('read',{id:'new-live',role:'assistant',content:'Progress after read',status:'streaming'});
 window.readRows=()=>useSessionStore.getState().messageOrder.read;
+window.readReply=()=>useSessionStore.getState().messagesById.reply;
+window.cachedRead=()=>renderSessionMessages(runtimeState.conversations.read,{preserveStore:true});
 window.peers=()=>{root.unmount();window.seed('left',200);window.seed('right',300);root=createRoot(document.getElementById('mount'));root.render(<QueryClientProvider client={queryClient}><div style={{display:'flex',height:500}}><PeerSessionPane tabId="left" sessionId="left" title="Left"/><PeerSessionPane tabId="right" sessionId="right" title="Right"/></div></QueryClientProvider>);};
 '''
     bundle = tmp_path / 'interactions.js'
@@ -102,7 +105,9 @@ window.peers=()=>{root.unmount();window.seed('left',200);window.seed('right',300
             page.wait_for_function("window.pageState('left').end===500")
             assert page.evaluate("window.pageState('right').end") == 350
             # Expired cursors renew once around the reader, without resending the cursor.
-            page.evaluate("window.requests.splice(0).forEach(r=>window.reply(r,true));window.loadHistory('left','older')")
+            page.evaluate("Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});window.requests.splice(0).forEach(r=>window.reply(r,true))")
+            page.wait_for_function("!window.pageState('left').loading && !window.pageState('right').loading")
+            page.evaluate("window.requests=[];void window.loadHistory('left','older')")
             page.wait_for_function("window.requests.some(r=>r.history_before&&r.session_id==='left')")
             page.evaluate("window.expire(window.requests.splice(0).find(r=>r.history_before&&r.session_id==='left'))")
             page.wait_for_function("window.requests.some(r=>r.history_around&&r.session_id==='left')")
@@ -110,6 +115,26 @@ window.peers=()=>{root.unmount();window.seed('left',200);window.seed('right',300
             page.evaluate("window.requests.splice(0).forEach(r=>window.reply(r))")
             page.wait_for_function("!window.pageState('left').loading")
             assert page.evaluate("window.pageState('left').error") is False
+            # If the saved anchor also expired, stop automatic invalid-cursor loops.
+            page.evaluate("window.requests=[];void window.loadHistory('left','older')")
+            page.wait_for_function('window.requests.length===1')
+            page.evaluate('window.expire(window.requests.shift())')
+            page.wait_for_function('window.requests.length===1')
+            page.evaluate('window.expire(window.requests.shift())')
+            page.wait_for_function("window.pageState('left').renewalRequired && !window.pageState('left').loading")
+            page.evaluate("void window.loadHistory('left','older');void window.loadHistory('left','older')")
+            assert page.evaluate('window.requests.length') == 0
+            paging_retry = panes.nth(0).get_by_role('button', name='Retry history', exact=True)
+            expect(paging_retry).to_be_visible(); paging_retry.focus(); page.keyboard.press('Enter')
+            page.wait_for_function('window.requests.length===1')
+            assert page.evaluate('window.requests[0].history_snapshot') is None
+            assert page.evaluate('Boolean(window.requests[0].history_around)') is True
+            page.evaluate('window.expire(window.requests.shift())')
+            latest = panes.nth(0).get_by_role('button', name='Go to latest history', exact=True)
+            expect(latest).to_be_visible(); latest.click()
+            page.wait_for_function('window.requests.some(r=>r.history_latest)')
+            page.evaluate('window.requests.splice(0).forEach(r=>window.reply(r))')
+            page.wait_for_function("!window.pageState('left').renewalRequired && !window.pageState('left').loading")
             # Production retry UI and request bridge retain live progress during a read.
             page.evaluate("window.readFixture();window.requests=[];window.read();window.read()")
             assert page.evaluate('window.requests.length') == 1
@@ -121,6 +146,10 @@ window.peers=()=>{root.unmount();window.seed('left',200);window.seed('right',300
             assert page.evaluate('window.acceptRead(window.requests[0])') is False
             page.evaluate('window.liveRow();window.acceptRead(window.requests[1])')
             expect(retry).to_have_count(0)
-            assert page.evaluate('window.readRows()') == ['new-live']
+            assert page.evaluate('window.readRows()') == ['reply', 'new-live']
+            assert page.evaluate('window.readReply().status') == 'done'
+            assert page.evaluate('window.readReply().content') == 'Complete answer'
+            page.evaluate('window.cachedRead()')
+            assert page.evaluate('window.readRows()') == ['reply', 'new-live']
         finally:
             browser.close()
