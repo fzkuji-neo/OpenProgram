@@ -102,7 +102,7 @@ export async function loadSessionHistoryWindow(id: string, direction: HistoryDir
     : direction === 'around' ? {history_around: around} : {history_latest: true};
   type PageReply = {id: string; messages: HistoryRow[]; history: HistoryPage; error_code?: string};
   let page = await wsRequest<PageReply>(
-    'load_session', {session_id:id, ...(!expected.renewalRequired ? {history_head:expected.head_id, history_snapshot:expected.snapshot} : {}), ...field},
+    'load_session', {session_id:id, history_head:expected.head_id, ...(!expected.renewalRequired ? {history_snapshot:expected.snapshot} : {}), ...field},
     'session_history_page', {requestId:true}, 15000,
   );
   if (useSessionHistory.getState().pages[id]?.generation !== expected.generation) return false;
@@ -116,7 +116,7 @@ export async function loadSessionHistoryWindow(id: string, direction: HistoryDir
     }
     // Retry once without the expired cursor. A new snapshot can have a new head.
     page = await wsRequest<PageReply>('load_session', {
-      session_id: id, ...(anchor ? {history_around: anchor} : {history_latest: true}),
+      session_id: id, history_head: expected.head_id, ...(anchor ? {history_around: anchor} : {history_latest: true}),
     }, 'session_history_page', {requestId:true}, 15000);
     renewed = true;
     if (useSessionHistory.getState().pages[id]?.generation !== expected.generation) return false;
