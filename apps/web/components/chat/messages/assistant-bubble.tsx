@@ -296,24 +296,6 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
         <div className="message-sender">{sender}</div>
       </div>
 
-      {msg.status === "error" && !msg.goalVerification ? (
-        <div className="error-content">
-          {(() => {
-            const headline = errorHeadline(msg, text);
-            const detail = msg.content || text("Request failed.", "请求失败。");
-            return headline ? (
-              <>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>{headline}</div>
-                <div style={{ opacity: 0.7, fontSize: "0.92em", whiteSpace: "pre-wrap" }}>
-                  {detail}
-                </div>
-              </>
-            ) : (
-              detail
-            );
-          })()}
-        </div>
-      ) : null}
       {(
         <div className="chat-stream-body">
           {effBlocks ? (
@@ -439,7 +421,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                   </ExecutionStrip>,
                 );
               });
-              if (!hasTextBlock && hasContent && msg.status !== "error") {
+              if (!hasTextBlock && hasContent && (msg.status !== "error" || !!msg.errorDetail)) {
                 rendered.push(
                   <MarkdownText key="legacy_content" text={contentText} />,
                 );
@@ -497,12 +479,22 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
               ))}
               {runtimeChildren.length > 0
                 ? <LegacyRuntimeTrace>{runtimeChildren}</LegacyRuntimeTrace> : null}
-              {hasContent && msg.status !== "error" ? <MarkdownText text={contentText} /> : null}
+              {hasContent && (msg.status !== "error" || !!msg.errorDetail) ? <MarkdownText text={contentText} /> : null}
               {streaming && !hasContent && !waitingApproval && !verdict && !msg.retryStatus
                 && !msg.function && msg.display !== "runtime" && runtimeChildren.length === 0
                 && !msg.attachCards?.length && !msg.callRoots?.length ? <TypingIndicator /> : null}
             </>
           )}
+          {msg.status === "error" && !msg.goalVerification ? (
+            <div className="turn-error" role="status">
+              <div className="turn-error-title">{errorHeadline(msg, text)
+                || text("This reply could not be completed.", "本次回复未能完成。")}</div>
+              <details className="turn-error-details">
+                <summary>{text("Error details", "错误详情")}</summary>
+                <pre>{msg.errorDetail || msg.content || text("Request failed.", "请求失败。")}</pre>
+              </details>
+            </div>
+          ) : null}
           {!msg.goalVerification && (msg.status === "cancelled" || msg.status === "interrupted") ? (
             <div className="pending-body" role="status">
               <span className="pending-label">{msg.status === "cancelled"

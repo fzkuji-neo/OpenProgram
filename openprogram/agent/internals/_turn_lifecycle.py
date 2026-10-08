@@ -108,8 +108,10 @@ def fold_error_into_placeholder(
     session_id: str,
     assistant_msg_id: str,
     exc: BaseException,
+    *,
+    error_metadata: Optional[dict] = None,
 ) -> Optional[str]:
-    """Overwrite the assistant placeholder with error content.
+    """Persist failure details; partial output stays in the ordered blocks.
 
     Resolves a per-session writer from ``default_store()``.
     """
@@ -120,8 +122,11 @@ def fold_error_into_placeholder(
         shim = SessionNodeWriter(default_store(), session_id)
         shim.update(
             assistant_msg_id,
+            # Keep legacy output for model-context and non-Web consumers.
             output=err_text,
             metadata={
+                **(error_metadata or {}),
+                "error_detail": err_text,
                 "error": str(exc),
                 "error_type": type(exc).__name__,
                 "trace": trace,

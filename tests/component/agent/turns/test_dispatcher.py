@@ -456,6 +456,7 @@ def test_stream_progress_survives_reload_and_failure(tmp_db, monkeypatch):
     msg = next(m for m in tmp_db.get_messages("progress") if m["role"] == "assistant")
     assert json.loads(msg["extra"])["blocks"] == expected
     assert "provider disconnected" in msg["content"]
+    assert "provider disconnected" in msg["error_detail"]
 
 
 
@@ -480,3 +481,41 @@ def test_cancel_keeps_incomplete_iteration_progress(tmp_db, monkeypatch):
     assert not result.failed
     msg=next(m for m in tmp_db.get_messages("stopped") if m["role"]=="assistant")
     assert json.loads(msg["extra"])["blocks"][-1] == {"type":"thinking","text":"Unfinished reasoning"}
+
+
+def test_failed_turn_preserves_partial_reply_and_error_after_reopen(tmp_db, tmp_path, collector, captured):
+    from openprogram.providers.utils.errors import LLMError, ErrorReason
+    from openprogram.webui.persistence import aggregate_tool_messages
+
+    def fail_after_progress(*, req, on_event, **kwargs):
+        on_event({'type': 'chat_response', 'data': {
+            'type': 'stream_event', 'session_id': req.session_id,
+            'event': {'type': 'text', 'text': 'Partial answer'},
+        }})
+        raise LLMError('connection lost', reason=ErrorReason.TRANSPORT, retryable=True)
+
+    with patch.object(D, '_run_loop_blocking', fail_after_progress):
+        result = D.process_user_turn(D.TurnRequest(
+            session_id='failed-reopen', user_text='hi', agent_id='main', source='tui',
+        ), on_event=collector)
+    assert result.failed
+    # Fresh store instance reads the durable node, not the producer's cache.
+    reopened = SessionDB(tmp_path / 'sessions-git')
+    try:
+        rows = aggregate_tool_messages(reopened.get_messages('failed-reopen'))
+        from openprogram.context.render import render_dag_messages
+        from openprogram.store import SessionNodeWriter
+        graph = SessionNodeWriter(reopened, 'failed-reopen').load()
+        context = render_dag_messages(graph, [result.assistant_msg_id])
+        assert 'connection lost' in context[0].content[0].text
+    finally:
+        reopened.close()
+    reply = next(m for m in rows if m['id'] == result.assistant_msg_id)
+    assert reply['status'] == 'error'
+    assert reply['content'] == reply['error_detail']
+    assert 'connection lost' in reply['error_detail']
+    assert reply['error_reason'] == 'transport'
+    assert reply['error_retryable'] is True
+    assert reply['blocks'] == [{'type': 'text', 'text': 'Partial answer'}]
+    event = next(e['data'] for e in captured if e.get('data', {}).get('type') == 'error')
+    assert event['error_detail'] == reply['error_detail']
