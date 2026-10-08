@@ -22,7 +22,7 @@ import { useSessionStore } from "@/lib/session-store";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { parseFunctionInvocation } from "@/lib/execution/function-invocation";
 import { showToast } from "@/lib/format-utils/toast";
-import { enqueueMessage } from "@/lib/chat/send-queue";
+import { enqueueMessage, holdSteeringForStop } from "@/lib/chat/send-queue";
 import { steerQueuedMessage } from "@/lib/chat/steer-message";
 import { useFunctions } from "@/lib/abilities/functions-store";
 import { buildAttachmentEnvelope } from "@/lib/chat/attachment-marker";
@@ -383,6 +383,7 @@ export function stopSession(
       previousMessageStatus: optimisticMessage?.status,
     };
   }
+  if (task) holdSteeringForStop(targetSessionId);
   if (task) showToast("Stop requested. Cancelling the current operation…");
   // 2. Patch the live assistant to cancelled. Keep streamed text.
   //    Only the server-issued execution identity can identify the exact
