@@ -500,3 +500,18 @@ test('new output received after a pause resumes streaming', () => {
   send({type:'text',text:'Resumed output'});runFrame();
   assert.equal(reply().status,'streaming');assert.equal(reply().content,'Resumed output');
 });
+
+test('new text after a recoverable error resumes instead of being discarded', () => {
+  reset();
+  applyChatWsMessage({type:'chat_response',data:{type:'error',session_id:SID,msg_id:UID,error:'Attempt failed'}});
+  assert.equal(reply().status,'error');
+  send({type:'text',text:'Recovered output'});runFrame();
+  assert.equal(reply().status,'streaming');assert.equal(reply().content,'Recovered output');
+});
+
+test('output resumes after a pause even within the same animation frame', () => {
+  reset();send({type:'text',text:'Before pause. '});
+  useSessionStore.getState().updateMessage(SID,RID,{status:'paused'});
+  send({type:'text',text:'After resume.'});runFrame();
+  assert.equal(reply().status,'streaming');assert.equal(reply().content,'Before pause. After resume.');
+});
