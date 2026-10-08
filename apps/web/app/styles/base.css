@@ -43,9 +43,9 @@
   --ui-list-radius: 10px;
   --ui-button-h: 30px;
   --ui-button-radius: 10px;
-  /* 聊天列（消息列 + 输入框三条带共用）：空间够就扩，封顶 800——
-     16px 正文下约 45 个汉字一行，长回复读起来不累。 */
-  --chat-column-max: 800px;
+  /* 聊天列（消息列 + 输入框三条带共用）：空间够就扩，封顶 900。
+     消息正文左右不再内缩，文字边缘与输入框边缘对齐。 */
+  --chat-column-max: 900px;
   /* Inset once reserved for message avatars (now hidden); keep every
      transcript element on this one value so they stay aligned. */
   --avatar-gutter: 0px;
@@ -134,7 +134,7 @@
      to `--fs-sm` (13px). */
   --fs-sm: 13px;
   --fs-base: 14px;
-  --fs-chat: 16px; /* transcript copy and embedded conversation cards */
+  --fs-chat: 15px; /* transcript copy and embedded conversation cards */
   --fs-md: 16px;
   --fs-lg: 20px;
 }

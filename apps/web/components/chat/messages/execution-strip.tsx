@@ -14,7 +14,8 @@
  */
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import { memo, useEffect, useState } from "react";
-import { Wrench } from "lucide-react";
+import { Brain, ChevronRight, Wrench, type LucideIcon } from "lucide-react";
+import { parseToolArgs, presentTool, type ToolTone } from "./tool-presentation";
 import { afterTwoAnimationFrames } from "./collapse-frame";
 
 import type { AssistantBlock, ChatMsg, DetailNode } from "@/lib/session-store";
@@ -31,7 +32,6 @@ import { LlmNodeContent } from "./llm-node-content";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import {
   BotIcon,
-  BrainIcon,
   CpuIcon,
 } from "@/components/animated-icons";
 import { MessageTimestamp } from "./message-actions";
@@ -49,22 +49,10 @@ function wsSend(payload: unknown): void {
   }
 }
 
-/** Tool name → summary category (Claude Code style "Edited 3 files, ran 9
- *  commands"). Anything unlisted counts as a generic function call. */
-const EDIT_TOOLS = new Set(["edit", "write", "apply_patch"]);
-const COMMAND_TOOLS = new Set(["bash", "execute_code", "process", "terminal_use"]);
-const READ_TOOLS = new Set(["read", "list"]);
-const SEARCH_TOOLS = new Set(["grep", "glob"]);
-
 function editedPath(input: string | undefined): string | null {
-  if (!input) return null;
-  try {
-    const parsed = JSON.parse(input) as Record<string, unknown>;
-    const path = parsed.path ?? parsed.file_path ?? parsed.filename;
-    return typeof path === "string" && path ? path : null;
-  } catch {
-    return null;
-  }
+  const args = parseToolArgs(input);
+  const path = args.path ?? args.file_path ?? args.filename;
+  return typeof path === "string" && path ? path : null;
 }
 
 /** One plain-language summary line: thought, edits, commands, reads,
@@ -79,6 +67,7 @@ export function execStripLabel(
   let commands = 0;
   let reads = 0;
   let searches = 0;
+  let web = 0;
   let others = 0;
   let editsWithoutPath = 0;
   const editedFiles = new Set<string>();
@@ -86,14 +75,17 @@ export function execStripLabel(
     if (b.type === "thinking") thinking++;
     else if (b.type === "tool") {
       const tool = b.tool || "";
+      // One categorisation shared with the timeline rows.
+      const tone = presentTool(tool, undefined, text).tone;
       if (SPAWNING_TOOL_NAMES.has(tool)) spawnBlocks++;
-      else if (EDIT_TOOLS.has(tool)) {
+      else if (tone === "edit") {
         const path = editedPath(b.input);
         if (path) editedFiles.add(path);
         else editsWithoutPath++;
-      } else if (COMMAND_TOOLS.has(tool)) commands++;
-      else if (READ_TOOLS.has(tool)) reads++;
-      else if (SEARCH_TOOLS.has(tool)) searches++;
+      } else if (tone === "shell") commands++;
+      else if (tone === "read") reads++;
+      else if (tone === "search") searches++;
+      else if (tone === "web") web++;
       else others++;
     }
   }
@@ -106,6 +98,7 @@ export function execStripLabel(
   if (commands > 0) parts.push(text("ran ", "运行 ") + count(commands, "command", "commands", "条命令"));
   if (reads > 0) parts.push(text("read ", "读取 ") + count(reads, "file", "files", "个文件"));
   if (searches > 0) parts.push(text("searched ", "搜索 ") + count(searches, "time", "times", "次"));
+  if (web > 0) parts.push(text("browsed ", "浏览网页 ") + count(web, "time", "times", "次"));
   if (others > 0) parts.push(text("called ", "调用 ") + count(others, "function", "functions", "个函数"));
   const subAgents = Math.max(spawnBlocks, spawnNames.length);
   if (subAgents > 0) {
@@ -235,7 +228,10 @@ function plainNote(s: string): string {
  *  可展开行在原图标外增加常驻细圆圈；每一行都有复制动作。 */
 export function StepRow({
   icon,
+  glyph,
+  tone,
   title,
+  target,
   note,
   error,
   running,
@@ -251,7 +247,13 @@ export function StepRow({
   dataHeadId,
 }: {
   icon: "thinking" | "function" | "llm" | "subagent";
+  /** Per-tool icon; overrides the generic one for `icon`. */
+  glyph?: LucideIcon;
+  /** Per-tool colour family (tool-presentation.ts). */
+  tone?: ToolTone;
   title: string;
+  /** Identifying argument, shown as a monospace chip after the title. */
+  target?: string;
   note?: string;
   error?: boolean;
   running?: boolean;
@@ -280,7 +282,7 @@ export function StepRow({
   const expanded = subSteps ? kidsOpen : stateKey
     ? (persistedOpen ?? false)
     : open;
-  const copyValue = copyText ?? [title, note].filter(Boolean).join(" · ");
+  const copyValue = copyText ?? [title, target, note].filter(Boolean).join(" · ");
   useEffect(() => {
     // Update the selected snapshot without changing the dock or its active tab.
     if (!detail || onOpenDetail) return;
@@ -314,9 +316,9 @@ export function StepRow({
     if (onOpenDetail) onOpenDetail();
     else useSessionStore.getState().showDetail(detail);
   }
-  const Icon = icon === "thinking" ? BrainIcon
+  const Icon = glyph ?? (icon === "thinking" ? Brain
     : icon === "subagent" ? BotIcon
-    : icon === "llm" ? CpuIcon : Wrench;
+    : icon === "llm" ? CpuIcon : Wrench);
   return (
     <div
       className={"tl-step" + (expanded ? " open" : "")}
@@ -332,22 +334,21 @@ export function StepRow({
         <span
           className={
             "tl-step-icon k-" + icon
+            + (tone ? " t-" + tone : "")
             + (error ? " is-error" : "")
             + (running ? " is-running" : "")
             + (toggleable ? " is-toggleable" : "")
           }
           aria-hidden="true"
         >
-          {running ? (
-            <span className="tl-spin" />
-          ) : error ? (
+          {error && !running ? (
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none"
                  stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="6" y1="6" x2="18" y2="18" />
               <line x1="18" y1="6" x2="6" y2="18" />
             </svg>
           ) : (
-            <Icon size={13} />
+            <Icon size={13} strokeWidth={1.9} />
           )}
         </span>
         <span
@@ -358,9 +359,11 @@ export function StepRow({
         >
           {title}
         </span>
+        {target ? <code className="tl-step-target">{target}</code> : null}
         {/* 不加 title：流式中 note 每个 delta 都在变，原生 tooltip 会
             钉死在视口角落变成"漂浮黑框"；全文本来就有行内展开可看。 */}
-        {note ? <span className="tl-step-note">{note}</span> : null}
+        {note ? <span className="tl-step-note">{note}</span> : <span className="tl-step-note" />}
+        {toggleable ? <ChevronRight className="tl-step-chev" size={13} aria-hidden="true" /> : null}
         <span className="tl-step-act">
           <button type="button" className="tl-btn" onClick={copy}>
             {copied ? text("Copied", "已复制") : text("Copy", "复制")}
@@ -449,6 +452,7 @@ export function FunctionStep({
   const name = block.tool || "?";
   const kids = tree?.children || [];
   const result = fullResult ?? block.result;
+  const view = presentTool(name, block.input, text);
   const detailStatus = cancelled
     ? "cancelled"
     : running || loadingFull
@@ -518,10 +522,12 @@ export function FunctionStep({
   return (
     <StepRow
       icon="function"
-      title={text("Function call", "函数调用")}
-      note={`${name}${block.input ? " · " + short(block.input, 60) : ""}${
-        result !== undefined && result !== null && result !== ""
-          ? " → " + short(String(result), 60) : ""}`}
+      glyph={view.Icon}
+      tone={view.tone}
+      title={view.title}
+      target={view.target ? short(view.target, 72) : undefined}
+      note={result !== undefined && result !== null && result !== ""
+        ? short(firstLine(decodeEscapes(String(result))), 90) : undefined}
       error={isError || cancelled}
       running={running || loadingFull}
       copyText={JSON.stringify(
@@ -572,7 +578,10 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
   } else if (params && Object.keys(params).length) {
     noteParts.push(short(params, 70));
   }
-  if (node.duration_ms) noteParts.push(`${Math.round(node.duration_ms)}ms`);
+  if (node.duration_ms) {
+    const ms = Math.round(node.duration_ms);
+    noteParts.push(ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`);
+  }
   if (cancelled) noteParts.push(text("cancelled", "已取消"));
   if (stream.syncing) noteParts.push(text("resyncing…", "重新同步"));
   if (stream.attemptLabel) {
@@ -612,6 +621,7 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
   if (isLlm && !out && !running && !isError) {
     noteParts.push(text("No text output", "无文本输出"));
   }
+  const treeView = isLlm || !node.name ? undefined : presentTool(node.name, undefined, text);
   const contentBody = isLlm ? (
     <LlmNodeContent
       nodeId={node.path}
@@ -623,6 +633,8 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
   return (
     <StepRow
       icon={isLlm ? "llm" : "function"}
+      glyph={isLlm ? undefined : treeView?.Icon}
+      tone={isLlm ? undefined : treeView?.tone}
       title={isLlm ? "LLM" : (node.name || node.node_type || "call")}
       note={noteParts.join(" · ")}
       error={isError}

@@ -75,46 +75,36 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .tl-collapse{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s ease}
 .tl.open .tl-collapse{grid-template-rows:1fr}
 .tl-collapse-inner{overflow:hidden;min-height:0}
-.tl-body{position:relative;margin:6px 0 4px;padding-left:38px}
-.tl-body::before{content:"";position:absolute;left:13.25px;top:16px;bottom:16px;width:1.5px;
-  background:var(--timeline-line);border-radius:1px}
-.step{position:relative;padding:2px 0 2px 2px}
-.step-head{position:relative;display:flex;align-items:center;gap:10px;color:var(--text-secondary);
-  font-size:13px;cursor:pointer;border-radius:6px;padding:3px 8px;user-select:none}
+.tl-body{position:relative;margin:8px 0 6px;padding-left:34px}
+.tl-body::before{content:"";position:absolute;left:11.5px;top:18px;bottom:18px;width:1px;
+  background:linear-gradient(to bottom,transparent,var(--timeline-line) 12px,var(--timeline-line) calc(100% - 12px),transparent)}
+.step{position:relative;padding:1px 0}
+.step-head{position:relative;display:flex;align-items:center;gap:8px;min-height:30px;color:var(--text-secondary);
+  font-size:13px;cursor:pointer;border-radius:8px;padding:3px 8px;user-select:none}
 .step-head:hover{background:var(--bg-hover)}
 .step-head:focus-visible{outline:1px solid var(--accent-cyan);outline-offset:1px;background:var(--bg-hover)}
-/* Icons sit inside title rows, aligned to text; background covers the vertical line. Expandable rows always show solid collapsed circles or hollow expanded rings; leaves have none. */
-.step-icon{position:absolute;left:-36px;top:50%;transform:translateY(-50%);width:20px;height:20px;
-  --marker-size:26px;--marker-radius:13px;display:flex;align-items:center;justify-content:center;
-  background:var(--bg-primary);color:var(--text-secondary);isolation:isolate}
-.step[data-step-toggle]>.step-head>.step-icon{border-radius:50%;
-  --marker-surface:light-dark(color-mix(in srgb,currentColor 8%,var(--bg-primary)),
-    color-mix(in srgb,currentColor 14%,var(--bg-primary)));
-  transition:background-color .18s ease}
-.step[data-step-toggle]>.step-head>.step-icon::after{content:"";position:absolute;z-index:0;left:50%;top:50%;
-  box-sizing:border-box;width:var(--marker-size);height:var(--marker-size);border:2px solid var(--marker-surface);
-  border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
-.step[data-step-toggle]>.step-head>.step-icon::before{content:"";position:absolute;z-index:-1;left:50%;top:50%;
-  width:var(--marker-size);height:var(--marker-size);border-radius:50%;background:var(--marker-surface);
-  transform:translate(-50%,-50%);transform-origin:center top;pointer-events:none;
-  transition:top .22s cubic-bezier(.2,.7,.2,1),width .18s ease,height .22s cubic-bezier(.2,.7,.2,1),
-    border-radius .18s ease,background-color .18s ease}
-.step[data-step-toggle]:not(.open)>.step-head>.step-icon{
-  background-color:transparent}
-.step[data-step-toggle].open>.step-head>.step-icon{
-  background-color:var(--bg-primary);box-shadow:0 0 0 1px var(--bg-primary)}
-.step[data-step-toggle].open>.step-head>.step-icon::before{
-  top:calc(50% + var(--marker-radius) + 6px);width:1.5px;height:12px;border-radius:1px;
-  background-color:transparent}
-.step-icon svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;
+/* Icon tile: a 24px rounded square tinted with the step tone (16% fill, 26% inset ring, full-strength glyph). Tones and glyphs follow tool-presentation.ts. */
+.step-icon{--tone:var(--timeline-function);position:absolute;left:-34px;top:50%;transform:translateY(-50%);
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:7px;color:var(--tone);
+  background:linear-gradient(color-mix(in srgb,var(--tone) 16%,transparent),color-mix(in srgb,var(--tone) 16%,transparent)),var(--bg-primary);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tone) 26%,transparent);isolation:isolate}
+.step-icon svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;
   stroke-linecap:round;stroke-linejoin:round}
-/* Type colors: purple thinking / orange function / cyan LLM / green sub-agent (static, not animated)。 */
-.step-icon.k-thinking{color:var(--timeline-thinking)}
-.step-icon.k-function{color:var(--timeline-function)}
-.step-icon.k-llm{color:var(--timeline-llm)}
-.step-icon.k-subagent{color:var(--timeline-subagent)}
-.step-icon.is-error{color:var(--accent-red)}
-.step-title{flex:0 0 auto}
+/* Tones: thinking purple / LLM cyan / sub-agent green / commands green / edits amber / reads blue / searches cyan / web indigo / other functions orange. */
+.step-icon.k-thinking{--tone:var(--timeline-thinking)}
+.step-icon.k-function{--tone:var(--timeline-function)}
+.step-icon.k-llm{--tone:var(--timeline-llm)}
+.step-icon.k-subagent{--tone:var(--timeline-subagent)}
+.step-icon.t-shell{--tone:light-dark(#15803d,#4ade80)}
+.step-icon.t-edit{--tone:light-dark(#b45309,#fbbf24)}
+.step-icon.t-read{--tone:light-dark(#1d4ed8,#60a5fa)}
+.step-icon.t-search{--tone:light-dark(#0e7490,#22d3ee)}
+.step-icon.t-web{--tone:light-dark(#4338ca,#818cf8)}
+.step-icon.is-error{--tone:var(--accent-red)}
+.step-title{flex:0 0 auto;color:var(--text-primary);font-weight:500}
+.step-target{flex:0 1 auto;min-width:0;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:var(--font-mono);font-size:12px;line-height:18px;padding:0 6px;border-radius:5px;
+  color:var(--text-secondary);background:color-mix(in srgb,var(--text-primary) 6%,transparent)}
 /* Title = details entry, underlined on hover; other row areas only expand/collapse. */
 .step-title.link{cursor:pointer}
 .step-title.link:hover{color:var(--text-bright);text-decoration:underline}
@@ -141,12 +131,12 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
   transition:grid-template-rows .22s cubic-bezier(.2,.7,.2,1),opacity .14s ease,transform .22s cubic-bezier(.2,.7,.2,1)}
 .tl-sub-clip{min-height:0;overflow:hidden}
 .tl-sub-inner{padding:2px 0}
-.tl-sub::before{content:"";position:absolute;left:11.75px;top:12px;bottom:12px;width:1.5px;
-  background:var(--timeline-line);border-radius:1px;transform:translateY(-9.5px);
+.tl-sub::before{content:"";position:absolute;left:9.5px;top:14px;bottom:14px;width:1px;
+  background:var(--timeline-line);opacity:.7;transform:translateY(-9.5px);
   transition:transform .22s cubic-bezier(.2,.7,.2,1)}
-.tl-sub .step{padding:1px 0 1px 2px}
+.tl-sub .step{padding:1px 0}
 .tl-sub .step-head{font-size:12.5px;padding:3px 8px}
-.tl-sub .step-icon{left:-32px;width:17px;height:17px;--marker-size:23px;--marker-radius:11.5px}
+.tl-sub .step-icon{left:-30px;width:20px;height:20px;border-radius:6px}
 .tl-sub .step-icon svg{width:11px;height:11px}
 .tl-sub .step-body-inner{font-size:12.5px;padding:8px 12px}
 .step.open>.tl-sub{grid-template-rows:1fr;opacity:1;transform:translateY(0);pointer-events:auto}
@@ -457,8 +447,8 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
     </div></div>
   </div>
 </div>
-<div class="rule">Status occupies the icon position: running = original small status dot, failed = red ✗, normal = type-colored icon. Expandability and open state are also expressed only there: rows with children always show a circle, solid when collapsed and hollow when expanded; leaves have none. Circles inherit type colors. Collapsed fill is uniform, opaque, and light; it is not a hover effect and does not change with pointer movement.<br> Geometry: main tl-body left padding is 28px; a 20px icon occupies 0..20 (center 10) and the 1.5px vertical line sits at 9.25px. Child left padding is 34px, with 17px icons (center 12.5) and the line at 11.75px. Icon boxes, circle centers, and line positions stay fixed. Collapsed fill covers the full 26px main / 23px child circle with identical center/edge colors, covering the timeline. The independent outer ring remains 2px in both states. Expanded state adds a 1px page-background inner mask outside the icon box, exactly reaching the ring’s inner edge; the gray timeline starts below its outer lower edge. Outer diameter changes neither row height nor column width. Only the inner fill changes width, height, vertical position, and opacity: a 26/23px circle becomes a 1.5×12px segment and fades out, with the segment’s top at the ring’s lower edge. The original 1.5px neutral timeline alone displays the connection.<br> Animation: circular fill, ring color, and child content start in one frame. Fill, child height, and child-timeline start share 220ms cubic-bezier(.2,.7,.2,1). In addition to the child timeline’s -3px→0 translation, its line start moves -9.5px→-0.5px, staying connected to the upper 12px segment in all intermediate frames. Ring color and content opacity use 140–180ms ease. Collapse reverses direction. Implementation uses one open state without intermediate states. Dark/light modes have separate vivid type colors. Timelines use 22% neutral color in light mode and 28% in dark mode, both visually weaker than type icons and text. prefers-reduced-motion reduces every transition to 0.01ms.<br> Add no independent arrow, arrow slot, or “⋯ N steps” label. Keep only actions such as Copy and Switch on the right; action right edges do not depend on expandability. Underlined titles always open details. Auxiliary actions appear only on the hovered row, changing immediately on entry/exit without opacity transitions. Apply :hover to step-head rather than the entire step so child hover does not reveal ancestor actions. Keyboard interaction retains actions only through :focus-visible; pointer focus must not leave old-row actions visible. Icons, summaries, and whitespace only expand/collapse, never open details.<br> Nesting: when functions have child calls (Agent method execution trees or multi-level tool call trees), expansion shows<b>an indented child timeline</b>, recursively using identical row styles without a depth limit.<br>
-<b>Implementation status:</b>Production components use solid collapsed circles and hollow expanded circles. Collapsed fill is uniform, opaque, light, and covers connecting lines. It continuously shrinks to reveal the original line; child content expands/collapses with the same 220ms transition. Outer diameters are 26px main and 23px child. Existing behavior is otherwise unchanged: every timeline row offers copy, while right-side expansion arrows and step counts are removed.</div>
+<div class="rule">Every step row starts with a 24px rounded-square tile (7px corners) tinted with the step tone: a 16% tone fill over the page background, a 1px inset ring at 26%, and the glyph at full strength. Tones and glyphs come from <code>tool-presentation.ts</code>: commands green (terminal), file edits amber (pen), reads blue (file), searches cyan (search), web and browser indigo (globe or pointer), sub-agents green (bot), memory fuchsia, planning slate, media rose, system stone, other functions orange (wrench); thinking stays purple and LLM cyan. Failed = red tile with ✗; running = the normal glyph with a conic sweep orbiting the tile. Row text: a verb title (Ran, Edited, Searched the web…) at weight 500, then the identifying argument as a monospace chip, then the first line of the result in muted text. Raw JSON never appears in a row; the side panel keeps the full parameters and output.<br> Geometry: the main tl-body left padding is 34px; the 24px tile occupies 0..24 (center 12) and a 1px rail sits at 11.5px, fading in and out over its first and last 12px. Child timelines indent 6px with 30px left padding, 20px tiles (6px corners, 11px glyphs) and the rail at 9.5px. Rows are at least 30px tall (26px nested).<br> Animation: expandable rows show a small chevron after the summary that rotates 90° when open. Child content and the child timeline share one 220ms cubic-bezier(.2,.7,.2,1) transition; the whole strip keeps its 180ms collapse. prefers-reduced-motion reduces every transition to 0.01ms.<br> Expandability is shown only by that chevron; add no arrow slot or “⋯ N steps” label. Keep only actions such as Copy and Switch on the right; action right edges do not depend on expandability. Underlined titles always open details. Auxiliary actions appear only on the hovered row, changing immediately on entry/exit without opacity transitions. Apply :hover to step-head rather than the entire step so child hover does not reveal ancestor actions. Keyboard interaction retains actions only through :focus-visible; pointer focus must not leave old-row actions visible. Icons, summaries, and whitespace only expand/collapse, never open details.<br> Nesting: when functions have child calls (Agent method execution trees or multi-level tool call trees), expansion shows<b>an indented child timeline</b>, recursively using identical row styles without a depth limit.<br>
+<b>Implementation status:</b>Production components use tone-tinted rounded tiles per tool, verb titles with argument chips, a conic sweep while running and a chevron on expandable rows. Every timeline row offers copy; step counts are removed.</div>
 
 <!-- ═══════ 3. Manual function runs ═══════ -->
 <h2><span class="num">3</span>Manual function runs: one FunctionInvocation, two input modes</h2>

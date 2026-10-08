@@ -76,47 +76,36 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .tl-collapse{display:grid;grid-template-rows:0fr;transition:grid-template-rows .18s ease}
 .tl.open .tl-collapse{grid-template-rows:1fr}
 .tl-collapse-inner{overflow:hidden;min-height:0}
-.tl-body{position:relative;margin:6px 0 4px;padding-left:38px}
-.tl-body::before{content:"";position:absolute;left:13.25px;top:16px;bottom:16px;width:1.5px;
-  background:var(--timeline-line);border-radius:1px}
-.step{position:relative;padding:2px 0 2px 2px}
-.step-head{position:relative;display:flex;align-items:center;gap:10px;color:var(--text-secondary);
-  font-size:13px;cursor:pointer;border-radius:6px;padding:3px 8px;user-select:none}
+.tl-body{position:relative;margin:8px 0 6px;padding-left:34px}
+.tl-body::before{content:"";position:absolute;left:11.5px;top:18px;bottom:18px;width:1px;
+  background:linear-gradient(to bottom,transparent,var(--timeline-line) 12px,var(--timeline-line) calc(100% - 12px),transparent)}
+.step{position:relative;padding:1px 0}
+.step-head{position:relative;display:flex;align-items:center;gap:8px;min-height:30px;color:var(--text-secondary);
+  font-size:13px;cursor:pointer;border-radius:8px;padding:3px 8px;user-select:none}
 .step-head:hover{background:var(--bg-hover)}
 .step-head:focus-visible{outline:1px solid var(--accent-cyan);outline-offset:1px;background:var(--bg-hover)}
-/* 图标锚在标题行内部（与文字天然对齐），底色遮住背后的竖线。
-   可展开行始终显示圆形状态：收起实心、展开空心；叶子行无圈。 */
-.step-icon{position:absolute;left:-36px;top:50%;transform:translateY(-50%);width:20px;height:20px;
-  --marker-size:26px;--marker-radius:13px;display:flex;align-items:center;justify-content:center;
-  background:var(--bg-primary);color:var(--text-secondary);isolation:isolate}
-.step[data-step-toggle]>.step-head>.step-icon{border-radius:50%;
-  --marker-surface:light-dark(color-mix(in srgb,currentColor 8%,var(--bg-primary)),
-    color-mix(in srgb,currentColor 14%,var(--bg-primary)));
-  transition:background-color .18s ease}
-.step[data-step-toggle]>.step-head>.step-icon::after{content:"";position:absolute;z-index:0;left:50%;top:50%;
-  box-sizing:border-box;width:var(--marker-size);height:var(--marker-size);border:2px solid var(--marker-surface);
-  border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
-.step[data-step-toggle]>.step-head>.step-icon::before{content:"";position:absolute;z-index:-1;left:50%;top:50%;
-  width:var(--marker-size);height:var(--marker-size);border-radius:50%;background:var(--marker-surface);
-  transform:translate(-50%,-50%);transform-origin:center top;pointer-events:none;
-  transition:top .22s cubic-bezier(.2,.7,.2,1),width .18s ease,height .22s cubic-bezier(.2,.7,.2,1),
-    border-radius .18s ease,background-color .18s ease}
-.step[data-step-toggle]:not(.open)>.step-head>.step-icon{
-  background-color:transparent}
-.step[data-step-toggle].open>.step-head>.step-icon{
-  background-color:var(--bg-primary);box-shadow:0 0 0 1px var(--bg-primary)}
-.step[data-step-toggle].open>.step-head>.step-icon::before{
-  top:calc(50% + var(--marker-radius) + 6px);width:1.5px;height:12px;border-radius:1px;
-  background-color:transparent}
-.step-icon svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;
+/* 图标块：24px 圆角方块，用步骤色调着色（16% 底色、26% 内描边、图标取满色）。色调与图标见 tool-presentation.ts。 */
+.step-icon{--tone:var(--timeline-function);position:absolute;left:-34px;top:50%;transform:translateY(-50%);
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:7px;color:var(--tone);
+  background:linear-gradient(color-mix(in srgb,var(--tone) 16%,transparent),color-mix(in srgb,var(--tone) 16%,transparent)),var(--bg-primary);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tone) 26%,transparent);isolation:isolate}
+.step-icon svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;
   stroke-linecap:round;stroke-linejoin:round}
-/* 三类配色：思考紫 / 函数橙 / LLM 青 / 子代理绿（静态不动画）。 */
-.step-icon.k-thinking{color:var(--timeline-thinking)}
-.step-icon.k-function{color:var(--timeline-function)}
-.step-icon.k-llm{color:var(--timeline-llm)}
-.step-icon.k-subagent{color:var(--timeline-subagent)}
-.step-icon.is-error{color:var(--accent-red)}
-.step-title{flex:0 0 auto}
+/* 色调：思考紫 / LLM 青 / 子代理绿 / 命令绿 / 修改琥珀 / 读取蓝 / 搜索青 / 网页靛 / 其他函数橙。 */
+.step-icon.k-thinking{--tone:var(--timeline-thinking)}
+.step-icon.k-function{--tone:var(--timeline-function)}
+.step-icon.k-llm{--tone:var(--timeline-llm)}
+.step-icon.k-subagent{--tone:var(--timeline-subagent)}
+.step-icon.t-shell{--tone:light-dark(#15803d,#4ade80)}
+.step-icon.t-edit{--tone:light-dark(#b45309,#fbbf24)}
+.step-icon.t-read{--tone:light-dark(#1d4ed8,#60a5fa)}
+.step-icon.t-search{--tone:light-dark(#0e7490,#22d3ee)}
+.step-icon.t-web{--tone:light-dark(#4338ca,#818cf8)}
+.step-icon.is-error{--tone:var(--accent-red)}
+.step-title{flex:0 0 auto;color:var(--text-primary);font-weight:500}
+.step-target{flex:0 1 auto;min-width:0;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:var(--font-mono);font-size:12px;line-height:18px;padding:0 6px;border-radius:5px;
+  color:var(--text-secondary);background:color-mix(in srgb,var(--text-primary) 6%,transparent)}
 /* 标题 = 详情入口：悬停下划线；行内其他位置只负责展开/折叠。 */
 .step-title.link{cursor:pointer}
 .step-title.link:hover{color:var(--text-bright);text-decoration:underline}
@@ -144,12 +133,12 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
   transition:grid-template-rows .22s cubic-bezier(.2,.7,.2,1),opacity .14s ease,transform .22s cubic-bezier(.2,.7,.2,1)}
 .tl-sub-clip{min-height:0;overflow:hidden}
 .tl-sub-inner{padding:2px 0}
-.tl-sub::before{content:"";position:absolute;left:11.75px;top:12px;bottom:12px;width:1.5px;
-  background:var(--timeline-line);border-radius:1px;transform:translateY(-9.5px);
+.tl-sub::before{content:"";position:absolute;left:9.5px;top:14px;bottom:14px;width:1px;
+  background:var(--timeline-line);opacity:.7;transform:translateY(-9.5px);
   transition:transform .22s cubic-bezier(.2,.7,.2,1)}
-.tl-sub .step{padding:1px 0 1px 2px}
+.tl-sub .step{padding:1px 0}
 .tl-sub .step-head{font-size:12.5px;padding:3px 8px}
-.tl-sub .step-icon{left:-32px;width:17px;height:17px;--marker-size:23px;--marker-radius:11.5px}
+.tl-sub .step-icon{left:-30px;width:20px;height:20px;border-radius:6px}
 .tl-sub .step-icon svg{width:11px;height:11px}
 .tl-sub .step-body-inner{font-size:12.5px;padding:8px 12px}
 .step.open>.tl-sub{grid-template-rows:1fr;opacity:1;transform:translateY(0);pointer-events:auto}
@@ -461,12 +450,12 @@ Agent 回复发起的 function 及其执行树只属于该回复的执行时间�
     </div></div>
   </div>
 </div>
-<div class="rule">状态就画在图标位：运行中 = 原有小点反馈，失败 = 红 ✗，正常 = 类型图标（按类配色）；可展开性和开合状态也只在图标位表达——有子内容时始终显示圆形状态，收起实心、展开空心，叶子行不画圈。圆圈继承当前行的类型色；收起态为单一、均匀、不透明的浅色面，不是 hover 效果，鼠标移动不会改变它。<br>
-几何：主层 tl-body 左内边距 38px，20px 图标落在 4..24（中心 14），1.5px 竖线压在 13.25px；子层左内边距 34px，17px 图标（中心 12.5），竖线压在 11.75px。图标盒、圆心和竖线位置保持不变；收起态直接绘制主层 26px、子层 23px 的完整色面，内部和边缘颜色完全一致，并遮住背后的时间线。独立外圈固定为 2px，展开和收起时都不变化；展开态在图标盒外增加 1px 页面底色内遮罩，恰好覆盖到圆环内缘，灰色时间线只能从圆环外缘下方开始。总外径不改变行高和列宽。内部色面只改变自身宽高、纵向位置和透明度：26/23px 圆形缩为 1.5×12px 竖段并渐变透明，竖段上缘落在对应圆环下缘，最终由原有 1.5px 中性时间线单独显示连接关系。<br>
-动画：圆形色面、圆环配色和子内容在同一帧开始。色面、子内容高度和子时间线起点使用同一个 220ms cubic-bezier(.2,.7,.2,1)；子时间线自身的 -3px→0 位移之外，线起点再执行 -9.5px→-0.5px，使它和上方 12px 竖段在所有中间帧保持相接。圆环配色与内容透明度使用 140–180ms ease；折叠按相反方向执行。实现只依据同一个 open 状态，不增加中间状态。暗色与浅色模式分别使用独立的鲜艳类型色；浅色模式时间线使用 22% 中性色，深色模式使用 28%，均低于类型图标和文字的视觉权重。prefers-reduced-motion 下所有过渡缩短为 0.01ms。<br>
-不增加独立箭头，不预留箭头槽，也不显示“⋯ N 步”。右侧只保留 Copy、Switch 等动作，动作右缘不受行是否可展开影响。带下划线的标题始终是详情入口；辅助动作只在鼠标压着的那一行出现，进入和离开均即时切换，不做 opacity 过渡。:hover 必须挂在 step-head 而非整个 step——嵌套树里子行悬停不会同时显示祖先行的动作；键盘操作只由 :focus-visible 保持动作可见，鼠标点击留下的 focus 不会让旧行残留。点击图标、摘要或行内空白只展开/折叠，不打开详情。<br>
+<div class="rule">每个步骤行以 24px 圆角方块（7px 圆角）开头，用步骤色调着色：页面底色上叠 16% 色调、1px 内描边 26%、图标取满色。色调与图标来自 <code>tool-presentation.ts</code>：命令绿（终端）、文件修改琥珀（笔）、读取蓝（文件）、搜索青（放大镜）、网页与浏览器靛（地球或指针）、子代理绿（机器人）、记忆品红、规划石板灰、媒体玫红、系统暖灰、其他函数橙（扳手）；思考保持紫、LLM 保持青。失败 = 红色方块加 ✗；运行中 = 正常图标外加一圈绕方块旋转的锥形扫光。行文字：动词标题（运行、修改、网页搜索…）字重 500，随后是标识参数的等宽小标签，再是结果首行的淡色文字。行内不出现原始 JSON；完整参数与输出仍在右栏。<br>
+几何：主层 tl-body 左内边距 34px，24px 方块落在 0..24（中心 12），1px 竖线压在 11.5px，首尾 12px 渐隐。子时间线缩进 6px、左内边距 30px，20px 方块（6px 圆角、11px 图标），竖线在 9.5px。行高至少 30px（嵌套 26px）。<br>
+动画：可展开行在摘要后显示一个小箭头，展开时旋转 90°。子内容与子时间线共用一个 220ms cubic-bezier(.2,.7,.2,1) 过渡；整条执行条保持 180ms 折叠。prefers-reduced-motion 下所有过渡缩为 0.01ms。<br>
+可展开性只由该小箭头表达，不预留箭头槽，也不显示“⋯ N 步”。右侧只保留 Copy、Switch 等动作，动作右缘不受行是否可展开影响。带下划线的标题始终是详情入口；辅助动作只在鼠标压着的那一行出现，进入和离开均即时切换，不做 opacity 过渡。:hover 必须挂在 step-head 而非整个 step——嵌套树里子行悬停不会同时显示祖先行的动作；键盘操作只由 :focus-visible 保持动作可见，鼠标点击留下的 focus 不会让旧行残留。点击图标、摘要或行内空白只展开/折叠，不打开详情。<br>
 嵌套层级：函数内部还有子调用时（Agent method 的执行树、工具的多层 call-tree），展开就是<b>缩进一层的子时间线</b>——同一套行样式递归下去，层数不限。<br>
-<b>实现状态：</b>生产组件已使用收起实心、展开空心的圆点状态；收起态是均匀、不透明、能够遮住连接线的浅色色面，圆形色面连续缩小并露出原有连接线，子内容以同一个 220ms 过渡展开或折叠，外径统一为主层 26px、子层 23px。其余既有行为不变：所有时间线行均提供复制操作，右侧展开箭头和步骤数提示已移除。</div>
+<b>实现状态：</b>生产组件已使用按工具着色的圆角图标块、动词标题与参数标签、运行中锥形扫光和可展开行的小箭头；所有时间线行均提供复制操作，步骤数提示已移除。</div>
 
 <!-- ═══════ 3. 手动函数运行 ═══════ -->
 <h2><span class="num">3</span>手动函数运行：一个 FunctionInvocation，两种输入方式</h2>
