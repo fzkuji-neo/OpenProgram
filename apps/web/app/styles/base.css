@@ -43,9 +43,12 @@
   --ui-list-radius: 10px;
   --ui-button-h: 30px;
   --ui-button-radius: 10px;
-  /* 聊天列（消息列 + 输入框三条带共用）：空间够就扩，封顶 1000。
-     侧边栏收起时聊天区变宽，列跟着长；两栏都开时也尽量吃满。 */
-  --chat-column-max: 1000px;
+  /* 聊天列（消息列 + 输入框三条带共用）：空间够就扩，封顶 800——
+     16px 正文下约 45 个汉字一行，长回复读起来不累。 */
+  --chat-column-max: 800px;
+  /* Inset once reserved for message avatars (now hidden); keep every
+     transcript element on this one value so they stay aligned. */
+  --avatar-gutter: 0px;
   /* No `var(--font-jetbrains-mono)` lead: that var is never defined
      (next/font was removed, see layout.tsx). A `var()` with no
      fallback that resolves to nothing makes the WHOLE declaration
@@ -131,7 +134,7 @@
      to `--fs-sm` (13px). */
   --fs-sm: 13px;
   --fs-base: 14px;
-  --fs-chat: 15px; /* transcript copy and embedded conversation cards */
+  --fs-chat: 16px; /* transcript copy and embedded conversation cards */
   --fs-md: 16px;
   --fs-lg: 20px;
 }
