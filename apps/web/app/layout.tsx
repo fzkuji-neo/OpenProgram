@@ -82,7 +82,7 @@ export default function RootLayout({
                 // CSS 里 html[data-sidebar-closed] #sidebar 强制收起宽度；
                 // 水合完成后由 Sidebar 组件移除该属性接管。
                 var sidebarOpen = localStorage.getItem('sidebarOpen');
-                if (sidebarOpen === '0' || (sidebarOpen === null && window.matchMedia
+                if (sidebarOpen === '0' || (window.matchMedia
                     && window.matchMedia('(max-width: 900px)').matches)) {
                   document.documentElement.setAttribute('data-sidebar-closed', '');
                 }

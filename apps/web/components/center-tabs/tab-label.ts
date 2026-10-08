@@ -37,7 +37,9 @@ export function labelOf(
   if (tab.kind === "builtin") return builtinPageLabel(tab.page, text);
   if (tab.kind === "file") return tab.title;
   if (tab.kind === "web") return tab.title || tab.url || "";
-  if (tab.draft) return text("New chat", "新会话");
+  // "New conversation" is the backend's placeholder until the first reply
+  // names the session; keep showing "New chat" instead of flipping label.
+  if (tab.draft || tab.title === "New conversation") return text("New chat", "新会话");
   return tab.title || t("sidebar.untitled");
 }
 

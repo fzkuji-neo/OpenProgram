@@ -95,6 +95,7 @@
     "clsx": "^2.1.1",
     "fabric": "7.4.0",
     "framer-motion": "^12.40.0",
+    "highlight.js": "11.11.1",
     "katex": "^0.16.21",
     "lucide-react": "^1.8.0",
     "marked": "^18.0.3",

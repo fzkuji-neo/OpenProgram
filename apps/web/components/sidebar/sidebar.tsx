@@ -59,11 +59,13 @@ function isNarrowViewport(): boolean {
 
 function readPersistedSidebarOpen(): boolean {
   if (typeof window === "undefined") return true;
+  // Narrow screens always start collapsed: expanded, the sidebar is an
+  // overlay that would cover the chat. The stored choice still applies
+  // once the window is wide again.
+  if (isNarrowViewport()) return false;
   try {
     const stored = localStorage.getItem("sidebarOpen");
-    // No stored choice yet: open on wide screens, collapsed when the
-    // expanded sidebar would only cover the page.
-    if (stored === null) return !isNarrowViewport();
+    if (stored === null) return true;
     return stored !== "0";
   } catch {
     return true;
