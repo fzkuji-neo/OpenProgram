@@ -95,3 +95,10 @@
   transition: background var(--transition);
 }
 .center-empty-btn:hover { background: var(--bg-hover); }
+
+/* Quiet until the pane is in use: the two floating controls stay
+   discoverable but no longer compete with the transcript. */
+.chat-view-controls { opacity: 0.45; transition: opacity 0.15s ease; }
+.center-pane-chat:hover .chat-view-controls,
+.chat-view-controls:focus-within,
+.chat-view-controls:has([aria-expanded="true"]) { opacity: 1; }

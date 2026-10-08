@@ -1296,18 +1296,11 @@ assert.doesNotMatch(
   />详情<\/button>/,
   "details must remain on the underlined title, not a duplicate row action",
 );
-const designExpandableIconRule = chatVisualSpec.match(
-  /\.step\[data-step-toggle\]>\.step-head>\.step-icon\{([^}]*)\}/,
-)?.[1] ?? "";
+const designTileRule = chatVisualSpec.match(/\.step-icon\{([^}]*)\}/)?.[1] ?? "";
 assert.match(
-  designExpandableIconRule,
-  /--marker-surface:\s*light-dark\(color-mix\(in srgb,currentColor 8%,var\(--bg-primary\)\),\s*color-mix\(in srgb,currentColor 14%,var\(--bg-primary\)\)\);[^}]*transition:\s*background-color \.18s ease/s,
-  "the design must animate only the marker interior",
-);
-assert.match(
-  designExpandableIconRule,
-  /border-radius:\s*50%/,
-  "the expandable icon treatment must be circular",
+  designTileRule,
+  /border-radius:7px;[^}]*color:var\(--tone\)/s,
+  "the design must draw tone-tinted rounded icon tiles",
 );
 assert.doesNotMatch(
   chatVisualSpec,
@@ -1466,38 +1459,28 @@ assert.match(executionStrip, /aria-expanded=\{open\}/);
 const timelineBaseIconRule = chatCss.match(/\.tl-step-icon\s*\{([^}]*)\}/)?.[1] ?? "";
 assert.match(
   timelineBaseIconRule,
-  /position:\s*absolute;[^}]*left:\s*-36px;[^}]*top:\s*50%;[^}]*transform:\s*translateY\(-50%\);[^}]*width:\s*20px;[^}]*height:\s*20px/s,
-  "the top-level timeline icon must align to the compact text indent",
+  /position:\s*absolute;[^}]*left:\s*-34px;[^}]*top:\s*50%;[^}]*transform:\s*translateY\(-50%\);[^}]*width:\s*24px;[^}]*height:\s*24px/s,
+  "the top-level timeline tile must sit in the 34px indent, centred on its row",
 );
 assert.match(
   timelineBaseIconRule,
-  /background:\s*var\(--bg-primary\)/,
-  "timeline icon boxes must mask the vertical line behind them",
-);
-assert.match(
-  timelineBaseIconRule,
-  /--marker-size:\s*26px;[^}]*--marker-radius:\s*13px;[^}]*isolation:\s*isolate/s,
-  "top-level collapsed markers must preserve the 26px uniform surface and 13px radius",
-);
-assert.doesNotMatch(
-  timelineBaseIconRule,
-  /(?:border-radius|box-shadow)\s*:/,
-  "leaf timeline icons must remain unframed",
+  /border-radius:\s*7px;[^}]*color:\s*var\(--tone\);[^}]*var\(--bg-primary\)/s,
+  "timeline tiles must be tone-tinted rounded squares that mask the rail behind them",
 );
 assert.match(
   chatCss,
-  /\.tl-body::before\s*\{[^}]*left:\s*13\.25px;[^}]*width:\s*1\.5px/s,
-  "the top-level timeline line must remain centered behind the icon",
+  /\.tl-body::before\s*\{[^}]*left:\s*11\.5px;[^}]*width:\s*1px/s,
+  "the top-level rail must stay centred behind the 24px tile",
 );
 assert.match(
   chatCss,
-  /\.tl-sub::before\s*\{[^}]*left:\s*11\.75px;[^}]*width:\s*1\.5px/s,
-  "the nested timeline line must remain centered behind the icon",
+  /\.tl-sub::before\s*\{[^}]*left:\s*9\.5px;[^}]*width:\s*1px/s,
+  "the nested rail must stay centred behind the 20px tile",
 );
 assert.match(
   chatCss,
-  /\.tl-sub\s+\.tl-step-icon\s*\{[^}]*left:\s*-32px;[^}]*width:\s*17px;[^}]*height:\s*17px/s,
-  "the nested timeline icon box and center must remain unchanged",
+  /\.tl-sub\s+\.tl-step-icon\s*\{[^}]*left:\s*-30px;[^}]*width:\s*20px;[^}]*height:\s*20px/s,
+  "the nested timeline tile geometry must stay fixed",
 );
 for (const [kind, color, light, dark] of [
   ["thinking", "timeline-thinking", "#7c3aed", "#b78cff"],
@@ -1512,91 +1495,21 @@ for (const [kind, color, light, dark] of [
   );
   assert.match(
     chatCss,
-    new RegExp(`\\.tl-step-icon\\.k-${kind}\\s*\\{[^}]*color:\\s*var\\(--${color}(?:,[^)]+)?\\)`),
-    `${kind} timeline rows must retain their type color`,
+    new RegExp(`\\.tl-step-icon\\.k-${kind}\\s*\\{[^}]*--tone:\\s*var\\(--${color}\\)`),
+    `${kind} timeline rows must retain their type tone`,
   );
 }
-const timelineToggleIconRule = chatCss.match(/\.tl-step-icon\.is-toggleable\s*\{([^}]*)\}/)?.[1] ?? "";
+for (const tone of ["shell", "edit", "read", "search", "web", "agent", "memory", "plan", "media", "system", "function"]) {
+  assert.match(
+    chatCss,
+    new RegExp(`\\.tl-step-icon\\.t-${tone}\\s*\\{[^}]*--tone:`),
+    `per-tool tone ${tone} must define a tile colour`,
+  );
+}
 assert.match(
-  timelineToggleIconRule,
-  /--marker-surface:\s*light-dark\(\s*color-mix\(in srgb, currentColor 8%, var\(--bg-primary\)\),\s*color-mix\(in srgb, currentColor 14%, var\(--bg-primary\)\)\s*\);[^}]*background-color:\s*transparent;[^}]*transition:\s*background-color 0\.18s ease/s,
-  "toggleable markers must animate only their interior background",
-);
-assert.doesNotMatch(
-  timelineToggleIconRule,
-  /box-shadow|transition:[^;]*box-shadow/,
-  "the outer ring must not be part of the state transition",
-);
-assert.doesNotMatch(
-  timelineToggleIconRule,
-  /--marker-(?:fill|ring)|color-mix\([^)]*transparent/,
-  "collapsed marker colours must not be translucent or split into fill and ring tokens",
-);
-assert.match(
-  timelineToggleIconRule,
-  /border-radius:\s*50%/,
-  "the expandability ring must be circular",
-);
-assert.doesNotMatch(
-  timelineToggleIconRule,
-  /(?:position|left|right|top|bottom|transform|translate)\s*:/,
-  "the ring must share the icon element's existing center instead of adding an offset",
-);
-const timelineMarkerCoreRule = chatCss.match(
-  /\.tl-step-icon\.is-toggleable::before\s*\{([^}]*)\}/,
-)?.[1] ?? "";
-const timelineMarkerRingRule = chatCss.match(
-  /\.tl-step-icon\.is-toggleable::after\s*\{([^}]*)\}/,
-)?.[1] ?? "";
-assert.match(
-  timelineMarkerRingRule,
-  /position:\s*absolute;[^}]*box-sizing:\s*border-box;[^}]*width:\s*var\(--marker-size\);[^}]*height:\s*var\(--marker-size\);[^}]*border:\s*2px solid var\(--marker-surface\);[^}]*border-radius:\s*50%/s,
-  "one independent 2px ring must preserve the marker's fixed outer geometry",
-);
-assert.doesNotMatch(
-  timelineMarkerRingRule,
-  /transition|animation|opacity/,
-  "the outer ring must remain completely static while the marker opens or closes",
-);
-assert.match(
-  timelineBaseIconRule,
-  /--marker-size:\s*26px;[^}]*--marker-radius:\s*13px/s,
-  "the top-level marker surface must cover the full 26px circle",
-);
-assert.match(
-  timelineMarkerCoreRule,
-  /width:\s*var\(--marker-size\);[^}]*height:\s*var\(--marker-size\);[^}]*background:\s*var\(--marker-surface\)/s,
-  "one opaque surface must cover the full collapsed marker and mask the line behind it",
-);
-assert.match(
-  timelineMarkerCoreRule,
-  /transition:[^;]*top 0\.22s cubic-bezier\(0\.2,\s*0\.7,\s*0\.2,\s*1\)[\s\S]*background-color 0\.18s ease/,
-  "marker geometry and colour must transition without a JavaScript animation state",
-);
-const timelineOpenMarkerSelector = ".tl-step:has(> .tl-collapse.is-open) > .tl-step-head > .tl-step-icon.is-toggleable";
-const timelineOpenMarkerRule = [...chatCss.matchAll(/([^{}]+)\{([^}]*)\}/g)]
-  .find(([_, selectors]) => selectors.trim() === timelineOpenMarkerSelector)?.[2] ?? "";
-assert.match(
-  timelineOpenMarkerRule,
-  /background-color:\s*var\(--bg-primary\);[^}]*box-shadow:\s*0 0 0 1px var\(--bg-primary\)/s,
-  "expanded markers must mask the timeline exactly to the 2px ring's inner edge",
-);
-assert.doesNotMatch(
-  timelineOpenMarkerRule,
-  /border|opacity|transition|animation|box-shadow:[^;]*(?:marker-surface|timeline-line)/,
-  "the expanded state must not restyle or animate the independent outer ring",
-);
-const timelineOpenCoreRule = [...chatCss.matchAll(/([^{}]+)\{([^}]*)\}/g)]
-  .find(([_, selectors]) => selectors.trim() === `${timelineOpenMarkerSelector}::before`)?.[2] ?? "";
-assert.match(
-  timelineOpenCoreRule,
-  /top:\s*calc\(50% \+ var\(--marker-radius\) \+ 6px\);[^}]*width:\s*1\.5px;[^}]*height:\s*12px;[^}]*background-color:\s*transparent/s,
-  "the marker core must shrink downward and reveal the existing line instead of painting a second line",
-);
-assert.doesNotMatch(
-  timelineOpenCoreRule,
-  /background(?:-color)?:\s*var\(--timeline-line\)/,
-  "the open marker must not double-paint and brighten the existing timeline",
+  chatCss,
+  /\.tl-step-icon\.is-running::after\s*\{[^}]*conic-gradient[^}]*animation:\s*tlOrbit/s,
+  "running steps must keep their glyph and show an orbiting sweep",
 );
 const timelineRowCollapseRule = chatCss.match(
   /\.tl-step > \.tl-collapse\s*\{([^}]*)\}/,
@@ -1610,11 +1523,6 @@ assert.match(
   chatCss,
   /\.tl-step > \.tl-collapse\.is-open\s*\{[^}]*opacity:\s*1;[^}]*transform:\s*translateY\(0\);[^}]*pointer-events:\s*auto/s,
   "row details must share the open state with the marker animation",
-);
-assert.match(
-  chatCss,
-  /\.tl-sub \.tl-step-icon\s*\{[^}]*--marker-size:\s*23px;[^}]*--marker-radius:\s*11\.5px/s,
-  "nested collapsed markers must retain the uniform 23px surface",
 );
 assert.match(
   chatCss,
@@ -1644,54 +1552,22 @@ assert.doesNotMatch(
 const timelineIconCssRules = [...chatCss.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(([_, selectors]) =>
   selectors.includes(".tl-step-icon"),
 );
-for (const [_, selectors, declarations] of timelineIconCssRules) {
-  const normalizedSelectors = selectors.split(",").map((selector) => selector.trim()).filter(Boolean);
-  if (/box-shadow\s*:/.test(declarations)) {
-    assert.equal(
-      normalizedSelectors.length === 1 && [
-        ".tl-step-icon.is-toggleable",
-        timelineOpenMarkerSelector,
-      ].includes(normalizedSelectors[0]),
-      true,
-      "only the collapsed and expanded toggleable-marker rules may draw a timeline ring",
-    );
-  }
+for (const [_, selectors] of timelineIconCssRules) {
   assert.equal(
-    normalizedSelectors.some((selector) => selector.includes(":hover")),
+    selectors.split(",").some((selector) => selector.includes(":hover")),
     false,
     "timeline step icons must not gain a hover-only ring",
   );
 }
-const designBaseIconRule = chatVisualSpec.match(/\.step-icon\s*\{([^}]*)\}/)?.[1] ?? "";
 assert.match(
-  designBaseIconRule,
-  /left:\s*-36px;[^}]*top:\s*50%;[^}]*transform:\s*translateY\(-50%\);[^}]*width:\s*20px;[^}]*height:\s*20px/s,
-  "the design must match the original top-level icon geometry",
-);
-assert.match(
-  designBaseIconRule,
-  /background:\s*var\(--bg-primary\)/,
-  "the design icon boxes must mask the vertical line behind them",
-);
-assert.doesNotMatch(
-  designBaseIconRule,
-  /(?:border-radius|box-shadow)\s*:/,
-  "the design must keep leaf timeline icons unframed",
+  chatVisualSpec,
+  /\.tl-body::before\{[^}]*left:11\.5px;[^}]*width:1px/s,
+  "the design must preserve the top-level rail centre",
 );
 assert.match(
   chatVisualSpec,
-  /\.tl-body::before\s*\{[^}]*left:\s*13\.25px;[^}]*width:\s*1\.5px/s,
-  "the design must preserve the top-level line center",
-);
-assert.match(
-  chatVisualSpec,
-  /\.tl-sub::before\s*\{[^}]*left:\s*11\.75px;[^}]*width:\s*1\.5px/s,
-  "the design must preserve the nested line center",
-);
-assert.match(
-  chatVisualSpec,
-  /\.tl-sub\s+\.step-icon\s*\{[^}]*left:\s*-32px;[^}]*width:\s*17px;[^}]*height:\s*17px/s,
-  "the design must preserve the nested icon geometry",
+  /\.tl-sub \.step-icon\{left:-30px;width:20px;height:20px/,
+  "the design must preserve the nested tile geometry",
 );
 assert.match(
   executionStrip,
@@ -1700,13 +1576,13 @@ assert.match(
 );
 assert.match(
   executionStrip,
-  /import \{ Wrench \} from "lucide-react";/,
+  /import \{[^}]*\bWrench\b[^}]*\} from "lucide-react";/,
   "function timeline rows must use the installed Lucide Wrench",
 );
 assert.match(
   executionStrip,
-  /: icon === "llm" \? CpuIcon : Wrench;/,
-  "only the function timeline icon should switch to Lucide Wrench",
+  /: icon === "llm" \? CpuIcon : Wrench\);/,
+  "generic function rows must fall back to Lucide Wrench",
 );
 assert.doesNotMatch(
   executionStrip,
@@ -1730,7 +1606,7 @@ assert.doesNotMatch(
 );
 assert.match(
   executionStrip,
-  /const copyValue = copyText \?\? \[title, note\][\s\S]*\.join\(" · "\)/,
+  /const copyValue = copyText \?\? \[title, target, note\][\s\S]*\.join\(" · "\)/,
   "every timeline row must have a deterministic copy value",
 );
 assert.match(
