@@ -218,7 +218,15 @@ export function summarizeResult(raw: string, text: Text): string {
   try {
     value = JSON.parse(trimmed);
   } catch {
-    return firstLine(trimmed) ?? "";
+    // Stored results are often truncated mid-object; still pull out the
+    // telling string fields rather than echoing the braces.
+    const found: string[] = [];
+    for (const key of ["error", "title", "message", "summary", "status", "url"]) {
+      const m = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`).exec(trimmed);
+      if (m?.[1]) found.push(m[1]);
+      if (found.length >= 2) break;
+    }
+    return found.length ? found.join(" · ") : text("structured output", "结构化输出");
   }
   if (Array.isArray(value)) {
     return value.length === 1 ? text("1 item", "1 项") : text(`${value.length} items`, `${value.length} 项`);

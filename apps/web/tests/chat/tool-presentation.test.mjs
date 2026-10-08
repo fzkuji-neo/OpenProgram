@@ -35,4 +35,6 @@ test('JSON results are summarised instead of printed raw', () => {
   assert.equal(summarizeResult('[1, 2, 3]', en), '3 items');
   assert.equal(summarizeResult('{"ok": true, "pages": [1, 2]}', en), '2 items');
   assert.equal(summarizeResult('plain\nsecond line', en), 'plain');
+  assert.equal(summarizeResult('{"frame_id": "f1", "title": "Google", "url": "https://www.google.com/webhp', en), 'Google');
+  assert.equal(summarizeResult('{"frame_id": "f1", "nodes": [1, 2', en), 'structured output');
 });
