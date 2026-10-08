@@ -515,3 +515,20 @@ test('output resumes after a pause even within the same animation frame', () => 
   send({type:'text',text:'After resume.'});runFrame();
   assert.equal(reply().status,'streaming');assert.equal(reply().content,'Before pause. After resume.');
 });
+
+test('text buffered before a history request cannot override its completed snapshot', async () => {
+  reset();send({type:'text',text:'Old partial'});
+  const { runtimeState, setSocket } = await import('../../lib/runtime-bridge/state.ts');
+  const { requestSessionLoad, acceptSessionLoad, preserveSessionReadRows, disposeSessionLoads } = await import('../../lib/runtime-bridge/session-load.ts');
+  const previous = runtimeState.ws;
+  const requests = [];
+  const socket = {readyState:WebSocket.OPEN,send:raw=>requests.push(JSON.parse(raw))};setSocket(socket);
+  try {
+    requestSessionLoad({action:'load_session',session_id:SID});
+    assert.equal(reply().content,'Old partial');
+    acceptSessionLoad(socket,{id:SID,request_id:requests[0].request_id,messages:[
+      {id:RID,role:'assistant',content:'Complete answer',status:'done'},
+    ]},data=>useSessionStore.getState().setMessages(SID,preserveSessionReadRows(SID,data.messages)));
+    runFrame();assert.equal(reply().content,'Complete answer');assert.equal(reply().status,'done');
+  } finally {disposeSessionLoads(socket);setSocket(previous);}
+});

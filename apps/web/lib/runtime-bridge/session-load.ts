@@ -16,7 +16,12 @@ function createOwner(socket: WebSocket) {
       if (socket.readyState !== WebSocket.OPEN) throw new Error('Disconnected');
       socket.send(JSON.stringify(request));
     },
-    capture: id => ({ rows: rows(id), wire: [...(runtimeState.conversations[id]?.messages as { id: string }[] ?? [])] }),
+    capture: id => {
+      // Progress received before this read belongs to its baseline; only later
+      // deltas may override the returned snapshot.
+      flushPendingChatDeltas(id);
+      return { rows: rows(id), wire: [...(runtimeState.conversations[id]?.messages as { id: string }[] ?? [])] };
+    },
     status: (id, value) => { if (getSocket() === socket) status(id, value); }, requestId: () => crypto.randomUUID(),
   });
 }
