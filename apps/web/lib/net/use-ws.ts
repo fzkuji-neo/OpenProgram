@@ -47,7 +47,7 @@ import {
 } from "@/lib/runtime-bridge/chat-handlers";
 import { mirrorUpsertConv } from "@/lib/runtime-bridge/conv-store-mirror";
 import { runtimeState, setSocket } from "@/lib/runtime-bridge/state";
-import { applyChatWsMessage, clearSessionByMsgId } from "@/lib/net/chat-stream";
+import { applyChatWsMessage, clearSessionByMsgId, flushPendingChatDeltas } from "@/lib/net/chat-stream";
 import { waitForOwnerAuthBootstrap } from "@/lib/net/owner-auth-bootstrap";
 import { recoverOwnerAuth } from "@/lib/net/owner-auth-recovery";
 import { showToast } from "@/lib/format-utils/toast";
@@ -710,7 +710,7 @@ export function useWS(): void {
           // Same drain point for the msg_id → session map: entries whose
           // terminal frame (result/error/cancelled) got lost would
           // otherwise sit in the module-level Map forever.
-          clearSessionByMsgId();
+          clearSessionByMsgId(d.id as string);
           notifyDesktopSessionLoaded((d as { id?: unknown } | null)?.id);
           {
             const dd = d as {
@@ -1048,6 +1048,8 @@ export function useWS(): void {
         disposeSessionLoads(connection);
         historyFragments.clear();
         if (socket !== connection || stopped) return;
+        flushPendingChatDeltas();
+        clearSessionByMsgId();
         clearTimeout(historyDeadline);
         updateStatus("disconnected");
         window.dispatchEvent(new CustomEvent("op:browser-connection", { detail: { connected: false } }));
@@ -1085,6 +1087,8 @@ export function useWS(): void {
         socket.close();
       }
       if (runtimeState.ws === socket) {
+        flushPendingChatDeltas();
+        clearSessionByMsgId();
         window.dispatchEvent(new CustomEvent("op:browser-connection", { detail: { connected: false } }));
         setSocket(null);
         pushStatusBadge();

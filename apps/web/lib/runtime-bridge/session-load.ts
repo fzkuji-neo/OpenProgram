@@ -1,3 +1,4 @@
+import { flushPendingChatDeltas } from "@/lib/net/chat-stream";
 import { createSessionLoads, retainChangedRows, type SessionRead, type SessionReadStatus } from '@/lib/net/session-load';
 import { useSessionStore, type ChatMsg } from '@/lib/session-store';
 import { runtimeState, getSocket } from './state';
@@ -51,6 +52,7 @@ export function acceptSessionLoad(socket: WebSocket, data: Record<string, unknow
   const accepted = owner(socket).accept(data);
   if (!accepted) return false;
   const id = data.id as string;
+  flushPendingChatDeltas(id);
   const current = rows(id);
   const context = accepted.context;
   if (context) {

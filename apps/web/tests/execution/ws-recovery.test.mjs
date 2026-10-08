@@ -15,6 +15,7 @@ for (const match of source.matchAll(/import\s+(?!type\b)\{([^}]+)\}\s+from\s+["'
 exportsByModule.set('@/lib/chat/send-queue', ['useSendQueue','reconcileAfterSessionLoad']);
 const real = new Set(['@/lib/runtime-bridge/session-load','./execution-recovery','./history-fragments','./execution-message-recovery','@/lib/net/execution-cursor']);
 const hooks=registerHooks({resolve(specifier, context, next) {
+  if(context.parentURL?.endsWith('/runtime-bridge/session-load.ts') && specifier==='@/lib/net/chat-stream') return {url:'data:text/javascript,export const flushPendingChatDeltas=()=>{};',shortCircuit:true};
   if(specifier==='@/lib/net/session-load') return {url:new URL('../../lib/net/session-load.ts',import.meta.url).href,shortCircuit:true};
   if(context.parentURL?.endsWith('/runtime-bridge/session-load.ts') && (specifier==='./state'||specifier==='@/lib/session-store')) return {url:'data:text/javascript,'+encodeURIComponent(specifier==='./state'?'export const runtimeState=globalThis.__wsFixture.exports.runtimeState; export const getSocket=()=>runtimeState.ws;':'export const useSessionStore=globalThis.__wsFixture.exports.useSessionStore;'),shortCircuit:true};
   if(context.parentURL===hookURL && real.has(specifier)) {
