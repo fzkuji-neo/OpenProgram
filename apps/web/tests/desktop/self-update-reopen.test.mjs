@@ -24,6 +24,7 @@ function sessionLoadedEntry(notify, loadSessionData) {
   return vm.runInNewContext(code, {
     clearHydratedTreePaths() {}, clearSessionByMsgId() {}, loadSessionData,
     notifyDesktopSessionLoaded: notify,
+    recovery: undefined, // This extracted handler test has no connection-owned recovery.
   });
 }
 
