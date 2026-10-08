@@ -6,6 +6,7 @@
  * no second markdown engine. Falls back to escaped plain text on SSR,
  * where `renderMd` would touch `window`.
  */
+import { copyText } from "@/lib/clipboard";
 import { renderMd } from "@/lib/runtime-bridge/helpers";
 
 export function renderMarkdown(src: string): string {
@@ -43,10 +44,11 @@ if (typeof document !== "undefined") {
     const btn = typeof target?.closest === "function" ? target.closest(".md-code-copy") : null;
     if (!btn) return;
     const code = btn.closest(".md-code")?.querySelector("pre")?.textContent ?? "";
-    void navigator.clipboard?.writeText(code).then(() => {
+    void copyText(code).then((ok) => {
+      if (!ok) return;
       btn.classList.add("copied");
       window.setTimeout(() => btn.classList.remove("copied"), 1500);
-    }).catch(() => {});
+    });
   });
 }
 
