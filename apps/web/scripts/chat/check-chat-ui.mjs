@@ -1068,10 +1068,11 @@ assert.match(
 );
 assert.match(queuedMessages, /Add to current turn/);
 assert.doesNotMatch(queuedMessages, /onStopAndSend|Stop current and send/);
-assert.match(queuedMessages, /Adding to current turn…/);
+assert.match(queuedMessages, /Waiting to add to current turn…/);
 assert.match(controlsCluster, /While running: Steer/);
 assert.match(controlsCluster, /While running: Queue/);
-assert.match(userBubble, /msg\.steering[\s\S]*Steered/);
+assert.doesNotMatch(userBubble, /Steered|已注入/);
+assert.match(assistantBubble, /segment.kind === "steering"/);
 assert.match(chatHandlers, /data\.turn_continues !== true/);
 assert.match(
   messageActions,
