@@ -486,3 +486,20 @@ test("saved Agent invocations retain only explicit per-conversation model overri
   assert.equal(host.frames[0].agent_config, undefined);
   assert.equal(host.frames[0].agent_trial, undefined);
 });
+
+test("stop rejects pending steer without automatically sending another turn", async () => {
+  running();
+  host.postCommand = command => {
+    delete host.sessions.runningTasks.A;
+    return {command_id:command.command_id,status:'rejected',rejection_code:'superseded_by_cancel'};
+  };
+  await composer('keep stopped instruction', {runningMessageMode:'steer'}).submit();
+  await nextTurn();
+  useSendQueue.getState().drain('A');
+  assert.equal(host.frames.length,0);
+  assert.equal(queueFor('A')[0].text,'keep stopped instruction');
+  assert.equal(queueFor('A')[0].steerError,'cancelled');
+  useSendQueue.getState().retryDraft('A',queueFor('A')[0].id);
+  assert.equal(host.frames.length,1);
+  assert.equal(host.frames[0].text,'keep stopped instruction');
+});

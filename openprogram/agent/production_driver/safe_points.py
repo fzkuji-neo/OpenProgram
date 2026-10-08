@@ -342,6 +342,20 @@ class SafePointsOperations:
         def hook(kind: str, payload: shared.Mapping[str, shared.Any]) -> bool:
             nonlocal provider_action_id, provider_effect_id, provider_input_hash, provider_terminal_receipt, latest_assistant, latest_snapshot, completed_tool_results, last_checkpoint_inputs
             service = self._control_service()
+            if kind == "provider.poll":
+                # Observation only: application still occurs at provider.after,
+                # after the producer closes and its partial response is saved.
+                current = service.executions.get_execution(attempt.execution_id)
+                if cancel_event.is_set() or (current and current.status is shared.ExecutionStatus.CANCELLING):
+                    from openprogram.providers.utils.errors import ExecInterrupt
+                    raise ExecInterrupt("cancelled")
+                command = current_command(service, attempt.execution_id)
+                payload["steer_pending"] = bool(
+                    current and current.current_attempt_id == attempt.attempt_id
+                    and current.status is shared.ExecutionStatus.RUNNING
+                    and command is not None and command.kind is CommandKind.STEER
+                )
+                return False
             if kind == "tool.started":
                 pending_tool = pending.get("tool")
                 if pending_tool is None:
@@ -610,6 +624,7 @@ class SafePointsOperations:
                     "usage": payload.get("usage"),
                     "message_hash": json_digest(latest_assistant),
                     "stop_reason": message.get("stop_reason"),
+                    "interrupted_by_steer": bool(payload.get("interrupted_by_steer")),
                     "supports_idempotency_key": actual_supports_idempotency_key,
                 }
                 terminal_receipt["idempotency_key"] = (

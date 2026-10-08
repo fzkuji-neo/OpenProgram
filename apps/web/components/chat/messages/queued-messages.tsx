@@ -74,6 +74,7 @@ function QueueRow({ row, sessionId }: { row: QueuedMessage; sessionId: string })
   const hasFiles = queuedHasAttachments(row);
   const parsed = parseAttachments(row.text);
   const status = row.editing ? text("Editing · send paused", "编辑中，暂停发送")
+    : row.steerError === "cancelled" ? text("Not sent · turn stopped", "未发送，当前轮已停止")
     : row.deliveryError ? text("Not sent · retry or edit", "未发送，可重试或编辑")
     : row.steerError === "unconfirmed" ? text("Delivery unconfirmed — retry to check", "发送结果待确认，请重试查询")
     : row.steerCommand || row.injecting ? text("Waiting to add to current turn…", "等待补充到当前轮…")
@@ -100,9 +101,9 @@ function QueueRow({ row, sessionId }: { row: QueuedMessage; sessionId: string })
         </span>
         <button type="button" disabled={locked} onClick={() => useSendQueue.getState().beginEdit(sessionId, row.id)}
           title={text("Edit queued message", "编辑排队消息")} aria-label={text("Edit queued message", "编辑排队消息")}><Pencil size={14} /></button>
-        {row.deliveryError && <button type="button" onClick={() => useSendQueue.getState().retryDraft(sessionId, row.id)}
+        {(row.deliveryError || row.steerError === "cancelled") && <button type="button" onClick={() => useSendQueue.getState().retryDraft(sessionId, row.id)}
           title={text("Retry send", "重试发送")} aria-label={text("Retry send", "重试发送")}><CornerDownRight size={14} /></button>}
-        {!hasFiles && <button type="button" disabled={row.injecting || (!!row.steerCommand && !row.steerError)}
+        {!hasFiles && row.steerError !== "cancelled" && <button type="button" disabled={row.injecting || (!!row.steerCommand && !row.steerError)}
           onClick={() => void steerQueuedMessage(sessionId, row.id)}
           title={row.steerCommand ? text("Retry delivery confirmation", "重试确认发送结果") : text("Add to current turn", "补充到当前轮")}
           aria-label={row.steerCommand ? text("Retry delivery confirmation", "重试确认发送结果") : text("Add to current turn", "补充到当前轮")}><CornerDownRight size={14} /></button>}
