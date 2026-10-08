@@ -61,7 +61,7 @@ After a message is written to the connection, its text appears in the conversati
 
 ### Messages during a turn
 
-**Queue** keeps messages in order and starts each after the preceding turn finishes. **Steer** and a queued message's **Add to current turn** action append instructions at the running Agent's next safe point. They do not cancel its tool call or change its model, tools or permission settings. Stopping an execution remains a separate composer action.
+**Queue** keeps messages in order and starts each after the preceding turn finishes. **Steer** and a queued message's **Add to current turn** action interrupt ordinary text or reasoning generation, retain the content already generated, and continue the same turn with the instruction. Tool-call arguments, running tools and structured output receive the instruction at their next safe point. They do not cancel its tool call or change its model, tools or permission settings. Stopping an execution remains a separate composer action. A pending instruction cancelled by Stop stays in the queue as an unsent draft until you explicitly retry or edit it; it does not automatically start another turn. Partial replies remain in conversation history after stopping and reloading.
 
 When a supplement is consumed, it appears between the earlier and later parts of the reply. Receipt checks keep one stable waiting label; they do not restart the sending indicator. Older history without a saved boundary shows the supplement before its reply.
 

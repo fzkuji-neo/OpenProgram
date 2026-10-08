@@ -158,6 +158,17 @@ class ExecutionProjectionReadModel:
                 "status": "cancelled", "finished_at": execution.terminal_at,
                 "error": None, "error_type": None,
             })
+        # A cancelled owner may not reach TurnWriter.finalize. Complete only
+        # this root turn's head transition; never rewind a later turn or branch.
+        turn_input = self.store.get_agent_turn_input(execution.execution_id)
+        request = (turn_input or {}).get("request") or {}
+        if (not execution.parent_execution_id and turn_input is not None
+                and request.get("advance_head", True)
+                and source.user_message_id and not node.caller
+                and db.has_persisted_ancestor(execution.session_id, source.user_message_id, node.id)):
+            changed = db.compare_and_set_head(
+                execution.session_id, source.user_message_id, source.assistant_message_id,
+            ) or changed
         if not any(item.status.value in _RUNNING_STATUSES
                    for item in self.store.list_nonterminal(session_id=execution.session_id)):
             if (db.get_session(execution.session_id) or {}).get("status") != "idle":
