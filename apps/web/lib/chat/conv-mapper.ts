@@ -46,6 +46,10 @@ interface LegacyAttempt {
 }
 
 interface LegacyMsg {
+  error_detail?: string;
+  error_reason?: string;
+  error_retryable?: boolean;
+  error_retry_after_s?: number;
   role?: string;
   content?: string;
   type?: string;
@@ -347,10 +351,21 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
           });
         }
       });
+      const failed = m.status === "error" || m.type === "error";
+      // Older failed replies stored the error in content; their partial answer
+      // survives in ordered text blocks. No history rewrite is needed.
+      const errorDetail = m.error_detail ?? (failed ? m.content : undefined);
+      const replyContent = failed && !m.error_detail
+        ? orderedBlocks.filter(b => b.type === "text").map(b => b.text || "").join("")
+        : m.content || "";
       const asstMsg: ChatMsg = {
         id,
         role: "assistant",
-        content: m.content || "",
+        content: replyContent,
+        errorDetail,
+        errorReason: m.error_reason,
+        errorRetryable: m.error_retryable,
+        errorRetryAfterS: m.error_retry_after_s,
         thinking,
         tools: tools.length ? tools : undefined,
         blocks: orderedBlocks.length ? orderedBlocks : undefined,

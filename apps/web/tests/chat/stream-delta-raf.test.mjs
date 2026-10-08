@@ -329,7 +329,8 @@ test("failure flushes pending progress and keeps the provider error separate", (
   }});
   const msg=useSessionStore.getState().messagesById[uid+"_reply"];
   assert.equal(msg.status,"error");
-  assert.equal(msg.content,"provider disconnected");
+  assert.equal(msg.content,"Partial response");
+  assert.equal(msg.errorDetail,"provider disconnected");
   assert.deepEqual(msg.blocks,[
     {type:"thinking",text:"Checking evidence"},
     {type:"text",text:"Partial response"},
@@ -423,7 +424,7 @@ test('newer persisted results and terminal metadata are accepted without losing 
   assert.equal(useSessionStore.getState().messagesById[rid].blocks[0].result,'persisted result');
   load('error',undefined,'Provider disconnected');
   assert.equal(useSessionStore.getState().messagesById[rid].status,'error');
-  assert.equal(useSessionStore.getState().messagesById[rid].content,'Provider disconnected');
+  assert.equal(useSessionStore.getState().messagesById[rid].errorDetail,'Provider disconnected');
   assert.equal(useSessionStore.getState().messagesById[rid].blocks[0].result,'persisted result');
   load('completed',[{...block,result:'authoritative retry result'}],'Recovered');
   assert.equal(useSessionStore.getState().messagesById[rid].blocks[0].result,'authoritative retry result');
@@ -445,4 +446,18 @@ test('partial history preserves nested calls, call trees and legacy text progres
   assert.equal(useSessionStore.getState().messagesById[id].content,'Observed full narration');
   assert.equal(useSessionStore.getState().messagesById[id].callRoots.length,2);
   assert.equal(useSessionStore.getState().messagesById[id].callRoots[0].children[0].path,'a1');
+});
+
+
+test("cold error history restores failure details independently from partial text", async () => {
+  const {convToChatMsgs}=await import("../../lib/chat/conv-mapper.ts");
+  const [row]=convToChatMsgs([{id:"failed-history",role:"assistant",status:"error",content:"Partial answer",error_detail:"connection lost",error_reason:"transport",error_retryable:true,error_retry_after_s:4}]);
+  assert.equal(row.content,"Partial answer");
+  assert.equal(row.errorDetail,"connection lost");
+  assert.equal(row.errorReason,"transport");
+  assert.equal(row.errorRetryable,true);
+  assert.equal(row.errorRetryAfterS,4);
+  const [legacy]=convToChatMsgs([{id:"legacy",role:"assistant",status:"error",content:"[error] ProviderStreamError: ConnectError",blocks:[{type:"text",text:"Existing answer"}]}]);
+  assert.equal(legacy.content,"Existing answer");
+  assert.equal(legacy.errorDetail,"[error] ProviderStreamError: ConnectError");
 });

@@ -200,6 +200,8 @@ export interface ChatMsg {
    *  whether it's retryable, and a server retry hint. Lets the bubble
    *  render an actionable error. See
    *  docs/design/providers/reliability/error-taxonomy-propagation.md. */
+  /** Failure detail is separate from the partial reply text. */
+  errorDetail?: string;
   errorReason?: string;
   errorRetryable?: boolean;
   errorRetryAfterS?: number;

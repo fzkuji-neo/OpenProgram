@@ -200,3 +200,6 @@ A visible preview checks for disk changes and displays **File changed** when its
 Tabs for the same project file share its editor and draft. Closing one keeps the other tabs usable. If the same file is visible in two panes, choose **Show here** to move the editor to that pane.
 
 Closing the tab of a session-associated webpage only hides that view. The same page and its navigation state remain in **Resources**, including manually opened pages later attached to a conversation. **Open in tab** reopens that page. Use **Close webpage** in Resources to actually close it. Closing a standalone webpage with no session association still closes the page.
+
+
+Failed replies keep their partial answer and function trace. A failure notice appears at the end of the reply; expand **Error details** to inspect the original message. The notice and details remain available after reloading the conversation.
