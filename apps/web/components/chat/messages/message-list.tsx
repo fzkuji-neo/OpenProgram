@@ -1,4 +1,5 @@
 "use client";
+import { TranscriptReadStatus } from "./transcript-read-status";
 import { ActivityIndicator } from "./activity-indicator";
 
 /**
@@ -670,6 +671,7 @@ export const MessageList = memo(function MessageList({
     lastId && !s.messagesById[lastId]?.steeringReplyId ? (s.messagesById[lastId]?.role ?? null) : null,
   );
   const loadingId = useSessionStore((s) => s.transcriptLoadingId);
+  const readStatus = useSessionStore(s => sessionId ? s.transcriptReadStatus[sessionId] : undefined);
   const { detached, jumpToLatest } = useChatAreaStick(
     chatKey,
     lastId,
@@ -819,12 +821,13 @@ export const MessageList = memo(function MessageList({
 
   // Session switch with nothing cached yet: skeleton placeholder
   // instead of an empty area / welcome flash. Minimap etc. wait too.
-  if (sessionId && loadingId === sessionId && ids.length === 0) {
+  if (sessionId && (readStatus === "loading" || (!readStatus && loadingId === sessionId)) && ids.length === 0) {
     return <TranscriptSkeleton />;
   }
 
   return (
     <>
+      <TranscriptReadStatus sessionId={sessionId} />
       <SelectionQuote key={sessionId} sessionId={sessionId} />
       <AgentBranchBanner />
       <WorkspaceAlignmentBanner sessionId={sessionId} />

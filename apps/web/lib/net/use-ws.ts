@@ -1,4 +1,5 @@
 "use client";
+import { requestSessionLoad, acceptSessionLoad, failSessionLoad, disposeSessionLoads } from "@/lib/runtime-bridge/session-load";
 
 /**
  * Chat WebSocket lifecycle — React owner.
@@ -104,6 +105,7 @@ export function useWS(): void {
     let stopped = false;
     let authNoticeShown = false;
     let connectGeneration = 0;
+    let historyDeadline: ReturnType<typeof setTimeout> | undefined;
     let recovery: ReturnType<typeof createExecutionRecovery> | undefined;
 
     /** React-side dispatch for all WS message types. Known types have
@@ -126,7 +128,11 @@ export function useWS(): void {
       }
       if (msg.type === "operation_error" || msg.type === "action_error") {
         releaseChatOperationError(msg.data);
-        if (msg.data?.action === "load_session") recovery?.start();
+        if (msg.data?.action === "load_session") {
+          if (socket) failSessionLoad(socket, msg.data);
+          clearTimeout(historyDeadline);
+          recovery?.start();
+        }
       }
       if (consumeCommandErrorFrame(msg, translateText)) return true;
       if (msg.type === "framework.interface" && socket && msg.data) {
@@ -165,9 +171,7 @@ export function useWS(): void {
         case "session_reload": {
           const sid = d?.session_id as string | undefined;
           if (sid && sid === runtimeState.currentSessionId) {
-            socket?.send(
-              JSON.stringify({ action: "load_session", session_id: sid }),
-            );
+            requestSessionLoad({ action: "load_session", session_id: sid }, true);
           }
           return true;
         }
@@ -442,7 +446,7 @@ export function useWS(): void {
               // and tool results when the authoritative execution becomes terminal.
               // Never reload an older execution over a newer active turn.
               if (socket?.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ action: "load_session", session_id: sid }));
+                requestSessionLoad({ action: "load_session", session_id: sid }, true);
               }
             }
           });
@@ -697,6 +701,8 @@ export function useWS(): void {
           });
           return true;
         case "session_loaded":
+          if (!socket || !d || !acceptSessionLoad(socket, d, loadSessionData)) return true;
+          clearTimeout(historyDeadline);
           recovery?.start();
           // A fresh transcript invalidates the per-run hydrate dedup —
           // see clearHydratedTreePaths for why this is the drain point.
@@ -705,7 +711,6 @@ export function useWS(): void {
           // terminal frame (result/error/cancelled) got lost would
           // otherwise sit in the module-level Map forever.
           clearSessionByMsgId();
-          loadSessionData(d as never);
           notifyDesktopSessionLoaded((d as { id?: unknown } | null)?.id);
           {
             const dd = d as {
@@ -983,12 +988,12 @@ export function useWS(): void {
         }
         socket?.send(JSON.stringify({ action: "list_sessions", history_version: 2 }));
         if (runtimeState.currentSessionId) {
-          socket?.send(
-            JSON.stringify({
+          clearTimeout(historyDeadline);
+          historyDeadline = setTimeout(() => connectionRecovery.start(), 15_000);
+          requestSessionLoad({
               action: "load_session",
               session_id: runtimeState.currentSessionId,
-            }),
-          );
+            });
           // Re-establish "viewing this conv" focus + clear any unread (blue
           // status dot) that accrued while the socket was disconnected.
           socket?.send(
@@ -1040,8 +1045,10 @@ export function useWS(): void {
 
       socket.onclose = () => {
         connectionRecovery.dispose();
+        disposeSessionLoads(connection);
         historyFragments.clear();
         if (socket !== connection || stopped) return;
+        clearTimeout(historyDeadline);
         updateStatus("disconnected");
         window.dispatchEvent(new CustomEvent("op:browser-connection", { detail: { connected: false } }));
         if (!stopped) reconnectTimer = setTimeout(connect, 2000);
@@ -1071,7 +1078,9 @@ export function useWS(): void {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       clearInterval(keepalive);
       recovery?.dispose();
+      clearTimeout(historyDeadline);
       if (socket) {
+        disposeSessionLoads(socket);
         socket.onclose = null;
         socket.close();
       }

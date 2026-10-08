@@ -94,11 +94,13 @@ def test_session_loaded_truncates_only_oversized_tool_output(
     asyncio.run(
         ws_session.handle_load_session(
             ws,
-            {"session_id": "session-1"},
+            {"session_id": "session-1", "request_id": "history-read-1"},
         )
     )
 
     loaded = next(frame for frame in ws.frames if frame["type"] == "session_loaded")
+    assert loaded["data"]["request_id"] == "history-read-1"
+    assert loaded["data"]["action"] == "load_session"
     assistant = next(
         message
         for message in loaded["data"]["messages"]

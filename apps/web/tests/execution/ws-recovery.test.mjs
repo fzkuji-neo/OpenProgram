@@ -13,8 +13,10 @@ for (const match of source.matchAll(/import\s+(?!type\b)\{([^}]+)\}\s+from\s+["'
   exportsByModule.set(match[2], [...(exportsByModule.get(match[2])??[]), ...match[1].split(',').map(s=>s.trim()).filter(s=>s && !s.startsWith('type '))]);
 }
 exportsByModule.set('@/lib/chat/send-queue', ['useSendQueue','reconcileAfterSessionLoad']);
-const real = new Set(['./execution-recovery','./history-fragments','./execution-message-recovery','@/lib/net/execution-cursor']);
+const real = new Set(['@/lib/runtime-bridge/session-load','./execution-recovery','./history-fragments','./execution-message-recovery','@/lib/net/execution-cursor']);
 const hooks=registerHooks({resolve(specifier, context, next) {
+  if(specifier==='@/lib/net/session-load') return {url:new URL('../../lib/net/session-load.ts',import.meta.url).href,shortCircuit:true};
+  if(context.parentURL?.endsWith('/runtime-bridge/session-load.ts') && (specifier==='./state'||specifier==='@/lib/session-store')) return {url:'data:text/javascript,'+encodeURIComponent(specifier==='./state'?'export const runtimeState=globalThis.__wsFixture.exports.runtimeState; export const getSocket=()=>runtimeState.ws;':'export const useSessionStore=globalThis.__wsFixture.exports.useSessionStore;'),shortCircuit:true};
   if(context.parentURL===hookURL && real.has(specifier)) {
     const url=specifier.startsWith('@/')?new URL(`../../${specifier.slice(2)}.ts`,import.meta.url).href:new URL(`${specifier}.ts`,hookURL).href;
     return {url,shortCircuit:true};
@@ -30,7 +32,7 @@ const realSetTimeout=globalThis.setTimeout, realClearTimeout=globalThis.clearTim
 const realSetInterval=globalThis.setInterval, realClearInterval=globalThis.clearInterval;
 const state={currentSessionId:'s',_optimisticCancels:{},conversations:{}};
 const orders={};
-const store={runningTasks:{},messagesById:{},pendingDecisions:[],composerSettingsBySession:{},
+const store={messageOrder:{},setTranscriptReadStatus(){},setMessages(){},runningTasks:{},messagesById:{},pendingDecisions:[],composerSettingsBySession:{},
   acceptExecutionUpdate(id,seq,status,sid,ids){const d=decideExecutionUpdateOrder(orders[id],seq,status,sid,ids);if(d.next)orders[id]=d.next;return d.accepted;},
   setRunningTaskFor(sid,task){store.runningTasks[sid]=task;},setAdditionalWorkingDirs(){},setComposerSettings(){},dequeueDecision(){},enqueueDecision(){},
 };
@@ -51,7 +53,7 @@ class Socket extends EventTarget {
   constructor(){super();connections.push(this);}
   send(raw){this.sent.push(JSON.parse(raw));}
   close(){this.readyState=3;this.onclose?.();}
-  receive(frame){this.onmessage?.({data:JSON.stringify(frame)});}
+  receive(frame){if(frame.type==='session_loaded' && !frame.data.request_id)frame.data.request_id=this.sent.findLast(r=>r.action==='load_session'&&r.session_id===frame.data.id)?.request_id;this.onmessage?.({data:JSON.stringify(frame)});}
 }
 globalThis.WebSocket=Socket;
 const { useWS }=await import(hookURL);

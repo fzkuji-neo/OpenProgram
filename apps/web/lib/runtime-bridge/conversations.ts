@@ -1,3 +1,4 @@
+import { preserveSessionReadRows } from "./session-load";
 import { registerSessionHistory, type HistoryPage } from "@/lib/chat/session-history";
 import { seedHistoryWindow } from "./session-history-loader";
 export { loadOlderSessionHistory } from "./session-history-loader";
@@ -104,7 +105,7 @@ function feedStoreFromConv(conv: LegacyConv): void {
   if (!conv || !conv.id) return;
   useSessionStore
     .getState()
-    .setMessages(conv.id, convToChatMsgs((conv.messages as never[]) || []));
+    .setMessages(conv.id, preserveSessionReadRows(conv.id, convToChatMsgs((conv.messages as never[]) || [])));
 }
 
 /** Rebuild card + event rows when the wire list omitted them. */

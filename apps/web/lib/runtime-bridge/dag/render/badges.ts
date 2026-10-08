@@ -1,3 +1,4 @@
+import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 /**
  * Renderer: branch badge buttons below branch tip nodes.
  *
@@ -109,10 +110,10 @@ function _sendCheckout(sessionId: string | null, headMsgId: string): void {
       session_id: sessionId,
       head_msg_id: headMsgId,
     }));
-    sock.send(JSON.stringify({
+    if (sessionId) requestSessionLoad({
       action: "load_session",
       session_id: sessionId,
-    }));
+    }, true);
   }
 }
 

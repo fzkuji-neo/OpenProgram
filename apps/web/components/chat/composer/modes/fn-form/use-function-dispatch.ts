@@ -1,4 +1,5 @@
 "use client";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 
 import { useCallback } from "react";
 
@@ -175,7 +176,7 @@ export function useFunctionDispatch({
         if (shouldActivate) {
           runtimeState.currentSessionId = sid;
           runtimeState.__reloadOnTaskClear.add(sid);
-          send({ action: "load_session", session_id: sid });
+          requestSessionLoad({ action: "load_session", session_id: sid }, true);
           if (sid !== currentSessionId) {
             setCurrentConv(sid);
             pushPath(`/s/${encodeURIComponent(sid)}`);

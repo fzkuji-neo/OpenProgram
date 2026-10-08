@@ -16,10 +16,12 @@ import {writeChatScroll} from './lib/chat/chat-scroll';
 import {useHistoryWindow} from './components/chat/messages/use-history-window';
 import {useSessionStore} from './lib/session-store';
 import {useSessionHistory,registerSessionHistory} from './lib/chat/session-history';
-import {seedHistoryWindow} from './lib/runtime-bridge/session-history-loader';
+import {loadSessionHistoryWindow,seedHistoryWindow} from './lib/runtime-bridge/session-history-loader';
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {saveHistoryAnchor,readHistoryAnchor} from './lib/chat/history-viewport';
 import {PeerSessionPane} from './components/chat/peer-session-pane';
+import {requestSessionLoad,acceptSessionLoad,failSessionLoad,preserveSessionReadRows} from './lib/runtime-bridge/session-load';
+import {TranscriptReadStatus} from './components/chat/messages/transcript-read-status';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 const queryClient=new QueryClient({defaultOptions:{queries:{retry:false}}});
 function result(id,start=200){let end=start+50;return {messages:Array.from({length:50},(_,i)=>({id:`${id}-${start+i}`,role:'user',content:`Message ${start+i}`,status:'completed'})),history:{snapshot:id,head_id:`${id}-499`,before:`${id}-${start}`,after:end<500?`${id}-${end-1}`:null,start,end,total:500}};}
@@ -27,6 +29,8 @@ class Socket extends EventTarget{static OPEN=1;readyState=1;send(wire){let req=J
 window.requests=[];window.WebSocket=Socket;const socket=new Socket();setSocket(socket);
 window.seed=(id,start)=>{const r=result(id,start);runtimeState.conversations[id]={id,messages:r.messages};seedHistoryWindow(id,r.messages,r.history);registerSessionHistory(id,r.history);useSessionStore.getState().setMessages(id,r.messages);};
 window.reply=(req,fail=false)=>{let start=req.history_latest?450:req.history_around?Number(req.history_around.split('-').at(-1))-25:req.history_before?Number(req.history_before.split('-').at(-1))-50:Number(req.history_after.split('-').at(-1))+1;socket.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'session_history_page',data:{id:fail?'wrong':req.session_id,action:'load_session',request_id:req.request_id,...result(req.session_id,start)}})}));};
+window.loadHistory=loadSessionHistoryWindow;
+window.expire=req=>socket.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'operation_error',data:{action:'load_session',request_id:req.request_id,code:'invalid_request',message:'Expired history'}})}));
 window.pageState=id=>useSessionHistory.getState().pages[id];
 window.save=(id,n)=>saveHistoryAnchor(id,{id:`${id}-${n}`,offset:0});window.anchor=id=>readHistoryAnchor(id);
 runtimeState.currentSessionId='main';useSessionStore.setState({currentSessionId:'main',activeChatKey:'main'});window.seed('main',200);
@@ -37,6 +41,12 @@ function Main(){const ids=useSessionStore(s=>s.messageOrder.main??[]);const {det
 let root=createRoot(document.getElementById('mount'));root.render(<Main/>);
 window.unmount=()=>root.unmount();window.mount=()=>{root=createRoot(document.getElementById('mount'));root.render(<Main/>);};
 window.remount=()=>{window.unmount();window.mount();};
+window.readFixture=()=>{root.unmount();root=createRoot(document.getElementById('mount'));root.render(<TranscriptReadStatus sessionId="read"/>);};
+window.read=()=>requestSessionLoad({action:'load_session',session_id:'read'});
+window.failRead=req=>failSessionLoad(socket,{request_id:req.request_id});
+window.acceptRead=req=>acceptSessionLoad(socket,{id:'read',request_id:req.request_id,messages:[]},data=>useSessionStore.getState().setMessages('read',preserveSessionReadRows('read',data.messages)));
+window.liveRow=()=>useSessionStore.getState().appendMessage('read',{id:'new-live',role:'assistant',content:'Progress after read',status:'streaming'});
+window.readRows=()=>useSessionStore.getState().messageOrder.read;
 window.peers=()=>{root.unmount();window.seed('left',200);window.seed('right',300);root=createRoot(document.getElementById('mount'));root.render(<QueryClientProvider client={queryClient}><div style={{display:'flex',height:500}}><PeerSessionPane tabId="left" sessionId="left" title="Left"/><PeerSessionPane tabId="right" sessionId="right" title="Right"/></div></QueryClientProvider>);};
 '''
     bundle = tmp_path / 'interactions.js'
@@ -91,5 +101,26 @@ window.peers=()=>{root.unmount();window.seed('left',200);window.seed('right',300
             page.evaluate("window.requests.splice(0).forEach(r=>window.reply(r,r.session_id!=='left'))")
             page.wait_for_function("window.pageState('left').end===500")
             assert page.evaluate("window.pageState('right').end") == 350
+            # Expired cursors renew once around the reader, without resending the cursor.
+            page.evaluate("window.requests.splice(0).forEach(r=>window.reply(r,true));window.loadHistory('left','older')")
+            page.wait_for_function("window.requests.some(r=>r.history_before&&r.session_id==='left')")
+            page.evaluate("window.expire(window.requests.splice(0).find(r=>r.history_before&&r.session_id==='left'))")
+            page.wait_for_function("window.requests.some(r=>r.history_around&&r.session_id==='left')")
+            assert page.evaluate("window.requests.find(r=>r.history_around).history_snapshot") is None
+            page.evaluate("window.requests.splice(0).forEach(r=>window.reply(r))")
+            page.wait_for_function("!window.pageState('left').loading")
+            assert page.evaluate("window.pageState('left').error") is False
+            # Production retry UI and request bridge retain live progress during a read.
+            page.evaluate("window.readFixture();window.requests=[];window.read();window.read()")
+            assert page.evaluate('window.requests.length') == 1
+            page.evaluate('window.failRead(window.requests[0])')
+            retry = page.get_by_role('button', name='Retry', exact=True)
+            expect(retry).to_be_visible()
+            retry.focus(); page.keyboard.press('Enter')
+            assert page.evaluate('window.requests.length') == 2
+            assert page.evaluate('window.acceptRead(window.requests[0])') is False
+            page.evaluate('window.liveRow();window.acceptRead(window.requests[1])')
+            expect(retry).to_have_count(0)
+            assert page.evaluate('window.readRows()') == ['new-live']
         finally:
             browser.close()
