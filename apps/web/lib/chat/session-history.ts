@@ -4,7 +4,7 @@ export interface HistoryPage {
   head_id: string | null; before: string | null; after?: string | null;
   snapshot?: string; start?: number; end?: number; total?: number;
 }
-export interface HistoryState extends HistoryPage { generation: number; loading: boolean; error: boolean }
+export interface HistoryState extends HistoryPage { generation: number; loading: boolean; error: boolean; renewalRequired?: boolean }
 let generation = 0;
 export const useSessionHistory = create<{ pages: Record<string, HistoryState> }>(() => ({ pages: {} }));
 export function registerSessionHistory(id: string, history?: HistoryPage) {

@@ -283,7 +283,7 @@ export function PageShell({ page }: { page: Page }) {
       && Array.isArray(cached.messages)
       && cached.messages.length > 0
     ) {
-      try { renderSessionMessages(cached as never); } catch {}
+      try { renderSessionMessages(cached as never, { preserveStore: true }); } catch {}
       try { store.getState().setTranscriptLoading(null); } catch {}
     } else {
       try {

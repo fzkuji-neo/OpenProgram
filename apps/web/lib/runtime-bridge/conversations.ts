@@ -693,13 +693,13 @@ function clearChatMessages(container: HTMLElement | null): void {
   });
 }
 
-export function renderSessionMessages(conv: LegacyConv): void {
+export function renderSessionMessages(conv: LegacyConv, options?: { preserveStore: boolean }): void {
   const container = document.getElementById("chatMessages");
   runtimeState.trees.length = 0;
 
-  feedStoreFromConv(conv);
+  if (!options?.preserveStore) feedStoreFromConv(conv);
 
-  if (!conv.messages || conv.messages.length === 0) {
+  if (!conv.id || !(useSessionStore.getState().messageOrder[conv.id]?.length)) {
     clearChatMessages(container);
     setWelcomeVisible(true);
     return;

@@ -72,7 +72,8 @@ export function createSessionLoads<T>(options: {
 /** Store rows are immutable: retain only progress written after the read began. */
 export function retainChangedRows<T extends { id: string; status?: string }>(before: readonly T[], current: readonly T[], loaded: readonly T[]): T[] {
   const baseline = new Map(before.map(row => [row.id, row]));
-  const changed = new Map(current.filter(row => baseline.get(row.id) !== row || ['pending', 'running', 'streaming', 'cancelling'].includes(row.status ?? '')).map(row => [row.id, row]));
+  const loadedIds = new Set(loaded.map(row => row.id));
+  const changed = new Map(current.filter(row => baseline.get(row.id) !== row || (!loadedIds.has(row.id) && ['pending', 'running', 'streaming', 'cancelling'].includes(row.status ?? ''))).map(row => [row.id, row]));
   const result = loaded.map(row => { const live = changed.get(row.id); changed.delete(row.id); return live ?? row; });
   return [...result, ...changed.values()];
 }
