@@ -69,6 +69,7 @@ test('mounted socket prioritizes history, avoids terminal replay reloads, and re
     assert.equal(first.sent.some(r=>r.action==='execution.replay'),false);
     first.receive({type:'session_loaded',data:{id:'s',messages:[],run_active:false}});await tick();
     assert.equal(first.sent.filter(r=>r.action==='execution.replay').length,1);
+    assert.equal(first.sent.find(r=>r.action==='execution.replay').snapshot_only,true);
     for(let i=0;i<20;i++){first.receive(replay(`old-${i}`));await tick();}
     assert.equal(first.sent.filter(r=>r.action==='load_session').length,1,'twenty old completions must not reload transcript');
     assert.deepEqual(loaded,['s']);

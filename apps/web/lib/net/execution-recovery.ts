@@ -2,7 +2,7 @@
  * The visible transcript starts first. Recovery yields between responses so
  * old cursors cannot fill the transport ahead of interactive requests. */
 export function createExecutionRecovery(options: {
-  send: (request: { action: "execution.replay"; execution_id: string; after_sequence: number }) => void;
+  send: (request: { action: "execution.replay"; execution_id: string; after_sequence: number; snapshot_only: true }) => void;
   schedule: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
   cancel: (timer: ReturnType<typeof setTimeout>) => void;
 }) {
@@ -25,7 +25,7 @@ export function createExecutionRecovery(options: {
       active = { id, after };
       timeout = options.schedule(() => complete(id), 15_000);
       try {
-        options.send({ action: "execution.replay", execution_id: id, after_sequence: after });
+        options.send({ action: "execution.replay", execution_id: id, after_sequence: after, snapshot_only: true });
       } catch {
         complete(id);
       }

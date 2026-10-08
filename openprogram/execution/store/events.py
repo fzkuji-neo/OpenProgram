@@ -51,13 +51,15 @@ class EventsOperations:
 
 
     def read_event_replay(
-        self, execution_id: str, *, after_sequence: int
+        self, execution_id: str, *, after_sequence: int, include_events: bool = True
     ) -> EventReplay:
         """Read one exact execution's contiguous public event stream.
 
         SQLite event ids are global because the projection outbox references
         them.  Public cursors instead use ``execution_sequence`` so activity
-        in a different execution cannot manufacture a false gap.
+        in a different execution cannot manufacture a false gap. UI recovery
+        can request only the record and cursor from the same read snapshot;
+        this never reads event payloads, which can include large provider inputs.
         """
         if type(after_sequence) is not int or after_sequence < 0:
             raise ExecutionConflict("invalid_cursor", "after_sequence must be a non-negative integer")
@@ -84,6 +86,8 @@ class EventsOperations:
                 rows = ()
             elif after_sequence < first - 1:
                 recovery = "cursor_expired"
+                rows = ()
+            elif not include_events:
                 rows = ()
             else:
                 rows = connection.execute(
