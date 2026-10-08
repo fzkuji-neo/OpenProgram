@@ -911,3 +911,51 @@ def test_discovered_schema_survives_next_chat_turn_but_not_other_session(
     assert "weekly_probe" not in seen[5]
     assert tool_runtime._loaded_deferred.get() is original_loaded
     assert tool_runtime._frozen_turn_tools.get() is original_frozen
+
+
+def test_consumed_steer_keeps_ordered_boundary(tmp_db, monkeypatch, fresh_registry):
+    """Real loop consumes input between two provider requests and persists it."""
+    from openprogram.context.nodes import Call
+    from openprogram.store import SessionNodeWriter
+    from openprogram.agent.turn_runtime.stream_tap import make_stream_tap
+    monkeypatch.setattr(D, '_load_agent_profile', _stub_profile_with_tools(['steer_probe']))
+    tmp_db.create_session('steer-order', 'main')
+    writer = SessionNodeWriter(tmp_db, 'steer-order')
+    writer.append(Call(id='u',role='user',output='start'))
+    writer.append(Call(id='u_reply',role='llm',output='',predecessor='u'))
+    queue=[]
+    @function(name='steer_probe', description='test boundary')
+    def probe():
+        queue.append({'command_id':'input-1','payload':{'message':'NEW INPUT'}})
+        return 'tool done'
+    calls=0
+    async def stream(model,context,options):
+        nonlocal calls
+        calls+=1
+        if calls==1:
+            message=_build_final_with_tool('tool-1','steer_probe',{})
+            message.content.insert(0,TextContent(text='BEFORE'))
+            yield EventStart(partial=_build_partial())
+            yield EventTextStart(content_index=0,partial=_build_partial())
+            yield EventTextDelta(content_index=0,delta='BEFORE',partial=_build_partial('BEFORE'))
+            yield EventTextEnd(content_index=0,content='BEFORE',partial=_build_partial('BEFORE'))
+            yield EventDone(reason='toolUse',message=message)
+        else:
+            assert any('NEW INPUT' in str(m.content) for m in context.messages)
+            yield EventStart(partial=_build_partial())
+            yield EventTextStart(content_index=0,partial=_build_partial())
+            yield EventTextDelta(content_index=0,delta='AFTER',partial=_build_partial('AFTER'))
+            yield EventTextEnd(content_index=0,content='AFTER',partial=_build_partial('AFTER'))
+            yield EventDone(reason='stop',message=_build_final_text('AFTER'))
+    req=_owner_turn(session_id='steer-order',agent_id='main',source='web',user_msg_id='u',user_text='start',permission_mode='bypass')
+    events=[];ordered=[]
+    tap=make_stream_tap(on_event=events.append,req=req,assistant_msg_id='u_reply',placeholder_inserted=True,agentic_tool_names=set())
+    D._run_loop_blocking(req=req,history=[],on_event=tap,cancel_event=None,stream_fn=stream,
+        assistant_msg_id='u_reply',ordered_blocks_out=ordered,execution_context={'canonical_execution':True,'steer_inputs':queue,'steer_consumed_ids':set()})
+    assert [b['type'] for b in ordered]==['text','tool','steering','text']
+    assert [b['type'] for b in tap.blocks]==['text','tool','steering','text']
+    import json
+    node=next(n for n in tmp_db.get_nodes('steer-order') if n.id=='u_reply')
+    assert [b['type'] for b in json.loads(node.metadata['extra'])['blocks']]==['text','tool','steering','text']
+    user=next(e['data'] for e in events if e.get('data',{}).get('type')=='user_message')
+    assert user['assistant_msg_id']=='u_reply'

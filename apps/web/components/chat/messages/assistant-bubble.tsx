@@ -44,6 +44,13 @@ import { shouldRenderTurnFiles } from "./turn-files-presentation";
 import { AssistantFileCards } from "./assistant-file-cards";
 import { parseAttachments } from "./user-attachments";
 import { ActivityIndicator } from "./activity-indicator";
+import { UserBubble } from "./user-bubble";
+
+function SteeringInput({block, sessionId}: {block: AssistantBlock; sessionId?: string}) {
+  const user = useSessionStore(s => block.message_id ? s.messagesById[block.message_id] : undefined);
+  const message: ChatMsg = user ?? {id:block.message_id!,role:"user",content:block.text ?? "",steering:true,status:"done",timestamp:block.timestamp};
+  return <div className="steering-input"><UserBubble msg={message} sessionIdOverride={sessionId}/></div>;
+}
 
 /** Older agent calls can lack an ordered tool block. They still use the
  * same execution rows as current chat, never a second runtime-card renderer. */
@@ -332,11 +339,11 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 items: Array<{ b: AssistantBlock; i: number }>;
                 cards: ChatMsg[];
               };
-              type TextSeg = { kind: "text"; b: AssistantBlock; i: number };
+              type TextSeg = { kind: "text"; b: AssistantBlock; i: number } | { kind: "steering"; b: AssistantBlock; i: number };
               const segs: Array<ExecSeg | TextSeg> = [];
               effBlocks.forEach((b, i) => {
-                if (b.type === "text") {
-                  segs.push({ kind: "text", b, i });
+                if (b.type === "text" || b.type === "steering") {
+                  segs.push({ kind: b.type, b, i });
                   return;
                 }
                 const last = segs[segs.length - 1];
@@ -359,6 +366,10 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
               ];
               const rendered: React.ReactNode[] = [];
               segs.forEach((seg, si) => {
+                if (seg.kind === "steering") {
+                  rendered.push(<SteeringInput key={`steer_${seg.b.message_id}`} block={seg.b} sessionId={bubbleSessionId}/>);
+                  return;
+                }
                 if (seg.kind === "text") {
                   rendered.push(<MarkdownText key={`txt_${seg.i}`} text={seg.b.text || ""} />);
                   return;

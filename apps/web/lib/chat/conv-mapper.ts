@@ -23,6 +23,7 @@ const AGENTIC_TOOL_NAMES: ReadonlySet<string> = new Set([
 ]);
 
 interface LegacyBlock {
+  timestamp?: number;
   type?: string;
   text?: string;
   tool?: string;
@@ -305,6 +306,8 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
           orderedBlocks.push({ type: "thinking", text: b.text });
         } else if (b.type === "text" && b.text) {
           orderedBlocks.push({ type: "text", text: b.text });
+        } else if (b.type === "steering" && b.message_id) {
+          orderedBlocks.push({type: "steering", message_id: b.message_id, text: b.text, timestamp: b.timestamp});
         } else if (b.type === "tool") {
           const tid = b.tool_call_id || `${id}_t${bi}`;
           orderedBlocks.push({
@@ -462,6 +465,29 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
       out.splice(i, 1);
       i--; // out[i] 现在是原 i+1，回退让循环重新检查
     }
+  }
+  // A steer is still an independent user node. Its presentation belongs at
+  // the owning reply boundary; legacy records only identify the owner.
+  const byId = new Map(out.map(m => [m.id, m]));
+  for (const reply of out) {
+    if (reply.role !== "assistant") continue;
+    const marked = new Set((reply.blocks ?? []).filter(b => b.type === "steering").map(b => b.message_id));
+    for (const id of marked) {
+      const user = id ? byId.get(id) : undefined;
+      if (user?.steering) user.steeringReplyId = reply.id;
+    }
+    const legacy: AssistantBlock[] = [];
+    let predecessor = rawById.get(reply.id)?.predecessor;
+    const visited = new Set<string>();
+    while (predecessor && !visited.has(predecessor)) {
+      visited.add(predecessor);
+      const user = byId.get(predecessor);
+      if (!user?.steering) break;
+      user.steeringReplyId = reply.id;
+      if (!marked.has(user.id)) legacy.unshift({type:"steering",message_id:user.id,text:user.content,timestamp:user.timestamp});
+      predecessor = user.calledBy;
+    }
+    if (legacy.length) reply.blocks = [...legacy, ...(reply.blocks?.length ? reply.blocks : reply.content ? [{type:"text" as const,text:reply.content}] : [])];
   }
   return out;
 }
