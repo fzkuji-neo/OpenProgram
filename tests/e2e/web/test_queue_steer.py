@@ -78,3 +78,88 @@ window.legacy=()=>{
             assert [s.strip() for s in page.locator('.chat-text, .message.user .message-content').all_text_contents()]==['OLD INPUT','OLD ANSWER']
             assert not errors,errors
         finally:browser.close()
+
+
+@pytest.mark.parametrize("delivery", ["accepted", "lost_ack", "stopped"])
+def test_pending_steer_survives_reload_without_an_ordinary_send(tmp_path, delivery):
+    from playwright.sync_api import sync_playwright, expect
+    entry = r'''
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
+import {QueuedMessages} from './components/chat/messages/queued-messages';
+import {useSendQueue,registerChatSender,reconcileAfterSessionLoad,holdSteeringForStop} from './lib/chat/send-queue';
+import {steerQueuedMessage} from './lib/chat/steer-message';
+import {useSessionStore} from './lib/session-store';
+const sid='reload-steer';
+window.ordinary=[];
+registerChatSender(args=>{window.ordinary.push(args);return true});
+useSessionStore.setState({currentSessionId:sid,activeChatKey:sid,runningTasks:{[sid]:{session_id:sid,msg_id:'u',execution_id:'exact-execution',status_version:7}}});
+window.rows=()=>useSendQueue.getState().queues[sid]??[];
+window.submit=async()=>{
+ const id=useSendQueue.getState().enqueue(sid,{text:'retain my instruction',thinking:'medium',toolsEnabled:true,webSearchEnabled:false,background:false});
+ await steerQueuedMessage(sid,id);
+};
+window.confirm=()=>steerQueuedMessage(sid,rows()[0].id);
+window.hold=()=>holdSteeringForStop(sid);
+createRoot(document.getElementById('root')).render(<QueryClientProvider client={new QueryClient()}><QueuedMessages sessionId={sid}/></QueryClientProvider>);
+reconcileAfterSessionLoad(sid,true);
+'''
+    bundle = tmp_path / 'reload.js'
+    subprocess.run(['node', '-e', "require('esbuild').buildSync({stdin:{contents:process.argv[3],resolveDir:process.argv[1],loader:'tsx'},bundle:true,format:'iife',platform:'browser',jsx:'automatic',loader:{'.css':'css'},outfile:process.argv[2],tsconfig:process.argv[1]+'/tsconfig.json'});", str(WEB), str(bundle), entry], cwd=ROOT, check=True, capture_output=True)
+    commands = []
+    status = ['accepted']
+
+    def route(request):
+        url = request.request.url
+        if '/api/execution/steer' in url:
+            command = request.request.post_data_json
+            commands.append(command)
+            if delivery == 'lost_ack' and len(commands) == 1:
+                request.abort()
+            else:
+                request.fulfill(json={'command': {'command_id': command['command_id'], 'status': status[0], 'rejection_code': 'superseded_by_cancel' if status[0] == 'rejected' else None}})
+        elif '/api/execution/' in url:
+            request.fulfill(json={'snapshot': {'session_id':'reload-steer','execution_id':'exact-execution','status_version':7,'status':'running','capabilities':{'steer':True}}})
+        elif url.endswith('/reload.js'):
+            request.fulfill(body=bundle.read_text(), content_type='text/javascript')
+        elif url.endswith('/reload.css'):
+            request.fulfill(body=bundle.with_suffix('.css').read_text(), content_type='text/css')
+        else:
+            request.fulfill(body='<div id="root"></div><link rel="stylesheet" href="/reload.css"><script src="/reload.js"></script>', content_type='text/html')
+
+    with sync_playwright() as runtime:
+        browser = runtime.chromium.launch()
+        try:
+            page = browser.new_page()
+            errors = []
+            page.on('pageerror', lambda error: errors.append(str(error)))
+            page.route('http://localhost/**', route)
+            page.goto('http://localhost/')
+            page.evaluate('submit()')
+            expect(page.locator('[data-queued-message]')).to_have_count(1)
+            assert len(commands) == 1
+            original = commands[0]
+            if delivery == 'stopped':
+                page.evaluate('hold()')
+            page.reload()
+            expect(page.locator('[data-queued-message]')).to_contain_text('retain my instruction')
+            page.wait_for_function('rows()[0]?.steerCommand && !rows()[0].injecting')
+            assert len(commands) >= 2
+            assert all(command == original for command in commands)
+            assert page.evaluate('ordinary.length') == 0
+            status[0] = 'rejected' if delivery == 'stopped' else 'applied'
+            page.evaluate('confirm()')
+            if delivery == 'stopped':
+                expect(page.locator('[data-queued-message]')).to_contain_text('Not sent')
+                page.reload()
+                expect(page.locator('[data-queued-message]')).to_contain_text('Not sent')
+                assert page.evaluate('rows()[0].steerError') == 'cancelled'
+            else:
+                expect(page.locator('[data-queued-message]')).to_have_count(0)
+                page.reload()
+                assert page.evaluate('rows().length') == 0
+            assert page.evaluate('ordinary.length') == 0
+            assert not errors, errors
+        finally:
+            browser.close()

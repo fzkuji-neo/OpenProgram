@@ -52,7 +52,7 @@ const mocks = {
     (host.sessions.messageOrder[sid] ??= []).push(id);
   };`,
   "@/lib/net/execution-client": `export class ExecutionApiError extends Error {}
-    export const getExecutionSnapshot = async (eid, signal, sid) => ({
+    export const getExecutionSnapshot = async (eid, signal, sid) => host.snapshot ? host.snapshot(eid, sid) : ({
       session_id:sid, execution_id:eid, status_version:7, status:'running', capabilities:{steer:true}
     });
     export const postExecutionCommand = async command => {
@@ -84,6 +84,7 @@ registerHooks({
 });
 
 globalThis.window = {};
+globalThis.sessionStorage = undefined;
 globalThis.localStorage = { getItem: () => null, setItem() {} };
 globalThis.WebSocket = { OPEN: 1 };
 const { useChatSubmit, stopSession } = await import("../../components/chat/composer/submit/use-chat-submit.ts");
@@ -136,7 +137,7 @@ beforeEach(() => {
   useSendQueue.setState({ queues: {} });
   Object.assign(host.runtime, { currentSessionId: "A", isRunning: false, _optimisticCancels: {}, _optimisticStops: {} });
   Object.assign(host, {
-    postCommand: undefined, frames: [], commands: [], notes: [], toasts: [], draftWrites: [], runWrites: [],
+    snapshot: undefined, postCommand: undefined, frames: [], commands: [], notes: [], toasts: [], draftWrites: [], runWrites: [],
     globalRunWrites: [], welcomeWrites: [], collectPastesOnClear: false,
     expandMentions: async text => ({ text }),
   });
@@ -502,4 +503,94 @@ test("stop rejects pending steer without automatically sending another turn", as
   useSendQueue.getState().retryDraft('A',queueFor('A')[0].id);
   assert.equal(host.frames.length,1);
   assert.equal(host.frames[0].text,'keep stopped instruction');
+});
+
+
+test("Stop during steer snapshot retains instruction without a new chat", async () => {
+  running();
+  let release;
+  host.snapshot = (eid, sid) => new Promise(resolve => { release = () => resolve({session_id:sid,execution_id:eid,status_version:7,status:'running',capabilities:{steer:true}}); });
+  await composer('stop before admission', {runningMessageMode:'steer'}).submit();
+  await nextTurn();
+  stopSession('A', () => true);
+  release(); await nextTurn();
+  assert.equal(host.commands.length, 0);
+  assert.equal(host.frames.length, 0);
+  assert.equal(queueFor('A')[0].text, 'stop before admission');
+  assert.equal(queueFor('A')[0].steerError, 'cancelled');
+});
+
+test("version retry never redirects a steer to a replacement execution", async () => {
+  running();
+  host.postCommand = command => {
+    host.sessions.runningTasks.A = {session_id:'A',msg_id:'next',execution_id:'exec-next',status_version:1};
+    return {command_id:command.command_id,status:'rejected',rejection_code:'stale_version'};
+  };
+  await composer('only for original turn', {runningMessageMode:'steer'}).submit();
+  await nextTurn();
+  assert.deepEqual(host.commands.map(c=>c.execution_id), ['exec-A']);
+  assert.equal(queueFor('A')[0].steerError, 'ended');
+  delete host.sessions.runningTasks.A;
+  useSendQueue.getState().drain('A');
+  assert.equal(host.frames.length, 0);
+});
+
+test("Stop during version rejection retains draft without resubmission", async () => {
+  running();
+  host.postCommand = command => {
+    stopSession('A', () => true);
+    return {command_id:command.command_id,status:'rejected',rejection_code:'stale_version'};
+  };
+  await composer('do not restart after stop', {runningMessageMode:'steer'}).submit();
+  await nextTurn();
+  assert.equal(host.commands.length, 1);
+  assert.equal(host.frames.length, 0);
+  assert.equal(queueFor('A')[0].steerError, 'cancelled');
+});
+
+test("steering character limit agrees with server for non-BMP text", async () => {
+  running();
+  const text='😀'.repeat(3000);
+  await composer(text, {runningMessageMode:'steer'}).submit();
+  await nextTurn();
+  assert.equal(host.commands[0]?.payload.message, text);
+  assert.equal(queueFor('A').length, 0);
+});
+
+
+test("version retry refreshes only the original target and never loops indefinitely", async () => {
+  running();
+  let version=7;
+  host.snapshot=(eid,sid)=>({session_id:sid,execution_id:eid,status_version:version++,status:'running',capabilities:{steer:true}});
+  host.postCommand=command=>({command_id:command.command_id,status:'rejected',rejection_code:'stale_version'});
+  await composer('bound retry', {runningMessageMode:'steer'}).submit();
+  await nextTurn();
+  assert.deepEqual(host.commands.map(c=>[c.execution_id,c.expected_version]), [['exec-A',7],['exec-A',8]]);
+  assert.notEqual(host.commands[0].command_id,host.commands[1].command_id);
+  assert.equal(queueFor('A')[0].text,'bound retry');
+});
+
+test("pending steer storage excludes ordinary drafts and attachments and tolerates disabled storage", async t => {
+  const {savePendingSteers,loadPendingSteers}=await import('../../lib/chat/pending-steer-storage.ts');
+  let saved=null;
+  const previous=globalThis.sessionStorage;
+  t.after(()=>{globalThis.sessionStorage=previous});
+  globalThis.sessionStorage={getItem:()=>saved,setItem:(_key,value)=>{saved=value},removeItem:()=>{saved=null}};
+  running();
+  await composer('ordinary draft').submit();
+  const draft=queueFor('A')[0];
+  savePendingSteers({A:[draft]});
+  assert.equal(saved,null);
+  const command={type:'execution.command',action:'execution.steer',command_id:'id',execution_id:'exec-A',expected_version:7,payload:{message:draft.text}};
+  savePendingSteers({A:[{...draft,steerCommand:command,injecting:true}]});
+  assert.deepEqual(loadPendingSteers().A[0].steerCommand,command);
+  assert.equal(loadPendingSteers().A[0].injecting,false);
+  savePendingSteers({A:[{...draft,steerCommand:command,docs:[{dataB64:'secret attachment'}]}]});
+  assert.equal(saved,null);
+  saved='not json'; assert.deepEqual(loadPendingSteers(),{});
+  saved=JSON.stringify({A:[{...draft,steerCommand:{...command,action:'execution.cancel'}}]});
+  assert.deepEqual(loadPendingSteers(),{});
+  globalThis.sessionStorage={getItem(){throw Error('blocked')},setItem(){throw Error('blocked')},removeItem(){throw Error('blocked')}};
+  assert.deepEqual(loadPendingSteers(),{});
+  assert.doesNotThrow(()=>savePendingSteers({A:[{...draft,steerError:'cancelled'}]}));
 });
