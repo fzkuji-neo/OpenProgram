@@ -24,7 +24,7 @@ test("execution cursor persists and requests replay only for a gap", () => {
     execution_id: "exec-1", next_sequence: 5, snapshot_status_version: 4,
   }).replayAfter, 1);
   assert.deepEqual(loadExecutionCursors(), [{
-    execution_id: "exec-1", next_sequence: 5, snapshot_status_version: 4,
+    execution_id: "exec-1", next_sequence: 2, snapshot_status_version: 1,
   }]);
 });
 

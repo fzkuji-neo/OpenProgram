@@ -38,7 +38,7 @@ export function loadExecutionCursors(): ExecutionCursor[] {
   return recoverable();
 }
 
-export function recordExecutionCursor(value: unknown, execution?: { status?: unknown; session_id?: unknown }): {
+export function recordExecutionCursor(value: unknown, execution?: { status?: unknown; session_id?: unknown }, recovered = false): {
   cursor?: ExecutionCursor;
   replayAfter?: number;
 } {
@@ -61,6 +61,11 @@ export function recordExecutionCursor(value: unknown, execution?: { status?: unk
   if (previous && (cursor.next_sequence < previous.next_sequence
       || cursor.snapshot_status_version < previous.snapshot_status_version)) return {};
   if (previous && terminal.has(previous.status ?? "") && execution?.status !== undefined && !terminal.has(String(execution.status))) return {};
+  // A gap frame is withheld from the reducer. Persist only applied progress,
+  // including its nonterminal status, until an authoritative replay arrives.
+  if (!recovered && previous && cursor.next_sequence > previous.next_sequence + 1) {
+    return { cursor, replayAfter: previous.next_sequence - 1 };
+  }
   const stored: StoredCursor = {
     ...cursor,
     ...(typeof execution?.status === "string" ? { status: execution.status } : previous?.status ? { status: previous.status } : {}),
@@ -73,10 +78,5 @@ export function recordExecutionCursor(value: unknown, execution?: { status?: unk
   const finished = Array.from(cursors.values()).filter(item => terminal.has(item.status ?? ""));
   for (const old of finished.slice(0, Math.max(0, finished.length - 256))) cursors.delete(old.execution_id);
   persist();
-  // A live cursor that skips local history must be replayed before its frame
-  // is allowed to advance the reducer.  A snapshot/replay response replaces
-  // state and therefore calls this after recovery, with no local gap.
-  return previous && cursor.next_sequence > previous.next_sequence + 1
-    ? { cursor, replayAfter: previous.next_sequence - 1 }
-    : { cursor };
+  return { cursor };
 }

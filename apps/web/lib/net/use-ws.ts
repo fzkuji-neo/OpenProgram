@@ -456,7 +456,7 @@ export function useWS(): void {
             recovery?.complete(replayId, ["cancelled", "completed", "failed", "interrupted", "error", "done"].includes(String(snapshot?.status)));
           }
           if (snapshot && typeof snapshot.execution_id === "string") {
-            recordExecutionCursor(replay?.event_cursor, snapshot);
+            recordExecutionCursor(replay?.event_cursor, snapshot, true);
             return dispatch({ type: "execution.updated", execution: snapshot, data: snapshot, event_cursor: replay?.event_cursor } as never, true);
           }
           return true;

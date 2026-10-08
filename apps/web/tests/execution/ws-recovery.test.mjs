@@ -80,6 +80,12 @@ test('mounted socket prioritizes history, avoids terminal replay reloads, and re
     second.onopen();second.receive({type:'session_loaded',data:{id:'s',messages:[]}});await tick();
     assert.equal(second.sent.some(r=>r.action==='execution.replay'),false,'terminal cursors must not replay again');
     const count=loaded.length;first.receive({type:'session_loaded',data:{id:'obsolete'}});assert.equal(loaded.length,count);
+    store.runningTasks.background={execution_id:'gap-terminal'};
+    second.receive({type:'execution.updated',execution:{execution_id:'gap-terminal',session_id:'background',status:'running',event_sequence:1},event_cursor:{execution_id:'gap-terminal',next_sequence:2,snapshot_status_version:1}});await flush();
+    second.receive({type:'execution.updated',execution:{execution_id:'gap-terminal',session_id:'background',status:'completed',event_sequence:4},event_cursor:{execution_id:'gap-terminal',next_sequence:5,snapshot_status_version:4}});
+    assert.ok(store.runningTasks.background,'gap terminal is held back until recovery');
+    second.close();await tick(2000);const third=connections.at(-1);third.onopen();third.receive({type:'session_loaded',data:{id:'s',messages:[]}});await tick();
+    assert.equal(third.sent.some(r=>r.action==='execution.replay'&&r.execution_id==='gap-terminal'),true,'a terminal frame not delivered to the store must remain recoverable after disconnect');
     cleanup();await tick();assert.equal(jobs.size,0);
   } finally {
     cleanup?.();globalThis.setTimeout=realSetTimeout;globalThis.clearTimeout=realClearTimeout;
