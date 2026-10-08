@@ -20,6 +20,7 @@ import {loadSessionHistoryWindow,seedHistoryWindow} from './lib/runtime-bridge/s
 import {runtimeState,setSocket} from './lib/runtime-bridge/state';
 import {saveHistoryAnchor,readHistoryAnchor} from './lib/chat/history-viewport';
 import {PeerSessionPane} from './components/chat/peer-session-pane';
+import {applyChatWsMessage} from './lib/net/chat-stream';
 import {loadSessionData,renderSessionMessages} from './lib/runtime-bridge/conversations';
 import {requestSessionLoad,acceptSessionLoad,failSessionLoad,preserveSessionReadRows} from './lib/runtime-bridge/session-load';
 import {TranscriptReadStatus} from './components/chat/messages/transcript-read-status';
@@ -50,6 +51,13 @@ window.liveRow=()=>useSessionStore.getState().appendMessage('read',{id:'new-live
 window.readRows=()=>useSessionStore.getState().messageOrder.read;
 window.readReply=()=>useSessionStore.getState().messagesById.reply;
 window.cachedRead=()=>renderSessionMessages(runtimeState.conversations.read,{preserveStore:true});
+window.bufferedRead=()=>{
+ window.read();
+ applyChatWsMessage({type:'chat_ack',data:{session_id:'read',msg_id:'buffered'}});
+ applyChatWsMessage({type:'chat_response',data:{type:'stream_event',session_id:'read',msg_id:'buffered',event:{type:'text',text:'Progress awaiting its frame'}}});
+ return window.acceptRead(window.requests.at(-1));
+};
+window.bufferedText=()=>useSessionStore.getState().messagesById.buffered_reply?.content;
 window.peers=()=>{root.unmount();window.seed('left',200);window.seed('right',300);root=createRoot(document.getElementById('mount'));root.render(<QueryClientProvider client={queryClient}><div style={{display:'flex',height:500}}><PeerSessionPane tabId="left" sessionId="left" title="Left"/><PeerSessionPane tabId="right" sessionId="right" title="Right"/></div></QueryClientProvider>);};
 '''
     bundle = tmp_path / 'interactions.js'
@@ -152,5 +160,7 @@ window.peers=()=>{root.unmount();window.seed('left',200);window.seed('right',300
             assert page.evaluate('window.readReply().content') == 'Complete answer'
             page.evaluate('window.cachedRead()')
             assert page.evaluate('window.readRows()') == ['reply', 'new-live']
+            assert page.evaluate('window.bufferedRead()') is True
+            assert page.evaluate('window.bufferedText()') == 'Progress awaiting its frame'
         finally:
             browser.close()

@@ -52,7 +52,7 @@ globalThis.cancelAnimationFrame = (id) => {
 };
 
 const { useSessionStore } = await import("../../lib/session-store/index.ts");
-const { applyChatWsMessage, clearSessionByMsgId } = await import(
+const { applyChatWsMessage, clearSessionByMsgId, flushPendingChatDeltas } = await import(
   "../../lib/net/chat-stream.ts"
 );
 const {
@@ -445,4 +445,58 @@ test('partial history preserves nested calls, call trees and legacy text progres
   assert.equal(useSessionStore.getState().messagesById[id].content,'Observed full narration');
   assert.equal(useSessionStore.getState().messagesById[id].callRoots.length,2);
   assert.equal(useSessionStore.getState().messagesById[id].callRoots[0].children[0].path,'a1');
+});
+
+test('loading peer history keeps foreground text waiting for its next frame', () => {
+  reset();
+  send({ type: 'text', text: 'Foreground progress' });
+  clearSessionByMsgId('peer-session');
+  runFrame();
+  assert.equal(reply().content, 'Foreground progress');
+});
+
+test('accepted history flushes received text before merging its older snapshot', async () => {
+  reset();
+  const { runtimeState, setSocket } = await import('../../lib/runtime-bridge/state.ts');
+  const { requestSessionLoad, acceptSessionLoad, preserveSessionReadRows, disposeSessionLoads } = await import('../../lib/runtime-bridge/session-load.ts');
+  const previous = runtimeState.ws;
+  const requests = [];
+  const socket = { readyState: WebSocket.OPEN, send: raw => requests.push(JSON.parse(raw)) };
+  setSocket(socket);
+  try {
+    requestSessionLoad({ action: 'load_session', session_id: SID });
+    send({ type: 'text', text: 'Received after read began' });
+    assert.equal(reply().content, '');
+    acceptSessionLoad(socket, { id: SID, request_id: requests[0].request_id, messages: [
+      { id: RID, role: 'assistant', content: '', status: 'streaming' },
+    ] }, data => useSessionStore.getState().setMessages(SID, preserveSessionReadRows(SID, data.messages)));
+    clearSessionByMsgId(SID);
+    assert.equal(reply().content, 'Received after read began');
+    runFrame();
+    assert.equal(reply().content, 'Received after read began');
+  } finally { disposeSessionLoads(socket); setSocket(previous); }
+});
+
+test('connection cleanup commits received text and cancels its scheduled frame', () => {
+  reset();send({ type: 'text', text: 'Received before close' });
+  flushPendingChatDeltas();clearSessionByMsgId();
+  assert.equal(reply().content, 'Received before close');
+  useSessionStore.getState().updateMessage(SID,RID,{content:'Recovered final',status:'done'});
+  runFrame();assert.equal(reply().content,'Recovered final');assert.equal(reply().status,'done');
+});
+
+test('flushing buffered progress never reopens a cancelled or completed reply', () => {
+  for (const status of ['cancelling', 'paused', 'cancelled', 'done', 'completed', 'error', 'interrupted']) {
+    reset();send({type:'text',text:'Buffered before stop'});
+    useSessionStore.getState().updateMessage(SID,RID,{content:'Accepted final state',status});
+    flushPendingChatDeltas();
+    assert.equal(reply().status,status);
+    if(status!=='cancelling' && status!=='paused') assert.equal(reply().content,'Accepted final state');
+  }
+});
+
+test('new output received after a pause resumes streaming', () => {
+  reset();useSessionStore.getState().updateMessage(SID,RID,{status:'paused'});
+  send({type:'text',text:'Resumed output'});runFrame();
+  assert.equal(reply().status,'streaming');assert.equal(reply().content,'Resumed output');
 });

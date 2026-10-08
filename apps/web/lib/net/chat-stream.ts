@@ -182,6 +182,7 @@ const sessionByMsgId = new Map<string, string>();
 
 type PendingDelta = {
   sid: string;
+  initialStatus: ChatMsg["status"];
   content: string;
   thinking: string;
   blocks: AssistantBlock[];
@@ -204,11 +205,14 @@ function flushPendingDelta(rid: string): void {
   if (!pending) return;
   pendingDeltas.delete(rid);
   if (pendingDeltas.size === 0) cancelDeltaRaf();
-  useSessionStore.getState().updateMessage(pending.sid, rid, {
+  const store = useSessionStore.getState();
+  const status = store.messagesById[rid]?.status;
+  if (status && ['done', 'completed', 'error', 'cancelled', 'interrupted'].includes(status)) return;
+  store.updateMessage(pending.sid, rid, {
     content: pending.content,
     thinking: pending.thinking,
     blocks: pending.blocks,
-    status: "streaming",
+    status: status === "cancelling" || (status === "paused" && pending.initialStatus !== "paused") ? status : "streaming",
   });
 }
 
@@ -232,17 +236,23 @@ function scheduleDeltaFlush(): void {
   deltaRaf = raf(flushAllPendingDeltas);
 }
 
-/** Drop every pending msg_id → session mapping. Entries normally die on
- *  their turn's terminal frame (result / error / cancelled); when that
- *  frame is lost (dropped socket, backend crash) they linger forever.
- *  `use-ws.ts` calls this on `session_loaded` — a fresh transcript is
- *  the natural drain point, same rationale as clearHydratedTreePaths.
- *  Also drops unflushed text/thinking deltas so a hydrate cannot receive
- *  a late rAF stamp from the previous connection. */
-export function clearSessionByMsgId(): void {
-  sessionByMsgId.clear();
-  pendingDeltas.clear();
-  cancelDeltaRaf();
+/** Commit received progress before a snapshot or connection cleanup. */
+export function flushPendingChatDeltas(sessionId?: string): void {
+  for (const [rid, pending] of pendingDeltas) {
+    if (sessionId === undefined || pending.sid === sessionId) flushPendingDelta(rid);
+  }
+}
+
+/** A session refresh releases only its routing and buffers. Connection teardown
+ * clears all routing after flushing received progress. */
+export function clearSessionByMsgId(sessionId?: string): void {
+  for (const [id, sid] of sessionByMsgId) {
+    if (sessionId === undefined || sid === sessionId) sessionByMsgId.delete(id);
+  }
+  for (const [id, pending] of pendingDeltas) {
+    if (sessionId === undefined || pending.sid === sessionId) pendingDeltas.delete(id);
+  }
+  if (!pendingDeltas.size) cancelDeltaRaf();
 }
 
 /** Store key for an assistant turn's reply bubble. The user turn is
@@ -836,6 +846,7 @@ function applyStreamEvent(sid: string, rid: string, evt: StreamEvent): void {
       const msg = ensureReply(sid, rid);
       cur = {
         sid,
+        initialStatus: msg.status,
         content: msg.content ?? "",
         thinking: msg.thinking ?? "",
         blocks: msg.blocks ?? [],
