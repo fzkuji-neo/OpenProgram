@@ -66,11 +66,27 @@ def handle_turn_error(
             structured_attempts = (
                 getattr(req.response_format, "max_validation_retries", 0) + 1
             )
+    # Classify the failure into the structured taxonomy (an LLMError
+    # carries its own reason; anything else is classified) so the webui can
+    # render a retryable rate-limit differently from a fatal auth/context
+    # failure. See docs/design/providers/reliability/error-taxonomy-propagation.md.
+    try:
+        from openprogram.memory.policy import MemoryPolicyError
+        from openprogram.providers.utils.errors import taxonomy_fields
+        if isinstance(e, MemoryPolicyError):
+            _e_reason, _e_retryable, _e_retry_after = "MEMORY_UNAVAILABLE", False, None
+        else:
+            _e_reason, _e_retryable, _e_retry_after = taxonomy_fields(e)
+    except Exception:
+        _log.debug("error taxonomy classification failed", exc_info=True)
+        _e_reason = _e_retryable = _e_retry_after = None
     head_for_next: Optional[str] = None
     err_text: Optional[str] = None
     if placeholder_inserted:
         err_text = _fold_error_into_placeholder(
             req.session_id, assistant_msg_id, e,
+            error_metadata={"error_reason": _e_reason, "error_retryable": _e_retryable,
+                            "error_retry_after_s": _e_retry_after},
         )
         if err_text is not None:
             head_for_next = assistant_msg_id
@@ -98,24 +114,10 @@ def handle_turn_error(
         on_event=on_event,
         error_text=err_text,
     )
-    # Classify the failure into the structured taxonomy (an LLMError
-    # carries its own reason; anything else is classified) so the webui can
-    # render a retryable rate-limit differently from a fatal auth/context
-    # failure. See docs/design/providers/reliability/error-taxonomy-propagation.md.
-    try:
-        from openprogram.memory.policy import MemoryPolicyError
-        from openprogram.providers.utils.errors import taxonomy_fields
-        if isinstance(e, MemoryPolicyError):
-            _e_reason, _e_retryable, _e_retry_after = "MEMORY_UNAVAILABLE", False, None
-        else:
-            _e_reason, _e_retryable, _e_retry_after = taxonomy_fields(e)
-    except Exception:
-        _log.debug("error taxonomy classification failed", exc_info=True)
-        _e_reason = _e_retryable = _e_retry_after = None
     on_event({"type": "chat_response",
               "data": {"type": "error", "session_id": req.session_id,
                        "msg_id": user_msg_id,
-                       "content": err_text, "reason": _e_reason,
+                       "content": err_text, "error_detail": err_text, "reason": _e_reason,
                        "retryable": _e_retryable,
                        "retry_after_s": _e_retry_after}})
     return TurnResult(

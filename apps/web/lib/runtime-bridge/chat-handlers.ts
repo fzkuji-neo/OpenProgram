@@ -1001,7 +1001,7 @@ export function handleChatResponse(data: ChatResponseData): void {
     // focused session already streamed the row (patch it final), a
     // background session gets it appended so its transcript is whole
     // without a reload.
-    if (!isRuntimeResult) {
+    if (!isRuntimeResult && type !== "error") {
       const st = useSessionStore.getState();
       // The result envelope's msg_id is the USER turn's id; the reply
       // row is minted as ``<user_msg_id>_reply`` everywhere (dispatcher,
