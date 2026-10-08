@@ -146,6 +146,65 @@ def test_same_url_does_not_merge_distinct_pages(tmp_path, monkeypatch):
     assert {row["resource_id"] for row in rows} == {"page:1", "page:2"}
 
 
+def test_resource_endpoint_reuses_branch_graph_within_each_request(tmp_path, monkeypatch):
+    import openprogram.browser_resources as resources
+    from openprogram.webui.routes.execution import processes
+
+    monkeypatch.setattr("openprogram.paths.get_state_dir", lambda: tmp_path)
+    db = _conversation(tmp_path)
+    db.set_branch_name("parent", "a1", "original")
+    db.set_branch_name("parent", "a2retry", "retry")
+    monkeypatch.setattr("openprogram.agent.session_db.default_db", lambda: db)
+    monkeypatch.setattr("openprogram.execution.default_store", lambda: None)
+    monkeypatch.setattr("openprogram.execution.conversation_scope.conversation_executions", lambda *args: ())
+    monkeypatch.setattr(processes, "_authorize", lambda *args: None)
+    store = resources.BrowserResourceStore()
+    writer = SessionNodeWriter(db, "parent")
+    for index in range(40):
+        anchor = f"resource-anchor-{index}"
+        writer.append(Call(
+            id=anchor, role="llm", seq=10 + index,
+            predecessor=f"resource-anchor-{index - 1}" if index else "a2",
+        ))
+        store.retain(
+            page_key=f"page:{index}", window_id="win", tab_id=f"tab:{index}",
+            title="Page", target="https://example.test", connection_generation=1,
+            session_id="parent", user_message_id="u1", assistant_message_id=anchor,
+            conversation_session_id="parent",
+        )
+    db.set_head("parent", "a2retry")
+    calls = {"load": 0, "index": 0}
+    load, index_nodes = resources._load_nodes, resources._children_by_predecessor
+
+    def counted_load(*args, **kwargs):
+        calls["load"] += 1
+        return load(*args, **kwargs)
+
+    def counted_index(*args, **kwargs):
+        calls["index"] += 1
+        return index_nodes(*args, **kwargs)
+
+    monkeypatch.setattr(resources, "_load_nodes", counted_load)
+    monkeypatch.setattr(resources, "_children_by_predecessor", counted_index)
+    app = FastAPI()
+    processes.register(app)
+    with TestClient(app) as client:
+        for name in ("original", "renamed"):
+            db.set_branch_name("parent", "a1", name)
+            calls.update(load=0, index=0)
+            response = client.get("/api/session/parent/resources")
+            assert response.status_code == 200
+            body = response.json()
+            rows = [row for row in body["items"] if row.get("source") == "browser"]
+            assert len(rows) == 40
+            assert {row["branch_name"] for row in rows} == {name}
+            assert {row["branch_id"] for row in rows} == {"parent:u1"}
+            assert body["current_branch_id"] == "parent:a2retry"
+            assert body["current_branch_name"] == "retry"
+            assert calls["load"] <= 2, "resource count must not multiply DAG reads"
+            assert calls["index"] <= 2, "branch lookup must share its predecessor index"
+
+
 def test_child_execution_projects_to_parent_origin_branch_not_checkout(tmp_path, monkeypatch):
     from openprogram.browser_resources import BrowserResourceStore
 

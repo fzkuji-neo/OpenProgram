@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from functools import cached_property
 import json
 import logging
 import os
@@ -668,6 +669,7 @@ class BrowserResourceStore:
             }
         rows = []
         seen = {}
+        branches = _BranchProjection(conversation_session_id, session_store)
         for assoc in associations:
             if not _association_visible(
                 assoc, conversation_session_id, executions_by_id,
@@ -683,9 +685,7 @@ class BrowserResourceStore:
             )
             branch_id, branch_name = (None, None)
             if anchor:
-                branch_id, branch_name = resolve_stable_branch(
-                    conversation_session_id, anchor, session_store=session_store,
-                )
+                branch_id, branch_name = branches.resolve(anchor)
             control = controls.get(assoc["resource_id"]) or {}
             controller_id = control.get("pause_execution_id") or assoc.get("execution_id")
             row = _public_row(
@@ -869,10 +869,9 @@ def _children_by_predecessor(nodes: Mapping[str, Any]):
     return children
 
 
-def _origin_id(nodes: Mapping[str, Any], node_id: str | None) -> str | None:
+def _origin_id(nodes: Mapping[str, Any], node_id: str | None, children) -> str | None:
     if not node_id or node_id == "ROOT":
         return None
-    children = _children_by_predecessor(nodes)
     path = []
     seen = set()
     current = node_id
@@ -893,26 +892,6 @@ def _origin_id(nodes: Mapping[str, Any], node_id: str | None) -> str | None:
         if siblings and siblings[0].id != node.id:
             origin = node.id
     return origin
-
-
-def _ref_for_origin(session_store, session_id: str, origin: str, nodes, anchor: str) -> str | None:
-    pair = session_store._open(session_id) if session_store is not None else None
-    if pair is None:
-        return None
-    refs = dict((pair[1].meta or {}).get("branch_refs") or {})
-    matches = []
-    for ref_id, ref in refs.items():
-        if not isinstance(ref, dict):
-            continue
-        head = ref.get("head_id")
-        if not head or _origin_id(nodes, head) != origin:
-            continue
-        if head == anchor or _is_ancestor(nodes, anchor, head):
-            matches.append((ref_id, head))
-    if not matches:
-        return None
-    matches.sort(key=lambda item: 0 if item[1] == anchor else 1)
-    return matches[0][0]
 
 
 def _is_ancestor(nodes, ancestor_id: str, descendant_id: str) -> bool:
@@ -966,57 +945,100 @@ def _named_branch_entries(session_store, session_id: str, nodes: Mapping[str, An
     return named
 
 
-def _branch_name_for_origin(session_store, session_id: str, origin: str | None, nodes):
-    if not origin or session_store is None:
-        return None
-    matches = []
-    for head_id, info in _named_branch_entries(session_store, session_id, nodes).items():
-        name = _entry_branch_name(info)
-        if not name or _origin_id(nodes, head_id) != origin:
-            continue
-        updated = 0.0
-        if isinstance(info, dict):
-            updated = float(info.get("updated_at") or info.get("created_at") or 0)
-        seq = getattr(nodes.get(head_id), "seq", -1)
-        matches.append((updated, seq if seq is not None else -1, str(head_id), name))
-    if not matches:
-        return None
-    matches.sort()
-    return matches[-1][3]
+class _BranchProjection:
+    """One resource read owns its graph and branch indexes; never cache across reads."""
+
+    def __init__(self, session_id, session_store=None):
+        if session_store is None:
+            from openprogram.agent.session_db import default_db
+            session_store = default_db()
+        self.session_id = session_id
+        self.session_store = session_store
+        self.origins = {}
+        self.names = {}
+        self.resolved = {}
+
+    @cached_property
+    def nodes(self):
+        return _load_nodes(self.session_id, self.session_store)[0]
+
+    @cached_property
+    def children(self):
+        return _children_by_predecessor(self.nodes)
+
+    @cached_property
+    def pair(self):
+        return self.session_store._open(self.session_id)
+
+    @cached_property
+    def refs(self):
+        return dict((self.pair[1].meta or {}).get("branch_refs") or {}) if self.pair else {}
+
+    @cached_property
+    def named(self):
+        return _named_branch_entries(self.session_store, self.session_id, self.nodes)
+
+    def origin(self, node_id):
+        if node_id not in self.origins:
+            self.origins[node_id] = _origin_id(self.nodes, node_id, self.children)
+        return self.origins[node_id]
+
+    def name(self, origin):
+        if not origin:
+            return None
+        if origin not in self.names:
+            matches = []
+            for head_id, info in self.named.items():
+                name = _entry_branch_name(info)
+                if not name or self.origin(head_id) != origin:
+                    continue
+                updated = float(info.get("updated_at") or info.get("created_at") or 0) if isinstance(info, dict) else 0.0
+                seq = getattr(self.nodes.get(head_id), "seq", -1)
+                matches.append((updated, seq if seq is not None else -1, str(head_id), name))
+            self.names[origin] = max(matches)[3] if matches else None
+        return self.names[origin]
+
+    def resolve(self, anchor):
+        if not self.session_id or not anchor:
+            return None, None
+        if anchor in self.resolved:
+            return self.resolved[anchor]
+        origin = self.origin(anchor)
+        if not origin:
+            return None, None
+        matches = []
+        for ref_id, ref in self.refs.items():
+            if not isinstance(ref, dict):
+                continue
+            head = ref.get("head_id")
+            if head and self.origin(head) == origin and (head == anchor or _is_ancestor(self.nodes, anchor, head)):
+                matches.append((ref_id, head))
+        matches.sort(key=lambda item: 0 if item[1] == anchor else 1)
+        branch_id = matches[0][0] if matches else f"{self.session_id}:{origin}"
+        result = branch_id, self.name(origin)
+        self.resolved[anchor] = result
+        return result
+
+    def current(self):
+        if self.pair is None:
+            return None, None
+        meta = self.pair[1].meta or {}
+        active = meta.get("active_branch_id")
+        if isinstance(active, str) and active in self.refs:
+            head = (self.refs.get(active) or {}).get("head_id")
+            return active, self.name(self.origin(head))
+        session = self.session_store.get_session(self.session_id) or {}
+        return self.resolve(session.get("head_id") or self.pair[1].head_id)
 
 
 def resolve_stable_branch(session_id: str, anchor_id: str | None, *, session_store=None):
     if not session_id or not anchor_id:
         return None, None
-    nodes, session_store = _load_nodes(session_id, session_store)
-    origin = _origin_id(nodes, anchor_id)
-    if not origin:
-        return None, None
-    ref = _ref_for_origin(session_store, session_id, origin, nodes, anchor_id)
-    branch_id = ref or f"{session_id}:{origin}"
-    return branch_id, _branch_name_for_origin(session_store, session_id, origin, nodes)
+    return _BranchProjection(session_id, session_store).resolve(anchor_id)
 
 
 def current_branch(session_id: str, *, session_store=None):
-    if session_store is None:
-        from openprogram.agent.session_db import default_db
-        session_store = default_db()
-    pair = session_store._open(session_id)
-    if pair is None:
-        return None, None
-    meta = pair[1].meta or {}
-    active = meta.get("active_branch_id")
-    refs = meta.get("branch_refs") or {}
-    if isinstance(active, str) and isinstance(refs, dict) and active in refs:
-        head = (refs.get(active) or {}).get("head_id")
-        nodes, session_store = _load_nodes(session_id, session_store)
-        origin = _origin_id(nodes, head)
-        return active, _branch_name_for_origin(
-            session_store, session_id, origin, nodes,
-        )
-    session = session_store.get_session(session_id) or {}
-    head = session.get("head_id") or pair[1].head_id
-    return resolve_stable_branch(session_id, head, session_store=session_store)
+    return _BranchProjection(session_id, session_store).current()
 
 
 def _current_attribution():
