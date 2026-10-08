@@ -93,8 +93,8 @@ const EMPTY: QueuedMessage[] = [];
 let seq = 0;
 
 export const useSendQueue = create<SendQueueState>((rawSet, get) => {
-  const set: typeof rawSet = (...args) => {
-    rawSet(...args);
+  const set = (patch: Partial<SendQueueState> | ((state: SendQueueState) => Partial<SendQueueState>)) => {
+    rawSet(patch);
     savePendingSteers(get().queues);
   };
   return {
