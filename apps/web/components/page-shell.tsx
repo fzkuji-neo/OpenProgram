@@ -1,4 +1,5 @@
 "use client";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -293,13 +294,7 @@ export function PageShell({ page }: { page: Page }) {
       // session's graph lingers next to the transcript skeleton.
       try { showHistorySkeleton(); } catch {}
     }
-    const sock = getSocket();
-    if (sock && sock.readyState === WebSocket.OPEN) {
-      sock.send(JSON.stringify({
-        action: "load_session",
-        session_id: target,
-      }));
-    }
+    requestSessionLoad({ action: "load_session", session_id: target });
   }, [page, pathname]);
 
   if (err) {

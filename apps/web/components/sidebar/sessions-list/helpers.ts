@@ -5,13 +5,10 @@
 // placeholder detection, the LegacyConv shape, wsSend).
 
 import { parseAttachments } from "@/components/chat/messages/user-attachments";
-import { getSocket } from "@/lib/runtime-bridge/state";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 
-export function wsSend(payload: unknown): void {
-  const ws = getSocket();
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(payload));
-  }
+export function wsSend(payload: unknown): boolean {
+  return sendRuntimeCommand(payload);
 }
 
 

@@ -1,3 +1,4 @@
+import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 /**
  * Renderer: click / dblclick / contextmenu / chat-scroll glue.
  *
@@ -83,10 +84,10 @@ export async function _checkout(
       session_id: sessionId,
       head_msg_id: target,
     }));
-    sock.send(JSON.stringify({
+    requestSessionLoad({
       action: "load_session",
       session_id: sessionId,
-    }));
+    }, true);
   }
 }
 

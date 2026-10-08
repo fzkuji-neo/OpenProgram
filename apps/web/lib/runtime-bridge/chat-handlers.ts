@@ -1,3 +1,4 @@
+import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 import { showToast } from "@/lib/format-utils/toast";
 import { settleFunctionRetry } from "./function-retry";
 /**
@@ -247,9 +248,7 @@ export function wsHandleChatAck(data: ChatAckData): void {
     runtimeState.__reloadOnTaskClear.add(data.session_id);
     const sock = getSocket();
     if (sock && sock.readyState === WebSocket.OPEN) {
-      sock.send(
-        JSON.stringify({ action: "load_session", session_id: data.session_id }),
-      );
+      requestSessionLoad({ action: "load_session", session_id: data.session_id }, true);
     }
   }
 }
@@ -775,7 +774,7 @@ function hydrateTranscriptForTreeUpdate(data: ChatResponseData): void {
   runtimeState.__reloadOnTaskClear.add(sid);
   const sock = getSocket();
   if (sock && sock.readyState === WebSocket.OPEN) {
-    sock.send(JSON.stringify({ action: "load_session", session_id: sid }));
+    requestSessionLoad({ action: "load_session", session_id: sid }, true);
   }
 }
 
@@ -804,7 +803,7 @@ export function handleRunningTaskClear(
     if (runtimeState.currentSessionId === sessionId) {
       const sock = getSocket();
       if (sock && sock.readyState === WebSocket.OPEN) {
-        sock.send(JSON.stringify({ action: "load_session", session_id: sessionId }));
+        requestSessionLoad({ action: "load_session", session_id: sessionId }, true);
       }
     }
   }
@@ -869,7 +868,7 @@ export function handleChatResponse(data: ChatResponseData): void {
       } else {
         const sock = getSocket();
         if (sock && sock.readyState === WebSocket.OPEN) {
-          sock.send(JSON.stringify({ action: "load_session", session_id: sid }));
+          requestSessionLoad({ action: "load_session", session_id: sid }, true);
         }
       }
     }
@@ -991,7 +990,7 @@ export function handleChatResponse(data: ChatResponseData): void {
       delete runtimeState._pendingBranchReload[sid];
       const sock = getSocket();
       if (sock && sock.readyState === WebSocket.OPEN) {
-        sock.send(JSON.stringify({ action: "load_session", session_id: sid }));
+        requestSessionLoad({ action: "load_session", session_id: sid }, true);
       }
       return;
     }

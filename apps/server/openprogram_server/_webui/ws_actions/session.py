@@ -1227,6 +1227,8 @@ async def handle_load_session(ws, cmd: dict):
         await ws.send_text(json.dumps({
             "type": "session_loaded",
             "data": {
+                "request_id": cmd.get("request_id"),
+                "action": "load_session",
                 "id": conv["id"],
                 "title": _db_sess.get("title", ""),
                 "messages": shown,
@@ -1340,6 +1342,8 @@ async def handle_load_session(ws, cmd: dict):
         await ws.send_text(json.dumps({
             "type": "session_loaded",
             "data": {
+                "request_id": cmd.get("request_id"),
+                "action": "load_session",
                 "id": session_id,
                 "title": "New conversation",
                 "context_tree": {},

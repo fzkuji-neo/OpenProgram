@@ -1,3 +1,4 @@
+import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 /**
  * Renderer: the node verbs (and the raw-JSON layer they open).
  *
@@ -141,7 +142,7 @@ async function _checkoutTo(id: string): Promise<boolean> {
   runtimeState._postCheckoutScrollTo = id;
   const sock = getSocket();
   if (sock && sock.readyState === WebSocket.OPEN) {
-    sock.send(JSON.stringify({ action: "load_session", session_id: sid }));
+    requestSessionLoad({ action: "load_session", session_id: sid }, true);
   }
   return true;
 }

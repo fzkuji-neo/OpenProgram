@@ -2,7 +2,7 @@ import { flushSync } from 'react-dom';
 import { convToChatMsgs } from '@/lib/chat/conv-mapper';
 import { useSessionHistory, updateSessionHistory, type HistoryPage } from '@/lib/chat/session-history';
 import { HistoryWindow, type HistoryDirection, type HistoryRow } from '@/lib/chat/history-window';
-import { captureAreaRestoreState, historyAreaStillOwned, restoreAreaWindow } from '@/lib/chat/history-viewport';
+import { captureHistoryAnchor, captureAreaRestoreState, historyAreaStillOwned, restoreAreaWindow } from '@/lib/chat/history-viewport';
 import { clearHeights, retainRowHeights } from '@/lib/chat/message-window';
 import { useSessionStore } from '@/lib/session-store';
 import { wsRequest } from '@/lib/net/ws-request';
@@ -88,13 +88,26 @@ export async function loadSessionHistoryWindow(id: string, direction: HistoryDir
   const field = direction === 'older' ? {history_before: expected.before}
     : direction === 'newer' ? {history_after: expected.after}
     : direction === 'around' ? {history_around: around} : {history_latest: true};
-  const page = await wsRequest<{id: string; messages: HistoryRow[]; history: HistoryPage}>(
+  type PageReply = {id: string; messages: HistoryRow[]; history: HistoryPage; error_code?: string};
+  let page = await wsRequest<PageReply>(
     'load_session', {session_id:id, history_head:expected.head_id, history_snapshot:expected.snapshot, ...field},
     'session_history_page', {requestId:true}, 15000,
   );
   if (useSessionHistory.getState().pages[id]?.generation !== expected.generation) return false;
+  let renewed = false;
+  if (page?.error_code === 'invalid_request' && getSocket() === socket && (!options || options.isCurrent())) {
+    const registered = viewports.get(id);
+    const area = registered?.keys().next().value ?? (runtimeState.currentSessionId === id ? document.getElementById('chatArea') : null);
+    const anchor = around ?? (area ? captureHistoryAnchor(area)?.id : undefined);
+    // Retry once without the expired cursor. A new snapshot can have a new head.
+    page = await wsRequest<PageReply>('load_session', {
+      session_id: id, ...(anchor ? {history_around: anchor} : {history_latest: true}),
+    }, 'session_history_page', {requestId:true}, 15000);
+    renewed = true;
+    if (useSessionHistory.getState().pages[id]?.generation !== expected.generation) return false;
+  }
   if (getSocket() !== socket || !page || page.id !== id || !page.history || !Array.isArray(page.messages)
-      || (direction !== 'latest' && page.history.head_id !== expected.head_id)) {
+      || (!renewed && direction !== 'latest' && page.history.head_id !== expected.head_id)) {
     updateSessionHistory(id, expected.generation, {loading:false,error:true});
     return false;
   }
@@ -119,7 +132,7 @@ export async function loadSessionHistoryWindow(id: string, direction: HistoryDir
   let messages: HistoryRow[], history: HistoryPage;
   if (page.history.snapshot) {
     const historyWindow = previous ?? new HistoryWindow();
-    historyWindow.add(page.messages,page.history,direction, direction === 'around' ? around : captures[0]?.anchor?.id);
+    historyWindow.add(page.messages,page.history,renewed ? 'around' : direction, direction === 'around' ? around : captures[0]?.anchor?.id);
     windows.delete(id); windows.set(id,historyWindow);
     messages=historyWindow.messages; history=historyWindow.history!;
   } else {
