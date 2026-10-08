@@ -43,6 +43,11 @@
    bubble's top border: .message padding-top(16) + bubble padding-top(10) = 26. */
 .message.user .message-header { right: 8px; top: 26px; }   /* push the avatar outward, further from the bubble */
 .message-sender { display: none; }                    /* no name line */
+/* Claude Code transcript style: no avatars at all. The bubble / no-bubble
+   split already marks whose turn it is, and the text column lines up with
+   the composer. Every former 36px avatar inset reads --avatar-gutter. */
+.message.user .message-header,
+.message.assistant .message-header { display: none; }
 
 .message.user {
   padding-top: 6px;
@@ -61,11 +66,11 @@
   /* Claude look: soft warm tint, no border, 16px corners with a 4px
      "tail" at the bottom-right (the side the bubble hangs from). */
   background: var(--bg-tertiary);
-  border-radius: 16px 16px 4px 16px;
+  border-radius: 16px;
   padding: 10px 16px;
   width: fit-content;
   max-width: 75%;
-  margin-right: 36px;               /* align right edge to assistant text's right edge */
+  margin-right: var(--avatar-gutter);               /* align right edge to assistant text's right edge */
   text-align: left;
   color: var(--text-bright);
 }
@@ -293,8 +298,8 @@
 }
 
 .message-content {
-  padding-left: 36px;
-  padding-right: 36px;
+  padding-left: var(--avatar-gutter);
+  padding-right: var(--avatar-gutter);
   /* Transcript and embedded cards share the same text size. */
   font-size: var(--fs-chat);
   line-height: 1.7;
@@ -315,8 +320,8 @@
   margin: 10px 0;
   overflow-x: auto;
   font-family: var(--font-mono);
-  font-size: 12.5px;
-  line-height: 1.5;
+  font-size: 13.5px;
+  line-height: 1.55;
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
@@ -324,7 +329,7 @@
 
 .message-content code {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 0.875em;
   background: var(--bg-tertiary);
   padding: 2px 6px;
   border-radius: 6px;
@@ -386,7 +391,7 @@
 .message-content ul, .message-content ol { margin: 8px 0; padding-left: 20px; }
 .message-content li { margin: 2px 0; }
 .message-content h1, .message-content h2, .message-content h3 { margin: 12px 0 6px; color: var(--text-bright); }
-.message-content h1 { font-size: 18px; } .message-content h2 { font-size: 16px; } .message-content h3 { font-size: 14px; }
+.message-content h1 { font-size: 21px; } .message-content h2 { font-size: 18.5px; } .message-content h3 { font-size: 16.5px; }
 .message-content a { color: var(--accent-blue); text-decoration: none; }
 .message-content a:hover { text-decoration: underline; }
 .message-content blockquote { border-left: 3px solid var(--border); margin: 8px 0; padding: 4px 12px; color: var(--text-secondary); }
@@ -439,10 +444,10 @@
   border-radius: var(--radius);
   padding: 12px;
   margin: 8px 0;
-  margin-left: 36px;
+  margin-left: var(--avatar-gutter);
   /* Right edge lines up with the user bubble's right edge (same 36px inset),
      not jammed against the message's own padding. */
-  margin-right: 36px;
+  margin-right: var(--avatar-gutter);
   color: var(--accent-red);
   font-size: 14px;
   font-family: var(--font-mono);
@@ -455,7 +460,7 @@
    reaching a clean "done", so they hint at it with a small inline
    strip rather than recolouring the whole bubble. */
 .bubble-badge {
-  margin: 8px 0 0 36px;
+  margin: 8px 0 0 var(--avatar-gutter);
   padding: 6px 10px;
   border-radius: var(--radius);
   font-size: 12px;
@@ -480,8 +485,8 @@
 }
 
 .message.user.is-editing .message-content {
-  width: calc(100% - 36px);
-  max-width: calc(100% - 36px);
+  width: calc(100% - var(--avatar-gutter));
+  max-width: calc(100% - var(--avatar-gutter));
   padding: 4px;
 }
 .peer-session-pane .message.user.is-editing .message-content {

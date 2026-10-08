@@ -4,7 +4,7 @@
 /* Context tree card (inline in chat) */
 .context-card {
   margin: 12px 0;
-  margin-left: 36px;
+  margin-left: var(--avatar-gutter);
   border: 1px solid var(--border-light);
   border-radius: 10px;
   background: transparent;

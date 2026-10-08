@@ -43,14 +43,15 @@
   height: 28px;
   gap: 8px;
   color: var(--text-muted);
-  font-size: 13px;
+  /* Same size as the reply body (Claude Code transcript style): the
+     summary reads as a quiet sentence, not a caption. */
+  font-size: var(--fs-chat);
   cursor: pointer;
   user-select: none;
   margin: 0 0 1.5px;
   border: none;
   background: transparent;
   padding: 0;
-  letter-spacing: 0.2px;
   text-align: left;
 }
 .tl-toggle:hover { color: var(--text-secondary); }

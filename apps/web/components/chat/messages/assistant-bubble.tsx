@@ -57,7 +57,7 @@ function SteeringInput({block, sessionId}: {block: AssistantBlock; sessionId?: s
 function LegacyRuntimeTrace({ children: calls }: { children: ChatMsg[] }) {
   const { text } = useTranslation();
   return (
-    <ExecutionStrip label={`${text("Functions", "函数")} ×${calls.length}`}>
+    <ExecutionStrip label={calls.length === 1 ? text("Called 1 function", "调用 1 个函数") : text(`Called ${calls.length} functions`, `调用 ${calls.length} 个函数`)}>
       {calls.map((call) => (
         <FunctionStep key={call.id}
           block={{ type: "tool", tool: call.function || "call", tool_call_id: call.id,

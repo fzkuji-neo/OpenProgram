@@ -10,7 +10,7 @@
 }
 /* Align with the text column in assistant bubbles (avatar takes 36px). */
 .message.assistant > .typing-indicator {
-  padding-left: 36px;
+  padding-left: var(--avatar-gutter);
 }
 /* Standalone "AI is thinking" indicator — full assistant-bubble
    shape (avatar + Agentic header + body with breathing pulse)

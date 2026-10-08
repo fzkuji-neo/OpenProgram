@@ -49,34 +49,75 @@ function wsSend(payload: unknown): void {
   }
 }
 
-/** 汇总标签只分三类，不报具体工具名。 */
+/** Tool name → summary category (Claude Code style "Edited 3 files, ran 9
+ *  commands"). Anything unlisted counts as a generic function call. */
+const EDIT_TOOLS = new Set(["edit", "write", "apply_patch"]);
+const COMMAND_TOOLS = new Set(["bash", "execute_code", "process", "terminal_use"]);
+const READ_TOOLS = new Set(["read", "list"]);
+const SEARCH_TOOLS = new Set(["grep", "glob"]);
+
+function editedPath(input: string | undefined): string | null {
+  if (!input) return null;
+  try {
+    const parsed = JSON.parse(input) as Record<string, unknown>;
+    const path = parsed.path ?? parsed.file_path ?? parsed.filename;
+    return typeof path === "string" && path ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One plain-language summary line: thought, edits, commands, reads,
+ *  searches, other calls, sub-agents. Never lists individual tool names. */
 export function execStripLabel(
   blocks: AssistantBlock[],
   spawnNames: string[],
   text: (en: string, zh: string) => string,
 ): string {
   let thinking = 0;
-  let functions = 0;
   let spawnBlocks = 0;
+  let commands = 0;
+  let reads = 0;
+  let searches = 0;
+  let others = 0;
+  let editsWithoutPath = 0;
+  const editedFiles = new Set<string>();
   for (const b of blocks) {
     if (b.type === "thinking") thinking++;
     else if (b.type === "tool") {
-      if (SPAWNING_TOOL_NAMES.has(b.tool || "")) spawnBlocks++;
-      else functions++;
+      const tool = b.tool || "";
+      if (SPAWNING_TOOL_NAMES.has(tool)) spawnBlocks++;
+      else if (EDIT_TOOLS.has(tool)) {
+        const path = editedPath(b.input);
+        if (path) editedFiles.add(path);
+        else editsWithoutPath++;
+      } else if (COMMAND_TOOLS.has(tool)) commands++;
+      else if (READ_TOOLS.has(tool)) reads++;
+      else if (SEARCH_TOOLS.has(tool)) searches++;
+      else others++;
     }
   }
+  const count = (n: number, one: string, many: string, zh: string) =>
+    text(`${n} ${n === 1 ? one : many}`, `${n} ${zh}`);
   const parts: string[] = [];
-  if (thinking > 0) parts.push(`${text("Thinking", "思考")} ×${thinking}`);
-  if (functions > 0) parts.push(`${text("Functions", "函数")} ×${functions}`);
+  if (thinking > 0) parts.push(text("thought", "思考"));
+  const edits = editedFiles.size + editsWithoutPath;
+  if (edits > 0) parts.push(text("edited ", "修改 ") + count(edits, "file", "files", "个文件"));
+  if (commands > 0) parts.push(text("ran ", "运行 ") + count(commands, "command", "commands", "条命令"));
+  if (reads > 0) parts.push(text("read ", "读取 ") + count(reads, "file", "files", "个文件"));
+  if (searches > 0) parts.push(text("searched ", "搜索 ") + count(searches, "time", "times", "次"));
+  if (others > 0) parts.push(text("called ", "调用 ") + count(others, "function", "functions", "个函数"));
   const subAgents = Math.max(spawnBlocks, spawnNames.length);
   if (subAgents > 0) {
     parts.push(
       spawnNames.length > 0
-        ? `${text("Sub-agent", "子代理")}: ${spawnNames.join("、")}`
-        : `${text("Sub-agent", "子代理")} ×${subAgents}`,
+        ? `${text("sub-agent", "子代理")}: ${spawnNames.join("、")}`
+        : text("ran ", "运行 ") + count(subAgents, "sub-agent", "sub-agents", "个子代理"),
     );
   }
-  return parts.join(" · ") || text("Execution", "执行过程");
+  if (parts.length === 0) return text("Execution", "执行过程");
+  const label = parts.join(text(", ", "，"));
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 /** 高度过渡容器：grid 0fr↔1fr 动画，展开向下推、收起平滑抽走。
