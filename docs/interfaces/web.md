@@ -70,6 +70,12 @@ If an instruction cannot be added to the current turn, its message remains queue
 
 ### Stopping and reconnecting
 
+A failed history read shows a retry button while keeping cached messages visible. Reconnecting reloads visible panes. History requests expire after 15 seconds; retrying a read does not resubmit your message or restart a function. Late read responses cannot replace a newer request or erase live progress.
+
+If a history snapshot and its reading position are no longer available, automatic paging stops. **Retry history** rereads the current position without the expired cursor; **Go to latest history** explicitly opens the latest history window.
+
+After reconnecting, the selected conversation loads before saved execution recovery. Background recovery uses compact execution snapshots, processes one request at a time, and does not repeatedly reload the transcript for executions that already finished. Missing live updates are reconciled with the current execution state. Viewing history never resumes or re-executes a task.
+
 Use **Cancel execution** in the composer to stop the current execution. Refreshing or reopening a session restores the active execution and its cancellation controls, including executions resumed after an approval wait. An execution can remain active while no new output arrives; silence alone does not end it. Completed executions do not remain active because of an obsolete worker registration.
 
 Thinking, partial replies and tool steps are saved while a response is running and restored when you refresh. A failed response keeps those steps alongside its error notice; stopping a response also keeps the progress already received.
@@ -120,6 +126,8 @@ Session history is stored as a DAG, not a flat list:
 Each message's action menu has "Rewind to here": it truly rolls the session back to that message, and the undone user input is pre-filled back into the input box for editing and resending. The `/rewind` slash command in the input box is the same feature.
 
 The floating webpage preview fills the space below its compact header, with 10px rounded outer corners and without an outer frame or side and bottom padding. Drag the header to move it; use its edges or enlarged corner targets to resize it. A curved hint appears only at the corner under the pointer; other corners remain unmarked while moving or resizing.
+
+
 
 ## Other pages
 

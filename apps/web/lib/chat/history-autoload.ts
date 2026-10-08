@@ -34,12 +34,7 @@ export function startHistoryAutoload(
       clearTimeout(timer);
       timer = undefined;
     }
-    if (page?.loading) {
-      failures = 0;
-      clearTimeout(timer);
-      timer = undefined;
-      return;
-    }
+    if (page?.loading || page?.renewalRequired) return;
     const now = performance.now();
     const elapsed = Math.max(16, now - lastTime);
     const delta = area.scrollTop - lastTop;

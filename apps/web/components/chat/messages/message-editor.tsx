@@ -1,4 +1,5 @@
 "use client";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { Paperclip, X } from "lucide-react";
@@ -70,7 +71,7 @@ export function MessageEditor({ msg, sessionId, onDone }: {
       if (useSessionStore.getState().currentSessionId === sessionId) setRunActive(true);
       runtimeState._pendingBranchReload[sessionId] = true;
       const socket = getSocket();
-      if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ action: "load_session", session_id: sessionId }));
+      if (socket?.readyState === WebSocket.OPEN) requestSessionLoad({ action: "load_session", session_id: sessionId }, true);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : text("Could not save. Try again.", "保存失败，请重试。"));

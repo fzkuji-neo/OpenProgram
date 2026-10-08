@@ -94,11 +94,13 @@ def test_session_loaded_truncates_only_oversized_tool_output(
     asyncio.run(
         ws_session.handle_load_session(
             ws,
-            {"session_id": "session-1"},
+            {"session_id": "session-1", "request_id": "history-read-1"},
         )
     )
 
     loaded = next(frame for frame in ws.frames if frame["type"] == "session_loaded")
+    assert loaded["data"]["request_id"] == "history-read-1"
+    assert loaded["data"]["action"] == "load_session"
     assistant = next(
         message
         for message in loaded["data"]["messages"]
@@ -441,6 +443,40 @@ def test_indexed_pages_reuse_snapshot_without_full_hydration(
             },
         )
         assert ws.frames[0]["data"]["messages"] == first["messages"]
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        close_snapshots(ws)
+
+
+def test_expired_snapshot_renews_around_anchor_on_the_requested_branch(
+    session_with_tool_outputs,
+):
+    from openprogram.webui.session_history import close_snapshots
+
+    ws = FakeWS()
+    ws._history_protocol = 1
+
+    async def scenario():
+        await ws_session.handle_load_session(ws, {"session_id": "session-1"})
+        initial = next(f["data"] for f in ws.frames if f["type"] == "session_loaded")
+        anchor = initial["messages"][0]["id"]
+        close_snapshots(ws)
+        ws.frames.clear()
+        ws._focused_session_id = "other-session"
+        # Cursor-free renewal retains the requested branch head, as the Web loader does.
+        await ws_session.handle_load_session(ws, {
+            "action": "load_session", "session_id": "session-1",
+            "history_head": initial["history"]["head_id"],
+            "history_around": anchor, "request_id": "renewal",
+        })
+        assert [frame["type"] for frame in ws.frames] == ["session_history_page"]
+        page = ws.frames[0]["data"]
+        assert page["request_id"] == "renewal"
+        assert page["history"]["head_id"] == initial["history"]["head_id"]
+        assert anchor in {message["id"] for message in page["messages"]}
+        assert ws._focused_session_id == "other-session"
 
     try:
         asyncio.run(scenario())

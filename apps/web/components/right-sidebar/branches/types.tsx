@@ -6,7 +6,7 @@
  */
 
 import { SquarePenIcon, XIcon } from "@/components/animated-icons";
-import { getSocket } from "@/lib/runtime-bridge/state";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 
 export interface BranchRow {
   head_msg_id: string;
@@ -19,12 +19,7 @@ export interface BranchRow {
 export { LANE_COLORS } from "@/lib/format-utils/lane-colors";
 
 export function wsSend(payload: unknown): boolean {
-  const sock = getSocket();
-  if (sock && sock.readyState === WebSocket.OPEN) {
-    sock.send(JSON.stringify(payload));
-    return true;
-  }
-  return false;
+  return sendRuntimeCommand(payload);
 }
 
 // Branch row rename / delete glyphs → animated line icons (pqoqubbw,

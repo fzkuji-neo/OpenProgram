@@ -1,4 +1,5 @@
 "use client";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 import { SelectionQuote } from "./messages/quote-to-chat";
 
 /**
@@ -32,8 +33,7 @@ import {
   decideLiveRows,
   heightsFor,
 } from "@/lib/chat/message-window";
-import { getSocket } from "@/lib/runtime-bridge/state";
-import { wsSend } from "@/components/sidebar/sessions-list/helpers";
+import { TranscriptReadStatus } from "./messages/transcript-read-status";
 import { Composer } from "./composer";
 import { SessionScopeProvider } from "@/lib/session-store/session-scope";
 import { useTranslation } from "@/lib/i18n";
@@ -59,6 +59,7 @@ export function PeerSessionPane({
   const setActive = useCenterTabs((s) => s.setActive);
   const activeId = useCenterTabs((s) => s.activeId);
   const ids = useMessageIds(sessionId);
+  const readStatus = useSessionStore(s => sessionId ? s.transcriptReadStatus[sessionId] : undefined);
   const historyLoaded = useSessionHistory(s => Boolean(sessionId && s.pages[sessionId]));
   const areaRef = useRef<HTMLDivElement | null>(null);
   const scrollKey = sessionId ? `peer:${sessionId}` : null;
@@ -72,32 +73,18 @@ export function PeerSessionPane({
     if (activeId !== tabId) setActive(tabId);
   }, [activeId, tabId, setActive]);
 
-  // Nothing else loads a session that isn't the focused one, so after a
-  // page refresh a pane's store entry is empty and renders blank. Ask for
-  // the transcript ourselves. `loadSessionData` feeds the store for
-  // non-focused sessions, so the reply lands without disturbing the other.
-  //
-  // On a hard refresh the socket usually isn't open yet at mount, so retry
-  // on a short interval until it is.
-  // ponytail: poll for the socket instead of subscribing to an onopen
-  // event the WS layer doesn't expose. Swap to an event if one appears.
-  const requestedRef = useRef<string | null>(null);
+  // Both visible panes own a read on mount and reconnect; the shared owner
+  // coalesces a simultaneous route load for the focused pane.
   useEffect(() => {
-    if (!sessionId || ids.length > 0) return;
-    if (requestedRef.current === sessionId) return;
-    const send = () => {
-      const sock = getSocket();
-      if (!sock || sock.readyState !== WebSocket.OPEN) return false;
-      requestedRef.current = sessionId;
-      wsSend({ action: "load_session", session_id: sessionId, history_version: 2 });
-      return true;
+    if (!sessionId) return;
+    const read = () => requestSessionLoad({ action: "load_session", session_id: sessionId, history_version: 2 });
+    if (!(useSessionStore.getState().messageOrder[sessionId]?.length)) read();
+    const reconnect = (event: Event) => {
+      if ((event as CustomEvent).detail?.connected) read();
     };
-    if (send()) return;
-    const timer = setInterval(() => {
-      if (send()) clearInterval(timer);
-    }, 400);
-    return () => clearInterval(timer);
-  }, [sessionId, ids.length]);
+    window.addEventListener("op:browser-connection", reconnect);
+    return () => window.removeEventListener("op:browser-connection", reconnect);
+  }, [sessionId]);
 
   // Reserve the composer's real height as scroller padding. The composer is
   // `position:absolute; bottom:0` and floats over the transcript (same as
@@ -174,6 +161,7 @@ export function PeerSessionPane({
         position: "relative",
       }}
     >
+      <TranscriptReadStatus sessionId={sessionId} />
       {showTitle ? <div
         className="peer-session-header"
         style={{
@@ -221,7 +209,7 @@ export function PeerSessionPane({
                 textAlign: "center",
               }}
             >
-              {sessionId && !historyLoaded
+              {readStatus === "error" || readStatus === "disconnected" ? null : sessionId && !historyLoaded
                 ? text("Loading conversation…", "加载会话中…")
                 : text("Send a message to start", "发送消息以开始会话")}
             </div>
