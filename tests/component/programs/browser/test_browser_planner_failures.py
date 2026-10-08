@@ -4,6 +4,7 @@ import pytest
 from tests.component.programs.browser.test_browser_agent import _controller
 
 
+@pytest.mark.usefixtures("owned_page_scope")
 @pytest.mark.parametrize('route', ['legacy', 'commands'])
 @pytest.mark.parametrize('mode', ['invalid', 'unmet', 'repair', 'stop', 'deny'])
 def test_invalid_verify_is_repaired_or_stops_with_actual_error(monkeypatch, mode, route):

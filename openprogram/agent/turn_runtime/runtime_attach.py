@@ -20,6 +20,7 @@ See docs/design/runtime/dispatcher-split.md.
 """
 from __future__ import annotations
 
+import contextvars
 import json
 import logging
 import os
@@ -301,7 +302,7 @@ def _wrap_agentic_runtime_block(
                 subprocess_started_at = time.time()
                 out = await loop.run_in_executor(
                     None,
-                    _run_subprocess,
+                    contextvars.copy_context().run, _run_subprocess,
                 )
                 if out.get("function_suspended"):
                     from openprogram.agentic_programming.continuation import FunctionSuspended, FunctionSystemAccessRequired

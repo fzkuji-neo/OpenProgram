@@ -143,6 +143,13 @@ class PageScopeProbeAgent(Agent):
             }
 
         result = await calls()
+        if os.environ.get("PAGE_PROBE_SCENARIO") == "old_recovery":
+            from openprogram.agent.permissions.policy import permission_decision
+            from openprogram.agent.types import AgentTool
+            async def unexpected_action(*_args):
+                raise AssertionError("policy inspection must not execute a browser action")
+            action = AgentTool(name="browser_page", label="Page", description="", parameters={}, execute=unexpected_action)
+            result["action_policy"] = permission_decision(action, inner, {"action": "click"})[:2]
         result.update(
             pid=os.getpid(),
             interaction=req.interaction,
@@ -217,6 +224,15 @@ def main():
         profile_snapshot={},
         **local_owner_authority(),
     )
+    execution_token = None
+    if scenario == "old_recovery":
+        from tests.component.agent.security.test_recovery_permissions import orphan, admit_owner_turn
+        from openprogram.agent.run_control import set_current_execution_id
+        req.source = "web"
+        req.user_text = "Inspect owned Page"
+        orphan(STORE, session=req.session_id)
+        activation = admit_owner_turn(STORE, req)
+        execution_token = set_current_execution_id(activation.execution_id)
     owned_context = None
     if scenario in {
         "existing",
@@ -297,6 +313,9 @@ def main():
     assert tool is page_scope_probe._agent_tool
     wrapped = _wrap_agentic_runtime_block(tool, req, lambda _e: None, "anchor")
     result = asyncio.run(wrapped.execute("scope-call", {}, None, None))
+    if execution_token is not None:
+        from openprogram.agent.run_control import reset_current_execution_id
+        reset_current_execution_id(execution_token)
     text = "".join(c.text for c in result.content)
     data = json.loads(text) if not result.is_error else {"outer_error": text}
     if owned_context is not None:

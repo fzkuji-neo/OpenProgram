@@ -34,6 +34,8 @@ not cover arbitrary command side effects.
 
 Ordinary questions retain their answer controls and Discuss entry. Tool approval does not include a discussion editor.
 
+A new owner turn in Auto or Bypass does not inherit approval requirements solely from an unrelated earlier interrupted turn. Nested browser and Program calls use the same scope when their owner origin is verified. Unknown outcomes within the current execution still require exact approval; old operation records remain intact. This does not change macOS access or make a read-only volume writable.
+
 ## Change permissions during a task
 
 An existing session's selection is sent to the server and confirmed before the interface displays it as effective. The interface sends the change immediately when it already knows the confirmed session version. Once the server confirms Bypass, subsequent ordinary tool calls do not ask for approval, even if the model is still reasoning, streaming text or generating tool arguments. This also applies to later tools in the same response. You do not need to stop generation or send another message. The new mode is included in subsequent model requests; text already being generated is not rewritten. A tool already authorized for execution keeps that authorization. Switching into Plan mode prevents pending write calls from being authorized.
