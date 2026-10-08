@@ -182,7 +182,7 @@ const sessionByMsgId = new Map<string, string>();
 
 type PendingDelta = {
   sid: string;
-  initialStatus: ChatMsg["status"];
+  lastMessage: ChatMsg | undefined;
   content: string;
   thinking: string;
   blocks: AssistantBlock[];
@@ -206,13 +206,18 @@ function flushPendingDelta(rid: string): void {
   pendingDeltas.delete(rid);
   if (pendingDeltas.size === 0) cancelDeltaRaf();
   const store = useSessionStore.getState();
-  const status = store.messagesById[rid]?.status;
-  if (status && ['done', 'completed', 'error', 'cancelled', 'interrupted'].includes(status)) return;
+  const current = store.messagesById[rid];
+  const status = current?.status;
+  if (status && ['done', 'completed', 'cancelled', 'interrupted'].includes(status)) return;
+  // Error/pause changes after the last received delta own the status. New
+  // output received after a recoverable error or pause may resume streaming.
+  const changedAfterDelta = current !== pending.lastMessage;
+  if (status === 'error' && changedAfterDelta) return;
   store.updateMessage(pending.sid, rid, {
     content: pending.content,
     thinking: pending.thinking,
     blocks: pending.blocks,
-    status: status === "cancelling" || (status === "paused" && pending.initialStatus !== "paused") ? status : "streaming",
+    status: status === "cancelling" || (status === "paused" && changedAfterDelta) ? status : "streaming",
   });
 }
 
@@ -846,7 +851,7 @@ function applyStreamEvent(sid: string, rid: string, evt: StreamEvent): void {
       const msg = ensureReply(sid, rid);
       cur = {
         sid,
-        initialStatus: msg.status,
+        lastMessage: msg,
         content: msg.content ?? "",
         thinking: msg.thinking ?? "",
         blocks: msg.blocks ?? [],
@@ -861,6 +866,7 @@ function applyStreamEvent(sid: string, rid: string, evt: StreamEvent): void {
       cur.blocks = appendDeltaBlock(cur.blocks, "thinking", delta);
     }
     cur.sid = sid;
+    if (delta) cur.lastMessage = useSessionStore.getState().messagesById[rid];
     pendingDeltas.set(rid, cur);
     scheduleDeltaFlush();
     return;
