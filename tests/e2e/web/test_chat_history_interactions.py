@@ -29,7 +29,7 @@ function result(id,start=200){let end=start+50;return {messages:Array.from({leng
 class Socket extends EventTarget{static OPEN=1;readyState=1;send(wire){let req=JSON.parse(wire);if(req.action==='load_session')window.requests.push(req);}}
 window.requests=[];window.WebSocket=Socket;const socket=new Socket();setSocket(socket);
 window.seed=(id,start)=>{const r=result(id,start);runtimeState.conversations[id]={id,messages:r.messages};seedHistoryWindow(id,r.messages,r.history);registerSessionHistory(id,r.history);useSessionStore.getState().setMessages(id,r.messages);};
-window.reply=(req,fail=false)=>{let start=req.history_latest?450:req.history_around?Number(req.history_around.split('-').at(-1))-25:req.history_before?Number(req.history_before.split('-').at(-1))-50:Number(req.history_after.split('-').at(-1))+1;socket.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'session_history_page',data:{id:fail?'wrong':req.session_id,action:'load_session',request_id:req.request_id,...result(req.session_id,start)}})}));};
+window.reply=(req,fail=false)=>{if(req.history_around&&!req.history_head){window.expire(req);return;}let start=req.history_latest?450:req.history_around?Number(req.history_around.split('-').at(-1))-25:req.history_before?Number(req.history_before.split('-').at(-1))-50:Number(req.history_after.split('-').at(-1))+1;socket.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'session_history_page',data:{id:fail?'wrong':req.session_id,action:'load_session',request_id:req.request_id,...result(req.session_id,start)}})}));};
 window.loadHistory=loadSessionHistoryWindow;
 window.expire=req=>socket.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'operation_error',data:{action:'load_session',request_id:req.request_id,code:'invalid_request',message:'Expired history'}})}));
 window.pageState=id=>useSessionHistory.getState().pages[id];
@@ -112,6 +112,7 @@ window.peers=()=>{root.unmount();window.seed('left',200);window.seed('right',300
             page.evaluate("window.expire(window.requests.splice(0).find(r=>r.history_before&&r.session_id==='left'))")
             page.wait_for_function("window.requests.some(r=>r.history_around&&r.session_id==='left')")
             assert page.evaluate("window.requests.find(r=>r.history_around).history_snapshot") is None
+            assert page.evaluate("window.requests.find(r=>r.history_around).history_head") == 'left-499'
             page.evaluate("window.requests.splice(0).forEach(r=>window.reply(r))")
             page.wait_for_function("!window.pageState('left').loading")
             assert page.evaluate("window.pageState('left').error") is False
