@@ -334,6 +334,53 @@
   overflow-wrap: anywhere;
 }
 .message-content pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: inherit; }
+
+/* Fenced code block chrome (components/chat/messages/markdown.ts): the
+   card moves to the wrapper so the language/copy header shares its border. */
+.message-content .md-code {
+  margin: 10px 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.message-content .md-code pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 14px 12px;
+}
+.md-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 6px 0 14px;
+  border-bottom: 1px solid var(--border-light);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.md-code-lang { text-transform: lowercase; letter-spacing: 0.02em; }
+.md-code-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.md-code-copy:hover { background: var(--bg-hover); color: var(--text-primary); }
+.md-code-copy .md-code-icon-done { display: none; }
+.md-code-copy.copied { color: var(--accent-green); }
+.md-code-copy.copied .md-code-icon-copy { display: none; }
+.md-code-copy.copied .md-code-icon-done { display: inline; }
 .message-content p { margin: 0 0 12px; }
 .message-content p:last-child { margin-bottom: 0; }
 .message-content ul, .message-content ol { margin: 8px 0; padding-left: 20px; }

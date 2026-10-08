@@ -38,19 +38,19 @@
   bottom: 0;
   z-index: 5;
 }
-/* Bottom fade mask: solid at the bottom (hides chat content scrolling
-   behind the composer) fading to transparent at the top — so there's no
-   hard black band, but content doesn't leak out around/under the input
-   box. Sits behind the composer wrapper (z-index 5 > this). */
+/* Bottom fade mask: solid behind the env chips, the input box and the
+   controls (hides chat content scrolling behind the composer), fading to
+   transparent only across the top padding — so there's no hard band, but
+   transcript text never shows between the env chips. Sits behind the
+   composer wrapper (z-index 5 > this). */
 .inputArea::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -16px 0 0;
   background: linear-gradient(
-    to top,
-    var(--bg-primary) 0%,
-    var(--bg-primary) 55%,
-    transparent 100%
+    to bottom,
+    transparent 0,
+    var(--bg-primary) 24px
   );
   pointer-events: none;
   z-index: -1;
