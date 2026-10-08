@@ -183,3 +183,10 @@
 .rail-flash {
   animation: railFlash 1.6s ease-out 1;
 }
+
+/* Quiet until the chat area is in use: the rail stays findable but no
+   longer reads as stray marks beside the transcript. */
+.msg-rail { transition: opacity 0.18s ease; opacity: 0.4; }
+.chat-area:hover .msg-rail,
+.msg-rail:hover,
+.msg-rail:focus-within { opacity: 1; }

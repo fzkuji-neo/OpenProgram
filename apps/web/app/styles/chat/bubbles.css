@@ -526,3 +526,41 @@
   font-family: var(--font-mono);
   font-size: 12px;
 }
+
+/* Syntax tokens (highlight.js classes, lib/chat/code-highlight.ts). One
+   restrained palette per scheme so code reads as code, not a rainbow. */
+.message-content .md-code {
+  --hl-keyword: light-dark(#a626a4, #c792ea);
+  --hl-string: light-dark(#3f7d3a, #a5d6a7);
+  --hl-number: light-dark(#b25d00, #f7a76c);
+  --hl-comment: light-dark(#8a8a80, #7f8a8d);
+  --hl-title: light-dark(#2560c9, #82aaff);
+  --hl-type: light-dark(#b45309, #ffcb6b);
+  --hl-attr: light-dark(#0e7490, #89ddff);
+}
+.message-content .hljs-keyword,
+.message-content .hljs-selector-tag,
+.message-content .hljs-built_in,
+.message-content .hljs-literal { color: var(--hl-keyword); }
+.message-content .hljs-string,
+.message-content .hljs-regexp,
+.message-content .hljs-addition { color: var(--hl-string); }
+.message-content .hljs-number,
+.message-content .hljs-symbol { color: var(--hl-number); }
+.message-content .hljs-comment,
+.message-content .hljs-quote,
+.message-content .hljs-meta { color: var(--hl-comment); font-style: italic; }
+.message-content .hljs-title,
+.message-content .hljs-section,
+.message-content .hljs-function .hljs-title { color: var(--hl-title); }
+.message-content .hljs-type,
+.message-content .hljs-class .hljs-title,
+.message-content .hljs-params { color: var(--hl-type); }
+.message-content .hljs-attr,
+.message-content .hljs-attribute,
+.message-content .hljs-variable,
+.message-content .hljs-property,
+.message-content .hljs-selector-class { color: var(--hl-attr); }
+.message-content .hljs-deletion { color: var(--accent-red); }
+.message-content .hljs-emphasis { font-style: italic; }
+.message-content .hljs-strong { font-weight: 600; }

@@ -27,9 +27,28 @@ export function useMessageViewport(chatKey: string | null, rowCount: number, pai
     const area = areaRef?.current ?? document.getElementById("chatArea");
     if (!area) return;
     let raf = 0;
+    let repaintRaf = 0;
+    let lastWidth = area.clientWidth;
     let idle: ReturnType<typeof setTimeout> | undefined;
+    // Chromium can keep a stale raster for one very tall text block (a
+    // multi-thousand-line reply) after a width change, leaving the view
+    // blank until the next scroll. Re-layering the list for one frame
+    // forces a fresh raster without touching scroll position.
+    const repaint = () => {
+      const list = area.querySelector<HTMLElement>("#chatMessages");
+      if (!list) return;
+      list.style.willChange = "transform";
+      cancelAnimationFrame(repaintRaf);
+      repaintRaf = requestAnimationFrame(() => {
+        repaintRaf = requestAnimationFrame(() => { list.style.willChange = ""; });
+      });
+    };
     const sync = () => {
       raf = 0;
+      if (area.clientWidth > 0 && area.clientWidth !== lastWidth) {
+        lastWidth = area.clientWidth;
+        repaint();
+      }
       if (chatKey && area.clientWidth > 0 && noteChatWidth(chatKey, area.clientWidth)) {
         setMeasureGen((n) => n + 1);
       }
@@ -51,6 +70,7 @@ export function useMessageViewport(chatKey: string | null, rowCount: number, pai
       area.removeEventListener("scroll", onScroll);
       ro.disconnect();
       if (raf) cancelAnimationFrame(raf);
+      cancelAnimationFrame(repaintRaf);
       clearTimeout(idle);
     };
   }, [chatKey, paintRows, areaRef]);

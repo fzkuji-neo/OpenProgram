@@ -35,3 +35,37 @@
   color: var(--text-secondary);
   text-align: center;
 }
+
+/* Starter prompts: quiet pills that fill the draft (never send). */
+.starters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 22px;
+  max-width: 560px;
+}
+
+.starter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.starter:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.starter svg { color: var(--text-muted); flex: 0 0 auto; }
+.starter:hover svg { color: var(--text-secondary); }

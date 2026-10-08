@@ -827,7 +827,7 @@ type MarkerState = "working" | "needs_input" | "unread" | "idle";
  *   - pinned       → an amber pin (idle pinned rows only; running wins)
  *   - needs_input  → a filled amber dot (#ffd014 — awaiting the user)
  *   - unread       → a filled blue dot (#5aa6f2 — finished, not yet seen)
- *   - idle         → a hollow gray ring (done & seen / nothing pending)
+ *   - idle         → no visible mark (done & seen / nothing pending)
  *  Fixed 14px slot so titles stay aligned regardless of state. */
 function StatusMarker({
   pinned,
@@ -886,16 +886,12 @@ function StatusMarker({
       </svg>
     );
   }
-  // idle / done & seen → 圆环。圆心用侧栏背景色实心填充，盖住底下穿过的
-  // 竖导线（不能整体 opacity-50：填充会半透、线又透出来），描边的半透明
-  // 单独调在边框色上。
+  // idle / done & seen → 不画可见标记：只有需要注意的状态才占眼睛。
+  // 仍保留一个侧栏底色的实心点，盖住底下穿过的竖导线，不让线从标题前穿过。
   return (
     <span
       className="block size-[7px] shrink-0 rounded-full"
-      style={{
-        background: "var(--bg-sidebar, var(--bg-secondary))",
-        border: "1px solid color-mix(in srgb, var(--text-secondary) 50%, transparent)",
-      }}
+      style={{ background: "var(--bg-sidebar, var(--bg-secondary))" }}
       aria-hidden="true"
     />
   );
