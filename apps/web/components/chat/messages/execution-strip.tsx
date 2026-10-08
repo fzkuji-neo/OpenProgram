@@ -15,7 +15,7 @@
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import { memo, useEffect, useState } from "react";
 import { Brain, ChevronRight, Wrench, type LucideIcon } from "lucide-react";
-import { parseToolArgs, presentTool, type ToolTone } from "./tool-presentation";
+import { parseToolArgs, presentTool, summarizeResult, type ToolTone } from "./tool-presentation";
 import { afterTwoAnimationFrames } from "./collapse-frame";
 
 import type { AssistantBlock, ChatMsg, DetailNode } from "@/lib/session-store";
@@ -527,7 +527,7 @@ export function FunctionStep({
       title={view.title}
       target={view.target ? short(view.target, 72) : undefined}
       note={result !== undefined && result !== null && result !== ""
-        ? short(firstLine(decodeEscapes(String(result))), 90) : undefined}
+        ? short(summarizeResult(decodeEscapes(String(result)), text), 90) : undefined}
       error={isError || cancelled}
       running={running || loadingFull}
       copyText={JSON.stringify(
