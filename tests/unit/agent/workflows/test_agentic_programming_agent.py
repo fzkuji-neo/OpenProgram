@@ -103,10 +103,12 @@ def test_browser_task_uses_high_level_agent_wrapper(monkeypatch):
         max_steps=1,
         max_seconds=30,
         runtime=Runtime(),
+        binding_id="binding-1",
     )
 
     assert result["status"] == "failed"
-    assert len(calls) == 6
+    assert result["reason_code"] == "tool_not_executed"
+    assert len(calls) == 3
     assert calls[0][1]["tools"][0].name == "browser_page"
     assert calls[0][1]["tool_choice"] == {
         "type": "function", "name": "browser_page",

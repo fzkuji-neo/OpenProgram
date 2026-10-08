@@ -548,7 +548,7 @@ def test_bound_browser_task_inherits_outer_permission_mode(monkeypatch):
     )
     token = set_turn_request(outer)
     try:
-        module._run_browser_task(
+        result = module._run_browser_task(
             task="Click the link",
             url="",
             max_steps=3,
@@ -556,7 +556,8 @@ def test_bound_browser_task_inherits_outer_permission_mode(monkeypatch):
             runtime=_Runtime(),
             binding_id="binding-1",
         )
-        assert len(seen_modes) == 12
+        assert result["reason_code"] == "tool_not_executed"
+        assert len(seen_modes) == 3
         assert set(seen_modes) == {"ask"}
         assert get_turn_request() is outer
     finally:
