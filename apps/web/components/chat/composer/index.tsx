@@ -546,10 +546,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           is position:relative and naturally takes inputWrapper's
           height (slashClip is absolute, doesn't contribute), so
           slashClip's bottom:100% lands exactly at the wrapper top. */}
-      {/* composerCard draws ONE surface around the input and the
-          controls row, so they read as a single block (Claude Code
-          style) while staying separate elements for fn-form growth. */}
-      <div className={styles.composerCard}>
       <div className={styles.composerStack} data-composer-session={currentSessionId}>
       <div className={styles.slashClip}>
         <SlashMenu
@@ -669,7 +665,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       <div className={`${styles.controlsRow} composer-bottom-row`}>
         {controlsCluster}
       </div>
-      </div>{/* /.composerCard */}
     </div>
   );
 }
