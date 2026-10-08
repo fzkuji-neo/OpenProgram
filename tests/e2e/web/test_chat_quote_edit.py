@@ -96,7 +96,10 @@ createRoot(document.getElementById('mount')).render(<QueryClientProvider client=
             page.evaluate('window.failCheckout=false')
             branch.click()
             expect(branch).to_have_count(0)
-            assert page.evaluate('window.loads[0]') == {'action':'load_session','session_id':'right'}
+            load_request = page.evaluate('window.loads[0]')
+            assert isinstance(load_request['request_id'], str) and load_request['request_id']
+            assert load_request == {'action':'load_session','session_id':'right',
+                                    'request_id':load_request['request_id']}
             assert page.evaluate('window.drafts().right') == before_branch + '\n\n> Original\n\n'
             assert page.evaluate('window.drafts().left') == 'left draft'
             right.get_by_role('button',name='Edit message',exact=True).click()
