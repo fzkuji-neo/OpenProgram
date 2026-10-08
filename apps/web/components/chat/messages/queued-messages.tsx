@@ -75,10 +75,10 @@ function QueueRow({ row, sessionId }: { row: QueuedMessage; sessionId: string })
   const parsed = parseAttachments(row.text);
   const status = row.editing ? text("Editing · send paused", "编辑中，暂停发送")
     : row.deliveryError ? text("Not sent · retry or edit", "未发送，可重试或编辑")
-    : row.injecting ? text("Adding to current turn…", "正在补充到当前轮…")
     : row.steerError === "unconfirmed" ? text("Delivery unconfirmed — retry to check", "发送结果待确认，请重试查询")
-    : row.steerCommand && !row.steerError ? text("Adding at the next safe point…", "等待当前操作结束后补充…")
-    : row.steerError ? text("Queued · current turn could not accept input", "排队中，当前轮未接受补充")
+    : row.steerCommand || row.injecting ? text("Waiting to add to current turn…", "等待补充到当前轮…")
+    : row.steerError === "too_long" ? text("Queued · over the 4,096-character limit for current-turn input", "排队中，超出当前轮补充的 4,096 字符限制")
+    : row.steerError ? text("Queued for the next turn", "已排队，将在下一轮发送")
     : hasFiles ? text("Queued with attachments", "附件消息排队中") : text("Queued", "排队中");
   return <article className={styles.row} data-queued-message={row.id} aria-label={text("Queued message", "排队消息")}>
     {row.editing ? <QueueEditor row={row} sessionId={sessionId} /> : <>
@@ -121,7 +121,7 @@ export function QueuedMessages({ sessionId }: { sessionId: string | null }) {
   return <section className={styles.group} data-queued-messages aria-label={text("Queued messages", "排队消息")}>
     <button type="button" className={styles.heading} disabled={rows.some(row => row.editing)} aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}>
       {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-      {text(`${rows.length} queued`, `${rows.length} 条排队消息`)}
+      {text(`${rows.length} pending`, `${rows.length} 条待发送消息`)}
     </button>
     {!collapsed && <div className={styles.list}>
       {rows.map(row => <QueueRow key={row.id} row={row} sessionId={sessionId} />)}

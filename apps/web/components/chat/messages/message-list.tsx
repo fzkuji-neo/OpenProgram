@@ -423,7 +423,7 @@ export const MessageRow = memo(function MessageRow({
   sessionIdOverride?: string;
 }) {
   const msg = useMessageById(id);
-  if (!msg) return null;
+  if (!msg || msg.steeringReplyId) return null;
   return dispatch(msg, sessionIdOverride);
 });
 
@@ -667,7 +667,7 @@ export const MessageList = memo(function MessageList({
   const lastId = ids.length ? ids[ids.length - 1] : null;
   const pendingAnchor = runtimeState._pendingExpandAttach?.anchor;
   const lastRole = useSessionStore((s) =>
-    lastId ? (s.messagesById[lastId]?.role ?? null) : null,
+    lastId && !s.messagesById[lastId]?.steeringReplyId ? (s.messagesById[lastId]?.role ?? null) : null,
   );
   const loadingId = useSessionStore((s) => s.transcriptLoadingId);
   const { detached, jumpToLatest } = useChatAreaStick(

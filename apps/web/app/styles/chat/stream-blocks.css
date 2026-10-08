@@ -9,3 +9,14 @@
 /* .message-content adds its own 36px padding-left for the avatar column —
    cancel it here since .chat-stream-body is already offset the same amount. */
 .chat-stream-body .chat-text { margin-left: 0; padding-left: 0; padding-right: 0; }
+
+/* A consumed input interrupts this reply's content column. The independent
+   user node keeps its usual right alignment and action controls. */
+.steering-input { margin: 12px -60px; }
+.steering-input .message.user > .message-header { left: auto; }
+.steering-input .message.user > .message-actions-footer {
+  padding-left: 0;
+  justify-content: flex-end;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}

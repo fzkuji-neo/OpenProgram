@@ -157,6 +157,8 @@ interface ChatResponseData {
    *  without the user retyping. Only present on a ``run_active`` error. */
   retry_query?: string;
   steering?: boolean;
+  assistant_msg_id?: string;
+  command_id?: string;
 }
 
 /** Names of LLM-callable Agent method tools. When the LLM invokes
@@ -750,6 +752,15 @@ function handleUserMessage(sid: string, d: ChatResponseData): void {
   if (!d.msg_id) return;
   const store = useSessionStore.getState();
   if (store.messagesById[d.msg_id]) return;
+  const replyId = d.steering ? d.assistant_msg_id : undefined;
+  if (replyId && store.messagesById[replyId]) {
+    flushPendingDelta(replyId);
+    const reply = useSessionStore.getState().messagesById[replyId];
+    store.updateMessage(sid, replyId, {blocks: [...(reply.blocks ?? []), {
+      type: "steering", message_id: d.msg_id, text: d.content ?? d.text ?? "",
+      timestamp: typeof d.timestamp === "number" ? d.timestamp : undefined,
+    }]});
+  }
   store.appendMessage(sid, {
     id: d.msg_id,
     role: "user",
@@ -763,6 +774,8 @@ function handleUserMessage(sid: string, d: ChatResponseData): void {
         ? d.timestamp
         : undefined,
     steering: d.steering === true,
+    steeringReplyId: replyId && store.messagesById[replyId] ? replyId : undefined,
+    calledBy: d.predecessor,
   });
 }
 

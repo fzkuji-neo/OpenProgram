@@ -90,6 +90,15 @@ def make_stream_tap(
             if env.get("type") != "chat_response":
                 return
             payload = env.get("data") or {}
+            if (payload.get("type") == "user_message" and payload.get("steering")
+                    and payload.get("assistant_msg_id") == assistant_msg_id
+                    and payload.get("session_id") == req.session_id):
+                if not any(b.get("type") == "steering" and b.get("message_id") == payload.get("msg_id") for b in blocks):
+                    blocks.append({"type":"steering", "message_id":payload["msg_id"],
+                                   "text":payload.get("content", ""), "timestamp":payload.get("timestamp")})
+                    dirty = True
+                    flush()
+                return
             if payload.get("type") != "stream_event":
                 return
             # Runtime children share this callback but own different rows.

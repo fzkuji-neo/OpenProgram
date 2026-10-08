@@ -629,6 +629,8 @@ def run_loop_blocking(
     durable_steer_inputs = (execution_context or {}).get("steer_inputs")
     durable_steer_consumed_ids = (execution_context or {}).get("steer_consumed_ids")
 
+    delivered_steers: dict[int, dict] = {}
+
     async def _get_one_steering_message():
         # Runtime steering is available only to a canonical execution and is
         # consumed from its durable execution command queue at a safe point.
@@ -708,24 +710,16 @@ def run_loop_blocking(
             )
             return []
         req._steering_tail_id = message_id
-        on_event({
-            "type": "chat_response",
-            "data": {
-                "type": "user_message",
-                "session_id": req.session_id,
-                "msg_id": message_id,
-                "content": text,
-                "source": "web",
-                "steering": True,
-                "command_id": command_id,
-                "timestamp": timestamp,
-                "predecessor": predecessor,
-            },
-        })
-        return [UserMessage(
-            content=[TextContent(text=text)],
-            timestamp=int(timestamp * 1000),
-        )]
+        message = UserMessage(content=[TextContent(text=text)], timestamp=int(timestamp * 1000))
+        # The producer can run ahead of the event consumer. Publish only when
+        # its message_start reaches the ordered event stream, after prior output.
+        delivered_steers[id(message)] = {
+            "type":"user_message", "session_id":req.session_id, "msg_id":message_id,
+            "content":text, "source":"web", "steering":True,
+            "assistant_msg_id":assistant_msg_id, "command_id":command_id,
+            "timestamp":timestamp, "predecessor":predecessor,
+        }
+        return [message]
 
     async def _get_steering_messages():
         # All commands already queued at this boundary belong to the next
@@ -940,6 +934,13 @@ def run_loop_blocking(
         async with contextlib.aclosing(
                 _aiter_event_stream(ev_stream)) as _events:
             async for ev in _events:
+                if getattr(ev, "type", None) == "message_start":
+                    delivered = delivered_steers.pop(id(getattr(ev, "message", None)), None)
+                    if delivered is not None:
+                        if ordered_blocks_out is not None:
+                            ordered_blocks_out.append({"type":"steering", "message_id":delivered["msg_id"],
+                                                       "text":delivered["content"], "timestamp":delivered["timestamp"]})
+                        on_event({"type":"chat_response", "data":delivered})
                 envelope = _agent_event_to_envelope(ev, req)
                 if envelope is not None:
                     on_event(envelope)

@@ -505,6 +505,9 @@ def agent_loop_resume(
                     ev_stream.push(AgentEventAgentEnd(messages=new_messages))
                     ev_stream.end(new_messages)
                     return
+                for message in steering:
+                    ev_stream.push(AgentEventMessageStart(message=message))
+                    ev_stream.push(AgentEventMessageEnd(message=message))
                 current_context.messages.extend(steering)
                 new_messages.extend(steering)
 

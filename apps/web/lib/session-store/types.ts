@@ -176,6 +176,8 @@ export interface ChatMsg {
   source?: string;
   /** User message injected into an already-running agent turn. */
   steering?: boolean;
+  /** Rendered at an ordered boundary inside this reply, not twice. */
+  steeringReplyId?: string;
   /** Pass-through of the wire ``predecessor`` (conversation-chain
    *  edge) so we can correlate internal-source msgs (e.g.
    *  job_followup) and runtime/attach rows with the turn they hang
@@ -313,7 +315,8 @@ export interface TurnFileSummary {
 }
 
 export interface AssistantBlock {
-  type: "thinking" | "text" | "tool";
+  type: "thinking" | "text" | "tool" | "steering";
+  timestamp?: number;
   /** thinking / text payload */
   text?: string;
   /** tool block fields */

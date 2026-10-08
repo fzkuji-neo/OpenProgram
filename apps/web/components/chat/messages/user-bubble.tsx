@@ -76,11 +76,6 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
           assistant's bottom-left). */}
       {!editing ? (
         <div className="message-actions-footer">
-          {msg.steering ? (
-            <span className="steering-badge">
-              {text("Steered", "已注入")}
-            </span>
-          ) : null}
           <MessageActions sessionIdOverride={sessionIdOverride} msg={msg} onEdit={() => setEditing(true)} />
         </div>
       ) : null}

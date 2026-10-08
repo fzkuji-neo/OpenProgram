@@ -89,7 +89,29 @@ test('queued bubble previews attachments and edits files without changing order 
  assert.equal(useSendQueue.getState().queues.A[0].id,second);
  assert.equal(useSendQueue.getState().queues.B[0].text,'other session');
  assert.equal(sent.length,0);
- await click(button('1 queued'));
+ await click(button('1 pending'));
  assert.equal(host.querySelectorAll('[data-queued-message]').length,0);
  } finally {await act(async()=>root.unmount());host.remove();}
+});
+
+
+test('receipt polls keep waiting and uncertain status text stable', async()=>{
+ useSendQueue.setState({queues:{}});
+ const id=useSendQueue.getState().enqueue('A',{text:'supplement',thinking:'medium',toolsEnabled:true,webSearchEnabled:false,background:false});
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ const patch=async data=>act(async()=>useSendQueue.getState().setSteering('A',id,data));
+ try {
+ await act(async()=>root.render(h(QueuedMessages,{sessionId:'A'})));
+ await patch({injecting:true});
+ const waiting=host.querySelector('[role=status]').textContent;
+ await patch({steerCommand:{command_id:'same'},injecting:false});
+ assert.equal(host.querySelector('[role=status]').textContent,waiting);
+ await patch({injecting:true});
+ assert.equal(host.querySelector('[role=status]').textContent,waiting);
+ await patch({injecting:false,steerError:'unconfirmed'});
+ const uncertain=host.querySelector('[role=status]').textContent;
+ await patch({injecting:true});
+ assert.equal(host.querySelector('[role=status]').textContent,uncertain);
+ assert.equal([...host.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Remove from queue').disabled,true);
+ } finally {await act(async()=>root.unmount());host.remove();useSendQueue.setState({queues:{}});}
 });

@@ -41,7 +41,8 @@ export async function steerQueuedMessage(sessionId: string, messageId: string): 
     pending.timer = undefined;
   }
   const queue = useSendQueue.getState();
-  queue.setSteering(sessionId, messageId, { injecting: true, steerError: undefined });
+  queue.setSteering(sessionId, messageId, { injecting: true,
+    ...(entry.steerCommand ? {} : { steerError: undefined }) });
   let command: ExecutionCommand | undefined = entry.steerCommand;
   try {
     if (entry.text.length > 4096) {
@@ -90,6 +91,7 @@ export async function steerQueuedMessage(sessionId: string, messageId: string): 
         return true;
       }
       if (["accepted", "applying"].includes(result.status)) {
+        queue.setSteering(sessionId, messageId, {steerError: undefined});
         // The server owns this command, but delivery is not complete until the
         // instruction has been persisted in the conversation. Replay is idempotent.
         confirmLater(sessionId, messageId, false);
