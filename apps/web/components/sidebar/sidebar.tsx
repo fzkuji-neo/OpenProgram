@@ -130,6 +130,36 @@ export const Sidebar = memo(function Sidebar() {
     }
   }, [pathname]);
 
+  // Crossing into the narrow breakpoint turns the expanded sidebar into an
+  // overlay over the chat; collapse it then, and dismiss it on any press
+  // outside. Neither is persisted, so widening again keeps the stored choice.
+  useEffect(() => {
+    const mq = window.matchMedia?.(NARROW_QUERY);
+    if (!mq) return;
+    const onChange = (event: MediaQueryListEvent) => {
+      if (!event.matches) return;
+      setOpen(false);
+      runtimeState.sidebarOpen = false;
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!isNarrowViewport()) return;
+      const target = event.target as Node | null;
+      const el = document.getElementById("sidebar");
+      if (!el || !target || el.contains(target)) return;
+      // Menus and dialogs opened from the sidebar portal outside it.
+      if ((target as Element).closest?.("[data-radix-popper-content-wrapper], [role='menu'], [role='dialog']")) return;
+      setOpen(false);
+      runtimeState.sidebarOpen = false;
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [open]);
+
   function toggleSidebar() {
     setOpen((prev) => {
       const next = !prev;

@@ -40,6 +40,7 @@ import {
   isSplitLayoutAvailable,
 } from "@/lib/tabs/split-layout";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
+import { newSession } from "@/lib/runtime-bridge/conversations";
 import { completeTabRouteNavigation } from "@/lib/tabs/navigation/route";
 import { setNavigate } from "@/lib/navigate";
 import { setLastChatPath } from "@/lib/tabs/last-chat-path";
@@ -643,6 +644,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             : null}
           <PersistentFilePanes tabs={tabs} layouts={new Map(panes.flatMap((pane, index) => pane.kind === "session" ? [] : [[pane.tabId, { className: centerPaneClassName(index), style: centerPaneStyle(index) }]]))} activeFileIds={new Set(panes.flatMap((pane) => pane.kind === "session" ? [] : tabs.find((tab) => tab.id === pane.tabId)?.kind === "file" ? [pane.tabId] : []))} />
           {showChat ? <WebTabPip /> : null}
+          {showChat && tabs.length === 0 ? <EmptyCenter /> : null}
         </div>
       </div>
       {/* Non-chat routes render their own page content via the router. */}
@@ -664,6 +666,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
          every route (chat AND settings), not just where the TopBar is. */}
       <ToastHost />
       </div>
+    </div>
+  );
+}
+
+/** Shown when every center tab is closed, so the column is never blank. */
+function EmptyCenter() {
+  const { text } = useTranslation();
+  return (
+    <div className="center-empty">
+      <p>{text("No open tabs", "没有打开的标签页")}</p>
+      <button
+        type="button"
+        className="center-empty-btn"
+        onClick={() => newSession(useCenterTabs.getState().openDraftSessionTab())}
+      >
+        {text("New chat", "新建对话")}
+      </button>
     </div>
   );
 }

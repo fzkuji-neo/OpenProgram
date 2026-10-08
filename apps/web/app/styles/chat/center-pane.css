@@ -70,3 +70,28 @@
 .chat-view-control-btn[aria-pressed="true"] {
   color: var(--text-bright);
 }
+
+/* Every center tab closed (components/app-shell.tsx EmptyCenter). */
+.center-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.center-empty-btn {
+  height: var(--ui-button-h);
+  padding: 0 14px;
+  border-radius: var(--ui-button-radius);
+  border: 1px solid var(--border-light);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.center-empty-btn:hover { background: var(--bg-hover); }
