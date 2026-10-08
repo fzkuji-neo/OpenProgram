@@ -20,7 +20,7 @@ test('recovery waits for visible history and sends one request at a time', () =>
   for(let i=0;i<1000;i++)h.recovery.request(`e${i}`, 3);
   h.tick(); assert.equal(h.sent.length, 0);
   h.recovery.start(); h.tick();
-  assert.deepEqual(h.sent, [{action:'execution.replay',execution_id:'e0',after_sequence:3}]);
+  assert.deepEqual(h.sent, [{action:'execution.replay',execution_id:'e0',after_sequence:3,snapshot_only:true}]);
   h.tick(); assert.equal(h.sent.length, 1);
   h.recovery.complete('e0'); h.tick(); assert.equal(h.sent.length, 2);
   h.recovery.dispose(); assert.equal(h.jobs.size, 0);

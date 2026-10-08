@@ -720,7 +720,9 @@ async def handle_execution_replay(ws, cmd: dict) -> None:
 
     execution_id = cmd.get("execution_id")
     after_sequence = cmd.get("after_sequence")
-    if not isinstance(execution_id, str) or not execution_id or type(after_sequence) is not int:
+    snapshot_only = cmd.get("snapshot_only", False)
+    if (not isinstance(execution_id, str) or not execution_id
+            or type(after_sequence) is not int or type(snapshot_only) is not bool):
         await ws.send_text(json.dumps({"type": "execution.replay", "error": "invalid_command"}))
         return
     store = default_store()
@@ -735,7 +737,9 @@ async def handle_execution_replay(ws, cmd: dict) -> None:
             _trusted_runtime_actor(ws), "execution.events", execution,
             bound_session=bound_session if isinstance(bound_session, str) else None,
         )
-        replay = store.read_event_replay(execution_id, after_sequence=after_sequence)
+        replay = store.read_event_replay(
+            execution_id, after_sequence=after_sequence, include_events=not snapshot_only,
+        )
     except Exception:
         await ws.send_text(json.dumps({"type": "execution.replay", "error": "not_found", "execution_id": execution_id}))
         return
