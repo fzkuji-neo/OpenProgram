@@ -826,9 +826,9 @@ async def _run_loop_with_recovery(
                     continue
                 raise
 
-            if message.stop_reason in ("error", "aborted") or (
+            if not steered_response and (message.stop_reason in ("error", "aborted") or (
                 structured_plan is not None and message.stop_reason == "length"
-            ):
+            )):
                 await finish_provider_response(message)
 
             if structured_plan is not None and message.stop_reason in (
@@ -862,7 +862,7 @@ async def _run_loop_with_recovery(
                     continue
                 raise error
 
-            if message.stop_reason in ("error", "aborted"):
+            if not steered_response and message.stop_reason in ("error", "aborted"):
                 commit_assistant(message)
                 ev_stream.push(AgentEventTurnEnd(message=message, tool_results=[]))
                 ev_stream.push(AgentEventAgentEnd(messages=new_messages))
@@ -1517,7 +1517,9 @@ async def _stream_assistant_response(
                         message = (partial_message.model_copy(deep=True) if partial_message is not None else AssistantMessage(
                             content=[], api=config.model.api, provider=config.model.provider, model=config.model.id,
                         ))
-                        message.stop_reason = "stop"
+                        # Preserve the real response outcome so request projection
+                        # drops incomplete reasoning signatures on continuation.
+                        message.stop_reason = "aborted"
                         if added_partial:
                             context.messages[-1] = message
                         else:
