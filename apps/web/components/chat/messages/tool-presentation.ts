@@ -208,3 +208,35 @@ export function presentTool(name: string, input: string | undefined, text: Text)
   return { Icon: Wrench, tone: "function", title: name || text("Function", "函数"),
     target: genericTarget(args) };
 }
+
+/** One readable line for a tool result. JSON objects and arrays are
+ *  summarised by their telling fields instead of printed raw. */
+export function summarizeResult(raw: string, text: Text): string {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return firstLine(trimmed) ?? "";
+  let value: unknown;
+  try {
+    value = JSON.parse(trimmed);
+  } catch {
+    return firstLine(trimmed) ?? "";
+  }
+  if (Array.isArray(value)) {
+    return value.length === 1 ? text("1 item", "1 项") : text(`${value.length} items`, `${value.length} 项`);
+  }
+  if (!value || typeof value !== "object") return String(value);
+  const obj = value as Args;
+  const pieces: string[] = [];
+  const failed = obj.ok === false || obj.success === false || typeof obj.error === "string";
+  if (failed) pieces.push(str(obj.error) ?? text("failed", "失败"));
+  for (const key of ["title", "message", "summary", "status", "url", "path", "result", "output"]) {
+    const v = str(obj[key]);
+    if (v && !pieces.includes(v)) pieces.push(firstLine(v) ?? v);
+    if (pieces.length >= 2) break;
+  }
+  if (pieces.length === 0) {
+    const nested = Object.values(obj).find((v) => Array.isArray(v)) as unknown[] | undefined;
+    if (nested) pieces.push(text(`${nested.length} items`, `${nested.length} 项`));
+    else pieces.push(obj.ok === true || obj.success === true ? text("done", "完成") : text(`${Object.keys(obj).length} fields`, `${Object.keys(obj).length} 个字段`));
+  }
+  return pieces.join(" · ");
+}
