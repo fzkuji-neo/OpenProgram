@@ -101,6 +101,10 @@ export async function steerQueuedMessage(sessionId: string, messageId: string): 
       clearConfirmation(key);
       queue.setSteering(sessionId, messageId, { steerCommand: undefined });
       command = undefined;
+      if (result.rejection_code === "superseded_by_cancel") {
+        queue.setSteering(sessionId, messageId, { steerError: "cancelled" });
+        return false;
+      }
       if (result.rejection_code === "stale_version" && attempt === 0) continue;
       queue.setSteering(sessionId, messageId, { steerError: "unavailable" });
       return false;
