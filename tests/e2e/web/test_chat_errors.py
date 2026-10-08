@@ -27,6 +27,7 @@ window.load=raw=>{
  useSessionStore.setState({messagesById:Object.fromEntries(rows.map(m=>[m.id,m])),messageOrder:{[sid]:rows.map(m=>m.id)}});
 };
 const history={id:rid,role:'assistant',status:'error',content:'Partial answer',error_detail:'[error] ConnectError: <img src=x onerror=alert(1)>',error_reason:'transport',error_retryable:true,blocks:[{type:'tool',tool:'bash',tool_call_id:'tool',input:'{}',result:'ok'},{type:'text',text:'Partial answer'}]};
+history.content=history.error_detail;
 window.historyPayload=history;
 if(sessionStorage.getItem('reload')) load(history);
 else applyChatWsMessage({type:'chat_ack',data:{session_id:sid,msg_id:uid}});

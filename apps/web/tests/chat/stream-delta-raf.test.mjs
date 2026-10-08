@@ -461,3 +461,11 @@ test("cold error history restores failure details independently from partial tex
   assert.equal(legacy.content,"Existing answer");
   assert.equal(legacy.errorDetail,"[error] ProviderStreamError: ConnectError");
 });
+
+
+test("persisted compatibility error output does not replace partial answer in the UI", async () => {
+  const {convToChatMsgs}=await import("../../lib/chat/conv-mapper.ts");
+  const [row]=convToChatMsgs([{id:"persisted-error",role:"assistant",status:"error",content:"[error] disconnected",error_detail:"[error] disconnected",blocks:[{type:"text",text:"Partial answer"}]}]);
+  assert.equal(row.content,"Partial answer");
+  assert.equal(row.errorDetail,"[error] disconnected");
+});

@@ -355,7 +355,7 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
       // Older failed replies stored the error in content; their partial answer
       // survives in ordered text blocks. No history rewrite is needed.
       const errorDetail = m.error_detail ?? (failed ? m.content : undefined);
-      const replyContent = failed && !m.error_detail
+      const replyContent = failed && (!m.error_detail || m.content === m.error_detail)
         ? orderedBlocks.filter(b => b.type === "text").map(b => b.text || "").join("")
         : m.content || "";
       const asstMsg: ChatMsg = {
