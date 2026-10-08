@@ -263,3 +263,97 @@ def test_new_owner_turn_uses_selected_policy_without_replaying_old_effect(recove
         assert permission_decision(tool, req, {})[:2] == ("ask", "RECOVERY_EFFECT_UNCERTAIN")
     finally:
         reset_current_execution_id(token)
+
+
+def admit_owner_turn(store, request):
+    """Real immutable admission, also used by the isolated process probe."""
+    import hashlib
+    import json
+    from openprogram.agent.authority import normalize_authority
+
+    payload = {"version": 1, "kind": "chat", "request": {
+        "user_text": request.user_text, "agent_id": request.agent_id,
+        "source": request.source,
+    }}
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    revision = store.create_revision(manifest={"entrypoint": "chat"})
+    return store.admit_execution(
+        session_id=request.session_id, revision_id=revision.revision_id,
+        input_ref="agent-turn:test", input_hash=hashlib.sha256(encoded.encode()).hexdigest(),
+        entrypoint="openprogram.agent.production_driver:AgentProductionDriver",
+        trusted_actor=normalize_authority(request), config_snapshot_ref="config:test",
+        agent_turn_payload=payload,
+    )
+
+
+@pytest.mark.parametrize("mode", ["auto", "bypass"])
+def test_new_owner_runtime_excludes_only_old_uncertainty(recovery, mode):
+    from openprogram.agent.permissions.policy import permission_decision
+    from openprogram.agent.run_control import set_current_execution_id, reset_current_execution_id
+    from openprogram.agent.turn_request_context import set_turn_request, reset_turn_request, inner_turn_request
+    from openprogram.agentic_programming.runtime import Runtime
+
+    old, effect = orphan(recovery)
+    tool, req, calls = operation("browser_page", mode=mode)
+    new = admit_owner_turn(recovery, req)
+    current = set_current_execution_id(new.execution_id)
+    bound = set_turn_request(req)
+    try:
+        inner = inner_turn_request("program")
+        assert (inner.speaker_kind, inner.interaction) == ("runtime", "non-interactive")
+        assert permission_decision(tool, inner, {})[0] == ("auto" if mode == "auto" else "allow")
+        if mode == "bypass":
+            runtime = Runtime.__new__(Runtime)
+            gated = runtime._gate_inner_tools([tool])[0]
+            assert not asyncio.run(gated.execute("new", {}, None, None)).is_error
+            assert len(calls) == 1
+        from openprogram.agent.session_config import PermissionRules
+        for rule in ("ask", "deny"):
+            inner.permission_rules = PermissionRules(**{rule: ["browser_page"]})
+            assert permission_decision(tool, inner, {})[:2] == (rule, "PERMISSION_RULE_" + rule.upper())
+        inner.permission_rules = None
+        # A current descendant's unknown outcome must still block this runtime.
+        _, descendant = orphan(recovery, parent=new.execution_id)
+        assert permission_decision(tool, inner, {})[:2] == ("ask", "RECOVERY_EFFECT_UNCERTAIN")
+        result = asyncio.run(wrap_with_approval(tool, inner, lambda _: None).execute("blocked", {}, None, None))
+        assert result.details["reason_code"] == "APPROVAL_LOCAL_OWNER_REQUIRED"
+        assert EffectStore(recovery).get(effect.effect_id).status is EffectStatus.DISPATCHED
+        assert EffectStore(recovery).get(descendant.effect_id).status is EffectStatus.DISPATCHED
+    finally:
+        reset_turn_request(bound)
+        reset_current_execution_id(current)
+
+
+@pytest.mark.parametrize("mismatch", ["missing", "principal", "session", "source", "actor", "hash"])
+def test_runtime_recovery_requires_exact_owner_admission(recovery, mismatch):
+    from openprogram.agent.authority import runtime_authority
+    from openprogram.agent.permissions.policy import permission_decision
+    from openprogram.agent.run_control import set_current_execution_id, reset_current_execution_id
+
+    orphan(recovery)
+    tool, outer, _ = operation("browser_page", mode="auto")
+    if mismatch == "actor":
+        outer.interaction = "non-interactive"
+        outer.speaker_kind = "runtime"
+    if mismatch == "source":
+        outer.source = "cron"
+    new = admit_owner_turn(recovery, outer)
+    inner = TurnRequest(session_id=outer.session_id, user_text="", agent_id="main", source="web",
+                        permission_mode="auto", **runtime_authority(outer, "program"))
+    if mismatch == "principal":
+        inner.principal_id = "another-owner"
+    if mismatch == "session":
+        # Keep the hazard visible, while the claimed current execution belongs elsewhere.
+        _, outer2, _ = operation(session="another-session")
+        new = admit_owner_turn(recovery, outer2)
+    if mismatch == "missing":
+        new = recovery.create_execution(session_id="recovery", revision_id=new.revision_id)
+    if mismatch == "hash":
+        with recovery._connect() as connection:
+            connection.execute("UPDATE execution_agent_turn_inputs SET content_hash='bad' WHERE execution_id=?", (new.execution_id,))
+    token = set_current_execution_id(new.execution_id)
+    try:
+        expected = ("deny", "RECOVERY_STATE_UNAVAILABLE") if mismatch == "hash" else ("ask", "RECOVERY_EFFECT_UNCERTAIN")
+        assert permission_decision(tool, inner, {})[:2] == expected
+    finally:
+        reset_current_execution_id(token)

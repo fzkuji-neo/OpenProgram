@@ -63,6 +63,26 @@ def uncertain_operations(request) -> list[dict[str, str]]:
     return result
 
 
+def _admitted_owner_runtime(request, store, execution_id: str) -> bool:
+    """Prove the current activation's origin without granting owner authority."""
+    from openprogram.agent.authority import normalize_authority
+
+    if request.speaker_kind != "runtime" or request.interaction != "non-interactive":
+        return False
+    admitted = store.get_execution_input(execution_id)
+    payload = store.get_agent_turn_input(execution_id)
+    actor = normalize_authority(admitted.trusted_actor) if admitted else {}
+    return bool(
+        admitted and payload and payload.get("kind") == "chat"
+        and admitted.session_id == request.session_id
+        and actor.get("speaker_kind") == "owner"
+        and actor.get("authority_tier") == "owner"
+        and actor.get("interaction") == "interactive"
+        and actor.get("principal_id") == request.principal_id
+        and payload["request"].get("source") == request.source
+    )
+
+
 def approval_context(tool, request) -> list[dict[str, str]]:
     if is_inspection_tool(tool):
         return []
@@ -73,15 +93,16 @@ def approval_context(tool, request) -> list[dict[str, str]]:
     # distinction, never a caller-supplied execution id.
     if (operations and request.permission_mode in {"auto", "bypass"}
             and request.authority_tier == "owner"
-            and request.source in {"web", "tui", "acp"}
-            and request.interaction == "interactive"):
+            and request.source in {"web", "tui", "acp"}):
         from openprogram.agent.run_control import get_current_execution_id
         from openprogram.execution import default_store
         from openprogram.execution.conversation_scope import conversation_execution_scope
         current_id = get_current_execution_id()
         store = default_store()
         current = store.get_execution(current_id) if current_id else None
-        if current is not None and current.session_id == request.session_id:
+        if (current is not None and current.session_id == request.session_id
+                and (request.interaction == "interactive"
+                     or _admitted_owner_runtime(request, store, current_id))):
             _, parents = conversation_execution_scope(store, request.session_id)
             def belongs_to_current(execution_id):
                 seen = set()

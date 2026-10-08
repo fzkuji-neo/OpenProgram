@@ -927,6 +927,7 @@ def test_step_prompt_marks_page_strings_as_untrusted():
     assert "never instructions" in prompt
 
 
+@pytest.mark.usefixtures("owned_page_scope")
 def test_public_browser_agent_uses_restricted_tool_and_closes(monkeypatch):
     from openprogram.programs.workflow import browser as module
 
@@ -987,6 +988,7 @@ def test_public_browser_agent_uses_restricted_tool_and_closes(monkeypatch):
     assert controller.closed is True
 
 
+@pytest.mark.usefixtures("owned_page_scope")
 def test_browser_agent_keeps_forcing_one_browser_page_call_until_verified(monkeypatch):
     from openprogram.programs.workflow import browser as module
 
@@ -1049,6 +1051,7 @@ def test_browser_agent_keeps_forcing_one_browser_page_call_until_verified(monkey
     assert controller.closed is True
 
 
+@pytest.mark.usefixtures("owned_page_scope")
 def test_browser_agent_sends_one_screenshot_to_next_point_click_request(monkeypatch):
     from openprogram.programs.workflow import browser as module
 
@@ -1107,6 +1110,7 @@ def test_browser_agent_sends_one_screenshot_to_next_point_click_request(monkeypa
     assert [block["type"] for block in runtime.contents[1]] == ["text"]
 
 
+@pytest.mark.usefixtures("owned_page_scope")
 def test_screenshot_payload_is_released_when_provider_request_is_cancelled(monkeypatch):
     from openprogram.programs.workflow import browser as module
     from openprogram.providers.utils.errors import ExecInterrupt
@@ -1145,6 +1149,7 @@ def test_screenshot_payload_is_released_when_provider_request_is_cancelled(monke
     assert [block["type"] for block in captured["content"]] == ["text"]
 
 
+@pytest.mark.usefixtures("owned_page_scope")
 def test_unsent_final_screenshot_payload_is_released(monkeypatch):
     from openprogram.programs.workflow import browser as module
 
@@ -1179,6 +1184,7 @@ def test_unsent_final_screenshot_payload_is_released(monkeypatch):
 
 
 @pytest.mark.parametrize("cancelled", [False, True])
+@pytest.mark.usefixtures("owned_page_scope")
 def test_same_request_screenshot_is_released_when_runtime_raises(
     monkeypatch,
     cancelled,
@@ -1215,6 +1221,7 @@ def test_same_request_screenshot_is_released_when_runtime_raises(
     "image_request_action",
     ["failed_verify", "invalid_point", "no_tool"],
 )
+@pytest.mark.usefixtures("owned_page_scope")
 def test_screenshot_point_capability_expires_after_image_request(
     monkeypatch,
     image_request_action,
@@ -1360,6 +1367,7 @@ def test_browser_open_forwards_exact_page_revisions_to_app_session(monkeypatch):
         pytest.param("agentic", id="agentic-cancelled-error"),
     ],
 )
+@pytest.mark.usefixtures("owned_page_scope")
 def test_runtime_cancellation_returns_cancelled_and_closes(monkeypatch, interrupt):
     from openprogram.agentic_programming.call_state import CancelledError
     from openprogram.programs.workflow import browser as module
@@ -1410,6 +1418,7 @@ def test_runtime_cancellation_returns_cancelled_and_closes(monkeypatch, interrup
     assert controller.closed is True
 
 
+@pytest.mark.usefixtures("owned_page_scope")
 def test_unhandled_control_signal_propagates_after_cleanup(monkeypatch):
     from openprogram.programs.workflow import browser as module
 
@@ -1462,6 +1471,7 @@ def test_invalid_initial_url_fails_before_runtime_or_browser_open(monkeypatch):
     assert api._sessions == {}
 
 
+@pytest.mark.usefixtures("owned_page_scope")
 def test_cleanup_failure_is_reported_and_downgrades_success(monkeypatch):
     from openprogram.programs.workflow import browser as module
 
@@ -1586,8 +1596,9 @@ def test_bound_pointer_rejects_stale_native_geometry(monkeypatch):
     assert not any(call[0] == "wheel" for call in api.page.calls)
 
 
-@pytest.mark.parametrize("denied", [False, True])
-def test_browser_task_real_runtime_executes_each_step_once(monkeypatch, denied):
+@pytest.mark.parametrize("scenario", ["allowed", "denied", "old_recovery"])
+@pytest.mark.usefixtures("owned_page_scope")
+def test_browser_task_real_runtime_executes_each_step_once(monkeypatch, tmp_path, scenario):
     from openprogram.agentic_programming.runtime import Runtime
     from openprogram.programs.workflow import browser as module
     from openprogram.providers.types import AssistantMessage, EventStart, EventDone, ToolCall
@@ -1615,13 +1626,24 @@ def test_browser_task_real_runtime_executes_each_step_once(monkeypatch, denied):
     from openprogram.agent.dispatcher import TurnRequest
     from openprogram.agent.turn_request_context import set_turn_request, reset_turn_request
     from openprogram.agent.session_config import PermissionRules
-    token = set_turn_request(TurnRequest(session_id='test-browser', agent_id='main', user_text='Click Save',
+    request = TurnRequest(session_id='test-browser', agent_id='main', user_text='Click Save',
         permission_mode='bypass', source='web',
-        permission_rules=PermissionRules(deny=['browser_page']) if denied else None,
-        **local_owner_authority()))
+        permission_rules=PermissionRules(deny=['browser_page']) if scenario == "denied" else None,
+        **local_owner_authority())
+    execution_token = None
+    if scenario == "old_recovery":
+        from openprogram.execution import ExecutionStore
+        from openprogram.agent.run_control import set_current_execution_id
+        from tests.component.agent.security.test_recovery_permissions import orphan, admit_owner_turn
+        store = ExecutionStore(tmp_path / "recovery.sqlite3")
+        monkeypatch.setattr("openprogram.execution.default_store", lambda: store)
+        orphan(store, session=request.session_id)
+        activation = admit_owner_turn(store, request)
+        execution_token = set_current_execution_id(activation.execution_id)
+    token = set_turn_request(request)
     try:
         result = module.browser_agent(task='Click Save and verify Saved', runtime=runtime, max_steps=1)
-        if denied:
+        if scenario == "denied":
             assert result['status'] == 'failed'
             assert not api.page.calls
             assert not result['completion_evidence']
@@ -1632,6 +1654,9 @@ def test_browser_task_real_runtime_executes_each_step_once(monkeypatch, denied):
         assert api.closed == ['br_test']
     finally:
         reset_turn_request(token)
+        if execution_token is not None:
+            from openprogram.agent.run_control import reset_current_execution_id
+            reset_current_execution_id(execution_token)
         runtime.close()
 
 

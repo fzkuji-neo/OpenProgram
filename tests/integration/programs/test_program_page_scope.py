@@ -93,3 +93,13 @@ def test_effective_parent_policy_survives_existing_page_scope(tmp_path, scenario
     else:
         assert data['parent_decision'][:2] == ['ask', 'PERMISSION_RULE_ASK']
         assert 'interactive local owner' in data['listed_text']
+
+
+def test_new_owner_page_scope_survives_old_interrupted_effect(tmp_path):
+    data = _probe(tmp_path, 'old_recovery')
+    assert data['listed_error'] is False, data
+    assert data['observed_error'] is False, data
+    assert 'actual owned DOM receipt' in json.dumps(data['observed']), data
+    assert data['action_policy'] == ['auto', 'AUTO_CLASSIFY'], data
+    assert data['child_mode'] == data['inner_mode'] == 'auto'
+    assert data['remaining_bindings'] == 0

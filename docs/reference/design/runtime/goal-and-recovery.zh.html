@@ -362,7 +362,7 @@
     </tbody></table></div>
     <p>安全边界：read_only / idempotent / state_probe 能力来自受信工具注册信息及执行时保存的实现身份，不接受模型自称只读，不按 read 这个名字猜。一般 shell、第三方 MCP 与自定义工具默认未知。未知写入相关恢复轮次先限制为可信读取与状态查询；没有可靠相关性判断时，不自动开放写入，必须先核对或由用户明确授权。</p>
     <p>请求历史修复先按原调用 ID 匹配最近的调用，再执行 provider ID 转换。已有真实输出优先，重复输出取最后保存的真实记录；缺失结果生成确定性的 unknown 占位。调用和结果在请求投影中相邻，用户消息顺序保留；原历史不变。没有对应调用的结果不作为有效工具协议项发送。中断回复保留部分文字并标注中断，不重用不完整的 reasoning 签名。同一回复内重复调用 ID 无法确定归属时明确报错，不猜测执行事实。该转换没有执行权限，也不能替代执行恢复决策。</p>
-    <p>恢复权限检查使用同一 conversation provenance 确定旧执行与所调用 Job 的范围，不扩大到被调用会话的全部执行。仅真实内置 read、grep、glob、list 的执行函数可作为只读核查；工具名称、acceptEdits 标记和插件自行声明不能替代实现身份。其余操作在存在未知旧效果时必须获得单次审批，不能使用 bypass、自动分类或既有 allow 规则免除。持久审批绑定新工具调用与未知效果集合，集合变化后重新审批；不会消除旧效果记录。无法读取恢复状态时拒绝执行。此检查是受限新轮次恢复的前置条件，不单独改变旧执行状态或开启 Resume。</p>
+    <p>恢复权限检查使用同一 conversation provenance 确定旧执行与所调用 Job 的范围，不扩大到被调用会话的全部执行。仅真实内置 read、grep、glob、list 的执行函数可作为只读核查；工具名称、acceptEdits 标记和插件自行声明不能替代实现身份。其余操作在下述适用执行范围内存在未知效果时必须获得单次审批，不能使用 bypass、自动分类或既有 allow 规则免除。持久审批绑定新工具调用与未知效果集合，集合变化后重新审批；不会消除旧效果记录。无法读取恢复状态时拒绝执行。此检查是受限新轮次恢复的前置条件，不单独改变旧执行状态或开启 Resume。</p>
     <p>这不是针对某个会话放行，也不是只对白名单文件修复。普通聊天和 Goal 共享同一恢复入口。旧效果审计可继续是 unresolved，而其所属聊天轮次结束为 interrupted；相应调整“存在 unresolved 就不允许结束轮次”的旧约束。</p>
   </section>
   <section id="completion-design">
@@ -2163,5 +2163,5 @@ Goal answer saved; resuming from the latest checkpoint.</pre>
     </section>
   </div>
 <section id="conversation-file-preview" class="card"><h2>目标完成显示</h2><p>已结束的历史目标在原会话位置显示为可点击的简洁状态行。成功目标使用 Lucide 动态勾选图标与目标已达成，用时 9m 42s，时间来自该目标的有效执行时间。缺失时间不显示为零，中断时间保留已知下限。其他终止状态显示自身状态，不显示成功。点击打开现有只读历史目标详情。完成、验收和用量以已有记录为准，不根据回复文字或待办数量推断完成。</p><h3>实现状态</h3><p data-completion-implementation="source-verified">紧凑完成状态行使用实际记录的 Goal 状态与活动时长，打开原始只读详情。组件和浏览器检查覆盖这一显示；已安装 App 的验收属于发布验证记录。</p></section></main>
-</body>
+<p id="nested-recovery-scope">新交互式 owner 轮次在 Auto 或 bypass 下，仅检查当前 execution 及其后代中结果不确定的操作。嵌套 Runtime 只有在持久化接收记录证明该轮来自同一 owner 时，才采用相同范围：保存的 actor 是交互式 owner，完整性校验后的 chat 输入具有相同 source，当前 execution、session 和 principal 均匹配。提交到执行线程时传递现有 ContextVars，使子进程启动前的 Page 范围读取使用同一当前执行。Runtime 仍为非交互来源，不获得批准权限。缺失或不匹配的证据保留原限制；无法读取或损坏的恢复状态拒绝执行。当前 execution 及其后代的不确定操作仍要求精确的一次性批准。该筛选不解决或重放旧操作。显式 ask/deny、来源约束、plan mode 和精确 Page 绑定继续生效。</p><p>验收：在旧中断操作之后创建新 owner 轮次，通过 permission_decision 和真实嵌套 Runtime 检查 Auto 分类、bypass、当前及后代的不确定操作、来源不匹配和显式规则，并通过真实子进程验证 Page 访问。此嵌套范围修正待实现和独立验证。</p></body>
 </html>
