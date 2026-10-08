@@ -455,7 +455,7 @@ def test_stream_progress_survives_reload_and_failure(tmp_db, monkeypatch):
     assert result.failed
     msg = next(m for m in tmp_db.get_messages("progress") if m["role"] == "assistant")
     assert json.loads(msg["extra"])["blocks"] == expected
-    assert msg["content"] == "Partial response"
+    assert "provider disconnected" in msg["content"]
     assert "provider disconnected" in msg["error_detail"]
 
 
@@ -503,11 +503,16 @@ def test_failed_turn_preserves_partial_reply_and_error_after_reopen(tmp_db, tmp_
     reopened = SessionDB(tmp_path / 'sessions-git')
     try:
         rows = aggregate_tool_messages(reopened.get_messages('failed-reopen'))
+        from openprogram.context.render import render_dag_messages
+        from openprogram.store import SessionNodeWriter
+        graph = SessionNodeWriter(reopened, 'failed-reopen').load()
+        context = render_dag_messages(graph, [result.assistant_msg_id])
+        assert 'connection lost' in context[0].content[0].text
     finally:
         reopened.close()
     reply = next(m for m in rows if m['id'] == result.assistant_msg_id)
     assert reply['status'] == 'error'
-    assert reply['content'] == 'Partial answer'
+    assert reply['content'] == reply['error_detail']
     assert 'connection lost' in reply['error_detail']
     assert reply['error_reason'] == 'transport'
     assert reply['error_retryable'] is True
