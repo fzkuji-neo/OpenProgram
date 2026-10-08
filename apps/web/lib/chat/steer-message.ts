@@ -43,27 +43,39 @@ export async function steerQueuedMessage(sessionId: string, messageId: string): 
   const queue = useSendQueue.getState();
   queue.setSteering(sessionId, messageId, { injecting: true,
     ...(entry.steerCommand ? {} : { steerError: undefined }) });
+  // Identity belongs to this user intent, not to a later version retry.
+  const targetId = entry.steerCommand?.execution_id ?? useSessionStore.getState().runningTasks[sessionId]?.execution_id;
+  const stopped = () => queueFor(sessionId).find(row => row.id === messageId)?.steerError === "cancelled";
   let command: ExecutionCommand | undefined = entry.steerCommand;
   try {
-    if (entry.text.length > 4096) {
+    if (Array.from(entry.text).length > 4096) {
       queue.setSteering(sessionId, messageId, { steerError: "too_long" });
       return false;
     }
     // One retry is allowed only after a definitive version-conflict receipt.
     for (let attempt = 0; attempt < 2; attempt++) {
       if (!command) {
+        if (stopped()) return false;
         const task = useSessionStore.getState().runningTasks[sessionId];
-        if (!task) return false; // finally releases the row for ordinary drain.
+        if (targetId && task?.execution_id !== targetId) {
+          queue.setSteering(sessionId, messageId, {steerError:"ended"});
+          return false;
+        }
+        if (!task) return false;
         if (!task.execution_id) {
           queue.setSteering(sessionId, messageId, { steerError: "retry" });
           return false;
         }
         const snapshot = await getExecutionSnapshot(task.execution_id, AbortSignal.timeout(15000), sessionId);
-        if (useSessionStore.getState().runningTasks[sessionId]?.execution_id !== task.execution_id
-          || !queueFor(sessionId).some(item => item.id === messageId)
+        if (stopped()) return false;
+        if (useSessionStore.getState().runningTasks[sessionId]?.execution_id !== targetId) {
+          queue.setSteering(sessionId, messageId, {steerError:"ended"});
+          return false;
+        }
+        if (!queueFor(sessionId).some(item => item.id === messageId)
           || snapshot.session_id !== sessionId || snapshot.execution_id !== task.execution_id
           || !snapshot.capabilities?.steer || !["running", "paused", "pausing"].includes(snapshot.status)) {
-          queue.setSteering(sessionId, messageId, { steerError: "unavailable" });
+          queue.setSteering(sessionId, messageId, { steerError: snapshot.status === "cancelled" || snapshot.status === "cancelling" ? "cancelled" : "unavailable" });
           return false;
         }
         command = {
@@ -80,7 +92,7 @@ export async function steerQueuedMessage(sessionId: string, messageId: string): 
           && error.command.status === "rejected") result = error.command;
         else if (!entry.steerCommand && error instanceof ExecutionApiError && error.status >= 400 && error.status < 500
           && ![408, 409].includes(error.status)) {
-          queue.setSteering(sessionId, messageId, { steerCommand: undefined, steerError: "unavailable" });
+          queue.setSteering(sessionId, messageId, { steerCommand: undefined, steerError: stopped() ? "cancelled" : "unavailable" });
           return false;
         } else throw error;
       }
@@ -91,7 +103,7 @@ export async function steerQueuedMessage(sessionId: string, messageId: string): 
         return true;
       }
       if (["accepted", "applying"].includes(result.status)) {
-        queue.setSteering(sessionId, messageId, {steerError: undefined});
+        if (!stopped()) queue.setSteering(sessionId, messageId, {steerError: undefined});
         // The server owns this command, but delivery is not complete until the
         // instruction has been persisted in the conversation. Replay is idempotent.
         confirmLater(sessionId, messageId, false);
@@ -101,7 +113,7 @@ export async function steerQueuedMessage(sessionId: string, messageId: string): 
       clearConfirmation(key);
       queue.setSteering(sessionId, messageId, { steerCommand: undefined });
       command = undefined;
-      if (result.rejection_code === "superseded_by_cancel") {
+      if (stopped() || result.rejection_code === "superseded_by_cancel") {
         queue.setSteering(sessionId, messageId, { steerError: "cancelled" });
         return false;
       }
@@ -111,7 +123,7 @@ export async function steerQueuedMessage(sessionId: string, messageId: string): 
     }
     return false;
   } catch {
-    queue.setSteering(sessionId, messageId, { steerError: command ? "unconfirmed" : "retry" });
+    if (!stopped()) queue.setSteering(sessionId, messageId, { steerError: command ? "unconfirmed" : "retry" });
     if (command) confirmLater(sessionId, messageId, true);
     return false;
   } finally {
