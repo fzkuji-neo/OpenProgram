@@ -31,6 +31,7 @@ import { createPortal } from "react-dom";
 import { useSessionStore } from "@/lib/session-store";
 import { useSessionScope } from "@/lib/session-store/session-scope";
 import { getSocket } from "@/lib/runtime-bridge/state";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { useTranslation } from "@/lib/i18n";
 
 // Session-scope chips relocated from the dismantled 48px topbar row —
@@ -77,7 +78,8 @@ function wsSend(payload: unknown): boolean {
   const sock = getSocket();
   if (!sock || sock.readyState !== WebSocket.OPEN) return false;
   try {
-    sock.send(typeof payload === "string" ? payload : JSON.stringify(payload));
+    if (typeof payload !== "string") return sendRuntimeCommand(payload) && sock.readyState === WebSocket.OPEN;
+    sock.send(payload);
     return sock.readyState === WebSocket.OPEN;
   } catch (error) {
     console.error("[Composer] WebSocket send failed:", error);

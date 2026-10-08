@@ -140,7 +140,7 @@ async function setup(tabs, activeId, windowId = "main") {
   runtimeState.currentSessionId = null;
 }
 function transcript(socket, id = "origin") {
-  socket.message("session_loaded", { id, title: "Original conversation", messages: [
+  socket.message("session_loaded", { id, request_id: socket.sent.findLast(request => request.action === "load_session" && request.session_id === id)?.request_id, title: "Original conversation", messages: [
     { id: "restored-message", role: "user", content: "restored transcript", timestamp: 100 },
   ], graph: [], settings: {}, head_id: "restored-message" });
 }
