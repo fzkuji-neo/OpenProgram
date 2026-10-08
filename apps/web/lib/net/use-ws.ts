@@ -11,6 +11,7 @@
  */
 import { useEffect } from "react";
 import { interfaceWindowId, receiveInterface } from "@/lib/framework/connection";
+import { createExecutionRecovery, shouldReloadAfterExecution } from "./execution-recovery";
 import { createHistoryFragmentDecoder } from "./history-fragments";
 import { executionMessageIds, pendingExecutionReplayRequests } from "./execution-message-recovery";
 import { useFunctions } from "@/lib/abilities/functions-store";
@@ -103,6 +104,7 @@ export function useWS(): void {
     let stopped = false;
     let authNoticeShown = false;
     let connectGeneration = 0;
+    let recovery: ReturnType<typeof createExecutionRecovery> | undefined;
 
     /** React-side dispatch for all WS message types. Known types have
      *  explicit handlers; unknown types are surfaced as `op:ws-message`
@@ -110,22 +112,21 @@ export function useWS(): void {
     function dispatch(msg: {
       type?: string;
       data?: Record<string, unknown>;
-    }): boolean {
+    }, recovered = false): boolean {
       if (msg.type !== "execution.replay") {
-        const frame = msg as { execution?: { event_cursor?: unknown }; event_cursor?: unknown; data?: { event_cursor?: unknown } };
+        const frame = msg as { execution?: { event_cursor?: unknown; status?: unknown; session_id?: unknown }; event_cursor?: unknown; data?: { event_cursor?: unknown; status?: unknown; session_id?: unknown } };
         const observed = recordExecutionCursor(
           frame.event_cursor ?? frame.execution?.event_cursor ?? frame.data?.event_cursor,
+          frame.execution ?? (msg.type === "execution.updated" ? frame.data : undefined),
         );
         if (observed.replayAfter !== undefined) {
-          socket?.send(JSON.stringify({
-            action: "execution.replay", execution_id: observed.cursor?.execution_id,
-            after_sequence: observed.replayAfter,
-          }));
+          if (observed.cursor) recovery?.request(observed.cursor.execution_id, observed.replayAfter);
           return true;
         }
       }
       if (msg.type === "operation_error" || msg.type === "action_error") {
         releaseChatOperationError(msg.data);
+        if (msg.data?.action === "load_session") recovery?.start();
       }
       if (consumeCommandErrorFrame(msg, translateText)) return true;
       if (msg.type === "framework.interface" && socket && msg.data) {
@@ -352,6 +353,7 @@ export function useWS(): void {
             execution.session_id,
             messageIds,
           )) return true;
+          const observedRunningExecution = useSessionStore.getState().runningTasks[String(execution.session_id || "")]?.execution_id === eid;
           restoreForegroundExecutionTask(d?.foreground_task ?? execution.foreground_task, execution);
           import("@/lib/session-store").then(({ useSessionStore }) => {
             const store = useSessionStore.getState();
@@ -429,6 +431,7 @@ export function useWS(): void {
             // a newer task that already occupies this session.
             if (
               sid === runtimeState.currentSessionId
+              && shouldReloadAfterExecution(recovered, observedRunningExecution)
               && terminal.has(String(execution.status))
               && (!store.runningTasks[sid]
                 || store.runningTasks[sid]?.execution_id === eid)
@@ -448,12 +451,13 @@ export function useWS(): void {
         case "execution.replay": {
           const replay = d as { snapshot?: Record<string, unknown>; event_cursor?: unknown; recovery?: string } | undefined;
           const snapshot = replay?.snapshot;
+          const replayId = (msg as { execution_id?: string }).execution_id ?? snapshot?.execution_id;
+          if (typeof replayId === "string") {
+            recovery?.complete(replayId, ["cancelled", "completed", "failed", "interrupted", "error", "done"].includes(String(snapshot?.status)));
+          }
           if (snapshot && typeof snapshot.execution_id === "string") {
-            recordExecutionCursor(replay?.event_cursor);
-            window.dispatchEvent(new CustomEvent("op:execution-update", {
-              detail: { execution: snapshot, event_cursor: replay?.event_cursor },
-            }));
-            return dispatch({ type: "execution.updated", execution: snapshot, data: snapshot } as never);
+            recordExecutionCursor(replay?.event_cursor, snapshot);
+            return dispatch({ type: "execution.updated", execution: snapshot, data: snapshot, event_cursor: replay?.event_cursor } as never, true);
           }
           return true;
         }
@@ -595,7 +599,7 @@ export function useWS(): void {
               }
             }
             for (const request of pendingExecutionReplayRequests([d])) {
-              if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(request));
+              recovery?.request(request.execution_id, request.after_sequence);
             }
           } else if (msg.type === "system_access.resolved" && d) {
             forgetSystemAccessWait(d);
@@ -607,7 +611,7 @@ export function useWS(): void {
             const dd = (d || {}) as Record<string, unknown>;
             if (!dd.id) return;
             for (const request of pendingExecutionReplayRequests([dd])) {
-              if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(request));
+              recovery?.request(request.execution_id, request.after_sequence);
             }
             useSessionStore.getState().enqueueDecision({
               id: String(dd.id),
@@ -693,6 +697,7 @@ export function useWS(): void {
           });
           return true;
         case "session_loaded":
+          recovery?.start();
           // A fresh transcript invalidates the per-run hydrate dedup —
           // see clearHydratedTreePaths for why this is the drain point.
           clearHydratedTreePaths();
@@ -783,7 +788,7 @@ export function useWS(): void {
                   if (!j || !Array.isArray(j.questions)) return;
                   const qs = j.questions;
                   for (const request of pendingExecutionReplayRequests(qs)) {
-                    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(request));
+                    recovery?.request(request.execution_id, request.after_sequence);
                   }
                   import("@/lib/session-store").then(({ useSessionStore }) => {
                     const store = useSessionStore.getState();
@@ -935,10 +940,21 @@ export function useWS(): void {
       let replayingHistory = false;
       socket = new WebSocket(proto + "//" + location.host + "/ws");
       const connection = socket;
+      recovery?.dispose();
+      const connectionRecovery = createExecutionRecovery({
+        send: request => {
+          if (connection.readyState !== WebSocket.OPEN) throw new Error("Connection closed");
+          connection.send(JSON.stringify(request));
+        },
+        schedule: (callback, delay) => setTimeout(callback, delay),
+        cancel: timer => clearTimeout(timer),
+      });
+      recovery = connectionRecovery;
       setSocket(socket);
       pushStatusBadge();
 
       socket.onopen = () => {
+        if (socket !== connection || stopped) return;
         socket?.send(JSON.stringify({ action: "framework_interface_register", window_id: interfaceWindowId() }));
         updateStatus("connected");
         window.dispatchEvent(new CustomEvent("op:browser-connection", { detail: { connected: true } }));
@@ -966,12 +982,6 @@ export function useWS(): void {
           }));
         }
         socket?.send(JSON.stringify({ action: "list_sessions", history_version: 2 }));
-        for (const cursor of loadExecutionCursors()) {
-          socket?.send(JSON.stringify({
-            action: "execution.replay", execution_id: cursor.execution_id,
-            after_sequence: cursor.next_sequence - 1,
-          }));
-        }
         if (runtimeState.currentSessionId) {
           socket?.send(
             JSON.stringify({
@@ -988,6 +998,12 @@ export function useWS(): void {
             }),
           );
         }
+        for (const cursor of loadExecutionCursors()) {
+          connectionRecovery.request(cursor.execution_id, cursor.next_sequence - 1);
+        }
+        // The first transcript unblocks recovery. An empty/new chat has no
+        // transcript request to wait for.
+        if (!runtimeState.currentSessionId) connectionRecovery.start();
         // A queue item whose socket write failed is retained in renderer
         // memory. Query background sessions without load_session: loading a
         // transcript also changes this socket's focused-session marker.
@@ -1001,7 +1017,7 @@ export function useWS(): void {
       };
 
       socket.onmessage = (e) => {
-        if (socket !== connection) return;
+        if (socket !== connection || stopped) return;
         try {
           const msg = JSON.parse(e.data) as {
             type?: string;
@@ -1023,13 +1039,15 @@ export function useWS(): void {
       };
 
       socket.onclose = () => {
+        connectionRecovery.dispose();
         historyFragments.clear();
+        if (socket !== connection || stopped) return;
         updateStatus("disconnected");
         window.dispatchEvent(new CustomEvent("op:browser-connection", { detail: { connected: false } }));
         if (!stopped) reconnectTimer = setTimeout(connect, 2000);
       };
 
-      socket.onerror = () => socket?.close();
+      socket.onerror = () => connection.close();
     }
 
     async function start(): Promise<void> {
@@ -1052,6 +1070,7 @@ export function useWS(): void {
       stopped = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       clearInterval(keepalive);
+      recovery?.dispose();
       if (socket) {
         socket.onclose = null;
         socket.close();
