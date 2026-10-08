@@ -222,6 +222,8 @@ interface ConvState {
    *  no full capture cached). MessageList shows a skeleton for it
    *  instead of flashing the welcome screen. Cleared by
    *  ``loadSessionData`` when the capture lands. */
+  transcriptReadStatus: Record<string, 'loading' | 'ready' | 'error' | 'disconnected'>;
+  setTranscriptReadStatus: (id: string, status: 'loading' | 'ready' | 'error' | 'disconnected') => void;
   transcriptLoadingId: string | null;
   setTranscriptLoading: (id: string | null) => void;
 
@@ -909,6 +911,8 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
   welcomeVisible: true,
   setWelcomeVisible: (v) => set({ welcomeVisible: v }),
 
+  transcriptReadStatus: {},
+  setTranscriptReadStatus: (id, status) => set(s => ({ transcriptReadStatus: { ...s.transcriptReadStatus, [id]: status }, ...(status !== 'loading' && s.transcriptLoadingId === id ? { transcriptLoadingId: null } : {}) })),
   transcriptLoadingId: null,
   setTranscriptLoading: (id) => set({ transcriptLoadingId: id }),
 

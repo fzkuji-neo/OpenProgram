@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { registerHooks } from "node:module";
-import test from "node:test";
+import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { parseHTML } from "linkedom";
@@ -80,6 +80,9 @@ setSocket({
   readyState: WebSocket.OPEN,
   send(payload) { wsFrames.push(JSON.parse(payload)); },
 });
+
+const { disposeSessionLoads } = await import("../../lib/runtime-bridge/session-load.ts");
+after(() => disposeSessionLoads(runtimeState.ws));
 
 const guiAgent = {
   name: "gui_agent",
@@ -368,7 +371,8 @@ test("function completion reloads are tracked independently per session", () => 
 
   handleRunningTaskClear("function-session-a", { force: true });
 
-  assert.deepEqual(wsFrames, [{
+  assert.equal(typeof wsFrames[0]?.request_id, "string");
+  assert.deepEqual(wsFrames.map(({ request_id, ...frame }) => frame), [{
     action: "load_session",
     session_id: "function-session-a",
   }]);
@@ -581,7 +585,8 @@ test("a successful function response binds channel and project before navigation
   assert.deepEqual(activatedSessions, [createdSession]);
   assert.equal(runtimeState.__reloadOnTaskClear.has(createdSession), true);
   assert.equal(handleRunningTaskClear(createdSession, { force: true }), true);
-  assert.deepEqual(wsFrames, [{
+  assert.equal(typeof wsFrames[0]?.request_id, "string");
+  assert.deepEqual(wsFrames.map(({ request_id, ...frame }) => frame), [{
     action: "load_session",
     session_id: createdSession,
   }]);

@@ -17,13 +17,16 @@ function sessionLoadedEntry(notify, loadSessionData) {
   }
   visit(file);
   assert.ok(clause);
-  const statements = clause.statements.filter(ts.isExpressionStatement).map((node) => node.getText(file)).join("\n");
+  const statements = clause.statements.filter(node => ts.isExpressionStatement(node) || (ts.isIfStatement(node) && node.getText(file).includes("acceptSessionLoad"))).map((node) => node.getText(file)).join("\n");
   const code = ts.transpileModule(`(function(d) { ${statements} })`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText;
   return vm.runInNewContext(code, {
     clearHydratedTreePaths() {}, clearSessionByMsgId() {}, loadSessionData,
     notifyDesktopSessionLoaded: notify,
+    clearTimeout() {}, historyDeadline: undefined,
+    socket: {}, acceptSessionLoad: (_socket, data, apply) => { apply(data); return true; },
+    recovery: undefined, // This extracted handler test has no connection-owned recovery.
   });
 }
 

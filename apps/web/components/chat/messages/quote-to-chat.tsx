@@ -1,4 +1,5 @@
 "use client";
+import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -39,7 +40,7 @@ export async function quoteInBranch(sessionId: string, messageId: string, conten
     throw new Error(error.error || response.statusText);
   }
   runtimeState._postCheckoutScrollTo = messageId;
-  socket.send(JSON.stringify({ action: "load_session", session_id: sessionId }));
+  requestSessionLoad({ action: "load_session", session_id: sessionId }, true);
   quoteToChat(sessionId, content);
 }
 

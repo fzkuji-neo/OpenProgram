@@ -1,3 +1,4 @@
+import { preserveSessionReadRows } from "./session-load";
 import { registerSessionHistory, type HistoryPage } from "@/lib/chat/session-history";
 import { seedHistoryWindow } from "./session-history-loader";
 export { loadOlderSessionHistory } from "./session-history-loader";
@@ -104,7 +105,7 @@ function feedStoreFromConv(conv: LegacyConv): void {
   if (!conv || !conv.id) return;
   useSessionStore
     .getState()
-    .setMessages(conv.id, convToChatMsgs((conv.messages as never[]) || []));
+    .setMessages(conv.id, preserveSessionReadRows(conv.id, convToChatMsgs((conv.messages as never[]) || [])));
 }
 
 /** Rebuild card + event rows when the wire list omitted them. */
@@ -692,13 +693,13 @@ function clearChatMessages(container: HTMLElement | null): void {
   });
 }
 
-export function renderSessionMessages(conv: LegacyConv): void {
+export function renderSessionMessages(conv: LegacyConv, options?: { preserveStore: boolean }): void {
   const container = document.getElementById("chatMessages");
   runtimeState.trees.length = 0;
 
-  feedStoreFromConv(conv);
+  if (!options?.preserveStore) feedStoreFromConv(conv);
 
-  if (!conv.messages || conv.messages.length === 0) {
+  if (!conv.id || !(useSessionStore.getState().messageOrder[conv.id]?.length)) {
     clearChatMessages(container);
     setWelcomeVisible(true);
     return;
