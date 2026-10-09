@@ -179,7 +179,7 @@ export function ContextBadge({ sessionId }: ContextBadgeProps) {
       <button
         ref={ringRef}
         className={
-          cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))
+          cn(buttonVariants({ variant: "secondary", size: "icon-sm" }))
           + " context-ring-badge"
           + (compacting ? " is-busy" : "")
         }

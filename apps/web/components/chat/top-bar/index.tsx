@@ -163,7 +163,7 @@ export function AgentBadge({
         <PopoverTrigger asChild>
           <span
             id={id}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" })) + " runtime-badge agent-badge" + (locked ? " locked" : "")}
+            className={cn(buttonVariants({ variant: "secondary", size: "sm" })) + " runtime-badge agent-badge" + (locked ? " locked" : "")}
             onMouseEnter={() => iconRef.current?.startAnimation?.()}
             onMouseLeave={() => iconRef.current?.stopAnimation?.()}
           >

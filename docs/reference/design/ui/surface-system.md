@@ -217,8 +217,11 @@ Pick per surface:
 - **Primary action** (Run, Save, Test, Apply, Send) → `default`.
 - **Secondary action** (Cancel, Close, Reset, Browse) → `outline`
   or `secondary`.
-- **Quiet controls in a dense row** (the composer's model / effort
-  / permission triggers, icon toggles) → `ghost`.
+- **Controls in a dense row** (the composer's model / effort /
+  permission triggers, icon toggles) → `secondary`, so they read as
+  buttons at rest.
+- **Purely incidental actions** that should vanish until hovered →
+  `ghost`.
 - **Destructive** (Delete, Remove, Stop) → `destructive`.
 - **Deep surface — sidebar rows** → don't use the Button
   primitive. Use `.ui-list-item` / `nav-classes.ts`.
@@ -231,7 +234,7 @@ The chat composer is built from the same parts:
   project, working folders, DAG HUD) → `outline` `sm`; the
   add-folder chip is `outline` `icon-sm`.
 - **Bottom row** (permission, chat / exec model, effort, plus,
-  tool toggles, context ring) → `ghost` `sm` / `icon-sm`. The
+  tool toggles, context ring) → `secondary` `sm` / `icon-sm`. The
   composer CSS hands its older base rules back to the Button with
   `revert-layer` rather than drawing its own chip.
 - **Send** → `icon-sm`: `default` when there is something to

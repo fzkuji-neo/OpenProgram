@@ -75,7 +75,7 @@ export const ToolChip = forwardRef<HTMLDivElement, ToolChipProps>(function ToolC
     <div
       ref={ref}
       {...rest}
-      className={`${cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))} ${styles.toolChip} ${on ? "" : styles.toolChipOff}`}
+      className={`${cn(buttonVariants({ variant: "secondary", size: "icon-sm" }))} ${styles.toolChip} ${on ? "" : styles.toolChipOff}`}
       onClick={onToggle}
       onMouseEnter={() => {
         onMouseEnter();

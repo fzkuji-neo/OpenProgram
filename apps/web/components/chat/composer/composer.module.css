@@ -170,7 +170,7 @@
 .inputOptions::-webkit-scrollbar { display: none; }
 .inputOptions > * { flex-shrink: 0; }
 
-/* Permission control — a ghost xs Button (buttonVariants) that shows
+/* Permission control — a secondary sm Button (buttonVariants) that shows
    only its label. */
 /* Text-only: drop the shield glyph (no chevron — plain text). 隐藏的
    必须是图标的整个 wrapper——它带 mr-[4px]，只藏 svg 会留下 4px 幽灵
@@ -179,7 +179,7 @@
   display: none;
 }
 
-/* Agent-model cluster — right side of the bottom row: ghost xs Buttons
+/* Agent-model cluster — right side of the bottom row: secondary sm Buttons
    (buttonVariants) with the role glyph + model name. Scrolls in its own
    box when narrow. */
 .agentChips {
@@ -474,7 +474,7 @@
   gap: 4px;
 }
 
-/* Every control in this row is a shadcn ghost Button (buttonVariants,
+/* Every control in this row is a shadcn secondary Button (buttonVariants,
    size sm / icon-sm — 28px at this app's 14px root, the text size of
    Luma's xs): height, radius, padding, font and hover all come
    from those classes. The legacy base rules above (.plusBtn, .toolChip,
@@ -560,10 +560,10 @@
 @media (prefers-reduced-motion: reduce) {
   .fastIndicator { transition: none; }
 }
-/* Open state of the effort popover reads like an open Button menu. */
+/* Open state of the effort popover = the secondary Button's hover fill
+   (its own aria-expanded styling can't see the wrapper's attribute). */
 .controlsRow .effortControl[aria-expanded="true"] .effortText {
-  background: var(--muted);
-  color: var(--foreground);
+  background: color-mix(in oklch, var(--secondary), var(--foreground) 5%);
 }
 /* The host is a zero-width anchor at the wrapper's right edge — the
    floating shell right-aligns to it. */
@@ -583,12 +583,12 @@
   display: none;
 }
 /* Single-option variant (no slider): a quiet 28px icon chip, the same
-   footprint as the ghost icon-sm Buttons beside it. */
+   footprint as the secondary icon-sm Buttons beside it. */
 .controlsRow :global(.effort-pill-fixed) {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background-color: transparent !important;
+  background-color: var(--secondary) !important;
 }
 .controlsRow :global(.effort-pill-fixed .effort-pill-compact-icon),
 .controlsRow :global(.effort-pill-fixed) svg {

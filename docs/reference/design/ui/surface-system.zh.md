@@ -142,7 +142,8 @@ link         primary 字                           下划线
 
 - **主操作**（Run、Save、Test、Apply、发送）→ `default`。
 - **次要操作**（Cancel、Close、Reset、Browse）→ `outline` 或 `secondary`。
-- **密集行里的安静控件**（输入框下方的模型 / 思考档位 / 权限触发器、图标开关）→ `ghost`。
+- **密集行里的控件**（输入框下方的模型 / 思考档位 / 权限触发器、图标开关）→ `secondary`，闲置时也能看出是按钮。
+- **只在悬停时才需要出现的次要动作** → `ghost`。
 - **破坏性操作**（Delete、Remove、停止）→ `destructive`。
 - **Deep 表面——侧栏行** → 不用 Button，用 `.ui-list-item` / `nav-classes.ts`。
 
@@ -151,7 +152,7 @@ link         primary 字                           下划线
 聊天输入框用的是同一套零件：
 
 - 输入框上方的**环境标签**（渠道、网页、项目、工作目录、DAG 浮层按钮）→ `outline` `sm`；添加目录按钮是 `outline` `icon-sm`。
-- **底部控制栏**（权限、聊天 / 执行模型、思考档位、加号、工具开关、上下文圆环）→ `ghost` `sm` / `icon-sm`。输入框的 CSS 用 `revert-layer` 把旧的基础规则让回给 Button，不再自己画一套标签。
+- **底部控制栏**（权限、聊天 / 执行模型、思考档位、加号、工具开关、上下文圆环）→ `secondary` `sm` / `icon-sm`。输入框的 CSS 用 `revert-layer` 把旧的基础规则让回给 Button，不再自己画一套标签。
 - **发送** → `icon-sm`：有内容可发时 `default`，空输入时 `ghost`，停止运行时 `destructive`。
 - **输入框本体** → 通过每套主题的 `--composer-*` 变量用 shadcn Luma input-group 的配方：`bg-input/50`，闲置无边框，聚焦时 1px `--ring` 边加 3px `ring/30` 光环；圆角 23px（一行时是胶囊）。
 
