@@ -461,6 +461,16 @@ def test_send_file_refuses_a_path_outside_the_roots(in_session, tmp_path):
     assert sf.drain() == []
 
 
+def test_registered_send_file_reports_an_unsent_file_as_failed(in_session, monkeypatch):
+    import asyncio
+    from openprogram.programs.tools.interaction import send_file as sf
+    ghost = in_session / "ghost.png"
+    monkeypatch.chdir(in_session)  # the tool runtime's path policy admits the cwd
+    result = asyncio.run(sf.send_file.execute("call-1", {"path": str(ghost)}, None, None))
+    assert result.is_error
+    assert "no such file" in result.content[0].text
+
+
 def test_send_file_refuses_a_symlink_out_of_the_roots(in_session, tmp_path):
     from openprogram.programs.tools.interaction import send_file as sf
     secret = tmp_path / "id_rsa"

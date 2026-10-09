@@ -230,6 +230,14 @@ def test_agent_without_session_returns_error(store, fake_dispatcher):
     assert "no active parent turn" in out
 
 
+def test_registered_agent_reports_a_spawn_that_never_started_as_failed():
+    import asyncio
+    from openprogram.programs.tools.agents.agent.agent.agent import agent
+    result = asyncio.run(agent.execute("call-1", {"prompt": "x"}, None, None))
+    assert result.is_error
+    assert result.content[0].text.startswith("[agent error] no active parent turn")
+
+
 def test_agent_without_turn_returns_error(store, fake_dispatcher):
     out = _call_agent(prompt="x", session_id="p1", turn_id=None)
     assert "[agent error]" in out

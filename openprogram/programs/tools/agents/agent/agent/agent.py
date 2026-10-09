@@ -38,7 +38,7 @@ from __future__ import annotations
 import threading
 from collections import OrderedDict
 
-from openprogram.programs._runtime import function
+from openprogram.programs._runtime import ToolReturn, function
 from openprogram.programs.tools.agents.send_message.send_message.depth import (
     delegation_budget_left as _delegation_budget_left,
 )
@@ -883,7 +883,7 @@ def agent(
     run_in_background: bool = False,
     to: str = "",
     archive_when_done: bool = False,
-) -> str:
+) -> str | ToolReturn:
     """Spawn a new agent, or dispatch a tracked task to an existing one.
 
     Without ``to``: spawns a new agent. ``run_in_background=False``
@@ -922,10 +922,14 @@ def agent(
             addressable for follow-up questions. Spawn-only —
             incompatible with ``to``.
     """
-    return _agent_impl(
+    out = _agent_impl(
         prompt=prompt, description=description,
         agent_id=agent_id, start_from=start_from,
         run_in_background=run_in_background,
         to=to,
         archive_when_done=archive_when_done,
     )
+    # A spawn or dispatch that never started is a failed call, not a reply.
+    if isinstance(out, str) and out.startswith("[agent error]"):
+        return ToolReturn(text=out, is_error=True)
+    return out
