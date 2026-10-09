@@ -85,11 +85,11 @@ def test_exact_mutation_summary_is_persisted(store, tmp_path):
     assert index.nodes_by_id[msg_id].metadata["turn_files"] == summary
 
 
-def test_mutation_summary_embeds_only_three_preview_rows(store, tmp_path):
+def test_mutation_summary_embeds_the_card_row_cap(store, tmp_path):
     session_id, msg_id = "s_summary_many", "u1_reply"
     _seed(store, session_id, msg_id)
     journal = CheckpointStore(store._session_dir(session_id))
-    for number in range(5):
+    for number in range(25):
         target = tmp_path / f"f{number}.py"
         target.write_text("before\n", encoding="utf-8")
         journal.backup_before_edit(msg_id, str(target))
@@ -98,10 +98,11 @@ def test_mutation_summary_embeds_only_three_preview_rows(store, tmp_path):
 
     summary = persist_turn_file_summary(session_id, msg_id)
 
-    assert summary["file_count"] == 5
-    assert len(summary["files"]) == 3
-    assert summary["added"] == 5
-    assert summary["removed"] == 5
+    # Bounded at the chat card's 20-row cap; totals still cover every file.
+    assert summary["file_count"] == 25
+    assert len(summary["files"]) == 20
+    assert summary["added"] == 25
+    assert summary["removed"] == 25
 
 
 def test_commit_stamps_node_and_produces_diff(store, tmp_path):

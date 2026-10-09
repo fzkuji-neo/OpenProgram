@@ -111,21 +111,25 @@ def _turn_summary(index, session_dir: Path, turn_id: str, root: Path | None) -> 
     node = index.nodes_by_id.get(turn_id)
     metadata = getattr(node, "metadata", None) or {}
     summary = metadata.get("turn_files")
+    rows = None
     if isinstance(summary, dict) and isinstance(summary.get("files"), list):
-        files = [_normalise_file(row, root) for row in summary["files"]]
-    else:
-        files = [
-            _normalise_file(row, root)
-            for row in _manifest_mutations(session_dir, turn_id)
-        ]
+        rows = summary["files"]
+        # The transcript summary is bounded (finalize keeps only the card's
+        # rows; older ones kept three) and can count more files than it
+        # lists. Review and the card need every row, so a partial summary
+        # reads the complete mutation journal instead.
+        if len(rows) < int(summary.get("file_count") or 0):
+            rows = _manifest_mutations(session_dir, turn_id) or rows
+    if rows is None:
+        rows = _manifest_mutations(session_dir, turn_id)
+    files = [_normalise_file(row, root) for row in rows]
     for row in files:
         row["turn_ids"] = [turn_id]
     return {
         "files": files,
-        "file_count": (
-            int(summary.get("file_count") or len(files))
-            if isinstance(summary, dict)
-            else len(files)
+        "file_count": max(
+            len(files),
+            int(summary.get("file_count") or 0) if isinstance(summary, dict) else 0,
         ),
         "reverted": bool(metadata.get("reverted")),
     }
