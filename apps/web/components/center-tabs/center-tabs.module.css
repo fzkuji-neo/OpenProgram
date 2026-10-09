@@ -1050,27 +1050,14 @@
 }
 .webAddress:focus { border-color: var(--text-dim); }
 
+/* Geometry only. The look is the shadcn ghost icon Button, applied at the
+   call site through webToolbarButton() (toolbar-button.ts); this class
+   holds it at the toolbar's own 26px so the 40px row keeps its rhythm, and
+   the bookmark-bar variant above resizes it further. */
 .webToolbarBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 26px;
   height: 26px;
   flex-shrink: 0;
-  padding: 0;
-  color: var(--text-dim);
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.webToolbarBtn:hover:not(:disabled) {
-  color: var(--text-bright);
-  background: var(--bg-hover);
-}
-.webToolbarBtn:disabled {
-  opacity: 0.35;
-  cursor: default;
 }
 /* Keep native view bounds stable while loading. */
 .webToolbarBtn.webStopLoading { color: var(--accent-blue); }
@@ -1283,6 +1270,10 @@
   background: var(--bg-primary);
 }
 
+/* The floating web-tab preview. This module owns geometry only; the
+   surface (bg-popover, hairline ring, shadow, radius, type) is applied as
+   Tailwind utilities on the elements in web-tab-pip.tsx, because
+   unlayered module rules would otherwise beat those utilities. */
 .webPip {
   position: absolute;
   top: 78px;
@@ -1294,9 +1285,7 @@
   display: flex;
   flex-direction: column;
   border: 0;
-  border-radius: 10px;
-  background: transparent;
-  box-shadow: none;
+  /* Resize targets hang outside the frame. */
   overflow: visible;
 }
 .webPipDragging {
@@ -1304,20 +1293,20 @@
   transition: none;
 }
 .webPipChrome {
-  border-radius: 10px 10px 0 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 2px;
-  min-height: 30px;
-  height: 30px;
+  gap: 6px;
+  /* 32px header. The store's PIP_HEADER_HEIGHT stays 30 so saved window
+     sizes and the 300×198.75 / 720×435 defaults quoted in the docs do not
+     move; the extra 2px comes out of the content letterbox. */
+  min-height: 32px;
+  height: 32px;
   flex-shrink: 0;
-  padding: 0 2px 0 8px;
+  padding: 0 10px;
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary);
   cursor: grab;
   touch-action: none;
 }
@@ -1327,23 +1316,10 @@
 .webPipTitle {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  color: var(--text-bright);
 }
 .webPipMode {
   flex: 0 0 auto;
   max-width: 5.5em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.webPipMode[data-resume-error="true"] {
-  color: var(--danger-soft);
 }
 .webPipActions {
   position: relative;
@@ -1356,25 +1332,16 @@
   flex: 0 0 auto;
   flex-shrink: 0;
 }
-.webPipChrome .webToolbarBtn {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  flex: 0 0 24px;
-}
-.webPipChrome .webToolbarBtn svg {
-  width: 14px;
-  height: 14px;
-}
-.webPipChrome .webToolbarBtn:focus-visible {
-  background: var(--bg-hover);
-  color: var(--text-bright);
+/* Resume-error line under the header: plain text, same inset as the header. */
+.webPipNotice {
+  flex: 0 0 auto;
+  padding: 0 10px 6px;
 }
 .webPipStage {
-  border-radius: 0 0 10px 10px;
+  /* Paints nothing of its own, so the frame's bg-popover shows through the
+     uniformly rounded native view's top cutouts. The bottom radius is the
+     rounded-b utility on the element, matching the frame. */
   overflow: hidden;
-  /* Fill the uniformly rounded native view's top cutouts with the header color. */
-  background: var(--bg-secondary);
   position: relative;
   flex: 1;
   min-height: 0;
@@ -1575,6 +1542,7 @@
 .webPipResize[data-dir="se"]::after { bottom: 10px; right: 10px; border-left: 0; border-top: 0; border-radius: 0 0 12px 0; }
 .webPipResize[data-dir="sw"]::after { bottom: 10px; left: 10px; border-right: 0; border-top: 0; border-radius: 0 0 0 12px; }
 .webPipResize:hover::after { opacity: 1; }
+/* Type and colour come from text-xs / text-muted-foreground on the element. */
 .webPipFallback {
   height: 100%;
   display: flex;
@@ -1582,8 +1550,6 @@
   justify-content: center;
   padding: 16px;
   text-align: center;
-  font-size: 12px;
-  color: var(--text-dim);
 }
 .webBoundMask {
   position: relative;

@@ -39,8 +39,18 @@ test("PiP screenshot maps pixel points onto a letterboxed contain fit", () => {
   assert.match(css, /\.webPipChrome \{[\s\S]*?overflow: hidden/);
   assert.match(css, /\.webPipActions \{[\s\S]*?flex-wrap: nowrap/);
   assert.match(css, /\.webPipTitle \{[\s\S]*?min-width: 0/);
-  assert.match(css, /\.webPipChrome \.webToolbarBtn \{[\s\S]*?width: 24px/);
-  assert.match(css, /\.webPipChrome \.webToolbarBtn svg \{[\s\S]*?width: 14px/);
+  // Header buttons are the official ghost icon Button with 14px icons; the
+  // toolbar's module class stays in the toolbar.
+  assert.match(pipSource, /buttonVariants\(\{ variant: "ghost", size: "icon-xs" \}\)/);
+  assert.match(pipSource, /const PIP_ICON = "size-\[14px\]"/);
+  assert.doesNotMatch(pipSource, /styles\.webToolbarBtn/);
+  assert.doesNotMatch(css, /\.webPipChrome \.webToolbarBtn/);
+  // Tips are HoverTip + TipBody, never native title bubbles; resize handles
+  // keep their aria-labels but show no tooltip.
+  assert.match(pipSource, /<HoverTip label=\{<TipBody title=\{openPage\} detail=\{openPageHint\} \/>\}>/);
+  assert.match(pipSource, /<HoverTip label=\{<TipBody title=\{hideLabel\} detail=\{hideHint\} \/>\}>/);
+  assert.doesNotMatch(pipSource, /<button[^<]*\btitle=\{/, "header buttons carry no native title");
+  assert.doesNotMatch(pipSource, /title=\{resizeLabels/, "resize handles carry no native title");
   assert.match(css, /\.webPipActions \{[\s\S]*?flex-wrap: nowrap/);
   assert.match(css, /\.webPipActions \{[\s\S]*?flex-shrink: 0/);
   assert.match(css, /\.webPip \{[\s\S]*?width: 300px/);

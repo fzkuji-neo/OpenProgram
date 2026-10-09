@@ -159,6 +159,12 @@ link         primary 字                           下划线
 - **发送** → `icon-sm`：有内容可发时 `default`，空输入时 `ghost`，停止运行时 `destructive`。
 - **输入框本体** → 通过每套主题的 `--composer-*` 变量用 shadcn Luma Card 的外观：`--bg-input` 底色、无边框，平时 `shadow-sm`，鼠标悬停或聚焦时 `shadow-md`（阴影透明度浅色主题 0.1、深色 0.25），不加聚焦光环；圆角 23px（一行时是胶囊）。
 
+## 网页预览与浏览器工具栏
+
+聊天上方的网页预览小窗（`components/center-tabs/web-tab-pip.tsx`）是一张 popover 卡片：`bg-popover`，用 `ring-1 ring-foreground/10` 代替边框，`shadow-lg`，四角 10px 圆角，标题栏下方的舞台用同样的底部圆角裁切网页。圆角跟原生网页视图的圆角（`apps/desktop/main/web-views.js`）绑定——原生表面不受 DOM 裁切，外框圆角更大就会在底部两角漏出网页像素，所以两者要一起改，或者都不改。32px 标题栏放标题（`text-sm font-medium text-foreground`）、状态（`text-xs text-muted-foreground`）和 `ghost` `icon-xs` 图标按钮（图标 14px），悬停提示用 `HoverTip` + `TipBody`（见 [hover-tips.zh.md](hover-tips.zh.md)）；恢复失败的提示是一行 `text-xs text-destructive`，不加框。CSS module 只管几何（位置、尺寸、拖动光标、调整把手），因为不分层的 module 规则会压过工具类。
+
+浏览器工具栏的图标按钮（后退 / 前进 / 重新加载 / 主页 / 书签 / 书签库 / 在浏览器中打开 / 菜单，以及控制条）通过 `webToolbarButton()`（`components/center-tabs/toolbar-button.ts`）用同一个 `ghost` Button：取 `icon-sm` 是为了它的 14px 图标规则，由只剩几何的 `.webToolbarBtn` 固定在工具栏自己的 26px，保住 40px 一行的节奏。
+
 ## 禁止事项
 
 - 不要每个页面另起一套悬停 / 选中 / 边框。一套配方，反复用。新样子先写进这份文件。
@@ -175,5 +181,5 @@ link         primary 字                           下划线
 
 ## 实现状态
 
-- 已完成：`Button`（radix-luma）、输入框上方的环境标签、底部控制栏、发送按钮、输入框本体。
+- 已完成：`Button`（radix-luma）、输入框上方的环境标签、底部控制栏、发送按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
 - 尚未迁移：弹出层 / 菜单面板（`MENU_PANEL`、`components/ui/popover.tsx`、`dropdown-menu.tsx`）、提示框、徽标，以及手写样式的 CSS module 弹窗——它们仍用玻璃材质变量（`--glass-*`）。表单输入框和下拉在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。

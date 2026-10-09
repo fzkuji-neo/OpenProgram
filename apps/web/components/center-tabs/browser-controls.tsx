@@ -52,6 +52,7 @@ import {
 import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import styles from "./center-tabs.module.css";
+import { webToolbarButton } from "./toolbar-button";
 import { useBookmarksBarPreference } from "./bookmark-bar";
 
 type BrowserMenuActions = {
@@ -181,7 +182,7 @@ export function BrowserMenu({
       <button
         ref={triggerRef}
         type="button"
-        className={styles.webToolbarBtn}
+        className={webToolbarButton()}
         title={label}
         aria-label={label}
         onClick={(event) => {
@@ -249,7 +250,7 @@ export function BrowserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button ref={triggerRef} type="button" className={styles.webToolbarBtn} title={label} aria-label={label}>
+        <button ref={triggerRef} type="button" className={webToolbarButton()} title={label} aria-label={label}>
           <MoreVertical size={15} />
         </button>
       </DropdownMenuTrigger>
@@ -289,7 +290,7 @@ export function BookmarksLibraryButton() {
   return (
     <button
       type="button"
-      className={`${styles.webToolbarBtn} ${styles.webToolbarMedium}`}
+      className={webToolbarButton(styles.webToolbarMedium)}
       onClick={() => openBuiltinTab("bookmarks")}
       title={label}
       aria-label={label}

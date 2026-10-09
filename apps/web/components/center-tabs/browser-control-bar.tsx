@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CursorClickIcon } from "@/components/animated-icons";
 import styles from "./center-tabs.module.css";
+import { webToolbarButton } from "./toolbar-button";
 
 function statusLabel(
   state: ReturnType<typeof displayedControlState>,
@@ -198,7 +199,7 @@ export function BrowserControlBar({
           {noticeText}
           <button
             type="button"
-            className={styles.webToolbarBtn}
+            className={webToolbarButton()}
             aria-label={text("Dismiss", "关闭")}
             onClick={(event) => {
               event.stopPropagation();
@@ -211,7 +212,7 @@ export function BrowserControlBar({
       ) : null}
       <button
         type="button"
-        className={styles.webToolbarBtn}
+        className={webToolbarButton()}
         aria-pressed={showActionsEnabled()}
         aria-label={showLabel}
         title={showLabel}
@@ -224,7 +225,7 @@ export function BrowserControlBar({
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className={styles.webToolbarBtn} title={historyLabel} aria-label={historyLabel}>
+          <button type="button" className={webToolbarButton()} title={historyLabel} aria-label={historyLabel}>
             <Clock3 size={14} aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
@@ -241,7 +242,7 @@ export function BrowserControlBar({
       {showTakeover ? (
         <button
           type="button"
-          className={styles.webToolbarBtn}
+          className={webToolbarButton()}
           disabled={resumeDisabled}
           title={pauseLabel}
           aria-label={pauseLabel}
