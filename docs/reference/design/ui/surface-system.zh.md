@@ -154,7 +154,7 @@ link         primary 字                           下划线
 - 输入框上方的**环境标签**（渠道、网页、项目、工作目录、DAG 浮层按钮）→ `outline` `sm`；添加目录按钮是 `outline` `icon-sm`。
 - **底部控制栏**（权限、聊天 / 执行模型、思考档位、加号、工具开关、上下文圆环）→ `sm` / `icon-sm`，深色主题 `secondary`、浅色主题 `outline`（`useControlRowVariant`）。输入框的 CSS 用 `revert-layer` 把旧的基础规则让回给 Button，不再自己画一套标签。
 - **发送** → `icon-sm`：有内容可发时 `default`，空输入时 `ghost`，停止运行时 `destructive`。
-- **输入框本体** → 通过每套主题的 `--composer-*` 变量用 shadcn Luma input-group 的配方：`bg-input/50`，闲置无边框，聚焦时 1px `--ring` 边加 3px `ring/30` 光环；圆角 23px（一行时是胶囊）。
+- **输入框本体** → 通过每套主题的 `--composer-*` 变量用 shadcn Luma Card 的外观：`--bg-input` 底色，1px 主题墨色细边（浅色 6% / 深色 10%）加 `shadow-md` 阴影；聚焦时只把细边加深（16% / 20%），不加光环；圆角 23px（一行时是胶囊）。
 
 ## 禁止事项
 
