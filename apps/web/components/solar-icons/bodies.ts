@@ -86,8 +86,9 @@ export const SOLAR_BODIES = {
 
 export type SolarIconName = keyof typeof SOLAR_BODIES;
 
-/** viewBox for the non-Solar glyphs; Solar bodies are all 24×24. */
+/** viewBox for the non-Solar glyphs, plus Solar glyphs re-centred in their 24×24 box. */
 export const SOLAR_VIEWBOXES: Partial<Record<SolarIconName, string>> = {
+  "toolbox": "0 -2.35 24 24",
   "fa-rotate-left": "0 0 512 512",
   "fa-eye": "0 0 576 512",
 };

@@ -53,7 +53,10 @@ Bold Duotone style: a filled glyph plus a 50 % lighter secondary layer.
 Solar's undo glyphs are hairline arrows that disappear at button size,
 so the file card's two action buttons use solid Font Awesome glyphs
 instead, vendored by the same script into the same table (their
-viewBox is recorded in `SOLAR_VIEWBOXES`).
+viewBox is recorded in `SOLAR_VIEWBOXES`). The same table re-centres
+the few Solar glyphs whose artwork sits off-centre in the 24×24 box
+(`toolbox` spans y 1.25–18.05, so its viewBox is shifted down 2.35
+units); otherwise it would ride high next to its neighbours.
 
 Glyphs that reflect a toggle switch with the state rather than relying
 on colour alone: Unattended closes the eye once nobody is watching, the
