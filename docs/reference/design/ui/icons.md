@@ -36,7 +36,7 @@ Bold Duotone style: a filled glyph plus a 50 % lighter secondary layer.
 | Chat model / execution model badge | `chat-round-dots` / `programming` |
 | Permission badge | `shield-check` |
 | Local connection chip | `monitor` |
-| Web tab chip | `planet` |
+| Web tab chip | `earth` |
 | Picture-in-picture chip | `pip-2` |
 | Working folder / add folder | `folder-with-files` / `add-folder` |
 | Project chip / missing project | `folder-open` / `danger-triangle` |
