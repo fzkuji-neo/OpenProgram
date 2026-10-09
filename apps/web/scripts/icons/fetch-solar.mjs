@@ -47,6 +47,10 @@ const ICONS = {
   // model capability glyphs (agent selector)
   "videocamera": "bold-duotone",
   "lightbulb-bolt": "bold-duotone",
+  // per-turn file-change card
+  "pen-new-square": "bold-duotone",
+  "undo-left-round": "bold-duotone",
+  "file-text": "bold-duotone",
 };
 
 const ids = Object.entries(ICONS).map(([name, style]) => `${name}-${style}`);

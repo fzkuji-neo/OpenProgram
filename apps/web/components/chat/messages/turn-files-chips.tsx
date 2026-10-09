@@ -3,10 +3,10 @@
 /** Compact per-turn file card. Diffs live in the center Review tab. */
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
-import {
-  FeatherIcon,
-  UndoIcon,
-} from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
+import { buttonVariants } from "@/components/ui/button";
+import { HoverTip } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import {
   idempotencyKeyFor,
@@ -47,6 +47,12 @@ interface TurnFile {
   binary?: boolean;
   diff_state?: string;
   recoverability?: string;
+}
+
+/** Split a display path into its folder part (muted) and file name. */
+function splitPath(path: string): [string, string] {
+  const position = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  return position >= 0 ? [path.slice(0, position + 1), path.slice(position + 1)] : ["", path];
 }
 
 function basename(path: string): string {
@@ -345,8 +351,6 @@ export function TurnFilesChips({
         : currentAction === "reapply"
           ? text("Reapply", "重新应用")
           : "";
-  const totalLines = (totalAdded ?? 0) + (totalRemoved ?? 0);
-  const addRatio = totalLines ? Math.round(((totalAdded ?? 0) / totalLines) * 100) : 50;
 
   return (
     <div
@@ -356,7 +360,7 @@ export function TurnFilesChips({
       data-reverting={busy ? "1" : "0"}
     >
       <div className="turn-files-summary">
-        <span className="turn-files-logo" aria-hidden="true"><FeatherIcon size={19} /></span>
+        <span className="turn-files-logo" aria-hidden="true"><SolarIcon name="pen-new-square" size={18} motionPreset="none" /></span>
         <span className="turn-files-heading">
           <span
             className="turn-files-count"
@@ -367,30 +371,27 @@ export function TurnFilesChips({
           <span className="turn-files-summary-stats">
             <span className="turn-files-stat is-add">+{totalAdded ?? "—"}</span>
             <span className="turn-files-stat is-del">−{totalRemoved ?? "—"}</span>
-            <span
-              className="turn-files-meter"
-              style={{ "--turn-files-add-ratio": `${addRatio}%` } as React.CSSProperties}
-              aria-hidden="true"
-            />
           </span>
         </span>
         <span className="turn-files-summary-actions">
           {currentAction ? (
-            <button
-              type="button"
-              className="turn-files-action"
-              disabled={Boolean(busy)}
-              onClick={() => historyAction(
-                currentAction === "redo" || currentAction === "reapply"
-                  ? "redo"
-                  : "undo",
-              )}
-            >
-              <span>{busy ? text("Working…", "处理中…") : actionLabel}</span>
-              <span className={`turn-files-action-icon${currentAction === "redo" || currentAction === "reapply" ? " turn-files-redo-icon" : ""}`}>
-                <UndoIcon size={14} />
-              </span>
-            </button>
+            <HoverTip label={busy ? text("Working…", "处理中…") : actionLabel}>
+              <button
+                type="button"
+                className={cn(buttonVariants({ variant: "elevated", size: "icon-sm" }), "turn-files-action")}
+                aria-label={busy ? text("Working…", "处理中…") : actionLabel}
+                disabled={Boolean(busy)}
+                onClick={() => historyAction(
+                  currentAction === "redo" || currentAction === "reapply"
+                    ? "redo"
+                    : "undo",
+                )}
+              >
+                <span className={`turn-files-action-icon${currentAction === "redo" || currentAction === "reapply" ? " turn-files-redo-icon" : ""}`}>
+                  <SolarIcon name="undo-left-round" size={15} />
+                </span>
+              </button>
+            </HoverTip>
           ) : historyNotice ? (
             <span
               className="turn-files-history-notice"
@@ -402,7 +403,7 @@ export function TurnFilesChips({
           ) : null}
           <button
             type="button"
-            className="turn-files-review"
+            className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "turn-files-review")}
             onClick={() => sessionId && openReviewTab(sessionId, assistantMsgId, "turn")}
           >
             {text("Review", "审阅")}
@@ -421,7 +422,13 @@ export function TurnFilesChips({
               sessionId, assistantMsgId, "turn", file.path,
             )}
           >
-            <span className="turn-files-name">{file.rel || basename(file.path)}</span>
+            <span className="turn-files-file-icon" aria-hidden="true">
+              <SolarIcon name="file-text" size={15} motionPreset="none" />
+            </span>
+            <span className="turn-files-name">
+              <span className="turn-files-dir">{splitPath(file.rel || basename(file.path))[0]}</span>
+              <span className="turn-files-base">{splitPath(file.rel || basename(file.path))[1]}</span>
+            </span>
             {file.op === "rename" && !(file.added || file.removed) ? (
               <span className="turn-files-op">{text("renamed", "重命名")}</span>
             ) : file.op === "delete" && !(file.added || file.removed) ? (
