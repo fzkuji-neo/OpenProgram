@@ -3,8 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { CircleHelp } from "lucide-react";
 
-import { Slider } from "@/components/ui/slider";
-import { EffortField } from "./effort-field";
+import { EffortSlider } from "./effort-slider";
 import { EffortLabel } from "./effort-label";
 import type { ThinkingOption } from "./use-thinking-effort";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
@@ -72,10 +71,11 @@ const ThinkingEffortSliderPill = React.forwardRef<
   ref,
 ) {
   const { text } = useTranslation();
-  const valueIndex = Math.max(
-    0,
-    options.findIndex((o) => o.value === value),
-  );
+  const optionKey = options.map(option => option.value).join("|");
+  const [preview, setPreview] = useState<{ index: number; options: string; original: string } | null>(null);
+  const previewValid = expanded && preview?.options === optionKey && preview.original === value;
+  const valueIndex = previewValid ? preview.index : Math.max(0, options.findIndex(option => option.value === value));
+  const shownValue = options[valueIndex]?.value ?? value;
   const maxIndex = Math.max(0, options.length - 1);
   const recommendedIndex = options.findIndex((o) => o.recommended);
   const warmHue = effortLevelColor(options, value);
@@ -105,45 +105,8 @@ const ThinkingEffortSliderPill = React.forwardRef<
   const effortIconChipRef = useRef<AnimatedNavIconHandle>(null);
   const caretRef = useRef<AnimatedNavIconHandle>(null);
 
-  // Level-name tip over the thumb. Visible while the pointer rests on the
-  // thumb or a drag is in flight — the drag flag is what keeps it steady
-  // when the thumb snaps between options under a moving pointer. Keyboard
-  // focus shows it through CSS (`:focus-visible`) instead, so no state is
-  // needed for that path. Hover is computed from the Radix root's pointer
-  // events against the thumb's box: the thumb child itself stays
-  // pointer-events:none so Radix keeps focusing its thumb on press.
-  const thumbRef = useRef<HTMLSpanElement>(null);
-  const thumbHoverRef = useRef(false);
-  const [thumbHover, setThumbHover] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const dragEndRef = useRef<(() => void) | null>(null);
-
   const atHighest = options.length > 1 && valueIndex === maxIndex;
-  const updateThumbHover = (clientX: number) => {
-    const rect = thumbRef.current?.getBoundingClientRect();
-    const inside = !!rect && clientX >= rect.left && clientX <= rect.right;
-    if (inside !== thumbHoverRef.current) {
-      thumbHoverRef.current = inside;
-      setThumbHover(inside);
-    }
-  };
-  const startDrag = () => {
-    dragEndRef.current?.();
-    const end = () => {
-      dragEndRef.current = null;
-      window.removeEventListener("pointerup", end);
-      window.removeEventListener("pointercancel", end);
-      setDragging(false);
-    };
-    dragEndRef.current = end;
-    window.addEventListener("pointerup", end);
-    window.addEventListener("pointercancel", end);
-    setDragging(true);
-  };
-  useEffect(() => {
-    if (!expanded) { dragEndRef.current?.(); setThumbHover(false); thumbHoverRef.current = false; }
-    return () => dragEndRef.current?.();
-  }, [expanded]);
+  useEffect(() => { if (!expanded) setPreview(null); }, [expanded]);
 
   return (
     <div
@@ -214,11 +177,11 @@ const ThinkingEffortSliderPill = React.forwardRef<
              画框 = GLASS_SURFACE，与所有弹层同一画框。
              标题 13px；标题→标签 10、标签→轨 10、轨→标注 6。 */
           <div
-            className={`effort-card ${atHighest ? "effort-ultra" : ""} ${GLASS_SURFACE} p-[10px]`}
+            className={`effort-card ${atHighest ? "effort-ultra" : ""} ${GLASS_SURFACE}`}
           >
-            <div className="flex items-center gap-[6px] text-[13px] leading-[18px]">
+            <div className="effort-heading">
               <span className="text-text-muted">{text("Effort", "思考力度")}</span>
-              <EffortLabel label={formatEffortLabel(value)} index={valueIndex} accent={atHighest} />
+              <EffortLabel label={formatEffortLabel(shownValue)} index={valueIndex} accent={atHighest} />
               <HoverTip label={fastHint}>
                 <button type="button"
                   className="effort-fast-toggle ml-auto"
@@ -252,50 +215,18 @@ const ThinkingEffortSliderPill = React.forwardRef<
               </HoverTip>
             </div>
             {options.length > 1 && <>
-            <div className="mt-[10px] flex items-center justify-between text-[12px] leading-[15px] text-text-muted">
+            <div className="effort-end-labels">
               <span>{text("Faster", "更快")}</span>
               <span>{text("Smarter", "更强")}</span>
             </div>
-            <div className="effort-track relative mt-[10px] h-[20px]" data-dragging={dragging ? "true" : undefined}>
-              <EffortField active={atHighest} />
-              <Slider
-                min={0}
-                max={maxIndex}
-                step={1}
-                stops={options.length}
-                value={[valueIndex]}
-                data-thumb-tip={thumbHover || dragging ? "true" : undefined}
-                markedStop={recommendedIndex}
-                thumbProps={{ "aria-label": text("Thinking effort", "思考力度"), "aria-valuetext": formatEffortLabel(value) }}
-                onValueChange={(v) => {
-                  const idx = v[0] ?? 0;
-                  const next = options[idx];
-                  if (next) onChange(next.value);
-                }}
-                onClick={(e) => e.stopPropagation()}
-                onPointerMove={(e) => updateThumbHover(e.clientX)}
-                onPointerLeave={() => updateThumbHover(Number.NaN)}
-                onPointerDown={(e) => {
-                  updateThumbHover(e.clientX);
-                  if (e.button === 0) startDrag();
-                }}
-                thumb={
-                  // Theme-aware chip, same height as the track. White on
-                  // light, raised paper on dark — not a raw #fff block. The
-                  // tip inside names the level; effort-pill.css shows it on
-                  // hover / drag / keyboard focus.
-                  <span
-                    ref={thumbRef}
-                    aria-hidden="true"
-                    className="effort-thumb absolute left-1/2 top-1/2 h-[20px] w-[16px] -translate-x-1/2 -translate-y-1/2 rounded-[6px] bg-[var(--effort-thumb)] pointer-events-none shadow-[var(--shadow-sm)]"
-                  >
-                    <span className="effort-thumb-tip">{formatEffortLabel(value)}</span>
-                  </span>
-                }
-              />
+            <div className="effort-track">
+              <EffortSlider key={optionKey} options={options} index={valueIndex}
+                label={text("Thinking effort", "思考力度")}
+                onPreview={index => setPreview(index === null ? null : { index, options: optionKey, original: value })}
+                onCommit={index => { const next = options[index]; if (next) onChange(next.value); setPreview(null); }} />
             </div>
             {recommendedIndex >= 0 && (
-              <div className="relative mt-[6px] h-[15px] text-[12px] leading-[15px] text-text-muted">
+              <div className="effort-recommended-row">
                 <span
                   className="effort-recommended"
                   data-align={captionAlignment(recommendedIndex, options.length)}

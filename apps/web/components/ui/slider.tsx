@@ -12,8 +12,6 @@ type SliderProps = React.ComponentPropsWithoutRef<
       Pass `options.length` for a discrete step slider; omit / pass
       < 2 for a smooth slider. */
   stops?: number;
-  markedStop?: number;
-  thumbProps?: React.ComponentPropsWithoutRef<typeof SliderPrimitive.Thumb>;
   /** Skip drawing the first and last tick. Use when the start/end
       markers are filled by `startIcon` / `endIcon` (or some other
       external marker) instead of plain tick dots. */
@@ -40,7 +38,7 @@ type SliderProps = React.ComponentPropsWithoutRef<
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   SliderProps
->(({ className, stops, markedStop, thumbProps, innerTicksOnly, startIcon, endIcon, thumb, rangeChildren, ...props }, ref) => {
+>(({ className, stops, innerTicksOnly, startIcon, endIcon, thumb, rangeChildren, ...props }, ref) => {
   // Read current step value so each tick (and downstream coloured
   // elements) can know if it sits in the filled half or the unfilled
   // half. Filled = i < currentValue → blue; otherwise grey.
@@ -105,7 +103,6 @@ const Slider = React.forwardRef<
                 : "bg-[color-mix(in_srgb,var(--text-bright)_20%,transparent)]",
             )}
             style={{ left: `calc(${i / (stops - 1)} * (100% - 16px) + 8px)` }}
-            data-marked={i === markedStop ? "true" : undefined}
             aria-hidden="true"
           />
         );
@@ -134,7 +131,6 @@ const Slider = React.forwardRef<
       </div>
     ) : null}
     <SliderPrimitive.Thumb
-      {...thumbProps}
       className={cn(
         // Hit area stays 14px so Radix's thumb-center math (the
         // `100% - 14px + 7px` calc shared with ticks/icons) still
