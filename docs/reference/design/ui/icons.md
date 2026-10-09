@@ -64,7 +64,7 @@ is gone.
 Two composer glyphs are **not** Solar. The Fast (speed) toggle keeps the
 gauge from the animated set, with its needle rotated by the `active` prop.
 The `?` help button in the effort card
-([effort-picker.md](effort-picker.md)) is lucide `CircleHelp` at 14px: Solar
+([effort-picker.html](effort-picker.html)) is lucide `CircleHelp` at 14px: Solar
 has no vendored question glyph yet, and the button is static, so it needs
 no motion handle. See the implementation status below for both.
 
