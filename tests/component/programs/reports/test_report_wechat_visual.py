@@ -184,6 +184,92 @@ def test_unknown_group_never_persists_private_snapshot(
     assert list(tmp_path.iterdir()) == [] and window.closed
 
 
+def test_screenshot_only_window_reads_the_shown_page_and_reports_no_paging(
+    monkeypatch, tmp_path, working_dir
+):
+    image = tmp_path / "input.png"
+    image.write_bytes(b"test fixture")
+    frame = _frame(
+        [
+            _row("星期四 15:00", 600, 90),
+            _row("A", 350, 130),
+            _row("尚未完成。", 370, 180),
+            _row("B", 350, 230),
+        ]
+    )
+    frame["image"] = str(image)
+
+    class Window:
+        capture_only = True
+        closed = False
+        observed = 0
+
+        def observe(self):
+            self.observed += 1
+            return dict(frame)
+
+        def search(self, *args):
+            pytest.fail("a screenshot-only window cannot search")
+
+        def older(self, *args):
+            pytest.fail("a screenshot-only window cannot page")
+
+        def close(self):
+            self.closed = True
+
+    window = Window()
+    monkeypatch.setattr(visual, "WeChatWindow", lambda: window)
+    outcome = visual.read_visual_group("Target group", ["A", "B"], str(tmp_path))
+    assert outcome["status"] == "READY" and outcome["complete"] is False
+    assert [(b["author"], b["text"]) for b in outcome["blocks"]] == [("A", "尚未完成。")]
+    assert len(outcome["evidence"]) == 1 and window.observed == 1 and window.closed
+    assert outcome["window_controls"] == "unavailable"
+    assert outcome["coverage"].startswith("One visible page only")
+    assert "cannot page to older messages" in outcome["coverage"]
+
+
+def test_screenshot_only_window_showing_another_conversation_persists_nothing(
+    monkeypatch, tmp_path, working_dir
+):
+    class Window:
+        capture_only = True
+        closed = False
+
+        def observe(self):
+            return _frame([])
+
+        def search(self, *args):
+            pytest.fail("a screenshot-only window cannot search")
+
+        def close(self):
+            self.closed = True
+
+    window = Window()
+    monkeypatch.setattr(visual, "WeChatWindow", lambda: window)
+    outcome = visual.read_visual_group("Another group", ["A"], str(tmp_path))
+    assert outcome["status"] == "CAPTURE_ONLY_GROUP_NOT_SHOWN"
+    assert outcome["window_controls"] == "unavailable" and "screenshot only" in outcome["reason"]
+    assert list(tmp_path.iterdir()) == [] and window.closed
+
+
+def test_screenshot_only_state_comes_from_bound_window_and_refusals_change_nothing():
+    from types import SimpleNamespace as NS
+
+    window = object.__new__(visual.WeChatWindow)
+    window.native = None
+    assert window.capture_only is False
+    window.check = lambda: None
+    window.frame = _frame([])
+    window.native = NS(
+        capture_only=True,
+        dispatch=lambda plan: {"success": False, "action_status": "refused"},
+    )
+    assert window.capture_only is True
+    with pytest.raises(visual.VisualUnavailable, match="BACKGROUND_ACTION_UNAVAILABLE"):
+        window._dispatch("window_scroll", "0", direction="up")
+    assert window.frame is not None
+
+
 def test_unlisted_sender_content_does_not_enter_prior_members_report():
     frame = _frame(
         [

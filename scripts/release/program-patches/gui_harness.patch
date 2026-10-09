@@ -10829,3 +10829,398 @@ index 0000000..0e01fcc
 +    assert result["reason_code"] == "timeout"
 +    assert result["steps_taken"] == 1
 +    assert result["total_time"] == 2.0
+diff --git a/gui_harness/adapters/mac_window.py b/gui_harness/adapters/mac_window.py
+index 42096bb..e4bfd39 100644
+--- a/gui_harness/adapters/mac_window.py
++++ b/gui_harness/adapters/mac_window.py
+@@ -144,7 +144,20 @@ def window_support():
+             "reason": " ".join(row["label"] + ": " + row["detail"] + " " + row["instruction"] for row in blocked)}
+ 
+ 
++_CAPTURE_ONLY_RULE = (
++    "Screenshot only: no Accessibility window of this application matches the captured window, "
++    "so it exposes no controls and window_press, window_select, window_set_text and window_scroll "
++    "are refused. Read the task's answer from the screenshot. Choose done when the screenshot shows "
++    "what the task needs; choose fail with the blocker and a handoff when the task needs an action "
++    "in this window. No foreground activation, global input or clipboard."
++)
++
++
+ class MacWindow:
++    # True when the exact captured window has no associated Accessibility
++    # window: the session observes it by screenshot and refuses every action.
++    capture_only = False
++
+     def __init__(self, app_name, window_id=None, previous=None):
+         self._deadline = time.monotonic() + 15
+         if platform.system() != "Darwin":
+@@ -195,23 +208,44 @@ class MacWindow:
+         self.root = self.ax.AXUIElementCreateApplication(self.pid)
+         self.ax.AXUIElementSetMessagingTimeout(self.root, 2.0)
+         bounds = self.window.frame()
+-        candidates = []
+-        for window in self.attr(self.root, "AXWindows") or []:
++        candidates, without_geometry = [], 0
++        listed = list(self.attr(self.root, "AXWindows") or [])
++        for window in listed:
+             pos, size = self.attr(window, "AXPosition"), self.attr(window, "AXSize")
+             if pos is None or size is None:
++                without_geometry += 1
+                 continue
+             ok1, point = self.ax.AXValueGetValue(pos, self.ax.kAXValueCGPointType, None)
+             ok2, extent = self.ax.AXValueGetValue(size, self.ax.kAXValueCGSizeType, None)
+             if ok1 and ok2 and max(abs(point.x-bounds.origin.x), abs(point.y-bounds.origin.y),
+                                    abs(extent.width-bounds.size.width), abs(extent.height-bounds.size.height)) < 2:
+                 candidates.append(window)
+-        if len(candidates) != 1:
++        if len(candidates) > 1:
+             raise WindowUnavailable("Cannot uniquely associate the captured window with Accessibility "
+                                     f"(window_id={self.identity['window_id']}, matches={len(candidates)})")
+-        self.ax_window = candidates[0]
+-        self.window_match = {"verified": True, "method": "unique_geometry", "matching_candidates": 1,
+-                             "window_id": self.identity["window_id"], "pid": self.pid,
+-                             "bounds": self.element_frame(self.ax_window)}
++        if candidates:
++            self.ax_window = candidates[0]
++            self.window_match = {"verified": True, "method": "unique_geometry", "matching_candidates": 1,
++                                 "window_id": self.identity["window_id"], "pid": self.pid,
++                                 "bounds": self.element_frame(self.ax_window)}
++        else:
++            # Some applications expose no Accessibility window for a captured
++            # window (WeChat for macOS can list only an AXApplication element
++            # without position or size). The ScreenCaptureKit identity above
++            # is still exact, so the session observes that window by
++            # screenshot and offers no controls; it never falls back to
++            # foreground, coordinate, global or process-targeted input.
++            self.ax_window = None
++            self.capture_only = True
++            self.window_match = {
++                "verified": True, "method": "capture_only", "ax_association": "unavailable",
++                "matching_candidates": 0, "window_id": self.identity["window_id"], "pid": self.pid,
++                "bounds": {"x": float(bounds.origin.x), "y": float(bounds.origin.y),
++                           "width": float(bounds.size.width), "height": float(bounds.size.height)},
++                "reason": (f"No Accessibility window matches the captured window ({len(listed)} AXWindows "
++                           f"entries, {without_geometry} without position or size); it can be observed by "
++                           "screenshot but has no operable controls."),
++            }
+         self.elements = {}
+         self.element_bounds = {}
+         self._indicator = None
+@@ -307,6 +341,9 @@ class MacWindow:
+         app = self.appkit.NSRunningApplication.runningApplicationWithProcessIdentifier_(self.pid)
+         if not app or app.isTerminated() or str(app.launchDate()) != self.identity["launch_time"]:
+             raise WindowUnavailable("Target application exited or restarted")
++        if self.capture_only:
++            self._validate_captured_window()
++            return
+         windows = self.attr(self.root, "AXWindows")
+         if windows is None:
+             raise WindowUnavailable("Cannot read target application's Accessibility windows; closure not confirmed")
+@@ -315,6 +352,19 @@ class MacWindow:
+         if self.attr(self.ax_window, "AXMinimized"):
+             raise WindowUnavailable("Target window is minimized")
+ 
++    def _validate_captured_window(self):
++        """Confirm the exact captured window still exists and is on screen, without Accessibility."""
++        window_id = self.identity["window_id"]
++        rows = self.cg.CGWindowListCopyWindowInfo(self.cg.kCGWindowListOptionIncludingWindow, window_id) or []
++        row = next((r for r in rows if r.get("kCGWindowNumber") == window_id), None)
++        if row is None or row.get("kCGWindowOwnerPID") != self.pid:
++            raise WindowUnavailable("Target window no longer exists")
++        if not row.get("kCGWindowIsOnscreen"):
++            # Without an Accessibility window, minimized cannot be told apart
++            # from another Space, and a minimized capture can be stale.
++            raise WindowUnavailable("Target window is not on screen (minimized or on another Space); "
++                                    "a screenshot-only window is captured only while it is on screen")
++
+     def observe(self):
+         self._deadline = time.monotonic() + 15
+         try:
+@@ -338,7 +388,8 @@ class MacWindow:
+             path.write_bytes(bytes(data))
+             self.elements = {}
+             self.element_bounds = {}
+-            controls, pending = [], [(self.ax_window, 0)]
++            # A screenshot-only window has no Accessibility subtree to read.
++            controls, pending = [], ([] if self.capture_only else [(self.ax_window, 0)])
+             while pending and len(controls) < 400:
+                 _cancel()
+                 element, depth = pending.pop()
+@@ -364,10 +415,13 @@ class MacWindow:
+                 if depth < 20:
+                     pending.extend((child, depth+1) for child in reversed(self.attr(element, "AXChildren") or []))
+             self.validate()
+-            return {"img_path": str(path), "screenshot_artifact": str(path), "current_state": None,
+-                    "transitions_info": "", "component_info": "\n<background_window>" + json.dumps({"target": self.identity, "controls": controls,
++            info = {"target": self.identity, "controls": controls,
+                     "window_match": getattr(self, "window_match", None),
+-                    "rule": "Use exact control ids. No foreground activation, global input or clipboard. Unsupported actions require human handoff."}, ensure_ascii=False) + "</background_window>"}
++                    "rule": "Use exact control ids. No foreground activation, global input or clipboard. Unsupported actions require human handoff."}
++            if self.capture_only:
++                info.update(observation="capture_only", controls_available=False, rule=_CAPTURE_ONLY_RULE)
++            return {"img_path": str(path), "screenshot_artifact": str(path), "current_state": None,
++                    "transitions_info": "", "component_info": "\n<background_window>" + json.dumps(info, ensure_ascii=False) + "</background_window>"}
+         except BaseException:
+             # The caller owns successful captures; failed observations never
+             # publish a path and must remove their private image here.
+@@ -378,7 +432,7 @@ class MacWindow:
+         def entry(description, fields):
+             return {"description": description, "function": self.dispatch,
+                     "input": {name: {"source": "llm", "type": str, "description": desc, "allow_empty": name == "text"} for name, desc in fields.items()}}
+-        return {
++        actions = {
+             "window_press": entry("Perform AXPress on a supported control without global mouse input", {"target": "exact control id"}),
+             "window_select": entry("Select a supported sidebar/table row without global mouse input", {"target": "exact control id"}),
+             "window_set_text": entry("Replace the entire writable text value without keyboard or clipboard", {"target": "exact control id", "text": "complete replacement text"}),
+@@ -386,8 +440,25 @@ class MacWindow:
+             "done": entry("Task visibly completed", {"reasoning": "completion evidence"}),
+             "fail": entry("Background operation unavailable", {"blocker": "concrete limitation", "handoff_instruction": "human takeover instructions"}),
+         }
++        if self.capture_only:
++            # The planner is offered only terminal decisions for a
++            # screenshot-only window; dispatch still refuses any action.
++            return {name: actions[name] for name in ("done", "fail")}
++        return actions
++
++    def _refuse(self, plan):
++        """Explain, without touching the window, why a screenshot-only window takes no action."""
++        name = str((plan or {}).get("call") or (plan or {}).get("action") or "action")
++        reason = (getattr(self, "window_match", None) or {}).get("reason") or "No Accessibility window matches the captured window."
++        return {"success": False, "action_status": "refused", "reason_code": "window_controls_unavailable",
++                "recoverable": True, "target": self.identity, "control_id": None,
++                "error": (f"{name} refused: this window is observed by screenshot only. {reason} "
++                          "No control, foreground, coordinate, global or process-targeted input was used. "
++                          "Read the screenshot, or choose fail with a handoff when the task needs an action.")}
+ 
+     def dispatch(self, plan):
++        if self.capture_only:
++            return self._refuse(plan)
+         self._deadline = time.monotonic() + 10
+         try:
+             return self._dispatch(plan)
+diff --git a/tests/test_window_capture_only.py b/tests/test_window_capture_only.py
+new file mode 100644
+index 0000000..b444ba5
+--- /dev/null
++++ b/tests/test_window_capture_only.py
+@@ -0,0 +1,220 @@
++"""A captured window without an Accessibility window is observed by screenshot only."""
++import json
++import os
++import sys
++from types import SimpleNamespace as NS
++
++import pytest
++
++from gui_harness.adapters import mac_window
++from gui_harness.tasks import capability_loop
++
++
++WINDOW_ID = 34327
++
++
++@pytest.fixture
++def degraded_window(monkeypatch, tmp_path):
++    """Run the real constructor against an application whose AXWindows lacks the captured window.
++
++    The default state mirrors WeChat for macOS: AXWindows lists one
++    AXApplication element without AXPosition/AXSize.
++    """
++    bounds = NS(origin=NS(x=100, y=80), size=NS(width=979, height=652))
++    owner = NS(applicationName=lambda: "WeChat", bundleIdentifier=lambda: "com.tencent.xinWeChat",
++               processID=os.getpid)
++    captured = NS(owningApplication=lambda: owner, windowLayer=lambda: 0, frame=lambda: bounds,
++                  windowID=lambda: WINDOW_ID)
++    launch = ["2026-10-10 01:00:00 +0000"]
++    app = NS(launchDate=lambda: launch[0], isTerminated=lambda: False)
++    app_element = object()
++    state = {
++        "ax_windows": [app_element],
++        "geometry": {},
++        "cg_rows": [{"kCGWindowNumber": WINDOW_ID, "kCGWindowOwnerPID": os.getpid(),
++                     "kCGWindowIsOnscreen": True, "kCGWindowLayer": 0}],
++        "cg_calls": [],
++        "launch": launch,
++    }
++
++    def attr(self, element, name):
++        if name == "AXWindows":
++            return state["ax_windows"]
++        if name in ("AXPosition", "AXSize"):
++            return state["geometry"].get((id(element), name))
++        if name == "AXMinimized":
++            return False
++        return None
++
++    def ax_forbidden(*args):
++        pytest.fail("a screenshot-only window must not read or operate Accessibility controls")
++
++    def window_rows(option, window_id):
++        state["cg_calls"].append((option, window_id))
++        return state["cg_rows"]
++
++    monkeypatch.setattr(mac_window.platform, "system", lambda: "Darwin")
++    monkeypatch.setattr(mac_window, "window_support", lambda: {"available": True})
++    monkeypatch.setattr(mac_window, "_cancel", lambda: None)
++    monkeypatch.setitem(sys.modules, "AppKit", NS(
++        NSApplication=NS(sharedApplication=lambda: None),
++        NSRunningApplication=NS(runningApplicationWithProcessIdentifier_=lambda pid: app),
++        NSBitmapImageRep=NS(alloc=lambda: NS(initWithCGImage_=lambda image: NS(
++            representationUsingType_properties_=lambda *a: b"captured window"))),
++        NSBitmapImageFileTypePNG=4))
++    monkeypatch.setitem(sys.modules, "Quartz", NS(
++        kCGWindowListOptionIncludingWindow=8, CGWindowListCopyWindowInfo=window_rows))
++    monkeypatch.setitem(sys.modules, "ScreenCaptureKit", NS(
++        SCStreamConfiguration=NS(alloc=lambda: NS(init=lambda: NS(
++            setWidth_=lambda v: None, setHeight_=lambda v: None, setShowsCursor_=lambda v: None))),
++        SCContentFilter=NS(alloc=lambda: NS(initWithDesktopIndependentWindow_=lambda window: "filter")),
++        SCScreenshotManager=NS(captureImageWithFilter_configuration_completionHandler_=lambda *a: None)))
++    monkeypatch.setitem(sys.modules, "ApplicationServices", NS(
++        AXUIElementCreateApplication=lambda pid: object(), AXUIElementSetMessagingTimeout=lambda *a: None,
++        kAXValueCGPointType=1, kAXValueCGSizeType=2, AXValueGetValue=lambda value, *a: (True, value),
++        AXUIElementCopyActionNames=ax_forbidden, AXUIElementIsAttributeSettable=ax_forbidden,
++        AXUIElementPerformAction=ax_forbidden, AXUIElementSetAttributeValue=ax_forbidden))
++    monkeypatch.setattr(mac_window.MacWindow, "_await",
++                        lambda self, start: NS(windows=lambda: [captured]) if not hasattr(self, "window") else "image")
++    monkeypatch.setattr(mac_window.MacWindow, "attr", attr)
++    monkeypatch.setattr(mac_window.MacWindow, "start_indicator", lambda self: None)
++    monkeypatch.setattr(mac_window.MacWindow, "close_indicator", lambda self, completed=False: None)
++    monkeypatch.setattr(mac_window.tempfile, "gettempdir", lambda: str(tmp_path))
++    original = mac_window.tempfile.mkdtemp
++    monkeypatch.setattr(mac_window.tempfile, "mkdtemp",
++                        lambda suffix=None, prefix=None, dir=None: original(suffix, prefix, dir or tmp_path))
++    state["bounds"] = bounds
++    return state
++
++
++def _geometry(state, element, origin, size):
++    state["geometry"][(id(element), "AXPosition")] = origin
++    state["geometry"][(id(element), "AXSize")] = size
++
++
++@pytest.mark.parametrize("ax_windows", ["application_element", "unreadable", "empty", "other_window"])
++def test_unassociated_window_binds_capture_only_with_honest_match(degraded_window, ax_windows):
++    if ax_windows == "unreadable":
++        degraded_window["ax_windows"] = None
++    elif ax_windows == "empty":
++        degraded_window["ax_windows"] = []
++    elif ax_windows == "other_window":
++        other = object()
++        degraded_window["ax_windows"] = [other]
++        _geometry(degraded_window, other, NS(x=0, y=0), NS(width=400, height=300))
++
++    window = mac_window.MacWindow("com.tencent.xinWeChat", WINDOW_ID)
++
++    assert window.capture_only is True and window.ax_window is None
++    assert window.identity["window_id"] == WINDOW_ID and window.identity["pid"] == os.getpid()
++    match = window.window_match
++    assert match["verified"] is True
++    assert match["method"] == "capture_only" and match["ax_association"] == "unavailable"
++    assert match["matching_candidates"] == 0 and match["window_id"] == WINDOW_ID
++    assert match["bounds"] == {"x": 100.0, "y": 80.0, "width": 979.0, "height": 652.0}
++    assert "No Accessibility window matches" in match["reason"]
++    json.dumps(match)
++
++
++def test_application_element_without_geometry_is_counted_in_reason(degraded_window):
++    window = mac_window.MacWindow("com.tencent.xinWeChat", WINDOW_ID)
++    assert "1 AXWindows entries, 1 without position or size" in window.window_match["reason"]
++
++
++def test_ambiguous_association_is_still_refused(degraded_window):
++    first, second = object(), object()
++    degraded_window["ax_windows"] = [first, second]
++    bounds = degraded_window["bounds"]
++    _geometry(degraded_window, first, bounds.origin, bounds.size)
++    _geometry(degraded_window, second, bounds.origin, bounds.size)
++    with pytest.raises(mac_window.WindowUnavailable, match="matches=2"):
++        mac_window.MacWindow("com.tencent.xinWeChat", WINDOW_ID)
++
++
++def test_unique_association_keeps_accessibility_controls(degraded_window):
++    exact = object()
++    degraded_window["ax_windows"] = [exact]
++    bounds = degraded_window["bounds"]
++    _geometry(degraded_window, exact, bounds.origin, bounds.size)
++    window = mac_window.MacWindow("com.tencent.xinWeChat", WINDOW_ID)
++    assert window.capture_only is False and window.ax_window is exact
++    assert window.window_match["method"] == "unique_geometry"
++    assert {"window_press", "window_select", "window_set_text", "window_scroll"} <= set(window.registry())
++
++
++def test_screenshot_observation_says_controls_are_unavailable(degraded_window):
++    window = mac_window.MacWindow("com.tencent.xinWeChat", WINDOW_ID)
++    observation = window.observe()
++    try:
++        with open(observation["img_path"], "rb") as image:
++            assert image.read() == b"captured window"
++        info = observation["component_info"]
++        assert info.startswith("\n<background_window>") and info.endswith("</background_window>")
++        payload = json.loads(info[len("\n<background_window>"):-len("</background_window>")])
++        assert payload["controls"] == [] and payload["controls_available"] is False
++        assert payload["observation"] == "capture_only"
++        assert payload["window_match"]["method"] == "capture_only"
++        assert "no controls" in payload["rule"] and "Read the task's answer from the screenshot" in payload["rule"]
++        assert window.elements == {} and window.element_bounds == {}
++    finally:
++        os.unlink(observation["img_path"])
++        os.rmdir(os.path.dirname(observation["img_path"]))
++    # Every validation checks the exact window through the window server.
++    assert degraded_window["cg_calls"] == [(8, WINDOW_ID), (8, WINDOW_ID), (8, WINDOW_ID)]
++
++
++def test_planner_is_offered_only_terminal_decisions(degraded_window):
++    window = mac_window.MacWindow("com.tencent.xinWeChat", WINDOW_ID)
++    assert set(window.registry()) == {"done", "fail"}
++
++
++@pytest.mark.parametrize("call", ["window_press", "window_select", "window_set_text", "window_scroll", "click"])
++def test_every_action_is_refused_with_a_recoverable_reason(degraded_window, call):
++    window = mac_window.MacWindow("com.tencent.xinWeChat", WINDOW_ID)
++    result = window.dispatch({"call": call, "args": {"target": "0", "text": "x", "direction": "up"}})
++    assert result["success"] is False and result["action_status"] == "refused"
++    assert result["reason_code"] == "window_controls_unavailable" and result["recoverable"] is True
++    assert result["target"] == window.identity
++    assert result["error"].startswith(f"{call} refused: this window is observed by screenshot only.")
++    assert "No control, foreground, coordinate, global or process-targeted input was used" in result["error"]
++
++
++def test_capture_only_validation_tracks_the_exact_window(degraded_window):
++    window = mac_window.MacWindow("com.tencent.xinWeChat", WINDOW_ID)
++    window.validate()
++    row = degraded_window["cg_rows"][0]
++    degraded_window["cg_rows"] = [{**row, "kCGWindowIsOnscreen": False}]
++    with pytest.raises(mac_window.WindowUnavailable, match="not on screen"):
++        window.validate()
++    degraded_window["cg_rows"] = [{**row, "kCGWindowOwnerPID": os.getpid() + 1}]
++    with pytest.raises(mac_window.WindowUnavailable, match="no longer exists"):
++        window.validate()
++    degraded_window["cg_rows"] = []
++    with pytest.raises(mac_window.WindowUnavailable, match="no longer exists"):
++        window.validate()
++    degraded_window["cg_rows"] = [row]
++    degraded_window["launch"][0] = "2026-10-10 02:00:00 +0000"
++    with pytest.raises(mac_window.WindowUnavailable, match="restarted"):
++        window.validate()
++
++
++def test_computer_use_reads_capture_only_window_instead_of_failing(degraded_window, monkeypatch):
++    from gui_harness.tasks import execute_task
++
++    seen = {}
++
++    def step(**kwargs):
++        window = mac_window.current_window()
++        seen["registry"] = set(execute_task._build_action_registry())
++        seen["match"] = window.window_match["method"]
++        seen["refusal"] = window.dispatch({"call": "window_press", "args": {"target": "0"}})
++        return {"done": True, "terminal_status": "succeeded"}
++
++    monkeypatch.setattr(capability_loop, "gui_step", step)
++    result = capability_loop.computer_use(task="read the visible chat", app_name="com.tencent.xinWeChat",
++                                          window_id=WINDOW_ID, runtime=object())
++    assert result["status"] == "succeeded" and result["reason_code"] != "background_window_unavailable"
++    assert result["target"]["window_id"] == WINDOW_ID
++    assert seen["registry"] == {"done", "fail"} and seen["match"] == "capture_only"
++    assert seen["refusal"]["action_status"] == "refused"
++    assert mac_window.current_window() is None

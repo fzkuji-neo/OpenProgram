@@ -295,6 +295,11 @@ class WeChatWindow:
         except WindowUnavailable as exc:
             raise VisualUnavailable("BACKGROUND_WINDOW_UNAVAILABLE") from exc
 
+    @property
+    def capture_only(self):
+        """True when the bound window has no Accessibility window: screenshots only, no controls."""
+        return bool(self.native is not None and getattr(self.native, "capture_only", False))
+
     def observe(self):
         self.check()
         path = Path(self.scratch.name) / (uuid.uuid4().hex + ".png")
@@ -386,9 +391,12 @@ class WeChatWindow:
 
         self.check()
         try:
-            self.native.dispatch({"call": call, "args": {"target": target, **args}})
+            outcome = self.native.dispatch({"call": call, "args": {"target": target, **args}})
         except WindowUnavailable as exc:
             raise VisualUnavailable("BACKGROUND_ACTION_UNAVAILABLE") from exc
+        if isinstance(outcome, dict) and outcome.get("success") is False:
+            # A refused action (a screenshot-only window) changed nothing.
+            raise VisualUnavailable("BACKGROUND_ACTION_UNAVAILABLE")
         self.frame = None
 
     def search(self, frame, group):
@@ -481,7 +489,16 @@ def read_visual_group(group, members, output_dir):
         target = Path(preflight(output_dir)) / "wechat-sources" / uuid.uuid4().hex
         window = WeChatWindow()
         frame = window.observe()
+        # A window without an Accessibility window is read by screenshot only:
+        # the page already shown is the only page, with no search or paging.
+        capture_only = bool(getattr(window, "capture_only", False))
         if len(group_header(frame, group)) != 1:
+            if capture_only:
+                return {
+                    "status": "CAPTURE_ONLY_GROUP_NOT_SHOWN",
+                    "window_controls": "unavailable",
+                    "reason": "The WeChat window exposes no Accessibility window, so it is read by screenshot only and cannot search for or open the group; the conversation shown does not verify as this group.",
+                }
             window.search(frame, group)
             frame = window.observe()
             window.select_group(frame, group)
@@ -509,11 +526,13 @@ def read_visual_group(group, members, output_dir):
             frame["evidence"] = evidence
             pages.append(evidence)
             blocks.extend(extract_messages(frame, group, members))
+            if capture_only:
+                break
             if index < 11:
                 window.older(frame, group)
                 frame = window.observe()
         unique = {(b["author"], b["date"], b["text"]): b for b in blocks}
-        return {
+        result = {
             "status": "READY" if unique else "SOURCE_METADATA_UNAVAILABLE",
             "group": group,
             "blocks": list(unique.values())[:100],
@@ -521,6 +540,10 @@ def read_visual_group(group, members, output_dir):
             "evidence": pages,
             "coverage": "At most 12 visible pages; text with page-local date and roster author only; images, clipped bubbles and older history unverified",
         }
+        if capture_only:
+            result["window_controls"] = "unavailable"
+            result["coverage"] = "One visible page only: the WeChat window exposes no Accessibility window, so it is read by screenshot and cannot page to older messages; text with page-local date and roster author only; images, clipped bubbles and older history unverified"
+        return result
     except VisualUnavailable as exc:
         return {"status": str(exc)[:200] or "VISUAL_READ_FAILED"}
     finally:

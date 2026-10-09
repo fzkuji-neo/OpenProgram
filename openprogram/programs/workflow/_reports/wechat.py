@@ -77,6 +77,10 @@ class MacAccessibility:
         except WindowUnavailable as exc:
             raise AccessibilityUnavailable("BACKGROUND_WINDOW_UNAVAILABLE") from exc
         self.native.elements = {}
+        if self.root is None:
+            # A screenshot-only window has no Accessibility window to read, so
+            # it has no search field and the visual reader takes over.
+            return []
         pending, result = [(self.root, None)], []
         deadline = time.monotonic() + 8
         while pending and len(result) < 1200:
@@ -124,9 +128,12 @@ class MacAccessibility:
 
         self.check()
         try:
-            self.native.dispatch({"call": call, "args": {"target": token, **args}})
+            outcome = self.native.dispatch({"call": call, "args": {"target": token, **args}})
         except WindowUnavailable as exc:
             raise AccessibilityUnavailable("BACKGROUND_ACTION_UNAVAILABLE") from exc
+        if isinstance(outcome, dict) and outcome.get("success") is False:
+            # A refused action (a screenshot-only window) changed nothing.
+            raise AccessibilityUnavailable("BACKGROUND_ACTION_UNAVAILABLE")
         self.native.elements = {}
 
     def search(self, node, group):
