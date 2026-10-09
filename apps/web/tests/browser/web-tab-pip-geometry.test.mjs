@@ -102,8 +102,14 @@ test("store clamp forwards the shared min constants into geometry", () => {
 
 test("css keeps a flush frameless page and eight outward transparent handles", () => {
   const css = readFileSync(new URL("../../components/center-tabs/center-tabs.module.css", import.meta.url), "utf8");
-  assert.match(css, /\.webPipChrome \{[\s\S]*?height: 30px/);
-  assert.match(css, /\.webPip \{[^}]*border: 0;[^}]*border-radius: 10px;[^}]*box-shadow: none;[^}]*overflow: visible;/);
+  const pipSource = readFileSync(new URL("../../components/center-tabs/web-tab-pip.tsx", import.meta.url), "utf8");
+  assert.match(css, /\.webPipChrome \{[\s\S]*?height: 32px/);
+  // The frame is a popover card drawn by Tailwind utilities on the element
+  // (unlayered module rules would beat them); the module keeps geometry only.
+  assert.match(css, /\.webPip \{[^}]*border: 0;[^}]*overflow: visible;/);
+  assert.doesNotMatch(css, /\.webPip \{[^}]*(border-radius|background|box-shadow):/);
+  assert.match(pipSource, /const PIP_FRAME = "rounded-\[10px\] bg-popover text-popover-foreground ring-1 ring-foreground\/10 shadow-lg"/);
+  assert.match(pipSource, /className=\{cn\(styles\.webPip, PIP_FRAME, expanded && styles\.webPipExpanded\)\}/);
   assert.match(css, /\.webPipLive \{[^}]*inset: 0;/);
   for (const [dir, edge] of [["n", "top"], ["s", "bottom"], ["e", "right"], ["w", "left"]]) {
     assert.match(css, new RegExp(`\\.webPipResize\\[data-dir="${dir}"\\] \\{ ${edge}: -5px;`));
@@ -115,11 +121,16 @@ test("css keeps a flush frameless page and eight outward transparent handles", (
   for (const [dir, edges] of [["nw", "top: 10px; left: 10px;"], ["ne", "top: 10px; right: 10px;"], ["se", "bottom: 10px; right: 10px;"], ["sw", "bottom: 10px; left: 10px;"]]) {
     assert.ok(css.includes(`.webPipResize[data-dir="${dir}"]::after { ${edges}`));
   }
-  assert.match(css, /\.webPipStage \{[^}]*border-radius: 0 0 10px 10px;[^}]*overflow: hidden;/);
-  assert.match(css, /\.webPipChrome \{[^}]*border-radius: 10px 10px 0 0;/);
+  // The stage clips the page with the frame's own bottom radius; header and
+  // stage paint no background, so the native view's rounded top cutouts show
+  // the frame's bg-popover, the same colour as the header behind them.
+  assert.match(css, /\.webPipStage \{[^}]*overflow: hidden;/);
+  assert.match(pipSource, /const PIP_STAGE = "rounded-b-\[10px\]"/);
+  assert.match(pipSource, /className=\{cn\(styles\.webPipStage, PIP_STAGE\)\}/);
   const background = (selector) => css.match(new RegExp(`\\.${selector} \\{[^}]*background: ([^;]+);`))?.[1];
-  assert.equal(background("webPipChrome"), "var(--bg-secondary)");
-  assert.equal(background("webPipStage"), background("webPipChrome"), "native top cutouts match the header");
+  assert.equal(background("webPipChrome"), undefined, "header shows the frame colour");
+  assert.equal(background("webPipStage"), undefined, "native top cutouts show the frame colour");
+  assert.doesNotMatch(css, /\.webPipChrome \{[^}]*border-bottom/);
   assert.match(css, /\.webPipGestureFrame \{[^}]*border-radius: 10px 10px 0 0;/, "retained gesture image leaves native top cutouts clear");
   assert.match(css, /background: transparent/);
   assert.match(css, /cursor: ns-resize/);
