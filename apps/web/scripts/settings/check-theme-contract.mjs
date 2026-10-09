@@ -161,6 +161,32 @@ assert.match(composer, /background:\s*var\(--composer-surface\)/);
 assert.match(composer, /backdrop-filter:\s*var\(--composer-backdrop-filter\)/);
 assert.match(composer, /box-shadow:\s*var\(--composer-shadow\)/);
 assert.match(composer, /box-shadow:\s*var\(--composer-shadow-focus\)/);
+// The sent user bubble is the composer's raised surface in every theme:
+// --user-msg-bg resolves to the theme's --bg-input, and the bubble carries
+// the resting --composer-shadow without a hover change.
+for (const [name, source] of [
+  ...builtins.map((id) => [id, read(`app/styles/themes/${id}.css`)]),
+  ["custom-light", customLight],
+  [":root", base],
+]) {
+  assert.equal(tokenValue(source, "--user-msg-bg"), "var(--bg-input)", `${name} --user-msg-bg must be the input surface`);
+}
+const bubbles = read("app/styles/chat/bubbles.css");
+assert.match(
+  bubbles,
+  /\.message\.user \.message-content\s*\{[^}]*background:\s*var\(--user-msg-bg\);[^}]*box-shadow:\s*var\(--composer-shadow\);/s,
+  "the user bubble must use the raised input surface",
+);
+assert.doesNotMatch(
+  bubbles,
+  /\.message\.user(?!\.is-editing)[^{,]*\.message-content:hover\s*\{[^}]*box-shadow/,
+  "the sent user bubble shadow stays static on hover",
+);
+assert.match(
+  bubbles,
+  /\.message\.user\.is-editing \.message-content:hover,\s*\.message\.user\.is-editing \.message-content:focus-within\s*\{[^}]*box-shadow:\s*var\(--composer-shadow-focus\)/s,
+  "the edit box deepens to the composer focus shadow like the main composer",
+);
 assert.match(settingsCss, /\.providerIcon\s*\{[^}]*background:\s*var\(--provider-icon-bg\)/s);
 assert.match(dagNodes, /theme contract provides --dag-ghost/);
 assert.match(dagNodeRenderer, /var\(--dag-ghost/);

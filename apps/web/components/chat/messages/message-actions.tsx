@@ -7,8 +7,8 @@ import { parseAttachments } from "./user-attachments";
  * Per-message hover action bar — React port of the legacy
  * `message-actions.js` / `-edit.js` / `-nav.js` trio.
  *
- * Sits in the bubble's `.message-header`, revealed on hover by the
- * legacy CSS (`.message:hover .message-actions`). Holds a timestamp
+ * Sits in the message's `.message-actions-footer`, revealed on hover
+ * (`.message:hover .message-actions`). Holds a timestamp
  * badge, Copy / Retry / Edit (user only) / Branch (assistant only)
  * buttons, and the `< N/M >` sibling-version navigator.
  *
@@ -29,6 +29,9 @@ import { useTranslation } from "@/lib/i18n";
 import { showToast } from "@/lib/format-utils/toast";
 import { setRunActive } from "@/lib/runtime-bridge/chat-handlers";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import {
   CheckIcon,
   CopyIcon,
@@ -83,7 +86,14 @@ function postJson(url: string, body: unknown): Promise<unknown> {
   });
 }
 
-/** A message action whose whole button controls its shared animated icon. */
+/** Official ghost round icon button at the size closest to the 26px
+ *  design (icon-xs, 24px); the glyph keeps its 16px size through
+ *  message-actions.css. */
+const ACTION_BUTTON_CLASS = buttonVariants({ variant: "ghost", size: "icon-xs" });
+
+/** A message action whose whole button controls its shared animated icon.
+ *  The label shows as a HoverTip (never a native title) and stays the
+ *  button's aria-label. */
 export function ActionButton({
   icon,
   title,
@@ -102,17 +112,47 @@ export function ActionButton({
     ? cloneElement(icon as ReactElement, { ref } as Record<string, unknown>)
     : icon;
   return (
-    <button
-      type="button"
-      className={"message-action-btn" + (extraClass ? " " + extraClass : "")}
-      title={title}
-      aria-label={title}
-      disabled={disabled}
-      onClick={onClick}
-      {...handlers}
-    >
-      {node}
-    </button>
+    <HoverTip label={<TipBody title={title} />}>
+      <button
+        type="button"
+        className={cn(ACTION_BUTTON_CLASS, "message-action-btn", extraClass)}
+        aria-label={title}
+        disabled={disabled}
+        onClick={onClick}
+        {...handlers}
+      >
+        {node}
+      </button>
+    </HoverTip>
+  );
+}
+
+/** The < > sibling-version arrow: the same ghost round button as
+ *  ActionButton, with a HoverTip instead of a native title. */
+export function NavButton({
+  dir,
+  label,
+  disabled,
+  onClick,
+}: {
+  dir: "prev" | "next";
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <HoverTip label={<TipBody title={label} />}>
+      <button
+        type="button"
+        className={cn(ACTION_BUTTON_CLASS, "message-nav-btn")}
+        data-nav={dir}
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+      >
+        {dir === "prev" ? SVG.chevL : SVG.chevR}
+      </button>
+    </HoverTip>
   );
 }
 
@@ -358,29 +398,21 @@ export function MessageActions({
       ) : null}
       {total > 1 ? (
         <div className="message-nav">
-          <button
-            type="button"
-            className="message-nav-btn"
-            data-nav="prev"
-            aria-label={tr("Previous version", "上一个版本")}
+          <NavButton
+            dir="prev"
+            label={tr("Previous version", "上一个版本")}
             disabled={busy || idx <= 1}
             onClick={() => checkout(msg.prevSiblingId, -1)}
-          >
-            {SVG.chevL}
-          </button>
+          />
           <span className="message-nav-label">
             {idx} / {total}
           </span>
-          <button
-            type="button"
-            className="message-nav-btn"
-            data-nav="next"
-            aria-label={tr("Next version", "下一个版本")}
+          <NavButton
+            dir="next"
+            label={tr("Next version", "下一个版本")}
             disabled={busy || idx >= total}
             onClick={() => checkout(msg.nextSiblingId, 1)}
-          >
-            {SVG.chevR}
-          </button>
+          />
         </div>
       ) : null}
     </div>
