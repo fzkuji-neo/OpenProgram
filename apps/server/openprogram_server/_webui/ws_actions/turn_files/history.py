@@ -349,13 +349,17 @@ async def handle_turn_history_state(ws, cmd: dict) -> None:
     else:
         result = await _run(lambda: _history_eligibility(session_id, turn_id))
     result = _stable_file_result(result)
+    # Eligibility names the available operation under "action", which the
+    # frame envelope reuses for the ws action name; ship it as "operation".
     await ws.send_text(json.dumps({
         "type": "turn_history_state_result",
         "data": {
             "session_id": session_id,
             "assistant_msg_id": turn_id,
             "request_id": cmd.get("request_id"),
-            **result, "action": "turn_history_state",
+            **result,
+            "operation": result.get("action"),
+            "action": "turn_history_state",
         },
     }, default=str))
 

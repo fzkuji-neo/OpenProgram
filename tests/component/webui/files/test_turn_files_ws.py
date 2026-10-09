@@ -882,6 +882,30 @@ def test_latest_file_turn_remains_undo_after_later_chat_only_reply(store, tmp_pa
     assert result["latest_file_turn_id"] == "a1"
 
 
+def test_history_state_frame_names_operation_apart_from_ws_action(store, tmp_path, monkeypatch):
+    from openprogram.webui import server as _server
+
+    monkeypatch.setattr(_server, "_is_run_active", lambda _session_id: False)
+    session_id, msg_id = "s_history_frame", "u1_reply"
+    _seed(store, session_id, msg_id)
+    target = tmp_path / "frame.py"
+    target.write_text("before\n", encoding="utf-8")
+    journal = CheckpointStore(store._session_dir(session_id))
+    journal.backup_before_edit(msg_id, str(target))
+    target.write_text("after\n", encoding="utf-8")
+    journal.commit_after_edit(msg_id, str(target), operation="edit")
+
+    ws = FakeWS()
+    _run(tf.handle_turn_history_state(ws, {
+        "session_id": session_id, "assistant_msg_id": msg_id,
+    }))
+
+    data = ws.sent[0]["data"]
+    assert data["action"] == "turn_history_state"
+    assert data["status"] == "ready"
+    assert data["operation"] == "undo"
+
+
 def test_history_action_hidden_when_current_digest_changed(store, tmp_path):
     session_id, msg_id = "s_history_conflict", "u1_reply"
     _seed(store, session_id, msg_id)
