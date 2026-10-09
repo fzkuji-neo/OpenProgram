@@ -243,10 +243,10 @@ The chat composer is built from the same parts:
 - **Send** → `icon-sm`: `default` when there is something to
   send, `ghost` when empty, `destructive` while it stops a run.
 - **Input box** → the shadcn Luma Card look through the per-theme
-  `--composer-*` tokens: `--bg-input` surface, a 1px hairline ring
-  of the theme ink (6% light / 10% dark) plus `shadow-md`; focus
-  only deepens the hairline (16% / 20%), with no halo; 23px corners
-  (a pill at one line).
+  `--composer-*` tokens: `--bg-input` surface with no border,
+  `shadow-sm` at rest and `shadow-md` on hover or focus (shadow
+  alpha 0.1 on light themes, 0.25 on dark), no focus ring; 23px
+  corners (a pill at one line).
 
 ## Don'ts
 

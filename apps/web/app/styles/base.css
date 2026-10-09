@@ -253,12 +253,12 @@
   /* 输入框（composer）外圈发丝线，常态 / 聚焦。 */
   --composer-ring: rgba(255, 255, 255, 0.08);
   --composer-ring-focus: rgba(255, 255, 255, 0.14);
-  /* Input box = shadcn Luma Card: input surface, 1px hairline ring
-     + shadow-md; focus only deepens the hairline (no halo). */
+  /* Input box = shadcn Luma Card surface with no border: shadow-sm
+     at rest, shadow-md on hover / focus. */
   --composer-surface: var(--bg-input);
   --composer-backdrop-filter: none;
-  --composer-shadow: 0 0 0 1px color-mix(in srgb, var(--text-bright) 10%, transparent), 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.25);
-  --composer-shadow-focus: 0 0 0 1px color-mix(in srgb, var(--text-bright) 20%, transparent), 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+  --composer-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.25), 0 1px 2px -1px rgb(0 0 0 / 0.25);
+  --composer-shadow-focus: 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.25);
   /* 环境 pill 芯片底 + 描边。 */
   --chip-bg: var(--bg-tertiary);
   --chip-ring: var(--border-light);
