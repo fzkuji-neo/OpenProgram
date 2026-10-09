@@ -242,10 +242,11 @@ The chat composer is built from the same parts:
   `revert-layer` rather than drawing its own chip.
 - **Send** → `icon-sm`: `default` when there is something to
   send, `ghost` when empty, `destructive` while it stops a run.
-- **Input box** → the shadcn Luma input-group recipe through the
-  per-theme `--composer-*` tokens: `bg-input/50`, no resting
-  border, focus = 1px `--ring` edge plus a 3px `ring/30` halo;
-  23px corners (a pill at one line).
+- **Input box** → the shadcn Luma Card look through the per-theme
+  `--composer-*` tokens: `--bg-input` surface, a 1px hairline ring
+  of the theme ink (6% light / 10% dark) plus `shadow-md`; focus
+  only deepens the hairline (16% / 20%), with no halo; 23px corners
+  (a pill at one line).
 
 ## Don'ts
 

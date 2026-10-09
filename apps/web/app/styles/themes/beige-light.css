@@ -78,12 +78,12 @@
   --text-on-tooltip: #ffffff;
   --composer-ring: rgba(10, 10, 10, 0.1);
   --composer-ring-focus: rgba(10, 10, 10, 0.18);
-  /* Input box = shadcn Luma input-group: bg-input/50, no resting
-     border, focus = 1px ring border + 3px ring/30 halo. */
-  --composer-surface: color-mix(in srgb, var(--input) 50%, transparent);
+  /* Input box = shadcn Luma Card: input surface, 1px hairline ring
+     + shadow-md; focus only deepens the hairline (no halo). */
+  --composer-surface: var(--bg-input);
   --composer-backdrop-filter: none;
-  --composer-shadow: none;
-  --composer-shadow-focus: inset 0 0 0 1px var(--ring), 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent);
+  --composer-shadow: 0 0 0 1px color-mix(in srgb, var(--text-bright) 6%, transparent), 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --composer-shadow-focus: 0 0 0 1px color-mix(in srgb, var(--text-bright) 16%, transparent), 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --chip-bg: #ffffff;
   --chip-ring: rgba(10, 10, 10, 0.1);
   --meter-fill: #3b82f6;
