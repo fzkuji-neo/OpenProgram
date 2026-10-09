@@ -5,7 +5,6 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { SolarIcon } from "@/components/solar-icons";
 import { buttonVariants } from "@/components/ui/button";
-import { HoverTip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/i18n";
 import {
@@ -375,23 +374,21 @@ export function TurnFilesChips({
         </span>
         <span className="turn-files-summary-actions">
           {currentAction ? (
-            <HoverTip label={busy ? text("Working…", "处理中…") : actionLabel}>
-              <button
-                type="button"
-                className={cn(buttonVariants({ variant: "elevated", size: "icon-sm" }), "turn-files-action")}
-                aria-label={busy ? text("Working…", "处理中…") : actionLabel}
-                disabled={Boolean(busy)}
-                onClick={() => historyAction(
-                  currentAction === "redo" || currentAction === "reapply"
-                    ? "redo"
-                    : "undo",
-                )}
-              >
-                <span className={`turn-files-action-icon${currentAction === "redo" || currentAction === "reapply" ? " turn-files-redo-icon" : ""}`}>
-                  <SolarIcon name="undo-left-round-square" size={16} />
-                </span>
-              </button>
-            </HoverTip>
+            <button
+              type="button"
+              className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "turn-files-action")}
+              disabled={Boolean(busy)}
+              onClick={() => historyAction(
+                currentAction === "redo" || currentAction === "reapply"
+                  ? "redo"
+                  : "undo",
+              )}
+            >
+              <span className={`turn-files-action-icon${currentAction === "redo" || currentAction === "reapply" ? " turn-files-redo-icon" : ""}`}>
+                <SolarIcon name="fa-rotate-left" size={13} />
+              </span>
+              <span>{busy ? text("Working…", "处理中…") : actionLabel}</span>
+            </button>
           ) : historyNotice ? (
             <span
               className="turn-files-history-notice"
@@ -406,7 +403,8 @@ export function TurnFilesChips({
             className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "turn-files-review")}
             onClick={() => sessionId && openReviewTab(sessionId, assistantMsgId, "turn")}
           >
-            {text("Review", "审阅")}
+            <SolarIcon name="fa-eye" size={14} />
+            <span>{text("Review", "审阅")}</span>
           </button>
         </span>
       </div>

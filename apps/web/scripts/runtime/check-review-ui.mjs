@@ -31,7 +31,8 @@ assert.match(bubble, /summary=\{msg\.turnFiles\}/);
 assert.match(rail, /summary=\{assistantTurnFiles\}/);
 assert.doesNotMatch(card, /turn_file_diff|UnifiedDiff|aria-expanded/);
 assert.match(card, /name="pen-new-square"/);
-assert.match(card, /name="undo-left-round-square"/);
+assert.match(card, /name="fa-rotate-left"/);
+assert.match(card, /name="fa-eye"/);
 assert.match(card, /text\("Undo"/);
 assert.match(card, /text\("Redo"/);
 assert.match(card, /openReviewTab/);
@@ -57,8 +58,8 @@ assert.deepEqual(blocked, {
   notice: "current file state does not match the recorded source",
   operation: null,
 });
-assert.match(card, /\{currentAction \? \([\s\S]*?<\/button>\s*<\/HoverTip>\s*\) : historyNotice \? \([\s\S]*?className="turn-files-history-notice"[\s\S]*?title=\{historyNotice\}[\s\S]*?role="status"[\s\S]*?\{historyNotice\}[\s\S]*?\) : null\}\s*<button[\s\S]*?"turn-files-review"\)/);
-assert.match(card, /buttonVariants\(\{ variant: "elevated", size: "icon-sm" \}\), "turn-files-action"/);
+assert.match(card, /\{currentAction \? \([\s\S]*?<\/button>\s*\) : historyNotice \? \([\s\S]*?className="turn-files-history-notice"[\s\S]*?title=\{historyNotice\}[\s\S]*?role="status"[\s\S]*?\{historyNotice\}[\s\S]*?\) : null\}\s*<button[\s\S]*?"turn-files-review"\)/);
+assert.match(card, /buttonVariants\(\{ variant: "elevated", size: "sm" \}\), "turn-files-action"/);
 assert.match(card, /buttonVariants\(\{ variant: "elevated", size: "sm" \}\), "turn-files-review"/);
 assert.doesNotMatch(card, /turn-files-blocked/);
 assert.match(card, /updateMessage\(sessionId, assistantMsgId/);
