@@ -97,10 +97,9 @@ assert.doesNotMatch(review, /getSocket|registerWsRequest|socket\.send/);
 assert.doesNotMatch(review, /queryInput|sortSelect|<input[\s\S]*Filter files|<select[\s\S]*Sort files/);
 assert.match(cardCss, /\.turn-files-card\{container:turn-files\/inline-size/);
 assert.match(cardCss, /\.turn-files-card\{[^}]*font-family:var\(--font-sans\)/);
-assert.match(cardCss, /\.turn-files-card\{[^}]*border-radius:16px;background:var\(--bg-input\);box-shadow:var\(--composer-shadow-focus\)/);
+assert.match(cardCss, /\.turn-files-card\{[^}]*border-radius:16px;background:var\(--bg-input\);box-shadow:var\(--composer-shadow\)/);
 assert.doesNotMatch(cardCss, /\.turn-files-card\{[^}]*border:1px/);
-// The card always wears the deeper composer shadow; hover does not change it.
-assert.match(cardCss, /\.turn-files-card\{[^}]*box-shadow:var\(--composer-shadow-focus\)/);
+// The card keeps its resting shadow; hover does not deepen it.
 assert.doesNotMatch(cardCss, /\.turn-files-card:hover\{[^}]*box-shadow/);
 assert.match(cardCss, /\.turn-files-summary\{[^}]*gap:10px/);
 assert.match(cardCss, /\.turn-files-logo\{width:18px;height:18px/);
