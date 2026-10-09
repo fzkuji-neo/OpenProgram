@@ -36,7 +36,12 @@ assert.match(environmentRow, /data-environment-row/);
 
 assert.match(compactHook, /new ResizeObserver\(measure\)/);
 assert.match(compactHook, /new MutationObserver/);
-assert.match(compactHook, /row\.scrollWidth/);
+// Need = last chip's right edge, not scrollWidth: the right-aligned web
+// chip's auto margin makes scrollWidth always equal clientWidth, so a
+// squeezed row could never expand again.
+assert.doesNotMatch(compactHook, /row\.scrollWidth/);
+assert.match(compactHook, /getBoundingClientRect\(\)\.right|box\.right/);
+assert.match(environmentCss, /\.envChips\[data-measuring\] > \.surfaceChip[^{]*\{\s*margin-left:\s*0 !important/);
 assert.match(compactHook, /row\.clientWidth/);
 assert.match(compactHook, /row\.dataset\.compact = "true"/);
 assert.match(compactHook, /delete row\.dataset\.compact/);
