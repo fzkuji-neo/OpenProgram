@@ -444,7 +444,8 @@ def guard_tool(function, *, write=False):
         policy = current()
         if policy is None:
             return function(*args, **kwargs)
-        space = kwargs.pop('space', None) or (policy.write_space if write else policy.read_spaces[0] if policy.read_spaces else None)
+        explicit = kwargs.pop('space', None)
+        space = explicit or (policy.write_space if write else policy.read_spaces[0] if policy.read_spaces else None)
         try:
             check(write=write, space=space)
             with scope(policy, space=space):
@@ -452,7 +453,14 @@ def guard_tool(function, *, write=False):
             check(write=write, space=space)
             return result
         except MemoryPolicyError as exc:
-            return json.dumps({'ok': False, 'error': {'code': 'MEMORY_ACCESS_DENIED', 'message': str(exc)}})
+            message = str(exc)
+            if explicit and message in ('Memory space is not readable', 'Memory space is not writable'):
+                # A model that guessed a space must learn the authorized ones,
+                # or it reads the denial as "memory is unavailable".
+                spaces = (policy.write_space,) if write else policy.read_spaces
+                message += (f": {explicit!r} is not authorized for this execution;"
+                            f" authorized: {', '.join(spaces)}. Omit `space` to use the default.")
+            return json.dumps({'ok': False, 'error': {'code': 'MEMORY_ACCESS_DENIED', 'message': message}})
     return call
 
 

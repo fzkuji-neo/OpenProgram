@@ -737,6 +737,6 @@ for _memory_name, _memory_spec, _memory_write in (
 ):
     _memory_spec['parameters']['properties']['space'] = {
         'type': 'string', 'enum': ['self', 'legacy_global'],
-        'description': 'An authorized memory space; defaults to the execution binding.',
+        'description': 'Omit to use this execution\'s memory. Pass a space only when the user names one; an unauthorized space is denied.',
     }
     globals()[_memory_name] = _guard_memory_tool(globals()[_memory_name], write=_memory_write)
