@@ -17,7 +17,6 @@ import { memo, useEffect, useState } from "react";
 import { Brain, ChevronRight, Wrench, type LucideIcon } from "lucide-react";
 import { presentTool, summarizeResult, type ToolTone } from "./tool-presentation";
 import type { ToolGroupSummary } from "./tool-group-summary";
-import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { afterTwoAnimationFrames } from "./collapse-frame";
 
 import type { AssistantBlock, ChatMsg, DetailNode } from "@/lib/session-store";
@@ -110,33 +109,24 @@ export function ExecutionStrip({
       data-open={open ? "1" : "0"}
       data-subagent-heads={subagentHeads?.filter(Boolean).join(" ") || undefined}
     >
-      <HoverTip
-        label={
-          <TipBody
-            title={summary.label}
-            detail={open
-              ? text("Click to collapse the execution trace", "点击收起执行过程")
-              : text("Click to expand the execution trace", "点击展开执行过程")}
-          />
-        }
+      {/* No hover tip: the row is transcript content, not a control whose
+          purpose needs explaining. */}
+      <button
+        type="button"
+        className="tl-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
       >
-        <button
-          type="button"
-          className="tl-toggle"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <span className={"tl-label" + (streaming ? " tl-label-shimmer" : "")}>{summary.label}</span>
-          {failedNote ? <span className="tl-fail">{failedNote}</span> : null}
-          {hasBadge ? (
-            <span className="turn-files-diff tl-diff">
-              <span className="turn-files-stat is-add">+{summary.added}</span>
-              <span className="turn-files-stat is-del">−{summary.removed}</span>
-            </span>
-          ) : null}
-          <span className="tl-chev" aria-hidden="true">›</span>
-        </button>
-      </HoverTip>
+        <span className={"tl-label" + (streaming ? " tl-label-shimmer" : "")}>{summary.label}</span>
+        {failedNote ? <span className="tl-fail">{failedNote}</span> : null}
+        {hasBadge ? (
+          <span className="turn-files-diff tl-diff">
+            <span className="turn-files-stat is-add">+{summary.added}</span>
+            <span className="turn-files-stat is-del">−{summary.removed}</span>
+          </span>
+        ) : null}
+        <span className="tl-chev" aria-hidden="true">›</span>
+      </button>
       <Collapse open={open}>
         <div className="tl-body">{children}</div>
         {after}
