@@ -86,14 +86,14 @@ td code{white-space:nowrap}
 <tr><td>Code search (<code>grep</code>, <code>glob</code>, <code>semble_*</code>, <code>lsp_*</code>)</td><td>Searched for "tl-toggle"</td><td>Ran 3 searches</td><td>Searching for "tl-toggle"…</td></tr>
 <tr><td>Web search (<code>web_search</code>)</td><td>Searched the web</td><td>Searched the web 2 times</td><td>Searching the web…</td></tr>
 <tr><td>Fetch (<code>web_fetch</code>)</td><td>Fetched docs.anthropic.com</td><td>Fetched 3 pages</td><td>Fetching docs.anthropic.com…</td></tr>
-<tr><td>Browser (<code>web_use</code>, <code>agent_browser</code>, <code>playwright_browser</code>)</td><td colspan="2">Used the browser</td><td>Using the browser…</td></tr>
+<tr><td>Browser (<code>web_use</code>, <code>agent_browser</code>, <code>playwright_browser</code>)</td><td colspan="2">Operated the browser</td><td>Operating the browser…</td></tr>
 <tr><td>Sub-agent (<code>agent</code>, <code>task</code>, <code>send_message</code>)</td><td>Ran sub-agent Reviewer</td><td>Ran 2 sub-agents</td><td>Running sub-agent Reviewer…</td></tr>
 <tr><td>Image (<code>image_generate</code> / <code>image_analyze</code>)</td><td>Generated an image</td><td>Generated 2 images</td><td>Generating an image…</td></tr>
 <tr><td>Todos (<code>todo_*</code>)</td><td colspan="2">Updated todos</td><td>Updating todos…</td></tr>
 <tr><td>Question (<code>ask_user_question</code>)</td><td colspan="2">Asked a question</td><td>Asking a question…</td></tr>
-<tr><td>Memory (<code>memory_*</code>)</td><td colspan="2">Used memory</td><td>Using memory…</td></tr>
+<tr><td>Memory (<code>memory_*</code>)</td><td colspan="2">Accessed memory</td><td>Accessing memory…</td></tr>
 <tr><td>Program / skill</td><td>Ran program deploy, Used skill pdf</td><td>Ran 2 programs</td><td>Running program deploy…</td></tr>
-<tr><td>Anything else (MCP, custom)</td><td>Used linear_search (×2 adds " 2 times")</td><td>Used 3 tools</td><td>Using linear_search…</td></tr>
+<tr><td>Anything else (MCP, custom)</td><td>Used linear_search (×2 adds " 2 times")</td><td>Used linear_search and jira_create; Used 3 tools</td><td>Using linear_search…</td></tr>
 </table>
 <p>Names: one distinct file shows its basename. A command is never named in the header, because commands are long and the expanded row already shows them. A search pattern is quoted and cut to 24 characters. A fetch shows the host only. A bucket names its single target only when it has exactly one distinct target, so "Read a.ts" turns into "Read 2 files" once a second file appears. Repeated calls on the same file count once.</p>
 <p>Numbers: English uses "a"/"an" for one and digits for two or more. Chinese always uses digits with a measure word (1 条命令, 3 个文件, 2 次).</p>
@@ -103,7 +103,7 @@ td code{white-space:nowrap}
 <p>While the group is the live part of a streaming turn, completed buckets keep the past tense and the bucket of the call in progress switches to the present tense with a trailing "…". It moves to the end of the line, where the eye expects the newest step, for example "Read 2 files, running a command…". The shimmer stays. When the call finishes, the phrase settles back to the past tense in its first-occurrence position. If the group only has thinking so far, the label is "Thinking…".</p>
 
 <h3>Truncation</h3>
-<p>On screen the label is one line: the label span has <code>min-width:0</code> with a CSS ellipsis, and the failure note, badge and chevron are <code>flex:none</code>, so they never drop off. There is no character budget, so the same label fits a narrow side pane and a wide window. Hovering the row shows the full label in the shared <code>HoverTip</code>/<code>TipBody</code> tip, with a muted line saying a click expands or collapses the trace. The row has no native <code>title</code> tooltip.</p>
+<p>On screen the label is one line: the label span has <code>min-width:0</code> with a CSS ellipsis, and the failure note, badge and chevron are <code>flex:none</code>, so they never drop off. There is no character budget, so the same label fits a narrow side pane and a wide window. The row has no hover tip of any kind: it is transcript content, not a control whose purpose needs explaining, and expanding it shows every call.</p>
 
 <h3>Change badge</h3>
 <p>The badge shows when at least one file-writing call in the group succeeded and every successful one has known counts. It sums those counts, shows zeros (<code>+16 −0</code>), and reuses the turn file card's <code>.turn-files-diff</code> pill. Counts per call:</p>

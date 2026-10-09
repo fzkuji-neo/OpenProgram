@@ -355,7 +355,7 @@ function pastPhrase(bucket: Bucket, text: Text): string {
       return named ? text(`fetched ${named}`, `抓取了 ${named}`)
         : n === 1 ? text("fetched a page", "抓取了 1 个网页") : text(`fetched ${n} pages`, `抓取了 ${n} 个网页`);
     case "browser":
-      return text("used the browser", "使用了浏览器");
+      return text("operated the browser", "操作了浏览器");
     case "agent":
       return named ? text(`ran sub-agent ${named}`, `运行了子代理 ${named}`)
         : n === 1 ? text("ran a sub-agent", "运行了 1 个子代理") : text(`ran ${n} sub-agents`, `运行了 ${n} 个子代理`);
@@ -368,7 +368,7 @@ function pastPhrase(bucket: Bucket, text: Text): string {
     case "ask":
       return calls === 1 ? text("asked a question", "提了 1 个问题") : text(`asked ${calls} questions`, `提了 ${calls} 个问题`);
     case "memory":
-      return text("used memory", "使用了记忆");
+      return text("accessed memory", "读写了记忆");
     case "program":
       return named ? text(`ran program ${named}`, `运行了程序 ${named}`)
         : n === 1 ? text("ran a program", "运行了 1 个程序") : text(`ran ${n} programs`, `运行了 ${n} 个程序`);
@@ -377,6 +377,10 @@ function pastPhrase(bucket: Bucket, text: Text): string {
         : n === 1 ? text("used a skill", "使用了 1 个技能") : text(`used ${n} skills`, `使用了 ${n} 个技能`);
     case "other":
       if (named) return calls === 1 ? text(`used ${named}`, `使用了 ${named}`) : text(`used ${named} ${calls} times`, `使用了 ${named} ${calls} 次`);
+      if (bucket.anonymous === 0 && bucket.targets.size === 2) {
+        const [a, b] = [...bucket.targets];
+        return text(`used ${a} and ${b}`, `使用了 ${a} 和 ${b}`);
+      }
       return n === 1 ? text("used a tool", "使用了 1 个工具") : text(`used ${n} tools`, `使用了 ${n} 个工具`);
   }
 }
@@ -393,13 +397,13 @@ function presentPhrase(bucket: Bucket, text: Text): string {
     case "search": return t ? text(`searching for ${t}`, `正在搜索${t}`) : text("searching", "正在搜索");
     case "websearch": return text("searching the web", "正在搜索网页");
     case "fetch": return t ? text(`fetching ${t}`, `正在抓取 ${t}`) : text("fetching a page", "正在抓取网页");
-    case "browser": return text("using the browser", "正在使用浏览器");
+    case "browser": return text("operating the browser", "正在操作浏览器");
     case "agent": return t ? text(`running sub-agent ${t}`, `正在运行子代理 ${t}`) : text("running a sub-agent", "正在运行子代理");
     case "imagegen": return text("generating an image", "正在生成图片");
     case "imageanalyze": return text("analyzing an image", "正在分析图片");
     case "todo": return text("updating todos", "正在更新待办");
     case "ask": return text("asking a question", "正在提问");
-    case "memory": return text("using memory", "正在使用记忆");
+    case "memory": return text("accessing memory", "正在读写记忆");
     case "program": return t ? text(`running program ${t}`, `正在运行程序 ${t}`) : text("running a program", "正在运行程序");
     case "skill": return t ? text(`using skill ${t}`, `正在使用技能 ${t}`) : text("using a skill", "正在使用技能");
     case "other": return t ? text(`using ${t}`, `正在使用 ${t}`) : text("using a tool", "正在使用工具");

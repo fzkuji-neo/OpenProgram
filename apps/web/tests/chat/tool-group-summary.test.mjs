@@ -149,7 +149,14 @@ test('unknown and MCP tools are named once, counted when several', () => {
     'Used linear_search 2 times, ran a command');
   assert.equal(summarizeToolGroup([tool('a_tool', {}), tool('b_tool', {}), tool('mcp_call', {})], { text: en }).label,
     'Used 3 tools');
-  assert.equal(summarizeToolGroup([tool('a_tool', {}), tool('b_tool', {})], { text: zh }).label, '使用了 2 个工具');
+  assert.equal(summarizeToolGroup([tool('a_tool', {}), tool('b_tool', {})], { text: zh }).label, '使用了 a_tool 和 b_tool');
+  assert.equal(summarizeToolGroup([tool('a_tool', {}), tool('b_tool', {})], { text: en }).label, 'Used a_tool and b_tool');
+});
+
+test('browser and memory read as their own verbs, not a chain of "used"', () => {
+  const blocks = [tool('a_tool', {}), tool('b_tool', {}), tool('web_use', {}), tool('memory_search', {})];
+  assert.equal(summarizeToolGroup(blocks, { text: en }).label, 'Used a_tool and b_tool, operated the browser, accessed memory');
+  assert.equal(summarizeToolGroup(blocks, { text: zh }).label, '使用了 a_tool 和 b_tool，操作了浏览器，读写了记忆');
 });
 
 test('sub-agents use their spawn labels, including legacy groups with no tool blocks', () => {
