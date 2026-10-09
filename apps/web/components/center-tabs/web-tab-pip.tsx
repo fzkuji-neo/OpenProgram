@@ -82,8 +82,16 @@ const PIP_FRAME = "rounded-[10px] bg-popover text-popover-foreground ring-1 ring
 const PIP_STAGE = "rounded-b-[10px]";
 /** Header icon buttons are the official ghost icon Button (`icon-xs`, 21px
  *  at the app's 14px root) carried on plain <button>s so the menu trigger
- *  and drag handle keep their refs. Icons stay 14px like the toolbar's. */
-const PIP_ICON_BUTTON = cn(buttonVariants({ variant: "ghost", size: "icon-xs" }));
+ *  and drag handle keep their refs. Icons stay 14px like the toolbar's.
+ *  Ghost hover paints `bg-muted`, which this app maps to the same token as
+ *  the frame's `bg-popover`, so on this surface the hover was invisible;
+ *  the fill is mixed toward the foreground instead. */
+const PIP_ICON_BUTTON = cn(
+  buttonVariants({ variant: "ghost", size: "icon-xs" }),
+  "hover:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_9%)]",
+  "aria-expanded:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_9%)]",
+  "dark:hover:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_12%)]",
+);
 const PIP_ICON = "size-[14px]";
 
 type PipDrag = {
