@@ -140,7 +140,9 @@
 /* Folder pill (components/chat/top-bar/folder-pill.ts): one raised pill,
    a folder segment and — inside a Git checkout — the git segment. Each
    segment is its own hover target; a hairline separates them. */
-.folder-pill { padding: 0; gap: 0; }
+/* .runtime-badge centres its content; a folder pill's segments must
+   stretch to the full pill height so their hover fill covers it. */
+.runtime-badge.folder-pill { padding: 0; gap: 0; align-items: stretch; }
 .folder-pill-seg {
   display: inline-flex;
   align-items: center;
@@ -222,9 +224,11 @@
   opacity: 0;
   background: linear-gradient(90deg, var(--accent-green) 50%, var(--accent-red) 50%);
 }
-.git-menu-stat.is-add { color: var(--accent-green); }
-.git-menu-stat.is-del { color: var(--accent-red); }
-.git-menu-stat { font-size: 12px; font-variant-numeric: tabular-nums; }
+.diff-badge .is-files {
+  color: var(--text-muted);
+  background: color-mix(in oklch, var(--foreground) 9%, transparent);
+}
+.git-seg-dot.is-files { background: var(--text-muted); }
 .git-menu-note {
   padding: 2px 10px 4px;
   font-size: 12px;

@@ -106,3 +106,13 @@ test('menu switches branches, opens review and hands uncommitted PRs to the agen
   assert.match(globalThis.gitDraft, /pull request/);
   await unmount();
 });
+
+test('binary-only changes show a file count instead of +0 −0', async () => {
+  setup(() => ({ ...STATUS, changes: { files: 2, untracked: 1, conflicts: 0, insertions: 0, deletions: 0 } }));
+  const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0 })]);
+  const pill = host.querySelector('button.git-seg');
+  assert.match(pill.textContent, /2 files/);
+  assert.doesNotMatch(pill.textContent, /\+0/);
+  assert.ok(pill.querySelector('.git-seg-dot.is-files'));
+  await unmount();
+});

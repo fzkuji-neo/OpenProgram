@@ -32,7 +32,7 @@ project menu. The right segment is git: Solar `git-branch`, the last path
 segment of the branch name (`claude/foo` shows `foo`; the short commit
 id when HEAD is detached), and the uncommitted `+N −N` as a diff badge,
 a green half and a red half, as on the file-change card. New untracked
-text files count as added lines. A clean folder shows the branch alone.
+text files count as added lines. When every change is binary (no line counts), the badge is a neutral "N files" and the level-3 dot is grey, never "+0 −0". A clean folder shows the branch alone. Both segments stretch to the full pill height, so each hover fill covers its whole half.
 The tooltip carries repository, full branch and counts.
 
 When the row runs out of room it squeezes one level at a time:

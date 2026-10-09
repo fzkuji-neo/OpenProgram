@@ -281,7 +281,8 @@ export function GitChip({
           ? text(`Switch to a feature branch; you're on ${status.default_branch}.`, `当前在 ${status.default_branch}，请先切到功能分支。`)
           : null;
   const openPr = status.pr && String(status.pr.state ?? "").toUpperCase() === "OPEN" ? status.pr : null;
-  const tip = `${status.repo_name ?? baseName(path)} · ${branchLabel}${changes.files ? ` · ${text(`${changes.files} changed`, `${changes.files} 个修改`)} +${changes.insertions} −${changes.deletions}` : ""}`;
+  const hasLines = Boolean(changes.insertions || changes.deletions);
+  const tip = `${status.repo_name ?? baseName(path)} · ${branchLabel}${changes.files ? ` · ${text(`${changes.files} changed`, `${changes.files} 个修改`)}${hasLines ? ` +${changes.insertions} −${changes.deletions}` : ""}` : ""}`;
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -294,13 +295,21 @@ export function GitChip({
           >
             <SolarIcon name="git-branch" size={14} className="git-icon" />
             <span className="git-seg-label">{shortBranch}</span>
-            {changes.files ? (
+            {hasLines ? (
               <>
                 <span className="diff-badge git-seg-badge">
                   <span className="is-add">+{changes.insertions}</span>
                   <span className="is-del">−{changes.deletions}</span>
                 </span>
                 <span className="git-seg-dot" aria-hidden="true" />
+              </>
+            ) : changes.files ? (
+              // Only binary / line-less changes: a file count, not "+0 −0".
+              <>
+                <span className="diff-badge git-seg-badge">
+                  <span className="is-files">{text(`${changes.files} ${changes.files === 1 ? "file" : "files"}`, `${changes.files} 个文件`)}</span>
+                </span>
+                <span className="git-seg-dot is-files" aria-hidden="true" />
               </>
             ) : null}
           </button>
@@ -323,8 +332,12 @@ export function GitChip({
               <span className="min-w-0 flex-1 truncate">
                 {text(`${changes.files} uncommitted ${changes.files === 1 ? "file" : "files"}`, `${changes.files} 个未提交文件`)}
               </span>
-              <span className="git-menu-stat is-add">+{changes.insertions}</span>
-              <span className="git-menu-stat is-del">−{changes.deletions}</span>
+              {hasLines ? (
+                <span className="diff-badge">
+                  <span className="is-add">+{changes.insertions}</span>
+                  <span className="is-del">−{changes.deletions}</span>
+                </span>
+              ) : null}
             </div>
           ) : (
             <div className="git-menu-note">{text("No uncommitted changes", "没有未提交的修改")}</div>
