@@ -388,7 +388,7 @@ export function TurnFilesChips({
                 )}
               >
                 <span className={`turn-files-action-icon${currentAction === "redo" || currentAction === "reapply" ? " turn-files-redo-icon" : ""}`}>
-                  <SolarIcon name="undo-left-round" size={15} />
+                  <SolarIcon name="undo-left-round-square" size={16} />
                 </span>
               </button>
             </HoverTip>
