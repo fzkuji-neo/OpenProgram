@@ -19,6 +19,7 @@ import { MessageActions } from "./message-actions";
 import { useAvatarAlign } from "./use-avatar-align";
 import { AttachmentChips, parseAttachments } from "./user-attachments";
 import { MessageEditor } from "./message-editor";
+import { renderUserMarkdown } from "./markdown";
 
 export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionIdOverride?: string }) {
   const focusedSessionId = useSessionStore(s => s.currentSessionId);
@@ -68,7 +69,12 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
         ) : (
           <>
             <AttachmentChips sessionId={sessionId} items={attachments} />
-            {cleanText}
+            {cleanText ? (
+              <div
+                className="user-md"
+                dangerouslySetInnerHTML={{ __html: renderUserMarkdown(cleanText) }}
+              />
+            ) : null}
           </>
         )}
       </div>

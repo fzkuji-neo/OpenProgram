@@ -564,3 +564,13 @@
 .message-content .hljs-deletion { color: var(--accent-red); }
 .message-content .hljs-emphasis { font-style: italic; }
 .message-content .hljs-strong { font-weight: 600; }
+
+/* User bubbles render their markdown (messages/markdown.ts
+   renderUserMarkdown). Keep spacing bubble-tight and give code a surface
+   that stands apart from the bubble's own tint. */
+.message.user .user-md p { margin: 0 0 8px; }
+.message.user .user-md p:last-child { margin-bottom: 0; }
+.message.user .user-md :is(ul, ol) { margin: 4px 0; }
+.message.user .user-md .md-code { margin: 8px 0; background: var(--bg-primary); }
+.message.user .user-md code { background: color-mix(in srgb, var(--bg-primary) 70%, transparent); }
+.message.user .user-md .md-code code { background: none; }
