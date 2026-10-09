@@ -14,7 +14,7 @@
  * while-running mode shows a forward arrow for Steer and a queue list
  * for Queue.
  *
- * Send is the Solar up-arrow with a lift on hover; Stop stays a local
+ * Send is the Solar paper plane, flying up-right on hover; Stop stays a local
  * filled square (the send button's stop glyph, not an icon).
  */
 "use client";
@@ -80,10 +80,10 @@ export const RunningModeIcon = forwardRef<AnimatedNavIconHandle, IconProps & { m
   },
 );
 
-// Send glyph — up-arrow, lifted on the send button's hover via ref
+// Send glyph — paper plane, flown up-right on the send button's hover via ref
 // (controlled). `.actionBtn svg` keeps it filled with currentColor.
 export const SendIcon = forwardRef<AnimatedNavIconHandle>(function SendIcon(_props, ref) {
-  return <SolarIcon ref={ref} name="arrow-up" size={16} motionPreset="lift" />;
+  return <SolarIcon ref={ref} name="plain-2" size={16} motionPreset="fly" />;
 });
 
 export function StopIcon() {

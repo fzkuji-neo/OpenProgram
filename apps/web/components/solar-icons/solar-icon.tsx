@@ -17,7 +17,7 @@
  * decorative glyphs (menu checks, warnings, capability marks) pass
  * `motionPreset="none"`.
  * The motion is deliberately small and uniform — a filled glyph doesn't
- * redraw itself the way a line icon can, so it just pops, lifts or
+ * redraw itself the way a line icon can, so it just pops, flies or
  * nudges, and `pulse` plays a one-shot pop-in for state changes.
  */
 
@@ -28,11 +28,11 @@ import { cn } from "@/lib/utils";
 import type { AnimatedNavIconHandle } from "@/components/animated-icons/_shared";
 import { SOLAR_BODIES, type SolarIconName } from "./bodies";
 
-export type SolarMotionPreset = "pop" | "lift" | "nudge" | "pulse" | "none";
+export type SolarMotionPreset = "pop" | "fly" | "nudge" | "pulse" | "none";
 
 const PRESETS: Record<Exclude<SolarMotionPreset, "none">, Variants> = {
   pop: { normal: { scale: 1 }, animate: { scale: 1.12 } },
-  lift: { normal: { y: 0 }, animate: { y: -1.5 } },
+  fly: { normal: { x: 0, y: 0 }, animate: { x: 1.5, y: -1.5 } },
   nudge: { normal: { x: 0 }, animate: { x: 1.5 } },
   pulse: { normal: { scale: 1 }, animate: { scale: [0.5, 1.15, 1] } },
 };

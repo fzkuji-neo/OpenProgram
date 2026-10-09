@@ -25,7 +25,7 @@ const ICONS = {
   "eye": "bold-duotone",
   "eye-closed": "bold-duotone",
   "dumbbell-large-minimalistic": "bold-duotone",
-  "arrow-up": "bold-duotone",
+  "plain-2": "bold-duotone",
   // model / permission badges, question panel
   "chat-round-dots": "bold-duotone",
   "programming": "bold-duotone",

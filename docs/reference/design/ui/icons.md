@@ -43,7 +43,7 @@ Bold Duotone style: a filled glyph plus a 50 % lighter secondary layer.
 | Menu check | `check-circle` |
 | Close × | `close-circle` |
 | Carets | `alt-arrow-right`, `alt-arrow-down` |
-| Send | `arrow-up` |
+| Send | `plain-2` (paper plane) |
 | Copy | `copy` |
 | Model capabilities (vision / video / tools / reasoning) | `eye` / `videocamera` / `toolbox` / `lightbulb-bolt` |
 
@@ -71,8 +71,8 @@ marks — use `none`.
 
 The pqoqubbw icons redraw themselves (a wrench turns, an arrow bobs). A
 filled Solar glyph cannot, so `SolarIcon` offers small, uniform presets
-instead: `pop` (scale 1.12, the default), `lift` (the send arrow rises
-1.5 px), `nudge` (a caret slides 1.5 px right), `pulse` (a one-shot
+instead: `pop` (scale 1.12, the default), `fly` (the send paper plane
+moves 1.5 px up-right), `nudge` (a caret slides 1.5 px right), `pulse` (a one-shot
 pop-in, used when a menu item becomes checked) and `none`. Everything
 collapses to no motion under `prefers-reduced-motion`.
 
