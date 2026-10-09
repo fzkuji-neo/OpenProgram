@@ -16,6 +16,38 @@ export type PreviewKind =
   | "strong" | "em" | "strike" | "code" | "link" | "url"
   | "h1" | "h2" | "h3" | "quote" | "fence" | "list";
 
+/** Atomic inline chips drawn over composer tokens. */
+export interface PreviewChip {
+  from: number;
+  to: number;
+  kind: "paste" | "file";
+  label: string;
+}
+
+const PASTE_TOKEN = /\[Pasted #(\d+) \+(\d+) lines\]/g;
+// A mention becomes a chip once it is finished (whitespace after it), so
+// the one being typed stays editable text for the @file menu.
+const FILE_MENTION = /(^|\s)@([^\s@]+)(?=\s)/g;
+
+export function inlineChips(text: string): PreviewChip[] {
+  const chips: PreviewChip[] = [];
+  for (const m of text.matchAll(PASTE_TOKEN)) {
+    const lines = Number(m[2]);
+    chips.push({
+      from: m.index, to: m.index + m[0].length, kind: "paste",
+      label: `Pasted · ${lines} ${lines === 1 ? "line" : "lines"}`,
+    });
+  }
+  for (const m of text.matchAll(FILE_MENTION)) {
+    const from = m.index + m[1].length;
+    const path = m[2];
+    const parts = path.replace(/\/$/, "").split("/");
+    const name = parts.length > 2 ? `…/${parts.slice(-2).join("/")}` : path.replace(/\/$/, "");
+    chips.push({ from, to: from + 1 + path.length, kind: "file", label: name + (path.endsWith("/") ? "/" : "") });
+  }
+  return chips.sort((a, b) => a.from - b.from);
+}
+
 export interface PreviewRanges {
   /** Inline styling over [from, to). */
   marks: { from: number; to: number; kind: PreviewKind }[];

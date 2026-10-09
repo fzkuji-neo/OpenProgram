@@ -31,3 +31,13 @@ test('markers reappear while the caret is inside the construct', () => {
   assert.ok(hidden.includes('# '), 'other constructs stay rendered');
   assert.ok(!at(2).hidden.map(slice).includes('# '), 'heading marker shows when editing the heading');
 });
+
+test('paste tokens and finished @file mentions become chips', async () => {
+  const { inlineChips } = await import('../../lib/chat/markdown-live-preview.ts');
+  const src = 'see @src/app/page.tsx and [Pasted #2 +401 lines] then @still-typing';
+  const chips = inlineChips(src);
+  assert.deepEqual(chips.map((c) => [c.kind, src.slice(c.from, c.to), c.label]), [
+    ['file', '@src/app/page.tsx', '…/app/page.tsx'],
+    ['paste', '[Pasted #2 +401 lines]', 'Pasted · 401 lines'],
+  ]);
+});

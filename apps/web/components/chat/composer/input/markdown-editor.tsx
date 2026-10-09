@@ -19,13 +19,14 @@ import {
   Decoration,
   EditorView,
   ViewPlugin,
+  WidgetType,
   keymap,
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, insertNewline } from "@codemirror/commands";
 
-import { composerMarkdown, livePreviewRanges } from "@/lib/chat/markdown-live-preview";
+import { composerMarkdown, inlineChips, livePreviewRanges, type PreviewChip } from "@/lib/chat/markdown-live-preview";
 
 /** Marks a dispatch that mirrors the `value` prop, so it isn't echoed back. */
 const External = Annotation.define<boolean>();
@@ -45,8 +46,38 @@ export interface ComposerInputHandle {
   scrollHeight: number;
 }
 
-function decorations(view: EditorView): DecorationSet {
+/** Paste tokens and finished @file mentions render as one atomic chip. */
+class ChipWidget extends WidgetType {
+  constructor(readonly chip: PreviewChip) { super(); }
+  eq(other: ChipWidget) {
+    return other.chip.kind === this.chip.kind && other.chip.label === this.chip.label;
+  }
+  toDOM() {
+    const el = document.createElement("span");
+    el.className = `cm-md-chip cm-md-chip-${this.chip.kind}`;
+    const icon = document.createElement("span");
+    icon.className = "cm-md-chip-icon";
+    icon.textContent = this.chip.kind === "paste" ? "¶" : "@";
+    icon.setAttribute("aria-hidden", "true");
+    el.append(icon, document.createTextNode(this.chip.label));
+    return el;
+  }
+  ignoreEvent() { return false; }
+}
+
+function chipDecorations(view: EditorView): DecorationSet {
+  return Decoration.set(
+    inlineChips(view.state.doc.toString()).map((chip) =>
+      Decoration.replace({ widget: new ChipWidget(chip) }).range(chip.from, chip.to)),
+    true,
+  );
+}
+
+function decorations(view: EditorView, chips: DecorationSet): DecorationSet {
   const ranges = livePreviewRanges(view.state);
+  const covered: [number, number][] = [];
+  chips.between(0, view.state.doc.length, (from, to) => { covered.push([from, to]); });
+  const inChip = (from: number, to: number) => covered.some(([a, b]) => from < b && to > a);
   const all = [];
   for (const line of ranges.lines) {
     all.push(Decoration.line({ class: `cm-md-line-${line.kind}` }).range(line.from));
@@ -57,7 +88,7 @@ function decorations(view: EditorView): DecorationSet {
   let lastHiddenEnd = -1;
   for (const hidden of ranges.hidden) {
     // Replace decorations may not overlap.
-    if (hidden.to > hidden.from && hidden.from >= lastHiddenEnd) {
+    if (hidden.to > hidden.from && hidden.from >= lastHiddenEnd && !inChip(hidden.from, hidden.to)) {
       all.push(Decoration.replace({}).range(hidden.from, hidden.to));
       lastHiddenEnd = hidden.to;
     }
@@ -68,16 +99,26 @@ function decorations(view: EditorView): DecorationSet {
 const livePreview = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
+    chips: DecorationSet;
     constructor(view: EditorView) {
-      this.decorations = decorations(view);
+      this.chips = chipDecorations(view);
+      this.decorations = decorations(view, this.chips);
     }
     update(update: ViewUpdate) {
+      if (update.docChanged) this.chips = chipDecorations(update.view);
       if (update.docChanged || update.selectionSet || update.focusChanged) {
-        this.decorations = decorations(update.view);
+        this.decorations = decorations(update.view, this.chips);
       }
     }
   },
-  { decorations: (plugin) => plugin.decorations },
+  {
+    decorations: (plugin) => plugin.decorations,
+    provide: (plugin) => [
+      EditorView.decorations.of((view) => view.plugin(plugin)?.chips ?? Decoration.none),
+      // Arrow keys and Backspace treat a chip as one character.
+      EditorView.atomicRanges.of((view) => view.plugin(plugin)?.chips ?? Decoration.none),
+    ],
+  },
 );
 
 /** Smallest single change turning `prev` into `next`, so the caret maps
