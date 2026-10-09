@@ -13,7 +13,10 @@ Functions exposed (all self-register via @function on import):
 Recording the conversation is not among them. That happens in the
 background once enough has been said; see ``openprogram/memory``.
 """
-from openprogram.programs._runtime import function
+import json
+from functools import wraps
+
+from openprogram.programs._runtime import ToolReturn, function
 from .memory import (
     SEARCH_NAME, SEARCH_SPEC, memory_search,
     GREP_NAME, GREP_SPEC, memory_grep,
@@ -25,6 +28,28 @@ from .memory import (
 )
 
 
+def _flag_failures(fn):
+    """Report a refused or failed memory call as a failed tool result.
+
+    The memory functions return failures as JSON text with ``"ok": false``
+    (for example ``MEMORY_ACCESS_DENIED``), which the agent loop otherwise
+    records as a successful call. Only the registered tool changes; Python
+    callers of the functions still get the JSON string.
+    """
+    @wraps(fn)
+    def call(*args, **kwargs):
+        result = fn(*args, **kwargs)
+        if isinstance(result, str) and result.lstrip().startswith("{"):
+            try:
+                payload = json.loads(result)
+            except ValueError:
+                return result
+            if isinstance(payload, dict) and payload.get("ok") is False:
+                return ToolReturn(text=result, is_error=True)
+        return result
+    return call
+
+
 def _register(name, spec, fn, *, max_chars=20_000):
     function(
         name=name,
@@ -32,7 +57,7 @@ def _register(name, spec, fn, *, max_chars=20_000):
         parameters=spec["parameters"],
         toolset=["core"],
         max_result_chars=max_chars,
-    )(fn)
+    )(_flag_failures(fn))
 
 
 _register(SEARCH_NAME, SEARCH_SPEC, memory_search, max_chars=30_000)
