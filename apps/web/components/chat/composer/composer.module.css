@@ -38,22 +38,34 @@
   bottom: 0;
   z-index: 5;
 }
-/* Bottom fade mask: solid behind the env chips, the input box and the
-   controls (hides chat content scrolling behind the composer), fading to
-   transparent only across the top padding — so there's no hard band, but
-   transcript text never shows between the env chips. Sits behind the
-   composer wrapper (z-index 5 > this). */
+/* Backdrop in two layers, both behind the composer wrapper (z-index 5 >
+   these). ::before is solid from the env-chip row down (hides transcript
+   text scrolling behind the chips, box and controls); ::after is the short
+   fade above the chips so there is no hard band. The fade is dropped while
+   a menu raises the inputArea above the portal layer (rule above): it
+   would otherwise paint over the bottom of the upward-opening menu. */
 .inputArea::before {
   content: "";
   position: absolute;
-  inset: -16px 0 0;
-  background: linear-gradient(
-    to bottom,
-    transparent 0,
-    var(--bg-primary) 24px
-  );
+  inset: 12px 0 0;
+  background: var(--bg-primary);
   pointer-events: none;
   z-index: -1;
+}
+.inputArea::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -16px;
+  height: 28px;
+  background: linear-gradient(to bottom, transparent, var(--bg-primary));
+  pointer-events: none;
+  z-index: -1;
+}
+.inputArea:has([data-environment-row] [aria-expanded="true"])::after,
+.inputArea:has([data-effort-expanded="true"])::after {
+  display: none;
 }
 
 /* Wrapper — the rounded rectangle the textarea sits inside.
