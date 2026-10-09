@@ -100,7 +100,7 @@ test('a dirty folder opens branches in a worktree; review and the agent hand-off
   const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0, onUseFolder: () => {} })]);
   const row = (label) => [...host.querySelectorAll('div')].find((el) => el.textContent.startsWith(label) && el.className.includes('cursor-pointer'));
   assert.match(host.textContent, /opens in a new worktree/, 'uncommitted changes send branches to a worktree');
-  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .git-menu-tag')].map((t) => t.textContent), ['current']);
+  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .menu-tag')].map((t) => t.textContent), ['current']);
   assert.doesNotMatch(host.textContent, /Work in/, 'no separate worktree section');
   await act(async () => row('main').dispatchEvent(new Event('click', { bubbles: true })));
   assert.deepEqual(calls.find(([a]) => a === 'git_create_worktree'), ['git_create_worktree', { path: '/repo', branch: 'main' }]);
@@ -117,7 +117,7 @@ test('a clean folder switches in place', async () => {
   const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0, onUseFolder: () => {} })]);
   const row = (label) => [...host.querySelectorAll('div')].find((el) => el.textContent.startsWith(label) && el.className.includes('cursor-pointer'));
   assert.doesNotMatch(host.textContent, /opens in a new worktree/);
-  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .git-menu-tag')].map((t) => t.textContent), ['current']);
+  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .menu-tag')].map((t) => t.textContent), ['current']);
   await act(async () => row('main').dispatchEvent(new Event('click', { bubbles: true })));
   assert.deepEqual(calls.find(([a]) => a === 'git_switch_branch'), ['git_switch_branch', { path: '/repo', branch: 'main', create: false, carry: false }]);
   assert.equal(calls.find(([a]) => a === 'git_create_worktree'), undefined);

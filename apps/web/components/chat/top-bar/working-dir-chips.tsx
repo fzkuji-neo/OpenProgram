@@ -269,7 +269,7 @@ export function WorkingDirChips() {
           sideOffset={10}
           className="w-auto border-0 bg-transparent p-0 shadow-none"
         >
-          <div className={`${MENU_PANEL} min-w-[230px] max-w-[340px]`}>
+          <div className={MENU_PANEL}>
             {recent.length > 0 ? (
               <>
                 <div className={GROUP_LABEL}>{text("Recent", "最近")}</div>
@@ -296,7 +296,7 @@ export function WorkingDirChips() {
               </span>
             </div>
             {pickerError ? (
-              <div className="px-[8px] pb-[3px] pt-[4px] text-[11px] text-[var(--accent-orange)]" role="alert">
+              <div className="px-[10px] pb-[3px] pt-[4px] text-[11px] text-[var(--accent-orange)]" role="alert">
                 {pickerError}
               </div>
             ) : null}

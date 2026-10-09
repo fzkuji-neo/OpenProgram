@@ -10,7 +10,6 @@
  * the cluster's contents.
  */
 import React, { useRef, useState } from "react";
-import { Menu } from "@base-ui-components/react/menu";
 
 import {
   type AnimatedNavIconHandle,
@@ -18,10 +17,19 @@ import {
 } from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
 import { effortLevelColor, formatEffortLabel } from "@/lib/effort-color";
-import { GROUP_LABEL } from "../../top-bar/menu-styles";
+import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR } from "../../top-bar/menu-styles";
 import { AgentBadge, PermissionBadge } from "../../top-bar";
 import { ContextBadge } from "../../context-badge";
 import {
@@ -34,29 +42,29 @@ import {
   UnattendedIcon,
   WebSearchIcon,
 } from "../icons";
-import { PlusMenuItem, ToolChip } from "./menu-pieces";
+import { PlusMenuRow, ToolChip } from "./menu-pieces";
 import { ThinkingEffortPill } from "./thinking-effort-pill";
 import type { ThinkingOption } from "./use-thinking-effort";
 import styles from "../composer.module.css";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const noop = () => {};
-
-// `.plusMenu` was written for the old hand-rolled portal — it carries
-// `position:absolute; bottom:100%; left:0; margin-bottom:4px` to sit
-// above the trigger. base-ui's Menu positions the *Positioner* wrapper
-// and we apply `.plusMenu` to the inner Popup panel, so those absolute
-// props would fight the Positioner's transform. Neutralize them here
-// (visuals — bg/border/radius/shadow/padding — stay untouched) so the
-// menu reads identically while base-ui's Positioner owns placement,
-// flip, and alignment (including the submenus' side="top").
-const POPUP_STATIC_RESET: React.CSSProperties = {
-  position: "static",
-  bottom: "auto",
-  left: "auto",
-  marginBottom: 0,
-};
+// The Tools row is a split row: the row itself toggles tools, and a
+// 22×22 gear button laid over its right end opens the tool-profile
+// submenu. The gear sits immediately before the 14px check column that
+// every row reserves (CHECK_SLOT_PAD), so it never moves when Tools
+// toggles: 10px row inset + 14px check + 8px gap = 32px from the edge.
+// Hover / keyboard / open tints are a notch of ink over the row's own
+// hover fill, since the row underneath is already tinted. (Written out
+// in full: Tailwind only generates classes it can read literally.)
+const GEAR_CLS =
+  "absolute right-[32px] top-1/2 flex h-[22px] w-[22px] -translate-y-1/2 cursor-pointer " +
+  "items-center justify-center rounded-[6px] text-text-muted outline-none " +
+  "hover:bg-[color-mix(in_srgb,var(--text-bright)_10%,transparent)] hover:text-text-bright " +
+  "data-[highlighted]:bg-[color-mix(in_srgb,var(--text-bright)_10%,transparent)] " +
+  "data-[highlighted]:text-text-bright " +
+  "data-[state=open]:bg-[color-mix(in_srgb,var(--text-bright)_10%,transparent)] " +
+  "data-[state=open]:text-text-bright";
 
 export interface ControlsClusterProps {
   /** Split-pane composers pass their bound session id so the agent badges
@@ -151,7 +159,7 @@ export function ControlsCluster({
                 the wrapper CSS into Claude's borderless "Accept edits ⌄"
                 text form (no border / bg; popover + id untouched). */}
             <PermissionBadge />
-            <Menu.Root
+            <DropdownMenu
               open={plusMenuOpen}
               onOpenChange={(o) => {
                 setPlusMenuOpen(o);
@@ -169,8 +177,7 @@ export function ControlsCluster({
                   />
                 }
               >
-              <Menu.Trigger
-                render={
+                <DropdownMenuTrigger asChild>
                   <button
                     className={`${cn(buttonVariants({ variant: "elevated", size: "icon-sm" }))} ${styles.plusBtn} ${anyToolActive ? styles.hasActive : ""}`}
                     onMouseEnter={() => plusIconRef.current?.startAnimation?.()}
@@ -180,194 +187,155 @@ export function ControlsCluster({
                   >
                     <OptionsIcon ref={plusIconRef} />
                   </button>
-                }
-              />
+                </DropdownMenuTrigger>
               </HoverTip>
 
-              <Menu.Portal>
-                {/* Positioner owns placement (side/align/offset + flip);
-                    Popup is the actual panel that wears `.plusMenu`. The
-                    static reset stops the old absolute props from fighting
-                    the Positioner. */}
-                {/* 9 = 10px band gap − 1px 输入框外扩 ring（底部弹层统一）。 */}
-                <Menu.Positioner side="top" align="start" sideOffset={9} style={{ zIndex: 200 }}>
-                  <Menu.Popup
-                    className={styles.plusMenu}
-                    style={POPUP_STATIC_RESET}
-                  >
-                    {/* Attach file — a plain action; clicking it closes the
-                        menu (default Menu.Item closeOnClick behaviour).
-                        Grammar B row: 16px line icon + label. No shortcut
-                        hint — the app registers none for attach. */}
-                    <Menu.Item className={styles.plusMenuRow} onClick={() => onPickImages()}>
-                      <PlusMenuItem
-                        active={pendingImagesCount > 0 || pendingDocsCount > 0}
-                        onClick={noop}
-                        icon={<AttachIcon size={16} />}
-                        label={text("Add files or photos", "添加文件或照片")}
-                      />
-                    </Menu.Item>
+              {/* The same radix wrapper and MENU_PANEL frame as every other
+                  dropdown; radix owns placement, flip, roving focus and
+                  dismissal. 9 = 10px band gap − 1px 输入框外扩 ring（底部
+                  弹层统一）。z-[200] keeps the stacking the menu always had
+                  (above the composer's own layers); the submenu sits one
+                  above it. */}
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                sideOffset={9}
+                className={cn(MENU_PANEL, "z-[200] max-w-[320px]")}
+              >
+                {/* Attach file — a plain action; selecting it closes the
+                    menu. No shortcut hint — the app registers none. */}
+                <PlusMenuRow
+                  active={pendingImagesCount > 0 || pendingDocsCount > 0}
+                  icon={<AttachIcon size={16} />}
+                  label={text("Add files or photos", "添加文件或照片")}
+                  onSelect={() => onPickImages()}
+                />
 
-                    <Menu.Separator className={styles.plusMenuDivider} />
+                <DropdownMenuSeparator className={MENU_SEPARATOR} />
 
-                    {/* Tools — row click toggles tools; the gear opens a
-                        click-controlled submenu that stays open when the
-                        pointer leaves and closes on outside interaction. */}
-                    <div
-                      className={styles.plusMenuSplitRow}
-                      role="none"
-                      data-tools-active={toolsEnabled || undefined}
-                    >
-                      <Menu.Item
-                        className={`${styles.plusMenuRow} ${styles.plusMenuPrimary}`}
-                        closeOnClick={false}
-                        onClick={() => {
-                          toggleTools();
+                {/* Tools — a split row. The row toggles tools; the gear laid
+                    over its right end is a sibling menuitem (never nested)
+                    that opens the click-only tool-profile submenu. `group`
+                    lets the gear's hover / focus tint the whole row, as a
+                    single row would. */}
+                <div role="none" className="group relative">
+                  <PlusMenuRow
+                    active={toolsEnabled}
+                    keepOpen
+                    icon={<ToolsIcon size={16} />}
+                    label={text("Tools", "工具")}
+                    // Reserves the gear's 22px before the check column.
+                    trailing={<span className="w-[22px] shrink-0" aria-hidden="true" />}
+                    className={
+                      "group-hover:bg-bg-hover group-hover:text-text-bright " +
+                      "group-focus-within:bg-bg-hover group-focus-within:text-text-bright " +
+                      "group-has-[[data-state=open]]:bg-bg-hover group-has-[[data-state=open]]:text-text-bright"
+                    }
+                    onSelect={() => {
+                      toggleTools();
+                      setProfileMenuOpen(false);
+                    }}
+                  />
+                  <DropdownMenuSub open={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
+                    <DropdownMenuSubTrigger
+                      className={GEAR_CLS}
+                      aria-label={text("Tool profile", "工具配置")}
+                      data-tool-profile-trigger=""
+                      // Click-only: radix opens sub-menus on pointer rest;
+                      // preventing the move skips that, keyboard still opens.
+                      onPointerMove={(e) => e.preventDefault()}
+                      // A second click closes (radix only ever opens on click).
+                      onClick={(e) => {
+                        if (profileMenuOpen) {
+                          e.preventDefault();
                           setProfileMenuOpen(false);
-                        }}
-                      >
-                        <PlusMenuItem
-                          active={toolsEnabled}
-                          onClick={noop}
-                          icon={<ToolsIcon size={16} />}
-                          label={text("Tools", "工具")}
-                        />
-                      </Menu.Item>
-                      <Menu.SubmenuRoot
-                        open={profileMenuOpen}
-                        onOpenChange={(open, { reason }) => {
-                          // Base UI closes submenus when a sibling parent-menu
-                          // item receives mousemove. Pointer movement is not a
-                          // dismissal action for this click-only submenu.
-                          if (open || reason !== "sibling-open") {
-                            setProfileMenuOpen(open);
-                          }
-                        }}
-                      >
-                        <Menu.SubmenuTrigger
-                          className={`${styles.plusMenuRow} ${styles.plusMenuGear}`}
-                          openOnHover={false}
-                          label={text("Tool profile", "工具配置")}
-                          aria-label={text("Tool profile", "工具配置")}
-                        >
-                          <ToolProfileIcon size={14} />
-                        </Menu.SubmenuTrigger>
-                        <Menu.Portal>
-                          <Menu.Positioner
-                            side="right"
-                            align="end"
-                            sideOffset={6}
-                            style={{ zIndex: 201 }}
-                          >
-                            <Menu.Popup
-                              className={styles.plusMenu}
-                              style={POPUP_STATIC_RESET}
-                            >
-                              <div className={GROUP_LABEL}>
-                                {text("Access preset", "Access preset")}
-                              </div>
-                              <Menu.Item
-                                className={styles.plusMenuRow}
-                                onClick={() => switchProfile("__agent__")}
-                              >
-                                <PlusMenuItem
-                                  active={activeProfile === "__agent__"}
-                                  onClick={noop}
-                                  icon={null}
-                                  label={text("Use Agent configuration", "使用 Agent 配置")}
-                                />
-                              </Menu.Item>
-                              {Object.keys(toolProfiles).sort().map((pName) => (
-                                <Menu.Item
-                                  key={pName}
-                                  className={styles.plusMenuRow}
-                                  onClick={() => switchProfile(pName)}
-                                >
-                                  <PlusMenuItem
-                                    active={activeProfile === pName}
-                                    onClick={noop}
-                                    icon={null}
-                                    label={pName === "full"
-                                      ? text("All Tools", "全部工具")
-                                      : pName}
-                                  />
-                                </Menu.Item>
-                              ))}
-                            </Menu.Popup>
-                          </Menu.Positioner>
-                        </Menu.Portal>
-                      </Menu.SubmenuRoot>
-                    </div>
-
-                    {/* Web Search / Fast — toggles that must NOT close the
-                        menu, so closeOnClick={false}. */}
-                    <Menu.Item
-                      className={styles.plusMenuRow}
-                      closeOnClick={false}
-                      onClick={() => toggleWebSearch()}
-                    >
-                      <PlusMenuItem
-                        active={webSearchEnabled}
-                        onClick={noop}
-                        icon={<WebSearchIcon size={16} />}
-                        label={text("Web Search", "网页搜索")}
-                      />
-                    </Menu.Item>
-
-
-                    <Menu.Item
-                      className={styles.plusMenuRow}
-                      closeOnClick={false}
-                      disabled={!sandboxAvailable}
-                      title={sandboxReason || undefined}
-                      onClick={() => toggleSandbox()}
-                    >
-                      <PlusMenuItem
-                        active={sandboxEnabled && sandboxAvailable}
-                        onClick={noop}
-                        icon={<SandboxIcon size={16} />}
-                        label={
-                          sandboxAvailable
-                            ? text("Sandbox", "沙箱")
-                            : text("Sandbox · Unavailable", "Sandbox · Unavailable")
                         }
-                      />
-                    </Menu.Item>
-
-                    <Menu.Separator className={styles.plusMenuDivider} />
-
-                    <Menu.Item
-                      className={styles.plusMenuRow}
-                      closeOnClick={false}
-                      onClick={() => toggleRunningMessageMode()}
+                      }}
                     >
-                      <PlusMenuItem
-                        active={runningMessageMode === "steer"}
-                        onClick={noop}
-                        icon={<RunningModeIcon size={16} mode={runningMessageMode} />}
-                        label={runningMessageMode === "steer"
-                          ? text("While running: Steer", "运行中：注入当前轮次")
-                          : text("While running: Queue", "运行中：排队到下一轮")}
-                      />
-                    </Menu.Item>
-
-                    {/* Unattended — a toggle; keep the menu open. */}
-                    <Menu.Item
-                      className={styles.plusMenuRow}
-                      closeOnClick={false}
-                      onClick={() => toggleUnattended()}
+                      <ToolProfileIcon size={14} />
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent
+                      align="end"
+                      sideOffset={6}
+                      className={cn(MENU_PANEL, "z-[201]")}
+                      // Pointer travel over sibling rows moves radix focus
+                      // out of the submenu; that is not a dismissal here.
+                      onFocusOutside={(e) => e.preventDefault()}
+                      // A press anywhere but the gear closes it (the gear
+                      // toggles). Outside the menu the whole menu closes.
+                      onPointerDownOutside={(e) => {
+                        const target = e.detail.originalEvent.target as Element | null;
+                        if (!target?.closest?.("[data-tool-profile-trigger]")) {
+                          setProfileMenuOpen(false);
+                        }
+                      }}
                     >
-                      <PlusMenuItem
-                        active={unattended}
-                        onClick={noop}
-                        icon={<UnattendedIcon size={16} on={unattended} />}
-                        label={text("Unattended", "无人值守")}
+                      <div className={GROUP_LABEL}>
+                        {text("Access preset", "Access preset")}
+                      </div>
+                      <PlusMenuRow
+                        active={activeProfile === "__agent__"}
+                        icon={null}
+                        label={text("Use Agent configuration", "使用 Agent 配置")}
+                        onSelect={() => switchProfile("__agent__")}
                       />
-                    </Menu.Item>
-                  </Menu.Popup>
-                </Menu.Positioner>
-              </Menu.Portal>
-            </Menu.Root>
+                      {Object.keys(toolProfiles).sort().map((pName) => (
+                        <PlusMenuRow
+                          key={pName}
+                          active={activeProfile === pName}
+                          icon={null}
+                          label={pName === "full" ? text("All Tools", "全部工具") : pName}
+                          onSelect={() => switchProfile(pName)}
+                        />
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                </div>
+
+                {/* Toggles keep the menu open (keepOpen). */}
+                <PlusMenuRow
+                  active={webSearchEnabled}
+                  keepOpen
+                  icon={<WebSearchIcon size={16} />}
+                  label={text("Web Search", "网页搜索")}
+                  onSelect={() => toggleWebSearch()}
+                />
+
+                <PlusMenuRow
+                  active={sandboxEnabled && sandboxAvailable}
+                  keepOpen
+                  disabled={!sandboxAvailable}
+                  title={sandboxReason || undefined}
+                  icon={<SandboxIcon size={16} />}
+                  label={
+                    sandboxAvailable
+                      ? text("Sandbox", "沙箱")
+                      : text("Sandbox · Unavailable", "Sandbox · Unavailable")
+                  }
+                  onSelect={() => toggleSandbox()}
+                />
+
+                <DropdownMenuSeparator className={MENU_SEPARATOR} />
+
+                <PlusMenuRow
+                  active={runningMessageMode === "steer"}
+                  keepOpen
+                  icon={<RunningModeIcon size={16} mode={runningMessageMode} />}
+                  label={runningMessageMode === "steer"
+                    ? text("While running: Steer", "运行中：注入当前轮次")
+                    : text("While running: Queue", "运行中：排队到下一轮")}
+                  onSelect={() => toggleRunningMessageMode()}
+                />
+
+                <PlusMenuRow
+                  active={unattended}
+                  keepOpen
+                  icon={<UnattendedIcon size={16} on={unattended} />}
+                  label={text("Unattended", "无人值守")}
+                  onSelect={() => toggleUnattended()}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <div className={styles.activeToolChips}>
               {/* Only ENABLED tools show as a chip here. The off ones are

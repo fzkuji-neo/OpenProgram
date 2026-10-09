@@ -14,7 +14,7 @@ Web UI surfaces — the surface system, indicator dots, attachment handling, cha
 - [`integrated-terminal.html`](integrated-terminal.html) — real PTY terminal and direct local Claude Code launcher
 - [`composer-local-attachment-paths.html`](composer-local-attachment-paths.html) — local attachment path preservation from the composer to model context
 - [`composer-responsive-controls.html`](composer-responsive-controls.html) — responsive composer controls and compact-state interaction contract
-- [`composer-tool-profile-menu.html`](composer-tool-profile-menu.html) — Tools action and profile submenu behavior
+- [`composer-tool-profile-menu.html`](composer-tool-profile-menu.html) — Options (+) menu on the shared menu grammar; Tools action and profile submenu behavior
 - [`programs-source-categories.html`](programs-source-categories.html) — Programs grouping and source-category behavior
 - [`composer-interaction-modes.md`](composer-interaction-modes.md) — composer interaction modes
 - [`attachment-handling.html`](attachment-handling.html) — complete attachment design: storage, admission, delivery, recovery, and acceptance

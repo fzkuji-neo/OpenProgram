@@ -90,7 +90,7 @@ export function AgentSelector({
   }
 
   return (
-    <div className={`${MENU_PANEL} w-[300px]`}>
+    <div className={MENU_PANEL}>
       {/* Grammar-A header naming the dimension. Provider names below
           stay as sub-section labels. */}
       <div className={GROUP_LABEL}>{text("Models", "模型")}</div>

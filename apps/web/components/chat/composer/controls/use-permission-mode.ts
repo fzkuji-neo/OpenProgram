@@ -24,6 +24,8 @@ export interface PermissionModeOption {
   label: string;
   key?: string;   // 数字快捷键提示（1-4）；bypass 无（走 Enable 确认）
   description?: string;
+  /** The mode a session starts in (DEFAULT_MODE) — the menu tags it "Recommended". */
+  recommended?: boolean;
 }
 
 // 常规档（批准强度，按危险度递增）+ plan 单列（只读，另一维度）。
@@ -81,6 +83,7 @@ export function usePermissionMode(): PermissionModeHook {
     label: text(m.en, m.zh),
     key: m.key,
     description: m.enDesc ? text(m.enDesc, m.zhDesc ?? m.enDesc) : undefined,
+    recommended: m.value === DEFAULT_MODE,
   }));
   const apply = useCallback((data: { mode?: unknown; version?: unknown } | null) => {
     if (!data) return;

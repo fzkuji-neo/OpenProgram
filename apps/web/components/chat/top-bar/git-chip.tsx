@@ -42,7 +42,7 @@ import { desktopBridge } from "@/lib/desktop/bridge-api";
 import { cn } from "@/lib/utils";
 import { useBoundChat } from "./bound-chat";
 import { notifyGitChanged, useGitRepoClaim } from "./git-chip-registry";
-import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
+import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, MENU_TAG, itemCls } from "./menu-styles";
 
 /** A refusal from the worker, with the structured bits the menu acts on. */
 interface GitMenuError {
@@ -382,7 +382,7 @@ export function GitChip({
         <div className={`${MENU_PANEL} git-menu w-[320px]`}>
           <div className={GROUP_LABEL}>
             <span className="min-w-0 flex-1 truncate">{status.repo_name}</span>
-            {status.is_worktree ? <span className="git-menu-tag">{text("worktree", "worktree")}</span> : null}
+            {status.is_worktree ? <span className={MENU_TAG}>{text("worktree", "worktree")}</span> : null}
           </div>
 
           {changes.files ? (
@@ -465,7 +465,7 @@ export function GitChip({
                   }}
                 >
                   <span className="min-w-0 flex-1 truncate">{b}</span>
-                  {tag ? <span className="git-menu-tag">{tag}</span> : null}
+                  {tag ? <span className={MENU_TAG}>{tag}</span> : null}
                 </div>
               );
             })}

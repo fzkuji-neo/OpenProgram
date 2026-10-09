@@ -28,7 +28,6 @@ import {
 } from "@/lib/runtime-bridge/conversations";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { useTranslation } from "@/lib/i18n";
-import { Badge } from "@/components/ui/badge";
 import { SolarIcon } from "@/components/solar-icons";
 import {
   CHECK_SLOT,
@@ -36,6 +35,7 @@ import {
   GROUP_LABEL,
   MENU_PANEL,
   MENU_SEPARATOR,
+  MENU_TAG,
   itemCls,
 } from "./menu-styles";
 
@@ -118,7 +118,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className={`${MENU_PANEL} min-w-[300px] max-w-[480px]`}>
+    <div className={MENU_PANEL}>
       {/* Grammar-A header naming the dimension. Platform names below
           stay as sub-section labels. */}
       <div className={GROUP_LABEL}>{text("Channel", "渠道")}</div>
@@ -155,18 +155,13 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
                 className={itemCls(false)}
                 onClick={() => pick(r.channel, r.account_id)}
               >
-                {/* Claude 实测：别名 badge 紧贴账号名左侧成簇（"Fable 5
-                    [Included until July 19]" 的形制），右缘只留勾位。 */}
+                {/* Claude 实测：别名 tag 紧贴账号名左侧成簇（"Fable 5
+                    [Included until July 19]" 的形制），右缘只留勾位。
+                    .menu-tag = 与 git 菜单 current / worktree 同一枚
+                    tag（top-bar-chips.css）。 */}
                 <span className="flex min-w-0 flex-1 items-center gap-[6px]">
                   <span className="truncate">{r.account_id}</span>
-                  {meta ? (
-                    <Badge
-                      variant="secondary"
-                      className="h-[18px] shrink-0 rounded-[4px] px-[5px] py-0 text-[12px] font-normal text-[var(--text-secondary)]"
-                    >
-                      {meta}
-                    </Badge>
-                  ) : null}
+                  {meta ? <span className={MENU_TAG}>{meta}</span> : null}
                 </span>
                 {active ? (
                   <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
