@@ -103,7 +103,9 @@ test("store clamp forwards the shared min constants into geometry", () => {
 test("css keeps a flush frameless page and eight outward transparent handles", () => {
   const css = readFileSync(new URL("../../components/center-tabs/center-tabs.module.css", import.meta.url), "utf8");
   const pipSource = readFileSync(new URL("../../components/center-tabs/web-tab-pip.tsx", import.meta.url), "utf8");
-  assert.match(css, /\.webPipChrome \{[\s\S]*?height: 32px/);
+  // Header height must equal PIP_HEADER_HEIGHT or the 16:9 page view
+  // letterboxes and leaves a strip down the right edge.
+  assert.match(css, /\.webPipChrome \{[\s\S]*?height: 30px/);
   // The frame is a popover card drawn by Tailwind utilities on the element
   // (unlayered module rules would beat them); the module keeps geometry only.
   assert.match(css, /\.webPip \{[^}]*border: 0;[^}]*overflow: visible;/);

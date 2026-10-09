@@ -1299,11 +1299,12 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
-  /* 32px header. The store's PIP_HEADER_HEIGHT stays 30 so saved window
-     sizes and the 300×198.75 / 720×435 defaults quoted in the docs do not
-     move; the extra 2px comes out of the content letterbox. */
-  min-height: 32px;
-  height: 32px;
+  /* Exactly PIP_HEADER_HEIGHT (web-tab-pip-geometry.ts). The window is
+     sized so the area under the header is 16:9, the native page view's
+     aspect; a taller header made that area short, the view fitted itself
+     narrower and a strip of frame showed down the right edge. */
+  min-height: 30px;
+  height: 30px;
   flex-shrink: 0;
   padding: 0 10px;
   overflow: hidden;
