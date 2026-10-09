@@ -207,16 +207,17 @@ async function checkHumanInputYieldingAndActionCue() {
   const zoomedPage = record.view.getBounds();
   const zoomedContent = winA.getContentBounds();
   const zoomedCue = record.actionCueWindow.getBounds();
-  testContext.assert.equal(zoomedCue.width, 28);
-  testContext.assert.equal(zoomedCue.height, 28);
-  testContext.assert.equal(zoomedCue.x, zoomedContent.x + zoomedPage.x + 100 * 2 - 14);
-  testContext.assert.equal(zoomedCue.y, zoomedContent.y + zoomedPage.y + 100 * 2 - 14);
+  // The pointer box is 40px; its arrow tip is the centre, on the action point.
+  testContext.assert.equal(zoomedCue.width, 40);
+  testContext.assert.equal(zoomedCue.height, 40);
+  testContext.assert.equal(zoomedCue.x, zoomedContent.x + zoomedPage.x + 100 * 2 - 20);
+  testContext.assert.equal(zoomedCue.y, zoomedContent.y + zoomedPage.y + 100 * 2 - 20);
   winA.setBounds({ x: 40, y: 50, width: 800, height: 600 });
   winA.listeners.get("move")();
   const movedCue = record.actionCueWindow.getBounds();
   const movedContent = winA.getContentBounds();
-  testContext.assert.equal(movedCue.x, movedContent.x + zoomedPage.x + 100 * 2 - 14);
-  testContext.assert.equal(movedCue.y, movedContent.y + zoomedPage.y + 100 * 2 - 14);
+  testContext.assert.equal(movedCue.x, movedContent.x + zoomedPage.x + 100 * 2 - 20);
+  testContext.assert.equal(movedCue.y, movedContent.y + zoomedPage.y + 100 * 2 - 20);
   record.view.webContents.setZoomFactor(1);
   winA.setBounds({ x: 0, y: 0, width: 800, height: 600 });
   testContext.assert.equal(controlled.isDebuggerAttached(), false);

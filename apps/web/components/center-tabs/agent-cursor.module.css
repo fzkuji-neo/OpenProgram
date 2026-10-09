@@ -1,0 +1,54 @@
+/* Agent pointer. The arrow's tip is the centre of the 40px box. */
+.agentCursor {
+  position: relative;
+  display: block;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
+
+.arrow {
+  position: absolute;
+  left: 19px;
+  top: 19px;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.35));
+}
+
+.arrow path {
+  fill: var(--agent-accent);
+  stroke: #fff;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.ripple {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--agent-accent) 85%, transparent);
+  background: color-mix(in srgb, var(--agent-accent) 14%, transparent);
+  opacity: 0;
+  animation: agent-cursor-ripple 450ms ease-out;
+}
+
+@keyframes agent-cursor-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.35);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple {
+    animation: none;
+  }
+}

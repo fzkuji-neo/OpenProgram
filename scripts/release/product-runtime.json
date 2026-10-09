@@ -30,7 +30,7 @@
       "repository": "https://github.com/Fzkuji/GUI-Agent-Harness.git",
       "commit": "7e3d180a0c20496898cd58c1ad2879d8e70adee4",
       "sourcePatch": "program-patches/gui_harness.patch",
-      "sourcePatchSha256": "30e9093e5f1ff2440441e8330354bf415ebb4325d65d053835122aa6ffc2b213"
+      "sourcePatchSha256": "c3d0ec328ca7cfe317ed8327768f0ec2ebaf65f5fd7b945040004bc74ec08003"
     },
     "research": {
       "distribution": "research-agent-harness",
