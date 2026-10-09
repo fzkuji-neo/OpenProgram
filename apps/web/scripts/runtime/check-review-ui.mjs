@@ -99,8 +99,7 @@ assert.match(cardCss, /\.turn-files-card\{container:turn-files\/inline-size/);
 assert.match(cardCss, /\.turn-files-card\{[^}]*font-family:var\(--font-sans\)/);
 assert.match(cardCss, /\.turn-files-card\{[^}]*border-radius:16px;background:var\(--bg-input\);box-shadow:var\(--composer-shadow\)/);
 assert.doesNotMatch(cardCss, /\.turn-files-card\{[^}]*border:1px/);
-// The card keeps its resting shadow; hover does not deepen it.
-assert.doesNotMatch(cardCss, /\.turn-files-card:hover\{[^}]*box-shadow/);
+assert.match(cardCss, /\.turn-files-card:hover\{box-shadow:var\(--composer-shadow-focus\)\}/);
 assert.match(cardCss, /\.turn-files-summary\{[^}]*gap:10px/);
 assert.match(cardCss, /\.turn-files-logo\{width:18px;height:18px/);
 assert.match(cardCss, /\.turn-files-heading\{[^}]*align-items:center/);
