@@ -93,3 +93,29 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Atomic chips for paste tokens and finished @file mentions. */
+.chatInput :global(.cm-md-chip) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 1px;
+  padding: 0 7px 0 5px;
+  height: 20px;
+  vertical-align: 1px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 20px;
+  white-space: nowrap;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
+.chatInput :global(.cm-md-chip-file) { font-family: var(--font-mono); font-size: 12px; }
+.chatInput :global(.cm-md-chip-icon) {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-blue);
+}
+.chatInput :global(.cm-md-chip-paste .cm-md-chip-icon) { color: var(--text-muted); }
