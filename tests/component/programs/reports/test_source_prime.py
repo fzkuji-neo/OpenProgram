@@ -440,6 +440,41 @@ def test_actual_prime_host_records_survive_reload_with_program_origin(
     assert not any(n.is_llm() for n in nodes)
 
 
+def test_prime_records_the_dispatcher_outcome_over_a_wrapper_status(originals):
+    """A guard that returns its refusal makes the wrapper say completed; the
+    dispatcher's failed outcome is what the durable record keeps."""
+    from openprogram import Agent
+    from openprogram.store import _store, session_scope
+
+    db = originals[0]
+    db.create_session("report", agent_id="main")
+    gate = EvidenceGate("2026-W40", "personal_chat")
+
+    async def refuse(call_id, *args):
+        store = _store.get()
+        node_id = next(i for i, n in store.load().nodes.items()
+                       if n.metadata.get("tool_call_id") == call_id)
+        store.update(node_id, metadata={"status": "completed"})
+        raise ValueError("guard refused the read")
+
+    gate.native = gate.native.model_copy(update={"execute": refuse})
+
+    class SourceReportProgramAgent(Agent):
+        method_options = {
+            "source_report_program": {"name": "source_report_program", "tool": True},
+        }
+
+        def source_report_program(self):
+            gate.prime()
+            return "Original source discovery completed"
+
+    with session_scope(db, "report"):
+        assert SourceReportProgramAgent().source_report_program() == "Original source discovery completed"
+    read = next(n for n in db.get_nodes("report") if n.name == "read_conversation")
+    assert read.metadata["status"] == "error"
+    assert read.metadata["is_error"] is True
+
+
 def test_bound_host_writer_without_calling_node_stops_before_dispatch(originals):
     from openprogram.store import session_scope
 
