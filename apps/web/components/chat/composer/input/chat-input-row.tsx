@@ -50,7 +50,7 @@ interface ChatInputRowProps {
   fileMenuIndex: number;
   setFileMenuIndex: (n: number | ((prev: number) => number)) => void;
   fileMenuLoading: boolean;
-  fileMenuPos: { left: number; top: number } | null;
+  fileMenuPos: { left: number; top: number; bottom?: number } | null;
   pickFile: (item: FileMatch) => void;
 }
 

@@ -38,6 +38,8 @@ export interface ComposerInputHandle {
   focus(): void;
   blur(): void;
   getBoundingClientRect(): DOMRect;
+  /** Viewport coordinates of a document offset (for caret-anchored menus). */
+  coordsAt(pos: number): { left: number; top: number; bottom: number } | null;
   /** Autosize writes land here harmlessly; CSS caps the editor height. */
   style: Record<string, string>;
   scrollHeight: number;
@@ -205,11 +207,11 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
       setSelectionRange(start: number, end: number) {
         // A caller may set the caret right after setInput, before the new
         // value reaches the editor; apply it once the value lands.
-        if (live.current.value !== view.state.doc.toString()) {
-          pendingSelection.current = [start, end];
-          return;
-        }
         const len = view.state.doc.length;
+        if (live.current.value !== view.state.doc.toString() || start > len || end > len) {
+          pendingSelection.current = [start, end];
+          if (start > len || end > len) return;
+        }
         view.dispatch({
           selection: EditorSelection.range(Math.min(start, len), Math.min(end, len)),
           scrollIntoView: true,
@@ -218,6 +220,10 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
       focus() { view.focus(); },
       blur() { view.contentDOM.blur(); },
       getBoundingClientRect() { return view.dom.getBoundingClientRect(); },
+      coordsAt(pos: number) {
+        const rect = view.coordsAtPos(Math.min(pos, view.state.doc.length));
+        return rect ? { left: rect.left, top: rect.top, bottom: rect.bottom } : null;
+      },
       style: {},
       scrollHeight: 0,
     };
@@ -251,11 +257,18 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     const change = diff(current, props.value);
     pendingSelection.current = null;
     const len = props.value.length;
+    // An external edit at the caret (file pick, paste token, recall) leaves
+    // the caret after the inserted text, as typing would.
+    const head = view.state.selection.main.head;
+    const afterInsert = change.from + change.insert.length;
+    const selection = pending
+      ? EditorSelection.range(Math.min(pending[0], len), Math.min(pending[1], len))
+      : head >= change.from && head <= change.to
+        ? EditorSelection.cursor(afterInsert)
+        : undefined;
     view.dispatch({
       changes: change,
-      selection: pending
-        ? EditorSelection.range(Math.min(pending[0], len), Math.min(pending[1], len))
-        : undefined,
+      selection,
       annotations: External.of(true),
       scrollIntoView: true,
     });

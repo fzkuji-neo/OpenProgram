@@ -42,7 +42,8 @@ export function FileMenu({
       style={{
         position: "fixed",
         left: position.left,
-        top: position.top,
+        // `bottom` anchors the menu above the field so it grows upward.
+        ...(position.bottom !== undefined ? { bottom: position.bottom } : { top: position.top }),
         zIndex: 9999,
         minWidth: 260,
         maxWidth: 480,
