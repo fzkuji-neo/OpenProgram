@@ -36,6 +36,48 @@ def test_default_two_recoveries_and_pause():
         current_recovery.reset(token)
 
 
+def test_a_request_that_recovers_refunds_its_transport_retries():
+    """One state spans a whole Agent loop; blips that retries rode over
+    must not leave later requests in the loop without recovery."""
+    state = RecoveryState(limit=2)
+    token = current_recovery.set(state)
+
+    def flaky(failures):
+        calls = []
+
+        async def attempt():
+            calls.append(1)
+            if len(calls) <= failures:
+                raise ProviderStreamError("ConnectError: ", retryable=True)
+
+        return attempt
+
+    async def no_sleep(*_args, **_kwargs):
+        return None
+
+    async def run():
+        import openprogram.providers.utils.stream_retry as module
+        original = module._sleep_unless_aborted
+        module._sleep_unless_aborted = no_sleep
+        try:
+            for _ in range(3):  # three requests, each recovering from two blips
+                await retry_stream(flaky(2), is_committed_fn=lambda: False,
+                                   max_attempts=5, label="test")
+            assert state.used == 0 and state.phase == "active"
+            # A request that never recovers still exhausts the allowance.
+            with pytest.raises(ProviderStreamError):
+                await retry_stream(flaky(9), is_committed_fn=lambda: False,
+                                   max_attempts=5, label="test")
+            assert state.used == 2 and state.phase == "paused"
+        finally:
+            module._sleep_unless_aborted = original
+
+    try:
+        asyncio.run(run())
+    finally:
+        current_recovery.reset(token)
+
+
 def test_cancel_blocks_further_reserves():
     state = RecoveryState(limit=2)
     token = current_recovery.set(state)

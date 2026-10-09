@@ -3,7 +3,9 @@
 One logical model invocation owns one ``RecoveryState``. Runtime structured
 repair, provider transport retries, and agent_loop validation repairs all
 ``reserve()`` against that same object. Successful tool rounds do not call
-``reserve`` and therefore do not consume the allowance.
+``reserve`` and therefore do not consume the allowance. A provider request
+that succeeds after transport retries refunds them, so transport recovery is
+bounded per request while semantic repairs accumulate over the invocation.
 
 Compatibility:
 - ``max_validation_retries`` / Runtime ``max_retries`` map to ``limit`` as
@@ -43,6 +45,20 @@ class RecoveryState:
         self.attempts.append({"kind": "reserve", "reason": reason, "used": self.used})
         del self.attempts[:-32]
         return True
+
+    def refund(self, reason: str, count: int) -> None:
+        """Return recoveries a request used once it finally succeeded.
+
+        Transport recovery is per request: a long Agent loop makes many
+        model requests under one state, and a blip that a retry rode over
+        must not leave the rest of the loop with fewer recoveries.
+        """
+        if count <= 0 or self.phase == "cancelled":
+            return
+        self.used = max(0, self.used - count)
+        self.phase = "active"
+        self.attempts.append({"kind": "refund", "reason": reason, "count": count, "used": self.used})
+        del self.attempts[:-32]
 
     def started(self, **metadata: Any) -> dict[str, Any]:
         self.requests += 1
