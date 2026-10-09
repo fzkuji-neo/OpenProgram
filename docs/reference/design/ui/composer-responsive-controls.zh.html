@@ -45,7 +45,7 @@
 
   <h2>当前实现与缺口</h2>
   <p><code>.composer-bottom-row</code> 继续按自身容器响应。<code>.envChips</code> 不再使用固定断点，因为聊天页和 DAG 页的控件数量不同，同一宽度下需要的空间也不同。它通过自身 <code>scrollWidth</code> 与 <code>clientWidth</code> 选出第一个放得下的级别：先关掉过渡（<code>data-measuring</code>）把整行按每一级排一遍，再以动画切到选中的 <code>data-squeeze</code> 级别；第 3 级同时设置 <code>data-compact</code>，隐藏全部 label。回到更宽松的级别需要留出 12px 余量。单页和 split pane 运行完全相同的测量逻辑。</p>
-  <p>现有组件已经提供四类互异图标：Shield 表示权限，Message 表示 chat model，Terminal 表示 execution model，Biceps 表示 effort。所有触发器已经具备 Popover/Menu、tooltip 或 accessible name，因此不新增图标组件和菜单。</p>
+  <p>现有组件已经提供四类互异图标：Shield 表示权限，Message 表示 chat model，Terminal 表示 execution model，Biceps 表示 effort。所有触发器已经具备 Popover/Menu、tooltip 或 accessible name，因此不新增图标组件和菜单。effort 触发器点开思考力度选择卡；其标题行、点阵滑轨和"推荐"标注见 <a href="effort-picker.zh.html">effort-picker.zh.md</a>。</p>
 
   <h2>组件边界</h2>
   <p>Composer 按交互职责组织目录：输入编辑归入 <code>input/</code>，提交链路归入 <code>submit/</code>，模式分发归入 <code>modes/</code>，会话设置归入 <code>state/</code>，附件、粘贴、slash 与 controls 沿用各自现有目录。环境栏内部再区分整体布局与单个 chip；ProjectBadge、WorkingDirChips 和 GoalChip 保留在其共享业务模块。DAG HUD 由 DAG 模块负责，通过 EnvironmentRow 的通用尾部内容插槽接入，EnvironmentRow 不包含 DAG 名称、DOM id 或控制逻辑。</p>

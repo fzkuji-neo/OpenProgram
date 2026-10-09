@@ -48,7 +48,7 @@ Solar 的撤回图标都是细线箭头，在按钮尺寸下几乎看不见，�
 
 反映开关的图标随状态换形，而不只靠颜色：无人值守开启后眼睛闭上；运行中模式"注入"是前进箭头、"排队"是队列列表；项目目录丢失时项目 chip 变成警告三角。
 
-高速（Fast）开关是输入框区域唯一**不是** Solar 的图标：它保留动效集里的仪表盘，由 `active` 属性转动指针。见文末实现状态。
+输入框区域有两个**不是** Solar 的图标。高速（Fast）开关保留动效集里的仪表盘，由 `active` 属性转动指针。思考力度卡片里的 `?` 帮助按钮（[effort-picker.zh.md](effort-picker.zh.md)）是 14px 的 lucide `CircleHelp`：Solar 尚未取回问号图标，而且这个按钮是静态的，不需要动效句柄。二者均见文末实现状态。
 
 ## 动效约定
 
@@ -66,5 +66,6 @@ Solar Icons © 480 Design，CC BY 4.0（<https://github.com/480-Design/Solar-Ico
 
 - 输入框区域换成 Solar，含环境条 chip、+ 菜单、提问 / 审批面板，以及经 `components/chat/top-bar` 共用的模型 / 权限徽章：**已实现**。
 - 高速开关改为状态驱动的仪表盘（关时指针停在低速区，开时甩到高速区并变成强调红）：**未实现**——目前仍是动效集的仪表盘加静态 `active` 旋转。
+- 思考力度卡片的帮助图标换成 Solar `question-circle`（经 `fetch-solar.mjs` 取回）：**未实现**——暂用 lucide `CircleHelp`。
 - 面向用户的 Solar 第三方致谢（CC BY）：**未实现**。
 - rail、标签页、侧栏、设置仍用动效线性集，不计划迁移。

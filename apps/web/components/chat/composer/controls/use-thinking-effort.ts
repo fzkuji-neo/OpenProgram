@@ -27,6 +27,19 @@ export type ThinkingEffort = string;
 export interface ThinkingOption {
   value: string;
   desc?: string;
+  /** The level this model falls back to when the user has not picked one
+   *  (the backend's `default`, an agent invocation's `defaultThinking`, or
+   *  `medium` for the pre-hydration fallback list). The effort card hangs
+   *  its "Recommended" caption under this option. */
+  recommended?: boolean;
+}
+
+function markRecommended(
+  options: ThinkingOption[],
+  value: string | undefined,
+): ThinkingOption[] {
+  if (!value || !options.some((o) => o.value === value)) return options;
+  return options.map((o) => (o.value === value ? { ...o, recommended: true } : o));
 }
 
 function readThinkingOptions(): ThinkingOption[] {
@@ -96,9 +109,15 @@ export function useThinkingEffort(): ThinkingEffortHook {
 
   // Read live every render so a model switch is reflected immediately
   // on the next render (no stale-state window).
+  // `recommended` marks the model's default so the card can label it; the
+  // server always sends `default` alongside a non-empty option list, so
+  // only the pre-hydration fallback list leans on DEFAULT_THINKING.
   const options = invocation
-    ? (invocation.thinkingLevels ?? []).map((value) => ({ value }))
-    : readThinkingOptions();
+    ? markRecommended(
+        (invocation.thinkingLevels ?? []).map((value) => ({ value })),
+        invocation.defaultThinking,
+      )
+    : markRecommended(readThinkingOptions(), readBackendDefault() ?? DEFAULT_THINKING);
 
   // CLAMP: the value actually exposed (and sent with chat turns) must
   // be one the current model supports. If the stored pick isn't in
