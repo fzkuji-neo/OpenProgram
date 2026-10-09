@@ -42,6 +42,7 @@ assert.match(compactHook, /row\.dataset\.compact = "true"/);
 assert.match(compactHook, /delete row\.dataset\.compact/);
 assert.match(compactHook, /row\.dataset\.squeeze = String\(next\)/);
 assert.match(compactHook, /row\.dataset\.measuring = "true"/);
+assert.match(readFileSync(new URL("../../app/styles/chat/top-bar-chips.css", import.meta.url), "utf8"), /\.runtime-badge\.folder-pill \{[^}]*align-items: stretch/);
 assert.match(environmentCss, /\.envChips\[data-squeeze\][^{]*\.git-seg-label\)[^{]*\{\s*max-width:\s*12ch/);
 assert.match(environmentCss, /\.envChips\[data-squeeze="2"\] :global\(\.git-seg-label\)/);
 assert.match(environmentCss, /\.envChips\[data-compact="true"\] :global\(\.git-seg-dot\)\s*\{[^}]*width:\s*8px[^}]*opacity:\s*1/);
