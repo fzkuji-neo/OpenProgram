@@ -45,7 +45,7 @@ Bold Duotone style: a filled glyph plus a 50 % lighter secondary layer.
 | Carets | `alt-arrow-right`, `alt-arrow-down` |
 | Send | `plain-2` (paper plane) |
 | Copy | `copy` |
-| Model capabilities (vision / video / tools / reasoning) | `eye` / `videocamera` / `case-minimalistic` / `lightbulb-bolt` |
+| Model capabilities (vision / video / tools / reasoning) | `eye` / `videocamera` / `case-minimalistic` / `lightbulb-bolt`; the briefcase is nudged down 1px so its handle does not read high beside the eye and bulb |
 | Git pill / its menu: new branch or worktree, worktree, PR, view PR | `git-branch` / `add-circle`, `folder-path-connect`, `git-pull-request`, `square-arrow-right-up` |
 | File-change card: title / file rows | `pen-new-square` / `file-text` |
 | File-change card: undo / Review buttons | Font Awesome `rotate-left` / `eye` (solid), icon + text label |
