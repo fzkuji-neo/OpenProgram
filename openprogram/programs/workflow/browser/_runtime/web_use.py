@@ -48,8 +48,14 @@ def _execute_web_use(
     captured_here = False
     opened_here = False
     url = state._requested_url(arguments)
-    if command in {"observe", "act"} and url and not state._has_usable_page(
-        context, web_session_id, page_context_token,
+    if command in {"observe", "act"} and url and (
+        not state._has_usable_page(context, web_session_id, page_context_token)
+        # observe with a URL and no page named opens that URL, even when the
+        # chat has other pages bound (say, after list_pages). Observing one
+        # of those instead hands back a page the caller never asked for.
+        or command == "observe"
+        and not state._has_usable_page(None, web_session_id, page_context_token)
+        and not state._bound_page_shows_origin(context, url)
     ):
         opened = surface_context.open_page(url, background=True)
         if "surfaces" not in opened:

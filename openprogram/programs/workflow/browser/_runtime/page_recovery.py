@@ -26,6 +26,17 @@ def _has_usable_page(context, web_session_id: str, page_context_token: str) -> b
     return False
 
 
+def _bound_page_shows_origin(context, url: str) -> bool:
+    """True when a page bound to this chat is on the requested URL's origin."""
+    from openprogram.agent.surface_context import _origin
+
+    wanted = _origin(url)
+    return bool(wanted) and any(
+        isinstance(surface, dict) and surface.get("binding_id") and surface.get("origin") == wanted
+        for surface in (context or {}).get("surfaces") or []
+    )
+
+
 def _open_page_error(opened: dict) -> dict:
     from openprogram.agent.surface_context import DESKTOP_UNAVAILABLE_ERROR
 
