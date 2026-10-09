@@ -100,7 +100,8 @@
   align-items: center;
 }
 
-/* Status, project, working-directory, and DAG controls share one pill. */
+/* Status, project, working-directory, and DAG controls share one pill
+   (shadcn Luma outline xs button). */
 .envChips :global(.status-badge),
 .envChips :global(.status-badge.connecting),
 .envChips :global(.status-badge.disconnected),
@@ -112,10 +113,10 @@
   min-height: 24px;
   max-height: 24px;
   box-sizing: border-box;
-  padding: 0 8px;
+  padding: 0 10px;
   gap: 6px;
   border: none;
-  border-radius: 6px;
+  border-radius: 999px;
   font-size: 13px;
   line-height: 22px;
   background: var(--env-pill-bg);
