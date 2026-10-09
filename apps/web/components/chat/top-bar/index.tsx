@@ -25,11 +25,8 @@ import { useSessionStore } from "@/lib/session-store";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { api } from "@/lib/net/api";
 import { useTranslation } from "@/lib/i18n";
-import {
-  type AnimatedNavIconHandle,
-  MessageCircleIcon,
-  TerminalIcon,
-} from "@/components/animated-icons";
+import { type AnimatedNavIconHandle } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 
 import {
   Popover,
@@ -153,9 +150,9 @@ export function AgentBadge({
   // shows only a glyph — plus the model name when one is set.
   const iconRef = useRef<AnimatedNavIconHandle>(null);
   const tooltip = invocation ? `${invocation.label || invocation.agentId}${invocation.trial ? text(" · Draft trial; memory is read-only or off", " · 草稿试运行；记忆只读或关闭") : ""}` : kind === "chat" ? t("agent.chat_agent") : t("agent.execution_agent");
-  // Distinct glyph per role: message bubble = chat model, terminal =
-  // execution / tool-running model. Both animated (pqoqubbw set).
-  const Icon = kind === "chat" ? MessageCircleIcon : TerminalIcon;
+  // Distinct glyph per role: message bubble = chat model, terminal
+  // window = execution / tool-running model (Solar set, hover pop).
+  const iconName = kind === "chat" ? "chat-round-dots" : "programming";
   const label = fmtAgentLabel(provider, model, nameById);
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -167,7 +164,8 @@ export function AgentBadge({
             onMouseEnter={() => iconRef.current?.startAnimation?.()}
             onMouseLeave={() => iconRef.current?.stopAnimation?.()}
           >
-            <Icon
+            <SolarIcon
+              name={iconName}
               ref={iconRef}
               size={14}
               className={label ? "shrink-0 mr-[4px]" : "shrink-0"}

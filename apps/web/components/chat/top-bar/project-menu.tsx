@@ -23,11 +23,8 @@
  * Positioning / click-outside come from the shadcn <Popover> in index.tsx.
  */
 import { useEffect, useRef, useState, useCallback } from "react";
-import { AlertTriangle, Check, Folder, FolderSearch } from "lucide-react";
-import {
-  type AnimatedNavIconHandle,
-  FolderOpenIcon,
-} from "@/components/animated-icons";
+import { type AnimatedNavIconHandle } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 
 import {
   Popover,
@@ -269,7 +266,7 @@ export function ProjectMenu({
         {missing ? (
           <>
             <div className="project-menu-missing">
-              <AlertTriangle size={13} strokeWidth={2} aria-hidden="true" />
+              <SolarIcon name="danger-triangle" size={13} aria-hidden="true" />
               <span>
                 {locationState === "replaced" || activeProject?.path_replaced
                   ? text(
@@ -307,11 +304,7 @@ export function ProjectMenu({
               className={itemCls(false)}
               onClick={() => !busy && activeProject && locateFolder(activeProject.id)}
             >
-              <FolderSearch
-                size={14}
-                strokeWidth={2}
-                className="shrink-0 opacity-70"
-              />
+              <SolarIcon name="folder-open" size={14} className="opacity-70" />
               <span className="flex-1">{text("Locate folder…", "定位文件夹…")}</span>
             </div>
           </>
@@ -364,14 +357,14 @@ export function ProjectMenu({
           >
             <span className="min-w-0 flex-1 truncate">{p.name}</span>
             {unavailable ? (
-              <AlertTriangle
+              <SolarIcon
+                name="danger-triangle"
                 size={14}
-                strokeWidth={2}
                 className={`${CHECK_SLOT} text-[var(--accent-orange)]`}
                 aria-label={text("Folder unavailable", "目录不可用")}
               />
             ) : active ? (
-              <Check size={14} className={CHECK_SLOT} />
+              <SolarIcon name="check-circle" size={14} className={CHECK_SLOT} />
             ) : (
               <span className={CHECK_SLOT_PAD} aria-hidden="true" />
             )}
@@ -382,7 +375,7 @@ export function ProjectMenu({
       <div className={MENU_SEPARATOR} />
 
       <div className={itemCls(false)} onClick={() => !busy && openFolder()}>
-        <Folder size={14} strokeWidth={2} className="shrink-0 opacity-70" />
+        <SolarIcon name="folder-with-files" size={14} className="opacity-70" />
         <span className="flex-1">{text("Open folder…", "打开文件夹…")}</span>
       </div>
 
@@ -525,9 +518,9 @@ export function ProjectBadge() {
             {/* Warning triangle replaces the folder icon when the bound
                 directory is gone — the menu then offers the repair. */}
             {missing ? (
-              <AlertTriangle size={14} strokeWidth={2} />
+              <SolarIcon name="danger-triangle" size={14} />
             ) : (
-              <FolderOpenIcon ref={iconRef} size={14} />
+              <SolarIcon name="folder-open" ref={iconRef} size={14} />
             )}
           </span>
           {/* Always show the project name — "Default" for the unbound

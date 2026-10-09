@@ -17,11 +17,8 @@ import {
 } from "react";
 
 import styles from "../composer.module.css";
-import {
-  CheckIcon,
-  XIcon,
-  type AnimatedNavIconHandle,
-} from "@/components/animated-icons";
+import { type AnimatedNavIconHandle } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 import { useTranslation } from "@/lib/i18n";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -68,8 +65,8 @@ export const ToolChip = forwardRef<HTMLDivElement, ToolChipProps>(function ToolC
 ) {
   const { text } = useTranslation();
   const { node, onMouseEnter, onMouseLeave } = useHoverDrivenIcon(icon);
-  // The × that slides out on hover is the animated XIcon, driven from
-  // the same chip hover as the main glyph.
+  // The × that slides out on hover pops with the same chip hover as
+  // the main glyph.
   const closeRef = useRef<AnimatedNavIconHandle>(null);
   return (
     <div
@@ -90,7 +87,7 @@ export const ToolChip = forwardRef<HTMLDivElement, ToolChipProps>(function ToolC
       <span className={styles.toolChipIcon}>{node}</span>
       {on && (
         <span className={styles.toolChipClose} aria-label={text("Turn off", "关闭")}>
-          <XIcon ref={closeRef} size={12} />
+          <SolarIcon ref={closeRef} name="close-circle" size={12} />
         </span>
       )}
     </div>
@@ -113,10 +110,10 @@ export function PlusMenuItem({
   trailing?: ReactNode;   // 右侧附加（未勾选时显示，如数字快捷键 / "Enable"）
 }) {
   const { node, onMouseEnter, onMouseLeave } = useHoverDrivenIcon(icon);
-  // The ✓ plays its draw-in animation exactly once — at the moment the
-  // item becomes checked (active: false → true). It does NOT animate on
-  // hover: attaching a ref puts the CheckIcon in "controlled" mode, so it
-  // no longer self-animates on its own hover, and we never drive it from
+  // The ✓ plays its pop-in exactly once — at the moment the item
+  // becomes checked (active: false → true). It does NOT animate on
+  // hover: attaching a ref puts the icon in "controlled" mode, so it no
+  // longer self-animates on its own hover, and we never drive it from
   // the row's mouse handlers. Re-opening the menu on an already-checked
   // item does not replay it (prevActive starts equal to active on mount,
   // so the false→true edge isn't seen). useLayoutEffect fires before
@@ -148,9 +145,11 @@ export function PlusMenuItem({
           <span style={{ fontSize: 12, color: "var(--text-muted)", display: "inline-flex" }}>{trailing}</span>
         ) : null}
         {active ? (
-          <CheckIcon
+          <SolarIcon
             ref={checkRef}
+            name="check-circle"
             size={14}
+            motionPreset="pulse"
             style={{ color: "var(--text-bright)" }}
           />
         ) : null}

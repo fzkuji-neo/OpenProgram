@@ -15,7 +15,7 @@
  * store — the first chat frame carries the list (send-chat-message.ts).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Folder, FolderPlus, X } from "lucide-react";
+import { SolarIcon } from "@/components/solar-icons";
 
 import {
   Popover,
@@ -183,9 +183,10 @@ export function WorkingDirChips() {
     <>
       {workingDirs.map((dir) => (
         <span key={dir} className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} runtime-badge workdir-badge`} title={dir}>
-          <Folder size={14} strokeWidth={2} className="workdir-icon" />
+          <SolarIcon name="folder-with-files" size={14} className="workdir-icon" />
           <span className="badge-short">{baseName(dir)}</span>
-          <X
+          <SolarIcon
+            name="close-circle"
             size={13}
             role="button"
             tabIndex={0}
@@ -206,7 +207,7 @@ export function WorkingDirChips() {
               className={`${cn(buttonVariants({ variant: "elevated", size: "icon-sm" }))} runtime-badge workdir-badge workdir-add-badge`}
               aria-label={text("Add working folder", "添加工作目录")}
             >
-              <FolderPlus size={14} strokeWidth={2} className="workdir-icon" />
+              <SolarIcon name="add-folder" size={14} className="workdir-icon" />
             </button>
           </PopoverTrigger>
         </HoverTip>
@@ -237,7 +238,7 @@ export function WorkingDirChips() {
               </>
             ) : null}
             <div className={itemCls(false)} onClick={() => void chooseFolder()}>
-              <Folder size={14} strokeWidth={2} className="shrink-0 opacity-70" />
+              <SolarIcon name="folder-with-files" size={14} className="opacity-70" />
               <span className="flex-1">
                 {text("Choose folder…", "选择文件夹…")}
               </span>

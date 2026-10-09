@@ -35,7 +35,7 @@ assert.doesNotMatch(projectMenu, /\bremoveProject\b/);
 assert.doesNotMatch(projectMenu, /remove_project/);
 assert.doesNotMatch(projectMenu, /Remove from list|从列表移除/);
 assert.match(projectMenu, /<PopoverTrigger asChild>[\s\S]*id="projectBadge"/);
-assert.match(projectMenu, /<Check\b/);
+assert.match(projectMenu, /name="check-circle"/);
 assert.match(projectMenu, /Open folder…/);
 assert.match(projectMenu, /useFolderPicker\(\)/);
 assert.match(workingDirs, /useFolderPicker\(\)/);
@@ -116,8 +116,8 @@ assert.match(projectMenu, /const frozen = sessionId !== null/);
 assert.match(projectMenu, /if \(frozen\) \{/);
 assert.match(projectMenu, /"relocate_project"/);
 assert.match(projectMenu, /Locate folder…/);
-// Missing-directory warning uses the lucide icon, never an emoji glyph.
-assert.match(projectMenu, /<AlertTriangle\b/);
+// Missing-directory warning uses the Solar icon, never an emoji glyph.
+assert.match(projectMenu, /name="danger-triangle"/);
 assert.doesNotMatch(projectMenu, /[⚠❗🚨📁]/u);
 assert.match(projectMenu, /path_missing/);
 assert.match(chatCss, /\.project-badge-missing\b/);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { SolarIcon } from "@/components/solar-icons";
 import { useTranslation } from "@/lib/i18n";
 import styles from "../approval/approval-mode.module.css";
 
@@ -30,7 +30,7 @@ export function OperationCode({ value, language }: { value: string; language: st
             try { await navigator.clipboard.writeText(value); setStatus("copied"); }
             catch { setStatus("error"); }
           }}>
-          {status === "copied" ? <Check size={16} /> : <Copy size={16} />}
+          {status === "copied" ? <SolarIcon name="check-circle" size={16} /> : <SolarIcon name="copy" size={16} />}
         </button>
       </div>
       <span role="status" className="sr-only">{status === "idle" ? "" : label}</span>

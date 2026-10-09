@@ -13,7 +13,6 @@
  * <Popover> in `index.tsx`; this component just renders the rows.
  */
 import { useEffect, useState } from "react";
-import { Check, ChevronRight } from "lucide-react";
 
 import { useBoundChat } from "./bound-chat";
 import { mirrorUpsertConv } from "@/lib/runtime-bridge/conv-store-mirror";
@@ -30,7 +29,7 @@ import {
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { useTranslation } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
-import { SettingsIcon } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 import {
   CHECK_SLOT,
   CHECK_SLOT_PAD,
@@ -128,7 +127,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
       <div className={itemCls(false)} onClick={() => pick("", "")}>
         <span className="flex-1 truncate">{text("Local", "本地")}</span>
         {!cur.channel ? (
-          <Check size={14} className={CHECK_SLOT} />
+          <SolarIcon name="check-circle" size={14} className={CHECK_SLOT} />
         ) : (
           <span className={CHECK_SLOT_PAD} />
         )}
@@ -170,7 +169,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
                   ) : null}
                 </span>
                 {active ? (
-                  <Check size={14} className={CHECK_SLOT} />
+                  <SolarIcon name="check-circle" size={14} className={CHECK_SLOT} />
                 ) : (
                   <span className={CHECK_SLOT_PAD} />
                 )}
@@ -180,7 +179,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
         </div>
       ))}
 
-      {/* Grammar-B action row：设置图标 + 文案 + ChevronRight，常驻
+      {/* Grammar-B action row：设置图标 + 文案 + 右箭头，常驻
           菜单底部，hover 才上强调色。 */}
       <div className={MENU_SEPARATOR} />
       <a
@@ -188,11 +187,11 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
         onClick={onClose}
         className={`${itemCls(false)} no-underline`}
       >
-        <SettingsIcon size={16} className="shrink-0" aria-hidden="true" />
+        <SolarIcon name="settings-minimalistic" size={16} aria-hidden="true" />
         <span className="flex-1 truncate">
           {text("Add channels", "添加渠道")}
         </span>
-        <ChevronRight size={14} className="shrink-0 text-text-muted" />
+        <SolarIcon name="alt-arrow-right" size={14} className="text-text-muted" />
       </a>
     </div>
   );

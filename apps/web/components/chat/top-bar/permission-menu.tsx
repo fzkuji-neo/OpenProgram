@@ -27,12 +27,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { useTranslation } from "@/lib/i18n";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
-import { Check } from "lucide-react";
 
-import {
-  type AnimatedNavIconHandle,
-  ShieldCheckIcon,
-} from "@/components/animated-icons";
+import { type AnimatedNavIconHandle } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 import {
   Popover,
   PopoverContent,
@@ -111,7 +108,8 @@ export function PermissionBadge() {
               onMouseEnter={() => iconRef.current?.startAnimation?.()}
               onMouseLeave={() => iconRef.current?.stopAnimation?.()}
             >
-              <ShieldCheckIcon
+              <SolarIcon
+                name="shield-check"
                 ref={iconRef}
                 size={14}
                 className="shrink-0 mr-[4px]"
@@ -150,7 +148,7 @@ export function PermissionBadge() {
                 {/* Claude 实测顺序：勾在前、数字快捷键在最右
                     （"Opus 4.8 ✓ 2"）。未选中留同宽占位保持数字列对齐。 */}
                 {o.value === mode ? (
-                  <Check size={14} className={CHECK_SLOT} aria-hidden="true" />
+                  <SolarIcon name="check-circle" size={14} className={CHECK_SLOT} aria-hidden="true" />
                 ) : (
                   <span className={CHECK_SLOT_PAD} />
                 )}

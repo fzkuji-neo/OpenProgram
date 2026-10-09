@@ -23,6 +23,7 @@ Web UI 界面 — 界面系统、指示点、附件处理、聊天轮次视觉�
 - [`chat-attachments.html`](chat-attachments.zh.html) — 聊天附件双向流转：聊天流里显示成什么、agent 怎么把文件交回来、可读文件怎么点开
 - [`gui-agent.html`](gui-agent.zh.html) — GUI agent 入口、状态机、结果契约与实现状态
 - [`indicator-dots.md`](indicator-dots.zh.md) — 指示点
+- [`icons.md`](icons.zh.md) — 图标体系：哪一族用在哪里（输入框区域 Solar、外壳动效线性图标、其余 lucide）、动效约定、署名
 - [`surface-system.md`](surface-system.zh.md) — Surface 系统
 - [`theme-system.html`](theme-system.zh.html) — 主题入口、完整 token 契约、组件消费与桌面浮层传播的权威设计
 - [`settings-collapsible-columns.html`](settings-collapsible-columns.zh.html) — 应用主侧栏与 Settings 分类栏的独立 49px 折叠；Provider 列表始终展开，搜索框通栏

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { MonitorIcon, type AnimatedNavIconHandle } from "@/components/animated-icons";
+import { type AnimatedNavIconHandle } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 import { HoverTip } from "@/components/ui/tooltip";
 import {
   Popover,
@@ -108,7 +109,8 @@ export function ConnectionStatusChip({ owningId = true }: { owningId?: boolean }
               style={{ display: "none" }}
               aria-hidden="true"
             />
-            <MonitorIcon
+            <SolarIcon
+              name="monitor"
               ref={monitorIconRef}
               size={14}
               style={{ color: iconColor }}

@@ -114,16 +114,13 @@
               opacity 180ms ease;
 }
 
-/* The animated ChevronRightIcon draws at 24-viewBox / stroke 2; scaled
-   to 12px the line thins to 1px — 3 brings it back to ~1.5px rendered.
-   flex-shrink on the svg + its wrapper div: without it the flex caret
-   span squeezes the icon to 0 width during the slide-out. */
+/* flex-shrink on the svg + its wrapper: without it the flex caret span
+   squeezes the icon to 0 width during the slide-out. */
 .effort-pill-caret svg {
-  stroke-width: 3;
   flex-shrink: 0;
 }
 
-.effort-pill-caret > div {
+.effort-pill-caret > span {
   flex-shrink: 0;
 }
 
