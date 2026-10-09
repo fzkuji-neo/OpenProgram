@@ -5,9 +5,9 @@ screen never mixes a filled glyph next to a line glyph by accident.
 
 | Family | Territory | Package / source | License |
 |---|---|---|---|
-| **Solar** (Bold Duotone) | The composer area: environment-row chips, the control row and its plus menu, model / permission badges, the effort pill, the question / approval panel, the send arrow | `apps/web/components/solar-icons` — bodies vendored from the Iconify `solar` set into `bodies.ts` by `apps/web/scripts/icons/fetch-solar.mjs` | CC BY 4.0, Solar Icons by 480 Design |
+| **Solar** (Bold Duotone) | The composer area: environment-row chips, the control row and its plus menu, model / permission badges, the effort pill, the question / approval panel, the send arrow. Also the tiles of the chat execution timeline rows | `apps/web/components/solar-icons` — bodies vendored from the Iconify `solar` set into `bodies.ts` by `apps/web/scripts/icons/fetch-solar.mjs` | CC BY 4.0, Solar Icons by 480 Design |
 | **pqoqubbw animated line icons** | App chrome outside the composer: left rail, center tabs, sidebar, settings nav, function cards, DAG view | `apps/web/components/animated-icons` | MIT |
-| **lucide-react** | Everything else that needs no motion: timeline rows, settings bodies, dialogs | `lucide-react` | ISC |
+| **lucide-react** | Everything else that needs no motion: settings bodies, dialogs, the timeline's disclosure chevron | `lucide-react` | ISC |
 
 Provider logos come from LobeHub (`components/settings/lobe-icons.ts`) and
 avatars from DiceBear identicons; neither is part of this contract.
@@ -68,6 +68,57 @@ The `?` help button in the effort card
 has no vendored question glyph yet, and the button is static, so it needs
 no motion handle. See the implementation status below for both.
 
+## Solar in the execution timeline
+
+Each row of the expanded execution timeline starts with a 24 px tinted
+square (20 px when nested) holding a 13 px glyph (11 px nested). The
+glyphs are Solar Bold Duotone, so the rows read as flat filled marks in
+the tone colour rather than line drawings. `presentTool()` in
+`apps/web/components/chat/messages/tool-presentation.ts` picks the glyph
+per tool (`ToolPresentation.icon`, a `SolarIconName`); `StepRow` in
+`execution-strip.tsx` falls back to a glyph per row kind when no tool
+glyph is given. The tile and its tone colours are unchanged by the icon
+family.
+
+| Row | Solar icon |
+|---|---|
+| Command (`bash`, `terminal_use`, `process`) | `programming` |
+| Execute code | `code-square` |
+| Edit / write / patch | `pen-new-square` |
+| Read file / PDF | `file-text` |
+| List folder | `folder-open` |
+| Find files (`glob`) | `file-search` |
+| Search (`grep`, code search) | `magnifier` |
+| Code intelligence (LSP) | `structure` |
+| Web search / fetch | `global` |
+| Browser control | `cursor` |
+| Generate image / analyze image | `gallery-add` / `gallery` |
+| Canvas, send file, message an agent | `plain-2` |
+| Sub-agent tools | `bot` |
+| Read conversation | `book` |
+| Ask the user | `chat-round-question-mark` |
+| Plan mode | `map` |
+| Scheduled jobs | `calendar` |
+| Run program | `box` |
+| Use skill | `stars` |
+| Resource, memory | `database` |
+| Todos | `checklist` |
+| Worktree | `git-branch` |
+| Self-update | `refresh` |
+| MCP | `plug-circle` |
+| Any other function | `sledgehammer` |
+| Fallbacks by row kind: thinking / LLM / sub-agent / function | `lightbulb-bolt` / `cpu` / `bot` / `sledgehammer` |
+
+Solar has no wrench, so generic function rows use the sledgehammer as
+their tool mark. The thinking fallback reuses `lightbulb-bolt`, the same
+glyph the model selector uses for reasoning. A failed row keeps its
+small stroked ✗, and the disclosure chevron after the summary stays
+lucide `ChevronRight`. Neither is a type glyph.
+
+Timeline glyphs are static (`motionPreset="none"`). The row head is not
+a button, and clicking it only expands or collapses the row. The glyphs
+carry no tooltip, because transcript content gets no hover tips.
+
 ## Motion contract
 
 All three families speak the same imperative handle,
@@ -105,6 +156,8 @@ entry is still to be added (see below).
 - Composer area on Solar, including the environment-row chips, the plus
   menu, the question / approval panel and the model / permission badges
   shared through `components/chat/top-bar`: **implemented**.
+- Execution timeline row tiles on Solar (per-tool glyphs and the
+  thinking / LLM / sub-agent / function fallbacks): **implemented**.
 - Fast toggle as a state-driven gauge (needle idles low when off, sweeps
   to high and turns accent-red when on): **not implemented** — the
   animated-set gauge with a static `active` rotation remains.

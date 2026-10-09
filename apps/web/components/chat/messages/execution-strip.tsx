@@ -8,13 +8,15 @@
  * （复用共享详情面板）。行尾 ⌄N 只展开子行
  * （递归层级），不在聊天里倒 JSON。思考行例外：内容轻，点行内联展开。
  *
- * 思考、LLM、子代理沿用 animated-icons；函数行使用静态 Lucide Wrench。
+ * 行图标统一用 Solar Bold Duotone（tool-presentation.ts 按工具选图，
+ * 思考 / LLM / 子代理 / 通用函数各有兜底），静态不动画。
  * 图标绝对定位在标题行内部，与文字共用同一垂直中心。流式进行中的一轮
  * 不走这里（assistant-bubble 平铺实时块），落定后切到本组件。
  */
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import { memo, useEffect, useState } from "react";
-import { Brain, ChevronRight, Wrench, type LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { presentTool, summarizeResult, type ToolTone } from "./tool-presentation";
 import type { ToolGroupSummary } from "./tool-group-summary";
 import { afterTwoAnimationFrames } from "./collapse-frame";
@@ -31,10 +33,6 @@ import { fetchFullToolOutput } from "@/lib/net/tool-output";
 import { getSocket } from "@/lib/runtime-bridge/state";
 import { LlmNodeContent } from "./llm-node-content";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
-import {
-  BotIcon,
-  CpuIcon,
-} from "@/components/animated-icons";
 import { MessageTimestamp } from "./message-actions";
 
 export { SPAWNING_TOOL_NAMES } from "./tool-group-summary";
@@ -198,7 +196,7 @@ export function StepRow({
 }: {
   icon: "thinking" | "function" | "llm" | "subagent";
   /** Per-tool icon; overrides the generic one for `icon`. */
-  glyph?: LucideIcon;
+  glyph?: SolarIconName;
   /** Per-tool colour family (tool-presentation.ts). */
   tone?: ToolTone;
   title: string;
@@ -266,9 +264,9 @@ export function StepRow({
     if (onOpenDetail) onOpenDetail();
     else useSessionStore.getState().showDetail(detail);
   }
-  const Icon = glyph ?? (icon === "thinking" ? Brain
-    : icon === "subagent" ? BotIcon
-    : icon === "llm" ? CpuIcon : Wrench);
+  const glyphName: SolarIconName = glyph ?? (icon === "thinking" ? "lightbulb-bolt"
+    : icon === "subagent" ? "bot"
+    : icon === "llm" ? "cpu" : "sledgehammer");
   return (
     <div
       className={"tl-step" + (expanded ? " open" : "")}
@@ -298,7 +296,7 @@ export function StepRow({
               <line x1="18" y1="6" x2="6" y2="18" />
             </svg>
           ) : (
-            <Icon size={13} strokeWidth={1.9} />
+            <SolarIcon name={glyphName} size={13} motionPreset="none" />
           )}
         </span>
         <span
@@ -472,7 +470,7 @@ export function FunctionStep({
   return (
     <StepRow
       icon="function"
-      glyph={view.Icon}
+      glyph={view.icon}
       tone={view.tone}
       title={view.title}
       target={view.target ? short(view.target, 72) : undefined}
@@ -583,7 +581,7 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
   return (
     <StepRow
       icon={isLlm ? "llm" : "function"}
-      glyph={isLlm ? undefined : treeView?.Icon}
+      glyph={isLlm ? undefined : treeView?.icon}
       tone={isLlm ? undefined : treeView?.tone}
       title={isLlm ? "LLM" : (node.name || node.node_type || "call")}
       note={noteParts.join(" · ")}

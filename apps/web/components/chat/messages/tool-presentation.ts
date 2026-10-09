@@ -4,42 +4,17 @@
  * call ("Ran `npm test`", "Edited `src/app.ts`"). Raw JSON never reaches
  * the row; the side panel still shows full params and output.
  */
-import type { LucideIcon } from "lucide-react";
-import {
-  Bot,
-  BookOpen,
-  CalendarClock,
-  Code,
-  Database,
-  FilePen,
-  FileSearch,
-  FileText,
-  FolderOpen,
-  GitBranch,
-  Globe,
-  Image,
-  ImagePlus,
-  ListChecks,
-  Map,
-  MessageCircleQuestion,
-  MousePointerClick,
-  Network,
-  Package,
-  Plug,
-  RefreshCw,
-  Search,
-  Send,
-  Sparkles,
-  SquareTerminal,
-  Wrench,
-} from "lucide-react";
+// Type-only (erased at runtime), so the node unit tests can load this
+// module without the `@/` alias.
+import type { SolarIconName } from "../../solar-icons/bodies";
 
 export type ToolTone =
   | "shell" | "edit" | "read" | "search" | "web" | "agent"
   | "memory" | "plan" | "media" | "system" | "function";
 
 export interface ToolPresentation {
-  Icon: LucideIcon;
+  /** Solar Bold Duotone glyph drawn in the row's tinted tile. */
+  icon: SolarIconName;
   tone: ToolTone;
   /** Verb phrase, already localized. */
   title: string;
@@ -101,111 +76,111 @@ export function presentTool(name: string, input: string | undefined, text: Text)
     case "bash":
     case "terminal_use":
     case "process":
-      return { Icon: SquareTerminal, tone: "shell", title: text("Ran", "运行"),
+      return { icon: "programming", tone: "shell", title: text("Ran", "运行"),
         target: firstLine(pick(args, "command", "cmd", "input", "action")) };
     case "execute_code":
-      return { Icon: Code, tone: "shell", title: text("Executed code", "执行代码"),
+      return { icon: "code-square", tone: "shell", title: text("Executed code", "执行代码"),
         target: pick(args, "language") ?? firstLine(pick(args, "code")) };
     case "edit":
-      return { Icon: FilePen, tone: "edit", title: text("Edited", "修改"), target: path };
+      return { icon: "pen-new-square", tone: "edit", title: text("Edited", "修改"), target: path };
     case "write":
-      return { Icon: FilePen, tone: "edit", title: text("Wrote", "写入"), target: path };
+      return { icon: "pen-new-square", tone: "edit", title: text("Wrote", "写入"), target: path };
     case "apply_patch":
-      return { Icon: FilePen, tone: "edit", title: text("Patched", "应用补丁"), target: path };
+      return { icon: "pen-new-square", tone: "edit", title: text("Patched", "应用补丁"), target: path };
     case "read":
     case "pdf":
-      return { Icon: FileText, tone: "read", title: text("Read", "读取"), target: path };
+      return { icon: "file-text", tone: "read", title: text("Read", "读取"), target: path };
     case "list":
-      return { Icon: FolderOpen, tone: "read", title: text("Listed", "列出"), target: path ?? "." };
+      return { icon: "folder-open", tone: "read", title: text("Listed", "列出"), target: path ?? "." };
     case "glob":
-      return { Icon: FileSearch, tone: "search", title: text("Found files", "查找文件"),
+      return { icon: "file-search", tone: "search", title: text("Found files", "查找文件"),
         target: pick(args, "pattern", "glob") };
     case "grep":
-      return { Icon: Search, tone: "search", title: text("Searched", "搜索"),
+      return { icon: "magnifier", tone: "search", title: text("Searched", "搜索"),
         target: pick(args, "pattern", "query", "regex") };
     case "semble_search":
     case "semble_find_related":
-      return { Icon: Search, tone: "search", title: text("Searched code", "搜索代码"),
+      return { icon: "magnifier", tone: "search", title: text("Searched code", "搜索代码"),
         target: pick(args, "query", "path", "symbol") };
     case "lsp_definition":
     case "lsp_references":
     case "lsp_diagnostics":
-      return { Icon: Network, tone: "search", title: text("Inspected code", "代码分析"),
+      return { icon: "structure", tone: "search", title: text("Inspected code", "代码分析"),
         target: pick(args, "symbol") ?? path };
     case "web_search":
-      return { Icon: Globe, tone: "web", title: text("Searched the web", "网页搜索"),
+      return { icon: "global", tone: "web", title: text("Searched the web", "网页搜索"),
         target: pick(args, "query", "q") };
     case "web_fetch":
-      return { Icon: Globe, tone: "web", title: text("Fetched", "抓取网页"), target: pick(args, "url") };
+      return { icon: "global", tone: "web", title: text("Fetched", "抓取网页"), target: pick(args, "url") };
     case "agent_browser":
     case "playwright_browser":
     case "web_use":
-      return { Icon: MousePointerClick, tone: "web", title: text("Browser", "浏览器"),
+      return { icon: "cursor", tone: "web", title: text("Browser", "浏览器"),
         target: [pick(args, "command", "action"), pick(args, "url")].filter(Boolean).join(" ") || undefined };
     case "image_generate":
-      return { Icon: ImagePlus, tone: "media", title: text("Generated image", "生成图片"),
+      return { icon: "gallery-add", tone: "media", title: text("Generated image", "生成图片"),
         target: firstLine(pick(args, "prompt")) };
     case "image_analyze":
-      return { Icon: Image, tone: "media", title: text("Analyzed image", "分析图片"),
+      return { icon: "gallery", tone: "media", title: text("Analyzed image", "分析图片"),
         target: path ?? pick(args, "url") };
     case "canvas":
     case "send_file":
-      return { Icon: Send, tone: "media", title: name === "canvas" ? text("Canvas", "画布") : text("Sent file", "发送文件"),
+      return { icon: "plain-2", tone: "media", title: name === "canvas" ? text("Canvas", "画布") : text("Sent file", "发送文件"),
         target: path ?? genericTarget(args) };
     case "agent":
     case "task":
     case "mixture_of_agents":
     case "list_agents":
     case "archive_agent":
-      return { Icon: Bot, tone: "agent", title: text("Sub-agent", "子代理"),
+      return { icon: "bot", tone: "agent", title: text("Sub-agent", "子代理"),
         target: firstLine(pick(args, "description", "name", "prompt", "task")) };
     case "send_message":
-      return { Icon: Send, tone: "agent", title: text("Messaged", "发送消息"),
+      return { icon: "plain-2", tone: "agent", title: text("Messaged", "发送消息"),
         target: pick(args, "to", "agent", "name") };
     case "read_conversation":
-      return { Icon: BookOpen, tone: "read", title: text("Read conversation", "读取对话"),
+      return { icon: "book", tone: "read", title: text("Read conversation", "读取对话"),
         target: genericTarget(args) };
     case "ask_user_question":
-      return { Icon: MessageCircleQuestion, tone: "plan", title: text("Asked", "提问"),
+      return { icon: "chat-round-question-mark", tone: "plan", title: text("Asked", "提问"),
         target: firstLine(pick(args, "question", "prompt")) };
     case "enter_plan_mode":
     case "exit_plan_mode":
-      return { Icon: Map, tone: "plan", title: name === "enter_plan_mode" ? text("Planning", "进入规划") : text("Plan ready", "规划完成") };
+      return { icon: "map", tone: "plan", title: name === "enter_plan_mode" ? text("Planning", "进入规划") : text("Plan ready", "规划完成") };
     case "cron":
     case "scheduler":
     case "list_jobs":
     case "job_output":
-      return { Icon: CalendarClock, tone: "plan", title: text("Scheduled", "定时任务"),
+      return { icon: "calendar", tone: "plan", title: text("Scheduled", "定时任务"),
         target: genericTarget(args) };
     case "program":
-      return { Icon: Package, tone: "function", title: text("Ran program", "运行程序"),
+      return { icon: "box", tone: "function", title: text("Ran program", "运行程序"),
         target: pick(args, "name", "program", "path") };
     case "skill":
-      return { Icon: Sparkles, tone: "function", title: text("Used skill", "使用技能"),
+      return { icon: "stars", tone: "function", title: text("Used skill", "使用技能"),
         target: pick(args, "name", "skill") };
     case "resource":
-      return { Icon: Database, tone: "read", title: text("Resource", "资源"), target: genericTarget(args) };
+      return { icon: "database", tone: "read", title: text("Resource", "资源"), target: genericTarget(args) };
   }
   if (name.startsWith("todo_")) {
-    return { Icon: ListChecks, tone: "plan", title: text("Updated todos", "更新待办"),
+    return { icon: "checklist", tone: "plan", title: text("Updated todos", "更新待办"),
       target: firstLine(pick(args, "title", "content", "text")) };
   }
   if (name.startsWith("memory_")) {
-    return { Icon: Database, tone: "memory", title: text("Memory", "记忆"),
+    return { icon: "database", tone: "memory", title: text("Memory", "记忆"),
       target: pick(args, "query", "key", "path", "content") };
   }
   if (name.startsWith("worktree_")) {
-    return { Icon: GitBranch, tone: "system", title: text("Worktree", "工作树"),
+    return { icon: "git-branch", tone: "system", title: text("Worktree", "工作树"),
       target: name.slice("worktree_".length) };
   }
   if (name.startsWith("self_update")) {
-    return { Icon: RefreshCw, tone: "system", title: text("Self-update", "自我更新"),
+    return { icon: "refresh", tone: "system", title: text("Self-update", "自我更新"),
       target: name.replace(/^self_update_?/, "") || undefined };
   }
   if (name.includes("mcp")) {
-    return { Icon: Plug, tone: "system", title: "MCP", target: genericTarget(args) };
+    return { icon: "plug-circle", tone: "system", title: "MCP", target: genericTarget(args) };
   }
-  return { Icon: Wrench, tone: "function", title: name || text("Function", "函数"),
+  return { icon: "sledgehammer", tone: "function", title: name || text("Function", "函数"),
     target: genericTarget(args) };
 }
 

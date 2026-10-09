@@ -1314,11 +1314,17 @@ const designFunctionIcons = [
   ...designDocument.querySelectorAll(".step-icon.k-function svg"),
 ];
 assert.ok(designFunctionIcons.length > 0, "the design must include function timeline icons");
+// The mock draws the same Solar Bold Duotone sledgehammer the app vendors.
+const solarBodies = source("components/solar-icons/bodies.ts");
+const solarSledgehammerPath = JSON.parse(
+  solarBodies.match(/\n  "sledgehammer": ("(?:[^"\\]|\\.)*"),/)?.[1] ?? '""',
+).match(/ d="([^"]+)"/)?.[1];
+assert.ok(solarSledgehammerPath, "bodies.ts must vendor the Solar sledgehammer");
 for (const [index, icon] of designFunctionIcons.entries()) {
   assert.equal(
     icon.querySelector("path")?.getAttribute("d"),
-    "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z",
-    `design function icon ${index + 1} must use Lucide Wrench`,
+    solarSledgehammerPath,
+    `design function icon ${index + 1} must use the Solar sledgehammer`,
   );
 }
 for (const [index, head] of [...designDocument.querySelectorAll(".step-head")].entries()) {
@@ -1573,13 +1579,23 @@ assert.match(
 );
 assert.match(
   executionStrip,
-  /import \{[^}]*\bWrench\b[^}]*\} from "lucide-react";/,
-  "function timeline rows must use the installed Lucide Wrench",
+  /import \{ SolarIcon, type SolarIconName \} from "@\/components\/solar-icons";/,
+  "timeline row tiles must draw Solar Bold Duotone glyphs",
 );
 assert.match(
   executionStrip,
-  /: icon === "llm" \? CpuIcon : Wrench\);/,
-  "generic function rows must fall back to Lucide Wrench",
+  /: icon === "llm" \? "cpu" : "sledgehammer"\);/,
+  "generic function rows must fall back to the Solar sledgehammer",
+);
+assert.match(
+  executionStrip,
+  /<SolarIcon name=\{glyphName\} size=\{13\} motionPreset="none" \/>/,
+  "timeline tiles are static: the row is not a hover-animated control",
+);
+assert.doesNotMatch(
+  executionStrip,
+  /\b(?:Brain|Wrench|LucideIcon)\b/,
+  "timeline tiles must not fall back to lucide line glyphs",
 );
 assert.doesNotMatch(
   executionStrip,
