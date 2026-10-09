@@ -23,7 +23,6 @@
  * Positioning / click-outside come from the shadcn <Popover> in index.tsx.
  */
 import { useEffect, useRef, useState, useCallback } from "react";
-import { type AnimatedNavIconHandle } from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
 
 import {
@@ -413,7 +412,6 @@ export function ProjectBadge() {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState<string>(text("Project", "项目"));
   const [missing, setMissing] = useState(false);
-  const iconRef = useRef<AnimatedNavIconHandle>(null);
   const { pickFolder, folderPickerDialog, manualOpen } = useFolderPicker();
 
   // Returns true once it has resolved a project (so the caller can stop
@@ -521,7 +519,7 @@ export function ProjectBadge() {
             {missing ? (
               <SolarIcon motionPreset="none" name="danger-triangle" size={14} />
             ) : (
-              <SolarIcon name="folder-open" ref={iconRef} size={14} />
+              <SolarIcon name="folder-open" size={14} />
             )}
           </span>
           {/* Always show the project name — "Default" for the unbound
