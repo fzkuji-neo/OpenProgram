@@ -21,7 +21,11 @@ export function quoteToChat(sessionId: string, content: string) {
   requestAnimationFrame(() => {
     const host = Array.from(document.querySelectorAll<HTMLElement>("[data-composer-session]"))
       .find(node => node.dataset.composerSession === sessionId);
-    const input = host?.querySelector<HTMLTextAreaElement>("textarea");
+    // The composer field is a markdown editor exposing a textarea-like
+    // handle on its content element (composer/input/markdown-editor.tsx).
+    const input = host?.querySelector<HTMLElement & { composerInput?: HTMLTextAreaElement }>(
+      "[data-composer-input]",
+    )?.composerInput;
     input?.focus();
     input?.setSelectionRange(input.value.length, input.value.length);
   });

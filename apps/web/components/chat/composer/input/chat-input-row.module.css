@@ -26,11 +26,56 @@
   outline: none;
   resize: none;
   min-height: 22px;
-  max-height: 200px;
   padding: 0 2px;
   line-height: 22px;
   flex: 1;
-  overflow: hidden;
+}
+
+/* CodeMirror chrome (markdown-editor.tsx): transparent, the composer's
+   own type, scrolling past 200px like the old textarea. */
+.chatInput :global(.cm-editor) { background: none; color: inherit; }
+.chatInput :global(.cm-editor.cm-focused) { outline: none; }
+.chatInput :global(.cm-scroller) {
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: var(--font-sans);
+  line-height: 22px;
+  scrollbar-width: thin;
+}
+.chatInput :global(.cm-content) {
+  padding: 0;
+  min-height: 22px;
+  caret-color: var(--text-bright);
+}
+.chatInput :global(.cm-line) { padding: 0; }
+
+/* Live preview: formatting drawn over the literal markdown. */
+.chatInput :global(.cm-md-strong) { font-weight: 650; }
+.chatInput :global(.cm-md-em) { font-style: italic; }
+.chatInput :global(.cm-md-strike) { text-decoration: line-through; color: var(--text-secondary); }
+.chatInput :global(.cm-md-code) {
+  font-family: var(--font-mono);
+  font-size: 0.87em;
+  padding: 1px 4px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
+}
+.chatInput :global(.cm-md-link) { color: var(--accent-blue); }
+.chatInput :global(.cm-md-url),
+.chatInput :global(.cm-md-list) { color: var(--text-muted); }
+.chatInput :global(.cm-md-line-h1) { font-size: 1.25em; font-weight: 650; }
+.chatInput :global(.cm-md-line-h2) { font-size: 1.13em; font-weight: 650; }
+.chatInput :global(.cm-md-line-h3) { font-weight: 650; }
+.chatInput :global(.cm-md-line-quote) {
+  border-left: 3px solid var(--border);
+  padding-left: 10px;
+  color: var(--text-secondary);
+}
+.chatInput :global(.cm-md-line-fence) {
+  font-family: var(--font-mono);
+  font-size: 0.87em;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  padding: 0 8px;
 }
 
 .chatPlaceholder {
@@ -47,8 +92,4 @@
   pointer-events: none;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.chatInput::placeholder {
-  color: var(--text-secondary);
 }
