@@ -40,6 +40,12 @@ assert.match(compactHook, /row\.scrollWidth/);
 assert.match(compactHook, /row\.clientWidth/);
 assert.match(compactHook, /row\.dataset\.compact = "true"/);
 assert.match(compactHook, /delete row\.dataset\.compact/);
+assert.match(compactHook, /row\.dataset\.squeeze = String\(next\)/);
+assert.match(compactHook, /row\.dataset\.measuring = "true"/);
+assert.match(environmentCss, /\.envChips\[data-squeeze\][^{]*\.git-seg-label\)[^{]*\{\s*max-width:\s*12ch/);
+assert.match(environmentCss, /\.envChips\[data-squeeze="2"\] :global\(\.git-seg-label\)/);
+assert.match(environmentCss, /\.envChips\[data-compact="true"\] :global\(\.git-seg-dot\)\s*\{[^}]*width:\s*8px[^}]*opacity:\s*1/);
+assert.match(environmentCss, /\.envChips\[data-measuring\][\s\S]*transition:\s*none !important/);
 
 assert.doesNotMatch(environmentCss, /@container/);
 assert.doesNotMatch(environmentCss, /flex-shrink:\s*1/);

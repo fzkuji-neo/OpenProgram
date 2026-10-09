@@ -30,12 +30,17 @@
 .envChips::-webkit-scrollbar { display: none; }
 .envChips > * { flex-shrink: 0; }
 
-/* Labels are either complete or hidden; they never flex into fragments. */
+/* Labels shrink in steps (use-compact-environment-row.ts), never by
+   flexing into fragments:
+     level 1  [data-squeeze]       long labels capped with an ellipsis,
+                                   the Local chip icon-only
+     level 2  [data-squeeze="2"]   git branch names hidden (icon + badge)
+     level 3  [data-compact=true]  every label hidden, the git diff badge
+                                   reduced to a half-green, half-red dot */
 .envChips > .surfaceChip,
 .envChips :global(.status-badge),
 .envChips :global(.runtime-badge.project-badge),
-.envChips :global(.runtime-badge.workdir-badge),
-.envChips :global(.runtime-badge.git-badge) {
+.envChips :global(.runtime-badge.workdir-badge) {
   flex-shrink: 0;
   min-width: 24px;
 }
@@ -44,14 +49,15 @@
 .envChips :global(.status-badge .badge-short),
 .envChips :global(.project-badge .badge-short),
 .envChips :global(.workdir-badge .badge-short),
-.envChips :global(.git-badge .badge-short),
-.envChips :global(.git-badge-counts),
+.envChips :global(.git-seg-label),
+.envChips :global(.git-seg-badge),
 .envChips :global(.dag-hud-chip > span),
 .envChips :global(.dag-hud-zoom) {
   flex: 0 0 auto;
   max-width: 40ch;
   opacity: 1;
   overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   transform: translateX(0);
   transition:
@@ -62,16 +68,32 @@
     transform 170ms ease;
 }
 
+.envChips :global(.git-seg-label) { max-width: 24ch; }
+.envChips :global(.git-seg-dot) {
+  transition: width 170ms ease, margin 170ms ease, opacity 130ms ease;
+}
+
 .envChips :global(.dag-hud-zoom) {
   max-width: 48px;
 }
 
+/* Level 1: long names capped. */
+.envChips[data-squeeze] .surfaceChipLabel,
+.envChips[data-squeeze] :global(.project-badge .badge-short),
+.envChips[data-squeeze] :global(.workdir-badge .badge-short),
+.envChips[data-squeeze] :global(.git-seg-label) {
+  max-width: 12ch;
+}
+
+/* Hidden labels: level 1 hides Local's, level 2 the branch names, level 3 all. */
+.envChips[data-squeeze] :global(.status-badge):not(.surfaceChip) :global(.badge-short),
+.envChips[data-squeeze="2"] :global(.git-seg-label),
 .envChips[data-compact="true"] .surfaceChipLabel,
 .envChips[data-compact="true"] :global(.status-badge .badge-short),
 .envChips[data-compact="true"] :global(.project-badge .badge-short),
 .envChips[data-compact="true"] :global(.workdir-badge .badge-short),
-.envChips[data-compact="true"] :global(.git-badge .badge-short),
-.envChips[data-compact="true"] :global(.git-badge-counts),
+.envChips[data-compact="true"] :global(.git-seg-label),
+.envChips[data-compact="true"] :global(.git-seg-badge),
 .envChips[data-compact="true"] :global(.dag-hud-chip > span),
 .envChips[data-compact="true"] :global(.dag-hud-zoom) {
   max-width: 0;
@@ -85,17 +107,35 @@
   transform: translateX(-2px);
 }
 
+.envChips[data-compact="true"] :global(.git-seg-dot) {
+  width: 8px;
+  margin-left: 0;
+  opacity: 1;
+}
+
+.envChips[data-squeeze] :global(.status-badge):not(.surfaceChip),
 .envChips[data-compact="true"] > .surfaceChip,
 .envChips[data-compact="true"] :global(.status-badge),
-.envChips[data-compact="true"] :global(.runtime-badge.project-badge),
-.envChips[data-compact="true"] :global(.runtime-badge.workdir-badge),
-.envChips[data-compact="true"] :global(.runtime-badge.git-badge),
+.envChips[data-compact="true"] :global(.workdir-add-badge),
 .envChips[data-compact="true"] :global(button.dag-hud-chip) {
   min-width: 24px;
   padding-left: 5px;
   padding-right: 5px;
   gap: 0;
   justify-content: center;
+}
+
+/* Folder pills keep their shell; their segments tighten instead. */
+.envChips[data-squeeze="2"] :global(.folder-pill-seg),
+.envChips[data-compact="true"] :global(.folder-pill-seg) {
+  padding-left: 9px;
+  padding-right: 9px;
+}
+
+/* Measuring pass: lay out every level instantly. */
+.envChips[data-measuring] *,
+.envChips[data-measuring] {
+  transition: none !important;
 }
 
 .trailingControls {
@@ -129,9 +169,10 @@
   .envChips :global(.status-badge),
   .envChips :global(.runtime-badge.project-badge),
   .envChips :global(.runtime-badge.workdir-badge),
-  .envChips :global(.runtime-badge.git-badge),
-  .envChips :global(.git-badge .badge-short),
-  .envChips :global(.git-badge-counts),
+  .envChips :global(.git-seg-label),
+  .envChips :global(.git-seg-badge),
+  .envChips :global(.git-seg-dot),
+  .envChips :global(.folder-pill-seg),
   .envChips :global(.dag-hud-chip) {
     transition: none;
   }

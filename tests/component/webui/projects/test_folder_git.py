@@ -38,10 +38,11 @@ def test_non_repo_folder_reports_not_a_repo(tmp_path: Path) -> None:
 def test_status_counts_tracked_lines_and_untracked_files(repo: Path) -> None:
     (repo / "a.txt").write_text("one\nTWO\nthree\n")
     (repo / "new.txt").write_text("x\n")
+    (repo / "blob.bin").write_bytes(b"\0\1\2")
     status = folder_git.folder_status(str(repo), include_branches=True)
     assert status["branch"] == "main"
     assert status["changes"] == {
-        "files": 2, "untracked": 1, "conflicts": 0, "insertions": 2, "deletions": 1,
+        "files": 3, "untracked": 2, "conflicts": 0, "insertions": 3, "deletions": 1,
     }
     assert status["branches"] == ["main"]
     assert status["is_worktree"] is False

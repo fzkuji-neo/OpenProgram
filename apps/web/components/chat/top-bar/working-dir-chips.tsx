@@ -3,8 +3,8 @@
 /**
  * WorkingDirChips — claude.ai-style chips for the session's additional
  * working directories, rendered in the composer's envChips row right of
- * <ProjectBadge />. One chip per directory (folder icon + basename + ✕
- * remove) plus a trailing icon-only "add" chip that opens a picker menu:
+ * <ProjectBadge />. One folder pill per directory (folder icon + basename,
+ * ✕ remove on hover, then the git segment when it is in a checkout) plus a trailing icon-only "add" chip that opens a picker menu:
  * recent projects (one click adds that project's path as a working dir)
  * plus a "Choose folder…" row that pops the OS-native directory chooser
  * via POST /api/pick-folder.
@@ -14,7 +14,7 @@
  * `working_dirs` broadcast is authoritative. Drafts only write the
  * store — the first chat frame carries the list (send-chat-message.ts).
  */
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
 
 import {
@@ -33,6 +33,7 @@ import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles"
 import { activateOnKey, cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { GitChip } from "./git-chip";
+import { FOLDER_PILL } from "./folder-pill";
 
 /** Stable empty list so the zustand selector doesn't churn renders. */
 const NO_WORKING_DIRS: string[] = [];
@@ -198,29 +199,30 @@ export function WorkingDirChips() {
   return (
     <>
       {workingDirs.map((dir, index) => (
-        <Fragment key={dir}>
-        <span className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} runtime-badge workdir-badge`} title={dir}>
-          <SolarIcon name="folder-with-files" size={14} className="workdir-icon" />
-          <span className="badge-short">{baseName(dir)}</span>
-          <SolarIcon
-            name="close-circle"
-            size={13}
-            role="button"
-            tabIndex={0}
-            aria-label={text("Remove folder", "移除文件夹")}
-            className="workdir-remove"
-            onClick={() => applyWorkingDirs(workingDirs.filter((d) => d !== dir))}
-            onKeyDown={activateOnKey(() =>
-              applyWorkingDirs(workingDirs.filter((d) => d !== dir)),
-            )}
+        <span key={dir} className={`${FOLDER_PILL} runtime-badge workdir-badge`} title={dir}>
+          <span className="folder-pill-seg">
+            <SolarIcon name="folder-with-files" size={14} className="workdir-icon" />
+            <span className="badge-short">{baseName(dir)}</span>
+            {/* ✕ appears on hover / keyboard focus only; it takes no width otherwise. */}
+            <SolarIcon
+              name="close-circle"
+              size={13}
+              role="button"
+              tabIndex={0}
+              aria-label={text("Remove folder", "移除文件夹")}
+              className="workdir-remove"
+              onClick={() => applyWorkingDirs(workingDirs.filter((d) => d !== dir))}
+              onKeyDown={activateOnKey(() =>
+                applyWorkingDirs(workingDirs.filter((d) => d !== dir)),
+              )}
+            />
+          </span>
+          <GitChip
+            path={dir}
+            order={index + 1}
+            onUseFolder={(next) => applyWorkingDirs(workingDirs.map((d) => (d === dir ? next : d)))}
           />
         </span>
-        <GitChip
-          path={dir}
-          order={index + 1}
-          onUseFolder={(next) => applyWorkingDirs(workingDirs.map((d) => (d === dir ? next : d)))}
-        />
-        </Fragment>
       ))}
       <Popover open={open} onOpenChange={onOpenChange}>
         <HoverTip label={text("Add working folder", "添加工作目录")}>

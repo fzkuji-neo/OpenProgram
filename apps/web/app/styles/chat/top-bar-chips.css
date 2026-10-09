@@ -137,25 +137,92 @@
    (shadcn <Popover> + Tailwind) now — the `.agent-selector` and
    `.model-dropdown` chrome rules were removed. */
 
-/* Per-folder git pill (components/chat/top-bar/git-chip.tsx). */
-.git-badge .git-icon { opacity: 0.8; flex-shrink: 0; }
-.git-badge .badge-short {
+/* Folder pill (components/chat/top-bar/folder-pill.ts): one raised pill,
+   a folder segment and — inside a Git checkout — the git segment. Each
+   segment is its own hover target; a hairline separates them. */
+.folder-pill { padding: 0; gap: 0; }
+.folder-pill-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
-  max-width: 22ch;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 120ms ease;
+}
+.folder-pill-seg:hover,
+.folder-pill-seg[aria-expanded="true"] {
+  background: color-mix(in oklch, var(--bg-input), var(--foreground) 6%);
+}
+.folder-pill-seg:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); }
+.folder-pill-seg + .folder-pill-seg {
+  padding-left: 10px;
+  box-shadow: inset 1px 0 0 color-mix(in oklch, var(--foreground) 12%, transparent);
+}
+.folder-pill-seg + .folder-pill-seg:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+/* Working-folder ✕: no width until the pill is hovered or focused. */
+.workdir-badge.folder-pill .workdir-remove {
+  max-width: 0;
+  margin-left: -6px;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width 140ms ease, margin 140ms ease, opacity 120ms ease;
+}
+.workdir-badge.folder-pill:hover .workdir-remove,
+.workdir-badge.folder-pill:focus-within .workdir-remove {
+  max-width: 13px;
+  margin-left: 0;
+  opacity: 0.5;
+}
+.workdir-badge.folder-pill .workdir-remove:hover { opacity: 1; }
+
+/* Git segment: branch icon, short branch name, +N −N diff badge. */
+.git-seg .git-icon { opacity: 0.8; flex-shrink: 0; }
+.git-seg-label {
+  min-width: 0;
+  max-width: 24ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.git-badge-counts {
+/* +N −N as one small pill: green half, red half (same as the file card). */
+.diff-badge {
   display: inline-flex;
-  gap: 4px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  overflow: hidden;
   font-size: 11.5px;
+  line-height: 17px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
 }
-.git-badge-counts .is-add,
+.diff-badge > span { padding: 0 5px; }
+.diff-badge .is-add {
+  color: var(--accent-green);
+  background: color-mix(in oklch, var(--accent-green) 18%, transparent);
+}
+.diff-badge .is-del {
+  color: var(--accent-red);
+  background: color-mix(in oklch, var(--accent-red) 18%, transparent);
+}
+/* The tightest row level swaps the badge for this half-green, half-red dot. */
+.git-seg-dot {
+  flex-shrink: 0;
+  width: 0;
+  height: 8px;
+  margin-left: -6px;
+  border-radius: 50%;
+  opacity: 0;
+  background: linear-gradient(90deg, var(--accent-green) 50%, var(--accent-red) 50%);
+}
 .git-menu-stat.is-add { color: var(--accent-green); }
-.git-badge-counts .is-del,
 .git-menu-stat.is-del { color: var(--accent-red); }
 .git-menu-stat { font-size: 12px; font-variant-numeric: tabular-nums; }
 .git-menu-note {

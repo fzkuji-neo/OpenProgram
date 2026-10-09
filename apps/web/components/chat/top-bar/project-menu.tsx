@@ -38,9 +38,8 @@ import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { useBoundChat } from "./bound-chat";
 import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { GitChip } from "./git-chip";
+import { FOLDER_PILL } from "./folder-pill";
 
 /** Fired whenever the conversation's project changes so the topbar chip
  * re-fetches its label without a store round-trip. */
@@ -501,6 +500,13 @@ export function ProjectBadge() {
 
   return (
     <>
+    <span
+      className={
+        FOLDER_PILL +
+        " runtime-badge project-badge" +
+        (missing ? " project-badge-missing" : "")
+      }
+    >
     <Popover open={open} onOpenChange={onOpenChange}>
       <HoverTip
         label={
@@ -510,14 +516,7 @@ export function ProjectBadge() {
         }
       >
         <PopoverTrigger asChild>
-          <span
-            id="projectBadge"
-            className={
-              cn(buttonVariants({ variant: "elevated", size: "sm" })) +
-              " runtime-badge project-badge" +
-              (missing ? " project-badge-missing" : "")
-            }
-          >
+          <span id="projectBadge" role="button" tabIndex={0} className="folder-pill-seg">
           <span className="project-icon" aria-hidden="true">
             {/* Warning triangle replaces the folder icon when the bound
                 directory is gone — the menu then offers the repair. */}
@@ -545,19 +544,20 @@ export function ProjectBadge() {
     <GitChip
       path={gitPath}
       order={0}
-      onUseFolder={useWorktree}
+      onUseFolder={moveOntoWorktree}
       useFolderLabel={sessionId ? {
         en: "This conversation's main folder is fixed; another worktree is added as a working folder.",
         zh: "本会话的主目录已固定；其他 worktree 会作为额外工作目录加入。",
       } : undefined}
     />
+    </span>
     {folderPickerDialog}
     </>
   );
 
   // Draft: the worktree becomes this chat's project. Started chat: the
   // main folder is frozen, so the worktree joins as a working folder.
-  async function useWorktree(path: string) {
+  async function moveOntoWorktree(path: string) {
     if (sessionId) {
       window.dispatchEvent(new CustomEvent("op:workdir-add", { detail: { path } }));
       return;

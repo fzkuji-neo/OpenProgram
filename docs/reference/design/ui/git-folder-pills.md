@@ -1,8 +1,7 @@
 # Git folder pills
 
 Every working folder a conversation uses that sits inside a Git checkout
-gets a git pill in the composer's environment row, right after that
-folder's chip. The pill answers "what branch is this folder on and what
+gets a git half in its folder pill in the composer's environment row. The pill answers "what branch is this folder on and what
 has changed", and its menu holds the few Git actions a chat user needs
 without leaving the conversation: switch branch, work in a worktree,
 review the changes, open a pull request.
@@ -17,20 +16,35 @@ review the changes, open a pull request.
 
 Two folders inside the **same checkout** (the project root and one of
 its subfolders, say) share one branch, one change set and one PR, so
-only one pill shows. Each mounted pill claims its checkout root with an
+only one git half shows. Each mounted git half claims its checkout root with an
 order, project first and then working folders in list order, and the
 lowest order wins (`components/chat/top-bar/git-chip-registry.ts`).
 Separate worktrees of one repository have separate roots, so each keeps
-its own pill.
+its own git half.
 
 ## The pill
 
-Elevated `sm` pill, Solar `git-branch` icon, then the branch name (the
-short commit id when HEAD is detached), then the uncommitted line counts
-`+N −N` in the diff colours. With only untracked files the count is the
-file count. A clean folder shows the branch alone. In the row's compact
-mode the label and counts collapse and the icon remains, like the other
-chips.
+One raised pill per folder (`components/chat/top-bar/folder-pill.ts`)
+with two segments separated by a hairline, each its own hover and click
+target. The left segment is the folder: icon, name, and for a working
+folder a ✕ that appears only on hover or keyboard focus. It opens the
+project menu. The right segment is git: Solar `git-branch`, the last path
+segment of the branch name (`claude/foo` shows `foo`; the short commit
+id when HEAD is detached), and the uncommitted `+N −N` as a diff badge,
+a green half and a red half, as on the file-change card. New untracked
+text files count as added lines. A clean folder shows the branch alone.
+The tooltip carries repository, full branch and counts.
+
+When the row runs out of room it squeezes one level at a time:
+
+| Level | Shows |
+|---|---|
+| 0 | everything |
+| 1 | folder and branch names capped near 12 characters with an ellipsis; the Local chip icon-only |
+| 2 | branch name hidden: branch icon and diff badge |
+| 3 | all names hidden; the diff badge becomes a half-green, half-red dot |
+
+See [`composer-responsive-controls.html`](composer-responsive-controls.html) for the measuring rule.
 
 ## The menu
 
