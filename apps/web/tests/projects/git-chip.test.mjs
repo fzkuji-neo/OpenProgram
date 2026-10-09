@@ -95,16 +95,63 @@ test('folders outside git render nothing', async () => {
   await unmount();
 });
 
-test('menu switches branches, opens review and hands uncommitted PRs to the agent', async () => {
+test('a dirty folder opens branches in a worktree; review and the agent hand-off still work', async () => {
   const calls = setup(() => STATUS);
   const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0, onUseFolder: () => {} })]);
   const row = (label) => [...host.querySelectorAll('div')].find((el) => el.textContent.startsWith(label) && el.className.includes('cursor-pointer'));
+  const on = host.querySelector('.git-menu-mode-opt.is-on');
+  assert.equal(on.textContent, 'New worktree', 'uncommitted changes default to the worktree route');
+  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .git-menu-tag')].map((t) => t.textContent), ['current', 'worktree']);
   await act(async () => row('main').dispatchEvent(new Event('click', { bubbles: true })));
-  assert.deepEqual(calls.find(([a]) => a === 'git_switch_branch'), ['git_switch_branch', { path: '/repo', branch: 'main', create: false }]);
+  assert.deepEqual(calls.find(([a]) => a === 'git_create_worktree'), ['git_create_worktree', { path: '/repo', branch: 'main' }]);
+  assert.equal(calls.find(([a]) => a === 'git_switch_branch'), undefined);
   await act(async () => row('2 uncommitted files').dispatchEvent(new Event('click', { bubbles: true })));
   assert.deepEqual(globalThis.gitReviews[0], ['s1', undefined, 'workspace']);
   await act(async () => row('Commit & open PR').dispatchEvent(new Event('click', { bubbles: true })));
   assert.match(globalThis.gitDraft, /pull request/);
+  await unmount();
+});
+
+test('a clean folder switches in place, and the toggle overrides the default', async () => {
+  const calls = setup(() => ({ ...STATUS, changes: { files: 0, untracked: 0, conflicts: 0, insertions: 0, deletions: 0 } }));
+  const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0, onUseFolder: () => {} })]);
+  const row = (label) => [...host.querySelectorAll('div')].find((el) => el.textContent.startsWith(label) && el.className.includes('cursor-pointer'));
+  assert.equal(host.querySelector('.git-menu-mode-opt.is-on').textContent, 'Switch here');
+  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .git-menu-tag')].map((t) => t.textContent), ['current', 'switch']);
+  await act(async () => row('main').dispatchEvent(new Event('click', { bubbles: true })));
+  assert.deepEqual(calls.find(([a]) => a === 'git_switch_branch'), ['git_switch_branch', { path: '/repo', branch: 'main', create: false, carry: false }]);
+  const opts = host.querySelectorAll('.git-menu-mode-opt');
+  await act(async () => opts[1].dispatchEvent(new Event('click', { bubbles: true })));
+  assert.equal(host.querySelectorAll('.git-menu-branches .git-menu-tag')[1].textContent, 'worktree');
+  await act(async () => row('main').dispatchEvent(new Event('click', { bubbles: true })));
+  assert.ok(calls.find(([a]) => a === 'git_create_worktree'));
+  await unmount();
+});
+
+test('a refused switch names the files and offers the worktree or carry routes', async () => {
+  const calls = setup(() => ({ ...STATUS, changes: { files: 0, untracked: 0, conflicts: 0, insertions: 0, deletions: 0 } }));
+  globalThis.gitRequest = (inner => async (action, payload) => {
+    if (action === 'git_switch_branch' && !payload.carry) {
+      calls.push([action, payload]);
+      return { path: payload.path, ok: false, error: 'would overwrite', code: 'overwrite', files: ['deck.pptx'], detail: 'error: Your local changes...' };
+    }
+    return inner(action, payload);
+  })(globalThis.gitRequest);
+  const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0, onUseFolder: () => {} })]);
+  const row = (label) => [...host.querySelectorAll('div')].find((el) => el.textContent.startsWith(label) && el.className.includes('cursor-pointer'));
+  await act(async () => row('main').dispatchEvent(new Event('click', { bubbles: true })));
+  const card = host.querySelector('.git-menu-error');
+  assert.match(card.querySelector('.git-menu-error-title').textContent, /Can't switch to main: 1 file/);
+  assert.equal(card.querySelector('.git-menu-error-files').textContent, 'deck.pptx');
+  assert.equal(card.querySelector('details'), null, 'no native disclosure widget');
+  assert.equal(card.querySelector('.git-menu-error-detail'), null);
+  await act(async () => card.querySelector('.git-menu-error-more').dispatchEvent(new Event('click', { bubbles: true })));
+  assert.match(card.querySelector('.git-menu-error-detail').textContent, /Your local changes/);
+  const buttons = [...card.querySelectorAll('.git-menu-error-btn')].map((b) => b.textContent);
+  assert.deepEqual(buttons, ['Open in a worktree', 'Carry the changes over']);
+  await act(async () => card.querySelectorAll('.git-menu-error-btn')[1].dispatchEvent(new Event('click', { bubbles: true })));
+  assert.deepEqual(calls.find(([a, p]) => a === 'git_switch_branch' && p.carry), ['git_switch_branch', { path: '/repo', branch: 'main', create: false, carry: true }]);
+  assert.equal(host.querySelector('.git-menu-error'), null, 'the carry succeeded and cleared the card');
   await unmount();
 });
 

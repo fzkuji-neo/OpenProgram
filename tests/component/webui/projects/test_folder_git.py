@@ -67,6 +67,56 @@ def test_switch_branch_creates_and_switches(repo: Path) -> None:
         folder_git.switch_branch(str(repo), "-bad", create=True)
 
 
+def _diverge(repo: Path) -> None:
+    """main and feature/x disagree on a.txt; the working tree edits it too."""
+    _git(repo, "switch", "-q", "-c", "feature/x")
+    (repo / "a.txt").write_text("ONE\ntwo\n")
+    _git(repo, "commit", "-q", "-am", "feature edit")
+    (repo / "a.txt").write_text("ONE\ntwo\nlocal\n")
+    (repo / "notes.txt").write_text("untracked\n")
+
+
+def test_switch_refusal_lists_the_files_it_would_overwrite(repo: Path) -> None:
+    _diverge(repo)
+    with pytest.raises(folder_git.FolderGitError) as info:
+        folder_git.switch_branch(str(repo), "main")
+    err = info.value
+    assert err.code == "overwrite"
+    assert err.files == ["a.txt"]
+    assert "would be overwritten" in (err.detail or "")
+    assert err.as_dict()["files"] == ["a.txt"]
+    # nothing moved: still on the feature branch with the edit in place
+    assert folder_git.folder_status(str(repo))["branch"] == "feature/x"
+    assert (repo / "a.txt").read_text().endswith("local\n")
+
+
+def test_switch_with_carry_moves_the_changes_over(repo: Path) -> None:
+    _diverge(repo)
+    status = folder_git.switch_branch(str(repo), "main", carry=True)
+    assert status["branch"] == "main"
+    # a three-way merge: main's first line, plus the carried last line
+    assert (repo / "a.txt").read_text() == "one\ntwo\nlocal\n"
+    assert (repo / "notes.txt").read_text() == "untracked\n"
+    assert _git(repo, "stash", "list") == ""
+
+
+def test_switch_with_carry_keeps_the_stash_on_conflict(repo: Path) -> None:
+    _diverge(repo)
+    _git(repo, "stash", "push", "-q", "--include-untracked")
+    _git(repo, "switch", "-q", "main")
+    (repo / "a.txt").write_text("one\ntwo\nmain-local\n")
+    _git(repo, "commit", "-q", "-am", "main edit")
+    _git(repo, "switch", "-q", "feature/x")
+    _git(repo, "stash", "pop", "-q")
+    # a.txt now conflicts between the carried edit and main's commit
+    with pytest.raises(folder_git.FolderGitError) as info:
+        folder_git.switch_branch(str(repo), "main", carry=True)
+    assert info.value.code == "stash_conflict"
+    assert "stash@{0}" in str(info.value)
+    assert folder_git.folder_status(str(repo))["branch"] == "main"
+    assert "carry to main" in _git(repo, "stash", "list")
+
+
 def test_create_worktree_lands_beside_the_repo(repo: Path) -> None:
     (repo / "a.txt").write_text("dirty\n")
     wt = folder_git.create_worktree(str(repo), "feat/wt")

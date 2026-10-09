@@ -10,11 +10,15 @@
  * squeeze level reduces to a half-green, half-red dot; its menu:
  *
  *   * opens the uncommitted changes in Review (workspace scope),
- *   * switches or creates a branch in place,
- *   * moves the folder onto another worktree, or creates a new one
- *     beside the repository (`onUseFolder` decides what "use" means:
- *     a draft re-points its project, a working folder is replaced; a
- *     frozen main folder adds the worktree as an extra working folder),
+ *   * switches or creates a branch — in place when the folder is clean,
+ *     in a new worktree beside the repository when it has uncommitted
+ *     changes (a two-way toggle lets the user override either default;
+ *     `onUseFolder` decides what moving onto a worktree means: a draft
+ *     re-points its project, a working folder is replaced, a frozen main
+ *     folder adds the worktree as an extra working folder),
+ *   * when an in-place switch would overwrite changes, explains which
+ *     files and offers the worktree route or carrying the changes over
+ *     (stash, switch, pop) instead of showing git's refusal raw,
  *   * creates a pull request with `gh` (push + `gh pr create --fill`),
  *     or hands "commit and open a PR" to the agent when there are
  *     uncommitted changes, or opens the branch's existing PR.
@@ -38,7 +42,21 @@ import { desktopBridge } from "@/lib/desktop/bridge-api";
 import { cn } from "@/lib/utils";
 import { useBoundChat } from "./bound-chat";
 import { notifyGitChanged, useGitRepoClaim } from "./git-chip-registry";
-import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
+import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
+
+/** A refusal from the worker, with the structured bits the menu acts on. */
+interface GitMenuError {
+  message: string;
+  /** "overwrite": a switch would clobber `files`; "stash_conflict": carried changes stayed in the stash. */
+  code?: string;
+  files?: string[];
+  /** git's own output, shown on request. */
+  detail?: string;
+  /** The switch that was refused, so the error card can retry it another way. */
+  attempt?: { branch: string; create: boolean };
+}
+
+type BranchMode = "switch" | "worktree";
 
 export interface GitWorktree {
   path: string;
@@ -103,8 +121,11 @@ export function GitChip({
   const [status, setStatus] = useState<GitFolderStatus | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<GitMenuError | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
   const [query, setQuery] = useState("");
+  /** The user's explicit pick for this menu opening; null follows the folder's state. */
+  const [modeChoice, setModeChoice] = useState<BranchMode | null>(null);
   const generation = useRef(0);
 
   const refresh = useCallback(async (full = false) => {
@@ -167,13 +188,20 @@ export function GitChip({
       window.dispatchEvent(new Event("topbar-close-menus"));
       closeAllPopovers();
       setError(null);
+      setShowDetail(false);
       setQuery("");
+      setModeChoice(null);
       void refresh(true);
     }
     setOpen(next);
   }
 
-  async function run<T extends { ok: boolean; error?: string | null }>(
+  function fail(err: GitMenuError) {
+    setShowDetail(false);
+    setError(err);
+  }
+
+  async function run<T extends { ok: boolean; error?: string | null; code?: string; files?: string[]; detail?: string }>(
     label: string,
     action: string,
     payload: Record<string, unknown>,
@@ -187,19 +215,25 @@ export function GitChip({
     );
     setBusy(null);
     if (!reply) {
-      setError(text("No reply from the worker.", "后端没有响应。"));
+      fail({ message: text("No reply from the worker.", "后端没有响应。") });
       return null;
     }
     if (!reply.ok) {
-      setError(reply.error || text("The git command failed.", "git 命令失败。"));
+      fail({
+        message: reply.error || text("The git command failed.", "git 命令失败。"),
+        code: reply.code,
+        files: reply.files,
+        detail: reply.detail,
+        attempt: action === "git_switch_branch" ? { branch: String(payload.branch), create: Boolean(payload.create) } : undefined,
+      });
       return null;
     }
     return reply;
   }
 
-  async function switchBranch(branch: string, create: boolean) {
+  async function switchBranch(branch: string, create: boolean, carry = false) {
     const reply = await run<{ ok: boolean; error?: string; status?: GitFolderStatus }>(
-      create ? "create" : branch, "git_switch_branch", { branch, create }, "git_switch_branch_result", 60000,
+      create ? "create" : branch, "git_switch_branch", { branch, create, carry }, "git_switch_branch_result", 60000,
     );
     if (reply?.status) {
       setStatus((prev) => ({ ...reply.status!, pr: undefined, branches: reply.status!.branches ?? prev?.branches }));
@@ -226,9 +260,19 @@ export function GitChip({
       await onUseFolder(target);
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      fail({ message: err instanceof Error ? err.message : String(err) });
     }
     setBusy(null);
+  }
+
+  const dirty = (status?.changes?.files ?? 0) > 0;
+  const canWorktree = Boolean(onUseFolder);
+  const mode: BranchMode = canWorktree ? (modeChoice ?? (dirty ? "worktree" : "switch")) : "switch";
+
+  /** Create-or-switch for `branch` under the current mode. */
+  function goToBranch(branch: string, create: boolean) {
+    if (mode === "worktree") void createWorktree(branch);
+    else void switchBranch(branch, create);
   }
 
   async function createPr() {
@@ -371,6 +415,35 @@ export function GitChip({
 
           <div className={MENU_SEPARATOR} />
           <div className={GROUP_LABEL}>{text("Branch", "分支")}</div>
+          {canWorktree ? (
+            <div className="git-menu-mode" role="radiogroup" aria-label={text("Where to open the branch", "在哪里打开分支")}>
+              {(["switch", "worktree"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === m}
+                  className={cn("git-menu-mode-opt", mode === m && "is-on")}
+                  onClick={() => setModeChoice(m)}
+                >
+                  {m === "switch" ? text("Switch here", "在此目录切换") : text("New worktree", "开新 worktree")}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {canWorktree && mode === "worktree" ? (
+            <div className="git-menu-note">
+              {dirty
+                ? text(
+                  "This folder has uncommitted changes, so a branch opens in a new folder beside the repository; nothing here moves.",
+                  "这里有未提交的修改，所以分支会在仓库旁边的新目录里打开，这个目录的文件保持不动。",
+                )
+                : text(
+                  "A branch opens in a new folder beside the repository; this folder stays as it is.",
+                  "分支会在仓库旁边的新目录里打开，这个目录保持不动。",
+                )}
+            </div>
+          ) : null}
           <input
             className="git-menu-input"
             value={query}
@@ -379,7 +452,9 @@ export function GitChip({
             onKeyDown={(e) => {
               if (e.key === "Enter" && typed && !busy) {
                 e.preventDefault();
-                void switchBranch(typed, !typedExists);
+                const elsewhere = worktreeByBranch.get(typed);
+                if (elsewhere) void moveToFolder(elsewhere.path);
+                else if (typed !== status.branch) goToBranch(typed, !typedExists);
               }
             }}
             spellCheck={false}
@@ -389,24 +464,32 @@ export function GitChip({
             {branches.slice(0, 40).map((b) => {
               const elsewhere = worktreeByBranch.get(b);
               const current = b === status.branch;
+              // The right column says what a click does, in one style.
+              const action = current
+                ? text("current", "当前")
+                : elsewhere || mode === "worktree"
+                  ? text("worktree", "worktree")
+                  : text("switch", "切换");
+              const hint = elsewhere
+                ? text(`Already checked out in ${elsewhere.path}; opens that folder`, `已在 ${elsewhere.path} 检出，点击去那个目录`)
+                : current
+                  ? text("The branch this folder is on", "这个目录当前所在的分支")
+                  : mode === "worktree"
+                    ? text("Opens in a new worktree beside the repository", "在仓库旁边新建 worktree 打开")
+                    : text("Switches this folder to the branch", "把这个目录切到此分支");
               return (
                 <div
                   key={b}
-                  className={itemCls(false)}
-                  title={elsewhere ? text(`Checked out in ${elsewhere.path}`, `已在 ${elsewhere.path} 检出`) : b}
+                  className={cn(itemCls(false), current && "cursor-default")}
+                  title={hint}
                   onClick={() => {
                     if (busy || current) return;
                     if (elsewhere) void moveToFolder(elsewhere.path);
-                    else void switchBranch(b, false);
+                    else goToBranch(b, false);
                   }}
                 >
                   <span className="min-w-0 flex-1 truncate">{b}</span>
-                  {elsewhere ? <span className="git-menu-tag">{text("worktree", "worktree")}</span> : null}
-                  {current ? (
-                    <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
-                  ) : (
-                    <span className={CHECK_SLOT_PAD} aria-hidden="true" />
-                  )}
+                  <span className="git-menu-tag">{action}</span>
                 </div>
               );
             })}
@@ -415,9 +498,13 @@ export function GitChip({
             ) : null}
           </div>
           {typed && !typedExists ? (
-            <div className={itemCls(false)} onClick={() => !busy && void switchBranch(typed, true)}>
+            <div className={itemCls(false)} onClick={() => !busy && goToBranch(typed, true)}>
               <SolarIcon name="add-circle" size={14} className="opacity-70" />
-              <span className="min-w-0 flex-1 truncate">{text(`Create branch “${typed}”`, `新建分支“${typed}”`)}</span>
+              <span className="min-w-0 flex-1 truncate">
+                {mode === "worktree"
+                  ? text(`Create branch “${typed}” in a new worktree`, `在新 worktree 上新建分支“${typed}”`)
+                  : text(`Create branch “${typed}”`, `新建分支“${typed}”`)}
+              </span>
             </div>
           ) : null}
 
@@ -428,7 +515,7 @@ export function GitChip({
             <span className="min-w-0 flex-1 truncate">
               {status.is_worktree ? baseName(status.root ?? path) : text("Local checkout", "本地仓库")}
             </span>
-            <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
+            <span className="git-menu-tag">{text("current", "当前")}</span>
           </div>
           {onUseFolder ? otherWorktrees.map((w) => (
             <div key={w.path} className={itemCls(false)} title={w.path} onClick={() => !busy && void moveToFolder(w.path)}>
@@ -437,28 +524,8 @@ export function GitChip({
                 {w.is_main ? text("Local checkout", "本地仓库") : baseName(w.path)}
                 {w.branch ? <span className="git-menu-dim"> · {w.branch}</span> : null}
               </span>
-              <span className={CHECK_SLOT_PAD} aria-hidden="true" />
             </div>
           )) : null}
-          {onUseFolder ? (
-            <div
-              className={itemCls(false)}
-              title={text(
-                "Creates a branch in a new folder beside the repository; this folder's files stay as they are.",
-                "在仓库旁边的新目录里建一个分支；当前目录的文件保持不动。",
-              )}
-              onClick={() => {
-                if (busy) return;
-                if (typed) void createWorktree(typed);
-                else setError(text("Type a branch name above, then choose New worktree.", "先在上面输入分支名，再点新建 worktree。"));
-              }}
-            >
-              <SolarIcon name="add-circle" size={14} className="opacity-70" />
-              <span className="min-w-0 flex-1 truncate">
-                {typed ? text(`New worktree on “${typed}”`, `在“${typed}”上新建 worktree`) : text("New worktree…", "新建 worktree…")}
-              </span>
-            </div>
-          ) : null}
           {onUseFolder && useFolderLabel ? (
             <div className="git-menu-note">{text(useFolderLabel.en, useFolderLabel.zh)}</div>
           ) : null}
@@ -490,7 +557,47 @@ export function GitChip({
           {prBlocked && !openPr ? <div className="git-menu-note">{prBlocked}</div> : null}
 
           {busy ? <div className="git-menu-note">{text("Working…", "处理中…")}</div> : null}
-          {error ? <div className="git-menu-error" role="alert">{error}</div> : null}
+          {error ? (
+            <div className="git-menu-error" role="alert">
+              <div className="git-menu-error-title">
+                {error.code === "overwrite" && error.attempt
+                  ? text(
+                    `Can't switch to ${error.attempt.branch}: ${error.files?.length ?? 0} ${error.files?.length === 1 ? "file" : "files"} here would be overwritten`,
+                    `切不到 ${error.attempt.branch}：这个目录里有 ${error.files?.length ?? 0} 个文件的修改会被覆盖`,
+                  )
+                  : error.code === "stash_conflict"
+                    ? text(
+                      "Switched, but the carried changes conflict. They're kept in the latest stash.",
+                      "已切换，但带过来的修改有冲突，仍保存在最新的 stash 里。",
+                    )
+                    : error.message}
+              </div>
+              {error.code === "overwrite" && error.files?.length ? (
+                <ul className="git-menu-error-files">
+                  {error.files.slice(0, 6).map((f) => <li key={f}>{f}</li>)}
+                  {error.files.length > 6 ? <li>{text(`and ${error.files.length - 6} more`, `还有 ${error.files.length - 6} 个`)}</li> : null}
+                </ul>
+              ) : null}
+              {error.code === "overwrite" && error.attempt ? (
+                <div className="git-menu-error-actions">
+                  {canWorktree ? (
+                    <button type="button" className="git-menu-error-btn" onClick={() => void createWorktree(error.attempt!.branch)}>
+                      {text("Open in a worktree", "改为开 worktree")}
+                    </button>
+                  ) : null}
+                  <button type="button" className="git-menu-error-btn" onClick={() => void switchBranch(error.attempt!.branch, error.attempt!.create, true)}>
+                    {text("Carry the changes over", "带着修改切过去")}
+                  </button>
+                </div>
+              ) : null}
+              {error.detail ? (
+                <button type="button" className="git-menu-error-more" onClick={() => setShowDetail((v) => !v)}>
+                  {showDetail ? text("Hide git output", "收起 git 输出") : text("Show git output", "查看 git 输出")}
+                </button>
+              ) : null}
+              {error.detail && showDetail ? <pre className="git-menu-error-detail">{error.detail}</pre> : null}
+            </div>
+          ) : null}
         </div>
       </PopoverContent>
     </Popover>

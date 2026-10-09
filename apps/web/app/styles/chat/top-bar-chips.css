@@ -277,28 +277,108 @@
   line-height: 17px;
   color: var(--text-muted);
 }
+/* Refusal card. Same inset as the rows (text at 10px), tinted, no native
+   disclosure widget: git's own output sits behind a plain text button. */
 .git-menu-error {
-  padding: 4px 10px;
+  margin: 4px 0 0;
+  padding: 7px 10px 8px;
+  border-radius: 6px;
   font-size: 12px;
   line-height: 17px;
-  color: var(--accent-orange);
-  white-space: pre-wrap;
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--accent-orange) 12%, transparent);
   overflow-wrap: anywhere;
 }
+.git-menu-error-title { color: var(--accent-orange); }
+.git-menu-error-files {
+  margin: 3px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+}
+.git-menu-error-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.git-menu-error-btn {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.git-menu-error-btn:hover { background: color-mix(in srgb, var(--foreground) 16%, transparent); }
+.git-menu-error-more {
+  display: block;
+  margin-top: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.git-menu-error-more:hover { color: var(--text-bright); }
+.git-menu-error-detail {
+  margin: 4px 0 0;
+  max-height: 120px;
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+/* The right-column badge on branch / location rows: one style for
+   "current", "switch" and "worktree", same corner radius as diff-badge. */
 .git-menu-tag {
   flex-shrink: 0;
-  padding: 0 5px;
-  border-radius: 999px;
+  padding: 0 6px;
+  border-radius: 5px;
   font-size: 11px;
   line-height: 16px;
   color: var(--text-muted);
-  background: color-mix(in oklch, var(--bg-input), var(--foreground) 8%);
+  background: color-mix(in oklch, var(--foreground) 9%, transparent);
 }
 .git-menu-dim { color: var(--text-muted); }
-.git-menu-input {
-  margin: 2px 4px 4px;
-  height: 26px;
+/* Mode toggle and search field span the row width, text aligned to the
+   rows' 10px inset. */
+.git-menu-mode {
+  display: flex;
+  gap: 2px;
+  margin: 2px 0 4px;
+  padding: 2px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--bg-input), var(--foreground) 6%);
+}
+.git-menu-mode-opt {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 22px;
   padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.git-menu-mode-opt:hover { color: var(--text-bright); }
+.git-menu-mode-opt.is-on {
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.git-menu-input {
+  margin: 2px 0 4px;
+  height: 26px;
+  padding: 0 10px;
   border: 0;
   border-radius: 6px;
   outline: none;

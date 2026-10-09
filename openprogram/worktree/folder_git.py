@@ -39,7 +39,36 @@ _worktree_lock = threading.Lock()
 
 
 class FolderGitError(ValueError):
-    """A user-facing failure (bad input or a git / gh refusal)."""
+    """A user-facing failure (bad input or a git / gh refusal).
+
+    ``code`` names a refusal the UI handles specially (``"overwrite"``:
+    the switch would clobber uncommitted changes, ``files`` lists them;
+    ``"stash_conflict"``: carried changes did not apply cleanly and stay
+    in the stash). ``detail`` is git's own output for the fine print.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str | None = None,
+        files: list[str] | None = None,
+        detail: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.files = files or []
+        self.detail = detail
+
+    def as_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"error": str(self)}
+        if self.code:
+            out["code"] = self.code
+        if self.files:
+            out["files"] = list(self.files)
+        if self.detail:
+            out["detail"] = self.detail
+        return out
 
 
 def _env() -> dict[str, str]:
@@ -310,11 +339,71 @@ def _require_repo(path: object) -> str:
     return root
 
 
-def switch_branch(path: object, branch: object, *, create: bool = False) -> dict[str, Any]:
-    """Check out ``branch`` in place (``create`` makes it from HEAD)."""
+_OVERWRITE_HEADERS = (
+    "would be overwritten by checkout:",
+    "would be overwritten by merge:",
+)
+
+
+def _overwritten_files(stderr: str) -> list[str] | None:
+    """Files git refuses to clobber, or None when the error is something else."""
+    if not any(h in stderr for h in _OVERWRITE_HEADERS):
+        return None
+    files: list[str] = []
+    for line in stderr.splitlines():
+        if line.startswith("\t"):
+            files.append(line.strip())
+    return files
+
+
+def _switch(root: str, name: str, create: bool) -> None:
+    code, _out, err = _git(root, "switch", *(["-c"] if create else []), name, timeout=60)
+    if not code:
+        return
+    files = _overwritten_files(err)
+    if files is not None:
+        raise FolderGitError(
+            f"switching to {name!r} would overwrite uncommitted changes",
+            code="overwrite", files=files, detail=err,
+        )
+    raise FolderGitError(err or "git switch failed", detail=err or None)
+
+
+def switch_branch(
+    path: object, branch: object, *, create: bool = False, carry: bool = False,
+) -> dict[str, Any]:
+    """Check out ``branch`` in place (``create`` makes it from HEAD).
+
+    Plain git lets uncommitted changes ride along when they don't touch
+    files that differ between the branches; when they do, git refuses and
+    this raises ``FolderGitError(code="overwrite", files=[...])``.
+    ``carry`` instead stashes everything (untracked included), switches,
+    and pops the stash. A pop that conflicts leaves the stash in place
+    and raises ``code="stash_conflict"``, so nothing is lost either way.
+    """
     root = _require_repo(path)
     name = _check_branch_name(root, branch)
-    _git_ok(root, "switch", *(["-c"] if create else []), name, timeout=60)
+    if not carry:
+        _switch(root, name, create)
+        return folder_status(path, include_branches=True)
+
+    before = _git(root, "stash", "list")[1]
+    _git_ok(root, "stash", "push", "--include-untracked", "-m", f"openprogram: carry to {name}", timeout=60)
+    stashed = _git(root, "stash", "list")[1] != before
+    try:
+        _switch(root, name, create)
+    except FolderGitError:
+        if stashed:
+            _git(root, "stash", "pop", timeout=60)
+        raise
+    if stashed:
+        code, _out, err = _git(root, "stash", "pop", timeout=60)
+        if code:
+            raise FolderGitError(
+                f"switched to {name!r}, but the carried changes did not apply cleanly; "
+                "they are kept in the latest stash (stash@{0})",
+                code="stash_conflict", detail=err or None,
+            )
     return folder_status(path, include_branches=True)
 
 
