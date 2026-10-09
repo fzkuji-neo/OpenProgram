@@ -47,7 +47,8 @@ export function useCompactEnvironmentRow(ref: RefObject<HTMLDivElement | null>) 
         const box = child.getBoundingClientRect();
         if (box.width || box.height) right = Math.max(right, box.right - left);
       }
-      return right;
+      // The row's right padding is shadow room, not room for chips.
+      return right + parseFloat(getComputedStyle(row).paddingRight || "0");
     };
 
     const choose = (available: number) => {
