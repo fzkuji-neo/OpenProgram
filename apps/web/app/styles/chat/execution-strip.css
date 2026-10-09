@@ -53,8 +53,26 @@
   background: transparent;
   padding: 0;
   text-align: left;
+  max-width: 100%;
+  min-width: 0;
 }
 .tl-toggle:hover { color: var(--text-secondary); }
+/* Tool-group summary (docs/reference/design/ui/tool-group-summary.html):
+   one line, the sentence gives way first; the failure note, the +N −N
+   badge (the turn file card's .turn-files-diff pill) and › never shrink. */
+.tl-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tl-fail {
+  flex: none;
+  color: var(--accent-red);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.tl-diff { flex: none; }
 /* 流式进行中：折叠摘要小字的扫光 shimmer = "正在思考/运行"。
    渐变裁剪文字实现，明暗主题都跟随文字变量。 */
 .tl-label-shimmer {
@@ -81,6 +99,7 @@
   to { opacity: 1; transform: none; }
 }
 .tl-chev {
+  flex: none;
   font-size: 11px;
   transition: transform var(--transition);
   display: inline-block;
