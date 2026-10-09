@@ -14,6 +14,11 @@ from openprogram.mcp.config import MCPServerConfig
 
 _PLAYWRIGHT_MCP_VERSION = "0.0.79"
 _CHROME_DEVTOOLS_MCP_VERSION = "1.7.0"
+# Both packages are pinned to exact versions, so a cached copy is already the
+# right one. Without --prefer-offline npx revalidates the manifest against the
+# registry on every launch; on a slow or broken network that alone outlasts
+# the MCP start timeout and the backend never starts.
+_NPX_PREFIX = ("npx", "--prefer-offline", "-y")
 
 
 def _result_text(result: Any) -> str:
@@ -37,6 +42,18 @@ def _is_error(result: Any) -> bool:
         getattr(result, "isError", False)
         or getattr(result, "is_error", False)
     )
+
+
+async def _cancel_pending_tasks(timeout: float = 6.0) -> None:
+    current = asyncio.current_task()
+    pending = [
+        task for task in asyncio.all_tasks()
+        if task is not current and not task.done()
+    ]
+    for task in pending:
+        task.cancel()
+    if pending:
+        await asyncio.wait(pending, timeout=timeout)
 
 
 class _SyncMCPClient:
@@ -73,11 +90,35 @@ class _SyncMCPClient:
     def call(self, name: str, arguments: dict[str, Any]):
         return self._submit(self._client.call_tool(name, arguments))
 
+    def is_alive(self) -> bool:
+        """True while the private loop runs and the MCP session is usable.
+
+        A supervisor that gave up (fatal or re-auth), a dropped session that is
+        still reconnecting, or a stopped loop all count as dead: the caller
+        replaces the client instead of sending a write into it.
+        """
+        client = self._client
+        if client is None or not self._thread.is_alive() or not self._loop.is_running():
+            return False
+        if getattr(client, "error", None):
+            return False
+        ready = getattr(client, "is_ready", None)
+        return True if ready is None else bool(ready)
+
     def close(self) -> None:
         client = getattr(self, "_client", None)
         if client is not None and self._loop.is_running():
             try:
                 self._submit(client.stop(), 5)
+            except Exception:
+                pass
+        if self._loop.is_running():
+            # A start that timed out leaves the supervisor (and its npx child)
+            # pending. Cancel and await it on this loop so the stdio transport
+            # terminates the child before the loop closes; otherwise the child
+            # outlives the loop that owns its pipes.
+            try:
+                self._submit(_cancel_pending_tasks(), 8)
             except Exception:
                 pass
         if self._loop.is_running():
@@ -116,14 +157,14 @@ class OfficialMCPPageBackend:
         if self.name == "playwright_mcp":
             bridge = os.path.join(os.path.dirname(__file__), "playwright_exact_page_mcp.cjs")
             return [
-                "npx", "-y", "--package",
+                *_NPX_PREFIX, "--package",
                 f"@playwright/mcp@{_PLAYWRIGHT_MCP_VERSION}", "--", "sh", "-c",
                 'export NODE_PATH="$(dirname "$(dirname "$(command -v playwright-mcp)")")"; '
                 'exec node "$1" "$2" "$3"',
                 "openprogram-playwright-mcp", bridge, endpoint, target_id,
             ]
         return [
-            "npx", "-y",
+            *_NPX_PREFIX,
             f"chrome-devtools-mcp@{_CHROME_DEVTOOLS_MCP_VERSION}",
             "--wsEndpoint", endpoint,
             "--experimentalPageIdRouting",
@@ -135,7 +176,32 @@ class OfficialMCPPageBackend:
             "--no-category-emulation",
         ]
 
+    @staticmethod
+    def _client_alive(client) -> bool:
+        probe = getattr(client, "is_alive", None)
+        if not callable(probe):
+            return True
+        try:
+            return bool(probe())
+        except Exception:
+            return False
+
+    def _drop_dead_client(self, session) -> bool:
+        """Discard a stopped private MCP client; True when one was dropped."""
+        existing = session.state.get("mcp_client")
+        if existing is None or self._client_alive(existing):
+            return False
+        session.state.pop("mcp_client", None)
+        session.state.pop("upstream_page", None)
+        with suppress(Exception):
+            existing.close()
+        return True
+
     def _ensure_bound(self, session) -> Any:
+        # Only observe starts a replacement client: the restart is read-only
+        # and rebinds the same exact target. act never writes through a client
+        # it had to restart (see act).
+        self._drop_dead_client(session)
         existing = session.state.get("mcp_client")
         if existing is not None:
             return existing
@@ -380,6 +446,23 @@ class OfficialMCPPageBackend:
             call = name, params
         if call is None:
             return {"ok": False, "reason_code": "unsupported_action"}
+        if self._drop_dead_client(session):
+            # The private MCP process stopped after the last observe. Its refs
+            # stopped with it, so never send this write through a new process.
+            controller.invalidate_external_frame()
+            return {
+                "ok": False,
+                "reason_code": "computer_use_backend_unavailable",
+                "action_dispatched": False,
+                "observe_required": True,
+                "recovery_command": "observe",
+                "message": (
+                    f"The {self.name} browser backend stopped after the last "
+                    "observation. The action was not sent. Call observe on this "
+                    "web_session_id (it restarts the backend), then retry the "
+                    "action with refs from that observation."
+                ),
+            }
         client = self._ensure_bound(session)
         set_cursor = getattr(controller, "set_agent_cursor_armed", None)
         cursor_armed = action == "click" and callable(set_cursor)

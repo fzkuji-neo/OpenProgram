@@ -4,6 +4,7 @@ from __future__ import annotations
 import contextvars
 import json
 import os
+import time
 import uuid
 from typing import Any
 from urllib.parse import urlsplit
@@ -12,6 +13,16 @@ from urllib.parse import urlsplit
 _current: contextvars.ContextVar[dict | None] = contextvars.ContextVar(
     "openprogram_surface_context", default=None,
 )
+
+# How long list_pages waits for a Desktop window to (re)register before it
+# reports desktop_unavailable. Covers the App reopening after a worker or App
+# restart; an online window whose inventory fails is never waited on.
+DESKTOP_RECONNECT_WAIT_SECONDS = 20.0
+_DESKTOP_RECONNECT_POLL_SECONDS = 0.5
+
+
+class DesktopUnavailableError(RuntimeError):
+    """The Desktop window or binding that should answer is not connected."""
 
 PAGE_CLEANUP_HANDOFF = (
     "Close the remaining background Page in OpenProgram, then continue the "
@@ -771,7 +782,10 @@ def capture_pages(context: dict | None = None) -> dict:
             captured, dict
         ):
             error = (bridged or {}).get("error")
-            raise RuntimeError(str(error or "OpenProgram Page inventory is unavailable"))
+            message = str(error or "OpenProgram Page inventory is unavailable")
+            if isinstance(bridged, dict) and bridged.get("reason_code") == "desktop_unavailable":
+                raise DesktopUnavailableError(message)
+            raise RuntimeError(message)
         return captured
 
     connected = list(_server._ws_connections)
@@ -781,7 +795,7 @@ def capture_pages(context: dict | None = None) -> dict:
             result = webtab.request_page_inventory(binding_id)
             owner = webtab.binding_owner_revision(binding_id)
             if owner is None:
-                raise RuntimeError("accepted Page binding is unavailable")
+                raise DesktopUnavailableError("accepted Page binding is unavailable")
             owner_ws, connection_revision = owner
             if (
                 not isinstance(result, dict) or not result.get("ok")
@@ -796,7 +810,7 @@ def capture_pages(context: dict | None = None) -> dict:
                 if entry[0] in connected and entry[1] == origin_window_id
             ), None)
             if selected is None:
-                raise RuntimeError("originating Desktop window is unavailable")
+                raise DesktopUnavailableError("originating Desktop window is unavailable")
             owner_ws, _window_id, connection_revision = selected
             result = webtab.request_on_ws(
                 owner_ws,
@@ -818,7 +832,7 @@ def capture_pages(context: dict | None = None) -> dict:
             if ws in connected
         ]
         if not registered:
-            raise RuntimeError(
+            raise DesktopUnavailableError(
                 "direct Page selection requires a registered Desktop window"
             )
         for owner_ws, expected_window_id, connection_revision in registered:
@@ -1062,6 +1076,41 @@ def capture_pages(context: dict | None = None) -> dict:
         "alias_map": aliases,
         "surfaces": surfaces,
     }
+
+
+_ALL_WINDOWS = object()
+
+
+def capture_pages_for_listing(context: Any = _ALL_WINDOWS) -> dict:
+    """Capture Pages for ``list_pages`` without depending on one window.
+
+    A disconnected originating window or binding is not an inventory failure.
+    In the worker, the remaining registered windows stay discoverable. While
+    no Desktop window is registered (the App is restarting), wait up to
+    ``DESKTOP_RECONNECT_WAIT_SECONDS`` for one before raising
+    ``DesktopUnavailableError``. A workflow subprocess stays confined to its
+    originating window and only waits for that window. An online window whose
+    inventory fails still raises at once and never promotes another window.
+    """
+    from openprogram.agent.run_control import check_cancelled
+
+    confined = os.environ.get("OPENPROGRAM_IN_AGENTIC_SUBPROCESS") == "1"
+    deadline = time.monotonic() + max(0.0, DESKTOP_RECONNECT_WAIT_SECONDS)
+    while True:
+        try:
+            if context is _ALL_WINDOWS:
+                return capture_pages()
+            return capture_pages(context)
+        except DesktopUnavailableError:
+            if context is not _ALL_WINDOWS and context is not None and not confined:
+                try:
+                    return capture_pages()
+                except DesktopUnavailableError:
+                    pass
+            if time.monotonic() >= deadline:
+                raise
+        check_cancelled()
+        time.sleep(_DESKTOP_RECONNECT_POLL_SECONDS)
 
 
 def release_bindings(context: dict | None) -> None:

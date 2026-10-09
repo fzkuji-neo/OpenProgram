@@ -458,6 +458,7 @@ from ._runtime.page_recovery import (
     _recover_web_use_page,
 )
 from ._runtime.web_use import (
+    _desktop_unavailable_result,
     _execute_web_use,
     execute_direct_web_use,
 )
@@ -468,6 +469,74 @@ from ._runtime.tasks import (
 
 def _new_controller() -> BrowserPageController:
     return BrowserPageController()
+
+
+# Failures whose exact Page may still be open: the wrapper observes it again.
+_RECOVERABLE_WEB_USE_REASONS = frozenset({
+    "target_lost",
+    "page_context_stale",
+    "page_closed",
+    "binding_not_found",
+    "page_context_not_found",
+    "page_context_consumed",
+    "web_session_not_found",
+})
+# A session or token that no longer exists (turn ended, close, restart). When
+# its Page cannot be re-observed, the failure carries the current pages so the
+# next call is a single observe with a fresh token.
+_ENDED_HANDLE_REASONS = frozenset({
+    "page_context_not_found",
+    "page_context_consumed",
+    "web_session_not_found",
+})
+
+
+def _with_current_pages(failure: dict) -> dict:
+    try:
+        listed = _execute_web_use("list_pages")
+    except Exception:
+        # Discovery is a convenience here; the original failure still stands.
+        return failure
+    if not isinstance(listed, dict) or listed.get("ok") is not True:
+        if isinstance(listed, dict) and listed.get("reason_code") == "desktop_unavailable":
+            return {
+                **failure,
+                "retry_command": "list_pages",
+                "message": (
+                    f"{failure.get('message') or ''} The OpenProgram desktop app "
+                    "is not connected yet; it may be restarting. Wait a few "
+                    "seconds, then call web_use list_pages again."
+                ).strip(),
+            }
+        return failure
+    pages = [
+        {
+            key: page.get(key)
+            for key in (
+                "page", "window_id", "tab_id", "title", "origin",
+                "visible", "focused", "page_context_token",
+            )
+        }
+        for page in listed.get("pages") or []
+        if isinstance(page, dict)
+    ]
+    ended = (
+        "This browser session or page_context_token no longer exists (it "
+        "ended with its turn, was closed, or OpenProgram restarted)."
+    )
+    return {
+        **failure,
+        "pages": pages,
+        "recovery_command": "observe",
+        "message": (
+            f"{ended} The current pages are listed in pages: call web_use "
+            "observe with the page_context_token of the task page, without "
+            "the old web_session_id."
+            if pages else
+            f"{ended} No page is open now: call web_use observe with "
+            "arguments.url to open the task page."
+        ),
+    }
 
 
 class BrowserTaskAgent(Agent):
@@ -610,32 +679,37 @@ class WebUseAgent(Agent):
             arguments,
         )
         if isinstance(result, dict) and result.get("ok") is False:
-            # Reopen the exact lost target, but never replay a possibly completed write.
+            # Re-observe the exact lost target, but never replay a possibly
+            # completed write.
+            reason_code = result.get("reason_code")
             url = result.get("recovery_url")
-            if (
-                result.get("reason_code")
-                in {
-                    "target_lost",
-                    "page_context_stale",
-                    "page_closed",
-                    "binding_not_found",
-                    "page_context_not_found",
-                }
-                and isinstance(url, str)
-                and url.startswith(("http://", "https://"))
+            known_page = bool(
+                result.get("recovery_tab_id") and result.get("recovery_window_id")
+            )
+            if reason_code in _RECOVERABLE_WEB_USE_REASONS and (
+                known_page
+                or (isinstance(url, str) and url.startswith(("http://", "https://")))
             ):
-                recovery_reason = result.get("reason_code")
-                result = _recover_web_use_page(result, backend=backend)
-                if isinstance(result, dict) and result.get("ok") is not False:
-                    result.update(
+                recovered = _recover_web_use_page(result, backend=backend)
+                if isinstance(recovered, dict) and recovered.get("ok") is not False:
+                    recovered.update(
                         recovered_page=True,
                         observe_required=True,
-                        recovery_reason_code=recovery_reason,
+                        recovery_reason_code=reason_code,
                         recovery_previous_command=command,
                         previous_action_replayed=False,
                         message="The page was observed again. Continue using this fresh observation; the previous action was not replayed.",
                     )
-                    return result
+                    return recovered
+                if isinstance(recovered, dict):
+                    result = recovered
+            if (
+                result.get("reason_code") in _ENDED_HANDLE_REASONS
+                # A consumed token whose session is alive already names the
+                # one next call (use that web_session_id); keep it.
+                and not result.get("live_web_session_id")
+            ):
+                result = _with_current_pages(result)
             return ToolReturn(json_data=result, is_error=True)
         return result
 
