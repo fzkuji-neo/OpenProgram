@@ -8,6 +8,7 @@
 // composer's pills want the same borderless raised look as the input
 // box, so this variant reuses the per-theme composer shadow pair
 // (shadow-raised / shadow-raised-hover, see app/globals.css @theme).
+// Hover and open only deepen that shadow; the fill stays the box's own.
 // Change sizes at the call site through the official `size` variants,
 // not by editing the official classes.
 import * as React from "react"
@@ -27,7 +28,7 @@ const buttonVariants = cva(
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         elevated:
-          "bg-bg-input text-foreground shadow-raised hover:shadow-raised-hover hover:bg-[color-mix(in_oklch,var(--bg-input),var(--foreground)_5%)] aria-expanded:shadow-raised-hover aria-expanded:bg-[color-mix(in_oklch,var(--bg-input),var(--foreground)_5%)]",
+          "bg-bg-input text-foreground shadow-raised hover:shadow-raised-hover aria-expanded:shadow-raised-hover",
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
