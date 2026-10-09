@@ -419,7 +419,6 @@ export function TurnFilesChips({
             type="button"
             className="turn-files-row"
             key={file.path}
-            title={file.path}
             onClick={() => sessionId && openReviewTab(
               sessionId, assistantMsgId, "turn", file.path,
             )}
