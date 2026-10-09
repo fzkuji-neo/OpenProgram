@@ -505,5 +505,7 @@
   "Tool arguments as a JSON object; never executed": "JSON 对象形式的工具参数；不会执行",
   "Validate expected rule decisions": "验证规则判断是否符合期望",
   "Prevent idle system sleep": "阻止空闲系统休眠",
-  "On macOS, prevent idle system sleep during active agent execution. Disabled by default. Read at the next execution; display sleep and explicit sleep remain available.": "在 macOS 上于 Agent 执行期间阻止空闲系统休眠。默认关闭；下一次执行时读取设置，显示器休眠与主动休眠仍然可用。"
+  "On macOS, prevent idle system sleep during active agent execution. Disabled by default. Read at the next execution; display sleep and explicit sleep remain available.": "在 macOS 上于 Agent 执行期间阻止空闲系统休眠。默认关闭；下一次执行时读取设置，显示器休眠与主动休眠仍然可用。",
+  "Steer interrupts the current response": "补充指令立即打断当前回复",
+  "On by default. A message sent while the agent is replying stops the response being generated (text, reasoning or a tool call still being written) and continues with your message. Tools that already started still finish first. Off: the message waits until the current response ends.": "默认开启。Agent 回复过程中发送的补充指令会立即结束正在生成的回复（文本、思考，或仍在写参数的工具调用），并按你的指令继续。已开始运行的工具仍会先执行完。关闭后，指令会等当前回复结束再生效。"
 }
