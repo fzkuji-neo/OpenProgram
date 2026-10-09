@@ -57,15 +57,22 @@ See [`composer-responsive-controls.html`](composer-responsive-controls.html) for
    so the row is inert. Ahead/behind against the upstream follows
    when non-zero.
 3. **Branch**: a filter field and the local branches, most recent
-   commit first (up to fifty). Clicking a branch runs `git switch` in
-   place. Uncommitted changes travel with the switch as plain git
-   allows; git's own refusal is shown as the error. Typing a name that
-   does not exist offers "Create branch", and Enter does the same. A
-   branch already checked out in another worktree is tagged `worktree`;
-   clicking it moves the folder slot to that worktree instead.
+   commit first (up to fifty). A two-way toggle above the field decides
+   where a branch opens: **Switch here** runs `git switch` in this
+   folder; **New worktree** opens the branch in a new folder beside the
+   repository and moves this folder slot onto it. The default follows
+   the folder: clean folders switch in place, folders with uncommitted
+   changes open worktrees, and a note under the toggle says why. The
+   user can flip it for the current menu opening. Each row's right-hand
+   badge says what a click does, in one style: `current`, `switch` or
+   `worktree`. A branch already checked out in another worktree always
+   shows `worktree` and opens that folder, since git allows one checkout
+   per branch. Typing a name that does not exist offers "Create branch"
+   (or "… in a new worktree"), and Enter does the same. The toggle is
+   absent where the folder slot cannot move onto a worktree.
 4. **Work in**: the current location (local checkout or worktree,
-   checked), the repository's other worktrees, and "New worktree on
-   <typed branch>". A new worktree is created beside the repository at
+   badged `current`) and the repository's other worktrees. A new
+   worktree is created beside the repository at
    `<repo>-worktrees/<branch>`, never inside it, so the source folder's
    files and uncommitted changes stay where they are. What "move to a
    worktree" means depends on the folder slot:
@@ -89,8 +96,16 @@ See [`composer-responsive-controls.html`](composer-responsive-controls.html) for
      a ready instruction in the composer (it does not send it), since
      writing the commit message and PR description is the agent's job.
 
-Errors from git or `gh` appear at the bottom of the menu; the menu stays
-open so the user can retry.
+Errors from git or `gh` appear as a card at the bottom of the menu; the
+menu stays open so the user can retry. The card has a plain title, and
+git's own output sits behind a "Show git output" text button, never a
+native disclosure widget. One refusal gets more: when an in-place switch
+would overwrite uncommitted changes, the card names the files and offers
+two ways out, **Open in a worktree** and **Carry the changes over**. The
+carry stashes everything (untracked included), switches, and pops the
+stash; if the pop conflicts, the switch stands and the changes stay in
+the latest stash, which the card says. There is no force-switch and no
+discard: an agent conversation is the wrong place to lose work.
 
 ## Freshness
 
@@ -111,7 +126,7 @@ own answer.
 | Action | Reply | Does |
 |---|---|---|
 | `git_folder_status` | `git_folder_status` | `status --porcelain=v2 --branch` (branch, upstream, ahead/behind, file counts), `diff --numstat HEAD` (line counts), `worktree list`, default branch, `origin` presence, `gh` presence; with `include_branches` / `include_pr`, the branch list and `gh pr view` |
-| `git_switch_branch` | `git_switch_branch_result` | `git switch [-c] <branch>` |
+| `git_switch_branch` | `git_switch_branch_result` | `git switch [-c] <branch>`; with `carry`, `stash push -u` → switch → `stash pop`. A refusal frame carries `code` (`overwrite` with `files`, or `stash_conflict`) and `detail` (git's output) |
 | `git_create_worktree` | `git_worktree_created` | `git worktree add [-b] <beside-repo path> <branch>` |
 | `git_create_pr` | `git_pr_created` | push the branch, `gh pr create --fill`, return the URL (or the existing open PR) |
 

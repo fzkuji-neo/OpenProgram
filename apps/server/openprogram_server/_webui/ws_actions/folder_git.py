@@ -8,9 +8,12 @@ pick up their own answer)::
     out  {"type": "git_folder_status", "data": {"path", "status"}}
 
     in   {"action": "git_switch_branch", "path": "/abs",
-          "branch": "name", "create"?: bool}
+          "branch": "name", "create"?: bool, "carry"?: bool}
     out  {"type": "git_switch_branch_result",
-          "data": {"path", "ok", "status"?, "error"?}}
+          "data": {"path", "ok", "status"?, "error"?, "code"?, "files"?, "detail"?}}
+
+``code`` / ``files`` / ``detail`` come from ``FolderGitError`` (see there);
+every refusal frame may carry them.
 
     in   {"action": "git_create_worktree", "path": "/abs", "branch": "name"}
     out  {"type": "git_worktree_created",
@@ -54,7 +57,7 @@ async def _mutation(ws, cmd: dict, frame_type: str, call) -> None:
     try:
         result = await asyncio.to_thread(call)
     except FolderGitError as exc:
-        await _reply(ws, frame_type, {"path": path, "ok": False, "error": str(exc)})
+        await _reply(ws, frame_type, {"path": path, "ok": False, **exc.as_dict()})
         return
     await _reply(ws, frame_type, {"path": path, "ok": True, **result})
 
@@ -64,7 +67,8 @@ async def handle_git_switch_branch(ws, cmd: dict) -> None:
 
     await _mutation(ws, cmd, "git_switch_branch_result", lambda: {
         "status": folder_git.switch_branch(
-            cmd.get("path"), cmd.get("branch"), create=bool(cmd.get("create")),
+            cmd.get("path"), cmd.get("branch"),
+            create=bool(cmd.get("create")), carry=bool(cmd.get("carry")),
         ),
     })
 

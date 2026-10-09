@@ -29,8 +29,8 @@
 
 1. **标题**：仓库名；当前目录是附属 worktree 时带 `worktree` 标签。
 2. **修改**："N 个未提交文件 +N −N"。点击以 workspace 范围打开 Review，它本来就按 Git 对比每个工作目录。发送第一条消息前没有会话可审阅，这一行不响应。与上游有领先 / 落后时接着显示一行。
-3. **分支**：筛选框 + 本地分支，按最近提交排序（最多五十个）。点分支就地执行 `git switch`；未提交修改按 git 本身的规则随切换带走，git 拒绝时显示它的报错。输入不存在的名字会出现"新建分支"，回车同效。已在其他 worktree 检出的分支带 `worktree` 标签，点击改为把这个目录位置换到那个 worktree。
-4. **工作位置**：当前位置（本地仓库或 worktree，打勾）、仓库的其他 worktree，以及"在 <输入的分支> 上新建 worktree"。新 worktree 建在仓库旁边的 `<repo>-worktrees/<branch>`，从不建在仓库里面，原目录的文件和未提交修改保持不动。"换到 worktree"按目录位置分三种：
+3. **分支**：筛选框 + 本地分支，按最近提交排序（最多五十个）。筛选框上方有一个双态开关决定分支在哪里打开：**在此目录切换**就地执行 `git switch`；**开新 worktree**在仓库旁边的新目录里打开分支，并把这个文件夹位置换过去。默认值跟着目录走：干净的目录就地切换，有未提交修改的目录开 worktree，开关下面一行小字说明原因。用户可以在本次打开菜单期间手动切换。每一行右侧的 badge 只说"点了会发生什么"，同一种样式：`当前`、`切换` 或 `worktree`。已在其他 worktree 检出的分支始终显示 `worktree`，点击去那个目录——git 规定一个分支只能在一处检出。输入不存在的名字会出现"新建分支"（或"在新 worktree 上新建分支"），回车同效。文件夹位置无法换到 worktree 时不显示开关。
+4. **工作位置**：当前位置（本地仓库或 worktree，标 `当前`）和仓库的其他 worktree。新 worktree 建在仓库旁边的 `<repo>-worktrees/<branch>`，从不建在仓库里面，原目录的文件和未提交修改保持不动。"换到 worktree"按目录位置分三种：
    - 工作目录：在会话的目录列表里替换；
    - 未发送草稿的主目录：草稿的项目改指向该 worktree（登记为项目）；
    - 已开始会话的主目录：已固定，worktree 作为额外工作目录加入，菜单里有说明。
@@ -39,7 +39,7 @@
    - 否则"创建 PR"：推送分支（`git push -u origin HEAD`），以默认分支为基执行 `gh pr create --fill`，然后打开新 PR。没有 `gh`、没有 `origin`、HEAD 游离或当前就在默认分支时禁用，并在下方写明原因。分支相对基分支没有新提交时后端也会拒绝；
    - 有未提交修改时，"让 agent 提交并创建 PR…"把一段现成指令填进输入框（不发送）——写提交信息和 PR 描述是 agent 的活。
 
-git 或 `gh` 的报错显示在菜单底部，菜单保持打开，方便重试。
+git 或 `gh` 的报错以卡片形式显示在菜单底部，菜单保持打开，方便重试。卡片只有一行人话标题，git 的原始输出放在"查看 git 输出"文字按钮后面，不用原生折叠控件。有一种拒绝会多给内容：就地切换会覆盖未提交修改时，卡片列出文件名，并给两条出路——**改为开 worktree** 和 **带着修改切过去**。后者把所有修改（含未跟踪文件）stash 起来，切换后再 pop；pop 冲突时切换保留，修改留在最新的 stash 里，卡片会说明。不提供强制切换，也不提供丢弃修改：agent 会话里不该丢工作。
 
 ## 刷新时机
 
@@ -52,7 +52,7 @@ git 或 `gh` 的报错显示在菜单底部，菜单保持打开，方便重试�
 | 动作 | 回复 | 做什么 |
 |---|---|---|
 | `git_folder_status` | `git_folder_status` | `status --porcelain=v2 --branch`（分支、上游、领先 / 落后、文件数），`diff --numstat HEAD`（行数），`worktree list`，默认分支，是否有 `origin`，是否有 `gh`；带 `include_branches` / `include_pr` 时再列分支、执行 `gh pr view` |
-| `git_switch_branch` | `git_switch_branch_result` | `git switch [-c] <branch>` |
+| `git_switch_branch` | `git_switch_branch_result` | `git switch [-c] <branch>`；带 `carry` 时 `stash push -u` → switch → `stash pop`。拒绝帧带 `code`（`overwrite` 附 `files`，或 `stash_conflict`）和 `detail`（git 原始输出） |
 | `git_create_worktree` | `git_worktree_created` | `git worktree add [-b] <仓库旁的路径> <branch>` |
 | `git_create_pr` | `git_pr_created` | 推送分支，`gh pr create --fill`，返回 URL（或已存在的打开 PR） |
 
