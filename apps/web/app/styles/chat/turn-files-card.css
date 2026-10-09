@@ -12,7 +12,7 @@
 .turn-files-summary-actions{margin-left:auto;display:flex;align-items:center;gap:6px;flex:0 0 auto}
 /* The card itself deepens its shadow on hover, so the buttons need a
    clearly brighter fill of their own to read as the hover target. */
-.turn-files-action:hover:not(:disabled),.turn-files-review:hover{background:color-mix(in oklch,var(--bg-input),var(--foreground) 12%);color:var(--text-bright)}
+/* Revert / Review are elevated Buttons: hover only deepens the shadow; no grey fill, which in light themes matched the shadow colour. */.turn-files-action:hover:not(:disabled),.turn-files-review:hover{background:var(--bg-input);color:var(--text-bright)}
 .turn-files-action-icon{display:inline-flex;align-items:center;justify-content:center;line-height:0}.turn-files-redo-icon{transform:scaleX(-1)}
 .turn-files-history-notice{display:block;min-width:0;max-width:min(48ch,40cqi);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent-orange);font-size:12px;line-height:1.2}
 .turn-files-list{padding:3px;border-radius:11px;background:var(--bg-primary)}.turn-files-row{width:100%;height:30px;display:grid;grid-template-columns:auto minmax(0,1fr) max-content;align-items:center;column-gap:8px;padding:0 10px;border:0;border-radius:9px;background:transparent;color:inherit;text-align:left;cursor:pointer}.turn-files-row:hover{background:var(--bg-hover)}
