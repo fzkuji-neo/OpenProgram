@@ -34,7 +34,8 @@
 .envChips > .surfaceChip,
 .envChips :global(.status-badge),
 .envChips :global(.runtime-badge.project-badge),
-.envChips :global(.runtime-badge.workdir-badge) {
+.envChips :global(.runtime-badge.workdir-badge),
+.envChips :global(.runtime-badge.git-badge) {
   flex-shrink: 0;
   min-width: 24px;
 }
@@ -43,6 +44,8 @@
 .envChips :global(.status-badge .badge-short),
 .envChips :global(.project-badge .badge-short),
 .envChips :global(.workdir-badge .badge-short),
+.envChips :global(.git-badge .badge-short),
+.envChips :global(.git-badge-counts),
 .envChips :global(.dag-hud-chip > span),
 .envChips :global(.dag-hud-zoom) {
   flex: 0 0 auto;
@@ -67,6 +70,8 @@
 .envChips[data-compact="true"] :global(.status-badge .badge-short),
 .envChips[data-compact="true"] :global(.project-badge .badge-short),
 .envChips[data-compact="true"] :global(.workdir-badge .badge-short),
+.envChips[data-compact="true"] :global(.git-badge .badge-short),
+.envChips[data-compact="true"] :global(.git-badge-counts),
 .envChips[data-compact="true"] :global(.dag-hud-chip > span),
 .envChips[data-compact="true"] :global(.dag-hud-zoom) {
   max-width: 0;
@@ -84,6 +89,7 @@
 .envChips[data-compact="true"] :global(.status-badge),
 .envChips[data-compact="true"] :global(.runtime-badge.project-badge),
 .envChips[data-compact="true"] :global(.runtime-badge.workdir-badge),
+.envChips[data-compact="true"] :global(.runtime-badge.git-badge),
 .envChips[data-compact="true"] :global(button.dag-hud-chip) {
   min-width: 24px;
   padding-left: 5px;
@@ -123,6 +129,9 @@
   .envChips :global(.status-badge),
   .envChips :global(.runtime-badge.project-badge),
   .envChips :global(.runtime-badge.workdir-badge),
+  .envChips :global(.runtime-badge.git-badge),
+  .envChips :global(.git-badge .badge-short),
+  .envChips :global(.git-badge-counts),
   .envChips :global(.dag-hud-chip) {
     transition: none;
   }

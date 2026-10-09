@@ -40,6 +40,7 @@ import { useBoundChat } from "./bound-chat";
 import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { GitChip } from "./git-chip";
 
 /** Fired whenever the conversation's project changes so the topbar chip
  * re-fetches its label without a store round-trip. */
@@ -412,6 +413,9 @@ export function ProjectBadge() {
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState<string>(text("Project", "项目"));
   const [missing, setMissing] = useState(false);
+  // Real folder of a user project (not the home-dir default) — the git pill's subject.
+  const [gitPath, setGitPath] = useState<string | null>(null);
+  const setPendingProject = useSessionStore((s) => s.setPendingProject);
   const { pickFolder, folderPickerDialog, manualOpen } = useFolderPicker();
 
   // Returns true once it has resolved a project (so the caller can stop
@@ -451,6 +455,7 @@ export function ProjectBadge() {
     if (cur) {
       setLabel(cur.name);
       setMissing(cur.path_missing === true);
+      setGitPath(!cur.is_default && !cur.path_missing && cur.path ? cur.path : null);
       return true;
     }
     return false;
@@ -537,7 +542,33 @@ export function ProjectBadge() {
         <ProjectMenu onClose={() => setOpen(false)} pickFolder={pickFolder} />
       </PopoverContent>
     </Popover>
+    <GitChip
+      path={gitPath}
+      order={0}
+      onUseFolder={useWorktree}
+      useFolderLabel={sessionId ? {
+        en: "This conversation's main folder is fixed; another worktree is added as a working folder.",
+        zh: "本会话的主目录已固定；其他 worktree 会作为额外工作目录加入。",
+      } : undefined}
+    />
     {folderPickerDialog}
     </>
   );
+
+  // Draft: the worktree becomes this chat's project. Started chat: the
+  // main folder is frozen, so the worktree joins as a working folder.
+  async function useWorktree(path: string) {
+    if (sessionId) {
+      window.dispatchEvent(new CustomEvent("op:workdir-add", { detail: { path } }));
+      return;
+    }
+    const created = await wsRequest<{ ok: boolean; project?: Project | null; error?: string | null }>(
+      "create_project", { path, session_id: "" }, "project_created",
+    );
+    if (!created?.ok || !created.project?.id) {
+      throw new Error(created?.error ?? text("Couldn't open this worktree as a project.", "无法把该 worktree 作为项目打开。"));
+    }
+    if (activeChatKey) setPendingProject(activeChatKey, created.project.id);
+    notifyProjectChanged();
+  }
 }

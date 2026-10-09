@@ -21,6 +21,7 @@ Web UI surfaces — the surface system, indicator dots, attachment handling, cha
 - [`chat-attachments.html`](chat-attachments.html) — chat attachments both ways: what the transcript shows, how the agent hands a file back, how a readable file opens
 - [`gui-agent.html`](gui-agent.html) — GUI agent entry, state machine, result contract, and implementation status
 - [`indicator-dots.md`](indicator-dots.md) — indicator dots
+- [`git-folder-pills.md`](git-folder-pills.md) — per-folder git pill in the composer: branch, change counts, branch switch, worktrees, pull requests
 - [`icons.md`](icons.md) — icon system: which family goes where (Solar in the composer, animated line icons in the chrome, lucide elsewhere), motion contract, attribution
 - [`surface-system.md`](surface-system.md) — surface system
 - [`theme-system.html`](theme-system.html) — authoritative theme entry, complete token contract, component consumption, and desktop-overlay propagation
