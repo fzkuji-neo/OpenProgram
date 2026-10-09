@@ -148,13 +148,117 @@
   }
 }
 
-/* ─── Effort 最高档（Ultracode）：紫色像素矩阵 ─────────────────────
-   底色为左灰右紫的水平渐变；像素矩阵动画由 <UltraRain> canvas 绘制
-   （固定格子矩阵、逐格随机亮灭、入场从右往左辐射）。刻度点隐藏。 */
-/* ─── Effort 最高档（Ultracode）：紫底 + 白方块矩阵动画 ────────────
-   底色与像素矩阵动画全部由 <UltraRain> canvas 逐帧绘制（紫渐变底 +
-   满铺白方块的从右往左流动 + 入场辐射）。这里只隐藏档位刻度点。 */
-.effort-ultra ~ .slider-tick,
-.effort-ultra .slider-tick {
+/* ─── Effort card: dot-matrix track ───────────────────────────────
+   The track is the <EffortDotMatrix> svg underneath the Radix slider
+   (geometry in lib/effort-matrix.ts). The slider's own track / range
+   paint nothing and its option ticks are gone — the matrix continues
+   between options. Passed dots use currentColor (= --text-muted here),
+   dots ahead of the thumb use --accent-purple; both come from the theme.
+   At `max` the <UltraRain> canvas still paints the passed side of the
+   track (purple gradient + white-square matrix, drawn per frame). */
+.effort-card .slider-track,
+.effort-card .slider-range {
+  background: transparent;
+}
+
+.effort-card .slider-tick {
   display: none;
+}
+
+.effort-matrix {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--text-muted);
+}
+
+/* Dots crossing the thumb swap grey ↔ lavender; a short crossfade keeps
+   that from popping. Static otherwise — nothing animates on its own. */
+.effort-matrix circle {
+  transition: fill 160ms ease, fill-opacity 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .effort-matrix circle {
+    transition: none;
+  }
+}
+
+/* (?) help in the card header — same 24px footprint as the Fast toggle
+   beside it, muted until hovered. */
+.effort-help {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: help;
+}
+
+.effort-help:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.effort-help:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Level name over the thumb. Hidden until the pill marks the slider
+   root with data-thumb-tip (pointer resting on the thumb, or a drag in
+   flight) or the thumb has keyboard focus. Same badge as .hover-tip; no
+   transition, so it never flickers while the thumb snaps between
+   options. */
+.effort-thumb-tip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--surface-tooltip);
+  color: var(--text-on-tooltip);
+  box-shadow: var(--shadow-popover);
+  pointer-events: none;
+}
+
+.effort-card [data-thumb-tip="true"] .effort-thumb-tip,
+.effort-card [role="slider"]:focus-visible .effort-thumb-tip {
+  display: block;
+}
+
+/* "Recommended" under the model's default option. Centred on that
+   option's thumb position (inline `left` from the pill); the first and
+   last options hug the track edges instead so the word never overhangs
+   the card. */
+.effort-recommended {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+}
+
+.effort-recommended[data-align="start"] {
+  left: 0;
+}
+
+.effort-recommended[data-align="end"] {
+  right: 0;
+}
+
+.effort-recommended[data-align="center"] {
+  transform: translateX(-50%);
 }

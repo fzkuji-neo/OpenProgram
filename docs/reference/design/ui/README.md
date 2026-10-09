@@ -15,6 +15,7 @@ Web UI surfaces — the surface system, indicator dots, attachment handling, cha
 - [`composer-local-attachment-paths.html`](composer-local-attachment-paths.html) — local attachment path preservation from the composer to model context
 - [`composer-responsive-controls.html`](composer-responsive-controls.html) — responsive composer controls and compact-state interaction contract
 - [`composer-tool-profile-menu.html`](composer-tool-profile-menu.html) — Tools action and profile submenu behavior
+- [`effort-picker.md`](effort-picker.md) — the effort card: lavender level name and `?` help tip in the header, a dot-matrix track that grows and brightens towards Smarter, the thumb's level tip, and the Recommended caption
 - [`programs-source-categories.html`](programs-source-categories.html) — Programs grouping and source-category behavior
 - [`composer-interaction-modes.md`](composer-interaction-modes.md) — composer interaction modes
 - [`attachment-handling.html`](attachment-handling.html) — complete attachment design: storage, admission, delivery, recovery, and acceptance

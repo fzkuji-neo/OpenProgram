@@ -30,6 +30,7 @@ and is wider than the chip (up to 320 px, paths wrap anywhere).
 | Options (+) | Options | attach files, toggle tools / web search / sandbox |
 | Tool chips | Tools / Web search / Sandbox / Unattended on | what it does; click to turn off |
 | Effort | Thinking effort: <level> | how long the model thinks; click to adjust |
+| `?` in the effort card | Thinking effort | how long the model reasons; higher levels think longer and use more tokens, lower levels answer faster; Recommended marks the model's default ([effort-picker.md](effort-picker.md)) |
 | Model badges | Chat Agent / Execution Agent: <model> | its role; click to change model |
 
 ## Implementation status

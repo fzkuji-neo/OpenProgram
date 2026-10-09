@@ -61,9 +61,12 @@ while-running mode shows a forward arrow for Steer and a queue list for
 Queue, the project chip turns into the warning triangle when its folder
 is gone.
 
-The Fast (speed) toggle is the one composer glyph that is **not** Solar:
-it keeps the gauge from the animated set, with its needle rotated by the
-`active` prop. See the implementation status below.
+Two composer glyphs are **not** Solar. The Fast (speed) toggle keeps the
+gauge from the animated set, with its needle rotated by the `active` prop.
+The `?` help button in the effort card
+([effort-picker.md](effort-picker.md)) is lucide `CircleHelp` at 14px: Solar
+has no vendored question glyph yet, and the button is static, so it needs
+no motion handle. See the implementation status below for both.
 
 ## Motion contract
 
@@ -105,6 +108,8 @@ entry is still to be added (see below).
 - Fast toggle as a state-driven gauge (needle idles low when off, sweeps
   to high and turns accent-red when on): **not implemented** — the
   animated-set gauge with a static `active` rotation remains.
+- Effort-card help glyph on a Solar `question-circle` (vendored through
+  `fetch-solar.mjs`): **not implemented** — lucide `CircleHelp` stands in.
 - User-facing third-party credits entry for Solar (CC BY): **not
   implemented**.
 - Rail, tabs, sidebar and settings stay on the animated line set; no
