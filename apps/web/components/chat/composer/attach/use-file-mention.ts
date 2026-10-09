@@ -47,7 +47,7 @@ export interface UseFileMentionResult {
   fileMenuLoading: boolean;
   /** Where to render the popover (anchored to the textarea), or null
    *  when not shown. */
-  fileMenuPos: { left: number; top: number } | null;
+  fileMenuPos: { left: number; top: number; bottom?: number } | null;
   /** Pick a match — replaces the `@partial` slice with `@path[/]`. */
   pickFile: (item: FileMatch) => void;
   /** Programmatically close the menu (Escape, blur, etc.). */
@@ -68,7 +68,7 @@ export function useFileMention({
   const [fileMenuIndex, setFileMenuIndex] = useState(0);
   const [fileMenuLoading, setFileMenuLoading] = useState(false);
   const [fileMenuPos, setFileMenuPos] =
-    useState<{ left: number; top: number } | null>(null);
+    useState<{ left: number; top: number; bottom?: number } | null>(null);
 
   // Debounced fetch. Each token change starts a fresh timer; the
   // cleanup cancels the prior one so a fast typer doesn't run N
@@ -107,17 +107,20 @@ export function useFileMention({
     };
   }, [atToken?.partial, atToken?.start]);
 
-  // Pin the popover to the textarea's top-left. Caret-precise
-  // anchoring would be nicer but textarea has no native caret rect;
-  // a slight offset off the textarea's left edge reads fine in v1.
+  // Open the popover upward from the field, starting at the "@" when the
+  // field can report caret coordinates (the markdown editor can).
   useLayoutEffect(() => {
     if (!atToken) return;
-    const ta = textareaRef.current;
+    const ta = textareaRef.current as (HTMLTextAreaElement & {
+      coordsAt?: (pos: number) => { left: number; top: number } | null;
+    }) | null;
     if (!ta) return;
     const rect = ta.getBoundingClientRect();
+    const at = ta.coordsAt?.(atToken.start);
     setFileMenuPos({
-      left: rect.left + 8,
-      top: Math.max(8, rect.top - 8),
+      left: Math.max(8, Math.min(at?.left ?? rect.left + 8, window.innerWidth - 268)),
+      top: 0,
+      bottom: Math.max(8, window.innerHeight - rect.top + 6),
     });
   }, [atToken, fileMatches.length, textareaRef]);
 
