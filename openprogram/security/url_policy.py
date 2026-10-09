@@ -46,6 +46,18 @@ _SPECIAL_NON_GLOBAL_NETWORKS: tuple[IPNetwork, ...] = tuple(
     )
 )
 _PROXY_FAKE_IP_NETWORK = ipaddress.ip_network("198.18.0.0/15")
+# Hostnames that name the local machine or network. A forward proxy resolves
+# them in its own, usually local, context, so they never leave through one.
+_LOCAL_NAME_SUFFIXES = (
+    ".corp",
+    ".home",
+    ".home.arpa",
+    ".internal",
+    ".intranet",
+    ".lan",
+    ".local",
+    ".localhost",
+)
 
 
 class URLTrustClass(str, Enum):
@@ -82,6 +94,10 @@ class URLDecision:
     port: int
     resolved_ips: tuple[IPAddress, ...]
     trust_class: URLTrustClass
+    # True when the target was accepted because a forward proxy performs the
+    # final name resolution. Such a decision must never open a direct socket:
+    # its ``resolved_ips`` are local hints (possibly proxy fake IPs or empty).
+    requires_proxy: bool = False
 
 
 class URLPolicyError(ValueError):
@@ -273,6 +289,40 @@ def _resolve(normalized: NormalizedURL, resolver: Resolver) -> tuple[IPAddress, 
     return deduplicated
 
 
+def _is_ip_literal(hostname: str) -> bool:
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        return False
+    return True
+
+
+def _is_local_name(hostname: str) -> bool:
+    return "." not in hostname or hostname.endswith(_LOCAL_NAME_SUFFIXES)
+
+
+def _resolve_for_proxy(
+    normalized: NormalizedURL, resolver: Resolver
+) -> tuple[IPAddress, ...]:
+    """Local answers for a hostname whose final resolution is the proxy's.
+
+    A failed or empty lookup is not a denial: the proxy resolves the name in
+    its own context (corporate proxies commonly front a network without public
+    DNS). Answers that do arrive are still checked, and malformed answers fail
+    closed.
+    """
+    try:
+        raw_answers = tuple(resolver(normalized.hostname, normalized.port))
+    except OSError:
+        return ()
+    except Exception as exc:
+        raise URLPolicyError("DNS_ERROR", normalized.safe_url) from exc
+    try:
+        return tuple(dict.fromkeys(_resolver_address(item) for item in raw_answers))
+    except Exception as exc:
+        raise URLPolicyError("DNS_ERROR", normalized.safe_url) from exc
+
+
 def _is_non_global(address: IPAddress) -> bool:
     return (
         not address.is_global
@@ -324,6 +374,7 @@ def _validate_addresses(
     trust_class: URLTrustClass,
     exceptions: tuple[OwnerURLException, ...],
     callback_origin: str | None,
+    proxy_resolved: bool = False,
 ) -> None:
     for address in addresses:
         if _is_metadata(normalized, address):
@@ -336,15 +387,22 @@ def _validate_addresses(
         URLTrustClass.FIXED_PUBLIC_SERVICE,
     }:
         for address in addresses:
-            # Transparent proxies such as Clash resolve public hosts into the
-            # benchmarking range and recover the hostname from the TLS
-            # connection. This is safe only for fixed, audited HTTPS origins:
-            # the caller cannot choose the host and TLS still verifies it.
+            # Fake-IP proxies such as Clash answer local DNS queries from the
+            # benchmarking range and recover the hostname when the connection
+            # reaches them. Such an answer says nothing about the real target,
+            # so it is accepted only when the proxy performs the resolution:
+            # the request is routed through it by hostname, or the origin is
+            # a fixed, audited HTTPS service whose hostname TLS verifies.
             proxy_fake_ip = (
-                trust_class == URLTrustClass.FIXED_PUBLIC_SERVICE
-                and address.version == _PROXY_FAKE_IP_NETWORK.version
+                address.version == _PROXY_FAKE_IP_NETWORK.version
                 and address in _PROXY_FAKE_IP_NETWORK
-                and normalized.scheme == "https"
+                and (
+                    proxy_resolved
+                    or (
+                        trust_class == URLTrustClass.FIXED_PUBLIC_SERVICE
+                        and normalized.scheme == "https"
+                    )
+                )
             )
             if _is_non_global(address) and not proxy_fake_ip:
                 raise URLPolicyError("NON_GLOBAL_ADDRESS", normalized.safe_url)
@@ -387,7 +445,18 @@ def evaluate_url(
     callback_origin: str | None = None,
     exceptions: tuple[OwnerURLException, ...] = (),
     resolver: Resolver = resolve_all,
+    proxy_resolves: bool = False,
 ) -> URLDecision:
+    """Decide whether ``consumer`` may send ``method`` to ``url``.
+
+    ``proxy_resolves`` declares that the transport hands the hostname to a
+    forward proxy, which performs the final DNS resolution. It applies to
+    public trust classes and hostnames only: local names are refused, local
+    answers that name a private, loopback or reserved address are still
+    refused, while proxy fake-IP answers and failed local lookups are left to
+    the proxy. IP literals are always checked directly. The returned decision
+    then carries ``requires_proxy`` so the transport cannot connect directly.
+    """
     normalized = normalize_url(url)
     if not isinstance(trust_class, URLTrustClass):
         raise URLPolicyError("TRUST_CLASS_INVALID", normalized.safe_url)
@@ -419,7 +488,20 @@ def evaluate_url(
         if normalized.origin != normalize_origin(callback_origin):
             raise URLPolicyError("CALLBACK_ORIGIN_MISMATCH", normalized.safe_url)
 
-    addresses = _resolve(normalized, resolver)
+    proxy_resolved = (
+        proxy_resolves
+        and trust_class
+        in {URLTrustClass.UNTRUSTED_PUBLIC, URLTrustClass.FIXED_PUBLIC_SERVICE}
+        and not _is_ip_literal(normalized.hostname)
+    )
+    if proxy_resolved:
+        if normalized.hostname in _METADATA_HOSTS:
+            raise URLPolicyError("METADATA_ADDRESS", normalized.safe_url)
+        if _is_local_name(normalized.hostname):
+            raise URLPolicyError("NON_GLOBAL_ADDRESS", normalized.safe_url)
+        addresses = _resolve_for_proxy(normalized, resolver)
+    else:
+        addresses = _resolve(normalized, resolver)
     _validate_addresses(
         consumer,
         normalized,
@@ -427,6 +509,7 @@ def evaluate_url(
         trust_class,
         exceptions,
         callback_origin,
+        proxy_resolved,
     )
     return URLDecision(
         consumer=consumer,
@@ -437,6 +520,7 @@ def evaluate_url(
         port=normalized.port,
         resolved_ips=addresses,
         trust_class=trust_class,
+        requires_proxy=proxy_resolved,
     )
 
 

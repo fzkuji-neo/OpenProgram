@@ -72,7 +72,7 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 | `playwright_browser` | Playwright 驱动无头 Chromium（open / navigate 等动作） | 每个受支持的 release 已包含 Playwright Chromium |
 | `agent_browser` | 经 npm `agent-browser` CLI 驱动浏览器，snapshot 返回可访问性树 | 开发者增加的替代 backend，不用于补齐产品 Browser 功能 |
 
-`web_search` 后端与 key（arXiv 免 key；DuckDuckGo 还需安装可选依赖）：
+`web_search` 后端与 key（arXiv 与 DuckDuckGo 免 key，始终可用）：
 
 | 后端 | 环境变量 |
 |---|---|
@@ -94,7 +94,7 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 
 聊天中的 Web Search 开关控制本条消息是否可使用 `web_search`；关闭后，即使是自动工具模式也会排除此工具。开启后直接提供搜索工具定义，Tools 关闭时也可调用。开启仍遵守 Agent 禁用工具和权限设置。Tool profile 按会话保存，切换标签和刷新后保留。
 
-新增搜索 key 在后续调用中生效，无需重启。默认后端不可用时使用其他可用后端；显式指定不可用后端则报错。Jina 搜索需要 `JINA_API_KEY`。`combine="race"` 返回首个非空成功结果；`combine="rrf"` 保留截止时间前完成的结果。全部失败返回错误，与成功但无结果区分；已开始的请求按各自传输超时结束。
+新增搜索 key 在后续调用中生效，无需重启。默认后端不可用时使用其他可用后端；显式指定不可用后端则报错，错误说明原因（例如缺少的 key）并列出当前可用的后端。Jina 搜索需要 `JINA_API_KEY`。DuckDuckGo 读取其无 JavaScript 结果页，返回第一页结果（约十条）；遇到机器人验证或无法解析的页面时报错，而不是返回空结果。`combine="race"` 返回首个非空成功结果；`providers` 中无法运行的后端会被跳过，全部无法运行时错误逐个列出原因；`combine="rrf"` 保留截止时间前完成的结果。全部失败返回错误，与成功但无结果区分；已开始的请求按各自传输超时结束。
 
 ## 图像与 PDF
 

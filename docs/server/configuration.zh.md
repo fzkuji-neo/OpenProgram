@@ -81,14 +81,16 @@ openprogram config set web.allowed_origins '["https://agent.example.com"]'
 
 ## 网络代理
 
-受管理的 provider 请求与模型连接检查，只在目标为 provider API 或 OAuth 审计列表中的确切 HTTPS 服务时使用普通代理：
+worker 访问公共目标时使用你的普通代理：`web_fetch` 读取的页面、图片与附件下载、内置网页搜索后端（包括 DuckDuckGo）、更新检查等其他固定公共服务，以及 API 或 OAuth origin 位于 provider 审计列表中的模型 provider。路由来自：
 
 1. `OPENPROGRAM_PROXY_URL` 覆盖普通代理配置，支持 `http://`、`https://`、`socks5://`，保留 `NO_PROXY`。
-2. HTTPX 解析 `http_proxy` / `HTTP_PROXY`、`https_proxy` / `HTTPS_PROXY`、`all_proxy` / `ALL_PROXY` 和 `no_proxy` / `NO_PROXY`。在适用时，Python 使用 macOS 和 Windows 的系统代理配置。
+2. HTTPX 解析 `http_proxy` / `HTTP_PROXY`、`https_proxy` / `HTTPS_PROXY`、`all_proxy` / `ALL_PROXY` 和 `no_proxy` / `NO_PROXY`。在适用时，Python 使用 macOS 和 Windows 的系统代理配置。loopback host 从不经过代理。
 
 客户端先验证目标，再检查代理 socket 地址。TLS 继续验证服务 hostname；代理认证只发送给代理，代理失败不回退直连。显式 `security.outbound_url.policy_proxy` 优先，并要求用户声明该代理执行目标策略。
 
-自定义服务 origin 和用户提供的 URL 不隐式使用普通代理，继续使用直接地址检查或显式执行策略的代理。CLI provider 继承 worker 的进程环境，由外部 CLI 处理代理。SOCKS 支持已包含。
+请求经代理发出时，hostname 由代理解析。Clash 等 fake-IP 代理因此可以正常使用：它们的本地 DNS 结果来自 `198.18.0.0/15`，直连时会被判为 `NON_GLOBAL_ADDRESS` 而拒绝。私有、loopback 与 metadata IP 地址，本地名称（`localhost`、单标签 host、`.local`、`.lan`、`.internal` 等），以及本地 DNS 结果为真实私有地址的 hostname 仍然被拒绝。`NO_PROXY` 中的 host 直连并执行完整地址检查。如需确保最终解析结果也受检查，请配置执行策略的代理。
+
+自定义服务 origin（配置的 provider base URL、SearXNG、技能或插件目录）不继承普通代理，继续使用直接地址检查或显式执行策略的代理。CLI provider 继承 worker 的进程环境，由外部 CLI 处理代理。SOCKS 支持已包含。
 
 `openprogram rescue` 会报告解析出的代理配置，并在 SOCKS 代理缺少支持包时给出警告。
 

@@ -104,3 +104,131 @@ def test_official_backend_rejects_stale_frame_before_upstream_call(monkeypatch):
     assert result["reason_code"] == "stale_observation"
     assert client.calls == before
 
+
+@pytest.mark.parametrize("backend", ["playwright_mcp", "chrome_devtools_mcp"])
+def test_official_backend_launch_uses_the_cached_pinned_package(backend):
+    from openprogram.programs.workflow.browser.mcp_backends import (
+        OfficialMCPPageBackend,
+    )
+
+    adapter = OfficialMCPPageBackend(backend, _Controller)
+    command = adapter._command("ws://cdp", "target-1")
+
+    # Pinned versions never need a registry round trip when cached; without
+    # --prefer-offline a slow network outlasts the MCP start timeout.
+    assert command[:3] == ["npx", "--prefer-offline", "-y"]
+
+
+class _DeadClient:
+    def __init__(self) -> None:
+        self.calls = []
+        self.closed = 0
+
+    def is_alive(self):
+        return False
+
+    def call(self, name, arguments):
+        self.calls.append((name, dict(arguments)))
+        raise RuntimeError("mcp_server_unavailable:fatal")
+
+    def close(self):
+        self.closed += 1
+
+
+def test_official_backend_observe_restarts_a_dead_mcp_client(monkeypatch):
+    from openprogram.programs.workflow.browser.web_use_runtime import (
+        WebUseSession,
+    )
+    from openprogram.programs.workflow.browser.mcp_backends import (
+        OfficialMCPPageBackend,
+    )
+    from openprogram.programs.tools.web.browser import _chrome_bootstrap
+
+    controller = _Controller()
+    replacement = _PlaywrightClient(controller.page)
+    started = []
+    monkeypatch.setattr(_chrome_bootstrap, "desktop_app_ws_url", lambda: "ws://cdp")
+    adapter = OfficialMCPPageBackend(
+        "playwright_mcp", lambda: controller,
+        client_factory=lambda command: started.append(command) or replacement,
+    )
+    dead = _DeadClient()
+    session = WebUseSession("cs-1", "playwright_mcp", "binding-1")
+    session.controller = controller
+    session.state["mcp_client"] = dead
+
+    observed = adapter.observe(session, {})
+
+    assert observed["aria_snapshot"] == '- button "Save" [ref=e7]'
+    assert len(started) == 1 and "target-1" in started[0]
+    assert dead.closed == 1 and dead.calls == []
+    assert session.state["mcp_client"] is replacement
+
+
+def test_official_backend_act_never_writes_through_a_restarted_client(monkeypatch):
+    from openprogram.programs.workflow.browser.web_use_runtime import (
+        WebUseSession,
+    )
+    from openprogram.programs.workflow.browser.mcp_backends import (
+        OfficialMCPPageBackend,
+    )
+
+    controller = _Controller()
+    started = []
+    adapter = OfficialMCPPageBackend(
+        "playwright_mcp", lambda: controller,
+        client_factory=lambda command: started.append(command),
+    )
+    dead = _DeadClient()
+    session = WebUseSession("cs-1", "playwright_mcp", "binding-1")
+    session.controller = controller
+    session.state["mcp_client"] = dead
+
+    result = adapter.act(session, {
+        "action": "click", "expected_frame_id": "frame-1", "ref": "e7",
+    })
+
+    assert result["reason_code"] == "computer_use_backend_unavailable"
+    assert result["action_dispatched"] is False
+    assert result["observe_required"] is True
+    assert "observe" in result["message"]
+    assert dead.calls == [] and started == []
+    assert controller.invalidated == 1
+    assert "mcp_client" not in session.state
+
+
+def test_sync_mcp_client_reaps_a_supervisor_that_missed_the_start_timeout(monkeypatch):
+    import asyncio
+
+    from openprogram.programs.workflow.browser import mcp_backends
+
+    instances = []
+
+    class _HangingClient:
+        def __init__(self, _config):
+            self.error = None
+            self.cancelled = threading.Event()
+            instances.append(self)
+
+        async def start(self):
+            async def supervisor():
+                try:
+                    await asyncio.Event().wait()
+                except asyncio.CancelledError:
+                    # stdio_client terminates the npx child in this cleanup.
+                    self.cancelled.set()
+                    raise
+
+            self.task = asyncio.get_running_loop().create_task(supervisor())
+            await asyncio.sleep(0)
+            self.error = "server did not become ready within 0.1s"
+
+        async def stop(self):
+            pass
+
+    monkeypatch.setattr(mcp_backends, "MCPClient", _HangingClient)
+    with pytest.raises(RuntimeError, match="computer_use_backend_unavailable"):
+        mcp_backends._SyncMCPClient(["npx"], timeout=0.1)
+
+    assert instances[0].cancelled.is_set()
+
