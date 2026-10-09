@@ -163,12 +163,157 @@ def test_subprocess_timeout_kills_the_process_tree(monkeypatch):
 
     assert joined == [2.5, 5]
     assert killed == [4321]
-    assert result == {
-        "error": "agentic subprocess timed out after 2.5 seconds",
-        "killed": True,
-        "timed_out": True,
-        "signal": 9,
+    error = result.pop("error")
+    progress = result.pop("progress")
+    assert result == {"killed": True, "timed_out": True, "signal": 9}
+    assert error.splitlines()[0] == "agentic subprocess timed out after 2.5 seconds"
+    assert "demo was stopped at its 2.5-second limit." in error
+    assert "reported no progress" in error
+    assert progress["events"] == 0
+    assert progress["steps"] == [] and progress["recent"] == []
+
+
+def test_agentic_limits_hand_the_budget_to_the_agent(monkeypatch):
+    from openprogram.agent import process_runner
+
+    monkeypatch.delenv("OPENPROGRAM_AGENTIC_TIMEOUT_S", raising=False)
+    args = {"task": "inspect"}
+    limits = process_runner.agentic_subprocess_limits("gui_agent", args)
+    assert limits.kwargs == {"task": "inspect", "max_seconds": 300.0}
+    assert args == {"task": "inspect"}
+    assert (limits.budget_seconds, limits.timeout_seconds) == (300.0, 360.0)
+
+    explicit = process_runner.agentic_subprocess_limits(
+        "browser_agent", {"task": "t", "max_seconds": 12},
+    )
+    assert explicit.kwargs["max_seconds"] == 12
+    assert (explicit.budget_seconds, explicit.timeout_seconds) == (12.0, 42.0)
+
+    unbounded = process_runner.agentic_subprocess_limits(
+        "gui_agent", {"task": "t", "max_seconds": 0},
+    )
+    assert unbounded.kwargs == {"task": "t", "max_seconds": 0}
+    assert (unbounded.budget_seconds, unbounded.timeout_seconds) == (None, None)
+
+    other = process_runner.agentic_subprocess_limits("wc", {"path": "a"})
+    assert other.kwargs == {"path": "a"}
+    assert (other.budget_seconds, other.timeout_seconds) == (None, None)
+
+
+@pytest.mark.parametrize(
+    ("raw", "budget", "timeout"),
+    [("900", 900.0, 1020.0), ("0", None, None), ("-1", None, None),
+     ("", 300.0, 360.0), ("soon", 300.0, 360.0)],
+)
+def test_agentic_default_budget_comes_from_the_environment(
+    monkeypatch, raw, budget, timeout,
+):
+    from openprogram.agent import process_runner
+
+    monkeypatch.setenv("OPENPROGRAM_AGENTIC_TIMEOUT_S", raw)
+    limits = process_runner.agentic_subprocess_limits("gui_agent", {"task": "t"})
+    assert (limits.budget_seconds, limits.timeout_seconds) == (budget, timeout)
+    assert limits.kwargs.get("max_seconds") == budget
+    explicit = process_runner.agentic_subprocess_limits(
+        "gui_agent", {"task": "t", "max_seconds": 50},
+    )
+    assert explicit.budget_seconds == 50.0
+
+
+def test_agentic_timeout_reports_the_childs_last_progress(monkeypatch):
+    from openprogram.agent import process_runner
+
+    delivered = threading.Event()
+    killed = []
+    tree = {
+        "path": "run", "name": "gui_agent", "status": "running",
+        "children": [
+            {"path": "a", "name": "gui_operation", "status": "completed",
+             "duration_ms": 120},
+            {"path": "b", "name": "plan_next_capability", "status": "completed",
+             "duration_ms": 4200},
+            {"path": "c", "name": "computer_use", "status": "running",
+             "children": [
+                 {"path": "d", "name": "locate_target", "status": "error",
+                  "error": "element not found\ntrace"},
+             ]},
+        ],
     }
+
+    class FakeProcess:
+        pid = 99
+        exitcode = -9
+
+        def __init__(self, *, target, args, daemon):
+            del target, daemon
+            self.event_queue = args[6]
+            self.alive = True
+
+        def start(self):
+            self.event_queue.put({"type": "chat_response", "data": {
+                "type": "tree_update", "session_id": "s", "tree": tree,
+            }})
+            self.event_queue.put({"type": "chat_response", "data": {
+                "type": "execution_stream", "op": "block_started",
+                "kind": "tool_ref", "tool_name": "computer_use",
+            }})
+            self.event_queue.put({"type": "marker"})
+
+        def join(self, timeout=None):
+            if timeout == 360.0:
+                assert delivered.wait(30)
+
+        def is_alive(self):
+            return self.alive
+
+    holder = {}
+
+    class FakeContext:
+        Queue = queue.Queue
+
+        def Process(self, **kwargs):
+            holder["process"] = FakeProcess(**kwargs)
+            return holder["process"]
+
+    def kill_process_tree(pid):
+        killed.append(pid)
+        holder["process"].alive = False
+        return True
+
+    def on_event(env):
+        if env.get("type") == "marker":
+            delivered.set()
+
+    monkeypatch.setattr(process_runner.mp, "get_context", lambda _kind: FakeContext())
+    monkeypatch.setattr("openprogram._compat.kill_process_tree", kill_process_tree)
+
+    result = process_runner.run_agent_method_in_subprocess(
+        tool_name="gui_agent",
+        kwargs={"task": "t", "max_seconds": 300.0},
+        session_id="s",
+        anchor_msg_id="m",
+        on_event=on_event,
+        timeout_seconds=360.0,
+        budget_seconds=300.0,
+    )
+
+    assert killed == [99]
+    assert result["timed_out"] is True and result["killed"] is True
+    progress = result["progress"]
+    assert progress["events"] == 3
+    assert progress["steps"] == [
+        "gui_operation: completed (0.1 s)",
+        "plan_next_capability: completed (4.2 s)",
+        "computer_use: running",
+        "  locate_target: error - element not found",
+    ]
+    assert progress["recent"][-1].endswith("tool computer_use started")
+    error = result["error"]
+    assert error.splitlines()[0] == "agentic subprocess timed out after 360 seconds"
+    assert "within its 300-second budget plus 60 seconds" in error
+    assert "  computer_use: running" in error
+    assert "OPENPROGRAM_AGENTIC_TIMEOUT_S" in error
+    assert "pass max_seconds to gui_agent" in error
 
 
 def test_blocked_non_page_event_does_not_report_page_cleanup_failure(monkeypatch):

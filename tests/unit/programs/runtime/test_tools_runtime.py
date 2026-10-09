@@ -634,6 +634,7 @@ def test_bash_execution_failures_use_typed_error(
                 "error": "agentic subprocess timed out after 90 seconds",
                 "killed": True,
                 "timed_out": True,
+                "progress": {"events": 2, "steps": ["plan: completed"]},
             },
             "agentic subprocess timed out after 90 seconds",
             "agentic_subprocess_timeout",
@@ -757,6 +758,7 @@ def test_agentic_subprocess_failure_reaches_agent_loop_as_typed_error(
         assert results[0].details["signal"] == subprocess_result["signal"]
     if subprocess_result.get("timed_out"):
         assert results[0].details["timed_out"] is True
+        assert results[0].details["progress"] == subprocess_result["progress"]
 
 
 def test_worker_resident_agentic_tool_does_not_spawn(monkeypatch) -> None:
@@ -818,6 +820,8 @@ def test_worker_resident_agentic_tool_does_not_spawn(monkeypatch) -> None:
 
 def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch, tmp_path) -> None:
     from contextlib import nullcontext
+
+    monkeypatch.delenv("OPENPROGRAM_AGENTIC_TIMEOUT_S", raising=False)
 
     import openprogram.agent.process_runner as process_runner
     import openprogram.agent.session_db as session_db
@@ -904,7 +908,11 @@ def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch, tmp_p
 
     assert result.content[0].text == "browser result"
     assert seen["surface_context_snapshot"] is captured
-    assert seen["timeout_seconds"] == 300
+    # The agent stops itself at its budget; the process is killed only after
+    # a grace period, so its partial history can still come back.
+    assert seen["kwargs"]["max_seconds"] == 300
+    assert seen["budget_seconds"] == 300
+    assert seen["timeout_seconds"] == 360
     assert released == [captured]
 
     def forbid_fallback():
@@ -926,7 +934,7 @@ def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch, tmp_p
     ))
     assert result.content[0].text == "browser result"
     assert seen["surface_context_snapshot"] is None
-    assert seen["timeout_seconds"] == 300
+    assert seen["timeout_seconds"] == 360
     assert released == []
 
     def forbid_capture():
@@ -951,7 +959,7 @@ def test_gui_agent_browser_surface_is_captured_for_subprocess(monkeypatch, tmp_p
         ))
         assert result.content[0].text == "browser result"
         assert seen["surface_context_snapshot"] is None
-        assert seen["timeout_seconds"] == 300
+        assert seen["timeout_seconds"] == 360
         assert released == []
 
 
@@ -1157,7 +1165,9 @@ def test_gui_agent_max_seconds_bounds_the_subprocess(monkeypatch) -> None:
     ))
 
     assert result.content[0].text == "done"
-    assert seen["timeout_seconds"] == 12
+    assert seen["kwargs"]["max_seconds"] == 12
+    assert seen["budget_seconds"] == 12
+    assert seen["timeout_seconds"] == 42
 
 
 def test_approval_wrapper_preserves_worker_resident_marker() -> None:

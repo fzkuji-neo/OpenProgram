@@ -699,6 +699,8 @@ def test_forced_tool_passes_canonical_execution_id(monkeypatch):
     from openprogram.agent.dispatcher import forced_tool
     from openprogram.agent import surface_context
 
+    monkeypatch.delenv("OPENPROGRAM_AGENTIC_TIMEOUT_S", raising=False)
+
     captured: dict = {}
     released = []
     terminal: list[tuple[str, str]] = []
@@ -790,7 +792,9 @@ def test_forced_tool_passes_canonical_execution_id(monkeypatch):
         tool_name="gui_agent",
         tool_input={"task": "inspect", "surface": "browser"},
     )
-    assert captured["timeout_seconds"] == 300
+    assert captured["kwargs"]["max_seconds"] == 300
+    assert captured["budget_seconds"] == 300
+    assert captured["timeout_seconds"] == 360
     assert captured["surface_context_snapshot"] is page_context
     assert released == [page_context]
 

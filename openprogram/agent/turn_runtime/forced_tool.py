@@ -96,7 +96,7 @@ def dispatch_forced_tool_call(
     # _wrap_agentic_runtime_block; events are bridged back via an
     # mp.Queue so WS clients see the same envelopes as before.
     from openprogram.agent.process_runner import (
-        agentic_subprocess_timeout_seconds,
+        agentic_subprocess_limits,
         run_agent_method_in_subprocess,
     )
     from openprogram.agent.run_control import (
@@ -132,9 +132,10 @@ def dispatch_forced_tool_call(
             except RuntimeError:
                 captured_surface = surface_context.window_context()
             surface_snapshot = captured_surface
+        limits = agentic_subprocess_limits(tool_name, tool_input)
         out = run_agent_method_in_subprocess(
             tool_name=tool_name,
-            kwargs=dict(tool_input or {}),
+            kwargs=limits.kwargs,
             session_id=session_id,
             anchor_msg_id=anchor_msg_id,
             work_dir=work_dir,
@@ -146,9 +147,8 @@ def dispatch_forced_tool_call(
             provider=provider,
             model=model,
             response_format=response_format,
-            timeout_seconds=agentic_subprocess_timeout_seconds(
-                tool_name, tool_input,
-            ),
+            timeout_seconds=limits.timeout_seconds,
+            budget_seconds=limits.budget_seconds,
             surface_context_snapshot=surface_snapshot,
         )
     finally:
@@ -209,7 +209,11 @@ def dispatch_forced_tool_call(
         return {
             "runtime_msg_id": out.get("runtime_msg_id"),
             "ok": False,
-            **{key: out[key] for key in ("error", "killed", "timed_out") if key in out},
+            **{
+                key: out[key]
+                for key in ("error", "killed", "timed_out", "progress")
+                if key in out
+            },
         }
     return {
         "runtime_msg_id": out.get("runtime_msg_id"),

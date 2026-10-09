@@ -194,7 +194,7 @@ def _wrap_agentic_runtime_block(
                 # write is idempotent (db.append_message on same id
                 # upserts) — acceptable.
                 from openprogram.agent.process_runner import (
-                    agentic_subprocess_timeout_seconds,
+                    agentic_subprocess_limits,
                     run_agent_method_in_subprocess,
                 )
                 import asyncio as _asyncio
@@ -256,13 +256,16 @@ def _wrap_agentic_runtime_block(
                                 # An unavailable inventory cannot create a Page grant.
                                 pass
                             surface_snapshot = captured_surface
-                    timeout_seconds = agentic_subprocess_timeout_seconds(
+                    # The agent gets its budget as max_seconds so it stops
+                    # itself and returns its history; the process is killed
+                    # only if it overruns the budget plus a grace period.
+                    limits = agentic_subprocess_limits(
                         tool_name, subprocess_args,
                     )
                     try:
                         return run_agent_method_in_subprocess(
                             tool_name=tool_name,
-                            kwargs=subprocess_args,
+                            kwargs=limits.kwargs,
                             session_id=req.session_id,
                             anchor_msg_id=assistant_msg_id,
                             work_dir=work_dir,
@@ -289,7 +292,8 @@ def _wrap_agentic_runtime_block(
                             surface_context_snapshot=surface_snapshot,
                             permission_mode_snapshot=effective_req.permission_mode,
                             render_range=req.render_range,
-                            timeout_seconds=timeout_seconds,
+                            timeout_seconds=limits.timeout_seconds,
+                            budget_seconds=limits.budget_seconds,
                         )
                     finally:
                         if captured_surface is not None:
@@ -400,6 +404,8 @@ def _wrap_agentic_runtime_block(
                     }
                     if out.get("timed_out"):
                         details["timed_out"] = True
+                        if out.get("progress") is not None:
+                            details["progress"] = out["progress"]
                     if out.get("killed"):
                         details["killed"] = True
                     if out.get("signal") is not None:

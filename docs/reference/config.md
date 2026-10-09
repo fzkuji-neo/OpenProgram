@@ -90,6 +90,7 @@ Set these in the shell that launches `openprogram` (or the worker). Every one ha
 | `OPENPROGRAM_MAX_RETRIES` | Runtime retry count for transient API failures (default 6) | `openprogram/agentic_programming/runtime.py` |
 | `OPENPROGRAM_RETRY_BACKOFF_BASE` | Base seconds for the exponential retry backoff (default 1.5) | `openprogram/agentic_programming/runtime.py` |
 | `OPENPROGRAM_EXEC_TIMEOUT_S` | Default wall-clock budget in seconds for every `runtime.exec` when the caller passes no `timeout_s` (unset or `0` = unbounded) | `openprogram/agentic_programming/runtime.py` |
+| `OPENPROGRAM_AGENTIC_TIMEOUT_S` | Default time budget in seconds for a `gui_agent` or `browser_agent` call that passes no `max_seconds` (unset = 300; `0` or less = no limit). The agent gets the budget as `max_seconds` and stops with its partial history; the process is killed only if it is still running after a further 20% of the budget (30 to 120 seconds) | `openprogram/agent/process_runner.py` |
 | `OPENPROGRAM_FALLBACK_MODELS` | Failover chain used when the main model fails before any output. Unset = the other enabled models of the same provider (max 2); a comma-separated `provider/model` list overrides it and may cross providers; `off` disables failover | `openprogram/providers/utils/failover.py` |
 | `OPENPROGRAM_PROVIDER_STREAM_RETRIES` | Maximum retries for streaming requests | `openprogram/providers/utils/stream_retry.py` |
 | `OPENPROGRAM_STRICT_TOOLS` | `0` = turn off strict tool schemas (on by default) | `openprogram/providers/_schema/__init__.py` |
