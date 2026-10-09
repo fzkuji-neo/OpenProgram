@@ -389,7 +389,7 @@ export function TurnFilesChips({
               )}
             >
               <span className={`turn-files-action-icon${currentAction === "redo" || currentAction === "reapply" ? " turn-files-redo-icon" : ""}`}>
-                <SolarIcon name="fa-rotate-left" size={13} />
+                <SolarIcon name="fa-rotate-left" size={13} motionPreset="none" />
               </span>
               <span>{busy ? text("Working…", "处理中…") : actionLabel}</span>
             </button>
@@ -407,7 +407,7 @@ export function TurnFilesChips({
             className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "turn-files-review")}
             onClick={() => sessionId && openReviewTab(sessionId, assistantMsgId, "turn")}
           >
-            <SolarIcon name="fa-eye" size={14} />
+            <SolarIcon name="fa-eye" size={14} motionPreset="none" />
             <span>{text("Review", "审阅")}</span>
           </button>
         </span>
