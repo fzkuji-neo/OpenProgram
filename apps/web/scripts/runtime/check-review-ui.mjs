@@ -5,6 +5,7 @@ import { historyPresentation } from "../../components/chat/messages/turn-files-h
 
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const card = read("components/chat/messages/turn-files-chips.tsx");
+const cardPresentation = read("components/chat/messages/turn-files-presentation.ts");
 const bubble = read("components/chat/messages/assistant-bubble.tsx");
 const rail = read("components/chat/messages/message-rail.tsx");
 const review = read("components/center-tabs/review-tab-pane.tsx");
@@ -37,7 +38,13 @@ assert.match(card, /text\("Undo"/);
 assert.match(card, /text\("Redo"/);
 assert.match(card, /openReviewTab/);
 assert.match(card, /IntersectionObserver/);
-assert.match(card, /const MAX_CARD_FILES = 20/);
+assert.match(cardPresentation, /export const TURN_FILES_MAX_CARD_FILES = 20;/);
+assert.match(card, /turnFilesListLayout\(files\.length, fileCount, showAll\)/);
+assert.match(card, /turnFilesSummaryComplete\(/);
+assert.match(card, /className="turn-files-row turn-files-overflow"[\s\S]*?openReviewTab\(sessionId, assistantMsgId, "turn"\)/);
+assert.match(card, /<FileTypeIcon name=\{file\.path\} size=\{15\} \/>/);
+assert.doesNotMatch(card, /name="file-text"/);
+assert.doesNotMatch(card, /files\.length > COLLAPSE_AFTER/);
 assert.doesNotMatch(card, /list_turn_files|function loadMore\(\)/);
 assert.match(card, /wsRequest[\s\S]*"turn_history_state"/);
 assert.match(card, /operation: null,[\s\S]*?setHistoryNonce/);
