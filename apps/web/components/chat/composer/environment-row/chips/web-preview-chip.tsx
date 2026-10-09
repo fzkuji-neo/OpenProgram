@@ -2,7 +2,7 @@
 
 import { SolarIcon } from "@/components/solar-icons";
 
-import { HoverTip } from "@/components/ui/tooltip";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import {
@@ -34,7 +34,14 @@ export function WebPreviewChip() {
 
   const label = text("Show page preview", "显示网页预览");
   return (
-    <HoverTip label={label}>
+    <HoverTip
+      label={
+        <TipBody
+          title={label}
+          detail={text("Bring the web page back as a floating preview", "把网页重新以浮动预览显示出来")}
+        />
+      }
+    >
       <button
         type="button"
         className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} status-badge ${styles.surfaceChip}`}

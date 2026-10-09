@@ -22,7 +22,7 @@ registerHooks({
     if(url.endsWith('/lib/session-store/session-scope.tsx')) source='export const useOptionalScopedSessionId=()=>globalThis.projectScopedSession ?? null;';
     if(url.endsWith('/lib/runtime-bridge/ui.ts')) source='export const closeAllPopovers=()=>{};';
     if(url.endsWith('/components/ui/popover.tsx')) source='export const Popover=({children})=>children;export const PopoverTrigger=Popover;export const PopoverContent=()=>null;';
-    if(url.endsWith('/components/ui/tooltip.tsx')) source='export const HoverTip=({children})=>children;';
+    if(url.endsWith('/components/ui/tooltip.tsx')) source='export const HoverTip=({children})=>children; export const TipBody=()=>null;';
     if(url.endsWith('/lib/session-store/index.ts')) source='import {useSyncExternalStore} from "react"; export const useSessionStore=selector=>useSyncExternalStore(fn=>{globalThis.projectStoreListeners.add(fn);return()=>globalThis.projectStoreListeners.delete(fn);},()=>selector(globalThis.projectStore));useSessionStore.getState=()=>globalThis.projectStore;';
     if(url.endsWith('/lib/net/ws-request.ts')) source='export const wsRequest=(...args)=>globalThis.projectRequest(...args);';
     if(url.includes('/@radix-ui/react-dropdown-menu/')) source=`import {createElement as h,createContext,useContext,useState,cloneElement} from "react";
@@ -112,7 +112,7 @@ test('draft source chips follow the selected project until the user sets an over
   const {WorkingDirChips}=await import('../../components/chat/top-bar/working-dir-chips.tsx');
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
   await act(async()=>root.render(h(WorkingDirChips)));
-  const dirs=()=>[...host.querySelectorAll('.workdir-badge[title]')].map(el=>el.getAttribute('title'));
+  const dirs=()=>[...host.querySelectorAll('.workdir-badge[data-path]')].map(el=>el.getAttribute('data-path'));
   const select=async id=>act(async()=>{state.pendingProjectsByChat={draft:id};for(const fn of listeners)fn();});
   assert.deepEqual(dirs(),['/a-extra']);assert.equal(state.additionalWorkingDirsBySession.draft,undefined);
   await select('b');assert.deepEqual(dirs(),['/b-extra']);

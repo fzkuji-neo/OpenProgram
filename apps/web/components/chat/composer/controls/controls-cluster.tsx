@@ -18,7 +18,7 @@ import {
 } from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
 
-import { HoverTip } from "@/components/ui/tooltip";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
 import { effortLevelColor, formatEffortLabel } from "@/lib/effort-color";
 import { GROUP_LABEL } from "../../top-bar/menu-styles";
@@ -161,13 +161,20 @@ export function ControlsCluster({
                 if (o) setThinkingMenuOpen(false);
               }}
             >
+              <HoverTip
+                label={
+                  <TipBody
+                    title={text("Options", "选项")}
+                    detail={text("Attach files, and turn tools, web search or sandbox on and off", "添加文件，开关工具、网页搜索或沙箱")}
+                  />
+                }
+              >
               <Menu.Trigger
                 render={
                   <button
                     className={`${cn(buttonVariants({ variant: "elevated", size: "icon-sm" }))} ${styles.plusBtn} ${anyToolActive ? styles.hasActive : ""}`}
                     onMouseEnter={() => plusIconRef.current?.startAnimation?.()}
                     onMouseLeave={() => plusIconRef.current?.stopAnimation?.()}
-                    title={text("Add tools, files, and more", "添加工具、文件等")}
                     aria-label={text("More options", "更多选项")}
                     type="button"
                   >
@@ -175,6 +182,7 @@ export function ControlsCluster({
                   </button>
                 }
               />
+              </HoverTip>
 
               <Menu.Portal>
                 {/* Positioner owns placement (side/align/offset + flip);
@@ -370,7 +378,7 @@ export function ControlsCluster({
                   real top-layer tooltip; a CSS ::after would be cropped by
                   the chip's overflow:hidden. */}
               {toolsEnabled && (
-                <HoverTip label={text("Tools", "工具")}>
+                <HoverTip label={<TipBody title={text("Tools on", "工具已开启")} detail={text("The agent can run tools. Click to turn off.", "agent 可以调用工具。点击关闭。")} />}>
                   <ToolChip
                     icon={<ToolsIcon size={16} />}
                     label={text("Tools", "工具")}
@@ -380,7 +388,7 @@ export function ControlsCluster({
                 </HoverTip>
               )}
               {webSearchEnabled && (
-                <HoverTip label={text("Web Search", "网页搜索")}>
+                <HoverTip label={<TipBody title={text("Web search on", "网页搜索已开启")} detail={text("The agent can search the web. Click to turn off.", "agent 可以上网搜索。点击关闭。")} />}>
                   <ToolChip
                     icon={<WebSearchIcon size={16} />}
                     label={text("Web Search", "网页搜索")}
@@ -390,7 +398,7 @@ export function ControlsCluster({
                 </HoverTip>
               )}
               {sandboxEnabled && sandboxAvailable && (
-                <HoverTip label={text("Sandbox", "沙箱")}>
+                <HoverTip label={<TipBody title={text("Sandbox on", "沙箱已开启")} detail={text("Commands run in an isolated sandbox. Click to turn off.", "命令在隔离的沙箱里运行。点击关闭。")} />}>
                   <ToolChip
                     icon={<SandboxIcon size={16} />}
                     label={text("Sandbox", "沙箱")}
@@ -400,7 +408,7 @@ export function ControlsCluster({
                 </HoverTip>
               )}
               {unattended && (
-                <HoverTip label={text("Unattended", "无人值守")}>
+                <HoverTip label={<TipBody title={text("Unattended on", "无人值守已开启")} detail={text("The agent won't stop to ask you questions. Click to turn off.", "agent 不会停下来向你提问。点击关闭。")} />}>
                   <ToolChip
                     icon={<UnattendedIcon size={16} on />}
                     label={text("Unattended", "无人值守")}
@@ -440,7 +448,16 @@ export function ControlsCluster({
                 (see ``promptNeedModel``). The `thinking` value still
                 flows to submit (uses the model default) when hidden. */}
             {chatModel && !noEnabledModels ? (
-              <HoverTip label={text("Thinking effort", "思考力度")}>
+              <HoverTip
+                label={
+                  <TipBody
+                    title={thinking
+                      ? text(`Thinking effort: ${formatEffortLabel(thinking)}`, `思考力度：${formatEffortLabel(thinking)}`)
+                      : text("Thinking effort", "思考力度")}
+                    detail={text("How long the model thinks before answering. Click to adjust.", "模型回答前思考多久。点击调整。")}
+                  />
+                }
+              >
                 {/* Wrapper is the outside-click boundary AND the anchor
                     for the pill's floating slider (detached row). The
                     text trigger only shows in the detached row (CSS);

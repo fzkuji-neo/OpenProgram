@@ -25,7 +25,7 @@ its own git half.
 ## The pill
 
 One raised pill per folder (`components/chat/top-bar/folder-pill.ts`)
-with two segments separated by a short hairline, each its own hover and
+with two segments separated by a full-height hairline, each its own hover and
 click target. The hairline takes no width, so both hover fills meet on
 the same edge, and it fades while either segment is hovered or open. The left segment is the folder: icon, name, and for a working
 folder a ✕ that appears only on hover or keyboard focus. It opens the

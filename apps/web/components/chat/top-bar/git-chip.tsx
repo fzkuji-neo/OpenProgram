@@ -28,7 +28,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { SolarIcon } from "@/components/solar-icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { HoverTip } from "@/components/ui/tooltip";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
@@ -282,14 +282,32 @@ export function GitChip({
           : null;
   const openPr = status.pr && String(status.pr.state ?? "").toUpperCase() === "OPEN" ? status.pr : null;
   const hasLines = Boolean(changes.insertions || changes.deletions);
-  const tip = `${status.repo_name ?? baseName(path)} · ${branchLabel}${changes.files ? ` · ${text(`${changes.files} changed`, `${changes.files} 个修改`)}${hasLines ? ` +${changes.insertions} −${changes.deletions}` : ""}` : ""}`;
 
   return (
     <>
     {/* Its own element, so hovering either segment never repaints the line. */}
     <span className="folder-pill-divider" aria-hidden="true" />
     <Popover open={open} onOpenChange={onOpenChange}>
-      <HoverTip label={tip}>
+      <HoverTip
+        label={
+          <TipBody
+            title={`${status.repo_name ?? baseName(path)} · ${branchLabel}`}
+            detail={
+              <>
+                {changes.files
+                  ? text(
+                      `${changes.files} uncommitted ${changes.files === 1 ? "file" : "files"}${hasLines ? ` · +${changes.insertions} −${changes.deletions}` : ""}`,
+                      `${changes.files} 个未提交文件${hasLines ? ` · +${changes.insertions} −${changes.deletions}` : ""}`,
+                    )
+                  : text("No uncommitted changes", "没有未提交的修改")}
+                {status.is_worktree ? <><br />{text(`Worktree · ${status.root}`, `Worktree · ${status.root}`)}</> : null}
+                <br />
+                {text("Click for branches, worktrees and pull requests", "点击切换分支、worktree 或创建 PR")}
+              </>
+            }
+          />
+        }
+      >
         <PopoverTrigger asChild>
           <button
             type="button"

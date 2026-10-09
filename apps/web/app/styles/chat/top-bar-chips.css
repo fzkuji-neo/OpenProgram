@@ -128,6 +128,20 @@
   color: var(--text-on-tooltip);
   border: none;
 }
+/* TipBody: title line + optional muted detail line (paths wrap anywhere). */
+.hover-tip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 320px;
+}
+.hover-tip-title { font-weight: 500; }
+.hover-tip-detail {
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.68;
+  overflow-wrap: anywhere;
+}
 
 /* The topbar branch dropdown is the React <BranchMenu /> (shadcn
    <Popover> + Tailwind) now — its `.branch-selector` / `.model-dd-*`
@@ -149,9 +163,9 @@
 }
 /* Hairline between the folder and git segments (GitChip renders it).
    The element is zero-width, so both segments' hover fills meet on the
-   same boundary whichever side is hovered; the line itself is drawn on
-   top, inset from the pill's edges, and fades while either side is
-   hovered or open so it never reads as part of one fill. */
+   same boundary whichever side is hovered; the full-height line is drawn
+   on top and fades while either side is hovered or open, so it never
+   reads as part of one fill. */
 .folder-pill-divider {
   position: relative;
   flex: 0 0 0;
@@ -162,8 +176,8 @@
 .folder-pill-divider::after {
   content: "";
   position: absolute;
-  top: 8px;
-  bottom: 8px;
+  top: 0;
+  bottom: 0;
   left: -0.5px;
   width: 1px;
   background: color-mix(in oklch, var(--foreground) 14%, transparent);
@@ -196,7 +210,9 @@
 .folder-pill-seg:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); }
 .folder-pill-divider + .folder-pill-seg { padding-left: 11px; }
 /* Working-folder ✕: no width until the pill is hovered or focused. */
+.folder-pill-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .workdir-badge.folder-pill .workdir-remove {
+  display: inline-flex;
   max-width: 0;
   margin-left: -6px;
   opacity: 0;

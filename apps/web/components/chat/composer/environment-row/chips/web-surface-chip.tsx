@@ -1,7 +1,7 @@
 "use client";
 
 import { SolarIcon } from "@/components/solar-icons";
-import { HoverTip } from "@/components/ui/tooltip";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { surfaceRefForChat } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
@@ -32,7 +32,18 @@ export function WebSurfaceChip({
   const title =
     surface.title || new URL(surface.url || "about:blank").hostname || "Web";
   return (
-    <HoverTip label={`${stateLabel} · ${title}`}>
+    <HoverTip
+      label={
+        <TipBody
+          title={text(`Web page: ${title}`, `网页：${title}`)}
+          detail={
+            toolsEnabled
+              ? text("The agent can read and operate this page. Click to stop.", "agent 可以读取并操作这个网页。点击停止。")
+              : text("The agent can't use this page. Click to allow it.", "agent 不能使用这个网页。点击允许。")
+          }
+        />
+      }
+    >
       <button
         type="button"
         className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} status-badge ${styles.surfaceChip} ${toolsEnabled ? "" : "paused"}`}
