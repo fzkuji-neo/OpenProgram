@@ -52,10 +52,12 @@
   --text-on-tooltip: #ffffff;
   --composer-ring: rgba(255, 255, 255, 0.08);
   --composer-ring-focus: rgba(255, 255, 255, 0.16);
-  --composer-surface: var(--bg-input);
+  /* Input box = shadcn Luma input-group: bg-input/50, no resting
+     border, focus = 1px ring border + 3px ring/30 halo. */
+  --composer-surface: color-mix(in srgb, var(--input) 50%, transparent);
   --composer-backdrop-filter: none;
-  --composer-shadow: 0 0 0 1px var(--composer-ring);
-  --composer-shadow-focus: 0 0 0 1px var(--composer-ring-focus);
+  --composer-shadow: none;
+  --composer-shadow-focus: inset 0 0 0 1px var(--ring), 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent);
   --chip-bg: var(--bg-tertiary);
   --chip-ring: var(--border-light);
   --meter-fill: #5b9cf8;

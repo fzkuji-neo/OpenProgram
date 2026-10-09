@@ -17,7 +17,7 @@ registerHooks({
     if(url.endsWith(".module.css")) source='export default new Proxy({}, {get:(_, key)=>String(key)});';
     if(url.endsWith('/lib/i18n/index.ts')) source='export const useTranslation=()=>({text:(en)=>en});';
     if(url.endsWith('/components/ui/dialog.tsx')) source='export const Dialog=({open,children})=>open?children:null; export const DialogContent=({children})=>children; export const DialogHeader=DialogContent; export const DialogTitle=DialogContent; export const DialogDescription=DialogContent; export const DialogFooter=DialogContent;';
-    if(url.endsWith('/components/ui/button.tsx')) source='import {createElement as h} from "react"; export const Button=({variant,...props})=>h("button",props);';
+    if(url.endsWith('/components/ui/button.tsx')) source='import {createElement as h} from "react"; export const Button=({variant,size,...props})=>h("button",props); export const buttonVariants=()=>"";';
     if(url.endsWith('/components/ui/folder-picker.tsx')) source='export const useFolderPicker=()=>({pickFolder:async()=>"/extra",folderPickerDialog:null,manualOpen:false});';
     if(url.endsWith('/lib/session-store/session-scope.tsx')) source='export const useOptionalScopedSessionId=()=>globalThis.projectScopedSession ?? null;';
     if(url.endsWith('/lib/runtime-bridge/ui.ts')) source='export const closeAllPopovers=()=>{};';

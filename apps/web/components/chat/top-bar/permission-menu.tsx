@@ -39,6 +39,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { HoverTip } from "@/components/ui/tooltip";
+import { buttonVariants } from "@/components/ui/button";
 
 import {
   usePermissionMode,
@@ -52,18 +53,6 @@ import {
   SHORTCUT,
   itemCls,
 } from "./menu-styles";
-
-// 权限档危险度配色：绿=安全、橙=需留意、红=危险。用柔和的浅色调
-// （比原始 --success/--warning/--danger 淡一档），只用在顶栏芯片
-// 选中态的文字/图标/边框色，所以选完能一眼看出当前档；菜单行按
-// Claude 选择菜单语法保持素色。
-const PERM_COLOR: Record<PermissionMode, string> = {
-  ask: "var(--success-soft, #57b47a)",
-  plan: "var(--success-soft, #57b47a)",
-  acceptEdits: "var(--warning-soft, #e0a54a)",
-  auto: "var(--warning-soft, #e0a54a)",
-  bypass: "var(--danger-soft, #e05b52)",
-};
 
 export function PermissionBadge() {
   const { text } = useTranslation();
@@ -117,13 +106,7 @@ export function PermissionBadge() {
             <span
               ref={hostRef}
               id="permissionBadge"
-              className="runtime-badge permission-badge"
-              // 芯片文字/图标/边框跟着当前档的柔和色（图标用 currentColor
-              // 继承），选完档一眼可辨；hover/open 态的加深由 CSS 处理。
-              style={{
-                color: PERM_COLOR[mode],
-                borderColor: `color-mix(in srgb, ${PERM_COLOR[mode]} 45%, transparent)`,
-              }}
+              className={`${buttonVariants({ variant: "ghost", size: "xs" })} runtime-badge permission-badge`}
               onMouseEnter={() => iconRef.current?.startAnimation?.()}
               onMouseLeave={() => iconRef.current?.stopAnimation?.()}
             >

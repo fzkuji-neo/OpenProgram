@@ -41,6 +41,7 @@ import { HoverTip } from "@/components/ui/tooltip";
 import { AgentSelector } from "./agent-selector";
 import { useBoundChat } from "./bound-chat";
 import { pushAgentSettings, pushBranchInfo, pushStatusBadge } from "@/lib/tabs/top-bar-sync";
+import { buttonVariants } from "@/components/ui/button";
 
 export { ProjectBadge } from "./project-menu";
 export { WorkingDirChips } from "./working-dir-chips";
@@ -161,7 +162,7 @@ export function AgentBadge({
         <PopoverTrigger asChild>
           <span
             id={id}
-            className={"runtime-badge agent-badge" + (locked ? " locked" : "")}
+            className={buttonVariants({ variant: "ghost", size: "xs" }) + " runtime-badge agent-badge" + (locked ? " locked" : "")}
             onMouseEnter={() => iconRef.current?.startAnimation?.()}
             onMouseLeave={() => iconRef.current?.stopAnimation?.()}
           >

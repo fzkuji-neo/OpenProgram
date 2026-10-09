@@ -106,41 +106,44 @@ Implementation: `.ui-list-item` in `apps/web/app/styles/base.css`
 is the source. MCP `.serverItem` must match those metrics (prefer
 composing `.ui-list-item` over a parallel recipe).
 
-## Size system — two sets, same height
+## Size system — list rows and Buttons
 
-Every interactive primitive picks ONE of two size sets. There is
-no sm / md / lg ladder inside a set — once you choose list vs
-button, height and radius are locked. CSS variables in
+List rows keep one fixed set. CSS variables in
 `apps/web/app/styles/base.css`:
 
 ```
-set         height               radius             css tokens
+set         height    radius    css tokens
 ─────────────────────────────────────────────────────────────────
-list        30 px                10 px              --ui-list-h
-                                                    --ui-list-radius
-─────────────────────────────────────────────────────────────────
-button      30 px (same as       10 px              --ui-button-h
-            list)                                   --ui-button-radius
+list        30 px     10 px     --ui-list-h · --ui-list-radius
 ─────────────────────────────────────────────────────────────────
 ```
 
-List used to be 32px and button 30px. That split is retired:
-sidebar rows, MCP tab pills, and MCP server rows must sit on the
-same 30px rhythm. `--ui-list-h: var(--ui-button-h)`.
+Sidebar rows, MCP tab pills, and MCP server rows all sit on this
+30px rhythm. There is no sm / md / lg ladder for list rows: when
+one slot may pick from several sizes, every author negotiates with
+the design and the sizes drift apart.
 
-Both sets share the same 10 px radius — the Claude shape language
-puts list rows and small buttons at 10 px and reserves 12 px
-(`--radius-lg`) for cards and panels.
+Buttons are the shadcn/ui `Button` in the **radix-luma** style.
+`apps/web/components/ui/button.tsx` is copied verbatim from the
+official registry (`npx shadcn add button`, style `radix-luma`);
+the only local changes are its imports and a `forwardRef` wrapper
+for React 18. Every size is a pill (`rounded-4xl`); the call site
+picks one of the official sizes and never edits the classes:
 
-Why no in-set variants: when the design lets one slot pick from
-sm / md / lg, every author negotiates with the design instead of
-following it, and the sizes drift apart. Two fixed sets is
-enforceable.
+```
+size        height    text     use
+─────────────────────────────────────────────────────────────────
+xs          24 px     12 px    chips and compact control rows
+sm          32 px     14 px    dense toolbars, inline actions
+default     36 px     14 px    dialog and settings actions
+lg          40 px     14 px    hero / empty-state actions
+icon-xs/sm/default/lg          square = circle at those heights
+─────────────────────────────────────────────────────────────────
+```
 
-Backward-compat for `Button`: `size="sm" | "lg" | "icon-sm"` are
-kept as aliases for existing call sites, but they resolve to the
-same height as `default`. The token names are the source of
-truth.
+Elements that cannot be a `<Button>` (a span that hosts its own
+✕, a Radix trigger rendered as a span) take the same look through
+`buttonVariants({ variant, size })` on their `className`.
 
 A header row (search + tab pills + icon buttons) must share one
 vertical center. A 1–2 px height mismatch between those controls
@@ -181,56 +184,55 @@ two-column row:
 
 ## Button variant guidance
 
-`apps/web/components/ui/button.tsx` already exposes the two main
-patterns:
-
-**No borders on Button-derived actions.** Every Button variant is
-border-less in both idle and hover state. The surface lift
-between deep / panel already separates layers; an explicit
-``border-input`` on top of that adds visual noise to dense rows.
-
-Form fields are not Buttons. They keep the 1px edge above.
+The variants are shadcn's, unchanged; colours come from the shadcn
+tokens (`--primary`, `--secondary`, `--muted`, `--input`, `--ring`,
+…), which `apps/web/app/globals.css` bridges onto each theme's
+palette — so every theme restyles Buttons without touching them.
 
 ```
-variant     idle                              hover
+variant      idle                                 hover
 ─────────────────────────────────────────────────────────────────
-default     bg-background + text-primary      bg-primary +
-                                              text-primary-foreground
-─────────────────────────────────────────────────────────────────
-outline     bg-background + foreground        bg-accent +
-                                              text-accent-foreground
-─────────────────────────────────────────────────────────────────
-ghost       transparent                       bg-accent +
-                                              text-accent-foreground
-─────────────────────────────────────────────────────────────────
-secondary   subtle grey fill                  darkens slightly
-─────────────────────────────────────────────────────────────────
-destructive bg-background + text-destructive  bg-destructive +
-                                              text-destructive-foreground
+default      bg-primary + primary-foreground      bg-primary/80
+outline      1px border-border; transparent        bg-muted (light),
+             in dark, bg-background in light       bg-input/30 (dark)
+secondary    bg-secondary                         secondary + 5% ink
+ghost        transparent                          bg-muted (/50 dark)
+destructive  bg-destructive/10 + destructive text bg-destructive/20
+link         primary text                         underline
 ─────────────────────────────────────────────────────────────────
 ```
+
+All variants press down 1px while active, show a 3px `ring/30`
+halo on keyboard focus, and drop to 50% opacity when disabled.
 
 Pick per surface:
 
-- **Panel + primary action** (Run, Save, Test, Apply, Check) →
-  `variant="default"`. Brand-coloured text by default, brand
-  filled on hover. This is what most chat / settings / function
-  dialog actions should use.
-- **Panel + secondary action** (Cancel, Close, Reset, Browse) →
-  `variant="outline"` (subtle grey hover) or `ghost`. When a
-  header secondary action needs to read as a real control next
-  to the search box, give it the same 1px `--border` as the
-  search field (not a borderless outline that looks like naked
-  text).
+- **Primary action** (Run, Save, Test, Apply, Send) → `default`.
+- **Secondary action** (Cancel, Close, Reset, Browse) → `outline`
+  or `secondary`.
+- **Quiet controls in a dense row** (the composer's model / effort
+  / permission triggers, icon toggles) → `ghost`.
+- **Destructive** (Delete, Remove, Stop) → `destructive`.
 - **Deep surface — sidebar rows** → don't use the Button
   primitive. Use `.ui-list-item` / `nav-classes.ts`.
-- **Destructive** (Delete, Remove, Force) →
-  `variant="destructive"`. Red-text default, red fill on hover.
 
-The failure mode to watch for is `outline` used where `default`
-belongs. `outline` is what shadcn looks like out of the box, so
-authors reach for it by reflex, and primary actions end up with
-the muted hover-accent treatment instead of the brand fill.
+## Composer controls
+
+The chat composer is built from the same parts:
+
+- **Environment chips** above the box (channel, web surface,
+  project, working folders, DAG HUD) → `outline` `xs`; the
+  add-folder chip is `outline` `icon-xs`.
+- **Bottom row** (permission, chat / exec model, effort, plus,
+  tool toggles, context ring) → `ghost` `xs` / `icon-xs`. The
+  composer CSS hands its older base rules back to the Button with
+  `revert-layer` rather than drawing its own chip.
+- **Send** → `icon-xs`: `default` when there is something to
+  send, `ghost` when empty, `destructive` while it stops a run.
+- **Input box** → the shadcn Luma input-group recipe through the
+  per-theme `--composer-*` tokens: `bg-input/50`, no resting
+  border, focus = 1px `--ring` edge plus a 3px `ring/30` halo;
+  23px corners (a pill at one line).
 
 ## Don'ts
 
@@ -247,14 +249,26 @@ the muted hover-accent treatment instead of the brand fill.
   or content-pane **list rows**. Light theme washes out.
 - Don't give MCP server rows (or any other content-pane list) a
   different height, padding, or selected fill than sidebar nav.
-- Don't add the SHIFT-on-hover (translate-y, scale-105) effect
-  on either surface. We rely on background swap alone; motion
-  inside dense rows reads as jitter, not feedback.
-- Don't add ``border`` / ``ring`` / ``outline`` to Button-derived
-  components. The surface lift already separates them from the
-  background.
+- Don't add hover motion (translate-y, scale-105) on either
+  surface. Hover swaps the background; the only motion is the
+  Button's own 1px press while active.
+- Don't edit the classes in `components/ui/button.tsx` or
+  restate a Button lookalike in CSS. Pick an official `variant` /
+  `size`; if a legacy rule still overrides a Button, remove it or
+  hand it back with `revert-layer`.
 - Don't stack a 2px focus glow on a 1px input/select edge.
 - Don't drop a control's 1px border on hover.
 - Don't slide dialogs. Fade only.
 - Don't let a settings description overflow into the right-hand
   control column, or stack label above control.
+
+## Implementation status
+
+- Done: `Button` (radix-luma), the composer environment chips,
+  bottom-row controls, send button, and input box.
+- Not yet migrated: popover / menu panels (`MENU_PANEL`,
+  `components/ui/popover.tsx`, `dropdown-menu.tsx`), tooltips,
+  badges, and the hand-styled CSS-module popups — they still use
+  the glass surface tokens (`--glass-*`). Form inputs and selects
+  keep the 1px-edge rule above until they move to the shadcn input.
+  Sidebar list rows stay on the list set above.

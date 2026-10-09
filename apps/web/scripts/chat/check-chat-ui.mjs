@@ -511,7 +511,7 @@ assert.match(
 );
 assert.match(
   controlsCluster,
-  /className=\{styles\.effortText\}[\s\S]*style=\{thinking === "max" \? \{ color: "#8E6BD9" \} : undefined\}/,
+  /className=\{`\$\{buttonVariants\(\{ variant: "ghost", size: "xs" \}\)\} \$\{styles\.effortText\}`\}[\s\S]*style=\{thinking === "max" \? \{ color: "#8E6BD9" \} : undefined\}/,
 );
 const compactControlsStart = composerCss.indexOf("/* Narrow composer control labels");
 const compactControlsEnd = composerCss.indexOf(
@@ -530,8 +530,8 @@ assert.match(compactControls, /\.effortValue/);
 assert.match(compactControls, /position:\s*absolute/);
 assert.match(compactControls, /\.permission-badge\s*>\s*:has\(svg\)[\s\S]*display:\s*inline-flex\s*!important/);
 assert.match(compactControls, /\.compactEffortIcon[\s\S]*display:\s*inline-flex/);
-assert.match(compactControls, /\.permission-badge[\s\S]*width:\s*20px/);
-assert.match(compactControls, /\.agent-badge[\s\S]*width:\s*20px/);
+assert.match(compactControls, /\.permission-badge[\s\S]*width:\s*24px/);
+assert.match(compactControls, /\.agent-badge[\s\S]*width:\s*24px/);
 assert.doesNotMatch(compactControls, /\.(?:permission-badge|agent-badge|effort-pill-host)[^{]*\{[^}]*display:\s*none/s);
 
 assert.match(workingDirChips, /className="workdir-remove"/);
@@ -548,7 +548,11 @@ assert.equal(
   "every non-max effort level must retain a distinct compact-icon color",
 );
 
-const surfaceControlsStart = composerCss.indexOf("/* Persistent composer control surfaces");
+// Bottom-row controls are shadcn ghost Buttons: the TSX carries
+// buttonVariants, and the CSS hands the legacy base rules back to those
+// layered utilities (revert-layer) instead of drawing its own chip.
+assert.match(controlsCluster, /buttonVariants\(\{ variant: "ghost", size: "icon-xs" \}\)\} \$\{styles\.plusBtn\}/);
+const surfaceControlsStart = composerCss.indexOf("/* Every control in this row is a shadcn ghost Button");
 const surfaceControlsEnd = composerCss.indexOf(
   "/* Narrow composer control labels",
   surfaceControlsStart,
@@ -558,42 +562,18 @@ assert.ok(
   "composer control surfaces must have one bounded style block",
 );
 const surfaceControls = composerCss.slice(surfaceControlsStart, surfaceControlsEnd);
-for (const selector of [
-  ".permission-badge",
-  ".agent-badge",
-  ".plusBtn",
-  ".toolChip",
-  ".effortText",
-  ".context-ring-badge",
-  ".effort-pill-fixed",
-]) {
-  assert.match(surfaceControls, new RegExp(selector.replace(".", "\\.")));
+for (const selector of [".plusBtn", ".toolChip", ".effortText"]) {
+  assert.match(surfaceControls, new RegExp(`\\.controlsRow \\${selector}[^{]*\\{[^}]*background:\\s*revert-layer`, "s"));
 }
-assert.match(surfaceControls, /background:\s*var\(--chip-bg\)/);
 assert.doesNotMatch(
   surfaceControls,
-  /box-shadow|border\s*:/,
-  "20px composer controls must use a fill without a border or inset ring",
+  /var\(--chip-bg\)/,
+  "bottom-row controls must not paint their own chip fill over the Button",
 );
 assert.match(
   surfaceControls,
   /\.effortControl\[aria-expanded="true"\]\s+\.effortText/,
-  "the effort trigger must retain its stronger surface while its parent popover is open",
-);
-for (const openSelector of [
-  '.permission-badge[aria-expanded="true"]',
-  '.agent-badge[aria-expanded="true"]',
-  '.plusBtn[aria-expanded="true"]',
-  '.context-ring-badge[aria-expanded="true"]',
-]) {
-  assert.ok(
-    surfaceControls.includes(openSelector),
-    `${openSelector} must retain the stronger surface while open`,
-  );
-}
-assert.match(
-  surfaceControls,
-  /background(?:-color)?:\s*color-mix\(in srgb, var\(--text-bright\) 8%, var\(--chip-bg\)\)/,
+  "the effort trigger must retain its open surface while its parent popover is open",
 );
 
 const { runtimeConclusion, runtimeSummaryLabel } = await import(

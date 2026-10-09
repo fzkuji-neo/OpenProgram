@@ -31,6 +31,7 @@ import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useBoundChat } from "./bound-chat";
 import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
 import { activateOnKey } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
 
 /** Stable empty list so the zustand selector doesn't churn renders. */
 const NO_WORKING_DIRS: string[] = [];
@@ -181,7 +182,7 @@ export function WorkingDirChips() {
   return (
     <>
       {workingDirs.map((dir) => (
-        <span key={dir} className="runtime-badge workdir-badge" title={dir}>
+        <span key={dir} className={`${buttonVariants({ variant: "outline", size: "xs" })} runtime-badge workdir-badge`} title={dir}>
           <Folder size={14} strokeWidth={2} className="workdir-icon" />
           <span className="badge-short">{baseName(dir)}</span>
           <X
@@ -202,7 +203,7 @@ export function WorkingDirChips() {
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="runtime-badge workdir-badge workdir-add-badge"
+              className={`${buttonVariants({ variant: "outline", size: "icon-xs" })} runtime-badge workdir-badge workdir-add-badge`}
               aria-label={text("Add working folder", "添加工作目录")}
             >
               <FolderPlus size={14} strokeWidth={2} className="workdir-icon" />

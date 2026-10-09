@@ -104,8 +104,9 @@
   /* Chat mode: the controls row lives OUTSIDE the wrapper now, so no
      bottom band is reserved. fn-form mode restores it (below). */
   padding: 0;
-  /* Claude Code measured ring: 1px hairline via box-shadow (no layout
-     shift), slightly stronger on focus. */
+  /* Surface / ring tokens are per theme (app/styles/themes/*), set to
+     the shadcn Luma input-group recipe; box-shadow draws the focus ring
+     without a layout shift. */
   box-shadow: var(--composer-shadow);
   overflow: hidden;
   transition: box-shadow 180ms ease,
@@ -169,22 +170,8 @@
 .inputOptions::-webkit-scrollbar { display: none; }
 .inputOptions > * { flex-shrink: 0; }
 
-/* Permission control — Claude's borderless "Accept edits ⌄" text form.
-   The reused <PermissionBadge> keeps its popover + id; these overrides
-   only strip the chip look (border / bg / fixed height). Its tone
-   colour arrives as an INLINE style, so hover brightening uses filter
-   instead of a color override. */
-.inputOptions :global(.runtime-badge.permission-badge) {
-  border: none;
-  background: transparent;
-  padding: 0 2px;
-  height: auto;
-}
-.inputOptions :global(.runtime-badge.permission-badge:hover),
-.inputOptions :global(.runtime-badge.permission-badge[aria-expanded="true"]) {
-  background: transparent;
-  filter: brightness(1.2);
-}
+/* Permission control — a ghost xs Button (buttonVariants) that shows
+   only its label. */
 /* Text-only: drop the shield glyph (no chevron — plain text). 隐藏的
    必须是图标的整个 wrapper——它带 mr-[4px]，只藏 svg 会留下 4px 幽灵
    边距，把文本推离 768px 列左缘（Claude 实测文本缩进 = 6px padding）。 */
@@ -192,12 +179,9 @@
   display: none;
 }
 
-/* Agent-model cluster — right side of the bottom row, restyled into
-   Claude's quiet borderless text ("Opus 4.8"): no border / bg /
-   padding, muted colour, model name only (the role glyph is dropped
-   whenever a label exists; with no model picked the glyph stays so
-   the popover trigger remains visible). Scrolls in its own box when
-   narrow. */
+/* Agent-model cluster — right side of the bottom row: ghost xs Buttons
+   (buttonVariants) with the role glyph + model name. Scrolls in its own
+   box when narrow. */
 .agentChips {
   display: inline-flex;
   align-items: center;
@@ -208,19 +192,6 @@
 }
 .agentChips::-webkit-scrollbar { display: none; }
 .agentChips > * { flex-shrink: 0; }
-.agentChips :global(.runtime-badge.agent-badge) {
-  border: none;
-  background: transparent;
-  padding: 0;
-  height: auto;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-.agentChips :global(.runtime-badge.agent-badge:hover),
-.agentChips :global(.runtime-badge.agent-badge[aria-expanded="true"]) {
-  background: transparent;
-  color: var(--text-primary);
-}
 /* 角色图标（chat=气泡 / 执行=终端）常驻——用户要求模型名旁保留 logo。 */
 
 /* Send / stop button — a single absolute-positioned square anchored
@@ -232,29 +203,20 @@
    of a row-to-row teleport. */
 .actionBtn {
   position: absolute;
-  /* 24×24 circle (Luma input-group button), 10px inset
-     from the box's right edge, vertically centered in the 46px
-     single-line row → (46−24)/2 = 11px top. ONE geometry for every
+  /* A shadcn icon-xs Button (buttonVariants in index.tsx: default when
+     there is something to send, ghost when empty, destructive to stop),
+     10px inset from the box's right edge, vertically centered in the
+     46px single-line row → (46−24)/2 = 11px top. ONE geometry for every
      mode — the button keeps this identity inside fn-forms too; only
      `top` glides (inline, from use-fn-form-wrapper.ts), and index.tsx
      clears the inline value when returning to chat mode so this 11px
      wins again. */
   right: 10px;
   top: 11px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  box-sizing: border-box;
-  flex-shrink: 0;
   transition: top var(--composer-height-transition),
     right var(--composer-height-transition),
-    background 0.15s,
+    background-color 0.15s,
+    color 0.15s,
     opacity 180ms ease;
   /* Above the form content during the wrapper height transition. */
   z-index: 2;
@@ -269,8 +231,6 @@
   right: 44px;
 }
 .actionBtn svg {
-  width: 14px;
-  height: 14px;
   fill: currentColor;
 }
 
@@ -280,40 +240,11 @@
   fill: none;
 }
 
-/* Claude 语义：空输入时发送键是安静的灰箭头（透明底），
-   有内容可发才亮珊瑚填充 + 白箭头。 */
-.sendBtn {
-  background: transparent;
-  color: var(--text-muted);
-}
-.sendBtn:disabled {
-  cursor: default;
-}
-.sendBtn:not(:disabled) {
-  background: var(--accent-fill, var(--accent-orange));
-  color: var(--primary-foreground);
-}
-.sendBtn:not(:disabled):hover {
-  background: var(--accent-orange-hover, var(--accent-orange));
-}
 .sendBtn[data-fn-missing="true"] {
   opacity: 0.58;
 }
 .sendBtn[data-fn-missing="true"]:hover {
   opacity: 0.72;
-}
-.sendBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.stopBtn {
-  background: var(--accent-red);
-  color: var(--destructive-foreground);
-  opacity: 0.85;
-}
-.stopBtn:hover {
-  opacity: 1;
 }
 
 /* Close button — same 24px circle family as the action button, solid
@@ -537,68 +468,46 @@
   position: relative;
 }
 /* Right cluster order is chat model · exec model · effort · ring
-   (JSX order); one 12px rhythm across both nesting levels, every
-   item 20px tall on the same centerline. */
+   (JSX order), on one 4px rhythm across both nesting levels. */
 .controlsRow .inputBottomRight,
 .controlsRow .agentChips {
-  gap: 12px;
+  gap: 4px;
 }
 
-/* Compact control metrics: every text control 20px tall, 12px font,
-   a pill (shadcn Luma) with 0 8px padding, transparent bg, hover =
-   subtle tint, 80%-ink text; icon-only controls are 20px circles. The permission control's tone
-   colour arrives as an inline style, hence the !important. */
-.controlsRow :global(.runtime-badge.permission-badge),
-.controlsRow :global(.runtime-badge.agent-badge) {
-  height: 20px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  border: none;
-  background: transparent;
-  color: var(--ink-80) !important;
+/* Every control in this row is a shadcn ghost Button (buttonVariants,
+   size xs / icon-xs): height, radius, padding, font and hover all come
+   from those classes. The legacy base rules above (.plusBtn, .toolChip,
+   .effortText — still used by the fn-form band) are unlayered and would
+   beat Tailwind's layered utilities, so this row reverts them to the
+   Button's values with revert-layer instead of restating a lookalike. */
+.controlsRow .plusBtn,
+.controlsRow .plusBtn:hover,
+.controlsRow .toolChip,
+.controlsRow .toolChip:hover,
+.controlsRow .effortText,
+.controlsRow .effortText:hover {
+  width: revert-layer;
+  height: revert-layer;
+  padding: revert-layer;
+  border: revert-layer;
+  border-radius: revert-layer;
+  background: revert-layer;
+  color: revert-layer;
+  font: revert-layer;
+  justify-content: revert-layer;
 }
-.controlsRow :global(.runtime-badge.permission-badge:hover),
-.controlsRow :global(.runtime-badge.permission-badge[aria-expanded="true"]),
-.controlsRow :global(.runtime-badge.agent-badge:hover),
-.controlsRow :global(.runtime-badge.agent-badge[aria-expanded="true"]) {
-  background: var(--bg-hover);
-  color: var(--text-bright) !important;
-  filter: none;
+.controlsRow .effortText {
+  display: inline-flex;
 }
-
-/* Round buttons go quiet: 20px circles, no filled background. */
-.controlsRow .plusBtn {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  color: var(--ink-80);
-}
-.controlsRow .plusBtn svg {
-  width: 15px;
-  height: 15px;
-}
-.controlsRow .plusBtn.hasActive {
+/* State tints that are information, not chrome: the plus button and
+   an enabled tool chip show the accent while a tool is on. */
+.controlsRow .plusBtn.hasActive,
+.controlsRow .toolChip:not(.toolChipOff) {
   color: var(--accent-blue);
 }
-/* Active tool chips: transparent 20px squares in normal flow, icon
-   keeps the accent tint as the ON signal. The internal band's ×-slide
-   (hover width-expand) is suppressed here — it would shift the row's
-   neighbours on every hover; the chip body click already toggles the
-   tool off (ToolChip's onClick={onToggle}). */
-.controlsRow .toolChip {
-  width: 20px;
-  height: 20px;
-  padding-left: 2px;
-  padding-right: 2px;
-  border-radius: 50%;
-  background: transparent;
-}
-.controlsRow .toolChip:hover {
-  width: 20px;
-  padding-right: 2px;
-  background: var(--bg-hover);
-}
+/* The internal band's ×-slide is suppressed here — it would shift the
+   row's neighbours on every hover; the chip body click already toggles
+   the tool off (ToolChip's onClick={onToggle}). */
 .controlsRow .toolChip:hover .toolChipClose {
   max-width: 0;
   margin-left: 0;
@@ -631,9 +540,6 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.controlsRow .effortText {
-  display: inline-flex;
-}
 .fastIndicator {
   display: inline-flex;
   align-items: center;
@@ -653,14 +559,15 @@
 @media (prefers-reduced-motion: reduce) {
   .fastIndicator { transition: none; }
 }
-.controlsRow .effortText:hover {
-  background: var(--bg-hover);
-  color: var(--text-bright);
+/* Open state of the effort popover reads like an open Button menu. */
+.controlsRow .effortControl[aria-expanded="true"] .effortText {
+  background: var(--muted);
+  color: var(--foreground);
 }
 /* The host is a zero-width anchor at the wrapper's right edge — the
    floating shell right-aligns to it. */
 .controlsRow :global(.effort-pill-host) {
-  height: 20px;
+  height: 24px;
   width: 0;
 }
 .controlsRow :global(.effort-pill-shell) {
@@ -674,65 +581,18 @@
 .controlsRow :global(.effort-pill-shell:not([data-expanded])) {
   display: none;
 }
-/* Single-option variant (no slider): quiet 20px icon chip. */
+/* Single-option variant (no slider): a quiet 24px icon chip, the same
+   footprint as the ghost icon-xs Buttons beside it. */
 .controlsRow :global(.effort-pill-fixed) {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background-color: transparent !important;
-  color: var(--ink-80);
 }
 .controlsRow :global(.effort-pill-fixed .effort-pill-compact-icon),
 .controlsRow :global(.effort-pill-fixed) svg {
-  width: 14px;
-  height: 14px;
-}
-
-/* Context ring: 12px svg in a 20px hit target (measured spec). The
-   ring is the LAST item of the row, flush with the box's right edge.
-   Colours (track var(--border) / progress var(--accent-orange)) are
-   painted by the component itself (context-badge.tsx). */
-.controlsRow :global(.context-ring-badge) {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-}
-.controlsRow :global(.context-ring-badge) svg {
   width: 12px;
   height: 12px;
-}
-
-/* Persistent composer control surfaces. Reuse only the environment-chip
-   fill; borders and inset rings reduce the perceived interior space of
-   these 20px controls. Hover/open increases the borderless fill. */
-.controlsRow :global(.runtime-badge.permission-badge),
-.controlsRow :global(.runtime-badge.agent-badge),
-.controlsRow .plusBtn,
-.controlsRow .toolChip,
-.controlsRow .effortText,
-.controlsRow :global(.context-ring-badge) {
-  background: var(--chip-bg);
-}
-
-.controlsRow :global(.runtime-badge.permission-badge:hover),
-.controlsRow :global(.runtime-badge.permission-badge[aria-expanded="true"]),
-.controlsRow :global(.runtime-badge.agent-badge:hover),
-.controlsRow :global(.runtime-badge.agent-badge[aria-expanded="true"]),
-.controlsRow .plusBtn:hover,
-.controlsRow .plusBtn[aria-expanded="true"],
-.controlsRow .toolChip:hover,
-.controlsRow .effortText:hover,
-.controlsRow .effortControl[aria-expanded="true"] .effortText,
-.controlsRow :global(.context-ring-badge:hover),
-.controlsRow :global(.context-ring-badge[aria-expanded="true"]) {
-  background: color-mix(in srgb, var(--text-bright) 8%, var(--chip-bg));
-}
-
-.controlsRow :global(.effort-pill-fixed) {
-  background-color: var(--chip-bg) !important;
-}
-.controlsRow :global(.effort-pill-fixed:hover) {
-  background-color: color-mix(in srgb, var(--text-bright) 8%, var(--chip-bg)) !important;
 }
 
 /* Narrow composer control labels collapse to their existing role icons.
@@ -761,8 +621,8 @@
   .controlsRow :global(.permission-badge),
   .controlsRow :global(.agent-badge),
   .controlsRow .effortText {
-    width: 20px;
-    min-width: 20px;
+    width: 24px;
+    min-width: 24px;
     padding: 0 !important;
     justify-content: center;
   }

@@ -15,21 +15,11 @@
   align-items: center;
   gap: 6px;
 }
-/* The pill look (24px filled pill, inset ring, --shadow-sm, --ink-80,
-   hover lift) is NOT here: the HUD lives inside the composer's env-chip
-   row, and composer.module.css lists .dag-hud-chip in the env-pill rule
-   itself — one definition, the chips beside it can never drift. Here:
-   only what is HUD-internal. */
-.dag-hud-chip {
-  display: inline-flex;
-  align-items: center;
-  font: inherit;
-  white-space: nowrap;
-}
-button.dag-hud-chip { cursor: pointer; }
+/* The pill look comes from the shadcn outline xs Button classes the
+   chips carry (dag-view.tsx) — the same recipe as the env chips beside
+   them. Here: only what is HUD-internal. */
 /* The zoom cluster: one pill holding [−] [readout] [+]. Tight side
-   padding so the square segments read as one control; the shared pill
-   rule's 0 8px suits the text chips, not this one. */
+   padding so the round segments read as one control. */
 .dag-hud .dag-hud-chip.dag-hud-zoomctl {
   padding: 0 3px;
   gap: 0;
@@ -42,7 +32,7 @@ button.dag-hud-chip { cursor: pointer; }
   height: 20px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: 999px;
   background: transparent;
   font: inherit;
   color: inherit;
@@ -54,13 +44,12 @@ button.dag-hud-chip { cursor: pointer; }
   padding: 0 3px;
   font-variant-numeric: tabular-nums;
 }
-/* Segment hover speaks the same language as the pill hover in
-   composer.module.css — the same --text-bright brightening, scoped to
-   the segment instead of the whole pill. */
+/* Segment hover = the outline Button's hover tint, scoped to the
+   segment instead of the whole pill. */
 .dag-hud-zoombtn:hover,
 .dag-hud-zoom:hover {
-  color: var(--text-bright);
-  background: color-mix(in srgb, var(--text-bright) 8%, transparent);
+  color: var(--foreground);
+  background: var(--muted);
 }
 
 .dag-legend {

@@ -6,6 +6,7 @@ import { surfaceRefForChat } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import styles from "../environment-row.module.css";
+import { buttonVariants } from "@/components/ui/button";
 
 export function WebSurfaceChip({
   sessionId,
@@ -33,7 +34,7 @@ export function WebSurfaceChip({
     <HoverTip label={`${stateLabel} · ${title}`}>
       <button
         type="button"
-        className={`status-badge ${styles.surfaceChip} ${toolsEnabled ? "" : "paused"}`}
+        className={`${buttonVariants({ variant: "outline", size: "xs" })} status-badge ${styles.surfaceChip} ${toolsEnabled ? "" : "paused"}`}
         aria-label={`${stateLabel}: ${title}`}
         aria-pressed={toolsEnabled}
         onClick={onToggleAccess}

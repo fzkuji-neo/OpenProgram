@@ -157,9 +157,9 @@ Electron 窗口首次显示的像素与已解析的 Web 主题一致。创建 `B
 
 ### 7. 按钮规格偏差（低优先级）
 
-**问题：** `button.tsx` 悬停使用 `bg-secondary`，而非品牌填充色。注释提到 36px / `--ui-button-h`，但 `base.css` 为 30px。管理页标签使用 `border-radius: 6px`，而 `--ui-button-radius` 为 10px。
+**问题：** 管理页标签使用 `border-radius: 6px`，并且仍从 `--ui-button-h` / `--ui-button-radius` 取尺寸；而 `button.tsx` 现在是官方 shadcn radix-luma Button（胶囊，官方 `xs`–`lg` 尺寸，见 `surface-system.zh.md`）。
 
-**操作：** 统一各组件的按钮高度和圆角。
+**操作：** 把剩下手写尺寸的按钮和标签换成官方 Button 尺寸，然后删掉 `--ui-button-h` / `--ui-button-radius`。
 
 ---
 
@@ -225,5 +225,5 @@ Electron 窗口首次显示的像素与已解析的 Web 主题一致。创建 `B
 - **CLI/TUI 颜色**：❌ 未开始
 - **缺失约定的 token**：❌ 未开始
 - **宣传页/图标**：❌ 未开始
-- **按钮/命名待改进项**：❌ 未开始
+- **按钮/命名待改进项**：🟡 进行中——`Button` 已换成官方 radix-luma 组件；手写尺寸的标签和 `--ui-button-*` 还在
 - **组件库**：❌ 未开始
