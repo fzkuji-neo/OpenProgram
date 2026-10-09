@@ -33,7 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { HoverTip } from "@/components/ui/tooltip";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 
 import { AgentSelector } from "./agent-selector";
 import { useBoundChat } from "./bound-chat";
@@ -149,14 +149,25 @@ export function AgentBadge({
   // Tooltip carries the "what is this chip" intro, so the chip itself
   // shows only a glyph — plus the model name when one is set.
   const iconRef = useRef<AnimatedNavIconHandle>(null);
-  const tooltip = invocation ? `${invocation.label || invocation.agentId}${invocation.trial ? text(" · Draft trial; memory is read-only or off", " · 草稿试运行；记忆只读或关闭") : ""}` : kind === "chat" ? t("agent.chat_agent") : t("agent.execution_agent");
+  const roleName = kind === "chat" ? t("agent.chat_agent") : t("agent.execution_agent");
+  const tooltip = invocation
+    ? `${invocation.label || invocation.agentId}${invocation.trial ? text(" · Draft trial; memory is read-only or off", " · 草稿试运行；记忆只读或关闭") : ""}`
+    : null;
   // Distinct glyph per role: message bubble = chat model, terminal
   // window = execution / tool-running model (Solar set, hover pop).
   const iconName = kind === "chat" ? "chat-round-dots" : "programming";
   const label = fmtAgentLabel(provider, model, nameById);
+  const tipBody = tooltip ?? (
+    <TipBody
+      title={`${roleName}: ${label || text("no model", "未选择模型")}`}
+      detail={kind === "chat"
+        ? text("Talks with you and plans the work. Click to change model.", "和你对话并规划工作。点击更换模型。")
+        : text("Runs functions and tools. Click to change model.", "运行函数和工具。点击更换模型。")}
+    />
+  );
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <HoverTip label={tooltip}>
+      <HoverTip label={tipBody}>
         <PopoverTrigger asChild>
           <span
             id={id}

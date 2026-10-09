@@ -35,7 +35,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { HoverTip } from "@/components/ui/tooltip";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -99,7 +99,14 @@ export function PermissionBadge() {
   return (
     <>
       <Popover open={open} onOpenChange={onOpenChange}>
-        <HoverTip label={text("Permission mode", "权限模式")}>
+        <HoverTip
+          label={
+            <TipBody
+              title={text(`Permissions: ${label}`, `权限：${label}`)}
+              detail={current?.description ?? text("What the agent may do without asking. Click to change.", "agent 不经询问可以做什么。点击更改。")}
+            />
+          }
+        >
           <PopoverTrigger asChild>
             <span
               ref={hostRef}

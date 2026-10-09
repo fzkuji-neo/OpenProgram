@@ -30,7 +30,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { HoverTip } from "@/components/ui/tooltip";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useFolderPicker } from "@/components/ui/folder-picker";
 import { useSessionStore } from "@/lib/session-store";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
@@ -414,6 +414,8 @@ export function ProjectBadge() {
   const [missing, setMissing] = useState(false);
   // Real folder of a user project (not the home-dir default) — the git pill's subject.
   const [gitPath, setGitPath] = useState<string | null>(null);
+  const [projectPath, setProjectPath] = useState<string | null>(null);
+  const [onDefaultProject, setOnDefaultProject] = useState(false);
   const setPendingProject = useSessionStore((s) => s.setPendingProject);
   const { pickFolder, folderPickerDialog, manualOpen } = useFolderPicker();
 
@@ -455,6 +457,8 @@ export function ProjectBadge() {
       setLabel(cur.name);
       setMissing(cur.path_missing === true);
       setGitPath(!cur.is_default && !cur.path_missing && cur.path ? cur.path : null);
+      setProjectPath(cur.path || null);
+      setOnDefaultProject(cur.is_default);
       return true;
     }
     return false;
@@ -510,9 +514,27 @@ export function ProjectBadge() {
     <Popover open={open} onOpenChange={onOpenChange}>
       <HoverTip
         label={
-          missing
-            ? text("Project folder missing", "项目目录缺失")
-            : text("Project — working folder", "项目 — 工作目录")
+          missing ? (
+            <TipBody
+              title={text(`Project folder missing: ${label}`, `项目目录缺失：${label}`)}
+              detail={text("Click to locate the folder.", "点击重新定位目录。")}
+            />
+          ) : (
+            <TipBody
+              title={text(`Project: ${label}`, `项目：${label}`)}
+              detail={
+                <>
+                  {onDefaultProject
+                    ? text("Ad-hoc chats, stored in your home folder", "随手聊，保存在主目录")
+                    : projectPath}
+                  <br />
+                  {sessionId
+                    ? text("Main folder, fixed for this conversation", "主目录，本会话已固定")
+                    : text("Click to choose the project folder", "点击选择项目目录")}
+                </>
+              }
+            />
+          )
         }
       >
         <PopoverTrigger asChild>

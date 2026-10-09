@@ -22,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { HoverTip } from "@/components/ui/tooltip";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useFolderPicker } from "@/components/ui/folder-picker";
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
@@ -199,23 +199,43 @@ export function WorkingDirChips() {
   return (
     <>
       {workingDirs.map((dir, index) => (
-        <span key={dir} className={`${FOLDER_PILL} runtime-badge workdir-badge`} title={dir}>
+        <span key={dir} className={`${FOLDER_PILL} runtime-badge workdir-badge`} data-path={dir}>
           <span className="folder-pill-seg">
-            <SolarIcon name="folder-with-files" size={14} className="workdir-icon" />
-            <span className="badge-short">{baseName(dir)}</span>
+            <HoverTip
+              label={
+                <TipBody
+                  title={text(`Working folder: ${baseName(dir)}`, `工作目录：${baseName(dir)}`)}
+                  detail={<>{dir}<br />{text("The agent can read and edit files here", "agent 可以读写这里的文件")}</>}
+                />
+              }
+            >
+              <span className="folder-pill-name">
+                <SolarIcon name="folder-with-files" size={14} className="workdir-icon" />
+                <span className="badge-short">{baseName(dir)}</span>
+              </span>
+            </HoverTip>
             {/* ✕ appears on hover / keyboard focus only; it takes no width otherwise. */}
-            <SolarIcon
-              name="close-circle"
-              size={13}
-              role="button"
-              tabIndex={0}
-              aria-label={text("Remove folder", "移除文件夹")}
-              className="workdir-remove"
-              onClick={() => applyWorkingDirs(workingDirs.filter((d) => d !== dir))}
-              onKeyDown={activateOnKey(() =>
-                applyWorkingDirs(workingDirs.filter((d) => d !== dir)),
-              )}
-            />
+            <HoverTip
+              label={
+                <TipBody
+                  title={text("Remove from this conversation", "从本会话移除")}
+                  detail={text("Files on disk stay untouched", "磁盘上的文件不受影响")}
+                />
+              }
+            >
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={text("Remove folder", "移除文件夹")}
+                className="workdir-remove"
+                onClick={() => applyWorkingDirs(workingDirs.filter((d) => d !== dir))}
+                onKeyDown={activateOnKey(() =>
+                  applyWorkingDirs(workingDirs.filter((d) => d !== dir)),
+                )}
+              >
+                <SolarIcon name="close-circle" size={13} />
+              </span>
+            </HoverTip>
           </span>
           <GitChip
             path={dir}
@@ -225,7 +245,14 @@ export function WorkingDirChips() {
         </span>
       ))}
       <Popover open={open} onOpenChange={onOpenChange}>
-        <HoverTip label={text("Add working folder", "添加工作目录")}>
+        <HoverTip
+          label={
+            <TipBody
+              title={text("Add working folder", "添加工作目录")}
+              detail={text("Give the agent another folder to work in", "让 agent 在另一个目录里工作")}
+            />
+          }
+        >
           <PopoverTrigger asChild>
             <button
               type="button"

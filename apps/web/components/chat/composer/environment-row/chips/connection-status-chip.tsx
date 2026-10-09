@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { SolarIcon } from "@/components/solar-icons";
-import { HoverTip } from "@/components/ui/tooltip";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import {
   Popover,
   PopoverContent,
@@ -89,7 +89,12 @@ export function ConnectionStatusChip({ owningId = true }: { owningId?: boolean }
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <HoverTip
-        label={statusBadge.title || text("Conversation channel", "会话渠道")}
+        label={
+          <TipBody
+            title={text(`Channel: ${statusBadge.title || label}`, `渠道：${statusBadge.title || label}`)}
+            detail={text("Where this conversation runs. Click to switch channel.", "这个会话在哪里运行。点击切换渠道。")}
+          />
+        }
       >
         <PopoverTrigger asChild>
           <span

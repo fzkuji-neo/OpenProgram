@@ -24,6 +24,7 @@ Web UI 界面 — 界面系统、指示点、附件处理、聊天轮次视觉�
 - [`gui-agent.html`](gui-agent.zh.html) — GUI agent 入口、状态机、结果契约与实现状态
 - [`indicator-dots.md`](indicator-dots.zh.md) — 指示点
 - [`git-folder-pills.md`](git-folder-pills.zh.md) — 输入框里每个目录的 git 胶囊：分支、修改计数、切分支、worktree、PR
+- [`hover-tips.md`](hover-tips.zh.md) — 输入框区域悬停提示：统一的 `HoverTip` + `TipBody`，标题带当前值，浅色细节行
 - [`icons.md`](icons.zh.md) — 图标体系：哪一族用在哪里（输入框区域 Solar、外壳动效线性图标、其余 lucide）、动效约定、署名
 - [`surface-system.md`](surface-system.zh.md) — Surface 系统
 - [`theme-system.html`](theme-system.zh.html) — 主题入口、完整 token 契约、组件消费与桌面浮层传播的权威设计

@@ -85,4 +85,16 @@ function HoverTip({ label, children, side = "top" }: HoverTipProps) {
   )
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, HoverTip }
+/** The one hover-tip layout for controls: a bright first line saying what
+ *  the control is and its current value, then an optional muted line with
+ *  the detail (a path, what a click does). Pass it as HoverTip's label. */
+function TipBody({ title, detail }: { title: React.ReactNode; detail?: React.ReactNode }) {
+  return (
+    <span className="hover-tip-body">
+      <span className="hover-tip-title">{title}</span>
+      {detail ? <span className="hover-tip-detail">{detail}</span> : null}
+    </span>
+  )
+}
+
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, HoverTip, TipBody }

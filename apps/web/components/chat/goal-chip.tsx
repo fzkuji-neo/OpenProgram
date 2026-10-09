@@ -6,6 +6,7 @@ import { CheckIcon, HistoryIcon } from "@/components/animated-icons";
 import { useActionIconAnimation } from "./messages/use-action-icon-animation";
 
 import { Button } from "@/components/ui/button";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -326,15 +327,22 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
     }
   }
 
+  const goalTip = (
+    <TipBody
+      title={text("Goal", "目标")}
+      detail={<>{goal.text}<br />{text("Click for progress and controls", "点击查看进度与控制")}</>}
+    />
+  );
+
   return (
     <>
-      {historical ? <button ref={trigger} type="button" className={styles.completion}
+      {historical ? <HoverTip label={goalTip}><button ref={trigger} type="button" className={styles.completion}
         data-goal-id={goal.goal_id} aria-label={text("Open Goal details", "打开 Goal 详情")}
-        title={goal.text} onClick={() => setOpen(true)} {...completionIcon.handlers}>
+        onClick={() => setOpen(true)} {...completionIcon.handlers}>
         {goal.status === "achieved" ? <CheckIcon ref={completionIcon.ref} size={16} aria-hidden />
           : <HistoryIcon ref={completionIcon.ref} size={16} aria-hidden />}
         <span>{completionLabel}</span>
-      </button> : !terminal || stopPending ? <button
+      </button></HoverTip> : !terminal || stopPending ? <HoverTip label={goalTip}><button
         ref={trigger}
         type="button"
         className={`runtime-badge workdir-badge ${styles.trigger}`}
@@ -343,7 +351,7 @@ export function GoalDetails({ sessionId, goal, historical = false }: { sessionId
       >
         <Target size={14} strokeWidth={2} className="workdir-icon" />
         <span className="badge-short">Goal · {stopPending ? text("Stop not confirmed", "停止未确认") : statusLabel(goal.status, zh, goal.phase)}{progress ? ` · ${progress}` : null}</span>
-      </button> : null}
+      </button></HoverTip> : null}
       <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) setConfirmCancel(false); }}>
         <DialogContent className={styles.dialog} aria-busy={busy} onCloseAutoFocus={(event) => {
           event.preventDefault(); trigger.current?.focus();
