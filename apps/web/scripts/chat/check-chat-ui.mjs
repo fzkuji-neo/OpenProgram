@@ -511,7 +511,7 @@ assert.match(
 );
 assert.match(
   controlsCluster,
-  /className=\{`\$\{buttonVariants\(\{ variant: "ghost", size: "xs" \}\)\} \$\{styles\.effortText\}`\}[\s\S]*style=\{thinking === "max" \? \{ color: "#8E6BD9" \} : undefined\}/,
+  /className=\{`\$\{cn\(buttonVariants\(\{ variant: "ghost", size: "sm" \}\)\)\} \$\{styles\.effortText\}`\}[\s\S]*style=\{thinking === "max" \? \{ color: "#8E6BD9" \} : undefined\}/,
 );
 const compactControlsStart = composerCss.indexOf("/* Narrow composer control labels");
 const compactControlsEnd = composerCss.indexOf(
@@ -530,8 +530,8 @@ assert.match(compactControls, /\.effortValue/);
 assert.match(compactControls, /position:\s*absolute/);
 assert.match(compactControls, /\.permission-badge\s*>\s*:has\(svg\)[\s\S]*display:\s*inline-flex\s*!important/);
 assert.match(compactControls, /\.compactEffortIcon[\s\S]*display:\s*inline-flex/);
-assert.match(compactControls, /\.permission-badge[\s\S]*width:\s*24px/);
-assert.match(compactControls, /\.agent-badge[\s\S]*width:\s*24px/);
+assert.match(compactControls, /\.permission-badge[\s\S]*width:\s*28px/);
+assert.match(compactControls, /\.agent-badge[\s\S]*width:\s*28px/);
 assert.doesNotMatch(compactControls, /\.(?:permission-badge|agent-badge|effort-pill-host)[^{]*\{[^}]*display:\s*none/s);
 
 assert.match(workingDirChips, /className="workdir-remove"/);
@@ -551,7 +551,7 @@ assert.equal(
 // Bottom-row controls are shadcn ghost Buttons: the TSX carries
 // buttonVariants, and the CSS hands the legacy base rules back to those
 // layered utilities (revert-layer) instead of drawing its own chip.
-assert.match(controlsCluster, /buttonVariants\(\{ variant: "ghost", size: "icon-xs" \}\)\} \$\{styles\.plusBtn\}/);
+assert.match(controlsCluster, /cn\(buttonVariants\(\{ variant: "ghost", size: "icon-sm" \}\)\)\} \$\{styles\.plusBtn\}/);
 const surfaceControlsStart = composerCss.indexOf("/* Every control in this row is a shadcn ghost Button");
 const surfaceControlsEnd = composerCss.indexOf(
   "/* Narrow composer control labels",

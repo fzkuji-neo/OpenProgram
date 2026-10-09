@@ -78,7 +78,7 @@ fit。改面板尺寸永不重新 fit——用户看图的角度是他自己的�
 两者都以面板中心为锚。读数由 `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` 在每次视角变化时命令式写入——把
 一次手势的每个 wheel 事件走 React state 会让整棵树每秒重绘六十次。
 
-HUD 不自带任何外观。这几个胶囊带着 shadcn outline `xs` 按钮的样式类
+HUD 不自带任何外观。这几个胶囊带着 shadcn outline `sm` 按钮的样式类
 （`buttonVariants`），和旁边的环境标签是同一套配方，永远不会跑偏。图例面板穿 `MENU_PANEL`
 （`components/chat/top-bar/menu-styles`），全应用弹层菜单共用的那一份框架；
 `apps/web/app/styles/dag/hud.css` 只留 HUD 内部排版（缩放簇的分段、图例的向上锚位和行）。
@@ -88,7 +88,7 @@ HUD 不自带任何外观。这几个胶囊带着 shadcn outline `xs` 按钮的�
 | 平移 / 缩放 / fit | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`（HUD 按钮走 `zoomStep` / `resetZoom`） |
 | 视角状态 | `apps/web/lib/runtime-bridge/dag/store/globals.ts` 的 `_viewTx` / `_viewTy` / `_viewScale` / `_viewSession` |
 | 画布与点阵 | `apps/web/app/styles/dag/canvas.css` 的 `.history-body` |
-| HUD | `apps/web/components/chat/dag-view.tsx` 的 `DagHud`；胶囊外观来自 `buttonVariants`（outline xs），图例框架来自 `MENU_PANEL`，内部排版在 `apps/web/app/styles/dag/hud.css` |
+| HUD | `apps/web/components/chat/dag-view.tsx` 的 `DagHud`；胶囊外观来自 `buttonVariants`（outline sm），图例框架来自 `MENU_PANEL`，内部排版在 `apps/web/app/styles/dag/hud.css` |
 
 ### 输入框属于面板，不属于会话记录
 

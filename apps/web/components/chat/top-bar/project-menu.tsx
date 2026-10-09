@@ -43,6 +43,7 @@ import { wsRequest } from "@/lib/net/ws-request";
 import { useBoundChat } from "./bound-chat";
 import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /** Fired whenever the conversation's project changes so the topbar chip
  * re-fetches its label without a store round-trip. */
@@ -515,7 +516,7 @@ export function ProjectBadge() {
           <span
             id="projectBadge"
             className={
-              buttonVariants({ variant: "outline", size: "xs" }) +
+              cn(buttonVariants({ variant: "outline", size: "sm" })) +
               " runtime-badge project-badge" +
               (missing ? " project-badge-missing" : "")
             }

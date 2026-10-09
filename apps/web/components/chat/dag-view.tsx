@@ -45,6 +45,7 @@ import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-br
 import { fitCanvas, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/canvas";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const STROKE = "var(--accent-primary, #4a7dfc)";
 const GHOST = "var(--dag-ghost, #c9c7bf)";
@@ -105,7 +106,7 @@ function DagLegend() {
     <div className="dag-legend" ref={rootRef}>
       <button
         type="button"
-        className={`${buttonVariants({ variant: "outline", size: "xs" })} dag-hud-chip dag-legend-toggle`}
+        className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} dag-hud-chip dag-legend-toggle`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
@@ -179,7 +180,7 @@ function DagHud({ active }: { active: boolean }) {
     <div className="dag-hud">
       <button
         type="button"
-        className={`${buttonVariants({ variant: "outline", size: "xs" })} dag-hud-chip`}
+        className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} dag-hud-chip`}
         onClick={() => fitCanvas()}
         title={text("Fit graph to view", "缩放到全图")}
       >
@@ -189,7 +190,7 @@ function DagHud({ active }: { active: boolean }) {
       {/* 缩放簇：一颗胶囊里 [−] [倍率] [+]。−/+ 步进一个滚轮格，
           倍率数字本身点击重置 100%——都以画布中心为锚
           （interaction/canvas.ts::zoomStep / resetZoom）。 */}
-      <div className={`${buttonVariants({ variant: "outline", size: "xs" })} dag-hud-chip dag-hud-zoomctl`}>
+      <div className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} dag-hud-chip dag-hud-zoomctl`}>
         <button
           type="button"
           className="dag-hud-zoombtn"
