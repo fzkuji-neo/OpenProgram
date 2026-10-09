@@ -171,7 +171,7 @@ function CapIcons({ caps }: { caps: string[] }) {
 const CAP_ICON: Record<string, React.ReactNode> = {
   vision: <SolarIcon motionPreset="none" name="eye" size={14} />,
   video: <SolarIcon motionPreset="none" name="videocamera" size={14} />,
-  tools: <SolarIcon motionPreset="none" name="toolbox" size={14} />,
+  tools: <SolarIcon motionPreset="none" name="case-minimalistic" size={14} />,
   reasoning: <SolarIcon motionPreset="none" name="lightbulb-bolt" size={14} />,
 };
 

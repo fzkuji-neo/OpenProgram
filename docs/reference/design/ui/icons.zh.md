@@ -20,7 +20,7 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 |---|---|
 | `+` 选项触发 | `tuning-2` |
 | 添加文件 | `paperclip` |
-| 工具 | `toolbox` |
+| 工具 | `case-minimalistic` |
 | 工具配置 | `settings-minimalistic` |
 | 网页搜索 | `global` |
 | 沙箱 | `box-minimalistic` |
@@ -39,12 +39,12 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 | 展开箭头 | `alt-arrow-right`、`alt-arrow-down` |
 | 发送 | `plain-2`（纸飞机） |
 | 复制 | `copy` |
-| 模型能力（视觉 / 视频 / 工具 / 推理） | `eye` / `videocamera` / `toolbox` / `lightbulb-bolt` |
+| 模型能力（视觉 / 视频 / 工具 / 推理） | `eye` / `videocamera` / `case-minimalistic` / `lightbulb-bolt` |
 | Git 胶囊 / 其菜单：新建分支或 worktree、worktree、PR、查看 PR | `git-branch` / `add-circle`、`folder-path-connect`、`git-pull-request`、`square-arrow-right-up` |
 | 文件修改卡片：标题 / 文件行 | `pen-new-square` / `file-text` |
 | 文件修改卡片：撤回 / Review 按钮 | Font Awesome `rotate-left` / `eye`（实心），图标 + 文字 |
 
-Solar 的撤回图标都是细线箭头，在按钮尺寸下几乎看不见，所以文件卡片的两个操作按钮改用 Font Awesome 的实心图标，由同一个脚本取回、放进同一张表（viewBox 记在 `SOLAR_VIEWBOXES`）。同一张表还把少数图形在 24×24 格里偏心的 Solar 图标调回居中（`toolbox` 的图形只占 y 1.25 到 18.05，viewBox 下移 2.35 格），否则它会比旁边的图标高一截。
+Solar 的撤回图标都是细线箭头，在按钮尺寸下几乎看不见，所以文件卡片的两个操作按钮改用 Font Awesome 的实心图标，由同一个脚本取回、放进同一张表（viewBox 记在 `SOLAR_VIEWBOXES`）。
 
 反映开关的图标随状态换形，而不只靠颜色：无人值守开启后眼睛闭上；运行中模式"注入"是前进箭头、"排队"是队列列表；项目目录丢失时项目 chip 变成警告三角。
 

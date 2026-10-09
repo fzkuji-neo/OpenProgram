@@ -42,7 +42,7 @@ export const AttachIcon = forwardRef<AnimatedNavIconHandle, IconProps>(
 
 export const ToolsIcon = forwardRef<AnimatedNavIconHandle, IconProps>(
   function ToolsIcon({ size = 16 }, ref) {
-    return <SolarIcon ref={ref} name="toolbox" size={size} />;
+    return <SolarIcon ref={ref} name="case-minimalistic" size={size} />;
   },
 );
 
