@@ -26,7 +26,7 @@ Bold Duotone style: a filled glyph plus a 50 % lighter secondary layer.
 |---|---|
 | `+` options trigger | `tuning-2` |
 | Add files | `paperclip` |
-| Tools | `toolbox` |
+| Tools | `case-minimalistic` |
 | Tool profile | `settings-minimalistic` |
 | Web search | `global` |
 | Sandbox | `box-minimalistic` |
@@ -45,7 +45,7 @@ Bold Duotone style: a filled glyph plus a 50 % lighter secondary layer.
 | Carets | `alt-arrow-right`, `alt-arrow-down` |
 | Send | `plain-2` (paper plane) |
 | Copy | `copy` |
-| Model capabilities (vision / video / tools / reasoning) | `eye` / `videocamera` / `toolbox` / `lightbulb-bolt` |
+| Model capabilities (vision / video / tools / reasoning) | `eye` / `videocamera` / `case-minimalistic` / `lightbulb-bolt` |
 | Git pill / its menu: new branch or worktree, worktree, PR, view PR | `git-branch` / `add-circle`, `folder-path-connect`, `git-pull-request`, `square-arrow-right-up` |
 | File-change card: title / file rows | `pen-new-square` / `file-text` |
 | File-change card: undo / Review buttons | Font Awesome `rotate-left` / `eye` (solid), icon + text label |
@@ -53,10 +53,7 @@ Bold Duotone style: a filled glyph plus a 50 % lighter secondary layer.
 Solar's undo glyphs are hairline arrows that disappear at button size,
 so the file card's two action buttons use solid Font Awesome glyphs
 instead, vendored by the same script into the same table (their
-viewBox is recorded in `SOLAR_VIEWBOXES`). The same table re-centres
-the few Solar glyphs whose artwork sits off-centre in the 24×24 box
-(`toolbox` spans y 1.25–18.05, so its viewBox is shifted down 2.35
-units); otherwise it would ride high next to its neighbours.
+viewBox is recorded in `SOLAR_VIEWBOXES`).
 
 Glyphs that reflect a toggle switch with the state rather than relying
 on colour alone: Unattended closes the eye once nobody is watching, the
