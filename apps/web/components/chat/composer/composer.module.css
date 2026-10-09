@@ -67,6 +67,12 @@
 .inputArea:has([data-effort-expanded="true"])::after {
   display: none;
 }
+/* An env-chip menu drops its shadow onto the chip row, with the chips
+   painted over it. While one is open, the solid layer starts below the
+   row (12px padding + 24px chips) so it doesn't cut that shadow off. */
+.inputArea:has([data-environment-row] [aria-expanded="true"])::before {
+  top: 36px;
+}
 
 /* Wrapper — the rounded rectangle the textarea sits inside.
    The fn-form open / close animation is driven by an inline `height`
