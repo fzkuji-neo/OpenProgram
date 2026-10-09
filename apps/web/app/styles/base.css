@@ -248,6 +248,10 @@
   /* 全屏/图片遮罩。深色主题下就是黑纱。 */
   --scrim: rgba(0, 0, 0, 0.55);
   --scrim-strong: rgba(0, 0, 0, 0.75);
+  /* Agent control accent: the agent pointer, its click ripple and the live
+     dot. One placeholder for the coming brand accent; every theme shares it.
+     The native macOS helper mirrors it as ACCENT in mac_indicator.py. */
+  --agent-accent: #5b5bd6;
   /* Tooltip 与页面反色：深色主题下用比表面更亮的一块灰。 */
   --surface-tooltip: #4a4a47;
   --text-on-tooltip: #ffffff;

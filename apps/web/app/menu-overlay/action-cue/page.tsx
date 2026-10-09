@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 
-import { CursorClickIcon } from "@/components/animated-icons";
+import { AgentCursor } from "@/components/center-tabs/agent-cursor";
 
 interface CuePayload {
   play: "once" | "never";
@@ -44,11 +44,10 @@ function ActionCuePage() {
   }, []);
 
   return (
-    <div data-browser-action-cue="true" style={{ pointerEvents: "none", color: "#e07a22" }}>
-      <CursorClickIcon
-        key={String(cue.playSeq ?? 0)}
-        size={28}
+    <div data-browser-action-cue="true" style={{ pointerEvents: "none" }}>
+      <AgentCursor
         play={cue.reducedMotion ? "never" : cue.play}
+        playSeq={cue.playSeq ?? 0}
       />
     </div>
   );

@@ -10179,3 +10179,574 @@ index b82909a..8eb46c9 100644
  """
  
  from __future__ import annotations
+diff --git a/gui_harness/adapters/mac_indicator.py b/gui_harness/adapters/mac_indicator.py
+--- a/gui_harness/adapters/mac_indicator.py
++++ b/gui_harness/adapters/mac_indicator.py
+@@ -1,4 +1,11 @@
+-"""Native, non-activating macOS feedback for one controlled window."""
++"""Native, non-activating macOS feedback for one controlled window.
++
++The helper draws two things above the controlled window and never receives
++input: a compact dark-glass status pill hanging from the top centre of the
++window, and an agent pointer at the last action. Every colour except the
++accent is neutral; the accent lives in ``ACCENT`` so the brand colour can be
++swapped in one place.
++"""
+ 
+ from __future__ import annotations
+ 
+@@ -10,6 +17,28 @@
+ 
+ 
+ TITLE = "OpenProgram GUI Agent control"
++
++# Brand accent (sRGB 0..1). Indigo-violet placeholder for the final brand
++# colour; the pointer, its click ripple, its tag and the live dot use it.
++ACCENT = (0x5B / 255, 0x5B / 255, 0xD6 / 255)
++# Neutral dark glass for the status pill.
++GLASS = (0.11, 0.11, 0.13, 0.86)
++GLASS_EDGE = (1.0, 1.0, 1.0, 0.10)
++TEXT = (1.0, 1.0, 1.0, 0.92)
++DONE_DOT = (1.0, 1.0, 1.0, 0.45)
++
++MARKER_SIZE = 42          # the pointer's view; the tip sits at its centre
++PILL_HEIGHT = 26
++PILL_TOP = 6              # gap between the window's top edge and the pill
++PILL_MIN_WIDTH = 120
++TRAVEL_MIN_S = 0.18
++TRAVEL_MAX_S = 0.42
++RIPPLE_ACTIONS = ("window_press", "window_select")
++
++# Classic arrow pointer, tip at (0, 0), y grows downward, about 22pt tall:
++# a little larger than the system pointer so the two are never confused.
++POINTER_PATH = ((0.0, 0.0), (0.0, 19.0), (4.6, 14.7), (7.7, 21.7),
++                (10.7, 20.5), (7.7, 13.7), (13.8, 13.7))
+ 
+ 
+ def _bounds(row):
+@@ -48,22 +77,77 @@
+     """Place the waiting cursor wholly inside a visible part of the window."""
+     x, y, _, height = target
+     region = next((r for r in sorted(regions, key=lambda r: (-r[2] * r[3], r[1], r[0]))
+-                   if r[2] >= 42 and r[3] >= 42), None)
++                   if r[2] >= MARKER_SIZE and r[3] >= MARKER_SIZE), None)
+     if region is None:
+         return None
+     rx, ry, rw, rh = region
+-    return rx - x + (rw - 42) / 2, height - (ry - y) - (rh + 42) / 2
+-
+-
+-def _symbol(appkit, name, fallback):
+-    image = appkit.NSImage.imageWithSystemSymbolName_accessibilityDescription_(name, None)
+-    return image or appkit.NSImage.imageWithSystemSymbolName_accessibilityDescription_(
+-        fallback, None,
+-    )
++    return rx - x + (rw - MARKER_SIZE) / 2, height - (ry - y) - (rh + MARKER_SIZE) / 2
++
++
++def prefers_chinese(languages):
++    first = next(iter(languages or ()), "")
++    return str(first).lower().startswith("zh")
++
++
++def status_text(app_name, state, chinese):
++    """Short status line: who is acting on what. No window or process ids."""
++    name = str(app_name or "").strip() or ("应用" if chinese else "this app")
++    if state == "completed":
++        return f"OpenProgram 已结束操作 {name}" if chinese else f"OpenProgram finished with {name}"
++    return f"OpenProgram 正在操作 {name}" if chinese else f"OpenProgram is using {name}"
++
++
++def action_tag(action, chinese):
++    """Tiny label beside the pointer; never the typed text itself."""
++    labels = {
++        "window_press": ("点击", "Click"),
++        "window_select": ("选择", "Select"),
++        "window_set_text": ("输入", "Type"),
++        "window_scroll": ("滚动", "Scroll"),
++    }.get(action)
++    if labels is None:
++        return None
++    return labels[0] if chinese else labels[1]
++
++
++def pill_origin(width, height, pill_width, pill_height=PILL_HEIGHT, top=PILL_TOP):
++    """Top-centre of the window in AppKit (y-up) coordinates of the panel."""
++    x = max(4.0, (width - pill_width) / 2)
++    y = max(0.0, height - top - pill_height)
++    return x, y
++
++
++def travel_duration(start, end):
++    distance = ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2) ** 0.5
++    return min(TRAVEL_MAX_S, max(TRAVEL_MIN_S, distance / 1400))
++
++
++def ease_point(start, end, t):
++    """Ease-in-out cubic between two points; t is clamped to [0, 1]."""
++    t = min(1.0, max(0.0, t))
++    k = 4 * t * t * t if t < 0.5 else 1 - (-2 * t + 2) ** 3 / 2
++    return start[0] + (end[0] - start[0]) * k, start[1] + (end[1] - start[1]) * k
+ 
+ 
+ def _color(appkit, red, green, blue, alpha):
+     return appkit.NSColor.colorWithSRGBRed_green_blue_alpha_(red, green, blue, alpha)
++
++
++def _accent(appkit, alpha=1.0):
++    return _color(appkit, *ACCENT, alpha)
++
++
++def _pointer_path(quartz, tip_x, tip_y):
++    path = quartz.CGPathCreateMutable()
++    for index, (dx, dy) in enumerate(POINTER_PATH):
++        # The table is y-down; AppKit layers are y-up.
++        px, py = tip_x + dx, tip_y - dy
++        if index == 0:
++            quartz.CGPathMoveToPoint(path, None, px, py)
++        else:
++            quartz.CGPathAddLineToPoint(path, None, px, py)
++    quartz.CGPathCloseSubpath(path)
++    return path
+ 
+ 
+ class Indicator:
+@@ -74,10 +158,28 @@
+         self.target_pid = target_pid
+         self.action = None
+         self.action_bounds = None
++        self.action_serial = 0
+         self.launch_time = launch_time
+         self.completed_until = None
+-        self.display_name = f"{app_name} · {window_id}"
++        self.started = time.monotonic()
++        self.display_name = app_name
+         self.title = f"{TITLE} · {target_pid}:{window_id}"
++        try:
++            self.chinese = prefers_chinese(list(appkit.NSLocale.preferredLanguages()))
++        except Exception:
++            self.chinese = False
++        try:
++            workspace = appkit.NSWorkspace.sharedWorkspace()
++            self.reduce_motion = bool(workspace.accessibilityDisplayShouldReduceMotion())
++        except Exception:
++            self.reduce_motion = False
++        # Pointer state in panel coordinates (the tip, y-up).
++        self.tip = None
++        self.tip_is_idle = True
++        self.motion = None
++        self.shown_serial = 0
++        self.pill_width = None
++
+         style = appkit.NSWindowStyleMaskBorderless | appkit.NSWindowStyleMaskNonactivatingPanel
+         panel = appkit.NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
+             appkit.NSMakeRect(0, 0, 100, 100), style, appkit.NSBackingStoreBuffered, False,
+@@ -103,49 +205,202 @@
+         content.layer().setMask_(mask)
+         panel.setContentView_(content)
+ 
+-        badge = appkit.NSView.alloc().initWithFrame_(appkit.NSMakeRect(12, 62, 224, 28))
++        # Status pill: neutral dark glass, live dot, one short line of text.
++        badge = appkit.NSView.alloc().initWithFrame_(
++            appkit.NSMakeRect(0, 0, PILL_MIN_WIDTH, PILL_HEIGHT))
+         badge.setWantsLayer_(True)
+-        badge.layer().setCornerRadius_(14)
+-        badge.layer().setBackgroundColor_(_color(appkit, 0.35, 0.27, 0.92, 0.94).CGColor())
++        badge.layer().setCornerRadius_(PILL_HEIGHT / 2)
++        badge.layer().setBackgroundColor_(_color(appkit, *GLASS).CGColor())
++        badge.layer().setBorderColor_(_color(appkit, *GLASS_EDGE).CGColor())
++        badge.layer().setBorderWidth_(0.5)
++        badge.layer().setShadowColor_(appkit.NSColor.blackColor().CGColor())
++        badge.layer().setShadowOpacity_(0.28)
++        badge.layer().setShadowRadius_(8)
++        badge.layer().setShadowOffset_(quartz.CGSizeMake(0, -2))
+         content.addSubview_(badge)
+-        icon = appkit.NSImageView.alloc().initWithFrame_(appkit.NSMakeRect(8, 6, 16, 16))
+-        icon.setImage_(_symbol(appkit, "rectangle.inset.filled.and.person.filled", "display"))
+-        icon.setContentTintColor_(appkit.NSColor.whiteColor())
+-        badge.addSubview_(icon)
+-        label = appkit.NSTextField.labelWithString_(f"控制中 · {self.display_name}")
+-        label.setFrame_(appkit.NSMakeRect(30, 5, 186, 18))
+-        label.setTextColor_(appkit.NSColor.whiteColor())
+-        label.setFont_(appkit.NSFont.systemFontOfSize_weight_(12, appkit.NSFontWeightSemibold))
++
++        dot_layer = quartz.CALayer.layer()
++        dot_layer.setCornerRadius_(3.5)
++        dot_layer.setBackgroundColor_(_accent(appkit).CGColor())
++        dot = appkit.NSView.alloc().initWithFrame_(appkit.NSMakeRect(11, 9.5, 7, 7))
++        dot.setLayer_(dot_layer)
++        dot.setWantsLayer_(True)
++        badge.addSubview_(dot)
++        if not self.reduce_motion:
++            pulse = quartz.CABasicAnimation.animationWithKeyPath_("opacity")
++            pulse.setFromValue_(1.0)
++            pulse.setToValue_(0.35)
++            pulse.setDuration_(0.9)
++            pulse.setAutoreverses_(True)
++            pulse.setRepeatCount_(float("inf"))
++            pulse.setTimingFunction_(quartz.CAMediaTimingFunction.functionWithName_(
++                quartz.kCAMediaTimingFunctionEaseInEaseOut))
++            dot_layer.addAnimation_forKey_(pulse, "pulse")
++
++        label = appkit.NSTextField.labelWithString_(
++            status_text(self.display_name, "active", self.chinese))
++        label.setTextColor_(_color(appkit, *TEXT))
++        label.setFont_(appkit.NSFont.systemFontOfSize_weight_(12, appkit.NSFontWeightMedium))
+         label.setLineBreakMode_(appkit.NSLineBreakByTruncatingTail)
+         badge.addSubview_(label)
+ 
+-        marker = appkit.NSView.alloc().initWithFrame_(appkit.NSMakeRect(-100, -100, 42, 42))
++        # Agent pointer: accent arrow with a white keyline and soft shadow.
++        # A layer-hosting view so the arrow, ripple and tag are plain layers.
++        marker_layer = quartz.CALayer.layer()
++        marker = appkit.NSView.alloc().initWithFrame_(
++            appkit.NSMakeRect(-100, -100, MARKER_SIZE, MARKER_SIZE))
++        marker.setLayer_(marker_layer)
+         marker.setWantsLayer_(True)
+-        marker.layer().setCornerRadius_(21)
+-        marker.layer().setBackgroundColor_(_color(appkit, 0.35, 0.27, 0.92, 0.30).CGColor())
+-        marker.layer().setBorderColor_(_color(appkit, 0.35, 0.27, 0.92, 0.94).CGColor())
+-        marker.layer().setBorderWidth_(2)
++        marker_layer.setMasksToBounds_(False)
++        half = MARKER_SIZE / 2
++
++        ripple = quartz.CAShapeLayer.layer()
++        ripple.setBounds_(quartz.CGRectMake(0, 0, 32, 32))
++        ripple.setPosition_(quartz.CGPointMake(half, half))
++        ripple.setPath_(quartz.CGPathCreateWithEllipseInRect(
++            quartz.CGRectMake(1, 1, 30, 30), None))
++        ripple.setFillColor_(_accent(appkit, 0.14).CGColor())
++        ripple.setStrokeColor_(_accent(appkit, 0.85).CGColor())
++        ripple.setLineWidth_(1.5)
++        ripple.setOpacity_(0)
++        marker_layer.addSublayer_(ripple)
++
++        arrow = quartz.CAShapeLayer.layer()
++        arrow.setFrame_(quartz.CGRectMake(0, 0, MARKER_SIZE, MARKER_SIZE))
++        arrow.setPath_(_pointer_path(quartz, half, half))
++        arrow.setFillColor_(_accent(appkit).CGColor())
++        arrow.setStrokeColor_(appkit.NSColor.whiteColor().CGColor())
++        arrow.setLineWidth_(1.5)
++        arrow.setLineJoin_(quartz.kCALineJoinRound)
++        arrow.setShadowColor_(appkit.NSColor.blackColor().CGColor())
++        arrow.setShadowOpacity_(0.35)
++        arrow.setShadowRadius_(2.5)
++        arrow.setShadowOffset_(quartz.CGSizeMake(0, -1))
++        marker_layer.addSublayer_(arrow)
++
++        tag = quartz.CATextLayer.layer()
++        tag.setFontSize_(10)
++        tag_font = appkit.NSFont.systemFontOfSize_weight_(10, appkit.NSFontWeightSemibold)
++        tag.setFont_(tag_font)
++        tag.setForegroundColor_(appkit.NSColor.whiteColor().CGColor())
++        tag.setBackgroundColor_(_accent(appkit).CGColor())
++        tag.setCornerRadius_(4)
++        tag.setAlignmentMode_(quartz.kCAAlignmentCenter)
++        tag.setContentsScale_(2.0)
++        tag.setHidden_(True)
++        marker_layer.addSublayer_(tag)
++
+         marker.setHidden_(True)
+         content.addSubview_(marker)
+-        marker_icon = appkit.NSImageView.alloc().initWithFrame_(appkit.NSMakeRect(9, 9, 24, 24))
+-        marker_icon.setContentTintColor_(appkit.NSColor.whiteColor())
+-        marker.addSubview_(marker_icon)
+ 
+         self.panel = panel
+         self.content = content
+         self.badge = badge
++        self.dot_layer = dot_layer
+         self.marker = marker
+-        self.marker_icon = marker_icon
++        self.marker_layer = marker_layer
++        self.arrow = arrow
++        self.ripple = ripple
++        self.tag = tag
++        self.tag_font = tag_font
+         self.label = label
+         self.mask = mask
+ 
+     def set_action(self, action, bounds):
+         self.action = action if isinstance(action, str) else None
+         self.action_bounds = bounds if isinstance(bounds, dict) else None
++        self.action_serial = getattr(self, "action_serial", 0) + 1
+ 
+     def complete(self):
+         self.completed_until = time.monotonic() + 4
+-        self.label.setStringValue_(f"已结束 · {self.display_name}")
++        self.label.setStringValue_(
++            status_text(self.display_name, "completed", getattr(self, "chinese", False)))
++        dot = getattr(self, "dot_layer", None)
++        if dot is not None:
++            dot.removeAllAnimations()
++            dot.setBackgroundColor_(_color(self.appkit, *DONE_DOT).CGColor())
++
++    def frame_interval(self):
++        """Poll quickly only while the pointer is travelling."""
++        return 0.016 if self.motion is not None else 0.05
++
++    def _layout_pill(self, width, height):
++        appkit = self.appkit
++        text_width = float(self.label.fittingSize().width)
++        pill_width = min(max(PILL_MIN_WIDTH, 26 + text_width + 12), max(PILL_MIN_WIDTH, width - 24))
++        if pill_width != self.pill_width:
++            self.pill_width = pill_width
++            self.badge.setFrameSize_(appkit.NSMakeSize(pill_width, PILL_HEIGHT))
++            self.label.setFrame_(appkit.NSMakeRect(26, 4, pill_width - 26 - 12, 17))
++        self.badge.setFrameOrigin_(appkit.NSMakePoint(*pill_origin(width, height, pill_width)))
++
++    def _set_tag(self, text):
++        quartz = self.quartz
++        if not text:
++            self.tag.setHidden_(True)
++            return
++        self.tag.setString_(text)
++        appkit = self.appkit
++        measured = appkit.NSString.stringWithString_(text).sizeWithAttributes_(
++            {appkit.NSFontAttributeName: self.tag_font})
++        width = round(float(measured.width)) + 12
++        half = MARKER_SIZE / 2
++        # Just below and right of the arrow, clear of the click point.
++        self.tag.setFrame_(quartz.CGRectMake(half + 12, half - 36, width, 15))
++        self.tag.setHidden_(False)
++
++    def _ripple(self):
++        if self.reduce_motion:
++            return
++        quartz = self.quartz
++        scale = quartz.CABasicAnimation.animationWithKeyPath_("transform.scale")
++        scale.setFromValue_(0.35)
++        scale.setToValue_(1.35)
++        fade = quartz.CABasicAnimation.animationWithKeyPath_("opacity")
++        fade.setFromValue_(0.9)
++        fade.setToValue_(0.0)
++        group = quartz.CAAnimationGroup.animation()
++        group.setAnimations_([scale, fade])
++        group.setDuration_(0.45)
++        group.setTimingFunction_(quartz.CAMediaTimingFunction.functionWithName_(
++            quartz.kCAMediaTimingFunctionEaseOut))
++        self.ripple.addAnimation_forKey_(group, "click")
++
++    def _place_tip(self, tip):
++        half = MARKER_SIZE / 2
++        self.marker.setFrameOrigin_(self.appkit.NSMakePoint(tip[0] - half, tip[1] - half))
++
++    def _move_pointer(self, goal, now):
++        """Glide to a new action point; snap on first placement or reduced motion."""
++        fresh = self.action_serial != self.shown_serial
++        if fresh:
++            self.shown_serial = self.action_serial
++        restored = fresh and self.tip_is_idle and now - self.started < 0.5
++        if self.tip is None or self.reduce_motion or restored:
++            # A marker restored at step start appears in place without replaying a click.
++            self.tip, self.motion = goal, None
++            self._place_tip(goal)
++            return
++        if fresh and goal != self.tip:
++            self.motion = (self.tip, goal, now, travel_duration(self.tip, goal),
++                           self.action in RIPPLE_ACTIONS)
++        elif fresh and self.action in RIPPLE_ACTIONS and self.motion is None:
++            self._ripple()
++        if self.motion is not None:
++            start, end, began, duration, ripple = self.motion
++            if end != goal:
++                # The window moved or resized mid-flight: follow the new goal.
++                self.motion = (self.tip, goal, now, travel_duration(self.tip, goal), ripple)
++                start, end, began, duration, ripple = self.motion
++            t = (now - began) / duration
++            self.tip = ease_point(start, end, t)
++            if t >= 1:
++                self.tip, self.motion = end, None
++                if ripple:
++                    self._ripple()
++        else:
++            self.tip = goal
++        self._place_tip(self.tip)
+ 
+     def update(self, rows):
+         app = self.appkit.NSRunningApplication.runningApplicationWithProcessIdentifier_(self.target_pid)
+@@ -198,35 +453,32 @@
+             self.quartz.CGPathAddRect(path, None, self.quartz.CGRectMake(rx - x, height - (ry - y) - rh, rw, rh))
+         self.mask.setFrame_(self.appkit.NSMakeRect(0, 0, width, height))
+         self.mask.setPath_(path)
+-        badge_x, badge_top = 12, 10
+-        if not any(rx <= x + badge_x and ry <= y + badge_top
+-                   and rx + rw >= x + badge_x + 224 and ry + rh >= y + badge_top + 28
+-                   for rx, ry, rw, rh in regions):
+-            corner = next((region for region in sorted(regions, key=lambda region: (region[1], region[0]))
+-                           if region[2] >= 224 and region[3] >= 28), None)
+-            if corner is not None:
+-                rx, ry, rw, rh = corner
+-                badge_x = rx - x + min(12, rw - 224)
+-                badge_top = ry - y + min(10, rh - 28)
+-        self.badge.setFrameOrigin_(self.appkit.NSMakePoint(badge_x, max(0, height - badge_top - 28)))
++        self._layout_pill(width, height)
++        now = time.monotonic()
+         bounds = self.action_bounds
+         if bounds:
+-            marker_x = bounds["x"] + bounds["width"] / 2 - 21
+-            marker_y = height - (bounds["y"] + bounds["height"] / 2) - 21
+-            self.marker.setFrameOrigin_(self.appkit.NSMakePoint(marker_x, marker_y))
+-            symbol = {
+-                "window_press": "cursorarrow",
+-                "window_set_text": "text.cursor",
+-                "window_scroll": "arrow.up.and.down",
+-            }.get(self.action, "cursorarrow")
+-            self.marker_icon.setImage_(_symbol(self.appkit, symbol, "cursorarrow"))
++            goal = (bounds["x"] + bounds["width"] / 2, height - (bounds["y"] + bounds["height"] / 2))
++            self._move_pointer(goal, now)
++            self.tip_is_idle = False
++            self.marker_layer.setOpacity_(1.0)
++            self._set_tag(action_tag(self.action, self.chinese))
+             self.marker.setHidden_(False)
+         else:
+             position = idle_marker_position(target, regions)
+             self.marker.setHidden_(position is None)
++            self._set_tag(None)
+             if position is not None:
+-                self.marker.setFrameOrigin_(self.appkit.NSMakePoint(*position))
+-                self.marker_icon.setImage_(_symbol(self.appkit, "cursorarrow", "cursorarrow"))
++                half = MARKER_SIZE / 2
++                idle = (position[0] + half, position[1] + half)
++                if self.tip is None or getattr(self, "tip_is_idle", True):
++                    self.tip, self.motion = idle, None
++                    self._place_tip(idle)
++                    self.tip_is_idle = True
++                    # A parked pointer is quieter than an acting one.
++                    self.marker_layer.setOpacity_(0.6)
++                else:
++                    self._place_tip(self.tip)
++                    self.marker_layer.setOpacity_(0.6)
+         self.quartz.CATransaction.commit()
+         self.panel.orderFrontRegardless()
+         self.panel.displayIfNeeded()
+@@ -252,7 +504,8 @@
+     input_open = True
+     try:
+         while True:
+-            ready, _, _ = select.select([sys.stdin] if input_open else [], [], [], 0.05)
++            ready, _, _ = select.select([sys.stdin] if input_open else [], [], [],
++                                        indicator.frame_interval())
+             if ready:
+                 line = sys.stdin.readline()
+                 if not line:
+diff --git a/tests/test_indicator_presentation.py b/tests/test_indicator_presentation.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_indicator_presentation.py
+@@ -0,0 +1,115 @@
++"""Pure presentation rules for the native control indicator."""
++from types import SimpleNamespace
++
++from gui_harness.adapters import mac_indicator
++from gui_harness.adapters.mac_indicator import (
++    ACCENT,
++    action_tag,
++    ease_point,
++    pill_origin,
++    prefers_chinese,
++    status_text,
++    travel_duration,
++)
++
++
++def test_status_line_names_the_app_without_window_or_process_ids():
++    assert status_text("WeChat", "active", True) == "OpenProgram 正在操作 WeChat"
++    assert status_text("WeChat", "active", False) == "OpenProgram is using WeChat"
++    assert status_text("WeChat", "completed", True) == "OpenProgram 已结束操作 WeChat"
++    assert status_text("", "active", False) == "OpenProgram is using this app"
++    assert "34327" not in status_text("WeChat", "active", True)
++
++
++def test_language_follows_the_first_preferred_language():
++    assert prefers_chinese(["zh-Hans-CN", "en-US"])
++    assert not prefers_chinese(["en-US", "zh-Hans"])
++    assert not prefers_chinese([])
++
++
++def test_pointer_tag_names_the_action_never_the_text():
++    assert action_tag("window_press", False) == "Click"
++    assert action_tag("window_set_text", True) == "输入"
++    assert action_tag("window_scroll", False) == "Scroll"
++    assert action_tag("unknown", False) is None
++
++
++def test_pill_hangs_from_the_top_centre_of_the_window():
++    x, y = pill_origin(980, 650, 220)
++    assert x == (980 - 220) / 2
++    assert y == 650 - mac_indicator.PILL_TOP - mac_indicator.PILL_HEIGHT
++    # A window narrower than the pill keeps the pill on its left edge.
++    assert pill_origin(100, 650, 220)[0] == 4.0
++
++
++def test_pointer_glide_is_eased_bounded_and_lands_exactly():
++    start, end = (0.0, 0.0), (300.0, 400.0)
++    assert ease_point(start, end, 0) == start
++    assert ease_point(start, end, 1) == end
++    assert ease_point(start, end, 2) == end
++    quarter, half = ease_point(start, end, 0.25), ease_point(start, end, 0.5)
++    assert 0 < quarter[0] < 300 * 0.25  # slow start
++    assert half == (150.0, 200.0)
++    assert mac_indicator.TRAVEL_MIN_S <= travel_duration(start, start) <= mac_indicator.TRAVEL_MAX_S
++    assert travel_duration(start, (5000.0, 0.0)) == mac_indicator.TRAVEL_MAX_S
++
++
++def test_accent_is_a_single_cool_colour_constant():
++    red, green, blue = ACCENT
++    assert blue > red and blue > green
++
++
++def _fake_indicator():
++    placed = []
++    ripples = []
++    indicator = mac_indicator.Indicator.__new__(mac_indicator.Indicator)
++    indicator.appkit = SimpleNamespace(NSMakePoint=lambda x, y: (x, y))
++    indicator.marker = SimpleNamespace(setFrameOrigin_=placed.append)
++    indicator.reduce_motion = False
++    indicator.started = 0.0
++    indicator.tip = None
++    indicator.tip_is_idle = True
++    indicator.motion = None
++    indicator.action = None
++    indicator.action_bounds = None
++    indicator.shown_serial = 0
++    indicator._ripple = lambda: ripples.append(True)
++    return indicator, placed, ripples
++
++
++def test_restored_marker_appears_in_place_without_a_click_ripple():
++    indicator, placed, ripples = _fake_indicator()
++    indicator.tip = (100.0, 100.0)
++    indicator.set_action("window_press", {"x": 0, "y": 0, "width": 10, "height": 10})
++    indicator._move_pointer((300.0, 200.0), now=0.1)
++    assert indicator.tip == (300.0, 200.0)
++    assert indicator.motion is None
++    assert ripples == []
++
++
++def test_new_click_glides_then_ripples_once():
++    indicator, placed, ripples = _fake_indicator()
++    indicator.tip = (100.0, 100.0)
++    indicator.set_action("window_press", {"x": 0, "y": 0, "width": 10, "height": 10})
++    indicator._move_pointer((400.0, 100.0), now=5.0)
++    assert indicator.motion is not None
++    duration = indicator.motion[3]
++    indicator._move_pointer((400.0, 100.0), now=5.0 + duration / 2)
++    assert 100.0 < indicator.tip[0] < 400.0
++    assert ripples == []
++    indicator._move_pointer((400.0, 100.0), now=5.0 + duration)
++    assert indicator.tip == (400.0, 100.0)
++    assert indicator.motion is None
++    assert ripples == [True]
++    indicator._move_pointer((400.0, 100.0), now=6.0)
++    assert ripples == [True]
++
++
++def test_reduced_motion_snaps_without_ripple():
++    indicator, placed, ripples = _fake_indicator()
++    indicator.reduce_motion = True
++    indicator.tip = (100.0, 100.0)
++    indicator.set_action("window_press", {"x": 0, "y": 0, "width": 10, "height": 10})
++    indicator._move_pointer((400.0, 100.0), now=5.0)
++    assert indicator.tip == (400.0, 100.0)
++    assert ripples == []
