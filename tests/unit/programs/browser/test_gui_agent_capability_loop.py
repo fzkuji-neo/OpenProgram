@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -325,6 +326,30 @@ def test_gui_agent_records_capability_error_as_failed_result(
     assert output["error_type"] == "TimeoutError"
 
 
+def _manual_clock(monkeypatch, module):
+    """Give gui_agent a clock that moves only when a test stub advances it.
+
+    The loop's outcome then depends on the deadline alone, never on how often
+    the harness or its wrappers read the clock.
+    """
+    now = [0.0]
+    clock = SimpleNamespace(time=lambda: now[0], monotonic=lambda: now[0])
+    monkeypatch.setattr(module, "time", clock)
+    return now
+
+
+def _desktop_only_status(**_kwargs):
+    return {
+        "computer_use": {"available": True},
+        "browser_use": {"available": False},
+        "vm_use": {"available": False},
+    }
+
+
+def _forbid_conclusion(**_kwargs):
+    raise AssertionError("conclusion must not run after deadline")
+
+
 def test_gui_agent_skips_conclusion_after_deadline(
     harness_on_path, monkeypatch,
 ):
@@ -332,8 +357,12 @@ def test_gui_agent_skips_conclusion_after_deadline(
     from gui_harness.tasks import capability_loop
     from gui_harness.tasks import result as result_module
 
-    clock = iter([0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0])
-    monkeypatch.setattr(module.time, "time", lambda: next(clock, 2.0))
+    now = _manual_clock(monkeypatch, module)
+
+    def slow_capability(*_args, **_kwargs):
+        now[0] = 2.0
+        return {"status": "applied", "success": True}
+
     monkeypatch.setattr(
         capability_loop,
         "plan_next_capability",
@@ -341,30 +370,10 @@ def test_gui_agent_skips_conclusion_after_deadline(
             "call": "computer_use", "args": {"task": "inspect"},
         },
     )
-    monkeypatch.setattr(
-        capability_loop,
-        "call_capability",
-        lambda *_args, **_kwargs: {
-            "status": "applied", "success": True,
-        },
-    )
-    monkeypatch.setattr(
-        capability_loop,
-        "capability_status",
-        lambda **_kwargs: {
-            "computer_use": {"available": True},
-            "browser_use": {"available": False},
-            "vm_use": {"available": False},
-        },
-    )
+    monkeypatch.setattr(capability_loop, "call_capability", slow_capability)
+    monkeypatch.setattr(capability_loop, "capability_status", _desktop_only_status)
     monkeypatch.setattr(result_module, "save_workflow_record", lambda *_a, **_k: None)
-    monkeypatch.setattr(
-        result_module,
-        "conclusion",
-        lambda **_kwargs: (_ for _ in ()).throw(
-            AssertionError("conclusion must not run after deadline")
-        ),
-    )
+    monkeypatch.setattr(result_module, "conclusion", _forbid_conclusion)
 
     result = module.gui_agent(
         task="inspect", max_steps=2, max_seconds=1, runtime=object(),
@@ -374,6 +383,8 @@ def test_gui_agent_skips_conclusion_after_deadline(
     assert result["reason_code"] == "timeout"
     assert result["summary"] == "GUI Agent exceeded its Runtime time limit."
     assert "Conclusion skipped" in result["issues"]
+    assert result["steps_taken"] == 1
+    assert result["history"][0]["output"] == {"status": "applied", "success": True}
 
 
 def test_gui_agent_rejects_terminal_returned_after_deadline(
@@ -383,33 +394,19 @@ def test_gui_agent_rejects_terminal_returned_after_deadline(
     from gui_harness.tasks import capability_loop
     from gui_harness.tasks import result as result_module
 
-    clock = iter([0.0, 0.0, 0.0, 2.0, 2.0, 2.0])
-    monkeypatch.setattr(module.time, "time", lambda: next(clock, 2.0))
-    monkeypatch.setattr(
-        capability_loop,
-        "plan_next_capability",
-        lambda **_kwargs: {
+    now = _manual_clock(monkeypatch, module)
+
+    def slow_terminal(**_kwargs):
+        now[0] = 2.0
+        return {
             "call": "terminal",
             "args": {"status": "succeeded", "reason": "late success"},
-        },
-    )
-    monkeypatch.setattr(
-        capability_loop,
-        "capability_status",
-        lambda **_kwargs: {
-            "computer_use": {"available": True},
-            "browser_use": {"available": False},
-            "vm_use": {"available": False},
-        },
-    )
+        }
+
+    monkeypatch.setattr(capability_loop, "plan_next_capability", slow_terminal)
+    monkeypatch.setattr(capability_loop, "capability_status", _desktop_only_status)
     monkeypatch.setattr(result_module, "save_workflow_record", lambda *_a, **_k: None)
-    monkeypatch.setattr(
-        result_module,
-        "conclusion",
-        lambda **_kwargs: (_ for _ in ()).throw(
-            AssertionError("conclusion must not run after deadline")
-        ),
-    )
+    monkeypatch.setattr(result_module, "conclusion", _forbid_conclusion)
 
     result = module.gui_agent(
         task="inspect", max_steps=1, max_seconds=1, runtime=object(),
@@ -418,6 +415,39 @@ def test_gui_agent_rejects_terminal_returned_after_deadline(
     assert result["status"] == "failed"
     assert result["success"] is False
     assert result["reason_code"] == "timeout"
+
+
+def test_gui_agent_reports_timeout_before_action_limit(
+    harness_on_path, monkeypatch,
+):
+    """The one allowed action runs past the deadline; that is a timeout."""
+    from gui_harness import main as module
+    from gui_harness.tasks import capability_loop
+    from gui_harness.tasks import result as result_module
+
+    now = _manual_clock(monkeypatch, module)
+
+    def slow_capability(*_args, **_kwargs):
+        now[0] = 2.0
+        return {"status": "applied", "success": True}
+
+    monkeypatch.setattr(
+        capability_loop,
+        "plan_next_capability",
+        lambda **_kwargs: {"call": "computer_use", "args": {"task": "inspect"}},
+    )
+    monkeypatch.setattr(capability_loop, "call_capability", slow_capability)
+    monkeypatch.setattr(capability_loop, "capability_status", _desktop_only_status)
+    monkeypatch.setattr(result_module, "save_workflow_record", lambda *_a, **_k: None)
+    monkeypatch.setattr(result_module, "conclusion", _forbid_conclusion)
+
+    result = module.gui_agent(
+        task="inspect", max_steps=1, max_seconds=1, runtime=object(),
+    )
+
+    assert result["reason_code"] == "timeout"
+    assert result["status"] == "failed"
+    assert result["steps_taken"] == 1
 
 
 def test_capability_status_does_not_expose_vm_endpoint_credentials(
