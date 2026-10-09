@@ -107,7 +107,7 @@ def test_application_root_is_not_a_verified_conversation(monkeypatch):
     assert result["status"] == "GROUP_NOT_VERIFIED"
 
 
-def native_processes(monkeypatch, pids, owners):
+def native_processes(monkeypatch, pids, owners, ax_window="exact-main-window"):
     import sys
     from types import SimpleNamespace as NS
 
@@ -172,7 +172,8 @@ def native_processes(monkeypatch, pids, owners):
         selected.append(window.pid)
         return NS(
             ax=ax,
-            ax_window="exact-main-window",
+            ax_window=ax_window,
+            capture_only=ax_window is None,
             validate=lambda: None,
             attr=lambda *a: None,
         )
@@ -185,6 +186,43 @@ def test_public_reader_selects_only_main_window_owner(monkeypatch):
     selected = native_processes(monkeypatch, [11, 22], [22])
     assert report_wechat.read_group("Group")["status"] == "SEARCH_UNAVAILABLE"
     assert selected == [22]
+
+
+def test_screenshot_only_window_reads_no_accessibility_and_hands_over_to_visual(monkeypatch):
+    import sys
+
+    selected = native_processes(monkeypatch, [22], [22], ax_window=None)
+    ax = sys.modules["ApplicationServices"]
+
+    def forbidden(*a):
+        raise AssertionError("a screenshot-only window has no Accessibility tree to read")
+
+    ax.AXUIElementCopyActionNames = forbidden
+    ax.AXUIElementIsAttributeSettable = forbidden
+    # SEARCH_UNAVAILABLE is the status that hands the group to the visual reader.
+    assert report_wechat.read_group("Group")["status"] == "SEARCH_UNAVAILABLE"
+    assert selected == [22]
+
+
+def test_refused_background_action_is_not_treated_as_applied(monkeypatch):
+    import sys
+    import pytest
+    from types import SimpleNamespace as NS
+
+    monkeypatch.setitem(
+        sys.modules,
+        "gui_harness.adapters.mac_window",
+        NS(WindowUnavailable=RuntimeError),
+    )
+    bridge = object.__new__(report_wechat.MacAccessibility)
+    bridge.check = lambda: None
+    bridge.native = NS(
+        elements={"0": ("search", [], True)},
+        dispatch=lambda plan: {"success": False, "action_status": "refused"},
+    )
+    with pytest.raises(report_wechat.AccessibilityUnavailable, match="BACKGROUND_ACTION_UNAVAILABLE"):
+        bridge._dispatch("window_set_text", "0", text="Group")
+    assert bridge.native.elements == {"0": ("search", [], True)}
 
 
 def test_public_reader_reports_ambiguous_processes_without_reading(monkeypatch):

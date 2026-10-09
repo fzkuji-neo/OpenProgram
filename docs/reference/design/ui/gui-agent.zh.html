@@ -70,6 +70,7 @@
 <h1>GUI Agent：完整电脑操作设计</h1>
 <p id="program-page-scope">agentic Program 子进程只继承已接纳的父级执行本来获准的浏览器能力。现有父级 surface context，包括禁用访问的状态，原样保留，不替换。没有显式 context 时，只有普通注册 <code>web_use</code> 权限策略已经通过 <code>SURFACE_GRANT</code> 允许该父级调用，父级才可以从真正注册的 OpenProgram Page inventory 捕获 scope。任务文本、Program 名称、原始 owner 来源引用或新选择的 provider 都不能创建授权。捕获失败保留拒绝；不构造虚假 Page binding 或交互权限。为 Program 捕获同一可用 inventory 会产生有界的 renderer 请求成本；即使 Program 不调用浏览器工具，父级临时 binding 也通过已有 finalizer 释放。</p>
 <p>已验证的 Page 快照同时填入子进程 <code>TurnRequest.surface_context</code> 与每次派生的内层请求，与已经绑定的执行 context 一致。在子进程操作边界，已有的经认证 owner permission snapshot 解析当前 mode 与 rules，不修改原始已接纳 request。父级会话已有的 plan 标记进一步将快照限制为 plan mode。Page 捕获与子进程 mode/rules 传输使用同一份有效快照，因此现有 Page context 不能丢弃当前 owner 策略或父级 plan 限制。内层 request 继承该快照；没有 mode snapshot 的旧调用方保留审批模式。Runtime authority 仍为非交互；显式 deny/ask 规则、未知效果审批和目标所有权继续优先于 surface grant。父级 IPC broker 保留已有的精确窗口与 binding allowlist、新鲜 revision 和取消清理。禁用 context、没有注册 App、捕获失败和其他 binding 仍被拒绝。无模型的自有注册 Program 验证真正 spawn 的子进程及内层注册 <code>web_use</code> 权限检查；这些检查不使用用户浏览器或 provider。 unit 委托 fixture 显式注册生产 <code>web_use</code> descriptor，提供隔离的 owner authority 与受控 desktop 可用性，并断言真实 policy 决策。缺少注册、desktop 不可用或捕获失败，都不能创建 fallback context。unit 捕获回调只证明传递与清理；真实 spawn 的注册工具检查另行证明 Page 读回。</p>
+<p id="window-association">窗口会话按精确身份绑定一个 ScreenCaptureKit 窗口：窗口 id、所属进程、bundle identifier 与进程启动时间。随后按几何位置把截图窗口关联到一个 Accessibility 窗口：<code>AXWindows</code> 中 <code>AXPosition</code> 与 <code>AXSize</code> 和截图窗口边框相差小于 2 点的元素。恰好一个匹配时，会话读取该窗口的控件，提供 <code>window_press</code>、<code>window_select</code>、<code>window_set_text</code> 与 <code>window_scroll</code>，<code>window_match</code> 报告 <code>method: "unique_geometry"</code>。多个匹配时拒绝该窗口。没有匹配时，会话只截图：包括 <code>AXWindows</code> 为空或无法读取，以及其中元素的边框都不匹配；macOS 版微信可能只返回一个没有位置和尺寸的 <code>AXApplication</code> 元素，且它的 Accessibility 状态会在不同运行之间变化。只截图会话中，<code>window_match</code> 报告 <code>{"verified": true, "method": "capture_only", "ax_association": "unavailable", "reason": ...}</code>，其中 <code>verified</code> 指精确的截图身份。观察结果包含该窗口的截图、空控件列表（<code>controls_available: false</code>），以及告诉规划模型控件不可用、需要从截图读取答案的规则；规划模型只能选择 <code>done</code> 或 <code>fail</code>。派发对任何动作都不接触窗口，直接返回可恢复的拒绝结果（<code>action_status: "refused"</code>、<code>reason_code: "window_controls_unavailable"</code>）并给出明确原因；不回退到前台、坐标、全局或按进程投递的输入。每次校验只截图窗口时，检查进程启动身份，并向窗口服务器确认该窗口 id 仍属于该进程且在屏幕上。没有 Accessibility 窗口时无法区分最小化与位于其他桌面空间，因此不在屏幕上的窗口被拒绝而不截图。每次 <code>computer_use</code> 步骤都重新绑定，Accessibility 状态恢复后，下一步重新获得控件。</p>
 <p id="native-control-feedback">macOS 窗口反馈使用不激活应用、不接收鼠标事件的状态胶囊（位于窗口顶部居中）和停在上一动作处的 agent 指针；外观与动效见 <a href="agent-control-overlay.zh.html">Agent 控制提示层</a>。精确窗口校验与应用排他控制成功后启动 helper。目标矩形减去遮挡窗口区域后作为图层 mask，局部重叠不会隐藏整层提示。标记使用成功动作执行前的控件边界，以目标窗口内的相对坐标保存。能力反馈保留这份显示信息及原窗口身份，在后续同一窗口步骤开始前恢复；它不是输入权限或成功回执。正常步骤结束后短暂显示明确结束的反馈，失败、取消或身份丢失时关闭。helper 失败记录诊断，不虚构动作成功或切换前台操作。源码生命周期修复不能证明安装版原生显示已经验收；遵循用户不测试的要求，功能执行仍未验证。</p>
 <p id="desktop-access-scope">macOS 窗口适配器从宿主能力注册表中映射到 <code>gui_agent:desktop</code> 的条目确定必需权限。可用性与适配器的 <code>system_access</code> 诊断仅包含这些必需条目：屏幕录制与 Accessibility。无关的日历、提醒事项、麦克风、相机、按目标应用检查的 Automation 和按路径检查的文件访问仍在完整系统报告中显示，并保留各自操作的检查；它们不能阻止窗口截屏或 AX 控制。缺少必需条目，或必需条目状态不是 <code>granted</code>，都会在原生初始化前拒绝窗口操作。窗口动作前重复相同检查，因此撤销授权仍立即生效。缺少注册表 API 的旧宿主保留原有非提示 Quartz/AX 检查。状态读取不请求权限，也不产生前台输入回退。</p>
 <p>窗口清单在将能力可用性返回持久化 GUI 步骤前，把 macOS 原生应用名称、bundle identifier 和窗口标题转换为普通 Python 字符串。窗口身份也在将原生 NSDate 启动时间发布到能力结果 target 或 next-feedback window target 前，转换为精确的 Python 字符串类型。NSDate 的第一次字符串转换仍可能返回桥接字符串子类；再次转换这个字符串表示，保留日期文本并移除桥接子类型。缺失值仍为 null，窗口与进程身份仍为整数，文本内容保持不变。缺失启动日期仍拒绝目标，重启和上一目标身份比较保留原有含义。持久化 JSON 校验继续严格执行，原生桥接对象不能进入已保存步骤结果。该转换不捕获窗口、不请求权限、不改变焦点，也不重放结果未知的操作。</p>
@@ -211,7 +212,7 @@ browser_use(subtask)
   -&gt; Page/帧检查、动作、可选截图、终态断言</code>
 </pre>
 <p>有反馈的桌面迭代通常在额外定位/重试之前已调用三次模型。这是源码结构计数，不是延迟测量。首轮省去上一步验证；AX 窗口动作不使用 OCR/YOLO，其他桌面/VM 路径可以使用检测定位。</p>
-<p>macOS 窗口注册表只暴露 <code>window_press</code>、<code>window_set_text</code>、<code>window_scroll</code> 和终态标记；其他文件里的全局键鼠函数不能扩大这个入口。浏览器支持点击/输入/按键/悬停/滚动/选择，但未暴露拖拽与持续脚本入口。</p>
+<p>macOS 窗口注册表只暴露 <code>window_press</code>、<code>window_select</code>、<code>window_set_text</code>、<code>window_scroll</code> 和终态标记，只截图窗口只暴露终态标记；其他文件里的全局键鼠函数不能扩大这个入口。浏览器支持点击/输入/按键/悬停/滚动/选择，但未暴露拖拽与持续脚本入口。</p>
 <p>
 <code>Runtime.exec</code> 已使用 DAG 渲染历史并继承调用方权限限制内部工具，不需要再做 Context Engine。<code>execute_code</code> 每次新建 Python 子进程，无法跨调用保留 UI 对象或变量。</p>
 <p>稳定保留身份是 tab/资源关联：tab id、会话、分支分组，以及最后确认的 URL 与标题。活的 page key、CDP/BrowserView 句柄、frame 与动作租约只属于当前进程。桌面视图使用原生 <code>persist:webtabs</code> 分区；网页 UI 把中间栏 tab 描述持久化到 localStorage。重启恢复为每个保留 tab 描述重建新的原生 Page/绑定，加载最后确认 URL，并保持会话/分支分组。旧的活句柄可以标为不可用。没有保留 tab 描述的孤儿资源行不会凭空创建，失败时留在原分组。</p> <a class="ref" href="#S1">[S1]</a> <a class="ref" href="#S2">[S2]</a> <a class="ref" href="#S3">[S3]</a> <a class="ref" href="#S4">[S4]</a> <a class="ref" href="#S5">[S5]</a>
@@ -1259,6 +1260,11 @@ render();
 <td>现有 Harness 行为</td>
 <td>46 个 Harness 局部测试通过：后台窗口与 execute-task，包括观察错误/取消后的清理。</td>
 <td>观察步骤在截图后失败时必须删除临时图片目录。清理测试不证明原生输入能力；真实应用矩阵仍未完成。</td>
+</tr>
+<tr>
+<td>只截图的窗口关联</td>
+<td>Harness 测试用模拟的 AppKit、Accessibility、Quartz 与 ScreenCaptureKit 覆盖：对没有几何信息的应用元素、空或无法读取的 <code>AXWindows</code> 与不匹配的窗口建立只截图会话；多个匹配继续拒绝，唯一匹配保留控件；观察不含控件；只提供终态决定；拒绝所有动作；通过窗口服务器校验精确窗口。OpenProgram 报告测试覆盖微信读取器在只截图窗口上的行为。</td>
+<td>未在真实微信窗口上运行；真实应用验收仍待完成。</td>
 </tr>
 <tr>
 <td>P0 完整原生输入</td>
