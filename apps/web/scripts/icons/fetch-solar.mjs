@@ -32,7 +32,7 @@ const ICONS = {
   "shield-check": "bold-duotone",
   // environment row chips + their menus
   "monitor": "bold-duotone",
-  "planet": "bold-duotone",
+  "earth": "bold-duotone",
   "pip-2": "bold-duotone",
   "folder-with-files": "bold-duotone",
   "folder-open": "bold-duotone",

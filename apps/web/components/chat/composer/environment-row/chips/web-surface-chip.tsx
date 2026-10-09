@@ -40,7 +40,7 @@ export function WebSurfaceChip({
         aria-pressed={toolsEnabled}
         onClick={onToggleAccess}
       >
-        <SolarIcon name="planet" size={14} aria-hidden="true" />
+        <SolarIcon name="earth" size={14} aria-hidden="true" />
         <span className={styles.surfaceChipLabel}>
           {title}
         </span>
