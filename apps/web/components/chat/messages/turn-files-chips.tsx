@@ -48,6 +48,8 @@ interface TurnFile {
   recoverability?: string;
 }
 
+const HISTORY_OPERATIONS = new Set<TurnHistoryOperation>(["undo", "revert", "redo", "reapply"]);
+
 /** Split a display path into its folder part (muted) and file name. */
 function splitPath(path: string): [string, string] {
   const position = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
@@ -145,7 +147,7 @@ export function TurnFilesChips({
   useEffect(() => {
     if (!visible || !sessionId) return;
     const controller = new AbortController();
-    void wsRequest<{ status?: string; action?: TurnHistoryOperation | null; error?: string; session_id?: string; assistant_msg_id?: string }>(
+    void wsRequest<{ status?: string; operation?: string | null; error?: string; session_id?: string; assistant_msg_id?: string }>(
       "turn_history_state",
       { session_id: sessionId, assistant_msg_id: assistantMsgId },
       "turn_history_state_result",
@@ -157,7 +159,9 @@ export function TurnFilesChips({
         setHistoryError("");
         setHistoryState({
           status: data.status ?? "error",
-          operation: data.action ?? null,
+          operation: HISTORY_OPERATIONS.has(data.operation as TurnHistoryOperation)
+            ? (data.operation as TurnHistoryOperation)
+            : null,
           error: data.error,
         });
     });
