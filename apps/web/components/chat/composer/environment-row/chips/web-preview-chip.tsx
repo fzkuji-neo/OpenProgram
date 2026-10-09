@@ -37,7 +37,7 @@ export function WebPreviewChip() {
     <HoverTip label={label}>
       <button
         type="button"
-        className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} status-badge ${styles.surfaceChip}`}
+        className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} status-badge ${styles.surfaceChip}`}
         aria-label={label}
         onClick={() => show(restoreId, backgroundOwnerTabId)}
       >

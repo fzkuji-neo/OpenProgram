@@ -71,7 +71,7 @@ OpenProgram 包含多个 UI 界面：
 | Token | 文档浅色 | Web beige-light | 文档深色 | Web beige-dark |
 |-------|------------|-----------------|-----------|----------------|
 | `--acc` / `--accent-orange` | `#b8651f` | `#c15f3c` | `#d19a66` | `#d97757` |
-| `--bg` / `--bg-primary` | — | — | `#1f1f1e` | `#262624` |
+| `--bg` / `--bg-primary` | — | — | `#1f1f1e` | `#191918` |
 
 **文件：**
 - `scripts/docs_site/assets/site.css`
@@ -127,7 +127,7 @@ Electron 窗口首次显示的像素与已解析的 Web 主题一致。创建 `B
 
 解析使用 Web 应用写入的相同 schema-3 键（`agentic_theme_style` + `agentic_theme_mode`，以及旧 `agentic_theme`）。桌面端先读取 userData 下的 Chromium localStorage，再读取主题更改时写入的 `theme-prefs.json` 缓存。`auto` 跟随 `nativeTheme.shouldUseDarkColors`。
 
-`apps/desktop/theme-chrome.js` 保存从 `apps/web/app/styles/themes/*.css` 复制的 `--bg-primary` / `--accent-orange` 映射。存储的 `custom` / `custom-light` 解析为 beige 配色对（`#262624` / `#faf9f5`）。Worker 错误页和目录列表 HTML 使用相同窗口框架 token；设置强调色覆盖时，列表/错误链接使用该强调色，而窗口 `backgroundColor` 保持主题包的 `--bg-primary`。主题更改后，渲染器调用 `theme.setChrome`，更新每个 `BrowserWindow` 的背景，避免下次显示/重新加载时闪现旧颜色。
+`apps/desktop/theme-chrome.js` 保存从 `apps/web/app/styles/themes/*.css` 复制的 `--bg-primary` / `--accent-orange` 映射。存储的 `custom` / `custom-light` 解析为 beige 配色对（`#191918` / `#faf9f5`）。Worker 错误页和目录列表 HTML 使用相同窗口框架 token；设置强调色覆盖时，列表/错误链接使用该强调色，而窗口 `backgroundColor` 保持主题包的 `--bg-primary`。主题更改后，渲染器调用 `theme.setChrome`，更新每个 `BrowserWindow` 的背景，避免下次显示/重新加载时闪现旧颜色。
 
 窗口状态持久化（普通边界与最大化/全屏、显示器回退、标题栏缩放命中测试）保持不变；参见 [window-state.md](window-state.zh.md)。
 

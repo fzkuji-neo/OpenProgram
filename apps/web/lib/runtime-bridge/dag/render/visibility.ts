@@ -50,7 +50,7 @@ export function _applyVisibility(nodeEl: Element, visible: boolean): void {
     // exactly light themes' --bg-primary, so both states painted alike.
     shape.setAttribute(
       "fill",
-      visible ? "var(--text-bright, #ffffff)" : "var(--bg-primary, #262624)");
+      visible ? "var(--text-bright, #ffffff)" : "var(--bg-primary, #191918)");
   }
 }
 

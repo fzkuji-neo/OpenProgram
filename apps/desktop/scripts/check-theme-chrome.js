@@ -6,13 +6,13 @@ const path = require("node:path");
 const themeChrome = require("../theme-chrome");
 
 function checkBackgroundMapUsesRealHexes() {
-  assert.equal(themeChrome.backgroundForTheme("beige-dark"), "#262624");
+  assert.equal(themeChrome.backgroundForTheme("beige-dark"), "#191918");
   assert.equal(themeChrome.backgroundForTheme("beige-light"), "#faf9f5");
   assert.equal(themeChrome.backgroundForTheme("dark"), "#1e1e20");
   assert.equal(themeChrome.backgroundForTheme("light"), "#ffffff");
   assert.equal(themeChrome.backgroundForTheme("aurora"), "#171528");
   assert.equal(themeChrome.backgroundForTheme("aurora-light"), "#fbfaff");
-  assert.equal(themeChrome.backgroundForTheme("custom"), "#262624");
+  assert.equal(themeChrome.backgroundForTheme("custom"), "#191918");
   assert.equal(themeChrome.backgroundForTheme("custom-light"), "#faf9f5");
   assert.notEqual(themeChrome.backgroundForTheme("beige-light"), "#141416");
   assert.notEqual(themeChrome.backgroundForTheme("beige-dark"), "#141416");
@@ -59,7 +59,7 @@ function checkSchema3PrefsBeatLegacy() {
   }, false);
   assert.equal(customDark.style, "beige");
   assert.equal(customDark.theme, "beige-dark");
-  assert.equal(customDark.backgroundColor, "#262624");
+  assert.equal(customDark.backgroundColor, "#191918");
 }
 
 function checkLegacyMigration() {
@@ -194,8 +194,8 @@ function checkAccentOverrideChangesLinkNotBackground() {
     legacy: "beige-dark",
     accent: "#2563eb",
   }, true);
-  assert.equal(overridden.backgroundColor, "#262624");
-  assert.equal(overridden.chrome.bg, "#262624");
+  assert.equal(overridden.backgroundColor, "#191918");
+  assert.equal(overridden.chrome.bg, "#191918");
   assert.equal(overridden.chrome.link, "#2563eb");
   assert.equal(overridden.accentColor, "#2563eb");
 
@@ -206,12 +206,12 @@ function checkAccentOverrideChangesLinkNotBackground() {
     legacy: "beige-dark",
   }, true);
   assert.equal(defaults.chrome.link, "#d97757");
-  assert.equal(defaults.backgroundColor, "#262624");
+  assert.equal(defaults.backgroundColor, "#191918");
 
   const listing = themeChrome.directoryListingCss(overridden.chrome);
   assert.match(listing, /color: #2563eb/);
   const error = themeChrome.buildErrorPageHtml(overridden.chrome, "openprogram worker start");
-  assert.match(error, /background:#262624/);
+  assert.match(error, /background:#191918/);
 }
 
 function checkColorToHex() {

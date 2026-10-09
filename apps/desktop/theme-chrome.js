@@ -50,10 +50,10 @@ const STORAGE_KEYS = {
 // apps/web/app/styles/themes/*.css. custom* reuse the beige pair.
 const THEME_CHROME = {
   "beige-dark": {
-    bg: "#262624",
+    bg: "#191918",
     text: "#b8b5ad",
     muted: "#757370",
-    surface: "#30302e",
+    surface: "#252523",
     link: "#d97757",
     border: "rgba(255, 255, 255, 0.10)",
     colorScheme: "dark",

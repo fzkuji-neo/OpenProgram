@@ -73,6 +73,12 @@
   --color-bg-hover-contrast: var(--bg-hover-contrast);
   --color-bg-input: var(--bg-input);
   --color-bg-selected: var(--bg-selected);
+
+  /* Raised surface (input box, the Button's `elevated` variant): the
+     per-theme composer shadow pair, so small pills lift off the page
+     exactly like the box — shadow-sm at rest, shadow-md on hover. */
+  --shadow-raised: var(--composer-shadow);
+  --shadow-raised-hover: var(--composer-shadow-focus);
   --color-user-msg-bg: var(--user-msg-bg);
   --color-assistant-msg-bg: var(--assistant-msg-bg);
 

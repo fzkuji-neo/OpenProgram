@@ -191,8 +191,8 @@ two-column row:
 
 ## Button variant guidance
 
-The variants are shadcn's, unchanged; colours come from the shadcn
-tokens (`--primary`, `--secondary`, `--muted`, `--input`, `--ring`,
+The variants are shadcn's, plus one app-owned `elevated`; colours
+come from the shadcn tokens (`--primary`, `--secondary`, `--muted`, `--input`, `--ring`,
 …), which `apps/web/app/globals.css` bridges onto each theme's
 palette — so every theme restyles Buttons without touching them.
 
@@ -203,6 +203,7 @@ default      bg-primary + primary-foreground      bg-primary/80
 outline      1px border-border; transparent        bg-muted (light),
              in dark, bg-background in light       bg-input/30 (dark)
 secondary    bg-secondary                         secondary + 5% ink
+elevated     --bg-input, no border, shadow-sm      shadow-md, + 5% ink
 ghost        transparent                          bg-muted (/50 dark)
 destructive  bg-destructive/10 + destructive text bg-destructive/20
 link         primary text                         underline
@@ -212,16 +213,23 @@ link         primary text                         underline
 All variants press down 1px while active, show a 3px `ring/30`
 halo on keyboard focus, and drop to 50% opacity when disabled.
 
+`elevated` is the one variant Luma's registry does not have: Luma
+ships no shadowed Button (only its Card carries `shadow-md`), and
+the composer's pills want the same borderless raised look as the
+input box. It reuses the per-theme composer shadow pair through
+the `shadow-raised` / `shadow-raised-hover` utilities declared in
+`app/globals.css` `@theme`, so the pills and the box lift together
+in every theme.
+
 Pick per surface:
 
 - **Primary action** (Run, Save, Test, Apply, Send) → `default`.
 - **Secondary action** (Cancel, Close, Reset, Browse) → `outline`
   or `secondary`.
 - **Controls in a dense row** (the composer's model / effort /
-  permission triggers, icon toggles) → `secondary` on dark themes,
-  `outline` on light ones (`useControlRowVariant` in
-  `lib/prefs/use-resolved-theme-mode.ts`): the grey pill reads clearly
-  on dark but goes muddy on the light off-white surfaces.
+  permission triggers, icon toggles, environment chips) →
+  `elevated`: no border, lifted off the page by the same shadow as
+  the input box, a step deeper on hover.
 - **Purely incidental actions** that should vanish until hovered →
   `ghost`.
 - **Destructive** (Delete, Remove, Stop) → `destructive`.
@@ -233,11 +241,10 @@ Pick per surface:
 The chat composer is built from the same parts:
 
 - **Environment chips** above the box (channel, web surface,
-  project, working folders, DAG HUD) → `outline` `sm`; the
-  add-folder chip is `outline` `icon-sm`.
+  project, working folders, DAG HUD) → `elevated` `sm`; the
+  add-folder chip is `elevated` `icon-sm`.
 - **Bottom row** (permission, chat / exec model, effort, plus,
-  tool toggles, context ring) → `sm` / `icon-sm`, `secondary` on
-  dark themes and `outline` on light (`useControlRowVariant`). The
+  tool toggles, context ring) → `elevated`, `sm` / `icon-sm`. The
   composer CSS hands its older base rules back to the Button with
   `revert-layer` rather than drawing its own chip.
 - **Send** → `icon-sm`: `default` when there is something to
@@ -266,9 +273,9 @@ The chat composer is built from the same parts:
 - Don't add hover motion (translate-y, scale-105) on either
   surface. Hover swaps the background; the only motion is the
   Button's own 1px press while active.
-- Don't edit the classes in `components/ui/button.tsx` or
-  restate a Button lookalike in CSS. Pick an official `variant` /
-  `size`; if a legacy rule still overrides a Button, remove it or
+- Don't edit the official classes in `components/ui/button.tsx`
+  (`elevated` is the one app-owned variant) or restate a Button
+  lookalike in CSS. Pick a `variant` / `size`; if a legacy rule still overrides a Button, remove it or
   hand it back with `revert-layer`.
 - Don't stack a 2px focus glow on a 1px input/select edge.
 - Don't drop a control's 1px border on hover.

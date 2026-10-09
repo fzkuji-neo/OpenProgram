@@ -475,8 +475,8 @@
   gap: 4px;
 }
 
-/* Every control in this row is a shadcn Button (buttonVariants — secondary
-   on dark themes, outline on light, see useControlRowVariant;
+/* Every control in this row is a shadcn Button (buttonVariants — the
+   app's `elevated` variant, the same borderless raised look as the box;
    size sm / icon-sm — 28px at this app's 14px root, the text size of
    Luma's xs): height, radius, padding, font and hover all come
    from those classes. The legacy base rules above (.plusBtn, .toolChip,

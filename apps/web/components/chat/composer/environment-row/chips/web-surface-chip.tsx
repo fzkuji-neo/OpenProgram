@@ -35,7 +35,7 @@ export function WebSurfaceChip({
     <HoverTip label={`${stateLabel} · ${title}`}>
       <button
         type="button"
-        className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} status-badge ${styles.surfaceChip} ${toolsEnabled ? "" : "paused"}`}
+        className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} status-badge ${styles.surfaceChip} ${toolsEnabled ? "" : "paused"}`}
         aria-label={`${stateLabel}: ${title}`}
         aria-pressed={toolsEnabled}
         onClick={onToggleAccess}

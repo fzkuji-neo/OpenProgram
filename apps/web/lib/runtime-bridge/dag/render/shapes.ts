@@ -159,7 +159,7 @@ export function _buildShapeEl(
   // that buries the line ends inside the outline. A transparent glyph
   // shows the line's round cap as a phantom dot at its own centre.
   const common = {
-    fill: "var(--bg-primary, #262624)",
+    fill: "var(--bg-primary, #191918)",
     stroke: color,
     "stroke-width": String(STROKE_W),
   };
@@ -189,7 +189,7 @@ export function _buildShapeEl(
     g.appendChild(_svg("circle", { r, fill: color }));
     g.appendChild(_svg("circle", {
       r: r * 0.42,
-      fill: "var(--bg-primary, #262624)",
+      fill: "var(--bg-primary, #191918)",
     }));
     return g;
   } else if (shape === "diamond") {
