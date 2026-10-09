@@ -38,6 +38,7 @@ import { BrowserGlyph } from "./browser-glyph";
 import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
 import { BookmarkBar } from "./bookmark-bar";
 import styles from "./center-tabs.module.css";
+import { webToolbarButton } from "./toolbar-button";
 
 function hostColor(host: string): string {
   let hash = 0;
@@ -259,16 +260,16 @@ export function BrowserHomePage() {
     <div className={`${styles.browserHome} ${styles.webPane}`}>
       <div className={styles.webChrome}>
       <div className={styles.webToolbar}>
-        <button type="button" className={styles.webToolbarBtn} disabled title={text("Back", "后退")} aria-label={text("Back", "后退")}>
+        <button type="button" className={webToolbarButton()} disabled title={text("Back", "后退")} aria-label={text("Back", "后退")}>
           <ArrowLeft size={14} aria-hidden="true" />
         </button>
-        <button type="button" className={`${styles.webToolbarBtn} ${styles.webToolbarForward}`} disabled title={text("Forward", "前进")} aria-label={text("Forward", "前进")}>
+        <button type="button" className={webToolbarButton(styles.webToolbarForward)} disabled title={text("Forward", "前进")} aria-label={text("Forward", "前进")}>
           <ArrowRight size={14} aria-hidden="true" />
         </button>
-        <button type="button" className={styles.webToolbarBtn} disabled title={text("Reload", "重新加载")} aria-label={text("Reload", "重新加载")}>
+        <button type="button" className={webToolbarButton()} disabled title={text("Reload", "重新加载")} aria-label={text("Reload", "重新加载")}>
           <RotateCw size={14} aria-hidden="true" />
         </button>
-        <button type="button" className={`${styles.webToolbarBtn} ${styles.webToolbarMedium}`} disabled title={text("Home", "主页")} aria-label={text("Home", "主页")}>
+        <button type="button" className={webToolbarButton(styles.webToolbarMedium)} disabled title={text("Home", "主页")} aria-label={text("Home", "主页")}>
           <House size={14} aria-hidden="true" />
         </button>
         <input
@@ -280,14 +281,14 @@ export function BrowserHomePage() {
           aria-label={text("Address", "地址")}
           autoFocus
         />
-        <button type="button" className={styles.webToolbarBtn} disabled title={text("Bookmark", "添加书签")} aria-label={text("Bookmark", "添加书签")}>
+        <button type="button" className={webToolbarButton()} disabled title={text("Bookmark", "添加书签")} aria-label={text("Bookmark", "添加书签")}>
           <Star size={14} aria-hidden="true" />
         </button>
         <BookmarksLibraryButton />
         {canImport ? (
           <button
             type="button"
-            className={`${styles.webToolbarBtn} ${styles.webToolbarMedium}`}
+            className={webToolbarButton(styles.webToolbarMedium)}
             onClick={() => setShowImport(true)}
             title={text("Import browser data", "导入浏览器资料")}
             aria-label={text("Import browser data", "导入浏览器资料")}
@@ -295,7 +296,7 @@ export function BrowserHomePage() {
             <Download size={15} aria-hidden="true" />
           </button>
         ) : null}
-        <button type="button" className={`${styles.webToolbarBtn} ${styles.webToolbarMedium}`} disabled title={text("Open in browser", "在浏览器中打开")} aria-label={text("Open in browser", "在浏览器中打开")}>
+        <button type="button" className={webToolbarButton(styles.webToolbarMedium)} disabled title={text("Open in browser", "在浏览器中打开")} aria-label={text("Open in browser", "在浏览器中打开")}>
           <ExternalLink size={14} aria-hidden="true" />
         </button>
         <BrowserMenu

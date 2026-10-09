@@ -157,8 +157,11 @@ assert.deepEqual(bookmarkBarOwners, ["menuOwnerId", "menuOwnerId"]);
 assert.doesNotMatch(webTabPane, /<(?:BrowserMenu|BookmarkBar)[^>]*ownerId=\{tabId\}/);
 assert.match(browserControls, /anchor: \{ right: rect\.right, y: rect\.bottom \+ 4, align: "end"/);
 assert.doesNotMatch(webTabPane, /SplitButton|Open split view|Columns2/);
-assert.match(webTabPane, /goBack\(tabId\)[\s\S]*className=\{`\$\{styles\.webToolbarBtn\} \$\{styles\.webToolbarForward\}`\}[\s\S]*goForward\(tabId\)/);
-assert.match(webTabPane, /function BookmarkButton[\s\S]*className=\{styles\.webToolbarBtn\}/);
+// Toolbar icon buttons are the shadcn ghost Button via webToolbarButton()
+// (toolbar-button.ts); `.webToolbarBtn` only holds the 26px geometry.
+assert.match(webTabPane, /goBack\(tabId\)[\s\S]*className=\{webToolbarButton\(styles\.webToolbarForward\)\}[\s\S]*goForward\(tabId\)/);
+assert.match(webTabPane, /function BookmarkButton[\s\S]*className=\{webToolbarButton\(\)\}/);
+assert.doesNotMatch(webTabPane, /className=\{styles\.webToolbarBtn\}|\$\{styles\.webToolbarBtn\}/);
 assert.match(webTabPane, /function HomeButton[\s\S]*styles\.webToolbarMedium/);
 assert.match(webTabPane, /<BookmarkBar ownerId=\{menuOwnerId\}/);
 assert.match(browserControls, /Show bookmarks bar/);

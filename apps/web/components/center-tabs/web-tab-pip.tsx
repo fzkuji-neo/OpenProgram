@@ -6,7 +6,10 @@ import { CircleHelp, ExternalLink, MoreVertical, Pause, Play, X } from "lucide-r
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { ActionCueTravel } from "./browser-control-bar";
 import { useTranslation } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import { activeThemeId } from "@/lib/prefs/theme-pref";
+import { buttonVariants } from "@/components/ui/button";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { MenuOptionContent } from "@/components/ui/menu-option-content";
 import { itemCls, MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
 import {
@@ -68,6 +71,20 @@ import type { WebTabCaptureLoop } from "@/lib/browser/web-tab-capture-loop";
 
 import styles from "./center-tabs.module.css";
 import { WebTabPipSurface } from "./web-tab-pip-surface";
+
+/** The floating frame is a popover-coloured card: hairline ring, shadow,
+ *  no border. Its 10px radius is pinned to the native page view's corner
+ *  radius (the PiP corner radius in apps/desktop/main/web-views.js): the
+ *  native surface is not clipped by the DOM, so a larger frame radius would
+ *  let page pixels show past the bottom corners. Geometry (position, size)
+ *  stays in the CSS module and inline styles. */
+const PIP_FRAME = "rounded-[10px] bg-popover text-popover-foreground ring-1 ring-foreground/10 shadow-lg";
+const PIP_STAGE = "rounded-b-[10px]";
+/** Header icon buttons are the official ghost icon Button (`icon-xs`, 21px
+ *  at the app's 14px root) carried on plain <button>s so the menu trigger
+ *  and drag handle keep their refs. Icons stay 14px like the toolbar's. */
+const PIP_ICON_BUTTON = cn(buttonVariants({ variant: "ghost", size: "icon-xs" }));
+const PIP_ICON = "size-[14px]";
 
 type PipDrag = {
   kind: "move" | "resize";
@@ -247,8 +264,10 @@ function PipMoreMenu({
       opened.current = false;
     };
   }, [overlay, prefix]);
-  const button = <button ref={trigger} type="button" className={styles.webToolbarBtn}
-    title={moreLabel} aria-label={moreLabel} aria-haspopup="menu" aria-expanded={open}
+  const tip = <TipBody title={moreLabel}
+    detail={text("Auto-follow, action markers and operation history", "自动跟随、操作标记与操作历史")} />;
+  const button = <button ref={trigger} type="button" className={PIP_ICON_BUTTON}
+    aria-label={moreLabel} aria-haspopup="menu" aria-expanded={open}
     onClick={overlay ? () => {
       if (opened.current) { overlay.close(); return; }
       const rect = trigger.current!.getBoundingClientRect();
@@ -259,10 +278,10 @@ function PipMoreMenu({
       });
       opened.current = true;
       setOpen(true);
-    } : undefined}><MoreVertical size={14} aria-hidden="true" /></button>;
-  if (overlay) return button;
+    } : undefined}><MoreVertical size={14} className={PIP_ICON} aria-hidden="true" /></button>;
+  if (overlay) return <HoverTip label={tip}>{button}</HoverTip>;
   return <DropdownMenu open={open} onOpenChange={setOpen}>
-    <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
+    <HoverTip label={tip}><DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger></HoverTip>
     <DropdownMenuContent className={`${MENU_PANEL} w-[360px] max-w-[calc(100vw-16px)]`}>
       {items.slice(0, 2).map(item => <DropdownMenuItem key={item.id}
         role="menuitemcheckbox" aria-checked={item.checked} className={itemCls(false)} onSelect={event => { event.preventDefault(); item.onSelect?.(); }}>
@@ -480,8 +499,11 @@ export function WebTabPip() {
 
   const title = resource?.title || tab.title || url;
   const openPage = text("Open page", "打开页面");
+  const openPageHint = text("Switch to this tab in the centre", "在中间区域切换到这个标签");
+  const reviewLabel = text("Review request", "查看请求");
+  const reviewHint = text("The agent is waiting for your confirmation", "Agent 正在等待你的确认");
   const hideLabel = text("Close preview", "关闭小窗");
-  const hideHint = text("Close preview; the resource stays available", "关闭小窗，资源继续保留");
+  const hideHint = text("Hides the preview; the agent keeps working", "只隐藏小窗；Agent 继续工作");
   const resizeLabels: Record<PipResizeDir, string> = {
     n: text("Resize from top", "从顶部调整大小"),
     ne: text("Resize from top right", "从右上角调整大小"),
@@ -708,7 +730,7 @@ export function WebTabPip() {
   return (
     <div
       ref={rootRef}
-      className={`${styles.webPip} ${expanded ? styles.webPipExpanded : ""}`}
+      className={cn(styles.webPip, PIP_FRAME, expanded && styles.webPipExpanded)}
       data-pip="true"
       data-pip-host="chat"
       data-pip-owner-tab-id={ownerTabId ?? undefined}
@@ -725,10 +747,15 @@ export function WebTabPip() {
         onPointerCancel={onDragPointerCancel}
         onLostPointerCapture={onDragPointerCancel}
       >
-        <span className={styles.webPipTitle} title={`${title}${statusText || modeLabel ? ` · ${statusText || modeLabel}` : ""}`}>{title}</span>
+        <span
+          className={cn(styles.webPipTitle, "truncate text-sm font-medium text-foreground")}
+          title={`${title}${statusText || modeLabel ? ` · ${statusText || modeLabel}` : ""}`}
+        >
+          {title}
+        </span>
         {stateText || modeLabel ? (
           <small
-            className={styles.webPipMode}
+            className={cn(styles.webPipMode, "truncate text-xs text-muted-foreground")}
             title={statusText || stateText}
             aria-label={stateText || modeLabel}
           >
@@ -736,20 +763,23 @@ export function WebTabPip() {
           </small>
         ) : null}
         <div className={styles.webPipActions} onPointerDown={(event) => event.stopPropagation()}>
-          <button
-            type="button"
-            className={styles.webToolbarBtn}
-            onClick={() => revealExistingWebTab(tabId, useCenterTabs.getState())}
-            title={openPage}
-            aria-label={openPage}
-          >
-            <ExternalLink size={14} aria-hidden="true" />
-          </button>
-          {takeoverKind === "reveal" && control ? (
-            <button type="button" className={styles.webToolbarBtn} title={text("Review request", "查看请求")}
-              aria-label={text("Review request", "查看请求")} onClick={() => revealPendingApproval(control)}>
-              <CircleHelp size={14} aria-hidden="true" />
+          <HoverTip label={<TipBody title={openPage} detail={openPageHint} />}>
+            <button
+              type="button"
+              className={PIP_ICON_BUTTON}
+              onClick={() => revealExistingWebTab(tabId, useCenterTabs.getState())}
+              aria-label={openPage}
+            >
+              <ExternalLink size={14} className={PIP_ICON} aria-hidden="true" />
             </button>
+          </HoverTip>
+          {takeoverKind === "reveal" && control ? (
+            <HoverTip label={<TipBody title={reviewLabel} detail={reviewHint} />}>
+              <button type="button" className={PIP_ICON_BUTTON} aria-label={reviewLabel}
+                onClick={() => revealPendingApproval(control)}>
+                <CircleHelp size={14} className={PIP_ICON} aria-hidden="true" />
+              </button>
+            </HoverTip>
           ) : null}
           <PipMoreMenu
             key={`${sessionId}:${branchId}`}
@@ -759,23 +789,24 @@ export function WebTabPip() {
             following={!pinned}
             onToggleFollow={togglePinnedPreview}
           />
-          <button
-            type="button"
-            className={styles.webToolbarBtn}
-            onClick={() => {
-              if (sessionId) hideResourcePreview(sessionId, branchId);
-              hide();
-            }}
-            title={hideHint}
-            aria-label={hideLabel}
-          >
-            <X size={14} aria-hidden="true" />
-          </button>
+          <HoverTip label={<TipBody title={hideLabel} detail={hideHint} />}>
+            <button
+              type="button"
+              className={cn(PIP_ICON_BUTTON, "-mr-1")}
+              onClick={() => {
+                if (sessionId) hideResourcePreview(sessionId, branchId);
+                hide();
+              }}
+              aria-label={hideLabel}
+            >
+              <X size={14} className={PIP_ICON} aria-hidden="true" />
+            </button>
+          </HoverTip>
         </div>
       </div>
       {resumeError ? (
         <span
-          className={styles.browserControlNotice}
+          className={cn(styles.webPipNotice, "truncate text-xs text-destructive")}
           data-resume-error="true"
           role="status"
           aria-live="polite"
@@ -783,13 +814,13 @@ export function WebTabPip() {
           {resumeError}
         </span>
       ) : null}
-      <div className={styles.webPipStage}>
+      <div className={cn(styles.webPipStage, PIP_STAGE)}>
         {interactive ? <WebTabPipSurface key={tabId} tabId={tabId} url={url} native={nativeSurface} /> : <>
         <div className={styles.webPipBody}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={shotRef} className={styles.webPipShot} alt="" />
           {frameState !== "live" && (
-            <div className={styles.webPipFallback}>{freshLabel}</div>
+            <div className={cn(styles.webPipFallback, "text-xs text-muted-foreground")}>{freshLabel}</div>
           )}
           {marker?.point && resource?.resourceId ? (
             <PipActionMark
@@ -817,7 +848,6 @@ export function WebTabPip() {
           role="separator"
           aria-orientation={dir === "e" || dir === "w" ? "vertical" : "horizontal"}
           aria-label={resizeLabels[dir]}
-          title={resizeLabels[dir]}
           onPointerDown={(event) => onDragPointerDown("resize", event, dir)}
           onPointerMove={onDragPointerMove}
           onPointerUp={onDragPointerUp}
