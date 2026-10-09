@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { marked as npmMarked, Marked } from "marked";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
+import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
 
 // Markdown + KaTeX rendering. Mirrors `renderMd()` and
 // `renderMathInChat()` from apps/web/public/js/shared/helpers.js.
@@ -17,7 +18,7 @@ function escapeHtml(s: string): string {
 // tokens — block and inline both surface as `html` tokens — are escaped
 // instead of passed through. Separate instance so the override can never
 // leak into the shared npmMarked instance and change chat rendering.
-const escapingMarked = new Marked({
+const escapingMarked = new Marked(cjkEmphasis, {
   renderer: {
     html(token) {
       return escapeHtml(token.text);

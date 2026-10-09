@@ -1,5 +1,10 @@
 import renderMathInElement from "katex/contrib/auto-render";
 import { marked as npmMarked } from "marked";
+import { cjkEmphasis } from "../markdown/cjk-emphasis.ts";
+
+// The shared `marked` singleton (chat, memory, file previews) closes
+// `**bold**` in CJK prose the way readers expect; see cjk-emphasis.ts.
+npmMarked.use(cjkEmphasis);
 
 export function escHtml(s: unknown): string {
   if (typeof s !== "string") s = String(s ?? "");
