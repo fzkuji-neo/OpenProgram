@@ -44,6 +44,7 @@ import { useSessionStore } from "@/lib/session-store";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
 import { fitCanvas, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/canvas";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
+import { buttonVariants } from "@/components/ui/button";
 
 const STROKE = "var(--accent-primary, #4a7dfc)";
 const GHOST = "var(--dag-ghost, #c9c7bf)";
@@ -104,7 +105,7 @@ function DagLegend() {
     <div className="dag-legend" ref={rootRef}>
       <button
         type="button"
-        className="dag-hud-chip dag-legend-toggle"
+        className={`${buttonVariants({ variant: "outline", size: "xs" })} dag-hud-chip dag-legend-toggle`}
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
@@ -143,9 +144,8 @@ function DagLegend() {
 
 /** Canvas controls at the composer's TOP-RIGHT — the right end of its
  *  env-chip row: fit the graph back into view, step / reset the zoom
- *  (− · readout · +), open the legend. Chip-sized like the env chips
- *  beside them — and dressed by the SAME env-pill rule
- *  (composer.module.css), not a private lookalike. Portaled
+ *  (− · readout · +), open the legend. The same shadcn outline xs
+ *  Button recipe as the env chips beside them. Portaled
  *  into the composer's `#dagHudSlot` so they ride the composer wherever
  *  it sits and however tall it grows. Rendered only while the DAG
  *  perspective is showing — the slot stays an empty div in chat. The
@@ -179,7 +179,7 @@ function DagHud({ active }: { active: boolean }) {
     <div className="dag-hud">
       <button
         type="button"
-        className="dag-hud-chip"
+        className={`${buttonVariants({ variant: "outline", size: "xs" })} dag-hud-chip`}
         onClick={() => fitCanvas()}
         title={text("Fit graph to view", "缩放到全图")}
       >
@@ -189,7 +189,7 @@ function DagHud({ active }: { active: boolean }) {
       {/* 缩放簇：一颗胶囊里 [−] [倍率] [+]。−/+ 步进一个滚轮格，
           倍率数字本身点击重置 100%——都以画布中心为锚
           （interaction/canvas.ts::zoomStep / resetZoom）。 */}
-      <div className="dag-hud-chip dag-hud-zoomctl">
+      <div className={`${buttonVariants({ variant: "outline", size: "xs" })} dag-hud-chip dag-hud-zoomctl`}>
         <button
           type="button"
           className="dag-hud-zoombtn"

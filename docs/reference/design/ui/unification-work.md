@@ -135,9 +135,9 @@ Window-state persistence (normal bounds vs maximize/fullscreen, display fallback
 
 ### 7. Button Spec Drift (Low Priority)
 
-**Issue:** `button.tsx` hover uses `bg-secondary` instead of brand fill. Comments mention 36px / `--ui-button-h` but `base.css` is 30px. Manage-page tabs use `border-radius: 6px` vs `--ui-button-radius` 10px.
+**Issue:** Manage-page tabs use `border-radius: 6px` and still size themselves from `--ui-button-h` / `--ui-button-radius`, while `button.tsx` is now the official shadcn radix-luma Button (pill, official `xs`–`lg` sizes; see `surface-system.md`).
 
-**Action:** Reconcile button heights and radii across components.
+**Action:** Move the remaining hand-sized buttons and tabs onto the official Button sizes, then retire `--ui-button-h` / `--ui-button-radius`.
 
 ---
 
@@ -193,5 +193,5 @@ Window-state persistence (normal bounds vs maximize/fullscreen, display fallback
 - **CLI/TUI colors**: ❌ Not started
 - **Ghost tokens**: ❌ Not started
 - **Marketing/icon**: ❌ Not started
-- **Button/naming debt**: ❌ Not started
+- **Button/naming debt**: 🟡 In progress — `Button` is the official radix-luma component; hand-sized tabs and `--ui-button-*` remain
 - **Component kit**: ❌ Not started

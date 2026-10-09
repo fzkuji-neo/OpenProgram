@@ -24,6 +24,7 @@ import { useSessionScope } from "@/lib/session-store/session-scope";
 import { HoverTip } from "@/components/ui/tooltip";
 import { translateText } from "@/lib/i18n";
 import { ContextBreakdownPanel } from "./context-breakdown-panel";
+import { buttonVariants } from "@/components/ui/button";
 import {
   readContextBreakdownCache,
   warmContextBreakdown,
@@ -177,7 +178,8 @@ export function ContextBadge({ sessionId }: ContextBadgeProps) {
       <button
         ref={ringRef}
         className={
-          "context-ring-badge"
+          buttonVariants({ variant: "ghost", size: "icon-xs" })
+          + " context-ring-badge"
           + (compacting ? " is-busy" : "")
         }
         onClick={() => setPanelOpen(!panelOpen)}

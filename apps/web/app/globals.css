@@ -29,9 +29,10 @@
 @source "../components";
 @source "../pages";
 
-/* Dark mode is toggled by a `.dark` class on an ancestor (was
-   `darkMode: ["class"]` in the old tailwind.config.ts). */
-@custom-variant dark (&:where(.dark, .dark *));
+/* `dark:` follows the app theme: theme-bootstrap sets data-theme-mode on
+   <html>, and the :root defaults are the dark palette, so anything not
+   explicitly light is dark (shadcn components rely on this variant). */
+@custom-variant dark (&:where(:root:not([data-theme-mode="light"]), :root:not([data-theme-mode="light"]) *));
 
 /* Design tokens → Tailwind utility names. Mirrors app/styles/base.css
    (:root), which stays the single source of truth — this block only
@@ -177,7 +178,10 @@
   --accent-foreground: var(--text-bright);
   --destructive: var(--accent-red);
   --destructive-foreground: #ffffff;
-  --input: var(--bg-input);
+  /* shadcn's --input is the hairline grey of form controls (and the
+     tint behind bg-input/30 · /50), not a fill: derive it from each
+     theme's ink so it reads on both dark and white surfaces. */
+  --input: color-mix(in srgb, var(--text-bright) 14%, transparent);
   --ring: var(--focus-ring);
   --radius-lg: 12px;
 }

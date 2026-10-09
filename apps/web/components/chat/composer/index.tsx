@@ -69,6 +69,7 @@ import { EnvironmentRow } from "./environment-row/environment-row";
 import { ScopedDropOverlay } from "./attach/scoped-drop-overlay";
 import { ComposerBody } from "./modes/composer-body";
 import styles from "./composer.module.css";
+import { buttonVariants } from "@/components/ui/button";
 
 /* Single shared WebSocket, owned by `lib/net/use-ws.ts` and reached
    through `runtime-bridge/state`'s `getSocket()`. When the WS layer is
@@ -606,7 +607,10 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
 
         {/* Chat and function-form actions stay independent of decision cards. */}
         <button
-          className={`${styles.actionBtn} ${showStop ? styles.stopBtn : styles.sendBtn}`}
+          className={`${buttonVariants({
+            variant: showStop ? "destructive" : sendDisabled ? "ghost" : "default",
+            size: "icon-xs",
+          })} ${styles.actionBtn} ${showStop ? "" : styles.sendBtn}`}
           onClick={showStop ? stop : onSendButtonClick}
           disabled={isCancelling || (!showStop && sendDisabled)}
           data-fn-missing={

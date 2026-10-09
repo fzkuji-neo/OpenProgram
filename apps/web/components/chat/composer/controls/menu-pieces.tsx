@@ -23,6 +23,7 @@ import {
   type AnimatedNavIconHandle,
 } from "@/components/animated-icons";
 import { useTranslation } from "@/lib/i18n";
+import { buttonVariants } from "@/components/ui/button";
 
 /**
  * Drive an animated toolbar icon from its *container's* hover, so the
@@ -73,7 +74,7 @@ export const ToolChip = forwardRef<HTMLDivElement, ToolChipProps>(function ToolC
     <div
       ref={ref}
       {...rest}
-      className={`${styles.toolChip} ${on ? "" : styles.toolChipOff}`}
+      className={`${buttonVariants({ variant: "ghost", size: "icon-xs" })} ${styles.toolChip} ${on ? "" : styles.toolChipOff}`}
       onClick={onToggle}
       onMouseEnter={() => {
         onMouseEnter();
