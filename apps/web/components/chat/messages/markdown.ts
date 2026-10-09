@@ -8,7 +8,8 @@
  */
 import { copyText } from "@/lib/clipboard";
 import { highlightEscapedCode } from "@/lib/chat/code-highlight";
-import { renderMd } from "@/lib/runtime-bridge/helpers";
+import { Marked } from "marked";
+import { renderMd, sanitizeHtml } from "@/lib/runtime-bridge/markdown-render";
 
 export function renderMarkdown(src: string): string {
   if (typeof window === "undefined") return escapeHtml(src);
@@ -17,6 +18,37 @@ export function renderMarkdown(src: string): string {
   } catch {
     return escapeHtml(src);
   }
+}
+
+/** User-authored text can arrive from external channels, so raw HTML in
+ *  it is shown as text (not parsed) and the result is sanitized like any
+ *  other rendered markdown. Formulas stay literal; this path is for prose,
+ *  lists and code. */
+const userMarked = new Marked({
+  breaks: true,
+  renderer: {
+    html(token) {
+      return escapeHtml(token.text);
+    },
+  },
+});
+const userCache = new Map<string, string>();
+
+export function renderUserMarkdown(src: string): string {
+  if (typeof window === "undefined") return escapeHtml(src);
+  const hit = userCache.get(src);
+  if (hit !== undefined) return hit;
+  let out: string;
+  try {
+    out = '<span class="md-rendered">'
+      + withCodeChrome(sanitizeHtml(userMarked.parse(src, { async: false }) as string))
+      + "</span>";
+  } catch {
+    out = escapeHtml(src);
+  }
+  if (userCache.size >= 500) userCache.delete(userCache.keys().next().value!);
+  userCache.set(src, out);
+  return out;
 }
 
 const COPY_ICON =

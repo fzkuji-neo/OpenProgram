@@ -117,4 +117,31 @@ for (const input of [
   assert.equal(host.innerHTML.includes("javascript:"), false, "foreign namespace URL survived sanitization");
 }
 
+// 6) User bubbles render markdown too, and channel peers author them.
+// Raw HTML must stay text and URL schemes must still be filtered.
+const { build } = await import("esbuild");
+const { mkdtemp, rm } = await import("node:fs/promises");
+const { join } = await import("node:path");
+const bundleDir = await mkdtemp(join(root, ".md-sanitize-"));
+const bundle = join(bundleDir, "markdown.mjs");
+await build({
+  absWorkingDir: root, entryPoints: ["components/chat/messages/markdown.ts"],
+  bundle: true, platform: "node", format: "esm", outfile: bundle, logLevel: "silent",
+  alias: { "@": root.replace(/\/$/, "") },
+});
+let renderUserMarkdown;
+try {
+  ({ renderUserMarkdown } = await import(bundle));
+} finally {
+  await rm(bundleDir, { recursive: true, force: true });
+}
+{
+  const host = document.createElement("div");
+  host.innerHTML = renderUserMarkdown('**bold** <img src="x" onerror="window.__user_xss=1"> [go](javascript:window.__user_xss=1)');
+  assert.ok(host.querySelector("strong"), "user markdown must still render emphasis");
+  assert.equal(host.querySelector("img, [onerror]") !== null, false, "raw HTML in a user message became an element");
+  assert.ok(host.textContent.includes("<img"), "raw HTML in a user message must stay visible as text");
+  assert.equal(host.innerHTML.includes("javascript:"), false, "user markdown kept a javascript: URL");
+}
+
 console.log("check-markdown-sanitize: ok");
