@@ -80,7 +80,15 @@ const lines = Object.entries(ICONS).map(([name, style]) => {
   return `  /** solar:${name}-${style} */\n  "${name}": ${JSON.stringify(body)},`;
 });
 
-const viewBoxes = [];
+// Solar glyphs whose artwork sits off-centre in the 24×24 box; the
+// viewBox is shifted so the visible shape is centred like its neighbours
+// (toolbox spans y 1.25–18.05, so it rode 2.35 units high next to eye
+// and lightbulb-bolt in the model picker).
+const RECENTRE = {
+  toolbox: "0 -2.35 24 24",
+};
+
+const viewBoxes = Object.entries(RECENTRE).map(([key, vb]) => `  "${key}": "${vb}",`);
 for (const [key, id] of Object.entries(EXTRA)) {
   const [prefix, name] = id.split(":");
   const r = await fetch(`https://api.iconify.design/${prefix}.json?icons=${name}`);
@@ -107,7 +115,7 @@ ${lines.join("\n")}
 
 export type SolarIconName = keyof typeof SOLAR_BODIES;
 
-/** viewBox for the non-Solar glyphs; Solar bodies are all 24×24. */
+/** viewBox for the non-Solar glyphs, plus Solar glyphs re-centred in their 24×24 box. */
 export const SOLAR_VIEWBOXES: Partial<Record<SolarIconName, string>> = {
 ${viewBoxes.join("\n")}
 };
