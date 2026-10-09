@@ -24,6 +24,7 @@ Web UI 界面 — 界面系统、指示点、附件处理、聊天轮次视觉�
 - [`attachment-handling.zh.html`](attachment-handling.zh.html) — 完整附件设计：存储、执行准入、内容交付、恢复与验收
 - [`chat-attachments.html`](chat-attachments.zh.html) — 聊天附件双向流转：聊天流里显示成什么、agent 怎么把文件交回来、可读文件怎么点开
 - [`gui-agent.html`](gui-agent.zh.html) — GUI agent 入口、状态机、结果契约与实现状态
+- [`agent-control-overlay.html`](agent-control-overlay.zh.html) — agent 控制窗口或网页时画在上方的状态胶囊和指针：位置、文案、动效、强调色与输入安全
 - [`indicator-dots.md`](indicator-dots.zh.md) — 指示点
 - [`git-folder-pills.md`](git-folder-pills.zh.md) — 输入框里每个目录的 git 胶囊：分支、修改计数、切分支、worktree、PR
 - [`hover-tips.md`](hover-tips.zh.md) — 输入框区域悬停提示：统一的 `HoverTip` + `TipBody`，标题带当前值，浅色细节行

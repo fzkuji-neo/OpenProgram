@@ -578,7 +578,8 @@ function recordFor(ctx, id) {
 
 const debuggerHolds = new Map();
 const ACTION_CUE_MS = 2800;
-const ACTION_CUE_SIZE = 28;
+// The agent pointer's box; its arrow tip is the centre, placed on the action point.
+const ACTION_CUE_SIZE = 40;
 
 function acquireDebugger(webContents) {
   const client = webContents?.debugger;

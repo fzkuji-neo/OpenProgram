@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent control overlay</title>
+<style>
+:root{
+  color-scheme:light;
+  --page:#faf9f5; --surface:#fff; --line:rgba(36,36,32,.12);
+  --text-primary:#3d3d3a; --text-secondary:#5e5d59; --text-muted:#91908c;
+  /* The one swappable colour. Mirrors --agent-accent (base.css) and ACCENT (mac_indicator.py). */
+  --agent-accent:#5b5bd6;
+  --glass:rgba(28,28,33,.86); --glass-edge:rgba(255,255,255,.10);
+  --old-purple:rgba(89,69,235,.94); --old-purple-soft:rgba(89,69,235,.30);
+  --mono:"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text-primary);
+  font:15px/1.65 -apple-system,"PingFang SC","Helvetica Neue",system-ui,sans-serif}
+main{max-width:920px;margin:0 auto;padding:40px 16px 96px}
+h1{font-size:24px;line-height:1.3;margin:0 0 6px}
+h2{font-size:18px;margin:36px 0 8px;line-height:1.35}
+h3{font-size:15px;margin:22px 0 6px}
+p,li{color:var(--text-secondary)}
+code{font-family:var(--mono);font-size:12.5px;background:rgba(36,36,32,.06);padding:1px 5px;border-radius:4px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0 4px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--text-muted);font-weight:500}
+.lede{color:var(--text-secondary);margin:0 0 20px}
+
+/* ---- preview stage ---- */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0 6px}
+@media (max-width:720px){.compare{grid-template-columns:1fr}}
+.label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:0 0 6px}
+.label.after{color:var(--agent-accent)}
+.desk{position:relative;border-radius:12px;padding:14px;overflow:hidden;
+  background:linear-gradient(135deg,#2f4858 0%,#3e5f5a 45%,#7a6a4f 100%)}
+.win{position:relative;height:250px;border-radius:10px;background:#f4f4f2;overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);font-size:12px;color:#333}
+.win .bar{height:28px;background:#e9e9e6;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid #d9d9d5}
+.win .bar i{width:10px;height:10px;border-radius:50%;background:#d0cfcb;display:block}
+.win .side{position:absolute;left:0;top:28px;bottom:0;width:30%;background:#ecebe8;border-right:1px solid #deddd9;padding:8px}
+.win .row{height:26px;border-radius:6px;margin-bottom:6px;background:#e2e1dd}
+.win .row.on{background:#d6d5d0}
+.win .chat{position:absolute;left:30%;right:0;top:28px;bottom:0;padding:10px 12px}
+.win .msg{height:18px;border-radius:9px;background:#e4e3df;margin-bottom:8px}
+.win .msg.me{margin-left:auto;background:#cfe8c8}
+.win .input{position:absolute;left:12px;right:12px;bottom:10px;height:30px;border-radius:8px;background:#fff;border:1px solid #deddd9}
+.win .send{position:absolute;right:20px;bottom:15px;width:44px;height:20px;border-radius:5px;background:#e2e1dd}
+
+/* before */
+.old-badge{position:absolute;left:12px;top:10px;height:28px;width:224px;border-radius:14px;background:var(--old-purple);
+  color:#fff;display:flex;align-items:center;gap:8px;padding:0 8px;font:600 12px/1 -apple-system,"PingFang SC",sans-serif;white-space:nowrap}
+.old-badge svg{flex:none}
+.old-badge code{background:none;padding:0;font:inherit;color:inherit}
+.old-marker{position:absolute;width:42px;height:42px;border-radius:50%;background:var(--old-purple-soft);
+  border:2px solid var(--old-purple);display:grid;place-items:center}
+
+/* after */
+.pill{position:absolute;left:50%;top:6px;transform:translateX(-50%);height:26px;border-radius:13px;
+  background:var(--glass);border:.5px solid var(--glass-edge);box-shadow:0 2px 8px rgba(0,0,0,.28);
+  display:flex;align-items:center;gap:8px;padding:0 12px 0 11px;color:rgba(255,255,255,.92);
+  font:500 12px/1 -apple-system,"PingFang SC",sans-serif;white-space:nowrap;max-width:calc(100% - 24px)}
+.pill span:last-child{overflow:hidden;text-overflow:ellipsis}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--agent-accent);flex:none;animation:pulse .9s ease-in-out infinite alternate}
+.pill.done .dot{background:rgba(255,255,255,.45);animation:none}
+@keyframes pulse{from{opacity:1}to{opacity:.35}}
+.cursor{position:absolute;width:42px;height:42px;margin:-21px 0 0 -21px;pointer-events:none}
+.cursor svg{position:absolute;left:20px;top:20px;overflow:visible;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.35))}
+.cursor svg path{fill:var(--agent-accent);stroke:#fff;stroke-width:1.5;stroke-linejoin:round}
+.cursor.parked{opacity:.6}
+.tag{position:absolute;left:33px;top:36px;height:15px;padding:0 6px;border-radius:4px;background:var(--agent-accent);
+  color:#fff;font:600 10px/15px -apple-system,"PingFang SC",sans-serif;white-space:nowrap}
+.cursor.parked .tag{display:none}
+.ripple{position:absolute;left:5px;top:5px;width:32px;height:32px;border-radius:50%;
+  border:1.5px solid color-mix(in srgb,var(--agent-accent) 85%,transparent);
+  background:color-mix(in srgb,var(--agent-accent) 14%,transparent);opacity:0}
+.ripple.play{animation:ripple .45s ease-out}
+@keyframes ripple{from{opacity:.9;transform:scale(.35)}to{opacity:0;transform:scale(1.35)}}
+@media (prefers-reduced-motion:reduce){.dot,.ripple.play{animation:none}}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.controls button{font:inherit;font-size:13px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--text-primary);cursor:pointer}
+.controls button:hover{background:#f0efe9}
+.swatch{display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--agent-accent);vertical-align:-1px;margin-right:4px}
+.note{font-size:13px;color:var(--text-muted)}
+</style>
+</head>
+<body>
+<main>
+<h1>Agent control overlay</h1>
+<p class="lede">When an agent operates a native macOS window, OpenProgram draws two things above that window: a status pill that says the agent is in control, and an agent pointer at the last action. A webpage the agent operates shows the same pointer. This page defines how both look and move, which colour they use, and the rules that keep them from getting in the user's way.</p>
+
+<h2>Preview</h2>
+<p>The same moment in a chat app: the agent has just clicked the message box. The left panel is the earlier rendering; the right panel is the current one. Use the buttons to play a click, a typing step and the finished state.</p>
+<div class="compare">
+  <div>
+    <p class="label">Before</p>
+    <div class="desk">
+      <div class="win" aria-hidden="true">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <div class="side"><div class="row on"></div><div class="row"></div><div class="row"></div><div class="row"></div></div>
+        <div class="chat"><div class="msg" style="width:55%"></div><div class="msg me" style="width:40%"></div><div class="msg" style="width:62%"></div><div class="input"></div><div class="send"></div></div>
+        <div class="old-badge">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="#fff"><rect x="1" y="2.5" width="14" height="10" rx="2" fill="none" stroke="#fff" stroke-width="1.4"/><circle cx="10.5" cy="8" r="1.8"/><rect x="8" y="10.2" width="5" height="1.6" rx=".8"/></svg>
+          <code>控制中 · WeChat · 34327</code>
+        </div>
+        <div class="old-marker" style="left:calc(65% - 21px);top:198px">
+          <svg width="20" height="20" viewBox="0 0 16 24"><path d="M1 1 V20 L5.6 15.7 L8.7 22.7 L11.7 21.5 L8.7 14.7 H14.8 Z" fill="#fff"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <p class="label after">After</p>
+    <div class="desk">
+      <div class="win" id="win" aria-hidden="true">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <div class="side"><div class="row on"></div><div class="row"></div><div class="row"></div><div class="row"></div></div>
+        <div class="chat"><div class="msg" style="width:55%"></div><div class="msg me" style="width:40%"></div><div class="msg" style="width:62%"></div><div class="input"></div><div class="send"></div></div>
+        <div class="pill" id="pill"><span class="dot"></span><span id="pill-text">OpenProgram is using WeChat</span></div>
+        <div class="cursor" id="cursor" style="left:65%;top:219px">
+          <span class="ripple" id="ripple"></span>
+          <svg width="16" height="24" viewBox="0 0 16 24"><path d="M1 1 V20 L5.6 15.7 L8.7 22.7 L11.7 21.5 L8.7 14.7 H14.8 Z"/></svg>
+          <span class="tag" id="tag">Click</span>
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <button type="button" data-step="click">Click a contact</button>
+      <button type="button" data-step="type">Type in the box</button>
+      <button type="button" data-step="send">Click Send</button>
+      <button type="button" data-step="done">Finish the step</button>
+      <button type="button" data-step="reset">Reset</button>
+    </div>
+  </div>
+</div>
+<p class="note">Accent <span class="swatch"></span><code>#5b5bd6</code>, a placeholder (see <a href="#accent">Accent colour</a>). Everything else is neutral.</p>
+
+<h2>Surfaces</h2>
+<div class="table-wrap"><table>
+<tr><th>Target</th><th>What is drawn</th><th>Where the code is</th></tr>
+<tr><td>Native macOS window (<code>computer_use</code> window actions)</td><td>Status pill and agent pointer, in a borderless, non-activating, click-through <code>NSPanel</code> run by a helper process per controlled window.</td><td><a href="https://github.com/Fzkuji/GUI-Agent-Harness/blob/main/gui_harness/adapters/mac_indicator.py">gui_harness/adapters/mac_indicator.py</a>, started by <code>_WindowControlIndicator</code> in <code>mac_window.py</code>. OpenProgram ships it through <a href="https://github.com/Fzkuji/OpenProgram/blob/main/scripts/release/program-patches/gui_harness.patch">program-patches/gui_harness.patch</a> on top of the pinned Harness commit.</td></tr>
+<tr><td>Webpage tab in the desktop App</td><td>Agent pointer in a transparent, unfocusable, click-through window above the page.</td><td><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/desktop/main/action-cues.js">apps/desktop/main/action-cues.js</a> places the window; <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/app/menu-overlay/action-cue/page.tsx">menu-overlay/action-cue</a> renders it.</td></tr>
+<tr><td>Chat preview (PiP) and the web build</td><td>Agent pointer in a <code>pointer-events: none</code> layer over the preview image.</td><td><code>ActionCueTravel</code> in <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/center-tabs/browser-control-bar.tsx">browser-control-bar.tsx</a>.</td></tr>
+</table></div>
+<p>All three web surfaces draw the same component, <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/center-tabs/agent-cursor.tsx">AgentCursor</a>. The webpage status (Active, Pausing…, Paused) stays in the page toolbar and the floating control described in <a href="gui-agent.html">GUI Agent</a>. A webpage gets no second status pill.</p>
+
+<h2>Status pill</h2>
+<ul>
+<li><b>Position.</b> Top centre of the controlled window, 6pt below its top edge, where most apps keep only a title or an empty title bar. It moves with the window and is clipped to it.</li>
+<li><b>Shape.</b> 26pt tall, fully rounded. Its width fits the text and never exceeds the window width minus 24pt; longer text is truncated with an ellipsis.</li>
+<li><b>Surface.</b> Neutral dark glass: <code>rgba(28,28,33,.86)</code> with a 0.5pt white edge at 10% and a soft 8pt shadow. It stays readable on light and dark apps.</li>
+<li><b>Text.</b> “OpenProgram is using WeChat”, or <code>OpenProgram 正在操作 WeChat</code> when the system's first preferred language is Chinese. The text names the app; it shows no window id or process id. The completed state reads “OpenProgram finished with WeChat” for at most 4 seconds.</li>
+<li><b>Live dot.</b> A 7pt dot in the accent colour, pulsing between full and 35% opacity every 0.9 s while the agent is in control. In the completed state the dot turns grey and stops pulsing.</li>
+</ul>
+
+<h2>Agent pointer</h2>
+<ul>
+<li><b>Glyph.</b> A classic arrow about 22pt tall, a little larger than the system pointer so the two are not confused. It is filled with the accent colour, has a 1.5pt white keyline and a 2.5pt drop shadow. There is no ring around it.</li>
+<li><b>Hot spot.</b> The arrow's tip is the centre of its 42pt (native) or 40px (web) box, and the box is centred on the action point. For a native action the point is the centre of the control's bounds before the action.</li>
+<li><b>Tag.</b> A small accent label just below and right of the arrow names the action: Click, Select, Type or Scroll, or the Chinese equivalents. It never contains the typed text. The webpage pointer has no tag; the page toolbar's operation history names the action.</li>
+<li><b>Parked.</b> Before the first action, the native pointer rests at the window centre at 60% opacity, so the window visibly belongs to the agent before anything happens.</li>
+<li><b>Travel.</b> A new action point is reached by gliding with an ease-in-out curve over 0.18–0.42 s, depending on distance. The webpage pointer keeps its existing 80–280 ms ease-out travel. If the window moves mid-flight, the glide retargets.</li>
+<li><b>Click feedback.</b> After arriving at a press or selection, a ring 32pt across expands from 35% to 135% and fades out in 0.45 s. Typing and scrolling have no ripple.</li>
+<li><b>Restore.</b> A later step on the same window restores the last pointer in place. Restoring does not replay the travel or the ripple.</li>
+<li><b>Reduced motion.</b> When the system asks for reduced motion, the pointer jumps instead of gliding, and the ripple and the dot pulse are off.</li>
+</ul>
+
+<h2 id="accent">Accent colour</h2>
+<p>The product is moving off the earlier orange and terracotta accent toward its own palette around deep indigo, violet and teal, which is being designed separately. The overlay therefore uses a cool indigo-violet, <code>#5b5bd6</code>, as a placeholder. That value lives in exactly two places, which must stay equal:</p>
+<ul>
+<li><code>--agent-accent</code> on <code>:root</code> in <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/app/styles/base.css">apps/web/app/styles/base.css</a>. Every theme shares it.</li>
+<li><code>ACCENT</code> in <code>mac_indicator.py</code>, as sRGB fractions.</li>
+</ul>
+<p>Only the pointer fill, its ripple, its tag and the live dot use the accent. The pill, its text and the keylines are neutral, so swapping in the final brand accent changes nothing else.</p>
+
+<h2>Safety rules</h2>
+<ul>
+<li><b>No input.</b> The native panel sets <code>ignoresMouseEvents</code> and is non-activating. The webpage cue window ignores the mouse and cannot take focus. The preview layer is <code>pointer-events: none</code>. None of them moves the system pointer.</li>
+<li><b>Always visible while in control.</b> The helper runs for the whole window session and draws the pill even when other windows cover the target. Minimizing or closing the target hides it. Failure, cancellation or lost window identity closes it at once. Only a normal step exit shows the completed state.</li>
+<li><b>One owner per window.</b> Each controlled window has its own helper and panel. Two sessions on two windows each show their own pill and pointer; overlays never mask each other.</li>
+<li><b>Display only.</b> Drawing failures are logged as warnings. They never change an action's result and never fall back to foreground input.</li>
+</ul>
+
+<h2>Relation to the GUI Agent design</h2>
+<p>The <a href="gui-agent.html#native-control-feedback">GUI Agent design</a> sets the rules this page follows: the indicator is non-activating and ignores the mouse, it follows the window and stays visible under occlusion, clicks show a brief ring, cues belong to the target and never move the user's pointer, and reduced motion uses static marks. The earlier rendering kept those rules but not its look:</p>
+<div class="table-wrap"><table>
+<tr><th>Aspect</th><th>Earlier rendering</th><th>Now</th></tr>
+<tr><td>Position</td><td>Window's upper-left corner, over the window's own controls.</td><td>Top centre of the window, in the title-bar area.</td></tr>
+<tr><td>Wording</td><td><code>控制中 · WeChat · 34327</code> (“In control · WeChat · 34327”): Chinese only, with the window id, which reads as a process id.</td><td>“OpenProgram is using WeChat” in the system language; no ids.</td></tr>
+<tr><td>Size</td><td>Fixed 224 × 28pt badge; long names were truncated.</td><td>26pt tall, as wide as its text.</td></tr>
+<tr><td>Colour</td><td>Saturated purple fill for the badge and the marker.</td><td>Dark neutral glass; the accent only on the pointer and the dot.</td></tr>
+<tr><td>Pointer</td><td>42pt purple ring with a white SF Symbol inside, changing per action.</td><td>Accent arrow with its tip on the point, plus a small action tag.</td></tr>
+<tr><td>Motion</td><td>The marker jumped between points.</td><td>Eased glide; parked pointer before the first action.</td></tr>
+<tr><td>Click feedback</td><td>None; the ring was permanent.</td><td>One brief ripple after a press or selection.</td></tr>
+<tr><td>Stopping</td><td>Nothing on the overlay.</td><td>Nothing on the overlay, by design (below).</td></tr>
+</table></div>
+
+<h3>Where this page departs from the request it answers</h3>
+<ul>
+<li><b>Top of the window, not the top of the screen.</b> Each controlled window owns its overlay, and two sessions may control two windows at once. A pill pinned to the top of the screen would stack with other sessions' pills, could land on a different display from the window, and would not show which window is controlled. The top centre of the window keeps the pill at the top and tied to its target.</li>
+<li><b>No glow border around the native window.</b> The GUI Agent design keeps status edges and borders on OpenProgram's own surfaces (the webpage tab and the chat preview, which already have a status edge) and does not draw borders on other apps' windows. The pill and the pointer are enough to show control.</li>
+<li><b>No Stop button on the native pill.</b> The pill must ignore the mouse. A clickable area there would sit over the controlled app and catch clicks meant for it, and the helper has no checked channel back to the run. Stopping stays in OpenProgram: the conversation's stop control and the Running panel. The webpage floating control keeps its own Pause control, because that control is drawn over OpenProgram's own page view.</li>
+</ul>
+
+<h2>Implementation status</h2>
+<p>Implemented as described for the native helper (through the Harness source patch) and for all three web surfaces. The native panel has been rendered with real AppKit over a desktop window and captured from the screen: the pill, the arrow, the tag and the completed state draw as specified. It has not yet been accepted in the installed App while driving a real app such as WeChat. The ripple and the glide have been checked only through unit tests of the motion rules (<code>tests/test_indicator_presentation.py</code> in the Harness), not by watching them on screen.</p>
+</main>
+<script>
+(function(){
+  var win=document.getElementById('win'), cur=document.getElementById('cursor'),
+      tag=document.getElementById('tag'), rip=document.getElementById('ripple'),
+      pill=document.getElementById('pill'), text=document.getElementById('pill-text');
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var steps={click:{x:.15,y:57,tag:'Click',ripple:true},type:{x:.6,y:221,tag:'Type',ripple:false},
+             send:{x:.86,y:226,tag:'Click',ripple:true}};
+  var raf=0;
+  function ease(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
+  function ripple(){if(reduce)return;rip.classList.remove('play');void rip.offsetWidth;rip.classList.add('play');}
+  function go(s){
+    cancelAnimationFrame(raf);
+    pill.classList.remove('done');text.textContent='OpenProgram is using WeChat';
+    cur.classList.remove('parked');tag.textContent=s.tag;
+    var a={x:cur.offsetLeft+21,y:cur.offsetTop+21}, b={x:s.x*win.clientWidth,y:s.y};
+    var d=Math.min(.42,Math.max(.18,Math.hypot(b.x-a.x,b.y-a.y)/1400))*1000, t0=performance.now();
+    cur.style.left=a.x+'px';cur.style.top=a.y+'px';
+    if(reduce){cur.style.left=b.x+'px';cur.style.top=b.y+'px';return;}
+    (function f(now){var t=Math.min(1,(now-t0)/d),k=ease(t);
+      cur.style.left=(a.x+(b.x-a.x)*k)+'px';cur.style.top=(a.y+(b.y-a.y)*k)+'px';
+      if(t<1){raf=requestAnimationFrame(f);}else if(s.ripple){ripple();}})(t0);
+  }
+  document.querySelectorAll('[data-step]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var k=btn.getAttribute('data-step');
+      if(k==='done'){pill.classList.add('done');text.textContent='OpenProgram finished with WeChat';return;}
+      if(k==='reset'){cancelAnimationFrame(raf);pill.classList.remove('done');text.textContent='OpenProgram is using WeChat';
+        cur.classList.add('parked');cur.style.left=(win.clientWidth/2)+'px';cur.style.top=(28+(win.clientHeight-28)/2)+'px';return;}
+      go(steps[k]);
+    });
+  });
+  window.addEventListener('load',function(){cur.style.left=(.65*win.clientWidth)+'px';});
+})();
+</script>
+</body>
+</html>

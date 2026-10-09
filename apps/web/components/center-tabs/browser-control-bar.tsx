@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CursorClickIcon } from "@/components/animated-icons";
+import { AgentCursor } from "./agent-cursor";
 import styles from "./center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
 
@@ -386,7 +387,7 @@ export function ActionCueTravel({
       style={{ left: pos.x, top: pos.y }}
       aria-hidden="true"
     >
-      <CursorClickIcon size={28} play={play} playSeq={playSeq} />
+      <AgentCursor play={play} playSeq={playSeq} />
     </div>
   );
 }
