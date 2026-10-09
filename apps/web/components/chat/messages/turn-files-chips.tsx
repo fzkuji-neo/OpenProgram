@@ -371,7 +371,7 @@ export function TurnFilesChips({
           >
             {text(`${fileCount} file${fileCount === 1 ? "" : "s"} changed`, `${fileCount} 个文件已修改`)}
           </span>
-          <span className="turn-files-summary-stats">
+          <span className="turn-files-summary-stats turn-files-diff">
             <span className="turn-files-stat is-add">+{totalAdded ?? "—"}</span>
             <span className="turn-files-stat is-del">−{totalRemoved ?? "—"}</span>
           </span>
@@ -436,10 +436,10 @@ export function TurnFilesChips({
             ) : file.op === "delete" && !(file.added || file.removed) ? (
               <span className="turn-files-op">{text("deleted", "已删除")}</span>
             ) : (
-              <>
+              <span className="turn-files-diff">
                 <span className="turn-files-stat is-add">+{file.added ?? "—"}</span>
                 <span className="turn-files-stat is-del">−{file.removed ?? "—"}</span>
-              </>
+              </span>
             )}
           </button>
         ))}
