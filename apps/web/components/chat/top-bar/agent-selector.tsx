@@ -171,7 +171,9 @@ function CapIcons({ caps }: { caps: string[] }) {
 const CAP_ICON: Record<string, React.ReactNode> = {
   vision: <SolarIcon motionPreset="none" name="eye" size={14} />,
   video: <SolarIcon motionPreset="none" name="videocamera" size={14} />,
-  tools: <SolarIcon motionPreset="none" name="case-minimalistic" size={14} />,
+  // The briefcase's handle reaches the top of its box while the eye and
+  // bulb glyphs sit lower, so it reads a pixel high beside them; nudge it.
+  tools: <SolarIcon motionPreset="none" name="case-minimalistic" size={14} className="relative top-px" />,
   reasoning: <SolarIcon motionPreset="none" name="lightbulb-bolt" size={14} />,
 };
 
