@@ -1055,6 +1055,27 @@ assert.match(
   /export function MessageTimestamp[\s\S]*className="message-timestamp"[\s\S]*aria-label=\{fullTime\}[\s\S]*tabIndex=\{0\}/,
   "all message kinds must share one keyboard-focusable timestamp renderer",
 );
+{
+  const actionButton = messageActions.slice(
+    messageActions.indexOf("export function ActionButton"),
+    messageActions.indexOf("export function MessageTimestamp"),
+  );
+  assert.match(
+    messageActions,
+    /buttonVariants\(\{ variant: "ghost", size: "icon-xs" \}\)/,
+    "message actions use the official ghost round icon button",
+  );
+  assert.match(actionButton, /<HoverTip label=\{<TipBody title=\{title\} \/>\}>/);
+  assert.match(actionButton, /<HoverTip label=\{<TipBody title=\{label\} \/>\}>/);
+  assert.match(actionButton, /aria-label=\{title\}/);
+  assert.doesNotMatch(actionButton, /^\s+title=\{/m, "message actions must not use native title tooltips");
+  assert.match(actionButton, /\{\.\.\.handlers\}/, "the whole button keeps driving the animated icon");
+  const editor = source("components/chat/messages/message-editor.tsx");
+  assert.match(editor, /<HoverTip label=\{<TipBody title=\{text\("Add images or files"/);
+  assert.match(editor, /variant="ghost" size="icon-sm"[\s\S]*<SolarIcon name="paperclip"/);
+  assert.match(editor, /variant="elevated" size="sm" onClick=\{onDone\}/);
+  assert.doesNotMatch(editor, /<(?:button|Button)\b[^>]*\stitle=\{/, "the edit box must not use native title tooltips");
+}
 assert.match(
   chatCss,
   /@media\s*\(hover:\s*none\)[\s\S]*\.message \.message-actions,[\s\S]*\.attach-card \.message-actions[\s\S]*opacity:\s*1/,
