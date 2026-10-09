@@ -515,7 +515,7 @@ assert.match(
 );
 const compactControlsStart = composerCss.indexOf("/* Narrow composer control labels");
 const compactControlsEnd = composerCss.indexOf(
-  "/* Plus dropdown.",
+  "/* The options (+) dropdown",
   compactControlsStart,
 );
 assert.ok(

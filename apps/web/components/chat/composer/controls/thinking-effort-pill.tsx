@@ -6,13 +6,14 @@
  * gesture as the neighbouring tool chips' ×). CLICK to expand — hover
  * alone never opens the card.
  *
- * Expanded: a Claude-style floating card ABOVE the trigger (grammar C —
- * white `--surface-popover` panel, radius 12, `--shadow-popover`, 16px
- * padding): header row = muted "Effort" + bright current level + (?)
- * HoverTip; body = Faster / Smarter end labels over the dotted-track
- * slider. Stays open until the user clicks OUTSIDE the card (same
- * dwell behaviour as every other popover) — mouse-leave never
- * collapses it; that outside-click close is owned by composer/index.
+ * Expanded: a Claude-style floating card ABOVE the trigger wearing the
+ * same frame as every other popup (lib/glass.ts GLASS_SURFACE: glass
+ * surface, 10px radius, hairline, glass shadow) with 10px padding:
+ * header row = muted "Effort" + bright current level + Fast toggle;
+ * body = Faster / Smarter end labels over the dotted-track slider.
+ * Stays open until the user clicks OUTSIDE the card (same dwell
+ * behaviour as every other popover) — mouse-leave never collapses it;
+ * that outside-click close is owned by composer/index.
  *
  * Layout: the pill is wrapped in a ``position: relative`` host. The
  * shell is absolute so neither state resizes the row. Collapsed widths
@@ -31,6 +32,7 @@ import { UltraRain } from "./ultra-rain";
 import { HoverTip } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
 import { effortLevelColor, formatEffortLabel } from "@/lib/effort-color";
+import { GLASS_SURFACE } from "@/lib/glass";
 import { type AnimatedNavIconHandle, GaugeIcon } from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
 
@@ -197,11 +199,13 @@ const ThinkingEffortSliderPill = React.forwardRef<
           </span>
         </div>
         {expanded && (
-          /* Claude 实测规格：卡 220×101、衬 10、圆角 12；标题 13px；
-             标题→标签 16、标签→轨 10。header（muted 维度 + bright 值
-             + help）、Faster/Smarter 两端标签、点刻度滑轨。 */
+          /* Claude 实测规格：卡 220 宽、衬 10；标题 13px；标题→标签 16、
+             标签→轨 10。画框 = GLASS_SURFACE（10px 圆角、发丝线、玻璃
+             阴影）——与所有弹层同一画框，只有内衬是自己的。header
+             （muted 维度 + bright 值 + Fast）、Faster/Smarter 两端标签、
+             点刻度滑轨。 */
           <div
-            className={`effort-card ${value === "max" ? "effort-ultra" : ""} rounded-[12px] border border-[var(--border-popover)] bg-[var(--surface-popover)] p-[10px] shadow-[var(--shadow-popover)]`}
+            className={`effort-card ${value === "max" ? "effort-ultra" : ""} ${GLASS_SURFACE} p-[10px]`}
           >
             <div className="flex items-center gap-[6px] text-[13px] leading-[18px]">
               <span className="text-text-muted">{text("Effort", "思考力度")}</span>

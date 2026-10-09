@@ -83,12 +83,13 @@
   border-color: color-mix(in srgb, var(--accent-orange) 35%, transparent);
 }
 .project-badge-missing .project-icon { opacity: 1; }
-/* The warning line at the top of the project menu. */
+/* The warning line at the top of the project menu. 10px inset = the
+   rows' text inset (itemCls px-[10px]), like every menu note. */
 .project-menu-missing {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  padding: 4px 8px 6px;
+  padding: 4px 10px 6px;
   font-size: 11px;
   line-height: 1.45;
   color: var(--accent-orange);
@@ -334,9 +335,13 @@
   color: var(--text-muted);
   white-space: pre-wrap;
 }
-/* The right-column badge on branch / location rows: one style for
-   "current", "switch" and "worktree", same corner radius as diff-badge. */
-.git-menu-tag {
+/* The one tag for metadata inside a menu row or header (MENU_TAG in
+   components/chat/top-bar/menu-styles.ts) — the git menu's "current" /
+   "worktree", the channel menu's account alias, the permission menu's
+   "Recommended". 11px muted on a 9% foreground mix, 16px line, 0 6px;
+   same corner radius as the diff-badge it sits beside in the git menu.
+   Lives next to the git-menu rules because that menu defined it first. */
+.menu-tag {
   flex-shrink: 0;
   padding: 0 6px;
   border-radius: 5px;
