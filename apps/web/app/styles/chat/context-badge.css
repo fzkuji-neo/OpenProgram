@@ -23,29 +23,9 @@
   align-items: center;
 }
 
-/* context 用量圆环（对齐 Claude Code 右下角那个小环）——点击弹 /context 面板。
-   hover 时露出圆角方块背景，尺寸/圆角与底部那排 pill（Opus/High 等）一致，
-   视觉统一。 */
-.context-ring-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 50%;       /* 圆形 hover 背景，与圆环同心 */
-  transition: background 0.15s;
-}
-.context-ring-badge:hover {
-  background: var(--bg-hover);
-}
-.context-ring-badge:focus-visible {
-  outline: 2px solid var(--accent-blue, #3b9eff);
-  outline-offset: 1px;
-}
+/* context 用量圆环——点击弹 /context 面板。按钮外观（尺寸、圆形、底色、
+   悬停、聚焦）来自 shadcn Button（buttonVariants secondary icon-sm，
+   见 context-badge.tsx）；这里只留忙碌时的旋转。 */
 .context-ring-badge.is-busy svg {
   animation: context-ring-spin 0.8s linear infinite;
 }
