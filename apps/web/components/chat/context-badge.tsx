@@ -25,6 +25,7 @@ import { HoverTip } from "@/components/ui/tooltip";
 import { translateText } from "@/lib/i18n";
 import { ContextBreakdownPanel } from "./context-breakdown-panel";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   readContextBreakdownCache,
   warmContextBreakdown,
@@ -178,7 +179,7 @@ export function ContextBadge({ sessionId }: ContextBadgeProps) {
       <button
         ref={ringRef}
         className={
-          buttonVariants({ variant: "ghost", size: "icon-xs" })
+          cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))
           + " context-ring-badge"
           + (compacting ? " is-busy" : "")
         }

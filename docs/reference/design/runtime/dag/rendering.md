@@ -100,7 +100,7 @@ cursor to anchor on. The readout is written imperatively by `apps/web/lib/runtim
 every view change, because routing a gesture's every wheel event through
 React state would repaint the tree sixty times a second.
 
-The HUD draws no chrome of its own. The chips carry the shadcn outline `xs`
+The HUD draws no chrome of its own. The chips carry the shadcn outline `sm`
 Button classes (`buttonVariants`), the same recipe as the env chips beside
 them, so they can never drift from them. The legend panel wears `MENU_PANEL`
 (`components/chat/top-bar/menu-styles`), the one frame every popover menu in
@@ -112,7 +112,7 @@ cluster's segments, the legend's upward anchoring and rows).
 | Pan / zoom / fit | `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts` (`zoomStep` / `resetZoom` for the HUD buttons) |
 | View state | `_viewTx` / `_viewTy` / `_viewScale` / `_viewSession` in `apps/web/lib/runtime-bridge/dag/store/globals.ts` |
 | Surface + lattice | `.history-body` in `apps/web/app/styles/dag/canvas.css` |
-| HUD | `DagHud` in `apps/web/components/chat/dag-view.tsx`; pill look from `buttonVariants` (outline xs), legend frame from `MENU_PANEL`, internals in `apps/web/app/styles/dag/hud.css` |
+| HUD | `DagHud` in `apps/web/components/chat/dag-view.tsx`; pill look from `buttonVariants` (outline sm), legend frame from `MENU_PANEL`, internals in `apps/web/app/styles/dag/hud.css` |
 
 ### The composer belongs to the pane, not to the transcript
 

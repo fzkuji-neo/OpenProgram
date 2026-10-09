@@ -37,6 +37,7 @@ import { ThinkingEffortPill } from "./thinking-effort-pill";
 import type { ThinkingOption } from "./use-thinking-effort";
 import styles from "../composer.module.css";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const noop = () => {};
 
@@ -161,7 +162,7 @@ export function ControlsCluster({
               <Menu.Trigger
                 render={
                   <button
-                    className={`${buttonVariants({ variant: "ghost", size: "icon-xs" })} ${styles.plusBtn} ${anyToolActive ? styles.hasActive : ""}`}
+                    className={`${cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))} ${styles.plusBtn} ${anyToolActive ? styles.hasActive : ""}`}
                     onMouseEnter={() => plusIconRef.current?.startAnimation?.()}
                     onMouseLeave={() => plusIconRef.current?.stopAnimation?.()}
                     title={text("Add tools, files, and more", "添加工具、文件等")}
@@ -453,7 +454,7 @@ export function ControlsCluster({
                   {(
                     <button
                       type="button"
-                      className={`${buttonVariants({ variant: "ghost", size: "xs" })} ${styles.effortText}`}
+                      className={`${cn(buttonVariants({ variant: "ghost", size: "sm" }))} ${styles.effortText}`}
                       onMouseEnter={() => effortIconRef.current?.startAnimation?.()}
                       onMouseLeave={() => effortIconRef.current?.stopAnimation?.()}
                       onClick={() => {

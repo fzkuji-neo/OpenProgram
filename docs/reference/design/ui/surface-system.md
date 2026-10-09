@@ -128,22 +128,29 @@ Buttons are the shadcn/ui `Button` in the **radix-luma** style.
 official registry (`npx shadcn add button`, style `radix-luma`);
 the only local changes are its imports and a `forwardRef` wrapper
 for React 18. Every size is a pill (`rounded-4xl`); the call site
-picks one of the official sizes and never edits the classes:
+picks one of the official sizes and never edits the classes.
+
+The sizes are rem-based and this app's root font size is 14px
+(`html { font-size: 14px }` in `base.css`, which ~560 existing
+utilities are tuned to), so every shadcn size renders at 7/8 of
+its nominal value:
 
 ```
-size        height    text     use
+size        app height  app text   use
 ─────────────────────────────────────────────────────────────────
-xs          24 px     12 px    chips and compact control rows
-sm          32 px     14 px    dense toolbars, inline actions
-default     36 px     14 px    dialog and settings actions
-lg          40 px     14 px    hero / empty-state actions
-icon-xs/sm/default/lg          square = circle at those heights
+xs          21 px       10.5 px    avoid — text is too small here
+sm          28 px       12.25 px   chips and compact control rows
+default     31.5 px     12.25 px   dialog and settings actions
+lg          35 px       12.25 px   hero / empty-state actions
+icon-sm/default/lg                 square = circle at those heights
 ─────────────────────────────────────────────────────────────────
 ```
 
 Elements that cannot be a `<Button>` (a span that hosts its own
 ✕, a Radix trigger rendered as a span) take the same look through
-`buttonVariants({ variant, size })` on their `className`.
+`cn(buttonVariants({ variant, size }))` on their `className` — the
+`cn()` merge matters: the raw class list carries both
+`border-transparent` and the variant's border colour.
 
 A header row (search + tab pills + icon buttons) must share one
 vertical center. A 1–2 px height mismatch between those controls
@@ -221,13 +228,13 @@ Pick per surface:
 The chat composer is built from the same parts:
 
 - **Environment chips** above the box (channel, web surface,
-  project, working folders, DAG HUD) → `outline` `xs`; the
-  add-folder chip is `outline` `icon-xs`.
+  project, working folders, DAG HUD) → `outline` `sm`; the
+  add-folder chip is `outline` `icon-sm`.
 - **Bottom row** (permission, chat / exec model, effort, plus,
-  tool toggles, context ring) → `ghost` `xs` / `icon-xs`. The
+  tool toggles, context ring) → `ghost` `sm` / `icon-sm`. The
   composer CSS hands its older base rules back to the Button with
   `revert-layer` rather than drawing its own chip.
-- **Send** → `icon-xs`: `default` when there is something to
+- **Send** → `icon-sm`: `default` when there is something to
   send, `ghost` when empty, `destructive` while it stops a run.
 - **Input box** → the shadcn Luma input-group recipe through the
   per-theme `--composer-*` tokens: `bg-input/50`, no resting

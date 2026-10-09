@@ -203,16 +203,16 @@
    of a row-to-row teleport. */
 .actionBtn {
   position: absolute;
-  /* A shadcn icon-xs Button (buttonVariants in index.tsx: default when
-     there is something to send, ghost when empty, destructive to stop),
-     10px inset from the box's right edge, vertically centered in the
-     46px single-line row → (46−24)/2 = 11px top. ONE geometry for every
-     mode — the button keeps this identity inside fn-forms too; only
-     `top` glides (inline, from use-fn-form-wrapper.ts), and index.tsx
-     clears the inline value when returning to chat mode so this 11px
-     wins again. */
-  right: 10px;
-  top: 11px;
+  /* A shadcn icon-sm Button (buttonVariants in index.tsx: default when
+     there is something to send, ghost when empty, destructive to stop) —
+     28px at this app's 14px root — 9px inset from the box's right edge,
+     vertically centered in the 46px single-line row → (46−28)/2 = 9px
+     top. ONE geometry for every mode — the button keeps this identity
+     inside fn-forms too; only `top` glides (inline, from
+     use-fn-form-wrapper.ts), and index.tsx clears the inline value when
+     returning to chat mode so this 9px wins again. */
+  right: 9px;
+  top: 9px;
   transition: top var(--composer-height-transition),
     right var(--composer-height-transition),
     background-color 0.15s,
@@ -222,12 +222,12 @@
   z-index: 2;
 }
 /* Morphed (fn-form) — the button sits in the 48px form header, beside
-   the close ✕: vertically centred (top 12) and one 24px button + 8px
-   gap left of the ✕ at right:12. `top`/`right` transition on the same
+   the close ✕: vertically centred (top 10) and 8px left of the 24px ✕
+   at right:12. `top`/`right` transition on the same
    curve as the wrapper height, so opening a form slides the button
    from the input row's corner into the header slot. */
 .morphed .actionBtn {
-  top: 12px;
+  top: 10px;
   right: 44px;
 }
 .actionBtn svg {
@@ -464,7 +464,7 @@
   max-width: min(calc(var(--chat-column-max) + 2px), calc(100% - 62px));
   margin: 10px auto 0;
   padding: 0;
-  min-height: 20px;
+  min-height: 28px;
   position: relative;
 }
 /* Right cluster order is chat model · exec model · effort · ring
@@ -475,7 +475,8 @@
 }
 
 /* Every control in this row is a shadcn ghost Button (buttonVariants,
-   size xs / icon-xs): height, radius, padding, font and hover all come
+   size sm / icon-sm — 28px at this app's 14px root, the text size of
+   Luma's xs): height, radius, padding, font and hover all come
    from those classes. The legacy base rules above (.plusBtn, .toolChip,
    .effortText — still used by the fn-form band) are unlayered and would
    beat Tailwind's layered utilities, so this row reverts them to the
@@ -567,7 +568,7 @@
 /* The host is a zero-width anchor at the wrapper's right edge — the
    floating shell right-aligns to it. */
 .controlsRow :global(.effort-pill-host) {
-  height: 24px;
+  height: 28px;
   width: 0;
 }
 .controlsRow :global(.effort-pill-shell) {
@@ -581,18 +582,18 @@
 .controlsRow :global(.effort-pill-shell:not([data-expanded])) {
   display: none;
 }
-/* Single-option variant (no slider): a quiet 24px icon chip, the same
-   footprint as the ghost icon-xs Buttons beside it. */
+/* Single-option variant (no slider): a quiet 28px icon chip, the same
+   footprint as the ghost icon-sm Buttons beside it. */
 .controlsRow :global(.effort-pill-fixed) {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background-color: transparent !important;
 }
 .controlsRow :global(.effort-pill-fixed .effort-pill-compact-icon),
 .controlsRow :global(.effort-pill-fixed) svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 /* Narrow composer control labels collapse to their existing role icons.
@@ -621,8 +622,8 @@
   .controlsRow :global(.permission-badge),
   .controlsRow :global(.agent-badge),
   .controlsRow .effortText {
-    width: 24px;
-    min-width: 24px;
+    width: 28px;
+    min-width: 28px;
     padding: 0 !important;
     justify-content: center;
   }

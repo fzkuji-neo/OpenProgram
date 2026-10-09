@@ -7,6 +7,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import styles from "../environment-row.module.css";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function WebSurfaceChip({
   sessionId,
@@ -34,7 +35,7 @@ export function WebSurfaceChip({
     <HoverTip label={`${stateLabel} · ${title}`}>
       <button
         type="button"
-        className={`${buttonVariants({ variant: "outline", size: "xs" })} status-badge ${styles.surfaceChip} ${toolsEnabled ? "" : "paused"}`}
+        className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} status-badge ${styles.surfaceChip} ${toolsEnabled ? "" : "paused"}`}
         aria-label={`${stateLabel}: ${title}`}
         aria-pressed={toolsEnabled}
         onClick={onToggleAccess}

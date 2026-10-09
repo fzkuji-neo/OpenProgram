@@ -79,20 +79,22 @@ list        30 px     10 px     --ui-list-h · --ui-list-radius
 
 侧栏行、MCP tab 胶囊、MCP 服务器行都走这条 30px 节奏。列表行没有 sm / md / lg：一个位置能挑多种尺寸，每位作者都会跟设计讨价还价，尺寸跟着分叉。
 
-按钮是 shadcn/ui 的 `Button`，**radix-luma** 风格。`apps/web/components/ui/button.tsx` 从官方组件仓库原样复制（`npx shadcn add button`，style `radix-luma`），本地只改了 import 和一层给 React 18 用的 `forwardRef`。所有尺寸都是胶囊（`rounded-4xl`）；调用处从官方尺寸里挑一个，不改样式类：
+按钮是 shadcn/ui 的 `Button`，**radix-luma** 风格。`apps/web/components/ui/button.tsx` 从官方组件仓库原样复制（`npx shadcn add button`，style `radix-luma`），本地只改了 import 和一层给 React 18 用的 `forwardRef`。所有尺寸都是胶囊（`rounded-4xl`）；调用处从官方尺寸里挑一个，不改样式类。
+
+这些尺寸按 rem 计算，而本 App 的根字号是 14px（`base.css` 里的 `html { font-size: 14px }`，现有约 560 处样式按它调过），所以 shadcn 每个尺寸实际显示为标称值的 7/8：
 
 ```
-size        height    text     用途
+size        App 内高度  App 内字号  用途
 ─────────────────────────────────────────────────────────────────
-xs          24 px     12 px    标签、紧凑的控件行
-sm          32 px     14 px    密集工具栏、行内操作
-default     36 px     14 px    对话框和设置页的操作
-lg          40 px     14 px    首屏 / 空状态的大操作
-icon-xs/sm/default/lg          方形，在这些高度上就是圆形
+xs          21 px       10.5 px    避免使用——字太小
+sm          28 px       12.25 px   标签、紧凑的控件行
+default     31.5 px     12.25 px   对话框和设置页的操作
+lg          35 px       12.25 px   首屏 / 空状态的大操作
+icon-sm/default/lg                 方形，在这些高度上就是圆形
 ─────────────────────────────────────────────────────────────────
 ```
 
-不能做成 `<Button>` 的元素（自带 ✕ 的 span、渲染成 span 的 Radix 触发器）在 `className` 上用 `buttonVariants({ variant, size })` 拿同一套外观。
+不能做成 `<Button>` 的元素（自带 ✕ 的 span、渲染成 span 的 Radix 触发器）在 `className` 上用 `cn(buttonVariants({ variant, size }))` 拿同一套外观——`cn()` 合并不能省：原始类名里同时有 `border-transparent` 和变体自己的边框色。
 
 页头那一行（搜索 + tab 胶囊 + 图标按钮）必须同一垂直中线。控件之间差 1–2px 高度是 bug，不是变体。
 
@@ -148,9 +150,9 @@ link         primary 字                           下划线
 
 聊天输入框用的是同一套零件：
 
-- 输入框上方的**环境标签**（渠道、网页、项目、工作目录、DAG 浮层按钮）→ `outline` `xs`；添加目录按钮是 `outline` `icon-xs`。
-- **底部控制栏**（权限、聊天 / 执行模型、思考档位、加号、工具开关、上下文圆环）→ `ghost` `xs` / `icon-xs`。输入框的 CSS 用 `revert-layer` 把旧的基础规则让回给 Button，不再自己画一套标签。
-- **发送** → `icon-xs`：有内容可发时 `default`，空输入时 `ghost`，停止运行时 `destructive`。
+- 输入框上方的**环境标签**（渠道、网页、项目、工作目录、DAG 浮层按钮）→ `outline` `sm`；添加目录按钮是 `outline` `icon-sm`。
+- **底部控制栏**（权限、聊天 / 执行模型、思考档位、加号、工具开关、上下文圆环）→ `ghost` `sm` / `icon-sm`。输入框的 CSS 用 `revert-layer` 把旧的基础规则让回给 Button，不再自己画一套标签。
+- **发送** → `icon-sm`：有内容可发时 `default`，空输入时 `ghost`，停止运行时 `destructive`。
 - **输入框本体** → 通过每套主题的 `--composer-*` 变量用 shadcn Luma input-group 的配方：`bg-input/50`，闲置无边框，聚焦时 1px `--ring` 边加 3px `ring/30` 光环；圆角 23px（一行时是胶囊）。
 
 ## 禁止事项

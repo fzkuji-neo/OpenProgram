@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/popover";
 import { HoverTip } from "@/components/ui/tooltip";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 import {
   usePermissionMode,
@@ -106,7 +107,7 @@ export function PermissionBadge() {
             <span
               ref={hostRef}
               id="permissionBadge"
-              className={`${buttonVariants({ variant: "ghost", size: "xs" })} runtime-badge permission-badge`}
+              className={`${cn(buttonVariants({ variant: "ghost", size: "sm" }))} runtime-badge permission-badge`}
               onMouseEnter={() => iconRef.current?.startAnimation?.()}
               onMouseLeave={() => iconRef.current?.stopAnimation?.()}
             >

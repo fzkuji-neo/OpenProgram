@@ -14,6 +14,7 @@ import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
 import { useTranslation } from "@/lib/i18n";
 import { ChannelMenu } from "../../../top-bar/channel-menu";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /** Status chip — the old topbar StatusBadge chip form (tone-tinted
  *  chip + indicator dot + channel label, ChannelMenu popover), re-hosted
@@ -95,7 +96,7 @@ export function ConnectionStatusChip({ owningId = true }: { owningId?: boolean }
           <span
             {...(owningId ? { id: "statusBadge" } : {})}
             role="button"
-            className={`${buttonVariants({ variant: "outline", size: "xs" })} status-badge${toneClass}`}
+            className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} status-badge${toneClass}`}
           >
             {/* Hidden dot kept ONLY for lib/runtime-bridge/ui.ts
                 setStatusDotHealth(), which queries `#statusBadge

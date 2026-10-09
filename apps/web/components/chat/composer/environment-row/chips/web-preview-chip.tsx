@@ -11,6 +11,7 @@ import {
 } from "@/lib/browser/web-tab-pip-store";
 import styles from "../environment-row.module.css";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /** Re-open the agent preview after the user closed the floating pane.
  *  Only when a background WebTab still exists and is not already the
@@ -36,7 +37,7 @@ export function WebPreviewChip() {
     <HoverTip label={label}>
       <button
         type="button"
-        className={`${buttonVariants({ variant: "outline", size: "xs" })} status-badge ${styles.surfaceChip}`}
+        className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} status-badge ${styles.surfaceChip}`}
         aria-label={label}
         onClick={() => show(restoreId, backgroundOwnerTabId)}
       >
