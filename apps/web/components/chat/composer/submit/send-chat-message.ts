@@ -1,5 +1,6 @@
 "use client";
 
+import type { PastedTextElement } from "@/lib/chat/paste-elements";
 import { traceThemeEvent } from "@/lib/prefs/theme-pref";
 import { surfaceOriginForChat } from "@/lib/desktop/desktop-bridge";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
@@ -74,6 +75,8 @@ export interface ChatAttachment {
 
 interface SendMessageBridgeArgs {
   text: string;
+  /** Pasted spans to show collapsed (lib/chat/paste-elements.ts). */
+  textElements?: PastedTextElement[];
   /** Real or provisional chat key. Drafts send their local_* key so the
    *  existing server protocol can acknowledge the correct tab. */
   sessionId: string | null;
@@ -153,6 +156,7 @@ function reservePendingChatSend(
  */
 export function sendChatMessage({
   text,
+  textElements,
   sessionId,
   thinking,
   toolsEnabled,
@@ -236,6 +240,7 @@ export function sendChatMessage({
   const payload: Record<string, unknown> = {
     action: "chat",
     text,
+    ...(textElements?.length ? { text_elements: textElements } : {}),
     session_id: sessionId,
     thinking_effort: thinking,
     exec_thinking_effort: runtimeState._execThinkingEffort ?? undefined,
@@ -333,7 +338,7 @@ export function sendChatMessage({
   const acceptedAt = Date.now();
   const optimisticMessageId = getPendingUserMessageId(sessionId ?? "");
   if (sessionId && optimisticMessageId) {
-    appendLocalUserTurn(sessionId, optimisticMessageId, text, undefined, acceptedAt, "pending");
+    appendLocalUserTurn(sessionId, optimisticMessageId, text, undefined, acceptedAt, "pending", textElements);
     noteTakeLatest({
       sessionId,
       scrollerKey: scrollerKey ?? defaultScrollerKey(sessionId, background),

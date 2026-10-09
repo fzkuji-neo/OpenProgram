@@ -22,6 +22,8 @@ export interface PreviewChip {
   to: number;
   kind: "paste" | "file";
   label: string;
+  /** Paste-store id for paste chips. */
+  pasteId?: number;
 }
 
 const PASTE_TOKEN = /\[Pasted #(\d+) \+(\d+) lines\]/g;
@@ -34,7 +36,7 @@ export function inlineChips(text: string): PreviewChip[] {
   for (const m of text.matchAll(PASTE_TOKEN)) {
     const lines = Number(m[2]);
     chips.push({
-      from: m.index, to: m.index + m[0].length, kind: "paste",
+      from: m.index, to: m.index + m[0].length, kind: "paste", pasteId: Number(m[1]),
       label: `Pasted · ${lines} ${lines === 1 ? "line" : "lines"}`,
     });
   }

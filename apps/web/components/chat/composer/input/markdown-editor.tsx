@@ -27,6 +27,7 @@ import {
 import { defaultKeymap, history, historyKeymap, insertNewline } from "@codemirror/commands";
 
 import { composerMarkdown, inlineChips, livePreviewRanges, type PreviewChip } from "@/lib/chat/markdown-live-preview";
+import { pasteStore } from "../paste/paste-store";
 
 /** Marks a dispatch that mirrors the `value` prop, so it isn't echoed back. */
 const External = Annotation.define<boolean>();
@@ -48,18 +49,32 @@ export interface ComposerInputHandle {
 
 /** Paste tokens and finished @file mentions render as one atomic chip. */
 class ChipWidget extends WidgetType {
-  constructor(readonly chip: PreviewChip) { super(); }
+  /** Paste chips: tooltip preview, or "lost" when the stored text is gone
+   *  (submit is blocked until the token is removed). */
+  readonly preview: string | null;
+  readonly missing: boolean;
+  constructor(readonly chip: PreviewChip) {
+    super();
+    const entry = chip.pasteId !== undefined ? pasteStore.get(chip.pasteId) : undefined;
+    this.missing = chip.kind === "paste" && !entry;
+    this.preview = entry
+      ? entry.content.slice(0, 500) + (entry.content.length > 500 ? "…" : "")
+      : null;
+  }
   eq(other: ChipWidget) {
-    return other.chip.kind === this.chip.kind && other.chip.label === this.chip.label;
+    return other.chip.kind === this.chip.kind && other.chip.label === this.chip.label
+      && other.missing === this.missing && other.preview === this.preview;
   }
   toDOM() {
     const el = document.createElement("span");
-    el.className = `cm-md-chip cm-md-chip-${this.chip.kind}`;
+    el.className = `cm-md-chip cm-md-chip-${this.chip.kind}${this.missing ? " cm-md-chip-missing" : ""}`;
     const icon = document.createElement("span");
     icon.className = "cm-md-chip-icon";
     icon.textContent = this.chip.kind === "paste" ? "¶" : "@";
     icon.setAttribute("aria-hidden", "true");
-    el.append(icon, document.createTextNode(this.chip.label));
+    el.append(icon, document.createTextNode(this.missing ? `Pasted #${this.chip.pasteId} · lost` : this.chip.label));
+    if (this.missing) el.title = "Pasted content was lost. Delete this chip, then paste again.";
+    else if (this.preview) el.title = this.preview;
     return el;
   }
   ignoreEvent() { return false; }

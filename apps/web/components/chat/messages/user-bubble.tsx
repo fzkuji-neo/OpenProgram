@@ -20,6 +20,24 @@ import { useAvatarAlign } from "./use-avatar-align";
 import { AttachmentChips, parseAttachments } from "./user-attachments";
 import { MessageEditor } from "./message-editor";
 import { renderUserMarkdown } from "./markdown";
+import { collapsePastedSpans, pasteSentinel } from "@/lib/chat/paste-elements";
+
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Replace each sentinel left by collapsePastedSpans with a chip button
+ *  whose tooltip previews the pasted text. */
+function withPasteChips(html: string, spans: { label: string; text: string }[], hint: string): string {
+  let out = html;
+  spans.forEach((span, index) => {
+    const preview = span.text.slice(0, 400) + (span.text.length > 400 ? "…" : "");
+    const chip = `<button type="button" class="user-paste-chip" title="${escapeAttr(`${hint}\n\n${preview}`)}">`
+      + `<span class="user-paste-chip-icon" aria-hidden="true">¶</span>${escapeAttr(span.label)}</button>`;
+    out = out.split(pasteSentinel(index)).join(chip);
+  });
+  return out;
+}
 
 export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionIdOverride?: string }) {
   const focusedSessionId = useSessionStore(s => s.currentSessionId);
@@ -31,7 +49,13 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
   // Pull attachment markers out of the prose so they render as chips
   // (Claude-Code style) instead of raw "[attached: …]" / inlined <file>
   // text. msg.content itself is untouched — this is display-only.
-  const { attachments, text: cleanText } = parseAttachments(msg.content);
+  // Pasted spans (Codex text_elements) show as one collapsed chip each
+  // until the user expands them; the model always received the full text.
+  const [pastesExpanded, setPastesExpanded] = useState(false);
+  const collapsed = !pastesExpanded && msg.pastedElements?.length
+    ? collapsePastedSpans(msg.content, msg.pastedElements)
+    : { content: msg.content, spans: [] as { label: string; text: string }[] };
+  const { attachments, text: cleanText } = parseAttachments(collapsed.content);
 
   // Align the side avatar to the first line of text inside the bubble.
   const { containerRef, avatarTop } = useAvatarAlign(
@@ -72,7 +96,12 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
             {cleanText ? (
               <div
                 className="user-md"
-                dangerouslySetInnerHTML={{ __html: renderUserMarkdown(cleanText) }}
+                onClick={(event) => {
+                  if ((event.target as Element).closest?.(".user-paste-chip")) setPastesExpanded(true);
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: withPasteChips(renderUserMarkdown(cleanText), collapsed.spans, text("Show pasted text", "展开粘贴内容")),
+                }}
               />
             ) : null}
           </>

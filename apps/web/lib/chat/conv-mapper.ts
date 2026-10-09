@@ -6,6 +6,7 @@
  * `renderSessionMessages` in `runtime-bridge/conversations.ts` feeds the
  * result into the store so it mirrors the loaded conversation.
  */
+import { readPastedElements } from "./paste-elements.ts";
 import type {
   AssistantBlock,
   ChatMsg,
@@ -159,6 +160,21 @@ function _readAttach(m: LegacyMsg): AttachMeta | undefined {
   return undefined;
 }
 
+/** One key of the message's ``extra`` blob (object or JSON string). */
+function _readExtraField(m: LegacyMsg, key: string): unknown {
+  const e = m.extra;
+  if (e && typeof e === "object" && !Array.isArray(e)) return (e as Record<string, unknown>)[key];
+  if (typeof e === "string" && e) {
+    try {
+      const parsed = JSON.parse(e);
+      return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>)[key] : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 /** Sibling-version fields shared by user + assistant turns. */
 function siblingFields(m: LegacyMsg) {
   return {
@@ -244,6 +260,7 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
         source: typeof m.source === "string" ? m.source : undefined,
         steering: m.steering === true,
         calledBy: typeof m.predecessor === "string" ? m.predecessor : undefined,
+        pastedElements: readPastedElements(_readExtraField(m, "text_elements")),
         spawnedFrom: sf && sf.caller_id
           ? { callerId: sf.caller_id, label: sf.label || undefined }
           : undefined,

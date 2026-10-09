@@ -490,6 +490,29 @@ def _title_from_text(text: str) -> str:
     return t[:50] + ("..." if len(t) > 50 else "")
 
 
+def _pasted_text_elements(raw, text_length: int) -> list[dict]:
+    """Display-only records of pasted spans (Codex ``text_elements``).
+
+    The model still receives the full text; these only let the web bubble
+    show each span collapsed. Offsets count from the end of the message
+    (see apps/web/lib/chat/paste-elements.ts). Malformed records are
+    dropped rather than rejecting the turn.
+    """
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    for item in raw[:20]:
+        if not isinstance(item, dict):
+            continue
+        start, end = item.get("tail_start"), item.get("tail_end")
+        label, head = item.get("label"), item.get("head")
+        if (type(start) is int and type(end) is int and 0 <= end < start <= text_length
+                and isinstance(label, str) and isinstance(head, str)):
+            out.append({"tail_start": start, "tail_end": end,
+                        "label": label[:80], "head": head[:32]})
+    return out
+
+
 async def handle_chat(ws, cmd: dict):
     from openprogram.webui import server as _s
     text = cmd.get("text", "").strip()
@@ -1078,13 +1101,18 @@ async def handle_chat(ws, cmd: dict):
         # treated it as a fork tip with no follow-up.
         if parsed.get("wait", True):
             user_msg["function"] = "agent"
+    extra_meta: dict = {}
     if attachments:
-        manifest = [
+        extra_meta["attachments"] = [
             {"type": a.get("type"), "media_type": a.get("media_type"),
              "size_b64": len(a.get("data") or "")}
             for a in attachments
         ]
-        user_msg["extra"] = json.dumps({"attachments": manifest}, default=str)
+    text_elements = _pasted_text_elements(cmd.get("text_elements"), len(text))
+    if text_elements:
+        extra_meta["text_elements"] = text_elements
+    if extra_meta:
+        user_msg["extra"] = json.dumps(extra_meta, default=str)
     # Admission is the sole source of execution identity. The message id is
     # retained only as transport/DAG provenance and never becomes ownership.
     from openprogram.agent.dispatcher.types import TurnRequest

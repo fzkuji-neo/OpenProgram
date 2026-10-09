@@ -3,7 +3,7 @@
 /**
  * Chat-mode input row inside the composer wrapper.
  *
- * Stacks paste chips, the markdown editor (a textarea-compatible facade,
+ * Stacks the markdown editor (a textarea-compatible facade,
  * see markdown-editor.tsx), and the @-mention file
  * popover into one cohesive block. Extracted from composer/index.tsx
  * so the main file stops growing every time a new chip kind or
@@ -16,9 +16,7 @@ import type React from "react";
 
 import { FileMenu, type FileMatch } from "../attach/file-menu";
 import { useFileMention } from "../attach/use-file-mention";
-import { PasteChips } from "../paste/paste-chips";
 import { MarkdownEditor } from "./markdown-editor";
-import type { PastedEntry } from "../paste/paste-store";
 import styles from "./chat-input-row.module.css";
 
 interface ChatInputRowProps {
@@ -38,11 +36,6 @@ interface ChatInputRowProps {
    *  two mounted composers don't collide on one id. */
   inputId?: string;
   autoFocus?: boolean;
-
-  /* ---- paste chips ------------------------------------------------- */
-  pastedEntries: PastedEntry[];
-  pasteMissing: Set<number>;
-  removePaste: (id: number) => void;
 
   /* ---- @-mention file popover -------------------------------------- */
   atToken: ReturnType<typeof useFileMention>["atToken"];
@@ -66,9 +59,6 @@ export function ChatInputRow({
   placeholder,
   inputId = "composer-chat-input",
   autoFocus,
-  pastedEntries,
-  pasteMissing,
-  removePaste,
   atToken,
   fileMatches,
   fileMenuIndex,
@@ -79,11 +69,6 @@ export function ChatInputRow({
 }: ChatInputRowProps) {
   return (
     <>
-      <PasteChips
-        entries={pastedEntries}
-        missing={pasteMissing}
-        onRemove={removePaste}
-      />
       <div key="top-half" className={styles.inputTopRow}>
         <div className={styles.inputField}>
           {input.length === 0 && (

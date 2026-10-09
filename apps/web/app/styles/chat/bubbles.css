@@ -606,3 +606,23 @@
   font-weight: 500;
   color: var(--text-secondary);
 }
+
+/* Collapsed pasted span in a sent user message (Codex text_elements). */
+.message.user .user-paste-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 2px;
+  padding: 1px 9px 1px 7px;
+  border: 0;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-primary) 75%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border-light);
+  cursor: pointer;
+  vertical-align: 1px;
+}
+.message.user .user-paste-chip:hover { background: var(--bg-primary); }
+.message.user .user-paste-chip-icon { color: var(--text-muted); font-size: 12px; }
