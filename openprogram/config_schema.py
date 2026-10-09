@@ -511,6 +511,15 @@ SETTINGS: list[SettingSpec] = [
              "Disabled by default. Read at the next execution; display sleep and explicit sleep remain available.",
     ),
     SettingSpec(
+        key="execution.instant_steer", path=("execution", "instant_steer"),
+        group="Execution", label="Steer interrupts the current response", widget="toggle",
+        apply=APPLY_LIVE, default=True,
+        help="On by default. A message sent while the agent is replying stops the response being "
+             "generated (text, reasoning or a tool call still being written) and continues with your "
+             "message. Tools that already started still finish first. Off: the message waits until the "
+             "current response ends.",
+    ),
+    SettingSpec(
         key="execution.code_change_policy", path=("execution", "code_change_policy"),
         group="Execution", label="Function code after restart", widget="enum",
         apply=APPLY_LIVE, default="keep_original", choices=lambda: ["keep_original", "use_latest"],

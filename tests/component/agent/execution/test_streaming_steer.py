@@ -158,3 +158,76 @@ def test_multiple_steers_replayed_during_tool_batch_keep_order_and_tools(real_ag
     finally:
         h.tools.release["first"].set()
         h.provider.release.set()
+
+
+def test_steer_interrupts_a_tool_call_while_its_arguments_stream(real_agent_chat, monkeypatch):
+    """Instant interrupt (Codex parity): a call that is still being written
+    was never dispatched, so steering drops it instead of waiting."""
+    h = real_agent_chat
+    provider = ScriptedProvider()
+    provider.add_response(ScriptedText("let me check"), ScriptedToolCall("first", {"x": 1}, "half-call"))
+    provider.add_response(ScriptedText("answer with correction"))
+    entered = threading.Event()
+    contexts = []
+
+    async def streaming(model, context, options=None):
+        index = len(contexts)
+        contexts.append(context.model_copy(deep=True))
+        async for event in provider.stream_simple(model, context, options):
+            yield event
+            if index == 0 and event.type == "toolcall_delta":
+                entered.set()
+                while not h.provider.release.is_set():
+                    await asyncio.sleep(0)
+
+    monkeypatch.setattr(h.provider, "stream_simple", streaming)
+    execution = _chat(h)
+    try:
+        _wait(entered.is_set)
+        _steer(h, h.store.get_execution(execution.execution_id), "steer-tool", "use the correction")
+        _wait(lambda: len(contexts) == 2, timeout=3)
+        _wait(lambda: h.store.get_execution(execution.execution_id).status.value == "completed")
+        assert "first" not in h.tools.calls
+        assert h.store.get_command("steer-tool").status.value == "applied"
+        serialized = str([message.model_dump() for message in contexts[1].messages])
+        assert "let me check" in serialized
+        assert "half-call" not in serialized
+        assert serialized.count("use the correction") == 1
+    finally:
+        h.provider.release.set()
+
+
+def test_instant_steer_setting_off_waits_for_the_response(real_agent_chat, monkeypatch):
+    h = real_agent_chat
+    import sys
+    import openprogram.agent.agent_loop  # noqa: F401  (the package re-exports a same-named function)
+    monkeypatch.setattr(sys.modules["openprogram.agent.agent_loop"], "_instant_steer_enabled", lambda: False)
+    provider = ScriptedProvider()
+    provider.add_response(ScriptedText("full answer"))
+    provider.add_response(ScriptedText("answer with correction"))
+    entered = threading.Event()
+    contexts = []
+
+    async def streaming(model, context, options=None):
+        index = len(contexts)
+        contexts.append(context.model_copy(deep=True))
+        async for event in provider.stream_simple(model, context, options):
+            yield event
+            if index == 0 and event.type == "text_delta":
+                entered.set()
+                while not h.provider.release.is_set():
+                    await asyncio.sleep(0)
+
+    monkeypatch.setattr(h.provider, "stream_simple", streaming)
+    execution = _chat(h)
+    try:
+        _wait(entered.is_set)
+        _steer(h, h.store.get_execution(execution.execution_id), "steer-late", "use the correction")
+        import time
+        time.sleep(0.4)
+        assert len(contexts) == 1  # Not interrupted: still waiting on the first response.
+        h.provider.release.set()
+        _wait(lambda: h.store.get_execution(execution.execution_id).status.value == "completed")
+        assert h.store.get_command("steer-late").status.value == "applied"
+    finally:
+        h.provider.release.set()
