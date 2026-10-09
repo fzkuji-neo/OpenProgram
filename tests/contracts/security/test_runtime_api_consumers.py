@@ -80,6 +80,8 @@ class _Client:
             return _Response(
                 content=b'<feed xmlns="http://www.w3.org/2005/Atom"></feed>'
             )
+        if "html.duckduckgo.com" in url:
+            return _Response(content=b'<div class="no-results">No results.</div>')
         if url.endswith("/status"):
             return _Response({"status": "COMPLETED"})
         if url.endswith("/result"):
@@ -168,6 +170,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         elif self.command == "POST" and "/fal-ai/" in self.path:
             base = f"http://public.test:{self.server.port}"
             payload = {"status_url": base + "/status", "response_url": base + "/result"}
+        elif headers.get("accept", "").startswith("text/html"):
+            body = b'<div class="no-results">No results.</div>'
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         elif "search_query=" in self.path:
             body = b'<feed xmlns="http://www.w3.org/2005/Atom"></feed>'
             self.send_response(200)
@@ -636,6 +646,7 @@ def test_web_search_adapters_use_registry_managed_http(
     ("module_name", "class_name", "env"),
     [
         ("arxiv", "ArxivProvider", {}),
+        ("duckduckgo", "DuckDuckGoProvider", {}),
         ("kagi", "KagiProvider", {"KAGI_API_KEY": "secret"}),
         ("jina", "JinaProvider", {"JINA_API_KEY": "secret"}),
         ("serper", "SerperProvider", {"SERPER_API_KEY": "secret"}),
@@ -769,6 +780,7 @@ def test_each_fixed_search_adapter_reaches_real_managed_transport(
     ("module_name", "class_name"),
     [
         ("arxiv", "ArxivProvider"),
+        ("duckduckgo", "DuckDuckGoProvider"),
         ("kagi", "KagiProvider"),
         ("jina", "JinaProvider"),
         ("serper", "SerperProvider"),

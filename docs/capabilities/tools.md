@@ -72,7 +72,7 @@ Results include the selected local starting `cwd`, or `requested_cwd` for remote
 | `playwright_browser` | Playwright-driven headless Chromium (open / navigate and other actions) | Playwright Chromium is included in every supported release |
 | `agent_browser` | Drive a browser through the npm `agent-browser` CLI; snapshot returns the accessibility tree | Developer-added alternative backend; not required for product browser functionality |
 
-`web_search` backends and keys (arXiv is key-free; DuckDuckGo also requires its optional package):
+`web_search` backends and keys (arXiv and DuckDuckGo need no key and are always available):
 
 | Backend | Environment variable |
 |---|---|
@@ -94,9 +94,9 @@ Results include the selected local starting `cwd`, or `requested_cwd` for remote
 
 The chat Web Search switch controls whether `web_search` is available for that message. Turning it off excludes the tool even in automatic tool mode. When enabled, the search schema is available immediately, including when Tools is off. Turning it on still respects the Agent's disabled tools and permissions. Tool profile choices belong to each conversation and survive tab changes and refreshes.
 
-Search keys take effect on subsequent calls without restarting. An unavailable saved default falls back to another available provider; an explicitly named unavailable provider reports an error. Jina search requires `JINA_API_KEY`.
+Search keys take effect on subsequent calls without restarting. An unavailable saved default falls back to another available provider; an explicitly named unavailable provider reports an error that gives the reason (for example the missing key) and lists the providers usable now. Jina search requires `JINA_API_KEY`. DuckDuckGo reads its no-JavaScript results page and returns the first page of hits (about ten); a bot challenge or an unreadable page is reported as an error, not as an empty search.
 
-`combine="race"` returns the first nonempty successful response. `combine="rrf"` retains results completed before the deadline. Total failure is reported as an error, distinct from a successful empty search. Already running requests finish under their transport timeouts.
+`combine="race"` returns the first nonempty successful response. Named `providers` that cannot run are skipped; if none can run, the error lists each one with its reason. `combine="rrf"` retains results completed before the deadline. Total failure is reported as an error, distinct from a successful empty search. Already running requests finish under their transport timeouts.
 
 ## Images and PDF
 

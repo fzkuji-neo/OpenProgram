@@ -18,7 +18,7 @@ from http import HTTPStatus
 from pathlib import Path
 from time import monotonic
 from types import MappingProxyType
-from typing import Any, Iterator
+from typing import Any, Iterator, NoReturn
 from urllib.parse import urljoin
 
 import httpcore
@@ -101,6 +101,7 @@ _AUDITED_FIXED_ORIGINS = MappingProxyType(
                 "https://chat-api.you.com",
                 "https://export.arxiv.org",
                 "https://google.serper.dev",
+                "https://html.duckduckgo.com",
                 "https://kagi.com",
                 "https://ollama.com",
                 "https://s.jina.ai",
@@ -427,6 +428,25 @@ if any(
 
 CONSUMER_REGISTRY = MappingProxyType({spec.consumer: spec for spec in _SPECS})
 
+_AMBIENT_PROXY_TRUST = frozenset(
+    {URLTrustClass.UNTRUSTED_PUBLIC, URLTrustClass.FIXED_PUBLIC_SERVICE}
+)
+_PROVIDER_PROXY_PREFIXES = ("provider.", "webui.model_listing.")
+
+
+def uses_ambient_proxy(consumer: str) -> bool:
+    """Whether ``consumer`` follows the user's ordinary proxy routes.
+
+    Public consumers (arbitrary public URLs and fixed audited services) and
+    the provider consumers do. Configured custom origins and loopback
+    callbacks keep direct, peer-pinned connections: they routinely name
+    private services that an owner exception authorizes by address.
+    """
+    spec = CONSUMER_REGISTRY[consumer]
+    return spec.trust_class in _AMBIENT_PROXY_TRUST or consumer.startswith(
+        _PROVIDER_PROXY_PREFIXES
+    )
+
 
 def require_active_sdk_transport(consumer: str, origin: str) -> None:
     """Fail closed before starting an SDK whose network path is unmanaged."""
@@ -643,6 +663,8 @@ class DecisionNetworkBackend(httpcore.NetworkBackend):
     ) -> httpcore.NetworkStream:
         if host != self._decision.hostname or port != self._decision.port:
             raise URLPolicyError("DECISION_TARGET_MISMATCH", self._decision.origin)
+        if self._decision.requires_proxy or not self._decision.resolved_ips:
+            raise URLPolicyError("PROXY_ROUTE_REQUIRED", self._decision.origin)
         with self._lock:
             address = self._decision.resolved_ips[
                 self._next_address % len(self._decision.resolved_ips)
@@ -685,6 +707,8 @@ class AsyncDecisionNetworkBackend(httpcore.AsyncNetworkBackend):
     ) -> httpcore.AsyncNetworkStream:
         if host != self._decision.hostname or port != self._decision.port:
             raise URLPolicyError("DECISION_TARGET_MISMATCH", self._decision.origin)
+        if self._decision.requires_proxy or not self._decision.resolved_ips:
+            raise URLPolicyError("PROXY_ROUTE_REQUIRED", self._decision.origin)
         address = self._decision.resolved_ips[
             self._next_address % len(self._decision.resolved_ips)
         ]
@@ -932,6 +956,17 @@ class _ManagedTransportBase:
             if spec.allow_owner_exceptions
             else ()
         )
+        # The route is chosen before the policy runs so both agree: a public
+        # target sent through the user's forward proxy is resolved there.
+        proxy_resolves = False
+        if spec.trust_class in _AMBIENT_PROXY_TRUST:
+            try:
+                target = normalize_url(url).normalized_url
+            except URLPolicyError:
+                target = None
+            proxy_resolves = (
+                target is not None and self._ambient_proxy_url(target) is not None
+            )
         try:
             decision = evaluate_url(
                 self._consumer,
@@ -946,6 +981,7 @@ class _ManagedTransportBase:
                 callback_origin=self._callback_origin,
                 exceptions=exceptions,
                 resolver=self._security.resolver,
+                proxy_resolves=proxy_resolves,
             )
         except URLPolicyError as exc:
             self._record(exc.reason, exc.safe_url)
@@ -985,25 +1021,43 @@ class _ManagedTransportBase:
         self._record("PROXY_DELEGATED", decision.origin)
         return decision
 
-    def _service_proxy(self, target: URLDecision) -> tuple[httpx.Proxy, URLDecision] | None:
-        if self._security.policy_proxy is not None:
-            return None
-        if not self._consumer.startswith(("provider.", "webui.model_listing.")):
-            return None
-        audited_origins = (
-            _AUDITED_FIXED_ORIGINS["provider.fixed_api"]
-            | _AUDITED_FIXED_ORIGINS["provider.oauth.fixed"]
-        )
-        if target.origin not in audited_origins:
+    def _ambient_proxy_url(self, normalized_url: str) -> str | None:
+        """The user's ordinary proxy route for a target, or None for direct.
+
+        Uses the immutable routing snapshot and HTTPX's own pattern
+        precedence, so NO_PROXY bypasses behave as in any HTTPX client.
+        """
+        if (
+            self._security.policy_proxy is not None
+            or not self._security.service_proxy_mounts
+            or not uses_ambient_proxy(self._consumer)
+        ):
             return None
         from httpx._utils import URLPattern
 
-        url = httpx.URL(target.normalized_url)
+        url = httpx.URL(normalized_url)
         mounts = sorted(
             (URLPattern(pattern), proxy_url)
             for pattern, proxy_url in self._security.service_proxy_mounts
         )
-        proxy_url = next((value for pattern, value in mounts if pattern.matches(url)), None)
+        return next((value for pattern, value in mounts if pattern.matches(url)), None)
+
+    def _service_proxy(self, target: URLDecision) -> tuple[httpx.Proxy, URLDecision] | None:
+        if self._security.policy_proxy is not None:
+            return None
+        if not uses_ambient_proxy(self._consumer):
+            return None
+        spec = CONSUMER_REGISTRY[self._consumer]
+        if spec.trust_class not in _AMBIENT_PROXY_TRUST:
+            # Provider consumers with configured origins follow ordinary
+            # proxies only for the audited provider API and OAuth services.
+            audited_origins = (
+                _AUDITED_FIXED_ORIGINS["provider.fixed_api"]
+                | _AUDITED_FIXED_ORIGINS["provider.oauth.fixed"]
+            )
+            if target.origin not in audited_origins:
+                return None
+        proxy_url = self._ambient_proxy_url(target.normalized_url)
         if proxy_url is None:
             return None
         try:
@@ -1036,6 +1090,12 @@ class _ManagedTransportBase:
             raise URLPolicyError("INVALID_SERVICE_PROXY", target.origin) from None
         self._record("SERVICE_PROXY", target.origin)
         return proxy, decision
+
+    def _require_proxy_route(self, decision: URLDecision) -> NoReturn:
+        """Fail closed: a proxy-resolved target never falls back to direct."""
+        error = URLPolicyError("PROXY_ROUTE_REQUIRED", decision.origin)
+        self._record(error.reason, error.safe_url)
+        raise error
 
     @staticmethod
     def _request_metadata(request: httpx.Request, decision: URLDecision):
@@ -1092,6 +1152,8 @@ class ManagedHTTPTransport(_ManagedTransportBase, httpx.BaseTransport):
                     local_address=self._security.local_address,
                     socket_options=self._security.socket_options or None,
                 )
+        elif decision.requires_proxy:
+            self._require_proxy_route(decision)
         elif self._security.policy_proxy is None:
             pool = httpcore.ConnectionPool(
                 ssl_context=self._ssl_context,
@@ -1212,6 +1274,8 @@ class AsyncManagedHTTPTransport(_ManagedTransportBase, httpx.AsyncBaseTransport)
                     local_address=self._security.local_address,
                     socket_options=self._security.socket_options or None,
                 )
+        elif decision.requires_proxy:
+            self._require_proxy_route(decision)
         elif self._security.policy_proxy is None:
             pool = httpcore.AsyncConnectionPool(
                 ssl_context=self._ssl_context,

@@ -61,6 +61,17 @@ CHROME_UA = (
 )
 HONEST_UA = "openprogram-web-fetch/1.0"
 
+# Appended to policy refusals so the model can tell the user what to change.
+_POLICY_HINTS = {
+    "NON_GLOBAL_ADDRESS": (
+        " (the host is local or resolves to a private, loopback or reserved "
+        "address; web_fetch only reads public sites. A fake-IP proxy such as "
+        "Clash is supported when its HTTP(S)_PROXY or system proxy route "
+        "covers the host)"
+    ),
+    "METADATA_ADDRESS": " (cloud metadata endpoints are never fetched)",
+}
+
 
 DESCRIPTION = (
     "Fetch a web page and return its readable text. Follows redirects, "
@@ -308,7 +319,8 @@ def execute(
             f"Error: network error {type(e).__name__} for {normalize_origin(url)}"
         )
     except URLPolicyError as e:
-        return f"Error: failed to fetch {e.safe_url}: {type(e).__name__}: {e}"
+        hint = _POLICY_HINTS.get(e.reason, "")
+        return f"Error: failed to fetch {e.safe_url}: {type(e).__name__}: {e}{hint}"
     except Exception as e:
         try:
             safe_url = normalize_origin(url)
