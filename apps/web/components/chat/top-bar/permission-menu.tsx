@@ -107,7 +107,7 @@ export function PermissionBadge() {
             <span
               ref={hostRef}
               id="permissionBadge"
-              className={`${cn(buttonVariants({ variant: "ghost", size: "sm" }))} runtime-badge permission-badge`}
+              className={`${cn(buttonVariants({ variant: "secondary", size: "sm" }))} runtime-badge permission-badge`}
               onMouseEnter={() => iconRef.current?.startAnimation?.()}
               onMouseLeave={() => iconRef.current?.stopAnimation?.()}
             >

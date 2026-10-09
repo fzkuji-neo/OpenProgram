@@ -162,7 +162,7 @@ export function ControlsCluster({
               <Menu.Trigger
                 render={
                   <button
-                    className={`${cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))} ${styles.plusBtn} ${anyToolActive ? styles.hasActive : ""}`}
+                    className={`${cn(buttonVariants({ variant: "secondary", size: "icon-sm" }))} ${styles.plusBtn} ${anyToolActive ? styles.hasActive : ""}`}
                     onMouseEnter={() => plusIconRef.current?.startAnimation?.()}
                     onMouseLeave={() => plusIconRef.current?.stopAnimation?.()}
                     title={text("Add tools, files, and more", "添加工具、文件等")}
@@ -454,7 +454,7 @@ export function ControlsCluster({
                   {(
                     <button
                       type="button"
-                      className={`${cn(buttonVariants({ variant: "ghost", size: "sm" }))} ${styles.effortText}`}
+                      className={`${cn(buttonVariants({ variant: "secondary", size: "sm" }))} ${styles.effortText}`}
                       onMouseEnter={() => effortIconRef.current?.startAnimation?.()}
                       onMouseLeave={() => effortIconRef.current?.stopAnimation?.()}
                       onClick={() => {
