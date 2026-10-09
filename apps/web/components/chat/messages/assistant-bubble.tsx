@@ -27,7 +27,6 @@ import { Avatar } from "@/components/avatar";
 import { AttachCard } from "./attach-card";
 import {
   ExecutionStrip,
-  execStripLabel,
   FunctionStep,
   SPAWNING_TOOL_NAMES,
   SubAgentStep,
@@ -40,6 +39,7 @@ import { useAvatarAlign } from "./use-avatar-align";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { TurnFilesChips } from "./turn-files-chips";
+import { summarizeToolGroup } from "./tool-group-summary";
 import { shouldRenderTurnFiles } from "./turn-files-presentation";
 import { AssistantFileCards } from "./assistant-file-cards";
 import { parseAttachments } from "./user-attachments";
@@ -56,13 +56,24 @@ function SteeringInput({block, sessionId}: {block: AssistantBlock; sessionId?: s
  * same execution rows as current chat, never a second runtime-card renderer. */
 function LegacyRuntimeTrace({ children: calls }: { children: ChatMsg[] }) {
   const { text } = useTranslation();
+  const blocks: AssistantBlock[] = calls.map((call) => ({
+    type: "tool", tool: call.function || "call", tool_call_id: call.id,
+    result: call.content || undefined, is_error: call.status === "error",
+    outcome: call.status === "cancelled" ? "cancelled" : undefined,
+  }));
+  const running = calls.some((call) => call.status === "running" || call.status === "streaming");
   return (
-    <ExecutionStrip label={calls.length === 1 ? text("Called 1 function", "调用 1 个函数") : text(`Called ${calls.length} functions`, `调用 ${calls.length} 个函数`)}>
-      {calls.map((call) => (
+    <ExecutionStrip
+      streaming={running}
+      label={summarizeToolGroup(blocks, {
+        text,
+        active: running,
+        runningIds: new Set(calls.filter((call) => call.status === "running" || call.status === "streaming").map((call) => call.id)),
+      })}
+    >
+      {calls.map((call, index) => (
         <FunctionStep key={call.id}
-          block={{ type: "tool", tool: call.function || "call", tool_call_id: call.id,
-            result: call.content || undefined, is_error: call.status === "error",
-            outcome: call.status === "cancelled" ? "cancelled" : undefined }}
+          block={blocks[index]}
           tree={call.contextTree as TNode | undefined}
           running={call.status === "running" || call.status === "streaming"}
         />
@@ -414,8 +425,14 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                     key={`seg_${si}`}
                     streaming={activeExecution && seg.items.some(({ i }) => i === lastBlockIdx)}
                     subagentHeads={spawnHeads(seg.cards)}
-                    label={execStripLabel(
-                      seg.items.map(({ b }) => b), spawnNames(seg.cards), text)}
+                    label={summarizeToolGroup(seg.items.map(({ b }) => b), {
+                      text,
+                      active: activeExecution && seg.items.some(({ i }) => i === lastBlockIdx),
+                      runningIds: runningToolIds,
+                      spawnNames: spawnNames(seg.cards),
+                      turnFiles: msg.turnFiles,
+                      turnBlocks: effBlocks,
+                    })}
                   >
                     {steps}
                   </ExecutionStrip>,
@@ -437,7 +454,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                     key="legacy_subagents"
                     streaming={activeExecution}
                     subagentHeads={spawnHeads(attachFifo)}
-                    label={execStripLabel([], spawnNames(attachFifo), text)}
+                    label={summarizeToolGroup([], { text, spawnNames: spawnNames(attachFifo) })}
                   >
                     {attachFifo.map((card) => (
                       <SubAgentStep key={`sub_${card.id}`} card={card} />
@@ -465,7 +482,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 <ExecutionStrip
                   streaming={activeExecution}
                   subagentHeads={spawnHeads(attachFifo)}
-                  label={execStripLabel([], spawnNames(attachFifo), text)}
+                  label={summarizeToolGroup([], { text, spawnNames: spawnNames(attachFifo) })}
                 >
                   {attachFifo.map((card) => (
                     <SubAgentStep key={`sub_${card.id}`} card={card} />

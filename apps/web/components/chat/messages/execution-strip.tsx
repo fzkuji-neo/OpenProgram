@@ -15,7 +15,9 @@
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import { memo, useEffect, useState } from "react";
 import { Brain, ChevronRight, Wrench, type LucideIcon } from "lucide-react";
-import { parseToolArgs, presentTool, summarizeResult, type ToolTone } from "./tool-presentation";
+import { presentTool, summarizeResult, type ToolTone } from "./tool-presentation";
+import type { ToolGroupSummary } from "./tool-group-summary";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { afterTwoAnimationFrames } from "./collapse-frame";
 
 import type { AssistantBlock, ChatMsg, DetailNode } from "@/lib/session-store";
@@ -36,81 +38,13 @@ import {
 } from "@/components/animated-icons";
 import { MessageTimestamp } from "./message-actions";
 
-/** spawn 类工具：在摘要里算"子代理"，不算普通函数调用。
- * `agent` 生新分支；`send_message` 虽不再 spawn，但它仍触发目标分支跑
- * 一轮、仍在 caller 轮上落 attach 指针卡（runner 的 attach 路径），所以
- * 摘要里同样按"子代理活动"计。 */
-export const SPAWNING_TOOL_NAMES = new Set(["agent", "task", "send_message"]);
+export { SPAWNING_TOOL_NAMES } from "./tool-group-summary";
 
 function wsSend(payload: unknown): void {
   const sock = getSocket();
   if (sock && sock.readyState === WebSocket.OPEN) {
     sock.send(JSON.stringify(payload));
   }
-}
-
-function editedPath(input: string | undefined): string | null {
-  const args = parseToolArgs(input);
-  const path = args.path ?? args.file_path ?? args.filename;
-  return typeof path === "string" && path ? path : null;
-}
-
-/** One plain-language summary line: thought, edits, commands, reads,
- *  searches, other calls, sub-agents. Never lists individual tool names. */
-export function execStripLabel(
-  blocks: AssistantBlock[],
-  spawnNames: string[],
-  text: (en: string, zh: string) => string,
-): string {
-  let thinking = 0;
-  let spawnBlocks = 0;
-  let commands = 0;
-  let reads = 0;
-  let searches = 0;
-  let web = 0;
-  let others = 0;
-  let editsWithoutPath = 0;
-  const editedFiles = new Set<string>();
-  for (const b of blocks) {
-    if (b.type === "thinking") thinking++;
-    else if (b.type === "tool") {
-      const tool = b.tool || "";
-      // One categorisation shared with the timeline rows.
-      const tone = presentTool(tool, undefined, text).tone;
-      if (SPAWNING_TOOL_NAMES.has(tool)) spawnBlocks++;
-      else if (tone === "edit") {
-        const path = editedPath(b.input);
-        if (path) editedFiles.add(path);
-        else editsWithoutPath++;
-      } else if (tone === "shell") commands++;
-      else if (tone === "read") reads++;
-      else if (tone === "search") searches++;
-      else if (tone === "web") web++;
-      else others++;
-    }
-  }
-  const count = (n: number, one: string, many: string, zh: string) =>
-    text(`${n} ${n === 1 ? one : many}`, `${n} ${zh}`);
-  const parts: string[] = [];
-  if (thinking > 0) parts.push(text("thought", "思考"));
-  const edits = editedFiles.size + editsWithoutPath;
-  if (edits > 0) parts.push(text("edited ", "修改 ") + count(edits, "file", "files", "个文件"));
-  if (commands > 0) parts.push(text("ran ", "运行 ") + count(commands, "command", "commands", "条命令"));
-  if (reads > 0) parts.push(text("read ", "读取 ") + count(reads, "file", "files", "个文件"));
-  if (searches > 0) parts.push(text("searched ", "搜索 ") + count(searches, "time", "times", "次"));
-  if (web > 0) parts.push(text("browsed ", "浏览网页 ") + count(web, "time", "times", "次"));
-  if (others > 0) parts.push(text("called ", "调用 ") + count(others, "function", "functions", "个函数"));
-  const subAgents = Math.max(spawnBlocks, spawnNames.length);
-  if (subAgents > 0) {
-    parts.push(
-      spawnNames.length > 0
-        ? `${text("sub-agent", "子代理")}: ${spawnNames.join("、")}`
-        : text("ran ", "运行 ") + count(subAgents, "sub-agent", "sub-agents", "个子代理"),
-    );
-  }
-  if (parts.length === 0) return text("Execution", "执行过程");
-  const label = parts.join(text(", ", "，"));
-  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 /** 高度过渡容器：grid 0fr↔1fr 动画，展开向下推、收起平滑抽走。
@@ -141,7 +75,11 @@ function Collapse({ open, children }: {
 /** 时间线外壳：一行淡文字摘要 ›，点击展开竖线时间线。
  *
  *  流式与历史消息都默认收起。流式摘要仍以 shimmer 表示进行中；用户手动
- *  展开或收起后，本轮后续步骤和终态更新不覆盖该选择。 */
+ *  展开或收起后，本轮后续步骤和终态更新不覆盖该选择。
+ *
+ *  `label` is either a plain string or a tool-group summary
+ *  (tool-group-summary.ts), which adds the red failure note and the
+ *  +N −M badge. The label truncates to one line; the hover tip shows it whole. */
 export function ExecutionStrip({
   label,
   streaming,
@@ -149,7 +87,7 @@ export function ExecutionStrip({
   after,
   subagentHeads,
 }: {
-  label: string;
+  label: string | ToolGroupSummary;
   streaming?: boolean;
   children: React.ReactNode;
   /** Content that collapses with the trace but stays outside its vertical line. */
@@ -159,24 +97,46 @@ export function ExecutionStrip({
 }) {
   const [open, setOpen] = useState(false);
   const { text } = useTranslation();
+  const summary: ToolGroupSummary = typeof label === "string"
+    ? { label, failed: 0, added: null, removed: null }
+    : label;
+  const failedNote = summary.failed > 0
+    ? text(`· ${summary.failed} failed`, `· ${summary.failed} 个失败`)
+    : "";
+  const hasBadge = summary.added !== null && summary.removed !== null;
   return (
     <div
       className="tl"
       data-open={open ? "1" : "0"}
       data-subagent-heads={subagentHeads?.filter(Boolean).join(" ") || undefined}
     >
-      <button
-        type="button"
-        className="tl-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        title={open
-          ? text("Collapse execution trace", "收起执行过程")
-          : text("Expand execution trace", "展开执行过程")}
+      <HoverTip
+        label={
+          <TipBody
+            title={summary.label}
+            detail={open
+              ? text("Click to collapse the execution trace", "点击收起执行过程")
+              : text("Click to expand the execution trace", "点击展开执行过程")}
+          />
+        }
       >
-        <span className={streaming ? "tl-label-shimmer" : undefined}>{label}</span>
-        <span className="tl-chev" aria-hidden="true">›</span>
-      </button>
+        <button
+          type="button"
+          className="tl-toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span className={"tl-label" + (streaming ? " tl-label-shimmer" : "")}>{summary.label}</span>
+          {failedNote ? <span className="tl-fail">{failedNote}</span> : null}
+          {hasBadge ? (
+            <span className="turn-files-diff tl-diff">
+              <span className="turn-files-stat is-add">+{summary.added}</span>
+              <span className="turn-files-stat is-del">−{summary.removed}</span>
+            </span>
+          ) : null}
+          <span className="tl-chev" aria-hidden="true">›</span>
+        </button>
+      </HoverTip>
       <Collapse open={open}>
         <div className="tl-body">{children}</div>
         {after}

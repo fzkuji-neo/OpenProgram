@@ -59,8 +59,7 @@ td code{white-space:nowrap}
 <p class="lede">A folded run of tool calls in the chat transcript is headed by one line. This page defines what that line says: a short account of what the calls did, built on the client from the tool calls already in the transcript, with a <code>+N −M</code> badge when the run changed files. It also covers whether a turn-level summary is worth adding.</p>
 
 <h2>Where the row comes from</h2>
-<p><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/assistant-bubble.tsx">assistant-bubble.tsx</a> splits a turn's ordered <code>blocks</code> into segments. Each text block stands alone. Each run of consecutive thinking and tool blocks becomes one <code>ExecutionStrip</code> from <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/execution-strip.tsx">execution-strip.tsx</a>, and <code>execStripLabel()</code> in that file writes the header. Older records without ordered blocks go through <code>LegacyRuntimeTrace</code>, whose header is a bare call count. The collapsed row is a single 28px line, as <a href="chat-turn-visual-spec.html">the chat-turn visual spec</a> requires.</p>
-<p>Today the label only counts by category, in a fixed order: thought, edited, ran, read, searched, browsed, called. Thinking always comes first, a single file is still "1 file", search and web calls read as "N times", and any tool without a category becomes "called N functions". There is no change badge, and a running run differs from a settled one only by its shimmer.</p>
+<p><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/assistant-bubble.tsx">assistant-bubble.tsx</a> splits a turn's ordered <code>blocks</code> into segments. Each text block stands alone. Each run of consecutive thinking and tool blocks becomes one <code>ExecutionStrip</code> from <a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/execution-strip.tsx">execution-strip.tsx</a>, and <code>summarizeToolGroup()</code> writes its header. Older records without ordered blocks go through <code>LegacyRuntimeTrace</code>, which feeds its calls to the same function. The collapsed row is a single 28px line, as <a href="chat-turn-visual-spec.html">the chat-turn visual spec</a> requires.</p>
 
 <h2>Data each call carries</h2>
 <table>
@@ -104,7 +103,7 @@ td code{white-space:nowrap}
 <p>While the group is the live part of a streaming turn, completed buckets keep the past tense and the bucket of the call in progress switches to the present tense with a trailing "…". It moves to the end of the line, where the eye expects the newest step, for example "Read 2 files, running a command…". The shimmer stays. When the call finishes, the phrase settles back to the past tense in its first-occurrence position. If the group only has thinking so far, the label is "Thinking…".</p>
 
 <h3>Truncation</h3>
-<p>The full label is built and set as the toggle's <code>title</code>. On screen it is one line: the label span has <code>min-width:0</code> with a CSS ellipsis, and the failure note, badge and chevron are <code>flex:none</code>, so they never drop off. There is no character budget, so the same label fits a narrow side pane and a wide window.</p>
+<p>On screen the label is one line: the label span has <code>min-width:0</code> with a CSS ellipsis, and the failure note, badge and chevron are <code>flex:none</code>, so they never drop off. There is no character budget, so the same label fits a narrow side pane and a wide window. Hovering the row shows the full label in the shared <code>HoverTip</code>/<code>TipBody</code> tip, with a muted line saying a click expands or collapses the trace. The row has no native <code>title</code> tooltip.</p>
 
 <h3>Change badge</h3>
 <p>The badge shows when at least one file-writing call in the group succeeded and every successful one has known counts. It sums those counts, shows zeros (<code>+16 −0</code>), and reuses the turn file card's <code>.turn-files-diff</code> pill. Counts per call:</p>
@@ -122,36 +121,36 @@ td code{white-space:nowrap}
 <p>All of it is built on the client from structured tool data, as a pure function next to <code>tool-presentation.ts</code>. No model call and no backend change is needed. One optional backend refinement would make <code>write</code> exact while streaming and give exact per-group counts when two groups touch one file: stamp the tool-call id on each mutation-journal entry and send per-call <code>{path, op, added, removed}</code> with the tool result.</p>
 
 <h2>Preview</h2>
-<p>Each pair shows the header as it renders today, then the proposed one. Both are collapsed rows at the transcript's 15px size.</p>
+<p>Each pair contrasts a category-count header with this design's header for the same calls. Both are collapsed rows at the transcript's 15px size.</p>
 <div class="card">
   <div class="case">Command, then a new file</div>
-  <div class="pair"><span class="tag">Before</span><button class="tl-toggle"><span class="tl-label">Thought, edited 1 file, ran 1 command</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">After</span><button class="tl-toggle" title="Ran a command, created pill-shadow.html"><span class="tl-label">Ran a command, created pill-shadow.html</span><span class="diff"><span class="add">+16</span><span class="del">−0</span></span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">Counts</span><button class="tl-toggle"><span class="tl-label">Thought, edited 1 file, ran 1 command</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">Summary</span><button class="tl-toggle"><span class="tl-label">Ran a command, created pill-shadow.html</span><span class="diff"><span class="add">+16</span><span class="del">−0</span></span><span class="tl-chev">›</span></button></div>
 
   <div class="case">Investigate, then fix one file</div>
-  <div class="pair"><span class="tag">Before</span><button class="tl-toggle"><span class="tl-label">Thought, edited 1 file, read 3 files, searched 1 time</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">After</span><button class="tl-toggle"><span class="tl-label">Read 3 files, searched for "tl-toggle", edited execution-strip.tsx</span><span class="diff"><span class="add">+12</span><span class="del">−4</span></span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">Counts</span><button class="tl-toggle"><span class="tl-label">Thought, edited 1 file, read 3 files, searched 1 time</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">Summary</span><button class="tl-toggle"><span class="tl-label">Read 3 files, searched for "tl-toggle", edited execution-strip.tsx</span><span class="diff"><span class="add">+12</span><span class="del">−4</span></span><span class="tl-chev">›</span></button></div>
 
   <div class="case">Web research</div>
-  <div class="pair"><span class="tag">Before</span><button class="tl-toggle"><span class="tl-label">Browsed 3 times</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">After</span><button class="tl-toggle"><span class="tl-label">Searched the web 2 times, fetched docs.anthropic.com</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">Counts</span><button class="tl-toggle"><span class="tl-label">Browsed 3 times</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">Summary</span><button class="tl-toggle"><span class="tl-label">Searched the web 2 times, fetched docs.anthropic.com</span><span class="tl-chev">›</span></button></div>
 
   <div class="case">MCP and custom tools</div>
-  <div class="pair"><span class="tag">Before</span><button class="tl-toggle"><span class="tl-label">Ran 1 command, called 2 functions</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">After</span><button class="tl-toggle"><span class="tl-label">Used linear_search 2 times, ran a command</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">Counts</span><button class="tl-toggle"><span class="tl-label">Ran 1 command, called 2 functions</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">Summary</span><button class="tl-toggle"><span class="tl-label">Used linear_search 2 times, ran a command</span><span class="tl-chev">›</span></button></div>
 
   <div class="case">A command failed</div>
-  <div class="pair"><span class="tag">Before</span><button class="tl-toggle"><span class="tl-label">Edited 1 file, ran 2 commands</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">After</span><button class="tl-toggle"><span class="tl-label">Edited app.tsx, ran 2 commands</span><span class="tl-fail">· 1 failed</span><span class="diff"><span class="add">+3</span><span class="del">−3</span></span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">Counts</span><button class="tl-toggle"><span class="tl-label">Edited 1 file, ran 2 commands</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">Summary</span><button class="tl-toggle"><span class="tl-label">Edited app.tsx, ran 2 commands</span><span class="tl-fail">· 1 failed</span><span class="diff"><span class="add">+3</span><span class="del">−3</span></span><span class="tl-chev">›</span></button></div>
 
   <div class="case">Running (streaming)</div>
-  <div class="pair"><span class="tag">Before</span><button class="tl-toggle"><span class="tl-label shimmer">Thought, read 2 files, ran 1 command</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">After</span><button class="tl-toggle"><span class="tl-label shimmer">Read 2 files, running a command…</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">After</span><button class="tl-toggle"><span class="tl-label shimmer">Ran 2 commands, editing turn-files-chips.tsx…</span><span class="diff"><span class="add">+8</span><span class="del">−2</span></span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">Counts</span><button class="tl-toggle"><span class="tl-label shimmer">Thought, read 2 files, ran 1 command</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">Summary</span><button class="tl-toggle"><span class="tl-label shimmer">Read 2 files, running a command…</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">Summary</span><button class="tl-toggle"><span class="tl-label shimmer">Ran 2 commands, editing turn-files-chips.tsx…</span><span class="diff"><span class="add">+8</span><span class="del">−2</span></span><span class="tl-chev">›</span></button></div>
 
   <div class="case">Long group in a narrow pane (hover shows the full label)</div>
-  <div class="pair"><span class="tag">Before</span><div class="narrow"><button class="tl-toggle"><span class="tl-label">Thought, edited 4 files, ran 5 commands, read 6 files, searched 3 times, browsed 1 time</span><span class="tl-chev">›</span></button></div></div>
-  <div class="pair"><span class="tag after">After</span><div class="narrow"><button class="tl-toggle" title="Read 6 files, ran 3 searches, edited 4 files, ran 5 commands, fetched github.com"><span class="tl-label">Read 6 files, ran 3 searches, edited 4 files, ran 5 commands, fetched github.com</span><span class="diff"><span class="add">+210</span><span class="del">−88</span></span><span class="tl-chev">›</span></button></div></div>
+  <div class="pair"><span class="tag">Counts</span><div class="narrow"><button class="tl-toggle"><span class="tl-label">Thought, edited 4 files, ran 5 commands, read 6 files, searched 3 times, browsed 1 time</span><span class="tl-chev">›</span></button></div></div>
+  <div class="pair"><span class="tag after">Summary</span><div class="narrow"><button class="tl-toggle"><span class="tl-label">Read 6 files, ran 3 searches, edited 4 files, ran 5 commands, fetched github.com</span><span class="diff"><span class="add">+210</span><span class="del">−88</span></span><span class="tl-chev">›</span></button></div></div>
 </div>
 
 <h2>Turn-level summary</h2>
@@ -164,15 +163,16 @@ td code{white-space:nowrap}
 
 <h2>Implementation</h2>
 <ul>
-<li>New pure module <code>components/chat/messages/tool-group-summary.ts</code>: <code>summarizeToolGroup(blocks, {running, spawnNames, turnFiles, text})</code> returns <code>{label, failed, added, removed}</code>. It reuses <code>presentTool()</code>'s categories and adds a line-diff helper.</li>
-<li><code>ExecutionStrip</code> takes the summary object instead of a string: it renders the ellipsis label, the failure note, the badge and the chevron, and puts the full label in <code>title</code>. <code>execStripLabel()</code> and the <code>LegacyRuntimeTrace</code> count label both go through the new function.</li>
-<li><code>AssistantBubble</code> passes <code>msg.turnFiles</code> and the running-call set into each segment.</li>
-<li>CSS in <code>app/styles/chat/execution-strip.css</code>: ellipsis on the label span, and the badge reuses the <code>.turn-files-diff</code> rules.</li>
-<li>Tests in <code>apps/web/tests/chat/</code>: grammar per bucket, plurals in both languages, ordering, running tense, badge sources and unknown counts, and the edit line diff.</li>
+<li><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/tool-group-summary.ts">tool-group-summary.ts</a> is a pure module. <code>summarizeToolGroup(blocks, {text, active, runningIds, spawnNames, turnFiles, turnBlocks})</code> returns <code>{label, failed, added, removed}</code>; <code>added</code> and <code>removed</code> are both <code>null</code> when there is no badge. It owns <code>SPAWNING_TOOL_NAMES</code>, reuses <code>presentTool()</code>'s tones for tools it has no bucket for, and exports <code>lineDiff()</code> (LCS over lines after trimming the common head and tail, capped at <code>LINE_DIFF_CAP</code> = 2,000 lines) and <code>parsePatch()</code>.</li>
+<li><code>ExecutionStrip</code> takes <code>label: string | ToolGroupSummary</code>. A plain string, as the workflow runtime card and the debugger panel pass, renders as before with no note or badge. The row renders the ellipsis label, the red failure note, the badge (the <code>.turn-files-diff</code> / <code>.turn-files-stat</code> pill of the turn file card), the chevron, and the hover tip.</li>
+<li><code>AssistantBubble</code> passes each segment's blocks with the whole turn's blocks, <code>msg.turnFiles</code>, the running-call ids, and whether the segment is the live tail.</li>
+<li>Legacy records go through the same function. <code>LegacyRuntimeTrace</code> (agent calls stored without ordered blocks) turns each call into a tool block named after its function, so the header reads "Used extract_tables" rather than "Called 1 function", and it now shimmers while a call runs. Legacy sub-agent strips with no tool blocks pass only their spawn labels.</li>
+<li>CSS in <code>app/styles/chat/execution-strip.css</code>: <code>.tl-label</code> ellipsis, <code>.tl-fail</code>, and <code>flex:none</code> on <code>.tl-diff</code> and <code>.tl-chev</code>.</li>
+<li>Tests: <code>apps/web/tests/chat/tool-group-summary.test.mjs</code> covers grammar per bucket, plurals in both languages, ordering, the running tense, failures, badge sources and unknown counts, apply_patch parsing, and the capped line diff.</li>
 </ul>
 
 <h2>Implementation status</h2>
-<p>Design only. The transcript still renders <code>execStripLabel()</code>'s category counts. The chat-turn visual spec is updated when this lands.</p>
+<p>Implemented as described. The optional backend refinement (tool-call ids on mutation-journal entries) is not built, so a <code>write</code> over an existing file shows its badge only once the turn settles.</p>
 </main>
 </body>
 </html>
