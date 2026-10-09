@@ -65,6 +65,7 @@ import {
 } from "@/lib/chat/session-resources";
 import { isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab-bounds";
 import styles from "./center-tabs.module.css";
+import { webToolbarButton } from "./toolbar-button";
 import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
 import { BookmarkBar } from "./bookmark-bar";
 import { ActionCueTravel, BrowserControlBar } from "./browser-control-bar";
@@ -108,7 +109,7 @@ function BookmarkButton({ tabId, url, title }: { tabId: string; url: string; tit
   return (
     <button
       type="button"
-      className={styles.webToolbarBtn}
+      className={webToolbarButton()}
       onClick={() => toggleBookmark({ url, title, faviconUrl })}
       title={text(bookmarked ? "Remove bookmark" : "Bookmark", bookmarked ? "移除书签" : "添加书签")}
       aria-label={text(bookmarked ? "Remove bookmark" : "Bookmark", bookmarked ? "移除书签" : "添加书签")}
@@ -148,7 +149,7 @@ function CollapseToPipButton({ tabId }: { tabId: string }) {
   return (
     <button
       type="button"
-      className={styles.webToolbarBtn}
+      className={webToolbarButton()}
       onClick={() => collapseWebTabToPip(tabId)}
       title={label}
       aria-label={label}
@@ -208,7 +209,7 @@ function HomeButton({ tabId }: { tabId: string }) {
   return (
     <button
       type="button"
-      className={`${styles.webToolbarBtn} ${styles.webToolbarMedium}`}
+      className={webToolbarButton(styles.webToolbarMedium)}
       onClick={() => useCenterTabs.getState().replaceWebTabWithNewTabPage(tabId)}
       title={label}
       aria-label={label}
@@ -552,7 +553,7 @@ function DesktopWebTabPane({
       <div className={styles.webToolbar}>
         <button
           type="button"
-          className={styles.webToolbarBtn}
+          className={webToolbarButton()}
           onClick={() => {
             bridge.webTab.goBack(tabId);
           }}
@@ -564,7 +565,7 @@ function DesktopWebTabPane({
         </button>
         <button
           type="button"
-          className={`${styles.webToolbarBtn} ${styles.webToolbarForward}`}
+          className={webToolbarButton(styles.webToolbarForward)}
           onClick={() => {
             bridge.webTab.goForward(tabId);
           }}
@@ -576,7 +577,7 @@ function DesktopWebTabPane({
         </button>
         <button
           type="button"
-          className={`${styles.webToolbarBtn} ${loading ? styles.webStopLoading : ""}`}
+          className={webToolbarButton(loading && styles.webStopLoading)}
           onClick={() => {
             if (loading) bridge.webTab.stop(tabId);
             else {
@@ -605,7 +606,7 @@ function DesktopWebTabPane({
         <BookmarksLibraryButton />
         <button
           type="button"
-          className={`${styles.webToolbarBtn} ${styles.webToolbarMedium}`}
+          className={webToolbarButton(styles.webToolbarMedium)}
           onClick={() => bridge.openExternal(viewUrlRef.current)}
           title={text("Open in browser", "在浏览器中打开")}
         >
@@ -736,7 +737,7 @@ function IframeWebTabPane({ tabId, url, menuOwnerId }: { tabId: string; url: str
       <div className={styles.webToolbar}>
         <button
           type="button"
-          className={styles.webToolbarBtn}
+          className={webToolbarButton()}
           onClick={() => {
             setFrameEpoch((e) => e + 1);
           }}
@@ -760,7 +761,7 @@ function IframeWebTabPane({ tabId, url, menuOwnerId }: { tabId: string; url: str
         <BookmarksLibraryButton />
         <button
           type="button"
-          className={`${styles.webToolbarBtn} ${styles.webToolbarMedium}`}
+          className={webToolbarButton(styles.webToolbarMedium)}
           onClick={openExternal}
           title={text("Open in browser", "在浏览器中打开")}
         >

@@ -173,7 +173,7 @@ export function WebTabPipSurface({ tabId, url, native }: {
       title={text("Interactive page preview", "可交互页面预览")}
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
       className={styles.webPipFrame}
-    /> : <div className={styles.webPipFallback}>{text("This page cannot be embedded", "此页面无法嵌入")}</div>}
+    /> : <div className={`${styles.webPipFallback} text-xs text-muted-foreground`}>{text("This page cannot be embedded", "此页面无法嵌入")}</div>}
     </div>
   </div>;
 }

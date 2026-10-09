@@ -32,6 +32,22 @@ and is wider than the chip (up to 320 px, paths wrap anywhere).
 | Effort | Thinking effort: <level> | how long the model thinks; click to adjust |
 | Model badges | Chat Agent / Execution Agent: <model> | its role; click to change model |
 
+## Web page preview header
+
+The floating page preview over chat (`components/center-tabs/web-tab-pip.tsx`)
+uses the same `HoverTip` + `TipBody` on its header buttons. The eight
+resize handles keep their `aria-label`s but show no tip: a bubble popping
+up over the page while the pointer skims the edge is noise. The title and
+status text are labels, not controls; they keep a native `title` with the
+full text for when they truncate.
+
+| Control | Title | Detail |
+|---|---|---|
+| Open page | Open page | Switch to this tab in the centre |
+| Review request (while the agent waits for approval) | Review request | The agent is waiting for your confirmation |
+| More (⋮) | More | Auto-follow, action markers and operation history |
+| Close (✕) | Close preview | Hides the preview; the agent keeps working |
+
 ## Implementation status
 
 - All rows above: **implemented**.

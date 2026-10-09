@@ -255,6 +255,32 @@ The chat composer is built from the same parts:
   alpha 0.1 on light themes, 0.25 on dark), no focus ring; 23px
   corners (a pill at one line).
 
+## Web page preview and browser toolbar
+
+The floating page preview over chat
+(`components/center-tabs/web-tab-pip.tsx`) is a popover card:
+`bg-popover`, `ring-1 ring-foreground/10` in place of a border,
+`shadow-lg`, 10px corners on all four sides, and the stage below the
+header clips the page at the same bottom radius. The radius is pinned
+to the native page view's corner radius
+(`apps/desktop/main/web-views.js`), which the DOM cannot clip: a
+larger frame radius would let page pixels show past the bottom
+corners, so the two change together or not at all. The 32px header
+holds the title (`text-sm font-medium text-foreground`), the status
+(`text-xs text-muted-foreground`), and `ghost` `icon-xs` icon buttons
+with 14px icons whose hover tips are `HoverTip` + `TipBody`
+([hover-tips.md](hover-tips.md)); a resume error is one line of
+`text-xs text-destructive`, no box. The CSS module keeps geometry only
+(position, size, drag cursor, resize handles), because unlayered
+module rules would beat the utilities.
+
+The browser toolbar's icon buttons (back / forward / reload / home /
+bookmark / library / open in browser / menu, and the control bar) are
+the same `ghost` Button through `webToolbarButton()`
+(`components/center-tabs/toolbar-button.ts`): `icon-sm` for its 14px
+icon rule, held at the toolbar's 26px by `.webToolbarBtn`, which
+carries geometry only, so the 40px row keeps its rhythm.
+
 ## Don'ts
 
 - Don't invent a new hover / selected / border treatment per
@@ -286,7 +312,9 @@ The chat composer is built from the same parts:
 ## Implementation status
 
 - Done: `Button` (radix-luma), the composer environment chips,
-  bottom-row controls, send button, and input box.
+  bottom-row controls, send button, input box, the web page preview
+  (frame, header, icon buttons), and the browser toolbar's icon
+  buttons.
 - Not yet migrated: popover / menu panels (`MENU_PANEL`,
   `components/ui/popover.tsx`, `dropdown-menu.tsx`), tooltips,
   badges, and the hand-styled CSS-module popups — they still use
