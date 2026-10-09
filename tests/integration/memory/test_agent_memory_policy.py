@@ -134,7 +134,11 @@ def test_direct_tools_and_core_obey_mode_and_space(runtime):
         assert 'SELF_ONLY' in get_backend().system_prompt()
         assert 'GLOBAL_SECRET' not in get_backend().system_prompt()
         assert json.loads(memory_update(base_revision='unused'))['error']['code'] == 'MEMORY_ACCESS_DENIED'
-        assert json.loads(memory_get(path='core.md', space='legacy_global'))['error']['code'] == 'MEMORY_ACCESS_DENIED'
+        denied = json.loads(memory_get(path='core.md', space='legacy_global'))['error']
+        assert denied['code'] == 'MEMORY_ACCESS_DENIED'
+        # The denial names the authorized space so the model can retry.
+        assert "'legacy_global' is not authorized" in denied['message']
+        assert 'authorized: self' in denied['message'] and 'Omit `space`' in denied['message']
     profile['memory']['mode'] = 'off'
     with scope(resolve('private', profile)):
         assert get_backend().system_prompt() == ''
