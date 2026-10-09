@@ -98,20 +98,21 @@
   backdrop-filter: var(--composer-backdrop-filter);
   -webkit-backdrop-filter: var(--composer-backdrop-filter);
   border: none;
-  /* shadcn Luma input-group: a pill while it is one line (half the
-     46px row); taller multi-line boxes keep the same 23px corners. */
+  /* Luma pill while it is one line (half the 46px row); taller
+     multi-line boxes keep the same 23px corners. */
   border-radius: 23px;
   /* Chat mode: the controls row lives OUTSIDE the wrapper now, so no
      bottom band is reserved. fn-form mode restores it (below). */
   padding: 0;
-  /* Surface / ring tokens are per theme (app/styles/themes/*), set to
-     the shadcn Luma input-group recipe; box-shadow draws the focus ring
-     without a layout shift. */
+  /* Surface / shadow tokens are per theme (app/styles/themes/*): the
+     borderless shadcn Luma Card look, shadow-sm at rest and shadow-md
+     on hover / focus. */
   box-shadow: var(--composer-shadow);
   overflow: hidden;
   transition: box-shadow 180ms ease,
     height var(--composer-height-transition);
 }
+.inputWrapper:hover,
 .inputWrapper:focus-within {
   box-shadow: var(--composer-shadow-focus);
 }
