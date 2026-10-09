@@ -621,7 +621,17 @@ def _capture_bridged_pages(
             preferred_tab_id=requested_tab_id,
         )
 
-    captured = surface_context.capture_pages(source)
+    try:
+        captured = surface_context.capture_pages(source)
+    except surface_context.DesktopUnavailableError:
+        # A binding revoked by a Desktop reconnect is not the end of the run:
+        # list the same originating window again, never another window.
+        if not binding_id or not allowed_window_id:
+            raise
+        captured = surface_context.capture_pages(surface_context.window_context(
+            allowed_window_id,
+            preferred_tab_id=requested_tab_id,
+        ))
     surfaces = [
         item for item in captured.get("surfaces") or []
         if isinstance(item, dict)
@@ -793,6 +803,10 @@ def _bridge_webtab_to_parent(
                 )
             except Exception as exc:
                 result = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+                from openprogram.agent.surface_context import DesktopUnavailableError
+                if isinstance(exc, DesktopUnavailableError):
+                    # The child waits for its window instead of failing.
+                    result["reason_code"] = "desktop_unavailable"
         answer_queue.put({
             "__op_webtab_result__": True,
             "req_id": data.get("req_id") if isinstance(data, dict) else None,

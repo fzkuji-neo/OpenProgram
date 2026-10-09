@@ -275,7 +275,9 @@ def load_outbound_security_config(
         raise ValueError("invalid outbound URL security configuration")
     raw = security.get("outbound_url", {})
     result = parse_outbound_url_settings(raw).security_for(consumer)
-    if consumer.startswith(("provider.", "webui.model_listing.")) and result.policy_proxy is None:
+    from openprogram.security.safe_http import uses_ambient_proxy
+
+    if uses_ambient_proxy(consumer) and result.policy_proxy is None:
         from openprogram.providers.utils.http_proxy import get_proxy_mounts
 
         result = replace(

@@ -72,6 +72,7 @@ EXPECTED_FIXED_ORIGINS = {
             "https://chat-api.you.com",
             "https://export.arxiv.org",
             "https://google.serper.dev",
+            "https://html.duckduckgo.com",
             "https://kagi.com",
             "https://ollama.com",
             "https://s.jina.ai",
