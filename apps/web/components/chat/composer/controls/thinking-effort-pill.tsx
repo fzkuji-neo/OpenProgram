@@ -1,56 +1,17 @@
-/**
- * Effort pill — the trigger IS the picker.
- *
- * Collapsed: a 32px round chip showing just the dumbbell icon, tinted by
- * the current effort level. Hovering slides out a right-caret (the same
- * gesture as the neighbouring tool chips' ×). CLICK to expand — hover
- * alone never opens the card.
- *
- * Expanded: a floating card ABOVE the trigger wearing the same frame as
- * every other popup (lib/glass.ts GLASS_SURFACE: glass surface, 10px
- * radius, hairline, glass shadow) with 10px padding. Top to bottom:
- *   1. header — muted "Effort", the current level in `--accent-purple`,
- *      then right-aligned the Fast gauge toggle and a (?) HoverTip that
- *      explains what effort does;
- *   2. "Faster" / "Smarter" end labels;
- *   3. the track — a 4-row dot matrix (`lib/effort-matrix.ts`, drawn by
- *      <EffortDotMatrix/>) in which every dot grows and brightens towards
- *      the right, grey behind the thumb and lavender ahead of it. It sits
- *      under the Radix slider, whose own track / range / ticks
- *      effort-pill.css paints transparent, so clicking, dragging and the
- *      arrow keys still move between options exactly as before. The thumb
- *      is a 16×20 rounded chip; resting the pointer on it, dragging it or
- *      keyboard-focusing it shows the level name in a small tip above it.
- *      At `max` the UltraRain canvas still floods the passed side of the
- *      track (the Ultracode form);
- *   4. a muted "Recommended" caption under the option the backend marks
- *      as the model's default (`ThinkingOption.recommended`).
- * Stays open until the user clicks OUTSIDE the card (same dwell behaviour
- * as every other popover) — mouse-leave never collapses it; that
- * outside-click close is owned by composer/index.
- *
- * Layout: the pill is wrapped in a ``position: relative`` host. The
- * shell is absolute so neither state resizes the row. Collapsed widths
- * (32 / 48 hover) and the expanded card geometry live in effort-pill.css
- * on `.effort-pill-shell`.
- *
- * Extracted from composer/index.tsx to keep that file under the
- * project's no-1000-line-files rule.
- */
 "use client";
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { CircleHelp } from "lucide-react";
 
 import { Slider } from "@/components/ui/slider";
-import { UltraRain } from "./ultra-rain";
-import { EffortDotMatrix } from "./effort-dot-matrix";
+import { EffortField } from "./effort-field";
+import { EffortLabel } from "./effort-label";
 import type { ThinkingOption } from "./use-thinking-effort";
 import { HoverTip, TipBody } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
 import { effortLevelColor, formatEffortLabel } from "@/lib/effort-color";
 import { GLASS_SURFACE } from "@/lib/glass";
-import { captionAlignment, THUMB_WIDTH, thumbCenterX } from "@/lib/effort-matrix";
+import { captionAlignment, THUMB_WIDTH } from "@/lib/effort-matrix";
 import { type AnimatedNavIconHandle, GaugeIcon } from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
 
@@ -117,14 +78,6 @@ const ThinkingEffortSliderPill = React.forwardRef<
   );
   const maxIndex = Math.max(0, options.length - 1);
   const recommendedIndex = options.findIndex((o) => o.recommended);
-  // Warm hue per effort level, interpolated continuously so EVERY level
-  // gets its own colour: hsl hue runs 48° (yellow, lowest) → 0° (red,
-  // highest) across the non-off stops, with saturation/lightness easing
-  // up alongside. Endpoints match the old fixed palette (#fbbf24 …
-  // #ff5c5c). NOT the project `--accent-*` tokens — those are muted /
-  // earthy and looked drab in the slider. `off` keeps neutral
-  // bright-white. Everything below derives from this single hue so the
-  // collapsed tint / range / glyph all agree.
   const warmHue = effortLevelColor(options, value);
 
   // Effort-level tint for the COLLAPSED pill — `warmHue` at low
@@ -139,7 +92,7 @@ const ThinkingEffortSliderPill = React.forwardRef<
 
   // Active hue for the slider's focus ring — `warmHue` at ~70% so it
   // still reads as a soft fill. Passed down via the `--slider-active`
-  // CSS custom property (the track itself is the dot matrix now).
+  // CSS custom property.
   const activeColor = `color-mix(in srgb, ${warmHue} 72%, transparent)`;
 
   // Fully-opaque variant for the effort icon. It stays visually
@@ -165,28 +118,7 @@ const ThinkingEffortSliderPill = React.forwardRef<
   const [dragging, setDragging] = useState(false);
   const dragEndRef = useRef<(() => void) | null>(null);
 
-  // The dot matrix is laid out from the track's measured width. The card
-  // can be clamped by the composer-row container query, so a
-  // ResizeObserver keeps the measurement current while the card is open.
-  // Closing the card also drops any hover state the pointer left behind.
-  const hasTrack = expanded && options.length > 1;
-  const trackRef = useRef<HTMLDivElement>(null);
-  const [trackWidth, setTrackWidth] = useState(0);
-  useLayoutEffect(() => {
-    const el = trackRef.current;
-    if (!el) {
-      thumbHoverRef.current = false;
-      setThumbHover(false);
-      return;
-    }
-    const measure = () => setTrackWidth(el.getBoundingClientRect().width);
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasTrack]);
-
+  const atHighest = options.length > 1 && valueIndex === maxIndex;
   const updateThumbHover = (clientX: number) => {
     const rect = thumbRef.current?.getBoundingClientRect();
     const inside = !!rect && clientX >= rect.left && clientX <= rect.right;
@@ -208,7 +140,10 @@ const ThinkingEffortSliderPill = React.forwardRef<
     window.addEventListener("pointercancel", end);
     setDragging(true);
   };
-  useEffect(() => () => dragEndRef.current?.(), []);
+  useEffect(() => {
+    if (!expanded) { dragEndRef.current?.(); setThumbHover(false); thumbHoverRef.current = false; }
+    return () => dragEndRef.current?.();
+  }, [expanded]);
 
   return (
     <div
@@ -275,17 +210,15 @@ const ThinkingEffortSliderPill = React.forwardRef<
         </div>
         {expanded && (
           /* 卡片内容自上而下：标题行（muted 维度 + 紫色当前档 + Fast 仪表
-             + ? 帮助）、Faster/Smarter 两端标签、点阵滑轨、"推荐"标注。
+             + ? 帮助）、Faster/Smarter 两端标签、刻度滑轨、"推荐"标注。
              画框 = GLASS_SURFACE，与所有弹层同一画框。
              标题 13px；标题→标签 10、标签→轨 10、轨→标注 6。 */
           <div
-            className={`effort-card ${value === "max" ? "effort-ultra" : ""} ${GLASS_SURFACE} p-[10px]`}
+            className={`effort-card ${atHighest ? "effort-ultra" : ""} ${GLASS_SURFACE} p-[10px]`}
           >
             <div className="flex items-center gap-[6px] text-[13px] leading-[18px]">
               <span className="text-text-muted">{text("Effort", "思考力度")}</span>
-              <span className="font-medium text-[var(--accent-purple)]">
-                {formatEffortLabel(value)}
-              </span>
+              <EffortLabel label={formatEffortLabel(value)} index={valueIndex} accent={atHighest} />
               <HoverTip label={fastHint}>
                 <button type="button"
                   className="effort-fast-toggle ml-auto"
@@ -323,11 +256,8 @@ const ThinkingEffortSliderPill = React.forwardRef<
               <span>{text("Faster", "更快")}</span>
               <span>{text("Smarter", "更强")}</span>
             </div>
-            <div ref={trackRef} className="effort-track relative mt-[10px] h-[20px]">
-              <EffortDotMatrix
-                width={trackWidth}
-                thumbX={thumbCenterX(valueIndex, options.length, trackWidth)}
-              />
+            <div className="effort-track relative mt-[10px] h-[20px]" data-dragging={dragging ? "true" : undefined}>
+              <EffortField active={atHighest} />
               <Slider
                 min={0}
                 max={maxIndex}
@@ -335,9 +265,8 @@ const ThinkingEffortSliderPill = React.forwardRef<
                 stops={options.length}
                 value={[valueIndex]}
                 data-thumb-tip={thumbHover || dragging ? "true" : undefined}
-                // 最高档：滑过区叠紫色像素矩阵动画（入场辐射 + 逐格随机
-                // 闪烁）。canvas 每次进入 max 时重新挂载 → 重播入场。
-                rangeChildren={value === "max" ? <UltraRain key="ultra" /> : null}
+                markedStop={recommendedIndex}
+                thumbProps={{ "aria-label": text("Thinking effort", "思考力度"), "aria-valuetext": formatEffortLabel(value) }}
                 onValueChange={(v) => {
                   const idx = v[0] ?? 0;
                   const next = options[idx];
@@ -348,7 +277,7 @@ const ThinkingEffortSliderPill = React.forwardRef<
                 onPointerLeave={() => updateThumbHover(Number.NaN)}
                 onPointerDown={(e) => {
                   updateThumbHover(e.clientX);
-                  startDrag();
+                  if (e.button === 0) startDrag();
                 }}
                 thumb={
                   // Theme-aware chip, same height as the track. White on
@@ -358,7 +287,7 @@ const ThinkingEffortSliderPill = React.forwardRef<
                   <span
                     ref={thumbRef}
                     aria-hidden="true"
-                    className="absolute left-1/2 top-1/2 h-[20px] w-[16px] -translate-x-1/2 -translate-y-1/2 rounded-[6px] bg-[var(--effort-thumb)] pointer-events-none shadow-[var(--shadow-sm)]"
+                    className="effort-thumb absolute left-1/2 top-1/2 h-[20px] w-[16px] -translate-x-1/2 -translate-y-1/2 rounded-[6px] bg-[var(--effort-thumb)] pointer-events-none shadow-[var(--shadow-sm)]"
                   >
                     <span className="effort-thumb-tip">{formatEffortLabel(value)}</span>
                   </span>
