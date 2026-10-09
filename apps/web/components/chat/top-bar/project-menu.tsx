@@ -240,19 +240,19 @@ export function ProjectMenu({
     ["missing", "replaced", "migrating", "pending", "error"].includes(locationState ?? "");
 
   const errorLine = err ? (
-    <div className="px-[8px] pb-[3px] pt-[1px] text-[11px] text-[var(--accent-orange)]">
+    <div className="px-[10px] pb-[3px] pt-[1px] text-[11px] text-[var(--accent-orange)]">
       {err}
     </div>
   ) : null;
 
   if (frozen) {
     return (
-      <div className={`${MENU_PANEL} min-w-[230px] max-w-[340px]`}>
+      <div className={MENU_PANEL}>
         <div className={GROUP_LABEL}>
           {text("Main working directory", "主工作目录")}
         </div>
         <div
-          className="px-[8px] pb-[4px] pt-[1px] text-[12px] text-[var(--text-secondary)]"
+          className="px-[10px] pb-[4px] pt-[1px] text-[12px] text-[var(--text-secondary)]"
           title={activeProject?.path || ""}
         >
           <div className="truncate">{activeProject?.name ?? "—"}</div>
@@ -308,7 +308,7 @@ export function ProjectMenu({
             </div>
           </>
         ) : (
-          <div className="px-[8px] pb-[4px] text-[11px] text-[var(--text-secondary)] opacity-70">
+          <div className="px-[10px] pb-[4px] text-[11px] text-[var(--text-secondary)] opacity-70">
             {text(
               "Fixed for this conversation. Extra folders can still be added below.",
               "本会话已固定。仍可在下方添加额外目录。",
@@ -321,7 +321,7 @@ export function ProjectMenu({
   }
 
   return (
-    <div className={`${MENU_PANEL} min-w-[230px] max-w-[340px]`}>
+    <div className={MENU_PANEL}>
       <div className={GROUP_LABEL}>{text("Recent", "最近")}</div>
 
       {/* 目录已不存在的项目仍然列出（静默消失会让用户以为项目丢了），

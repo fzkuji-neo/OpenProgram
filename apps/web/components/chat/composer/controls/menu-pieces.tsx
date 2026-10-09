@@ -1,7 +1,9 @@
 /**
  * Small visual pieces used by the Composer's bottom row — active-tool
- * chip + plus-menu row. Behaviour stays in Composer; these are pure
- * presentation.
+ * chip + options-menu row. Behaviour stays in Composer; these are pure
+ * presentation. The row is a radix DropdownMenuItem on the shared menu
+ * grammar (top-bar/menu-styles), so the options menu reads exactly like
+ * every other popup menu in the app.
  */
 "use client";
 
@@ -11,6 +13,8 @@ import {
   isValidElement,
   useLayoutEffect,
   useRef,
+  type ComponentPropsWithoutRef,
+  type ElementRef,
   type HTMLAttributes,
   type ReactElement,
   type ReactNode,
@@ -19,9 +23,16 @@ import {
 import styles from "../composer.module.css";
 import { type AnimatedNavIconHandle } from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/lib/i18n";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  CHECK_SLOT,
+  CHECK_SLOT_PAD,
+  MENU_ITEM_STATES,
+  itemCls,
+} from "../../top-bar/menu-styles";
 
 /**
  * Drive an animated toolbar icon from its *container's* hover, so the
@@ -94,66 +105,92 @@ export const ToolChip = forwardRef<HTMLDivElement, ToolChipProps>(function ToolC
   );
 });
 
-export function PlusMenuItem({
-  active,
-  onClick,
-  icon,
-  label,
-  title,
-  trailing,
-}: {
+type PlusMenuRowProps = Omit<
+  ComponentPropsWithoutRef<typeof DropdownMenuItem>,
+  "onSelect" | "children"
+> & {
+  /** Checked state — a right-aligned check in the shared CHECK_SLOT column. */
   active: boolean;
-  onClick: () => void;
+  /** 16px leading glyph; null for rows without one (the profile list). */
   icon: ReactNode;
   label: string;
-  title?: string;
-  trailing?: ReactNode;   // 右侧附加（未勾选时显示，如数字快捷键 / "Enable"）
-}) {
-  const { node, onMouseEnter, onMouseLeave } = useHoverDrivenIcon(icon);
-  // The ✓ plays its pop-in exactly once — at the moment the item
-  // becomes checked (active: false → true). It does NOT animate on
-  // hover: attaching a ref puts the icon in "controlled" mode, so it no
-  // longer self-animates on its own hover, and we never drive it from
-  // the row's mouse handlers. Re-opening the menu on an already-checked
-  // item does not replay it (prevActive starts equal to active on mount,
-  // so the false→true edge isn't seen). useLayoutEffect fires before
-  // paint, so the path starts hidden instead of flashing fully-drawn.
-  const checkRef = useRef<AnimatedNavIconHandle>(null);
-  const prevActive = useRef(active);
-  useLayoutEffect(() => {
-    if (active && !prevActive.current) {
-      checkRef.current?.startAnimation?.();
-    }
-    prevActive.current = active;
-  }, [active]);
-  return (
-    <div
-      className={`${styles.plusMenuItem} ${active ? styles.active : ""}`}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      title={title}
-    >
-      <div className={styles.plusMenuLeft}>
-        {icon != null && <span className={styles.plusMenuIcon}>{node}</span>}
-        <span className={styles.plusMenuLabel}>{label}</span>
-      </div>
-      <div className={styles.plusMenuRight}>
-        {/* 文法 A：勾 = 14px ink。trailing（如 Tools 行的设置齿轮）画在
-            勾的左边——学 claude.ai 环境菜单：⚙ 在 ✓ 左侧，行为分开。 */}
-        {trailing != null ? (
-          <span style={{ fontSize: 12, color: "var(--text-muted)", display: "inline-flex" }}>{trailing}</span>
+  /** Toggles keep the menu open; plain actions (attach, pick a profile)
+   *  let radix close it. */
+  keepOpen?: boolean;
+  onSelect: () => void;
+  /** Right-side metadata, drawn before the check column (grammar A). */
+  trailing?: ReactNode;
+};
+
+/**
+ * One options-menu row: a radix DropdownMenuItem on the canonical
+ * `itemCls` (24px · 13px · 6px radius · hover is the only tint) plus the
+ * radix keyboard / disabled states. Layout is the shared grammar —
+ * `[16px icon] label … trailing [check | pad]` — so labels and checks sit
+ * in the same columns as the top-bar menus.
+ */
+export const PlusMenuRow = forwardRef<ElementRef<typeof DropdownMenuItem>, PlusMenuRowProps>(
+  function PlusMenuRow(
+    { active, icon, label, keepOpen = false, onSelect, trailing, className, ...rest },
+    ref,
+  ) {
+    const { node, onMouseEnter, onMouseLeave } = useHoverDrivenIcon(icon);
+    // The ✓ plays its pop-in exactly once — at the moment the item
+    // becomes checked (active: false → true). It does NOT animate on
+    // hover: attaching a ref puts the icon in "controlled" mode, so it no
+    // longer self-animates on its own hover, and we never drive it from
+    // the row's mouse handlers. Re-opening the menu on an already-checked
+    // item does not replay it (prevActive starts equal to active on mount,
+    // so the false→true edge isn't seen). useLayoutEffect fires before
+    // paint, so the path starts hidden instead of flashing fully-drawn.
+    const checkRef = useRef<AnimatedNavIconHandle>(null);
+    const prevActive = useRef(active);
+    useLayoutEffect(() => {
+      if (active && !prevActive.current) {
+        checkRef.current?.startAnimation?.();
+      }
+      prevActive.current = active;
+    }, [active]);
+    return (
+      <DropdownMenuItem
+        ref={ref}
+        {...rest}
+        className={cn(itemCls(false), MENU_ITEM_STATES, className)}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        onSelect={(e) => {
+          if (keepOpen) e.preventDefault();
+          onSelect();
+        }}
+      >
+        {/* Fixed 16px icon column so labels align across rows whatever a
+            glyph's intrinsic box. */}
+        {icon != null ? (
+          <span
+            className="flex h-[16px] w-[16px] shrink-0 items-center justify-center"
+            aria-hidden="true"
+          >
+            {node}
+          </span>
         ) : null}
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        {trailing}
+        {/* Grammar A: the selected row shows a 14px ink check; every
+            other row reserves the column so right-side metadata (the
+            Tools gear) stays aligned. */}
         {active ? (
           <SolarIcon
             ref={checkRef}
             name="check-circle"
             size={14}
             motionPreset="pulse"
-            style={{ color: "var(--text-bright)" }}
+            className={CHECK_SLOT}
+            aria-hidden="true"
           />
-        ) : null}
-      </div>
-    </div>
-  );
-}
+        ) : (
+          <span className={CHECK_SLOT_PAD} />
+        )}
+      </DropdownMenuItem>
+    );
+  },
+);

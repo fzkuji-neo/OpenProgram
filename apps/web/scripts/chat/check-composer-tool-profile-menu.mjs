@@ -8,19 +8,59 @@ const controls = fs.readFileSync(
   path.join(webRoot, "components/chat/composer/controls/controls-cluster.tsx"),
   "utf8",
 );
+const pieces = fs.readFileSync(
+  path.join(webRoot, "components/chat/composer/controls/menu-pieces.tsx"),
+  "utf8",
+);
 const css = fs.readFileSync(
   path.join(webRoot, "components/chat/composer/composer.module.css"),
   "utf8",
 );
 
+// ── One menu grammar ────────────────────────────────────────────────
+// The options (+) menu is the shared radix dropdown on the shared menu
+// tokens — no second menu library, no module CSS of its own.
+assert.doesNotMatch(controls, /@base-ui-components/, "the options menu must not use Base UI");
 assert.match(
   controls,
-  /<Menu\.SubmenuRoot\s+open=\{profileMenuOpen\}\s+onOpenChange=\{/,
-  "Tool Profile must use Base UI's controlled submenu state",
+  /from "@\/components\/ui\/dropdown-menu"/,
+  "the options menu must be built on the radix dropdown wrappers",
 );
 assert.match(
   controls,
-  /switchProfile\("__agent__"\)[\s\S]*Use Agent configuration/,
+  /<DropdownMenuContent[\s\S]*?className=\{cn\(MENU_PANEL,/,
+  "the options panel must wear MENU_PANEL",
+);
+assert.match(
+  controls,
+  /<DropdownMenuSeparator className=\{MENU_SEPARATOR\} \/>/,
+  "separators must be the shared full-bleed MENU_SEPARATOR",
+);
+assert.match(
+  pieces,
+  /<DropdownMenuItem[\s\S]*?className=\{cn\(itemCls\(false\), MENU_ITEM_STATES, className\)\}/,
+  "options rows must be radix items on the shared itemCls + radix states",
+);
+assert.match(
+  pieces,
+  /<span className=\{CHECK_SLOT_PAD\} \/>/,
+  "unselected rows must reserve the check column (grammar A)",
+);
+assert.doesNotMatch(
+  css,
+  /\.plusMenu/,
+  "no .plusMenu* module rules may remain — the panel and rows come from menu-styles",
+);
+
+// ── Tool-profile submenu ───────────────────────────────────────────
+assert.match(
+  controls,
+  /<DropdownMenuSub\s+open=\{profileMenuOpen\}\s+onOpenChange=\{setProfileMenuOpen\}>/,
+  "Tool Profile must be a radix submenu with React-controlled open state",
+);
+assert.match(
+  controls,
+  /<PlusMenuRow[\s\S]*?Use Agent configuration[\s\S]*?switchProfile\("__agent__"\)/,
   "The submenu must default to the current Agent's persistent configuration",
 );
 const composer = fs.readFileSync(
@@ -40,28 +80,28 @@ assert.doesNotMatch(
 );
 assert.match(
   controls,
-  /<Menu\.SubmenuTrigger[\s\S]*?openOnHover=\{false\}/,
-  "Tool Profile must open by click, not hover",
+  /<DropdownMenuSubTrigger[\s\S]*?onPointerMove=\{\(e\) => e\.preventDefault\(\)\}/,
+  "Tool Profile must open by click, not hover (radix opens sub-menus on pointer rest)",
 );
 assert.match(
   controls,
-  /reason\s*!==\s*["']sibling-open["']/,
-  "Tool Profile must ignore Base UI's pointer-hover close reason",
+  /<DropdownMenuSubContent[\s\S]*?onFocusOutside=\{\(e\) => e\.preventDefault\(\)\}/,
+  "Pointer travel over sibling rows must not close Tool Profile",
+);
+assert.match(
+  controls,
+  /onPointerDownOutside=\{[\s\S]*?data-tool-profile-trigger[\s\S]*?setProfileMenuOpen\(false\)/,
+  "A press anywhere but the gear must close Tool Profile",
+);
+assert.match(
+  controls,
+  /role="none"[\s\S]{0,120}<PlusMenuRow[\s\S]*?\/>\s*<DropdownMenuSub\b[^>]*>\s*<DropdownMenuSubTrigger/,
+  "Tools and its profile gear must be sibling menuitems (never nested)",
 );
 assert.doesNotMatch(
   controls,
-  /<Menu\.Item[\s\S]{0,500}<Menu\.SubmenuTrigger/,
+  /<DropdownMenuSubTrigger[\s\S]{0,600}<PlusMenuRow/,
   "Tool Profile must not nest one menuitem inside another",
-);
-assert.match(
-  controls,
-  /role="none"[\s\S]{0,200}<Menu\.Item[\s\S]{0,1000}<\/Menu\.Item>\s*<Menu\.SubmenuRoot[\s\S]{0,1000}<Menu\.SubmenuTrigger/,
-  "Tools and its profile gear must be sibling keyboard actions",
-);
-assert.doesNotMatch(
-  controls,
-  /e\.detail\s*!==\s*0/,
-  "Keyboard activation must not be discarded",
 );
 assert.match(
   controls,
@@ -70,38 +110,23 @@ assert.match(
 );
 assert.match(
   controls,
-  /className=\{styles\.plusMenuSplitRow\}\s+role="none"\s+data-tools-active=\{toolsEnabled \|\| undefined\}/,
-  "The visual row must expose whether its trailing check is present",
-);
-assert.match(
-  css,
-  /\.plusMenuSplitRow\s*\{\s*position:\s*relative;/,
-  "The visual row must remain the gear's positioning context",
-);
-assert.match(
-  css,
-  /\.plusMenuSplitRow:hover\s+\.plusMenuItem\s*\{\s*background:\s*var\(--bg-hover\);/,
-  "Hovering the gear must preserve the original full-row hover background",
-);
-assert.match(
-  css,
-  /\.plusMenuGear\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?right:\s*4px;/,
-  "The inactive gear must keep its original right-edge position",
-);
-assert.match(
-  css,
-  /\.plusMenuGear\s*\{[\s\S]*?width:\s*22px;[\s\S]*?height:\s*22px;/,
-  "The gear must keep its original 22px button size",
+  /h-\[22px\] w-\[22px\]/,
+  "The gear must keep its 22px button size",
 );
 assert.match(
   controls,
-  /<ToolProfileIcon\s+size=\{14\}\s*\/>/,
-  "The gear must keep its original 14px icon size",
+  /<ToolProfileIcon size=\{14\} \/>/,
+  "The gear must keep its 14px icon",
 );
 assert.match(
-  css,
-  /\.plusMenuSplitRow\[data-tools-active\]\s+\.plusMenuGear\s*\{\s*right:\s*24px;/,
-  "When checked, the gear must sit immediately before the trailing check",
+  controls,
+  /right-\[32px\]/,
+  "The gear sits immediately before the reserved 14px check column (10 + 14 + 8)",
+);
+assert.match(
+  controls,
+  /trailing=\{<span className="w-\[22px\] shrink-0" aria-hidden="true" \/>\}/,
+  "The Tools row must reserve the gear's width before its check column",
 );
 assert.match(
   controls,
@@ -110,13 +135,13 @@ assert.match(
 );
 assert.match(
   controls,
-  /side="right"[\s\S]*?style=\{\{\s*zIndex:\s*201\s*\}\}/,
-  "Tool Profile must render above the parent menu",
+  /<DropdownMenuContent[\s\S]*?z-\[200\]/,
+  "The options menu keeps its z-index of 200",
 );
 assert.match(
   controls,
-  /<Menu\.Portal>[\s\S]*?<Menu\.Positioner\s+side="right"/,
-  "Tool Profile must render through Base UI's portal",
+  /<DropdownMenuSubContent[\s\S]*?z-\[201\]/,
+  "Tool Profile must render above the parent menu",
 );
 assert.doesNotMatch(
   controls,

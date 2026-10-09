@@ -7,12 +7,14 @@
  * exclusion, animated iconRef). Lives in the top-bar `.right` region.
  *
  * The dropdown follows the Claude selection-menu grammar: a "Mode"
- * GROUP_LABEL header, then the 5 permission tiers as plain 14px rows —
- * number shortcut hint right-aligned in muted text (1/2/3/4; bypass has
- * none), and a right-aligned ink Check on the currently-selected tier
- * only (hover tint is the only row background; selection is never a
- * filled row). The danger-tier colour lives on the topbar chip, not in
- * the menu rows.
+ * GROUP_LABEL header, then the 5 permission tiers as plain itemCls rows
+ * (13px, with an 11px muted description under the label) — a
+ * right-aligned ink Check on the currently-selected tier only (hover
+ * tint is the only row background; selection is never a filled row),
+ * then the number shortcut hint in muted text (1/2/3/4; bypass has
+ * none). The check / shortcut column is centred on the label line so it
+ * lines up with the single-line rows of the other menus. The
+ * danger-tier colour lives on the topbar chip, not in the menu rows.
  * Picking a tier switches to it and closes the menu. Picking `bypass`
  * (when not already bypass) opens a confirmation overlay inside
  * `#chatView` / `.peer-session-pane` — the switch only lands after
@@ -47,7 +49,11 @@ import {
   CHECK_SLOT,
   CHECK_SLOT_PAD,
   GROUP_LABEL,
+  ITEM_DESC,
+  ITEM_TITLE,
+  ITEM_TWO_LINE,
   MENU_PANEL,
+  MENU_TAG,
   SHORTCUT,
   itemCls,
 } from "./menu-styles";
@@ -135,31 +141,41 @@ export function PermissionBadge() {
           onOpenAutoFocus={(e) => e.preventDefault()}
           className="w-auto border-0 bg-transparent p-0 shadow-none"
         >
-          <div className={`${MENU_PANEL} min-w-[220px]`}>
+          <div className={MENU_PANEL}>
             <div className={GROUP_LABEL}>{text("Mode", "模式")}</div>
             {options.map((o) => (
               <div
                 key={o.value}
                 // 选中不铺底色（hover 是唯一底色），选中态只靠右侧勾。
-                className={itemCls(false) + (o.description ? " items-start py-[4px]" : "")}
+                // 带描述的行是两行行（ITEM_TWO_LINE：3px 竖衬 → 40px）。
+                className={itemCls(false) + (o.description ? ` ${ITEM_TWO_LINE}` : "")}
                 onClick={() => pick(o.value)}
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate">{o.label}</span>
+                  {/* Title line: label, then the "Recommended" tag on the
+                      session's default mode (Claude Code's Mode menu). */}
+                  <span className="flex items-center gap-[8px]">
+                    <span className={o.description ? ITEM_TITLE : "truncate"}>{o.label}</span>
+                    {o.recommended ? (
+                      <span className={MENU_TAG}>{text("Recommended", "推荐")}</span>
+                    ) : null}
+                  </span>
                   {o.description ? (
-                    <span className="mt-[2px] block text-[11px] leading-[15px] text-text-muted whitespace-normal">
-                      {o.description}
-                    </span>
+                    <span className={ITEM_DESC}>{o.description}</span>
                   ) : null}
                 </span>
                 {/* Claude 实测顺序：勾在前、数字快捷键在最右
-                    （"Opus 4.8 ✓ 2"）。未选中留同宽占位保持数字列对齐。 */}
-                {o.value === mode ? (
-                  <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} aria-hidden="true" />
-                ) : (
-                  <span className={CHECK_SLOT_PAD} />
-                )}
-                {o.key ? <span className={SHORTCUT}>{o.key}</span> : null}
+                    （"Opus 4.8 ✓ 2"）。未选中留同宽占位保持数字列对齐。
+                    整列定高 18px 居中在标签行上——有描述的行 items-start，
+                    勾和数字才和其它菜单的单行勾落在同一基线。 */}
+                <span className="flex h-[18px] shrink-0 items-center gap-[8px]">
+                  {o.value === mode ? (
+                    <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} aria-hidden="true" />
+                  ) : (
+                    <span className={CHECK_SLOT_PAD} />
+                  )}
+                  {o.key ? <span className={SHORTCUT}>{o.key}</span> : null}
+                </span>
               </div>
             ))}
           </div>

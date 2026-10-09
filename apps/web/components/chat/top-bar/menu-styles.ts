@@ -11,16 +11,22 @@ import { GLASS_SURFACE } from "@/lib/glass";
  *    translucent --surface-popover + backdrop blur, 0.5px hairline
  *    border, layered --glass-shadow, 10px radius) · 6px padding ·
  *    scrolls past 60vh.
- *  Row (itemCls):      min 34px tall · 8px radius · 0 10px padding ·
- *    14px/20px text · 8px icon↔label gap · hover & active = `--bg-hover`
- *    warm tint + `--text-bright`. danger = red text + faint red hover.
- *  Section label (GROUP_LABEL): 12px `--text-muted`, 8px 10px padding.
+ *  Row (itemCls):      min 24px tall · 6px radius · 0 10px padding ·
+ *    13px/18px text · 8px icon↔label gap · hover = `--bg-hover` tint +
+ *    `--text-bright`, and hover is the ONLY row tint (a selected row
+ *    shows a right-aligned check, never a fill). danger = red text +
+ *    faint red hover. Radix items add MENU_ITEM_STATES so keyboard
+ *    highlight and the disabled look follow the same rule.
+ *  Section label (GROUP_LABEL): 12px `--text-muted`, 21px line, 0 10px.
  *  Separator (MENU_SEPARATOR): 1px `--border`, 6px vertical margin,
- *    full-bleed. Key hint (SHORTCUT) · trailing check (CHECK).
+ *    full-bleed. Key hint (SHORTCUT) · trailing check (CHECK_SLOT) with
+ *    CHECK_SLOT_PAD reserving the column on unselected rows.
  *
  *  The radix PopoverContent wrapper MUST be transparent
  *  (`border-0 bg-transparent p-0 shadow-none`) — the frame is always
  *  MENU_PANEL, never the wrapper, so every menu shares one frame.
+ *  DropdownMenuContent carries no frame of its own, so MENU_PANEL goes
+ *  straight on it.
  */
 
 export const MENU_PANEL =
@@ -28,7 +34,10 @@ export const MENU_PANEL =
   // （0.5px 发丝线），shadow 只投影。面板是玻璃材质（GLASS_SURFACE，
   // 半透明 + 背景模糊），全应用弹窗共用。行保持"按钮"形态：面板四周
   // 6px 衬、行自带圆角 hover（用户点名不要 Claude 的通铺行）。
-  "flex max-h-[60vh] flex-col overflow-y-auto p-[6px] " + GLASS_SURFACE;
+  // 宽度贴内容（Claude Code 的 Mode 菜单实测：面板宽 = 最长一行 + 右
+  // 列）：不设 min-width，封顶 360px 后行内 truncate。只有内容本身需要
+  // 固定宽度的菜单（git 的分支列表 + 搜索框）才自带 w-[…]。
+  "flex max-h-[60vh] max-w-[360px] flex-col overflow-y-auto p-[6px] " + GLASS_SURFACE;
 
 export const GROUP_LABEL =
   // Claude 实测：标题 12px / 行 13px，块高 21px、底缘贴第一行。
@@ -58,9 +67,37 @@ export const SHORTCUT = "shrink-0 text-[13px] text-text-muted";
  *  cancels MENU_PANEL's 6px padding so the line spans edge to edge. */
 export const MENU_SEPARATOR = "-mx-[6px] my-[6px] h-px shrink-0 bg-[var(--border)]";
 
+/** Two-line row — a title with a description under it — added to
+ *  itemCls. Claude Code's Mode menu measured: 3px vertical padding +
+ *  13/18 title + 12/16 description = 40px, hover fill still the row's
+ *  own 6px-radius rectangle. The right column (check / shortcut) of such
+ *  a row is wrapped in an 18px-tall centred flex so it sits on the title
+ *  line, level with the single-line rows of other menus. */
+export const ITEM_TWO_LINE = "items-start py-[3px]";
+export const ITEM_TITLE = "block truncate text-text-bright";
+export const ITEM_DESC =
+  "block whitespace-normal text-[12px] leading-[16px] text-text-muted";
+
+/** Inline metadata tag after a row's title ("Recommended", a channel
+ *  account alias, git's "current" / "worktree") — the `.menu-tag` class
+ *  in app/styles/chat/top-bar-chips.css: 11px muted on a 9% foreground
+ *  mix, 16px line, 0 6px padding. One tag for every menu. */
+export const MENU_TAG = "menu-tag";
+
+/** The states a radix DropdownMenu / ContextMenu row exposes as data
+ *  attributes, mapped onto the itemCls hover rule: keyboard highlight
+ *  (radix sets `data-highlighted` on the focused item) and an open
+ *  sub-trigger tint the same as hover; a disabled row dims and keeps
+ *  pointer events so its `title` can still explain why. */
+export const MENU_ITEM_STATES =
+  "select-none outline-none " +
+  "data-[highlighted]:bg-bg-hover data-[highlighted]:text-text-bright " +
+  "data-[state=open]:bg-bg-hover data-[state=open]:text-text-bright " +
+  "data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50";
+
 /** A selectable menu row — `active` swaps the resting / hover colours;
- *  `danger` makes it a destructive (red) action. Min 34px tall —
- *  Claude's generous picker rows. */
+ *  `danger` makes it a destructive (red) action. 24px tall, the
+ *  claude.ai/code menu-row height. */
 export function itemCls(active: boolean, danger = false): string {
   const base =
     // 24 / 13px / 18px = claude.ai/code 菜单行实测高度；行保持圆角

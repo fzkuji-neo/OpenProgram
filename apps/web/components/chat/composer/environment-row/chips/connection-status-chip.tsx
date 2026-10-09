@@ -125,7 +125,9 @@ export function ConnectionStatusChip({ owningId = true }: { owningId?: boolean }
       <PopoverContent
         side="top"
         align="start"
-        sideOffset={6}
+        /* 10 = the environment row's band gap, as the project / folder /
+           git popovers beside it. */
+        sideOffset={10}
         className="w-auto border-0 bg-transparent p-0 shadow-none"
       >
         <ChannelMenu onClose={() => setOpen(false)} />

@@ -158,13 +158,13 @@ export function ViewControls() {
               <MoreHorizontal size={16} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className={MENU_PANEL + " min-w-[200px]"}>
+          <DropdownMenuContent align="end" className={MENU_PANEL}>
             <DropdownMenuItem
               className={itemCls(false)}
               onSelect={() => setRenaming(true)}
             >
               <span className="flex-1">{t("sidebar.rename")}</span>
-              <span className={SHORTCUT + " w-[16px] text-center"}>R</span>
+              <span className={SHORTCUT}>R</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               className={itemCls(false)}
@@ -179,11 +179,11 @@ export function ViewControls() {
               <span className="flex-1">
                 {conv?.pinned ? t("sidebar.unpin") : t("sidebar.pin")}
               </span>
-              <span className={SHORTCUT + " w-[16px] text-center"}>P</span>
+              <span className={SHORTCUT}>P</span>
             </DropdownMenuItem>
             <DropdownMenuItem className={itemCls(false)} onSelect={copyLink}>
               <span className="flex-1">{t("sidebar.copy_link")}</span>
-              <span className={SHORTCUT + " w-[16px] text-center"}>C</span>
+              <span className={SHORTCUT}>C</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               className={itemCls(false)}
@@ -192,7 +192,7 @@ export function ViewControls() {
               <span className="flex-1">
                 {conv?.archived ? t("sidebar.unarchive") : t("sidebar.archive")}
               </span>
-              <span className={SHORTCUT + " w-[16px] text-center"}>A</span>
+              <span className={SHORTCUT}>A</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator className={MENU_SEPARATOR} />
             <DropdownMenuItem
@@ -200,7 +200,7 @@ export function ViewControls() {
               onSelect={() => setConfirmDelete(true)}
             >
               <span className="flex-1">{t("sidebar.delete")}</span>
-              <span className={SHORTCUT + " w-[16px] text-center"}>D</span>
+              <span className={SHORTCUT}>D</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
