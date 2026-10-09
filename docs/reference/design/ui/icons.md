@@ -46,6 +46,13 @@ Bold Duotone style: a filled glyph plus a 50 % lighter secondary layer.
 | Send | `plain-2` (paper plane) |
 | Copy | `copy` |
 | Model capabilities (vision / video / tools / reasoning) | `eye` / `videocamera` / `toolbox` / `lightbulb-bolt` |
+| File-change card: title / file rows | `pen-new-square` / `file-text` |
+| File-change card: undo / Review buttons | Font Awesome `rotate-left` / `eye` (solid), icon + text label |
+
+Solar's undo glyphs are hairline arrows that disappear at button size,
+so the file card's two action buttons use solid Font Awesome glyphs
+instead, vendored by the same script into the same table (their
+viewBox is recorded in `SOLAR_VIEWBOXES`).
 
 Glyphs that reflect a toggle switch with the state rather than relying
 on colour alone: Unattended closes the eye once nobody is watching, the
@@ -83,7 +90,9 @@ hides "the element holding the svg" keeps working.
 ## Attribution
 
 Solar Icons © 480 Design, released under CC BY 4.0
-(<https://github.com/480-Design/Solar-Icon-Set>). The notice lives in
+(<https://github.com/480-Design/Solar-Icon-Set>). The two Font Awesome
+glyphs are Font Awesome Free, © Fonticons, CC BY 4.0
+(<https://fontawesome.com/license/free>). The notice lives in
 the header of `bodies.ts` and here; a user-facing credits
 entry is still to be added (see below).
 

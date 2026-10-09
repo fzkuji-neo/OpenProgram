@@ -26,7 +26,7 @@ import { motion, useAnimation, useReducedMotion, type Transition, type Variants 
 
 import { cn } from "@/lib/utils";
 import type { AnimatedNavIconHandle } from "@/components/animated-icons/_shared";
-import { SOLAR_BODIES, type SolarIconName } from "./bodies";
+import { SOLAR_BODIES, SOLAR_VIEWBOXES, type SolarIconName } from "./bodies";
 
 export type SolarMotionPreset = "pop" | "fly" | "nudge" | "pulse" | "none";
 
@@ -102,7 +102,7 @@ export const SolarIcon = forwardRef<AnimatedNavIconHandle, SolarIconProps>(funct
       <motion.svg
         width={size}
         height={size}
-        viewBox="0 0 24 24"
+        viewBox={SOLAR_VIEWBOXES[name] ?? "0 0 24 24"}
         fill="currentColor"
         aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"

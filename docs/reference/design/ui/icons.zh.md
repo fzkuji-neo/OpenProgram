@@ -40,6 +40,10 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 | 发送 | `plain-2`（纸飞机） |
 | 复制 | `copy` |
 | 模型能力（视觉 / 视频 / 工具 / 推理） | `eye` / `videocamera` / `toolbox` / `lightbulb-bolt` |
+| 文件修改卡片：标题 / 文件行 | `pen-new-square` / `file-text` |
+| 文件修改卡片：撤回 / Review 按钮 | Font Awesome `rotate-left` / `eye`（实心），图标 + 文字 |
+
+Solar 的撤回图标都是细线箭头，在按钮尺寸下几乎看不见，所以文件卡片的两个操作按钮改用 Font Awesome 的实心图标，由同一个脚本取回、放进同一张表（viewBox 记在 `SOLAR_VIEWBOXES`）。
 
 反映开关的图标随状态换形，而不只靠颜色：无人值守开启后眼睛闭上；运行中模式"注入"是前进箭头、"排队"是队列列表；项目目录丢失时项目 chip 变成警告三角。
 
@@ -55,7 +59,7 @@ pqoqubbw 图标会自己重绘（扳手转一下、箭头跳一下）。实心�
 
 ## 署名
 
-Solar Icons © 480 Design，CC BY 4.0（<https://github.com/480-Design/Solar-Icon-Set>）。声明放在 `bodies.ts` 文件头和本页；面向用户的致谢条目尚未添加（见下）。
+Solar Icons © 480 Design，CC BY 4.0（<https://github.com/480-Design/Solar-Icon-Set>）。两个 Font Awesome 图标来自 Font Awesome Free，© Fonticons，CC BY 4.0（<https://fontawesome.com/license/free>）。声明放在 `bodies.ts` 文件头和本页；面向用户的致谢条目尚未添加（见下）。
 
 ## 实现状态
 
