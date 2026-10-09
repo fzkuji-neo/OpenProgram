@@ -31,7 +31,7 @@ assert.match(bubble, /summary=\{msg\.turnFiles\}/);
 assert.match(rail, /summary=\{assistantTurnFiles\}/);
 assert.doesNotMatch(card, /turn_file_diff|UnifiedDiff|aria-expanded/);
 assert.match(card, /name="pen-new-square"/);
-assert.match(card, /name="undo-left-round"/);
+assert.match(card, /name="undo-left-round-square"/);
 assert.match(card, /text\("Undo"/);
 assert.match(card, /text\("Redo"/);
 assert.match(card, /openReviewTab/);

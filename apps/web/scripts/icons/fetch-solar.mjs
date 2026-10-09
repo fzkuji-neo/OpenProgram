@@ -49,7 +49,7 @@ const ICONS = {
   "lightbulb-bolt": "bold-duotone",
   // per-turn file-change card
   "pen-new-square": "bold-duotone",
-  "undo-left-round": "bold-duotone",
+  "undo-left-round-square": "bold-duotone",
   "file-text": "bold-duotone",
 };
 
