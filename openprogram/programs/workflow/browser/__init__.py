@@ -452,6 +452,7 @@ from ._runtime.commands import (
 from ._runtime.page_recovery import (
     _requested_url,
     _has_usable_page,
+    _bound_page_shows_origin,
     _open_page_error,
     _opened_observation_is_live,
     _start_session_on_opened_page,

@@ -1061,6 +1061,49 @@ def test_observe_with_url_opens_desktop_tab_when_no_page(monkeypatch):
     assert acted.get("closed") is not True
 
 
+def test_observe_with_url_opens_it_when_bound_pages_are_elsewhere(monkeypatch):
+    """After list_pages binds other pages, an explicit URL still opens."""
+    from openprogram.agent import surface_context
+    from openprogram.programs.workflow import browser as module
+    from openprogram.programs.workflow.browser import web_use_runtime
+
+    opens, executed = [], []
+    bound = {
+        "context_id": "page_ctx_listed",
+        "surfaces": [{"binding_id": "surface_sheet", "origin": "https://doc.weixin.qq.com"}],
+    }
+
+    class _Registry:
+        def list_pages(self, **kwargs):
+            return {"ok": True, "pages": [{"page_context_token": "pct_opened"}]}
+
+        def execute(self, **kwargs):
+            executed.append(kwargs.get("page_context_token"))
+            return {"ok": True, "web_session_id": "cs_opened", "frame_id": "frame-1"}
+
+    monkeypatch.setattr(web_use_runtime, "get_registry", lambda: _Registry())
+    monkeypatch.setattr(surface_context, "current", lambda: bound)
+    monkeypatch.setattr(
+        surface_context,
+        "open_page",
+        lambda url, **kwargs: opens.append((url, kwargs))
+        or {"context_id": "page_ctx_opened", "surfaces": [{"binding_id": "surface_opened"}]},
+    )
+
+    result = module.web_use(
+        command="observe",
+        arguments={"url": "https://form.feishu.test/share/base/form/x"},
+    )
+    assert opens == [("https://form.feishu.test/share/base/form/x", {"background": True})]
+    assert executed == ["pct_opened"]
+    assert result["web_session_id"] == "cs_opened"
+
+    # A bound page already on that origin is observed instead of a duplicate tab.
+    assert not module._bound_page_shows_origin(bound, "https://form.feishu.test/share/base/form/x")
+    bound["surfaces"].append({"binding_id": "surface_form", "origin": "https://form.feishu.test"})
+    assert module._bound_page_shows_origin(bound, "https://form.feishu.test/share/base/form/x")
+
+
 def test_resource_web_open_creates_a_background_page(monkeypatch):
     from openprogram.agent import surface_context
     from openprogram.programs._runtime import _allowed_tool_names
