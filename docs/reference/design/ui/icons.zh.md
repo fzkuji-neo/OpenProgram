@@ -30,7 +30,7 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 | Chat 模型 / 执行模型徽章 | `chat-round-dots` / `programming` |
 | 权限徽章 | `shield-check` |
 | Local 连接 chip | `monitor` |
-| 网页标签 chip | `window-frame` |
+| 网页标签 chip | `planet` |
 | 画中画 chip | `pip-2` |
 | 工作目录 / 添加目录 | `folder-with-files` / `add-folder` |
 | 项目 chip / 项目目录丢失 | `folder-open` / `danger-triangle` |
