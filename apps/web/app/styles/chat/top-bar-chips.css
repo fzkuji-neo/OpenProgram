@@ -146,9 +146,6 @@
   padding: 0;
   gap: 0;
   align-items: stretch;
-  /* A permanent compositing layer: the hover pop of an icon inside then
-     never re-snaps the pill's text and divider to a different pixel. */
-  transform: translateZ(0);
 }
 /* Hairline between the folder and git segments (GitChip renders it).
    The element is zero-width, so both segments' hover fills meet on the
@@ -189,9 +186,12 @@
   outline: none;
   transition: background-color 120ms ease;
 }
+/* A translucent light layer over the pill surface: it can only brighten
+   the segment, never darken it, whatever the theme's surface colour. */
 .folder-pill-seg:hover,
 .folder-pill-seg[aria-expanded="true"] {
-  background: color-mix(in oklch, var(--bg-input), var(--foreground) 6%);
+  background: color-mix(in srgb, var(--foreground) 9%, transparent);
+  color: var(--text-bright);
 }
 .folder-pill-seg:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); }
 .folder-pill-divider + .folder-pill-seg { padding-left: 11px; }
