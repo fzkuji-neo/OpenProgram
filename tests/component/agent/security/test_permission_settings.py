@@ -137,3 +137,28 @@ def test_inner_memory_reads_need_no_interactive_approval(permissions, name, deni
         parameters={"type":"object"}, execute=execute), req, lambda event: None, _live=False)
     result = asyncio.run(tool.execute("read-memory", {}, None, None))
     assert calls == ([] if denied else [name]), result
+
+def test_spawn_snapshot_of_a_web_owner_is_valid_job_input(permissions, monkeypatch):
+    from types import SimpleNamespace
+    from openprogram.agent.job.input import JobAgentInputV1
+    from openprogram.agent.job.types import Job
+    from openprogram.agent.permissions.lifecycle import spawn_permission_snapshot
+    from openprogram.agent.session_config import PermissionRules
+    actor = permissions[1]
+    monkeypatch.setattr("openprogram.agent.run_control.get_current_execution_id", lambda: "exec-parent")
+    monkeypatch.setattr("openprogram.agent.run_control.get_current_session_id", lambda: "one")
+    monkeypatch.setattr("openprogram.programs.permission_rule.load_merged_rules",
+        lambda session_id: PermissionRules(allow=["bash(git status)"]))
+    parent = SimpleNamespace(execution_id="exec-parent", session_id="one",
+        status=SimpleNamespace(value="running"), current_attempt_id="attempt-1")
+    request = {"session_id": "one", "user_text": "go", "agent_id": "main", "source": "web",
+        "permission_mode": "ask", **actor}
+    store = SimpleNamespace(get_job_agent_input=lambda execution_id: None,
+        get_agent_turn_input=lambda execution_id: {"kind": "chat", "request": request})
+    child = Job(id="job-child", parent_session_id="one", prompt="check", agent_id="main",
+        subject="check", description="check", context_mode="clean", source="agent_spawn",
+        caller_msg_id="msg-1", caller_session_id="one", **actor)
+    snapshot = spawn_permission_snapshot(store, parent, child)
+    assert snapshot == {"mode": "ask", "rules": {"allow": ["bash(git status)"], "deny": [], "ask": []}}
+    turn = JobAgentInputV1.from_job(child, permission_snapshot=snapshot).to_turn_request()
+    assert turn.permission_rules == PermissionRules(allow=["bash(git status)"])

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 import os
 
 from .state import permission_state
@@ -34,7 +35,7 @@ def spawn_permission_snapshot(store, parent, child):
     from types import SimpleNamespace
     from openprogram.agent.authority import normalize_authority
     from openprogram.agent.run_control import get_current_execution_id, get_current_session_id
-    from openprogram.agent.session_config import VALID_PERMISSION
+    from openprogram.agent.session_config import VALID_PERMISSION, PermissionRules
 
     if (parent is None or child.source != "agent_spawn"
             or get_current_execution_id() != parent.execution_id
@@ -67,8 +68,11 @@ def spawn_permission_snapshot(store, parent, child):
         request.permission_mode = "plan"
     if request.permission_mode not in VALID_PERMISSION:
         raise ValueError("parent permission mode is invalid")
-    return {"mode": request.permission_mode,
-            "rules": copy.deepcopy(getattr(request, "permission_rules", None))}
+    rules = getattr(request, "permission_rules", None)
+    if isinstance(rules, PermissionRules):
+        # The snapshot is persisted in the child's Job input, which is JSON.
+        rules = dataclasses.asdict(rules)
+    return {"mode": request.permission_mode, "rules": copy.deepcopy(rules)}
 
 
 def wrap_live_permission(tool, request, on_event):
