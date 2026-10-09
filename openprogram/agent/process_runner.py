@@ -29,6 +29,7 @@ Design:
 
 from __future__ import annotations
 
+import logging
 import multiprocessing as mp
 import os
 import pickle
@@ -37,6 +38,8 @@ import tempfile
 import threading
 import time
 import uuid
+from collections import deque
+from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 from openprogram.agent.surface_context import (
@@ -52,17 +55,209 @@ _active_lock = threading.Lock()
 
 _BOUNDED_AGENTIC_TOOLS = {"browser_agent", "gui_agent"}
 _DEFAULT_AGENTIC_TIMEOUT_SECONDS = 300.0
+AGENTIC_TIMEOUT_ENV = "OPENPROGRAM_AGENTIC_TIMEOUT_S"
+_STOP_GRACE_MIN_SECONDS = 30.0
+_STOP_GRACE_MAX_SECONDS = 120.0
+_PROGRESS_STEPS = 12
+_PROGRESS_RECENT = 8
+
+
+def _default_agentic_timeout_seconds() -> float:
+    raw = os.environ.get(AGENTIC_TIMEOUT_ENV, "").strip()
+    if not raw:
+        return _DEFAULT_AGENTIC_TIMEOUT_SECONDS
+    try:
+        return float(raw)
+    except ValueError:
+        logging.getLogger(__name__).warning(
+            "%s=%r is not a number of seconds; using %g",
+            AGENTIC_TIMEOUT_ENV, raw, _DEFAULT_AGENTIC_TIMEOUT_SECONDS,
+        )
+        return _DEFAULT_AGENTIC_TIMEOUT_SECONDS
 
 
 def agentic_subprocess_timeout_seconds(
     tool_name: str, kwargs: dict | None,
 ) -> float | None:
-    """Resolve the whole-process deadline for GUI/browser agent calls."""
+    """Resolve the time budget of a GUI/browser agent call.
+
+    An explicit ``max_seconds`` argument wins. Otherwise
+    ``OPENPROGRAM_AGENTIC_TIMEOUT_S`` sets the default, which is 300 seconds
+    when unset. Zero or a negative value means no budget.
+    """
     if tool_name not in _BOUNDED_AGENTIC_TOOLS:
         return None
     raw = (kwargs or {}).get("max_seconds")
-    value = _DEFAULT_AGENTIC_TIMEOUT_SECONDS if raw is None else float(raw)
+    value = _default_agentic_timeout_seconds() if raw is None else float(raw)
     return value if value > 0 else None
+
+
+def agentic_stop_grace_seconds(budget_seconds: float) -> float:
+    """Time an agent gets after its budget to stop and return its history."""
+    return max(
+        _STOP_GRACE_MIN_SECONDS,
+        min(_STOP_GRACE_MAX_SECONDS, 0.2 * float(budget_seconds)),
+    )
+
+
+@dataclass(frozen=True)
+class AgenticLimits:
+    """How long one agentic call may run, and the arguments that enforce it.
+
+    ``kwargs`` carries the budget as ``max_seconds`` so the agent stops on
+    its own and returns its partial history. ``timeout_seconds`` is the
+    later point where the parent kills the process if it has not stopped.
+    """
+
+    kwargs: dict
+    budget_seconds: float | None
+    timeout_seconds: float | None
+
+
+def agentic_subprocess_limits(
+    tool_name: str, kwargs: dict | None,
+) -> AgenticLimits:
+    args = dict(kwargs or {})
+    budget = agentic_subprocess_timeout_seconds(tool_name, args)
+    if budget is None:
+        return AgenticLimits(args, None, None)
+    if args.get("max_seconds") is None:
+        args["max_seconds"] = budget
+    return AgenticLimits(
+        args, budget, budget + agentic_stop_grace_seconds(budget),
+    )
+
+
+def _stream_progress_line(data: dict) -> str:
+    op = data.get("op")
+    if data.get("kind") == "tool_ref" and op in {"block_started", "block_finished"}:
+        state = "started" if op == "block_started" else (
+            data.get("status") or "finished"
+        )
+        return f"tool {data.get('tool_name') or '?'} {state}"
+    if op == "attempt_started":
+        model = data.get("model") or data.get("provider") or ""
+        return f"model call started{f' ({model})' if model else ''}"
+    if op == "attempt_finished":
+        return f"model call {data.get('status') or 'finished'}"
+    if op == "node_finished":
+        return f"call {data.get('status') or 'finished'}"
+    return ""
+
+
+def _tree_steps(tree: Any, limit: int) -> list[str]:
+    """Flatten the latest execution tree into short, ordered step lines."""
+    lines: list[str] = []
+
+    def walk(node: Any, depth: int) -> None:
+        if not isinstance(node, dict):
+            return
+        if depth:
+            line = f"{'  ' * (depth - 1)}{node.get('name') or 'node'}: {node.get('status') or '?'}"
+            duration = node.get("duration_ms")
+            if isinstance(duration, (int, float)):
+                line += f" ({duration / 1000:.1f} s)"
+            error = str(node.get("error") or "").strip()
+            if error:
+                line += f" - {error.splitlines()[0][:160]}"
+            lines.append(line)
+        if depth < 3:
+            for child in node.get("children") or []:
+                walk(child, depth + 1)
+
+    walk(tree, 0)
+    return lines[-limit:]
+
+
+class _ChildProgress:
+    """A bounded summary of what an agentic child reported while it ran.
+
+    The parent keeps it so a call stopped at its deadline still says how far
+    it got: the latest execution tree, the last stream events, and how long
+    the child had been silent.
+    """
+
+    def __init__(self) -> None:
+        self.started = time.monotonic()
+        self._lock = threading.Lock()
+        self._tree: Any = None
+        self._recent: deque[str] = deque(maxlen=_PROGRESS_RECENT)
+        self._events = 0
+        self._last_event: float | None = None
+
+    def record(self, env: Any) -> None:
+        if not isinstance(env, dict):
+            return
+        now = time.monotonic()
+        line = ""
+        tree = None
+        data = env.get("data") if isinstance(env.get("data"), dict) else {}
+        if env.get("__op_webtab__"):
+            command = data.get("command") if isinstance(data.get("command"), dict) else {}
+            line = f"page command {command.get('op') or '?'}"
+        elif env.get("__op_question__"):
+            line = "asked the user a question"
+        elif env.get("type") == "chat_response":
+            if data.get("type") == "execution_stream":
+                line = _stream_progress_line(data)
+            elif data.get("type") == "tree_update":
+                tree = data.get("tree")
+        with self._lock:
+            self._events += 1
+            self._last_event = now
+            if tree is not None:
+                self._tree = tree
+            if line:
+                self._recent.append(f"{now - self.started:.1f} s {line}")
+
+    def report(self, now: float | None = None) -> dict:
+        now = time.monotonic() if now is None else now
+        with self._lock:
+            return {
+                "elapsed_seconds": round(now - self.started, 1),
+                "events": self._events,
+                "seconds_since_last_event": (
+                    None if self._last_event is None
+                    else round(max(0.0, now - self._last_event), 1)
+                ),
+                "steps": _tree_steps(self._tree, _PROGRESS_STEPS),
+                "recent": list(self._recent),
+            }
+
+
+def _timeout_message(
+    tool_name: str,
+    timeout: float,
+    budget: float | None,
+    progress: dict,
+) -> str:
+    lines = [f"agentic subprocess timed out after {timeout:g} seconds"]
+    if budget is not None:
+        lines.append(
+            f"{tool_name} did not stop within its {budget:g}-second budget "
+            f"plus {timeout - budget:g} seconds to return, so it was stopped "
+            "and its partial result was lost."
+        )
+    else:
+        lines.append(f"{tool_name} was stopped at its {timeout:g}-second limit.")
+    if progress["steps"]:
+        lines.append("Last known steps:")
+        lines.extend(f"  {step}" for step in progress["steps"])
+    if progress["recent"]:
+        lines.append("Recent activity (seconds after start):")
+        lines.extend(f"  {item}" for item in progress["recent"])
+    silent = progress["seconds_since_last_event"]
+    if silent is None:
+        lines.append("The process reported no progress before it was stopped.")
+    else:
+        lines.append(f"Its last report came {silent:g} seconds before the stop.")
+    if tool_name in _BOUNDED_AGENTIC_TOOLS:
+        lines.append(
+            f"To allow more time, set {AGENTIC_TIMEOUT_ENV} (seconds, 0 removes "
+            f"the limit) or pass max_seconds to {tool_name}; for a long task, "
+            "split it into smaller requests."
+        )
+    return "\n".join(lines)
 
 
 def _new_child_webtab_bridge(event_queue):
@@ -1242,6 +1437,7 @@ def run_agent_method_in_subprocess(
     response_format=None,
     render_range: Optional[dict[str, int]] = None,
     timeout_seconds: Optional[float] = None,
+    budget_seconds: Optional[float] = None,
     model_setup_error: Optional[dict] = None,
     original_owner_input=None,
     permission_mode_snapshot: Optional[str] = None,
@@ -1252,6 +1448,11 @@ def run_agent_method_in_subprocess(
     timeout, or via SIGKILL from ``kill_active_subprocess``). Returns whatever
     the child wrote to its result file, or a killed marker if it died without
     writing.
+
+    ``timeout_seconds`` is the hard limit. ``budget_seconds`` is the budget
+    the tool itself was given (see :func:`agentic_subprocess_limits`); it
+    only shapes the message of a timeout, which also carries the progress
+    the child reported.
     """
     result_path = tempfile.mktemp(prefix="op_subproc_", suffix=".pkl")
     # ``spawn`` (not fork) because the parent worker has already loaded
@@ -1342,7 +1543,13 @@ def run_agent_method_in_subprocess(
         )
     }
 
+    progress = _ChildProgress()
+
     def _handle(env) -> None:
+        try:
+            progress.record(env)
+        except Exception:
+            pass
         if isinstance(env, dict) and env.get("__op_webtab__"):
             data = env.get("data") or {}
             with webtab_cleanup_lock:
@@ -1437,6 +1644,7 @@ def run_agent_method_in_subprocess(
     drain_thread.start()
 
     timed_out = False
+    stopped_at: float | None = None
     page_cleanup_failures: list[dict] = []
     try:
         timeout = None if timeout_seconds is None else max(0.1, float(timeout_seconds))
@@ -1454,6 +1662,7 @@ def run_agent_method_in_subprocess(
             p.join(timeout)
             if p.is_alive():
                 timed_out = True
+                stopped_at = time.monotonic()
                 from openprogram._compat import kill_process_tree
 
                 if not kill_process_tree(p.pid):
@@ -1470,6 +1679,7 @@ def run_agent_method_in_subprocess(
                     cancel_sent = True
                 if timeout is not None and time.monotonic() - started >= timeout:
                     timed_out = True
+                    stopped_at = time.monotonic()
                     from openprogram._compat import kill_process_tree
 
                     if not kill_process_tree(p.pid):
@@ -1534,10 +1744,12 @@ def run_agent_method_in_subprocess(
     # Pick up the result, if any.
     out: dict
     if timed_out:
+        report = progress.report(stopped_at)
         out = {
-            "error": f"agentic subprocess timed out after {timeout:g} seconds",
+            "error": _timeout_message(tool_name, timeout, budget_seconds, report),
             "killed": True,
             "timed_out": True,
+            "progress": report,
         }
     else:
         try:

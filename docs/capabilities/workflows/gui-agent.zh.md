@@ -28,7 +28,7 @@ Programs 卡片只填写 `task`，不要求用户选择 surface。控制器每�
 openprogram programs run gui_agent -a task="在不置顶窗口的情况下检查并完成当前内置浏览器表单"
 ```
 
-受信任调用方还可以提供隐藏的控制器设置：`max_steps` 是动作安全上限，默认 150；`max_seconds` 是可选的总耗时安全上限；`app_name` 选择组件记忆；`backend` 指定已有 Page backend；`vm_url` 启用 `vm_use`。`surface="browser"`，或未指定其他 surface 时设置 `backend`，会选择下文的标准浏览器 Agent 路径。其他 surface 设置仍为兼容性偏好。这些设置不出现在公开函数 schema 中。
+受信任调用方还可以提供隐藏的控制器设置：`max_steps` 是动作安全上限，默认 150；`max_seconds` 是总耗时预算；`app_name` 选择组件记忆；`backend` 指定已有 Page backend；`vm_url` 启用 `vm_use`。`surface="browser"`，或未指定其他 surface 时设置 `backend`，会选择下文的标准浏览器 Agent 路径。其他 surface 设置仍为兼容性偏好。这些设置不出现在公开函数 schema 中。
 
 仅传 `task` 的执行在规划和已授权浏览器操作前不要求桌面权限。规划选择 `computer_use` 后，执行在发送该能力操作前检查原生权限。缺少可申请的系统授权时暂停同一任务；授权后使用保存的规划决策和能力结果继续。取消会阻止续跑，未确认结果的操作不会自动重复。缺少原生依赖仍是能力不可用，不进入权限等待。显式桌面执行保留初始权限检查。已安装默认 App 的真实权限恢复仍需验收。
 
@@ -88,7 +88,9 @@ native `type` 对普通 input 和 textarea 保持原生填写。contenteditable 
 
 所有运行共用终态字段：`status`（`succeeded`、`infeasible` 或 `failed`）、`success`、`reason_code`、`summary` 和 `handoff_instruction`。成功与否由 runner 决定，不由 conclusion 模型决定。只有 `succeeded` 的 `success` 为 true；infeasible 和 failed 一律返回 `success=false`。infeasible 还保留 blocker、标记和用户接手说明。自动能力路径还包含有序能力调用历史和耗时。
 
-`max_seconds` 会在每次模型或能力调用前检查，并在调用返回后再次检查。超过截止时间才返回的终态提交会被拒绝，并统一为超时失败。Provider 取消采用协作式机制，因此已经发出的 provider 请求可能略晚于配置的总耗时边界才返回，但该迟到结果不会把任务变成成功。
+`max_seconds` 会在每次模型或能力调用前检查，并在调用返回后再次检查。超过截止时间才返回的终态提交会被拒绝，并统一为超时失败。截止时间与步数或决策上限同时到达时，结果报告 `timeout`。Provider 取消采用协作式机制，因此已经发出的 provider 请求可能略晚于配置的总耗时边界才返回，但该迟到结果不会把任务变成成功。
+
+从对话或 Run 表单发起、没有传 `max_seconds` 的调用，预算为 300 秒；设置 `OPENPROGRAM_AGENTIC_TIMEOUT_S` 可以修改默认值（`0` 表示不限时）。预算会作为 `max_seconds` 交给 agent，因此时间用完的运行会自行停止，返回 `status=failed`、`reason_code=timeout` 和已完成的能力调用历史，不再调用 conclusion 模型。运行在独立进程中执行；只有预算之后再过 20%（至少 30 秒、最多 120 秒）仍未结束，OpenProgram 才结束该进程。此时的错误 `agentic subprocess timed out after N seconds` 会列出运行最后报告的步骤，以及如何放宽时间。
 
 Function 卡片直接显示这个任务结果：验证成功显示 `Succeeded`，任务结束但未满足请求显示 `Failed`，接手说明要求用户操作时显示 `Needs takeover`。`Error` 表示运行时异常或不符合契约的 GUI 结果。内部 worker 的 completed 状态不会把失败的 GUI 结果显示成 `Completed`。
 
