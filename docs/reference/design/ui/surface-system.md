@@ -218,8 +218,10 @@ Pick per surface:
 - **Secondary action** (Cancel, Close, Reset, Browse) → `outline`
   or `secondary`.
 - **Controls in a dense row** (the composer's model / effort /
-  permission triggers, icon toggles) → `secondary`, so they read as
-  buttons at rest.
+  permission triggers, icon toggles) → `secondary` on dark themes,
+  `outline` on light ones (`useControlRowVariant` in
+  `lib/prefs/use-resolved-theme-mode.ts`): the grey pill reads clearly
+  on dark but goes muddy on the light off-white surfaces.
 - **Purely incidental actions** that should vanish until hovered →
   `ghost`.
 - **Destructive** (Delete, Remove, Stop) → `destructive`.
@@ -234,7 +236,8 @@ The chat composer is built from the same parts:
   project, working folders, DAG HUD) → `outline` `sm`; the
   add-folder chip is `outline` `icon-sm`.
 - **Bottom row** (permission, chat / exec model, effort, plus,
-  tool toggles, context ring) → `secondary` `sm` / `icon-sm`. The
+  tool toggles, context ring) → `sm` / `icon-sm`, `secondary` on
+  dark themes and `outline` on light (`useControlRowVariant`). The
   composer CSS hands its older base rules back to the Button with
   `revert-layer` rather than drawing its own chip.
 - **Send** → `icon-sm`: `default` when there is something to

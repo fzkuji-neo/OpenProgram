@@ -25,6 +25,7 @@ import {
 import { useTranslation } from "@/lib/i18n";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useControlRowVariant } from "@/lib/prefs/use-resolved-theme-mode";
 
 /**
  * Drive an animated toolbar icon from its *container's* hover, so the
@@ -68,6 +69,7 @@ export const ToolChip = forwardRef<HTMLDivElement, ToolChipProps>(function ToolC
 ) {
   const { text } = useTranslation();
   const { node, onMouseEnter, onMouseLeave } = useHoverDrivenIcon(icon);
+  const controlVariant = useControlRowVariant();
   // The × that slides out on hover is the animated XIcon, driven from
   // the same chip hover as the main glyph.
   const closeRef = useRef<AnimatedNavIconHandle>(null);
@@ -75,7 +77,7 @@ export const ToolChip = forwardRef<HTMLDivElement, ToolChipProps>(function ToolC
     <div
       ref={ref}
       {...rest}
-      className={`${cn(buttonVariants({ variant: "secondary", size: "icon-sm" }))} ${styles.toolChip} ${on ? "" : styles.toolChipOff}`}
+      className={`${cn(buttonVariants({ variant: controlVariant, size: "icon-sm" }))} ${styles.toolChip} ${on ? "" : styles.toolChipOff}`}
       onClick={onToggle}
       onMouseEnter={() => {
         onMouseEnter();

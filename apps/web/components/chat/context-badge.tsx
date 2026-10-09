@@ -26,6 +26,7 @@ import { translateText } from "@/lib/i18n";
 import { ContextBreakdownPanel } from "./context-breakdown-panel";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useControlRowVariant } from "@/lib/prefs/use-resolved-theme-mode";
 import {
   readContextBreakdownCache,
   warmContextBreakdown,
@@ -42,6 +43,7 @@ interface ContextBadgeProps {
 }
 
 export function ContextBadge({ sessionId }: ContextBadgeProps) {
+  const controlVariant = useControlRowVariant();
   // Resolve session: caller may pass `sessionId` (legacy ChatView path)
   // or omit it (Composer path) — in the latter case we fall back to the
   // store's current conversation id.
@@ -179,7 +181,7 @@ export function ContextBadge({ sessionId }: ContextBadgeProps) {
       <button
         ref={ringRef}
         className={
-          cn(buttonVariants({ variant: "secondary", size: "icon-sm" }))
+          cn(buttonVariants({ variant: controlVariant, size: "icon-sm" }))
           + " context-ring-badge"
           + (compacting ? " is-busy" : "")
         }
