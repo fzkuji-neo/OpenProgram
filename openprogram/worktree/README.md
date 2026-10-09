@@ -24,6 +24,7 @@ repositories. See ``docs/design/runtime/agent-worktree.md`` Part 1 D4.
 ## Files in this directory
 
 - **`context.py`** — ``_current_worktree_path`` ContextVar
+- **`folder_git.py`** — Per-folder Git state for the composer's git pills
 - **`include_sync.py`** — ``.worktreeinclude``
 - **`manager.py`** — WorktreeManager
 - **`path_resolve.py`** — Path resolution helper for worktree-aware tools
