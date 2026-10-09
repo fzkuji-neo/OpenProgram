@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
-from openprogram.programs._runtime import function
+from openprogram.programs._runtime import ToolReturn, function
 
 
 _DESCRIPTION = (
@@ -95,13 +95,17 @@ def markers_for(entries: list[dict]) -> str:
     # WeChat's iLink has no file-upload API; the CLI/TUI is a terminal.
     unsafe_in=["cli", "tui", "wechat", "plan"],
 )
-def send_file(path: str) -> str:
+def send_file(path: str) -> str | ToolReturn:
     """Attach a file to your reply so the user receives it.
 
     Args:
         path: Absolute path of the file to send.
     """
-    return _send_file_impl(path)
+    out = _send_file_impl(path)
+    # A refused or missing file attached nothing: the call failed.
+    if out.startswith("Error:"):
+        return ToolReturn(text=out, is_error=True)
+    return out
 
 
 def _send_file_impl(path: str) -> str:
