@@ -38,7 +38,7 @@ const PRESETS: Record<Exclude<SolarMotionPreset, "none">, Variants> = {
 };
 
 // The element whose hover drives an uncontrolled icon.
-const HOVER_HOST = 'button, a, summary, [role="button"], [role="menuitem"], .runtime-badge, .status-badge';
+const HOVER_HOST = 'button, a, summary, [role="button"], [role="menuitem"], .folder-pill-seg, .runtime-badge, .status-badge';
 
 const SPRING: Transition = { type: "spring", stiffness: 420, damping: 16, mass: 0.8 };
 const PULSE: Transition = { duration: 0.32, ease: "easeOut" };

@@ -41,10 +41,10 @@
 <body><main>
   <h1>Composer 控制栏响应式设计</h1>
   <p class="sub">范围：聊天输入框上方的 environment chips，以及下方的 permission、more、active tools、chat model、execution model、effort 和 context 控件。</p>
-  <div class="lead">两排控制栏分别按自身可用宽度响应。底排沿用既有设置；上排只允许“全部完整文字”与“全部图标”两个显示状态。只要完整内容开始溢出，状态、surface、项目、目录以及 DAG 的 Fit、缩放百分比和 Legend 就同时隐藏文字；空间恢复后同时显示。切换使用同一段过渡动画，菜单、当前值、键盘操作、tooltip 和 accessible name 保持不变。</div>
+  <div class="lead">两排控制栏分别按自身可用宽度响应。底排沿用既有设置；上排分四级收缩：先全部完整显示；再把长名字截到约 12 个字加省略号，Local chip 只留图标；再收起 git 分支名，只留分支图标和改动 badge；最后隐藏全部文字（状态、surface、项目、目录以及 DAG 的 Fit、缩放百分比和 Legend），改动 badge 缩成左绿右红的小圆点。空间恢复后逐级展开。每一级使用同一段过渡动画，菜单、当前值、键盘操作、tooltip 和 accessible name 保持不变。</div>
 
   <h2>当前实现与缺口</h2>
-  <p><code>.composer-bottom-row</code> 继续按自身容器响应。<code>.envChips</code> 不再使用固定断点，因为聊天页和 DAG 页的控件数量不同，同一宽度下需要的空间也不同。它通过自身 <code>scrollWidth</code> 与 <code>clientWidth</code> 判断完整内容是否溢出，并用一个 <code>data-compact</code> 状态控制全部 label。单页和 split pane 运行完全相同的测量逻辑。</p>
+  <p><code>.composer-bottom-row</code> 继续按自身容器响应。<code>.envChips</code> 不再使用固定断点，因为聊天页和 DAG 页的控件数量不同，同一宽度下需要的空间也不同。它通过自身 <code>scrollWidth</code> 与 <code>clientWidth</code> 选出第一个放得下的级别：先关掉过渡（<code>data-measuring</code>）把整行按每一级排一遍，再以动画切到选中的 <code>data-squeeze</code> 级别；第 3 级同时设置 <code>data-compact</code>，隐藏全部 label。回到更宽松的级别需要留出 12px 余量。单页和 split pane 运行完全相同的测量逻辑。</p>
   <p>现有组件已经提供四类互异图标：Shield 表示权限，Message 表示 chat model，Terminal 表示 execution model，Biceps 表示 effort。所有触发器已经具备 Popover/Menu、tooltip 或 accessible name，因此不新增图标组件和菜单。</p>
 
   <h2>组件边界</h2>
@@ -52,7 +52,7 @@
   <div class="table-wrap" role="region" aria-label="组件边界表格横向滚动区域" data-scroll-region tabindex="0"><table><thead><tr><th>目录或文件</th><th>唯一职责</th><th>不负责</th></tr></thead><tbody>
     <tr><td><code>composer/environment-row/environment-row.tsx</code></td><td>组合环境栏子组件并渲染调用方提供的尾部内容。</td><td>不包含 DAG 名称、portal id、聊天提交或项目状态。</td></tr>
     <tr><td><code>composer/environment-row/use-compact-environment-row.ts</code></td><td>测量环境栏实际宽度并维护 compact 属性。</td><td>不渲染组件、不定义视觉样式。</td></tr>
-    <tr><td><code>composer/environment-row/environment-row.module.css</code></td><td>环境栏布局、pill surface、两态动画和 DAG slot 样式。</td><td>不包含输入框、底部 controls 或其他 Composer 模式。</td></tr>
+    <tr><td><code>composer/environment-row/environment-row.module.css</code></td><td>环境栏布局、pill surface、四级收缩动画和 DAG slot 样式。</td><td>不包含输入框、底部 controls 或其他 Composer 模式。</td></tr>
     <tr><td><code>composer/environment-row/chips/connection-status-chip.tsx</code>、<code>web-surface-chip.tsx</code></td><td>分别负责连接状态入口和当前网页 surface 入口。</td><td>不控制环境栏整体响应状态。</td></tr>
     <tr><td><code>composer/input/</code></td><td>textarea、键盘事件与历史回调。</td><td>不发送消息或切换 Composer mode。</td></tr>
     <tr><td><code>composer/attach/</code>、<code>paste/</code>、<code>modes/question/</code></td><td>组件实现与其专用 CSS Module 放在同一职责目录。</td><td>不把组件专用选择器留在根 <code>composer.module.css</code>。</td></tr>
@@ -101,7 +101,7 @@
   <p>缓存只驻留当前前端进程，按最近使用顺序保留 32 个会话分支，不写入持久存储，不设置定时刷新，不新增依赖。同一 key 的并发刷新只允许最新请求更新缓存。服务端仍是统计数据的唯一来源；缓存只消除重复打开时的过渡画面。</p>
 
   <div class="grid">
-    <section class="card"><h3>收缩规则</h3><ol><li>environment chips 的 label 不参与 flex 收缩，不出现半截文字。</li><li>完整内容溢出时，全部 label 同时执行淡出和宽度收起；空间恢复后同时反向恢复。</li><li>各图标触发器保持尺寸、原顺序和操作能力。</li></ol></section>
+    <section class="card"><h3>收缩规则</h3><ol><li>environment chips 的 label 不参与 flex 收缩；被截短的名字以省略号结尾，不出现半截文字。</li><li>内容溢出时整行逐级收紧直到放得下：截短名字、收起分支名、隐藏文字并显示改动圆点；空间恢复后逐级展开。</li><li>各图标触发器保持尺寸、原顺序和操作能力。</li></ol></section>
     <section class="card"><h3>交互与无障碍</h3><ul><li>点击图标打开原菜单。</li><li>chat 与 execution 使用不同图标。</li><li>effort 图标颜色继续反映当前级别。</li><li>focus、tooltip 和 accessible name 不随文字隐藏而消失。</li></ul></section>
     <section class="card"><h3>边界</h3><ul><li>不改模型、权限和 effort 状态。</li><li>使用原生 ResizeObserver 与 MutationObserver，不新增依赖。</li><li>不换行、不隐藏整个控件。</li><li>不调整 composer 高度和 splitRatio。</li></ul></section>
   </div>
@@ -109,7 +109,7 @@
   <h2>实施 brief 与验收</h2>
   <p>上排实现集中在 <code>apps/web/components/chat/composer/environment-row/</code>：组件、测量 hook、样式和两个专用 chip 按职责分文件。<code>composer/index.tsx</code> 只渲染 EnvironmentRow。Context 缓存批次限定为 <code>apps/web/components/chat/context-badge.tsx</code>、<code>context-breakdown-panel.tsx</code> 和 <code>apps/web/lib/chat/context-breakdown-cache.ts</code>。独立检查由 <code>apps/web/scripts/chat/check-composer-environment-row.mjs</code> 提供，并纳入 <code>npm --prefix apps/web run check:chat-ui</code>。这些批次不修改 Popover、Menu、provider、session store 或提交逻辑。</p>
   <ol>
-    <li>public-entry 检查必须证明 environment chips 由实际溢出切换单一 <code>data-compact</code> 状态，不存在固定宽度特例或 label 的 <code>flex-shrink:1</code>。</li>
+    <li>public-entry 检查必须证明 environment chips 由实际溢出逐级切换 <code>data-squeeze</code>，最后一级为 <code>data-compact</code>，不存在固定宽度特例或 label 的 <code>flex-shrink:1</code>。</li>
     <li>状态、surface、项目、目录、Fit、缩放百分比和 Legend 必须共用同一动画规则；不得使用 <code>display:none</code> 或只收起其中一部分。</li>
     <li>默认安装版在 split pane 中把 divider 向左拖到触发阈值后，右侧四个设置入口和左侧 permission/more 均可见、无重叠。</li>
     <li>分别点击 permission、chat model、execution model 和 effort 图标，原菜单或面板正常展开。</li>

@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * GitChip — the per-folder git pill in the composer's environment row.
+ * GitChip — the git half of a folder pill in the composer's environment row.
  *
- * Sits right after its folder chip (the project chip, or one working
- * folder chip) when that folder is inside a Git checkout. The pill shows
- * the branch and the uncommitted line counts; its menu:
+ * Rendered inside its folder's pill (FOLDER_PILL: the project chip, or one
+ * working folder chip) as the right-hand segment when that folder is
+ * inside a Git checkout. The segment shows the branch (last path segment)
+ * and the uncommitted +N −N as a diff badge, which the row's tightest
+ * squeeze level reduces to a half-green, half-red dot; its menu:
  *
  *   * opens the uncommitted changes in Review (workspace scope),
  *   * switches or creates a branch in place,
@@ -27,7 +29,6 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { HoverTip } from "@/components/ui/tooltip";
-import { buttonVariants } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { closeAllPopovers } from "@/lib/runtime-bridge/ui";
@@ -262,6 +263,8 @@ export function GitChip({
 
   const changes = status.changes ?? { files: 0, untracked: 0, conflicts: 0, insertions: 0, deletions: 0 };
   const branchLabel = status.branch ?? status.head ?? text("detached", "游离");
+  // The pill shows the last path segment ("claude/foo" → "foo"); the tip has it all.
+  const shortBranch = branchLabel.split("/").filter(Boolean).pop() ?? branchLabel;
   const typed = query.trim();
   const typedExists = Boolean(typed) && (status.branches ?? []).includes(typed);
   const worktreeByBranch = new Map(
@@ -278,7 +281,7 @@ export function GitChip({
           ? text(`Switch to a feature branch; you're on ${status.default_branch}.`, `当前在 ${status.default_branch}，请先切到功能分支。`)
           : null;
   const openPr = status.pr && String(status.pr.state ?? "").toUpperCase() === "OPEN" ? status.pr : null;
-  const tip = `${status.repo_name ?? baseName(path)} · ${branchLabel}${changes.files ? ` · ${text(`${changes.files} changed`, `${changes.files} 个修改`)}` : ""}`;
+  const tip = `${status.repo_name ?? baseName(path)} · ${branchLabel}${changes.files ? ` · ${text(`${changes.files} changed`, `${changes.files} 个修改`)} +${changes.insertions} −${changes.deletions}` : ""}`;
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -286,18 +289,19 @@ export function GitChip({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "runtime-badge git-badge", status.is_worktree && "git-badge-worktree")}
+            className={cn("folder-pill-seg git-seg", status.is_worktree && "git-seg-worktree")}
             aria-label={text(`Git: ${branchLabel}`, `Git：${branchLabel}`)}
           >
             <SolarIcon name="git-branch" size={14} className="git-icon" />
-            <span className="badge-short">{branchLabel}</span>
-            {changes.insertions || changes.deletions ? (
-              <span className="git-badge-counts">
-                <span className="is-add">+{changes.insertions}</span>
-                <span className="is-del">−{changes.deletions}</span>
-              </span>
-            ) : changes.files ? (
-              <span className="git-badge-counts"><span>{changes.files}</span></span>
+            <span className="git-seg-label">{shortBranch}</span>
+            {changes.files ? (
+              <>
+                <span className="diff-badge git-seg-badge">
+                  <span className="is-add">+{changes.insertions}</span>
+                  <span className="is-del">−{changes.deletions}</span>
+                </span>
+                <span className="git-seg-dot" aria-hidden="true" />
+              </>
             ) : null}
           </button>
         </PopoverTrigger>

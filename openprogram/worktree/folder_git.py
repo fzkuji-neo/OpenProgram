@@ -6,7 +6,8 @@ environment row. This module answers what that pill shows and performs
 the four things its menu can do:
 
 * :func:`folder_status` — branch, upstream ahead/behind, uncommitted
-  change counts, the repository's worktrees, and (on request) the local
+  change counts (untracked text files count as added lines), the
+  repository's worktrees, and (on request) the local
   branch list and the current branch's open pull request.
 * :func:`switch_branch` — ``git switch`` (optionally ``-c``) in place.
   Uncommitted changes travel with the switch exactly as plain git
@@ -137,6 +138,33 @@ def _line_counts(root: str, has_head: bool) -> tuple[int, int]:
     return added, removed
 
 
+_MAX_UNTRACKED_FILES = 500
+_MAX_UNTRACKED_BYTES = 1 << 20
+
+
+def _untracked_lines(root: str) -> int:
+    """Lines in untracked text files — new files count as added lines.
+
+    Bounded: at most 500 files, each at most 1 MiB; binary files skipped.
+    """
+    code, out, _ = _git(root, "ls-files", "--others", "--exclude-standard", "-z")
+    if code:
+        return 0
+    total = 0
+    for rel in [r for r in out.split("\0") if r][:_MAX_UNTRACKED_FILES]:
+        path = Path(root) / rel
+        try:
+            if not path.is_file() or path.stat().st_size > _MAX_UNTRACKED_BYTES:
+                continue
+            data = path.read_bytes()
+        except OSError:
+            continue
+        if not data or b"\0" in data[:8000]:
+            continue
+        total += data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
+    return total
+
+
 def _worktrees(root: str) -> list[dict[str, Any]]:
     code, out, _ = _git(root, "worktree", "list", "--porcelain")
     if code:
@@ -229,6 +257,8 @@ def folder_status(
         return {"path": folder, "is_repo": True, "root": root, "error": err or "git status failed"}
     info = _parse_status_v2(out)
     insertions, deletions = _line_counts(root, has_head=info["head"] is not None)
+    if info["untracked"]:
+        insertions += _untracked_lines(root)
     common = _git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")[1].strip()
     repo_dir = str(Path(common).parent) if common.endswith("/.git") else root
     worktrees = _worktrees(root)

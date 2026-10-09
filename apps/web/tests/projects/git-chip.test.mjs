@@ -79,7 +79,7 @@ test('one pill per checkout: a second folder in the same repository hides', asyn
     h(GitChip, { key: 'a', path: '/repo', order: 0 }),
     h(GitChip, { key: 'b', path: '/repo/sub', order: 1 }),
   ]);
-  const pills = host.querySelectorAll('button.git-badge');
+  const pills = host.querySelectorAll('button.git-seg');
   assert.equal(pills.length, 1);
   assert.match(pills[0].textContent, /feature/);
   assert.match(pills[0].textContent, /\+3/);
@@ -90,7 +90,7 @@ test('one pill per checkout: a second folder in the same repository hides', asyn
 test('folders outside git render nothing', async () => {
   setup(() => ({ is_repo: false }));
   const { host, unmount } = await mount([h(GitChip, { path: '/plain', order: 0 })]);
-  assert.equal(host.querySelector('button.git-badge'), null);
+  assert.equal(host.querySelector('button.git-seg'), null);
   await unmount();
 });
 
