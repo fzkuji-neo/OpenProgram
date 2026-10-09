@@ -4,9 +4,9 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 
 | 族 | 地盘 | 包 / 来源 | 许可 |
 |---|---|---|---|
-| **Solar**（Bold Duotone） | 输入框区域：环境条 chip、控制行及其 + 菜单、模型 / 权限徽章、思考力度 pill、提问 / 审批面板、发送箭头 | `apps/web/components/solar-icons`——图标主体由 `apps/web/scripts/icons/fetch-solar.mjs` 从 Iconify 的 `solar` 集合取回，落在 `bodies.ts` | CC BY 4.0，Solar Icons by 480 Design |
+| **Solar**（Bold Duotone） | 输入框区域：环境条 chip、控制行及其 + 菜单、模型 / 权限徽章、思考力度 pill、提问 / 审批面板、发送箭头；以及聊天执行时间线每一行左侧的图标方块 | `apps/web/components/solar-icons`——图标主体由 `apps/web/scripts/icons/fetch-solar.mjs` 从 Iconify 的 `solar` 集合取回，落在 `bodies.ts` | CC BY 4.0，Solar Icons by 480 Design |
 | **pqoqubbw 动效线性图标** | 输入框以外的外壳：左侧 rail、中央标签页、侧栏、设置导航、功能卡片、DAG 视图 | `apps/web/components/animated-icons` | MIT |
-| **lucide-react** | 其余不需要动效的地方：时间线行、设置正文、对话框 | `lucide-react` | ISC |
+| **lucide-react** | 其余不需要动效的地方：设置正文、对话框、时间线行尾的展开箭头 | `lucide-react` | ISC |
 
 供应商 logo 来自 LobeHub（`components/settings/lobe-icons.ts`），头像来自 DiceBear identicon，二者不在本约定之内。
 
@@ -50,6 +50,43 @@ Solar 的撤回图标都是细线箭头，在按钮尺寸下几乎看不见，�
 
 输入框区域有两个**不是** Solar 的图标。高速（Fast）开关保留动效集里的仪表盘，由 `active` 属性转动指针。思考力度卡片里的 `?` 帮助按钮（[effort-picker.zh.html](effort-picker.zh.html)）是 14px 的 lucide `CircleHelp`：Solar 尚未取回问号图标，而且这个按钮是静态的，不需要动效句柄。二者均见文末实现状态。
 
+## 执行时间线用 Solar
+
+展开后的执行时间线，每一行以一个 24px 的着色方块开头（嵌套时 20px），里面是 13px 的图标（嵌套时 11px）。图标用 Solar Bold Duotone，所以各行显示为色调色的扁平实心标记，而不是线稿。`apps/web/components/chat/messages/tool-presentation.ts` 里的 `presentTool()` 按工具选图（`ToolPresentation.icon`，类型为 `SolarIconName`）；没有工具图标时，`execution-strip.tsx` 的 `StepRow` 按行类别兜底。方块本身和色调配色不随图标族改变。
+
+| 行 | Solar 图标 |
+|---|---|
+| 命令（`bash`、`terminal_use`、`process`） | `programming` |
+| 执行代码 | `code-square` |
+| 修改 / 写入 / 补丁 | `pen-new-square` |
+| 读取文件 / PDF | `file-text` |
+| 列出目录 | `folder-open` |
+| 查找文件（`glob`） | `file-search` |
+| 搜索（`grep`、代码搜索） | `magnifier` |
+| 代码分析（LSP） | `structure` |
+| 网页搜索 / 抓取 | `global` |
+| 浏览器操作 | `cursor` |
+| 生成图片 / 分析图片 | `gallery-add` / `gallery` |
+| 画布、发送文件、给代理发消息 | `plain-2` |
+| 子代理类工具 | `bot` |
+| 读取对话 | `book` |
+| 向用户提问 | `chat-round-question-mark` |
+| 规划模式 | `map` |
+| 定时任务 | `calendar` |
+| 运行程序 | `box` |
+| 使用技能 | `stars` |
+| 资源、记忆 | `database` |
+| 待办 | `checklist` |
+| 工作树 | `git-branch` |
+| 自我更新 | `refresh` |
+| MCP | `plug-circle` |
+| 其他函数 | `sledgehammer` |
+| 按行类别兜底：思考 / LLM / 子代理 / 函数 | `lightbulb-bolt` / `cpu` / `bot` / `sledgehammer` |
+
+Solar 没有扳手，通用函数行用锤子（sledgehammer）作为工具标记；思考行兜底复用 `lightbulb-bolt`，与模型选择器里表示推理能力的图标相同。失败行保留小号描边 ✗，摘要后的展开箭头仍是 lucide `ChevronRight`，二者都不是类型图标。
+
+时间线图标是静态的（`motionPreset="none"`）：行头不是按钮，点击只负责展开 / 收起。图标不带任何悬停提示，因为对话内容不加 tooltip。
+
 ## 动效约定
 
 三族图标都讲同一套命令式句柄 `AnimatedNavIconHandle`（`startAnimation` / `stopAnimation`）：容器——按钮、菜单行、chip——才是悬停目标，图标自己 16px 的命中区从不单独动。父级挂上 ref 就接管驱动；没有 ref 的 Solar 图标跟随最近的可点击祖先（按钮、链接、菜单项、chip）的悬停，所以不论有没有接 ref，每个按钮的表现都一样；纯展示的图标——菜单勾、警告三角、模型能力标记——用 `none`。
@@ -65,6 +102,7 @@ Solar Icons © 480 Design，CC BY 4.0（<https://github.com/480-Design/Solar-Ico
 ## 实现状态
 
 - 输入框区域换成 Solar，含环境条 chip、+ 菜单、提问 / 审批面板，以及经 `components/chat/top-bar` 共用的模型 / 权限徽章：**已实现**。
+- 执行时间线行图标换成 Solar（按工具选图，以及思考 / LLM / 子代理 / 函数兜底）：**已实现**。
 - 高速开关改为状态驱动的仪表盘（关时指针停在低速区，开时甩到高速区并变成强调红）：**未实现**——目前仍是动效集的仪表盘加静态 `active` 旋转。
 - 思考力度卡片的帮助图标换成 Solar `question-circle`（经 `fetch-solar.mjs` 取回）：**未实现**——暂用 lucide `CircleHelp`。
 - 面向用户的 Solar 第三方致谢（CC BY）：**未实现**。

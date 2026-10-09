@@ -56,6 +56,29 @@ const ICONS = {
   "add-circle": "bold-duotone",
   "folder-path-connect": "bold-duotone",
   "square-arrow-right-up": "bold-duotone",
+  // execution timeline row tiles (tool-presentation.ts + StepRow fallbacks);
+  // programming, pen-new-square, file-text, folder-open, global, plain-2,
+  // git-branch and lightbulb-bolt above are reused there too
+  "code-square": "bold-duotone",
+  "file-search": "bold-duotone",
+  "magnifier": "bold-duotone",
+  "structure": "bold-duotone",
+  "cursor": "bold-duotone",
+  "gallery": "bold-duotone",
+  "gallery-add": "bold-duotone",
+  "bot": "bold-duotone",
+  "book": "bold-duotone",
+  "chat-round-question-mark": "bold-duotone",
+  "map": "bold-duotone",
+  "calendar": "bold-duotone",
+  "box": "bold-duotone",
+  "stars": "bold-duotone",
+  "database": "bold-duotone",
+  "checklist": "bold-duotone",
+  "refresh": "bold-duotone",
+  "plug-circle": "bold-duotone",
+  "sledgehammer": "bold-duotone",
+  "cpu": "bold-duotone",
 };
 
 // A few glyphs come from other Iconify sets where Solar has no good fit;
