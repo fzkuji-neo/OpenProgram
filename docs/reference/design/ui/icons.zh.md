@@ -39,7 +39,7 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 | 展开箭头 | `alt-arrow-right`、`alt-arrow-down` |
 | 发送 | `plain-2`（纸飞机） |
 | 复制 | `copy` |
-| 模型能力（视觉 / 视频 / 工具 / 推理） | `eye` / `videocamera` / `case-minimalistic` / `lightbulb-bolt`；公文包下移 1px，否则提手会比旁边的眼睛和灯泡高一截 |
+| 模型能力（视觉 / 视频 / 工具 / 推理） | `eye` / `videocamera` / `case-minimalistic` / `lightbulb-bolt`；公文包用 12px 而不是 14px，因为它的图形占满整格、眼睛和摄像机留有边距，12px 时三者上下边才对齐 |
 | Git 胶囊 / 其菜单：新建分支或 worktree、worktree、PR、查看 PR | `git-branch` / `add-circle`、`folder-path-connect`、`git-pull-request`、`square-arrow-right-up` |
 | 文件修改卡片：标题 / 文件行 | `pen-new-square` / `file-text` |
 | 文件修改卡片：撤回 / Review 按钮 | Font Awesome `rotate-left` / `eye`（实心），图标 + 文字 |
