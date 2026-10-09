@@ -396,6 +396,11 @@
 .message-content p { margin: 0 0 12px; }
 .message-content p:last-child { margin-bottom: 0; }
 .message-content ul, .message-content ol { margin: 8px 0; padding-left: 20px; }
+/* Tailwind preflight strips list markers; chat markdown needs them back. */
+.message-content ul { list-style: disc; }
+.message-content ol { list-style: decimal; }
+.message-content ul ul { list-style: circle; }
+.message-content li::marker { color: var(--text-muted); }
 .message-content li { margin: 2px 0; }
 .message-content h1, .message-content h2, .message-content h3 { margin: 12px 0 6px; color: var(--text-bright); }
 /* Relative to --fs-chat so a global font change scales headings too. */
