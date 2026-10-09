@@ -54,21 +54,18 @@
 .message-actions-footer .message-actions {
   margin-left: 0;
 }
-.message-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: transparent;
-  border: none;
-  border-radius: 5px;
+/* Action and nav buttons are the official ghost round icon Button
+   (buttonVariants ghost / icon-xs, 24px): its classes own the size, the
+   round shape and the hover fill. This sheet only sets the resting muted
+   ink, the hover ink and the 16px glyph. These rules are unlayered, so
+   they never restate box geometry that would override the Button. */
+.message-action-btn,
+.message-nav-btn {
   color: var(--text-muted);
   cursor: pointer;
-  padding: 0;
 }
-.message-action-btn:hover {
-  background: var(--bg-hover);
+.message-action-btn:hover:not([disabled]),
+.message-nav-btn:hover:not([disabled]) {
   color: var(--text-primary);
 }
 .message-action-btn[disabled] {
@@ -98,22 +95,6 @@
   font-size: 12px;
   color: var(--text-muted);
   user-select: none;
-}
-.message-nav-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px; height: 22px;
-  background: transparent;
-  border: none;
-  border-radius: 5px;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0;
-}
-.message-nav-btn:hover:not([disabled]) {
-  background: var(--bg-hover);
-  color: var(--text-primary);
 }
 .message-nav-btn[disabled] {
   opacity: 0.35;
@@ -199,6 +180,7 @@
   height: 16px;
 }
 /* Brief "Copied!" confirmation after Copy click. */
-.message-action-btn.is-copied {
+.message-action-btn.is-copied,
+.message-action-btn.is-copied:hover:not([disabled]) {
   color: var(--accent-green, #22c55e);
 }

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Chat turn visual specification — execution timeline, file changes, and message navigation</title>
+<title>Chat turn visual specification — message surfaces, execution timeline, file changes, and message navigation</title>
 <style>
 :root{
   color-scheme:light dark;
@@ -10,6 +10,10 @@
   --accent-cyan:#3bc9db; --accent-purple:#a371f7;
   --page-bg:#141413;
   --bg-primary:#1f1f1e; --bg-secondary:#171716; --bg-tertiary:#252524;
+  --bg-input:#262624;
+  --composer-shadow:0 1px 3px 0 rgb(0 0 0/.25),0 1px 2px -1px rgb(0 0 0/.25);
+  --composer-shadow-focus:0 4px 6px -1px rgb(0 0 0/.35),0 2px 4px -2px rgb(0 0 0/.35);
+  --primary-fill:#d97757; --tip-bg:#f0efea; --tip-ink:#191917;
   --bg-hover:#2e2e2c; --border-light:rgba(226,225,218,0.2);
   --timeline-line:rgba(226,225,218,0.28);
   --timeline-thinking:#b78cff;--timeline-function:#ff9a66;
@@ -23,7 +27,11 @@
   :root{
     --accent-orange:#683000;--accent-green:#004a2b;--accent-cyan:#004853;--accent-purple:#522690;--accent-red:#a22d27;
     --page-bg:#f7f7f5;
-    --bg-primary:#ffffff;--bg-secondary:#f1f1ee;--bg-tertiary:#e9e9e5;--bg-hover:#e4e4df;
+    --bg-primary:#faf9f5;--bg-secondary:#f1f1ee;--bg-tertiary:#e9e9e5;--bg-hover:#e4e4df;
+    --bg-input:#ffffff;
+    --composer-shadow:0 1px 3px 0 rgb(0 0 0/.1),0 1px 2px -1px rgb(0 0 0/.1);
+    --composer-shadow-focus:0 4px 6px -1px rgb(0 0 0/.16),0 2px 4px -2px rgb(0 0 0/.16);
+    --primary-fill:#c15f3c; --tip-bg:#191917; --tip-ink:#f8f8f6;
     --border-light:rgba(36,36,32,.18);--timeline-line:rgba(36,36,32,.22);
     --timeline-thinking:#7c3aed;--timeline-function:#d14a1f;
     --timeline-llm:#00849a;--timeline-subagent:#0b8a4b;
@@ -49,7 +57,8 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 
 /* ── Chat primitives ── */
 .u-msg{display:flex;justify-content:flex-end;margin:10px 0}
-.u-bubble{background:var(--bg-tertiary);border-radius:14px;padding:9px 14px;max-width:70%;color:var(--text-primary)}
+/* Sent user bubble: the composer's raised surface (--user-msg-bg = --bg-input + --composer-shadow), static on hover. */
+.u-bubble{background:var(--bg-input);box-shadow:var(--composer-shadow);border-radius:16px;padding:10px 16px;max-width:75%;color:var(--text-bright)}
 .reply{margin:10px 0;color:var(--text-primary)}
 .reply b{color:var(--text-bright)}
 .reply-footer{display:flex;align-items:center;gap:2px;margin-top:14px;color:var(--text-muted);font-size:12px;opacity:0}
@@ -153,14 +162,55 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .run-footer .ts{margin-right:6px}
 .run-footer .act{opacity:0;display:inline-flex;gap:2px;align-items:center;transition:opacity .15s}
 .run-host:hover .run-footer .act{opacity:1}
-.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
-  border:none;background:transparent;border-radius:6px;color:var(--text-muted);cursor:pointer}
-.icon-btn:hover{background:var(--bg-hover);color:var(--text-bright)}
-.icon-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;
+/* Action buttons = the official ghost round icon Button (icon-xs, 24px) with a 16px line icon.
+   Labels show as a HoverTip (dark badge after a dwell), never a native title. */
+.icon-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;
+  border:none;background:transparent;border-radius:999px;color:var(--text-muted);cursor:pointer;padding:0}
+.icon-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
+.icon-btn[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;z-index:5;
+  transform:translateX(-50%);padding:6px 10px;border-radius:8px;background:var(--tip-bg);color:var(--tip-ink);
+  font:13px/1.3 var(--font-sans);white-space:nowrap;box-shadow:0 2px 8px rgb(0 0 0/.2);opacity:0;pointer-events:none;
+  transition:opacity .12s ease 0s}
+.icon-btn[data-tip]:hover::after{opacity:1;transition-delay:.6s}
+.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;
   stroke-linecap:round;stroke-linejoin:round}
 .msg-nav{display:inline-flex;align-items:center;gap:2px;margin-left:4px}
 .msg-nav .label{font-size:12px;color:var(--text-muted);min-width:28px;text-align:center}
 
+
+/* ── Messages: user bubble, action row, edit box ── */
+.msg-footer{display:flex;align-items:center;gap:2px;margin-top:4px;color:var(--text-muted);font-size:12px}
+.msg-footer.user{justify-content:flex-end}
+.msg-footer.assistant{justify-content:flex-start;margin-top:14px}
+.msg-footer .ts{padding:0 6px;font-variant-numeric:tabular-nums}
+.msg-footer.assistant .ts{padding-left:0}
+.msg-footer .is-disabled{opacity:.4;cursor:not-allowed}
+.msg-footer .is-disabled:hover{background:transparent;color:var(--text-muted)}
+.msg-footer .nav-label{min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+.msg-demo{display:flex;flex-direction:column}
+.msg-demo .u-msg{margin-bottom:0}
+.msg-demo .msg-footer{opacity:0;transition:opacity .15s ease}
+.msg-demo:hover .msg-footer,.msg-demo .msg-footer:focus-within,.msg-demo.pin .msg-footer{opacity:1}
+.edit-box{margin:10px 0 0 auto;width:100%;padding:4px;border-radius:23px;background:var(--bg-input);
+  box-shadow:var(--composer-shadow);transition:box-shadow .18s ease}
+.edit-box:hover,.edit-box:focus-within{box-shadow:var(--composer-shadow-focus)}
+.edit-box textarea{display:block;width:100%;min-height:52px;resize:none;border:0;outline:0;background:transparent;
+  color:var(--text-bright);font:15px/1.6 var(--font-sans);padding:10px 14px 4px}
+.edit-row{display:flex;align-items:center;gap:8px;padding:4px 6px 6px}
+.edit-row .spacer{flex:1}
+.ghost-icon-sm{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
+  border:0;border-radius:999px;background:transparent;color:var(--text-primary);cursor:pointer}
+.ghost-icon-sm:hover{background:var(--bg-hover);color:var(--text-bright)}
+.ghost-icon-sm svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
+.pill-btn{height:32px;padding:0 12px;border-radius:999px;border:0;font:500 14px/1 var(--font-sans);cursor:pointer}
+.pill-btn.elevated{background:var(--bg-input);color:var(--text-bright);box-shadow:var(--composer-shadow);transition:box-shadow .15s}
+.pill-btn.elevated:hover{box-shadow:var(--composer-shadow-focus)}
+.pill-btn.primary{background:var(--primary-fill);color:#fff}
+.pill-btn.primary:hover{opacity:.85}
+.surface-swatches{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.surface-swatch{display:flex;flex-direction:column;gap:6px;min-width:150px;padding:10px 12px;border-radius:16px;
+  background:var(--bg-input);box-shadow:var(--composer-shadow);font-size:12px;color:var(--text-secondary)}
+.surface-swatch b{color:var(--text-bright);font-weight:600}
 /* ── Current sub-agent behavior diagnostics ── */
 .state-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;max-width:980px}
 .state-card{position:relative;min-height:126px;padding:14px;border:1px solid var(--border-light);
@@ -196,7 +246,8 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 /* ── File-change summaries and Review ── */
 .change-target-demo{display:grid;grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr);gap:1px;max-width:980px;overflow:hidden;border:1px solid var(--border-light);border-radius:12px;background:var(--border-light)}
 .change-chat-pane,.change-review-pane{min-width:0;background:var(--bg-primary)}.change-chat-pane{padding:20px}
-.change-card-demo{container:change-card/inline-size;width:min(100%,680px);margin-top:17px;padding:6px;border-radius:16px;background:var(--bg-tertiary);box-shadow:0 1px 3px 0 rgb(0 0 0/.25),0 1px 2px -1px rgb(0 0 0/.25);transition:box-shadow .15s;font-family:var(--font-sans)}
+.change-card-demo{container:change-card/inline-size;width:min(100%,680px);margin-top:17px;padding:6px;border-radius:16px;background:var(--bg-input);box-shadow:var(--composer-shadow);transition:box-shadow .15s;font-family:var(--font-sans)}
+.change-card-demo:hover{box-shadow:var(--composer-shadow-focus)}
 .change-summary{min-height:36px;display:flex;align-items:center;gap:10px;padding:0 0 6px 10px;color:var(--text-secondary)}
 .change-summary-mark{flex:none;width:18px;height:18px;color:var(--text-muted)}.change-summary-mark svg{display:block;width:100%;height:100%;fill:currentColor}
 .change-summary-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-bright);font-size:13.5px;line-height:1;font-weight:600}.change-summary-stat{flex:none;display:inline-flex;align-items:center;column-gap:4px;font:12px/1.2 var(--font-sans);font-variant-numeric:tabular-nums}
@@ -315,11 +366,12 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 </head>
 <body>
 <h1>Chat turn visual specification</h1>
-<div class="desc">Execution timeline (no outer frame, icons connected vertically, consistent rows), manual function runs, sub-agent parent/child branch navigation, file-change summaries and Review, and left-edge message navigation. All examples are interactive. This is the sole visual authority for chat turns; related implementations are in <code>apps/web/components/chat/messages/</code> and <code>app/styles/chat/</code>.</div>
+<div class="desc">Message surfaces (no avatars, user bubble, edit box, action row), execution timeline (no outer frame, icons connected vertically, consistent rows), manual function runs, sub-agent parent/child branch navigation, file-change summaries and Review, and left-edge message navigation. All examples are interactive. This is the sole visual authority for chat turns; related implementations are in <code>apps/web/components/chat/messages/</code> and <code>app/styles/chat/</code>.</div>
 <div class="doc-meta" aria-label="Document status">
   <span class="doc-pill current">Timeline folding and copying specification · implemented</span>
   <span class="doc-pill">Scope: Chat / workflow / sub-agent presentation</span>
   <span class="doc-pill">Continuous circle expand/collapse animation and function-column alignment · implemented</span>
+  <span class="doc-pill current">Message surfaces: raised bubble, edit box and action row · implemented</span>
   <span class="doc-pill">Exact file attribution, Review, and safe Undo · pending</span>
 </div>
 
@@ -370,13 +422,15 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
     <div class="reply-footer">
       <span class="ts">16:33</span>
       <span class="act">
-        <button class="icon-btn" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
-        <button class="icon-btn" title="Retry"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
+        <button class="icon-btn" aria-label="Quote message" data-tip="Quote message"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/></svg></button>
+        <button class="icon-btn" aria-label="Copy" data-tip="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+        <button class="icon-btn" aria-label="Retry from here" data-tip="Retry from here"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
+        <button class="icon-btn" aria-label="Branch into a new conversation" data-tip="Branch into a new conversation"><svg viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></button>
       </span>
     </div>
   </div>
 </div>
-<div class="rule">Rules: no outer border or background; the collapsed row is a plain-text summary + ›, without a button background, aligned to the body column. Every collapsed row is exactly 28px tall; its first line and arrow are vertically centered with the turn’s 28px avatar, without top, transform, or translate offsets. Reply text is always directly visible. The bottom timestamp and copy/retry actions appear together only on message hover or keyboard focus within the footer.<b>Time contract:</b>User messages record local time on successful send. Agent replies and independent function/runtime messages record start time when their first visible state is created. Thinking and ordinary tool steps inside an Agent share that Agent message’s start time; independent runtime/sub-agent messages keep their own. Subsequent streaming, terminal updates, and hierarchy moves preserve it; after reload, prefer persisted authoritative time. Temporary thinking after send/retry but before the first reply content occupies one row, with start time immediately after status text and no normal message footer. Switch to the formal message layout when reply content arrives. Execution summaries, body text, and timestamps use different font sizes and line heights, so body-to-footer spacing is 14px visually, keeping visible paragraph gaps consistent without changing collapsed-row height or avatar placement.<br> Functions and execution trees initiated by an Agent reply belong only to that reply’s execution timeline and must not also create top-level runtime cards. Only user-invoked functions appear as independent runtime messages.<br>
+<div class="rule">Rules: no outer border or background; the collapsed row is a plain-text summary + ›, without a button background, aligned to the body column. Every collapsed row is exactly 28px tall, with its text and arrow vertically centered in the row, without top, transform, or translate offsets. The transcript has no avatar column; the text column lines up with the composer’s left and right edges. Reply text is always directly visible. The bottom timestamp and copy/retry actions appear together only on message hover or keyboard focus within the footer.<b>Time contract:</b>User messages record local time on successful send. Agent replies and independent function/runtime messages record start time when their first visible state is created. Thinking and ordinary tool steps inside an Agent share that Agent message’s start time; independent runtime/sub-agent messages keep their own. Subsequent streaming, terminal updates, and hierarchy moves preserve it; after reload, prefer persisted authoritative time. Temporary thinking after send/retry but before the first reply content occupies one row, with start time immediately after status text and no normal message footer. Switch to the formal message layout when reply content arrives. Execution summaries, body text, and timestamps use different font sizes and line heights, so body-to-footer spacing is 14px visually, keeping visible paragraph gaps consistent without changing collapsed-row height.<br> Functions and execution trees initiated by an Agent reply belong only to that reply’s execution timeline and must not also create top-level runtime cards. Only user-invoked functions appear as independent runtime messages.<br>
 <b>Expand downward only</b>: use grid 0fr↔1fr height transitions (0.18s), pushing lower content down on expansion and smoothly removing it on collapse;<b>the viewport must not jump</b>. Disable native scroll anchoring in chat (overflow-anchor:none), and suspend bottom following for 600ms after user clicks. The toggle row stays fixed on screen while expanding/collapsing. Unmount children after collapse animation to eliminate rendering cost while folded.<b>Execution always defaults to collapsed</b>: streaming and historical messages show only the summary, with the original text shimmer while running. Users can expand it; new steps append downward with a 0.22s fade/slide. Running rows use the original small status dot, and thinking notes show the latest line. Manual choices persist through later streaming and finalization. Streaming and finalized states use one timeline renderer: synthetic blocks derive from live fields until real blocks replace them after finalize.</div>
 
 <!-- ═══════ 2. Timeline details ═══════ -->
@@ -461,7 +515,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
     <tr><td><code>Please explain gui_agent(...)</code> or <code>`gui_agent(...)`</code></td><td>Not a complete function expression</td><td>Ordinary UserMessage → Agent</td></tr>
   </tbody>
 </table>
-<div class="desc">The recognizer executes neither JavaScript nor Python and supports no positional arguments, attribute access, variables, or arbitrary expressions. It parses only strings, numbers, booleans, null, and flat named arguments allowed by the function schema. Missing required or invalidly typed parameters retain the draft, open the same form, and display errors instead of falling back to chat. Runs retain a Function-type avatar on the left and unframed timeline on the right. This avatar identifies ProgramRun, not an Agent speaker. Expanded run summaries show only direct root children; their descendants stay collapsed until users expand each level.</div>
+<div class="desc">The recognizer executes neither JavaScript nor Python and supports no positional arguments, attribute access, variables, or arbitrary expressions. It parses only strings, numbers, booleans, null, and flat named arguments allowed by the function schema. Missing required or invalidly typed parameters retain the draft, open the same form, and display errors instead of falling back to chat. Runs keep a 28px ƒ type marker on the left and the unframed timeline on the right. The marker identifies a ProgramRun; it is not a speaker avatar. Expanded run summaries show only direct root children; their descendants stay collapsed until users expand each level.</div>
 <div class="stage run-host">
   <div class="runtime-program-run">
     <div class="runtime-program-avatar" aria-hidden="true">ƒ</div>
@@ -502,13 +556,13 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
           <div class="run-footer">
             <span class="ts">16:32</span>
             <span class="act">
-              <button class="icon-btn" title="Copy result"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
-              <button class="icon-btn" title="Retry"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
-              <button class="icon-btn" title="Edit and rerun"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+              <button class="icon-btn" aria-label="Copy result" data-tip="Copy result"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+              <button class="icon-btn" aria-label="Retry" data-tip="Retry"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
+              <button class="icon-btn" aria-label="Edit and rerun" data-tip="Edit and rerun"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
               <span class="msg-nav">
-                <button class="icon-btn" title="Previous version"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+                <button class="icon-btn" aria-label="Previous version" data-tip="Previous version"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
                 <span class="label">1 / 2</span>
-                <button class="icon-btn" title="Next version"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+                <button class="icon-btn" aria-label="Next version" data-tip="Next version"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
               </span>
             </span>
           </div>
@@ -812,6 +866,32 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
   <tr><td>Chat card</td><td><code>turn-files-chips.tsx</code>, user-provided <code>FeatherIcon</code> , and existing CSS.</td><td>FeatherIcon identifies direct file edits only; no site logo, inline diff, file-row arrows, hover action groups, or reference-product branding.</td></tr>
 </tbody></table>
 <div class="rule"><b>Visual acceptance:</b>Chat cards initially show at most three filenames and load no diff; expand to at most 20 paths, with the remainder reached through the final “and N more files — open Review” row. Changes mounts one bounded diff at a time. This turn / Current branch / Workspace source labels remain visible. Historical Restore uses a separate impact sheet rather than crowding Undo/Revert/Restore/Branch into card headers. Full data/recovery acceptance is in the<a href="../runtime/operations/file-management.html#acceptance">authoritative runtime design</a>.<br><b>Implementation status:</b>Production chat cards retain outer borders and header dividers, with 40px headers and 19px Feather file-edit icons. Undo/Redo/Revert/Reapply shows only the currently executable action; Review uses a neutral outlined button. Center Review implements This turn / Current branch / Workspace, bounded file/diff pagination, and actor/producer/linked impact. A branch checkout mismatch banner requires Keep current files or Restore branch code before file modification. Runtime and visual implementations passed Task A–E independent reviews. Fonts, three background levels, 8ch fixed statistics columns, Collapse-only footer, compact spacing, and light primary-background revisions passed independent review. Moving history-preflight hints into the header also passed this iteration’s independent specification and quality reviews.</div>
+
+<!-- ═══════ 8. Message surfaces ═══════ -->
+<h2><span class="num">8</span>Message surfaces: no avatars, a raised user bubble, the edit box and the action row</h2>
+<div class="desc">The transcript has no avatars and no speaker-name line: a bubble on the right and flat text on the left already tell the speakers apart, and the text column lines up with the composer’s left and right edges. Two marks remain and neither is a speaker avatar: a reply from a named agent other than main keeps a compact 18px identity line above its text in multi-agent sessions, and a manual function run keeps its ƒ type marker (section 3). The user bubble, the input box and the file-change card share one raised surface: a <code>--bg-input</code> fill (white in light themes, per theme in dark ones) with <code>--composer-shadow</code>. The assistant reply sits flat on the page without a bubble. Hover the messages below to see their action rows; rest on a button to see its tip.</div>
+<div class="stage">
+  <div class="msg-demo">
+    <div class="u-msg"><div class="u-bubble">Switch the README install steps to uv, and check the Python version requirement while you’re there.</div></div>
+    <div class="msg-footer user"><span class="ts">16:31</span><button class="icon-btn" aria-label="Quote message" data-tip="Quote message"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/></svg></button><button class="icon-btn" aria-label="Copy" data-tip="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button><button class="icon-btn" aria-label="Retry from here" data-tip="Retry from here"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button><button class="icon-btn" aria-label="Edit message" data-tip="Edit message"><svg viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button><button class="icon-btn" aria-label="Rewind to here" data-tip="Rewind to here"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button><span class="msg-nav"><button class="icon-btn" aria-label="Previous version" data-tip="Previous version"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button><span class="nav-label">2 / 3</span><button class="icon-btn is-disabled" aria-label="Next version" data-tip="Next version"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button></span></div>
+  </div>
+  <div class="msg-demo">
+    <div class="reply">Switched to <b>uv sync</b> and set the minimum to Python 3.11, matching <code>pyproject.toml</code>.</div>
+    <div class="msg-footer assistant"><span class="ts">16:33</span><button class="icon-btn" aria-label="Quote message" data-tip="Quote message"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/></svg></button><button class="icon-btn" aria-label="Copy" data-tip="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button><button class="icon-btn" aria-label="Retry from here" data-tip="Retry from here"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button><button class="icon-btn" aria-label="Branch into a new conversation" data-tip="Branch into a new conversation"><svg viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></button></div>
+  </div>
+  <div class="edit-box" tabindex="-1">
+    <textarea aria-label="Edit message">Switch the README install steps to uv, and check the Python version requirement.</textarea>
+    <div class="edit-row">
+      <button class="ghost-icon-sm icon-btn" aria-label="Add images or files" data-tip="Add images or files"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+      <span class="spacer"></span>
+      <button class="pill-btn elevated" type="button">Cancel</button>
+      <button class="pill-btn primary" type="button">Save &amp; resend</button>
+    </div>
+  </div>
+</div>
+<div class="rule"><b>User bubble:</b> right-aligned and as wide as its content, up to 75% (88% in narrow layouts and split panes); 16px corners, 10px 16px padding, no border. The fill is <code>--user-msg-bg</code>, which equals <code>var(--bg-input)</code> in every theme; the shadow is a static <code>--composer-shadow</code>. A sent message is not a control, so hover does not deepen it. Code blocks and collapsed pastes inside the bubble use a <code>--bg-primary</code> inset to stand apart from the bubble surface. Queued rows above the composer are user messages not yet sent and use the same surface with 10px corners.<br>
+<b>Edit state:</b> Edit message turns the bubble into an input box that matches the main composer: a <code>--bg-input</code> fill, 23px corners, <code>--composer-shadow</code> at rest and a 180ms transition to <code>--composer-shadow-focus</code> on hover and while focus is inside; it spans the full column. Inside are the kept attachments (each removable), the new-attachment strip and the composer’s own input row (with @ file mentions). The bottom row holds the Solar paperclip in the official ghost round icon Button (icon-sm) with the tip “Add images or files” on the left, then Cancel (elevated sm) and Save &amp; resend (default primary sm) on the right. Esc cancels and ⌘/Ctrl+Enter saves; files can be dropped onto the box. The action row is hidden while editing.<br>
+<b>Action row:</b> sits under every message, right-aligned under a user bubble and left-aligned 14px below assistant text. Order: timestamp, Quote, Copy, Retry, Edit (user only), Branch (assistant only), Rewind to here (user only), then ‹ N / M › when sibling versions exist. Every button is the official ghost round icon Button at icon-xs (24px, the official size closest to 26px) holding a 16px animated line icon; it rests in muted ink and turns primary ink with a round muted fill on hover. The whole button drives the icon’s animation on hover and keyboard focus. Labels show through HoverTip + TipBody after a 1.5s dwell, never a native title, and the same text is the aria-label. The row is transparent until the message is hovered or holds focus, and always visible on touch devices; its height stays 24px whether or not it shows. A busy button is disabled at 40% opacity; Copy flashes a green check for 1.2s.</div>
 
 <script>
 document.getElementById('tl1').querySelector(':scope > .tl-toggle').addEventListener('click',()=>{

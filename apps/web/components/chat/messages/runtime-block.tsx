@@ -35,7 +35,7 @@ import { systemAccessRequired } from "@/lib/access/system-access-result";
 
 import type { TNode } from "./tree-types";
 import { ExecutionStrip, StepRow, TreeStep, decodeEscapes } from "./execution-strip";
-import { ActionButton, MessageTimestamp, SVG } from "./message-actions";
+import { ActionButton, MessageTimestamp, NavButton, SVG } from "./message-actions";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { runtimeAnswer, runtimeConclusion, runtimeSummaryLabel } from "./runtime-summary";
 
@@ -309,28 +309,22 @@ export function RuntimeBlock({
         ) : null}
         {!nested && hasSiblings ? (
           <div className="message-nav">
-            <button
-              type="button"
-              className="message-nav-btn"
-              data-nav="prev"
-              aria-label={text("Previous version", "上一个版本")}
+            <NavButton
+              dir="prev"
+              label={text("Previous version", "上一个版本")}
               disabled={siblingIdx <= 1 || !sessionId || !msg.prevSiblingId}
               onClick={() =>
                 sessionId &&
                 msg.prevSiblingId &&
                 checkoutSibling(sessionId, msg.prevSiblingId, msg, siblingIdx - 1)
               }
-            >
-              {SVG.chevL}
-            </button>
+            />
             <span className="message-nav-label">
               {siblingIdx} / {siblingTotal}
             </span>
-            <button
-              type="button"
-              className="message-nav-btn"
-              data-nav="next"
-              aria-label={text("Next version", "下一个版本")}
+            <NavButton
+              dir="next"
+              label={text("Next version", "下一个版本")}
               disabled={
                 siblingIdx >= siblingTotal || !sessionId || !msg.nextSiblingId
               }
@@ -339,9 +333,7 @@ export function RuntimeBlock({
                 msg.nextSiblingId &&
                 checkoutSibling(sessionId, msg.nextSiblingId, msg, siblingIdx + 1)
               }
-            >
-              {SVG.chevR}
-            </button>
+            />
           </div>
         ) : null}
       </div>

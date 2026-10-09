@@ -15,7 +15,7 @@
   --nav-color: #625d78;
   --nav-color-hover: #171421;
   --bg-selected: rgba(79, 70, 120, 0.1);
-  --user-msg-bg: #f3f0fb;
+  --user-msg-bg: var(--bg-input); /* sent bubble = the composer surface */
   --assistant-msg-bg: #fbfaff;
   --shadow-sm: 0 1px 2px rgba(32, 24, 58, 0.05);
   --shadow: 0 2px 8px rgba(32, 24, 58, 0.07);

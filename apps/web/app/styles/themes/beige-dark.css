@@ -17,9 +17,10 @@
   --nav-color: #b8b5ad;       /* nav default — same as text-primary in dark */
   --nav-color-hover: #f0efea; /* nav hover — same as text-bright */
   --bg-selected: rgba(255, 255, 255, 0.10); /* selected row, one step above hover */
-  /* Claude chat surfaces: user bubble is a raised warm grey; the
-     assistant message sits flat on the page (no bubble tint). */
-  --user-msg-bg: #252523;
+  /* Chat surfaces: the sent user bubble is the same raised surface as
+     the composer (--bg-input + --composer-shadow); the assistant
+     message sits flat on the page (no bubble tint). */
+  --user-msg-bg: var(--bg-input);
   --assistant-msg-bg: #191918;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18);
   --shadow: 0 4px 12px rgba(0, 0, 0, 0.22);

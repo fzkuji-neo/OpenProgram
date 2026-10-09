@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<title>聊天轮次视觉规范 — 执行时间线 + 文件修改 + 消息导航</title>
+<title>聊天轮次视觉规范 — 消息表面 + 执行时间线 + 文件修改 + 消息导航</title>
 <style>
 :root{
   color-scheme:light dark;
@@ -10,6 +10,10 @@
   --accent-cyan:#3bc9db; --accent-purple:#a371f7;
   --page-bg:#141413;
   --bg-primary:#1f1f1e; --bg-secondary:#171716; --bg-tertiary:#252524;
+  --bg-input:#262624;
+  --composer-shadow:0 1px 3px 0 rgb(0 0 0/.25),0 1px 2px -1px rgb(0 0 0/.25);
+  --composer-shadow-focus:0 4px 6px -1px rgb(0 0 0/.35),0 2px 4px -2px rgb(0 0 0/.35);
+  --primary-fill:#d97757; --tip-bg:#f0efea; --tip-ink:#191917;
   --bg-hover:#2e2e2c; --border-light:rgba(226,225,218,0.2);
   --timeline-line:rgba(226,225,218,0.28);
   --timeline-thinking:#b78cff;--timeline-function:#ff9a66;
@@ -23,7 +27,11 @@
   :root{
     --accent-orange:#683000;--accent-green:#004a2b;--accent-cyan:#004853;--accent-purple:#522690;--accent-red:#a22d27;
     --page-bg:#f7f7f5;
-    --bg-primary:#ffffff;--bg-secondary:#f1f1ee;--bg-tertiary:#e9e9e5;--bg-hover:#e4e4df;
+    --bg-primary:#faf9f5;--bg-secondary:#f1f1ee;--bg-tertiary:#e9e9e5;--bg-hover:#e4e4df;
+    --bg-input:#ffffff;
+    --composer-shadow:0 1px 3px 0 rgb(0 0 0/.1),0 1px 2px -1px rgb(0 0 0/.1);
+    --composer-shadow-focus:0 4px 6px -1px rgb(0 0 0/.16),0 2px 4px -2px rgb(0 0 0/.16);
+    --primary-fill:#c15f3c; --tip-bg:#191917; --tip-ink:#f8f8f6;
     --border-light:rgba(36,36,32,.18);--timeline-line:rgba(36,36,32,.22);
     --timeline-thinking:#7c3aed;--timeline-function:#d14a1f;
     --timeline-llm:#00849a;--timeline-subagent:#0b8a4b;
@@ -49,7 +57,8 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 
 /* ── 聊天基元 ── */
 .u-msg{display:flex;justify-content:flex-end;margin:10px 0}
-.u-bubble{background:var(--bg-tertiary);border-radius:14px;padding:9px 14px;max-width:70%;color:var(--text-primary)}
+/* Sent user bubble: the composer's raised surface (--user-msg-bg = --bg-input + --composer-shadow), static on hover. */
+.u-bubble{background:var(--bg-input);box-shadow:var(--composer-shadow);border-radius:16px;padding:10px 16px;max-width:75%;color:var(--text-bright)}
 .reply{margin:10px 0;color:var(--text-primary)}
 .reply b{color:var(--text-bright)}
 .reply-footer{display:flex;align-items:center;gap:2px;margin-top:14px;color:var(--text-muted);font-size:12px;opacity:0}
@@ -155,14 +164,55 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 .run-footer .ts{margin-right:6px}
 .run-footer .act{opacity:0;display:inline-flex;gap:2px;align-items:center;transition:opacity .15s}
 .run-host:hover .run-footer .act{opacity:1}
-.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
-  border:none;background:transparent;border-radius:6px;color:var(--text-muted);cursor:pointer}
-.icon-btn:hover{background:var(--bg-hover);color:var(--text-bright)}
-.icon-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;
+/* Action buttons = the official ghost round icon Button (icon-xs, 24px) with a 16px line icon.
+   Labels show as a HoverTip (dark badge after a dwell), never a native title. */
+.icon-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;
+  border:none;background:transparent;border-radius:999px;color:var(--text-muted);cursor:pointer;padding:0}
+.icon-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
+.icon-btn[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;z-index:5;
+  transform:translateX(-50%);padding:6px 10px;border-radius:8px;background:var(--tip-bg);color:var(--tip-ink);
+  font:13px/1.3 var(--font-sans);white-space:nowrap;box-shadow:0 2px 8px rgb(0 0 0/.2);opacity:0;pointer-events:none;
+  transition:opacity .12s ease 0s}
+.icon-btn[data-tip]:hover::after{opacity:1;transition-delay:.6s}
+.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;
   stroke-linecap:round;stroke-linejoin:round}
 .msg-nav{display:inline-flex;align-items:center;gap:2px;margin-left:4px}
 .msg-nav .label{font-size:12px;color:var(--text-muted);min-width:28px;text-align:center}
 
+
+/* ── Messages: user bubble, action row, edit box ── */
+.msg-footer{display:flex;align-items:center;gap:2px;margin-top:4px;color:var(--text-muted);font-size:12px}
+.msg-footer.user{justify-content:flex-end}
+.msg-footer.assistant{justify-content:flex-start;margin-top:14px}
+.msg-footer .ts{padding:0 6px;font-variant-numeric:tabular-nums}
+.msg-footer.assistant .ts{padding-left:0}
+.msg-footer .is-disabled{opacity:.4;cursor:not-allowed}
+.msg-footer .is-disabled:hover{background:transparent;color:var(--text-muted)}
+.msg-footer .nav-label{min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+.msg-demo{display:flex;flex-direction:column}
+.msg-demo .u-msg{margin-bottom:0}
+.msg-demo .msg-footer{opacity:0;transition:opacity .15s ease}
+.msg-demo:hover .msg-footer,.msg-demo .msg-footer:focus-within,.msg-demo.pin .msg-footer{opacity:1}
+.edit-box{margin:10px 0 0 auto;width:100%;padding:4px;border-radius:23px;background:var(--bg-input);
+  box-shadow:var(--composer-shadow);transition:box-shadow .18s ease}
+.edit-box:hover,.edit-box:focus-within{box-shadow:var(--composer-shadow-focus)}
+.edit-box textarea{display:block;width:100%;min-height:52px;resize:none;border:0;outline:0;background:transparent;
+  color:var(--text-bright);font:15px/1.6 var(--font-sans);padding:10px 14px 4px}
+.edit-row{display:flex;align-items:center;gap:8px;padding:4px 6px 6px}
+.edit-row .spacer{flex:1}
+.ghost-icon-sm{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
+  border:0;border-radius:999px;background:transparent;color:var(--text-primary);cursor:pointer}
+.ghost-icon-sm:hover{background:var(--bg-hover);color:var(--text-bright)}
+.ghost-icon-sm svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2}
+.pill-btn{height:32px;padding:0 12px;border-radius:999px;border:0;font:500 14px/1 var(--font-sans);cursor:pointer}
+.pill-btn.elevated{background:var(--bg-input);color:var(--text-bright);box-shadow:var(--composer-shadow);transition:box-shadow .15s}
+.pill-btn.elevated:hover{box-shadow:var(--composer-shadow-focus)}
+.pill-btn.primary{background:var(--primary-fill);color:#fff}
+.pill-btn.primary:hover{opacity:.85}
+.surface-swatches{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.surface-swatch{display:flex;flex-direction:column;gap:6px;min-width:150px;padding:10px 12px;border-radius:16px;
+  background:var(--bg-input);box-shadow:var(--composer-shadow);font-size:12px;color:var(--text-secondary)}
+.surface-swatch b{color:var(--text-bright);font-weight:600}
 /* ── Sub-agent 当前行为诊断 ── */
 .state-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;max-width:980px}
 .state-card{position:relative;min-height:126px;padding:14px;border:1px solid var(--border-light);
@@ -198,7 +248,8 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 /* ── 文件修改摘要与 Review ── */
 .change-target-demo{display:grid;grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr);gap:1px;max-width:980px;overflow:hidden;border:1px solid var(--border-light);border-radius:12px;background:var(--border-light)}
 .change-chat-pane,.change-review-pane{min-width:0;background:var(--bg-primary)}.change-chat-pane{padding:20px}
-.change-card-demo{container:change-card/inline-size;width:min(100%,680px);margin-top:17px;padding:6px;border-radius:16px;background:var(--bg-tertiary);box-shadow:0 1px 3px 0 rgb(0 0 0/.25),0 1px 2px -1px rgb(0 0 0/.25);transition:box-shadow .15s;font-family:var(--font-sans)}
+.change-card-demo{container:change-card/inline-size;width:min(100%,680px);margin-top:17px;padding:6px;border-radius:16px;background:var(--bg-input);box-shadow:var(--composer-shadow);transition:box-shadow .15s;font-family:var(--font-sans)}
+.change-card-demo:hover{box-shadow:var(--composer-shadow-focus)}
 .change-summary{min-height:36px;display:flex;align-items:center;gap:10px;padding:0 0 6px 10px;color:var(--text-secondary)}
 .change-summary-mark{flex:none;width:18px;height:18px;color:var(--text-muted)}.change-summary-mark svg{display:block;width:100%;height:100%;fill:currentColor}
 .change-summary-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-bright);font-size:13.5px;line-height:1;font-weight:600}.change-summary-stat{flex:none;display:inline-flex;align-items:center;column-gap:4px;font:12px/1.2 var(--font-sans);font-variant-numeric:tabular-nums}
@@ -317,11 +368,12 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 </head>
 <body>
 <h1>聊天轮次视觉规范</h1>
-<div class="desc">执行时间线（去外框、图标竖线串联、行样式统一）+ 手动函数运行 + sub-agent 父子分支导航 + 文件修改摘要与 Review + 左缘消息导航。全部可交互。本文件是聊天轮次视觉的唯一权威；相关实现在 <code>apps/web/components/chat/messages/</code> 与 <code>app/styles/chat/</code>。</div>
+<div class="desc">消息表面（无头像、用户气泡、编辑框、操作行）+ 执行时间线（去外框、图标竖线串联、行样式统一）+ 手动函数运行 + sub-agent 父子分支导航 + 文件修改摘要与 Review + 左缘消息导航。全部可交互。本文件是聊天轮次视觉的唯一权威；相关实现在 <code>apps/web/components/chat/messages/</code> 与 <code>app/styles/chat/</code>。</div>
 <div class="doc-meta" aria-label="文档状态">
   <span class="doc-pill current">时间线折叠与复制规范 · 已实现</span>
   <span class="doc-pill">范围：Chat / workflow / sub-agent 展示</span>
   <span class="doc-pill">圆点连续开合动画与函数列对齐 · 已实现</span>
+  <span class="doc-pill current">消息表面：凸起气泡、编辑框与操作行 · 已实现</span>
   <span class="doc-pill">精确文件归因、Review 与安全 Undo · 待实现</span>
 </div>
 
@@ -372,13 +424,15 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
     <div class="reply-footer">
       <span class="ts">16:33</span>
       <span class="act">
-        <button class="icon-btn" title="复制"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
-        <button class="icon-btn" title="重试"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
+        <button class="icon-btn" aria-label="引用消息" data-tip="引用消息"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/></svg></button>
+        <button class="icon-btn" aria-label="复制" data-tip="复制"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+        <button class="icon-btn" aria-label="从这里重试" data-tip="从这里重试"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
+        <button class="icon-btn" aria-label="分支到新会话" data-tip="分支到新会话"><svg viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></button>
       </span>
     </div>
   </div>
 </div>
-<div class="rule">规则：外层无框无底色；收起行 = 纯文字摘要 + ›（无按钮底色，与正文列左对齐）；所有收起行固定高 28px，第一行文字、箭头与同轮 28px 头像严格上下居中，不使用 top、transform 或 translate 做垂直偏移；回复文本永远直接可见，底部发送时间和复制、重试等操作只在消息 hover 或 footer 键盘 focus 时一起显示。<b>时间契约：</b>用户消息在发送成功时记录本地时间，Agent 回复与独立 function/runtime 在首个可见状态创建时记录开始时间；Agent 内的 thinking 和普通 tool step 共享所属 Agent 消息的开始时间，独立 runtime/sub-agent 消息保留自身开始时间。所有后续流式更新、终态更新和层级迁移均保留该时间，刷新后优先使用持久化的权威时间。发送或重试后、首个回复内容到达前的临时 thinking 状态只占一行，开始时间紧跟状态文字显示，不创建正常消息 footer；首个回复内容到达后再切换为正式消息布局。执行摘要、正文和时间戳采用不同字号与行高，因此正文到 footer 使用 14px 视觉间距，使两段可见文字之间的留白一致；不改变折叠行高度或头像位置。<br>
+<div class="rule">规则：外层无框无底色；收起行 = 纯文字摘要 + ›（无按钮底色，与正文列左对齐）；所有收起行固定高 28px，文字与箭头在行内垂直居中，不使用 top、transform 或 translate 做垂直偏移；对话流没有头像列，正文列与输入框左右边缘对齐；回复文本永远直接可见，底部发送时间和复制、重试等操作只在消息 hover 或 footer 键盘 focus 时一起显示。<b>时间契约：</b>用户消息在发送成功时记录本地时间，Agent 回复与独立 function/runtime 在首个可见状态创建时记录开始时间；Agent 内的 thinking 和普通 tool step 共享所属 Agent 消息的开始时间，独立 runtime/sub-agent 消息保留自身开始时间。所有后续流式更新、终态更新和层级迁移均保留该时间，刷新后优先使用持久化的权威时间。发送或重试后、首个回复内容到达前的临时 thinking 状态只占一行，开始时间紧跟状态文字显示，不创建正常消息 footer；首个回复内容到达后再切换为正式消息布局。执行摘要、正文和时间戳采用不同字号与行高，因此正文到 footer 使用 14px 视觉间距，使两段可见文字之间的留白一致；不改变折叠行高度。<br>
 Agent 回复发起的 function 及其执行树只属于该回复的执行时间线，不得再生成顶层 runtime 卡片；只有用户直接运行的 function 才作为独立 runtime 消息显示。<br>
 <b>展开只向下</b>：高度过渡用 grid 0fr↔1fr（0.18s），展开把下方内容推开、收起平滑抽走；<b>视口不许跳</b>——聊天区关掉原生 scroll anchoring（overflow-anchor:none），且用户点击后的 600ms 内暂停贴底吸附，展开/收起时开关行在屏幕上纹丝不动。收起动画结束后卸载子树，折叠状态不付渲染成本。<b>执行过程始终默认收起</b>：流式与历史消息都只显示摘要行，摘要使用原有文字扫光表示进行中；用户点击后可展开，列表继续向下拼接新步骤（淡入下滑 0.22s），运行行使用原有小点反馈，思考行的 note 显示最新一行。用户手动选择在本轮后续流式更新和落定时保持不变——流式与落定共用同一条时间线渲染路径（伪 blocks 由实时字段合成，finalize 后由真 blocks 接管）。</div>
 
@@ -468,7 +522,7 @@ Agent 回复发起的 function 及其执行树只属于该回复的执行时间�
     <tr><td><code>请解释 gui_agent(...)</code> 或 <code>`gui_agent(...)`</code></td><td>不是整段函数表达式</td><td>普通 UserMessage → Agent</td></tr>
   </tbody>
 </table>
-<div class="desc">识别器不执行 JavaScript/Python，不支持位置参数、属性访问、变量或任意表达式；它只解析字符串、数值、布尔、null 和函数 schema 允许的平面命名参数。缺少必填项或类型不合法时保留草稿、打开同一个表单并显示参数错误，不降级成聊天消息。运行展示保留左侧 Function 类型头像和右侧无框时间线；该头像只标识 ProgramRun 类型，不表示 Agent 发言。展开运行摘要后，根行只展示直接子节点；每个子节点的后代仍默认折叠，由用户逐层展开。</div>
+<div class="desc">识别器不执行 JavaScript/Python，不支持位置参数、属性访问、变量或任意表达式；它只解析字符串、数值、布尔、null 和函数 schema 允许的平面命名参数。缺少必填项或类型不合法时保留草稿、打开同一个表单并显示参数错误，不降级成聊天消息。运行展示保留左侧 28px 的 ƒ 类型标记和右侧无框时间线；该标记只标识 ProgramRun 类型，不是发言人头像。展开运行摘要后，根行只展示直接子节点；每个子节点的后代仍默认折叠，由用户逐层展开。</div>
 <div class="stage run-host">
   <div class="runtime-program-run">
     <div class="runtime-program-avatar" aria-hidden="true">ƒ</div>
@@ -509,13 +563,13 @@ Agent 回复发起的 function 及其执行树只属于该回复的执行时间�
           <div class="run-footer">
             <span class="ts">16:32</span>
             <span class="act">
-              <button class="icon-btn" title="复制结果"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
-              <button class="icon-btn" title="重试"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
-              <button class="icon-btn" title="修改后重新运行"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+              <button class="icon-btn" aria-label="复制结果" data-tip="复制结果"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+              <button class="icon-btn" aria-label="重试" data-tip="重试"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button>
+              <button class="icon-btn" aria-label="修改后重新运行" data-tip="修改后重新运行"><svg viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
               <span class="msg-nav">
-                <button class="icon-btn" title="上一版"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+                <button class="icon-btn" aria-label="上一版" data-tip="上一版"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
                 <span class="label">1 / 2</span>
-                <button class="icon-btn" title="下一版"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+                <button class="icon-btn" aria-label="下一版" data-tip="下一版"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
               </span>
             </span>
           </div>
@@ -820,6 +874,32 @@ Agent 回复发起的 function 及其执行树只属于该回复的执行时间�
   <tr><td>聊天卡</td><td><code>turn-files-chips.tsx</code>、用户提供的 <code>FeatherIcon</code> 与现有 CSS。</td><td>FeatherIcon 只标识直接文件编辑，不放网站 logo；不保留 inline diff、文件行箭头、hover 操作组或参考产品品牌元素。</td></tr>
 </tbody></table>
 <div class="rule"><b>视觉验收条件：</b>聊天卡最多显示 3 个初始文件名，不加载 diff；最多扩展到 20 个路径，其余通过末尾“还有 N 个文件 — 在审阅中查看”一行进入 Review；Changes 同时只挂载一个有界 diff；This turn / Current branch / Workspace 的来源标签始终可见；历史 Restore 使用独立 impact sheet，不把 Undo/Revert/Restore/Branch 堆在卡片 header。完整数据与恢复验收见<a href="../runtime/operations/file-management.zh.html#acceptance">权威运行时设计</a>。<br><b>实现状态：</b>生产聊天卡保留外框与 header 分隔线，顶部高度为 40px，使用 19px Feather 文件修改语义图标；Undo/Redo/Revert/Reapply 只显示当前可执行的一项，Review 使用中性色描边按钮。center Review 已实现 This turn / Current branch / Workspace、有界文件与 diff 分页、actor/producer/linked impact；branch checkout mismatch banner 会在文件修改前要求 Keep current files 或 Restore branch code。运行时与视觉实现均已通过 Task A–E 的独立审查。字体、三层背景、8ch 固定统计列、仅 Collapse footer、紧凑间距和浅色主背景修订已通过独立审查；历史预检提示移入 header 的实现也已通过本轮独立 specification review 与 quality review。</div>
+
+<!-- ═══════ 8. 消息表面 ═══════ -->
+<h2><span class="num">8</span>消息表面：无头像、凸起的用户气泡、编辑框与操作行</h2>
+<div class="desc">对话流没有头像，也没有发言人名字行：右侧有气泡、左侧无气泡就足以区分谁在说话，正文列与输入框左右边缘对齐。仅保留两种标记，都不是发言人头像：多智能体会话中，非 main 的具名智能体回复在正文上方保留一行 18px 的紧凑身份行；手动函数运行保留 ƒ 类型标记（第 3 节）。用户气泡、输入框与文件修改卡片是同一种凸起表面：<code>--bg-input</code> 底色（浅色主题为白色，深色主题按主题取值）加 <code>--composer-shadow</code>。助手回复平铺在页面上，没有气泡。把鼠标移到下面的消息上查看操作行，按钮停留后显示提示。</div>
+<div class="stage">
+  <div class="msg-demo">
+    <div class="u-msg"><div class="u-bubble">把 README 里的安装步骤改成 uv，顺便检查一下 Python 版本要求。</div></div>
+    <div class="msg-footer user"><span class="ts">16:31</span><button class="icon-btn" aria-label="引用消息" data-tip="引用消息"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/></svg></button><button class="icon-btn" aria-label="复制" data-tip="复制"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button><button class="icon-btn" aria-label="从这里重试" data-tip="从这里重试"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button><button class="icon-btn" aria-label="编辑消息" data-tip="编辑消息"><svg viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button><button class="icon-btn" aria-label="回退到这里" data-tip="回退到这里"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button><span class="msg-nav"><button class="icon-btn" aria-label="上一个版本" data-tip="上一个版本"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button><span class="nav-label">2 / 3</span><button class="icon-btn is-disabled" aria-label="下一个版本" data-tip="下一个版本"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button></span></div>
+  </div>
+  <div class="msg-demo">
+    <div class="reply">已改为 <b>uv sync</b>，并把最低版本写成 Python 3.11，与 <code>pyproject.toml</code> 一致。</div>
+    <div class="msg-footer assistant"><span class="ts">16:33</span><button class="icon-btn" aria-label="引用消息" data-tip="引用消息"><svg viewBox="0 0 24 24"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.76-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-4 5z"/></svg></button><button class="icon-btn" aria-label="复制" data-tip="复制"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button><button class="icon-btn" aria-label="从这里重试" data-tip="从这里重试"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.5 15a9 9 0 1 0 2-9.4L1 10"/></svg></button><button class="icon-btn" aria-label="分支到新会话" data-tip="分支到新会话"><svg viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></button></div>
+  </div>
+  <div class="edit-box" tabindex="-1">
+    <textarea aria-label="编辑消息">把 README 里的安装步骤改成 uv，并检查 Python 版本要求。</textarea>
+    <div class="edit-row">
+      <button class="ghost-icon-sm icon-btn" aria-label="添加图片或文件" data-tip="添加图片或文件"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+      <span class="spacer"></span>
+      <button class="pill-btn elevated" type="button">取消</button>
+      <button class="pill-btn primary" type="button">保存并重新发送</button>
+    </div>
+  </div>
+</div>
+<div class="rule"><b>用户气泡：</b>右对齐，宽度随内容收缩，最大 75%（窄屏与分屏 88%）；16px 圆角，内边距 10px 16px，无边框。底色 <code>--user-msg-bg</code>，每个主题都等于 <code>var(--bg-input)</code>；阴影是静止的 <code>--composer-shadow</code>——已发送的消息不是控件，悬停不加深阴影。气泡内的代码块和粘贴折叠块用 <code>--bg-primary</code> 内嵌底色，与气泡表面拉开。输入框上方的排队消息是尚未发送的用户消息，使用同一表面（10px 圆角）。<br>
+<b>编辑态：</b>点击“编辑消息”后气泡变成与主输入框同款的输入框：<code>--bg-input</code> 底色、23px 圆角，静止时 <code>--composer-shadow</code>，悬停或内部聚焦时过渡（180ms）到 <code>--composer-shadow-focus</code>；宽度占满整列。框内依次是保留的附件（可移除）、新加附件条、与主输入框相同的输入行（支持 @ 文件提及），底部一行为：左侧官方 ghost 圆形图标按钮（icon-sm）中的 Solar 回形针，提示“添加图片或文件”；右侧“取消”（elevated sm）与“保存并重新发送”（默认主按钮 sm）。Esc 取消，⌘/Ctrl+Enter 保存；可把文件拖到框内。编辑期间隐藏操作行。<br>
+<b>操作行：</b>位于每条消息下方——用户消息右对齐在气泡下，助手消息左对齐、与正文间隔 14px。顺序：时间戳、引用、复制、重试、编辑（仅用户）、分支（仅助手）、回退到这里（仅用户），有兄弟版本时追加 ‹ N / M ›。每个按钮都是官方 ghost 圆形图标按钮，尺寸取最接近 26px 的 icon-xs（24px），内含 16px 动画线条图标；静止为 muted 色，悬停变为 primary 色并出现圆形浅底。整个按钮（悬停与键盘聚焦）驱动图标动画。标签用 HoverTip + TipBody 显示（停留 1.5s 后出现），不使用原生 title；同一文字作为 aria-label。操作行默认透明，消息悬停或行内聚焦时整行显示，触屏设备上常显；无论是否显示，行高都固定为 24px。处理中的按钮置灰（40% 不透明度）；复制成功后图标变为绿色对勾 1.2s。</div>
 
 <script>
 document.getElementById('tl1').querySelector(':scope > .tl-toggle').addEventListener('click',()=>{
