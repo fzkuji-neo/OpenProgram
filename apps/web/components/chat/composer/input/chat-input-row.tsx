@@ -3,7 +3,8 @@
 /**
  * Chat-mode input row inside the composer wrapper.
  *
- * Stacks paste chips, the textarea itself, and the @-mention file
+ * Stacks paste chips, the markdown editor (a textarea-compatible facade,
+ * see markdown-editor.tsx), and the @-mention file
  * popover into one cohesive block. Extracted from composer/index.tsx
  * so the main file stops growing every time a new chip kind or
  * caret-tracking handler lands on the textarea.
@@ -16,6 +17,7 @@ import type React from "react";
 import { FileMenu, type FileMatch } from "../attach/file-menu";
 import { useFileMention } from "../attach/use-file-mention";
 import { PasteChips } from "../paste/paste-chips";
+import { MarkdownEditor } from "./markdown-editor";
 import type { PastedEntry } from "../paste/paste-store";
 import styles from "./chat-input-row.module.css";
 
@@ -89,36 +91,22 @@ export function ChatInputRow({
               {placeholder || "create / run / edit or ask anything... (type / for commands)"}
             </span>
           )}
-          <textarea
-            ref={textareaRef}
+          <MarkdownEditor
+            textareaRef={textareaRef}
             id={inputId}
-            name="chat_input"
-            autoComplete="off"
             autoFocus={autoFocus}
-            aria-label={placeholder || "create / run / edit or ask anything... (type / for commands)"}
-            placeholder=""
+            ariaLabel={placeholder || "create / run / edit or ask anything... (type / for commands)"}
             className={styles.chatInput}
-            rows={1}
             value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              setCaretPos(e.target.selectionStart ?? e.target.value.length);
+            onChange={(next, caret) => {
+              setInput(next);
+              setCaretPos(caret);
             }}
-            onSelect={(e) => setCaretPos(
-              e.currentTarget.selectionStart ?? 0,
-            )}
-            onKeyUp={(e) => setCaretPos(
-              e.currentTarget.selectionStart ?? 0,
-            )}
-            onClick={(e) => setCaretPos(
-              e.currentTarget.selectionStart ?? 0,
-            )}
+            onCaret={setCaretPos}
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             // File drops are caught at the window level (see
-            // useComposerAttachments) so the textarea doesn't need its
-            // own onDragOver/onDrop — the window handler beats the
-            // textarea's default text-insert.
+            // useComposerAttachments), so the editor needs no drop handler.
             onFocus={onFocus}
             onBlur={onBlur}
           />
