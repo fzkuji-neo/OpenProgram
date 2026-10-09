@@ -38,6 +38,10 @@ interface HoverTipProps {
   children: React.ReactElement
   side?: "top" | "right" | "bottom" | "left"
 }
+/** Hover dwell before a tip shows: long enough that passing the pointer
+ *  over the controls never flashes tips, short enough to still help. */
+const HOVER_TIP_DELAY_MS = 1500
+
 function HoverTip({ label, children, side = "top" }: HoverTipProps) {
   const [open, setOpen] = React.useState(false)
   const triggerRef = React.useRef<HTMLElement | null>(null)
@@ -46,7 +50,7 @@ function HoverTip({ label, children, side = "top" }: HoverTipProps) {
   // 提示"的来源。纯 focus（指针不在）一律不冒。
   const pointerInside = React.useRef(false)
   return (
-    <TooltipProvider delayDuration={600}>
+    <TooltipProvider delayDuration={HOVER_TIP_DELAY_MS}>
       <Tooltip
         open={open}
         onOpenChange={(next) => {
