@@ -16,7 +16,7 @@ Web UI 界面 — 界面系统、指示点、附件处理、聊天轮次视觉�
 - [`integrated-terminal.html`](integrated-terminal.zh.html) — 真实 PTY 终端与本机 Claude Code 直接启动入口
 - [`composer-local-attachment-paths.html`](composer-local-attachment-paths.zh.html) — Composer 到模型上下文的本地附件路径保留规则
 - [`composer-responsive-controls.html`](composer-responsive-controls.zh.html) — Composer 响应式控件及紧凑状态交互契约
-- [`composer-tool-profile-menu.html`](composer-tool-profile-menu.zh.html) — Tools 操作与 profile 二级菜单行为
+- [`composer-tool-profile-menu.html`](composer-tool-profile-menu.zh.html) — 共享菜单文法上的选项（+）菜单；Tools 操作与 profile 二级菜单行为
 - [`programs-source-categories.html`](programs-source-categories.zh.html) — Programs 分组与来源分类行为
 - [`composer-interaction-modes.md`](composer-interaction-modes.zh.md) — Composer 交互模式
 - [`attachment-handling.zh.html`](attachment-handling.zh.html) — 完整附件设计：存储、执行准入、内容交付、恢复与验收
