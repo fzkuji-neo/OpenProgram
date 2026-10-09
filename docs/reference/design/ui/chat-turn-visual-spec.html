@@ -325,13 +325,13 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 
 <!-- ═══════ 1. Collapsed state ═══════ -->
 <h2><span class="num">1</span>Default (collapsed): one turn = one muted summary line + reply</h2>
-<div class="desc">Execution has no outer frame. The collapsed state is a GPT-style “Thought for 19s ›”<b>plain-text</b> summary, without a button background, aligned with body text, and brightening text only on hover. Summaries have three categories: thinking / function / sub-agent. Click to expand the timeline.</div>
+<div class="desc">Execution has no outer frame. The collapsed state is a <b>plain-text</b> summary ›, without a button background, aligned with body text, and brightening text only on hover. The summary says what the calls did, in the order they happened (“Ran a command, created pill-shadow.html”). A red “· N failed” note and the file card’s +N −M pill follow when they apply. The sentence truncates to one line and the hover tip shows it whole. The grammar is defined in <a href="tool-group-summary.html" style="color:var(--accent-cyan)">Tool group summary</a>. Click to expand the timeline.</div>
 <div class="stage">
   <div class="u-msg"><div class="u-bubble">Can you start an agent to check today’s weather? I’m at the Asia Financial Center in Beijing.</div></div>
 
   <div class="tl" id="tl1">
     <div class="tl-toggle">
-      <span>Thinking ×2 · Function ×1 · Sub-agent: check Beijing weather</span><span class="chev">›</span>
+      <span>Ran a command, ran sub-agent check Beijing weather</span><span class="chev">›</span>
     </div>
     <div class="tl-collapse"><div class="tl-collapse-inner">
     <div class="tl-body">
