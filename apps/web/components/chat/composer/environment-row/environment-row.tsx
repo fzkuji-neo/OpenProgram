@@ -34,7 +34,7 @@ export function EnvironmentRow({
       <ProjectBadge />
       <WorkingDirChips />
       <GoalChip />
-      {/* Web tab access + picture-in-picture sit after the folders. */}
+      {/* Web tab access + picture-in-picture: right-aligned (CSS). */}
       <WebSurfaceChip
         sessionId={sessionId}
         toolsEnabled={toolsEnabled}

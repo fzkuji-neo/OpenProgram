@@ -98,6 +98,12 @@
   align-items: center;
 }
 
+/* The web chips (tab access + picture-in-picture) are right-aligned: the
+   first one takes the free space, the trailing slot then sits flush. */
+.envChips > .surfaceChip { margin-left: auto; }
+.envChips > .surfaceChip ~ .surfaceChip { margin-left: 0; }
+.envChips:has(> .surfaceChip) > .trailingControls { margin-left: 0; }
+
 .envChips :global(.indicator-dot) {
   width: 8px;
   height: 8px;
