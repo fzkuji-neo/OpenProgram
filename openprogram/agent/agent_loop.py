@@ -65,6 +65,19 @@ class _SteeredResponse:
     message: AssistantMessage
 
 
+def _instant_steer_enabled() -> bool:
+    """``execution.instant_steer`` (default on): a steer preempts the response
+    being generated instead of waiting for it to finish (Codex's
+    ``instant_interrupt``). Read once per provider response."""
+    try:
+        from openprogram.setup import _read_config
+
+        execution = _read_config().get("execution", {})
+        return not (isinstance(execution, dict) and execution.get("instant_steer") is False)
+    except Exception:
+        return True
+
+
 class _SafePointStop(BaseException):
     """The durable owner paused before an external operation started."""
 
@@ -1453,6 +1466,7 @@ async def _stream_assistant_response(
 
         iterator = response_stream.__aiter__()
         next_steer_check = 0.0
+        instant_steer = _instant_steer_enabled()
         while True:
             if structured_plan is not None and cancel_event and cancel_event.is_set():
                 from openprogram.providers.utils.errors import ExecInterrupt
@@ -1462,8 +1476,12 @@ async def _stream_assistant_response(
             try:
                 # A separate read-only probe observes durable steer commands.
                 # Only a closed provider response enters the existing safe point.
-                can_steer = config.safe_point_hook is not None and structured_plan is None and not (
-                    partial_message and any(isinstance(item, ToolCall) for item in partial_message.content)
+                # Tool calls still being written are preemptible too: their
+                # durable effect is only planned at tool.before, after the
+                # response closes, so an unfinished call is simply dropped.
+                can_steer = (
+                    instant_steer and config.safe_point_hook is not None
+                    and structured_plan is None
                 )
                 if not can_steer:
                     event = (
@@ -1517,6 +1535,11 @@ async def _stream_assistant_response(
                         message = (partial_message.model_copy(deep=True) if partial_message is not None else AssistantMessage(
                             content=[], api=config.model.api, provider=config.model.provider, model=config.model.id,
                         ))
+                        # Calls the steer cut off were never dispatched; keep
+                        # only the text and thinking the user already saw.
+                        message.content = [
+                            item for item in message.content if not isinstance(item, ToolCall)
+                        ]
                         # Preserve the real response outcome so request projection
                         # drops incomplete reasoning signatures on continuation.
                         message.stop_reason = "aborted"
