@@ -19,9 +19,14 @@ def _invoke(name, args):
     from openprogram.programs import get_agent_tool
 
     result = asyncio.run(get_agent_tool(name).execute("owned-write", args, None, None))
-    assert not result.is_error, result.content
     text = "\n".join(block.text for block in result.content)
-    return text if name == "memory_get" else json.loads(text)
+    if name == "memory_get":
+        assert not result.is_error, result.content
+        return text
+    payload = json.loads(text)
+    # A rejected call reaches the agent loop as a failed tool result.
+    assert result.is_error is (payload.get("ok") is False), result.content
+    return payload
 
 
 def _snapshot(root):
