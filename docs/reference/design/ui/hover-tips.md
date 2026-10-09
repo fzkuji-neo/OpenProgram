@@ -12,7 +12,7 @@ native `title` bubble. The tip body is `TipBody`:
   as a full path, the full branch name and change counts, or what a click
   does ("Click to turn off.").
 
-The tip appears after 0.6 s, never while the control's own menu is open,
+The tip appears after the pointer rests for 1.5 s, never while the control's own menu is open,
 and is wider than the chip (up to 320 px, paths wrap anywhere).
 
 | Control | Title | Detail |
