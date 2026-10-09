@@ -3,6 +3,7 @@
 /** Compact per-turn file card. Diffs live in the center Review tab. */
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
+import { FileTypeIcon } from "@/components/files/file-type-icon";
 import { SolarIcon } from "@/components/solar-icons";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,11 +32,11 @@ import {
   fileWriteState,
   initialLegacyTurnFilesLoadState,
   legacyTurnFilesLoadReducer,
+  TURN_FILES_MAX_CARD_FILES as MAX_CARD_FILES,
+  turnFilesListLayout,
+  turnFilesSummaryComplete,
   type FileWriteState,
 } from "./turn-files-presentation";
-
-const COLLAPSE_AFTER = 3;
-const MAX_CARD_FILES = 20;
 
 interface TurnFile {
   path: string;
@@ -101,6 +102,10 @@ export function TurnFilesChips({
     () => summaryFiles(summary, project?.path),
     [project?.path, summary],
   );
+  // A bounded summary (older transcripts kept only the first rows) counts
+  // more files than it lists; load the full card list from review_scope.
+  const embeddedComplete = embedded !== null
+    && turnFilesSummaryComplete(embedded.length, summary?.file_count ?? embedded.length);
   const writesFailed = (writeState ?? fileWriteState(blocks)) === "failed";
   const [files, setFiles] = useState<TurnFile[] | null>(
     embedded ?? (writesFailed ? [] : null),
@@ -175,11 +180,13 @@ export function TurnFilesChips({
   }, [embedded]);
 
   useEffect(() => {
-    if (embedded || writesFailed || !visible || !sessionId || !assistantMsgId) return;
+    if (embeddedComplete || writesFailed || !visible || !sessionId || !assistantMsgId) return;
     const controller = new AbortController();
     void wsRequest<{
       files?: TurnFile[];
       file_count?: number;
+      added?: number | null;
+      removed?: number | null;
       reverted?: boolean;
       error?: string;
       session_id?: string;
@@ -202,8 +209,10 @@ export function TurnFilesChips({
       // results. Preflight and mutations still read current server state.
       const state = useSessionStore.getState();
       if (state.messageOrder[sessionId]?.includes(assistantMsgId)) {
-        const sum = (key: "added" | "removed") => (data.file_count ?? data.files?.length ?? 0) === loadedFiles.length && loadedFiles.every((file) => typeof file[key] === "number")
-          ? loadedFiles.reduce((total, file) => total + (file[key] ?? 0), 0) : null;
+        const sum = (key: "added" | "removed") => typeof data[key] === "number"
+          ? data[key] as number
+          : (data.file_count ?? data.files?.length ?? 0) === loadedFiles.length && loadedFiles.every((file) => typeof file[key] === "number")
+            ? loadedFiles.reduce((total, file) => total + (file[key] ?? 0), 0) : null;
         updateMessage(sessionId, assistantMsgId, {
           turnFiles: { version: 1, files: loadedFiles, file_count: data.file_count ?? data.files?.length ?? 0,
             added: sum("added"), removed: sum("removed") },
@@ -216,7 +225,10 @@ export function TurnFilesChips({
       dispatchLegacyLoad({ type: "resolved", ok: true });
     });
     return () => controller.abort();
-  }, [assistantMsgId, embedded, legacyLoad.attempt, sessionId, visible, writesFailed, updateMessage]);
+    // `embeddedComplete` (a boolean) gates the load, not `embedded` itself:
+    // persisting the loaded list replaces the summary object, which must not
+    // trigger another request when the server also returns fewer rows.
+  }, [assistantMsgId, embeddedComplete, legacyLoad.attempt, sessionId, visible, writesFailed, updateMessage]);
 
   function historyAction(direction: "undo" | "redo") {
     if (!sessionId || busy) return;
@@ -331,9 +343,9 @@ export function TurnFilesChips({
   const totalRemoved = summary?.removed ?? (files.every((file) => typeof file.removed === "number")
     ? files.reduce((total, file) => total + (file.removed ?? 0), 0)
     : null);
-  const shown = showAll
-    ? files.slice(0, MAX_CARD_FILES)
-    : files.slice(0, COLLAPSE_AFTER);
+  const layout = turnFilesListLayout(files.length, fileCount, showAll);
+  const shown = files.slice(0, layout.shown);
+  const headerCount = layout.total;
   const {
     notice: historyNotice,
     operation: currentAction,
@@ -367,9 +379,9 @@ export function TurnFilesChips({
         <span className="turn-files-heading">
           <span
             className="turn-files-count"
-            data-short={text(`${fileCount} files`, `${fileCount} 个文件`)}
+            data-short={text(`${headerCount} files`, `${headerCount} 个文件`)}
           >
-            {text(`${fileCount} file${fileCount === 1 ? "" : "s"} changed`, `${fileCount} 个文件已修改`)}
+            {text(`${headerCount} file${headerCount === 1 ? "" : "s"} changed`, `${headerCount} 个文件已修改`)}
           </span>
           <span className="turn-files-summary-stats turn-files-diff">
             <span className="turn-files-stat is-add">+{totalAdded ?? "—"}</span>
@@ -424,7 +436,7 @@ export function TurnFilesChips({
             )}
           >
             <span className="turn-files-file-icon" aria-hidden="true">
-              <SolarIcon name="file-text" size={15} motionPreset="none" />
+              <FileTypeIcon name={file.path} size={15} />
             </span>
             <span className="turn-files-name">
               <span className="turn-files-dir">{splitPath(file.rel || basename(file.path))[0]}</span>
@@ -442,20 +454,37 @@ export function TurnFilesChips({
             )}
           </button>
         ))}
+        {layout.overflow > 0 ? (
+          <button
+            type="button"
+            className="turn-files-row turn-files-overflow"
+            onClick={() => sessionId && openReviewTab(sessionId, assistantMsgId, "turn")}
+          >
+            <span className="turn-files-file-icon" aria-hidden="true">
+              <SolarIcon name="fa-eye" size={14} motionPreset="none" />
+            </span>
+            <span className="turn-files-name">
+              {text(
+                `and ${layout.overflow} more file${layout.overflow === 1 ? "" : "s"} — open Review`,
+                `还有 ${layout.overflow} 个文件 — 在审阅中查看`,
+              )}
+            </span>
+          </button>
+        ) : null}
       </div>
 
-      {!showAll && files.length > COLLAPSE_AFTER ? (
+      {layout.more > 0 ? (
         <button
           type="button"
           className="turn-files-more"
           onClick={() => setShowAll(true)}
         >
           {text(
-            `Show ${Math.min(MAX_CARD_FILES - COLLAPSE_AFTER, fileCount - COLLAPSE_AFTER)} more files`,
-            `再显示 ${Math.min(MAX_CARD_FILES - COLLAPSE_AFTER, fileCount - COLLAPSE_AFTER)} 个文件`,
+            `Show ${layout.more} more file${layout.more === 1 ? "" : "s"}`,
+            `再显示 ${layout.more} 个文件`,
           )}
         </button>
-      ) : showAll ? (
+      ) : layout.collapse ? (
         <button type="button" className="turn-files-more" onClick={() => setShowAll(false)}>
           {text("Collapse", "收起")}
         </button>

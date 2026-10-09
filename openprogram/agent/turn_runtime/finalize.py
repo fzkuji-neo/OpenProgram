@@ -33,6 +33,9 @@ from openprogram.agent.turn_runtime.titles import (
 
 _log = logging.getLogger(__name__)
 
+# Rows kept in the persisted per-turn file summary; matches the chat card cap.
+_CARD_FILES = 20
+
 
 def _turn_summary(user_text: str | None) -> str:
     lines = (user_text or "").strip().splitlines()
@@ -75,9 +78,10 @@ def persist_turn_file_summary(
         known_removed = [row["removed"] for row in files if row["removed"] is not None]
         summary = {
             "version": 2,
-            # Transcript payload stays bounded: the chat card needs only the
-            # first three rows. Review pages the complete journal separately.
-            "files": files[:3],
+            # Transcript payload stays bounded at the chat card's row cap
+            # (MAX_CARD_FILES in turn-files-presentation.ts) so the card can
+            # expand without a request. Review pages the complete journal.
+            "files": files[:_CARD_FILES],
             "file_count": len(files),
             "added": sum(known_added) if len(known_added) == len(files) else None,
             "removed": sum(known_removed) if len(known_removed) == len(files) else None,
