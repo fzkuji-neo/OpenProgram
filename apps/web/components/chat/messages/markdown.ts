@@ -10,6 +10,7 @@ import { copyText } from "@/lib/clipboard";
 import { highlightEscapedCode } from "@/lib/chat/code-highlight";
 import { Marked } from "marked";
 import { renderMd, sanitizeHtml } from "@/lib/runtime-bridge/markdown-render";
+import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
 
 export function renderMarkdown(src: string): string {
   if (typeof window === "undefined") return escapeHtml(src);
@@ -24,7 +25,7 @@ export function renderMarkdown(src: string): string {
  *  it is shown as text (not parsed) and the result is sanitized like any
  *  other rendered markdown. Formulas stay literal; this path is for prose,
  *  lists and code. */
-const userMarked = new Marked({
+const userMarked = new Marked(cjkEmphasis, {
   breaks: true,
   renderer: {
     html(token) {
