@@ -12,10 +12,10 @@
  *   * opens the uncommitted changes in Review (workspace scope),
  *   * switches or creates a branch — in place when the folder is clean,
  *     in a new worktree beside the repository when it has uncommitted
- *     changes (a two-way toggle lets the user override either default;
- *     `onUseFolder` decides what moving onto a worktree means: a draft
- *     re-points its project, a working folder is replaced, a frozen main
- *     folder adds the worktree as an extra working folder),
+ *     changes, so nothing in the folder moves (`onUseFolder` decides
+ *     what moving onto a worktree means: a draft re-points its project,
+ *     a working folder is replaced, a frozen main folder adds the
+ *     worktree as an extra working folder),
  *   * when an in-place switch would overwrite changes, explains which
  *     files and offers the worktree route or carrying the changes over
  *     (stash, switch, pop) instead of showing git's refusal raw,
@@ -124,8 +124,6 @@ export function GitChip({
   const [error, setError] = useState<GitMenuError | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [query, setQuery] = useState("");
-  /** The user's explicit pick for this menu opening; null follows the folder's state. */
-  const [modeChoice, setModeChoice] = useState<BranchMode | null>(null);
   const generation = useRef(0);
 
   const refresh = useCallback(async (full = false) => {
@@ -190,7 +188,6 @@ export function GitChip({
       setError(null);
       setShowDetail(false);
       setQuery("");
-      setModeChoice(null);
       void refresh(true);
     }
     setOpen(next);
@@ -265,9 +262,11 @@ export function GitChip({
     setBusy(null);
   }
 
+  // Clean folder: switch in place. Uncommitted changes: open the branch in
+  // a worktree beside the repository instead, so nothing here moves.
   const dirty = (status?.changes?.files ?? 0) > 0;
   const canWorktree = Boolean(onUseFolder);
-  const mode: BranchMode = canWorktree ? (modeChoice ?? (dirty ? "worktree" : "switch")) : "switch";
+  const mode: BranchMode = canWorktree && dirty ? "worktree" : "switch";
 
   /** Create-or-switch for `branch` under the current mode. */
   function goToBranch(branch: string, create: boolean) {
@@ -314,7 +313,6 @@ export function GitChip({
   const worktreeByBranch = new Map(
     (status.worktrees ?? []).filter((w) => w.branch && !w.is_current).map((w) => [w.branch!, w]),
   );
-  const otherWorktrees = (status.worktrees ?? []).filter((w) => !w.is_current);
   const prBlocked = !status.gh_available
     ? text("Install and sign in to the GitHub CLI (gh) to create pull requests.", "安装并登录 GitHub CLI（gh）后才能创建 PR。")
     : !status.has_remote
@@ -381,7 +379,7 @@ export function GitChip({
         </PopoverTrigger>
       </HoverTip>
       <PopoverContent side="top" align="start" sideOffset={10} className="w-auto border-0 bg-transparent p-0 shadow-none">
-        <div className={`${MENU_PANEL} git-menu min-w-[270px] max-w-[360px]`}>
+        <div className={`${MENU_PANEL} git-menu w-[320px]`}>
           <div className={GROUP_LABEL}>
             <span className="min-w-0 flex-1 truncate">{status.repo_name}</span>
             {status.is_worktree ? <span className="git-menu-tag">{text("worktree", "worktree")}</span> : null}
@@ -414,35 +412,16 @@ export function GitChip({
           ) : null}
 
           <div className={MENU_SEPARATOR} />
-          <div className={GROUP_LABEL}>{text("Branch", "分支")}</div>
-          {canWorktree ? (
-            <div className="git-menu-mode" role="radiogroup" aria-label={text("Where to open the branch", "在哪里打开分支")}>
-              {(["switch", "worktree"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  role="radio"
-                  aria-checked={mode === m}
-                  className={cn("git-menu-mode-opt", mode === m && "is-on")}
-                  onClick={() => setModeChoice(m)}
-                >
-                  {m === "switch" ? text("Switch here", "在此目录切换") : text("New worktree", "开新 worktree")}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {canWorktree && mode === "worktree" ? (
-            <div className="git-menu-note">
-              {dirty
-                ? text(
-                  "This folder has uncommitted changes, so a branch opens in a new folder beside the repository; nothing here moves.",
-                  "这里有未提交的修改，所以分支会在仓库旁边的新目录里打开，这个目录的文件保持不动。",
-                )
-                : text(
-                  "A branch opens in a new folder beside the repository; this folder stays as it is.",
-                  "分支会在仓库旁边的新目录里打开，这个目录保持不动。",
-                )}
-            </div>
+          <div className={GROUP_LABEL}>
+            <span className="min-w-0 flex-1 truncate">{text("Branch", "分支")}</span>
+            {mode === "worktree" ? (
+              <span className="shrink-0" title={text("This folder has uncommitted changes, so a branch opens in a new folder beside the repository; nothing here moves.", "这里有未提交的修改，所以分支会在仓库旁边的新目录里打开，这个目录的文件保持不动。")}>
+                {text("opens in a new worktree", "在新 worktree 里打开")}
+              </span>
+            ) : null}
+          </div>
+          {mode === "worktree" && useFolderLabel ? (
+            <div className="git-menu-note">{text(useFolderLabel.en, useFolderLabel.zh)}</div>
           ) : null}
           <input
             className="git-menu-input"
@@ -464,12 +443,9 @@ export function GitChip({
             {branches.slice(0, 40).map((b) => {
               const elsewhere = worktreeByBranch.get(b);
               const current = b === status.branch;
-              // The right column says what a click does, in one style.
-              const action = current
-                ? text("current", "当前")
-                : elsewhere || mode === "worktree"
-                  ? text("worktree", "worktree")
-                  : text("switch", "切换");
+              // Right-hand tag only where it adds something: the current
+              // branch, and branches already living in another worktree.
+              const tag = current ? text("current", "当前") : elsewhere ? text("worktree", "worktree") : null;
               const hint = elsewhere
                 ? text(`Already checked out in ${elsewhere.path}; opens that folder`, `已在 ${elsewhere.path} 检出，点击去那个目录`)
                 : current
@@ -489,7 +465,7 @@ export function GitChip({
                   }}
                 >
                   <span className="min-w-0 flex-1 truncate">{b}</span>
-                  <span className="git-menu-tag">{action}</span>
+                  {tag ? <span className="git-menu-tag">{tag}</span> : null}
                 </div>
               );
             })}
@@ -506,28 +482,6 @@ export function GitChip({
                   : text(`Create branch “${typed}”`, `新建分支“${typed}”`)}
               </span>
             </div>
-          ) : null}
-
-          <div className={MENU_SEPARATOR} />
-          <div className={GROUP_LABEL}>{text("Work in", "工作位置")}</div>
-          <div className={itemCls(false)} title={status.root}>
-            <SolarIcon name={status.is_worktree ? "folder-path-connect" : "folder-open"} size={14} className="opacity-70" />
-            <span className="min-w-0 flex-1 truncate">
-              {status.is_worktree ? baseName(status.root ?? path) : text("Local checkout", "本地仓库")}
-            </span>
-            <span className="git-menu-tag">{text("current", "当前")}</span>
-          </div>
-          {onUseFolder ? otherWorktrees.map((w) => (
-            <div key={w.path} className={itemCls(false)} title={w.path} onClick={() => !busy && void moveToFolder(w.path)}>
-              <SolarIcon name={w.is_main ? "folder-open" : "folder-path-connect"} size={14} className="opacity-70" />
-              <span className="min-w-0 flex-1 truncate">
-                {w.is_main ? text("Local checkout", "本地仓库") : baseName(w.path)}
-                {w.branch ? <span className="git-menu-dim"> · {w.branch}</span> : null}
-              </span>
-            </div>
-          )) : null}
-          {onUseFolder && useFolderLabel ? (
-            <div className="git-menu-note">{text(useFolderLabel.en, useFolderLabel.zh)}</div>
           ) : null}
 
           <div className={MENU_SEPARATOR} />

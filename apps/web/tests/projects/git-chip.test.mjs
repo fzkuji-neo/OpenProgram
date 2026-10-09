@@ -99,9 +99,9 @@ test('a dirty folder opens branches in a worktree; review and the agent hand-off
   const calls = setup(() => STATUS);
   const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0, onUseFolder: () => {} })]);
   const row = (label) => [...host.querySelectorAll('div')].find((el) => el.textContent.startsWith(label) && el.className.includes('cursor-pointer'));
-  const on = host.querySelector('.git-menu-mode-opt.is-on');
-  assert.equal(on.textContent, 'New worktree', 'uncommitted changes default to the worktree route');
-  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .git-menu-tag')].map((t) => t.textContent), ['current', 'worktree']);
+  assert.match(host.textContent, /opens in a new worktree/, 'uncommitted changes send branches to a worktree');
+  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .git-menu-tag')].map((t) => t.textContent), ['current']);
+  assert.doesNotMatch(host.textContent, /Work in/, 'no separate worktree section');
   await act(async () => row('main').dispatchEvent(new Event('click', { bubbles: true })));
   assert.deepEqual(calls.find(([a]) => a === 'git_create_worktree'), ['git_create_worktree', { path: '/repo', branch: 'main' }]);
   assert.equal(calls.find(([a]) => a === 'git_switch_branch'), undefined);
@@ -112,19 +112,15 @@ test('a dirty folder opens branches in a worktree; review and the agent hand-off
   await unmount();
 });
 
-test('a clean folder switches in place, and the toggle overrides the default', async () => {
+test('a clean folder switches in place', async () => {
   const calls = setup(() => ({ ...STATUS, changes: { files: 0, untracked: 0, conflicts: 0, insertions: 0, deletions: 0 } }));
   const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0, onUseFolder: () => {} })]);
   const row = (label) => [...host.querySelectorAll('div')].find((el) => el.textContent.startsWith(label) && el.className.includes('cursor-pointer'));
-  assert.equal(host.querySelector('.git-menu-mode-opt.is-on').textContent, 'Switch here');
-  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .git-menu-tag')].map((t) => t.textContent), ['current', 'switch']);
+  assert.doesNotMatch(host.textContent, /opens in a new worktree/);
+  assert.deepEqual([...host.querySelectorAll('.git-menu-branches .git-menu-tag')].map((t) => t.textContent), ['current']);
   await act(async () => row('main').dispatchEvent(new Event('click', { bubbles: true })));
   assert.deepEqual(calls.find(([a]) => a === 'git_switch_branch'), ['git_switch_branch', { path: '/repo', branch: 'main', create: false, carry: false }]);
-  const opts = host.querySelectorAll('.git-menu-mode-opt');
-  await act(async () => opts[1].dispatchEvent(new Event('click', { bubbles: true })));
-  assert.equal(host.querySelectorAll('.git-menu-branches .git-menu-tag')[1].textContent, 'worktree');
-  await act(async () => row('main').dispatchEvent(new Event('click', { bubbles: true })));
-  assert.ok(calls.find(([a]) => a === 'git_create_worktree'));
+  assert.equal(calls.find(([a]) => a === 'git_create_worktree'), undefined);
   await unmount();
 });
 

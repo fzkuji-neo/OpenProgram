@@ -57,25 +57,24 @@ See [`composer-responsive-controls.html`](composer-responsive-controls.html) for
    so the row is inert. Ahead/behind against the upstream follows
    when non-zero.
 3. **Branch**: a filter field and the local branches, most recent
-   commit first (up to fifty). A two-way toggle above the field decides
-   where a branch opens: **Switch here** runs `git switch` in this
-   folder; **New worktree** opens the branch in a new folder beside the
-   repository and moves this folder slot onto it. The default follows
-   the folder: clean folders switch in place, folders with uncommitted
-   changes open worktrees, and a note under the toggle says why. The
-   user can flip it for the current menu opening. Each row's right-hand
-   badge says what a click does, in one style: `current`, `switch` or
-   `worktree`. A branch already checked out in another worktree always
-   shows `worktree` and opens that folder, since git allows one checkout
-   per branch. Typing a name that does not exist offers "Create branch"
-   (or "… in a new worktree"), and Enter does the same. The toggle is
-   absent where the folder slot cannot move onto a worktree.
-4. **Work in**: the current location (local checkout or worktree,
-   badged `current`) and the repository's other worktrees. A new
-   worktree is created beside the repository at
+   commit first (up to fifty). Where a click takes the branch depends on
+   the folder, and there is no switch to flip: a clean folder runs
+   `git switch` in place; a folder with uncommitted changes opens the
+   branch in a new worktree beside the repository and moves this folder
+   slot onto it, so nothing in the folder moves, and the section header
+   says "opens in a new worktree". Rows carry a tag only where it adds
+   something: `current` on the branch this folder is on, and `worktree`
+   on a branch already checked out in another worktree, which a click
+   opens instead (git allows one checkout per branch). Typing a name that
+   does not exist offers "Create branch" (or "… in a new worktree"), and
+   Enter does the same. A folder slot that cannot move onto a worktree
+   always switches in place.
+4. **Worktrees**: a new worktree is created beside the repository at
    `<repo>-worktrees/<branch>`, never inside it, so the source folder's
-   files and uncommitted changes stay where they are. What "move to a
-   worktree" means depends on the folder slot:
+   files and uncommitted changes stay where they are. There is no
+   separate worktree list: a branch that has one is in the branch list
+   with its tag. What "move to a worktree" means depends on the folder
+   slot:
    - a working folder is replaced in the conversation's folder list;
    - the main folder of an unsent draft re-points the draft's project
      to the worktree (registered as a project);
@@ -137,7 +136,7 @@ needs credentials fails instead of hanging.
 ## Implementation status
 
 - Pills for the project folder and working folders, same-checkout
-  dedupe, branch switch / create, worktree list / create / move, change
+  dedupe, branch switch / create, worktree create / move, change
   counts with Review, PR create / view, and agent hand-off:
   **implemented**.
 - Base-branch choice for a PR (always the repository's default branch
