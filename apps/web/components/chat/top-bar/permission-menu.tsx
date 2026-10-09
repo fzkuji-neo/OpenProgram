@@ -148,7 +148,7 @@ export function PermissionBadge() {
                 {/* Claude 实测顺序：勾在前、数字快捷键在最右
                     （"Opus 4.8 ✓ 2"）。未选中留同宽占位保持数字列对齐。 */}
                 {o.value === mode ? (
-                  <SolarIcon name="check-circle" size={14} className={CHECK_SLOT} aria-hidden="true" />
+                  <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} aria-hidden="true" />
                 ) : (
                   <span className={CHECK_SLOT_PAD} />
                 )}

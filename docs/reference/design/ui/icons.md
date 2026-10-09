@@ -63,8 +63,11 @@ All three families speak the same imperative handle,
 `AnimatedNavIconHandle` (`startAnimation` / `stopAnimation`), so the
 container — a button, a menu row, a chip — is the hover target and the
 glyph never animates on its own 16 px hit area. A parent attaches a ref
-and drives the motion; an icon rendered without a ref animates on its
-own hover.
+and drives the motion. A Solar icon rendered without a ref follows the
+hover of its nearest clickable ancestor (button, link, menu item, chip),
+so every button animates the same way whether or not it wires a ref;
+purely decorative glyphs — menu checks, warning triangles, capability
+marks — use `none`.
 
 The pqoqubbw icons redraw themselves (a wrench turns, an arrow bobs). A
 filled Solar glyph cannot, so `SolarIcon` offers small, uniform presets
