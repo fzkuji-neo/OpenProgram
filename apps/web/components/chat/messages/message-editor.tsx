@@ -2,8 +2,10 @@
 import { requestSessionLoad } from "@/lib/runtime-bridge/session-load";
 
 import { useLayoutEffect, useRef, useState } from "react";
-import { Paperclip, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HoverTip, TipBody } from "@/components/ui/tooltip";
+import { SolarIcon } from "@/components/solar-icons";
 import { useSessionStore, type ChatMsg } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
 import { absRawFileUrl } from "@/lib/files/files-shared";
@@ -119,10 +121,12 @@ export function MessageEditor({ msg, sessionId, onDone }: {
         }} />
       {error && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.actions}>
-        <button className={styles.attach} type="button" title={text("Add images or files", "添加图片或文件")}
-          aria-label={text("Add images or files", "添加图片或文件")} onClick={files.onPickImages}><Paperclip size={17} /></button>
+        <HoverTip label={<TipBody title={text("Add images or files", "添加图片或文件")} />}>
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={text("Add images or files", "添加图片或文件")}
+            onClick={files.onPickImages}><SolarIcon name="paperclip" size={18} /></Button>
+        </HoverTip>
         <span />
-        <Button type="button" variant="outline" size="sm" onClick={onDone}>{text("Cancel", "取消")}</Button>
+        <Button type="button" variant="elevated" size="sm" onClick={onDone}>{text("Cancel", "取消")}</Button>
         <Button type="button" size="sm" onClick={() => void save()} disabled={blocked || submitting}>
           {submitting ? text("Submitting…", "提交中…") : text("Save & resend", "保存并重新发送")}
         </Button>

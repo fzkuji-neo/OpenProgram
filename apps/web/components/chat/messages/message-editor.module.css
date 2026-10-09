@@ -1,8 +1,11 @@
 .editor { width: 100%; min-width: 0; text-align: left; }
 .editor fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .editor textarea { max-height: 360px; overflow-y: auto; }
-.editor[data-dragging="true"] { outline: 2px solid var(--accent, #5b9cff); border-radius: 14px; }
-.actions { display: flex; align-items: center; gap: 8px; padding: 4px 10px 8px; }
+.editor[data-dragging="true"] { outline: 2px solid var(--accent, #5b9cff); border-radius: 19px; }
+/* Bottom row of the edit box: ghost paperclip on the left, Cancel
+   (elevated) and Save & resend (primary) on the right. 6px insets keep
+   the pill buttons concentric with the box's 23px corners. */
+.actions { display: flex; align-items: center; gap: 8px; padding: 4px 6px 6px; }
 .actions > span { flex: 1; }
 .attach { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary); cursor: pointer; }
 .attach:hover { background: var(--bg-hover, #8882); color: var(--text-bright); }

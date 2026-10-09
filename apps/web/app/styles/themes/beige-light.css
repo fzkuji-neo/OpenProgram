@@ -23,9 +23,10 @@
   --nav-color: #5e5d59;       /* lighter than text-primary so light-mode icons aren't black */
   --nav-color-hover: #141413; /* same as text-bright */
   --bg-selected: rgba(20, 20, 19, 0.08); /* selected row, one step above hover */
-  /* Claude chat surfaces: user bubble is the raised warm grey; the
-     assistant message sits flat on the page (no bubble tint). */
-  --user-msg-bg: #f0eee5;
+  /* Chat surfaces: the sent user bubble is the same raised surface as
+     the composer (--bg-input + --composer-shadow); the assistant
+     message sits flat on the page (no bubble tint). */
+  --user-msg-bg: var(--bg-input);
   --assistant-msg-bg: #faf9f5;
   /* Claude light is flat: hairlines + tint carry elevation, shadows
      stay barely-there. */

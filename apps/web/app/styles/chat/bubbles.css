@@ -15,7 +15,8 @@
 
 /* Three message roles render with three distinct surfaces so the
    eye can sort them at a glance:
-   - user      → ``--bg-tertiary`` bubble (raised warm grey, right)
+   - user      → ``--user-msg-bg`` bubble (the composer's raised
+                  surface: --bg-input + --composer-shadow, right)
    - assistant → transparent (flows flat on the page, left)
    - system    → transparent (chat background bleed-through;
                   these are typically attach pointers / runtime
@@ -63,9 +64,12 @@
      with where the assistant text ends (same 36px content inset), so the
      bubble shares the assistant's content column — just right-aligned, not
      jammed against the viewport edge. */
-  /* Claude look: soft warm tint, no border, 16px corners with a 4px
-     "tail" at the bottom-right (the side the bubble hangs from). */
-  background: var(--bg-tertiary);
+  /* Raised surface: the same --bg-input fill and resting
+     --composer-shadow as the input box and the file-change card, no
+     border, 16px corners. The shadow is static — a sent message is not
+     a control, so hover does not deepen it. */
+  background: var(--user-msg-bg);
+  box-shadow: var(--composer-shadow);
   border-radius: 16px;
   padding: 10px 16px;
   width: fit-content;
@@ -497,10 +501,21 @@
   color: var(--text-muted);
 }
 
+/* Edit state: the bubble turns into an input box that matches the main
+   composer — --bg-input fill, 23px corners, resting --composer-shadow
+   that deepens to --composer-shadow-focus on hover and while focused. */
 .message.user.is-editing .message-content {
   width: calc(100% - var(--avatar-gutter));
   max-width: calc(100% - var(--avatar-gutter));
   padding: 4px;
+  background: var(--bg-input);
+  border-radius: 23px;
+  box-shadow: var(--composer-shadow);
+  transition: box-shadow 180ms ease;
+}
+.message.user.is-editing .message-content:hover,
+.message.user.is-editing .message-content:focus-within {
+  box-shadow: var(--composer-shadow-focus);
 }
 .peer-session-pane .message.user.is-editing .message-content {
   width: calc(100% - 8px);
@@ -572,7 +587,7 @@
 
 /* User bubbles render their markdown (messages/markdown.ts
    renderUserMarkdown). Keep spacing bubble-tight and give code a surface
-   that stands apart from the bubble's own tint. */
+   that stands apart from the bubble's own surface. */
 .message.user .user-md p { margin: 0 0 8px; }
 .message.user .user-md p:last-child { margin-bottom: 0; }
 .message.user .user-md :is(ul, ol) { margin: 4px 0; }
