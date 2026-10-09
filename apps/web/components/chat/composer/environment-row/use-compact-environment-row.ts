@@ -13,7 +13,8 @@ const MAX_LEVEL = 3;
  *
  * On every resize or content change the row is laid out at each level
  * with transitions off (`data-measuring`), synchronously, and the first
- * level whose content fits is kept; then transitions are restored and the
+ * level whose chips fit (measured as the last chip's right edge, with
+ * the right-aligned chips' auto margins zeroed) is kept; then transitions are restored and the
  * row animates from its previous level to the chosen one. Moving to a
  * roomier level needs COMPACT_HYSTERESIS px of slack so the row doesn't
  * flap at the boundary. Level 3 also sets `data-compact="true"`, the
@@ -34,11 +35,26 @@ export function useCompactEnvironmentRow(ref: RefObject<HTMLDivElement | null>) 
       else delete row.dataset.compact;
     };
 
+    // Width the chips actually need. scrollWidth can't tell: the right-
+    // aligned web chip's auto margin makes the content fill the row
+    // exactly, so a squeezed row never looked roomy enough to expand.
+    // While measuring, CSS zeroes those auto margins and the need is the
+    // right edge of the last laid-out chip.
+    const needed = () => {
+      const left = row.getBoundingClientRect().left - row.scrollLeft;
+      let right = 0;
+      for (const child of Array.from(row.children)) {
+        const box = child.getBoundingClientRect();
+        if (box.width || box.height) right = Math.max(right, box.right - left);
+      }
+      return right;
+    };
+
     const choose = (available: number) => {
       for (let candidate = 0; candidate < MAX_LEVEL; candidate += 1) {
         apply(candidate);
         const slack = candidate < level ? COMPACT_HYSTERESIS : 0;
-        if (Math.ceil(row.scrollWidth) <= available + 1 - slack) return candidate;
+        if (Math.ceil(needed()) <= available + 1 - slack) return candidate;
       }
       return MAX_LEVEL;
     };
