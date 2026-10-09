@@ -29,7 +29,7 @@ import { copyText } from "@/lib/clipboard";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ChevronRight, Plus } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCurrentSessionId } from "./use-window-globals";
 import { useSessionStore } from "@/lib/session-store";
 import type { ConvSummary } from "@/lib/session-store";
@@ -548,13 +548,26 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
                       )}
                     />}
                     </ProjectMenu>
-                    {expanded && g.items.length > 0 ? (
-                      // Level-2 block: dense 28px rows + the 1px vertical
-                      // guide at x=16px (see .projectKids in the module CSS).
-                      <div className={`${styles.projectKids} flex flex-col gap-px`}>
-                        {g.items.map(renderRow)}
-                      </div>
-                    ) : null}
+                    <AnimatePresence initial={false}>
+                      {expanded && g.items.length > 0 ? (
+                        // Level-2 block: dense 28px rows + the 1px vertical
+                        // guide at x=16px (see .projectKids in the module CSS).
+                        // Expands / collapses by height; clipped only while
+                        // moving, since the guide pokes 4px above the block.
+                        <motion.div
+                          key="kids"
+                          className={`${styles.projectKids} flex flex-col gap-px`}
+                          initial={{ height: 0, opacity: 0, overflow: "hidden" }}
+                          animate={{ height: "auto", opacity: 1, transitionEnd: { overflow: "visible" } }}
+                          exit={{ height: 0, opacity: 0, overflow: "hidden" }}
+                          transition={reducedMotion
+                            ? { duration: 0 }
+                            : { height: { duration: 0.24, ease: [0.2, 0.7, 0.2, 1] }, opacity: { duration: 0.16 } }}
+                        >
+                          {g.items.map(renderRow)}
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
                   </motion.div>
                 );
               }))}
