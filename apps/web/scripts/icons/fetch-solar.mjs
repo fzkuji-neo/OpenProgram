@@ -50,6 +50,12 @@ const ICONS = {
   // per-turn file-change card
   "pen-new-square": "bold-duotone",
   "file-text": "bold-duotone",
+  // per-folder git pill + its menu
+  "git-branch": "bold-duotone",
+  "git-pull-request": "bold-duotone",
+  "add-circle": "bold-duotone",
+  "folder-path-connect": "bold-duotone",
+  "square-arrow-right-up": "bold-duotone",
 };
 
 // A few glyphs come from other Iconify sets where Solar has no good fit;

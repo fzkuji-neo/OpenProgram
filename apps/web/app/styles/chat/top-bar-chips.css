@@ -136,3 +136,69 @@
 /* The topbar agent / channel / branch dropdowns are React popovers
    (shadcn <Popover> + Tailwind) now — the `.agent-selector` and
    `.model-dropdown` chrome rules were removed. */
+
+/* Per-folder git pill (components/chat/top-bar/git-chip.tsx). */
+.git-badge .git-icon { opacity: 0.8; flex-shrink: 0; }
+.git-badge .badge-short {
+  min-width: 0;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.git-badge-counts {
+  display: inline-flex;
+  gap: 4px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.git-badge-counts .is-add,
+.git-menu-stat.is-add { color: var(--accent-green); }
+.git-badge-counts .is-del,
+.git-menu-stat.is-del { color: var(--accent-red); }
+.git-menu-stat { font-size: 12px; font-variant-numeric: tabular-nums; }
+.git-menu-note {
+  padding: 2px 10px 4px;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--text-muted);
+}
+.git-menu-error {
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--accent-orange);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.git-menu-tag {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-muted);
+  background: color-mix(in oklch, var(--bg-input), var(--foreground) 8%);
+}
+.git-menu-dim { color: var(--text-muted); }
+.git-menu-input {
+  margin: 2px 4px 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: color-mix(in oklch, var(--bg-input), var(--foreground) 6%);
+}
+.git-menu-input::placeholder { color: var(--text-muted); }
+.git-menu-branches {
+  display: flex;
+  flex-direction: column;
+  max-height: 168px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}

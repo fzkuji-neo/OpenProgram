@@ -40,6 +40,7 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 | 发送 | `plain-2`（纸飞机） |
 | 复制 | `copy` |
 | 模型能力（视觉 / 视频 / 工具 / 推理） | `eye` / `videocamera` / `toolbox` / `lightbulb-bolt` |
+| Git 胶囊 / 其菜单：新建分支或 worktree、worktree、PR、查看 PR | `git-branch` / `add-circle`、`folder-path-connect`、`git-pull-request`、`square-arrow-right-up` |
 | 文件修改卡片：标题 / 文件行 | `pen-new-square` / `file-text` |
 | 文件修改卡片：撤回 / Review 按钮 | Font Awesome `rotate-left` / `eye`（实心），图标 + 文字 |
 

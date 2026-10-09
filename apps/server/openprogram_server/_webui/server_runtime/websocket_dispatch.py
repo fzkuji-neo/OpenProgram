@@ -194,6 +194,7 @@ def _build_ws_action_registry() -> dict:
         merge as _ws_merge,
         job as _ws_job,
         worktree as _ws_worktree,
+        folder_git as _ws_folder_git,
         project as _ws_project,
         settings as _ws_settings,
         user_error as _ws_user_error,
@@ -215,6 +216,7 @@ def _build_ws_action_registry() -> dict:
     table.update(_ws_merge.ACTIONS)
     table.update(_ws_job.ACTIONS)
     table.update(_ws_worktree.ACTIONS)
+    table.update(_ws_folder_git.ACTIONS)
     table.update(_ws_project.ACTIONS)
     table.update(_ws_settings.ACTIONS)
     table.update(_ws_user_error.ACTIONS)

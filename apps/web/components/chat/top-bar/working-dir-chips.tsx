@@ -14,7 +14,7 @@
  * `working_dirs` broadcast is authoritative. Drafts only write the
  * store — the first chat frame carries the list (send-chat-message.ts).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { SolarIcon } from "@/components/solar-icons";
 
 import {
@@ -32,6 +32,7 @@ import { useBoundChat } from "./bound-chat";
 import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
 import { activateOnKey, cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { GitChip } from "./git-chip";
 
 /** Stable empty list so the zustand selector doesn't churn renders. */
 const NO_WORKING_DIRS: string[] = [];
@@ -91,6 +92,21 @@ export function WorkingDirChips() {
       );
     }
   }
+
+  // The project chip's git menu adds a worktree here when the main
+  // folder is frozen (see ProjectBadge).
+  const applyRef = useRef(applyWorkingDirs);
+  applyRef.current = applyWorkingDirs;
+  const dirsRef = useRef(workingDirs);
+  dirsRef.current = workingDirs;
+  useEffect(() => {
+    const onAdd = (event: Event) => {
+      const path = (event as CustomEvent<{ path?: string }>).detail?.path;
+      if (path && !dirsRef.current.includes(path)) applyRef.current([...dirsRef.current, path]);
+    };
+    window.addEventListener("op:workdir-add", onAdd);
+    return () => window.removeEventListener("op:workdir-add", onAdd);
+  }, []);
 
   const refresh = useCallback(async () => {
     const generation = ++refreshGeneration.current;
@@ -181,8 +197,9 @@ export function WorkingDirChips() {
 
   return (
     <>
-      {workingDirs.map((dir) => (
-        <span key={dir} className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} runtime-badge workdir-badge`} title={dir}>
+      {workingDirs.map((dir, index) => (
+        <Fragment key={dir}>
+        <span className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} runtime-badge workdir-badge`} title={dir}>
           <SolarIcon name="folder-with-files" size={14} className="workdir-icon" />
           <span className="badge-short">{baseName(dir)}</span>
           <SolarIcon
@@ -198,6 +215,12 @@ export function WorkingDirChips() {
             )}
           />
         </span>
+        <GitChip
+          path={dir}
+          order={index + 1}
+          onUseFolder={(next) => applyWorkingDirs(workingDirs.map((d) => (d === dir ? next : d)))}
+        />
+        </Fragment>
       ))}
       <Popover open={open} onOpenChange={onOpenChange}>
         <HoverTip label={text("Add working folder", "添加工作目录")}>
