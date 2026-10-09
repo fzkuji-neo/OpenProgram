@@ -49,10 +49,13 @@ export function FileMenu({
         maxWidth: 480,
         maxHeight: 320,
         overflowY: "auto",
-        background: "var(--bg-secondary)",
-        border: "1px solid var(--border)",
-        borderRadius: 6,
-        boxShadow: "var(--shadow-popover)",
+        // Glass popover recipe (app/styles/base.css --glass-*).
+        background: "var(--glass-surface)",
+        WebkitBackdropFilter: "var(--glass-backdrop)",
+        backdropFilter: "var(--glass-backdrop)",
+        border: "0.5px solid var(--glass-ring)",
+        borderRadius: "var(--glass-radius)",
+        boxShadow: "var(--glass-shadow)",
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         fontSize: 12,
       }}

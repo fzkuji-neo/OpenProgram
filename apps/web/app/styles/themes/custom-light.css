@@ -39,7 +39,7 @@
      ring——ring 反复被反馈"看不见"。0.12 比 pill 发丝线(0.1)深半档，
      浮层需要更明确的边界。shadow 只负责投影。 */
   --border-popover: rgba(10, 10, 10, 0.12);
-  --shadow-popover: 0 8px 24px rgba(20, 20, 19, 0.16);
+  --shadow-popover: var(--glass-shadow);
   --shadow-dialog: 0 10px 30px rgba(20, 20, 19, 0.10);
   --shadow-sidebar-left: 4px 0 16px rgba(20, 20, 19, 0.06);
   --shadow-sidebar-right: -4px 0 16px rgba(20, 20, 19, 0.06);

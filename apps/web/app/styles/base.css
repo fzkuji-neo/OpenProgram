@@ -170,7 +170,27 @@
      shadow carries its own 1px ring, so panels need no border. */
   --surface-popover: #30302e;
   --border-popover: rgba(255, 255, 255, 0.12);
-  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.4);
+  /* Glass popovers (iOS-style material): one recipe for every floating
+     menu, picker and popup, in every theme. light-dark() follows each
+     theme's color-scheme, so themes only supply --surface-popover.
+       surface   — the theme's popover colour, ~72% opaque
+       backdrop  — blur + saturation of whatever sits behind
+       ring      — colour of the 0.5px hairline border (a real border,
+                   per the menu rule in top-bar/menu-styles.ts)
+       highlight — 0.5px top inner light edge
+       shadow    — contact + mid + ambient layers, soft and wide
+       radius    — 10px, the composer's corner (shared menu rule) */
+  --glass-surface: color-mix(in srgb, var(--surface-popover) 72%, transparent);
+  --glass-backdrop: blur(24px) saturate(1.8);
+  --glass-ring: light-dark(rgba(0, 0, 0, 0.09), rgba(255, 255, 255, 0.11));
+  --glass-highlight: light-dark(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.07));
+  --glass-shadow:
+    inset 0 0.5px 0 var(--glass-highlight),
+    0 1px 2px light-dark(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.22)),
+    0 6px 16px light-dark(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.26)),
+    0 20px 44px light-dark(rgba(0, 0, 0, 0.10), rgba(0, 0, 0, 0.32));
+  --glass-radius: 10px;
+  --shadow-popover: var(--glass-shadow);
   --shadow-dialog: 0 12px 32px rgba(0, 0, 0, 0.3);
   --shadow-sidebar-left: 4px 0 20px rgba(0, 0, 0, 0.28);
   --shadow-sidebar-right: -4px 0 20px rgba(0, 0, 0, 0.28);
@@ -1001,3 +1021,4 @@ html[data-canvas-dragging] .desktop-tab-row { z-index: 100000; }
   .center-canvas-content textarea { max-height: 38px; }
 }
 html[data-canvas-dragging] iframe { pointer-events: none; }
+

@@ -24,7 +24,7 @@
   --shadow: 0 4px 12px rgba(6, 4, 18, 0.45);
   --surface-popover: #241f3d;
   --border-popover: rgba(180, 165, 255, 0.20);
-  --shadow-popover: 0 8px 24px rgba(6, 4, 18, 0.6);
+  --shadow-popover: var(--glass-shadow);
   --shadow-dialog: 0 12px 32px rgba(6, 4, 18, 0.55);
   --shadow-sidebar-left: 4px 0 20px rgba(6, 4, 18, 0.45);
   --shadow-sidebar-right: -4px 0 20px rgba(6, 4, 18, 0.45);

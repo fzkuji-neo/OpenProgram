@@ -91,12 +91,15 @@
      故不能用固定 left:100%）。translateY(-50%) 让卡片纵向对齐命中条中点。 */
   transform: translateY(-50%);
   width: 300px;
-  /* 复刻 codex 预览卡：深灰面板 + 微亮细边，无投影。 */
-  background: var(--surface-popover);
-  border: 1px solid color-mix(in srgb, var(--text-bright) 9%, transparent);
-  border-radius: 14px;
   padding: 12px 14px;
   pointer-events: none;
+  /* Glass popover recipe (app/styles/base.css --glass-*). */
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  border: 0.5px solid var(--glass-ring);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
 }
 /* codex 风格：顶行 = 用户输入，亮色、单行截断（像标题）。 */
 .msg-rail-card-text {

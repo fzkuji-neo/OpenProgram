@@ -1,12 +1,15 @@
 .ctxMenu {
   position: fixed;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  border-radius: var(--ui-button-radius);
   padding: 4px 0;
   z-index: 999;
-  box-shadow: var(--shadow-popover);
   min-width: 160px;
+  /* Glass popover recipe (app/styles/base.css --glass-*). */
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  border: 0.5px solid var(--glass-ring);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
 }
 .ctxItem {
   padding: 6px 14px;

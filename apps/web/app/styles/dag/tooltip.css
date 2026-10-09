@@ -9,24 +9,27 @@
 .history-tooltip {
   position: absolute;
   pointer-events: none;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
   color: var(--text-primary);
   padding: 7px 9px;
-  border-radius: 7px;
   font-size: 11.5px;
   line-height: 1.4;
   width: 280px;
   max-width: 280px;
   max-height: 380px;
   overflow: hidden;
-  box-shadow: var(--shadow-popover);
   opacity: 0;
   transition: opacity 0.1s;
   z-index: 50;
   word-break: break-word;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+  /* Glass popover recipe (app/styles/base.css --glass-*). */
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  border: 0.5px solid var(--glass-ring);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
 }
 .history-tooltip.visible { opacity: 1; }
 /* Expanded (right-click) state: the same card grows, scrolls, and
