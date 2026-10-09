@@ -19,6 +19,7 @@ await build({
       'export { TurnFilesChips } from "./components/chat/messages/turn-files-chips.tsx";',
       'export { useSessionStore } from "./lib/session-store/index.ts";',
       'export { setSocket } from "./lib/runtime-bridge/state.ts";',
+      'export { useCenterTabs } from "./lib/tabs/center-tabs-store.ts";',
     ].join("\n"),
     resolveDir: webPath,
     sourcefile: "turn-files-chips-entry.ts",
@@ -91,7 +92,7 @@ class FakeSocket {
 
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { TurnFilesChips, setSocket, useSessionStore } = await import(pathToFileURL(bundlePath));
+const { TurnFilesChips, setSocket, useCenterTabs, useSessionStore } = await import(pathToFileURL(bundlePath));
 
 async function flush() {
   await act(async () => {
@@ -203,4 +204,76 @@ test("successful legacy summaries survive card remount without loading or repeat
  assert.match(host.textContent,/a.ts/,"cached summary renders immediately");await flush();
  assert.equal(socket.sent.filter(f=>f.action==="review_scope").length,count);
  await act(async()=>root.unmount());setSocket(null);
+});
+
+test("a bounded summary counting more files than it lists never hides the rest", async () => {
+  // Regression: "12 files changed" listed 3 rows with no "Show more" control.
+  const socket = new FakeSocket();
+  setSocket(socket);
+  const host = document.querySelector("#root");
+  const root = createRoot(host);
+  const reviewCalls = [];
+  const originalOpenReviewTab = useCenterTabs.getState().openReviewTab;
+  useCenterTabs.setState({ openReviewTab: (...args) => { reviewCalls.push(args); } });
+  const row = (name) => ({
+    path: `/repo/src/${name}`, op: "modify", added: 10, removed: 0,
+  });
+  const names = [
+    "a.ts", "b.tsx", "c.md", "d.json", "e.py", "f.css",
+    "g.ts", "h.ts", "i.ts", "j.ts", "k.ts", "l.ts",
+  ];
+  const summary = {
+    version: 2, files: names.slice(0, 3).map(row), file_count: 12,
+    added: 120, removed: 0,
+  };
+  const rowTexts = () => [...host.querySelectorAll(".turn-files-row:not(.turn-files-overflow)")]
+    .map((element) => element.textContent);
+
+  await act(async () => {
+    root.render(createElement(TurnFilesChips, {
+      assistantMsgId: "bounded",
+      sessionIdOverride: "bounded-session",
+      summary,
+    }));
+  });
+  assert.match(host.textContent, /12 files changed/);
+  assert.equal(rowTexts().length, 3);
+  const overflow = host.querySelector(".turn-files-overflow");
+  assert.ok(overflow, "header count above listed rows must render an overflow row");
+  assert.match(overflow.textContent, /and 9 more files — open Review/);
+  await act(async () => {
+    overflow.dispatchEvent(new window.Event("click", { bubbles: true }));
+  });
+  assert.deepEqual(reviewCalls.at(-1), ["bounded-session", "bounded", "turn"]);
+
+  // The incomplete summary asks review_scope for the full card list.
+  await flush();
+  const request = latestReviewRequest(socket);
+  assert.ok(request, "a bounded summary loads the full list");
+  assert.equal(request.assistant_msg_id, "bounded");
+  await act(async () => {
+    respond(socket, request, {
+      files: names.map(row).map((file) => ({ ...file, rel: file.path.slice(6) })),
+      file_count: 12, added: 120, removed: 0,
+    });
+  });
+  assert.equal(host.querySelector(".turn-files-overflow"), null);
+  const more = host.querySelector(".turn-files-more");
+  assert.match(more.textContent, /Show 9 more files/);
+  await act(async () => {
+    more.dispatchEvent(new window.Event("click", { bubbles: true }));
+  });
+  assert.equal(rowTexts().length, 12);
+  assert.match(host.textContent, /12 files changed/);
+
+  // Rows carry the Files panel's per-type icons, not one generic glyph.
+  const icons = [...host.querySelectorAll(".turn-files-file-icon svg")]
+    .map((element) => element.getAttribute("data-file-icon"));
+  assert.equal(icons.length, 12);
+  assert.equal(icons[0], "typescript");
+  assert.ok(new Set(icons).size >= 4, `expected distinct file-type icons, got ${icons}`);
+
+  await act(async () => root.unmount());
+  useCenterTabs.setState({ openReviewTab: originalOpenReviewTab });
+  setSocket(null);
 });

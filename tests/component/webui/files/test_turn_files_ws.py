@@ -182,6 +182,45 @@ def test_turn_scope_uses_summary_embedded_on_history_node(store, tmp_path):
     assert data["files"][0]["added"] == 3
 
 
+def test_turn_scope_reads_journal_when_embedded_summary_is_bounded(store, tmp_path):
+    """Regression: a 3-row summary counting 12 files listed only 3 rows."""
+    session_id, msg_id = "s_bounded", "u1_reply"
+    _seed(store, session_id, msg_id)
+    journal = CheckpointStore(store._session_dir(session_id))
+    targets = []
+    for number in range(12):
+        target = tmp_path / f"f{number:02d}.py"
+        target.write_text("before\n", encoding="utf-8")
+        journal.backup_before_edit(msg_id, str(target))
+        target.write_text("after\n", encoding="utf-8")
+        journal.commit_after_edit(msg_id, str(target), operation="edit")
+        targets.append(target)
+    _git, index = store._open(session_id)
+    index.nodes_by_id[msg_id].metadata = {
+        **(index.nodes_by_id[msg_id].metadata or {}),
+        "turn_files": {
+            "version": 2, "file_count": 12, "added": 12, "removed": 12,
+            "files": [{
+                "path": str(target), "op": "modify", "added": 1, "removed": 1,
+                "binary": False, "diff_state": "available",
+                "recoverability": "exact", "unavailable_reason": None,
+            } for target in targets[:3]],
+        },
+    }
+
+    ws = FakeWS()
+    _run(tf.handle_review_scope(ws, {
+        "session_id": session_id, "scope": "turn", "assistant_msg_id": msg_id,
+    }))
+
+    data = ws.sent[0]["data"]
+    assert data["status"] == "ready"
+    assert data["file_count"] == 12
+    assert sorted(row["path"] for row in data["files"]) == sorted(
+        str(target) for target in targets
+    )
+
+
 def test_branch_scope_excludes_sibling_turn_receipt(store, tmp_path):
     session_id = "s_branch_scope"
     _seed(store, session_id, "a1")
