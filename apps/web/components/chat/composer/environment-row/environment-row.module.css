@@ -137,6 +137,12 @@
 .envChips[data-measuring] {
   transition: none !important;
 }
+/* …and with the right-aligned chips packed left, so their auto margin
+   doesn't count as used width (use-compact-environment-row.ts). */
+.envChips[data-measuring] > .surfaceChip,
+.envChips[data-measuring] > .trailingControls {
+  margin-left: 0 !important;
+}
 
 .trailingControls {
   margin-left: auto;
