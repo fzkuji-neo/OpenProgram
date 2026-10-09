@@ -110,10 +110,22 @@ def _recover_web_use_page(failure: dict, *, backend: str):
     from openprogram.agent.run_control import check_cancelled
 
     check_cancelled()
-    owner_id = surface_context.web_use_owner_id(surface_context.current())
+    current = surface_context.current()
+    owner_id = surface_context.web_use_owner_id(current)
     tab_id, window_id = failure.get("recovery_tab_id"), failure.get("recovery_window_id")
     if tab_id and window_id:
-        context = surface_context.capture_pages(surface_context.current())
+        capture_context = current if (
+            surface_context.tool_enabled(current)
+            or bool(isinstance(current, dict) and (
+                current.get("origin_window_id") or current.get("window_id")
+            ))
+        ) else None
+        try:
+            # Same discovery as list_pages: survives a closed origin window
+            # and waits briefly for a restarting App to reconnect.
+            context = surface_context.capture_pages_for_listing(capture_context)
+        except surface_context.DesktopUnavailableError as exc:
+            return state._desktop_unavailable_result(exc)
         if not isinstance(context, dict) or not context.get("context_id"):
             return failure
         try:
@@ -138,9 +150,13 @@ def _recover_web_use_page(failure: dict, *, backend: str):
             finally:
                 registry.release_page_capabilities([target["page_context_token"]], owner_id=owner_id)
         surface_context.release_bindings(context)
+    url = failure.get("recovery_url")
+    if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+        # Only the exact tab was known and it is gone; never open a guess.
+        return failure
     check_cancelled()
     context = surface_context.open_page(
-        failure["recovery_url"],
+        url,
         **({"window_id": window_id} if window_id else {}),
         background=True,
     )

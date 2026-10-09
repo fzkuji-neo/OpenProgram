@@ -1376,3 +1376,62 @@ def test_private_page_cleanup_retains_trusted_session_after_executor_context_end
     assert sent and all(item.get("session_id") == "trusted-owner" for item in sent)
     assert failures == []
     assert remaining == {}
+
+
+def test_parent_webtab_bridge_marks_disconnected_desktop_for_child_wait(monkeypatch):
+    from openprogram.agent import process_runner, surface_context
+
+    def unavailable(_context):
+        raise surface_context.DesktopUnavailableError(
+            "originating Desktop window is unavailable"
+        )
+
+    monkeypatch.setattr(surface_context, "capture_pages", unavailable)
+    replies = Queue()
+    process_runner._bridge_webtab_to_parent({
+        "req_id": "capture-restarting",
+        "command": {"op": "capture_pages", "window_id": "window-1"},
+        "timeout": 2,
+    }, replies, {}, allowed_window_id="window-1", allowed_bindings=set())
+
+    result = replies.get(timeout=1)["result"]
+    assert result["ok"] is False
+    assert result["reason_code"] == "desktop_unavailable"
+
+
+def test_parent_webtab_bridge_relists_origin_window_after_binding_revoked(monkeypatch):
+    from openprogram.agent import process_runner, surface_context
+
+    seen = []
+
+    def capture(context):
+        seen.append(context)
+        if context.get("surfaces"):
+            raise surface_context.DesktopUnavailableError(
+                "accepted Page binding is unavailable"
+            )
+        return {
+            "context_id": "relisted",
+            "window_id": "window-1",
+            "surfaces": [{
+                "window_id": "window-1", "tab_id": "tab-1",
+                "binding_id": "binding-new",
+            }],
+        }
+
+    monkeypatch.setattr(surface_context, "capture_pages", capture)
+    replies = Queue()
+    tracked = {}
+    allowed = {"binding-old"}
+    process_runner._bridge_webtab_to_parent({
+        "req_id": "capture-after-restart",
+        "command": {"op": "capture_pages", "binding_id": "binding-old"},
+        "timeout": 2,
+    }, replies, tracked, allowed_window_id="window-1", allowed_bindings=allowed)
+
+    result = replies.get(timeout=1)["result"]
+    assert result["ok"] is True
+    # The second capture lists the same originating window, never another.
+    assert seen[1]["origin_window_id"] == "window-1"
+    assert seen[1]["surfaces"] == []
+    assert "binding-new" in tracked and "binding-new" in allowed
