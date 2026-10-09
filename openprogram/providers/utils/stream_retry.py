@@ -289,6 +289,7 @@ async def retry_stream(
         return exc
 
     last_exc: Optional[BaseException] = None
+    transport_reserved = 0
     for attempt in range(max_attempts):
         # Caller's end-to-end deadline (published by runtime.exec). Don't
         # even start another attempt past it — the inner loop being blind
@@ -302,6 +303,11 @@ async def retry_stream(
             raise _mark_exhausted(last_exc)
         try:
             await attempt_fn()
+            if transport_reserved:
+                from .recovery import current_recovery
+                state = current_recovery.get()
+                if state is not None:
+                    state.refund("transport", transport_reserved)
             return
         except ExecInterrupt:
             raise  # caller hard-stop — never retry, never swallow
@@ -339,6 +345,7 @@ async def retry_stream(
             raise ExecInterrupt("cancelled")
         if not reserve_recovery("transport"):
             raise _mark_exhausted(last_exc)
+        transport_reserved += 1
         recovery = current_recovery.get()
         if recovery is not None:
             recovery.started(provider=provider, retry_reason="transport")
