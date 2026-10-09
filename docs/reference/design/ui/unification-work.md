@@ -59,7 +59,7 @@ The following inconsistencies remain and should be addressed in future PRs.
 | Token | Docs light | Web beige-light | Docs dark | Web beige-dark |
 |-------|------------|-----------------|-----------|----------------|
 | `--acc` / `--accent-orange` | `#b8651f` | `#c15f3c` | `#d19a66` | `#d97757` |
-| `--bg` / `--bg-primary` | — | — | `#1f1f1e` | `#262624` |
+| `--bg` / `--bg-primary` | — | — | `#1f1f1e` | `#191918` |
 
 **Files:**
 - `scripts/docs_site/assets/site.css`
@@ -109,7 +109,7 @@ The first pixel of the Electron window matches the already resolved web theme. `
 
 Resolution uses the same schema-3 keys the web app writes (`agentic_theme_style` + `agentic_theme_mode`, plus legacy `agentic_theme`). Desktop reads Chromium localStorage under userData, then a `theme-prefs.json` cache written on theme change. `auto` follows `nativeTheme.shouldUseDarkColors`.
 
-`apps/desktop/theme-chrome.js` holds the `--bg-primary` / `--accent-orange` map copied from `apps/web/app/styles/themes/*.css`. Stored `custom` / `custom-light` resolve to the beige pair (`#262624` / `#faf9f5`). Worker error pages and directory-listing HTML use the same chrome tokens; when an accent override is set, listing/error link color uses that accent, while window `backgroundColor` stays the package `--bg-primary`. After a theme change the renderer calls `theme.setChrome`, which updates every `BrowserWindow` background so the next show/reload does not flash the old color.
+`apps/desktop/theme-chrome.js` holds the `--bg-primary` / `--accent-orange` map copied from `apps/web/app/styles/themes/*.css`. Stored `custom` / `custom-light` resolve to the beige pair (`#191918` / `#faf9f5`). Worker error pages and directory-listing HTML use the same chrome tokens; when an accent override is set, listing/error link color uses that accent, while window `backgroundColor` stays the package `--bg-primary`. After a theme change the renderer calls `theme.setChrome`, which updates every `BrowserWindow` background so the next show/reload does not flash the old color.
 
 Window-state persistence (normal bounds vs maximize/fullscreen, display fallback, titlebar resize hit-testing) is unchanged; see [window-state.md](window-state.md).
 

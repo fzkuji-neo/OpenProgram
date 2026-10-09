@@ -217,7 +217,7 @@ assert.match(bridgeTypes, /accentColor\?:\s*string/);
 assert.doesNotMatch(layout, /localStorage\.getItem\('agentic_custom_css'\)/);
 assert.match(desktopChrome, /custom:\s*"beige-dark"/);
 assert.match(desktopChrome, /"custom-light":\s*"beige-light"/);
-assert.equal(chromeBgs["beige-dark"], "#262624");
+assert.equal(chromeBgs["beige-dark"], "#191918");
 assert.equal(chromeBgs["beige-light"], "#faf9f5");
 
 assert.match(base, /button, input, select, textarea, optgroup\s*\{[^}]*font-family:\s*inherit/s);

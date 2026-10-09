@@ -121,7 +121,7 @@ icon-sm/default/lg                 方形，在这些高度上就是圆形
 
 ## 按钮变体指南
 
-变体就是 shadcn 原版，不改；颜色取 shadcn 那组变量（`--primary`、`--secondary`、`--muted`、`--input`、`--ring` 等），`apps/web/app/globals.css` 把它们桥接到每套主题的配色上——换主题就换了按钮配色，按钮本身不用动。
+变体是 shadcn 原版，外加一个本应用自有的 `elevated`；颜色取 shadcn 那组变量（`--primary`、`--secondary`、`--muted`、`--input`、`--ring` 等），`apps/web/app/globals.css` 把它们桥接到每套主题的配色上——换主题就换了按钮配色，按钮本身不用动。
 
 ```
 variant      闲置                                 悬停
@@ -130,6 +130,7 @@ default      bg-primary + primary-foreground      bg-primary/80
 outline      1px border-border；深色透明底，       bg-muted（浅色），
              浅色 bg-background                    bg-input/30（深色）
 secondary    bg-secondary                         secondary + 5% 墨色
+elevated     --bg-input 底，无边框，shadow-sm       shadow-md，+ 5% 墨色
 ghost        透明                                 bg-muted（深色 /50）
 destructive  bg-destructive/10 + destructive 字   bg-destructive/20
 link         primary 字                           下划线
@@ -138,11 +139,13 @@ link         primary 字                           下划线
 
 所有变体按下时下沉 1px，键盘聚焦时有 3px 的 `ring/30` 光环，禁用时降到 50% 不透明度。
 
+`elevated` 是 Luma 注册表里没有的那一个：Luma 的 Button 没有带阴影的变体（只有 Card 用 `shadow-md`），而输入框周围的胶囊要和输入框一样"无边框、浮起来"。它复用每套主题的 composer 阴影对——`app/globals.css` 的 `@theme` 把它们声明成 `shadow-raised` / `shadow-raised-hover` 工具类——所以胶囊和输入框在每套主题里一起浮起。
+
 按场景选择：
 
 - **主操作**（Run、Save、Test、Apply、发送）→ `default`。
 - **次要操作**（Cancel、Close、Reset、Browse）→ `outline` 或 `secondary`。
-- **密集行里的控件**（输入框下方的模型 / 思考档位 / 权限触发器、图标开关）→ 深色主题用 `secondary`，浅色主题用 `outline`（`lib/prefs/use-resolved-theme-mode.ts` 的 `useControlRowVariant`）：灰底胶囊在深色上清楚，在浅色米白底上发闷。
+- **密集行里的控件**（输入框下方的模型 / 思考档位 / 权限触发器、图标开关、环境标签）→ `elevated`：无边框，用和输入框一样的阴影浮在页面上，悬停时阴影加深一档。
 - **只在悬停时才需要出现的次要动作** → `ghost`。
 - **破坏性操作**（Delete、Remove、停止）→ `destructive`。
 - **Deep 表面——侧栏行** → 不用 Button，用 `.ui-list-item` / `nav-classes.ts`。
@@ -151,8 +154,8 @@ link         primary 字                           下划线
 
 聊天输入框用的是同一套零件：
 
-- 输入框上方的**环境标签**（渠道、网页、项目、工作目录、DAG 浮层按钮）→ `outline` `sm`；添加目录按钮是 `outline` `icon-sm`。
-- **底部控制栏**（权限、聊天 / 执行模型、思考档位、加号、工具开关、上下文圆环）→ `sm` / `icon-sm`，深色主题 `secondary`、浅色主题 `outline`（`useControlRowVariant`）。输入框的 CSS 用 `revert-layer` 把旧的基础规则让回给 Button，不再自己画一套标签。
+- 输入框上方的**环境标签**（渠道、网页、项目、工作目录、DAG 浮层按钮）→ `elevated` `sm`；添加目录按钮是 `elevated` `icon-sm`。
+- **底部控制栏**（权限、聊天 / 执行模型、思考档位、加号、工具开关、上下文圆环）→ `elevated`，`sm` / `icon-sm`。输入框的 CSS 用 `revert-layer` 把旧的基础规则让回给 Button，不再自己画一套标签。
 - **发送** → `icon-sm`：有内容可发时 `default`，空输入时 `ghost`，停止运行时 `destructive`。
 - **输入框本体** → 通过每套主题的 `--composer-*` 变量用 shadcn Luma Card 的外观：`--bg-input` 底色、无边框，平时 `shadow-sm`，鼠标悬停或聚焦时 `shadow-md`（阴影透明度浅色主题 0.1、深色 0.25），不加聚焦光环；圆角 23px（一行时是胶囊）。
 
@@ -164,7 +167,7 @@ link         primary 字                           下划线
 - 不要用白色 / `--bg-input` 做侧栏或内容区**列表行**的选中底。浅色主题会发白。
 - 不要给 MCP 服务器行（或任何内容区列表）另一套高度、内边距或选中底。
 - 不要加悬停位移（translate-y、scale-105）。悬停只换背景；唯一的动效是 Button 自带的按下 1px。
-- 不要改 `components/ui/button.tsx` 里的样式类，也不要在 CSS 里再写一份仿 Button 的样式。挑官方的 `variant` / `size`；旧规则还压着 Button 时，删掉它或用 `revert-layer` 让回去。
+- 不要改 `components/ui/button.tsx` 里的官方样式类（`elevated` 是唯一的自有变体），也不要在 CSS 里再写一份仿 Button 的样式。挑一个 `variant` / `size`；旧规则还压着 Button 时，删掉它或用 `revert-layer` 让回去。
 - 不要在 1px 输入/下拉边上再叠 2px 聚焦光晕。
 - 不要在悬停时丢掉控件的 1px 边。
 - 不要让对话框滑动。只淡入淡出。

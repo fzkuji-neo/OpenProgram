@@ -38,7 +38,6 @@ import type { ThinkingOption } from "./use-thinking-effort";
 import styles from "../composer.module.css";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useControlRowVariant } from "@/lib/prefs/use-resolved-theme-mode";
 
 const noop = () => {};
 
@@ -134,7 +133,6 @@ export function ControlsCluster({
   setThinkingMenuOpen,
   thinkingTriggerRef,
 }: ControlsClusterProps) {
-  const controlVariant = useControlRowVariant();
   const { text } = useTranslation();
   const plusIconRef = useRef<AnimatedNavIconHandle>(null);
   const effortIconRef = useRef<AnimatedNavIconHandle>(null);
@@ -164,7 +162,7 @@ export function ControlsCluster({
               <Menu.Trigger
                 render={
                   <button
-                    className={`${cn(buttonVariants({ variant: controlVariant, size: "icon-sm" }))} ${styles.plusBtn} ${anyToolActive ? styles.hasActive : ""}`}
+                    className={`${cn(buttonVariants({ variant: "elevated", size: "icon-sm" }))} ${styles.plusBtn} ${anyToolActive ? styles.hasActive : ""}`}
                     onMouseEnter={() => plusIconRef.current?.startAnimation?.()}
                     onMouseLeave={() => plusIconRef.current?.stopAnimation?.()}
                     title={text("Add tools, files, and more", "添加工具、文件等")}
@@ -456,7 +454,7 @@ export function ControlsCluster({
                   {(
                     <button
                       type="button"
-                      className={`${cn(buttonVariants({ variant: controlVariant, size: "sm" }))} ${styles.effortText}`}
+                      className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} ${styles.effortText}`}
                       aria-expanded={thinkingMenuOpen}
                       onMouseEnter={() => effortIconRef.current?.startAnimation?.()}
                       onMouseLeave={() => effortIconRef.current?.stopAnimation?.()}

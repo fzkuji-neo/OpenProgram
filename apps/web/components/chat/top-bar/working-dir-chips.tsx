@@ -182,7 +182,7 @@ export function WorkingDirChips() {
   return (
     <>
       {workingDirs.map((dir) => (
-        <span key={dir} className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} runtime-badge workdir-badge`} title={dir}>
+        <span key={dir} className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} runtime-badge workdir-badge`} title={dir}>
           <Folder size={14} strokeWidth={2} className="workdir-icon" />
           <span className="badge-short">{baseName(dir)}</span>
           <X
@@ -203,7 +203,7 @@ export function WorkingDirChips() {
           <PopoverTrigger asChild>
             <button
               type="button"
-              className={`${cn(buttonVariants({ variant: "outline", size: "icon-sm" }))} runtime-badge workdir-badge workdir-add-badge`}
+              className={`${cn(buttonVariants({ variant: "elevated", size: "icon-sm" }))} runtime-badge workdir-badge workdir-add-badge`}
               aria-label={text("Add working folder", "添加工作目录")}
             >
               <FolderPlus size={14} strokeWidth={2} className="workdir-icon" />

@@ -511,7 +511,7 @@ assert.match(
 );
 assert.match(
   controlsCluster,
-  /className=\{`\$\{cn\(buttonVariants\(\{ variant: controlVariant, size: "sm" \}\)\)\} \$\{styles\.effortText\}`\}[\s\S]*style=\{thinking === "max" \? \{ color: "#8E6BD9" \} : undefined\}/,
+  /className=\{`\$\{cn\(buttonVariants\(\{ variant: "elevated", size: "sm" \}\)\)\} \$\{styles\.effortText\}`\}[\s\S]*style=\{thinking === "max" \? \{ color: "#8E6BD9" \} : undefined\}/,
 );
 const compactControlsStart = composerCss.indexOf("/* Narrow composer control labels");
 const compactControlsEnd = composerCss.indexOf(
@@ -548,10 +548,10 @@ assert.equal(
   "every non-max effort level must retain a distinct compact-icon color",
 );
 
-// Bottom-row controls are shadcn Buttons (secondary dark / outline light): the TSX carries
+// Bottom-row controls are shadcn Buttons (the app's `elevated` variant): the TSX carries
 // buttonVariants, and the CSS hands the legacy base rules back to those
 // layered utilities (revert-layer) instead of drawing its own chip.
-assert.match(controlsCluster, /cn\(buttonVariants\(\{ variant: controlVariant, size: "icon-sm" \}\)\)\} \$\{styles\.plusBtn\}/);
+assert.match(controlsCluster, /cn\(buttonVariants\(\{ variant: "elevated", size: "icon-sm" \}\)\)\} \$\{styles\.plusBtn\}/);
 const surfaceControlsStart = composerCss.indexOf("/* Every control in this row is a shadcn Button (buttonVariants");
 const surfaceControlsEnd = composerCss.indexOf(
   "/* Narrow composer control labels",

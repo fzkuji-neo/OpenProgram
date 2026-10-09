@@ -1,10 +1,15 @@
 // shadcn/ui Button, radix-luma style, copied verbatim from the official
-// registry (npx shadcn add button with style "radix-luma"). Only two
+// registry (npx shadcn add button with style "radix-luma"). Three
 // adaptations: imports point at the packages this app already ships
-// (@radix-ui/react-slot, @/lib/utils cn), and the component forwards its
-// ref because this app is on React 18 (refs are not props until 19).
+// (@radix-ui/react-slot, @/lib/utils cn), the component forwards its
+// ref because this app is on React 18 (refs are not props until 19),
+// and one app-owned variant, `elevated`, is added — Luma ships no
+// shadowed Button (only its Card carries shadow-md), and the chat
+// composer's pills want the same borderless raised look as the input
+// box, so this variant reuses the per-theme composer shadow pair
+// (shadow-raised / shadow-raised-hover, see app/globals.css @theme).
 // Change sizes at the call site through the official `size` variants,
-// not by editing these classes.
+// not by editing the official classes.
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import * as Slot from "@radix-ui/react-slot"
@@ -21,6 +26,8 @@ const buttonVariants = cva(
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-transparent dark:hover:bg-input/30",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+        elevated:
+          "bg-bg-input text-foreground shadow-raised hover:shadow-raised-hover hover:bg-[color-mix(in_oklch,var(--bg-input),var(--foreground)_5%)] aria-expanded:shadow-raised-hover aria-expanded:bg-[color-mix(in_oklch,var(--bg-input),var(--foreground)_5%)]",
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:

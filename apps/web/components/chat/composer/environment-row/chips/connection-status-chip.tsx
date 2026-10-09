@@ -96,7 +96,7 @@ export function ConnectionStatusChip({ owningId = true }: { owningId?: boolean }
           <span
             {...(owningId ? { id: "statusBadge" } : {})}
             role="button"
-            className={`${cn(buttonVariants({ variant: "outline", size: "sm" }))} status-badge${toneClass}`}
+            className={`${cn(buttonVariants({ variant: "elevated", size: "sm" }))} status-badge${toneClass}`}
           >
             {/* Hidden dot kept ONLY for lib/runtime-bridge/ui.ts
                 setStatusDotHealth(), which queries `#statusBadge

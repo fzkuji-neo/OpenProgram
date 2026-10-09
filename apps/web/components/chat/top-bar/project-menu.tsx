@@ -516,7 +516,7 @@ export function ProjectBadge() {
           <span
             id="projectBadge"
             className={
-              cn(buttonVariants({ variant: "outline", size: "sm" })) +
+              cn(buttonVariants({ variant: "elevated", size: "sm" })) +
               " runtime-badge project-badge" +
               (missing ? " project-badge-missing" : "")
             }
