@@ -886,15 +886,10 @@ function StatusMarker({
       </svg>
     );
   }
-  // idle / done & seen → 不画可见标记：只有需要注意的状态才占眼睛。
-  // 仍保留一个侧栏底色的实心点，盖住底下穿过的竖导线，不让线从标题前穿过。
-  return (
-    <span
-      className="block size-[7px] shrink-0 rounded-full"
-      style={{ background: "var(--bg-sidebar, var(--bg-secondary))" }}
-      aria-hidden="true"
-    />
-  );
+  // idle / done & seen → 什么都不画：只有需要注意的状态才占眼睛。
+  // 不再用侧栏底色的实心点去遮项目树的竖导线——那会把导线切成一段段，
+  // 选中行（底色更深）上还会露出一个浅色圆点。保留空槽，标题照样对齐。
+  return <span className="block size-[7px] shrink-0" aria-hidden="true" />;
 }
 
 /* ---- single conversation row ----------------------------------- */
