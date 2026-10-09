@@ -37,7 +37,7 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 | 菜单勾选 | `check-circle` |
 | 关闭 × | `close-circle` |
 | 展开箭头 | `alt-arrow-right`、`alt-arrow-down` |
-| 发送 | `arrow-up` |
+| 发送 | `plain-2`（纸飞机） |
 | 复制 | `copy` |
 | 模型能力（视觉 / 视频 / 工具 / 推理） | `eye` / `videocamera` / `toolbox` / `lightbulb-bolt` |
 
@@ -49,7 +49,7 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 
 三族图标都讲同一套命令式句柄 `AnimatedNavIconHandle`（`startAnimation` / `stopAnimation`）：容器——按钮、菜单行、chip——才是悬停目标，图标自己 16px 的命中区从不单独动。父级挂上 ref 就接管驱动；没有 ref 的 Solar 图标跟随最近的可点击祖先（按钮、链接、菜单项、chip）的悬停，所以不论有没有接 ref，每个按钮的表现都一样；纯展示的图标——菜单勾、警告三角、模型能力标记——用 `none`。
 
-pqoqubbw 图标会自己重绘（扳手转一下、箭头跳一下）。实心的 Solar 图标做不到，所以 `SolarIcon` 提供几种克制而统一的预设：`pop`（放大到 1.12，默认）、`lift`（发送箭头上抬 1.5px）、`nudge`（箭头右移 1.5px）、`pulse`（一次性弹入，用于菜单项变为勾选时）和 `none`。`prefers-reduced-motion` 下全部不动。
+pqoqubbw 图标会自己重绘（扳手转一下、箭头跳一下）。实心的 Solar 图标做不到，所以 `SolarIcon` 提供几种克制而统一的预设：`pop`（放大到 1.12，默认）、`fly`（发送纸飞机向右上飞 1.5px）、`nudge`（箭头右移 1.5px）、`pulse`（一次性弹入，用于菜单项变为勾选时）和 `none`。`prefers-reduced-motion` 下全部不动。
 
 `SolarIcon` 在 `<svg>` 外包一层 `span.inline-flex`，与动效图标的包裹层同构，容器里按"装着 svg 的那个元素"去定尺寸或隐藏的 CSS 继续有效。
 
