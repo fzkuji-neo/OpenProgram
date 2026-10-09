@@ -285,6 +285,9 @@ export function GitChip({
   const tip = `${status.repo_name ?? baseName(path)} · ${branchLabel}${changes.files ? ` · ${text(`${changes.files} changed`, `${changes.files} 个修改`)}${hasLines ? ` +${changes.insertions} −${changes.deletions}` : ""}` : ""}`;
 
   return (
+    <>
+    {/* Its own element, so hovering either segment never repaints the line. */}
+    <span className="folder-pill-divider" aria-hidden="true" />
     <Popover open={open} onOpenChange={onOpenChange}>
       <HoverTip label={tip}>
         <PopoverTrigger asChild>
@@ -473,5 +476,6 @@ export function GitChip({
         </div>
       </PopoverContent>
     </Popover>
+    </>
   );
 }
