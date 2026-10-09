@@ -1434,11 +1434,10 @@
 .browserActionCue {
   position: absolute;
   z-index: 3;
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  color: #e07a22;
 }
 .browserControl[data-compact="true"] {
   padding: 0 4px;
@@ -1471,16 +1470,6 @@
 .browserHistory ol {
   margin: 4px 0 0;
   padding-left: 16px;
-}
-.browserActionMark {
-  position: absolute;
-  width: 28px;
-  height: 28px;
-  margin: -14px 0 0 -14px;
-  border: 0;
-  border-radius: 0;
-  pointer-events: none;
-  color: #e07a22;
 }
 .browserMarkerNote { display: none; }
 .webPipResize {
