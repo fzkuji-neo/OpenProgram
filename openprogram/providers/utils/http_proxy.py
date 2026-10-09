@@ -12,9 +12,11 @@ Resolution order (design record: docs/reference/design/providers/network-proxy.h
    consistent with every plain ``httpx.AsyncClient()`` and SDK-built client
    in the process.
 
-Managed provider clients snapshot this routing map for audited HTTPS API and
-OAuth origins. They still validate target policy and pin the proxy socket;
-custom origins and untrusted URLs require an explicit enforcing policy proxy.
+Managed clients for public URLs, fixed audited services and audited provider
+API / OAuth origins snapshot this routing map. They still validate target
+policy (with the proxy as the resolver of public hostnames) and pin the proxy
+socket; configured custom origins stay direct unless an explicit enforcing
+policy proxy is configured.
 """
 
 from __future__ import annotations

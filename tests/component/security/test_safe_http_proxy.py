@@ -455,3 +455,118 @@ def test_real_proxy_handshake_uses_correct_ports_and_tls_hostnames(monkeypatch, 
     assert response.text == "ok"
     assert connections == [("127.0.0.1", port)]
     assert calls == (["chatgpt.com"] if proxy_url.startswith("socks5") else ["proxy.test", "chatgpt.com"])
+
+
+def _ambient_security(monkeypatch, resolver):
+    """Real routing snapshot from the environment, deterministic target DNS."""
+    from dataclasses import replace
+    import openprogram.config_schema as schema
+
+    original = schema.load_outbound_security_config
+    monkeypatch.setattr(
+        schema,
+        "load_outbound_security_config",
+        lambda consumer: replace(original(consumer, config={}), resolver=resolver),
+    )
+
+
+def _fake_ip_resolver(host, _port):
+    # A Clash-style fake-IP DNS answers every public name from 198.18.0.0/15.
+    return ("127.0.0.1",) if host == "127.0.0.1" else ("198.18.0.104",)
+
+
+def test_web_fetch_behind_fake_ip_proxy_reaches_target_through_real_proxy(monkeypatch):
+    from openprogram.programs.tools.web import web_fetch
+
+    proxy = _RecordingProxy()
+    try:
+        monkeypatch.setenv("HTTP_PROXY", f"http://127.0.0.1:{proxy.server_address[1]}")
+        _ambient_security(monkeypatch, _fake_ip_resolver)
+        monkeypatch.setattr(
+            httpcore,
+            "ConnectionPool",
+            lambda **_kwargs: pytest.fail("public URL must not bypass the proxy"),
+        )
+
+        result = web_fetch.execute(url="http://github.com/fzkuji2026/ctxpress", format="text")
+
+        assert not result.startswith("Error"), result
+        assert "ok" in result
+        assert proxy.request_lines == ["GET http://github.com/fzkuji2026/ctxpress HTTP/1.1"]
+    finally:
+        proxy.close()
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_https_public_url_tunnels_by_hostname_through_pinned_proxy(monkeypatch, asynchronous):
+    calls = []
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7897")
+    _ambient_security(monkeypatch, _fake_ip_resolver)
+
+    class Pool:
+        def __init__(self, **kwargs):
+            calls.append(kwargs)
+
+        def handle_request(self, request):
+            calls.append(request)
+            response = httpcore.Response(200, headers=[(b"content-type", b"text/plain")], content=b"ok")
+            response.stream = _ClosableStream(response.stream)
+            return response
+
+        async def handle_async_request(self, request):
+            calls.append(request)
+            response = httpcore.Response(200, headers=[(b"content-type", b"text/plain")])
+            response.stream = _AsyncClosableStream()
+            return response
+
+        def close(self):
+            pass
+
+        async def aclose(self):
+            pass
+
+    monkeypatch.setattr(httpcore, "AsyncHTTPProxy" if asynchronous else "HTTPProxy", Pool)
+    url = "https://github.com/fzkuji2026/ctxpress"
+    if asynchronous:
+        async def exercise():
+            async with safe_async_client("tool.web_fetch") as client:
+                return await client.get(url)
+        response = asyncio.run(exercise())
+    else:
+        with safe_client("tool.web_fetch") as client:
+            response = client.get(url)
+
+    assert response.content == b"ok"
+    assert calls[0]["proxy_url"] == "http://127.0.0.1:7897"
+    assert calls[0]["network_backend"]._decision.resolved_ips == (ipaddress.ip_address("127.0.0.1"),)
+    assert calls[1].url.host == b"github.com"
+    assert response.extensions["url_decision"].requires_proxy
+
+
+def test_proxy_resolved_decision_never_opens_a_direct_socket():
+    from openprogram.security.safe_http import DecisionNetworkBackend
+    from openprogram.security.url_policy import URLTrustClass, evaluate_url
+
+    decision = evaluate_url(
+        "tool.web_fetch",
+        "GET",
+        "https://github.com/",
+        trust_class=URLTrustClass.UNTRUSTED_PUBLIC,
+        resolver=lambda *_: ("198.18.0.104",),
+        proxy_resolves=True,
+    )
+    transport = ManagedHTTPTransport(
+        "tool.web_fetch",
+        security=OutboundSecurityConfig(resolver=lambda *_: ("198.18.0.104",)),
+    )
+    try:
+        with pytest.raises(URLPolicyError) as exc:
+            transport._pool(decision)
+        assert exc.value.reason == "PROXY_ROUTE_REQUIRED"
+        assert transport.audit_events[-1].reason == "PROXY_ROUTE_REQUIRED"
+    finally:
+        transport.close()
+
+    with pytest.raises(URLPolicyError) as exc:
+        DecisionNetworkBackend(decision).connect_tcp("github.com", 443)
+    assert exc.value.reason == "PROXY_ROUTE_REQUIRED"

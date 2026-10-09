@@ -104,15 +104,19 @@ openprogram config set web.allowed_origins '["https://agent.example.com"]'
 
 ## Network proxy
 
-Managed provider requests and model connectivity checks use ordinary proxies
-for exact HTTPS services in the audited provider API and OAuth inventory:
+The worker follows your ordinary proxy for public destinations: pages read by
+`web_fetch`, image and attachment downloads, the built-in web search backends
+(including DuckDuckGo), other fixed public services such as update checks, and
+model providers whose API or OAuth origin is in the audited provider inventory.
+The route comes from:
 
 1. **`OPENPROGRAM_PROXY_URL`** overrides the ordinary proxy route. It accepts
    `http://`, `https://`, and `socks5://` URLs. `NO_PROXY` bypasses still apply.
 2. **Standard environment variables** use HTTPX's resolution:
    `http_proxy` / `HTTP_PROXY`, `https_proxy` / `HTTPS_PROXY`,
    `all_proxy` / `ALL_PROXY`, and `no_proxy` / `NO_PROXY`. Python also uses
-   macOS and Windows system proxy settings when applicable.
+   macOS and Windows system proxy settings when applicable. Loopback hosts
+   never go through the proxy.
 
 The client validates the target first and checks the proxy socket address.
 TLS still verifies the service hostname. Proxy authentication stays on the
@@ -120,10 +124,21 @@ proxy connection, and a failed proxy request does not fall back to direct access
 An explicit `security.outbound_url.policy_proxy` takes precedence and requires
 an owner assertion that it enforces target policy.
 
-Custom service origins and requests to user-supplied URLs do not implicitly
-inherit ordinary proxies. They retain direct address checks or use an explicit
-enforcing policy proxy. CLI providers inherit the worker process environment;
-the external CLI handles its own routing. SOCKS support is included.
+When a request goes through the proxy, the proxy resolves the hostname. This is
+what makes fake-IP proxies such as Clash work: their local DNS answers come
+from `198.18.0.0/15`, which a direct connection would refuse as
+`NON_GLOBAL_ADDRESS`. Private, loopback and metadata IP addresses, local names
+(`localhost`, single-label hosts, `.local`, `.lan`, `.internal` and similar),
+and hostnames whose local DNS answer is a real private address are still
+refused. Hosts listed in `NO_PROXY` connect directly with the full address
+check. For a strict guarantee that the final resolution is also checked,
+configure an enforcing policy proxy.
+
+Custom service origins (a configured provider base URL, SearXNG, a skills or
+plugin catalog) do not inherit ordinary proxies. They retain direct address
+checks or use an explicit enforcing policy proxy. CLI providers inherit the
+worker process environment; the external CLI handles its own routing. SOCKS
+support is included.
 
 `openprogram rescue` reports the resolved proxy configuration and flags a
 SOCKS proxy whose support package is missing.
