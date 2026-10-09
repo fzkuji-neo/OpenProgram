@@ -99,7 +99,6 @@ export function MessageEditor({ msg, sessionId, onDone }: {
         onRemoveImage={files.removeImage} onRemoveDoc={files.removeDoc} onDismissError={() => files.setImageError(null)} />
       <ChatInputRow textareaRef={ref} input={value} setInput={setValue} autoFocus
         inputId={`edit-message-${msg.id}`} placeholder={text("Edit message", "编辑消息")}
-        pastedEntries={[]} pasteMissing={new Set()} removePaste={() => {}}
         {...mention} onFocus={() => {}} onBlur={mention.closeMenu}
         onPaste={event => { if (event.clipboardData.files.length) {
           event.preventDefault(); void files.addFiles(Array.from(event.clipboardData.files));

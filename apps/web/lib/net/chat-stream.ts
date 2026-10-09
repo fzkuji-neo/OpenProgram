@@ -34,6 +34,7 @@
  *   and are left to their own handlers.
  */
 
+import { readPastedElements, type PastedTextElement } from "../chat/paste-elements.ts";
 import { rememberSystemAccessFromTree } from "../access/system-access-result";
 import { verificationForMessage } from "../runtime-bridge/goal-state";
 import {
@@ -792,6 +793,7 @@ function handleUserMessage(sid: string, d: ChatResponseData): void {
     steering: d.steering === true,
     steeringReplyId: replyId && store.messagesById[replyId] ? replyId : undefined,
     calledBy: d.predecessor,
+    pastedElements: readPastedElements((d as { text_elements?: unknown }).text_elements),
   });
 }
 
@@ -808,6 +810,7 @@ export function appendLocalUserTurn(
   display?: "runtime" | "normal",
   timestamp = Date.now(),
   status: ChatMsg["status"] = "done",
+  pastedElements?: PastedTextElement[],
 ): void {
   const store = useSessionStore.getState();
   if (store.messagesById[msgId]) return;
@@ -818,6 +821,7 @@ export function appendLocalUserTurn(
     display: display === "runtime" ? "runtime" : undefined,
     status,
     timestamp,
+    ...(pastedElements?.length ? { pastedElements } : {}),
   });
 }
 

@@ -150,7 +150,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   // thinking pill) get declared in their original spot.
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { pastedEntries, pasteMissing, onPaste, removePaste } = usePasteTokens({
+  const { pasteMissing, onPaste } = usePasteTokens({
     input,
     setInput,
     activeChatKey,
@@ -602,9 +602,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           onPaste={onPaste}
           slash={slash}
           fileMention={fileMention}
-          pastedEntries={pastedEntries}
-          pasteMissing={pasteMissing}
-          removePaste={removePaste}
         />
 
         {/* Chat and function-form actions stay independent of decision cards. */}

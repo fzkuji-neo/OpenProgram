@@ -40,9 +40,6 @@ export interface ComposerBodyProps {
   onPaste: ReturnType<typeof usePasteTokens>["onPaste"];
   slash: ReturnType<typeof useSlashMenu>;
   fileMention: ReturnType<typeof useFileMention>;
-  pastedEntries: ReturnType<typeof usePasteTokens>["pastedEntries"];
-  pasteMissing: ReturnType<typeof usePasteTokens>["pasteMissing"];
-  removePaste: ReturnType<typeof usePasteTokens>["removePaste"];
 }
 
 export function ComposerBody({
@@ -62,9 +59,6 @@ export function ComposerBody({
   onPaste,
   slash,
   fileMention,
-  pastedEntries,
-  pasteMissing,
-  removePaste,
 }: ComposerBodyProps) {
   return (
     <>
@@ -95,9 +89,6 @@ export function ComposerBody({
             onFocus={() => slash.setFocused(true)}
             onBlur={() => slash.setFocused(false)}
             setCaretPos={fileMention.setCaretPos}
-            pastedEntries={pastedEntries}
-            pasteMissing={pasteMissing}
-            removePaste={removePaste}
             atToken={fileMention.atToken}
             fileMatches={fileMention.fileMatches}
             fileMenuIndex={fileMention.fileMenuIndex}

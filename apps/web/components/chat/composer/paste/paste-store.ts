@@ -21,6 +21,8 @@
  * (``references/claude-code-leaked/src/components/PromptInput/inputPaste.ts``).
  */
 
+import { pastedSpanLabel } from "../../../../lib/chat/paste-elements.ts";
+
 export interface PastedEntry {
   /** Monotonic per-tab id. Matches the ``#N`` in the token. */
   id: number;
@@ -207,6 +209,43 @@ export function expandPasteTokens(text: string): string {
     const entry = pasteStore.get(id);
     return entry ? entry.content : match;
   });
+}
+
+/** ``expandPasteTokens`` with each pasted span wrapped in private-use
+ *  delimiters, so later rewrites (``@path`` expansion) can run before
+ *  ``takePastedSpans`` measures where the spans finally landed. */
+export const PASTE_OPEN = "\uE000";
+export const PASTE_CLOSE = "\uE001";
+
+export function expandPasteTokensDelimited(text: string): string {
+  return text.replace(tokenRegex(), (match, idStr) => {
+    const entry = pasteStore.get(Number(idStr));
+    return entry ? PASTE_OPEN + entry.content + PASTE_CLOSE : match;
+  });
+}
+
+/** Strip the delimiters and report each span (Codex-style
+ *  ``text_elements``; see lib/chat/paste-elements.ts). */
+export function takePastedSpans(text: string): {
+  text: string;
+  spans: { start: number; end: number; label: string }[];
+} {
+  const spans: { start: number; end: number; label: string }[] = [];
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    const open = text.indexOf(PASTE_OPEN, i);
+    if (open < 0) break;
+    const close = text.indexOf(PASTE_CLOSE, open + 1);
+    if (close < 0) break;
+    out += text.slice(i, open);
+    const content = text.slice(open + 1, close);
+    spans.push({ start: out.length, end: out.length + content.length, label: pastedSpanLabel(content.split("\n").length) });
+    out += content;
+    i = close + 1;
+  }
+  out += text.slice(i);
+  return { text: out.split(PASTE_OPEN).join("").split(PASTE_CLOSE).join(""), spans };
 }
 
 /** Return the list of paste ids currently referenced by ``text``. */

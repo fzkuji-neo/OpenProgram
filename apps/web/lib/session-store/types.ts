@@ -149,6 +149,8 @@ export interface ChatMsg {
   id: string;                  // msg_id from server, or local generated for user msgs
   role: "user" | "assistant" | "system";
   content: string;             // final assistant text / user text
+  /** User turns: pasted spans shown collapsed (lib/chat/paste-elements.ts). */
+  pastedElements?: import("../chat/paste-elements.ts").PastedTextElement[];
   /** Event-divider rows (compaction / snip). Other system rows omit this. */
   kind?: "compaction" | "snip" | "event";
   /** ``card`` = fold summary at the covered segment; ``event`` = execution marker. */

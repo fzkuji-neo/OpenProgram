@@ -28,7 +28,8 @@ import { useFunctions } from "@/lib/abilities/functions-store";
 import { buildAttachmentEnvelope } from "@/lib/chat/attachment-marker";
 import { attachmentsBlockSend } from "../attach/attachment-session-cache";
 import { expandAtMentions } from "../attach/at-mention";
-import { expandPasteTokens, missingPasteIds } from "../paste/paste-store";
+import { expandPasteTokens, expandPasteTokensDelimited, missingPasteIds, takePastedSpans } from "../paste/paste-store";
+import { elementsForBody } from "@/lib/chat/paste-elements";
 import { sendChatMessage } from "./send-chat-message";
 import { defaultScrollerKey, noteTakeLatest } from "@/lib/chat/chat-scroll";
 import { resolveFnFormSessionId } from "../modes/fn-form/session-target";
@@ -204,7 +205,9 @@ export function useChatSubmit({
     // the outgoing text so the LLM receives the real content. The
     // entries stay in the store — they're now GC'd by the
     // composerDrafts effect once no draft references them anymore.
-    let expanded = expandPasteTokens(trimmed);
+    // Pasted spans stay delimited until every rewrite has run, so their
+    // final position can be recorded for the collapsed bubble.
+    let expanded = expandPasteTokensDelimited(trimmed);
     // Then expand any ``@path`` mentions by reading the files via the
     // worker's HTTP API. Mentions that fail to read stay as the
     // original ``@path`` token (no silent data loss).
@@ -214,6 +217,11 @@ export function useChatSubmit({
     } catch {
       /* network blip — fall through with raw text */
     }
+    const pasted = takePastedSpans(expanded);
+    expanded = pasted.text;
+    // Measured on the body: attachment markers are prepended below, and
+    // the records count from the end of the message.
+    const textElements = elementsForBody(expanded, pasted.spans);
     // Attached docs are referenced by PATH, never inlined. Electron files
     // use the original native path captured at drop/pick time. Plain-browser
     // files have no source path, so their bytes ride as a document attachment
@@ -237,6 +245,7 @@ export function useChatSubmit({
     // before the WS payload goes out. Composer is just the trigger.
     const handled = sendChatMessage({
       text: expanded,
+      textElements: textElements.length > 0 ? textElements : undefined,
       sessionId: submitOwnerKey,
       // A bound (split-pane) composer writes the same payload but must not
       // flip the focused shell's welcome/run singletons.

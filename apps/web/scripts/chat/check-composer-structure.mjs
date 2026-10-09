@@ -22,7 +22,6 @@ const expected = [
   "components/chat/composer/controls/use-unattended-mode.ts",
   "components/chat/composer/attach/scoped-drop-overlay.tsx",
   "components/chat/composer/attach/image-attach-strip.module.css",
-  "components/chat/composer/paste/paste-chips.module.css",
   "components/chat/composer/environment-row/chips/connection-status-chip.tsx",
   "components/chat/composer/environment-row/chips/web-surface-chip.tsx",
 ];
