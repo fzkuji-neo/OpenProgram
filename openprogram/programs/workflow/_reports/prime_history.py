@@ -41,6 +41,13 @@ class PrimeHistory:
                     status = ('cancelled' if event.outcome == 'cancelled' else
                               'error' if event.is_error or event.outcome == 'failed' else
                               'pending' if event.outcome == 'not_started' else 'completed')
+                    if node is not None and node.metadata.get('status') != status:
+                        # A guarded tool's wrapper records "completed" when it
+                        # returns its refusal as a value; the dispatcher's
+                        # outcome is the actual one.
+                        self.store.update(node_id, metadata={'status': status, 'is_error': bool(event.is_error),
+                            'outcome': event.outcome or status})
+                        node = self.store.load().nodes.get(node_id)
                     if node is None or node.metadata.get('status') != status:
                         raise ValueError('Weekly source prime could not persist its actual tool outcome')
                     self.store.update(node_id, metadata={'result_json': event.result.model_dump(mode='json')})
