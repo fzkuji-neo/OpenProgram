@@ -31,15 +31,16 @@ export function EnvironmentRow({
   return (
     <div ref={rowRef} className={styles.envChips} data-environment-row>
       <ConnectionStatusChip owningId={owningStatusId} />
+      <ProjectBadge />
+      <WorkingDirChips />
+      <GoalChip />
+      {/* Web tab access + picture-in-picture sit after the folders. */}
       <WebSurfaceChip
         sessionId={sessionId}
         toolsEnabled={toolsEnabled}
         onToggleAccess={onToggleAccess}
       />
       <WebPreviewChip />
-      <ProjectBadge />
-      <WorkingDirChips />
-      <GoalChip />
       {trailingControls ? (
         <div className={styles.trailingControls}>{trailingControls}</div>
       ) : null}
