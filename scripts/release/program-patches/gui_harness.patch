@@ -3859,7 +3859,7 @@ index 0316799..70cb79f 100644
 -__all__ = ["AGENTIC_FUNCTIONS"]
 +__all__ = ["PROGRAM_ENTRIES"]
 diff --git a/gui_harness/main.py b/gui_harness/main.py
-index 226f286..a05632e 100644
+index 226f286..fada0dd 100644
 --- a/gui_harness/main.py
 +++ b/gui_harness/main.py
 @@ -17,7 +17,7 @@ import time
@@ -3968,7 +3968,7 @@ index 226f286..a05632e 100644
  
      Each iteration sees the complete prior capability history, then selects
      computer_use, browser_use, vm_use, or a terminal decision. ``max_steps``
-@@ -87,220 +93,222 @@ def gui_agent(
+@@ -87,220 +93,226 @@ def gui_agent(
  
      Returns a dict with task, success, steps_taken, total_time, history.
      """
@@ -4028,7 +4028,11 @@ index 226f286..a05632e 100644
 -            browser_backend=browser_backend,
 +        from gui_harness.tasks import capability_loop
 +        from gui_harness.tasks.result import conclusion, save_workflow_record
-+        task_start = time.time()
++        # The wall-clock budget is a monotonic deadline fixed at entry: every
++        # check compares the current monotonic time with it, so neither a
++        # system clock change nor how often a clock is read changes the
++        # outcome.
++        task_start = time.monotonic()
 +        deadline = (
 +            task_start + float(max_seconds)
 +            if max_seconds is not None and float(max_seconds) > 0
@@ -4067,6 +4071,12 @@ index 226f286..a05632e 100644
 -            terminal = capability_loop.validate_terminal_decision(
 -                decision, history,
 +
++        def expired() -> bool:
++            return deadline is not None and time.monotonic() >= deadline
++
++        def remaining(floor: float) -> float | None:
++            return max(floor, deadline - time.monotonic()) if deadline is not None else None
++
 +        history: list[dict] = []
 +        feedback_by_capability: dict[str, dict | None] = {
 +            "computer_use": None,
@@ -4082,15 +4092,17 @@ index 226f286..a05632e 100644
 +        decision_limit = max_steps * 3 + 3 if max_steps is not None else None
 +
 +        while status == "running":
++            # An exceeded time budget is reported as a timeout even when a
++            # count limit is reached at the same point.
++            if expired():
++                status = "failed"
++                reason_code = "timeout"
++                terminal_reason = "GUI Agent exceeded its Runtime time limit."
++                break
 +            if decision_limit is not None and iterations >= decision_limit:
 +                status = "failed"
 +                reason_code = "decision_limit"
 +                terminal_reason = "GUI Agent reached its Runtime decision limit."
-+                break
-+            if deadline is not None and time.time() >= deadline:
-+                status = "failed"
-+                reason_code = "timeout"
-+                terminal_reason = "GUI Agent exceeded its Runtime time limit."
 +                break
 +            iterations += 1
 +            print(f"  [decision {iterations}] ...", file=sys.stderr)
@@ -4100,10 +4112,7 @@ index 226f286..a05632e 100644
              )
 -            if not terminal.get("accepted"):
 +            try:
-+                remaining_seconds = (
-+                    max(0.001, deadline - time.time())
-+                    if deadline is not None else None
-+                )
++                remaining_seconds = remaining(0.001)
 +                decision = capability_loop.plan_next_capability(
 +                    task=task,
 +                    history=history,
@@ -4120,7 +4129,7 @@ index 226f286..a05632e 100644
 +                        "reason_code": "planner_error",
 +                    },
 +                }
-+            if deadline is not None and time.time() >= deadline:
++            if expired():
 +                status = "failed"
 +                reason_code = "timeout"
 +                terminal_reason = "GUI Agent exceeded its Runtime time limit."
@@ -4183,9 +4192,7 @@ index 226f286..a05632e 100644
 +                    "summary": f"{call} is not currently available",
 +                }
 +            else:
-+                remaining_seconds = (
-+                    max(1.0, deadline - time.time()) if deadline is not None else None
-+                )
++                remaining_seconds = remaining(1.0)
 +                try:
 +                    result = capability_loop.call_capability(
 +                        call,
@@ -4236,7 +4243,7 @@ index 226f286..a05632e 100644
 +
 +        # ── Conclusion: LLM summarizes the result ──
 +        print("  [conclusion] ...", file=sys.stderr)
-+        if deadline is not None and time.time() >= deadline:
++        if expired():
 +            summary = {
 +                "summary": handoff_instruction or terminal_reason or "GUI Agent timed out.",
 +                "success": status == "succeeded",
@@ -4257,17 +4264,7 @@ index 226f286..a05632e 100644
 -                    vm_url=vm_url,
 -                    feedback=feedback_by_capability.get(call),
 -                    max_seconds=remaining_seconds,
-+                remaining_seconds = (
-+                    max(0.001, deadline - time.time())
-+                    if deadline is not None else None
-                 )
--            except Exception as exc:
--                result = {
--                    "status": "failed",
--                    "success": False,
--                    "reason_code": "capability_operation_failed",
--                    "summary": str(exc),
--                    "error_type": exc.__class__.__name__,
++                remaining_seconds = remaining(0.001)
 +                summary = conclusion(
 +                    task=task,
 +                    completed=status == "succeeded",
@@ -4278,7 +4275,14 @@ index 226f286..a05632e 100644
 +                    img_path=_last_image_path(history),
 +                    timeout_s=remaining_seconds,
 +                    history=history,
-+                )
+                 )
+-            except Exception as exc:
+-                result = {
+-                    "status": "failed",
+-                    "success": False,
+-                    "reason_code": "capability_operation_failed",
+-                    "summary": str(exc),
+-                    "error_type": exc.__class__.__name__,
 +                print(f"  [conclusion] {summary.get('summary', '')[:300]}", file=sys.stderr)
 +            except Exception as e:
 +                print(f"  [conclusion] ERROR: {e}", file=sys.stderr)
@@ -4312,7 +4316,7 @@ index 226f286..a05632e 100644
 +            summary["summary"] = handoff_instruction
 +
 +        # ── Teardown ──
-+        total_time = round(time.time() - task_start, 2)
++        total_time = round(time.monotonic() - task_start, 2)
 +        final = {
 +            "task": task,
 +            "status": status,
@@ -10750,3 +10754,78 @@ new file mode 100644
 +    indicator._move_pointer((400.0, 100.0), now=5.0)
 +    assert indicator.tip == (400.0, 100.0)
 +    assert ripples == []
+diff --git a/tests/test_gui_agent_deadline.py b/tests/test_gui_agent_deadline.py
+new file mode 100644
+index 0000000..0e01fcc
+--- /dev/null
++++ b/tests/test_gui_agent_deadline.py
+@@ -0,0 +1,69 @@
++"""gui_agent's time budget is a deadline, independent of clock-read counts."""
++from types import SimpleNamespace
++
++import pytest
++
++from gui_harness import main as module
++from gui_harness.tasks import capability_loop
++from gui_harness.tasks import result as result_module
++
++
++def _desktop_only(**_kwargs):
++    return {
++        "computer_use": {"available": True},
++        "browser_use": {"available": False},
++        "vm_use": {"available": False},
++    }
++
++
++def _no_conclusion(**_kwargs):
++    raise AssertionError("conclusion must not run after the deadline")
++
++
++@pytest.fixture
++def clock(monkeypatch):
++    """A clock that moves only when a stub advances it."""
++    now = {"wall": 1_000.0, "monotonic": 0.0}
++    monkeypatch.setattr(module, "time", SimpleNamespace(
++        time=lambda: now["wall"], monotonic=lambda: now["monotonic"],
++    ))
++    monkeypatch.setattr(capability_loop, "capability_status", _desktop_only)
++    monkeypatch.setattr(result_module, "save_workflow_record", lambda *_a, **_k: None)
++    monkeypatch.setattr(result_module, "conclusion", _no_conclusion)
++    return now
++
++
++def test_timeout_wins_when_the_last_decision_also_crosses_the_deadline(clock, monkeypatch):
++    # Each rejected terminal costs 0.2 s. The sixth decision is the last one
++    # allowed (max_steps * 3 + 3) and also crosses the 1.1 s budget.
++    def reject(_decision, _history):
++        clock["monotonic"] += 0.2
++        return {"accepted": False, "reason": "unsupported terminal"}
++
++    monkeypatch.setattr(capability_loop, "plan_next_capability",
++                        lambda **_kwargs: {"call": "terminal", "args": {"status": "succeeded"}})
++    monkeypatch.setattr(capability_loop, "validate_terminal_decision", reject)
++
++    result = module.gui_agent(task="inspect", max_steps=1, max_seconds=1.1, runtime=object())
++
++    assert result["iterations"] == 6
++    assert result["status"] == "failed"
++    assert result["reason_code"] == "timeout"
++    assert "Conclusion skipped" in result["issues"]
++
++
++def test_wall_clock_change_does_not_move_the_deadline(clock, monkeypatch):
++    def act(*_args, **_kwargs):
++        clock["wall"] -= 3_600.0      # system clock set back an hour
++        clock["monotonic"] += 2.0     # two real seconds pass
++        return {"status": "applied", "success": True}
++
++    monkeypatch.setattr(capability_loop, "plan_next_capability",
++                        lambda **_kwargs: {"call": "computer_use", "args": {"task": "inspect"}})
++    monkeypatch.setattr(capability_loop, "call_capability", act)
++
++    result = module.gui_agent(task="inspect", max_steps=5, max_seconds=1, runtime=object())
++
++    assert result["reason_code"] == "timeout"
++    assert result["steps_taken"] == 1
++    assert result["total_time"] == 2.0
