@@ -327,13 +327,13 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 
 <!-- ═══════ 1. 收起态 ═══════ -->
 <h2><span class="num">1</span>默认（收起）：一轮 = 一行淡文字 + 回复</h2>
-<div class="desc">执行过程不再有框。收起态是一行 GPT"已思考 19s ›"式的<b>纯文字</b>摘要——无按钮底色、与正文左对齐，hover 只提亮文字。摘要只分三类：思考 / 函数 / 子代理。点击展开时间线。</div>
+<div class="desc">执行过程不再有框。收起态是一行<b>纯文字</b>摘要 ›——无按钮底色、与正文左对齐，hover 只提亮文字。摘要按发生顺序说明这些调用做了什么（"运行了 1 条命令，创建了 pill-shadow.html"）；有失败时跟一个红色"· N 个失败"，改了文件时跟文件卡片的 +N −M 胶囊。句子截成一行，悬停提示显示全文。语法见<a href="tool-group-summary.zh.html" style="color:var(--accent-cyan)">工具组摘要</a>。点击展开时间线。</div>
 <div class="stage">
   <div class="u-msg"><div class="u-bubble">你能开一个agent，帮我去看看今天天气吗，我在北京亚洲金融大厦</div></div>
 
   <div class="tl" id="tl1">
     <div class="tl-toggle">
-      <span>思考 ×2 · 函数 ×1 · 子代理: 查询北京天气</span><span class="chev">›</span>
+      <span>运行了 1 条命令，运行了子代理 查询北京天气</span><span class="chev">›</span>
     </div>
     <div class="tl-collapse"><div class="tl-collapse-inner">
     <div class="tl-body">

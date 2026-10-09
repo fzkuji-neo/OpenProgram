@@ -60,8 +60,7 @@ td code{white-space:nowrap}
 <p class="lede">对话记录里，一串连续的工具调用折叠成一行。本页规定这一行写什么：用一句短话说明这些调用做了什么，由客户端根据记录里已有的工具调用生成；如果这串调用改了文件，就带一个 <code>+N −M</code> 徽标。本页也评估是否值得为整轮加一行摘要。</p>
 
 <h2>这一行从哪来</h2>
-<p><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/assistant-bubble.tsx">assistant-bubble.tsx</a> 把一轮的有序 <code>blocks</code> 切成段：每个文本块单独成段，每串连续的思考和工具块合成一个 <code>ExecutionStrip</code>（<a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/execution-strip.tsx">execution-strip.tsx</a>），标题由同文件的 <code>execStripLabel()</code> 生成。没有有序 blocks 的旧记录走 <code>LegacyRuntimeTrace</code>，标题只有调用次数。折叠行是一行 28px，见<a href="chat-turn-visual-spec.zh.html">聊天轮次视觉规范</a>。</p>
-<p>现在的标题只按类别计数，顺序固定：思考、修改、运行、读取、搜索、浏览网页、调用。思考总排第一；只有一个文件也写"1 个文件"；搜索和网页调用写成"N 次"；没有归类的工具一律写"调用 N 个函数"。没有改动徽标；进行中和已完成只差一个扫光效果。</p>
+<p><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/assistant-bubble.tsx">assistant-bubble.tsx</a> 把一轮的有序 <code>blocks</code> 切成段：每个文本块单独成段，每串连续的思考和工具块合成一个 <code>ExecutionStrip</code>（<a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/execution-strip.tsx">execution-strip.tsx</a>），标题由 <code>summarizeToolGroup()</code> 生成。没有有序 blocks 的旧记录走 <code>LegacyRuntimeTrace</code>，它把调用交给同一个函数。折叠行是一行 28px，见<a href="chat-turn-visual-spec.zh.html">聊天轮次视觉规范</a>。</p>
 
 <h2>每个调用带的数据</h2>
 <table>
@@ -105,7 +104,7 @@ td code{white-space:nowrap}
 <p>当这个组是流式中这一轮的最新部分时，已完成的桶保持过去时，正在执行的调用所属的桶改成进行时并以"…"结尾，并移到行尾（最新一步在眼睛预期的位置），例如"读取了 2 个文件，正在运行命令…"。扫光效果保留。调用完成后，短语回到过去时，放回它第一次出现的位置。组里目前只有思考时，标题是"思考中…"。</p>
 
 <h3>截断</h3>
-<p>完整标题生成后设为按钮的 <code>title</code>。屏幕上只占一行：标题 span 设 <code>min-width:0</code> 和 CSS 省略号，失败提示、徽标和箭头设 <code>flex:none</code>，永远不会被挤掉。不设字符上限，同一个标题在窄侧栏和宽窗口都能正确显示。</p>
+<p>屏幕上标题只占一行：标题 span 设 <code>min-width:0</code> 和 CSS 省略号，失败提示、徽标和箭头设 <code>flex:none</code>，永远不会被挤掉。不设字符上限，同一个标题在窄侧栏和宽窗口都能正确显示。悬停在这一行上时，共用的 <code>HoverTip</code>/<code>TipBody</code> 提示显示完整标题，下面一行淡字说明点击会展开或收起执行过程。这一行不使用原生 <code>title</code> 提示。</p>
 
 <h3>改动徽标</h3>
 <p>组里至少有一个写文件调用成功，并且所有成功的写文件调用统计都已知时，才显示徽标。徽标把这些统计加起来，0 也显示（<code>+16 −0</code>），复用本轮文件卡片的 <code>.turn-files-diff</code> 样式。每个调用的统计来源：</p>
@@ -123,36 +122,36 @@ td code{white-space:nowrap}
 <p>全部由客户端根据结构化工具数据生成，是 <code>tool-presentation.ts</code> 旁边的一个纯函数。不需要模型调用，也不需要改后端。可选的后端改进有一项：在每条变更日志记录上写入工具调用 id，并随工具结果下发该调用的 <code>{path, op, added, removed}</code>。这样流式期间 <code>write</code> 的统计也精确，两个组改同一文件时每组的统计也精确。</p>
 
 <h2>预览</h2>
-<p>每组先显示现在的标题，再显示新方案。都是 15px 的折叠行，和对话记录一致。</p>
+<p>每组对比同一批调用的按类别计数标题和本设计的标题。都是 15px 的折叠行，和对话记录一致。</p>
 <div class="card">
   <div class="case">运行命令，然后新建文件</div>
-  <div class="pair"><span class="tag">现在</span><button class="tl-toggle"><span class="tl-label">思考，修改 1 个文件，运行 1 条命令</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">新方案</span><button class="tl-toggle" title="运行了 1 条命令，创建了 pill-shadow.html"><span class="tl-label">运行了 1 条命令，创建了 pill-shadow.html</span><span class="diff"><span class="add">+16</span><span class="del">−0</span></span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">计数</span><button class="tl-toggle"><span class="tl-label">思考，修改 1 个文件，运行 1 条命令</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">摘要</span><button class="tl-toggle"><span class="tl-label">运行了 1 条命令，创建了 pill-shadow.html</span><span class="diff"><span class="add">+16</span><span class="del">−0</span></span><span class="tl-chev">›</span></button></div>
 
   <div class="case">排查后修一个文件</div>
-  <div class="pair"><span class="tag">现在</span><button class="tl-toggle"><span class="tl-label">思考，修改 1 个文件，读取 3 个文件，搜索 1 次</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">新方案</span><button class="tl-toggle"><span class="tl-label">读取了 3 个文件，搜索了"tl-toggle"，修改了 execution-strip.tsx</span><span class="diff"><span class="add">+12</span><span class="del">−4</span></span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">计数</span><button class="tl-toggle"><span class="tl-label">思考，修改 1 个文件，读取 3 个文件，搜索 1 次</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">摘要</span><button class="tl-toggle"><span class="tl-label">读取了 3 个文件，搜索了"tl-toggle"，修改了 execution-strip.tsx</span><span class="diff"><span class="add">+12</span><span class="del">−4</span></span><span class="tl-chev">›</span></button></div>
 
   <div class="case">网页调研</div>
-  <div class="pair"><span class="tag">现在</span><button class="tl-toggle"><span class="tl-label">浏览网页 3 次</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">新方案</span><button class="tl-toggle"><span class="tl-label">搜索了 2 次网页，抓取了 docs.anthropic.com</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">计数</span><button class="tl-toggle"><span class="tl-label">浏览网页 3 次</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">摘要</span><button class="tl-toggle"><span class="tl-label">搜索了 2 次网页，抓取了 docs.anthropic.com</span><span class="tl-chev">›</span></button></div>
 
   <div class="case">MCP 和自定义工具</div>
-  <div class="pair"><span class="tag">现在</span><button class="tl-toggle"><span class="tl-label">运行 1 条命令，调用 2 个函数</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">新方案</span><button class="tl-toggle"><span class="tl-label">使用了 linear_search 2 次，运行了 1 条命令</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">计数</span><button class="tl-toggle"><span class="tl-label">运行 1 条命令，调用 2 个函数</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">摘要</span><button class="tl-toggle"><span class="tl-label">使用了 linear_search 2 次，运行了 1 条命令</span><span class="tl-chev">›</span></button></div>
 
   <div class="case">有命令失败</div>
-  <div class="pair"><span class="tag">现在</span><button class="tl-toggle"><span class="tl-label">修改 1 个文件，运行 2 条命令</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">新方案</span><button class="tl-toggle"><span class="tl-label">修改了 app.tsx，运行了 2 条命令</span><span class="tl-fail">· 1 个失败</span><span class="diff"><span class="add">+3</span><span class="del">−3</span></span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">计数</span><button class="tl-toggle"><span class="tl-label">修改 1 个文件，运行 2 条命令</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">摘要</span><button class="tl-toggle"><span class="tl-label">修改了 app.tsx，运行了 2 条命令</span><span class="tl-fail">· 1 个失败</span><span class="diff"><span class="add">+3</span><span class="del">−3</span></span><span class="tl-chev">›</span></button></div>
 
   <div class="case">进行中（流式）</div>
-  <div class="pair"><span class="tag">现在</span><button class="tl-toggle"><span class="tl-label shimmer">思考，读取 2 个文件，运行 1 条命令</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">新方案</span><button class="tl-toggle"><span class="tl-label shimmer">读取了 2 个文件，正在运行命令…</span><span class="tl-chev">›</span></button></div>
-  <div class="pair"><span class="tag after">新方案</span><button class="tl-toggle"><span class="tl-label shimmer">运行了 2 条命令，正在修改 turn-files-chips.tsx…</span><span class="diff"><span class="add">+8</span><span class="del">−2</span></span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag">计数</span><button class="tl-toggle"><span class="tl-label shimmer">思考，读取 2 个文件，运行 1 条命令</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">摘要</span><button class="tl-toggle"><span class="tl-label shimmer">读取了 2 个文件，正在运行命令…</span><span class="tl-chev">›</span></button></div>
+  <div class="pair"><span class="tag after">摘要</span><button class="tl-toggle"><span class="tl-label shimmer">运行了 2 条命令，正在修改 turn-files-chips.tsx…</span><span class="diff"><span class="add">+8</span><span class="del">−2</span></span><span class="tl-chev">›</span></button></div>
 
   <div class="case">窄面板里的长组（悬停显示完整标题）</div>
-  <div class="pair"><span class="tag">现在</span><div class="narrow"><button class="tl-toggle"><span class="tl-label">思考，修改 4 个文件，运行 5 条命令，读取 6 个文件，搜索 3 次，浏览网页 1 次</span><span class="tl-chev">›</span></button></div></div>
-  <div class="pair"><span class="tag after">新方案</span><div class="narrow"><button class="tl-toggle" title="读取了 6 个文件，搜索了 3 次，修改了 4 个文件，运行了 5 条命令，抓取了 github.com"><span class="tl-label">读取了 6 个文件，搜索了 3 次，修改了 4 个文件，运行了 5 条命令，抓取了 github.com</span><span class="diff"><span class="add">+210</span><span class="del">−88</span></span><span class="tl-chev">›</span></button></div></div>
+  <div class="pair"><span class="tag">计数</span><div class="narrow"><button class="tl-toggle"><span class="tl-label">思考，修改 4 个文件，运行 5 条命令，读取 6 个文件，搜索 3 次，浏览网页 1 次</span><span class="tl-chev">›</span></button></div></div>
+  <div class="pair"><span class="tag after">摘要</span><div class="narrow"><button class="tl-toggle"><span class="tl-label">读取了 6 个文件，搜索了 3 次，修改了 4 个文件，运行了 5 条命令，抓取了 github.com</span><span class="diff"><span class="add">+210</span><span class="del">−88</span></span><span class="tl-chev">›</span></button></div></div>
 </div>
 
 <h2>整轮摘要</h2>
@@ -165,15 +164,16 @@ td code{white-space:nowrap}
 
 <h2>实现</h2>
 <ul>
-<li>新建纯函数模块 <code>components/chat/messages/tool-group-summary.ts</code>：<code>summarizeToolGroup(blocks, {running, spawnNames, turnFiles, text})</code> 返回 <code>{label, failed, added, removed}</code>。复用 <code>presentTool()</code> 的分类，另加一个行级 diff 工具函数。</li>
-<li><code>ExecutionStrip</code> 改为接收摘要对象而不是字符串：渲染带省略号的标题、失败提示、徽标和箭头，完整标题放进 <code>title</code>。<code>execStripLabel()</code> 和 <code>LegacyRuntimeTrace</code> 的计数标题都改走新函数。</li>
-<li><code>AssistantBubble</code> 把 <code>msg.turnFiles</code> 和运行中调用集合传给每一段。</li>
-<li><code>app/styles/chat/execution-strip.css</code>：标题 span 加省略号；徽标复用 <code>.turn-files-diff</code> 规则。</li>
-<li><code>apps/web/tests/chat/</code> 下的测试：每个桶的语法、中英文复数、顺序、进行时、徽标来源和未知统计、edit 行级 diff。</li>
+<li><a href="https://github.com/Fzkuji/OpenProgram/blob/main/apps/web/components/chat/messages/tool-group-summary.ts">tool-group-summary.ts</a> 是纯函数模块。<code>summarizeToolGroup(blocks, {text, active, runningIds, spawnNames, turnFiles, turnBlocks})</code> 返回 <code>{label, failed, added, removed}</code>；没有徽标时 <code>added</code> 和 <code>removed</code> 都是 <code>null</code>。<code>SPAWNING_TOOL_NAMES</code> 定义在这里；没有专门分桶的工具沿用 <code>presentTool()</code> 的分类；同时导出 <code>lineDiff()</code>（去掉首尾相同行后做行级 LCS，上限 <code>LINE_DIFF_CAP</code> = 2,000 行）和 <code>parsePatch()</code>。</li>
+<li><code>ExecutionStrip</code> 接收 <code>label: string | ToolGroupSummary</code>。工作流运行卡片和调试面板传的纯字符串照旧渲染，不带失败提示和徽标。这一行渲染带省略号的标题、红色失败提示、徽标（本轮文件卡片的 <code>.turn-files-diff</code> / <code>.turn-files-stat</code> 胶囊）、箭头和悬停提示。</li>
+<li><code>AssistantBubble</code> 给每一段传入该段的 blocks、整轮 blocks、<code>msg.turnFiles</code>、运行中调用 id，以及该段是否是正在进行的末段。</li>
+<li>旧记录走同一个函数。<code>LegacyRuntimeTrace</code>（没有有序 blocks 的 agent 调用）把每个调用转成以函数名命名的工具块，标题读作"使用了 extract_tables"而不是"调用 1 个函数"，调用进行中也会显示扫光。没有工具块的旧子代理条只传子代理名称。</li>
+<li><code>app/styles/chat/execution-strip.css</code>：<code>.tl-label</code> 省略号、<code>.tl-fail</code>，以及 <code>.tl-diff</code> 和 <code>.tl-chev</code> 的 <code>flex:none</code>。</li>
+<li>测试：<code>apps/web/tests/chat/tool-group-summary.test.mjs</code> 覆盖每个桶的语法、中英文复数、顺序、进行时、失败、徽标来源和未知统计、apply_patch 解析和带上限的行级 diff。</li>
 </ul>
 
 <h2>实现状态</h2>
-<p>仅设计。对话记录仍渲染 <code>execStripLabel()</code> 的分类计数。落地时同步更新聊天轮次视觉规范。</p>
+<p>已按本文实现。可选的后端改进（变更日志记录带工具调用 id）没有做，所以覆盖已有文件的 <code>write</code> 要等本轮结束后才显示徽标。</p>
 </main>
 </body>
 </html>
