@@ -303,7 +303,6 @@ export function StepRow({
           className={"tl-step-title" + (error ? " is-error" : "")
             + (detail ? " tl-step-link" : "")}
           onClick={detail ? openDetail : undefined}
-          title={detail ? text("Show details in the side panel", "右栏看详情") : undefined}
         >
           {title}
         </span>
@@ -680,7 +679,6 @@ export function SubAgentStep({ card }: { card: ChatMsg }) {
               className="tl-btn"
               onClick={cancel}
               disabled={cancelling}
-              title={text("Cancel execution", "取消运行")}
               aria-label={text("Cancel execution", "取消运行")}
             >
               {cancelling
