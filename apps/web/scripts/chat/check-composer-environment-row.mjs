@@ -41,6 +41,9 @@ assert.match(compactHook, /new MutationObserver/);
 // squeezed row could never expand again.
 assert.doesNotMatch(compactHook, /row\.scrollWidth/);
 assert.match(compactHook, /getBoundingClientRect\(\)\.right|box\.right/);
+// Unportaled hover tips sit inside the row as fixed-position wrappers;
+// counting them squeezed the row to icons whenever a tip was open.
+assert.match(compactHook, /position === "fixed" \|\| position === "absolute"\) continue/);
 assert.match(environmentCss, /\.envChips\[data-measuring\] > \.surfaceChip[^{]*\{\s*margin-left:\s*0 !important/);
 assert.match(compactHook, /row\.clientWidth/);
 assert.match(compactHook, /row\.dataset\.compact = "true"/);

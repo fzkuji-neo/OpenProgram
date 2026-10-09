@@ -44,6 +44,12 @@ export function useCompactEnvironmentRow(ref: RefObject<HTMLDivElement | null>) 
       const left = row.getBoundingClientRect().left - row.scrollLeft;
       let right = 0;
       for (const child of Array.from(row.children)) {
+        // Hover tips render in place (unportaled), as a fixed-position
+        // popper wrapper inside the row; a tip over the right-aligned web
+        // chip reached past the row and squeezed it to icons. Only
+        // in-flow chips count.
+        const position = getComputedStyle(child).position;
+        if (position === "fixed" || position === "absolute") continue;
         const box = child.getBoundingClientRect();
         if (box.width || box.height) right = Math.max(right, box.right - left);
       }

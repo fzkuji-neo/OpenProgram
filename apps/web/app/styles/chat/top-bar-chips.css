@@ -184,9 +184,6 @@
   background: color-mix(in oklch, var(--foreground) 14%, transparent);
   transition: opacity 120ms ease;
 }
-.folder-pill:has(.folder-pill-seg:hover, .folder-pill-seg[aria-expanded="true"]) .folder-pill-divider::after {
-  opacity: 0;
-}
 .folder-pill-seg {
   display: inline-flex;
   align-items: center;
@@ -199,13 +196,13 @@
   font: inherit;
   cursor: pointer;
   outline: none;
-  transition: background-color 120ms ease;
+  transition: color 120ms ease;
 }
-/* A translucent light layer over the pill surface: it can only brighten
-   the segment, never darken it, whatever the theme's surface colour. */
+/* No fill on hover, like every raised pill: the shell's shadow deepens
+   (FOLDER_PILL) and the hovered segment's text brightens; the divider
+   stays put to keep the two halves apart. */
 .folder-pill-seg:hover,
 .folder-pill-seg[aria-expanded="true"] {
-  background: color-mix(in srgb, var(--foreground) 9%, transparent);
   color: var(--text-bright);
 }
 .folder-pill-seg:focus-visible { box-shadow: inset 0 0 0 2px var(--ring); }
