@@ -102,7 +102,7 @@ Function 卡片直接显示这个任务结果：验证成功显示 `Succeeded`�
 
 源码与 README：`openprogram/programs/packages/gui_harness/`，上游仓库 [Fzkuji/GUI-Agent-Harness](https://github.com/Fzkuji/GUI-Agent-Harness)。
 
-通过 `web_use` 发现 Page 不代表所选 MCP 后端能够启动。官方 MCP server 无法启动或连接时，观察返回 `reason_code=computer_use_backend_unavailable`、`availability=unavailable`、实际 backend 和已关闭的会话。OpenProgram 释放失败的会话及 Page 租约，不自动改用其他后端。检查该后端的依赖和连接后，重新列出 Page 并观察。
+通过 `web_use` 发现 Page 不代表所选 MCP 后端能够启动。官方 MCP server 的固定版本已在 npm 缓存中时，直接从缓存启动，网络很慢或离线都不会拖慢启动。仍然无法启动或连接时，观察返回 `reason_code=computer_use_backend_unavailable`、`availability=unavailable`、实际 backend 和已关闭的会话。OpenProgram 释放失败的会话及 Page 租约，不自动改用其他后端。重新观察该 Page 即可重试，每次尝试都会重新启动后端。会话进行中 server 停止时，下一次观察会重启它。动作绝不会通过重启后的 server 发送：该动作返回 `computer_use_backend_unavailable` 和 `observe_required=true`，重新观察后再重试。
 
 Browser Workflow 表单只显示任务和可选目标 URL。动作上限、超时与 backend 使用内部默认设置，不显示 Advanced。显式程序调用仍可使用受支持的覆盖值。
 

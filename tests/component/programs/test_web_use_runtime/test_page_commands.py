@@ -955,10 +955,19 @@ def test_observe_with_page_token_does_not_capture_active(monkeypatch):
     from openprogram.programs.workflow.browser import web_use_runtime
 
     captures = []
+    calls = []
 
     class _Registry:
         def execute(self, **kwargs):
+            calls.append("execute")
             return {"ok": False, "reason_code": "page_context_not_found"}
+
+        def list_pages(self, **kwargs):
+            calls.append("list_pages")
+            return {"ok": True, "pages": [{
+                "page": "p1", "tab_id": "tab-1", "window_id": "main",
+                "page_context_token": "pct_fresh",
+            }]}
 
     monkeypatch.setattr(web_use_runtime, "get_registry", lambda: _Registry())
     monkeypatch.setattr(surface_context, "current", lambda: None)
@@ -981,7 +990,12 @@ def test_observe_with_page_token_does_not_capture_active(monkeypatch):
     assert result.is_error is True
     result = result.json_data
     assert result["reason_code"] == "page_context_not_found"
-    assert captures == []
+    # The token observe itself never captures; only the failure lists the
+    # current pages so the next call can observe with a fresh token.
+    assert "active" not in captures
+    assert calls == ["execute", "list_pages"]
+    assert result["pages"][0]["page_context_token"] == "pct_fresh"
+    assert result["recovery_command"] == "observe"
 
 
 def test_observe_with_url_opens_desktop_tab_when_no_page(monkeypatch):
