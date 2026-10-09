@@ -87,6 +87,34 @@ class ProviderRegistry(Generic[P]):
         """Only the providers whose ``is_available()`` returns True."""
         return [p for p in self.all() if _safe_available(p)]
 
+    def availability_problem(self, name: str) -> str | None:
+        """Why provider ``name`` cannot run right now, or None when it can.
+
+        The text is short and safe to show to the model and the user: it
+        names missing environment variables, never their values.
+        """
+        p = self._providers.get(name)
+        if p is None:
+            return "not a registered provider"
+        try:
+            if p.is_available():
+                return None
+        except Exception as exc:
+            return f"its availability check failed ({type(exc).__name__})"
+        explain = getattr(p, "unavailable_reason", None)
+        if callable(explain):
+            try:
+                reason = explain()
+            except Exception:
+                reason = None
+            if reason:
+                return str(reason)
+        names = list(p.requires_env)
+        missing = [e for e in names if not _env_set(e)] or names
+        if missing:
+            return f"not configured (needs {' / '.join(missing)})"
+        return "not configured"
+
     def select(self, prefer: str | None = None) -> P:
         """Pick a provider: prefer one by name, else the highest-priority available.
 
@@ -100,10 +128,12 @@ class ProviderRegistry(Generic[P]):
                 p = self._providers[prefer]
                 if _safe_available(p):
                     return p
+                usable = [q.name for q in self.available()]
                 raise LookupError(
-                    f"{self._kind} provider {prefer!r} is registered but not available "
-                    f"(missing env: {[e for e in p.requires_env if not _env_set(e)]}). "
-                    f"Set the env vars or omit the 'provider' arg to auto-select."
+                    f"{self._kind} provider {prefer!r} is registered but not available: "
+                    f"{self.availability_problem(prefer)}. "
+                    f"Usable now: {', '.join(usable) or 'none'}. "
+                    f"Configure it, or omit the 'provider' arg to auto-select."
                 )
             raise LookupError(
                 f"{self._kind} provider {prefer!r} is not registered. "
