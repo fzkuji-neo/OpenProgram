@@ -166,6 +166,11 @@
      (Popovers/menus are portaled, so nothing here gets clipped.) */
   min-width: 0;
   overflow-x: auto;
+  /* Shadow room: overflow-x clips y too, and this row is exactly as
+     tall as its pills; the padding keeps their drop shadow whole and the
+     negative margin leaves the layout unchanged. */
+  padding: 6px;
+  margin: -6px;
   scrollbar-width: none;
 }
 .inputOptions::-webkit-scrollbar { display: none; }
@@ -189,6 +194,11 @@
   gap: 10px;
   min-width: 0;
   overflow-x: auto;
+  /* Shadow room: overflow-x clips y too, and this row is exactly as
+     tall as its pills; the padding keeps their drop shadow whole and the
+     negative margin leaves the layout unchanged. */
+  padding: 6px;
+  margin: -6px;
   scrollbar-width: none;
 }
 .agentChips::-webkit-scrollbar { display: none; }

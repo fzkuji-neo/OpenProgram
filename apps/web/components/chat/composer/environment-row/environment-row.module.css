@@ -20,8 +20,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: min(calc(var(--chat-column-max) + 2px), calc(100% - 62px));
-  margin: 0 auto 10px;
+  /* overflow-x: auto also clips the y axis, and the row is exactly as
+     tall as its pills, so the pills' drop shadow was cut off flat. The
+     6px padding is room for the shadow; the negative top margin, the
+     shortened bottom margin and the wider max-width give that room back
+     so the chips sit exactly where they did. */
+  max-width: min(calc(var(--chat-column-max) + 14px), calc(100% - 50px));
+  margin: -6px auto 4px;
+  padding: 6px;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;

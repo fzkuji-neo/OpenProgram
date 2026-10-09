@@ -74,17 +74,12 @@
   --color-bg-input: var(--bg-input);
   --color-bg-selected: var(--bg-selected);
 
-  /* Raised pill (the Button's `elevated` variant): a hairline ring plus a
-     tight drop. The composer box's own shadow-sm pair is a 3px blur that
-     reads fine on the big box but turns a 28px pill into a smudge with a
-     dark underside and no top edge, so pills draw their outline with the
-     ring and keep the drop small. Hover deepens both. */
-  --shadow-raised:
-    0 0 0 1px color-mix(in oklch, var(--foreground) 7%, transparent),
-    0 1px 1.5px 0 rgb(0 0 0 / 0.07);
-  --shadow-raised-hover:
-    0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent),
-    0 2px 4px -1px rgb(0 0 0 / 0.12);
+  /* Raised surface (input box, the Button's `elevated` variant): the
+     per-theme composer shadow pair, so small pills lift off the page
+     exactly like the box — shadow-sm at rest, shadow-md on hover. Rows
+     that scroll their pills keep 6px of padding so this is not clipped. */
+  --shadow-raised: var(--composer-shadow);
+  --shadow-raised-hover: var(--composer-shadow-focus);
   --color-user-msg-bg: var(--user-msg-bg);
   --color-assistant-msg-bg: var(--assistant-msg-bg);
 
