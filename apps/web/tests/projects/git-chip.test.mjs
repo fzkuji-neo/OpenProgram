@@ -81,6 +81,7 @@ test('one pill per checkout: a second folder in the same repository hides', asyn
   ]);
   const pills = host.querySelectorAll('button.git-seg');
   assert.equal(pills.length, 1);
+  assert.equal(host.querySelectorAll('.folder-pill-divider').length, 1, 'only the visible git half draws a divider');
   assert.match(pills[0].textContent, /feature/);
   assert.match(pills[0].textContent, /\+3/);
   assert.match(pills[0].textContent, /−1/);
