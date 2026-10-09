@@ -11,13 +11,17 @@
  * as the pqoqubbw line icons in ``@/components/animated-icons``, so the
  * existing hover plumbing keeps working unchanged: a parent button /
  * row / chip attaches a ref and drives the motion from its own hover
- * ("controlled"); without a ref the icon animates on its own hover.
+ * ("controlled"). Without a ref the icon finds its nearest clickable
+ * ancestor (HOVER_HOST) and animates on that element's hover, so every
+ * button behaves the same whether or not it wires a ref. Purely
+ * decorative glyphs (menu checks, warnings, capability marks) pass
+ * `motionPreset="none"`.
  * The motion is deliberately small and uniform — a filled glyph doesn't
  * redraw itself the way a line icon can, so it just pops, lifts or
  * nudges, and `pulse` plays a one-shot pop-in for state changes.
  */
 
-import { forwardRef, useCallback, useImperativeHandle, useRef, type HTMLAttributes, type MouseEvent } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, type HTMLAttributes, type MouseEvent } from "react";
 import { motion, useAnimation, useReducedMotion, type Transition, type Variants } from "framer-motion";
 
 import { cn } from "@/lib/utils";
@@ -32,6 +36,9 @@ const PRESETS: Record<Exclude<SolarMotionPreset, "none">, Variants> = {
   nudge: { normal: { x: 0 }, animate: { x: 1.5 } },
   pulse: { normal: { scale: 1 }, animate: { scale: [0.5, 1.15, 1] } },
 };
+
+// The element whose hover drives an uncontrolled icon.
+const HOVER_HOST = 'button, a, summary, [role="button"], [role="menuitem"], .runtime-badge, .status-badge';
 
 const SPRING: Transition = { type: "spring", stiffness: 420, damping: 16, mass: 0.8 };
 const PULSE: Transition = { duration: 0.32, ease: "easeOut" };
@@ -60,18 +67,34 @@ export const SolarIcon = forwardRef<AnimatedNavIconHandle, SolarIconProps>(funct
     };
   }, [animated, controls]);
 
+  // Uncontrolled: follow the hover of the nearest clickable ancestor
+  // (or the icon itself when it has none).
+  const hostRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const self = hostRef.current;
+    if (!self || !animated || isControlledRef.current) return;
+    const host = (self.parentElement?.closest(HOVER_HOST) as HTMLElement | null) ?? self;
+    const enter = () => void controls.start("animate");
+    const leave = () => void controls.start("normal");
+    host.addEventListener("mouseenter", enter);
+    host.addEventListener("mouseleave", leave);
+    return () => {
+      host.removeEventListener("mouseenter", enter);
+      host.removeEventListener("mouseleave", leave);
+    };
+  }, [animated, controls]);
+
   const handleMouseEnter = useCallback((e: MouseEvent<HTMLSpanElement>) => {
     if (isControlledRef.current) onMouseEnter?.(e);
-    else if (animated) void controls.start("animate");
-  }, [animated, controls, onMouseEnter]);
+  }, [onMouseEnter]);
   const handleMouseLeave = useCallback((e: MouseEvent<HTMLSpanElement>) => {
     if (isControlledRef.current) onMouseLeave?.(e);
-    else if (animated) void controls.start("normal");
-  }, [animated, controls, onMouseLeave]);
+  }, [onMouseLeave]);
 
   return (
     <span
       {...props}
+      ref={hostRef}
       className={cn("inline-flex shrink-0", className)}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}

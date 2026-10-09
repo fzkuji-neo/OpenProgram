@@ -127,7 +127,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
       <div className={itemCls(false)} onClick={() => pick("", "")}>
         <span className="flex-1 truncate">{text("Local", "本地")}</span>
         {!cur.channel ? (
-          <SolarIcon name="check-circle" size={14} className={CHECK_SLOT} />
+          <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
         ) : (
           <span className={CHECK_SLOT_PAD} />
         )}
@@ -169,7 +169,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
                   ) : null}
                 </span>
                 {active ? (
-                  <SolarIcon name="check-circle" size={14} className={CHECK_SLOT} />
+                  <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
                 ) : (
                   <span className={CHECK_SLOT_PAD} />
                 )}

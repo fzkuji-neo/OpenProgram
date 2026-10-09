@@ -266,7 +266,7 @@ export function ProjectMenu({
         {missing ? (
           <>
             <div className="project-menu-missing">
-              <SolarIcon name="danger-triangle" size={13} aria-hidden="true" />
+              <SolarIcon motionPreset="none" name="danger-triangle" size={13} aria-hidden="true" />
               <span>
                 {locationState === "replaced" || activeProject?.path_replaced
                   ? text(
@@ -358,13 +358,14 @@ export function ProjectMenu({
             <span className="min-w-0 flex-1 truncate">{p.name}</span>
             {unavailable ? (
               <SolarIcon
+                motionPreset="none"
                 name="danger-triangle"
                 size={14}
                 className={`${CHECK_SLOT} text-[var(--accent-orange)]`}
                 aria-label={text("Folder unavailable", "目录不可用")}
               />
             ) : active ? (
-              <SolarIcon name="check-circle" size={14} className={CHECK_SLOT} />
+              <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
             ) : (
               <span className={CHECK_SLOT_PAD} aria-hidden="true" />
             )}
@@ -518,7 +519,7 @@ export function ProjectBadge() {
             {/* Warning triangle replaces the folder icon when the bound
                 directory is gone — the menu then offers the repair. */}
             {missing ? (
-              <SolarIcon name="danger-triangle" size={14} />
+              <SolarIcon motionPreset="none" name="danger-triangle" size={14} />
             ) : (
               <SolarIcon name="folder-open" ref={iconRef} size={14} />
             )}

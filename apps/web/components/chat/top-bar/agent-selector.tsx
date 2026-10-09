@@ -134,7 +134,7 @@ export function AgentSelector({
                     ) : null}
                   </span>
                   {active ? (
-                    <SolarIcon name="check-circle" size={14} className={CHECK_SLOT} />
+                    <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
                   ) : (
                     <span className={CHECK_SLOT_PAD} />
                   )}
@@ -169,10 +169,10 @@ function CapIcons({ caps }: { caps: string[] }) {
 }
 
 const CAP_ICON: Record<string, React.ReactNode> = {
-  vision: <SolarIcon name="eye" size={14} />,
-  video: <SolarIcon name="videocamera" size={14} />,
-  tools: <SolarIcon name="toolbox" size={14} />,
-  reasoning: <SolarIcon name="lightbulb-bolt" size={14} />,
+  vision: <SolarIcon motionPreset="none" name="eye" size={14} />,
+  video: <SolarIcon motionPreset="none" name="videocamera" size={14} />,
+  tools: <SolarIcon motionPreset="none" name="toolbox" size={14} />,
+  reasoning: <SolarIcon motionPreset="none" name="lightbulb-bolt" size={14} />,
 };
 
 /** Compact context-window label: 200000 → "200k", 1048576 → "1M". */
