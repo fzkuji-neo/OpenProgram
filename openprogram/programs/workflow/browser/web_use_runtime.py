@@ -1,6 +1,7 @@
 """Session-scoped command contract for the built-in browser Page."""
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from dataclasses import field
 from contextlib import suppress
@@ -19,9 +20,92 @@ from openprogram.web_use_contract import (
 SUPPORTED_BACKENDS = SUPPORTED_WEB_USE_BACKENDS
 DEFAULT_BACKEND = SUPPORTED_BACKENDS[0]
 
+# Actions whose effect does not depend on what the caller last read from the
+# page. Without a current frame the registry observes first (read-only)
+# instead of rejecting them; screenshot and wait also retry once on a stale
+# frame because they never write.
+_REFRESHABLE_ACTIONS = frozenset({"navigate", "screenshot", "wait"})
+_READ_ONLY_ACTIONS = frozenset({"screenshot", "wait"})
+# Ended sessions and expired tokens remember only their exact window/tab so a
+# later call from the same chat can re-observe that Page. Bounded, in memory.
+_TOMBSTONE_LIMIT = 512
+
+_SESSION_GONE_MESSAGE = (
+    "This web_session_id no longer exists: a session ends with its turn, on "
+    "close, or when OpenProgram restarts. Call list_pages, then observe the "
+    "task page with its new page_context_token."
+)
+_TOKEN_GONE_MESSAGE = (
+    "This page_context_token is no longer valid: tokens are single-use and "
+    "expire when the turn ends or OpenProgram restarts. Call list_pages, then "
+    "observe the task page with its new page_context_token."
+)
+_TOKEN_OWNER_MESSAGE = (
+    "This page_context_token was issued to another turn or caller. Call "
+    "list_pages and use a token from that result."
+)
+_STALE_MESSAGE = (
+    "The page changed after this frame was observed, so nothing was sent. "
+    "Call observe on this web_session_id, then retry with the new frame_id."
+)
+_UNSEEN_REFS_MESSAGE = (
+    "Refs come only from an observe result. This frame was captured "
+    "automatically for a screenshot or navigation, so call observe on this "
+    "web_session_id and use refs from that result."
+)
+_NO_FRAME_MESSAGE = (
+    "There is no current observation: the previous action changed the page. "
+    "Call observe on this web_session_id, then retry with the new frame_id."
+)
+
 
 def _unresolved_session_id(value: str) -> bool:
     return str(value or "").strip().lower() in {"", "pending"}
+
+
+def _owner_scope(owner_id: str) -> str:
+    """Turn owners of one chat share a recovery scope; other owners stay exact."""
+    parts = str(owner_id or "").split(":", 2)
+    if len(parts) == 3 and parts[0] == "turn" and parts[1]:
+        return f"turn:{parts[1]}"
+    return str(owner_id or "")
+
+
+def _capability_target(capability: Mapping[str, Any]) -> dict[str, str]:
+    context = capability.get("context") or {}
+    surface = next((
+        item for item in context.get("surfaces") or [] if isinstance(item, dict)
+    ), {})
+    return {
+        "window_id": str(surface.get("window_id") or context.get("window_id") or ""),
+        "tab_id": str(surface.get("tab_id") or ""),
+    }
+
+
+def _session_target(session: WebUseSession) -> dict[str, str]:
+    identity = session.state.get("page_identity") or {}
+    window_id = str(identity.get("window_id") or "")
+    tab_id = str(identity.get("tab_id") or "")
+    context = session.page_context if isinstance(session.page_context, dict) else {}
+    for item in context.get("surfaces") or []:
+        if isinstance(item, dict) and item.get("binding_id") == session.binding_id:
+            window_id = window_id or str(
+                item.get("window_id") or context.get("window_id") or ""
+            )
+            tab_id = tab_id or str(item.get("tab_id") or "")
+            break
+    return {"window_id": window_id, "tab_id": tab_id}
+
+
+def _reason_code(result: Any) -> str:
+    payload = (
+        result.json_data
+        if isinstance(result, ToolReturn) and isinstance(result.json_data, dict)
+        else result if isinstance(result, dict) else {}
+    )
+    if payload.get("ok") is not False:
+        return ""
+    return str(payload.get("reason_code") or "")
 
 
 def _session_frame_id(session: WebUseSession) -> str:
@@ -230,6 +314,7 @@ class WebUseSessionRegistry:
         self._sessions: dict[str, WebUseSession] = {}
         self._page_leases: dict[str, str] = {}
         self._page_capabilities: dict[str, dict[str, Any]] = {}
+        self._tombstones: OrderedDict[str, dict[str, str]] = OrderedDict()
         self._closing_all = False
         self._closing_owners: set[str] = set()
         if release_context is None:
@@ -264,19 +349,149 @@ class WebUseSessionRegistry:
                     return session.id
         return ""
 
-    def _detach_locked(self, session: WebUseSession) -> None:
+    def _remember_locked(
+        self, key: str, owner_id: str, target: Mapping[str, str],
+    ) -> None:
+        window_id = str(target.get("window_id") or "")
+        tab_id = str(target.get("tab_id") or "")
+        if not key or not owner_id or not window_id or not tab_id:
+            return
+        self._tombstones[key] = {
+            "scope": _owner_scope(owner_id),
+            "window_id": window_id,
+            "tab_id": tab_id,
+        }
+        self._tombstones.move_to_end(key)
+        while len(self._tombstones) > _TOMBSTONE_LIMIT:
+            self._tombstones.popitem(last=False)
+
+    def _gone(
+        self, reason_code: str, message: str, *, owner_id: str, keys,
+    ) -> dict[str, Any]:
+        """Failure for an ended session/token, with its Page when still known.
+
+        The hint names only the exact window/tab the same chat used before.
+        A caller may observe that Page again; nothing is replayed.
+        """
+        result: dict[str, Any] = {
+            "ok": False, "reason_code": reason_code, "message": message,
+        }
+        scope = _owner_scope(owner_id)
+        with self._lock:
+            for key in keys:
+                entry = self._tombstones.get(key) if key else None
+                if entry is None or not scope or entry["scope"] != scope:
+                    continue
+                result.update(
+                    recovery_tab_id=entry["tab_id"],
+                    recovery_window_id=entry["window_id"],
+                    recovery_command="observe",
+                )
+                break
+        return result
+
+    def _detach_locked(self, session: WebUseSession, *, remember: bool = True) -> None:
         self._sessions.pop(session.id, None)
+        if remember:
+            self._remember_locked(session.id, session.owner_id, _session_target(session))
         for token, capability in list(self._page_capabilities.items()):
             if capability.get("context") is session.page_context:
                 self._page_capabilities.pop(token, None)
+                if remember:
+                    self._remember_locked(
+                        token, capability["owner_id"], _capability_target(capability),
+                    )
+
+    def _route_token(
+        self, token: str, owner_id: str, stale_session_id: str = "",
+    ) -> dict[str, Any]:
+        """Resolve act/verify/observe that names a Page only by its token."""
+        with self._lock:
+            capability = self._page_capabilities.get(token)
+            if capability is None:
+                return {"error": self._gone(
+                    "page_context_not_found", _TOKEN_GONE_MESSAGE,
+                    owner_id=owner_id, keys=(token, stale_session_id),
+                )}
+            if capability["owner_id"] != owner_id:
+                return {"error": {
+                    "ok": False, "reason_code": "page_context_owner_mismatch",
+                    "message": _TOKEN_OWNER_MESSAGE,
+                }}
+            if not capability["consumed"]:
+                return {"open": True}
+            session = self._sessions.get(str(capability.get("session_id") or ""))
+            if session is not None and not session.closing and not session.closed:
+                return {"session_id": session.id}
+            return {"error": self._gone(
+                "page_context_consumed", _TOKEN_GONE_MESSAGE,
+                owner_id=owner_id, keys=(token, stale_session_id),
+            )}
+
+    def _consumed_token_failure(self, token: str) -> dict[str, Any]:
+        with self._lock:
+            capability = self._page_capabilities.get(token) or {}
+            session = self._sessions.get(str(capability.get("session_id") or ""))
+            live = session is not None and not session.closing and not session.closed
+        if not live:
+            return {"ok": False, "reason_code": "page_context_consumed",
+                    "message": _TOKEN_GONE_MESSAGE}
+        return {
+            "ok": False,
+            "reason_code": "page_context_consumed",
+            "live_web_session_id": session.id,
+            "message": (
+                "This page_context_token already opened web_session_id "
+                f"{session.id}. Pass that web_session_id instead of the token."
+            ),
+        }
+
+    def _refresh_frame(self, session: WebUseSession, adapter, guard_args):
+        """Observe before a frame-independent action; returns frame_id or a failure.
+
+        The caller has not seen this observation, so its refs stay unusable
+        until an explicit observe (see unseen_refs_frame).
+        """
+        failure = {
+            "ok": False,
+            "reason_code": "observation_failed",
+            "action_dispatched": False,
+            "observe_required": True,
+            "recovery_command": "observe",
+            "message": (
+                "The page could not be observed before this action, so nothing "
+                "was sent. Call observe on this web_session_id, then retry."
+            ),
+        }
+        try:
+            observed = adapter.observe(session, {}, **guard_args)
+        except PermissionError:
+            raise
+        except Exception as exc:
+            if isinstance(exc, RuntimeError) and str(exc) == "computer_use_backend_unavailable":
+                failure["reason_code"] = "computer_use_backend_unavailable"
+            return failure
+        frame_id = _result_frame_id(observed)
+        if not frame_id:
+            if isinstance(observed, dict) and observed.get("reason_code"):
+                failure["reason_code"] = str(observed["reason_code"])
+            return failure
+        session.state["frame_id"] = frame_id
+        session.state["unseen_refs_frame"] = frame_id
+        session.state.pop("observation_required", None)
+        frame = getattr(session.controller, "_frame", None)
+        if isinstance(frame, dict) and isinstance(frame.get("viewport"), dict):
+            session.state["viewport"] = frame["viewport"]
+        return frame_id
 
     def _cleanup_session(
         self, session: WebUseSession, *, suppress_errors: bool,
+        remember: bool = True,
     ) -> None:
         """Close one locked session before making its Page available again."""
         session.closing = True
         with self._lock:
-            self._detach_locked(session)
+            self._detach_locked(session, remember=remember)
         error: BaseException | None = None
         try:
             self._adapters[session.backend].close(session)
@@ -389,10 +604,65 @@ class WebUseSessionRegistry:
     ) -> dict[str, Any]:
         params = dict(normalize_web_use_arguments({"arguments": arguments}).get("arguments") or {})
         if _unresolved_session_id(web_session_id):
-            web_session_id = (
-                "" if command == "observe"
-                else self._latest_owner_session_id(owner_id)
-            )
+            web_session_id = ""
+        stale_session_id = ""
+        if (
+            web_session_id and page_context_token
+            and command in {"observe", "act", "verify"}
+        ):
+            with self._lock:
+                known = web_session_id in self._sessions
+            if not known:
+                # An ended session next to a token: the token names the Page.
+                stale_session_id, web_session_id = web_session_id, ""
+        implicit_frame = ""
+        if not web_session_id and command in {"act", "verify"}:
+            if page_context_token:
+                # The token names the Page; never fall back to another session.
+                routed = self._route_token(
+                    page_context_token, owner_id, stale_session_id,
+                )
+                if "error" in routed:
+                    return routed["error"]
+                if "session_id" in routed:
+                    web_session_id = routed["session_id"]
+                else:
+                    observed = self.execute(
+                        command="observe", backend=backend, owner_id=owner_id,
+                        page_context_token=page_context_token,
+                        page_context=page_context,
+                        **({"before_dispatch": before_dispatch} if before_dispatch is not None else {}),
+                    )
+                    observed_frame = _result_frame_id(observed)
+                    if (
+                        not isinstance(observed, dict)
+                        or observed.get("ok") is False
+                        or observed.get("closed") is True
+                        or not observed_frame
+                        or not observed.get("web_session_id")
+                    ):
+                        return observed
+                    web_session_id = str(observed["web_session_id"])
+                    action = str(params.get("action") or "")
+                    uses_ref = bool(str(params.get("ref") or "").strip())
+                    if uses_ref or (
+                        command == "act" and action not in _REFRESHABLE_ACTIONS
+                    ):
+                        # Refs and coordinates must come from an observation
+                        # the caller has read; return it instead of guessing.
+                        return {
+                            **observed,
+                            "action_performed": False,
+                            "message": (
+                                "No session was open for this page_context_token, "
+                                f"so the page was observed first and the {action or command} "
+                                "was not performed. Use refs from this observation and "
+                                f"call {command} again with web_session_id {web_session_id}."
+                            ),
+                        }
+                    implicit_frame = observed_frame
+            else:
+                web_session_id = self._latest_owner_session_id(owner_id)
         created_session = command == "observe" and not web_session_id
         reused_session = False
         if created_session:
@@ -406,11 +676,16 @@ class WebUseSessionRegistry:
                 with self._lock:
                     capability = self._page_capabilities.get(page_context_token)
                     if capability is None:
-                        return {"ok": False, "reason_code": "page_context_not_found"}
+                        return self._gone(
+                            "page_context_not_found", _TOKEN_GONE_MESSAGE,
+                            owner_id=owner_id,
+                            keys=(page_context_token, stale_session_id),
+                        )
                     if capability["owner_id"] != owner_id:
-                        return {"ok": False, "reason_code": "page_context_owner_mismatch"}
+                        return {"ok": False, "reason_code": "page_context_owner_mismatch",
+                                "message": _TOKEN_OWNER_MESSAGE}
                     if capability["consumed"]:
-                        return {"ok": False, "reason_code": "page_context_consumed"}
+                        return self._consumed_token_failure(page_context_token)
                     binding_id = capability["binding_id"]
                     page_key = capability["page_key"]
                     page_context = capability["context"]
@@ -462,16 +737,22 @@ class WebUseSessionRegistry:
                 if page_context_token:
                     capability = self._page_capabilities.get(page_context_token)
                     if capability is None:
-                        return {"ok": False, "reason_code": "page_context_not_found"}
+                        return self._gone(
+                            "page_context_not_found", _TOKEN_GONE_MESSAGE,
+                            owner_id=owner_id,
+                            keys=(page_context_token, stale_session_id),
+                        )
                     if capability["owner_id"] != owner_id:
-                        return {"ok": False, "reason_code": "page_context_owner_mismatch"}
+                        return {"ok": False, "reason_code": "page_context_owner_mismatch",
+                                "message": _TOKEN_OWNER_MESSAGE}
                     if capability["consumed"]:
-                        return {"ok": False, "reason_code": "page_context_consumed"}
+                        return self._consumed_token_failure(page_context_token)
                     if reused_session:
                         unused_capability_context = capability["context"]
                         self._page_capabilities.pop(page_context_token, None)
                     else:
                         capability["consumed"] = True
+                        capability["session_id"] = session.id
                 if not reused_session:
                     self._sessions[session.id] = session
                     self._page_leases[page_key] = session.id
@@ -481,8 +762,10 @@ class WebUseSessionRegistry:
             with self._lock:
                 session = self._sessions.get(web_session_id)
             if session is None:
-                return {"ok": False, "reason_code": "web_session_not_found",
-                        "message": "The browser session ended. List pages and observe the task page again; if closed, open its URL with observe."}
+                return self._gone(
+                    "web_session_not_found", _SESSION_GONE_MESSAGE,
+                    owner_id=owner_id, keys=(web_session_id, page_context_token),
+                )
 
         try:
             from openprogram.agent.run_control import get_current_execution_id
@@ -502,8 +785,10 @@ class WebUseSessionRegistry:
                     self._closing_all or session.owner_id in self._closing_owners
                 )
             if session.closing or session.closed or owner_closing:
-                return {"ok": False, "reason_code": "web_session_not_found",
-                        "message": "The browser session ended. List pages and observe the task page again; if closed, open its URL with observe."}
+                return self._gone(
+                    "web_session_not_found", _SESSION_GONE_MESSAGE,
+                    owner_id=owner_id, keys=(session.id, page_context_token),
+                )
             if session.owner_id and owner_id != session.owner_id:
                 return {"ok": False, "reason_code": "web_session_owner_mismatch"}
             if backend and backend != session.backend:
@@ -513,27 +798,62 @@ class WebUseSessionRegistry:
                     **_session_fields(session),
                 }
 
+            if implicit_frame:
+                session.state["unseen_refs_frame"] = implicit_frame
+            act_action = str(params.get("action") or "") if command == "act" else ""
+            caller_frame = str(params.get("expected_frame_id") or "").strip()
+            # Observe first (read-only) for an action that does not depend on
+            # what the caller last read: a screenshot or wait whenever there is
+            # no current frame, a navigate only when the caller named no frame.
+            refresh_first = False
+            retry_on_stale = act_action in _READ_ONLY_ACTIONS or (
+                act_action in _REFRESHABLE_ACTIONS and not caller_frame
+            )
             if command in {"act", "verify"}:
                 if session.state.get("observation_required"):
-                    return {"ok": False, "reason_code": "stale_observation",
-                            "observe_required": True, **_session_fields(session)}
-                if not str(params.get("expected_frame_id") or "").strip():
+                    if act_action not in _READ_ONLY_ACTIONS:
+                        return {"ok": False, "reason_code": "stale_observation",
+                                "observe_required": True, "recovery_command": "observe",
+                                "message": _STALE_MESSAGE, **_session_fields(session)}
+                    refresh_first = True
+                elif not caller_frame:
                     frame_id = _session_frame_id(session)
                     if frame_id:
                         params["expected_frame_id"] = frame_id
+                    elif act_action in _REFRESHABLE_ACTIONS:
+                        refresh_first = True
+                expected = str(params.get("expected_frame_id") or "").strip()
+                if (
+                    not refresh_first
+                    and str(params.get("ref") or "").strip()
+                    and expected
+                    and expected == session.state.get("unseen_refs_frame")
+                ):
+                    return {"ok": False, "reason_code": "stale_observation",
+                            "observe_required": True, "recovery_command": "observe",
+                            "message": _UNSEEN_REFS_MESSAGE, **_session_fields(session)}
             if command == "act":
                 missing = [
                     name for name in ("action", "expected_frame_id")
-                    if not isinstance(params.get(name), str)
-                    or not params[name].strip()
+                    if (name != "expected_frame_id" or not refresh_first)
+                    and (
+                        not isinstance(params.get(name), str)
+                        or not params[name].strip()
+                    )
                 ]
                 if missing:
-                    return {
+                    failure = {
                         "ok": False,
                         "reason_code": "invalid_arguments",
                         "missing_arguments": missing,
                         **_session_fields(session),
                     }
+                    if "expected_frame_id" in missing:
+                        failure.update(
+                            observe_required=True, recovery_command="observe",
+                            message=_NO_FRAME_MESSAGE,
+                        )
+                    return failure
 
             if command in {"observe", "act", "verify"}:
                 revisions = self._binding_revision_resolver(session.binding_id)
@@ -610,7 +930,14 @@ class WebUseSessionRegistry:
                     combined_guard()
                 elif before_dispatch is not None:
                     before_dispatch()
-                if command == "observe":
+                refreshed = (
+                    self._refresh_frame(session, adapter, guard_args)
+                    if command == "act" and refresh_first else None
+                )
+                if isinstance(refreshed, dict):
+                    # The read-only observation failed; nothing was dispatched.
+                    result = refreshed
+                elif command == "observe":
                     result = adapter.observe(session, params, **guard_args)
                     frame = getattr(session.controller, "_frame", None)
                     if isinstance(frame, dict) and isinstance(frame.get("viewport"), dict):
@@ -620,6 +947,8 @@ class WebUseSessionRegistry:
                         report_browser_operation, sanitize_operation,
                     )
                     from openprogram.agent.run_control import get_current_execution_id
+                    if refreshed:
+                        params["expected_frame_id"] = refreshed
                     dispatched_op_id = "op_" + uuid.uuid4().hex[:12]
                     pre_frame = _session_frame_id(session)
                     viewport = _session_viewport(session)
@@ -642,6 +971,20 @@ class WebUseSessionRegistry:
                         except Exception:
                             pass
                         result = adapter.act(session, params, **guard_args)
+                        if (
+                            retry_on_stale and not refresh_first
+                            and _reason_code(result) == "stale_observation"
+                        ):
+                            # The frame changed underneath an action that does
+                            # not depend on it, and the stale check sent
+                            # nothing. Observe (read-only) and try once more.
+                            retried = self._refresh_frame(session, adapter, guard_args)
+                            if isinstance(retried, dict):
+                                result = retried
+                            else:
+                                params["expected_frame_id"] = retried
+                                pre_frame = retried
+                                result = adapter.act(session, params, **guard_args)
                     finally:
                         session.inflight_ops = max(
                             0, int(getattr(session, "inflight_ops", 0) or 0) - 1,
@@ -664,7 +1007,10 @@ class WebUseSessionRegistry:
                 elif command == "verify":
                     result = adapter.verify(session, params, **guard_args)
                 elif command == "close":
-                    self._cleanup_session(session, suppress_errors=False)
+                    # A caller-closed session is not offered for re-observation.
+                    self._cleanup_session(
+                        session, suppress_errors=False, remember=False,
+                    )
                     result = {"ok": True, "closed": True}
                 else:
                     return {"ok": False, "reason_code": "invalid_command"}
@@ -684,7 +1030,12 @@ class WebUseSessionRegistry:
                             "ok": False,
                             "reason_code": "computer_use_backend_unavailable",
                             "availability": "unavailable",
-                            "message": "The selected MCP browser backend could not start or connect. Check its dependencies and connection, then observe the Page again.",
+                            "message": (
+                                f"The {session.backend} browser backend could not start "
+                                "or connect, so the page was not observed and no action "
+                                "was sent. Call observe for this page again to retry; "
+                                "every attempt starts the backend fresh."
+                            ),
                             **_session_fields(session),
                         }
                     raise
@@ -722,11 +1073,32 @@ class WebUseSessionRegistry:
                         get_current_execution_id(),
                     )]
 
+            if (
+                command == "act" and isinstance(result, dict)
+                and result.get("ok") is True and result.get("observe_required") is True
+            ):
+                # The write replaced the frame; never auto-fill the old one.
+                session.state.pop("frame_id", None)
+                session.state.pop("unseen_refs_frame", None)
             frame_id = _result_frame_id(result)
             if frame_id:
                 session.state["frame_id"] = frame_id
                 if command == "observe":
                     session.state.pop("observation_required", None)
+                    session.state.pop("unseen_refs_frame", None)
+            if (
+                command in {"act", "verify"} and isinstance(result, dict)
+                and result.get("ok") is False and not result.get("message")
+            ):
+                reason = result.get("reason_code")
+                if reason == "stale_observation":
+                    result = {**result, "observe_required": True,
+                              "recovery_command": "observe", "message": _STALE_MESSAGE}
+                elif reason == "screenshot_already_captured":
+                    result = {**result, "recovery_command": "observe", "message": (
+                        "This frame already has its one screenshot. Call observe "
+                        "for a new frame before taking another screenshot."
+                    )}
             cleaned = bool(created_session and not frame_id)
             if cleaned:
                 self._cleanup_session(session, suppress_errors=True)
@@ -800,6 +1172,7 @@ class WebUseSessionRegistry:
                 ):
                     continue
                 self._page_capabilities.pop(token, None)
+                self._remember_locked(token, owner_id, _capability_target(value))
                 capabilities.append(value)
         released = set()
         for capability in capabilities:
@@ -857,6 +1230,9 @@ class WebUseSessionRegistry:
                 if value["owner_id"] != owner_id:
                     continue
                 self._page_capabilities.pop(token, None)
+                # A later turn of the same chat may still name this token;
+                # keep only its exact Page so that call can observe it again.
+                self._remember_locked(token, owner_id, _capability_target(value))
                 if not value["consumed"]:
                     capabilities.append(value)
         page_keys = [session.page_key for session in sessions if session.page_key]

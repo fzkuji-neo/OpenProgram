@@ -111,6 +111,13 @@ After the Desktop App or worker process restarts, pages you had not closed come 
 
 While a page is coming back, its row stays in its resource type group and shows **Restoring page…**. If restore fails, the same row shows **Could not restore page**. If the new live page later needs a new connection, the row shows **Reconnect**. Those rows do not move into a generic Unavailable group. Explicitly closed pages and exited terminals leave the active resource list. Restoring a page does not start or continue an Agent. Idle pages stay ready to use. A new task still observes the page and checks permission as usual. Restore reloads the last confirmed URL with site storage already in the Desktop `webtabs` partition; unsaved DOM and form fields from the previous process are not restored. An older resource record with no retained tab descriptor is not recreated automatically; that row stays in its original group as **Could not restore page**. This bounded restart behavior is implemented in the default App.
 
+An Agent that was using a page when the App or worker restarted continues with the browser tool instead of failing in a loop:
+
+- Listing pages waits up to 20 seconds for the App to reconnect. If the App is still not connected, the tool reports `desktop_unavailable` and asks the Agent to list pages again after a few seconds. If the originating window is gone, pages in the other open windows are listed.
+- A session or page token from an earlier turn of the same conversation leads back to the same tab: the tool observes that tab again and returns the fresh observation. The previous action is never repeated, and a page you closed is not reopened.
+- If that tab is no longer known, for example after the worker restarted, the error lists the current pages with fresh tokens. The Agent observes the task page with its token in one call.
+- A screenshot right after navigation or another action takes a fresh observation first, so it does not fail as stale.
+
 
 ## Browser interaction and pause
 

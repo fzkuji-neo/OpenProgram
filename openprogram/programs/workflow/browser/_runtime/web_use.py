@@ -6,6 +6,20 @@ from importlib import import_module
 state = import_module("..", __package__)
 
 
+def _desktop_unavailable_result(exc: BaseException) -> dict:
+    """list_pages answer while no Desktop window can report its Pages."""
+    return {
+        "ok": False,
+        "reason_code": "desktop_unavailable",
+        "retry_command": "list_pages",
+        "error": str(exc),
+        "message": (
+            "The OpenProgram desktop app is not connected yet; it may be "
+            "restarting. Wait a few seconds, then call web_use list_pages again."
+        ),
+    }
+
+
 def _execute_web_use(
     command: str, backend: str = "", page: str = "",
     page_context_token: str = "", web_session_id: str = "",
@@ -58,11 +72,13 @@ def _execute_web_use(
         )
     )
     if needs_page_capture:
-        context = (
-            surface_context.capture_pages()
-            if command == "list_pages"
-            else surface_context.capture_active()
-        )
+        if command == "list_pages":
+            try:
+                context = surface_context.capture_pages_for_listing()
+            except surface_context.DesktopUnavailableError as exc:
+                return _desktop_unavailable_result(exc)
+        else:
+            context = surface_context.capture_active()
         captured_here = True
 
     if command == "list_pages":
@@ -82,9 +98,15 @@ def _execute_web_use(
                     )
                 )
             ) else None
-            context = surface_context.capture_pages(
-                capture_context
-            )
+            # A restarted App or closed origin window must not make discovery
+            # fail: capture_pages_for_listing falls back to the other
+            # registered windows and waits briefly for the App to reconnect.
+            try:
+                context = surface_context.capture_pages_for_listing(
+                    capture_context
+                )
+            except surface_context.DesktopUnavailableError as exc:
+                return _desktop_unavailable_result(exc)
             captured_here = True
         context = context or {}
         owner_id = surface_context.web_use_owner_id(
@@ -182,7 +204,10 @@ def execute_direct_web_use(arguments: dict, *, owner_id: str):
     command = str(arguments.get("command") or "")
     registry = get_registry()
     if command == "list_pages":
-        context = surface_context.capture_pages()
+        try:
+            context = surface_context.capture_pages_for_listing()
+        except surface_context.DesktopUnavailableError as exc:
+            return _desktop_unavailable_result(exc)
         try:
             result = registry.list_pages(context=context, owner_id=owner_id)
         except Exception:
