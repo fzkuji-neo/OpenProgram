@@ -121,15 +121,18 @@
   left: 8px;
   right: 8px;
   bottom: calc(100% + 8px);
-  background: var(--bg-tertiary, var(--bg-secondary));
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: var(--shadow-popover);
   padding: 4px;
   z-index: 50;
   display: flex;
   flex-direction: column;
   gap: 1px;
+  /* Glass popover recipe (app/styles/base.css --glass-*). */
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  border: 0.5px solid var(--glass-ring);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
 }
 
 

@@ -537,11 +537,14 @@
   width: 200px;
   box-sizing: border-box;
   padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-primary);
-  box-shadow: var(--shadow-popover);
   -webkit-app-region: no-drag;
+  /* Glass popover recipe (app/styles/base.css --glass-*). */
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  border: 0.5px solid var(--glass-ring);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
 }
 
 .tabMenuItem {
@@ -582,12 +585,15 @@
   display: flex;
   flex-direction: column;
   padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-primary);
-  box-shadow: var(--shadow-popover);
   overflow-y: auto;
   -webkit-app-region: no-drag;
+  /* Glass popover recipe (app/styles/base.css --glass-*). */
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  border: 0.5px solid var(--glass-ring);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
 }
 .splitPickerHeader {
   display: flex;

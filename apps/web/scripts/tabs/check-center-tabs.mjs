@@ -641,7 +641,7 @@ assert.doesNotMatch(
 );
 // The split picker reuses the strip's overlay language (same border /
 // radius / shadow vocabulary as the tab menu), not a bespoke look.
-assert.match(css, /\.splitPicker \{[^}]*border: 1px solid var\(--border\);/s);
+assert.match(css, /\.splitPicker \{[^}]*background: var\(--glass-surface\);[^}]*border: 0\.5px solid var\(--glass-ring\);/s);
 assert.match(css, /\.splitPickerOption \{/);
 assert.match(css, /\.splitPickerOption:hover,\s*\.splitPickerOption:focus-visible \{/s);
 assert.match(css, /\.tab \{[^}]*transition: transform 160ms ease;/s,

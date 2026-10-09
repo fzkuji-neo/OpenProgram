@@ -1,3 +1,5 @@
+import { GLASS_SURFACE } from "@/lib/glass";
+
 /**
  * Canonical Tailwind class strings for ALL popover selection menus — the
  * single source of truth so every dropdown / context menu in the app is
@@ -5,9 +7,10 @@
  * agent), the sidebar Recents context menu, and any future one.
  *
  * ── Design spec (Claude-style elevated card) ─────────────────────────
- *  Panel (MENU_PANEL): 12px radius · `--surface-popover` (white in
- *    light, #30302e in dark) · 6px padding · `--shadow-popover` (which
- *    bakes in a 1px ring — no border class) · scrolls past 60vh.
+ *  Panel (MENU_PANEL): glass material (lib/glass.ts GLASS_SURFACE:
+ *    translucent --surface-popover + backdrop blur, 0.5px hairline
+ *    border, layered --glass-shadow, 10px radius) · 6px padding ·
+ *    scrolls past 60vh.
  *  Row (itemCls):      min 34px tall · 8px radius · 0 10px padding ·
  *    14px/20px text · 8px icon↔label gap · hover & active = `--bg-hover`
  *    warm tint + `--text-bright`. danger = red text + faint red hover.
@@ -22,11 +25,10 @@
 
 export const MENU_PANEL =
   // 10px 圆角 = 输入框同刻度（用户定的统一规则）；边缘走真 border
-  // （--border-popover），shadow 只投影。行保持"按钮"形态：面板四周
+  // （0.5px 发丝线），shadow 只投影。面板是玻璃材质（GLASS_SURFACE，
+  // 半透明 + 背景模糊），全应用弹窗共用。行保持"按钮"形态：面板四周
   // 6px 衬、行自带圆角 hover（用户点名不要 Claude 的通铺行）。
-  "flex max-h-[60vh] flex-col overflow-y-auto rounded-[10px] " +
-  "border border-[var(--border-popover)] " +
-  "bg-[var(--surface-popover)] p-[6px] shadow-[var(--shadow-popover)]";
+  "flex max-h-[60vh] flex-col overflow-y-auto p-[6px] " + GLASS_SURFACE;
 
 export const GROUP_LABEL =
   // Claude 实测：标题 12px / 行 13px，块高 21px、底缘贴第一行。

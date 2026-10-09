@@ -800,17 +800,20 @@
   margin-bottom: 4px;
   min-width: 192px;
   max-width: 320px;
-  /* 弹层统一配方：popover 白面 + 10px 圆角（=输入框刻度）+ 真 border。
-     行保持圆角"按钮"hover——四周 6px 衬。 */
-  background: var(--surface-popover);
-  border: 1px solid var(--border-popover);
-  border-radius: 10px;
-  box-shadow: var(--shadow-popover);
+  /* 弹层统一配方：玻璃材质（--glass-*）+ 10px 圆角（=输入框刻度）+
+     0.5px 真 border。行保持圆角"按钮"hover——四周 6px 衬。 */
   padding: 6px;
   display: flex;
   flex-direction: column;
   gap: 1px;
   z-index: 100;
+  /* Glass popover recipe (app/styles/base.css --glass-*). */
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  backdrop-filter: var(--glass-backdrop);
+  border: 0.5px solid var(--glass-ring);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
 }
 /* Wrapper for a base-ui Menu.Item / SubmenuTrigger. It carries no
    visuals of its own — the inner <PlusMenuItem> paints the row — it just
