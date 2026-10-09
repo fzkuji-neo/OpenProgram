@@ -93,6 +93,11 @@ class EvidenceGate:
         from openprogram.programs import apply_tool_policy
         from openprogram.programs.tools.agents.send_message.list_agents import list_agents
         with runtime_scope() as runtime:
+            # A standalone run (CLI `programs run`, tests) gets the lazy
+            # scope runtime, which has no session or tool gate until it is
+            # resolved; the discovery pass needs both.
+            if getattr(runtime, '_runtime', True) is None and hasattr(runtime, '_resolve'):
+                runtime = runtime._resolve()
             policy = _current_tool_policy.get(None) or {}
             tools = apply_tool_policy([list_agents, self.tool], source=policy.get('source'),
                 allow=policy.get('allow'), deny=[*(policy.get('deny') or []), *denied_ask_tools(runtime.session_id)],

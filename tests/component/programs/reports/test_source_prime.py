@@ -518,3 +518,36 @@ def test_host_terminal_receipt_persistence_failure_stops_composition(
     ):
         source_report_program()
     assert not gate.prime_receipts and not gate.rows
+
+
+def test_prime_resolves_the_lazy_standalone_runtime(monkeypatch):
+    """`openprogram programs run` has no ambient Runtime: the scope yields the
+    lazy proxy, which must be resolved before the gate reads `session_id`
+    or wraps tools (it used to raise AttributeError: session_id)."""
+    from contextlib import contextmanager
+    from openprogram.agentic_programming import runtime_scope as scope_module
+    from openprogram.agentic_programming.runtime_scope import _LazyRuntime
+
+    class Resolved:
+        session_id = "op-standalone"
+
+        def _gate_inner_tools(self, tools):
+            return tools
+
+    lazy = _LazyRuntime()
+    monkeypatch.setattr(_LazyRuntime, "_resolve", lambda self, model=None: Resolved())
+
+    @contextmanager
+    def lazy_scope(runtime=None):
+        yield lazy
+
+    monkeypatch.setattr(scope_module, "runtime_scope", lazy_scope)
+    gate = EvidenceGate("2026-W41", "personal_chat")
+    seen = {}
+
+    async def fake_reads(tools, runtime):
+        seen["runtime"] = runtime
+
+    monkeypatch.setattr(gate, "_prime_reads", fake_reads)
+    gate.prime()
+    assert isinstance(seen["runtime"], Resolved)
