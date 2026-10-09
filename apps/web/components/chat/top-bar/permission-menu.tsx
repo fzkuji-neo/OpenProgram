@@ -41,6 +41,7 @@ import {
 import { HoverTip } from "@/components/ui/tooltip";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useControlRowVariant } from "@/lib/prefs/use-resolved-theme-mode";
 
 import {
   usePermissionMode,
@@ -56,6 +57,7 @@ import {
 } from "./menu-styles";
 
 export function PermissionBadge() {
+  const controlVariant = useControlRowVariant();
   const { text } = useTranslation();
   const { mode, options, set, pending, error } = usePermissionMode();
   const [open, setOpen] = useState(false);
@@ -107,7 +109,7 @@ export function PermissionBadge() {
             <span
               ref={hostRef}
               id="permissionBadge"
-              className={`${cn(buttonVariants({ variant: "secondary", size: "sm" }))} runtime-badge permission-badge`}
+              className={`${cn(buttonVariants({ variant: controlVariant, size: "sm" }))} runtime-badge permission-badge`}
               onMouseEnter={() => iconRef.current?.startAnimation?.()}
               onMouseLeave={() => iconRef.current?.stopAnimation?.()}
             >

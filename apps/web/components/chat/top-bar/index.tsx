@@ -43,6 +43,7 @@ import { useBoundChat } from "./bound-chat";
 import { pushAgentSettings, pushBranchInfo, pushStatusBadge } from "@/lib/tabs/top-bar-sync";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useControlRowVariant } from "@/lib/prefs/use-resolved-theme-mode";
 
 export { ProjectBadge } from "./project-menu";
 export { WorkingDirChips } from "./working-dir-chips";
@@ -104,6 +105,7 @@ export function AgentBadge({
   provider?: string;
   model?: string;
 }) {
+  const controlVariant = useControlRowVariant();
   const [open, setOpen] = useState(false);
   const { t, text } = useTranslation();
   const { chatKey } = useBoundChat();
@@ -163,7 +165,7 @@ export function AgentBadge({
         <PopoverTrigger asChild>
           <span
             id={id}
-            className={cn(buttonVariants({ variant: "secondary", size: "sm" })) + " runtime-badge agent-badge" + (locked ? " locked" : "")}
+            className={cn(buttonVariants({ variant: controlVariant, size: "sm" })) + " runtime-badge agent-badge" + (locked ? " locked" : "")}
             onMouseEnter={() => iconRef.current?.startAnimation?.()}
             onMouseLeave={() => iconRef.current?.stopAnimation?.()}
           >
