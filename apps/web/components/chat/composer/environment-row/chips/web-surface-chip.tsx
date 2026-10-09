@@ -1,6 +1,6 @@
 "use client";
 
-import { ChromeIcon } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 import { HoverTip } from "@/components/ui/tooltip";
 import { surfaceRefForChat } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
@@ -40,7 +40,7 @@ export function WebSurfaceChip({
         aria-pressed={toolsEnabled}
         onClick={onToggleAccess}
       >
-        <ChromeIcon size={14} aria-hidden="true" />
+        <SolarIcon name="window-frame" size={14} aria-hidden="true" />
         <span className={styles.surfaceChipLabel}>
           {title}
         </span>

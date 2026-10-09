@@ -13,7 +13,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "@/lib/i18n";
 import { FileTypeIcon } from "@/components/files/file-type-icon";
-import { FoldersIcon } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 
 export interface FileMatch {
   path: string;
@@ -102,7 +102,7 @@ export function FileMenu({
                   color: "var(--text-muted)",
                 }}
               >
-                {item.is_dir ? <FoldersIcon size={12} /> : <FileTypeIcon name={item.path} />}
+                {item.is_dir ? <SolarIcon name="folder-with-files" size={12} /> : <FileTypeIcon name={item.path} />}
               </span>
               <span
                 style={{

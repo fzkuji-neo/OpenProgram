@@ -95,7 +95,7 @@ assert.match(
 );
 assert.match(
   controls,
-  /<Settings\s+size=\{14\}\s*\/>/,
+  /<ToolProfileIcon\s+size=\{14\}\s*\/>/,
   "The gear must keep its original 14px icon size",
 );
 assert.match(

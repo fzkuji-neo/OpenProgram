@@ -101,7 +101,7 @@ composer 的 `envChips` 行从左到右就是会话的目录集合：`<ProjectBa
 
 状态放 session-store：`additionalWorkingDirsBySession: Record<string, string[]>`（完整词，不缩写），来源三处——`session_loaded.data.settings`、`working_dirs` 广播、乐观更新。不进 `ComposerSettings`/localStorage：这是服务端持久化的会话数据，不是端上偏好。
 
-旁边的项目 chip 承载主目录的状态，包括它的警示形态。`list_projects` 按项目返回 `path_missing`；当会话自己的项目带上这个标记时，chip 切到橙色警示配色、folder 图标换成 lucide 的 `AlertTriangle`，菜单里出现"定位文件夹…"——即 [session/operations.zh.md](session/operations.zh.md) 描述的 relocate 修复。
+旁边的项目 chip 承载主目录的状态，包括它的警示形态。`list_projects` 按项目返回 `path_missing`；当会话自己的项目带上这个标记时，chip 切到橙色警示配色、folder 图标换成 Solar 的 `danger-triangle`，菜单里出现"定位文件夹…"——即 [session/operations.zh.md](session/operations.zh.md) 描述的 relocate 修复。
 
 ### 3.6 测试
 

@@ -41,6 +41,7 @@ import { visibleParams } from "./modes/fn-form/fn-form";
 import { resolveComposerMode } from "./modes/resolve-mode";
 import { SendIcon, StopIcon } from "./icons";
 import { type AnimatedNavIconHandle } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 import { type SlashCommand } from "./slash/slash-commands";
 import { SlashMenu } from "./slash/slash-menu";
 import { AttachmentStrip } from "./attach/attachment-strip";
@@ -651,15 +652,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
             title={text("Close", "关闭")}
             aria-label={text("Close", "关闭")}
           >
-            <svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true">
-              <path
-                d="M2 2L10 10M10 2L2 10"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-            </svg>
+            <SolarIcon name="close-circle" size={14} />
           </button>
         )}
       </div>

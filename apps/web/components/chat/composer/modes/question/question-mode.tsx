@@ -8,7 +8,7 @@ import { approvalDisplayText, readSandboxEscalation, type SandboxEscalation } fr
  */
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, MessageCircle, X } from "lucide-react";
+import { SolarIcon } from "@/components/solar-icons";
 import { OperationCode } from "./operation-code";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -250,10 +250,10 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
           <button type="button" className={styles.iconBtn} aria-expanded={!collapsed}
             aria-label={collapsed ? text("Expand request", "展开请求") : text("Collapse request", "折叠请求")}
             onClick={() => updateDraft({ collapsed: !collapsed })}>
-            {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+            {collapsed ? <SolarIcon name="alt-arrow-right" size={16} /> : <SolarIcon name="alt-arrow-down" size={16} />}
           </button>
           {!collapsed && <button type="button" className={styles.iconBtn}
-            aria-label={text("Hide request", "收起请求")} onClick={() => updateDraft({ collapsed: true })}><X size={16} /></button>}
+            aria-label={text("Hide request", "收起请求")} onClick={() => updateDraft({ collapsed: true })}><SolarIcon name="close-circle" size={16} /></button>}
         </div>
       </div>
       {!collapsed && <>
@@ -326,7 +326,7 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
             </> : <button type="button" className={`${styles.navBtn} ${styles.discussBtn}`} disabled={answerLocked}
               onClick={() => setDiscussionOpen(true)} aria-label={text("Discuss", "先讨论")}
               title={text("Discuss before proceeding", "先讨论再继续")}>
-              <MessageCircle size={15} aria-hidden="true" />
+              <SolarIcon name="chat-round-dots" size={15} aria-hidden="true" />
             </button>}
           {!discussionOpen && <>
             <button type="button" className={styles.navBtn} disabled={answerLocked || discussionPending}
@@ -433,7 +433,7 @@ function StepBody({
         {step.args && Object.keys(step.args).length > 0 ? (
           command ? (
             <details className={approvalStyles.executionDetails}>
-              <summary><ChevronRight size={16} aria-hidden="true" />{text("Execution details", "查看执行详情")}</summary>
+              <summary><SolarIcon name="alt-arrow-right" size={16} aria-hidden="true" />{text("Execution details", "查看执行详情")}</summary>
               <OperationCode value={JSON.stringify(step.args, null, 2)} language="json" />
             </details>
           ) : <OperationCode value={JSON.stringify(step.args, null, 2)} language="json" />

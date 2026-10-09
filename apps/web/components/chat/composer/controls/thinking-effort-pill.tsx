@@ -1,7 +1,7 @@
 /**
  * Effort pill — the trigger IS the picker.
  *
- * Collapsed: a 32px round chip showing just the biceps icon, tinted by
+ * Collapsed: a 32px round chip showing just the dumbbell icon, tinted by
  * the current effort level. Hovering slides out a right-caret (the same
  * gesture as the neighbouring tool chips' ×). CLICK to expand — hover
  * alone never opens the card.
@@ -31,12 +31,8 @@ import { UltraRain } from "./ultra-rain";
 import { HoverTip } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
 import { effortLevelColor, formatEffortLabel } from "@/lib/effort-color";
-import {
-  type AnimatedNavIconHandle,
-  BicepsFlexedIcon,
-  ChevronRightIcon,
-  GaugeIcon,
-} from "@/components/animated-icons";
+import { type AnimatedNavIconHandle, GaugeIcon } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 
 // Extends div attributes so a tooltip trigger (HoverTip / Radix
 // `asChild`) can inject its hover/focus handlers — they must reach the
@@ -189,14 +185,15 @@ const ThinkingEffortSliderPill = React.forwardRef<
           ].join(" ")}
           onClick={onToggle}
         >
-          <BicepsFlexedIcon
+          <SolarIcon
+            name="dumbbell-large-minimalistic"
             ref={effortIconChipRef}
             size={18}
             className="effort-pill-compact-icon text-[var(--slider-active-solid)]"
             aria-hidden="true"
           />
           <span className="effort-pill-caret text-[var(--slider-active-solid)]">
-            <ChevronRightIcon ref={caretRef} size={12} />
+            <SolarIcon ref={caretRef} name="alt-arrow-right" size={12} motionPreset="nudge" />
           </span>
         </div>
         {expanded && (

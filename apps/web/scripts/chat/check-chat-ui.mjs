@@ -501,7 +501,7 @@ assert.match(tabsCss, /\.tabMenuItem\s*\{/);
 
 // A split pane can be narrow while the application viewport remains wide, so
 // the composer controls must compact through their own inline-size container.
-assert.match(controlsCluster, /BicepsFlexedIcon/);
+assert.match(controlsCluster, /name="dumbbell-large-minimalistic"/);
 assert.match(controlsCluster, /styles\.compactEffortIcon/);
 assert.match(controlsCluster, /styles\.effortValue/);
 assert.match(controlsCluster, /effortLevelColor\(thinkingOptions, thinking\)/);

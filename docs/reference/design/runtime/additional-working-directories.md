@@ -103,7 +103,7 @@ The composer's `envChips` row reads left to right as the session's directory set
 
 State lives in the session store as `additionalWorkingDirsBySession: Record<string, string[]>` (full words, no abbreviations), fed from three sources: `session_loaded.data.settings`, the `working_dirs` broadcast, and optimistic updates. It does not go into `ComposerSettings` or localStorage, because this is server-persisted session data, not a client-side preference.
 
-The project chip next to them carries the main directory's state, including its warning form. `list_projects` returns `path_missing` per project; when the session's own project has it, the chip switches to the orange warning palette with a lucide `AlertTriangle` in place of the folder icon, and its menu offers "Locate folder…" — the relocate repair described in [session/operations.md](session/operations.md).
+The project chip next to them carries the main directory's state, including its warning form. `list_projects` returns `path_missing` per project; when the session's own project has it, the chip switches to the orange warning palette with a Solar `danger-triangle` in place of the folder icon, and its menu offers "Locate folder…" — the relocate repair described in [session/operations.md](session/operations.md).
 
 ### 3.6 Tests
 

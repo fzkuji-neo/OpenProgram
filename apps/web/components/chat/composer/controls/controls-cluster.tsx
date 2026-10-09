@@ -11,13 +11,12 @@
  */
 import React, { useRef, useState } from "react";
 import { Menu } from "@base-ui-components/react/menu";
-import { CornerDownRight, Paperclip, Settings } from "lucide-react";
 
 import {
   type AnimatedNavIconHandle,
-  BicepsFlexedIcon,
   GaugeIcon,
 } from "@/components/animated-icons";
+import { SolarIcon } from "@/components/solar-icons";
 
 import { HoverTip } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
@@ -26,7 +25,10 @@ import { GROUP_LABEL } from "../../top-bar/menu-styles";
 import { AgentBadge, PermissionBadge } from "../../top-bar";
 import { ContextBadge } from "../../context-badge";
 import {
+  AttachIcon,
   OptionsIcon,
+  RunningModeIcon,
+  ToolProfileIcon,
   ToolsIcon,
   SandboxIcon,
   UnattendedIcon,
@@ -193,7 +195,7 @@ export function ControlsCluster({
                       <PlusMenuItem
                         active={pendingImagesCount > 0 || pendingDocsCount > 0}
                         onClick={noop}
-                        icon={<Paperclip size={16} />}
+                        icon={<AttachIcon size={16} />}
                         label={text("Add files or photos", "添加文件或照片")}
                       />
                     </Menu.Item>
@@ -240,7 +242,7 @@ export function ControlsCluster({
                           label={text("Tool profile", "工具配置")}
                           aria-label={text("Tool profile", "工具配置")}
                         >
-                          <Settings size={14} />
+                          <ToolProfileIcon size={14} />
                         </Menu.SubmenuTrigger>
                         <Menu.Portal>
                           <Menu.Positioner
@@ -334,7 +336,7 @@ export function ControlsCluster({
                       <PlusMenuItem
                         active={runningMessageMode === "steer"}
                         onClick={noop}
-                        icon={<CornerDownRight size={16} />}
+                        icon={<RunningModeIcon size={16} mode={runningMessageMode} />}
                         label={runningMessageMode === "steer"
                           ? text("While running: Steer", "运行中：注入当前轮次")
                           : text("While running: Queue", "运行中：排队到下一轮")}
@@ -350,7 +352,7 @@ export function ControlsCluster({
                       <PlusMenuItem
                         active={unattended}
                         onClick={noop}
-                        icon={<UnattendedIcon size={16} />}
+                        icon={<UnattendedIcon size={16} on={unattended} />}
                         label={text("Unattended", "无人值守")}
                       />
                     </Menu.Item>
@@ -400,7 +402,7 @@ export function ControlsCluster({
               {unattended && (
                 <HoverTip label={text("Unattended", "无人值守")}>
                   <ToolChip
-                    icon={<UnattendedIcon size={16} />}
+                    icon={<UnattendedIcon size={16} on />}
                     label={text("Unattended", "无人值守")}
                     on
                     onToggle={toggleUnattended}
@@ -465,7 +467,8 @@ export function ControlsCluster({
                       // 常规宽度保持原有文字配色；最高档仍用紫色标识。
                       style={thinking === "max" ? { color: "#8E6BD9" } : undefined}
                     >
-                      <BicepsFlexedIcon
+                      <SolarIcon
+                        name="dumbbell-large-minimalistic"
                         ref={effortIconRef}
                         size={14}
                         className={styles.compactEffortIcon}

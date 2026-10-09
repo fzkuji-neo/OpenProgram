@@ -1,6 +1,6 @@
 "use client";
 
-import { PictureInPicture2 } from "lucide-react";
+import { SolarIcon } from "@/components/solar-icons";
 
 import { HoverTip } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n";
@@ -41,7 +41,7 @@ export function WebPreviewChip() {
         aria-label={label}
         onClick={() => show(restoreId, backgroundOwnerTabId)}
       >
-        <PictureInPicture2 size={14} aria-hidden="true" />
+        <SolarIcon name="pip-2" size={14} aria-hidden="true" />
         <span className={styles.surfaceChipLabel}>{label}</span>
       </button>
     </HoverTip>
