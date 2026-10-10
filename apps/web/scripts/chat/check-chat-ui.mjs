@@ -520,10 +520,11 @@ const compactControlsEnd = composerCss.indexOf(
 );
 assert.ok(
   compactControlsStart >= 0 && compactControlsEnd > compactControlsStart,
-  "narrow composer controls must have a bounded container-query block",
+  "narrow composer controls must have a bounded compact block",
 );
 const compactControls = composerCss.slice(compactControlsStart, compactControlsEnd);
-assert.match(compactControls, /@container \(max-width:\s*560px\)/);
+assert.match(compactControls, /\.controlsRow\[data-compact="true"\]/);
+assert.doesNotMatch(compactControls, /@container \(max-width/);
 assert.match(compactControls, /\.permission-badge[\s\S]*\.badge-details/);
 assert.match(compactControls, /\.agent-badge[\s\S]*\.badge-details/);
 assert.match(compactControls, /\.effortValue/);

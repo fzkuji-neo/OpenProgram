@@ -592,59 +592,65 @@
   height: 14px;
 }
 
-/* Narrow composer control labels collapse to their existing role icons.
-   The labels use the visually-hidden pattern instead of display:none so
-   each popover trigger keeps its accessible name. The unnamed query uses
-   the nearest inline-size container: .composer-bottom-row itself. */
+/* Narrow composer control labels collapse to their existing role icons
+   when the controls do not fit: controls/use-compact-controls-row.ts
+   measures the row's real need (it depends on the tool toggles and the
+   model names, so no fixed width is right) and sets data-compact. The
+   labels use the visually-hidden pattern instead of display:none so
+   each popover trigger keeps its accessible name. */
 .compactEffortIcon {
   display: none;
 }
 
-@container (max-width: 560px) {
-  .controlsRow :global(.permission-badge .badge-details),
-  .controlsRow :global(.agent-badge .badge-details),
-  .controlsRow .effortValue {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
+.controlsRow[data-compact="true"] :global(.permission-badge .badge-details),
+.controlsRow[data-compact="true"] :global(.agent-badge .badge-details),
+.controlsRow[data-compact="true"] .effortValue {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
-  .controlsRow :global(.permission-badge),
-  .controlsRow :global(.agent-badge),
-  .controlsRow .effortText {
-    width: 28px;
-    min-width: 28px;
-    padding: 0 !important;
-    justify-content: center;
-  }
+.controlsRow[data-compact="true"] :global(.permission-badge),
+.controlsRow[data-compact="true"] :global(.agent-badge),
+.controlsRow[data-compact="true"] .effortText {
+  width: 28px;
+  min-width: 28px;
+  padding: 0 !important;
+  justify-content: center;
+}
 
-  .controlsRow :global(.permission-badge > :has(svg)) {
-    display: inline-flex !important;
-  }
+.controlsRow[data-compact="true"] :global(.permission-badge > :has(svg)) {
+  display: inline-flex !important;
+}
 
-  .controlsRow :global(.permission-badge > :has(svg)),
-  .controlsRow :global(.agent-badge > :has(svg)) {
-    margin-right: 0 !important;
-  }
+.controlsRow[data-compact="true"] :global(.permission-badge > :has(svg)),
+.controlsRow[data-compact="true"] :global(.agent-badge > :has(svg)) {
+  margin-right: 0 !important;
+}
 
-  .controlsRow .effortText {
-    width: auto;
-  }
+.controlsRow[data-compact="true"] .effortText {
+  width: auto;
+}
 
-  .controlsRow .compactEffortIcon {
-    display: inline-flex;
-  }
+.controlsRow[data-compact="true"] .compactEffortIcon {
+  display: inline-flex;
+}
 
-  .controlsRow .fastIndicator[data-active="true"] {
-    width: 0;
-    opacity: 0;
-  }
+.controlsRow[data-compact="true"] .fastIndicator[data-active="true"] {
+  width: 0;
+  opacity: 0;
+}
+
+/* While measuring, every cluster lays out at its natural width. */
+.controlsRow[data-measuring] > *,
+.controlsRow[data-measuring] > * > * {
+  flex-shrink: 0 !important;
 }
 
 /* The options (+) dropdown is the shared radix <DropdownMenu> on

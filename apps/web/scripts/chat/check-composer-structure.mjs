@@ -52,7 +52,7 @@ assert.match(
 );
 assert.match(
   composerCss,
-  /max-width:\s*560px[\s\S]*\.fastIndicator\[data-active="true"\][\s\S]*width:\s*0/,
+  /\[data-compact="true"\] \.fastIndicator\[data-active="true"\][\s\S]*width:\s*0/,
   "narrow composer hides the Fast gauge and keeps the effort fist",
 );
 assert.match(composer, /\.\/input\/use-composer-keydown/);
