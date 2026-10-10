@@ -331,10 +331,33 @@ export function resourceIsUnavailable(row: SessionResource): boolean {
 
 const RESOURCE_KIND_ORDER = ["web", "vm", "desktop", "terminal", "application", "docker", "remote", "other"];
 
-/** Classify display groups from resource descriptors, never names or branches. */
-export function groupSessionResources(rows: readonly SessionResource[]): ResourceGroup[] {
-  const groups = new Map<string, ResourceGroup>();
+/** The backend projects one Page once per branch that used it; the list shows
+ *  the Page once, preferring the viewed branch's row, then the newest. */
+function onePerResource(rows: readonly SessionResource[], viewedBranchId: string | null): SessionResource[] {
+  const kept = new Map<string, SessionResource>();
   for (const row of rows) {
+    const key = row.resourceId ? `resource:${row.resourceId}` : `row:${row.id}`;
+    const previous = kept.get(key);
+    if (!previous) {
+      kept.set(key, row);
+      continue;
+    }
+    const viewed = (row.branchId || null) === viewedBranchId;
+    const previousViewed = (previous.branchId || null) === viewedBranchId;
+    if (viewed !== previousViewed ? viewed : (row.sequence ?? 0) > (previous.sequence ?? 0)) {
+      kept.set(key, row);
+    }
+  }
+  return [...kept.values()];
+}
+
+/** Classify display groups from resource descriptors, never names or branches. */
+export function groupSessionResources(
+  rows: readonly SessionResource[],
+  viewedBranchId: string | null = null,
+): ResourceGroup[] {
+  const groups = new Map<string, ResourceGroup>();
+  for (const row of onePerResource(rows, viewedBranchId)) {
     if (resourceIsUnavailable(row)) continue;
     const kind = row.source === "browser" || row.source === "web" ? "web" : row.kind;
     const key = RESOURCE_KIND_ORDER.includes(kind) ? kind : "other";
