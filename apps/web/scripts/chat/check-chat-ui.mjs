@@ -513,6 +513,16 @@ assert.match(
   controlsCluster,
   /className=\{`\$\{cn\(buttonVariants\(\{ variant: "elevated", size: "sm" \}\)\)\} \$\{styles\.effortText\}`\}[\s\S]*style=\{thinking === "max" \? \{ color: "#8E6BD9" \} : undefined\}/,
 );
+// The row's Buttons transition every property, so a live row that just left
+// compact mode reports compact widths mid-transition. The need is measured on
+// a hidden, transition-free copy, never by toggling the live row.
+const compactControlsHook = source("components/chat/composer/controls/use-compact-controls-row.ts");
+assert.match(compactControlsHook, /row\.cloneNode\(true\)/);
+assert.match(compactControlsHook, /probe\.remove\(\)/);
+assert.doesNotMatch(compactControlsHook, /row\.dataset\.measuring/);
+assert.match(compactControlsHook, /attributeFilter: \["class"\]/);
+assert.match(compactControlsHook, /loadingdone/);
+assert.match(composerCss, /\.controlsRow\[data-measuring\] \*\s*\{[^}]*transition:\s*none !important/);
 const compactControlsStart = composerCss.indexOf("/* Narrow composer control labels");
 const compactControlsEnd = composerCss.indexOf(
   "/* The options (+) dropdown",

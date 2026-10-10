@@ -647,10 +647,17 @@
   opacity: 0;
 }
 
-/* While measuring, every cluster lays out at its natural width. */
+/* The hidden measuring copy (controls/use-compact-controls-row.ts): every
+   cluster lays out at its natural width, and nothing transitions, so the
+   copy reports full-size widths at once. */
 .controlsRow[data-measuring] > *,
 .controlsRow[data-measuring] > * > * {
   flex-shrink: 0 !important;
+}
+.controlsRow[data-measuring],
+.controlsRow[data-measuring] * {
+  transition: none !important;
+  animation: none !important;
 }
 
 /* The options (+) dropdown is the shared radix <DropdownMenu> on
