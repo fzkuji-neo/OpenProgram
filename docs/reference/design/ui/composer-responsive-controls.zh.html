@@ -44,7 +44,7 @@
   <div class="lead">两排控制栏分别按自身可用宽度响应。底排沿用既有设置；上排分四级收缩：先全部完整显示；再把长名字截到约 12 个字加省略号，Local chip 只留图标；再收起 git 分支名，只留分支图标和改动 badge；最后隐藏全部文字（状态、surface、项目、目录以及 DAG 的 Fit、缩放百分比和 Legend），改动 badge 缩成左绿右红的小圆点。空间恢复后逐级展开。每一级使用同一段过渡动画，菜单、当前值、键盘操作、tooltip 和 accessible name 保持不变。</div>
 
   <h2>当前实现与缺口</h2>
-  <p><code>.composer-bottom-row</code> 继续按自身容器响应。<code>.envChips</code> 不再使用固定断点，因为聊天页和 DAG 页的控件数量不同，同一宽度下需要的空间也不同。它选出第一个能放进自身 <code>clientWidth</code> 的级别，所需宽度取最后一个胶囊的右边界，测量时把靠右胶囊的自动外边距清零（不能用 <code>scrollWidth</code>：那个自动外边距让内容永远铺满整行，收缩后就再也展不开）：先关掉过渡（<code>data-measuring</code>）把整行按每一级排一遍，再以动画切到选中的 <code>data-squeeze</code> 级别；第 3 级同时设置 <code>data-compact</code>，隐藏全部 label。回到更宽松的级别需要留出 12px 余量。单页和 split pane 运行完全相同的测量逻辑。</p>
+  <p><code>.composer-bottom-row</code> 同样不用固定断点：它需要的宽度取决于开了哪些工具开关、模型名多长。<code>use-compact-controls-row.ts</code> 关掉 flex 收缩（<code>data-measuring</code>）把整行排一遍，累加各组宽度和间距，超过整行宽度就设置 <code>data-compact</code>，权限、模型和思考档位的文字随之收成各自的图标。展开回去需要留出 12px 余量。<code>.envChips</code> 不再使用固定断点，因为聊天页和 DAG 页的控件数量不同，同一宽度下需要的空间也不同。它选出第一个能放进自身 <code>clientWidth</code> 的级别，所需宽度取最后一个胶囊的右边界，测量时把靠右胶囊的自动外边距清零（不能用 <code>scrollWidth</code>：那个自动外边距让内容永远铺满整行，收缩后就再也展不开）：先关掉过渡（<code>data-measuring</code>）把整行按每一级排一遍，再以动画切到选中的 <code>data-squeeze</code> 级别；第 3 级同时设置 <code>data-compact</code>，隐藏全部 label。回到更宽松的级别需要留出 12px 余量。单页和 split pane 运行完全相同的测量逻辑。</p>
   <p>现有组件已经提供四类互异图标：Shield 表示权限，Message 表示 chat model，Terminal 表示 execution model，Biceps 表示 effort。所有触发器已经具备 Popover/Menu、tooltip 或 accessible name，因此不新增图标组件和菜单。effort 触发器点开思考力度选择卡；其标题行、点阵滑轨和"推荐"标注见 <a href="effort-picker.zh.html">effort-picker.zh.html</a>。</p>
 
   <h2>组件边界</h2>
@@ -66,7 +66,7 @@
 
   <h2>参考与选择</h2>
   <div class="table-wrap" role="region" aria-label="参考与选择表格横向滚动区域" data-scroll-region tabindex="0"><table><thead><tr><th>参考</th><th>适用能力</th><th>采用方式</th></tr></thead><tbody>
-    <tr><td><a href="https://www.w3.org/TR/css-contain-3/">W3C CSS 包含第 3 级规范</a></td><td><code>@container</code> 根据组件容器尺寸控制后代样式，不依赖 viewport。</td><td class="ok">采用现有 <code>.composer-bottom-row</code> 容器；split pane 与普通会话共用同一规则。</td></tr>
+    <tr><td><a href="https://www.w3.org/TR/css-contain-3/">W3C CSS 包含第 3 级规范</a></td><td><code>@container</code> 根据组件容器尺寸控制后代样式，不依赖 viewport。</td><td class="ok">只保留给上下文圆环的文字和思考档位卡片的宽度；文字收起改为实测，因为这一栏需要的宽度不只取决于它自身的宽度。</td></tr>
     <tr><td><a href="https://www.w3.org/WAI/ARIA/apg/practices/names-and-descriptions/">WAI 可访问名称</a></td><td>隐藏可见文字时，交互控件仍需保留可计算的名称。</td><td class="ok">沿用现有 tooltip、Popover trigger 和标签；视觉隐藏不删除 DOM 语义。</td></tr>
     <tr><td>横向滚动</td><td>保留任意长度的文字，但会让部分设置入口离开当前可见范围。</td><td>保留为极窄宽度的后备；不作为主要响应方式。</td></tr>
     <tr><td>换成两行</td><td>全部文字可见，但会改变 composer 高度并影响 transcript 底部预留。</td><td>拒绝；本任务保持单行。</td></tr>

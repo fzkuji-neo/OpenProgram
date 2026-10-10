@@ -26,6 +26,7 @@ import { PendingDecisionPanels } from "../messages/decision-output";
 import { QueuedMessages } from "../messages/queued-messages";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCompactControlsRow } from "./controls/use-compact-controls-row";
 import { createPortal } from "react-dom";
 
 import { useSessionStore } from "@/lib/session-store";
@@ -252,6 +253,8 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   const setFnFormClosingLocal = fnForm.setClosing;
 
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const controlsRowRef = useRef<HTMLDivElement | null>(null);
+  useCompactControlsRow(controlsRowRef);
   // Drives the animated send arrow from the whole button's hover.
   const sendIconRef = useRef<AnimatedNavIconHandle>(null);
   // `thinkingTriggerRef`: the effort pill expands inline (no portal).
@@ -657,7 +660,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         )}
       </div>
       </div>{/* /.composerStack */}
-      <div className={`${styles.controlsRow} composer-bottom-row`}>
+      <div ref={controlsRowRef} className={`${styles.controlsRow} composer-bottom-row`}>
         {controlsCluster}
       </div>
     </div>
