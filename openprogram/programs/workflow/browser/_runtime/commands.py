@@ -8,11 +8,9 @@ state = import_module("..", __package__)
 
 def _run_browser_task_commands(
     *, task: str, backend: str,
-    max_steps: int | None, max_seconds: float | None, runtime, url: str = "",
+    max_steps: int | None, max_seconds: float | None, url: str = "",
 ) -> dict:
     """Optional GUI Agent Harness over the same public command contract."""
-    if runtime is None:
-        raise ValueError("browser_agent requires a runtime argument")
     if not (task or "").strip():
         raise ValueError("task must not be empty")
     from openprogram.agent import surface_context
@@ -440,7 +438,6 @@ def _run_browser_task_commands(
                     stop_after_tool_round=True,
                     timeout_s=timeout_s,
                     execution_kind="browser_agent",
-                    runtime=runtime,
                     return_raw=True,
                 )
             finally:
@@ -454,7 +451,7 @@ def _run_browser_task_commands(
             if isinstance(reply, str) and reply.strip():
                 summary = reply.strip()
             if last["seq"] == seq_before:
-                rejected = rejected_tool(runtime)
+                rejected = rejected_tool()
                 if rejected:
                     return finish({"status": "failed", "reason_code": rejected["reason_code"],
                                    "summary": rejected["message"], "backend": backend, "web_session_id": session_id})

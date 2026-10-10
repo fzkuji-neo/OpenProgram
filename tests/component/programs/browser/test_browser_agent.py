@@ -8,6 +8,7 @@ import time
 from types import SimpleNamespace
 
 import pytest
+from tests.support.on_runtime import run_on
 
 
 class _FakeLocator:
@@ -975,11 +976,10 @@ def test_public_browser_agent_uses_restricted_tool_and_closes(monkeypatch):
             return "model says done"
 
     runtime = _Runtime()
-    result = module.browser_agent(
+    result = run_on(runtime, module.browser_agent,
         task="Submit the local form",
         max_steps=4,
         max_seconds=30,
-        runtime=runtime,
     )
 
     assert result["status"] == "failed"
@@ -1038,10 +1038,9 @@ def test_browser_agent_keeps_forcing_one_browser_page_call_until_verified(monkey
             assert "browser_page" in kwargs["content"][0]["text"]
             return "browser_page was executed"
 
-    result = module.browser_agent(
+    result = run_on(_Runtime(), module.browser_agent,
         task="Click Save and verify the result",
         max_steps=4,
-        runtime=_Runtime(),
     )
 
     assert state["calls"] == 3
@@ -1098,10 +1097,9 @@ def test_browser_agent_sends_one_screenshot_to_next_point_click_request(monkeypa
             return "browser_page was executed"
 
     runtime = _Runtime()
-    result = module.browser_agent(
+    result = run_on(runtime, module.browser_agent,
         task="Visually click the canvas target and verify the result",
         max_steps=4,
-        runtime=runtime,
     )
 
     assert result["status"] == "succeeded"
@@ -1138,10 +1136,9 @@ def test_screenshot_payload_is_released_when_provider_request_is_cancelled(monke
             ]
             raise ExecInterrupt("cancelled")
 
-    result = module.browser_agent(
+    result = run_on(_Runtime(), module.browser_agent,
         task="Inspect the visual target",
         max_steps=2,
-        runtime=_Runtime(),
     )
 
     assert result["status"] == "cancelled"
@@ -1172,11 +1169,10 @@ def test_unsent_final_screenshot_payload_is_released(monkeypatch):
             now[0] = 2.0
             return ""
 
-    result = module.browser_agent(
+    result = run_on(_Runtime(), module.browser_agent,
         task="Inspect the visual target",
         max_steps=1,
         max_seconds=1,
-        runtime=_Runtime(),
     )
 
     assert result["reason_code"] == "timeout"
@@ -1207,10 +1203,9 @@ def test_same_request_screenshot_is_released_when_runtime_raises(
                 raise ExecInterrupt("cancelled after tool execution")
             raise RuntimeError("provider failed after tool execution")
 
-    result = module.browser_agent(
+    result = run_on(_Runtime(), module.browser_agent,
         task="Inspect the visual target",
         max_steps=1,
-        runtime=_Runtime(),
     )
 
     assert result["reason_code"] == ("cancelled" if cancelled else "tool_error")
@@ -1279,10 +1274,9 @@ def test_screenshot_point_capability_expires_after_image_request(
             return "browser_page was executed"
 
     runtime = _Runtime()
-    result = module.browser_agent(
+    result = run_on(runtime, module.browser_agent,
         task="Use the screenshot target",
         max_steps=4,
-        runtime=runtime,
     )
 
     assert result["status"] == "failed"
@@ -1411,7 +1405,7 @@ def test_runtime_cancellation_returns_cancelled_and_closes(monkeypatch, interrup
         def exec(self, **_kwargs):
             raise raised
 
-    result = module.browser_agent(task="Stop", runtime=_Runtime())
+    result = run_on(_Runtime(), module.browser_agent, task="Stop")
 
     assert result["status"] == "cancelled"
     assert result["reason_code"] == "cancelled"
@@ -1447,7 +1441,7 @@ def test_unhandled_control_signal_propagates_after_cleanup(monkeypatch):
             raise KeyboardInterrupt("process interrupt")
 
     with pytest.raises(KeyboardInterrupt, match="process interrupt"):
-        module.browser_agent(task="Interrupt", runtime=_Runtime())
+        run_on(_Runtime(), module.browser_agent, task="Interrupt")
 
     assert controller.closed is True
 
@@ -1462,8 +1456,8 @@ def test_invalid_initial_url_fails_before_runtime_or_browser_open(monkeypatch):
         def exec(self, **_kwargs):
             raise AssertionError("runtime must not be called for an invalid URL")
 
-    result = module.browser_agent(
-        task="Read a local file", url="file:///etc/passwd", runtime=_Runtime()
+    result = run_on(_Runtime(), module.browser_agent,
+        task="Read a local file", url="file:///etc/passwd"
     )
 
     assert result["status"] == "failed"
@@ -1495,7 +1489,7 @@ def test_cleanup_failure_is_reported_and_downgrades_success(monkeypatch):
         def exec(self, **_kwargs):
             return {"summary": "done"}
 
-    result = module.browser_agent(task="Submit", runtime=_Runtime())
+    result = run_on(_Runtime(), module.browser_agent, task="Submit")
 
     assert result["status"] == "failed"
     assert result["reason_code"] == "cleanup_failed"
@@ -1642,7 +1636,7 @@ def test_browser_task_real_runtime_executes_each_step_once(monkeypatch, tmp_path
         execution_token = set_current_execution_id(activation.execution_id)
     token = set_turn_request(request)
     try:
-        result = module.browser_agent(task='Click Save and verify Saved', runtime=runtime, max_steps=1)
+        result = run_on(runtime, module.browser_agent, task='Click Save and verify Saved', max_steps=1)
         if scenario == "denied":
             assert result['status'] == 'failed'
             assert not api.page.calls
@@ -1702,7 +1696,7 @@ def test_browser_task_reuses_explicit_page_without_navigation(monkeypatch, stale
             controller._terminal_reason = 'cancelled'
             return ''
     try:
-        result = module.browser_agent(task='Use the current form', url='https://example.test/form', runtime=Runtime())
+        result = run_on(Runtime(), module.browser_agent, task='Use the current form', url='https://example.test/form')
         if stale:
             assert result['status'] == 'failed'
             assert 'Page binding is stale' in result['summary']

@@ -3,6 +3,7 @@
 import pytest
 from openprogram.programs.workflow.browser import BrowserPageController
 from tests.integration.programs.test_browser_observation_privacy import _OwnedBrowserAPI
+from tests.support.on_runtime import run_on
 
 pytestmark = pytest.mark.browser
 
@@ -169,7 +170,7 @@ def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypat
         permission_mode='bypass',source='web',**local_owner_authority()))
     try:
         try:
-            result = browser.browser_agent(task='Upload fixture.txt and verify server acceptance',runtime=runtime,max_steps=1)
+            result = run_on(runtime, browser.browser_agent, task='Upload fixture.txt and verify server acceptance',max_steps=1)
         except run_control.CancelledError:
             if not cancel_after_read:
                 raise

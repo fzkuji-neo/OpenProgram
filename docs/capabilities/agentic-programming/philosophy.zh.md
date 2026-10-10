@@ -53,7 +53,7 @@ class ExampleAgent(Agent):
         'summarize': {'tool': True},
     }
 
-    def summarize(self, text: str, runtime=None) -> str:
+    def summarize(self, text: str) -> str:
         """Summarize a text in one sentence, preserving the core point."""
         return llm([{"type": "text", "text": (
             f"Summarize in one sentence, preserving the core point:\n\n{text}"

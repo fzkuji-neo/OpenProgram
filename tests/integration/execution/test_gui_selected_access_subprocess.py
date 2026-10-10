@@ -45,7 +45,9 @@ def plan(**kwargs):
         return {"call": "computer_use", "args": {"task": "Inspect fixture app"}}
     return {"call": "terminal", "args": {"status": "succeeded", "reason": "Fixture verified"}}
 
-def capability(call, args, runtime=None, **kwargs):
+def capability(call, args, **kwargs):
+    from openprogram.agentic_programming.call_state import _current_runtime
+    runtime = _current_runtime.get(None)
     assert runtime is not None and not isinstance(runtime, dict)
     assert callable(runtime.exec)
     record("effect", capability=call)

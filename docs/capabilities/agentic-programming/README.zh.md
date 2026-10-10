@@ -26,7 +26,7 @@ OpenProgram 提供三种方式来决定函数内部“接下来执行什么”�
 |---|---|---|
 | [`choosing-the-next-step/fixed-order-calls.md`](choosing-the-next-step/fixed-order-calls.zh.md) | Python 代码按固定顺序调用子函数 | 步骤顺序事先已知（流水线：draft → review → revise） |
 | [`choosing-the-next-step/tool-calling.md`](choosing-the-next-step/tool-calling.zh.md) | 厂商原生 tool use：模型每一轮挑一个函数，循环直到它以文本作答 | 开放式工作，由模型决定调用多少次、调用哪些 |
-| [`choosing-the-next-step/next-step-decision.md`](choosing-the-next-step/next-step-decision.zh.md) | `decision.make(prompt, options)` / `runtime.exec(..., choices=...)`：一份文本选项菜单，所选项本身解析为下一个结果 | 路由 / 有限分支；选项可以是普通值，不必是函数；无需厂商 tool-use 支持 |
+| [`choosing-the-next-step/next-step-decision.md`](choosing-the-next-step/next-step-decision.zh.md) | `decision.make(prompt, options)` / `agent(prompt, choices=...)`：一份文本选项菜单，所选项本身解析为下一个结果 | 路由 / 有限分支；选项可以是普通值，不必是函数；无需厂商 tool-use 支持 |
 
 ## 参考
 

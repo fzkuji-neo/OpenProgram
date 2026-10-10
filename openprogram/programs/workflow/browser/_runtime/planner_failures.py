@@ -25,8 +25,10 @@ class PlannerFailures:
                 'summary': f'Browser planner stopped after {self.count} failed attempts on the same observation: {message}'}
 
 
-def rejected_tool(runtime):
+def rejected_tool():
     """Retain Runtime gate/execution errors that never reached the controller."""
+    from openprogram.agentic_programming.call_state import _current_runtime
+    runtime = _current_runtime.get(None)
     for block in reversed(getattr(runtime, 'last_blocks', ())):
         if isinstance(block, dict) and block.get('tool') == 'browser_page' and block.get('is_error'):
             return {'ok': False, 'reason_code': 'tool_execution_failed',

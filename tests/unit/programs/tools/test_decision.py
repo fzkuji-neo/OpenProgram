@@ -154,9 +154,20 @@ def test_decide_picks_up_ambient_runtime_inside_agent_method():
     class _RouterAgent(Agent):
         method_options = {'router': {'tool': True, 'expose': 'io', 'capture_io': True, 'name': 'router'}}
 
-        def router(self, runtime=None):
+        def router(self):
             return decision.make("Pick one.", [_greet, _farewell])
 
-    router = _RouterAgent().router
+    assert _RouterAgent(runtime=rt).router() == "bye"
 
-    assert router(runtime=rt) == "bye"
+
+def test_parse_args_repicks_on_the_runtime_of_the_enclosing_agent_call():
+    """Without runtime=, parse_args() re-picks on the enclosing Agent's Runtime."""
+    rt = _CannedRuntime('{"call": "_greet", "args": {"name": "ada"}}')
+
+    class _RouterAgent(Agent):
+        def route(self, reply):
+            return decision.parse_args(reply, [_greet])
+
+    chosen, args = _RouterAgent(runtime=rt).route("no pick in this reply")
+    assert chosen is _greet
+    assert args == {"name": "ada"}

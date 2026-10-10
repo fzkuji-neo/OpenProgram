@@ -5,6 +5,7 @@ from ._support import (
     json,
     pytest,
 )
+from tests.support.on_runtime import run_on
 
 
 def test_gui_harness_screenshot_capability_is_one_request_only(monkeypatch):
@@ -71,9 +72,9 @@ def test_gui_harness_screenshot_capability_is_one_request_only(monkeypatch):
             return ""
 
     runtime = _Runtime()
-    result = module._run_browser_task_commands(
+    result = run_on(runtime, module._run_browser_task_commands,
         task="visual task", backend="open_claude_chrome",
-        max_steps=1, max_seconds=30, runtime=runtime,
+        max_steps=1, max_seconds=30,
     )
     assert result["status"] == "succeeded"
     assert runtime.requests == [["text"], ["text", "image"], ["text"]]
@@ -137,9 +138,9 @@ def test_gui_harness_releases_unsent_final_screenshot(monkeypatch):
                 ))
             return ""
 
-    result = module._run_browser_task_commands(
+    result = run_on(_Runtime(), module._run_browser_task_commands,
         task="visual task", backend="open_claude_chrome",
-        max_steps=1, max_seconds=30, runtime=_Runtime(),
+        max_steps=1, max_seconds=30,
     )
 
     assert result["reason_code"] == "tool_not_executed"
@@ -206,9 +207,9 @@ def test_gui_harness_releases_same_request_screenshot_on_runtime_error(
 
     expected_error = ExecInterrupt if cancelled else RuntimeError
     with pytest.raises(expected_error, match="cancelled|provider failed"):
-        module._run_browser_task_commands(
+        run_on(_Runtime(), module._run_browser_task_commands,
             task="visual task", backend="open_claude_chrome",
-            max_steps=1, max_seconds=30, runtime=_Runtime(),
+            max_steps=1, max_seconds=30,
         )
 
     assert captured["result"].images == []

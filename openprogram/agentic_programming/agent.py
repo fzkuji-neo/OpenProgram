@@ -15,6 +15,7 @@ def agent(
     tools: list[Any] | None = None,
     tools_deny: list[str] | None = None,
     response_format: dict[str, Any] | JsonSchemaOutput | None = None,
+    choices: Any = None,
     max_iterations: int | None = None,
     stop_after_tool_round: bool = False,
     timeout_s: float | None = None,
@@ -40,6 +41,8 @@ def agent(
         effort: Reasoning effort override
         tools: Tool names to provide (None = all available tools)
         response_format: JSON Schema or JsonSchemaOutput contract (None = return text)
+        choices: Next-step options; the model works first, then its closing
+            reply picks one, which is resolved (a picked function runs)
         tools_deny: Tool names that must remain unavailable for this turn
         execution_kind: Runtime execution label for this tool loop
         max_iterations: Max tool loop rounds
@@ -47,13 +50,14 @@ def agent(
         timeout_s: Timeout in seconds
 
     Returns:
-        Final text, or the validated JSON value when response_format is set
+        Final text, the validated JSON value when response_format is set, or
+        the resolved pick when choices is set
     """
     from openprogram.agentic_programming.runtime_scope import execution_scope, agent_request_scope
 
     with agent_request_scope() as link, _entry_context(instructions, context), execution_scope(runtime=runtime) as active:
         result = _execute_agent(active, prompt, model=model, effort=effort, tools=tools,
-            tools_deny=tools_deny, response_format=response_format,
+            tools_deny=tools_deny, response_format=response_format, choices=choices,
             max_iterations=max_iterations, timeout_s=timeout_s,
             **({"stop_after_tool_round": True} if stop_after_tool_round else {}),
             tool_choice=tool_choice, parallel_tool_calls=parallel_tool_calls,
@@ -72,6 +76,7 @@ def _execute_agent(runtime, prompt, **options):
     if response_format is None:
         response_format = _current_agent_options.get().get("response_format")
     return_raw = options.pop("return_raw")
+    choices = options.pop("choices", None)
     if isinstance(prompt, str):
         content = [{"type": "text", "text": prompt}]
     elif isinstance(prompt, list):
@@ -82,6 +87,8 @@ def _execute_agent(runtime, prompt, **options):
     exec_options = dict(options, content=content, model=model, effort=effort)
     if response_format is not None:
         exec_options["response_format"] = response_format
+    if choices is not None:
+        exec_options["choices"] = choices
     required = {"content", "model", "tools", "max_iterations", "timeout_s", "effort", "execution_kind"}
     defaults = _current_agent_options.get()
     for key in ("model", "tools", "max_iterations", "effort"):
@@ -92,7 +99,7 @@ def _execute_agent(runtime, prompt, **options):
     exec_options = {key: value for key, value in exec_options.items() if value is not None or key in required}
     result = runtime.exec(**exec_options)
 
-    if response_format is not None:
+    if response_format is not None or choices is not None:
         return result
     if return_raw:
         return result
@@ -121,7 +128,7 @@ async def agent_async(prompt: str | list[dict], **options) -> Any:
         result = await active.async_exec(content=content, **options)
         if link is not None:
             link.output = result
-    if response_format is not None or return_raw:
+    if response_format is not None or return_raw or options.get("choices") is not None:
         return result
     return result["text"] if isinstance(result, dict) and "text" in result else str(result)
 

@@ -11,6 +11,7 @@ from gui_harness.main import gui_agent
 from gui_harness.tasks import capability_loop, result as workflow_result
 from openprogram.programs.gui_harness_bridge import install_gui_harness_web_use
 from openprogram import system_access
+from tests.support.on_runtime import run_on
 
 def test_task_only_browser_does_not_require_desktop_access():
     decisions=iter([{'call':'browser_use','args':{'task':'Read bound browser page'}},
@@ -31,7 +32,7 @@ def test_task_only_browser_does_not_require_desktop_access():
          patch.object(workflow_result,'save_workflow_record'):
         public=install_gui_harness_web_use(gui_agent)
         assert system_access.access_manifest_for_tool('gui_agent', {'task':'Read browser only'}) is None
-        result=public(task='Read browser only', runtime=SimpleNamespace())
+        result=run_on(SimpleNamespace(), public, task='Read browser only')
     assert result['status']=='succeeded', result
     assert len(calls)==2
 
@@ -55,7 +56,7 @@ def test_unavailable_native_capability_does_not_request_permissions(desktop, mon
     monkeypatch.setattr(workflow_result, 'conclusion', lambda **kwargs: {'summary':'Native capability unavailable'})
     monkeypatch.setattr(workflow_result, 'save_workflow_record', lambda *args: None)
     public = install_gui_harness_web_use(gui_agent)
-    result = public(task='Inspect app', runtime=SimpleNamespace())
+    result = run_on(SimpleNamespace(), public, task='Inspect app')
     assert result['status'] == 'failed'
     assert result['history'][0]['output']['reason_code'] == 'capability_unavailable'
 
@@ -108,7 +109,7 @@ def test_selected_desktop_suspends_before_effect_and_reuses_committed_browser_re
     with pytest.raises(FunctionSystemAccessRequired) as suspended:
         with function_execution(store, attempt_id=active.attempt_id, generation=active.generation,
                 call_key='gui-call', publish_pause=False):
-            public(task='Read page then inspect app', max_seconds=10, runtime=SimpleNamespace(live_only=object()))
+            run_on(SimpleNamespace(live_only=object()), public, task='Read page then inspect app', max_seconds=10)
     assert suspended.value.call_key == 'gui-call'
     assert plans == [0, 1]
     assert effects == ['browser_use']
@@ -123,7 +124,7 @@ def test_selected_desktop_suspends_before_effect_and_reuses_committed_browser_re
         with pytest.raises(AttemptConflict, match='lease'):
             with function_execution(store, attempt_id=active.attempt_id, generation=active.generation,
                     call_key='gui-call', publish_pause=False):
-                public(task='Read page then inspect app', max_seconds=10, runtime=SimpleNamespace())
+                run_on(SimpleNamespace(), public, task='Read page then inspect app', max_seconds=10)
         assert plans == [0, 1]
         assert effects == ['browser_use']
         return
@@ -132,18 +133,18 @@ def test_selected_desktop_suspends_before_effect_and_reuses_committed_browser_re
         with pytest.raises(KeyboardInterrupt, match='process loss'):
             with function_execution(store, attempt_id=active.attempt_id, generation=active.generation,
                     call_key='gui-call', publish_pause=False):
-                public(task='Read page then inspect app', max_seconds=10, runtime=SimpleNamespace())
+                run_on(SimpleNamespace(), public, task='Read page then inspect app', max_seconds=10)
         with pytest.raises(FunctionCompatibilityError, match='reconciliation'):
             with function_execution(store, attempt_id=active.attempt_id, generation=active.generation,
                     call_key='gui-call', publish_pause=False):
-                public(task='Read page then inspect app', max_seconds=10, runtime=SimpleNamespace())
+                run_on(SimpleNamespace(), public, task='Read page then inspect app', max_seconds=10)
         assert plans == [0, 1]
         assert effects == ['browser_use', 'computer_use']
         assert len(EffectStore(store).list_unresolved('execution')) == 1
         return
     with function_execution(store, attempt_id=active.attempt_id, generation=active.generation,
             call_key='gui-call', publish_pause=False):
-        result = public(task='Read page then inspect app', max_seconds=10, runtime=SimpleNamespace(live_only=object()))
+        result = run_on(SimpleNamespace(live_only=object()), public, task='Read page then inspect app', max_seconds=10)
     if resume_state == 'expired':
         assert result['status'] == 'failed'
         assert result['reason_code'] == 'timeout'

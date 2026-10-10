@@ -1,13 +1,13 @@
-# Next-step decision making(decision.make / exec(choices=))
+# Next-step decision making(decision.make / agent(choices=))
 
 This document describes the **next-step decision** mechanism in OpenProgram: an agentic function hands the decision of "what to do next" to the LLM — you give it a set of options, it picks one, and the framework resolves that choice directly into "the result of the next step". This mechanism and the provider's native tool call are two independent paths.
 
 The implementation lives in `openprogram/agentic_programming/decision.py` inside the framework. There are two entry points that share the same option shapes and parsing:
 
 - `decision.make(prompt, options)` — pure decision; the model does no work, it just picks.
-- `runtime.exec(..., choices=options)` — the model first runs a full turn (reasoning, calling tools), and only the wrap-up is a decision.
+- `agent(prompt, choices=options)` — the model first runs a full turn (reasoning, calling tools), and only the wrap-up is a decision.
 
-`decision.make` needs the runtime to issue the model call, but the runtime is taken automatically from the `_current_runtime` ContextVar set up by the Agent method execution, so calling it inside an agentic function does not require passing the runtime; you only need to pass `runtime=` explicitly when calling it outside an agentic function.
+Both issue their model call on the Runtime of the enclosing call. Every `Agent` method call binds one in the `_current_runtime` ContextVar — the Agent's configured Runtime, or the caller's — so inside an `Agent` method neither entry takes a runtime argument; you only pass `runtime=` explicitly outside any Agent call.
 
 ## Difference from native tool call
 
@@ -51,12 +51,12 @@ route_message = _example_agent.route_message
 
 In both cases what's returned is "the result of the next step" itself. The caller does not check "which one was picked" and does not branch by type — the decision is itself the branch, so there is no `if` to write.
 
-## Entry point two: `runtime.exec(choices=...)` — work first, then decide
+## Entry point two: `agent(choices=...)` — work first, then decide
 
-A more common need is: the model first runs a full turn (reasoning, calling tools, doing whatever needs doing), and only the **wrap-up** return is a decision. Use the `choices=` parameter of `exec`:
+A more common need is: the model first runs a full turn (reasoning, calling tools, doing whatever needs doing), and only the **wrap-up** return is a decision. Use the `choices=` parameter of `agent`:
 
 ```python
-from openprogram import Agent
+from openprogram import Agent, agent
 
 class ExampleAgent(Agent):
     method_options = {
@@ -65,7 +65,7 @@ class ExampleAgent(Agent):
 
     def handle_ticket(self, ticket: str) -> dict:
         """Read the ticket, look up references, then decide which flow to route it to."""
-        return runtime.exec(
+        return agent(
             f"Handle this ticket: {ticket}",
             toolset="default",          # earlier: the model uses tools to look up references and run commands
             choices={                   # wrap-up: the return must pick one from here
@@ -79,9 +79,9 @@ _example_agent = ExampleAgent()
 handle_ticket = _example_agent.handle_ticket
 ```
 
-What `exec(choices=...)` does: it splices the option menu and an instruction to "work first, then pick one in JSON to wrap up" (`DECISION_FINISH_INSTRUCTION`) into the prompt, then runs a normal exec turn — the tools given via `tools` / `toolset` get called as needed, and the model reasons as needed. When the turn ends, the model's final reply must be a `{"call": ...}` JSON, which `exec` resolves with `resolve_decision`: if a function was picked it is executed and its result returned, if a value was picked the value is returned.
+What `agent(choices=...)` does: it hands `choices` to the Runtime's `exec`, which splices the option menu and an instruction to "work first, then pick one in JSON to wrap up" (`DECISION_FINISH_INSTRUCTION`) into the prompt, then runs a normal exec turn — the tools given via `tools` / `toolset` get called as needed, and the model reasons as needed. When the turn ends, the model's final reply must be a `{"call": ...}` JSON, which `exec` resolves with `resolve_decision`: if a function was picked it is executed and its result returned, if a value was picked the value is returned.
 
-When `exec` is called without `choices` it returns the raw reply text; with `choices` it returns the resolved decision result. `decision.make(prompt, options)` is equivalent to an `exec(choices=options)` with "no preceding work".
+When `exec` is called without `choices` it returns the raw reply text; with `choices` it returns the resolved decision result. `agent` returns the resolved result as-is in that case. `decision.make(prompt, options)` is equivalent to an `agent(..., choices=options)` with "no preceding work".
 
 ## Option containers
 
@@ -133,7 +133,7 @@ For each option it outputs: the signature `name(arg: type, ...)`, the descriptio
 
 ### 2. Call the model
 
-`decision.make` directly calls `runtime.exec(prompt + menu)`; `exec(choices=)` splices the menu into the turn it was going to send anyway.
+`decision.make` directly calls `runtime.exec(prompt + menu)`; `agent(choices=)` splices the menu into the turn it was going to send anyway.
 
 ### 3. `parse_args` parses and validates
 

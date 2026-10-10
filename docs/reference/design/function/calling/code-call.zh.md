@@ -11,13 +11,13 @@
 
 ## 设计要点
 
-- 用 `Agent` method 装饰器
+- 把流程写成一个 `Agent` method
 - 按固定顺序调用多个子 `Agent` method
-- `exec()` 可选：不调（纯串联），或调多次（每次创建一个 exec 子节点）
+- 调用模型可选：不调（纯串联），或调任意多次 `llm()`（每次创建一个子节点）
 - 子函数之间通过 Python 变量传递数据
-- 一个函数可以调多次 `exec()`，也可以调任意多个其他 `Agent` method
+- 子 method 跑在调用它的 method 的 Runtime 上，不需要逐层传 Runtime
 
-## 示例：不调 exec，纯串联
+## 示例：不调模型，纯串联
 
 ```python
 from openprogram import Agent
@@ -27,19 +27,18 @@ class ExampleAgent(Agent):
         'research_pipeline': {'tool': True},
     }
 
-    def research_pipeline(self, task: str, runtime: Runtime) -> dict:
+    def research_pipeline(self, task: str) -> dict:
         """执行完整研究流程：调研 → 找 gap → 生成想法。
 
         Args:
             task: 研究主题。
-            runtime: LLM 运行时实例。
 
         Returns:
             包含 survey、gaps、ideas 的结果字典。
         """
-        survey = survey_topic(topic=task, runtime=runtime)
-        gaps = identify_gaps(survey=survey, runtime=runtime)
-        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+        survey = survey_topic(topic=task)
+        gaps = identify_gaps(survey=survey)
+        ideas = generate_ideas(gaps=gaps)
 
         return {"survey": survey, "gaps": gaps, "ideas": ideas}
 
@@ -47,37 +46,35 @@ _example_agent = ExampleAgent()
 research_pipeline = _example_agent.research_pipeline
 ```
 
-## 示例：调一次 exec 做总结
+## 示例：调一次模型做总结
 
 ```python
 from openprogram import Agent
+from openprogram.agentic_programming import llm
 
 class ExampleAgent(Agent):
     method_options = {
         'research_pipeline': {'tool': True},
     }
 
-    def research_pipeline(self, task: str, runtime: Runtime) -> str:
+    def research_pipeline(self, task: str) -> str:
         """执行完整研究流程并总结结果。
 
         Args:
             task: 研究主题。
-            runtime: LLM 运行时实例。
 
         Returns:
             整合后的研究总结。
         """
-        survey = survey_topic(topic=task, runtime=runtime)
-        gaps = identify_gaps(survey=survey, runtime=runtime)
-        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+        survey = survey_topic(topic=task)
+        gaps = identify_gaps(survey=survey)
+        ideas = generate_ideas(gaps=gaps)
 
-        return runtime.exec(content=[
-            {"type": "text", "text": (
-                f"Survey:\n{survey}\n\n"
-                f"Gaps:\n{gaps}\n\n"
-                f"Ideas:\n{ideas}"
-            )},
-        ])
+        return llm(
+            f"Survey:\n{survey}\n\n"
+            f"Gaps:\n{gaps}\n\n"
+            f"Ideas:\n{ideas}"
+        )
 
 _example_agent = ExampleAgent()
 research_pipeline = _example_agent.research_pipeline
@@ -99,8 +96,8 @@ research_pipeline
 子函数之间通过 Python 变量传递，不需要大模型参与：
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
-gaps = identify_gaps(survey=survey, runtime=runtime)
+survey = survey_topic(topic=task)
+gaps = identify_gaps(survey=survey)
 ```
 
 `survey_topic` 的返回值直接作为 `identify_gaps` 的输入参数。
@@ -108,23 +105,23 @@ gaps = identify_gaps(survey=survey, runtime=runtime)
 ## 步骤之间插入 Python 处理
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
+survey = survey_topic(topic=task)
 
 # 中间插入普通 Python 处理
 key_points = extract_key_points(survey)
 filtered = [p for p in key_points if p["relevance"] > 0.5]
 
-gaps = identify_gaps(survey="\n".join(filtered), runtime=runtime)
+gaps = identify_gaps(survey="\n".join(filtered))
 ```
 
 ## 错误处理
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
+survey = survey_topic(topic=task)
 if not survey or "error" in survey.lower():
     return {"error": "Survey failed", "survey": survey}
 
-gaps = identify_gaps(survey=survey, runtime=runtime)
+gaps = identify_gaps(survey=survey)
 ```
 
 ## 与"大模型选择调用"的区别

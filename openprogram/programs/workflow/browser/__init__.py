@@ -571,7 +571,6 @@ class BrowserTaskAgent(Agent):
                         "open_claude_chrome",
                     ],
                 },
-                "runtime": {"hidden": True},
             },
             "tool": True,
         },
@@ -584,7 +583,6 @@ class BrowserTaskAgent(Agent):
         max_steps: int = 20,
         max_seconds: int = 300,
         backend: str = "",
-        runtime=None,
     ) -> dict:
         """Complete a task in one exact OpenProgram built-in browser Page."""
         if backend:
@@ -594,14 +592,12 @@ class BrowserTaskAgent(Agent):
                 backend=backend,
                 max_steps=max_steps,
                 max_seconds=max_seconds,
-                runtime=runtime,
             )
         return _run_browser_task(
             task=task,
             url=url,
             max_steps=max_steps,
             max_seconds=max_seconds,
-            runtime=runtime,
         )
 
 
@@ -649,7 +645,6 @@ class WebUseAgent(Agent):
                         "and ref may also be passed at the top level."
                     ),
                 },
-                "runtime": {"hidden": True},
             },
             "tool": True,
         },
@@ -663,7 +658,6 @@ class WebUseAgent(Agent):
         page_context_token: str = "",
         web_session_id: str = "",
         arguments: dict | None = None,
-        runtime=None,
     ) -> dict | ToolReturn:
         """List, observe, or control exact Pages in OpenProgram's built-in browser.
 

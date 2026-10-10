@@ -10,6 +10,7 @@ import pytest
 import openprogram.programs.workflow.goal as G
 from openprogram.agent.session_db import SessionDB
 from openprogram.agentic_programming.runtime import Runtime
+from tests.support.on_runtime import run_on
 
 
 @pytest.fixture
@@ -140,11 +141,10 @@ def _run_goal(
         lambda *_args, **_kwargs: next(decisions),
     )
     try:
-        result = module.goal(
+        result = run_on(stub, module.goal,
             "do work",
             max_rounds=max_rounds,
             context_mode=context_mode,
-            runtime=stub,
             resume=resume,
         )
     finally:
@@ -319,7 +319,7 @@ def test_second_resume_preserves_consumed_answers_and_work_evidence(db, monkeypa
         return _Runtime()
 
     monkeypatch.setattr(roles_module, '_create_runtime', recreate_fake_role)
-    module.goal("survey", resume=True, runtime=_Runtime())
+    run_on(_Runtime(), module.goal, "survey", resume=True)
     assert "RAG_ONLY_482" in prompts[0]
     assert "RAG_ONLY_482" in views[0]
     assert "artifact-482.md" in prompts[0]
@@ -666,8 +666,8 @@ def test_goal_clear_during_work_does_not_get_overwritten(
             AssertionError("a cleared goal must not be judged")
         ),
     )
-    assert module.goal(
-        "do work", runtime=_Runtime(),
+    assert run_on(_Runtime(), module.goal,
+        "do work",
     ) == "stopped"
     assert G.load_goal("s1")["status"] == "cancelled"
 
@@ -853,7 +853,7 @@ def test_goal_clear_during_judge_does_not_get_overwritten(
         return "met", "done", "", []
 
     monkeypatch.setattr(G, "evaluate_goal", clear_then_accept)
-    assert module.goal("do work", runtime=_Runtime()) == "finished"
+    assert run_on(_Runtime(), module.goal, "do work") == "finished"
     assert G.load_goal("s1")["status"] == "cancelled"
 
 
@@ -887,7 +887,7 @@ def test_goal_is_active_and_clearable_during_refinement(
         ),
     )
 
-    assert module.goal("do work", runtime=_Runtime()) == ""
+    assert run_on(_Runtime(), module.goal, "do work") == ""
     assert G.load_goal("s1")["status"] == "cancelled"
 
 
@@ -912,7 +912,7 @@ def test_goal_cancellation_finishes_shared_state(
 
     monkeypatch.setattr(agent_module, "agent", cancel)
     with pytest.raises(function_module.CancelledError):
-        module.goal("do work", runtime=_Runtime())
+        run_on(_Runtime(), module.goal, "do work")
     stored = G.load_goal("s1")
     assert stored["status"] == "failed"
     assert stored["last_reason"] == "Goal execution was cancelled unexpectedly."
@@ -938,7 +938,7 @@ def test_refinement_cancellation_finishes_shared_state(
     )
 
     with pytest.raises(function_module.CancelledError):
-        module.goal("do work", runtime=_Runtime())
+        run_on(_Runtime(), module.goal, "do work")
     assert G.load_goal("s1")["status"] == "failed"
 
 
@@ -964,7 +964,7 @@ def test_work_agent_failure_finishes_shared_state(
     )
 
     with pytest.raises(RuntimeError, match="provider down"):
-        module.goal("do work", runtime=_Runtime())
+        run_on(_Runtime(), module.goal, "do work")
     stored = G.load_goal("s1")
     assert stored["status"] == "failed"
     assert "provider down" in stored["last_reason"]
@@ -1106,7 +1106,7 @@ def test_judge_evidence_is_tail_truncated(
         return "met", "done", "", []
 
     monkeypatch.setattr(G, "evaluate_goal", capture)
-    module.goal("do work", runtime=_Runtime())
+    run_on(_Runtime(), module.goal, "do work")
     assert len(seen) == 1
     assert len(seen[0]) == VIEW_TAIL_MAX_CHARS
     assert seen[0].startswith("[earlier evidence truncated]\n")

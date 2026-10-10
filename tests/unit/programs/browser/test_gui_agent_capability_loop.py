@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from tests.support.on_runtime import run_on
 
 
 HARNESS_ROOT = (
@@ -84,11 +85,10 @@ def test_gui_agent_replans_from_complete_capability_history(
         lambda **_kwargs: {"summary": "done", "issues": None},
     )
 
-    result = module.gui_agent(
+    result = run_on(object(), module.gui_agent,
         task="inspect both surfaces",
         max_steps=6,
         max_seconds=30,
-        runtime=object(),
     )
 
     assert result["status"] == "succeeded"
@@ -180,8 +180,8 @@ def test_gui_step_does_not_dispatch_after_planner_deadline(harness_on_path, monk
     dispatched = []
     monkeypatch.setattr(module, "dispatch_action", lambda *a, **k: dispatched.append(a))
     with pytest.raises(TimeoutError):
-        module.gui_step(task="press enter", feedback=None, app_name="desktop",
-                        runtime=object(), timeout_s=1)
+        run_on(object(), module.gui_step, task="press enter", feedback=None, app_name="desktop",
+                        timeout_s=1)
     assert not dispatched
 
 
@@ -214,7 +214,7 @@ def test_browser_conclusion_uses_recorded_evidence_without_host_capture(
     ))
     monkeypatch.setattr(result_module, "save_workflow_record", lambda *_a, **_k: None)
 
-    result = module.gui_agent(task="read page title", runtime=object())
+    result = run_on(object(), module.gui_agent, task="read page title")
 
     assert result["status"] == "succeeded"
     assert result["summary"] == "Example Domain"
@@ -268,7 +268,7 @@ def test_gui_agent_rejects_unsupported_success_terminal(
         },
     )
 
-    result = module.gui_agent(task="do work", max_steps=3, runtime=object())
+    result = run_on(object(), module.gui_agent, task="do work", max_steps=3)
 
     assert result["status"] == "infeasible"
     assert result["success"] is False
@@ -317,7 +317,7 @@ def test_gui_agent_records_capability_error_as_failed_result(
         lambda **_kwargs: {"summary": "failed", "issues": None},
     )
 
-    result = module.gui_agent(task="inspect", max_steps=2, runtime=object())
+    result = run_on(object(), module.gui_agent, task="inspect", max_steps=2)
 
     output = result["history"][0]["output"]
     assert result["status"] == "failed"
@@ -375,8 +375,8 @@ def test_gui_agent_skips_conclusion_after_deadline(
     monkeypatch.setattr(result_module, "save_workflow_record", lambda *_a, **_k: None)
     monkeypatch.setattr(result_module, "conclusion", _forbid_conclusion)
 
-    result = module.gui_agent(
-        task="inspect", max_steps=2, max_seconds=1, runtime=object(),
+    result = run_on(object(), module.gui_agent,
+        task="inspect", max_steps=2, max_seconds=1,
     )
 
     assert result["status"] == "failed"
@@ -408,8 +408,8 @@ def test_gui_agent_rejects_terminal_returned_after_deadline(
     monkeypatch.setattr(result_module, "save_workflow_record", lambda *_a, **_k: None)
     monkeypatch.setattr(result_module, "conclusion", _forbid_conclusion)
 
-    result = module.gui_agent(
-        task="inspect", max_steps=1, max_seconds=1, runtime=object(),
+    result = run_on(object(), module.gui_agent,
+        task="inspect", max_steps=1, max_seconds=1,
     )
 
     assert result["status"] == "failed"
@@ -441,8 +441,8 @@ def test_gui_agent_reports_timeout_before_action_limit(
     monkeypatch.setattr(result_module, "save_workflow_record", lambda *_a, **_k: None)
     monkeypatch.setattr(result_module, "conclusion", _forbid_conclusion)
 
-    result = module.gui_agent(
-        task="inspect", max_steps=1, max_seconds=1, runtime=object(),
+    result = run_on(object(), module.gui_agent,
+        task="inspect", max_steps=1, max_seconds=1,
     )
 
     assert result["reason_code"] == "timeout"
@@ -534,10 +534,9 @@ def test_vm_use_restores_local_input_and_screenshot_backend(
         },
     )
 
-    result = capability_loop.vm_use(
+    result = run_on(object(), capability_loop.vm_use,
         task="click OK",
         vm_url="http://127.0.0.1:5000",
-        runtime=object(),
     )
 
     assert result["status"] == "applied"
@@ -589,13 +588,14 @@ def test_browser_use_delegates_to_background_page_runtime(
     harness_on_path, monkeypatch,
 ):
     from gui_harness.tasks import capability_loop
+    from openprogram.agentic_programming.call_state import _current_runtime
     from openprogram.programs.workflow import browser as browser_module
 
     calls = []
     monkeypatch.setattr(
         browser_module,
         "_run_browser_task_commands",
-        lambda **kwargs: calls.append(kwargs) or {
+        lambda **kwargs: calls.append({**kwargs, "runtime": _current_runtime.get(None)}) or {
             "status": "succeeded",
             "reason_code": "verified",
             "summary": "page verified",
@@ -603,12 +603,11 @@ def test_browser_use_delegates_to_background_page_runtime(
     )
     runtime = object()
 
-    result = capability_loop.browser_use(
+    result = run_on(runtime, capability_loop.browser_use,
         task="verify the current page title",
         backend="chrome_devtools_mcp",
         max_steps=4,
         max_seconds=30,
-        runtime=runtime,
     )
 
     assert result["status"] == "succeeded"
@@ -633,12 +632,11 @@ def test_bridge_preserves_legacy_desktop_and_vm_settings(monkeypatch):
         return {"status": "succeeded", "summary": "done"}
 
     wrapped = install_gui_harness_web_use(harness)
-    result = wrapped(
+    result = run_on(object(), wrapped,
         task="inspect the current UI",
         surface="desktop",
         backend="chrome_devtools_mcp",
         vm_url="http://vm:5000",
-        runtime=object(),
     )
 
     assert result["success"] is True

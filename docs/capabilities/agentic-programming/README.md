@@ -29,7 +29,7 @@ right one per task is the core skill:
 |---|---|---|
 | [`choosing-the-next-step/fixed-order-calls.md`](choosing-the-next-step/fixed-order-calls.md) | Python code calls sub-functions in a fixed order | The step order is known ahead of time (pipelines: draft → review → revise) |
 | [`choosing-the-next-step/tool-calling.md`](choosing-the-next-step/tool-calling.md) | Provider-native tool use: the model picks a function each turn, loop until it answers in text | Open-ended work where the model decides how many and which calls to make |
-| [`choosing-the-next-step/next-step-decision.md`](choosing-the-next-step/next-step-decision.md) | `decision.make(prompt, options)` / `runtime.exec(..., choices=...)`: a text menu of options, the choice itself resolves into the next result | Routing / finite branches; options may be plain values, not just functions; no provider tool-use support needed |
+| [`choosing-the-next-step/next-step-decision.md`](choosing-the-next-step/next-step-decision.md) | `decision.make(prompt, options)` / `agent(prompt, choices=...)`: a text menu of options, the choice itself resolves into the next result | Routing / finite branches; options may be plain values, not just functions; no provider tool-use support needed |
 
 ## Reference
 

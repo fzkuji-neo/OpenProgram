@@ -11,13 +11,13 @@ Optionally calls the LLM, then invokes multiple sub-functions in the order hard-
 
 ## Design Points
 
-- Use the Agent method execution
+- Write the flow as an `Agent` method
 - Call multiple sub-`Agent` methods in a fixed order
-- `exec()` is optional: don't call it (pure chaining), or call it multiple times (each call creates an exec child node)
+- Calling the model is optional: don't call it (pure chaining), or call `llm()` any number of times (each call creates a child node)
 - Data is passed between sub-functions through Python variables
-- A single function can call `exec()` multiple times, and can call any number of other `Agent` methods
+- Sub-methods run on the Runtime of the calling method; nothing passes a Runtime along
 
-## Example: No exec, Pure Chaining
+## Example: No Model Call, Pure Chaining
 
 ```python
 from openprogram import Agent
@@ -27,19 +27,18 @@ class ExampleAgent(Agent):
         'research_pipeline': {'tool': True},
     }
 
-    def research_pipeline(self, task: str, runtime: Runtime) -> dict:
+    def research_pipeline(self, task: str) -> dict:
         """Run the full research flow: survey → find gap → generate ideas.
 
         Args:
             task: Research topic.
-            runtime: LLM runtime instance.
 
         Returns:
             A result dict containing survey, gaps, and ideas.
         """
-        survey = survey_topic(topic=task, runtime=runtime)
-        gaps = identify_gaps(survey=survey, runtime=runtime)
-        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+        survey = survey_topic(topic=task)
+        gaps = identify_gaps(survey=survey)
+        ideas = generate_ideas(gaps=gaps)
 
         return {"survey": survey, "gaps": gaps, "ideas": ideas}
 
@@ -47,37 +46,35 @@ _example_agent = ExampleAgent()
 research_pipeline = _example_agent.research_pipeline
 ```
 
-## Example: Calling exec Once to Summarize
+## Example: Calling the Model Once to Summarize
 
 ```python
 from openprogram import Agent
+from openprogram.agentic_programming import llm
 
 class ExampleAgent(Agent):
     method_options = {
         'research_pipeline': {'tool': True},
     }
 
-    def research_pipeline(self, task: str, runtime: Runtime) -> str:
+    def research_pipeline(self, task: str) -> str:
         """Run the full research flow and summarize the result.
 
         Args:
             task: Research topic.
-            runtime: LLM runtime instance.
 
         Returns:
             The consolidated research summary.
         """
-        survey = survey_topic(topic=task, runtime=runtime)
-        gaps = identify_gaps(survey=survey, runtime=runtime)
-        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+        survey = survey_topic(topic=task)
+        gaps = identify_gaps(survey=survey)
+        ideas = generate_ideas(gaps=gaps)
 
-        return runtime.exec(content=[
-            {"type": "text", "text": (
-                f"Survey:\n{survey}\n\n"
-                f"Gaps:\n{gaps}\n\n"
-                f"Ideas:\n{ideas}"
-            )},
-        ])
+        return llm(
+            f"Survey:\n{survey}\n\n"
+            f"Gaps:\n{gaps}\n\n"
+            f"Ideas:\n{ideas}"
+        )
 
 _example_agent = ExampleAgent()
 research_pipeline = _example_agent.research_pipeline
@@ -97,8 +94,8 @@ research_pipeline
 Data is passed between sub-functions through Python variables, with no LLM involvement:
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
-gaps = identify_gaps(survey=survey, runtime=runtime)
+survey = survey_topic(topic=task)
+gaps = identify_gaps(survey=survey)
 ```
 
 The return value of `survey_topic` is used directly as the input argument to `identify_gaps`.
@@ -106,23 +103,23 @@ The return value of `survey_topic` is used directly as the input argument to `id
 ## Inserting Python Processing Between Steps
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
+survey = survey_topic(topic=task)
 
 # Insert ordinary Python processing in between
 key_points = extract_key_points(survey)
 filtered = [p for p in key_points if p["relevance"] > 0.5]
 
-gaps = identify_gaps(survey="\n".join(filtered), runtime=runtime)
+gaps = identify_gaps(survey="\n".join(filtered))
 ```
 
 ## Error Handling
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
+survey = survey_topic(topic=task)
 if not survey or "error" in survey.lower():
     return {"error": "Survey failed", "survey": survey}
 
-gaps = identify_gaps(survey=survey, runtime=runtime)
+gaps = identify_gaps(survey=survey)
 ```
 
 ## Difference from "LLM-Chosen Calls"

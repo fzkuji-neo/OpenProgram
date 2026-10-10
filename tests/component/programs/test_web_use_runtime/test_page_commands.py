@@ -10,6 +10,7 @@ from ._support import (
     asyncio,
     pytest,
 )
+from tests.support.on_runtime import run_on
 
 
 def test_list_pages_returns_group_aware_snapshot_with_page_tokens():
@@ -355,8 +356,8 @@ def test_browser_capability_without_page_opens_background_page(
         "backend": DEFAULT_BACKEND,
         "max_steps": 150,
         "max_seconds": None,
-        "runtime": _Runtime(),
     }
+    runtime = _Runtime()
     if runtime_behavior in {"screenshot_timeout", "timeout"}:
         ticks = iter(
             (0.0, 0.0, 2.0) if runtime_behavior == "screenshot_timeout" else (0.0, 2.0)
@@ -393,10 +394,10 @@ def test_browser_capability_without_page_opens_background_page(
             else "cancelled|model transport|screenshot payload"
         )
         with pytest.raises(expected_error, match=match):
-            browser_module._run_browser_task_commands(**call_kwargs)
+            run_on(runtime, browser_module._run_browser_task_commands, **call_kwargs)
         result = None
     else:
-        result = browser_module._run_browser_task_commands(**call_kwargs)
+        result = run_on(runtime, browser_module._run_browser_task_commands, **call_kwargs)
 
     if result is not None:
         assert result["status"] == expected_status
@@ -457,12 +458,11 @@ def test_malformed_auto_open_still_closes_unusable_page(monkeypatch):
         lambda value: closed.append(value) or {"ok": True},
     )
 
-    result = browser_module._run_browser_task_commands(
+    result = run_on(SimpleNamespace(), browser_module._run_browser_task_commands,
         task="inspect the page",
         backend=DEFAULT_BACKEND,
         max_steps=1,
         max_seconds=10,
-        runtime=SimpleNamespace(),
     )
 
     assert closed == [opened_context]
@@ -514,12 +514,11 @@ def test_malformed_auto_open_reports_close_failure(monkeypatch):
         },
     )
 
-    result = browser_module._run_browser_task_commands(
+    result = run_on(SimpleNamespace(), browser_module._run_browser_task_commands,
         task="inspect the page",
         backend=DEFAULT_BACKEND,
         max_steps=1,
         max_seconds=10,
-        runtime=SimpleNamespace(),
     )
 
     assert closed == [opened_context]
@@ -618,12 +617,11 @@ def test_browser_capability_reuses_existing_origin_page(monkeypatch):
         lambda *_args, **_kwargs: opened.append((_args, _kwargs)) or {},
     )
 
-    result = browser_module._run_browser_task_commands(
+    result = run_on(_Runtime(), browser_module._run_browser_task_commands,
         task="inspect the page",
         backend="playwright_mcp",
         max_steps=150,
         max_seconds=None,
-        runtime=_Runtime(),
     )
 
     assert result["status"] == "succeeded"
@@ -655,12 +653,11 @@ def test_browser_capability_without_desktop_returns_infeasible_handoff(
             "error": "OpenProgram desktop app is not connected.",
         },
     )
-    result = browser_module._run_browser_task_commands(
+    result = run_on(SimpleNamespace(), browser_module._run_browser_task_commands,
         task="inspect the page",
         backend="playwright_mcp",
         max_steps=150,
         max_seconds=None,
-        runtime=SimpleNamespace(),
     )
 
     assert result["status"] == "infeasible"

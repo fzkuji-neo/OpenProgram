@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import inspect
 
+from tests.support.on_runtime import run_on
+
 
 def test_agent_forwards_bounded_tool_loop_controls_and_can_return_raw_result():
     from openprogram.agentic_programming.agent import agent
@@ -48,6 +50,23 @@ def test_agent_keeps_text_return_contract_by_default():
             return {"text": "finished", "other": "metadata"}
 
     assert agent("work", runtime=Runtime()) == "finished"
+
+
+def test_agent_choices_return_the_resolved_pick_after_the_tool_loop():
+    from openprogram.agentic_programming.agent import agent
+
+    calls = []
+    choices = {"close": {"status": "closed"}}
+
+    class Runtime:
+        def exec(self, **kwargs):
+            calls.append(kwargs)
+            return {"status": "closed"}
+
+    assert agent("handle the ticket", toolset="default", choices=choices,
+                 runtime=Runtime()) == {"status": "closed"}
+    assert calls[0]["choices"] is choices
+    assert calls[0]["toolset"] == "default"
 
 
 def test_browser_task_uses_high_level_agent_wrapper(monkeypatch):
@@ -97,12 +116,13 @@ def test_browser_task_uses_high_level_agent_wrapper(monkeypatch):
     monkeypatch.setattr(browser_module, "_new_controller", Controller)
     monkeypatch.setattr(browser_module, "agent", high_level_agent)
 
-    result = browser_module._run_browser_task(
+    result = run_on(
+        Runtime(),
+        browser_module._run_browser_task,
         task="inspect the page",
         url="",
         max_steps=1,
         max_seconds=30,
-        runtime=Runtime(),
         binding_id="binding-1",
     )
 
@@ -113,7 +133,8 @@ def test_browser_task_uses_high_level_agent_wrapper(monkeypatch):
     assert calls[0][1]["tool_choice"] == {
         "type": "function", "name": "browser_page",
     }
-    assert calls[0][1]["runtime"].__class__ is Runtime
+    # The planner runs on the Runtime of the current call, not a passed one.
+    assert "runtime" not in calls[0][1]
 
 
 def test_browser_gui_loops_do_not_call_runtime_exec_directly():

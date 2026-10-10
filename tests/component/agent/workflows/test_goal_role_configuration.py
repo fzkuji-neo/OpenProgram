@@ -7,6 +7,7 @@ import pytest
 
 from openprogram.agentic_programming.runtime import Runtime
 from openprogram.providers.types import Model
+from tests.support.on_runtime import run_on
 
 
 @pytest.fixture
@@ -76,9 +77,8 @@ def role_goal(tmp_path, monkeypatch):
 
 def test_goal_resumes_saved_roles_instead_of_new_defaults(role_goal):
     package, factory, calls, _unavailable = role_goal
-    package.goal(
+    run_on(factory("worker", "writer"), package.goal,
         "write the article",
-        runtime=factory("worker", "writer"),
         judge_model="judge:reviewer",
         max_rounds=1,
         timeout_s=17,
@@ -100,7 +100,7 @@ def test_goal_resumes_saved_roles_instead_of_new_defaults(role_goal):
     assert "judge/reviewer" in package._status_text(saved)
     package.apply_goal_action("role-session", "budget", max_turns=2)
     calls.clear()
-    package.goal("ignored", resume=True, runtime=factory("new-default", "other"))
+    run_on(factory("new-default", "other"), package.goal, "ignored", resume=True)
     restored = package.load_goal("role-session")
     assert restored["roles"] == saved["roles"]
     assert calls and {row[0] for row in calls} == {"worker", "judge"}
@@ -109,9 +109,8 @@ def test_goal_resumes_saved_roles_instead_of_new_defaults(role_goal):
 
 def test_unavailable_saved_role_pauses_before_any_work(role_goal):
     package, factory, calls, unavailable = role_goal
-    package.goal(
+    run_on(factory("worker", "writer"), package.goal,
         "write the article",
-        runtime=factory("worker", "writer"),
         judge_model="judge:reviewer",
         max_rounds=1,
     )
@@ -119,7 +118,7 @@ def test_unavailable_saved_role_pauses_before_any_work(role_goal):
     unavailable.add("judge")
     calls.clear()
     with pytest.raises(ValueError, match="unavailable"):
-        package.goal("ignored", resume=True, runtime=factory("new-default", "other"))
+        run_on(factory("new-default", "other"), package.goal, "ignored", resume=True)
     saved = package.load_goal("role-session")
     assert saved["status"] == "paused_recoverable"
     assert saved["pause_reason"] == "role_unavailable"
@@ -132,9 +131,8 @@ def test_paused_role_edit_is_used_by_public_resume_without_resetting_progress(
     role_goal,
 ):
     package, factory, calls, _unavailable = role_goal
-    package.goal(
+    run_on(factory("worker", "writer"), package.goal,
         "write the article",
-        runtime=factory("worker", "writer"),
         judge_model="judge:reviewer",
         max_rounds=1,
     )
@@ -159,7 +157,7 @@ def test_paused_role_edit_is_used_by_public_resume_without_resetting_progress(
     assert frames[0]["data"]["goal"]["role_requests"] == changed["role_requests"]
     package.apply_goal_action("role-session", "budget", max_turns=2)
     calls.clear()
-    package.goal("ignored", resume=True, runtime=factory("unrelated-default", "other"))
+    run_on(factory("unrelated-default", "other"), package.goal, "ignored", resume=True)
     saved = package.load_goal("role-session")
     assert saved["roles"]["judge"]["provider"] == "new-judge"
     assert saved["roles"]["judge"]["timeout_s"] == 19
@@ -171,15 +169,14 @@ def test_initial_role_failure_keeps_selection_for_retry(role_goal):
     package, factory, calls, unavailable = role_goal
     unavailable.add("judge")
     with pytest.raises(ValueError, match="unavailable"):
-        package.goal(
+        run_on(factory("worker", "writer"), package.goal,
             "write the article",
-            runtime=factory("worker", "writer"),
             judge_model="judge:reviewer",
             max_rounds=1,
         )
     assert calls == []
     unavailable.clear()
-    package.goal("ignored", resume=True, runtime=factory("new-default", "other"))
+    run_on(factory("new-default", "other"), package.goal, "ignored", resume=True)
     saved = package.load_goal("role-session")
     assert saved["roles"]["work"]["provider"] == "worker"
     assert saved["roles"]["judge"]["provider"] == "judge"
@@ -188,9 +185,8 @@ def test_initial_role_failure_keeps_selection_for_retry(role_goal):
 
 def test_provider_slash_selector_keeps_colon_in_model_id(role_goal):
     package, factory, calls, _unavailable = role_goal
-    package.goal(
+    run_on(factory("worker", "writer"), package.goal,
         "write the article",
-        runtime=factory("worker", "writer"),
         judge_model="judge/reviewer:variant",
         max_rounds=1,
     )
@@ -204,9 +200,8 @@ def test_same_model_namespace_does_not_replace_explicit_auth_route(role_goal):
     subscribed.api_model = subscribed.api_model.model_copy(
         update={"provider": "api-route"}
     )
-    package.goal(
+    run_on(subscribed, package.goal,
         "write the article",
-        runtime=subscribed,
         judge_model="api-route:same-model",
         max_rounds=1,
     )
@@ -220,15 +215,14 @@ def test_initial_failure_binds_bare_model_to_original_provider(role_goal):
     package, factory, calls, unavailable = role_goal
     unavailable.add("judge")
     with pytest.raises(ValueError, match="unavailable"):
-        package.goal(
+        run_on(factory("worker", "writer"), package.goal,
             "write the article",
-            runtime=factory("worker", "writer"),
             model="writer2",
             judge_model="judge:reviewer",
             max_rounds=1,
         )
     unavailable.clear()
-    package.goal("ignored", resume=True, runtime=factory("new-default", "other"))
+    run_on(factory("new-default", "other"), package.goal, "ignored", resume=True)
     assert package.load_goal("role-session")["roles"]["work"]["provider"] == "worker"
     assert ("worker", "writer2", "test-key-for-worker") in calls
 
@@ -237,8 +231,8 @@ def test_cross_provider_role_retains_callers_system_constraints(role_goal):
     package, factory, _calls, _unavailable = role_goal
     runtime = factory("worker", "writer")
     runtime.system = "CALLER_CONSTRAINT_828_DO_NOT_PUBLISH"
-    package.goal(
-        "write the article", runtime=runtime, judge_model="judge:reviewer", max_rounds=1
+    run_on(runtime, package.goal,
+        "write the article", judge_model="judge:reviewer", max_rounds=1
     )
     assert len(factory.prompts) >= 3
     assert all(

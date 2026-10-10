@@ -22,7 +22,7 @@
 |---|---|
 | `runtime.exec(tools=[fn])`（provider 原生 tool_use） | 函数名、整体描述、参数 JSON schema（type / required / enum / description） |
 | `render_options(options)`（决策菜单） | 函数名、何时选用的描述、参数 name / type / description / enum，以及每个参数是否由系统填充 |
-| `parse_args(reply, options, runtime, ...)`（决策抽取 + 派发 + 重试） | 参数名 + 类型 + enum + hidden 标志，以及 `runtime` 式的自动注入白名单 |
+| `parse_args(reply, options, ...)`（决策抽取 + 派发 + 重试） | 参数名 + 类型 + enum + hidden 标志，以及 `runtime` 式的自动注入白名单 |
 | WebUI 参数表单 | description / placeholder / multiline / options / hidden |
 | `llm()` 渲染出的上下文 | docstring——以 `metadata.doc` 携带，并作为前缀拼入渲染出的上下文文本。默认 system prompt 来自环境 runtime（外加 skills 区块），而非来自 docstring。 |
 | 会话 DAG 渲染（`render_context`） | `expose` 模式 + `render_range` |

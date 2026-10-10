@@ -24,7 +24,7 @@ openprogram programs run research_agent -a task="Survey recent work on LLM uncer
 
 | 参数 | 说明 |
 |---|---|
-| `review_runtime` | 提供后，评审函数用另一个模型运行（跨模型评审） |
+| `reviewer` | 一个 `research_harness.roles.Reviewer` Agent；提供后，评审函数在它的模型上运行（跨模型评审） |
 | `work_dir` | 项目工作目录 |
 | `max_runtime_s` | 软性时间预算：到点后不再开新工作，正在跑的步骤跑完、正常收尾 |
 | `stop_event` | 优雅停止信号（任何带 `is_set()` 的对象），当前步骤跑完后收尾 |
