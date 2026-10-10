@@ -226,8 +226,15 @@ export function RightSidebar() {
           LEFT edge so it mirrors the left sidebar's toggle (which
           sits flush against the RIGHT edge there).
           TODO(sidebar-headers): still 48px while the center strip is
-          40px now — the sidebar-header team owns shrinking these. */}
-      <div className="flex h-[48px] shrink-0 items-center justify-start p-[8px] box-border">
+          40px now — the sidebar-header team owns shrinking these.
+          Collapsed, the row drops its side padding and centres the
+          toggle in the narrow rail, same as the left sidebar header. */}
+      <div
+        className={
+          "flex h-[48px] shrink-0 items-center box-border " +
+          (open ? "justify-start p-[8px]" : "justify-center px-0 py-[8px]")
+        }
+      >
         <button
           className={sidebarToggleClass}
           onClick={onToggleRail}
