@@ -259,8 +259,11 @@ test("a web row shows a real page title when the captured one is blank or a URL"
   const row = { id: "r", source: "browser", kind: "web", title: "", target: "", status: "open" };
   assert.equal(resourceDisplayTitle(row, { title: "AML @ CityU", url: "https://doc.example/s" }), "AML @ CityU");
   assert.equal(resourceDisplayTitle({ ...row, title: "immi.example.gov.au/visas/600#HowTo" }, { title: "Visitor visa" }), "Visitor visa");
+  assert.equal(resourceDisplayTitle({ ...row, title: "\u200e" }, { title: "周报表单" }), "周报表单");
+  assert.equal(resourceDisplayTitle({ ...row, title: "\u200b ", target: "https://form.example/s" }), "https://form.example/s");
   assert.equal(resourceDisplayTitle({ ...row, title: "Example Domain" }, { title: "https://example.org" }), "Example Domain");
   assert.equal(resourceDisplayTitle({ ...row, title: "Example Domain" }, { title: "Renamed tab" }), "Example Domain");
+  assert.equal(resourceDisplayTitle({ ...row, title: "腾讯文档" }, { title: "AML @ CityU", urlNativeAt: 1 }), "AML @ CityU");
   assert.equal(resourceDisplayTitle({ ...row, title: "a.example/x" }, { title: "https://a.example/x" }), "a.example/x");
   assert.equal(resourceDisplayTitle({ ...row, target: "https://a.example/x" }, null), "https://a.example/x");
   assert.equal(resourceDisplayTitle(row, { url: "https://b.example/" }), "https://b.example/");

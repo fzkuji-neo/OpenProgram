@@ -326,14 +326,20 @@ export function terminalResourceRows(resources: readonly TerminalResource[], ses
 }
 
 const URL_LIKE_TITLE = /^(?:[a-z][a-z0-9+.-]*:\/\/|[^\s/]+\.[a-z]{2,}(?:[/:?#]|$))/i;
+// Pages can title themselves with only direction marks or zero-width spaces.
+const INVISIBLE_TITLE = /^[\s\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]*$/;
 
-/** A web row's title is captured when its Page binds and can be blank or the
- *  URL while the Page loads; prefer a real title from the row or its tab. */
+/** A web row's title is captured when its Page binds and can be blank, the
+ *  URL, or a loading placeholder; a tab title reported by the live native
+ *  Page is newer, otherwise prefer a real title from the row or its tab. */
 export function resourceDisplayTitle(
   row: SessionResource,
-  tab?: { title?: string; url?: string } | null,
+  tab?: { title?: string; url?: string; urlNativeAt?: number } | null,
 ): string {
-  const titles = [row.title, tab?.title].filter((value): value is string => !!value);
+  const ordered = Number(tab?.urlNativeAt) > 0 ? [tab?.title, row.title] : [row.title, tab?.title];
+  const titles = ordered.filter((value): value is string => (
+    !!value && !INVISIBLE_TITLE.test(value)
+  ));
   return titles.find(value => !URL_LIKE_TITLE.test(value))
     || titles[0] || row.target || tab?.url || "";
 }
