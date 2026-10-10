@@ -5,15 +5,21 @@
   position: absolute;
   z-index: 10;
   box-sizing: border-box;
-  border-radius: 10px;
+  /* 与格子卡片同圆角。多格时每个格子本身就是一张浮起卡片
+     （base.css 的 .center-col[data-split]），不再画细描边。 */
+  border-radius: 16px;
   pointer-events: none;
-  /* 细描边画在内侧，不占格子尺寸。 */
-  box-shadow: inset 0 0 0 1px var(--border);
   transition: box-shadow 160ms ease;
 }
 
 .pane[data-single="true"] {
   box-shadow: none;
+}
+
+/* 空格子没有内容卡片垫底，自己画同一种浮起卡片。 */
+.pane:not([data-single="true"]):has(> .empty) {
+  background: var(--bg-primary);
+  box-shadow: var(--composer-shadow);
 }
 
 /* 格子没有标题栏：顶部正中一个 iPadOS 分屏式的"•••"把手。

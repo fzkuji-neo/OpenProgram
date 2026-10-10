@@ -500,10 +500,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       ? canvasRect
       : geometry.panes.get(p.id)!;
     const hidden = (canvas.zoomedPaneId && canvas.zoomedPaneId !== p.id) || r.width < 150 || r.height < 110;
-    // No per-pane title bar: content fills its pane. Multi-pane layouts keep a
-    // 1px inset for the hairline and round the corners; a lone pane is flush.
+    // No per-pane title bar: content fills its pane. In a multi-pane layout
+    // every pane is its own floating card (see `.center-col[data-split]` in
+    // base.css), so it keeps a 1px inset and the cards' 16px corners; a lone
+    // pane is flush inside the centre card.
     const inset = canvasLeaves.length > 1 ? 1 : 0;
-    return { position:"absolute",left:r.left+inset,top:r.top+inset,width:Math.max(0,r.width-2*inset),height:Math.max(0,r.height-2*inset),minWidth:0,minHeight:0,overflow:"hidden",borderRadius:inset ? 9 : undefined,display:hidden?"none":"flex",flexDirection:"column" };
+    return { position:"absolute",left:r.left+inset,top:r.top+inset,width:Math.max(0,r.width-2*inset),height:Math.max(0,r.height-2*inset),minWidth:0,minHeight:0,overflow:"hidden",borderRadius:inset ? 16 : undefined,display:hidden?"none":"flex",flexDirection:"column" };
   }
 
   function renderTabPane(tabId: string, kind: "peer" | "tab") {
@@ -579,6 +581,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
          Hidden (not unmounted) on non-chat routes. */}
       <div
         className="center-col"
+        data-split={canvasLeaves.length > 1 && !canvas.zoomedPaneId ? "" : undefined}
         style={{
           display: showChat ? "flex" : "none",
           flexDirection: "column",
