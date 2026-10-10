@@ -105,7 +105,7 @@ duplicated in this historical distribution ledger.
   `/Applications/OpenProgram.app`.
 - Icon contract: `apps/desktop/build/AppIcon.icon` is the Apple layered authoring
   source. Its four 1024 x 1024 SVG layers leave the system outline unmasked and
-  preserve the approved brand ring and three nodes. Because the supported
+  hold the approved cell and three flat discs. Because the supported
   macOS 15 build host lacks the full Xcode `actool` pipeline, the reviewed
   `apps/desktop/build/icon.icns` is checked in as Electron's packaging input. The
   gate verifies both assets, all legacy representations, and the installed

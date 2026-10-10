@@ -93,7 +93,7 @@
 
   <h2 id="desktop">6. macOS 与 Windows 桌面包</h2>
   <h3>6.1 图标资产</h3>
-  <ul><li><code>apps/desktop/build/AppIcon.icon</code> 是 Apple 分层维护源，四个 SVG layer 使用 1024×1024 未遮罩画布；<code>apps/desktop/build/icon.icns</code> 是受版本控制、供 Electron 打包的兼容产物。</li><li>legacy ICNS 保留经过系统 App 对照验收的可见范围、圆角轮廓、透明四角和受控阴影；分层 <code>.icon</code> 本身不得预绘系统外框。</li><li>蓝紫环和三个节点保持居中并位于安全区域，不增加文字、问号或嵌入 raster。</li><li>构建门禁验证分层源结构、品牌图形约束、ICNS representations、256 px 轮廓与实心面积、透明四角和 ICNS round trip；最终只通过安装后的 <code>/Applications/OpenProgram.app</code> 检查 Dock、Finder 和 Launchpad 显示。</li></ul>
+  <ul><li><code>apps/desktop/build/AppIcon.icon</code> 是 Apple 分层维护源，四个 SVG layer 使用 1024×1024 未遮罩画布；<code>apps/desktop/build/icon.icns</code> 是受版本控制、供 Electron 打包的兼容产物。</li><li>legacy ICNS 保留经过系统 App 对照验收的可见范围、圆角轮廓、透明四角和受控阴影；分层 <code>.icon</code> 本身不得预绘系统外框。</li><li>薰衣草色细胞和其中三个扁平圆片保持居中并位于安全区域，不增加文字、问号或嵌入 raster。标志定义见 <a href="../ui/app-icon.zh.html">App 图标规范</a>。</li><li>构建门禁验证分层源结构、品牌图形约束、ICNS representations、256 px 轮廓与实心面积、透明四角和 ICNS round trip；最终只通过安装后的 <code>/Applications/OpenProgram.app</code> 检查 Dock、Finder 和 Launchpad 显示。</li></ul>
   <h3>6.2 逻辑内容</h3>
   <pre>OpenProgram.dmg → OpenProgram.app/Contents/
 

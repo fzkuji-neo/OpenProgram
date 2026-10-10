@@ -215,10 +215,10 @@ def test_trusted_icon_probe_uses_fixed_sources_and_records_hashes(tmp_path, monk
     assets = candidate / "apps/desktop/build/AppIcon.icon/Assets"
     assets.mkdir(parents=True)
     names = (
-        "01-orbit.svg",
-        "02-node-blue.svg",
-        "03-node-purple.svg",
-        "04-node-indigo.svg",
+        "01-cell.svg",
+        "02-disc-indigo.svg",
+        "03-disc-violet.svg",
+        "04-disc-sky.svg",
     )
     for name in names:
         (assets / name).write_text(f"<svg>{name}</svg>")
