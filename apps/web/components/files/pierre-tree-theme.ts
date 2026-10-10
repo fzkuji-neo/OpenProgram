@@ -12,7 +12,7 @@ export const fileColumnGrid = "var(--op-files-name-width, 220px) 100px 200px 140
 export const fileColumnsWidth = "calc(var(--op-files-name-width, 220px) + 448px)";
 
 export const pierreTreeCSS = `
-:host { --trees-font-family-override: var(--right-panel-font-family, system-ui); --trees-font-size-override: var(--right-panel-text-size, 13px); --trees-bg-override: var(--bg-secondary); --trees-padding-inline-override: 8px; --trees-fg-override: var(--text-secondary); font-family: inherit; }
+:host { --trees-font-family-override: var(--right-panel-font-family, system-ui); --trees-font-size-override: var(--right-panel-text-size, 13px); --trees-bg-override: var(--files-tree-bg, var(--bg-secondary)); --trees-padding-inline-override: 8px; --trees-fg-override: var(--text-secondary); font-family: inherit; }
 [data-item-type="folder"] > [data-item-section="icon"] > svg { transform: none !important; color: #d4a73e; }
 [data-item-type="folder"][aria-expanded="true"], [data-item-type="folder"][data-file-tree-sticky-row="true"] { --op-folder-closed: none; --op-folder-open: inline; }
 [data-item-selected="true"]::before { outline: none !important; }

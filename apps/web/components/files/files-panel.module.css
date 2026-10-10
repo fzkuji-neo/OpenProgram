@@ -221,7 +221,9 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg-secondary);
+  /* --files-tree-bg is set by hosts that sit on another surface (the
+     right rail's white card); everywhere else the tree is the deep tone. */
+  background: var(--files-tree-bg, var(--bg-secondary));
 }
 
 .treeHeader {
