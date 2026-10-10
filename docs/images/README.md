@@ -2,6 +2,20 @@
 
 This directory keeps the editable image sources used by documentation and the WebUI. Runtime copies live under `apps/web/` and end up in the static export (`apps/web/out/`) the worker serves.
 
+## App Icon
+
+The mark is an indigo tile holding a lavender cell with three flat discs. The
+[App icon specification](../reference/design/ui/app-icon.html) defines its
+geometry, colours and every output.
+
+Canonical sources:
+
+- `docs/images/openprogram-app-icon.svg`: the flat macOS tile on the Big Sur grid
+  (824 px squircle at offset 100 on a 1024 canvas). `apps/desktop/build/icon.icns`
+  is rendered from it.
+- `apps/desktop/build/AppIcon.icon`: the same artwork as four Icon Composer layers
+  (cell, indigo disc, violet disc, sky disc).
+
 ## WebUI Tab Icon
 
 Canonical source:
@@ -12,23 +26,25 @@ Runtime files:
 
 - `apps/web/app/icon.svg`
 - `apps/web/app/favicon.ico`
+- `scripts/docs_site/assets/mark.svg`
+- `apps/web/public/icons/icon-192.png`, `icon-512.png`, `icon-512-maskable.png`
 
 Code reference:
 
 - `apps/web/app/layout.tsx`
+- `apps/web/app/manifest.ts`
 
 Current design:
 
-- 64 x 64 SVG.
-- Rounded square background.
-- Background gradient: near-black -> deep red -> red -> orange-yellow.
-- Foreground: code brackets, center node, and short orange vertical strokes.
+- 64 x 64 SVG: the App icon mark on a rounded tile that fills the canvas.
 
 Sync rule:
 
 - Edit `docs/images/openprogram-tab-icon.source.svg` first.
-- Copy the same SVG to `apps/web/app/icon.svg`.
-- Regenerate `apps/web/app/favicon.ico` from `apps/web/app/icon.svg`.
+- Copy the same SVG to `apps/web/app/icon.svg` and `scripts/docs_site/assets/mark.svg`.
+- Regenerate `apps/web/app/favicon.ico` (16, 32, 48, 64, 128 and 256 px) and the
+  192 and 512 px PWA icons from it. The maskable icon uses a full-bleed tile with
+  the cell inside the 80% safe circle.
 
 ## WebUI Sidebar Logo
 

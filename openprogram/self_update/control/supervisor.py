@@ -209,10 +209,10 @@ def _complete_icon_probe(
 ) -> None:
     assets = candidate / "apps/desktop/build/AppIcon.icon/Assets"
     names = (
-        "01-orbit.svg",
-        "02-node-blue.svg",
-        "03-node-purple.svg",
-        "04-node-indigo.svg",
+        "01-cell.svg",
+        "02-disc-indigo.svg",
+        "03-disc-violet.svg",
+        "04-disc-sky.svg",
     )
     sources = []
     for name in names:

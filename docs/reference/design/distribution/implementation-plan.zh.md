@@ -42,7 +42,7 @@
 
 - 基线提交：`9477273e`。
 - 公开入口：`npm --prefix apps/desktop run dist` 构建并验证一个完整的临时 `OpenProgram.app`，只替换 `/Applications/OpenProgram.app`。
-- 图标合同：`apps/desktop/build/AppIcon.icon` 是 Apple 分层设计源，其四个 1024 x 1024 SVG 图层不预先裁剪系统轮廓，并保留已批准的品牌圆环与三个节点。受支持的 macOS 15 构建机缺少完整 Xcode `actool` 流程，因此已审查的 `apps/desktop/build/icon.icns` 提交为 Electron 打包输入。检查同时验证两个资产、全部旧格式表示及安装后的系统轮廓；已删除的手绘外形 SVG 不得恢复。
+- 图标合同：`apps/desktop/build/AppIcon.icon` 是 Apple 分层设计源，其四个 1024 x 1024 SVG 图层不预先裁剪系统轮廓，并保留已批准的细胞与三个扁平圆片。受支持的 macOS 15 构建机缺少完整 Xcode `actool` 流程，因此已审查的 `apps/desktop/build/icon.icns` 提交为 Electron 打包输入。检查同时验证两个资产、全部旧格式表示及安装后的系统轮廓；已删除的手绘外形 SVG 不得恢复。
 - 事务合同：激活失败不得删除旧 App 唯一可恢复副本。真实 launchd 卸载失败在修改 App 前停止；已经卸载的过期 plist 可替换。Launch Services 注册后的失败恢复并重新注册旧规范 App，且不覆盖最初安装错误。组装后的 App 在安装前通过现有完整打包运行时冒烟检查。
 - 并发合同：跨 worktree 打包共用一个稳定的用户级锁；安装在目标 Applications 目录使用覆盖完整事务的原子锁。竞争安装器在 App 或服务修改前失败，不能创建嵌套 bundle。
 - 清理边界：打包清理随机 App 目录、暂存运行时、Python wheel 构建、生成的 Web 构建/输出、复制的 Web 前端和锁。不删除已安装 App 数据、源码、包依赖或用户状态。
