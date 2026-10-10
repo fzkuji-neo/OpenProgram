@@ -6,6 +6,7 @@ import {
   sessionResourceRows,
   backendResourceRows,
   groupSessionResources,
+  resourceDisplayTitle,
   resourceIsUnavailable,
   ingestBrowserResource,
   applyResourceSnapshot,
@@ -215,6 +216,17 @@ test("a Page used on several branches is listed once, as the viewed branch's row
   assert.deepEqual(viewed.map(row => row.id), ["browser:page-a:b2", "browser:page-b:b1"]);
   const unviewed = groupSessionResources(rows, "elsewhere")[0].rows;
   assert.deepEqual(unviewed.map(row => row.id), ["browser:page-a:b1", "browser:page-b:b1"]);
+});
+
+test("a web row shows a real page title when the captured one is blank or a URL", () => {
+  const row = { id: "r", source: "browser", kind: "web", title: "", target: "", status: "open" };
+  assert.equal(resourceDisplayTitle(row, { title: "AML @ CityU", url: "https://doc.example/s" }), "AML @ CityU");
+  assert.equal(resourceDisplayTitle({ ...row, title: "immi.example.gov.au/visas/600#HowTo" }, { title: "Visitor visa" }), "Visitor visa");
+  assert.equal(resourceDisplayTitle({ ...row, title: "Example Domain" }, { title: "https://example.org" }), "Example Domain");
+  assert.equal(resourceDisplayTitle({ ...row, title: "Example Domain" }, { title: "Renamed tab" }), "Example Domain");
+  assert.equal(resourceDisplayTitle({ ...row, title: "a.example/x" }, { title: "https://a.example/x" }), "a.example/x");
+  assert.equal(resourceDisplayTitle({ ...row, target: "https://a.example/x" }, null), "https://a.example/x");
+  assert.equal(resourceDisplayTitle(row, { url: "https://b.example/" }), "https://b.example/");
 });
 
 test("resource type order ignores branch names and keeps unknown kinds in other", () => {
