@@ -532,7 +532,8 @@ function PendingReplyIndicator({ timestamp }: { timestamp?: number }) {
       </div>
       <div
         className="pending-body"
-        style={{ paddingLeft: 36 }}
+        /* Same text column as the assistant reply that replaces this row. */
+        style={{ paddingLeft: "var(--avatar-gutter)" }}
         /* Short, discrete turn status ("thinking…") — the one thing in
            the transcript worth announcing. Streaming token deltas are
            deliberately left silent (see assistant-bubble). */
