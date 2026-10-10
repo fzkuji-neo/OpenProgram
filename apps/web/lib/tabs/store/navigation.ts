@@ -1,3 +1,5 @@
+import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
+import { nextNtpId } from "@/lib/tabs/center-tab-ids";
 import { replaceGroupTabId } from "@/lib/tabs/center-tabs-persistence";
 import type { StoreApi } from "zustand";
 import { navigateTabRoute } from "../navigation/route";
@@ -13,6 +15,16 @@ export function navigationActions(set: StoreApi<CenterTabsState>["setState"], ge
       if (!active) return {};
       const navigationRoute = pathname === "/chat" || pathname.startsWith("/s/") ? undefined : pathname;
       if (active.navigationRoute === navigationRoute) return {};
+      // A split pane only holds chat-area content: a management page opened
+      // from a grouped tab gets its own top-level tab beside the group, so the
+      // split stays intact and the strip never shows a page as a split member.
+      const group = navigationRoute ? findCenterTabGroup(s.groups, active.id) : undefined;
+      if (group) {
+        const tab: CenterTab = { id: nextNtpId(), kind: "ntp", title: "", navigationRoute };
+        const lastMember = Math.max(...group.memberIds.map(id => s.tabs.findIndex(item => item.id === id)));
+        const tabs = [...s.tabs.slice(0, lastMember + 1), tab, ...s.tabs.slice(lastMember + 1)];
+        return commitCenterTabsState(s, { tabs, activeId: tab.id });
+      }
       const next = recordTabPage(active, { ...active, navigationRoute });
       return commitCenterTabsState(s, { tabs: s.tabs.map(tab => tab.id === active.id ? next : tab) });
     }),

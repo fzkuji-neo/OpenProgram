@@ -531,3 +531,29 @@ test("settings sections and unknown routes use the current page label", () => {
     assert.equal(label({ ...tab, navigationRoute: route }), expected);
   }
 });
+
+test("a management page opened from a split pane gets its own tab and leaves the split intact", () => {
+  reset(); const a = "s:split-A", b = "s:split-B";
+  useCenterTabs.setState({
+    tabs: [{ id: a, kind: "session", sessionId: "split-A", title: "A" }, { id: b, kind: "session", sessionId: "split-B", title: "B" }],
+    activeId: b, groups: [{ id: "g", memberIds: [a, b], visibleIds: [a, b], focusedId: b }],
+  });
+  state().recordRouteNavigation("/scheduler");
+  assert.equal(active().navigationRoute, "/scheduler");
+  assert.ok(![a, b].includes(active().id));
+  assert.deepEqual(state().groups.find(group => group.id === "g")?.memberIds, [a, b]);
+  assert.equal(state().tabs.find(tab => tab.id === b).navigationRoute, undefined);
+  assert.deepEqual(state().tabs.map(tab => tab.id).slice(-1), [active().id]);
+});
+
+test("a persisted split member carrying a page route leaves its group", () => {
+  const a = { id: "s:A", kind: "session", sessionId: "A", title: "A" };
+  const b = { id: "s:B", kind: "session", sessionId: "B", title: "B", navigationRoute: "/scheduler" };
+  const payload = normalizeCenterTabsPayload({
+    tabs: [a, b], activeId: b.id,
+    groups: [{ id: "g", memberIds: [a.id, b.id], visibleIds: [a.id, b.id], focusedId: b.id }],
+  });
+  assert.deepEqual(payload.groups, []);
+  assert.deepEqual(payload.tabs.map(tab => tab.id), [a.id, b.id]);
+  assert.equal(payload.activeId, b.id);
+});
