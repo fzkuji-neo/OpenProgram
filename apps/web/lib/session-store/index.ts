@@ -445,7 +445,6 @@ const DEFAULT_COMPOSER_SETTINGS: ComposerSettings = {
   tools: true,
   webSearch: true,
   fast: false,
-  runningMessageMode: "queue",
   unattended: false,  // web default: attended (a human is watching, may be asked)
   permission_mode: "",  // "" → send inherit; backend uses session/project/auto
   effective_permission: "",

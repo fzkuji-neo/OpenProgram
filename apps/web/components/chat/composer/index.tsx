@@ -170,6 +170,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   const setCurrentConv = useSessionStore((s) => s.setCurrentConv);
   const send = wsSend;
   const isRunning = runningTask !== null;
+  const modKey = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl+";
   const isCancelling = Boolean(runningTask?.cancelling);
   const fnFormActive = fnFormFunction !== null;
   // Decisions have their own output cards. Chat text always sends or queues
@@ -230,12 +231,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     : chatAgent.fast_capability?.source === "xai-api"
       ? text("Fast · Priority processing, 2× token price. Thinking effort is unchanged.", "高速 · 优先处理，token 单价为标准档的 2 倍。思考强度不变。")
       : text("Fast · Increased usage may apply. Thinking effort is unchanged.", "高速 · 可能增加用量。思考强度不变。");
-  const runningMessageMode = useSessionScope(
-    (s) => s.settings.runningMessageMode ?? "queue",
-  );
-  const toggleRunningMessageMode = () => setComposerSettings({
-    runningMessageMode: runningMessageMode === "steer" ? "queue" : "steer",
-  });
   const { unattended, toggleUnattended } = useUnattendedMode(
     currentSessionId,
     send,
@@ -365,7 +360,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     webSearchEnabled,
     fastEnabled,
     fastSupported,
-    runningMessageMode,
     dispatchFunction,
   });
 
@@ -423,7 +417,9 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     handleFnFormClose,
   });
 
-  const onSendButtonClick = fnFormActive ? submitFnForm : submit;
+  // The send button is Enter: during a run it adds the message to the
+  // current turn; ⌘/Ctrl+Enter is the keyboard path that queues instead.
+  const onSendButtonClick = fnFormActive ? submitFnForm : () => void submit("steer");
 
   // In chat mode: disabled when textarea is empty OR when a paste
   //   token references content that was lost (chip is red). Submitting
@@ -494,8 +490,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       fastSupported={fastSupported}
       fastHint={fastHint}
       toggleFast={toggleFast}
-      runningMessageMode={runningMessageMode}
-      toggleRunningMessageMode={toggleRunningMessageMode}
       unattended={unattended}
       toggleUnattended={toggleUnattended}
       sandboxEnabled={sandbox}
@@ -538,7 +532,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           )
         : null}
       <div className={styles.decisionColumn}><PendingDecisionPanels sessionId={activeChatKey ?? currentSessionId} /></div>
-      <QueuedMessages key={activeChatKey ?? currentSessionId ?? "new"} sessionId={activeChatKey ?? currentSessionId} />
       <EnvironmentRow
         sessionId={currentSessionId}
         toolsEnabled={toolsEnabled}
@@ -546,6 +539,8 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
         onToggleAccess={toggleTools}
         trailingControls={<div id="dagHudSlot" />}
       />
+      {/* Messages typed during the run dock directly above the input box. */}
+      <QueuedMessages key={activeChatKey ?? currentSessionId ?? "new"} sessionId={activeChatKey ?? currentSessionId} />
       {/* composerStack wraps {slashClip, inputWrapper} so the slash
           menu's vertical anchor is the wrapper's top edge — not a
           magic-number offset from the inputArea bottom. composerStack
@@ -597,12 +592,8 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
           setInput={setInput}
           isRunning={isRunning}
           runningPlaceholder={text(
-            runningMessageMode === "steer"
-              ? "type to steer the current turn…"
-              : "type to queue the next message…",
-            runningMessageMode === "steer"
-              ? "输入消息并注入当前轮次…"
-              : "输入下一条消息，本轮结束后自动发送…",
+            `Enter adds to this turn · ${modKey}Enter queues`,
+            `回车插入当前轮 · ${modKey}回车排到下一轮`,
           )}
           onKeyDown={onKeyDown}
           onPaste={onPaste}

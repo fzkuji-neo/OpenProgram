@@ -35,7 +35,6 @@ import { ContextBadge } from "../../context-badge";
 import {
   AttachIcon,
   OptionsIcon,
-  RunningModeIcon,
   ToolProfileIcon,
   ToolsIcon,
   SandboxIcon,
@@ -83,8 +82,6 @@ export interface ControlsClusterProps {
   fastSupported: boolean;
   fastHint: string;
   toggleFast(): void;
-  runningMessageMode: "queue" | "steer";
-  toggleRunningMessageMode(): void;
   unattended: boolean;
   toggleUnattended(): void;
   sandboxEnabled: boolean;
@@ -121,8 +118,6 @@ export function ControlsCluster({
   fastSupported,
   fastHint,
   toggleFast,
-  runningMessageMode,
-  toggleRunningMessageMode,
   unattended,
   toggleUnattended,
   sandboxEnabled,
@@ -316,16 +311,6 @@ export function ControlsCluster({
                 />
 
                 <DropdownMenuSeparator className={MENU_SEPARATOR} />
-
-                <PlusMenuRow
-                  active={runningMessageMode === "steer"}
-                  keepOpen
-                  icon={<RunningModeIcon size={16} mode={runningMessageMode} />}
-                  label={runningMessageMode === "steer"
-                    ? text("While running: Steer", "运行中：注入当前轮次")
-                    : text("While running: Queue", "运行中：排队到下一轮")}
-                  onSelect={() => toggleRunningMessageMode()}
-                />
 
                 <PlusMenuRow
                   active={unattended}

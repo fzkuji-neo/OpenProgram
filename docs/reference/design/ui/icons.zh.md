@@ -24,7 +24,6 @@ Web 端用三族图标。每一族有自己的地盘，一个界面里不会无�
 | 工具配置 | `settings-minimalistic` |
 | 网页搜索 | `global` |
 | 沙箱 | `box-minimalistic` |
-| 运行中：注入 / 排队 | `forward` / `list-arrow-down` |
 | 无人值守 关 / 开 | `eye` / `eye-closed` |
 | 思考力度 | `dumbbell-large-minimalistic` |
 | Chat 模型 / 执行模型徽章 | `chat-round-dots` / `programming` |

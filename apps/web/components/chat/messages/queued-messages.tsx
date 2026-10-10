@@ -1,11 +1,23 @@
 "use client";
 
+/**
+ * Messages typed during a run, as one raised card docked above the input
+ * box. Each row is one line: a tag says where the message goes ("This
+ * turn" while it is being added to the current turn at its next safe
+ * point, "Next turn" while it waits for the run to finish), then the text,
+ * then hover actions (add to this turn, retry, edit, remove). Clicking the
+ * text expands the full message and its attachments. The heading collapses
+ * the card; "Clear all" removes every row that is not being delivered or
+ * edited.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/lib/i18n";
 import { useSendQueue, type QueuedMessage } from "@/lib/chat/send-queue";
 import { queuedHasAttachments, snapshotQueuedAttachments } from "@/lib/chat/queued-attachments";
 import { steerQueuedMessage } from "@/lib/chat/steer-message";
-import { CornerDownRight, Pencil, X, Paperclip, ChevronDown, ChevronRight } from "lucide-react";
+import { CornerDownRight, Pencil, X, Paperclip, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { HoverTip } from "@/components/ui/tooltip";
 import { AttachmentStrip } from "../composer/attach/attachment-strip";
 import { useComposerAttachments } from "../composer/attach/use-composer-attachments";
 import { attachmentsBlockSend } from "../composer/attach/attachment-session-cache";
@@ -13,6 +25,59 @@ import { AttachmentChips, parseAttachments } from "./user-attachments";
 import styles from "./queued-messages.module.css";
 
 const EMPTY: QueuedMessage[] = [];
+
+type Text = ReturnType<typeof useTranslation>["text"];
+type Tone = "steer" | "next" | "wait" | "error";
+
+/** A row is being added to the current turn: its steer request or the
+ *  command receipt it waits on is in flight, with no failure recorded. */
+function addingToTurn(row: QueuedMessage): boolean {
+  return Boolean((row.injecting || row.steerCommand) && !row.steerError);
+}
+
+/** The tag, the optional visible note under the line, and the full status
+ *  sentence announced to screen readers. */
+function rowState(row: QueuedMessage, text: Text): { tone: Tone; tag: string; note?: string; status: string } {
+  const locked = Boolean(row.injecting || row.steerCommand);
+  const hasFiles = queuedHasAttachments(row);
+  const next = text("Next turn", "下一轮");
+  const notSent = text("Not sent", "未发送");
+  if (row.steerError === "cancelled" && locked) {
+    const note = text("Checking delivery after Stop…", "正在确认停止前的发送结果…");
+    return { tone: "wait", tag: text("Checking", "确认中"), note, status: note };
+  }
+  if (row.steerError === "ended") {
+    const note = text("The original turn ended", "原来的轮次已结束");
+    return { tone: "error", tag: notSent, note, status: text("Not sent · original turn ended", "未发送，原来的轮次已结束") };
+  }
+  if (row.steerError === "cancelled") {
+    const note = text("The turn was stopped", "当前轮已停止");
+    return { tone: "error", tag: notSent, note, status: text("Not sent · turn stopped", "未发送，当前轮已停止") };
+  }
+  if (row.deliveryError) {
+    const note = text("Retry or edit", "可重试或编辑");
+    return { tone: "error", tag: notSent, note, status: text("Not sent · retry or edit", "未发送，可重试或编辑") };
+  }
+  if (row.steerError === "unconfirmed") {
+    const note = text("Delivery unconfirmed — retry to check", "发送结果待确认，请重试查询");
+    return { tone: "wait", tag: text("Unconfirmed", "待确认"), note, status: note };
+  }
+  if (locked) {
+    return { tone: "steer", tag: text("This turn", "插入当前轮"),
+      status: text("Waiting to add to current turn…", "等待补充到当前轮…") };
+  }
+  if (row.steerError === "too_long") {
+    const note = text("Over the 4,096-character limit for adding to this turn", "超出插入当前轮的 4,096 字符限制");
+    return { tone: "next", tag: next, note,
+      status: text("Queued · over the 4,096-character limit for current-turn input", "排队中，超出当前轮补充的 4,096 字符限制") };
+  }
+  if (row.steerError) {
+    const note = text("Couldn't add to this turn", "未能插入当前轮");
+    return { tone: "next", tag: next, note, status: text("Queued for the next turn", "已排队，将在下一轮发送") };
+  }
+  return { tone: "next", tag: next,
+    status: hasFiles ? text("Queued with attachments", "附件消息排队中") : text("Queued", "排队中") };
+}
 
 function QueueEditor({ row, sessionId }: { row: QueuedMessage; sessionId: string }) {
   const { text } = useTranslation();
@@ -66,53 +131,73 @@ function QueueEditor({ row, sessionId }: { row: QueuedMessage; sessionId: string
   </div>;
 }
 
+function RowAction({ label, onClick, disabled, children }: {
+  label: string; onClick(): void; disabled?: boolean; children: React.ReactNode;
+}) {
+  return <HoverTip label={label}>
+    <button type="button" className={styles.action} disabled={disabled} onClick={onClick} aria-label={label}>
+      {children}
+    </button>
+  </HoverTip>;
+}
+
 function QueueRow({ row, sessionId }: { row: QueuedMessage; sessionId: string }) {
   const { text } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const locked = Boolean(row.injecting || row.steerCommand);
   const hasFiles = queuedHasAttachments(row);
+  const fileCount = (row.images?.length ?? 0) + (row.docs?.length ?? 0);
   const parsed = parseAttachments(row.text);
-  const status = row.editing ? text("Editing · send paused", "编辑中，暂停发送")
-    : row.steerError === "cancelled" && locked ? text("Checking delivery after Stop…", "正在确认停止前的发送结果…")
-    : row.steerError === "ended" ? text("Not sent · original turn ended", "未发送，原来的轮次已结束")
-    : row.steerError === "cancelled" ? text("Not sent · turn stopped", "未发送，当前轮已停止")
-    : row.deliveryError ? text("Not sent · retry or edit", "未发送，可重试或编辑")
-    : row.steerError === "unconfirmed" ? text("Delivery unconfirmed — retry to check", "发送结果待确认，请重试查询")
-    : row.steerCommand || row.injecting ? text("Waiting to add to current turn…", "等待补充到当前轮…")
-    : row.steerError === "too_long" ? text("Queued · over the 4,096-character limit for current-turn input", "排队中，超出当前轮补充的 4,096 字符限制")
-    : row.steerError ? text("Queued for the next turn", "已排队，将在下一轮发送")
-    : hasFiles ? text("Queued with attachments", "附件消息排队中") : text("Queued", "排队中");
-  return <article className={styles.row} data-queued-message={row.id} aria-label={text("Queued message", "排队消息")}>
-    {row.editing ? <QueueEditor row={row} sessionId={sessionId} /> : <>
+  const state = rowState(row, text);
+  const firstLine = parsed.text.split("\n").find(line => line.trim()) ?? "";
+  const canRetry = !locked && (row.deliveryError || ["cancelled", "ended"].includes(row.steerError ?? ""));
+  const canSteer = !hasFiles && (row.steerCommand || !["cancelled", "ended"].includes(row.steerError ?? ""));
+  const steerLabel = row.steerCommand
+    ? text("Retry delivery confirmation", "重试确认发送结果")
+    : text("Add to this turn", "插入当前轮");
+  if (row.editing) {
+    return <article className={styles.row} data-queued-message={row.id} data-editing="true"
+      aria-label={text("Queued message", "排队消息")}>
+      <QueueEditor row={row} sessionId={sessionId} />
+      <span role="status" className={styles.srOnly}>{text("Editing · send paused", "编辑中，暂停发送")}</span>
+    </article>;
+  }
+  return <article className={styles.row} data-queued-message={row.id} data-tone={state.tone}
+    aria-label={text("Queued message", "排队消息")}>
+    <div className={styles.line}>
+      <span className={styles.tag} data-tone={state.tone}>
+        {state.tone === "steer" || state.tone === "wait" ? <i aria-hidden="true" /> : null}
+        {state.tag}
+      </span>
+      {hasFiles && <span className={styles.files}><Paperclip size={12} aria-hidden="true" />{fileCount}</span>}
+      <button type="button" className={styles.text} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+        {firstLine || text("Attachments", "附件")}
+      </button>
+      <div className={styles.actions}>
+        <span className="message-timestamp">
+          {new Date(row.queuedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </span>
+        {canSteer && <RowAction label={steerLabel}
+          disabled={row.injecting || (!!row.steerCommand && !row.steerError)}
+          onClick={() => void steerQueuedMessage(sessionId, row.id)}><CornerDownRight size={14} /></RowAction>}
+        {canRetry && <RowAction label={text("Retry send", "重试发送")}
+          onClick={() => useSendQueue.getState().retryDraft(sessionId, row.id)}><RotateCcw size={14} /></RowAction>}
+        <RowAction label={text("Edit queued message", "编辑排队消息")} disabled={locked}
+          onClick={() => useSendQueue.getState().beginEdit(sessionId, row.id)}><Pencil size={14} /></RowAction>
+        <RowAction label={text("Remove from queue", "从队列移除")} disabled={locked}
+          onClick={() => useSendQueue.getState().removeDraft(sessionId, row.id)}><X size={14} /></RowAction>
+      </div>
+    </div>
+    {state.note && <div className={styles.note} data-tone={state.tone}>{state.note}</div>}
+    <span role="status" className={styles.srOnly}>{state.status}</span>
+    {expanded && <div className={styles.detail}>
       {hasFiles && <AttachmentStrip sessionId={sessionId} readOnly pendingImages={row.images ?? []} pendingDocs={row.docs ?? []}
         imageError={null} fileInputRef={inputRef} onFileInputChange={() => {}}
         onRemoveImage={() => {}} onRemoveDoc={() => {}} onDismissError={() => {}} />}
       <AttachmentChips sessionId={sessionId} items={parsed.attachments} />
-      {parsed.text && <div className={`${styles.content} ${expanded ? styles.expanded : ""}`}>{parsed.text}</div>}
-      {(parsed.text.length > 180 || parsed.text.split("\n").length > 3) && <button type="button"
-        className={styles.expandText} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
-        {expanded ? text("Show less", "收起正文") : text("Show more", "展开正文")}
-      </button>}
-    </>}
-    <div className={styles.footer}>
-      <span role="status">{status}</span>
-      {!row.editing && <div className={styles.actions}>
-        <span className="message-timestamp" title={new Date(row.queuedAt).toLocaleString()}>
-          {new Date(row.queuedAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}
-        </span>
-        <button type="button" disabled={locked} onClick={() => useSendQueue.getState().beginEdit(sessionId, row.id)}
-          title={text("Edit queued message", "编辑排队消息")} aria-label={text("Edit queued message", "编辑排队消息")}><Pencil size={14} /></button>
-        {(!locked && (row.deliveryError || ["cancelled", "ended"].includes(row.steerError ?? ""))) && <button type="button" onClick={() => useSendQueue.getState().retryDraft(sessionId, row.id)}
-          title={text("Retry send", "重试发送")} aria-label={text("Retry send", "重试发送")}><CornerDownRight size={14} /></button>}
-        {!hasFiles && (row.steerCommand || !["cancelled", "ended"].includes(row.steerError ?? "")) && <button type="button" disabled={row.injecting || (!!row.steerCommand && !row.steerError)}
-          onClick={() => void steerQueuedMessage(sessionId, row.id)}
-          title={row.steerCommand ? text("Retry delivery confirmation", "重试确认发送结果") : text("Add to current turn", "补充到当前轮")}
-          aria-label={row.steerCommand ? text("Retry delivery confirmation", "重试确认发送结果") : text("Add to current turn", "补充到当前轮")}><CornerDownRight size={14} /></button>}
-        <button type="button" disabled={locked} onClick={() => useSendQueue.getState().removeDraft(sessionId, row.id)}
-          title={text("Remove from queue", "从队列移除")} aria-label={text("Remove from queue", "从队列移除")}><X size={14} /></button>
-      </div>}
-    </div>
+      {parsed.text && <div className={styles.content}>{parsed.text}</div>}
+    </div>}
   </article>;
 }
 
@@ -121,13 +206,36 @@ export function QueuedMessages({ sessionId }: { sessionId: string | null }) {
   const rows = useSendQueue(s => sessionId ? s.queues[sessionId] ?? EMPTY : EMPTY);
   const [collapsed, setCollapsed] = useState(false);
   if (!sessionId || !rows.length) return null;
-  return <section className={styles.group} data-queued-messages aria-label={text("Queued messages", "排队消息")}>
-    <button type="button" className={styles.heading} disabled={rows.some(row => row.editing)} aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}>
-      {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-      {text(`${rows.length} pending`, `${rows.length} 条待发送消息`)}
+  const adding = rows.filter(addingToTurn).length;
+  const editing = rows.some(row => row.editing);
+  const clearable = rows.some(row => !row.injecting && !row.steerCommand && !row.editing);
+  return <section className={styles.card} data-queued-messages aria-label={text("Queued messages", "排队消息")}>
+    <button type="button" className={styles.heading} disabled={editing} aria-expanded={!collapsed}
+      onClick={() => setCollapsed(!collapsed)}>
+      <span className={styles.title}>
+        {text(`${rows.length} queued ${rows.length === 1 ? "message" : "messages"}`, `${rows.length} 条排队消息`)}
+      </span>
+      {adding > 0 && <span className={styles.sub}>
+        {text(`· ${adding} adding to this turn`, `· ${adding} 条插入当前轮`)}
+      </span>}
+      <span className={styles.grow} />
+      <span className={styles.chevron} aria-hidden="true">
+        {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+      </span>
     </button>
-    {!collapsed && <div className={styles.list}>
-      {rows.map(row => <QueueRow key={row.id} row={row} sessionId={sessionId} />)}
-    </div>}
+    {!collapsed && <>
+      <div className={styles.list}>
+        {rows.map(row => <QueueRow key={row.id} row={row} sessionId={sessionId} />)}
+      </div>
+      <div className={styles.foot}>
+        <button type="button" className={styles.clear} disabled={!clearable}
+          onClick={() => {
+            const queue = useSendQueue.getState();
+            if (queue.clearDrafts(sessionId)) queue.drain(sessionId);
+          }}>
+          {text("Clear all", "全部清除")}
+        </button>
+      </div>
+    </>}
   </section>;
 }

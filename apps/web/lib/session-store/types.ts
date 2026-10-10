@@ -115,8 +115,6 @@ export interface ComposerSettings {
   toolsProfile?: string;
   fast: boolean;
   fastByModel?: Record<string, boolean>;
-  /** What Enter does while this session already has a running turn. */
-  runningMessageMode: "queue" | "steer";
   /** Permission mode for this session's tool calls: ask/acceptEdits/
    *  plan/auto/bypass. "" means inherit (backend resolves session →
    *  project → ask). */

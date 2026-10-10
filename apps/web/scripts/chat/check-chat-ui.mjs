@@ -23,6 +23,7 @@ const chatHandlers = source("lib/runtime-bridge/chat-handlers.ts");
 const sessionStore = source("lib/session-store/index.ts");
 const assistantBubble = source("components/chat/messages/assistant-bubble.tsx");
 const queuedMessages = source("components/chat/messages/queued-messages.tsx");
+const composerKeydown = source("components/chat/composer/input/use-composer-keydown.ts");
 const userBubble = source("components/chat/messages/user-bubble.tsx");
 const runtimeBlock = source("components/chat/messages/runtime-block.tsx");
 const attachCard = source("components/chat/messages/attach-card.tsx");
@@ -1053,11 +1054,17 @@ assert.match(
   /className="message-timestamp"[\s\S]*new Date\(row\.queuedAt\)\.toLocaleTimeString/,
   "queued user messages must show their enqueue timestamp before dispatch",
 );
-assert.match(queuedMessages, /Add to current turn/);
+assert.match(queuedMessages, /Add to this turn/);
 assert.doesNotMatch(queuedMessages, /onStopAndSend|Stop current and send/);
 assert.match(queuedMessages, /Waiting to add to current turn…/);
-assert.match(controlsCluster, /While running: Steer/);
-assert.match(controlsCluster, /While running: Queue/);
+// Queue vs steer is chosen per send, not by a standing mode: Enter adds to
+// the current turn, Cmd/Ctrl+Enter queues for the next. The queue card
+// tags each row with where it goes and offers Clear all.
+assert.doesNotMatch(controlsCluster, /While running|runningMessageMode/);
+assert.match(composerKeydown, /submit\(e\.metaKey \|\| e\.ctrlKey \? "queue" : "steer"\)/);
+assert.match(queuedMessages, /"This turn"/);
+assert.match(queuedMessages, /"Next turn"/);
+assert.match(queuedMessages, /clearDrafts\(sessionId\)/);
 assert.doesNotMatch(userBubble, /Steered|已注入/);
 assert.match(assistantBubble, /seg\.kind === "steering"/);
 assert.match(chatHandlers, /data\.turn_continues !== true/);

@@ -82,6 +82,10 @@ interface SendQueueState {
   updateDraft: (sessionId: string, id: string, draft: QueuedAttachments & { text: string }) => boolean;
   retryDraft: (sessionId: string, id: string) => void;
   removeDraft: (sessionId: string, id: string) => boolean;
+  /** Remove every row the user can remove (not one being edited or whose
+   *  steer delivery is in flight) in one write, so clearing never drains a
+   *  row that was about to be removed. Returns how many were removed. */
+  clearDrafts: (sessionId: string) => number;
   setInjecting: (sessionId: string, id: string, injecting: boolean) => void;
   setSteering: (sessionId: string, id: string, patch: Partial<Pick<QueuedMessage, "injecting" | "steerCommand" | "steerError">>) => void;
   /** Send the head entry if the session is idle. No-op otherwise. */
@@ -158,6 +162,20 @@ export const useSendQueue = create<SendQueueState>((rawSet, get) => {
     get().remove(sessionId, id);
     get().drain(sessionId);
     return true;
+  },
+
+  clearDrafts: (sessionId) => {
+    const rows = get().queues[sessionId] ?? EMPTY;
+    const kept = rows.filter(row => row.injecting || row.steerCommand || row.editing);
+    const removed = rows.length - kept.length;
+    if (!removed) return 0;
+    set(s => {
+      const queues = { ...s.queues };
+      if (kept.length) queues[sessionId] = kept;
+      else delete queues[sessionId];
+      return { queues };
+    });
+    return removed;
   },
 
   setInjecting: (sessionId, id, injecting) =>

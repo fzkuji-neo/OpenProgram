@@ -46,6 +46,9 @@ test('queued bubble previews attachments and edits files without changing order 
  await act(async()=>root.render(h(QueuedMessages,{sessionId:'A'})));
  assert.equal(host.querySelectorAll('[data-queued-message]').length,2);
  assert.doesNotMatch(host.textContent,/other session/);
+ // Rows are one line; clicking the text expands the message and its files.
+ assert.equal(host.querySelector('[data-attachment-preview]'),null);
+ await click(host.querySelector('[data-queued-message] button[aria-expanded]'));
  globalThis.sessions.currentSessionId='B'; // Preview remains local even while a peer has focus.
  await click(host.querySelector('[data-attachment-preview]'));
  assert.equal(Boolean(document.querySelector('[data-document-path]')),false, 'unsent native files must not request backend path access');
@@ -89,7 +92,7 @@ test('queued bubble previews attachments and edits files without changing order 
  assert.equal(useSendQueue.getState().queues.A[0].id,second);
  assert.equal(useSendQueue.getState().queues.B[0].text,'other session');
  assert.equal(sent.length,0);
- await click(button('1 pending'));
+ await click(button('1 queued message'));
  assert.equal(host.querySelectorAll('[data-queued-message]').length,0);
  } finally {await act(async()=>root.unmount());host.remove();}
 });
@@ -113,5 +116,28 @@ test('receipt polls keep waiting and uncertain status text stable', async()=>{
  await patch({injecting:true});
  assert.equal(host.querySelector('[role=status]').textContent,uncertain);
  assert.equal([...host.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')==='Remove from queue').disabled,true);
+ } finally {await act(async()=>root.unmount());host.remove();useSendQueue.setState({queues:{}});}
+});
+
+test('rows tag where they go and Clear all keeps rows still being delivered', async()=>{
+ useSendQueue.setState({queues:{}});
+ const settings={thinking:'medium',toolsEnabled:true,webSearchEnabled:false,background:false};
+ const steering=useSendQueue.getState().enqueue('A',{...settings,text:'add this now'});
+ useSendQueue.getState().enqueue('A',{...settings,text:'next one\nsecond line'});
+ useSendQueue.getState().setSteering('A',steering,{injecting:true});
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ const sent=[];registerChatSender(args=>{sent.push(args);return true;});
+ try {
+ await act(async()=>root.render(h(QueuedMessages,{sessionId:'A'})));
+ const rows=[...host.querySelectorAll('[data-queued-message]')];
+ assert.equal(rows[0].querySelector('[data-tone]').textContent,'This turn');
+ assert.equal(rows[1].querySelector('[data-tone]').textContent,'Next turn');
+ assert.equal(rows[1].querySelector('button[aria-expanded]').textContent,'next one');
+ assert.match(host.textContent,/2 queued messages/);
+ assert.match(host.textContent,/1 adding to this turn/);
+ const clear=[...host.querySelectorAll('button')].find(b=>b.textContent==='Clear all');
+ await act(async()=>clear.dispatchEvent(new window.Event('click',{bubbles:true})));
+ assert.deepEqual(useSendQueue.getState().queues.A.map(row=>row.id),[steering]);
+ assert.equal(sent.length,0);
  } finally {await act(async()=>root.unmount());host.remove();useSendQueue.setState({queues:{}});}
 });

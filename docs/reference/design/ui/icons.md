@@ -30,7 +30,6 @@ Bold Duotone style: a filled glyph plus a 50 % lighter secondary layer.
 | Tool profile | `settings-minimalistic` |
 | Web search | `global` |
 | Sandbox | `box-minimalistic` |
-| While running: Steer / Queue | `forward` / `list-arrow-down` |
 | Unattended off / on | `eye` / `eye-closed` |
 | Thinking effort | `dumbbell-large-minimalistic` |
 | Chat model / execution model badge | `chat-round-dots` / `programming` |

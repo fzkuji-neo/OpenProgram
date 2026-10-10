@@ -60,9 +60,13 @@ export interface ChatSubmitOptions {
   webSearchEnabled: boolean;
   fastEnabled: boolean;
   fastSupported: boolean;
-  runningMessageMode: "queue" | "steer";
   dispatchFunction: FunctionDispatcher;
 }
+
+/** Where a message typed during a run goes: `steer` adds it to the current
+ *  turn at its next safe point (Enter, the send button); `queue` holds it
+ *  for the next turn (⌘/Ctrl+Enter). */
+export type RunningSendMode = "queue" | "steer";
 
 export function useChatSubmit({
   bound,
@@ -85,10 +89,9 @@ export function useChatSubmit({
   webSearchEnabled,
   fastEnabled,
   fastSupported,
-  runningMessageMode,
   dispatchFunction,
 }: ChatSubmitOptions) {
-  const submit = useCallback(async () => {
+  const submit = useCallback(async (runningMode: RunningSendMode = "steer") => {
     const submitOwnerKey = activeChatKey ?? currentSessionId;
     const trimmed = input.trim();
     const invocation = parseFunctionInvocation(
@@ -123,7 +126,7 @@ export function useChatSubmit({
       return;
     }
     // During a run every plain-text send first gets one retained queue row.
-    // Queue mode leaves it there; steer mode marks that same row injecting
+    // A queue send leaves it there; a steer send marks that same row injecting
     // until the durable command receipt accepts it or releases it for normal drain.
     // Attachments stay in the queue for an ordinary turn; steering is text-only.
     if (isRunning) {
@@ -161,7 +164,7 @@ export function useChatSubmit({
       });
       setComposerInputFor(submitOwnerKey, "");
       setHistoryIndex(-1);
-      if (runningMessageMode === "steer" && !pendingImages.length && !pendingDocs.length) {
+      if (runningMode === "steer" && !pendingImages.length && !pendingDocs.length) {
         void steerQueuedMessage(submitOwnerKey, queuedId);
       }
       return;
@@ -304,7 +307,6 @@ export function useChatSubmit({
     webSearchEnabled,
     fastEnabled,
     fastSupported,
-    runningMessageMode,
     dispatchFunction,
     // ponytail: `bound` and `setHistoryIndex` are stable for a composer
     // instance, so the pre-split dep list omitted them; kept identical.
