@@ -59,7 +59,7 @@ const THEME_CHROME = {
     colorScheme: "dark",
   },
   "beige-light": {
-    bg: "#faf9f5",
+    bg: "#ffffff",
     text: "#3d3d3a",
     muted: "#91908c",
     surface: "#e8e6dc",
