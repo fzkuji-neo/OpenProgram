@@ -499,8 +499,13 @@
   font: revert-layer;
   justify-content: revert-layer;
 }
+/* gap 0: the Fast gauge keeps a flex slot even at width 0 (off, or in
+   compact mode), so the Button's gap would add blank space beside the
+   label or push the compact dumbbell off centre. Its 22px active width
+   already includes the space before the label. */
 .controlsRow .effortText {
   display: inline-flex;
+  gap: 0;
 }
 /* State tints that are information, not chrome: the plus button and
    an enabled tool chip show the accent while a tool is on. */
@@ -634,11 +639,8 @@
   margin-right: 0 !important;
 }
 
-/* gap 0: the collapsed Fast gauge keeps its flex slot at width 0, and the
-   Button's gap after the dumbbell would push the icon off centre. */
 .controlsRow[data-compact="true"] .effortText {
   width: auto;
-  gap: 0;
 }
 
 .controlsRow[data-compact="true"] .compactEffortIcon {
