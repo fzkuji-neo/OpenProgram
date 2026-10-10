@@ -16,7 +16,7 @@
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import "@/lib/net/ws-events";
 import { getSocket } from "@/lib/runtime-bridge/state";
-import { listedBrowserResources, recoverSessionResources } from "@/lib/chat/session-resources";
+import { isPlaceholderPageTitle, listedBrowserResources, recoverSessionResources } from "@/lib/chat/session-resources";
 import { type DesktopBridge } from "./bridge-api";
 import { destroyInFlight, ensureWebView, liveViewIds, nativeCueOperations, removeVisibleWebTabBounds, transferLockedIds, unreportedClosedWebTabs, webTabGeometryRevisions } from "./bridge-state";
 
@@ -127,11 +127,13 @@ export async function restoreRetainedWebViews(
     }
     if (!webTabStillPresent(tabId)) continue;
     if (nativeUrl) {
-      if (nativeUrl !== tab.url || (nativeTitle && nativeTitle !== tab.title)) {
+      const title = nativeTitle && (!isPlaceholderPageTitle(nativeTitle) || isPlaceholderPageTitle(tab.title))
+        ? nativeTitle : "";
+      if (nativeUrl !== tab.url || (title && title !== tab.title)) {
         useCenterTabs.getState().updateWebTab(tabId, {
           url: nativeUrl,
           urlNativeAt: Date.now(),
-          ...(nativeTitle ? { title: nativeTitle } : {}),
+          ...(title ? { title } : {}),
         });
       }
       continue;
@@ -157,7 +159,12 @@ export function persistNativeWebTabState(state: {
     patch.url = state.url;
     patch.urlNativeAt = Date.now();
   }
-  if (state.title) patch.title = state.title;
+  if (state.title) {
+    // A recreated view reports its URL as the title until the document
+    // loads; that must not replace the real title the tab already has.
+    const current = useCenterTabs.getState().tabs.find((tab) => tab.id === state.id)?.title;
+    if (!isPlaceholderPageTitle(state.title) || isPlaceholderPageTitle(current)) patch.title = state.title;
+  }
   if (state.faviconUrl !== undefined) patch.faviconUrl = state.faviconUrl;
   if (Object.keys(patch).length === 0) return;
   useCenterTabs.getState().updateWebTab(state.id, patch);
