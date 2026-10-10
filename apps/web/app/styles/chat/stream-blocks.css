@@ -11,8 +11,9 @@
 .chat-stream-body .chat-text { margin-left: 0; padding-left: 0; padding-right: 0; }
 
 /* A consumed input interrupts this reply's content column. The independent
-   user node keeps its usual right alignment and action controls. */
-.steering-input { margin: 12px -60px; }
+   user node keeps its usual right alignment and action controls: cancel the
+   stream body's gutter so it lines up with every other user bubble. */
+.steering-input { margin: 12px calc(-1 * var(--avatar-gutter)); }
 .steering-input .message.user > .message-header { left: auto; }
 .steering-input .message.user > .message-actions-footer {
   padding-left: 0;
