@@ -825,7 +825,11 @@ def restore_window_pages(ws, window_id: str, expected_revision: int | None = Non
     )
     store = BrowserResourceStore()
     store.mark_window_restorable(window_id, "restoring")
-    result = request_on_ws(ws, {"op": "list", "window_id": window_id}, timeout=12.0)
+    # Restore scope: the renderer lists every Page it holds, including Pages
+    # private to a conversation, so their retained resources rebind.
+    result = request_on_ws(
+        ws, {"op": "list", "window_id": window_id, "scope": "restore"}, timeout=12.0,
+    )
     if expected_revision is not None and _connection_revision_of(ws) != expected_revision:
         return
     pages = result.get("pages") if result.get("ok") else None

@@ -14,9 +14,9 @@ import { agentCanAccessWebTab } from "../browser/web-page-management";
  * Absent bridge (plain browser) ⇒ every helper is a no-op and
  * desktopBridge() returns null; callers keep their web fallbacks.
  */
-import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
+import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { peekLiveWebTabPipId, peekWebTabPipId, peekWebTabPipOwnerId } from "@/lib/browser/web-tab-pip-store";
-import { centerTabStripEntries, findCenterTabGroup, resolveCenterTabPanes } from "@/lib/tabs/center-tab-groups";
+import { centerTabStripEntries, findCenterTabGroup, resolveCenterTabPanes, type CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import "@/lib/net/ws-events";
 import type { DesktopWebTabApi } from "@/lib/desktop/desktop-bridge-types";
 import { isWebTabReady, visibleWebBounds, webTabGeometryRevisions } from "./bridge-state";
@@ -246,8 +246,17 @@ export async function browserPageInventory(
     webTab: Pick<DesktopWebTabApi, "inspect">;
   },
   sessionId?: string | null,
+  opts: { restore?: boolean } = {},
 ): Promise<BrowserPageInventorySnapshot> {
   const windowId = bridge.windowId ?? desktopBridge()?.windowId ?? "";
+  // The worker's restore rebinds every Page this window still holds, private
+  // retained ones included; it grants no Agent access by itself.
+  const listed = (
+    tabId: string,
+    current: { tabs: readonly CenterTab[]; groups: readonly CenterTabGroup[] },
+  ) => opts.restore
+    ? current.tabs.some((tab) => tab.id === tabId && tab.kind === "web")
+    : agentCanAccessWebTab(tabId, sessionId, current);
   const empty = (): BrowserPageInventorySnapshot => ({
     window_id: windowId,
     inventory_revision: 0,
@@ -289,10 +298,10 @@ export async function browserPageInventory(
   });
   const inventoryRevision = browserInventoryRevision(windowId, layoutFingerprint);
   const pages = await Promise.all(tabs
-    .filter((tab) => agentCanAccessWebTab(tab.id, sessionId, { tabs, groups }))
+    .filter((tab) => listed(tab.id, { tabs, groups }))
     .map(async (tab): Promise<BrowserPageInventoryItem | null> => {
       const nativePage = await bridge.webTab.inspect!(tab.id);
-      if (!nativePage || !agentCanAccessWebTab(tab.id, sessionId, useCenterTabs.getState())) return null;
+      if (!nativePage || !listed(tab.id, useCenterTabs.getState())) return null;
       const group = findCenterTabGroup(groups, tab.id);
       const current = webState.get(tab.id)!;
       const visible = current.visible;
@@ -328,7 +337,7 @@ export async function browserPageInventory(
     }));
   const validPages = pages.filter(
     (page): page is BrowserPageInventoryItem => page !== null
-      && agentCanAccessWebTab(page.tab_id, sessionId, useCenterTabs.getState()),
+      && listed(page.tab_id, useCenterTabs.getState()),
   );
   const validTabIds = new Set(validPages.map((page) => page.tab_id));
   const tabEntries = centerTabStripEntries({
