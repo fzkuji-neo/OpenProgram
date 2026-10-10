@@ -453,7 +453,12 @@ async def stream_simple(
     try:
         from ..budget import provider_retry_attempts
         attempts = provider_retry_attempts(PROVIDER_STREAM_MAX_ATTEMPTS)
-        for _attempt in range(attempts):
+        _attempt = 0
+        transport_reserved = 0
+        # Set while the endpoint is unreachable and retries are spent: the
+        # request waits for the network instead of failing the turn.
+        network_wait: dict[str, float] | None = None
+        while True:
             try:
                 async with await client.chat.completions.create(**params) as stream:
                     # <=250ms cancel poll — do not wait for the next token.
@@ -601,6 +606,11 @@ async def stream_simple(
                                 break
                             finished_at = time.monotonic()
 
+                if transport_reserved:
+                    from ..utils.recovery import current_recovery
+                    recovery = current_recovery.get()
+                    if recovery is not None:
+                        recovery.refund("transport", transport_reserved)
                 break
             except _openai.APIError as e:
                 _, retryable = classify_error(
@@ -617,20 +627,71 @@ async def stream_simple(
                 committed = any(
                     not isinstance(b, ThinkingContent) for b in content_blocks
                 )
-                if (
-                    committed
-                    or not retryable
-                    or _attempt >= attempts - 1
-                    or _user_cancelled()
-                ):
+                if committed or not retryable or _user_cancelled():
                     raise
                 from ..utils.recovery import reserve_recovery, current_recovery
-                if not reserve_recovery("transport"):
-                    e.transport_exhausted = True
-                    raise
-                recovery = current_recovery.get()
-                if recovery is not None:
-                    recovery.started(provider=model.provider, model=model.id, retry_reason="transport")
+                from ..utils.stream_retry import (
+                    _sleep_unless_aborted,
+                    is_network_unreachable,
+                    network_wait_allowed,
+                    network_wait_delay,
+                    network_wait_started,
+                )
+                unreachable = is_network_unreachable(e)
+                if network_wait is not None and not unreachable:
+                    # The network answered: the outage spent those retries,
+                    # so this failure starts a fresh budget.
+                    recovery = current_recovery.get()
+                    if recovery is not None:
+                        recovery.refund("transport", transport_reserved)
+                    transport_reserved = 0
+                    network_wait = None
+                    _attempt = 0
+                    print("[openai-completions network wait] network is back", flush=True)
+                if network_wait is None:
+                    if _attempt >= attempts - 1 or not reserve_recovery("transport"):
+                        if (
+                            not unreachable
+                            or not network_wait_allowed(attempts)
+                            or network_wait_delay(network_wait_started(), 0) is None
+                        ):
+                            e.transport_exhausted = True
+                            raise
+                        network_wait = {"started": network_wait_started(), "probes": 0}
+                        print(
+                            f"[openai-completions network wait] endpoint unreachable — {e}; "
+                            "waiting for the network",
+                            flush=True,
+                        )
+                    else:
+                        transport_reserved += 1
+                if network_wait is not None:
+                    sleep_s = network_wait_delay(network_wait["started"], int(network_wait["probes"]))
+                    if sleep_s is None:
+                        e.transport_exhausted = True
+                        raise
+                    network_wait["probes"] += 1
+                    retry_event = EventRetry(
+                        attempt=int(network_wait["probes"]), max_attempts=None,
+                        reason="network_wait", delay_ms=round(sleep_s * 1000),
+                    )
+                else:
+                    recovery = current_recovery.get()
+                    if recovery is not None:
+                        recovery.started(provider=model.provider, model=model.id, retry_reason="transport")
+                    sleep_s = stream_backoff_seconds(
+                        _attempt, getattr(e, "retry_after_s", None) or None,
+                    )
+                    retry_event = EventRetry(
+                        attempt=_attempt + 2, max_attempts=attempts,
+                        reason="transport", delay_ms=round(sleep_s * 1000),
+                    )
+                    print(
+                        f"[openai-completions stream retry] attempt {_attempt + 1}/"
+                        f"{attempts} after {sleep_s:.1f}s — {e}",
+                        flush=True,
+                    )
+                    _attempt += 1
                 # Reset per-attempt stream state so the retry starts clean.
                 content_blocks = []
                 text_index = -1
@@ -642,19 +703,7 @@ async def stream_simple(
                 finish_reason = None
                 finished_at = None
                 partial = _make_empty_assistant(model)
-                sleep_s = stream_backoff_seconds(
-                    _attempt, getattr(e, "retry_after_s", None) or None,
-                )
-                yield EventRetry(
-                    attempt=_attempt + 2, max_attempts=attempts,
-                    reason="transport", delay_ms=round(sleep_s * 1000),
-                )
-                print(
-                    f"[openai-completions stream retry] attempt {_attempt + 1}/"
-                    f"{attempts} after {sleep_s:.1f}s — {e}",
-                    flush=True,
-                )
-                from ..utils.stream_retry import _sleep_unless_aborted
+                yield retry_event
                 await _sleep_unless_aborted(sleep_s, _user_cancelled)
 
         # Build final message

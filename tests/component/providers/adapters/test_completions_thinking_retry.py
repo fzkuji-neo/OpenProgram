@@ -195,3 +195,83 @@ def test_incomplete_tool_call_is_not_executable(monkeypatch, finish):
     done = next(event for event in _consume() if event.type == "done")
     assert done.message.stop_reason == "length"
     assert all(block.type != "toolCall" for block in done.message.content)
+
+
+def _connection_error():
+    request = httpx.Request("POST", "https://api.x.ai/v1/chat/completions")
+    try:
+        try:
+            raise httpx.ConnectError("[Errno 8] nodename nor servname provided", request=request)
+        except httpx.ConnectError as cause:
+            raise openai_completions._openai.APIConnectionError(request=request) from cause
+    except openai_completions._openai.APIConnectionError as error:
+        return error
+
+
+def test_unreachable_endpoint_waits_for_the_network(monkeypatch):
+    from openprogram.providers.utils import stream_retry
+
+    offline = 9
+    streams = [_connection_error() for _ in range(offline)] + [
+        _Stream([_chunk(text="back online", finish="stop")]),
+    ]
+
+    class Completions:
+        async def create(self, **params):
+            item = streams.pop(0)
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.chat = SimpleNamespace(completions=Completions())
+
+    clock = {"now": 0.0}
+
+    async def fake_sleep(sleep_s, abort_check):
+        clock["now"] += sleep_s
+
+    monkeypatch.setattr(openai_completions._openai, "AsyncOpenAI", Client)
+    monkeypatch.setattr(openai_completions, "stream_backoff_seconds", lambda *a, **kw: 0.0)
+    monkeypatch.setattr(stream_retry, "_sleep_unless_aborted", fake_sleep)
+    monkeypatch.setattr(stream_retry, "_now", lambda: clock["now"])
+    events = _consume()
+    done = next(e for e in events if getattr(e, "type", None) == "done")
+    assert "".join(getattr(b, "text", "") for b in done.message.content) == "back online"
+    reasons = [e.reason for e in events if getattr(e, "type", None) == "retry"]
+    assert "transport" in reasons and "network_wait" in reasons
+    assert len(reasons) == offline
+    assert not streams
+
+
+def test_a_connection_error_with_retries_disabled_does_not_wait(monkeypatch):
+    from openprogram.providers.utils import stream_retry
+    from openprogram.usage.context import UsageContext, _current
+
+    streams = [_connection_error(), _Stream([_chunk(text="never", finish="stop")])]
+
+    class Completions:
+        async def create(self, **params):
+            item = streams.pop(0)
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.chat = SimpleNamespace(completions=Completions())
+
+    monkeypatch.setattr(openai_completions._openai, "AsyncOpenAI", Client)
+
+    async def no_sleep(*_a, **_kw):
+        return None
+
+    monkeypatch.setattr(stream_retry, "_sleep_unless_aborted", no_sleep)
+    token = _current.set(UsageContext(goal_id="goal", goal_revision=1, goal_session_id="session"))
+    try:
+        with pytest.raises(openai_completions._openai.APIConnectionError):
+            _consume()
+    finally:
+        _current.reset(token)
+    assert len(streams) == 1

@@ -465,6 +465,7 @@ def stream_openai_codex_responses(
                 max_attempts=provider_retry_attempts(PROVIDER_STREAM_MAX_ATTEMPTS),
                 label=model.api,
                 provider=model.provider,
+                on_retry=ev_stream.push,
             )
 
             # Success — finalize.

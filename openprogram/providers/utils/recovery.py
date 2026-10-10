@@ -1,33 +1,48 @@
-"""Invocation-local failure allowance shared by semantic and transport recovery.
+"""Invocation-local failure allowances for semantic and transport recovery.
 
 One logical model invocation owns one ``RecoveryState``. Runtime structured
 repair, provider transport retries, and agent_loop validation repairs all
 ``reserve()`` against that same object. Successful tool rounds do not call
-``reserve`` and therefore do not consume the allowance. A provider request
-that succeeds after transport retries refunds them, so transport recovery is
-bounded per request while semantic repairs accumulate over the invocation.
+``reserve`` and therefore do not consume an allowance.
+
+Two allowances live on the state. Semantic repairs (invalid JSON, length,
+incomplete output) share ``limit`` and accumulate over the invocation.
+Transport retries (``reason="transport"``) have their own ``transport_limit``:
+a dropped connection says nothing about the model's output, so it must not
+spend the repair allowance, and a request that succeeds after transport
+retries refunds them, which bounds transport recovery per request.
 
 Compatibility:
 - ``max_validation_retries`` / Runtime ``max_retries`` map to ``limit`` as
   "extra failure recoveries after the initial attempt". Explicit ``0`` means
-  no automatic recovery. Default is ``2``.
+  no automatic recovery of either kind. Default is ``2``.
+- ``transport_limit`` defaults to the provider stream retry budget minus the
+  first attempt (``OPENPROGRAM_PROVIDER_STREAM_RETRIES``, default 5 → 4).
 - ``requests`` counts provider dispatches that called ``started()`` (best-effort
   diagnostics). It is NOT a guaranteed HTTP request counter — some adapters
   record before the socket write.
 """
 from __future__ import annotations
 
+import os
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
 
+DEFAULT_TRANSPORT_RECOVERIES = max(
+    0, int(os.environ.get("OPENPROGRAM_PROVIDER_STREAM_RETRIES", "5")) - 1,
+)
+
+
 @dataclass
 class RecoveryState:
-    """Shared failure-recovery budget for one logical invocation."""
+    """Failure-recovery allowances for one logical invocation."""
 
     limit: int = 2
     used: int = 0
+    transport_limit: int = DEFAULT_TRANSPORT_RECOVERIES
+    transport_used: int = 0
     requests: int = 0
     parent_id: str | None = None
     invocation_id: str | None = None
@@ -37,6 +52,15 @@ class RecoveryState:
     def reserve(self, reason: str) -> bool:
         if self.phase == "cancelled":
             return False
+        if reason == "transport":
+            if self.limit <= 0 or self.transport_used >= self.transport_limit:
+                self.phase = "paused"
+                return False
+            self.transport_used += 1
+            self.phase = "retrying"
+            self.attempts.append({"kind": "reserve", "reason": reason, "used": self.transport_used})
+            del self.attempts[:-32]
+            return True
         if self.used >= self.limit:
             self.phase = "paused"
             return False
@@ -55,7 +79,10 @@ class RecoveryState:
         """
         if count <= 0 or self.phase == "cancelled":
             return
-        self.used = max(0, self.used - count)
+        if reason == "transport":
+            self.transport_used = max(0, self.transport_used - count)
+        else:
+            self.used = max(0, self.used - count)
         self.phase = "active"
         self.attempts.append({"kind": "refund", "reason": reason, "count": count, "used": self.used})
         del self.attempts[:-32]
@@ -77,6 +104,8 @@ class RecoveryState:
         return {
             "used": self.used,
             "limit": self.limit,
+            "transport_used": self.transport_used,
+            "transport_limit": self.transport_limit,
             "requests": self.requests,
             "phase": self.phase,
             "parent_id": self.parent_id,

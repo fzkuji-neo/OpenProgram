@@ -43,6 +43,7 @@ import asyncio
 import os
 import random
 import re
+import time
 from typing import Any, Awaitable, Callable, Optional
 
 from openprogram.providers.utils.errors import (
@@ -246,6 +247,114 @@ async def _sleep_unless_aborted(sleep_s: float, abort_check: Callable[[], bool] 
         await asyncio.sleep(min(0.05, remaining))
 
 
+# Connection failures that mean the endpoint is unreachable from here (no
+# network, DNS down, local proxy stopped), as opposed to a server that
+# answered badly. Only these wait for the network to come back.
+_UNREACHABLE_EXC_NAMES = frozenset({
+    "ConnectError",
+    "ConnectTimeout",
+    "ConnectionRefusedError",
+    "gaierror",
+})
+_UNREACHABLE_TEXT = re.compile(
+    r"^(?:ConnectError|ConnectTimeout|ConnectionRefusedError)\b|"
+    r"network is unreachable|no route to host|name or service not known|"
+    r"nodename nor servname|temporary failure in name resolution",
+    re.IGNORECASE,
+)
+# How long one request waits for the network after its transport retries
+# are spent on unreachable failures. 0 disables the wait.
+NETWORK_WAIT_MAX_S: float = float(
+    os.environ.get("OPENPROGRAM_NETWORK_WAIT_MAX_S", "1800"),
+)
+_NETWORK_PROBE_MIN_S = 5.0
+_NETWORK_PROBE_MAX_S = 30.0
+
+
+def is_network_unreachable(exc: BaseException | None) -> bool:
+    """True when ``exc`` says the endpoint could not be reached at all."""
+    seen = 0
+    while exc is not None and seen < 4:
+        if getattr(exc, "network_unreachable", False):
+            return True
+        if type(exc).__name__ in _UNREACHABLE_EXC_NAMES:
+            return True
+        if _UNREACHABLE_TEXT.search(str(exc) or ""):
+            return True
+        exc = exc.__cause__ or exc.__context__
+        seen += 1
+    return False
+
+
+def _now() -> float:
+    return time.monotonic()
+
+
+def network_wait_started() -> float:
+    """Clock reading that starts a network wait (see ``network_wait_delay``)."""
+    return _now()
+
+
+def network_wait_delay(started: float, probe: int) -> float | None:
+    """Seconds before the next probe of an unreachable endpoint.
+
+    ``started`` is the ``network_wait_started()`` reading at which the wait began. Returns
+    ``None`` once the wait would pass ``OPENPROGRAM_NETWORK_WAIT_MAX_S`` or
+    the caller's deadline.
+    """
+    sleep_s = min(_NETWORK_PROBE_MIN_S * (2 ** min(probe, 3)), _NETWORK_PROBE_MAX_S)
+    waited = _now() - started
+    rem = _dl_remaining()
+    if NETWORK_WAIT_MAX_S <= 0 or waited + sleep_s > NETWORK_WAIT_MAX_S:
+        return None
+    if rem is not None and rem <= sleep_s:
+        return None
+    return sleep_s
+
+
+def network_wait_allowed(max_attempts: int) -> bool:
+    """Whether a spent, unreachable request may wait for the network.
+
+    Explicitly disabled recovery (a single-attempt request policy, or a
+    recovery limit of 0) never waits.
+    """
+    if NETWORK_WAIT_MAX_S <= 0 or max_attempts <= 1:
+        return False
+    from .recovery import current_recovery
+    state = current_recovery.get()
+    return state is None or (state.limit > 0 and state.phase != "cancelled")
+
+
+RetryNotice = Callable[[dict[str, Any]], None]
+
+
+def _notify(on_retry: RetryNotice | None, **event: Any) -> None:
+    if on_retry is None:
+        return
+    try:
+        on_retry({"type": "retry", **event})
+    except Exception:
+        pass
+
+
+def _wrap_failure(exc: BaseException, provider: Optional[str], committed: bool) -> ProviderStreamError:
+    # Wrap arbitrary transport / SSE errors so the upstream layer always
+    # sees the same exception shape with the retryable / retry_after
+    # metadata it needs.
+    exc_name = type(exc).__name__
+    transport_like = exc_name in _TRANSPORT_EXC_NAMES
+    wrapped = ProviderStreamError(
+        f"{exc_name}: {exc}",
+        retryable=transport_like and not committed,
+        provider=provider,
+    )
+    wrapped.network_unreachable = (  # type: ignore[attr-defined]
+        transport_like and is_network_unreachable(exc)
+    )
+    wrapped.__cause__ = exc
+    return wrapped
+
+
 async def retry_stream(
     attempt_fn: Callable[[], Awaitable[None]],
     *,
@@ -254,6 +363,7 @@ async def retry_stream(
     label: str = "stream",
     provider: Optional[str] = None,
     abort_check: Callable[[], bool] | None = None,
+    on_retry: RetryNotice | None = None,
 ) -> None:
     """Run ``attempt_fn`` repeatedly until success or non-retryable failure.
 
@@ -268,15 +378,126 @@ async def retry_stream(
             either duplicate events or drop them). Typically
             ``lambda: bool(output.content)``.
         max_attempts: Total attempts including the first try. Default
-            from ``OPENPROGRAM_PROVIDER_STREAM_RETRIES`` env (3).
+            from ``OPENPROGRAM_PROVIDER_STREAM_RETRIES`` env (5).
         label: Used in retry log line, e.g. ``"openai-codex"``.
         provider: Stored on the final exception for downstream logs.
+        on_retry: Receives a ``{"type": "retry", ...}`` event before each
+            retry and while waiting for the network, for the live UI.
+
+    When the transport retries are spent on failures that cannot reach the
+    endpoint at all (no network, DNS, a stopped local proxy) and nothing
+    was committed, the request waits for the network instead of failing:
+    it re-tries every 5–30 s, for up to ``OPENPROGRAM_NETWORK_WAIT_MAX_S``
+    (default 30 min) and never past the caller's deadline or a cancel. A
+    success returns normally; a different failure once the network is back
+    gets a fresh retry budget.
 
     Re-raises the last failure (a :class:`ProviderStreamError`) when
     the budget is exhausted or the failure was non-retryable. The
     caller is expected to wrap this via ``ev_stream.fail(exc)`` so
     ``runtime.exec()`` sees it.
     """
+    while True:
+        try:
+            await _retry_attempts(
+                attempt_fn, is_committed_fn=is_committed_fn,
+                max_attempts=max_attempts, label=label, provider=provider,
+                abort_check=abort_check, on_retry=on_retry,
+            )
+            return
+        except ProviderStreamError as exc:
+            if (
+                not network_wait_allowed(max_attempts)
+                or not getattr(exc, "transport_exhausted", False)
+                or not is_network_unreachable(exc)
+                or is_committed_fn()
+            ):
+                raise
+            back = await _wait_for_network(
+                attempt_fn, exc, is_committed_fn=is_committed_fn, label=label,
+                provider=provider, abort_check=abort_check, on_retry=on_retry,
+            )
+            if back is None:
+                return
+
+
+def _refund_transport(count: int) -> None:
+    if count <= 0:
+        return
+    from .recovery import current_recovery
+    state = current_recovery.get()
+    if state is not None:
+        state.refund("transport", count)
+
+
+async def _wait_for_network(
+    attempt_fn: Callable[[], Awaitable[None]],
+    failure: ProviderStreamError,
+    *,
+    is_committed_fn: Callable[[], bool],
+    label: str,
+    provider: Optional[str],
+    abort_check: Callable[[], bool] | None,
+    on_retry: RetryNotice | None,
+) -> ProviderStreamError | None:
+    """Re-try an unreachable request until the network answers.
+
+    Returns ``None`` once an attempt succeeds, or the first failure that
+    is not a connection failure (the network is back; the caller retries
+    it normally). Raises the last failure, flagged exhausted, when the
+    wait limit or the caller's deadline is reached.
+    """
+    from .recovery import current_recovery
+    reserved = int(getattr(failure, "transport_reserved", 0) or 0)
+    started = _now()
+    probe = 0
+    print(f"[{label} network wait] endpoint unreachable — {failure}; waiting for the network", flush=True)
+    while True:
+        sleep_s = network_wait_delay(started, probe)
+        if sleep_s is None:
+            failure.transport_exhausted = True  # type: ignore[attr-defined]
+            raise failure
+        state = current_recovery.get()
+        if state is not None and state.phase != "cancelled":
+            state.phase = "retrying"
+        probe += 1
+        _notify(on_retry, attempt=probe, max_attempts=None, reason="network_wait",
+                delay_ms=round(sleep_s * 1000))
+        await _sleep_unless_aborted(sleep_s, abort_check)
+        try:
+            await attempt_fn()
+        except ExecInterrupt:
+            raise
+        except Exception as exc:
+            wrapped = exc if isinstance(exc, ProviderStreamError) else _wrap_failure(
+                exc, provider, is_committed_fn(),
+            )
+            if is_network_unreachable(wrapped) and not is_committed_fn():
+                failure = wrapped
+                failure.transport_reserved = reserved  # type: ignore[attr-defined]
+                continue
+            # The network answered: earlier reservations were spent on the
+            # outage, so the request starts a fresh retry budget.
+            _refund_transport(reserved)
+            if not getattr(wrapped, "retryable", False) or is_committed_fn():
+                raise wrapped
+            print(f"[{label} network wait] network is back after {_now() - started:.0f}s", flush=True)
+            return wrapped
+        _refund_transport(reserved)
+        print(f"[{label} network wait] network is back after {_now() - started:.0f}s", flush=True)
+        return None
+
+
+async def _retry_attempts(
+    attempt_fn: Callable[[], Awaitable[None]],
+    *,
+    is_committed_fn: Callable[[], bool],
+    max_attempts: int,
+    label: str,
+    provider: Optional[str],
+    abort_check: Callable[[], bool] | None,
+    on_retry: RetryNotice | None,
+) -> None:
     def _mark_exhausted(exc: BaseException) -> BaseException:
         # Tell runtime.exec this transport error already burned the
         # provider's OWN retry budget, so exec must not re-retry it with a
@@ -284,6 +505,7 @@ async def retry_stream(
         # multiplication. See docs/design/providers/reliability/error-and-timeout-mechanism.html §5.
         try:
             exc.transport_exhausted = True  # type: ignore[attr-defined]
+            exc.transport_reserved = transport_reserved  # type: ignore[attr-defined]
         except Exception:
             pass
         return exc
@@ -300,14 +522,13 @@ async def retry_stream(
                     f"deadline exceeded before {label} attempt {attempt + 1}",
                     retryable=False, provider=provider,
                 )
+            # The deadline is spent: never wait for the network after it.
+            if isinstance(last_exc, ProviderStreamError):
+                last_exc.network_unreachable = False  # type: ignore[attr-defined]
             raise _mark_exhausted(last_exc)
         try:
             await attempt_fn()
-            if transport_reserved:
-                from .recovery import current_recovery
-                state = current_recovery.get()
-                if state is not None:
-                    state.refund("transport", transport_reserved)
+            _refund_transport(transport_reserved)
             return
         except ExecInterrupt:
             raise  # caller hard-stop — never retry, never swallow
@@ -316,16 +537,7 @@ async def retry_stream(
             if exc.provider is None and provider is not None:
                 exc.provider = provider
         except Exception as exc:
-            # Wrap arbitrary transport / SSE errors so the upstream
-            # layer always sees the same exception shape with the
-            # retryable / retry_after metadata it needs.
-            exc_name = type(exc).__name__
-            transport_like = exc_name in _TRANSPORT_EXC_NAMES
-            last_exc = ProviderStreamError(
-                f"{exc_name}: {exc}",
-                retryable=transport_like and not is_committed_fn(),
-                provider=provider,
-            )
+            last_exc = _wrap_failure(exc, provider, is_committed_fn())
 
         retryable = bool(getattr(last_exc, "retryable", False))
         last_attempt = attempt >= max_attempts - 1
@@ -356,18 +568,26 @@ async def retry_stream(
         # burning the remaining budget on a sleep we can't use.
         rem = _dl_remaining()
         if rem is not None and rem <= sleep_s:
+            last_exc.network_unreachable = False  # type: ignore[attr-defined]
             raise _mark_exhausted(last_exc)
         print(
             f"[{label} stream retry] attempt {attempt + 1}/{max_attempts} "
             f"after {sleep_s:.1f}s — {last_exc}",
             flush=True,
         )
+        _notify(on_retry, attempt=attempt + 2, max_attempts=max_attempts,
+                reason="transport", delay_ms=round(sleep_s * 1000))
         await _sleep_unless_aborted(sleep_s, abort_check)
 
 
 __all__ = [
     "PROVIDER_STREAM_MAX_ATTEMPTS",
     "ProviderStreamError",
+    "NETWORK_WAIT_MAX_S",
+    "is_network_unreachable",
+    "network_wait_allowed",
+    "network_wait_delay",
+    "network_wait_started",
     "is_retryable_status",
     "read_retry_after",
     "retry_stream",
