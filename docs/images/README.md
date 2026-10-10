@@ -46,11 +46,25 @@ Sync rule:
   192 and 512 px PWA icons from it. The maskable icon uses a full-bleed tile with
   the cell inside the 80% safe circle.
 
-## WebUI Sidebar Logo
+## Lockups
+
+The mark beside the `OpenProgram` wordmark (Instrument Sans Bold) and the
+`FINAL SOLUTION TO AGENT` tagline (Geist Mono). All text is converted to outlines,
+so the files render the same in `<img>` tags, on GitHub and in librsvg.
+
+Files:
+
+- `docs/images/logo-lockup-dark.svg` and `logo-lockup-light.svg`: 776 x 174 vector
+  lockups for dark and light backgrounds. `website/index.html` uses the dark one.
+- `docs/images/logo-lockup-dark.png` and `logo-lockup-light.png`: 3x renders.
+- `docs/images/logo-lockup.gif` and `logo-lockup-light.gif`: the README header
+  animation. The three discs pop in back to front, then the full lockup holds.
+
+## Wordmark
 
 Canonical source:
 
-- `docs/images/logo.svg`
+- `docs/images/logo.svg`: the mark and the light-theme wordmark, without the tagline.
 
 Runtime copy:
 
@@ -58,23 +72,25 @@ Runtime copy:
 
 Code references:
 
-- `apps/web/components/sidebar/sidebar.tsx`
 - `apps/web/public/html/_sidebar.html`
-
-Documentation references:
-
-- `docs/README.md`
+- `docs/slides/openprogram-intro.html`
 
 Sync rule:
 
 - Edit `docs/images/logo.svg` first.
 - Copy the same SVG to `apps/web/public/images/logo.svg`.
 
+## Social Card
+
+- `docs/images/openprogram-social-card.svg` is the source; `openprogram-social-card.png`
+  (1200 x 630) is its render. The docs site and `website/index.html` reference the PNG
+  as the Open Graph and Twitter image, and the docs build copies it unchanged.
+
 ## Documentation Logo PNG
 
 Canonical file:
 
-- `docs/images/logo.png`
+- `docs/images/logo.png`: a 1024 px render of `docs/images/openprogram-app-icon.svg`.
 
 Use:
 
