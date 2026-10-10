@@ -20,20 +20,15 @@ Agentic function 将确定性控制流与模型决策结合：
 from openprogram import Agent
 
 class ExampleAgent(Agent):
+    tools = []
     method_options = {
         'review_then_revise': {'tool': True},
     }
 
-    def review_then_revise(self, draft: str, runtime=None) -> str:
+    def review_then_revise(self, draft: str) -> str:
         """Review a draft, then revise it against the review."""
-        review = runtime.exec(
-            content=f"Identify concrete defects in this draft:\n\n{draft}",
-            toolset="none",
-        )
-        return runtime.exec(
-            content=f"Revise the draft using this review:\n\n{review}\n\n{draft}",
-            toolset="none",
-        )
+        review = self(f"Identify concrete defects in this draft:\n\n{draft}")
+        return self(f"Revise the draft using this review:\n\n{review}\n\n{draft}")
 
 _example_agent = ExampleAgent()
 review_then_revise = _example_agent.review_then_revise

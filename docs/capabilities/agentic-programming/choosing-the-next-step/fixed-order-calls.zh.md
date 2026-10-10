@@ -11,11 +11,12 @@
 
 ## 设计要点
 
-- 使用 `Agent` method 装饰器
+- 编排函数写成普通的 `Agent` method
 - 按固定顺序调用多个子 `Agent` method
 - `llm()` 是可选的：可以跳过它（纯链式调用），也可以多次调用它
   （每次调用都会创建一个 `llm` 子节点）
 - 数据通过普通 Python 变量在子函数之间流动
+- 子 method 沿用调用方的 Runtime，步骤之间不传 `runtime` 参数
 - 一个函数既可以多次调用 `llm()`，也可以调用任意多个其他
   `Agent` method
 
@@ -30,11 +31,11 @@ class ExampleAgent(Agent):
         'research_pipeline': {'tool': True, 'input': {'task': {'description': 'Research topic.'}}},
     }
 
-    def research_pipeline(self, task: str, runtime=None) -> dict:
+    def research_pipeline(self, task: str) -> dict:
         """Run the full research pipeline: survey, find gaps, generate ideas."""
-        survey = survey_topic(topic=task, runtime=runtime)
-        gaps = identify_gaps(survey=survey, runtime=runtime)
-        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+        survey = survey_topic(topic=task)
+        gaps = identify_gaps(survey=survey)
+        ideas = generate_ideas(gaps=gaps)
 
         return {"survey": survey, "gaps": gaps, "ideas": ideas}
 
@@ -46,17 +47,18 @@ research_pipeline = _example_agent.research_pipeline
 
 ```python
 from openprogram import Agent
+from openprogram.agentic_programming import llm
 
 class ExampleAgent(Agent):
     method_options = {
         'research_pipeline': {'tool': True, 'input': {'task': {'description': 'Research topic.'}}},
     }
 
-    def research_pipeline(self, task: str, runtime=None) -> str:
+    def research_pipeline(self, task: str) -> str:
         """Run the full research pipeline and summarise the results."""
-        survey = survey_topic(topic=task, runtime=runtime)
-        gaps = identify_gaps(survey=survey, runtime=runtime)
-        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+        survey = survey_topic(topic=task)
+        gaps = identify_gaps(survey=survey)
+        ideas = generate_ideas(gaps=gaps)
 
         return llm([
             {"type": "text", "text": (
@@ -86,8 +88,8 @@ research_pipeline
 子函数通过 Python 变量彼此交接数据 —— 不涉及任何 LLM：
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
-gaps = identify_gaps(survey=survey, runtime=runtime)
+survey = survey_topic(topic=task)
+gaps = identify_gaps(survey=survey)
 ```
 
 `survey_topic` 的返回值直接作为 `identify_gaps` 的输入参数传入。
@@ -95,13 +97,13 @@ gaps = identify_gaps(survey=survey, runtime=runtime)
 ## 在步骤之间插入 Python 处理逻辑
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
+survey = survey_topic(topic=task)
 
 # 中间穿插普通的 Python 处理
 key_points = extract_key_points(survey)
 filtered = [p for p in key_points if p["relevance"] > 0.5]
 
-gaps = identify_gaps(survey="\n".join(filtered), runtime=runtime)
+gaps = identify_gaps(survey="\n".join(filtered))
 ```
 
 ## 错误处理
@@ -112,22 +114,22 @@ gaps = identify_gaps(survey="\n".join(filtered), runtime=runtime)
 
 ```python
 try:
-    survey = survey_topic(topic=task, runtime=runtime)
+    survey = survey_topic(topic=task)
 except Exception as e:
     return {"error": f"Survey failed: {e}"}
 
-gaps = identify_gaps(survey=survey, runtime=runtime)
+gaps = identify_gaps(survey=survey)
 ```
 
 或者，如果子函数以带内方式上报失败（返回错误字符串而非抛出异常），
 则检查其返回值：
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
+survey = survey_topic(topic=task)
 if not survey or "error" in survey.lower():
     return {"error": "Survey failed", "survey": survey}
 
-gaps = identify_gaps(survey=survey, runtime=runtime)
+gaps = identify_gaps(survey=survey)
 ```
 
 ## 与“由 LLM 选择调用”的对比

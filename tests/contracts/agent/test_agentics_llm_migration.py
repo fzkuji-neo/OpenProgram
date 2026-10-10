@@ -23,20 +23,24 @@ MIGRATED_FUNCTIONS = {
         "translate_to_chinese",
         "polish_text",
     ),
-    "openprogram.programs.workflow.research.evaluate": ("_evaluate_candidates",),
+    "openprogram.programs.workflow.research.evaluate": ("_evaluate_candidates", "compete"),
+    "openprogram.programs.workflow.research.pipeline": ("research_pipeline",),
     "openprogram.programs.workflow.research.stages.idea": (
         "generate_ideas",
         "check_novelty",
         "rank_ideas",
+        "run_idea",
     ),
     "openprogram.programs.workflow.research.stages.literature": (
         "survey_topic",
         "identify_gaps",
+        "run_literature",
     ),
     "openprogram.programs.workflow.research.stages.experiment": (
         "design_experiments",
         "run_experiment",
         "check_training",
+        "run_experiments",
     ),
     "openprogram.programs.workflow.research.stages.writing": (
         "write_section",
@@ -52,8 +56,12 @@ MIGRATED_FUNCTIONS = {
     "openprogram.programs.workflow.research.stages.review": (
         "review_paper",
         "fix_paper",
+        "review_loop",
     ),
-    "openprogram.programs.workflow.research.stages.submission": ("check_submission",),
+    "openprogram.programs.workflow.research.stages.submission": (
+        "check_submission",
+        "run_submission_check",
+    ),
 }
 
 
@@ -85,33 +93,93 @@ def test_migrated_summary_uses_agent_without_tools(monkeypatch):
     assert calls == [("Please summarize:\n\nsource text", {"tools": []})]
 
 
-def test_only_deferred_tool_loops_still_call_runtime_exec():
-    root = (
-        Path(__file__).parents[3] / "openprogram" / "programs" / "functions" / "agentic"
-    )
-    excluded = {
-        "Research-Agent-Harness",
-        "GUI-Agent-Harness",
-        "Wiki-Agent-Harness",
-        "workflow",
-    }
+def test_programs_do_not_call_runtime_exec():
+    root = Path(__file__).parents[3] / "openprogram" / "programs"
+    scanned = 0
     remaining = []
     for path in tracked_python_files(root):
-        if excluded.intersection(path.relative_to(root).parts):
-            continue
+        scanned += 1
         source = path.read_text(encoding="utf-8")
         for node in ast.walk(ast.parse(source)):
             if (
                 isinstance(node, ast.Call)
                 and isinstance(node.func, ast.Attribute)
-                and isinstance(node.func.value, ast.Name)
-                and node.func.value.id == "runtime"
                 and node.func.attr == "exec"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id.endswith("runtime")
             ):
                 remaining.append((path.relative_to(root).as_posix(), node.lineno))
 
-    remaining.sort()
+    assert scanned > 100
     assert remaining == []
+
+
+def _paper_runtime(replies, calls, name):
+    from openprogram.agentic_programming.runtime import Runtime
+
+    def call(content, model="default", response_format=None):
+        calls.append(name)
+        return replies.pop(0)
+
+    return Runtime(call=call, model=name)
+
+
+def test_review_loop_reviews_on_the_reviewer_and_fixes_on_the_caller(tmp_path, monkeypatch):
+    from openprogram import Agent
+    from openprogram.programs.workflow.research.stages import review as module
+    from openprogram.programs.workflow.research.stages.review import (
+        ReviewPaperAgent,
+        review_loop,
+    )
+
+    # Runtime routing is under test here, not the sandboxed artifact writer.
+    monkeypatch.setattr(module, "write_artifact", lambda path, text: Path(path).write_text(text))
+    paper = tmp_path / "paper"
+    paper.mkdir()
+    (paper / "main.tex").write_text("Draft.\n")
+    calls = []
+    reviewer = ReviewPaperAgent(runtime=_paper_runtime(
+        ['{"score": 5, "verdict": "revise"}', '{"score": 8, "verdict": "accept"}'],
+        calls, "reviewer",
+    ))
+    executor_runtime = _paper_runtime(["% === main.tex ===\nRevised.\n"], calls, "executor")
+
+    class Executor(Agent):
+        def run(self):
+            return review_loop(str(paper), reviewer=reviewer, max_rounds=2)
+
+    result = Executor(runtime=executor_runtime).run()
+
+    assert calls == ["reviewer", "executor", "reviewer"]
+    assert result["passed"] and result["rounds"] == 2
+    assert (paper / "main.tex").read_text() == "Revised.\n"
+
+
+def test_compete_judges_on_the_evaluator():
+    from openprogram import Agent
+    from openprogram.programs.workflow.research.evaluate import (
+        EvaluateCandidatesAgent,
+        compete,
+    )
+
+    calls = []
+
+    class Drafts(Agent):
+        def first(self, text: str) -> str:
+            return "first " + text
+
+        def second(self, text: str) -> str:
+            return "second " + text
+
+    evaluator = EvaluateCandidatesAgent(runtime=_paper_runtime(
+        ['{"winner": 2, "scores": [4, 9], "reasoning": "clearer"}'], calls, "evaluator",
+    ))
+    drafts = Drafts()
+    result = compete([drafts.first, drafts.second], {"text": "draft"}, evaluator=evaluator)
+
+    assert calls == ["evaluator"]
+    assert result["winner_name"] == "second"
+    assert result["winner_output"] == "second draft"
 
 
 def test_polish_chooses_style_without_a_user_setting(monkeypatch):

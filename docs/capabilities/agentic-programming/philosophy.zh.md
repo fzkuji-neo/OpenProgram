@@ -107,7 +107,7 @@ Agentic Programming 同时是：
 |------|---------------------|---------------------|
 | "抓 10 个页面，每个生成摘要" | Agent 自己决定顺序和并行 | Python 写 `for url in urls: summarize(fetch(url))` |
 | "连续 3 次对话里记住上下文" | 把对话塞进 memory store，每次查询 | 就是 Python 函数的局部变量 |
-| "让 LLM 决定调哪个工具" | function calling + agent loop | `runtime.exec(tools=[...])` 或 `decision.make(prompt, options)` |
+| "让 LLM 决定调哪个工具" | function calling + agent loop | `agent(prompt, tools=[...])` 或 `decision.make(prompt, options)` |
 | "错了要重试" | Agent 自己决定 | `try / except` + 代码门控：无效的选择被校验拦下，让模型重新决策 |
 
 不是说 Agent 框架错了，它们适合一类任务（完全开放、目标模糊）。但大多数你想做的事，其实都能用 Agentic Programming 更可靠地完成。

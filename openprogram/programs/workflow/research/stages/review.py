@@ -1,8 +1,8 @@
 """
 review — cross-model review and iterative improvement.
 
-Executor and reviewer use different LLM runtimes to avoid self-play
-blind spots. The loop: review → fix → re-review → until pass.
+The reviewer Agent can run on a different model from the executor to avoid
+self-play blind spots. The loop: review → fix → re-review → until pass.
 """
 
 from __future__ import annotations
@@ -15,8 +15,7 @@ import math
 from typing import Optional
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.call_state import _current_runtime, check_cancelled
-from openprogram.agentic_programming.runtime import Runtime
+from openprogram.agentic_programming.call_state import check_cancelled
 from .._paths import expanded_project_dir, read_artifact, write_artifact
 from openprogram.programs.workflow.json_parsing import parse_json
 
@@ -140,8 +139,7 @@ def _save_review_log(log_path: str, rounds: list):
 def review_loop(
     paper_dir: str,
     venue: str = "NeurIPS",
-    exec_runtime: Runtime = None,
-    review_runtime: Runtime = None,
+    reviewer: Optional[ReviewPaperAgent] = None,
     max_rounds: int = 4,
     pass_threshold: int = 7,
     callback: Optional[callable] = None,
@@ -151,8 +149,9 @@ def review_loop(
     Args:
         paper_dir:       Path to paper/ directory with .tex files.
         venue:           Target venue.
-        exec_runtime:    Runtime for fixing (executor).
-        review_runtime:  Runtime for reviewing (different model recommended).
+        reviewer:        A configured ReviewPaperAgent (a different model is
+                         recommended). Defaults to the ambient Runtime, which
+                         also runs the fixes.
         max_rounds:      Max review-fix cycles.
         pass_threshold:  Min score to pass (default: 7/10).
         callback:        Called after each round.
@@ -160,10 +159,7 @@ def review_loop(
     Returns:
         dict with: passed, rounds, final_score, reviews
     """
-    if exec_runtime is None:
-        raise ValueError("exec_runtime is required")
-    if review_runtime is None:
-        review_runtime = exec_runtime
+    run_review = reviewer.review_paper if reviewer is not None else review_paper
 
     paper_dir = str(expanded_project_dir(paper_dir))
     paper_content = _read_paper(paper_dir)
@@ -183,12 +179,7 @@ def review_loop(
 
     for round_num in range(1, max_rounds + 1):
         check_cancelled()
-        # Preserve caller provider configuration, credentials and working context.
-        runtime_token = _current_runtime.set(review_runtime)
-        try:
-            reply = review_paper(paper_content=paper_content, venue=venue)
-        finally:
-            _current_runtime.reset(runtime_token)
+        reply = run_review(paper_content=paper_content, venue=venue)
         review = reply if isinstance(reply, dict) else parse_json(reply)
         if not isinstance(review, dict):
             raise ValueError("Paper review must return an object")
@@ -219,15 +210,11 @@ def review_loop(
         # Do not generate an unreviewed fix after the final allowed review.
         if round_num == max_rounds:
             break
-        runtime_token = _current_runtime.set(exec_runtime)
-        try:
-            fixed = fix_paper(
-                paper_content=paper_content,
-                review_feedback=reply if isinstance(reply, str) else str(reply),
-                round_num=round_num,
-            )
-        finally:
-            _current_runtime.reset(runtime_token)
+        fixed = fix_paper(
+            paper_content=paper_content,
+            review_feedback=reply if isinstance(reply, str) else str(reply),
+            round_num=round_num,
+        )
         if not isinstance(fixed, str):
             raise ValueError("Paper repair must return complete text")
         matches = list(marker.finditer(fixed))

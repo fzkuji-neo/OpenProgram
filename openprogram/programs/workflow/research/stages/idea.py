@@ -12,8 +12,6 @@ from openprogram.agentic_programming import Agent
 import os
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.call_state import _current_runtime
-from openprogram.agentic_programming.runtime import Runtime
 from openprogram.programs.workflow.research._paths import (
     expanded_project_dir,
     read_artifact,
@@ -143,7 +141,6 @@ rank_ideas = RankIdeasAgent().rank_ideas
 def run_idea(
     topic: str,
     project_dir: str,
-    runtime: Runtime,
 ) -> dict:
     """Run idea generation stage.
 
@@ -152,7 +149,6 @@ def run_idea(
     Args:
         topic:        Research topic.
         project_dir:  Project directory.
-        runtime:      LLM runtime.
 
     Returns:
         dict with ideas, novelty checks, and ranking.
@@ -178,17 +174,13 @@ def run_idea(
         )
         gaps = "No gaps identified yet. Generate ideas based on the topic directly."
 
-    runtime_token = _current_runtime.set(runtime)
-    try:
-        ideas = generate_ideas(topic=topic, gaps=gaps)
+    ideas = generate_ideas(topic=topic, gaps=gaps)
 
-        # Check novelty for each idea
-        novelty = check_novelty(idea=ideas)
+    # Check novelty for each idea
+    novelty = check_novelty(idea=ideas)
 
-        # Rank
-        ranking = rank_ideas(ideas=ideas, novelty_results=novelty)
-    finally:
-        _current_runtime.reset(runtime_token)
+    # Rank
+    ranking = rank_ideas(ideas=ideas, novelty_results=novelty)
 
     # Save
     output_dir = writable_project_dir(project_dir)

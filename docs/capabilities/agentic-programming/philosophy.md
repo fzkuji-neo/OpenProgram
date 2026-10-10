@@ -107,7 +107,7 @@ Beginners start by asking, and what they get is a complete, readable Python file
 |------|---------------------|---------------------|
 | "Fetch 10 pages and generate a summary for each" | The agent decides ordering and parallelism itself | Python writes `for url in urls: summarize(fetch(url))` |
 | "Remember context across 3 consecutive conversations" | Stuff the conversation into a memory store and query it each time | It's just a local variable in a Python function |
-| "Let the LLM decide which tool to call" | function calling + agent loop | `runtime.exec(tools=[...])` or `decision.make(prompt, options)` |
+| "Let the LLM decide which tool to call" | function calling + agent loop | `agent(prompt, tools=[...])` or `decision.make(prompt, options)` |
 | "Retry on error" | The agent decides itself | `try / except` + code gates: an invalid pick is caught by validation and the model is asked to re-decide |
 
 This isn't to say agent frameworks are wrong; they suit a class of tasks (fully open-ended, with fuzzy goals). But most of what you want to do can actually be done more reliably with Agentic Programming.

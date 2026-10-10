@@ -7,13 +7,15 @@ runs each function on the same input, then uses a (potentially
 different) LLM to pick the best output.
 
 Usage:
-    from openprogram.programs.workflow.research.evaluate import compete
+    from openprogram.programs.workflow.research.evaluate import (
+        EvaluateCandidatesAgent, compete,
+    )
 
     best = compete(
-        functions=[polish_v1, polish_v2],
+        functions=[PolishAgent(runtime=claude_runtime).polish_v1,
+                   PolishAgent(runtime=claude_runtime).polish_v2],
         kwargs={"text": "We propose ..."},
-        exec_runtime=exec_runtime,
-        eval_runtime=gpt_runtime,
+        evaluator=EvaluateCandidatesAgent(runtime=gpt_runtime),
         task="Polish academic LaTeX for NeurIPS",
     )
 """
@@ -25,8 +27,6 @@ from openprogram.agentic_programming import Agent
 from typing import Optional
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.call_state import _current_runtime
-from openprogram.agentic_programming.runtime import Runtime
 from openprogram.programs.workflow.json_parsing import parse_json
 
 
@@ -61,21 +61,21 @@ _evaluate_candidates = EvaluateCandidatesAgent()._evaluate_candidates
 def compete(
     functions: list[callable],
     kwargs: dict,
-    exec_runtime: Runtime,
-    eval_runtime: Runtime,
+    evaluator: Optional[EvaluateCandidatesAgent] = None,
     task: str = "Pick the best academic writing output",
 ) -> dict:
     """Run prompt competition between Agent methods.
 
-    Each function is called with the same kwargs. Their outputs are
-    evaluated by eval_runtime (ideally a different model).
+    Each function is called with the same kwargs on its own Agent's
+    Runtime. Their outputs are judged by the evaluator Agent (ideally
+    configured with a different model).
 
     Args:
-        functions:    List of Agent method callables to compete.
-        kwargs:       Keyword arguments to pass to each function.
-        exec_runtime: Runtime for candidate generation.
-        eval_runtime: Runtime for evaluation (different model recommended).
-        task:         Description of what we're evaluating.
+        functions:  List of Agent method callables to compete.
+        kwargs:     Keyword arguments to pass to each function.
+        evaluator:  A configured EvaluateCandidatesAgent. Defaults to
+                    the ambient Runtime.
+        task:       Description of what we're evaluating.
 
     Returns:
         dict with: winner_index, winner_output, winner_name,
@@ -84,34 +84,27 @@ def compete(
     if not functions:
         raise ValueError("At least one candidate function is required")
     outputs = []
-    runtime_token = _current_runtime.set(exec_runtime)
-    try:
-        if len(functions) == 1:
-            output = functions[0](**kwargs)
-            return {
-                "winner_index": 0,
-                "winner_output": output,
-                "winner_name": functions[0].__name__,
-                "scores": [10],
-                "reasoning": "Single candidate",
-                "all_candidates": [{"name": functions[0].__name__, "output": output}],
-            }
+    if len(functions) == 1:
+        output = functions[0](**kwargs)
+        return {
+            "winner_index": 0,
+            "winner_output": output,
+            "winner_name": functions[0].__name__,
+            "scores": [10],
+            "reasoning": "Single candidate",
+            "all_candidates": [{"name": functions[0].__name__, "output": output}],
+        }
 
-        # Generate from each function
-        candidates = []
-        for fn in functions:
-            output = fn(**kwargs)
-            outputs.append(output)
-            candidates.append({"name": fn.__name__, "output": str(output)})
-    finally:
-        _current_runtime.reset(runtime_token)
+    # Generate from each function
+    candidates = []
+    for fn in functions:
+        output = fn(**kwargs)
+        outputs.append(output)
+        candidates.append({"name": fn.__name__, "output": str(output)})
 
     # Evaluate
-    runtime_token = _current_runtime.set(eval_runtime)
-    try:
-        reply = _evaluate_candidates(task=task, candidates=candidates)
-    finally:
-        _current_runtime.reset(runtime_token)
+    evaluate = evaluator._evaluate_candidates if evaluator is not None else _evaluate_candidates
+    reply = evaluate(task=task, candidates=candidates)
 
     result = reply if isinstance(reply, dict) else parse_json(reply)
     if not isinstance(result, dict):

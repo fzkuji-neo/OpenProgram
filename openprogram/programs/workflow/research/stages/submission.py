@@ -12,8 +12,6 @@ from openprogram.agentic_programming import Agent
 import os
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.call_state import _current_runtime
-from openprogram.agentic_programming.runtime import Runtime
 from .._paths import expanded_project_dir, read_artifact, write_artifact
 
 
@@ -91,14 +89,12 @@ check_submission = CheckSubmissionAgent().check_submission
 def run_submission_check(
     project_dir: str,
     venue: str,
-    runtime: Runtime,
 ) -> dict:
     """Run pre-submission checks.
 
     Args:
         project_dir:  Project directory.
         venue:        Target venue.
-        runtime:      LLM runtime.
 
     Returns:
         dict with checklist results.
@@ -115,14 +111,10 @@ def run_submission_check(
     if not paper_content.strip():
         raise ValueError("No paper source is available for submission checks")
 
-    runtime_token = _current_runtime.set(runtime)
-    try:
-        result = check_submission(
-            paper_content=paper_content,
-            venue=venue,
-        )
-    finally:
-        _current_runtime.reset(runtime_token)
+    result = check_submission(
+        paper_content=paper_content,
+        venue=venue,
+    )
 
     # Save report
     write_artifact(
