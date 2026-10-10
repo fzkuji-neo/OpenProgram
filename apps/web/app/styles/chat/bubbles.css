@@ -342,7 +342,7 @@
   font-family: var(--font-mono);
   font-size: 0.875em;
   /* Light schemes: a faint ink wash, not the tertiary panel tone. */
-  background: light-dark(color-mix(in srgb, var(--text-bright) 5%, transparent), var(--bg-tertiary));
+  background: light-dark(color-mix(in srgb, var(--text-bright) 6%, var(--bg-primary)), var(--bg-tertiary));
   padding: 2px 6px;
   border-radius: 6px;
   /* Inline code is one unbroken token by nature (paths, identifiers) —
@@ -356,7 +356,7 @@
    card moves to the wrapper so the language/copy header shares its border. */
 .message-content .md-code {
   margin: 10px 0;
-  background: light-dark(color-mix(in srgb, var(--text-bright) 3%, var(--bg-primary)), var(--bg-tertiary));
+  background: light-dark(color-mix(in srgb, var(--text-bright) 3.5%, var(--bg-primary)), var(--bg-tertiary));
   border: 1px solid light-dark(var(--border), var(--border-light));
   border-radius: 10px;
   overflow: hidden;

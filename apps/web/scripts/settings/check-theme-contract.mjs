@@ -244,7 +244,7 @@ assert.doesNotMatch(layout, /localStorage\.getItem\('agentic_custom_css'\)/);
 assert.match(desktopChrome, /custom:\s*"beige-dark"/);
 assert.match(desktopChrome, /"custom-light":\s*"beige-light"/);
 assert.equal(chromeBgs["beige-dark"], "#191918");
-assert.equal(chromeBgs["beige-light"], "#ffffff");
+assert.equal(chromeBgs["beige-light"], "#fbfaf8");
 
 assert.match(base, /button, input, select, textarea, optgroup\s*\{[^}]*font-family:\s*inherit/s);
 assert.match(layout, /style\.setProperty\('--font-sans', FONTS\[f\]\)/);

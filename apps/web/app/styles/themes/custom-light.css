@@ -3,12 +3,12 @@
    warm cream light surface, not :root (beige-dark). User CSS may override
    any token under [data-theme="custom-light"]. */
 [data-theme="custom-light"] {
-  --bg-primary: #ffffff;
+  --bg-primary: #fbfaf8;
   --bg-secondary: #f0eee5;
   --bg-tertiary: #e8e6dc;
   --bg-hover: rgba(20, 20, 19, 0.05);
   --bg-hover-contrast: #ffffff;
-  /* 页面也是白色，composer 和用户气泡靠阴影浮起来。 */
+  /* 纯白：composer 和用户气泡比极淡暖白的页面更亮，再靠阴影浮起来。 */
   --bg-input: #ffffff;
   --border: rgba(20, 20, 19, 0.08); /* subtle hairline */
   --border-light: #dedcd1;          /* strong hairline */
@@ -27,7 +27,7 @@
      the composer (--bg-input + --composer-shadow); the assistant
      message sits flat on the page (no bubble tint). */
   --user-msg-bg: var(--bg-input);
-  --assistant-msg-bg: #ffffff;
+  --assistant-msg-bg: #fbfaf8;
   /* Claude light is flat: hairlines + tint carry elevation, shadows
      stay barely-there. */
   --shadow-sm: 0 1px 2px rgba(20, 20, 19, 0.04);
