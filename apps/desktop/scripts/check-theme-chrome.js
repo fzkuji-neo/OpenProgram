@@ -7,13 +7,13 @@ const themeChrome = require("../theme-chrome");
 
 function checkBackgroundMapUsesRealHexes() {
   assert.equal(themeChrome.backgroundForTheme("beige-dark"), "#191918");
-  assert.equal(themeChrome.backgroundForTheme("beige-light"), "#ffffff");
+  assert.equal(themeChrome.backgroundForTheme("beige-light"), "#fbfaf8");
   assert.equal(themeChrome.backgroundForTheme("dark"), "#1e1e20");
   assert.equal(themeChrome.backgroundForTheme("light"), "#ffffff");
   assert.equal(themeChrome.backgroundForTheme("aurora"), "#171528");
   assert.equal(themeChrome.backgroundForTheme("aurora-light"), "#fbfaff");
   assert.equal(themeChrome.backgroundForTheme("custom"), "#191918");
-  assert.equal(themeChrome.backgroundForTheme("custom-light"), "#ffffff");
+  assert.equal(themeChrome.backgroundForTheme("custom-light"), "#fbfaf8");
   assert.notEqual(themeChrome.backgroundForTheme("beige-light"), "#141416");
   assert.notEqual(themeChrome.backgroundForTheme("beige-dark"), "#141416");
 }
@@ -39,7 +39,7 @@ function checkSchema3PrefsBeatLegacy() {
     legacy: "beige-dark",
   }, true);
   assert.equal(light.theme, "beige-light");
-  assert.equal(light.backgroundColor, "#ffffff");
+  assert.equal(light.backgroundColor, "#fbfaf8");
 
   const customLight = themeChrome.resolveFromPrefBag({
     schema: "3",
@@ -49,7 +49,7 @@ function checkSchema3PrefsBeatLegacy() {
   }, true);
   assert.equal(customLight.style, "beige");
   assert.equal(customLight.theme, "beige-light");
-  assert.equal(customLight.backgroundColor, "#ffffff");
+  assert.equal(customLight.backgroundColor, "#fbfaf8");
 
   const customDark = themeChrome.resolveFromPrefBag({
     schema: "3",
@@ -96,7 +96,7 @@ function checkPrefsFileRoundTrip() {
       readChromium: () => ({}),
     });
     assert.equal(resolved.theme, "beige-light");
-    assert.equal(resolved.backgroundColor, "#ffffff");
+    assert.equal(resolved.backgroundColor, "#fbfaf8");
     assert.equal(resolved.mode, "light");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -175,13 +175,13 @@ function checkLegacyKeyDoesNotEatStyleSuffix() {
 function checkErrorPageAndListingUseThemeSurface() {
   const chrome = themeChrome.chromeForTheme("beige-light");
   const html = themeChrome.buildErrorPageHtml(chrome, "openprogram worker start");
-  assert.match(html, /background:#ffffff/);
+  assert.match(html, /background:#fbfaf8/);
   assert.doesNotMatch(html, /#141416/);
   const url = themeChrome.buildErrorPageUrl(chrome, "openprogram worker start");
   assert.equal(themeChrome.isErrorPageUrl(url), true);
   assert.equal(themeChrome.isErrorPageUrl("http://127.0.0.1:18100/chat"), false);
   const css = themeChrome.directoryListingCss(chrome);
-  assert.match(css, /background: #ffffff/);
+  assert.match(css, /background: #fbfaf8/);
   assert.doesNotMatch(css, /prefers-color-scheme/);
   assert.doesNotMatch(css, /#141416/);
 }

@@ -2,13 +2,13 @@
    主题文件即数据：每个文件把整套 token 契约填满一遍。
    新增主题就照抄一份改值，不需要动任何组件。 */
 [data-theme="beige-light"] {
-  /* 中间页面用白色，和两侧白色面板一致；米色只留在外框（--bg-secondary）。 */
-  --bg-primary: #ffffff;
+  /* 中间页面是极淡的暖白，比两侧白色面板略暖；米色留在外框（--bg-secondary）。 */
+  --bg-primary: #fbfaf8;
   --bg-secondary: #f0eee5;
   --bg-tertiary: #e8e6dc;
   --bg-hover: rgba(20, 20, 19, 0.05);
   --bg-hover-contrast: #ffffff;
-  /* 页面也是白色，composer 和用户气泡靠阴影浮起来。 */
+  /* 纯白：composer 和用户气泡比极淡暖白的页面更亮，再靠阴影浮起来。 */
   --bg-input: #ffffff;
   --border: rgba(20, 20, 19, 0.08); /* subtle hairline */
   --border-light: #dedcd1;          /* strong hairline */
@@ -27,7 +27,7 @@
      the composer (--bg-input + --composer-shadow); the assistant
      message sits flat on the page (no bubble tint). */
   --user-msg-bg: var(--bg-input);
-  --assistant-msg-bg: #ffffff;
+  --assistant-msg-bg: #fbfaf8;
   /* Claude light is flat: hairlines + tint carry elevation, shadows
      stay barely-there. */
   --shadow-sm: 0 1px 2px rgba(20, 20, 19, 0.04);
