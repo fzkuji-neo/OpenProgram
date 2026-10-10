@@ -37,6 +37,11 @@ side gaps from the rails' gutters. The rails are white
 the user bubble; the centre card stays `--bg-primary` so those
 white raised elements keep their contrast on it.
 
+In a split layout the centre card dissolves and every pane is its
+own card of the same material (`.center-col[data-split]`): each
+pane keeps 7px to the rail cards and the window edges, and the
+panes sit 8px apart. Empty panes draw the same card themselves.
+
 Collapsed, a rail is `--rail-collapsed-w` (63px: the 49px icon
 rail inside the card plus the two gutters);
 `components/layout/use-resizable-rail.ts` carries the same number.

@@ -453,6 +453,22 @@ select:focus-visible {
   box-shadow: var(--composer-shadow);
   overflow: hidden;
 }
+/* Split layout: the centre card dissolves and every pane becomes its own
+   card of the same material. The column steps out over the rails' inner
+   gutters and loses its top/bottom margin, so the canvas's 6px padding
+   + 1px pane inset put each pane card 7px from the rail cards and the
+   window edges — the same gap the rails keep. */
+.app .center-col[data-split] {
+  margin: 0 -7px;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.app .center-col[data-split] .center-canvas-content {
+  background: var(--bg-primary);
+  box-shadow: var(--composer-shadow);
+}
 /* Non-chat routes render their page frame inside the same card. Pages
    size themselves to the viewport (100vh); clamp them to the card. */
 .app .page-col > * {

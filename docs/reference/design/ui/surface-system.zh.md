@@ -19,6 +19,8 @@ panel          浮起的卡片：               左右两条侧栏（`--bg-input
 
 整个窗口是一张页面上的三张浮起卡片——左右栏用 shadcn Sidebar 的 `floating` 壳（`components/ui/sidebar.tsx`，只取注册表的壳），中栏同时用它 `inset` 的思路。每张卡片 14px 圆角（`rounded-2xl`）、每套主题自己的浮起阴影（`--composer-shadow`），无边框、无描边；侧栏四周各留 7px（`p-2`），中栏上下各离边 7px，左右的缝由侧栏的留白提供。侧栏用白色（`--bg-input`），和输入框、用户气泡同一种材质；中栏保持 `--bg-primary`，这样白色的浮起元素在它上面仍有对比。
 
+分屏时中栏这张卡片消失，每个窗格各自是一张同材质的卡片（`.center-col[data-split]`）：每个窗格离侧栏卡片和窗口边缘 7px，窗格之间相隔 8px。空窗格自己画同样的卡片。
+
 收起时一条侧栏宽 `--rail-collapsed-w`（63px：卡片里 49px 的图标轨加两侧留白），`components/layout/use-resizable-rail.ts` 用同一个数。卡片里的东西——行、分组标题、页脚——不受壳子影响，继续用下面的配方。
 
 ## 各表面的交互语言
