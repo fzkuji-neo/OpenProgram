@@ -27,48 +27,29 @@
 }
 .clearAll:hover { color: var(--accent-red); }
 
-/* Level-2 session block under a project header (browser model).
-   The rows inside are plain ConvItems (ui-list-item: 8px padding +
-   16px marker slot + 12px gap → text left edge lands at 36px, the
-   exact x where the header's label starts); this wrapper only steps
-   keep them the same 30px row as the project header, 13px text — and draws the 1px
-   vertical guide through the icon/dot optical center. */
+/* Level-2 session block under a project header (browser model). The
+   box is the official shadcn SidebarMenuSub (left guide line, inset,
+   applied at the call site); the rows inside are plain ConvItems on the
+   SidebarMenuButton recipe, stepped down here to the official sub
+   row density: 28px tall, 13px text. */
 .projectKids {
   position: relative;
   overflow: visible;
+  gap: 2px;
 }
-.projectKids::before {
-  content: "";
-  position: absolute;
-  /* ui-list-item is border-box with a 1px transparent border + padding
-     6px 8px + a 16px marker slot, so dot/folder optical center x =
-     1 + 8 + 8 = 17px (not 16). translateX(-50%) keeps the 1px line
-     on that axis. Child rows match --ui-list-h (30px), so last-dot center is 15px
-     from the bottom (bottom: 15px — no stub past the last circle).
-     Header is --ui-list-h (30px) with a 20px FoldersIcon + 1px gap;
-     top: -4px leaves a short breath under the folder instead of leaving
-     the folder icon. */
-  left: 17px;
-  transform: translateX(-50%);
-  top: -4px;
-  bottom: 15px;
-  width: 1px;
-  background: var(--border);
-  pointer-events: none;
-}
-.projectKids :global(.ui-list-item) {
-  height: var(--ui-list-h);
+.projectKids [data-sidebar="menu-button"] {
+  height: 28px;
   font-size: 13px;
 }
 /* The row label carries its own `text-fs-base` (14px) utility —
    out-specificity it so level-2 text really is 13px. */
-.projectKids :global(.ui-list-item .truncate) {
+.projectKids [data-sidebar="menu-button"] span {
   font-size: 13px;
 }
 
 .projectGroup { position: relative; }
 .projectGroup[data-dragging] {
-  background: var(--bg-sidebar, var(--bg-secondary));
+  background: var(--color-sidebar);
   border-radius: var(--ui-list-radius);
   box-shadow: var(--shadow);
 }

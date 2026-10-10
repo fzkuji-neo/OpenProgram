@@ -567,7 +567,7 @@
    collapsed 49px rail so page chrome is never covered (same rule as the
    Settings frame); an expanded sidebar stays a temporary overlay. */
 @media (max-width: 900px) {
-  .view { padding-left: 49px; }
+  .view { padding-left: var(--rail-collapsed-w); }
 }
 
 @media (max-width: 760px) {

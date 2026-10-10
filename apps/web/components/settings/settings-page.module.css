@@ -19,7 +19,7 @@
    collapsed 49px rail so Settings chrome is never covered; an expanded main
    sidebar remains an intentional temporary overlay. */
 @media (max-width: 900px) {
-  .view { padding-left: 49px; }
+  .view { padding-left: var(--rail-collapsed-w); }
 }
 
 .body {
@@ -32,7 +32,7 @@
   transition: grid-template-columns 0.15s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 .body.settingsNavCollapsed {
-  grid-template-columns: 49px minmax(0, 1fr);
+  grid-template-columns: var(--rail-collapsed-w) minmax(0, 1fr);
 }
 
 .nav {

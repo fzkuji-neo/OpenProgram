@@ -12,7 +12,7 @@
 /* Standalone /skills/<name> frame: reserve the collapsed main-sidebar
    rail at narrow widths, like the shared management frame. */
 @media (max-width: 900px) {
-  .view { padding-left: 49px; }
+  .view { padding-left: var(--rail-collapsed-w); }
 }
 
 .topbar {

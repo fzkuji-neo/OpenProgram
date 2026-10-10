@@ -8,29 +8,30 @@ UI 分为两个**表面上下文**。每个表面有各自的交互语言，眼�
 ─────────────────────────────────────────────────────────────────
 surface        background tone           where it lives
 ─────────────────────────────────────────────────────────────────
-deep           `--bg` /                  左侧栏、右侧栏
-               `--bg-secondary`          （branches / worktrees /
-                                         mini-DAG）
+deep           `--bg-secondary`          三栏背后的页面（`.app`）
 ─────────────────────────────────────────────────────────────────
-panel          略抬升的                  聊天流、设置页、对话框、
-               `--bg-surface` /          function-card 网格、
-               `--bg-tertiary`           attach 卡片、runtime 块
+panel          浮起的卡片：               左右两条侧栏（`--bg-input`，
+               `--bg-input`（侧栏）、     和输入框同一种材质）和中间
+               `--bg-primary`（中栏）     一栏（`--bg-primary`：聊天
+                                         流、设置页和其他所有页面）
 ─────────────────────────────────────────────────────────────────
 ```
 
-**deep** 与 **panel** 之间的抬升是有意的——它替代聊天内容列上显式的边框 / 阴影，让气泡区读起来像一张浮在导航之上的纸。
+整个窗口是一张页面上的三张浮起卡片——左右栏用 shadcn Sidebar 的 `floating` 壳，中栏同时用它 `inset` 的思路。每张卡片 14px 圆角（`rounded-2xl`）、每套主题自己的浮起阴影（`--composer-shadow`），无边框、无描边；侧栏四周各留 7px（`p-2`），中栏上下各离边 7px，左右的缝由侧栏的留白提供。侧栏用白色（`--bg-input`），和输入框、用户气泡同一种材质；中栏保持 `--bg-primary`，这样白色的浮起元素在它上面仍有对比。
+
+收起时一条侧栏宽 `--rail-collapsed-w`（58px：官方 3rem 图标轨加两侧留白），里面的卡片放 28px 的方形行。`components/layout/use-resizable-rail.ts` 用同一个数。
 
 ## 各表面的交互语言
 
 鼠标点按钮不画外圈焦点环。键盘聚焦普通按钮只轻微提高亮度，不用 outline 或 box-shadow。顶部 `role="tab"` 是唯一例外：用当前主题的 `--focus-ring`，深色更亮，浅色更深。
 
-### Deep 表面（侧边栏）
+### 侧栏（两张侧栏卡片）
 
-deep 表面上的组件是**列表行**——会话项、分支、收藏，以及内容区里同一套行（MCP 的 `drawio` / `linear` / `+ Add server`）。它们不应当表现得像按钮：
+侧栏上的组件是**列表行**——导航项、会话项、分支、收藏，以及内容区里同一套行（MCP 的 `drawio` / `linear` / `+ Add server`）。它们不应当表现得像按钮：
 
 - 闲置：无边框、无描边、无填充
-- 悬停 / 选中：背景换成**看得出的灰色**（``--bg-hover`` / ``--bg-selected``），文字仍是 ``--text-primary`` 或 ``--text-secondary``
-- 选中行**禁止**用 ``--bg-input`` 填充。浅色主题里这个 token 是白的，铺在浅灰侧栏上会发白、发淡
+- 悬停 / 选中：背景换成**看得出的灰色**（``--sidebar-accent`` = ``--bg-hover``），文字切到 ``--sidebar-accent-foreground``；选中行再加 `font-medium`（官方 `data-active` 的样子）
+- 选中行**禁止**用 ``--bg-input`` 填充。侧栏卡片本身就是这个白，白行铺上去会消失
 - 不用品牌色字形，唯一例外是极小的状态点（``.indicator-dot``）
 
 理由：侧栏密、扫得勤。一片品牌色胶囊会吵，还会跟内容列抢视线。悬停变灰让这一层安静，点击目标仍有反馈。
@@ -46,9 +47,35 @@ panel 表面上的组件就是按钮 / 胶囊 / 卡片：
 
 管理页顶部的 **tab 胶囊**（Abilities / Programs / Plugins / Skills）是唯一的亮底例外：选中态用 ``--bg-input``，跟搜索框一样偏亮，而不是更深。这个填充**只给这些胶囊**。不要抄到侧栏行或 MCP 服务器行上。
 
-## 列表行只有一套尺寸
+## 侧栏里的行就是 shadcn Sidebar
 
-侧栏导航（`+ New chat`、Agents、Abilities、History、Scheduler）和内容区列表行（MCP 的 `drawio` / `linear` / `+ Add server`）共用**同一只盒子**。不要给右边那列另起一套高度、内边距、圆角或选中底。
+侧栏卡片里的一切都是官方 shadcn radix-luma 的 `Sidebar` 家族，`apps/web/components/ui/sidebar.tsx`：注册表的样式类原样照抄，只去掉了本应用已经自己管的布局机制（开合状态、拖宽、窄屏浮层）。`components/sidebar/nav-classes.ts` 在外面包一层本应用的钩子——收起态级联要选的稳定 `sidebar-*` 类名，以及图标悬停效果读的具名 `group/row`（壳子自己带着官方的无名 `group`）。
+
+```
+部件                 官方配方（按本应用 14px 根字号换算）
+─────────────────────────────────────────────────────────────────
+页头                 SidebarHeader：48px 一行，p-2；开合按钮是
+                     SidebarTrigger = Button ghost icon-sm（28px）
+导航 / 收藏 /        SidebarMenuButton：h-9（31.5px）、px-3、gap-2、
+会话行               rounded-xl（10.5px）、16px 图标槽，悬停和选中都
+                     是 --sidebar-accent，选中再加 font-medium；
+                     收起时是 28px 方块
+分组标题             SidebarGroupLabel：h-8、px-3、12px 中等字重
+（Favorites、        70% 不透明，悬停变亮；折叠箭头只在悬停时出现
+Projects、Today…）
+项目下的会话         SidebarMenuSub：左侧 1px 引导线（mx-3.5 px-2.5）；
+                     行降到 28px / 13px（官方二级行 24.5px，放不下
+                     状态点）
+页脚                 SidebarFooter + SidebarMenuButton size="lg"
+                     （49px）：28px 头像，名字 14/510，副标题 12
+─────────────────────────────────────────────────────────────────
+```
+
+内容区列表行（MCP 的 `drawio` / `linear` / `+ Add server`、设置页的 tab 列表）继续用下面的 `.ui-list-item` 盒子。不要发明第三种行；内容区想要侧栏的样子就用 `cn()` 组合 `sidebarMenuButtonVariants()`。
+
+## 内容区列表行只有一套尺寸
+
+内容区列表行共用**同一只盒子**。不要按页面另起一套高度、内边距、圆角或选中底。
 
 ```
 属性         token / 值
@@ -148,7 +175,7 @@ link         primary 字                           下划线
 - **密集行里的控件**（输入框下方的模型 / 思考档位 / 权限触发器、图标开关、环境标签）→ `elevated`：无边框，用和输入框一样的阴影浮在页面上，悬停时阴影加深一档。
 - **只在悬停时才需要出现的次要动作** → `ghost`。
 - **破坏性操作**（Delete、Remove、停止）→ `destructive`。
-- **Deep 表面——侧栏行** → 不用 Button，用 `.ui-list-item` / `nav-classes.ts`。
+- **侧栏行** → 不用 Button，通过 `nav-classes.ts` 用 shadcn 的 `SidebarMenuButton`；内容区列表行用 `.ui-list-item`。
 
 ## 输入框区域的控件
 
@@ -169,9 +196,9 @@ link         primary 字                           下划线
 
 - 不要每个页面另起一套悬停 / 选中 / 边框。一套配方，反复用。新样子先写进这份文件。
 - 不要在未先于此处列出的情况下引入新的胶囊底色。预算内：deep 灰悬停、panel、品牌填充，以及上面的页头 tab `--bg-input` 例外。
-- 不要在 deep 表面用品牌色填充。
+- 不要在侧栏用品牌色填充。
 - 不要用白色 / `--bg-input` 做侧栏或内容区**列表行**的选中底。浅色主题会发白。
-- 不要给 MCP 服务器行（或任何内容区列表）另一套高度、内边距或选中底。
+- 不要给 MCP 服务器行（或任何内容区列表）另一套不同于 `.ui-list-item` 盒子的高度、内边距或选中底。
 - 不要加悬停位移（translate-y、scale-105）。悬停只换背景；唯一的动效是 Button 自带的按下 1px。
 - 不要改 `components/ui/button.tsx` 里的官方样式类（`elevated` 是唯一的自有变体），也不要在 CSS 里再写一份仿 Button 的样式。挑一个 `variant` / `size`；旧规则还压着 Button 时，删掉它或用 `revert-layer` 让回去。
 - 不要在 1px 输入/下拉边上再叠 2px 聚焦光晕。
@@ -181,5 +208,5 @@ link         primary 字                           下划线
 
 ## 实现状态
 
-- 已完成：`Button`（radix-luma）、输入框上方的环境标签、底部控制栏、发送按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮。
-- 尚未迁移：弹出层 / 菜单面板（`MENU_PANEL`、`components/ui/popover.tsx`、`dropdown-menu.tsx`）、提示框、徽标，以及手写样式的 CSS module 弹窗——它们仍用玻璃材质变量（`--glass-*`）。表单输入框和下拉在换成 shadcn input 之前继续遵守上面的 1px 边规则。侧栏列表行继续用上面的列表尺寸。
+- 已完成：`Button`（radix-luma）、输入框上方的环境标签、底部控制栏、发送按钮、输入框本体、网页预览小窗（外框、标题栏、图标按钮）、浏览器工具栏的图标按钮，以及三卡片壳：左右栏整体换到 shadcn `Sidebar` 配方（行、分组标题、项目二级列表、页脚），中栏成为一张卡片。
+- 尚未迁移：弹出层 / 菜单面板（`MENU_PANEL`、`components/ui/popover.tsx`、`dropdown-menu.tsx`）、提示框、徽标，以及手写样式的 CSS module 弹窗——它们仍用玻璃材质变量（`--glass-*`）。表单输入框和下拉在换成 shadcn input 之前继续遵守上面的 1px 边规则。内容区列表行继续用上面的列表尺寸；侧栏以外的 `ui-list-item` 使用处还没有逐一对照侧栏行复核。

@@ -13,6 +13,10 @@
   --transition: 0.2s ease;
   --sidebar-width: 288px;
   --detail-width: 300px;
+  /* Collapsed rail: the official shadcn icon rail (3rem) plus the
+     floating card's 7px gutters — components/layout/use-resizable-rail.ts
+     carries the same number. */
+  --rail-collapsed-w: 58px;
 
   /* Persisted appearance applies to dragged tabs inside/outside the strip and pane labels. */
   --drag-surface-opacity: 80%;
@@ -434,6 +438,28 @@ select:focus-visible {
   display: flex;
   height: 100vh;
   width: 100vw;
+  /* The page sits one step down; the two rails and the centre column
+     are floating cards on it (shadcn Sidebar `floating` + `inset`). */
+  background: var(--bg-secondary);
+}
+/* Centre column card: the chat (and every non-chat page) floats on the
+   page like the rails do — same corner and raised shadow, 7px off the
+   top and bottom edges; the rails' own gutters provide the side gaps. */
+.app .center-col {
+  position: relative;
+  margin: 7px 0;
+  background: var(--bg-primary);
+  border-radius: 1rem;
+  box-shadow: var(--composer-shadow);
+  overflow: hidden;
+}
+/* Non-chat routes render their page frame inside the same card. Pages
+   size themselves to the viewport (100vh); clamp them to the card. */
+.app .page-col > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  max-height: 100%;
 }
 
 /* Pin the column order with explicit flex `order` so the layout
@@ -717,8 +743,8 @@ html.is-desktop .app { height: auto; flex: 1 1 auto; min-height: 0; }
    已经把它画出来了——这里在首帧就把宽度按死成收起，避免"先展开
    再收起"的闪动。水合后 Sidebar 组件移除该属性、类名接管。 */
 html[data-sidebar-closed] #sidebar {
-  width: 49px !important;
-  min-width: 49px !important;
+  width: var(--rail-collapsed-w) !important;
+  min-width: var(--rail-collapsed-w) !important;
   transition: none !important;
   overflow: hidden !important;
 }

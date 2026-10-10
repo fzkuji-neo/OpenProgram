@@ -614,6 +614,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "reference/design/ui/composer-interaction-prototype.html",
             "reference/design/ui/project-workspace-prototype.html",
             "reference/design/ui/sidebar-hierarchy-prototype.html",
+            "reference/design/ui/sidebar-luma-prototype.html",
             "reference/design/runtime/dag/live-layout.html",
         ]),
         ('Supporting · Implementation records', '补充 · 实施记录', [

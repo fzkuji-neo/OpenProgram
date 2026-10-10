@@ -100,7 +100,7 @@ assert.match(loading, /memory: "settings\.tab\.memory"/);
 assert.match(loading, /styles\.pageHeader/);
 assert.match(providerItem, /title=\{p\.label\}/);
 
-assert.match(css, /\.body\.settingsNavCollapsed\s*\{[^}]*grid-template-columns:\s*49px minmax\(0, 1fr\)/s);
+assert.match(css, /\.body\.settingsNavCollapsed\s*\{[^}]*grid-template-columns:\s*var\(--rail-collapsed-w\) minmax\(0, 1fr\)/s);
 assert.match(css, /\.railHeader\s*\{[^}]*height:\s*32px/s);
 assert.match(css, /\.railTitle\s*\{[^}]*font-size:\s*18px[^}]*line-height:\s*1\.2(?:;|\s)/s);
 assert.match(css, /\.pageTitle\s*\{[^}]*font-size:\s*18px[^}]*overflow-wrap:\s*anywhere/s);
@@ -187,7 +187,7 @@ assert.match(css, /@container\s*\(max-width:\s*420px\)[\s\S]*\.modelToggle\s*\{[
 assert.match(css, /@container\s*\(max-width:\s*420px\)[\s\S]*\.modelFact\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
 assert.match(css, /@container\s*\(max-width:\s*680px\)[\s\S]*\.detailHeader\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*40px minmax\(0,\s*1fr\) auto/s);
 assert.match(css, /@container\s*\(max-width:\s*680px\)[\s\S]*\.detailHeaderActions\s*\{[^}]*grid-column:\s*3[^}]*flex-wrap:\s*wrap/s);
-assert.match(css, /@media \(max-width:\s*900px\)\s*\{\s*\.view\s*\{\s*padding-left:\s*49px;/s);
+assert.match(css, /@media \(max-width:\s*900px\)\s*\{\s*\.view\s*\{\s*padding-left:\s*var\(--rail-collapsed-w\);/s);
 
 // System Ports rows: copy stays in the left column; the input/switch
 // shrink-wraps on the right. Shared `.label` is content-sized, so long
