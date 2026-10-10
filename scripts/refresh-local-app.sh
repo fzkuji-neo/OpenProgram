@@ -371,6 +371,25 @@ PY
   node "$asar_cli" pack "$desktop_stage" "$desktop_asar" \
     --unpack-dir node_modules/node-pty
 
+  # Build each Program wheel once, before the App is quit or either runtime is
+  # written. pip's isolated source build is the last step that reaches the
+  # network (it fetches the build backend), so a dropped connection stops the
+  # refresh here with the installed App unchanged instead of half refreshed.
+  program_wheels=()
+  for program_name in gui research wiki; do
+    program_wheel_dir="$attempt_dir/program-wheels/$program_name"
+    mkdir -p "$program_wheel_dir"
+    "$local_python" -m pip wheel --disable-pip-version-check --no-deps \
+      --wheel-dir "$program_wheel_dir" "$attempt_dir/program-$program_name"
+    program_wheel="$(find "$program_wheel_dir" -maxdepth 1 -type f \
+      -name '*.whl' -print -quit)"
+    test -n "$program_wheel" || {
+      printf 'Program wheel was not built: %s\n' "$program_name" >&2
+      exit 1
+    }
+    program_wheels+=("$program_wheel")
+  done
+
   validate_default_app_source
   test "$(git -C "$repo_root" rev-parse HEAD)" = "$build_revision" && break
   printf 'HEAD changed during packaging; rebuilding the current checkout\n'
@@ -440,12 +459,11 @@ remove_stale_package_tree "$app_python"
   --no-deps --force-reinstall "$wheel"
 "$app_python" -I -m pip install --disable-pip-version-check \
   --break-system-packages --no-deps --force-reinstall "$wheel"
-for program_name in gui research wiki; do
-  program_stage="$attempt_dir/program-$program_name"
+for program_wheel in "${program_wheels[@]}"; do
   "$local_python" -m pip install --disable-pip-version-check \
-    --no-deps --force-reinstall "$program_stage"
+    --no-deps --force-reinstall "$program_wheel"
   "$app_python" -I -m pip install --disable-pip-version-check \
-    --break-system-packages --no-deps --force-reinstall "$program_stage"
+    --break-system-packages --no-deps --force-reinstall "$program_wheel"
 done
 if test "$(uname -s)" = Darwin; then
   "$app_python" -I -c \
