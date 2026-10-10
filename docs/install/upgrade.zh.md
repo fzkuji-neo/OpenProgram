@@ -355,7 +355,7 @@ App 或普通 CLI 无法启动时，使用本次更新保存的独立入口：
 
 ## 开发 checkout
 
-本地已安装的 macOS App 在提交改动后，从当前 checkout 运行 `scripts/refresh-local-app.sh`。脚本重新构建 wheel 与 Desktop 资源，在退出 App 之前先构建好 GUI、Research、Wiki 三个 Program 的 wheel（源码构建失败时已安装的 App 保持不变），再更新 PATH 和 App 内置的 Python 安装，并同步内置 Node 与 Ink 资源。完整内置运行环境通过实际检查后，脚本才重新生成能力清单并重启默认 worker。新增必需能力时，这个流程也会更新旧 App 的运行环境清单；检查失败会终止刷新，不会将未验证的能力标记为已验证。
+本地已安装的 macOS App 在提交改动后，从当前 checkout 运行 `scripts/refresh-local-app.sh`。脚本重新构建 wheel 与 Desktop 资源，在退出 App 之前先构建好 GUI、Research、Wiki 三个 Program 的 wheel（源码构建失败时已安装的 App 保持不变），再更新 PATH 和 App 内置的 Python 安装，并同步内置 Node 与 Ink 资源和 App 图标。完整内置运行环境通过实际检查后，脚本才重新生成能力清单并重启默认 worker。新增必需能力时，这个流程也会更新旧 App 的运行环境清单；检查失败会终止刷新，不会将未验证的能力标记为已验证。
 
 复制后的 Node 可执行文件必须能够脱离原安装目录运行。脚本会在修改 App 之前检查这一点。如果 PATH 中的 Node 依赖相邻动态库，运行刷新脚本时将 `OPENPROGRAM_NODE_BIN` 设为独立 Node 可执行文件的路径。
 
