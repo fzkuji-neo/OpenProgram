@@ -132,6 +132,25 @@ def register(app):
         except Exception as exc:
             return _error(exc)
 
+    @app.post("/api/session/{session_id}/resources/{resource_id}/close")
+    def session_resource_close(session_id: str, resource_id: str, request: Request):
+        try:
+            _authorize(request, session_id)
+            from openprogram.browser_resources import BrowserResourceStore
+            from openprogram.webui.ws_actions.webtab import close_page_resource
+            associations = BrowserResourceStore().associations_for_page(resource_id)
+            if not any(
+                session_id in {item.get("conversation_session_id"), item.get("session_id")}
+                for item in associations
+            ):
+                return JSONResponse({"error": "not_found"}, status_code=404)
+            rows = close_page_resource(resource_id)
+            return JSONResponse({"items": rows}, headers={"Cache-Control": "no-store"})
+        except KeyError:
+            return JSONResponse({"error": "not_found"}, status_code=404)
+        except Exception as exc:
+            return _error(exc)
+
     @app.get("/api/session/{session_id}/processes")
     def session_processes(session_id: str, request: Request):
         try:

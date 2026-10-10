@@ -26,6 +26,8 @@ import {
   sessionResourceView,
   setBrowserConnection,
   optimisticallyCloseBrowserResource,
+  requestCloseBrowserResource,
+  useBrowserResourceStore,
 } from "../../lib/chat/session-resources.ts";
 
 const tabs = [
@@ -143,12 +145,47 @@ test("optimistic close timeout accepts live authority when no close receipt arri
     ingestBrowserResource(browserItem({ id: "stale-close", generation: 2, sequence: 0,
       status: "closed", control_state: "closed" }), "a");
     assert.equal(listedBrowserResources().length, 0);
-    clock += 5001;
+    clock += 15001;
     ingestBrowserResource(browserItem({ generation: 2, sequence: 2 }), "a");
     assert.equal(listedBrowserResources().length, 1);
   } finally {
     Date.now = now;
   }
+});
+
+test("closing by resource id hides the row until the server's closed rows arrive", async () => {
+  resetBrowserResources();
+  ingestBrowserResource(browserItem({ generation: 2 }), "a");
+  optimisticallyCloseBrowserResource("page-a", 2);
+  let request;
+  const ok = await requestCloseBrowserResource({ conversationSessionId: "a", resourceId: "page-a" }, async (url, init) => {
+    request = { url, init };
+    return { items: [browserItem({ generation: 2, sequence: 2, status: "closed", control_state: "closed" })] };
+  });
+  assert.equal(ok, true);
+  assert.equal(request.url, "/api/session/a/resources/page-a/close");
+  assert.equal(request.init.method, "POST");
+  assert.ok(listedBrowserResources().every(row => row.status === "closed"));
+  assert.deepEqual(Object.keys(useBrowserResourceStore.getState().optimisticClosed), []);
+});
+
+test("a failed close brings the row back at once; an unknown Page stays hidden", async () => {
+  resetBrowserResources();
+  ingestBrowserResource(browserItem({ generation: 2 }), "a");
+  optimisticallyCloseBrowserResource("page-a", 2);
+  const failed = await requestCloseBrowserResource({ conversationSessionId: "a", resourceId: "page-a" }, async () => {
+    throw Object.assign(new Error("offline"), { status: 503 });
+  });
+  assert.equal(failed, false);
+  assert.equal(listedBrowserResources().filter(row => row.status === "open").length, 1);
+
+  optimisticallyCloseBrowserResource("page-a", 2);
+  const gone = await requestCloseBrowserResource({ conversationSessionId: "a", resourceId: "page-a" }, async () => {
+    throw Object.assign(new Error("not_found"), { status: 404 });
+  });
+  assert.equal(gone, true);
+  assert.equal(listedBrowserResources().length, 0);
+  assert.deepEqual(Object.keys(useBrowserResourceStore.getState().optimisticClosed), []);
 });
 
 test("one targeted closed event updates every association for the Page", () => {

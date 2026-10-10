@@ -122,5 +122,8 @@ export function ensureWebView(
   liveViewIds.add(id);
 }
 
+/** Native closes confirmed while the socket was down; sent after the next register. */
+export const unreportedClosedWebTabs = new Set<string>();
+
 /** Native ids locked by an in-flight transfer transaction. */
 export const transferLockedIds = new Set<string>();
