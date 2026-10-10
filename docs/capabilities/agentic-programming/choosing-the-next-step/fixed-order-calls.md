@@ -12,11 +12,13 @@ hard-coded in Python.
 
 ## Design points
 
-- Use the Agent method execution
+- Write the orchestrator as an ordinary `Agent` method
 - Call multiple sub-`Agent` methods in a fixed order
 - `llm()` is optional: skip it (pure chaining), or call it multiple times
   (each call creates one `llm` child node)
 - Data flows between sub-functions through plain Python variables
+- Sub-methods run on the caller's Runtime; no `runtime` argument is passed
+  between steps
 - One function may call `llm()` multiple times AND call any number of other
   `Agent` methods
 
@@ -31,11 +33,11 @@ class ExampleAgent(Agent):
         'research_pipeline': {'tool': True, 'input': {'task': {'description': 'Research topic.'}}},
     }
 
-    def research_pipeline(self, task: str, runtime=None) -> dict:
+    def research_pipeline(self, task: str) -> dict:
         """Run the full research pipeline: survey, find gaps, generate ideas."""
-        survey = survey_topic(topic=task, runtime=runtime)
-        gaps = identify_gaps(survey=survey, runtime=runtime)
-        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+        survey = survey_topic(topic=task)
+        gaps = identify_gaps(survey=survey)
+        ideas = generate_ideas(gaps=gaps)
 
         return {"survey": survey, "gaps": gaps, "ideas": ideas}
 
@@ -47,17 +49,18 @@ research_pipeline = _example_agent.research_pipeline
 
 ```python
 from openprogram import Agent
+from openprogram.agentic_programming import llm
 
 class ExampleAgent(Agent):
     method_options = {
         'research_pipeline': {'tool': True, 'input': {'task': {'description': 'Research topic.'}}},
     }
 
-    def research_pipeline(self, task: str, runtime=None) -> str:
+    def research_pipeline(self, task: str) -> str:
         """Run the full research pipeline and summarise the results."""
-        survey = survey_topic(topic=task, runtime=runtime)
-        gaps = identify_gaps(survey=survey, runtime=runtime)
-        ideas = generate_ideas(gaps=gaps, runtime=runtime)
+        survey = survey_topic(topic=task)
+        gaps = identify_gaps(survey=survey)
+        ideas = generate_ideas(gaps=gaps)
 
         return llm([
             {"type": "text", "text": (
@@ -88,8 +91,8 @@ Sub-functions hand data to each other through Python variables — no LLM
 involved:
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
-gaps = identify_gaps(survey=survey, runtime=runtime)
+survey = survey_topic(topic=task)
+gaps = identify_gaps(survey=survey)
 ```
 
 The return value of `survey_topic` goes straight in as the input argument of
@@ -98,13 +101,13 @@ The return value of `survey_topic` goes straight in as the input argument of
 ## Inserting Python processing between steps
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
+survey = survey_topic(topic=task)
 
 # plain Python processing in between
 key_points = extract_key_points(survey)
 filtered = [p for p in key_points if p["relevance"] > 0.5]
 
-gaps = identify_gaps(survey="\n".join(filtered), runtime=runtime)
+gaps = identify_gaps(survey="\n".join(filtered))
 ```
 
 ## Error handling
@@ -115,22 +118,22 @@ into the orchestrator. Catch it there with a plain `try/except`:
 
 ```python
 try:
-    survey = survey_topic(topic=task, runtime=runtime)
+    survey = survey_topic(topic=task)
 except Exception as e:
     return {"error": f"Survey failed: {e}"}
 
-gaps = identify_gaps(survey=survey, runtime=runtime)
+gaps = identify_gaps(survey=survey)
 ```
 
 Optionally, if a sub-function reports failure in-band (returning an error
 string instead of raising), check the value:
 
 ```python
-survey = survey_topic(topic=task, runtime=runtime)
+survey = survey_topic(topic=task)
 if not survey or "error" in survey.lower():
     return {"error": "Survey failed", "survey": survey}
 
-gaps = identify_gaps(survey=survey, runtime=runtime)
+gaps = identify_gaps(survey=survey)
 ```
 
 ## Versus "LLM-selected calls"

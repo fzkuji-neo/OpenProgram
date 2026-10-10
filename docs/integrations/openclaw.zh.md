@@ -60,47 +60,39 @@ class ExampleAgent(Agent):
         'plan': {'tool': True},
     }
 
-    def decompose(self, task, runtime=None):
+    def decompose(self, task):
         """把复杂任务拆解成可执行的步骤。"""
         return llm([
             {"type": "text", "text": f"把这个任务拆解成 3-5 个具体、可执行的步骤：\n{task}\n\n编号，要具体。"},
         ])
 
-    def assess(self, step, runtime=None):
+    def assess(self, step):
         """评估一个步骤的难度和时间。"""
         return llm([
             {"type": "text", "text": f"对这个步骤给出：难度（简单/中等/困难）和时间估计。\n格式：[难度] ~X小时\n\n步骤：{step}"},
         ])
 
-    def plan(self, task, runtime=None):
+    def plan(self, task):
         """为任务创建详细计划。"""
-        steps_text = decompose(task=task, runtime=runtime)
+        steps_text = self.decompose(task=task)
 
         lines = [l.strip() for l in steps_text.split("\n") if l.strip() and l.strip()[0].isdigit()]
         assessments = []
         for line in lines[:5]:
-            a = assess(step=line, runtime=runtime)
+            a = self.assess(step=line)
             assessments.append(f"{line}\n   → {a}")
 
         return "\n\n".join(assessments)
 
-_example_agent = ExampleAgent()
+_example_agent = ExampleAgent(runtime=create_runtime(provider="anthropic", model="claude-haiku-4-5"))
 decompose = _example_agent.decompose
 assess = _example_agent.assess
 plan = _example_agent.plan
 
-runtime = create_runtime(provider="anthropic", model="claude-haiku-4-5")
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
     task = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "构建一个带认证的 REST API"
-    result = plan(task=task, runtime=runtime)
+    result = plan(task=task)
     print(result)
 ```
 
@@ -146,35 +138,28 @@ class ExampleAgent(Agent):
         'code_analysis': {'tool': True},
     }
 
-    def review_code(self, code, language="python", runtime=None):
+    def review_code(self, code, language="python"):
         """审查代码的 bug、风格问题和改进建议。"""
         return llm([
             {"type": "text", "text": f"审查这段 {language} 代码。列出：\n1. Bug（如果有）\n2. 风格问题\n3. 改进建议\n\n```{language}\n{code}\n```"},
         ])
 
-    def suggest_tests(self, code, runtime=None):
+    def suggest_tests(self, code):
         """为代码建议测试用例。"""
         return llm([
             {"type": "text", "text": f"为这段代码建议 3 个测试用例。每个给出：测试名称、输入、期望输出。\n\n```python\n{code}\n```"},
         ])
 
-    def code_analysis(self, code, runtime=None):
+    def code_analysis(self, code):
         """完整代码分析：审查 + 测试建议。"""
-        review = review_code(code=code, runtime=runtime)
-        tests = suggest_tests(code=code, runtime=runtime)
+        review = self.review_code(code=code)
+        tests = self.suggest_tests(code=code)
         return f"## 代码审查\n{review}\n\n## 建议测试\n{tests}"
 
-_example_agent = ExampleAgent()
+_example_agent = ExampleAgent(runtime=create_runtime(provider="anthropic", model="claude-haiku-4-5"))
 review_code = _example_agent.review_code
 suggest_tests = _example_agent.suggest_tests
 code_analysis = _example_agent.code_analysis
-
-runtime = create_runtime(provider="anthropic", model="claude-haiku-4-5")
-
-
-
-
-
 ```
 
 ## 用法 3：MCP Tool 封装
@@ -198,7 +183,7 @@ class ExampleAgent(Agent):
         'summarize_text': {'tool': True},
     }
 
-    def summarize_text(self, text, style="bullet_points", runtime=None):
+    def summarize_text(self, text, style="bullet_points"):
         """按指定风格总结文本。"""
         style_instructions = {
             "bullet_points": "用 3-5 个要点总结。",
@@ -211,12 +196,8 @@ class ExampleAgent(Agent):
             {"type": "text", "text": f"{instruction}\n\n文本：\n{text}"},
         ])
 
-_example_agent = ExampleAgent()
+_example_agent = ExampleAgent(runtime=create_runtime(provider="anthropic", model="claude-haiku-4-5"))
 summarize_text = _example_agent.summarize_text
-
-runtime = create_runtime(provider="anthropic", model="claude-haiku-4-5")
-
-
 
 
 if __name__ == "__main__":
@@ -225,7 +206,7 @@ if __name__ == "__main__":
     args = request.get("args", {})
 
     if tool == "summarize":
-        result = summarize_text(**args, runtime=runtime)
+        result = summarize_text(**args)
         print(json.dumps({"result": result}))
     else:
         print(json.dumps({"error": f"未知工具: {tool}"}))

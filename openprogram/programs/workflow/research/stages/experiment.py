@@ -11,8 +11,6 @@ from openprogram.agentic_programming import Agent
 import os
 
 from openprogram.agentic_programming import agent, llm
-from openprogram.agentic_programming.call_state import _current_runtime
-from openprogram.agentic_programming.runtime import Runtime
 from .._paths import expanded_project_dir, read_artifact, write_artifact
 
 
@@ -137,7 +135,6 @@ check_training = CheckTrainingAgent().check_training
 
 def run_experiments(
     project_dir: str,
-    runtime: Runtime,
 ) -> dict:
     """Run the experiment stage.
 
@@ -146,7 +143,6 @@ def run_experiments(
 
     Args:
         project_dir:  Project directory.
-        runtime:      LLM runtime.
 
     Returns:
         dict with experiment plan and execution status.
@@ -177,11 +173,7 @@ def run_experiments(
         )
 
     # Design
-    runtime_token = _current_runtime.set(runtime)
-    try:
-        plan = design_experiments(idea=idea)
-    finally:
-        _current_runtime.reset(runtime_token)
+    plan = design_experiments(idea=idea)
 
     # Save plan
     exp_dir = os.path.join(project_dir, "experiments")

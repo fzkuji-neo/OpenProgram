@@ -257,9 +257,9 @@ def run_with_follow_up(func, *args, **kwargs):
 
     用例：
         # agent 自动应答：
-        result = run_with_follow_up(edit, fn=broken_func, runtime=rt)
+        result = run_with_follow_up(edit, fn=broken_func)
         while isinstance(result, FollowUp):
-            answer = runtime.exec(f"Answer: {result.question}")
+            answer = agent(f"Answer: {result.question}", tools=[])
             result = result.answer(answer)
 
         # 简单的阻塞式（等价于直接调 + 终端 handler）：

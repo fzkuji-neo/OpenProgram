@@ -60,47 +60,39 @@ class ExampleAgent(Agent):
         'plan': {'tool': True},
     }
 
-    def decompose(self, task, runtime=None):
+    def decompose(self, task):
         """Break a complex task into actionable steps."""
         return llm([
             {"type": "text", "text": f"Break this task into 3-5 concrete, actionable steps:\n{task}\n\nNumber each step. Be specific."},
         ])
 
-    def assess(self, step, runtime=None):
+    def assess(self, step):
         """Assess difficulty and time estimate for a step."""
         return llm([
             {"type": "text", "text": f"For this step, give: difficulty (easy/medium/hard) and time estimate.\nFormat: [difficulty] ~Xh\n\nStep: {step}"},
         ])
 
-    def plan(self, task, runtime=None):
+    def plan(self, task):
         """Create a detailed plan for a task."""
-        steps_text = decompose(task=task, runtime=runtime)
+        steps_text = self.decompose(task=task)
 
         lines = [l.strip() for l in steps_text.split("\n") if l.strip() and l.strip()[0].isdigit()]
         assessments = []
         for line in lines[:5]:
-            a = assess(step=line, runtime=runtime)
+            a = self.assess(step=line)
             assessments.append(f"{line}\n   → {a}")
 
         return "\n\n".join(assessments)
 
-_example_agent = ExampleAgent()
+_example_agent = ExampleAgent(runtime=create_runtime(provider="anthropic", model="claude-haiku-4-5"))
 decompose = _example_agent.decompose
 assess = _example_agent.assess
 plan = _example_agent.plan
 
-runtime = create_runtime(provider="anthropic", model="claude-haiku-4-5")
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
     task = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "Build a REST API with authentication"
-    result = plan(task=task, runtime=runtime)
+    result = plan(task=task)
     print(result)
 ```
 
@@ -146,35 +138,28 @@ class ExampleAgent(Agent):
         'code_analysis': {'tool': True},
     }
 
-    def review_code(self, code, language="python", runtime=None):
+    def review_code(self, code, language="python"):
         """Review code for bugs, style issues, and improvements."""
         return llm([
             {"type": "text", "text": f"Review this {language} code. List:\n1. Bugs (if any)\n2. Style issues\n3. Suggested improvements\n\n```{language}\n{code}\n```"},
         ])
 
-    def suggest_tests(self, code, runtime=None):
+    def suggest_tests(self, code):
         """Suggest test cases for the given code."""
         return llm([
             {"type": "text", "text": f"Suggest 3 test cases for this code. For each, give: test name, input, expected output.\n\n```python\n{code}\n```"},
         ])
 
-    def code_analysis(self, code, runtime=None):
+    def code_analysis(self, code):
         """Full code analysis: review + test suggestions."""
-        review = review_code(code=code, runtime=runtime)
-        tests = suggest_tests(code=code, runtime=runtime)
+        review = self.review_code(code=code)
+        tests = self.suggest_tests(code=code)
         return f"## Code Review\n{review}\n\n## Suggested Tests\n{tests}"
 
-_example_agent = ExampleAgent()
+_example_agent = ExampleAgent(runtime=create_runtime(provider="anthropic", model="claude-haiku-4-5"))
 review_code = _example_agent.review_code
 suggest_tests = _example_agent.suggest_tests
 code_analysis = _example_agent.code_analysis
-
-runtime = create_runtime(provider="anthropic", model="claude-haiku-4-5")
-
-
-
-
-
 ```
 
 ## Usage Pattern 3: MCP Tool Wrapper
@@ -198,7 +183,7 @@ class ExampleAgent(Agent):
         'summarize_text': {'tool': True},
     }
 
-    def summarize_text(self, text, style="bullet_points", runtime=None):
+    def summarize_text(self, text, style="bullet_points"):
         """Summarize text in the specified style."""
         style_instructions = {
             "bullet_points": "Summarize as 3-5 bullet points.",
@@ -211,12 +196,8 @@ class ExampleAgent(Agent):
             {"type": "text", "text": f"{instruction}\n\nText:\n{text}"},
         ])
 
-_example_agent = ExampleAgent()
+_example_agent = ExampleAgent(runtime=create_runtime(provider="anthropic", model="claude-haiku-4-5"))
 summarize_text = _example_agent.summarize_text
-
-runtime = create_runtime(provider="anthropic", model="claude-haiku-4-5")
-
-
 
 
 if __name__ == "__main__":
@@ -225,7 +206,7 @@ if __name__ == "__main__":
     args = request.get("args", {})
 
     if tool == "summarize":
-        result = summarize_text(**args, runtime=runtime)
+        result = summarize_text(**args)
         print(json.dumps({"result": result}))
     else:
         print(json.dumps({"error": f"Unknown tool: {tool}"}))

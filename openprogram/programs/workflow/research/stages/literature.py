@@ -13,8 +13,6 @@ import os
 import json
 
 from openprogram.agentic_programming import llm
-from openprogram.agentic_programming.call_state import _current_runtime
-from openprogram.agentic_programming.runtime import Runtime
 from .._paths import expanded_project_dir, write_artifact
 
 
@@ -117,26 +115,20 @@ identify_gaps = IdentifyGapsAgent().identify_gaps
 def run_literature(
     topic: str,
     project_dir: str,
-    runtime: Runtime,
 ) -> dict:
     """Run the literature survey stage.
 
     Args:
         topic:        Research topic/direction.
         project_dir:  Project directory path.
-        runtime:      LLM runtime.
 
     Returns:
         dict with survey text and identified gaps.
     """
     project_dir = str(expanded_project_dir(project_dir))
 
-    runtime_token = _current_runtime.set(runtime)
-    try:
-        survey = survey_topic(topic=topic)
-        gaps = identify_gaps(survey=survey)
-    finally:
-        _current_runtime.reset(runtime_token)
+    survey = survey_topic(topic=topic)
+    gaps = identify_gaps(survey=survey)
 
     # Save to project
     rw_dir = os.path.join(project_dir, "related_work")

@@ -455,14 +455,14 @@ def apply_tool_policy(
     Same channel / allow / deny / availability filters as
     :func:`agent_tools`, applied post-construction. Use this when the
     caller already has a tool list (e.g. produced by an explicit
-    ``runtime.exec(tools=[...])`` call) and needs to enforce session
+    ``agent(..., tools=[...])`` call) and needs to enforce session
     or channel policy on top — mirrors how OpenClaw runs its tool
     builder once and then layers ``wrapTool*`` filters over the
     result.
 
     ``exposure_filter`` (default True) applies the Layer 2 exposure
     whitelist. Set it False for tools the CALLER supplied ad-hoc via
-    ``runtime.exec(tools=[...])``: those are self-authorized (the caller
+    ``agent(..., tools=[...])``: those are self-authorized (the caller
     decided to expose them) and are typically NOT in the framework's
     registered-tool whitelist, so applying the whitelist would silently
     drop every such tool — which broke ``call_with_schema`` /
