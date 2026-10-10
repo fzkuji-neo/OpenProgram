@@ -30,7 +30,7 @@
       "repository": "https://github.com/Fzkuji/GUI-Agent-Harness.git",
       "commit": "7e3d180a0c20496898cd58c1ad2879d8e70adee4",
       "sourcePatch": "program-patches/gui_harness.patch",
-      "sourcePatchSha256": "ecd9b05adba283f1172d8a1a9a865b4abc3d97a0b1b04cb8a7800e860843e367"
+      "sourcePatchSha256": "4af812942e946d19e64962b7bc65b2a5f09dfa583d395faa70eb3e0675d8181a"
     },
     "research": {
       "distribution": "research-agent-harness",
@@ -38,7 +38,7 @@
       "repository": "https://github.com/Fzkuji/Research-Agent-Harness.git",
       "commit": "d324eb4b3b2c2ccc0954e7432e112ba13b818bb7",
       "sourcePatch": "program-patches/research_harness.patch",
-      "sourcePatchSha256": "3d48573432cafe3ad4b4f5fdebd1597a0b90c47f3f5f3622e9b91b56b2d53445"
+      "sourcePatchSha256": "44d5d83850f359d15454a1dd2b799193356ed45a127c75100a89e3c666a76d4b"
     },
     "wiki": {
       "distribution": "wiki-agent-harness",
@@ -46,7 +46,7 @@
       "repository": "https://github.com/Fzkuji/Wiki-Agent-Harness.git",
       "commit": "18c459256888431e9d925a98c02559d4bd2be7ca",
       "sourcePatch": "program-patches/wiki_agent_harness.patch",
-      "sourcePatchSha256": "9692c1c2b03f01d6c1b57c734a8d92f3f89d3b63d4c3cf4d8035f4041bd52e6a"
+      "sourcePatchSha256": "30985396260d836e812cc07a25562da98ebdc104c5b0ea9b9b7a17218bf53da9"
     }
   },
   "assets": {

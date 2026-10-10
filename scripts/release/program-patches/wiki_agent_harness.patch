@@ -1,5 +1,5 @@
 diff --git a/README.md b/README.md
-index 185c8d5..42873d6 100644
+index 185c8d5..09aeaa1 100644
 --- a/README.md
 +++ b/README.md
 @@ -59,7 +59,7 @@ This harness sits in between:
@@ -46,6 +46,150 @@ index 185c8d5..42873d6 100644
  
  ## Quick start (Python)
  
+@@ -402,7 +402,7 @@ Wiki(
+ #### Agentic ingest
+ 
+ ```python
+-w.ingest_session(session_id: str, messages: list[dict], *, runtime=None)
++w.ingest_session(session_id: str, messages: list[dict])
+ ```
+ 
+ Runs the two-step pipeline (analysis → generation) over a conversation.
+@@ -520,7 +520,7 @@ wah lint        # verify zero broken links
+ 
+ ## Ingest pipeline
+ 
+-`ingest_session(session_id, messages, runtime=)` runs in two steps:
++`ingest_session(session_id, messages)` runs in two steps:
+ 
+ 1. **Analysis.** The harness assembles purpose statement + folder tree +
+    flat page index + template catalog + the source (rendered
+@@ -542,20 +542,13 @@ After step 2, the harness automatically:
+   `.state/review-queue.json`,
+ - runs `git commit` if the vault is a git repo.
+ 
+-### Runtime contract
++### Runtime
+ 
+-The `runtime` is any object exposing:
+-
+-```python
+-runtime.exec(
+-    content=[{"type": "text", "text": "..."}],
+-    tools=[...] | None,
+-    max_iterations=int,
+-) -> str
+-```
+-
+-This matches OpenProgram's runtime, but anything that satisfies the
+-shape (Anthropic SDK wrapper, custom REPL, mock) works.
++Both steps are OpenProgram Agent calls (`WikiWriterAgent`). They run on
++the Runtime passed as `Wiki(runtime=...)`; without one they use the
++caller's Runtime — the `wiki_agent` tool's own, or OpenProgram's
++default provider. Any `openprogram.Runtime`, including
++`Runtime(call=...)` around another client or a mock, works.
+ 
+ ### Specialising for a domain
+ 
+@@ -580,9 +573,10 @@ w = Wiki(
+     extra_template_dirs=["./paper-templates"],
+     prompts=PromptSet().with_overrides(analysis=PAPER_ANALYSIS),
+     purpose="Reading notes for my reading group; keep critique sharp.",
++    runtime=my_runtime,
+ )
+ 
+-w.ingest_session(session_id, messages, runtime=my_runtime)
++w.ingest_session(session_id, messages)
+ ```
+ 
+ ## Acknowledgements
+diff --git a/wiki_agent_harness/__init__.py b/wiki_agent_harness/__init__.py
+index fa240e1..28677ae 100644
+--- a/wiki_agent_harness/__init__.py
++++ b/wiki_agent_harness/__init__.py
+@@ -55,8 +55,8 @@ class Wiki:
+         prompts: Optional :class:`PromptSet` overriding the default ingest
+             prompts. Downstream projects use this to specialise the
+             analysis/generation pipeline for a specific domain.
+-        runtime: Optional agentic runtime used by ``ingest_session``. Anything
+-            with ``exec(content=[...], tools=..., max_iterations=...)`` works.
++        runtime: Optional Runtime for ingest and enrichment. Defaults to the
++            caller's Runtime.
+         purpose: One-paragraph statement of what the vault is for; passed
+             into the ingest analysis prompt to govern scope.
+     """
+@@ -82,6 +82,7 @@ class Wiki:
+         )
+         self.prompts = prompts or PromptSet()
+         self.runtime = runtime
++        self._writer = _ingest.WikiWriterAgent(runtime=runtime)
+         self.purpose = purpose
+         from .prompts import DEFAULT_AUDIENCE
+         self.audience = audience or DEFAULT_AUDIENCE
+@@ -223,42 +224,34 @@ class Wiki:
+         self,
+         session_id: str,
+         messages: list[dict[str, Any]],
+-        *,
+-        runtime: Any | None = None,
+     ) -> dict[str, Any]:
+-        return _ingest.ingest_session(
++        return self._writer.ingest_session(
+             session_id, messages,
+             vault_root=self.root,
+             renderer=self.renderer,
+             prompts=self.prompts,
+-            runtime=runtime or self.runtime,
+             purpose=self.purpose,
+             audience=self.audience,
+         )
+ 
+-    def enrich_page(
+-        self, target: str | Path, *, runtime: Any | None = None,
+-    ) -> dict[str, Any]:
++    def enrich_page(self, target: str | Path) -> dict[str, Any]:
+         """Have the agent rewrite a page's slots using rich components."""
+         path = self._resolve(target)
+-        return _ingest.enrich_page(
++        return self._writer.enrich_page(
+             path,
+             vault_root=self.root,
+             renderer=self.renderer,
+             prompts=self.prompts,
+-            runtime=runtime or self.runtime,
+             audience=self.audience,
+         )
+ 
+     def enrich_all(
+         self,
+         *,
+-        runtime: Any | None = None,
+         only_templates: list[str] | None = None,
+         max_pages: int | None = None,
+     ) -> dict[str, Any]:
+         """Enrich every harness-managed page (or only a template subset)."""
+-        rt = runtime or self.runtime
+         results: list[dict[str, Any]] = []
+         for p in self.iter_pages():
+             if max_pages is not None and len(results) >= max_pages:
+@@ -267,7 +260,7 @@ class Wiki:
+             tmpl = str(meta.get("template") or "")
+             if only_templates and tmpl not in only_templates:
+                 continue
+-            results.append(self.enrich_page(p, runtime=rt))
++            results.append(self.enrich_page(p))
+         # Folder READMEs (template="folder") use rebuild_folder_index, not
+         # enrich_page; iterate them separately.
+         if not only_templates or "folder" in only_templates:
+@@ -275,7 +268,7 @@ class Wiki:
+             for readme in _store.iter_folder_indexes(self.root):
+                 if max_pages is not None and len(results) >= max_pages:
+                     break
+-                results.append(self.enrich_page(readme, runtime=rt))
++                results.append(self.enrich_page(readme))
+         return {
+             "ok": True,
+             "n_pages": len(results),
 diff --git a/wiki_agent_harness/agentics/__init__.py b/wiki_agent_harness/agentics/__init__.py
 index edd98ad..b9e5e0a 100644
 --- a/wiki_agent_harness/agentics/__init__.py
@@ -71,19 +215,27 @@ index edd98ad..b9e5e0a 100644
 -__all__ = ["AGENTIC_FUNCTIONS"]
 +__all__ = ["PROGRAM_ENTRIES"]
 diff --git a/wiki_agent_harness/agentics/wiki_agent/__init__.py b/wiki_agent_harness/agentics/wiki_agent/__init__.py
-index 870d123..0b1d1cc 100644
+index 870d123..ee26445 100644
 --- a/wiki_agent_harness/agentics/wiki_agent/__init__.py
 +++ b/wiki_agent_harness/agentics/wiki_agent/__init__.py
-@@ -4,7 +4,7 @@ from __future__ import annotations
+@@ -4,22 +4,21 @@ from __future__ import annotations
  from typing import Any
  
  from openprogram.agentic_programming import decision
 -from openprogram.agentic_programming.function import agentic_function
-+from openprogram import Agent
- from openprogram.agentic_programming.runtime import Runtime
+-from openprogram.agentic_programming.runtime import Runtime
++from openprogram import Agent, agent
  
  
-@@ -19,7 +19,7 @@ def _conclusion(task: str, result: Any, runtime: Runtime) -> str:
+ # ═══════════════════════════════════════════
+ # conclusion — LLM reports what the wiki operation did
+ # ═══════════════════════════════════════════
+ 
+-def _conclusion(task: str, result: Any, runtime: Runtime) -> str:
++def _conclusion(task: str, result: Any) -> str:
+     """Have the LLM write a short report of what the wiki run did.
+ 
+     Reads the routed operation's result (which docs were written,
      what was found, the tree, the lint report) and answers the user's
      task: what was done and what came of it. Returns plain text.
      """
@@ -92,7 +244,17 @@ index 870d123..0b1d1cc 100644
      import json as _json
  
      try:
-@@ -48,89 +48,87 @@ def _conclusion(task: str, result: Any, runtime: Runtime) -> str:
+@@ -39,8 +38,7 @@ def _conclusion(task: str, result: Any, runtime: Runtime) -> str:
+         '{"summary": "<what the run did>", "issues": "any problems, or null"}'
+     )
+ 
+-    # tool loop, migrates with agent() in a later batch
+-    reply = runtime.exec(content=[{"type": "text", "text": context}])
++    reply = agent(context)
+     try:
+         parsed = parse_json(reply)
+         return parsed.get("summary", reply)
+@@ -48,89 +46,88 @@ def _conclusion(task: str, result: Any, runtime: Runtime) -> str:
          return reply[:1000]
  
  
@@ -139,6 +301,14 @@ index 870d123..0b1d1cc 100644
 -        purpose=purpose or "",
 -        audience=audience or "",
 -    )
++def _runtime_workdir() -> str | None:
++    """The working directory of the Runtime this call runs on, if it has one."""
++    from openprogram.agentic_programming.call_state import _current_runtime
++
++    workdir = getattr(_current_runtime.get(None), "workdir", None)
++    return str(workdir) if workdir else None
++
++
 +class WikiAgent(Agent):
 +    method_options = {
 +        "wiki_agent": {
@@ -152,7 +322,6 @@ index 870d123..0b1d1cc 100644
 +                "vault": {"hidden": True},
 +                "purpose": {"hidden": True},
 +                "audience": {"hidden": True},
-+                "runtime": {"hidden": True},
 +            },
 +            "capture_io": True,
 +            "name": "wiki_agent",
@@ -164,19 +333,14 @@ index 870d123..0b1d1cc 100644
 +        vault: str = "",
 +        purpose: str = "",
 +        audience: str = "",
-+        runtime: Runtime = None,
 +    ) -> dict:
 +        """Maintain a wiki vault — route to ingest, enrich, browse, lint, or search depending on the task."""
 +        from wiki_agent_harness import Wiki
 +
-+        root = vault.strip() or None
-+        if root is None and runtime is not None:
-+            wd = getattr(runtime, "workdir", None)
-+            if wd:
-+                root = str(wd)
++        root = vault.strip() or _runtime_workdir()
 +
 +        w = Wiki(
-+            root=root, runtime=runtime,
++            root=root,
 +            purpose=purpose or "",
 +            audience=audience or "",
 +        )
@@ -228,11 +392,10 @@ index 870d123..0b1d1cc 100644
 +            return w.ingest_session(
 +                session_id,
 +                [{"role": "user", "content": task}],
-+                runtime=runtime,
 +            )
 +
 +        def _do_enrich() -> dict:
-+            return w.enrich_all(runtime=runtime)
++            return w.enrich_all()
 +
 +        def _do_browse() -> dict:
 +            return {"action": "browse", "vault": str(w.root),
@@ -257,7 +420,7 @@ index 870d123..0b1d1cc 100644
              f"User task:\n{task}\n\n"
              f"Current vault state:\n{state}\n\n"
              f"Routing hints:\n"
-@@ -139,22 +137,24 @@ def wiki_agent(
+@@ -139,22 +136,24 @@ def wiki_agent(
              f"  - 'show' / 'list' / 'what's in' / 'tree' → browse\n"
              f"  - 'check' / 'broken links' / 'health' → lint\n"
              f"  - anything else (looks like a query against existing content) → search"
@@ -290,7 +453,7 @@ index 870d123..0b1d1cc 100644
 -
 -    return result
 +        try:
-+            summary = _conclusion(task, result, runtime)
++            summary = _conclusion(task, result)
 +            if isinstance(result, dict):
 +                result = {**result, "summary": summary}
 +        except Exception as e:
@@ -300,28 +463,145 @@ index 870d123..0b1d1cc 100644
 +        return result
 +
 +wiki_agent = WikiAgent().wiki_agent
+diff --git a/wiki_agent_harness/cli.py b/wiki_agent_harness/cli.py
+index 03ac1b9..a07486a 100644
+--- a/wiki_agent_harness/cli.py
++++ b/wiki_agent_harness/cli.py
+@@ -55,8 +55,8 @@ def _resolve_content(args: argparse.Namespace) -> str:
+     raise SystemExit("provide --content, --file, or pipe content via stdin")
+ 
+ 
+-def _wiki(args: argparse.Namespace) -> Wiki:
+-    return Wiki(root=args.root) if args.root else Wiki()
++def _wiki(args: argparse.Namespace, *, runtime: Any | None = None) -> Wiki:
++    return Wiki(root=args.root, runtime=runtime) if args.root else Wiki(runtime=runtime)
+ 
+ 
+ def _print(obj: Any) -> None:
+@@ -190,19 +190,17 @@ def _build_runtime(args):
+             rt.set_workdir(args.root)
+         return rt
+     except Exception as e:
+-        print(f"warning: could not build runtime ({e}); enrich will fail",
++        print(f"warning: could not build runtime ({e}); using the default provider",
+               file=sys.stderr)
+         return None
+ 
+ 
+ def cmd_enrich(args):
+-    rt = _build_runtime(args)
+-    w = _wiki(args)
++    w = _wiki(args, runtime=_build_runtime(args))
+     if args.target:
+-        out = w.enrich_page(args.target, runtime=rt)
++        out = w.enrich_page(args.target)
+     else:
+         out = w.enrich_all(
+-            runtime=rt,
+             only_templates=args.template if args.template else None,
+             max_pages=args.limit,
+         )
 diff --git a/wiki_agent_harness/ingest.py b/wiki_agent_harness/ingest.py
-index 0972b0e..1717599 100644
+index 0972b0e..268061f 100644
 --- a/wiki_agent_harness/ingest.py
 +++ b/wiki_agent_harness/ingest.py
+@@ -4,7 +4,7 @@
+      index, template catalog, purpose statement.
+   2. Step 1 — Analysis: LLM emits a structured plain-text analysis (what
+      pages to create/update, which template, which folder).
+-  3. Step 2 — Generation: agentic ``runtime.exec`` call performs the actual
++  3. Step 2 — Generation: an ``agent()`` tool loop performs the actual
+      writes via slot-level edits. Prompts are overridable via PromptSet.
+   4. Folder indexes are rebuilt for every touched folder.
+   5. Search index is updated.
 @@ -23,7 +23,9 @@ from datetime import datetime
  from pathlib import Path
  from typing import Any, Callable, Iterable
  
 -from openprogram.agentic_programming import agentic_function, llm
-+from openprogram import Agent
++from openprogram import Agent, agent
 +from openprogram.agentic_programming.call_state import default_expose
 +from openprogram.agentic_programming import llm
  
  from . import index as _idx
  from . import ops
-@@ -72,9 +74,20 @@ def render_conversation(
+@@ -72,182 +74,177 @@ def render_conversation(
  # ---------------------------------------------------------------------------
  
  
 -@agentic_function(as_tool=False)
 -def _analyze_session(prompt: str, runtime: Any) -> str:
 -    return llm([{"type": "text", "text": prompt}])
+-
+-
+-def ingest_session(
+-    session_id: str,
+-    messages: list[dict[str, Any]],
+-    *,
+-    vault_root: Path,
+-    renderer: Renderer,
+-    prompts: PromptSet,
+-    runtime: Any,
+-    purpose: str = "",
+-    audience: str = "",
+-) -> dict[str, Any]:
+-    """Run the two-step ingest over a finished conversation.
+-
+-    ``runtime`` is the agentic runtime — any object exposing
+-    ``exec(content=[...], tools=..., max_iterations=...)`` works. Downstream
+-    callers compose their own.
+-    """
+-    if runtime is None:
+-        return {"ok": False, "error": "no runtime supplied"}
+-
+-    today = datetime.now().strftime("%Y-%m-%d")
+-    slug = _session_slug(session_id, today)
+-
+-    source = render_conversation(messages)
+-    tree_str = _pages.folder_tree(vault_root) or "(empty vault)"
+-    index_str = _pages.folder_index(vault_root) or "(no pages yet)"
+-    template_details = render_template_help(renderer)
+-    template_names = ", ".join(renderer.template_names())
+-    source_title = f"Session {session_id} ({today})"
+-
+-    # ── Step 1: analysis ───────────────────────────────────────────────
+-    analysis_prompt = prompts.analysis.format(
+-        purpose=purpose or "(no explicit purpose set)",
+-        audience=audience or "(no explicit audience set)",
+-        index=index_str,
+-        tree=tree_str,
+-        templates=template_names,
+-        template_details=template_details,
+-        source=source,
+-        source_title=source_title,
+-    )
+-    try:
+-        analysis = _analyze_session(analysis_prompt, runtime)
+-    except Exception as e:
+-        return {"ok": False, "error": f"analysis: {e}"}
+-    if not analysis or not str(analysis).strip():
+-        return {"ok": False, "error": "analysis returned empty"}
+-
+-    # ── Step 2: generation ─────────────────────────────────────────────
+-    from .components import render_component_palette
+-    gen_prompt = prompts.generation.format(
+-        vault_root=str(vault_root),
+-        source_slug=slug,
+-        today=today,
+-        audience=audience or "(no explicit audience set)",
+-        analysis=analysis,
+-        source=source,
+-        template_details=template_details,
+-        component_palette=render_component_palette(),
+-    )
+-    try:
+-        # tool loop, migrates with agent() in a later batch
+-        report = runtime.exec(
+-            content=[{"type": "text", "text": gen_prompt}],
+-            max_iterations=40,
+-        )
+-    except Exception as e:
+-        return {"ok": False, "error": f"generation: {e}"}
 +class AnalyzeSessionAgent(Agent):
 +    method_options = {
 +        "_analyze_session": {
@@ -331,11 +611,262 @@ index 0972b0e..1717599 100644
 +            "name": "_analyze_session",
 +        }
 +    }
-+
-+    def _analyze_session(self, prompt: str, runtime: Any) -> str:
+ 
+-    # ── Post-ingest bookkeeping ────────────────────────────────────────
+-    touched, created = ops.git_touched_pages(vault_root)
+-    affected_folders = {p.parent for p in touched}
+-    for folder in affected_folders:
++    def _analyze_session(self, prompt: str) -> str:
 +        return llm([{"type": "text", "text": prompt}])
 +
 +_analyze_session = AnalyzeSessionAgent()._analyze_session
++
++
++# Model-driven vault writes; runs on its configured Runtime or the caller's.
++class WikiWriterAgent(Agent):
++    def ingest_session(
++        self,
++        session_id: str,
++        messages: list[dict[str, Any]],
++        *,
++        vault_root: Path,
++        renderer: Renderer,
++        prompts: PromptSet,
++        purpose: str = "",
++        audience: str = "",
++    ) -> dict[str, Any]:
++        """Run the two-step ingest over a finished conversation."""
++        today = datetime.now().strftime("%Y-%m-%d")
++        slug = _session_slug(session_id, today)
++
++        source = render_conversation(messages)
++        tree_str = _pages.folder_tree(vault_root) or "(empty vault)"
++        index_str = _pages.folder_index(vault_root) or "(no pages yet)"
++        template_details = render_template_help(renderer)
++        template_names = ", ".join(renderer.template_names())
++        source_title = f"Session {session_id} ({today})"
++
++        # ── Step 1: analysis ───────────────────────────────────────────────
++        analysis_prompt = prompts.analysis.format(
++            purpose=purpose or "(no explicit purpose set)",
++            audience=audience or "(no explicit audience set)",
++            index=index_str,
++            tree=tree_str,
++            templates=template_names,
++            template_details=template_details,
++            source=source,
++            source_title=source_title,
++        )
+         try:
+-            ops.rebuild_folder_index(folder, renderer=renderer, vault_root=vault_root)
++            analysis = _analyze_session(analysis_prompt)
+         except Exception as e:
+-            logger.warning("rebuild_folder_index failed for %s: %s", folder, e)
+-
+-    db = store.index_db_path(store.state_dir(vault_root))
+-    for p in touched:
++            return {"ok": False, "error": f"analysis: {e}"}
++        if not analysis or not str(analysis).strip():
++            return {"ok": False, "error": "analysis returned empty"}
++
++        # ── Step 2: generation ─────────────────────────────────────────────
++        from .components import render_component_palette
++        gen_prompt = prompts.generation.format(
++            vault_root=str(vault_root),
++            source_slug=slug,
++            today=today,
++            audience=audience or "(no explicit audience set)",
++            analysis=analysis,
++            source=source,
++            template_details=template_details,
++            component_palette=render_component_palette(),
++        )
+         try:
+-            _idx.update_page(p, vault_root, db)
++            report = agent(gen_prompt, max_iterations=40)
+         except Exception as e:
+-            logger.warning("index update failed for %s: %s", p, e)
+-
+-    review_items = _parse_review_block(str(report))
+-    if review_items:
+-        _persist_reviews(review_items, source_slug=slug, ts=today,
+-                         state_dir=store.state_dir(vault_root))
+-
+-    commit_info: dict[str, Any] = {}
+-    try:
+-        commit_info = ops.git_commit(f"ingest: {slug}", vault_root=vault_root)
+-    except Exception as e:
+-        commit_info = {"ok": False, "error": str(e)}
+-
+-    return {
+-        "ok": True,
+-        "report": report,
+-        "pages_touched": len(touched),
+-        "pages_created": len(created),
+-        "folders_reindexed": len(affected_folders),
+-        "n_review_items": len(review_items),
+-        "commit": commit_info,
+-    }
+-
+-
+-# ---------------------------------------------------------------------------
+-# Page-level enrichment (rewrite slots to use rich components)
+-# ---------------------------------------------------------------------------
++            return {"ok": False, "error": f"generation: {e}"}
++
++        # ── Post-ingest bookkeeping ────────────────────────────────────────
++        touched, created = ops.git_touched_pages(vault_root)
++        affected_folders = {p.parent for p in touched}
++        for folder in affected_folders:
++            try:
++                ops.rebuild_folder_index(folder, renderer=renderer, vault_root=vault_root)
++            except Exception as e:
++                logger.warning("rebuild_folder_index failed for %s: %s", folder, e)
++
++        db = store.index_db_path(store.state_dir(vault_root))
++        for p in touched:
++            try:
++                _idx.update_page(p, vault_root, db)
++            except Exception as e:
++                logger.warning("index update failed for %s: %s", p, e)
++
++        review_items = _parse_review_block(str(report))
++        if review_items:
++            _persist_reviews(review_items, source_slug=slug, ts=today,
++                             state_dir=store.state_dir(vault_root))
++
++        commit_info: dict[str, Any] = {}
++        try:
++            commit_info = ops.git_commit(f"ingest: {slug}", vault_root=vault_root)
++        except Exception as e:
++            commit_info = {"ok": False, "error": str(e)}
++
++        return {
++            "ok": True,
++            "report": report,
++            "pages_touched": len(touched),
++            "pages_created": len(created),
++            "folders_reindexed": len(affected_folders),
++            "n_review_items": len(review_items),
++            "commit": commit_info,
++        }
++
++
++    def enrich_page(
++        self,
++        page_path: Path,
++        *,
++        vault_root: Path,
++        renderer: Renderer,
++        prompts: PromptSet,
++        audience: str = "",
++    ) -> dict[str, Any]:
++        """Ask the model to rewrite a page's slots using the rich component
++        palette. The agent edits the file in place via its standard file tools.
++        """
++        if not page_path.exists():
++            return {"ok": False, "error": f"page not found: {page_path}"}
++
++        from . import slots as _slots
++        from .components import render_component_palette
++
++        html = page_path.read_text(encoding="utf-8")
++        meta = _slots.read_meta(html)
++        template = str(meta.get("template") or "")
++        slot_ids = _slots.list_slots(html)
++        if not slot_ids:
++            return {"ok": True, "skipped": True, "reason": "no slots"}
++
++        slots_dump_parts: list[str] = []
++        for sid in slot_ids:
++            content = _slots.read_slot(html, sid) or ""
++            slots_dump_parts.append(
++                f"### slot: `{sid}`\n```html\n{content.strip()}\n```\n"
++            )
++        slots_dump = "\n".join(slots_dump_parts)
++
++        prompt = prompts.enrichment.format(
++            page_path=str(page_path),
++            template=template,
++            audience=audience or "(no explicit audience set)",
++            slots_dump=slots_dump,
++            component_palette=render_component_palette(),
++        )
++        try:
++            report = agent(prompt, max_iterations=20)
++        except Exception as e:
++            return {"ok": False, "error": f"enrichment: {e}"}
+ 
++        db = store.index_db_path(store.state_dir(vault_root))
++        try:
++            _idx.update_page(page_path, vault_root, db)
++        except Exception as e:
++            logger.warning("index update after enrich failed: %s", e)
+ 
+-def enrich_page(
+-    page_path: Path,
+-    *,
+-    vault_root: Path,
+-    renderer: Renderer,
+-    prompts: PromptSet,
+-    runtime: Any,
+-    audience: str = "",
+-) -> dict[str, Any]:
+-    """Ask the runtime to rewrite a page's slots using the rich component
+-    palette. The agent edits the file in place via its standard file tools.
+-    """
+-    if runtime is None:
+-        return {"ok": False, "error": "no runtime supplied"}
+-    if not page_path.exists():
+-        return {"ok": False, "error": f"page not found: {page_path}"}
+-
+-    from . import slots as _slots
+-    from .components import render_component_palette
+-
+-    html = page_path.read_text(encoding="utf-8")
+-    meta = _slots.read_meta(html)
+-    template = str(meta.get("template") or "")
+-    slot_ids = _slots.list_slots(html)
+-    if not slot_ids:
+-        return {"ok": True, "skipped": True, "reason": "no slots"}
+-
+-    slots_dump_parts: list[str] = []
+-    for sid in slot_ids:
+-        content = _slots.read_slot(html, sid) or ""
+-        slots_dump_parts.append(
+-            f"### slot: `{sid}`\n```html\n{content.strip()}\n```\n"
+-        )
+-    slots_dump = "\n".join(slots_dump_parts)
+-
+-    prompt = prompts.enrichment.format(
+-        page_path=str(page_path),
+-        template=template,
+-        audience=audience or "(no explicit audience set)",
+-        slots_dump=slots_dump,
+-        component_palette=render_component_palette(),
+-    )
+-    try:
+-        # tool loop, migrates with agent() in a later batch
+-        report = runtime.exec(
+-            content=[{"type": "text", "text": prompt}],
+-            max_iterations=20,
+-        )
+-    except Exception as e:
+-        return {"ok": False, "error": f"runtime: {e}"}
++        return {"ok": True, "page": str(page_path.relative_to(vault_root)),
++                "report": report}
+ 
+-    db = store.index_db_path(store.state_dir(vault_root))
+-    try:
+-        _idx.update_page(page_path, vault_root, db)
+-    except Exception as e:
+-        logger.warning("index update after enrich failed: %s", e)
+ 
+-    return {"ok": True, "page": str(page_path.relative_to(vault_root)),
+-            "report": report}
++_writer = WikiWriterAgent()
++ingest_session = _writer.ingest_session
++enrich_page = _writer.enrich_page
  
  
- def ingest_session(
+ # ---------------------------------------------------------------------------
