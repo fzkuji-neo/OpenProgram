@@ -499,6 +499,8 @@ if test -d "$desktop_asar.unpacked"; then
 fi
 mkdir -p "$app_path/Contents/Resources/update"
 cp "$installer_stage" "$app_path/Contents/Resources/update/install-app.sh"
+# The containing App's Dock and Finder icon ships with the source like the runtime's.
+cp "$runtime_assets_stage/icon.icns" "$app_path/Contents/Resources/icon.icns"
 node "$repo_root/apps/desktop/scripts/write-reopen-protocol.cjs" \
   --resources "$app_path/Contents/Resources"
 
@@ -533,6 +535,8 @@ codesign --verify --strict "$app_path"
 codesign --verify --strict \
   "$runtime_root/OpenProgram.app"
 codesign --verify --deep --strict "$app_path"
+# Launch Services caches bundle icons by modification date.
+touch "$app_path"
 
 # Only a complete, verified App can be reopened from failure cleanup.
 reopen_app() {

@@ -131,6 +131,16 @@ def test_local_app_refresh_builds_program_wheels_before_touching_the_app() -> No
     assert 'for program_wheel in "${program_wheels[@]}"; do' in refresh
 
 
+def test_local_app_refresh_installs_the_app_icon_before_signing() -> None:
+    refresh = (ROOT / "scripts" / "refresh-local-app.sh").read_text(
+        encoding="utf-8"
+    )
+    stage = refresh.index('cp "$repo_root/apps/desktop/build/icon.icns" "$runtime_assets_stage/icon.icns"')
+    install = refresh.index('cp "$runtime_assets_stage/icon.icns" "$app_path/Contents/Resources/icon.icns"')
+    sign = refresh.index('"$repo_root/scripts/release/local-macos-signing.py" sign --app "$app_path"')
+    touch = refresh.index('touch "$app_path"')
+    assert stage < install < sign < touch
+
 
 def test_local_app_refresh_removes_stale_package_layout_before_install() -> None:
     refresh = (ROOT / "scripts" / "refresh-local-app.sh").read_text(
