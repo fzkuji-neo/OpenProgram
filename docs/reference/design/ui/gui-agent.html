@@ -1229,7 +1229,7 @@ render();
 <tr>
 <td>Screenshot-only window association</td>
 <td>Harness tests with mocked AppKit, Accessibility, Quartz and ScreenCaptureKit bind a screenshot-only session for an application element without geometry, an empty or unreadable <code>AXWindows</code> list and a non-matching window; keep refusing ambiguous matches and keep controls for a unique match; observe without controls; offer only terminal decisions; refuse every action; and validate the exact window through the window server. OpenProgram report tests cover the WeChat readers on a screenshot-only window.</td>
-<td>Not exercised against a live WeChat window; real-application acceptance remains pending.</td>
+<td>Exercised against the live WeChat main window under the worker identity with the Accessibility window list forced empty: the session binds as capture_only, the screenshot is a real image, the control list is empty, and window_press, window_set_text and window_scroll are refused with window_controls_unavailable while the window is left untouched. The natural WeChat failure state is intermittent and has not been reproduced on demand, so acceptance of that trigger remains pending.</td>
 </tr>
 <tr>
 <td>P0 complete native input</td>
