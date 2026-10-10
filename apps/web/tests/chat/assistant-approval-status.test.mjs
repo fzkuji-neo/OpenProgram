@@ -103,6 +103,9 @@ test('live tools suppress motion alongside text and retry keeps its status label
   assert.equal([...parallelThinking.matchAll(/data-active="true"/g)].length,1);
   const retry=renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,retryStatus:{attempt:2,reason:'transport'}}}));
   assert.match(retry,/Retrying 2/);
+  const waiting=renderToStaticMarkup(createElement(AssistantBubble,{msg:{...msg,retryStatus:{attempt:3,reason:'network_wait',delayMs:20000}}}));
+  assert.match(waiting,/Waiting for the network · checking again in 20s/);
+  assert.doesNotMatch(waiting,/Retrying/);
   assert.doesNotMatch(retry,/class="activity-indicator/);
   const modelRetry=renderToStaticMarkup(createElement(AssistantBubble,{msg:{id:"m1",role:"assistant",status:"running",retryStatus:{attempt:2}}}));
   assert.doesNotMatch(modelRetry,/class="activity-indicator/);

@@ -56,3 +56,24 @@ def test_assistant_message_has_error_taxonomy_fields():
         "error_transport_exhausted",
     ):
         assert AssistantMessage.model_fields[f].default is None
+
+
+def test_sdk_connection_errors_are_retryable_transport():
+    """The openai/anthropic SDKs report a dropped network as
+    APIConnectionError("Connection error.") caused by the httpx error."""
+    from openprogram.providers.utils.errors import classify_error
+
+    class APIConnectionError(Exception):
+        pass
+
+    class ConnectError(Exception):
+        pass
+
+    assert classify_error(APIConnectionError("Connection error.")) == (ErrorReason.TRANSPORT, True)
+    try:
+        try:
+            raise ConnectError("nodename nor servname provided")
+        except ConnectError as cause:
+            raise RuntimeError("Connection error.") from cause
+    except RuntimeError as wrapped:
+        assert classify_error(wrapped) == (ErrorReason.TRANSPORT, True)

@@ -228,7 +228,7 @@ class AgentSession:
             self._emit({
                 "type": "auto_retry_start",
                 "attempt": attempt,
-                "max_attempts": recovery.limit if recovery is not None else self._retry.max_retries,
+                "max_attempts": recovery.transport_limit if recovery is not None else self._retry.max_retries,
                 "delay_ms": delay_ms,
                 "error_message": getattr(last, "error_message", "Unknown error"),
             })

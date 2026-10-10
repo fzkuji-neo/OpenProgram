@@ -542,6 +542,12 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
           {streaming && !waitingApproval && msg.retryStatus ? (
             <div className="pending-body" role="status" aria-live="polite">
               <span className="pending-label">
+                {msg.retryStatus.reason === "network_wait" ? (
+                  text(
+                    `Waiting for the network · checking again in ${Math.round((msg.retryStatus.delayMs || 0) / 1000)}s`,
+                    `等待网络恢复 · ${Math.round((msg.retryStatus.delayMs || 0) / 1000)} 秒后再试`,
+                  )
+                ) : <>
                 {text("Retrying", "正在重试")}
                 {` ${msg.retryStatus.attempt}${msg.retryStatus.maxAttempts ? `/${msg.retryStatus.maxAttempts}` : ""}`}
                 {msg.retryStatus.reason === "transport"
@@ -549,6 +555,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                   : msg.retryStatus.reason === "output_limit"
                     ? text(" · continuing output", " · 继续生成")
                     : text(" · response incomplete", " · 响应未完成")}
+                </>}
               </span>
             </div>
           ) : null}

@@ -233,6 +233,9 @@ _TRANSPORT_EXC_NAMES = frozenset({
     "NetworkError",
     "ReadError",
     "WriteError",
+    # openai / anthropic SDK wrappers around the httpx failures above
+    "APIConnectionError",
+    "APITimeoutError",
     # SSE-layer (openai-codex)
     "StreamIdleTimeout",
     "StreamTotalTimeout",
@@ -304,6 +307,15 @@ def classify_error(
     exc_type = type(exc).__name__
     if exc_type in _TRANSPORT_EXC_NAMES:
         return ErrorReason.TRANSPORT, True
+    # SDKs re-raise network failures under their own types ("Connection
+    # error.") with the httpx error as the cause.
+    cause = exc.__cause__ or exc.__context__
+    for _ in range(3):
+        if cause is None:
+            break
+        if type(cause).__name__ in _TRANSPORT_EXC_NAMES:
+            return ErrorReason.TRANSPORT, True
+        cause = cause.__cause__ or cause.__context__
 
     if any(m in msg for m in _PERMANENT_MARKERS_AUTH):
         return ErrorReason.AUTHENTICATION, False
