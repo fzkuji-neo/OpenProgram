@@ -61,9 +61,10 @@ export function SectionHeader({
       onMouseEnter={() => chevronRef.current?.startAnimation()}
       onMouseLeave={() => chevronRef.current?.stopAnimation()}
       className={
-        // Official shadcn SidebarGroupLabel box (h-8, px-3, 12px medium
-        // at 70%) plus the app's section break above it.
-        "group/hdr mt-2 flex h-8 shrink-0 select-none items-center gap-1 px-3" +
+        // Vertical rhythm for the sidebar section headers: 15px above
+        // the label (section break) and 6px below it before the first
+        // row. (Claude uses ~16 / 8; tuned a touch tighter below.)
+        "group/hdr flex select-none items-center gap-1 px-[8px] pt-[15px] pb-[6px]" +
         (className ? " " + className : "")
       }
     >
@@ -88,8 +89,9 @@ export function SectionHeader({
             section labels. Brightens to white together with the chevron
             when the section is hovered. */}
         <span
-          className="truncate text-xs font-medium text-sidebar-foreground/70
-            transition-colors group-hover/hdr:text-sidebar-foreground"
+          className="truncate text-[14px] font-normal leading-[20px] text-[var(--text-secondary)]
+            opacity-80 transition-colors group-hover/hdr:text-[var(--text-primary)]
+            group-hover/hdr:opacity-100"
         >
           {name}
         </span>
@@ -101,10 +103,10 @@ export function SectionHeader({
           // touch low next to the 14px label.)
           <ChevronDownIcon
             ref={chevronRef}
-            size={14}
-            className="relative top-[1px] shrink-0 text-sidebar-foreground/70 opacity-0
+            size={16}
+            className="relative top-[1px] shrink-0 text-[var(--text-secondary)] opacity-0
               transition-[opacity,color,transform] duration-200 ease-out
-              group-hover/hdr:opacity-100 group-hover/hdr:text-sidebar-foreground"
+              group-hover/hdr:opacity-100 group-hover/hdr:text-[var(--text-primary)]"
             style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
           />
         ) : null}

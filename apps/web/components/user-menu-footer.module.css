@@ -3,7 +3,9 @@
 
 .footer {
   position: relative;
+  border-top: 1px solid var(--border);
   margin-top: auto;
+  padding: 0;
   flex-shrink: 0;
 }
 
@@ -17,6 +19,8 @@
    We keep avatar/text physically adjacent (gap:0) and rely on the
    text wrapper's left margin for visual separation. */
 .trigger {
+  display: flex;
+  align-items: center;
   gap: 0;
   /* Claude footer: fixed 64px height with padding 32/16. Padding eats
      the content box (height - padding = 0), so the 36px avatar visually
@@ -30,17 +34,29 @@
      (the centered position in a 49-wide rail). So the avatar stays
      at x=16 during most of the collapse and only slides left in the
      final few pixels — no teleport, no early move. */
-  /* Box, height (lg = 49px), corner and hover tint come from the
-     official SidebarMenuButton recipe applied at the call site. */
+  height: 64px;
+  padding-top: 32px;
+  padding-bottom: 32px;
+  padding-left: max(6px, min(16px, calc(100% - 47px)));
+  padding-right: max(6px, min(16px, calc(100% - 47px)));
+  box-sizing: border-box;
+  border-radius: 0;
   cursor: pointer;
   user-select: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
   font-family: inherit;
   color: var(--text-primary);
+  transition: background 0.15s ease;
+  overflow: hidden;
 }
+.trigger:hover { background: var(--bg-hover); }
 
 .avatar {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 9999px;
   background: transparent;
   color: var(--primary-foreground);

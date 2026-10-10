@@ -96,16 +96,11 @@
   --color-nav-color: var(--nav-color);
   --color-nav-color-hover: var(--nav-color-hover);
 
-  /* shadcn Sidebar slots (components/ui/sidebar.tsx). Both rails are
+  /* shadcn Sidebar shell (components/ui/sidebar.tsx). Both rails are
      floating cards of the same raised material as the input box, so
-     the sidebar surface is --bg-input; rows hover and select with the
-     same grey tint as every other list row. */
+     the sidebar surface is --bg-input. */
   --color-sidebar: var(--bg-input);
   --color-sidebar-foreground: var(--nav-color);
-  --color-sidebar-accent: var(--bg-hover);
-  --color-sidebar-accent-foreground: var(--nav-color-hover);
-  --color-sidebar-border: var(--border);
-  --color-sidebar-ring: var(--focus-ring);
 
   /* radius. `--radius-lg` is defined in base.css :root as 12px; naming it
      the same here would self-reference, so inline the literal (kept in
