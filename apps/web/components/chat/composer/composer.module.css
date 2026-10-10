@@ -634,8 +634,11 @@
   margin-right: 0 !important;
 }
 
+/* gap 0: the collapsed Fast gauge keeps its flex slot at width 0, and the
+   Button's gap after the dumbbell would push the icon off centre. */
 .controlsRow[data-compact="true"] .effortText {
   width: auto;
+  gap: 0;
 }
 
 .controlsRow[data-compact="true"] .compactEffortIcon {
