@@ -535,6 +535,9 @@ assert.ok(
 );
 const compactControls = composerCss.slice(compactControlsStart, compactControlsEnd);
 assert.match(compactControls, /\.controlsRow\[data-compact="true"\]/);
+// The collapsed Fast gauge keeps a zero-width flex slot; without gap 0 the
+// Button's gap pushes the compact dumbbell off centre.
+assert.match(compactControls, /\.controlsRow\[data-compact="true"\] \.effortText \{[^}]*gap:\s*0/);
 assert.doesNotMatch(compactControls, /@container \(max-width/);
 assert.match(compactControls, /\.permission-badge[\s\S]*\.badge-details/);
 assert.match(compactControls, /\.agent-badge[\s\S]*\.badge-details/);
