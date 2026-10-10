@@ -329,6 +329,11 @@ const URL_LIKE_TITLE = /^(?:[a-z][a-z0-9+.-]*:\/\/|[^\s/]+\.[a-z]{2,}(?:[/:?#]|$
 // Pages can title themselves with only direction marks or zero-width spaces.
 const INVISIBLE_TITLE = /^[\s\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]*$/;
 
+/** A title that only stands in while a Page loads: blank, invisible, or its URL. */
+export function isPlaceholderPageTitle(value: string | null | undefined): boolean {
+  return !value || INVISIBLE_TITLE.test(value) || URL_LIKE_TITLE.test(value);
+}
+
 /** A web row's title is captured when its Page binds and can be blank, the
  *  URL, or a loading placeholder; a tab title reported by the live native
  *  Page is newer, otherwise prefer a real title from the row or its tab. */
