@@ -49,7 +49,7 @@ ContextVar is isolated per thread + coroutine, making it naturally concurrency-s
 ## Session-provider and API-provider share one abstraction
 
 Whether the backend is the Claude Code CLI (has a session) or the Anthropic API (no session),
-`Agent` method authors see the same interface, `runtime.exec(content=[...])`.
+`Agent` method authors see the same interface, `llm(...)` / `agent(...)`, both of which end in `runtime.exec`.
 The framework uses the `has_session` attribute to distinguish the two provider classes and take different internal paths:
 
 | | session provider (CLI) | API provider |

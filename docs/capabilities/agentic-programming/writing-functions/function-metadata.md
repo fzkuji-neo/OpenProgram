@@ -22,7 +22,7 @@ This spec defines a single source-of-truth so every consumer reads metadata by t
 |---|---|
 | `runtime.exec(tools=[fn])` (provider-native tool_use) | function name, overall description, parameter JSON schema (type / required / enum / description) |
 | `render_options(options)` (decision menu) | function name, when-to-pick description, parameter name / type / description / enum, whether each parameter is system-filled |
-| `parse_args(reply, options, runtime, ...)` (decision extract + dispatch + retry) | parameter names + types + enum + hidden flag, `runtime`-style auto-inject allowlist |
+| `parse_args(reply, options, ...)` (decision extract + dispatch + retry) | parameter names + types + enum + hidden flag, `runtime`-style auto-inject allowlist |
 | WebUI parameter form | description / placeholder / multiline / options / hidden |
 | `llm()` rendered context | docstring — carried as `metadata.doc` and prefixed into the rendered context text. The default system prompt comes from the ambient runtime (plus the skills block), not from the docstring. |
 | Session-DAG rendering (`render_context`) | `expose` mode + `render_range` |

@@ -5,6 +5,7 @@ import types
 from pathlib import Path
 
 import pytest
+from tests.support.on_runtime import run_on
 
 HARNESS_ROOT = (
     Path(__file__).resolve().parents[4]
@@ -140,7 +141,7 @@ def test_gui_agent_fail_forces_success_false(harness_on_path, monkeypatch):
     from gui_harness.main import gui_agent
 
     stubs = _stub_harness_loop(monkeypatch)
-    result = gui_agent(task="need login", max_steps=3, runtime=object())
+    result = run_on(object(), gui_agent, task="need login", max_steps=3)
     assert result["success"] is False
     assert result["status"] == "infeasible"
     assert result["infeasible_declared"] is True
@@ -202,7 +203,7 @@ def test_gui_agent_real_modules_preserve_infeasible(
 
     from gui_harness.main import gui_agent
 
-    result = gui_agent(task="need login", max_steps=1, runtime=object())
+    result = run_on(object(), gui_agent, task="need login", max_steps=1)
 
     assert result["success"] is False
     assert result["infeasible_declared"] is True
@@ -223,7 +224,7 @@ def test_gui_agent_step_limit_cannot_be_overridden_by_conclusion(
         },
         conclusion_result={"summary": "not finished", "success": True, "issues": None},
     )
-    result = gui_agent(task="long task", max_steps=1, runtime=object())
+    result = run_on(object(), gui_agent, task="long task", max_steps=1)
 
     assert result["status"] == "failed"
     assert result["reason_code"] == "safety_step_limit"
@@ -243,7 +244,7 @@ def test_gui_agent_preserves_terminal_failure_from_step(harness_on_path, monkeyp
         },
         conclusion_result={"summary": "planner failed", "success": True, "issues": None},
     )
-    result = gui_agent(task="long task", max_steps=3, runtime=object())
+    result = run_on(object(), gui_agent, task="long task", max_steps=3)
 
     assert result["status"] == "failed"
     assert result["reason_code"] == "planner_invalid_action"
@@ -260,7 +261,7 @@ def test_gui_agent_unhandled_step_error_fails_without_retrying(
         step_result=RuntimeError("detector unavailable"),
         conclusion_result={"summary": "failed", "success": True, "issues": None},
     )
-    result = gui_agent(task="long task", max_steps=5, runtime=object())
+    result = run_on(object(), gui_agent, task="long task", max_steps=5)
 
     assert result["status"] == "failed"
     assert result["reason_code"] == "step_error"
@@ -282,7 +283,7 @@ def test_gui_agent_conclusion_error_invalidates_success(harness_on_path, monkeyp
         },
         conclusion_result=TimeoutError("screenshot timed out"),
     )
-    result = gui_agent(task="describe screen", max_steps=2, runtime=object())
+    result = run_on(object(), gui_agent, task="describe screen", max_steps=2)
 
     assert result["status"] == "failed"
     assert result["reason_code"] == "conclusion_error"

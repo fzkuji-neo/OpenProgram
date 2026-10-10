@@ -9,16 +9,14 @@ provider 原生 tool call 的路径。
 
 - `decision.make(prompt, options)` —— 纯决策；模型不做任何工作，
   只负责选。
-- `runtime.exec(..., choices=options)` —— 模型先跑完一整轮
+- `agent(prompt, choices=options)` —— 模型先跑完一整轮
   （推理、tool call），只有收尾这一步才是决策。
 
-`decision.make` 需要一个 runtime 来发起模型调用，但这个 runtime
-会从 `_current_runtime` ContextVar 自动取得。只有当调用链上某个函数声明了
-runtime 类参数（`runtime` / `exec_runtime` / `review_runtime`）时，该
-ContextVar 才会被设置 —— 一个没有声明该参数的入口
-`Agent` method 会让 `decision.make` 抛出 `RuntimeError`。
-所以在函数上声明 `runtime=None` 但你不需要把它往下传；只有在
-agentic function 之外才显式传入 `runtime=`。
+两个入口都在外层调用的 Runtime 上发起模型调用。每次 `Agent` method
+调用都会绑定一个 Runtime —— Agent 配置的 Runtime，或者调用方的 ——
+所以在 `Agent` method 内部两个入口都不需要 runtime 参数。只有在任何
+Agent 调用之外才显式传入 `runtime=`；那里不传的话，`decision.make`
+会抛出 `RuntimeError`。
 
 ## 与原生 tool call 的对比
 
@@ -47,7 +45,7 @@ class ExampleAgent(Agent):
         'route_message': {'tool': True},
     }
 
-    def route_message(self, msg: str, runtime=None) -> str:
+    def route_message(self, msg: str) -> str:
         return decision.make("Pick one way to handle this message.", {
             "analyze":  analyze_sentiment,        # 一个函数
             "fallback": fallback_reply,           # 一个函数
@@ -67,22 +65,22 @@ route_message = _example_agent.route_message
 两种情况返回的都是"下一步的结果"本身。调用方从不检查"选中了哪一个"，也从不按类型分支 ——
 决策本身就是分支，所以没有 `if` 要写。
 
-## 入口二：`runtime.exec(choices=...)` —— 先干活，最后决策
+## 入口二：`agent(choices=...)` —— 先干活，最后决策
 
 更常见的需求：模型先跑完一整轮（推理、tool call，无论这活需要什么），而
-**收尾**的返回必须是一个决策。使用 `exec` 的 `choices=` 参数：
+**收尾**的返回必须是一个决策。使用 `agent` 的 `choices=` 参数：
 
 ```python
-from openprogram import Agent
+from openprogram import Agent, agent
 
 class ExampleAgent(Agent):
     method_options = {
         'handle_ticket': {'tool': True},
     }
 
-    def handle_ticket(self, ticket: str, runtime=None) -> dict:
+    def handle_ticket(self, ticket: str) -> dict:
         """Read the ticket, look things up, then decide which flow to route to."""
-        return runtime.exec(
+        return agent(
             f"Handle this ticket: {ticket}",
             toolset="default",          # 之前：模型用 tool 做调研、执行命令
             choices={                   # 收尾：返回必须是其中之一
@@ -96,15 +94,15 @@ _example_agent = ExampleAgent()
 handle_ticket = _example_agent.handle_ticket
 ```
 
-`exec(choices=...)` 做的事：它把选项菜单加上一条"先干活，最后用一段 JSON
+`agent(choices=...)` 做的事：它把 `choices` 交给 Runtime 的 `exec`，后者把选项菜单加上一条"先干活，最后用一段 JSON
 做选择"的指令（`DECISION_FINISH_INSTRUCTION`）拼接进
 prompt，然后跑一轮正常的 exec —— 来自 `tools` /
 `toolset` 的 tool 照常被调用，模型照常推理。在这一轮的末尾，模型的最终回复必须是一段
 `{"call": ...}` JSON，`exec` 用 `resolve_decision`
 解析它：被选中的函数执行并返回其结果，被选中的值则被返回。
 
-不带 `choices` 的 `exec` 返回原始回复文本；带 `choices` 时它返回解析后的决策结果。`decision.make(prompt, options)`
-等价于一个没有前置工作的 `exec(choices=options)` —— 但有一处微妙差别：只有
+不带 `choices` 的 `agent` 返回回复文本；带 `choices` 时它返回解析后的决策结果。`decision.make(prompt, options)`
+等价于一个没有前置工作的 `agent(..., choices=options)` —— 但有一处微妙差别：只有
 `exec(choices=)` 会追加 `DECISION_FINISH_INSTRUCTION`；
 `decision.make` 只发送你的 prompt 加菜单，所以你自己的 prompt
 必须告诉模型去选。

@@ -29,7 +29,7 @@ answer = researcher.research("A question")
 # Or: answer = await agent_async("A question", tools=[])
 ```
 
-`agent()` accepts a string or content blocks. Common keyword options are `model`, `effort`, `tools`, and `runtime`. See [Runtime](runtime.md) for tool execution options. `tools=None` resolves available tools. `tools=[]` requests no tools. `agent_async()` accepts the same options.
+`agent()` accepts a string or content blocks. Common keyword options are `model`, `effort`, `tools`, `choices`, and `runtime`. `choices` makes the closing reply a [next-step decision](../../capabilities/agentic-programming/choosing-the-next-step/next-step-decision.md) and returns the resolved pick. See [Runtime](runtime.md) for tool execution options. `tools=None` resolves available tools. `tools=[]` requests no tools. `agent_async()` accepts the same options.
 
 `Agent(model=..., instructions=..., context=..., tools=..., runtime=..., effort=..., **options)` uses instance settings over class defaults. Per-call options override instance settings. `Agent.from_spec(spec, **overrides)` uses an existing AgentSpec configuration without creating a saved Agent entry.
 
@@ -109,7 +109,7 @@ class ExampleAgent(Agent):
         'f': {'tool': True},
     }
 
-    def f(self, x: str, runtime) -> str:
+    def f(self, x: str) -> str:
         """One-line summary of what f does."""
         return llm([{"type": "text", "text": f"...{x}..."}])
 
@@ -161,9 +161,13 @@ An Agent method with `tool=True` registers as an LLM-callable tool in the shared
 
 The signature and docstring supply method names, parameter types, defaults, and summaries. `method_options` supplies fields that the signature does not represent.
 
+### Choosing the Runtime
+
+A method runs on its Agent's configured Runtime, or on the caller's when the Agent has none: `ExampleAgent(runtime=rt).f("x")` runs `f` and every model request inside it on `rt`, and Agent methods it calls inherit `rt`. Configure Runtimes where the program starts (CLI, script, test), not by passing them through method arguments. For two models in one workflow — an author and a reviewer, say — give the second role its own Agent instance with its own Runtime.
+
 ### Runtime injection
 
-Parameters named `runtime`, `exec_runtime`, or `review_runtime` are auto-injected: if the caller passes none (or `None`), the runtime is taken from the current call chain, or — for an entry-point call — created via `create_runtime()` (auto-detection) and closed again when the function returns. A function may declare more than one runtime parameter; all of them are filled with the same runtime. These parameters never appear in the LLM tool schema or the WebUI form.
+Older functions may still declare parameters named `runtime`, `exec_runtime`, or `review_runtime`; they are auto-injected: if the caller passes none (or `None`), the runtime is taken from the current call chain, or — for an entry-point call — created via `create_runtime()` (auto-detection) and closed again when the function returns. A function may declare more than one runtime parameter; all of them are filled with the same runtime. These parameters never appear in the LLM tool schema or the WebUI form. New methods do not declare them.
 
 ### Introspection and safety
 

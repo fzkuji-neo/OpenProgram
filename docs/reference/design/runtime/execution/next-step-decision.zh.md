@@ -1,4 +1,4 @@
-<div id="next-step-decision-makingdecisionmake-execchoices"></div>
+<div id="next-step-decision-makingdecisionmake-agentchoices"></div>
 
 # 下一步决策
 
@@ -7,9 +7,9 @@
 实现在框架内的 `openprogram/agentic_programming/decision.py`。两个入口,共用同一套选项形态和解析:
 
 - `decision.make(prompt, options)` —— 纯决策,模型不干活、直接挑。
-- `runtime.exec(..., choices=options)` —— 模型先跑一个完整 turn(推理、调工具),收尾才是一个决策。
+- `agent(prompt, choices=options)` —— 模型先跑一个完整 turn(推理、调工具),收尾才是一个决策。
 
-`decision.make` 需要 runtime 去发模型调用,但 runtime 从 `Agent` method 装饰器设好的 `_current_runtime` ContextVar 自动取,所以在 agentic 函数内部调它不用传 runtime;在 agentic 函数外面调才需要显式传 `runtime=`。
+两个入口都在外层调用的 Runtime 上发模型调用。每次 `Agent` method 调用都会在 `_current_runtime` ContextVar 里绑定一个——Agent 配置的 Runtime,或调用方的——所以在 `Agent` method 里两个入口都不传 runtime;只有在任何 Agent 调用之外才需要显式传 `runtime=`。
 
 ## 和原生 tool call 的区别
 
@@ -53,12 +53,12 @@ route_message = _example_agent.route_message
 
 两种情况都返回"下一步的结果"本身。调用方不检查"选的是哪个"、不按类型分支——决策本身就是分支,所以没有 `if` 要写。
 
-## 入口二:`runtime.exec(choices=...)` —— 先干活、再决策
+## 入口二:`agent(choices=...)` —— 先干活、再决策
 
-更常见的需求是:模型先跑一个完整 turn(推理、调工具、该干什么干什么),**收尾时**的 return 才是一个决策。用 `exec` 的 `choices=` 参数:
+更常见的需求是:模型先跑一个完整 turn(推理、调工具、该干什么干什么),**收尾时**的 return 才是一个决策。用 `agent` 的 `choices=` 参数:
 
 ```python
-from openprogram import Agent
+from openprogram import Agent, agent
 
 class ExampleAgent(Agent):
     method_options = {
@@ -67,7 +67,7 @@ class ExampleAgent(Agent):
 
     def handle_ticket(self, ticket: str) -> dict:
         """读工单、查资料、然后决定派给哪个流程。"""
-        return runtime.exec(
+        return agent(
             f"处理这个工单:{ticket}",
             toolset="default",          # 前面:模型用工具查资料、跑命令
             choices={                   # 收尾:return 必须是这里选一个
@@ -81,9 +81,9 @@ _example_agent = ExampleAgent()
 handle_ticket = _example_agent.handle_ticket
 ```
 
-`exec(choices=...)` 做的事:把选项菜单和一句"先干活、最后用 JSON 挑一个收尾"的指令(`DECISION_FINISH_INSTRUCTION`)拼进 prompt,然后跑正常的 exec turn——`tools` / `toolset` 给的工具该调调、模型该推理推理。turn 结束时模型的最终回复必须是一个 `{"call": ...}` JSON,`exec` 用 `resolve_decision` 把它解析掉:选了函数就执行返回结果,选了值就返回值。
+`agent(choices=...)` 做的事:把 `choices` 交给 Runtime 的 `exec`,由它把选项菜单和一句"先干活、最后用 JSON 挑一个收尾"的指令(`DECISION_FINISH_INSTRUCTION`)拼进 prompt,然后跑正常的 exec turn——`tools` / `toolset` 给的工具该调调、模型该推理推理。turn 结束时模型的最终回复必须是一个 `{"call": ...}` JSON,`exec` 用 `resolve_decision` 把它解析掉:选了函数就执行返回结果,选了值就返回值。
 
-`exec` 不带 `choices` 时返回原始回复文本;带 `choices` 时返回解析后的决策结果。`decision.make(prompt, options)` 等价于"没有前置工作"的 `exec(choices=options)`。
+`exec` 不带 `choices` 时返回原始回复文本;带 `choices` 时返回解析后的决策结果。`agent` 此时原样返回这个结果。`decision.make(prompt, options)` 等价于"没有前置工作"的 `agent(..., choices=options)`。
 
 ## 选项容器
 
@@ -135,7 +135,7 @@ schema 是 `{字段名: 字段类型}`,字段类型可以**递归嵌套**,这样
 
 ### 2. 调模型
 
-`decision.make` 直接 `runtime.exec(prompt + 菜单)`;`exec(choices=)` 是把菜单拼进本来就要发的那次 turn。
+`decision.make` 直接 `runtime.exec(prompt + 菜单)`;`agent(choices=)` 是把菜单拼进本来就要发的那次 turn。
 
 ### 3. `parse_args` 解析与校验
 

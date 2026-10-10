@@ -64,7 +64,6 @@ class GoalAgent(Agent):
                 "context_mode": {"hidden": True, "advanced": True},
                 "resume": {"hidden": True},
                 "expected_goal": {"hidden": True},
-                "runtime": {"hidden": True},
             },
             "parameters": {
                 "type": "object",
@@ -105,7 +104,6 @@ class GoalAgent(Agent):
         context_mode: str = "isolated",
         resume: bool = False,
         expected_goal: dict | None = None,
-        runtime=None,
     ) -> str:
         """Run a working agent and an independent judge until the Goal settles.
 
@@ -118,9 +116,13 @@ class GoalAgent(Agent):
         from openprogram.agentic_programming.agent import agent
         from openprogram.agentic_programming.call_state import (
             CancelledError,
+            _current_runtime,
             current_call_id,
             current_session_id,
         )
+
+        # Roles default to the Runtime this Goal runs on.
+        runtime = _current_runtime.get(None)
         from openprogram.agent.run_control import get_current_execution_id
         import openprogram.programs.workflow.goal as _goal
 
@@ -468,8 +470,6 @@ class GoalAgent(Agent):
 
         def round_used_tools() -> bool:
             try:
-                from openprogram.agentic_programming.call_state import _current_runtime
-
                 blocks = getattr(_current_runtime.get(), "last_blocks", None)
                 return (
                     True

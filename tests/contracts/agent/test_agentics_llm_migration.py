@@ -114,6 +114,35 @@ def test_programs_do_not_call_runtime_exec():
     assert remaining == []
 
 
+def test_program_agent_methods_do_not_take_a_runtime():
+    """Methods run on their Agent's Runtime (or the caller's), never a parameter."""
+    root = Path(__file__).parents[3] / "openprogram" / "programs"
+    threaded = {"runtime", "exec_runtime", "review_runtime"}
+    methods = 0
+    remaining = []
+    for path in tracked_python_files(root):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.ClassDef) or not any(
+                getattr(base, "id", getattr(base, "attr", None)) == "Agent"
+                for base in node.bases
+            ):
+                continue
+            for item in node.body:
+                if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                methods += 1
+                arguments = item.args
+                names = {
+                    arg.arg
+                    for arg in [*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs]
+                }
+                if names & threaded:
+                    remaining.append((path.relative_to(root).as_posix(), item.name))
+
+    assert methods > 20
+    assert remaining == []
+
+
 def _paper_runtime(replies, calls, name):
     from openprogram.agentic_programming.runtime import Runtime
 

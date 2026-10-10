@@ -22,7 +22,7 @@ Hidden entry parameters (available to code / CLI callers):
 
 | Parameter | Description |
 |---|---|
-| `review_runtime` | When provided, review functions run on a different model (cross-model review) |
+| `reviewer` | A `research_harness.roles.Reviewer` Agent; when provided, review functions run on its model (cross-model review) |
 | `work_dir` | Project working directory |
 | `max_runtime_s` | Soft time budget: after the deadline no new work starts; running steps finish and wrap up normally |
 | `stop_event` | Graceful stop signal (any object with `is_set()`); wraps up after the current step finishes |

@@ -11,16 +11,14 @@ Two entry points share the same option shapes and parsing:
 
 - `decision.make(prompt, options)` — pure decision; the model does no work,
   it just picks.
-- `runtime.exec(..., choices=options)` — the model first runs a full turn
+- `agent(prompt, choices=options)` — the model first runs a full turn
   (reasoning, tool calls), and only the closing move is a decision.
 
-`decision.make` needs a runtime to issue the model call, but the runtime is
-taken automatically from the `_current_runtime` ContextVar. That ContextVar
-is only set when a function on the call chain declares a runtime-class
-parameter (`runtime` / `exec_runtime` / `review_runtime`) — an entry-point
-`Agent` method without one makes `decision.make` raise `RuntimeError`.
-So declare `runtime=None` on the function and you do not pass it on; only
-outside an agentic function do you pass `runtime=` explicitly.
+Both issue their model call on the Runtime of the enclosing call. Every
+`Agent` method call binds one — the Agent's configured Runtime, or the
+caller's — so inside an `Agent` method neither entry takes a runtime
+argument. Only outside any Agent call do you pass `runtime=` explicitly;
+without one there, `decision.make` raises `RuntimeError`.
 
 ## Versus native tool calls
 
@@ -50,7 +48,7 @@ class ExampleAgent(Agent):
         'route_message': {'tool': True},
     }
 
-    def route_message(self, msg: str, runtime=None) -> str:
+    def route_message(self, msg: str) -> str:
         return decision.make("Pick one way to handle this message.", {
             "analyze":  analyze_sentiment,        # a function
             "fallback": fallback_reply,           # a function
@@ -72,23 +70,23 @@ Both cases return "the result of the next step" itself. The caller never
 checks "which one was picked" and never branches by type — the decision IS
 the branch, so there is no `if` to write.
 
-## Entry two: `runtime.exec(choices=...)` — work first, decide last
+## Entry two: `agent(choices=...)` — work first, decide last
 
 The more common need: the model first runs a full turn (reasoning, tool
 calls, whatever the job takes), and the **closing** return must be a
-decision. Use `exec`'s `choices=` parameter:
+decision. Use `agent`'s `choices=` parameter:
 
 ```python
-from openprogram import Agent
+from openprogram import Agent, agent
 
 class ExampleAgent(Agent):
     method_options = {
         'handle_ticket': {'tool': True},
     }
 
-    def handle_ticket(self, ticket: str, runtime=None) -> dict:
+    def handle_ticket(self, ticket: str) -> dict:
         """Read the ticket, look things up, then decide which flow to route to."""
-        return runtime.exec(
+        return agent(
             f"Handle this ticket: {ticket}",
             toolset="default",          # before: the model uses tools to research, run commands
             choices={                   # closing: the return must be one of these
@@ -102,17 +100,18 @@ _example_agent = ExampleAgent()
 handle_ticket = _example_agent.handle_ticket
 ```
 
-What `exec(choices=...)` does: it splices the option menu plus a "work
-first, close with a JSON pick" instruction (`DECISION_FINISH_INSTRUCTION`)
-into the prompt, then runs a normal exec turn — tools from `tools` /
+What `agent(choices=...)` does: it hands `choices` to the Runtime's
+`exec`, which splices the option menu plus a "work first, close with a JSON
+pick" instruction (`DECISION_FINISH_INSTRUCTION`) into the prompt, then runs
+a normal exec turn — tools from `tools` /
 `toolset` get called as usual, the model reasons as usual. At the end of the
 turn, the model's final reply must be one `{"call": ...}` JSON, and `exec`
 resolves it with `resolve_decision`: a picked function executes and returns
 its result, a picked value is returned.
 
-`exec` without `choices` returns the raw reply text; with `choices` it
+`agent` without `choices` returns the reply text; with `choices` it
 returns the resolved decision result. `decision.make(prompt, options)` is
-equivalent to an `exec(choices=options)` with no preceding work — with one
+equivalent to an `agent(..., choices=options)` with no preceding work — with one
 nuance: only `exec(choices=)` appends the `DECISION_FINISH_INSTRUCTION`;
 `decision.make` sends just your prompt plus the menu, so your own prompt
 must tell the model to pick.

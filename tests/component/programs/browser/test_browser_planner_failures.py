@@ -2,6 +2,7 @@
 import pytest
 
 from tests.component.programs.browser.test_browser_agent import _controller
+from tests.support.on_runtime import run_on
 
 
 @pytest.mark.usefixtures("owned_page_scope")
@@ -56,9 +57,9 @@ def test_invalid_verify_is_repaired_or_stops_with_actual_error(monkeypatch, mode
         permission_mode='bypass', source='web', permission_rules=PermissionRules(deny=['browser_page']) if mode == 'deny' else None, **local_owner_authority()))
     try:
         if route == 'legacy':
-            result = browser.browser_agent(task='Check title', runtime=runtime, max_steps=2)
+            result = run_on(runtime, browser.browser_agent, task='Check title', max_steps=2)
         else:
-            result = browser._run_browser_task_commands(task='Check title', runtime=runtime, max_steps=2, max_seconds=30, backend='playwright_mcp')
+            result = run_on(runtime, browser._run_browser_task_commands, task='Check title', max_steps=2, max_seconds=30, backend='playwright_mcp')
         assert len(calls) == {'repair': 2, 'invalid': 3, 'unmet': 3, 'stop': 1, 'deny': 1}[mode]
         assert result['reason_code'] == {'repair': 'verified', 'invalid': 'invalid_assertion', 'unmet': 'assertion_not_met', 'stop': 'task_blocked', 'deny': 'tool_execution_failed'}[mode]
         assert controller._mutations == 0

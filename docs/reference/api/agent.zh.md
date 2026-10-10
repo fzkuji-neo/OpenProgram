@@ -29,7 +29,7 @@ answer = researcher.research("A question")
 # 或：answer = await agent_async("A question", tools=[])
 ```
 
-`agent()` 接收字符串或内容块，可指定 `model`、`effort`、`tools` 和 `runtime`。工具执行选项见 [Runtime](runtime.zh.md)。`tools=None` 选择可用工具，`tools=[]` 禁用工具。`agent_async()` 使用同样的选项。
+`agent()` 接收字符串或内容块，可指定 `model`、`effort`、`tools`、`choices` 和 `runtime`。`choices` 让收尾回复成为一次[下一步决策](../../capabilities/agentic-programming/choosing-the-next-step/next-step-decision.zh.md)，并返回解析后的选择结果。工具执行选项见 [Runtime](runtime.zh.md)。`tools=None` 选择可用工具，`tools=[]` 禁用工具。`agent_async()` 使用同样的选项。
 
 `Agent(model=..., instructions=..., context=..., tools=..., runtime=..., effort=..., **options)` 用实例设置覆盖类默认值，调用参数再覆盖实例设置。`Agent.from_spec(spec, **overrides)` 使用现有 AgentSpec 配置，不创建已保存 Agent 条目。
 
@@ -109,7 +109,7 @@ class ExampleAgent(Agent):
         'f': {'tool': True},
     }
 
-    def f(self, x: str, runtime) -> str:
+    def f(self, x: str) -> str:
         """One-line summary of what f does."""
         return llm([{"type": "text", "text": f"...{x}..."}])
 
@@ -159,9 +159,13 @@ f = _example_agent.f
 
 函数名、参数名 / 类型 / 默认值、一句话摘要都从函数签名和 docstring 自动读取,不在 method_options 中重复。
 
+### 选择 Runtime
+
+方法在它所属 Agent 配置的 Runtime 上运行;Agent 没有配置时用调用方的:`ExampleAgent(runtime=rt).f("x")` 让 `f` 及其中每次模型请求都在 `rt` 上运行,它调用的 Agent 方法也继承 `rt`。Runtime 在程序入口(CLI、脚本、测试)配置,不通过方法参数往下传。一个工作流要用两个模型时——比如作者和评审——给第二个角色一个自带 Runtime 的 Agent 实例。
+
 ### Runtime 注入
 
-名为 `runtime`、`exec_runtime` 或 `review_runtime` 的参数会自动注入:调用方没传(或传 `None`)时,先从当前调用链取 runtime;作为入口调用时经 `create_runtime()`(自动检测)新建,函数返回时再关闭。一个函数可以声明多个 runtime 参数,全部填同一个 runtime。这些参数不会出现在 LLM 工具 schema 和 WebUI 表单里。
+旧函数仍可能声明名为 `runtime`、`exec_runtime` 或 `review_runtime` 的参数,它们会自动注入:调用方没传(或传 `None`)时,先从当前调用链取 runtime;作为入口调用时经 `create_runtime()`(自动检测)新建,函数返回时再关闭。一个函数可以声明多个 runtime 参数,全部填同一个 runtime。这些参数不会出现在 LLM 工具 schema 和 WebUI 表单里。新写的方法不声明这些参数。
 
 ### 自省与安全
 

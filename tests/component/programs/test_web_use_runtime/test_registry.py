@@ -10,6 +10,7 @@ from ._support import (
     threading,
     time,
 )
+from tests.support.on_runtime import run_on
 
 
 def test_registry_releases_only_requested_unconsumed_page_capabilities():
@@ -837,9 +838,9 @@ def test_temporary_page_capture_is_released_when_lease_rejects(monkeypatch, rout
     )
 
     if route == "harness":
-        result = module._run_browser_task_commands(
+        result = run_on(SimpleNamespace(), module._run_browser_task_commands,
             task="observe", backend="playwright_mcp",
-            max_steps=1, max_seconds=10, runtime=SimpleNamespace(),
+            max_steps=1, max_seconds=10,
         )
         assert result["reason_code"] == "page_in_use"
     else:
@@ -928,9 +929,9 @@ def test_temporary_page_capture_is_released_when_binding_resolution_fails(
 
     with pytest.raises(RuntimeError, match="binding failed"):
         if route == "harness":
-            module._run_browser_task_commands(
+            run_on(SimpleNamespace(), module._run_browser_task_commands,
                 task="observe", backend="playwright_mcp",
-                max_steps=1, max_seconds=10, runtime=SimpleNamespace(),
+                max_steps=1, max_seconds=10,
             )
         else:
             module.web_use(command="observe", backend="playwright_mcp")

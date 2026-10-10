@@ -750,24 +750,7 @@ def invoke(fn, name, args, kwargs):
         bound = inspect.signature(fn).bind(*args, **kwargs)
         values = dict(bound.arguments)
         runtime = values.pop("runtime", None)
-        if name == "gui_agent" and fn.__module__ == "openprogram.programs.gui_harness_bridge":
-            from openprogram.programs import gui_harness_bridge
-            if fn.__func__ in gui_harness_bridge._GUI_ORCHESTRATION_FNS:
-                from openprogram.programs._gui_operations import host_runtime
-                with host_runtime(runtime):
-                    return _invoke(fn, name, (), values)
         return _invoke(fn, name, (), values, runtime=runtime)
-    # Only the registered source-defined GUI entry has a live host argument.
-    # It is never serialized or included in the retained invocation digest.
-    if name == "gui_agent" and fn.__module__ == "openprogram.programs.gui_harness_bridge":
-        from openprogram.programs import gui_harness_bridge
-        if fn in gui_harness_bridge._GUI_ORCHESTRATION_FNS:
-            from openprogram.programs._gui_operations import host_runtime
-            bound = inspect.signature(fn).bind(*args, **kwargs)
-            values = dict(bound.arguments)
-            runtime = values.pop("runtime", None)
-            with host_runtime(runtime):
-                return _invoke(fn, name, (), values)
     return _invoke(fn, name, args, kwargs)
 
 

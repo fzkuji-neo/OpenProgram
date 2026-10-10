@@ -418,7 +418,7 @@ class ResearchAgent(Agent):
         },
     }
 
-    def research(self, topic: str, runtime=None) -> str:
+    def research(self, topic: str) -> str:
         """Research a topic."""
         return self(topic)
 

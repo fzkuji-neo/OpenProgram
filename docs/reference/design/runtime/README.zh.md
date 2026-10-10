@@ -49,7 +49,7 @@ ContextVar 按线程 + 协程隔离,天然并发安全。
 ## Session-provider vs API-provider 共用一套抽象
 
 无论底层是 Claude Code CLI(有 session)还是 Anthropic API(无 session),
-对 `Agent` method 作者都是一样的接口 `runtime.exec(content=[...])`。
+对 `Agent` method 作者都是一样的接口 `llm(...)` / `agent(...)`，两者最终都走 `runtime.exec`。
 框架靠 `has_session` 属性区分两类 provider 在内部走不同路径:
 
 | | session provider (CLI) | API provider |

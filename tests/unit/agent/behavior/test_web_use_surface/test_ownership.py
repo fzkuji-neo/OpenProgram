@@ -7,6 +7,7 @@ from ._support import (
     pytest,
     threading,
 )
+from tests.support.on_runtime import run_on
 
 
 def test_disabled_surface_is_visible_to_model_but_has_no_preview_or_binding():
@@ -548,12 +549,11 @@ def test_bound_browser_task_inherits_outer_permission_mode(monkeypatch):
     )
     token = set_turn_request(outer)
     try:
-        result = module._run_browser_task(
+        result = run_on(_Runtime(), module._run_browser_task,
             task="Click the link",
             url="",
             max_steps=3,
             max_seconds=30,
-            runtime=_Runtime(),
             binding_id="binding-1",
         )
         assert result["reason_code"] == "tool_not_executed"

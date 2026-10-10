@@ -89,12 +89,14 @@ work dir; Wiki: a vault path; GUI: vision model + platform backend). The
    class HarnessAgent(Agent):
        method_options = {"foo_agent": {"tool": True, "name": "foo_agent"}}
 
-       def foo_agent(self, task: str, max_steps: int = 15, runtime=None) -> dict:
+       def foo_agent(self, task: str, max_steps: int = 15) -> dict:
            ...
    ```
-2. **The runtime is injected, never constructed.** A harness function that
-   needs an LLM declares a `runtime` parameter; the host injects the
-   active runtime. Harnesses **must not** build their own provider /
+2. **The runtime comes from the host, never constructed.** A harness
+   method runs on the Runtime of the call that reaches it — the host's —
+   and makes model requests with `llm()` / `agent()`; it declares no
+   `runtime` parameter. A second model (a reviewer, say) is a second Agent
+   instance configured where the run starts. Harnesses **must not** build their own provider /
    read `ANTHROPIC_API_KEY` themselves for the in-host path — provider
    selection and auth belong to the host. (A harness MAY keep a
    standalone CLI that calls `create_runtime(...)` for use outside the

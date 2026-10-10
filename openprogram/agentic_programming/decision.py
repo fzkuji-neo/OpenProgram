@@ -515,7 +515,7 @@ def _try_parse(reply: str, registry: dict, runtime, context: dict | None):
 def parse_args(
     reply: str,
     options,
-    runtime,
+    runtime=None,
     *,
     context: dict | None = None,
     max_retries: int = 1,
@@ -536,11 +536,12 @@ def parse_args(
     the **remaining** budget the caller has already debited for the
     initial choice-bearing exec, not a fresh wall-clock window.
 
+    ``runtime`` defaults to the Runtime of the enclosing Agent call.
+
     Returns ``(chosen, kwargs)``: ``chosen`` is the function for a
     callable option, or the name string for a text option.
     """
-    if runtime is None:
-        raise ValueError("runtime is required for parse_args()")
+    runtime = _resolve_runtime(runtime)
 
     if isinstance(options, (list, tuple)):
         registry = _functions_to_registry(options)

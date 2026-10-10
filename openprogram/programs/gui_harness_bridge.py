@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import inspect
 from typing import Callable
-from weakref import WeakSet
 
 from openprogram.agentic_programming.continuation import gui_operation
 
 DEFAULT_MAX_STEPS = 150
-_GUI_ORCHESTRATION_FNS = WeakSet()
 
 
 def _normalize_gui_result(result):
@@ -99,7 +96,6 @@ def install_gui_harness_web_use(original: Callable | None = None):
                         "advanced": True,
                     },
                     "allow_general": {"hidden": True},
-                    "runtime": {"hidden": True},
                 },
                 "parameters": {
                     "type": "object",
@@ -124,7 +120,6 @@ def install_gui_harness_web_use(original: Callable | None = None):
             backend: str = "",
             max_seconds: float | None = None,
             vm_url: str = "",
-            runtime=None,
             allow_general: bool = False,
         ) -> dict:
             """Run bounded capabilities with retained decisions and effect receipts."""
@@ -168,7 +163,6 @@ def install_gui_harness_web_use(original: Callable | None = None):
     # so it can close over the installed harness implementation; publish that
     # same bound method instead of adding a second execution wrapper.
     globals()["gui_agent"] = gui_agent
-    _GUI_ORCHESTRATION_FNS.add(inspect.unwrap(gui_agent))
     return gui_agent
 
 

@@ -9,6 +9,7 @@ from ._support import (
     asyncio,
     pytest,
 )
+from tests.support.on_runtime import run_on
 
 
 def _desktop_access(monkeypatch):
@@ -101,10 +102,9 @@ def test_registered_gui_agent_can_select_computer_use_backend(monkeypatch):
     tool = _runtime.get("gui_agent")
     assert tool is not None
 
-    result = wrapped(
+    result = run_on(SimpleNamespace(), wrapped,
         task="click Save",
         backend="chrome_devtools_mcp",
-        runtime=SimpleNamespace(),
     )
     assert result["status"] == "infeasible"
     assert result["success"] is False
@@ -152,7 +152,8 @@ def test_registered_gui_agent_browser_surface_uses_standard_entry(monkeypatch):
     calls = []
 
     def standard_entry(**kwargs):
-        calls.append(kwargs)
+        from openprogram.agentic_programming.call_state import _current_runtime
+        calls.append({**kwargs, "runtime": _current_runtime.get(None)})
         return {
             "status": "succeeded",
             "reason_code": "verified_browser_assertion",
@@ -166,7 +167,7 @@ def test_registered_gui_agent_browser_surface_uses_standard_entry(monkeypatch):
 
     runtime = object()
     wrapped = install_gui_harness_web_use(original)
-    result = wrapped(task="inspect the page", surface="browser", runtime=runtime)
+    result = run_on(runtime, wrapped, task="inspect the page", surface="browser")
     assert result["success"] is True
     assert calls == [
         {
@@ -200,7 +201,7 @@ def test_gui_agent_app_name_does_not_select_browser_surface(monkeypatch):
     )
 
     wrapped = install_gui_harness_web_use(original)
-    result = wrapped(task="inspect", app_name="browser", runtime=object())
+    result = run_on(object(), wrapped, task="inspect", app_name="browser")
 
     assert result["success"] is True
     assert [call[0] for call in capabilities.calls] == ["computer_use"]
@@ -293,7 +294,7 @@ def test_gui_agent_wrapper_records_one_public_gui_agent_node(tmp_path, monkeypat
             "gui_step": {"name": "gui_step", "tool": True},
         }
 
-        def gui_step(self, task, runtime=None):
+        def gui_step(self, task):
             return {
                 "task": task,
                 "success": True,
@@ -308,16 +309,14 @@ def test_gui_agent_wrapper_records_one_public_gui_agent_node(tmp_path, monkeypat
             "gui_agent": {"name": "gui_agent", "tool": True},
         }
 
-        def gui_agent(self, task, runtime=None, **_kwargs):
+        def gui_agent(self, task, **_kwargs):
             raise AssertionError("task-only must not call the decorated legacy root")
 
     gui_agent = GuiAgentAgent().gui_agent
 
     capabilities = _capabilities(
         monkeypatch,
-        effect=lambda _name, args, **kwargs: gui_step(
-            args["task"], runtime=kwargs["runtime"]
-        ),
+        effect=lambda _name, args, **kwargs: gui_step(args["task"]),
     )
 
     store = SessionStore(tmp_path / "sessions")
@@ -326,7 +325,7 @@ def test_gui_agent_wrapper_records_one_public_gui_agent_node(tmp_path, monkeypat
     token = _store.set(writer)
     try:
         wrapped = install_gui_harness_web_use(gui_agent)
-        wrapped(task="t", runtime=Runtime(call=lambda *_a, **_k: "", model="dummy"))
+        run_on(Runtime(call=lambda *_a, **_k: "", model="dummy"), wrapped, task="t")
     finally:
         _store.reset(token)
 
@@ -360,7 +359,7 @@ def test_task_only_gui_agent_enforces_actual_action_budget(
         raise AssertionError("task-only must not call the legacy root")
 
     wrapped = install_gui_harness_web_use(legacy)
-    result = wrapped(task="two actions", max_steps=max_steps, runtime=SimpleNamespace())
+    result = run_on(SimpleNamespace(), wrapped, task="two actions", max_steps=max_steps)
     assert len(capabilities.calls) == expected_calls
     assert result["steps_taken"] == expected_calls
     assert result["status"] == status
@@ -429,10 +428,9 @@ def test_gui_agent_harness_uses_selected_computer_use_backend(monkeypatch):
             )
             return "verified"
 
-    result = module.browser_agent(
+    result = run_on(_Runtime(), module.browser_agent,
         task="Verify the page",
         backend="chrome_devtools_mcp",
-        runtime=_Runtime(),
     )
     assert result["status"] == "succeeded"
     verify_call = next(call for call in registry.calls if call["command"] == "verify")
@@ -583,12 +581,11 @@ def test_gui_agent_prompt_receives_group_aware_page_inventory(monkeypatch):
             )
             return "verified"
 
-    result = module._run_browser_task_commands(
+    result = run_on(_Runtime(), module._run_browser_task_commands,
         task="Verify the split page",
         backend="chrome_devtools_mcp",
         max_steps=2,
         max_seconds=30,
-        runtime=_Runtime(),
     )
 
     assert result["status"] == "succeeded"

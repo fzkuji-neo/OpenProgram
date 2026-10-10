@@ -8,6 +8,7 @@ import pytest
 
 from tests.component.security.test_gui_agent import owned
 from tests.component.security.test_gui_browser_resources import pages
+from tests.support.on_runtime import run_on
 
 pytestmark = pytest.mark.skipif(sys.platform != "darwin", reason="strict macOS sandbox")
 
@@ -132,12 +133,11 @@ def test_public_browser_entry_uses_standard_runtime_and_host_final_verification(
     wrapped = install(owned, pages, monkeypatch)
     runtime, seen = runtime_for_browser()
     try:
-        result = wrapped(
+        result = run_on(runtime, wrapped,
             task="Enter after and verify it",
             surface="browser",
             max_steps=3,
             max_seconds=10,
-            runtime=runtime,
         )
     finally:
         runtime.close()
@@ -159,12 +159,11 @@ def test_public_entry_rejects_stale_or_failed_final_assertion(
     wrapped = install(owned, pages, monkeypatch)
     runtime, seen = runtime_for_browser(stale=stale, value=value)
     try:
-        result = wrapped(
+        result = run_on(runtime, wrapped,
             task="Enter after",
             surface="browser",
             max_steps=3,
             max_seconds=10,
-            runtime=runtime,
         )
     finally:
         runtime.close()
@@ -202,12 +201,11 @@ def test_standard_runtime_inherits_outer_gui_tool_denial(
         )
     )
     try:
-        result = wrapped(
+        result = run_on(runtime, wrapped,
             task="Enter after",
             surface="browser",
             max_steps=3,
             max_seconds=10,
-            runtime=runtime,
         )
     finally:
         reset_turn_request(token)
@@ -228,7 +226,7 @@ def test_unsupported_explicit_backend_does_not_capture_or_call_old_loop(
         "capture_pages",
         lambda context: pytest.fail("must not capture"),
     )
-    result = wrapped(task="Inspect", backend="chrome_devtools_mcp", runtime=object())
+    result = run_on(object(), wrapped, task="Inspect", backend="chrome_devtools_mcp")
     assert (
         result["status"] == "infeasible"
         and result["reason_code"] == "guarded_dispatch_unsupported"
@@ -264,7 +262,7 @@ def test_plain_completion_with_invented_handle_is_not_success(
 
     runtime._stream_fn = provider
     try:
-        result = wrapped(task="Enter after", surface="browser", runtime=runtime)
+        result = run_on(runtime, wrapped, task="Enter after", surface="browser")
     finally:
         runtime.close()
     assert result["status"] == "failed" and pages[2]["text"] == "before"
@@ -287,7 +285,7 @@ def test_provider_cancellation_releases_owned_resources_and_propagates(
     runtime._stream_fn = provider
     try:
         with pytest.raises((ExecInterrupt, CancelledError)):
-            wrapped(task="Enter after", surface="browser", runtime=runtime)
+            run_on(runtime, wrapped, task="Enter after", surface="browser")
     finally:
         runtime.close()
     assert not pages[0]._sessions and not pages[0]._page_capabilities
@@ -302,8 +300,8 @@ def test_general_tools_do_not_replace_inherited_deny_policy(owned, pages, monkey
     runtime, seen = runtime_for_browser(denied=True)
     token = _current_tool_policy.set({"deny": ["gui_exec"]})
     try:
-        result = wrapped(
-            task="Enter after", surface="browser", allow_general=True, runtime=runtime
+        result = run_on(runtime, wrapped,
+            task="Enter after", surface="browser", allow_general=True
         )
     finally:
         _current_tool_policy.reset(token)
@@ -324,7 +322,7 @@ def test_cleanup_failure_cannot_return_success(owned, pages, monkeypatch):
     adapter.close = failed_close
     runtime, _ = runtime_for_browser()
     try:
-        result = wrapped(task="Enter after", surface="browser", runtime=runtime)
+        result = run_on(runtime, wrapped, task="Enter after", surface="browser")
     finally:
         runtime.close()
     assert result["status"] == "failed" and "owned cleanup failure" in result["error"]
@@ -408,15 +406,14 @@ def test_cleanup_cannot_return_late_success(owned, pages, monkeypatch, late):
     try:
         if late == "cancel":
             with pytest.raises(CancelledError):
-                wrapped(
+                run_on(runtime, wrapped,
                     task="Enter after",
                     surface="browser",
                     max_seconds=10,
-                    runtime=runtime,
                 )
         else:
-            result = wrapped(
-                task="Enter after", surface="browser", max_seconds=10, runtime=runtime
+            result = run_on(runtime, wrapped,
+                task="Enter after", surface="browser", max_seconds=10
             )
             assert result["status"] == "failed" and "deadline" in result["error"]
             assert result["verification"]["evidence"]["passed"] is True
@@ -432,7 +429,7 @@ def test_standalone_default_ask_does_not_expose_gui_effects(owned, pages, monkey
     runtime, seen = runtime_for_browser(denied=True)
     token = set_turn_request(None)
     try:
-        result = wrapped(task="Enter after", surface="browser", max_steps=3, runtime=runtime)
+        result = run_on(runtime, wrapped, task="Enter after", surface="browser", max_steps=3)
     finally:
         reset_turn_request(token)
         runtime.close()

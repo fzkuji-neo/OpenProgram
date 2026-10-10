@@ -12,11 +12,8 @@ def _run_browser_task(
     url: str,
     max_steps: int,
     max_seconds: int,
-    runtime,
     binding_id: str = "",
 ) -> dict:
-    if runtime is None:
-        raise ValueError("browser task requires a runtime argument")
     if not (task or "").strip():
         raise ValueError("task must not be empty")
     from openprogram.agent import surface_context
@@ -35,7 +32,7 @@ def _run_browser_task(
         # shared inventory driver instead of guessing the active window.
         return state._run_browser_task_commands(
             task=task, url=url, backend="", max_steps=max(1, min(int(max_steps), 100)),
-            max_seconds=max_seconds, runtime=runtime,
+            max_seconds=max_seconds,
         )
     controller = state._new_controller()
     controller.initial_url = url or ""
@@ -114,7 +111,6 @@ def _run_browser_task(
                         stop_after_tool_round=True,
                         timeout_s=max(1, remaining),
                         execution_kind="browser_agent",
-                        runtime=runtime,
                         return_raw=True,
                     )
                 finally:
@@ -147,7 +143,7 @@ def _run_browser_task(
                         summary="Browser task completed and verified."
                     )
                     break
-                rejected = rejected_tool(runtime) if not action_executed else None
+                rejected = rejected_tool() if not action_executed else None
                 if rejected:
                     result = controller.final_result(reason_code=rejected["reason_code"], summary=rejected["message"])
                     break

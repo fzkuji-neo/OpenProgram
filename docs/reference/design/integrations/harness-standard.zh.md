@@ -83,11 +83,13 @@ vault 路径；GUI：vision 模型 + 平台 backend）。**标准规定的是机
    class HarnessAgent(Agent):
        method_options = {"foo_agent": {"tool": True, "name": "foo_agent"}}
 
-       def foo_agent(self, task: str, max_steps: int = 15, runtime=None) -> dict:
+       def foo_agent(self, task: str, max_steps: int = 15) -> dict:
            ...
    ```
-2. **runtime 是被注入的，绝不自行构造。** 需要 LLM 的 harness 函数声明一个
-   `runtime` 参数；host 会注入当前活跃的 runtime。对于 in-host 路径，harness
+2. **runtime 来自 host，绝不自行构造。** harness 方法在到达它的那次调用的
+   Runtime（即 host 的）上运行，用 `llm()` / `agent()` 发起模型请求，不声明
+   `runtime` 参数。第二个模型（比如评审）是在运行入口配置的第二个 Agent
+   实例。对于 in-host 路径，harness
    **绝不能** 自己构建 provider / 自己读取 `ANTHROPIC_API_KEY` —— provider
    选择与鉴权归 host 管。（harness *可以* 保留一个独立的 CLI，调用
    `create_runtime(...)` 以便在 host 之外使用；那与 in-host 入口点是分开的。）

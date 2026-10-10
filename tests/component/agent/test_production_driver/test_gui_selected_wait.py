@@ -9,6 +9,7 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 from ._support import _admitted
+from tests.support.on_runtime import run_on
 
 
 def _gui(monkeypatch):
@@ -82,7 +83,7 @@ def test_selected_wait_preserves_agent_cursor_without_auto_resume_window(tmp_pat
     assert hook("tool.started", {"tool_call_id": "gui-call"}) is False
     with pytest.raises(FunctionSystemAccessRequired):
         with function_execution(store, attempt_id=active.attempt_id, generation=active.generation, call_key="gui-call", checkpoint_root=False, publish_pause=False):
-            public(task="browser then desktop", runtime=SimpleNamespace(live=object()))
+            run_on(SimpleNamespace(live=object()), public, task="browser then desktop")
     assert effects == ["browser_use"]
     granted = parent_ready
     assert hook("tool.suspended", {"tool_call_id": "gui-call", "tool_name": "gui_agent", "next_tool_index": 0,
@@ -114,7 +115,7 @@ def test_selected_wait_preserves_agent_cursor_without_auto_resume_window(tmp_pat
     next_attempt = attempts.get(resumed[0][0].attempt_id)
     assert next_attempt.generation > active.generation
     with function_execution(store, attempt_id=next_attempt.attempt_id, generation=next_attempt.generation, call_key="gui-call", checkpoint_root=False, publish_pause=False):
-        result = public(task="browser then desktop", runtime=SimpleNamespace(live=object()))
+        result = run_on(SimpleNamespace(live=object()), public, task="browser then desktop")
     assert result["status"] == "succeeded"
     assert effects == ["browser_use", "computer_use"]
     assert plans == [0, 1, 2]

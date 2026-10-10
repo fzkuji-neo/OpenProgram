@@ -5,6 +5,7 @@ from ._support import (
     asyncio,
     pytest,
 )
+from tests.support.on_runtime import run_on
 
 
 def test_gui_agent_inventory_failure_does_not_open_another_page(monkeypatch):
@@ -34,9 +35,9 @@ def test_gui_agent_inventory_failure_does_not_open_another_page(monkeypatch):
         lambda *_args, **_kwargs: opened.append((_args, _kwargs)) or {},
     )
 
-    result = module._run_browser_task_commands(
+    result = run_on(SimpleNamespace(), module._run_browser_task_commands,
         task="inspect", backend="playwright_mcp",
-        max_steps=1, max_seconds=10, runtime=SimpleNamespace(),
+        max_steps=1, max_seconds=10,
     )
 
     assert result["status"] == "failed"
@@ -74,9 +75,8 @@ def test_gui_agent_preserves_background_open_timeout_handoff(monkeypatch):
         "error": "timeout: no desktop shell replied within 15s",
     })
 
-    result = browser_module._run_browser_task_commands(
+    result = run_on(SimpleNamespace(), browser_module._run_browser_task_commands,
         task="inspect", backend="playwright_mcp", max_steps=1, max_seconds=10,
-        runtime=SimpleNamespace(),
     )
 
     assert result["status"] == "infeasible"
@@ -120,9 +120,9 @@ def test_gui_agent_does_not_release_a_borrowed_empty_context(monkeypatch):
         },
     )
 
-    result = module._run_browser_task_commands(
+    result = run_on(SimpleNamespace(), module._run_browser_task_commands,
         task="inspect", backend="playwright_mcp",
-        max_steps=1, max_seconds=10, runtime=SimpleNamespace(),
+        max_steps=1, max_seconds=10,
     )
 
     assert result["status"] == "infeasible"
@@ -190,9 +190,9 @@ def test_gui_agent_failed_first_observe_releases_its_owner(monkeypatch):
         surface_context, "release_bindings", lambda value: released.append(value),
     )
 
-    result = module._run_browser_task_commands(
+    result = run_on(SimpleNamespace(), module._run_browser_task_commands,
         task="observe", backend="playwright_mcp",
-        max_steps=1, max_seconds=10, runtime=SimpleNamespace(),
+        max_steps=1, max_seconds=10,
     )
 
     assert result["status"] == "failed"
@@ -264,9 +264,9 @@ def test_gui_agent_close_error_still_releases_its_owner(monkeypatch):
     )
 
     with pytest.raises(RuntimeError, match="close failed"):
-        module._run_browser_task_commands(
+        run_on(_Runtime(), module._run_browser_task_commands,
             task="verify", backend="playwright_mcp",
-            max_steps=1, max_seconds=10, runtime=_Runtime(),
+            max_steps=1, max_seconds=10,
         )
 
     assert registry.released_owners == ["harness:ctx-close-error"]
@@ -338,9 +338,9 @@ def test_gui_agent_releases_only_the_failed_inventory_refresh(monkeypatch):
         surface_context, "resolve_page_key", lambda _page="": "page-borrowed",
     )
 
-    result = module._run_browser_task_commands(
+    result = run_on(_Runtime(), module._run_browser_task_commands,
         task="verify", backend="playwright_mcp",
-        max_steps=1, max_seconds=10, runtime=_Runtime(),
+        max_steps=1, max_seconds=10,
     )
 
     assert result["status"] == "succeeded"
@@ -427,9 +427,9 @@ def test_gui_agent_discovers_popup_and_switches_by_exact_page_token(monkeypatch)
             asyncio.run(tool.execute("call", args, asyncio.Event(), None))
             return ""
 
-    result = module._run_browser_task_commands(
+    result = run_on(_Runtime(), module._run_browser_task_commands,
         task="Open the popup", backend="playwright_mcp",
-        max_steps=3, max_seconds=30, runtime=_Runtime(),
+        max_steps=3, max_seconds=30,
     )
 
     assert result["status"] == "succeeded"

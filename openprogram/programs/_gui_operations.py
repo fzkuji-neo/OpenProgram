@@ -1,21 +1,14 @@
 """Fixed host operations for the version-one durable GUI orchestration API."""
 from __future__ import annotations
 
-from contextlib import contextmanager
-from contextvars import ContextVar
 import inspect
 import time
 
-_runtime = ContextVar("gui_host_runtime", default=None)
 
-
-@contextmanager
-def host_runtime(runtime):
-    token = _runtime.set(runtime)
-    try:
-        yield
-    finally:
-        _runtime.reset(token)
+def _host_runtime():
+    """The Runtime the registered gui_agent call runs on."""
+    from openprogram.agentic_programming.call_state import _current_runtime
+    return _current_runtime.get(None)
 
 
 def guard(operation, payload, context):
@@ -102,7 +95,7 @@ def _legacy(config):
         from openprogram.programs.gui_browser_agent import run_browser_gui_agent
         return gui_harness_bridge._normalize_gui_result(run_browser_gui_agent(
             task=config["task"], max_steps=steps, max_seconds=seconds,
-            backend=config["backend"], runtime=_runtime.get(), allow_general=config["allow_general"],
+            backend=config["backend"], allow_general=config["allow_general"],
         ))
     if surface == "desktop" and not config["vm_url"]:
         access = required_access_state("gui_agent", {"surface": "desktop"})
@@ -110,7 +103,7 @@ def _legacy(config):
             return gui_harness_bridge._normalize_gui_result(_blocked_access(access))
     args = {
         "task": config["task"], "max_steps": steps or 0, "app_name": config["app_name"],
-        "max_seconds": seconds, "runtime": _runtime.get(), "allow_general": config["allow_general"],
+        "max_seconds": seconds, "allow_general": config["allow_general"],
         "browser_backend": config["backend"], "vm_url": config["vm_url"], "preferred_capability": preferred,
     }
     original = gui_harness_bridge._GUI_LEGACY_IMPL
@@ -132,8 +125,8 @@ def dispatch(operation, payload):
         surface = str(payload["surface"] or "").strip().lower()
         if surface or payload["backend"] or payload["vm_url"]:
             return {"route": "legacy"}
-        if _runtime.get() is None:
-            raise ValueError("gui_agent requires a runtime argument")
+        if _host_runtime() is None:
+            raise ValueError("gui_agent requires a Runtime")
         steps, seconds = _settings(payload)
         return {"route": "capability_loop", "status": "running", "start": time.time(),
                 "max_steps": steps, "max_seconds": seconds, "history": [], "iterations": 0,
@@ -202,7 +195,7 @@ def dispatch(operation, payload):
                 return {"status": "failed", "success": False, "reason_code": "capability_unavailable", "summary": f"{call} is not currently available"}
         try:
             return capability_loop.call_capability(
-                call, state["next_args"], runtime=_runtime.get(), app_name=config["app_name"],
+                call, state["next_args"], app_name=config["app_name"],
                 allow_general=config["allow_general"], browser_backend=config["backend"], vm_url=config["vm_url"],
                 feedback=state["feedback"].get(call), max_seconds=None if remaining is None else max(1.0, remaining),
             )
@@ -219,7 +212,7 @@ def dispatch(operation, payload):
         feedback = dict(state["feedback"])
         if call in feedback:
             feedback[call] = result.get("next_feedback")
-        runtime = _runtime.get()
+        runtime = _host_runtime()
         if hasattr(runtime, "compact"):
             runtime.compact(threshold_tokens=200_000)
         return {**state, "capability_calls": calls, "feedback": feedback,
