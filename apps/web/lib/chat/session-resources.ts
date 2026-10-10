@@ -526,7 +526,7 @@ export function resetBrowserResources(sessionId?: string): void {
   // Switching the viewed conversation must not drop retained rows.
 }
 
-const OPTIMISTIC_CLOSE_TIMEOUT_MS = 5000;
+const OPTIMISTIC_CLOSE_TIMEOUT_MS = 15000;
 const optimisticCloseTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function clearOptimisticClose(resourceId: string): void {
@@ -554,6 +554,15 @@ function restoreOptimisticClose(resourceId: string): void {
   useBrowserResourceStore.setState({ rows, rowClock, ingestClock: clock, optimisticClosed });
 }
 
+function dropOptimisticClose(resourceId: string): void {
+  const state = useBrowserResourceStore.getState();
+  if (!state.optimisticClosed[resourceId]) return;
+  const optimisticClosed = { ...state.optimisticClosed };
+  delete optimisticClosed[resourceId];
+  clearOptimisticClose(resourceId);
+  useBrowserResourceStore.setState({ optimisticClosed });
+}
+
 /** Hide one Page until a close event, authoritative snapshot, or timeout. */
 export function optimisticallyCloseBrowserResource(resourceId: string, generation = 0): void {
   if (!resourceId) return;
@@ -575,6 +584,35 @@ export function optimisticallyCloseBrowserResource(resourceId: string, generatio
     },
   });
   optimisticCloseTimers.set(resourceId, setTimeout(() => restoreOptimisticClose(resourceId), OPTIMISTIC_CLOSE_TIMEOUT_MS));
+}
+
+/**
+ * Close one Page by resource id. The server record is authoritative even
+ * when the row's tab is already gone, so a row can always be closed; a
+ * failed request brings the hidden row back at once.
+ */
+export async function requestCloseBrowserResource(
+  input: { conversationSessionId: string; resourceId: string },
+  post?: (url: string, init: RequestInit) => Promise<unknown>,
+): Promise<boolean> {
+  try {
+    const send = post ?? (await import("../net/fetch-client.ts")).jsonFetch;
+    const data = await send(
+      `/api/session/${encodeURIComponent(input.conversationSessionId)}/resources/${encodeURIComponent(input.resourceId)}/close`,
+      { method: "POST", body: "{}" },
+    ) as { items?: unknown };
+    const items = Array.isArray(data?.items) ? data.items as BackendResource[] : [];
+    for (const item of items) ingestBrowserResource(item, input.conversationSessionId, { origin: "event" });
+    return true;
+  } catch (error) {
+    // 404: the Page is already gone for this conversation; keep it hidden.
+    if ((error as { status?: number })?.status === 404) {
+      dropOptimisticClose(input.resourceId);
+      return true;
+    }
+    restoreOptimisticClose(input.resourceId);
+    return false;
+  }
 }
 
 export function completeResourceSnapshot(sessionId: string, result: { ok: boolean }): void {

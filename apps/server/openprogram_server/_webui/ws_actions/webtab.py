@@ -982,6 +982,37 @@ async def handle_webtab_closed(ws, cmd: dict):
                     _page_revisions.pop(identity, None)
 
 
+
+def close_page_resource(resource_id: str) -> list[dict[str, Any]]:
+    """Close one Page record by resource id (the Resources panel ×).
+
+    The renderer's ``webtab_closed`` needs a registered window on the same
+    socket and a confirmed native destroy; a row whose tab is already gone,
+    or a close sent across a reconnect, never satisfies that. The user's
+    explicit close is authoritative: the record closes, its bindings retire,
+    and every owner sees the closed rows, which are returned.
+    """
+    from openprogram.browser_resources import (
+        BrowserResourceStore, project_page_resource_rows, emit_browser_resource,
+    )
+    store = BrowserResourceStore()
+    if store.get_resource(resource_id) is None:
+        raise KeyError(resource_id)
+    revision = page_revision_for_key(resource_id)
+    with _lock:
+        for binding_id, entry in list(_bindings.items()):
+            if page_key_for_revision(entry[5]) == resource_id:
+                _bindings.pop(binding_id, None)
+        if revision is not None:
+            for identity, value in list(_page_revisions.items()):
+                if value == revision:
+                    _page_revisions.pop(identity, None)
+    store.mark_closed(resource_id)
+    rows = project_page_resource_rows(resource_id)
+    for row in rows:
+        emit_browser_resource(row, page_key=resource_id)
+    return rows
+
 _HUMAN_INPUT_KINDS = frozenset({"pointer", "key", "scroll", "navigate"})
 
 

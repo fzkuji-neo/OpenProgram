@@ -12,6 +12,7 @@ import {
   hideResourcePreview,
   optimisticallyCloseBrowserResource,
   previewTabId,
+  requestCloseBrowserResource,
   resourceDisplayTitle,
   resourceIsOperating,
   resourceSessionId,
@@ -23,8 +24,6 @@ import {
 } from "@/lib/chat/session-resources";
 import {
   pendingCloseRequest,
-  requestCloseBrowserPage,
-  settlePendingClose,
 } from "@/lib/browser/browser-control";
 import { revealExistingWebTab } from "@/lib/browser/web-page-management";
 import { desktopBridge, retryRestoreWebTab } from "@/lib/desktop/desktop-bridge";
@@ -215,18 +214,19 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
                 retryRecoverablePage(row, tabs);
                 if (!tabId) render(value => value + 1);
               }}><ExternalLink size={14} aria-hidden="true" /></button>}
-            {tab && <button type="button" className={styles.action} aria-label={`${text("Close webpage", "关闭网页")}: ${title}`}
+            {(tab || row.resourceId) && <button type="button" className={styles.action} aria-label={`${text("Close webpage", "关闭网页")}: ${title}`}
               title={text("Close webpage", "关闭网页")} onClick={() => {
-                const result = requestCloseBrowserPage(row, tabs);
-                if (result === "closed") {
-                  optimisticallyCloseBrowserResource(row.resourceId || row.sourceId, row.generation || 0);
-                  useCenterTabs.getState().closeTab(tab.id);
-                  if (pref?.targetId === row.id) {
-                    hideResourcePreview(sessionId!, viewedBranch);
-                    useWebTabPip.getState().hide();
-                  }
-                } else if (result === "pending") {
-                  settlePendingClose(id => useCenterTabs.getState().closeTab(id));
+                const resourceId = row.resourceId || row.sourceId;
+                optimisticallyCloseBrowserResource(resourceId, row.generation || 0);
+                if (tab) useCenterTabs.getState().closeTab(tab.id);
+                const conversationSessionId = row.conversationSessionId || sessionId;
+                if (conversationSessionId && row.resourceId) {
+                  void requestCloseBrowserResource({ conversationSessionId, resourceId: row.resourceId })
+                    .then(() => render(value => value + 1));
+                }
+                if (pref?.targetId === row.id) {
+                  hideResourcePreview(sessionId!, viewedBranch);
+                  useWebTabPip.getState().hide();
                 }
                 render(value => value + 1);
               }}><X size={14} /></button>}

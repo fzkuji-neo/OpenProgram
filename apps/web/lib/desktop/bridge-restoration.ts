@@ -18,7 +18,7 @@ import "@/lib/net/ws-events";
 import { getSocket } from "@/lib/runtime-bridge/state";
 import { listedBrowserResources, recoverSessionResources } from "@/lib/chat/session-resources";
 import { type DesktopBridge } from "./bridge-api";
-import { destroyInFlight, ensureWebView, liveViewIds, nativeCueOperations, removeVisibleWebTabBounds, transferLockedIds, webTabGeometryRevisions } from "./bridge-state";
+import { destroyInFlight, ensureWebView, liveViewIds, nativeCueOperations, removeVisibleWebTabBounds, transferLockedIds, unreportedClosedWebTabs, webTabGeometryRevisions } from "./bridge-state";
 
 
 
@@ -189,6 +189,13 @@ export function reregisterDesktopWindow(bridge: DesktopBridge): void {
     action: "webtab_register",
     window_id: bridge.windowId,
   }));
+  // The server only accepts a close from the registered socket, so closes
+  // confirmed while it was down go out right after the register.
+  for (const id of Array.from(unreportedClosedWebTabs)) {
+    unreportedClosedWebTabs.delete(id);
+    if (webTabStillPresent(id)) continue;
+    ws.send(JSON.stringify({ action: "webtab_closed", window_id: bridge.windowId, tab_id: id }));
+  }
 }
 
 /** Destroy views whose center tab no longer exists. Runs on every
@@ -213,6 +220,8 @@ export function destroyStaleWebViews(
         const ws = getSocket();
         if (ws?.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ action: "webtab_closed", window_id: bridge.windowId, tab_id: id }));
+        } else {
+          unreportedClosedWebTabs.add(id);
         }
         liveViewIds.delete(id);
         webTabGeometryRevisions.delete(id);
