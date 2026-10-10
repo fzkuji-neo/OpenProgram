@@ -103,7 +103,8 @@ def test_local_app_refresh_installs_committed_program_snapshots() -> None:
     )
     assert '"$local_python" -m pip install' in refresh
     assert '"$app_python" -I -m pip install' in refresh
-    assert '--force-reinstall "$program_stage"' in refresh
+    assert '--force-reinstall "$program_wheel"' in refresh
+    assert '--force-reinstall "$program_stage"' not in refresh
     assert "from gui_harness.adapters.mac_window import window_support" in refresh
     assert 'for program_name in gui research wiki; do' in refresh
     assert '"$repo_root/scripts/release/stage-program-source.py"' in refresh
@@ -113,6 +114,21 @@ def test_local_app_refresh_installs_committed_program_snapshots() -> None:
     validate = refresh.index('"$runtime_root/bin/verify-product-runtime.py" "$runtime_root"')
     install = refresh.index('cp "$product_runtime_stage" "$installed_product_runtime"')
     assert snapshot < stage < install < validate
+
+
+def test_local_app_refresh_builds_program_wheels_before_touching_the_app() -> None:
+    """A source build is the last network step; it must fail before any mutation."""
+    refresh = (ROOT / "scripts" / "refresh-local-app.sh").read_text(
+        encoding="utf-8"
+    )
+    stage = refresh.index('"$repo_root/scripts/release/stage-program-source.py"')
+    build = refresh.index('"$local_python" -m pip wheel --disable-pip-version-check --no-deps')
+    quit_app = refresh.index('tell application id "ai.openprogram.desktop" to quit')
+    stop = refresh.index('"$local_python" -m openprogram worker stop')
+    install = refresh.index('--force-reinstall "$program_wheel"')
+    assert stage < build < quit_app < stop < install
+    assert '--wheel-dir "$program_wheel_dir" "$attempt_dir/program-$program_name"' in refresh
+    assert 'for program_wheel in "${program_wheels[@]}"; do' in refresh
 
 
 
@@ -280,6 +296,15 @@ def test_local_app_refresh_rejects_a_different_product_version_before_build(
 
 
 
+# `pip wheel` builds a Program wheel into the attempt's temporary directory. It
+# mutates nothing installed, so the fake Pythons satisfy it without logging it.
+PIP_WHEEL_SHIM = (
+    'case "$*" in "-m pip wheel "*) out=; while [ "$#" -gt 0 ]; do '
+    'if [ "$1" = "--wheel-dir" ]; then out="$2"; shift 2; else shift; fi; done; '
+    'mkdir -p "$out"; : > "$out/program-0.0.0-py3-none-any.whl"; exit 0 ;; esac\n'
+)
+
+
 def _prepare_local_refresh_fixture(tmp_path: Path) -> tuple[Path, Path, dict[str, str]]:
     repo = tmp_path / "repo"
     scripts = repo / "scripts"
@@ -379,6 +404,7 @@ def _prepare_local_refresh_fixture(tmp_path: Path) -> tuple[Path, Path, dict[str
     local_python.write_text(
         "#!/bin/sh\n"
         "set -eu\n"
+        + PIP_WHEEL_SHIM +
         'case "${1:-}" in\n'
         '  *.py|-) exec "$REAL_PYTHON" "$@" ;;\n'
         "esac\n"
@@ -570,6 +596,7 @@ def test_local_app_refresh_rejects_dirty_version_change_after_build(
     local_python.write_text(
         "#!/bin/sh\n"
         "set -eu\n"
+        + PIP_WHEEL_SHIM +
         'case "${1:-}" in\n'
         '  *.py|-) exec "$REAL_PYTHON" "$@" ;;\n'
         "  *) exit 0 ;;\n"
@@ -790,6 +817,7 @@ def _prepare_completion_refresh_fixture(tmp_path: Path, *, service: bool):
     local = Path(env["OPENPROGRAM_LOCAL_PYTHON"])
     local.write_text(
         '#!/bin/sh\nset -eu\n'
+        + PIP_WHEEL_SHIM +
         'case "$*" in\n'
         ' *verify-release-version.py*) exec "$REAL_PYTHON" "$@" ;;\n'
         ' *.py*) exit 0 ;;\n'
