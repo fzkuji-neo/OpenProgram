@@ -99,6 +99,8 @@ def test_webtab_register_returns_before_list_and_rebinds_hidden_page(tmp_path, m
             await asyncio.sleep(0.01)
         commands = _list_commands(ws.sent)
         assert commands, "register must dispatch list without waiting on the receive loop"
+        # Private retained Pages are only listed under the restore scope.
+        assert commands[0]["data"]["scope"] == "restore"
         req_id = commands[0]["data"]["req_id"]
         await ws.incoming.put(json.dumps({
             "action": "webtab_result",

@@ -113,7 +113,7 @@ export function installDesktopMenuHandlers(): void {
     }
     if (detail?.type !== "webtab.command") return;
     const d = detail.data as
-      | { op?: string; url?: string; session_id?: string; execution_id?: string; branch_id?: string; window_id?: string; tab_id?: string; req_id?: string; background?: boolean; nonce?: string; expected_geometry_revision?: number }
+      | { op?: string; scope?: string; url?: string; session_id?: string; execution_id?: string; branch_id?: string; window_id?: string; tab_id?: string; req_id?: string; background?: boolean; nonce?: string; expected_geometry_revision?: number }
       | undefined;
     if (!d?.req_id || !["open", "active", "activate", "preview", "screenshot", "list", "resolve", "close", "self_update_capture"].includes(d.op || "")) return;
     const ws = getSocket();
@@ -178,7 +178,7 @@ export function installDesktopMenuHandlers(): void {
         guardedSocket.send(JSON.stringify({ action: "webtab_result", req_id: d.req_id, ok: false }));
         return;
       }
-      void browserPageInventory(bridge, d.session_id).then((inventory) => {
+      void browserPageInventory(bridge, d.session_id, { restore: d.scope === "restore" }).then((inventory) => {
         guardedSocket.send(JSON.stringify({
           action: "webtab_result",
           req_id: d.req_id,

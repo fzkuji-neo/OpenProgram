@@ -47,6 +47,8 @@ test('private inventory is scoped by requesting conversation, public opening exp
  assert.deepEqual(inspected,[], 'private Page must not be inspected for another session');
  assert.equal((await browserPageInventory(bridge,'A')).pages[0].tab_id,page.id);
  assert.equal((await browserPageInventory(bridge)).pages.length,0);
+ const restore=await browserPageInventory(bridge,null,{restore:true});
+ assert.deepEqual(restore.pages.map(p=>p.tab_id),[page.id],'the worker restore rebinds private retained Pages too');
  revealExistingWebTab(page.id,c.getState());
  assert.equal((await browserPageInventory(bridge,'B')).pages[0].tab_id,page.id);
  assert.equal(c.getState().tabs.filter(t=>t.kind==='web').length,1);
