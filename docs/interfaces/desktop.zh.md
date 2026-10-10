@@ -148,7 +148,7 @@ App 或 worker 重启时正在操作网页的 Agent 会继续使用浏览器工�
 
 ### Agent 统一资源接口
 
-`resource` 工具通过 `describe` 返回 provider 及其支持的操作和参数结构。先调用 `resource(action="describe")`，再按返回的结构调用。内置 `web` 和 `terminal` 保留原有资源标识和检查；现有 `web_use`、`terminal_use` 继续兼容。例如 `resource(provider="terminal", action="list")` 列出可用 shell，`observe` 返回后续操作需要的 generation、binding、input revision 和输出 cursor。
+`resource` 工具通过 `describe` 返回 provider 及其支持的操作和参数结构。先调用 `resource(action="describe")`，再按返回的结构调用。内置 `web` 和 `terminal` 保留原有资源标识和检查；现有 `web_use`、`terminal_use` 继续兼容。对网页 Page，`release` 只结束 Agent 的控制会话，网页保持打开；`resource` 和 `web_use` 里的 `close` 会关闭这个网页标签并返回 `page_closed`，App 没有确认关闭时返回错误。例如 `resource(provider="terminal", action="list")` 列出可用 shell，`observe` 返回后续操作需要的 generation、binding、input revision 和输出 cursor。
 
 只允许调用 provider 声明的操作。网页 `release` 释放控制会话而保留网页，`close` 使用已观察实例的控制绑定关闭准确的网页；终端 `release` 保留进程，`close` 请求终止进程。Terminal 需要来自对应 Desktop 窗口的有效执行，不能绕过任务 sandbox。
 
