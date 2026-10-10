@@ -307,7 +307,6 @@ test("submit keeps draft when an attachment is loading or failed", async () => {
       webSearchEnabled: false,
       fastEnabled: false,
       fastSupported: false,
-      runningMessageMode: "queue",
       dispatchFunction() { return false; },
     });
     useEffect(() => {}, [images, docs]);

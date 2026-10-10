@@ -107,9 +107,9 @@ function running(sid = "A", { provisional = false, replyId = "exec-A" } = {}) {
   host.sessions.messageOrder[sid] = [replyId];
   return task;
 }
-function composer(input, overrides = {}) {
+function composer(input, { runningMessageMode = "queue", ...overrides } = {}) {
   host.sessions.composerDrafts.A = input;
-  return useChatSubmit({
+  const hook = useChatSubmit({
     bound: null, input, activeChatKey: "A", currentSessionId: "A", isRunning: true,
     noEnabledModels: false, promptNeedModel() {}, send: () => true,
     setComposerInputFor(owner, value) {
@@ -121,9 +121,11 @@ function composer(input, overrides = {}) {
     pendingImages: [], pendingDocs: [], clearAttachmentsAfterSubmit() {},
     thinking: "medium", toolsEnabled: true, toolsProfile: "__agent__",
     webSearchEnabled: false, fastEnabled: false, fastSupported: false,
-    runningMessageMode: "queue", dispatchFunction: () => false,
+    dispatchFunction: () => false,
     ...overrides,
   });
+  // Enter steers, ⌘/Ctrl+Enter queues: the mode rides on each submit.
+  return { ...hook, submit: () => hook.submit(runningMessageMode) };
 }
 function sendArgs(overrides = {}) {
   return { text: "hello", sessionId: "A", thinking: "medium", toolsEnabled: true, webSearchEnabled: false, ...overrides };

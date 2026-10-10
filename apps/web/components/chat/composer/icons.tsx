@@ -72,14 +72,6 @@ export const UnattendedIcon = forwardRef<AnimatedNavIconHandle, IconProps & { on
   },
 );
 
-// While-running message mode: Steer injects into the current turn
-// (forward arrow), Queue lines the message up for the next one.
-export const RunningModeIcon = forwardRef<AnimatedNavIconHandle, IconProps & { mode: "steer" | "queue" }>(
-  function RunningModeIcon({ size = 16, mode }, ref) {
-    return <SolarIcon ref={ref} name={mode === "steer" ? "forward" : "list-arrow-down"} size={size} />;
-  },
-);
-
 // Send glyph — paper plane, flown up-right on the send button's hover via ref
 // (controlled). `.actionBtn svg` keeps it filled with currentColor.
 export const SendIcon = forwardRef<AnimatedNavIconHandle>(function SendIcon(_props, ref) {

@@ -9,7 +9,9 @@
  *   ↑ / ↓ recall   → fish-shell history, only when the slash menu isn't
  *                    holding the arrows
  *   slash menu     → arrows move the highlight, Enter picks, Esc closes
- *   Enter          → submit
+ *   Enter          → submit; during a run Enter adds the message to the
+ *                    current turn (steer) and ⌘/Ctrl+Enter queues it for
+ *                    the next turn
  */
 import React from "react";
 
@@ -17,6 +19,7 @@ import type { SlashCommand } from "../slash/slash-commands";
 import type { useFileMention } from "../attach/use-file-mention";
 import type { useHistoryRecall } from "./use-history-recall";
 import type { useSlashMenu } from "../slash/use-slash-menu";
+import type { RunningSendMode } from "../submit/use-chat-submit";
 
 export interface ComposerKeyDownOptions {
   input: string;
@@ -25,7 +28,7 @@ export interface ComposerKeyDownOptions {
   historyRecall: ReturnType<typeof useHistoryRecall>;
   slash: ReturnType<typeof useSlashMenu>;
   selectSlashCommand(cmd: SlashCommand): void;
-  submit(): void | Promise<void>;
+  submit(mode?: RunningSendMode): void | Promise<void>;
 }
 
 export function useComposerKeyDown({
@@ -139,7 +142,7 @@ export function useComposerKeyDown({
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      void submit();
+      void submit(e.metaKey || e.ctrlKey ? "queue" : "steer");
     }
   };
 }

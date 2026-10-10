@@ -100,7 +100,7 @@ function Pane({sid, peer = false}) {
     pendingDocs: attachment ? [{id: 'attached', filename: 'note.txt', loading: true}] : [],
     clearAttachmentsAfterSubmit() {}, thinking: 'medium', toolsEnabled: true,
     toolsProfile: '__agent__', webSearchEnabled: false, fastEnabled: false,
-    fastSupported: false, runningMessageMode: mode, dispatchFunction: () => false,
+    fastSupported: false, dispatchFunction: () => false,
   });
   return <section className="pane">
     <div id={peer ? undefined : 'chatArea'} ref={areaRef} className="area"
@@ -118,7 +118,7 @@ function Pane({sid, peer = false}) {
     </select>
     <label><input type="checkbox" checked={attachment}
       onChange={event => setAttachment(event.target.checked)} />Attachment {sid}</label>
-    <button onClick={() => void submit().then(
+    <button onClick={() => void submit(mode).then(
       () => { window.finishedSubmits += 1; },
       error => { window.submitErrors.push(String(error)); },
     )}>Send {sid}</button>

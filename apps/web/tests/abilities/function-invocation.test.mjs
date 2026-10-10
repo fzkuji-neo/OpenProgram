@@ -195,7 +195,6 @@ async function submitThroughComposer(input, sessionKey, overrides = {}) {
       webSearchEnabled: false,
       fastEnabled: false,
       fastSupported: false,
-      runningMessageMode: "queue",
       dispatchFunction,
     });
     return null;

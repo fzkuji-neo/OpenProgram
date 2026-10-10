@@ -6,7 +6,7 @@ The composer edits ordinary messages and user-opened function forms. Pending run
 
 The composer has two modes: `idle` and `fn-form`. Selecting a registered function opens `FunctionForm`; required fields and validation remain inside that form. Its transition, close action and outgoing-form animation belong to the composer. A pending decision does not cancel a function form.
 
-A complete registered `name(parameter=literal, ...)` expression in ordinary input uses the same invocation dispatcher and schema validation as the form. Explanatory text, partial expressions and fenced code remain ordinary chat text. While execution is running, normal messages retain the configured queue or steer behavior. Empty input retains the stop action.
+A complete registered `name(parameter=literal, ...)` expression in ordinary input uses the same invocation dispatcher and schema validation as the form. Explanatory text, partial expressions and fenced code remain ordinary chat text. While execution is running, Enter and the send button add a normal message to the current turn (steer), and Cmd/Ctrl+Enter queues it for the next turn. Empty input retains the stop action.
 
 ## Decision output cards
 
