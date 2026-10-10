@@ -277,7 +277,7 @@ html[data-theme="beige-dark"] {
 html[data-theme="beige-light"] {
   color-scheme: light;
 
-  --bg-primary: #faf9f5;
+  --bg-primary: #ffffff;
   --bg-secondary: #f0eee5;
   --bg-tertiary: #e8e6dc;
   --bg-input: #ffffff;
