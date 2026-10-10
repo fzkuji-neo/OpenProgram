@@ -69,6 +69,10 @@ export function localAttachmentMention(
 
 export const JSON_ATTACHED_MENTION =
   /\[attach(?:ed|ment):\s*([^()\[\]]+?)\s*\(([^,)]+),\s*([\d.]+)\s*KB(?:,\s*([^)]+))?\)\s*@json\s*("(?:\\.|[^"\\])*")(?:\s*@previewjson\s*("(?:\\.|[^"\\])*"))?\]/g;
+// Model-only first-level listing that follows a folder marker. Each entry is a
+// JSON string; the two bare lines are the empty and truncated notes.
+const FOLDER_LISTING =
+  /\n?First-level directory listing for "(?:\\.|[^"\\])*":(?:\n(?:"(?:\\.|[^"\\])*"|\(empty folder\)|… \(first level truncated\)))+/g;
 const LEGACY_ATTACHED_MENTION =
   /\[attach(?:ed|ment):\s*([^()]+?)\s*\(([^,)]+),\s*([\d.]+)\s*KB(?:,\s*([^)]+))?\)(?:\s*@(?!json\s)\s*([^\]]+))?\]/g;
 
@@ -122,8 +126,23 @@ export function extractAttachmentMentions(content: string, includeRaw = false): 
     });
   }
   found.sort((left, right) => left.start - right.start);
+  // The listing belongs to its folder chip: hidden from the prose, and kept in
+  // the chip's raw marker so an edited message still sends it.
+  const removed: Array<{ start: number; end: number }> = found.map(({ start, end }) => ({ start, end }));
+  for (const match of content.matchAll(FOLDER_LISTING)) {
+    const end = match.index + match[0].length;
+    const owner = found.find((item) => item.end === match.index);
+    if (owner) {
+      owner.end = end;
+      removed[found.indexOf(owner)].end = end;
+      if (includeRaw) owner.mention.raw = content.slice(owner.start, end);
+    } else {
+      removed.push({ start: match.index, end });
+    }
+  }
+  removed.sort((left, right) => left.start - right.start);
   let text = content;
-  for (const item of [...found].reverse()) {
+  for (const item of [...removed].reverse()) {
     text = text.slice(0, item.start) + text.slice(item.end);
   }
   return { mentions: found.map((item) => item.mention), text };
