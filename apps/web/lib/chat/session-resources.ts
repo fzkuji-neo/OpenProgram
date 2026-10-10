@@ -325,6 +325,19 @@ export function terminalResourceRows(resources: readonly TerminalResource[], ses
   }));
 }
 
+const URL_LIKE_TITLE = /^(?:[a-z][a-z0-9+.-]*:\/\/|[^\s/]+\.[a-z]{2,}(?:[/:?#]|$))/i;
+
+/** A web row's title is captured when its Page binds and can be blank or the
+ *  URL while the Page loads; prefer a real title from the row or its tab. */
+export function resourceDisplayTitle(
+  row: SessionResource,
+  tab?: { title?: string; url?: string } | null,
+): string {
+  const titles = [row.title, tab?.title].filter((value): value is string => !!value);
+  return titles.find(value => !URL_LIKE_TITLE.test(value))
+    || titles[0] || row.target || tab?.url || "";
+}
+
 export function resourceIsUnavailable(row: SessionResource): boolean {
   return row.status === "closed" || row.status === "exited";
 }

@@ -12,6 +12,7 @@ import {
   hideResourcePreview,
   optimisticallyCloseBrowserResource,
   previewTabId,
+  resourceDisplayTitle,
   resourceIsOperating,
   resourceSessionId,
   selectResourcePreview,
@@ -174,6 +175,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
           const Icon = icons[row.kind as keyof typeof icons] || Box;
           const tab = previewTabId(row) ? tabs.find(item => item.id === previewTabId(row)) : undefined;
           const operating = resourceIsOperating(row);
+          const title = resourceDisplayTitle(row, tab);
           const subtitle = [
             names[row.kind] || row.kind,
             operating ? text("Operating", "操作中") : statusName(row),
@@ -192,11 +194,11 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
                   retryRecoverablePage(row, tabs);
                   render(value => value + 1);
                 } else selectView(row);
-              }}><Icon size={16} aria-hidden="true" /><span><strong>{row.title}</strong>
+              }}><Icon size={16} aria-hidden="true" /><span><strong>{title}</strong>
               <small>{subtitle}</small></span></button>
             {operating && <span className={styles.dot} aria-hidden="true" />}
             {tab && <button type="button" className={styles.action}
-              aria-label={`${text("Preview in conversation", "在会话中预览")}: ${row.title}`}
+              aria-label={`${text("Preview in conversation", "在会话中预览")}: ${title}`}
               title={text("Preview in conversation", "在会话中预览")} onClick={() => {
                 if (!sessionId) return;
                 setSelected(null);
@@ -206,14 +208,14 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
                 render(value => value + 1);
               }}><PictureInPicture2 size={14} aria-hidden="true" /></button>}
             {tab && <button type="button" className={styles.action}
-              aria-label={`${text("Open in tab", "在标签中打开")}: ${row.title}`}
+              aria-label={`${text("Open in tab", "在标签中打开")}: ${title}`}
               title={text("Open in tab", "在标签中打开")} onClick={() => {
                 const tabId = existingResourceTabId(row, tabs);
                 if (tabId) revealExistingWebTab(tabId, useCenterTabs.getState());
                 retryRecoverablePage(row, tabs);
                 if (!tabId) render(value => value + 1);
               }}><ExternalLink size={14} aria-hidden="true" /></button>}
-            {tab && <button type="button" className={styles.action} aria-label={`${text("Close webpage", "关闭网页")}: ${row.title}`}
+            {tab && <button type="button" className={styles.action} aria-label={`${text("Close webpage", "关闭网页")}: ${title}`}
               title={text("Close webpage", "关闭网页")} onClick={() => {
                 const result = requestCloseBrowserPage(row, tabs);
                 if (result === "closed") {
