@@ -41,7 +41,7 @@ def _web(action: str, arguments: dict):
         except BaseException:
             surface_context.release_bindings(opened)
             raise
-    # web_use.close releases its control session; it does not close the Page.
+    # release ends the control session and keeps the Page; close (above) closes its tab.
     command = {"list": "list_pages", "release": "close"}.get(action, action)
     return _execute_web_use(command, **arguments)
 

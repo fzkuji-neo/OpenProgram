@@ -609,6 +609,32 @@ _CANCELLATION_ERRORS = (CancelledError, ExecInterrupt, asyncio.CancelledError)
 _GUI_TASK_ERRORS = (*_CANCELLATION_ERRORS, Exception)
 
 
+def _close_web_use_page(web_session_id: str) -> dict | ToolReturn:
+    """web_use close: close the observed Page's tab, not only its session.
+
+    Uses the resource close path, so ownership and the exact live binding are
+    checked the same way. The control session ends with the tab.
+    """
+    from openprogram.resources.providers.web_lifecycle import close_page
+
+    if not web_session_id:
+        return ToolReturn(json_data={
+            "ok": False, "page_closed": False,
+            "reason_code": "web_session_required",
+            "error": "close needs the web_session_id that observe returned for the Page.",
+        }, is_error=True)
+    result = close_page(web_session_id)
+    if isinstance(result, dict) and result.get("ok"):
+        return {
+            "ok": True, "closed": True, "page_closed": True,
+            "web_session_id": web_session_id,
+        }
+    failure = dict(result) if isinstance(result, dict) else {"error": str(result)}
+    failure.setdefault("reason_code", str(failure.get("error") or "page_close_failed"))
+    failure.update(ok=False, page_closed=False)
+    return ToolReturn(json_data=failure, is_error=True)
+
+
 class WebUseAgent(Agent):
     method_options = {
         "web_use": {
@@ -623,7 +649,8 @@ class WebUseAgent(Agent):
                 "command": {
                     "description": (
                         "Call list_pages first; then observe, act, verify, or close. "
-                        "observe or act with url opens a desktop web tab when no Page exists."
+                        "observe or act with url opens a desktop web tab when no Page exists. "
+                        "close closes the observed Page's tab and ends its session."
                     ),
                 },
                 "backend": {
@@ -663,8 +690,12 @@ class WebUseAgent(Agent):
 
         Start with ``list_pages``. Select a returned ``page_context_token`` for
         ``observe``; do not pass a URL as ``page``. ``observe`` or ``act`` with
-        ``url`` opens a desktop web tab when no Page is available.
+        ``url`` opens a desktop web tab when no Page is available. ``close``
+        closes the observed Page's tab.
         """
+        if str(command or "").strip() == "close":
+            nested = arguments.get("web_session_id") if isinstance(arguments, dict) else ""
+            return _close_web_use_page(str(web_session_id or nested or "").strip())
         result = _execute_web_use(
             command,
             backend,

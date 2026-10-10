@@ -123,3 +123,38 @@ def test_web_close_uses_exact_owned_live_binding(monkeypatch):
     session.owner_id = 'other'
     assert not registry.invoke('web', 'close', {'web_session_id': 'observed'})['ok']
     assert len(calls) == 2
+
+
+def test_web_use_close_closes_the_observed_page_tab(monkeypatch):
+    from types import SimpleNamespace
+    from threading import RLock
+    import openprogram.programs.workflow.browser as browser
+    from openprogram.programs.workflow.browser import web_use_runtime
+    from openprogram.webui.ws_actions import webtab
+    from openprogram.agent import surface_context
+    calls = []
+    session = SimpleNamespace(operation_lock=RLock(), closed=False, closing=False,
+        owner_id='owner', binding_id='binding', page_key='page')
+    native = SimpleNamespace(_lock=RLock(), _sessions={'observed': session},
+        execute=lambda *a, **kw: calls.append(('release', a, kw)))
+    monkeypatch.setattr(web_use_runtime, 'get_registry', lambda: native)
+    monkeypatch.setattr(surface_context, 'web_use_owner_id', lambda: 'owner')
+    monkeypatch.setattr(webtab, 'binding_page_descriptor', lambda _: {'page_key': 'page'})
+    replies = iter([{'ok': True}, {'ok': False, 'error': 'desktop_unavailable'}])
+    monkeypatch.setattr(webtab, 'request_close_tab', lambda binding: calls.append(('close', binding)) or next(replies))
+    monkeypatch.setattr(browser, '_execute_web_use', lambda *a, **kw: calls.append(('dispatched', a)))
+    web_use = browser.WebUseAgent.__dict__['web_use'].__wrapped__
+    agent = browser.WebUseAgent()
+
+    # A successful close is the tab closing, then the session ending with it.
+    assert web_use(agent, 'close', web_session_id='observed') == {
+        'ok': True, 'closed': True, 'page_closed': True, 'web_session_id': 'observed'}
+    assert [call[0] for call in calls] == ['close', 'release']
+
+    # A tab that did not close is an error, never "closed".
+    failed = web_use(agent, 'close', arguments={'web_session_id': 'observed'})
+    assert failed.is_error and failed.json_data['page_closed'] is False
+    assert failed.json_data['reason_code'] == 'desktop_unavailable'
+    missing = web_use(agent, 'close')
+    assert missing.is_error and missing.json_data['reason_code'] == 'web_session_required'
+    assert not any(call[0] == 'dispatched' for call in calls)
