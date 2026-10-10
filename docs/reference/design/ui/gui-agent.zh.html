@@ -1264,7 +1264,7 @@ render();
 <tr>
 <td>只截图的窗口关联</td>
 <td>Harness 测试用模拟的 AppKit、Accessibility、Quartz 与 ScreenCaptureKit 覆盖：对没有几何信息的应用元素、空或无法读取的 <code>AXWindows</code> 与不匹配的窗口建立只截图会话；多个匹配继续拒绝，唯一匹配保留控件；观察不含控件；只提供终态决定；拒绝所有动作；通过窗口服务器校验精确窗口。OpenProgram 报告测试覆盖微信读取器在只截图窗口上的行为。</td>
-<td>未在真实微信窗口上运行；真实应用验收仍待完成。</td>
+<td>已以 worker 身份在真实微信主窗口上运行，并强制辅助功能窗口列表为空：会话以 capture_only 绑定，截图为真实图像，控件列表为空，window_press、window_set_text 与 window_scroll 均以 window_controls_unavailable 拒绝，窗口未被触碰。微信自身的失效状态时有时无，尚不能按需复现，该触发条件的验收仍待完成。</td>
 </tr>
 <tr>
 <td>P0 完整原生输入</td>
