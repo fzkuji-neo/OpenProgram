@@ -32,6 +32,9 @@ _desktop_windows: dict[Any, str] = {}
 _next_revision = itertools.count(1)
 _instance_id = uuid.uuid4().hex[:12]
 _restore_jobs: dict[int, tuple[int, asyncio.Task]] = {}
+# Sockets that registered again while their restore ran: the renderer creates
+# native Pages after its first register, so that pass may have missed them.
+_restore_reruns: set[int] = set()
 _RESTORABLE = frozenset({"restoring", "unavailable", "restore_failed"})
 RESPONSE_TIMEOUT_REASON_CODE = "desktop_response_timeout"
 _PNG_DATA_URL_PREFIX = "data:image/png;base64,"
@@ -220,6 +223,7 @@ def release_connection(ws) -> None:
     for ev in wake:
         ev.set()
     job = _restore_jobs.pop(id(ws), None)
+    _restore_reruns.discard(id(ws))
     if job is not None and not job[1].done():
         job[1].cancel()
     if page_keys:
@@ -878,7 +882,11 @@ def restore_window_pages(ws, window_id: str, expected_revision: int | None = Non
 
 
 def schedule_window_restore(ws, window_id: str, revision: int) -> asyncio.Task | None:
-    """Start at most one restore job per socket revision; return immediately."""
+    """Run at most one restore job per socket revision; return immediately.
+
+    A register that arrives while the job runs queues one more pass after it,
+    so Pages the renderer created in the meantime are rebound too.
+    """
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -886,13 +894,19 @@ def schedule_window_restore(ws, window_id: str, revision: int) -> asyncio.Task |
     key = id(ws)
     existing = _restore_jobs.get(key)
     if existing is not None and existing[0] == revision and not existing[1].done():
+        _restore_reruns.add(key)
         return existing[1]
     if existing is not None and not existing[1].done():
         existing[1].cancel()
+    _restore_reruns.discard(key)
 
     async def _run() -> None:
         try:
-            await asyncio.to_thread(restore_window_pages, ws, window_id, revision)
+            while True:
+                await asyncio.to_thread(restore_window_pages, ws, window_id, revision)
+                if key not in _restore_reruns:
+                    break
+                _restore_reruns.discard(key)
         except asyncio.CancelledError:
             raise
         finally:

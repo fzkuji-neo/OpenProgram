@@ -202,6 +202,21 @@ test("parent Resources keep authorized child-owned browser Pages", () => {
   assert.equal(groupSessionResources(listed)[0].key, "web");
 });
 
+test("a Page used on several branches is listed once, as the viewed branch's row", () => {
+  const page = (branchId, sequence) => ({
+    id: `browser:page-a:${branchId || "unassigned"}`, resourceId: "page-a", source: "browser", kind: "web",
+    title: "Doc", target: "", status: "restore_failed", branchId, sequence,
+  });
+  const rows = [page("b1", 9), page("b2", 3), page(null, 1), {
+    id: "browser:page-b:b1", resourceId: "page-b", source: "browser", kind: "web",
+    title: "Other", target: "", status: "open", branchId: "b1", sequence: 1,
+  }];
+  const viewed = groupSessionResources(rows, "b2")[0].rows;
+  assert.deepEqual(viewed.map(row => row.id), ["browser:page-a:b2", "browser:page-b:b1"]);
+  const unviewed = groupSessionResources(rows, "elsewhere")[0].rows;
+  assert.deepEqual(unviewed.map(row => row.id), ["browser:page-a:b1", "browser:page-b:b1"]);
+});
+
 test("resource type order ignores branch names and keeps unknown kinds in other", () => {
   const rows = ["mystery", "remote", "docker", "application", "terminal", "desktop", "vm", "web"].map((kind, i) => ({
     id: String(i), source: "usage", kind, title: "Open Baidu", branchId: "branch", branchName: "Research", status: "open",

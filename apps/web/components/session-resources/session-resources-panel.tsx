@@ -120,7 +120,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
   };
   const viewedBranch = backend.currentBranchId;
   const pref = sessionId ? getPreviewPreference(sessionId, viewedBranch) : null;
-  const groups = groupSessionResources(rows).map(group => ({
+  const groups = groupSessionResources(rows, viewedBranch).map(group => ({
     ...group, title: names[group.key] || text("Other resources", "其他资源"),
   }));
   const icons = { terminal: TerminalSquare, web: Globe, docker: Box, vm: Monitor, remote: Server, desktop: Monitor };
