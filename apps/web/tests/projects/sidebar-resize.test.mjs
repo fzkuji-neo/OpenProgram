@@ -30,7 +30,7 @@ const shell = readFileSync(
 test("left and right sidebars share one resize implementation", () => {
   assert.match(sidebar, /useResizableRail\(\{[\s\S]*direction:\s*1/);
   assert.match(rightSidebar, /useResizableRail\(\{[\s\S]*direction:\s*-1/);
-  assert.match(resizableRail, /const COLLAPSED_RAIL_WIDTH = 49/);
+  assert.match(resizableRail, /const COLLAPSED_RAIL_WIDTH = 63/);
   assert.match(resizableRail, /setPointerCapture\(event\.pointerId\)/);
   assert.doesNotMatch(sidebar, /document\.addEventListener\("mousemove"/);
   assert.doesNotMatch(rightSidebar, /document\.addEventListener\("mousemove"/);

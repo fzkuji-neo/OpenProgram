@@ -16,6 +16,7 @@ import {
   focusCenterTabGroupMember,
   groupCenterTabs,
   normalizeCenterTabLayout,
+  ungroupCenterTab,
 } from "@/lib/tabs/center-tab-groups";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import type { TransferJournalEntry } from "@/lib/tabs/tab-transfer-journal";
@@ -155,6 +156,13 @@ export function normalizeCenterTabsPayload(
     tabIds: tabs.map((tab) => tab.id),
     groups: migratedGroups,
   });
+  // Management pages never live in a split: a grouped tab that carries a
+  // page route (persisted before pages opened their own tab) leaves its group.
+  for (const tab of tabs) {
+    if (tab.navigationRoute && findCenterTabGroup(layout.groups, tab.id)) {
+      layout = ungroupCenterTab(layout, tab.id);
+    }
+  }
   const activeId = layout.tabIds.includes(input.activeId ?? "")
     ? input.activeId ?? null
     : topLevelTabs(tabs, layout.groups)[0]?.id ?? null;
