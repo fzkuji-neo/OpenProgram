@@ -8,7 +8,10 @@
 // (rows, labels, footer) stay this app's own. One adaptation, the same
 // the input box and the elevated Button carry: the card is borderless,
 // `shadow-raised` (the per-theme composer shadow pair) instead of the
-// registry's `shadow-sm ring-1`.
+// registry's `shadow-sm ring-1`. The card clips its content
+// (overflow-hidden) so panels that paint their own fill, like the file
+// tree, keep the rounded corners; the rail's resize handle is positioned
+// against the outer shell, so it is not clipped.
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -29,7 +32,7 @@ const Sidebar = React.forwardRef<
       <div
         data-sidebar="sidebar"
         data-slot="sidebar-inner"
-        className="flex size-full flex-col rounded-2xl bg-sidebar shadow-raised"
+        className="flex size-full flex-col overflow-hidden rounded-2xl bg-sidebar shadow-raised"
       >
         {children}
       </div>
