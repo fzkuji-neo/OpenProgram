@@ -523,9 +523,11 @@
   max-width: calc(100% - 8px);
 }
 
-/* Terminal failures follow the reply trace and survive history reload. */
+/* Terminal failures follow the reply trace and survive history reload.
+   The column gap (8px) already separates it from the trace; 4px more makes
+   the space above match the 14px action-row offset below. */
 .turn-error {
-  margin-top: 16px;
+  margin-top: 4px;
   padding: 10px 12px;
   border-left: 2px solid var(--accent-red);
   border-radius: 0 6px 6px 0;
