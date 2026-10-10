@@ -1,5 +1,8 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { sidebarMenuButtonVariants } from "@/components/ui/sidebar";
+
 /**
  * Favorite functions list — reads the available functions and
  * `programsMeta.{favorites,icons}` to produce a draggable list
@@ -200,8 +203,11 @@ function FavoriteRow({
       transition={{ type: "spring", stiffness: 600, damping: 40 }}
     >
       <div
-        className="ui-list-item shrink-0 overflow-hidden truncate text-text-primary
-          !cursor-grab active:!cursor-grabbing select-none"
+        className={cn(
+          sidebarMenuButtonVariants(),
+          "shrink-0 overflow-hidden truncate text-text-primary [&_svg]:size-[16px]",
+          "!cursor-grab active:!cursor-grabbing select-none",
+        )}
         onClick={(e) => {
           if (dragGuard) { e.preventDefault(); e.stopPropagation(); return; }
           onActivate();

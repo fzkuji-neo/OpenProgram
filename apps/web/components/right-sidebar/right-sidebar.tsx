@@ -39,6 +39,11 @@ import {
   sidebarNavLabelClass,
   sidebarToggleClass,
 } from "../sidebar/nav-classes";
+import {
+  Sidebar as SidebarShell,
+  SidebarGroup,
+  SidebarHeader,
+} from "@/components/ui/sidebar";
 // Animated nav icons (pqoqubbw/icons), shared with the left sidebar.
 import {
   ActivityIcon,
@@ -195,18 +200,19 @@ export function RightSidebar() {
   // { display: flex }` in right-dock.css). The .collapsed class drives
   // the icon-rail-only width (defined in 02-sidebar.css).
   return (
-    <aside
+    <SidebarShell
       id="rightSidebar"
-      // Shell layout via Tailwind (parity with the left `<Sidebar />`).
-      // `border-l` instead of `border-r` is the only directional diff.
-      // `.sidebar` + `.right-sidebar` + `.collapsed` classes are kept
-      // for the cascade rules in 09-right-dock.css (`.right-sidebar
-      // [data-view="..."]` view switching, `.right-sidebar.collapsed
-      // .right-view-host { display: none }`) and the small
-      // `.sidebar.collapsed *` override in 02-sidebar.css.
+      side="right"
+      open={open}
+      // The official floating shell (components/ui/sidebar.tsx), parity
+      // with the left `<Sidebar />`. `.sidebar` + `.right-sidebar` +
+      // `.collapsed` classes are kept for the cascade rules in
+      // right-dock/view-host.css (`.right-sidebar [data-view="..."]`
+      // view switching, `.right-sidebar.collapsed .right-view-host
+      // { display: none }`) and the `.sidebar.collapsed` overrides in
+      // base.css.
       className={
-        "sidebar right-sidebar relative flex shrink-0 flex-col rail-shell " +
-        "bg-bg-secondary border-l border-[var(--border)] " +
+        "sidebar right-sidebar relative shrink-0 rail-shell " +
         (open ? "" : "collapsed")
       }
       style={railStyle}
@@ -226,7 +232,7 @@ export function RightSidebar() {
           sits flush against the RIGHT edge there).
           TODO(sidebar-headers): still 48px while the center strip is
           40px now — the sidebar-header team owns shrinking these. */}
-      <div className="flex h-[48px] shrink-0 items-center justify-start p-[8px] box-border">
+      <SidebarHeader className="h-[48px] flex-row items-center justify-start">
         <button
           className={sidebarToggleClass}
           onClick={onToggleRail}
@@ -252,9 +258,9 @@ export function RightSidebar() {
             />
           )}
         </button>
-      </div>
+      </SidebarHeader>
 
-      <div className="flex flex-col gap-px shrink-0 px-[8px] pt-[8px]">
+      <SidebarGroup className="shrink-0 gap-0.5 py-0">
         {/* Detail / Context 不进图标轨：图标轨是并列的顶层入口，而这两个
             是 DAG 节点的从属面板。选中 DAG 节点时它们自己弹出，彼此之间
             靠 <SessionViewSwitch /> 切换。 */}
@@ -316,7 +322,7 @@ export function RightSidebar() {
           <span className={sidebarNavIconClass}><BoxIcon ref={resourcesIconRef} size={20} /></span>
           <span className={sidebarNavLabelClass}>{text("Resources", "资源")}</span>
         </div>
-      </div>
+      </SidebarGroup>
 
       <div className="right-view-host">
         {/* Files view — the default: a plain project file tree. */}
@@ -352,6 +358,6 @@ export function RightSidebar() {
         </div>
       </div>
       </div>
-    </aside>
+    </SidebarShell>
   );
 }

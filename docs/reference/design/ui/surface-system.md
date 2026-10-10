@@ -12,22 +12,35 @@ the ones that usually go wrong (white fill on a pale rail).
 ─────────────────────────────────────────────────────────────────
 surface        background tone           where it lives
 ─────────────────────────────────────────────────────────────────
-deep           `--bg` /                  left sidebar, right
-               `--bg-secondary`          sidebar (branches /
-                                         worktrees / mini-DAG)
+deep           `--bg-secondary`          the page behind the
+                                         three columns (`.app`)
 ─────────────────────────────────────────────────────────────────
-panel          slightly lifted           chat stream, settings
-               `--bg-surface` /          panes, dialog content,
-               `--bg-tertiary`           function-card grid,
-                                         attach card, runtime
-                                         blocks
+panel          raised cards:             the left and right rails
+               `--bg-input` (rails),     (`--bg-input`, same
+               `--bg-primary` (centre)   material as the input
+                                         box) and the centre
+                                         column (`--bg-primary`:
+                                         chat stream, settings
+                                         and every other page)
 ─────────────────────────────────────────────────────────────────
 ```
 
-The lift between **deep** and **panel** is intentional — it
-substitutes for an explicit border / shadow on the chat content
-column, so the bubble area reads as a separate sheet floating
-above the navigation.
+The window is three floating cards on one page — the shadcn
+Sidebar `floating` shell for both rails and its `inset` idea for
+the centre column at once. Each card has 14px corners
+(`rounded-2xl`) and the per-theme raised shadow
+(`--composer-shadow`), no border and no ring; the rails keep a 7px
+gutter on every side (`p-2`), the centre card sits 7px off the
+top and bottom edges and takes its side gaps from the rails'
+gutters. The rails are white (`--bg-input`) so they share a
+material with the input box and the user bubble; the centre card
+stays `--bg-primary` so those white raised elements keep their
+contrast on it.
+
+Collapsed, a rail is `--rail-collapsed-w` (58px: the official
+3rem icon rail plus the two gutters); the card inside it holds
+28px square rows. `components/layout/use-resizable-rail.ts`
+carries the same number.
 
 ## Interaction language per surface
 
@@ -36,20 +49,20 @@ on buttons uses a small brightness change without an outline or box-shadow.
 The top tab strip is the exception: its `role="tab"` targets use each theme's
 own `--focus-ring`, which is lighter in dark themes and darker in light themes.
 
-### Deep surface (sidebars)
+### Rails (the two sidebar cards)
 
-Components on the deep surface are **list rows** — conversation
-items, branch entries, function favourites, and the same row used
-in a content-pane rail (MCP `drawio` / `linear` / `+ Add server`).
-They should NOT behave like buttons:
+Components on the rails are **list rows** — nav links,
+conversation items, branch entries, function favourites, and the
+same row used in a content-pane rail (MCP `drawio` / `linear` /
+`+ Add server`). They should NOT behave like buttons:
 
 - no border, no outline, no fill in the idle state
 - hover / selected → switch background to a **visible grey**
-  (``--bg-hover`` / ``--bg-selected``), text stays in
-  ``--text-primary`` or ``--text-secondary``
-- never fill selected rows with ``--bg-input``. In light theme
-  that token is white; on a light-grey rail the selected row
-  washes out and looks faded
+  (``--sidebar-accent`` = ``--bg-hover``), text goes to
+  ``--sidebar-accent-foreground``; the selected row also goes
+  `font-medium` (the official `data-active` look)
+- never fill selected rows with ``--bg-input``. The rail card is
+  already that white; a white row on it disappears
 - avoid the brand-coloured glyph treatment except for the very
   small status / activity indicators (``.indicator-dot``)
 
@@ -79,12 +92,47 @@ uses ``--bg-input`` so it reads like the search box (lighter, not
 darker). That fill is **only** for those pills. Do not copy it
 onto sidebar rows or MCP server rows.
 
-## One list-row recipe
+## Rail rows are the shadcn Sidebar
 
-Sidebar nav (`+ New chat`, Agents, Abilities, History, Scheduler)
-and content-pane list rows (MCP `drawio` / `linear` / `+ Add server`)
-share **one** box. Do not invent a second height, padding, radius,
-or selected fill for the rail on the right.
+Everything inside a rail card is the official shadcn radix-luma
+`Sidebar` family, `apps/web/components/ui/sidebar.tsx`: the
+registry's class recipes verbatim, minus the layout plumbing this
+app already owns (open state, resize, the narrow-viewport
+overlay). `components/sidebar/nav-classes.ts` wraps them with the
+app's hooks — the stable `sidebar-*` class names the collapsed
+cascade targets and the named `group/row` the icon hover reads
+(the shell carries the official unnamed `group`).
+
+```
+part                 official recipe (at this app's 14px root)
+─────────────────────────────────────────────────────────────────
+header               SidebarHeader: 48px row, p-2; the toggle is
+                     SidebarTrigger = Button ghost icon-sm (28px)
+nav / favourite /    SidebarMenuButton: h-9 (31.5px), px-3, gap-2,
+conversation row     rounded-xl (10.5px), 16px icon slot, hover
+                     and active = --sidebar-accent, active adds
+                     font-medium; collapsed = 28px square
+group label          SidebarGroupLabel: h-8, px-3, 12px medium at
+(Favorites, Projects, 70%, hover brightens; the collapse chevron
+Today, …)            only appears on hover
+project sessions     SidebarMenuSub: 1px guide line on the left
+                     (mx-3.5 px-2.5); rows stepped to 28px / 13px
+                     (official sub rows are 24.5px — too tight for
+                     the status marker)
+footer               SidebarFooter + SidebarMenuButton size="lg"
+                     (49px): 28px avatar, name 14/510, subtitle 12
+─────────────────────────────────────────────────────────────────
+```
+
+Content-pane list rows (MCP `drawio` / `linear` / `+ Add server`,
+the settings tab list) stay on the `.ui-list-item` box below. Do
+not invent a third row; a content pane that wants the rail look
+composes `sidebarMenuButtonVariants()` through `cn()`.
+
+## One content list-row recipe
+
+Content-pane list rows share **one** box. Do not invent a second
+height, padding, radius, or selected fill per pane.
 
 ```
 property     token / value
@@ -233,8 +281,9 @@ Pick per surface:
 - **Purely incidental actions** that should vanish until hovered →
   `ghost`.
 - **Destructive** (Delete, Remove, Stop) → `destructive`.
-- **Deep surface — sidebar rows** → don't use the Button
-  primitive. Use `.ui-list-item` / `nav-classes.ts`.
+- **Rail rows** → don't use the Button primitive. Use the shadcn
+  `SidebarMenuButton` through `nav-classes.ts`; content-pane list
+  rows use `.ui-list-item`.
 
 ## Composer controls
 
@@ -289,13 +338,14 @@ carries geometry only, so the 40px row keeps its rhythm.
 - Don't introduce a new pill background colour without listing it
   here first. Flavours in budget: deep grey hover, panel, brand
   fill, and the header-tab `--bg-input` exception above.
-- Don't put brand-coloured fills on the deep surface — the
-  contrast against the rail makes a brand pill look like an
-  alert, not a click target.
+- Don't put brand-coloured fills on the rails — the contrast
+  against the card makes a brand pill look like an alert, not a
+  click target.
 - Don't use white / `--bg-input` as the selected fill on sidebar
   or content-pane **list rows**. Light theme washes out.
 - Don't give MCP server rows (or any other content-pane list) a
-  different height, padding, or selected fill than sidebar nav.
+  different height, padding, or selected fill than the
+  `.ui-list-item` box.
 - Don't add hover motion (translate-y, scale-105) on either
   surface. Hover swaps the background; the only motion is the
   Button's own 1px press while active.
@@ -313,11 +363,15 @@ carries geometry only, so the 40px row keeps its rhythm.
 
 - Done: `Button` (radix-luma), the composer environment chips,
   bottom-row controls, send button, input box, the web page preview
-  (frame, header, icon buttons), and the browser toolbar's icon
-  buttons.
+  (frame, header, icon buttons), the browser toolbar's icon
+  buttons, and the three-card shell: both rails on the shadcn
+  `Sidebar` recipes (rows, group labels, project sub-lists, footer)
+  and the centre column as a card.
 - Not yet migrated: popover / menu panels (`MENU_PANEL`,
   `components/ui/popover.tsx`, `dropdown-menu.tsx`), tooltips,
   badges, and the hand-styled CSS-module popups — they still use
   the glass surface tokens (`--glass-*`). Form inputs and selects
   keep the 1px-edge rule above until they move to the shadcn input.
-  Sidebar list rows stay on the list set above.
+  Content-pane list rows stay on the list set above. Not every
+  `ui-list-item` consumer outside the rails has been reviewed
+  against the rail rows.

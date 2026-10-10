@@ -647,8 +647,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {showChat && tabs.length === 0 ? <EmptyCenter /> : null}
         </div>
       </div>
-      {/* Non-chat routes render their own page content via the router. */}
-      {!showChat && children}
+      {/* Non-chat routes render their own page content via the router,
+         inside the same centre card the chat column uses. */}
+      {!showChat && (
+        <div
+          className="center-col page-col"
+          style={{ display: "flex", flex: "1 1 auto", minWidth: 0, order: 2 }}
+        >
+          {children}
+        </div>
+      )}
       {/* Right sidebar — persistent across conversations. Hidden (not
          unmounted) on non-chat routes so its state survives. */}
       <div style={{ display: showChat ? "contents" : "none" }}>
