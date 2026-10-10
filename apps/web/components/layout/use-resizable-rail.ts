@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 // Keep in sync with --rail-collapsed-w in app/styles/base.css.
-const COLLAPSED_RAIL_WIDTH = 58;
+const COLLAPSED_RAIL_WIDTH = 63;
 const RAIL_TRANSITION =
   "width 0.15s cubic-bezier(0.165, 0.84, 0.44, 1), min-width 0.15s cubic-bezier(0.165, 0.84, 0.44, 1)";
 

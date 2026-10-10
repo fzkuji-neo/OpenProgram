@@ -35,7 +35,7 @@ import { useSessionStore } from "@/lib/session-store";
 import type { ConvSummary } from "@/lib/session-store";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
-import { activateOnKey, cn } from "@/lib/utils";
+import { activateOnKey } from "@/lib/utils";
 import { useRecentsView, setRecentsView } from "@/lib/prefs/recents-view";
 import { autoRenameSession } from "@/lib/session-auto-rename";
 import { wsRequest } from "@/lib/net/ws-request";
@@ -59,7 +59,6 @@ import {
   sidebarNavLabelClass,
   sidebarProjectActionClass,
 } from "./nav-classes";
-import { sidebarMenuButtonVariants, sidebarMenuSubClass } from "@/components/ui/sidebar";
 import styles from "./sidebar.module.css";
 
 import { ProjectMenu, ProjectSectionHeading } from "./project-menu";
@@ -500,7 +499,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
         const folded = collapsedGroups.has(key);
         const name = section === "__pinned__" ? text("Pinned", "置顶") : section || text("Projects", "项目");
         return (
-          <section key={key} aria-label={name} className="group/sec flex flex-col gap-0.5">
+          <section key={key} aria-label={name} className="group/sec flex flex-col gap-px">
             <ProjectSectionHeading
               section={section}
               collapsed={folded}
@@ -515,7 +514,7 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
                 return (
                   <motion.div layout="position" data-project-id={g.key}
                     key={g.key}
-                    className={`${styles.projectGroup} flex flex-col gap-0.5`}
+                    className={`${styles.projectGroup} flex flex-col gap-px`}
                     animate={{ y: projectOffset(g.key), scale: draggingProject?.id === g.key ? 1.02 : 1 }}
                     transition={reducedMotion || draggingProject?.id === g.key ? { duration: 0 } : { type: "spring", stiffness: 600, damping: 40 }}
                     style={{ zIndex: draggingProject?.id === g.key ? 5 : undefined }}
@@ -551,13 +550,13 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
                     </ProjectMenu>
                     <AnimatePresence initial={false}>
                       {expanded && g.items.length > 0 ? (
-                        // Level-2 block: the official SidebarMenuSub (left
-                        // guide line, inset) with dense 28px rows (see
-                        // .projectKids in the module CSS). Expands /
-                        // collapses by height.
+                        // Level-2 block: dense 28px rows + the 1px vertical
+                        // guide at x=16px (see .projectKids in the module CSS).
+                        // Expands / collapses by height; clipped only while
+                        // moving, since the guide pokes 4px above the block.
                         <motion.div
                           key="kids"
-                          className={cn(sidebarMenuSubClass, styles.projectKids)}
+                          className={`${styles.projectKids} flex flex-col gap-px`}
                           initial={{ height: 0, opacity: 0, overflow: "hidden" }}
                           animate={{ height: "auto", opacity: 1, transitionEnd: { overflow: "visible" } }}
                           exit={{ height: 0, opacity: 0, overflow: "hidden" }}
@@ -604,11 +603,11 @@ export const SessionsList = memo(function SessionsList({ onNewChat }: { onNewCha
       {sections.map((sec, i) =>
         sec.label === "" ? (
           // Flat run (title sort, no grouping) — no header.
-          <div key={sec.key} className="flex flex-col gap-0.5">{sec.items.map(renderRow)}</div>
+          <div key={sec.key} className="flex flex-col gap-px">{sec.items.map(renderRow)}</div>
         ) : (
           // group/sec → hovering anywhere in the section reveals its
           // collapse chevron (hidden otherwise).
-          <div key={sec.key} className="group/sec flex flex-col gap-0.5">
+          <div key={sec.key} className="group/sec flex flex-col gap-px">
             <SectionHeader
               name={sec.label}
               collapsible={collapsible}
@@ -815,7 +814,7 @@ function ProjectGroupHeader({
             e.stopPropagation();
             onNewSession();
           }}
-          className={sidebarProjectActionClass + " text-text-muted opacity-0 transition-opacity duration-150 group-hover/row:opacity-100 hover:text-text-bright"}
+          className={sidebarProjectActionClass + " text-text-muted opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:text-text-bright"}
         >
           <Plus size={14} strokeWidth={2} />
         </button>
@@ -955,21 +954,17 @@ function ConvItem({
   const [draft, setDraft] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // The official shadcn SidebarMenuButton box (h-9, px-3, gap-2,
-  // rounded-xl, hover tint) carries the row; with the 16px marker slot
-  // the title lands at the same x as the nav rows' labels. Only the
-  // chat-row extras stay here. `group/row` (named — the rail shell owns
-  // the unnamed `group`) drives the ⋮ reveal.
-  const base = cn(
-    sidebarMenuButtonVariants(),
-    "group/row relative shrink-0 overflow-hidden cursor-pointer",
-    "leading-[20px] whitespace-nowrap",
-  );
-  // Selected row: the official data-active look — the hover tint stays
-  // on and the title goes medium.
-  const colorCls = active || menuOpen
-    ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-    : "text-text-primary";
+  // `ui-list-item` (global) carries the row box — height, corner, padding,
+  // gap-[12px] (which + the 16px marker slot aligns titles to the nav rows'
+  // icon-slot), colour-transition, and the hover --bg-hover tint. Only the
+  // chat-row extras stay here.
+  const base =
+    "ui-list-item group relative shrink-0 overflow-hidden" +
+    " leading-[20px] whitespace-nowrap";
+  // Selected row: a background highlight marks it; the text steps down
+  // from pure white to the warm off-white (--text-primary) so it isn't
+  // glaringly bright.
+  const colorCls = active || menuOpen ? "bg-bg-hover text-text-primary" : "text-text-primary";
   // 右缘渐隐的三个状态（静止约 8px / 悬停 70%→92% / 滚动中）都在
   // base.css 的 .title-fade 里，过渡也在那儿——渐变值本身不可插值，
   // 靠注册过的 --fade-a / --fade-b 百分比属性做动画。
@@ -1165,7 +1160,7 @@ function ConvItem({
             className="absolute right-[4px] top-1/2 flex size-[24px] -translate-y-1/2
               items-center justify-center rounded-[6px] text-text-muted
               opacity-0 pointer-events-none transition-opacity duration-150 ease-out
-              group-hover/row:opacity-100 group-hover/row:pointer-events-auto
+              group-hover:opacity-100 group-hover:pointer-events-auto
               data-[state=open]:opacity-100 data-[state=open]:pointer-events-auto
               data-[state=open]:bg-[var(--bg-selected)] data-[state=open]:text-text-bright
               hover:bg-[var(--bg-selected)] hover:text-text-bright"

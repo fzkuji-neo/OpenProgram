@@ -212,7 +212,7 @@ export function SidebarPrimaryNav() {
   );
 
   return (
-    <div className="flex flex-col gap-0.5 shrink-0 px-2 pt-px">
+    <div className="flex flex-col gap-px shrink-0 px-[8px] pt-px">
       {items.map((item) => (
         <SidebarNavLink
           key={item.id}

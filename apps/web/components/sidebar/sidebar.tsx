@@ -43,14 +43,8 @@ import {
   sidebarNavLabelClass,
   sidebarToggleClass,
 } from "./nav-classes";
-import {
-  Sidebar as SidebarShell,
-  SidebarContent,
-  SidebarGroup,
-  SidebarHeader,
-  SidebarMenu,
-} from "@/components/ui/sidebar";
 import { SidebarPrimaryNav } from "./sidebar-primary-nav";
+import { Sidebar as SidebarShell } from "@/components/ui/sidebar";
 import { useWindowGlobals } from "./use-window-globals";
 import { runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/conversations";
@@ -219,17 +213,16 @@ export const Sidebar = memo(function Sidebar() {
     <SidebarShell
       id="sidebar"
       side="left"
-      open={open}
       /* Landmark so screen readers can jump straight to navigation
          instead of tabbing in from the top of the document. */
       role="navigation"
       aria-label={text("Sidebar", "侧边栏")}
-      // The official floating shell (components/ui/sidebar.tsx) owns the
+      // The shadcn floating shell (components/ui/sidebar.tsx) owns the
       // card: 7px gutter, rounded-2xl, raised shadow. This adds the
-      // app's width transition and the stable hooks: `relative` anchors
-      // the resize handle; `.sidebar` + `.collapsed` are what the
-      // collapsed cascade in base.css and the right-dock `[data-view]`
-      // rules select.
+      // width transition and the stable hooks: `relative` anchors the
+      // resize handle; `.sidebar` + `.collapsed` are what legacy
+      // scrollbar.js, right-dock.css's `[data-view]` cascade and the
+      // `.sidebar.collapsed` collapsed-state rules in base.css select.
       className={
         "sidebar relative shrink-0 rail-shell " + (open ? "" : "collapsed")
       }
@@ -242,20 +235,20 @@ export const Sidebar = memo(function Sidebar() {
         />
       )}
       <div className="rail-content">
-      {/* 收起态（窄轨）只剩收起按钮：改用 justify-center 并去掉左右
-          padding，让唯一按钮在窄轨里水平居中，否则 justify-between
+      {/* 收起态（49px 窄轨）只剩收起按钮：改用 justify-center 并去掉左右
+          padding，让唯一按钮在窄轨里水平居中，否则 justify-between + p-[8px]
           会把它推到右边（靠右 bug）。 */}
-      <SidebarHeader
+      <div
         className={
-          "h-[48px] flex-row items-center " +
-          (open ? "justify-between" : "justify-center px-0")
+          "flex h-[48px] shrink-0 items-center box-border " +
+          (open ? "justify-between p-[8px]" : "justify-center px-0 py-[8px]")
         }
       >
         <div
           className={
             "flex h-[var(--ui-list-h)] min-w-0 flex-1 items-center overflow-hidden " +
             "[transition:opacity_0.15s_ease,padding-left_0.3s_ease] " +
-            (open ? "opacity-100 pl-[10.5px]" : "hidden opacity-0 pl-0")
+            (open ? "opacity-100 pl-[8px]" : "hidden opacity-0 pl-0")
           }
         >
           <span className="text-[20px] font-bold tracking-[-0.01em] whitespace-nowrap">
@@ -286,7 +279,7 @@ export const Sidebar = memo(function Sidebar() {
             <PanelLeftOpenIcon ref={toggleIconRef} size={20} />
           )}
         </button>
-      </SidebarHeader>
+      </div>
 
       {/* 固定在顶部的 New chat 行（不随下面列表滚动）。默认它紧贴下面的
           Functions（底 padding 1px），只有向下滚动时才拉开 8px 空白 +
@@ -296,7 +289,7 @@ export const Sidebar = memo(function Sidebar() {
           自身无底 padding——不占任何额外空白。滚动时的空白+分隔线由一个
           绝对定位浮层盖上（见下方 navScrolled 浮层），与本块无关、不占
           布局、默认不存在。 */}
-      <SidebarGroup className="shrink-0 pt-0 pb-0">
+      <div className="flex flex-col gap-px shrink-0 px-[8px] pt-[8px]">
         <div
           className={sidebarNavItemClass}
           id="navNewChat"
@@ -311,18 +304,18 @@ export const Sidebar = memo(function Sidebar() {
             className="flex size-[22.4px] shrink-0 -mx-[3.2px] items-center
               justify-center rounded-full bg-[rgba(151,149,140,0.15)]
               text-nav-color transition-colors duration-150 ease-out
-              group-hover/row:bg-[rgba(151,149,140,0.25)]
-              group-hover/row:[transform:scale(1.1)]
-              group-active/row:bg-text-primary
-              group-active/row:[transform:scale(0.98)]
+              group-hover:bg-[rgba(151,149,140,0.25)]
+              group-hover:[transform:scale(1.1)]
+              group-active:bg-text-primary
+              group-active:[transform:scale(0.98)]
               [transition:transform_0.3s_cubic-bezier(0.165,0.85,0.45,1),background_0.15s_ease,color_0.15s_ease]
-              group-hover/row:text-nav-color-hover"
+              group-hover:text-nav-color-hover"
           >
             <PlusIcon ref={newChatIconRef} size={16} />
           </span>
           <span className={sidebarNavLabelClass}>{t("nav.new_chat")}</span>
         </div>
-      </SidebarGroup>
+      </div>
 
       {/* New chat 以下（导航链接 + 收藏 + 会话列表）一起滚动。滚动区外
           包一层 relative 容器，用来锚定「滚动时才出现的浮层」。 */}
@@ -338,8 +331,8 @@ export const Sidebar = memo(function Sidebar() {
             aria-hidden="true"
           />
         )}
-        <SidebarContent
-          className="gap-0 overflow-x-hidden overflow-y-auto
+        <div
+          className="flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden
           [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           onScroll={(e) => {
             const s = e.currentTarget.scrollTop > 0;
@@ -369,11 +362,11 @@ export const Sidebar = memo(function Sidebar() {
               // pb-[5px]: a small extra gap BELOW Favorites so the function
               // area reads as a distinct block from the conversation groups
               // that follow (only present when there are favourites).
-              className="px-2 pb-[5px]"
+              className="px-[8px] pb-[5px]"
             >
-              <SidebarMenu id="favList">
+              <div id="favList" className="flex flex-col gap-px">
                 <FavoritesList />
-              </SidebarMenu>
+              </div>
             </SidebarSection>
           )}
 
@@ -384,12 +377,12 @@ export const Sidebar = memo(function Sidebar() {
             // the group headers' ＋ buttons run the same newChat flow as
             // the nav item above, then record the project for that draft key.
             <div id="convSection" className="flex flex-col">
-              <div id="convList" className="flex flex-col gap-0.5 px-2">
+              <div id="convList" className="flex flex-col gap-px px-[8px]">
                 <SessionsList onNewChat={newChat} />
               </div>
             </div>
           )}
-        </SidebarContent>
+        </div>
       </div>
       {/* /relative 浮层容器 */}
 

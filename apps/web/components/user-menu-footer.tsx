@@ -13,8 +13,6 @@
  * everything is local React state + Next.js router.
  */
 
-import { cn } from "@/lib/utils";
-import { SidebarFooter, sidebarMenuButtonVariants } from "@/components/ui/sidebar";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -136,15 +134,11 @@ export function UserMenuFooter() {
   }
 
   return (
-    <SidebarFooter className={`${styles.footer} user-menu-footer`} ref={ref}>
+    <div className={`${styles.footer} user-menu-footer`} ref={ref}>
       <button
         ref={triggerRef}
         type="button"
-        className={cn(
-          sidebarMenuButtonVariants({ size: "lg" }),
-          styles.trigger,
-          "user-menu-footer-trigger",
-        )}
+        className={`${styles.trigger} user-menu-footer-trigger`}
         onClick={() => setOpen((v) => !v)}
         onMouseEnter={() => chevronIconRef.current?.startAnimation?.()}
         onMouseLeave={() => chevronIconRef.current?.stopAnimation?.()}
@@ -158,7 +152,7 @@ export function UserMenuFooter() {
             still owns sizing and hover state. */}
         <Avatar
           className={`${styles.avatar} user-menu-footer-avatar`}
-          size={28}
+          size={36}
           name={profile.name}
           config={profile.avatar}
         />
@@ -243,6 +237,6 @@ export function UserMenuFooter() {
           ? createPortal(menuBody, document.body)
           : menuBody;
       })()}
-    </SidebarFooter>
+    </div>
   );
 }
