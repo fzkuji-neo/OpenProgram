@@ -62,7 +62,11 @@ export function captureVisiblePanes(skip: readonly string[] = [], limit = 260): 
     const panes = [...document.querySelectorAll<HTMLElement>("[data-canvas-root] [data-canvas-content]")]
       .filter(pane => pane.offsetWidth > 0 && pane.offsetHeight > 0 && !skip.includes(pane.dataset.canvasContent!));
     const tabs = useCenterTabs.getState().tabs;
-    inFlight = Promise.all(panes.map(async pane => {
+    // The pane grips stay out of the pictures: hide them for two frames.
+    const root = document.documentElement;
+    root.setAttribute("data-capturing-panes", "");
+    const painted = new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    inFlight = painted.then(() => Promise.all(panes.map(async pane => {
       const id = pane.dataset.canvasContent!;
       const tab = tabs.find(candidate => candidate.id === id);
       const r = pane.getBoundingClientRect();
@@ -70,9 +74,9 @@ export function captureVisiblePanes(skip: readonly string[] = [], limit = 260): 
         ? await bridge.webTab.capture?.(id, "presentation").catch(() => null)
         : await bridge.captureRegion!({ x: r.left, y: r.top, width: r.width, height: r.height }).catch(() => null);
       return [id, shot] as const;
-    })).then(results => {
+    }))).then(results => {
       remember(results.filter((entry): entry is readonly [string, string] => !!entry[1]));
-    }).finally(() => { inFlight = null; });
+    }).finally(() => { inFlight = null; root.removeAttribute("data-capturing-panes"); });
   }
   return Promise.race([inFlight, new Promise<void>(resolve => window.setTimeout(resolve, limit))]);
 }

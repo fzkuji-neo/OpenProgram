@@ -119,6 +119,10 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   const shots = await read('lib/tabs/window-snapshots.ts');
   assert.match(shots, /tab\?\.kind === "web"\s*\? await bridge\.webTab\.capture/, 'web pages are pictured from their own view');
   assert.match(shots, /indexedDB\.open\(DB, 1\)/, 'pictures survive a restart');
+  assert.match(shots, /root\.setAttribute\("data-capturing-panes", ""\)/, 'the pane grips stay out of the pictures');
+  const overviewCss = await read('components/center-tabs/canvas-overview.module.css');
+  assert.match(overviewCss, /\.card\[data-current\] \.mini,[\s\S]*?filter: drop-shadow/, 'the current window lifts instead of wearing a frame');
+  assert.doesNotMatch(overviewCss, /\.card\[data-current\] \.mini \{\s*outline/, 'no frame around the current window');
   assert.match(shots, /if \(!alive\.size\) return;/, 'a loading tab list never wipes the pictures');
   const base = await read('app/styles/base.css');
   assert.match(base, /\.app \.center-col:has\(\[data-canvas-overview\]\) \{\s*background: var\(--bg-secondary\);\s*box-shadow: none;/, 'no card edge around the overview');
