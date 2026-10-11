@@ -16,6 +16,7 @@ import base64
 import binascii
 import itertools
 import json
+import logging
 import threading
 import time
 import uuid
@@ -24,6 +25,7 @@ from typing import Any
 # req_id -> (event, result-holder)。holder 为空 dict，首个回执写入
 # "result" 键（claim-once），后续同 req_id 的回执直接忽略。
 _pending: dict[str, tuple[threading.Event, dict, Any | None]] = {}
+_log = logging.getLogger(__name__)
 _lock = threading.Lock()
 _bindings: dict[str, tuple[Any, str, str, str, float, int, int, int, bool]] = {}
 _connection_revisions: dict[Any, int] = {}
@@ -880,9 +882,18 @@ def restore_window_pages(ws, window_id: str, expected_revision: int | None = Non
             WHERE window_id=? AND lifecycle='restoring'""",
             (window_id,),
         ).fetchall()
+    # Whatever this pass did not rebind is not coming back by waiting.
     for row in leftovers:
-        if (row["tab_id"] or "") not in seen_tabs:
-            store.mark_restore_failed(row["resource_id"])
+        store.mark_restore_failed(row["resource_id"])
+
+
+def _settle_unrestored(window_id: str) -> None:
+    """Rows a failed restore left behind say so instead of waiting forever."""
+    from openprogram.browser_resources import BrowserResourceStore
+    try:
+        BrowserResourceStore().mark_window_restorable(window_id, "restore_failed")
+    except Exception:
+        _log.warning("settling unrestored pages of window %s failed", window_id, exc_info=True)
 
 
 def schedule_window_restore(ws, window_id: str, revision: int) -> asyncio.Task | None:
@@ -906,8 +917,20 @@ def schedule_window_restore(ws, window_id: str, revision: int) -> asyncio.Task |
 
     async def _run() -> None:
         try:
+            failures = 0
             while True:
-                await asyncio.to_thread(restore_window_pages, ws, window_id, revision)
+                try:
+                    await asyncio.to_thread(restore_window_pages, ws, window_id, revision)
+                except Exception:
+                    # An aborted pass left every row "Restoring page…" with
+                    # nothing to finish it. Try again, then settle the rows.
+                    failures += 1
+                    _log.warning("restoring window %s pages failed", window_id, exc_info=True)
+                    if failures < 3:
+                        await asyncio.sleep(2.0 * failures)
+                        continue
+                    await asyncio.to_thread(_settle_unrestored, window_id)
+                    break
                 if key not in _restore_reruns:
                     break
                 _restore_reruns.discard(key)
