@@ -650,6 +650,13 @@ select:focus-visible {
   /* No gutter reserved — collapsed sidebars are position:fixed at the
      edges (z-index 100) and may overlap main content briefly when
      dragging. User preferred edge-to-edge main over a 48px reserve. */
+
+  /* A split canvas is the exception: like macOS sidebars beside tiled
+     windows, the collapsed rails keep their own columns so they never
+     cover a pane. An expanded sidebar still slides over as a drawer. */
+  .app:has(> .center-col[data-split]) .sidebar.collapsed {
+    position: relative;
+  }
 }
 
 @media (max-width: 600px) {

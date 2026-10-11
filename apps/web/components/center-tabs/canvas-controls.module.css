@@ -22,10 +22,14 @@
   box-shadow: var(--composer-shadow);
 }
 
-/* 格子没有标题栏：顶部正中一个 iPadOS 分屏式的"•••"把手。
-   拖它移动格子；点它，或停在上面一会儿（像 macOS 绿色按钮），打开贴靠菜单。
-   可点范围 88×22，比三个点本身大；悬停时浮起成胶囊。 */
-.grip {
+/* 格子没有标题栏：顶部正中一个 iPadOS 分屏式的"•••"把手，拖它移动格子。
+   指针移上去，把手从顶边垂下一小片，三个点变成 macOS 的红黄绿窗口按钮；
+   停在绿灯上，这一片继续往下展开成贴靠菜单——和把手是同一块面，
+   不另起悬浮小窗。 */
+.pane[data-menu-open] {
+  z-index: 12;
+}
+.handle {
   pointer-events: auto;
   position: absolute;
   top: 0;
@@ -33,6 +37,22 @@
   z-index: 2;
   transform: translateX(-50%);
   width: 88px;
+  box-sizing: border-box;
+  border-radius: 0 0 12px 12px;
+  color: var(--text-primary);
+  font: 13px/1.2 -apple-system, BlinkMacSystemFont, var(--font-sans);
+  transition: width 180ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.handle:hover,
+.handle:focus-within,
+.handle[data-open] {
+  background: var(--bg-tertiary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.handle[data-open] {
+  width: 244px;
+}
+.grip {
   height: 22px;
   display: flex;
   align-items: center;
@@ -40,25 +60,18 @@
   cursor: grab;
   touch-action: none;
 }
-.grip::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 16px;
-  right: 16px;
-  height: 12px;
-  border-radius: 0 0 8px 8px;
-  transition: background 140ms ease, box-shadow 140ms ease;
-}
 .grip:active {
   cursor: grabbing;
 }
 /* 拖动中的格子：把手跟着指针走（由拖动标签代替），原位置不显示。
    状态在格子上而不是把手的内联样式里，拖动怎么结束都会被清掉。 */
-.pane[data-pane-dragging] .grip {
+.pane[data-pane-dragging] .handle {
   visibility: hidden;
 }
-.grip i {
+.dots {
+  display: flex;
+}
+.dots i {
   position: relative;
   top: -5px;
   width: 4px;
@@ -69,26 +82,57 @@
   opacity: 0.6;
   transition: opacity 140ms ease, background 140ms ease;
 }
-.pane[data-focused="true"] .grip i {
+.pane[data-focused="true"] .dots i {
   opacity: 0.9;
 }
-.grip:focus-visible {
-  outline: none;
+.lights {
+  display: none;
+  gap: 8px;
 }
-.grip:hover::before,
-.grip:focus-visible::before,
-.grip[aria-expanded="true"]::before {
-  background: color-mix(in oklch, var(--bg-tertiary) 90%, transparent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+.handle:hover .dots,
+.handle:focus-within .dots,
+.handle[data-open] .dots {
+  display: none;
 }
-.grip:focus-visible::before {
-  box-shadow: 0 0 0 2px var(--focus-ring);
+.handle:hover .lights,
+.handle:focus-within .lights,
+.handle[data-open] .lights {
+  display: flex;
 }
-.grip:hover i,
-.grip:focus-visible i,
-.grip[aria-expanded="true"] i {
-  opacity: 1;
-  background: var(--text-bright);
+/* macOS 系统窗口按钮的颜色，深浅主题都一样。 */
+.light {
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: rgba(0, 0, 0, 0.6);
+  cursor: default;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18);
+}
+.light svg {
+  width: 8px;
+  height: 8px;
+  stroke-width: 3;
+}
+.light[data-pane-light="close"] { background: #ff5f57; }
+.light[data-pane-light="minimize"] { background: #febc2e; }
+.light[data-pane-light="zoom"] { background: #28c840; }
+.light:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.drawer {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 0 5px 5px;
+  animation: drawerIn 160ms ease-out;
+}
+@keyframes drawerIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
 }
 
 /* 空格子：居中一张卡片，列出可放进来的 tab。 */
@@ -186,7 +230,8 @@
   height: 11px;
 }
 
-/* 分隔条：平时几乎看不见，悬停 / 拖动时出现一条细蓝线。 */
+/* 分隔条：像 macOS 平铺窗口之间那样，缝隙正中一小段灰色短条；
+   悬停变亮变长，拖动时最亮。整条缝隙都能拖，不画整条线。 */
 .divider {
   position: absolute;
   z-index: 11;
@@ -197,27 +242,39 @@
 .divider::after {
   content: "";
   border-radius: 999px;
-  background: transparent;
-  transition: background 140ms ease;
+  background: color-mix(in oklch, var(--text-muted) 55%, transparent);
+  transition: background 140ms ease, width 140ms ease, height 140ms ease;
 }
 .divider[aria-orientation="vertical"] {
   cursor: col-resize;
 }
 .divider[aria-orientation="vertical"]::after {
-  width: 2px;
-  height: 100%;
+  width: 4px;
+  height: 36px;
 }
 .divider[aria-orientation="horizontal"] {
   cursor: row-resize;
 }
 .divider[aria-orientation="horizontal"]::after {
-  width: 100%;
-  height: 2px;
+  width: 36px;
+  height: 4px;
 }
 .divider:hover::after,
-.divider:focus-visible::after,
+.divider:focus-visible::after {
+  background: var(--text-secondary);
+}
+.divider[aria-orientation="vertical"]:hover::after,
+.divider[aria-orientation="vertical"]:focus-visible::after,
+.divider[aria-orientation="vertical"][data-active="true"]::after {
+  height: 48px;
+}
+.divider[aria-orientation="horizontal"]:hover::after,
+.divider[aria-orientation="horizontal"]:focus-visible::after,
+.divider[aria-orientation="horizontal"][data-active="true"]::after {
+  width: 48px;
+}
 .divider[data-active="true"]::after {
-  background: color-mix(in oklch, var(--accent-blue) 80%, transparent);
+  background: var(--text-bright);
 }
 .divider:focus-visible {
   outline: none;
@@ -236,51 +293,6 @@
   white-space: nowrap;
 }
 
-/* 右键菜单：macOS 毛玻璃菜单。 */
-.menu {
-  position: fixed;
-  z-index: 100001;
-  width: 240px;
-  max-height: calc(100vh - 16px);
-  overflow-y: auto;
-  box-sizing: border-box;
-  padding: 5px;
-  color: var(--text-primary);
-  font: 13px/1.2 -apple-system, BlinkMacSystemFont, var(--font-sans);
-  transform-origin: top left;
-  animation: menuIn 120ms ease-out;
-  /* Glass popover recipe (app/styles/base.css --glass-*). */
-  background: var(--glass-surface);
-  -webkit-backdrop-filter: var(--glass-backdrop);
-  backdrop-filter: var(--glass-backdrop);
-  border: 0.5px solid var(--glass-ring);
-  border-radius: var(--glass-radius);
-  box-shadow: var(--glass-shadow);
-}
-@keyframes menuIn {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
-}
-.menuTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-.menuTitle svg {
-  flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
-}
-.menuTitle span {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
 .menuLabel {
   padding: 6px 8px 4px;
   color: var(--text-muted);
@@ -291,7 +303,7 @@
    蓝色块是这一格会去的位置。 */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 2px;
   padding: 0 4px 2px;
 }
@@ -442,6 +454,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .menu { animation: none; }
-  .pane, .grip::before, .grip i, .divider::after { transition: none; }
+  .drawer { animation: none; }
+  .pane, .handle, .dots i, .divider::after { transition: none; }
 }

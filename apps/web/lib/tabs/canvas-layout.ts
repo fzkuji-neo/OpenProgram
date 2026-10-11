@@ -178,12 +178,28 @@ export function presetLayout(preset: CanvasPreset, contents: string[]): CanvasLa
 export function equalize(root: LayoutNode): LayoutNode {
   return root.kind === "pane" ? root : { ...root, children: root.children.map(equalize), sizes: root.children.map(() => 1 / root.children.length) };
 }
-export function resizeSplit(root: LayoutNode, splitId: string, index: number, delta: number): LayoutNode {
+/** Smallest pane a divider may leave, like a macOS window's minimum size. */
+export const PANE_MIN = { width: 240, height: 160 } as const;
+/** Pixels a subtree needs along a split direction. */
+export function minExtent(node: LayoutNode, horizontal: boolean): number {
+  if (node.kind === "pane") return horizontal ? PANE_MIN.width : PANE_MIN.height;
+  const parts = node.children.map(child => minExtent(child, horizontal));
+  return (node.dir === "row") === horizontal
+    ? parts.reduce((a, b) => a + b, 0) + CANVAS_GAP * (parts.length - 1)
+    : Math.max(...parts);
+}
+/** Move a divider. Given the split's span in pixels, it stops where either
+ *  side would shrink below its panes' minimum; already-too-small sides
+ *  are never squeezed further. */
+export function resizeSplit(root: LayoutNode, splitId: string, index: number, delta: number, span?: number): LayoutNode {
   return mapNode(root, splitId, n => {
     if (n.kind !== "split" || index < 0 || index >= n.sizes.length - 1) return n;
     const sizes = [...n.sizes], sum = sizes[index] + sizes[index + 1];
-    const minimum = Math.min(0.02, sum / 4);
-    sizes[index] = Math.min(sum - minimum, Math.max(minimum, sizes[index] + delta)); sizes[index + 1] = sum - sizes[index];
+    const tiny = Math.min(0.02, sum / 4);
+    const horizontal = n.dir === "row";
+    const lo = span ? Math.min(sizes[index], minExtent(n.children[index], horizontal) / span) : tiny;
+    const hi = span ? Math.max(sizes[index], sum - minExtent(n.children[index + 1], horizontal) / span) : sum - tiny;
+    sizes[index] = Math.min(Math.max(lo, sizes[index] + delta), hi); sizes[index + 1] = sum - sizes[index];
     return { ...n, sizes };
   });
 }
