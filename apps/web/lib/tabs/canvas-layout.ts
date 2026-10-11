@@ -4,6 +4,11 @@ export type LayoutNode =
   | { kind: "split"; id: string; dir: "row" | "col"; children: LayoutNode[]; sizes: number[] };
 export type CanvasLayout = { root: LayoutNode; focusedPaneId: string; zoomedPaneId?: string };
 export type CanvasSide = "left" | "right" | "top" | "bottom" | "center";
+export type CanvasCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+/** Where a dock lands: beside a pane, over it ("center"), or in a canvas corner. */
+export type CanvasDockSide = CanvasSide | CanvasCorner;
+/** macOS Move & Resize: a half or a quarter of the canvas. Fill is zoom. */
+export type CanvasTile = Exclude<CanvasSide, "center"> | CanvasCorner;
 export type CanvasPreset = "1x1" | "1x2" | "2x1" | "main+2" | "2x2" | "3x3" | "4x4";
 export type Rect = { left: number; top: number; width: number; height: number };
 
@@ -71,14 +76,95 @@ export function removePane(root: LayoutNode, paneId: string): LayoutNode {
   }
   return remove(root) ?? pane();
 }
-export function insertPane(root: LayoutNode, targetId: string, side: CanvasSide, content: string | null): { root: LayoutNode; paneId: string } {
-  const added = pane(content);
-  if (side === "center") return { root: mapNode(root, targetId, n => n.kind === "pane" ? { ...n, content } : n), paneId: targetId };
+export const isCorner = (side: string): side is CanvasCorner => side === "top-left" || side === "top-right" || side === "bottom-left" || side === "bottom-right";
+const EPS = 0.01;
+const pair = (dir: "row" | "col", first: boolean, added: LayoutNode, other: LayoutNode): LayoutNode =>
+  ({ kind: "split", id: id(), dir, children: first ? [added, other] : [other, added], sizes: [0.5, 0.5] });
+/** Pane rects as fractions of the canvas, ignoring gaps: tiling decides by proportion. */
+export function unitRects(root: LayoutNode): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  (function visit(n: LayoutNode, r: Rect) {
+    if (n.kind === "pane") { rects.set(n.id, r); return; }
+    let offset = 0;
+    n.children.forEach((child, i) => {
+      const f = n.sizes[i];
+      visit(child, n.dir === "row" ? { ...r, left: r.left + offset * r.width, width: r.width * f } : { ...r, top: r.top + offset * r.height, height: r.height * f });
+      offset += f;
+    });
+  })(root, { left: 0, top: 0, width: 1, height: 1 });
+  return rects;
+}
+/** The canvas quarter a corner names. */
+export const cornerRect = (corner: CanvasCorner): Rect =>
+  ({ left: corner.endsWith("left") ? 0 : 0.5, top: corner.startsWith("top") ? 0 : 0.5, width: 0.5, height: 0.5 });
+/** Put `node` into a canvas corner, splitting the pane that holds the corner.
+ *  A pane wider and taller than half leaves an empty quarter beside the new
+ *  one, which offers the free tabs, as macOS offers windows for the rest of
+ *  the screen. */
+function placeInCorner(root: LayoutNode, node: LayoutNode, corner: CanvasCorner): LayoutNode {
+  const top = corner.startsWith("top"), left = corner.endsWith("left"), rects = unitRects(root);
+  const hit = leaves(root).find(p => {
+    const r = rects.get(p.id)!;
+    return Math.abs((left ? r.left : r.left + r.width) - (left ? 0 : 1)) < EPS && Math.abs((top ? r.top : r.top + r.height) - (top ? 0 : 1)) < EPS;
+  }) ?? leaves(root)[0];
+  const r = rects.get(hit.id)!;
+  const wide = r.width > 0.5 + EPS, tall = r.height > 0.5 + EPS;
+  const placed = wide && tall ? pair("row", left, pair("col", top, node, pane()), hit)
+    : wide ? pair("row", left, node, hit)
+    : pair("col", top, node, hit);
+  return normalizeNode(mapNode(root, hit.id, () => placed));
+}
+/** Place `node` beside `targetId` ("root" = the whole canvas), over it, or in a corner. */
+export function placeNode(root: LayoutNode, node: LayoutNode, targetId: string, side: CanvasDockSide): LayoutNode {
+  if (isCorner(side)) return placeInCorner(root, node, side);
+  if (side === "center") return mapNode(root, targetId, n => n.kind === "pane" && node.kind === "pane" ? { ...n, content: node.content } : n);
   const dir = side === "left" || side === "right" ? "row" : "col";
-  const before = side === "left" || side === "top";
-  const next = mapNode(root, targetId === "root" ? root.id : targetId, n => ({ kind: "split", id: id(), dir,
-    children: before ? [added, n] : [n, added], sizes: [0.5, 0.5] }));
-  return { root: normalizeNode(next), paneId: added.id };
+  return normalizeNode(mapNode(root, targetId === "root" ? root.id : targetId, n => pair(dir, side === "left" || side === "top", node, n)));
+}
+export function insertPane(root: LayoutNode, targetId: string, side: CanvasDockSide, content: string | null): { root: LayoutNode; paneId: string } {
+  if (side === "center") return { root: placeNode(root, pane(content), targetId, side), paneId: targetId };
+  const added = pane(content);
+  return { root: placeNode(root, added, targetId, side), paneId: added.id };
+}
+/** Move an existing pane to a half or quarter of the canvas; the other panes
+ *  keep their arrangement in the space that is left. A pane already filling
+ *  the quarter trades places with the moving one. */
+export function tilePane(root: LayoutNode, paneId: string, tile: CanvasTile): { root: LayoutNode; paneId: string } {
+  const all = leaves(root), moving = all.find(p => p.id === paneId);
+  if (!moving || all.length < 2) return { root, paneId };
+  if (isCorner(tile)) {
+    const want = cornerRect(tile), rects = unitRects(root);
+    const occupant = all.find(p => {
+      const r = rects.get(p.id)!;
+      return Math.abs(r.left - want.left) < EPS && Math.abs(r.top - want.top) < EPS && Math.abs(r.width - want.width) < EPS && Math.abs(r.height - want.height) < EPS;
+    });
+    if (occupant?.id === paneId) return { root, paneId };
+    if (occupant) {
+      const swapped = mapNode(mapNode(root, occupant.id, n => ({ ...n, content: moving.content }) as LayoutNode), paneId, n => ({ ...n, content: occupant.content }) as LayoutNode);
+      return { root: swapped, paneId: occupant.id };
+    }
+  }
+  return { root: placeNode(removePane(root, paneId), moving, "root", tile), paneId };
+}
+/** The layout a dock produces: the sources leave their panes, then the first
+ *  source lands at the drop. A whole group dropped as one brings its canvas. */
+export function dockLayout(original: CanvasLayout, sourceIds: string[], paneId: string, side: CanvasDockSide, sourceCanvas?: CanvasLayout): CanvasLayout | null {
+  const sourceId = sourceIds[0];
+  if (!sourceId) return null;
+  const target = paneId === "root" ? "root" : leaves(original.root).find(p => p.id === paneId)?.id ?? leaves(original.root)[0].id;
+  const sourcePane = leaves(original.root).find(p => p.content === sourceId);
+  if (sourceIds.length === 1 && sourcePane?.id === target) return null;
+  let root = original.root;
+  for (const sid of sourceIds) {
+    const p = leaves(root).find(p => p.content === sid);
+    if (p) root = removePane(root, p.id);
+  }
+  const inserted = insertPane(root, target, side, sourceId);
+  if (sourceIds.length > 1 && sourceCanvas) {
+    inserted.root = mapNode(inserted.root, inserted.paneId, () => sourceCanvas.root);
+    inserted.paneId = sourceCanvas.focusedPaneId;
+  }
+  return { root: inserted.root, focusedPaneId: inserted.paneId };
 }
 export function presetLayout(preset: CanvasPreset, contents: string[]): CanvasLayout {
   const split = (dir: "row" | "col", children: LayoutNode[], sizes = children.map(() => 1)): LayoutNode => ({ kind: "split", id: id(), dir, children, sizes });
@@ -100,6 +186,17 @@ export function resizeSplit(root: LayoutNode, splitId: string, index: number, de
     sizes[index] = Math.min(sum - minimum, Math.max(minimum, sizes[index] + delta)); sizes[index + 1] = sum - sizes[index];
     return { ...n, sizes };
   });
+}
+export const SNAP_POINTS = [1 / 3, 1 / 2, 2 / 3] as const;
+/** A divider drag near a third, half or two thirds of its split sticks there. */
+export function snapResize(sizes: number[], index: number, delta: number, span: number, threshold = 10): { delta: number; snap: number | null } {
+  const start = sizes.slice(0, index).reduce((a, b) => a + b, 0), pairSize = sizes[index] + sizes[index + 1];
+  const boundary = start + sizes[index] + delta;
+  for (const point of SNAP_POINTS) {
+    if (point <= start || point >= start + pairSize) continue;
+    if (Math.abs(boundary - point) * span <= threshold) return { delta: point - start - sizes[index], snap: point };
+  }
+  return { delta, snap: null };
 }
 export function canvasGeometry(root: LayoutNode, rect: Rect) {
   const panes = new Map<string, Rect>();

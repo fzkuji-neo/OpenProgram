@@ -1,0 +1,114 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readFile } from 'node:fs/promises';
+import {
+  dockLayout, leaves, presetLayout, rowLayout, snapResize, tilePane, unitRects,
+} from '../../lib/tabs/canvas-layout.ts';
+import { rememberCanvas, takePreviousCanvas } from '../../lib/tabs/canvas-history.ts';
+
+const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
+const rectOf = (layout, content) => {
+  const pane = leaves(layout.root).find(p => p.content === content);
+  const r = unitRects(layout.root).get(pane.id);
+  return [r.left, r.top, r.width, r.height].map(v => Math.round(v * 100) / 100);
+};
+const empties = (layout) => leaves(layout.root).filter(p => !p.content);
+
+test('a corner drop on a lone tab takes a quarter and leaves an empty quarter to fill', () => {
+  const next = dockLayout(rowLayout(['a']), ['b'], 'root', 'top-left');
+  assert.deepEqual(rectOf(next, 'b'), [0, 0, 0.5, 0.5]);
+  assert.deepEqual(rectOf(next, 'a'), [0.5, 0, 0.5, 1]);
+  const [empty] = empties(next);
+  assert.ok(empty, 'the other left quarter is an empty pane offering tabs');
+  const r = unitRects(next.root).get(empty.id);
+  assert.deepEqual([r.left, r.top, r.width, r.height], [0, 0.5, 0.5, 0.5]);
+});
+
+test('a corner drop splits the half that holds the corner into quarters', () => {
+  const columns = dockLayout(rowLayout(['a', 'b']), ['c'], 'root', 'bottom-right');
+  assert.deepEqual(rectOf(columns, 'c'), [0.5, 0.5, 0.5, 0.5]);
+  assert.deepEqual(rectOf(columns, 'b'), [0.5, 0, 0.5, 0.5]);
+  assert.deepEqual(rectOf(columns, 'a'), [0, 0, 0.5, 1]);
+  assert.equal(empties(columns).length, 0);
+  const rows = dockLayout(presetLayout('2x1', ['a', 'b']), ['c'], 'root', 'top-left');
+  assert.deepEqual(rectOf(rows, 'c'), [0, 0, 0.5, 0.5]);
+  assert.deepEqual(rectOf(rows, 'a'), [0.5, 0, 0.5, 0.5]);
+});
+
+test('edge drops take a half of the whole canvas and keep the rest arranged', () => {
+  const next = dockLayout(rowLayout(['a', 'b']), ['c'], 'root', 'bottom');
+  assert.deepEqual(rectOf(next, 'c'), [0, 0.5, 1, 0.5]);
+  assert.deepEqual(rectOf(next, 'a'), [0, 0, 0.5, 0.5]);
+});
+
+test('dropping a pane on itself changes nothing', () => {
+  const layout = rowLayout(['a', 'b']);
+  const own = leaves(layout.root).find(p => p.content === 'a');
+  assert.equal(dockLayout(layout, ['a'], own.id, 'left'), null);
+});
+
+test('Move and resize sends a pane to a half; the others keep their order in the rest', () => {
+  const layout = presetLayout('main+2', ['a', 'b', 'c']);
+  const c = leaves(layout.root).find(p => p.content === 'c');
+  const next = tilePane(layout.root, c.id, 'left');
+  assert.equal(next.paneId, c.id, 'the pane keeps its id so focus follows it');
+  const tiled = { root: next.root, focusedPaneId: next.paneId };
+  assert.deepEqual(rectOf(tiled, 'c'), [0, 0, 0.5, 1]);
+  assert.ok(rectOf(tiled, 'a')[0] < rectOf(tiled, 'b')[0], 'a stays before b');
+});
+
+test('a quarter already taken trades places with the moving pane', () => {
+  const layout = presetLayout('2x2', ['a', 'b', 'c', 'd']);
+  const a = leaves(layout.root).find(p => p.content === 'a');
+  const next = tilePane(layout.root, a.id, 'bottom-right');
+  const tiled = { root: next.root, focusedPaneId: next.paneId };
+  assert.deepEqual(rectOf(tiled, 'a'), [0.5, 0.5, 0.5, 0.5]);
+  assert.deepEqual(rectOf(tiled, 'd'), [0, 0, 0.5, 0.5]);
+  assert.equal(leaves(next.root).find(p => p.id === next.paneId).content, 'a', 'focus follows the moved tab');
+});
+
+test('a lone pane has nothing to tile against', () => {
+  const layout = rowLayout(['a']);
+  const next = tilePane(layout.root, leaves(layout.root)[0].id, 'left');
+  assert.equal(next.root, layout.root);
+});
+
+test('dividers stick at a third, a half and two thirds', () => {
+  assert.deepEqual(snapResize([0.5, 0.5], 0, 0.16, 600), { delta: 2 / 3 - 0.5, snap: 2 / 3 });
+  assert.deepEqual(snapResize([0.4, 0.6], 0, 0.095, 600), { delta: 0.5 - 0.4, snap: 0.5 });
+  assert.deepEqual(snapResize([0.5, 0.5], 0, 0.1, 600), { delta: 0.1, snap: null });
+  // A snap point outside the two panes being resized is ignored.
+  assert.equal(snapResize([0.2, 0.1, 0.7], 0, 0.125, 600).snap, null);
+});
+
+test('Return to previous layout finds a layout by any tab it involved', () => {
+  const before = rowLayout(['x', 'y']);
+  rememberCanvas(['g1', 'x', 'y'], before);
+  assert.equal(takePreviousCanvas(['z']), undefined);
+  assert.equal(takePreviousCanvas(['y']), before);
+  assert.equal(takePreviousCanvas(['y']), undefined, 'each step is used once');
+});
+
+test('the middle of a pane only replaces with Option, and edges map like macOS', async () => {
+  const drag = await read('lib/tabs/canvas-drag.ts');
+  assert.match(drag, /if \(alt\) return \{ targetId, paneId, side: "center"[^}]*action: "dock"/);
+  assert.match(drag, /action: "hint", label:/);
+  assert.match(drag, /if \(nearT\) \{[\s\S]*?action: "fill"/, 'the top edge opens the tab on its own');
+  assert.match(drag, /\(nearL \|\| nearR\) && \(nearT \|\| nearB\)/, 'corners are quarters');
+  const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
+  assert.match(strip, /canvasDrop\?\.action === "hint"\) \{\s*restorePointerDragElement\(drag\.element, true\);\s*cancelDrag\(true\);/);
+});
+
+test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', async () => {
+  const controls = await read('components/center-tabs/canvas-controls.tsx');
+  for (const id of ['left', 'right', 'top', 'bottom', 'fill', 'top-left', 'top-right', 'bottom-left', 'bottom-right']) {
+    assert.match(controls, new RegExp(`\\{ id: "${id}", en:`));
+  }
+  for (const id of ['1x2', '2x1', 'main+2', '2x2', '1x1', '3x3', '4x4']) {
+    assert.match(controls, new RegExp(`\\{ id: "${id.replace('+', '\\+')}", en:`), `${id} is still offered`);
+  }
+  assert.match(controls, /mac && e\.ctrlKey && e\.altKey && !e\.metaKey/);
+  assert.match(controls, /e\.code === "KeyR"\) \{ e\.preventDefault\(\); restore\(\);/);
+  assert.match(controls, /centerCanvasPresets/, 'saved layouts are kept');
+  assert.doesNotMatch(controls, /\stitle=\{/, 'no native tooltips on canvas controls');
+});

@@ -799,8 +799,8 @@ assert.match(
 );
 assert.match(
   css,
-  /\.compoundMembers \{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s,
-  "split members must always receive equal top-strip width",
+  /\.compoundMembers \{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(2, minmax\(56px, auto\)\);/s,
+  "split members share the strip by title length, each keeping at least an icon and close target",
 );
 assert.match(
   css,

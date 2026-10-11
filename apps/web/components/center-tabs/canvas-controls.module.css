@@ -22,8 +22,9 @@
   box-shadow: var(--composer-shadow);
 }
 
-/* 格子没有标题栏：顶部正中一个 iPadOS 分屏式的"•••"把手。
-   拖它移动格子，点它打开菜单。平时很淡，悬停才浮起成胶囊。 */
+/* 格子没有标题栏：顶部正中一根横条，像 iPadOS / macOS 的窗口把手。
+   拖它移动格子；点它，或停在上面一会儿（像 macOS 绿色按钮），打开贴靠菜单。
+   热区 88×22，横条平时淡、悬停变长变深。 */
 .grip {
   pointer-events: auto;
   position: absolute;
@@ -31,43 +32,39 @@
   left: 50%;
   z-index: 2;
   transform: translateX(-50%);
-  width: 56px;
-  height: 10px;
+  width: 88px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 10px 10px;
   cursor: grab;
   touch-action: none;
-  transition: background 140ms ease, box-shadow 140ms ease;
 }
 .grip:active {
   cursor: grabbing;
 }
-.grip i {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  opacity: 0.5;
-  transition: opacity 140ms ease, background 140ms ease;
+.gripBar {
+  width: 36px;
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--text-muted) 55%, transparent);
+  transition: width 140ms ease, background 140ms ease;
 }
-.pane[data-focused="true"] .grip i {
-  opacity: 0.85;
+.pane[data-focused="true"] .gripBar {
+  background: color-mix(in oklch, var(--text-secondary) 75%, transparent);
 }
-.grip:hover,
-.grip:focus-visible,
-.grip[aria-expanded="true"] {
+.grip:focus-visible {
   outline: none;
-  background: color-mix(in oklch, var(--bg-tertiary) 90%, transparent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
-.grip:hover i,
-.grip:focus-visible i,
-.grip[aria-expanded="true"] i {
-  opacity: 1;
+.grip:hover .gripBar,
+.grip:focus-visible .gripBar,
+.grip[aria-expanded="true"] .gripBar {
+  width: 48px;
   background: var(--text-bright);
+}
+.grip:focus-visible .gripBar {
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 /* 空格子：居中一张卡片，列出可放进来的 tab。 */
@@ -201,12 +198,25 @@
 .divider:focus-visible {
   outline: none;
 }
+/* 拖到 1/3、1/2、2/3 时吸住，并在分隔线中点标出比例。 */
+.snap {
+  position: absolute;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--accent-blue);
+  color: #fff;
+  font-size: 11px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+}
 
 /* 右键菜单：macOS 毛玻璃菜单。 */
 .menu {
   position: fixed;
   z-index: 100001;
-  width: 232px;
+  width: 240px;
   max-height: calc(100vh - 16px);
   overflow-y: auto;
   box-sizing: border-box;
@@ -253,11 +263,74 @@
   font-size: 11px;
   font-weight: 600;
 }
+/* 贴靠菜单的布局图示：和 macOS 绿色按钮菜单一样，一格一个小画布，
+   蓝色块是这一格会去的位置。 */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+  padding: 0 4px 2px;
+}
+.tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+.tile:hover,
+.tile:focus-visible,
+.tile[aria-pressed="true"] {
+  outline: none;
+  background: var(--bg-hover);
+}
+.glyph {
+  position: relative;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 20px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--text-secondary) 55%, transparent);
+}
+.glyph i {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+  border-radius: 3px;
+  background-color: color-mix(in oklch, var(--text-secondary) 40%, transparent);
+}
+.tile:hover .glyph i,
+.tile:focus-visible .glyph i,
+.tile[aria-pressed="true"] .glyph i,
+.preset:hover .glyph i,
+.preset:focus-visible .glyph i {
+  background-color: var(--accent-blue);
+}
+/* 指向图示时在这里说出它的名字和快捷键（不用原生 title）。 */
+.hint {
+  min-height: 16px;
+  padding: 4px 8px 2px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.more {
+  padding: 2px 0 2px 8px;
+}
 .presets {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 2px;
-  padding: 0 2px 4px;
+  padding: 2px 2px 4px;
 }
 .preset {
   display: flex;
@@ -269,7 +342,7 @@
   border-radius: 7px;
   background: transparent;
   color: var(--text-secondary);
-  font: 10px/1.1 -apple-system, BlinkMacSystemFont, var(--font-sans);
+  font: 11px/1.1 -apple-system, BlinkMacSystemFont, var(--font-sans);
   cursor: pointer;
 }
 .preset:hover,
@@ -277,24 +350,6 @@
   outline: none;
   background: var(--bg-hover);
   color: var(--text-bright);
-}
-.presetIcon {
-  width: 30px;
-  height: 22px;
-  display: grid;
-  gap: 1.5px;
-  padding: 1.5px;
-  box-sizing: border-box;
-  border-radius: 4px;
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--text-secondary) 55%, transparent);
-}
-.presetIcon i {
-  border-radius: 1.5px;
-  background: color-mix(in oklch, var(--text-secondary) 40%, transparent);
-}
-.preset:hover .presetIcon i,
-.preset:focus-visible .presetIcon i {
-  background: color-mix(in oklch, var(--accent-blue) 70%, transparent);
 }
 .separator {
   height: 1px;
@@ -327,6 +382,8 @@
   opacity: 0.85;
 }
 .shortcut {
+  display: inline-flex;
+  align-items: center;
   margin-left: auto;
   opacity: 0.55;
   font-size: 12px;
@@ -362,5 +419,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .menu { animation: none; }
-  .pane, .grip, .grip i, .divider::after { transition: none; }
+  .pane, .gripBar, .divider::after { transition: none; }
 }
