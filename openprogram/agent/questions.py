@@ -357,9 +357,9 @@ def open_question(
         raise DurableWaitSafePointRequired(
             "runtime interaction does not match its declared durable wait"
         )
-    if wait.status is not WaitStatus.RESOLVED:
+    if wait.status not in {WaitStatus.RESOLVED, WaitStatus.DECLINED}:
         raise DurableWaitSafePointRequired(
-            "runtime interaction resumed without a resolved durable wait"
+            "runtime interaction resumed without a settled durable wait"
         )
     request = wait.request
     expected = {

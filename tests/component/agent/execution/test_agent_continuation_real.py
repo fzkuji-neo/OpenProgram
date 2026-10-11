@@ -73,6 +73,7 @@ class _Tools:
         self.release: dict[str, threading.Event] = {}
         self.blocked: set[str] = set()
         self.wait_kind: str | None = None
+        self.decline_policy = "fail"
         self.wait_timeout = 5.0
         self.wait_started = threading.Event()
         self.wait_finished = threading.Event()
@@ -180,7 +181,7 @@ class _Tools:
                 "version": 1,
                 "kind": self.wait_kind,
                 "on_answer": "continue",
-                "on_decline": "fail",
+                "on_decline": self.decline_policy,
                 "on_timeout": "fail",
             }
             manifest["timeout"] = self.wait_timeout
@@ -1195,6 +1196,42 @@ def test_approval_resume_reuses_saved_prompt_after_context_updates(
     assert real_agent_chat.provider.call_count == 2
     assert len(prompts) == 2 and prompts[0] == prompts[1]
     assert prompts[0].startswith("saved turn context")
+
+
+@pytest.mark.parametrize("wait_kind", ["approval", "ask"])
+def test_a_declined_wait_returns_to_the_model_instead_of_failing(
+    real_agent_chat, wait_kind
+):
+    from tests.component.providers.scripted_provider import (
+        ScriptedToolCall,
+        ScriptedText,
+    )
+
+    h = real_agent_chat
+    h.tools.wait_kind = wait_kind
+    h.tools.decline_policy = "continue"
+    h.provider.add_response(ScriptedToolCall("first", {}, "call-declined"))
+    h.provider.add_response(ScriptedText("Understood, I will not run it."))
+    execution = _chat(h)
+    question = _pending_question(h, kind=wait_kind)
+    _wait(
+        lambda: h.store.get_execution(execution.execution_id).status
+        is ExecutionStatus.PAUSED
+    )
+
+    _question_action(h, "question_reject", question.id)
+
+    completed = _wait(
+        lambda: (
+            item
+            if (item := h.store.get_execution(execution.execution_id)).status
+            is ExecutionStatus.COMPLETED
+            else None
+        ),
+        detail=lambda: h.store.get_execution(execution.execution_id).to_dict(),
+    )
+    assert completed.current_attempt_id is None
+    assert h.provider.call_count == 2
 
 
 def test_cancel_wakes_real_question_wait_with_exact_reason(real_agent_chat):

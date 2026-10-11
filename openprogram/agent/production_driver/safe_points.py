@@ -408,13 +408,17 @@ class SafePointsOperations:
                         )[:32]
                         existing = DurableWaitStore(self.executions).get_wait(wait_id)
                 if existing is not None:
-                    if existing.status is WaitStatus.RESOLVED:
+                    if existing.status is WaitStatus.RESOLVED or (
+                        existing.status is WaitStatus.DECLINED
+                        and existing.policy_snapshot.get("on_decline") == "continue"
+                    ):
+                        # The tool reads the outcome; a declined approval
+                        # reports the refusal instead of running.
                         payload["preapproved_wait_id"] = wait_id
                     else:
-                        # Decline/timeout/cancel policies settle the execution
-                        # before a replacement attempt can reach this boundary.
-                        # Do not dispatch the protected tool from an unresolved
-                        # or non-approved record.
+                        # Other outcomes settle the execution before a
+                        # replacement attempt can reach this boundary. Do not
+                        # dispatch the protected tool from an unresolved record.
                         return True
                 else:
                     checkpoint = checkpoint_payload("wait.before_tool", payload)

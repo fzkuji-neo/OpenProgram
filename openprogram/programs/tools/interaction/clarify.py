@@ -138,7 +138,7 @@ def interaction_manifest(args: dict) -> dict | None:
         "multi": False, "allow_custom": False, "detail": "",
         "schema": {}, "questions": _to_runtime_questions(questions),
         "policy_snapshot": {"version": 1, "kind": "ask_many", "on_answer": "continue",
-                            "on_decline": "fail", "on_timeout": "fail"},
+                            "on_decline": "continue", "on_timeout": "fail"},
         "timeout": 300.0,
     }
 

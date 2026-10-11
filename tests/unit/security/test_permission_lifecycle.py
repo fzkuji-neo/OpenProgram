@@ -24,3 +24,5 @@ def test_bypass_preserves_required_approval_manifest(name, rules, monkeypatch):
     manifest = wrapped._interaction_manifest("call-1", {})
     assert manifest is not None
     assert manifest["kind"] == "approval"
+    # Declining is the user's answer: the model hears it, the run goes on.
+    assert manifest["policy_snapshot"]["on_decline"] == "continue"
