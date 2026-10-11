@@ -49,12 +49,19 @@
 }
 button.card { cursor: pointer; }
 button.card:focus-visible { outline: none; }
+/* A lone window is the center card itself, so the card has its colour;
+   a split window's panes are cards of their own on open page. */
 .mini {
   position: relative;
   display: block;
   width: 100%;
-  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-primary);
   transition: transform 150ms ease;
+}
+.mini[data-split] {
+  overflow: visible;
+  background: transparent;
 }
 /* No frame and no shadow marks the current window: it zooms into its
    card when the overview opens. A card under the pointer grows a little. */
@@ -106,8 +113,9 @@ button.card:focus-visible .mini {
   gap: 5px;
   padding: 8px;
   overflow: hidden;
-  border-radius: 9px;
   background: var(--bg-primary);
+}
+.mini[data-split] .pane {
   box-shadow: var(--composer-shadow);
 }
 .pane[data-shot] {
@@ -121,7 +129,7 @@ button.card:focus-visible .mini {
   object-position: top left;
   pointer-events: none;
 }
-.pane[data-empty] {
+.mini .pane[data-empty] {
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--border-light);
 }
