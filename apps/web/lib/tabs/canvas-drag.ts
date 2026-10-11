@@ -58,8 +58,10 @@ const PANE_LABEL: Record<"left" | "right" | "top" | "bottom", [string, string]> 
   left: ["Split: left of this pane", "拆分：放这一格左边"], right: ["Split: right of this pane", "拆分：放这一格右边"],
   top: ["Split: above this pane", "拆分：放这一格上面"], bottom: ["Split: below this pane", "拆分：放这一格下面"],
 };
-/** Edge band of the whole canvas: halves on the sides, quarters in the corners. */
-export const canvasEdgeBand = (width: number, height: number) => Math.max(28, Math.min(56, Math.min(width, height) * 0.08));
+/** Edge band of the whole canvas: halves on the sides, quarters in the corners.
+ *  Wide enough to land on without aiming, since the lower part of a pane
+ *  (below this pane) looks like the bottom half until the band is reached. */
+export const canvasEdgeBand = (width: number, height: number) => Math.max(40, Math.min(96, Math.min(width, height) * 0.14));
 /** Share of a pane's width on each side that splits it left or right. */
 export const PANE_SIDE = 0.25;
 
