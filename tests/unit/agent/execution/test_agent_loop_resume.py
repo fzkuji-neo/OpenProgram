@@ -249,6 +249,60 @@ def test_after_tool_resume_executes_only_the_unfinished_tool_suffix():
     assert calls == {"provider": 1, "first": 0, "second": 1}
 
 
+def test_resume_after_an_approval_wait_keeps_earlier_results_in_the_provider_context():
+    """A wait before the second call is an after_provider point that still
+    carries the first call's result; the next provider call must see both."""
+    decision = _assistant([
+        ToolCall(id="tool-1", name="first", arguments={"value": "one"}),
+        ToolCall(id="tool-2", name="second", arguments={"value": "two"}),
+    ])
+    first_result = ToolResultMessage(
+        tool_call_id="tool-1", tool_name="first",
+        content=[TextContent(text="first-result")], timestamp=1,
+    )
+    continuation = _continuation(
+        phase="after_provider", decision=decision, tool_results=(first_result,),
+        next_tool_index=1,
+    )
+    calls = {"first": 0, "second": 0}
+    seen: list[list] = []
+
+    def tool(name: str) -> AgentTool:
+        async def execute(_call_id, _args, _cancel, _update):
+            calls[name] += 1
+            return AgentToolResult(content=[TextContent(text=f"{name}-result")])
+
+        return AgentTool(
+            name=name, description=name, parameters={"type": "object"},
+            label=name, execute=execute,
+        )
+
+    def stream_fn(_model, context, _options):
+        seen.append([
+            (message.tool_call_id, message.content[0].text)
+            for message in context.messages
+            if getattr(message, "role", None) == "toolResult"
+        ])
+
+        async def stream():
+            yield EventDone(reason="stop", message=_assistant([TextContent(text="done")]))
+
+        return stream()
+
+    config = AgentLoopConfig(model=_model(), convert_to_llm=lambda messages: messages)
+
+    async def run():
+        stream = agent_loop_resume(
+            continuation, AgentContext(messages=[], tools=[tool("first"), tool("second")]),
+            config, stream_fn=stream_fn,
+        )
+        return await stream.result()
+
+    assert asyncio.run(run())
+    assert calls == {"first": 0, "second": 1}
+    assert seen == [[("tool-1", "first-result"), ("tool-2", "second-result")]]
+
+
 def test_agent_checkpoint_keeps_the_terminal_receipt_cap():
     from openprogram.agent.continuation import (
         MAX_AGENT_TERMINAL_EFFECT_RECEIPTS,

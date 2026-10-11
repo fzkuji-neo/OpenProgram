@@ -474,10 +474,13 @@ def agent_loop_resume(
             tool_calls = [
                 call for call in assistant.content if isinstance(call, ToolCall)
             ]
-            if continuation.phase == "after_tool":
-                current_context.messages.extend(continuation.tool_results)
-            elif continuation.phase != "after_provider":
+            if continuation.phase not in {"after_provider", "after_tool"}:
                 raise ValueError("unsupported Agent continuation phase")
+            # Results the checkpoint already holds precede the resumed suffix.
+            # A wait before a later call in the same decision is an
+            # after_provider point that still carries the earlier calls'
+            # results; dropping them showed the model those calls as lost.
+            current_context.messages.extend(continuation.tool_results)
 
             # A provider decision may contain several calls.  An after-tool
             # checkpoint has committed only the prefix through
