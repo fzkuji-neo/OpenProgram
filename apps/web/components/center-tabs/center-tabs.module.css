@@ -83,7 +83,8 @@
 }
 /* tabsFlow 本身是 shrink-to-fit flex item；width 参与其 intrinsic size，
    让少量 tab 真正达到 240px。空间不足时仍按同一基准等比收缩。 */
-:global(html.is-desktop) .tabsFlow > .tab {
+:global(html.is-desktop) .tabsFlow > .tab,
+:global(html.is-desktop) .tabsFlow > .compoundTab {
   width: 240px;
   flex: 0 1 240px;
   max-width: 240px;

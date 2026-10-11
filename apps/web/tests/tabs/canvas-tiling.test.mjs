@@ -225,4 +225,5 @@ test('a split window is one tab: its focused pane, a split mark and one close', 
   assert.match(items, /if \(!closing\) onClose\(event, memberTabs\.filter\(\(tab\) => !closingIds\.has\(tab\.id\)\)\);/, 'its close closes the whole window');
   assert.doesNotMatch(items, /memberTabs\.slice\(0, 2\)|canvasPaneCount/, 'no first-two titles and +N count');
   assert.match(css, /\.compoundTab \{[\s\S]*?flex: 0 1 200px;\n  min-width: 48px;/, 'as wide as any other tab');
+  assert.match(css, /:global\(html\.is-desktop\) \.tabsFlow > \.tab,\n:global\(html\.is-desktop\) \.tabsFlow > \.compoundTab \{\n  width: 240px;/, 'and as wide as any other tab in the App');
 });
