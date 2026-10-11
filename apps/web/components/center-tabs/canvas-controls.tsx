@@ -76,6 +76,8 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   const [saveName, setSaveName] = useState<string | null>(null);
   const [activeDivider, setActiveDivider] = useState<{ key: string; snap: number | null } | null>(null);
   const hoverTimer = useRef<number | undefined>(undefined);
+  /** The current press on a grip, and whether it has moved like a drag. */
+  const press = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   useEffect(() => { try { const v = JSON.parse(localStorage.getItem("centerCanvasPresets") || "[]"); if (Array.isArray(v)) setSaved(v); } catch {} }, []);
   useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
   useEffect(() => {
@@ -131,6 +133,8 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   /** A menu unfolded by resting on green folds away when the pointer leaves the grip. */
   const leaveHoverMenu = () => { window.clearTimeout(hoverTimer.current); if (menu?.hover) hoverTimer.current = window.setTimeout(closeMenu, 240); };
   const pin = () => { window.clearTimeout(hoverTimer.current); if (menu?.hover) setMenu({ ...menu, hover: false }); };
+  /** Run a window button only for a real click: not the tail of a drag. */
+  const pressed = (run: () => void) => (e: React.MouseEvent) => { const current = press.current; press.current = null; if (e.detail > 0 && current?.moved) return; run(); };
   /** Red: close the tab itself, through the strip's own close (it saves files first). */
   const closeTab = (paneId: string, tabId: string | null) => {
     closeMenu();
@@ -248,21 +252,32 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
           onPointerEnter={() => { if (menu?.hover && menu.paneId === p.id) window.clearTimeout(hoverTimer.current); }}
           onPointerLeave={() => { if (menu?.hover && menu.paneId === p.id) leaveHoverMenu(); else if (!menu) window.clearTimeout(hoverTimer.current); }}>
           <div role="group" className={styles.grip} aria-label={text(`Pane: ${title}`, `格子：${title}`)}
-            onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); if (menu?.hover) closeMenu(); if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]")); }}
+            onPointerDown={e => {
+              if (e.button !== 0) return; e.stopPropagation(); if (menu?.hover) closeMenu();
+              // A press that moved, even if the drag was then cancelled and the
+              // pointer came back, must not click the window button under it.
+              const current = { x: e.clientX, y: e.clientY, moved: false };
+              press.current = current;
+              const track = (ev: PointerEvent) => { if (Math.hypot(ev.clientX - current.x, ev.clientY - current.y) > 6) current.moved = true; };
+              window.addEventListener("pointermove", track, true);
+              window.addEventListener("pointerup", () => window.removeEventListener("pointermove", track, true), { capture: true, once: true });
+              window.addEventListener("pointercancel", () => window.removeEventListener("pointermove", track, true), { capture: true, once: true });
+              if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]"));
+            }}
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(p.id); }}>
             <span className={styles.dots} aria-hidden="true"><i /><i /><i /></span>
             {/* macOS window buttons. A press that turns into a drag never clicks them. */}
             <span className={styles.lights}>
               <button type="button" className={styles.light} data-pane-light="close" aria-label={p.content ? text(`Close ${title}`, `关闭 ${title}`) : text("Close pane", "关闭格子")}
-                onClick={() => closeTab(p.id, p.content)}><X aria-hidden /></button>
+                onClick={pressed(() => closeTab(p.id, p.content))}><X aria-hidden /></button>
               <button type="button" className={styles.light} data-pane-light="minimize" aria-label={text(`Move ${title} to the tab strip`, `把 ${title} 收回标签栏`)}
-                onClick={() => { closeMenu(); close(p.id); }}><Minus aria-hidden /></button>
+                onClick={pressed(() => { closeMenu(); close(p.id); })}><Minus aria-hidden /></button>
               <button type="button" className={styles.light} data-pane-light="zoom" aria-haspopup="menu" aria-expanded={menu?.paneId === p.id}
                 aria-label={text(`Open ${title} on its own`, `单独打开 ${title}`)}
                 onPointerEnter={e => { if (e.buttons || (menu && !menu.hover)) return; window.clearTimeout(hoverTimer.current); hoverTimer.current = window.setTimeout(() => openMenu(p.id, true), 250); }}
                 onPointerLeave={() => { if (!menu) window.clearTimeout(hoverTimer.current); }}
                 onKeyDown={e => { if (e.key === "ArrowDown") { e.preventDefault(); openMenu(p.id); } }}
-                onClick={() => openAlone(p.id, p.content)}><Maximize2 aria-hidden /></button>
+                onClick={pressed(() => openAlone(p.id, p.content))}><Maximize2 aria-hidden /></button>
             </span>
             {tab && <PaneDragLabel tab={tab} />}
           </div>
