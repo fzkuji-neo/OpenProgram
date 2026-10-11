@@ -126,7 +126,10 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(shots, /const page = await bridge\.webTab\.capture\?\.\(id, "presentation"\)/, 'web pages are pictured from their own view');
   assert.match(shots, /g\.drawImage\(inner, \(frame\.left - pane\.left\) \* k, \(frame\.top - pane\.top\) \* k, frame\.width \* k, frame\.height \* k\);/, 'the page is drawn into its pane picture under the toolbar, keeping the pane proportions');
   assert.match(shots, /if \(shot && chrome\) remember\(\[\[id, await underChrome\(shot, chrome\)\]\]\);/, 'a page pictured off screen keeps the toolbar band it was seen with');
-  assert.match(view, /function windowBox\(canvas: HTMLElement\): Box \{\n  return canvasViewport\(canvas\.clientWidth, canvas\.clientHeight\);/, 'a card zooms onto the exact box its panes are laid out in');
+  assert.match(view, /function windowBox\(canvas: HTMLElement\): Box \{\n  return \{ left: 0, top: 0, width: canvas\.clientWidth, height: canvas\.clientHeight \};/, 'a card is the whole window and zooms onto it');
+  assert.match(view, /const k = zoomed \|\| !cardWidth \? 1 : cardWidth \/ frame\.width;/, 'a card is drawn at its own scale, so the zoom only scales');
+  assert.match(view, /borderRadius: split \? PANE_RADIUS \* k : 0,/, 'split pane corners shrink with the card, never jump');
+  assert.match(view, /borderRadius: split \? 0 : radius \* k \}/, 'a lone window keeps the center card corners, scaled');
   assert.match(shots, /indexedDB\.open\(DB, 1\)/, 'pictures survive a restart');
   assert.match(shots, /root\.setAttribute\("data-capturing-panes", ""\)/, 'the pane grips stay out of the pictures');
   const overviewCss = await read('components/center-tabs/canvas-overview.module.css');
