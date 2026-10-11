@@ -61,14 +61,22 @@ def _db():
 
 def load_goal(session_id: str) -> Optional[dict]:
     """The session's goal dict, or ``None``. Re-read fresh each time so a
-    ``/goal clear`` from another surface takes effect on the next check."""
+    ``/goal clear`` from another surface takes effect on the next check.
+
+    Every model request reads the Goal, so the read takes only
+    ``meta.json`` from disk; dropping the session cache instead re-read
+    every history node of a long conversation on each call."""
     try:
         db = _goal._db()
-        invalidate = getattr(db, "invalidate_cache", None)
-        if callable(invalidate):
-            invalidate(session_id)
-        sess = db.get_session(session_id) or {}
-        goal = (sess.get("extra_meta") or {}).get("goal")
+        read_disk_meta = getattr(db, "read_disk_meta", None)
+        if callable(read_disk_meta):
+            goal = (read_disk_meta(session_id) or {}).get("goal")
+        else:
+            invalidate = getattr(db, "invalidate_cache", None)
+            if callable(invalidate):
+                invalidate(session_id)
+            sess = db.get_session(session_id) or {}
+            goal = (sess.get("extra_meta") or {}).get("goal")
         if goal is None:
             return None
         if not isinstance(goal, dict):
