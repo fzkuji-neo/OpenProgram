@@ -424,7 +424,9 @@ export function useTabPointerDrag({
       drag.stripTop = stripRect.top;
       drag.stripBottom = stripRect.bottom;
       drag.element.setAttribute("data-pointer-drag", "true");
-      setCanvasDragging(true);
+      // Registered so a release the page never saw (over the window-drag
+      // strip or a native view) still ends this drag on the next move.
+      setCanvasDragging(true, { cancel: cancelPointerDrag, release: onPointerDragUp });
       try {
         drag.element.setPointerCapture(drag.pointerId);
       } catch {

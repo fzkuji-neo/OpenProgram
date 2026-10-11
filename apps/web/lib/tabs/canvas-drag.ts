@@ -15,7 +15,35 @@ const listeners = new Set<() => void>();
 export function canvasDragging() { return dragging; }
 /** Native web panes subscribe so they can swap to a snapshot while a drag runs. */
 export function onCanvasDragChange(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
-export function setCanvasDragging(value: boolean) {
+
+/** The drag that owns the canvas right now. Every drag (tab, pane, divider)
+ *  registers how to cancel itself and, when it can, how to finish. */
+export type CanvasDragOwner = { cancel: () => void; release?: (event: PointerEvent) => void };
+let owner: CanvasDragOwner | null = null;
+let guarded = false;
+/** A release over the window-drag strip, a native web view or another app
+ *  never reaches the page, which used to leave a drag half-finished: the
+ *  grip hidden, the label floating, iframes deaf. These guards end it. */
+function installGuards() {
+  if (guarded || typeof window === "undefined") return;
+  guarded = true;
+  // The first move with no button down is the release we missed.
+  window.addEventListener("pointermove", event => {
+    if (!owner || event.buttons !== 0 || event.pointerType === "touch") return;
+    const current = owner;
+    if (current.release) current.release(event); else current.cancel();
+  }, true);
+  // A new press while a drag is still open means its release was lost.
+  window.addEventListener("pointerdown", () => owner?.cancel(), true);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) owner?.cancel(); });
+}
+export function setCanvasDragging(value: boolean, by?: CanvasDragOwner) {
+  if (value) {
+    installGuards();
+    if (owner && by && owner !== by) { const stale = owner; owner = null; stale.cancel(); }
+    if (by) owner = by;
+  } else owner = null;
+  if (dragging === value) { if (!value) { preview?.remove(); preview = null; } return; }
   dragging = value;
   document.documentElement.toggleAttribute("data-canvas-dragging", value);
   listeners.forEach((listener) => listener());
@@ -160,11 +188,18 @@ function showDropPreview(rect: Rect | null, target = "canvas") {
   const inset = target === "resources" ? 0 : 4;
   Object.assign(preview.style, { left: `${rect.left + inset}px`, top: `${rect.top + inset}px`, width: `${Math.max(0, rect.width - inset * 2)}px`, height: `${Math.max(0, rect.height - inset * 2)}px` });
 }
+/** Drag a pane by its grip. The pane, not the grip's inline style, carries
+ *  the dragging state, and every way a drag can end (release, Escape,
+ *  pointercancel, blur, a missed release, an error while resolving the
+ *  drop) runs the same cleanup exactly once. */
 export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: string, label: HTMLElement | null) {
   if (event.button !== 0 || !label || (event.target as HTMLElement).closest("button")) return;
   // Keep the press from starting a text selection in the pane below.
   event.preventDefault();
-  const el = event.currentTarget, original = el.getAttribute("style");
+  const grip = event.currentTarget;
+  const pane = grip.closest<HTMLElement>("[data-canvas-pane]") ?? grip;
+  // A drag that ended without cleanup must not leave another grip hidden.
+  document.querySelectorAll("[data-pane-dragging]").forEach(node => node.removeAttribute("data-pane-dragging"));
   let dragLabel: HTMLElement | null = null;
   let resourceTarget: HTMLElement | null = null;
   function markResourceTarget(target: HTMLElement | null) {
@@ -173,33 +208,65 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
     resourceTarget = target;
     target?.setAttribute("data-resource-drop-over", "true");
   }
-  const start = { x: event.clientX, y: event.clientY }; let started = false;
+  const start = { x: event.clientX, y: event.clientY };
+  let started = false, finished = false;
+  let last: { x: number; y: number } | null = null;
   const pointerId = event.pointerId;
-  el.setPointerCapture(pointerId);
+  try { grip.setPointerCapture(pointerId); } catch { /* the window listeners still cover the drag */ }
   const bridge = desktopBridge();
   const payload = bridge && buildTransferPayload({ kind: "tab", tabIds: [tabId] }, bridge.windowId);
   const token = payload ? bridge?.tabTransfer.prepare(payload) : undefined;
+  const sessionOwner: CanvasDragOwner = { cancel: () => cancel(), release: (e) => void finish(e) };
   function cleanup() {
+    finished = true;
     markResourceTarget(null);
     dragLabel?.remove(); dragLabel = null;
-    if (el.hasPointerCapture(pointerId)) el.releasePointerCapture(pointerId);
-    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", key); window.removeEventListener("keyup", key); window.removeEventListener("pointercancel", cancel); window.removeEventListener("blur",cancel);
-    original === null ? el.removeAttribute("style") : el.setAttribute("style", original);
-    setCanvasDragging(false);
+    pane.removeAttribute("data-pane-dragging");
+    try { if (grip.hasPointerCapture(pointerId)) grip.releasePointerCapture(pointerId); } catch { /* already released */ }
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", finish);
+    window.removeEventListener("keydown", key); window.removeEventListener("keyup", key);
+    window.removeEventListener("pointercancel", cancel); window.removeEventListener("blur", cancel);
+    if (started) setCanvasDragging(false);
   }
-  function cancel() { cleanup(); if (token) void bridge?.tabTransfer.cancel(token); }
-  let last: { x: number; y: number } | null = null;
+  function cancel() {
+    if (finished) return;
+    cleanup();
+    if (token) void bridge?.tabTransfer.cancel(token);
+  }
+  /** Where the drop lands. Never throws: a failed lookup means no drop. */
+  function resolveDrop(x: number, y: number, alt: boolean) {
+    try {
+      const resource = resourceDropTarget({ kind: "tab", tabIds: [tabId] }, x, y);
+      if (resource) return { resource, drop: null, strip: null };
+      const strip = tabStripDropAt(x, y);
+      return { resource: null, drop: strip ? null : canvasDropAt(x, y, [tabId], alt), strip };
+    } catch (error) {
+      console.error("[canvas] drop lookup failed", error);
+      return { resource: null, drop: null, strip: null };
+    }
+  }
+  function show(x: number, y: number, alt: boolean) {
+    const target = resolveDrop(x, y, alt);
+    markResourceTarget(target.resource);
+    if (target.resource) showResourceDrop(target.resource);
+    else if (target.strip) showDropPreview(target.strip, "tab-strip");
+    else showCanvasDrop(target.drop);
+  }
   function key(e: KeyboardEvent) {
     if (e.key === "Escape") cancel();
-    // Option toggles "replace" in the middle of a pane without moving.
-    else if (e.key === "Alt" && started && last && !resourceTarget && !tabStripDropAt(last.x, last.y)) showCanvasDrop(canvasDropAt(last.x, last.y, [tabId], e.type === "keydown"));
+    // Option toggles "replace" without moving the pointer.
+    else if (e.key === "Alt" && started && last) show(last.x, last.y, e.type === "keydown");
   }
   function move(e: PointerEvent) {
+    if (e.pointerId !== pointerId) return;
+    // The button came up somewhere the page could not see.
+    if (e.buttons === 0 && e.pointerType !== "touch") { void finish(e); return; }
     last = { x: e.clientX, y: e.clientY };
-    if (!started && Math.hypot(e.clientX-start.x,e.clientY-start.y) < 6) return;
+    if (!started && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) return;
     if (!started) {
       started = true;
-      setCanvasDragging(true);
+      setCanvasDragging(true, sessionOwner);
+      pane.setAttribute("data-pane-dragging", "");
       dragLabel = label!.cloneNode(true) as HTMLElement;
       dragLabel.removeAttribute("hidden");
       dragLabel.removeAttribute("data-pane-drag-label");
@@ -214,28 +281,28 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
         pointerEvents: "none", borderRadius: "8px", transition: "none",
       });
       document.body.append(dragLabel);
-      el.style.visibility = "hidden";
     }
     if (dragLabel) Object.assign(dragLabel.style, { left: `${e.clientX - 110}px`, top: `${e.clientY - 16}px` });
-    const resource = resourceDropTarget({ kind: "tab", tabIds: [tabId] }, e.clientX, e.clientY);
-    markResourceTarget(resource);
-    if (resource) { showResourceDrop(resource); return; }
-    const strip = tabStripDropAt(e.clientX, e.clientY);
-    if (strip) showDropPreview(strip, "tab-strip");
-    else showCanvasDrop(canvasDropAt(e.clientX, e.clientY, [tabId], e.altKey));
+    show(e.clientX, e.clientY, e.altKey);
   }
-  async function up(e: PointerEvent) {
-    const resource = started ? resourceDropTarget({ kind:"tab",tabIds:[tabId] },e.clientX,e.clientY) : null;
-    const resourceSessionId = resource?.dataset.resourceDropSession;
-    const drop = started && !resource ? canvasDropAt(e.clientX, e.clientY, [tabId], e.altKey) : null;
-    const inStrip = tabStripDropAt(e.clientX, e.clientY);
-    const outside = e.clientX < 0 || e.clientY < 0 || e.clientX > innerWidth || e.clientY > innerHeight;
+  async function finish(e: PointerEvent) {
+    if (finished || e.pointerId !== pointerId) return;
+    const target = started ? resolveDrop(e.clientX, e.clientY, e.altKey) : null;
+    const wasStarted = started;
     cleanup();
-    if (started && outside && token) { await bridge?.tabTransfer.detach(token); return; }
-    if (resourceSessionId) { await dropWebTabResource(tabId,resourceSessionId,token ?? undefined); return; }
-    if (token && !await bridge?.tabTransfer.cancel(token)) return;
-    if (drop) commitCanvasDrop(drop, [tabId]);
-    else if (started && inStrip) useCenterTabs.getState().ungroupTab(tabId);
+    try {
+      const outside = e.clientX < 0 || e.clientY < 0 || e.clientX > window.innerWidth || e.clientY > window.innerHeight;
+      if (wasStarted && outside && token) { await bridge?.tabTransfer.detach(token); return; }
+      const resourceSessionId = target?.resource?.dataset.resourceDropSession;
+      if (resourceSessionId) { await dropWebTabResource(tabId, resourceSessionId, token ?? undefined); return; }
+      if (token && !await bridge?.tabTransfer.cancel(token)) return;
+      if (target?.drop) commitCanvasDrop(target.drop, [tabId]);
+      else if (target?.strip) useCenterTabs.getState().ungroupTab(tabId);
+    } catch (error) {
+      console.error("[canvas] pane drop failed", error);
+    }
   }
-  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up,{ once:true }); window.addEventListener("keydown",key); window.addEventListener("keyup",key); window.addEventListener("pointercancel",cancel,{ once:true }); window.addEventListener("blur",cancel,{ once:true });
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", finish);
+  window.addEventListener("keydown", key); window.addEventListener("keyup", key);
+  window.addEventListener("pointercancel", cancel); window.addEventListener("blur", cancel);
 }

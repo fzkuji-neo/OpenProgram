@@ -4,7 +4,7 @@ import { commitCenterTabsState } from "./core";
 import { findCenterTabGroup, ungroupCenterTab } from "../center-tab-groups";
 import { dockLayout, leaves, rowLayout, sanitizeLayout } from "../canvas-layout";
 
-export function canvasActions(set: StoreApi<CenterTabsState>["setState"]): Pick<CenterTabsState, "setCanvas" | "dockCanvas"> {
+export function canvasActions(set: StoreApi<CenterTabsState>["setState"]): Pick<CenterTabsState, "setCanvas" | "previewCanvas" | "dockCanvas"> {
   return {
     setCanvas: (targetId, canvas) => set(s => {
       const group = findCenterTabGroup(s.groups, targetId);
@@ -24,6 +24,14 @@ export function canvasActions(set: StoreApi<CenterTabsState>["setState"]): Pick<
       groups.push(next);
       tabs = tabs.filter(t => !t.canvasAnchor || groups.some(g => g.memberIds.includes(t.id)));
       return commitCenterTabsState(s, { tabs, groups, activeId: focusedId ?? s.activeId, splitWebTabId: null });
+    }),
+    // A divider drag repaints every frame. Change only the in-memory tree;
+    // no normalization, persistence, focus or route change until setCanvas
+    // commits the final sizes on release.
+    previewCanvas: (targetId, root) => set(s => {
+      const group = findCenterTabGroup(s.groups, targetId);
+      if (!group?.canvas) return {};
+      return { groups: s.groups.map(g => g === group ? { ...g, canvas: { ...group.canvas!, root } } : g) };
     }),
     dockCanvas: (source, targetId, paneId, side) => set(s => {
       const sourceIds = typeof source === "string" ? [source] : source;

@@ -53,6 +53,11 @@
 .grip:active {
   cursor: grabbing;
 }
+/* 拖动中的格子：把手跟着指针走（由拖动标签代替），原位置不显示。
+   状态在格子上而不是把手的内联样式里，拖动怎么结束都会被清掉。 */
+.pane[data-pane-dragging] .grip {
+  visibility: hidden;
+}
 .grip i {
   position: relative;
   top: -5px;

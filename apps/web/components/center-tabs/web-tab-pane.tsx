@@ -379,19 +379,33 @@ function DesktopWebTabPane({
   useEffect(() => {
     const el = bodyRef.current;
     if (!el) return;
-    let disposed = false, capturing = false, lastFrozen = false;
+    // Freezing swaps the native view for a snapshot. Keep the live view on
+    // screen until the snapshot exists (or briefly times out), so a drag or
+    // a narrow pane never flashes an empty "paused" card first.
+    let disposed = false, capturing = false, hidden = false;
+    const hide = () => {
+      if (disposed || hidden || !capturing) return;
+      hidden = true;
+      setFrozen(true);
+      removeVisibleWebTabBounds(bridge, tabId); setWebTabReady(tabId, false);
+    };
     const report = () => {
       const bounds = measureWebTabBounds(el);
       const freeze = canvasDragging() || suspended || bounds.width < 320 || bounds.height < 172;
-      if (freeze !== lastFrozen) { lastFrozen = freeze; setFrozen(freeze); }
       if (freeze) {
         if (!capturing) {
           capturing = true;
-          void bridge.webTab.capture?.(tabId, "presentation").then(image => { if (!disposed && image) setFrozenImage(image); }).catch(() => {});
+          const timer = window.setTimeout(hide, 160);
+          void Promise.resolve(bridge.webTab.capture?.(tabId, "presentation"))
+            .then(image => { if (!disposed && image) setFrozenImage(image); })
+            .catch(() => {})
+            .finally(() => { window.clearTimeout(timer); hide(); });
         }
-        removeVisibleWebTabBounds(bridge, tabId); setWebTabReady(tabId, false); return;
+        if (hidden) { removeVisibleWebTabBounds(bridge, tabId); setWebTabReady(tabId, false); }
+        return;
       }
       capturing = false;
+      if (hidden) { hidden = false; setFrozen(false); }
       const occluded = isWebTabOccluded(
         bounds,
         document.querySelectorAll(
