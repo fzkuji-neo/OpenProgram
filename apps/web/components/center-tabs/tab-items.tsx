@@ -20,6 +20,7 @@ import {
 } from "@/components/animated-icons";
 import type { CenterTab } from "@/lib/tabs/center-tabs-store";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
+import { rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import type { TabDragSubject } from "@/lib/tabs/tab-drag-coordinator";
 import { useTranslation } from "@/lib/i18n";
 import { labelOf } from "./tab-label";
@@ -86,6 +87,34 @@ export function CompoundMemberIcon({ tab, animate }: { tab: CenterTab; animate: 
   );
 }
 
+/** The split's shape in miniature, its panes laid out as on screen; the
+ *  pane of the tab the strip names is the filled one. */
+function SplitGlyph({ root, current }: { root: LayoutNode; current: string }) {
+  const W = 16, H = 11, GAP = 1.5;
+  const rects: Array<{ x: number; y: number; w: number; h: number; on: boolean }> = [];
+  const walk = (node: LayoutNode, x: number, y: number, w: number, h: number) => {
+    if (node.kind === "pane") { rects.push({ x, y, w, h, on: node.content === current }); return; }
+    const total = node.sizes.reduce((sum, size) => sum + size, 0) || 1;
+    const span = (node.dir === "row" ? w : h) - GAP * (node.children.length - 1);
+    let at = node.dir === "row" ? x : y;
+    node.children.forEach((child, i) => {
+      const size = span * (node.sizes[i] ?? 1) / total;
+      if (node.dir === "row") walk(child, at, y, size, h); else walk(child, x, at, w, size);
+      at += size + GAP;
+    });
+  };
+  walk(root, 0, 0, W, H);
+  return (
+    <svg className={styles.splitGlyph} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+      {rects.map((r, i) => <rect key={i} x={r.x} y={r.y} width={Math.max(0, r.w)} height={Math.max(0, r.h)} rx={1.2} data-on={r.on || undefined} />)}
+    </svg>
+  );
+}
+
+/** A split window is one tab, like Chrome's and Arc's split views: it
+ *  names the pane in focus, and a miniature of the split with the number
+ *  of panes stands for the rest (the overview shows them all). Its close
+ *  closes the whole window; a single pane closes from its own grip. */
 export function CompoundTabItem({
   group,
   tabs,
@@ -110,20 +139,28 @@ export function CompoundTabItem({
   const canonicalTab = memberTabs.find((tab) => tab.id === group.focusedId)
     ?? memberTabs.find((tab) => tab.kind === "session")
     ?? memberTabs[0];
+  const closingTabs = memberTabs.filter((tab) => closingIds.has(tab.id));
+  const closing = closingTabs.length > 0 && closingTabs.length === memberTabs.length;
+  // One pane closing leaves the tab as it is; it only has to finish.
+  const memberClosingKey = closing ? "" : closingTabs.map((tab) => tab.id).join("\n");
+  useEffect(() => {
+    if (!memberClosingKey) return;
+    const timer = window.setTimeout(() => closingTabs.forEach(onExited), 160);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberClosingKey]);
   if (!canonicalTab) return null;
   const combinedLabel = memberTabs.map((tab) => labelOf(tab, t, text)).join(" · ");
-  const closingTabs = memberTabs.filter((tab) => closingIds.has(tab.id));
-  const closing = closingTabs.length === memberTabs.length;
-  const memberClosing = closingTabs.length > 0 && !closing;
+  const label = labelOf(canonicalTab, t, text);
+  const closeLabel = text(`Close split window (${memberTabs.length})`, `关闭分屏窗口（${memberTabs.length} 个）`);
   const tabStop = group.memberIds.includes(focusedTabId ?? "");
   return (
     <div
-      className={`${styles.compoundTab} ${active ? styles.compoundTabActive : ""} ${closing ? styles.tabExit : ""} ${memberClosing ? styles.compoundMemberClosing : ""}`}
+      className={`${styles.compoundTab} ${active ? styles.compoundTabActive : ""} ${closing ? styles.tabExit : ""}`}
       data-member-count={group.memberIds.length}
       data-tab-closing={closing || undefined}
       style={shiftStyle(shiftX)}
       role="presentation"
-      title={combinedLabel}
       onClick={() => onActivate(canonicalTab)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -164,48 +201,35 @@ export function CompoundTabItem({
           onActivate(canonicalTab);
         }}
       />
-      {memberTabs.length > 2 ? <span className={styles.canvasPaneCount}>+{memberTabs.length - 2}</span> : null}
       <div className={styles.compoundMembers}>
-        {memberTabs.slice(0, 2).map((tab) => {
-          const memberClosing = !closing && closingIds.has(tab.id);
-          const memberLabel = labelOf(tab, t, text);
-          const closeLabel = `${text("Close", "关闭")} ${memberLabel}`;
-          return (
-            <span
-              key={tab.id}
-              className={`${styles.compoundMember} ${memberClosing ? styles.compoundMemberExit : ""}`}
-              onAnimationEnd={(event) => {
-                if (event.target === event.currentTarget && memberClosing) onExited(tab);
-              }}
-            >
-              <CompoundMemberIcon tab={tab} animate={hovered} />
-              <span className={styles.compoundMemberName} aria-hidden="true">
-                {memberLabel}
-              </span>
-              {tab.dirty ? (
-                <span className={styles.tabDirtyDot} aria-hidden="true">
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "currentColor" }} />
-                </span>
-              ) : null}
-              <button
-                type="button"
-                className={`${styles.tabClose} ${styles.compoundMemberClose}`}
-                aria-label={closeLabel}
-                title={closeLabel}
-                tabIndex={active ? 0 : -1}
-                aria-disabled={closingIds.has(tab.id) || undefined}
-                onPointerDown={(event) => event.stopPropagation()}
-                onMouseDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  if (!closingIds.has(tab.id)) onClose(event, [tab]);
-                }}
-              >
-                <X size={14} />
-              </button>
+        <span className={styles.compoundMember}>
+          <CompoundMemberIcon tab={canonicalTab} animate={hovered} />
+          <span className={styles.compoundMemberName} aria-hidden="true">{label}</span>
+          {memberTabs.some((tab) => tab.dirty) ? (
+            <span className={styles.tabDirtyDot} aria-hidden="true">
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "currentColor" }} />
             </span>
-          );
-        })}
+          ) : null}
+          <span className={styles.splitMark} aria-hidden="true">
+            <SplitGlyph root={group.canvas?.root ?? rowLayout(group.memberIds).root} current={canonicalTab.id} />
+            {memberTabs.length}
+          </span>
+          <button
+            type="button"
+            className={`${styles.tabClose} ${styles.compoundMemberClose}`}
+            aria-label={closeLabel}
+            tabIndex={active ? 0 : -1}
+            aria-disabled={closing || undefined}
+            onPointerDown={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!closing) onClose(event, memberTabs.filter((tab) => !closingIds.has(tab.id)));
+            }}
+          >
+            <X size={14} />
+          </button>
+        </span>
       </div>
     </div>
   );
