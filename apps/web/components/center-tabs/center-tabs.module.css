@@ -1290,6 +1290,10 @@
   /* Resize targets hang outside the frame. */
   overflow: visible;
 }
+/* Window pictures for the overview leave the floating preview out. */
+:global(html[data-capturing-panes]) .webPip {
+  visibility: hidden;
+}
 .webPipDragging {
   will-change: transform;
   transition: none;
