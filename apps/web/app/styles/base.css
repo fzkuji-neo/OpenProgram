@@ -637,22 +637,22 @@ select:focus-visible {
    Settings (.view in settings-page.module.css) and the management pages
    (.view in ui/manage-page.module.css). */
 @media (max-width: 900px) {
+  /* Floating over the content, the rail is only its card: the 8px gutter
+     around it stays clear, and the card itself casts the drawer shadow. */
   .sidebar {
     position: fixed; top: 0; bottom: 0; z-index: 100;
-    /* The rail's card sits in an 8px gutter. Floating over the content,
-       that gutter must be the page colour, or the panes underneath show
-       through as a pale halo around the card. */
-    background: var(--bg-secondary);
   }
   .sidebar:not(.right-sidebar) { left: 0; }
-  .sidebar:not(.right-sidebar):not(.collapsed) {
-    box-shadow: var(--shadow-sidebar-left);
+  .sidebar:not(.right-sidebar):not(.collapsed) > [data-slot="sidebar-inner"] {
+    box-shadow: var(--composer-shadow), var(--shadow-sidebar-left);
   }
   .right-sidebar,
   .detail-panel {
     position: fixed; top: 0; bottom: 0; right: 0; z-index: 100;
   }
-  .right-sidebar:not(.collapsed),
+  .right-sidebar:not(.collapsed) > [data-slot="sidebar-inner"] {
+    box-shadow: var(--composer-shadow), var(--shadow-sidebar-right);
+  }
   .detail-panel:not(.collapsed) {
     box-shadow: var(--shadow-sidebar-right);
   }
