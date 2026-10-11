@@ -1439,3 +1439,41 @@ def test_observe_reports_the_page_so_the_preview_follows_reads(monkeypatch):
     assert observed.get("ok") is not False
     # A read moves the preview but does not claim the page as Agent-controlled.
     assert reported == [("page-1", "observe", "acknowledged", False)]
+
+
+def test_the_next_result_names_a_popup_the_page_opened(monkeypatch):
+    import openprogram.browser_resources as browser_resources
+    from openprogram.programs.workflow.browser.web_use_runtime import (
+        WebUseSessionRegistry,
+    )
+
+    monkeypatch.setattr(
+        browser_resources, "report_browser_operation",
+        lambda *args, **kwargs: None,
+    )
+    registry = WebUseSessionRegistry(
+        adapters={
+            name: _Adapter(name)
+            for name in ("playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome")
+        },
+        binding_validator=_allow_binding,
+    )
+    first = registry.execute(
+        command="observe", backend="playwright_mcp", binding_id="binding-1",
+        page_key="page-1", owner_id="owner-1",
+    )
+    assert "opened_pages" not in first
+    popup = {"window_id": "win", "tab_id": "popup", "url": "https://visa.test/apply", "title": "Apply"}
+    browser_resources.note_opened_page(["page-1"], popup)
+
+    second = registry.execute(
+        command="observe", web_session_id=first["web_session_id"], owner_id="owner-1",
+    )
+    third = registry.execute(
+        command="observe", web_session_id=first["web_session_id"], owner_id="owner-1",
+    )
+
+    # Told once, with how to continue there instead of repeating the flow.
+    assert second["opened_pages"] == [popup]
+    assert "list_pages" in second["opened_pages_note"]
+    assert "opened_pages" not in third

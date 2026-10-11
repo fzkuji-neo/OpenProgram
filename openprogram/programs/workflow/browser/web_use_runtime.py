@@ -1116,6 +1116,21 @@ class WebUseSessionRegistry:
         failed = isinstance(result, dict) and result.get("ok") is False
         if command in {"observe", "act"} and not failed and not cleaned:
             _publish_bound_page(session, result)
+        if command in {"observe", "act"} and not failed and isinstance(result, dict):
+            from openprogram.browser_resources import take_opened_pages
+            opened = take_opened_pages(session.page_key)
+            if opened:
+                # A popup is a separate Page. Without this the Agent kept
+                # working in the opener and started the same flow twice.
+                result = {
+                    **result, "opened_pages": opened,
+                    "opened_pages_note": (
+                        "This page opened the page(s) listed in opened_pages. "
+                        "Continue the flow there: call web_use list_pages and observe "
+                        "the page with that tab_id. Do not start the same flow again "
+                        "in this page."
+                    ),
+                }
         if command == "observe" and not failed and not cleaned:
             # Looking at a Page is working on it: the conversation preview
             # follows reads too, not only clicks and typing. After publish, so

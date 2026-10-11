@@ -1288,6 +1288,65 @@ def emit_browser_resource(row: Mapping[str, Any], *, page_key: str) -> None:
             _log.warning("browser.resource emit failed")
 
 
+_opened_pages_lock = threading.Lock()
+_opened_pages: dict[str, list[dict[str, Any]]] = {}
+
+
+def note_opened_page(opener_keys: list[str], page: Mapping[str, Any]) -> None:
+    """Remember a Page another Page opened, for that Page's next tool result."""
+    with _opened_pages_lock:
+        for key in opener_keys:
+            pending = _opened_pages.setdefault(key, [])
+            pending.append(dict(page))
+            del pending[:-8]
+
+
+def take_opened_pages(page_key: str) -> list[dict[str, Any]]:
+    if not page_key:
+        return []
+    with _opened_pages_lock:
+        return _opened_pages.pop(page_key, [])
+
+
+def adopt_popup_page(
+    *, page_key: str, opener_keys: list[str], window_id: str, tab_id: str,
+    title: str, target: str, connection_generation: int,
+) -> list[dict[str, Any]]:
+    """Give a popup the conversation that owns the Page that opened it.
+
+    The newest opener record with associations decides; older records for
+    the same tab describe earlier branches and runs.
+    """
+    store = BrowserResourceStore()
+    newest = None
+    for key in opener_keys:
+        row = store.get_resource(key)
+        associations = store.associations_for_page(key)
+        if row is None or not any(
+            a.get("conversation_session_id") or a.get("session_id") for a in associations
+        ):
+            continue
+        if newest is None or float(row.get("updated_at") or 0) > newest[0]:
+            newest = (float(row.get("updated_at") or 0), associations)
+    if newest is None:
+        return []
+    for assoc in newest[1]:
+        if not (assoc.get("conversation_session_id") or assoc.get("session_id")):
+            continue
+        store.retain(
+            page_key=page_key, window_id=window_id, tab_id=tab_id,
+            title=title, target=target, connection_generation=connection_generation,
+            session_id=assoc.get("session_id"),
+            execution_id=assoc.get("execution_id"),
+            user_message_id=assoc.get("user_message_id"),
+            assistant_message_id=assoc.get("assistant_message_id"),
+            agent_name=assoc.get("agent_name"),
+            conversation_session_id=assoc.get("conversation_session_id"),
+            live=True,
+        )
+    return project_page_resource_rows(page_key)
+
+
 def project_page_resource_rows(page_key: str) -> list[dict[str, Any]]:
     """Project only the associations for one Page after native close."""
     store = BrowserResourceStore()

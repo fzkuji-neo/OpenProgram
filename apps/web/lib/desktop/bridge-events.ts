@@ -19,8 +19,9 @@ import { ingestBrowserResource, type BackendResource } from "@/lib/chat/session-
 import { recordOperationCue, showActionsEnabled } from "@/lib/browser/browser-control";
 import { hasNavigate, navigate } from "@/lib/navigate";
 import type { DesktopWebTabApi } from "@/lib/desktop/desktop-bridge-types";
+import { getSocket } from "@/lib/runtime-bridge/state";
 import { type DesktopBridge } from "./bridge-api";
-import { nativeCueOperations, webTabGeometryRevisions } from "./bridge-state";
+import { ensureWebView, nativeCueOperations, webTabGeometryRevisions } from "./bridge-state";
 
 
 
@@ -36,7 +37,9 @@ export function showCenterSurface(): boolean {
 }
 
 export function subscribeWebTabPopups(
-  bridge: { webTab: Pick<DesktopWebTabApi, "onPopup"> },
+  bridge: Pick<DesktopBridge, "windowId"> & {
+    webTab: Pick<DesktopWebTabApi, "onPopup"> & Partial<DesktopWebTabApi>;
+  },
 ): () => void {
   return bridge.webTab.onPopup?.((popup) => {
     if (
@@ -49,9 +52,43 @@ export function subscribeWebTabPopups(
       return;
     }
     const opener = state.tabs.find((tab) => tab.id === popup.openerId);
-    state.openPopupWebTab(popup.url, popup.openerId);
-    if (!opener?.agentOpened) showCenterSurface();
+    const id = state.openPopupWebTab(popup.url, popup.openerId);
+    if (!opener?.agentOpened) {
+      showCenterSurface();
+      return;
+    }
+    adoptAgentPopup(bridge, id, popup.openerId, popup.url);
   }) ?? (() => {});
+}
+
+/**
+ * An Agent's popup is the next step of its task. Load it now, in the
+ * background, and hand it to the worker so it joins the conversation's
+ * Resources and the Agent's page list. Left unloaded, the Agent could not
+ * see it and started the same flow again in its own page.
+ */
+function adoptAgentPopup(
+  bridge: Parameters<typeof subscribeWebTabPopups>[0],
+  id: string,
+  openerId: string,
+  url: string,
+): void {
+  if (!bridge.webTab.ensure || !bridge.webTab.resolve) return;
+  ensureWebView(bridge as DesktopBridge, id, url);
+  void Promise.resolve()
+    .then(() => bridge.webTab.resolve?.(id) ?? null)
+    .then((targetId) => {
+      const ws = getSocket();
+      if (!targetId || ws?.readyState !== WebSocket.OPEN) return;
+      const tab = useCenterTabs.getState().tabs.find((item) => item.id === id);
+      if (tab?.kind !== "web") return;
+      ws.send(JSON.stringify({
+        action: "webtab_popup", window_id: bridge.windowId, tab_id: id,
+        opener_tab_id: openerId, target_id: targetId,
+        url: tab.url || url, title: tab.title || "",
+      }));
+    })
+    .catch(() => {});
 }
 
 /** Kept for older bridge consumers; page interaction never controls execution. */
