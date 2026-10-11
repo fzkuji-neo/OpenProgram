@@ -123,7 +123,10 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(drag, /void captureVisiblePanes\(\[tabId\]\)\.then\(\(\) => \{ if \(!finished\) openOverview\("drag", \[tabId\]\); \}\);/);
   assert.match(view, /\{shot \? <img className=\{styles\.shot\} src=\{shot\}/, 'cards show what each pane looked like');
   const shots = await read('lib/tabs/window-snapshots.ts');
-  assert.match(shots, /tab\?\.kind === "web"\s*\? await bridge\.webTab\.capture/, 'web pages are pictured from their own view');
+  assert.match(shots, /const page = await bridge\.webTab\.capture\?\.\(id, "presentation"\)/, 'web pages are pictured from their own view');
+  assert.match(shots, /g\.drawImage\(inner, \(frame\.left - pane\.left\) \* k, \(frame\.top - pane\.top\) \* k, frame\.width \* k, frame\.height \* k\);/, 'the page is drawn into its pane picture under the toolbar, keeping the pane proportions');
+  assert.match(shots, /if \(shot && chrome\) remember\(\[\[id, await underChrome\(shot, chrome\)\]\]\);/, 'a page pictured off screen keeps the toolbar band it was seen with');
+  assert.match(view, /function windowBox\(canvas: HTMLElement\): Box \{\n  return canvasViewport\(canvas\.clientWidth, canvas\.clientHeight\);/, 'a card zooms onto the exact box its panes are laid out in');
   assert.match(shots, /indexedDB\.open\(DB, 1\)/, 'pictures survive a restart');
   assert.match(shots, /root\.setAttribute\("data-capturing-panes", ""\)/, 'the pane grips stay out of the pictures');
   const overviewCss = await read('components/center-tabs/canvas-overview.module.css');
