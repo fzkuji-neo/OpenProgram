@@ -52,17 +52,18 @@ const { subscribeWebTabPopups } = await import("../../lib/desktop/bridge-events.
 
 function popupBridge() {
   let emit = () => {};
-  const ensured = [];
+  const ensured = [], destroyed = [];
   const bridge = {
     windowId: "main",
     webTab: {
       onPopup: (handler) => { emit = handler; return () => {}; },
       ensure: (id, url) => ensured.push([id, url]),
       resolve: async (id) => `target:${id}`,
+      destroy: (id) => destroyed.push(id),
     },
   };
   subscribeWebTabPopups(bridge);
-  return { ensured, popup: (detail) => emit(detail) };
+  return { ensured, destroyed, popup: (detail) => emit(detail) };
 }
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
@@ -105,4 +106,25 @@ test("a person's popup opens in front and is not reported as Agent work", async 
   assert.equal(useCenterTabs.getState().activeId, tab.id);
   assert.deepEqual(ensured, []);
   assert.deepEqual(sent, []);
+});
+
+test("a popup the desktop already made keeps its id, so its opener link survives", async () => {
+  setSocket({ readyState: WebSocket.OPEN, send() {} });
+  const opener = { id: "w:user", kind: "web", url: "https://visa.test/", title: "Visa" };
+  useCenterTabs.setState({ tabs: [opener], activeId: opener.id, groups: [], splitWebTabId: null });
+  const { popup } = popupBridge();
+
+  popup({ openerId: opener.id, url: "https://visa.test/login", id: "w:https://visa.test/login:popup:x:n0" });
+
+  assert.equal(useCenterTabs.getState().activeId, "w:https://visa.test/login:popup:x:n0");
+});
+
+test("a desktop-made popup with no opener tab is closed, not leaked", async () => {
+  useCenterTabs.setState({ tabs: [], activeId: null, groups: [], splitWebTabId: null });
+  const { destroyed, popup } = popupBridge();
+
+  popup({ openerId: "w:gone", url: "https://visa.test/login", id: "native-popup" });
+
+  assert.deepEqual(destroyed, ["native-popup"]);
+  assert.deepEqual(useCenterTabs.getState().tabs, []);
 });

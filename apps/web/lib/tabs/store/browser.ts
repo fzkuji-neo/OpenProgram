@@ -18,8 +18,8 @@ export function browserActions(set: StoreApi<CenterTabsState>["setState"], get: 
           }));
       }),
 
-    openPopupWebTab: (url, openerTabId) => {
-      const id = nextPopupWebTabId(url);
+    openPopupWebTab: (url, openerTabId, nativeId) => {
+      const id = nativeId || nextPopupWebTabId(url);
       set((s) => {
         const opener = s.tabs.find((tab) => tab.id === openerTabId);
         return commitCenterTabsState(s, {

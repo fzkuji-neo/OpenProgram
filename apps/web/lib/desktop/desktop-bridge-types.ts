@@ -181,7 +181,8 @@ export interface DesktopWebTabApi {
    *  unsubscribe function. */
   onState(cb: (state: DesktopWebTabState) => void): () => void;
   /** Valid http(s) page popup delegated by the owning native web view. */
-  onPopup?(cb: (popup: { openerId: string; url: string }) => void): () => void;
+  /** ``id`` is set when the desktop already made the popup's Page (it keeps window.opener). */
+  onPopup?(cb: (popup: { openerId: string; url: string; id?: string }) => void): () => void;
   onFindResult?(cb: (result: DesktopWebTabFindResult) => void): () => void;
   onCommand?(cb: (command: { id: string; command: "find" }) => void): () => void;
   /** Native human input on an owned Page. Payload has no typed text, keys, coords, or URLs. */
