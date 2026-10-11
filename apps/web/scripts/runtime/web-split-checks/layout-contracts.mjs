@@ -120,7 +120,7 @@ testContext.assert.match(testContext.desktopBridgeSource, /waitForWebTabReady\(i
 
 testContext.assert.match(testContext.desktopBridgeSource, /subscribeWebTabPopups\(bridge\)/);
 
-testContext.assert.match(testContext.desktopBridgeSource, /state\.openPopupWebTab\(popup\.url, popup\.openerId\)/);
+testContext.assert.match(testContext.desktopBridgeSource, /state\.openPopupWebTab\(popup\.url, popup\.openerId, nativeId\)/);
 
 testContext.assert.match(
   testContext.desktopBridgeSource,
