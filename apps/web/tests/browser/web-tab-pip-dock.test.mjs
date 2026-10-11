@@ -721,6 +721,12 @@ test("floating PiP shows the current matching resource title for never-opened hi
     assert.equal(renderedPipTitle(host), "Resource test 2");
 
     await act(async () => {
+      useCenterTabs.getState().updateWebTab(second.id, { url: "http://127.0.0.1/moved", title: "Moved page" });
+    });
+    // The record still names the old URL; the tab's live title wins.
+    assert.equal(renderedPipTitle(host), "Moved page");
+
+    await act(async () => {
       useWebTabPip.getState().show(unattributed.id, session.id);
     });
     assert.equal(renderedPipTitle(host), "127.0.0.1");
