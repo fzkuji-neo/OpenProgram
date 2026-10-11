@@ -7,8 +7,9 @@ import { desktopBridge, buildTransferPayload } from "../desktop/desktop-bridge";
 import { translateText } from "../i18n";
 import { DRAG_SURFACE_STYLE } from "../prefs/visual-effects-config";
 /** A drop on the canvas. "dock" places the tab; "fill" opens it on its own
- *  (the top edge, like dragging a window to the menu bar). */
-export type CanvasDrop = { targetId: string; paneId: string; side: CanvasDockSide; rect: Rect; action: "dock" | "fill"; label: string };
+ *  (the top edge, like dragging a window to the menu bar); "stay" is a pane
+ *  over the place it already has, shown so the canvas never goes silent. */
+export type CanvasDrop = { targetId: string; paneId: string; side: CanvasDockSide; rect: Rect; action: "dock" | "fill" | "stay"; label: string };
 let preview: HTMLDivElement | null = null;
 let dragging = false;
 const listeners = new Set<() => void>();
@@ -65,7 +66,8 @@ export const canvasEdgeBand = (width: number, height: number) => Math.max(40, Ma
 /** Share of a pane's width on each side that splits it left or right. */
 export const PANE_SIDE = 0.25;
 
-/** Which drop the pointer is over, with the exact rect the tab would take. */
+/** Which drop the pointer is over. The highlight always contains the pointer:
+ *  the canvas half or quarter at an edge, the half of the pane under it inside. */
 export function canvasDropAt(x: number, y: number, sourceIds: string[], alt = false): CanvasDrop | null {
   const root = document.querySelector<HTMLElement>("[data-canvas-root]");
   if (!root || !sourceIds.length) return null;
@@ -88,9 +90,17 @@ export function canvasDropAt(x: number, y: number, sourceIds: string[], alt = fa
     const left = Math.min(...rects.map(b => b.left)), top = Math.min(...rects.map(b => b.top));
     return shift({ left, top, width: Math.max(...rects.map(b => b.left + b.width)) - left, height: Math.max(...rects.map(b => b.top + b.height)) - top });
   };
-  const dock = (paneId: string, side: CanvasDockSide, label: [string, string]): CanvasDrop | null => {
-    const rect = placed(paneId, side);
-    return rect ? { targetId, paneId, side, rect, action: "dock", label: translateText(...label) } : null;
+  const paneEl = (id: string) => panes.find(p => p.dataset.canvasPane === id);
+  const boxOf = (el: HTMLElement): Rect => { const b = el.getBoundingClientRect(); return { left: b.left, top: b.top, width: b.width, height: b.height }; };
+  const sourcePane = sourceIds.length === 1 ? leaves(layout.root).find(p => p.content === sourceIds[0]) : undefined;
+  const sourceEl = sourcePane ? paneEl(sourcePane.id) : undefined;
+  // Like macOS, the highlight is always where the pointer is. A pane that
+  // would land where it already sits says so instead of showing nothing.
+  const stay = (rect: Rect): CanvasDrop => ({ targetId, paneId: sourcePane?.id ?? "root", side: "center", rect, action: "stay", label: translateText("Stays here", "留在原处") });
+  const dock = (paneId: string, side: CanvasDockSide, label: [string, string], rect?: Rect): CanvasDrop | null => {
+    const lands = placed(paneId, side);
+    if (!lands) return sourceEl ? stay(rect ?? boxOf(sourceEl)) : null;
+    return { targetId, paneId, side, rect: rect ?? lands, action: "dock", label: translateText(...label) };
   };
   const band = canvasEdgeBand(r.width, r.height);
   const nearL = x - r.left <= band, nearR = r.right - x <= band, nearT = y - r.top <= band, nearB = r.bottom - y <= band;
@@ -107,28 +117,36 @@ export function canvasDropAt(x: number, y: number, sourceIds: string[], alt = fa
     const side = nearL ? "left" : nearR ? "right" : "bottom";
     return dock("root", side, SIDE_LABEL[side]);
   }
-  const el = panes.find(p => { const b = p.getBoundingClientRect(); return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; });
+  // The pointer may sit in the gap between two panes; take the nearest.
+  const el = panes.find(p => { const b = p.getBoundingClientRect(); return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; })
+    ?? panes.reduce<HTMLElement | undefined>((best, p) => {
+      const d = (e: HTMLElement) => { const b = e.getBoundingClientRect(); return Math.hypot(Math.max(b.left - x, 0, x - b.right), Math.max(b.top - y, 0, y - b.bottom)); };
+      return !best || d(p) < d(best) ? p : best;
+    }, undefined);
   if (!el) return null;
   const paneId = el.dataset.canvasPane!;
   const content = leaves(layout.root).find(p => p.id === paneId)?.content ?? null;
-  if (sourceIds.length === 1 && content === sourceIds[0]) return null;
-  const b = el.getBoundingClientRect();
-  if (!content) {
-    const rect = placed(paneId, "center");
-    return rect ? { targetId, paneId, side: "center", rect, action: "dock", label: translateText("Put it here", "放到这里") } : null;
-  }
+  const paneRect = boxOf(el);
+  if (sourceIds.length === 1 && content === sourceIds[0]) return stay(paneRect);
+  if (!content) return dock(paneId, "center", ["Put it here", "放到这里"], paneRect);
   // Left and right quarters split sideways; the middle column splits by its
-  // half, so the whole lower middle means "below". No dead centre.
-  const px = (x - b.left) / b.width, py = (y - b.top) / b.height;
-  const paneRect = { left: b.left, top: b.top, width: b.width, height: b.height };
+  // half, so the whole lower middle means "below". No dead centre. The
+  // highlight is that half of the pane as it stands, under the pointer;
+  // the rest of the canvas reflows around it after the drop.
+  const px = (x - paneRect.left) / paneRect.width, py = (y - paneRect.top) / paneRect.height;
   if (alt) return { targetId, paneId, side: "center", rect: paneRect, action: "dock", label: translateText("Replace this pane", "替换这一格") };
   const side = px < PANE_SIDE ? "left" : px > 1 - PANE_SIDE ? "right" : py < 0.5 ? "top" : "bottom";
-  return dock(paneId, side, PANE_LABEL[side]);
+  const { left, top, width, height } = paneRect;
+  const half: Rect = side === "left" ? { left, top, width: width / 2, height }
+    : side === "right" ? { left: left + width / 2, top, width: width / 2, height }
+    : side === "top" ? { left, top, width, height: height / 2 }
+    : { left, top: top + height / 2, width, height: height / 2 };
+  return dock(paneId, side, PANE_LABEL[side], half);
 }
 /** Apply a canvas drop. Returns false when it changed nothing. */
 export function commitCanvasDrop(drop: CanvasDrop, sourceIds: string[]): boolean {
   const s = useCenterTabs.getState(), sourceId = sourceIds[0];
-  if (!sourceId) return false;
+  if (!sourceId || drop.action === "stay") return false;
   const group = findCenterTabGroup(s.groups, drop.targetId);
   const layout = group?.canvas ?? rowLayout([drop.targetId]);
   rememberCanvas([drop.targetId, ...sourceIds, ...(group ? [group.id, ...group.memberIds] : [])], layout);
