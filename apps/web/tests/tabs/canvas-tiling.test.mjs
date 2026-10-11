@@ -107,6 +107,12 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(view, /const geometry = canvasGeometry\(card\.root, viewport\);/, 'a split window stays split in its card');
   assert.match(view, /data-native-view-occluder="true"/, 'native web views hide under it');
   assert.match(view, /if \(!isPinch\(e\) \|\| e\.defaultPrevented\) return;/, 'a pinch opens it unless the content zooms itself');
+  assert.match(view, /command\.command === "overview" && !useCanvasOverview\.getState\(\)\.mode/, 'a pinch in on a web page opens it too');
+  const webPinch = await read('../desktop/main/webtab-preload.js');
+  assert.match(webPinch, /if \(spent \|\| startScale > 1\.01\) return;/, 'only a page at its normal size hands the pinch to the overview');
+  assert.match(webPinch, /!e\.isTrusted/, 'a page cannot fake the gesture');
+  const webViews = await read('../desktop/main/web-views.js');
+  assert.match(webViews, /setVisualZoomLevelLimits\(1, 3\)/, 'a pinch out magnifies a web page');
   assert.doesNotMatch(view, /\stitle=\{/, 'no native tooltips');
   const strip = await read('components/center-tabs/center-tab-strip.tsx');
   assert.match(strip, /className=\{styles\.overviewBtn\}\s*data-overview-toggle=""\s*aria-label=\{text\("Show all windows", "显示所有窗口"\)\}/, 'the strip button opens it, labelled without a native tooltip');

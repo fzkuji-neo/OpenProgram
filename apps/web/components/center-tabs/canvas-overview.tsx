@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { topLevelTabs } from "@/lib/browser/web-page-management";
 import { canvasGeometry, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
+import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { canvasDragging } from "@/lib/tabs/canvas-drag";
 import { captureVisiblePanes, captureWebTabs, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
 import { closeOverview, dismissOverview, openOverview, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
@@ -84,7 +85,12 @@ export function CanvasOverview() {
       else if (open === "browse" && total < -30) { spent = true; dismissOverview(); }
     };
     window.addEventListener("wheel", wheel, { passive: true });
-    return () => { window.removeEventListener("wheel", wheel); window.clearTimeout(timer); };
+    // A web page is its own native view, so its pinch comes from the desktop
+    // shell, only when the page is at its normal size.
+    const offWebPinch = desktopBridge()?.webTab.onCommand?.(command => {
+      if (command.command === "overview" && !useCanvasOverview.getState().mode) void captureVisiblePanes().then(() => openOverview("browse"));
+    });
+    return () => { window.removeEventListener("wheel", wheel); window.clearTimeout(timer); offWebPinch?.(); };
   }, []);
 
   // A window on screen is pictured once it settles (after a switch or a

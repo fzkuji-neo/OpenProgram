@@ -184,7 +184,7 @@ export interface DesktopWebTabApi {
   /** ``id`` is set when the desktop already made the popup's Page (it keeps window.opener). */
   onPopup?(cb: (popup: { openerId: string; url: string; id?: string }) => void): () => void;
   onFindResult?(cb: (result: DesktopWebTabFindResult) => void): () => void;
-  onCommand?(cb: (command: { id: string; command: "find" }) => void): () => void;
+  onCommand?(cb: (command: { id: string; command: "find" | "overview" }) => void): () => void;
   /** Native human input on an owned Page. Payload has no typed text, keys, coords, or URLs. */
   onHumanInput?(cb: (input: DesktopWebTabHumanInput) => void): () => void;
 }

@@ -319,6 +319,15 @@ function createWebViews({
       view.setBounds(HIDDEN_WEBTAB_BOUNDS);
       view.setVisible(false);
       const wc = view.webContents;
+      // Pinch out magnifies the page as in Safari; pinch in at normal size
+      // (reported by webtab-preload.js) opens the App's window overview.
+      const allowPinchZoom = () => { void wc.setVisualZoomLevelLimits(1, 3).catch(() => {}); };
+      allowPinchZoom();
+      wc.on("dom-ready", allowPinchZoom);
+      wc.ipc.on("webtab:pinch-overview", () => {
+        const owner = ownerOf(record);
+        if (owner && !record.pipLayoutZoom) owner.win.webContents.send("webtab:command", { id: record.id, command: "overview" });
+      });
       // Native popup windows are disabled. A valid web popup becomes a hidden
       // Page of this window, built on the WebContents Chromium made for it so
       // window.opener still works: sites such as ImmiAccount finish a flow by
