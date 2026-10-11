@@ -200,6 +200,7 @@ def test_goal_read_failure_is_unavailable_not_absent(action_goal, monkeypatch):
 
     with monkeypatch.context() as patch:
         patch.setattr(package._db(), "get_session", fail_read)
+        patch.setattr(package._db(), "read_disk_meta", fail_read)
         response = client.get("/api/sessions/actions/goal")
         assert response.status_code == 503
         assert "private" not in response.text
@@ -233,6 +234,7 @@ def test_public_goal_does_not_start_when_saved_state_is_unreadable(
         raise OSError("private database detail")
 
     monkeypatch.setattr(package._db(), "get_session", fail_read)
+    monkeypatch.setattr(package._db(), "read_disk_meta", fail_read)
     with pytest.raises(package.GoalStateUnavailable, match="unavailable"):
         package.goal(prompt="original", resume=True)
 
