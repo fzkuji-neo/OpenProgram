@@ -206,6 +206,29 @@ class SessionsOperations:
         return value
 
 
+    def read_disk_meta(self, session_id: str) -> shared.Optional[dict[str, shared.Any]]:
+        """``meta.json`` exactly as it is on disk now, or ``None`` when the
+        session has none.
+
+        For reads that must see another process's latest session-level
+        write (a Goal changed from another surface) without paying for
+        ``invalidate_cache``, which re-reads every history node. The
+        in-memory index is neither consulted nor changed.
+        """
+        if (
+            not isinstance(session_id, str)
+            or not session_id
+            or session_id in {".", ".."}
+            or "/" in session_id
+            or "\\" in session_id
+        ):
+            return None
+        git = shared.GitSession(self._session_dir(session_id))
+        if not (git.path / "meta.json").is_file():
+            return None
+        return git.read_meta()
+
+
     def get_session(self, session_id: str) -> shared.Optional[dict[str, shared.Any]]:
         pair = self._open(session_id)
         if pair is None:
