@@ -1,5 +1,33 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
+// Channels that every web tab, bookmark folder or menu owner subscribes to
+// would add one Electron listener each and trip its 10-listener warning.
+// Each channel keeps one listener and fans out to its subscribers, in
+// subscription order; a subscriber that throws does not starve the rest.
+const fanOuts = new Map();
+function fanOut(channel, cb) {
+  let entry = fanOuts.get(channel);
+  if (!entry) {
+    const subscribers = new Set();
+    const listener = (_event, payload) => {
+      for (const subscriber of [...subscribers]) {
+        try { subscriber(payload); } catch (error) { queueMicrotask(() => { throw error; }); }
+      }
+    };
+    entry = { subscribers, listener };
+    fanOuts.set(channel, entry);
+    ipcRenderer.on(channel, listener);
+  }
+  const own = (payload) => cb(payload);
+  entry.subscribers.add(own);
+  return () => {
+    entry.subscribers.delete(own);
+    if (entry.subscribers.size || fanOuts.get(channel) !== entry) return;
+    ipcRenderer.removeListener(channel, entry.listener);
+    fanOuts.delete(channel);
+  };
+}
+
 const windowIdArgument = process.argv.find((argument) =>
   argument.startsWith("--openprogram-window-id="),
 );
@@ -73,37 +101,13 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
     capture: (id, mode) => ipcRenderer.invoke("webtab:capture", id, mode),
     showAction: (id, marker) => ipcRenderer.invoke("webtab:show-action", id, marker),
     setControlOverlay: (id, payload) => ipcRenderer.send("webtab:control-overlay", id, payload),
-    onControlOverlayEvent: (cb) => {
-      const listener = (_event, payload) => cb(payload);
-      ipcRenderer.on("webtab:control-overlay-event", listener);
-      return () => ipcRenderer.removeListener("webtab:control-overlay-event", listener);
-    },
+    onControlOverlayEvent: (cb) => fanOut("webtab:control-overlay-event", cb),
     setPipZoom: (id, width, height) => ipcRenderer.send("webtab:set-pip-zoom", id, width, height),
-    onState: (cb) => {
-      const listener = (_event, state) => cb(state);
-      ipcRenderer.on("webtab:state", listener);
-      return () => ipcRenderer.removeListener("webtab:state", listener);
-    },
-    onPopup: (cb) => {
-      const listener = (_event, popup) => cb(popup);
-      ipcRenderer.on("webtab:popup", listener);
-      return () => ipcRenderer.removeListener("webtab:popup", listener);
-    },
-    onFindResult: (cb) => {
-      const listener = (_event, result) => cb(result);
-      ipcRenderer.on("webtab:find-result", listener);
-      return () => ipcRenderer.removeListener("webtab:find-result", listener);
-    },
-    onCommand: (cb) => {
-      const listener = (_event, command) => cb(command);
-      ipcRenderer.on("webtab:command", listener);
-      return () => ipcRenderer.removeListener("webtab:command", listener);
-    },
-    onHumanInput: (cb) => {
-      const listener = (_event, payload) => cb(payload);
-      ipcRenderer.on("webtab:human-input", listener);
-      return () => ipcRenderer.removeListener("webtab:human-input", listener);
-    },
+    onState: (cb) => fanOut("webtab:state", cb),
+    onPopup: (cb) => fanOut("webtab:popup", cb),
+    onFindResult: (cb) => fanOut("webtab:find-result", cb),
+    onCommand: (cb) => fanOut("webtab:command", cb),
+    onHumanInput: (cb) => fanOut("webtab:human-input", cb),
   },
   // Native OS menus return only the selected action ID to this renderer.
   contextMenu: {
@@ -129,11 +133,7 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
       ipcRenderer.on("main-menu:update", listener);
       return () => ipcRenderer.removeListener("main-menu:update", listener);
     },
-    onAction: (cb) => {
-      const listener = (_event, id) => cb(id);
-      ipcRenderer.on("main-menu:action", listener);
-      return () => ipcRenderer.removeListener("main-menu:action", listener);
-    },
+    onAction: (cb) => fanOut("main-menu:action", cb),
     onClosed: (cb) => {
       const listener = () => cb();
       ipcRenderer.on("main-menu:closed", listener);
@@ -262,11 +262,7 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
 });
 
 function subscribe(channel) {
-  return (cb) => {
-    const listener = (_event, detail) => cb(detail);
-    ipcRenderer.on(channel, listener);
-    return () => ipcRenderer.removeListener(channel, listener);
-  };
+  return (cb) => fanOut(channel, cb);
 }
 
 // Menu shortcuts re-dispatched as DOM events for the renderer app.
