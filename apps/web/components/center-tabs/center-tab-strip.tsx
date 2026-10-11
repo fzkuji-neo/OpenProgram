@@ -30,7 +30,7 @@ import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { dragCoordinator } from "@/lib/tabs/tab-drag-coordinator";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { MainMenu } from "./main-menu";
-import { closeOverview, useCanvasOverview } from "@/lib/tabs/canvas-overview";
+import { dismissOverview, useCanvasOverview } from "@/lib/tabs/canvas-overview";
 import { SplitViewPicker } from "./split-view-picker";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./center-tabs.module.css";
@@ -393,7 +393,7 @@ export function CenterTabStrip() {
         data-overview-toggle=""
         aria-label={text("Show all windows", "显示所有窗口")}
         aria-pressed={overviewMode === "browse"}
-        onClick={() => (overviewMode === "browse" ? closeOverview() : onOpenOverview())}
+        onClick={() => (overviewMode === "browse" ? dismissOverview() : onOpenOverview())}
       >
         <LayoutGrid size={15} />
       </button>

@@ -11,6 +11,13 @@
   user-select: none;
   -webkit-user-select: none;
 }
+.overview[data-canvas-overview="browse"] {
+  animation: none;
+}
+.overview[data-canvas-overview="browse"] .card:not([data-current]) {
+  animation-delay: 70ms;
+  animation-fill-mode: both;
+}
 .overview[data-alone] {
   background: color-mix(in oklch, var(--accent-blue) 6%, var(--bg-secondary));
 }
@@ -46,16 +53,31 @@ button.card:focus-visible { outline: none; }
   display: block;
   width: 100%;
   border-radius: 10px;
-  transition: transform 150ms ease, filter 150ms ease;
+  transition: transform 150ms ease;
 }
-/* Like Mission Control, no frame: the current window and the one under
-   the pointer lift a little. drop-shadow follows the panes' own shapes,
-   so a split card casts one shadow per pane, never a box around the gaps. */
-.card[data-current] .mini,
+/* No frame and no shadow marks the current window: it zooms into its
+   card when the overview opens. A card under the pointer grows a little. */
 button.card:hover .mini,
 .card[data-hot] .mini {
-  transform: scale(1.035);
-  filter: drop-shadow(0 10px 22px rgb(0 0 0 / 0.16)) drop-shadow(0 2px 5px rgb(0 0 0 / 0.10));
+  transform: scale(1.025);
+}
+/* The window zooming in or out sits above the other cards. */
+.card[data-zooming] {
+  position: relative;
+  z-index: 2;
+  animation: none;
+}
+.overview[data-canvas-overview="browse"] .card[data-zooming] .caption {
+  animation: captionIn 200ms 180ms both;
+}
+.overview[data-leaving] {
+  pointer-events: none;
+}
+.overview[data-leaving] .card:not([data-zooming]),
+.overview[data-leaving] .hint,
+.overview[data-leaving] .card[data-zooming] .caption {
+  opacity: 0;
+  transition: opacity 160ms ease;
 }
 button.card:focus-visible .mini {
   outline: 2px solid color-mix(in oklch, var(--accent-blue) 75%, transparent);
@@ -147,7 +169,8 @@ button.card:focus-visible .mini {
   pointer-events: none;
 }
 @keyframes overviewIn { from { opacity: 0; } }
-@keyframes cardIn { from { opacity: 0; transform: scale(1.06); } }
+@keyframes cardIn { from { opacity: 0; transform: scale(.94); } }
+@keyframes captionIn { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .overview, .card { animation: none; }
   .mini, .zone { transition: none; }

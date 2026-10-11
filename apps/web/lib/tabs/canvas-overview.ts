@@ -23,6 +23,11 @@ export function closeOverview() {
   if (useCanvasOverview.getState().mode) useCanvasOverview.setState({ mode: null, sourceIds: [], hover: null, label: "" });
 }
 export const overviewOpen = () => useCanvasOverview.getState().mode !== null;
+/** The open overview zooms its window back before it closes; without one
+ *  (or in a drag) this is a plain close. */
+let zoomOut: (() => void) | null = null;
+export function setOverviewZoomOut(handler: (() => void) | null) { zoomOut = handler; }
+export function dismissOverview() { if (zoomOut) zoomOut(); else closeOverview(); }
 
 /** Left and right quarters of a card put the tab beside the window; the
  *  middle puts it above or below by the half under the pointer. */
