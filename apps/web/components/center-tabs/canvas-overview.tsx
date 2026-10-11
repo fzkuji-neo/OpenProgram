@@ -51,11 +51,11 @@ function fit(n: number, width: number, height: number, aspect: number) {
   return Math.max(96, Math.min(best, width * 0.5));
 }
 
-/** A trackpad pinch arrives as a wheel event with ctrlKey; a mouse wheel
- *  notch is a multiple of 120 in the legacy wheelDeltaY. */
+/** A trackpad pinch arrives as a wheel event with ctrlKey. Its legacy
+ *  wheelDeltaY is ±120 like a mouse notch, so the two cannot be told apart;
+ *  Control with a mouse wheel zooms the same way, as in a browser. */
 function isPinch(e: WheelEvent) {
-  const notch = (e as unknown as { wheelDeltaY?: number }).wheelDeltaY;
-  return e.ctrlKey && !(e.deltaX === 0 && typeof notch === "number" && notch !== 0 && notch % 120 === 0);
+  return e.ctrlKey;
 }
 
 /** Every window in the strip as a card that keeps its split, over the
