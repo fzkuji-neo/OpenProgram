@@ -527,27 +527,67 @@
    The column gap (8px) already separates it from the trace; 4px more makes
    the space above match the 14px action-row offset below. */
 .turn-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   margin-top: 4px;
-  padding: 10px 12px;
-  border-left: 2px solid var(--accent-red);
-  border-radius: 0 6px 6px 0;
-  background: color-mix(in srgb, var(--accent-red) 5%, transparent);
+  padding: 13px 14px;
+  border-radius: 16px;
+  /* Same raised card as the file cards (assistant-file-cards.module.css);
+     the red sits only on the icon in its inset well. */
+  background: var(--bg-input);
+  box-shadow: var(--composer-shadow);
   font-size: 13px;
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
-.turn-error-title { color: var(--accent-red); }
-.turn-error-details { margin-top: 4px; color: var(--text-muted); }
-.turn-error-details summary { cursor: pointer; width: fit-content; }
-.turn-error-details summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.turn-error-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: var(--bg-primary);
+  color: var(--accent-red);
+}
+/* One title line (18px), the 3px gap and the summary line (17px) make the
+   38px of the icon well, so the collapsed card is centred on it. */
+.turn-error-body {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.turn-error-title { color: var(--text-primary); font-weight: 500; line-height: 18px; }
+.turn-error-details { color: var(--text-secondary); font-size: 12px; line-height: 17px; }
+.turn-error-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  width: fit-content;
+  list-style: none;
+  cursor: pointer;
+}
+.turn-error-details summary::-webkit-details-marker { display: none; }
+.turn-error-details summary:hover { color: var(--text-primary); }
+.turn-error-details summary svg { transition: transform 150ms ease; }
+.turn-error-details[open] summary svg { transform: rotate(180deg); }
+.turn-error-details summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .turn-error-details pre {
   margin: 8px 0 0;
+  padding: 10px 12px;
   max-height: 240px;
   overflow: auto;
+  border-radius: 9px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: var(--font-mono);
   font-size: 12px;
+  line-height: 1.6;
 }
 
 /* Syntax tokens (highlight.js classes, lib/chat/code-highlight.ts). One
