@@ -125,7 +125,7 @@
     <table>
       <thead><tr><th>Target</th><th>Source</th><th>Output</th></tr></thead>
       <tbody>
-        <tr><td>macOS App</td><td><code>docs/images/openprogram-app-icon.svg</code> — Big Sur grid: an 824 px squircle at offset 100 on a 1024 canvas, with a soft tile shadow</td><td><code>apps/desktop/build/icon.icns</code> (16–1024 px), the packaging input in <code>apps/desktop/package.json</code></td></tr>
+        <tr><td>macOS App</td><td><code>docs/images/openprogram-app-icon.svg</code> — Big Sur grid: an 824 px tile at offset 100 on a 1024 canvas with Apple's continuous corner (radius 185.4 px, 60% smoothing), the outline the system icons in the Dock use, with a soft tile shadow</td><td><code>apps/desktop/build/icon.icns</code> (16–1024 px), the packaging input in <code>apps/desktop/package.json</code></td></tr>
         <tr><td>Liquid Glass toolchain</td><td><code>apps/desktop/build/AppIcon.icon</code></td><td>Icon Composer groups listed front to back: sky disc, violet disc, indigo disc, cell. Every group disables Specular and translucency, every layer disables glass, and shadows are neutral (0.5 on the two front discs, 0.3 on the rest). <code>ictool</code> exports Default, Dark, ClearLight and TintedDark.</td></tr>
         <tr><td>WebUI tab, docs site</td><td><code>docs/images/openprogram-tab-icon.source.svg</code> — 64 px rounded tile filling the canvas</td><td>Copied unchanged to <code>apps/web/app/icon.svg</code> and <code>scripts/docs_site/assets/mark.svg</code></td></tr>
         <tr><td>Favicon, Windows installer</td><td>The 64 px tab icon</td><td><code>apps/web/app/favicon.ico</code> with 16, 32, 48, 64, 128 and 256 px PNG entries</td></tr>
