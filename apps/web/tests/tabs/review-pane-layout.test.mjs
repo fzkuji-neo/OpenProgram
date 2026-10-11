@@ -65,3 +65,9 @@ test("Pages in the centre card take the chat's warm white in beige-light", () =>
   const shell = readFileSync(new URL("../../components/app-shell.tsx", import.meta.url), "utf8");
   assert.match(shell, /data-page-surface=\{pane\.kind === "peer" \? undefined : ""\}/);
 });
+
+test("Review asks again when the socket reconnects and shows load states in narrow panes", () => {
+  const pane = readFileSync(new URL("../../components/center-tabs/review-tab-pane.tsx", import.meta.url), "utf8");
+  assert.match(pane, /addEventListener\("op:browser-connection", reconnect\)/);
+  assert.match(pane, /\{!selected \? \([\s\S]*?scopeState\.loading[\s\S]*?scopeState\.error/);
+});
