@@ -855,7 +855,11 @@ export function followPreviewBinding(
     : pref.targetId;
   if (!targetId) return null;
   const row = useBrowserResourceStore.getState().rows[targetId];
-  const tabId = existingResourceTabId(row, tabs);
+  // A Page the server has no record for (a site-opened popup, say) is listed
+  // from its tab as ``tab:<id>``; preview that tab directly.
+  const tabId = row ? existingResourceTabId(row, tabs)
+    : targetId.startsWith("tab:") && tabs.some(tab => tab.id === targetId.slice(4))
+      ? targetId.slice(4) : null;
   const owner = tabs.find(tab => tab.kind === "session" && tab.sessionId === sessionId);
   if (!tabId || !owner) return null;
   return { tabId, ownerTabId: owner.id };

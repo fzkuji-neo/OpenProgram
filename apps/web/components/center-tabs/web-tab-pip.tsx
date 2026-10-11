@@ -505,7 +505,10 @@ export function WebTabPip() {
 
   if (!tabId || !tab || !live) return null;
 
-  const title = resource?.title || tab.title || url;
+  // A record names the page it last saw; once the tab has navigated away
+  // (a stale record after restore), the tab's live title is the right one.
+  const recordCurrent = !resource?.target || !tab.url || resource.target === tab.url;
+  const title = (recordCurrent ? resource?.title : "") || tab.title || resource?.title || url;
   const openPage = text("Open page", "打开页面");
   const openPageHint = text("Switch to this tab in the centre", "在中间区域切换到这个标签");
   const reviewLabel = text("Review request", "查看请求");

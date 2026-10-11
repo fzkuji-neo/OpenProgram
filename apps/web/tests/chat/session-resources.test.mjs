@@ -477,6 +477,18 @@ test("clicking a Page previews it until the Agent operates another one", () => {
   assert.deepEqual(followPreviewBinding("a", "br-a", sessionTabs), { tabId: "w:b", ownerTabId: "s:a" });
 });
 
+test("a Page listed only from its tab can still be previewed", () => {
+  resetBrowserResources();
+  const sessionTabs = [
+    { id: "s:a", kind: "session", sessionId: "a" },
+    { id: "w:popup", kind: "web" },
+  ];
+  previewResource("a", "br-a", "tab:w:popup");
+  assert.deepEqual(followPreviewBinding("a", "br-a", sessionTabs), { tabId: "w:popup", ownerTabId: "s:a" });
+  previewResource("a", "br-a", "tab:w:gone");
+  assert.equal(followPreviewBinding("a", "br-a", sessionTabs), null);
+});
+
 test("a pin is not stored: a reload follows the Agent again", () => {
   const source = readFileSync(new URL("../../lib/chat/session-resources.ts", import.meta.url), "utf8");
   const persist = source.slice(source.indexOf("function persistPreferences"), source.indexOf("function writePref"));
