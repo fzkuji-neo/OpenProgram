@@ -659,12 +659,6 @@ export function useTabPointerDrag({
       return;
     }
     const canvasDrop = resourceTarget ? null : canvasDropAt(e.clientX, e.clientY, drag.subject.tabIds, e.altKey);
-    // The middle of a pane does nothing without Option: snap the tab back.
-    if (canvasDrop?.action === "hint") {
-      restorePointerDragElement(drag.element, true);
-      cancelDrag(true);
-      return;
-    }
     if (canvasDrop) {
       restorePointerDragElement(drag.element, false);
       const committed = dragCoordinator.commit();

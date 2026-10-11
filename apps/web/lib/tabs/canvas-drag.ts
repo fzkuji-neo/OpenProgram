@@ -7,9 +7,8 @@ import { desktopBridge, buildTransferPayload } from "../desktop/desktop-bridge";
 import { translateText } from "../i18n";
 import { DRAG_SURFACE_STYLE } from "../prefs/visual-effects-config";
 /** A drop on the canvas. "dock" places the tab; "fill" opens it on its own
- *  (the top edge, like dragging a window to the menu bar); "hint" is the
- *  middle of a pane, which does nothing unless Option is held. */
-export type CanvasDrop = { targetId: string; paneId: string; side: CanvasDockSide; rect: Rect; action: "dock" | "fill" | "hint"; label: string };
+ *  (the top edge, like dragging a window to the menu bar). */
+export type CanvasDrop = { targetId: string; paneId: string; side: CanvasDockSide; rect: Rect; action: "dock" | "fill"; label: string };
 let preview: HTMLDivElement | null = null;
 let dragging = false;
 const listeners = new Set<() => void>();
@@ -33,8 +32,8 @@ const PANE_LABEL: Record<"left" | "right" | "top" | "bottom", [string, string]> 
 };
 /** Edge band of the whole canvas: halves on the sides, quarters in the corners. */
 export const canvasEdgeBand = (width: number, height: number) => Math.max(28, Math.min(56, Math.min(width, height) * 0.08));
-/** Share of a pane's width or height near its edge that splits that pane. */
-export const PANE_EDGE = 0.28;
+/** Share of a pane's width on each side that splits it left or right. */
+export const PANE_SIDE = 0.25;
 
 /** Which drop the pointer is over, with the exact rect the tab would take. */
 export function canvasDropAt(x: number, y: number, sourceIds: string[], alt = false): CanvasDrop | null {
@@ -88,18 +87,18 @@ export function canvasDropAt(x: number, y: number, sourceIds: string[], alt = fa
     const rect = placed(paneId, "center");
     return rect ? { targetId, paneId, side: "center", rect, action: "dock", label: translateText("Put it here", "放到这里") } : null;
   }
+  // Left and right quarters split sideways; the middle column splits by its
+  // half, so the whole lower middle means "below". No dead centre.
   const px = (x - b.left) / b.width, py = (y - b.top) / b.height;
-  const distances = { left: px, right: 1 - px, top: py, bottom: 1 - py };
-  const side = (Object.keys(distances) as Array<keyof typeof distances>).reduce((a, k) => distances[k] < distances[a] ? k : a, "left");
-  if (distances[side] < PANE_EDGE) return dock(paneId, side, PANE_LABEL[side]);
   const paneRect = { left: b.left, top: b.top, width: b.width, height: b.height };
   if (alt) return { targetId, paneId, side: "center", rect: paneRect, action: "dock", label: translateText("Replace this pane", "替换这一格") };
-  return { targetId, paneId, side: "center", rect: paneRect, action: "hint", label: translateText("Drag to an edge to split · hold ⌥ to replace", "拖到边缘拆分 · 按住 ⌥ 替换") };
+  const side = px < PANE_SIDE ? "left" : px > 1 - PANE_SIDE ? "right" : py < 0.5 ? "top" : "bottom";
+  return dock(paneId, side, PANE_LABEL[side]);
 }
 /** Apply a canvas drop. Returns false when it changed nothing. */
 export function commitCanvasDrop(drop: CanvasDrop, sourceIds: string[]): boolean {
   const s = useCenterTabs.getState(), sourceId = sourceIds[0];
-  if (drop.action === "hint" || !sourceId) return false;
+  if (!sourceId) return false;
   const group = findCenterTabGroup(s.groups, drop.targetId);
   const layout = group?.canvas ?? rowLayout([drop.targetId]);
   rememberCanvas([drop.targetId, ...sourceIds, ...(group ? [group.id, ...group.memberIds] : [])], layout);
@@ -163,6 +162,8 @@ function showDropPreview(rect: Rect | null, target = "canvas") {
 }
 export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: string, label: HTMLElement | null) {
   if (event.button !== 0 || !label || (event.target as HTMLElement).closest("button")) return;
+  // Keep the press from starting a text selection in the pane below.
+  event.preventDefault();
   const el = event.currentTarget, original = el.getAttribute("style");
   let dragLabel: HTMLElement | null = null;
   let resourceTarget: HTMLElement | null = null;

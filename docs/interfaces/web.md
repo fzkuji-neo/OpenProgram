@@ -203,7 +203,7 @@ The preview stays inside its owner conversation pane, including after startup la
 
 In a split canvas with multiple conversations, clicking or focusing a conversation switches Files, Activity, and Resources to that conversation. Project requests and late responses remain scoped to their conversation, even while the main route still points to another pane.
 
-Dragging the bar at the top of a pane displays the pane as a full tab label with its icon and title. The bar itself does not move with the pointer.
+Dragging a pane’s three-dot handle displays the pane as a full tab label with its icon and title. The handle itself does not move with the pointer.
 
 ### Output file previews
 
