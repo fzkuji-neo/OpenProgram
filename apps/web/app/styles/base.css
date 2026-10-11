@@ -633,6 +633,10 @@ select:focus-visible {
 @media (max-width: 900px) {
   .sidebar {
     position: fixed; top: 0; bottom: 0; z-index: 100;
+    /* The rail's card sits in an 8px gutter. Floating over the content,
+       that gutter must be the page colour, or the panes underneath show
+       through as a pale halo around the card. */
+    background: var(--bg-secondary);
   }
   .sidebar:not(.right-sidebar) { left: 0; }
   .sidebar:not(.right-sidebar):not(.collapsed) {
