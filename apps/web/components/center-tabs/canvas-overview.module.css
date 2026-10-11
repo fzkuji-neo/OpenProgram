@@ -15,6 +15,10 @@
 .overview[data-canvas-overview="browse"] {
   animation: none;
 }
+/* Browsing shows no hint, so the grid keeps the same margin below. */
+.overview[data-canvas-overview="browse"] .grid {
+  padding-bottom: 32px;
+}
 .overview[data-canvas-overview="browse"] .card:not([data-current]) {
   animation-delay: 70ms;
   animation-fill-mode: both;

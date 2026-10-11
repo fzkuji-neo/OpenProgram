@@ -152,7 +152,7 @@ export function CanvasOverview() {
   useLayoutEffect(() => {
     const el = rootRef.current, canvas = el?.parentElement;
     if (!el || !canvas) return;
-    const measure = () => setArea({ width: el.clientWidth - 64, height: el.clientHeight - 112, canvasWidth: canvas.clientWidth, canvasHeight: canvas.clientHeight });
+    const measure = () => setArea({ width: el.clientWidth - 64, height: el.clientHeight - (mode === "drag" ? 112 : 64), canvasWidth: canvas.clientWidth, canvasHeight: canvas.clientHeight });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -242,9 +242,10 @@ export function CanvasOverview() {
   // screen, so the zoom lands every pane on itself.
   const byId = new Map(tabs.map(tab => [tab.id, tab]));
   const activate = (card: Card) => zoomOutTo(card);
-  const hint = label || (mode === "drag"
-    ? text("Drop on a window to merge · on empty space to open on its own · outside the window for a new window", "拖到某个窗口上合并 · 空白处单独打开 · 拖出窗口新开一个")
-    : text("Click a window to switch · Esc to close", "点击窗口切换 · Esc 关闭"));
+  // Only a drag says where it will land; browsing needs no instructions.
+  const hint = mode === "drag"
+    ? label || text("Drop on a window to merge · on empty space to open on its own · outside the window for a new window", "拖到某个窗口上合并 · 空白处单独打开 · 拖出窗口新开一个")
+    : null;
 
   return (
     <div
@@ -257,7 +258,6 @@ export function CanvasOverview() {
       role={mode === "browse" ? "dialog" : undefined}
       tabIndex={mode === "browse" ? -1 : undefined}
       aria-label={text("Window overview", "窗口总览")}
-      onClick={mode === "browse" ? e => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.overviewGrid !== undefined) dismissOverview(); } : undefined}
     >
       <div className={styles.grid} data-overview-grid="">
         {cards.map(card => {
@@ -321,7 +321,7 @@ export function CanvasOverview() {
             : <div key={card.key} {...shared}>{body}</div>;
         })}
       </div>
-      <div className={styles.hint} role="status" aria-live="polite">{hint}</div>
+      {hint && <div className={styles.hint} role="status" aria-live="polite">{hint}</div>}
     </div>
   );
 }
