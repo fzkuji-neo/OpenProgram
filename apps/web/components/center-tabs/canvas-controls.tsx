@@ -8,6 +8,7 @@ import { rememberCanvas, takePreviousCanvas } from "@/lib/tabs/canvas-history";
 import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas-drag";
 import { useTranslation } from "@/lib/i18n";
 import { PaneDragLabel } from "./tab-items";
+import { labelOf } from "./tab-label";
 import styles from "./canvas-controls.module.css";
 
 /** Glyph cells as [left, top, width, height] fractions of the canvas. */
@@ -59,7 +60,7 @@ function TabIcon({ tab }: { tab: CenterTab | undefined }) {
  *  centre moves the pane (drag) and opens its tiling menu (click, or rest the
  *  pointer on it like the macOS green button). A lone pane shows no chrome. */
 export function CanvasControls({ layout, targetId, width, height }: { layout: CanvasLayout; targetId: string; width: number; height: number }) {
-  const { text } = useTranslation();
+  const { t, text } = useTranslation();
   const tabs = useCenterTabs(s => s.tabs), groups = useCenterTabs(s => s.groups);
   const [saved, setSaved] = useState<Array<{ name: string; layout: CanvasLayout }>>([]);
   const [menu, setMenu] = useState<{ x: number; y: number; paneId: string; hover: boolean } | null>(null);
@@ -155,7 +156,8 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   const mod = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl+";
   const dockable = tabs.filter(t => !t.canvasAnchor && !findCenterTabGroup(groups, t.id));
   const single = all.length === 1 && !!all[0].content;
-  const titleOf = (tab: CenterTab | undefined) => tab?.title || (tab ? text("Untitled","未命名") : text("Empty pane","空格"));
+  // Same names as the tab strip: built-in pages such as Review carry no title of their own.
+  const titleOf = (tab: CenterTab | undefined) => tab ? labelOf(tab, t, text) || text("Untitled","未命名") : text("Empty pane","空格");
   const menuPane = menu ? all.find(p => p.id === menu.paneId) : undefined;
   const menuTab = tabs.find(t => t.id === menuPane?.content);
   const menuZoomed = !!menuPane && layout.zoomedPaneId === menuPane.id;
@@ -220,7 +222,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
           ? <div className={styles.empty}>
               <div className={styles.emptyCard}>
                 <div className={styles.emptyHint}>{dockable.length ? text("Choose a tab, or drag one here", "选一个 tab，或直接拖进来") : text("Drag a tab here", "把 tab 拖到这里")}</div>
-                {dockable.map(t => <button key={t.id} type="button" className={styles.emptyItem} onClick={() => useCenterTabs.getState().dockCanvas(t.id,targetId,p.id,"center")}><TabIcon tab={t} /><span>{t.title || t.kind}</span></button>)}
+                {dockable.map(d => <button key={d.id} type="button" className={styles.emptyItem} onClick={() => useCenterTabs.getState().dockCanvas(d.id,targetId,p.id,"center")}><TabIcon tab={d} /><span>{titleOf(d)}</span></button>)}
               </div>
             </div>
           : tiny ? <button type="button" className={styles.tiny} aria-label={text(`Zoom ${title}`, `放大 ${title}`)} onClick={() => zoom(p.id)}><span><TabIcon tab={tab} /><Maximize2 aria-hidden /></span></button> : null}
