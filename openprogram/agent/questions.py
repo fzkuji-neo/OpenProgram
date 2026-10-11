@@ -28,7 +28,14 @@ from typing import Any, Mapping
 
 
 class UserDeclined(Exception):
-    """用户主动拒绝回答（runtime.ask 抛出）。"""
+    """用户主动拒绝回答（runtime.ask 抛出）。
+
+    ``reason`` 是用户拒绝时写下的话（"先讨论"），没写则为空。
+    """
+
+    def __init__(self, *args: object, reason: str = "") -> None:
+        super().__init__(*args)
+        self.reason = reason
 
 
 class AskTimeout(Exception):

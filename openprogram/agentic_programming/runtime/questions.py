@@ -2,6 +2,11 @@
 from __future__ import annotations
 
 
+def _decline_reason(value: object) -> str:
+    """What the user wrote when declining instead of answering, if anything."""
+    return value.strip() if isinstance(value, str) else ""
+
+
 
 
 
@@ -154,7 +159,7 @@ class QuestionsOperations:
                 from openprogram.agentic_programming.call_state import CancelledError
                 raise CancelledError(prompt or "ask")
             if outcome == "declined":
-                raise UserDeclined(prompt or "ask")
+                raise UserDeclined(prompt or "ask", reason=_decline_reason(value))
             if default is not None:
                 return default
             raise AskTimeout(prompt or "ask")
@@ -174,7 +179,7 @@ class QuestionsOperations:
             from openprogram.agentic_programming.call_state import CancelledError
             raise CancelledError(prompt or "ask")
         if outcome == "declined":
-            raise UserDeclined(prompt or "ask")
+            raise UserDeclined(prompt or "ask", reason=_decline_reason(value))
         if default is not None:
             return default
         raise AskTimeout(prompt or "ask")
@@ -246,7 +251,7 @@ class QuestionsOperations:
             from openprogram.agentic_programming.call_state import CancelledError
             raise CancelledError(prompt)
         if outcome == "declined":
-            raise UserDeclined(prompt)
+            raise UserDeclined(prompt, reason=_decline_reason(value))
         if default is not None:
             return default
         raise AskTimeout(prompt)

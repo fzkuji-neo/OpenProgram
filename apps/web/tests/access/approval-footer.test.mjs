@@ -62,9 +62,9 @@ const decision = { id: "wait-one", kind: "approval", prompt: "Allow this command
 const { useDecisionSubmissions } = await import("../../lib/chat/decision-submissions.ts");
 const { useDecisionDrafts } = await import("../../lib/chat/decision-drafts.ts");
 async function mounted(q, check) {
-  useDecisionSubmissions.setState({submissions: {}, discussions: {}});
+  useDecisionSubmissions.setState({submissions: {}});
   useDecisionDrafts.setState({drafts: {}});
-  const frames = [], resolved = [], discussed = [];
+  const frames = [], resolved = [];
   globalThis.approvalSocket = { readyState: 1, send: value => frames.push(JSON.parse(value)) };
   respond = async (_url, init) => {
     const command = JSON.parse(init.body);
@@ -75,9 +75,9 @@ async function mounted(q, check) {
   document.body.append(host);
   const root = createRoot(host);
   try {
-    await act(async () => root.render(createElement(QuestionMode, { decision: q, onResolve: id => resolved.push(id), onChatAbout: () => discussed.push(q.id) })));
-    const button = label => [...host.querySelectorAll("button")].find(b => (b.getAttribute("aria-label") ?? b.textContent.replace("✓ ", "")) === label);
-    await check({ host, button, frames, resolved, discussed });
+    await act(async () => root.render(createElement(QuestionMode, { decision: q, onResolve: id => resolved.push(id) })));
+    const button = label => [...host.querySelectorAll("button")].find(b => (b.getAttribute("aria-label") ?? b.textContent.replace("✓ ", "").replace("Ctrl ↵", "")) === label);
+    await check({ host, button, frames, resolved });
   } finally { await act(async () => root.unmount()); host.remove(); }
 }
 
@@ -104,7 +104,8 @@ for (const [label, action] of [["Allow once", "execution.wait.answer"], ["Deny",
   test(`approval ${label} submits one decision directly`, async () => {
     await mounted(decision, async ({ host, button, frames, resolved }) => {
       const footer = host.querySelector('[aria-label="Decision actions"]');
-      assert.equal(footer.querySelectorAll("button").length, 3);
+      assert.equal(footer.querySelectorAll("button").length, 4);
+      assert.ok(button("Deny with a note"));
       assert.equal(button("Send"), undefined);
       assert.equal(button("Chat about this"), undefined);
       await act(async () => button(label).click());
@@ -148,135 +149,75 @@ test("multiple questions navigate locally and submit all answers in order", asyn
 });
 
 
-const { useDecisionDiscussion } = await import("../../components/chat/composer/modes/question/use-decision-discussion.ts");
-const { useSendQueue, registerChatSender } = await import("../../lib/chat/send-queue.ts");
-const { useSessionStore } = await import("../../lib/session-store/index.ts");
+async function typeNote(host, button, opener, note) {
+  await act(async () => flushSync(() => button(opener).click()));
+  const input = host.querySelector("textarea");
+  const props = input[Object.keys(input).find(key => key.startsWith("__reactProps$"))];
+  await act(async () => flushSync(() => props.onChange({ target: { value: note } })));
+}
 
-async function discussionMounted(check) {
-  useDecisionSubmissions.setState({submissions: {}, discussions: {}});
-  useDecisionDrafts.setState({drafts: {}});
-  const requests = [], sent = [], removed = [], notices = [], frames = [];
-  globalThis.approvalSocket = { readyState: 1, send: value => frames.push(JSON.parse(value)) };
-  const onToast = e => notices.push(e.detail); window.addEventListener("op:toast", onToast);
-  const q = { ...decision, kind: "ask", sessionId: "origin", tool: "process" };
-  const host = document.createElement("div"); document.body.append(host);
-  const root = createRoot(host);
-  const draft = "My unsent question";
-  let changeSession;
-  useSessionStore.setState({ runningTasks: {}, currentSessionId: "origin", activeChatKey: "origin" });
-  useSendQueue.setState({ queues: {} });
-  registerChatSender(args => { sent.push(args); return true; });
-  respond = async (url, init) => {
-    const command = JSON.parse(init.body); requests.push({ url, command });
-    return Response.json({ command: { ...command, status: "applied" } });
-  };
-  function Harness() {
-    const [active, setActive] = useState(q);
-    const [sid, setSid] = useState("origin");
-    const [input, setInput] = useState(draft);
-    changeSession = setSid;
-    const textareaRef = useRef(null);
-    const discuss = useDecisionDiscussion({ decision: active, sessionKey: sid, thinking: "medium",
-      input, setInput, decline() {}, textareaRef,
-      dequeue: id => { removed.push(id); setActive(null); } });
-    return active ? createElement(QuestionMode, { decision: active, onResolve() {}, onChatAbout: discuss })
-      : createElement("textarea", { value: input, readOnly: true, ref: textareaRef });
-  }
-  try {
-    await act(async () => root.render(createElement(Harness)));
-    const click = async () => {
-      const open = [...host.querySelectorAll("button")].find(b => b.getAttribute("aria-label") === "Discuss");
-      if (open) {
-        await act(async () => flushSync(() => open.click()));
-        const input = host.querySelector("textarea");
-        const props = input[Object.keys(input).find(key => key.startsWith("__reactProps$"))];
-        await act(async () => flushSync(() => props.onChange({ target: { value: "Why is this command needed?" } })));
-      }
-      const send = [...host.querySelectorAll("button")].find(b => ["Send discussion", "Retry discussion"].includes(b.textContent));
-      send?.click();
+test("deny with a note sends the note as the reason in one decline", async () => {
+  await mounted(decision, async ({ host, button, frames, resolved }) => {
+    await typeNote(host, button, "Deny with a note", "Keep build/ and just run npm run build");
+    assert.equal(button("Allow once"), undefined, "the note replaces the approve controls");
+    assert.match(host.textContent, /goes to the agent with the denial/);
+    await act(async () => button("Deny and send").click());
+    assert.equal(frames.length, 1);
+    assert.equal(frames[0].action, "execution.wait.decline");
+    assert.equal(frames[0].payload.reason, "Keep build/ and just run npm run build");
+    assert.deepEqual(resolved, [decision.id]);
+  });
+});
+
+test("a question's discussion goes to the agent as the decline, not as a second message", async () => {
+  const q = { ...decision, id: "wait-ask", kind: "ask", options: ["A"] };
+  await mounted(q, async ({ host, button, frames, resolved }) => {
+    await typeNote(host, button, "Discuss", "Why is this needed?");
+    await act(async () => button("Send discussion").click());
+    assert.equal(frames.length, 1);
+    assert.equal(frames[0].action, "execution.wait.decline");
+    assert.equal(frames[0].payload.reason, "Why is this needed?");
+    assert.deepEqual(resolved, [q.id]);
+  });
+});
+
+test("an unconfirmed note is retried unchanged", async () => {
+  await mounted(decision, async ({ host, button, frames, resolved }) => {
+    respond = async (_url, init) => { frames.push(JSON.parse(init.body)); throw new Error("offline"); };
+    await typeNote(host, button, "Deny with a note", "Use the staging server");
+    await act(async () => button("Deny and send").click());
+    assert.deepEqual(resolved, []);
+    assert.ok(host.querySelector("textarea").hasAttribute("readonly"), "the sent note is kept as sent");
+    respond = async (_url, init) => {
+      const command = JSON.parse(init.body); frames.push(command);
+      return Response.json({ command: { ...command, status: "applied" } });
     };
-    await check({ host, requests, sent, removed, notices, frames, click, q, changeSession, draft });
-  } finally { await act(async () => root.unmount()); host.remove(); window.removeEventListener("op:toast", onToast); useSendQueue.setState({ queues: {} }); }
-}
-
-test("Sending feedback acknowledges decline and sends contextual discussion without changing draft", async () => {
-  await discussionMounted(async ({ host, click, requests, sent, draft }) => {
-    await act(async () => { await click(); await click(); });
-    assert.equal(requests.length, 1);
-    assert.equal(requests[0].url, "/api/execution/wait/decline");
-    assert.equal(requests[0].command.payload.wait_id, decision.id);
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0].sessionId, "origin");
-    assert.match(sent[0].text, /Why is this command needed\?[\s\S]*Allow this command\?[\s\S]*echo test/);
-    assert.ok(!sent[0].text.includes('{'));
-    assert.equal(sent[0].toolsEnabled, false);
-    assert.equal(sent[0].webSearchEnabled, false);
-    assert.equal(host.querySelector("textarea").value, draft);
+    await act(async () => button("Retry").click());
+    assert.equal(frames.length, 2);
+    assert.equal(frames[0].command_id, frames[1].command_id);
+    assert.equal(frames[1].payload.reason, "Use the staging server");
+    assert.deepEqual(resolved, [decision.id]);
   });
 });
 
-test("discussion waits for applied acknowledgement and remains owned by the original session", async () => {
-  await discussionMounted(async ({ click, sent, changeSession }) => {
+test("a pending note blocks another answer via Ctrl and Meta Enter", async () => {
+  await mounted(decision, async ({ host, button, frames }) => {
     let finish;
-    respond = async (_url, init) => new Promise(resolve => { finish = () => resolve(Response.json({ command: { ...JSON.parse(init.body), status: "applied" } })); });
-    await act(async () => click());
-    assert.equal(sent.length, 0);
-    assert.equal(document.querySelector('[aria-busy="true"]').disabled, true);
-    await act(async () => changeSession("other"));
-    await act(async () => finish());
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0].sessionId, "origin");
-  });
-});
-
-for (const status of ["rejected", "accepted", "wrong-id", "network-error"]) {
-  test(`discussion does not send on ${status} acknowledgement`, async () => {
-    await discussionMounted(async ({ click, sent, removed, notices }) => {
-      respond = async (_url, init) => {
-        if (status === "network-error") throw new Error("offline");
-        const command = JSON.parse(init.body);
-        return Response.json({ command: { ...command, command_id: status === "wrong-id" ? "different" : command.command_id, status: status === "wrong-id" ? "applied" : status } });
-      };
-      await act(async () => click());
-      assert.equal(sent.length, 0);
-      assert.equal(removed.length, 0);
-      assert.equal(notices.at(-1).tone, "error");
-      assert.match(notices.at(-1).message, /not sent/);
+    respond = async (_url, init) => new Promise(resolve => {
+      const command = JSON.parse(init.body); frames.push(command);
+      finish = () => resolve(Response.json({ command: { ...command, status: "applied" } }));
     });
-  });
-}
-
-test("discussion queues until the rejected execution clears and retries a disconnected sender", async () => {
-  await discussionMounted(async ({ click, sent }) => {
-    useSessionStore.setState({ runningTasks: { origin: { execution_id: "exec-one" } } });
-    await act(async () => click());
-    assert.equal(sent.length, 0);
-    assert.equal(useSendQueue.getState().queues.origin.length, 1);
-    useSessionStore.setState({ runningTasks: {} });
-    registerChatSender(() => false);
-    useSendQueue.getState().drain("origin");
-    assert.equal(useSendQueue.getState().queues.origin.length, 1);
-    registerChatSender(args => { sent.push(args); return true; });
-    useSendQueue.getState().drain("origin");
-    assert.equal(sent.length, 1);
-    assert.equal(useSendQueue.getState().queues.origin?.length ?? 0, 0);
-  });
-});
-
-test("pending discussion blocks another answer via Ctrl and Meta Enter", async () => {
-  await discussionMounted(async ({ host, click, frames }) => {
-    let finish;
-    respond = async (_url, init) => new Promise(resolve => { finish = () => resolve(Response.json({ command: { ...JSON.parse(init.body), status: "applied" } })); });
-    await act(async () => click());
-    const allow = host.querySelector("[data-decision]");
+    await typeNote(host, button, "Deny with a note", "No");
+    await act(async () => button("Deny and send").click());
+    const card = host.querySelector("[data-decision]");
     for (const modifier of ["ctrlKey", "metaKey"]) {
       const enter = new Event("keydown", { bubbles: true, cancelable: true });
       Object.defineProperties(enter, { key: { value: "Enter" }, [modifier]: { value: true } });
-      await act(async () => allow.dispatchEvent(enter));
+      await act(async () => card.dispatchEvent(enter));
     }
     const count = frames.length;
     await act(async () => finish());
-    assert.equal(count, 0, "no competing approval while rejection is pending");
+    assert.equal(count, 1, "no competing answer while the note is pending");
   });
 });
 

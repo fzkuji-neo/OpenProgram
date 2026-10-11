@@ -30,7 +30,6 @@ const APPROVE_ANSWER = "approve";
 interface QuestionModeProps {
   decision: PendingDecision;
   onResolve: (id: string) => void;
-  onChatAbout: (feedback: string) => void | Promise<void>;
 }
 
 /** Wire pick for an approval card. ``always_path`` is sandbox-escalation only. */
@@ -117,7 +116,7 @@ function stepAnswered(step: Step, a: Answer): boolean {
   return true; // form 字段都有默认/可空，恒算已答
 }
 
-export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionModeProps) {
+export function QuestionMode({ decision: q, onResolve }: QuestionModeProps) {
   const { text } = useTranslation();
   const [discussionPending, setDiscussionPending] = useState(false);
   const { sendAnswer, submission, answerPending, answerLocked } = useWaitAnswer(q, onResolve);
@@ -137,11 +136,14 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
   const setDiscussionOpen = (value: boolean) => updateDraft({ discussionOpen: value });
   const setFeedback = (value: string) => updateDraft({ feedback: value });
   const setFeedbackLocked = (value: boolean) => updateDraft({ feedbackLocked: value });
+  // What the user writes goes to the model as the reason for declining, so
+  // the model answers it in the same turn instead of a declined notice first
+  // and the discussion as a separate message after it.
   async function sendDiscussion() {
     if (discussionPending || !feedback.trim()) return;
     setFeedbackLocked(true);
     setDiscussionPending(true);
-    try { await onChatAbout(feedback); } finally { setDiscussionPending(false); }
+    try { await sendAnswer("execution.wait.decline", feedback.trim()); } finally { setDiscussionPending(false); }
   }
   const cur = steps[stepIndex];
   const curAns = answers[stepIndex];
@@ -244,7 +246,8 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
           aria-label={text(`Question ${stepIndex + 1} of ${steps.length}`, `第 ${stepIndex + 1} 题，共 ${steps.length} 题`)}>
           {stepIndex + 1}/{steps.length}
         </span>}
-        <div className={styles.badge}>{discussionOpen ? text("Discuss this request", "讨论这个请求")
+        <div className={styles.badge}>{discussionOpen ? (cur.kind === "approval"
+          ? text("Deny with a note", "拒绝并说明") : text("Discuss this request", "讨论这个请求"))
           : cur.kind === "approval" ? text("Approval required", "需要批准") : cur.prompt}</div>
         <div className={styles.headerActions}>
           <button type="button" className={styles.iconBtn} aria-expanded={!collapsed}
@@ -280,16 +283,26 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
             <span className="sr-only">{text("Discussion", "讨论内容")}</span>
             <Textarea className={styles.discussionInput} autoFocus rows={4} value={feedback} readOnly={feedbackLocked}
               onChange={(event) => setFeedback(event.target.value)}
-              placeholder={text("Add your question, concern, or a different approach…", "写下你的问题、顾虑，或希望调整的地方…")} />
-            {feedbackLocked && !discussionPending && <span className={formStyles.hint}>
-              {text("Not confirmed yet. Retry to confirm the same feedback.", "尚未确认，请重试发送同一条反馈。")}
-            </span>}
+              placeholder={cur.kind === "approval"
+                ? text("Tell the agent what to do instead, e.g. keep build/ and just run npm run build", "告诉 agent 应该怎么做，例如：别删 build，直接 npm run build")
+                : text("Add your question, concern, or a different approach…", "写下你的问题、顾虑，或希望调整的地方…")} />
+            <span className={formStyles.hint}>
+              {feedbackLocked && !discussionPending
+                ? text("Not confirmed yet. Retry to confirm the same feedback.", "尚未确认，请重试发送同一条反馈。")
+                : cur.kind === "approval"
+                  ? text("This note goes to the agent with the denial; it continues as you say.", "这条说明会随拒绝一起交给 agent，它会按你的说明继续。")
+                  : text("This goes straight to the agent; it answers you before going on.", "这段话会直接交给 agent，它会先回应你再继续。")}
+            </span>
           </label>
         )}
       </div>
         <div className={`${styles.actions} ${styles.footer}`} role="group" aria-label={text("Decision actions", "答复操作")}>
           {cur.kind === "approval" && !discussionOpen && (
             <div className={styles.actionButtons}>
+              <button type="button" className={`${styles.navBtn} ${styles.discussBtn}`} disabled={answerLocked}
+                onClick={() => setDiscussionOpen(true)} aria-label={text("Deny with a note", "拒绝并说明")}>
+                <SolarIcon name="chat-round-dots" size={15} aria-hidden="true" />
+              </button>
               <button type="button" className={styles.navBtn}
                 disabled={answerPending || (answerLocked && submission?.command.action !== "execution.wait.decline")}
                 onClick={() => { patch(0, { pick: "deny" }); void sendAnswer("execution.wait.decline"); }}>
@@ -310,25 +323,26 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
               </button>
             </div>
           )}
+          {discussionOpen && <div className={styles.actionButtons}>
+            <button type="button" className={styles.navBtn} disabled={feedbackLocked}
+              onClick={() => setDiscussionOpen(false)}>{text("Cancel", "取消")}</button>
+            <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
+              disabled={discussionPending || !feedback.trim()} aria-busy={discussionPending}
+              onClick={() => void sendDiscussion()}>
+              {discussionPending ? text("Sending…", "发送中…") : feedbackLocked
+                ? text("Retry", "重试") : cur.kind === "approval"
+                  ? text("Deny and send", "拒绝并发送") : text("Send discussion", "发送讨论")}
+              <kbd className={styles.submitKey} aria-hidden="true">Ctrl ↵</kbd>
+            </button>
+          </div>}
           {cur.kind !== "approval" && !discussionOpen && stepIndex > 0 && <button type="button"
             className={styles.navBtn} disabled={answerLocked || discussionPending}
             onClick={() => updateDraft({ stepIndex: stepIndex - 1 })}>{text("Back", "上一题")}</button>}
-          {cur.kind !== "approval" && <div className={styles.actionButtons}>
-            {discussionOpen ? <>
-              <button type="button" className={styles.navBtn} disabled={feedbackLocked}
-                onClick={() => setDiscussionOpen(false)}>{text("Cancel", "取消")}</button>
-              <button type="button" className={`${styles.navBtn} ${styles.navBtnPrimary}`}
-                disabled={discussionPending || !feedback.trim()} aria-busy={discussionPending}
-                onClick={() => void sendDiscussion()}>
-                {discussionPending ? text("Sending…", "发送中…") : feedbackLocked
-                  ? text("Retry discussion", "重试讨论") : text("Send discussion", "发送讨论")}
-              </button>
-            </> : <button type="button" className={`${styles.navBtn} ${styles.discussBtn}`} disabled={answerLocked}
-              onClick={() => setDiscussionOpen(true)} aria-label={text("Discuss", "先讨论")}
-              title={text("Discuss before proceeding", "先讨论再继续")}>
+          {cur.kind !== "approval" && !discussionOpen && <div className={styles.actionButtons}>
+            <button type="button" className={`${styles.navBtn} ${styles.discussBtn}`} disabled={answerLocked}
+              onClick={() => setDiscussionOpen(true)} aria-label={text("Discuss", "先讨论")}>
               <SolarIcon name="chat-round-dots" size={15} aria-hidden="true" />
-            </button>}
-          {!discussionOpen && <>
+            </button>
             <button type="button" className={styles.navBtn} disabled={answerLocked || discussionPending}
               title={text("Skip this request without submitting answers", "跳过整组请求，不提交回答")}
               onClick={() => void sendAnswer("execution.wait.decline")}>{text("Skip", "跳过")}</button>
@@ -337,7 +351,6 @@ export function QuestionMode({ decision: q, onResolve, onChatAbout }: QuestionMo
               disabled={discussionPending || answerPending || (!answerLocked && (!currentAnswered || (lastStep && !allAnswered)))}>
               {submitLabel}<kbd className={styles.submitKey} aria-hidden="true">Ctrl ↵</kbd>
             </button>
-          </>}
           </div>}
         </div>
       </>}
