@@ -196,6 +196,7 @@
       <ul class="status-list">
         <li><strong>主题列表</strong><span>设置页只展示 Beige / Neutral / Aurora；CSS imports、主题文件、桌面浮层允许值由检查脚本证明一致。</span></li>
         <li><strong>Token 完整</strong><span>六套内置主题（三包 × 深浅）提供相同 token 集；<code>custom-light.css</code> 仅作为旧 snippet 回落，取值与 beige-light 一致。</span></li>
+        <li><strong>中间卡片里的页面</strong><span>App 外壳标出非聊天路由（<code>.page-col</code>）和非聊天面板（<code>[data-page-surface]</code>）。主题可以在这两个范围内重新声明 <code>--bg-secondary</code>、<code>--bg-tertiary</code> 以及 <code>:root</code> 上由它们派生的 token；beige-light 把它们设为聊天页的 <code>#fbfaf8</code> 和控件底色 <code>#f3f1ec</code>，页面看起来和聊天页一致，窗口外框、两侧栏和聊天面板仍用主题原值。</span></li>
         <li><strong>强调色</strong><span>独立 picker 覆盖 <code>--accent-orange</code> / <code>--accent-fill</code> / <code>--accent-orange-hover</code>；空值使用当前包默认。桌面错误页与目录列表的链接色跟随覆盖值，窗口底色仍是包的 <code>--bg-primary</code>。</span></li>
         <li><strong>CSS overlay</strong><span>用户 CSS 叠在当前包上，由 Enable 开关门控；旧 <code>[data-theme=custom]</code> 选择器改写到 <code>data-custom-css</code>。</span></li>
         <li><strong>组件隔离</strong><span>theme 文件之外不存在按具体内置主题名分支的组件 CSS。</span></li>

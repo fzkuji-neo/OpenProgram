@@ -92,3 +92,22 @@
   --provider-icon-bg: var(--bg-tertiary);
   --dag-ghost: #b9b7ae;
 }
+
+/* Pages inside the centre card (non-chat routes, Review, Agents and other
+   built-in tabs) use the chat's warm white: panels and headers are the
+   page colour, separated by hairlines, and controls sit on a light fill.
+   Tokens derived on :root (shadcn bridge, meters) are restated so they
+   resolve against the lighter values here. The window frame, the rails
+   and the chat pane keep the theme's own values. */
+[data-theme="beige-light"] .page-col,
+[data-theme="beige-light"] [data-page-surface] {
+  --bg-secondary: #fbfaf8;
+  --bg-tertiary: #f3f1ec;
+  --card: var(--bg-secondary);
+  --popover: var(--bg-tertiary);
+  --secondary: var(--bg-tertiary);
+  --muted: var(--bg-tertiary);
+  --effort-off-bg: var(--bg-tertiary);
+  --meter-track: var(--bg-tertiary);
+  --provider-icon-bg: var(--bg-tertiary);
+}

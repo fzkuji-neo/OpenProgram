@@ -36,10 +36,10 @@ export function PersistentFilePanes({ tabs, activeFileIds, layouts }: { tabs: Fi
     // One physical editor per document identity, retained when its tab alias
     // changes. A second native engine cannot acquire the same revision lease.
     return <div key={key} style={{ display: "contents" }}>
-      <div data-file-pane-id={tab.id} className={layouts.get(tab.id)?.className} style={pane(tab.id, active.length > 0)}>
+      <div data-file-pane-id={tab.id} data-page-surface="" className={layouts.get(tab.id)?.className} style={pane(tab.id, active.length > 0)}>
         <FileTabPane projectId={tab.projectId || ""} path={tab.path} sessionId={tab.fileSessionId} readOnly={tab.readOnly} />
       </div>
-      {active.filter(alias => alias.id !== tab.id).map(alias => <div key={alias.id} data-file-pane-id={alias.id} className={layouts.get(alias.id)?.className} style={pane(alias.id, true)}>
+      {active.filter(alias => alias.id !== tab.id).map(alias => <div key={alias.id} data-file-pane-id={alias.id} data-page-surface="" className={layouts.get(alias.id)?.className} style={pane(alias.id, true)}>
         <div className={styles.duplicate}><FileTextIcon size={24} aria-hidden /><span>{text("This file is open in another pane.", "此文件已在另一栏打开。")}</span>
           <button type="button" onClick={() => setPreferred(current => ({ ...current, [key]: alias.id }))}>{text("Show here", "在此显示")}</button>
         </div>

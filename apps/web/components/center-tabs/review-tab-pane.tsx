@@ -1,11 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
 import { FileTypeIcon } from "@/components/files/file-type-icon";
+import { FileViewer } from "@/components/files/file-viewer";
 
 import { FeatherIcon } from "@/components/animated-icons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  CHECK_SLOT,
+  CHECK_SLOT_PAD,
+  MENU_ITEM_STATES,
+  MENU_PANEL,
+  MENU_SEPARATOR,
+  itemCls,
+} from "@/components/chat/top-bar/menu-styles";
 import { useTranslation } from "@/lib/i18n";
-import { UnifiedDiff } from "@/components/chat/messages/unified-diff";
+import { ReviewDiff } from "./review-diff";
+import { canPreview } from "./review-diff-rows.ts";
 import styles from "./review-tab-pane.module.css";
 
 import type {
@@ -39,6 +57,9 @@ export function ReviewTabPane({
   const [diffHistory, setDiffHistory] = useState<string[]>([]);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [category, setCategory] = useState<ReviewCategory>("All");
+  // Documents and images can be read rendered; the choice carries over
+  // to the next file that supports it.
+  const [view, setView] = useState<"changes" | "preview">("changes");
   // The protocol supports query/sort, but this pane currently keeps the
   // default values without adding controls to the existing toolbar layout.
   const query = "";
@@ -284,87 +305,119 @@ const data = await requestReviewScope({
     () => scopeState.files.find((file) => file.path === selectedPath),
     [scopeState.files, selectedPath],
   );
+  const selectedIndex = scopeState.files.findIndex((file) => file.path === selectedPath);
+  const previewable = selected ? canPreview(selected) : false;
+  const showPreview = view === "preview" && previewable;
   const sourceLabel = scopeState.source === "git"
     ? "Git workspace"
     : text("Mutation journal", "修改日志");
+  const categoryLabels: Record<ReviewCategory, string> = {
+    All: text("All types", "全部类型"),
+    Code: text("Code", "代码"),
+    Tests: text("Tests", "测试"),
+    Docs: text("Docs", "文档"),
+    Large: text("Large", "大文件"),
+  };
+
+  const chooseScope = (value: ReviewScope) => {
+    setScope(value);
+    setSelectedPath("");
+    setFileCursor(null);
+    setDiffCursor(null);
+    setDiffHistory([]);
+    setScopeState((current) => ({ ...current, snapshot_id: undefined }));
+  };
+  const chooseCategory = (value: ReviewCategory) => {
+    setCategory(value);
+    staleRecoveryRef.current = null;
+    setSelectedPath("");
+    setFileCursor(null);
+    setDiffCursor(null);
+    setDiffHistory([]);
+    setScopeState((current) => ({ ...current, snapshot_id: undefined }));
+  };
+  const chooseFile = (path: string) => {
+    setSelectedPath(path);
+    setDiffCursor(null);
+    setDiffHistory([]);
+  };
+  const filePages = scopeState.prev_cursor != null || scopeState.next_cursor != null;
+  const diffPages = Boolean(selectedPath) && !showPreview
+    && (diffHistory.length > 0 || diffState.next_cursor != null);
 
   return (
     <div className={styles.page} data-testid="review-tab-pane">
       <header className={styles.header}>
-        <span className={styles.logo} aria-hidden="true"><FeatherIcon size={18} /></span>
-        <div className={styles.heading}>
+        <div className={styles.titleRow}>
+          <span className={styles.logo} aria-hidden="true"><FeatherIcon size={16} /></span>
           <h1>{text("Review", "审阅")}</h1>
-          <span>{sourceLabel}</span>
-        </div>
-        {scopeState.linked_impacts.length ? (
-          <span
-            className={styles.linkedImpacts}
-            title={scopeState.linked_impacts
-              .map((impact) => `${impact.job_id ?? "actor"} · ${impact.status ?? impact.relation ?? "linked"}`)
-              .join("\n")}
-          >
-            {text(
-              `${scopeState.linked_impacts.length} linked`,
-              `${scopeState.linked_impacts.length} 个关联任务`,
-            )}
-          </span>
-        ) : null}
-        <div className={styles.scopeTabs} role="tablist" aria-label={text("Review scope", "审阅范围")}>
-          {([
-            ["turn", text("This turn", "本轮")],
-            ["branch", text("Current branch", "当前分支")],
-            ["workspace", text("Workspace", "工作区")],
-          ] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={scope === value}
-              className={scope === value ? styles.scopeActive : styles.scope}
-              onClick={() => {
-                setScope(value);
-                setSelectedPath("");
-                setFileCursor(null);
-                setDiffCursor(null);
-                setDiffHistory([]);
-                setScopeState((current) => ({ ...current, snapshot_id: undefined }));
-              }}
-              disabled={value === "turn" && !assistantMsgId}
+          <span className={styles.source}>{sourceLabel}</span>
+          {scopeState.linked_impacts.length ? (
+            <span
+              className={styles.linkedImpacts}
+              title={scopeState.linked_impacts
+                .map((impact) => `${impact.job_id ?? "actor"} · ${impact.status ?? impact.relation ?? "linked"}`)
+                .join("\n")}
             >
-              {label}
-            </button>
-          ))}
+              {text(
+                `${scopeState.linked_impacts.length} linked`,
+                `${scopeState.linked_impacts.length} 个关联任务`,
+              )}
+            </span>
+          ) : null}
+          <div className={styles.totals} aria-label={text("Change totals", "修改统计")}>
+            <span>{text(`${scopeState.file_count} files`, `${scopeState.file_count} 个文件`)}</span>
+            <i>+{scopeState.added ?? "—"}</i>
+            <em>−{scopeState.removed ?? "—"}</em>
+          </div>
         </div>
-        <div className={styles.totals} aria-label={text("Change totals", "修改统计")}>
-          <b>{scopeState.file_count}</b>
-          <span>{text("files", "个文件")}</span>
-          <i>+{scopeState.added ?? "—"}</i>
-          <em>−{scopeState.removed ?? "—"}</em>
+        <div className={styles.controlRow}>
+          <div className={styles.scopeTabs} role="tablist" aria-label={text("Review scope", "审阅范围")}>
+            {([
+              ["turn", text("This turn", "本轮")],
+              ["branch", text("Current branch", "当前分支")],
+              ["workspace", text("Workspace", "工作区")],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={scope === value}
+                className={scope === value ? styles.scopeActive : styles.scope}
+                onClick={() => chooseScope(value)}
+                disabled={value === "turn" && !assistantMsgId}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className={styles.menuButton} aria-label={text("File category", "文件分类")}>
+                {categoryLabels[category]}
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className={MENU_PANEL}>
+              {(["All", "Code", "Tests", "Docs", "Large"] as const).map((value) => (
+                <DropdownMenuItem
+                  key={value}
+                  className={`${itemCls(false)} ${MENU_ITEM_STATES}`}
+                  onSelect={() => chooseCategory(value)}
+                >
+                  <span className="min-w-0 flex-1 truncate">{categoryLabels[value]}</span>
+                  {category === value
+                    ? <Check size={14} className={CHECK_SLOT} aria-hidden="true" />
+                    : <span className={CHECK_SLOT_PAD} />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
       <div className={styles.body}>
         <aside className={styles.files} aria-label={text("Changed files", "修改的文件")}>
-          <div className={styles.categories} aria-label={text("File category", "文件分类")}>
-            {(["All", "Code", "Tests", "Docs", "Large"] as const).map((value) => (
-              <button
-                type="button"
-                key={value}
-                aria-pressed={category === value}
-                onClick={() => {
-                  setCategory(value);
-                  staleRecoveryRef.current = null;
-                  setSelectedPath("");
-                  setFileCursor(null);
-                  setDiffCursor(null);
-                  setDiffHistory([]);
-                  setScopeState((current) => ({ ...current, snapshot_id: undefined }));
-                }}
-              >
-                {value}
-              </button>
-            ))}
-          </div>
           {scopeState.loading ? (
             <div className={styles.empty}>{text("Loading files…", "正在加载文件…")}</div>
           ) : scopeState.error ? (
@@ -376,20 +429,21 @@ const data = await requestReviewScope({
               type="button"
               key={file.path}
               className={file.path === selectedPath ? styles.fileActive : styles.file}
-              onClick={() => {
-                setSelectedPath(file.path);
-                setDiffCursor(null);
-                setDiffHistory([]);
-              }}
-              title={file.path}
+              aria-current={file.path === selectedPath ? "true" : undefined}
+              onClick={() => chooseFile(file.path)}
             >
               <FileTypeIcon name={file.path} />
-              <span>{file.rel}</span>
-              <i>+{file.added ?? "—"}</i>
-              <em>−{file.removed ?? "—"}</em>
+              <span className={styles.fileText}>
+                <span className={styles.fileName}>{fileName(file.rel)}</span>
+                {fileFolder(file.rel) ? <span className={styles.fileFolder}>{fileFolder(file.rel)}</span> : null}
+              </span>
+              <span className={styles.counts}>
+                <i>+{file.added ?? "—"}</i>
+                <em>−{file.removed ?? "—"}</em>
+              </span>
             </button>
           ))}
-          {!scopeState.loading && scopeState.files.length ? (
+          {!scopeState.loading && filePages ? (
             <div className={styles.pagination}>
               <button
                 type="button"
@@ -415,27 +469,136 @@ const data = await requestReviewScope({
           data-mounted-diff-count={selectedPath ? "1" : "0"}
           data-mounted-diff-lines={diffState.line_count ?? 0}
         >
-          <div className={styles.diffHeader}>
-            <span>{selected?.rel ?? text("Select a file", "选择一个文件")}</span>
-            {selected ? (
-              <small>
+          {selected ? (
+            <div className={styles.fileHeader}>
+              <div className={styles.fileTitle}>
+                <FileTypeIcon name={selected.path} />
+                <h2>{fileName(selected.rel)}</h2>
+                {selected.op === "add" || selected.op === "delete" ? (
+                  <span className={selected.op === "add" ? styles.badgeAdded : styles.badgeDeleted}>
+                    {selected.op === "add" ? text("New file", "新文件") : text("Deleted", "已删除")}
+                  </span>
+                ) : null}
+                <span className={styles.fileActions}>
+                  {previewable ? (
+                    <span className={styles.viewTabs} role="tablist" aria-label={text("View", "查看方式")}>
+                      {([
+                        ["changes", text("Changes", "改动")],
+                        ["preview", text("Preview", "预览")],
+                      ] as const).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          role="tab"
+                          aria-selected={(value === "preview") === showPreview}
+                          className={(value === "preview") === showPreview ? styles.viewActive : styles.view}
+                          onClick={() => setView(value)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </span>
+                  ) : null}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className={`${styles.menuButton} ${styles.switcher}`}
+                        aria-label={text("Choose file", "选择文件")}
+                      >
+                        {`${selectedIndex + 1} / ${scopeState.files.length}`}
+                        <ChevronDown size={14} aria-hidden="true" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className={MENU_PANEL}>
+                      {scopeState.files.map((file) => (
+                        <DropdownMenuItem
+                          key={file.path}
+                          className={`${itemCls(false)} ${MENU_ITEM_STATES}`}
+                          onSelect={() => chooseFile(file.path)}
+                        >
+                          <FileTypeIcon name={file.path} />
+                          <span className="min-w-0 flex-1 truncate">{file.rel}</span>
+                          <span className={styles.counts}>
+                            <i>+{file.added ?? "—"}</i>
+                            <em>−{file.removed ?? "—"}</em>
+                          </span>
+                          {file.path === selectedPath
+                            ? <Check size={14} className={CHECK_SLOT} aria-hidden="true" />
+                            : <span className={CHECK_SLOT_PAD} />}
+                        </DropdownMenuItem>
+                      ))}
+                      {filePages ? (
+                        <>
+                          <DropdownMenuSeparator className={MENU_SEPARATOR} />
+                          <DropdownMenuItem
+                            className={`${itemCls(false)} ${MENU_ITEM_STATES}`}
+                            disabled={scopeState.prev_cursor == null}
+                            onSelect={() => setFileCursor(scopeState.prev_cursor ?? null)}
+                          >
+                            {text("Previous page", "上一页")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className={`${itemCls(false)} ${MENU_ITEM_STATES}`}
+                            disabled={scopeState.next_cursor == null}
+                            onSelect={() => setFileCursor(scopeState.next_cursor ?? null)}
+                          >
+                            {text("Next page", "下一页")}
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </span>
+              </div>
+              <div className={styles.fileMeta}>
                 {[
+                  fileFolder(selected.rel),
                   selected.actor_ids?.length || selected.actor_id
                     ? text(
-                      `Actor: ${(selected.actor_ids ?? [selected.actor_id]).filter(Boolean).join(", ")}`,
-                      `执行者：${(selected.actor_ids ?? [selected.actor_id]).filter(Boolean).join("、")}`,
+                      `Actor ${(selected.actor_ids ?? [selected.actor_id]).filter(Boolean).join(", ")}`,
+                      `执行者 ${(selected.actor_ids ?? [selected.actor_id]).filter(Boolean).join("、")}`,
                     )
                     : null,
                   selected.producer_turn_id
-                    ? text(`Producer: ${selected.producer_turn_id.slice(0, 8)}`, `来源轮次：${selected.producer_turn_id.slice(0, 8)}`)
+                    ? text(`Turn ${selected.producer_turn_id.slice(0, 8)}`, `来源轮次 ${selected.producer_turn_id.slice(0, 8)}`)
                     : null,
-                  selected.turn_ids?.length
-                    ? text(`${selected.turn_ids.length} turn(s)`, `${selected.turn_ids.length} 轮`)
+                  selected.turn_ids && selected.turn_ids.length > 1
+                    ? text(`${selected.turn_ids.length} turns`, `${selected.turn_ids.length} 轮`)
                     : null,
-                ].filter(Boolean).join(" · ")}
-              </small>
-            ) : null}
-            {selectedPath ? (
+                ].filter(Boolean).map((part) => <span key={part as string}>{part}</span>)}
+                <span className={styles.counts}>
+                  <i>+{selected.added ?? "—"}</i>
+                  <em>−{selected.removed ?? "—"}</em>
+                </span>
+              </div>
+            </div>
+          ) : null}
+          <div className={styles.diffBody}>
+            {!selectedPath ? (
+              <div className={styles.empty}>
+                {scopeState.files.length
+                  ? text("Select a file to inspect", "选择文件以查看差异")
+                  : scopeState.loading
+                    ? text("Loading files…", "正在加载文件…")
+                    : scopeState.error ?? text("No changes in this scope", "此范围没有修改")}
+              </div>
+            ) : showPreview && selected ? (
+              <div className={styles.preview}><FileViewer projectId="" path={selected.path} abs sessionId={sessionId} /></div>
+            ) : diffState.loading ? (
+              <div className={styles.empty}>{text("Loading diff…", "正在加载差异…")}</div>
+            ) : diffState.error ? (
+              <div className={styles.empty}>{diffState.error}</div>
+            ) : diffState.diff_state === "large" || diffState.diff_state === "large_line" ? (
+              <div className={styles.empty}>{text("Diff exceeds the bounded preview size", "差异超过预览大小限制")}</div>
+            ) : diffState.diff_state === "binary" ? (
+              <div className={styles.empty}>{text("Binary file", "二进制文件")}</div>
+            ) : diffState.diff ? (
+              <ReviewDiff diff={diffState.diff} op={selected?.op} />
+            ) : (
+              <div className={styles.empty}>{text("No textual changes", "没有文本改动")}</div>
+            )}
+            {diffPages ? (
               <div className={styles.diffPagination}>
                 <button
                   type="button"
@@ -463,25 +626,17 @@ const data = await requestReviewScope({
               </div>
             ) : null}
           </div>
-          <div className={styles.diffBody}>
-            {!selectedPath ? (
-              <div className={styles.empty}>{text("Select a file to inspect", "选择文件以查看差异")}</div>
-            ) : diffState.loading ? (
-              <div className={styles.empty}>{text("Loading diff…", "正在加载差异…")}</div>
-            ) : diffState.error ? (
-              <div className={styles.empty}>{diffState.error}</div>
-            ) : diffState.diff_state === "large" || diffState.diff_state === "large_line" ? (
-              <div className={styles.empty}>{text("Diff exceeds the bounded preview size", "差异超过预览大小限制")}</div>
-            ) : diffState.diff_state === "binary" ? (
-              <div className={styles.empty}>{text("Binary file", "二进制文件")}</div>
-            ) : diffState.diff ? (
-              <UnifiedDiff diff={diffState.diff} />
-            ) : (
-              <div className={styles.empty}>{text("No textual changes", "没有文本改动")}</div>
-            )}
-          </div>
         </main>
       </div>
     </div>
   );
+}
+
+function fileName(rel: string): string {
+  return rel.split("/").pop() || rel;
+}
+
+function fileFolder(rel: string): string {
+  const index = rel.lastIndexOf("/");
+  return index > 0 ? rel.slice(0, index + 1) : "";
 }
