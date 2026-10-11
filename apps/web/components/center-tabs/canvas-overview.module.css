@@ -62,10 +62,12 @@ button.card:hover .mini,
 .card[data-hot] .mini {
   transform: scale(1.025);
 }
-/* The window zooming in or out: framer-motion moves its picture between
+/* The window zooming in or out (and the current card, which arrives by
+   zooming, so the fade-in never replays when the zoom ends): framer-motion moves its picture between
    the window's place (data-zoomed, positioned against the overview) and
    its slot in the grid, which a placeholder keeps meanwhile. */
-.card[data-zooming] {
+.card[data-zooming],
+.overview[data-canvas-overview="browse"] .card[data-current] {
   animation: none;
 }
 .zoomer {
