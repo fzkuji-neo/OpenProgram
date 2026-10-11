@@ -89,14 +89,14 @@ test('Return to previous layout finds a layout by any tab it involved', () => {
   assert.equal(takePreviousCanvas(['y']), undefined, 'each step is used once');
 });
 
-test('the middle of a pane only replaces with Option, and edges map like macOS', async () => {
+test('a pane splits by quarter strips and halves, with no dead centre', async () => {
   const drag = await read('lib/tabs/canvas-drag.ts');
-  assert.match(drag, /if \(alt\) return \{ targetId, paneId, side: "center"[^}]*action: "dock"/);
-  assert.match(drag, /action: "hint", label:/);
+  assert.match(drag, /if \(alt\) return \{ targetId, paneId, side: "center"[^}]*action: "dock"/, 'Option replaces');
+  assert.match(drag, /const side = px < PANE_SIDE \? "left" : px > 1 - PANE_SIDE \? "right" : py < 0\.5 \? "top" : "bottom";/);
+  assert.doesNotMatch(drag, /"hint"/, 'every point in a pane does something');
   assert.match(drag, /if \(nearT\) \{[\s\S]*?action: "fill"/, 'the top edge opens the tab on its own');
   assert.match(drag, /\(nearL \|\| nearR\) && \(nearT \|\| nearB\)/, 'corners are quarters');
-  const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
-  assert.match(strip, /canvasDrop\?\.action === "hint"\) \{\s*restorePointerDragElement\(drag\.element, true\);\s*cancelDrag\(true\);/);
+  assert.match(drag, /event\.preventDefault\(\);\s*const el = event\.currentTarget/, 'a pane drag does not select text');
 });
 
 test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', async () => {
@@ -111,4 +111,6 @@ test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', a
   assert.match(controls, /e\.code === "KeyR"\) \{ e\.preventDefault\(\); restore\(\);/);
   assert.match(controls, /centerCanvasPresets/, 'saved layouts are kept');
   assert.doesNotMatch(controls, /\stitle=\{/, 'no native tooltips on canvas controls');
+  assert.match(controls, /<i \/><i \/><i \/>/, 'the pane keeps its three-dot grip');
+  assert.match(controls, /if \(menu\?\.hover\) closeMenu\(\);/, 'pressing the grip closes a hover menu before a drag');
 });

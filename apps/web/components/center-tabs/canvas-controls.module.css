@@ -22,9 +22,9 @@
   box-shadow: var(--composer-shadow);
 }
 
-/* 格子没有标题栏：顶部正中一根横条，像 iPadOS / macOS 的窗口把手。
+/* 格子没有标题栏：顶部正中一个 iPadOS 分屏式的"•••"把手。
    拖它移动格子；点它，或停在上面一会儿（像 macOS 绿色按钮），打开贴靠菜单。
-   热区 88×22，横条平时淡、悬停变长变深。 */
+   可点范围 88×22，比三个点本身大；悬停时浮起成胶囊。 */
 .grip {
   pointer-events: auto;
   position: absolute;
@@ -37,34 +37,53 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0 0 10px 10px;
   cursor: grab;
   touch-action: none;
+}
+.grip::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 12px;
+  border-radius: 0 0 8px 8px;
+  transition: background 140ms ease, box-shadow 140ms ease;
 }
 .grip:active {
   cursor: grabbing;
 }
-.gripBar {
-  width: 36px;
-  height: 5px;
-  border-radius: 999px;
-  background: color-mix(in oklch, var(--text-muted) 55%, transparent);
-  transition: width 140ms ease, background 140ms ease;
+.grip i {
+  position: relative;
+  top: -5px;
+  width: 4px;
+  height: 4px;
+  margin: 0 1.5px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  opacity: 0.6;
+  transition: opacity 140ms ease, background 140ms ease;
 }
-.pane[data-focused="true"] .gripBar {
-  background: color-mix(in oklch, var(--text-secondary) 75%, transparent);
+.pane[data-focused="true"] .grip i {
+  opacity: 0.9;
 }
 .grip:focus-visible {
   outline: none;
 }
-.grip:hover .gripBar,
-.grip:focus-visible .gripBar,
-.grip[aria-expanded="true"] .gripBar {
-  width: 48px;
-  background: var(--text-bright);
+.grip:hover::before,
+.grip:focus-visible::before,
+.grip[aria-expanded="true"]::before {
+  background: color-mix(in oklch, var(--bg-tertiary) 90%, transparent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
-.grip:focus-visible .gripBar {
+.grip:focus-visible::before {
   box-shadow: 0 0 0 2px var(--focus-ring);
+}
+.grip:hover i,
+.grip:focus-visible i,
+.grip[aria-expanded="true"] i {
+  opacity: 1;
+  background: var(--text-bright);
 }
 
 /* 空格子：居中一张卡片，列出可放进来的 tab。 */
@@ -419,5 +438,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .menu { animation: none; }
-  .pane, .gripBar, .divider::after { transition: none; }
+  .pane, .grip::before, .grip i, .divider::after { transition: none; }
 }

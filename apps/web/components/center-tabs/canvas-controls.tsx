@@ -56,9 +56,9 @@ function TabIcon({ tab }: { tab: CenterTab | undefined }) {
   return <SquareDashed aria-hidden />;
 }
 
-/** Panes carry no title bar: content fills the pane, and a bar at the top
- *  centre moves the pane (drag) and opens its tiling menu (click, or rest the
- *  pointer on it like the macOS green button). A lone pane shows no chrome. */
+/** Panes carry no title bar: content fills the pane, and a "•••" grip at the
+ *  top centre moves the pane (drag) and opens its tiling menu (click, or rest
+ *  the pointer on it like the macOS green button). A lone pane shows no chrome. */
 export function CanvasControls({ layout, targetId, width, height }: { layout: CanvasLayout; targetId: string; width: number; height: number }) {
   const { t, text } = useTranslation();
   const tabs = useCenterTabs(s => s.tabs), groups = useCenterTabs(s => s.groups);
@@ -235,7 +235,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
             hoverTimer.current = window.setTimeout(() => openMenuBelow(p.id, grip, true), 450);
           }}
           onPointerLeave={() => { if (menu?.hover) leaveHoverMenu(); else window.clearTimeout(hoverTimer.current); }}
-          onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); window.clearTimeout(hoverTimer.current); gripStart.current = { x: e.clientX, y: e.clientY }; focus(p.id); if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]")); }}
+          onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); window.clearTimeout(hoverTimer.current); if (menu?.hover) closeMenu(); gripStart.current = { x: e.clientX, y: e.clientY }; focus(p.id); if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]")); }}
           onClick={e => {
             const s = gripStart.current; gripStart.current = null;
             if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 6) return; // a drag, not a click
@@ -243,7 +243,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
           }}
           onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(p.id, e.clientX, e.clientY); }}
           onKeyDown={e => { if (e.key !== "Enter" && e.key !== " ") return; e.preventDefault(); openMenuBelow(p.id, e.currentTarget); }}>
-          <span className={styles.gripBar} aria-hidden />
+          <i /><i /><i />
           {tab && <PaneDragLabel tab={tab} />}
         </div>}
       </div>;
