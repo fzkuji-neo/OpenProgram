@@ -46,20 +46,20 @@ button.card:focus-visible { outline: none; }
   display: block;
   width: 100%;
   border-radius: 10px;
-  transition: transform 150ms ease, outline-color 150ms ease;
+  transition: transform 150ms ease, filter 150ms ease;
 }
-/* An even ring 3px outside the card, never a shadow of its own: the
-   panes inside already cast theirs. */
-.card[data-current] .mini {
-  outline: 2px solid color-mix(in oklch, var(--text-bright) 28%, transparent);
-  outline-offset: 3px;
-}
+/* Like Mission Control, no frame: the current window and the one under
+   the pointer lift a little. drop-shadow follows the panes' own shapes,
+   so a split card casts one shadow per pane, never a box around the gaps. */
+.card[data-current] .mini,
 button.card:hover .mini,
-button.card:focus-visible .mini,
 .card[data-hot] .mini {
-  transform: scale(1.03);
+  transform: scale(1.035);
+  filter: drop-shadow(0 10px 22px rgb(0 0 0 / 0.16)) drop-shadow(0 2px 5px rgb(0 0 0 / 0.10));
+}
+button.card:focus-visible .mini {
   outline: 2px solid color-mix(in oklch, var(--accent-blue) 75%, transparent);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 .pane {
   position: absolute;
