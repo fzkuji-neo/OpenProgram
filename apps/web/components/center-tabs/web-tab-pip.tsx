@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { type SidebarMenuItem } from "@/components/sidebar/use-sidebar-menu";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
+import { useCanvasOverview } from "@/lib/tabs/canvas-overview";
 import {
   browserTakeoverKind,
   controlResourceFromSession,
@@ -335,7 +336,10 @@ export function WebTabPip() {
   const resource = tabId ? resourceForTab(tabId) : undefined;
   const control = resource ? controlResourceFromSession(resource) : null;
   const center = { tabs, activeId, groups, splitWebTabId };
-  const live = pipHostMode(tabId, ownerTabId, center) === "chat";
+  // The window overview shows each window as it is, without the floating
+  // preview over it; the preview comes back when the overview closes.
+  const overview = useCanvasOverview((s) => s.mode !== null);
+  const live = !overview && pipHostMode(tabId, ownerTabId, center) === "chat";
   const expanded = !!pref?.expanded;
   const rootRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<PipDrag | null>(null);
