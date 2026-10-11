@@ -230,3 +230,9 @@ test('a split window is one tab: its focused pane, a split mark and one close', 
   assert.match(css, /\.compoundTab \{[\s\S]*?flex: 0 1 200px;\n  min-width: 48px;/, 'as wide as any other tab');
   assert.match(css, /:global\(html\.is-desktop\) \.tabsFlow > \.tab,\n:global\(html\.is-desktop\) \.tabsFlow > \.compoundTab \{\n  width: 240px;/, 'and as wide as any other tab in the App');
 });
+
+test('browsing the overview: empty space is inert and there is no hint', async () => {
+  const view = await read('components/center-tabs/canvas-overview.tsx');
+  assert.doesNotMatch(view, /dataset\.overviewGrid !== undefined\) dismissOverview\(\)/, 'a click between cards does not open a window');
+  assert.match(view, /const hint = mode === "drag"\n    \? label \|\| text\([\s\S]*?\)\n    : null;/, 'only a drag shows a hint');
+});
