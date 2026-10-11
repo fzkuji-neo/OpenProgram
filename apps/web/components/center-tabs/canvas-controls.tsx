@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Equal, FileText, Globe, LayoutGrid, Maximize2, MessageSquare, SquareDashed, Undo2, X, Save } from "lucide-react";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
-import { canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, snapResize, tilePane, mapNode, type CanvasLayout, type CanvasPreset, type CanvasTile } from "@/lib/tabs/canvas-layout";
+import { canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, snapResize, tilePane, mapNode, type CanvasLayout, type CanvasPreset, type CanvasTile, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { rememberCanvas, takePreviousCanvas } from "@/lib/tabs/canvas-history";
 import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas-drag";
 import { useTranslation } from "@/lib/i18n";
@@ -235,7 +235,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
             hoverTimer.current = window.setTimeout(() => openMenuBelow(p.id, grip, true), 450);
           }}
           onPointerLeave={() => { if (menu?.hover) leaveHoverMenu(); else window.clearTimeout(hoverTimer.current); }}
-          onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); window.clearTimeout(hoverTimer.current); if (menu?.hover) closeMenu(); gripStart.current = { x: e.clientX, y: e.clientY }; focus(p.id); if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]")); }}
+          onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); window.clearTimeout(hoverTimer.current); if (menu?.hover) closeMenu(); gripStart.current = { x: e.clientX, y: e.clientY }; if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]")); }}
           onClick={e => {
             const s = gripStart.current; gripStart.current = null;
             if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 6) return; // a drag, not a click
@@ -254,17 +254,28 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
       onKeyDown={e => { if (!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key)) return; e.preventDefault(); update({ ...layout,root:resizeSplit(layout.root,d.splitId,d.index,e.key==="ArrowLeft"||e.key==="ArrowUp"?-.02:.02) }); }}
       onPointerDown={e => {
         if(e.button!==0) return; e.preventDefault(); const start=d.dir==="row"?e.clientX:e.clientY;
-        let moved = false;
-        setCanvasDragging(true); setActiveDivider({ key, snap: null });
-        // Near a third, a half or two thirds the divider sticks, like a macOS tile edge.
+        // Sizes paint once per frame through the unpersisted preview; the
+        // release commits them once. Near a third, a half or two thirds the
+        // divider sticks, like a macOS tile edge.
+        let moved = false, frame = 0, latest: LayoutNode | null = null, snap: number | null = null, done = false;
+        setActiveDivider({ key, snap: null });
         const move=(event:PointerEvent) => {
-          if (!moved) { moved = true; remember(); }
+          if (event.buttons === 0) { end(); return; }
+          if (!moved) { moved = true; remember(); setCanvasDragging(true, { cancel: end, release: end }); }
           const snapped = snapResize(d.sizes, d.index, ((d.dir==="row"?event.clientX:event.clientY)-start)/Math.max(1,d.span), d.span);
-          setActiveDivider({ key, snap: snapped.snap });
-          update({ ...layout,root:resizeSplit(layout.root,d.splitId,d.index,snapped.delta) });
+          latest = resizeSplit(layout.root,d.splitId,d.index,snapped.delta);
+          if (snapped.snap !== snap) { snap = snapped.snap; setActiveDivider({ key, snap }); }
+          if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (latest && !done) useCenterTabs.getState().previewCanvas(targetId, latest); });
         };
-        const end=() => { window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",end); window.removeEventListener("pointercancel",end); setCanvasDragging(false); setActiveDivider(null); };
-        window.addEventListener("pointermove",move); window.addEventListener("pointerup",end,{once:true}); window.addEventListener("pointercancel",end,{once:true});
+        const end=() => {
+          if (done) return; done = true;
+          window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",end); window.removeEventListener("pointercancel",end); window.removeEventListener("blur",end);
+          cancelAnimationFrame(frame);
+          if (moved) setCanvasDragging(false);
+          setActiveDivider(null);
+          if (latest) update({ ...layout, root: latest });
+        };
+        window.addEventListener("pointermove",move); window.addEventListener("pointerup",end); window.addEventListener("pointercancel",end); window.addEventListener("blur",end);
       }}>{live?.snap != null && <span className={styles.snap}>{SNAP_LABEL(live.snap)}</span>}</div>; })}
   </>;
 }

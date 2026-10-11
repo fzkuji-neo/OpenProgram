@@ -1026,12 +1026,13 @@ html[data-canvas-dragging] .desktop-tab-row { z-index: 100000; }
   box-shadow:
     inset 0 0 0 1.5px color-mix(in oklch, var(--accent-blue) 70%, transparent),
     0 8px 24px color-mix(in oklch, var(--accent-blue) 18%, transparent);
-  backdrop-filter: blur(2px);
+  /* No backdrop blur and no overshoot: the area under the cue stays
+     readable and moving between zones glides instead of flashing. */
   transition:
-    left 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15),
-    top 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15),
-    width 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15),
-    height 160ms cubic-bezier(0.2, 0.9, 0.3, 1.15);
+    left 120ms ease-out,
+    top 120ms ease-out,
+    width 120ms ease-out,
+    height 120ms ease-out;
 }
 .canvas-drop-preview[data-drop-target="tab-strip"] { z-index: 100001; }
 .canvas-drop-preview[data-drop-target="resources"] {
@@ -1080,4 +1081,8 @@ html[data-canvas-dragging] .desktop-tab-row { z-index: 100000; }
   .center-canvas-content textarea { max-height: 38px; }
 }
 html[data-canvas-dragging] iframe { pointer-events: none; }
+/* While anything is dragged, no part of the window is a native drag region:
+   macOS would swallow the release there and leave the drag hanging. */
+html[data-canvas-dragging],
+html[data-canvas-dragging] * { -webkit-app-region: no-drag !important; }
 

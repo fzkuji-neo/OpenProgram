@@ -139,7 +139,7 @@ test('pane grip drags a full tab label rather than the three dots',()=>{
   assert.equal(preview.querySelectorAll('i').length,0);
   assert.equal(preview.hasAttribute('hidden'),false);assert.equal(preview.style.width,'220px');
   assert.equal(preview.style.left,'240px');assert.equal(preview.style.top,'224px');
-  assert.equal(grip.style.visibility,'hidden');
+  assert.ok(grip.hasAttribute('data-pane-dragging'),'the dragged pane hides its grip through an attribute, not inline style');
   fire('pointermove',350,20);
   const cue=document.querySelector('.canvas-drop-preview[data-drop-target="tab-strip"]');
   assert.ok(cue,'returning a pane to the strip shows a docking cue');
@@ -151,10 +151,33 @@ test('pane grip drags a full tab label rather than the three dots',()=>{
   fire('pointercancel',350,240);
   assert.equal(document.querySelector('.canvas-drop-preview'),null,'cancel clears cue');
   assert.equal(document.querySelector('[data-pane-drag-preview]'),null);
-  assert.notEqual(grip.style.visibility,'hidden');
+  assert.equal(grip.hasAttribute('data-pane-dragging'),false);
  } finally {grip.remove();strip.remove();}
 });
 
+
+test('a pane drag whose release the page never saw ends on the next buttonless move',()=>{
+ globalThis.bridge=null;
+ const pane=document.createElement('div');pane.setAttribute('data-canvas-pane','p');
+ const grip=document.createElement('div');grip.innerHTML='<span data-pane-drag-label hidden>Doc</span>';pane.append(grip);document.body.append(pane);
+ grip.setPointerCapture=()=>{};grip.hasPointerCapture=()=>false;
+ const fire=(type,x,y,buttons=1)=>{const e=new window.Event(type);Object.assign(e,{pointerId:9,clientX:x,clientY:y,buttons,pointerType:'mouse'});window.dispatchEvent(e);};
+ try {
+  startPaneDrag({button:0,preventDefault(){},target:grip,currentTarget:grip,pointerId:9,clientX:100,clientY:100},'w:x',grip.firstElementChild);
+  fire('pointermove',300,300);
+  assert.ok(pane.hasAttribute('data-pane-dragging'));
+  assert.ok(document.documentElement.hasAttribute('data-canvas-dragging'));
+  fire('pointermove',310,310,0);
+  assert.equal(pane.hasAttribute('data-pane-dragging'),false,'the grip comes back');
+  assert.equal(document.documentElement.hasAttribute('data-canvas-dragging'),false,'iframes and drag regions are released');
+  assert.equal(document.querySelector('[data-pane-drag-preview]'),null,'no floating label is left behind');
+  // A later drag clears any pane a broken drag left marked.
+  const other=document.createElement('div');other.setAttribute('data-pane-dragging','');document.body.append(other);
+  startPaneDrag({button:0,preventDefault(){},target:grip,currentTarget:grip,pointerId:9,clientX:100,clientY:100},'w:x',grip.firstElementChild);
+  assert.equal(other.hasAttribute('data-pane-dragging'),false);
+  fire('pointercancel',0,0);other.remove();
+ } finally {pane.remove();}
+});
 
 test('pane web drag highlights and attaches to the Resources panel conversation',async()=>{
  let posted;

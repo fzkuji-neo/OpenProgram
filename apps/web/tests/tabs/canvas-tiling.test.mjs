@@ -96,7 +96,7 @@ test('a pane splits by quarter strips and halves, with no dead centre', async ()
   assert.doesNotMatch(drag, /"hint"/, 'every point in a pane does something');
   assert.match(drag, /if \(nearT\) \{[\s\S]*?action: "fill"/, 'the top edge opens the tab on its own');
   assert.match(drag, /\(nearL \|\| nearR\) && \(nearT \|\| nearB\)/, 'corners are quarters');
-  assert.match(drag, /event\.preventDefault\(\);\s*const el = event\.currentTarget/, 'a pane drag does not select text');
+  assert.match(drag, /event\.preventDefault\(\);\s*const grip = event\.currentTarget/, 'a pane drag does not select text');
 });
 
 test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', async () => {
@@ -113,4 +113,22 @@ test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', a
   assert.doesNotMatch(controls, /\stitle=\{/, 'no native tooltips on canvas controls');
   assert.match(controls, /<i \/><i \/><i \/>/, 'the pane keeps its three-dot grip');
   assert.match(controls, /if \(menu\?\.hover\) closeMenu\(\);/, 'pressing the grip closes a hover menu before a drag');
+});
+
+test('drags cannot hang: missed releases, errors and drag regions all end them', async () => {
+  const drag = await read('lib/tabs/canvas-drag.ts');
+  assert.match(drag, /if \(!owner \|\| event\.buttons !== 0 \|\| event\.pointerType === "touch"\) return;/, 'the first buttonless move ends a drag whose release was lost');
+  assert.match(drag, /window\.addEventListener\("pointerdown", \(\) => owner\?\.cancel\(\), true\)/);
+  assert.match(drag, /function resolveDrop[\s\S]*?catch \(error\)[\s\S]*?return \{ resource: null, drop: null, strip: null \}/, 'a failed drop lookup cannot skip cleanup');
+  assert.doesNotMatch(drag, /style\.visibility/, 'the grip is hidden by a pane attribute, never inline style');
+  const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
+  assert.match(strip, /setCanvasDragging\(true, \{ cancel: cancelPointerDrag, release: onPointerDragUp \}\)/);
+  const css = await read('app/styles/base.css');
+  assert.match(css, /html\[data-canvas-dragging\] \* \{ -webkit-app-region: no-drag !important; \}/);
+  assert.doesNotMatch(css.slice(css.indexOf('.canvas-drop-preview {'), css.indexOf('.canvas-drop-preview[data-drop-target="tab-strip"]')), /backdrop-filter|1\.15\)/);
+  const controls = await read('components/center-tabs/canvas-controls.tsx');
+  assert.match(controls, /requestAnimationFrame\(\(\) => \{ frame = 0; if \(latest && !done\) useCenterTabs\.getState\(\)\.previewCanvas\(targetId, latest\); \}\)/, 'divider drags paint per frame without persisting');
+  assert.doesNotMatch(controls, /gripStart\.current = \{ x: e\.clientX, y: e\.clientY \}; focus\(/, 'pressing a grip does not refocus and reroute before a drag');
+  const web = await read('components/center-tabs/web-tab-pane.tsx');
+  assert.match(web, /const timer = window\.setTimeout\(hide, 160\);/, 'a native page stays visible until its snapshot is ready');
 });
