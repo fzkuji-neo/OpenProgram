@@ -14,7 +14,7 @@
  * dragging; the torn-off window is created at RELEASE.
  */
 import { useLayoutEffect, useRef, useState } from "react";
-import { canvasDropAt, showCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
+import { canvasDropAt, commitCanvasDrop, showCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
 
 import {
   DETACH_HYSTERESIS_PX,
@@ -484,7 +484,7 @@ export function useTabPointerDrag({
       return;
     }
 
-    const canvasDrop = canvasDropAt(e.clientX, e.clientY);
+    const canvasDrop = canvasDropAt(e.clientX, e.clientY, drag.subject.tabIds, e.altKey);
     showCanvasDrop(canvasDrop);
     if (canvasDrop) {
       drag.detaching = false; drag.overWindow = false; drag.lastIntent = null;
@@ -658,14 +658,20 @@ export function useTabPointerDrag({
       clearDragState();
       return;
     }
-    const canvasDrop = resourceTarget ? null : canvasDropAt(e.clientX, e.clientY);
+    const canvasDrop = resourceTarget ? null : canvasDropAt(e.clientX, e.clientY, drag.subject.tabIds, e.altKey);
+    // The middle of a pane does nothing without Option: snap the tab back.
+    if (canvasDrop?.action === "hint") {
+      restorePointerDragElement(drag.element, true);
+      cancelDrag(true);
+      return;
+    }
     if (canvasDrop) {
       restorePointerDragElement(drag.element, false);
       const committed = dragCoordinator.commit();
       clearDragState();
       if (committed) void (async () => {
         if (committed.transferToken && !await desktopBridge()?.tabTransfer.cancel(committed.transferToken)) return;
-        useCenterTabs.getState().dockCanvas(committed.subject.tabIds, canvasDrop.targetId, canvasDrop.paneId, canvasDrop.side);
+        commitCanvasDrop(canvasDrop, committed.subject.tabIds);
       })();
       return;
     }

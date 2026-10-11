@@ -19,7 +19,6 @@ import {
   type AnimatedNavIconHandle,
 } from "@/components/animated-icons";
 import type { CenterTab } from "@/lib/tabs/center-tabs-store";
-import { leaves } from "@/lib/tabs/canvas-layout";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import type { TabDragSubject } from "@/lib/tabs/tab-drag-coordinator";
 import { useTranslation } from "@/lib/i18n";
@@ -165,7 +164,7 @@ export function CompoundTabItem({
           onActivate(canonicalTab);
         }}
       />
-      {group.canvas ? <span className={styles.canvasPaneCount}>{leaves(group.canvas.root).length}</span> : null}
+      {memberTabs.length > 2 ? <span className={styles.canvasPaneCount}>+{memberTabs.length - 2}</span> : null}
       <div className={styles.compoundMembers}>
         {memberTabs.slice(0, 2).map((tab) => {
           const memberClosing = !closing && closingIds.has(tab.id);

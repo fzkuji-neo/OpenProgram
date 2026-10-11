@@ -2,7 +2,7 @@ import type { StoreApi } from "zustand";
 import type { CenterTabsState } from "./types";
 import { commitCenterTabsState } from "./core";
 import { findCenterTabGroup, ungroupCenterTab } from "../center-tab-groups";
-import { leaves, rowLayout, insertPane, removePane, mapNode, sanitizeLayout, type CanvasLayout } from "../canvas-layout";
+import { dockLayout, leaves, rowLayout, sanitizeLayout } from "../canvas-layout";
 
 export function canvasActions(set: StoreApi<CenterTabsState>["setState"]): Pick<CenterTabsState, "setCanvas" | "dockCanvas"> {
   return {
@@ -32,21 +32,8 @@ export function canvasActions(set: StoreApi<CenterTabsState>["setState"]): Pick<
       const targetGroup = findCenterTabGroup(s.groups, targetId);
       const sourceGroup = findCenterTabGroup(s.groups, sourceId);
       if (sourceIds.length > 1 && sourceGroup?.id === targetGroup?.id) return {};
-      const original = targetGroup?.canvas ?? rowLayout([targetId]);
-      const target = paneId === "root" ? "root" : leaves(original.root).find(p => p.id === paneId)?.id ?? leaves(original.root)[0].id;
-      const sourcePane = leaves(original.root).find(p => p.content === sourceId);
-      if (sourceIds.length === 1 && sourcePane?.id === target) return {};
-      let root = original.root;
-      for (const id of sourceIds) {
-        const p = leaves(root).find(p => p.content === id);
-        if (p) root = removePane(root, p.id);
-      }
-      const inserted = insertPane(root, target, side, sourceId);
-      if (sourceIds.length > 1 && sourceGroup?.canvas) {
-        inserted.root = mapNode(inserted.root, inserted.paneId, () => sourceGroup.canvas!.root);
-        inserted.paneId = sourceGroup.canvas.focusedPaneId;
-      }
-      const canvas: CanvasLayout = { root: inserted.root, focusedPaneId: inserted.paneId };
+      const canvas = dockLayout(targetGroup?.canvas ?? rowLayout([targetId]), sourceIds, paneId, side, sourceGroup?.canvas);
+      if (!canvas) return {};
       let detached = { tabIds: s.tabs.map(t => t.id), groups: s.groups };
       for (const id of sourceIds) detached = ungroupCenterTab(detached, id);
       const memberIds = leaves(canvas.root).flatMap(p => p.content ? [p.content] : []);
