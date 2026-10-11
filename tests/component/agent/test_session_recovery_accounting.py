@@ -26,7 +26,7 @@ def _response(model, content, n):
                             stop_reason="toolUse" if isinstance(content[0], ToolCall) else "stop")
 
 
-def test_runtime_session_transport_retries_consume_shared_allowance():
+def test_runtime_session_transport_retries_leave_the_repair_allowance():
     calls, states = [], []
 
     async def stream(model, context, options=None):
@@ -45,15 +45,20 @@ def test_runtime_session_transport_retries_consume_shared_allowance():
                                       "parameters": {"type": "object", "properties": {}}},
                              "execute": lambda: "evidence"}],
                      response_format={"type": "json_schema", "schema": SCHEMA, "fallback": "prompt"})
-    assert len(calls) == 3
-    assert states[-1].used == 2
-    assert [a["reason"] for a in states[-1].attempts if a["kind"] == "reserve"] == ["transport", "transport"]
+    state = states[-1]
+    # Two reconnects, then the first answer plus both repairs the
+    # allowance grants: the dropped connections cost no repair.
+    assert len(calls) == 2 + 1 + state.limit
+    assert state.used == state.limit
+    assert state.transport_reserves == 2
+    reasons = [a["reason"] for a in state.attempts if a["kind"] == "reserve"]
+    assert reasons[:2] == ["transport", "transport"]
+    assert "transport" not in reasons[2:]
 
 
-@pytest.mark.parametrize("exhausted", [False, True])
 @pytest.mark.parametrize("structured", [False, True])
 @pytest.mark.parametrize("failures", [1, 4])
-def test_runtime_session_preserves_completed_tools_and_original_failure(exhausted, structured, failures):
+def test_runtime_session_preserves_completed_tools_through_transport_retries(structured, failures):
     calls, effects, states = [], [], []
 
     async def stream(model, context, options=None):
@@ -61,7 +66,7 @@ def test_runtime_session_preserves_completed_tools_and_original_failure(exhauste
         calls.append(receipts)
         states.append(current_recovery.get())
         n = len(calls)
-        if 2 <= n <= failures + 1 + int(exhausted):
+        if 2 <= n <= failures + 1:
             raise RuntimeError(ERROR)
         content = ([TextContent(text='{"answer":7}')] if receipts else
                    [ToolCall(id=f"lookup-{n}", name="lookup", arguments={})])
@@ -69,7 +74,8 @@ def test_runtime_session_preserves_completed_tools_and_original_failure(exhauste
         yield EventStart(partial=msg)
         yield EventDone(reason=msg.stop_reason, message=msg)
 
-    runtime = Runtime(call=lambda *a, **k: "unused", model="dummy", max_retries=failures + 1)
+    # A small repair allowance does not cap reconnects.
+    runtime = Runtime(call=lambda *a, **k: "unused", model="dummy", max_retries=2)
     kwargs = dict(stream_fn=stream,
                   tools=[{"spec": {"name": "lookup", "description": "Read",
                                    "parameters": {"type": "object", "properties": {}}},
@@ -77,16 +83,46 @@ def test_runtime_session_preserves_completed_tools_and_original_failure(exhauste
                   response_format={"type": "json_schema", "schema": SCHEMA, "fallback": "prompt"})
     if not structured:
         kwargs.pop("response_format")
-    if exhausted:
-        with pytest.raises(Exception, match=ERROR):
-            runtime.exec("Read once then answer", **kwargs)
-        assert states[-1].phase == "paused"
-    else:
-        expected = {"answer": 7} if structured else '{"answer":7}'
-        assert runtime.exec("Read once then answer", **kwargs) == expected
+    expected = {"answer": 7} if structured else '{"answer":7}'
+    assert runtime.exec("Read once then answer", **kwargs) == expected
     assert calls == [[]] + [["lookup-1"]] * (failures + 1)
     assert effects == [1]
-    assert states[-1].used == failures
+    assert states[-1].used == 0
+    assert states[-1].transport_reserves == failures
+    assert states[-1].transport_used == 0
+
+
+@pytest.mark.parametrize("structured", [False, True])
+def test_runtime_session_stops_when_reconnects_run_out_and_keeps_the_error(structured):
+    calls, effects, states = [], [], []
+
+    async def stream(model, context, options=None):
+        receipts = [m.tool_call_id for m in context.messages if m.role == "toolResult"]
+        calls.append(receipts)
+        states.append(current_recovery.get())
+        if len(calls) >= 2:
+            raise RuntimeError(ERROR)
+        msg = _response(model, [ToolCall(id="lookup-1", name="lookup", arguments={})], 1)
+        yield EventStart(partial=msg)
+        yield EventDone(reason=msg.stop_reason, message=msg)
+
+    runtime = Runtime(call=lambda *a, **k: "unused", model="dummy", max_retries=3)
+    kwargs = dict(stream_fn=stream,
+                  tools=[{"spec": {"name": "lookup", "description": "Read",
+                                   "parameters": {"type": "object", "properties": {}}},
+                          "execute": lambda: effects.append(1) or "evidence"}],
+                  response_format={"type": "json_schema", "schema": SCHEMA, "fallback": "prompt"})
+    if not structured:
+        kwargs.pop("response_format")
+    with pytest.raises(Exception, match=ERROR):
+        runtime.exec("Read once then answer", **kwargs)
+    state = states[-1]
+    assert state.phase == "paused"
+    assert state.transport_used == state.transport_limit
+    assert len(calls) == 1 + 1 + state.transport_limit, "the tool round is never replayed"
+    assert all(receipts == ["lookup-1"] for receipts in calls[1:])
+    assert effects == [1]
+    assert state.used == 0
 
 
 def test_standalone_agent_session_retains_retry_behavior_without_enclosing_state():

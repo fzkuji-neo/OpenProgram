@@ -43,6 +43,10 @@ class RecoveryState:
     used: int = 0
     transport_limit: int = DEFAULT_TRANSPORT_RECOVERIES
     transport_used: int = 0
+    # Every transport retry ever reserved, refunds included. Call budgets
+    # that count model requests credit these back (a reconnect is not a
+    # new attempt at the answer).
+    transport_reserves: int = 0
     requests: int = 0
     parent_id: str | None = None
     invocation_id: str | None = None
@@ -57,6 +61,7 @@ class RecoveryState:
                 self.phase = "paused"
                 return False
             self.transport_used += 1
+            self.transport_reserves += 1
             self.phase = "retrying"
             self.attempts.append({"kind": "reserve", "reason": reason, "used": self.transport_used})
             del self.attempts[:-32]
@@ -106,6 +111,7 @@ class RecoveryState:
             "limit": self.limit,
             "transport_used": self.transport_used,
             "transport_limit": self.transport_limit,
+            "transport_reserves": self.transport_reserves,
             "requests": self.requests,
             "phase": self.phase,
             "parent_id": self.parent_id,
