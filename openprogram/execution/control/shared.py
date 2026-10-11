@@ -88,8 +88,14 @@ def default_control_service() -> RuntimeControlService:
                 # Keep activation at the canonical service boundary.  The
                 # resulting driver is retained by DriverRegistry binding,
                 # rather than being a WebSocket-local temporary object.
+                # A resumed turn (after an approval, say) streams its output
+                # to every client like the turn that started it; without a
+                # sink the transcript stayed still until the turn ended.
                 from openprogram.agent.production_driver import AgentProductionDriver
-                driver = AgentProductionDriver(executions, control_service=service)
+                from openprogram.events import emit_ws_frame
+                driver = AgentProductionDriver(
+                    executions, control_service=service, event_sink=emit_ws_frame,
+                )
                 return await driver.activate(attempt, activation)
             service.activator = _activate_agent
             _default_control_services[service_key] = service
