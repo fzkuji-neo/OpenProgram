@@ -606,6 +606,40 @@ def test_file_approval_rechecks_durable_state_on_resume(tmp_path, monkeypatch, c
     if change == 'modified': assert path.read_text() == 'user contents'
 
 
+@pytest.mark.parametrize("reason", [None, "Keep build/; just run npm run build"])
+def test_a_declined_approval_hands_the_users_reason_to_the_tool(tmp_path, monkeypatch, reason):
+    from types import SimpleNamespace
+    from openprogram.agent.permissions.approval import UserDeclineReason, await_user_approval
+    from openprogram.agent.run_control import set_preapproved_wait_id, reset_preapproved_wait_id
+    executions, attempts, execution, attempt = _active_execution(tmp_path)
+    wait = DurableWaitStore(executions).open_wait(
+        execution_id=execution.execution_id, attempt_id=attempt.attempt_id,
+        generation=attempt.generation, kind='approval', expires_at=0,
+        request={'prompt': 'Allow?', 'tool': 'bash', 'args': {'command': 'rm -rf build'}},
+        policy_snapshot={'version': 1},
+    )
+    service = RuntimeControlService(executions, attempts, DriverRegistry())
+    asyncio.run(service.request_wait_decline(
+        command_id='deny', execution_id=execution.execution_id,
+        expected_version=execution.status_version, actor={'surface': 'test'},
+        wait_id=wait.wait_id, generation=0, reason=reason,
+    ))
+    monkeypatch.setattr(execution_module, 'default_store', lambda: ExecutionStore(tmp_path / 'executions.db'))
+    token = set_preapproved_wait_id(wait.wait_id)
+    try:
+        approved, got, _ = asyncio.run(await_user_approval(
+            req=SimpleNamespace(session_id=execution.session_id), tool_name='bash',
+            args={'command': 'rm -rf build'}, on_event=lambda _: None,
+        ))
+    finally:
+        reset_preapproved_wait_id(token)
+    assert approved is False
+    if reason is None:
+        assert got is None
+    else:
+        assert isinstance(got, UserDeclineReason) and got == reason
+
+
 def _decision_fragment(step_id: str = "provider:decision") -> CheckpointFragment:
     return CheckpointFragment(
         safe_point_kind="agent.provider.decision.after",

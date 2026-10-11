@@ -310,10 +310,15 @@ def wrap_with_approval(
             req=req, tool_name=name, args=approval_args, on_event=on_event,
             tool_call_id=str(call_id), **({"recovery_effects": recovery} if recovery else {}))
         if not approved:
-            msg = (f"[denied] {reason.strip()}" if isinstance(reason, str)
-                   and reason.strip() else
-                   f"[denied] The user declined this {name} call, so it did not run. "
-                   "Do not retry it or work around it; stop and ask the user how to proceed.")
+            if isinstance(reason, UserDeclineReason):
+                msg = (f"[denied] The user declined this {name} call, so it did not run. "
+                       f"The user said: {reason.strip()}\n"
+                       "Follow the user's instruction instead of retrying this call.")
+            elif isinstance(reason, str) and reason.strip():
+                msg = f"[denied] {reason.strip()}"
+            else:
+                msg = (f"[denied] The user declined this {name} call, so it did not run. "
+                       "Do not retry it or work around it; stop and ask the user how to proceed.")
             return _denied(msg, "APPROVAL_DENIED")
         if recovery and scope != "once":
             return _denied("[denied] uncertain operations require one-shot approval", "RECOVERY_APPROVAL_SCOPE")
@@ -404,6 +409,10 @@ def _approval_detail(tool_name: str, args: dict) -> str:
     return f"{tool_name}\n{body}".rstrip()
 
 
+class UserDeclineReason(str):
+    """What the user typed when declining, as opposed to a system refusal."""
+
+
 async def await_user_approval(
     *,
     req: "TurnRequest",
@@ -475,6 +484,8 @@ async def await_user_approval(
             return allowed, None, (
                 scope if scope in ("once", "always", "always_path") else "once"
             )
+        if wait.status is WaitStatus.DECLINED and isinstance(wait.answer, str) and wait.answer.strip():
+            return False, UserDeclineReason(wait.answer.strip()), "once"
         if wait.status in {WaitStatus.DECLINED, WaitStatus.EXPIRED, WaitStatus.CANCELLED}:
             return False, None, "once"
         raise RuntimeError("approval continuation has no durable outcome")
