@@ -61,6 +61,7 @@
       "main/view-layout.js",
       "main/web-views.js",
       "main/webtab-user-agent.js",
+      "main/webtab-preload.js",
       "menu-geometry.js",
       "native-context-menu.js",
       "clipboard.js",

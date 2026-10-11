@@ -1671,6 +1671,7 @@ registerSingleMainWindow({
     resolveStartupChrome();
     registerFileDirectoryListing();
     useBrowserUserAgent(session.fromPartition("persist:webtabs"));
+    session.fromPartition("persist:webtabs").registerPreloadScript({ type: "frame", id: "webtab-pinch", filePath: path.join(__dirname, "main", "webtab-preload.js") });
     registerDownloads();
     registerWebTabIpc();
     registerTabTransferIpc();
