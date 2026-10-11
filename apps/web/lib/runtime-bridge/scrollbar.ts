@@ -27,6 +27,26 @@ const MIN_THUMB = 32;
 
 const installed = new WeakSet<Element>();
 
+/** The thumb runs down the container's right edge. When that edge is a
+ *  rounded card's (a canvas pane, the centre column), the track stops
+ *  short of the card's corners, so the thumb never pokes out past them. */
+function track(el: HTMLElement): { top: number; height: number } {
+  const rect = el.getBoundingClientRect();
+  let topInset = 0, bottomInset = 0;
+  for (let node = el.parentElement, depth = 0; node && depth < 6; node = node.parentElement, depth++) {
+    const style = getComputedStyle(node);
+    const tr = parseFloat(style.borderTopRightRadius) || 0;
+    const br = parseFloat(style.borderBottomRightRadius) || 0;
+    if (!tr && !br) continue;
+    const box = node.getBoundingClientRect();
+    if (Math.abs(box.right - rect.right) > 8) break;
+    topInset = Math.max(0, tr - (rect.top - box.top));
+    bottomInset = Math.max(0, br - (box.bottom - rect.bottom));
+    break;
+  }
+  return { top: rect.top + topInset, height: Math.max(0, rect.height - topInset - bottomInset) };
+}
+
 function install(el: HTMLElement): void {
   if (installed.has(el)) return;
   installed.add(el);
@@ -64,11 +84,12 @@ function install(el: HTMLElement): void {
       thumb.style.display = "none";
       return;
     }
+    const lane = track(el);
     const ratio = ch / sh;
-    const thumbH = Math.max(MIN_THUMB, rect.height * ratio);
+    const thumbH = Math.min(lane.height, Math.max(MIN_THUMB, lane.height * ratio));
     const maxScroll = sh - ch;
     const scrollRatio = maxScroll > 0 ? el.scrollTop / maxScroll : 0;
-    const top = rect.top + scrollRatio * (rect.height - thumbH);
+    const top = lane.top + scrollRatio * (lane.height - thumbH);
     const right = window.innerWidth - rect.right + 2;
     thumb.style.display = "";
     thumb.style.height = thumbH + "px";
@@ -111,12 +132,12 @@ function install(el: HTMLElement): void {
 
   function onDragMove(e: MouseEvent): void {
     if (!dragging) return;
-    const rect = el.getBoundingClientRect();
+    const lane = track(el);
     const sh = el.scrollHeight;
     const ch = el.clientHeight;
     if (sh <= ch + 1) return;
-    const thumbH = Math.max(MIN_THUMB, rect.height * (ch / sh));
-    const trackH = rect.height - thumbH;
+    const thumbH = Math.min(lane.height, Math.max(MIN_THUMB, lane.height * (ch / sh)));
+    const trackH = lane.height - thumbH;
     if (trackH <= 0) return;
     const maxScroll = sh - ch;
     const scrollDelta = ((e.clientY - dragStartY) / trackH) * maxScroll;
