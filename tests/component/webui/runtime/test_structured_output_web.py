@@ -110,6 +110,7 @@ def test_web_chat_threads_normalized_response_format_to_existing_dispatch(
             {
                 "root_path": tmp_path,
                 "get_session": lambda self, _sid: {"extra_meta": {}},
+                "is_created": lambda self, _sid: True,
                 "update_session": lambda *args, **kwargs: None,
             },
         )(),

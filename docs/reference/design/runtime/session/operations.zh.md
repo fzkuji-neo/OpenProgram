@@ -78,6 +78,8 @@ dispatcher 和 channel handler 的创建与写入第一条消息是原子的—�
   → chat_ack 再补一次幂等的 set_session_project（标签 + 反向索引）
 ```
 
+草稿阶段选的设置（比如模型）会在会话创建前就落盘，所以会话仓库可能已经以无 `id` 的形式存在于默认位置。因此 `handle_chat` 判断的是 `is_created`（meta 有 `id`，或仓库已有历史），而不是仓库目录是否存在；`create_session` 会把这种只有设置的仓库挪到项目对应的位置，并保留这些设置。
+
 `set_session_project` 在任何时候都接受"绑到会话已有的那个项目"——上面那条 ack 后的幂等 bind 走的就是这条路，它到达时第一轮已经提交。而在已有轮次的会话上绑**另一个**项目会被拒，理由为 `project is frozen after the first turn`（`ws_actions/project.py:FROZEN_ERROR`）。composer chip 与之对齐：已有 session id 的会话只读展示已绑项目，不再给选择器。
 
 ### 附件与恢复

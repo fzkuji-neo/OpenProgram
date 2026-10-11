@@ -3,6 +3,10 @@ from __future__ import annotations
 from . import shared
 
 
+def _has_history(session_dir: shared.Path) -> bool:
+    return next((session_dir / "history").glob("*.json"), None) is not None
+
+
 class SessionsOperations:
     def create_session(
         self,
@@ -58,6 +62,7 @@ class SessionsOperations:
                     project_id = proj.id
                 if proj is not None and (not proj.is_default) and proj.path:
                     repo_dir = shared.nested_session_dir(self.root_path, proj.id, session_id)
+                    self._adopt_unclaimed_repo(session_id, repo_dir)
                     self._record_location(session_id, repo_dir)
                 if proj is not None and not proj.is_default:
                     self._project_ids[session_id] = proj.id
@@ -131,6 +136,44 @@ class SessionsOperations:
             except Exception as e:  # noqa: BLE001 — reverse index is best-effort
                 shared._log.warning("session %s NOT bound to project %s: %s",
                              session_id, project_id, e)
+
+
+    def _adopt_unclaimed_repo(self, session_id: str, target: shared.Path) -> None:
+        """Move a draft's settings-only repo to the project's placement.
+
+        Settings chosen before the first message (a model pick, say)
+        reach ``update_session``, which materialises the repo at the
+        default location with no ``id`` and no history. Left there, the
+        project's create would keep opening that repo and the
+        conversation would stay outside its project. A repo that already
+        holds a created conversation is never moved here.
+        """
+        with self._session_lock(session_id):
+            current = self._session_dir(session_id)
+            if current == target or target.exists() or not current.is_dir():
+                return
+            git = shared.GitSession(current)
+            if git.read_meta().get("id") or _has_history(current):
+                return
+            with self._lock:
+                self._sessions.pop(session_id, None)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            current.rename(target)
+
+
+    def is_created(self, session_id: str) -> bool:
+        """True once ``create_session`` has written this conversation.
+
+        A repo can exist before that: settings picked while the chat was
+        still a draft are stored ahead of it, without an ``id``. A repo
+        that already has history counts as created even without one.
+        """
+        meta = self.read_disk_meta(session_id)
+        if meta is None:
+            return False
+        if meta.get("id"):
+            return True
+        return _has_history(self._session_dir(session_id))
 
 
     def update_session(self, session_id: str, **fields: shared.Any) -> None:
