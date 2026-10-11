@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { topLevelTabs } from "@/lib/browser/web-page-management";
 import { canvasGeometry, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { canvasDragging } from "@/lib/tabs/canvas-drag";
-import { captureVisiblePanes, captureWebTabs, pruneSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
+import { captureVisiblePanes, captureWebTabs, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
 import { closeOverview, openOverview, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
 import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
@@ -82,6 +82,7 @@ export function CanvasOverview() {
       timer = window.setTimeout(() => { if (!canvasDragging()) void captureVisiblePanes(); }, 900);
     };
     const now = () => { if (!canvasDragging()) void captureVisiblePanes(); };
+    void restoreSnapshots();
     later();
     const off = useCenterTabs.subscribe((s, prev) => {
       if (s.activeId !== prev.activeId || s.groups !== prev.groups) later();

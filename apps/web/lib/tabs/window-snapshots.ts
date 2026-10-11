@@ -8,6 +8,48 @@ import { useCenterTabs } from "./center-tabs-store";
  *  from their own view. Kept in memory only. */
 export const useWindowSnapshots = create<{ shots: Record<string, string> }>(() => ({ shots: {} }));
 
+/** Pictures also live in IndexedDB, so cards keep them across restarts. */
+const DB = "openprogram-window-snapshots", STORE = "shots";
+let db: Promise<IDBDatabase | null> | null = null;
+function openDb() {
+  if (!db) db = new Promise(resolve => {
+    try {
+      const request = indexedDB.open(DB, 1);
+      request.onupgradeneeded = () => request.result.createObjectStore(STORE);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    } catch { resolve(null); }
+  });
+  return db;
+}
+async function persist(entries: ReadonlyArray<readonly [string, string | null]>) {
+  const handle = await openDb();
+  if (!handle) return;
+  try {
+    const store = handle.transaction(STORE, "readwrite").objectStore(STORE);
+    for (const [id, shot] of entries) if (shot) store.put(shot, id); else store.delete(id);
+  } catch { /* storage unavailable: memory still works */ }
+}
+/** Load the saved pictures once; fresher ones taken meanwhile win. */
+export async function restoreSnapshots() {
+  const handle = await openDb();
+  if (!handle) return;
+  try {
+    const store = handle.transaction(STORE, "readonly").objectStore(STORE);
+    const [keys, values] = await Promise.all([store.getAllKeys(), store.getAll()].map(request => new Promise<unknown[]>(resolve => {
+      request.onsuccess = () => resolve(request.result as unknown[]);
+      request.onerror = () => resolve([]);
+    })));
+    const saved = Object.fromEntries(keys.map((key, i) => [String(key), String(values[i])]));
+    useWindowSnapshots.setState(s => ({ shots: { ...saved, ...s.shots } }));
+  } catch { /* nothing saved */ }
+}
+function remember(fresh: ReadonlyArray<readonly [string, string]>) {
+  if (!fresh.length) return;
+  useWindowSnapshots.setState(s => ({ shots: { ...s.shots, ...Object.fromEntries(fresh) } }));
+  void persist(fresh);
+}
+
 let inFlight: Promise<void> | null = null;
 
 /** Capture every pane on screen now, except the tabs being dragged (the
@@ -29,8 +71,7 @@ export function captureVisiblePanes(skip: readonly string[] = [], limit = 260): 
         : await bridge.captureRegion!({ x: r.left, y: r.top, width: r.width, height: r.height }).catch(() => null);
       return [id, shot] as const;
     })).then(results => {
-      const fresh = results.filter((entry): entry is readonly [string, string] => !!entry[1]);
-      if (fresh.length) useWindowSnapshots.setState(s => ({ shots: { ...s.shots, ...Object.fromEntries(fresh) } }));
+      remember(results.filter((entry): entry is readonly [string, string] => !!entry[1]));
     }).finally(() => { inFlight = null; });
   }
   return Promise.race([inFlight, new Promise<void>(resolve => window.setTimeout(resolve, limit))]);
@@ -42,15 +83,18 @@ export function captureWebTabs(ids: string[]) {
   if (!capture) return;
   for (const id of ids) {
     void capture(id, "presentation").then(shot => {
-      if (shot) useWindowSnapshots.setState(s => ({ shots: { ...s.shots, [id]: shot } }));
+      if (shot) remember([[id, shot]]);
     }).catch(() => {});
   }
 }
 
-/** Drop pictures of tabs that no longer exist. */
+/** Drop pictures of tabs that no longer exist. An empty tab list is the
+ *  store still loading, never a reason to forget everything. */
 export function pruneSnapshots(alive: Set<string>) {
+  if (!alive.size) return;
   const { shots } = useWindowSnapshots.getState();
-  if (Object.keys(shots).some(id => !alive.has(id))) {
-    useWindowSnapshots.setState({ shots: Object.fromEntries(Object.entries(shots).filter(([id]) => alive.has(id))) });
-  }
+  const gone = Object.keys(shots).filter(id => !alive.has(id));
+  if (!gone.length) return;
+  useWindowSnapshots.setState({ shots: Object.fromEntries(Object.entries(shots).filter(([id]) => alive.has(id))) });
+  void persist(gone.map(id => [id, null] as const));
 }
