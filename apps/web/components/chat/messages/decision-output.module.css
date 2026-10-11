@@ -35,3 +35,11 @@
   overflow-wrap: anywhere;
   font-family: inherit;
 }
+
+.reason {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

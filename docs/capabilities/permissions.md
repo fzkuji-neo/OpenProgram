@@ -15,13 +15,15 @@ Bypass does not override explicit deny or ask rules, mandatory plan-exit or self
 Questions and approvals appear as independent cards in the conversation. Each question appears above its answer control. Multiple questions and form fields are listed together; fill them in and click Submit answers once. Submitted answers remain paired with their questions. The main message box remains available for ordinary messages. The card shows the submitted answer, delivery progress and a confirmation or retry state. Confirmed receipts remain visible until the page is reloaded; pending requests are restored on reconnect.
 
 Tool approvals show the current operation and two actions: Allow once and Deny.
-Clicking either submits that decision directly. The request closes only after
+Clicking either submits that decision directly. The note button beside Deny
+opens **Deny with a note**: write what the agent should do instead and send it
+with Ctrl+Enter. The request closes only after
 server confirmation; an unconfirmed answer can retry the same decision. A
 confirmed approval leaves the conversation; the tool row shows what happened.
 Deny does not end the task: the model receives the refusal as that tool's
 result, the operation does not run, and the model is told to stop and ask you
-how to proceed. Skipping a question likewise tells the model it went
-unanswered. Persistent rules remain available in History project settings.
+how to proceed. With a note, the model receives your note instead and follows
+it. Skipping a question likewise tells the model it went unanswered. Persistent rules remain available in History project settings.
 
 Human tool approvals have no default time limit. Waiting saves execution progress
 and releases the active execution attempt; reopening the App restores the pending
@@ -36,7 +38,7 @@ only the current proposal, without a before/after history. Arbitrary shell
 commands do not declare all their file targets, so this file-specific check does
 not cover arbitrary command side effects.
 
-Ordinary questions retain their answer controls and Discuss entry. Tool approval does not include a discussion editor.
+Ordinary questions retain their answer controls and Discuss entry. What you write under Discuss goes to the model in place of an answer, and it responds to it within the same turn; the card keeps your text.
 
 A new owner turn in Auto or Bypass does not inherit approval requirements solely from an unrelated earlier interrupted turn. Nested browser and Program calls use the same scope when their owner origin is verified. Unknown outcomes within the current execution still require exact approval; old operation records remain intact. This does not change macOS access or make a read-only volume writable.
 

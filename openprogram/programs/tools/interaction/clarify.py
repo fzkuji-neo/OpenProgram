@@ -172,7 +172,13 @@ def ask_user_question(questions: list | None = None, **kw: Any) -> str | ToolRet
     rt_questions = _to_runtime_questions(questions)
     try:
         answers = rt.ask(questions=rt_questions)
-    except UserDeclined:
+    except UserDeclined as declined:
+        if declined.reason:
+            return (
+                "The user did not pick an answer and wrote instead:\n"
+                f"{declined.reason}\n"
+                "Respond to this before asking again or going on."
+            )
         return "The user declined to answer."
     except AskTimeout:
         return "The user did not answer in time."

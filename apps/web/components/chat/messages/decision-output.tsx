@@ -6,7 +6,6 @@ import { isSettled, showsReceipt } from "@/lib/chat/decision-receipts";
 import { useTranslation } from "@/lib/i18n";
 import { AnswerSummary } from "../composer/modes/question/answer-summary";
 import { QuestionMode } from "../composer/modes/question/question-mode";
-import { useDecisionDiscussion } from "../composer/modes/question/use-decision-discussion";
 import styles from "./decision-output.module.css";
 
 // Match the lifetime of session receipts: switching panes or answering a later
@@ -24,13 +23,10 @@ function DecisionOutput({ decision, submission }: {
 }) {
   const { text } = useTranslation();
   const dequeue = useSessionStore((s) => s.dequeueDecision);
-  const thinking = useSessionStore((s) =>
-    s.composerSettingsBySession[decision.sessionId ?? ""]?.thinking ?? "",
-  );
-  const discuss = useDecisionDiscussion({ decision, thinking, dequeue });
   const status = submission?.status;
   const terminal = status === "answered" || status === "declined" || status === "closed";
   const answer = submission?.command.payload.answer;
+  const reason = submission?.command.payload.reason;
   return (
     <section className={styles.card} data-decision-output={decision.id}
       data-decision-status={status ?? "open"} data-session-id={decision.sessionId}
@@ -38,14 +34,18 @@ function DecisionOutput({ decision, submission }: {
       {terminal ? (
         <div className={styles.receipt}>
           <AnswerSummary decision={decision} answer={answer} />
+          {typeof reason === "string" && reason && <div className={styles.reason}>
+            <span className={styles.label}>{text("You said", "你说")}</span>{reason}
+          </div>}
           {submission?.error && <div role="alert">{submission.error}</div>}
           <div role="status" className={styles.label}>
             {status === "answered" ? text("Answer confirmed", "回答已确认")
-              : status === "declined" ? text("Declined", "已拒绝")
+              : status === "declined" ? (typeof reason === "string" && reason
+                ? text("Sent to the agent", "已交给 agent") : text("Declined", "已拒绝"))
               : text("Request closed; answer not confirmed", "请求已关闭，回答未确认")}
           </div>
         </div>
-      ) : <QuestionMode decision={decision} onResolve={dequeue} onChatAbout={discuss} />}
+      ) : <QuestionMode decision={decision} onResolve={dequeue} />}
     </section>
   );
 }

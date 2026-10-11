@@ -127,6 +127,24 @@ def test_existing_control_status_text_is_preserved(exception, expected):
     assert result.is_error is False
 
 
+def test_words_written_instead_of_an_answer_reach_the_model():
+    class Frontend:
+        def can_ask(self):
+            return True
+
+        def ask(self, **kwargs):
+            raise UserDeclined("ask", reason="Why do you need this?")
+
+    token = _current_runtime.set(Frontend())
+    try:
+        result = invoke()
+    finally:
+        _current_runtime.reset(token)
+    assert "Why do you need this?" in text(result)
+    assert "Respond to this" in text(result)
+    assert result.is_error is False
+
+
 def test_cancellation_is_not_converted_to_answer_or_error():
     class Frontend:
         def can_ask(self):
