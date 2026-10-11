@@ -82,6 +82,33 @@ def register(app):
         except Exception as exc:
             return _error(exc)
 
+    @app.get("/api/session/{session_id}/native-window/frame")
+    def native_window_frame(session_id: str, request: Request, window_id: int):
+        """The latest screenshot the Agent took of the app window it operates."""
+        try:
+            _authorize(request, session_id)
+            from fastapi.responses import Response
+            from openprogram.native_window_resources import latest_window
+            entry = latest_window(session_id)
+            if not entry or entry["window_id"] != window_id or entry.get("frame") is None:
+                return JSONResponse({"error": "not_found"}, status_code=404)
+            return Response(entry["frame"], media_type="image/png",
+                            headers={"Cache-Control": "no-store"})
+        except Exception as exc:
+            return _error(exc)
+
+    @app.get("/api/session/{session_id}/native-window")
+    def native_window(session_id: str, request: Request):
+        """Which app window the Agent last operated, for a reconnecting App."""
+        try:
+            _authorize(request, session_id)
+            from openprogram.native_window_resources import latest_window, public_window
+            entry = latest_window(session_id)
+            return JSONResponse({"window": public_window(entry) if entry else None},
+                                headers={"Cache-Control": "no-store"})
+        except Exception as exc:
+            return _error(exc)
+
     @app.post("/api/session/{session_id}/resources/attach-web")
     def attach_web_resource(session_id: str, request: Request, body: dict):
         try:

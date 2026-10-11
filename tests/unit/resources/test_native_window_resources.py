@@ -1,0 +1,97 @@
+"""The chat preview learns which native app window the Agent operates."""
+import json
+
+import pytest
+
+import openprogram.native_window_resources as nw
+
+
+@pytest.fixture(autouse=True)
+def _clean(monkeypatch):
+    nw._latest.clear()
+    nw.forward_to_parent(None)
+    sent = []
+    from openprogram.webui import server as _s
+    monkeypatch.setattr(_s, "_broadcast", lambda payload: sent.append(json.loads(payload)), raising=False)
+    monkeypatch.setattr(nw, "_owner", lambda: ("conv", "exec-1"))
+    yield sent
+    nw._latest.clear()
+    nw.forward_to_parent(None)
+
+
+def _step(tmp_path, window_id=7, frame=b"\x89PNG one"):
+    shot = tmp_path / f"shot-{window_id}.png"
+    shot.write_bytes(frame)
+    return {
+        "status": "applied",
+        "target": {"window_id": window_id, "pid": 42, "app_name": "WeChat", "launch_time": "t"},
+        "step": {"observation": {"screenshot_artifact": str(shot)}},
+    }
+
+
+def test_a_step_on_a_window_announces_it_with_its_frame(tmp_path, _clean):
+    nw.note_operated_window(_step(tmp_path))
+
+    assert _clean == [{"type": "native.window", "data": {
+        "session_id": "conv", "execution_id": "exec-1", "window_id": 7, "pid": 42,
+        "app_name": "WeChat", "sequence": 1, "at": _clean[0]["data"]["at"], "has_frame": True,
+    }}]
+    assert nw.latest_window("conv")["frame"] == b"\x89PNG one"
+
+
+def test_a_step_without_a_capture_keeps_the_frame_of_the_same_window(tmp_path, _clean):
+    nw.note_operated_window(_step(tmp_path))
+    nw.note_operated_window({"target": {"window_id": 7, "pid": 42, "app_name": "WeChat"}})
+    assert nw.latest_window("conv")["frame"] == b"\x89PNG one"
+    assert nw.latest_window("conv")["sequence"] == 2
+
+    nw.note_operated_window({"target": {"window_id": 9, "pid": 42, "app_name": "WeChat"}})
+    assert nw.latest_window("conv")["frame"] is None, "another window's frame is never shown"
+
+
+@pytest.mark.parametrize("output", [
+    None, "text", {"target": None}, {"target": {"window_id": "7", "pid": 42, "app_name": "x"}},
+    {"target": {"window_id": 7, "pid": 42}},
+])
+def test_results_that_name_no_window_are_ignored(output, _clean):
+    nw.note_operated_window(output)
+    assert _clean == []
+    assert nw.latest_window("conv") is None
+
+
+def test_a_subprocess_hands_the_window_to_its_parent(tmp_path, _clean):
+    forwarded = []
+    nw.forward_to_parent(forwarded.append)
+
+    nw.note_operated_window(_step(tmp_path))
+
+    assert _clean == [] and nw.latest_window("conv") is None
+    assert forwarded[0]["frame"] == b"\x89PNG one"
+    # The parent names the conversation, whatever the child believed.
+    nw.record_operated_window(forwarded[0], session_id="parent-conv", execution_id="exec-p")
+    entry = nw.latest_window("parent-conv")
+    assert (entry["window_id"], entry["execution_id"], entry["frame"]) == (7, "exec-p", b"\x89PNG one")
+
+
+def test_the_frame_route_serves_only_the_current_window_of_an_allowed_session(tmp_path, _clean, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from openprogram.webui.routes.execution import processes
+
+    monkeypatch.setattr(processes, "_actor_and_session", lambda request: ({}, "conv"))
+    monkeypatch.setattr(processes, "_authorize", lambda request, sid, record=None, stop=False: (
+        None if sid == "conv" else (_ for _ in ()).throw(KeyError(sid))))
+    nw.note_operated_window(_step(tmp_path))
+    app = FastAPI()
+    processes.register(app)
+    with TestClient(app) as client:
+        frame = client.get("/api/session/conv/native-window/frame?window_id=7")
+        stale = client.get("/api/session/conv/native-window/frame?window_id=9")
+        other = client.get("/api/session/other/native-window/frame?window_id=7")
+        state = client.get("/api/session/conv/native-window")
+    assert frame.status_code == 200 and frame.content == b"\x89PNG one"
+    assert frame.headers["content-type"] == "image/png"
+    assert stale.status_code == 404
+    assert other.status_code == 404
+    assert state.json()["window"]["app_name"] == "WeChat"
+    assert "frame" not in state.json()["window"]

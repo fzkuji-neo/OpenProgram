@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { followAppTarget, TERMINAL_TARGET } from "../chat/session-resources.ts";
 
 export type TerminalResource = {
   terminal_id: string; generation: string; preset: string; status: string;
@@ -29,7 +30,16 @@ export const useTerminalResources = create<{
 function ingest(resource: TerminalResource): void {
   if (!resource || typeof resource.terminal_id !== "string" || typeof resource.generation !== "string"
     || !Array.isArray(resource.session_ids)) return;
+  const previous = useTerminalResources.getState().rows[resource.terminal_id];
   useTerminalResources.setState(state => ({ rows: { ...state.rows, [resource.terminal_id]: resource } }));
+  // The Agent took the terminal or typed into it: its conversations' chat
+  // previews follow it, the way they follow Pages and app windows.
+  if (resource.in_use && resource.status === "running"
+      && (!previous?.in_use || previous.input_revision !== resource.input_revision)) {
+    for (const sessionId of resource.session_ids) {
+      followAppTarget(sessionId, `${TERMINAL_TARGET}${resource.terminal_id}`);
+    }
+  }
 }
 let installed: TerminalResourceApi | undefined;
 export function installTerminalResourceBridge(): void {

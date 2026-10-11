@@ -10,3 +10,24 @@
 
 .viewer header strong { font-size: var(--right-panel-text-size, 14px); font-weight: var(--right-panel-font-weight, 700); }
 .viewer button { font: inherit; }
+
+/* Chat preview mirror: fills the preview stage, read-only. */
+.mirror {
+  position: absolute;
+  inset: 0;
+  background: var(--terminal-bg);
+}
+
+.mirrorScreen {
+  position: absolute;
+  inset: 4px 6px;
+}
+
+.mirrorError {
+  position: absolute;
+  inset: auto 8px 6px;
+  margin: 0;
+  font-size: 11px;
+  color: var(--terminal-fg);
+  opacity: 0.8;
+}
