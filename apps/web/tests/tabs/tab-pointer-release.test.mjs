@@ -129,7 +129,7 @@ test('pane grip drags a full tab label rather than the three dots',()=>{
  grip.setPointerCapture=()=>{};grip.hasPointerCapture=()=>false;
  const fire=(type,x,y)=>{const e=new window.Event(type);Object.assign(e,{pointerId:7,clientX:x,clientY:y});window.dispatchEvent(e);};
  try {
-  startPaneDrag({button:0,target:grip,currentTarget:grip,pointerId:7,clientX:100,clientY:20},'w:b',grip.querySelector('[data-pane-drag-label]'));
+  startPaneDrag({button:0,preventDefault(){},target:grip,currentTarget:grip,pointerId:7,clientX:100,clientY:20},'w:b',grip.querySelector('[data-pane-drag-label]'));
   fire('pointermove',102,21);
   assert.equal(document.querySelector('[data-pane-drag-preview]'),null);
   fire('pointermove',350,240);
@@ -169,7 +169,7 @@ test('pane web drag highlights and attaches to the Resources panel conversation'
  target.getBoundingClientRect=()=>({left:700,right:900,top:100,bottom:500,width:200,height:400});document.body.append(target);
  const grip=document.createElement('div');grip.innerHTML='<span data-pane-drag-label>Web</span>';document.body.append(grip);
  grip.setPointerCapture=()=>{};grip.hasPointerCapture=()=>false;
- const start=()=>startPaneDrag({button:0,target:grip,currentTarget:grip,pointerId:7,clientX:300,clientY:100},'w:c',grip.firstElementChild);
+ const start=()=>startPaneDrag({button:0,preventDefault(){},target:grip,currentTarget:grip,pointerId:7,clientX:300,clientY:100},'w:c',grip.firstElementChild);
  const fire=async(type,x=750,y=150)=>{const e=new window.Event(type);Object.assign(e,{pointerId:7,clientX:x,clientY:y});window.dispatchEvent(e);await new Promise(resolve=>setImmediate(resolve));};
  try {
   start();await fire('pointermove');
@@ -201,7 +201,7 @@ for (const failure of ['attach rejected','transfer cancellation rejected']) {
   const grip=document.createElement('div');grip.innerHTML='<span data-pane-drag-label>B</span>';document.body.append(grip);grip.setPointerCapture=()=>{};grip.hasPointerCapture=()=>false;
   const fire=async(type)=>{const event=new window.Event(type);Object.assign(event,{pointerId:11,clientX:750,clientY:150});window.dispatchEvent(event);await new Promise(resolve=>setImmediate(resolve));};
   try {
-   startPaneDrag({button:0,target:grip,currentTarget:grip,pointerId:11,clientX:300,clientY:100},'w:b',grip.firstElementChild);
+   startPaneDrag({button:0,preventDefault(){},target:grip,currentTarget:grip,pointerId:11,clientX:300,clientY:100},'w:b',grip.firstElementChild);
    await fire('pointermove');await fire('pointerup');
    assert.match(toasts.at(-1)?.message??'',/Could not attach/,'failure is visible rather than an unhandled event promise');
    assert.equal(posts,failure==='attach rejected'?1:0,'attachment waits for a successful native transfer cancellation');
