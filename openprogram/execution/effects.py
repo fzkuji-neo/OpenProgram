@@ -95,6 +95,21 @@ def _require_effect_admission(execution) -> None:
         )
 
 
+def _event_effect(effect: EffectRecord) -> dict:
+    """The effect as its lifecycle event records it.
+
+    ``metadata.payload`` (a provider effect's full message context, often
+    megabytes) stays only on the ``effects`` row, which recovery reads.
+    Copying it into every planned/dispatched/committed event stored the
+    same context three more times per model request.
+    """
+    value = effect.to_dict()
+    metadata = value.get("metadata")
+    if isinstance(metadata, dict) and "payload" in metadata:
+        value["metadata"] = {key: item for key, item in metadata.items() if key != "payload"}
+    return value
+
+
 class EffectStore:
     def __init__(
         self,
@@ -414,7 +429,7 @@ class EffectStore:
             execution_id=effect.execution_id,
             execution_version=execution_version,
             kind=f"effect.{effect.status.value}",
-            payload={"effect": effect.to_dict()},
+            payload={"effect": _event_effect(effect)},
             created_at=now,
         )
 
