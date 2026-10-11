@@ -62,11 +62,23 @@ button.card:hover .mini,
 .card[data-hot] .mini {
   transform: scale(1.025);
 }
-/* The window zooming in or out sits above the other cards. */
+/* The window zooming in or out: framer-motion moves its picture between
+   the window's place (data-zoomed, positioned against the overview) and
+   its slot in the grid, which a placeholder keeps meanwhile. */
 .card[data-zooming] {
-  position: relative;
-  z-index: 2;
   animation: none;
+}
+.zoomer {
+  display: block;
+}
+.zoomer[data-zoomed] .mini {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto !important;
+}
+.slot {
+  display: block;
+  width: 100%;
 }
 .overview[data-canvas-overview="browse"] .card[data-zooming] .caption {
   animation: captionIn 200ms 180ms both;

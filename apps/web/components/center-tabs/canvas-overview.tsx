@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { motion, type Transition } from "framer-motion";
 
 import { topLevelTabs } from "@/lib/browser/web-page-management";
 import { canvasGeometry, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
@@ -23,19 +24,17 @@ const ZONE: Record<OverviewSide, React.CSSProperties> = {
   bottom: { left: 0, top: "50%", width: "100%", height: "50%" },
 };
 const GAP = 24, CAPTION = 26;
-const ZOOM: KeyframeAnimationOptions = { duration: 340, easing: "cubic-bezier(.2, .8, .2, 1)" };
+const ZOOM: Transition = { duration: 0.34, ease: [0.2, 0.8, 0.2, 1] };
+/** Every other layout change (a resize, the grid settling) just jumps. */
+const INSTANT: Transition = { duration: 0 };
 type Box = { left: number; top: number; width: number; height: number };
 
-/** Where a window's panes sit on screen, which is also what their pictures
- *  show: the center area less the canvas padding, and each split pane
- *  card's 1px inset. */
+/** Where a window's panes sit inside the overview, which is also what
+ *  their pictures show: the center area less the canvas padding, and each
+ *  split pane card's 1px inset. The overview covers the center area. */
 function windowBox(canvas: HTMLElement, split: boolean): Box {
-  const r = canvas.getBoundingClientRect(), inset = split ? 7 : 6;
-  return { left: r.left + inset, top: r.top + inset, width: r.width - inset * 2, height: r.height - inset * 2 };
-}
-/** The transform that lays an element sitting at `at` over `over`. */
-function lay(over: Box, at: DOMRect) {
-  return `translate(${over.left - at.left}px, ${over.top - at.top}px) scale(${over.width / at.width}, ${over.height / at.height})`;
+  const inset = split ? 7 : 6;
+  return { left: inset, top: inset, width: canvas.clientWidth - inset * 2, height: canvas.clientHeight - inset * 2 };
 }
 const reducedMotion = () => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -186,42 +185,43 @@ export function CanvasOverview() {
   const aspectNow = area.canvasWidth > 0 && area.canvasHeight > 0 ? area.canvasWidth / area.canvasHeight : 16 / 10;
   const widthNow = area.width > 0 ? fit(Math.max(1, cards.length), area.width, area.height, aspectNow) : 0;
 
+  // The window zooms between the center area and its card. A card that is
+  // "out" or "closing" sits over the window's own place; framer-motion
+  // animates its layout as it moves into the grid ("in") or back out.
+  const [zoom, setZoom] = useState<{ key: string; box: Box; phase: "out" | "in" | "closing" } | null>(null);
+  const zoomAt = (key: string | undefined, phase: "out" | "closing") => {
+    const root = rootRef.current, canvas = root?.parentElement;
+    const card = key && root ? root.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(key)}"]`) : null;
+    if (!key || !card || !canvas || reducedMotion()) return false;
+    setZoom({ key, box: windowBox(canvas, card.hasAttribute("data-split")), phase });
+    return true;
+  };
+
   // Opening: the window on screen shrinks into its card, like Mission
   // Control, so nothing else needs to mark which one it is.
   const entered = useRef(false);
   useLayoutEffect(() => {
-    if (mode !== "browse") { entered.current = false; return; }
-    const root = rootRef.current, canvas = root?.parentElement;
-    if (entered.current || !widthNow || !root || !canvas) return;
+    if (mode !== "browse") { entered.current = false; setZoom(null); return; }
+    if (entered.current || !widthNow) return;
     entered.current = true;
-    const card = root.querySelector<HTMLElement>("[data-current]"), mini = card?.querySelector<HTMLElement>("[data-overview-mini]");
-    if (!card || !mini || reducedMotion()) return;
-    card.setAttribute("data-zooming", "");
-    const from = lay(windowBox(canvas, card.hasAttribute("data-split")), mini.getBoundingClientRect());
-    mini.animate([{ transform: from, transformOrigin: "0 0" }, { transform: "none", transformOrigin: "0 0" }], ZOOM)
-      .finished.catch(() => {}).finally(() => card.removeAttribute("data-zooming"));
+    if (zoomAt(activeKey, "out")) requestAnimationFrame(() => setZoom(z => z?.phase === "out" ? { ...z, phase: "in" } : z));
   }, [mode, widthNow]);
 
   // Closing: the chosen card (or the current one) grows back to fill the
   // center area, then the overview goes. Picking a card switches to its
   // window first, so the live window is ready underneath when it lands.
-  const leaving = useRef(false);
   const zoomOutTo = (pick: Card | null) => {
-    const root = rootRef.current, canvas = root?.parentElement;
-    if (leaving.current || !root || !canvas) return;
+    if (zoom?.phase === "closing") return;
     if (pick) window.dispatchEvent(new CustomEvent("op-activate-center-tab", { detail: { tabId: pick.activateId } }));
-    const key = pick?.key ?? activeKey;
-    const card = key ? root.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(key)}"]`) : null;
-    const mini = card?.querySelector<HTMLElement>("[data-overview-mini]");
-    if (!card || !mini || reducedMotion()) { closeOverview(); return; }
-    leaving.current = true;
-    root.setAttribute("data-leaving", "");
-    card.setAttribute("data-zooming", "");
-    const to = lay(windowBox(canvas, card.hasAttribute("data-split")), mini.getBoundingClientRect());
-    const done = () => { leaving.current = false; closeOverview(); };
-    mini.animate([{ transform: "none", transformOrigin: "0 0" }, { transform: to, transformOrigin: "0 0" }], { ...ZOOM, fill: "forwards" })
-      .finished.then(done, done);
+    if (!zoomAt(pick?.key ?? activeKey, "closing")) closeOverview();
   };
+  // framer-motion reports the end of the zoom; should a frame never move
+  // (nothing to animate), the zoom still finishes on time.
+  useEffect(() => {
+    if (zoom?.phase !== "in" && zoom?.phase !== "closing") return;
+    const timer = window.setTimeout(() => { if (zoom.phase === "closing") closeOverview(); else setZoom(null); }, 700);
+    return () => window.clearTimeout(timer);
+  }, [zoom]);
   const zoomOutRef = useRef(zoomOutTo);
   zoomOutRef.current = zoomOutTo;
   useEffect(() => {
@@ -250,6 +250,7 @@ export function CanvasOverview() {
       data-canvas-overview={mode}
       data-native-view-occluder="true"
       data-alone={hover?.card === null || undefined}
+      data-leaving={zoom?.phase === "closing" || undefined}
       role={mode === "browse" ? "dialog" : undefined}
       tabIndex={mode === "browse" ? -1 : undefined}
       aria-label={text("Window overview", "窗口总览")}
@@ -259,8 +260,17 @@ export function CanvasOverview() {
         {cards.map(card => {
           const geometry = canvasGeometry(card.root, viewport);
           const hot = hover?.card === card.key;
+          const zoomed = zoom?.key === card.key && zoom.phase !== "in";
           const body = (
             <>
+              <motion.span className={styles.zoomer} layout={mode === "browse"}
+                transition={zoom?.key === card.key && zoom.phase !== "out" ? ZOOM : INSTANT}
+                data-zoomed={zoomed || undefined}
+                style={zoomed ? { position: "absolute", zIndex: 3, ...zoom!.box } : undefined}
+                onLayoutAnimationComplete={() => {
+                  if (zoom?.key !== card.key) return;
+                  if (zoom.phase === "closing") closeOverview(); else if (zoom.phase === "in") setZoom(null);
+                }}>
               <span className={styles.mini} data-overview-mini="" style={{ aspectRatio: `${aspect}` }}>
                 {leaves(card.root).map(p => {
                   const r = geometry.panes.get(p.id)!;
@@ -282,6 +292,8 @@ export function CanvasOverview() {
                 })}
                 {hot && hover?.side ? <span className={styles.zone} style={ZONE[hover.side]} /> : null}
               </span>
+              </motion.span>
+              {zoomed && <span className={styles.slot} style={{ aspectRatio: `${aspect}` }} />}
               <span className={styles.caption}>{card.title}</span>
             </>
           );
@@ -293,6 +305,7 @@ export function CanvasOverview() {
             "data-overview-title": card.title,
             "data-hot": hot || undefined,
             "data-current": card.key === activeCard || undefined,
+            "data-zooming": zoom?.key === card.key || undefined,
             "data-split": leaves(card.root).length > 1 || undefined,
           };
           return mode === "browse"

@@ -128,8 +128,11 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(shots, /root\.setAttribute\("data-capturing-panes", ""\)/, 'the pane grips stay out of the pictures');
   const overviewCss = await read('components/center-tabs/canvas-overview.module.css');
   assert.doesNotMatch(overviewCss, /\.card\[data-current\] \.mini/, 'nothing marks the current window: it zooms into its card');
-  assert.match(view, /mini\.animate\(\[\{ transform: from, transformOrigin: "0 0" \}, \{ transform: "none", transformOrigin: "0 0" \}\], ZOOM\)/, 'opening shrinks the window into its card');
-  assert.match(view, /const to = lay\(windowBox\(canvas, card\.hasAttribute\("data-split"\)\), mini\.getBoundingClientRect\(\)\);/, 'closing grows the card back over the center area');
+  assert.match(view, /import \{ motion, type Transition \} from "framer-motion";/, 'the zoom is framer-motion layout animation, not hand-written transforms');
+  assert.doesNotMatch(view, /mini\.animate\(|function lay\(/, 'no hand-written zoom transforms remain');
+  assert.match(view, /if \(zoomAt\(activeKey, "out"\)\) requestAnimationFrame\(\(\) => setZoom\(z => z\?\.phase === "out" \? \{ \.\.\.z, phase: "in" \} : z\)\);/, 'opening shrinks the window into its card');
+  assert.match(view, /if \(!zoomAt\(pick\?\.key \?\? activeKey, "closing"\)\) closeOverview\(\);/, 'closing grows the card back over the center area');
+  assert.match(view, /if \(zoom\.phase === "closing"\) closeOverview\(\); else if \(zoom\.phase === "in"\) setZoom\(null\);/, 'the overview closes once the card has landed');
   assert.match(view, /if \(pick\) window\.dispatchEvent\(new CustomEvent\("op-activate-center-tab"/, 'a picked window is switched to before it lands');
   assert.match(view, /Date\.now\(\) - lastInput > 5000/, 'idle windows are pictured again, so a restart keeps a recent picture');
   assert.match(shots, /if \(!alive\.size\) return;/, 'a loading tab list never wipes the pictures');
