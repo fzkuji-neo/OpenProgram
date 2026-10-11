@@ -40,10 +40,10 @@ export function ingestNativeWindow(data: unknown): NativeWindow | null {
 }
 
 /** Cache-busted address of the latest frame the Agent saw of this window. */
-export function nativeWindowFrameUrl(window: NativeWindow): string | null {
-  if (!window.hasFrame) return null;
-  const session = encodeURIComponent(window.sessionId);
-  return `/api/session/${session}/native-window/frame?window_id=${window.windowId}&v=${window.sequence}`;
+export function nativeWindowFrameUrl(operated: NativeWindow): string | null {
+  if (!operated.hasFrame) return null;
+  const session = encodeURIComponent(operated.sessionId);
+  return `/api/session/${session}/native-window/frame?window_id=${operated.windowId}&v=${operated.sequence}`;
 }
 
 if (typeof window !== "undefined") {

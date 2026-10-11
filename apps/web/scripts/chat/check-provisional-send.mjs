@@ -848,7 +848,7 @@ assert.match(composer, /setComposerInputFor\(submitOwnerKey, ""\)/);
 assert.match(composer, /clearAttachmentsAfterSubmit\(submitOwnerKey, capturedAttachmentIds\)/);
 assert.match(
   composer,
-  /hasAttachments: pendingImages\.length \+ pendingDocs\.length > 0/,
+  /const hasSubmittedAttachments = pendingImages\.length \+ pendingDocs\.length > 0;[\s\S]*?hasAttachments: hasSubmittedAttachments,/,
   "path-only native documents must remain attachment turns for rejection handling",
 );
 assert.match(composer, /action:\s*"set_conversation_channel"/);
