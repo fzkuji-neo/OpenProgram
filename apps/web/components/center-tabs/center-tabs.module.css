@@ -258,16 +258,14 @@
 /* A split group is one top-level strip item with two equal identity cells.
    The cells never receive separate selected surfaces or drag subjects. */
 .compoundTab {
-  --compound-collapse-width: 200px;
   position: relative;
   isolation: isolate;
   display: flex;
   align-items: center;
   height: 28px;
-  min-width: 136px;
-  width: 280px;
-  flex: 0 1 280px;
-  max-width: 280px;
+  /* As wide as any other tab: it names one pane. */
+  flex: 0 1 200px;
+  min-width: 48px;
   padding: 0;
   box-sizing: border-box;
   border-radius: 8px;
@@ -309,49 +307,26 @@
   flex: 1 1 0;
   min-width: 0;
   position: relative;
-  display: grid;
-  /* A short title keeps its full width; the longer one takes the rest
-     before it truncates, so "Review" never squeezes the chat to "Greeti…". */
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
   width: 100%;
   height: 100%;
   pointer-events: none;
 }
 
 .compoundMember {
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 0 5px 0 10px;
+  padding: 0 5px 0 12px;
   box-sizing: border-box;
-}
-.compoundMember + .compoundMember {
-  border-left: 1px solid var(--border);
 }
 .compoundMemberName {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-@keyframes compoundMemberExit {
-  to { opacity: 0; }
-}
-.compoundMemberExit {
-  animation: compoundMemberExit 160ms ease-in forwards;
-}
-@keyframes compoundMemberCollapse {
-  to {
-    width: var(--compound-collapse-width);
-    flex-basis: var(--compound-collapse-width);
-    max-width: var(--compound-collapse-width);
-  }
-}
-.compoundMemberClosing {
-  animation: compoundMemberCollapse 160ms ease-in forwards;
-  overflow: hidden;
 }
 
 .compoundMemberClose {
@@ -712,7 +687,6 @@
   box-shadow: none;
 }
 :global(html.is-desktop) .compoundTab {
-  --compound-collapse-width: 240px;
   transition-duration: 120ms;
 }
 :global(html.is-desktop) .compoundTabActive::before,
@@ -2529,18 +2503,4 @@
 }
 .splitGlyph rect[data-on] {
   opacity: 0.9;
-}
-.canvasPaneCount {
-  flex: 0 0 auto;
-  order: 2;
-  margin: 0 6px 0 2px;
-  min-width: 16px;
-  padding: 1px 3px;
-  border-radius: 4px;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  text-align: center;
-  font-size: 10px;
-  line-height: 14px;
-  pointer-events: none;
 }

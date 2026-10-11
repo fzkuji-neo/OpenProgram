@@ -217,3 +217,12 @@ test('the grip turns into macOS window buttons and unfolds the tiling menu from 
   const base = await read('app/styles/base.css');
   assert.match(base, /\.app:has\(> \.center-col\[data-split\]\) \.sidebar\.collapsed \{\s*position: relative;/, 'narrow windows keep the rails beside a split');
 });
+
+test('a split window is one tab: its focused pane, a split mark and one close', async () => {
+  const items = await read('components/center-tabs/tab-items.tsx');
+  const css = await read('components/center-tabs/center-tabs.module.css');
+  assert.match(items, /<SplitGlyph root=\{group\.canvas\?\.root \?\? rowLayout\(group\.memberIds\)\.root\} current=\{canonicalTab\.id\} \/>/, 'the split in miniature marks the focused pane');
+  assert.match(items, /if \(!closing\) onClose\(event, memberTabs\.filter\(\(tab\) => !closingIds\.has\(tab\.id\)\)\);/, 'its close closes the whole window');
+  assert.doesNotMatch(items, /memberTabs\.slice\(0, 2\)|canvasPaneCount/, 'no first-two titles and +N count');
+  assert.match(css, /\.compoundTab \{[\s\S]*?flex: 0 1 200px;\n  min-width: 48px;/, 'as wide as any other tab');
+});
