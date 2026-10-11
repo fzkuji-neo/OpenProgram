@@ -302,8 +302,13 @@
 }
 
 /* 分隔条：像 macOS 平铺窗口之间那样，平时什么都不画；指针停在缝上时
-   缝隙正中出现一小段灰色短条，拖动时最亮。整条缝隙都能拖。 */
+   缝隙正中出现一小段白色短条——浅色主题是偏灰的白，深色主题是亮白——
+   拖动时变成纯白（浅色主题再垫一圈浅阴影，免得融进米色缝隙）。
+   整条缝隙都能拖。 */
 .divider {
+  --divider-hover: light-dark(color-mix(in oklch, var(--text-muted) 32%, #fff), rgb(255 255 255 / .85));
+  --divider-active: #fff;
+  --divider-active-ring: 0 0 0 .5px light-dark(rgb(0 0 0 / .12), transparent), 0 1px 3px light-dark(rgb(0 0 0 / .18), transparent);
   position: absolute;
   z-index: 11;
   display: flex;
@@ -332,7 +337,7 @@
 }
 .divider:hover::after,
 .divider:focus-visible::after {
-  background: var(--text-secondary);
+  background: var(--divider-hover);
 }
 .divider[aria-orientation="vertical"]:hover::after,
 .divider[aria-orientation="vertical"]:focus-visible::after,
@@ -345,7 +350,8 @@
   width: 48px;
 }
 .divider[data-active="true"]::after {
-  background: var(--text-bright);
+  background: var(--divider-active);
+  box-shadow: var(--divider-active-ring);
 }
 .divider:focus-visible {
   outline: none;
