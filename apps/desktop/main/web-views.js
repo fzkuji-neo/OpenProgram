@@ -321,10 +321,10 @@ function createWebViews({
       const wc = view.webContents;
       // Pinch out magnifies the page as in Safari; pinch in at normal size
       // (reported by webtab-preload.js) opens the App's window overview.
-      const allowPinchZoom = () => { void wc.setVisualZoomLevelLimits(1, 3).catch(() => {}); };
+      const allowPinchZoom = () => { Promise.resolve(wc.setVisualZoomLevelLimits?.(1, 3)).catch(() => {}); };
       allowPinchZoom();
       wc.on("dom-ready", allowPinchZoom);
-      wc.ipc.on("webtab:pinch-overview", () => {
+      wc.ipc?.on("webtab:pinch-overview", () => {
         const owner = ownerOf(record);
         if (owner && !record.pipLayoutZoom) owner.win.webContents.send("webtab:command", { id: record.id, command: "overview" });
       });
