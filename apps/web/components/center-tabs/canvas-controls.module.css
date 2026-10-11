@@ -30,6 +30,7 @@
   z-index: 12;
 }
 .handle {
+  --handle-bg: color-mix(in oklch, var(--text-primary) 7%, var(--bg-primary));
   pointer-events: auto;
   position: absolute;
   top: 0;
@@ -41,13 +42,41 @@
   border-radius: 0 0 12px 12px;
   color: var(--text-primary);
   font: 13px/1.2 -apple-system, BlinkMacSystemFont, var(--font-sans);
-  transition: width 180ms ease, background 140ms ease, box-shadow 140ms ease;
+  transition: width 180ms ease, background 140ms ease;
+}
+/* Flared shoulders: where the tab meets the top edge it curves outward,
+   like a sheet hanging from the edge, instead of standing as a box. */
+.handle::before,
+.handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+.handle::before {
+  left: -10px;
+  background: radial-gradient(circle at 0 100%, transparent 9.5px, var(--handle-bg) 10px);
+}
+.handle::after {
+  right: -10px;
+  background: radial-gradient(circle at 100% 100%, transparent 9.5px, var(--handle-bg) 10px);
 }
 .handle:hover,
 .handle:focus-within,
 .handle[data-open] {
-  background: var(--bg-tertiary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: var(--handle-bg);
+}
+.handle:hover::before,
+.handle:hover::after,
+.handle:focus-within::before,
+.handle:focus-within::after,
+.handle[data-open]::before,
+.handle[data-open]::after {
+  opacity: 1;
 }
 .handle[data-open] {
   width: 244px;
@@ -230,8 +259,8 @@
   height: 11px;
 }
 
-/* 分隔条：像 macOS 平铺窗口之间那样，缝隙正中一小段灰色短条；
-   悬停变亮变长，拖动时最亮。整条缝隙都能拖，不画整条线。 */
+/* 分隔条：像 macOS 平铺窗口之间那样，平时什么都不画；指针停在缝上时
+   缝隙正中出现一小段灰色短条，拖动时最亮。整条缝隙都能拖。 */
 .divider {
   position: absolute;
   z-index: 11;
@@ -242,7 +271,7 @@
 .divider::after {
   content: "";
   border-radius: 999px;
-  background: color-mix(in oklch, var(--text-muted) 55%, transparent);
+  background: transparent;
   transition: background 140ms ease, width 140ms ease, height 140ms ease;
 }
 .divider[aria-orientation="vertical"] {
@@ -455,5 +484,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .drawer { animation: none; }
-  .pane, .handle, .dots i, .divider::after { transition: none; }
+  .pane, .handle, .handle::before, .handle::after, .dots i, .divider::after { transition: none; }
 }
