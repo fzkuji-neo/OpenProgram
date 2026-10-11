@@ -118,6 +118,8 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(view, /\{shot \? <img className=\{styles\.shot\} src=\{shot\}/, 'cards show what each pane looked like');
   const shots = await read('lib/tabs/window-snapshots.ts');
   assert.match(shots, /tab\?\.kind === "web"\s*\? await bridge\.webTab\.capture/, 'web pages are pictured from their own view');
+  assert.match(shots, /indexedDB\.open\(DB, 1\)/, 'pictures survive a restart');
+  assert.match(shots, /if \(!alive\.size\) return;/, 'a loading tab list never wipes the pictures');
   const base = await read('app/styles/base.css');
   assert.match(base, /\.app \.center-col:has\(\[data-canvas-overview\]\) \{\s*background: var\(--bg-secondary\);\s*box-shadow: none;/, 'no card edge around the overview');
   const main = await readFile(new URL('../../../desktop/main.js', import.meta.url), 'utf8');
