@@ -74,6 +74,19 @@ export interface UseComposerAttachmentsResult {
     ownerKey: string | null,
     captured?: { imageIds: string[]; docIds: string[] },
   ) => void;
+  /** Take the submitted items out of the composer as soon as the socket
+   *  accepts the frame, without revoking their previews. The backend ACK
+   *  can trail the send by seconds; `release` frees the previews on ACK and
+   *  `restore` puts the items back when the backend rejects the turn. */
+  detachForSubmit: (
+    ownerKey: string | null,
+    captured: { imageIds: string[]; docIds: string[] },
+  ) => SubmittedAttachments;
+}
+
+export interface SubmittedAttachments {
+  release: () => void;
+  restore: () => void;
 }
 
 function revokeAttachmentPreviews(data: StoredAttachments): void {
@@ -108,6 +121,11 @@ export function useComposerAttachments(
   const [imageError, setImageError] = useState<string | null>(null);
   const [pendingDocs, setPendingDocs] = useState<PendingDoc[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  // Latest unowned lists for submit callbacks that run outside a render.
+  const pendingImagesRef = useRef(pendingImages);
+  const pendingDocsRef = useRef(pendingDocs);
+  pendingImagesRef.current = pendingImages;
+  pendingDocsRef.current = pendingDocs;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composerRootRef = useRef<HTMLDivElement | null>(null);
 
@@ -691,6 +709,86 @@ export function useComposerAttachments(
     });
   }, [noteAttachmentRemoval, pendingDocs, pendingImages, publishAttachments]);
 
+  const detachForSubmit = useCallback((
+    ownerKey: string | null,
+    captured: { imageIds: string[]; docIds: string[] },
+  ): SubmittedAttachments => {
+    const imageIds = new Set(captured.imageIds);
+    const docIds = new Set(captured.docIds);
+    let held: StoredAttachments = { images: [], docs: [] };
+    let settled = false;
+    if (!ownerKey) {
+      if (activeChatKeyRef.current === null) {
+        held = {
+          images: pendingImagesRef.current.filter((image) => imageIds.has(image.id)),
+          docs: pendingDocsRef.current.filter((doc) => docIds.has(doc.id)),
+        };
+        setPendingImages((current) => current.filter((image) => !imageIds.has(image.id)));
+        setPendingDocs((current) => current.filter((doc) => !docIds.has(doc.id)));
+      }
+    } else {
+      const attachments = attachmentsByChatRef.current.get(ownerKey)
+        ?? { images: [], docs: [] };
+      held = {
+        images: attachments.images.filter((image) => imageIds.has(image.id)),
+        docs: attachments.docs.filter((doc) => docIds.has(doc.id)),
+      };
+      if (held.images.length > 0 || held.docs.length > 0) {
+        for (const image of held.images) noteAttachmentRemoval(ownerKey, "image", image.id);
+        for (const doc of held.docs) noteAttachmentRemoval(ownerKey, "doc", doc.id);
+        publishAttachments(ownerKey, {
+          images: attachments.images.filter((image) => !imageIds.has(image.id)),
+          docs: attachments.docs.filter((doc) => !docIds.has(doc.id)),
+        });
+      }
+    }
+    return {
+      release: () => {
+        if (settled) return;
+        settled = true;
+        revokeAttachmentPreviews(held);
+      },
+      restore: () => {
+        if (settled) return;
+        settled = true;
+        if (held.images.length === 0 && held.docs.length === 0) return;
+        // Put the items back beside anything added since; their original
+        // order values keep them where they were in the strip.
+        if (!ownerKey) {
+          if (activeChatKeyRef.current !== null) {
+            revokeAttachmentPreviews(held);
+            return;
+          }
+          setPendingImages((current) => [
+            ...current,
+            ...held.images.filter((image) => !current.some((item) => item.id === image.id)),
+          ]);
+          setPendingDocs((current) => [
+            ...current,
+            ...held.docs.filter((doc) => !current.some((item) => item.id === doc.id)),
+          ]);
+          return;
+        }
+        if (attachmentOwnerIsClosed(ownerKey)) {
+          revokeAttachmentPreviews(held);
+          return;
+        }
+        const current = attachmentsByChatRef.current.get(ownerKey)
+          ?? { images: [], docs: [] };
+        publishAttachments(ownerKey, {
+          images: [
+            ...current.images,
+            ...held.images.filter((image) => !current.images.some((item) => item.id === image.id)),
+          ],
+          docs: [
+            ...current.docs,
+            ...held.docs.filter((doc) => !current.docs.some((item) => item.id === doc.id)),
+          ],
+        });
+      },
+    };
+  }, [noteAttachmentRemoval, publishAttachments]);
+
   return {
     pendingImages,
     imageError,
@@ -710,5 +808,6 @@ export function useComposerAttachments(
     onDragLeave,
     onDrop,
     clearAfterSubmit,
+    detachForSubmit,
   };
 }

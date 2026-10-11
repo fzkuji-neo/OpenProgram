@@ -33,7 +33,7 @@ import { elementsForBody } from "@/lib/chat/paste-elements";
 import { sendChatMessage } from "./send-chat-message";
 import { defaultScrollerKey, noteTakeLatest } from "@/lib/chat/chat-scroll";
 import { resolveFnFormSessionId } from "../modes/fn-form/session-target";
-import type { useComposerAttachments } from "../attach/use-composer-attachments";
+import type { SubmittedAttachments, useComposerAttachments } from "../attach/use-composer-attachments";
 import type { useSlashMenu } from "../slash/use-slash-menu";
 import type { FunctionDispatcher } from "../modes/fn-form/use-function-dispatch";
 
@@ -54,6 +54,7 @@ export interface ChatSubmitOptions {
   pendingImages: Attachments["pendingImages"];
   pendingDocs: Attachments["pendingDocs"];
   clearAttachmentsAfterSubmit: Attachments["clearAfterSubmit"];
+  detachAttachmentsForSubmit: Attachments["detachForSubmit"];
   thinking: string;
   toolsEnabled: boolean;
   toolsProfile: string;
@@ -83,6 +84,7 @@ export function useChatSubmit({
   pendingImages,
   pendingDocs,
   clearAttachmentsAfterSubmit,
+  detachAttachmentsForSubmit,
   thinking,
   toolsEnabled,
   toolsProfile,
@@ -243,6 +245,10 @@ export function useChatSubmit({
       docIds: pendingDocs.map((doc) => doc.id),
     };
     const originalDraft = input;
+    const hasSubmittedAttachments = pendingImages.length + pendingDocs.length > 0;
+    // Set once the socket accepts the frame: the files leave the composer
+    // with the text, and only an ACK or a rejection decides their fate.
+    let submittedAttachments: SubmittedAttachments | null = null;
     // Delegate to legacy `sendMessage` (chat.js) so the user bubble +
     // welcome-hide + assistant placeholder + isRunning flip all fire
     // before the WS payload goes out. Composer is just the trigger.
@@ -261,12 +267,16 @@ export function useChatSubmit({
       serviceTier: fastEnabled && fastSupported ? "priority" : "default",
       // Native path-only docs have no inline WS attachment payload, but they
       // still belong to this attachment turn for run_active handling.
-      hasAttachments: pendingImages.length + pendingDocs.length > 0,
+      hasAttachments: hasSubmittedAttachments,
       onAck: () => {
         // Remove only the submitted attachments; keep newer draft edits.
-        clearAttachmentsAfterSubmit(submitOwnerKey, capturedAttachmentIds);
+        if (submittedAttachments) submittedAttachments.release();
+        else clearAttachmentsAfterSubmit(submitOwnerKey, capturedAttachmentIds);
       },
       onSent: () => {
+        if (hasSubmittedAttachments) {
+          submittedAttachments = detachAttachmentsForSubmit(submitOwnerKey, capturedAttachmentIds);
+        }
         const currentDraft = submitOwnerKey
           ? useSessionStore.getState().composerDrafts[submitOwnerKey] ?? ""
           : useSessionStore.getState().composerDrafts.__new__ ?? "";
@@ -275,6 +285,7 @@ export function useChatSubmit({
         }
       },
       onReject: () => {
+        submittedAttachments?.restore();
         const currentDraft = submitOwnerKey
           ? useSessionStore.getState().composerDrafts[submitOwnerKey] ?? ""
           : useSessionStore.getState().composerDrafts.__new__ ?? "";
@@ -290,6 +301,7 @@ export function useChatSubmit({
     slash.close();
   }, [
     clearAttachmentsAfterSubmit,
+    detachAttachmentsForSubmit,
     activeChatKey,
     currentSessionId,
     input,
