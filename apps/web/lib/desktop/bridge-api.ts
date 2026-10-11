@@ -34,6 +34,8 @@ export interface DesktopBridge {
   closeWindow?(): void;
   /** Move this window by a pixel delta (single-tab drag = move window). */
   moveWindowBy?(dx: number, dy: number): void;
+  /** A small JPEG of a region of this page (CSS px), for overview thumbnails. */
+  captureRegion?(rect: { x: number; y: number; width: number; height: number }): Promise<string | null>;
   webTab: DesktopWebTabApi;
   tabTransfer: DesktopTabTransferApi;
   /** Top-layer ⋮ menu overlay. Absent in shells older than this build. */

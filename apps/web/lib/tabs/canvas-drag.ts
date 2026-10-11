@@ -1,6 +1,7 @@
 import { useCenterTabs } from "./center-tabs-store";
 import { rowLayout, type CanvasDockSide, type Rect } from "./canvas-layout";
 import { closeOverview, openOverview, overviewDropAt, useCanvasOverview } from "./canvas-overview";
+import { captureVisiblePanes } from "./window-snapshots";
 import { findCenterTabGroup } from "./center-tab-groups";
 import { rememberCanvas } from "./canvas-history";
 import { dropWebTabResource, resourceDropTarget } from "./tab-resource-drop";
@@ -189,7 +190,8 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
       // window button under it.
       try { grip.setPointerCapture(pointerId); } catch { /* the window listeners still cover the drag */ }
       setCanvasDragging(true, sessionOwner);
-      openOverview("drag", [tabId]);
+      // Picture the other panes before the overview covers them.
+      void captureVisiblePanes([tabId]).then(() => { if (!finished) openOverview("drag", [tabId]); });
       pane.setAttribute("data-pane-dragging", "");
       dragLabel = label!.cloneNode(true) as HTMLElement;
       dragLabel.removeAttribute("hidden");

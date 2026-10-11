@@ -97,11 +97,10 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(overview, /if \(x < r\.left \|\| x > r\.right \|\| y < r\.top \|\| y > r\.bottom\) \{ setHover\(null, ""\); return null; \}/, 'outside the overview the strip and detach keep working');
   const drag = await read('lib/tabs/canvas-drag.ts');
   assert.doesNotMatch(drag, /canvasDropAt|PANE_SIDE|canvasEdgeBand/, 'the in-canvas drop zones are gone');
-  assert.match(drag, /setCanvasDragging\(true, sessionOwner\);\s*openOverview\("drag", \[tabId\]\);/, 'a pane drag opens the overview');
   assert.match(drag, /if \(useCanvasOverview\.getState\(\)\.mode === "drag"\) closeOverview\(\);/, 'every drag end closes it');
   assert.match(drag, /event\.preventDefault\(\);\s*const grip = event\.currentTarget/, 'a pane drag does not select text');
   const tab = await read('components/center-tabs/use-tab-pointer-drag.ts');
-  assert.match(tab, /if \(outsideBand\) openOverview\("drag", drag\.subject\.tabIds\);/, 'a tab opens it once it leaves the strip, so reordering still works');
+  assert.match(tab, /if \(outsideBand\) \{\s*drag\.wantsOverview = true;/, 'a tab opens it once it leaves the strip, so reordering still works');
   assert.match(tab, /const canvasDrop = resourceTarget \? null : overviewDropAt\(e\.clientX, e\.clientY\);/);
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.match(view, /for \(const p of leaves\(root\)\) if \(p\.content && leaving\.has\(p\.content\)\) root = removePane\(root, p\.id\);/, 'the dragged tab leaves its card');
@@ -113,6 +112,16 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(strip, /className=\{styles\.overviewBtn\}\s*data-overview-toggle=""\s*aria-label=\{text\("Show all windows", "显示所有窗口"\)\}/, 'the strip button opens it, labelled without a native tooltip');
   const lifecycle = await read('components/center-tabs/use-tab-lifecycle.ts');
   assert.match(lifecycle, /window\.addEventListener\("op-activate-center-tab", onActivateTab\)/, 'a card click activates like a tab click');
+  assert.match(lifecycle, /void captureVisiblePanes\(\)\.then\(\(\) => openOverview\("browse"\)\)/, 'the panes are pictured before the overview covers them');
+  assert.match(tab, /if \(drag\.snapshotsReady\) openOverview\("drag", drag\.subject\.tabIds\);/);
+  assert.match(drag, /void captureVisiblePanes\(\[tabId\]\)\.then\(\(\) => \{ if \(!finished\) openOverview\("drag", \[tabId\]\); \}\);/);
+  assert.match(view, /\{shot \? <img className=\{styles\.shot\} src=\{shot\}/, 'cards show what each pane looked like');
+  const shots = await read('lib/tabs/window-snapshots.ts');
+  assert.match(shots, /tab\?\.kind === "web"\s*\? await bridge\.webTab\.capture/, 'web pages are pictured from their own view');
+  const base = await read('app/styles/base.css');
+  assert.match(base, /\.app \.center-col:has\(\[data-canvas-overview\]\) \{\s*background: var\(--bg-secondary\);\s*box-shadow: none;/, 'no card edge around the overview');
+  const main = await readFile(new URL('../../../desktop/main.js', import.meta.url), 'utf8');
+  assert.match(main, /if \(!ctx \|\| event\.sender !== ctx\.win\.webContents\) return null;/, 'only a window\'s own page may picture itself');
 });
 
 test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', async () => {

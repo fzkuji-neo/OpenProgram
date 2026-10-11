@@ -3,7 +3,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { topLevelTabs } from "@/lib/browser/web-page-management";
-import { canvasGeometry, canvasViewport, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
+import { canvasGeometry, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
+import { canvasDragging } from "@/lib/tabs/canvas-drag";
+import { captureVisiblePanes, captureWebTabs, pruneSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
 import { closeOverview, openOverview, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
 import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
@@ -63,11 +65,30 @@ export function CanvasOverview() {
       if (spent) return;
       total += e.deltaY;
       const open = useCanvasOverview.getState().mode;
-      if (!open && total > 30) { spent = true; openOverview("browse"); }
+      if (!open && total > 30) { spent = true; void captureVisiblePanes().then(() => openOverview("browse")); }
       else if (open === "browse" && total < -30) { spent = true; closeOverview(); }
     };
     window.addEventListener("wheel", wheel, { passive: true });
     return () => { window.removeEventListener("wheel", wheel); window.clearTimeout(timer); };
+  }, []);
+
+  // A window on screen is pictured once it settles (after a switch or a
+  // layout change) and when the App loses focus, so its card looks like
+  // it did when it was last seen.
+  useEffect(() => {
+    let timer: number | undefined;
+    const later = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { if (!canvasDragging()) void captureVisiblePanes(); }, 900);
+    };
+    const now = () => { if (!canvasDragging()) void captureVisiblePanes(); };
+    later();
+    const off = useCenterTabs.subscribe((s, prev) => {
+      if (s.activeId !== prev.activeId || s.groups !== prev.groups) later();
+      if (s.tabs !== prev.tabs) pruneSnapshots(new Set(s.tabs.map(tab => tab.id)));
+    });
+    window.addEventListener("blur", now);
+    return () => { off(); window.removeEventListener("blur", now); window.clearTimeout(timer); };
   }, []);
 
   useEffect(() => {
@@ -95,6 +116,16 @@ export function CanvasOverview() {
     return () => ro.disconnect();
   }, [mode]);
 
+  const shots = useWindowSnapshots(s => s.shots);
+  // Web pages keep a live view even off screen; picture them fresh.
+  useEffect(() => {
+    if (!mode) return;
+    const { tabs: all, groups: grouped } = useCenterTabs.getState();
+    const onScreen = new Set([...document.querySelectorAll<HTMLElement>("[data-canvas-root] [data-canvas-content]")].filter(pane => pane.offsetWidth > 0).map(pane => pane.dataset.canvasContent));
+    const listed = new Set(topLevelTabs(all, grouped).map(tab => tab.id).concat(grouped.flatMap(group => group.memberIds)));
+    captureWebTabs(all.filter(tab => tab.kind === "web" && listed.has(tab.id) && !onScreen.has(tab.id)).map(tab => tab.id));
+  }, [mode]);
+
   const cards = useMemo<Card[]>(() => {
     if (!mode) return [];
     const byId = new Map(tabs.map(tab => [tab.id, tab]));
@@ -114,7 +145,9 @@ export function CanvasOverview() {
   const activeCard = cards.find(card => leaves(card.root).some(p => p.content === activeId))?.key;
   const aspect = area.canvasWidth > 0 && area.canvasHeight > 0 ? area.canvasWidth / area.canvasHeight : 16 / 10;
   const cardWidth = area.width > 0 ? fit(Math.max(1, cards.length), area.width, area.height, aspect) : 0;
-  const viewport = canvasViewport(area.canvasWidth || 1000, area.canvasHeight || 625);
+  // Panes fill the card edge to edge; the canvas's outer padding would
+  // leave a sliver between the card and its outline.
+  const viewport = { left: 0, top: 0, width: area.canvasWidth || 1000, height: area.canvasHeight || 625 };
   const byId = new Map(tabs.map(tab => [tab.id, tab]));
   const activate = (card: Card) => {
     closeOverview();
@@ -145,12 +178,13 @@ export function CanvasOverview() {
                 {leaves(card.root).map(p => {
                   const r = geometry.panes.get(p.id)!;
                   const tab: CenterTab | undefined = p.content ? byId.get(p.content) : undefined;
+                  const shot = tab ? shots[tab.id] : undefined;
                   return (
-                    <span key={p.id} className={styles.pane} data-empty={!tab || undefined} style={{
+                    <span key={p.id} className={styles.pane} data-empty={!tab || undefined} data-shot={shot ? "" : undefined} style={{
                       left: `${(r.left / viewport.width) * 100}%`, top: `${(r.top / viewport.height) * 100}%`,
                       width: `${(r.width / viewport.width) * 100}%`, height: `${(r.height / viewport.height) * 100}%`,
                     }}>
-                      {tab && !tab.canvasAnchor ? (
+                      {shot ? <img className={styles.shot} src={shot} alt="" draggable={false} /> : tab && !tab.canvasAnchor ? (
                         <>
                           <span className={styles.paneTitle}><CompoundMemberIcon tab={tab} animate={false} /><span>{labelOf(tab, t, text)}</span></span>
                           <i className={styles.line} /><i className={styles.line} style={{ width: "62%" }} />
