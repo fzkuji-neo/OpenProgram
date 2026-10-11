@@ -172,6 +172,8 @@ def test_act_emits_dispatched_before_blocking_adapter_and_acks_same_operation(
         backend="open_claude_chrome",
     )
     session_id = observed["web_session_id"]
+    assert [item.get("action") for item in captured] == ["observe"]
+    captured.clear()
     worker = threading.Thread(
         target=lambda: registry.execute(
             command="act", owner_id="owner", web_session_id=session_id,

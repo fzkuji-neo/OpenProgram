@@ -113,7 +113,8 @@ test("resource click selects a read-only preview without pinning or changing the
     assert.ok(!topLevelTabs(state.tabs, state.groups).some(t => t.id === page.id));
     assert.equal(useWebTabPip.getState().tabId, page.id);
     assert.equal(useWebTabPip.getState().ownerTabId, session.id);
-    assert.equal(getPreviewPreference("a", "br-a").mode, "manual");
+    // Choosing a row shows it without pinning; the next Agent operation moves on.
+    assert.equal(getPreviewPreference("a", "br-a").mode, "follow");
     await act(async () => button.click());
     assert.equal(useCenterTabs.getState().tabs.length, 5);
     assert.equal(useWebTabPip.getState().tabId, page.id);
@@ -281,7 +282,8 @@ test("explicit Preview in conversation keeps the hidden Page identity and adds n
     assert.ok(!topLevelTabs(state.tabs, state.groups).some(tab => tab.id === page.id));
     assert.equal(useWebTabPip.getState().tabId, page.id);
     assert.equal(useWebTabPip.getState().ownerTabId, session.id);
-    assert.equal(getPreviewPreference("a", "br-a").mode, "manual");
+    // Choosing a row shows it without pinning; the next Agent operation moves on.
+    assert.equal(getPreviewPreference("a", "br-a").mode, "follow");
     assert.equal(getPreviewPreference("a", "br-a").targetId, "assoc-preview");
     assert.equal(getPreviewPreference("a", "br-a").hidden, false);
   } finally {
@@ -324,7 +326,8 @@ test("Preview in conversation from an active webpage returns to the owning sessi
     assert.equal(state.tabs.find(tab => tab.id === page.id).webPinned, true);
     assert.equal(useWebTabPip.getState().tabId, page.id);
     assert.equal(useWebTabPip.getState().ownerTabId, session.id);
-    assert.equal(getPreviewPreference("a", "br-a").mode, "manual");
+    // Choosing a row shows it without pinning; the next Agent operation moves on.
+    assert.equal(getPreviewPreference("a", "br-a").mode, "follow");
     assert.equal(getPreviewPreference("a", "br-a").targetId, "assoc-live");
   } finally {
     await act(async () => root.unmount()); host.remove();
@@ -381,7 +384,8 @@ test("hidden preview restores the same page from the row preview icon", async ()
     assert.equal(useWebTabPip.getState().ownerTabId, session.id);
     assert.equal(getPreviewPreference("a", "br-a").hidden, false);
     assert.equal(getPreviewPreference("a", "br-a").targetId, "assoc-restore");
-    assert.equal(getPreviewPreference("a", "br-a").mode, "manual");
+    // Choosing a row shows it without pinning; the next Agent operation moves on.
+    assert.equal(getPreviewPreference("a", "br-a").mode, "follow");
   } finally {
     await act(async () => root.unmount()); host.remove();
     useWebTabPip.getState().end();

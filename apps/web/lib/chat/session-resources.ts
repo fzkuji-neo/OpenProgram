@@ -126,7 +126,9 @@ function readStoredPreferences(): Record<string, PreviewPreference> {
     const raw = localStorage.getItem(PREF_STORAGE);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, PreviewPreference>;
-    return Object.fromEntries(Object.entries(parsed).filter(([, value]) => value && typeof value === "object"));
+    return Object.fromEntries(Object.entries(parsed)
+      .filter(([, value]) => value && typeof value === "object")
+      .map(([key, value]) => [key, value.mode === "manual" ? { ...value, mode: "follow" as const } : value]));
   } catch {
     return {};
   }
@@ -154,7 +156,12 @@ function prefKey(sessionId: string, branchId: string | null): string {
 function persistPreferences(preferences: Record<string, PreviewPreference>): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.setItem(PREF_STORAGE, JSON.stringify(preferences));
+    // A pin lasts for this page load. Stored, it outlived the reason for it
+    // and the preview never followed the Agent again.
+    const stored = Object.fromEntries(Object.entries(preferences).map(([key, pref]) => [
+      key, pref.mode === "manual" ? { ...pref, mode: "follow" as const } : pref,
+    ]));
+    localStorage.setItem(PREF_STORAGE, JSON.stringify(stored));
   } catch {
     /* quota / private mode */
   }
@@ -759,6 +766,18 @@ export function selectResourcePreview(sessionId: string, branchId: string | null
   return writePref(sessionId, branchId, {
     targetId: resourceId, mode: "manual", hidden: false,
   });
+}
+
+/** Show a Page now without pinning: the next Agent operation moves on. */
+export function previewResource(sessionId: string, branchId: string | null, resourceId: string): PreviewPreference {
+  const pref = getPreviewPreference(sessionId, branchId);
+  if (pref.mode === "follow") {
+    const key = prefKey(sessionId, branchId);
+    useBrowserResourceStore.setState(state => ({
+      latestFollow: { ...state.latestFollow, [key]: resourceId },
+    }));
+  }
+  return writePref(sessionId, branchId, { targetId: resourceId, hidden: false });
 }
 
 export function followCurrentBranch(sessionId: string, branchId: string | null): PreviewPreference {
