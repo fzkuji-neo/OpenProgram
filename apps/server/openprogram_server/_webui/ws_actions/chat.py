@@ -741,7 +741,9 @@ async def handle_chat(ws, cmd: dict):
     # at the home root). create_session is the only path that can place
     # the repo inside the project (<project>/.openprogram/sessions/<id>/),
     # so when the composer sent the picker's project_id with the first
-    # message, create the session with it right here. Existing sessions
+    # message, create the session with it right here. A draft whose
+    # settings were already stored (a model pick) has a repo but is not
+    # created yet, so the check is ``is_created``. Existing sessions
     # are untouched — mid-chat project switches go through
     # set_session_project and never move the repo.
     project_id = (cmd.get("project_id") or "").strip() or None
@@ -749,7 +751,7 @@ async def handle_chat(ws, cmd: dict):
         try:
             from openprogram.agent.session_db import default_db as _proj_db
             _pdb = _proj_db()
-            if _pdb.get_session(session_id) is None:
+            if not _pdb.is_created(session_id):
                 _pdb.create_session(
                     session_id,
                     agent_id or _s._default_agent_id(),
@@ -973,7 +975,7 @@ async def handle_chat(ws, cmd: dict):
         # (and other run settings) survives refresh without a project binding.
         from openprogram.agent.session_db import default_db
         session_db = default_db()
-        if session_db.get_session(session_id) is None:
+        if not session_db.is_created(session_id):
             session_db.create_session(session_id, agent_id or _s._default_agent_id(),
                                       project_id=project_id)
         if agent_invocation is not None:

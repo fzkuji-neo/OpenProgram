@@ -395,6 +395,9 @@ def test_chat_startup_failure_fails_exact_admission_and_clears_task(
         def get_session(self, _sid):
             return {"extra_meta": {"_user_titled": True}}
 
+        def is_created(self, _sid):
+            return True
+
         def update_session(self, _sid, **_fields):
             return None
 
@@ -498,6 +501,7 @@ def test_handle_chat_starts_turn_when_ack_socket_is_gone(monkeypatch, tmp_path):
         lambda: types.SimpleNamespace(
             root_path=tmp_path,
             get_session=lambda sid: {"extra_meta": {"_user_titled": True}},
+            is_created=lambda sid: True,
         ),
     )
     monkeypatch.setattr(turn_lifecycle, "insert_placeholder", lambda *a, **k: True)

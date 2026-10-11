@@ -83,6 +83,8 @@ draft chat, project picked in the composer chip
   → chat_ack sends the idempotent set_session_project (label + reverse index)
 ```
 
+Settings picked while the chat is a draft (a model, for example) are stored before the session is created, so its repository can already exist at the default location without an `id`. `handle_chat` therefore asks `is_created` (meta has an `id`, or the repo has history) rather than whether the repository exists, and `create_session` moves such a settings-only repository to the project's placement, keeping those settings.
+
 `set_session_project` accepts a bind naming the project the session already has, at any age — that is what the post-ack idempotent bind above sends, and it arrives after the first turn is committed. A bind naming a **different** project on a session that already has turns is rejected with `project is frozen after the first turn` (`ws_actions/project.py:FROZEN_ERROR`). The composer chip matches: for a session with an id it renders the bound project read-only instead of the picker.
 
 ### Repairing a missing directory
