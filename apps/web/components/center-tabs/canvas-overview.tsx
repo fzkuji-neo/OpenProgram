@@ -135,7 +135,9 @@ export function CanvasOverview() {
     };
     window.addEventListener("keydown", key, true);
     window.addEventListener("pointerdown", press, true);
-    rootRef.current?.querySelector<HTMLElement>("[data-current]")?.focus({ preventScroll: true });
+    // Focus the overview itself, not a card: a card would wear a focus
+    // ring as it zooms in. Tab still reaches the cards.
+    rootRef.current?.focus({ preventScroll: true });
     return () => { window.removeEventListener("keydown", key, true); window.removeEventListener("pointerdown", press, true); };
   }, [mode]);
 
@@ -243,6 +245,7 @@ export function CanvasOverview() {
       data-native-view-occluder="true"
       data-alone={hover?.card === null || undefined}
       role={mode === "browse" ? "dialog" : undefined}
+      tabIndex={mode === "browse" ? -1 : undefined}
       aria-label={text("Window overview", "窗口总览")}
       onClick={mode === "browse" ? e => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.overviewGrid !== undefined) dismissOverview(); } : undefined}
     >
