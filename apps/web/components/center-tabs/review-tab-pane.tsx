@@ -119,8 +119,20 @@ export function ReviewTabPane({
         setRefreshNonce((value) => value + 1);
       }
     };
+    // A request sent before the socket opened (App start, worker restart)
+    // comes back disconnected; ask again once the socket is up.
+    const reconnect = (event: Event) => {
+      if ((event as CustomEvent).detail?.connected) {
+        staleRecoveryRef.current = null;
+        setRefreshNonce((value) => value + 1);
+      }
+    };
     window.addEventListener("turn-files-history-changed", refresh);
-    return () => window.removeEventListener("turn-files-history-changed", refresh);
+    window.addEventListener("op:browser-connection", reconnect);
+    return () => {
+      window.removeEventListener("turn-files-history-changed", refresh);
+      window.removeEventListener("op:browser-connection", reconnect);
+    };
   }, [sessionId]);
 
   useEffect(() => {
@@ -342,7 +354,7 @@ const data = await requestReviewScope({
     setDiffHistory([]);
   };
   const filePages = scopeState.prev_cursor != null || scopeState.next_cursor != null;
-  const diffPages = Boolean(selectedPath) && !showPreview
+  const diffPages = Boolean(selected) && !showPreview
     && (diffHistory.length > 0 || diffState.next_cursor != null);
 
   return (
@@ -575,15 +587,18 @@ const data = await requestReviewScope({
             </div>
           ) : null}
           <div className={styles.diffBody}>
-            {!selectedPath ? (
+            {!selected ? (
+              // The file list is folded away in narrow panes, so its
+              // loading, error and empty states show here too.
               <div className={styles.empty}>
-                {scopeState.files.length
-                  ? text("Select a file to inspect", "选择文件以查看差异")
-                  : scopeState.loading
-                    ? text("Loading files…", "正在加载文件…")
-                    : scopeState.error ?? text("No changes in this scope", "此范围没有修改")}
+                {scopeState.loading
+                  ? text("Loading files…", "正在加载文件…")
+                  : scopeState.error
+                    ?? (scopeState.files.length
+                      ? text("Select a file to inspect", "选择文件以查看差异")
+                      : text("No changes in this scope", "此范围没有修改"))}
               </div>
-            ) : showPreview && selected ? (
+            ) : showPreview ? (
               <div className={styles.preview}><FileViewer projectId="" path={selected.path} abs sessionId={sessionId} /></div>
             ) : diffState.loading ? (
               <div className={styles.empty}>{text("Loading diff…", "正在加载差异…")}</div>
