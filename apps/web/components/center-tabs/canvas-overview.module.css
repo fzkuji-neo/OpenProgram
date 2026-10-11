@@ -10,6 +10,7 @@
   animation: overviewIn 180ms ease-out;
   user-select: none;
   -webkit-user-select: none;
+  outline: none;
 }
 .overview[data-canvas-overview="browse"] {
   animation: none;
