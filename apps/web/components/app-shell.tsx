@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
 import { PageShell } from "./page-shell";
@@ -429,7 +429,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
     const layoutRoot = node.closest(".app");
     measureScheduler.schedule();
-    const observer = new ResizeObserver(measureScheduler.schedule);
+    // A rail opening or closing resizes the centre every frame. Measured a
+    // frame late, the panes keep their old width while the centre's left
+    // edge moves, and slide past its right edge. The observer runs after
+    // layout and before paint, so rendering the new size right there keeps
+    // the panes inside the centre in the frame it changes.
+    const observer = new ResizeObserver(() => {
+      measureScheduler.cancel();
+      const rect = node.getBoundingClientRect();
+      flushSync(() => {
+        setCenterBodyWidth(rect.width);
+        setCenterBodyHeight(rect.height);
+      });
+    });
     observer.observe(node);
     window.addEventListener("resize", measureScheduler.schedule);
     layoutRoot?.addEventListener("transitionend", measureScheduler.schedule);
