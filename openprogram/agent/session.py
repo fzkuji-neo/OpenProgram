@@ -184,29 +184,33 @@ class AgentSession:
     async def _run_with_retry(self, run_fn: Callable[[], Any]) -> None:
         """Internal: run once, then retry on transient errors."""
         attempt = 0
+        transport_reserved = 0
         current_fn = run_fn
+        from openprogram.providers.utils.recovery import current_recovery
 
         while True:
             await current_fn()
 
             last = self.last_assistant
-            if last is None:
-                return
-
             context_window = getattr(self._agent.state.model, "context_window", 0) or 0
-            if not is_retryable_error(last, context_window):
+            if last is None or not is_retryable_error(last, context_window):
+                # The request got through: its reconnects are not charged to
+                # the rest of the invocation (transport allowance is per request).
+                recovery = current_recovery.get()
+                if recovery is not None and transport_reserved:
+                    recovery.refund("transport", transport_reserved)
                 return
 
-            # Runtime owns a shared allowance across transport and format
-            # repair. Reserve here before continuing this same session so
+            # Runtime owns the invocation's recovery state. Reserve a
+            # transport retry here before continuing this same session so
             # completed tools remain in context and retries are counted once.
-            from openprogram.providers.utils.recovery import current_recovery
-
             recovery = current_recovery.get()
             shared_exhausted = False
             local_exhausted = recovery is None and attempt >= self._retry.max_retries
             if self._retry.enabled and recovery is not None:
                 shared_exhausted = not recovery.reserve("transport")
+                if not shared_exhausted:
+                    transport_reserved += 1
                 if shared_exhausted:
                     # Keep the actual provider error; stop Runtime from
                     # restarting the invocation with a fresh tool context.

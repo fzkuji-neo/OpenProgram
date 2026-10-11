@@ -376,6 +376,15 @@ class ProvidersOperations:
                 if model_call_budget.get("started") and round_key and round_key not in credited:
                     credited.add(round_key)
                     model_call_budget["remaining"] += 1
+                # Transport retries have their own allowance on the shared
+                # recovery state; a reconnect must not spend an answer attempt.
+                from openprogram.providers.utils.recovery import current_recovery
+                recovery = current_recovery.get()
+                if recovery is not None:
+                    seen = model_call_budget.get("transport_reserves_seen", 0)
+                    if recovery.transport_reserves > seen:
+                        model_call_budget["remaining"] += recovery.transport_reserves - seen
+                    model_call_budget["transport_reserves_seen"] = recovery.transport_reserves
                 if model_call_budget["remaining"] <= 0:
                     raise RuntimeError("structured output model-call budget exhausted")
                 model_call_budget["started"] = True
