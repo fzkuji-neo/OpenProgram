@@ -59,16 +59,16 @@
   display: contents;
 }
 /* 桌面模式：真 flex 容器 + 限宽。＋号始终按 8px gap 紧跟最后一个 tab
-   （自然流，不再定位到右缘）；末端固定留 72px = ＋号 36（8 gap + 28）
-   ＋ 主菜单钮 36，菜单钮右缘落在 10px padding 上，中心距窗口右缘 24px，
-   与右栏收起轨图标同轴。 */
+   （自然流，不再定位到右缘）；末端固定留 108px = ＋号 36（8 gap + 28）
+   ＋ 总览钮 36 ＋ 主菜单钮 36，菜单钮右缘落在 10px padding 上，中心距
+   窗口右缘 24px，与右栏收起轨图标同轴。 */
 :global(html.is-desktop) .tabsFlow {
   display: flex;
   align-items: center;
   gap: 8px; /* 与 .strip 的 tab 间距一致（真容器后不再继承 strip 的 gap） */
   flex: 0 1 auto;
   min-width: 0;
-  max-width: calc(100% - 72px);
+  max-width: calc(100% - 108px);
   height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
@@ -91,6 +91,7 @@
 :global(html.is-desktop) .tab,
 :global(html.is-desktop) .compoundTab,
 :global(html.is-desktop) .plusBtn,
+:global(html.is-desktop) .overviewBtn,
 :global(html.is-desktop) .menuBtn {
   -webkit-app-region: no-drag;
 }
@@ -840,6 +841,30 @@
   color: var(--text-bright);
   background: var(--bg-hover);
 }
+/* 窗口总览 —— Safari 的标签总览按钮，和 ⋮ 一起占右端预留列，排在它左边；
+   几何同 ＋号。margin-left:auto 把两颗一起推到右缘。 */
+.overviewBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.overviewBtn:hover,
+.overviewBtn[aria-pressed="true"] {
+  color: var(--text-bright);
+  background: var(--bg-hover);
+}
+.overviewBtn + .menuBtn { margin-left: 0; }
 /* 主菜单 ⋮ —— Chrome 右端那颗。占据 strip 最右预留列：margin-left:auto
    把它推到右缘（＋号因此回到紧跟末位 tab 的自然位置），几何与 ＋号同款
    （28px 圆钮、居中、悬停才有底色）。 */

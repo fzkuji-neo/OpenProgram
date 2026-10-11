@@ -89,18 +89,30 @@ test('Return to previous layout finds a layout by any tab it involved', () => {
   assert.equal(takePreviousCanvas(['y']), undefined, 'each step is used once');
 });
 
-test('a pane splits by quarter strips and halves, with no dead centre', async () => {
+test('dragging a tab or a pane opens the window overview; its cards keep their splits', async () => {
+  const overview = await read('lib/tabs/canvas-overview.ts');
+  assert.match(overview, /const side: OverviewSide = px < OVERVIEW_SIDE \? "left" : px > 1 - OVERVIEW_SIDE \? "right" : py < 0\.5 \? "top" : "bottom";/, 'a card splits by quarter strips and halves, with no dead centre');
+  assert.match(overview, /return \{ targetId: card\.dataset\.overviewTarget!, paneId: "root", side, rect, action: "dock", label \};/, 'a card merges beside the whole window');
+  assert.match(overview, /action: "fill", label \};\s*\}\s*$/, 'empty space opens the tab on its own');
+  assert.match(overview, /if \(x < r\.left \|\| x > r\.right \|\| y < r\.top \|\| y > r\.bottom\) \{ setHover\(null, ""\); return null; \}/, 'outside the overview the strip and detach keep working');
   const drag = await read('lib/tabs/canvas-drag.ts');
-  assert.match(drag, /if \(alt\) return \{ targetId, paneId, side: "center"[^}]*action: "dock"/, 'Option replaces');
-  assert.match(drag, /const side = px < PANE_SIDE \? "left" : px > 1 - PANE_SIDE \? "right" : py < 0\.5 \? "top" : "bottom";/);
-  assert.doesNotMatch(drag, /"hint"/, 'every point in a pane does something');
-  assert.match(drag, /if \(sourceIds\.length === 1 && content === sourceIds\[0\]\) return stay\(paneRect\);/, 'a pane over its own place says it stays');
-  assert.match(drag, /return dock\(paneId, side, PANE_LABEL\[side\], half\);/, 'a pane split highlights the half under the pointer, not where reflow puts it');
-  assert.match(drag, /if \(!sourceId \|\| drop\.action === "stay"\) return false;/, 'staying changes nothing and records no history');
-  assert.match(drag, /if \(nearT\) \{[\s\S]*?action: "fill"/, 'the top edge opens the tab on its own');
-  assert.match(drag, /\(nearL \|\| nearR\) && \(nearT \|\| nearB\)/, 'corners are quarters');
-  assert.match(drag, /Math\.max\(40, Math\.min\(96, Math\.min\(width, height\) \* 0\.14\)\)/, 'the whole-canvas halves are easy to reach');
+  assert.doesNotMatch(drag, /canvasDropAt|PANE_SIDE|canvasEdgeBand/, 'the in-canvas drop zones are gone');
+  assert.match(drag, /setCanvasDragging\(true, sessionOwner\);\s*openOverview\("drag", \[tabId\]\);/, 'a pane drag opens the overview');
+  assert.match(drag, /if \(useCanvasOverview\.getState\(\)\.mode === "drag"\) closeOverview\(\);/, 'every drag end closes it');
   assert.match(drag, /event\.preventDefault\(\);\s*const grip = event\.currentTarget/, 'a pane drag does not select text');
+  const tab = await read('components/center-tabs/use-tab-pointer-drag.ts');
+  assert.match(tab, /if \(outsideBand\) openOverview\("drag", drag\.subject\.tabIds\);/, 'a tab opens it once it leaves the strip, so reordering still works');
+  assert.match(tab, /const canvasDrop = resourceTarget \? null : overviewDropAt\(e\.clientX, e\.clientY\);/);
+  const view = await read('components/center-tabs/canvas-overview.tsx');
+  assert.match(view, /for \(const p of leaves\(root\)\) if \(p\.content && leaving\.has\(p\.content\)\) root = removePane\(root, p\.id\);/, 'the dragged tab leaves its card');
+  assert.match(view, /const geometry = canvasGeometry\(card\.root, viewport\);/, 'a split window stays split in its card');
+  assert.match(view, /data-native-view-occluder="true"/, 'native web views hide under it');
+  assert.match(view, /if \(!isPinch\(e\) \|\| e\.defaultPrevented\) return;/, 'a pinch opens it unless the content zooms itself');
+  assert.doesNotMatch(view, /\stitle=\{/, 'no native tooltips');
+  const strip = await read('components/center-tabs/center-tab-strip.tsx');
+  assert.match(strip, /className=\{styles\.overviewBtn\}\s*data-overview-toggle=""\s*aria-label=\{text\("Show all windows", "显示所有窗口"\)\}/, 'the strip button opens it, labelled without a native tooltip');
+  const lifecycle = await read('components/center-tabs/use-tab-lifecycle.ts');
+  assert.match(lifecycle, /window\.addEventListener\("op-activate-center-tab", onActivateTab\)/, 'a card click activates like a tab click');
 });
 
 test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', async () => {

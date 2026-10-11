@@ -1,0 +1,139 @@
+/* Window overview (Mission Control): the center area recedes to the page
+   colour and every window floats on it as a card that keeps its split. */
+.overview {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  animation: overviewIn 180ms ease-out;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.overview[data-alone] {
+  background: color-mix(in oklch, var(--accent-blue) 6%, var(--bg-secondary));
+}
+.grid {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 32px 32px 0;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  animation: cardIn 220ms cubic-bezier(.2, .8, .2, 1);
+}
+button.card { cursor: pointer; }
+button.card:focus-visible { outline: none; }
+.mini {
+  position: relative;
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.card[data-current] .mini {
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--text-bright) 22%, transparent);
+}
+button.card:hover .mini,
+button.card:focus-visible .mini,
+.card[data-hot] .mini {
+  transform: scale(1.03);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent-blue) 70%, transparent);
+}
+.pane {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--bg-primary);
+  box-shadow: var(--composer-shadow);
+}
+.pane[data-empty] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-light);
+}
+.paneTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-bright);
+}
+.paneTitle > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.line {
+  display: block;
+  flex: 0 0 auto;
+  width: 84%;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+}
+.zone {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: color-mix(in oklch, var(--accent-blue) 18%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--accent-blue) 75%, transparent);
+  pointer-events: none;
+  transition: left 120ms ease-out, top 120ms ease-out, width 120ms ease-out, height 120ms ease-out;
+}
+.caption {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card[data-current] .caption,
+.card[data-hot] .caption { color: var(--text-bright); }
+.hint {
+  align-self: center;
+  max-width: calc(100% - 32px);
+  margin: 16px 0 20px;
+  padding: 6px 12px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--bg-primary);
+  box-shadow: var(--composer-shadow);
+  color: var(--text-bright);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+@keyframes overviewIn { from { opacity: 0; } }
+@keyframes cardIn { from { opacity: 0; transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) {
+  .overview, .card { animation: none; }
+  .mini, .zone { transition: none; }
+}

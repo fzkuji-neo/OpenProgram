@@ -15,6 +15,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
+import { openOverview } from "@/lib/tabs/canvas-overview";
 import { useSessionStore } from "@/lib/session-store";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { flushFileDocumentsBeforeClose } from "@/lib/files/file-drafts";
@@ -231,6 +232,12 @@ export function useTabLifecycle({
     if (tab.kind !== "session" && !isChatRoute(pathname)) router.push("/chat");
   }
 
+  /** The strip button: every window as a card, over the chat area. */
+  function onOpenOverview() {
+    openOverview("browse");
+    if (!isChatRoute(pathname)) router.push("/chat");
+  }
+
   function onOpenNewTab() {
     // A new tab relayouts the whole row anyway, so any close-run freeze
     // ends here rather than fighting the enter animation.
@@ -303,6 +310,8 @@ export function useTabLifecycle({
 
   const onTabsCloseRef = useRef(onTabsClose);
   onTabsCloseRef.current = onTabsClose;
+  const onTabClickRef = useRef(onTabClick);
+  onTabClickRef.current = onTabClick;
   useEffect(() => {
     const onDesktopClose = () => {
       const state = useCenterTabs.getState();
@@ -328,9 +337,17 @@ export function useTabLifecycle({
     };
     window.addEventListener("op-desktop-close-tab", onDesktopClose);
     window.addEventListener("op-close-center-tabs", onCloseTabs);
+    // A card picked in the window overview activates like a tab click.
+    const onActivateTab = (event: Event) => {
+      const id = (event as CustomEvent<{ tabId?: string }>).detail?.tabId;
+      const tab = useCenterTabs.getState().tabs.find((candidate) => candidate.id === id);
+      if (tab) onTabClickRef.current(tab);
+    };
+    window.addEventListener("op-activate-center-tab", onActivateTab);
     return () => {
       window.removeEventListener("op-desktop-close-tab", onDesktopClose);
       window.removeEventListener("op-close-center-tabs", onCloseTabs);
+      window.removeEventListener("op-activate-center-tab", onActivateTab);
     };
   }, []);
 
@@ -371,6 +388,7 @@ export function useTabLifecycle({
     onTabClick,
     onTabClickFromPointer,
     onOpenNewTab,
+    onOpenOverview,
     onTabClose,
     onTabsClose,
     finishClose,

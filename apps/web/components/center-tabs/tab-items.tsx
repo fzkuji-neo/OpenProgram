@@ -49,7 +49,7 @@ interface CompoundTabItemProps {
   ): void;
 }
 
-function CompoundMemberIcon({ tab, animate }: { tab: CenterTab; animate: boolean }) {
+export function CompoundMemberIcon({ tab, animate }: { tab: CenterTab; animate: boolean }) {
   const iconRef = useRef<AnimatedNavIconHandle>(null);
   useEffect(() => {
     if (animate) iconRef.current?.startAnimation?.();

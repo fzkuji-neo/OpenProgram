@@ -21,7 +21,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CirclePlus, Plus } from "lucide-react";
+import { CirclePlus, LayoutGrid, Plus } from "lucide-react";
 
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { topLevelTabs } from "@/lib/browser/web-page-management";
@@ -30,6 +30,7 @@ import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { dragCoordinator } from "@/lib/tabs/tab-drag-coordinator";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { MainMenu } from "./main-menu";
+import { closeOverview, useCanvasOverview } from "@/lib/tabs/canvas-overview";
 import { SplitViewPicker } from "./split-view-picker";
 import { useTranslation } from "@/lib/i18n";
 import styles from "./center-tabs.module.css";
@@ -163,6 +164,7 @@ export function CenterTabStrip() {
     suppressedClickRef,
     onTabClickFromPointer,
     onOpenNewTab,
+    onOpenOverview,
     onTabClose,
     onTabsClose,
     finishClose,
@@ -214,6 +216,7 @@ export function CenterTabStrip() {
   tabMenuRef.current = tabMenu;
   const { splitPickerTabId, splitPickerHost, setSplitPickerTabId } = menu;
 
+  const overviewMode = useCanvasOverview((s) => s.mode);
   const visibleTabs = topLevelTabs(tabs, groups);
   const stripFocusId = visibleTabs.some(tab => tab.id === focusedTabId)
     ? focusedTabId : visibleTabs[0]?.id;
@@ -380,6 +383,19 @@ export function CenterTabStrip() {
         // through it); this stays a plain click handler.
       >
         <Plus size={15} />
+      </button>
+      {/* Window overview, like Safari's tab overview: every window as a
+         card that keeps its split. Pinching in on the center area opens
+         it too. */}
+      <button
+        type="button"
+        className={styles.overviewBtn}
+        data-overview-toggle=""
+        aria-label={text("Show all windows", "显示所有窗口")}
+        aria-pressed={overviewMode === "browse"}
+        onClick={() => (overviewMode === "browse" ? closeOverview() : onOpenOverview())}
+      >
+        <LayoutGrid size={15} />
       </button>
       {/* Main menu (Chrome's ⋮) owns the reserved column at the right
          end of the strip; the ＋ above is therefore free to sit
