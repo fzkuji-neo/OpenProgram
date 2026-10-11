@@ -94,6 +94,9 @@ test('a pane splits by quarter strips and halves, with no dead centre', async ()
   assert.match(drag, /if \(alt\) return \{ targetId, paneId, side: "center"[^}]*action: "dock"/, 'Option replaces');
   assert.match(drag, /const side = px < PANE_SIDE \? "left" : px > 1 - PANE_SIDE \? "right" : py < 0\.5 \? "top" : "bottom";/);
   assert.doesNotMatch(drag, /"hint"/, 'every point in a pane does something');
+  assert.match(drag, /if \(sourceIds\.length === 1 && content === sourceIds\[0\]\) return stay\(paneRect\);/, 'a pane over its own place says it stays');
+  assert.match(drag, /return dock\(paneId, side, PANE_LABEL\[side\], half\);/, 'a pane split highlights the half under the pointer, not where reflow puts it');
+  assert.match(drag, /if \(!sourceId \|\| drop\.action === "stay"\) return false;/, 'staying changes nothing and records no history');
   assert.match(drag, /if \(nearT\) \{[\s\S]*?action: "fill"/, 'the top edge opens the tab on its own');
   assert.match(drag, /\(nearL \|\| nearR\) && \(nearT \|\| nearB\)/, 'corners are quarters');
   assert.match(drag, /Math\.max\(40, Math\.min\(96, Math\.min\(width, height\) \* 0\.14\)\)/, 'the whole-canvas halves are easy to reach');
