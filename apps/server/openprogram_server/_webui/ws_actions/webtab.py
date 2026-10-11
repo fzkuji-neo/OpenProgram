@@ -1040,9 +1040,69 @@ async def handle_webtab_human_input(ws, cmd: dict):
     )
 
 
+def _adopt_popup(ws, window_id: str, tab_id: str, opener_tab_id: str,
+                 target_id: str, title: str, url: str) -> None:
+    from openprogram.browser_resources import (
+        BrowserResourceStore, adopt_popup_page, emit_browser_resource,
+        note_opened_page, page_keys_for_socket_tab,
+    )
+    generation = _connection_revision_of(ws)
+    if generation is None:
+        return
+    opener_keys = list(dict.fromkeys(
+        page_keys_for_socket_tab(ws, window_id, opener_tab_id)
+        + BrowserResourceStore().page_keys_for_tab(window_id, opener_tab_id)
+    ))
+    if not opener_keys:
+        return
+    binding_id = register_binding(
+        ws, window_id, tab_id, target_id, allow_background=True,
+        expected_connection_revision=generation,
+    )
+    page_key = binding_page_key(binding_id)
+    rows = adopt_popup_page(
+        page_key=page_key, opener_keys=opener_keys, window_id=window_id,
+        tab_id=tab_id, title=title, target=url, connection_generation=generation,
+    )
+    if not rows:
+        return
+    note_opened_page(opener_keys, {
+        "window_id": window_id, "tab_id": tab_id, "url": url, "title": title,
+    })
+    for row in rows:
+        emit_browser_resource(row, page_key=page_key)
+
+
+async def handle_webtab_popup(ws, cmd: dict):
+    """A Page the Agent works on opened a popup: list it with the same owner.
+
+    Without this the popup was a bare tab: absent from Resources and from
+    the Agent's page list, so the Agent repeated the flow in its own Page.
+    """
+    fields = [cmd.get(key) for key in ("window_id", "tab_id", "opener_tab_id", "target_id")]
+    if not all(isinstance(value, str) and value for value in fields):
+        return
+    window_id, tab_id, opener_tab_id, target_id = fields
+    from openprogram.webui.ws_actions.runtime import trusted_runtime_actor
+    if trusted_runtime_actor(getattr(ws, "scope", None), surface="ws") is None:
+        return
+    with _lock:
+        if _desktop_windows.get(ws) != window_id:
+            return
+    title = cmd.get("title") if isinstance(cmd.get("title"), str) else ""
+    url = cmd.get("url") if isinstance(cmd.get("url"), str) else ""
+    try:
+        await asyncio.to_thread(
+            _adopt_popup, ws, window_id, tab_id, opener_tab_id, target_id, title, url,
+        )
+    except Exception:
+        pass
+
+
 ACTIONS = {
     "webtab_register": handle_webtab_register,
     "webtab_result": handle_webtab_result,
     "webtab_human_input": handle_webtab_human_input,
     "webtab_closed": handle_webtab_closed,
+    "webtab_popup": handle_webtab_popup,
 }
