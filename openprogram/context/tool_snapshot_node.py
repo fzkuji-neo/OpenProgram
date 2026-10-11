@@ -51,10 +51,17 @@ def record_tool_snapshot(
     session_id: str | None,
     tools: list[Any],
 ) -> Optional[str]:
-    """Record priced loaded/deferred rows after the turn toolset is frozen."""
+    """Record priced loaded/deferred rows after the turn toolset is frozen.
+
+    Only into a conversation that exists: internal model calls (titles,
+    say) carry a Runtime's ``op-…`` cache id, and writing there created
+    an empty conversation per call.
+    """
     if not session_id:
         return None
     try:
+        if store.get_session(session_id) is None:
+            return None
         from openprogram.context.budget import estimate_tools_breakdown
 
         rows = []
