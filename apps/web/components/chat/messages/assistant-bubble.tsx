@@ -9,6 +9,7 @@
  * nothing rendered yet, a typing indicator stands in.
  */
 import { memo, useLayoutEffect, useRef } from "react";
+import { ChevronDown, CircleAlert } from "lucide-react";
 
 import {
   useSessionStore,
@@ -504,12 +505,15 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
           )}
           {msg.status === "error" && !msg.goalVerification ? (
             <div className="turn-error" role="status">
-              <div className="turn-error-title">{errorHeadline(msg, text)
-                || text("This reply could not be completed.", "本次回复未能完成。")}</div>
-              <details className="turn-error-details">
-                <summary>{text("Error details", "错误详情")}</summary>
-                <pre>{msg.errorDetail || msg.content || text("Request failed.", "请求失败。")}</pre>
-              </details>
+              <span className="turn-error-icon"><CircleAlert size={20} aria-hidden="true" /></span>
+              <div className="turn-error-body">
+                <div className="turn-error-title">{errorHeadline(msg, text)
+                  || text("This reply could not be completed.", "本次回复未能完成。")}</div>
+                <details className="turn-error-details">
+                  <summary>{text("Error details", "错误详情")}<ChevronDown size={12} aria-hidden="true" /></summary>
+                  <pre>{msg.errorDetail || msg.content || text("Request failed.", "请求失败。")}</pre>
+                </details>
+              </div>
             </div>
           ) : null}
           {!msg.goalVerification && (msg.status === "cancelled" || msg.status === "interrupted") ? (
