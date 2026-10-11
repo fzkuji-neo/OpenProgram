@@ -152,7 +152,8 @@ export interface CenterTabsState {
    *  http(s) URL — run user input through normalizeWebUrl first). */
   openWebTab: (url: string, agentRequest?: boolean) => void;
   /** Always append a distinct web tab for a native page popup. */
-  openPopupWebTab: (url: string, openerTabId: string) => string;
+  /** ``id`` is the desktop's, when it already made the popup's native Page. */
+  openPopupWebTab: (url: string, openerTabId: string, id?: string) => string;
   /** Create or reuse a web tab without focusing it or opening a split. */
   markAgentWebTab: (id: string, sessionId?: string, attribution?: {
     branchId?: string; executionId?: string;

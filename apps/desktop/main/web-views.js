@@ -139,7 +139,7 @@ function createWebViews({
     }
   }
 
-  function sendWebTabPopup(record, popupUrl) {
+  function sendWebTabPopup(record, popupUrl, popupId = "") {
     if (!record || !isWebUrl(popupUrl) || tabTransfers.isLocked(record.id)) {
       return false;
     }
@@ -148,8 +148,15 @@ function createWebViews({
     owner.win.webContents.send("webtab:popup", {
       openerId: record.id,
       url: popupUrl,
+      ...(popupId ? { id: popupId } : {}),
     });
     return true;
+  }
+
+  // Same shape as the renderer's popup tab ids, so either side can mint one.
+  let nativePopupSeq = 0;
+  function nativePopupId(popupUrl) {
+    return `w:${popupUrl}:popup:${Date.now().toString(36)}:n${(nativePopupSeq++).toString(36)}`;
   }
 
   function showWebTabContextMenu(record, params = {}) {
@@ -265,12 +272,14 @@ function createWebViews({
   // persistent-view design. Explicit navigation goes through navigate.
   const HIDDEN_WEBTAB_BOUNDS = { x: 0, y: 0, width: 1920, height: 1080 };
 
-  function ensureView(ctx, id, url) {
+  function ensureView(ctx, id, url, viewOptions = null) {
     if (!ctx || typeof id !== "string" || !id) return null;
     if (tabTransfers.isLocked(id)) return null;
     let record = recordFor(ctx, id);
     if (!record && !ctx.views.has(id)) {
-      const view = new WebContentsView({
+      // A script-opened popup arrives with the WebContents Chromium already
+      // made for it (viewOptions.webContents), which keeps window.opener.
+      const view = new WebContentsView(viewOptions || {
         webPreferences: { partition: "persist:webtabs" },
       });
       record = { id, view, ownerId: ctx.id, navigation: null, findRequestId: null };
@@ -310,12 +319,27 @@ function createWebViews({
       view.setBounds(HIDDEN_WEBTAB_BOUNDS);
       view.setVisible(false);
       const wc = view.webContents;
-      // Native popup windows are disabled. A valid web popup is delegated to
-      // this record's renderer window, which creates a distinct Browser tab and
-      // leaves the opener Page (and any exact-page agent session) unchanged.
+      // Native popup windows are disabled. A valid web popup becomes a hidden
+      // Page of this window, built on the WebContents Chromium made for it so
+      // window.opener still works: sites such as ImmiAccount finish a flow by
+      // messaging the page that opened it. The renderer adopts it as a tab by
+      // id and leaves the opener Page (and any exact-page agent session) as is.
       wc.setWindowOpenHandler(({ url: popupUrl }) => {
-        sendWebTabPopup(record, popupUrl);
-        return { action: "deny" };
+        const owner = ownerOf(record);
+        if (!owner || !isWebUrl(popupUrl) || tabTransfers.isLocked(record.id)) {
+          return { action: "deny" };
+        }
+        const popupId = nativePopupId(popupUrl);
+        return {
+          action: "allow",
+          outlivesOpener: true,
+          createWindow: (options) => {
+            const popup = ensureView(owner, popupId, "", options);
+            if (!popup) throw new Error("popup Page unavailable");
+            sendWebTabPopup(record, popupUrl, popupId);
+            return popup.view.webContents;
+          },
+        };
       });
       wc.on("will-prevent-unload", (event) => {
         const owner = ownerOf(record);

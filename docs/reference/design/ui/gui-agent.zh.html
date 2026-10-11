@@ -735,7 +735,7 @@ $('follow').addEventListener('click',()=>{const p=prefs();if(p.mode==='manual')O
 </ul></div></div>
 <h3>浏览器、软件窗口、桌面与 VM 的能力边界</h3>
 <div class="table-wrap"><table><thead><tr><th>资源</th><th>后台目标与预览</th><th>不可行时如何显示</th></tr></thead><tbody>
-<tr><td>浏览器 Page</td><td>复用准确 Page/CDP target；后台保持文档、登录和导航状态。用户看预览不需要激活网页。Agent 网页打开的弹窗在后台加载，按 opener 的会话、分支和执行登记为新资源（<code>webtab_popup</code>），并在 opener 下一次 <code>observe</code>/<code>act</code> 结果里以 <code>opened_pages</code> 告知一次；Agent 经 <code>list_pages</code> 进入弹窗。确实操作弹窗时才跟随。用户网页的弹窗照常在前台打开，不登记。弹窗是独立 Page，不保留 <code>window.opener</code>。</td><td>页面已关闭、脱离归属或 frame 过期时停止写入。重新打开 URL 创建新的资源身份，不冒充原页面状态。</td></tr>
+<tr><td>浏览器 Page</td><td>复用准确 Page/CDP target；后台保持文档、登录和导航状态。用户看预览不需要激活网页。Agent 网页打开的弹窗在后台加载，按 opener 的会话、分支和执行登记为新资源（<code>webtab_popup</code>），并在 opener 下一次 <code>observe</code>/<code>act</code> 结果里以 <code>opened_pages</code> 告知一次；Agent 经 <code>list_pages</code> 进入弹窗。确实操作弹窗时才跟随。用户网页的弹窗照常在前台打开，不登记。桌面端用 Chromium 为弹窗创建的 WebContents 建立 Page，<code>window.opener</code> 照常可用；渲染端按这个 id 接管该 Page。</td><td>页面已关闭、脱离归属或 frame 过期时停止写入。重新打开 URL 创建新的资源身份，不冒充原页面状态。</td></tr>
 <tr><td>单个原生应用窗口</td><td>绑定进程实例和准确窗口，可支持窗口截图与经过验证的后台输入。列表显示“后台可操作”“仅预览”或“需要前台”，按动作能力判断。</td><td>不能承诺所有软件都支持完整后台点击/输入。现有原生矩阵仍失败。最小化、锁屏、权限不足、无法准确定位时给出具体原因；只有用户明确选择前台方式才允许激活窗口。</td></tr>
 <tr><td>宿主桌面屏幕</td><td>对应宿主显示器及其坐标空间，能反映整个桌面。它没有独立于用户的输入环境。</td><td>全局鼠标和键盘可能影响用户当前工作，不标为“独立后台”。需要协商使用前台，或改用隔离 VM；选中预览不代表允许全局输入。</td></tr>
 <tr><td>VM 虚拟屏幕</td><td>VM 在后台运行，其 guest 虚拟显示和输入适配器提供截图、键盘和鼠标；不要求宿主 VM 控制台保持前台。VM 进程、guest 图形会话与远程显示服务仍须运行。</td><td>guest 无图形会话、锁定、显示断开或输入通道不支持时显示具体状态，不伪装实时画面。重连后重新观察，禁止自动重放不确定输入。Docker 可作为环境实现选项，不新增必填容器层。</td></tr>

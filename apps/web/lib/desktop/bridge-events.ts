@@ -48,11 +48,14 @@ export function subscribeWebTabPopups(
       || typeof popup.url !== "string"
     ) return;
     const state = useCenterTabs.getState();
+    const nativeId = typeof popup.id === "string" && popup.id ? popup.id : undefined;
     if (!state.tabs.some((tab) => tab.id === popup.openerId && tab.kind === "web")) {
+      // Nothing will show the Page the desktop already made for it.
+      if (nativeId) bridge.webTab.destroy?.(nativeId);
       return;
     }
     const opener = state.tabs.find((tab) => tab.id === popup.openerId);
-    const id = state.openPopupWebTab(popup.url, popup.openerId);
+    const id = state.openPopupWebTab(popup.url, popup.openerId, nativeId);
     if (!opener?.agentOpened) {
       showCenterSurface();
       return;

@@ -23,20 +23,27 @@ async function checkPopupCreatesIndependentRendererTab() {
     "ordinary page navigation must update the existing WebTab without creating a popup",
   );
 
-  const result = opener.view.webContents.windowOpen?.({
-    url: "https://popup.example/path",
-  });
-  testContext.assert.deepEqual(testContext.plain(result), { action: "deny" });
-  testContext.assert.deepEqual(testContext.plain(win.sent.at(-1)), [
-    "webtab:popup",
-    { openerId: "popup-opener", url: "https://popup.example/path" },
-  ]);
-
-  opener.view.webContents.windowOpen?.({ url: "http://popup.example/plain-http" });
-  testContext.assert.deepEqual(testContext.plain(win.sent.at(-1)), [
-    "webtab:popup",
-    { openerId: "popup-opener", url: "http://popup.example/plain-http" },
-  ]);
+  // A script popup keeps window.opener: Chromium's own WebContents becomes
+  // a hidden Page of this window, announced to the renderer by id.
+  const openPopup = (url) => {
+    const result = opener.view.webContents.windowOpen?.({ url });
+    testContext.assert.equal(result?.action, "allow");
+    testContext.assert.equal(result.outlivesOpener, true);
+    const webContents = result.createWindow({ webContents: { chromiumMade: true } });
+    const [channel, popup] = testContext.plain(win.sent.at(-1));
+    testContext.assert.equal(channel, "webtab:popup");
+    testContext.assert.equal(popup.openerId, "popup-opener");
+    testContext.assert.equal(popup.url, url);
+    testContext.assert.ok(popup.id.startsWith(`w:${url}:popup:`), "popup id names its URL");
+    const record = ctx.views.get(popup.id);
+    testContext.assert.ok(record, "the popup is a Page of the opener's window");
+    testContext.assert.strictEqual(webContents, record.view.webContents);
+    testContext.assert.equal(record.navigation, null, "Chromium loads the popup, not ensureView");
+    return popup.id;
+  };
+  const firstPopup = openPopup("https://popup.example/path");
+  const secondPopup = openPopup("http://popup.example/plain-http");
+  testContext.assert.notEqual(firstPopup, secondPopup);
   const sentBeforeRejectedPopup = win.sent.length;
   for (const url of [
     "file:///Users/test/private.txt",
