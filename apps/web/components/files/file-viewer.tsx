@@ -14,7 +14,7 @@ import { Download } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
-import { Markdown } from "@/lib/format-utils/markdown";
+import { MarkdownPreview } from "./preview/markdown-preview";
 import {
   absFileReadUrl,
   absRawFileUrl,
@@ -253,14 +253,7 @@ function TextViewer({
   }
 
   if (isMarkdown && rendered) {
-    return (
-      <div className={styles.viewerScroll}>
-        {/* message-content 复用 chat.css 的 markdown 元素样式（标题/列表/表格） */}
-        <div className={`${styles.mdBody} message-content`}>
-          <Markdown source={draft ?? data.content} escapeRawHtml />
-        </div>
-      </div>
-    );
+    return <MarkdownPreview source={draft ?? data.content} projectId={projectId} path={path} abs={abs} sessionId={sessionId} />;
   }
 
   // Default for text files: the editable buffer. Falls back to the

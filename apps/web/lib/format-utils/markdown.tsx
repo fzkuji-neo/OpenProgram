@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { marked as npmMarked, Marked } from "marked";
+import { useEffect, useMemo, useRef } from "react";
+import { marked as npmMarked, Marked, type Tokens } from "marked";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
 import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
 
@@ -26,9 +26,25 @@ const escapingMarked = new Marked(cjkEmphasis, {
   },
 });
 
+/** Maps an image's markdown src to the URL the browser loads, or null to
+ *  keep it unchanged. Documents use it to load `figures/a.png` from the
+ *  document's own folder instead of the page URL. */
+export type MarkdownImageResolver = (src: string) => string | null;
+
+function imageResolvingMarked(resolveImage: MarkdownImageResolver, escapeRawHtml?: boolean): Marked {
+  return new Marked(cjkEmphasis, {
+    ...(escapeRawHtml ? { renderer: { html(token: Tokens.HTML | Tokens.Tag) { return escapeHtml(token.text); } } } : {}),
+    walkTokens(token) {
+      if (token.type !== "image") return;
+      const image = token as Tokens.Image;
+      image.href = resolveImage(image.href) ?? image.href;
+    },
+  });
+}
+
 /** Replace LaTeX blocks with placeholder tokens so marked doesn't mangle
  * them, then restore the originals after parsing. */
-function markdownToHtml(src: string, escapeRawHtml?: boolean): string {
+function markdownToHtml(src: string, escapeRawHtml?: boolean, parser?: Marked): string {
   let s = typeof src === "string" ? src : String(src ?? "");
 
   const mathBlocks: string[] = [];
@@ -42,7 +58,9 @@ function markdownToHtml(src: string, escapeRawHtml?: boolean): string {
   s = s.replace(/\$([^$\n]+?)\$/g, (m) => stash(m));
 
   let html: string;
-  if (escapeRawHtml) {
+  if (parser) {
+    html = parser.parse(s, { breaks: true, async: false });
+  } else if (escapeRawHtml) {
     html = escapingMarked.parse(s, { breaks: true, async: false });
   } else {
     html = npmMarked.parse(s, { breaks: true }) as string;
@@ -70,12 +88,16 @@ export function renderMathIn(el: HTMLElement): void {
 export function Markdown({
   source,
   escapeRawHtml,
+  resolveImage,
 }: {
   source: string;
   escapeRawHtml?: boolean;
+  resolveImage?: MarkdownImageResolver;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const html = markdownToHtml(source, escapeRawHtml);
+  const parser = useMemo(() => resolveImage ? imageResolvingMarked(resolveImage, escapeRawHtml) : undefined,
+    [resolveImage, escapeRawHtml]);
+  const html = markdownToHtml(source, escapeRawHtml, parser);
 
   // KaTeX auto-render mutates the DOM after marked has produced HTML.
   // Run it after every render of the host node so streaming text gets
