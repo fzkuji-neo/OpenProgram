@@ -213,7 +213,8 @@ function showDropPreview(rect: Rect | null, target = "canvas") {
  *  pointercancel, blur, a missed release, an error while resolving the
  *  drop) runs the same cleanup exactly once. */
 export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: string, label: HTMLElement | null) {
-  if (event.button !== 0 || !label || (event.target as HTMLElement).closest("button")) return;
+  // The grip's window buttons drag like the rest of it; other buttons do not.
+  if (event.button !== 0 || !label || (event.target as HTMLElement).closest("button:not([data-pane-light])")) return;
   // Keep the press from starting a text selection in the pane below.
   event.preventDefault();
   const grip = event.currentTarget;
@@ -232,7 +233,6 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
   let started = false, finished = false;
   let last: { x: number; y: number } | null = null;
   const pointerId = event.pointerId;
-  try { grip.setPointerCapture(pointerId); } catch { /* the window listeners still cover the drag */ }
   const bridge = desktopBridge();
   const payload = bridge && buildTransferPayload({ kind: "tab", tabIds: [tabId] }, bridge.windowId);
   const token = payload ? bridge?.tabTransfer.prepare(payload) : undefined;
@@ -285,6 +285,9 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
     if (!started && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) return;
     if (!started) {
       started = true;
+      // Capture only once it is a drag, so a plain press still clicks the
+      // window button under it.
+      try { grip.setPointerCapture(pointerId); } catch { /* the window listeners still cover the drag */ }
       setCanvasDragging(true, sessionOwner);
       pane.setAttribute("data-pane-dragging", "");
       dragLabel = label!.cloneNode(true) as HTMLElement;

@@ -320,8 +320,18 @@ export function useTabLifecycle({
         );
       }
     };
+    // A pane's red button closes its tab the same way as the strip's ×.
+    const onCloseTabs = (event: Event) => {
+      const ids = (event as CustomEvent<{ tabIds?: string[] }>).detail?.tabIds ?? [];
+      const tabsToClose = ids.flatMap((id) => useCenterTabs.getState().tabs.filter((tab) => tab.id === id));
+      if (tabsToClose.length > 0) onTabsCloseRef.current({ stopPropagation: () => {} } as React.SyntheticEvent, tabsToClose);
+    };
     window.addEventListener("op-desktop-close-tab", onDesktopClose);
-    return () => window.removeEventListener("op-desktop-close-tab", onDesktopClose);
+    window.addEventListener("op-close-center-tabs", onCloseTabs);
+    return () => {
+      window.removeEventListener("op-desktop-close-tab", onDesktopClose);
+      window.removeEventListener("op-close-center-tabs", onCloseTabs);
+    };
   }, []);
 
   function onTabClose(e: React.SyntheticEvent, tab: CenterTab) {

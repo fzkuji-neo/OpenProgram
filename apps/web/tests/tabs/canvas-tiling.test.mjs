@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import {
-  dockLayout, leaves, presetLayout, rowLayout, snapResize, tilePane, unitRects,
+  PANE_MIN, dockLayout, leaves, presetLayout, resizeSplit, rowLayout, snapResize, tilePane, unitRects,
 } from '../../lib/tabs/canvas-layout.ts';
 import { rememberCanvas, takePreviousCanvas } from '../../lib/tabs/canvas-history.ts';
 
@@ -135,4 +135,37 @@ test('drags cannot hang: missed releases, errors and drag regions all end them',
   assert.doesNotMatch(controls, /gripStart\.current = \{ x: e\.clientX, y: e\.clientY \}; focus\(/, 'pressing a grip does not refocus and reroute before a drag');
   const web = await read('components/center-tabs/web-tab-pane.tsx');
   assert.match(web, /const timer = window\.setTimeout\(hide, 160\);/, 'a native page stays visible until its snapshot is ready');
+});
+
+test('a divider stops at the panes\' minimum size and never squeezes a small pane further', () => {
+  const layout = rowLayout(['a', 'b']);
+  const span = 800;
+  const widest = resizeSplit(layout.root, layout.root.id, 0, 0.9, span);
+  assert.equal(Math.round(widest.sizes[1] * span), PANE_MIN.width, 'the right pane keeps its minimum width');
+  const narrow = { ...layout.root, sizes: [0.2, 0.8] };
+  const squeezed = resizeSplit(narrow, narrow.id, 0, -0.1, span);
+  assert.equal(squeezed.sizes[0], 0.2, 'a pane already under the minimum does not shrink');
+  const grown = resizeSplit(narrow, narrow.id, 0, 0.1, span);
+  assert.ok(Math.abs(grown.sizes[0] - 0.3) < 1e-9, 'but it can grow');
+});
+
+test('the grip turns into macOS window buttons and unfolds the tiling menu from itself', async () => {
+  const controls = await read('components/center-tabs/canvas-controls.tsx');
+  for (const light of ['close', 'minimize', 'zoom']) assert.match(controls, new RegExp(`data-pane-light="${light}"`));
+  assert.match(controls, /new CustomEvent\("op-close-center-tabs", \{ detail: \{ tabIds: \[tabId\] \} \}\)/, 'red closes the tab through the strip');
+  assert.match(controls, /onClick=\{\(\) => \{ closeMenu\(\); close\(p\.id\); \}\}/, 'yellow folds the pane back into the strip');
+  assert.match(controls, /onClick=\{\(\) => openAlone\(p\.id, p\.content\)\}/, 'green opens the tab on its own');
+  assert.match(controls, /hoverTimer\.current = window\.setTimeout\(\(\) => openMenu\(p\.id, true\), 250\)/, 'resting on green unfolds the menu');
+  assert.match(controls, /\{menu\?\.paneId === p\.id && drawer\(p\.id\)\}/, 'the menu is attached to its grip, not a floating window');
+  assert.match(controls, /\(quarters \? QUARTERS : MOVE\)/, 'Option shows the quarters');
+  assert.doesNotMatch(controls, /Close pane", "关闭格子"\)\}<span/, 'closing moved to the red and yellow buttons');
+  const lifecycle = await read('components/center-tabs/use-tab-lifecycle.ts');
+  assert.match(lifecycle, /window\.addEventListener\("op-close-center-tabs", onCloseTabs\)/);
+  const drag = await read('lib/tabs/canvas-drag.ts');
+  assert.match(drag, /closest\("button:not\(\[data-pane-light\]\)"\)/, 'the window buttons drag like the grip');
+  assert.match(drag, /started = true;[\s\S]{0,200}grip\.setPointerCapture\(pointerId\)/, 'capture waits for a real drag so a press still clicks');
+  const css = await read('components/center-tabs/canvas-controls.module.css');
+  assert.match(css, /\.divider\[aria-orientation="vertical"\]::after \{\s*width: 4px;\s*height: 36px;/, 'dividers are a short pill, not a full line');
+  const base = await read('app/styles/base.css');
+  assert.match(base, /\.app:has\(> \.center-col\[data-split\]\) \.sidebar\.collapsed \{\s*position: relative;/, 'narrow windows keep the rails beside a split');
 });

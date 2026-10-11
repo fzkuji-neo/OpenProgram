@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Equal, FileText, Globe, LayoutGrid, Maximize2, MessageSquare, SquareDashed, Undo2, X, Save } from "lucide-react";
+import { ChevronDown, ChevronRight, Equal, FileText, Globe, LayoutGrid, Maximize2, MessageSquare, Minus, SquareDashed, Undo2, X, Save } from "lucide-react";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, snapResize, tilePane, mapNode, type CanvasLayout, type CanvasPreset, type CanvasTile, type LayoutNode } from "@/lib/tabs/canvas-layout";
@@ -14,28 +14,32 @@ import styles from "./canvas-controls.module.css";
 /** Glyph cells as [left, top, width, height] fractions of the canvas. */
 type Cells = ReadonlyArray<readonly [number, number, number, number]>;
 const HALF_L: Cells = [[0, 0, .5, 1]], HALF_R: Cells = [[.5, 0, .5, 1]];
-/** macOS Window ▸ Move & Resize: where the pane goes. Fill is zoom. */
-const MOVE: ReadonlyArray<{ id: CanvasTile | "fill"; en: string; zh: string; keys?: string; cells: Cells }> = [
+type MoveItem = { id: CanvasTile | "fill"; en: string; zh: string; keys?: string; cells: Cells };
+/** macOS green button ▸ Move & Resize: the four halves; Option swaps in the quarters. */
+const MOVE: ReadonlyArray<MoveItem> = [
   { id: "left", en: "Left half", zh: "左半边", keys: "⌃⌥←", cells: HALF_L },
   { id: "right", en: "Right half", zh: "右半边", keys: "⌃⌥→", cells: HALF_R },
   { id: "top", en: "Top half", zh: "上半边", keys: "⌃⌥↑", cells: [[0, 0, 1, .5]] },
   { id: "bottom", en: "Bottom half", zh: "下半边", keys: "⌃⌥↓", cells: [[0, .5, 1, .5]] },
-  { id: "fill", en: "Fill", zh: "填满", keys: "⌃⌥F", cells: [[0, 0, 1, 1]] },
+];
+const QUARTERS: ReadonlyArray<MoveItem> = [
   { id: "top-left", en: "Top-left quarter", zh: "左上四分之一", cells: [[0, 0, .5, .5]] },
   { id: "top-right", en: "Top-right quarter", zh: "右上四分之一", cells: [[.5, 0, .5, .5]] },
   { id: "bottom-left", en: "Bottom-left quarter", zh: "左下四分之一", cells: [[0, .5, .5, .5]] },
   { id: "bottom-right", en: "Bottom-right quarter", zh: "右下四分之一", cells: [[.5, .5, .5, .5]] },
 ];
-/** macOS Window ▸ Arrange: the whole canvas, this pane in the first slot. */
+/** Fill & Arrange starts with Fill (zoom), then whole-canvas arrangements. */
+const FILL: MoveItem = { id: "fill", en: "Fill", zh: "填满", keys: "⌃⌥F", cells: [[0, 0, 1, 1]] };
+/** macOS green button ▸ Fill & Arrange: the whole canvas, this pane in the first slot. */
 const ARRANGE: ReadonlyArray<{ id: CanvasPreset; en: string; zh: string; keys?: string; cells: Cells }> = [
   { id: "1x2", en: "Left and right", zh: "左右", keys: "⌃⌥⇧←", cells: [...HALF_L, ...HALF_R] },
-  { id: "2x1", en: "Top and bottom", zh: "上下", keys: "⌃⌥⇧↑", cells: [[0, 0, 1, .5], [0, .5, 1, .5]] },
   { id: "main+2", en: "Left and stacked right", zh: "左 + 右侧上下", cells: [[0, 0, .58, 1], [.58, 0, .42, .5], [.58, .5, .42, .5]] },
   { id: "2x2", en: "Quarters", zh: "四宫格", cells: [[0, 0, .5, .5], [.5, 0, .5, .5], [0, .5, .5, .5], [.5, .5, .5, .5]] },
 ];
 const grid = (n: number): Cells => Array.from({ length: n * n }, (_, i) => [(i % n) / n, Math.floor(i / n) / n, 1 / n, 1 / n] as const);
 /** Rarely used grids live under "More layouts". */
 const MORE: ReadonlyArray<{ id: CanvasPreset; en: string; zh: string; cells: Cells }> = [
+  { id: "2x1", en: "Top and bottom", zh: "上下", cells: [[0, 0, 1, .5], [0, .5, 1, .5]] },
   { id: "1x1", en: "Single", zh: "单屏", cells: [[0, 0, 1, 1]] },
   { id: "3x3", en: "9", zh: "九宫格", cells: grid(3) },
   { id: "4x4", en: "16", zh: "十六宫格", cells: grid(4) },
@@ -57,29 +61,33 @@ function TabIcon({ tab }: { tab: CenterTab | undefined }) {
 }
 
 /** Panes carry no title bar: content fills the pane, and a "•••" grip at the
- *  top centre moves the pane (drag) and opens its tiling menu (click, or rest
- *  the pointer on it like the macOS green button). A lone pane shows no chrome. */
+ *  top centre moves the pane (drag). Under the pointer its dots become the
+ *  macOS window buttons: red closes the tab, yellow folds the pane back into
+ *  the tab strip, green opens the tab on its own, and resting on green
+ *  unfolds the tiling menu from the grip itself. A lone pane shows no chrome. */
 export function CanvasControls({ layout, targetId, width, height }: { layout: CanvasLayout; targetId: string; width: number; height: number }) {
   const { t, text } = useTranslation();
   const tabs = useCenterTabs(s => s.tabs), groups = useCenterTabs(s => s.groups);
   const [saved, setSaved] = useState<Array<{ name: string; layout: CanvasLayout }>>([]);
-  const [menu, setMenu] = useState<{ x: number; y: number; paneId: string; hover: boolean } | null>(null);
+  const [menu, setMenu] = useState<{ paneId: string; hover: boolean } | null>(null);
+  const [quarters, setQuarters] = useState(false);
   const [more, setMore] = useState(false);
   const [hint, setHint] = useState("");
   const [saveName, setSaveName] = useState<string | null>(null);
   const [activeDivider, setActiveDivider] = useState<{ key: string; snap: number | null } | null>(null);
-  const gripStart = useRef<{ x: number; y: number } | null>(null);
   const hoverTimer = useRef<number | undefined>(undefined);
   useEffect(() => { try { const v = JSON.parse(localStorage.getItem("centerCanvasPresets") || "[]"); if (Array.isArray(v)) setSaved(v); } catch {} }, []);
   useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
   useEffect(() => {
     if (!menu) return;
-    const dismiss = () => { setMenu(null); setSaveName(null); };
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); };
+    const dismiss = () => { setMenu(null); setSaveName(null); setQuarters(false); };
+    // Option shows the quarters in place of the halves, as on macOS.
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); else if (e.key === "Alt") setQuarters(e.type === "keydown"); };
     window.addEventListener("pointerdown", dismiss);
     window.addEventListener("keydown", key);
+    window.addEventListener("keyup", key);
     window.addEventListener("resize", dismiss);
-    return () => { window.removeEventListener("pointerdown", dismiss); window.removeEventListener("keydown", key); window.removeEventListener("resize", dismiss); };
+    return () => { window.removeEventListener("pointerdown", dismiss); window.removeEventListener("keydown", key); window.removeEventListener("keyup", key); window.removeEventListener("resize", dismiss); };
   }, [menu]);
   const canvasRect = canvasViewport(width, height);
   const all = leaves(layout.root), geometry = canvasGeometry(layout.root, canvasRect);
@@ -113,17 +121,30 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
     if (previous) update(previous);
     return !!previous;
   };
-  const closeMenu = () => { setMenu(null); setSaveName(null); };
-  const openMenu = (paneId: string, x: number, y: number, hover = false) => {
+  const closeMenu = () => { window.clearTimeout(hoverTimer.current); setMenu(null); setSaveName(null); setQuarters(false); };
+  const openMenu = (paneId: string, hover = false) => {
     window.clearTimeout(hoverTimer.current);
     if (!hover) focus(paneId);
-    setSaveName(null); setHint(""); setMore(false);
-    setMenu({ paneId, hover, x: Math.max(8, Math.min(x, window.innerWidth - 248)), y: Math.max(8, Math.min(y, window.innerHeight - 380)) });
+    setSaveName(null); setHint(""); setMore(false); setQuarters(false);
+    setMenu({ paneId, hover });
   };
-  const openMenuBelow = (paneId: string, grip: HTMLElement, hover = false) => { const b = grip.getBoundingClientRect(); openMenu(paneId, b.left + b.width / 2 - 120, b.bottom + 6, hover); };
-  /** A menu opened by resting on the bar closes when the pointer leaves it. */
-  const leaveHoverMenu = () => { window.clearTimeout(hoverTimer.current); if (menu?.hover) hoverTimer.current = window.setTimeout(closeMenu, 280); };
+  /** A menu unfolded by resting on green folds away when the pointer leaves the grip. */
+  const leaveHoverMenu = () => { window.clearTimeout(hoverTimer.current); if (menu?.hover) hoverTimer.current = window.setTimeout(closeMenu, 240); };
   const pin = () => { window.clearTimeout(hoverTimer.current); if (menu?.hover) setMenu({ ...menu, hover: false }); };
+  /** Red: close the tab itself, through the strip's own close (it saves files first). */
+  const closeTab = (paneId: string, tabId: string | null) => {
+    closeMenu();
+    if (!tabId) { close(paneId); return; }
+    window.dispatchEvent(new CustomEvent("op-close-center-tabs", { detail: { tabIds: [tabId] } }));
+  };
+  /** Green: leave the split and open the tab on its own, like the top-edge drop. */
+  const openAlone = (paneId: string, tabId: string | null) => {
+    closeMenu();
+    if (!tabId) { zoom(paneId); return; }
+    remember();
+    const s = useCenterTabs.getState();
+    s.ungroupTab(tabId); s.setActive(tabId);
+  };
   useEffect(() => {
     const mac = /Mac/.test(navigator.platform);
     const key = (e: KeyboardEvent) => {
@@ -159,57 +180,54 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   // Same names as the tab strip: built-in pages such as Review carry no title of their own.
   const titleOf = (tab: CenterTab | undefined) => tab ? labelOf(tab, t, text) || text("Untitled","未命名") : text("Empty pane","空格");
   const menuPane = menu ? all.find(p => p.id === menu.paneId) : undefined;
-  const menuTab = tabs.find(t => t.id === menuPane?.content);
   const menuZoomed = !!menuPane && layout.zoomedPaneId === menuPane.id;
   const describe = (en: string, zh: string, keys?: string) => ({
     "aria-label": text(en, zh),
     onPointerEnter: () => setHint(keys ? `${text(en, zh)}  ${keys}` : text(en, zh)),
     onFocus: () => setHint(keys ? `${text(en, zh)}  ${keys}` : text(en, zh)),
   });
-  return <>
-    {menu && <div role="menu" className={styles.menu} data-native-view-occluder="true" onPointerDown={e => { e.stopPropagation(); pin(); }}
-      onPointerEnter={() => window.clearTimeout(hoverTimer.current)} onPointerLeave={leaveHoverMenu} style={{ top: menu.y, left: menu.x }}>
-      {menuPane && <div className={styles.menuTitle}><TabIcon tab={menuTab} /><span>{titleOf(menuTab)}</span></div>}
-      {menuPane && all.length > 1 && <>
-        <div className={styles.menuLabel}>{text("Move and resize", "移动与调整大小")}</div>
-        <div className={styles.tiles}>
-          {MOVE.map(m => <button key={m.id} type="button" role="menuitem" className={styles.tile} aria-pressed={m.id === "fill" ? menuZoomed : undefined}
-            {...describe(m.id === "fill" && menuZoomed ? "Exit fill" : m.en, m.id === "fill" && menuZoomed ? "退出填满" : m.zh, m.keys)}
-            onClick={() => { tile(menuPane.id, m.id); closeMenu(); }}><Glyph cells={m.cells} /></button>)}
-        </div>
-      </>}
-      <div className={styles.menuLabel}>{text("Arrange", "排列")}</div>
+  /** The tiling menu, unfolded from the grip it belongs to (macOS green button). */
+  const drawer = (paneId: string) => <div role="menu" className={styles.drawer} data-native-view-occluder="true"
+    onPointerDown={e => { e.stopPropagation(); pin(); }}>
+    {all.length > 1 && <>
+      <div className={styles.menuLabel}>{text("Move and resize", "移动与调整大小")}</div>
       <div className={styles.tiles}>
-        {ARRANGE.map(a => <button key={a.id} type="button" role="menuitem" className={styles.tile} {...describe(a.en, a.zh, a.keys)}
-          onClick={() => { arrange(a.id, menuPane?.id); closeMenu(); }}><Glyph cells={a.cells} /></button>)}
+        {(quarters ? QUARTERS : MOVE).map(m => <button key={m.id} type="button" role="menuitem" className={styles.tile} {...describe(m.en, m.zh, m.keys)}
+          onClick={() => { tile(paneId, m.id); closeMenu(); }}><Glyph cells={m.cells} /></button>)}
       </div>
-      <div className={styles.hint} aria-live="polite">{hint}</div>
-      <div className={styles.separator} />
-      <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { if (!restore()) setHint(text("No earlier layout", "没有更早的布局")); else closeMenu(); }}><Undo2 aria-hidden />{text("Return to previous layout", "还原上次布局")}<span className={styles.shortcut}>⌃⌥R</span></button>
-      <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { remember(); update({ ...layout, root: equalize(layout.root) }); closeMenu(); }}><Equal aria-hidden />{text("Equalize sizes", "均分大小")}</button>
-      <button type="button" role="menuitem" className={styles.menuItem} aria-expanded={more} onClick={() => setMore(!more)}><LayoutGrid aria-hidden />{text("More layouts", "更多布局")}<span className={styles.shortcut}>{more ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}</span></button>
-      {more && <div className={styles.more}>
-        <div className={styles.presets}>
-          {MORE.map(p => <button key={p.id} type="button" role="menuitem" className={styles.preset} onClick={() => { arrange(p.id, menuPane?.id); closeMenu(); }}>
-            <Glyph cells={p.cells} />{text(p.en, p.zh)}
-          </button>)}
-        </div>
-        {saved.length > 0 && <>
-          <div className={styles.menuLabel}>{text("Saved layouts", "已保存布局")}</div>
-          {saved.map((s, i) => <button key={i} type="button" role="menuitem" className={styles.menuItem} onClick={() => { remember(); update(s.layout); closeMenu(); }}><LayoutGrid aria-hidden />{s.name}</button>)}
-        </>}
-        {saveName === null
-          ? <button type="button" role="menuitem" className={styles.menuItem} onClick={() => setSaveName("")}><Save aria-hidden />{text("Save layout…", "保存布局…")}</button>
-          : <form className={styles.saveForm} onSubmit={e => { e.preventDefault(); if (!saveName.trim()) return; const next=[...saved.filter(s => s.name !== saveName.trim()), { name:saveName.trim(),layout }]; setSaved(next); localStorage.setItem("centerCanvasPresets",JSON.stringify(next)); closeMenu(); }}>
-            <input autoFocus className={styles.saveInput} value={saveName} placeholder={text("Layout name", "布局名称")} aria-label={text("Layout name", "布局名称")} onChange={e => setSaveName(e.target.value)} />
-            <button className={styles.saveButton}>{text("Save", "保存")}</button>
-          </form>}
-      </div>}
-      {menuPane && all.length > 1 && <>
-        <div className={styles.separator} />
-        <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { close(menuPane.id); closeMenu(); }}><X aria-hidden />{text("Close pane", "关闭格子")}<span className={styles.shortcut}>{mod}W</span></button>
+    </>}
+    <div className={styles.menuLabel}>{text("Fill and arrange", "填满与排列")}</div>
+    <div className={styles.tiles}>
+      {all.length > 1 && <button type="button" role="menuitem" className={styles.tile} aria-pressed={menuZoomed}
+        {...describe(menuZoomed ? "Exit fill" : FILL.en, menuZoomed ? "退出填满" : FILL.zh, FILL.keys)}
+        onClick={() => { tile(paneId, "fill"); closeMenu(); }}><Glyph cells={FILL.cells} /></button>}
+      {ARRANGE.map(a => <button key={a.id} type="button" role="menuitem" className={styles.tile} {...describe(a.en, a.zh, a.keys)}
+        onClick={() => { arrange(a.id, paneId); closeMenu(); }}><Glyph cells={a.cells} /></button>)}
+    </div>
+    <div className={styles.hint} aria-live="polite">{hint || (all.length > 1 ? text("Hold Option for quarters", "按住 Option 显示四分之一") : "")}</div>
+    <div className={styles.separator} />
+    <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { if (!restore()) setHint(text("No earlier layout", "没有更早的布局")); else closeMenu(); }}><Undo2 aria-hidden />{text("Return to previous layout", "还原上次布局")}<span className={styles.shortcut}>⌃⌥R</span></button>
+    <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { remember(); update({ ...layout, root: equalize(layout.root) }); closeMenu(); }}><Equal aria-hidden />{text("Equalize sizes", "均分大小")}</button>
+    <button type="button" role="menuitem" className={styles.menuItem} aria-expanded={more} onClick={() => setMore(!more)}><LayoutGrid aria-hidden />{text("More layouts", "更多布局")}<span className={styles.shortcut}>{more ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}</span></button>
+    {more && <div className={styles.more}>
+      <div className={styles.presets}>
+        {MORE.map(p => <button key={p.id} type="button" role="menuitem" className={styles.preset} onClick={() => { arrange(p.id, paneId); closeMenu(); }}>
+          <Glyph cells={p.cells} />{text(p.en, p.zh)}
+        </button>)}
+      </div>
+      {saved.length > 0 && <>
+        <div className={styles.menuLabel}>{text("Saved layouts", "已保存布局")}</div>
+        {saved.map((s, i) => <button key={i} type="button" role="menuitem" className={styles.menuItem} onClick={() => { remember(); update(s.layout); closeMenu(); }}><LayoutGrid aria-hidden />{s.name}</button>)}
       </>}
+      {saveName === null
+        ? <button type="button" role="menuitem" className={styles.menuItem} onClick={() => setSaveName("")}><Save aria-hidden />{text("Save layout…", "保存布局…")}</button>
+        : <form className={styles.saveForm} onSubmit={e => { e.preventDefault(); if (!saveName.trim()) return; const next=[...saved.filter(s => s.name !== saveName.trim()), { name:saveName.trim(),layout }]; setSaved(next); localStorage.setItem("centerCanvasPresets",JSON.stringify(next)); closeMenu(); }}>
+          <input autoFocus className={styles.saveInput} value={saveName} placeholder={text("Layout name", "布局名称")} aria-label={text("Layout name", "布局名称")} onChange={e => setSaveName(e.target.value)} />
+          <button className={styles.saveButton}>{text("Save", "保存")}</button>
+        </form>}
     </div>}
+  </div>;
+  return <>
     {all.map(p => {
       const rect=geometry.panes.get(p.id)!;
       const visible = !layout.zoomedPaneId || layout.zoomedPaneId === p.id;
@@ -217,7 +235,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
       const r = zoomed ? canvasRect : rect;
       const tab=tabs.find(t => t.id === p.content), tiny=r.width<150 || r.height<110;
       const title = titleOf(tab);
-      return <div key={p.id} className={styles.pane} data-canvas-pane={p.id} data-canvas-target={targetId} data-single={single || undefined} data-focused={(!single && layout.focusedPaneId === p.id) || undefined} style={{ ...r, display: visible ? undefined : "none" }}>
+      return <div key={p.id} className={styles.pane} data-canvas-pane={p.id} data-canvas-target={targetId} data-single={single || undefined} data-focused={(!single && layout.focusedPaneId === p.id) || undefined} data-menu-open={menu?.paneId === p.id || undefined} style={{ ...r, display: visible ? undefined : "none" }}>
         {!p.content
           ? <div className={styles.empty}>
               <div className={styles.emptyCard}>
@@ -226,32 +244,36 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
               </div>
             </div>
           : tiny ? <button type="button" className={styles.tiny} aria-label={text(`Zoom ${title}`, `放大 ${title}`)} onClick={() => zoom(p.id)}><span><TabIcon tab={tab} /><Maximize2 aria-hidden /></span></button> : null}
-        {!single && <div role="button" tabIndex={0} className={styles.grip}
-          aria-label={text(`Pane options: ${title}`, `格子选项：${title}`)} aria-haspopup="menu" aria-expanded={menu?.paneId === p.id}
-          onPointerEnter={e => {
-            if (e.buttons || menu) return;
-            const grip = e.currentTarget;
-            window.clearTimeout(hoverTimer.current);
-            hoverTimer.current = window.setTimeout(() => openMenuBelow(p.id, grip, true), 450);
-          }}
-          onPointerLeave={() => { if (menu?.hover) leaveHoverMenu(); else window.clearTimeout(hoverTimer.current); }}
-          onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); window.clearTimeout(hoverTimer.current); if (menu?.hover) closeMenu(); gripStart.current = { x: e.clientX, y: e.clientY }; if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]")); }}
-          onClick={e => {
-            const s = gripStart.current; gripStart.current = null;
-            if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 6) return; // a drag, not a click
-            if (menu?.paneId === p.id && !menu.hover) closeMenu(); else openMenuBelow(p.id, e.currentTarget);
-          }}
-          onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(p.id, e.clientX, e.clientY); }}
-          onKeyDown={e => { if (e.key !== "Enter" && e.key !== " ") return; e.preventDefault(); openMenuBelow(p.id, e.currentTarget); }}>
-          <i /><i /><i />
-          {tab && <PaneDragLabel tab={tab} />}
+        {!single && <div className={styles.handle} data-open={menu?.paneId === p.id || undefined}
+          onPointerEnter={() => { if (menu?.hover && menu.paneId === p.id) window.clearTimeout(hoverTimer.current); }}
+          onPointerLeave={() => { if (menu?.hover && menu.paneId === p.id) leaveHoverMenu(); else if (!menu) window.clearTimeout(hoverTimer.current); }}>
+          <div role="group" className={styles.grip} aria-label={text(`Pane: ${title}`, `格子：${title}`)}
+            onPointerDown={e => { if (e.button !== 0) return; e.stopPropagation(); if (menu?.hover) closeMenu(); if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]")); }}
+            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(p.id); }}>
+            <span className={styles.dots} aria-hidden="true"><i /><i /><i /></span>
+            {/* macOS window buttons. A press that turns into a drag never clicks them. */}
+            <span className={styles.lights}>
+              <button type="button" className={styles.light} data-pane-light="close" aria-label={p.content ? text(`Close ${title}`, `关闭 ${title}`) : text("Close pane", "关闭格子")}
+                onClick={() => closeTab(p.id, p.content)}><X aria-hidden /></button>
+              <button type="button" className={styles.light} data-pane-light="minimize" aria-label={text(`Move ${title} to the tab strip`, `把 ${title} 收回标签栏`)}
+                onClick={() => { closeMenu(); close(p.id); }}><Minus aria-hidden /></button>
+              <button type="button" className={styles.light} data-pane-light="zoom" aria-haspopup="menu" aria-expanded={menu?.paneId === p.id}
+                aria-label={text(`Open ${title} on its own`, `单独打开 ${title}`)}
+                onPointerEnter={e => { if (e.buttons || (menu && !menu.hover)) return; window.clearTimeout(hoverTimer.current); hoverTimer.current = window.setTimeout(() => openMenu(p.id, true), 250); }}
+                onPointerLeave={() => { if (!menu) window.clearTimeout(hoverTimer.current); }}
+                onKeyDown={e => { if (e.key === "ArrowDown") { e.preventDefault(); openMenu(p.id); } }}
+                onClick={() => openAlone(p.id, p.content)}><Maximize2 aria-hidden /></button>
+            </span>
+            {tab && <PaneDragLabel tab={tab} />}
+          </div>
+          {menu?.paneId === p.id && drawer(p.id)}
         </div>}
       </div>;
     })}
     {!layout.zoomedPaneId && geometry.dividers.map(d => { const key = `${d.splitId}:${d.index}`; const live = activeDivider?.key === key ? activeDivider : null; return <div key={key} className={styles.divider} data-active={!!live || undefined} role="separator" aria-orientation={d.dir === "row" ? "vertical" : "horizontal"} aria-valuenow={Math.round(d.sizes[d.index]*100)} tabIndex={0}
       style={{ left:d.left,top:d.top,width:d.width,height:d.height }}
       onDoubleClick={() => { remember(); update({ ...layout,root:mapNode(layout.root,d.splitId,n => n.kind === "split" ? { ...n,sizes:n.sizes.map((s,i) => i===d.index || i===d.index+1 ? (n.sizes[d.index]+n.sizes[d.index+1])/2 : s) } : n) }); }}
-      onKeyDown={e => { if (!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key)) return; e.preventDefault(); update({ ...layout,root:resizeSplit(layout.root,d.splitId,d.index,e.key==="ArrowLeft"||e.key==="ArrowUp"?-.02:.02) }); }}
+      onKeyDown={e => { if (!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key)) return; e.preventDefault(); update({ ...layout,root:resizeSplit(layout.root,d.splitId,d.index,e.key==="ArrowLeft"||e.key==="ArrowUp"?-.02:.02,d.span) }); }}
       onPointerDown={e => {
         if(e.button!==0) return; e.preventDefault(); const start=d.dir==="row"?e.clientX:e.clientY;
         // Sizes paint once per frame through the unpersisted preview; the
@@ -263,7 +285,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
           if (event.buttons === 0) { end(); return; }
           if (!moved) { moved = true; remember(); setCanvasDragging(true, { cancel: end, release: end }); }
           const snapped = snapResize(d.sizes, d.index, ((d.dir==="row"?event.clientX:event.clientY)-start)/Math.max(1,d.span), d.span);
-          latest = resizeSplit(layout.root,d.splitId,d.index,snapped.delta);
+          latest = resizeSplit(layout.root,d.splitId,d.index,snapped.delta,d.span);
           if (snapped.snap !== snap) { snap = snapped.snap; setActiveDivider({ key, snap }); }
           if (!frame) frame = requestAnimationFrame(() => { frame = 0; if (latest && !done) useCenterTabs.getState().previewCanvas(targetId, latest); });
         };
