@@ -7,10 +7,9 @@ const { ipcRenderer } = require("electron");
 
 let total = 0, spent = false, startScale = 1, timer = 0;
 window.addEventListener("wheel", (e) => {
-  // A trackpad pinch arrives as a wheel event with ctrlKey; a mouse wheel
-  // notch is a multiple of 120 in the legacy wheelDeltaY.
+  // A trackpad pinch arrives as a wheel event with ctrlKey (Control with a
+  // mouse wheel zooms the same way, as in a browser).
   if (!e.isTrusted || !e.ctrlKey || e.defaultPrevented) return;
-  if (e.deltaX === 0 && e.wheelDeltaY && e.wheelDeltaY % 120 === 0) return;
   if (!timer) startScale = window.visualViewport ? window.visualViewport.scale : 1;
   clearTimeout(timer);
   timer = setTimeout(() => { timer = 0; total = 0; spent = false; }, 220);
