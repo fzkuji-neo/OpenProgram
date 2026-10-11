@@ -1,7 +1,7 @@
 """Retained browser Page descriptors, write fencing, and control projection."""
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from functools import cached_property
 import json
 import logging
@@ -55,6 +55,9 @@ class BrowserResourceStore:
     def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path is not None else resource_db_path()
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        with closing(sqlite3.connect(self.path, timeout=15)) as db:
+            # Readers (previews, listings) must not stall the restore pass.
+            db.execute("PRAGMA journal_mode=WAL")
         with self.connect() as db:
             db.execute(
                 """CREATE TABLE IF NOT EXISTS browser_resources (
@@ -122,7 +125,7 @@ class BrowserResourceStore:
 
     @contextmanager
     def connect(self):
-        db = sqlite3.connect(self.path, timeout=5)
+        db = sqlite3.connect(self.path, timeout=15)
         db.row_factory = sqlite3.Row
         try:
             with db:
@@ -401,15 +404,16 @@ class BrowserResourceStore:
             ).fetchone()
             if closed is not None:
                 return successor_id
-            pred = db.execute(
+            # Every earlier record of this tab moves here. Taking only the
+            # newest left the older ones showing "Restoring page…" for good.
+            preds = db.execute(
                 """SELECT * FROM browser_resources
                 WHERE window_id=? AND tab_id=? AND resource_id!=?
                 AND lifecycle IN ('restoring','unavailable','restore_failed')
                 ORDER BY updated_at DESC""",
                 (window_id, tab_id, successor_id),
-            ).fetchone()
-            if pred is not None and str(pred["lifecycle"] or "") == "closed":
-                pred = None
+            ).fetchall()
+            pred = preds[0] if preds else None
             if pred is None:
                 return successor_id
             pred_title = str((pred["title"] if pred else "") or "")
@@ -462,10 +466,14 @@ class BrowserResourceStore:
                     ON CONFLICT(resource_id) DO UPDATE SET presentation_id=excluded.presentation_id""",
                     (successor_id, presentation_id),
                 )
-                assocs = db.execute(
-                    "SELECT * FROM browser_resource_associations WHERE resource_id=?",
-                    (pred_id,),
-                ).fetchall()
+                assocs = [
+                    assoc
+                    for old in preds
+                    for assoc in db.execute(
+                        "SELECT * FROM browser_resource_associations WHERE resource_id=?",
+                        (old["resource_id"],),
+                    ).fetchall()
+                ]
                 for assoc in assocs:
                     db.execute(
                         """DELETE FROM browser_resource_associations
@@ -482,10 +490,10 @@ class BrowserResourceStore:
                         "UPDATE browser_resource_associations SET resource_id=? WHERE id=?",
                         (successor_id, assoc["id"]),
                     )
-                db.execute(
+                db.executemany(
                     """UPDATE browser_resources SET live=0, lifecycle='superseded',
                     sequence=sequence+1, updated_at=? WHERE resource_id=?""",
-                    (now, pred_id),
+                    [(now, old["resource_id"]) for old in preds],
                 )
             existing_control = db.execute(
                 "SELECT last_input_seq FROM browser_resource_control WHERE resource_id=?",
