@@ -26,6 +26,7 @@ const { createUiVerificationGuard } = require("./self-update-ui-guard");
 const uiVerificationGuard = createUiVerificationGuard(nativeIpcMain);
 const { ipcMain } = uiVerificationGuard;
 const { resolvePackagedWorker } = require("./packaged-runtime");
+const { useBrowserUserAgent } = require("./main/webtab-user-agent");
 const { DesktopUpdateService, desktopUpdateFetch } = require("./update-service");
 const {
   killWindowsProcessTree,
@@ -1646,6 +1647,7 @@ registerSingleMainWindow({
   async onReady() {
     resolveStartupChrome();
     registerFileDirectoryListing();
+    useBrowserUserAgent(session.fromPartition("persist:webtabs"));
     registerDownloads();
     registerWebTabIpc();
     registerTabTransferIpc();
