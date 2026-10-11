@@ -51,12 +51,6 @@
   white-space: pre;
 }
 
-.mdBody {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
 .truncatedNote {
   margin-bottom: 8px;
   font-size: 11px;
