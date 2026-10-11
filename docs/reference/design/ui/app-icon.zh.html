@@ -125,7 +125,7 @@
     <table>
       <thead><tr><th>目标</th><th>源</th><th>输出</th></tr></thead>
       <tbody>
-        <tr><td>macOS App</td><td><code>docs/images/openprogram-app-icon.svg</code>——Big Sur 网格：1024 画布上偏移 100 的 824 px 圆角方形，带柔和底板阴影</td><td><code>apps/desktop/build/icon.icns</code>（16–1024 px），即 <code>apps/desktop/package.json</code> 的打包输入</td></tr>
+        <tr><td>macOS App</td><td><code>docs/images/openprogram-app-icon.svg</code>——Big Sur 网格：1024 画布上偏移 100 的 824 px 底板，外形用 Apple 连续圆角（半径 185.4 px、60% 平滑），与程序坞里的系统图标同一轮廓，带柔和底板阴影</td><td><code>apps/desktop/build/icon.icns</code>（16–1024 px），即 <code>apps/desktop/package.json</code> 的打包输入</td></tr>
         <tr><td>Liquid Glass 工具链</td><td><code>apps/desktop/build/AppIcon.icon</code></td><td>Icon Composer 分组由前到后：天蓝圆片、紫色圆片、靛色圆片、细胞。所有分组关闭 Specular 与 translucency，所有图层关闭 glass，阴影为 neutral（前两个圆片 0.5，其余 0.3）。<code>ictool</code> 可导出 Default、Dark、ClearLight 和 TintedDark。</td></tr>
         <tr><td>WebUI 标签页、文档站</td><td><code>docs/images/openprogram-tab-icon.source.svg</code>——铺满画布的 64 px 圆角底板</td><td>原样复制到 <code>apps/web/app/icon.svg</code> 和 <code>scripts/docs_site/assets/mark.svg</code></td></tr>
         <tr><td>Favicon、Windows 安装包</td><td>64 px 标签页图标</td><td><code>apps/web/app/favicon.ico</code>，含 16、32、48、64、128、256 px 的 PNG 条目</td></tr>

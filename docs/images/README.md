@@ -11,7 +11,8 @@ geometry, colours and every output.
 Canonical sources:
 
 - `docs/images/openprogram-app-icon.svg`: the flat macOS tile on the Big Sur grid
-  (824 px squircle at offset 100 on a 1024 canvas). `apps/desktop/build/icon.icns`
+  (an 824 px tile at offset 100 on a 1024 canvas, outlined with Apple's continuous
+  corner: radius 185.4 px, 60% corner smoothing, the same outline as the system icons). `apps/desktop/build/icon.icns`
   is rendered from it.
 - `apps/desktop/build/AppIcon.icon`: the same artwork as four Icon Composer layers
   (cell, indigo disc, violet disc, sky disc).
