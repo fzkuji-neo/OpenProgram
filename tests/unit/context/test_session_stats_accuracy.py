@@ -467,3 +467,14 @@ def test_non_advancing_turn_records_snapshots_on_its_bound_branch(monkeypatch):
     assert latest_recorded_tool_snapshot(FakeStore(), "session", "child-head") == {
         "tools": [],
     }
+
+
+def test_tool_snapshot_never_creates_a_conversation(tmp_path):
+    from openprogram.agent.session_db import SessionDB
+    from openprogram.context.tool_snapshot_node import record_tool_snapshot
+
+    db = SessionDB(tmp_path / "sessions.sqlite")
+
+    assert record_tool_snapshot(db, "op-0123456789abcdef", []) is None
+    assert db.get_session("op-0123456789abcdef") is None
+    assert db.list_sessions() == []
