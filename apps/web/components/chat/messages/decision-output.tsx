@@ -2,6 +2,7 @@
 
 import { useSessionStore, type PendingDecision } from "@/lib/session-store";
 import { useDecisionSubmissions, type DecisionSubmission } from "@/lib/chat/decision-submissions";
+import { isSettled, showsReceipt } from "@/lib/chat/decision-receipts";
 import { useTranslation } from "@/lib/i18n";
 import { AnswerSummary } from "../composer/modes/question/answer-summary";
 import { QuestionMode } from "../composer/modes/question/question-mode";
@@ -67,9 +68,8 @@ function DecisionCards({ sessionId, pendingOnly }: { sessionId: string | null; p
   ordered.forEach(displayOrder);
   ordered.sort((a, b) => displayOrder(a) - displayOrder(b));
   return <>{ordered.filter(decision => {
-    const status = submissions[decision.id]?.status;
-    const terminal = status === "answered" || status === "declined" || status === "closed";
-    return pendingOnly ? !terminal : terminal;
+    const submission = submissions[decision.id];
+    return pendingOnly ? !isSettled(submission) : showsReceipt(decision, submission);
   }).map((decision) => (
     <DecisionOutput key={decision.id} decision={decision} submission={submissions[decision.id]} />
   ))}</>;
