@@ -153,8 +153,10 @@ test('the grip turns into macOS window buttons and unfolds the tiling menu from 
   const controls = await read('components/center-tabs/canvas-controls.tsx');
   for (const light of ['close', 'minimize', 'zoom']) assert.match(controls, new RegExp(`data-pane-light="${light}"`));
   assert.match(controls, /new CustomEvent\("op-close-center-tabs", \{ detail: \{ tabIds: \[tabId\] \} \}\)/, 'red closes the tab through the strip');
-  assert.match(controls, /onClick=\{\(\) => \{ closeMenu\(\); close\(p\.id\); \}\}/, 'yellow folds the pane back into the strip');
-  assert.match(controls, /onClick=\{\(\) => openAlone\(p\.id, p\.content\)\}/, 'green opens the tab on its own');
+  assert.match(controls, /onClick=\{pressed\(\(\) => \{ closeMenu\(\); close\(p\.id\); \}\)\}/, 'yellow folds the pane back into the strip');
+  assert.match(controls, /onClick=\{pressed\(\(\) => openAlone\(p\.id, p\.content\)\)\}/, 'green opens the tab on its own');
+  assert.match(controls, /onClick=\{pressed\(\(\) => closeTab\(p\.id, p\.content\)\)\}/, 'red closes only on a real click');
+  assert.match(controls, /if \(e\.detail > 0 && current\?\.moved\) return; run\(\);/, 'a press that moved never clicks a window button, even after a cancelled drag');
   assert.match(controls, /hoverTimer\.current = window\.setTimeout\(\(\) => openMenu\(p\.id, true\), 250\)/, 'resting on green unfolds the menu');
   assert.match(controls, /\{menu\?\.paneId === p\.id && drawer\(p\.id\)\}/, 'the menu is attached to its grip, not a floating window');
   assert.match(controls, /\(quarters \? QUARTERS : MOVE\)/, 'Option shows the quarters');
