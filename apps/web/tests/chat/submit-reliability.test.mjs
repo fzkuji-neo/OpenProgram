@@ -596,3 +596,27 @@ test("pending steer storage excludes ordinary drafts and attachments and tolerat
   assert.deepEqual(loadPendingSteers(),{});
   assert.doesNotThrow(()=>savePendingSteers({A:[{...draft,steerError:'cancelled'}]}));
 });
+
+test("an attached send clears the composer files when the socket accepts it, not at ACK", async () => {
+  const calls = [];
+  const options = {
+    isRunning: false,
+    pendingDocs: [{ id: "doc", filename: "statement.pdf", ext: "pdf", sizeBytes: 3, dataB64: "YWJj", order: 0 }],
+    clearAttachmentsAfterSubmit() { calls.push("clear"); },
+    detachAttachmentsForSubmit(owner, ids) {
+      calls.push(["detach", owner, ids.docIds]);
+      return { release() { calls.push("release"); }, restore() { calls.push("restore"); } };
+    },
+  };
+  await composer("see the file", options).submit();
+  assert.equal(host.frames.length, 1);
+  assert.deepEqual(calls, [["detach", "A", ["doc"]]], "the files leave with the text");
+  pending.acknowledgePendingUserText("A");
+  assert.deepEqual(calls, [["detach", "A", ["doc"]], "release"]);
+
+  calls.length = 0;
+  pending.clearPendingFirstAck("A");
+  await composer("again", options).submit();
+  pending.getPendingUserReject("A")?.();
+  assert.deepEqual(calls, [["detach", "A", ["doc"]], "restore"], "a rejected turn gets its files back");
+});

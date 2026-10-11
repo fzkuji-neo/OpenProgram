@@ -147,6 +147,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     onPickImages,
     onFileInputChange,
     clearAfterSubmit: clearAttachmentsAfterSubmit,
+    detachForSubmit: detachAttachmentsForSubmit,
   } = useComposerAttachments(bound);
 
   // Refs declared up-front so the @file mention hook below can
@@ -354,6 +355,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
     pendingImages,
     pendingDocs,
     clearAttachmentsAfterSubmit,
+    detachAttachmentsForSubmit,
     thinking,
     toolsEnabled,
     toolsProfile: activeProfile,
