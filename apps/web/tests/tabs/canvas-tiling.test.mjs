@@ -96,6 +96,7 @@ test('a pane splits by quarter strips and halves, with no dead centre', async ()
   assert.doesNotMatch(drag, /"hint"/, 'every point in a pane does something');
   assert.match(drag, /if \(nearT\) \{[\s\S]*?action: "fill"/, 'the top edge opens the tab on its own');
   assert.match(drag, /\(nearL \|\| nearR\) && \(nearT \|\| nearB\)/, 'corners are quarters');
+  assert.match(drag, /Math\.max\(40, Math\.min\(96, Math\.min\(width, height\) \* 0\.14\)\)/, 'the whole-canvas halves are easy to reach');
   assert.match(drag, /event\.preventDefault\(\);\s*const grip = event\.currentTarget/, 'a pane drag does not select text');
 });
 
