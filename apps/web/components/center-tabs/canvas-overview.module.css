@@ -45,17 +45,21 @@ button.card:focus-visible { outline: none; }
   position: relative;
   display: block;
   width: 100%;
-  border-radius: 12px;
-  transition: transform 150ms ease, box-shadow 150ms ease;
+  border-radius: 10px;
+  transition: transform 150ms ease, outline-color 150ms ease;
 }
+/* An even ring 3px outside the card, never a shadow of its own: the
+   panes inside already cast theirs. */
 .card[data-current] .mini {
-  box-shadow: 0 0 0 2px color-mix(in oklch, var(--text-bright) 22%, transparent);
+  outline: 2px solid color-mix(in oklch, var(--text-bright) 28%, transparent);
+  outline-offset: 3px;
 }
 button.card:hover .mini,
 button.card:focus-visible .mini,
 .card[data-hot] .mini {
   transform: scale(1.03);
-  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent-blue) 70%, transparent);
+  outline: 2px solid color-mix(in oklch, var(--accent-blue) 75%, transparent);
+  outline-offset: 3px;
 }
 .pane {
   position: absolute;
@@ -68,6 +72,17 @@ button.card:focus-visible .mini,
   border-radius: 9px;
   background: var(--bg-primary);
   box-shadow: var(--composer-shadow);
+}
+.pane[data-shot] {
+  padding: 0;
+}
+.shot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+  pointer-events: none;
 }
 .pane[data-empty] {
   background: transparent;

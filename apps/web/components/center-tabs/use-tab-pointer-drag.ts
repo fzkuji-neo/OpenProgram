@@ -16,6 +16,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { clearDropPreview, commitCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
 import { openOverview, overviewDropAt } from "@/lib/tabs/canvas-overview";
+import { captureVisiblePanes } from "@/lib/tabs/window-snapshots";
 
 import {
   DETACH_HYSTERESIS_PX,
@@ -77,6 +78,10 @@ interface PointerDragState {
   lastTx: number;
   lastTy?: number;
   lastIntent: TabDropIntent | null;
+  /** The pointer has left the strip, so the window overview should show. */
+  wantsOverview?: boolean;
+  /** Pane pictures for the overview are taken (or timed out). */
+  snapshotsReady?: boolean;
   /** Tab strip's vertical span (viewport px), snapshotted at drag start.
    *  Detach intent triggers geometrically when the cursor leaves this band;
    *  drop-to-place, so the torn-off window is only created at release. */
@@ -428,6 +433,10 @@ export function useTabPointerDrag({
       // Registered so a release the page never saw (over the window-drag
       // strip or a native view) still ends this drag on the next move.
       setCanvasDragging(true, { cancel: cancelPointerDrag, release: onPointerDragUp });
+      void captureVisiblePanes(drag.subject.tabIds).then(() => {
+        drag.snapshotsReady = true;
+        if (pointerDragRef.current === drag && drag.wantsOverview) openOverview("drag", drag.subject.tabIds);
+      });
       try {
         drag.element.setPointerCapture(drag.pointerId);
       } catch {
@@ -470,8 +479,12 @@ export function useTabPointerDrag({
       drag.lastTy = outsideBand ? dy : 0;
       drag.lastTx = tx;
       // Leaving the strip opens the window overview; inside it stays a
-      // plain reorder. Once open it stays until the drag ends.
-      if (outsideBand) openOverview("drag", drag.subject.tabIds);
+      // plain reorder. Once open it stays until the drag ends. It waits
+      // for the panes' pictures, taken when the drag started.
+      if (outsideBand) {
+        drag.wantsOverview = true;
+        if (drag.snapshotsReady) openOverview("drag", drag.subject.tabIds);
+      }
       updateDragPreview(drag, outsideBand);
       drag.element.style.transform = `translate(${tx}px, ${drag.lastTy}px)`;
     }

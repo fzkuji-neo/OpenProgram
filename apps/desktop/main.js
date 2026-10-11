@@ -1231,6 +1231,29 @@ function registerWebTabIpc() {
     const [x, y] = win.getPosition();
     win.setPosition(Math.round(x + dx), Math.round(y + dy));
   });
+  // Window overview thumbnails: a snapshot of one region of this window's own
+  // page, given in CSS pixels. Only a window's main page may ask, and only
+  // for itself; the result is a small JPEG, never the full-size bitmap.
+  ipcMain.handle("window:capture-region", async (event, rect) => {
+    const ctx = contextForSender(event);
+    if (!ctx || event.sender !== ctx.win.webContents) return null;
+    const values = [rect?.x, rect?.y, rect?.width, rect?.height];
+    if (!values.every((value) => Number.isFinite(value)) || rect.width < 1 || rect.height < 1) return null;
+    const zoom = event.sender.getZoomFactor() || 1;
+    try {
+      const image = await event.sender.capturePage({
+        x: Math.round(rect.x * zoom),
+        y: Math.round(rect.y * zoom),
+        width: Math.round(rect.width * zoom),
+        height: Math.round(rect.height * zoom),
+      });
+      if (!image || image.isEmpty()) return null;
+      const width = Math.min(image.getSize().width, 720);
+      return `data:image/jpeg;base64,${image.resize({ width, quality: "good" }).toJPEG(82).toString("base64")}`;
+    } catch (_error) {
+      return null;
+    }
+  });
 }
 
 function registerTabTransferIpc() {

@@ -239,7 +239,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
       const r = zoomed ? canvasRect : rect;
       const tab=tabs.find(t => t.id === p.content), tiny=r.width<150 || r.height<110;
       const title = titleOf(tab);
-      return <div key={p.id} className={styles.pane} data-canvas-pane={p.id} data-canvas-target={targetId} data-single={single || undefined} data-focused={(!single && layout.focusedPaneId === p.id) || undefined} data-menu-open={menu?.paneId === p.id || undefined} style={{ ...r, display: visible ? undefined : "none" }}>
+      return <div key={p.id} className={styles.pane} data-canvas-pane={p.id} data-canvas-target={targetId} data-canvas-content={p.content ?? undefined} data-single={single || undefined} data-focused={(!single && layout.focusedPaneId === p.id) || undefined} data-menu-open={menu?.paneId === p.id || undefined} style={{ ...r, display: visible ? undefined : "none" }}>
         {!p.content
           ? <div className={styles.empty}>
               <div className={styles.emptyCard}>

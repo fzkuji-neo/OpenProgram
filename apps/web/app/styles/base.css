@@ -465,6 +465,12 @@ select:focus-visible {
   box-shadow: none;
   overflow: visible;
 }
+/* The window overview turns the centre card into open page, like the
+   desktop in Mission Control: no card edge or shadow around the cards. */
+.app .center-col:has([data-canvas-overview]) {
+  background: var(--bg-secondary);
+  box-shadow: none;
+}
 .app .center-col[data-split] .center-canvas-content {
   background: var(--bg-primary);
   box-shadow: var(--composer-shadow);

@@ -16,6 +16,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { openOverview } from "@/lib/tabs/canvas-overview";
+import { captureVisiblePanes } from "@/lib/tabs/window-snapshots";
 import { useSessionStore } from "@/lib/session-store";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { flushFileDocumentsBeforeClose } from "@/lib/files/file-drafts";
@@ -234,8 +235,8 @@ export function useTabLifecycle({
 
   /** The strip button: every window as a card, over the chat area. */
   function onOpenOverview() {
-    openOverview("browse");
-    if (!isChatRoute(pathname)) router.push("/chat");
+    if (!isChatRoute(pathname)) { router.push("/chat"); openOverview("browse"); return; }
+    void captureVisiblePanes().then(() => openOverview("browse"));
   }
 
   function onOpenNewTab() {
