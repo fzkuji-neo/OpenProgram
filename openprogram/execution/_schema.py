@@ -9,7 +9,7 @@ import sqlite3
 from .model import CapabilitySet
 
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 _LEGACY_SCHEMA_VERSION = 1
 _PREVIOUS_SCHEMA_VERSION = 2
 _FORK_RETRY_SCHEMA_VERSION = 3
@@ -24,6 +24,7 @@ _JOB_DURABLE_SCHEMA_VERSION = 11
 _PARTIAL_RUNTIME_CONTROL_SCHEMA_VERSION = 12
 _RUNTIME_CONTROL_WITHOUT_WAITS_SCHEMA_VERSION = 13
 _SYSTEM_ACCESS_WAIT_SCHEMA_VERSION = 14
+_EFFECT_EVENT_CONTEXT_SCHEMA_VERSION = 15
 _FINISH_REPAIR_SLOT_LIMIT = 4096
 
 # These are the only projections emitted by the canonical execution store.
@@ -73,12 +74,49 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
         _migrate_v11(connection)
     elif current == _SYSTEM_ACCESS_WAIT_SCHEMA_VERSION:
         _migrate_v14(connection)
-    elif current == SCHEMA_VERSION:
+    elif current in {_EFFECT_EVENT_CONTEXT_SCHEMA_VERSION, SCHEMA_VERSION}:
         _create_current_schema(connection)
     else:
         raise UnsupportedSchema(current)
 
+    if current < SCHEMA_VERSION and current != 0:
+        _drop_effect_event_contexts(connection)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+
+def _drop_effect_event_contexts(connection: sqlite3.Connection) -> None:
+    """Remove the provider context older effect events copied.
+
+    ``effect.*`` events used to repeat the effect's ``metadata.payload``
+    (a model request's full message context) that its ``effects`` row
+    already holds. Nothing reads it from the events, and those copies made
+    up most of a long-used store, so the file is compacted once afterwards
+    when anything was dropped. If another connection blocks that, the freed
+    pages are still reused for new writes.
+    """
+    # Older migrations hand over an open transaction; join it and leave
+    # compaction to a later VACUUM.
+    owned = not connection.in_transaction
+    try:
+        if owned:
+            connection.execute("BEGIN")
+        dropped = connection.execute(
+            "UPDATE execution_events "
+            "SET payload_json = json_remove(payload_json, '$.effect.metadata.payload') "
+            "WHERE kind LIKE 'effect.%' "
+            "AND json_type(payload_json, '$.effect.metadata.payload') IS NOT NULL"
+        ).rowcount
+        if owned:
+            connection.commit()
+    except BaseException:
+        if owned:
+            connection.rollback()
+        raise
+    if owned and dropped > 0:
+        try:
+            connection.execute("VACUUM")
+        except sqlite3.OperationalError:
+            pass
 
 
 def _create_current_schema(connection: sqlite3.Connection) -> None:

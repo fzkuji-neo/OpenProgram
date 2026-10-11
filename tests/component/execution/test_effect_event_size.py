@@ -58,3 +58,41 @@ def test_effect_events_leave_the_context_on_the_effect_row(tmp_path):
         metadata = json.loads(row["payload_json"])["effect"]["metadata"]
         assert metadata == {"kind": "provider"}
         assert len(row["payload_json"]) < 5_000
+
+
+def test_upgrading_drops_the_context_older_events_copied(tmp_path):
+    import sqlite3
+
+    path = tmp_path / "executions.db"
+    executions = ExecutionStore(path)
+    revision = executions.create_revision(manifest={"entrypoint": "fixture"})
+    executions.create_execution(
+        execution_id="exec", run_id="run", session_id="session",
+        revision_id=revision.revision_id, capabilities=CapabilitySet(),
+    )
+    old_event = {"effect": {
+        "effect_id": "eff", "status": "committed",
+        "metadata": {"kind": "provider", "payload": {"context": "x" * 50_000}},
+    }}
+    with closing(sqlite3.connect(path)) as connection:
+        sequence = connection.execute(
+            "SELECT max(sequence) FROM execution_events WHERE execution_id = 'exec'"
+        ).fetchone()[0]
+        connection.execute(
+            "UPDATE execution_events SET kind = 'effect.committed', payload_json = ? "
+            "WHERE sequence = ?",
+            (json.dumps(old_event), sequence),
+        )
+        connection.execute("PRAGMA user_version = 15")
+        connection.commit()
+
+    ExecutionStore(path)
+
+    with closing(sqlite3.connect(path)) as connection:
+        payload = json.loads(connection.execute(
+            "SELECT payload_json FROM execution_events WHERE sequence = ?", (sequence,)
+        ).fetchone()[0])
+        version = connection.execute("PRAGMA user_version").fetchone()[0]
+    assert payload["effect"]["metadata"] == {"kind": "provider"}
+    assert payload["effect"]["status"] == "committed"
+    assert version == 16
