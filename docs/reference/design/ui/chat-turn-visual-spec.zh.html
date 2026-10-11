@@ -860,7 +860,8 @@ Agent 回复发起的 function 及其执行树只属于该回复的执行时间�
 <table class="path-table"><thead><tr><th>动作或状态</th><th>结果</th><th>边界</th></tr></thead><tbody>
   <tr><td>Review / 文件行</td><td>打开同一确定性 <code>r:&lt;sessionId&gt;:&lt;assistantMsgId&gt;</code> center tab；文件行同时选择路径。</td><td>不加载聊天内 diff；重复点击只聚焦或更新 selection。</td></tr>
   <tr><td>布局</td><td>未分屏时复用现有 group，把 Review 放到聊天右侧；满员 split 时作为普通 active tab。</td><td>不替换已有 peer，不增加第三 pane，不新增第二套 tab store。</td></tr>
-  <tr><td>Scope 切换</td><td>This turn、Current branch、Workspace 保持同一左 rail / 右 diff 构图，标题和来源标签同步变化。</td><td>Workspace 不显示 Undo；ignored 文件不出现；非 Git 明确 unavailable。</td></tr>
+  <tr><td>Scope 切换</td><td>This turn、Current branch、Workspace 共用同一布局，标题和来源标签同步变化。</td><td>Workspace 不显示 Undo；ignored 文件不出现；非 Git 明确 unavailable。</td></tr>
+  <tr><td>面板布局</td><td>标题区两行：标题、来源和统计；下面是范围切换和文件类型菜单（全部类型、代码、测试、文档、大文件）。面板宽度不足 900px 时，文件列表收进当前文件的标题栏：完整显示文件名，列出目录、执行者、来源轮次和行数，用 <em>n / N</em> 菜单切换文件；900px 起文件列表是 260px 的左栏，文件名在上、目录在下。diff 不显示文件头，每个 hunk 标成行号范围，长行自动换行，新增或删除的文件只显示它有的那一列行号。diff 翻页放在 diff 下方。Markdown、图片和 PDF 还可以切到“预览”，看当前文件的渲染效果。</td><td>预览读取文件的当前内容，不是该范围记录的版本；已删除的文件没有预览。各区域用页面底色，靠细线分隔。</td></tr>
   <tr><td>行级评论</td><td>点击 diff 行添加评论；多条评论在下一条 prompt 中作为结构化文件位置一起发送。</td><td>评论不直接修改文件，不假装 code review 已执行。</td></tr>
   <tr><td>大文件 / 二进制</td><td>显示精确统计、diff unavailable 原因和 Open file。</td><td>不渲染完整大文件，不把日志自动归类为 Agent 修改。</td></tr>
   <tr><td>撤销冲突</td><td>卡片显示 Review conflict；Review 定位冲突文件。</td><td>没有 Force undo 快捷按钮，避免覆盖用户或其他 session 的后续编辑。</td></tr>

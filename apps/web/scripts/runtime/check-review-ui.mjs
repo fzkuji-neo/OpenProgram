@@ -76,7 +76,7 @@ assert.doesNotMatch(card, /Code \{codeCount\}|Tests \{testCount\}/);
 assert.match(store, /openReviewTab:/);
 assert.match(reviewLayout, /reviewTabId\(sessionId, assistantMsgId\)/);
 assert.match(reviewLayout, /groupCenterTabs/);
-assert.equal((review.match(/<UnifiedDiff/g) ?? []).length, 1);
+assert.equal((review.match(/<ReviewDiff/g) ?? []).length, 1);
 assert.match(review, /data-mounted-diff-count=\{selectedPath \? "1" : "0"\}/);
 assert.match(reviewProtocol, /limit: 100/);
 assert.match(reviewProtocol, /wsRequest/);

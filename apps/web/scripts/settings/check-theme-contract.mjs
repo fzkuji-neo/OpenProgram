@@ -74,10 +74,18 @@ function tokens(source) {
   return [...new Set([...source.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((match) => match[1]))].sort();
 }
 
+// Tokens resolved on :root that a scoped override must restate to follow it.
+const bridgeTokens = new Set(["--card", "--popover", "--secondary", "--muted"]);
 for (const id of builtins) {
   const source = read(`app/styles/themes/${id}.css`);
-  assert.match(source, new RegExp(`\\[data-theme=["']${id}["']\\]`));
-  assert.deepEqual(tokens(source), requiredTokens, `${id} must define the complete theme contract`);
+  const main = source.match(new RegExp(`\\[data-theme=["']${id}["']\\]\\s*\\{([^}]*)\\}`));
+  assert.ok(main, `${id} must open with its [data-theme] block`);
+  assert.deepEqual(tokens(main[1]), requiredTokens, `${id} must define the complete theme contract`);
+  // Later blocks (pages in the centre card) only restate existing tokens.
+  const rest = source.slice(main.index + main[0].length);
+  for (const token of tokens(rest)) {
+    assert.ok(requiredTokens.includes(token) || bridgeTokens.has(token), `${id} scoped block sets unknown token ${token}`);
+  }
 }
 const expectedAccent = {
   "beige-dark": ["#d97757", "#d97757", "#c86a4a"],

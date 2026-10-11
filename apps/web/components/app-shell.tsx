@@ -637,6 +637,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div
                     key={pane.key}
                     data-center-tab-id={pane.tabId}
+                    data-page-surface={pane.kind === "peer" ? undefined : ""}
                     onPointerDownCapture={() => useCenterTabs.getState().setActive(pane.tabId)}
                     className={centerPaneClassName(index)}
                     style={centerPaneStyle(index)}
