@@ -141,8 +141,9 @@ def wrap_with_approval(
                 "working_dir": current_worktree_path() or os.getcwd(),
             },
             "policy_snapshot": {
+                # A refusal is an answer for the model, not a failed run.
                 "version": 1, "kind": "approval", "on_answer": "continue",
-                "on_decline": "fail", "on_timeout": "fail",
+                "on_decline": "continue", "on_timeout": "fail",
                 "allowed_scopes": scopes,
             },
             "timeout": None,
@@ -310,7 +311,9 @@ def wrap_with_approval(
             tool_call_id=str(call_id), **({"recovery_effects": recovery} if recovery else {}))
         if not approved:
             msg = (f"[denied] {reason.strip()}" if isinstance(reason, str)
-                   and reason.strip() else f"[denied] user did not approve {name}")
+                   and reason.strip() else
+                   f"[denied] The user declined this {name} call, so it did not run. "
+                   "Do not retry it or work around it; stop and ask the user how to proceed.")
             return _denied(msg, "APPROVAL_DENIED")
         if recovery and scope != "once":
             return _denied("[denied] uncertain operations require one-shot approval", "RECOVERY_APPROVAL_SCOPE")

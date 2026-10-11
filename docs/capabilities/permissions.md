@@ -16,8 +16,12 @@ Questions and approvals appear as independent cards in the conversation. Each qu
 
 Tool approvals show the current operation and two actions: Allow once and Deny.
 Clicking either submits that decision directly. The request closes only after
-server confirmation; an unconfirmed answer can retry the same decision.
-Persistent rules remain available in History project settings.
+server confirmation; an unconfirmed answer can retry the same decision. A
+confirmed approval leaves the conversation; the tool row shows what happened.
+Deny does not end the task: the model receives the refusal as that tool's
+result, the operation does not run, and the model is told to stop and ask you
+how to proceed. Skipping a question likewise tells the model it went
+unanswered. Persistent rules remain available in History project settings.
 
 Human tool approvals have no default time limit. Waiting saves execution progress
 and releases the active execution attempt; reopening the App restores the pending
