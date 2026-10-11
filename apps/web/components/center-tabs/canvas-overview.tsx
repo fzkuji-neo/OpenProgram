@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, type Transition } from "framer-motion";
 
 import { topLevelTabs } from "@/lib/browser/web-page-management";
-import { canvasGeometry, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
+import { canvasGeometry, canvasViewport, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { canvasDragging } from "@/lib/tabs/canvas-drag";
 import { captureVisiblePanes, captureWebTabs, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
@@ -29,12 +29,11 @@ const ZOOM: Transition = { duration: 0.34, ease: [0.2, 0.8, 0.2, 1] };
 const INSTANT: Transition = { duration: 0 };
 type Box = { left: number; top: number; width: number; height: number };
 
-/** Where a window's panes sit inside the overview, which is also what
- *  their pictures show: the center area less the canvas padding, and each
- *  split pane card's 1px inset. The overview covers the center area. */
-function windowBox(canvas: HTMLElement, split: boolean): Box {
-  const inset = split ? 7 : 6;
-  return { left: inset, top: inset, width: canvas.clientWidth - inset * 2, height: canvas.clientHeight - inset * 2 };
+/** Where a window's panes sit inside the overview (which covers the
+ *  center area): the canvas viewport, the same box the panes are laid out
+ *  in and pictured from, so a card lands exactly on its window. */
+function windowBox(canvas: HTMLElement): Box {
+  return canvasViewport(canvas.clientWidth, canvas.clientHeight);
 }
 const reducedMotion = () => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -182,7 +181,8 @@ export function CanvasOverview() {
   }, [mode, sourceIds, tabs, groups, t, text]);
 
   const activeKey = cards.find(card => leaves(card.root).some(p => p.content === activeId))?.key;
-  const aspectNow = area.canvasWidth > 0 && area.canvasHeight > 0 ? area.canvasWidth / area.canvasHeight : 16 / 10;
+  const viewport = area.canvasWidth > 0 && area.canvasHeight > 0 ? canvasViewport(area.canvasWidth, area.canvasHeight) : { left: 0, top: 0, width: 1000, height: 625 };
+  const aspectNow = viewport.width / viewport.height;
   const widthNow = area.width > 0 ? fit(Math.max(1, cards.length), area.width, area.height, aspectNow) : 0;
 
   // The window zooms between the center area and its card. A card that is
@@ -193,7 +193,7 @@ export function CanvasOverview() {
     const root = rootRef.current, canvas = root?.parentElement;
     const card = key && root ? root.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(key)}"]`) : null;
     if (!key || !card || !canvas || reducedMotion()) return false;
-    setZoom({ key, box: windowBox(canvas, card.hasAttribute("data-split")), phase });
+    setZoom({ key, box: windowBox(canvas), phase });
     return true;
   };
 
@@ -232,11 +232,9 @@ export function CanvasOverview() {
 
   if (!mode) return null;
   const activeCard = cards.find(card => leaves(card.root).some(p => p.content === activeId))?.key;
-  const aspect = area.canvasWidth > 0 && area.canvasHeight > 0 ? area.canvasWidth / area.canvasHeight : 16 / 10;
-  const cardWidth = area.width > 0 ? fit(Math.max(1, cards.length), area.width, area.height, aspect) : 0;
-  // Panes fill the card edge to edge; the canvas's outer padding would
-  // leave a sliver between the card and its outline.
-  const viewport = { left: 0, top: 0, width: area.canvasWidth || 1000, height: area.canvasHeight || 625 };
+  const aspect = aspectNow, cardWidth = widthNow;
+  // A card pictures the canvas viewport: each pane sits where it sits on
+  // screen, so the zoom lands every pane on itself.
   const byId = new Map(tabs.map(tab => [tab.id, tab]));
   const activate = (card: Card) => zoomOutTo(card);
   const hint = label || (mode === "drag"
@@ -278,7 +276,7 @@ export function CanvasOverview() {
                   const shot = tab ? shots[tab.id] : undefined;
                   return (
                     <span key={p.id} className={styles.pane} data-empty={!tab || undefined} data-shot={shot ? "" : undefined} style={{
-                      left: `${(r.left / viewport.width) * 100}%`, top: `${(r.top / viewport.height) * 100}%`,
+                      left: `${((r.left - viewport.left) / viewport.width) * 100}%`, top: `${((r.top - viewport.top) / viewport.height) * 100}%`,
                       width: `${(r.width / viewport.width) * 100}%`, height: `${(r.height / viewport.height) * 100}%`,
                     }}>
                       {shot ? <img className={styles.shot} src={shot} alt="" draggable={false} /> : tab && !tab.canvasAnchor ? (

@@ -689,6 +689,7 @@ function DesktopWebTabPane({
       <div
         ref={bodyRef}
         className={styles.webFrame}
+        data-web-frame={tabId}
         style={{ position: "relative", overflow: "hidden" }}
       >
         {frozen ? <button type="button" onClick={() => useCenterTabs.getState().setActive(tabId)} style={{ position:"absolute",inset:0,border:0,padding:0,background:"var(--bg-primary)",color:"var(--text-secondary)",cursor:"pointer" }}>
