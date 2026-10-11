@@ -155,6 +155,10 @@
   display: flex;
   align-items: center;
 }
+/* The trailing slot is a portal target that is usually empty; an empty
+   slot must not take a row gap, or the right-aligned chips stop short of
+   the input box's right edge. */
+.trailingControls:not(:has(> :not(:empty))) { display: none; }
 
 /* The web chips (tab access + picture-in-picture) are right-aligned: the
    first one takes the free space, the trailing slot then sits flush. */
