@@ -6,7 +6,7 @@ import { topLevelTabs } from "@/lib/browser/web-page-management";
 import { canvasGeometry, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { canvasDragging } from "@/lib/tabs/canvas-drag";
 import { captureVisiblePanes, captureWebTabs, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
-import { closeOverview, openOverview, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
+import { closeOverview, dismissOverview, openOverview, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
 import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
@@ -22,6 +22,21 @@ const ZONE: Record<OverviewSide, React.CSSProperties> = {
   bottom: { left: 0, top: "50%", width: "100%", height: "50%" },
 };
 const GAP = 24, CAPTION = 26;
+const ZOOM: KeyframeAnimationOptions = { duration: 340, easing: "cubic-bezier(.2, .8, .2, 1)" };
+type Box = { left: number; top: number; width: number; height: number };
+
+/** Where a window's panes sit on screen, which is also what their pictures
+ *  show: the center area less the canvas padding, and each split pane
+ *  card's 1px inset. */
+function windowBox(canvas: HTMLElement, split: boolean): Box {
+  const r = canvas.getBoundingClientRect(), inset = split ? 7 : 6;
+  return { left: r.left + inset, top: r.top + inset, width: r.width - inset * 2, height: r.height - inset * 2 };
+}
+/** The transform that lays an element sitting at `at` over `over`. */
+function lay(over: Box, at: DOMRect) {
+  return `translate(${over.left - at.left}px, ${over.top - at.top}px) scale(${over.width / at.width}, ${over.height / at.height})`;
+}
+const reducedMotion = () => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Columns and card width that make n cards of this aspect as large as
  *  the area allows, never wider than half of it (Mission Control keeps
@@ -66,17 +81,23 @@ export function CanvasOverview() {
       total += e.deltaY;
       const open = useCanvasOverview.getState().mode;
       if (!open && total > 30) { spent = true; void captureVisiblePanes().then(() => openOverview("browse")); }
-      else if (open === "browse" && total < -30) { spent = true; closeOverview(); }
+      else if (open === "browse" && total < -30) { spent = true; dismissOverview(); }
     };
     window.addEventListener("wheel", wheel, { passive: true });
     return () => { window.removeEventListener("wheel", wheel); window.clearTimeout(timer); };
   }, []);
 
   // A window on screen is pictured once it settles (after a switch or a
-  // layout change) and when the App loses focus, so its card looks like
-  // it did when it was last seen.
+  // layout change), when the App loses focus or hides, and every 30s while
+  // nobody is using it, so its card (saved across restarts) looks like it
+  // did when it was last seen.
   useEffect(() => {
-    let timer: number | undefined;
+    let timer: number | undefined, lastInput = Date.now();
+    const input = () => { lastInput = Date.now(); };
+    const idle = window.setInterval(() => {
+      if (document.visibilityState === "visible" && Date.now() - lastInput > 5000 && !canvasDragging()) void captureVisiblePanes();
+    }, 30000);
+    const hidden = () => { if (document.visibilityState === "hidden") now(); };
     const later = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => { if (!canvasDragging()) void captureVisiblePanes(); }, 900);
@@ -89,13 +110,24 @@ export function CanvasOverview() {
       if (s.tabs !== prev.tabs) pruneSnapshots(new Set(s.tabs.map(tab => tab.id)));
     });
     window.addEventListener("blur", now);
-    return () => { off(); window.removeEventListener("blur", now); window.clearTimeout(timer); };
+    document.addEventListener("visibilitychange", hidden);
+    window.addEventListener("pointerdown", input, true);
+    window.addEventListener("keydown", input, true);
+    window.addEventListener("wheel", input, { capture: true, passive: true });
+    return () => {
+      off(); window.clearTimeout(timer); window.clearInterval(idle);
+      window.removeEventListener("blur", now);
+      document.removeEventListener("visibilitychange", hidden);
+      window.removeEventListener("pointerdown", input, true);
+      window.removeEventListener("keydown", input, true);
+      window.removeEventListener("wheel", input, true);
+    };
   }, []);
 
   useEffect(() => {
     if (mode !== "browse") return;
     // Escape here must not also stop a running reply in the chat below.
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); closeOverview(); } };
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); dismissOverview(); } };
     // Anything outside (a tab, a sidebar) dismisses it; the strip button toggles.
     const press = (e: PointerEvent) => {
       const target = e.target as Element | null;
@@ -142,6 +174,54 @@ export function CanvasOverview() {
     });
   }, [mode, sourceIds, tabs, groups, t, text]);
 
+  const activeKey = cards.find(card => leaves(card.root).some(p => p.content === activeId))?.key;
+  const aspectNow = area.canvasWidth > 0 && area.canvasHeight > 0 ? area.canvasWidth / area.canvasHeight : 16 / 10;
+  const widthNow = area.width > 0 ? fit(Math.max(1, cards.length), area.width, area.height, aspectNow) : 0;
+
+  // Opening: the window on screen shrinks into its card, like Mission
+  // Control, so nothing else needs to mark which one it is.
+  const entered = useRef(false);
+  useLayoutEffect(() => {
+    if (mode !== "browse") { entered.current = false; return; }
+    const root = rootRef.current, canvas = root?.parentElement;
+    if (entered.current || !widthNow || !root || !canvas) return;
+    entered.current = true;
+    const card = root.querySelector<HTMLElement>("[data-current]"), mini = card?.querySelector<HTMLElement>("[data-overview-mini]");
+    if (!card || !mini || reducedMotion()) return;
+    card.setAttribute("data-zooming", "");
+    const from = lay(windowBox(canvas, card.hasAttribute("data-split")), mini.getBoundingClientRect());
+    mini.animate([{ transform: from, transformOrigin: "0 0" }, { transform: "none", transformOrigin: "0 0" }], ZOOM)
+      .finished.catch(() => {}).finally(() => card.removeAttribute("data-zooming"));
+  }, [mode, widthNow]);
+
+  // Closing: the chosen card (or the current one) grows back to fill the
+  // center area, then the overview goes. Picking a card switches to its
+  // window first, so the live window is ready underneath when it lands.
+  const leaving = useRef(false);
+  const zoomOutTo = (pick: Card | null) => {
+    const root = rootRef.current, canvas = root?.parentElement;
+    if (leaving.current || !root || !canvas) return;
+    if (pick) window.dispatchEvent(new CustomEvent("op-activate-center-tab", { detail: { tabId: pick.activateId } }));
+    const key = pick?.key ?? activeKey;
+    const card = key ? root.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(key)}"]`) : null;
+    const mini = card?.querySelector<HTMLElement>("[data-overview-mini]");
+    if (!card || !mini || reducedMotion()) { closeOverview(); return; }
+    leaving.current = true;
+    root.setAttribute("data-leaving", "");
+    card.setAttribute("data-zooming", "");
+    const to = lay(windowBox(canvas, card.hasAttribute("data-split")), mini.getBoundingClientRect());
+    const done = () => { leaving.current = false; closeOverview(); };
+    mini.animate([{ transform: "none", transformOrigin: "0 0" }, { transform: to, transformOrigin: "0 0" }], { ...ZOOM, fill: "forwards" })
+      .finished.then(done, done);
+  };
+  const zoomOutRef = useRef(zoomOutTo);
+  zoomOutRef.current = zoomOutTo;
+  useEffect(() => {
+    if (mode !== "browse") return;
+    setOverviewZoomOut(() => zoomOutRef.current(null));
+    return () => setOverviewZoomOut(null);
+  }, [mode]);
+
   if (!mode) return null;
   const activeCard = cards.find(card => leaves(card.root).some(p => p.content === activeId))?.key;
   const aspect = area.canvasWidth > 0 && area.canvasHeight > 0 ? area.canvasWidth / area.canvasHeight : 16 / 10;
@@ -150,10 +230,7 @@ export function CanvasOverview() {
   // leave a sliver between the card and its outline.
   const viewport = { left: 0, top: 0, width: area.canvasWidth || 1000, height: area.canvasHeight || 625 };
   const byId = new Map(tabs.map(tab => [tab.id, tab]));
-  const activate = (card: Card) => {
-    closeOverview();
-    window.dispatchEvent(new CustomEvent("op-activate-center-tab", { detail: { tabId: card.activateId } }));
-  };
+  const activate = (card: Card) => zoomOutTo(card);
   const hint = label || (mode === "drag"
     ? text("Drop on a window to merge · on empty space to open on its own · outside the window for a new window", "拖到某个窗口上合并 · 空白处单独打开 · 拖出窗口新开一个")
     : text("Click a window to switch · Esc to close", "点击窗口切换 · Esc 关闭"));
@@ -167,7 +244,7 @@ export function CanvasOverview() {
       data-alone={hover?.card === null || undefined}
       role={mode === "browse" ? "dialog" : undefined}
       aria-label={text("Window overview", "窗口总览")}
-      onClick={mode === "browse" ? e => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.overviewGrid !== undefined) closeOverview(); } : undefined}
+      onClick={mode === "browse" ? e => { if (e.target === e.currentTarget || (e.target as HTMLElement).dataset.overviewGrid !== undefined) dismissOverview(); } : undefined}
     >
       <div className={styles.grid} data-overview-grid="">
         {cards.map(card => {
@@ -207,6 +284,7 @@ export function CanvasOverview() {
             "data-overview-title": card.title,
             "data-hot": hot || undefined,
             "data-current": card.key === activeCard || undefined,
+            "data-split": leaves(card.root).length > 1 || undefined,
           };
           return mode === "browse"
             ? <button key={card.key} type="button" {...shared} aria-label={card.title} onClick={() => activate(card)}>{body}</button>
