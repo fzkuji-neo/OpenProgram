@@ -378,7 +378,7 @@ const data = await requestReviewScope({
             </span>
           ) : null}
           <div className={styles.totals} aria-label={text("Change totals", "修改统计")}>
-            <span>{text(`${scopeState.file_count} files`, `${scopeState.file_count} 个文件`)}</span>
+            <span>{text(`${scopeState.file_count} ${scopeState.file_count === 1 ? "file" : "files"}`, `${scopeState.file_count} 个文件`)}</span>
             <i>+{scopeState.added ?? "—"}</i>
             <em>−{scopeState.removed ?? "—"}</em>
           </div>
