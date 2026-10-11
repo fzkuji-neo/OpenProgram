@@ -1410,3 +1410,32 @@ def test_public_web_use_open_carries_trusted_resource_owner(
     assert len(commands) == 1
     assert commands[0]["op"] == "open"
     assert commands[0].get("session_id") == (session_id or None)
+
+
+def test_observe_reports_the_page_so_the_preview_follows_reads(monkeypatch):
+    import openprogram.browser_resources as browser_resources
+    from openprogram.programs.workflow.browser.web_use_runtime import (
+        WebUseSessionRegistry,
+    )
+
+    reported = []
+    monkeypatch.setattr(
+        browser_resources, "report_browser_operation",
+        lambda page_key, operation, *, follow, execution_id=None:
+            reported.append((page_key, operation["action"], operation["phase"], follow)),
+    )
+    registry = WebUseSessionRegistry(
+        adapters={
+            name: _Adapter(name)
+            for name in ("playwright_mcp", "chrome_devtools_mcp", "open_claude_chrome")
+        },
+        binding_validator=_allow_binding,
+    )
+    observed = registry.execute(
+        command="observe", backend="playwright_mcp", binding_id="binding-1",
+        page_key="page-1", owner_id="owner-1",
+    )
+
+    assert observed.get("ok") is not False
+    # A read moves the preview but does not claim the page as Agent-controlled.
+    assert reported == [("page-1", "observe", "acknowledged", False)]

@@ -16,7 +16,7 @@ import {
   resourceDisplayTitle,
   resourceIsOperating,
   resourceSessionId,
-  selectResourcePreview,
+  previewResource,
   sessionResourceRows,
   terminalResourceRows,
   useBrowserResourceStore,
@@ -188,7 +188,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
                 if (!sessionId) return;
                 if (row.kind === "web" || row.source === "browser") {
                   setSelected(null);
-                  selectResourcePreview(sessionId, viewedBranch, row.id);
+                  previewResource(sessionId, viewedBranch, row.id);
                   bindPreview(sessionId, row, false);
                   retryRecoverablePage(row, tabs);
                   render(value => value + 1);
@@ -201,7 +201,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
               title={text("Preview in conversation", "在会话中预览")} onClick={() => {
                 if (!sessionId) return;
                 setSelected(null);
-                selectResourcePreview(sessionId, viewedBranch, row.id);
+                previewResource(sessionId, viewedBranch, row.id);
                 previewInConversation(sessionId, row);
                 retryRecoverablePage(row, tabs);
                 render(value => value + 1);

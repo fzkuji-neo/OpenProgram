@@ -16,6 +16,7 @@ import {
   resetBrowserResources,
   getPreviewPreference,
   selectResourcePreview,
+  previewResource,
   followCurrentBranch,
   hideResourcePreview,
   showResourcePreview,
@@ -450,6 +451,36 @@ test("expand preserves follow or fixed mode; pin and unpin keep expanded", () =>
   assert.equal(pref.mode, "follow");
   assert.equal(pref.targetId, "assoc-a");
   assert.equal(pref.expanded, true);
+});
+
+test("clicking a Page previews it until the Agent operates another one", () => {
+  resetBrowserResources();
+  const sessionTabs = [
+    { id: "s:a", kind: "session", sessionId: "a" },
+    { id: "w:a", kind: "web" },
+    { id: "w:b", kind: "web" },
+  ];
+  ingestBrowserResource(browserItem(), "a");
+  ingestBrowserResource(browserItem({
+    id: "assoc-b", resource_id: "page-b", tab_id: "w:b", title: "Pricing",
+    target: "https://b.test", sequence: 2,
+  }), "a");
+  followCurrentBranch("a", "br-a");
+  previewResource("a", "br-a", "assoc-a");
+  assert.equal(getPreviewPreference("a", "br-a").mode, "follow");
+  assert.deepEqual(followPreviewBinding("a", "br-a", sessionTabs), { tabId: "w:a", ownerTabId: "s:a" });
+  ingestBrowserResource(browserItem({
+    id: "assoc-b", resource_id: "page-b", tab_id: "w:b", title: "Pricing",
+    target: "https://b.test", sequence: 3,
+    last_operation: { id: "op-observe", action: "observe", phase: "acknowledged" },
+  }), "a");
+  assert.deepEqual(followPreviewBinding("a", "br-a", sessionTabs), { tabId: "w:b", ownerTabId: "s:a" });
+});
+
+test("a pin is not stored: a reload follows the Agent again", () => {
+  const source = readFileSync(new URL("../../lib/chat/session-resources.ts", import.meta.url), "utf8");
+  const persist = source.slice(source.indexOf("function persistPreferences"), source.indexOf("function writePref"));
+  assert.match(persist, /mode === "manual" \? \{ \.\.\.pref, mode: "follow"/);
 });
 
 test("admitted operations follow per session and branch; pinned targets stay", () => {

@@ -1116,6 +1116,27 @@ class WebUseSessionRegistry:
         failed = isinstance(result, dict) and result.get("ok") is False
         if command in {"observe", "act"} and not failed and not cleaned:
             _publish_bound_page(session, result)
+        if command == "observe" and not failed and not cleaned:
+            # Looking at a Page is working on it: the conversation preview
+            # follows reads too, not only clicks and typing. After publish, so
+            # a Page opened by this observe already has its row.
+            try:
+                from openprogram.browser_resources import (
+                    report_browser_operation, sanitize_operation,
+                )
+                from openprogram.agent.run_control import get_current_execution_id
+                report_browser_operation(
+                    session.page_key,
+                    sanitize_operation(
+                        action="observe", arguments={}, result=result,
+                        frame_id=_result_frame_id(result),
+                        geometry_revision=session.geometry_revision,
+                        phase="acknowledged",
+                    ),
+                    follow=False, execution_id=get_current_execution_id(),
+                )
+            except Exception:
+                pass
 
         if isinstance(result, ToolReturn):
             metadata = (
