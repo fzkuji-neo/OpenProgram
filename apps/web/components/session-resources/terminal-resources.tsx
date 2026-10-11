@@ -8,7 +8,7 @@ import { terminalResourceApi,
   type TerminalResource, type TerminalReply } from "@/lib/desktop/terminal-resources";
 import styles from "./terminal-resources.module.css";
 
-function terminalTheme(): ITheme {
+export function terminalTheme(): ITheme {
   const probe = document.createElement("span");
   probe.hidden = true; document.body.append(probe);
   const keys = { background: "bg", foreground: "fg", cursor: "cursor", cursorAccent: "bg",
@@ -150,4 +150,54 @@ export function TerminalResourceView({ resource, sessionId, onHide }: {
       <button type="button" onClick={() => setConfirmClose(false)}>{text("Cancel", "取消")}</button>
     </div>}
   </section>;
+}
+
+/** A read-only mirror of the SAME native PTY for the chat preview: it reads
+ *  output and never sends input, resizes the terminal or replays anything. */
+export function TerminalMirror({ resource }: { resource: TerminalResource }) {
+  const { text } = useTranslation();
+  const host = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState("");
+  const api = terminalResourceApi();
+
+  useEffect(() => {
+    if (!api || !host.current) return;
+    setError("");
+    const identity = { terminal_id: resource.terminal_id, generation: resource.generation };
+    let disposed = false, terminal: Terminal | undefined, cursor = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let resize: ResizeObserver | undefined;
+    void (async () => {
+      const [{ Terminal: XTerm }, { FitAddon }] = await Promise.all([import("@xterm/xterm"), import("@xterm/addon-fit")]);
+      if (disposed || !host.current) return;
+      terminal = new XTerm({ allowProposedApi: false, disableStdin: true, cursorBlink: false,
+        fontSize: 11, scrollback: 1000, theme: terminalTheme() });
+      const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host.current); fit.fit();
+      resize = new ResizeObserver(() => { if (!disposed) fit.fit(); }); resize.observe(host.current);
+      const poll = async () => {
+        if (disposed || !terminal) return;
+        try {
+          const reply = await api.resource("read", { ...identity, cursor });
+          if (disposed) return;
+          if (!reply.ok || reply.generation !== identity.generation) {
+            setError(reply.error || "terminal_instance_changed"); return;
+          }
+          if (reply.truncated) terminal.writeln(text("[Older output was discarded]", "[较早的输出已被丢弃]"));
+          if (reply.data) await new Promise<void>(resolve => terminal!.write(reply.data!, resolve));
+          cursor = reply.next_cursor ?? cursor;
+          timer = setTimeout(() => { void poll(); }, reply.has_more ? 0 : 500);
+        } catch {
+          if (!disposed) setError("terminal_read_unavailable");
+        }
+      };
+      void poll();
+    })().catch(() => { if (!disposed) setError("terminal_view_unavailable"); });
+    return () => { disposed = true; clearTimeout(timer); resize?.disconnect(); terminal?.dispose(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, resource.terminal_id, resource.generation]);
+
+  return <div className={styles.mirror}>
+    <div className={styles.mirrorScreen} ref={host} />
+    {error && <p className={styles.mirrorError} role="status">{text("Terminal output is unavailable", "终端输出不可用")}</p>}
+  </div>;
 }

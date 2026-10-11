@@ -118,6 +118,15 @@ class CallScope:
                 started_at=self.started_at, ended_at=time.time())
         finally:
             self._stack.close()
+        if (self.capture_io and self.status == 'completed'
+                and isinstance(self.output, dict) and 'target' in self.output):
+            # A step that acted on a native app window: the chat preview
+            # follows it the way it follows web pages.
+            try:
+                from openprogram.native_window_resources import note_operated_window
+                note_operated_window(self.output)
+            except Exception:
+                pass
         return False
 
 

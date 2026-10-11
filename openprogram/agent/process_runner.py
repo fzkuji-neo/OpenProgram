@@ -1202,6 +1202,14 @@ def _child_entry(
         except Exception:
             pass
 
+        # A native app window the child operates goes to the parent, which
+        # owns the conversation's preview state and the App connection.
+        try:
+            from openprogram.native_window_resources import forward_to_parent
+            forward_to_parent(lambda observed: _on_event({"__op_native_window__": True, "data": observed}))
+        except Exception:
+            pass
+
         wrapped = _wrap_agentic_runtime_block(tool, req, _on_event, anchor_msg_id)
 
         import asyncio
@@ -1605,6 +1613,15 @@ def run_agent_method_in_subprocess(
                 parent_session_id=session_id,
                 execution_id=eid,
             )
+            return
+        if isinstance(env, dict) and env.get("__op_native_window__"):
+            try:
+                from openprogram.native_window_resources import record_operated_window
+                data = env.get("data")
+                if isinstance(data, dict):
+                    record_operated_window(data, session_id=session_id, execution_id=eid)
+            except Exception:
+                pass
             return
         if isinstance(env, dict) and env.get("type") == "goal_update":
             try:

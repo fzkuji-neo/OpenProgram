@@ -11,6 +11,7 @@ import { CenterTabStrip } from "./center-tabs/center-tab-strip";
 import { CanvasControls } from "./center-tabs/canvas-controls";
 import { canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
+import { AppPreviewPip } from "./center-tabs/app-preview-pip";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { topLevelTabs } from "@/lib/browser/web-page-management";
 import {
@@ -647,6 +648,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             : null}
           <PersistentFilePanes tabs={tabs} layouts={new Map(panes.flatMap((pane, index) => pane.kind === "session" ? [] : [[pane.tabId, { className: centerPaneClassName(index), style: centerPaneStyle(index) }]]))} activeFileIds={new Set(panes.flatMap((pane) => pane.kind === "session" ? [] : tabs.find((tab) => tab.id === pane.tabId)?.kind === "file" ? [pane.tabId] : []))} />
           {showChat ? <WebTabPip /> : null}
+          {showChat ? <AppPreviewPip /> : null}
           {showChat && tabs.length === 0 ? <EmptyCenter /> : null}
         </div>
       </div>

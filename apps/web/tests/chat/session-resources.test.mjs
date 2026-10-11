@@ -492,7 +492,8 @@ test("a Page listed only from its tab can still be previewed", () => {
 test("a pin is not stored: a reload follows the Agent again", () => {
   const source = readFileSync(new URL("../../lib/chat/session-resources.ts", import.meta.url), "utf8");
   const persist = source.slice(source.indexOf("function persistPreferences"), source.indexOf("function writePref"));
-  assert.match(persist, /mode === "manual" \? \{ \.\.\.pref, mode: "follow"/);
+  assert.match(persist, /mode: "follow" as const/);
+  assert.match(persist, /isAppTarget\(pref\.targetId\) \? null/, "app window and terminal targets are not stored");
 });
 
 test("admitted operations follow per session and branch; pinned targets stay", () => {
@@ -678,4 +679,50 @@ test("persistent terminals use the same scoped resource list and closed grouping
   assert.deepEqual(terminalResourceRows(records, null), []);
   const exited = terminalResourceRows([{ ...records[0], status: "exited" }], "a");
   assert.deepEqual(groupSessionResources(exited), []);
+});
+
+test("the preview follows a desktop app the Agent operates, then the next Page", async () => {
+  resetBrowserResources();
+  const { ingestNativeWindow, nativeWindowFrameUrl, useNativeWindows } = await import("../../lib/browser/native-window-store.ts");
+  const { nativeWindowPreview } = await import("../../lib/chat/session-resources.ts");
+  useNativeWindows.setState({ windows: {} });
+  useBrowserResourceStore.setState({ viewedBranch: { a: "br-a" } });
+  const sessionTabs = [{ id: "s:a", kind: "session", sessionId: "a" }, { id: "w:a", kind: "web" }];
+  ingestBrowserResource(browserItem({
+    sequence: 2, last_operation: { id: "op-web-1", action: "click", phase: "dispatched" },
+  }), "a");
+  assert.deepEqual(followPreviewBinding("a", "br-a", sessionTabs), { tabId: "w:a", ownerTabId: "s:a" });
+
+  const shown = ingestNativeWindow({
+    session_id: "a", execution_id: "exec", window_id: 34327, pid: 9, app_name: "WeChat",
+    sequence: 1, has_frame: true,
+  });
+  assert.equal(nativeWindowPreview("a", "br-a"), 34327);
+  assert.equal(followPreviewBinding("a", "br-a", sessionTabs), null, "the Page preview steps aside");
+  assert.equal(nativeWindowFrameUrl(shown), "/api/session/a/native-window/frame?window_id=34327&v=1");
+  assert.equal(ingestNativeWindow({ ...shown, session_id: "a", window_id: 1, app_name: "Old", sequence: 1 }).windowId,
+    34327, "a repeated or older event changes nothing");
+
+  ingestBrowserResource(browserItem({
+    sequence: 3, last_operation: { id: "op-web-2", action: "click", phase: "dispatched" },
+  }), "a");
+  assert.equal(nativeWindowPreview("a", "br-a"), null);
+  assert.deepEqual(followPreviewBinding("a", "br-a", sessionTabs), { tabId: "w:a", ownerTabId: "s:a" });
+
+  hideResourcePreview("a", "br-a");
+  ingestNativeWindow({ session_id: "a", window_id: 34327, pid: 9, app_name: "WeChat", sequence: 2, has_frame: false });
+  assert.equal(nativeWindowPreview("a", "br-a"), null, "a closed preview stays closed");
+});
+
+test("a pinned Page is not displaced by desktop app steps", async () => {
+  resetBrowserResources();
+  const { ingestNativeWindow, useNativeWindows } = await import("../../lib/browser/native-window-store.ts");
+  const { nativeWindowPreview } = await import("../../lib/chat/session-resources.ts");
+  useNativeWindows.setState({ windows: {} });
+  useBrowserResourceStore.setState({ viewedBranch: { a: "br-a" } });
+  ingestBrowserResource(browserItem(), "a");
+  selectResourcePreview("a", "br-a", "assoc-a");
+  ingestNativeWindow({ session_id: "a", window_id: 5, pid: 9, app_name: "Notes", sequence: 1, has_frame: true });
+  assert.equal(nativeWindowPreview("a", "br-a"), null);
+  assert.equal(getPreviewPreference("a", "br-a").targetId, "assoc-a");
 });

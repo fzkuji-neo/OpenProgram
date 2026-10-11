@@ -99,6 +99,13 @@ export type ResourceControlRequest = {
 };
 
 const PREF_STORAGE = "openprogram.resource-preview";
+/** Preview targets naming a native app window or a Desktop Terminal rather
+ *  than a web Page. Terminal targets match the terminal rows' ids. */
+export const NATIVE_WINDOW_TARGET = "native:";
+export const TERMINAL_TARGET = "terminal:";
+const isAppTarget = (target: string | null | undefined) =>
+  !!target && (target.startsWith(NATIVE_WINDOW_TARGET) || target.startsWith(TERMINAL_TARGET));
+
 const defaultPref = (): PreviewPreference => ({
   targetId: null, mode: "follow", hidden: false, expanded: false,
 });
@@ -158,9 +165,12 @@ function persistPreferences(preferences: Record<string, PreviewPreference>): voi
   try {
     // A pin lasts for this page load. Stored, it outlived the reason for it
     // and the preview never followed the Agent again.
-    const stored = Object.fromEntries(Object.entries(preferences).map(([key, pref]) => [
-      key, pref.mode === "manual" ? { ...pref, mode: "follow" as const } : pref,
-    ]));
+    // An app window's frames live in the worker's memory only.
+    const stored = Object.fromEntries(Object.entries(preferences).map(([key, pref]) => [key, {
+      ...pref,
+      mode: "follow" as const,
+      targetId: isAppTarget(pref.targetId) ? null : pref.targetId,
+    }]));
     localStorage.setItem(PREF_STORAGE, JSON.stringify(stored));
   } catch {
     /* quota / private mode */
@@ -786,6 +796,42 @@ export function followCurrentBranch(sessionId: string, branchId: string | null):
     targetId: latestFollowTarget(sessionId, branchId) ?? getPreviewPreference(sessionId, branchId).targetId,
     hidden: false,
   });
+}
+
+/** The Agent operated a native app window or a terminal: the preview
+ *  follows it, the way it follows Pages, unless a pin holds it elsewhere. */
+export function followAppTarget(sessionId: string, target: string): void {
+  const branchId = viewedBranchFor(sessionId);
+  const key = prefKey(sessionId, branchId);
+  const state = useBrowserResourceStore.getState();
+  const pref = { ...defaultPref(), ...state.preferences[key] };
+  useBrowserResourceStore.setState({
+    latestFollow: { ...state.latestFollow, [key]: target },
+    followEpoch: state.followEpoch + 1,
+  });
+  if (pref.mode === "follow") writePref(sessionId, branchId, { targetId: target });
+}
+
+export function followNativeWindow(sessionId: string, windowId: number): void {
+  followAppTarget(sessionId, `${NATIVE_WINDOW_TARGET}${windowId}`);
+}
+
+/** The app window or terminal the preview shows for this branch, if any. */
+export function appPreviewTarget(sessionId: string, branchId: string | null): string | null {
+  const pref = getPreviewPreference(sessionId, branchId);
+  if (pref.hidden) return null;
+  const target = pref.mode === "follow"
+    ? latestFollowTarget(sessionId, branchId) ?? pref.targetId
+    : pref.targetId;
+  return isAppTarget(target) ? target : null;
+}
+
+/** The native window the preview shows for this branch, if it shows one. */
+export function nativeWindowPreview(sessionId: string, branchId: string | null): number | null {
+  const target = appPreviewTarget(sessionId, branchId);
+  if (!target?.startsWith(NATIVE_WINDOW_TARGET)) return null;
+  const windowId = Number(target.slice(NATIVE_WINDOW_TARGET.length));
+  return Number.isInteger(windowId) ? windowId : null;
 }
 
 export function hideResourcePreview(sessionId: string, branchId: string | null): PreviewPreference {
