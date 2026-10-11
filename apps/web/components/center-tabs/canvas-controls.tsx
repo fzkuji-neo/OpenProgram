@@ -60,6 +60,9 @@ function TabIcon({ tab }: { tab: CenterTab | undefined }) {
   return <SquareDashed aria-hidden />;
 }
 
+/** How long a closed menu takes to fold back into its grip (matches the CSS). */
+const FOLD_MS = 200;
+
 /** Panes carry no title bar: content fills the pane, and a "•••" grip at the
  *  top centre moves the pane (drag). Under the pointer its dots become the
  *  macOS window buttons: red closes the tab, yellow folds the pane back into
@@ -76,13 +79,22 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   const [saveName, setSaveName] = useState<string | null>(null);
   const [activeDivider, setActiveDivider] = useState<{ key: string; snap: number | null } | null>(null);
   const hoverTimer = useRef<number | undefined>(undefined);
+  /** The pane whose menu is folding back into its grip after it closed. */
+  const [folding, setFolding] = useState<string | null>(null);
+  const foldTimer = useRef<number | undefined>(undefined);
   /** The current press on a grip, and whether it has moved like a drag. */
   const press = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   useEffect(() => { try { const v = JSON.parse(localStorage.getItem("centerCanvasPresets") || "[]"); if (Array.isArray(v)) setSaved(v); } catch {} }, []);
-  useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
+  useEffect(() => () => { window.clearTimeout(hoverTimer.current); window.clearTimeout(foldTimer.current); }, []);
+  /** Close the menu: it stays drawn for a moment to fold away, not vanish. */
+  const fold = (paneId: string) => {
+    window.clearTimeout(foldTimer.current);
+    setFolding(paneId);
+    foldTimer.current = window.setTimeout(() => setFolding(null), FOLD_MS);
+  };
   useEffect(() => {
     if (!menu) return;
-    const dismiss = () => { setMenu(null); setSaveName(null); setQuarters(false); };
+    const dismiss = () => { fold(menu.paneId); setMenu(null); setSaveName(null); setQuarters(false); };
     // Option shows the quarters in place of the halves, as on macOS.
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") dismiss(); else if (e.key === "Alt") setQuarters(e.type === "keydown"); };
     window.addEventListener("pointerdown", dismiss);
@@ -123,9 +135,10 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
     if (previous) update(previous);
     return !!previous;
   };
-  const closeMenu = () => { window.clearTimeout(hoverTimer.current); setMenu(null); setSaveName(null); setQuarters(false); };
+  const closeMenu = () => { window.clearTimeout(hoverTimer.current); if (menu) fold(menu.paneId); setMenu(null); setSaveName(null); setQuarters(false); };
   const openMenu = (paneId: string, hover = false) => {
     window.clearTimeout(hoverTimer.current);
+    window.clearTimeout(foldTimer.current); setFolding(null);
     if (!hover) focus(paneId);
     setSaveName(null); setHint(""); setMore(false); setQuarters(false);
     setMenu({ paneId, hover });
@@ -191,7 +204,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
     onFocus: () => setHint(keys ? `${text(en, zh)}  ${keys}` : text(en, zh)),
   });
   /** The tiling menu, unfolded from the grip it belongs to (macOS green button). */
-  const drawer = (paneId: string) => <div role="menu" className={styles.drawer} data-native-view-occluder="true"
+  const drawer = (paneId: string, closing: boolean) => <div className={styles.drawerWrap} data-folding={closing || undefined} aria-hidden={closing || undefined}><div role="menu" className={styles.drawer} data-native-view-occluder="true"
     onPointerDown={e => { e.stopPropagation(); pin(); }}>
     {all.length > 1 && <>
       <div className={styles.menuLabel}>{text("Move and resize", "移动与调整大小")}</div>
@@ -230,7 +243,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
           <button className={styles.saveButton}>{text("Save", "保存")}</button>
         </form>}
     </div>}
-  </div>;
+  </div></div>;
   return <>
     {all.map(p => {
       const rect=geometry.panes.get(p.id)!;
@@ -239,7 +252,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
       const r = zoomed ? canvasRect : rect;
       const tab=tabs.find(t => t.id === p.content), tiny=r.width<150 || r.height<110;
       const title = titleOf(tab);
-      return <div key={p.id} className={styles.pane} data-canvas-pane={p.id} data-canvas-target={targetId} data-canvas-content={p.content ?? undefined} data-single={single || undefined} data-focused={(!single && layout.focusedPaneId === p.id) || undefined} data-menu-open={menu?.paneId === p.id || undefined} style={{ ...r, display: visible ? undefined : "none" }}>
+      return <div key={p.id} className={styles.pane} data-canvas-pane={p.id} data-canvas-target={targetId} data-canvas-content={p.content ?? undefined} data-single={single || undefined} data-focused={(!single && layout.focusedPaneId === p.id) || undefined} data-menu-open={menu?.paneId === p.id || folding === p.id || undefined} style={{ ...r, display: visible ? undefined : "none" }}>
         {!p.content
           ? <div className={styles.empty}>
               <div className={styles.emptyCard}>
@@ -248,9 +261,10 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
               </div>
             </div>
           : tiny ? <button type="button" className={styles.tiny} aria-label={text(`Zoom ${title}`, `放大 ${title}`)} onClick={() => zoom(p.id)}><span><TabIcon tab={tab} /><Maximize2 aria-hidden /></span></button> : null}
-        {!single && <div className={styles.handle} data-open={menu?.paneId === p.id || undefined}
+        {!single && <div className={styles.handle} data-open={menu?.paneId === p.id || undefined} data-folding={(folding === p.id && menu?.paneId !== p.id) || undefined}
           onPointerEnter={() => { if (menu?.hover && menu.paneId === p.id) window.clearTimeout(hoverTimer.current); }}
           onPointerLeave={() => { if (menu?.hover && menu.paneId === p.id) leaveHoverMenu(); else if (!menu) window.clearTimeout(hoverTimer.current); }}>
+          <span className={styles.sheet} aria-hidden="true" />
           <div role="group" className={styles.grip} aria-label={text(`Pane: ${title}`, `格子：${title}`)}
             onPointerDown={e => {
               if (e.button !== 0) return; e.stopPropagation(); if (menu?.hover) closeMenu();
@@ -265,8 +279,9 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
               if (p.content) startPaneDrag(e, p.content, e.currentTarget.querySelector<HTMLElement>("[data-pane-drag-label]"));
             }}
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); openMenu(p.id); }}>
-            <span className={styles.dots} aria-hidden="true"><i /><i /><i /></span>
-            {/* macOS window buttons. A press that turns into a drag never clicks them. */}
+            {/* At rest the three window buttons are the grip's grey dots; under the
+                pointer they grow into the macOS buttons. A press that turns into a
+                drag never clicks them. */}
             <span className={styles.lights}>
               <button type="button" className={styles.light} data-pane-light="close" aria-label={p.content ? text(`Close ${title}`, `关闭 ${title}`) : text("Close pane", "关闭格子")}
                 onClick={pressed(() => closeTab(p.id, p.content))}><X aria-hidden /></button>
@@ -281,7 +296,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
             </span>
             {tab && <PaneDragLabel tab={tab} />}
           </div>
-          {menu?.paneId === p.id && drawer(p.id)}
+          {(menu?.paneId === p.id || folding === p.id) && drawer(p.id, menu?.paneId !== p.id)}
         </div>}
       </div>;
     })}

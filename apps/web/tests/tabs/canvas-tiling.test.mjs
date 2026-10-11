@@ -145,7 +145,11 @@ test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', a
   assert.match(controls, /e\.code === "KeyR"\) \{ e\.preventDefault\(\); restore\(\);/);
   assert.match(controls, /centerCanvasPresets/, 'saved layouts are kept');
   assert.doesNotMatch(controls, /\stitle=\{/, 'no native tooltips on canvas controls');
-  assert.match(controls, /<i \/><i \/><i \/>/, 'the pane keeps its three-dot grip');
+  assert.match(controls, /<span className=\{styles\.sheet\} aria-hidden="true" \/>/, 'the grip has a sheet that drops in under the pointer');
+  const gripCss = await read('components/center-tabs/canvas-controls.module.css');
+  assert.match(gripCss, /\.light \{\n  --light: var\(--text-muted\);[\s\S]*?width: 4px;\n  height: 4px;/, 'at rest the window buttons are the three grey dots of the grip');
+  assert.match(gripCss, /\.handle\[data-open\] \.light,\n\.handle\[data-folding\] \.light \{\n  width: 12px;\n  height: 12px;\n  opacity: 1;\n  background: var\(--light\);/, 'under the pointer the dots grow into the coloured buttons');
+  assert.match(gripCss, /\.sheet \{[\s\S]*?transform-origin: 50% 0;\n  transform: scale\(\.5, 0\);/, 'the grey sheet drops from the top edge');
   assert.match(controls, /if \(menu\?\.hover\) closeMenu\(\);/, 'pressing the grip closes a hover menu before a drag');
 });
 
@@ -188,7 +192,7 @@ test('the grip turns into macOS window buttons and unfolds the tiling menu from 
   assert.match(controls, /onClick=\{pressed\(\(\) => closeTab\(p\.id, p\.content\)\)\}/, 'red closes only on a real click');
   assert.match(controls, /if \(e\.detail > 0 && current\?\.moved\) return; run\(\);/, 'a press that moved never clicks a window button, even after a cancelled drag');
   assert.match(controls, /hoverTimer\.current = window\.setTimeout\(\(\) => openMenu\(p\.id, true\), 250\)/, 'resting on green unfolds the menu');
-  assert.match(controls, /\{menu\?\.paneId === p\.id && drawer\(p\.id\)\}/, 'the menu is attached to its grip, not a floating window');
+  assert.match(controls, /\{\(menu\?\.paneId === p\.id \|\| folding === p\.id\) && drawer\(p\.id, menu\?\.paneId !== p\.id\)\}/, 'the menu is attached to its grip and folds back into it when it closes');
   assert.match(controls, /\(quarters \? QUARTERS : MOVE\)/, 'Option shows the quarters');
   assert.doesNotMatch(controls, /Close pane", "关闭格子"\)\}<span/, 'closing moved to the red and yellow buttons');
   const lifecycle = await read('components/center-tabs/use-tab-lifecycle.ts');
