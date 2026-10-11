@@ -14,7 +14,8 @@
  * dragging; the torn-off window is created at RELEASE.
  */
 import { useLayoutEffect, useRef, useState } from "react";
-import { canvasDropAt, commitCanvasDrop, showCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
+import { clearDropPreview, commitCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
+import { openOverview, overviewDropAt } from "@/lib/tabs/canvas-overview";
 
 import {
   DETACH_HYSTERESIS_PX,
@@ -468,6 +469,9 @@ export function useTabPointerDrag({
       const tx = outsideBand ? dx : Math.min(Math.max(dx, drag.minTx), drag.maxTx);
       drag.lastTy = outsideBand ? dy : 0;
       drag.lastTx = tx;
+      // Leaving the strip opens the window overview; inside it stays a
+      // plain reorder. Once open it stays until the drag ends.
+      if (outsideBand) openOverview("drag", drag.subject.tabIds);
       updateDragPreview(drag, outsideBand);
       drag.element.style.transform = `translate(${tx}px, ${drag.lastTy}px)`;
     }
@@ -486,8 +490,8 @@ export function useTabPointerDrag({
       return;
     }
 
-    const canvasDrop = canvasDropAt(e.clientX, e.clientY, drag.subject.tabIds, e.altKey);
-    showCanvasDrop(canvasDrop);
+    clearDropPreview();
+    const canvasDrop = overviewDropAt(e.clientX, e.clientY);
     if (canvasDrop) {
       drag.detaching = false; drag.overWindow = false; drag.lastIntent = null;
       setDetaching(false); publishDropMarker(null);
@@ -660,7 +664,7 @@ export function useTabPointerDrag({
       clearDragState();
       return;
     }
-    const canvasDrop = resourceTarget ? null : canvasDropAt(e.clientX, e.clientY, drag.subject.tabIds, e.altKey);
+    const canvasDrop = resourceTarget ? null : overviewDropAt(e.clientX, e.clientY);
     if (canvasDrop) {
       restorePointerDragElement(drag.element, false);
       const committed = dragCoordinator.commit();

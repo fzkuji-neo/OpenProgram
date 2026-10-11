@@ -9,6 +9,7 @@ import { Sidebar } from "./sidebar/sidebar";
 import { RightSidebar } from "./right-sidebar/right-sidebar";
 import { CenterTabStrip } from "./center-tabs/center-tab-strip";
 import { CanvasControls } from "./center-tabs/canvas-controls";
+import { CanvasOverview } from "./center-tabs/canvas-overview";
 import { canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
 import { AppPreviewPip } from "./center-tabs/app-preview-pip";
@@ -651,6 +652,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {showChat ? <WebTabPip /> : null}
           {showChat ? <AppPreviewPip /> : null}
           {showChat && tabs.length === 0 ? <EmptyCenter /> : null}
+          {showChat ? <CanvasOverview /> : null}
         </div>
       </div>
       {/* Non-chat routes render their own page content via the router,
