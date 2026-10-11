@@ -553,11 +553,22 @@ reopen_app() {
   fi
   for _ in {1..50}; do
     if pgrep -f "^${app_path}/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.2
+  done
+  if ! pgrep -f "^${app_path}/Contents/MacOS/OpenProgram( |$)" >/dev/null 2>&1; then
+    printf 'OpenProgram did not reopen after the refresh\n' >&2
+    return 1
+  fi
+  # A main process that throws while loading stays alive without a window.
+  for _ in {1..150}; do
+    if pgrep -f "^${app_path}/Contents/Frameworks/OpenProgram Helper \(Renderer\)[.]app/.*--type=renderer" >/dev/null 2>&1; then
       return 0
     fi
     sleep 0.2
   done
-  printf 'OpenProgram did not reopen after the refresh\n' >&2
+  printf 'OpenProgram reopened without a window; its main process likely failed to load\n' >&2
   return 1
 }
 app_verified_for_reopen=1

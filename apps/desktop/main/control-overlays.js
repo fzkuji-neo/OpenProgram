@@ -236,7 +236,7 @@ function createControlOverlays({
     });
   }
 
-  const nativeContextMenus = require("./native-context-menu").createNativeContextMenus(Menu);
+  const nativeContextMenus = require("../native-context-menu").createNativeContextMenus(Menu);
   function nativeMenuOwner(event) {
     const ctx = contextForSender(event);
     if (!ctx || !event.senderFrame || event.sender !== ctx.win.webContents || event.senderFrame !== event.sender.mainFrame) return null;
