@@ -20,32 +20,6 @@ function createWebViews({
   withDebugger,
   tabTransfers,
 }) {
-  // A view that shrinks keeps showing its page's last, wider frame until
-  // the page paints at the new width, and macOS draws that frame past the
-  // view's right edge. Narrowing in place (the right rail opening) leaves
-  // it over the rail sliding in, unseen. Moving right while narrowing (the
-  // left rail opening) would carry the whole old frame out over the right
-  // rail. So a visible view moves right only as far as the width its page
-  // has painted at allows: like the right rail, it narrows first, and the
-  // rest of the move follows the page's report (webtab-preload.js) or,
-  // from a page that never reports, a short timeout.
-  const ORIGIN_HOLD_MS = 200;
-  function holdOrigin(record, target, visible) {
-    record.targetBounds = target;
-    clearTimeout(record.originTimer);
-    const current = record.view.getBounds();
-    const painted = record.paintedWidth;
-    if (!visible || !painted || target.x <= current.x || painted <= target.width) return target;
-    const x = Math.max(current.x, Math.min(target.x, target.x + target.width - painted));
-    if (x < target.x) {
-      record.originTimer = setTimeout(() => {
-        record.paintedWidth = 0;
-        if (record.targetBounds && !record.view.webContents.isDestroyed?.()) record.view.setBounds(record.targetBounds);
-      }, ORIGIN_HOLD_MS);
-    }
-    return { ...target, x };
-  }
-
   function sendState(record, extra) {
     const ctx = ownerOf(record);
     if (!ctx) return;
@@ -313,7 +287,6 @@ function createWebViews({
       const nativeSetVisible = view.setVisible.bind(view);
       view.setBounds = (bounds) => {
         if (record.pipLayoutZoom) bounds = fittedPipBounds(bounds);
-        else bounds = holdOrigin(record, bounds, lastVisible === true);
         const prev = view.getBounds();
         if (!boundsDiffer(prev, bounds)) return;
         nativeSetBounds(bounds);
@@ -351,12 +324,6 @@ function createWebViews({
       const allowPinchZoom = () => { Promise.resolve(wc.setVisualZoomLevelLimits?.(1, 3)).catch(() => {}); };
       allowPinchZoom();
       wc.on("dom-ready", allowPinchZoom);
-      wc.ipc?.on("webtab:painted", (_event, width) => {
-        if (!Number.isFinite(width) || width <= 0) return;
-        record.paintedWidth = Math.round(width * (wc.getZoomFactor?.() || 1));
-        const target = record.targetBounds;
-        if (target && !record.pipLayoutZoom && view.getBounds().x !== target.x) view.setBounds(target);
-      });
       wc.ipc?.on("webtab:pinch-overview", () => {
         const owner = ownerOf(record);
         if (owner && !record.pipLayoutZoom) owner.win.webContents.send("webtab:command", { id: record.id, command: "overview" });
