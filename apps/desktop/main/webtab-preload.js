@@ -1,10 +1,8 @@
 // Runs in every web tab, in its own isolated world: it gives the page
-// nothing and reads nothing from it. Two jobs. The Safari gesture: a
+// nothing and reads nothing from it. Its one job is the Safari gesture: a
 // pinch in on a page at its normal size opens the App's window overview.
 // A pinch out magnifies the page natively (see setVisualZoomLevelLimits in
 // web-views.js), and a pinch in on a magnified page only zooms it back.
-// And the width the page has last painted at, which web-views.js waits
-// for before it moves a view to the right (see holdOrigin there).
 const { ipcRenderer } = require("electron");
 
 let total = 0, spent = false, startScale = 1, timer = 0;
@@ -19,20 +17,3 @@ window.addEventListener("wheel", (e) => {
   total += e.deltaY;
   if (total > 30) { spent = true; ipcRenderer.send("webtab:pinch-overview"); }
 }, { passive: true });
-
-// Two frames after a resize the frame at the new width has been painted.
-// Only the top frame's width is the view's.
-if (window === window.top) {
-  let pending = false;
-  const reportPainted = () => {
-    if (pending) return;
-    pending = true;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      pending = false;
-      ipcRenderer.send("webtab:painted", window.innerWidth);
-    }));
-  };
-  window.addEventListener("resize", reportPainted);
-  window.addEventListener("DOMContentLoaded", reportPainted);
-  reportPainted();
-}
