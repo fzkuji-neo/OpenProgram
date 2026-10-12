@@ -76,6 +76,7 @@ class ProjectionDispatcher:
                 self.store.release_projection_outbox(
                     [pending.outbox_id for pending in claimed[index:]],
                     owner_id=owner_id,
+                    expected_attempts={pending.outbox_id: pending.attempts for pending in claimed[index:]},
                 )
                 break
             handler = self.handlers.get(item.projection_kind)
