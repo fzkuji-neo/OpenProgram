@@ -2,11 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import { beginRailMotion } from "@/lib/layout/rail-motion";
 
 // Keep in sync with --rail-collapsed-w in app/styles/base.css.
 const COLLAPSED_RAIL_WIDTH = 63;
-const RAIL_MS = 150;
 const RAIL_TRANSITION =
   "width 0.15s cubic-bezier(0.165, 0.84, 0.44, 1), min-width 0.15s cubic-bezier(0.165, 0.84, 0.44, 1)";
 
@@ -26,21 +24,6 @@ export function useResizableRail({
   direction,
 }: ResizableRailOptions) {
   const [width, setWidth] = useState(defaultWidth);
-  // The width follows `open` once the web panes have swapped to pictures
-  // (lib/layout/rail-motion). A change before the first paint (restoring
-  // the saved state) applies at once.
-  const [shownOpen, setShownOpen] = useState(open);
-  const painted = useRef(false);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => { painted.current = true; });
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  useEffect(() => {
-    if (!painted.current) { setShownOpen(open); return; }
-    let current = true;
-    void beginRailMotion(RAIL_MS).then(() => { if (current) setShownOpen(open); });
-    return () => { current = false; };
-  }, [open]);
   const [resizing, setResizing] = useState(false);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
@@ -88,8 +71,8 @@ export function useResizableRail({
 
 
   const style: CSSProperties = {
-    width: shownOpen ? `${width}px` : `${COLLAPSED_RAIL_WIDTH}px`,
-    minWidth: shownOpen ? `${minWidth}px` : `${COLLAPSED_RAIL_WIDTH}px`,
+    width: open ? `${width}px` : `${COLLAPSED_RAIL_WIDTH}px`,
+    minWidth: open ? `${minWidth}px` : `${COLLAPSED_RAIL_WIDTH}px`,
     transition: resizing ? "none" : RAIL_TRANSITION,
   };
 
