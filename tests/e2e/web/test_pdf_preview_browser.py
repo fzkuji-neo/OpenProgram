@@ -76,15 +76,15 @@ def pdf_page(pdf_bundle, request):
         def route(request):
             path = urlsplit(request.request.url).path
             if path == "/":
-                request.fulfill(content_type="text/html", headers={"Content-Security-Policy": _shell_content_security_policy().decode()}, body='<div id="root" style="height:720px"></div><script src="/bundle.js"></script>')
+                request.fulfill(content_type="text/html; charset=utf-8", headers={"Content-Security-Policy": _shell_content_security_policy().decode()}, body='<div id="root" style="height:720px"></div><script src="/bundle.js"></script>')
             elif path == "/bundle.js":
-                request.fulfill(content_type="text/javascript", body=pdf_bundle)
+                request.fulfill(content_type="text/javascript; charset=utf-8", body=pdf_bundle)
             elif path.startswith("/document-assets/pdfjs/"):
                 relative = path.removeprefix("/document-assets/pdfjs/")
                 candidate = asset_root / relative
                 if candidate.is_file():
                     if compatibility and relative == "pdf.worker.mjs":
-                        request.fulfill(content_type="text/javascript",
+                        request.fulfill(content_type="text/javascript; charset=utf-8",
                                         body=DESKTOP_MISSING_APIS + "\n" + candidate.read_text())
                     else:
                         request.fulfill(path=str(candidate))

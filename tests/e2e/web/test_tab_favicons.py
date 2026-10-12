@@ -104,8 +104,8 @@ def test_tab_favicons_remain_visible(tmp_path: Path, compound: bool) -> None:
         browser = runtime.chromium.launch()
         try:
             page = browser.new_page()
-            page.route("http://tabs.test/", lambda route: route.fulfill(body='<div id="root"></div>', content_type="text/html"))
-            page.goto("http://tabs.test/")
+            page.route("https://tabs.test/", lambda route: route.fulfill(body='<div id="root"></div>', content_type="text/html"))
+            page.goto("https://tabs.test/")
             page.evaluate("window.process = {env: {NODE_ENV: 'test'}}")
             page.add_script_tag(path=str(bundle))
             page.evaluate("""compound => {
@@ -188,13 +188,13 @@ def test_bookmark_bar_icons_overflow_and_all_bookmarks(tmp_path: Path) -> None:
                   const {createElement:h,createRoot,BookmarkBar}=TabBundle;
                   createRoot(document.getElementById('root')).render(h('div',{className:'webPane'},
                     h('div',{className:'webChrome'},
-                      h('div',{className:'webToolbar'},h('input',{className:'webAddress','aria-label':'Address'})),
+                      h('div',{className:'webToolbar'},h('div',{className:'webAddressBox'},h('div',{className:'webAddressField'},h('input',{className:'webAddress','aria-label':'Address'})))),
                       h(BookmarkBar,{ownerId:'test',onNavigate(url){window.navigated=url}}))));
                 }""", base)
                 website = page.get_by_role('button', name='Website', exact=True)
                 expect(website.locator('canvas')).to_be_visible()
                 assert website.bounding_box()['width'] > 50
-                assert website.bounding_box()['height'] == 30
+                assert website.bounding_box()['height'] == 24
                 assert page.get_by_role('textbox',name='Address').bounding_box()['height'] == 30
                 assert requests and not requests[0].get('Referer')
                 more = page.get_by_role('button', name='Show hidden bookmarks', exact=True)
