@@ -241,7 +241,7 @@ test("corrupt and non-numeric height cache is dropped", () => {
   clearHeights();
 });
 
-test("known container width change drops that chatKey only", () => {
+test("known container width change keeps heights as estimates", () => {
   const store = memStorage();
   bindHeightStorage(store);
   clearHeights();
@@ -252,7 +252,8 @@ test("known container width change drops that chatKey only", () => {
   flushHeightPersist();
   forgetHeightMemory();
   assert.equal(noteChatWidth("wide", 1000), true);
-  assert.equal(getRowHeight("wide", "m1"), undefined);
+  assert.equal(getRowHeight("wide", "m1"), 90);
+  assert.equal(noteChatWidth("wide", 1000), false);
   assert.equal(getRowHeight("keep", "m1"), 40);
   bindHeightStorage(null);
   clearHeights();

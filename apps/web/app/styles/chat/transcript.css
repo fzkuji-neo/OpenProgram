@@ -16,6 +16,23 @@
   /* 让 minimap 能用 cqw 算出聊天区实际宽度，贴到右缘分割线。 */
   container-type: inline-size;
 }
+/* While the chat's width changes (a divider drag, a rail opening, a
+   window resize), rows off screen keep their last laid-out height and
+   skip layout, so each frame re-wraps only the rows in view. The size is
+   remembered all the time; content-visibility only applies mid-resize,
+   so find-in-page, the message rail and hover chrome are untouched at
+   rest. use-message-viewport.ts sets the attribute and keeps the reader's
+   place when it clears. */
+.chat-messages > .msg-slot,
+.chat-messages > .message,
+.chat-messages > div[style*="contents"] > .message {
+  contain-intrinsic-size: auto none;
+}
+.chat-area[data-width-settling] .chat-messages > .msg-slot,
+.chat-area[data-width-settling] .chat-messages > .message,
+.chat-area[data-width-settling] .chat-messages > div[style*="contents"] > .message {
+  content-visibility: auto;
+}
 /* Lock scrolling while the welcome panel is up. Driven by the React
    portal host: `<WelcomeScreen />` renders a child into `#welcome-mount`
    when visible, so `:has(#welcome-mount > *)` is true exactly then — one
