@@ -44,6 +44,7 @@ export function useComposerKeyDown({
     atToken,
     fileMatches,
     fileMenuIndex,
+    fileMenuLoading,
     setFileMenuIndex,
     pickFile,
     closeMenu: closeFileMenu,
@@ -65,6 +66,17 @@ export function useComposerKeyDown({
     // @file mention menu takes precedence — its arrows / enter / esc /
     // tab steer the menu, never fall through to history-recall or
     // the slash menu.
+    if (atToken && fileMenuLoading) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeFileMenu();
+        return;
+      }
+      if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") {
+        e.preventDefault();
+        return;
+      }
+    }
     if (atToken && fileMatches.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();

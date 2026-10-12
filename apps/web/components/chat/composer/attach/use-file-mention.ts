@@ -64,9 +64,13 @@ export function useFileMention({
     () => findAtToken(input, caretPos),
     [input, caretPos],
   );
-  const [fileMatches, setFileMatches] = useState<FileMatch[]>([]);
+  const tokenKey = atToken ? JSON.stringify([atToken.start, atToken.partial]) : null;
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+  const activeToken = tokenKey !== null && tokenKey !== dismissedKey;
+  const [result, setResult] = useState<{ key: string; matches: FileMatch[]; loading: boolean } | null>(null);
+  const fileMatches = activeToken && result?.key === tokenKey ? result.matches : [];
+  const fileMenuLoading = activeToken && (result?.key !== tokenKey || result.loading);
   const [fileMenuIndex, setFileMenuIndex] = useState(0);
-  const [fileMenuLoading, setFileMenuLoading] = useState(false);
   const [fileMenuPos, setFileMenuPos] =
     useState<{ left: number; top: number; bottom?: number } | null>(null);
 
@@ -75,12 +79,14 @@ export function useFileMention({
   // overlapping requests. ``cancelled`` is a per-effect closure flag
   // so a late response from a stale token can't clobber a newer one.
   useEffect(() => {
+    if (dismissedKey !== null && dismissedKey !== tokenKey) setDismissedKey(null);
     if (!atToken) {
-      setFileMatches([]);
+      setDismissedKey(null);
       setFileMenuPos(null);
       return;
     }
-    setFileMenuLoading(true);
+    if (!activeToken || tokenKey === null) return;
+    setResult({ key: tokenKey, matches: [], loading: true });
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
@@ -92,25 +98,23 @@ export function useFileMention({
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = (await r.json()) as { matches: FileMatch[] };
         if (!cancelled) {
-          setFileMatches(data.matches || []);
+          setResult({ key: tokenKey, matches: data.matches || [], loading: false });
           setFileMenuIndex(0);
         }
       } catch {
-        if (!cancelled) setFileMatches([]);
-      } finally {
-        if (!cancelled) setFileMenuLoading(false);
+        if (!cancelled) setResult({ key: tokenKey, matches: [], loading: false });
       }
     }, SEARCH_DEBOUNCE_MS);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [atToken?.partial, atToken?.start]);
+  }, [tokenKey, activeToken]);
 
   // Open the popover upward from the field, starting at the "@" when the
   // field can report caret coordinates (the markdown editor can).
   useLayoutEffect(() => {
-    if (!atToken) return;
+    if (!atToken || !activeToken) { setFileMenuPos(null); return; }
     const ta = textareaRef.current as (HTMLTextAreaElement & {
       coordsAt?: (pos: number) => { left: number; top: number } | null;
     }) | null;
@@ -122,11 +126,11 @@ export function useFileMention({
       top: 0,
       bottom: Math.max(8, window.innerHeight - rect.top + 6),
     });
-  }, [atToken, fileMatches.length, textareaRef]);
+  }, [atToken, activeToken, fileMatches.length, textareaRef]);
 
   const pickFile = useCallback(
     (item: FileMatch) => {
-      if (!atToken) return;
+      if (!atToken || !activeToken || result?.key !== tokenKey || result.loading) return;
       const insert = item.is_dir ? item.path + "/" : item.path + " ";
       const next =
         input.slice(0, atToken.start)
@@ -140,16 +144,16 @@ export function useFileMention({
         ta.setSelectionRange(newCaret, newCaret);
         setCaretPos(newCaret);
       });
-      setFileMatches([]);
+      setDismissedKey(tokenKey);
       setFileMenuPos(null);
     },
-    [atToken, caretPos, input, setInput, textareaRef],
+    [atToken, activeToken, result, tokenKey, caretPos, input, setInput, textareaRef],
   );
 
   const closeMenu = useCallback(() => {
-    setFileMatches([]);
+    setDismissedKey(tokenKey);
     setFileMenuPos(null);
-  }, []);
+  }, [tokenKey]);
 
   return {
     atToken,
