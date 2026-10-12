@@ -24,7 +24,7 @@
 <a id="also-in-the-product"></a>
 
 
-<b>Self-Programming AI Assistant. Capture, automate, and refine all your workflows.</b>
+<p align="center"><b>Self-Programming AI Assistant. Capture, automate, and refine all your workflows.</b></p>
 
 <p align="center">
   <a href="https://arxiv.org/abs/2606.15874"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2606.15874-b31b1b?style=flat-square"></a>
@@ -36,9 +36,18 @@
 </p>
 
 
-[English](README.md) · [Chinese](README.zh.md) · [Documentation](docs/README.md) · [API](docs/reference/API.md)
+<p align="center">
+  <a href="README.md">English</a> · <a href="README.zh.md">简体中文</a> · <a href="docs/README.md">Documentation</a> · <a href="docs/reference/API.md">API</a> · <a href="https://arxiv.org/abs/2606.15874">Paper</a>
+</p>
 
-Python controls execution, validation and recovery; model calls provide decisions and generated content. Agentic functions, execution records and workflows make those operations inspectable and reusable. The [programming guide](docs/capabilities/agentic-programming/README.md) explains the model and APIs.
+OpenProgram is an AI assistant and a Python framework in one. In the framework, Python owns the control flow, validation and recovery, and the model is called only where judgment or writing is needed. Every call lands in an execution graph you can inspect, branch and reuse. The assistant runs on the same runtime: a desktop and web workspace where chats, files, a terminal and a built-in browser sit side by side, and the agent can work in all of them.
+
+- **It programs itself.** Agents write and revise their own methods as Python files, and a watcher loads each change for the next turn.
+- **Agents as programs.** An agent is a Python class. Branches, loops and checks are ordinary code; `self(...)` is a model call.
+- **A graph, not a transcript.** User turns, model calls and function calls are nodes. Context is a selection of nodes, so sub-agents get their own branch and hand back only their result.
+- **Checked decisions.** The model proposes, code validates, and a bad pick goes back for another try instead of running.
+- **One workspace.** Chat, files, terminal and a browser the agent can drive, in split panes, on macOS, Windows, Linux or a server.
+- **Any model.** Anthropic, OpenAI, Gemini, local inference servers and more, with several accounts per provider.
 
 ## Install
 
@@ -48,17 +57,17 @@ macOS and Linux:
 curl -fsSL https://openprogram.io/install | sh
 ```
 
-Windows x86_64 or arm64 CLI/server, when the selected release includes its runtime assets:
+Windows x86_64 or arm64 CLI and server, when the selected release includes its runtime assets:
 
 ```powershell
 irm https://openprogram.io/install.ps1 | iex
 ```
 
-macOS desktop releases use a signed, notarized DMG. Windows desktop installers are available when a signed `win-x64.exe` or `win-arm64.exe` is attached to the [release](https://github.com/fzkuji-neo/OpenProgram/releases). See [installation](docs/install/install.md) for platform requirements, source installation and troubleshooting.
+The macOS desktop App ships as a signed, notarized DMG. Windows desktop installers are available when a signed `win-x64.exe` or `win-arm64.exe` is attached to the [release](https://github.com/fzkuji-neo/OpenProgram/releases). See [installation](docs/install/install.md) for platform requirements, source installation and troubleshooting.
 
 ## Quick start
 
-Start the setup wizard and terminal chat:
+Start the setup wizard and the terminal chat:
 
 ```bash
 openprogram
@@ -70,108 +79,107 @@ Open the browser interface at http://localhost:18100:
 openprogram web
 ```
 
-Verify the configured provider with one reply:
+Check the configured provider with one reply:
 
 ```bash
 openprogram --print "Introduce yourself in one sentence"
 ```
 
-Use `openprogram setup` to change provider settings. Continue with [getting started](docs/start/GETTING_STARTED.md), [model configuration](docs/models/README.md), or the [documentation overview](docs/README.md).
+Run `openprogram setup` to change provider settings. Continue with [getting started](docs/start/GETTING_STARTED.md), [model configuration](docs/models/README.md) or the [documentation overview](docs/README.md).
 
-## Core concepts
+## How it works
 
-### Agentic functions
+### Agent classes
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/00-agentic-function.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/00-agentic-function-light.png">
-    <img src="docs/images/highlights/00-agentic-function.png" alt="Agentic functions: Python control flow and explicit model calls" width="900">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/00-agent-class.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/00-agent-class-light.svg">
+    <img src="docs/images/highlights/00-agent-class-light.svg" alt="Agent classes: Python runs the program and the model makes the calls" width="900">
   </picture>
 </p>
 
-An agent can be a Python class with ordinary methods. Its docstring describes the function, arguments supply inputs, and `llm()` requests model output. Ordinary Python handles branching and validation.
-
-This excerpt assumes a `search_logs` helper and an active runtime:
+An agent is a Python class with ordinary methods. The docstring describes the call, the arguments carry the data, and `self(...)` asks the model. Branching, retries and checks stay in Python, so the parts that must happen always happen.
 
 ```python
 from openprogram import Agent
-from openprogram.agentic_programming import llm
 
-class ExampleAgent(Agent):
-    method_options = {
-        'triage': {'tool': True},
-    }
-
-    def triage(self, ticket: str, runtime=None) -> str:
+class SupportAgent(Agent):
+    def triage(self, ticket: str) -> str:
         """Classify the ticket, then draft a reply."""
-        kind = llm(ticket, choices=["bug", "feature", "question"])
+        kind = self(ticket, choices=["bug", "question"])
         if kind == "bug":
-            logs = search_logs(ticket)
-            return llm(f"Reply using:\n{logs}")
-        return llm("Draft a short reply.")
+            logs = search_logs(ticket)  # your own helper
+            return self(f"Reply using:\n{logs}")
+        return self("Draft a short reply.")
 
-_example_agent = ExampleAgent()
-triage = _example_agent.triage
+reply = SupportAgent().triage("The export button crashes the app.")
 ```
 
-See [function reference](docs/reference/api/agent.md) for parameters and behavior.
+See [writing agents](docs/capabilities/agentic-programming/writing-functions/agent.md) and the [Agent reference](docs/reference/api/agent.md).
 
 ### DAG context
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/01-dag-context.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/01-dag-context-light.png">
-    <img src="docs/images/highlights/01-dag-context.png" alt="Execution DAG: calls, context selection and branch collaboration" width="900">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/01-dag-context.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/01-dag-context-light.svg">
+    <img src="docs/images/highlights/01-dag-context-light.svg" alt="Execution DAG: every call is a node and context is a selection of nodes" width="900">
   </picture>
 </p>
 
-User turns, model calls and function calls are recorded as DAG nodes. Context selection determines which recorded outputs a call reads. Branches support isolated sub-agents, cross-branch messages and alternative execution histories; file-changing agents can use Git worktrees. See [context](docs/reference/design/context/README.md) and [collaboration](docs/reference/design/runtime/agent-collaboration.md).
+User turns, model calls and function calls are recorded as nodes in one graph. Each call reads a selection of earlier nodes rather than a growing private transcript. A sub-agent runs on its own branch, optionally in its own Git worktree, and only its result joins the main line. Branches also let you retry from any point or keep alternative histories. See [context](docs/reference/design/context/README.md) and [collaboration](docs/reference/design/runtime/agent-collaboration.md).
 
 ### Workflows
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/02-agentic-workflow.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/02-agentic-workflow-light.png">
-    <img src="docs/images/highlights/02-agentic-workflow.png" alt="Workflows: reusable Python functions and validated model decisions" width="900">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/02-agentic-workflow.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/02-agentic-workflow-light.svg">
+    <img src="docs/images/highlights/02-agentic-workflow-light.svg" alt="Workflows: code validates model decisions, and agents extend their own methods" width="900">
   </picture>
 </p>
 
-Python defines required steps and checks model decisions before execution continues. Agents can create and revise their `Agent` method files using file tools; the watcher loads eligible changes for later calls. See [workflows](docs/capabilities/agentic-workflow.md) for authoring, reuse and validation.
+`decision.make(prompt, options)` offers the model a fixed menu. Code checks the pick before anything runs, and an unknown option or bad argument goes back to the model. Agents can also write and revise their own `Agent` method files with ordinary file tools; a watcher reloads eligible changes, and the new method is available from the next turn. See [workflows](docs/capabilities/agentic-workflow.md) and [choosing the next step](docs/capabilities/agentic-programming/choosing-the-next-step/next-step-decision.md).
 
 ### Events
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/03-event-infrastructure.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/03-event-infrastructure-light.png">
-    <img src="docs/images/highlights/03-event-infrastructure.png" alt="Events: subscriptions to agent, context, channel and memory activity" width="900">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/03-event-infrastructure.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/03-event-infrastructure-light.svg">
+    <img src="docs/images/highlights/03-event-infrastructure-light.svg" alt="Events: one bus, async observers and a synchronous tool gate" width="900">
   </picture>
 </p>
 
-The process event bus publishes typed events from agent execution, authentication, context, channels and memory. Subscribers can respond to selected event types. For example:
+One process-wide bus carries typed events from the agent loop, context, files, channels and memory. Subscribers observe the event types they ask for, and a plugin can subscribe to `tool.before` as a gate that allows or denies a tool call.
 
 ```python
 from openprogram.events import get_event_bus
 
 unsubscribe = get_event_bus().subscribe(
-    lambda event: print(event.payload),
+    lambda event: print(event.type, event.payload),
     types={"context.compacted", "file.changed"},
 )
 # Call unsubscribe() when the subscriber is no longer needed.
 ```
 
-Event delivery and autonomous policy execution have separate implementation boundaries. See [events](docs/reference/design/proactive/event-layer.md) and [feature status](docs/reference/design/feature-matrix.html).
+See [events](docs/reference/design/proactive/event-layer.md), [plugins](docs/capabilities/plugins.md) and [feature status](docs/reference/design/feature-matrix.html).
 
-## Features
+## What you can do with it
 
-- [Memory](docs/capabilities/memory.md): stored evidence, retrieval and background writing.
-- [Interfaces](docs/interfaces/README.md): desktop, browser and terminal access.
-- [Goals](docs/capabilities/goal.md): persistent objectives in ordinary conversations.
-- [Providers](docs/models/providers.md): model services, credentials and accounts.
-- [Updates](docs/install/upgrade.md): installation updates and recovery boundaries.
+| | |
+|---|---|
+| **[Desktop App and built-in browser](docs/interfaces/desktop.md)** | Split chats, files, terminals and web pages into panes. The agent reads and operates pages in the built-in browser while you watch. |
+| **[GUI agent](docs/capabilities/workflows/gui-agent.md)** | Hand over a task that needs the desktop, a browser page or a remote VM. |
+| **[Permissions](docs/capabilities/permissions.md)** | Approve, deny or deny with a note before a tool runs; the model reads your note and adjusts. |
+| **[Memory](docs/capabilities/memory.md)** | Stored evidence, retrieval and background writing across conversations. |
+| **[Goals](docs/capabilities/goal.md)** | Keep a long-running objective alive across ordinary conversations. |
+| **[Agents](docs/capabilities/agents.md)** | Save a model, instructions, capabilities and memory access as a reusable Agent. |
+| **[Channels](docs/integrations/channels.md)** | Talk to your agents from Telegram, Discord, Slack and WeChat. |
+| **[Models](docs/models/providers.md)** | Anthropic, OpenAI, Gemini, [local servers](docs/models/local-models.md) and multiple accounts per provider. |
+| **[Skills](docs/capabilities/skills.md), [MCP](docs/capabilities/mcp.md) and [plugins](docs/capabilities/plugins.md)** | Extend what the agent knows and which tools it can call. |
+| **[Interfaces](docs/interfaces/README.md)** | Desktop App, web UI, terminal UI, CLI and ACP. |
 
 ## Related projects
 
@@ -185,12 +193,14 @@ Install programs with `openprogram programs install <owner>/<repo>`. See [progra
 
 ## News
 
+- 2026-10-11: deny with a note: a declined approval carries your reason to the model.
+- 2026-10-11: split view tiles like macOS windows, with a Mission Control style overview.
+- 2026-10-01: local inference servers, with optional authentication.
+- 2026-09-30: configurable Agents with scoped memory.
 - 2026-08-17: built-in browser with panes, bookmarks, history and agent interaction.
 - 2026-07-21: sub-agents, cross-session messaging and Git worktree isolation.
 - 2026-06-22: paper accepted at the KDD 2026 Workshop on Agentic Software Engineering.
 - 2026-06-07: installable programs and multiple provider accounts with key rotation.
-- 2026-05-28: Web UI design system.
-- 2026-04-04: built-in Anthropic, OpenAI and Gemini providers.
 - 2026-04-03: initial release with agentic functions and an execution DAG.
 
 ## Citation

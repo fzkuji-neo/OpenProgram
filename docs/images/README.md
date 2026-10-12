@@ -81,6 +81,27 @@ Sync rule:
 - Edit `docs/images/logo.svg` first.
 - Copy the same SVG to `apps/web/public/images/logo.svg`.
 
+## README Figures
+
+The four concept figures in `README.md` and `README.zh.md` live in
+`docs/images/highlights/`: `00-agent-class`, `01-dag-context`,
+`02-agentic-workflow` and `03-event-infrastructure`, each as a dark `.svg` and a
+`-light.svg`. The READMEs pick one with `<picture>` and `prefers-color-scheme`.
+
+They are generated; do not edit the SVG files by hand. Change
+`scripts/readme_figures.py` and run:
+
+```bash
+python -m scripts.readme_figures
+```
+
+The script converts all text to outlines with fontTools (Instrument Sans and
+Geist Mono, looked up in `~/Library/Fonts`, `/Library/Fonts` or
+`$OPENPROGRAM_FIGURE_FONTS`), so GitHub's `<img>` sandbox, which loads no web
+fonts, shows the same shapes. Motion uses SMIL with one loop per figure; a viewer
+without SMIL shows every element at once. Figure text is English only, so both
+READMEs use the same files.
+
 ## Social Card
 
 - `docs/images/openprogram-social-card.svg` is the source; `openprogram-social-card.png`
