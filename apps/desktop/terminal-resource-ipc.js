@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const http = require("node:http");
 const { execFileSync } = require("node:child_process");
+const { prepareShellIntegration } = require("./terminal-shell-integration");
 const { createTerminalResourceManager } = require("./terminal-resource-manager");
 const { resolveTerminalCommand, waitForTerminalPid, killWindowsProcessTree } = require("./terminal-command");
 
@@ -109,8 +110,8 @@ function registerTerminalResourceIpc({ ipcMain, app, contextForSender, origin, g
     resolveLaunch(request) {
       const cwd = fileSystem.realpathSync(request.cwd || app.getPath("home"));
       if (!fileSystem.statSync(cwd).isDirectory()) throw Error("invalid_cwd");
-      return { ...resolveTerminalCommand(request.preset, { platform, env, existsSync: fileSystem.existsSync }),
-        cwd, env: { ...env, TERM: "xterm-256color", COLORTERM: "truecolor" } };
+      return prepareShellIntegration({ ...resolveTerminalCommand(request.preset, { platform, env, existsSync: fileSystem.existsSync }),
+        cwd, env: { ...env, TERM: "xterm-256color", COLORTERM: "truecolor" } }, { preset: request.preset, platform });
     },
     emit(sender, kind, value) {
       if (sender.isDestroyed()) return;

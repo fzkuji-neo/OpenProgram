@@ -150,6 +150,20 @@ App 或 worker 重启时正在操作网页的 Agent 会继续使用浏览器工�
 
 输入已送达不代表命令成功。输入结果不确定时不会自动重发。“重新连接视图”仅重新读取输出。用户尚未提交的输入片段或输入版本变化会阻止 Agent 继续冲突操作，Agent 必须重新观察。
 
+普通 macOS zsh 和兼容 Bash 3.2 登录 shell 的 `terminal_use(action="observe", ...)` 与 `resource(provider="terminal", action="observe", ...)` 还会返回可选的 `shell_integration`，内容由 shell 报告：
+
+| 字段 | 含义 |
+|---|---|
+| `status` | `starting`、`ready`、`unavailable` 或 `ended`。 |
+| `mode`、`reason` | 所选集成（`zsh-hooks` 或 `bash-debug`）及不可用原因（如有）。 |
+| `event_sequence` | 最近一次接受的 shell 报告序号。 |
+| `cwd` | `value` 是最近报告的目录，附带对应 `event_sequence`；收到报告前为 `null`。 |
+| `cycle` | 前台命令周期的 `id`、`phase`（`running`、`finished` 或 `unknown`）和 `exit_code`；首条命令前为 `null`。 |
+
+`start_cwd` 仍是起始目录，顶层 `exit_code` 属于终端进程。只有匹配的前台周期完成后，才报告该周期的退出码；后台任务仍可能继续运行。输入回执保持 `command_complete=null`：输入送达、shell 命令完成和外部效果成功是不同事实。报告不授予权限，shell hooks 改变后报告可能过时。
+
+已有 bash-preexec、自定义 DEBUG trap、已有或被替换的 prompt command、只读 prompt 配置及不兼容 tracing 设置会回退为 `unavailable`，不替换用户 hooks。不支持的 shell 和 preset 保留正常终端输入输出。旧宿主缺少元数据或元数据为 `unavailable` 时，命令状态未知；不能根据提示符或输出安静推断成功。这些字段是工具观察结果，不是新增的终端控件。
+
 ### Agent 统一资源接口
 
 `resource` 工具通过 `describe` 返回 provider 及其支持的操作和参数结构。先调用 `resource(action="describe")`，再按返回的结构调用。内置 `web` 和 `terminal` 保留原有资源标识和检查；现有 `web_use`、`terminal_use` 继续兼容。对网页 Page，`release` 只结束 Agent 的控制会话，网页保持打开；`resource` 和 `web_use` 里的 `close` 会关闭这个网页标签并返回 `page_closed`，App 没有确认关闭时返回错误。例如 `resource(provider="terminal", action="list")` 列出可用 shell，`observe` 返回后续操作需要的 generation、binding、input revision 和输出 cursor。
