@@ -32,7 +32,8 @@ function escapeAttr(value: string): string {
 function withPasteChips(html: string, spans: { label: string; text: string }[], hint: string): string {
   let out = html;
   spans.forEach((span, index) => {
-    const preview = maskSecrets(span.text.slice(0, 400)) + (span.text.length > 400 ? "…" : "");
+    const masked = maskSecrets(span.text);
+    const preview = masked.slice(0, 400) + (masked.length > 400 ? "…" : "");
     const chip = `<button type="button" class="user-paste-chip" title="${escapeAttr(`${hint}\n\n${preview}`)}">`
       + `<span class="user-paste-chip-icon" aria-hidden="true">¶</span>${escapeAttr(span.label)}</button>`;
     out = out.split(pasteSentinel(index)).join(chip);
@@ -86,7 +87,16 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
   const { attachments, text: proseText } = parseAttachments(collapsed.content);
   // Access tokens and private keys show masked, each with an eye button.
   const { content: cleanText, secrets } = collapseSecrets(proseText);
-  const [revealed, setRevealed] = useState<ReadonlySet<number>>(() => new Set());
+  const [revealState, setRevealState] = useState(() => ({
+    sessionId, messageId: msg.id, proseText, indices: new Set<number>(),
+  }));
+  // Indices identify secrets only within this exact rendered message.
+  const sameRevealScope = revealState.sessionId === sessionId
+    && revealState.messageId === msg.id && revealState.proseText === proseText;
+  const revealed = sameRevealScope ? revealState.indices : new Set<number>();
+  if (!sameRevealScope) {
+    setRevealState({ sessionId, messageId: msg.id, proseText, indices: revealed });
+  }
 
   // Align the side avatar to the first line of text inside the bubble.
   const { containerRef, avatarTop } = useAvatarAlign(
@@ -133,10 +143,10 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
                   const toggle = target.closest?.<HTMLElement>(".user-secret-toggle");
                   if (toggle) {
                     const index = Number(toggle.dataset.secretIndex);
-                    setRevealed((prev) => {
-                      const next = new Set(prev);
+                    setRevealState((prev) => {
+                      const next = new Set(prev.indices);
                       if (!next.delete(index)) next.add(index);
-                      return next;
+                      return { ...prev, indices: next };
                     });
                   }
                 }}
