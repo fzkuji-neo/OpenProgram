@@ -533,7 +533,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:10px 11px
     <p class="intro" style="margin-top:12px">实现证据写入对应测试；本设计页只维护当前合同与总体状态。</p>
   </details></section>
 <section><h2>跨平台快照一致性</h2><p>普通文件快照比较读取前后的描述符元数据，以及打开前与读取后的路径元数据。描述符和路径身份的设备与 inode 必须一致。不同操作系统 API 的元数据不能假定具有相同时间戳或权限表示后直接比较。任一观察变化都中止发布；存储权限取自路径观察。在 Windows 上，旧格式迁移先以可写句柄打开暂存文件再刷盘，直到发布成功前始终保留源文件。</p></section>
-<section id="markdown-reading-status"><h2>实现状态附录：Markdown 阅读</h2><p data-status="review-passed">Files Markdown 安全：源码实现已具备；独立规格与质量审查及受影响检查通过。整批代码的最终验证和安装后的 App 验收仍待完成。</p><p data-status="review-passed">Markdown 标题导航：源码实现已具备；独立规格与质量审查及受影响检查通过。整批代码的最终验证和安装后的 App 验收仍待完成。Wiki 链接、转录嵌入、大纲与 Agent 章节附件不属于本批。</p></section>
+<section id="markdown-reading-status"><h2>实现状态附录：Markdown 阅读</h2><p data-status="review-passed">Files Markdown 安全：源码实现已具备；独立规格与质量审查及受影响检查通过。整批代码的自动化验证已通过；安装后的 App 验收仍待完成。</p><p data-status="review-passed">Markdown 标题导航：源码实现已具备；独立规格与质量审查及受影响检查通过。整批代码的自动化验证已通过；安装后的 App 验收仍待完成。Wiki 链接、转录嵌入、大纲与 Agent 章节附件不属于本批。</p></section>
 </main>
 <script>
 const OP={
