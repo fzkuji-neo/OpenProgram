@@ -77,3 +77,14 @@ test('inventory filters completed Pages again when other native inspections fini
  finish({target_id:'target-slow',url:'https://slow.example',title:'Slow'});
  assert.deepEqual((await pending).pages.map(item=>item.tab_id),['w:slow']);
 });
+
+test('focusing the other pane of a split keeps the first pane\'s preview',()=>{
+ reset();
+ const group={id:'g:split',memberIds:['s:A','s:B'],visibleIds:['s:A','s:B'],focusedId:'s:B'};
+ c.setState({tabs:[...c.getState().tabs,{id:'s:B',kind:'session',sessionId:'B',title:'B'}],activeId:'s:B',groups:[group]});
+ applyFollowPreview('B',c.getState().tabs);
+ assert.equal(p.getState().tabId,page.id); assert.equal(visible(),'chat');
+ c.setState({groups:[]});
+ applyFollowPreview('B',c.getState().tabs);
+ assert.equal(p.getState().tabId,null,'a pane that left the screen takes its preview with it');
+});
