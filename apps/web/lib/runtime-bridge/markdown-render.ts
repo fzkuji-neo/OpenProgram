@@ -116,8 +116,9 @@ export function renderMd(s: unknown): string {
 
 export function typesetMath(root: ParentNode): void {
   if (typeof document === "undefined") return;
-  root.querySelectorAll<HTMLElement>(".md-rendered").forEach((el) => {
-    if (el.dataset.mathRendered) return;
+  // The selector skips typeset blocks itself: this runs on every chat
+  // resize, and a pane drag resizes the chat every frame.
+  root.querySelectorAll<HTMLElement>(".md-rendered:not([data-math-rendered])").forEach((el) => {
     renderMathInElement(el, {
       delimiters: [
         { left: "$$", right: "$$", display: true },

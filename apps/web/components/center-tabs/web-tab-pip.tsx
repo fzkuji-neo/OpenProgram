@@ -336,6 +336,10 @@ export function WebTabPip() {
   const resource = tabId ? resourceForTab(tabId) : undefined;
   const control = resource ? controlResourceFromSession(resource) : null;
   const center = { tabs, activeId, groups, splitWebTabId };
+  // Which panes are on the canvas, not their sizes: a divider drag changes
+  // the sizes every frame, and the ResizeObserver below follows those
+  // after layout instead of forcing one per frame here.
+  const paneSet = groups.map((group) => group.visibleIds.join(",")).join("|");
   // The window overview shows each window as it is, without the floating
   // preview over it; the preview comes back when the overview closes.
   const overview = useCanvasOverview((s) => s.mode !== null);
@@ -404,7 +408,7 @@ export function WebTabPip() {
         ? prev
         : next
     ));
-  }, [live, expanded, rect, expandedSize, groups, activeId, tabId, ownerTabId]);
+  }, [live, expanded, rect, expandedSize, paneSet, activeId, tabId, ownerTabId]);
 
   useEffect(() => {
     const el = rootRef.current;
@@ -435,7 +439,7 @@ export function WebTabPip() {
     if (chat instanceof HTMLElement) ro.observe(chat);
     reclamp();
     return () => ro.disconnect();
-  }, [live, expanded, setRect, tabId, groups, activeId, ownerTabId]);
+  }, [live, expanded, setRect, tabId, paneSet, activeId, ownerTabId]);
 
   useEffect(() => {
     if (!tabId || !live || interactive) return;
