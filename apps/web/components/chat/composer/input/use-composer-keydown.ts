@@ -94,11 +94,12 @@ export function useComposerKeyDown({
     // the first / last visual line of the textarea, so multi-line
     // editing still works naturally.
     if (e.key === "ArrowUp" && !slash.visible && !e.shiftKey
-        && !e.metaKey && !e.altKey) {
+        && !e.metaKey && !e.altKey && !e.ctrlKey) {
       if (recallPrevious(e, input, setInput)) return;
     }
     if (e.key === "ArrowDown" && !slash.visible && historyIndex >= 0
-        && !e.shiftKey && !e.metaKey && !e.altKey) {
+        && !e.shiftKey && !e.metaKey && !e.altKey && !e.ctrlKey
+        && e.currentTarget.selectionStart === e.currentTarget.selectionEnd) {
       e.preventDefault();
       recallNext(setInput);
       return;

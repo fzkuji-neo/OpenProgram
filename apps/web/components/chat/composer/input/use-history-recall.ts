@@ -9,7 +9,7 @@
  * is on the first (or last) visual line so multi-line editing still works;
  * once engaged (`index >= 0`) the arrows keep stepping regardless of caret.
  */
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useSessionStore } from "@/lib/session-store";
@@ -28,6 +28,7 @@ const EMPTY_HISTORY: string[] = [];
 export function useHistoryRecall(
   bound: string | null,
   currentSessionId: string | null,
+  input: string,
 ) {
   // History recall — user messages from the active session, ordered
   // oldest-first to match TUI semantics. Built from
@@ -60,11 +61,21 @@ export function useHistoryRecall(
       return out;
     }),
   );
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
-  // Reset history index when the session switches.
+  const owner = bound ?? currentSessionId;
+  const [recall, setRecall] = useState({ owner, index: -1, draft: "", value: "" });
+  const historyIndex = recall.owner === owner && recall.value === input ? recall.index : -1;
+  const setHistoryIndex = useCallback((index: number) => {
+    setRecall(previous => ({ ...previous, owner, index }));
+  }, [owner]);
+  const current = useRef({ owner, input });
+  current.current = { owner, input };
+  const caretFrame = useRef<number | null>(null);
   useEffect(() => {
-    setHistoryIndex(-1);
-  }, [currentSessionId]);
+    setRecall({ owner, index: -1, draft: "", value: "" });
+    return () => {
+      if (caretFrame.current !== null) cancelAnimationFrame(caretFrame.current);
+    };
+  }, [owner]);
 
   /** ↑ handler. Returns true when it consumed the key. */
   function recallPrevious(
@@ -79,18 +90,22 @@ export function useHistoryRecall(
     const firstNewline = input.indexOf("\n");
     const onFirstLine = ta.selectionStart === ta.selectionEnd
       && ta.selectionStart <= (firstNewline < 0 ? input.length : firstNewline);
-    if (history.length === 0 || (historyIndex < 0 && !onFirstLine)) return false;
+    if (ta.selectionStart !== ta.selectionEnd || history.length === 0 || (historyIndex < 0 && !onFirstLine)) return false;
     e.preventDefault();
     const next = historyIndex < 0
       ? history.length - 1
       : Math.max(0, historyIndex - 1);
-    setHistoryIndex(next);
+    setRecall({ owner, index: next, draft: historyIndex < 0 ? input : recall.draft, value: history[next] ?? "" });
     setInput(history[next] ?? "");
     // Move caret to end so the next ↑ keeps recalling instead of
     // moving inside the freshly-loaded text.
-    requestAnimationFrame(() => {
+    if (caretFrame.current !== null) cancelAnimationFrame(caretFrame.current);
+    caretFrame.current = requestAnimationFrame(() => {
+      caretFrame.current = null;
       const v = history[next] ?? "";
-      ta.setSelectionRange(v.length, v.length);
+      if (current.current.owner === owner && current.current.input === v) {
+        ta.setSelectionRange(v.length, v.length);
+      }
     });
     return true;
   }
@@ -100,9 +115,9 @@ export function useHistoryRecall(
     const next = historyIndex + 1;
     if (next >= history.length) {
       setHistoryIndex(-1);
-      setInput("");
+      setInput(recall.draft);
     } else {
-      setHistoryIndex(next);
+      setRecall({ ...recall, index: next, value: history[next] ?? "" });
       setInput(history[next] ?? "");
     }
   }
