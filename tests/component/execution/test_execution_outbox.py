@@ -394,3 +394,51 @@ def test_v4_migration_rolls_back_tables_and_version_on_backfill_failure(tmp_path
         }
     assert "execution_projection_outbox" not in tables
     assert "execution_inputs" not in tables
+
+
+def test_dispatcher_does_not_start_expired_batch_callbacks(tmp_path, monkeypatch):
+    store = _store(tmp_path)
+    execution = _admit(store)
+    clock = [time.time()]
+    monkeypatch.setattr('openprogram.execution.store.projections.time.time', lambda: clock[0])
+    seen = []
+
+    def handle(item):
+        seen.append(item.outbox_id)
+        clock[0] += 31
+
+    result = ProjectionDispatcher(store, {kind: handle for kind in PROJECTION_KINDS}).dispatch_once(
+        owner_id='worker', lease_ttl_seconds=30,
+    )
+    assert len(seen) == 1
+    assert result.failed == len(PROJECTION_KINDS)
+    assert result.delivered == 0
+    assert store.get_execution(execution.execution_id) == execution
+    assert store.reclaim_projection_outbox() == len(PROJECTION_KINDS)
+
+
+@pytest.mark.parametrize('handler_fails', [False, True])
+def test_dispatcher_cannot_settle_same_owner_replacement_claim(tmp_path, monkeypatch, handler_fails):
+    store = _store(tmp_path)
+    _admit(store)
+    clock = [time.time()]
+    monkeypatch.setattr('openprogram.execution.store.projections.time.time', lambda: clock[0])
+    replacement = []
+    seen = []
+
+    def handle(item):
+        seen.append(item.outbox_id)
+        clock[0] += 31
+        replacement.extend(store.claim_projection_outbox(owner_id='worker', lease_ttl_seconds=30))
+        if handler_fails:
+            raise RuntimeError('old callback failed')
+
+    result = ProjectionDispatcher(store, {kind: handle for kind in PROJECTION_KINDS}).dispatch_once(
+        owner_id='worker', lease_ttl_seconds=30,
+    )
+    assert len(seen) == 1
+    assert result.delivered == 0
+    assert result.failed == len(PROJECTION_KINDS)
+    for item in replacement:
+        current = store.get_projection_outbox(item.outbox_id)
+        assert current == item
