@@ -202,6 +202,8 @@ apps/web/components/plugins/
 
 <div id="store"></div>
 
+两个技能详情视图均将 SKILL.md 正文作为不可信 Markdown 渲染。原始 HTML 及数学内容中的 HTML 文本按字面显示。详情视图不添加本地资源读取解析器，技能链接不授予文件系统访问权限。
+
 ### 存储
 `lib/skills-store.ts`、`lib/plugins-store.ts`，WS 订阅 `skills:changed` / `plugins:changed` / `plugins:error`。
 

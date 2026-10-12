@@ -159,6 +159,8 @@ Wayland display（例如通过 SSH 使用服务器），Web UI 会改为显示�
 | `/projects` | History → Projects：权限规则、默认设置、关联会话 |
 | `/settings` | 设置：providers（模型与凭据）、search、general（含主题、运行版本，以及存在 Electron bridge 时的 Desktop 更新状态）、system、usage、auth、channels |
 
+消息导航预览和技能详情将原始 HTML 按文本显示，同时保留 Markdown 格式。技能链接不授予本地文件访问权限。
+
 `/settings` 直接打开会跳到 `/settings/general`。模型凭据仍在 `/settings/providers`，见[配置模型](../models/README.zh.md)。
 
 窗口较窄（宽度不超过 900px）时，左侧栏默认收起为图标栏，直到你展开它；展开后导航到其他页面会再次收起。宽度低于 760px 时，设置导航同样默认显示为图标栏，窗口缩小到该宽度时也会自动收起。你手动展开或收起侧栏的选择会被保留。

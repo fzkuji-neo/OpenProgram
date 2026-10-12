@@ -165,13 +165,13 @@ function PreviewCard({
     <div className="msg-rail-card" style={{ top, left }} role="presentation">
       {text ? (
         <div className="msg-rail-card-text">
-          <Markdown source={text} />
+          <Markdown source={text} escapeRawHtml />
         </div>
       ) : null}
       <AttachmentChips items={attachments} />
       {assistantSummary ? (
         <div className="msg-rail-card-reply">
-          <Markdown source={assistantSummary} />
+          <Markdown source={assistantSummary} escapeRawHtml />
         </div>
       ) : null}
       {assistantId && shouldRenderTurnFiles(
