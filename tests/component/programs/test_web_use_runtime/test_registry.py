@@ -948,7 +948,7 @@ def test_observe_with_url_session_only_act_uses_live_registry_session(monkeypatc
         WebUseSessionRegistry,
     )
 
-    adapters = {name: _Adapter(name) for name in SUPPORTED_BACKENDS}
+    adapters = {name: _NativeObserveAdapter(name) for name in SUPPORTED_BACKENDS}
     registry = WebUseSessionRegistry(
         adapters=adapters,
         binding_validator=_allow_binding,
@@ -981,7 +981,7 @@ def test_observe_with_url_session_only_act_uses_live_registry_session(monkeypatc
     )
     assert result.get("ok") is not False
     assert result["web_session_id"].startswith("cs_")
-    assert result.get("frame_id") == "frame-1"
+    assert result.get("frame_id") == "frame_1_b6a848a6"
     assert "page_context_token" not in result
     assert result.get("closed") is not True
 
@@ -989,7 +989,7 @@ def test_observe_with_url_session_only_act_uses_live_registry_session(monkeypatc
         command="act",
         backend="open_claude_chrome",
         web_session_id=result["web_session_id"],
-        arguments={"action": "click", "expected_frame_id": "frame-1"},
+        arguments={"action": "click", "expected_frame_id": "frame_1_b6a848a6"},
     )
     assert acted.get("ok") is not False
     assert acted["web_session_id"] == result["web_session_id"]

@@ -135,6 +135,11 @@ def test_programs_cli_resolves_registered_gui_agent(monkeypatch, capsys):
 
     wrapped = install_gui_harness_web_use(legacy)
 
+    # This checks CLI dispatch; provider credentials are outside the fixture.
+    runtime = SimpleNamespace()
+    monkeypatch.setitem(_cmd_run.__globals__, "_get_runtime", lambda *_: runtime)
+    target = getattr(wrapped, "_fn", wrapped)
+    monkeypatch.setitem(target.__globals__, "runtime", runtime)
     _cmd_run("gui_agent", ["task=inspect"])
 
     assert gui_harness_bridge.gui_agent is wrapped
