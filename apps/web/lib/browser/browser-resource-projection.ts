@@ -28,33 +28,69 @@ export function viewedConversationId(
   return resourceSessionId(active as never) || currentSessionId || null;
 }
 
-export function applyFollowPreview(
-  sessionId: string | null,
-  tabs: readonly { id: string; kind: string; sessionId?: string }[],
-): { tabId: string; ownerTabId: string } | null {
-  if (!sessionId) return null;
+type PreviewBinding = { tabId: string; ownerTabId: string };
+type ProjectionTabs = readonly { id: string; kind: string; sessionId?: string }[];
+
+/** The Page a conversation previews: its follow target, else the Page it
+ *  last floated in this run. */
+function sessionPreview(sessionId: string, tabs: ProjectionTabs): PreviewBinding | null {
   const branchId = useBrowserResourceStore.getState().viewedBranch[sessionId] ?? null;
   const binding = followPreviewBinding(sessionId, branchId, tabs);
+  if (binding) return binding;
+  const pref = getPreviewPreference(sessionId, branchId);
+  const savedTabId = !branchId && !pref.hidden && !pref.targetId
+    ? useWebTabPip.getState().previews[sessionId] : null;
+  const owner = tabs.find(tab => tab.kind === "session" && tab.sessionId === sessionId);
+  if (savedTabId && owner && tabs.some(tab => tab.id === savedTabId)) {
+    return { tabId: savedTabId, ownerTabId: owner.id };
+  }
+  return null;
+}
+
+/** Conversations in the other panes of the focused window's split. */
+export function besidePaneSessions(
+  sessionId: string | null,
+  tabs: ProjectionTabs,
+  center: { activeId: string | null; groups: readonly { memberIds: string[]; visibleIds: string[] }[] } = useCenterTabs.getState(),
+): string[] {
+  const activeId = center.activeId;
+  if (!activeId) return [];
+  const group = center.groups.find(item => item.memberIds.includes(activeId));
+  if (!group) return [];
+  const out: string[] = [];
+  for (const paneId of group.visibleIds) {
+    if (paneId === activeId) continue;
+    const other = tabs.find(tab => tab.id === paneId && tab.kind === "session")?.sessionId;
+    if (other && other !== sessionId && !out.includes(other)) out.push(other);
+  }
+  return out;
+}
+
+export function applyFollowPreview(
+  sessionId: string | null,
+  tabs: ProjectionTabs,
+): PreviewBinding | null {
+  if (!sessionId) return null;
   const pip = useWebTabPip.getState();
-  if (!binding) {
-    const pref = getPreviewPreference(sessionId, branchId);
-    const savedTabId = !branchId && !pref.hidden && !pref.targetId ? pip.previews[sessionId] : null;
-    const owner = tabs.find(tab => tab.kind === "session" && tab.sessionId === sessionId);
-    if (savedTabId && owner && tabs.some(tab => tab.id === savedTabId)) {
-      pip.show(savedTabId, owner.id);
-      return { tabId: savedTabId, ownerTabId: owner.id };
+  const show = (binding: PreviewBinding, owner: string) => {
+    if (pip.tabId !== binding.tabId || pip.ownerTabId !== binding.ownerTabId || pip.ownerSessionId !== owner) {
+      pip.show(binding.tabId, binding.ownerTabId);
     }
-    // Focusing a pane without a preview of its own leaves another pane's
-    // preview alone while that pane is still on screen beside it.
-    if (pip.tabId && pip.ownerTabId && pip.ownerSessionId !== sessionId
-      && ownerOnCanvas(pip.ownerTabId)) return null;
-    if (pip.tabId) pip.hide();
-    return null;
+    return binding;
+  };
+  const own = sessionPreview(sessionId, tabs);
+  if (own) return show(own, sessionId);
+  // The focused pane has no preview of its own. Another pane's preview
+  // stays while that pane is on screen beside it, and one a pane beside it
+  // has comes up (after a restart, say), whichever pane has focus.
+  if (pip.tabId && pip.ownerTabId && pip.ownerSessionId !== sessionId
+    && ownerOnCanvas(pip.ownerTabId)) return null;
+  for (const other of besidePaneSessions(sessionId, tabs)) {
+    const binding = sessionPreview(other, tabs);
+    if (binding) return show(binding, other);
   }
-  if (pip.tabId !== binding.tabId || pip.ownerTabId !== binding.ownerTabId || pip.ownerSessionId !== sessionId) {
-    pip.show(binding.tabId, binding.ownerTabId);
-  }
-  return binding;
+  if (pip.tabId) pip.hide();
+  return null;
 }
 
 export function applyBrowserConnection(connected: boolean): void {
@@ -70,9 +106,11 @@ export function BrowserResourceProjection({ sessionId }: { sessionId: string | n
   const rows = useBrowserResourceStore(s => s.rows);
   const pendingCloses = useBrowserControlStore(s => s.pendingCloses);
 
+  const besideKey = useCenterTabs(s => besidePaneSessions(sessionId, s.tabs, s).join("\n"));
+
   useEffect(() => {
     applyFollowPreview(sessionId, tabs);
-  }, [sessionId, tabs, followEpoch, viewedBranch]);
+  }, [sessionId, tabs, followEpoch, viewedBranch, besideKey, rows]);
 
   useEffect(() => {
     settlePendingClose(id => useCenterTabs.getState().closeTab(id));
@@ -80,19 +118,23 @@ export function BrowserResourceProjection({ sessionId }: { sessionId: string | n
 
   useEffect(() => {
     if (!sessionId) return;
+    // The panes beside the focused one can float a preview too.
+    const sessions = [sessionId, ...(besideKey ? besideKey.split("\n") : [])];
     let disposed = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function poll() {
-      try {
-        await recoverSessionResources(sessionId!);
-      } catch {
-        /* snapshot recovery is optional */
+      for (const id of sessions) {
+        try {
+          await recoverSessionResources(id);
+        } catch {
+          /* snapshot recovery is optional */
+        }
       }
       if (!disposed) timer = setTimeout(poll, 3000);
     }
     void poll();
     return () => { disposed = true; clearTimeout(timer); };
-  }, [sessionId]);
+  }, [sessionId, besideKey]);
 
   useEffect(() => {
     const onConnection = (event: Event) => {

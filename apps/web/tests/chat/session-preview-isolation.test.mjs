@@ -88,3 +88,13 @@ test('focusing the other pane of a split keeps the first pane\'s preview',()=>{
  applyFollowPreview('B',c.getState().tabs);
  assert.equal(p.getState().tabId,null,'a pane that left the screen takes its preview with it');
 });
+
+test('a split focused on a pane without a preview shows the preview of the pane beside it',()=>{
+ reset();
+ const group={id:'g:split',memberIds:['s:A','s:B'],visibleIds:['s:A','s:B'],focusedId:'s:B'};
+ c.setState({tabs:[...c.getState().tabs,{id:'s:B',kind:'session',sessionId:'B',title:'B'}],activeId:'s:B',groups:[group]});
+ applyFollowPreview('A',c.getState().tabs);
+ const binding=p.getState().tabId; assert.equal(binding,page.id); p.getState().hide();
+ applyFollowPreview('B',c.getState().tabs);
+ assert.equal(p.getState().tabId,binding); assert.equal(p.getState().ownerTabId,'s:A');
+});
