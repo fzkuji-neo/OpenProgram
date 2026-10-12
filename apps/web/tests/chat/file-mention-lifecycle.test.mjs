@@ -139,3 +139,16 @@ test('an obsolete response cannot replace the new query results', t => fixture(t
     await f.key('Enter');
     assert.equal(f.read().input, '@new.txt ');
 }));
+
+test('Escape closes completed empty and failed search menus', t => fixture(t, async (f) => {
+    for (const failure of [false, true]) {
+        await f.set(failure ? '@failure' : '@empty');
+        await f.tick();
+        await act(async () => { f.requests.at(-1).resolve(failure ? new Response('', { status: 500 }) : Response.json({ matches: [] })); });
+        assert.ok(f.document.querySelector('[role=listbox]'));
+        assert.equal(await f.key('Escape'), true);
+        assert.equal(f.document.querySelector('[role=listbox]'), null);
+        assert.equal(f.read().mention.fileMatches.length, 0);
+    }
+    assert.equal(f.submits(), 0);
+}));
