@@ -130,27 +130,23 @@ See [writing agents](docs/capabilities/agentic-programming/writing-functions/age
 
 User turns, model calls and function calls are recorded as nodes in one graph. Each call reads a selection of earlier nodes rather than a growing private transcript. A sub-agent runs on its own branch, optionally in its own Git worktree, and only its result joins the main line. Branches also let you retry from any point or keep alternative histories. See [context](docs/reference/design/context/README.md) and [collaboration](docs/reference/design/runtime/agent-collaboration.md).
 
-### Workflows
+### Self-evolving agents
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/02-agentic-workflow.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/02-agentic-workflow-light.svg">
-    <img src="docs/images/highlights/02-agentic-workflow-light.svg" alt="Workflows: code validates model decisions, and agents extend their own methods" width="900">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/02-self-evolving.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/02-self-evolving-light.svg">
+    <img src="docs/images/highlights/02-self-evolving-light.svg" alt="Self-evolving agents: an agent adds a method to its own class" width="900">
   </picture>
 </p>
 
-`decision.make(prompt, options)` offers the model a fixed menu. Code checks the pick before anything runs, and an unknown option or bad argument goes back to the model. Agents can also write and revise their own `Agent` method files with ordinary file tools; a watcher reloads eligible changes, and the new method is available from the next turn. See [workflows](docs/capabilities/agentic-workflow.md) and [choosing the next step](docs/capabilities/agentic-programming/choosing-the-next-step/next-step-decision.md).
+An agent can write and revise the methods of its own `Agent` class with ordinary file tools. A watcher checks the files every two seconds and reloads eligible changes, so a new method is available as a tool from the next turn. See [workflows](docs/capabilities/agentic-workflow.md).
+
+### Checked decisions
+
+`decision.make(prompt, options)` offers the model a fixed menu. Code checks the pick before anything runs, and an unknown option or bad argument goes back to the model to choose again. See [choosing the next step](docs/capabilities/agentic-programming/choosing-the-next-step/next-step-decision.md).
 
 ### Events
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/03-event-infrastructure.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/03-event-infrastructure-light.svg">
-    <img src="docs/images/highlights/03-event-infrastructure-light.svg" alt="Events: one bus, async observers and a synchronous tool gate" width="900">
-  </picture>
-</p>
 
 One process-wide bus carries typed events from the agent loop, context, files, channels and memory. Subscribers observe the event types they ask for, and a plugin can subscribe to `tool.before` as a gate that allows or denies a tool call.
 

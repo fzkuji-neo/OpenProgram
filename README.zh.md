@@ -115,27 +115,23 @@ reply = SupportAgent().triage("The export button crashes the app.")
 
 用户消息、模型调用和函数调用都作为节点记录在同一张图里。每次调用读取的是从已有节点中选出的一部分，而不是一份不断变长的私有对话记录。子 Agent 在自己的分支上运行，可以使用独立的 Git worktree，只有结果会并回主线。分支也让你可以从任意位置重试，或保留多条不同的执行历史。参见[上下文](docs/reference/design/context/README.zh.md)和[协作](docs/reference/design/runtime/agent-collaboration.zh.md)。
 
-### 工作流
+### 自我演化
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/02-agentic-workflow.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/02-agentic-workflow-light.svg">
-    <img src="docs/images/highlights/02-agentic-workflow-light.svg" alt="工作流：代码验证模型的选择，Agent 扩展自己的方法" width="900">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/02-self-evolving.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/02-self-evolving-light.svg">
+    <img src="docs/images/highlights/02-self-evolving-light.svg" alt="自我演化：Agent 给自己的类添加方法" width="900">
   </picture>
 </p>
 
-`decision.make(prompt, options)` 给模型一份固定的选项菜单。代码在执行前检查模型的选择，未知选项或错误参数会退回给模型重选。Agent 还能用普通文件工具编写和修改自己的 `Agent` 方法文件；watcher 重新加载符合条件的改动，新方法从下一轮起就能使用。参见[工作流](docs/capabilities/agentic-workflow.zh.md)和[选择下一步](docs/capabilities/agentic-programming/choosing-the-next-step/next-step-decision.zh.md)。
+Agent 可以用普通文件工具编写和修改自己 `Agent` 类里的方法。watcher 每两秒检查一次文件，重新加载符合条件的改动，新方法从下一轮起就能作为工具使用。参见[工作流](docs/capabilities/agentic-workflow.zh.md)。
+
+### 受检查的决策
+
+`decision.make(prompt, options)` 给模型一份固定的选项菜单。代码在执行前检查模型的选择，未知选项或错误参数会退回给模型重选。参见[选择下一步](docs/capabilities/agentic-programming/choosing-the-next-step/next-step-decision.zh.md)。
 
 ### 事件
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/highlights/03-event-infrastructure.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/images/highlights/03-event-infrastructure-light.svg">
-    <img src="docs/images/highlights/03-event-infrastructure-light.svg" alt="事件：一条总线，异步观察者和同步工具闸门" width="900">
-  </picture>
-</p>
 
 一条进程级总线承载来自 Agent 循环、上下文、文件、渠道和记忆的类型化事件。订阅者只观察自己指定的事件类型；插件可以把 `tool.before` 订阅为闸门，允许或拒绝一次工具调用。
 
