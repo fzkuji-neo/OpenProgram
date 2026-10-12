@@ -10,9 +10,11 @@ import { runtimeState, getSocket } from "@/lib/runtime-bridge/state";
 import { useSessionStore } from "@/lib/session-store";
 import {
   newSession,
+  focusLoadedSession,
   renderSessionMessages,
 } from "@/lib/runtime-bridge/conversations";
 import { showHistorySkeleton } from "@/lib/runtime-bridge/dag/pipeline";
+import { peerPresentsSession } from "@/lib/runtime-bridge/session-history-loader";
 
 type Page = "chat" | "settings" | "chats";
 
@@ -285,6 +287,12 @@ export function PageShell({ page }: { page: Page }) {
     ) {
       try { renderSessionMessages(cached as never, { preserveStore: true }); } catch {}
       try { store.getState().setTranscriptLoading(null); } catch {}
+      // A split pane already shows this session through its own live,
+      // windowed read, so focusing it moves only the focus bookkeeping.
+      if (peerPresentsSession(target)) {
+        try { focusLoadedSession(target); } catch {}
+        return;
+      }
     } else {
       try {
         store.getState().setTranscriptLoading(target);

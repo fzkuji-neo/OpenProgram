@@ -18,6 +18,14 @@ export function registerHistoryViewport(id: string, area: HTMLElement, chatKey: 
   return () => { areas.delete(area); if (!areas.size) viewports.delete(id); trimHistoryWindows(); };
 }
 
+/** A split-view pane shows this session through its own windowed read. */
+export function peerPresentsSession(id: string): boolean {
+  for (const chatKey of viewports.get(id)?.values() ?? []) {
+    if (chatKey.startsWith('peer:')) return true;
+  }
+  return false;
+}
+
 function trimHistoryWindows(protectedId?: string): void {
   for (const id of windows.keys()) {
     if (windows.size <= MAX_CACHED_SESSIONS) break;
