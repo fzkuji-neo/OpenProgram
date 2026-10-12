@@ -20,6 +20,15 @@ function createWebViews({
   withDebugger,
   tabTransfers,
 }) {
+  // A view that shrinks keeps showing its page's last, larger frame until
+  // the page paints at the new size, and macOS does not clip a view's
+  // layer to its bounds. When a view moves and shrinks at once (the left
+  // rail opening), that old frame shifts over whatever lies to its right.
+  // Any corner radius makes the layer clip; 1px is too small to see.
+  function clipToBounds(view) {
+    try { view.setBorderRadius?.(1); } catch (_error) { /* clipping is cosmetic */ }
+  }
+
   function sendState(record, extra) {
     const ctx = ownerOf(record);
     if (!ctx) return;
@@ -313,6 +322,7 @@ function createWebViews({
       };
       ctx.views.set(id, record);
       ctx.win.contentView.addChildView(view);
+      clipToBounds(view);
       // A never-shown Page otherwise has a 0x0 viewport, so neither Electron
       // nor CDP can capture it. Keep a real CSS viewport while the native view
       // stays hidden; visible layouts replace these bounds before showing it.
@@ -591,7 +601,7 @@ function createWebViews({
       setPipScrollbarStyle(record, false);
       record.view.setBackgroundColor("#ffffff");
       if (record.pipCornerRadius) {
-        record.view.setBorderRadius(0);
+        clipToBounds(record.view);
         record.pipCornerRadius = 0;
       }
       record.pendingPipZoomRestore = !wc.getURL() || !!record.navigation;
