@@ -753,7 +753,11 @@ def test_parent_webtab_bridge_captures_origin_pages_as_borrowed_bindings(
     assert allowed_bindings == {"surface-existing"}
 
 
-def test_parent_webtab_bridge_rejects_page_capture_outside_origin(monkeypatch):
+@pytest.mark.parametrize("command", [
+    {"op": "capture_pages", "window_id": "window-2"},
+    {"op": "capture_pages", "binding_id": "binding-outside-run"},
+])
+def test_parent_webtab_bridge_rejects_page_capture_outside_origin(monkeypatch, command):
     from openprogram.agent import process_runner, surface_context
 
     calls = []
@@ -765,9 +769,9 @@ def test_parent_webtab_bridge_rejects_page_capture_outside_origin(monkeypatch):
     replies = Queue()
     process_runner._bridge_webtab_to_parent({
         "req_id": "capture-other",
-        "command": {"op": "capture_pages", "window_id": "window-2"},
+        "command": command,
         "timeout": 2,
-    }, replies, {}, allowed_window_id="window-1", allowed_bindings=set())
+    }, replies, {}, allowed_window_id="window-1", allowed_bindings={"binding-owned"})
 
     result = replies.get(timeout=1)["result"]
     assert result["ok"] is False

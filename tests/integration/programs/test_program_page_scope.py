@@ -59,15 +59,20 @@ def test_program_page_scope_does_not_create_or_override_grants(tmp_path, scenari
         assert data['renderer_calls'] == []
 
 
-@pytest.mark.parametrize('scenario', ['existing', 'foreign', 'plan'])
+@pytest.mark.parametrize('scenario', ['existing', 'stale_binding', 'plan'])
 def test_existing_page_scope_and_constraints_survive_spawn(tmp_path, scenario):
     data = _probe(tmp_path, scenario)
     assert data['child_scope'] == data['inner_scope']
     assert data['child_scope']['surfaces'][0]['window_id'] == 'owned-window'
     assert data['remaining_bindings'] == 0
-    if scenario == 'existing':
+    if scenario in {'existing', 'stale_binding'}:
         assert data['listed_error'] is False, data
         assert data['observed_error'] is False, data
+        assert [(page['window_id'], page['tab_id']) for page in data['listed']['pages']] == [
+            ('owned-window', 'owned-tab'),
+        ]
+        assert 'actual owned DOM receipt' in json.dumps(data['observed']), data
+        assert all(call['fixture_window_id'] == 'owned-window' for call in data['renderer_calls'])
     else:
         assert data['listed_error'] is True, data
         assert data['observed'] is None
