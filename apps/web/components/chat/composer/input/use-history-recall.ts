@@ -67,6 +67,11 @@ export function useHistoryRecall(
   const setHistoryIndex = useCallback((index: number) => {
     setRecall(previous => ({ ...previous, owner, index }));
   }, [owner]);
+  useEffect(() => {
+    if (recall.owner === owner && recall.index >= 0 && recall.value !== input) {
+      setRecall(previous => ({ ...previous, index: -1, draft: "" }));
+    }
+  }, [owner, input, recall]);
   const current = useRef({ owner, input });
   current.current = { owner, input };
   const caretFrame = useRef<number | null>(null);
