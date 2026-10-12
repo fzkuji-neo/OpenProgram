@@ -186,7 +186,8 @@ function install(el: HTMLElement): void {
 function scan(root?: ParentNode): void {
   (root || document)
     .querySelectorAll<HTMLElement>(SELECTORS.join(","))
-    .forEach(install);
+    // A canvas ghost is a still copy of a leaving pane, gone in a moment.
+    .forEach((el) => { if (!el.closest("[data-canvas-ghost]")) install(el); });
 }
 
 let started = false;

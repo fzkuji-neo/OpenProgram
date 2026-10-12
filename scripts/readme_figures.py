@@ -1,4 +1,4 @@
-"""Render the four README concept figures as animated SVG.
+"""Render the three README concept figures as animated SVG.
 
     python -m scripts.readme_figures
 
@@ -9,7 +9,8 @@ loads no web fonts. Motion is SMIL: every element's timing is a fraction of
 one loop, and a viewer without SMIL shows the finished state.
 
 Figures are 1600 px wide and shown at about 900 px, so no text is smaller
-than 20 px. Fonts: Instrument Sans (Regular, Bold) and Geist Mono (Regular),
+than 20 px. The README heading above each figure carries its title, so a
+figure holds only the diagram. Fonts: Instrument Sans (Regular, Bold) and Geist Mono (Regular),
 looked up in ``~/Library/Fonts``, ``/Library/Fonts`` or
 ``$OPENPROGRAM_FIGURE_FONTS``.
 """
@@ -37,15 +38,11 @@ THEMES = {
         "bg": "#F7F6FD", "grid": "#ECEAF8", "card": "#FFFFFF", "border": "#DCD8F3",
         "text": "#1B1A2E", "muted": "#5F5C7A", "accent": "#4F46E5",
         "user": "#4F46E5", "model": "#8B5CF6", "fn": "#0EA5E9",
-        "line": "#C9C4EC", "arrow": "#8E8AB0",
+        "line": "#C9C4EC",
         "green": "#10B981", "green_text": "#047857", "green_deep": "#065F46",
         "band": "#E8F7EF", "band_border": "#C6EBD8",
-        "red": "#DC2626", "red_text": "#B91C1C",
-        "amber": "#B45309", "amber_text": "#92400E", "amber_bg": "#FFF8EB",
-        "diamond": "#E4E0FD", "diamond_text": "#23214F",
         "hl_model": "#8B5CF6", "hl_fn": "#0EA5E9", "hl_alpha": 0.12,
         "halo": "#4F46E5", "halo_alpha": 0.16,
-        "bus": "#4F46E5", "bus_sub": "#E0DDFB",
         "kw": "#7C3AED", "call": "#0369A1", "str": "#047857",
         "shadow": 0.07,
     },
@@ -53,15 +50,11 @@ THEMES = {
         "bg": "#0E0D19", "grid": "#18172C", "card": "#161528", "border": "#2C2A47",
         "text": "#EEEDFB", "muted": "#A3A0C2", "accent": "#A5B4FC",
         "user": "#6366F1", "model": "#A78BFA", "fn": "#38BDF8",
-        "line": "#3A3762", "arrow": "#7A77A0",
+        "line": "#3A3762",
         "green": "#34D399", "green_text": "#6EE7B7", "green_deep": "#A7F3D0",
         "band": "#0F2A22", "band_border": "#1D4A3A",
-        "red": "#F87171", "red_text": "#FCA5A5",
-        "amber": "#FBBF24", "amber_text": "#FCD34D", "amber_bg": "#2A1F0C",
-        "diamond": "#2A2350", "diamond_text": "#E9E3FF",
         "hl_model": "#A78BFA", "hl_fn": "#38BDF8", "hl_alpha": 0.18,
         "halo": "#818CF8", "halo_alpha": 0.24,
-        "bus": "#4F46E5", "bus_sub": "#E0DDFB",
         "kw": "#C4B5FD", "call": "#7DD3FC", "str": "#86EFAC",
         "shadow": 0.0,
     },
@@ -112,8 +105,9 @@ def _times(*points: float) -> str:
 class Figure:
     """One SVG. Coordinates are pixels; times are fractions of the loop."""
 
-    def __init__(self, height: int, theme: str, seconds: float):
+    def __init__(self, height: int, theme: str, seconds: float, shift: int = 0):
         self.h = height
+        self.shift = shift
         self.c = THEMES[theme]
         self.theme = theme
         self.dur = f"{seconds}s"
@@ -232,12 +226,6 @@ class Figure:
             top += lh
         return "".join(out)
 
-    def header(self, eyebrow: str, line1: str, line2: str) -> None:
-        self.add(self.line_text(64, 64, 24, eyebrow, font="mono", size=20, fill="accent", spacing=3.2))
-        self.add(self.line_text(64, 104, 68, line1, font="bold", size=60, fill="text", spacing=-1.2))
-        self.add(self.line_text(64, 172, 68, line2, font="bold", size=60, fill="accent", spacing=-1.2))
-        self.add(self.disc(1456, 80, 12, "user") + self.disc(1488, 80, 12, "model") + self.disc(1520, 80, 12, "fn"))
-
     def legend(self, x, y, items: list[tuple[str, str]]) -> str:
         out = []
         for color, label in items:
@@ -264,7 +252,7 @@ class Figure:
                  f'stroke="{c["border"]}" stroke-width="2"/>')
         return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{self.h}" viewBox="0 0 {W} {self.h}" '
                 f'role="img" aria-label="{label}"><title>{label}</title><defs>{"".join(defs)}</defs>'
-                f'{frame}{"".join(self.body)}</svg>\n')
+                f'{frame}<g transform="translate(0 {-self.shift})">{"".join(self.body)}</g></svg>\n')
 
 
 # -----------------------------------------------------------------------------
@@ -272,8 +260,7 @@ class Figure:
 
 
 def agent_class(theme: str) -> Figure:
-    fig = Figure(800, theme, 11)
-    fig.header("01 — AGENT CLASSES", "Python runs the program.", "The model makes the calls.")
+    fig = Figure(568, theme, 11, shift=224)
     fig.add(fig.rect(64, 288, 800, 384, rx=20, shadow=True, stroke="border", width=1.5))
     code = [
         [("class ", "kw"), ("SupportAgent", "text"), ("(Agent):", "muted")],
@@ -325,8 +312,7 @@ def agent_class(theme: str) -> Figure:
 
 
 def dag_context(theme: str) -> Figure:
-    fig = Figure(800, theme, 11)
-    fig.header("02 — DAG CONTEXT", "Every call is a node.", "Context is what you select.")
+    fig = Figure(568, theme, 11, shift=200)
     fig.add(fig.legend(64, 272, [("user", "user / result"), ("model", "model call"), ("fn", "function call")]))
     fig.add(fig.rect(64, 548, 1472, 152, rx=20, fill="band", stroke="band_border", width=1.5))
     fig.add(fig.line_text(92, 568, 24, "SUB-AGENT BRANCH", font="mono", size=18, fill="green_text", spacing=2.5))
@@ -386,142 +372,61 @@ def dag_context(theme: str) -> Figure:
 
 
 # -----------------------------------------------------------------------------
-# 03 · Workflows
+# 03 · Self-evolving agents
 
 
-def workflow(theme: str) -> Figure:
-    fig = Figure(840, theme, 12)
-    fig.header("03 — WORKFLOWS", "The model proposes.", "Code checks before anything runs.")
-    fig.add(fig.line_text(64, 284, 24, "VALIDATED DECISIONS", font="mono", size=18, fill="muted", spacing=2.5))
-    fig.add(fig.line_text(64, 564, 24, "SELF-EVOLVING METHODS", font="mono", size=18, fill="muted", spacing=2.5))
-    cy = 380
-
-    # Arrows and the loop back first, so cards paint over their ends.
-    fig.add(fig.seg(360, cy, 434, cy, stroke="arrow", width=2.5, head=True))
-    fig.add(fig.seg(736, cy, 810, cy, stroke="arrow", width=2.5, head=True))
-    fig.add(fig.seg(1120, cy, 1194, cy, stroke="green", width=2.5, head=True))
-    fig.add(fig.seg(968, 460, 968, 500, stroke="red", width=2.5, dash="6 7"))
-    fig.add(fig.seg(968, 500, 588, 500, stroke="red", width=2.5, dash="6 7"))
-    fig.add(fig.seg(588, 500, 588, 442, stroke="red", width=2.5, head=True))
-
-    fig.add(fig.card(64, 324, 296, 112, [("decision.make(…)", "mono", 22, 32, "text"),
-                                         ("deploy · rollback", "mono", 20, 28, "muted")]))
-    fig.add(fig.card(440, 324, 296, 112, [("The model proposes", "bold", 24, 32, "text"),
-                                          ("deploy(env=…)", "mono", 20, 28, "muted")]))
-    fig.add(f'<polygon points="968,300 1120,380 968,460 816,380" fill="{fig.col("diamond")}"/>')
-    fig.add(fig.line_text(968, 352, 28, "valid option", font="bold", size=22, fill="diamond_text", anchor="middle"))
-    fig.add(fig.line_text(968, 380, 28, "and arguments?", font="bold", size=22, fill="diamond_text", anchor="middle"))
-    fig.add(fig.card(1200, 324, 336, 112, [("The choice runs", "bold", 24, 32, "text"),
-                                           ('deploy(env="prod")', "mono", 20, 28, "green_text")],
-                     stroke="border"))
-    fig.add(fig.line_text(1160, 344, 24, "yes", font="mono", size=20, fill="green_text", anchor="middle"))
-    fig.add(fig.line_text(980, 468, 24, "no", font="mono", size=20, fill="red_text"))
-    fig.add(fig.line_text(778, 512, 24, "back to the model", font="mono", size=20, fill="red_text", anchor="middle"))
-
-    # One rejected proposal, then an accepted one.
-    fig.add(fig.dot([(360, cy), (440, cy)], 0.03, 0.08))
-    # Each proposal covers the card's placeholder line.
-    rejected = (fig.rect(450, 382, 276, 28, rx=0, fill="card")
-                + fig.line_text(464, 382, 28, 'deploy(env="prd")', font="mono", size=20, fill="red_text"))
-    accepted = (fig.rect(450, 382, 276, 28, rx=0, fill="card")
-                + fig.line_text(464, 382, 28, 'deploy(env="prod")', font="mono", size=20, fill="green_text"))
-    fig.add(rejected, 0.08, 0.34)
-    fig.add(accepted, 0.36)
-    fig.add(fig.dot([(736, cy), (816, cy)], 0.11, 0.16, fill="red"))
-    reject_flash = f'<polygon points="968,300 1120,380 968,460 816,380" fill="none" stroke="{fig.col("red")}" stroke-width="3"/>'
-    fig.add(reject_flash, 0.16, 0.30)
-    fig.add(fig.dot([(968, 460), (968, 500), (588, 500), (588, 436)], 0.19, 0.32, fill="red"))
-    fig.add(fig.dot([(736, cy), (816, cy)], 0.38, 0.43, fill="green"))
-    accept_flash = f'<polygon points="968,300 1120,380 968,460 816,380" fill="none" stroke="{fig.col("green")}" stroke-width="3"/>'
-    fig.add(accept_flash, 0.43, 0.90)
-    fig.add(fig.dot([(1120, cy), (1200, cy)], 0.45, 0.50, fill="green"))
-    fig.add(fig.rect(1200, 324, 336, 112, rx=16, fill="none", stroke="green", width=3), 0.50)
-
-    # The self-evolving loop.
-    fig.add(fig.seg(384, 660, 442, 660, stroke="arrow", width=2.5, head=True))
-    fig.add(fig.seg(768, 660, 826, 660, stroke="arrow", width=2.5, head=True))
-    fig.add(fig.seg(1152, 660, 1210, 660, stroke="arrow", width=2.5, head=True))
-    fig.add(fig.seg(1376, 716, 1376, 764, stroke="green", width=2.5, dash="6 7"))
-    fig.add(fig.seg(1376, 764, 224, 764, stroke="green", width=2.5, dash="6 7"))
-    fig.add(fig.seg(224, 764, 224, 722, stroke="green", width=2.5, head=True))
-    steps = [
-        ("Agent edits a method", "Write / Edit a .py file"),
-        ("The watcher notices", "checks every 2 s"),
-        ("It reloads", "import · register"),
-        ("Live on the next turn", "callable as a tool"),
+def self_evolving(theme: str) -> Figure:
+    fig = Figure(568, theme, 12, shift=224)
+    fig.add(fig.rect(64, 288, 800, 384, rx=20, shadow=True, stroke="border", width=1.5))
+    fig.add(fig.line_text(96, 304, 32, "support_agent.py", font="mono", size=20, fill="muted"))
+    fig.add(fig.seg(64, 348, 864, 348, stroke="border", width=1.5))
+    old = [
+        [("class ", "kw"), ("SupportAgent", "text"), ("(Agent):", "muted")],
+        [("    def ", "kw"), ("triage", "call"), ("(self, ticket):", "muted")],
+        [("        ...", "muted")],
     ]
-    xs = [64, 448, 832, 1216]
-    for i, (title, sub) in enumerate(steps):
-        fig.add(fig.card(xs[i], 604, 320, 112, [(title, "bold", 24, 32, "text"), (sub, "mono", 20, 28, "muted")]))
-    for i in range(4):
-        t0 = 0.12 + 0.14 * i
-        fig.add(fig.rect(xs[i], 604, 320, 112, rx=16, fill="none", stroke="green", width=3), t0, t0 + 0.14)
-        if i < 3:
-            fig.add(fig.dot([(xs[i] + 320, 660), (xs[i + 1], 660)], t0 + 0.10, t0 + 0.14, fill="green"))
-    fig.add(fig.dot([(1376, 716), (1376, 764), (224, 764), (224, 716)], 0.70, 0.86, fill="green"))
-    fig.add(fig.line_text(800, 732, 24, "each change builds on the last", font="mono", size=20,
-                          fill="green_text", anchor="middle"))
-    return fig
+    new = [
+        [("    def ", "kw"), ("summarize", "call"), ("(self, thread):", "muted")],
+        [('        """Sum up a long thread."""', "str")],
+        [("        return self", "kw"), ("(", "muted"), ('f"Summarize: {thread}"', "str"), (")", "muted")],
+    ]
+    top, lh = 364, 42
+    for i, parts in enumerate(old):
+        fig.add(fig.runs(96, top + i * lh + 21 + 22 * 0.35, parts, size=22))
+    first = top + 3 * lh + 16
+    fig.add(f'<rect x="76" y="{first}" width="776" height="{3 * lh}" rx="8" fill="{fig.col("green")}" '
+            f'opacity="{fig.c["hl_alpha"]}"/><rect x="76" y="{first + 8}" width="4" height="{3 * lh - 16}" '
+            f'rx="2" fill="{fig.col("green")}"/>', 0.10, 0.95)
+    for i, parts in enumerate(new):
+        fig.add(fig.runs(96, first + i * lh + 21 + 22 * 0.35, parts, size=22), 0.12 + 0.05 * i)
+    fig.add(fig.line_text(64, 704, 24, "written by the agent, with its file tools", font="mono", size=20,
+                          fill="green_text"), 0.28)
 
-
-# -----------------------------------------------------------------------------
-# 04 · Events
-
-
-def events(theme: str) -> Figure:
-    fig = Figure(800, theme, 12)
-    fig.header("04 — EVENTS", "One event bus.", "Anything can listen. A gate can stop a tool.")
-    sources = [("Agent loop", "tool.before"), ("Context", "context.compacted"), ("Files", "file.changed"),
-               ("Channels", "channel.message_inbound"), ("Memory", "memory.ingest_started")]
-    centers = [320, 412, 504, 596, 688]
-    sinks = [(296, "Web UI", ["streams events live"]), (448, "Your subscriber", ["subscribe(fn, types={…})"]),
-             (600, "Plugin gate", ["tool.before:", "allow or deny"])]
-    sink_cy = [352, 504, 656]
-    route = [2, 0, 1, 0, 1]  # which subscriber each source's event reaches
-
-    for cy in centers:
-        fig.add(fig.seg(400, cy, 602, cy, stroke="line", width=2.5, head=True))
-    fig.add(fig.seg(992, 352, 1194, 352, stroke="arrow", width=2.5, dash="6 7", head=True))
-    fig.add(fig.seg(992, 504, 1194, 504, stroke="arrow", width=2.5, dash="6 7", head=True))
-    fig.add(fig.seg(992, 656, 1192, 656, stroke="amber", width=3.5, head=True))
-    for (name, ev), cy in zip(sources, centers):
-        fig.add(fig.card(64, cy - 40, 336, 80, [(name, "bold", 24, 30, "text"), (ev, "mono", 20, 26, "muted")],
-                         pad=20, rx=14))
-    fig.add(f'<rect x="608" y="280" width="384" height="448" rx="28" fill="{fig.col("bus")}"/>')
-    fig.add(fig.line_text(800, 360, 56, "EventBus", font="bold", size=44, fill="#FFFFFF", anchor="middle"))
-    fig.add(fig.line_text(800, 416, 32, "one per process", size=22, fill="bus_sub", anchor="middle"))
-    fig.add(fig.line_text(800, 472, 32, "emit(event)", font="mono", size=20, fill="#FFFFFF", anchor="middle"))
-    fig.add(fig.line_text(800, 504, 32, "subscribe(fn, types)", font="mono", size=20, fill="#FFFFFF",
-                          anchor="middle"))
-    for (top, name, subs), cy in zip(sinks, sink_cy):
-        gate = name == "Plugin gate"
-        lines = [(name, "bold", 24, 30, "text")] + [(s, "mono", 20, 26, "amber_text" if gate else "muted")
-                                                   for s in subs]
-        fig.add(fig.card(1200, top, 336, 112, lines, pad=20, fill="amber_bg" if gate else "card",
-                         stroke="amber" if gate else "border", width=2 if gate else 1.5))
-    fig.add(fig.line_text(1096, 316, 24, "async", font="mono", size=20, fill="muted", anchor="middle"))
-    fig.add(fig.line_text(1096, 620, 24, "sync gate", font="mono", size=20, fill="amber_text", anchor="middle"))
-
-    slot = 0.18
-    for i, ((name, ev), cy, sink) in enumerate(zip(sources, centers, route)):
-        t0 = 0.04 + slot * i
-        color = "amber" if sink == 2 else ("user" if sink == 0 else "fn")
-        fig.add(fig.dot([(400, cy), (608, cy)], t0, t0 + 0.05, fill=color))
-        chip_w = FONTS["mono"].width(ev, 20) + 40
-        chip = (fig.rect(800 - chip_w / 2, 600, chip_w, 44, rx=22, fill="card")
-                + fig.line_text(800, 600, 44, ev, font="mono", size=20, fill="text", anchor="middle"))
-        fig.add(chip, t0 + 0.05, t0 + 0.13)
-        fig.add(fig.dot([(992, sink_cy[sink]), (1200, sink_cy[sink])], t0 + 0.09, t0 + 0.14, fill=color))
-        fig.add(fig.rect(1200, sinks[sink][0], 336, 112, rx=16, fill="none", stroke=color, width=3.5),
-                t0 + 0.14, t0 + 0.18)
+    fig.add(fig.line_text(944, 296, 24, "WHAT HAPPENS", font="mono", size=18, fill="muted", spacing=2.9))
+    rows = [
+        ("The agent edits its own class", "an ordinary Write / Edit call", 0.06),
+        ("OpenProgram reloads the file", "it checks for changes every 2 s", 0.36),
+        ("Next turn, it is a new tool", "tools: triage, summarize", 0.58),
+    ]
+    for i, (title, detail, t0) in enumerate(rows):
+        y = 340 + i * 112
+        inner = ""
+        if i:
+            inner += fig.seg(964, y - 66, 964, y - 6, stroke="line", width=2, draw=(t0 - 0.03, t0))
+        inner += (fig.disc(964, y + 18, 20, "green")
+                  + fig.line_text(964, y + 2, 32, str(i + 1), font="bold", size=24, fill="#FFFFFF", anchor="middle")
+                  + fig.line_text(1004, y, 36, title, font="bold", size=26)
+                  + fig.line_text(1004, y + 36, 28, detail, font="mono", size=20, fill="muted"))
+        fig.add(inner, t0)
+    fig.add(fig.line_text(944, 704, 24, "It can keep adding and fixing methods.", font="mono", size=20,
+                          fill="accent"), 0.78)
     return fig
 
 
 FIGURES = [
     ("00-agent-class", agent_class, "Agent classes: Python runs the program and the model makes the calls"),
     ("01-dag-context", dag_context, "Execution DAG: every call is a node and context is a selection of nodes"),
-    ("02-agentic-workflow", workflow, "Workflows: code checks model decisions, and agents extend their own methods"),
-    ("03-event-infrastructure", events, "Events: one bus, async observers and a synchronous tool gate"),
+    ("02-self-evolving", self_evolving, "Self-evolving agents: an agent adds a method to its own class"),
 ]
 
 
