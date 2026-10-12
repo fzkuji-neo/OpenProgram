@@ -485,7 +485,8 @@ class ProjectionsOperations:
 
 
     def release_projection_outbox(
-        self, outbox_ids: Collection[str], *, owner_id: str
+        self, outbox_ids: Collection[str], *, owner_id: str,
+        expected_attempts: Mapping[str, int] | None = None,
     ) -> int:
         """Return this owner's unprocessed live claims to pending without retry cost."""
         from ..outbox import ProjectionOutboxState
@@ -496,19 +497,27 @@ class ProjectionsOperations:
         if not ids:
             return 0
         placeholders = ",".join("?" for _ in ids)
+        identity_sql = f"outbox_id IN ({placeholders})"
+        identity_values = list(ids)
+        if expected_attempts is not None:
+            if any(item_id not in expected_attempts for item_id in ids):
+                raise ProjectionConflict("invalid_claim", "each released claim requires its attempt")
+            pairs = ",".join("(?, ?)" for _ in ids)
+            identity_sql = f"(outbox_id, attempts) IN ({pairs})"
+            identity_values = [value for item_id in ids for value in (item_id, expected_attempts[item_id])]
         now = time.time()
         with self._transaction() as connection:
             updated = connection.execute(
                 "UPDATE execution_projection_outbox SET state = ?, claim_owner = NULL, "
                 "claim_expires_at = NULL WHERE state = ? AND claim_owner = ? "
                 "AND claim_expires_at IS NOT NULL AND claim_expires_at > ? "
-                f"AND outbox_id IN ({placeholders})",
+                f"AND {identity_sql}",
                 (
                     ProjectionOutboxState.PENDING.value,
                     ProjectionOutboxState.CLAIMED.value,
                     owner_id,
                     now,
-                    *ids,
+                    *identity_values,
                 ),
             )
             return updated.rowcount

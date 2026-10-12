@@ -442,3 +442,26 @@ def test_dispatcher_cannot_settle_same_owner_replacement_claim(tmp_path, monkeyp
     for item in replacement:
         current = store.get_projection_outbox(item.outbox_id)
         assert current == item
+
+
+def test_stopping_old_dispatcher_does_not_release_replacement_claims(tmp_path, monkeypatch):
+    store = _store(tmp_path)
+    _admit(store)
+    clock = [time.time()]
+    monkeypatch.setattr('openprogram.execution.store.projections.time.time', lambda: clock[0])
+    replacement = []
+    stopped = [False]
+
+    def handle(item):
+        clock[0] += 31
+        replacement.extend(store.claim_projection_outbox(owner_id='worker', lease_ttl_seconds=30))
+        stopped[0] = True
+
+    result = ProjectionDispatcher(store, {kind: handle for kind in PROJECTION_KINDS}).dispatch_once(
+        owner_id='worker', lease_ttl_seconds=30, should_stop=lambda: stopped[0],
+    )
+    assert result.delivered == 0
+    assert result.failed == 1
+    assert len(replacement) == len(PROJECTION_KINDS)
+    for item in replacement:
+        assert store.get_projection_outbox(item.outbox_id) == item
