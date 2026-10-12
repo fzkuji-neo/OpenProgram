@@ -116,6 +116,8 @@ In the desktop app, text, code, data, PDF and Office files reference their origi
 
 Draft attachments stay with their chat across reloads once reading finishes. Sending clears only the submitted items after the backend acknowledges the message. Read errors or rejected sends keep the draft and attachments for correction. If the connection drops before confirmation, the app does not automatically resend the message.
 
+While a message is preparing file mentions, repeated submission of the same draft does not send it twice. If you change the draft and submit again during preparation, the app tells you that the changed draft was not sent and keeps your text and attachments. Send that draft again after preparation finishes. Other conversations can send independently.
+
 ### Projects on headless or remote Linux
 
 Project folders and additional working directories refer to paths on the

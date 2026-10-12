@@ -69,6 +69,9 @@ export interface ChatSubmitOptions {
  *  for the next turn (⌘/Ctrl+Enter). */
 export type RunningSendMode = "queue" | "steer";
 
+// Preparation belongs to the draft owner across focused and bound composers.
+const preparingSends = new Map<string | null, { token: symbol; intent: string }>();
+
 export function useChatSubmit({
   bound,
   input,
@@ -206,99 +209,118 @@ export function useChatSubmit({
     // re-check here so an Enter-key submit can't slip through if the
     // chip refresh hadn't fired yet.
     if (missingPasteIds(trimmed).size > 0) return;
-    // Expand long-paste tokens (``[Pasted #N +M lines]``) back into
-    // the outgoing text so the LLM receives the real content. The
-    // entries stay in the store — they're now GC'd by the
-    // composerDrafts effect once no draft references them anymore.
-    // Pasted spans stay delimited until every rewrite has run, so their
-    // final position can be recorded for the collapsed bubble.
-    let expanded = expandPasteTokensDelimited(trimmed);
-    // Then expand any ``@path`` mentions by reading the files via the
-    // worker's HTTP API. Mentions that fail to read stay as the
-    // original ``@path`` token (no silent data loss).
+    const intent = JSON.stringify({ input,
+      images: pendingImages.map(({ id, order, sourcePath }) => ({ id, order, sourcePath })),
+      docs: pendingDocs.map(({ id, order, sourcePath }) => ({ id, order, sourcePath })), thinking,
+      toolsEnabled, toolsProfile, webSearchEnabled, fastEnabled, fastSupported });
+    const previous = preparingSends.get(submitOwnerKey);
+    if (previous) {
+      if (previous.intent !== intent) {
+        showToast("An earlier message is still preparing. This draft was not sent; send it again when preparation finishes.", { tone: "error" });
+      }
+      return;
+    }
+    const preparationToken = Symbol("send preparation");
+    preparingSends.set(submitOwnerKey, { token: preparationToken, intent });
     try {
-      const mentionResult = await expandAtMentions(expanded, null);
-      expanded = mentionResult.text;
-    } catch {
-      /* network blip — fall through with raw text */
+      // Expand long-paste tokens (``[Pasted #N +M lines]``) back into
+      // the outgoing text so the LLM receives the real content. The
+      // entries stay in the store — they're now GC'd by the
+      // composerDrafts effect once no draft references them anymore.
+      // Pasted spans stay delimited until every rewrite has run, so their
+      // final position can be recorded for the collapsed bubble.
+      let expanded = expandPasteTokensDelimited(trimmed);
+      // Then resolve ``@path`` mentions to references via the worker's
+      // HTTP API. Mentions that fail to resolve stay as the
+      // original ``@path`` token (no silent data loss).
+      try {
+        const mentionResult = await expandAtMentions(expanded, null);
+        expanded = mentionResult.text;
+      } catch {
+        /* network blip — fall through with raw text */
+      }
+      const pasted = takePastedSpans(expanded);
+      expanded = pasted.text;
+      // Measured on the body: attachment markers are prepended below, and
+      // the records count from the end of the message.
+      const textElements = elementsForBody(expanded, pasted.spans);
+      // Attached docs are referenced by PATH, never inlined. Electron files
+      // use the original native path captured at drop/pick time. Plain-browser
+      // files have no source path, so their bytes ride as a document attachment
+      // and the backend appends the saved session-workdir path. Images retain
+      // their multimodal payload and get an original-path marker when available.
+      const { mentions, imagesPayload, docsPayload } = buildAttachmentEnvelope(
+        pendingImages,
+        pendingDocs,
+      );
+      if (mentions.length > 0) {
+        expanded = `${mentions.join("\n")}\n\n${expanded}`;
+      }
+      const attachmentsPayload = [...imagesPayload, ...docsPayload];
+      const capturedAttachmentIds = {
+        imageIds: pendingImages.map((image) => image.id),
+        docIds: pendingDocs.map((doc) => doc.id),
+      };
+      const originalDraft = input;
+      const hasSubmittedAttachments = pendingImages.length + pendingDocs.length > 0;
+      // Set once the socket accepts the frame: the files leave the composer
+      // with the text, and only an ACK or a rejection decides their fate.
+      let submittedAttachments: SubmittedAttachments | null = null;
+      // Delegate to legacy `sendMessage` (chat.js) so the user bubble +
+      // welcome-hide + assistant placeholder + isRunning flip all fire
+      // before the WS payload goes out. Composer is just the trigger.
+      const handled = sendChatMessage({
+        text: expanded,
+        textElements: textElements.length > 0 ? textElements : undefined,
+        sessionId: submitOwnerKey,
+        // A bound (split-pane) composer writes the same payload but must not
+        // flip the focused shell's welcome/run singletons.
+        background: bound !== null,
+        attachments: attachmentsPayload.length > 0 ? attachmentsPayload : undefined,
+        thinking,
+        toolsEnabled,
+        toolsProfile,
+        webSearchEnabled,
+        serviceTier: fastEnabled && fastSupported ? "priority" : "default",
+        // Native path-only docs have no inline WS attachment payload, but they
+        // still belong to this attachment turn for run_active handling.
+        hasAttachments: hasSubmittedAttachments,
+        onAck: () => {
+          // Remove only the submitted attachments; keep newer draft edits.
+          if (submittedAttachments) submittedAttachments.release();
+          else clearAttachmentsAfterSubmit(submitOwnerKey, capturedAttachmentIds);
+        },
+        onSent: () => {
+          if (hasSubmittedAttachments) {
+            submittedAttachments = detachAttachmentsForSubmit(submitOwnerKey, capturedAttachmentIds);
+          }
+          const currentDraft = submitOwnerKey
+            ? useSessionStore.getState().composerDrafts[submitOwnerKey] ?? ""
+            : useSessionStore.getState().composerDrafts.__new__ ?? "";
+          if (currentDraft === originalDraft) {
+            setComposerInputFor(submitOwnerKey, "");
+          }
+        },
+        onReject: () => {
+          submittedAttachments?.restore();
+          const currentDraft = submitOwnerKey
+            ? useSessionStore.getState().composerDrafts[submitOwnerKey] ?? ""
+            : useSessionStore.getState().composerDrafts.__new__ ?? "";
+          if (!currentDraft) setComposerInputFor(submitOwnerKey, originalDraft);
+        },
+      });
+      // The bridge already writes this exact socket. A false result means the
+      // write did not complete; keep the captured draft + attachments intact so
+      // the user can retry after reconnect instead of writing the same socket
+      // again through the raw helper.
+      if (!handled) return;
+      setHistoryIndex(-1);
+      slash.close();
+    } finally {
+      if (preparingSends.get(submitOwnerKey)?.token === preparationToken) {
+        preparingSends.delete(submitOwnerKey);
+      }
     }
-    const pasted = takePastedSpans(expanded);
-    expanded = pasted.text;
-    // Measured on the body: attachment markers are prepended below, and
-    // the records count from the end of the message.
-    const textElements = elementsForBody(expanded, pasted.spans);
-    // Attached docs are referenced by PATH, never inlined. Electron files
-    // use the original native path captured at drop/pick time. Plain-browser
-    // files have no source path, so their bytes ride as a document attachment
-    // and the backend appends the saved session-workdir path. Images retain
-    // their multimodal payload and get an original-path marker when available.
-    const { mentions, imagesPayload, docsPayload } = buildAttachmentEnvelope(
-      pendingImages,
-      pendingDocs,
-    );
-    if (mentions.length > 0) {
-      expanded = `${mentions.join("\n")}\n\n${expanded}`;
-    }
-    const attachmentsPayload = [...imagesPayload, ...docsPayload];
-    const capturedAttachmentIds = {
-      imageIds: pendingImages.map((image) => image.id),
-      docIds: pendingDocs.map((doc) => doc.id),
-    };
-    const originalDraft = input;
-    const hasSubmittedAttachments = pendingImages.length + pendingDocs.length > 0;
-    // Set once the socket accepts the frame: the files leave the composer
-    // with the text, and only an ACK or a rejection decides their fate.
-    let submittedAttachments: SubmittedAttachments | null = null;
-    // Delegate to legacy `sendMessage` (chat.js) so the user bubble +
-    // welcome-hide + assistant placeholder + isRunning flip all fire
-    // before the WS payload goes out. Composer is just the trigger.
-    const handled = sendChatMessage({
-      text: expanded,
-      textElements: textElements.length > 0 ? textElements : undefined,
-      sessionId: submitOwnerKey,
-      // A bound (split-pane) composer writes the same payload but must not
-      // flip the focused shell's welcome/run singletons.
-      background: bound !== null,
-      attachments: attachmentsPayload.length > 0 ? attachmentsPayload : undefined,
-      thinking,
-      toolsEnabled,
-      toolsProfile,
-      webSearchEnabled,
-      serviceTier: fastEnabled && fastSupported ? "priority" : "default",
-      // Native path-only docs have no inline WS attachment payload, but they
-      // still belong to this attachment turn for run_active handling.
-      hasAttachments: hasSubmittedAttachments,
-      onAck: () => {
-        // Remove only the submitted attachments; keep newer draft edits.
-        if (submittedAttachments) submittedAttachments.release();
-        else clearAttachmentsAfterSubmit(submitOwnerKey, capturedAttachmentIds);
-      },
-      onSent: () => {
-        if (hasSubmittedAttachments) {
-          submittedAttachments = detachAttachmentsForSubmit(submitOwnerKey, capturedAttachmentIds);
-        }
-        const currentDraft = submitOwnerKey
-          ? useSessionStore.getState().composerDrafts[submitOwnerKey] ?? ""
-          : useSessionStore.getState().composerDrafts.__new__ ?? "";
-        if (currentDraft === originalDraft) {
-          setComposerInputFor(submitOwnerKey, "");
-        }
-      },
-      onReject: () => {
-        submittedAttachments?.restore();
-        const currentDraft = submitOwnerKey
-          ? useSessionStore.getState().composerDrafts[submitOwnerKey] ?? ""
-          : useSessionStore.getState().composerDrafts.__new__ ?? "";
-        if (!currentDraft) setComposerInputFor(submitOwnerKey, originalDraft);
-      },
-    });
-    // The bridge already writes this exact socket. A false result means the
-    // write did not complete; keep the captured draft + attachments intact so
-    // the user can retry after reconnect instead of writing the same socket
-    // again through the raw helper.
-    if (!handled) return;
-    setHistoryIndex(-1);
-    slash.close();
   }, [
     clearAttachmentsAfterSubmit,
     detachAttachmentsForSubmit,
