@@ -56,11 +56,11 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
     setSelected(null);
     setMode("preview");
     if (!state.snapshot && state.status === "error") sectionNavigation.consume(sectionNavigation.request.sequence);
-    if (!path.toLowerCase().endsWith(".md")) {
+    if (!path.toLowerCase().endsWith(".md") || state.snapshot?.binary) {
       setError(text("Section not found.", "未找到章节。"));
       sectionNavigation.consume(sectionNavigation.request.sequence);
     }
-  }, [sectionNavigation?.request.sequence]);
+  }, [sectionNavigation?.request.sequence, state.snapshot?.binary]);
   const editedBytes = useRef<Blob | null>(null);
   const rasterEditor = useRef<RasterEditorInstance | null>(null);
   const [rasterReady, setRasterReady] = useState(false);

@@ -239,3 +239,28 @@ test("failed document load reports failure and consumes pending intent", async (
     });
   } finally { await controller.close(); }
 });
+
+for (const delayed of [false, true]) {
+  test(`binary Markdown ${delayed ? "loaded asynchronously" : "already loaded"} consumes section intent with visible status`, async () => {
+    reset(); setDraftStoreAdapterForTests(new MemoryDraftStore());
+    let release;
+    const response = new Promise(resolve => { release = resolve; });
+    const path = delayed ? "delayed-binary.md" : "binary.md";
+    const bytes = new Uint8Array([0, 1, 2]);
+    const controller = new DocumentController({ projectId: "p", path, draftStore: documentRecords(), fetchImpl: () => response });
+    if (!delayed) await controller.hydrate({ bytes, binary: true, revision: "a".repeat(64) });
+    tabs.getState().openFileTab("p", path, { section: "#missing" }); const id = tabs.getState().activeId;
+    try {
+      await mounted(async (host, root) => {
+        await act(() => root.render(createElement(DocumentWindow, { projectId: "p", path, sectionNavigation: navigation(id) })));
+        if (delayed) {
+          assert.ok(request(id), "loading must preserve the section request");
+          await act(async () => { release(new Response(bytes, { headers: { "x-document-revision": "a".repeat(64) } })); await controller.load(); });
+        }
+        assert.ok(host.textContent.includes("binary file"));
+        assert.equal(request(id), undefined);
+        assert.ok(host.textContent.includes("Section not found."));
+      });
+    } finally { await controller.close(); }
+  });
+}
