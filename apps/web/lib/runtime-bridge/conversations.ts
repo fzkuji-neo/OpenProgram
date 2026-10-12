@@ -602,6 +602,25 @@ export function loadSessionData(data: LegacyConv): void {
   fetchBranches(id).then(() => refreshBranchBadge());
 
   renderSessionMessages(map[id]);
+  refreshFocusedSession(id, data);
+}
+
+/** Focus moved to a session a split pane already shows and keeps current:
+ *  refresh what follows the focused session (status, branches, provider,
+ *  agent settings, context) from the loaded data. The transcript and its
+ *  history window stay as the pane holds them; a reload would reset that
+ *  window to the latest page and back. */
+export function focusLoadedSession(id: string): void {
+  const conv = convs()[id] as LegacyConv | undefined;
+  if (!conv) return;
+  refreshStatusSource();
+  delete branchesByConv[id];
+  fetchBranches(id).then(() => refreshBranchBadge());
+  refreshFocusedSession(id, conv);
+}
+
+function refreshFocusedSession(id: string, data: LegacyConv): void {
+  const map = convs();
   const fts = (data.function_trees as TreeNode[] | undefined) || [];
   for (const ft of fts) {
     if (ft && (ft.path || ft.name)) runtimeState.trees.push(ft);
