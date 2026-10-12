@@ -87,3 +87,25 @@ test('generated link and image attributes cannot create event handlers',()=>{
  assert.equal(host.querySelector('img').getAttribute('src'),'/raw?project=project%20%26%20one&path=docs%2Fnote%26amp%3Bpart.svg');
  } finally {await act(()=>root.unmount());host.remove();}
 });
+
+test('standard named URL entities decode exactly once in renderer and click paths',async()=>{
+ const {document,window}=parseHTML('<html><body></body></html>');Object.assign(globalThis,{document,window,IS_REACT_ACT_ENVIRONMENT:true});globalThis.__mdOpens=[];
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ try {
+ for(const [source,expected] of [['note&copy;.md','note©.md'],['note&AMP;part.md','note&part.md'],['note&amp;amp;part.md','note&amp;part.md'],['note&notit;.md','note&notit;.md']]){
+  await act(()=>root.render(createElement(MarkdownPreview,{...props,source:`[File](${source}) ![Image](${source})`})));
+  const a=host.querySelector('a');assert.equal(a.getAttribute('href'),expected);
+  await act(()=>a.dispatchEvent(new window.Event('click',{bubbles:true,cancelable:true})));
+  assert.deepEqual(globalThis.__mdOpens.at(-1),['tab',props.projectId,'docs/'+expected]);
+  assert.equal(host.querySelector('img').getAttribute('src'),'/raw?project=project%20%26%20one&path='+encodeURIComponent('docs/'+expected));
+ }
+ } finally {await act(()=>root.unmount());host.remove();}
+});
+test('image alternative text and titles retain standard Markdown entity semantics',()=>{
+ const doc=render('[Link](other.md "&AMP; &copy;") ![**Alt** &copy;](image.png "&AMP; &copy;")');
+ assert.equal(doc.querySelector('a').title,'& ©');
+ assert.equal(doc.querySelector('img').title,'& ©');
+ assert.equal(doc.querySelector('img').getAttribute('alt'),'Alt ©');
+ const rejected=render('![**Alt** &copy;](data:text/html,evil)');
+ assert.equal(rejected.textContent.trim(),'Alt ©');
+});

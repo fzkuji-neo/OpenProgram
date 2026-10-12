@@ -1,3 +1,4 @@
+import { decodeHTMLAttribute } from "entities";
 import { Marked, type TokenizerExtension, type RendererExtension } from "marked";
 import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
 import { markdownTokenDestination } from "@/lib/files/markdown-paths";
@@ -30,16 +31,17 @@ export function createDocumentMarkdown(resolveImage?: (src: string) => string | 
         const label = this.parser.parseInline(token.tokens);
         const destination = markdownTokenDestination(token.href);
         if (destination.kind === "rejected") return label;
-        const title = token.title ? ` title="${escapeHtml(token.title)}"` : "";
+        const title = token.title ? ` title="${escapeHtml(decodeHTMLAttribute(token.title))}"` : "";
         return `<a href="${escapeHtml(destination.href)}"${title}>${label}</a>`;
       },
       image(token) {
         const destination = markdownTokenDestination(token.href, true);
         const src = destination.kind === "external" ? destination.href
           : destination.kind === "local" ? resolveImage?.(destination.href) : null;
-        if (!src) return escapeHtml(token.text);
-        const title = token.title ? ` title="${escapeHtml(token.title)}"` : "";
-        return `<img src="${escapeHtml(src)}" alt="${escapeHtml(token.text)}"${title}>`;
+        const alt = decodeHTMLAttribute(this.parser.parseInline(token.tokens, this.parser.textRenderer));
+        if (!src) return escapeHtml(alt);
+        const title = token.title ? ` title="${escapeHtml(decodeHTMLAttribute(token.title))}"` : "";
+        return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${title}>`;
       },
     },
   });

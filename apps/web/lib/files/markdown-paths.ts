@@ -1,19 +1,12 @@
+import { decodeHTMLAttribute } from "entities";
+
 /** Classify document destinations before they reach browser navigation. */
 export type MarkdownDestination =
   | { kind: "local" | "fragment" | "external"; href: string }
   | { kind: "rejected" };
 
 export function markdownTokenDestination(reference: string, image = false): MarkdownDestination {
-  // Marked may retain entities in destinations. Decode URL-significant entities
-  // before classification; HTML generation must escape the result independently.
-  const raw = reference.replace(/&#(x[0-9a-f]+|[0-9]+);?|&(colon|Tab|NewLine|amp);/gi, (full, numeric: string, named: string) => {
-    if (numeric) {
-      const code = numeric[0].toLowerCase() === "x" ? parseInt(numeric.slice(1), 16) : parseInt(numeric, 10);
-      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : "\0";
-    }
-    return ({ colon: ":", Tab: "\t", NewLine: "\n", amp: "&" } as Record<string, string>)[named] ?? full;
-  });
-  return markdownDestination(raw, image);
+  return markdownDestination(decodeHTMLAttribute(reference), image);
 }
 
 /** DOM and resolver addresses are already entity-decoded; never decode again. */
