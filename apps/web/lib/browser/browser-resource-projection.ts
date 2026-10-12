@@ -118,8 +118,9 @@ export function BrowserResourceProjection({ sessionId }: { sessionId: string | n
 
   useEffect(() => {
     if (!sessionId) return;
-    // The panes beside the focused one can float a preview too.
-    const sessions = [sessionId, ...(besideKey ? besideKey.split("\n") : [])];
+    // The panes beside the focused one can float a preview too. The
+    // focused conversation goes last, so its snapshot is the freshest.
+    const sessions = [...(besideKey ? besideKey.split("\n") : []), sessionId];
     let disposed = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function poll() {
