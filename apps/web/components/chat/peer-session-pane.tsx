@@ -21,7 +21,7 @@ import { SelectionQuote } from "./messages/quote-to-chat";
  * right rail and DAG follow. Interacting with a pane sets it silently
  * (`setActive`), which changes no layout and interrupts no input.
  */
-import { useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
 import { ArrowDown } from "lucide-react";
 
 import { useMessageIds, useSessionStore } from "@/lib/session-store";
@@ -44,7 +44,7 @@ import { useHistoryWindow } from "./messages/use-history-window";
 import { DecisionOutputs } from "./messages/decision-output";
 import { MessageRow, RecyclableRow } from "./messages/message-list";
 
-export function PeerSessionPane({
+export const PeerSessionPane = memo(function PeerSessionPane({
   tabId,
   sessionId,
   title,
@@ -255,4 +255,4 @@ export function PeerSessionPane({
       ) : null}
     </div>
   );
-}
+});

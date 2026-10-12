@@ -38,9 +38,11 @@ function clustersWidth(row: HTMLElement): number {
  * COMPACT_HYSTERESIS px of slack so the row doesn't flap at the boundary.
  * The result is `data-compact="true"` on the row.
  *
- * Re-measured when the row resizes, when its content or classes change
- * (a tool toggled, a model or effort switched) and when web fonts finish
- * loading.
+ * The full-size need depends only on the row's content, so it is measured
+ * when the content or classes change (a tool toggled, a model or effort
+ * switched) and when web fonts finish loading. A resize only compares that
+ * need with the new width: cloning and laying out the row on every frame
+ * of a pane or window resize made dragging stutter.
  */
 export function useCompactControlsRow(ref: RefObject<HTMLDivElement | null>) {
   useLayoutEffect(() => {
@@ -49,6 +51,8 @@ export function useCompactControlsRow(ref: RefObject<HTMLDivElement | null>) {
 
     let frame = 0;
     let compact = false;
+    let need = 0;
+    let stale = true;
 
     const fullWidth = () => {
       const host = row.parentElement;
@@ -73,7 +77,10 @@ export function useCompactControlsRow(ref: RefObject<HTMLDivElement | null>) {
     const apply = () => {
       const available = row.clientWidth;
       if (available <= 0) return;
-      const need = Math.ceil(fullWidth());
+      if (stale) {
+        need = Math.ceil(fullWidth());
+        stale = need <= 0;
+      }
       if (need <= 0) return;
       const slack = compact ? COMPACT_HYSTERESIS : 0;
       compact = need > available + 1 - slack;
@@ -81,13 +88,17 @@ export function useCompactControlsRow(ref: RefObject<HTMLDivElement | null>) {
       else delete row.dataset.compact;
     };
 
-    const measure = () => {
+    const fit = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(apply);
     };
+    const measure = () => {
+      stale = true;
+      fit();
+    };
 
     const resizeObserver =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(fit);
     resizeObserver?.observe(row);
 
     // Toggling a tool, switching model or effort changes the labels or a

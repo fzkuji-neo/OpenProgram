@@ -21,7 +21,7 @@
  *    open-externally escape hatch stays always visible. No
  *    back/forward buttons: iframe history is unreliable cross-origin.
  */
-import { useEffect, useId, useRef, useState } from "react";
+import { memo, useEffect, useId, useRef, useState } from "react";
 import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
 import type { KeyboardEvent, ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, PictureInPicture2, RotateCw, Search, Star, X } from "lucide-react";
@@ -85,7 +85,7 @@ import {
   useBrowserControlStore,
 } from "@/lib/browser/browser-control";
 
-export function WebTabPane({ tabId, url, suspended = false }: { tabId: string; url: string; suspended?: boolean }) {
+export const WebTabPane = memo(function WebTabPane({ tabId, url, suspended = false }: { tabId: string; url: string; suspended?: boolean }) {
   // Bridge presence is fixed for the lifetime of the page (preload
   // ran or it didn't), so branching in render is stable. Web tabs
   // never server-render (the tabs store is empty during SSR).
@@ -95,7 +95,7 @@ export function WebTabPane({ tabId, url, suspended = false }: { tabId: string; u
     return <DesktopWebTabPane bridge={bridge} tabId={tabId} url={url} menuOwnerId={menuOwnerId} suspended={suspended} />;
   }
   return <IframeWebTabPane tabId={tabId} url={url} menuOwnerId={menuOwnerId} />;
-}
+});
 
 function BookmarkButton({ tabId, url, title }: { tabId: string; url: string; title: string }) {
   const { text } = useTranslation();

@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { noteChatWidth } from "@/lib/chat/message-window";
 
+const WIDTH_SETTLE_MS = 120;
+
 /** Measured viewport with extra mounted content for large scroll deltas. */
 export function useMessageViewport(chatKey: string | null, rowCount: number, paintRows: boolean, areaRef?: RefObject<HTMLElement>) {
   const [view, setView] = useState({ top: 0, h: 800, overscan: 1600 });
@@ -30,6 +32,7 @@ export function useMessageViewport(chatKey: string | null, rowCount: number, pai
     let repaintRaf = 0;
     let lastWidth = area.clientWidth;
     let idle: ReturnType<typeof setTimeout> | undefined;
+    let widthSettle: ReturnType<typeof setTimeout> | undefined;
     // Chromium can keep a stale raster for one very tall text block (a
     // multi-thousand-line reply) after a width change, leaving the view
     // blank until the next scroll. Re-layering the list for one frame
@@ -43,13 +46,24 @@ export function useMessageViewport(chatKey: string | null, rowCount: number, pai
         repaintRaf = requestAnimationFrame(() => { list.style.willChange = ""; });
       });
     };
+    // A new width invalidates every remembered row height and re-renders
+    // the list. While a pane or window is being resized that would happen
+    // on every frame (and the repaint layer would re-raster the whole
+    // list each time), so it waits until the width holds still.
+    const settleWidth = () => {
+      widthSettle = undefined;
+      repaint();
+      if (chatKey && area.clientWidth > 0 && noteChatWidth(chatKey, area.clientWidth)) {
+        setMeasureGen((n) => n + 1);
+      }
+    };
     const sync = () => {
       raf = 0;
       if (area.clientWidth > 0 && area.clientWidth !== lastWidth) {
         lastWidth = area.clientWidth;
-        repaint();
-      }
-      if (chatKey && area.clientWidth > 0 && noteChatWidth(chatKey, area.clientWidth)) {
+        clearTimeout(widthSettle);
+        widthSettle = setTimeout(settleWidth, WIDTH_SETTLE_MS);
+      } else if (!widthSettle && chatKey && area.clientWidth > 0 && noteChatWidth(chatKey, area.clientWidth)) {
         setMeasureGen((n) => n + 1);
       }
       setView(prev => {
@@ -72,6 +86,7 @@ export function useMessageViewport(chatKey: string | null, rowCount: number, pai
       if (raf) cancelAnimationFrame(raf);
       cancelAnimationFrame(repaintRaf);
       clearTimeout(idle);
+      clearTimeout(widthSettle);
     };
   }, [chatKey, paintRows, areaRef]);
   return {view, notifyMeasured};
