@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { createPortal, flushSync } from "react-dom";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { useRouter, usePathname } from "next/navigation";
 import { PageShell } from "./page-shell";
@@ -10,7 +10,7 @@ import { RightSidebar } from "./right-sidebar/right-sidebar";
 import { CenterTabStrip } from "./center-tabs/center-tab-strip";
 import { CanvasControls } from "./center-tabs/canvas-controls";
 import { CanvasOverview } from "./center-tabs/canvas-overview";
-import { canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
+import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
 import { AppPreviewPip } from "./center-tabs/app-preview-pip";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
@@ -429,19 +429,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
     const layoutRoot = node.closest(".app");
     measureScheduler.schedule();
-    // A rail opening or closing resizes the centre every frame. Measured a
-    // frame late, the panes keep their old width while the centre's left
-    // edge moves, and slide past its right edge. The observer runs after
-    // layout and before paint, so rendering the new size right there keeps
-    // the panes inside the centre in the frame it changes.
-    const observer = new ResizeObserver(() => {
-      measureScheduler.cancel();
-      const rect = node.getBoundingClientRect();
-      flushSync(() => {
-        setCenterBodyWidth(rect.width);
-        setCenterBodyHeight(rect.height);
-      });
-    });
+    const observer = new ResizeObserver(measureScheduler.schedule);
     observer.observe(node);
     window.addEventListener("resize", measureScheduler.schedule);
     layoutRoot?.addEventListener("transitionend", measureScheduler.schedule);
@@ -479,6 +467,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const canvasLeaves = leaves(canvas.root);
   const canvasRect = canvasViewport(centerBodyWidth, centerBodyHeight);
   const geometry = canvasGeometry(canvas.root, canvasRect);
+  // Panes sit in the canvas as shares of it (calc(% + px)), so the browser
+  // sizes them in the same layout pass as the canvas; the pixel geometry
+  // above only decides whether a pane is too small to show.
+  const canvasInset = canvasLeaves.length > 1 ? 1 : 0;
+  const cssGeometry = useMemo(() => canvasCssGeometry(canvas.root, canvasInset), [canvas.root, canvasInset]);
   const webIds = panes.flatMap(p => p.kind !== "session" && tabs.find(t => t.id === p.tabId)?.kind === "web" ? [p.tabId] : []);
   const liveWebIds = new Set([...(activeId && webIds.includes(activeId) ? [activeId] : []), ...webIds.filter(id => id !== activeId)].slice(0, 8));
   const sessionPaneIndex = panes.findIndex((pane) => pane.kind === "session");
@@ -510,16 +503,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const tabId = item?.kind === "session" ? item.activeTabId : item?.tabId;
     const p = canvasLeaves.find(p => p.content === tabId);
     if (!p) return { display: "none" };
-    const r = canvas.zoomedPaneId === p.id
-      ? canvasRect
-      : geometry.panes.get(p.id)!;
-    const hidden = (canvas.zoomedPaneId && canvas.zoomedPaneId !== p.id) || r.width < 150 || r.height < 110;
+    const zoomed = canvas.zoomedPaneId === p.id;
+    const r = zoomed ? canvasRect : geometry.panes.get(p.id)!;
+    const hidden = (canvas.zoomedPaneId && !zoomed) || r.width < 150 || r.height < 110;
     // No per-pane title bar: content fills its pane. In a multi-pane layout
     // every pane is its own floating card (see `.center-col[data-split]` in
     // base.css), so it keeps a 1px inset and the cards' 16px corners; a lone
     // pane is flush inside the centre card.
-    const inset = canvasLeaves.length > 1 ? 1 : 0;
-    return { position:"absolute",left:r.left+inset,top:r.top+inset,width:Math.max(0,r.width-2*inset),height:Math.max(0,r.height-2*inset),minWidth:0,minHeight:0,overflow:"hidden",borderRadius:inset ? 16 : undefined,display:hidden?"none":"flex",flexDirection:"column" };
+    const css = zoomed ? cssGeometry.viewport : cssGeometry.panes.get(p.id)!;
+    return { position:"absolute",...css,minWidth:0,minHeight:0,overflow:"hidden",borderRadius:canvasInset ? 16 : undefined,display:hidden?"none":"flex",flexDirection:"column" };
   }
 
   function renderTabPane(tabId: string, kind: "peer" | "tab") {

@@ -231,3 +231,34 @@ export function canvasGeometry(root: LayoutNode, rect: Rect) {
   }
   visit(root, rect); return { panes, dividers };
 }
+
+/** A rect as CSS lengths of the canvas element it sits in. */
+export type CanvasCssRect = { left: string; top: string; width: string; height: string };
+/** Every canvas rect is affine in the canvas size: shares of it plus the
+ *  fixed gaps. Written as calc(% + px), the browser lays a pane out in the
+ *  same pass as its canvas, so a canvas that a rail is resizing never holds
+ *  a pane at its old size, even for a frame. The shares come from laying
+ *  the canvas out at two sample sizes. */
+const SAMPLE = [1000, 3000] as const;
+const length = (a: number, b: number, extra: number) => {
+  const share = (b - a) / (SAMPLE[1] - SAMPLE[0]);
+  const fixed = a - share * SAMPLE[0] + extra;
+  return `calc(${+(share * 100).toFixed(4)}% + ${+fixed.toFixed(3)}px)`;
+};
+function cssRect(a: Rect, b: Rect, inset = 0): CanvasCssRect {
+  return {
+    left: length(a.left, b.left, inset), top: length(a.top, b.top, inset),
+    width: length(a.width, b.width, -2 * inset), height: length(a.height, b.height, -2 * inset),
+  };
+}
+export function canvasCssGeometry(root: LayoutNode, inset = 0) {
+  const [small, large] = SAMPLE.map(size => canvasViewport(size, size));
+  const a = canvasGeometry(root, small), b = canvasGeometry(root, large);
+  const panes = new Map<string, CanvasCssRect>();
+  for (const [paneId, rect] of a.panes) panes.set(paneId, cssRect(rect, b.panes.get(paneId)!, inset));
+  return {
+    viewport: cssRect(small, large, inset),
+    panes,
+    dividers: a.dividers.map((divider, i) => cssRect(divider, b.dividers[i])),
+  };
+}

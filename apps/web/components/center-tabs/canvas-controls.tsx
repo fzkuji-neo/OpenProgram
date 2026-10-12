@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Equal, FileText, Globe, LayoutGrid, Maximize2, MessageSquare, Minus, SquareDashed, Undo2, X, Save } from "lucide-react";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
-import { canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, snapResize, tilePane, mapNode, type CanvasLayout, type CanvasPreset, type CanvasTile, type LayoutNode } from "@/lib/tabs/canvas-layout";
+import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, snapResize, tilePane, mapNode, type CanvasLayout, type CanvasPreset, type CanvasTile, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { rememberCanvas, takePreviousCanvas } from "@/lib/tabs/canvas-history";
 import { setCanvasDragging, startPaneDrag } from "@/lib/tabs/canvas-drag";
 import { useTranslation } from "@/lib/i18n";
@@ -105,6 +105,9 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   }, [menu]);
   const canvasRect = canvasViewport(width, height);
   const all = leaves(layout.root), geometry = canvasGeometry(layout.root, canvasRect);
+  // Placed as shares of the canvas, like the panes' content (app-shell), so
+  // the frames move with the canvas in the same layout pass.
+  const cssGeometry = useMemo(() => canvasCssGeometry(layout.root), [layout.root]);
   const group = findCenterTabGroup(groups, targetId);
   const historyKeys = [targetId, ...(group ? [group.id, ...group.memberIds] : [])];
   const update = (canvas: CanvasLayout) => useCenterTabs.getState().setCanvas(targetId, canvas);
@@ -250,9 +253,10 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
       const visible = !layout.zoomedPaneId || layout.zoomedPaneId === p.id;
       const zoomed = layout.zoomedPaneId === p.id;
       const r = zoomed ? canvasRect : rect;
+      const css = zoomed ? cssGeometry.viewport : cssGeometry.panes.get(p.id)!;
       const tab=tabs.find(t => t.id === p.content), tiny=r.width<150 || r.height<110;
       const title = titleOf(tab);
-      return <div key={p.id} className={styles.pane} data-canvas-pane={p.id} data-canvas-target={targetId} data-canvas-content={p.content ?? undefined} data-single={single || undefined} data-focused={(!single && layout.focusedPaneId === p.id) || undefined} data-menu-open={menu?.paneId === p.id || folding === p.id || undefined} style={{ ...r, display: visible ? undefined : "none" }}>
+      return <div key={p.id} className={styles.pane} data-canvas-pane={p.id} data-canvas-target={targetId} data-canvas-content={p.content ?? undefined} data-single={single || undefined} data-focused={(!single && layout.focusedPaneId === p.id) || undefined} data-menu-open={menu?.paneId === p.id || folding === p.id || undefined} style={{ ...css, display: visible ? undefined : "none" }}>
         {!p.content
           ? <div className={styles.empty}>
               <div className={styles.emptyCard}>
@@ -300,8 +304,8 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
         </div>}
       </div>;
     })}
-    {!layout.zoomedPaneId && geometry.dividers.map(d => { const key = `${d.splitId}:${d.index}`; const live = activeDivider?.key === key ? activeDivider : null; return <div key={key} className={styles.divider} data-active={!!live || undefined} role="separator" aria-orientation={d.dir === "row" ? "vertical" : "horizontal"} aria-valuenow={Math.round(d.sizes[d.index]*100)} tabIndex={0}
-      style={{ left:d.left,top:d.top,width:d.width,height:d.height }}
+    {!layout.zoomedPaneId && geometry.dividers.map((d, dividerIndex) => { const key = `${d.splitId}:${d.index}`; const live = activeDivider?.key === key ? activeDivider : null; return <div key={key} className={styles.divider} data-active={!!live || undefined} role="separator" aria-orientation={d.dir === "row" ? "vertical" : "horizontal"} aria-valuenow={Math.round(d.sizes[d.index]*100)} tabIndex={0}
+      style={cssGeometry.dividers[dividerIndex]}
       onDoubleClick={() => { remember(); update({ ...layout,root:mapNode(layout.root,d.splitId,n => n.kind === "split" ? { ...n,sizes:n.sizes.map((s,i) => i===d.index || i===d.index+1 ? (n.sizes[d.index]+n.sizes[d.index+1])/2 : s) } : n) }); }}
       onKeyDown={e => { if (!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key)) return; e.preventDefault(); update({ ...layout,root:resizeSplit(layout.root,d.splitId,d.index,e.key==="ArrowLeft"||e.key==="ArrowUp"?-.02:.02,d.span) }); }}
       onPointerDown={e => {
