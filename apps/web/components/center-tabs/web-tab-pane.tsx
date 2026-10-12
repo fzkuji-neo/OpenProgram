@@ -472,9 +472,13 @@ function DesktopWebTabPane({
   }), [bridge, tabId]);
 
   useEffect(() => bridge.webTab.onCommand?.((command) => {
-    if (command.id !== tabId || command.command !== "find") return;
-    setFindOpen(true);
-    window.requestAnimationFrame(() => findRef.current?.focus());
+    if (command.id !== tabId) return;
+    if (command.command === "find") {
+      setFindOpen(true);
+      window.requestAnimationFrame(() => findRef.current?.focus());
+    } else if (command.command === "focus-address") {
+      focusAddress();
+    }
   }), [bridge, tabId]);
 
   useEffect(() => () => {
@@ -525,6 +529,13 @@ function DesktopWebTabPane({
     });
   }
 
+  function focusAddress() {
+    window.requestAnimationFrame(() => {
+      addressRef.current?.focus();
+      addressRef.current?.select();
+    });
+  }
+
   function closeFind() {
     bridge.webTab.stopFind?.(tabId, "clearSelection");
     setFindOpen(false);
@@ -547,8 +558,13 @@ function DesktopWebTabPane({
     if (action === "find" && !canFind) return;
     if ((action === "zoom-in" || action === "zoom-out" || action === "reset-zoom") && !canZoom) return;
     if (action === "print" && !canPrint) return;
+    if (action === "back" && !canGoBack) return;
+    if (action === "forward" && !canGoForward) return;
     event.preventDefault();
     if (action === "find") openFind();
+    if (action === "focus-address") focusAddress();
+    if (action === "back") bridge.webTab.goBack(tabId);
+    if (action === "forward") bridge.webTab.goForward(tabId);
     if (action === "zoom-in") void bridge.webTab.zoom?.(tabId, "in");
     if (action === "zoom-out") void bridge.webTab.zoom?.(tabId, "out");
     if (action === "reset-zoom") void bridge.webTab.zoom?.(tabId, "reset");

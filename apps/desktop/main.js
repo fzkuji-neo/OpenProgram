@@ -977,9 +977,9 @@ function registerWebTabIpc() {
     const ctx = contextForSender(event);
     return ctx ? destroyView(ctx, id, { strict: true }) : false;
   });
-  ipcMain.on("webtab:reload", (event, id) => {
+  ipcMain.on("webtab:reload", (event, id, options) => {
     const ctx = contextForSender(event);
-    if (ctx) runNativeNavigation(ctx, id, (wc) => wc.reload());
+    if (ctx) runNativeNavigation(ctx, id, (wc) => (options?.hard ? wc.reloadIgnoringCache() : wc.reload()));
   });
   ipcMain.on("webtab:stop", (event, id) => {
     const ctx = contextForSender(event);
@@ -1400,7 +1400,22 @@ function buildMenu() {
       ],
     },
     { role: "editMenu" },
-    { role: "viewMenu" },
+    {
+      // The View menu's reload roles would reload the App window and drop
+      // every web view; the renderer reloads the active page instead.
+      label: "View",
+      submenu: [
+        { label: "Reload", accelerator: "CmdOrCtrl+R", click: send("menu:reload") },
+        { label: "Force Reload", accelerator: "Shift+CmdOrCtrl+R", click: send("menu:force-reload") },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen" },
+      ],
+    },
     { role: "windowMenu" },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));

@@ -39,6 +39,8 @@ If a webpage asks to confirm leaving during Reload, Back, Forward, or navigation
 
 While a page loads, Reload becomes **Stop loading** (an X icon), and an animated line appears below the browser toolbar. Click Stop loading to cancel. The line disappears when loading finishes or stops; reduced-motion settings keep it static.
 
+Keyboard shortcuts apply to the Browser tab in the focused pane (Ctrl replaces ⌘ on Windows): ⌘R reloads the page and ⇧⌘R reloads it bypassing the cache; ⌘L selects the address field; ⌘[ and ⌘] go back and forward; ⌘F finds in the page; ⌘+, ⌘− and ⌘0 zoom the page; ⌘P prints it. When the focused pane is not a Browser tab, ⌘R reloads the App window, which also reloads its open webpages.
+
 
 ## Page navigation, popups, and right-click actions
 

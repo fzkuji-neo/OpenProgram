@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
+import { desktopBridge } from "@/lib/desktop/bridge-api";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { openOverview } from "@/lib/tabs/canvas-overview";
 import { captureVisiblePanes } from "@/lib/tabs/window-snapshots";
@@ -336,7 +337,18 @@ export function useTabLifecycle({
       const tabsToClose = ids.flatMap((id) => useCenterTabs.getState().tabs.filter((tab) => tab.id === id));
       if (tabsToClose.length > 0) onTabsCloseRef.current({ stopPropagation: () => {} } as React.SyntheticEvent, tabsToClose);
     };
+    // The App menu's Reload reloads the active web page; only a window
+    // without one reloads the App itself (which drops every web view).
+    const onDesktopReload = (event: Event) => {
+      const hard = Boolean((event as CustomEvent<{ hard?: boolean }>).detail?.hard);
+      const state = useCenterTabs.getState();
+      const active = state.tabs.find((tab) => tab.id === state.activeId);
+      const bridge = desktopBridge();
+      if (active?.kind === "web" && bridge) bridge.webTab.reload(active.id, { hard });
+      else window.location.reload();
+    };
     window.addEventListener("op-desktop-close-tab", onDesktopClose);
+    window.addEventListener("op-desktop-reload", onDesktopReload);
     window.addEventListener("op-close-center-tabs", onCloseTabs);
     // A card picked in the window overview activates like a tab click.
     const onActivateTab = (event: Event) => {
@@ -347,6 +359,7 @@ export function useTabLifecycle({
     window.addEventListener("op-activate-center-tab", onActivateTab);
     return () => {
       window.removeEventListener("op-desktop-close-tab", onDesktopClose);
+      window.removeEventListener("op-desktop-reload", onDesktopReload);
       window.removeEventListener("op-close-center-tabs", onCloseTabs);
       window.removeEventListener("op-activate-center-tab", onActivateTab);
     };

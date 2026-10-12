@@ -96,10 +96,28 @@ function createWebViews({
     const key = String(input.key || "").toLowerCase();
     const owner = ownerOf(record);
     if (!owner) return false;
-    if (key === "f") {
+    const wc = record.view.webContents;
+    if (key === "f" || key === "l") {
       event.preventDefault();
-      owner.win.webContents.send("webtab:command", { id: record.id, command: "find" });
+      owner.win.webContents.send("webtab:command", {
+        id: record.id,
+        command: key === "f" ? "find" : "focus-address",
+      });
       owner.win.webContents.focus?.();
+    } else if (key === "r") {
+      // Before the menu sees it: Cmd+R here reloads the page, not the App.
+      event.preventDefault();
+      record.navigation = null;
+      if (input.shift) wc.reloadIgnoringCache();
+      else wc.reload();
+    } else if (key === "[" || key === "]") {
+      event.preventDefault();
+      record.navigation = null;
+      if (key === "[") {
+        if (wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack();
+      } else if (wc.navigationHistory.canGoForward()) {
+        wc.navigationHistory.goForward();
+      }
     } else if (key === "p") {
       event.preventDefault();
       void printView(owner, record.id);

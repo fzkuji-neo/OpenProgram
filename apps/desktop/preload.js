@@ -90,7 +90,7 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
     syncVisible: (items) => ipcRenderer.send("webtab:sync-visible", items),
     destroy: (id) => ipcRenderer.send("webtab:destroy", id),
     destroyConfirmed: (id) => ipcRenderer.invoke("webtab:destroy-confirmed", id),
-    reload: (id) => ipcRenderer.send("webtab:reload", id),
+    reload: (id, options) => ipcRenderer.send("webtab:reload", id, options),
     stop: (id) => ipcRenderer.send("webtab:stop", id),
     goBack: (id) => ipcRenderer.send("webtab:go-back", id),
     goForward: (id) => ipcRenderer.send("webtab:go-forward", id),
@@ -271,6 +271,12 @@ ipcRenderer.on("menu:new-tab", () =>
 );
 ipcRenderer.on("menu:close-tab", () =>
   window.dispatchEvent(new CustomEvent("op-desktop-close-tab"))
+);
+ipcRenderer.on("menu:reload", () =>
+  window.dispatchEvent(new CustomEvent("op-desktop-reload", { detail: { hard: false } }))
+);
+ipcRenderer.on("menu:force-reload", () =>
+  window.dispatchEvent(new CustomEvent("op-desktop-reload", { detail: { hard: true } }))
 );
 
 // Opaque Agent tickets and exact-instance human operations only. The native

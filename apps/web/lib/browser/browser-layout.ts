@@ -30,10 +30,13 @@ export function browserPageShortcut(input: {
   key: string;
   metaKey: boolean;
   ctrlKey: boolean;
-}): "find" | "zoom-in" | "zoom-out" | "reset-zoom" | "print" | null {
+}): "find" | "zoom-in" | "zoom-out" | "reset-zoom" | "print" | "focus-address" | "back" | "forward" | null {
   if (!input.metaKey && !input.ctrlKey) return null;
   switch (input.key.toLowerCase()) {
     case "f": return "find";
+    case "l": return "focus-address";
+    case "[": return "back";
+    case "]": return "forward";
     case "+":
     case "=": return "zoom-in";
     case "-": return "zoom-out";

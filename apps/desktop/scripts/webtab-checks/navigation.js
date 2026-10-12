@@ -557,6 +557,34 @@ async function checkSenderOwnership() {
     "webtab:command",
     { id: "fresh-b", command: "find" },
   ]);
+  // Page shortcuts act on the page before the App menu sees them: Cmd+R
+  // must never reach the App window's reload.
+  const pageCalls = [];
+  fresh.reload = () => pageCalls.push("reload");
+  fresh.reloadIgnoringCache = () => pageCalls.push("hard-reload");
+  fresh.navigationHistory = {
+    canGoBack: () => true,
+    canGoForward: () => false,
+    goBack: () => pageCalls.push("back"),
+    goForward: () => pageCalls.push("forward"),
+  };
+  const press = (key, extra = {}) => {
+    let prevented = false;
+    fresh.emit("before-input-event", {
+      preventDefault() { prevented = true; },
+    }, { type: "keyDown", meta: true, key, ...extra });
+    return prevented;
+  };
+  testContext.assert.equal(press("r"), true);
+  testContext.assert.equal(press("R", { shift: true }), true);
+  testContext.assert.equal(press("["), true);
+  testContext.assert.equal(press("]"), true);
+  testContext.assert.deepEqual(pageCalls, ["reload", "hard-reload", "back"]);
+  testContext.assert.equal(press("l"), true);
+  testContext.assert.deepEqual(testContext.plain(winB.sent.at(-1)), [
+    "webtab:command",
+    { id: "fresh-b", command: "focus-address" },
+  ]);
 }
 return { checkLoadView, checkVisibleCollectionAndActivation, checkConfirmedDestroyHandler, checkSenderOwnership };
 };
