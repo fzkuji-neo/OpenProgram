@@ -423,6 +423,7 @@ button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
   <li>Take-latest during an in-flight Jump: cancel the smooth ride and snap (only once latest is on screen). Send wins on 0ms feedback when already on the latest window.</li>
   <li>Reduced motion: Jump snaps. Send already snaps.</li>
   <li>Virtualization: recycle keeps measured placeholders so <code>scrollHeight</code> stays honest. Pin after recycle. Do not add <code>react-virtuoso</code> / <code>react-window</code> / <code>@tanstack/react-virtual</code>.</li>
+  <li>Width changes: a new column width keeps the measured heights as estimates instead of dropping them, so a resize never re-renders the whole list. A row re-measures when it renders; one rendering above the viewport moves <code>scrollTop</code> by its estimate's error, since the scroller has no native anchoring. While the width is changing the chat area carries <code>data-width-settling</code> and off-screen rows use <code>content-visibility: auto</code> at their remembered size, so each frame re-wraps only visible rows; when the width holds still for 120&nbsp;ms the attribute goes and the first visible row keeps its position (unless the view is at the bottom, which the pin keeps).</li>
   <li>KaTeX: <code>typesetMath</code> on the observed message column stays a growth side effect inside the single pin path, not a second scroller and not a document-wide scan.</li>
   <li>No backend protocol change.</li>
 </ul>
