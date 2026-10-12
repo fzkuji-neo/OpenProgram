@@ -110,7 +110,7 @@ module.exports = function createChecks(t) {
     await flush();
     t.assert.ok(c.nativeCalls.removedCSS.includes(c.nativeCalls.insertedCSS[0].key));
     t.assert.equal(c.nativeCalls.activeCSS.length, 0, "normal tabs must recover their original root scrollbar styling");
-    t.assert.equal(c.nativeCalls.radius.at(-1), 1, "ordinary tabs go back to the 1px radius that clips a stale frame to the view");
+    t.assert.equal(c.nativeCalls.radius.at(-1), 0, "ordinary tabs restore square native corners");
     const restoredRadiusCalls = c.nativeCalls.radius.length;
     t.hooks.setPipZoom(ctx, record.id, null);
     t.assert.equal(c.nativeCalls.radius.length, restoredRadiusCalls, "repeated restore does not update corner clipping");
