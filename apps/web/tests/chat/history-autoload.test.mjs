@@ -135,7 +135,7 @@ test('failed snapshot renewal stops automatic retries against an invalid cursor'
   f.area.scrollTop=6000;f.frame();assert.equal(f.requests[0].direction,'newer');
  });
  test('short content still fills without movement',t=>{
-  const f=fixture(t,{scrollHeight:300});f.area.scrollTop=0;f.frame();
+  const f=fixture(t,{scrollHeight:300,scrollTop:0});f.frame();
   assert.equal(f.requests[0].direction,'older');
  });
 
