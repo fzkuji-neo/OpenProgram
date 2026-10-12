@@ -265,7 +265,7 @@ function pipCoverBase(tabId: string, state: PipCenterState): boolean {
 /** The owner conversation is on screen: it is the active tab, or a pane of
  *  the window (split) the active tab is in. Focusing another pane of that
  *  window keeps the owner's preview. */
-function ownerOnCanvas(ownerTabId: string, state: PipCenterState): boolean {
+export function ownerOnCanvas(ownerTabId: string, state: PipCenterState = useCenterTabs.getState()): boolean {
   if (state.activeId === ownerTabId) return true;
   if (!state.activeId) return false;
   const activeId = state.activeId;

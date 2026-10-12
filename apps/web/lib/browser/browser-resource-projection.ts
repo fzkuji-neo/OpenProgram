@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
-import { useWebTabPip } from "@/lib/browser/web-tab-pip-store";
+import { ownerOnCanvas, useWebTabPip } from "@/lib/browser/web-tab-pip-store";
 import {
   followPreviewBinding,
   getPreviewPreference,
@@ -44,6 +44,10 @@ export function applyFollowPreview(
       pip.show(savedTabId, owner.id);
       return { tabId: savedTabId, ownerTabId: owner.id };
     }
+    // Focusing a pane without a preview of its own leaves another pane's
+    // preview alone while that pane is still on screen beside it.
+    if (pip.tabId && pip.ownerTabId && pip.ownerSessionId !== sessionId
+      && ownerOnCanvas(pip.ownerTabId)) return null;
     if (pip.tabId) pip.hide();
     return null;
   }
