@@ -59,6 +59,7 @@ function install(el: HTMLElement): void {
 
   let fadeTimer: ReturnType<typeof setTimeout> | null = null;
   let rafPending = false;
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
   let dragging = false;
   let dragStartY = 0;
   let dragStartScrollTop = 0;
@@ -98,10 +99,26 @@ function install(el: HTMLElement): void {
     if (reveal) show();
   }
 
-  function schedule(reveal: boolean): void {
+  function frame(reveal: boolean): void {
     if (rafPending) return;
     rafPending = true;
     requestAnimationFrame(() => apply(reveal));
+  }
+
+  function schedule(reveal: boolean): void {
+    if (reveal || thumb.classList.contains("visible")) {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = null;
+      frame(reveal);
+      return;
+    }
+    // A hidden thumb only needs its place once things settle. Measuring it
+    // every frame of a pane drag or resize forces a layout per frame.
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      idleTimer = null;
+      frame(false);
+    }, 120);
   }
 
   el.addEventListener("scroll", () => schedule(true), { passive: true });

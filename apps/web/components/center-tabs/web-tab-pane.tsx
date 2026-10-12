@@ -402,9 +402,11 @@ function DesktopWebTabPane({
       removeVisibleWebTabBounds(bridge, tabId); setWebTabReady(tabId, false);
     };
     const report = () => {
-      const bounds = measureWebTabBounds(el);
-      const freeze = canvasDragging() || suspended || bounds.width < 320 || bounds.height < 172;
-      if (freeze) {
+      // A canvas drag freezes the page whatever its size, so it skips the
+      // measure: every frame's restyle would otherwise force a layout here.
+      const dragFrozen = canvasDragging() || suspended;
+      const bounds = dragFrozen ? null : measureWebTabBounds(el);
+      if (!bounds || bounds.width < 320 || bounds.height < 172) {
         if (!capturing) {
           capturing = true;
           const timer = window.setTimeout(hide, 160);
