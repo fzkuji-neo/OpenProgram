@@ -180,26 +180,21 @@ export function setRowHeight(
   return prev === undefined ? "first" : "update";
 }
 
-/** Drop this chat's heights when the transcript column's width changed.
+/** Record the transcript column's width. Returns true when it changed.
+ *  Heights from the old width stay as estimates for rows that are not on
+ *  screen: each row re-measures when it renders again, and the list keeps
+ *  the reader's place when an estimate above the viewport turns out wrong.
+ *  Dropping them instead would re-render every row after each resize.
  *  No-op when width is unknown (keep memory / persisted rows). */
 export function noteChatWidth(chatKey: string, width: number): boolean {
   if (!chatKey || !Number.isFinite(width) || width <= 0) return false;
   const w = Math.round(width);
   hydrate(chatKey);
   const prev = widthByChat.get(chatKey);
-  if (prev != null && prev !== w) {
-    byChat.delete(chatKey);
-    widthByChat.set(chatKey, w);
-    hydrated.add(chatKey);
-    dirty.add(chatKey);
-    flushHeightPersist();
-    return true;
-  }
-  if (prev !== w) {
-    widthByChat.set(chatKey, w);
-    if (byChat.get(chatKey)?.size) schedulePersist(chatKey);
-  }
-  return false;
+  if (prev === w) return false;
+  widthByChat.set(chatKey, w);
+  if (byChat.get(chatKey)?.size) schedulePersist(chatKey);
+  return prev != null;
 }
 
 export function forgetHeightMemory(): void {

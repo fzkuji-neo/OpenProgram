@@ -444,12 +444,29 @@ export const RecyclableRow = memo(function RecyclableRow({
   const slotRef = useRef<HTMLDivElement>(null);
   const height = getRowHeight(chatKey, id);
   const show = live || height == null;
+  // The height a placeholder stood at before this row rendered. It may be
+  // an estimate from another width, see noteChatWidth.
+  const placeholderRef = useRef<number | null>(null);
   useLayoutEffect(() => {
     const el = slotRef.current;
     if (!el) return;
     if (!show) {
       el.dataset.seen = "1";
+      placeholderRef.current = getRowHeight(chatKey, id) ?? null;
       return;
+    }
+    const estimate = placeholderRef.current;
+    placeholderRef.current = null;
+    if (estimate != null) {
+      // A row coming in above the view: the chat area has no native scroll
+      // anchoring, so take up the estimate's error here or the visible
+      // rows jump by it.
+      const next = el.offsetHeight;
+      const area = el.closest<HTMLElement>(".chat-area");
+      if (area && next > 0 && next !== estimate
+        && el.getBoundingClientRect().top + estimate <= area.getBoundingClientRect().top) {
+        area.scrollTop += next - estimate;
+      }
     }
     const write = () => {
       const next = el.offsetHeight;
