@@ -334,7 +334,7 @@ or give up. **No automatic task resubmission is implied.** A new dispatch requir
 
 ### 5.6 Result truncation and persisted full text
 
-The current generic string/`ToolReturn` normalizer defaults to 30,000 characters, may reduce the effective cap for context capacity, retains a head/tail excerpt, and optionally writes the full UTF-8 result under `<state_dir>/tool_results/<sanitized-call-id>.txt`. The default profile resolves this to `~/.openprogram/tool_results/...`; it is a state-directory file, not an OS temporary file. Its path is reported only after a successful write. A write failure must not fabricate a path.
+The current generic string/`ToolReturn` normalizer defaults to 30,000 characters, may reduce the effective cap for context capacity, retains a head/tail excerpt, and optionally writes the full UTF-8 result under `<state_dir>/tool_results/` with an opaque, independently created `.txt` filename derived from existing ownership plus an exclusive suffix. Raw provider call IDs may recur; a new save does not overwrite a file referenced by an earlier receipt. Existing receipt paths remain readable without rewriting legacy files. The default profile resolves this to `~/.openprogram/tool_results/...`; it is a state-directory file, not an OS temporary file. Its path is reported only after a successful write. A write failure must not fabricate a path.
 
 This is not currently a universal guarantee for Job results: `job_output` returns `AgentToolResult`, which the shared normalizer passes through without applying its cap; the follow-up helper can also inline full `result_text`. No automatic TTL/garbage collection or target-session ACL for these files is established by the inspected helper.
 

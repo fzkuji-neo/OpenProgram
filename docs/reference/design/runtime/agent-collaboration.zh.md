@@ -288,7 +288,7 @@ B 空闲则立即投递（原有行为）。
 
 ### 5.6 结果截断与全文存储
 
-当前通用字符串/`ToolReturn` 规范化器默认上限为 30,000 字符，可按上下文容量进一步降低，保留头尾摘要，并可将 UTF-8 全文写入 `<state_dir>/tool_results/<sanitized-call-id>.txt`。默认 profile 对应 `~/.openprogram/tool_results/...`，它是状态目录文件，不是系统临时文件。只有写入成功才返回路径，写失败不能虚构路径。
+当前通用字符串/`ToolReturn` 规范化器默认上限为 30,000 字符，可按上下文容量进一步降低，保留头尾摘要，并可将 UTF-8 全文写入 `<state_dir>/tool_results/`，采用既有归属身份摘要与排他创建后缀组成的不透明独立 `.txt` 文件名。Provider 原始 call ID 可以重复；新保存不会覆盖旧 receipt 引用的文件。已有 receipt 路径保持可读，不改写旧文件。默认 profile 对应 `~/.openprogram/tool_results/...`，它是状态目录文件，不是系统临时文件。只有写入成功才返回路径，写失败不能虚构路径。
 
 这还不是所有 Job 结果的统一保证：`job_output` 返回 `AgentToolResult`，共享规范化器直接传递而不截断；follow-up helper 也可能内联完整 `result_text`。从检查的 helper 无法确认自动 TTL/清理策略，也没有目标 session 文件 ACL。
 

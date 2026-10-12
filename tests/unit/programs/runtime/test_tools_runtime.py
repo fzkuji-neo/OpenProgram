@@ -274,7 +274,8 @@ def test_persist_full_writes_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     result = _run(big.execute("c123", {}, None, None))
     text = result.content[0].text
     assert "saved at" in text
-    persisted = tmp_path / "c123.txt"
+    persisted, = tmp_path.glob("*.txt")
+    assert str(persisted) in text
     assert persisted.exists()
     assert persisted.read_text() == "Q" * 50_000
 

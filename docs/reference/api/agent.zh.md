@@ -147,7 +147,7 @@ f = _example_agent.f
 | `requires_env` | `tuple` | `()` | 必须设置的环境变量名,缺了就不提供该工具 |
 | `can_use` | `Callable` | `None` | 工具解析时求值的动态可用性谓词 |
 | `max_result_chars` | `int` | `None` | 回喂给模型的工具结果截断上限。`None` = 注册表默认 `DEFAULT_MAX_RESULT_CHARS`(30,000 字符) |
-| `persist_full` | `bool` | `False` | 把未截断的完整结果落盘,供 agent 回读 |
+| `persist_full` | `bool` | `False` | 把未截断的完整结果保存到状态目录中的独立路径，供 agent 回读；后续保存不覆盖旧引用。仅在写入成功后返回路径 |
 | `head_ratio` | `float` | `None` | 截断时头部保留的比例,其余留尾部。`None` = 注册表默认 `DEFAULT_HEAD_RATIO`(0.7) |
 | `requires_approval` | — | `None` | 转发给工具注册表的审批要求(与 `@function` 同形) |
 | `cache` | `bool` | `False` | 工具分发调用按 `(name, args)` 记忆化结果 |
