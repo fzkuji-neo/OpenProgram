@@ -157,6 +157,8 @@ The floating webpage preview fills the space below its compact header, with 10px
 | `/projects` | History → Projects: per-project permission rules, default settings, associated sessions |
 | `/settings` | Settings: providers (models and credentials), search, general (including theme, runtime version, and Desktop update status when the Electron bridge is present), system, usage, auth, channels |
 
+Message navigation previews and skill details display raw HTML as text while retaining Markdown formatting. Skill links do not grant access to local files.
+
 Opening `/settings` directly lands on `/settings/general`. Model credentials stay on `/settings/providers`; see [configuring models](../models/README.md).
 
 In narrow windows (900px wide or less) the left sidebar starts collapsed to its icon rail until you open it, and an opened sidebar closes again after you navigate. Below 760px the Settings navigation starts as an icon rail too, and collapses when the window is resized to that width. A sidebar you open or close yourself keeps that choice.

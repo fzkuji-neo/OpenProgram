@@ -195,6 +195,8 @@ apps/web/components/plugins/
   validate-plugin.tsx, plugin-detail.tsx, plugin-host.tsx (iframe / dynamic mount)
 ```
 
+Both skill detail views render SKILL.md bodies as untrusted Markdown. Raw HTML and HTML-like math are displayed as text. These views do not add local-resource resolvers or grant filesystem access through skill links.
+
 ### Store
 `lib/skills-store.ts`, `lib/plugins-store.ts`, subscribing over WS to `skills:changed` / `plugins:changed` / `plugins:error`.
 

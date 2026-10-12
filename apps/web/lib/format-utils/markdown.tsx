@@ -68,8 +68,9 @@ export function renderMathIn(el: HTMLElement): void {
  *
  * `escapeRawHtml` is for untrusted sources (e.g. arbitrary repo .md files
  * in the files panel): HTML/math remain escaped and destinations follow
- * the document URL policy. Leave it unset for trusted
- * chat/doc content — that path is byte-identical to the original. */
+ * the document URL policy. Callers rendering user, model or file-authored text
+ * must opt into this policy. The unset legacy mode preserves raw HTML;
+ * use it only with an explicit trusted-markup contract. */
 export function Markdown({
   source,
   escapeRawHtml,
