@@ -568,7 +568,7 @@ git diff --check</code></pre><p>浏览器自动测试使用隔离状态，不发
 </section>
 
 <section id="status">
-<h2>实现状态</h2>
+<h2>实现状态附录</h2>
 <div class="doc-scroll" tabindex="0" role="region" aria-label="实现状态">
 <table>
 <thead><tr><th>范围</th><th>状态</th><th>边界</th></tr></thead>
@@ -580,7 +580,7 @@ git diff --check</code></pre><p>浏览器自动测试使用隔离状态，不发
 <tr><td><code>useStickToBottom</code></td><td>已删除</td><td>文件已删。</td></tr>
 <tr><td>历史加载器 <code>scrollTop</code> 写入</td><td>已有</td><td>加载器不 pin latest。各视口恢复在 history-viewport helper，跟随锁定期跳过。</td></tr>
 <tr><td>本页的统一跟随契约</td><td>已有</td><td>App 与浏览器共用此 Web 渲染器。证据是已审查的实现提交，不是本预览。</td></tr>
-<tr><td>考虑布局变化的双向历史预加载</td><td>待实现</td><td>实现、独立审查与最终候选验证仍待完成；外部诊断候选不构成发布证据。</td></tr>
+<tr><td>考虑布局变化的双向历史预加载</td><td>源码审查通过</td><td>源码实现已具备；独立规格与质量审查及受影响检查通过。整批代码的最终验证和安装后的 App 验收仍待完成。</td></tr>
 </tbody>
 </table>
 </div>

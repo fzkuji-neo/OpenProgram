@@ -99,7 +99,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:10px 11px
 </details>
 <details><summary>统一打开、编辑和版本协议</summary>
 <p>文件引用包含稳定的项目或会话归属及相对路径，显示路径不是权限凭证。能力识别先核实扩展名、类型和文件内容，再选择预览或编辑适配器。适配器只获得该文档的内容与版本，不获得任意磁盘权限；统一导出 bytes/Blob、修改事件、错误事件和销毁方法。Office 与图片大资源只在打开相关文件时加载，不能拖慢聊天首屏。</p>
-<section id="markdown-document-safety"><h3>Markdown 文档渲染</h3><p>仓库 Markdown 转义原始 HTML，并分别校验链接与图片地址。链接允许本地引用、页内片段、HTTP(S) 和 mailto；协议相对地址使用 HTTPS。图片允许带归属的本地文件地址和 HTTP(S)，拒绝 data 与可执行协议。本地查询参数不参与权限参数构造；SVG 片段与磁盘路径分离。数学内容只在字面代码之外按 token 识别，在排版前转义，不通过原始占位符替换恢复。既有文件标签页归属和服务端权限检查保持不变。该安全子集等待验证；标题导航、wiki 链接和嵌入不属于本子集。</p></section>
+<section id="markdown-document-safety"><h3>Markdown 文档渲染</h3><p>仓库 Markdown 转义原始 HTML，并分别校验链接与图片地址。链接允许本地引用、页内片段、HTTP(S) 和 mailto；协议相对地址使用 HTTPS。图片允许带归属的本地文件地址和 HTTP(S)，拒绝 data 与可执行协议。本地查询参数不参与权限参数构造；SVG 片段与磁盘路径分离。数学内容只在字面代码之外按 token 识别，在排版前转义，不通过原始占位符替换恢复。既有文件标签页归属和服务端权限检查保持不变。标题导航、wiki 链接和嵌入不属于本子集。</p></section>
 <section id="markdown-heading-navigation"><h3>Markdown 标题导航</h3><p>标题键属于当前渲染文档，不属于浏览器地址。安全 Markdown token 渲染器从标题的可见行内文本生成键：保留 Unicode 字母和数字，转换为小写，删除下划线与连字符之外的标点，将连续空白替换为连字符。空键使用 section。重名采用首个未使用的数字后缀，包含与原本带数字的标题发生碰撞的情况。行内格式贡献文本，代码围栏不生成标题。每次文档渲染重新初始化键集合。</p><p>裸 fragment 仅解码一次百分号转义，并只在来源 article 中按标题键属性查找，不将 fragment 插入 CSS 选择器。非法转义或不存在的标题不触发滚动，也不选择其他文档。不同栏的同名标题互不影响。跨文件链接通过现有目标解析器和授权文件打开流程保留 fragment。</p><p>章节请求是 CenterTab、标签历史、持久化快照及窗口传输数据之外的临时视图状态。每个请求包含唯一序号、实际目标标签 id、预期文档身份和 fragment。项目文件使用打开操作实际解析出的标签 id，包括历史复用的标签。附件预览使用实际文件预览 id，不能使用可能仍指向聊天的 activeId。自动打开被拒绝时不产生请求；成功的不带章节打开清除旧请求。关闭或改变标签目标会失效请求。消费时比较序号，旧渲染不能删除新请求。</p><p>PersistentFilePanes 继续为现有文档身份保留一个物理 DocumentWindow。显式章节请求将目标活动别名选为优先显示位置，不创建第二个 DocumentController。请求作为视图上下文经过 FileTabPane、DocumentWindow、FileViewer 与 TextViewer，保留项目及会话授权。章节导航切换源码模式到预览且不丢失未保存内容，等待该草稿或选中版本的准确文本完成渲染。历史版本中的本地标题跳转使用该版本的标题。附件始终保留只读标记和原会话。</p><table><thead><tr><th>场景</th><th>验收结果</th></tr></thead><tbody><tr><td>Unicode、行内格式、重名标题、代码围栏</td><td>文档内键稳定唯一，仅标题参与。</td></tr><tr><td>两个已挂载文档有同名标题</td><td>裸 fragment 仅滚动来源 article。</td></tr><tr><td>跨文件加载或重复请求同一章节</td><td>请求保留至渲染完成，每个新序号均可滚动一次。</td></tr><tr><td>历史复用 id 或聊天保持活动的预览</td><td>请求到达实际文件栏，不依赖推测标签 id。</td></tr><tr><td>两个别名、未保存草稿、源码模式、历史版本</td><td>控制器和缓冲区仍唯一，正确别名与渲染版本接收导航。</td></tr><tr><td>拒绝自动打开、不带章节重开、关闭、改目标、重载</td><td>旧章节请求不再生效。</td></tr></tbody></table></section>
 <p>人工编辑与模型写入共享版本校验、完整文件发布和 immutable before/after 存储原则。既有 project_file_write 的幂等记录只有操作结果与指纹，不等于可恢复的文件版本；本次补齐实际版本保存。人工修改记录 actor=user，模型修改关联 session/turn，不伪造聊天轮次，也不把人工历史变成侧栏会话。History 按文件汇集来源，模型本轮 Review 继续保留其归属语义。</p>
 <p>版本数据按归属保留：项目中的人工编辑历史归项目，模型记录仍关联实际会话与轮次；汇总索引只引用已有版本，不另复制来源文档。归档会话仍可打开原记录；彻底删除会话后，其入口与归属版本按现有删除规则清理，汇总页不得用缓存重新显示原文。Memory 中残留来源仅标记“原会话已删除”或移除链接，不为此建立来源副本。项目文件及其独立人工历史不因删除一段聊天而一并删除。</p>
@@ -531,9 +531,9 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:10px 11px
     <p>文档 source_path 发布与二进制读取已实现并通过独立审查和测试：完整文件版本随会话持久保存，支持撤回、重新应用及冲突检测；不提供 Office 内容差异视图。</p>
     <div class="decision-line"><b>当前实现状态：</b>目录/搜索 snapshot、文件 request identity、durable mutation、有界 read cache、持久 dirty draft、Review 服务端分页、canonical entry-point cutover 与稳定模块边界均已完成独立审查。</div>
     <p class="intro" style="margin-top:12px">实现证据写入对应测试；本设计页只维护当前合同与总体状态。</p>
-  <p data-status="pending">实现状态：导航合同待实现，独立审查及组件验收尚未完成。Wiki 链接、转录嵌入、大纲与 Agent 章节附件不属于本批。</p>
   </details></section>
 <section><h2>跨平台快照一致性</h2><p>普通文件快照比较读取前后的描述符元数据，以及打开前与读取后的路径元数据。描述符和路径身份的设备与 inode 必须一致。不同操作系统 API 的元数据不能假定具有相同时间戳或权限表示后直接比较。任一观察变化都中止发布；存储权限取自路径观察。在 Windows 上，旧格式迁移先以可写句柄打开暂存文件再刷盘，直到发布成功前始终保留源文件。</p></section>
+<section id="markdown-reading-status"><h2>实现状态附录：Markdown 阅读</h2><p data-status="review-passed">Files Markdown 安全：源码实现已具备；独立规格与质量审查及受影响检查通过。整批代码的最终验证和安装后的 App 验收仍待完成。</p><p data-status="review-passed">Markdown 标题导航：源码实现已具备；独立规格与质量审查及受影响检查通过。整批代码的最终验证和安装后的 App 验收仍待完成。Wiki 链接、转录嵌入、大纲与 Agent 章节附件不属于本批。</p></section>
 </main>
 <script>
 const OP={
