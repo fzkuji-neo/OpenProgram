@@ -11,11 +11,14 @@ const MAX_LEVEL = 3;
  * Squeeze the environment row one level at a time instead of switching
  * between "all labels" and "all icons".
  *
- * On every resize or content change the row is laid out at each level
- * with transitions off (`data-measuring`), synchronously, and the first
- * level whose chips fit (measured as the last chip's right edge, with
- * the right-aligned chips' auto margins zeroed) is kept; then transitions are restored and the
- * row animates from its previous level to the chosen one. Moving to a
+ * When the content changes the row is laid out at each level with
+ * transitions off and chips at their natural width (`data-measuring`),
+ * synchronously, and each level's need (the last chip's right edge, with
+ * the right-aligned chips' auto margins zeroed) is kept. Those needs depend
+ * only on the content, so a resize just picks the first level whose need
+ * fits the new width, and the row animates from its previous level to it.
+ * Laying out every level on every frame of a pane resize made dragging
+ * stutter. Moving to a
  * roomier level needs COMPACT_HYSTERESIS px of slack so the row doesn't
  * flap at the boundary. Level 3 also sets `data-compact="true"`, the
  * historical icon-only state other styles key off.
@@ -27,6 +30,7 @@ export function useCompactEnvironmentRow(ref: RefObject<HTMLDivElement | null>) 
 
     let frame = 0;
     let level = 0;
+    let needs: number[] | null = null;
 
     const apply = (next: number) => {
       if (next > 0) row.dataset.squeeze = String(next);
@@ -57,32 +61,46 @@ export function useCompactEnvironmentRow(ref: RefObject<HTMLDivElement | null>) 
       return right + parseFloat(getComputedStyle(row).paddingRight || "0");
     };
 
-    const choose = (available: number) => {
+    const measureNeeds = () => {
+      row.dataset.measuring = "true";
+      const out: number[] = [];
       for (let candidate = 0; candidate < MAX_LEVEL; candidate += 1) {
         apply(candidate);
+        out.push(Math.ceil(needed()));
+      }
+      apply(level);
+      void row.offsetWidth; // settle the previous level before animating
+      delete row.dataset.measuring;
+      return out;
+    };
+
+    const choose = (available: number, levelNeeds: number[]) => {
+      for (let candidate = 0; candidate < MAX_LEVEL; candidate += 1) {
         const slack = candidate < level ? COMPACT_HYSTERESIS : 0;
-        if (Math.ceil(needed()) <= available + 1 - slack) return candidate;
+        if (levelNeeds[candidate] <= available + 1 - slack) return candidate;
       }
       return MAX_LEVEL;
     };
 
-    const measure = () => {
+    const fit = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const available = row.clientWidth;
         if (available <= 0) return;
-        row.dataset.measuring = "true";
-        const next = choose(available);
-        apply(level);
-        void row.offsetWidth; // settle the previous level before animating
-        delete row.dataset.measuring;
+        needs ??= measureNeeds();
+        const next = choose(available, needs);
+        if (next === level) return;
         level = next;
         apply(level);
       });
     };
+    const measure = () => {
+      needs = null;
+      fit();
+    };
 
     const resizeObserver =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(fit);
     resizeObserver?.observe(row);
 
     const mutationObserver =
