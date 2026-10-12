@@ -7,12 +7,17 @@ export const GUI_TOOL_NAMES = new Set(["gui_agent", "computer_use", "browser_use
 export interface GuiStepView {
   capability: string;
   target: string;
-  action: string;
+  status: string;
+  /** Why the step failed or stopped; empty for steps that went through. */
+  reason: string;
+}
+
+export interface GuiToolView {
   status: string;
   summary: string;
   blocker: string;
   handoff: string;
-  screenshot?: string;
+  steps: GuiStepView[];
 }
 
 function object(value: unknown): RecordValue {
@@ -26,27 +31,18 @@ function string(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-/** Only local image artifacts go to the existing, server-authorized file viewer. */
-export function recordedScreenshot(value: unknown): string | undefined {
-  if (typeof value !== "string" || /[\x00-\x1f]/.test(value)) return undefined;
-  const path = string(value);
-  if ((!path.startsWith("/") && !/^[A-Za-z]:[\\/]/.test(path))
-      || path.startsWith("//") || /[\x00-\x1f]/.test(path)
-      || !/\.(png|jpe?g|webp)$/i.test(path)) return undefined;
-  return path;
-}
-
 export function guiStatus(output: unknown, executionStatus = ""): string {
   const result = object(output);
-  // A stop/error on this execution takes precedence over its last successful step.
-  if (["cancelled", "canceled", "cancelling", "interrupted", "paused", "pausing", "error", "failed"].includes(executionStatus)) {
-    return executionStatus === "error" ? "failed" : executionStatus;
+  // A stop on this execution takes precedence over its last successful step.
+  if (["cancelled", "canceled", "cancelling", "interrupted", "paused", "pausing"].includes(executionStatus)) {
+    return executionStatus;
   }
   if (["running", "streaming", "pending", "queued"].includes(executionStatus)) return "running";
   const status = string(result.status);
   if (status === "infeasible" || result.infeasible_declared === true) return "infeasible";
   if (result.success === false || result.ok === false) return "failed";
-  if (["applied", "succeeded", "failed", "cancelled", "interrupted", "paused", "infeasible", "unknown"].includes(status)) return status;
+  if (["applied", "succeeded", "failed", "cancelled", "interrupted", "paused"].includes(status)) return status;
+  if (executionStatus === "error") return "failed";
   // Function transport completion alone is not task-success evidence.
   return "unknown";
 }
@@ -69,31 +65,36 @@ export function guiCapabilityLabel(name: string, text: Text): string {
     : name === "vm_use" ? text("VM Use", "虚拟机操作") : "GUI Agent";
 }
 
-function stepView(capability: string, input: unknown, output: unknown, status = ""): GuiStepView {
+function stepView(capability: string, input: unknown, output: unknown, executionStatus = ""): GuiStepView {
   const params = object(input), result = object(output), step = object(result.step);
-  const plan = object(step.plan), target = object(result.target);
   const actionResult = object(step.exec_result);
+  const status = guiStatus(actionResult.success === false ? { ...result, success: false } : result, executionStatus);
+  const stopped = status === "failed" || status === "infeasible";
   return {
     capability,
-    target: string(target.app_name) || string(params.app_name) || string(params.url),
-    action: string(plan.call) || string(params.task),
-    status: guiStatus(actionResult.success === false ? { ...result, success: false } : result, status),
-    summary: string(result.summary) || string(actionResult.error),
-    blocker: string(result.blocker) || string(step.blocker),
-    handoff: string(result.handoff_instruction) || string(step.handoff_instruction),
-    screenshot: recordedScreenshot(step.screenshot_artifact) || recordedScreenshot(result.screenshot_artifact)
-      || recordedScreenshot(step.img_path) || recordedScreenshot(result.img_path),
+    target: string(object(result.target).app_name) || string(params.app_name) || string(params.url),
+    status,
+    reason: stopped
+      ? string(result.blocker) || string(step.blocker) || string(actionResult.error) || string(result.summary)
+      : "",
   };
 }
 
 /** Project only GUI-owned data; generic tool results retain their existing renderer. */
 export function guiToolView(node: {
   name: string; status: string; output?: unknown; params?: RecordValue; tree_root?: unknown;
-}) {
+}): GuiToolView | null {
   if (!GUI_TOOL_NAMES.has(node.name)) return null;
   const tree = object(node.tree_root) as TNode;
   const output = object(node.output ?? tree.output);
   const root = stepView(node.name, node.params, output, node.status);
+  const blocker = string(output.blocker);
+  const handoff = string(output.handoff_instruction);
+  const rawSummary = string(output.summary);
+  // An infeasible result usually repeats its handoff as the summary.
+  // A direct capability call may explain its failure only in the action result.
+  const summary = rawSummary && (rawSummary === handoff || rawSummary === blocker) ? ""
+    : rawSummary || (blocker || handoff ? "" : root.reason);
   const steps: GuiStepView[] = [];
   if (Array.isArray(output.history)) {
     for (const value of output.history) {
@@ -116,6 +117,13 @@ export function guiToolView(node: {
     };
     for (const child of tree.children ?? []) visit(child);
   }
-  if (!steps.length && node.name !== "gui_agent") steps.push(root);
-  return { ...root, steps };
+  return { status: root.status, summary, blocker, handoff, steps };
+}
+
+/** One-line timeline note that agrees with the Details status. */
+export function guiResultNote(name: string, output: unknown, executionStatus: string, text: Text): string {
+  const view = guiToolView({ name, status: executionStatus, output });
+  if (!view) return "";
+  const detail = view.handoff || view.blocker || view.summary;
+  return [guiStatusLabel(view.status, text), detail].filter(Boolean).join(" · ");
 }

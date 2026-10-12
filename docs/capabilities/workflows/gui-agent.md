@@ -167,8 +167,10 @@ Browser workflows retain an explicit initial URL when a backend is selected. Off
 
 ## Inspect GUI tool activity
 
-Expand the execution summary in a conversation and select **GUI Agent**, **Computer Use**, **Browser Use**, or **VM Use**. The shared Details panel shows the recorded capability steps in order, their targets, results, and any instructions for manual takeover. The same view is available for a manually run GUI function. Selected details update as the call receives execution-tree or result updates; switching to another call keeps that selection.
+Expand the execution summary in a conversation and select a **GUI Agent**, **Computer Use**, **Browser Use** or **VM Use** call. The Details panel shows a GUI activity card above the raw parameters and output:
 
-“Action applied” means that an operation was reported as applied; it does not mean the whole task succeeded. “Needs takeover” shows the recorded blocker and user action. Missing or truncated results remain unavailable, and raw parameters/output stay below the activity view. Use the conversation's existing Stop control to cancel; inspecting a result does not stop or resume an agent.
+- **Status** — the same status appears on the card and on the timeline row. **Action applied** means one operation went through; it does not mean the task succeeded. **Needs takeover** means the agent stopped and needs you. **Result unavailable** means the call did not report an outcome.
+- **What to do** — when the agent stops, the card shows why and the action it asks you to take.
+- **Steps** — each recorded capability call on one line, with its target app or URL and status. Failed steps show their reason.
 
-Each available screenshot has an **Open recorded screenshot** button. It opens only on request, using the call's original conversation access. The image is an observation from that step, not a live view or a verification of the state after its action. Deleted captures or files outside the allowed attachment roots cannot be opened. This view does not capture a new image or grant application access.
+The card follows the selected call while it runs. Manually run GUI functions use the same view. To stop a running agent, use the conversation's Stop control.

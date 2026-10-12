@@ -61,7 +61,6 @@ test('manual tree entry preserves structured output and source conversation',asy
   await act(async()=>document.querySelector('.tl-step-link').click());
   assert.equal(store.detailNode.session_id,'manual-owner');
   assert.equal(guiToolView(store.detailNode).status,'applied');
-  assert.equal(guiToolView(store.detailNode).steps[0].action,'window_press');
   assert.doesNotMatch(store.detailNode.output,/\[object Object\]/);
 }));
 test('full-output loading does not replace another selected call',async()=>mount(async({root,document,store})=>{
@@ -82,7 +81,7 @@ test('full-output failure remains visible and a later click can retry',async()=>
   await act(async()=>root.render(createElement(FunctionStep,{block,sessionId:'owner'})));
   await act(async()=>document.querySelector('.tl-step-link').click());
   assert.equal(store.detailNode.error,'Result no longer available');
-  assert.equal(store.detailNode.status,'error');
+  assert.equal(store.detailNode.status,'completed','a failed fetch is not a failed tool call');
   globalThis.guiFetch=async()=>({result:{status:'infeasible',handoff_instruction:'Open app'}});
   await act(async()=>document.querySelector('.tl-step-link').click());
   assert.equal(store.detailNode.error,undefined);
