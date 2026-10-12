@@ -49,4 +49,4 @@
 <h3>文件与验证状态</h3>
 <p>桌面新增 terminal-shell-protocol.js、terminal-shell-integration.js 及 shell-integration/{.zshenv,.zprofile,.zshrc,.zlogin,hooks.zsh,hooks.bash}；通过既有 terminal-resource-manager.js、terminal-resource-ipc.js、package.json 显式文件与检查入口连接。check-shell-metadata.cjs 检查公开 manager/parser；check-shell-pty.cjs 经生产 IPC 使用临时 HOME 的真实 macOS PTY。Web terminal-resources.ts 增加可选类型，Python 传输无需改动。</p>
 </section>
-<section id="implementation-status"><h2>实现状态</h2><p>实现状态：外部候选。应用补丁、独立规格与质量审查、完整验证及默认 App 验收待完成。隔离候选覆盖首次提示符、退出码、Unicode目录、pipeline、前后台区别、中断、多行及嵌套 shell、zsh RCS 回退和用户 precmd、bash 冲突、分块、旧代、输出游标与清理。先前原型的其他启动顺序和历史证据不替代候选验收。任意全局 profile、运行中改写 hooks 和安装 App 行为尚未验证。</p></section></main></body></html>
+<section id="implementation-status"><h2>实现状态附录</h2><p data-status="review-passed">Shell 观察：源码实现已具备；独立规格与质量审查及受影响检查通过。整批代码的最终验证和安装后的 App 验收仍待完成。隔离候选覆盖首次提示符、退出码、Unicode目录、pipeline、前后台区别、中断、多行及嵌套 shell、zsh RCS 回退和用户 precmd、bash 冲突、分块、旧代、输出游标与清理。先前原型的其他启动顺序和历史证据不替代候选验收。任意全局 profile、运行中改写 hooks 和安装 App 行为尚未验证。</p></section></main></body></html>

@@ -570,7 +570,7 @@ git diff --check</code></pre><p>Browser automation uses isolated test state, no 
 </section>
 
 <section id="status">
-<h2>Implementation status</h2>
+<h2>Implementation status appendix</h2>
 <div class="doc-scroll" tabindex="0" role="region" aria-label="Implementation status">
 <table>
 <thead><tr><th>Area</th><th>State</th><th>Boundary</th></tr></thead>
@@ -582,7 +582,7 @@ git diff --check</code></pre><p>Browser automation uses isolated test state, no 
 <tr><td><code>useStickToBottom</code></td><td>Removed</td><td>File deleted.</td></tr>
 <tr><td>History loader <code>scrollTop</code> writes</td><td>Present</td><td>Loader does not pin latest. Per-area restore lives in history-viewport helpers and skips a locked follow.</td></tr>
 <tr><td>Unified follow contract on this page</td><td>Present</td><td>Web App and browser share this renderer. Evidence is the reviewed implementation commits on <code>codex/chat-transcript-follow</code>, not this preview.</td></tr>
-<tr><td>Geometry-aware directional history prefetch</td><td>Pending</td><td>Implementation, independent reviews and final candidate verification remain pending. External diagnostic candidates are not release evidence.</td></tr>
+<tr><td>Geometry-aware directional history prefetch</td><td>Source reviews passed</td><td>Source implementation is present; independent specification and quality reviews and affected checks pass. Verification of the combined head and installed-App acceptance remain pending.</td></tr>
 </tbody>
 </table>
 </div>
