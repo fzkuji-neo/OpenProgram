@@ -18,7 +18,7 @@ import { memo, useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { presentTool, summarizeResult, type ToolTone } from "./tool-presentation";
-import { GUI_TOOL_NAMES } from "./gui-tool-view";
+import { GUI_TOOL_NAMES, guiResultNote } from "./gui-tool-view";
 import type { ToolGroupSummary } from "./tool-group-summary";
 import { afterTwoAnimationFrames } from "./collapse-frame";
 
@@ -141,6 +141,13 @@ export function decodeEscapes(s: string): string {
     (_, h) => String.fromCharCode(parseInt(h, 16)));
 }
 
+/** The execution tree is shared by reference and can be large; compare it
+ *  by identity and serialize only the remaining fields. */
+function sameDetail(a: DetailNode, b: DetailNode): boolean {
+  if (a.tree_root !== b.tree_root) return false;
+  return JSON.stringify({ ...a, tree_root: undefined }) === JSON.stringify({ ...b, tree_root: undefined });
+}
+
 function short(v: unknown, n = 90): string {
   let s: string;
   if (typeof v === "string") s = decodeEscapes(v);
@@ -239,8 +246,10 @@ export function StepRow({
     // Update the selected snapshot without changing the dock or its active tab.
     if (!detail || (onOpenDetail && !syncDetail)) return;
     const store = useSessionStore.getState();
-    if (store.detailNode?.path === detail.path
-        && JSON.stringify(store.detailNode) !== JSON.stringify(detail)) {
+    const current = store.detailNode;
+    if (current?.path === detail.path
+        && (!current.session_id || !detail.session_id || current.session_id === detail.session_id)
+        && !sameDetail(current, detail)) {
       store.populateDetail(detail);
     }
   }, [detail, onOpenDetail, syncDetail]);
@@ -411,7 +420,7 @@ export function FunctionStep({
     ? "running"
     : outcome === "waiting"
       ? "running"
-      : outcome === "not_started" || outcome === "unknown" || isError || fullError
+      : outcome === "not_started" || outcome === "unknown" || isError
         ? "error"
         : "completed";
   const detail: DetailNode = {
@@ -468,7 +477,9 @@ export function FunctionStep({
       title={view.title}
       target={view.target ? short(view.target, 72) : undefined}
       note={result !== undefined && result !== null && result !== ""
-        ? short(summarizeResult(decodeEscapes(String(result)), text), 90) : undefined}
+        ? short(GUI_TOOL_NAMES.has(name)
+          ? guiResultNote(name, decodeEscapes(String(result)), detailStatus, text)
+          : summarizeResult(decodeEscapes(String(result)), text), 90) : undefined}
       error={isError || cancelled}
       running={running || loadingFull}
       copyText={JSON.stringify(
@@ -558,7 +569,9 @@ export function TreeStep({ node, actions, defaultKidsOpen, sessionId }: {
     ...(reasoning ? { thinking: reasoning } : {}),
   };
   const isLlm = node.node_type === "exec" || node.name === "LLM";
-  if (out && !node.error) noteParts.push("→ " + short(out, 60));
+  if (out && !node.error && node.name && GUI_TOOL_NAMES.has(node.name)) {
+    noteParts.push(short(guiResultNote(node.name, out, node.status || "", text), 60));
+  } else if (out && !node.error) noteParts.push("→ " + short(out, 60));
   else if (isLlm && running && reasoning && !out) {
     noteParts.push(text("thinking…", "思考中") + " · " + short(reasoning, 40));
   }

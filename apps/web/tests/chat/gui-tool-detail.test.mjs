@@ -4,12 +4,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
-import { act, createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { parseHTML } from 'linkedom';
 import { presentTool } from '../../components/chat/messages/tool-presentation.ts';
-import { guiToolView, guiStatus, recordedScreenshot } from '../../components/chat/messages/gui-tool-view.ts';
+import { guiToolView, guiStatus, guiResultNote } from '../../components/chat/messages/gui-tool-view.ts';
 import { summarizeToolGroup } from '../../components/chat/messages/tool-group-summary.ts';
 
 const web = dirname(fileURLToPath(new URL('../../package.json', import.meta.url)));
@@ -21,12 +19,11 @@ await build({
   bundle: true, platform: 'node', format: 'esm', packages: 'external', jsx: 'automatic', outfile: file,
   loader: { '.css': 'empty' },
   plugins: [{ name: 'detail-services', setup(b) {
-    b.onResolve({ filter: /session-store$|i18n$|\/markdown$|llm-node-content$|attachment-preview$/ }, a => ({ path: a.path, namespace: 'stub' }));
+    b.onResolve({ filter: /session-store$|i18n$|\/markdown$|llm-node-content$/ }, a => ({ path: a.path, namespace: 'stub' }));
     b.onLoad({ filter: /.*/, namespace: 'stub' }, a => ({ resolveDir: web, contents:
       a.path.includes('session-store') ? 'export const useSessionStore = s => s(globalThis.guiDetailState);' :
       a.path.endsWith('i18n') ? 'export const useTranslation=()=>({text:(en)=>en,t:k=>k});' :
       a.path.endsWith('markdown') ? 'export const useMarkdownReady=()=>{}, renderMarkdown=t=>t;' :
-      a.path.endsWith('attachment-preview') ? 'import {createElement} from "react"; export const AttachmentPreview=p=>createElement("div",{"data-preview-session":p.sessionId,"data-preview-path":p.path});' :
       'export const LlmNodeContent=()=>null;'
     }));
   }}],
@@ -51,14 +48,37 @@ test('GUI calls identify the task in the public tool presentation', () => {
   assert.equal(presentTool('gui_agent', JSON.stringify({task: 'Inspect TextEdit'}), en).target, 'Inspect TextEdit');
 });
 
-test('Details renders recorded GUI steps and handoff without opening an image', () => {
+test('Details renders recorded GUI steps and handoff in place of the transport status', () => {
   const html = render();
   assert.match(html, /aria-label="GUI activity"/);
   assert.match(html, /Needs takeover/);
   assert.match(html, /Reopen TextEdit/);
   assert.match(html, /Computer Use/);
-  assert.match(html, /Open recorded screenshot/);
-  assert.doesNotMatch(html, /<img/);
+  assert.doesNotMatch(html, /detail-badge/, 'a completed transport status would contradict the GUI outcome');
+  assert.doesNotMatch(html, /<img|<button/);
+  assert.match(render(output, {name: 'custom_tool'}), /detail-badge/);
+});
+
+test('a summary that repeats the handoff is shown once', () => {
+  const html = render({status: 'infeasible', summary: 'Open Photos', handoff_instruction: 'Open Photos', blocker: 'No window'});
+  const card = html.slice(html.indexOf('aria-label="GUI activity"'), html.indexOf('</section>'));
+  assert.equal(card.split('Open Photos').length - 1, 1);
+  assert.match(html, /No operation steps were run/);
+});
+
+test('failed steps carry their reason; applied steps stay one line', () => {
+  const view = guiToolView({name: 'gui_agent', status: 'completed', output: {history: [
+    {type: 'capability_call', capability: 'browser_use', input: {url: 'https://a.test'}, output: {status: 'failed', summary: 'Page is private'}},
+    {type: 'capability_call', capability: 'computer_use', input: {app_name: 'Photos'}, output: {status: 'applied', success: true, summary: 'Pressed'}},
+  ]}});
+  assert.deepEqual(view.steps.map(s => [s.target, s.status, s.reason]),
+    [['https://a.test', 'failed', 'Page is private'], ['Photos', 'applied', '']]);
+});
+
+test('the timeline note uses the same status as Details', () => {
+  assert.equal(guiResultNote('gui_agent', JSON.stringify({status: 'infeasible', handoff_instruction: 'Open Photos'}), 'completed', en),
+    'Needs takeover · Open Photos');
+  assert.equal(guiResultNote('gui_agent', '{"history":[', 'completed', en), 'Result unavailable');
 });
 
 test('history is ordered and takes precedence over duplicated capability children', () => {
@@ -91,6 +111,7 @@ test('failure, cancellation and takeover do not become successful completion', (
   const view = guiToolView({name:'computer_use',status:'completed',output:{status:'applied',step:{exec_result:{success:false,error:'Control unavailable'}}}});
   assert.equal(view.status, 'failed');
   assert.equal(view.summary, 'Control unavailable');
+  assert.equal(view.steps.length, 0, 'a direct call is its own header, not a one-item list');
 });
 
 test('malformed, truncated and unrelated results keep raw details without false steps', () => {
@@ -103,38 +124,8 @@ test('malformed, truncated and unrelated results keep raw details without false 
   assert.doesNotMatch(render(output, {name:'custom_tool'}), /aria-label="GUI activity"/);
 });
 
-test('screenshots require a local image path and explicit original session', () => {
-  for (const path of ['https://example.com/a.png','//example.com/a.png','data:image/png;base64,AAA','/tmp/a.svg','/tmp/a.png\n','relative.png']) {
-    assert.equal(recordedScreenshot(path), undefined, path);
-  }
-  assert.equal(recordedScreenshot('/tmp/a\nb.png'), undefined);
-  assert.equal(recordedScreenshot('/tmp/a.png'), '/tmp/a.png');
-  assert.equal(recordedScreenshot('C:\\shots\\a.png'), 'C:\\shots\\a.png');
-  assert.doesNotMatch(render(output, {session_id:undefined}), /Open recorded screenshot/);
+test('result text is rendered as text', () => {
   assert.doesNotMatch(render({...output,blocker:'<script>alert(1)</script>'}), /<script>/);
-});
-
-test('screenshot click keeps its source conversation and selection changes close it', async () => {
-  const {window} = parseHTML('<html><body><div id="root"></div></body></html>');
-  const oldWindow=globalThis.window, oldDocument=globalThis.document, oldAct=globalThis.IS_REACT_ACT_ENVIRONMENT;
-  globalThis.window=window; globalThis.document=window.document; globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-  const root=createRoot(window.document.getElementById('root'));
-  try {
-    render();
-    await act(async()=>root.render(createElement(DetailPanel)));
-    assert.equal(window.document.querySelector('[data-preview-session]'),null);
-    const button=[...window.document.querySelectorAll('button')].find(b=>b.textContent==='Open recorded screenshot');
-    assert.ok(button);
-    await act(async()=>button.click());
-    assert.equal(window.document.querySelector('[data-preview-session]').getAttribute('data-preview-session'),'owner');
-    assert.equal(window.document.querySelector('[data-preview-path]').getAttribute('data-preview-path'),'/tmp/recorded.png');
-    globalThis.guiDetailState.detailNode={...globalThis.guiDetailState.detailNode,path:'another-call',session_id:'another-owner'};
-    await act(async()=>root.render(createElement(DetailPanel)));
-    assert.equal(window.document.querySelector('[data-preview-session]'),null);
-  } finally {
-    await act(async()=>root.unmount());
-    globalThis.window=oldWindow;globalThis.document=oldDocument;globalThis.IS_REACT_ACT_ENVIRONMENT=oldAct;
-  }
 });
 
 test('GUI activity participates in collapsed conversation summaries', () => {

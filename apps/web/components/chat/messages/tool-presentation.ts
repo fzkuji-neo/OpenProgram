@@ -7,6 +7,7 @@
 // Type-only (erased at runtime), so the node unit tests can load this
 // module without the `@/` alias.
 import type { SolarIconName } from "../../solar-icons/bodies";
+import { guiCapabilityLabel } from "./gui-tool-view.ts";
 
 export type ToolTone =
   | "shell" | "edit" | "read" | "search" | "web" | "agent"
@@ -74,13 +75,13 @@ export function presentTool(name: string, input: string | undefined, text: Text)
   const path = shortPath(pick(args, "path", "file_path", "filename", "file"));
   switch (name) {
     case "gui_agent":
-      return { icon: "monitor", tone: "system", title: "GUI Agent", target: firstLine(pick(args, "task")) };
+      return { icon: "monitor", tone: "system", title: guiCapabilityLabel(name, text), target: firstLine(pick(args, "task")) };
     case "computer_use":
     case "vm_use":
-      return { icon: "monitor", tone: "system", title: name === "computer_use" ? text("Computer Use", "电脑操作") : text("VM Use", "虚拟机操作"),
+      return { icon: "monitor", tone: "system", title: guiCapabilityLabel(name, text),
         target: pick(args, "app_name") ?? firstLine(pick(args, "task")) };
     case "browser_use":
-      return { icon: "cursor", tone: "web", title: text("Browser Use", "浏览器操作"), target: pick(args, "url") ?? firstLine(pick(args, "task")) };
+      return { icon: "cursor", tone: "web", title: guiCapabilityLabel(name, text), target: pick(args, "url") ?? firstLine(pick(args, "task")) };
     case "bash":
     case "terminal_use":
     case "process":

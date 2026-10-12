@@ -6,6 +6,7 @@
  */
 import type { AssistantBlock, TurnFileSummary } from "../../../lib/session-store/types.ts";
 import { parseToolArgs, presentTool } from "./tool-presentation.ts";
+import { GUI_TOOL_NAMES } from "./gui-tool-view.ts";
 
 type Text = (en: string, zh: string) => string;
 type Args = Record<string, unknown>;
@@ -195,7 +196,8 @@ function kindOf(tool: string, text: Text): Kind {
   if (tool === "web_search") return "websearch";
   if (tool === "web_fetch") return "fetch";
   if (BROWSER.has(tool)) return "browser";
-  if (["gui_agent", "computer_use", "vm_use"].includes(tool)) return "gui";
+  // browser_use is checked above: "operated the browser" says more than "GUI call".
+  if (GUI_TOOL_NAMES.has(tool)) return "gui";
   if (AGENT.has(tool)) return "agent";
   if (tool === "image_generate") return "imagegen";
   if (tool === "image_analyze") return "imageanalyze";

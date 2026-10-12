@@ -1,13 +1,16 @@
 .activity { color: var(--text-primary); padding: 12px; margin-bottom: 16px; border: 1px solid var(--border-color, #8884); border-radius: 8px; font-size: 13px; overflow-wrap: anywhere; }
-.heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
-.heading span, .activity small { color: var(--text-secondary); }
-.activity p { margin: 8px 0; white-space: pre-wrap; }
-.handoff { border-left: 2px solid var(--accent-orange); padding-left: 10px; }
-.steps { padding-left: 20px; margin: 12px 0 0; }
-.steps li { padding: 6px 0; }
-.steps summary { cursor: pointer; }
-.steps small { display: block; margin-top: 5px; }
-.action { font-family: var(--font-mono, monospace); }
-.preview { color: var(--text-primary); border: 1px solid var(--border-color, #8884); background: var(--bg-secondary); border-radius: 5px; padding: 5px 8px; cursor: pointer; font: inherit; }
-.preview:focus-visible, .steps summary:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 3px; }
+.heading { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.status { flex: none; font-size: 12px; color: var(--text-secondary); }
+.activity p { margin: 8px 0 0; white-space: pre-wrap; }
+.handoff { margin-top: 10px; border-left: 2px solid var(--accent-orange); padding-left: 10px; }
+.handoff p:first-child { margin-top: 0; }
+.summary, .empty { color: var(--text-secondary); }
+.steps { list-style: none; padding: 0; margin: 12px 0 0; border-top: 1px solid var(--border-color, #8884); }
+.steps li { padding: 7px 0; border-bottom: 1px solid var(--border-color, #8884); }
+.steps li:last-child { border-bottom: none; padding-bottom: 0; }
+.stepLine { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.stepName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.target { color: var(--text-secondary); }
+.activity .reason { margin-top: 3px; font-size: 12px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .activity [data-gui-status="failed"], .activity [data-gui-status="infeasible"] { color: var(--accent-red); }
+.activity [data-gui-status="succeeded"] { color: var(--accent-green, var(--text-secondary)); }
