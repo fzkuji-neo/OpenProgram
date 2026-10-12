@@ -10,6 +10,7 @@ import { RightSidebar } from "./right-sidebar/right-sidebar";
 import { CenterTabStrip } from "./center-tabs/center-tab-strip";
 import { CanvasControls } from "./center-tabs/canvas-controls";
 import { CanvasOverview } from "./center-tabs/canvas-overview";
+import { playCanvasTransition } from "@/lib/tabs/canvas-transition";
 import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
 import { AppPreviewPip } from "./center-tabs/app-preview-pip";
@@ -496,6 +497,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!rect || rect.width <= 0) return;
     setSplitRatio(clampSplitRatioForWidth(ratio, rect.width));
   }
+
+  // A layout change the canvas buttons announced (red, yellow, green, the
+  // tiling menu) animates from here, before its first frame paints.
+  useLayoutEffect(() => { playCanvasTransition(); });
 
   function centerPaneClassName(_index: number) { return "center-canvas-content"; }
   function centerPaneStyle(index: number): CSSProperties {
