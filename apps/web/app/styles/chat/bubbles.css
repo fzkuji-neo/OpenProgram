@@ -684,3 +684,24 @@
 }
 .message.user .user-paste-chip:hover { background: var(--bg-primary); }
 .message.user .user-paste-chip-icon { color: var(--text-muted); font-size: 12px; }
+
+/* Access token or private key in a sent user message, masked until its
+   eye button is pressed. */
+.message.user .user-secret-text { word-break: break-all; }
+.message.user .user-secret-dots { font-size: 0.8em; letter-spacing: 0.06em; }
+.message.user .user-secret-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  vertical-align: -5px;
+}
+.message.user .user-secret-toggle:hover { color: var(--text-primary); background: var(--bg-hover); }

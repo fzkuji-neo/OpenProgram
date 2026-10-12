@@ -21,6 +21,7 @@ import { AttachmentChips, parseAttachments } from "./user-attachments";
 import { MessageEditor } from "./message-editor";
 import { renderUserMarkdown } from "./markdown";
 import { collapsePastedSpans, pasteSentinel } from "@/lib/chat/paste-elements";
+import { collapseSecrets, maskSecrets, secretParts, secretSentinel } from "@/lib/chat/secret-mask";
 
 function escapeAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -31,10 +32,37 @@ function escapeAttr(value: string): string {
 function withPasteChips(html: string, spans: { label: string; text: string }[], hint: string): string {
   let out = html;
   spans.forEach((span, index) => {
-    const preview = span.text.slice(0, 400) + (span.text.length > 400 ? "…" : "");
+    const preview = maskSecrets(span.text.slice(0, 400)) + (span.text.length > 400 ? "…" : "");
     const chip = `<button type="button" class="user-paste-chip" title="${escapeAttr(`${hint}\n\n${preview}`)}">`
       + `<span class="user-paste-chip-icon" aria-hidden="true">¶</span>${escapeAttr(span.label)}</button>`;
     out = out.split(pasteSentinel(index)).join(chip);
+  });
+  return out;
+}
+
+const ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+  + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+const EYE = ICON + '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>'
+  + '<circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = ICON + '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/>'
+  + '<path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/>'
+  + '<path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/>'
+  + '<path d="m2 2 20 20"/></svg>';
+
+/** Replace each secret sentinel with the masked secret and an eye button
+ *  that shows or hides it. */
+function withSecrets(html: string, secrets: string[], revealed: ReadonlySet<number>, labels: [string, string, string]): string {
+  let out = html;
+  secrets.forEach((secret, index) => {
+    const shown = revealed.has(index);
+    const parts = secretParts(secret);
+    const body = shown
+      ? escapeAttr(secret)
+      : `${escapeAttr(parts.shown)}<span class="user-secret-dots" role="img" aria-label="${escapeAttr(labels[2])}">${"●".repeat(parts.dots)}</span>`;
+    const span = `<span class="user-secret"><span class="user-secret-text">${body}</span>`
+      + `<button type="button" class="user-secret-toggle" data-secret-index="${index}" aria-pressed="${shown}" `
+      + `aria-label="${escapeAttr(shown ? labels[1] : labels[0])}">${shown ? EYE_OFF : EYE}</button></span>`;
+    out = out.split(secretSentinel(index)).join(span);
   });
   return out;
 }
@@ -55,7 +83,10 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
   const collapsed = !pastesExpanded && msg.pastedElements?.length
     ? collapsePastedSpans(msg.content, msg.pastedElements)
     : { content: msg.content, spans: [] as { label: string; text: string }[] };
-  const { attachments, text: cleanText } = parseAttachments(collapsed.content);
+  const { attachments, text: proseText } = parseAttachments(collapsed.content);
+  // Access tokens and private keys show masked, each with an eye button.
+  const { content: cleanText, secrets } = collapseSecrets(proseText);
+  const [revealed, setRevealed] = useState<ReadonlySet<number>>(() => new Set());
 
   // Align the side avatar to the first line of text inside the bubble.
   const { containerRef, avatarTop } = useAvatarAlign(
@@ -97,10 +128,25 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
               <div
                 className="user-md"
                 onClick={(event) => {
-                  if ((event.target as Element).closest?.(".user-paste-chip")) setPastesExpanded(true);
+                  const target = event.target as Element;
+                  if (target.closest?.(".user-paste-chip")) setPastesExpanded(true);
+                  const toggle = target.closest?.<HTMLElement>(".user-secret-toggle");
+                  if (toggle) {
+                    const index = Number(toggle.dataset.secretIndex);
+                    setRevealed((prev) => {
+                      const next = new Set(prev);
+                      if (!next.delete(index)) next.add(index);
+                      return next;
+                    });
+                  }
                 }}
                 dangerouslySetInnerHTML={{
-                  __html: withPasteChips(renderUserMarkdown(cleanText), collapsed.spans, text("Show pasted text", "展开粘贴内容")),
+                  __html: withSecrets(
+                    withPasteChips(renderUserMarkdown(cleanText), collapsed.spans, text("Show pasted text", "展开粘贴内容")),
+                    secrets,
+                    revealed,
+                    [text("Show secret", "显示密钥"), text("Hide secret", "隐藏密钥"), text("hidden", "已隐藏")],
+                  ),
                 }}
               />
             ) : null}
