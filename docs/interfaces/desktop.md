@@ -147,6 +147,20 @@ Select a Terminal resource to attach its interactive view beside the conversatio
 
 Terminal input delivery does not indicate command success. After an uncertain input result, OpenProgram does not resend it. **Reconnect view** reads the current output again without replaying input. An unfinished human input fragment or changed input revision prevents conflicting Agent input until the Agent observes the terminal again.
 
+For ordinary macOS zsh and compatible Bash 3.2 login shells, `terminal_use(action="observe", ...)` and `resource(provider="terminal", action="observe", ...)` also return optional `shell_integration` metadata reported by the shell:
+
+| Field | Meaning |
+|---|---|
+| `status` | `starting`, `ready`, `unavailable`, or `ended`. |
+| `mode`, `reason` | The selected integration (`zsh-hooks` or `bash-debug`) and an unavailable reason, when present. |
+| `event_sequence` | Sequence of the latest accepted shell report. |
+| `cwd` | Latest reported directory in `value`, with its `event_sequence`; `null` before a report. |
+| `cycle` | Foreground command cycle `id`, `phase` (`running`, `finished`, or `unknown`), and `exit_code`; `null` before the first command. |
+
+`start_cwd` remains the starting directory, and the top-level `exit_code` belongs to the terminal process. A cycle's exit code is reported only after its matching foreground completion; background jobs can still be running. Input receipts retain `command_complete=null`: input delivery, shell completion, and successful external effects are separate facts. Reports do not grant permissions and can become stale if shell hooks are changed.
+
+Existing bash-preexec, custom DEBUG traps, existing or replaced prompt commands, readonly prompt configuration, and incompatible tracing settings fall back to `unavailable` without replacing the user's hooks. Unsupported shells and presets retain normal terminal input/output. Missing metadata from older hosts or `unavailable` metadata means the command state is unknown; do not infer success from a prompt or quiet output. These fields are tool observations, not additional terminal controls.
+
 ### Common Agent resource interface
 
 The `resource` tool provides `describe` plus provider-declared operations. Start with `resource(action="describe")`, then use the returned provider name and argument schema. The built-in `web` and `terminal` providers preserve their native identities and checks. For example, `resource(provider="terminal", action="list")` discovers available shells; `observe` returns the exact generation, binding, input revision and output cursor required for subsequent operations. Existing `web_use` and `terminal_use` remain available. For a web Page, `release` ends the Agent's control session and leaves the Page open; `close`, in `resource` and in `web_use`, closes the Page's tab and reports `page_closed`. A close that the App does not confirm returns an error instead.

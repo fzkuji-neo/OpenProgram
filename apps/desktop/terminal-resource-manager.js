@@ -1,6 +1,7 @@
 "use strict";
 
 const crypto = require("node:crypto");
+const { createShellProtocol } = require("./terminal-shell-protocol");
 
 const MAX_OUTPUT = 1_000_000;
 const MAX_READ = 24_000;
@@ -36,6 +37,7 @@ function createTerminalResourceManager({ spawn, stop, resolveLaunch,
     terminal_id: entry.id, generation: entry.generation, preset: entry.preset,
     status: entry.status, start_cwd: entry.cwd, pid: entry.pty.pid || null,
     exit_code: entry.exitCode ?? null, output_end: entry.end,
+    shell_integration: entry.protocol?.snapshot() ?? { status: "unavailable", mode: null, reason: entry.integrationReason || "unsupported_launch", event_sequence: 0, cwd: null, cycle: null },
     shared: entry.shared, session_ids: [...entry.associations],
     input_revision: entry.inputRevision, human_input_pending: entry.humanPending,
     in_use: !!leaseFor(entry),
@@ -124,9 +126,9 @@ function createTerminalResourceManager({ spawn, stop, resolveLaunch,
       return { ok: true, ...state(existing), reused: true };
     }
     if ([...records.values()].filter((entry) => !ended(entry)).length >= maxSessions) return fail("terminal_limit");
-    let entry;
+    let entry, launch;
     try {
-      const launch = resolveLaunch(request);
+      launch = resolveLaunch(request);
       const pty = spawn(launch.command, launch.args, {
         name: "xterm-256color", cwd: launch.cwd, env: launch.env,
         cols: request.cols || 100, rows: request.rows || 30, useConpty: launch.useConpty === true,
@@ -139,8 +141,16 @@ function createTerminalResourceManager({ spawn, stop, resolveLaunch,
         receipts: new Map(), lastOperation: null, startupAbort: new AbortController(), killTimer: null };
       entry.closed = new Promise((resolve) => { entry.confirmClosed = resolve; });
       records.set(entry.id, entry);
-      pty.onData((data) => append(entry, data));
+      entry.integrationReason = launch.integrationReason;
+      if (launch.integration) entry.protocol = createShellProtocol({ ...launch.integration,
+        pid: () => pty.pid, output: data => append(entry, data), changed: () => notify(entry), timers });
+      pty.onData((data) => {
+        if (records.get(entry.id) !== entry || ended(entry)) return;
+        if (entry.protocol) entry.protocol.feed(data); else append(entry, data);
+      });
       pty.onExit(({ exitCode }) => {
+        entry.protocol?.end();
+        launch.integration?.cleanup();
         const stopping = entry.status === "stopping";
         // Root exit must not cancel cleanup of descendants that ignored TERM.
         // The native adapter only targets the captured descendants here, never
@@ -167,6 +177,7 @@ function createTerminalResourceManager({ spawn, stop, resolveLaunch,
       return { ok: true, ...state(entry), reused: false };
     } catch {
       if (entry) beginStop(entry, "open_failed");
+      else launch?.integration?.cleanup();
       return fail("terminal_start_failed");
     }
   }

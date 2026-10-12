@@ -28,4 +28,25 @@
 <ol><li>Terminal 与 Claude Code 均使用 PTY + xterm.js。</li><li>保留现有 session、file、browser、web、bookmark、history、split、close 与 drag 行为。</li><li>排除远程 cloud session、通用终端会话管理、shell profile 编辑器、命令历史持久化、Windows 与 Web 主机终端。</li></ol>
 <h2>验收条件</h2><ol><li>默认 App 中 Terminal 可执行 <code>pwd</code>。</li><li>Claude Code 入口直接显示本机 CLI，输入与 Ctrl+C 到达进程。</li><li>项目列表正常返回时 cwd 使用当前主项目；项目连接未返回时最多等待短暂窗口，随后在主目录提供可输入 shell，不显示空白页。</li><li>pane 宽度变化会同步 xterm 和 PTY cols/rows。</li><li>切换 tab 后 PTY pid 不变；单独关闭 Claude Code 不影响 Terminal。</li><li>深浅、暖色和自定义主题切换会更新终端表面与 ANSI 16 色，且不改变 PTY pid。</li><li>复制、粘贴、清屏、重启和停止均可用；Ctrl+C 保持进程中断语义；工具栏明确显示 running、exited 与 error。</li><li>专项检查、TypeScript 与 Web production build 通过，并更新默认 App 资产。</li></ol>
 <h2>实现状态与证据</h2><div class="table"><table><thead><tr><th>阶段</th><th>状态</th></tr></thead><tbody><tr><td>设计与边界</td><td class="ok">完成</td></tr><tr><td>完整 renderer 与主题契约</td><td class="ok">完成：ANSI 16 色、主题热更新、状态、cwd 与五项工具栏操作已实现</td></tr><tr><td>专项检查 / TypeScript / production build</td><td class="ok"><code>check:integrated-terminal</code>、<code>tsc --noEmit</code> 与 Next.js production build 通过</td></tr><tr><td>默认 App 更新</td><td class="ok">已更新 <code>/Applications/OpenProgram.app</code>；默认 18100 App 实测输入、ANSI、清屏、粘贴、停止、重启、PID 变化与关闭清理通过</td></tr></tbody></table></div>
-</main></body></html>
+<section id="shell-observation"><h2>Shell 目录与前台命令周期</h2>
+<p>现有桌面 PTY 资源为普通 macOS zsh 和兼容 bash 3.2 登录 shell 报告最近目录及前台命令周期。报告只供观察：零退出码不证明外部效果或 Agent 任务成功；前台周期结束后后台任务仍可继续。输入回执继续返回 phase=delivered 或未确认操作，command_complete=null。报告不改变归属、lease、审批、输入版本或取消状态。</p>
+<h3>元数据与传输</h3><pre>shell_integration?: {
+  status: &quot;starting&quot; | &quot;ready&quot; | &quot;unavailable&quot; | &quot;ended&quot;,
+  mode: &quot;zsh-hooks&quot; | &quot;bash-debug&quot; | null,
+  reason: string | null, event_sequence: number,
+  cwd: { value: string, event_sequence: number } | null,
+  cycle: { id: number, phase: &quot;running&quot; | &quot;finished&quot; | &quot;unknown&quot;,
+           exit_code: number | null } | null
+}</pre>
+<p>既有资源读取与事件附加可选字段，旧宿主可不提供。start_cwd 不变，顶层 exit_code 属于 PTY 进程；嵌套 exit_code 仅属于匹配的 shell 周期。首次提示符报告 ready/cwd，cycle=null。进程退出使未完成周期变为 unknown，集成变为 ended；保留值仅为历史观察，不保证正在运行子进程的目录。Web 仅增加可选类型，不新增展示、提示符解析、命令 API 或 store。</p>
+<h3>启动兼容性</h3>
+<p>zsh 保留原生 -l。私有 .zshenv/.zprofile/.zshrc/.zlogin 转发文件在 source 各对应用户文件前恢复 ZDOTDIR 值和未设置状态，记录用户重定向，并在追加 preexec/precmd 回调前恢复最终目录。遵循 RCS，不强制启用被关闭的阶段。已有 hook 函数保留；只读回调数组拒绝安装。不声称任意全局启动脚本或插件配置等价。</p>
+<p>bash 保留原生 -l；仅在启动环境未定义 PROMPT_COMMAND 时注入一次性初始化表达式。在 source 前于顶层捕获 DEBUG。未被覆盖且可写的初始化表达式安装最小 DEBUG/prompt 回调。已有自定义 DEBUG、只读 PROMPT_COMMAND、extdebug、functrace、被替换的 prompt command 和 bash-preexec 配置均不启用集成。终端保持可用并报告 unavailable，不覆盖用户 hooks。bash-preexec 回调注册不在当前实现中。父 PID 检查阻止嵌套 shell 提前取得初始化身份；回调拒绝非根进程和子 shell。不改用户配置、shell options 或历史策略。</p>
+<h3>协议与生命周期</h3>
+<p>帧格式为 ESC ] 777 ; OpenProgram ; 1 ; nonce ; rootPid ; eventSequence ; kind ; cycleId ; exitStatus ; cwdHex BEL。kind 为 ready、cwd、start、end。每次启动生成随机128-bit nonce；检查实际 PTY PID、严格递增的正安全整数事件序号、递增周期及匹配的完成。cwd 通过 printf/od/tr 编码为十六进制，限制16KiB UTF-8 绝对路径，拒绝 NUL 和无效 UTF-8。整帧最多36KiB。增量解析支持跨块，一秒后原样释放未完整候选。只有接受的有效帧在实时输出与回放存储之前统一移除；无关或无效内容保持原样，游标按同一输出流计算。</p>
+<p>shell 内代码可读写自身 nonce，因此元数据不授予权限。不收集命令正文或环境转储。三秒未握手变为 unavailable，迟到的有效首次握手可恢复。不能从输出安静推断 hooks 丢失；最近报告可能过时。根进程退出使活动周期 unknown，不伪造 finished。</p>
+<p>既有启动路径通过 Electron fs 读取单独登记的打包文件，写到每次启动0700目录及0600脚本，避免直接 source app.asar。spawn 失败或根进程确认退出时清理；视图重新连接、释放 lease 或隐藏面板不清理。旧代输出不能修改替换资源。不支持的 preset/platform 或资产准备失败保留原始终端。不新增设置、终端引擎、CLI 或 Windows 集成。</p>
+<h3>文件与验证状态</h3>
+<p>桌面新增 terminal-shell-protocol.js、terminal-shell-integration.js 及 shell-integration/{.zshenv,.zprofile,.zshrc,.zlogin,hooks.zsh,hooks.bash}；通过既有 terminal-resource-manager.js、terminal-resource-ipc.js、package.json 显式文件与检查入口连接。check-shell-metadata.cjs 检查公开 manager/parser；check-shell-pty.cjs 经生产 IPC 使用临时 HOME 的真实 macOS PTY。Web terminal-resources.ts 增加可选类型，Python 传输无需改动。</p>
+</section>
+<section id="implementation-status"><h2>实现状态</h2><p>实现状态：外部候选。应用补丁、独立规格与质量审查、完整验证及默认 App 验收待完成。隔离候选覆盖首次提示符、退出码、Unicode目录、pipeline、前后台区别、中断、多行及嵌套 shell、zsh RCS 回退和用户 precmd、bash 冲突、分块、旧代、输出游标与清理。先前原型的其他启动顺序和历史证据不替代候选验收。任意全局 profile、运行中改写 hooks 和安装 App 行为尚未验证。</p></section></main></body></html>
