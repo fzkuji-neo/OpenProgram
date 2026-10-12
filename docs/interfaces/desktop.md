@@ -27,7 +27,7 @@ Opening a conversation from a session tab reuses that tab, even when another tab
 
 Create a pane and select **Browser**, or open a new browser tab from the app tab bar. The Browser home shows the same browser chrome used by loaded webpages:
 
-- Back, Forward, Reload/Stop, Home, address/search field, bookmark-current-page, Bookmarks, open externally, and the Browser menu.
+- Back, Forward, Reload/Stop, Home, the address/search field with its bookmark-current-page star at the right end, Bookmarks, open externally, and the Browser menu. While you are not editing it, the address field shows the site's host in full contrast and the rest of the address dimmed; a lock marks HTTPS pages.
 - A bookmarks bar that is visible by default and can be hidden from the Browser menu or Browser settings.
 - Responsive controls: less frequent actions move into the Browser menu when the pane is narrow; the address field, Back, Reload/Stop, bookmark-current-page, and menu remain available.
 
@@ -52,7 +52,7 @@ Right-click a link inside a webpage to open it in a new Browser tab or copy its 
 
 The bookmarks bar shows the direct contents of the imported or locally maintained Bookmarks bar. Items that do not fit appear in the double-chevron overflow menu. The separated **All bookmarks** button on the right opens the Bookmarks manager, including the original Other bookmarks and Mobile bookmarks folders. Folder names, order, and contents remain unchanged. Nested menus open one level at a time and remain scrollable within the current window.
 
-Website bookmarks display their saved favicon, falling back to the website’s own `/favicon.ico` and then a browser icon if unavailable. This applies to the bar, folder menus, and manager. Adding a bookmark preserves the current page icon; reopening a bookmarked URL updates it when the page provides a new icon. Icon requests do not send a referrer or use a third-party favicon service.
+Website bookmarks display their saved favicon, falling back to the website’s own `/favicon.ico` and then a browser icon if unavailable. This applies to the bar, folder menus, and manager. Adding a bookmark preserves the current page icon; reopening a bookmarked URL updates it when the page provides a new icon. Icon requests do not send a referrer or use a third-party favicon service. Shortcuts on the Browser home page show the website's own `/favicon.ico`, or the site's initial when it has none.
 
 During use, decoded icons are shared across the bar, folder menus, and tab components in each renderer. Reopening a bookmark menu reuses its document and icon cache; icons do not restart from the loading placeholder on every opening. The cache is bounded, retries failed sources after five minutes, and refreshes reused sources after thirty minutes when requested again. Closing the window releases its retained bookmark menu. Restarting the App can load icons again through the browser cache.
 

@@ -39,6 +39,8 @@ import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
 import { BookmarkBar } from "./bookmark-bar";
 import styles from "./center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
+import { AddressField, addressStarButton, ToolbarTip } from "./browser-chrome";
+import { cachedFavicon, loadFavicon } from "@/lib/browser/favicon-cache";
 
 function hostColor(host: string): string {
   let hash = 0;
@@ -46,19 +48,50 @@ function hostColor(host: string): string {
   return LANE_COLORS[hash % LANE_COLORS.length];
 }
 
-function ShortcutTile({ shortcut, onOpen }: { shortcut: Shortcut; onOpen(): void }) {
-  const { text } = useTranslation();
+function siteIconUrl(url: string): string | undefined {
+  try {
+    const page = new URL(url);
+    if (!/^https?:$/.test(page.protocol) || page.username || page.password) return undefined;
+    return `${page.origin}/favicon.ico`;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The site's own icon; its initial in the site colour when it has none. */
+function ShortcutIcon({ shortcut }: { shortcut: Shortcut }) {
+  const source = siteIconUrl(shortcut.url);
+  const [icon, setIcon] = useState(() => cachedFavicon(source));
+  useEffect(() => {
+    let current = true;
+    void loadFavicon(source).then((value) => { if (current) setIcon(value); });
+    return () => { current = false; };
+  }, [source]);
+  const paint = (node: HTMLCanvasElement | null) => {
+    if (node && icon) node.getContext("2d")?.drawImage(icon, 0, 0);
+  };
+  if (icon) return <canvas ref={paint} width={32} height={32} aria-hidden="true" />;
+  if (icon === undefined) return null;
   const host = hostOf(shortcut.url);
   return (
+    <span className={styles.ntpTileInitial} style={{ color: hostColor(host || shortcut.label) }}>
+      {(shortcut.label || host || "?").charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+function ShortcutTile({ shortcut, onOpen }: { shortcut: Shortcut; onOpen(): void }) {
+  const { text } = useTranslation();
+  return (
     <div className={styles.ntpTile}>
-      <button type="button" className={styles.ntpTileOpen} onClick={onOpen} title={shortcut.url}>
-        <span className={styles.ntpTileIcon}>
-          <span className={styles.ntpTileInitial} style={{ background: hostColor(host || shortcut.label) }}>
-            {(shortcut.label || host || "?").charAt(0).toUpperCase()}
+      <ToolbarTip label={shortcut.url}>
+        <button type="button" className={styles.ntpTileOpen} onClick={onOpen}>
+          <span className={styles.ntpTileIcon}>
+            <ShortcutIcon shortcut={shortcut} />
           </span>
-        </span>
-        <span className={styles.ntpTileLabel}>{shortcut.label}</span>
-      </button>
+          <span className={styles.ntpTileLabel}>{shortcut.label}</span>
+        </button>
+      </ToolbarTip>
       <button
         type="button"
         className={styles.ntpTileRemove}
@@ -260,43 +293,44 @@ export function BrowserHomePage() {
     <div className={`${styles.browserHome} ${styles.webPane}`}>
       <div className={styles.webChrome}>
       <div className={styles.webToolbar}>
-        <button type="button" className={webToolbarButton()} disabled title={text("Back", "后退")} aria-label={text("Back", "后退")}>
+        <button type="button" className={webToolbarButton()} disabled aria-label={text("Back", "后退")}>
           <ArrowLeft size={14} aria-hidden="true" />
         </button>
-        <button type="button" className={webToolbarButton(styles.webToolbarForward)} disabled title={text("Forward", "前进")} aria-label={text("Forward", "前进")}>
+        <button type="button" className={webToolbarButton(styles.webToolbarForward)} disabled aria-label={text("Forward", "前进")}>
           <ArrowRight size={14} aria-hidden="true" />
         </button>
-        <button type="button" className={webToolbarButton()} disabled title={text("Reload", "重新加载")} aria-label={text("Reload", "重新加载")}>
+        <button type="button" className={webToolbarButton()} disabled aria-label={text("Reload", "重新加载")}>
           <RotateCw size={14} aria-hidden="true" />
         </button>
-        <button type="button" className={webToolbarButton(styles.webToolbarMedium)} disabled title={text("Home", "主页")} aria-label={text("Home", "主页")}>
+        <button type="button" className={webToolbarButton(styles.webToolbarMedium)} disabled aria-label={text("Home", "主页")}>
           <House size={14} aria-hidden="true" />
         </button>
-        <input
-          className={styles.webAddress}
+        <AddressField
           value={url}
-          onChange={(event) => setUrl(event.target.value)}
-          onKeyDown={(event) => { if (event.key === "Enter") go(); }}
+          onChange={setUrl}
+          onSubmit={() => go()}
           placeholder={text("Search or enter a URL", "搜索或输入网址")}
-          aria-label={text("Address", "地址")}
+          ariaLabel={text("Address", "地址")}
           autoFocus
-        />
-        <button type="button" className={webToolbarButton()} disabled title={text("Bookmark", "添加书签")} aria-label={text("Bookmark", "添加书签")}>
-          <Star size={14} aria-hidden="true" />
-        </button>
+        >
+          <button type="button" className={addressStarButton()} disabled aria-label={text("Bookmark", "添加书签")}>
+            <Star size={13} aria-hidden="true" />
+          </button>
+        </AddressField>
         <BookmarksLibraryButton />
         {canImport ? (
-          <button
-            type="button"
-            className={webToolbarButton(styles.webToolbarMedium)}
-            onClick={() => setShowImport(true)}
-            title={text("Import browser data", "导入浏览器资料")}
-            aria-label={text("Import browser data", "导入浏览器资料")}
-          >
-            <Download size={15} aria-hidden="true" />
-          </button>
+          <ToolbarTip label={text("Import browser data", "导入浏览器资料")}>
+            <button
+              type="button"
+              className={webToolbarButton(styles.webToolbarMedium)}
+              onClick={() => setShowImport(true)}
+              aria-label={text("Import browser data", "导入浏览器资料")}
+            >
+              <Download size={15} aria-hidden="true" />
+            </button>
+          </ToolbarTip>
         ) : null}
-        <button type="button" className={webToolbarButton(styles.webToolbarMedium)} disabled title={text("Open in browser", "在浏览器中打开")} aria-label={text("Open in browser", "在浏览器中打开")}>
+        <button type="button" className={webToolbarButton(styles.webToolbarMedium)} disabled aria-label={text("Open in browser", "在浏览器中打开")}>
           <ExternalLink size={14} aria-hidden="true" />
         </button>
         <BrowserMenu
@@ -322,7 +356,7 @@ export function BrowserHomePage() {
           ))}
           <div className={styles.ntpTile}>
             <button type="button" className={styles.ntpTileOpen} onClick={() => setAdding(true)}>
-              <span className={`${styles.ntpTileIcon} ${styles.ntpTileAdd}`}><Plus size={18} aria-hidden="true" /></span>
+              <span className={styles.ntpTileIcon}><Plus size={18} aria-hidden="true" /></span>
               <span className={styles.ntpTileLabel}>{text("Add", "添加")}</span>
             </button>
           </div>

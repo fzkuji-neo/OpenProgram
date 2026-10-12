@@ -1009,15 +1009,12 @@
   padding: 0 10px;
   border-bottom: none;
 }
-.webChrome:has(> .bookmarkBar) .webAddress,
+.webChrome:has(> .bookmarkBar) .webAddressBox,
 .webChrome:has(> .bookmarkBar) .webToolbarBtn,
-.webChrome:has(> .bookmarkBar) .bookmarkBarItem,
-.webChrome:has(> .bookmarkBar) .bookmarkBarMore,
 .webChrome:has(> .bookmarkBar) .bookmarkBarMoreSlot {
   height: var(--web-chrome-row);
 }
 .webChrome:has(> .bookmarkBar) .webToolbarBtn,
-.webChrome:has(> .bookmarkBar) .bookmarkBarMore,
 .webChrome:has(> .bookmarkBar) .bookmarkBarMoreSlot {
   width: var(--web-chrome-row);
   flex-basis: var(--web-chrome-row);
@@ -1036,21 +1033,76 @@
   flex-shrink: 0;
 }
 
-.webAddress {
+/* The address field is the chat input box's material in a pill: the input
+   colour, no border, the composer shadow at rest and its deeper pair while
+   editing. At rest the host stands out over a dimmed path (an overlay
+   drawn over the transparent input text). */
+.webAddressBox {
   flex: 1;
   min-width: 160px;
   height: 26px;
   box-sizing: border-box;
-  padding: 0 10px;
-  font-family: var(--font-mono);
-  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 3px 0 12px;
+  background: var(--bg-input);
+  border-radius: 999px;
+  box-shadow: var(--composer-shadow);
+  transition: box-shadow 150ms ease;
+  cursor: text;
+}
+.webAddressBox[data-focused] { box-shadow: var(--composer-shadow-focus); }
+.webAddressIcon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.webAddressField {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+}
+.webAddress {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
   color: var(--text-bright);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: transparent;
+  border: 0;
   outline: none;
 }
-.webAddress:focus { border-color: var(--text-dim); }
+.webAddress::placeholder { color: var(--text-muted); }
+.webAddress[data-dressed] { color: transparent; }
+.webAddressDisplay {
+  position: absolute;
+  inset: 50% 0 auto;
+  transform: translateY(-50%);
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.webAddressHost { color: var(--text-bright); }
+/* The bookmark star rides at the pill's right end. */
+.webAddressStar { flex-shrink: 0; }
+.webAddressStar[data-on] { color: var(--accent-blue); }
+.toolbarTip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.toolbarTip kbd {
+  font: inherit;
+  font-size: 12px;
+  opacity: .6;
+}
 
 /* Geometry only. The look is the shadcn ghost icon Button, applied at the
    call site through webToolbarButton() (toolbar-button.ts); this class
@@ -1087,51 +1139,54 @@
   .webLoadingProgress::after { animation: none; width: 100%; }
 }
 
+/* Find keeps its own row (the page under it is a native view a floating
+   bar would hide behind); the controls sit in one raised pill at its end. */
 .webFindBar {
   height: 32px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
-  padding: 3px 10px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary);
   flex-shrink: 0;
-  color: var(--text-dim);
-  font-size: 11px;
 }
-.webFindBar input {
-  width: min(220px, 45cqw);
-  height: 24px;
+.webFindPill {
+  height: 26px;
   box-sizing: border-box;
-  padding: 0 8px;
-  color: var(--text-bright);
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  outline: none;
-  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 3px 0 10px;
+  background: var(--bg-input);
+  border-radius: 999px;
+  box-shadow: var(--composer-shadow-focus);
+  color: var(--text-muted);
+  font-size: 12px;
 }
-.webFindBar input:focus { border-color: var(--accent-blue); }
-.webFindBar span { min-width: 34px; text-align: center; }
-.webFindBar button {
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
+.webFindPill input {
+  width: min(200px, 40cqw);
+  min-width: 0;
+  margin-left: 7px;
   padding: 0;
-  color: var(--text-dim);
+  color: var(--text-bright);
   background: transparent;
   border: 0;
-  border-radius: 5px;
-  cursor: pointer;
+  outline: none;
+  font: inherit;
 }
-.webFindBar button:hover:not(:disabled) {
-  color: var(--text-bright);
-  background: var(--bg-hover);
+.webFindPill input::placeholder { color: var(--text-muted); }
+.webFindCount {
+  min-width: 40px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
-.webFindBar button:disabled { opacity: .35; cursor: default; }
+.webFindSep {
+  width: 1px;
+  height: 14px;
+  margin: 0 3px;
+  background: var(--border);
+}
 
 .bookmarkBar {
   height: var(--web-chrome-row, 30px);
@@ -1159,14 +1214,14 @@
 }
 .bookmarkBarItem,
 .bookmarkBarMore {
-  height: 26px;
+  height: 24px;
   min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 7px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 999px;
   background: transparent;
   color: var(--text-secondary);
   font-size: 12px;
@@ -1174,8 +1229,10 @@
   flex-shrink: 0;
 }
 .bookmarkBarItem:hover,
-.bookmarkBarMore:hover {
-  background: var(--bg-hover);
+.bookmarkBarMore:hover,
+.bookmarkBarItem[aria-expanded="true"],
+.bookmarkBarMore[aria-expanded="true"] {
+  background: var(--muted);
   color: var(--text-bright);
 }
 .bookmarkBarItem img,
@@ -1189,7 +1246,7 @@
   white-space: nowrap;
 }
 .bookmarkBarMore {
-  width: 26px;
+  width: 24px;
   padding: 0;
   justify-content: center;
 }
@@ -1204,12 +1261,14 @@
   width: 26px;
   height: 26px;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 26px;
 }
 
 @container (max-width: 719px) {
   .webToolbarMedium { display: none; }
-  .webAddress { min-width: 0; }
+  .webAddressBox { min-width: 0; }
 }
 @container (max-width: 559px) {
   .bookmarkBar { display: none; }
@@ -2072,6 +2131,8 @@
   background: var(--bg-hover);
   color: var(--text-bright);
 }
+/* Shortcut wells are the App's elevated material: the input colour and
+   the composer shadow, holding the site's own icon. */
 .ntpTileIcon {
   display: flex;
   align-items: center;
@@ -2079,26 +2140,20 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--bg-secondary, var(--bg-hover));
-  border: 1px solid var(--border);
+  background: var(--bg-input);
+  box-shadow: var(--composer-shadow);
+  color: var(--text-secondary);
   overflow: hidden;
 }
-.ntpTileIcon img {
-  width: 24px;
-  height: 24px;
+.ntpTileOpen:hover .ntpTileIcon { box-shadow: var(--composer-shadow-focus); }
+.ntpTileIcon canvas {
+  width: 20px;
+  height: 20px;
 }
+/* No icon: the site's initial in its colour. */
 .ntpTileInitial {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
   font-size: 16px;
   font-weight: 650;
-  color: #fff;
-}
-.ntpTileAdd {
-  border-style: dashed;
 }
 .ntpTileLabel {
   max-width: 100%;
