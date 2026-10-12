@@ -9,8 +9,18 @@
      （base.css 的 .center-col[data-split]），不再画细描边。 */
   border-radius: 16px;
   pointer-events: none;
-  transition: box-shadow 160ms ease;
+  transition: box-shadow 160ms ease, opacity 140ms ease;
 }
+
+/* An animated layout change moves the content panes; their frames and the
+   dividers would sit at the new layout from the first frame, so they wait
+   out the move and fade back in. */
+:global([data-canvas-animating]) > .pane,
+:global([data-canvas-animating]) > .divider {
+  opacity: 0;
+  transition: none;
+}
+.divider { transition: opacity 140ms ease; }
 
 .pane[data-single="true"] {
   box-shadow: none;

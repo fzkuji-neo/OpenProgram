@@ -22,6 +22,7 @@ import { AttachmentStrip } from "../composer/attach/attachment-strip";
 import { useComposerAttachments } from "../composer/attach/use-composer-attachments";
 import { attachmentsBlockSend } from "../composer/attach/attachment-session-cache";
 import { AttachmentChips, parseAttachments } from "./user-attachments";
+import { maskSecrets } from "@/lib/chat/secret-mask";
 import styles from "./queued-messages.module.css";
 
 const EMPTY: QueuedMessage[] = [];
@@ -148,7 +149,8 @@ function QueueRow({ row, sessionId }: { row: QueuedMessage; sessionId: string })
   const locked = Boolean(row.injecting || row.steerCommand);
   const hasFiles = queuedHasAttachments(row);
   const fileCount = (row.images?.length ?? 0) + (row.docs?.length ?? 0);
-  const parsed = parseAttachments(row.text);
+  // Display only: the queued text still sends with its secrets intact.
+  const parsed = parseAttachments(maskSecrets(row.text));
   const state = rowState(row, text);
   const firstLine = parsed.text.split("\n").find(line => line.trim()) ?? "";
   const canRetry = !locked && (row.deliveryError || ["cancelled", "ended"].includes(row.steerError ?? ""));

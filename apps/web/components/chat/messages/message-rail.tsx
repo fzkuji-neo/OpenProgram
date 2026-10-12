@@ -17,6 +17,7 @@ import { whenAreaScrollSettles } from "@/lib/chat/chat-scroll";
 import type { TurnFileSummary } from "@/lib/session-store/types";
 import { Markdown } from "@/lib/format-utils/markdown";
 import { parseAttachments, AttachmentChips } from "./user-attachments";
+import { maskSecrets } from "@/lib/chat/secret-mask";
 import { TurnFilesChips } from "./turn-files-chips";
 import {
   fileWriteState,
@@ -57,7 +58,8 @@ function useUserMessages(): RailMsg[] {
         const m = s.messagesById[order[i]];
         if (!m || m.role !== "user") continue;
         if (m.display === "runtime") continue;
-        const preview = (m.content || "").replace(/\s+/g, " ").trim();
+        const content = maskSecrets(m.content || "");
+        const preview = content.replace(/\s+/g, " ").trim();
         if (!preview) continue;
         // 紧随其后的第一条非-runtime 助手回复：取它的 id + 开头摘要。
         let assistantId: string | undefined;
@@ -89,7 +91,7 @@ function useUserMessages(): RailMsg[] {
         out.push(
           packRailRow({
             id: order[i],
-            content: m.content || "",
+            content,
             preview: preview.slice(0, 60),
             assistantId,
             assistantSummary: assistantSummary || undefined,
