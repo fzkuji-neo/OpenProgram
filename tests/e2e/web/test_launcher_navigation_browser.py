@@ -32,7 +32,7 @@ return <><button onClick={()=>useCenterTabs.getState().openNewTabPage()}>New tab
 createRoot(document.getElementById("root")).render(<App/>);`,resolveDir:process.argv[1],loader:"tsx"},
 bundle:true,format:"iife",platform:"browser",jsx:"automatic",loader:{".css":"empty"},outfile:process.argv[2],tsconfig:process.argv[1]+"/tsconfig.json"});
 ''', str(ROOT / "apps/web"), str(bundle)], cwd=ROOT, check=True, capture_output=True)
-    (tmp_path / "index.html").write_text('<div id="root"></div><script src="launcher.js"></script>')
+    (tmp_path / "index.html").write_text('<meta charset="utf-8"><div id="root"></div><script src="launcher.js"></script>')
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(tmp_path)))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

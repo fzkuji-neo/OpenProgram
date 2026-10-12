@@ -45,7 +45,7 @@ window.legacy=()=>{
         try:
             page=browser.new_page(viewport={'width':760,'height':700})
             errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-            page.route('http://steer.test/**',lambda r:r.fulfill(body='<!doctype html><div id="root"></div>',content_type='text/html'))
+            page.route('http://steer.test/**',lambda r:r.fulfill(body='<!doctype html><div id="root"></div>',content_type='text/html; charset=utf-8'))
             page.goto('http://steer.test/')
             if bundle.with_suffix('.css').exists():page.add_style_tag(path=str(bundle.with_suffix('.css')))
             for sheet in ['base.css','chat/bubbles.css','chat/stream-blocks.css','chat/message-actions.css']:
@@ -122,11 +122,11 @@ reconcileAfterSessionLoad(sid,true);
         elif '/api/execution/' in url:
             request.fulfill(json={'snapshot': {'session_id':'reload-steer','execution_id':'exact-execution','status_version':7,'status':'running','capabilities':{'steer':True}}})
         elif url.endswith('/reload.js'):
-            request.fulfill(body=bundle.read_text(), content_type='text/javascript')
+            request.fulfill(body=bundle.read_text(), content_type='text/javascript; charset=utf-8')
         elif url.endswith('/reload.css'):
             request.fulfill(body=bundle.with_suffix('.css').read_text(), content_type='text/css')
         else:
-            request.fulfill(body='<div id="root"></div><link rel="stylesheet" href="/reload.css"><script src="/reload.js"></script>', content_type='text/html')
+            request.fulfill(body='<div id="root"></div><link rel="stylesheet" href="/reload.css"><script src="/reload.js"></script>', content_type='text/html; charset=utf-8')
 
     with sync_playwright() as runtime:
         browser = runtime.chromium.launch()

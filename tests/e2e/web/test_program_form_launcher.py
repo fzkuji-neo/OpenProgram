@@ -97,7 +97,7 @@ def form_launcher(form_launcher_bundle):
 
             def route(request):
                 if request.request.url == "https://program-launcher.test/chat":
-                    request.fulfill(content_type="text/html", body='<div id="root"></div><script src="/fixture.js"></script>')
+                    request.fulfill(content_type="text/html", body='<meta charset="utf-8"><div id="root"></div><script src="/fixture.js"></script>')
                 elif request.request.url == "https://program-launcher.test/fixture.js":
                     request.fulfill(content_type="application/javascript", body=form_launcher_bundle)
                 else:

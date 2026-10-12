@@ -91,11 +91,15 @@ import {createRoot} from 'react-dom/client';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {AssistantBubble} from './components/chat/messages/assistant-bubble';
 import {RuntimeBlock} from './components/chat/messages/runtime-block';
+import {SOLAR_BODIES} from './components/solar-icons';
+window.expectedFunctionGlyph=SOLAR_BODIES.sledgehammer;
 import {useSessionStore} from './lib/session-store';
 import {applyChatWsMessage} from './lib/net/chat-stream';
+import {setPendingUserText} from './lib/chat/pending-user-text';
 window.fetch=async()=>new Response('{}',{headers:{'content-type':'application/json'}});
 useSessionStore.setState({currentSessionId:'activity-layout',activeChatKey:'activity-layout'});
-const sid='activity-layout', uid='turn', rid=uid+'_reply';
+const sid='activity-layout';let uid='turn',rid=uid+'_reply';
+window.freshReply=()=>{uid='thinking';rid=uid+'_reply';setPendingUserText(sid,'A new ordinary question');applyChatWsMessage({type:'chat_ack',data:{session_id:sid,msg_id:uid}});};
 window.event=(event)=>applyChatWsMessage({type:'chat_response',data:{type:'stream_event',session_id:sid,msg_id:uid,event}});
 applyChatWsMessage({type:'chat_ack',data:{session_id:sid,msg_id:uid}});
 window.event({type:'tool_use',tool:'bash',tool_call_id:'old',input:'{}'});
@@ -140,15 +144,23 @@ window.showRuntime=()=>root.render(<RuntimeBlock msg={{id:'long-function',role:'
             expect(active).to_have_attribute('aria-expanded','true')
             row = page.locator('.tl-body .tl-step-head').last
             expect(row.locator('.activity-indicator')).to_have_count(0)
-            expect(row.locator('.lucide-wrench')).to_have_count(1)
+            expect(row.locator('.tl-step-icon.k-function')).to_have_count(1)
+            glyph = row.locator('.tl-step-icon.k-function svg')
+            expect(glyph).to_have_count(1)
+            expect(glyph).to_have_attribute('aria-hidden', 'true')
+            assert glyph.evaluate("""svg => {
+                const expected = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                expected.innerHTML = window.expectedFunctionGlyph;
+                return svg.innerHTML === expected.innerHTML;
+            }""")
             # Wait for the production disclosure transition to settle.
             page.wait_for_function("document.querySelector('.tl[data-open=\"1\"] .tl-collapse').getAnimations().length===0")
             page.wait_for_function("[...document.querySelectorAll('.tl[data-open=\"1\"] .tl-step')].every(e=>e.getAnimations().every(a=>a.playState==='finished'))")
             title = row.locator('.tl-step-title').bounding_box()
-            assert title['x'] - left == pytest.approx(48, abs=.5)
+            assert title['x'] - left == pytest.approx(42, abs=.5)
             icon = row.locator('.tl-step-icon').bounding_box()
-            assert icon['x'] == pytest.approx(left + 4, abs=.5)
-            assert icon['width'] == 20
+            assert icon['x'] == pytest.approx(left, abs=.5)
+            assert icon['width'] == 24
             assert icon['y']+icon['height']/2 == pytest.approx(title['y']+title['height']/2,abs=.5)
             assert row.bounding_box()['y'] - active.bounding_box()['y'] - active.bounding_box()['height'] <= 16
             page.screenshot(path=str(tmp_path/'active-layout.png'))
@@ -176,7 +188,8 @@ window.showRuntime=()=>root.render(<RuntimeBlock msg={{id:'long-function',role:'
             expect(page.locator('.activity-indicator')).to_have_count(0)
             expect(active).to_have_attribute('aria-expanded','true')
             # The only logo slot is the original empty model reply placeholder.
-            page.evaluate("replaceReply({blocks:[],tools:[],content:'',thinking:'',retryStatus:undefined,status:'running'})")
+            page.evaluate('freshReply()')
+            assert page.evaluate("snapshot().id === 'thinking_reply' && snapshot().content === '' && snapshot().status === 'streaming'")
             expect(page.locator('.activity-indicator')).to_have_count(1)
             page.evaluate("replaceReply({runtimeChildren:[{id:'legacy-call',role:'assistant',display:'runtime',function:'custom_agent',status:'running',content:''}]})")
             expect(page.locator('.activity-indicator')).to_have_count(0)
