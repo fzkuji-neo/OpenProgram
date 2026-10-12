@@ -23,7 +23,6 @@
  */
 import { useEffect, useId, useRef, useState } from "react";
 import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
-import { holdRailMotion, onRailMotion, railMoving } from "@/lib/layout/rail-motion";
 import type { KeyboardEvent, ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, PictureInPicture2, RotateCw, Star, X } from "lucide-react";
 
@@ -384,22 +383,15 @@ function DesktopWebTabPane({
     // screen until the snapshot exists (or briefly times out), so a drag or
     // a narrow pane never flashes an empty "paused" card first.
     let disposed = false, capturing = false, hidden = false;
-    // A rail motion waits for this pane's picture (lib/layout/rail-motion).
-    let settle: (() => void) | null = null;
-    // Coming back, the page is still laid out at the size it was hidden
-    // at; until it paints at the new size, its old frame spills past the
-    // pane. So it is resized while hidden and shown after one paint.
-    let primed = "", priming = false;
     const hide = () => {
       if (disposed || hidden || !capturing) return;
       hidden = true;
       setFrozen(true);
       removeVisibleWebTabBounds(bridge, tabId); setWebTabReady(tabId, false);
-      settle?.(); settle = null;
     };
     const report = () => {
       const bounds = measureWebTabBounds(el);
-      const freeze = canvasDragging() || railMoving() || suspended || bounds.width < 320 || bounds.height < 172;
+      const freeze = canvasDragging() || suspended || bounds.width < 320 || bounds.height < 172;
       if (freeze) {
         if (!capturing) {
           capturing = true;
@@ -411,20 +403,6 @@ function DesktopWebTabPane({
         }
         if (hidden) { removeVisibleWebTabBounds(bridge, tabId); setWebTabReady(tabId, false); }
         return;
-      }
-      if (hidden) {
-        const key = `${bounds.x},${bounds.y},${bounds.width},${bounds.height}`;
-        if (primed !== key) {
-          if (priming) return;
-          priming = true;
-          bridge.webTab.setBounds(tabId, bounds);
-          void Promise.race([
-            Promise.resolve(bridge.webTab.capture?.(tabId, "presentation")).catch(() => null),
-            new Promise(resolve => window.setTimeout(resolve, 200)),
-          ]).finally(() => { priming = false; primed = key; report(); });
-          return;
-        }
-        primed = "";
       }
       capturing = false;
       if (hidden) { hidden = false; setFrozen(false); }
@@ -448,17 +426,11 @@ function DesktopWebTabPane({
     const mo = new MutationObserver(report);
     mo.observe(document.body, { subtree: true, childList: true, attributes: true });
     const offCanvasDrag = onCanvasDragChange(report);
-    const offRailMotion = onRailMotion(() => {
-      if (railMoving() && !hidden && el.offsetWidth > 0) holdRailMotion(new Promise<void>(resolve => { settle = resolve; }));
-      report();
-    });
     window.addEventListener("resize", report);
     window.addEventListener("scroll", report, true);
     return () => {
       disposed = true;
-      settle?.();
       offCanvasDrag();
-      offRailMotion();
       ro.disconnect();
       mo.disconnect();
       window.removeEventListener("resize", report);
