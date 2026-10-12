@@ -13,8 +13,18 @@ import { DRAG_SURFACE_STYLE } from "../prefs/visual-effects-config";
 export type CanvasDrop = { targetId: string; paneId: string; side: CanvasDockSide; rect: Rect; action: "dock" | "fill"; label: string };
 let preview: HTMLDivElement | null = null;
 let dragging = false;
+let animating = false;
 const listeners = new Set<() => void>();
-export function canvasDragging() { return dragging; }
+/** True while panes move under a drag or an animated layout change: web
+ *  panes hold a snapshot and chats re-wrap only the rows in view. */
+export function canvasDragging() { return dragging || animating; }
+/** An animated layout change (canvas-transition.ts) is moving the panes. */
+export function setCanvasAnimating(value: boolean) {
+  if (animating === value) return;
+  const before = canvasDragging();
+  animating = value;
+  if (canvasDragging() !== before) listeners.forEach((listener) => listener());
+}
 /** Native web panes subscribe so they can swap to a snapshot while a drag runs. */
 export function onCanvasDragChange(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
 
@@ -49,9 +59,10 @@ export function setCanvasDragging(value: boolean, by?: CanvasDragOwner) {
     if (useCanvasOverview.getState().mode === "drag") closeOverview();
   }
   if (dragging === value) { if (!value) { preview?.remove(); preview = null; } return; }
+  const before = canvasDragging();
   dragging = value;
   document.documentElement.toggleAttribute("data-canvas-dragging", value);
-  listeners.forEach((listener) => listener());
+  if (canvasDragging() !== before) listeners.forEach((listener) => listener());
   if (!value) { preview?.remove(); preview = null; }
 }
 /** Apply a canvas drop. Returns false when it changed nothing. */
