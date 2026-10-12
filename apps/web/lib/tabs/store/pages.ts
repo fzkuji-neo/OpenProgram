@@ -1,4 +1,4 @@
-import { filePreviewLayout } from "../file-preview-layout";
+import { filePreviewLayout, filePreviewId } from "../file-preview-layout";
 import { findCenterTabGroup, normalizeCenterTabLayout } from "@/lib/tabs/center-tab-groups";
 import { documentControllers } from "@/lib/files/document-controller-registry";
 import { builtinTabId, fileTabId, nextBrowserHomeId, nextNtpId } from "@/lib/tabs/center-tab-ids";
@@ -9,11 +9,13 @@ import { topLevelTabs, webTabSessionIds } from "../../browser/web-page-managemen
 import { mapTabPages } from "../navigation/page-history";
 import { sessionHistory } from "../navigation/session-history";
 import { commitCenterTabsState, focusOrCreate, independentTab } from "./core";
+import { requestFileSection } from "../file-section-requests";
 import type { CenterTab, CenterTabsState } from "./types";
 
 export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"], closedSessionAckTombstones: Set<string>): Pick<CenterTabsState, "openFilePreview" | "openFileTab" | "openBuiltinTab" | "openApplicationTab" | "openReviewTab" | "setTabDirty" | "setTabDagView" | "retargetFileTab" | "openNewTabPage" | "closeTab"> {
   return {
     openFilePreview: (sessionId, target, automatic = false) => {
+      const { section, ...fileTarget } = target;
       let opened = false;
       set(state => {
         if (automatic) {
@@ -26,15 +28,20 @@ export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: St
             return documentControllers.get(key)?.canReplacePreview() === false;
           })) return {};
         }
-        const next = filePreviewLayout(state, sessionId, target, automatic);
+        const next = filePreviewLayout(state, sessionId, fileTarget, automatic);
         if (!next) return {};
         opened = true;
-        return commitCenterTabsState(state, next);
+        const committed = commitCenterTabsState(state, next);
+        const destination = committed.tabs.find(tab => tab.id === filePreviewId(sessionId, fileTarget))!;
+        const sequence = (state.fileSectionSequence ?? 0) + 1;
+        return { ...committed, fileSectionSequence: sequence,
+          fileSectionRequests: requestFileSection(state.fileSectionRequests, destination, section, sequence) };
       });
       return opened;
     },
     openFileTab: (projectId, path, options) =>
       set((s) => {
+        const { section, ...fileOptions } = options ?? {};
         const id = fileTabId(projectId, path);
         const opened = focusOrCreate(
           s,
@@ -45,7 +52,7 @@ export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: St
             title: path.split("/").pop() || path,
             projectId,
             path,
-            ...options,
+            ...fileOptions,
           }),
           s.tabs.filter(tab => tab.id === s.activeId && (tab.kind === "file" || (tab.kind === "builtin" && tab.page === "files"))).map(tab => tab.id),
         );
@@ -53,8 +60,12 @@ export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: St
         // context: overwrite it (undefined options clear it) so the
         // tab always reflects the LATEST open.
         const tabs = opened.tabs ?? s.tabs;
+        const destination = tabs.find(tab => tab.id === opened.activeId)!;
+        const sequence = (s.fileSectionSequence ?? 0) + 1;
         return {
           ...opened,
+          fileSectionSequence: sequence,
+          fileSectionRequests: requestFileSection(s.fileSectionRequests, destination, section, sequence),
           tabs: tabs.map((t) =>
             t.id === opened.activeId
               ? {

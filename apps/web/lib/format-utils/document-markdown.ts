@@ -23,9 +23,20 @@ function mathExtension(block: boolean): TokenizerExtension & RendererExtension {
 }
 
 export function createDocumentMarkdown(resolveImage?: (src: string) => string | null): Marked {
+  const headings = new Set<string>();
   return new Marked(cjkEmphasis, {
+    hooks: { preprocess(source) { headings.clear(); return source; } },
     extensions: [mathExtension(true), mathExtension(false)],
     renderer: {
+      heading(token) {
+        const label = this.parser.parseInline(token.tokens);
+        const text = decodeHTMLAttribute(this.parser.parseInline(token.tokens, this.parser.textRenderer));
+        const base = text.normalize("NFC").toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").trim().replace(/\s+/g, "-") || "section";
+        let key = base;
+        for (let suffix = 1; headings.has(key); suffix++) key = `${base}-${suffix}`;
+        headings.add(key);
+        return `<h${token.depth} data-section-key="${escapeHtml(key)}">${label}</h${token.depth}>\n`;
+      },
       html(token) { return escapeHtml(token.text); },
       link(token) {
         const label = this.parser.parseInline(token.tokens);
