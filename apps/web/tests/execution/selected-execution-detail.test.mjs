@@ -23,3 +23,16 @@ test('selected detail follows updates without opening or switching the dock',()=
   run();
   assert.equal(store.detailNode.path,'other');
 });
+
+test('custom tool details follow updates only after the full-output request settles',()=>{
+  const detail={path:'gui1',status:'completed',output:'{"status":"infeasible"}',session_id:'owner'};
+  const store={detailNode:{path:'gui1',status:'running'},populateDetail:n=>{store.detailNode=n;},showDetail:()=>assert.fail('must not open dock')};
+  const run=syncDetail=>vm.runInNewContext(`(${callback.getText(source)})()`,{detail,onOpenDetail:()=>{},syncDetail,useSessionStore:{getState:()=>store}});
+  run(false);
+  assert.equal(store.detailNode.status,'running');
+  run(true);
+  assert.deepEqual(store.detailNode,detail);
+  store.detailNode={path:'other'};
+  run(true);
+  assert.equal(store.detailNode.path,'other');
+});

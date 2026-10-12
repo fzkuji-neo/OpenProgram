@@ -335,6 +335,8 @@ export interface DetailNode {
   path: string;
   name: string;
   status: string;
+  /** Conversation that owns this call; never replaced by the focused session. */
+  session_id?: string;
   params?: Record<string, unknown>;
   output?: string;
   error?: string;

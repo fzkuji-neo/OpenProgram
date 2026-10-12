@@ -55,7 +55,7 @@ function SteeringInput({block, sessionId}: {block: AssistantBlock; sessionId?: s
 
 /** Older agent calls can lack an ordered tool block. They still use the
  * same execution rows as current chat, never a second runtime-card renderer. */
-function LegacyRuntimeTrace({ children: calls }: { children: ChatMsg[] }) {
+function LegacyRuntimeTrace({ children: calls, sessionId }: { children: ChatMsg[]; sessionId?: string }) {
   const { text } = useTranslation();
   const blocks: AssistantBlock[] = calls.map((call) => ({
     type: "tool", tool: call.function || "call", tool_call_id: call.id,
@@ -74,6 +74,7 @@ function LegacyRuntimeTrace({ children: calls }: { children: ChatMsg[] }) {
     >
       {calls.map((call, index) => (
         <FunctionStep key={call.id}
+          sessionId={sessionId}
           block={blocks[index]}
           tree={call.contextTree as TNode | undefined}
           running={call.status === "running" || call.status === "streaming"}
@@ -445,7 +446,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 );
               }
               if (fifo.length > 0) {
-                rendered.push(<LegacyRuntimeTrace key="legacy_runtime">{fifo}</LegacyRuntimeTrace>);
+                rendered.push(<LegacyRuntimeTrace key="legacy_runtime" sessionId={bubbleSessionId}>{fifo}</LegacyRuntimeTrace>);
               }
               // 兜底：blocks 里没记 agent/task 调用块的老数据。仍使用
               // 同一时间线行，不退回 AttachCard，避免刷新前后形态变化。
@@ -496,7 +497,7 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
                 </div>
               ))}
               {runtimeChildren.length > 0
-                ? <LegacyRuntimeTrace>{runtimeChildren}</LegacyRuntimeTrace> : null}
+                ? <LegacyRuntimeTrace sessionId={bubbleSessionId}>{runtimeChildren}</LegacyRuntimeTrace> : null}
               {hasContent && (msg.status !== "error" || !!msg.errorDetail) ? <MarkdownText text={contentText} /> : null}
               {streaming && !hasContent && !waitingApproval && !verdict && !msg.retryStatus
                 && !msg.function && msg.display !== "runtime" && runtimeChildren.length === 0

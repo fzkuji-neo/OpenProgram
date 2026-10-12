@@ -6,6 +6,7 @@ import { useTranslation } from "@/lib/i18n";
 import { renderMarkdown, useMarkdownReady } from "../chat/messages/markdown";
 import { LlmNodeContent } from "../chat/messages/llm-node-content";
 import type { TNode } from "../chat/messages/tree-types";
+import { GuiToolDetail } from "./gui-tool-detail";
 
 export const VIEW_DETAIL = "detail";
 export const VIEW_CONTEXT = "context";
@@ -140,6 +141,7 @@ export function DetailPanel() {
 
   return (
     <div id="detailBody" className="detail-body">
+      <GuiToolDetail key={`${node.session_id || ""}:${node.path}`} node={node} />
       <div className="detail-section">
         <div className="detail-section-title">Status</div>
         <div className={`detail-badge ${node.status}`}>

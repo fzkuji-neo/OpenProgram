@@ -46,7 +46,7 @@ export const LINE_DIFF_CAP = 2000;
 type Kind =
   | "command" | "create" | "edit" | "delete" | "read" | "list" | "search"
   | "websearch" | "fetch" | "browser" | "agent" | "imagegen" | "imageanalyze"
-  | "todo" | "ask" | "memory" | "program" | "skill" | "other";
+  | "todo" | "ask" | "memory" | "program" | "skill" | "gui" | "other";
 
 interface Bucket {
   kind: Kind;
@@ -65,7 +65,7 @@ interface FileOp { kind: "create" | "edit" | "delete"; path: string }
 const COMMAND = new Set(["bash", "terminal_use", "process", "execute_code"]);
 const SEARCH = new Set(["grep", "glob", "semble_search", "semble_find_related",
   "lsp_definition", "lsp_references", "lsp_diagnostics"]);
-const BROWSER = new Set(["web_use", "agent_browser", "playwright_browser"]);
+const BROWSER = new Set(["web_use", "agent_browser", "playwright_browser", "browser_use"]);
 const AGENT = new Set([...SPAWNING_TOOL_NAMES, "mixture_of_agents"]);
 const FILE_WRITERS = new Set(["write", "edit", "apply_patch"]);
 
@@ -195,6 +195,7 @@ function kindOf(tool: string, text: Text): Kind {
   if (tool === "web_search") return "websearch";
   if (tool === "web_fetch") return "fetch";
   if (BROWSER.has(tool)) return "browser";
+  if (["gui_agent", "computer_use", "vm_use"].includes(tool)) return "gui";
   if (AGENT.has(tool)) return "agent";
   if (tool === "image_generate") return "imagegen";
   if (tool === "image_analyze") return "imageanalyze";
@@ -356,6 +357,8 @@ function pastPhrase(bucket: Bucket, text: Text): string {
         : n === 1 ? text("fetched a page", "抓取了 1 个网页") : text(`fetched ${n} pages`, `抓取了 ${n} 个网页`);
     case "browser":
       return text("operated the browser", "操作了浏览器");
+    case "gui":
+      return calls === 1 ? text("ran a GUI call", "执行了 1 次 GUI 调用") : text(`ran ${calls} GUI calls`, `执行了 ${calls} 次 GUI 调用`);
     case "agent":
       return named ? text(`ran sub-agent ${named}`, `运行了子代理 ${named}`)
         : n === 1 ? text("ran a sub-agent", "运行了 1 个子代理") : text(`ran ${n} sub-agents`, `运行了 ${n} 个子代理`);
@@ -398,6 +401,7 @@ function presentPhrase(bucket: Bucket, text: Text): string {
     case "websearch": return text("searching the web", "正在搜索网页");
     case "fetch": return t ? text(`fetching ${t}`, `正在抓取 ${t}`) : text("fetching a page", "正在抓取网页");
     case "browser": return text("operating the browser", "正在操作浏览器");
+    case "gui": return text("running a GUI call", "正在执行 GUI 调用");
     case "agent": return t ? text(`running sub-agent ${t}`, `正在运行子代理 ${t}`) : text("running a sub-agent", "正在运行子代理");
     case "imagegen": return text("generating an image", "正在生成图片");
     case "imageanalyze": return text("analyzing an image", "正在分析图片");
