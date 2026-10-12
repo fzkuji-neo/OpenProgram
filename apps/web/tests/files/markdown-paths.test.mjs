@@ -18,3 +18,13 @@ test("markdown references that are not files stay untouched", () => {
   }
   assert.equal(resolveMarkdownReference("post.md", "../../etc/passwd"), null);
 });
+
+test('local fragments remain distinct from filenames and authorization queries', async () => {
+  const {resolveMarkdownFile,markdownDestination,markdownTokenDestination}=await import('../../lib/files/markdown-paths.ts');
+  assert.deepEqual(resolveMarkdownFile('docs/post.md','fig%23one.svg?session=other#part%20one'),{path:'docs/fig#one.svg',fragment:'#part%20one'});
+  assert.equal(resolveMarkdownFile('post.md','%2e%2e/private'),null);
+  assert.equal(resolveMarkdownFile('post.md','bad%00name'),null);
+  assert.equal(resolveMarkdownFile('post.md','bad%ZZname'),null);
+  for(const href of ['java\tscript:evil','jav&#97;script:evil','javascript&#58;evil','java&Tab;script:evil','java&NewLine;script:evil','\\\\host/x'])assert.equal(markdownTokenDestination(href).kind,'rejected',href);
+  assert.deepEqual(markdownDestination('//example.test/x'),{kind:'external',href:'https://example.test/x'});
+});

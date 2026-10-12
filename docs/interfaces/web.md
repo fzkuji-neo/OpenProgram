@@ -225,3 +225,5 @@ Closing the tab of a session-associated webpage only hides that view. The same p
 Failed replies keep their partial answer and function trace. A failure notice appears at the end of the reply; expand **Error details** to inspect the original message. The notice and details remain available after reloading the conversation.
 
 Use ↑ in the first line to recall a previous message. Press ↓ past the newest recalled message to restore your unsent draft. Editing recalled text starts a new recall cycle; Ctrl/⌘/Alt/Shift with arrow keys and selected text retain normal editing behavior.
+
+Markdown file previews display raw HTML as text. Document links support local files, page fragments, HTTP(S), and mailto; protocol-relative links use HTTPS. Images support authorized local files and HTTP(S), including SVG fragments. Data image URLs and executable or unsupported URL schemes are not loaded. Local URL queries do not change file authorization. Math remains text until typeset; inline and fenced code retain literal math delimiters.
