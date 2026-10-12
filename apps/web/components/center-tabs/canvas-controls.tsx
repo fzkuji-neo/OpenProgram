@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Equal, FileText, Globe, LayoutGrid, Maximize2, MessageSquare, Minus, SquareDashed, Undo2, X, Save } from "lucide-react";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
+import { captureCanvasTransition } from "@/lib/tabs/canvas-transition";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, snapResize, tilePane, mapNode, type CanvasLayout, type CanvasPreset, type CanvasTile, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { rememberCanvas, takePreviousCanvas } from "@/lib/tabs/canvas-history";
@@ -113,14 +114,19 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   const update = (canvas: CanvasLayout) => useCenterTabs.getState().setCanvas(targetId, canvas);
   const remember = () => rememberCanvas(historyKeys, layout);
   const focus = (paneId: string) => update({ ...layout, focusedPaneId: paneId });
-  const zoom = (paneId: string) => update({ ...layout, focusedPaneId: paneId, zoomedPaneId: layout.zoomedPaneId === paneId ? undefined : paneId });
-  const close = (paneId: string) => { remember(); update({ ...layout, zoomedPaneId: undefined, root: removePane(layout.root, paneId) }); };
+  const zoom = (paneId: string) => { captureCanvasTransition(); update({ ...layout, focusedPaneId: paneId, zoomedPaneId: layout.zoomedPaneId === paneId ? undefined : paneId }); };
+  /** Take a pane off the canvas; its tab folds back up into the strip. */
+  const close = (paneId: string) => {
+    const content = all.find(p => p.id === paneId)?.content;
+    captureCanvasTransition(content ? { [content]: "minimize" } : {});
+    remember(); update({ ...layout, zoomedPaneId: undefined, root: removePane(layout.root, paneId) });
+  };
   const split = (side: "right" | "bottom") => { remember(); const next = insertPane(layout.root, layout.focusedPaneId, side, null); update({ root: next.root, focusedPaneId: next.paneId }); };
   const tile = (paneId: string, to: CanvasTile | "fill") => {
     if (to === "fill") { zoom(paneId); return; }
     const next = tilePane(layout.root, paneId, to);
     if (next.root === layout.root) return;
-    remember(); update({ root: next.root, focusedPaneId: next.paneId });
+    captureCanvasTransition(); remember(); update({ root: next.root, focusedPaneId: next.paneId });
   };
   /** Lay the canvas out as a preset with `paneId`'s tab first (second when reversed). */
   const arrange = (preset: CanvasPreset, paneId = layout.focusedPaneId, reversed = false) => {
@@ -129,13 +135,13 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
     const contents = lead ? (reversed ? [others[0], lead, ...others.slice(1)].filter((c): c is string => !!c) : [lead, ...others]) : others;
     const next = presetLayout(preset, contents);
     if (reversed && lead && contents.length === 1) next.root = mapNode(next.root, next.root.id, n => n.kind === "split" ? { ...n, children: [...n.children].reverse() } : n);
-    remember(); update({ ...next, focusedPaneId: leaves(next.root).find(p => p.content === lead)?.id ?? next.focusedPaneId });
+    captureCanvasTransition(); remember(); update({ ...next, focusedPaneId: leaves(next.root).find(p => p.content === lead)?.id ?? next.focusedPaneId });
   };
   /** macOS "Return to Previous Size": leave Fill first, then step back through layouts. */
   const restore = () => {
-    if (layout.zoomedPaneId) { update({ ...layout, zoomedPaneId: undefined }); return true; }
+    if (layout.zoomedPaneId) { captureCanvasTransition(); update({ ...layout, zoomedPaneId: undefined }); return true; }
     const previous = takePreviousCanvas(historyKeys);
-    if (previous) update(previous);
+    if (previous) { captureCanvasTransition(); update(previous); }
     return !!previous;
   };
   const closeMenu = () => { window.clearTimeout(hoverTimer.current); if (menu) fold(menu.paneId); setMenu(null); setSaveName(null); setQuarters(false); };
@@ -155,13 +161,16 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   const closeTab = (paneId: string, tabId: string | null) => {
     closeMenu();
     if (!tabId) { close(paneId); return; }
+    // The strip's close may ask to save first; the capture plays once the
+    // tab is really gone, or lapses.
+    captureCanvasTransition({ [tabId]: "close" });
     window.dispatchEvent(new CustomEvent("op-close-center-tabs", { detail: { tabIds: [tabId] } }));
   };
   /** Green: leave the split and open the tab on its own, like the top-edge drop. */
   const openAlone = (paneId: string, tabId: string | null) => {
     closeMenu();
     if (!tabId) { zoom(paneId); return; }
-    remember();
+    captureCanvasTransition(); remember();
     const s = useCenterTabs.getState();
     s.ungroupTab(tabId); s.setActive(tabId);
   };
@@ -227,7 +236,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
     <div className={styles.hint} aria-live="polite">{hint || (all.length > 1 ? text("Hold Option for quarters", "按住 Option 显示四分之一") : "")}</div>
     <div className={styles.separator} />
     <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { if (!restore()) setHint(text("No earlier layout", "没有更早的布局")); else closeMenu(); }}><Undo2 aria-hidden />{text("Return to previous layout", "还原上次布局")}<span className={styles.shortcut}>⌃⌥R</span></button>
-    <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { remember(); update({ ...layout, root: equalize(layout.root) }); closeMenu(); }}><Equal aria-hidden />{text("Equalize sizes", "均分大小")}</button>
+    <button type="button" role="menuitem" className={styles.menuItem} onClick={() => { captureCanvasTransition(); remember(); update({ ...layout, root: equalize(layout.root) }); closeMenu(); }}><Equal aria-hidden />{text("Equalize sizes", "均分大小")}</button>
     <button type="button" role="menuitem" className={styles.menuItem} aria-expanded={more} onClick={() => setMore(!more)}><LayoutGrid aria-hidden />{text("More layouts", "更多布局")}<span className={styles.shortcut}>{more ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}</span></button>
     {more && <div className={styles.more}>
       <div className={styles.presets}>
@@ -237,7 +246,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
       </div>
       {saved.length > 0 && <>
         <div className={styles.menuLabel}>{text("Saved layouts", "已保存布局")}</div>
-        {saved.map((s, i) => <button key={i} type="button" role="menuitem" className={styles.menuItem} onClick={() => { remember(); update(s.layout); closeMenu(); }}><LayoutGrid aria-hidden />{s.name}</button>)}
+        {saved.map((s, i) => <button key={i} type="button" role="menuitem" className={styles.menuItem} onClick={() => { captureCanvasTransition(); remember(); update(s.layout); closeMenu(); }}><LayoutGrid aria-hidden />{s.name}</button>)}
       </>}
       {saveName === null
         ? <button type="button" role="menuitem" className={styles.menuItem} onClick={() => setSaveName("")}><Save aria-hidden />{text("Save layout…", "保存布局…")}</button>
@@ -306,7 +315,7 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
     })}
     {!layout.zoomedPaneId && geometry.dividers.map((d, dividerIndex) => { const key = `${d.splitId}:${d.index}`; const live = activeDivider?.key === key ? activeDivider : null; return <div key={key} className={styles.divider} data-active={!!live || undefined} role="separator" aria-orientation={d.dir === "row" ? "vertical" : "horizontal"} aria-valuenow={Math.round(d.sizes[d.index]*100)} tabIndex={0}
       style={cssGeometry.dividers[dividerIndex]}
-      onDoubleClick={() => { remember(); update({ ...layout,root:mapNode(layout.root,d.splitId,n => n.kind === "split" ? { ...n,sizes:n.sizes.map((s,i) => i===d.index || i===d.index+1 ? (n.sizes[d.index]+n.sizes[d.index+1])/2 : s) } : n) }); }}
+      onDoubleClick={() => { captureCanvasTransition(); remember(); update({ ...layout,root:mapNode(layout.root,d.splitId,n => n.kind === "split" ? { ...n,sizes:n.sizes.map((s,i) => i===d.index || i===d.index+1 ? (n.sizes[d.index]+n.sizes[d.index+1])/2 : s) } : n) }); }}
       onKeyDown={e => { if (!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key)) return; e.preventDefault(); update({ ...layout,root:resizeSplit(layout.root,d.splitId,d.index,e.key==="ArrowLeft"||e.key==="ArrowUp"?-.02:.02,d.span) }); }}
       onPointerDown={e => {
         if(e.button!==0) return; e.preventDefault(); const start=d.dir==="row"?e.clientX:e.clientY;
