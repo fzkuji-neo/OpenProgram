@@ -63,7 +63,7 @@ import {
   previewTabId,
   useBrowserResourceStore,
 } from "@/lib/chat/session-resources";
-import { clipWebTabBounds, isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab-bounds";
+import { isWebTabOccluded, measureWebTabBounds } from "@/lib/browser/web-tab-bounds";
 import styles from "./center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
 import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
@@ -390,7 +390,7 @@ function DesktopWebTabPane({
       removeVisibleWebTabBounds(bridge, tabId); setWebTabReady(tabId, false);
     };
     const report = () => {
-      const bounds = clipWebTabBounds(measureWebTabBounds(el), el.closest("[data-canvas-root]")?.getBoundingClientRect());
+      const bounds = measureWebTabBounds(el);
       const freeze = canvasDragging() || suspended || bounds.width < 320 || bounds.height < 172;
       if (freeze) {
         if (!capturing) {
