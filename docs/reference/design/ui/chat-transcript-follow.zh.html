@@ -423,6 +423,7 @@ button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
   <li>进行中的 Jump 遇上 take-latest：取消平滑行程并 snap（仅当 latest 已在屏上）。已在最新窗口时发送在 0ms 反馈上获胜。</li>
   <li>减少动效：跳转贴底。发送本来就是贴底。</li>
   <li>虚拟化：回收保留已测量占位，使 <code>scrollHeight</code> 诚实。回收后 pin。不要加 <code>react-virtuoso</code> / <code>react-window</code> / <code>@tanstack/react-virtual</code>。</li>
+  <li>宽度变化：列宽改变时，已测量的行高保留为估计值，不再清空，所以 resize 不会让整个列表重新渲染。行在重新渲染时再测量；在视口上方渲染的行按估计误差调整 <code>scrollTop</code>，因为滚动器没有原生锚定。宽度变化期间聊天区带 <code>data-width-settling</code>，屏幕外的行以记住的尺寸使用 <code>content-visibility: auto</code>，每帧只重排可见行；宽度静止 120&nbsp;ms 后去掉该属性，并保持第一条可见行的位置（视图在底部时由 pin 保持）。</li>
   <li>KaTeX：对当前消息列调用 <code>typesetMath</code>，作为单一 pin 路径里的增高副作用，不是第二套滚动器，也不扫描整页。</li>
   <li>不改后端协议。</li>
 </ul>
