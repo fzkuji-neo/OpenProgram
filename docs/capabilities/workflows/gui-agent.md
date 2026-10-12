@@ -164,3 +164,11 @@ Direct tool runs also need an explicit provider and model for internal model cal
 When run from a chat, internal GUI and Workflow model calls inherit the turn's provider and model selection. A per-turn override takes priority over the session selection, followed by the agent profile. The selected provider and model also apply to tool subprocesses. Provider authentication must still be valid for that selected model; setup failures retain the selected model's error instead of silently using another provider.
 
 Browser workflows retain an explicit initial URL when a backend is selected. Official MCP backends support guarded waits and propagate snapshot failures. Page recovery stays within the current window scope and does not replay the failed action. A verified result retains its actual evidence and observed target.
+
+## Inspect GUI tool activity
+
+Expand the execution summary in a conversation and select **GUI Agent**, **Computer Use**, **Browser Use**, or **VM Use**. The shared Details panel shows the recorded capability steps in order, their targets, results, and any instructions for manual takeover. The same view is available for a manually run GUI function. Selected details update as the call receives execution-tree or result updates; switching to another call keeps that selection.
+
+“Action applied” means that an operation was reported as applied; it does not mean the whole task succeeded. “Needs takeover” shows the recorded blocker and user action. Missing or truncated results remain unavailable, and raw parameters/output stay below the activity view. Use the conversation's existing Stop control to cancel; inspecting a result does not stop or resume an agent.
+
+Each available screenshot has an **Open recorded screenshot** button. It opens only on request, using the call's original conversation access. The image is an observation from that step, not a live view or a verification of the state after its action. Deleted captures or files outside the allowed attachment roots cannot be opened. This view does not capture a new image or grant application access.

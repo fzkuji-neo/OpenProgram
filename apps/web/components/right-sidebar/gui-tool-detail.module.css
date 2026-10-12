@@ -1,0 +1,13 @@
+.activity { color: var(--text-primary); padding: 12px; margin-bottom: 16px; border: 1px solid var(--border-color, #8884); border-radius: 8px; font-size: 13px; overflow-wrap: anywhere; }
+.heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.heading span, .activity small { color: var(--text-secondary); }
+.activity p { margin: 8px 0; white-space: pre-wrap; }
+.handoff { border-left: 2px solid var(--accent-orange); padding-left: 10px; }
+.steps { padding-left: 20px; margin: 12px 0 0; }
+.steps li { padding: 6px 0; }
+.steps summary { cursor: pointer; }
+.steps small { display: block; margin-top: 5px; }
+.action { font-family: var(--font-mono, monospace); }
+.preview { color: var(--text-primary); border: 1px solid var(--border-color, #8884); background: var(--bg-secondary); border-radius: 5px; padding: 5px 8px; cursor: pointer; font: inherit; }
+.preview:focus-visible, .steps summary:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 3px; }
+.activity [data-gui-status="failed"], .activity [data-gui-status="infeasible"] { color: var(--accent-red); }

@@ -18,6 +18,7 @@ import { memo, useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
 import { presentTool, summarizeResult, type ToolTone } from "./tool-presentation";
+import { GUI_TOOL_NAMES } from "./gui-tool-view";
 import type { ToolGroupSummary } from "./tool-group-summary";
 import { afterTwoAnimationFrames } from "./collapse-frame";
 
@@ -187,6 +188,7 @@ export function StepRow({
   copyText,
   detail,
   onOpenDetail,
+  syncDetail,
   inlineBody,
   subSteps,
   defaultKidsOpen,
@@ -209,6 +211,8 @@ export function StepRow({
   copyText?: string;
   detail?: DetailNode;
   onOpenDetail?: () => void;
+  /** Custom detail loaders opt in after their in-flight output request settles. */
+  syncDetail?: boolean;
   inlineBody?: React.ReactNode;
   subSteps?: React.ReactNode;
   /** 仅当前行的直接子树初始展开。 */
@@ -233,13 +237,13 @@ export function StepRow({
   const copyValue = copyText ?? [title, target, note].filter(Boolean).join(" · ");
   useEffect(() => {
     // Update the selected snapshot without changing the dock or its active tab.
-    if (!detail || onOpenDetail) return;
+    if (!detail || (onOpenDetail && !syncDetail)) return;
     const store = useSessionStore.getState();
     if (store.detailNode?.path === detail.path
         && JSON.stringify(store.detailNode) !== JSON.stringify(detail)) {
       store.populateDetail(detail);
     }
-  }, [detail, onOpenDetail]);
+  }, [detail, onOpenDetail, syncDetail]);
   function copy(e: React.MouseEvent) {
     e.stopPropagation();
     const done = () => {
@@ -391,6 +395,7 @@ export function FunctionStep({
   sessionId?: string;
 }) {
   const [fullResult, setFullResult] = useState<string>();
+  const [fullError, setFullError] = useState<string>();
   const [loadingFull, setLoadingFull] = useState(false);
   const { text } = useTranslation();
   const isError = !!block.is_error;
@@ -406,11 +411,13 @@ export function FunctionStep({
     ? "running"
     : outcome === "waiting"
       ? "running"
-      : outcome === "not_started" || outcome === "unknown" || isError
+      : outcome === "not_started" || outcome === "unknown" || isError || fullError
         ? "error"
         : "completed";
   const detail: DetailNode = {
     path: `chat-tool:${block.tool_call_id || name}`,
+    session_id: sessionId,
+    tree_root: tree,
     name: outcome === "not_started"
       ? `${name} (${text("denied before execution", "未开始执行")})`
       : outcome === "unknown"
@@ -420,7 +427,7 @@ export function FunctionStep({
     params: parseParams(block.input),
     output: result === undefined || result === null
       ? undefined : decodeEscapes(String(result)),
-    error: isError && result ? decodeEscapes(String(result)) : undefined,
+    error: fullError || (isError && result ? decodeEscapes(String(result)) : undefined),
   };
   async function openDetail() {
     const store = useSessionStore.getState();
@@ -432,6 +439,7 @@ export function FunctionStep({
       return;
     }
     if (loadingFull) return;
+    setFullError(undefined);
     setLoadingFull(true);
     store.showDetail({
       ...detail,
@@ -439,31 +447,17 @@ export function FunctionStep({
       output: text("Loading...", "加载中..."),
       error: undefined,
     });
-    const response = await fetchFullToolOutput(sessionId, messageId, nodeId);
-    setLoadingFull(false);
-    const current = useSessionStore.getState().detailNode;
-    if (response && !response.error && response.result !== undefined) {
-      const complete = String(response.result);
-      setFullResult(complete);
-      if (current?.path === detail.path) {
-        store.showDetail({
-          ...detail,
-          status: isError ? "error" : "completed",
-          output: decodeEscapes(complete),
-          error: isError ? decodeEscapes(complete) : undefined,
-        });
+    try {
+      const response = await fetchFullToolOutput(sessionId, messageId, nodeId);
+      if (response && !response.error && response.result !== undefined) {
+        setFullResult(typeof response.result === "object" ? JSON.stringify(response.result) : String(response.result));
+      } else {
+        setFullError(response?.error || text("Full tool output could not be loaded.", "无法加载完整工具输出。"));
       }
-      return;
-    }
-    if (current?.path === detail.path) {
-      store.showDetail({
-        ...detail,
-        status: "error",
-        error: response?.error || text(
-          "Full tool output could not be loaded.",
-          "无法加载完整工具输出。",
-        ),
-      });
+    } catch {
+      setFullError(text("Full tool output could not be loaded.", "无法加载完整工具输出。"));
+    } finally {
+      setLoadingFull(false);
     }
   }
   return (
@@ -481,8 +475,9 @@ export function FunctionStep({
         { tool: name, input: block.input, result }, null, 2)}
       detail={detail}
       onOpenDetail={() => void openDetail()}
+      syncDetail={!loadingFull}
       subSteps={kids.length > 0
-        ? kids.map((c, i) => <TreeStep key={c.path || i} node={c} />)
+        ? kids.map((c, i) => <TreeStep key={c.path || i} node={c} sessionId={sessionId} />)
         : undefined}
     />
   );
@@ -490,10 +485,11 @@ export function FunctionStep({
 
 /** context_tree / caller 链节点 → 递归步骤行。点行 → 右栏详情。
  *  defaultKidsOpen 只作用于当前节点，不向后代传播。 */
-export function TreeStep({ node, actions, defaultKidsOpen }: {
+export function TreeStep({ node, actions, defaultKidsOpen, sessionId }: {
   node: TNode;
   actions?: React.ReactNode;
   defaultKidsOpen?: boolean;
+  sessionId?: string;
 }) {
   const { text } = useTranslation();
   // Subscribe so nested llm() block_delta updates re-render this row.
@@ -544,10 +540,11 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
     || (running ? (liveText || node.output || node.raw_reply) : (node.output ?? node.raw_reply ?? liveText));
   const out = (outRaw === undefined || outRaw === null
     || String(outRaw).trim() === "" || String(outRaw).trim() === "null")
-    ? undefined : decodeEscapes(String(outRaw));
+    ? undefined : decodeEscapes(typeof outRaw === "object" ? JSON.stringify(outRaw) : String(outRaw));
   const reasoning = stream.reasoning || node.stream_reasoning || "";
   const detail: DetailNode = {
     path: node.path || `chat-node:${node.name || "call"}`,
+    session_id: sessionId,
     name: node.name || node.node_type || "call",
     status: node.status || (isError ? "error" : "completed"),
     params,
@@ -568,7 +565,7 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
   if (isLlm && !out && !running && !isError) {
     noteParts.push(text("No text output", "无文本输出"));
   }
-  const treeView = isLlm || !node.name ? undefined : presentTool(node.name, undefined, text);
+  const treeView = isLlm || !node.name ? undefined : presentTool(node.name, params ? JSON.stringify(params) : undefined, text);
   const contentBody = isLlm ? (
     <LlmNodeContent
       nodeId={node.path}
@@ -582,7 +579,8 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
       icon={isLlm ? "llm" : "function"}
       glyph={isLlm ? undefined : treeView?.icon}
       tone={isLlm ? undefined : treeView?.tone}
-      title={isLlm ? "LLM" : (node.name || node.node_type || "call")}
+      title={isLlm ? "LLM" : (GUI_TOOL_NAMES.has(node.name || "") ? treeView?.title : node.name) || node.node_type || "call"}
+      target={GUI_TOOL_NAMES.has(node.name || "") && treeView?.target ? short(treeView.target, 72) : undefined}
       note={noteParts.join(" · ")}
       error={isError}
       running={running}
@@ -595,7 +593,7 @@ export function TreeStep({ node, actions, defaultKidsOpen }: {
       stateKey={node.path ? `llm:${node.path}` : undefined}
       subSteps={!isLlm && kids.length > 0
         ? kids.map((c, i) => (
-            <TreeStep key={c.path || i} node={c} />
+            <TreeStep key={c.path || i} node={c} sessionId={sessionId} />
           ))
         : undefined}
       defaultKidsOpen={defaultKidsOpen}

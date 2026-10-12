@@ -73,6 +73,14 @@ export function presentTool(name: string, input: string | undefined, text: Text)
   const args = parseToolArgs(input);
   const path = shortPath(pick(args, "path", "file_path", "filename", "file"));
   switch (name) {
+    case "gui_agent":
+      return { icon: "monitor", tone: "system", title: "GUI Agent", target: firstLine(pick(args, "task")) };
+    case "computer_use":
+    case "vm_use":
+      return { icon: "monitor", tone: "system", title: name === "computer_use" ? text("Computer Use", "电脑操作") : text("VM Use", "虚拟机操作"),
+        target: pick(args, "app_name") ?? firstLine(pick(args, "task")) };
+    case "browser_use":
+      return { icon: "cursor", tone: "web", title: text("Browser Use", "浏览器操作"), target: pick(args, "url") ?? firstLine(pick(args, "task")) };
     case "bash":
     case "terminal_use":
     case "process":
