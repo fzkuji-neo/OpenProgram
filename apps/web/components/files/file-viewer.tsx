@@ -1,4 +1,5 @@
 "use client";
+import type { FileSectionNavigation } from "@/lib/tabs/file-section-requests";
 
 /** Shared project, attachment and retained-version preview dispatch.
  * FileViewer owns the authorized source URL. Format adapters only consume that
@@ -45,6 +46,7 @@ export function FileViewer({
   abs = false,
   sessionId,
   mdRendered = true,
+  sectionNavigation,
   draft,
   onDraftChange,
   onLoaded,
@@ -62,6 +64,7 @@ export function FileViewer({
   /** Markdown files: true → <Markdown> render, false → source lines.
    *  The toggle UI lives in the file tab's toolbar. */
   mdRendered?: boolean;
+  sectionNavigation?: FileSectionNavigation;
   /** The pane's editor buffer. When set (together with onDraftChange)
    *  the text body renders as the editable gutter+textarea and — for
    *  markdown in Rendered mode — the preview renders the draft, so an
@@ -104,6 +107,7 @@ export function FileViewer({
       sessionId={sessionId}
       isMarkdown={ext === "md"}
       rendered={mdRendered}
+      sectionNavigation={sectionNavigation}
       draft={draft}
       onDraftChange={onDraftChange}
       onLoaded={onLoaded}
@@ -120,6 +124,7 @@ function TextViewer({
   sessionId,
   isMarkdown,
   rendered,
+  sectionNavigation,
   draft,
   onDraftChange,
   onLoaded,
@@ -133,13 +138,15 @@ function TextViewer({
   sessionId?: string;
   isMarkdown: boolean;
   rendered: boolean;
+  sectionNavigation?: FileSectionNavigation;
   draft?: string;
   onDraftChange?: (value: string) => void;
   onLoaded?: (data: FileReadResult | null) => void;
   snapshot?: FileReadResult | null;
 }) {
   const { text } = useTranslation();
-  const [data, setData] = useState<FileReadResult | null>(null);
+  const [loadedData, setData] = useState<FileReadResult | null>(null);
+  const data = snapshot ?? loadedData;
   const [failed, setFailed] = useState(false);
   // Ref so a changing callback identity never re-triggers the fetch.
   const onLoadedRef = useRef(onLoaded);
@@ -253,7 +260,7 @@ function TextViewer({
   }
 
   if (isMarkdown && rendered) {
-    return <MarkdownPreview source={draft ?? data.content} projectId={projectId} path={path} abs={abs} sessionId={sessionId} />;
+    return <MarkdownPreview sectionNavigation={sectionNavigation} source={draft ?? data.content} projectId={projectId} path={path} abs={abs} sessionId={sessionId} />;
   }
 
   // Default for text files: the editable buffer. Falls back to the

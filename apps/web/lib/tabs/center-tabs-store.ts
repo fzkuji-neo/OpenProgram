@@ -1,3 +1,4 @@
+import { pruneFileSections } from "./file-section-requests";
 import { canvasActions } from "./store/canvas";
 /** Public tab-store entry point. Actions are grouped by responsibility in store/. */
 import { create } from "zustand";
@@ -22,6 +23,14 @@ const closedSessionAckTombstones = new Set<string>();
 export const useCenterTabs = create<CenterTabsState>((set, get) => {
   const initial = readCenterTabsPayload();
   return {
+    fileSectionRequests: {},
+    fileSectionSequence: 0,
+    consumeFileSection: (id, sequence) => set(state => {
+      if (state.fileSectionRequests[id]?.sequence !== sequence) return {};
+      const requests = { ...state.fileSectionRequests };
+      delete requests[id];
+      return { fileSectionRequests: requests };
+    }),
     navigationRoute: initial.tabs.find(tab => tab.id === initial.activeId)?.navigationRoute,
     tabs: initial.tabs,
     activeId: initial.activeId,
@@ -38,6 +47,11 @@ export const useCenterTabs = create<CenterTabsState>((set, get) => {
     ...browserActions(set, get),
     ...splitActions(set, get)
   };
+});
+
+useCenterTabs.subscribe(state => {
+  const requests = pruneFileSections(state.fileSectionRequests, state.tabs);
+  if (requests !== state.fileSectionRequests) useCenterTabs.setState({ fileSectionRequests: requests });
 });
 
 export const { sessionAckIsActive, snapshotCenterTabsPayload, validateTransferredTabs, insertTransferredTabs, removeTransferredTabs, replaceCenterTabsPayload, persistCurrentCenterTabsPayload } = bindTransfers(useCenterTabs, closedSessionAckTombstones);
