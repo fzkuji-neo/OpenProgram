@@ -258,11 +258,18 @@ function pipCoverBase(tabId: string, state: PipCenterState): boolean {
   if (!state.tabs.some((tab) => tab.id === tabId && tab.kind === "web")) {
     return false;
   }
-  if (state.activeId) {
-    const active = state.tabs.find((tab) => tab.id === state.activeId);
-    if (active && active.kind !== "session") return false;
-  }
-  return true;
+  // The page itself in front gets the whole native view.
+  return state.activeId !== tabId;
+}
+
+/** The owner conversation is on screen: it is the active tab, or a pane of
+ *  the window (split) the active tab is in. Focusing another pane of that
+ *  window keeps the owner's preview. */
+function ownerOnCanvas(ownerTabId: string, state: PipCenterState): boolean {
+  if (state.activeId === ownerTabId) return true;
+  if (!state.activeId) return false;
+  const activeId = state.activeId;
+  return state.groups.some((group) => group.memberIds.includes(activeId) && group.visibleIds.includes(ownerTabId));
 }
 
 export function pipCoversCenter(
@@ -274,7 +281,7 @@ export function pipCoversCenter(
   const owner = state.tabs.find(tab => tab.id === ownerTabId);
   const sessionId = pip.tabId === tabId && pip.ownerTabId === ownerTabId
     ? pip.ownerSessionId : pairedSessionByTabId.get(tabId);
-  return pipCoverBase(tabId, state) && !!ownerTabId && state.activeId === ownerTabId
+  return pipCoverBase(tabId, state) && !!ownerTabId && ownerOnCanvas(ownerTabId, state)
     && (owner?.sessionId ?? null) === (sessionId ?? null);
 }
 

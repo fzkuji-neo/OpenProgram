@@ -520,6 +520,32 @@ test("owner chat keeps the preview when the same Page is also visible in a split
   });
 });
 
+test("focusing another pane of the owner's split keeps the owner's preview", async () => {
+  await withShell(async ({ host, page, session }) => {
+    const other = { id: "s:b", kind: "session", sessionId: "b", title: "Chat B" };
+    await act(async () => {
+      useCenterTabs.setState((state) => ({
+        tabs: [...state.tabs, other],
+        groups: [{
+          id: "g1",
+          memberIds: [session.id, other.id],
+          visibleIds: [session.id, other.id],
+          focusedId: other.id,
+        }],
+        activeId: other.id,
+      }));
+    });
+    assert.equal(pipHostMode(page.id, session.id, useCenterTabs.getState()), "chat");
+    assert.ok(host.querySelector("[data-pip='true']"));
+    // A window without the owner hides it.
+    await act(async () => {
+      useCenterTabs.setState({ groups: [], activeId: other.id });
+    });
+    assert.equal(pipHostMode(page.id, session.id, useCenterTabs.getState()), null);
+    assert.equal(host.querySelector("[data-pip='true']"), null);
+  });
+});
+
 test("returning to chat restores the preview unless Hide was used", async () => {
   await withShell(async ({ host, page, session }) => {
     const floatRect = { x: 52, y: 110, width: 380, height: 240 };
