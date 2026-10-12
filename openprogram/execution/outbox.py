@@ -82,8 +82,13 @@ class ProjectionDispatcher:
             if handler is None:
                 continue
             try:
+                self.store.validate_projection_claim(
+                    item.outbox_id, owner_id=owner_id, expected_attempt=item.attempts,
+                )
                 handler(item)
-                self.store.ack_projection_outbox(item.outbox_id, owner_id=owner_id)
+                self.store.ack_projection_outbox(
+                    item.outbox_id, owner_id=owner_id, expected_attempt=item.attempts,
+                )
             except Exception as exc:  # noqa: BLE001 - delivery must be retryable
                 from .store import ProjectionConflict
 
@@ -97,6 +102,7 @@ class ProjectionDispatcher:
                         item.outbox_id,
                         owner_id=owner_id,
                         error=str(exc) or type(exc).__name__,
+                        expected_attempt=item.attempts,
                     )
                 except ProjectionConflict:
                     # Failure reporting is also fenced; a lost claim is not a
