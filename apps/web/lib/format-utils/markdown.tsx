@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { marked as npmMarked, Marked, type Tokens } from "marked";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
+import { createDocumentMarkdown } from "./document-markdown";
 import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
 
 // Markdown + KaTeX rendering. Mirrors `renderMd()` and
@@ -10,30 +11,12 @@ import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
 // Both libraries are build-time imports so offline and strict-CSP behavior
 // matches the normal online path.
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-// Dedicated marked instance for untrusted sources (repo files): raw HTML
-// tokens — block and inline both surface as `html` tokens — are escaped
-// instead of passed through. Separate instance so the override can never
-// leak into the shared npmMarked instance and change chat rendering.
-const escapingMarked = new Marked(cjkEmphasis, {
-  renderer: {
-    html(token) {
-      return escapeHtml(token.text);
-    },
-  },
-});
-
-/** Maps an image's markdown src to the URL the browser loads, or null to
- *  keep it unchanged. Documents use it to load `figures/a.png` from the
- *  document's own folder instead of the page URL. */
+/** Maps a local document image to its authorized URL. Null rejects an
+ * untrusted document image; the legacy trusted path retains its fallback. */
 export type MarkdownImageResolver = (src: string) => string | null;
 
-function imageResolvingMarked(resolveImage: MarkdownImageResolver, escapeRawHtml?: boolean): Marked {
+function imageResolvingMarked(resolveImage: MarkdownImageResolver): Marked {
   return new Marked(cjkEmphasis, {
-    ...(escapeRawHtml ? { renderer: { html(token: Tokens.HTML | Tokens.Tag) { return escapeHtml(token.text); } } } : {}),
     walkTokens(token) {
       if (token.type !== "image") return;
       const image = token as Tokens.Image;
@@ -46,6 +29,10 @@ function imageResolvingMarked(resolveImage: MarkdownImageResolver, escapeRawHtml
  * them, then restore the originals after parsing. */
 function markdownToHtml(src: string, escapeRawHtml?: boolean, parser?: Marked): string {
   let s = typeof src === "string" ? src : String(src ?? "");
+  if (escapeRawHtml) {
+    const documentParser = parser ?? createDocumentMarkdown();
+    return '<span class="md-rendered">' + documentParser.parse(s, { breaks: true, async: false }) + "</span>";
+  }
 
   const mathBlocks: string[] = [];
   const stash = (m: string) => {
@@ -60,8 +47,6 @@ function markdownToHtml(src: string, escapeRawHtml?: boolean, parser?: Marked): 
   let html: string;
   if (parser) {
     html = parser.parse(s, { breaks: true, async: false });
-  } else if (escapeRawHtml) {
-    html = escapingMarked.parse(s, { breaks: true, async: false });
   } else {
     html = npmMarked.parse(s, { breaks: true }) as string;
   }
@@ -82,8 +67,8 @@ export function renderMathIn(el: HTMLElement): void {
  * (`<span class="md-rendered">...</span>`) the legacy CSS targets.
  *
  * `escapeRawHtml` is for untrusted sources (e.g. arbitrary repo .md files
- * in the files panel): raw HTML in the markdown is escaped and shown as
- * text instead of injected into the DOM. Leave it unset for trusted
+ * in the files panel): HTML/math remain escaped and destinations follow
+ * the document URL policy. Leave it unset for trusted
  * chat/doc content — that path is byte-identical to the original. */
 export function Markdown({
   source,
@@ -95,7 +80,8 @@ export function Markdown({
   resolveImage?: MarkdownImageResolver;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const parser = useMemo(() => resolveImage ? imageResolvingMarked(resolveImage, escapeRawHtml) : undefined,
+  const parser = useMemo(() => escapeRawHtml ? createDocumentMarkdown(resolveImage)
+    : resolveImage ? imageResolvingMarked(resolveImage) : undefined,
     [resolveImage, escapeRawHtml]);
   const html = markdownToHtml(source, escapeRawHtml, parser);
 
@@ -109,8 +95,8 @@ export function Markdown({
   // `dangerouslySetInnerHTML` is intentional — the HTML comes from our
   // own marked invocation. Note marked does NOT sanitize: raw HTML in
   // the markdown body passes straight through to the DOM. Callers with
-  // untrusted input must set `escapeRawHtml`, which escapes raw HTML
-  // tokens at parse time; no sanitization happens anywhere else.
+  // untrusted input must set `escapeRawHtml`, which uses the separate
+  // document parser for raw HTML, math and URL policy enforcement.
   return (
     <div
       ref={ref}

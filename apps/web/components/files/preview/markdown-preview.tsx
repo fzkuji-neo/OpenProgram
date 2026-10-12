@@ -2,7 +2,7 @@
 import { useCallback } from "react";
 import { Markdown } from "@/lib/format-utils/markdown";
 import { absRawFileUrl, rawFileUrl } from "@/lib/files/files-shared";
-import { resolveMarkdownReference } from "@/lib/files/markdown-paths";
+import { markdownDestination, resolveMarkdownFile } from "@/lib/files/markdown-paths";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import styles from "./markdown-preview.module.css";
 
@@ -14,19 +14,24 @@ export function MarkdownPreview({ source, projectId, path, abs = false, sessionI
   source: string; projectId: string; path: string; abs?: boolean; sessionId?: string;
 }) {
   const resolveImage = useCallback((src: string) => {
-    const target = resolveMarkdownReference(path, src);
+    const target = resolveMarkdownFile(path, src);
     if (!target) return null;
-    return abs ? absRawFileUrl(target, sessionId) : rawFileUrl(projectId, target);
+    return (abs ? absRawFileUrl(target.path, sessionId) : rawFileUrl(projectId, target.path)) + target.fragment;
   }, [abs, path, projectId, sessionId]);
 
   function onClick(event: React.MouseEvent) {
     const anchor = (event.target as HTMLElement).closest("a[href]");
-    const target = anchor && resolveMarkdownReference(path, anchor.getAttribute("href") ?? "");
-    if (!target) return;
+    if (!anchor) return;
+    const href = anchor.getAttribute("href") ?? "";
+    const destination = markdownDestination(href);
+    if (destination.kind === "rejected") { event.preventDefault(); return; }
+    if (destination.kind !== "local") return;
+    const target = resolveMarkdownFile(path, href);
+    if (!target) { event.preventDefault(); return; }
     event.preventDefault();
     const tabs = useCenterTabs.getState();
-    if (!abs) tabs.openFileTab(projectId, target);
-    else if (sessionId) tabs.openFilePreview(sessionId, { projectId, path: target, readOnly: true });
+    if (!abs) tabs.openFileTab(projectId, target.path);
+    else if (sessionId) tabs.openFilePreview(sessionId, { projectId, path: target.path, readOnly: true });
   }
 
   return <div className={styles.scroll} onClick={onClick}>
