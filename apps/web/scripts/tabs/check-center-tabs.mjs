@@ -677,9 +677,8 @@ assert.doesNotMatch(
   "tabs no longer surface any merge intent — dragging only reorders",
 );
 
-// 72px = ＋号 36 (8px gap + 28px) + 主菜单钮 36, so the menu button lands
-// on the 49px right rail and the ＋ stays in natural flow before it.
-assert.match(css, /max-width: calc\(100% - 72px\);/);
+// Reserve one control slot each for add, overview and the main menu.
+assert.equal(finalDeclaration(":global(html.is-desktop) .tabsFlow", "max-width"), "calc(100% - 108px)");
 assert.equal(finalDeclaration(":global(html.is-desktop) .strip", "height"), "40px");
 assert.equal(finalDeclaration(":global(html.is-desktop) .strip", "align-items"), "center");
 assert.equal(finalDeclaration(":global(html.is-desktop) .tabsFlow", "align-items"), "center");
@@ -708,7 +707,11 @@ assert.match(
   css,
   /:global\(html\.is-desktop\) \.tabsFlow::\-webkit-scrollbar \{[^}]*display: none;/s,
 );
-assert.match(css, /:global\(html\.is-desktop\) \.tabsFlow > \.tab \{[^}]*width: 240px;[^}]*flex: 0 1 240px;[^}]*max-width: 240px;/s);
+for (const selector of [":global(html.is-desktop) .tabsFlow > .tab", ":global(html.is-desktop) .tabsFlow > .compoundTab"]) {
+  assert.equal(finalDeclaration(selector, "width"), "240px");
+  assert.equal(finalDeclaration(selector, "flex"), "0 1 240px");
+  assert.equal(finalDeclaration(selector, "max-width"), "240px");
+}
 assert.match(
   css,
   /:global\(html\.is-desktop\) \.tab \{[^}]*padding-right: 5px;[^}]*border-radius: 8px;/s,
@@ -737,9 +740,8 @@ assert.doesNotMatch(
   /:global\(html\.is-desktop\) \.tabExit/,
   "desktop closes must retain the full width-collapse duration",
 );
-assert.match(css, /@keyframes compoundMemberCollapse \{[^}]*width: var\(--compound-collapse-width\);[^}]*flex-basis: var\(--compound-collapse-width\);[^}]*max-width: var\(--compound-collapse-width\);/s);
-assert.match(css, /\.compoundMemberClosing \{[^}]*animation: compoundMemberCollapse 160ms ease-in forwards;/s);
-assert.match(css, /\.compoundMemberExit \{[^}]*animation: compoundMemberExit 160ms ease-in forwards;/s);
+// Partial pane closes keep the summary tab stationary; the whole group uses tabExit.
+assert.doesNotMatch(css, /@keyframes compoundMemberCollapse|@keyframes compoundMemberExit/);
 assert.match(strip, /centerTabStripEntries/);
 assert.match(strip, /function CompoundTabItem/);
 const compoundItem = strip.slice(
@@ -753,15 +755,17 @@ assert.match(compoundItem, /styles\.compoundMembers/);
 assert.match(compoundItem, /memberTabs\.map\(\(tab\) =>/);
 assert.match(compoundItem, /styles\.compoundMember/);
 assert.match(compoundItem, /styles\.compoundMemberClose/);
-assert.match(compoundItem, /onClose\(event, \[tab\]\)/);
+assert.match(compoundItem, /onClose\(event, memberTabs/);
 assert.doesNotMatch(compoundItem, /<Columns2\b|\bColumns2\b/);
 assert.match(compoundItem, /closingTabs\.length === memberTabs\.length/);
-assert.match(compoundItem, /const memberClosing = closingTabs\.length > 0 && !closing;/);
-assert.match(compoundItem, /memberClosing \? styles\.compoundMemberClosing : ""/);
+assert.match(compoundItem, /const memberClosingKey = closing \? "" : closingTabs\.map/);
+assert.match(compoundItem, /window\.setTimeout\(\(\) => closingTabs\.forEach\(onExited\), 160\)/);
+assert.match(compoundItem, /return \(\) => window\.clearTimeout\(timer\)/);
+assert.match(compoundItem, /closing \? styles\.tabExit : ""/);
 assert.match(compoundItem, /const \[hovered, setHovered\] = useState\(false\);/);
 assert.match(compoundItem, /onMouseEnter=\{\(\) => setHovered\(true\)\}/);
 assert.match(compoundItem, /onMouseLeave=\{\(\) => setHovered\(false\)\}/);
-assert.match(compoundItem, /<CompoundMemberIcon tab=\{tab\} animate=\{hovered\} \/>/);
+assert.match(compoundItem, /<CompoundMemberIcon tab=\{canonicalTab\} animate=\{hovered\} \/>/);
 assert.match(
   strip,
   /function CompoundMemberIcon\(\{ tab, animate \}[\s\S]*?MessageCircleIcon ref=\{iconRef\}/,
@@ -787,21 +791,11 @@ assert.doesNotMatch(
   css,
   /data-split-pinned|inset 0 2px 0 var\(--accent-blue\)/,
 );
-assert.match(
-  css,
-  /\.compoundTab \{[^}]*width:\s*280px;[^}]*flex:\s*0 1 280px;[^}]*max-width:\s*280px;/s,
-  "the composite tab uses one bounded top-level tab width",
-);
-assert.match(
-  css,
-  /\.compoundTab \{[^}]*min-width:\s*136px;/s,
-  "the composite tab must not shrink below two non-overlapping icon and close targets",
-);
-assert.match(
-  css,
-  /\.compoundMembers \{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(2, minmax\(56px, auto\)\);/s,
-  "split members share the strip by title length, each keeping at least an icon and close target",
-);
+assert.equal(finalDeclaration(".compoundTab", "flex"), "0 1 200px");
+assert.equal(finalDeclaration(".compoundTab", "min-width"), "48px");
+assert.equal(finalDeclaration(".compoundMembers", "display"), "flex");
+assert.match(compoundItem, /const canonicalTab = memberTabs\.find/);
+assert.match(compoundItem, /const label = labelOf\(canonicalTab/);
 assert.match(
   css,
   /\.compoundTarget \{[^}]*z-index:\s*1;/s,
@@ -815,14 +809,14 @@ assert.match(
 assert.match(
   css,
   /\.compoundMemberClose \{[^}]*position:\s*relative;[^}]*z-index:\s*2;[^}]*pointer-events:\s*auto;/s,
-  "each member close button must remain independently clickable above the composite target",
+  "the group close button must remain clickable above the composite target",
 );
-assert.match(compoundItem, /aria-disabled=\{closingIds\.has\(tab\.id\) \|\| undefined\}/);
+assert.match(compoundItem, /aria-disabled=\{closing \|\| undefined\}/);
 assert.doesNotMatch(compoundItem, /\bdisabled=\{closingIds\.has\(tab\.id\)\}/);
 assert.match(
   compoundItem,
-  /onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*if \(!closingIds\.has\(tab\.id\)\) onClose\(event, \[tab\]\);\s*\}\}/,
-  "a closing member must keep intercepting pointer clicks without starting another close or group drag",
+  /onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*if \(!closing\) onClose\(event, memberTabs\.filter\(\(tab\) => !closingIds\.has\(tab\.id\)\)\);\s*\}\}/,
+  "the group close button intercepts clicks and excludes already closing panes",
 );
 assert.doesNotMatch(css, /\.compoundMemberClose:disabled/);
 assert.match(css, /\.compoundMember \{[^}]*min-width:\s*0;/s);
