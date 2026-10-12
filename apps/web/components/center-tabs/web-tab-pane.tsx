@@ -24,7 +24,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
 import type { KeyboardEvent, ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, PictureInPicture2, RotateCw, Star, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, PictureInPicture2, RotateCw, Search, Star, X } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 import {
   desktopBridge,
@@ -68,6 +70,7 @@ import styles from "./center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
 import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
 import { BookmarkBar } from "./bookmark-bar";
+import { AddressField, addressStarButton, ToolbarTip } from "./browser-chrome";
 import { ActionCueTravel, BrowserControlBar } from "./browser-control-bar";
 import {
   controlSurfaceVisible,
@@ -106,17 +109,24 @@ function BookmarkButton({ tabId, url, title }: { tabId: string; url: string; tit
     return subscribeBookmarks(refresh);
   }, [url]);
 
+  const label = text(bookmarked ? "Remove bookmark" : "Bookmark", bookmarked ? "移除书签" : "添加书签");
   return (
-    <button
-      type="button"
-      className={webToolbarButton()}
-      onClick={() => toggleBookmark({ url, title, faviconUrl })}
-      title={text(bookmarked ? "Remove bookmark" : "Bookmark", bookmarked ? "移除书签" : "添加书签")}
-      aria-label={text(bookmarked ? "Remove bookmark" : "Bookmark", bookmarked ? "移除书签" : "添加书签")}
-    >
-      <Star size={14} fill={bookmarked ? "currentColor" : "none"} />
-    </button>
+    <ToolbarTip label={label}>
+      <button
+        type="button"
+        className={addressStarButton()}
+        data-on={bookmarked || undefined}
+        onClick={() => toggleBookmark({ url, title, faviconUrl })}
+        aria-label={label}
+      >
+        <Star size={13} fill={bookmarked ? "currentColor" : "none"} />
+      </button>
+    </ToolbarTip>
   );
+}
+
+function findButton() {
+  return cn(buttonVariants({ variant: "ghost", size: "icon-xs" }), "rounded-full");
 }
 
 function resourceForLiveTab(tabId: string) {
@@ -147,15 +157,16 @@ function CollapseToPipButton({ tabId }: { tabId: string }) {
     )
     : text(`Float over “${targetTitle}”`, `浮动到「${targetTitle}」`);
   return (
-    <button
-      type="button"
-      className={webToolbarButton()}
-      onClick={() => collapseWebTabToPip(tabId)}
-      title={label}
-      aria-label={label}
-    >
-      <PictureInPicture2 size={14} />
-    </button>
+    <ToolbarTip label={label}>
+      <button
+        type="button"
+        className={webToolbarButton()}
+        onClick={() => collapseWebTabToPip(tabId)}
+        aria-label={label}
+      >
+        <PictureInPicture2 size={14} />
+      </button>
+    </ToolbarTip>
   );
 }
 
@@ -207,15 +218,16 @@ function HomeButton({ tabId }: { tabId: string }) {
   const label = text("Home", "主页");
 
   return (
-    <button
-      type="button"
-      className={webToolbarButton(styles.webToolbarMedium)}
-      onClick={() => useCenterTabs.getState().replaceWebTabWithNewTabPage(tabId)}
-      title={label}
-      aria-label={label}
-    >
-      <House size={14} />
-    </button>
+    <ToolbarTip label={label}>
+      <button
+        type="button"
+        className={webToolbarButton(styles.webToolbarMedium)}
+        onClick={() => useCenterTabs.getState().replaceWebTabWithNewTabPage(tabId)}
+        aria-label={label}
+      >
+        <House size={14} />
+      </button>
+    </ToolbarTip>
   );
 }
 
@@ -571,8 +583,6 @@ function DesktopWebTabPane({
     if (action === "print") void bridge.webTab.print?.(tabId);
   }
 
-  const disabledStyle = { opacity: 0.35, cursor: "default" } as const;
-
   return (
     <div
       className={styles.webPane}
@@ -581,67 +591,71 @@ function DesktopWebTabPane({
     >
       <div className={styles.webChrome}>
       <div className={styles.webToolbar}>
-        <button
-          type="button"
-          className={webToolbarButton()}
-          onClick={() => {
-            bridge.webTab.goBack(tabId);
-          }}
-          disabled={!canGoBack}
-          style={canGoBack ? undefined : disabledStyle}
-          title={text("Back", "后退")}
+        <ToolbarTip label={text("Back", "后退")} shortcut={{ key: "[" }}>
+          <button
+            type="button"
+            className={webToolbarButton()}
+            onClick={() => {
+              bridge.webTab.goBack(tabId);
+            }}
+            disabled={!canGoBack}
+            aria-label={text("Back", "后退")}
+          >
+            <ArrowLeft size={14} />
+          </button>
+        </ToolbarTip>
+        <ToolbarTip label={text("Forward", "前进")} shortcut={{ key: "]" }}>
+          <button
+            type="button"
+            className={webToolbarButton(styles.webToolbarForward)}
+            onClick={() => {
+              bridge.webTab.goForward(tabId);
+            }}
+            disabled={!canGoForward}
+            aria-label={text("Forward", "前进")}
+          >
+            <ArrowRight size={14} />
+          </button>
+        </ToolbarTip>
+        <ToolbarTip
+          label={loading ? text("Stop loading", "停止加载") : text("Reload", "重新加载")}
+          shortcut={loading ? undefined : { key: "R" }}
         >
-          <ArrowLeft size={14} />
-        </button>
-        <button
-          type="button"
-          className={webToolbarButton(styles.webToolbarForward)}
-          onClick={() => {
-            bridge.webTab.goForward(tabId);
-          }}
-          disabled={!canGoForward}
-          style={canGoForward ? undefined : disabledStyle}
-          title={text("Forward", "前进")}
-        >
-          <ArrowRight size={14} />
-        </button>
-        <button
-          type="button"
-          className={webToolbarButton(loading && styles.webStopLoading)}
-          onClick={() => {
-            if (loading) bridge.webTab.stop(tabId);
-            else {
-              bridge.webTab.reload(tabId);
-            }
-          }}
-          title={loading ? text("Stop loading", "停止加载") : text("Reload", "重新加载")}
-          aria-label={loading ? text("Stop loading", "停止加载") : text("Reload", "重新加载")}
-        >
-          {loading ? <X size={14} /> : <RotateCw size={14} />}
-        </button>
+          <button
+            type="button"
+            className={webToolbarButton(loading && styles.webStopLoading)}
+            onClick={() => {
+              if (loading) bridge.webTab.stop(tabId);
+              else {
+                bridge.webTab.reload(tabId);
+              }
+            }}
+            aria-label={loading ? text("Stop loading", "停止加载") : text("Reload", "重新加载")}
+          >
+            {loading ? <X size={14} /> : <RotateCw size={14} />}
+          </button>
+        </ToolbarTip>
         <HomeButton tabId={tabId} />
-        <input
-          ref={addressRef}
-          className={styles.webAddress}
+        <AddressField
+          inputRef={addressRef}
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") navigate();
-          }}
-          spellCheck={false}
-          autoComplete="off"
-          aria-label={text("Address", "地址")}
-        />
-        <BookmarkButton tabId={tabId} url={effectiveUrl} title={title || effectiveUrl} />
-        <BookmarksLibraryButton />
-        <button
-          type="button"
-          className={webToolbarButton(styles.webToolbarMedium)}
-          onClick={() => bridge.openExternal(viewUrlRef.current)}
-          title={text("Open in browser", "在浏览器中打开")}
+          onChange={setAddress}
+          onSubmit={navigate}
+          ariaLabel={text("Address", "地址")}
         >
-          <ExternalLink size={14} />
-        </button>
+          <BookmarkButton tabId={tabId} url={effectiveUrl} title={title || effectiveUrl} />
+        </AddressField>
+        <BookmarksLibraryButton />
+        <ToolbarTip label={text("Open in browser", "在浏览器中打开")}>
+          <button
+            type="button"
+            className={webToolbarButton(styles.webToolbarMedium)}
+            onClick={() => bridge.openExternal(viewUrlRef.current)}
+            aria-label={text("Open in browser", "在浏览器中打开")}
+          >
+            <ExternalLink size={14} />
+          </button>
+        </ToolbarTip>
         <CollapseToPipButton tabId={tabId} />
         <BrowserMenu
           ownerId={menuOwnerId}
@@ -674,6 +688,8 @@ function DesktopWebTabPane({
       </div>
       {findOpen ? (
         <div className={styles.webFindBar}>
+          <div className={styles.webFindPill}>
+          <Search size={12} aria-hidden="true" />
           <input
             ref={findRef}
             value={findQuery}
@@ -687,18 +703,20 @@ function DesktopWebTabPane({
             placeholder={text("Find in page", "在页面中查找")}
             aria-label={text("Find in page", "在页面中查找")}
           />
-          <span aria-live="polite">
-            {findResult.matches > 0 ? `${findResult.activeMatchOrdinal}/${findResult.matches}` : "0/0"}
+          <span className={styles.webFindCount} aria-live="polite">
+            {findResult.matches > 0 ? `${findResult.activeMatchOrdinal} / ${findResult.matches}` : "0 / 0"}
           </span>
-          <button type="button" onClick={() => runFind(findQuery, false, false)} disabled={!findQuery} aria-label={text("Previous match", "上一个匹配项")}>
-            <ChevronUp size={14} />
+          <span className={styles.webFindSep} aria-hidden="true" />
+          <button type="button" className={findButton()} onClick={() => runFind(findQuery, false, false)} disabled={!findQuery} aria-label={text("Previous match", "上一个匹配项")}>
+            <ChevronUp size={13} />
           </button>
-          <button type="button" onClick={() => runFind(findQuery, true, false)} disabled={!findQuery} aria-label={text("Next match", "下一个匹配项")}>
-            <ChevronDown size={14} />
+          <button type="button" className={findButton()} onClick={() => runFind(findQuery, true, false)} disabled={!findQuery} aria-label={text("Next match", "下一个匹配项")}>
+            <ChevronDown size={13} />
           </button>
-          <button type="button" onClick={closeFind} aria-label={text("Close find", "关闭查找")}>
-            <X size={14} />
+          <button type="button" className={findButton()} onClick={closeFind} aria-label={text("Close find", "关闭查找")}>
+            <X size={13} />
           </button>
+          </div>
         </div>
       ) : null}
       <WebPaneStage>
@@ -766,38 +784,38 @@ function IframeWebTabPane({ tabId, url, menuOwnerId }: { tabId: string; url: str
     >
       <div className={styles.webChrome}>
       <div className={styles.webToolbar}>
-        <button
-          type="button"
-          className={webToolbarButton()}
-          onClick={() => {
-            setFrameEpoch((e) => e + 1);
-          }}
-          title={text("Reload", "重新加载")}
-        >
-          <RotateCw size={14} />
-        </button>
+        <ToolbarTip label={text("Reload", "重新加载")}>
+          <button
+            type="button"
+            className={webToolbarButton()}
+            onClick={() => {
+              setFrameEpoch((e) => e + 1);
+            }}
+            aria-label={text("Reload", "重新加载")}
+          >
+            <RotateCw size={14} />
+          </button>
+        </ToolbarTip>
         <HomeButton tabId={tabId} />
-        <input
-          className={styles.webAddress}
+        <AddressField
           value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") navigate();
-          }}
-          spellCheck={false}
-          autoComplete="off"
-          aria-label={text("Address", "地址")}
-        />
-        <BookmarkButton tabId={tabId} url={url} title={title} />
-        <BookmarksLibraryButton />
-        <button
-          type="button"
-          className={webToolbarButton(styles.webToolbarMedium)}
-          onClick={openExternal}
-          title={text("Open in browser", "在浏览器中打开")}
+          onChange={setAddress}
+          onSubmit={navigate}
+          ariaLabel={text("Address", "地址")}
         >
-          <ExternalLink size={14} />
-        </button>
+          <BookmarkButton tabId={tabId} url={url} title={title} />
+        </AddressField>
+        <BookmarksLibraryButton />
+        <ToolbarTip label={text("Open in browser", "在浏览器中打开")}>
+          <button
+            type="button"
+            className={webToolbarButton(styles.webToolbarMedium)}
+            onClick={openExternal}
+            aria-label={text("Open in browser", "在浏览器中打开")}
+          >
+            <ExternalLink size={14} />
+          </button>
+        </ToolbarTip>
         <CollapseToPipButton tabId={tabId} />
         <BrowserMenu
           ownerId={menuOwnerId}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { ChevronRight, ChevronsRight, Folder } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { itemCls, MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
@@ -13,6 +13,7 @@ import { bookmarkFolderActionPrefix, ownedActionId } from "@/lib/browser/browser
 import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { TabFavicon } from "./tab-favicon";
+import { ToolbarTip } from "./browser-chrome";
 import styles from "./center-tabs.module.css";
 
 export function useBookmarksBarPreference() {
@@ -153,8 +154,13 @@ function BookmarkFolderButton({
     });
   };
 
+  // Folder buttons show their name; only the icon-only overflow needs a tip.
+  const withTip = (control: ReactElement) => (
+    appearance === "overflow" ? <ToolbarTip label={buttonLabel}>{control}</ToolbarTip> : control
+  );
+
   if (mainMenu) {
-    return (
+    return withTip(
       <button
         type="button"
         className={buttonClass}
@@ -175,13 +181,12 @@ function BookmarkFolderButton({
           openFolderMenu(event.currentTarget);
         }}
         onMouseLeave={() => mainMenu.scheduleClose?.(120)}
-        title={buttonLabel}
         aria-label={buttonLabel}
         aria-hidden={hidden || undefined}
         tabIndex={hidden ? -1 : undefined}
       >
         {buttonContent}
-      </button>
+      </button>,
     );
   }
 
@@ -193,7 +198,7 @@ function BookmarkFolderButton({
         else onDisarm();
       }}
     >
-      <DropdownMenuTrigger asChild>
+      {withTip(<DropdownMenuTrigger asChild>
         <button
           type="button"
           className={buttonClass}
@@ -201,14 +206,13 @@ function BookmarkFolderButton({
           onMouseEnter={() => {
             if (armed && !open) onArm();
           }}
-          title={buttonLabel}
           aria-label={buttonLabel}
           aria-hidden={hidden || undefined}
           tabIndex={hidden ? -1 : undefined}
         >
           {buttonContent}
         </button>
-      </DropdownMenuTrigger>
+      </DropdownMenuTrigger>)}
       <DropdownMenuContent
         className={`${MENU_PANEL} w-[280px] max-w-[calc(100vw-16px)]`}
         align="start"
@@ -229,17 +233,18 @@ function BookmarkLeafButton({
   hidden?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      className={`${styles.bookmarkBarItem}${hidden ? ` ${styles.bookmarkBarOverflowed}` : ""}`}
-      onClick={() => onNavigate(node.url)}
-      title={node.url}
-      aria-hidden={hidden || undefined}
-      tabIndex={hidden ? -1 : undefined}
-    >
-      <BookmarkFavicon node={node} />
-      <span>{node.title || node.url}</span>
-    </button>
+    <ToolbarTip label={node.url}>
+      <button
+        type="button"
+        className={`${styles.bookmarkBarItem}${hidden ? ` ${styles.bookmarkBarOverflowed}` : ""}`}
+        onClick={() => onNavigate(node.url)}
+        aria-hidden={hidden || undefined}
+        tabIndex={hidden ? -1 : undefined}
+      >
+        <BookmarkFavicon node={node} />
+        <span>{node.title || node.url}</span>
+      </button>
+    </ToolbarTip>
   );
 }
 
@@ -360,7 +365,6 @@ export function BookmarkBar({ ownerId, onNavigate }: { ownerId: string; onNaviga
           useCenterTabs.getState().openBuiltinTab("bookmarks");
         }}
         aria-label={text("All bookmarks", "所有书签")}
-        title={text("All bookmarks", "所有书签")}
       >
         <Folder size={14} />
         <span>{text("All bookmarks", "所有书签")}</span>

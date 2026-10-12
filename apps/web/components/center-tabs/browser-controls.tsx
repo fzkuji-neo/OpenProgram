@@ -53,6 +53,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import styles from "./center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
+import { ToolbarTip } from "./browser-chrome";
 import { useBookmarksBarPreference } from "./bookmark-bar";
 
 type BrowserMenuActions = {
@@ -179,11 +180,11 @@ export function BrowserMenu({
 
   if (mainMenu) {
     return (
+      <ToolbarTip label={label}>
       <button
         ref={triggerRef}
         type="button"
         className={webToolbarButton()}
-        title={label}
         aria-label={label}
         onClick={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
@@ -226,6 +227,7 @@ export function BrowserMenu({
       >
         <MoreVertical size={15} />
       </button>
+      </ToolbarTip>
     );
   }
 
@@ -249,11 +251,13 @@ export function BrowserMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button ref={triggerRef} type="button" className={webToolbarButton()} title={label} aria-label={label}>
-          <MoreVertical size={15} />
-        </button>
-      </DropdownMenuTrigger>
+      <ToolbarTip label={label}>
+        <DropdownMenuTrigger asChild>
+          <button ref={triggerRef} type="button" className={webToolbarButton()} aria-label={label}>
+            <MoreVertical size={15} />
+          </button>
+        </DropdownMenuTrigger>
+      </ToolbarTip>
       <DropdownMenuContent className={MENU_PANEL}>
         {row("new-tab", <Plus size={14} />, "New browser tab", "新建浏览器标签页")}
         {actions.collapseToPip
@@ -288,14 +292,15 @@ export function BookmarksLibraryButton() {
   const openBuiltinTab = useCenterTabs((state) => state.openBuiltinTab);
   const label = text("Bookmarks", "书签");
   return (
-    <button
-      type="button"
-      className={webToolbarButton(styles.webToolbarMedium)}
-      onClick={() => openBuiltinTab("bookmarks")}
-      title={label}
-      aria-label={label}
-    >
-      <Library size={14} />
-    </button>
+    <ToolbarTip label={label}>
+      <button
+        type="button"
+        className={webToolbarButton(styles.webToolbarMedium)}
+        onClick={() => openBuiltinTab("bookmarks")}
+        aria-label={label}
+      >
+        <Library size={14} />
+      </button>
+    </ToolbarTip>
   );
 }
