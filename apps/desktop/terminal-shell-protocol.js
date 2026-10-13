@@ -57,6 +57,11 @@ function createShellProtocol({ nonce, mode, pid, output, changed, timers = { set
         }
         if (index) { output(pending.slice(0, index)); pending = pending.slice(index); }
         const end = pending.indexOf("\x07", PREFIX.length);
+        const restart = pending.indexOf(PREFIX, PREFIX.length);
+        if (restart >= 0 && (end < 0 || restart < end)) {
+          // A valid field cannot contain ESC; preserve malformed bytes, then retry the new frame.
+          output(pending.slice(0, restart)); pending = pending.slice(restart); continue;
+        }
         if (end < 0 && pending.length <= MAX_FRAME) break;
         if (end < 0 || end + 1 > MAX_FRAME) { output(pending.slice(0, PREFIX.length)); pending = pending.slice(PREFIX.length); continue; }
         const raw = pending.slice(0, end + 1); pending = pending.slice(end + 1);

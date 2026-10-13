@@ -70,7 +70,7 @@ export interface ChatSubmitOptions {
 export type RunningSendMode = "queue" | "steer";
 
 // Preparation belongs to the draft owner across focused and bound composers.
-const preparingSends = new Map<string | null, { token: symbol; intent: string }>();
+const preparingSends = new Map<string | null, { token: symbol; intent: string; preserveDraft: boolean }>();
 
 export function useChatSubmit({
   bound,
@@ -216,12 +216,14 @@ export function useChatSubmit({
     const previous = preparingSends.get(submitOwnerKey);
     if (previous) {
       if (previous.intent !== intent) {
+        previous.preserveDraft = true;
         showToast("An earlier message is still preparing. This draft was not sent; send it again when preparation finishes.", { tone: "error" });
       }
       return;
     }
     const preparationToken = Symbol("send preparation");
-    preparingSends.set(submitOwnerKey, { token: preparationToken, intent });
+    const preparation = { token: preparationToken, intent, preserveDraft: false };
+    preparingSends.set(submitOwnerKey, preparation);
     try {
       // Expand long-paste tokens (``[Pasted #N +M lines]``) back into
       // the outgoing text so the LLM receives the real content. The
@@ -297,7 +299,7 @@ export function useChatSubmit({
           const currentDraft = submitOwnerKey
             ? useSessionStore.getState().composerDrafts[submitOwnerKey] ?? ""
             : useSessionStore.getState().composerDrafts.__new__ ?? "";
-          if (currentDraft === originalDraft) {
+          if (!preparation.preserveDraft && currentDraft === originalDraft) {
             setComposerInputFor(submitOwnerKey, "");
           }
         },

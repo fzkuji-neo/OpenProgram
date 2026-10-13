@@ -19,5 +19,5 @@ def close_page(web_session_id):
             return {'ok': False, 'error': 'page_context_stale'}
         result = webtab.request_close_tab(session.binding_id)
         if result.get('ok'):
-            registry.execute('close', owner_id=owner, web_session_id=web_session_id)
+            registry.execute(command='close', owner_id=owner, web_session_id=web_session_id)
         return result
