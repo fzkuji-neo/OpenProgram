@@ -5,6 +5,7 @@ import { Markdown } from "@/lib/format-utils/markdown";
 import { absRawFileUrl, rawFileUrl } from "@/lib/files/files-shared";
 import { markdownDestination, resolveMarkdownFile } from "@/lib/files/markdown-paths";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
+import { useTranslation } from "@/lib/i18n";
 import styles from "./markdown-preview.module.css";
 
 /** A markdown file read as a document. Relative images load from the
@@ -14,6 +15,7 @@ import styles from "./markdown-preview.module.css";
 export function MarkdownPreview({ source, projectId, path, abs = false, sessionId, sectionNavigation }: {
   source: string; projectId: string; path: string; abs?: boolean; sessionId?: string; sectionNavigation?: FileSectionNavigation;
 }) {
+  const { text } = useTranslation();
   const article = useRef<HTMLElement>(null);
   const [missing, setMissing] = useState(false);
   const navigate = useCallback((fragment: string) => {
@@ -59,6 +61,6 @@ export function MarkdownPreview({ source, projectId, path, abs = false, sessionI
     <article ref={article} className={`${styles.document} message-content`}>
       <Markdown source={source} escapeRawHtml resolveImage={resolveImage} />
     </article>
-    {missing && <p role="status">Section not found.</p>}
+    {missing && <p role="status">{text("Section not found.", "未找到章节。")}</p>}
   </div>;
 }

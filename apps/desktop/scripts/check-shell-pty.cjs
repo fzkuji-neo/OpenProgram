@@ -96,6 +96,14 @@ test('zsh keeps status-aware user hooks and user ZDOTDIR', async (t) => {
     f.send('print -r -- ZDOTDIR_SET=${+ZDOTDIR}\r');
     await wait(() => f.read().data.includes('ZDOTDIR_SET=0'), f.events);
 });
+test('zsh history stays in the user home, not the temporary startup directory', async (t) => {
+    const f = await fixture(t, 'zsh', '', { '.zshrc': "PS1='OP_READY> '\n" });
+    f.send('print -r -- HIST=$HISTFILE:END\r');
+    await wait(() => /HIST=.*:END/.test(f.read().data.replace(/print -r -- HIST=\$HISTFILE:END/g, '')), f.events);
+    const value = /HIST=(.*):END/.exec(f.read().data.replace(/print -r -- HIST=\$HISTFILE:END/g, ''))[1];
+    assert.ok(!value.startsWith(f.launch.env.OP_SHELL_DIR), value);
+    if (value) assert.equal(value, f.home + '/.zsh_history');
+});
 for (const shell of ['zsh', 'bash'])
     test(`${shell}: multiline and nested shells preserve root cycle identity`, async (t) => {
         const f = await fixture(t, shell);
