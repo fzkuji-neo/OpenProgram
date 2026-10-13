@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { importBookmarkTree } from "@/lib/tabs/bookmarks";
 import {
   browserImportPromptFinished,
@@ -259,6 +262,8 @@ export function BrowserImportDialog({
 export function BrowserHomePage() {
   const { text } = useTranslation();
   const menuOwnerId = useId();
+  const shortcutFormId = useId();
+  const shortcutNameRef = useRef<HTMLInputElement>(null);
   const canImport = Boolean(desktopBridge()?.browserImport);
   const openWebTab = useCenterTabs((state) => state.openWebTab);
   const [url, setUrl] = useState("");
@@ -280,13 +285,18 @@ export function BrowserHomePage() {
     const normalized = normalizeWebUrl(value);
     if (normalized) openWebTab(normalized);
   }
+  function changeShortcutEditor(open: boolean) {
+    setAdding(open);
+    if (!open) {
+      setNewLabel("");
+      setNewUrl("");
+    }
+  }
   function submitShortcut() {
     const normalized = normalizeWebUrl(newUrl);
     if (!normalized) return;
     addShortcut({ url: normalized, label: newLabel });
-    setNewLabel("");
-    setNewUrl("");
-    setAdding(false);
+    changeShortcutEditor(false);
   }
 
   return (
@@ -355,19 +365,58 @@ export function BrowserHomePage() {
             <ShortcutTile key={shortcut.url} shortcut={shortcut} onOpen={() => go(shortcut.url)} />
           ))}
           <div className={styles.ntpTile}>
-            <button type="button" className={styles.ntpTileOpen} onClick={() => setAdding(true)}>
-              <span className={styles.ntpTileIcon}><Plus size={18} aria-hidden="true" /></span>
-              <span className={styles.ntpTileLabel}>{text("Add", "添加")}</span>
-            </button>
+            <Popover open={adding} onOpenChange={changeShortcutEditor}>
+              <PopoverTrigger asChild>
+                <button type="button" className={styles.ntpTileOpen}>
+                  <span className={styles.ntpTileIcon}><Plus size={18} aria-hidden="true" /></span>
+                  <span className={styles.ntpTileLabel}>{text("Add", "添加")}</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className={styles.ntpShortcutPopover}
+                align="end"
+                sideOffset={8}
+                collisionPadding={12}
+                hideWhenDetached
+                aria-labelledby={`${shortcutFormId}-title`}
+                onOpenAutoFocus={(event) => {
+                  event.preventDefault();
+                  shortcutNameRef.current?.focus();
+                }}
+                onEscapeKeyDown={(event) => {
+                  if (event.isComposing || event.keyCode === 229) event.preventDefault();
+                }}
+              >
+                <div className={styles.ntpShortcutHeader}>
+                  <h2 id={`${shortcutFormId}-title`}>{text("Add shortcut", "添加快捷方式")}</h2>
+                  <Button type="button" variant="ghost" size="icon-xs" onClick={() => changeShortcutEditor(false)} aria-label={text("Close", "关闭")}>
+                    <X aria-hidden="true" />
+                  </Button>
+                </div>
+                <form
+                  className={styles.ntpShortcutForm}
+                  onSubmit={(event) => { event.preventDefault(); submitShortcut(); }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && (event.nativeEvent.isComposing || event.keyCode === 229)) event.preventDefault();
+                  }}
+                >
+                  <label className={styles.ntpShortcutField} htmlFor={`${shortcutFormId}-name`}>
+                    {text("Name (optional)", "名称（选填）")}
+                    <Input ref={shortcutNameRef} id={`${shortcutFormId}-name`} className={styles.ntpShortcutInput} value={newLabel} onChange={(event) => setNewLabel(event.target.value)} placeholder={text("e.g. GitHub", "例如 GitHub")} autoComplete="off" />
+                  </label>
+                  <label className={styles.ntpShortcutField} htmlFor={`${shortcutFormId}-address`}>
+                    {text("Address", "地址")}
+                    <Input id={`${shortcutFormId}-address`} className={styles.ntpShortcutInput} value={newUrl} onChange={(event) => setNewUrl(event.target.value)} placeholder="example.com" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+                  </label>
+                  <div className={styles.ntpShortcutActions}>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => changeShortcutEditor(false)}>{text("Cancel", "取消")}</Button>
+                    <Button type="submit" size="sm" disabled={!newUrl.trim()}>{text("Add", "添加")}</Button>
+                  </div>
+                </form>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
-        {adding && (
-          <div className={styles.ntpUrlRow}>
-            <input className={styles.ntpTileFormLabel} value={newLabel} onChange={(event) => setNewLabel(event.target.value)} placeholder={text("Name", "名称")} />
-            <input className={styles.ntpUrlInput} value={newUrl} onChange={(event) => setNewUrl(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") submitShortcut(); }} placeholder="URL" />
-            <button type="button" className={styles.ntpUrlGo} onClick={submitShortcut}>{text("Add", "添加")}</button>
-          </div>
-        )}
       </div>
     </div>
   );
