@@ -27,11 +27,14 @@ window.location = {pathname: '/chat', hash: '', search: '', protocol: 'http:', h
 globalThis.location = window.location;
 window.history = {state: null, pushState() {}, replaceState() {}};
 globalThis.history = window.history;
-globalThis.getComputedStyle = el => ({display: el.style?.display === 'none' ? 'none' : 'block'});
+globalThis.getComputedStyle = el => ({display: el.style?.display === 'none' ? 'none' : 'block', backgroundColor: 'transparent', color: 'gray'});
+const frames = [];
+globalThis.requestAnimationFrame = callback => frames.push(callback);
 globalThis.DOMRect = class { constructor(x = 0, y = 0, w = 0, h = 0) { Object.assign(this, {left: x, top: y, width: w, height: h, x, y, right: x + w, bottom: y + h}); } };
 const proto = Object.getPrototypeOf(document.createElement('div'));
 proto.getBoundingClientRect = function () {
   if (this.hasAttribute('data-canvas-root')) return new DOMRect(0, 0, 1000, 600);
+  if (this.getAttribute('role') === 'tab') return rects.get('tab:' + this.getAttribute('data-tab-id')) ?? new DOMRect(0, 0, 0, 0);
   const key = this.getAttribute('data-center-tab-id');
   return rects.get(key) ?? new DOMRect(0, 0, 0, 0);
 };
@@ -72,4 +75,34 @@ test('a capture the layout never follows lapses instead of playing later', () =>
   playCanvasTransition();
   performance.now = realNow;
   assert.equal(animations.length, 0);
+});
+
+test('yellow folds the pane into the bottom edge of its tab, then the tab lights once', () => {
+  animations.length = 0;
+  canvas.innerHTML = '<div data-center-tab-id="a">A</div><div data-center-tab-id="b"><p>B</p></div>';
+  const tab = document.createElement('div');
+  tab.setAttribute('role', 'tab');
+  tab.setAttribute('data-tab-id', 'b');
+  document.body.prepend(tab);
+  rects.set('tab:b', new DOMRect(600, -36, 160, 28));
+  rects.set('a', new DOMRect(0, 0, 500, 600));
+  rects.set('b', new DOMRect(500, 0, 500, 600));
+  captureCanvasTransition({b: 'minimize'});
+  canvas.querySelector('[data-center-tab-id="b"]').remove();
+  rects.set('a', new DOMRect(0, 0, 1000, 600));
+  playCanvasTransition();
+  const layer = canvas.querySelector('[data-canvas-ghost]');
+  assert.ok(layer, 'the folding pane leaves as a ghost layer');
+  assert.ok(layer.children.length >= 6, 'cut into bands');
+  assert.match(layer.style.clipPath, /-8px/, 'nothing is drawn above the tab bottom edge');
+  assert.equal(layer.querySelector('[data-center-tab-id]'), null);
+  const grow = animations.find(a => a.el.getAttribute('data-center-tab-id') === 'a');
+  assert.ok(grow.options.delay > 0, 'the neighbour fills after the fold leads');
+  const realNow = performance.now.bind(performance);
+  performance.now = () => realNow() + 10_000;
+  while (frames.length) frames.shift()(performance.now());
+  performance.now = realNow;
+  assert.ok(animations.some(a => a.el === tab), 'the tab lights as it takes the pane in');
+  assert.equal(layer.isConnected, false, 'the layer is gone once the fold ends');
+  tab.remove();
 });
