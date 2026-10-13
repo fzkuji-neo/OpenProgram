@@ -11,6 +11,7 @@ import {parseHTML} from 'linkedom';
 const base=new URL('../../',import.meta.url);
 globalThis.__mdOpens=[];globalThis.__mdMath=[];
 const mocks={
+ '@/lib/i18n':'export const useTranslation=()=>({text:en=>en});',
  '@/lib/runtime-bridge/markdown-render':'export const typesetMath=e=>globalThis.__mdMath.push(e.textContent);',
  '@/lib/tabs/center-tabs-store':'export const useCenterTabs={getState:()=>({openFileTab:(...a)=>globalThis.__mdOpens.push(["tab",...a]),openFilePreview:(...a)=>globalThis.__mdOpens.push(["preview",...a])})};',
  '@/lib/files/files-shared':'export const rawFileUrl=(id,path)=>"/raw?project="+encodeURIComponent(id)+"&path="+encodeURIComponent(path);export const absRawFileUrl=(path,sid)=>"/raw?session="+encodeURIComponent(sid)+"&path="+encodeURIComponent(path);',
