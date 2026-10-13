@@ -30,7 +30,7 @@ useSessionStore.setState({currentSessionId:'left',activeChatKey:'left',composerD
 window.drafts=()=>useSessionStore.getState().composerDrafts;
 function Pane({id}){const draft=useSessionStore(s=>s.composerDrafts[id]||'');return <section data-pane={id}>
  <div className="chat-messages"><SelectionQuote sessionId={id}/><UserBubble sessionIdOverride={id} msg={{id:id+'-msg',role:'user',content:'[attachment: original.png (png, 1 KB) @json "/original.png" @previewjson "/saved.png"]\n[attachment: original.pdf (pdf, 1 KB) @json "/original.pdf"]\n\nOriginal message https://example.com'}}/></div>
- <div data-composer-session={id}><textarea aria-label={id+' draft'} value={draft} onChange={e=>useSessionStore.getState().setComposerInputFor(id,e.target.value)}/></div>
+ <div data-composer-session={id}><textarea data-composer-input ref={element=>{if(element)element.composerInput=element;}} aria-label={id+' draft'} value={draft} onChange={e=>useSessionStore.getState().setComposerInputFor(id,e.target.value)}/></div>
  </section>;}
 createRoot(document.getElementById('mount')).render(<QueryClientProvider client={new QueryClient()}><Pane id="left"/><Pane id="right"/></QueryClientProvider>);
 '''
@@ -72,7 +72,7 @@ createRoot(document.getElementById('mount')).render(<QueryClientProvider client=
             expect(right.get_by_role('textbox',name='right draft')).to_be_focused()
             # A selection remains hidden while the pointer is held; release exposes actions.
             right.locator('.message-content').dispatch_event('pointerdown', {'pointerId':1,'buttons':1})
-            page.evaluate('''() => {const el=document.querySelector('[data-pane="right"] .message-content');const node=el.lastChild;const r=document.createRange();r.setStart(node,0);r.setEnd(node,8);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}''')
+            page.evaluate('''() => {const el=document.querySelector('[data-pane="right"] .message-content');const node=document.createTreeWalker(el.querySelector(".user-md"),NodeFilter.SHOW_TEXT).nextNode();const r=document.createRange();r.setStart(node,0);r.setEnd(node,8);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}''')
             expect(page.get_by_role('button',name='Add to chat',exact=True)).to_have_count(0)
             right.locator('.message-content').dispatch_event('pointerup', {'pointerId':1,'buttons':0})
             expect(page.get_by_role('button',name='Chat in new branch',exact=True)).to_be_visible()
@@ -85,7 +85,7 @@ createRoot(document.getElementById('mount')).render(<QueryClientProvider client=
             page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
             right.locator('.message-content').scroll_into_view_if_needed()
             before_branch = page.evaluate("window.drafts().right")
-            page.evaluate('''() => {const el=document.querySelector('[data-pane="right"] .message-content');const r=document.createRange();r.setStart(el.lastChild,0);r.setEnd(el.lastChild,8);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}''')
+            page.evaluate('''() => {const el=document.querySelector('[data-pane="right"] .message-content');const r=document.createRange();r.setStart(document.createTreeWalker(el.querySelector(".user-md"),NodeFilter.SHOW_TEXT).nextNode(),0);r.setEnd(document.createTreeWalker(el.querySelector(".user-md"),NodeFilter.SHOW_TEXT).nextNode(),8);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}''')
             right.locator('.message-content').dispatch_event('pointerup')
             branch=page.get_by_role('button',name='Chat in new branch',exact=True)
             branch.click()
@@ -104,7 +104,7 @@ createRoot(document.getElementById('mount')).render(<QueryClientProvider client=
             assert page.evaluate('window.drafts().left') == 'left draft'
             right.get_by_role('button',name='Edit message',exact=True).click()
             editor=right.get_by_role('textbox',name='Edit message',exact=True)
-            expect(editor).to_have_value('Original message https://example.com')
+            expect(editor).to_have_text('Original message https://example.com')
             editor.fill('Updated https://example.org')
             right.get_by_role('button',name='Remove original.pdf',exact=True).click()
             right.locator('input[type=file]').set_input_files({'name':'notes.txt','mimeType':'text/plain','buffer':b'hello attachment'})
@@ -112,7 +112,7 @@ createRoot(document.getElementById('mount')).render(<QueryClientProvider client=
             save=right.get_by_role('button',name='Save & resend',exact=True)
             expect(save).to_be_enabled(); save.click()
             expect(right.get_by_role('alert')).to_have_text('Temporary failure')
-            expect(editor).to_have_value('Updated https://example.org')
+            expect(editor).to_have_text('Updated https://example.org')
             payload=page.evaluate('window.edits[0]')
             assert payload['session_id']=='right'
             assert 'original.pdf' not in payload['content']

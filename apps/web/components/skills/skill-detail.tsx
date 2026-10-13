@@ -54,7 +54,7 @@ export function SkillDetail() {
           </div>
         )}
         <div className="prose prose-invert max-w-none text-sm">
-          <Markdown source={detail.body} />
+          <Markdown source={detail.body} escapeRawHtml />
         </div>
       </div>
     </div>

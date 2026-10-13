@@ -300,7 +300,7 @@ function createWebViews({
       const view = new WebContentsView(viewOptions || {
         webPreferences: { partition: "persist:webtabs" },
       });
-      record = { id, view, ownerId: ctx.id, navigation: null, findRequestId: null };
+      record = { id, view, ownerId: ctx.id, navigation: null, captureNavigationGeneration: 0, findRequestId: null };
       const nativeSetBounds = view.setBounds.bind(view);
       const nativeSetVisible = view.setVisible.bind(view);
       view.setBounds = (bounds) => {
@@ -395,6 +395,13 @@ function createWebViews({
       wc.on("context-menu", (_event, params) => {
         showWebTabContextMenu(record, params);
       });
+      // Any visible frame can change capture pixels. Advance at both start and
+      // commit: a capture may begin while navigation is already in progress.
+      // Never reset this generation when pending navigation returns to null.
+      const invalidateNavigationCapture = () => { record.captureNavigationGeneration += 1; };
+      wc.on("did-start-navigation", invalidateNavigationCapture);
+      wc.on("did-frame-navigate", invalidateNavigationCapture);
+      wc.on("did-navigate-in-page", invalidateNavigationCapture);
       const clearFavicon = () => {
         record.faviconRequest?.abort();
         record.faviconRequest = null;
@@ -667,10 +674,12 @@ function createWebViews({
     const scale = record.pipLayoutZoom;
     const url = contents.getURL();
     const navigation = record.navigation;
+    const generation = record.captureNavigationGeneration;
     const current = () => recordFor(ctx, record.id) === record
       && !contents.isDestroyed() && record.pipLayoutZoom === scale
       && !boundsDiffer(bounds, record.view.getBounds())
-      && contents.getURL() === url && record.navigation === navigation;
+      && contents.getURL() === url && record.navigation === navigation
+      && record.captureNavigationGeneration === generation;
     const capture = (async () => {
       try {
         // Native capturePage returns the scaled display bitmap. CDP must know
@@ -719,11 +728,16 @@ function createWebViews({
     const contents = record.view.webContents;
     try {
       if (record.pipLayoutZoom && mode !== "presentation") return await capturePipView(ctx, record);
+      const generation = record.captureNavigationGeneration;
+      const url = contents.getURL();
+      const navigation = record.navigation;
       const image = await contents.capturePage(
         undefined,
         { stayHidden: true },
       );
-      if (recordFor(ctx, id) !== record || contents.isDestroyed()) return null;
+      if (recordFor(ctx, id) !== record || contents.isDestroyed()
+          || record.captureNavigationGeneration !== generation
+          || contents.getURL() !== url || record.navigation !== navigation) return null;
       if (!image || (typeof image.isEmpty === "function" && image.isEmpty())) {
         return null;
       }

@@ -71,7 +71,7 @@ assert.match(browserHome, /ArrowLeft[\s\S]*ArrowRight[\s\S]*RotateCw[\s\S]*House
 for (const label of ["Back", "Forward", "Reload", "Home", "Bookmark", "Open in browser"]) {
   assert.match(
     browserHome,
-    new RegExp(`<button[^>]*disabled[^>]*title=\\{text\\("${label}"`),
+    new RegExp(`<button[^>]*disabled[^>]*aria-label=\\{text\\("${label}"`),
     `Browser home ${label} must remain visible but disabled`,
   );
 }

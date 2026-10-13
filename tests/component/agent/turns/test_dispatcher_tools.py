@@ -959,3 +959,44 @@ def test_consumed_steer_keeps_ordered_boundary(tmp_db, monkeypatch, fresh_regist
     assert [b['type'] for b in json.loads(node.metadata['extra'])['blocks']]==['text','tool','steering','text']
     user=next(e['data'] for e in events if e.get('data',{}).get('type')=='user_message')
     assert user['assistant_msg_id']=='u_reply'
+
+
+@pytest.mark.parametrize("same_session", [False, True])
+def test_full_result_artifacts_survive_reused_provider_ids(
+    tmp_db, captured, collector, fresh_registry, monkeypatch, tmp_path, same_session,
+):
+    results_dir = tmp_path / "results"
+    results_dir.mkdir()
+    monkeypatch.setattr(R, "_tool_results_dir", lambda: results_dir)
+
+    @function(name="persistprobe", description="Persist", max_result_chars=2000, persist_full=True)
+    def persistprobe(value: str) -> str:
+        return value * 5000
+
+    monkeypatch.setattr(D, "_load_agent_profile", _stub_profile_with_tools(["persistprobe"]))
+    first_path = None
+    for index, value in enumerate(["A", "B"]):
+        session_id = "artifact-A" if same_session or index == 0 else "artifact-B"
+        stream = make_two_phase_stream("call_0_persistprobe", "persistprobe", {"value": value})
+        with patch.object(D, "_run_loop_blocking", _patched_run_loop(stream)):
+            result = D.process_user_turn(
+                _owner_turn(session_id=session_id, user_text="run " + value, agent_id="main",
+                            source="tui", permission_mode="bypass"),
+                on_event=collector,
+            )
+        assert result.failed is False
+        if first_path is None:
+            first_path, = results_dir.glob("*.txt")
+            assert first_path.read_text() == "A" * 5000
+
+    receipts = [e["data"]["event"]["result"] for e in captured
+                if e["type"] == "chat_response"
+                and e["data"].get("event", {}).get("type") == "tool_result"]
+    assert len(receipts) == 2
+    assert str(first_path) in receipts[0]
+    assert first_path.read_text() == "A" * 5000
+    paths = list(results_dir.glob("*.txt"))
+    assert len(paths) == 2
+    second_path, = [path for path in paths if path != first_path]
+    assert str(second_path) in receipts[1]
+    assert second_path.read_text() == "B" * 5000

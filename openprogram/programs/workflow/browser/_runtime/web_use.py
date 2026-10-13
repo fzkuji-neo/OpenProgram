@@ -26,7 +26,10 @@ def _execute_web_use(
     arguments: dict | None = None,
 ) -> dict | state.ToolReturn:
     from openprogram.agent import surface_context
+    from openprogram.agent.run_control import check_cancelled
     from ..web_use_runtime import get_registry
+
+    check_cancelled()
 
     payload = state.normalize_web_use_arguments({
         "command": command,
@@ -120,7 +123,7 @@ def _execute_web_use(
         )
         try:
             result = get_registry().list_pages(context=context, owner_id=owner_id)
-        except Exception:
+        except BaseException:
             if captured_here:
                 surface_context.release_bindings(context)
             raise
@@ -138,8 +141,9 @@ def _execute_web_use(
                 owner_id=owner_id,
                 backend=backend,
                 arguments=arguments if command == "observe" else {},
+                before_dispatch=check_cancelled,
             )
-        except Exception:
+        except BaseException:
             surface_context.release_bindings(context)
             raise
         if observed.get("ok") is False:
@@ -156,8 +160,9 @@ def _execute_web_use(
                 owner_id=owner_id,
                 page_context=context,
                 arguments=arguments,
+                before_dispatch=check_cancelled,
             )
-        except Exception:
+        except BaseException:
             surface_context.release_bindings(context)
             raise
         if isinstance(result, dict):
@@ -172,7 +177,7 @@ def _execute_web_use(
         try:
             binding_id = surface_context.resolve_binding(page)
             page_key = surface_context.resolve_page_key(page)
-        except Exception:
+        except BaseException:
             if captured_here:
                 surface_context.release_bindings(context)
             raise
@@ -189,8 +194,9 @@ def _execute_web_use(
             page_context_token=page_context_token,
             page_context=context,
             arguments=arguments,
+            before_dispatch=check_cancelled,
         )
-    except Exception:
+    except BaseException:
         if captured_here:
             surface_context.release_bindings(context)
         raise
@@ -204,7 +210,10 @@ def _execute_web_use(
 def execute_direct_web_use(arguments: dict, *, owner_id: str):
     """Execute the first-class MCP contract with server-injected ownership."""
     from openprogram.agent import surface_context
+    from openprogram.agent.run_control import check_cancelled
     from ..web_use_runtime import get_registry
+
+    check_cancelled()
 
     arguments = state.normalize_web_use_arguments(arguments)
     command = str(arguments.get("command") or "")
@@ -216,7 +225,7 @@ def execute_direct_web_use(arguments: dict, *, owner_id: str):
             return _desktop_unavailable_result(exc)
         try:
             result = registry.list_pages(context=context, owner_id=owner_id)
-        except Exception:
+        except BaseException:
             surface_context.release_bindings(context)
             raise
         if not result.get("ok"):
@@ -242,8 +251,9 @@ def execute_direct_web_use(arguments: dict, *, owner_id: str):
                 owner_id=owner_id,
                 backend=str(arguments.get("backend") or ""),
                 arguments=nested if command == "observe" else {},
+                before_dispatch=check_cancelled,
             )
-        except Exception:
+        except BaseException:
             surface_context.release_bindings(opened)
             raise
         if observed.get("ok") is False:
@@ -259,6 +269,7 @@ def execute_direct_web_use(arguments: dict, *, owner_id: str):
             owner_id=owner_id,
             page_context=opened,
             arguments=nested,
+            before_dispatch=check_cancelled,
         )
         if isinstance(result, dict):
             result = dict(result)
@@ -271,4 +282,5 @@ def execute_direct_web_use(arguments: dict, *, owner_id: str):
         owner_id=owner_id,
         page_context_token=page_context_token,
         arguments=nested,
+        before_dispatch=check_cancelled,
     )

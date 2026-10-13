@@ -106,7 +106,7 @@ class PageScopeProbeAgent(Agent):
                     None,
                 )
             except RuntimeError as exc:
-                if os.environ.get("PAGE_PROBE_SCENARIO") != "foreign":
+                if os.environ.get("PAGE_PROBE_SCENARIO") != "stale_binding":
                     raise
                 return {
                     "listed_error": True,
@@ -180,8 +180,8 @@ def main():
     calls = []
 
     def renderer(owner, cmd, *args, **kwargs):
+        calls.append({**dict(cmd), "fixture_window_id": "owned-window" if owner is ws else "foreign-window"})
         assert owner is ws
-        calls.append(dict(cmd))
         if scenario == "capture_fail":
             return {"ok": False, "error": "owned capture failure"}
         if cmd["op"] == "list":
@@ -236,7 +236,7 @@ def main():
     owned_context = None
     if scenario in {
         "existing",
-        "foreign",
+        "stale_binding",
         "plan",
         "active_plan",
         "live_plan",
@@ -248,10 +248,15 @@ def main():
 
         owned_context = surface_context.capture_pages()
         req.surface_context = copy.deepcopy(owned_context)
-        if scenario == "foreign":
+        if scenario == "stale_binding":
             req.surface_context["surfaces"][0]["binding_id"] = (
-                "foreign-unissued-binding"
+                "stale-inherited-binding"
             )
+            # Recovery must keep the originally authorized window even when
+            # a different window connects after its binding becomes stale.
+            foreign_ws = object()
+            server._ws_connections.append(foreign_ws)
+            asyncio.run(webtab.handle_webtab_register(foreign_ws, {"window_id": "foreign-window"}))
         if scenario == "plan":
             req.permission_mode = "plan"
     if scenario == "disabled":

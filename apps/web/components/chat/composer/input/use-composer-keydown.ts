@@ -44,6 +44,8 @@ export function useComposerKeyDown({
     atToken,
     fileMatches,
     fileMenuIndex,
+    fileMenuLoading,
+    fileMenuPos,
     setFileMenuIndex,
     pickFile,
     closeMenu: closeFileMenu,
@@ -65,6 +67,18 @@ export function useComposerKeyDown({
     // @file mention menu takes precedence — its arrows / enter / esc /
     // tab steer the menu, never fall through to history-recall or
     // the slash menu.
+    if (atToken && e.key === "Escape"
+        && (fileMenuLoading || fileMatches.length > 0 || fileMenuPos)) {
+      e.preventDefault();
+      closeFileMenu();
+      return;
+    }
+    if (atToken && fileMenuLoading) {
+      if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") {
+        e.preventDefault();
+        return;
+      }
+    }
     if (atToken && fileMatches.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -82,11 +96,6 @@ export function useComposerKeyDown({
         if (picked) pickFile(picked);
         return;
       }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closeFileMenu();
-        return;
-      }
     }
     // Fish-shell-style history recall. Mirrors the TUI's PromptInput
     // logic (cli/src/components/PromptInput/PromptInput.tsx). Only fires
@@ -94,11 +103,12 @@ export function useComposerKeyDown({
     // the first / last visual line of the textarea, so multi-line
     // editing still works naturally.
     if (e.key === "ArrowUp" && !slash.visible && !e.shiftKey
-        && !e.metaKey && !e.altKey) {
+        && !e.metaKey && !e.altKey && !e.ctrlKey) {
       if (recallPrevious(e, input, setInput)) return;
     }
     if (e.key === "ArrowDown" && !slash.visible && historyIndex >= 0
-        && !e.shiftKey && !e.metaKey && !e.altKey) {
+        && !e.shiftKey && !e.metaKey && !e.altKey && !e.ctrlKey
+        && e.currentTarget.selectionStart === e.currentTarget.selectionEnd) {
       e.preventDefault();
       recallNext(setInput);
       return;

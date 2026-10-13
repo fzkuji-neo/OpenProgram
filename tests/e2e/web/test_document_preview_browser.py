@@ -35,9 +35,9 @@ def media_page(media_bundle):
             requests.append(request.request.url)
             path = urlsplit(request.request.url).path
             if path == "/":
-                request.fulfill(content_type="text/html", body='<div id="root"></div><script src="/bundle.js"></script>')
+                request.fulfill(content_type="text/html; charset=utf-8", body='<div id="root"></div><script src="/bundle.js"></script>')
             elif path == "/bundle.js":
-                request.fulfill(content_type="text/javascript", body=media_bundle)
+                request.fulfill(content_type="text/javascript; charset=utf-8", body=media_bundle)
             else:
                 request.fulfill(status=404)
 

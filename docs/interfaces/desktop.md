@@ -54,6 +54,8 @@ The bookmarks bar shows the direct contents of the imported or locally maintaine
 
 Website bookmarks display their saved favicon, falling back to the website’s own `/favicon.ico` and then a browser icon if unavailable. This applies to the bar, folder menus, and manager. Adding a bookmark preserves the current page icon; reopening a bookmarked URL updates it when the page provides a new icon. Icon requests do not send a referrer or use a third-party favicon service. Shortcuts on the Browser home page show the website's own `/favicon.ico`, or the site's initial when it has none.
 
+To add a homepage shortcut, select **Add**, enter an address and an optional name, then select **Add** or press Enter. The compact editor follows your interface theme and font. Cancel, Close, Escape, clicking outside, or selecting the Add tile again dismisses it and clears the unfinished entry.
+
 During use, decoded icons are shared across the bar, folder menus, and tab components in each renderer. Reopening a bookmark menu reuses its document and icon cache; icons do not restart from the loading placeholder on every opening. The cache is bounded, retries failed sources after five minutes, and refreshes reused sources after thirty minutes when requested again. Closing the window releases its retained bookmark menu. Restarting the App can load icons again through the browser cache.
 
 The Bookmarks manager has a folder tree, current-folder list, search, favicon display, and item menus. History is grouped by local date and uses compact rows with time, favicon, title, and domain. Desktop Browser data is separate from backend state: History and the persistent `webtabs` partition live in Electron's per-user application-data directory, while chats, projects, Programs, and worker configuration remain under `~/.openprogram/`. Clearing browser data does not delete that backend state.
@@ -146,6 +148,20 @@ Self-update continuation, replanning after a changed runtime contract, and origi
 Select a Terminal resource to attach its interactive view beside the conversation. The Agent and the user share the same shell, working directory, environment and output. Hiding the view or switching sessions does not terminate the shell. **Terminate terminal** explicitly requests process termination and requires confirmation; an acknowledged request is not evidence that the process has exited. **Share terminal** makes it discoverable to other sessions on that Desktop host; making it private revokes the current Agent binding.
 
 Terminal input delivery does not indicate command success. After an uncertain input result, OpenProgram does not resend it. **Reconnect view** reads the current output again without replaying input. An unfinished human input fragment or changed input revision prevents conflicting Agent input until the Agent observes the terminal again.
+
+For ordinary macOS zsh and compatible Bash 3.2 login shells, `terminal_use(action="observe", ...)` and `resource(provider="terminal", action="observe", ...)` also return optional `shell_integration` metadata reported by the shell:
+
+| Field | Meaning |
+|---|---|
+| `status` | `starting`, `ready`, `unavailable`, or `ended`. |
+| `mode`, `reason` | The selected integration (`zsh-hooks` or `bash-debug`) and an unavailable reason, when present. |
+| `event_sequence` | Sequence of the latest accepted shell report. |
+| `cwd` | Latest reported directory in `value`, with its `event_sequence`; `null` before a report. |
+| `cycle` | Foreground command cycle `id`, `phase` (`running`, `finished`, or `unknown`), and `exit_code`; `null` before the first command. |
+
+`start_cwd` remains the starting directory, and the top-level `exit_code` belongs to the terminal process. A cycle's exit code is reported only after its matching foreground completion; background jobs can still be running. Input receipts retain `command_complete=null`: input delivery, shell completion, and successful external effects are separate facts. Reports do not grant permissions and can become stale if shell hooks are changed.
+
+Existing bash-preexec, custom DEBUG traps, existing or replaced prompt commands, readonly prompt configuration, and incompatible tracing settings fall back to `unavailable` without replacing the user's hooks. Unsupported shells and presets retain normal terminal input/output. Missing metadata from older hosts or `unavailable` metadata means the command state is unknown; do not infer success from a prompt or quiet output. These fields are tool observations, not additional terminal controls.
 
 ### Common Agent resource interface
 

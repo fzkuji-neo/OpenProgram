@@ -373,7 +373,24 @@ class ProjectionsOperations:
             return claimed
 
 
-    def ack_projection_outbox(self, outbox_id: str, *, owner_id: str):
+    def validate_projection_claim(self, outbox_id: str, *, owner_id: str, expected_attempt: int):
+        """Check the exact persisted claim before starting a consumer callback."""
+        with closing(self._connect()) as connection:
+            row = connection.execute(
+                "SELECT * FROM execution_projection_outbox WHERE outbox_id = ?",
+                (outbox_id,),
+            ).fetchone()
+            if row is None:
+                raise ProjectionConflict("not_found", f"outbox item not found: {outbox_id}")
+            self._check_projection_attempt(row, expected_attempt)
+            self._raise_projection_claim_conflict(row, owner_id, time.time())
+
+    @staticmethod
+    def _check_projection_attempt(row, expected_attempt: int | None) -> None:
+        if expected_attempt is not None and row["attempts"] != expected_attempt:
+            raise ProjectionConflict("claim_replaced", "outbox claim attempt has changed")
+
+    def ack_projection_outbox(self, outbox_id: str, *, owner_id: str, expected_attempt: int | None = None):
         from ..outbox import ProjectionOutboxState
 
         with self._transaction() as connection:
@@ -383,6 +400,7 @@ class ProjectionsOperations:
             ).fetchone()
             if row is None:
                 raise ProjectionConflict("not_found", f"outbox item not found: {outbox_id}")
+            self._check_projection_attempt(row, expected_attempt)
             if row["state"] == ProjectionOutboxState.DELIVERED.value:
                 return self._projection_outbox(row)
             now = time.time()
@@ -422,6 +440,7 @@ class ProjectionsOperations:
         owner_id: str,
         error: str,
         retry_at: float | None = None,
+        expected_attempt: int | None = None,
     ):
         from ..outbox import ProjectionOutboxState
 
@@ -434,6 +453,7 @@ class ProjectionsOperations:
             ).fetchone()
             if row is None:
                 raise ProjectionConflict("not_found", f"outbox item not found: {outbox_id}")
+            self._check_projection_attempt(row, expected_attempt)
             now = time.time()
             updated = connection.execute(
                 "UPDATE execution_projection_outbox SET state = ?, claim_owner = NULL, "
@@ -465,7 +485,8 @@ class ProjectionsOperations:
 
 
     def release_projection_outbox(
-        self, outbox_ids: Collection[str], *, owner_id: str
+        self, outbox_ids: Collection[str], *, owner_id: str,
+        expected_attempts: Mapping[str, int] | None = None,
     ) -> int:
         """Return this owner's unprocessed live claims to pending without retry cost."""
         from ..outbox import ProjectionOutboxState
@@ -476,19 +497,27 @@ class ProjectionsOperations:
         if not ids:
             return 0
         placeholders = ",".join("?" for _ in ids)
+        identity_sql = f"outbox_id IN ({placeholders})"
+        identity_values = list(ids)
+        if expected_attempts is not None:
+            if any(item_id not in expected_attempts for item_id in ids):
+                raise ProjectionConflict("invalid_claim", "each released claim requires its attempt")
+            pairs = ",".join("(?, ?)" for _ in ids)
+            identity_sql = f"(outbox_id, attempts) IN ({pairs})"
+            identity_values = [value for item_id in ids for value in (item_id, expected_attempts[item_id])]
         now = time.time()
         with self._transaction() as connection:
             updated = connection.execute(
                 "UPDATE execution_projection_outbox SET state = ?, claim_owner = NULL, "
                 "claim_expires_at = NULL WHERE state = ? AND claim_owner = ? "
                 "AND claim_expires_at IS NOT NULL AND claim_expires_at > ? "
-                f"AND outbox_id IN ({placeholders})",
+                f"AND {identity_sql}",
                 (
                     ProjectionOutboxState.PENDING.value,
                     ProjectionOutboxState.CLAIMED.value,
                     owner_id,
                     now,
-                    *ids,
+                    *identity_values,
                 ),
             )
             return updated.rowcount

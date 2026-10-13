@@ -26,8 +26,10 @@ def startup_failure(monkeypatch):
             self.closed = 0
             controllers.append(self)
 
-        def execute(self, *, action):
+        def execute(self, *, action, before_dispatch=None):
             assert action == "observe"
+            if before_dispatch is not None:
+                before_dispatch()
             return {"frame_id": "frame-1", "target": {"target_id": "target-1"}}
 
         def evaluate_bound_page(self, script, argument):

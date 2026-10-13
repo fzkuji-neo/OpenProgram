@@ -149,7 +149,7 @@ An Agent method with `tool=True` registers as an LLM-callable tool in the shared
 | `requires_env` | `tuple` | `()` | Environment variable names that must be set for the tool to be offered |
 | `can_use` | `Callable` | `None` | Dynamic availability predicate evaluated at tool-resolution time |
 | `max_result_chars` | `int` | `None` | Truncation cap for the tool result fed back to the model. `None` = the registry default `DEFAULT_MAX_RESULT_CHARS` (30,000 chars) |
-| `persist_full` | `bool` | `False` | Persist the untruncated result to disk so the agent can read it back |
+| `persist_full` | `bool` | `False` | Persist the untruncated result to an independent path in the state directory so the agent can read it back; later saves do not overwrite earlier references. Return the path only after a successful write |
 | `head_ratio` | `float` | `None` | When truncating, the fraction kept from the head, rest from the tail. `None` = the registry default `DEFAULT_HEAD_RATIO` (0.7) |
 | `requires_approval` | — | `None` | Approval requirement forwarded to the tool registry (same shape as `@function`) |
 | `cache` | `bool` | `False` | Memoize results on `(name, args)` for tool-dispatched calls |

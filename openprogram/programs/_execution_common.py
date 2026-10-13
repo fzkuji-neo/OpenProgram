@@ -37,7 +37,6 @@ import asyncio
 import contextvars
 import inspect
 import json
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
@@ -77,9 +76,9 @@ def _tool_results_dir() -> Path:
 
 def _cap_result_text(text: str, max_chars: int,
                      *, head_ratio: float = DEFAULT_HEAD_RATIO) -> str:
-    if len(text) <= max_chars:
-        return text
     keep = max(max_chars, MIN_KEEP_CHARS)
+    if len(text) <= keep:
+        return text
     head = int(keep * head_ratio)
     tail = keep - head
     elided = len(text) - head - tail
@@ -87,21 +86,39 @@ def _cap_result_text(text: str, max_chars: int,
         text[:head]
         + f"\n\n[... {elided:,} chars elided of {len(text):,} total —"
         f" call again with narrower scope or check the persisted file ...]\n\n"
-        + text[-tail:]
+        + (text[-tail:] if tail else "")
     )
-
-
-def _safe_result_id(call_id: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9_.-]", "_", str(call_id or ""))[:128]
-    return cleaned or "result"
 
 
 def _persist_full_result(
     call_id: str, text: str, *, results_dir: Path | None = None,
 ) -> Path:
     directory = results_dir if results_dir is not None else _tool_results_dir()
-    p = directory / f"{_safe_result_id(call_id)}.txt"
-    p.write_text(text, encoding="utf-8")
+    import hashlib
+    import os
+    import tempfile
+
+    from openprogram.agent.run_control import (
+        get_current_execution_id, get_current_session_id,
+    )
+    from openprogram.programs._runtime import _current_tool_call_occurrence_id
+
+    # Raw provider call IDs can repeat across rounds and sessions. Reuse
+    # current ownership for attribution; exclusive creation also protects
+    # unscoped calls and repeated saves of the same occurrence.
+    scope = json.dumps([
+        get_current_session_id(), get_current_execution_id(),
+        _current_tool_call_occurrence_id.get(), str(call_id),
+    ], ensure_ascii=False).encode("utf-8")
+    owner = hashlib.sha256(scope).hexdigest()[:24]
+    fd, name = tempfile.mkstemp(prefix=f"result-{owner}-", suffix=".txt", dir=directory)
+    p = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(text)
+    except BaseException:
+        p.unlink(missing_ok=True)
+        raise
     return p
 
 
@@ -166,6 +183,7 @@ def _normalize_result(
             pass
 
     full_text = text_part
+    max_chars = max(max_chars, MIN_KEEP_CHARS)
     if len(full_text) > max_chars:
         if persist_full:
             try:
