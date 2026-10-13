@@ -164,3 +164,13 @@ Direct tool runs also need an explicit provider and model for internal model cal
 When run from a chat, internal GUI and Workflow model calls inherit the turn's provider and model selection. A per-turn override takes priority over the session selection, followed by the agent profile. The selected provider and model also apply to tool subprocesses. Provider authentication must still be valid for that selected model; setup failures retain the selected model's error instead of silently using another provider.
 
 Browser workflows retain an explicit initial URL when a backend is selected. Official MCP backends support guarded waits and propagate snapshot failures. Page recovery stays within the current window scope and does not replay the failed action. A verified result retains its actual evidence and observed target.
+
+## Inspect GUI tool activity
+
+Expand the execution summary in a conversation and select a **GUI Agent**, **Computer Use**, **Browser Use** or **VM Use** call. The Details panel shows a GUI activity card above the raw parameters and output:
+
+- **Status** — the same status appears on the card and on the timeline row. **Action applied** means one operation went through; it does not mean the task succeeded. **Needs takeover** means the agent stopped and needs you. **Result unavailable** means the call did not report an outcome.
+- **What to do** — when the agent stops, the card shows why and the action it asks you to take.
+- **Steps** — each recorded capability call on one line, with its target app or URL and status. Failed steps show their reason.
+
+The card follows the selected call while it runs. Manually run GUI functions use the same view. To stop a running agent, use the conversation's Stop control.

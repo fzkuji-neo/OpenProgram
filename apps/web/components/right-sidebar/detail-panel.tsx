@@ -6,6 +6,8 @@ import { useTranslation } from "@/lib/i18n";
 import { renderMarkdown, useMarkdownReady } from "../chat/messages/markdown";
 import { LlmNodeContent } from "../chat/messages/llm-node-content";
 import type { TNode } from "../chat/messages/tree-types";
+import { GuiToolDetail } from "./gui-tool-detail";
+import { guiToolView } from "../chat/messages/gui-tool-view";
 
 export const VIEW_DETAIL = "detail";
 export const VIEW_CONTEXT = "context";
@@ -138,15 +140,21 @@ export function DetailPanel() {
       )
     : null;
 
+  const guiView = guiToolView(node);
+
   return (
     <div id="detailBody" className="detail-body">
-      <div className="detail-section">
-        <div className="detail-section-title">Status</div>
-        <div className={`detail-badge ${node.status}`}>
-          {statusIcon} {node.status}
-          {duration ? <> &middot; {duration}</> : null}
+      {/* A GUI call states its outcome in the activity card; a second
+          transport-level status here would contradict it. */}
+      {guiView ? <GuiToolDetail node={node} view={guiView} /> : (
+        <div className="detail-section">
+          <div className="detail-section-title">Status</div>
+          <div className={`detail-badge ${node.status}`}>
+            {statusIcon} {node.status}
+            {duration ? <> &middot; {duration}</> : null}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="detail-section">
         <div className="detail-section-title">Path</div>

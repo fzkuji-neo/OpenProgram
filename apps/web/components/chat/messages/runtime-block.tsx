@@ -116,6 +116,7 @@ function displayTree(msg: ChatMsg): TNode | null {
 export function RuntimeBlock({
   msg,
   nested,
+  sessionIdOverride,
 }: {
   msg: ChatMsg;
   /** True when rendered inside an assistant bubble (i.e. the call was
@@ -123,6 +124,7 @@ export function RuntimeBlock({
    *  user can't usefully "retry" a call the model made on its own —
    *  hide the Retry button in that mode, keep Copy JSON. */
   nested?: boolean;
+  sessionIdOverride?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const { text } = useTranslation();
@@ -130,7 +132,8 @@ export function RuntimeBlock({
   const [now, setNow] = useState(() => Date.now());
   useMarkdownReady();
 
-  const sessionId = useSessionStore((s) => s.currentSessionId);
+  const focusedSessionId = useSessionStore((s) => s.currentSessionId);
+  const sessionId = sessionIdOverride || focusedSessionId;
   const running =
     msg.status === "streaming" ||
     msg.status === "pending" ||
@@ -341,7 +344,7 @@ export function RuntimeBlock({
   );
 
   const body = tree ? (
-    <TreeStep node={tree} defaultKidsOpen />
+    <TreeStep node={tree} defaultKidsOpen sessionId={sessionId || undefined} />
   ) : (
     <StepRow
       icon="function"

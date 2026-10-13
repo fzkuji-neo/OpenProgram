@@ -406,7 +406,7 @@ function dispatch(msg: ChatMsg, sessionIdOverride?: string) {
     // 时间线组件（根行 + 递归子树，子节点逐层展开）。
     return (
       <div className="runtime-card-host">
-        <RuntimeBlock msg={msg} />
+        <RuntimeBlock msg={msg} sessionIdOverride={sessionIdOverride} />
       </div>
     );
   }
