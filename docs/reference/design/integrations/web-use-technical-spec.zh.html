@@ -237,7 +237,7 @@ web_use({ command: "close", web_session_id: "cs_…" })</pre>
 
   <section id="implementation-status">
     <h2>实现状态</h2>
-    <p>公开 close 清理修复已有源码级回归覆盖：经导出的 <code>browser.web_use</code> 入口，使用真实 registry、binding 与模拟原生 transport。独立规格审查和质量审查仍待完成。本次修复尚未安装，也未完成原生 App 验收。</p>
+    <p>公开 close 清理修复已有源码级回归覆盖：经导出的 <code>browser.web_use</code> 入口，使用真实 registry、binding 与模拟原生 transport。独立规格与质量审查及声明的源码检查均通过，明确排除六项宿主系统或原生安装检查。本次修复尚未安装，也未完成原生 App 验收。</p>
   </section>
 
   <section id="references">
