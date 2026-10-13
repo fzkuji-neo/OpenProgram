@@ -18,7 +18,7 @@ Opening a conversation already displayed in this window selects its existing tab
 
 When Files or a file tab is active, Back and Forward revisit the folders and files you opened in the current project. Returning to Files restores its expanded folders and scroll position. Opening a new location after going back replaces the forward steps. File locations belong to this tab’s saved page history, separate from document version History. Refreshing a stale directory listing keeps existing rows visible while the loaded range is replaced.
 
-A Markdown file opens as a rendered document. Relative image paths such as `figures/a.png` load from the document's own folder, and a relative link opens the linked file in its own tab. Raw HTML in the file is shown as text, not run.
+A Markdown file opens as a rendered document. Relative image paths such as `figures/a.png` load from the document's own folder, and a relative link opens the linked file in its own tab. Raw HTML in the file is shown as text, not run. A link such as `#installation` scrolls within that document; `guide.md#installation` opens the target file and scrolls after its content loads. Heading keys use lowercase visible text, keep Unicode letters and numbers, replace spaces with hyphens, and assign numeric suffixes to duplicates. Section requests are temporary and are not restored after reopening the app. Navigation preserves unsaved text. Wikilinks, embedded documents, and an outline are not supported by this navigation feature.
 
 PDF files open in a continuous reader with page navigation, thumbnails, document outlines, fit-to-width or fit-to-page zoom, selectable text, search highlighting and original-file download. Copying selected text removes layout line breaks by default while retaining paragraphs and ordinary hyphens; disable this option to preserve the original line breaks. Project files support highlights and text notes, saved as standard PDF annotations through the document save and History controls. Attachments and historical versions remain read-only. The PDF decoder is included locally and supports the bundled desktop runtime; opening a PDF does not upload it to an external viewer. Preview input is limited to 64 MiB.
 
@@ -86,6 +86,8 @@ Thinking, partial replies and tool steps are saved while a response is running a
 
 Local shell commands stop their process group before reporting cancellation. Resumed conversations persist the original assistant as cancelled and return the session to idle, so reloading preserves the stopped state.
 
+Browser actions waiting for the page operation lock check cancellation again before dispatch. Cancelling stops pending actions; it does not undo a browser action already sent.
+
 While waiting for the first reply content, the existing thinking placeholder uses a new double-ring loading mark. Execution summaries, function steps and reply text add no double-ring indicators. Colors follow the theme, and reduced-motion settings show a static mark.
 
 ### Collapsible thinking
@@ -102,13 +104,19 @@ Paste a screenshot, drop files, or choose files from the composer menu. Images a
 
 The composer shows markdown as you type: bold, italics, strikethrough, `inline code`, links, headings, quotes, lists and fenced code are styled in place, and their markers stay hidden unless the cursor is next to them. What you send is the original markdown. Pasting more than 2,000 characters inserts a **Pasted · N lines** chip instead of the text; hover it to preview, and Backspace removes it whole. A finished `@path` mention also becomes a chip. The full pasted text is sent to the model, and the sent message shows the pasted span collapsed as the same chip; click it to expand. A chip shown as **lost** means its stored text is gone; delete it and paste again before sending.
 
+While an `@file` search is pending, Enter (without Shift) and Tab keep editing instead of selecting an old result or sending. Escape dismisses that query even if its response arrives later. Change the token to search again. After an empty result or a failed search, Enter sends normally and Tab moves focus; Shift+Enter and IME confirmation retain their editing behavior while searching.
+
 Access tokens and private keys in a sent message are masked: the message shows the first few characters followed by dots, and the eye button next to it shows or hides the full value. Masking covers tokens with a known prefix, such as GitHub (`github_pat_`, `ghp_`), OpenAI and Anthropic (`sk-`), AWS (`AKIA`), Slack, Stripe, Google, Hugging Face, npm and GitLab, plus JWTs and PEM private-key blocks. It only changes the display: the model still receives the full message, so revoke any token you no longer want shared.
+
+Revealed values are hidden again when the message, conversation, or displayed text changes. Collapsed paste previews mask complete recognized secrets before shortening the preview. Explicit copy and edit actions retain the original text.
 
 Images go directly to a model that supports image input, and an original copy is saved with the chat. The app accepts originals up to 32 MiB and proportionally reduces oversized send versions to at most 5 MiB. It rejects unsupported models instead of silently omitting the image.
 
 In the desktop app, text, code, data, PDF and Office files reference their original paths. The assistant reads them with tools when needed; their contents are not automatically added to the prompt. Dropping a folder includes only its immediate listing, capped at 200 entries or 8 KiB. Nested folders are not scanned. Files selected in a browser without a native path are saved by the backend and referenced from there.
 
 Draft attachments stay with their chat across reloads once reading finishes. Sending clears only the submitted items after the backend acknowledges the message. Read errors or rejected sends keep the draft and attachments for correction. If the connection drops before confirmation, the app does not automatically resend the message.
+
+While a message is preparing file mentions, repeated submission of the same draft does not send it twice. If you change the draft and submit again during preparation, the app tells you that the changed draft was not sent and keeps your text and attachments. Send that draft again after preparation finishes. Other conversations can send independently.
 
 ### Projects on headless or remote Linux
 
@@ -152,6 +160,8 @@ The floating webpage preview fills the space below its compact header, with 10px
 | `/memory` | History → Memory: wiki, journal, and core memories |
 | `/projects` | History → Projects: per-project permission rules, default settings, associated sessions |
 | `/settings` | Settings: providers (models and credentials), search, general (including theme, runtime version, and Desktop update status when the Electron bridge is present), system, usage, auth, channels |
+
+Message navigation previews and skill details display raw HTML as text while retaining Markdown formatting. Skill links do not grant access to local files.
 
 Opening `/settings` directly lands on `/settings/general`. Model credentials stay on `/settings/providers`; see [configuring models](../models/README.md).
 
@@ -219,3 +229,7 @@ Closing the tab of a session-associated webpage only hides that view. The same p
 
 
 Failed replies keep their partial answer and function trace. A failure notice appears at the end of the reply; expand **Error details** to inspect the original message. The notice and details remain available after reloading the conversation.
+
+Use ↑ in the first line to recall a previous message. Press ↓ past the newest recalled message to restore your unsent draft. Editing recalled text starts a new recall cycle; Ctrl/⌘/Alt/Shift with arrow keys and selected text retain normal editing behavior.
+
+Markdown file previews display raw HTML as text. Document links support local files, page fragments, HTTP(S), and mailto; protocol-relative links use HTTPS. Images support authorized local files and HTTP(S), including SVG fragments. Data image URLs and executable or unsupported URL schemes are not loaded. Local URL queries do not change file authorization. Math remains text until typeset; inline and fenced code retain literal math delimiters.

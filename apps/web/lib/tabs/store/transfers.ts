@@ -14,6 +14,7 @@ export function bindTransfers(useCenterTabs: StoreApi<CenterTabsState>, closedSe
   function restoreState(payload: CenterTabsPersistedPayload) {
     const active = payload.tabs.find(tab => tab.id === payload.activeId);
     return {
+      fileSectionRequests: {},
       ...persistedState(payload), navigationRoute: active?.navigationRoute,
       fileNavigationHistory: fileHistoryFor(active), fileNavigationRestore: active?.fileNavigationSnapshot ?? null
     };

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { startHistoryAutoload } from '../../lib/chat/history-autoload.ts';
 
-function fixture(t) {
+function fixture(t, metrics = {}) {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const old = new Map();
   const put = (key, value) => { old.set(key, Object.getOwnPropertyDescriptor(globalThis,key)); Object.defineProperty(globalThis,key,{value,configurable:true,writable:true}); };
@@ -13,13 +13,13 @@ function fixture(t) {
   put('cancelAnimationFrame',id=>frames.delete(id));
   let resize;
   put('ResizeObserver',class { constructor(fn){resize=fn;} observe(){} disconnect(){resize=null;} });
-  const area=Object.assign(new EventTarget(),{clientHeight:500,scrollTop:4000});
+  const area=Object.assign(new EventTarget(),{clientHeight:500,scrollTop:4000,...metrics});
   let page={before:'older',head_id:'head',generation:1,loading:false,error:false};
   const listeners=new Set();const requests=[];
   const update=patch=>{page={...page,...patch};for(const fn of listeners)fn();};
   const stop=startHistoryAutoload(area,{
     read:()=>page,subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},
-    load:()=>new Promise((resolve,reject)=>{requests.push({resolve,reject});}),
+    load:(direction)=>new Promise((resolve,reject)=>{requests.push({resolve,reject,direction});}),
   });
   const frame=()=>{const callbacks=[...frames.values()];frames.clear();callbacks.forEach(fn=>fn());};
   const settle=async(patch={},reject=false)=>{update(patch); const req=requests.at(-1); reject?req.reject(new Error('offline')):req.resolve(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve();};
@@ -116,4 +116,31 @@ test('failed snapshot renewal stops automatic retries against an invalid cursor'
  assert.equal(f.requests.length,1);
  f.update({error:false,renewalRequired:false,before:'renewed'});f.frame();
  assert.equal(f.requests.length,2);await f.settle({before:null});
+});
+
+ test('positive latest placement does not extend opposite older lookahead',t=>{
+  const f=fixture(t,{scrollHeight:7444});f.area.scrollTop=6944;f.frame();
+  assert.equal(f.requests.length,0);
+ });
+ test('negative movement does not extend opposite newer lookahead',t=>{
+  const f=fixture(t,{scrollHeight:10000});f.update({before:null,after:'newer'});
+  f.area.scrollTop=2000;f.frame();assert.equal(f.requests.length,0);
+ });
+ test('directional lookahead retains early bidirectional paging',t=>{
+  const f=fixture(t,{scrollHeight:10000});f.update({after:'newer'});
+  f.area.scrollTop=2000;f.frame();assert.equal(f.requests[0].direction,'older');
+ });
+ test('positive lookahead reaches newer before the fixed edge threshold',t=>{
+  const f=fixture(t,{scrollHeight:8500});f.update({after:'newer'});
+  f.area.scrollTop=6000;f.frame();assert.equal(f.requests[0].direction,'newer');
+ });
+ test('short content still fills without movement',t=>{
+  const f=fixture(t,{scrollHeight:300,scrollTop:0});f.frame();
+  assert.equal(f.requests[0].direction,'older');
+ });
+
+test('virtualized height shrink at latest is not upward reading velocity',t=>{
+ const f=fixture(t,{scrollHeight:8244,scrollTop:7744});
+ f.area.scrollHeight=7444;f.area.scrollTop=6944;f.frame();
+ assert.equal(f.requests.length,0);
 });

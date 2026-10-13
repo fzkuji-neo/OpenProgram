@@ -1,3 +1,4 @@
+import type { FileSectionRequests } from "../file-section-requests";
 import type { CanvasDockSide, CanvasLayout, LayoutNode } from "../canvas-layout";
 import type { CenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import type { BuiltinPage } from "@/lib/tabs/center-tab-ids";
@@ -89,6 +90,7 @@ export interface FileNavigationHistory {
 }
 
 export interface FileTabOptions {
+  section?: string;
   diffSessionId?: string;
   diffMsgId?: string;
   scrollToLine?: number;
@@ -96,6 +98,9 @@ export interface FileTabOptions {
 }
 
 export interface CenterTabsState {
+  fileSectionRequests: FileSectionRequests;
+  fileSectionSequence: number;
+  consumeFileSection: (id: string, sequence: number) => void;
   setCanvas: (targetId: string, canvas: CanvasLayout) => void;
   /** Live, unpersisted canvas tree while a divider is dragged. */
   previewCanvas: (targetId: string, root: LayoutNode) => void;
@@ -149,7 +154,7 @@ export interface CenterTabsState {
     path: string,
     options?: FileTabOptions,
   ) => void;
-  openFilePreview: (sessionId: string, target: { projectId: string; path: string; readOnly?: boolean }, automatic?: boolean) => boolean;
+  openFilePreview: (sessionId: string, target: { projectId: string; path: string; readOnly?: boolean; section?: string }, automatic?: boolean) => boolean;
   /** Focus-or-create a web tab for `url` (must already be a valid
    *  http(s) URL — run user input through normalizeWebUrl first). */
   openWebTab: (url: string, agentRequest?: boolean) => void;

@@ -17,6 +17,8 @@ import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {Composer} from './components/chat/composer';
+import {useDecisionSubmissions} from './lib/chat/decision-submissions';
+window.decisionReceipt = id => useDecisionSubmissions.getState().submissions[id];
 import {DecisionOutputs} from './components/chat/messages/decision-output';
 import {useSessionStore} from './lib/session-store';
 import {SessionScopeProvider} from './lib/session-store/session-scope';
@@ -127,20 +129,20 @@ def decision_page(decision_bundle):
 def test_question_arrival_preserves_draft_focus_and_chat_submit(decision_page):
     from playwright.sync_api import expect
     page = decision_page
-    main = page.locator('[data-input="main"] textarea')
+    main = page.locator('[data-input="main"] [data-composer-input]')
     main.fill("This is a queued chat message")
     page.evaluate("window.addDecision('main'); window.addDecision('peer')")
     expect(main).to_be_focused()
-    expect(main).to_have_value("This is a queued chat message")
+    expect(main).to_have_text("This is a queued chat message")
     expect(page.locator('[data-input="main"] [data-decision-output="main-ask"]')).to_be_visible()
     expect(page.locator('[data-output] [data-decision-status="open"]')).to_have_count(0)
     expect(page.locator('[data-output="main"] [data-decision-output="peer-ask"]')).to_have_count(0)
     page.locator('[data-input="main"]').get_by_role("button", name="Send message", exact=True).click()
-    expect(main).to_have_value("")
+    expect(main).to_have_text("")
     assert page.evaluate("window.readQueue('main')[0].text") == "This is a queued chat message"
     assert page.evaluate("window.commands") == []
     # An idle peer still sends regular chat while its independent question waits.
-    peer = page.locator('[data-input="peer"] textarea')
+    peer = page.locator('[data-input="peer"] [data-composer-input]')
     peer.fill("Regular peer chat")
     page.locator('[data-input="peer"]').get_by_role("button", name="Send message", exact=True).click()
     page.wait_for_function("window.framesSent.some(x => x.content === 'Regular peer chat' || x.message === 'Regular peer chat' || x.text === 'Regular peer chat')")
@@ -191,8 +193,12 @@ def test_decision_variants_submit_from_output(decision_page, kind, answer):
     page.wait_for_function("window.commands.length === 1")
     assert page.evaluate("window.commands[0].payload.answer") == answer
     page.evaluate("window.releaseAnswer()")
-    expect(card.get_by_role("status")).to_have_text("Answer confirmed")
-    expect(page.locator('[data-input="main"] textarea')).to_be_visible()
+    if kind == "approval":
+        page.wait_for_function('window.decisionReceipt("main-approval").status === "answered"')
+        expect(card).to_have_count(0)
+    else:
+        expect(card.get_by_role("status")).to_have_text("Answer confirmed")
+    expect(page.locator('[data-input="main"] [data-composer-input]')).to_be_visible()
 
 
 def test_navigation_custom_multi_shortcuts_and_collapse(decision_page):
@@ -302,21 +308,26 @@ def test_discussion_remount_retains_command_and_inflight_fence(decision_page):
     assert first["action"] == "execution.wait.decline"
     page.evaluate("window.remountPanels()")
     expect(feedback).to_have_value("Please explain the choices")
-    card.get_by_role("button", name="Retry discussion", exact=True).click()
+    card.get_by_role("button", name="Retry", exact=True).click()
     assert page.evaluate("window.commands.length") == 1
     page.evaluate("window.releaseAnswer(503)")
     page.evaluate("window.remountPanels()")
-    card.get_by_role("button", name="Retry discussion", exact=True).click()
+    card.get_by_role("button", name="Retry", exact=True).click()
     page.wait_for_function("window.commands.length === 2")
     assert page.evaluate("window.commands[1]") == first
     page.evaluate("window.releaseAnswer()")
     expect(page.locator('[data-input="main"] [data-question-card]')).to_have_count(0)
     queue = page.evaluate("window.readQueue('main')")
-    assert len(queue) == 1
-    assert queue[0]["text"].startswith("Please explain the choices")
+    assert queue == []
+    assert first["payload"]["reason"] == "Please explain the choices"
+    assert page.evaluate("window.framesSent.filter(frame => frame.action === 'chat')") == []
+    assert page.evaluate('window.decisionReceipt("main-ask").status') == "declined"
     page.evaluate("window.remountPanels()")
+    expect(page.locator('[data-input="main"] [data-composer-input]')).to_be_visible()
+    page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
     assert page.evaluate("window.readQueue('main')") == queue
     assert page.evaluate("window.commands.length") == 2
+    assert page.evaluate("window.framesSent.filter(frame => frame.action === 'chat')") == []
 
 
 @pytest.mark.parametrize("with_description", [False, True])

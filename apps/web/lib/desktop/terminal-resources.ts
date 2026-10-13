@@ -3,9 +3,18 @@
 import { create } from "zustand";
 import { followAppTarget, TERMINAL_TARGET } from "../chat/session-resources.ts";
 
+// Advisory shell reports; command exit never proves an external effect or task success.
+export type TerminalShellIntegration = {
+  status: "starting" | "ready" | "unavailable" | "ended";
+  mode: "zsh-hooks" | "bash-debug" | null; reason: string | null;
+  event_sequence: number;
+  cwd: { value: string; event_sequence: number } | null;
+  cycle: { id: number; phase: "running" | "finished" | "unknown"; exit_code: number | null } | null;
+};
 export type TerminalResource = {
   terminal_id: string; generation: string; preset: string; status: string;
   start_cwd: string; pid: number | null; exit_code: number | null;
+  shell_integration?: TerminalShellIntegration;
   output_end: number; shared: boolean; session_ids: string[];
   input_revision: number; human_input_pending: boolean; in_use: boolean;
 };

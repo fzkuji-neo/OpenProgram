@@ -126,7 +126,7 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
   const setComposerInputFor = useSessionStore((s) => s.setComposerInputFor);
   const focusTick = useSessionStore((s) => s.composerFocusTick);
 
-  const historyRecall = useHistoryRecall(bound, currentSessionId);
+  const historyRecall = useHistoryRecall(bound, currentSessionId, input);
   const { setHistoryIndex } = historyRecall;
 
   // Attachments — pending images, pending docs, drag-drop, file

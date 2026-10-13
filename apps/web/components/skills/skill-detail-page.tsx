@@ -322,7 +322,7 @@ export function SkillDetailPage({ name }: { name: string }) {
                 />
               ) : (
                 <div className="prose prose-invert max-w-none text-sm">
-                  <Markdown source={detail.body} />
+                  <Markdown source={detail.body} escapeRawHtml />
                 </div>
               )
             )}

@@ -414,6 +414,12 @@ button[aria-pressed="true"] { border-color: var(--acc); color: var(--acc); }
 <p><code>loadSessionHistoryWindow</code> 协调请求并发布行及窗口元数据，不执行 latest 定位，不检查 send/jump note。只有 <code>useChatAreaStick</code> 在 latest 成功后选择并执行发送 snap 或 Jump smooth。older/newer/around 窗口替换继续由现有 history-viewport helper 恢复锚点：更新前分别捕获每个 registered area 的 anchor、oldTop、oldHeight；flushSync 后仅当该 area 仍注册在同一 session 且 chatKey 一致时才恢复。曾经注册、后来失去注册的 area 不得恢复。未注册的 <code>#chatArea</code> 回退只用于捕获时本来就没有注册、且节点仍是当前主栏滚动器的情况。节点仍连接但已被复用时不得写入。高度缓存也使用各自 chatKey，不能复用第一视口的 anchor 或高度差。</p>
 <p>窗口替换恢复是明确保留的滚动写入，不是另一套跟随策略。它不执行 latest snap，也不能覆盖较新的活动跟随操作。同 session 的主栏与 peer 共享历史数据，替换行可能影响两者；非请求方在原锚点仍存在时保留其可见位置。淘汰导致锚点消失时沿用现有有界回退，并在验收证据中说明；scroller 隔离不承诺独立历史数据集。</p>
 
+<h3 id="history-prefetch">考虑布局变化的历史预加载</h3>
+<p>历史预加载仅在转录内容高度不变时估算阅读速度。<code>scrollHeight</code> 变化时，在选择请求前将速度估计重置为零；布局引起的滚动位置调整，包括最新位置处虚拟列表内容缩短，不代表读者向较早历史移动。这个保守重置可能减少重排期间的提前加载，但保留固定边缘阈值。</p>
+<p>分别计算两个方向的提前加载距离。固定下限为 <code>max(1600px, 2 × 视口高度)</code>，总阈值最高为 <code>12000px</code>。只有负速度扩大 older 阈值，只有正速度扩大 newer 阈值，沿用现有延迟估计与 1.5 倍系数。速度为零时保留固定下限，因此内容不足一屏时仍可在没有手势的情况下请求可用历史。两侧均满足条件时保留现有方向选择规则。</p>
+<p>请求串行化、游标和 generation 校验、失败退避、快照续期、隐藏视图抑制、连接恢复与资源清理均保持现有行为。此策略只决定何时请求数据，不写入 <code>scrollTop</code>、不恢复锚点、不创建跟随操作。现有 history-viewport helpers 继续负责锚点，<code>useChatAreaStick</code> 继续负责跟随和最新位置定位。</p>
+<p><strong>验收：</strong>通过真实预加载控制器验证反方向移动、最新位置处虚拟列表高度缩短、两个方向的提前加载阈值和短内容填充。不修改原 automatic-history 浏览器测试的行为断言：首次不得请求较早历史，滚动触发加载，请求期间读者移动后 prepend 的位置误差小于 3px，离屏行回收且无重复请求。显式启用 browser marker，执行现有历史和跟随浏览器测试。</p>
+
 <h3 id="trust">信任边界、数据流、失败</h3>
 <ul>
   <li>跟随是视图问题。转录身份、attached 和最后一次用户手势足够。帧类型不是滚动信号。</li>
@@ -562,7 +568,7 @@ git diff --check</code></pre><p>浏览器自动测试使用隔离状态，不发
 </section>
 
 <section id="status">
-<h2>实现状态</h2>
+<h2>实现状态附录</h2>
 <div class="doc-scroll" tabindex="0" role="region" aria-label="实现状态">
 <table>
 <thead><tr><th>范围</th><th>状态</th><th>边界</th></tr></thead>
@@ -574,6 +580,7 @@ git diff --check</code></pre><p>浏览器自动测试使用隔离状态，不发
 <tr><td><code>useStickToBottom</code></td><td>已删除</td><td>文件已删。</td></tr>
 <tr><td>历史加载器 <code>scrollTop</code> 写入</td><td>已有</td><td>加载器不 pin latest。各视口恢复在 history-viewport helper，跟随锁定期跳过。</td></tr>
 <tr><td>本页的统一跟随契约</td><td>已有</td><td>App 与浏览器共用此 Web 渲染器。证据是已审查的实现提交，不是本预览。</td></tr>
+<tr><td>考虑布局变化的双向历史预加载</td><td>源码审查通过</td><td>源码实现已具备；独立规格与质量审查及受影响检查通过。整批代码的自动化验证已通过；安装后的 App 验收仍待完成。</td></tr>
 </tbody>
 </table>
 </div>

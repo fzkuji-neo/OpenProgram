@@ -39,9 +39,9 @@ def browser_page(bundles):
             state["requests"].append(path)
             if path in ("/", "/controller"):
                 script = "controller" if path == "/controller" else "window"
-                request.fulfill(content_type="text/html", body=f'<div id="root"></div><script src="/{script}.js"></script>')
+                request.fulfill(content_type="text/html; charset=utf-8", body=f'<meta charset="utf-8"><div id="root"></div><script src="/{script}.js"></script>')
             elif path in ("/window.js", "/controller.js"):
-                request.fulfill(content_type="text/javascript", body=bundles[path[1:-3]])
+                request.fulfill(content_type="text/javascript; charset=utf-8", body=bundles[path[1:-3]])
             elif path == "/api/documents/content":
                 if request.request.method == "GET":
                     request.fulfill(body=state["body"], headers={"x-document-revision": state["revision"], "x-document-version": state["revision"]})

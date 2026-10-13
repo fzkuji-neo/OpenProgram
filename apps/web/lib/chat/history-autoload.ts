@@ -17,6 +17,7 @@ export function startHistoryAutoload(
   let failures = 0;
   let generation: number | undefined;
   let lastTop = area.scrollTop;
+  let lastHeight = area.scrollHeight;
   let lastTime = performance.now();
   let velocity = 0;
   let latency = 750;
@@ -38,13 +39,15 @@ export function startHistoryAutoload(
     const now = performance.now();
     const elapsed = Math.max(16, now - lastTime);
     const delta = area.scrollTop - lastTop;
-    if (delta) velocity = delta / elapsed;
+    if (area.scrollHeight !== lastHeight) velocity = 0;
+    else if (delta) velocity = delta / elapsed;
     else velocity *= 0.5;
-    lastTop = area.scrollTop; lastTime = now;
-    const ahead = Math.min(12_000, Math.max(1600, area.clientHeight * 2, Math.abs(velocity) * latency * 1.5));
+    lastTop = area.scrollTop; lastHeight = area.scrollHeight; lastTime = now;
+    const ahead = Math.min(12_000, Math.max(1600, area.clientHeight * 2, Math.max(0, -velocity) * latency * 1.5));
+    const newerAhead = Math.min(12_000, Math.max(1600, area.clientHeight * 2, Math.max(0, velocity) * latency * 1.5));
     const bottom = area.scrollHeight - area.clientHeight - area.scrollTop;
     const older = !!page?.before && area.scrollTop <= ahead;
-    const newer = !!page?.after && bottom <= ahead;
+    const newer = !!page?.after && bottom <= newerAhead;
     const direction: HistoryDirection | null = older && (!newer || velocity < 0 || area.scrollTop <= bottom) ? 'older' : newer ? 'newer' : null;
     if (busy || timer !== undefined || !page || !direction || page.loading
         || area.clientHeight <= 0 || document.visibilityState === 'hidden') return;

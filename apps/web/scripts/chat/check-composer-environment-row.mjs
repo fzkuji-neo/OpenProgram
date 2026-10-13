@@ -34,8 +34,10 @@ assert.match(environmentRow, /trailingControls/);
 assert.doesNotMatch(environmentRow, /dagHudSlot|DAG/i);
 assert.match(environmentRow, /data-environment-row/);
 
-assert.match(compactHook, /new ResizeObserver\(measure\)/);
+assert.match(compactHook, /new ResizeObserver\(fit\)/);
 assert.match(compactHook, /new MutationObserver/);
+assert.match(compactHook, /needs \?\?= measureNeeds\(\)/);
+assert.match(compactHook, /const measure = \(\) => \{\s*needs = null;\s*fit\(\);/);
 // Need = last chip's right edge, not scrollWidth: the right-aligned web
 // chip's auto margin makes scrollWidth always equal clientWidth, so a
 // squeezed row could never expand again.

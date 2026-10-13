@@ -90,6 +90,7 @@ export async function expandAtMentions(
   if (seen.size === 0) {
     return { text, expanded: [], missing: [] };
   }
+  const signal = AbortSignal.timeout(15_000);
   const resolved = new Map<string, { ok: true; abs: string; size: number }
                                   | { ok: false }>();
   await Promise.all(
@@ -97,7 +98,7 @@ export async function expandAtMentions(
       try {
         const q = new URLSearchParams({ path });
         if (root) q.set("root", root);
-        const r = await fetch(`/api/file-resolve?${q.toString()}`);
+        const r = await fetch(`/api/file-resolve?${q.toString()}`, { signal });
         if (!r.ok) {
           resolved.set(path, { ok: false });
           return;

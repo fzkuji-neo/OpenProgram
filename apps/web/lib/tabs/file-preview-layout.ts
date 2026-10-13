@@ -3,6 +3,9 @@ import { replaceGroupTabId } from "./center-tabs-persistence.ts";
 import type { CenterTabsState } from "./store/types.ts";
 
 export interface FilePreviewTarget { projectId: string; path: string; readOnly?: boolean; }
+export function filePreviewId(sessionId: string, target: FilePreviewTarget): string {
+  return `f:preview:${sessionId}:${target.projectId}:${target.path}`;
+}
 export function filePreviewLayout(state: Pick<CenterTabsState, "tabs" | "groups" | "activeId">, sessionId: string, target: FilePreviewTarget, automatic = false) {
   const chat = state.tabs.find(tab => tab.kind === "session" && tab.sessionId === sessionId);
   if (!chat) return null;
@@ -13,7 +16,7 @@ export function filePreviewLayout(state: Pick<CenterTabsState, "tabs" | "groups"
   const ownedSplit = group?.id === `g:preview:${sessionId}` && peers.length === 1
     && peers[0]?.previewOwnerSessionId === sessionId;
   if (automatic && group && (!ownedSplit || peers.some(tab => tab?.dirty))) return null;
-  const id = `f:preview:${sessionId}:${target.projectId}:${target.path}`;
+  const id = filePreviewId(sessionId, target);
   let tabs = state.tabs.some(tab => tab.id === id) ? state.tabs : [...state.tabs, {
     id, kind: "file" as const, title: target.path.replace(/\\/g, "/").split("/").pop() || target.path,
     ...target, fileSessionId: sessionId, previewOwnerSessionId: sessionId,

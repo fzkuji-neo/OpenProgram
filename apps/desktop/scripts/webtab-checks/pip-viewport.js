@@ -1,6 +1,7 @@
 // Fixed viewport screenshot lifecycle through the production IPC boundary.
 module.exports = function createChecks(t) {
   async function checkPipCapture() {
+    await checkNavigationGeneration();
     t.hooks.registerWebTabIpc();
     const win = t.fakeWindow(845);
     const ctx = t.registerContext("pip-capture", win);
@@ -130,6 +131,66 @@ module.exports = function createChecks(t) {
     t.assert.equal(record.pipScrollbarStyle, null);
     t.hooks.destroyView(ctx, record.id);
     t.hooks.windows.delete(ctx.id);
+  }
+  async function checkNavigationGeneration() {
+    t.hooks.registerWebTabIpc();
+    const win = t.fakeWindow(846);
+    const ctx = t.registerContext("capture-generation", win);
+    const record = t.hooks.ensureView(ctx, "capture-generation-page", "https://example.com/same");
+    const c = t.generatedNativeRecords.at(-1);
+    c.controls[0].resolve();
+    await record.navigation?.promise;
+    const url = record.view.webContents.getURL();
+    const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
+    const start = (same = false, main = true) => c.emitWebContents("did-start-navigation",
+      { url, isSameDocument: same, isMainFrame: main }, url, same, main, 1, main ? 1 : 2);
+    const commit = (same = false, main = true) => same
+      ? c.emitWebContents("did-navigate-in-page", {}, url, main, 1, main ? 1 : 2)
+      : c.emitWebContents("did-frame-navigate", {}, url, 200, "OK", main, 1, main ? 1 : 2);
+    try {
+      t.hooks.setPipZoom(ctx, record.id, 240, 135);
+      for (const mode of ["presentation", undefined]) {
+        const capture = () => t.ipcHandlers.get("webtab:capture")({ sender: win.webContents }, record.id, mode);
+        const delay = () => mode ? c.delayCapturePage() : c.delayDebuggerMethod("Page.captureScreenshot");
+        const complete = () => mode ? c.completeCapturePage() : c.completeDebuggerMethod("Page.captureScreenshot");
+        for (const change of ["reload", "capture-after-start", "in-page", "subframe", "aborted", "ownership"]) {
+          if (change === "capture-after-start") start();
+          delay();
+          const pending = capture();
+          await flush();
+          t.assert.equal(record.navigation, null, "native navigation is independent of loadURL promise identity");
+          if (change === "ownership") record.ownerId = "other-window";
+          else {
+            const same = change === "in-page";
+            const main = change !== "subframe";
+            if (change !== "capture-after-start") start(same, main);
+            if (change === "aborted") c.emitWebContents("did-fail-load", {}, -3, "ERR_ABORTED", url, true, 1, 1);
+            else commit(same, main);
+          }
+          complete();
+          t.assert.equal(await pending, null, `${mode || "CDP"}: ${change} must reject the obsolete frame`);
+          record.ownerId = ctx.id;
+          t.assert.equal(record.navigation, null);
+          t.assert.equal(record.view.webContents.getURL(), url, "same URL must not revive capture identity");
+          t.assert.ok(await capture(), "a fresh capture succeeds after the obsolete pipeline settles");
+        }
+        delay();
+        const moved = capture();
+        await flush();
+        const bounds = record.view.getBounds();
+        record.view.setBounds({ ...bounds, x: bounds.x + 10 });
+        complete();
+        t.assert.equal(Boolean(await moved), Boolean(mode), "native movement remains valid; CDP retains its existing bounds guard");
+      }
+      c.delayCapturePage();
+      const destroyed = t.ipcHandlers.get("webtab:capture")({ sender: win.webContents }, record.id, "presentation");
+      c.emitWebContents("destroyed");
+      c.completeCapturePage();
+      t.assert.equal(await destroyed, null);
+    } finally {
+      t.hooks.destroyView(ctx, record.id);
+      t.hooks.windows.delete(ctx.id);
+    }
   }
   return { checkPipCapture };
 };

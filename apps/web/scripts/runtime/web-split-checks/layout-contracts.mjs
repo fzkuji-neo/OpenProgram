@@ -292,7 +292,7 @@ testContext.assert.match(testContext.canvasControlsSource, /onPointerDown=/);
 
 testContext.assert.match(testContext.canvasControlsSource, /"ArrowLeft","ArrowRight","ArrowUp","ArrowDown"/);
 
-testContext.assert.match(testContext.canvasControlsSource, /resizeSplit\([^)]*-\.02:\.02\)/);
+testContext.assert.match(testContext.canvasControlsSource, /resizeSplit\(layout\.root,d\.splitId,d\.index,[^)]*-\.02:\.02,d\.span\)/);
 
 testContext.assert.match(testContext.appShellSource, /sessionStore\.setCurrentConv\(sid\);/);
 
@@ -408,7 +408,7 @@ testContext.assert.match(
 
 testContext.assert.match(
   testContext.webTabPaneSource,
-  /const bounds = measureWebTabBounds\(el\);/,
+  /const dragFrozen = canvasDragging\(\) \|\| suspended;\s*const bounds = dragFrozen \? null : measureWebTabBounds\(el\);/,
 );
 
 testContext.assert.match(

@@ -20,7 +20,7 @@ Receipts are in-memory presentation state, not Workflow checkpoints. Refresh rel
 
 ## Discussion and events
 
-An explicit discussion action retains its own feedback input. It first confirms decline of the pending request, then queues the contextual discussion in the owning conversation. An unconfirmed decline cannot send discussion or permit execution. Ordinary composer messages do not implicitly decline a question or become its answer.
+An explicit discussion action retains its own feedback input. It sends the feedback as the reason on the exact canonical decline command. The model receives it within the same turn; no separate ordinary chat message is queued. Only a matching applied receipt confirms delivery, and an unconfirmed decline never authorizes execution. Ordinary composer messages do not implicitly decline a question or become its answer.
 
 UI-only settings use direct store updates. A one-shot user action uses a correlated request and response. Runtime questions are broadcast events projected into the pending-decision store; command acknowledgement remains authoritative. Event arrival alone is not a receipt for the user's answer.
 

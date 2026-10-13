@@ -1,4 +1,5 @@
 "use client";
+import type { FileSectionNavigation } from "@/lib/tabs/file-section-requests";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileTextIcon, RefreshCwIcon } from "@/components/animated-icons";
 import { useActionIconAnimation } from "@/components/chat/messages/use-action-icon-animation";
@@ -21,8 +22,8 @@ import type { RasterEditorInstance } from "@/lib/documents/raster-editor";
 
 interface VersionPreview { blob: Blob; content?: string; version?: string; side?: "before" | "after"; disk?: boolean; }
 
-export function DocumentWindow({ projectId, path, sessionId, readOnly = false }: {
-  projectId: string; path: string; sessionId?: string; readOnly?: boolean;
+export function DocumentWindow({ projectId, path, sessionId, readOnly = false, sectionNavigation }: {
+  projectId: string; path: string; sessionId?: string; readOnly?: boolean; sectionNavigation?: FileSectionNavigation;
 }) {
   const { text } = useTranslation();
   const controller = useMemo(() => getOrCreateDocumentController({ projectId, path, sessionId, readOnly }),
@@ -39,6 +40,7 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
   useEffect(() => () => conversionAbort.current?.abort(), []);
   const [editorOpened, setEditorOpened] = useState(false);
   const [content, setContent] = useState("");
+  const [decodedBytes, setDecodedBytes] = useState<Blob | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<DocumentHistoryEntry[]>([]);
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
@@ -46,6 +48,19 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<VersionPreview | null>(null);
   const selectionRequest = useRef(0);
+  const sectionNavigationRef = useRef(sectionNavigation);
+  sectionNavigationRef.current = sectionNavigation;
+  useEffect(() => {
+    if (!sectionNavigation) return;
+    selectionRequest.current++;
+    setSelected(null);
+    setMode("preview");
+    if (!state.snapshot && state.status === "error") sectionNavigation.consume(sectionNavigation.request.sequence);
+    if (!path.toLowerCase().endsWith(".md") || state.snapshot?.binary) {
+      setError(text("Section not found.", "未找到章节。"));
+      sectionNavigation.consume(sectionNavigation.request.sequence);
+    }
+  }, [sectionNavigation?.request.sequence, state.snapshot?.binary]);
   const editedBytes = useRef<Blob | null>(null);
   const rasterEditor = useRef<RasterEditorInstance | null>(null);
   const [rasterReady, setRasterReady] = useState(false);
@@ -60,12 +75,17 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
   useEffect(() => controller.subscribe(setState), [controller]);
   useEffect(() => {
     let active = true;
-    void controller.load().catch((failure) => { if (active) setError(String(failure.message ?? failure)); });
+    void controller.load().catch((failure) => {
+      if (!active) return;
+      setError(String(failure.message ?? failure));
+      const navigation = sectionNavigationRef.current;
+      navigation?.consume(navigation.request.sequence);
+    });
     return () => { active = false; selectionRequest.current++; };
   }, [controller]);
   useEffect(() => {
     let active = true;
-    if (currentBytes && currentBytes !== editedBytes.current && isText) void currentBytes.text().then((value) => { if (active) setContent(value); });
+    if (currentBytes && currentBytes !== editedBytes.current && isText) void currentBytes.text().then((value) => { if (active) { setContent(value); setDecodedBytes(currentBytes); } });
     return () => { active = false; };
   }, [currentBytes, isText]);
 
@@ -260,7 +280,7 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
         <RasterSurface key={state.editorRevision} controller={controller} bytes={currentBytes} path={path} readOnly={readOnly} mode={mode} onReady={(value) => { rasterEditor.current = value; setRasterReady(Boolean(value)); }} />
       </div>}
 
-      {isPdf && currentBytes ? <><div hidden={Boolean(selected)} style={{ height: "100%" }}><PdfSurface saveStatus={state.status} key={state.editorRevision} controller={controller} bytes={currentBytes} path={path} readOnly={readOnly} /></div>{selected && <FileViewer projectId={projectId} path={path} sourceBlob={selected.blob} snapshot={{ project_id: projectId, path, binary: true, size: selected.blob.size, mtime: 0 }} />}</> : isOffice && currentBytes ? <><div hidden={Boolean(selected)} style={{ height: "100%" }}><OfficeSurface key={state.editorRevision} controller={controller} bytes={currentBytes} path={path} readOnly={readOnly || !office?.editable} mode={mode} /></div>{selected && <OfficeSurface key={`${selected.version ?? "disk"}:${selected.side ?? "after"}`} controller={controller} bytes={selected.blob} path={path} readOnly={true} mode="preview" />}</> : selected ? <FileViewer projectId={projectId} path={path} sourceBlob={selected.blob}
+      {isPdf && currentBytes ? <><div hidden={Boolean(selected)} style={{ height: "100%" }}><PdfSurface saveStatus={state.status} key={state.editorRevision} controller={controller} bytes={currentBytes} path={path} readOnly={readOnly} /></div>{selected && <FileViewer projectId={projectId} path={path} abs={readOnly} sessionId={sessionId} sourceBlob={selected.blob} snapshot={{ project_id: projectId, path, binary: true, size: selected.blob.size, mtime: 0 }} />}</> : isOffice && currentBytes ? <><div hidden={Boolean(selected)} style={{ height: "100%" }}><OfficeSurface key={state.editorRevision} controller={controller} bytes={currentBytes} path={path} readOnly={readOnly || !office?.editable} mode={mode} /></div>{selected && <OfficeSurface key={`${selected.version ?? "disk"}:${selected.side ?? "after"}`} controller={controller} bytes={selected.blob} path={path} readOnly={true} mode="preview" />}</> : selected ? <FileViewer projectId={projectId} path={path} abs={readOnly} sessionId={sessionId} sourceBlob={selected.blob}
         snapshot={{ project_id: projectId, path, content: selected.content, binary: !isText, size: selected.blob.size, mtime: 0 }} /> : <>
       {!isRaster && editorOpened && <div hidden={mode !== "edit" || Boolean(selected)} style={{ height: "100%" }}>
         <fieldset disabled={state.restoring || state.renaming} style={{ border: 0, margin: 0, padding: 0, height: "100%" }}>
@@ -275,7 +295,7 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false }:
       </div>}
       <div hidden={(mode === "edit" && (isRaster || editorOpened)) || Boolean(selected)} style={{ height: "100%" }}>
         {snapshot ? <FileViewer projectId={projectId} path={path} abs={readOnly} sessionId={sessionId}
-          snapshot={snapshot} sourceBlob={currentBytes} /> : <span>{text("Loading…", "加载中…")}</span>}
+          sectionNavigation={mode === "preview" && (decodedBytes === currentBytes || editedBytes.current === currentBytes) ? sectionNavigation : undefined} snapshot={snapshot} sourceBlob={currentBytes} /> : <span>{text("Loading…", "加载中…")}</span>}
       </div>
       </>}
     </div>
