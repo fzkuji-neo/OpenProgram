@@ -111,6 +111,8 @@ def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypat
     from openprogram.agent.authority import local_owner_authority
     from openprogram.agent.dispatcher import TurnRequest
     from openprogram.agent.turn_request_context import set_turn_request, reset_turn_request
+    from openprogram.agent import surface_context
+    from openprogram.webui.ws_actions import webtab
     uploads = []
     html = b'''<input type="file" aria-label="Attachment"><p id="status">Not submitted</p>
     <script>document.querySelector('input').onchange=async e=>{
@@ -135,6 +137,10 @@ def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypat
             return result
     controller = BrowserPageController(browser_api=API(''))
     monkeypatch.setattr(browser, '_new_controller', lambda: controller)
+    def bound_page(binding_id, **_kwargs):
+        assert binding_id == 'upload-fixture-binding'
+        return {'ok': True, 'input_scale': 1}
+    monkeypatch.setattr(webtab, 'request_bound_tab', bound_page)
     path = tmp_path/'fixture.txt'; path.write_bytes(b'fixture bytes only')
     from openprogram.agent import run_control
     from openprogram.programs.workflow.browser._runtime import file_inputs
@@ -168,6 +174,9 @@ def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypat
     runtime = Runtime(call=lambda *_a, **_k: 'unused', max_retries=1); runtime._stream_fn = stream
     token = set_turn_request(TurnRequest(session_id='upload-fixture',agent_id='main',user_text='Upload the fixture',
         permission_mode='bypass',source='web',**local_owner_authority()))
+    page_token = surface_context.bind({'primary_surface_key': 'upload-fixture-page', 'surfaces': [
+        {'surface_key': 'upload-fixture-page', 'binding_id': 'upload-fixture-binding', 'capabilities': ['observe']},
+    ]})
     try:
         try:
             result = run_on(runtime, browser.browser_agent, task='Upload fixture.txt and verify server acceptance',max_steps=1)
@@ -188,6 +197,7 @@ def test_public_browser_task_uploads_once_and_verifies_real_server_ack(monkeypat
         assert result['completion_evidence'][0]['value'] == 'Accepted fixture file'
     finally:
         run_control._current_token.reset(cancel_binding)
+        surface_context.reset(page_token)
         reset_turn_request(token); runtime.close()
         if controller.session_id:
             controller.close()
