@@ -76,9 +76,9 @@ def _tool_results_dir() -> Path:
 
 def _cap_result_text(text: str, max_chars: int,
                      *, head_ratio: float = DEFAULT_HEAD_RATIO) -> str:
-    if len(text) <= max_chars:
-        return text
     keep = max(max_chars, MIN_KEEP_CHARS)
+    if len(text) <= keep:
+        return text
     head = int(keep * head_ratio)
     tail = keep - head
     elided = len(text) - head - tail
@@ -86,7 +86,7 @@ def _cap_result_text(text: str, max_chars: int,
         text[:head]
         + f"\n\n[... {elided:,} chars elided of {len(text):,} total —"
         f" call again with narrower scope or check the persisted file ...]\n\n"
-        + text[-tail:]
+        + (text[-tail:] if tail else "")
     )
 
 
@@ -183,6 +183,7 @@ def _normalize_result(
             pass
 
     full_text = text_part
+    max_chars = max(max_chars, MIN_KEEP_CHARS)
     if len(full_text) > max_chars:
         if persist_full:
             try:

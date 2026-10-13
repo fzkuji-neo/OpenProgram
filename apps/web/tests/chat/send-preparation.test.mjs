@@ -159,7 +159,7 @@ async function mounted(specs) {
     Object.assign(globalThis, { window: parsed.window, document: parsed.document, IS_REACT_ACT_ENVIRONMENT: true });
     const views = [];
     const root = createRoot(document.getElementById("root"));
-    function Probe({ i, s }) { views[i] = composer(s.text, { isRunning: false, activeChatKey: s.owner, currentSessionId: s.owner, bound: s.bound ?? null }); return null; }
+    function Probe({ i, s }) { views[i] = composer(s.text, { isRunning: false, activeChatKey: s.owner, currentSessionId: s.owner, bound: s.bound ?? null, ...s.overrides }); return null; }
     const render = () => root.render(createElement("div", null, ...specs.map((s, i) => createElement(Probe, { key: i, i, s }))));
     await act(render);
     return { views, async update(next) { specs = next; await act(render); }, async close() { await act(() => root.unmount()); } };
@@ -176,6 +176,7 @@ test("same hook and focused/bound composers share one pending owner intent", asy
         d[0].resolve();
         await Promise.all([a, repeated, peer]);
         assert.equal(host.frames.length, 1);
+        assert.equal(host.sessions.composerDrafts.A, "", "unchanged accepted intent clears its body");
     }
     finally {
         await v.close();
@@ -355,3 +356,52 @@ test("escaped transport lookup exception retains draft and releases exact reserv
         await view.close();
     }
 });
+
+test("changed attachment intent keeps its unsent caption when older preparation settles", async () => {
+    const d = deferMentions();
+    const v = await mounted([{ owner: "A", text: "inspect @file.txt" }]);
+    const added = { id: "new-doc", order: 1, filename: "new.txt", sourcePath: "/tmp/new.txt", ext: "txt", sizeBytes: 3, dataB64: "YWJj", content: "abc" };
+    try {
+        const older = v.views[0].submit();
+        await v.update([{ owner: "A", text: "inspect @file.txt", overrides: { pendingDocs: [added] } }]);
+        await v.views[0].submit();
+        assert.equal(d.length, 1, "changed attachment intent is explicitly not submitted during old preparation");
+        assert.match(host.toasts.at(-1)[0], /This draft was not sent/);
+        assert.equal(host.sessions.composerDrafts.A, "inspect @file.txt");
+        d[0].resolve();
+        await older;
+        assert.equal(host.frames.length, 1);
+        assert.equal(host.frames[0].text, "inspect @file.txt");
+        assert.equal(host.frames[0].attachments, undefined);
+        assert.equal(host.sessions.composerDrafts.A, "inspect @file.txt", "caption of the explicitly unsent changed attachment intent must remain");
+    } finally {
+        for (const x of d) x.resolve();
+        await v.close();
+    }
+});
+
+for (const peer of [false, true]) {
+    test(`changed settings intent preserves same body (${peer ? "peer" : "same"} composer)`, async () => {
+        const d = deferMentions();
+        const caption = "inspect @file.txt";
+        const specs = [{ owner: "A", text: caption }];
+        if (peer) specs.push({ owner: "A", text: caption, bound: "A" });
+        const v = await mounted(specs);
+        try {
+            const older = v.views[0].submit();
+            specs[peer ? 1 : 0] = { ...specs[peer ? 1 : 0], overrides: { thinking: "high" } };
+            await v.update(specs);
+            await v.views[peer ? 1 : 0].submit();
+            assert.equal(d.length, 1);
+            assert.match(host.toasts.at(-1)[0], /This draft was not sent/);
+            d[0].resolve();
+            await older;
+            assert.equal(host.frames.length, 1);
+            assert.equal(host.frames[0].text, caption);
+            assert.equal(host.sessions.composerDrafts.A, caption);
+        } finally {
+            for (const x of d) x.resolve();
+            await v.close();
+        }
+    });
+}

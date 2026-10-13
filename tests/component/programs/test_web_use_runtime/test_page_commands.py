@@ -110,6 +110,94 @@ def test_list_pages_returns_group_aware_snapshot_with_page_tokens():
     }
 
 
+def test_public_close_confirms_native_page_and_releases_owned_session(monkeypatch):
+    from openprogram.agent import surface_context
+    from openprogram.programs.workflow import browser as browser_module
+    from openprogram.programs.workflow.browser import web_use_runtime
+    from openprogram.webui import server
+    from openprogram.webui.ws_actions import webtab
+
+    connection = object()
+    owner = "public-close-owner"
+    current_owner = [owner]
+    adapter = _NativeObserveAdapter("open_claude_chrome")
+    released = []
+    native_closes = []
+
+    def release_context(context):
+        released.append(context)
+        surface_context.release_bindings(context)
+
+    registry = web_use_runtime.WebUseSessionRegistry(
+        adapters={name: adapter for name in web_use_runtime.SUPPORTED_BACKENDS},
+        release_context=release_context,
+    )
+    webtab.ensure_connection_revision(connection)
+    webtab._desktop_windows[connection] = "win"
+    monkeypatch.setattr(server, "_ws_connections", [connection])
+    base_transport = _public_open_transport(webtab)
+
+    def request_on_ws(ws, command, timeout=15):
+        if command.get("op") == "close":
+            assert ws is connection
+            native_closes.append(dict(command))
+            return {"ok": True}
+        return base_transport(ws, command, timeout)
+
+    monkeypatch.setattr(webtab, "request_on_ws", request_on_ws)
+    monkeypatch.setattr(web_use_runtime, "get_registry", lambda: registry)
+    monkeypatch.setattr(surface_context, "current", lambda: None)
+    monkeypatch.setattr(
+        surface_context, "web_use_owner_id", lambda context=None: current_owner[0],
+    )
+
+    def invoke(**request):
+        result = browser_module.web_use(**request)
+        return result.json_data if hasattr(result, "json_data") else result
+
+    try:
+        observed = invoke(
+            command="observe", backend="open_claude_chrome",
+            arguments={"url": "http://127.0.0.1:62147/page/1"},
+        )
+        session_id = observed["web_session_id"]
+        session = registry._sessions[session_id]
+        assert registry._page_leases[session.page_key] == session_id
+        assert webtab.binding_connection(session.binding_id) is connection
+
+        current_owner[0] = "foreign-owner"
+        rejected = invoke(command="close", web_session_id=session_id)
+        assert rejected["reason_code"] == "web_session_owner_mismatch"
+        assert rejected["page_closed"] is False
+        assert native_closes == []
+        assert registry._sessions[session_id] is session
+        assert adapter.calls == ["observe"]
+
+        current_owner[0] = owner
+        closed = invoke(command="close", web_session_id=session_id)
+        assert closed == {
+            "ok": True, "closed": True, "page_closed": True,
+            "web_session_id": session_id,
+        }
+        assert native_closes == [{"op": "close", "tab_id": "tab-opened"}]
+        assert adapter.calls == ["observe", "close"]
+        assert released == [session.page_context]
+        assert session.closed is True
+        assert not registry._sessions
+        assert not registry._page_leases
+        assert not registry._page_capabilities
+        assert webtab.binding_connection(session.binding_id) is None
+
+        repeated = invoke(command="close", web_session_id=session_id)
+        assert repeated["reason_code"] == "web_session_not_found"
+        assert repeated["page_closed"] is False
+        assert len(native_closes) == 1
+        assert adapter.calls == ["observe", "close"]
+    finally:
+        registry.release_owner(owner)
+        webtab.release_connection(connection)
+
+
 def test_closing_one_page_session_keeps_sibling_page_binding_alive(monkeypatch):
     from openprogram.programs.workflow.browser.web_use_runtime import (
         WebUseSessionRegistry,

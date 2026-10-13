@@ -150,11 +150,11 @@ def test_cap_short_text_unchanged() -> None:
 
 
 def test_cap_long_text_head_tail() -> None:
-    text = "A" * 500 + "B" * 500
+    text = "A" * 1500 + "B" * 1500
     capped = _cap_result_text(text, max_chars=200, head_ratio=0.5)
-    # MIN_KEEP_CHARS = 2000 enforces a floor; we asked for 200 but get 2000+
-    assert len(capped) >= 2000
-    assert "elided" in capped
+    assert capped.startswith("A" * 1000 + "\n\n[...")
+    assert capped.endswith("\n\n" + "B" * 1000)
+    assert "1,000 chars elided of 3,000 total" in capped
 
 
 def test_cap_respects_min_floor() -> None:
@@ -248,6 +248,36 @@ def test_agent_tool_result_bridges_legacy_details_error_bit() -> None:
 # ---------------------------------------------------------------------------
 # Char cap + persist-to-disk
 # ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("length", [1000, MIN_KEEP_CHARS])
+@pytest.mark.parametrize("persist_full", [False, True])
+def test_result_within_minimum_cap_is_preserved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, length: int, persist_full: bool,
+) -> None:
+    monkeypatch.setattr(R, "_tool_results_dir", lambda: tmp_path)
+    original = "A" * (length // 2) + "B" * (length - length // 2)
+
+    @function(max_result_chars=200, persist_full=persist_full)
+    def small_result() -> str:
+        return original
+
+    result = _run(small_result.execute("small-cap", {}, None, None))
+    assert result.content[0].text == original
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("head_ratio", [0.0, 1.0])
+def test_result_cap_endpoint_keeps_only_requested_portion(head_ratio: float) -> None:
+    @function(max_result_chars=200, persist_full=False, head_ratio=head_ratio)
+    def long_result() -> str:
+        return "A" * 3000 + "B" * 3000
+
+    result = _run(long_result.execute("endpoint-cap", {}, None, None))
+    text = result.content[0].text
+    assert "4,000 chars elided of 6,000 total" in text
+    assert text.count("A") == (MIN_KEEP_CHARS if head_ratio == 1.0 else 0)
+    assert text.count("B") == (MIN_KEEP_CHARS if head_ratio == 0.0 else 0)
+
 
 def test_long_result_truncates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(R, "_tool_results_dir", lambda: tmp_path)

@@ -120,3 +120,17 @@ for (const shell of ['zsh', 'bash'])
         assert.equal(f.read().shell_integration.cycle.id, rootCycle.id);
         assert.equal(f.read().shell_integration.cycle.exit_code, 7);
     });
+for (const shell of ['zsh', 'bash'])
+    test(`${shell}: malformed output cannot consume shell completion or the next cycle`, async (t) => {
+        const f = await fixture(t, shell);
+        const prefix = '\x1b]777;OpenProgram;';
+        f.send("printf '\\033]777;OpenProgram;'\r");
+        await wait(() => f.read().shell_integration.cycle?.phase === 'finished', f.events);
+        assert.deepEqual(f.read().shell_integration.cycle, { id: 1, phase: 'finished', exit_code: 0 });
+        assert.equal(f.read().data.split(prefix).length - 1, 1, 'retain only the malformed output, not valid metadata frames');
+        f.send("printf '__AFTER_BAD_%s__\\n' frame; false\r");
+        await wait(() => f.read().shell_integration.cycle?.id === 2 && f.read().shell_integration.cycle.phase === 'finished', f.events);
+        assert.equal(f.read().shell_integration.cycle.exit_code, 1);
+        assert.ok(f.read().data.includes('__AFTER_BAD_frame__'));
+        assert.equal(f.read().data.split(prefix).length - 1, 1);
+    });
