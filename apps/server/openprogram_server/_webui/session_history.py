@@ -7,6 +7,8 @@ PAGE_MESSAGES = 50
 PAGE_BYTES = 512 * 1024
 INITIAL_PAGE_MESSAGES = 12
 INITIAL_PAGE_BYTES = 128 * 1024
+SEARCH_LIMIT = 1000
+SNIPPET_CONTEXT = 40
 
 
 def wire_message(message: dict) -> dict:
@@ -177,6 +179,49 @@ class HistorySnapshot:
                 'before': chosen[0][1] if chosen and start > 0 else None,
                 'after': chosen[-1][1] if chosen and end < self.total else None,
             }
+
+    def search(self, query: str, limit: int = SEARCH_LIMIT) -> list[dict]:
+        """Find ``query`` in the transcript text the chat shows, in order.
+
+        Only each display group's own user or assistant row is searched;
+        tool rows and execution children nested under it are not part of
+        the readable conversation. ``id`` is the group key that
+        ``page(around=...)`` accepts.
+        """
+        needle = query.casefold()
+        if not needle:
+            return []
+        matches: list[dict] = []
+        with self._lock:
+            for key, body in self._db.execute('SELECT id, body FROM groups ORDER BY position'):
+                for row in json.loads(body):
+                    if row.get('id') != key or row.get('role') not in ('user', 'assistant'):
+                        continue
+                    if row.get('display') == 'runtime' or row.get('type') == 'status':
+                        continue
+                    content = row.get('content')
+                    if not isinstance(content, str):
+                        continue
+                    folded = content.casefold()
+                    count = folded.count(needle)
+                    if not count:
+                        continue
+                    matches.append({
+                        'id': key, 'message_id': row.get('id'), 'role': row.get('role'),
+                        'count': count, 'snippet': _snippet(content, folded.find(needle), len(needle)),
+                    })
+                    if len(matches) >= limit:
+                        return matches
+        return matches
+
+
+def _snippet(text: str, start: int, length: int, context: int = SNIPPET_CONTEXT) -> str:
+    """One line of text around a match. Case folding can shift offsets, so
+    the window is approximate on scripts whose folded form changes length."""
+    left = max(0, start - context)
+    right = min(len(text), start + length + context)
+    snippet = ' '.join(text[left:right].split())
+    return ('…' if left else '') + snippet + ('…' if right < len(text) else '')
 
 
 def install_snapshot(ws, snapshot):

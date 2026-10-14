@@ -193,3 +193,13 @@
 .chat-area:hover .msg-rail,
 .msg-rail:hover,
 .msg-rail:focus-within { opacity: 1; }
+
+/* Find in conversation (Cmd/Ctrl+F) paints matches as CSS highlights; the
+   transcript DOM is never rewritten. */
+::highlight(op-find) {
+  background-color: color-mix(in srgb, var(--accent-blue) 24%, transparent);
+}
+::highlight(op-find-current) {
+  background-color: color-mix(in srgb, var(--accent-blue) 55%, transparent);
+  color: var(--text-bright);
+}

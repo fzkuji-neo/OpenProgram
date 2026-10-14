@@ -1364,6 +1364,33 @@ async def handle_load_session(ws, cmd: dict):
         }, default=str))
 
 
+async def handle_search_session(ws, cmd: dict) -> None:
+    """Find text in the conversation this connection is showing.
+
+    Searches the same branch snapshot the history pages come from, so each
+    match's ``id`` can be loaded with ``history_around``. A snapshot this
+    connection no longer holds is ``invalid_request``: the client renews its
+    history window and asks again.
+    """
+    from openprogram.webui.session_history import HistorySnapshot
+    from openprogram.webui.ws_errors import OperationError
+    session_id = cmd.get("session_id")
+    query = cmd.get("query")
+    if not isinstance(query, str) or len(query) > _SEARCH_QUERY_MAX:
+        raise OperationError("invalid_request", scope="session")
+    cached = getattr(ws, "_history_snapshots", {}).get(session_id)
+    if not isinstance(cached, HistorySnapshot) or cached.token != cmd.get("history_snapshot"):
+        raise OperationError("invalid_request", scope="session")
+    matches = await _session_io(cached.search, query.strip())
+    await ws.send_text(json.dumps({"type": "session_search_results", "data": {
+        "id": session_id, "query": query, "matches": matches, "total": sum(m["count"] for m in matches),
+        "request_id": cmd.get("request_id"), "action": "search_session",
+    }}, ensure_ascii=False, default=str))
+
+
+_SEARCH_QUERY_MAX = 500
+
+
 async def handle_get_full_tool_output(ws, cmd: dict) -> None:
     """Return one persisted tool node's untruncated output."""
     from openprogram.agent.session_db import default_db
@@ -1756,6 +1783,7 @@ ACTIONS = {
     "set_working_dirs": handle_set_working_dirs,
     "set_sandbox": handle_set_sandbox,
     "search_messages": handle_search_messages,
+    "search_session": handle_search_session,
     "list_sessions": handle_list_sessions,
     "list_permission_rules": handle_list_permission_rules,
     "add_permission_rule": handle_add_permission_rule,

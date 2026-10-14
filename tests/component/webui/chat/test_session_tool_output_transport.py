@@ -482,3 +482,50 @@ def test_expired_snapshot_renews_around_anchor_on_the_requested_branch(
         asyncio.run(scenario())
     finally:
         close_snapshots(ws)
+
+
+def test_search_session_finds_text_on_the_loaded_branch_snapshot(
+    session_with_tool_outputs,
+):
+    from openprogram.webui.ws_errors import OperationError
+
+    store, _ = session_with_tool_outputs
+    store.append_message(
+        "session-1",
+        {"id": "user-2", "role": "user", "content": "Where is the Needle?", "predecessor": "assistant-1"},
+    )
+    store.append_message(
+        "session-1",
+        {"id": "assistant-2", "role": "assistant", "content": "needle here, and another needle", "predecessor": "user-2"},
+    )
+    store.update_session("session-1", head_id="assistant-2")
+    ws = FakeWS()
+    ws._history_protocol = 1
+
+    async def scenario():
+        await ws_session.handle_load_session(ws, {"session_id": "session-1"})
+        loaded = next(f["data"] for f in ws.frames if f["type"] == "session_loaded")
+        snapshot = loaded["history"]["snapshot"]
+        ws.frames.clear()
+        await ws_session.handle_search_session(ws, {
+            "session_id": "session-1", "history_snapshot": snapshot,
+            "query": " NEEDLE ", "request_id": "find-1",
+        })
+        [frame] = ws.frames
+        assert frame["type"] == "session_search_results"
+        data = frame["data"]
+        assert data["action"] == "search_session" and data["request_id"] == "find-1"
+        assert [(m["message_id"], m["count"]) for m in data["matches"]] == [("user-2", 1), ("assistant-2", 2)]
+        assert data["total"] == 3
+        # The tool row's output (x"\\...) is never searched as conversation text.
+        ws.frames.clear()
+        await ws_session.handle_search_session(ws, {
+            "session_id": "session-1", "history_snapshot": snapshot, "query": 'x"',
+        })
+        assert ws.frames[0]["data"]["matches"] == []
+        with pytest.raises(OperationError, match="invalid_request"):
+            await ws_session.handle_search_session(ws, {
+                "session_id": "session-1", "history_snapshot": "stale", "query": "needle",
+            })
+
+    asyncio.run(scenario())
