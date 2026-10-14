@@ -15,7 +15,7 @@
  */
 import { useLayoutEffect, useRef, useState } from "react";
 import { clearDropPreview, commitCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
-import { openOverview, overviewDropAt } from "@/lib/tabs/canvas-overview";
+import { closeOverview, holdOverviewLanding, openOverview, overviewDropAt } from "@/lib/tabs/canvas-overview";
 import { captureVisiblePanes, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
 
 import {
@@ -765,10 +765,12 @@ export function useTabPointerDrag({
     const canvasDrop = resourceTarget ? null : overviewDropAt(e.clientX, e.clientY);
     if (canvasDrop) {
       restorePointerDragElement(drag.element, false);
+      holdOverviewLanding(canvasDrop);
       const committed = dragCoordinator.commit();
       clearDragState();
-      if (committed) void (async () => {
-        if (committed.transferToken && !await desktopBridge()?.tabTransfer.cancel(committed.transferToken)) return;
+      if (!committed) { closeOverview(); return; }
+      void (async () => {
+        if (committed.transferToken && !await desktopBridge()?.tabTransfer.cancel(committed.transferToken)) { closeOverview(); return; }
         commitCanvasDrop(canvasDrop, committed.subject.tabIds);
       })();
       return;
