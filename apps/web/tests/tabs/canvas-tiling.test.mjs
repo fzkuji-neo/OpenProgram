@@ -143,7 +143,7 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(view, /Date\.now\(\) - lastInput > 5000/, 'idle windows are pictured again, so a restart keeps a recent picture');
   assert.match(shots, /if \(!alive\.size\) return;/, 'a loading tab list never wipes the pictures');
   const base = await read('app/styles/base.css');
-  assert.match(base, /\.app \.center-col:has\(\[data-canvas-overview\]\) \{\s*background: var\(--bg-secondary\);\s*box-shadow: none;/, 'no card edge around the overview');
+  assert.match(base, /\.app \.center-col:has\(\[data-canvas-overview\], \[data-canvas-landing\]\) \{\s*background: var\(--bg-secondary\);\s*box-shadow: none;/, 'no card edge around the overview');
   const main = await readFile(new URL('../../../desktop/main.js', import.meta.url), 'utf8');
   assert.match(main, /if \(!ctx \|\| event\.sender !== ctx\.win\.webContents\) return null;/, 'only a window\'s own page may picture itself');
 });
@@ -165,9 +165,13 @@ test('a merge drop zooms the window out of its card, then both sides of the spli
   assert.match(view, /growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) \{ closeOverview\(\); return; \}/, 'and zooms straight away');
   assert.match(view, /window\.dispatchEvent\(new CustomEvent\("op-activate-center-tab", \{ detail: \{ tabId: card\.activateId \} \}\)\);\n  \}, \[landing\]\);/, 'with the window coming up underneath, so its panes are loaded when they make room');
   assert.match(view, /const k = from\.width \/ to\.width;[\s\S]*?scale\(\$\{k\}\)/, 'with one uniform scale');
-  assert.match(view, /if \(!grown \|\| !landed\) return;[\s\S]*?rects\.set\(pane\.dataset\.overviewPane!, pane\.getBoundingClientRect\(\)\);[\s\S]*?captureCanvasLanding\(rects, Object\.fromEntries\(held\.sourceIds\.map\(id => \[id, side\]\)\)\);\n    \}[\s\S]*?closeOverview\(\);/, 'grown and landed, the live canvas starts from the zoomed card and the merge commits');
+  assert.match(view, /if \(!growing \|\| !landed\) return;[\s\S]*?rects\.set\(pane\.dataset\.overviewPane!, new DOMRect\(frame\.left \+ \(r\.left - box\.left\) \/ s,[\s\S]*?const elapsed = Number\(grow\.current\?\.currentTime \?\? ZOOM_MS\);\n      captureCanvasLanding\(rects, Object\.fromEntries\(held\.sourceIds\.map\(id => \[id, side\]\)\), \{ from: growFrom\.current, elapsed, duration: ZOOM_MS, easing: ZOOM_EASING \}\);\n    \}[\s\S]*?closeOverview\(\);/, 'once the merge is ready the live canvas takes the zoom over mid-way, panes starting where the card has them');
+  const css = await read('components/center-tabs/canvas-overview.module.css');
+  assert.match(css, /\.overview\[data-landing\] \.card:not\(\[data-zooming\]\),\n\.overview\[data-landing\] \.hint \{\n  transition-duration: 80ms;/, 'the other cards are gone before the hand-over');
   const transition = await read('lib/tabs/canvas-transition.ts');
   assert.match(transition, /if \(!from && side\) \{ entries\.push\(\{ el, side \}\);/, 'the docked tab comes in from its side');
+  assert.match(transition, /zoom\.currentTime = elapsed;/, 'the canvas zoom picks up the card\'s curve where it got to');
+  assert.match(await read('app/styles/base.css'), /\.app \.center-col:has\(\[data-canvas-overview\], \[data-canvas-landing\]\) \{/, 'open page around the growing canvas');
   assert.match(transition, /\{ transform: shift, clipPath: clip \},\n      \{ transform: "none", clipPath: "inset\(0 0 0 0\)" \},\n    \], \{ duration: MOVE_MS, easing: EASE \}\)/, 'at its final size, clipped at the canvas edge, on the same timing as the panes making room');
 });
 

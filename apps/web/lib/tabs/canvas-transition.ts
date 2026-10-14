@@ -48,7 +48,11 @@ const STALE_MS = 1500;
  *  nothing however heavy the pane is. */
 type Still = { image: HTMLImageElement; rect: DOMRect; at: number };
 type Ghost = { tabId: string; exit: CanvasExit; node: HTMLElement; rect: DOMRect; scroll: [number, number, number][]; still?: Still };
-type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit>; enters: Record<string, CanvasEnter>; tabBoxes: Map<Element, DOMRect> };
+/** A zoom already under way elsewhere (the overview's card growing over
+ *  the canvas) that the canvas takes over: it starts scaled into `from`,
+ *  `elapsed` ms into the same curve. */
+export type CanvasZoom = { from: DOMRect; elapsed: number; duration: number; easing: string };
+type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit>; enters: Record<string, CanvasEnter>; zoom?: CanvasZoom; tabBoxes: Map<Element, DOMRect> };
 
 let pending: Capture | null = null;
 const stills = new Map<string, Still>();
@@ -142,20 +146,22 @@ export function captureCanvasTransition(exits: Record<string, CanvasExit> = {}):
 }
 
 /** Record a layout change seen from somewhere other than the live canvas:
- *  `rects` says where each staying pane starts (the overview's zoomed card
- *  over the canvas), and the panes named in `enters` slide in from that
+ *  `rects` says where each staying pane starts, in the canvas's own
+ *  unscaled frame, and the panes named in `enters` slide in from that
  *  side as the others make room, the edge between them moving as one.
- *  Nothing leaves: whatever the canvas showed before is covered. */
-export function captureCanvasLanding(rects: Map<string, DOMRect>, enters: Record<string, CanvasEnter>): void {
+ *  With `zoom`, the whole canvas meanwhile grows out of the overview card
+ *  it replaces. Nothing leaves: whatever the canvas showed before is
+ *  covered. */
+export function captureCanvasLanding(rects: Map<string, DOMRect>, enters: Record<string, CanvasEnter>, zoom?: CanvasZoom): void {
   if (typeof document === "undefined" || reducedMotion()) return;
   const root = canvasRoot();
-  if (root && rects.size) begin(root, rects, [], {}, enters);
+  if (root && rects.size) begin(root, rects, [], {}, enters, zoom);
 }
 
-function begin(root: HTMLElement, rects: Map<string, DOMRect>, ghosts: Ghost[], exits: Record<string, CanvasExit>, enters: Record<string, CanvasEnter>): void {
+function begin(root: HTMLElement, rects: Map<string, DOMRect>, ghosts: Ghost[], exits: Record<string, CanvasExit>, enters: Record<string, CanvasEnter>, zoom?: CanvasZoom): void {
   const tabBoxes = new Map<Element, DOMRect>();
   for (const box of document.querySelectorAll('[role="tablist"] > *')) tabBoxes.set(box, box.getBoundingClientRect());
-  pending = { at: performance.now(), root, rects, ghosts, exits, enters, tabBoxes };
+  pending = { at: performance.now(), root, rects, ghosts, exits, enters, zoom, tabBoxes };
   // Web panes start freezing to a snapshot now, so the native views are
   // still by the time the panes move.
   setCanvasAnimating(true);
@@ -496,8 +502,24 @@ export function playCanvasTransition(): void {
     animations.push(animation);
     void animation.finished.catch(() => undefined).then(() => node.remove());
   }
+  // Last, once everything is measured unscaled: the canvas takes over the
+  // card's zoom where it has got to.
+  let zoomLeft = 0;
+  if (capture.zoom) {
+    const { from, elapsed, duration, easing } = capture.zoom;
+    zoomLeft = Math.max(0, duration - elapsed);
+    if (zoomLeft > 0 && origin.width > 0) {
+      root.setAttribute("data-canvas-landing", "");
+      const zoom = root.animate([
+        { transformOrigin: "0 0", transform: `translate(${from.left - origin.left}px, ${from.top - origin.top}px) scale(${from.width / origin.width})` },
+        { transformOrigin: "0 0", transform: "none" },
+      ], { duration, easing });
+      zoom.currentTime = elapsed;
+      void zoom.finished.catch(() => undefined).then(() => root.removeAttribute("data-canvas-landing"));
+    }
+  }
   clearTimeout(settleTimer);
-  const longest = Math.max(MOVE_MS, ...leaving.map(g => folds.has(g) ? foldDelay + MINIMIZE_MS : g.exit === "minimize" ? SHRINK_MS : g.exit === "close" ? CLOSE_MS : MOVE_MS));
+  const longest = Math.max(MOVE_MS, zoomLeft, ...leaving.map(g => folds.has(g) ? foldDelay + MINIMIZE_MS : g.exit === "minimize" ? SHRINK_MS : g.exit === "close" ? CLOSE_MS : MOVE_MS));
   settleTimer = setTimeout(() => {
     root.removeAttribute("data-canvas-animating");
     setCanvasAnimating(false);

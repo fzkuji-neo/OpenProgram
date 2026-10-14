@@ -105,6 +105,12 @@ button.card:hover .mini,
   opacity: 0;
   transition: opacity 160ms ease;
 }
+/* A merge hands its zoom to the live canvas as soon as it commits (about
+   a tenth of a second in), so the other cards are gone by then. */
+.overview[data-landing] .card:not([data-zooming]),
+.overview[data-landing] .hint {
+  transition-duration: 80ms;
+}
 button.card:focus-visible .mini {
   outline: 2px solid color-mix(in oklch, var(--accent-blue) 75%, transparent);
   outline-offset: 2px;
