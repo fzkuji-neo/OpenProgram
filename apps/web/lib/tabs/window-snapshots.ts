@@ -30,19 +30,49 @@ async function persist(entries: ReadonlyArray<readonly [string, string | null]>)
     for (const [id, shot] of entries) if (shot) store.put(shot, id); else store.delete(id);
   } catch { /* storage unavailable: memory still works */ }
 }
+/** Pictures show the theme they were taken in. A card in another theme
+ *  than the live window it zooms into flashes at the hand-over, so the
+ *  pictures are kept for one theme only: the saved ones carry it, and a
+ *  theme change drops them all. */
+const LOOK = "meta:look";
+const currentLook = () => `${document.documentElement.dataset.theme ?? ""}/${document.documentElement.dataset.themeMode ?? ""}`;
+async function clearSaved() {
+  const handle = await openDb();
+  if (!handle) return;
+  try {
+    const store = handle.transaction(STORE, "readwrite").objectStore(STORE);
+    store.clear();
+    store.put(currentLook(), LOOK);
+  } catch { /* storage unavailable */ }
+}
+let lookSeen = "";
+/** The theme may have changed: if it did, forget every picture (memory
+ *  and saved). */
+export function forgetSnapshots() {
+  const look = currentLook();
+  if (look === lookSeen) return;
+  lookSeen = look;
+  for (const id of Object.keys(chromes)) delete chromes[id];
+  useWindowSnapshots.setState({ shots: {} });
+  void clearSaved();
+}
 /** Load the saved pictures once; fresher ones taken meanwhile win. */
 export async function restoreSnapshots() {
   const handle = await openDb();
   if (!handle) return;
+  lookSeen = currentLook();
   try {
     const store = handle.transaction(STORE, "readonly").objectStore(STORE);
     const [keys, values] = await Promise.all([store.getAllKeys(), store.getAll()].map(request => new Promise<unknown[]>(resolve => {
       request.onsuccess = () => resolve(request.result as unknown[]);
       request.onerror = () => resolve([]);
     })));
+    const look = values[keys.findIndex(key => key === LOOK)];
+    if (look !== currentLook()) { await clearSaved(); return; }
     const saved: Record<string, string> = {};
     keys.forEach((key, i) => {
       const id = String(key), value = String(values[i]);
+      if (id === LOOK) return;
       if (!id.startsWith(CHROME)) saved[id] = value;
       else if (!chromes[id.slice(CHROME.length)]) try { chromes[id.slice(CHROME.length)] = JSON.parse(value) as Chrome; } catch { /* unreadable */ }
     });

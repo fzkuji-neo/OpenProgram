@@ -170,6 +170,10 @@ test('a merge drop zooms the window out of its card, then both sides of the spli
   assert.match(css, /\.overview\[data-landing\] \.card:not\(\[data-zooming\]\),\n\.overview\[data-landing\] \.hint \{\n  transition-duration: 80ms;/, 'the other cards are gone before the hand-over');
   const transition = await read('lib/tabs/canvas-transition.ts');
   assert.match(transition, /if \(!from && side\) \{ entries\.push\(\{ el, side \}\);/, 'the docked tab comes in from its side');
+  assert.match(view, /grow\.current\.startTime = document\.timeline\.currentTime;/, 'the card zoom starts on an explicit clock the main thread can read');
+  const shots = await read('lib/tabs/window-snapshots.ts');
+  assert.match(shots, /if \(look !== currentLook\(\)\) \{ await clearSaved\(\); return; \}/, 'saved pictures from another theme are dropped');
+  assert.match(view, /const look = new MutationObserver\(\(\) => \{ forgetSnapshots\(\); later\(\); \}\);/, 'a theme change drops the pictures and takes new ones');
   assert.match(transition, /if \(startTime !== null\) zoom\.startTime = startTime;/, 'the canvas zoom runs on the card animation\'s own clock, so the hand-over cannot jump back');
   assert.match(view, /const hint = mode === "drag"\n/, 'the hint keeps its room through a landing, so the grid does not re-centre at the release');
   assert.match(overview, /useCanvasOverview\.setState\(\{ hover: null, landing: drop\.targetId, landed: false \}\);/);
