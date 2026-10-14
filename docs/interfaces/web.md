@@ -55,6 +55,16 @@ Deleting a file or folder moves it into OpenProgram's recoverable storage. Run `
 If a text file has unsaved changes, deletion asks whether to save, export or discard them. Export starts a browser download and retains the local draft because the browser does not confirm download completion. Reopen the file after restoring it to recover the retained draft.
 
 
+## Command palette
+
+Press **⌘K** on macOS (**Ctrl+K** on Windows and Linux) anywhere in the app to open the command palette; press it again or Escape to close it. Type to filter, use ↑ and ↓ to move, and press Enter to run the selected item.
+
+- **Actions** start a new chat or open a page: Agents, Skills, Applications, Projects, History, Memory, Scheduler and Settings.
+- **Sessions** lists your unarchived conversations, most recently active first, with the time of their last activity or **Running** while a turn runs. Choosing one opens it, selecting its tab when it is already open.
+
+Sessions are matched on their title, latest message preview and project name, the same fields the History page searches; message contents are not searched. The palette lists up to 300 sessions; use the History page for older ones. When a terminal has focus, ⌘K stays the terminal's own shortcut.
+
+
 ## Chat page (/chat, /s/&lt;session-id&gt;)
 
 `/chat` is the main chat interface; `/s/<session-id>` is a direct link to a single session. Switching sessions does not reload the page, and the WebSocket connection stays open.

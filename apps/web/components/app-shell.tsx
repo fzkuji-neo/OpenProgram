@@ -28,6 +28,7 @@ import {
   setDesktopSplitLayoutAvailable,
 } from "@/lib/desktop/desktop-bridge";
 import { ToastHost } from "./ui/toast-host";
+import { CommandPalette } from "./command-palette";
 import { Composer } from "./chat/composer";
 import { LegacyTopbarBridge } from "./chat/top-bar";
 import { WelcomeScreen } from "./chat/welcome-screen";
@@ -711,6 +712,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* App-wide transient toasts — mounted at the shell so they show on
          every route (chat AND settings), not just where the TopBar is. */}
       <ToastHost />
+      <CommandPalette />
       </div>
     </div>
   );

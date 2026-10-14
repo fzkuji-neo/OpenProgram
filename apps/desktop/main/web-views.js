@@ -104,6 +104,11 @@ function createWebViews({
         command: key === "f" ? "find" : "focus-address",
       });
       owner.win.webContents.focus?.();
+    } else if (key === "k" && !input.shift && !input.alt) {
+      // The App's command palette, not whatever the page binds Cmd+K to.
+      event.preventDefault();
+      owner.win.webContents.send("webtab:command", { id: record.id, command: "palette" });
+      owner.win.webContents.focus?.();
     } else if (key === "r") {
       // Before the menu sees it: Cmd+R here reloads the page, not the App.
       event.preventDefault();
