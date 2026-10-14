@@ -2571,7 +2571,9 @@
 /* Keep dragged labels above neighboring tabs without clipping their effects. */
 :global(html[data-canvas-dragging]) .strip,
 :global(html[data-canvas-dragging]) .tabsFlow { overflow: visible; z-index: 10000; }
-.tab[data-pointer-drag="true"], .compoundTab[data-pointer-drag="true"] { z-index: 100001; transition: none; }
+/* Only the stacking changes here: the drag rule above keeps transform out of
+   the transition (JS writes it every frame) but animates the slot closing. */
+.tab[data-pointer-drag="true"], .compoundTab[data-pointer-drag="true"] { z-index: 100001; }
 
 /* A split window's mark: its shape in miniature, then its pane count. */
 .splitMark {
