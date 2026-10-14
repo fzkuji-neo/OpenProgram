@@ -1446,9 +1446,14 @@
   opacity: 0.5;
   cursor: default;
 }
-.setDefaultBtn.setDefaultActive {
-  background: var(--bg-tertiary);
-  color: var(--text-muted);
+/* The current default reads as a status, in the list badge's colours,
+   not as a greyed-out button. */
+.setDefaultBtn.setDefaultActive,
+.setDefaultBtn.setDefaultActive:disabled {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent-orange) 10%, transparent);
+  color: var(--accent-orange);
+  border-color: color-mix(in srgb, var(--accent-orange) 25%, transparent);
   cursor: default;
 }
 .searchSetupSteps {

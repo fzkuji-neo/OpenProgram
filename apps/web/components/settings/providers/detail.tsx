@@ -213,10 +213,10 @@ export function Detail({
           See account-manager.tsx. */}
       {(!!provider.api_key_env ||
         (provider.login_methods?.length ?? 0) > 0) && (
-        <AccountManager key={provider.id} provider={provider} onChanged={autoCheckAndFetch} />
+        <AccountManager key={`${provider.id}:accounts`} provider={provider} onChanged={autoCheckAndFetch} />
       )}
       {(provider.api_key_env || provider.local) && (
-        <BaseUrl key={provider.id} provider={provider} onChanged={onChanged} />
+        <BaseUrl key={`${provider.id}:base-url`} provider={provider} onChanged={onChanged} />
       )}
       {/* Connectivity check applies to every HTTP provider, not just
           api-key ones. OAuth providers (openai-codex, gemini-subscription,
@@ -225,7 +225,7 @@ export function Detail({
           token survived restart. Backend already handles the auth
           lookup. */}
       {provider.kind === "api" && (
-        <Connectivity key={provider.id} ref={connectivityRef} providerId={provider.id} local={provider.local} />
+        <Connectivity key={`${provider.id}:check`} ref={connectivityRef} providerId={provider.id} local={provider.local} />
       )}
 
       {(provider.custom || provider.local) && provider.kind !== "cli" && (
