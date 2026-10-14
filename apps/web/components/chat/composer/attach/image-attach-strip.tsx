@@ -57,7 +57,6 @@ export function ImageAttachStrip({
           {pendingImages.map((p) => (
             <span
               key={p.id}
-              title={p.attachment.filename || p.attachment.media_type}
               className={styles.imageAttachChip}
             >
               {p.previewUrl ? (

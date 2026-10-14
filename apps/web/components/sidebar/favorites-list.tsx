@@ -208,7 +208,7 @@ function FavoriteRow({
         }}
         onMouseEnter={() => iconRef.current?.startAnimation?.()}
         onMouseLeave={() => iconRef.current?.stopAnimation?.()}
-        title={f.description || ""}
+        data-tip={f.description || ""}
       >
         <span
           className="inline-flex size-[16px] flex-shrink-0 items-center

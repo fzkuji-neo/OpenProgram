@@ -176,7 +176,6 @@ function BrowserControlOverlayPage() {
       data-collapsed="false"
       role="group"
       aria-label={payload.expandLabel}
-      title={payload.dragLabel}
       style={{
         display: "inline-flex",
         flexWrap: "nowrap",
@@ -197,7 +196,7 @@ function BrowserControlOverlayPage() {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <span title={payload.status}>{payload.status}</span>
+      <span>{payload.status}</span>
       {noticeOpen && payload.notice ? (
         <span role="status">
           {payload.notice}

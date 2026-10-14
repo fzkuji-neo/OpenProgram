@@ -277,7 +277,7 @@ export function WorkingDirChips() {
                   <div
                     key={p.id}
                     className={itemCls(false)}
-                    title={p.path}
+                    data-tip={p.path}
                     onClick={() => {
                       applyWorkingDirs([...workingDirs, p.path]);
                       setOpen(false);

@@ -10,11 +10,15 @@ import { createPortal } from "react-dom";
  *  - Any other control with a `title` (or `data-tip`) shows that instead
  *    of the native tooltip: the title moves to `data-tip` on first hover,
  *    and becomes the aria-label when the control has none.
- *  Only controls get tips; text keeps no hover tip. The first tip waits so
+ *  Only controls and glyph-only marks get tips; text keeps no hover tip,
+ *  and no element carries a native `title`. The first tip waits so
  *  a pointer passing over never flashes them; moving on to the next
  *  control swaps it at once. */
 const RAIL = ".sidebar.collapsed :is(.sidebar-nav-item, [data-rail-tip]), .sidebar .sidebar-toggle";
-const CONTROL = ":is(button, a[href], [role=button], [role=tab], [role=menuitem], [role=switch], summary):is([title], [data-tip])";
+// An explicit `data-tip` opts any element in: a clickable row built from a
+// div, or a glyph-only mark (a capability icon, a status dot) whose meaning
+// is otherwise invisible.
+const CONTROL = ":is(button, a[href], [role=button], [role=tab], [role=menuitem], [role=switch], summary):is([title], [data-tip]), [data-tip]";
 const DWELL_MS = 600, CARRY_MS = 400, MARGIN = 8;
 
 type Side = "left" | "right" | "top" | "bottom";

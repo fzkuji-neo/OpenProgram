@@ -167,7 +167,7 @@ export function MessageTimestamp({ timestamp }: { timestamp?: number }) {
   return (
     <span
       className="message-timestamp"
-      title={fullTime}
+      data-tip={fullTime}
       aria-label={fullTime}
       tabIndex={0}
     >

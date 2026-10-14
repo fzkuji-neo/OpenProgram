@@ -405,7 +405,7 @@ export function ProgramsPage({
             className={`${fileStyles.treeRow} ${selected === (entry.logic_path || entry.path) || selected === entry.path ? fileStyles.treeRowSelected : ""}`}
             style={{ paddingLeft: EXPLORER_BASE_PAD + depth * EXPLORER_INDENT }}
             data-program-path={entry.path}
-            title={entry.path}
+            data-tip={entry.path}
             onClick={() => {
               if (entry.kind === "file" || entry.program_kind || entry.callable_name) {
                 setSelected(entry.logic_path || entry.path);

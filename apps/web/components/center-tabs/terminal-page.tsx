@@ -326,13 +326,13 @@ export function TerminalPage({ preset }: { preset: "shell" | "claude" }) {
       <div className={styles.terminalHeader}>
         <TerminalSquare size={15} aria-hidden="true" />
         <strong>{preset === "claude" ? "Claude Code" : text("Terminal", "终端")}</strong>
-        <span className={`${styles.terminalStatus} ${styles[`terminalStatus_${status}`]}`} role="status" title={error || statusText}>
+        <span className={`${styles.terminalStatus} ${styles[`terminalStatus_${status}`]}`} role="status">
           <i aria-hidden="true" />
           <span className={styles.terminalStatusText}>{statusText}</span>
         </span>
         {errorText
-          ? <span className={styles.terminalError} aria-live="polite" title={error}>{errorText}</span>
-          : <span className={styles.terminalPath} title={pathLabel}>{pathLabel}</span>}
+          ? <span className={styles.terminalError} aria-live="polite">{errorText}</span>
+          : <span className={styles.terminalPath}>{pathLabel}</span>}
         <div className={styles.terminalActions} aria-label={text("Terminal actions", "终端操作")}>
           <button type="button" className={styles.terminalAction} onClick={copyTerminal} disabled={!hasSelection} aria-label={text("Copy selection", "复制选择内容")} title={text("Copy selection", "复制选择内容")}>
             <Copy size={15} aria-hidden="true" />

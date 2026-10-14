@@ -92,7 +92,6 @@ export function InstalledList({ externalFilter }: { externalFilter?: string } = 
           name={p.name}
           description={p.description}
           onClick={() => setDetailDialog(p)}
-          title={text("Open plugin details", "查看插件详情")}
           meta={
             <>
               <span className={shared.rowCount}>v{p.version}</span>

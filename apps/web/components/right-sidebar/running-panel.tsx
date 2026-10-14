@@ -103,8 +103,8 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
         <Button variant="ghost" className={styles.row} onClick={() => { state.selectExecution(item.execution_id); setSelection("agent"); }}>
           <Bot size={16} className={styles.symbol} aria-hidden="true" />
           <span className={styles.rowText}>
-            <span className={styles.rowHeading}><span className={styles.name} title={executionRequest(item) || title}>{title}</span>
-              {item.started_at != null && <time className={styles.started} dateTime={new Date(item.started_at * 1000).toISOString()} title={updatedTime(item.started_at)} aria-label={updatedTime(item.started_at)}>{shortTime(item.started_at * 1000)}</time>}</span>
+            <span className={styles.rowHeading}><span className={styles.name}>{title}</span>
+              {item.started_at != null && <time className={styles.started} dateTime={new Date(item.started_at * 1000).toISOString()} data-tip={updatedTime(item.started_at)} aria-label={updatedTime(item.started_at)}>{shortTime(item.started_at * 1000)}</time>}</span>
             <span className={styles.meta}>{executionStatusLabel(item, text)}{descendants.length ? ` · ${descendants.length} ${text("branches", "分支")}` : ""}{owned.length ? ` · ${owned.length} ${text("programs", "程序")}${owned.some(processIsActive) ? ` (${owned.filter(processIsActive).length} ${text("active", "活动中")})` : ""}` : ""}{!executionNeedsAttention(item) && needsAttention(item) ? ` · ${text("Child needs attention", "子项需要处理")}` : ""}</span>
           </span>
         </Button>

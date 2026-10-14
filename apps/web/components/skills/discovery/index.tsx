@@ -389,7 +389,7 @@ export function DiscoverySources({ query }: { query?: string } = {}) {
                       {installed > 0 && (
                         <span
                           className={`${shared.badge} ${shared.badgeGreen}`}
-                          title={text(`Installed under ${s.slug}/`, `安装在 ${s.slug}/ 下`)}
+                          data-tip={text(`Installed under ${s.slug}/`, `安装在 ${s.slug}/ 下`)}
                         >
                           {catalogTotal !== undefined
                             ? text(`${installed}/${catalogTotal} installed`, `已安装 ${installed}/${catalogTotal}`)
@@ -399,7 +399,7 @@ export function DiscoverySources({ query }: { query?: string } = {}) {
                       {outdatedCount > 0 && (
                         <span
                           className={`${shared.badge} ${shared.badgeYellow}`}
-                          title={text("Local SKILL.md content differs from upstream", "本地 SKILL.md 与上游不同")}
+                          data-tip={text("Local SKILL.md content differs from upstream", "本地 SKILL.md 与上游不同")}
                         >
                           {text(`${outdatedCount} outdated`, `${outdatedCount} 个过期`)}
                         </span>

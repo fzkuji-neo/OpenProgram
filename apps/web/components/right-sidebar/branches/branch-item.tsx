@@ -171,7 +171,7 @@ export function BranchItem({
       className={cls}
       data-head={branch.head_msg_id}
       onClick={checkout}
-      title={chip ? (branch.name || branch.head_msg_id) : undefined}
+      data-tip={chip ? (branch.name || branch.head_msg_id) : undefined}
     >
       {/* Merge multi-select is a list affordance: picking two branches
           and starring a base needs the room the strip doesn't have,
@@ -179,7 +179,7 @@ export function BranchItem({
       {chip ? null : (
         <span
           className="branch-item-check"
-          title={
+          data-tip={
             isPending
               ? t("right.job_running_merge_wait")
               : (selected
@@ -234,7 +234,7 @@ export function BranchItem({
       )}
       {branch.active ? <span className="branch-item-badge">{t("right.head")}</span> : null}
       {queueSummary ? (
-        <span className="branch-item-resource-summary" title={queueSummary}>
+        <span className="branch-item-resource-summary" data-tip={queueSummary}>
           {queueSummary}
         </span>
       ) : running ? (
@@ -246,7 +246,7 @@ export function BranchItem({
         </span>
       ) : null}
       {finishingReason ? (
-        <span className="branch-item-badge" title={finishingReason}>
+        <span className="branch-item-badge" data-tip={finishingReason}>
           {finishingReason}
         </span>
       ) : null}
@@ -286,7 +286,7 @@ export function BranchItem({
       <span className="branch-item-actions">
         <span
           className="branch-item-action branch-item-rename"
-          title={t("right.rename_branch")}
+          data-tip={t("right.rename_branch")}
           onMouseEnter={() => renameIconRef.current?.startAnimation?.()}
           onMouseLeave={() => renameIconRef.current?.stopAnimation?.()}
           onClick={(e) => {
@@ -299,7 +299,7 @@ export function BranchItem({
         </span>
         <span
           className="branch-item-action branch-item-del"
-          title={t("right.delete_branch")}
+          data-tip={t("right.delete_branch")}
           onMouseEnter={() => delIconRef.current?.startAnimation?.()}
           onMouseLeave={() => delIconRef.current?.stopAnimation?.()}
           onClick={del}

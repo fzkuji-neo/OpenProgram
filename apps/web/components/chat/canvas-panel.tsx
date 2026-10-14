@@ -55,7 +55,6 @@ export function CanvasPanel({ onClose }: { onClose: () => void }) {
             <div
               className="text-[10px] truncate font-mono"
               style={{ color: "var(--text-muted)" }}
-              title={data?.path ?? ""}
             >
               {data?.path ?? "—"}
             </div>
@@ -65,7 +64,6 @@ export function CanvasPanel({ onClose }: { onClose: () => void }) {
           <span
             className="text-[10px] tabular-nums"
             style={{ color: "var(--text-muted)" }}
-            title={text("Last modified", "最后修改时间")}
           >
             {mtimeLabel}
           </span>
@@ -97,7 +95,6 @@ export function CanvasPanel({ onClose }: { onClose: () => void }) {
               key={b.id}
               className="rounded px-1.5 py-0.5 font-mono"
               style={{ background: "var(--bg-tertiary)" }}
-              title={`${b.length} ${text("chars", "字符")}`}
             >
               {b.id}
             </span>

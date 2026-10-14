@@ -110,7 +110,7 @@ export function AccountsList({ accounts, statuses, onChange }: Props) {
                       <td>
                         <span
                           className={`${styles.statusDot} ${dotClass}`}
-                          title={dotTitle}
+                          data-tip={dotTitle}
                         />
                         {a.configured ? (
                           <span className={styles.badgeOk}>{text("configured", "已配置")}</span>

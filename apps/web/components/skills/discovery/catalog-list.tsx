@@ -156,9 +156,9 @@ export function CatalogList({
                 {outdated && <span className={`${shared.badge} ${shared.badgeYellow}`}>{text("update", "可更新")}</span>}
               </>}
               meta={showStats ? <>
-                {(e.stars || 0) > 0 && <span title={text("stars", "星标")}>★ {fmtCount(e.stars)}</span>}
-                {(e.downloads || 0) > 0 && <span title={text("downloads", "下载")}>↓ {fmtCount(e.downloads)}</span>}
-                {(e.updated_at || 0) > 0 && <span title={text("last updated", "最近更新")}>{relTime(e.updated_at, locale)}</span>}
+                {(e.stars || 0) > 0 && <span data-tip={text("stars", "星标")}>★ {fmtCount(e.stars)}</span>}
+                {(e.downloads || 0) > 0 && <span data-tip={text("downloads", "下载")}>↓ {fmtCount(e.downloads)}</span>}
+                {(e.updated_at || 0) > 0 && <span data-tip={text("last updated", "最近更新")}>{relTime(e.updated_at, locale)}</span>}
               </> : undefined}
               actions={<>
                   <Button

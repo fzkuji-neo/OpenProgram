@@ -671,7 +671,7 @@ function HistoryPage() {
                     >
                       {entry.title || entry.url}
                     </button>
-                    <span className="browsing-history-host" title={entry.url}>{historyHost(entry.url)}</span>
+                    <span className="browsing-history-host">{historyHost(entry.url)}</span>
                     <button
                       type="button"
                       className="browsing-history-delete"
@@ -795,7 +795,7 @@ function DownloadsPage() {
                 >
                   {entry.filename}
                 </button>
-                <span className="browsing-history-host" title={entry.url}>{progress}</span>
+                <span className="browsing-history-host">{progress}</span>
                 {entry.active ? (
                   <button
                     type="button"

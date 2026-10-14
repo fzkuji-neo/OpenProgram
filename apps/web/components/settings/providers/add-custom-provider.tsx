@@ -107,7 +107,6 @@ export function AddCustomProvider({ onCreated }: { onCreated: (id: string) => vo
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
-          title={derivedId}
         >
           {text("id: ", "id：")}{derivedId}
         </div>

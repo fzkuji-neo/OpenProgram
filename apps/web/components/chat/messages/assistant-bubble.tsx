@@ -286,7 +286,6 @@ export function AssistantBubble({ msg, verdict, sessionIdOverride }: {
           size={28}
           radius={8}
           name={sender}
-          title={msg.agentId || ""}
           config={
             // Default profile (no agent_id / "main"): honour the user's
             // configured avatar so the glyph doesn't change when the

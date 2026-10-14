@@ -83,7 +83,7 @@ export function SearchConnectivity({
               " " +
               (result.kind === "ok" ? styles.ok : styles.err)
             }
-            title={result.title}
+            data-tip={result.title}
           >
             {result.text}
           </span>

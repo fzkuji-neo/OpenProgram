@@ -150,7 +150,7 @@ export function AttachmentStrip({
                     </span>
                   )}
                   <span className={styles.copy}>
-                    <span className={styles.name} title={name}>{name}</span>
+                    <span className={styles.name}>{name}</span>
                     <span className={styles.meta}>
                       {itemMeta(
                         label,
@@ -203,7 +203,7 @@ export function AttachmentStrip({
               >
                 <span className={iconClass(label)} aria-hidden="true">{label}</span>
                 <span className={styles.copy}>
-                  <span className={styles.name} title={doc.filename}>{doc.filename}</span>
+                  <span className={styles.name}>{doc.filename}</span>
                   <span className={styles.meta}>
                     {itemMeta(
                       label,

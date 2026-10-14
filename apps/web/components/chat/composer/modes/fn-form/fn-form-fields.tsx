@@ -142,7 +142,7 @@ function FieldLabel({ p }: { p: FnParam }) {
     ? `${p.label ?? p.name} (${meta}) – ${p.description}`
     : `${p.label ?? p.name} (${meta})`;
   return (
-    <div className={styles.label} data-fn-field-label title={tooltip}>
+    <div className={styles.label} data-fn-field-label data-tip={tooltip}>
       <span className={styles.labelName}>{p.label ?? p.name}</span>
       <span className={styles.labelMeta}>{` (${meta})`}</span>
       {p.description ? (

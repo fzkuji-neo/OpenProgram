@@ -405,7 +405,7 @@ const data = await requestReviewScope({
           {scopeState.linked_impacts.length ? (
             <span
               className={styles.linkedImpacts}
-              title={scopeState.linked_impacts
+              data-tip={scopeState.linked_impacts
                 .map((impact) => `${impact.job_id ?? "actor"} · ${impact.status ?? impact.relation ?? "linked"}`)
                 .join("\n")}
             >

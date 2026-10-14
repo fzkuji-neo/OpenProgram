@@ -254,9 +254,6 @@ export function AttachCard({ msg }: { msg: ChatMsg }) {
         className="attach-card-header"
         onClick={() => setExpanded((v) => !v)}
         style={{ cursor: "pointer" }}
-        title={expanded
-          ? text("Collapse preview", "收起预览")
-          : text("Expand preview", "展开预览")}
       >
         <div className="attach-card-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -271,17 +268,6 @@ export function AttachCard({ msg }: { msg: ChatMsg }) {
             {attach.status && attach.status !== "completed" ? (
               <span
                 className={`attach-card-status-pill attach-card-status-${attach.status}`}
-                title={
-                  attach.status === "running"
-                    ? text("Sub-agent is still running", "子 Agent 仍在运行")
-                    : attach.status === "errored"
-                      ? text("Sub-job errored", "子任务出错")
-                      : attach.status === "cancelled"
-                        ? text("Sub-job cancelled", "子任务已取消")
-                        : attach.status === "pending" || attach.status === "queued"
-                          ? text("Sub-job is waiting to start", "子任务等待开始")
-                          : ""
-                }
               >
                 {attach.status === "running" || attach.status === "pending"
                   || attach.status === "queued" ? (
@@ -291,7 +277,7 @@ export function AttachCard({ msg }: { msg: ChatMsg }) {
               </span>
             ) : null}
           </div>
-          <div className="attach-card-sub" title={targetHead || targetSessionId}>
+          <div className="attach-card-sub">
             {subtitle}
             {!sameSession && headTag ? (
               <span className="attach-card-head">@{headTag}</span>
@@ -303,7 +289,6 @@ export function AttachCard({ msg }: { msg: ChatMsg }) {
           // of a Switch button. Keeps the row layout consistent.
           <span
             className="attach-card-here"
-            title={text("You are already on this branch", "当前已在这个分支")}
           >
             {text("current", "当前")}
           </span>

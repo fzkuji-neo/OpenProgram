@@ -73,7 +73,6 @@ function SkillLeaf({ skill, depth }: { skill: Skill; depth: number }) {
         icon={<FileTextIcon size={16} />}
         name={skill.leaf || skill.name}
         description={skill.description}
-        title={`${skill.description || skill.name}\n— ${skill.source}`}
         onClick={() =>
           pushPath(`/skills/${skill.name.split("/").map(encodeURIComponent).join("/")}`)
         }

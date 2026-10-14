@@ -419,7 +419,7 @@ export function DebuggerPanel({
   return (
     <section className={styles.panel} aria-label="Execution details">
       {connection.state !== "connected" && <div className={styles.connectionLine} data-health={health}>
-        <span title={connectionInfo.detail}>{connectionInfo.label}{fetchedAt ? ` · ${shortTime(fetchedAt)}` : ""}</span>
+        <span data-tip={connectionInfo.detail}>{connectionInfo.label}{fetchedAt ? ` · ${shortTime(fetchedAt)}` : ""}</span>
       </div>}
 
       <div className={`${styles.layout} ${(detailOnly || executions.length === 1) ? styles.singleExecution : ""}`}>

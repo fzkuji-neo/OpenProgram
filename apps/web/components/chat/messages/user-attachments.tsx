@@ -174,7 +174,7 @@ export function AttachmentChips({ items, sessionId: ownerSessionId }: { items: P
         const label = a.meta || text("file", "文件");
         if (!a.path) {
           return (
-            <span key={key} className="user-attach-chip" title={a.filename}>
+            <span key={key} className="user-attach-chip">
               <FileGlyph />
               <span className="user-attach-name">{a.filename}</span>
               <span className="user-attach-meta">{label}</span>

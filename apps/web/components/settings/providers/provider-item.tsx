@@ -36,7 +36,7 @@ export const ProviderItem = memo(function ProviderItem({
       {p.custom && (
         <span
           className={styles.providerCustomBadge}
-          title={text("Custom provider you added", "你添加的自定义 Provider")}
+          data-tip={text("Custom provider you added", "你添加的自定义 Provider")}
         >
           {text("Custom", "自定义")}
         </span>
@@ -47,7 +47,7 @@ export const ProviderItem = memo(function ProviderItem({
           " " +
           (dot === "on" ? styles.on : dot === "off" ? styles.off : styles.unconfigured)
         }
-        title={
+        data-tip={
           p.enabled ? text("Enabled", "已启用") : p.configured ? text("Not enabled", "未启用") : text("Not configured", "未配置")
         }
       />
