@@ -49,9 +49,11 @@ const STALE_MS = 1500;
 type Still = { image: HTMLImageElement; rect: DOMRect; at: number };
 type Ghost = { tabId: string; exit: CanvasExit; node: HTMLElement; rect: DOMRect; scroll: [number, number, number][]; still?: Still };
 /** A zoom already under way elsewhere (the overview's card growing over
- *  the canvas) that the canvas takes over: it starts scaled into `from`,
- *  `elapsed` ms into the same curve. */
-export type CanvasZoom = { from: DOMRect; elapsed: number; duration: number; easing: string };
+ *  the canvas) that the canvas takes over: the same curve out of `from`,
+ *  on the same clock. `startTime` is the card animation's own (on the
+ *  document timeline; the compositor that plays it sets it, so it holds
+ *  even when the main thread saw the card late), null if not started. */
+export type CanvasZoom = { from: DOMRect; startTime: number | null; duration: number; easing: string };
 type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit>; enters: Record<string, CanvasEnter>; zoom?: CanvasZoom; tabBoxes: Map<Element, DOMRect> };
 
 let pending: Capture | null = null;
@@ -506,15 +508,16 @@ export function playCanvasTransition(): void {
   // card's zoom where it has got to.
   let zoomLeft = 0;
   if (capture.zoom) {
-    const { from, elapsed, duration, easing } = capture.zoom;
-    zoomLeft = Math.max(0, duration - elapsed);
+    const { from, startTime, duration, easing } = capture.zoom;
+    const now = Number(document.timeline.currentTime ?? performance.now());
+    zoomLeft = Math.max(0, duration - (startTime === null ? 0 : now - startTime));
     if (zoomLeft > 0 && origin.width > 0) {
       root.setAttribute("data-canvas-landing", "");
       const zoom = root.animate([
         { transformOrigin: "0 0", transform: `translate(${from.left - origin.left}px, ${from.top - origin.top}px) scale(${from.width / origin.width})` },
         { transformOrigin: "0 0", transform: "none" },
       ], { duration, easing });
-      zoom.currentTime = elapsed;
+      if (startTime !== null) zoom.startTime = startTime;
       void zoom.finished.catch(() => undefined).then(() => root.removeAttribute("data-canvas-landing"));
     }
   }

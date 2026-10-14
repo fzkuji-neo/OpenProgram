@@ -45,7 +45,7 @@ export function holdOverviewLanding(drop: CanvasDrop, sourceIds: string[]): void
   if (useCanvasOverview.getState().mode !== "drag" || drop.action !== "dock") return;
   const card = document.querySelector<HTMLElement>(`[data-overview-target="${CSS.escape(drop.targetId)}"] [data-overview-mini]`);
   landingFrom = card && sourceIds.length ? { drop, sourceIds } : null;
-  if (landingFrom) useCanvasOverview.setState({ hover: null, label: "", landing: drop.targetId, landed: false });
+  if (landingFrom) useCanvasOverview.setState({ hover: null, landing: drop.targetId, landed: false });
 }
 export const overviewHeld = () => landingFrom !== null;
 /** The merge is ready: the overview commits it once its zoom is done.
