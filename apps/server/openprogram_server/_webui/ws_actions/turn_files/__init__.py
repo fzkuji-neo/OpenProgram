@@ -62,6 +62,7 @@ from .diff import _workspace_scope
 from .history import ACTIONS
 from .history import handle_reapply_turn
 from .history import handle_review_file_diff
+from .history import handle_review_revert_hunk
 from .history import handle_review_scope
 from .history import handle_revert_turn
 from .history import handle_turn_history_state
@@ -69,7 +70,7 @@ from .history import handle_turn_operation_status
 from .history import _stable_file_result
 
 __all__ = [
-    "ACTIONS", "handle_reapply_turn", "handle_review_file_diff",
+    "ACTIONS", "handle_reapply_turn", "handle_review_file_diff", "handle_review_revert_hunk",
     "handle_review_scope", "handle_revert_turn", "handle_turn_history_state",
     "handle_turn_operation_status", "_stable_file_result",
 ]

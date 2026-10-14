@@ -428,9 +428,58 @@ async def handle_reapply_turn(ws, cmd: dict) -> None:
     }, default=str))
 
 
+async def handle_review_revert_hunk(ws, cmd: dict) -> None:
+    """Put one hunk of a Review diff back to its old side in the working file.
+
+    Only a file in the review scope the client is showing can be written;
+    a stale scope snapshot or a running turn refuses the edit.
+    """
+    values, validation_error = _review_request_values(cmd, include_path=True)
+    session_id = values["session_id"]
+    scope = values["scope"]
+    path = values["path"]
+    snapshot_id = values["snapshot_id"]
+    hunk = cmd.get("hunk")
+    from openprogram.webui import server as server
+    if validation_error or scope not in _REVIEW_SCOPES or not session_id or not path or not isinstance(hunk, dict):
+        result = {"status": "error", "error_code": "INVALID_REQUEST", "error": validation_error or "invalid request"}
+    elif server._is_run_active(session_id):
+        result = {"status": "blocked", "error_code": "RUN_ACTIVE", "error": "run_active"}
+    else:
+        try:
+            category, query, sort = values["category"], values["query"], values["sort"]
+            current_scope = await _run(lambda: (
+                _turn_scope(session_id, values["assistant_msg_id"], category=category, query=query, sort=sort)
+                if scope == "turn"
+                else _branch_scope(session_id, category=category, query=query, sort=sort)
+                if scope == "branch"
+                else _workspace_scope(session_id, category=category, query=query, sort=sort)
+            ))
+            in_scope = any(row.get("path") == path for row in current_scope.get("files", []))
+            if current_scope.get("status") != "ready" or current_scope.get("snapshot_id") != snapshot_id:
+                result = {"status": "error", "error_code": "STALE_SNAPSHOT", "error": "STALE_SNAPSHOT"}
+            elif not in_scope:
+                result = {"status": "error", "error_code": "INVALID_REQUEST", "error": "path is not in review scope"}
+            else:
+                from .hunk import revert_review_hunk
+                result = await _run(lambda: revert_review_hunk(
+                    session_id, path, hunk, cmd.get("idempotency_key") or None,
+                ))
+        except Exception as exc:
+            result = {"status": "error", "error_code": "UNAVAILABLE", "error": str(exc)}
+    await ws.send_text(json.dumps({
+        "type": "review_revert_hunk_result",
+        "data": {
+            "session_id": session_id, "scope": scope, "path": path, "snapshot_id": snapshot_id,
+            "request_id": values["request_id"], **result, "action": "review_revert_hunk",
+        },
+    }, default=str))
+
+
 ACTIONS = {
     "review_scope": handle_review_scope,
     "review_file_diff": handle_review_file_diff,
+    "review_revert_hunk": handle_review_revert_hunk,
     "turn_history_state": handle_turn_history_state,
     "turn_operation_status": handle_turn_operation_status,
     "revert_turn": handle_revert_turn,

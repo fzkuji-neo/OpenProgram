@@ -36,7 +36,10 @@ import type {
   ScopeState,
 } from "./review-tab-types";
 import { requestReviewScope } from "./use-review-scope";
-import { requestReviewDiff } from "./use-review-diff";
+import { requestReviewDiff, requestRevertHunk } from "./use-review-diff";
+import { hunkRange, lineCommentText, type DiffLine, type ReviewHunk } from "./review-diff-rows.ts";
+import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
+import { showToast } from "@/lib/format-utils/toast";
 
 /** What a Review pane last showed, by its source. A pane mounts again
  *  whenever its window comes back (a tab switch, a merge), and starting
@@ -395,6 +398,41 @@ const data = await requestReviewScope({
   const diffPages = Boolean(selected) && !showPreview
     && (diffHistory.length > 0 || diffState.next_cursor != null);
 
+
+  /** Revert one hunk, then reload the scope: the file changed, so the
+   *  snapshot the pane holds is stale. The selection stays on the file. */
+  const revertHunk = async (hunk: ReviewHunk) => {
+    const snapshotId = scopeState.snapshot_id;
+    if (!selected || !snapshotId) return;
+    const result = await requestRevertHunk({
+      sessionId, assistantMsgId, scope, category, query, sort,
+      path: selected.path, snapshotId, hunk,
+    });
+    const lines = hunkRange(`@@ -0 +${hunk.new_start},${Math.max(hunk.new_lines.length, 1)} @@`);
+    const where = lines ? text(`lines ${lines.from}–${lines.to}`, `第 ${lines.from}–${lines.to} 行`) : "";
+    if (result?.status === "ready") {
+      showToast(text(`Reverted ${where} of ${fileName(selected.rel)}`, `已撤销 ${fileName(selected.rel)} ${where}的改动`));
+    } else if (result?.status === "conflict") {
+      showToast(text("This change is no longer in the file; the diff was refreshed", "文件里已没有这处改动，差异已刷新"));
+    } else if (result?.status === "blocked") {
+      showToast(text("Wait for the current turn to finish, then revert", "请等当前这一轮结束后再撤销"));
+      return;
+    } else if (result?.error_code === "STALE_SNAPSHOT") {
+      showToast(text("The changes were refreshed; try again", "改动已刷新，请重试"));
+    } else {
+      showToast(text(`Could not revert: ${result?.error ?? "no response"}`, `无法撤销：${result?.error ?? "没有响应"}`));
+      return;
+    }
+    setScopeState((current) => ({ ...current, snapshot_id: undefined }));
+    window.dispatchEvent(new CustomEvent("turn-files-history-changed", { detail: { sessionId } }));
+  };
+
+  const commentOnLine = (row: DiffLine, comment: string) => {
+    if (!selected) return;
+    appendToComposer(sessionId, lineCommentText(selected.rel, row, comment), false);
+    showToast(text("Comment added to your message", "评论已加入待发送的消息"));
+  };
+
   return (
     <div className={styles.page} data-testid="review-tab-pane">
       <header className={styles.header}>
@@ -647,7 +685,7 @@ const data = await requestReviewScope({
             ) : diffState.diff_state === "binary" ? (
               <div className={styles.empty}>{text("Binary file", "二进制文件")}</div>
             ) : diffState.diff ? (
-              <ReviewDiff diff={diffState.diff} op={selected?.op} />
+              <ReviewDiff diff={diffState.diff} op={selected?.op} onRevertHunk={revertHunk} onComment={commentOnLine} />
             ) : (
               <div className={styles.empty}>{text("No textual changes", "没有文本改动")}</div>
             )}

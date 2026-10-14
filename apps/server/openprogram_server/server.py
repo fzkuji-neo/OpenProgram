@@ -377,13 +377,14 @@ _FILE_REQUEST_ACTIONS = frozenset({
     "project_file_operation_status",
     "project_file_write", "project_file_create", "project_file_rename",
     "project_file_copy", "project_file_delete", "project_file_reveal",
-    "review_scope", "review_file_diff",
+    "review_scope", "review_file_diff", "review_revert_hunk",
     "turn_history_state", "revert_turn", "reapply_turn",
     "turn_operation_status",
 })
 _FILE_MUTATION_ACTIONS = frozenset({
     "project_file_write", "project_file_create", "project_file_rename",
     "project_file_copy", "project_file_delete", "revert_turn", "reapply_turn",
+    "review_revert_hunk",
 })
 
 
