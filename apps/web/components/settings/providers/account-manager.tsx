@@ -21,8 +21,8 @@ import type { Provider, ProviderAccountView } from "./types";
  *  controls (status · Validate · active · Remove) use fixed columns while the
  *  detail pane is wide and reflow into additional rows when it is narrow. The
  *  active control is a single
- *  toggle: it shows the STATE by default and the ACTION on hover, and "none
- *  active" is allowed. A drag handle (≥2 accounts) sets the rotation priority.
+ *  toggle: it shows the account requests run on — the pinned one, else the
+ *  fallback account, whose switch stays on until another is chosen. A drag handle (≥2 accounts) sets the rotation priority.
  *  See docs/design/unified-account-management.md / the plan file. */
 
 interface State {
@@ -65,8 +65,11 @@ function statusLabel(status: string, text: (en: string, zh: string) => string): 
   }
 }
 
-function AccountUseToggle({ active, rotation, onActivate, onDeactivate }: {
+function AccountUseToggle({ active, fixed = false, rotation, onActivate, onDeactivate }: {
   active: boolean;
+  /** In use as the fallback account: choosing another account is the way
+   *  to stop using it, so its switch stays on. */
+  fixed?: boolean;
   rotation: boolean;
   onActivate: () => void;
   onDeactivate: () => void;
@@ -76,9 +79,13 @@ function AccountUseToggle({ active, rotation, onActivate, onDeactivate }: {
     ? text("Include in rotation", "加入轮询")
     : text("Use this account for requests", "使用这个账号处理请求");
   return (
-    <div className={styles.acctUseRow}>
+    <div
+      className={styles.acctUseRow}
+      data-tip={fixed ? text("Requests use this account until you choose another one", "选好其他账号之前，请求都用这个账号") : undefined}
+    >
       <Switch
         checked={active}
+        disabled={fixed}
         onCheckedChange={(checked) => checked ? onActivate() : onDeactivate()}
         aria-label={label}
       />
@@ -258,7 +265,7 @@ function AccountRow({
 
       {rotation
         ? <AccountUseToggle active={account.enabled ?? true} rotation onActivate={() => setEnabled(true)} onDeactivate={() => setEnabled(false)} />
-        : <AccountUseToggle active={account.is_active} rotation={false} onActivate={activate} onDeactivate={deactivate} />}
+        : <AccountUseToggle active={account.is_active} fixed={account.is_active && account.is_fallback} rotation={false} onActivate={activate} onDeactivate={deactivate} />}
     </Reorder.Item>
   );
 }

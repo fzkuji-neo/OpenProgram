@@ -136,12 +136,15 @@ def _validate_account(provider: str, name: str, *, ping: bool = False) -> dict:
     return {"status": previous or "unknown", "ok": previous == "valid"}
 
 
-def _account_record(pool, pinned: str, disabled: set = frozenset()) -> dict:
+def _account_record(pool, active: str, fallback: str, disabled: set = frozenset()) -> dict:
     """One ACCOUNT = one account (holding one credential). Uniform shape for every
     provider. API-key credentials expose only ``has_value`` and ``masked_key``;
     login credentials keep their non-secret identity metadata. ``is_active``
-    is the explicit pin (single-active, rotation off), while ``enabled`` is the
-    independent rotation selection. Never returns a credential value."""
+    is the account requests run on with rotation off: the pin, else the
+    fallback account. ``is_fallback`` marks that fallback, which stays in use
+    while nothing else is pinned, so it cannot be switched off on its own.
+    ``enabled`` is the independent rotation selection. Never returns a
+    credential value."""
     cred = _primary_cred(pool)
     kind = getattr(cred, "kind", "") if cred else ""
     account = pool.account_id
@@ -170,7 +173,8 @@ def _account_record(pool, pinned: str, disabled: set = frozenset()) -> dict:
         "email": email,
         "kind": kind,
         "status": status,
-        "is_active": account == pinned,
+        "is_active": account == active,
+        "is_fallback": account == fallback,
         "enabled": account not in disabled,
     }
     if kind == "api_key":
@@ -242,12 +246,14 @@ def _generic_summary(provider: str) -> dict:
     pool = _pool_id(provider)
     store = get_store()
     active = get_active_account(pool)  # effective: pin, else "default"
-    pinned = get_active_pin(pool)      # explicit pin only ("" ⇒ none active)
+    pinned = get_active_pin(pool)      # explicit pin only
+    from openprogram.auth.context import get_active_account_id
+    fallback = get_active_account_id()  # what runs while nothing is pinned
     disabled = get_accounts_out_of_rotation(pool)      # accounts turned OFF for rotation
     pools = [p for p in store.list_pools() if p.provider_id == pool]
     _k = account_priority_key(pool)                # honour the user's drag order
     pools.sort(key=lambda p: _k(p.account_id))
-    accounts = [_account_record(p, pinned, disabled) for p in pools]
+    accounts = [_account_record(p, active, fallback, disabled) for p in pools]
     rot = get_rotation(pool)
     has_key = bool(_api_key_env(provider))
     methods = [{"id": mid, "label": label} for mid, label in login_methods(provider)]

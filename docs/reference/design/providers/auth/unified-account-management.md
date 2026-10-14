@@ -80,9 +80,12 @@ pool, so env-key and OAuth paths are unaffected.
 
 **REST.** `/api/providers/{provider}/accounts/*` is generic:
 `GET …/accounts` returns
-`{active, accounts:[{id,label,name,email?,status,kind}]}`, where `name` is a
-compatibility alias of `label`; `POST …/accounts/use {id}` activates one (`""`
-deactivates); `…/rename {id,name:<new label>}` changes only display text; and
+`{active, accounts:[{id,label,name,email?,status,kind,is_active,is_fallback}]}`,
+where `name` is a compatibility alias of `label`. `is_active` marks the account
+requests run on: the pinned one, else the fallback (`default`), which
+`is_fallback` marks. The fallback stays in use until another account is pinned,
+so its switch cannot turn it off on its own. `POST …/accounts/use {id}` pins one
+(`""` clears the pin and hands requests back to the fallback); `…/rename {id,name:<new label>}` changes only display text; and
 remove uses `{id}`. Login add reuses `/login/start|poll|submit` with an optional
 `label`; the runtime, not the client, allocates the stable id. Every provider reports an
 `add_mode` (`code_paste` or `login`) so the frontend does not branch on provider

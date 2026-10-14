@@ -71,8 +71,11 @@ credential 在读取时推导，因此无需重新登录。label 可以重复，
 
 **REST。** `/api/providers/{provider}/accounts/*` 是通用的：
 `GET …/accounts` 返回
-`{active, accounts:[{id,label,name,email?,status,kind}]}`，其中 `name` 是 `label`
-的兼容别名；`POST …/accounts/use {id}` 激活某一个（`""` 表示取消激活）；
+`{active, accounts:[{id,label,name,email?,status,kind,is_active,is_fallback}]}`，
+其中 `name` 是 `label` 的兼容别名。`is_active` 标出请求实际使用的账号：有固定账号
+时是它，否则是兜底账号（`default`），兜底账号由 `is_fallback` 标出。在固定其他账号
+之前，兜底账号一直在用，所以它的开关不能单独关掉。`POST …/accounts/use {id}`
+固定某一个（`""` 取消固定，请求回到兜底账号）；
 `…/rename {id,name:<新 label>}` 只修改显示文本；删除使用 `{id}`。登录添加复用
 `/login/start|poll|submit` 并可传入 `label`，稳定 ID 由 Runtime 而不是客户端分配。
 每个 provider 都上报一个 `add_mode`（`code_paste` 或 `login`），

@@ -45,6 +45,9 @@ export interface ProviderAccountView {
   kind?: string;
   status?: string;
   is_active: boolean;
+  /** The account requests fall back to while nothing is pinned; it stays
+   *  in use until another account is chosen, so it has no off switch. */
+  is_fallback?: boolean;
   enabled?: boolean;
   has_value: boolean;
   masked_key: string;
