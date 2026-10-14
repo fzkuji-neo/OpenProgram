@@ -20,7 +20,7 @@ export const useCanvasOverview = create<OverviewState>(() => ({ mode: null, sour
  *  until the merge commits; null when no drop is landing. `panes` maps each
  *  tab already in the card to its pane's place, and `dropped` is the window
  *  the pointer carried, so the merge can move every piece into its pane. */
-export type OverviewLanding = { panes: Record<string, Rect>; dropped: Rect | null };
+export type OverviewLanding = { cardKey: string; panes: Record<string, Rect>; dropped: Rect | null };
 let landingFrom: OverviewLanding | null = null;
 export const overviewLandingFrom = () => landingFrom;
 
@@ -39,13 +39,14 @@ export function closeOverview() {
 export function holdOverviewLanding(drop: CanvasDrop, dropped: Rect | null = null): void {
   if (useCanvasOverview.getState().mode !== "drag" || drop.action !== "dock") return;
   const card = document.querySelector<HTMLElement>(`[data-overview-target="${CSS.escape(drop.targetId)}"] [data-overview-mini]`);
-  if (!card) { landingFrom = null; return; }
+  const cardKey = card?.closest<HTMLElement>("[data-overview-card]")?.dataset.overviewCard;
+  if (!card || !cardKey) { landingFrom = null; return; }
   const panes: Record<string, Rect> = {};
   for (const pane of card.querySelectorAll<HTMLElement>("[data-overview-pane]")) {
     const b = pane.getBoundingClientRect();
     panes[pane.dataset.overviewPane!] = { left: b.left, top: b.top, width: b.width, height: b.height };
   }
-  landingFrom = { panes, dropped: dropped && { left: dropped.left, top: dropped.top, width: dropped.width, height: dropped.height } };
+  landingFrom = { cardKey, panes, dropped: dropped && { left: dropped.left, top: dropped.top, width: dropped.width, height: dropped.height } };
 }
 export const overviewHeld = () => landingFrom !== null;
 /** The merge committed: zoom the window holding `tabId` out of its card. */
