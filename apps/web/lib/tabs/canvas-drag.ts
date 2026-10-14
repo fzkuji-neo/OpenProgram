@@ -77,9 +77,12 @@ export function commitCanvasDrop(drop: CanvasDrop, sourceIds: string[]): boolean
     useCenterTabs.getState().setActive(sourceId);
     return true;
   }
-  rememberCanvas([drop.targetId, ...sourceIds, ...(group ? [group.id, ...group.memberIds] : [])], layout);
-  s.dockCanvas(sourceIds, drop.targetId, drop.paneId, drop.side);
-  landOverview(drop.targetId);
+  const dock = () => {
+    rememberCanvas([drop.targetId, ...sourceIds, ...(group ? [group.id, ...group.memberIds] : [])], layout);
+    useCenterTabs.getState().dockCanvas(sourceIds, drop.targetId, drop.paneId, drop.side);
+  };
+  // A drop landed through the overview commits when its zoom is done.
+  if (!landOverview(dock)) dock();
   return true;
 }
 export function tabStripDropAt(x: number, y: number): Rect | null {

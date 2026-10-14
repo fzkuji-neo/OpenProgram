@@ -148,26 +148,26 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(main, /if \(!ctx \|\| event\.sender !== ctx\.win\.webContents\) return null;/, 'only a window\'s own page may picture itself');
 });
 
-test('a merge drop zooms the merged window out of the card it was dropped on', async () => {
+test('a merge drop zooms the window out of its card, then both sides of the split move together', async () => {
   const overview = await read('lib/tabs/canvas-overview.ts');
   assert.match(overview, /if \(useCanvasOverview\.getState\(\)\.mode !== "drag" \|\| drop\.action !== "dock"\) return;/, 'only a merge holds the overview');
   const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
   assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop, prepared.subject.tabIds)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
   assert.match(overview, /if \(landingFrom\) useCanvasOverview\.setState\(\{ hover: null, label: "", landing: drop\.targetId, landed: false \}\);/, 'the landing starts at the release, before the merge commits');
-  assert.match(overview, /landing: tabId, landed: true \}\);/, 'the commit marks it landed');
+  assert.match(overview, /landingFrom\.apply = apply;\n  useCanvasOverview\.setState\(\{ landed: true \}\);/, 'a ready merge is held, not committed');
+  assert.match(overview, /export function closeOverview\(\) \{\n  const apply = landingFrom\?\.apply;[\s\S]*?apply\?\.\(\);\n\}/, 'closing commits a held merge, so an early close never drops it');
   const drag = await read('lib/tabs/canvas-drag.ts');
-  assert.match(drag, /s\.dockCanvas\(sourceIds, drop\.targetId, drop\.paneId, drop\.side\);\n  landOverview\(drop\.targetId\);/, 'the commit lands it');
+  assert.match(drag, /if \(!landOverview\(dock\)\) dock\(\);/, 'a drop outside a landing commits at once');
   assert.match(drag, /cleanup\(target\?\.drop\);/, 'a pane drop holds it too');
   assert.match(drag, /if \(drop\) holdOverviewLanding\(drop, \[tabId\]\);/);
   const view = await read('components/center-tabs/canvas-overview.tsx');
-  assert.doesNotMatch(view, /data-overview-pane/, 'nothing moves inside the merged card: it shows the merge at once');
+  assert.doesNotMatch(view, /dockLayout/, 'the card shows the window as it is, not a merge drawn ahead');
   assert.match(view, /growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) closeOverview\(\);/, 'and zooms straight away');
   assert.match(view, /const k = from\.width \/ to\.width;[\s\S]*?scale\(\$\{k\}\)/, 'with one uniform scale');
-  assert.match(view, /const key = held && contents\.includes\(landing!\) \? held\.cardKey : entry\.id;/, 'the landing card keeps its element, so its pictures do not blink');
-  assert.match(view, /const pending = held && !landed \? held : null;/, 'until the merge commits the card draws it ahead of time');
-  assert.match(view, /dockLayout\(findCenterTabGroup\(groups, pending\.drop\.targetId\)\?\.canvas \?\? rowLayout\(\[pending\.drop\.targetId\]\), pending\.sourceIds, pending\.drop\.paneId, pending\.drop\.side,/, 'with the layout the store will make');
-  assert.match(view, /if \(!grown \|\| !landed\) return;[\s\S]*?root\.animate\(\[\{ opacity: 1 \}, \{ opacity: 0 \}\], \{ duration: REVEAL_MS/, 'then, grown and landed, the overview fades into the live split');
-  assert.match(view, /\.then\(closeOverview, closeOverview\);/, 'and closes');
+  assert.match(view, /if \(!grown \|\| !landed\) return;[\s\S]*?rects\.set\(pane\.dataset\.overviewPane!, pane\.getBoundingClientRect\(\)\);[\s\S]*?captureCanvasLanding\(rects, Object\.fromEntries\(held\.sourceIds\.map\(id => \[id, side\]\)\)\);\n    \}[\s\S]*?closeOverview\(\);/, 'grown and landed, the live canvas starts from the zoomed card and the merge commits');
+  const transition = await read('lib/tabs/canvas-transition.ts');
+  assert.match(transition, /if \(!from && side\) \{ entries\.push\(\{ el, side \}\);/, 'the docked tab comes in from its side');
+  assert.match(transition, /\{ transform: shift, clipPath: clip \},\n      \{ transform: "none", clipPath: "inset\(0 0 0 0\)" \},\n    \], \{ duration: MOVE_MS, easing: EASE \}\)/, 'at its final size, clipped at the canvas edge, on the same timing as the panes making room');
 });
 
 test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', async () => {
