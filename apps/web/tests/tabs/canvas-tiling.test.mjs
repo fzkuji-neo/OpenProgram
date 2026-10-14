@@ -162,7 +162,8 @@ test('a merge drop zooms the window out of its card, then both sides of the spli
   assert.match(drag, /if \(drop\) holdOverviewLanding\(drop, \[tabId\]\);/);
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.doesNotMatch(view, /dockLayout/, 'the card shows the window as it is, not a merge drawn ahead');
-  assert.match(view, /growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) closeOverview\(\);/, 'and zooms straight away');
+  assert.match(view, /growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) \{ closeOverview\(\); return; \}/, 'and zooms straight away');
+  assert.match(view, /window\.dispatchEvent\(new CustomEvent\("op-activate-center-tab", \{ detail: \{ tabId: card\.activateId \} \}\)\);\n  \}, \[landing\]\);/, 'with the window coming up underneath, so its panes are loaded when they make room');
   assert.match(view, /const k = from\.width \/ to\.width;[\s\S]*?scale\(\$\{k\}\)/, 'with one uniform scale');
   assert.match(view, /if \(!grown \|\| !landed\) return;[\s\S]*?rects\.set\(pane\.dataset\.overviewPane!, pane\.getBoundingClientRect\(\)\);[\s\S]*?captureCanvasLanding\(rects, Object\.fromEntries\(held\.sourceIds\.map\(id => \[id, side\]\)\)\);\n    \}[\s\S]*?closeOverview\(\);/, 'grown and landed, the live canvas starts from the zoomed card and the merge commits');
   const transition = await read('lib/tabs/canvas-transition.ts');
