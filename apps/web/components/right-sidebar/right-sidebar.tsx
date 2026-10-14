@@ -240,7 +240,7 @@ export function RightSidebar() {
           onClick={onToggleRail}
           onMouseEnter={() => toggleIconRef.current?.startAnimation?.()}
           onMouseLeave={() => toggleIconRef.current?.stopAnimation?.()}
-          title={t("right.toggle_panel")}
+          aria-label={open ? text("Hide panel", "隐藏面板") : text("Show panel", "显示面板")}
           type="button"
         >
           {/* Mirror of the LEFT toggle — same components flipped on X,
@@ -279,7 +279,8 @@ export function RightSidebar() {
           role="button"
           tabIndex={0}
           onKeyDown={activateOnKey(() => onNavClick(VIEW_FILES))}
-          title={text("Project files", "项目文件")}
+          aria-label={text("Project files", "项目文件")}
+          data-rail-tip={text("Files", "文件")}
         >
           <span className={sidebarNavIconClass}>
             <FolderOpenIcon ref={filesIconRef} size={20} />
@@ -299,7 +300,8 @@ export function RightSidebar() {
           role="button"
           tabIndex={0}
           onKeyDown={activateOnKey(() => onNavClick(VIEW_RUNNING))}
-          title={text("Agents and programs in this conversation", "当前会话的 Agent 和程序")}
+          aria-label={text("Agents and programs in this conversation", "当前会话的 Agent 和程序")}
+          data-rail-tip={text("Activity", "运行记录")}
         >
           <span className={sidebarNavIconClass}>
             <ActivityIcon ref={runningIconRef} size={20} />
@@ -317,7 +319,6 @@ export function RightSidebar() {
           onKeyDown={activateOnKey(() => onNavClick(VIEW_RESOURCES))}
           onMouseEnter={() => resourcesIconRef.current?.startAnimation?.()}
           onMouseLeave={() => resourcesIconRef.current?.stopAnimation?.()}
-          title={text("Session resources", "会话资源")}
           aria-label={text("Session resources", "会话资源")}
           aria-expanded={open && view === VIEW_RESOURCES}
           aria-controls="sessionResourcesPanel">

@@ -433,6 +433,9 @@
   overflow-wrap: normal;
 }
 .message-content th { background: var(--bg-tertiary); }
+/* Inline code in a cell (a file name, an identifier) keeps whole too:
+   breaking it anywhere let the column shrink to a few letters. */
+.message-content :is(th, td) code { overflow-wrap: normal; }
 
 .spinner {
   width: 16px;

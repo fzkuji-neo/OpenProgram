@@ -156,7 +156,6 @@ const DICT = {
   "nav.history": { en: "History", zh: "历史" },
 
   // Sidebar secondary labels and actions
-  "sidebar.toggle": { en: "Toggle sidebar", zh: "切换侧边栏" },
   "sidebar.refresh": { en: "Refresh", zh: "刷新" },
   "sidebar.favorite_functions": { en: "Favorite Programs", zh: "收藏程序" },
   "sidebar.show": { en: "Show", zh: "显示" },
@@ -242,7 +241,6 @@ const DICT = {
 
   // Right sidebar panels
   "right.resize_panel": { en: "Drag to resize panel", zh: "拖动调整面板宽度" },
-  "right.toggle_panel": { en: "Toggle panel", zh: "切换面板" },
   "right.executions": { en: "Executions", zh: "执行" },
   "right.context_tooltip": {
     en: "Compacted context the next LLM turn will see",
