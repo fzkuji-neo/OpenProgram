@@ -803,14 +803,19 @@ export const MessageList = memo(function MessageList({
     return () => window.clearTimeout(t);
   }, [ids, paintRows]);
 
-  // Fade the transcript in once per session switch. The ref remembers
-  // which session already faded, so streaming updates (ids.length
-  // growing) inside the same session don't re-trigger the animation.
+  // Fade the transcript in once per session switch, and only when its rows
+  // arrive after the switch (the skeleton showed first). A session already
+  // in the store swaps in at once: fading cached rows up from nothing only
+  // reads as a flash. The ref remembers which session already settled, so
+  // streaming updates (ids.length growing) don't re-trigger the animation.
   const lastFadedSession = useRef<string | null>(null);
+  const waitedSession = useRef<string | null>(null);
+  if (paintRows && sessionId && ids.length === 0) waitedSession.current = sessionId;
   useEffect(() => {
     if (!paintRows || !sessionId || ids.length === 0) return;
     if (lastFadedSession.current === sessionId) return;
     lastFadedSession.current = sessionId;
+    if (waitedSession.current !== sessionId) return;
     const el = document.getElementById("chatMessages");
     if (!el) return;
     el.classList.add("session-enter");

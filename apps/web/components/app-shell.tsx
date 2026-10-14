@@ -11,6 +11,7 @@ import { CenterTabStrip } from "./center-tabs/center-tab-strip";
 import { CanvasControls } from "./center-tabs/canvas-controls";
 import { CanvasOverview } from "./center-tabs/canvas-overview";
 import { playCanvasTransition } from "@/lib/tabs/canvas-transition";
+import { sessionForShellReturn } from "@/lib/tabs/shell-session";
 import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, rowLayout } from "@/lib/tabs/canvas-layout";
 import { WebTabPip } from "./center-tabs/web-tab-pip";
 import { AppPreviewPip } from "./center-tabs/app-preview-pip";
@@ -136,6 +137,7 @@ function FocusedComposer() {
 function isChatRoute(pathname: string) {
   return pathname === "/chat" || pathname.startsWith("/s/");
 }
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -267,6 +269,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearInterval(t);
     };
   }, [pathname]);
+
+  // A split that dissolves hands its remaining session back to the chat
+  // shell, which sat hidden on whichever session was focused last. The
+  // route reaches the shell renders later (activeId → URL → store), so
+  // switch it in the same tick as the layout; otherwise its first frames
+  // show the session that just left.
+  useEffect(() => useCenterTabs.subscribe((s, prev) => {
+    const sid = sessionForShellReturn(prev, s);
+    if (!sid || !isChatRoute(window.location.pathname)) return;
+    runtimeState.currentSessionId = sid;
+    useSessionStore.getState().setCurrentConv(sid);
+  }), []);
 
   // Sync `.active` on sidebar nav items to the current route and close any
   // open popover when navigating. The functions page inline script also sets
