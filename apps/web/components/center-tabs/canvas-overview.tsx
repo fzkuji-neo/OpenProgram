@@ -250,7 +250,11 @@ export function CanvasOverview() {
     const mini = card && rootRef.current?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(card.key)}"] [data-overview-mini]`);
     if (!card || !mini || reducedMotion()) { closeOverview(); return; }
     growFrom.current = mini.getBoundingClientRect();
-    if (!zoomAt(card.key, "closing")) closeOverview();
+    if (!zoomAt(card.key, "closing")) { closeOverview(); return; }
+    // The window comes up under the overview while the card zooms, as
+    // picking a card does, so its panes have mounted and loaded by the
+    // time the merge commits and they make room.
+    window.dispatchEvent(new CustomEvent("op-activate-center-tab", { detail: { tabId: card.activateId } }));
   }, [landing]);
   useLayoutEffect(() => {
     if (!landing || zoom?.phase !== "closing") return;
