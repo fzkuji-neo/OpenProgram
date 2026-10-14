@@ -1103,3 +1103,8 @@ html[data-canvas-dragging] iframe { pointer-events: none; }
 html[data-canvas-dragging],
 html[data-canvas-dragging] * { -webkit-app-region: no-drag !important; }
 
+
+/* A dragged tab's floating preview stays out of the pane pictures. */
+html[data-capturing-panes] [data-tab-drag-preview] {
+  visibility: hidden !important;
+}
