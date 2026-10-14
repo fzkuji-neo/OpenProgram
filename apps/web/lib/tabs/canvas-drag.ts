@@ -75,6 +75,8 @@ export function commitCanvasDrop(drop: CanvasDrop, sourceIds: string[]): boolean
     if (group) rememberCanvas([drop.targetId, ...sourceIds, group.id, ...group.memberIds], layout);
     if (sourceIds.length === 1 && findCenterTabGroup(s.groups, sourceId)) s.ungroupTab(sourceId);
     useCenterTabs.getState().setActive(sourceId);
+    // The overview browses on (holdOverviewLanding); the tab's card is back.
+    if (useCanvasOverview.getState().mode === "browse") useCanvasOverview.setState({ sourceIds: [] });
     return true;
   }
   const dock = () => {
