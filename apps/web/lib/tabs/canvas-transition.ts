@@ -34,6 +34,7 @@ const FOLD_AFTER_GROW_MS = 220;
 const STILL_WAIT_MS = 160;
 /** Rows of the still image drawn per slice of the fold, in CSS px. */
 const FOLD_ROW = 2;
+const MAX_STEP_MS = 34;
 const EASE = "cubic-bezier(.2, .8, .2, 1)";
 /** A capture the layout never followed (a close a save prompt cancelled)
  *  is dropped rather than played on some later change. */
@@ -44,7 +45,7 @@ const STALE_MS = 1500;
  *  nothing however heavy the pane is. */
 type Still = { image: HTMLImageElement; rect: DOMRect; at: number };
 type Ghost = { tabId: string; exit: CanvasExit; node: HTMLElement; rect: DOMRect; scroll: [number, number, number][]; still?: Still };
-type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit>; tabBoxes: Set<Element> };
+type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit>; tabBoxes: Map<Element, DOMRect> };
 
 let pending: Capture | null = null;
 const stills = new Map<string, Still>();
@@ -134,7 +135,8 @@ export function captureCanvasTransition(exits: Record<string, CanvasExit> = {}):
     ghosts.push({ tabId: id, exit: exits[id] ?? "behind", node, rect, scroll, still: fresh });
   }
   if (!rects.size) return;
-  const tabBoxes = new Set<Element>(document.querySelectorAll('[role="tablist"] > *'));
+  const tabBoxes = new Map<Element, DOMRect>();
+  for (const box of document.querySelectorAll('[role="tablist"] > *')) tabBoxes.set(box, box.getBoundingClientRect());
   pending = { at: performance.now(), root, rects, ghosts, exits, tabBoxes };
   // Web panes start freezing to a snapshot now, so the native views are
   // still by the time the panes move.
@@ -174,15 +176,24 @@ function stripTab(tabId: string): HTMLElement | null {
   return tab && rect && rect.width > 0 && rect.height > 0 ? tab : null;
 }
 
-/** Grow a tab that just appeared out of nothing, the way a new tab opens:
- *  its width rises from zero and the strip makes room around it. */
-function growTab(tab: HTMLElement): void {
-  const overflow = tab.style.overflow;
-  tab.style.overflow = "hidden";
-  const grow = tab.animate([
-    { flexBasis: "0px", minWidth: "0px", width: "0px", paddingLeft: "0px", paddingRight: "0px", opacity: 0, offset: 0 },
-  ], { duration: TAB_GROW_MS, easing: "cubic-bezier(.2, .8, .2, 1)" });
-  void grow.finished.catch(() => undefined).then(() => { tab.style.overflow = overflow; });
+/** Bring in a tab that just appeared out of a split: it slides out from
+ *  beside the tab it left and the tabs after it slide over to make room.
+ *  Only transform and opacity move, so the compositor plays it smoothly
+ *  even while the app is still busy laying out the change. */
+function growTab(tab: HTMLElement, before: Map<Element, DOMRect>): void {
+  const easing = "cubic-bezier(.2, .8, .2, 1)";
+  const others = [...(tab.parentElement?.children ?? [])].filter(box => box !== tab) as HTMLElement[];
+  const old = [...before.values()];
+  // The strip kept its order apart from the new tab: match the rest in order.
+  if (others.length === old.length) others.forEach((box, index) => {
+    const dx = old[index].left - box.getBoundingClientRect().left;
+    if (Math.abs(dx) > 0.5) box.animate([{ transform: `translateX(${dx}px)` }, { transform: "none" }], { duration: TAB_GROW_MS, easing });
+  });
+  const width = tab.getBoundingClientRect().width;
+  tab.animate([
+    { transform: `translateX(${-width * 0.45}px) scaleX(.55)`, transformOrigin: "0 50%", opacity: 0 },
+    { transform: "none", transformOrigin: "0 50%", opacity: 1 },
+  ], { duration: TAB_GROW_MS, easing });
 }
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
@@ -230,10 +241,14 @@ function genieFold(ghost: Ghost, origin: DOMRect, root: HTMLElement, tab: HTMLEl
     return [neckLeft + (0 - neckLeft) * open, neckRight + (W - neckRight) * open, Y];
   };
   const draw = ghost.still ? stillFold(ghost.still, pane, target, origin, root, edge) : bandFold(ghost, origin, root, neck, edge);
-  const start = performance.now() + delay;
+  // The fold's own clock: a frame advances it by at most MAX_STEP_MS, so a
+  // busy main thread pauses the fold instead of skipping part of it.
+  let elapsed = -delay, last: number | null = null;
   let flashed = false;
   function frame(now: number) {
-    const t = clamp01((now - start) / MINIMIZE_MS);
+    elapsed += last === null ? 0 : Math.min(now - last, MAX_STEP_MS);
+    last = now;
+    const t = clamp01(elapsed / MINIMIZE_MS);
     if (!draw.layer.isConnected) return;
     draw.paint(t, 1 - clamp01((t - 0.85) / 0.15));
     if (!flashed && t >= 0.72) {
@@ -398,7 +413,7 @@ export function playCanvasTransition(): void {
       : { duration: MOVE_MS, easing: EASE }));
   }
   for (const [ghost, { tab, target, arrives }] of folds) {
-    if (arrives) growTab(tab);
+    if (arrives) growTab(tab, capture.tabBoxes);
     genieFold(ghost, origin, root, tab, target, foldDelay);
   }
   for (const el of arrivals) {
