@@ -672,6 +672,108 @@ function createWebViews({
     }
   }
 
+  // Comment mode: the user points at one element of the page and the chat
+  // gets a description of it. The picker runs in its own isolated world, so
+  // the page can neither see nor call it; it outlines what is under the
+  // pointer, swallows the click that picks, and Escape cancels.
+  const PICKER_WORLD = 1207;
+  const PICKER_SOURCE = `(() => new Promise((resolve) => {
+    window.__openprogramPick?.cancel();
+    const root = document.documentElement;
+    const box = document.createElement("div");
+    box.style.cssText = "position:fixed;z-index:2147483647;pointer-events:none;display:none;"
+      + "border:2px solid #3b82f6;background:rgba(59,130,246,.12);border-radius:3px;box-sizing:border-box";
+    root.appendChild(box);
+    const cursor = root.style.cursor;
+    root.style.cursor = "crosshair";
+    const selector = (el) => {
+      const parts = [];
+      for (let node = el; node && node.nodeType === 1 && parts.length < 5; node = node.parentElement) {
+        let part = node.tagName.toLowerCase();
+        if (node.id && /^[A-Za-z][\\w-]*$/.test(node.id)) { parts.unshift(part + "#" + node.id); break; }
+        const parent = node.parentElement;
+        if (parent) {
+          const same = Array.from(parent.children).filter((c) => c.tagName === node.tagName);
+          if (same.length > 1) part += ":nth-of-type(" + (same.indexOf(node) + 1) + ")";
+        }
+        parts.unshift(part);
+      }
+      return parts.join(" > ");
+    };
+    const describe = (el) => ({
+      tag: el.tagName.toLowerCase(),
+      selector: selector(el),
+      text: (el.innerText || el.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 300),
+      label: el.getAttribute("aria-label") || el.getAttribute("alt") || el.getAttribute("title") || "",
+      href: el.closest("a") ? el.closest("a").href : "",
+    });
+    const place = (el) => {
+      const r = el.getBoundingClientRect();
+      Object.assign(box.style, { display: "block", top: r.top + "px", left: r.left + "px",
+        width: r.width + "px", height: r.height + "px" });
+    };
+    const stop = (e) => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); };
+    const over = (e) => { if (e.target instanceof Element && e.target !== box) place(e.target); };
+    const click = (e) => { stop(e); finish(e.target instanceof Element ? describe(e.target) : null); };
+    const key = (e) => { if (e.key === "Escape") { stop(e); finish(null); } };
+    const swallow = ["pointerdown", "pointerup", "mousedown", "mouseup", "auxclick", "dblclick"];
+    const finish = (value) => {
+      window.removeEventListener("mouseover", over, true);
+      window.removeEventListener("click", click, true);
+      window.removeEventListener("keydown", key, true);
+      for (const type of swallow) window.removeEventListener(type, stop, true);
+      box.remove();
+      root.style.cursor = cursor;
+      delete window.__openprogramPick;
+      resolve(value);
+    };
+    window.addEventListener("mouseover", over, true);
+    window.addEventListener("click", click, true);
+    window.addEventListener("keydown", key, true);
+    for (const type of swallow) window.addEventListener(type, stop, true);
+    window.__openprogramPick = { cancel: () => finish(null) };
+  }))()`;
+
+  function pickedText(value, limit) {
+    return typeof value === "string" ? value.slice(0, limit) : "";
+  }
+
+  async function pickElementInView(ctx, id) {
+    const record = recordFor(ctx, id);
+    if (!record) return null;
+    const contents = record.view.webContents;
+    try {
+      contents.focus();
+      const picked = await contents.executeJavaScriptInIsolatedWorld(
+        PICKER_WORLD, [{ code: PICKER_SOURCE }], true,
+      );
+      if (!picked || typeof picked !== "object" || recordFor(ctx, id) !== record || contents.isDestroyed()) {
+        return null;
+      }
+      return {
+        id,
+        url: contents.getURL(),
+        title: contents.getTitle(),
+        tag: pickedText(picked.tag, 40),
+        selector: pickedText(picked.selector, 400),
+        text: pickedText(picked.text, 300),
+        label: pickedText(picked.label, 200),
+        href: pickedText(picked.href, 2048),
+      };
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function cancelPickInView(ctx, id) {
+    const record = recordFor(ctx, id);
+    if (!record || record.view.webContents.isDestroyed()) return false;
+    record.view.webContents.executeJavaScriptInIsolatedWorld(
+      PICKER_WORLD, [{ code: "window.__openprogramPick?.cancel()" }],
+    ).catch(() => {});
+    return true;
+  }
+
   async function capturePipView(ctx, record) {
     if (record.pipCapture) return record.pipCapture;
     const contents = record.view.webContents;
@@ -858,7 +960,7 @@ function createWebViews({
     }
   }
 
-  return { sendState, forwardFindResult, handleWebTabShortcut, isWebUrl, isTabUrl, sendWebTabPopup, showWebTabContextMenu, loadView, ensureView, navigateView, pipLayoutZoom, rememberUserZoom, setPipZoom, requestPipZoomRestore, restorePendingPipZoom, findView, stopFindView, captureView, zoomView, printPdfDefaultName, printView };
+  return { sendState, forwardFindResult, handleWebTabShortcut, isWebUrl, isTabUrl, sendWebTabPopup, showWebTabContextMenu, loadView, ensureView, navigateView, pipLayoutZoom, rememberUserZoom, setPipZoom, requestPipZoomRestore, restorePendingPipZoom, findView, stopFindView, pickElementInView, cancelPickInView, captureView, zoomView, printPdfDefaultName, printView };
 }
 
 module.exports = { createWebViews };

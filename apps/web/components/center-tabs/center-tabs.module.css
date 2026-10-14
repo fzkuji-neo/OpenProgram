@@ -1217,6 +1217,18 @@
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
+.webCommentHint {
+  margin: 0 8px 0 7px;
+  white-space: nowrap;
+}
+.webCommentTarget {
+  max-width: min(180px, 30cqw);
+  margin-left: 7px;
+  overflow: hidden;
+  color: var(--text-bright);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .webFindSep {
   width: 1px;
   height: 14px;
