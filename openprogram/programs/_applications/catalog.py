@@ -16,6 +16,7 @@ from openprogram import paths
 from . import catalog_store
 
 ID = re.compile(r"[a-z][a-z0-9._-]{0,95}\Z")
+ICON = re.compile(r"[a-z][a-z0-9-]{0,39}\Z")
 CAPABILITIES = {"model.invoke", "storage.app", "files.project.read"}
 
 
@@ -39,6 +40,10 @@ def manifest(root: Path) -> dict:
     for key in ("title", "version"):
         if not isinstance(raw.get(key), str) or not 0 < len(raw[key]) <= 160:
             raise ValueError(f"invalid {key}")
+    # A glyph name the host draws from its own icon set; packages never
+    # ship image files for it. Unknown names fall back to the generic glyph.
+    if "icon" in raw and not (isinstance(raw["icon"], str) and ICON.fullmatch(raw["icon"])):
+        raise ValueError("icon must be a lowercase glyph name such as 'calculator'")
     raw.setdefault("scope", "global")
     raw.setdefault("capabilities", [])
     raw.setdefault("dataSchema", 1)

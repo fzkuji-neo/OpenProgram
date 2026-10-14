@@ -1,6 +1,7 @@
 {
   "id": "example.calculator",
   "title": "Calculator",
+  "icon": "calculator",
   "version": "1.0.0",
   "ui": {
     "root": ".",

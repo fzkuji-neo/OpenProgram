@@ -26,6 +26,7 @@ import {
 } from "@/lib/tabs/center-tab-groups";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import styles from "./center-tabs.module.css";
+import { ApplicationTabGlyph } from "@/components/applications/application-glyph";
 
 /** Secondary line under a candidate's title: origin for web tabs, path
  *  for files, kind for the rest. */
@@ -43,6 +44,7 @@ function subtitleOf(
   if (tab.kind === "file") return tab.path ?? "";
   if (tab.kind === "ntp") return text("New tab", "新标签页");
   if (tab.kind === "builtin") return builtinPageLabel(tab.page, text);
+  if (tab.kind === "application") return text("Application", "应用");
   return text("Chat", "会话");
 }
 
@@ -50,6 +52,7 @@ function IconFor({ tab }: { tab: CenterTab }) {
   if (tab.kind === "web") return <ChromeIcon size={15} aria-hidden="true" />;
   if (tab.kind === "file") return <FileTypeIcon name={tab.path ?? ""} />;
   if (tab.kind === "ntp") return <CirclePlus size={15} aria-hidden="true" />;
+  if (tab.kind === "application") return <ApplicationTabGlyph appId={tab.applicationId} size={15} />;
   if (tab.kind === "builtin") {
     if (tab.page === "files") return <FileText size={15} aria-hidden="true" />;
     if (tab.page === "review") return <FeatherIcon size={15} aria-hidden="true" />;

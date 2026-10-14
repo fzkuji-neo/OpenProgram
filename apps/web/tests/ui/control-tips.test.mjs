@@ -60,3 +60,14 @@ test("A reply's first and last blocks bring no outer margin", () => {
   assert.match(css, /\.message-content \.md-rendered > :first-child \{ margin-top: 0; \}/);
   assert.match(css, /\.message-content \.md-rendered > :last-child \{ margin-bottom: 0; \}/);
 });
+
+test("Applications wear the glyph their manifest names", () => {
+  const glyphs = read("components/applications/application-glyph.tsx");
+  for (const name of ["calculator", "book-open", "file-search"]) assert.match(glyphs, new RegExp(`"?${name}"?: \\w+`));
+  assert.equal(read("components/center-tabs/tab-items.tsx").match(/<ApplicationTabGlyph appId=\{tab\.applicationId\} size=\{14\} \/>/g)?.length, 2);
+  assert.match(read("components/center-tabs/new-tab-page.tsx"), /<ApplicationGlyph icon=\{application\.icon\}/);
+  assert.match(read("components/applications/applications-page.tsx"), /<ApplicationGlyph icon=\{application\.icon\} size=\{18\} \/>/);
+  const picker = read("components/center-tabs/split-view-picker.tsx");
+  assert.match(picker, /tab\.kind === "application"\) return <ApplicationTabGlyph/);
+  assert.match(picker, /tab\.kind === "application"\) return text\("Application", "应用"\)/);
+});

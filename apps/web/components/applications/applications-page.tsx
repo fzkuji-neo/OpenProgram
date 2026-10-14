@@ -5,6 +5,7 @@ import { applicationRequest, type ApplicationDefinition } from "@/lib/net/applic
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { ApplicationGlyph } from "./application-glyph";
 import { BoxesIcon, FolderOpenIcon, RefreshCwIcon } from "@/components/animated-icons";
 import {
   ManageEmptyState, ManagePage, ManagePageHeader, ManageSummary, managePageStyles as shared,
@@ -112,7 +113,7 @@ export function ApplicationsPage() {
             {applications.map(application => {
               const title = application.display_title || application.title;
               return <section className={styles.application} key={application.id} aria-label={title}>
-                <span className={styles.appIcon} aria-hidden><BoxesIcon size={18} /></span>
+                <span className={styles.appIcon} aria-hidden><ApplicationGlyph icon={application.icon} size={18} /></span>
                 <div className={styles.appMain}>
                   <div className={styles.appTitle}>
                     <h3>{title}</h3>
