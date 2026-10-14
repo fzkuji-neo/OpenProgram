@@ -8,7 +8,8 @@ the four things its menu can do:
 * :func:`folder_status` — branch, upstream ahead/behind, uncommitted
   change counts (untracked text files count as added lines), the
   repository's worktrees, and (on request) the local
-  branch list and the current branch's open pull request.
+  branch list and the current branch's open pull request with a
+  summary of its CI checks.
 * :func:`switch_branch` — ``git switch`` (optionally ``-c``) in place.
   Uncommitted changes travel with the switch exactly as plain git
   allows; git's own refusal is returned as the error.
@@ -253,7 +254,7 @@ def _open_pr(root: str, branch: str) -> Optional[dict[str, Any]]:
         return None
     try:
         proc = subprocess.run(
-            [gh, "pr", "view", branch, "--json", "number,url,state,title,isDraft"],
+            [gh, "pr", "view", branch, "--json", "number,url,state,title,isDraft,statusCheckRollup"],
             cwd=root, capture_output=True, text=True, timeout=8, env=_env(),
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -267,7 +268,51 @@ def _open_pr(root: str, branch: str) -> Optional[dict[str, Any]]:
         return None
     if not isinstance(data, dict) or not data.get("url"):
         return None
-    return {k: data.get(k) for k in ("number", "url", "state", "title", "isDraft")}
+    pr = {k: data.get(k) for k in ("number", "url", "state", "title", "isDraft")}
+    pr["checks"] = _checks_summary(data.get("statusCheckRollup"))
+    return pr
+
+
+_PASSED = {"SUCCESS", "NEUTRAL", "SKIPPED"}
+_FAILED = {"FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE"}
+_MAX_FAILED_NAMES = 10
+
+
+def _checks_summary(rollup: object) -> Optional[dict[str, Any]]:
+    """Counts of a PR's CI checks (GitHub check runs and commit statuses).
+
+    ``None`` when the PR has no checks. A check that has not finished is
+    pending; a finished one passed or failed by its conclusion. ``failed``
+    names up to ten failing checks with their detail links.
+    """
+    if not isinstance(rollup, list) or not rollup:
+        return None
+    passed = pending = 0
+    failed: list[dict[str, Any]] = []
+    for item in rollup:
+        if not isinstance(item, dict):
+            continue
+        if item.get("__typename") == "StatusContext" or "context" in item:
+            name, outcome, url = item.get("context"), str(item.get("state") or "").upper(), item.get("targetUrl")
+            finished = outcome not in {"PENDING", "EXPECTED", ""}
+        else:
+            name, outcome, url = item.get("name"), str(item.get("conclusion") or "").upper(), item.get("detailsUrl")
+            finished = str(item.get("status") or "").upper() == "COMPLETED"
+        if not finished:
+            pending += 1
+        elif outcome in _FAILED:
+            failed.append({"name": str(name or "check"), "url": url if isinstance(url, str) else None})
+        elif outcome in _PASSED:
+            passed += 1
+        else:
+            pending += 1
+    total = passed + pending + len(failed)
+    if not total:
+        return None
+    return {
+        "total": total, "passed": passed, "pending": pending, "failed_count": len(failed),
+        "failed": failed[:_MAX_FAILED_NAMES],
+    }
 
 
 def folder_status(
