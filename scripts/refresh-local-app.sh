@@ -492,7 +492,11 @@ runtime_uv_version="$("$runtime_root/bin/uv" --version | awk '{print $2}')"
 "$app_python" -I "$runtime_root/bin/verify-product-runtime.py" "$runtime_root" \
   --write --python-relative "$app_python_relative" \
   --openprogram-version "$runtime_version" --uv-version "$runtime_uv_version"
-cp "$desktop_asar" "$installed_asar"
+# Replace the archive by rename, never by an in-place copy: an App launched
+# mid-refresh must read either the old or the new archive whole, never a
+# half-written preload (it fails as a syntax error and drops the bridge).
+cp "$desktop_asar" "$installed_asar.incoming"
+mv -f "$installed_asar.incoming" "$installed_asar"
 if test -d "$desktop_asar.unpacked"; then
   rsync -a --delete "$desktop_asar.unpacked/" \
     "$app_path/Contents/Resources/app.asar.unpacked/"
