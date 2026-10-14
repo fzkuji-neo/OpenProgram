@@ -207,7 +207,10 @@ export function CanvasOverview() {
   // Control, so nothing else needs to mark which one it is.
   const entered = useRef(false);
   useLayoutEffect(() => {
-    if (mode !== "browse") { entered.current = false; setZoom(null); return; }
+    // A landing merge keeps its zoom: the merge itself widens the canvas
+    // (a split's cards reach past the center card's edge), which changes
+    // widthNow mid-zoom.
+    if (mode !== "browse") { entered.current = false; if (!landing) setZoom(null); return; }
     if (entered.current || !widthNow) return;
     entered.current = true;
     if (zoomAt(activeKey, "out")) requestAnimationFrame(() => setZoom(z => z?.phase === "out" ? { ...z, phase: "in" } : z));
@@ -295,7 +298,7 @@ export function CanvasOverview() {
               <motion.span className={styles.zoomer} layout={mode === "browse"}
                 transition={zoom?.key === card.key && zoom.phase !== "out" ? ZOOM : INSTANT}
                 data-zoomed={zoomed || undefined}
-                style={zoomed ? { position: "absolute", zIndex: 3, ...zoom!.box } : undefined}
+                style={zoomed ? { position: "absolute", zIndex: 3, ...(area.canvasWidth > 0 ? { left: 0, top: 0, width: area.canvasWidth, height: area.canvasHeight } : zoom!.box) } : undefined}
                 onLayoutAnimationComplete={() => {
                   if (zoom?.key !== card.key) return;
                   if (zoom.phase === "closing") closeOverview(); else if (zoom.phase === "in") setZoom(null);
