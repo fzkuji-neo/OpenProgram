@@ -16,7 +16,9 @@ import { useTranslation } from "@/lib/i18n";
 import { CompoundMemberIcon, labelOf } from "./tab-items";
 import styles from "./canvas-overview.module.css";
 
-type Card = { key: string; targetId: string; activateId: string; root: LayoutNode; title: string };
+/** `first`: the card's first tab in the strip, which a window moved in
+ *  front of the card goes before. */
+type Card = { key: string; targetId: string; activateId: string; root: LayoutNode; title: string; first: string };
 
 const ZONE: Record<OverviewSide, React.CSSProperties> = {
   left: { left: 0, top: 0, width: "50%", height: "100%" },
@@ -71,7 +73,7 @@ function isPinch(e: WheelEvent) {
  *  center area. See lib/tabs/canvas-overview.ts for when it opens. */
 export function CanvasOverview() {
   const { t, text } = useTranslation();
-  const { mode, sourceIds, hover, label, landing, landed } = useCanvasOverview();
+  const { mode, sourceIds, hover, label, landing, landed, slot } = useCanvasOverview();
   const tabs = useCenterTabs(s => s.tabs), groups = useCenterTabs(s => s.groups), activeId = useCenterTabs(s => s.activeId);
   const rootRef = useRef<HTMLDivElement>(null);
   // How this overview opened, kept until it closes.
@@ -186,26 +188,40 @@ export function CanvasOverview() {
     captureWebTabs(all.filter(tab => tab.kind === "web" && listed.has(tab.id) && !onScreen.has(tab.id)).map(tab => tab.id));
   }, [mode]);
 
-  const cards = useMemo<Card[]>(() => {
-    if (!mode) return [];
+  // `home`: where the dragged window stood, or right after the window it
+  // is being taken out of.
+  const { cards, home } = useMemo(() => {
+    const cards: Card[] = [];
+    let home = -1;
+    if (!mode) return { cards, home };
     const byId = new Map(tabs.map(tab => [tab.id, tab]));
+    const order = new Map(tabs.map((tab, i) => [tab.id, i]));
     const name = (id: string) => { const tab = byId.get(id); return tab ? labelOf(tab, t, text) : ""; };
     const leaving = new Set(sourceIds);
-    return centerTabStripEntries({ tabIds: topLevelTabs(tabs, groups).map(tab => tab.id), groups }).flatMap<Card>(entry => {
+    for (const entry of centerTabStripEntries({ tabIds: topLevelTabs(tabs, groups).map(tab => tab.id), groups })) {
       let root: LayoutNode = entry.kind === "group" ? (entry.group.canvas ?? rowLayout(entry.group.memberIds)).root : rowLayout([entry.tabId]).root;
+      const left = leaves(root).some(p => p.content && leaving.has(p.content));
       for (const p of leaves(root)) if (p.content && leaving.has(p.content)) root = removePane(root, p.id);
       const contents = leaves(root).flatMap(p => p.content && byId.has(p.content) && !byId.get(p.content)!.canvasAnchor ? [p.content] : []);
-      if (!contents.length) return [];
+      if (left && home < 0) home = cards.length + (contents.length ? 1 : 0);
+      if (!contents.length) continue;
       const activateId = entry.kind === "group" && contents.includes(entry.group.focusedId) ? entry.group.focusedId : contents[0];
-      return [{ key: entry.id, targetId: contents[0], activateId, root, title: contents.map(name).join(" + ") }];
-    });
+      const first = [...contents].sort((a, b) => order.get(a)! - order.get(b)!)[0];
+      cards.push({ key: entry.id, targetId: contents[0], activateId, root, title: contents.map(name).join(" + "), first });
+    }
+    return { cards, home: home < 0 ? cards.length : home };
   }, [mode, sourceIds, tabs, groups, t, text]);
+  // A dragged window keeps a gap among the cards, where it would stand on
+  // its own, so the other cards never change size: picking a card up
+  // leaves its place empty, as in Mission Control, and the cards move
+  // aside wherever the gap goes.
+  const gapAt = mode && sourceIds.length ? Math.min(slot ?? home, cards.length) : -1;
 
   const activeKey = cards.find(card => leaves(card.root).some(p => p.content === activeId))?.key;
   const frame = area.canvasWidth > 0 && area.canvasHeight > 0 ? { width: area.canvasWidth, height: area.canvasHeight } : { width: 1000, height: 625 };
   const viewport = canvasViewport(frame.width, frame.height);
   const aspectNow = frame.width / frame.height;
-  const widthNow = area.width > 0 ? fit(Math.max(1, cards.length), area.width, area.height, aspectNow) : 0;
+  const widthNow = area.width > 0 ? fit(Math.max(1, cards.length + (gapAt < 0 ? 0 : 1)), area.width, area.height, aspectNow) : 0;
 
   // The window zooms between the center area and its card. A card that is
   // "out" or "closing" sits over the window's own place; framer-motion
@@ -328,8 +344,9 @@ export function CanvasOverview() {
 
   // Browsing, any card can be picked up like a dragged tab: dropped on a
   // card's side it merges (and the landing zoom follows, as from the
-  // strip), on empty space it stands on its own, and anything but a merge
-  // leaves the overview browsing. A pane of a split card comes up alone.
+  // strip), on empty space it stands on its own where its gap is, and
+  // anything but a merge leaves the overview browsing. A pane of a split
+  // card comes up alone.
   const pickedUp = useRef(false);
   const pickUp = (e: React.PointerEvent<HTMLElement>, card: Card) => {
     if (mode !== "browse" || e.button !== 0 || zoom?.phase === "closing") return;
@@ -374,7 +391,9 @@ export function CanvasOverview() {
       // The click that follows the release is not a pick.
       window.setTimeout(() => { pickedUp.current = false; }, 0);
       if (drop?.action === "dock") { holdOverviewLanding(drop, ids); commitCanvasDrop(drop, ids); return; }
-      if (drop?.action === "fill" && ids.length === 1 && split) commitCanvasDrop(drop, ids);
+      // Empty space: the window moves to the gap (a pane comes out of its
+      // split there).
+      if (drop?.action === "fill") commitCanvasDrop(drop, ids);
       browseOverview();
     };
     const up = (ev: PointerEvent) => { if (ev.pointerId === pointerId) finish(ghost ? overviewDropAt(ev.clientX, ev.clientY) : null); };
@@ -401,6 +420,17 @@ export function CanvasOverview() {
     ? label || text("Drop on a window to merge · on empty space to open on its own · outside the window for a new window", "拖到某个窗口上合并 · 空白处单独打开 · 拖出窗口新开一个")
     : "";
 
+  // The gap is a card with nothing in it; over it the drop opens the
+  // window on its own, and it shows where.
+  const gapCard = (
+    <motion.div key="overview-gap" className={styles.card} style={{ width: cardWidth || undefined }} aria-hidden="true"
+      data-overview-slot="" data-hot={(mode === "drag" && hover?.card === null) || undefined}
+      layout={!landing} initial={false} transition={REFLOW}>
+      <span className={styles.gap} style={{ aspectRatio: `${aspect}`, borderRadius: radius * (cardWidth ? cardWidth / frame.width : 1) }} />
+      <span className={styles.caption}>{"\u00a0"}</span>
+    </motion.div>
+  );
+
   return (
     <div
       ref={rootRef}
@@ -415,7 +445,8 @@ export function CanvasOverview() {
       aria-label={text("Window overview", "窗口总览")}
     >
       <div className={styles.grid} data-overview-grid="">
-        {cards.map(card => {
+        {cards.flatMap((card, i) => {
+          const gap = i === gapAt ? [gapCard] : [];
           const geometry = canvasGeometry(card.root, viewport);
           const hot = hover?.card === card.key;
           const zoomed = zoom?.key === card.key && zoom.phase !== "in";
@@ -466,6 +497,7 @@ export function CanvasOverview() {
             "data-overview-card": card.key,
             "data-overview-target": card.targetId,
             "data-overview-title": card.title,
+            "data-overview-first": card.first,
             "data-hot": hot || undefined,
             "data-current": card.key === activeCard || undefined,
             "data-zooming": zoom?.key === card.key || undefined,
@@ -473,7 +505,7 @@ export function CanvasOverview() {
           };
           // One element in both modes: a card turning from a drag target
           // into a pickable one keeps its pictures.
-          return (
+          return [...gap, (
             <motion.button key={card.key} type="button" {...shared} aria-label={card.title}
               tabIndex={mode === "browse" ? undefined : -1}
               layout={!landing}
@@ -485,8 +517,8 @@ export function CanvasOverview() {
               transition={{ ...REFLOW, opacity: { duration: 0.22, delay: opening && openedAs.current === "browse" ? 0.07 : 0 } }}
               onPointerDown={e => pickUp(e, card)}
               onClick={() => { if (mode === "browse") activate(card); }}>{body}</motion.button>
-          );
-        })}
+          )];
+        }).concat(gapAt === cards.length ? [gapCard] : [])}
       </div>
       <div className={styles.hint} role="status" aria-live="polite" data-idle={!hint || undefined} data-alone={(mode === "drag" && hover?.card === null) || undefined}>{hint || "\u00a0"}</div>
     </div>

@@ -9,8 +9,10 @@ import { desktopBridge, buildTransferPayload } from "../desktop/desktop-bridge";
 import { translateText } from "../i18n";
 import { DRAG_SURFACE_STYLE } from "../prefs/visual-effects-config";
 /** A drop in the window overview. "dock" merges the tab into the window
- *  that holds targetId, beside the whole window; "fill" opens it on its own. */
-export type CanvasDrop = { targetId: string; paneId: string; side: CanvasDockSide; rect: Rect; action: "dock" | "fill"; label: string };
+ *  that holds targetId, beside the whole window; "fill" opens it on its
+ *  own, in the strip before the tab `before` (null: last; absent: where
+ *  it is). */
+export type CanvasDrop = { targetId: string; paneId: string; side: CanvasDockSide; rect: Rect; action: "dock" | "fill"; label: string; before?: string | null };
 let preview: HTMLDivElement | null = null;
 let dragging = false;
 let animating = false;
@@ -72,9 +74,17 @@ export function commitCanvasDrop(drop: CanvasDrop, sourceIds: string[]): boolean
   const group = findCenterTabGroup(s.groups, drop.targetId);
   const layout = group?.canvas ?? rowLayout([drop.targetId]);
   if (drop.action === "fill") {
-    if (group) rememberCanvas([drop.targetId, ...sourceIds, group.id, ...group.memberIds], layout);
-    if (sourceIds.length === 1 && findCenterTabGroup(s.groups, sourceId)) s.ungroupTab(sourceId);
-    useCenterTabs.getState().setActive(sourceId);
+    // targetId is the dragged tab: `group` is the window it comes from.
+    const whole = group?.memberIds.every(id => sourceIds.includes(id));
+    if (group && !whole) rememberCanvas([drop.targetId, ...sourceIds, group.id, ...group.memberIds], layout);
+    if (sourceIds.length === 1 && group && !whole) s.ungroupTab(sourceId);
+    if (drop.before !== undefined) {
+      if (group && whole) useCenterTabs.getState().moveGroup(group.id, drop.before);
+      else useCenterTabs.getState().moveTab(sourceId, drop.before);
+    }
+    // A tab taken out of a split is a new window: show it. A window only
+    // moved along the strip stays as it was.
+    if (sourceIds.length === 1 && group && !whole) useCenterTabs.getState().setActive(sourceId);
     // The overview browses on (holdOverviewLanding); the tab's card is back.
     if (useCanvasOverview.getState().mode === "browse") useCanvasOverview.setState({ sourceIds: [] });
     return true;
