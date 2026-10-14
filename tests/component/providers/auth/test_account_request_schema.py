@@ -711,3 +711,19 @@ def test_unsupported_provider_login_is_rejected(account_api):
     response = account_api.client.post('/api/providers/claude-code/login/start', json={'method': 'pkce_oauth'})
     assert response.status_code == 404
     assert not provider_login._SESSIONS
+
+
+def test_listing_marks_the_account_requests_actually_use(account_api):
+    from openprogram.auth.account.account_selection import set_active_account
+
+    _put_account(account_api.store, "default")
+    _put_account(account_api.store, "work", "sk-abcdef0123456")
+
+    def flags():
+        listing = account_api.client.get("/api/providers/openai/accounts").json()
+        return {a["id"]: (a["is_active"], a["is_fallback"]) for a in listing["accounts"]}
+
+    # Nothing pinned: requests run on the fallback account, and it says so.
+    assert flags() == {"default": (True, True), "work": (False, False)}
+    set_active_account("openai", "work")
+    assert flags() == {"default": (False, True), "work": (True, False)}
