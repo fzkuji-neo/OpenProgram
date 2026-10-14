@@ -80,15 +80,19 @@ test('a capture the layout never follows lapses instead of playing later', () =>
 test('yellow folds the pane into the bottom edge of its tab, then the tab lights once', () => {
   animations.length = 0;
   canvas.innerHTML = '<div data-center-tab-id="a">A</div><div data-center-tab-id="b"><p>B</p></div>';
-  const tab = document.createElement('div');
-  tab.setAttribute('role', 'tab');
-  tab.setAttribute('data-tab-id', 'b');
-  document.body.prepend(tab);
+  const strip = document.createElement('div');
+  strip.setAttribute('role', 'tablist');
+  strip.innerHTML = '<div class="split"><div role="tab" data-tab-id="a"></div></div>';
+  document.body.prepend(strip);
   rects.set('tab:b', new DOMRect(600, -36, 160, 28));
   rects.set('a', new DOMRect(0, 0, 500, 600));
   rects.set('b', new DOMRect(500, 0, 500, 600));
   captureCanvasTransition({b: 'minimize'});
   canvas.querySelector('[data-center-tab-id="b"]').remove();
+  // Leaving the split gives the pane a tab button of its own.
+  strip.innerHTML = '<div class="tab"><div role="tab" data-tab-id="a"></div></div><div class="tab"><div role="tab" data-tab-id="b"></div></div>';
+  const tab = strip.lastElementChild;
+  tab.getBoundingClientRect = () => rects.get('tab:b');
   rects.set('a', new DOMRect(0, 0, 1000, 600));
   playCanvasTransition();
   const layer = canvas.querySelector('[data-canvas-ghost]');
@@ -98,11 +102,13 @@ test('yellow folds the pane into the bottom edge of its tab, then the tab lights
   assert.equal(layer.querySelector('[data-center-tab-id]'), null);
   const grow = animations.find(a => a.el.getAttribute('data-center-tab-id') === 'a');
   assert.ok(grow.options.delay > 0, 'the neighbour fills after the fold leads');
+  const reveal = animations.find(a => a.el === tab);
+  assert.equal(reveal?.frames[0].flexBasis, '0px', 'the new tab button grows out before the pane folds into it');
   const realNow = performance.now.bind(performance);
   performance.now = () => realNow() + 10_000;
   while (frames.length) frames.shift()(performance.now());
   performance.now = realNow;
-  assert.ok(animations.some(a => a.el === tab), 'the tab lights as it takes the pane in');
+  assert.ok(animations.some(a => a.el === tab && a.frames[0].backgroundColor), 'the whole tab button lights as it takes the pane in');
   assert.equal(layer.isConnected, false, 'the layer is gone once the fold ends');
-  tab.remove();
+  strip.remove();
 });
