@@ -66,6 +66,7 @@ import { GoalDetails, useSessionGoal } from "../goal-chip";
 import { AttachCard } from "./attach-card";
 import { DecisionOutputs } from "./decision-output";
 import { SystemAccessWaits } from "./system-access-waits";
+import { TodoPlanCard } from "./todo-plan-card";
 import { MessageRail } from "./message-rail";
 import { AgentBranchBanner } from "./agent-branch-banner";
 import { RuntimeBlock } from "./runtime-block";
@@ -945,6 +946,7 @@ export const MessageList = memo(function MessageList({
       ) : null}
       {paintRows ? <DecisionOutputs key={`decisions-${sessionId}`} sessionId={sessionId} /> : null}
       {paintRows ? <SystemAccessWaits key={sessionId} sessionId={sessionId} /> : null}
+      {paintRows ? <TodoPlanCard sessionId={sessionId} /> : null}
       {paintRows && jumpShown && jumpHost
         ? createPortal(
             <div className={[

@@ -99,3 +99,21 @@ def test_no_session_context(monkeypatch):
     assert "no active session context" in _todo_create_impl("a")
     assert "no active session context" in _todo_update_impl("1")
     assert "no active session context" in _todo_list_impl()
+
+
+def test_saved_board_is_pushed_to_the_ui(board, monkeypatch):
+    frames = []
+    monkeypatch.setattr(shared, "publish", lambda sid, todos: frames.append((sid, [dict(t) for t in todos])))
+    _todo_create_impl("a")
+    _todo_update_impl("1", status="in_progress")
+    _todo_update_impl("1")  # no change → nothing to push
+    assert [(sid, [(t["id"], t["status"]) for t in todos]) for sid, todos in frames] == [
+        ("sess1", [("1", "pending")]),
+        ("sess1", [("1", "in_progress")]),
+    ]
+
+
+def test_publish_without_a_server_is_quiet(monkeypatch):
+    import sys
+    monkeypatch.setitem(sys.modules, "openprogram.webui.server", None)
+    shared.publish("sess1", [{"id": "1"}])

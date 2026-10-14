@@ -77,6 +77,20 @@ def next_id(todos: list[dict[str, Any]]) -> str:
     return str(highest + 1)
 
 
+def publish(session_id: str, todos: list[dict[str, Any]]) -> None:
+    """Push the saved board to every connected UI tab (best-effort — the
+    server may not be running, e.g. pure-CLI use or tests). The chat's
+    task-list card renders from these frames; ``load_session`` hydrates it."""
+    try:
+        from openprogram.webui import server as _s
+        _s._broadcast(json.dumps(
+            {"type": "todos_update", "data": {"session_id": session_id, "todos": todos}},
+            ensure_ascii=False, default=str,
+        ))
+    except Exception:
+        pass
+
+
 def notify_goal(session_id: str) -> None:
     """Refresh derived Goal progress after saving and releasing the todo lock."""
     from openprogram.programs.workflow.goal import chat

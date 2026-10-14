@@ -113,7 +113,7 @@ SSH 和 Docker 在后端文件系统中按 POSIX 路径解释显式目录，不�
 
 | 域 | 工具 | 做什么 | 需要什么 |
 |---|---|---|---|
-| 计划 | `todo_create` / `todo_update` / `todo_list` | 会话规划清单：手写的计划清单（建条目、设状态/负责人/依赖、按状态分组列出）。写一条不会启动任何东西 | 无 |
+| 计划 | `todo_create` / `todo_update` / `todo_list` | 会话规划清单：手写的计划清单（建条目、设状态/负责人/依赖、按状态分组列出）。写一条不会启动任何东西；网页界面把当前计划显示为[任务清单](../interfaces/web.zh.md#任务清单) | 无 |
 | 执行 | `list_jobs` / `job_output` | 列出本会话的后台任务，等待或查看结果。结果读取检查派发会话和祖先任务的所有权 | 无 |
 | 实体 | `agent` | 新建一个 agent 并取回回复，或用 `to=` 给已存在的 agent 派受管任务。`run_in_background=true` 不阻塞、直接返回 job_id；`start_from` 决定新 agent 从哪起（`clean` / `inherit` / `SID:MSG_ID`）；`archive_when_done=true` 让它在任务结束、结果回流之后自动归档 | 无 |
 | 实体 | `list_agents` | agent 列表：有哪些 agent、它们的名字、地址、体量和忙闲（`scope="archived"` 看已归档的） | 无 |

@@ -870,6 +870,16 @@ export function useWS(): void {
         case "sessions_list":
           handleSessionsList((d ?? []) as never);
           return true;
+        case "todos_update": {
+          const sid = d?.session_id;
+          if (typeof sid === "string" && sid) {
+            const todos = d?.todos;
+            void import("@/lib/chat/todo-plan").then(({ useTodoStore }) => {
+              useTodoStore.getState().setTodos(sid, todos);
+            });
+          }
+          return true;
+        }
         case "projects_changed":
           window.dispatchEvent(new Event("project-changed"));
           return true;

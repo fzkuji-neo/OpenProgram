@@ -76,5 +76,7 @@ def _todo_update_impl(
             return f"Todo #{todo_id} unchanged (no new field values)"
         entry["updated_at"] = time.time()
         shared.save(sid, todos)
+        # Inside the lock, so frames reach the UI in save order.
+        shared.publish(sid, todos)
     shared.notify_goal(sid)
     return f"Todo #{todo_id} updated ({', '.join(updated)})"
