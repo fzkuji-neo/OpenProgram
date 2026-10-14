@@ -400,6 +400,30 @@
 .md-code-copy.copied { color: var(--accent-green); }
 .md-code-copy.copied .md-code-icon-copy { display: none; }
 .md-code-copy.copied .md-code-icon-done { display: inline; }
+/* ```mermaid cards (lib/chat/mermaid.ts): the diagram takes the code's place
+   in the same card; the header button switches back to the source. */
+.md-mermaid {
+  display: flex;
+  justify-content: center;
+  padding: 14px;
+  overflow-x: auto;
+}
+.md-mermaid svg { max-width: 100%; height: auto; }
+.md-mermaid[hidden] { display: none; }
+.md-mermaid-toggle {
+  height: 24px;
+  margin-left: auto;
+  margin-right: 2px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.md-mermaid-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
 .message-content p { margin: 0 0 12px; }
 .message-content p:last-child { margin-bottom: 0; }
 /* A reply's spacing comes from what sits around it (the execution strip,
