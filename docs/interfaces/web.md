@@ -114,6 +114,10 @@ The model's thinking process renders as a collapsible block, collapsed by defaul
 
 Function and tool calls within each reply turn render as an expandable execution timeline: one row per step, with arguments, output, errors, and duration for each function call. Nested calls display recursively as a context tree, and subagents are steps in the timeline too. Clicking a step opens the execution detail panel in the right sidebar. Functions run manually from the `/programs` page's Run dialog use the same timeline rendering. Completed replies retain their streamed timeline; older records without ordered blocks use the same collapsible components instead of a separate tool-call table.
 
+### Task list
+
+When the agent plans its work with the `todo_create` and `todo_update` tools, the plan appears as a task list at the end of the conversation and updates as the agent works: each task shows as done, in progress, or still to do, with a done count in the corner. The list shows the current plan only. Tasks the agent adds after finishing every earlier one start a new plan, and the finished one drops off. A plan that is still open stays visible; a finished plan stays under the turn that finished it until you send your next message. Reopening the conversation shows the same list.
+
 ### Attachments
 
 Paste a screenshot, drop files, or choose files from the composer menu. Images and files share a compact row in the order added. Each item shows its name, format and size; click it for a preview or details, or use × to remove it.

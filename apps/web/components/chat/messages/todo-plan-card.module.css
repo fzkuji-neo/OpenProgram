@@ -1,0 +1,87 @@
+/* Same card surface as the decision output beside it in the transcript. */
+.card {
+  width: 100%;
+  min-width: 0;
+  flex-shrink: 0;
+  margin: 12px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm, 13px);
+  font-weight: 500;
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.item svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  /* Centre the icon on the first line of a wrapping subject. */
+  margin-top: calc((1.5em - 16px) / 2);
+}
+
+.subject {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.item[data-status="completed"] .subject {
+  color: var(--text-secondary);
+}
+
+.item[data-status="in_progress"] .subject {
+  font-weight: 500;
+}
+
+.done {
+  color: var(--text-secondary);
+}
+
+.active {
+  color: var(--text-primary);
+  animation: todo-spin 1s linear infinite;
+}
+
+.pending {
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+@keyframes todo-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .active { animation: none; }
+}

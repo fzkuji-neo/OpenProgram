@@ -115,7 +115,7 @@ Collaboration splits into four domains, one word each — see
 
 | Domain | Tool | What it does | Requires |
 |---|---|---|---|
-| Planning | `todo_create` / `todo_update` / `todo_list` | The session planning board — a written checklist of intent (create entries, set status / owner / dependencies, list them grouped by status). Writing an entry starts nothing | Nothing |
+| Planning | `todo_create` / `todo_update` / `todo_list` | The session planning board — a written checklist of intent (create entries, set status / owner / dependencies, list them grouped by status). Writing an entry starts nothing; the Web UI shows the current plan as a [task list](../interfaces/web.md#task-list) | Nothing |
 | Execution | `list_jobs` / `job_output` | List this session's background tasks and wait for or inspect a result. Result access checks the dispatching session and ancestor ownership | Nothing |
 | Entity | `agent` | Spawn a new agent and collect its reply, or with `to=` hand a tracked task to an agent that already exists. `run_in_background=true` returns a task id instead of blocking; `start_from` picks where a new agent begins (`clean` / `inherit` / `SID:MSG_ID`); `archive_when_done=true` archives it once its task ends and the result has come back | Nothing |
 | Entity | `list_agents` | The agent list: which agents exist, their names, addresses, sizes and busy state (`scope="archived"` shows the archived ones) | Nothing |

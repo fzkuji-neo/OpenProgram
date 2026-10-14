@@ -62,5 +62,7 @@ def _todo_create_impl(subject: str, description: str = "", blocked_by: str = "")
                 "goal_revision": goal_identity["revision"]} if goal_identity else {}),
         })
         shared.save(sid, todos)
+        # Inside the lock, so frames reach the UI in save order.
+        shared.publish(sid, todos)
     shared.notify_goal(sid)
     return f"Todo #{todo_id} created: {subject}"

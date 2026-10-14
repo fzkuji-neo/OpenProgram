@@ -524,6 +524,14 @@ def _rebuild_runtime_cards(
     return out
 
 
+def _session_todos(session_id: str) -> list:
+    try:
+        from openprogram.programs.tools.planning.todo import shared as _todos
+        return _todos.load(session_id)
+    except Exception:
+        return []
+
+
 async def handle_delete_session(ws, cmd: dict):
     from openprogram.webui import server as _s
     from openprogram.agent.session_db import default_db
@@ -1246,6 +1254,9 @@ async def handle_load_session(ws, cmd: dict):
                 # Session goal (/goal) — the composer's GoalChip hydrates
                 # from this on load; live changes ride goal_update frames.
                 "goal": history_projection((_db_sess.get("extra_meta") or {}).get("goal"), session_id),
+                # The task-list card hydrates from this; live changes
+                # ride todos_update frames.
+                "todos": _session_todos(session_id),
                 "settings": {
                     "tools_enabled": run_cfg.tools_enabled,
                     "tools_override": run_cfg.tools_override,
