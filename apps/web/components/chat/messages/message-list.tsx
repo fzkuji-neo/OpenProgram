@@ -29,6 +29,7 @@ import { useMessageViewport } from "./use-message-viewport";
 import { useHistoryWindow } from "./use-history-window";
 import { useChatAreaStick } from "./use-chat-area-stick";
 import { ArrowDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import {
   useMessageById,
@@ -951,23 +952,24 @@ export const MessageList = memo(function MessageList({
               runningTask ? "is-live" : "",
               jumpLeaving ? "is-leaving" : "",
             ].filter(Boolean).join(" ")}>
-              <button
+              <Button
                 type="button"
+                variant="elevated"
+                size="sm"
                 className="jump-latest"
                 onClick={jumpToLatest}
-                title={text("Jump to latest", "跳到最新")}
               >
                 {runningTask ? (
-                  <span className="jump-latest-live" aria-hidden>
+                  <span className="jump-latest-live" data-icon="inline-start" aria-hidden>
                     <i />
                     <i />
                     <i />
                   </span>
                 ) : (
-                  <ArrowDown aria-hidden />
+                  <ArrowDown data-icon="inline-start" aria-hidden />
                 )}
                 {text("Jump to latest", "跳到最新")}
-              </button>
+              </Button>
             </div>,
             jumpHost,
           )

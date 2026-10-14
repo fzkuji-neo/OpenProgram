@@ -23,6 +23,7 @@ import { SelectionQuote } from "./messages/quote-to-chat";
  */
 import { memo, useCallback, useEffect, useRef } from "react";
 import { ArrowDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import { useMessageIds, useSessionStore } from "@/lib/session-store";
 import { useSessionHistory } from "@/lib/chat/session-history";
@@ -234,12 +235,10 @@ export const PeerSessionPane = memo(function PeerSessionPane({
       </div>
       {detached ? (
         <div className="jump-latest-anchor" style={{ bottom: "calc(var(--peer-composer-h, 0px) + 12px)" }}>
-          <button type="button" className="jump-latest" onClick={jumpToLatest}
-            aria-label={text("Jump to latest", "跳到最新")}
-            title={text("Jump to latest", "跳到最新")}>
-            <ArrowDown aria-hidden="true" />
+          <Button type="button" variant="elevated" size="sm" className="jump-latest" onClick={jumpToLatest}>
+            <ArrowDown data-icon="inline-start" aria-hidden="true" />
             {text("Jump to latest", "跳到最新")}
-          </button>
+          </Button>
         </div>
       ) : null}
       {/* Full composer, scoped to this pane's session. The scope is what the
