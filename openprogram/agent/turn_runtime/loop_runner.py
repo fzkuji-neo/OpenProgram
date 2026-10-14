@@ -332,6 +332,7 @@ def resolve_agent_runtime(
     # rebuilding them is neither necessary nor the context we will execute.
     recordable_prompt = saved_system_prompt if saved_system_prompt is not None else build_system_prompt(
         agent_profile, tools=tools,
+        channel=req.source,
         additional_working_dirs=getattr(req, "additional_working_dirs", None),
         plan_mode=req.permission_mode == "plan" or _plan_mode.is_plan_mode(req.session_id),
     )

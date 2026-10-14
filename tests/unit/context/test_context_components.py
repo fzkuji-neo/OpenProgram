@@ -112,6 +112,13 @@ def test_platform_format_wechat():
     assert "WeChat" in out
 
 
+def test_platform_format_web_teaches_a2ui():
+    out = build_system_prompt({"id": "main", "name": "bot"}, channel="web")
+    assert "<platform_format>" in out
+    assert "```a2ui" in out
+    assert '"id": "root"' in out
+
+
 def test_platform_format_unknown_channel():
     out = build_system_prompt({"id": "main", "name": "bot"}, channel="unknown")
     assert "<platform_format>" not in out

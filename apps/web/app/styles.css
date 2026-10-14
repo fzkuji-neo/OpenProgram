@@ -11,6 +11,7 @@
 @import "./styles/chat/transcript.css";
 @import "./styles/chat/peer-session-pane.css";
 @import "./styles/chat/bubbles.css";
+@import "./styles/chat/a2ui.css";
 @import "./styles/chat/message-actions.css";
 @import "./styles/chat/exec-log.css";
 @import "./styles/chat/typing-indicator.css";

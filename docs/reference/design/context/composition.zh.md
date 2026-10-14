@@ -287,7 +287,9 @@ Today is {weekday}, {month} {day}, {year}.
 
 ### 6. 平台渲染格式（L0 · order 5 · condition: 按 channel）
 
-每 channel 注册一条骨架(我们有 wechat / slack / discord / telegram)。
+每 channel 注册一条骨架(我们有 web / wechat / slack / discord / telegram)。channel 就是本轮的 `source`：loop runner 把 `req.source` 传给 `build_system_prompt(channel=...)`，所以来自微信的回合拿到微信规则，来自 Web 或桌面聊天的回合拿到 web 规则。没有对应条目的 source(tui、acp、agent_spawn 等)不生成这一块。
+
+web 规则说明聊天渲染器在 Markdown 之外能画什么：写在 `a2ui` 代码块里的 [A2UI](https://a2ui.org) v0.9 surface，组件限于 `apps/web/lib/chat/a2ui.ts` 渲染的展示类组件(Card、Column、Row、List、Tabs、Text、Divider、Icon、Image、只读 CheckBox)，附一个简短示例。提示里的目录和渲染器列的是同一组组件；提示里点名的组件必须能渲染。
 
 ```text
 [Output channel: {channel}]

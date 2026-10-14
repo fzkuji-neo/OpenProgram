@@ -11,14 +11,58 @@ import { highlightEscapedCode } from "@/lib/chat/code-highlight";
 import { Marked } from "marked";
 import { renderMd, sanitizeHtml } from "@/lib/runtime-bridge/markdown-render";
 import { cjkEmphasis } from "@/lib/markdown/cjk-emphasis";
+import {
+  A2UI_LANG,
+  A2UI_PARTIAL_LANG,
+  a2uiPending,
+  markOpenA2uiFence,
+  renderA2ui,
+  unescapeHtml,
+} from "@/lib/chat/a2ui";
 
 export function renderMarkdown(src: string): string {
   if (typeof window === "undefined") return escapeHtml(src);
   try {
-    return withCodeChrome(renderMd(src));
+    return withCodeChrome(withA2ui(renderMd(markOpenA2uiFence(src))));
   } catch {
     return escapeHtml(src);
   }
+}
+
+/** Text inside an A2UI surface is model-written markdown with no raw
+ *  HTML: tags show as text, and the result is sanitized like any bubble. */
+const a2uiMarked = new Marked(cjkEmphasis, {
+  breaks: true,
+  renderer: {
+    html(token) {
+      return escapeHtml(token.text);
+    },
+  },
+});
+
+function a2uiText(markdown: string, inline: boolean): string {
+  const html = inline
+    ? a2uiMarked.parseInline(markdown, { async: false }) as string
+    : a2uiMarked.parse(markdown, { async: false }) as string;
+  return sanitizeHtml(html);
+}
+
+const A2UI_BLOCK = new RegExp(
+  `<pre><code class="language-(${A2UI_LANG}|${A2UI_PARTIAL_LANG})">([\\s\\S]*?)<\\/code><\\/pre>`,
+  "g",
+);
+
+/** Swap ```a2ui fences for the surface they describe (lib/chat/a2ui.ts).
+ *  A finished block that does not parse stays a code block; one still
+ *  streaming shows a skeleton until its JSON is complete. */
+function withA2ui(html: string): string {
+  if (!html.includes(`language-${A2UI_LANG}`)) return html;
+  return html.replace(A2UI_BLOCK, (block, lang: string, body: string) => {
+    const surface = renderA2ui(unescapeHtml(body), a2uiText);
+    if (surface) return surface;
+    if (lang === A2UI_PARTIAL_LANG) return a2uiPending();
+    return block;
+  });
 }
 
 /** User-authored text can arrive from external channels, so raw HTML in
@@ -92,6 +136,11 @@ function withCodeChrome(html: string): string {
 if (typeof document !== "undefined") {
   document.addEventListener("click", (event) => {
     const target = event.target as Element | null;
+    const tab = typeof target?.closest === "function" ? target.closest<HTMLElement>(".a2ui-tab") : null;
+    if (tab) {
+      selectA2uiTab(tab);
+      return;
+    }
     const btn = typeof target?.closest === "function" ? target.closest(".md-code-copy") : null;
     if (!btn) return;
     const code = btn.closest(".md-code")?.querySelector("pre")?.textContent ?? "";
@@ -101,6 +150,18 @@ if (typeof document !== "undefined") {
       window.setTimeout(() => btn.classList.remove("copied"), 1500);
     });
   });
+}
+
+/** A2UI Tabs render as static markup; the bar's buttons only toggle which
+ *  panel of their own Tabs component is shown. */
+function selectA2uiTab(tab: HTMLElement): void {
+  const tabs = tab.closest(".a2ui-tabs");
+  if (!tabs) return;
+  const index = Number(tab.dataset.a2uiTab);
+  const bar = Array.from(tabs.querySelectorAll<HTMLElement>(":scope > .a2ui-tab-bar > .a2ui-tab"));
+  const panels = Array.from(tabs.querySelectorAll<HTMLElement>(":scope > .a2ui-tab-panel"));
+  bar.forEach((b, i) => b.setAttribute("aria-selected", String(i === index)));
+  panels.forEach((p, i) => { p.hidden = i !== index; });
 }
 
 /** Compatibility hook retained for callers that used to wait for CDN marked. */
