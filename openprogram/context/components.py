@@ -401,6 +401,48 @@ _PLATFORM_RULES: dict[str, str] = {
         "Messages over 2048 chars may be truncated. "
         "No message editing after send. Keep replies short."
     ),
+    # The OpenProgram web/desktop chat renders A2UI (https://a2ui.org)
+    # surfaces from ```a2ui fences; apps/web/lib/chat/a2ui.ts is the
+    # renderer and lists the same catalog.
+    "web": (
+        "OpenProgram chat: Markdown renders, including tables, code fences and LaTeX.\n"
+        "When a laid-out view reads clearly better than prose — a status summary, "
+        "a row of key metrics, a checklist of steps, a side-by-side comparison — "
+        "you may add one A2UI v0.9 surface in a fenced ```a2ui block. The block holds "
+        "one JSON object {\"components\": [...]}: a flat list where every component has "
+        "a unique \"id\" and a \"component\" type, containers name their children by id, "
+        "and the tree starts at the component with id \"root\".\n"
+        "Catalog (display only):\n"
+        "- Card {child}: framed panel; wrap several items in a Column.\n"
+        "- Column / Row {children: [ids], justify?, align?}: vertical / wrapping horizontal "
+        "layout; a direct child may set \"weight\" (flex-grow), e.g. equal-width metric cells.\n"
+        "- List {children, direction?: vertical|horizontal}.\n"
+        "- Tabs {tabs: [{title, child}]}.\n"
+        "- Text {text, variant?: h1|h2|h3|h4|h5|caption|body}: inline Markdown, no HTML; "
+        "h1/h2 suit big numbers, caption suits labels.\n"
+        "- Divider {axis?}. Icon {name}: check, warning, error, info, help, star, "
+        "folder, mail, person, search, settings, … (A2UI icon names). "
+        "Image {url (https), description}. CheckBox {label, value: true|false} as a "
+        "read-only checklist item.\n"
+        "Use literal values. Buttons, inputs and actions are not rendered. Keep a "
+        "surface small, put explanations in normal prose around it, and never wrap "
+        "plain paragraphs in a surface.\n"
+        "Example:\n"
+        "```a2ui\n"
+        "{\"components\": [\n"
+        "  {\"id\": \"root\", \"component\": \"Card\", \"child\": \"body\"},\n"
+        "  {\"id\": \"body\", \"component\": \"Column\", \"children\": [\"title\", \"stats\"]},\n"
+        "  {\"id\": \"title\", \"component\": \"Text\", \"text\": \"Benchmark run\", \"variant\": \"h3\"},\n"
+        "  {\"id\": \"stats\", \"component\": \"Row\", \"children\": [\"a\", \"b\"]},\n"
+        "  {\"id\": \"a\", \"component\": \"Column\", \"weight\": 1, \"children\": [\"a_v\", \"a_l\"]},\n"
+        "  {\"id\": \"a_v\", \"component\": \"Text\", \"text\": \"500\", \"variant\": \"h2\"},\n"
+        "  {\"id\": \"a_l\", \"component\": \"Text\", \"text\": \"tasks\", \"variant\": \"caption\"},\n"
+        "  {\"id\": \"b\", \"component\": \"Column\", \"weight\": 1, \"children\": [\"b_v\", \"b_l\"]},\n"
+        "  {\"id\": \"b_v\", \"component\": \"Text\", \"text\": \"92.4%\", \"variant\": \"h2\"},\n"
+        "  {\"id\": \"b_l\", \"component\": \"Text\", \"text\": \"pass rate\", \"variant\": \"caption\"}\n"
+        "]}\n"
+        "```"
+    ),
 }
 
 

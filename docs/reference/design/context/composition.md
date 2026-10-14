@@ -248,7 +248,9 @@ A general skeleton, with each provider registering one entry to fill in (distill
 
 ### 6. platform rendering format (L0 · order 5 · condition: per channel)
 
-Each channel registers one skeleton (we have wechat / slack / discord / telegram).
+Each channel registers one skeleton (we have web / wechat / slack / discord / telegram). The channel is the turn's `source`: the loop runner passes `req.source` to `build_system_prompt(channel=...)`, so a turn from WeChat gets the WeChat rule and a turn from the web or desktop chat gets the web rule. Sources without a row (tui, acp, agent_spawn, …) get no block.
+
+The web rule describes what the chat renderer draws beyond Markdown: an [A2UI](https://a2ui.org) v0.9 surface in a fenced `a2ui` block, limited to the display components that `apps/web/lib/chat/a2ui.ts` renders (Card, Column, Row, List, Tabs, Text, Divider, Icon, Image, read-only CheckBox), with one short example. The prompt catalog and the renderer list the same components; a component the prompt names must render.
 
 ```text
 [Output channel: {channel}]
