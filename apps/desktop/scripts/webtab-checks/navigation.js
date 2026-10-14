@@ -585,6 +585,11 @@ async function checkSenderOwnership() {
     "webtab:command",
     { id: "fresh-b", command: "focus-address" },
   ]);
+  testContext.assert.equal(press("k"), true);
+  testContext.assert.deepEqual(testContext.plain(winB.sent.at(-1)), [
+    "webtab:command",
+    { id: "fresh-b", command: "palette" },
+  ]);
 }
 return { checkLoadView, checkVisibleCollectionAndActivation, checkConfirmedDestroyHandler, checkSenderOwnership };
 };
