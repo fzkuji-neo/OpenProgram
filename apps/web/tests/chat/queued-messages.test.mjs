@@ -141,3 +141,35 @@ test('rows tag where they go and Clear all keeps rows still being delivered', as
  assert.equal(sent.length,0);
  } finally {await act(async()=>root.unmount());host.remove();useSendQueue.setState({queues:{}});}
 });
+
+test('rows reorder by keyboard, and rows being delivered or edited keep their slot', async()=>{
+ useSendQueue.setState({queues:{}});
+ const settings={thinking:'medium',toolsEnabled:true,webSearchEnabled:false,background:false};
+ const [a,b,c,d]=['a','b','c','d'].map(t=>useSendQueue.getState().enqueue('A',{...settings,text:t}));
+ const order=()=>useSendQueue.getState().queues.A.map(row=>row.id);
+ // A drag hands over the whole visual order; the store keeps it.
+ useSendQueue.getState().reorder('A',[c,a,b,d]);
+ assert.deepEqual(order(),[c,a,b,d]);
+ // Unknown ids are ignored and rows left out keep their relative order.
+ useSendQueue.getState().reorder('A',['gone',d]);
+ assert.deepEqual(order(),[d,c,a,b]);
+ // A row being added to the turn holds its slot whatever the drag says.
+ useSendQueue.getState().setSteering('A',c,{injecting:true});
+ useSendQueue.getState().reorder('A',[c,b,a,d]);
+ assert.deepEqual(order(),[b,c,a,d]);
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+ const key=async(id,k)=>{const el=host.querySelector(`[data-queued-message="${id}"] button[aria-expanded]`);
+  await act(async()=>el.dispatchEvent(Object.assign(new window.Event('keydown',{bubbles:true}),{key:k,altKey:true})));};
+ try {
+ await act(async()=>root.render(h(QueuedMessages,{sessionId:'A'})));
+ assert.deepEqual([...host.querySelectorAll('[data-queued-message]')].map(el=>el.dataset.queuedMessage),[b,c,a,d]);
+ // Alt+↓ on b steps over the pinned row c.
+ await key(b,'ArrowDown');
+ assert.deepEqual(order(),[a,c,b,d]);
+ await key(d,'ArrowUp');
+ assert.deepEqual(order(),[a,c,d,b]);
+ await key(a,'ArrowUp');
+ assert.deepEqual(order(),[a,c,d,b], 'the first row cannot move up');
+ assert.equal(host.querySelector(`[data-queued-message="${c}"] button[aria-expanded]`).getAttribute('aria-keyshortcuts'),null);
+ } finally {await act(async()=>root.unmount());host.remove();useSendQueue.setState({queues:{}});}
+});

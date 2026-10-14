@@ -86,6 +86,10 @@ interface SendQueueState {
    *  steer delivery is in flight) in one write, so clearing never drains a
    *  row that was about to be removed. Returns how many were removed. */
   clearDrafts: (sessionId: string) => number;
+  /** Put rows in the order of `ids` (a drag in the queue card). Rows that
+   *  left the queue meanwhile are skipped; rows not named keep their place
+   *  after the named ones. Rows being delivered or edited never move. */
+  reorder: (sessionId: string, ids: readonly string[]) => void;
   setInjecting: (sessionId: string, id: string, injecting: boolean) => void;
   setSteering: (sessionId: string, id: string, patch: Partial<Pick<QueuedMessage, "injecting" | "steerCommand" | "steerError">>) => void;
   /** Send the head entry if the session is idle. No-op otherwise. */
@@ -117,6 +121,22 @@ export const useSendQueue = create<SendQueueState>((rawSet, get) => {
     }));
     return id;
   },
+
+  reorder: (sessionId, ids) =>
+    set((s) => {
+      const cur = s.queues[sessionId];
+      if (!cur) return {};
+      const pinned = (row: QueuedMessage) => Boolean(row.injecting || row.steerCommand || row.editing);
+      const byId = new Map(cur.map((row) => [row.id, row]));
+      const moved = ids.map((id) => byId.get(id)).filter((row): row is QueuedMessage => !!row && !pinned(row));
+      const movedIds = new Set(moved.map((row) => row.id));
+      // Pinned rows hold their index; the movable rows fill the other slots.
+      const rest = cur.filter((row) => !pinned(row) && !movedIds.has(row.id));
+      const order = [...moved, ...rest];
+      const next = cur.map((row) => (pinned(row) ? row : order.shift()!));
+      if (next.every((row, i) => row === cur[i])) return {};
+      return { queues: { ...s.queues, [sessionId]: next } };
+    }),
 
   remove: (sessionId, id) =>
     set((s) => {
