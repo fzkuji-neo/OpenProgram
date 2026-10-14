@@ -684,7 +684,8 @@ function createWebViews({
     box.style.cssText = "position:fixed;z-index:2147483647;pointer-events:none;display:none;"
       + "border:2px solid #3b82f6;background:rgba(59,130,246,.12);border-radius:3px;box-sizing:border-box";
     root.appendChild(box);
-    const cursor = root.style.cursor;
+    // The page's own style attribute comes back exactly as it was.
+    const style = root.getAttribute("style");
     root.style.cursor = "crosshair";
     const selector = (el) => {
       const parts = [];
@@ -723,7 +724,8 @@ function createWebViews({
       window.removeEventListener("keydown", key, true);
       for (const type of swallow) window.removeEventListener(type, stop, true);
       box.remove();
-      root.style.cursor = cursor;
+      if (style === null) root.removeAttribute("style");
+      else root.setAttribute("style", style);
       delete window.__openprogramPick;
       resolve(value);
     };
