@@ -44,6 +44,13 @@ export function AgentSelector({
     queryKey: ["models-enabled"],
     queryFn: api.listEnabledModels,
   });
+  // Group headings name the provider as Settings does, not by its id.
+  const { data: providers } = useQuery({
+    queryKey: ["provider-labels"],
+    queryFn: api.listProviders,
+    staleTime: 5 * 60_000,
+  });
+  const providerName = (id: string) => providers?.find((p) => p.id === id)?.label || id;
 
   async function pick(provider: string, model: string) {
     onClose();
@@ -98,7 +105,7 @@ export function AgentSelector({
         <div className="px-[10px] py-[8px] text-[12px] text-text-muted">
           {t("agent.no_enabled_models")}{" "}
           <a
-            href="/settings/general"
+            href="/settings/providers"
             onClick={onClose}
             className="text-[var(--accent-blue)] no-underline"
           >
@@ -108,7 +115,7 @@ export function AgentSelector({
       ) : (
         byProvider.map((group) => (
           <div key={group.provider}>
-            <div className={GROUP_LABEL}>{group.provider}</div>
+            <div className={GROUP_LABEL}>{providerName(group.provider)}</div>
             {group.models!.map((m) => {
               const active =
                 currentProvider === m.provider &&
