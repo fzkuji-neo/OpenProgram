@@ -6,9 +6,10 @@ from .storage import StorageOperations
 from .sessions import SessionsOperations
 from .messages import MessagesOperations
 from .branches import BranchesOperations
+from .node_deletion import NodeDeletionOperations
 
 
-class SessionStore(IndexOperations, StorageOperations, SessionsOperations, MessagesOperations, BranchesOperations):
+class SessionStore(IndexOperations, StorageOperations, SessionsOperations, MessagesOperations, BranchesOperations, NodeDeletionOperations):
     """Git-backed session store.
 
     One instance per process (use ``default_store()``). Methods are

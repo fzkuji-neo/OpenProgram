@@ -33,6 +33,8 @@ import { runtimeState } from "../state";
 import { computeGeometry } from "./layout/geometry";
 import { _branchColor, _svg } from "./render/shapes";
 import { attachCanvas, detachCanvas } from "./interaction/canvas";
+import { paintSelection } from "./interaction/selection";
+import "./interaction/keys";
 import {
   hideTooltip as _hideTooltip,
   resetTooltip as _resetTooltip,
@@ -79,6 +81,7 @@ import {
   setInternalOwner,
   setInternalSet,
   setLastGraph,
+  setLastThreadModel,
   setLastSignature,
   setLeafOfNode,
   setParentOf,
@@ -247,6 +250,7 @@ export function render(graphIn: GNode[], headIdIn: string | null): void {
     }
   }
   const threadModel = buildThreadModel(graph, headId);
+  setLastThreadModel(threadModel);
   graph = threadModel.visible;
 
   // HEAD may point at a reply that merged into its anchor (a followup,
@@ -413,6 +417,7 @@ export function render(graphIn: GNode[], headIdIn: string | null): void {
   _lastRenderedSession = sess;
 
   attachCanvas(body, svg, world, sess);
+  paintSelection();
   _lastGeomSignature = geomSig;
   _resetTooltip();
   setVisibleIds(Object.create(null));

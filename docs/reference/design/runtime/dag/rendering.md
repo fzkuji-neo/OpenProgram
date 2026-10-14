@@ -805,6 +805,78 @@ switch, exactly as in §9. A spawn head is visible only while every thread
 above it is open; its items likewise — visibility is the whole ancestor
 chain's, not the node's own flag.
 
+## 13. Tools, selection and deleting nodes
+
+The canvas has a tool, the way a drawing board does. A tool decides two
+things and nothing else: what a click on a node means and what a drag on empty
+canvas does. Wheel and pinch, the right-click card, the HUD and the branch tags
+behave the same under every tool. The tools sit in a vertical rail on the
+canvas's left edge:
+
+| Tool | Key | Click on a node | Drag on empty canvas |
+|---|---|---|---|
+| Browse (hand, the default) | H | the node's own action (§11, §12) | pan |
+| Select (pointer) | V | select it; Shift/⌘ adds or removes | pan |
+| Box select | M | as Select | a rectangle; every node it touches is selected |
+| Lasso | L | as Select | a free shape; every node it touches is selected |
+
+Space held turns any tool into the hand for the drag, and the middle mouse
+button always pans. A click on empty canvas clears the selection; Shift keeps
+it, and a Shift-drag adds to it. Under a selecting tool a double click does
+nothing, so fork & edit stays a browse gesture. These are fixed by design, not
+settings: touching selects (no enclose-only mode), and clicking a user circle
+selects that circle alone.
+
+Tools live in a registry (`registerTool` in
+`apps/web/lib/runtime-bridge/dag/interaction/selection.ts`): an id, a key,
+whether a click selects, and what a drag does. The rail renders whatever is
+registered, so a later tool (notes, annotations) is one registration plus its
+icon.
+
+**Selection.** View state of the current session's canvas. Each selected node
+gets a dashed accent box just outside its glyph. The set is re-applied after
+every repaint and pruned to the nodes the canvas still draws, so a node that is
+deleted or folded away leaves the selection. A session switch drops it.
+Selecting on the canvas takes keyboard focus from the composer, so Delete and
+Esc reach the selection rather than the draft.
+
+**The action bar.** While something is selected, a bar at the canvas's top
+right, beside the perspective controls, reads `N selected · Copy ID · Delete ·
+✕`. After a delete it reads `Deleted N nodes · Undo` for a few seconds.
+
+**Deleting.** Delete or ⌫ deletes the selection at once, with no
+confirmation, and ⌘Z undoes it. The store
+(`openprogram/store/session/session_store/node_deletion.py`) applies these
+rules:
+
+- Only the selected nodes go, plus what they own through `caller`: a reply's
+  tool calls, a call's sub-calls, the agent branch a call spawned. What merely
+  followed in the conversation stays. Each surviving node whose predecessor was
+  deleted is re-pointed at the nearest surviving predecessor, so deleting a
+  node closes the gap the way deleting a box in a diagram does.
+- A glyph stands for every row it shows. A followup reply merged into its
+  anchor (§12) is deleted with the anchor, and selecting a spawn square deletes
+  the dispatch call that opened it, which takes the agent branch with it.
+- Structure cannot be deleted: the root, a spawn-branch root on its own, a
+  compaction summary, attach/merge machinery. The canvas leaves these out of
+  the request and the store refuses them.
+- If HEAD was deleted it moves to the nearest surviving predecessor. A branch
+  name on a deleted tip moves there too.
+- Nothing is unlinked. The node files move to
+  `<sessions root>/.deleted-nodes/<session>/<op_id>/`, outside the session's
+  git repository, together with a journal of every edge, HEAD and branch-name
+  change. Trash older than 24 hours is purged on the next delete.
+- Undo replays the journal backwards. An edge or a HEAD that something else
+  has moved since keeps its newer value.
+- Both actions are refused while a turn runs. The in-flight turn may be
+  writing under the nodes being removed.
+
+The wire format is `delete_nodes {session_id, node_ids}` → `nodes_deleted
+{ok, op_id, deleted, error}` and `restore_deleted_nodes {session_id, op_id}` →
+`nodes_restored` (`apps/server/openprogram_server/_webui/ws_actions/dag_nodes.py`).
+A success also broadcasts `session_reload`, so the transcript and the graph
+both redraw. The undo stack is per session and lasts as long as the page.
+
 ## Appendix: Implementation Status
 
 The whole spec is implemented. Where each part lives:
@@ -835,3 +907,4 @@ The whole spec is implemented. Where each part lives:
 | §11 legend | `DagLegend` in `apps/web/components/chat/dag-view.tsx` (inside the canvas HUD), `.dag-legend` in `apps/web/app/styles/dag/hud.css` |
 | §12 call thread + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts` (spawn → square), `apps/web/lib/runtime-bridge/dag/passes/thread.ts` (model), `apps/web/lib/runtime-bridge/dag/layout/geometry.ts` (recursive placement), `apps/web/lib/runtime-bridge/dag/render/edges.ts` (dotted thread line, centre-to-centre chain edges, scene-3 bridge), `apps/web/lib/runtime-bridge/dag/render/nodes.ts` (`data-thread*`, shoulder count), `apps/web/lib/runtime-bridge/dag/interaction/nodes.ts` (`toggleThreadOpen`); executed by `apps/web/scripts/runtime/check-dag-subagent.mjs` |
 | §12 the name on the wire | `task/runner.py::_update_attach_card` stamps `attach.label` from the task; `ws_actions/session.py::_annotate_spawn_origin` carries it to the spawn root as `spawned_from.label`; tested in `tests/unit/test_task_attach_integration.py` |
+| §13 tools, selection, delete / undo | tool registry, selection state, hit-testing and the rubber band in `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`; drags in `canvas.ts`, clicks in `nodes.ts`, keys in `keys.ts`; widening and the undo stack in `node-delete.ts`; rail and action bar in `apps/web/components/chat/dag-tools.tsx` + `apps/web/app/styles/dag/tools.css`; store splice and journal in `openprogram/store/session/session_store/node_deletion.py`; tested in `tests/component/store/test_node_deletion.py` and `apps/web/tests/execution/dag-selection.test.mjs` |

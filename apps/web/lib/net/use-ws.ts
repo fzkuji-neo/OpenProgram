@@ -278,6 +278,16 @@ export function useWS(): void {
           });
           return true;
         }
+        case "nodes_deleted":
+        case "nodes_restored":
+          // Replies to the DAG canvas's delete / undo
+          // (dag/interaction/node-delete.ts owns the undo stack and the
+          // action bar). Success also broadcasts `session_reload`, which
+          // redraws transcript and graph through the case above.
+          window.dispatchEvent(new CustomEvent("op:dag-nodes", {
+            detail: { type: msg.type, data: d || {} },
+          }));
+          return true;
         case "branch_renamed":
         case "branch_name_deleted":
         case "branch_deleted": {

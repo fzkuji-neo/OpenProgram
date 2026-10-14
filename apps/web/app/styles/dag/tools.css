@@ -1,0 +1,127 @@
+/* DAG 画布工具：左侧工具竖条、右上选择操作条、选中虚线框、框选/套索橡皮筋。
+   对应来源：components/chat/dag-tools.tsx、lib/runtime-bridge/dag/interaction/selection.ts */
+
+/* The tool rail — a raised vertical pill on the canvas's left edge,
+   centred on the strip above the composer (the composer floats over
+   the bottom ~150px of the pane, canvas.ts COMPOSER_STRIP). Same raised
+   surface as the HUD chips (Button variant "elevated"). */
+.dag-tool-rail {
+  position: absolute;
+  left: 12px;
+  top: calc((100% - 150px) / 2);
+  transform: translateY(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  box-shadow: var(--composer-shadow);
+}
+.dag-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.dag-tool-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+.dag-tool-btn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent-primary, #4a7dfc) 16%, transparent);
+  color: var(--accent-primary, #4a7dfc);
+}
+
+/* The selection action bar — top right, just left of the pane's
+   perspective controls (28px buttons at top 8 / right 12,
+   chat/center-pane.css .chat-view-controls). */
+.dag-select-bar.dag-select-bar {
+  position: absolute;
+  top: 8px;
+  right: 48px;
+  z-index: 3;
+  height: 28px;
+  gap: 2px;
+  padding: 0 3px 0 10px;
+  font-size: 12px;
+  cursor: default;
+}
+.dag-select-count {
+  padding-right: 4px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dag-select-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dag-select-act:hover:not(:disabled) {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.dag-select-act:disabled { opacity: 0.5; cursor: default; }
+.dag-select-act.dag-select-icon { width: 22px; padding: 0; justify-content: center; }
+.dag-select-danger:hover:not(:disabled) {
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 12%, transparent);
+}
+
+/* Cursors follow the tool (selection.ts stamps data-dag-tool on the
+   canvas host); a held Space is always the hand. */
+.history-body[data-dag-tool="pointer"] { cursor: default; }
+.history-body[data-dag-tool="marquee"],
+.history-body[data-dag-tool="lasso"] { cursor: crosshair; }
+.history-body.is-space-pan { cursor: grab; }
+.history-body.is-panning { cursor: grabbing; }
+
+/* A selected node: a dashed box in the accent colour just outside its
+   glyph. Drawn in the node's own group, so it pans and zooms with it;
+   the stroke width does not scale with the zoom. */
+.dag-select-ring {
+  fill: none;
+  stroke: var(--accent-primary, #4a7dfc);
+  stroke-width: 1.4;
+  stroke-dasharray: 3 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The marquee / lasso band while dragging — screen space, over the
+   graph, never in the way of the pointer. */
+.dag-select-band {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 2;
+}
+.dag-select-band rect,
+.dag-select-band path {
+  fill: color-mix(in srgb, var(--accent-primary, #4a7dfc) 8%, transparent);
+  stroke: var(--accent-primary, #4a7dfc);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  stroke-linejoin: round;
+}

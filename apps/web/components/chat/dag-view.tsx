@@ -44,6 +44,7 @@ import { useSessionStore } from "@/lib/session-store";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
 import { fitCanvas, resetZoom, zoomStep } from "@/lib/runtime-bridge/dag/interaction/canvas";
 import { MENU_PANEL } from "@/components/chat/top-bar/menu-styles";
+import { DagCanvasTools } from "@/components/chat/dag-tools";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -263,6 +264,7 @@ export function DagView({ visible }: { visible: boolean }) {
           （render/badges.ts），点非活动分支即 checkout。页面顶部不再
           放分支条——那条横线会横穿右上角的悬浮视角按钮。 */}
       <div className="history-body"></div>
+      {visible && <DagCanvasTools />}
       <DagHud active={visible} />
     </div>
   );

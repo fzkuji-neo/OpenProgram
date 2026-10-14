@@ -34,8 +34,10 @@ export function _applyVisibility(nodeEl: Element, visible: boolean): void {
     const c = kids[i] as SVGElement;
     const tag = c.tagName;
     if (tag !== "circle" && tag !== "polygon" && tag !== "rect") continue;
-    // Skip the invisible hit-area circle (pointer-events=all).
+    // Skip the invisible hit-area circle (pointer-events=all) and the
+    // selection ring (interaction/selection.ts).
     if (c.getAttribute("pointer-events") === "all") continue;
+    if (c.classList.contains("dag-select-ring")) continue;
     shape = c;
     break;
   }

@@ -182,6 +182,7 @@ def _build_ws_action_registry() -> dict:
     from openprogram.webui.ws_actions import (
         agent as _ws_agent,
         branch as _ws_branch,
+        dag_nodes as _ws_dag_nodes,
         channel as _ws_channel,
         chat as _ws_chat,
         runtime as _ws_runtime,
@@ -203,6 +204,7 @@ def _build_ws_action_registry() -> dict:
     )
     table: dict = {}
     table.update(_ws_branch.ACTIONS)
+    table.update(_ws_dag_nodes.ACTIONS)
     table.update(_ws_session.ACTIONS)
     table.update(_ws_permissions.ACTIONS)
     table.update(_ws_agent.ACTIONS)
