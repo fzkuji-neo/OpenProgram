@@ -153,7 +153,7 @@ test('a merge drop zooms the window out of its card, then both sides of the spli
   assert.match(overview, /if \(useCanvasOverview\.getState\(\)\.mode !== "drag" \|\| drop\.action !== "dock"\) return;/, 'only a merge holds the overview');
   const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
   assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop, prepared.subject.tabIds)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
-  assert.match(overview, /if \(landingFrom\) useCanvasOverview\.setState\(\{ hover: null, label: "", landing: drop\.targetId, landed: false \}\);/, 'the landing starts at the release, before the merge commits');
+  assert.match(overview, /if \(landingFrom\) useCanvasOverview\.setState\(\{ hover: null, landing: drop\.targetId, landed: false \}\);/, 'the landing starts at the release, before the merge commits');
   assert.match(overview, /landingFrom\.apply = apply;\n  useCanvasOverview\.setState\(\{ landed: true \}\);/, 'a ready merge is held, not committed');
   assert.match(overview, /export function closeOverview\(\) \{\n  const apply = landingFrom\?\.apply;[\s\S]*?apply\?\.\(\);\n\}/, 'closing commits a held merge, so an early close never drops it');
   const drag = await read('lib/tabs/canvas-drag.ts');
@@ -165,12 +165,14 @@ test('a merge drop zooms the window out of its card, then both sides of the spli
   assert.match(view, /growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) \{ closeOverview\(\); return; \}/, 'and zooms straight away');
   assert.match(view, /window\.dispatchEvent\(new CustomEvent\("op-activate-center-tab", \{ detail: \{ tabId: card\.activateId \} \}\)\);\n  \}, \[landing\]\);/, 'with the window coming up underneath, so its panes are loaded when they make room');
   assert.match(view, /const k = from\.width \/ to\.width;[\s\S]*?scale\(\$\{k\}\)/, 'with one uniform scale');
-  assert.match(view, /if \(!growing \|\| !landed\) return;[\s\S]*?rects\.set\(pane\.dataset\.overviewPane!, new DOMRect\(frame\.left \+ \(r\.left - box\.left\) \/ s,[\s\S]*?const elapsed = Number\(grow\.current\?\.currentTime \?\? ZOOM_MS\);\n      captureCanvasLanding\(rects, Object\.fromEntries\(held\.sourceIds\.map\(id => \[id, side\]\)\), \{ from: growFrom\.current, elapsed, duration: ZOOM_MS, easing: ZOOM_EASING \}\);\n    \}[\s\S]*?closeOverview\(\);/, 'once the merge is ready the live canvas takes the zoom over mid-way, panes starting where the card has them');
+  assert.match(view, /if \(!growing \|\| !landed\) return;[\s\S]*?rects\.set\(pane\.dataset\.overviewPane!, new DOMRect\(frame\.left \+ \(r\.left - box\.left\) \/ s,[\s\S]*?const startTime = grow\.current\?\.startTime;\n      captureCanvasLanding\(rects, Object\.fromEntries\(held\.sourceIds\.map\(id => \[id, side\]\)\), \{ from: growFrom\.current, startTime: typeof startTime === "number" \? startTime : null, duration: ZOOM_MS, easing: ZOOM_EASING \}\);\n    \}[\s\S]*?closeOverview\(\);/, 'once the merge is ready the live canvas takes the zoom over mid-way, panes starting where the card has them');
   const css = await read('components/center-tabs/canvas-overview.module.css');
   assert.match(css, /\.overview\[data-landing\] \.card:not\(\[data-zooming\]\),\n\.overview\[data-landing\] \.hint \{\n  transition-duration: 80ms;/, 'the other cards are gone before the hand-over');
   const transition = await read('lib/tabs/canvas-transition.ts');
   assert.match(transition, /if \(!from && side\) \{ entries\.push\(\{ el, side \}\);/, 'the docked tab comes in from its side');
-  assert.match(transition, /zoom\.currentTime = elapsed;/, 'the canvas zoom picks up the card\'s curve where it got to');
+  assert.match(transition, /if \(startTime !== null\) zoom\.startTime = startTime;/, 'the canvas zoom runs on the card animation\'s own clock, so the hand-over cannot jump back');
+  assert.match(view, /const hint = mode === "drag"\n/, 'the hint keeps its room through a landing, so the grid does not re-centre at the release');
+  assert.match(overview, /useCanvasOverview\.setState\(\{ hover: null, landing: drop\.targetId, landed: false \}\);/);
   assert.match(await read('app/styles/base.css'), /\.app \.center-col:has\(\[data-canvas-overview\], \[data-canvas-landing\]\) \{/, 'open page around the growing canvas');
   assert.match(transition, /\{ transform: shift, clipPath: clip \},\n      \{ transform: "none", clipPath: "inset\(0 0 0 0\)" \},\n    \], \{ duration: MOVE_MS, easing: EASE \}\)/, 'at its final size, clipped at the canvas edge, on the same timing as the panes making room');
 });
@@ -261,5 +263,5 @@ test('a split window is one tab: its focused pane, a split mark and one close', 
 test('browsing the overview: empty space is inert and there is no hint', async () => {
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.doesNotMatch(view, /dataset\.overviewGrid !== undefined\) dismissOverview\(\)/, 'a click between cards does not open a window');
-  assert.match(view, /const hint = mode === "drag" && !landing\n    \? label \|\| text\([\s\S]*?\)\n    : null;/, 'only a drag shows a hint');
+  assert.match(view, /const hint = mode === "drag"\n    \? label \|\| text\([\s\S]*?\)\n    : null;/, 'only a drag shows a hint');
 });

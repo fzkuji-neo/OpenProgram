@@ -290,8 +290,8 @@ export function CanvasOverview() {
         rects.set(pane.dataset.overviewPane!, new DOMRect(frame.left + (r.left - box.left) / s, frame.top + (r.top - box.top) / s, r.width / s, r.height / s));
       }
       const side = held.drop.side === "center" ? "right" : held.drop.side as CanvasEnter;
-      const elapsed = Number(grow.current?.currentTime ?? ZOOM_MS);
-      captureCanvasLanding(rects, Object.fromEntries(held.sourceIds.map(id => [id, side])), { from: growFrom.current, elapsed, duration: ZOOM_MS, easing: ZOOM_EASING });
+      const startTime = grow.current?.startTime;
+      captureCanvasLanding(rects, Object.fromEntries(held.sourceIds.map(id => [id, side])), { from: growFrom.current, startTime: typeof startTime === "number" ? startTime : null, duration: ZOOM_MS, easing: ZOOM_EASING });
     }
     // Closing applies the held merge; the shell plays the capture as the
     // two commit together.
@@ -313,7 +313,9 @@ export function CanvasOverview() {
   const byId = new Map(tabs.map(tab => [tab.id, tab]));
   const activate = (card: Card) => zoomOutTo(card);
   // Only a drag says where it will land; browsing needs no instructions.
-  const hint = mode === "drag" && !landing
+  // A landing keeps the hint's room as it fades, or the grid would
+  // re-centre and jump at the release.
+  const hint = mode === "drag"
     ? label || text("Drop on a window to merge · on empty space to open on its own · outside the window for a new window", "拖到某个窗口上合并 · 空白处单独打开 · 拖出窗口新开一个")
     : null;
 
