@@ -103,11 +103,10 @@ test('yellow folds the pane into the bottom edge of its tab, then the tab lights
   const grow = animations.find(a => a.el.getAttribute('data-center-tab-id') === 'a');
   assert.ok(grow.options.delay > 0, 'the neighbour fills after the fold leads');
   const reveal = animations.find(a => a.el === tab);
-  assert.equal(reveal?.frames[0].flexBasis, '0px', 'the new tab button grows out before the pane folds into it');
-  const realNow = performance.now.bind(performance);
-  performance.now = () => realNow() + 10_000;
-  while (frames.length) frames.shift()(performance.now());
-  performance.now = realNow;
+  assert.equal(reveal?.frames[0].opacity, 0, 'the new tab button slides out before the pane folds into it');
+  assert.ok(Object.keys(reveal.frames[0]).every(key => ['transform', 'transformOrigin', 'opacity'].includes(key)), 'compositor-only, so a busy main thread cannot stall it');
+  let clock = 0;
+  while (frames.length) frames.shift()(clock += 16);
   assert.ok(animations.some(a => a.el === tab && a.frames[0].backgroundColor), 'the whole tab button lights as it takes the pane in');
   assert.equal(layer.isConnected, false, 'the layer is gone once the fold ends');
   strip.remove();
@@ -144,10 +143,8 @@ test('with the desktop shell the fold draws one still of the pane, row by row, b
   assert.equal(canvas.querySelectorAll('[data-canvas-ghost] [data-canvas-ghost], [data-canvas-ghost] p').length, 0);
   assert.equal(draws.length, 300, 'the first frame already shows the whole pane in 2px rows');
   assert.ok(draws.every(d => d[6] >= 0), 'never drawn above the tab bottom edge');
-  const realNow = performance.now.bind(performance);
-  performance.now = () => realNow() + 10_000;
-  while (frames.length) frames.shift()(performance.now());
-  performance.now = realNow;
+  let clock = 0;
+  while (frames.length) frames.shift()(clock += 16);
   assert.equal(layer.isConnected, false);
   delete window.openprogramDesktop;
   strip.remove();
