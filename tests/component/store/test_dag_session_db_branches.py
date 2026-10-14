@@ -310,6 +310,41 @@ def test_bump_branch_turns_coexists_with_name(db):
     assert meta["turns"] == 1
 
 
+def test_carry_branch_entry_follows_the_extended_tip(db):
+    # A turn moves the tip; the name, its lock and the counter move with
+    # it, so the next turn neither forgets the user's name nor restarts
+    # the Stage-2 thresholds at 1.
+    db.create_session("s1", agent_id="a")
+    _append(db, "s1", "u1")
+    _append(db, "s1", "a1", role="assistant", parent="u1")
+    db.set_branch_name("s1", "a1", "mine", name_locked=True)
+    db.bump_branch_turns("s1", "a1")
+    _append(db, "s1", "u2", parent="a1")
+    _append(db, "s1", "steer", parent="u2")
+    _append(db, "s1", "a2", role="assistant", parent="steer")
+    assert db.carry_branch_entry("s1", "a2") is True
+    assert db.get_branch_meta("s1", "a1") == {}
+    meta = db.get_branch_meta("s1", "a2")
+    assert meta["name"] == "mine" and meta["name_locked"] is True
+    assert db.bump_branch_turns("s1", "a2") == 2
+    assert {b["head_msg_id"]: b["name"] for b in db.list_branches("s1")} == {"a2": "mine"}
+
+
+def test_carry_branch_entry_leaves_a_fork_point_alone(db):
+    db.create_session("s1", agent_id="a")
+    _append(db, "s1", "u1")
+    _append(db, "s1", "a1", role="assistant", parent="u1")
+    _append(db, "s1", "u2", parent="a1")
+    _append(db, "s1", "a2", role="assistant", parent="u2")
+    # Legacy data: the fork point still holds the entry an older turn left.
+    db.set_branch_name("s1", "a1", "old")
+    _append(db, "s1", "u3", parent="a1")
+    _append(db, "s1", "a3", role="assistant", parent="u3")
+    assert db.carry_branch_entry("s1", "a3") is False
+    assert db.get_branch_meta("s1", "a1")["name"] == "old"
+    assert db.get_branch_meta("s1", "a3") == {}
+
+
 # meta.json has more than one writer: the Stage-2 auto-namer runs on a
 # background thread while the job runner archives the same branch
 # (agent-collaboration.md §2.6). Staging every write through one shared

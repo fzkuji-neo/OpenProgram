@@ -458,7 +458,14 @@ def finalize_turn(
     # 6.5b. Auto-name the current branch (DAG badge). Bumps the branch's
     # own turn counter and, at thresholds, spawns a background LLM rename
     # unless the user locked the name. head_id was just set to
-    # assistant_msg_id above. Best-effort. See branch-naming.md.
+    # assistant_msg_id above. The branch's entry first moves off the tip
+    # this turn extended, so its name, lock and counter follow the
+    # branch. Best-effort. See branch-naming.md.
+    try:
+        db.carry_branch_entry(req.session_id, assistant_msg_id)
+    except Exception:
+        _log.debug("branch entry not carried for session %s",
+                   req.session_id, exc_info=True)
     try:
         maybe_auto_name_branch(db, req.session_id, assistant_msg_id)
     except Exception:
