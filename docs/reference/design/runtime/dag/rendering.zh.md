@@ -641,6 +641,59 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 上方整条线程链都展开时可见；它的条目同理——可见性属于整条祖先链，不属于节点
 自己的开关。
 
+## 十三、工具、选择与删除节点
+
+画布像画板一样有"当前工具"。工具只决定两件事：单击节点是什么意思，在空白处拖动做
+什么。滚轮与捏合、右键卡片、HUD、分支标签在任何工具下都一样。工具排成画布左缘的一列
+竖条：
+
+| 工具 | 快捷键 | 单击节点 | 在空白处拖动 |
+|---|---|---|---|
+| 浏览（抓手，默认） | H | 节点自己的动作（第十一、十二节） | 平移 |
+| 点选（指针） | V | 选中它；Shift/⌘ 增减 | 平移 |
+| 框选 | M | 同点选 | 画矩形，碰到的节点全部选中 |
+| 套索 | L | 同点选 | 画任意形状，碰到的节点全部选中 |
+
+按住空格时任何工具的拖动都是平移，鼠标中键始终平移。单击空白处清空选择；按住 Shift
+单击保留选择，Shift 拖动则追加选择。选择类工具下双击不做任何事，fork 并编辑仍是浏览
+手势。这些是设计定死的，不是设置项：碰到即选（没有"必须全包住"模式），单击用户圆点只
+选这一个圆点。
+
+工具放在注册表里（`apps/web/lib/runtime-bridge/dag/interaction/selection.ts` 的
+`registerTool`）：一个 id、一个快捷键、单击是否选择、拖动做什么。竖条渲染所有已注册
+的工具，以后加工具（便签、批注）只需注册一次再配一个图标。
+
+**选择。** 选择是当前会话画布的视图状态。每个被选节点的字形外侧画一圈强调色虚线框。
+每次重绘后重新套用，并裁剪到画布仍画着的节点，所以被删除或被折叠掉的节点会自动离开
+选择；切会话时清空。在画布上做选择会把键盘焦点从输入框拿走，于是 Delete 和 Esc 作用
+于选择，不作用于草稿。
+
+**操作条。** 有选择时，画布右上角、视角按钮左边出现一条操作条：
+`已选 N · 复制 ID · 删除 · ✕`。删除后几秒内它显示 `已删除 N 个节点 · 撤销`。
+
+**删除。** Delete 或 ⌫ 立即删除选择，不弹确认，⌘Z 撤销。store
+（`openprogram/store/session/session_store/node_deletion.py`）按以下规则执行：
+
+- 只删被选节点，以及它们经 `caller` 拥有的东西：回复的工具调用、调用的子调用、调用
+  派生的 agent 分支。只是在对话里排在后面的节点保留。前驱被删的存活节点改指向最近的
+  存活前驱，所以删一个节点会把缺口接上，就像在流程图里删一个方框。
+- 一个字形代表它显示的所有行。归并进锚点的 followup 回复（第十二节）随锚点一起删；
+  选中 spawn 方块删的是派生它的调度调用，agent 分支随之一起删。
+- 结构节点不能删：根节点、单独的 spawn 分支根、压缩摘要、attach/merge 机制节点。
+  画布不把它们放进请求，store 也会拒绝。
+- HEAD 被删时移到最近的存活前驱。被删分支尖上的分支名也随之移过去。
+- 不直接删除文件。节点文件移到 `<sessions 根>/.deleted-nodes/<session>/<op_id>/`
+  （在会话 git 仓库之外），同时写一份日志，记下每条边、HEAD 和分支名的变化。超过
+  24 小时的回收内容在下次删除时清理。
+- 撤销按日志倒放。此后被别的操作改动过的边或 HEAD 保留新值。
+- 有轮次在运行时两个动作都拒绝执行：正在跑的轮次可能正往要删的节点下面写。
+
+线上格式：`delete_nodes {session_id, node_ids}` → `nodes_deleted
+{ok, op_id, deleted, error}`；`restore_deleted_nodes {session_id, op_id}` →
+`nodes_restored`（`apps/server/openprogram_server/_webui/ws_actions/dag_nodes.py`）。
+成功时还会广播 `session_reload`，聊天记录和图一起重绘。撤销栈按会话分开，页面存在期间
+一直有效。
+
 ## 附录：实现状态
 
 本规范已全部实现。各部分的落点：
@@ -671,3 +724,4 @@ checkout 成活动分支——接管这个 agent 的对话。徽章永不压住�
 | 第十一节 图例 | `apps/web/components/chat/dag-view.tsx` 的 `DagLegend`（挂在画布 HUD 里），`apps/web/app/styles/dag/hud.css` 的 `.dag-legend` |
 | 第十二节 调用线程 + agent spawn | `apps/web/lib/runtime-bridge/dag/render/shapes.ts`（spawn → 方块）、`apps/web/lib/runtime-bridge/dag/passes/thread.ts`（模型）、`apps/web/lib/runtime-bridge/dag/layout/geometry.ts`（递归安放）、`apps/web/lib/runtime-bridge/dag/render/edges.ts`（线程点线、中心连线、场景3横桥）、`apps/web/lib/runtime-bridge/dag/render/nodes.ts`（`data-thread*`、肩上折叠数）、`apps/web/lib/runtime-bridge/dag/interaction/nodes.ts`（`toggleThreadOpen`）；由 `apps/web/scripts/runtime/check-dag-subagent.mjs` 实跑 |
 | 第十二节 名字上线 | `task/runner.py::_update_attach_card` 从 task 戳出 `attach.label`；`ws_actions/session.py::_annotate_spawn_origin` 把它带到 spawn 根的 `spawned_from.label`；测试见 `tests/unit/test_task_attach_integration.py` |
+| 第十三节 工具、选择、删除 / 撤销 | 工具注册表、选择状态、命中判定和橡皮筋在 `apps/web/lib/runtime-bridge/dag/interaction/selection.ts`；拖动在 `canvas.ts`，单击在 `nodes.ts`，快捷键在 `keys.ts`；扩展选择与撤销栈在 `node-delete.ts`；竖条与操作条在 `apps/web/components/chat/dag-tools.tsx` + `apps/web/app/styles/dag/tools.css`；store 拼接与日志在 `openprogram/store/session/session_store/node_deletion.py`；测试见 `tests/component/store/test_node_deletion.py` 与 `apps/web/tests/execution/dag-selection.test.mjs` |

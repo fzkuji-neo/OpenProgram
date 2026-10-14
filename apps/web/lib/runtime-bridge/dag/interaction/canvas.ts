@@ -16,8 +16,9 @@
  *     (what is under the cursor stays under it)
  *   * any other wheel/scroll (trackpad two-finger, mouse wheel) → pan,
  *     both axes — scrolling stays scrolling
- *   * drag on empty space → pan (a drag that starts on a node is the
- *     node's, so clicking still works)
+ *   * drag on empty space → the active tool's drag: pan, or a marquee /
+ *     lasso selection (``./selection.ts``; a drag that starts on a node
+ *     is the node's, so clicking still works)
  *
  * The pane's background paints a dot lattice at the layout's own grid
  * pitch, transformed with the same numbers, so the dots ARE the
@@ -32,6 +33,14 @@
 import { COL_W, PAD_X, PAD_Y } from "../types";
 import { closeNodeLayers } from "../render/inspector";
 import { hideTooltip } from "./tooltip";
+import {
+  SelectionBand,
+  activeTool,
+  clearSelection,
+  releaseEditableFocus,
+  select,
+  spaceHeld,
+} from "./selection";
 import {
   _viewSession,
   _viewScale,
@@ -275,8 +284,17 @@ function wireGestures(host: HTMLElement): void {
     { passive: false },
   );
 
-  let drag: { x: number; y: number; id: number } | null = null;
+  // A drag on empty canvas is the active tool's (./selection.ts): a pan
+  // under hand and pointer — or under any tool while Space is held — a
+  // rubber band under marquee and lasso. A press that never moves is a
+  // click on empty canvas, which clears the selection — "never moves"
+  // meaning less than CLICK_SLOP pixels, whatever the hand's jitter.
+  const CLICK_SLOP = 3;
+  let drag: { x: number; y: number; sx: number; sy: number; id: number; moved: boolean } | null = null;
+  let band: { b: SelectionBand; id: number; sx: number; sy: number; additive: boolean; moved: boolean } | null = null;
   host.addEventListener("pointerdown", (e: PointerEvent) => {
+    // Right button is the context menu's; the middle button always pans.
+    if (e.button === 2) return;
     // A drag that starts on a node belongs to the node — it is how a
     // click reaches it, and panning from there would swallow every
     // click on the graph.
@@ -288,29 +306,68 @@ function wireGestures(host: HTMLElement): void {
       ".history-node, .history-branch-tag, .history-tooltip, .dag-inspector, .dag-menu-verbs")) {
       return;
     }
-    drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
     dismissOverlays();
-    host.classList.add("is-panning");
+    const tool = activeTool();
+    if (tool.selects) releaseEditableFocus();
     try {
       host.setPointerCapture(e.pointerId);
     } catch {
       /* a pointer that vanished mid-gesture is not an error */
     }
+    if (tool.drag !== "pan" && !spaceHeld() && e.button === 0) {
+      band = {
+        b: new SelectionBand(host, tool.drag, { x: e.clientX, y: e.clientY }),
+        id: e.pointerId,
+        sx: e.clientX,
+        sy: e.clientY,
+        additive: e.shiftKey || e.metaKey,
+        moved: false,
+      };
+      return;
+    }
+    drag = {
+      x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY,
+      id: e.pointerId, moved: false,
+    };
+    host.classList.add("is-panning");
   });
   host.addEventListener("pointermove", (e: PointerEvent) => {
+    if (band && e.pointerId === band.id) {
+      if (!band.moved
+          && Math.hypot(e.clientX - band.sx, e.clientY - band.sy) < CLICK_SLOP) {
+        return;
+      }
+      band.moved = true;
+      band.b.move({ x: e.clientX, y: e.clientY });
+      return;
+    }
     if (!drag || e.pointerId !== drag.id) return;
     setView(
       _viewTx + (e.clientX - drag.x),
       _viewTy + (e.clientY - drag.y),
       _viewScale,
     );
-    drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+    drag.moved = drag.moved
+      || Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) >= CLICK_SLOP;
     applyView();
   });
   const endDrag = (e: PointerEvent): void => {
+    if (band && e.pointerId === band.id) {
+      const { b, additive, moved } = band;
+      band = null;
+      const hits = moved && e.type === "pointerup" ? b.hits() : [];
+      b.remove();
+      if (hits.length) select(hits, additive ? "add" : "replace");
+      else if (!additive && e.type === "pointerup") clearSelection();
+      return;
+    }
     if (!drag || e.pointerId !== drag.id) return;
+    const clicked = !drag.moved && e.type === "pointerup";
     drag = null;
     host.classList.remove("is-panning");
+    if (clicked && !e.shiftKey) clearSelection();
   };
   host.addEventListener("pointerup", endDrag);
   host.addEventListener("pointercancel", endDrag);

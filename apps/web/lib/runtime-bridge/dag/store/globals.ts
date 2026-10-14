@@ -14,6 +14,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { GNode, HighlightMode } from "../types";
+import type { ThreadModel } from "../passes/thread";
 
 // ── HEAD / context / highlight mode ───────────────────────────────
 export let _currentHead: string | null = null;
@@ -132,6 +133,14 @@ export let _lastHeadId: string | null = null;
 export function setLastGraph(g: GNode[] | null, h: string | null): void {
   _lastGraph = g;
   _lastHeadId = h;
+}
+
+// The last render's call-thread model: which raw rows merged into the
+// node that stands for them on the canvas (interaction/node-delete.ts
+// widens a selection with it, so deleting a glyph deletes all it shows).
+export let _lastThreadModel: ThreadModel | null = null;
+export function setLastThreadModel(v: ThreadModel | null): void {
+  _lastThreadModel = v;
 }
 
 // ── chat-sync wiring latches ──────────────────────────────────────

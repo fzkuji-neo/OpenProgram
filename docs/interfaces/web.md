@@ -155,8 +155,9 @@ picker remains a cancellation and does not trigger the manual dialog.
 Session history is stored as a DAG, not a flat list:
 
 - The branch menu in the top bar lists all branches of the current session, with checkout, rename, and delete.
-- The History view in the right sidebar shows a live mini-DAG of the session: one node per message or function call, colored by branch, with merge and attach operations appearing as nodes of their own. Click a node to collapse or expand its subtree (or jump the chat to that step); double-click a node or edge to check out that branch.
-- The Branches panel above the mini-DAG lists branches with a running marker on active ones, and supports multi-select merge — equal merge into a fresh tip, or merge in place into a chosen base branch — as well as attaching branches from another session (cross-session attach).
+- The graph perspective (the toggle at the chat's top right) shows the session as a live DAG on a pannable, zoomable canvas: one node per turn, colored by branch, with each turn's tool calls folded into a count. In the default Browse tool, click a node to fold or unfold its calls, double-click a user turn to fork and edit it, and double-click any other node to check it out. Right-click a node for its full card and actions.
+- The tool rail on the canvas's left edge switches between Browse (H), Select (V), Box select (M) and Lasso (L). Box and lasso select every node they touch, and Shift adds to the selection. Press Delete to delete the selected nodes: what followed them joins the node before, and a reply's tool calls go with it. ⌘Z, or Undo on the bar at the top right, puts them back. The root and compaction summaries cannot be deleted, and nothing can be deleted while a turn is running.
+- The Branches panel lists branches with a running marker on active ones, and supports multi-select merge — equal merge into a fresh tip, or merge in place into a chosen base branch — as well as attaching branches from another session (cross-session attach).
 - Multiple versions of the same message switch via a `< N/M >` selector — it only moves the displayed position, never deletes history.
 
 ### Rewind

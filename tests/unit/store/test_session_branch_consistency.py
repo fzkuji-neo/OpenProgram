@@ -636,3 +636,34 @@ def test_merge_failure_is_logged(store, srv, monkeypatch):
     data = ws.of_type("merge_branches_result")[0]
     assert data["failed"]
     assert any("merge_branches] FAILED" in m for m in logged)
+
+
+def test_delete_nodes_splices_and_undo_restores(store, srv):
+    from openprogram.webui.ws_actions import dag_nodes
+
+    ids = _two_turns(store)
+    srv._sessions["s1"] = {
+        "id": "s1", "head_id": ids[-1], "messages": [{"id": i} for i in ids],
+    }
+    ws = FakeWS()
+    _run(dag_nodes.handle_delete_nodes(ws, {"session_id": "s1", "node_ids": [ids[1]]}))
+    res = ws.of_type("nodes_deleted")[0]
+    assert res["ok"], res.get("error")
+    assert [m["id"] for m in store.get_branch("s1")] == [ids[0], ids[2], ids[3]]
+    assert ids[1] not in {m.get("id") for m in srv._sessions["s1"]["messages"]}
+    _run(dag_nodes.handle_restore_deleted_nodes(
+        ws, {"session_id": "s1", "op_id": res["op_id"]}))
+    assert ws.of_type("nodes_restored")[0]["ok"]
+    assert [m["id"] for m in store.get_branch("s1")] == ids
+
+
+def test_delete_nodes_refuses_while_run_active(store, srv, monkeypatch):
+    from openprogram.webui.ws_actions import dag_nodes
+
+    ids = _two_turns(store)
+    monkeypatch.setattr(srv, "_is_run_active", lambda sid: True)
+    ws = FakeWS()
+    _run(dag_nodes.handle_delete_nodes(ws, {"session_id": "s1", "node_ids": [ids[1]]}))
+    data = ws.of_type("nodes_deleted")[0]
+    assert not data["ok"] and "run is currently active" in data["error"]
+    assert store.message_exists("s1", ids[1])
