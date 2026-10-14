@@ -355,7 +355,9 @@
 /* Fenced code block chrome (components/chat/messages/markdown.ts): the
    card moves to the wrapper so the language/copy header shares its border. */
 .message-content .md-code {
-  margin: 10px 0;
+  /* The bottom margin plus the next line's half-leading is the turn's 16px
+     rhythm (see .tl in execution-strip.css). */
+  margin: 10px 0 12.5px;
   background: light-dark(color-mix(in srgb, var(--text-bright) 3.5%, var(--bg-primary)), var(--bg-tertiary));
   border: 1px solid light-dark(var(--border), var(--border-light));
   border-radius: 10px;

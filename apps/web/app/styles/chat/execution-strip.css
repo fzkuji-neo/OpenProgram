@@ -6,10 +6,11 @@
    步骤行（圆形图标压线、标题 + 单行摘要、动作悬停出现、点行展开）。
    函数内部的 context_tree 递归成缩进一层的子时间线（.tl-sub）。 */
 .tl {
-  /* No bottom margin: the 28px summary row already leaves room under its
-     text, so the reply below sits as far from it as text sits from a code
-     card (the stream's 8px gap does the rest). */
-  margin: 6px 0 0;
+  /* A turn keeps one 16px rhythm between its text boxes: summary → reply,
+     code card → text, last line → action row. The 28px summary row already
+     leaves room under its text; this margin and the stream's 8px gap make
+     up the rest. */
+  margin: 6px 0 1.5px;
   --timeline-line: light-dark(rgba(36, 36, 32, 0.22), rgba(226, 225, 218, 0.28));
   --timeline-thinking: light-dark(#7c3aed, #b78cff);
   --timeline-function: light-dark(#d14a1f, #ff9a66);
