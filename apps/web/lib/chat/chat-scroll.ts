@@ -158,6 +158,14 @@ export function chatAtBottomSlack(
   return Math.max(0, pad - cover) + CHAT_AT_BOTTOM_EPSILON;
 }
 
+/** A scroll event leaves the latest only when the reader moved up.
+ *  Content that grows or re-wraps beneath a reader parked at the latest
+ *  (a pane made narrower, an image that loads) fires scroll with the top
+ *  where it was, and must not count as scrolling away. */
+export function scrolledAwayFromLatest(previousTop: number, top: number): boolean {
+  return top < previousTop - 1;
+}
+
 export function isChatAtBottom(
   area: ScrollMetrics,
   paddingBottom: number,

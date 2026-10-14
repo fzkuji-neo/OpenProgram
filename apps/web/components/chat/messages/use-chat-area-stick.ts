@@ -20,6 +20,7 @@ import {
   snapToLatest,
   subscribeTakeLatest,
   writeChatScroll,
+  scrolledAwayFromLatest,
 } from "@/lib/chat/chat-scroll";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
 import { useSessionHistory } from "@/lib/chat/session-history";
@@ -194,6 +195,15 @@ export function useChatAreaStick(
       if (area.clientHeight <= 0) return;
       if (pointerArmedRef.current && !programmaticRef.current) {
         cancelPending();
+      }
+      if (
+        stuckRef.current
+        && !jumpingRef.current
+        && atLatestWindow()
+        && !scrolledAwayFromLatest(scrollTopRef.current, area.scrollTop)
+        && performance.now() - lastPointerRef.current > GROWTH_SUPPRESS_MS
+      ) {
+        applySnap(area);
       }
       const atBottom = syncDetached();
       scrollTopRef.current = area.scrollTop;

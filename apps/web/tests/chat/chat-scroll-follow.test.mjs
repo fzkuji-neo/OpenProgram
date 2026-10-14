@@ -25,6 +25,7 @@ import {
   stopAreaScroll,
   subscribeTakeLatest,
   animateJumpToLatest,
+  scrolledAwayFromLatest,
 } from "../../lib/chat/chat-scroll.ts";
 import {
   historyAreaStillOwned,
@@ -450,4 +451,13 @@ test("reading restoration remains available without secure-context UUID support"
   const storage = { getItem: () => data, setItem: (_key, value) => { data = value; } };
   context.exports.writeChatScroll(storage, "http-session", 120, false);
   assert.equal(context.exports.readChatScroll(storage, "http-session"), 120);
+});
+
+test("content re-wrapping under a reader at the latest keeps them there", () => {
+  // A narrower pane grows the transcript and fires scroll with the top unmoved.
+  assert.equal(scrolledAwayFromLatest(2510, 2510), false);
+  assert.equal(scrolledAwayFromLatest(2510, 2509.5), false);
+  assert.equal(scrolledAwayFromLatest(2510, 2400), true);
+  const hook = readFileSync(new URL("../../components/chat/messages/use-chat-area-stick.ts", import.meta.url), "utf8");
+  assert.match(hook, /&& !scrolledAwayFromLatest\(scrollTopRef\.current, area\.scrollTop\)\n\s+&& performance\.now\(\) - lastPointerRef\.current > GROWTH_SUPPRESS_MS\n\s+\) \{\n\s+applySnap\(area\);\n\s+\}\n\s+const atBottom = syncDetached\(\);/);
 });
