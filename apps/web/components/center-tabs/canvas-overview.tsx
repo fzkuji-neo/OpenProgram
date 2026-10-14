@@ -235,16 +235,21 @@ export function CanvasOverview() {
   }, [zoom]);
   // A drop onto a window: from the release its card zooms out of the grid
   // to fill the center area, as picking a card does when browsing, showing
-  // the window as it is. Then the merge commits and the live canvas makes
-  // room: the window's panes narrow from where the card left them while
-  // the docked tab slides in beside them, its edge and theirs one edge, so
-  // both sides move together and nothing sits still under a picture. The
-  // zoom is played by hand, one uniform scale, and it starts at once: the
-  // merge waits on the desktop shell (~50ms) in the meantime.
+  // the window as it is, while that window comes up live underneath. The
+  // merge waits on the desktop shell (~50ms); as soon as it is ready it
+  // commits, and the live canvas takes the zoom over from the card where it
+  // has got to: the same curve goes on, now on real content (the pictures
+  // are small JPEGs and would blur grown to full size), and at the same
+  // time the window's panes narrow from where the card had them while the
+  // docked tab slides in beside them, their edges one edge. So the zoom
+  // and the split play together. The zoom is played by hand, one uniform
+  // scale.
   const growFrom = useRef<DOMRect | null>(null);
-  const [grown, setGrown] = useState(false);
+  const grow = useRef<Animation | null>(null);
+  const [growing, setGrowing] = useState(false);
   useLayoutEffect(() => {
-    setGrown(false);
+    setGrowing(false);
+    grow.current = null;
     if (!landing) return;
     const card = cards.find(c => leaves(c.root).some(p => p.content === landing));
     const mini = card && rootRef.current?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(card.key)}"] [data-overview-mini]`);
@@ -257,33 +262,41 @@ export function CanvasOverview() {
     window.dispatchEvent(new CustomEvent("op-activate-center-tab", { detail: { tabId: card.activateId } }));
   }, [landing]);
   useLayoutEffect(() => {
-    if (!landing || zoom?.phase !== "closing") return;
+    if (!landing || zoom?.phase !== "closing" || grow.current) return;
     const root = rootRef.current;
     const el = root?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(zoom.key)}"] [data-zoomed]`);
     const from = growFrom.current, to = el?.getBoundingClientRect();
     if (!root || !el || !from || !to?.width || !to.height) { closeOverview(); return; }
     const k = from.width / to.width;
-    const grow = el.animate([
+    grow.current = el.animate([
       { transformOrigin: "0 0", transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${k})` },
       { transformOrigin: "0 0", transform: "none" },
-    ], { duration: ZOOM_MS, easing: ZOOM_EASING });
-    void grow.finished.then(() => setGrown(true), closeOverview);
+    ], { duration: ZOOM_MS, easing: ZOOM_EASING, fill: "forwards" });
+    setGrowing(true);
   }, [landing, zoom]);
   useEffect(() => {
-    if (!grown || !landed) return;
+    if (!growing || !landed) return;
     const held = overviewLandingFrom();
     const card = zoom && rootRef.current?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(zoom.key)}"] [data-zoomed]`);
-    if (held && card) {
-      // Where the card left each pane is where it starts on the canvas.
+    const canvas = rootRef.current?.parentElement;
+    if (held && card && canvas && growFrom.current) {
+      // Where the card has each pane now, in the canvas's own frame, is
+      // where it starts on the canvas.
+      const box = card.getBoundingClientRect(), frame = canvas.getBoundingClientRect();
+      const s = box.width / frame.width || 1;
       const rects = new Map<string, DOMRect>();
-      for (const pane of card.querySelectorAll<HTMLElement>("[data-overview-pane]")) rects.set(pane.dataset.overviewPane!, pane.getBoundingClientRect());
+      for (const pane of card.querySelectorAll<HTMLElement>("[data-overview-pane]")) {
+        const r = pane.getBoundingClientRect();
+        rects.set(pane.dataset.overviewPane!, new DOMRect(frame.left + (r.left - box.left) / s, frame.top + (r.top - box.top) / s, r.width / s, r.height / s));
+      }
       const side = held.drop.side === "center" ? "right" : held.drop.side as CanvasEnter;
-      captureCanvasLanding(rects, Object.fromEntries(held.sourceIds.map(id => [id, side])));
+      const elapsed = Number(grow.current?.currentTime ?? ZOOM_MS);
+      captureCanvasLanding(rects, Object.fromEntries(held.sourceIds.map(id => [id, side])), { from: growFrom.current, elapsed, duration: ZOOM_MS, easing: ZOOM_EASING });
     }
     // Closing applies the held merge; the shell plays the capture as the
     // two commit together.
     closeOverview();
-  }, [grown, landed]);
+  }, [growing, landed]);
   const zoomOutRef = useRef(zoomOutTo);
   zoomOutRef.current = zoomOutTo;
   useEffect(() => {
@@ -312,6 +325,7 @@ export function CanvasOverview() {
       data-native-view-occluder="true"
       data-alone={hover?.card === null || undefined}
       data-leaving={zoom?.phase === "closing" || undefined}
+      data-landing={landing ? "" : undefined}
       role={mode === "browse" ? "dialog" : undefined}
       tabIndex={mode === "browse" ? -1 : undefined}
       aria-label={text("Window overview", "窗口总览")}

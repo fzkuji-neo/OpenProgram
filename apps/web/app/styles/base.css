@@ -466,8 +466,9 @@ select:focus-visible {
   overflow: visible;
 }
 /* The window overview turns the centre card into open page, like the
-   desktop in Mission Control: no card edge or shadow around the cards. */
-.app .center-col:has([data-canvas-overview]) {
+   desktop in Mission Control: no card edge or shadow around the cards.
+   It stays open page while a merge's canvas grows out of its card. */
+.app .center-col:has([data-canvas-overview], [data-canvas-landing]) {
   background: var(--bg-secondary);
   box-shadow: none;
 }
