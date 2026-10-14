@@ -103,6 +103,8 @@ test("No element outside a control carries a native title", async () => {
   assert.deepEqual(found, []);
 });
 
-test("The execution strip adds no space under itself", () => {
-  assert.match(read("app/styles/chat/execution-strip.css"), /\.tl \{[^}]*margin: 6px 0 0;/);
+test("A turn keeps one rhythm: strip → reply, code card → text, text → action row", () => {
+  assert.match(read("app/styles/chat/execution-strip.css"), /\.tl \{[^}]*margin: 6px 0 1\.5px;/);
+  assert.match(read("app/styles/chat/bubbles.css"), /\.message-content \.md-code \{[^}]*margin: 10px 0 12\.5px;/);
+  assert.match(read("app/styles/chat/message-actions.css"), /\.message\.assistant \.message-actions-footer \{[^}]*margin-top: 10px;/);
 });
