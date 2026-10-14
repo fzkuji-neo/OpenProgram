@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Equal, FileText, Globe, LayoutGrid, Maximize2, MessageSquare, Minus, SquareDashed, Undo2, X, Save } from "lucide-react";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
-import { captureCanvasTransition } from "@/lib/tabs/canvas-transition";
+import { captureCanvasTransition, prepareCanvasFold } from "@/lib/tabs/canvas-transition";
 import { findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { canvasCssGeometry, canvasGeometry, canvasViewport, leaves, presetLayout, insertPane, removePane, equalize, resizeSplit, snapResize, tilePane, mapNode, type CanvasLayout, type CanvasPreset, type CanvasTile, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { rememberCanvas, takePreviousCanvas } from "@/lib/tabs/canvas-history";
@@ -118,8 +118,13 @@ export function CanvasControls({ layout, targetId, width, height }: { layout: Ca
   /** Take a pane off the canvas; its tab folds back up into the strip. */
   const close = (paneId: string) => {
     const content = all.find(p => p.id === paneId)?.content;
-    captureCanvasTransition(content ? { [content]: "minimize" } : {});
-    remember(); update({ ...layout, zoomedPaneId: undefined, root: removePane(layout.root, paneId) });
+    const commit = () => {
+      captureCanvasTransition(content ? { [content]: "minimize" } : {});
+      remember(); update({ ...layout, zoomedPaneId: undefined, root: removePane(layout.root, paneId) });
+    };
+    // The fold draws a still of the pane, taken before it leaves the canvas.
+    const still = content ? prepareCanvasFold(content) : null;
+    if (still) void still.then(commit); else commit();
   };
   const split = (side: "right" | "bottom") => { remember(); const next = insertPane(layout.root, layout.focusedPaneId, side, null); update({ root: next.root, focusedPaneId: next.paneId }); };
   const tile = (paneId: string, to: CanvasTile | "fill") => {

@@ -11,7 +11,7 @@ const {parseHTML} = require('linkedom');
 const dir = await mkdtemp(join(root, '.canvas-transition-'));
 after(() => rm(dir, {recursive: true, force: true}));
 await build({absWorkingDir: root, stdin: {contents: `
-export {captureCanvasTransition, playCanvasTransition} from './lib/tabs/canvas-transition';
+export {captureCanvasTransition, playCanvasTransition, prepareCanvasFold} from './lib/tabs/canvas-transition';
 export {canvasDragging} from './lib/tabs/canvas-drag';
 `, resolveDir: root}, bundle: true, format: 'esm', platform: 'node', packages: 'external',
   tsconfig: join(root, 'tsconfig.json'), outfile: join(dir, 'probe.mjs'), loader: {'.css': 'empty'}});
@@ -43,7 +43,7 @@ proto.animate = function (frames, options) {
   animations.push({el: this, frames, options});
   return {finished, cancel() {}};
 };
-const {captureCanvasTransition, playCanvasTransition, canvasDragging} = await import(pathToFileURL(join(dir, 'probe.mjs')));
+const {captureCanvasTransition, playCanvasTransition, prepareCanvasFold, canvasDragging} = await import(pathToFileURL(join(dir, 'probe.mjs')));
 const canvas = document.querySelector('[data-canvas-root]');
 
 test('a close plays once its tab is gone: the ghost is a still copy and the other pane grows', () => {
@@ -110,5 +110,45 @@ test('yellow folds the pane into the bottom edge of its tab, then the tab lights
   performance.now = realNow;
   assert.ok(animations.some(a => a.el === tab && a.frames[0].backgroundColor), 'the whole tab button lights as it takes the pane in');
   assert.equal(layer.isConnected, false, 'the layer is gone once the fold ends');
+  strip.remove();
+});
+
+test('with the desktop shell the fold draws one still of the pane, row by row, below the neck only', async () => {
+  animations.length = 0;
+  frames.length = 0;
+  canvas.innerHTML = '<div data-center-tab-id="a">A</div><div data-center-tab-id="b"><p>B</p></div>';
+  const strip = document.createElement('div');
+  strip.setAttribute('role', 'tablist');
+  strip.innerHTML = '<div class="tab"><div role="tab" data-tab-id="b"></div></div>';
+  document.body.prepend(strip);
+  const tab = strip.firstElementChild;
+  tab.getBoundingClientRect = () => new DOMRect(600, -36, 160, 28);
+  rects.set('a', new DOMRect(0, 0, 500, 600));
+  rects.set('b', new DOMRect(500, 0, 500, 600));
+  const asked = [];
+  window.openprogramDesktop = {captureRegion: async (rect, options) => { asked.push([rect, options]); return 'data:image/jpeg;base64,AA'; }};
+  globalThis.Image = class { decode() { return Promise.resolve(); } get naturalWidth() { return 1000; } get naturalHeight() { return 1200; } };
+  const draws = [];
+  const canvasProto = Object.getPrototypeOf(document.createElement('canvas'));
+  canvasProto.getContext = () => ({setTransform() {}, clearRect() {}, drawImage: (...args) => draws.push(args), globalAlpha: 1});
+  const ready = prepareCanvasFold('b');
+  assert.ok(ready, 'the shell can take a still');
+  await ready;
+  assert.deepEqual(asked[0][1], {full: true}, 'a full-resolution still, not a thumbnail');
+  captureCanvasTransition({b: 'minimize'});
+  canvas.querySelector('[data-center-tab-id="b"]').remove();
+  rects.set('a', new DOMRect(0, 0, 1000, 600));
+  playCanvasTransition();
+  const layer = canvas.querySelector('canvas[data-canvas-ghost]');
+  assert.ok(layer, 'one canvas, no copies of the pane');
+  assert.equal(canvas.querySelectorAll('[data-canvas-ghost] [data-canvas-ghost], [data-canvas-ghost] p').length, 0);
+  assert.equal(draws.length, 300, 'the first frame already shows the whole pane in 2px rows');
+  assert.ok(draws.every(d => d[6] >= 0), 'never drawn above the tab bottom edge');
+  const realNow = performance.now.bind(performance);
+  performance.now = () => realNow() + 10_000;
+  while (frames.length) frames.shift()(performance.now());
+  performance.now = realNow;
+  assert.equal(layer.isConnected, false);
+  delete window.openprogramDesktop;
   strip.remove();
 });

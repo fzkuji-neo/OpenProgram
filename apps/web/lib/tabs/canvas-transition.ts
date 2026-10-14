@@ -27,17 +27,27 @@ const FILL_DELAY_MS = 90;
 const TAB_FLASH_MS = 420;
 /** A pane folded out of a split has no tab of its own yet: the tab first
  *  grows out in the strip, and the fold starts as it is nearly out. */
-const TAB_GROW_MS = 240;
-const FOLD_AFTER_GROW_MS = 170;
+const TAB_GROW_MS = 260;
+const FOLD_AFTER_GROW_MS = 220;
+/** How long a fold waits for the still image of its pane before the layout
+ *  changes without one. */
+const STILL_WAIT_MS = 160;
+/** Rows of the still image drawn per slice of the fold, in CSS px. */
+const FOLD_ROW = 2;
 const EASE = "cubic-bezier(.2, .8, .2, 1)";
 /** A capture the layout never followed (a close a save prompt cancelled)
  *  is dropped rather than played on some later change. */
 const STALE_MS = 1500;
 
-type Ghost = { tabId: string; exit: CanvasExit; node: HTMLElement; rect: DOMRect; scroll: [number, number, number][] };
+/** A full-resolution picture of a pane taken just before it folds away:
+ *  the fold draws it row by row on one canvas, which costs a frame almost
+ *  nothing however heavy the pane is. */
+type Still = { image: HTMLImageElement; rect: DOMRect; at: number };
+type Ghost = { tabId: string; exit: CanvasExit; node: HTMLElement; rect: DOMRect; scroll: [number, number, number][]; still?: Still };
 type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit>; tabBoxes: Set<Element> };
 
 let pending: Capture | null = null;
+const stills = new Map<string, Still>();
 let settleTimer: ReturnType<typeof setTimeout> | undefined;
 
 function reducedMotion(): boolean {
@@ -84,6 +94,28 @@ function ghostOf(el: HTMLElement): { node: HTMLElement; scroll: [number, number,
   return { node, scroll };
 }
 
+/** Take a still of a pane about to fold away, before its layout change.
+ *  Null when there is nothing to wait for (no desktop shell to take it, no
+ *  such pane, or Reduce Motion); otherwise it settles once the still is
+ *  ready or after a short wait, whichever comes first. */
+export function prepareCanvasFold(tabId: string): Promise<void> | null {
+  if (typeof document === "undefined" || reducedMotion()) return null;
+  const capture = window.openprogramDesktop?.captureRegion;
+  const root = canvasRoot();
+  const el = root ? paneElements(root).get(tabId) : undefined;
+  if (!capture || !el) return null;
+  const rect = el.getBoundingClientRect();
+  const still = (async () => {
+    const url = await capture({ x: rect.left, y: rect.top, width: rect.width, height: rect.height }, { full: true });
+    if (!url) return;
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    stills.set(tabId, { image, rect, at: performance.now() });
+  })().catch(() => undefined);
+  return Promise.race([still, new Promise<void>(resolve => setTimeout(resolve, STILL_WAIT_MS))]);
+}
+
 /** Record the canvas before a layout change. `exits` says how particular
  *  tabs leave; any other tab that leaves fades under the rest. */
 export function captureCanvasTransition(exits: Record<string, CanvasExit> = {}): void {
@@ -96,7 +128,10 @@ export function captureCanvasTransition(exits: Record<string, CanvasExit> = {}):
     const rect = el.getBoundingClientRect();
     rects.set(id, rect);
     const { node, scroll } = ghostOf(el);
-    ghosts.push({ tabId: id, exit: exits[id] ?? "behind", node, rect, scroll });
+    const still = stills.get(id);
+    stills.delete(id);
+    const fresh = still && performance.now() - still.at < STALE_MS && !moved(still.rect, rect) ? still : undefined;
+    ghosts.push({ tabId: id, exit: exits[id] ?? "behind", node, rect, scroll, still: fresh });
   }
   if (!rects.size) return;
   const tabBoxes = new Set<Element>(document.querySelectorAll('[role="tablist"] > *'));
@@ -169,24 +204,112 @@ function quadMatrix(w: number, h: number, [x0, y0, x1, y1, x2, y2, x3, y3]: numb
   return `matrix3d(${a / w},${d / w},0,${g / w},${b / h},${e / h},0,${k / h},0,0,1,0,${x0},${y0},0,1)`;
 }
 
-/** The genie fold: the pane is cut into horizontal bands, each mapped every
- *  frame onto a quad, so together they bend into a funnel whose neck is the
- *  tab's bottom edge. The edge nearest the tab pinches first, then the pane
- *  pours up through the neck, packing tighter as it nears it, and is gone at
- *  the tab's bottom edge; the tab lights once as it takes the pane in. */
+/** The genie fold: the pane bends into a funnel whose neck is the tab's
+ *  bottom edge. The edge nearest the tab pinches first, then the pane pours
+ *  up through the neck, packing tighter as it nears it, and is gone at the
+ *  tab's bottom edge, never drawn over the tab; the tab lights once as it
+ *  takes the pane in. With a still of the pane the fold draws it in thin
+ *  rows on one canvas; without one, copies of the pane are cut into bands,
+ *  each mapped onto a quad. */
 function genieFold(ghost: Ghost, origin: DOMRect, root: HTMLElement, tab: HTMLElement, target: DOMRect, delay: number): void {
+  const { rect: pane } = ghost;
+  const W = pane.width, H = pane.height;
+  // In pane coordinates: the neck spans the tab, `reach` is the depth from
+  // the neck to the pane's bottom edge, `travel` lifts that edge to the neck.
+  const neck = target.bottom - pane.top;
+  const neckLeft = target.left - pane.left, neckRight = target.right - pane.left;
+  const reach = Math.max(1, H - neck), travel = H - neck;
+  const edge = (y: number, t: number): [number, number, number] => {
+    const pinch = smoothstep(clamp01(t / 0.45));
+    const lift = easeInOut(clamp01((t - 0.14) / 0.86));
+    const depth = y - neck - lift * travel;
+    // Rows pack tighter as they near the neck.
+    const Y = neck + (depth > 0 && depth < reach ? reach * (depth / reach) ** (1 + 0.75 * pinch) : depth);
+    const below = clamp01((Y - neck) / reach);
+    const open = 1 - pinch * (1 - (1 - Math.cos(Math.PI * below)) / 2);
+    return [neckLeft + (0 - neckLeft) * open, neckRight + (W - neckRight) * open, Y];
+  };
+  const draw = ghost.still ? stillFold(ghost.still, pane, target, origin, root, edge) : bandFold(ghost, origin, root, neck, edge);
+  const start = performance.now() + delay;
+  let flashed = false;
+  function frame(now: number) {
+    const t = clamp01((now - start) / MINIMIZE_MS);
+    if (!draw.layer.isConnected) return;
+    draw.paint(t, 1 - clamp01((t - 0.85) / 0.15));
+    if (!flashed && t >= 0.72) {
+      flashed = true;
+      tab.animate([
+        { backgroundColor: "color-mix(in srgb, var(--text-bright) 18%, transparent)" },
+        { backgroundColor: getComputedStyle(tab).backgroundColor },
+      ], { duration: TAB_FLASH_MS, easing: "ease-out" });
+    }
+    if (t < 1) requestAnimationFrame(frame);
+    else draw.layer.remove();
+  }
+  requestAnimationFrame(frame);
+}
+
+type Edge = (y: number, t: number) => [number, number, number];
+type Fold = { layer: HTMLElement; paint: (t: number, alpha: number) => void };
+
+function ghostLayer<T extends HTMLElement>(layer: T): T {
+  layer.setAttribute("data-canvas-ghost", "");
+  layer.setAttribute("aria-hidden", "true");
+  layer.inert = true;
+  return layer;
+}
+
+/** The still drawn in rows of FOLD_ROW px, each row stretched between the
+ *  funnel's edges at its height. The canvas starts at the neck, so nothing
+ *  above it is ever drawn. */
+function stillFold(still: Still, pane: DOMRect, target: DOMRect, origin: DOMRect, root: HTMLElement, edge: Edge): Fold {
+  const left = Math.min(pane.left, target.left), right = Math.max(pane.right, target.right);
+  const top = Math.min(pane.top, target.bottom);
+  const box = new DOMRect(left, top, right - left, pane.bottom - top);
+  const scale = window.devicePixelRatio || 1;
+  const canvas = ghostLayer(document.createElement("canvas"));
+  canvas.width = Math.round(box.width * scale);
+  canvas.height = Math.round(box.height * scale);
+  place(canvas, box, origin, 50);
+  root.append(canvas);
+  const context = canvas.getContext("2d");
+  const { image } = still;
+  const sx = image.naturalWidth / pane.width, sy = image.naturalHeight / pane.height;
+  const ox = pane.left - left, oy = pane.top - top;
+  const paint = (t: number, alpha: number) => {
+    if (!context) return;
+    context.setTransform(scale, 0, 0, scale, 0, 0);
+    context.clearRect(0, 0, box.width, box.height);
+    context.globalAlpha = alpha;
+    context.imageSmoothingQuality = "high";
+    let previous = edge(0, t);
+    for (let y0 = 0; y0 < pane.height; y0 += FOLD_ROW) {
+      const y1 = Math.min(pane.height, y0 + FOLD_ROW);
+      const next = edge(y1, t);
+      const [l0, r0, top0] = previous, [l1, r1, top1] = next;
+      previous = next;
+      const height = top1 - top0;
+      if (top1 + oy <= 0 || height < 0.01) continue;
+      const l = (l0 + l1) / 2, r = (r0 + r1) / 2;
+      // A hair of overlap so neighbouring rows never leave a seam.
+      context.drawImage(image, 0, y0 * sy, image.naturalWidth, (y1 - y0) * sy,
+        l + ox, top0 + oy, r - l, height + (height > 0.5 ? 0.5 : 0));
+    }
+  };
+  paint(0, 1);
+  return { layer: canvas, paint };
+}
+
+/** Without a still: copies of the pane cut into bands, each mapped every
+ *  frame onto its quad of the funnel. */
+function bandFold(ghost: Ghost, origin: DOMRect, root: HTMLElement, neck: number, edge: Edge): Fold {
   const { node, rect: pane } = ghost;
   const W = pane.width, H = pane.height;
   // Each band holds its own copy of the pane, so a heavy pane gets fewer.
   const nodes = node.getElementsByTagName("*").length + 1;
   const count = Math.max(6, Math.min(20, Math.round(36_000 / nodes)));
-  const layer = document.createElement("div");
-  layer.setAttribute("data-canvas-ghost", "");
-  layer.setAttribute("aria-hidden", "true");
-  layer.inert = true;
+  const layer = ghostLayer(document.createElement("div"));
   place(layer, pane, origin, 50);
-  // Nothing shows above the neck: the pane is swallowed there, never drawn over the tab.
-  const neck = target.bottom - pane.top;
   layer.style.clipPath = `polygon(-100vw ${neck}px, 200vw ${neck}px, 200vw 200vh, -100vw 200vh)`;
   const bands: { band: HTMLElement; top: number; bottom: number }[] = [];
   for (let index = 0; index < count; index++) {
@@ -210,43 +333,16 @@ function genieFold(ghost: Ghost, origin: DOMRect, root: HTMLElement, tab: HTMLEl
       if (item) { item.scrollTop = top; item.scrollLeft = left; }
     }
   }
-
-  // In pane coordinates: the neck spans the tab, `reach` is the depth from
-  // the neck to the pane's bottom edge, `travel` lifts that edge to the neck.
-  const neckLeft = target.left - pane.left, neckRight = target.right - pane.left;
-  const reach = Math.max(1, H - neck), travel = H - neck;
-  function edge(y: number, t: number): [number, number, number] {
-    const pinch = smoothstep(clamp01(t / 0.45));
-    const lift = easeInOut(clamp01((t - 0.14) / 0.86));
-    const depth = y - neck - lift * travel;
-    // Rows pack tighter as they near the neck.
-    const Y = neck + (depth > 0 && depth < reach ? reach * (depth / reach) ** (1 + 0.75 * pinch) : depth);
-    const below = clamp01((Y - neck) / reach);
-    const open = 1 - pinch * (1 - (1 - Math.cos(Math.PI * below)) / 2);
-    return [neckLeft + (0 - neckLeft) * open, neckRight + (W - neckRight) * open, Y];
-  }
-  const start = performance.now() + delay;
-  let flashed = false;
-  function frame(now: number) {
-    const t = clamp01((now - start) / MINIMIZE_MS);
+  const paint = (t: number, alpha: number) => {
     for (const { band, top, bottom } of bands) {
       const [l0, r0, y0] = edge(top, t), [l1, r1, y1] = edge(bottom, t);
       const matrix = quadMatrix(W, bottom - top + 1, [l0, y0 - top, r0, y0 - top, r1, y1 - top, l1, y1 - top]);
       band.style.visibility = matrix && y1 - y0 > 0.25 ? "" : "hidden";
       if (matrix) band.style.transform = matrix;
-      band.style.opacity = String(1 - clamp01((t - 0.85) / 0.15));
+      band.style.opacity = String(alpha);
     }
-    if (!flashed && t >= 0.72) {
-      flashed = true;
-      tab.animate([
-        { backgroundColor: "color-mix(in srgb, var(--text-bright) 18%, transparent)" },
-        { backgroundColor: getComputedStyle(tab).backgroundColor },
-      ], { duration: TAB_FLASH_MS, easing: "ease-out" });
-    }
-    if (t < 1 && layer.isConnected) requestAnimationFrame(frame);
-    else layer.remove();
-  }
-  requestAnimationFrame(frame);
+  };
+  return { layer, paint };
 }
 
 /** Play the capture if this commit carried out its layout change. Called
