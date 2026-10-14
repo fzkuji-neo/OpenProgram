@@ -95,3 +95,18 @@ def test_empty_and_unloadable_stay_quiet(store):
     assert rows == [
         {"node_id": "ghost", "in_context": True, "aged": False, "spilled": False},
     ]
+
+
+def test_context_range_lists_the_calls_under_each_turn(store):
+    # The predecessor walk only sees turns; the calls a reply made hang
+    # off it by caller. The next request reads them, so the range must
+    # list them — right after their reply — or every opened call draws
+    # as out of context and ``aged`` can never fire.
+    from openprogram.webui.routes.files.tree import _with_code_nodes
+
+    _turns(store, 2)
+    assert _with_code_nodes(store, "s1", None, ["u0", "a0", "u1", "a1"]) == [
+        "u0", "a0", "c0", "u1", "a1", "c1",
+    ]
+    # A turn the compaction view left out keeps its calls out with it.
+    assert _with_code_nodes(store, "s1", "a1", ["u1", "a1"]) == ["u1", "a1", "c1"]

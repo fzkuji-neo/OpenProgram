@@ -49,6 +49,61 @@ def _coverage_nodes(db, session_id: str, node_ids: list) -> list:
     ]
 
 
+def _with_code_nodes(db, session_id: str, head_id, node_ids: list) -> list:
+    """``node_ids`` plus the code nodes the next request carries under them.
+
+    ``rendered_history`` walks the predecessor chain, so it lists the
+    conversation turns only — the tool calls a reply made hang off it by
+    ``caller`` and never appear. The real render reads them too
+    (``render_context``, the walk ``engine.py`` feeds the model), so the
+    graph drew every opened call as out of context, and the ``aged``
+    flag — a code-node fact — could never be set. Calls are admitted
+    when ``render_context`` reads them AND their conversation owner is
+    in ``node_ids``, which keeps the compaction view's cut: a call under
+    a covered turn stays out with its turn. Order follows ``node_ids``,
+    each call right after its owner.
+    """
+    if not node_ids:
+        return node_ids
+    try:
+        from openprogram.context.nodes import render_context
+        from openprogram.store.session.session_node_writer import SessionNodeWriter
+
+        graph = SessionNodeWriter(db, session_id).load()
+        head = head_id if head_id in graph.nodes else node_ids[-1]
+        if head not in graph.nodes:
+            return node_ids
+        reads = render_context(graph, head_id=head, frame_entry_seq=-1)
+    except Exception:
+        return node_ids
+    spine = set(node_ids)
+
+    def _owner(nid: str):
+        seen: set = set()
+        cur = graph.nodes.get(nid)
+        while cur is not None and cur.caller and cur.caller != "ROOT" \
+                and cur.id not in seen:
+            seen.add(cur.id)
+            if cur.caller in spine:
+                return cur.caller
+            cur = graph.nodes.get(cur.caller)
+        return None
+
+    calls: dict = {}
+    for nid in reads:
+        node = graph.nodes.get(nid)
+        if nid in spine or node is None or not node.is_code():
+            continue
+        owner = _owner(nid)
+        if owner is not None:
+            calls.setdefault(owner, []).append(nid)
+    out: list = []
+    for nid in node_ids:
+        out.append(nid)
+        out.extend(calls.get(nid, ()))
+    return out
+
+
 def register(app):
     @app.get("/api/programs")
     async def get_functions():
@@ -372,7 +427,10 @@ def register(app):
         # then the kept turns. The raw get_branch walk would paint the
         # covered turns white as if the next request still carried them.
         branch = rendered_history(db, session_id, head_id)
-        node_ids = [m["id"] for m in branch if m.get("id")]
+        node_ids = _with_code_nodes(
+            db, session_id, head_id,
+            [m["id"] for m in branch if m.get("id")],
+        )
         return JSONResponse(content={
             "session_id": session_id,
             "node_ids": node_ids,
