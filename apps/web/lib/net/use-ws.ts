@@ -358,6 +358,12 @@ export function useWS(): void {
             messageIds,
           )) return true;
           const observedRunningExecution = useSessionStore.getState().runningTasks[String(execution.session_id || "")]?.execution_id === eid;
+          if (execution.session_id) {
+            const attentionSessionId = String(execution.session_id);
+            const attentionStatus = execution.status;
+            void import("@/lib/desktop/attention").then(({ reportExecutionStatus }) =>
+              reportExecutionStatus(eid, attentionSessionId, attentionStatus));
+          }
           restoreForegroundExecutionTask(d?.foreground_task ?? execution.foreground_task, execution);
           import("@/lib/session-store").then(({ useSessionStore }) => {
             const store = useSessionStore.getState();
@@ -589,6 +595,13 @@ export function useWS(): void {
             // session_loaded/reconnect replay is a status restoration and
             // must remain passive until the owner explicitly acts.
             rememberSystemAccessWait(d, d.live === true);
+            if (d.live === true && typeof d.wait_id === "string" && typeof d.session_id === "string") {
+              const waitId = d.wait_id;
+              const waitSessionId = d.session_id;
+              void import("@/lib/desktop/attention").then(({ reportAttention }) => reportAttention({
+                kind: "system_access", sessionId: waitSessionId, key: `system-access:${waitId}`,
+              }));
+            }
             const sid = typeof d.session_id === "string" ? d.session_id : "";
             const eid = typeof d.execution_id === "string" ? d.execution_id : "";
             const task = sid ? useSessionStore.getState().runningTasks[sid] : undefined;
@@ -614,6 +627,12 @@ export function useWS(): void {
           import("@/lib/session-store").then(({ useSessionStore }) => {
             const dd = (d || {}) as Record<string, unknown>;
             if (!dd.id) return;
+            void import("@/lib/desktop/attention").then(({ reportAttention }) => reportAttention({
+              kind: "needs_input",
+              sessionId: String(dd.session_id || ""),
+              key: `question:${String(dd.id)}`,
+              detail: String(dd.prompt || ""),
+            }));
             for (const request of pendingExecutionReplayRequests([dd])) {
               recovery?.request(request.execution_id, request.after_sequence);
             }

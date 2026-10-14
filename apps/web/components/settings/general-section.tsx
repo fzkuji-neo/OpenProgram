@@ -35,6 +35,7 @@ import {
 import { useVisualEffectsPref } from "@/lib/prefs/visual-effects-pref";
 import { DRAG_SURFACE_STYLE, VISUAL_EFFECTS_LIMITS, type VisualEffectKey } from "@/lib/prefs/visual-effects-config";
 import styles from "./settings-page.module.css";
+import { DesktopAttentionSection } from "./desktop-attention-section";
 
 const FONT_OPTIONS: FontKey[] = ["system", "inter", "serif", "mono"];
 
@@ -772,6 +773,8 @@ export function GeneralSection() {
         <AgentSection />
 
         <UserSection />
+
+        <DesktopAttentionSection />
 
         <ApplicationSection />
       </div>

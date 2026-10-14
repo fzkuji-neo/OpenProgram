@@ -111,6 +111,14 @@ Recoverable running conversations continue automatically in the same conversatio
 
 Conversations show normal messages and tool results, including results of an update you requested. They do not contain a separate software-update history, update controls, or update recovery notices. Opening a conversation does not start software-update history polling.
 
+## Notifications and keep-awake
+
+When OpenProgram is in the background, the desktop App sends a system notification when a session's turn finishes, stops with an error, asks you a question or for approval, or waits for system access. No notification appears while any OpenProgram window is in front. Each event notifies once, even with several windows open. Stopping a turn yourself does not notify. Click a notification to bring its window forward and open that session.
+
+While any session is running, the App keeps the computer from idle-sleeping. The display can still turn off. The hold ends when no session is running.
+
+Turn either behavior off in **Settings → General → Notifications**. The choices apply to this computer and persist across restarts. The browser interface at http://localhost:18100 sends no notifications and does not keep the computer awake.
+
 ## Restart and retained browser pages
 
 After the Desktop App or worker process restarts, pages you had not closed come back automatically in the background. The App keeps the same retained tab, session, and branch ownership, and the last confirmed address and title. It creates a new live page behind that retained tab; handles from the previous process are no longer valid. It does not open a second copy of the same retained tab, does not reopen a page you closed, and does not show a preview you had hidden. Compact picture-in-picture chrome, the vertical Files / Activity / Resources sidebar, and grouped resource rows stay as they were. Labels follow the App language setting.
