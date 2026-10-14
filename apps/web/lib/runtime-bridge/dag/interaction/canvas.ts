@@ -129,12 +129,23 @@ export function applyView(): void {
   if (pct) pct.textContent = Math.round(_viewScale * 100) + "%";
 }
 
+/** The smallest scale a session OPENS at. A long session fitted whole
+ *  shrank to a hairline column of unreadable specks (a 40-turn chat
+ *  opened at 37%); arriving at a session should show where it is now,
+ *  readable, and leave "everything at once" to the Fit button. */
+const OPEN_MIN_SCALE = 0.8;
+
 /** Centre the graph in the pane at a scale that shows all of it.
+ *
+ *  ``opening`` is a session's first view: the same fit, but never below
+ *  ``OPEN_MIN_SCALE``. When the graph does not fit at that scale the
+ *  view frames HEAD instead — near the bottom of the strip, the way a
+ *  transcript opens on its latest message.
  *
  *  The translation is rounded to whole pixels: at a fractional offset
  *  every node sits a fraction of a pixel off its background dot, and the
  *  lattice stops reading as the coordinate system it is. */
-export function fitCanvas(): void {
+export function fitCanvas(opening = false): void {
   if (!_handle) return;
   dismissOverlays();
   const { world, host } = _handle;
@@ -151,20 +162,33 @@ export function fitCanvas(): void {
   // graph where it can be read, so it centres in the strip above.
   const h = host.clientHeight - COMPOSER_STRIP;
   if (!w || h <= 0) return;
+  const fit = Math.min(
+    (w - FIT_PAD * 2) / bb.width,
+    (h - FIT_PAD * 2) / bb.height,
+  );
   const scale = Math.min(
-    1.3,
-    Math.max(
-      MIN_SCALE,
-      Math.min((w - FIT_PAD * 2) / bb.width, (h - FIT_PAD * 2) / bb.height),
-    ),
+    1.3, Math.max(opening ? OPEN_MIN_SCALE : MIN_SCALE, fit),
   );
-  setView(
-    Math.round((w - bb.width * scale) / 2 - bb.x * scale),
-    Math.round((h - bb.height * scale) / 2 - bb.y * scale),
-    scale,
-  );
+  let tx = (w - bb.width * scale) / 2 - bb.x * scale;
+  let ty = (h - bb.height * scale) / 2 - bb.y * scale;
+  const head = opening && scale > fit ? headPoint(world) : null;
+  if (head) {
+    // Whichever axis overflows follows HEAD; the other stays centred.
+    if (bb.width * scale > w - FIT_PAD * 2) tx = w / 2 - head.x * scale;
+    if (bb.height * scale > h - FIT_PAD * 2) ty = h - FIT_PAD - head.y * scale;
+  }
+  setView(Math.round(tx), Math.round(ty), scale);
   applyView();
   _fitPending = false;
+}
+
+/** HEAD's anchor in world space — the node drawer stamps ``data-head``
+ *  on its glyph, and the glyph's group carries the node's translate. */
+function headPoint(world: SVGGElement): { x: number; y: number } | null {
+  const g = world.querySelector("[data-head='1']")?.closest(".history-node");
+  const m = /translate\(\s*([-\d.]+)[ ,]+([-\d.]+)/.exec(
+    g?.getAttribute("transform") || "");
+  return m ? { x: Number(m[1]), y: Number(m[2]) } : null;
 }
 
 /** Zoom by ``factor`` about the screen-space anchor ``(px, py)``: the
@@ -319,7 +343,7 @@ export function attachCanvas(
     // getBBox needs the element laid out; a frame later it is. If the
     // pane still has no size (hidden tab, mid-layout), the fit stays
     // pending and the next render or resize retries it.
-    requestAnimationFrame(fitCanvas);
+    requestAnimationFrame(() => fitCanvas(true));
   }
 }
 
@@ -335,7 +359,7 @@ function wireFitRetryOnResize(host: HTMLElement): void {
   // pane is room enough to retry, so the stricter ``_handle.host ===
   // host`` half-guard only ever dropped retries.
   new ResizeObserver(() => {
-    if (_fitPending) fitCanvas();
+    if (_fitPending) fitCanvas(true);
   }).observe(host);
 }
 
