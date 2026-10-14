@@ -56,3 +56,10 @@ test("A session opens readable and framed on HEAD; only the Fit button shows eve
   const view = readFileSync(new URL("../../components/chat/dag-view.tsx", import.meta.url), "utf8");
   assert.match(view, /onClick=\{\(\) => fitCanvas\(\)\}/);
 });
+
+test("The fold count steps past an error or cross-session mark on the shoulder", () => {
+  const nodes = readFileSync(new URL("../../lib/runtime-bridge/dag/render/nodes.ts", import.meta.url), "utf8");
+  assert.match(nodes, /querySelector\("\[data-status-bang\], \[data-corner-mark\]"\)/);
+  assert.match(nodes, /String\(NODE_R \+ \(marked \? 11 : 5\)\)/);
+  assert.match(nodes, /"data-corner-mark": "1"/);
+});

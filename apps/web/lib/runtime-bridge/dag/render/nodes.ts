@@ -96,6 +96,18 @@ function applyStatusPaint(
   } else if (!wantBang && bang) {
     bang.remove();
   }
+  seatShoulderCount(g);
+}
+
+/** The fold count shares the upper-right shoulder with the corner
+ *  marks (`!` error, `↗` cross-session spawn). Glued on, the two read
+ *  as one token ("!18"), so the count steps right past whichever mark
+ *  is there; with none, it sits against the glyph. */
+function seatShoulderCount(g: Element): void {
+  const marked = g.querySelector("[data-status-bang], [data-corner-mark]");
+  g.querySelectorAll(".history-thread-count").forEach((cnt) => {
+    cnt.setAttribute("x", String(NODE_R + (marked ? 11 : 5)));
+  });
 }
 
 /** In-place status / running / error marks. False if any drawn node is missing. */
@@ -272,6 +284,7 @@ export function drawNodes(
         "font-size": "10",
         "font-weight": "700",
         "pointer-events": "none",
+        "data-corner-mark": "1",
       });
       arrow.textContent = "↗";
       g.appendChild(arrow);
@@ -289,6 +302,7 @@ export function drawNodes(
       });
       cnt.textContent = String(threadCount);
       g.appendChild(cnt);
+      seatShoulderCount(g);
     }
     (g as any)._nodeData = node;
     nodeG.appendChild(g);
