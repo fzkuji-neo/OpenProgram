@@ -24,7 +24,7 @@
 import { memo, useEffect, useId, useRef, useState } from "react";
 import { canvasDragging, onCanvasDragChange } from "@/lib/tabs/canvas-drag";
 import type { KeyboardEvent, ReactNode } from "react";
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, PictureInPicture2, RotateCw, Search, Star, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, ExternalLink, House, MessageSquarePlus, PictureInPicture2, RotateCw, Search, Star, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,10 @@ import {
   type DesktopBridge,
 } from "@/lib/desktop/desktop-bridge";
 import { useTranslation } from "@/lib/i18n";
+import { showToast } from "@/lib/format-utils/toast";
+import { useSessionStore } from "@/lib/session-store";
+import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
+import { pageCommentText, pickedElementName, type PickedElement } from "@/lib/browser/page-comment";
 import { browserPageShortcut } from "@/lib/browser/browser-layout";
 import {
   isBookmarked,
@@ -349,6 +353,14 @@ function DesktopWebTabPane({
   const [findResult, setFindResult] = useState({ activeMatchOrdinal: 0, matches: 0 });
   const canFind = typeof bridge.webTab.find === "function"
     && typeof bridge.webTab.stopFind === "function";
+  const canComment = typeof bridge.webTab.pickElement === "function"
+    && typeof bridge.webTab.cancelPick === "function";
+  // Comment mode: "picking" while the page waits for a click, then the
+  // picked element and the comment being written about it.
+  const [comment, setComment] = useState<{ picking: true } | { picking: false; element: PickedElement } | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
+  const pickSeq = useRef(0);
+  const commentRef = useRef<HTMLInputElement>(null);
   const canZoom = typeof bridge.webTab.zoom === "function";
   const canPrint = typeof bridge.webTab.print === "function";
   const collapseTarget = usePipCollapseTarget(tabId);
@@ -497,7 +509,14 @@ function DesktopWebTabPane({
 
   useEffect(() => () => {
     bridge.webTab.stopFind?.(tabId, "clearSelection");
+    bridge.webTab.cancelPick?.(tabId);
   }, [bridge, tabId]);
+
+  // A page that navigates away takes its element picker with it.
+  useEffect(() => {
+    pickSeq.current += 1;
+    setComment(null);
+  }, [url]);
 
   // Store url changed by someone else (session restore, future agent
   // navigation) → steer the view. Our own updates (navigate() below,
@@ -541,6 +560,42 @@ function DesktopWebTabPane({
       findRef.current?.focus();
       findRef.current?.select();
     });
+  }
+
+  function startComment() {
+    if (!canComment) return;
+    const seq = ++pickSeq.current;
+    setComment({ picking: true });
+    setCommentDraft("");
+    void bridge.webTab.pickElement?.(tabId).then((element) => {
+      if (seq !== pickSeq.current) return;
+      if (!element) {
+        setComment(null);
+        return;
+      }
+      setComment({ picking: false, element });
+      window.requestAnimationFrame(() => commentRef.current?.focus());
+    });
+  }
+
+  function closeComment() {
+    pickSeq.current += 1;
+    bridge.webTab.cancelPick?.(tabId);
+    setComment(null);
+    setCommentDraft("");
+  }
+
+  function submitComment() {
+    if (!comment || comment.picking || !commentDraft.trim()) return;
+    const state = useSessionStore.getState();
+    const chatKey = state.activeChatKey ?? state.currentSessionId;
+    if (!chatKey) {
+      showToast(text("Open a conversation to add the comment to", "先打开一个对话，再添加评论"));
+      return;
+    }
+    appendToComposer(chatKey, pageCommentText(comment.element, commentDraft), false);
+    showToast(text("Comment added to your message", "评论已加入消息"));
+    closeComment();
   }
 
   function focusAddress() {
@@ -668,6 +723,7 @@ function DesktopWebTabPane({
             },
             openExternal: () => bridge.openExternal(viewUrlRef.current),
             find: canFind ? openFind : undefined,
+            comment: canComment ? startComment : undefined,
             zoomIn: canZoom ? () => { void bridge.webTab.zoom?.(tabId, "in"); } : undefined,
             zoomOut: canZoom ? () => { void bridge.webTab.zoom?.(tabId, "out"); } : undefined,
             resetZoom: canZoom ? () => { void bridge.webTab.zoom?.(tabId, "reset"); } : undefined,
@@ -719,6 +775,49 @@ function DesktopWebTabPane({
             <X size={13} />
           </button>
           </div>
+        </div>
+      ) : null}
+      {comment ? (
+        <div className={styles.webFindBar}>
+          <form
+            className={styles.webFindPill}
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitComment();
+            }}
+          >
+            <MessageSquarePlus size={12} aria-hidden="true" />
+            {comment.picking ? (
+              <span className={styles.webCommentHint} aria-live="polite">
+                {text("Click an element on the page · Esc to cancel", "点击页面上的元素 · Esc 取消")}
+              </span>
+            ) : (
+              <>
+                <span className={styles.webCommentTarget}>{pickedElementName(comment.element)}</span>
+                <input
+                  ref={commentRef}
+                  value={commentDraft}
+                  onChange={(event) => setCommentDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing) return;
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      closeComment();
+                    }
+                  }}
+                  placeholder={text("Comment for the agent", "给 agent 的评论")}
+                  aria-label={text("Comment on this element", "评论这个元素")}
+                />
+                <span className={styles.webFindSep} aria-hidden="true" />
+                <button type="submit" className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "rounded-full")} disabled={!commentDraft.trim()}>
+                  {text("Add to message", "加入消息")}
+                </button>
+              </>
+            )}
+            <button type="button" className={findButton()} onClick={closeComment} aria-label={text("Close comment", "关闭评论")}>
+              <X size={13} />
+            </button>
+          </form>
         </div>
       ) : null}
       <WebPaneStage>

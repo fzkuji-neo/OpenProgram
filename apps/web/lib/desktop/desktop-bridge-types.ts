@@ -1,4 +1,5 @@
 import type { ThemeId, ThemeMode, ThemeStyle } from "@/lib/prefs/theme-pref";
+import type { PickedElement } from "@/lib/browser/page-comment";
 
 export interface DesktopThemeChrome {
   theme: ThemeId;
@@ -158,6 +159,9 @@ export interface DesktopWebTabApi {
     options?: { forward?: boolean; findNext?: boolean },
   ): void;
   stopFind?(id: string, action: "clearSelection" | "keepSelection" | "activateSelection"): void;
+  /** Let the user click one element on the page. null when cancelled. */
+  pickElement?(id: string): Promise<PickedElement | null>;
+  cancelPick?(id: string): void;
   zoom?(id: string, action: "in" | "out" | "reset"): Promise<number | null>;
   print?(id: string): Promise<boolean>;
   /** Snapshot of the native page as a data URL, for PiP drag placeholders. */

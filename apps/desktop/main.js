@@ -746,6 +746,8 @@ const {
   restorePendingPipZoom,
   findView,
   stopFindView,
+  pickElementInView,
+  cancelPickInView,
   captureView,
   zoomView,
   printPdfDefaultName,
@@ -1058,6 +1060,14 @@ function registerWebTabIpc() {
   ipcMain.on("webtab:stop-find", (event, id, action) => {
     const ctx = contextForSender(event);
     if (ctx) stopFindView(ctx, id, action);
+  });
+  ipcMain.handle("webtab:pick-element", (event, id) => {
+    const ctx = contextForSender(event);
+    return ctx && typeof id === "string" ? pickElementInView(ctx, id) : null;
+  });
+  ipcMain.on("webtab:cancel-pick", (event, id) => {
+    const ctx = contextForSender(event);
+    if (ctx && typeof id === "string") cancelPickInView(ctx, id);
   });
   ipcMain.handle("webtab:zoom", (event, id, action) => {
     const ctx = contextForSender(event);
