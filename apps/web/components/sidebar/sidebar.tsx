@@ -270,7 +270,7 @@ export const Sidebar = memo(function Sidebar() {
           onClick={toggleSidebar}
           onMouseEnter={() => toggleIconRef.current?.startAnimation?.()}
           onMouseLeave={() => toggleIconRef.current?.stopAnimation?.()}
-          title={t("sidebar.toggle")}
+          aria-label={open ? text("Hide sidebar", "隐藏侧边栏") : text("Show sidebar", "显示侧边栏")}
           type="button"
         >
           {open ? (
