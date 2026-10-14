@@ -68,6 +68,7 @@ import { DecisionOutputs } from "./decision-output";
 import { SystemAccessWaits } from "./system-access-waits";
 import { TodoPlanCard } from "./todo-plan-card";
 import { MessageRail } from "./message-rail";
+import { ConversationFind } from "./conversation-find";
 import { AgentBranchBanner } from "./agent-branch-banner";
 import { RuntimeBlock } from "./runtime-block";
 import { SpawnedFromCard } from "./spawned-from-card";
@@ -722,10 +723,11 @@ export const MessageList = memo(function MessageList({
     paintRows,
   );
   const [railTarget, setRailTarget] = useState<string | null>(null);
+  const [findTarget, setFindTarget] = useState<string | null>(null);
   const alwaysLive = collectAlwaysLive(
     ids,
     (id) => snap.messagesById[id],
-    [pendingAnchor, railTarget],
+    [pendingAnchor, railTarget, findTarget],
   );
   const {view, notifyMeasured} = useMessageViewport(chatKey, ids.length, paintRows);
   const windowNodes: WindowNode[] = [];
@@ -883,6 +885,7 @@ export const MessageList = memo(function MessageList({
       {paintRows ? (
         <MessageRail hiddenKey={[...hiddenCovered].join("\n")} onSeek={setRailTarget} />
       ) : null}
+      {paintRows ? <ConversationFind sessionId={sessionId} onTarget={setFindTarget} /> : null}
       {paintRows ? (() => {
         const nodes: ReactNode[] = [];
         const addGoalRecords = (anchors: (string | null)[]) => {

@@ -92,3 +92,27 @@ def test_wire_tools_preserve_blocks_and_legacy_fallback_without_mutating_storage
     assert wire_message({'tool_calls': [call]}) == {'tool_calls': [call]}
     different = {**row, 'blocks': [{**block, 'result': 'different'}]}
     assert wire_message(different)['tool_calls'] == [call]
+
+
+def test_snapshot_search_matches_display_rows_in_order_with_group_ids():
+    from openprogram.webui.session_history import HistorySnapshot
+    rows = [
+        {'id': 'u1', 'role': 'user', 'content': 'Alpha beta'},
+        {'id': 'a1', 'role': 'assistant', 'content': 'beta BETA\nbeta'},
+        {'id': 't1', 'role': 'tool', 'caller': 'a1', 'content': 'beta in a tool'},
+        {'id': 'c1', 'role': 'assistant', 'caller': 'a1', 'content': 'beta in a child'},
+        {'id': 'r1', 'role': 'assistant', 'display': 'runtime', 'content': 'beta status'},
+        {'id': 'u2', 'role': 'user', 'content': 'x' * 100 + 'Beta' + 'y' * 100},
+    ]
+    snapshot = HistorySnapshot('s', 'u2', rows, {'u1', 'a1', 'r1', 'u2'})
+    try:
+        found = snapshot.search('beta')
+        assert [(m['id'], m['message_id'], m['count']) for m in found] == [('u1', 'u1', 1), ('a1', 'a1', 3), ('u2', 'u2', 1)]
+        assert found[1]['snippet'] == 'beta BETA beta'
+        assert found[2]['snippet'] == '…' + 'x' * 40 + 'Beta' + 'y' * 40 + '…'
+        assert snapshot.search('beta', limit=1) == found[:1]
+        assert snapshot.search('') == []
+        page, meta = snapshot.page(around=found[2]['id'])
+        assert page[-1]['id'] == 'u2'
+    finally:
+        snapshot.close()

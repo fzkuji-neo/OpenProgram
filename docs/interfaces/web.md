@@ -120,6 +120,10 @@ Function and tool calls within each reply turn render as an expandable execution
 
 When the agent plans its work with the `todo_create` and `todo_update` tools, the plan appears as a task list at the end of the conversation and updates as the agent works: each task shows as done, in progress, or still to do, with a done count in the corner. The list shows the current plan only. Tasks the agent adds after finishing every earlier one start a new plan, and the finished one drops off. A plan that is still open stays visible; a finished plan stays under the turn that finished it until you send your next message. Reopening the conversation shows the same list.
 
+### Find in conversation
+
+Press **⌘F** on macOS (**Ctrl+F** on Windows and Linux) in a conversation to open the find bar at the top right of the chat. Matching is case-insensitive and covers the text of your messages and the agent's replies on the current branch, including history that has not loaded yet; tool output and thinking are not searched. The counter shows the current match and the total. Press Enter or **⌘G** for the next match and Shift+Enter or **⇧⌘G** for the previous one; the chat loads that part of the history if needed, scrolls to the match and highlights every visible occurrence, with the current one stronger. Press Escape or the close button to close the bar. The bar starts at the match nearest your reading position. When a web page, terminal or file editor has focus, ⌘F leaves the conversation alone; a web page opens its own find bar.
+
 ### Attachments
 
 Paste a screenshot, drop files, or choose files from the composer menu. Images and files share a compact row in the order added. Each item shows its name, format and size; click it for a preview or details, or use × to remove it.
