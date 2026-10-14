@@ -152,16 +152,21 @@ test('a merge drop zooms the merged window out of the card it was dropped on', a
   const overview = await read('lib/tabs/canvas-overview.ts');
   assert.match(overview, /if \(useCanvasOverview\.getState\(\)\.mode !== "drag" \|\| drop\.action !== "dock"\) return;/, 'only a merge holds the overview');
   const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
-  assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
+  assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop, prepared.subject.tabIds)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
+  assert.match(overview, /if \(landingFrom\) useCanvasOverview\.setState\(\{ hover: null, label: "", landing: drop\.targetId, landed: false \}\);/, 'the landing starts at the release, before the merge commits');
+  assert.match(overview, /landing: tabId, landed: true \}\);/, 'the commit marks it landed');
   const drag = await read('lib/tabs/canvas-drag.ts');
   assert.match(drag, /s\.dockCanvas\(sourceIds, drop\.targetId, drop\.paneId, drop\.side\);\n  landOverview\(drop\.targetId\);/, 'the commit lands it');
   assert.match(drag, /cleanup\(target\?\.drop\);/, 'a pane drop holds it too');
+  assert.match(drag, /if \(drop\) holdOverviewLanding\(drop, \[tabId\]\);/);
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.doesNotMatch(view, /data-overview-pane/, 'nothing moves inside the merged card: it shows the merge at once');
   assert.match(view, /growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) closeOverview\(\);/, 'and zooms straight away');
   assert.match(view, /const k = from\.width \/ to\.width;[\s\S]*?scale\(\$\{k\}\)/, 'with one uniform scale');
   assert.match(view, /const key = held && contents\.includes\(landing!\) \? held\.cardKey : entry\.id;/, 'the landing card keeps its element, so its pictures do not blink');
-  assert.match(view, /root\.animate\(\[\{ opacity: 1 \}, \{ opacity: 0 \}\], \{ duration: REVEAL_MS/, 'then the overview fades into the live split');
+  assert.match(view, /const pending = held && !landed \? held : null;/, 'until the merge commits the card draws it ahead of time');
+  assert.match(view, /dockLayout\(findCenterTabGroup\(groups, pending\.drop\.targetId\)\?\.canvas \?\? rowLayout\(\[pending\.drop\.targetId\]\), pending\.sourceIds, pending\.drop\.paneId, pending\.drop\.side,/, 'with the layout the store will make');
+  assert.match(view, /if \(!grown \|\| !landed\) return;[\s\S]*?root\.animate\(\[\{ opacity: 1 \}, \{ opacity: 0 \}\], \{ duration: REVEAL_MS/, 'then, grown and landed, the overview fades into the live split');
   assert.match(view, /\.then\(closeOverview, closeOverview\);/, 'and closes');
 });
 

@@ -4,12 +4,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, type Transition } from "framer-motion";
 
 import { topLevelTabs } from "@/lib/browser/web-page-management";
-import { canvasGeometry, canvasViewport, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
+import { canvasGeometry, canvasViewport, dockLayout, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { canvasDragging } from "@/lib/tabs/canvas-drag";
 import { captureVisiblePanes, captureWebTabs, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
 import { closeOverview, dismissOverview, openOverview, overviewLandingFrom, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
-import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
+import { centerTabStripEntries, findCenterTabGroup } from "@/lib/tabs/center-tab-groups";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
 import { CompoundMemberIcon, labelOf } from "./tab-items";
@@ -67,7 +67,7 @@ function isPinch(e: WheelEvent) {
  *  center area. See lib/tabs/canvas-overview.ts for when it opens. */
 export function CanvasOverview() {
   const { t, text } = useTranslation();
-  const { mode, sourceIds, hover, label, landing } = useCanvasOverview();
+  const { mode, sourceIds, hover, label, landing, landed } = useCanvasOverview();
   const tabs = useCenterTabs(s => s.tabs), groups = useCenterTabs(s => s.groups), activeId = useCenterTabs(s => s.activeId);
   const rootRef = useRef<HTMLDivElement>(null);
   const [area, setArea] = useState({ width: 0, height: 0, canvasWidth: 0, canvasHeight: 0 });
@@ -177,9 +177,17 @@ export function CanvasOverview() {
     const byId = new Map(tabs.map(tab => [tab.id, tab]));
     const name = (id: string) => { const tab = byId.get(id); return tab ? labelOf(tab, t, text) : ""; };
     const leaving = new Set(sourceIds);
+    const held = landing ? overviewLandingFrom() : null;
+    // Until the merge commits, the card it lands in draws it ahead of time
+    // with the same layout the store will make (dockCanvas).
+    const pending = held && !landed ? held : null;
     return centerTabStripEntries({ tabIds: topLevelTabs(tabs, groups).map(tab => tab.id), groups }).flatMap<Card>(entry => {
       let root: LayoutNode = entry.kind === "group" ? (entry.group.canvas ?? rowLayout(entry.group.memberIds)).root : rowLayout([entry.tabId]).root;
-      for (const p of leaves(root)) if (p.content && leaving.has(p.content)) root = removePane(root, p.id);
+      const merged = pending && leaves(root).some(p => p.content === pending.drop.targetId)
+        ? dockLayout(findCenterTabGroup(groups, pending.drop.targetId)?.canvas ?? rowLayout([pending.drop.targetId]), pending.sourceIds, pending.drop.paneId, pending.drop.side, findCenterTabGroup(groups, pending.sourceIds[0])?.canvas)
+        : null;
+      if (merged) root = merged.root;
+      else for (const p of leaves(root)) if (p.content && leaving.has(p.content)) root = removePane(root, p.id);
       const contents = leaves(root).flatMap(p => p.content && byId.has(p.content) && !byId.get(p.content)!.canvasAnchor ? [p.content] : []);
       if (!contents.length) return [];
       const activateId = entry.kind === "group" && contents.includes(entry.group.focusedId) ? entry.group.focusedId : contents[0];
@@ -187,11 +195,10 @@ export function CanvasOverview() {
       // would mount a new card with new pictures (an <img> takes a frame to
       // decode, so the card blinks). The landing card keeps the key the
       // card it was dropped on had.
-      const held = landing ? overviewLandingFrom() : null;
       const key = held && contents.includes(landing!) ? held.cardKey : entry.id;
       return [{ key, targetId: contents[0], activateId, root, title: contents.map(name).join(" + ") }];
     });
-  }, [mode, sourceIds, tabs, groups, landing, t, text]);
+  }, [mode, sourceIds, tabs, groups, landing, landed, t, text]);
 
   const activeKey = cards.find(card => leaves(card.root).some(p => p.content === activeId))?.key;
   const frame = area.canvasWidth > 0 && area.canvasHeight > 0 ? { width: area.canvasWidth, height: area.canvasHeight } : { width: 1000, height: 625 };
@@ -236,19 +243,26 @@ export function CanvasOverview() {
   // (nothing to animate), the zoom still finishes on time.
   useEffect(() => {
     if (zoom?.phase !== "in" && zoom?.phase !== "closing") return;
-    const timer = window.setTimeout(() => { if (zoom.phase === "closing") closeOverview(); else setZoom(null); }, 700);
+    // A landing also waits for its merge to commit, so it gets longer.
+    const timer = window.setTimeout(() => { if (zoom.phase === "closing") closeOverview(); else setZoom(null); }, landing ? 2000 : 700);
     return () => window.clearTimeout(timer);
   }, [zoom]);
-  // A drop merged into a window: its card already shows the merged split,
-  // and it zooms out of the grid to fill the center area, as picking a card
-  // does when browsing. Nothing moves inside the card on the way (a pane
-  // squeezed from the window's full width to its half looked like the page
-  // being crushed). Merging into a lone tab mounts a new card, which
-  // framer-motion has no earlier layout for, so the zoom is played by hand,
-  // one uniform scale; then the overview fades into the live split, whose
-  // panes have their final layout, rather than cutting from the pictures.
+  // A drop onto a window: from the release its card shows the merged split
+  // and zooms out of the grid to fill the center area, as picking a card
+  // does when browsing. The zoom starts at once, before the merge commits:
+  // the merge waits on the desktop shell (~50ms) and then costs a render
+  // (~40ms), and a transform animation plays on through both. Nothing moves
+  // inside the card on the way (a pane squeezed from the window's full
+  // width to its half looked like the page being crushed). Merging into a
+  // lone tab mounts a new card, which framer-motion has no earlier layout
+  // for, so the zoom is played by hand, one uniform scale. Once it has
+  // grown and the merge has landed, the overview fades into the live
+  // split, whose panes have their final layout, rather than cutting from
+  // the pictures.
   const growFrom = useRef<DOMRect | null>(null);
+  const [grown, setGrown] = useState(false);
   useLayoutEffect(() => {
+    setGrown(false);
     if (!landing) return;
     const card = cards.find(c => leaves(c.root).some(p => p.content === landing));
     const mini = card && rootRef.current?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(card.key)}"] [data-overview-mini]`);
@@ -267,10 +281,15 @@ export function CanvasOverview() {
       { transformOrigin: "0 0", transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${k})` },
       { transformOrigin: "0 0", transform: "none" },
     ], { duration: ZOOM_MS, easing: ZOOM_EASING });
-    void grow.finished
-      .then(() => root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: REVEAL_MS, easing: "ease-out", fill: "forwards" }).finished)
-      .then(closeOverview, closeOverview);
+    void grow.finished.then(() => setGrown(true), closeOverview);
   }, [landing, zoom]);
+  useEffect(() => {
+    if (!grown || !landed) return;
+    const root = rootRef.current;
+    if (!root) { closeOverview(); return; }
+    void root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: REVEAL_MS, easing: "ease-out", fill: "forwards" }).finished
+      .then(closeOverview, closeOverview);
+  }, [grown, landed]);
   const zoomOutRef = useRef(zoomOutTo);
   zoomOutRef.current = zoomOutTo;
   useEffect(() => {

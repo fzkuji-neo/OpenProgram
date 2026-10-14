@@ -155,7 +155,7 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
   const sessionOwner: CanvasDragOwner = { cancel: () => cancel(), release: (e) => void finish(e) };
   function cleanup(drop?: CanvasDrop | null) {
     finished = true;
-    if (drop) holdOverviewLanding(drop);
+    if (drop) holdOverviewLanding(drop, [tabId]);
     markResourceTarget(null);
     dragLabel?.remove(); dragLabel = null;
     pane.removeAttribute("data-pane-dragging");

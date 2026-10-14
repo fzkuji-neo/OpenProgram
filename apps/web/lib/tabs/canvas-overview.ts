@@ -10,15 +10,18 @@ import type { Rect } from "./canvas-layout";
  *  "browse" opens from the strip button or a pinch, and a click switches. */
 export type OverviewSide = "left" | "right" | "top" | "bottom";
 export type OverviewHover = { card: string; side: OverviewSide } | { card: null; side: null } | null;
-/** `landing`: the tab a drop merged into a window; the overview zooms that
- *  window's card back over the canvas before it closes. */
-type OverviewState = { mode: "drag" | "browse" | null; sourceIds: string[]; hover: OverviewHover; label: string; landing: string | null };
+/** `landing`: the tab a drop is merging into; the overview zooms that
+ *  window's card back over the canvas before it closes. The zoom starts at
+ *  the release, drawing the merge ahead of time, and `landed` turns true
+ *  once the merge has committed (it may wait on the desktop shell). */
+type OverviewState = { mode: "drag" | "browse" | null; sourceIds: string[]; hover: OverviewHover; label: string; landing: string | null; landed: boolean };
 
-export const useCanvasOverview = create<OverviewState>(() => ({ mode: null, sourceIds: [], hover: null, label: "", landing: null }));
+export const useCanvasOverview = create<OverviewState>(() => ({ mode: null, sourceIds: [], hover: null, label: "", landing: null, landed: false }));
 
-/** The card a drop merged into, held from the release until the merge
- *  commits; null when no drop is landing. The merged card keeps its key. */
-export type OverviewLanding = { cardKey: string };
+/** The drop being landed, held from the release until the overview closes;
+ *  null when no drop is landing. The merged card keeps `cardKey`, the key
+ *  of the card it was dropped on. */
+export type OverviewLanding = { cardKey: string; drop: CanvasDrop; sourceIds: string[] };
 let landingFrom: OverviewLanding | null = null;
 export const overviewLandingFrom = () => landingFrom;
 
@@ -29,22 +32,24 @@ export function openOverview(mode: "drag" | "browse", sourceIds: string[] = []) 
 }
 export function closeOverview() {
   landingFrom = null;
-  if (useCanvasOverview.getState().mode) useCanvasOverview.setState({ mode: null, sourceIds: [], hover: null, label: "", landing: null });
+  if (useCanvasOverview.getState().mode) useCanvasOverview.setState({ mode: null, sourceIds: [], hover: null, label: "", landing: null, landed: false });
 }
 /** A drop onto a card: keep the drag overview up past the end of the drag
- *  (the merge may wait on the desktop shell), so the merged window can zoom
- *  out of the card it was dropped on. */
-export function holdOverviewLanding(drop: CanvasDrop): void {
+ *  and start zooming the merged window out of the card at once. The merge
+ *  itself may wait on the desktop shell and then costs a render; the zoom
+ *  is a compositor animation, so neither holds it up. */
+export function holdOverviewLanding(drop: CanvasDrop, sourceIds: string[]): void {
   if (useCanvasOverview.getState().mode !== "drag" || drop.action !== "dock") return;
   const card = document.querySelector<HTMLElement>(`[data-overview-target="${CSS.escape(drop.targetId)}"] [data-overview-mini]`);
   const cardKey = card?.closest<HTMLElement>("[data-overview-card]")?.dataset.overviewCard;
-  landingFrom = cardKey ? { cardKey } : null;
+  landingFrom = cardKey && sourceIds.length ? { cardKey, drop, sourceIds } : null;
+  if (landingFrom) useCanvasOverview.setState({ hover: null, label: "", landing: drop.targetId, landed: false });
 }
 export const overviewHeld = () => landingFrom !== null;
 /** The merge committed: zoom the window holding `tabId` out of its card. */
 export function landOverview(tabId: string): void {
   if (!landingFrom) { closeOverview(); return; }
-  useCanvasOverview.setState({ sourceIds: [], hover: null, label: "", landing: tabId });
+  useCanvasOverview.setState({ sourceIds: [], hover: null, label: "", landing: tabId, landed: true });
 }
 export const overviewOpen = () => useCanvasOverview.getState().mode !== null;
 /** The open overview zooms its window back before it closes; without one
