@@ -25,6 +25,7 @@ import type { TabDragSubject } from "@/lib/tabs/tab-drag-coordinator";
 import { useTranslation } from "@/lib/i18n";
 import { labelOf } from "./tab-label";
 export { labelOf } from "./tab-label";
+import { routePageIcon } from "./route-page-icon";
 import { shiftStyle } from "./tab-strip-geometry";
 import { TabFavicon } from "./tab-favicon";
 import styles from "./center-tabs.module.css";
@@ -61,7 +62,7 @@ export function CompoundMemberIcon({ tab, animate }: { tab: CenterTab; animate: 
   }, [animate]);
   return (
     <span className={styles.tabIcon} aria-hidden="true">
-      {tab.kind === "session" ? (
+      {routePageIcon(tab.navigationRoute, 13) ?? (tab.kind === "session" ? (
         <MessageCircleIcon ref={iconRef} size={14} />
       ) : tab.kind === "application" ? (
         <AppWindow size={14} />
@@ -85,7 +86,7 @@ export function CompoundMemberIcon({ tab, animate }: { tab: CenterTab; animate: 
               : <Bookmark size={13} />
       ) : (
         <CirclePlus size={13} />
-      )}
+      ))}
     </span>
   );
 }
@@ -362,7 +363,7 @@ export function TabItem({
         }}
       >
         <span className={styles.tabIcon} aria-hidden="true">
-          {tab.kind === "session" ? (
+          {routePageIcon(tab.navigationRoute, 13) ?? (tab.kind === "session" ? (
             <MessageCircleIcon ref={iconRef} size={14} />
           ) : tab.kind === "application" ? (
         <AppWindow size={14} />
@@ -386,7 +387,7 @@ export function TabItem({
                   : <Bookmark size={13} />
           ) : (
             <CirclePlus size={13} />
-          )}
+          ))}
         </span>
         <span className={styles.tabName}>{label}</span>
       </div>

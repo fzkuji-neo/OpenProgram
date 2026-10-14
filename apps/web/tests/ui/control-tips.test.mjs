@@ -43,3 +43,10 @@ test("a control's native title becomes the app's tip", () => {
   assert.match(tips, /const CONTROL = ":is\(button, a\[href\], \[role=button\], \[role=tab\], \[role=menuitem\], \[role=switch\], summary\):is\(\[title\], \[data-tip\]\)";/, "controls only, never text");
   assert.match(tips, /el\.dataset\.tip = title;\n\s+el\.removeAttribute\("title"\);/, "the system tip never comes up");
 });
+
+test("A tab on a management page wears that page's rail icon", () => {
+  const items = readFileSync(new URL("../../components/center-tabs/tab-items.tsx", import.meta.url), "utf8");
+  assert.equal(items.match(/routePageIcon\(tab\.navigationRoute, 13\) \?\?/g)?.length, 2);
+  const icons = readFileSync(new URL("../../components/center-tabs/route-page-icon.tsx", import.meta.url), "utf8");
+  for (const root of ["agents", "programs", "applications", "chats", "scheduler", "settings"]) assert.match(icons, new RegExp(`\\b${root}: \\w+`));
+});
