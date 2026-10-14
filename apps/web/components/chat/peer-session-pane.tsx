@@ -42,7 +42,7 @@ import { useChatAreaStick } from "./messages/use-chat-area-stick";
 import { useMessageViewport } from "./messages/use-message-viewport";
 import { useHistoryWindow } from "./messages/use-history-window";
 import { DecisionOutputs } from "./messages/decision-output";
-import { MessageRow, RecyclableRow } from "./messages/message-list";
+import { PlainRow, RecyclableRow } from "./messages/message-list";
 
 export const PeerSessionPane = memo(function PeerSessionPane({
   tabId,
@@ -225,7 +225,7 @@ export const PeerSessionPane = memo(function PeerSessionPane({
                   sessionIdOverride={sessionId ?? undefined}
                 />
               ) : (
-                <MessageRow key={id} id={id} sessionIdOverride={sessionId ?? undefined} />
+                <PlainRow key={id} id={id} sessionIdOverride={sessionId ?? undefined} />
               )
             ))
           )}
