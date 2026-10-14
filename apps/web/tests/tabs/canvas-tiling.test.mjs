@@ -289,7 +289,7 @@ test('browsing, a card can be picked up and dropped like a dragged tab', async (
   assert.match(view, /if \(drop\?\.action === "fill"\) commitCanvasDrop\(drop, ids\);/);
   const overview = await read('lib/tabs/canvas-overview.ts');
   assert.match(overview, /function laidOut\(el: HTMLElement/, 'the gap follows where cards are laid out, not where their spring has them');
-  assert.match(overview, /if \(gap && outside\(laidOut\(gap, root, r\), x, y\) === 0\) return current;/);
+  assert.match(overview, /let best = -1, bestDistance = gap \? outside\(laidOut\(gap, root, r\), x, y\) : Infinity/, 'the gap stays while it is the nearest thing to the pointer');
   assert.match(overview, /before = slot === null \? undefined : next\?\.dataset\.overviewFirst \?\? null/);
   const drag = await read('lib/tabs/canvas-drag.ts');
   assert.match(drag, /if \(group && whole\) useCenterTabs\.getState\(\)\.moveGroup\(group\.id, drop\.before\);\n\s+else useCenterTabs\.getState\(\)\.moveTab\(sourceId, drop\.before\);/);

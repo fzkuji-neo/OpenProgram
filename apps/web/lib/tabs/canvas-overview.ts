@@ -100,14 +100,13 @@ function laidOut(el: HTMLElement, root: HTMLElement, r: DOMRect): Box {
 }
 const outside = (b: Box, x: number, y: number) => Math.hypot(Math.max(b.left - x, 0, x - b.left - b.width), Math.max(b.top - y, 0, y - b.top - b.height));
 
-/** The gap the dragged window would stand in: kept while the pointer is
- *  on it, otherwise beside the card nearest the pointer, on the side the
- *  pointer is. */
+/** The gap the dragged window would stand in: kept while it is nearer
+ *  the pointer than any card, otherwise beside the card nearest the
+ *  pointer, on the side the pointer is. */
 function slotAt(root: HTMLElement, r: DOMRect, x: number, y: number, cards: HTMLElement[]): number | null {
   const gap = root.querySelector<HTMLElement>("[data-overview-slot]");
   const current = useCanvasOverview.getState().slot;
-  if (gap && outside(laidOut(gap, root, r), x, y) === 0) return current;
-  let best = -1, bestDistance = Infinity, after = false;
+  let best = -1, bestDistance = gap ? outside(laidOut(gap, root, r), x, y) : Infinity, after = false;
   cards.forEach((card, i) => {
     const b = laidOut(card, root, r), d = outside(b, x, y);
     if (d < bestDistance) { best = i; bestDistance = d; after = x > b.left + b.width / 2; }
