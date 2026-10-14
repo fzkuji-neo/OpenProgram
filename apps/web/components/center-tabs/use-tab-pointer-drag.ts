@@ -786,7 +786,7 @@ export function useTabPointerDrag({
       const element = drag.element;
       const reopen = () => requestAnimationFrame(() => reopenSlot(element));
       restorePointerDragElement(element, false, true);
-      holdOverviewLanding(canvasDrop);
+      holdOverviewLanding(canvasDrop, prepared.subject.tabIds);
       const committed = dragCoordinator.commit();
       clearDragState();
       if (!committed) { closeOverview(); reopen(); return; }
