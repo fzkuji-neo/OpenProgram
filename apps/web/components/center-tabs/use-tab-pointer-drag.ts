@@ -768,8 +768,6 @@ export function useTabPointerDrag({
     const drag = pointerDragRef.current;
     if (!drag || e.pointerId !== drag.pointerId) return;
     const resourceTarget = drag.started ? resourceDropTarget(drag.subject, e.clientX, e.clientY) : null;
-    // Where the carried window was let go: a merge grows it into its pane.
-    const previewRect = drag.previewState === "window" ? drag.previewShot?.getBoundingClientRect() ?? null : null;
     pointerDragRef.current = null;
     drag.teardown();
     if (!drag.started) return; // plain click — the once-pointerup listener releases the token
@@ -788,7 +786,7 @@ export function useTabPointerDrag({
       const element = drag.element;
       const reopen = () => requestAnimationFrame(() => reopenSlot(element));
       restorePointerDragElement(element, false, true);
-      holdOverviewLanding(canvasDrop, previewRect);
+      holdOverviewLanding(canvasDrop);
       const committed = dragCoordinator.commit();
       clearDragState();
       if (!committed) { closeOverview(); reopen(); return; }

@@ -25,8 +25,8 @@ const ZONE: Record<OverviewSide, React.CSSProperties> = {
 };
 const GAP = 24, CAPTION = 26;
 const ZOOM_MS = 340, ZOOM_EASING = "cubic-bezier(.2, .8, .2, 1)";
-/** A merge first settles in its card, then the card zooms. */
-const MERGE_MS = 260, ZOOM_AFTER = 0.65;
+/** After a merge's zoom the overview fades into the live split. */
+const REVEAL_MS = 140;
 const ZOOM: Transition = { duration: ZOOM_MS / 1000, ease: [0.2, 0.8, 0.2, 1] };
 /** Every other layout change (a resize, the grid settling) just jumps. */
 const INSTANT: Transition = { duration: 0 };
@@ -239,50 +239,37 @@ export function CanvasOverview() {
     const timer = window.setTimeout(() => { if (zoom.phase === "closing") closeOverview(); else setZoom(null); }, 700);
     return () => window.clearTimeout(timer);
   }, [zoom]);
-  // A drop merged into a window, in two beats. First the merge settles in
-  // its card: each pane already there slides from its old place to its new
-  // one while the carried window moves into its own pane. Then the card
-  // zooms out of the grid to fill the center area, as picking a card does
-  // when browsing. A merge into a lone tab mounts a new card, so both beats
-  // are played by hand rather than left to framer-motion, which has no
-  // earlier layout for it.
+  // A drop merged into a window: its card already shows the merged split,
+  // and it zooms out of the grid to fill the center area, as picking a card
+  // does when browsing. Nothing moves inside the card on the way (a pane
+  // squeezed from the window's full width to its half looked like the page
+  // being crushed). Merging into a lone tab mounts a new card, which
+  // framer-motion has no earlier layout for, so the zoom is played by hand,
+  // one uniform scale; then the overview fades into the live split, whose
+  // panes have their final layout, rather than cutting from the pictures.
   const growFrom = useRef<DOMRect | null>(null);
   useLayoutEffect(() => {
     if (!landing) return;
     const card = cards.find(c => leaves(c.root).some(p => p.content === landing));
     const mini = card && rootRef.current?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(card.key)}"] [data-overview-mini]`);
-    const held = overviewLandingFrom();
-    if (!card || !mini || !held || reducedMotion()) { closeOverview(); return; }
-    const settles = [...mini.querySelectorAll<HTMLElement>("[data-overview-pane]")].map(pane => {
-      const id = pane.dataset.overviewPane!, to = pane.getBoundingClientRect();
-      const from = held.panes[id] ?? held.dropped;
-      if (!from || !to.width || !to.height) {
-        return pane.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MERGE_MS, easing: ZOOM_EASING });
-      }
-      return pane.animate([
-        { transformOrigin: "0 0", transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})` },
-        { transformOrigin: "0 0", transform: "none" },
-      ], { duration: MERGE_MS, easing: ZOOM_EASING });
-    });
-    // The settle eases out, so its last third barely moves: the zoom takes
-    // over from there, with the panes put in their places first.
-    const timer = window.setTimeout(() => {
-      for (const a of settles) a.finish();
-      growFrom.current = mini.getBoundingClientRect();
-      if (!zoomAt(card.key, "closing")) closeOverview();
-    }, MERGE_MS * ZOOM_AFTER);
-    return () => window.clearTimeout(timer);
+    if (!card || !mini || reducedMotion()) { closeOverview(); return; }
+    growFrom.current = mini.getBoundingClientRect();
+    if (!zoomAt(card.key, "closing")) closeOverview();
   }, [landing]);
   useLayoutEffect(() => {
     if (!landing || zoom?.phase !== "closing") return;
-    const el = rootRef.current?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(zoom.key)}"] [data-zoomed]`);
+    const root = rootRef.current;
+    const el = root?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(zoom.key)}"] [data-zoomed]`);
     const from = growFrom.current, to = el?.getBoundingClientRect();
-    if (!el || !from || !to?.width || !to.height) { closeOverview(); return; }
+    if (!root || !el || !from || !to?.width || !to.height) { closeOverview(); return; }
+    const k = from.width / to.width;
     const grow = el.animate([
-      { transformOrigin: "0 0", transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})` },
+      { transformOrigin: "0 0", transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${k})` },
       { transformOrigin: "0 0", transform: "none" },
     ], { duration: ZOOM_MS, easing: ZOOM_EASING });
-    void grow.finished.then(closeOverview, closeOverview);
+    void grow.finished
+      .then(() => root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: REVEAL_MS, easing: "ease-out", fill: "forwards" }).finished)
+      .then(closeOverview, closeOverview);
   }, [landing, zoom]);
   const zoomOutRef = useRef(zoomOutTo);
   zoomOutRef.current = zoomOutTo;
@@ -341,7 +328,7 @@ export function CanvasOverview() {
                   const tab: CenterTab | undefined = p.content ? byId.get(p.content) : undefined;
                   const shot = tab ? shots[tab.id] : undefined;
                   return (
-                    <span key={p.content ?? p.id} className={styles.pane} data-overview-pane={p.content ?? undefined} data-empty={!tab || undefined} data-shot={shot ? "" : undefined} style={{
+                    <span key={p.content ?? p.id} className={styles.pane} data-empty={!tab || undefined} data-shot={shot ? "" : undefined} style={{
                       left: (r.left + inset) * k, top: (r.top + inset) * k,
                       width: (r.width - inset * 2) * k, height: (r.height - inset * 2) * k,
                       borderRadius: split ? PANE_RADIUS * k : 0,

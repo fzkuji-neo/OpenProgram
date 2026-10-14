@@ -152,19 +152,17 @@ test('a merge drop zooms the merged window out of the card it was dropped on', a
   const overview = await read('lib/tabs/canvas-overview.ts');
   assert.match(overview, /if \(useCanvasOverview\.getState\(\)\.mode !== "drag" \|\| drop\.action !== "dock"\) return;/, 'only a merge holds the overview');
   const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
-  assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop, previewRect)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
-  assert.ok(strip.indexOf('const previewRect =') < strip.indexOf('drag.teardown();\n    if (!drag.started) return;'), 'the carried window is measured before it is removed');
-  assert.match(overview, /for \(const pane of card\.querySelectorAll<HTMLElement>\("\[data-overview-pane\]"\)\)/, 'each pane of the card is noted');
+  assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
   const drag = await read('lib/tabs/canvas-drag.ts');
   assert.match(drag, /s\.dockCanvas\(sourceIds, drop\.targetId, drop\.paneId, drop\.side\);\n  landOverview\(drop\.targetId\);/, 'the commit lands it');
   assert.match(drag, /cleanup\(target\?\.drop\);/, 'a pane drop holds it too');
   const view = await read('components/center-tabs/canvas-overview.tsx');
-  assert.match(view, /const from = held\.panes\[id\] \?\? held\.dropped;/, 'the merge first moves every pane into its place in the card');
-  assert.match(view, /for \(const a of settles\) a\.finish\(\);\s*growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) closeOverview\(\);\s*\}, MERGE_MS \* ZOOM_AFTER\);/, 'then the card zooms, taking over from the settle\'s slow tail');
+  assert.doesNotMatch(view, /data-overview-pane/, 'nothing moves inside the merged card: it shows the merge at once');
+  assert.match(view, /growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) closeOverview\(\);/, 'and zooms straight away');
+  assert.match(view, /const k = from\.width \/ to\.width;[\s\S]*?scale\(\$\{k\}\)/, 'with one uniform scale');
   assert.match(view, /const key = held && contents\.includes\(landing!\) \? held\.cardKey : entry\.id;/, 'the landing card keeps its element, so its pictures do not blink');
-  assert.match(view, /<span key=\{p\.content \?\? p\.id\} className=\{styles\.pane\}/, 'and so do its panes');
-  assert.match(view, /const from = growFrom\.current, to = el\?\.getBoundingClientRect\(\);/, 'the card grows from where it sat in the grid');
-  assert.match(view, /void grow\.finished\.then\(closeOverview, closeOverview\);/, 'and the overview closes when it lands');
+  assert.match(view, /root\.animate\(\[\{ opacity: 1 \}, \{ opacity: 0 \}\], \{ duration: REVEAL_MS/, 'then the overview fades into the live split');
+  assert.match(view, /\.then\(closeOverview, closeOverview\);/, 'and closes');
 });
 
 test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', async () => {

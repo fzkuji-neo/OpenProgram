@@ -31,6 +31,7 @@ test("A tab dragged out of the strip closes its slot and reopens it on return", 
   assert.match(css, /\.tab\[data-drag-out="true"\][\s\S]*?\{\s*flex-basis: 0;\s*width: 0;\s*min-width: 0;\s*max-width: 0;/);
   assert.match(css, /\.tab\[data-pointer-drag="true"\],\n\.compoundTab\[data-pointer-drag="true"\] \{\n[^}]*flex-basis 160ms ease/, "the slot closes and reopens smoothly during the drag");
   assert.match(css, /\.tab\[data-slot-reopen="true"\][\s\S]*?transform 160ms ease;/, "and after it");
+  assert.doesNotMatch(css, /\.tab\[data-pointer-drag="true"\][^{]*\{[^}]*transition: none/, "no later drag rule switches the slot transition off");
 });
 
 test("A split tab's name rises in when the pane it names changes", () => {
