@@ -7,7 +7,7 @@ import { topLevelTabs } from "@/lib/browser/web-page-management";
 import { canvasGeometry, canvasViewport, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { canvasDragging } from "@/lib/tabs/canvas-drag";
-import { captureVisiblePanes, captureWebTabs, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
+import { captureVisiblePanes, captureWebTabs, forgetSnapshots, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
 import { closeOverview, dismissOverview, openOverview, overviewLandingFrom, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
 import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { captureCanvasLanding, type CanvasEnter } from "@/lib/tabs/canvas-transition";
@@ -119,13 +119,16 @@ export function CanvasOverview() {
       if (s.activeId !== prev.activeId || s.groups !== prev.groups) later();
       if (s.tabs !== prev.tabs) pruneSnapshots(new Set(s.tabs.map(tab => tab.id)));
     });
+    // Pictures in another theme would flash against the live window.
+    const look = new MutationObserver(() => { forgetSnapshots(); later(); });
+    look.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-theme-mode"] });
     window.addEventListener("blur", now);
     document.addEventListener("visibilitychange", hidden);
     window.addEventListener("pointerdown", input, true);
     window.addEventListener("keydown", input, true);
     window.addEventListener("wheel", input, { capture: true, passive: true });
     return () => {
-      off(); window.clearTimeout(timer); window.clearInterval(idle);
+      off(); look.disconnect(); window.clearTimeout(timer); window.clearInterval(idle);
       window.removeEventListener("blur", now);
       document.removeEventListener("visibilitychange", hidden);
       window.removeEventListener("pointerdown", input, true);
@@ -272,6 +275,10 @@ export function CanvasOverview() {
       { transformOrigin: "0 0", transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${k})` },
       { transformOrigin: "0 0", transform: "none" },
     ], { duration: ZOOM_MS, easing: ZOOM_EASING, fill: "forwards" });
+    // Started on an explicit clock: a compositor animation otherwise stays
+    // "pending" to the main thread while the compositor already plays it,
+    // and the canvas taking it over could not tell how far it had got.
+    grow.current.startTime = document.timeline.currentTime;
     setGrowing(true);
   }, [landing, zoom]);
   useEffect(() => {
