@@ -25,10 +25,11 @@ const SHRINK_MS = 340;
  *  so the fold leads and the fill follows. */
 const FILL_DELAY_MS = 90;
 const TAB_FLASH_MS = 420;
-/** A pane folded out of a split has no tab of its own yet: the tab first
- *  grows out in the strip, and the fold starts as it is nearly out. */
+/** A pane folded out of a split has no tab of its own yet: the tab grows
+ *  out in the strip while the fold gets under way. The fold leads off just
+ *  behind it and reaches the strip after the tab is fully out. */
 const TAB_GROW_MS = 260;
-const FOLD_AFTER_GROW_MS = 220;
+const FOLD_AFTER_GROW_MS = 80;
 /** How long a fold waits for the still image of its pane before the layout
  *  changes without one. */
 const STILL_WAIT_MS = 160;
