@@ -25,13 +25,17 @@ const SHRINK_MS = 340;
  *  so the fold leads and the fill follows. */
 const FILL_DELAY_MS = 90;
 const TAB_FLASH_MS = 420;
+/** A pane folded out of a split has no tab of its own yet: the tab first
+ *  grows out in the strip, and the fold starts as it is nearly out. */
+const TAB_GROW_MS = 240;
+const FOLD_AFTER_GROW_MS = 170;
 const EASE = "cubic-bezier(.2, .8, .2, 1)";
 /** A capture the layout never followed (a close a save prompt cancelled)
  *  is dropped rather than played on some later change. */
 const STALE_MS = 1500;
 
 type Ghost = { tabId: string; exit: CanvasExit; node: HTMLElement; rect: DOMRect; scroll: [number, number, number][] };
-type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit> };
+type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit>; tabBoxes: Set<Element> };
 
 let pending: Capture | null = null;
 let settleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -95,7 +99,8 @@ export function captureCanvasTransition(exits: Record<string, CanvasExit> = {}):
     ghosts.push({ tabId: id, exit: exits[id] ?? "behind", node, rect, scroll });
   }
   if (!rects.size) return;
-  pending = { at: performance.now(), root, rects, ghosts, exits };
+  const tabBoxes = new Set<Element>(document.querySelectorAll('[role="tablist"] > *'));
+  pending = { at: performance.now(), root, rects, ghosts, exits, tabBoxes };
   // Web panes start freezing to a snapshot now, so the native views are
   // still by the time the panes move.
   setCanvasAnimating(true);
@@ -125,11 +130,24 @@ function place(node: HTMLElement, rect: DOMRect, origin: DOMRect, z: number): vo
   });
 }
 
-/** The tab a minimized pane folds into, if the strip shows it. */
+/** The whole tab button a minimized pane folds into, if the strip shows
+ *  it: the strip's own child, not the focus target inside it. */
 function stripTab(tabId: string): HTMLElement | null {
-  const tab = document.querySelector<HTMLElement>(`[role="tab"][data-tab-id="${CSS.escape(tabId)}"]`);
+  const target = document.querySelector<HTMLElement>(`[role="tab"][data-tab-id="${CSS.escape(tabId)}"]`);
+  const tab = target?.closest<HTMLElement>('[role="tablist"] > *') ?? target;
   const rect = tab?.getBoundingClientRect();
   return tab && rect && rect.width > 0 && rect.height > 0 ? tab : null;
+}
+
+/** Grow a tab that just appeared out of nothing, the way a new tab opens:
+ *  its width rises from zero and the strip makes room around it. */
+function growTab(tab: HTMLElement): void {
+  const overflow = tab.style.overflow;
+  tab.style.overflow = "hidden";
+  const grow = tab.animate([
+    { flexBasis: "0px", minWidth: "0px", width: "0px", paddingLeft: "0px", paddingRight: "0px", opacity: 0, offset: 0 },
+  ], { duration: TAB_GROW_MS, easing: "cubic-bezier(.2, .8, .2, 1)" });
+  void grow.finished.catch(() => undefined).then(() => { tab.style.overflow = overflow; });
 }
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
@@ -156,9 +174,8 @@ function quadMatrix(w: number, h: number, [x0, y0, x1, y1, x2, y2, x3, y3]: numb
  *  tab's bottom edge. The edge nearest the tab pinches first, then the pane
  *  pours up through the neck, packing tighter as it nears it, and is gone at
  *  the tab's bottom edge; the tab lights once as it takes the pane in. */
-function genieFold(ghost: Ghost, origin: DOMRect, root: HTMLElement, tab: HTMLElement): void {
+function genieFold(ghost: Ghost, origin: DOMRect, root: HTMLElement, tab: HTMLElement, target: DOMRect, delay: number): void {
   const { node, rect: pane } = ghost;
-  const target = tab.getBoundingClientRect();
   const W = pane.width, H = pane.height;
   // Each band holds its own copy of the pane, so a heavy pane gets fewer.
   const nodes = node.getElementsByTagName("*").length + 1;
@@ -208,7 +225,7 @@ function genieFold(ghost: Ghost, origin: DOMRect, root: HTMLElement, tab: HTMLEl
     const open = 1 - pinch * (1 - (1 - Math.cos(Math.PI * below)) / 2);
     return [neckLeft + (0 - neckLeft) * open, neckRight + (W - neckRight) * open, Y];
   }
-  const start = performance.now();
+  const start = performance.now() + delay;
   let flashed = false;
   function frame(now: number) {
     const t = clamp01((now - start) / MINIMIZE_MS);
@@ -222,8 +239,8 @@ function genieFold(ghost: Ghost, origin: DOMRect, root: HTMLElement, tab: HTMLEl
     if (!flashed && t >= 0.72) {
       flashed = true;
       tab.animate([
-        { backgroundColor: "color-mix(in srgb, var(--text-bright) 18%, transparent)", color: "var(--text-bright)" },
-        { backgroundColor: getComputedStyle(tab).backgroundColor, color: getComputedStyle(tab).color },
+        { backgroundColor: "color-mix(in srgb, var(--text-bright) 18%, transparent)" },
+        { backgroundColor: getComputedStyle(tab).backgroundColor },
       ], { duration: TAB_FLASH_MS, easing: "ease-out" });
     }
     if (t < 1 && layer.isConnected) requestAnimationFrame(frame);
@@ -265,11 +282,14 @@ export function playCanvasTransition(): void {
   root.setAttribute("data-canvas-animating", "");
   // A pane folds into its tab when the tab sits above it; otherwise it
   // shrinks toward wherever the tab is.
-  const folds = new Map<Ghost, HTMLElement>();
+  const folds = new Map<Ghost, { tab: HTMLElement; target: DOMRect; arrives: boolean }>();
   for (const ghost of leaving) {
     const tab = ghost.exit === "minimize" ? stripTab(ghost.tabId) : null;
-    if (tab && tab.getBoundingClientRect().bottom <= ghost.rect.top + 1) folds.set(ghost, tab);
+    // Measured before the tab grows: the fold aims at where it ends up.
+    const target = tab?.getBoundingClientRect();
+    if (tab && target && target.bottom <= ghost.rect.top + 1) folds.set(ghost, { tab, target, arrives: !capture.tabBoxes.has(tab) });
   }
+  const foldDelay = [...folds.values()].some(fold => fold.arrives) ? FOLD_AFTER_GROW_MS : 0;
   const animations: Animation[] = [];
   for (const { el, from, to } of moves) {
     // Geometry, not a scaled snapshot: text re-wraps as the pane grows, and
@@ -278,10 +298,13 @@ export function playCanvasTransition(): void {
       { left: `${from.left - origin.left}px`, top: `${from.top - origin.top}px`, width: `${from.width}px`, height: `${from.height}px` },
       { left: `${to.left - origin.left}px`, top: `${to.top - origin.top}px`, width: `${to.width}px`, height: `${to.height}px` },
     ], folds.size
-      ? { duration: MINIMIZE_MS - FILL_DELAY_MS * 1.5, delay: FILL_DELAY_MS, easing: "cubic-bezier(.22, 1, .36, 1)", fill: "backwards" }
+      ? { duration: MINIMIZE_MS - FILL_DELAY_MS * 1.5, delay: foldDelay + FILL_DELAY_MS, easing: "cubic-bezier(.22, 1, .36, 1)", fill: "backwards" }
       : { duration: MOVE_MS, easing: EASE }));
   }
-  for (const [ghost, tab] of folds) genieFold(ghost, origin, root, tab);
+  for (const [ghost, { tab, target, arrives }] of folds) {
+    if (arrives) growTab(tab);
+    genieFold(ghost, origin, root, tab, target, foldDelay);
+  }
   for (const el of arrivals) {
     animations.push(el.animate([
       { opacity: 0, transform: "scale(.97)" },
@@ -327,7 +350,7 @@ export function playCanvasTransition(): void {
     void animation.finished.catch(() => undefined).then(() => node.remove());
   }
   clearTimeout(settleTimer);
-  const longest = Math.max(MOVE_MS, ...leaving.map(g => folds.has(g) ? MINIMIZE_MS : g.exit === "minimize" ? SHRINK_MS : g.exit === "close" ? CLOSE_MS : MOVE_MS));
+  const longest = Math.max(MOVE_MS, ...leaving.map(g => folds.has(g) ? foldDelay + MINIMIZE_MS : g.exit === "minimize" ? SHRINK_MS : g.exit === "close" ? CLOSE_MS : MOVE_MS));
   settleTimer = setTimeout(() => {
     root.removeAttribute("data-canvas-animating");
     setCanvasAnimating(false);
