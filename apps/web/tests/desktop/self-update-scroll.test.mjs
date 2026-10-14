@@ -21,7 +21,7 @@ test("verification scroll updates visible state without persisting temporary pos
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText, { area: { clientHeight: 600, scrollTop: 400, hasAttribute: () => marked },
     syncDetached: () => { synced++; }, scrollTopRef: position, activeKeyRef: { current: "p1" },
-    pointerArmedRef: { current: false }, programmaticRef: { current: false },
+    pointerArmedRef: { current: false }, programmaticRef: { current: false }, stuckRef: { current: false },
     cancelPending() {},
     writeChatScroll: () => { persisted++; }, window: { sessionStorage: {} } });
   handler();
