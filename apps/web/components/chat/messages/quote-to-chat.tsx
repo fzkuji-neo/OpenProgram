@@ -14,10 +14,16 @@ import styles from "./message-editor.module.css";
 export function quoteToChat(sessionId: string, content: string) {
   const selected = content.trim();
   if (!selected) return;
+  appendToComposer(sessionId, selected.split("\n").map(line => `> ${line}`).join("\n"));
+}
+
+/** Add a block to the end of the session's composer draft. Review line
+ *  comments pass focus=false so a run of comments stays in the diff. */
+export function appendToComposer(sessionId: string, block: string, focus = true) {
   const store = useSessionStore.getState();
   const draft = store.composerDrafts[sessionId] || "";
-  const quote = selected.split("\n").map(line => `> ${line}`).join("\n");
-  store.setComposerInputFor(sessionId, `${draft}${draft ? "\n\n" : ""}${quote}\n\n`);
+  store.setComposerInputFor(sessionId, `${draft}${draft ? "\n\n" : ""}${block}\n\n`);
+  if (!focus) return;
   requestAnimationFrame(() => {
     const host = Array.from(document.querySelectorAll<HTMLElement>("[data-composer-session]"))
       .find(node => node.dataset.composerSession === sessionId);

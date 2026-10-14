@@ -164,6 +164,12 @@ Session history is stored as a DAG, not a flat list:
 - The Branches panel lists branches with a running marker on active ones, and supports multi-select merge — equal merge into a fresh tip, or merge in place into a chosen base branch — as well as attaching branches from another session (cross-session attach).
 - Multiple versions of the same message switch via a `< N/M >` selector — it only moves the displayed position, never deletes history.
 
+### Reviewing changes
+
+The Review pane lists the files a turn, the branch or the working folder changed and shows each file's diff. Each change block's header has **Revert**, which puts those lines back as they were before the change in the file on disk; the rest of the file, and the other blocks, stay as they are. Revert works on files inside the conversation's project folder and checks that the lines still read as the diff shows them: if the file changed since, nothing is written and the diff refreshes. It is not offered for a staged change, a block split across diff pages, a block at a file end without a final newline, or a whole added or deleted file; reverting waits while a turn is running. The change is a normal edit of the file, so the file's History can restore the earlier version.
+
+Hover a line and choose the comment button to comment on it. **Add to message** puts the file, the line number, the quoted line and your comment at the end of the conversation's message box without sending it, so you can collect several comments and send them with your next message. ⌘Enter (Ctrl+Enter) adds the comment and Escape cancels it.
+
 ### Rewind
 
 Each message's action menu has "Rewind to here": it truly rolls the session back to that message, and the undone user input is pre-filled back into the input box for editing and resending. The `/rewind` slash command in the input box is the same feature.

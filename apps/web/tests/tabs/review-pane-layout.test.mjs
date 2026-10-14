@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { canPreview, hunkRange, reviewRows } from "../../components/center-tabs/review-diff-rows.ts";
+import { canPreview, hunkRange, lineCommentText, reviewHunks, reviewRows } from "../../components/center-tabs/review-diff-rows.ts";
 
 const newFile = [
   "--- a/A4_Promo/note.md",
@@ -79,4 +79,48 @@ test("a Review pane mounting again shows what it last loaded and refreshes quiet
   assert.match(pane, /if \(quiet\.current\.scope\) quiet\.current\.scope = false;\n    else setScopeState/, "the first reload keeps them on screen");
   assert.match(pane, /if \(!same\) setDiffState\(\{ loading: true, path: selectedPath \}\);/, "the same file's diff stays up while it reloads");
   assert.match(pane, /if \(remembered\.size > MEMORY_LIMIT\)/, "the memory is bounded");
+});
+
+test("Each hunk carries its old and new sides for a revert", () => {
+  const hunks = reviewHunks([
+    "--- a/x.py",
+    "+++ b/x.py",
+    "@@ -1,3 +1,3 @@ def f():",
+    " keep",
+    "-old",
+    "+new",
+    " tail",
+    "@@ -10,2 +10,1 @@",
+    " ctx",
+    "-gone",
+  ].join("\n"), "modify");
+  assert.deepEqual(hunks, [
+    { new_start: 1, old_lines: ["keep", "old", "tail"], new_lines: ["keep", "new", "tail"], revertible: true },
+    { new_start: 10, old_lines: ["ctx", "gone"], new_lines: ["ctx"], revertible: true },
+  ]);
+});
+
+test("Cut, staged, newline-less and whole-file hunks cannot be reverted", () => {
+  // The page ends before the hunk's counted lines do.
+  assert.equal(reviewHunks("@@ -1,3 +1,3 @@\n a\n-b", "modify")[0].revertible, false);
+  // A continuation page starts with a synthetic header and no counts that fit.
+  assert.equal(reviewHunks("@@ -5 +5 @@\n a\n b", "modify")[0].revertible, false);
+  const staged = reviewHunks([
+    "--- a/x.py [base-to-index]", "+++ b/x.py [base-to-index]", "@@ -1 +1 @@", "-a", "+b",
+    "--- a/x.py [index-to-worktree]", "+++ b/x.py [index-to-worktree]", "@@ -1 +1 @@", "-b", "+c",
+  ].join("\n"), "modify");
+  assert.deepEqual(staged.map((hunk) => hunk.revertible), [false, true]);
+  assert.equal(reviewHunks("@@ -1 +1 @@\n-a\n+b\n\\ No newline at end of file", "modify")[0].revertible, false);
+  assert.equal(reviewHunks("@@ -0,0 +1 @@\n+new", "add")[0].revertible, false);
+});
+
+test("A line comment names the file and line and quotes the code", () => {
+  assert.equal(
+    lineCommentText("src/x.py", { kind: "add", text: "+return 1", oldNo: "", newNo: "12" }, "  why 1? "),
+    "`src/x.py` line 12:\n> return 1\nwhy 1?",
+  );
+  assert.equal(
+    lineCommentText("src/x.py", { kind: "del", text: "-x = 2", oldNo: "7", newNo: "" }, "keep this"),
+    "`src/x.py` line 7 (removed):\n> x = 2\nkeep this",
+  );
 });

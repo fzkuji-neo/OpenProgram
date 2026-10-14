@@ -61,3 +61,32 @@
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* Revert sits at the end of its hunk header; the comment button floats
+   over the end of the hovered line (only that line renders one). */
+.hunkAction {
+  margin-left: auto;
+  align-self: center;
+  color: var(--text-muted);
+}
+.line { position: relative; }
+.commentButton {
+  position: absolute;
+  top: -2px;
+  right: 8px;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+}
+.comment {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 16px 10px;
+  font-family: var(--font-sans);
+}
+.comment textarea { min-height: 64px; }
+.commentActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
