@@ -8,10 +8,12 @@
  * then hover actions (add to this turn, retry, edit, remove). Clicking the
  * text expands the full message and its attachments. The heading collapses
  * the card; "Clear all" removes every row that is not being delivered or
- * edited.
+ * edited. Dragging a row's line, or Alt+↑/↓ on its text, changes the send
+ * order; rows being delivered or edited stay put.
  */
 
 import { useEffect, useRef, useState } from "react";
+import { Reorder, useDragControls } from "framer-motion";
 import { useTranslation } from "@/lib/i18n";
 import { useSendQueue, type QueuedMessage } from "@/lib/chat/send-queue";
 import { queuedHasAttachments, snapshotQueuedAttachments } from "@/lib/chat/queued-attachments";
@@ -142,10 +144,15 @@ function RowAction({ label, onClick, disabled, children }: {
   </HoverTip>;
 }
 
-function QueueRow({ row, sessionId }: { row: QueuedMessage; sessionId: string }) {
+function QueueRow({ row, sessionId, movable, onMove }: {
+  row: QueuedMessage; sessionId: string; movable: boolean; onMove(delta: -1 | 1): void;
+}) {
   const { text } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const controls = useDragControls();
+  // The click that ends a drag must not also toggle the row open.
+  const dragged = useRef(false);
   const locked = Boolean(row.injecting || row.steerCommand);
   const hasFiles = queuedHasAttachments(row);
   const fileCount = (row.images?.length ?? 0) + (row.docs?.length ?? 0);
@@ -159,21 +166,38 @@ function QueueRow({ row, sessionId }: { row: QueuedMessage; sessionId: string })
     ? text("Retry delivery confirmation", "重试确认发送结果")
     : text("Add to this turn", "插入当前轮");
   if (row.editing) {
-    return <article className={styles.row} data-queued-message={row.id} data-editing="true"
+    return <Reorder.Item as="article" value={row.id} dragListener={false} className={styles.row}
+      data-queued-message={row.id} data-editing="true"
       aria-label={text("Queued message", "排队消息")}>
       <QueueEditor row={row} sessionId={sessionId} />
       <span role="status" className={styles.srOnly}>{text("Editing · send paused", "编辑中，暂停发送")}</span>
-    </article>;
+    </Reorder.Item>;
   }
-  return <article className={styles.row} data-queued-message={row.id} data-tone={state.tone}
-    aria-label={text("Queued message", "排队消息")}>
-    <div className={styles.line}>
+  return <Reorder.Item as="article" value={row.id} dragListener={false} dragControls={controls}
+    className={styles.row} data-queued-message={row.id} data-tone={state.tone}
+    aria-label={text("Queued message", "排队消息")}
+    whileDrag={{ boxShadow: "var(--shadow)", zIndex: 1 }}
+    transition={{ type: "spring", stiffness: 600, damping: 40 }}
+    onDragStart={() => { dragged.current = true; }}
+    onDragEnd={() => { window.setTimeout(() => { dragged.current = false; }, 50); }}>
+    <div className={styles.line} onPointerDown={(event) => {
+      if (!movable || event.button !== 0) return;
+      if ((event.target as Element).closest(`.${styles.actions}`)) return;
+      controls.start(event);
+    }}>
       <span className={styles.tag} data-tone={state.tone}>
         {state.tone === "steer" || state.tone === "wait" ? <i aria-hidden="true" /> : null}
         {state.tag}
       </span>
       {hasFiles && <span className={styles.files}><Paperclip size={12} aria-hidden="true" />{fileCount}</span>}
-      <button type="button" className={styles.text} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+      <button type="button" className={styles.text} aria-expanded={expanded}
+        aria-keyshortcuts={movable ? "Alt+ArrowUp Alt+ArrowDown" : undefined}
+        onClick={() => { if (!dragged.current) setExpanded(!expanded); }}
+        onKeyDown={(event) => {
+          if (!movable || !event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+          event.preventDefault();
+          onMove(event.key === "ArrowUp" ? -1 : 1);
+        }}>
         {firstLine || text("Attachments", "附件")}
       </button>
       <div className={styles.actions}>
@@ -200,8 +224,10 @@ function QueueRow({ row, sessionId }: { row: QueuedMessage; sessionId: string })
       <AttachmentChips sessionId={sessionId} items={parsed.attachments} />
       {parsed.text && <div className={styles.content}>{parsed.text}</div>}
     </div>}
-  </article>;
+  </Reorder.Item>;
 }
+
+const pinnedRow = (row: QueuedMessage) => Boolean(row.injecting || row.steerCommand || row.editing);
 
 export function QueuedMessages({ sessionId }: { sessionId: string | null }) {
   const { text } = useTranslation();
@@ -226,9 +252,20 @@ export function QueuedMessages({ sessionId }: { sessionId: string | null }) {
       </span>
     </button>
     {!collapsed && <>
-      <div className={styles.list}>
-        {rows.map(row => <QueueRow key={row.id} row={row} sessionId={sessionId} />)}
-      </div>
+      <Reorder.Group as="div" axis="y" className={styles.list} values={rows.map(row => row.id)}
+        onReorder={(ids: string[]) => useSendQueue.getState().reorder(sessionId, ids)}>
+        {rows.map((row, index) => <QueueRow key={row.id} row={row} sessionId={sessionId}
+          movable={!pinnedRow(row) && rows.filter(other => !pinnedRow(other)).length > 1}
+          onMove={(delta) => {
+            // Step past pinned rows: they keep their slot.
+            let target = index + delta;
+            while (rows[target] && pinnedRow(rows[target])) target += delta;
+            if (!rows[target]) return;
+            const ids = rows.map(other => other.id);
+            [ids[index], ids[target]] = [ids[target], ids[index]];
+            useSendQueue.getState().reorder(sessionId, ids);
+          }} />)}
+      </Reorder.Group>
       <div className={styles.foot}>
         <button type="button" className={styles.clear} disabled={!clearable}
           onClick={() => {
