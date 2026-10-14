@@ -85,7 +85,7 @@ _CATALOG: dict[str, ProviderInfo] = {
         setup_steps=[
             "Sign up at tavily.com",
             "Generate an API key from the dashboard",
-            "Paste it into the API key field above",
+            "Paste it into the API key field below",
         ],
     ),
     "exa": ProviderInfo(
@@ -101,7 +101,7 @@ _CATALOG: dict[str, ProviderInfo] = {
         setup_steps=[
             "Sign up at exa.ai",
             "Generate an API key from the dashboard",
-            "Paste it into the API key field above",
+            "Paste it into the API key field below",
         ],
     ),
     "perplexity": ProviderInfo(
@@ -117,7 +117,7 @@ _CATALOG: dict[str, ProviderInfo] = {
         setup_steps=[
             "Create a Perplexity account",
             "Generate an API key at perplexity.ai/settings/api",
-            "Paste it into the API key field above",
+            "Paste it into the API key field below",
         ],
     ),
     "brave": ProviderInfo(
@@ -134,7 +134,7 @@ _CATALOG: dict[str, ProviderInfo] = {
             "Sign up at brave.com/search/api",
             "Pick the Search plan and generate an API key",
             "Set a monthly usage cap in the dashboard to avoid surprise charges",
-            "Paste the key into the API key field above",
+            "Paste the key into the API key field below",
         ],
     ),
     "google": ProviderInfo(
@@ -168,7 +168,7 @@ _CATALOG: dict[str, ProviderInfo] = {
         setup_steps=[
             "Sign up at firecrawl.dev",
             "Generate an API key from the dashboard",
-            "Paste it into the API key field above",
+            "Paste it into the API key field below",
         ],
     ),
     "searxng": ProviderInfo(

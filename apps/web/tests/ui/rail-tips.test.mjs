@@ -19,3 +19,15 @@ test("collapsed rails name their icons on hover, with no native title", () => {
 test("inline code in a table cell keeps whole words", () => {
   assert.match(read("app/styles/chat/bubbles.css"), /\.message-content :is\(th, td\) code \{ overflow-wrap: normal; \}/);
 });
+
+test("provider detail sections never share a React key", () => {
+  // Siblings keyed alike made React leave a second API Base URL block behind.
+  const detail = read("components/settings/providers/detail.tsx");
+  const keys = [...detail.matchAll(/key=\{`\$\{provider\.id\}:([a-z-]+)`\}/g)].map(m => m[1]);
+  assert.deepEqual(keys, ["accounts", "base-url", "check"]);
+  assert.doesNotMatch(detail, /key=\{provider\.id\}/);
+});
+
+test("the user menu names full screen in the interface language", () => {
+  assert.match(read("components/user-menu-footer.tsx"), /text\("Full Screen", "全屏"\)/);
+});

@@ -32,7 +32,7 @@ import styles from "./user-menu-footer.module.css";
 export function UserMenuFooter() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, text } = useTranslation();
   // The footer is the local account chip → show the User profile
   // (name + avatar from /settings/general → User), not the agent's.
   const profile = useUserProfile();
@@ -213,7 +213,7 @@ export function UserMenuFooter() {
               onMouseLeave={() => fsIconRef.current?.stopAnimation?.()}
             >
               <MonitorIcon ref={fsIconRef} size={18} />
-              {isFullscreen ? "退出全屏" : "全屏"}
+              {isFullscreen ? text("Exit Full Screen", "退出全屏") : text("Full Screen", "全屏")}
             </button>
             <div className={styles.sep} />
             <a

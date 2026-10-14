@@ -108,7 +108,7 @@ export function SearchProviderDetail({
           (isDefault ? " " + styles.setDefaultActive : "")
         }
       >
-        {isDefault ? text("Default backend", "默认后端") : text("Set as default", "设为默认")}
+        {isDefault ? text("✓ Default backend", "✓ 默认后端") : text("Set as default", "设为默认")}
       </button>
 
       {provider.env_var && (
