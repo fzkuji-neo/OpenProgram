@@ -5,10 +5,10 @@ import test from "node:test";
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 
 test("collapsed rails name their icons on hover, with no native title", () => {
-  const tips = read("components/sidebar/rail-tips.tsx");
-  assert.match(tips, /const TARGET = "\.sidebar\.collapsed :is\(\.sidebar-nav-item, \[data-rail-tip\]\), \.sidebar \.sidebar-toggle";/);
+  const tips = read("components/control-tips.tsx");
+  assert.match(tips, /const RAIL = "\.sidebar\.collapsed :is\(\.sidebar-nav-item, \[data-rail-tip\]\), \.sidebar \.sidebar-toggle";/);
   assert.match(tips, /className="hover-tip rail-tip/, "the app's own tip look");
-  assert.match(read("components/app-shell.tsx"), /<Sidebar \/>\n\s+<RailTips \/>/);
+  assert.match(read("components/app-shell.tsx"), /<Sidebar \/>\n\s+<ControlTips \/>/);
   const left = read("components/sidebar/sidebar.tsx"), right = read("components/right-sidebar/right-sidebar.tsx");
   assert.match(left, /aria-label=\{open \? text\("Hide sidebar", "隐藏侧边栏"\) : text\("Show sidebar", "显示侧边栏"\)\}/);
   assert.match(right, /aria-label=\{open \? text\("Hide panel", "隐藏面板"\) : text\("Show panel", "显示面板"\)\}/);
@@ -36,4 +36,10 @@ test("the model menu names providers as Settings does", () => {
   const menu = read("components/chat/top-bar/agent-selector.tsx");
   assert.match(menu, /<div className=\{GROUP_LABEL\}>\{providerName\(group\.provider\)\}<\/div>/);
   assert.match(menu, /href="\/settings\/providers"/, "enabling models opens the providers page");
+});
+
+test("a control's native title becomes the app's tip", () => {
+  const tips = read("components/control-tips.tsx");
+  assert.match(tips, /const CONTROL = ":is\(button, a\[href\], \[role=button\], \[role=tab\], \[role=menuitem\], \[role=switch\], summary\):is\(\[title\], \[data-tip\]\)";/, "controls only, never text");
+  assert.match(tips, /el\.dataset\.tip = title;\n\s+el\.removeAttribute\("title"\);/, "the system tip never comes up");
 });

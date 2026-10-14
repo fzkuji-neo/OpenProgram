@@ -7,7 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { PageShell } from "./page-shell";
 import { Sidebar } from "./sidebar/sidebar";
 import { RightSidebar } from "./right-sidebar/right-sidebar";
-import { RailTips } from "./sidebar/rail-tips";
+import { ControlTips } from "./control-tips";
 import { CenterTabStrip } from "./center-tabs/center-tab-strip";
 import { CanvasControls } from "./center-tabs/canvas-controls";
 import { CanvasOverview } from "./center-tabs/canvas-overview";
@@ -601,7 +601,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       ) : null}
       <div className="app">
       <Sidebar />
-      <RailTips />
+      <ControlTips />
       {/* Center column: browser-style tab strip over the active tab's
          pane. `order: 2` slots it where `.app .main` used to sit (the
          chat .main is now a grandchild, flexing inside .center-body).
