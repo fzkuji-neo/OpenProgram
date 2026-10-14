@@ -38,7 +38,7 @@ import type { TNode } from "./tree-types";
 import { MessageActions, MessageTimestamp } from "./message-actions";
 import { useAvatarAlign } from "./use-avatar-align";
 import { typesetMath } from "@/lib/runtime-bridge/markdown-render";
-import { renderMermaidIn } from "@/lib/chat/mermaid";
+import { renderMermaidLazily } from "@/lib/chat/mermaid-lazy";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { TurnFilesChips } from "./turn-files-chips";
 import { summarizeToolGroup } from "./tool-group-summary";
@@ -137,7 +137,7 @@ const MarkdownText = memo(function MarkdownText({ text }: { text: string }) {
   useLayoutEffect(() => {
     if (ref.current) {
       typesetMath(ref.current);
-      renderMermaidIn(ref.current);
+      renderMermaidLazily(ref.current);
     }
   }, [html]);
   return (
