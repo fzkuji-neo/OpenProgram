@@ -38,6 +38,26 @@ import type {
 import { requestReviewScope } from "./use-review-scope";
 import { requestReviewDiff } from "./use-review-diff";
 
+/** What a Review pane last showed, by its source. A pane mounts again
+ *  whenever its window comes back (a tab switch, a merge), and starting
+ *  from "Loading files…" each time blanked it for the round trip; it
+ *  shows this instead and refreshes quietly. */
+type ReviewMemory = {
+  scope: ReviewScope;
+  selectedPath: string;
+  category: ReviewCategory;
+  view: "changes" | "preview";
+  scopeState: ScopeState;
+  diffState: DiffState;
+};
+const MEMORY_LIMIT = 16;
+const remembered = new Map<string, ReviewMemory>();
+function remember(key: string, memory: ReviewMemory) {
+  remembered.delete(key);
+  remembered.set(key, memory);
+  if (remembered.size > MEMORY_LIMIT) remembered.delete(remembered.keys().next().value!);
+}
+
 export function ReviewTabPane({
   sessionId,
   assistantMsgId,
@@ -50,23 +70,27 @@ export function ReviewTabPane({
   initialPath?: string;
 }) {
   const { text } = useTranslation();
-  const [scope, setScope] = useState<ReviewScope>(initialScope);
-  const [selectedPath, setSelectedPath] = useState(initialPath ?? "");
+  const memoryKey = `${sessionId}\u0000${assistantMsgId ?? ""}\u0000${initialScope}\u0000${initialPath ?? ""}`;
+  const [memory] = useState(() => remembered.get(memoryKey));
+  // The first load after a restore keeps showing what was remembered.
+  const quiet = useRef({ reset: !!memory, scope: !!memory });
+  const [scope, setScope] = useState<ReviewScope>(memory?.scope ?? initialScope);
+  const [selectedPath, setSelectedPath] = useState(memory?.selectedPath ?? initialPath ?? "");
   const [fileCursor, setFileCursor] = useState<string | null>(null);
   const [diffCursor, setDiffCursor] = useState<string | null>(null);
   const [diffHistory, setDiffHistory] = useState<string[]>([]);
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const [category, setCategory] = useState<ReviewCategory>("All");
+  const [category, setCategory] = useState<ReviewCategory>(memory?.category ?? "All");
   // Documents and images can be read rendered; the choice carries over
   // to the next file that supports it.
-  const [view, setView] = useState<"changes" | "preview">("changes");
+  const [view, setView] = useState<"changes" | "preview">(memory?.view ?? "changes");
   // The protocol supports query/sort, but this pane currently keeps the
   // default values without adding controls to the existing toolbar layout.
   const query = "";
   const sort: ReviewSort = "path";
   const staleRecoveryRef = useRef<string | null>(null);
   const diffCursorRecoveryRef = useRef<string | null>(null);
-  const [scopeState, setScopeState] = useState<ScopeState>({
+  const [scopeState, setScopeState] = useState<ScopeState>(() => memory?.scopeState ?? {
     loading: true,
     status: "loading",
     files: [],
@@ -75,7 +99,13 @@ export function ReviewTabPane({
     removed: null,
     linked_impacts: [],
   });
-  const [diffState, setDiffState] = useState<DiffState>({ loading: false });
+  const [diffState, setDiffState] = useState<DiffState>(() => memory?.diffState ?? { loading: false });
+  const diffShown = useRef(diffState);
+  diffShown.current = diffState;
+  useEffect(() => {
+    if (scopeState.loading || diffState.loading) return;
+    remember(memoryKey, { scope, selectedPath, category, view, scopeState, diffState });
+  }, [memoryKey, scope, selectedPath, category, view, scopeState, diffState]);
 
   const clearReviewForStale = useCallback(() => {
     setSelectedPath("");
@@ -101,6 +131,7 @@ export function ReviewTabPane({
   }, []);
 
   useEffect(() => {
+    if (quiet.current.reset) { quiet.current.reset = false; return; }
     staleRecoveryRef.current = null;
     diffCursorRecoveryRef.current = null;
     setScope(initialScope);
@@ -149,7 +180,8 @@ export function ReviewTabPane({
       });
       return;
     }
-    setScopeState((current) => ({ ...current, loading: true, error: undefined }));
+    if (quiet.current.scope) quiet.current.scope = false;
+    else setScopeState((current) => ({ ...current, loading: true, error: undefined }));
     const controller = new AbortController();
     void (async () => {
 const data = await requestReviewScope({
@@ -229,7 +261,13 @@ const data = await requestReviewScope({
       setDiffState({ loading: false });
       return;
     }
-    setDiffState({ loading: true, path: selectedPath });
+    // The first page of the diff on screen stays up while it reloads (a
+    // restore, or a fresh snapshot of the same files): only another file
+    // or page shows "Loading diff…".
+    const shown = diffShown.current;
+    const same = shown.path === selectedPath && !shown.loading && shown.diff !== undefined
+      && diffCursor == null && (shown.cursor ?? null) === null;
+    if (!same) setDiffState({ loading: true, path: selectedPath });
     const controller = new AbortController();
     const snapshotId = scopeState.snapshot_id;
     void (async () => {

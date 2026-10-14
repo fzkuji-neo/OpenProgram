@@ -71,3 +71,12 @@ test("Review asks again when the socket reconnects and shows load states in narr
   assert.match(pane, /addEventListener\("op:browser-connection", reconnect\)/);
   assert.match(pane, /\{!selected \? \([\s\S]*?scopeState\.loading[\s\S]*?scopeState\.error/);
 });
+
+test("a Review pane mounting again shows what it last loaded and refreshes quietly", async () => {
+  const pane = readFileSync(new URL("../../components/center-tabs/review-tab-pane.tsx", import.meta.url), "utf8");
+  assert.match(pane, /const \[memory\] = useState\(\(\) => remembered\.get\(memoryKey\)\);/);
+  assert.match(pane, /useState<ScopeState>\(\(\) => memory\?\.scopeState \?\? \{/, "it starts from the remembered files");
+  assert.match(pane, /if \(quiet\.current\.scope\) quiet\.current\.scope = false;\n    else setScopeState/, "the first reload keeps them on screen");
+  assert.match(pane, /if \(!same\) setDiffState\(\{ loading: true, path: selectedPath \}\);/, "the same file's diff stays up while it reloads");
+  assert.match(pane, /if \(remembered\.size > MEMORY_LIMIT\)/, "the memory is bounded");
+});
