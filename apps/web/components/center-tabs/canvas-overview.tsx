@@ -27,8 +27,13 @@ const ZONE: Record<OverviewSide, React.CSSProperties> = {
 const GAP = 24, CAPTION = 26;
 const ZOOM_MS = 340, ZOOM_EASING = "cubic-bezier(.2, .8, .2, 1)";
 const ZOOM: Transition = { duration: ZOOM_MS / 1000, ease: [0.2, 0.8, 0.2, 1] };
-/** Every other layout change (a resize, the grid settling) just jumps. */
+/** Every other layout change of a picture (a resize) just jumps. */
 const INSTANT: Transition = { duration: 0 };
+/** Cards move to their new places on a spring when the grid changes (a
+ *  card picked up, dropped back, split or merged), and a card that comes
+ *  in grows out of its place. */
+const REFLOW: Transition = { type: "spring", stiffness: 380, damping: 32, mass: 0.8 };
+const ENTER = { opacity: 0, scale: 0.94 };
 type Box = { left: number; top: number; width: number; height: number };
 
 /** A card is the window shrunk whole: the center area it fills (the
@@ -71,8 +76,9 @@ export function CanvasOverview() {
   const rootRef = useRef<HTMLDivElement>(null);
   // How this overview opened, kept until it closes.
   const openedAs = useRef<"drag" | "browse" | null>(null);
+  const openedAt = useRef(0);
   if (!mode) openedAs.current = null;
-  else if (!openedAs.current) openedAs.current = mode;
+  else if (!openedAs.current) { openedAs.current = mode; openedAt.current = performance.now(); }
   const [area, setArea] = useState({ width: 0, height: 0, canvasWidth: 0, canvasHeight: 0 });
 
   // Pinch in on the center area (or the strip) opens the overview, pinch
@@ -386,6 +392,7 @@ export function CanvasOverview() {
   // A card pictures the canvas viewport: each pane sits where it sits on
   // screen, so the zoom lands every pane on itself.
   const byId = new Map(tabs.map(tab => [tab.id, tab]));
+  const opening = performance.now() - openedAt.current < 150;
   const activate = (card: Card) => { if (!pickedUp.current) zoomOutTo(card); };
   // Only a drag says where it will land; browsing needs no instructions,
   // but keeps the hint's room (as a landing does while it fades), so the
@@ -467,10 +474,17 @@ export function CanvasOverview() {
           // One element in both modes: a card turning from a drag target
           // into a pickable one keeps its pictures.
           return (
-            <button key={card.key} type="button" {...shared} aria-label={card.title}
+            <motion.button key={card.key} type="button" {...shared} aria-label={card.title}
               tabIndex={mode === "browse" ? undefined : -1}
+              layout={!landing}
+              // The current window arrives by zooming when browsing opens;
+              // the rest fade in just after it, and a card that turns up
+              // later grows in where it lands.
+              initial={opening && card.key === activeCard && openedAs.current === "browse" ? false : ENTER}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ ...REFLOW, opacity: { duration: 0.22, delay: opening && openedAs.current === "browse" ? 0.07 : 0 } }}
               onPointerDown={e => pickUp(e, card)}
-              onClick={() => { if (mode === "browse") activate(card); }}>{body}</button>
+              onClick={() => { if (mode === "browse") activate(card); }}>{body}</motion.button>
           );
         })}
       </div>

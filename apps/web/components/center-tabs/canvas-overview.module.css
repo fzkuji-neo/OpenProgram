@@ -18,10 +18,6 @@
 .overview[data-opened-as="browse"] {
   animation: none;
 }
-.overview[data-canvas-overview="browse"] .card:not([data-current]) {
-  animation-delay: 70ms;
-  animation-fill-mode: both;
-}
 .grid {
   flex: 1;
   min-height: 0;
@@ -45,7 +41,6 @@
   color: inherit;
   font: inherit;
   text-align: center;
-  animation: cardIn 220ms cubic-bezier(.2, .8, .2, 1);
 }
 button.card { cursor: pointer; }
 button.card:focus-visible { outline: none; }
@@ -69,14 +64,11 @@ button.card:hover .mini,
 .card[data-hot] .mini {
   transform: scale(1.025);
 }
-/* The window zooming in or out (and the current card, which arrives by
-   zooming, so the fade-in never replays when the zoom ends): framer-motion moves its picture between
+/* The window zooming in or out: framer-motion moves its picture between
    the window's place (data-zoomed, positioned against the overview) and
-   its slot in the grid, which a placeholder keeps meanwhile. */
-.card[data-zooming],
-.overview[data-canvas-overview="browse"] .card[data-current] {
-  animation: none;
-}
+   its slot in the grid, which a placeholder keeps meanwhile. A card's
+   entrance and its moves in the grid are framer-motion's too
+   (canvas-overview.tsx), so a mode switch never replays them. */
 .zoomer {
   display: block;
 }
@@ -95,7 +87,11 @@ button.card:hover .mini,
 .overview[data-leaving] {
   pointer-events: none;
 }
-.overview[data-leaving] .card:not([data-zooming]),
+/* !important: framer-motion leaves the card's opacity inline. */
+.overview[data-leaving] .card:not([data-zooming]) {
+  opacity: 0 !important;
+  transition: opacity 160ms ease;
+}
 .overview[data-leaving] .hint,
 .overview[data-leaving] .card[data-zooming] .caption {
   opacity: 0;
@@ -198,7 +194,6 @@ button.card:focus-visible .mini {
   pointer-events: none;
 }
 @keyframes overviewIn { from { opacity: 0; } }
-@keyframes cardIn { from { opacity: 0; transform: scale(.94); } }
 @keyframes captionIn { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .overview, .card { animation: none; }
