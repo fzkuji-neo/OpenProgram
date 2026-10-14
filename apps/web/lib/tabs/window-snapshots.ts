@@ -103,9 +103,9 @@ async function underChrome(page: string, chrome: Chrome) {
 
 let inFlight: Promise<void> | null = null;
 
-/** Capture every pane on screen now, except the tabs being dragged (the
- *  drag label floats over them). Resolves within `limit` ms either way,
- *  so an overview never waits long for a picture. */
+/** Capture every pane on screen now, except `skip`. A dragged tab's
+ *  floating preview hides while the pictures are taken. Resolves within
+ *  `limit` ms either way, so an overview never waits long for a picture. */
 export function captureVisiblePanes(skip: readonly string[] = [], limit = 260): Promise<void> {
   const bridge = desktopBridge();
   if (!bridge?.captureRegion || document.querySelector("[data-canvas-overview]")) return Promise.resolve();

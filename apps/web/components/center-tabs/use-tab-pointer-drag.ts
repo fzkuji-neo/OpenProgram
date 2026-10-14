@@ -16,7 +16,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { clearDropPreview, commitCanvasDrop, showResourceDrop, setCanvasDragging } from "@/lib/tabs/canvas-drag";
 import { openOverview, overviewDropAt } from "@/lib/tabs/canvas-overview";
-import { captureVisiblePanes } from "@/lib/tabs/window-snapshots";
+import { captureVisiblePanes, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
 
 import {
   DETACH_HYSTERESIS_PX,
@@ -70,6 +70,9 @@ interface PointerDragState {
   originTop: number;
   height: number;
   preview: HTMLElement | null;
+  /** The picture under the preview's tab header, once it opened as a window. */
+  previewShot?: HTMLElement | null;
+  previewState?: "tab" | "window" | "closing";
   width: number;
   minTx: number;
   maxTx: number;
@@ -96,36 +99,117 @@ interface PointerDragState {
 function removeDragPreview(drag: PointerDragState) {
   drag.preview?.remove();
   drag.preview = null;
+  drag.previewShot = null;
+  drag.previewState = undefined;
   drag.element.style.visibility = "";
+}
+
+/** Outside the strip the dragged tab opens into a small window: its tab on
+ *  top and the last picture of its content below, so you can see what you
+ *  are carrying. Back in the strip it folds into a tab again. */
+const MINI_WINDOW_WIDTH = 240;
+const MINI_OPEN_MS = 200;
+const MINI_CLOSE_MS = 140;
+const MINI_EASE = "cubic-bezier(.2, .8, .2, 1)";
+
+function dragPicture(drag: PointerDragState): string | null {
+  const shots = useWindowSnapshots.getState().shots;
+  for (const id of drag.subject.tabIds) if (shots[id]) return shots[id];
+  return null;
+}
+
+/** The picture's height at the window's width: the canvas's proportions,
+ *  kept within a size that still reads as a small window. */
+function miniPictureHeight(): number {
+  const canvas = document.querySelector<HTMLElement>("[data-canvas-root]")?.getBoundingClientRect();
+  const ratio = canvas && canvas.width > 0 ? canvas.height / canvas.width : 0.62;
+  return Math.round(Math.min(190, Math.max(110, MINI_WINDOW_WIDTH * ratio)));
+}
+
+function buildDragPreview(drag: PointerDragState): HTMLElement {
+  const computed = getComputedStyle(drag.element);
+  const preview = document.createElement("div");
+  preview.setAttribute("data-tab-drag-preview", "true");
+  preview.setAttribute("aria-hidden", "true");
+  preview.inert = true;
+  Object.assign(preview.style, {
+    position: "fixed", left: `${drag.originLeft}px`, top: `${drag.originTop}px`,
+    width: `${drag.width}px`, margin: "0", zIndex: "2147483647", pointerEvents: "none",
+    borderRadius: computed.borderRadius, overflow: "hidden", boxSizing: "border-box",
+    // Blur the backdrop while keeping the dragged label and controls opaque.
+    ...DRAG_SURFACE_STYLE,
+  });
+  const head = drag.element.cloneNode(true) as HTMLElement;
+  for (const node of [head, ...head.querySelectorAll<HTMLElement>("*")]) {
+    node.removeAttribute("id");
+    node.removeAttribute("data-tab-id");
+    node.removeAttribute("data-tab-group-id");
+  }
+  Object.assign(head.style, {
+    position: "relative", left: "0", top: "0", width: "100%", height: `${drag.height}px`, minWidth: "0",
+    maxWidth: "none", margin: "0", transform: "none", transition: "none", opacity: "1", visibility: "visible",
+    background: "transparent", boxShadow: "none", color: computed.color, font: computed.font, boxSizing: "border-box",
+  });
+  preview.append(head);
+  return preview;
+}
+
+function openMiniWindow(drag: PointerDragState, picture: string): void {
+  const preview = drag.preview!;
+  let shot = drag.previewShot;
+  if (!shot) {
+    shot = document.createElement("div");
+    Object.assign(shot.style, { height: "0px", overflow: "hidden", borderTop: "0.5px solid var(--border)" });
+    const image = document.createElement("img");
+    image.src = picture;
+    image.alt = "";
+    Object.assign(image.style, { display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" });
+    shot.append(image);
+    preview.append(shot);
+    drag.previewShot = shot;
+  }
+  const height = miniPictureHeight();
+  for (const animation of [...preview.getAnimations(), ...shot.getAnimations()]) animation.cancel();
+  const from = { width: preview.getBoundingClientRect().width, height: shot.getBoundingClientRect().height };
+  preview.style.width = `${MINI_WINDOW_WIDTH}px`;
+  preview.style.borderRadius = "10px";
+  shot.style.height = `${height}px`;
+  preview.animate([{ width: `${from.width}px` }, { width: `${MINI_WINDOW_WIDTH}px` }], { duration: MINI_OPEN_MS, easing: MINI_EASE });
+  shot.animate([{ height: `${from.height}px` }, { height: `${height}px` }], { duration: MINI_OPEN_MS, easing: MINI_EASE });
+  drag.previewState = "window";
+}
+
+function closeMiniWindow(drag: PointerDragState): void {
+  const preview = drag.preview!, shot = drag.previewShot;
+  drag.previewState = "closing";
+  if (!shot) { removeDragPreview(drag); return; }
+  for (const animation of [...preview.getAnimations(), ...shot.getAnimations()]) animation.cancel();
+  const from = { width: preview.getBoundingClientRect().width, height: shot.getBoundingClientRect().height };
+  preview.style.width = `${drag.width}px`;
+  shot.style.height = "0px";
+  preview.animate([{ width: `${from.width}px` }, { width: `${drag.width}px` }], { duration: MINI_CLOSE_MS, easing: MINI_EASE });
+  const fold = shot.animate([{ height: `${from.height}px` }, { height: "0px" }], { duration: MINI_CLOSE_MS, easing: MINI_EASE });
+  void fold.finished.then(() => { if (drag.preview === preview && drag.previewState === "closing") removeDragPreview(drag); }, () => undefined);
 }
 
 function updateDragPreview(drag: PointerDragState, outside: boolean) {
   if (!outside) {
-    removeDragPreview(drag);
+    // Back over the strip: fold into a tab, then hand back to the real one.
+    if (!drag.preview) return;
+    if (drag.previewState !== "closing") closeMiniWindow(drag);
+    drag.preview?.style.setProperty("transform", `translate(${drag.lastTx}px, 0px)`);
     return;
   }
   if (!drag.preview) {
-    const preview = drag.element.cloneNode(true) as HTMLElement;
-    for (const node of [preview, ...preview.querySelectorAll<HTMLElement>("*")]) {
-      node.removeAttribute("id");
-      node.removeAttribute("data-tab-id");
-      node.removeAttribute("data-tab-group-id");
-    }
-    preview.setAttribute("data-tab-drag-preview", "true");
-    preview.setAttribute("aria-hidden", "true");
-    preview.inert = true;
-    const computed = getComputedStyle(drag.element);
-    Object.assign(preview.style, {
-      position: "fixed", left: `${drag.originLeft}px`, top: `${drag.originTop}px`,
-      width: `${drag.width}px`, height: `${drag.height}px`, minWidth: "0",
-      maxWidth: "none", margin: "0", zIndex: "2147483647", pointerEvents: "none",
-      transition: "none", opacity: "1", visibility: "visible",
-      // Blur the backdrop while keeping the dragged label and controls opaque.
-      ...DRAG_SURFACE_STYLE, color: computed.color,
-      font: computed.font, boxSizing: "border-box",
-    });
-    document.body.append(preview);
-    drag.preview = preview;
+    drag.preview = buildDragPreview(drag);
+    drag.previewState = "tab";
+    document.body.append(drag.preview);
+  }
+  if (drag.previewState !== "window") {
+    // Without any picture yet it stays a tab; one taken mid-drag opens it.
+    const picture = dragPicture(drag);
+    if (picture) openMiniWindow(drag, picture);
+    else drag.previewState = "tab";
   }
   drag.element.style.visibility = "hidden";
   drag.preview.style.transform = `translate(${drag.lastTx}px, ${drag.lastTy ?? 0}px)`;
@@ -433,7 +517,8 @@ export function useTabPointerDrag({
       // Registered so a release the page never saw (over the window-drag
       // strip or a native view) still ends this drag on the next move.
       setCanvasDragging(true, { cancel: cancelPointerDrag, release: onPointerDragUp });
-      void captureVisiblePanes(drag.subject.tabIds).then(() => {
+      // The dragged tab's own pane is pictured too: its small window shows it.
+      void captureVisiblePanes().then(() => {
         drag.snapshotsReady = true;
         if (pointerDragRef.current === drag && drag.wantsOverview) openOverview("drag", drag.subject.tabIds);
       });
