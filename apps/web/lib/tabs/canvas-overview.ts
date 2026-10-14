@@ -16,9 +16,12 @@ type OverviewState = { mode: "drag" | "browse" | null; sourceIds: string[]; hove
 
 export const useCanvasOverview = create<OverviewState>(() => ({ mode: null, sourceIds: [], hover: null, label: "", landing: null }));
 
-/** Where the card a drop merged into sat, held from the release until the
- *  merge commits; null when no drop is landing. */
-let landingFrom: Rect | null = null;
+/** Where things sat when a drop merged into a card, held from the release
+ *  until the merge commits; null when no drop is landing. `panes` maps each
+ *  tab already in the card to its pane's place, and `dropped` is the window
+ *  the pointer carried, so the merge can move every piece into its pane. */
+export type OverviewLanding = { panes: Record<string, Rect>; dropped: Rect | null };
+let landingFrom: OverviewLanding | null = null;
 export const overviewLandingFrom = () => landingFrom;
 
 export function openOverview(mode: "drag" | "browse", sourceIds: string[] = []) {
@@ -33,11 +36,16 @@ export function closeOverview() {
 /** A drop onto a card: keep the drag overview up past the end of the drag
  *  (the merge may wait on the desktop shell), so the merged window can zoom
  *  out of the card it was dropped on. */
-export function holdOverviewLanding(drop: CanvasDrop): void {
+export function holdOverviewLanding(drop: CanvasDrop, dropped: Rect | null = null): void {
   if (useCanvasOverview.getState().mode !== "drag" || drop.action !== "dock") return;
   const card = document.querySelector<HTMLElement>(`[data-overview-target="${CSS.escape(drop.targetId)}"] [data-overview-mini]`);
-  const b = card?.getBoundingClientRect();
-  landingFrom = b ? { left: b.left, top: b.top, width: b.width, height: b.height } : null;
+  if (!card) { landingFrom = null; return; }
+  const panes: Record<string, Rect> = {};
+  for (const pane of card.querySelectorAll<HTMLElement>("[data-overview-pane]")) {
+    const b = pane.getBoundingClientRect();
+    panes[pane.dataset.overviewPane!] = { left: b.left, top: b.top, width: b.width, height: b.height };
+  }
+  landingFrom = { panes, dropped: dropped && { left: dropped.left, top: dropped.top, width: dropped.width, height: dropped.height } };
 }
 export const overviewHeld = () => landingFrom !== null;
 /** The merge committed: zoom the window holding `tabId` out of its card. */

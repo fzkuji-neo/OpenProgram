@@ -51,6 +51,7 @@ import { useTabPointerDrag } from "./use-tab-pointer-drag";
  *  move to fill the leaving tab's slot. A shared frozen instance avoids a new
  *  Map every render. */
 const EMPTY_SHIFTS: ReadonlyMap<string, number> = new Map();
+const EMPTY_IDS: ReadonlySet<string> = new Set();
 
 /** Grace period between the cursor leaving the strip and the frozen tab
  *  widths being released — long enough to survive a graze along the
@@ -220,19 +221,26 @@ export function CenterTabStrip() {
   const visibleTabs = topLevelTabs(tabs, groups);
   const stripFocusId = visibleTabs.some(tab => tab.id === focusedTabId)
     ? focusedTabId : visibleTabs[0]?.id;
+  // Splits formed since the last render (a merge) — not those restored
+  // with the window, which are simply there.
+  const prevGroupIds = useRef<ReadonlySet<string> | null>(null);
+  const freshGroupIds = prevGroupIds.current === null
+    ? EMPTY_IDS
+    : new Set(groups.filter((group) => !prevGroupIds.current!.has(group.id)).map((group) => group.id));
+  useEffect(() => {
+    prevGroupIds.current = new Set(groups.map((group) => group.id));
+  }, [groups]);
   const stripEntries = centerTabStripEntries({
     tabIds: visibleTabs.map((tab) => tab.id),
     groups,
   });
 
   // Live-reorder geometry for this render: entry id → translateX px.
-  // While detaching, the dragged tab is being pulled OUT to a new window
-  // but hasn't left yet — the user wants its slot to stay put (the
-  // neighbours must NOT slide in to fill it), so that dragging back in
-  // simply cancels with nothing to un-shift. The gap only closes once the
-  // tab is actually gone (removed from stripEntries at release), which the
-  // normal layout handles. So detaching contributes no shifts; only an
-  // in-strip reorder (with a drop marker) moves neighbours.
+  // Out of the strip the dragged tab's slot closes by width instead
+  // (data-drag-out, set by the drag engine), so the tabs after it slide
+  // over and the + button follows; dragging back in reopens it. So
+  // detaching contributes no shifts; only an in-strip reorder (with a drop
+  // marker) moves neighbours.
   const liveShifts = detaching
     ? EMPTY_SHIFTS
     : computeLiveShifts(stripEntries, draggedIds, dropMarker, dragWidth);
@@ -345,6 +353,7 @@ export function CenterTabStrip() {
                 onClose={onTabsClose}
                 onExited={finishClose}
                 shiftX={liveShifts.get(entry.id) ?? 0}
+                fresh={freshGroupIds.has(entry.group.id)}
                 onDragPointerDown={onTabPointerDown}
               />
             );
