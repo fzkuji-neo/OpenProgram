@@ -8,7 +8,7 @@ import { canvasGeometry, canvasViewport, leaves, removePane, rowLayout, type Lay
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
 import { canvasDragging } from "@/lib/tabs/canvas-drag";
 import { captureVisiblePanes, captureWebTabs, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
-import { closeOverview, dismissOverview, openOverview, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
+import { closeOverview, dismissOverview, openOverview, overviewLandingFrom, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
 import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
 import { useTranslation } from "@/lib/i18n";
@@ -24,7 +24,8 @@ const ZONE: Record<OverviewSide, React.CSSProperties> = {
   bottom: { left: 0, top: "50%", width: "100%", height: "50%" },
 };
 const GAP = 24, CAPTION = 26;
-const ZOOM: Transition = { duration: 0.34, ease: [0.2, 0.8, 0.2, 1] };
+const ZOOM_MS = 340, ZOOM_EASING = "cubic-bezier(.2, .8, .2, 1)";
+const ZOOM: Transition = { duration: ZOOM_MS / 1000, ease: [0.2, 0.8, 0.2, 1] };
 /** Every other layout change (a resize, the grid settling) just jumps. */
 const INSTANT: Transition = { duration: 0 };
 type Box = { left: number; top: number; width: number; height: number };
@@ -64,7 +65,7 @@ function isPinch(e: WheelEvent) {
  *  center area. See lib/tabs/canvas-overview.ts for when it opens. */
 export function CanvasOverview() {
   const { t, text } = useTranslation();
-  const { mode, sourceIds, hover, label } = useCanvasOverview();
+  const { mode, sourceIds, hover, label, landing } = useCanvasOverview();
   const tabs = useCenterTabs(s => s.tabs), groups = useCenterTabs(s => s.groups), activeId = useCenterTabs(s => s.activeId);
   const rootRef = useRef<HTMLDivElement>(null);
   const [area, setArea] = useState({ width: 0, height: 0, canvasWidth: 0, canvasHeight: 0 });
@@ -227,6 +228,27 @@ export function CanvasOverview() {
     const timer = window.setTimeout(() => { if (zoom.phase === "closing") closeOverview(); else setZoom(null); }, 700);
     return () => window.clearTimeout(timer);
   }, [zoom]);
+  // A drop merged into a window: its card, now showing the merged split,
+  // grows from where it was dropped on to fill the center area, as picking
+  // a card does when browsing. A merge into a lone tab mounts a new card,
+  // so the zoom is played by hand from the card's old place rather than
+  // left to framer-motion, which has no earlier layout for it.
+  useLayoutEffect(() => {
+    if (!landing) return;
+    const card = cards.find(c => leaves(c.root).some(p => p.content === landing));
+    if (!zoomAt(card?.key, "closing")) closeOverview();
+  }, [landing]);
+  useLayoutEffect(() => {
+    if (!landing || zoom?.phase !== "closing") return;
+    const el = rootRef.current?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(zoom.key)}"] [data-zoomed]`);
+    const from = overviewLandingFrom(), to = el?.getBoundingClientRect();
+    if (!el || !from || !to?.width || !to.height) { closeOverview(); return; }
+    const grow = el.animate([
+      { transformOrigin: "0 0", transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})` },
+      { transformOrigin: "0 0", transform: "none" },
+    ], { duration: ZOOM_MS, easing: ZOOM_EASING });
+    void grow.finished.then(closeOverview, closeOverview);
+  }, [landing, zoom]);
   const zoomOutRef = useRef(zoomOutTo);
   zoomOutRef.current = zoomOutTo;
   useEffect(() => {

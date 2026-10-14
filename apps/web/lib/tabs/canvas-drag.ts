@@ -1,6 +1,6 @@
 import { useCenterTabs } from "./center-tabs-store";
 import { rowLayout, type CanvasDockSide, type Rect } from "./canvas-layout";
-import { closeOverview, openOverview, overviewDropAt, useCanvasOverview } from "./canvas-overview";
+import { closeOverview, holdOverviewLanding, landOverview, openOverview, overviewDropAt, overviewHeld, useCanvasOverview } from "./canvas-overview";
 import { captureVisiblePanes } from "./window-snapshots";
 import { findCenterTabGroup } from "./center-tab-groups";
 import { rememberCanvas } from "./canvas-history";
@@ -56,7 +56,7 @@ export function setCanvasDragging(value: boolean, by?: CanvasDragOwner) {
     if (by) owner = by;
   } else {
     owner = null;
-    if (useCanvasOverview.getState().mode === "drag") closeOverview();
+    if (useCanvasOverview.getState().mode === "drag" && !overviewHeld()) closeOverview();
   }
   if (dragging === value) { if (!value) { preview?.remove(); preview = null; } return; }
   const before = canvasDragging();
@@ -79,6 +79,7 @@ export function commitCanvasDrop(drop: CanvasDrop, sourceIds: string[]): boolean
   }
   rememberCanvas([drop.targetId, ...sourceIds, ...(group ? [group.id, ...group.memberIds] : [])], layout);
   s.dockCanvas(sourceIds, drop.targetId, drop.paneId, drop.side);
+  landOverview(drop.targetId);
   return true;
 }
 export function tabStripDropAt(x: number, y: number): Rect | null {
@@ -152,8 +153,9 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
   const payload = bridge && buildTransferPayload({ kind: "tab", tabIds: [tabId] }, bridge.windowId);
   const token = payload ? bridge?.tabTransfer.prepare(payload) : undefined;
   const sessionOwner: CanvasDragOwner = { cancel: () => cancel(), release: (e) => void finish(e) };
-  function cleanup() {
+  function cleanup(drop?: CanvasDrop | null) {
     finished = true;
+    if (drop) holdOverviewLanding(drop);
     markResourceTarget(null);
     dragLabel?.remove(); dragLabel = null;
     pane.removeAttribute("data-pane-dragging");
@@ -226,16 +228,17 @@ export function startPaneDrag(event: React.PointerEvent<HTMLElement>, tabId: str
     if (finished || e.pointerId !== pointerId) return;
     const target = started ? resolveDrop(e.clientX, e.clientY) : null;
     const wasStarted = started;
-    cleanup();
+    cleanup(target?.drop);
     try {
       const outside = e.clientX < 0 || e.clientY < 0 || e.clientX > window.innerWidth || e.clientY > window.innerHeight;
       if (wasStarted && outside && token) { await bridge?.tabTransfer.detach(token); return; }
       const resourceSessionId = target?.resource?.dataset.resourceDropSession;
       if (resourceSessionId) { await dropWebTabResource(tabId, resourceSessionId, token ?? undefined); return; }
-      if (token && !await bridge?.tabTransfer.cancel(token)) return;
+      if (token && !await bridge?.tabTransfer.cancel(token)) { closeOverview(); return; }
       if (target?.drop) commitCanvasDrop(target.drop, [tabId]);
       else if (target?.strip) useCenterTabs.getState().ungroupTab(tabId);
     } catch (error) {
+      closeOverview();
       console.error("[canvas] pane drop failed", error);
     }
   }

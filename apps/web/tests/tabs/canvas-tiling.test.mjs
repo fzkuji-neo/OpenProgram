@@ -97,7 +97,7 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(overview, /if \(x < r\.left \|\| x > r\.right \|\| y < r\.top \|\| y > r\.bottom\) \{ setHover\(null, ""\); return null; \}/, 'outside the overview the strip and detach keep working');
   const drag = await read('lib/tabs/canvas-drag.ts');
   assert.doesNotMatch(drag, /canvasDropAt|PANE_SIDE|canvasEdgeBand/, 'the in-canvas drop zones are gone');
-  assert.match(drag, /if \(useCanvasOverview\.getState\(\)\.mode === "drag"\) closeOverview\(\);/, 'every drag end closes it');
+  assert.match(drag, /if \(useCanvasOverview\.getState\(\)\.mode === "drag" && !overviewHeld\(\)\) closeOverview\(\);/, 'every drag end closes it unless a merge is landing');
   assert.match(drag, /event\.preventDefault\(\);\s*const grip = event\.currentTarget/, 'a pane drag does not select text');
   const tab = await read('components/center-tabs/use-tab-pointer-drag.ts');
   assert.match(tab, /if \(outsideBand\) \{\s*drag\.wantsOverview = true;/, 'a tab opens it once it leaves the strip, so reordering still works');
@@ -146,6 +146,19 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
   assert.match(base, /\.app \.center-col:has\(\[data-canvas-overview\]\) \{\s*background: var\(--bg-secondary\);\s*box-shadow: none;/, 'no card edge around the overview');
   const main = await readFile(new URL('../../../desktop/main.js', import.meta.url), 'utf8');
   assert.match(main, /if \(!ctx \|\| event\.sender !== ctx\.win\.webContents\) return null;/, 'only a window\'s own page may picture itself');
+});
+
+test('a merge drop zooms the merged window out of the card it was dropped on', async () => {
+  const overview = await read('lib/tabs/canvas-overview.ts');
+  assert.match(overview, /if \(useCanvasOverview\.getState\(\)\.mode !== "drag" \|\| drop\.action !== "dock"\) return;/, 'only a merge holds the overview');
+  const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
+  assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
+  const drag = await read('lib/tabs/canvas-drag.ts');
+  assert.match(drag, /s\.dockCanvas\(sourceIds, drop\.targetId, drop\.paneId, drop\.side\);\n  landOverview\(drop\.targetId\);/, 'the commit lands it');
+  assert.match(drag, /cleanup\(target\?\.drop\);/, 'a pane drop holds it too');
+  const view = await read('components/center-tabs/canvas-overview.tsx');
+  assert.match(view, /const from = overviewLandingFrom\(\), to = el\?\.getBoundingClientRect\(\);/, 'the card grows from where it sat');
+  assert.match(view, /void grow\.finished\.then\(closeOverview, closeOverview\);/, 'and the overview closes when it lands');
 });
 
 test('the pane menu offers Move and resize, Arrange and the ⌃⌥ shortcuts', async () => {
