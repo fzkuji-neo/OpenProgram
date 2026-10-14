@@ -102,7 +102,8 @@ test("long lists recycle measured offscreen rows; no virtual list library", () =
   const list = messageList.slice(messageList.indexOf("function MessageList"));
   assert.match(list, /while \(i < ids\.length\)/);
   assert.match(list, /RECYCLE_MIN_ROWS/);
-  assert.match(list, /display: "contents"/);
+  assert.match(list, /<PlainRow key=\{id\}/);
+  assert.match(messageList, /className="msg-row"[^>]*style=\{\{ display: "contents" \}\}/);
   assert.match(messageList, /data-msg-slot/);
   assert.match(messageList, /data-msg-id/);
   assert.doesNotMatch(
@@ -126,6 +127,6 @@ test("content-visibility is not on every message row", () => {
     messageList.indexOf("return nodes"),
   );
   assert.doesNotMatch(wrap, /content-visibility:\s*auto/);
-  assert.match(wrap, /display: "contents"/);
+  assert.match(wrap, /<PlainRow /);
   assert.match(wrap, /compaction-orig-fold/);
 });

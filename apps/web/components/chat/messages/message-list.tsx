@@ -36,6 +36,7 @@ import {
   useSessionStore,
   type ChatMsg,
 } from "@/lib/session-store";
+import { messageArrivedWithin } from "@/lib/session-store/message-arrivals";
 
 import { useTranslation } from "@/lib/i18n";
 import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
@@ -56,6 +57,8 @@ import { showToast } from "@/lib/format-utils/toast";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 
 const JUMP_LATEST_FADE_MS = 280;
+/** A row mounted this soon after its message arrived still plays msgAppear. */
+const APPEAR_WINDOW_MS = 1000;
 
 import { AssistantBubble } from "./assistant-bubble";
 import { GoalDetails, useSessionGoal } from "../goal-chip";
@@ -428,6 +431,23 @@ export const MessageRow = memo(function MessageRow({
   return dispatch(msg, sessionIdOverride);
 });
 
+/** A row outside the recycling window (short transcripts). Like a slot, it
+ *  plays msgAppear only when its message has just arrived. */
+export const PlainRow = memo(function PlainRow({
+  id,
+  sessionIdOverride,
+}: {
+  id: string;
+  sessionIdOverride?: string;
+}) {
+  const [appear] = useState(() => messageArrivedWithin(id, APPEAR_WINDOW_MS));
+  return (
+    <div className="msg-row" data-appear={appear ? "" : undefined} style={{ display: "contents" }}>
+      <MessageRow id={id} sessionIdOverride={sessionIdOverride} />
+    </div>
+  );
+});
+
 export const RecyclableRow = memo(function RecyclableRow({
   id,
   chatKey,
@@ -442,6 +462,9 @@ export const RecyclableRow = memo(function RecyclableRow({
   sessionIdOverride?: string;
 }) {
   const slotRef = useRef<HTMLDivElement>(null);
+  // Only a message that just arrived plays msgAppear; the same row mounted
+  // again (a split, the shell coming back into view) shows as it is.
+  const [appear] = useState(() => messageArrivedWithin(id, APPEAR_WINDOW_MS));
   const height = getRowHeight(chatKey, id);
   const show = live || height == null;
   // The height a placeholder stood at before this row rendered. It may be
@@ -481,6 +504,7 @@ export const RecyclableRow = memo(function RecyclableRow({
     <div
       ref={slotRef}
       data-msg-slot={id}
+      data-appear={appear ? "" : undefined}
       className="msg-slot"
       style={!show && height != null ? { height } : undefined}
     >
@@ -907,9 +931,7 @@ export const MessageList = memo(function MessageList({
                 onMeasured={notifyMeasured}
               />
             ) : (
-              <div key={id} style={{ display: "contents" }}>
-                <MessageRow id={id} />
-              </div>
+              <PlainRow key={id} id={id} />
             ),
           );
           addGoalRecords([id]);

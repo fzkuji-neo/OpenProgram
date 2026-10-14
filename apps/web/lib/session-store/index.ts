@@ -17,6 +17,7 @@ import {
 } from "../runtime-bridge/draft-channel-choice";
 import type { SessionTransferSnapshot } from "../tabs/tab-transfer-journal";
 import { forgetTakeLatestSession } from "@/lib/chat/chat-scroll";
+import { noteMessageArrival, rekeyMessageArrival } from "./message-arrivals";
 import {
   dropSessionStore,
   installScopeWriteThrough,
@@ -795,6 +796,7 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
 
   appendMessage: (sessionId, msg) =>
     set((s) => {
+      noteMessageArrival(msg.id);
       const timedMessage = withMessageTimestamp(msg);
       return {
         messagesById: { ...s.messagesById, [msg.id]: timedMessage },
@@ -809,6 +811,7 @@ export const useSessionStore = createWithEqualityFn<ConvState>((set) => ({
     set((s) => {
       const current = s.messagesById[oldId];
       if (!current || oldId === newId) return {};
+      rekeyMessageArrival(oldId, newId);
       const byId = { ...s.messagesById };
       delete byId[oldId];
       if (!byId[newId]) byId[newId] = { ...current, id: newId };
