@@ -322,6 +322,20 @@ export function mergeCenterTabGroup(
   };
 }
 
+/** The strip shows a split where its first pane's tab sits. Docked tabs
+ *  move in front of the window they join (`anchorId`, that window's strip
+ *  tab), so whichever pane comes first the split keeps that window's place
+ *  in the strip instead of jumping to where a dragged tab used to be. */
+export function placeDockedTabs<T extends { id: string }>(tabs: readonly T[], sourceIds: readonly string[], anchorId: string): T[] {
+  const moving = new Set(sourceIds);
+  if (moving.has(anchorId)) return [...tabs];
+  const rest = tabs.filter((tab) => !moving.has(tab.id));
+  const at = rest.findIndex((tab) => tab.id === anchorId);
+  if (at < 0) return [...tabs];
+  const docked = sourceIds.flatMap((id) => tabs.filter((tab) => tab.id === id));
+  return [...rest.slice(0, at), ...docked, ...rest.slice(at)];
+}
+
 export function centerTabStripEntries(layout: CenterTabLayout): CenterTabStripEntry[] {
   const firstToGroup = new Map(layout.groups.map((group) => [group.memberIds[0], group]));
   const grouped = new Set(layout.groups.flatMap((group) => group.memberIds));

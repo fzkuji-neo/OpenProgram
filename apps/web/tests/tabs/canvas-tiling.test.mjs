@@ -152,12 +152,16 @@ test('a merge drop zooms the merged window out of the card it was dropped on', a
   const overview = await read('lib/tabs/canvas-overview.ts');
   assert.match(overview, /if \(useCanvasOverview\.getState\(\)\.mode !== "drag" \|\| drop\.action !== "dock"\) return;/, 'only a merge holds the overview');
   const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
-  assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
+  assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop, previewRect)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
+  assert.ok(strip.indexOf('const previewRect =') < strip.indexOf('drag.teardown();\n    if (!drag.started) return;'), 'the carried window is measured before it is removed');
+  assert.match(overview, /for \(const pane of card\.querySelectorAll<HTMLElement>\("\[data-overview-pane\]"\)\)/, 'each pane of the card is noted');
   const drag = await read('lib/tabs/canvas-drag.ts');
   assert.match(drag, /s\.dockCanvas\(sourceIds, drop\.targetId, drop\.paneId, drop\.side\);\n  landOverview\(drop\.targetId\);/, 'the commit lands it');
   assert.match(drag, /cleanup\(target\?\.drop\);/, 'a pane drop holds it too');
   const view = await read('components/center-tabs/canvas-overview.tsx');
-  assert.match(view, /const from = overviewLandingFrom\(\), to = el\?\.getBoundingClientRect\(\);/, 'the card grows from where it sat');
+  assert.match(view, /const from = held\.panes\[id\] \?\? held\.dropped;/, 'the merge first moves every pane into its place in the card');
+  assert.match(view, /Promise\.allSettled\(settles\.map\(a => a\.finished\)\)\.then\(\(\) => \{[\s\S]*?growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) closeOverview\(\);/, 'then the card zooms');
+  assert.match(view, /const from = growFrom\.current, to = el\?\.getBoundingClientRect\(\);/, 'the card grows from where it sat in the grid');
   assert.match(view, /void grow\.finished\.then\(closeOverview, closeOverview\);/, 'and the overview closes when it lands');
 });
 
@@ -247,5 +251,5 @@ test('a split window is one tab: its focused pane, a split mark and one close', 
 test('browsing the overview: empty space is inert and there is no hint', async () => {
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.doesNotMatch(view, /dataset\.overviewGrid !== undefined\) dismissOverview\(\)/, 'a click between cards does not open a window');
-  assert.match(view, /const hint = mode === "drag"\n    \? label \|\| text\([\s\S]*?\)\n    : null;/, 'only a drag shows a hint');
+  assert.match(view, /const hint = mode === "drag" && !landing\n    \? label \|\| text\([\s\S]*?\)\n    : null;/, 'only a drag shows a hint');
 });

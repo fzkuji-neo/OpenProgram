@@ -25,6 +25,8 @@ const ZONE: Record<OverviewSide, React.CSSProperties> = {
 };
 const GAP = 24, CAPTION = 26;
 const ZOOM_MS = 340, ZOOM_EASING = "cubic-bezier(.2, .8, .2, 1)";
+/** A merge first settles in its card, then the card zooms. */
+const MERGE_MS = 260;
 const ZOOM: Transition = { duration: ZOOM_MS / 1000, ease: [0.2, 0.8, 0.2, 1] };
 /** Every other layout change (a resize, the grid settling) just jumps. */
 const INSTANT: Transition = { duration: 0 };
@@ -231,20 +233,43 @@ export function CanvasOverview() {
     const timer = window.setTimeout(() => { if (zoom.phase === "closing") closeOverview(); else setZoom(null); }, 700);
     return () => window.clearTimeout(timer);
   }, [zoom]);
-  // A drop merged into a window: its card, now showing the merged split,
-  // grows from where it was dropped on to fill the center area, as picking
-  // a card does when browsing. A merge into a lone tab mounts a new card,
-  // so the zoom is played by hand from the card's old place rather than
-  // left to framer-motion, which has no earlier layout for it.
+  // A drop merged into a window, in two beats. First the merge settles in
+  // its card: each pane already there slides from its old place to its new
+  // one while the carried window moves into its own pane. Then the card
+  // zooms out of the grid to fill the center area, as picking a card does
+  // when browsing. A merge into a lone tab mounts a new card, so both beats
+  // are played by hand rather than left to framer-motion, which has no
+  // earlier layout for it.
+  const growFrom = useRef<DOMRect | null>(null);
   useLayoutEffect(() => {
     if (!landing) return;
     const card = cards.find(c => leaves(c.root).some(p => p.content === landing));
-    if (!zoomAt(card?.key, "closing")) closeOverview();
+    const mini = card && rootRef.current?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(card.key)}"] [data-overview-mini]`);
+    const held = overviewLandingFrom();
+    if (!card || !mini || !held || reducedMotion()) { closeOverview(); return; }
+    const settles = [...mini.querySelectorAll<HTMLElement>("[data-overview-pane]")].map(pane => {
+      const id = pane.dataset.overviewPane!, to = pane.getBoundingClientRect();
+      const from = held.panes[id] ?? held.dropped;
+      if (!from || !to.width || !to.height) {
+        return pane.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MERGE_MS, easing: ZOOM_EASING });
+      }
+      return pane.animate([
+        { transformOrigin: "0 0", transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})` },
+        { transformOrigin: "0 0", transform: "none" },
+      ], { duration: MERGE_MS, easing: ZOOM_EASING });
+    });
+    let live = true;
+    void Promise.allSettled(settles.map(a => a.finished)).then(() => {
+      if (!live) return;
+      growFrom.current = mini.getBoundingClientRect();
+      if (!zoomAt(card.key, "closing")) closeOverview();
+    });
+    return () => { live = false; };
   }, [landing]);
   useLayoutEffect(() => {
     if (!landing || zoom?.phase !== "closing") return;
     const el = rootRef.current?.querySelector<HTMLElement>(`[data-overview-card="${CSS.escape(zoom.key)}"] [data-zoomed]`);
-    const from = overviewLandingFrom(), to = el?.getBoundingClientRect();
+    const from = growFrom.current, to = el?.getBoundingClientRect();
     if (!el || !from || !to?.width || !to.height) { closeOverview(); return; }
     const grow = el.animate([
       { transformOrigin: "0 0", transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / to.width}, ${from.height / to.height})` },
@@ -268,7 +293,7 @@ export function CanvasOverview() {
   const byId = new Map(tabs.map(tab => [tab.id, tab]));
   const activate = (card: Card) => zoomOutTo(card);
   // Only a drag says where it will land; browsing needs no instructions.
-  const hint = mode === "drag"
+  const hint = mode === "drag" && !landing
     ? label || text("Drop on a window to merge · on empty space to open on its own · outside the window for a new window", "拖到某个窗口上合并 · 空白处单独打开 · 拖出窗口新开一个")
     : null;
 
@@ -309,7 +334,7 @@ export function CanvasOverview() {
                   const tab: CenterTab | undefined = p.content ? byId.get(p.content) : undefined;
                   const shot = tab ? shots[tab.id] : undefined;
                   return (
-                    <span key={p.id} className={styles.pane} data-empty={!tab || undefined} data-shot={shot ? "" : undefined} style={{
+                    <span key={p.id} className={styles.pane} data-overview-pane={p.content ?? undefined} data-empty={!tab || undefined} data-shot={shot ? "" : undefined} style={{
                       left: (r.left + inset) * k, top: (r.top + inset) * k,
                       width: (r.width - inset * 2) * k, height: (r.height - inset * 2) * k,
                       borderRadius: split ? PANE_RADIUS * k : 0,

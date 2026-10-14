@@ -1,7 +1,7 @@
 import type { StoreApi } from "zustand";
 import type { CenterTabsState } from "./types";
 import { commitCenterTabsState } from "./core";
-import { findCenterTabGroup, ungroupCenterTab } from "../center-tab-groups";
+import { findCenterTabGroup, placeDockedTabs, ungroupCenterTab } from "../center-tab-groups";
 import { dockLayout, leaves, rowLayout, sanitizeLayout } from "../canvas-layout";
 
 export function canvasActions(set: StoreApi<CenterTabsState>["setState"]): Pick<CenterTabsState, "setCanvas" | "previewCanvas" | "dockCanvas"> {
@@ -47,7 +47,8 @@ export function canvasActions(set: StoreApi<CenterTabsState>["setState"]): Pick<
       const memberIds = leaves(canvas.root).flatMap(p => p.content ? [p.content] : []);
       const group = { id: targetGroup?.id ?? `g:${crypto.randomUUID()}`, memberIds, visibleIds: memberIds, focusedId: sourceId, canvas };
       const groups = [...detached.groups.filter(g => g.id !== group.id), group];
-      const tabs = s.tabs.filter(t => !t.canvasAnchor || groups.some(g => g.memberIds.includes(t.id)));
+      const ordered = placeDockedTabs(s.tabs, sourceIds, targetGroup?.memberIds[0] ?? targetId);
+      const tabs = ordered.filter(t => !t.canvasAnchor || groups.some(g => g.memberIds.includes(t.id)));
       return commitCenterTabsState(s, { tabs, groups, activeId: sourceId, splitWebTabId: null });
     }),
   };

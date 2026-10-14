@@ -9,7 +9,7 @@ import { FileTypeIcon } from "@/components/files/file-type-icon";
  * tab whose content surface contains a split-view group. Split members are
  * not independently selectable from the strip.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppWindow, Bookmark, CirclePlus, Download, FileText, History, TerminalSquare, X } from "lucide-react";
 
 import {
@@ -44,6 +44,9 @@ interface CompoundTabItemProps {
   onClose(event: React.SyntheticEvent, tabs: CenterTab[]): void;
   onExited(tab: CenterTab): void;
   shiftX: number;
+  /** The split was just formed in this window (a merge): its name arrives
+   *  with the same motion as a change of the pane it names. */
+  fresh?: boolean;
   onDragPointerDown(
     subject: TabDragSubject,
     event: React.PointerEvent<HTMLElement>,
@@ -127,10 +130,12 @@ export function CompoundTabItem({
   onClose,
   onExited,
   shiftX,
+  fresh = false,
   onDragPointerDown,
 }: CompoundTabItemProps) {
   const { t, text } = useTranslation();
   const [hovered, setHovered] = useState(false);
+  const nameRef = useRef<HTMLSpanElement>(null);
   const active = group.memberIds.includes(activeId ?? "");
   const memberTabs = group.memberIds.flatMap((tabId) => {
     const tab = tabs.find((candidate) => candidate.id === tabId);
@@ -139,6 +144,20 @@ export function CompoundTabItem({
   const canonicalTab = memberTabs.find((tab) => tab.id === group.focusedId)
     ?? memberTabs.find((tab) => tab.kind === "session")
     ?? memberTabs[0];
+  // The tab names one pane. When that pane changes (another pane takes
+  // focus, or a merge forms the split) the new name and icon rise in, so
+  // the swap reads as a change rather than a different tab appearing.
+  const shownId = useRef<string | null>(fresh ? null : canonicalTab?.id ?? null);
+  useLayoutEffect(() => {
+    const id = canonicalTab?.id ?? null;
+    if (shownId.current === id) return;
+    shownId.current = id;
+    const name = nameRef.current;
+    if (!name || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    for (const el of [name.previousElementSibling, name]) {
+      el?.animate([{ opacity: 0, transform: "translateY(5px)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: "cubic-bezier(.2, .8, .2, 1)" });
+    }
+  });
   const closingTabs = memberTabs.filter((tab) => closingIds.has(tab.id));
   const closing = closingTabs.length > 0 && closingTabs.length === memberTabs.length;
   // One pane closing leaves the tab as it is; it only has to finish.
@@ -204,7 +223,7 @@ export function CompoundTabItem({
       <div className={styles.compoundMembers}>
         <span className={styles.compoundMember}>
           <CompoundMemberIcon tab={canonicalTab} animate={hovered} />
-          <span className={styles.compoundMemberName} aria-hidden="true">{label}</span>
+          <span ref={nameRef} className={styles.compoundMemberName} aria-hidden="true">{label}</span>
           {memberTabs.some((tab) => tab.dirty) ? (
             <span className={styles.tabDirtyDot} aria-hidden="true">
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "currentColor" }} />

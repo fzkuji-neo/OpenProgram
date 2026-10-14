@@ -406,8 +406,15 @@
 .tab[data-pointer-drag="true"],
 .compoundTab[data-pointer-drag="true"] {
   /* transform 绝不能进 transition —— 它由 JS 每帧直写来跟手（x/y 双轴）。
-     拖离 tab 栏时只有阴影变化，平滑过渡即可。 */
-  transition: box-shadow 140ms ease-out;
+     拖离 tab 栏时阴影变化，槽位宽度收拢/撑开（data-drag-out）都平滑过渡。 */
+  transition:
+    box-shadow 140ms ease-out,
+    flex-basis 160ms ease,
+    width 160ms ease,
+    min-width 160ms ease,
+    max-width 160ms ease,
+    padding 160ms ease,
+    margin 160ms ease;
   position: relative;
   z-index: 30;
   opacity: 1;
@@ -418,6 +425,35 @@
 /* 拖动中的 tab 不画左侧分隔条（它已脱离栏内节奏）。 */
 .tab[data-pointer-drag="true"]::before {
   background: transparent;
+}
+/* Dragged out of the strip, the tab travels as a small window in a body
+   overlay; its own slot closes so the tabs after it slide over (Chrome).
+   The negative margin also takes back the flow's 8px gap. Back in the
+   strip the attribute goes and the slot reopens under the same transition. */
+.tab[data-drag-out="true"],
+.compoundTab[data-drag-out="true"],
+:global(html.is-desktop) .tabsFlow > .tab[data-drag-out="true"],
+:global(html.is-desktop) .tabsFlow > .compoundTab[data-drag-out="true"] {
+  flex-basis: 0;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  margin-right: -8px;
+  overflow: hidden;
+}
+/* After the drag ends a closed slot reopens smoothly too (reopenSlot). */
+.tab[data-slot-reopen="true"],
+.compoundTab[data-slot-reopen="true"] {
+  transition:
+    flex-basis 160ms ease,
+    width 160ms ease,
+    min-width 160ms ease,
+    max-width 160ms ease,
+    padding 160ms ease,
+    margin 160ms ease,
+    transform 160ms ease;
 }
 /* Detach intent retains the same surface and changes only stacking order. */
 .tab[data-detach-intent="true"],

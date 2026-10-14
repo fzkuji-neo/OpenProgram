@@ -195,6 +195,7 @@ function closeMiniWindow(drag: PointerDragState): void {
 function updateDragPreview(drag: PointerDragState, outside: boolean) {
   if (!outside) {
     // Back over the strip: fold into a tab, then hand back to the real one.
+    drag.element.removeAttribute("data-drag-out");
     if (!drag.preview) return;
     if (drag.previewState !== "closing") closeMiniWindow(drag);
     drag.preview?.style.setProperty("transform", `translate(${drag.lastTx}px, 0px)`);
@@ -212,7 +213,20 @@ function updateDragPreview(drag: PointerDragState, outside: boolean) {
     else drag.previewState = "tab";
   }
   drag.element.style.visibility = "hidden";
+  // The tab has left the strip, so its slot closes and the tabs after it
+  // slide over (see .tab[data-drag-out]); back in the strip it reopens.
+  drag.element.setAttribute("data-drag-out", "true");
   drag.preview.style.transform = `translate(${drag.lastTx}px, ${drag.lastTy ?? 0}px)`;
+}
+
+/** Reopen a slot closed by data-drag-out after the drag has ended, when
+ *  the drag's own width transition is gone with data-pointer-drag. */
+function reopenSlot(element: HTMLElement): void {
+  if (!element.hasAttribute("data-drag-out")) return;
+  element.setAttribute("data-slot-reopen", "true");
+  void element.getBoundingClientRect(); // the transition applies before the width changes
+  element.removeAttribute("data-drag-out");
+  window.setTimeout(() => element.removeAttribute("data-slot-reopen"), 200);
 }
 
 export interface TabPointerDragOptions {
@@ -358,7 +372,8 @@ export function useTabPointerDrag({
    *  animateHome re-enables the 160ms transition first so the tab
    *  slides back to its slot; otherwise the clear is instantaneous
    *  (the post-commit FLIP settles instead). */
-  function restorePointerDragElement(element: HTMLElement, animateHome: boolean) {
+  function restorePointerDragElement(element: HTMLElement, animateHome: boolean, keepSlotClosed = false) {
+    if (!keepSlotClosed) reopenSlot(element);
     if (!animateHome) {
       element.style.transform = "";
       void element.getBoundingClientRect(); // flush while transitions are off
@@ -753,6 +768,8 @@ export function useTabPointerDrag({
     const drag = pointerDragRef.current;
     if (!drag || e.pointerId !== drag.pointerId) return;
     const resourceTarget = drag.started ? resourceDropTarget(drag.subject, e.clientX, e.clientY) : null;
+    // Where the carried window was let go: a merge grows it into its pane.
+    const previewRect = drag.previewState === "window" ? drag.previewShot?.getBoundingClientRect() ?? null : null;
     pointerDragRef.current = null;
     drag.teardown();
     if (!drag.started) return; // plain click — the once-pointerup listener releases the token
@@ -764,14 +781,21 @@ export function useTabPointerDrag({
     }
     const canvasDrop = resourceTarget ? null : overviewDropAt(e.clientX, e.clientY);
     if (canvasDrop) {
-      restorePointerDragElement(drag.element, false);
-      holdOverviewLanding(canvasDrop);
+      // The slot stays closed while the drop commits: a merged tab leaves
+      // the strip, and reopening first would flash its slot back for the
+      // frames until the store update lands. A tab still in the strip
+      // afterwards (dropped on empty space, or a failed drop) reopens.
+      const element = drag.element;
+      const reopen = () => requestAnimationFrame(() => reopenSlot(element));
+      restorePointerDragElement(element, false, true);
+      holdOverviewLanding(canvasDrop, previewRect);
       const committed = dragCoordinator.commit();
       clearDragState();
-      if (!committed) { closeOverview(); return; }
+      if (!committed) { closeOverview(); reopen(); return; }
       void (async () => {
-        if (committed.transferToken && !await desktopBridge()?.tabTransfer.cancel(committed.transferToken)) { closeOverview(); return; }
+        if (committed.transferToken && !await desktopBridge()?.tabTransfer.cancel(committed.transferToken)) { closeOverview(); reopen(); return; }
         commitCanvasDrop(canvasDrop, committed.subject.tabIds);
+        reopen(); // after the commit's render: only a tab still in the strip has a slot
       })();
       return;
     }
@@ -805,13 +829,17 @@ export function useTabPointerDrag({
     // is decided by a fresh windowAtCursor at release, not by that stale flag:
     // dragging over a window and then away must NOT merge.
     if (drag.detaching || drag.overWindow) {
-      restorePointerDragElement(drag.element, true);
+      // The slot stays closed while the tab leaves for another window; it
+      // reopens only if the move ends up cancelled.
+      const element = drag.element;
+      const reopen = () => reopenSlot(element);
+      restorePointerDragElement(element, true, true);
       const token = prepared.transferToken;
       const bridge = desktopBridge();
       const wantsDetach = drag.detaching; // geometric tear-off intent at release
       dragCoordinator.clear(); // main / the destination owns the token now
       clearDragState();
-      if (!bridge || !token) return;
+      if (!bridge || !token) { reopen(); return; }
       void (async () => {
         try {
           // Live hit test at the instant of release — the single source of
@@ -830,17 +858,24 @@ export function useTabPointerDrag({
           // (or a solo window) just releases the token and snaps back.
           if (!wantsDetach) {
             void bridge.tabTransfer.cancel?.(token);
+            reopen();
             setDragAnnouncement(text("Tab move cancelled", "标签移动已取消"));
             return;
           }
           const detachedWindowId = await bridge.tabTransfer.detach(token);
+          if (!detachedWindowId) reopen();
           setDragAnnouncement(
             detachedWindowId
               ? text("Tab moved to new window", "标签已移至新窗口")
               : text("Tab move cancelled", "标签移动已取消"),
           );
         } catch {
+          reopen();
           setDragAnnouncement(text("Tab move cancelled", "标签移动已取消"));
+        } finally {
+          // A tab that moved away is gone from this strip by now; one that
+          // is somehow still here must not keep a closed slot.
+          window.setTimeout(() => { if (element.isConnected) reopen(); }, 1500);
         }
       })();
       return;
