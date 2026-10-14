@@ -59,12 +59,10 @@ const SHAPES: Record<string, React.ReactNode> = {
   llm: <polygon points="7.5,2 12.5,12 2.5,12" fill="none" stroke={STROKE} strokeWidth="1.6" />,
   tool: <rect x="2.5" y="2.5" width="10" height="10" fill="none" stroke={STROKE} strokeWidth="1.6" />,
   ghost: <circle cx="7.5" cy="7.5" r="5" fill="none" stroke={GHOST} strokeWidth="1.4" />,
-  covered: (
-    <>
-      <circle cx="7.5" cy="7.5" r="5" fill="none" stroke={STROKE} strokeWidth="1.6" />
-      <circle cx="7.5" cy="7.5" r="2" fill="#fff" stroke="#9a9890" strokeWidth=".8" />
-    </>
-  ),
+  // The coverage fill `render/visibility.ts` paints: a wash of the
+  // branch colour on light canvases, the brightest ink on dark ones.
+  covered: <circle cx="7.5" cy="7.5" r="5" stroke={STROKE} strokeWidth="1.6"
+    fill={`light-dark(color-mix(in srgb, ${STROKE} 30%, var(--bg-primary)), var(--text-bright, #ffffff))`} />,
 };
 
 function LegendRow({ shape, label }: { shape: React.ReactNode; label: string }) {

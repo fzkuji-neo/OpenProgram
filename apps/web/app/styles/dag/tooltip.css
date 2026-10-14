@@ -126,9 +126,13 @@
   line-height: 1.5;
   padding: 1px 0;
 }
+/* One key column for every row: a key wider than a min-width pushed
+   its own value right, so the values stopped lining up. */
 .history-tooltip-kv-key {
   color: var(--text-muted);
-  min-width: 54px;
+  flex: none;
+  width: 84px;
+  overflow-wrap: anywhere;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: 10px;

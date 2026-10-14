@@ -45,12 +45,17 @@ export function _applyVisibility(nodeEl: Element, visible: boolean): void {
     // buries the centre-to-centre edge ends inside the outline
     // (shapes.ts) — transparent would show a phantom dot of line cap
     // at the glyph's centre.
-    // Filled = the theme's brightest ink (--text-bright): near-white on
-    // dark canvases, near-black on light ones. A hardcoded #ffffff was
-    // exactly light themes' --bg-primary, so both states painted alike.
+    // Filled: on a dark canvas the theme's brightest ink, near-white.
+    // On a light canvas that ink is near-black, and a column of black
+    // glyphs read as heavy blots — so light themes fill with a pale
+    // wash of the node's own branch colour instead, which still parts
+    // clearly from the hollow canvas fill.
+    const lane = shape.getAttribute("data-base-stroke") || "var(--text-muted)";
     shape.setAttribute(
       "fill",
-      visible ? "var(--text-bright, #ffffff)" : "var(--bg-primary, #191918)");
+      visible
+        ? `light-dark(color-mix(in srgb, ${lane} 30%, var(--bg-primary)), var(--text-bright, #ffffff))`
+        : "var(--bg-primary, #191918)");
   }
 }
 

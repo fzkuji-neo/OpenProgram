@@ -89,6 +89,14 @@ and zoom live in `apps/web/lib/runtime-bridge/dag/store/globals.ts` keyed by ses
 different session re-fits. Resizing the pane never re-fits — the user's angle on
 the graph is theirs to keep.
 
+**Arriving opens readable; the Fit button shows everything.** The opening view
+is the fit, floored at 80%: a long session fitted whole shrank to a hairline
+column of specks (a 40-turn chat opened at 37%). When the graph is larger than
+the strip at that floor, the overflowing axis follows HEAD — near the bottom of
+the strip, the way a transcript opens on its latest message. The HUD's Fit
+button keeps the plain fit down to 25%: asking to see everything is a request
+for exactly that (`fitCanvas(opening)` in `apps/web/lib/runtime-bridge/dag/interaction/canvas.ts`).
+
 **HUD.** At the composer's TOP-RIGHT — the right end of its env-chip row: a
 fit button, a zoom cluster, and the legend popover, portaled into the
 composer's `#dagHudSlot` (`dag-view.tsx`) so they ride the composer wherever
@@ -320,7 +328,7 @@ is conveyed only by line style:
 |---|---|---|---|
 | same-branch parent→child | solid | this branch's color | shown |
 | retry fork bridge (origin → the branch lane's spine top, shared row) | dashed `6 4` horizontal; an elbow only when rows diverged | branch's color | shown |
-| call thread (anchor → its items, §12) | solid — the trunk pattern one level down: a vertical in the anchor's column, a horizontal stub per item (down first, then right, like every chain edge) | annotation grey | shown while open |
+| call thread (anchor → its items, §12) | solid, 1.4px — the trunk pattern one level down: a vertical in the anchor's column, a horizontal stub per item (down first, then right, like every chain edge) | anchor's branch color | shown while open |
 | merge convergence (peer tip → merge node) | thick solid 2.4px | peer branch's color | shown |
 | attach merge-back (source tip → embed position) | long dashes `4 4` | source branch's color | shown when both ends are visible — an agent-internal tip merged into its triangle draws no line; the spawn head's position ON the thread is the return relationship |
 | inter-branch communication (send_message) | dotted `1 5` | target branch's color | **shown only on hover** (numerous; always-on would smear) |
@@ -467,9 +475,16 @@ The backend `apps/server/openprogram_server/_webui/graph_builder.py` produces th
 annotation — **tier specifically in `graph_layout/tier.py`**. Verification tool: `python scripts/dag_dump.py <session_id>` prints
 lane/tier/depth + an ASCII grid.
 
-## 8. The white fill means context coverage
+## 8. The fill means context coverage
 
-A node's white fill marks it as **part of what the next LLM call will carry**.
+A node's fill marks it as **part of what the next LLM call will carry**. On a
+dark canvas the fill is the theme's brightest ink, near-white; on a light
+canvas that ink is near-black, and a column of black glyphs reads as heavy
+blots, so light themes fill with a 30% wash of the node's own branch colour
+over the canvas (`light-dark()` in `apps/web/lib/runtime-bridge/dag/render/visibility.ts`;
+the legend swatch uses the same expression). Either way it parts from the
+hollow glyph, which is filled with the canvas colour. "White fill" below means
+this fill.
 There is no mode to choose and no switch to find: whenever the graph is
 showing, it owns its pane. A lone session tab gets the chat shell plus this
 graph; two session tabs split into two `PeerSessionPane`s where the shell — and
@@ -478,7 +493,14 @@ beside the graph, "which bubbles are on screen" has no reading to give, and
 coverage is simply what the fill means.
 
 The covered set is served by `GET /api/sessions/{id}/context-range`: the active
-branch walked back from head, stopping at the most recent compaction summary.
+branch walked back from head, stopping at the most recent compaction summary,
+plus the calls each covered turn made. The predecessor walk sees turns only —
+a call hangs off its reply by `caller` — so the route adds the code nodes
+`render_context` reads whose conversation owner is in the set, each listed
+right after its owner (`_with_code_nodes` in
+`apps/server/openprogram_server/_webui/routes/files/tree.py`). Without them every
+opened call drew as outside the next request, and `aged`, a code-node fact,
+could never be set.
 Nodes outside it draw dimmed. `enterExclusiveCoverageMode`
 (`apps/web/lib/runtime-bridge/dag/index.ts`) is what the host calls to fetch and
 apply it.
@@ -670,10 +692,15 @@ just triggered.
 
 **Hover → the brief card.** The quick cut: role (a spawn head titles itself
 `Subagent · <name>` — this is where the name lives, §12), model/tokens, a
-short content preview, folded call count. The token figure is
+short content preview, folded call count, and a status row when the node is
+running, cancelled or failed (a finished node's status is the default and gets
+no row). The token figure is
 `llm.output_tokens` when the node carries a measurement and `chars/4` when it
-does not; the card says which (`tokens` vs `tokens (estimated)`). Appears after a
-short hover delay, gone when the cursor leaves.
+does not; the card says which (`tokens` vs `tokens (estimated)`), and a node
+with no text gets no estimate at all. Keys share one fixed column, so the
+values line up. Appears after a short hover delay, gone when the cursor leaves.
+The expanded card shows the node's whole id: derived ids (`<reply>_t_<call>`)
+share their first dozen characters.
 
 **Click → the node's own action.** Fold or unfold its call thread (§12).
 Nothing else — no window competes with the expansion. The right rail's
@@ -732,7 +759,7 @@ a phantom node is exactly the misreading the fold must not invite. No thread
 line, no items, nothing else.
 
 **Open is open.** Clicking the node inserts the thread into the layout: a
-solid annotation-grey line drops the anchor's own column and every event
+solid line in the anchor's branch colour drops the anchor's own column and every event
 hangs off it on a horizontal stub — down first, then right, the trunk
 pattern one level down. Every event is a real node on that line — a square per call
 in the anchor's lane colour — spawned agents included — one row

@@ -55,6 +55,13 @@ function coverageText(el: Element): string {
   return translateText("✓ in coverage", "✓ 在覆盖内");
 }
 
+const STATUS_TEXT: Record<string, () => string> = {
+  running: () => translateText("running", "运行中"),
+  cancelled: () => translateText("cancelled", "已取消"),
+  error: () => translateText("failed", "失败"),
+  failed: () => translateText("failed", "失败"),
+};
+
 const kv = (key: string, value: string): TooltipRow =>
   ({ kind: "kv", key, value });
 const block = (key: string, value: string): TooltipRow =>
@@ -101,7 +108,9 @@ export function tooltipRows(
         tokensShown = true;
       }
     }
-    if (!tokensShown && node.display !== "root") {
+    // An estimate of nothing is not a number worth showing: a turn
+    // cancelled before it said anything would read "1 token".
+    if (!tokensShown && node.display !== "root" && bodyText(node).trim()) {
       const tokens = estimateTokens(node);
       rows.push(kv(
         tokens.exact ? "tokens" : translateText("tokens (est.)", "tokens（估）"),
@@ -129,6 +138,14 @@ export function tooltipRows(
     }
   }
 
+  // Only the states worth a second look get a row; a finished node's
+  // status is the default and says nothing.
+  const status = String(node.status || "");
+  if (status === "running" || status === "cancelled" || status === "error"
+      || status === "failed") {
+    rows.push(kv(translateText("status", "状态"), STATUS_TEXT[status]()));
+  }
+
   if (el) {
     const threadCount = el.getAttribute("data-thread");
     if (threadCount) {
@@ -151,7 +168,9 @@ export function tooltipRows(
     }
   }
   if (detail && node.display !== "root") {
-    rows.push(kv("id", String(node.id).slice(0, 12)));
+    // The whole id: the card is where it gets copied from, and the
+    // derived ids (``<reply>_t_<call>``) share their first dozen chars.
+    rows.push(kv("id", String(node.id)));
   }
   return rows;
 }
