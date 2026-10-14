@@ -54,3 +54,9 @@ test("A tab on a management page wears that page's rail icon", () => {
 test("The transcript fades out under the pane's top edge", () => {
   assert.match(read("app/styles/chat/transcript.css"), /\.chat-area \{[^}]*mask-image: linear-gradient\(to bottom, transparent 0, #000 28px\);/);
 });
+
+test("A reply's first and last blocks bring no outer margin", () => {
+  const css = read("app/styles/chat/bubbles.css");
+  assert.match(css, /\.message-content \.md-rendered > :first-child \{ margin-top: 0; \}/);
+  assert.match(css, /\.message-content \.md-rendered > :last-child \{ margin-bottom: 0; \}/);
+});

@@ -400,6 +400,11 @@
 .md-code-copy.copied .md-code-icon-done { display: inline; }
 .message-content p { margin: 0 0 12px; }
 .message-content p:last-child { margin-bottom: 0; }
+/* A reply's spacing comes from what sits around it (the execution strip,
+   the footer), so its first and last blocks — a code card, a heading, a
+   table — bring no outer margin of their own, just as a paragraph doesn't. */
+.message-content .md-rendered > :first-child { margin-top: 0; }
+.message-content .md-rendered > :last-child { margin-bottom: 0; }
 .message-content ul, .message-content ol { margin: 8px 0; padding-left: 20px; }
 /* Tailwind preflight strips list markers; chat markdown needs them back. */
 .message-content ul { list-style: disc; }
