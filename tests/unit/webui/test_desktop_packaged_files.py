@@ -83,3 +83,12 @@ def test_refresh_script_rejects_stale_checkout_for_default_app():
     assert "refusing to refresh the default App" in refresh
     assert "behind $protected_ref" in refresh
     assert 'test -n "$desktop_file" || continue' in refresh
+
+
+def test_refresh_script_replaces_the_archive_by_rename():
+    """An App launched mid-refresh must never read a half-copied app.asar."""
+    refresh = (DESKTOP.parents[1] / "scripts" / "refresh-local-app.sh").read_text(
+        encoding="utf-8"
+    )
+    assert 'cp "$desktop_asar" "$installed_asar"\n' not in refresh
+    assert 'cp "$desktop_asar" "$installed_asar.incoming"\nmv -f "$installed_asar.incoming" "$installed_asar"' in refresh
