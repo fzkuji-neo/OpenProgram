@@ -55,7 +55,7 @@ export function AttachmentPreview({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="attach-preview-head">
-          <span className="attach-preview-name" title={path}>
+          <span className="attach-preview-name">
             {filename}
           </span>
           <a

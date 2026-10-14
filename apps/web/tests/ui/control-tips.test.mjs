@@ -40,7 +40,7 @@ test("the model menu names providers as Settings does", () => {
 
 test("a control's native title becomes the app's tip", () => {
   const tips = read("components/control-tips.tsx");
-  assert.match(tips, /const CONTROL = ":is\(button, a\[href\], \[role=button\], \[role=tab\], \[role=menuitem\], \[role=switch\], summary\):is\(\[title\], \[data-tip\]\)";/, "controls only, never text");
+  assert.match(tips, /const CONTROL = ":is\(button, a\[href\], \[role=button\], \[role=tab\], \[role=menuitem\], \[role=switch\], summary\):is\(\[title\], \[data-tip\]\), \[data-tip\]";/, "controls and explicit marks only, never text");
   assert.match(tips, /el\.dataset\.tip = title;\n\s+el\.removeAttribute\("title"\);/, "the system tip never comes up");
 });
 
@@ -70,4 +70,35 @@ test("Applications wear the glyph their manifest names", () => {
   const picker = read("components/center-tabs/split-view-picker.tsx");
   assert.match(picker, /tab\.kind === "application"\) return <ApplicationTabGlyph/);
   assert.match(picker, /tab\.kind === "application"\) return text\("Application", "应用"\)/);
+});
+
+test("No element outside a control carries a native title", async () => {
+  const { createRequire } = await import("node:module");
+  const { readdirSync, statSync } = await import("node:fs");
+  const ts = createRequire(import.meta.url)("typescript");
+  const { fileURLToPath } = await import("node:url");
+  const root = fileURLToPath(new URL("../../", import.meta.url));
+  const controls = new Set(["button", "a", "summary", "input", "select", "textarea", "iframe"]);
+  const found = [];
+  const walk = dir => {
+    for (const name of readdirSync(dir)) {
+      const path = dir + (dir.endsWith("/") ? "" : "/") + name;
+      if (statSync(path).isDirectory()) walk(path);
+      else if (path.endsWith(".tsx")) {
+        const sf = ts.createSourceFile(path, readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+        const visit = node => {
+          if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && /^[a-z]/.test(node.tagName.getText(sf)) && !controls.has(node.tagName.getText(sf))) {
+            const attrs = node.attributes.properties.filter(ts.isJsxAttribute);
+            const role = attrs.find(a => a.name.getText(sf) === "role")?.initializer?.getText(sf) ?? "";
+            if (attrs.some(a => a.name.getText(sf) === "title") && !/button|tab|menuitem|switch/.test(role)) found.push(`${path.slice(root.length)}:${sf.getLineAndCharacterOfPosition(node.getStart()).line + 1}`);
+          }
+          ts.forEachChild(node, visit);
+        };
+        visit(sf);
+      }
+    }
+  };
+  walk(root + "components");
+  walk(root + "app");
+  assert.deepEqual(found, []);
 });

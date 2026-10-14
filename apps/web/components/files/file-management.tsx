@@ -251,7 +251,7 @@ export function FolderSize({ projectId, path }: { projectId: string; path: strin
 function VisibleFolderSize({ projectId, path }: { projectId: string; path: string }) {
   const { text } = useTranslation();
   const { value } = useFolderSize(projectId, path, true);
-  return <span className={value.state === "scanning" && value.bytes != null ? styles.folderSizeScanning : undefined} title={value.error ?? text("Approximate logical size. Open details to calculate or continue.", "文件逻辑大小估计。打开详情可计算或继续统计。")}>{value.bytes == null ? "" : formatFileBytes(value.bytes)}</span>;
+  return <span className={value.state === "scanning" && value.bytes != null ? styles.folderSizeScanning : undefined} data-tip={value.error ?? text("Approximate logical size. Open details to calculate or continue.", "文件逻辑大小估计。打开详情可计算或继续统计。")}>{value.bytes == null ? "" : formatFileBytes(value.bytes)}</span>;
 }
 interface FileInfo { type: string; name: string; absolute_path: string; size: number | null; mtime: number; created_at: number | null; permissions: string; link_target?: string; link_status?: string; error?: string }
 export function FileDetails({ projectId, path, onClose, inline = false }: { projectId: string; path: string; onClose: () => void; inline?: boolean }) {

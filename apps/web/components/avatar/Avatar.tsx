@@ -54,8 +54,6 @@ export interface AvatarProps {
   /** Forwarded to the outer element so callers can layer their own
    *  class (e.g. CSS-module ``avatar`` for border / hover). */
   className?: string;
-  /** Optional title for hover tooltip. */
-  title?: string;
   /** Corner radius in px. Defaults to a full circle (9999). Pass a
    *  smaller value for a rounded-square avatar (e.g. message avatars). */
   radius?: number;
@@ -127,7 +125,6 @@ export function Avatar({
   name,
   config,
   className,
-  title,
   radius = 9999,
 }: AvatarProps) {
   const kind: AvatarKind = config?.kind ?? "dicebear";
@@ -239,7 +236,6 @@ export function Avatar({
       <img
         src={config.file}
         alt={name}
-        title={title}
         className={className}
         style={{ ...sharedStyle, objectFit: "cover" }}
       />
@@ -250,7 +246,6 @@ export function Avatar({
     const letter = (config?.letter || _initialFor(name)).slice(0, 2);
     return (
       <span
-        title={title}
         className={className}
         style={{
           ...sharedStyle,
@@ -274,7 +269,6 @@ export function Avatar({
   // the markup comes from @dicebear, which does its own escaping.
   return (
     <span
-      title={title}
       className={className}
       style={sharedStyle}
       dangerouslySetInnerHTML={{ __html: svg ?? "" }}

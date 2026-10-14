@@ -231,7 +231,7 @@ export const Sidebar = memo(function Sidebar() {
       {open && (
         <div
           {...resizeHandleProps}
-          title={text("Resize sidebar", "调整侧边栏宽度")}
+          aria-label={text("Resize sidebar", "调整侧边栏宽度")}
         />
       )}
       <div className="rail-content">

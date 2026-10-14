@@ -768,14 +768,12 @@ export function WebTabPip() {
       >
         <span
           className={cn(styles.webPipTitle, "truncate text-sm font-medium text-foreground")}
-          title={`${title}${statusText || modeLabel ? ` · ${statusText || modeLabel}` : ""}`}
         >
           {title}
         </span>
         {stateText || modeLabel ? (
           <small
             className={cn(styles.webPipMode, "truncate text-xs text-muted-foreground")}
-            title={statusText || stateText}
             aria-label={stateText || modeLabel}
           >
             {[stateText, modeLabel].filter(Boolean).join(" · ")}

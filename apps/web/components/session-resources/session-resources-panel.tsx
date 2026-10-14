@@ -158,8 +158,7 @@ function SessionResourceList({ sessionId }: { sessionId: string | null }) {
           });
         };
         return <div key={group.key} className={`group/sec ${styles.groupBlock}`}
-          data-resource-group={group.key}
-          title={group.title}>
+          data-resource-group={group.key}>
         <SectionHeader
           name={group.title}
           className={styles.sectionHeader}

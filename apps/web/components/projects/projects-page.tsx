@@ -259,7 +259,7 @@ export function ProjectsPage({
                   <span className={styles.detailIcon} aria-hidden="true">{selected.icon || <FoldersIcon size={20} />}</span>
                   <div className={styles.detailHeading}>
                     <h2 className={styles.detailTitle}>{selected.name}</h2>
-                    <span className={styles.detailPath} title={selected.path}>{selected.path}</span>
+                    <span className={styles.detailPath}>{selected.path}</span>
                   </div>
                   {selected.hidden&&<Button variant="outline" onClick={async()=>{try{const result=await wsRequest<{ok:boolean;error?:string}>("restore_project",{project_id:selected.id},"restore_project_result");if(!result?.ok)throw new Error(result?.error||text("Could not restore project", "无法恢复项目"));await refresh();window.dispatchEvent(new Event("project-changed"));}catch(err){setError(err instanceof Error?err.message:String(err));}}}>{text("Restore to sidebar", "恢复到侧边栏")}</Button>}
                   <Button variant="outline" onClick={()=>setEditing(true)}>{text("Edit project", "编辑项目")}</Button>

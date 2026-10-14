@@ -217,7 +217,7 @@ export function RightSidebar() {
       {open && (
         <div
           {...resizeHandleProps}
-          title={t("right.resize_panel")}
+          aria-label={t("right.resize_panel")}
         />
       )}
       <div className="rail-content">

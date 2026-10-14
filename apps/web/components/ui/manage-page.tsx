@@ -362,7 +362,6 @@ export function ManageRow({
   count,
   actions,
   onClick,
-  title,
   className,
 }: {
   icon?: ReactNode;
@@ -372,7 +371,6 @@ export function ManageRow({
   count?: ReactNode;
   actions?: ReactNode;
   onClick?: () => void;
-  title?: string;
   className?: string;
 }) {
   const content = (
@@ -390,7 +388,6 @@ export function ManageRow({
   );
   return (
     <div
-      title={title}
       className={cn(styles.row, !onClick && styles.rowStatic, className)}
     >
       {onClick ? (

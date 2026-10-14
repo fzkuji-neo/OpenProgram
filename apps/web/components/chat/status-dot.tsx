@@ -12,7 +12,7 @@ export function StatusDot({ status }: { status: "connecting" | "open" | "closed"
     <span
       className="inline-flex items-center gap-1 text-[10px]"
       style={{ color: "var(--text-muted)" }}
-      title={status}
+      data-tip={status}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
     </span>

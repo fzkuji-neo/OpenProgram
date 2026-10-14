@@ -208,19 +208,19 @@ function ModelRow({
 
   const caps: React.ReactNode[] = [];
   if (model.vision)
-    caps.push(<span key="v" className={styles.capBadge + " " + styles.vision} title={text("Vision", "视觉")}><Eye size={11} strokeWidth={1.8} /></span>);
+    caps.push(<span key="v" className={styles.capBadge + " " + styles.vision} data-tip={text("Vision", "视觉")}><Eye size={11} strokeWidth={1.8} /></span>);
   if (model.video)
-    caps.push(<span key="vid" className={styles.capBadge + " " + styles.video} title={text("Video", "视频")}><Video size={11} strokeWidth={1.8} /></span>);
+    caps.push(<span key="vid" className={styles.capBadge + " " + styles.video} data-tip={text("Video", "视频")}><Video size={11} strokeWidth={1.8} /></span>);
   if (model.audio)
-    caps.push(<span key="a" className={styles.capBadge} title={text("Audio", "音频")}><Headphones size={11} strokeWidth={1.8} /></span>);
+    caps.push(<span key="a" className={styles.capBadge} data-tip={text("Audio", "音频")}><Headphones size={11} strokeWidth={1.8} /></span>);
   if (model.tools)
-    caps.push(<span key="t" className={styles.capBadge + " " + styles.tools} title={text("Tools", "工具")}><Wrench size={11} strokeWidth={1.8} /></span>);
+    caps.push(<span key="t" className={styles.capBadge + " " + styles.tools} data-tip={text("Tools", "工具")}><Wrench size={11} strokeWidth={1.8} /></span>);
   if (model.reasoning)
-    caps.push(<span key="r" className={styles.capBadge + " " + styles.reasoning} title={text("Reasoning", "推理")}><Brain size={11} strokeWidth={1.8} /></span>);
+    caps.push(<span key="r" className={styles.capBadge + " " + styles.reasoning} data-tip={text("Reasoning", "推理")}><Brain size={11} strokeWidth={1.8} /></span>);
   if (model.structured_output)
-    caps.push(<span key="s" className={styles.capBadge} title={text("Structured output (JSON schema)", "结构化输出 (JSON schema)")}><Sliders size={11} strokeWidth={1.8} /></span>);
+    caps.push(<span key="s" className={styles.capBadge} data-tip={text("Structured output (JSON schema)", "结构化输出 (JSON schema)")}><Sliders size={11} strokeWidth={1.8} /></span>);
   if (model.attachment)
-    caps.push(<span key="att" className={styles.capBadge} title={text("File attachments", "文件附件")}><Paperclip size={11} strokeWidth={1.8} /></span>);
+    caps.push(<span key="att" className={styles.capBadge} data-tip={text("File attachments", "文件附件")}><Paperclip size={11} strokeWidth={1.8} /></span>);
   if (model.context_window)
     caps.push(<span key="c" className={styles.capBadge + " " + styles.ctx}>{formatCtx(model.context_window)}</span>);
 

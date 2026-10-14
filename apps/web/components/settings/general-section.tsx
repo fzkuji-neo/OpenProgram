@@ -405,7 +405,7 @@ function ApplicationSection() {
                 aria-valuemax={progress?.total}
                 aria-valuenow={progress?.downloaded}
                 aria-valuetext={progress ? statusText : undefined}
-                title={statusDetail}
+                data-tip={statusDetail}
               >
                 {statusText}
               </div>

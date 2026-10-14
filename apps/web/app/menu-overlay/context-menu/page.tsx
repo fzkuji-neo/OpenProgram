@@ -399,7 +399,6 @@ function ContextMenuOverlayPage() {
                 className={requestedWidth
                   ? "min-w-0 flex-1 truncate"
                   : "flex-1 whitespace-nowrap"}
-                title={item.label}
               >
                 {item.label}
               </span></>}

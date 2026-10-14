@@ -359,7 +359,6 @@ export function McpPage({
                     </>}
                     count={text(`${s.tool_count} ${s.tool_count === 1 ? "tool" : "tools"}`, `${s.tool_count} 个工具`)}
                     onClick={() => setSelected(s.name)}
-                    title={text("Open MCP server details", "打开 MCP 服务器详情")}
                     actions={<Switch
                       checked={s.enabled}
                       disabled={busy !== null}

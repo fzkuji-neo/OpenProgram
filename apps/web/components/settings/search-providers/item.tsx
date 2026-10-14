@@ -36,7 +36,7 @@ export function SearchProviderItem({
               ? styles.off
               : styles.unconfigured)
         }
-        title={
+        data-tip={
           p.available
             ? text("Available", "可用")
             : p.configured

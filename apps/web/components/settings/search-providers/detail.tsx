@@ -34,7 +34,7 @@ export function SearchProviderDetail({
           <div className={styles.detailTitle}>
             {provider.name}
             {provider.tier && (
-              <span className={styles.searchTierChip} title={text("Pricing / availability", "价格 / 可用性")}>
+              <span className={styles.searchTierChip} data-tip={text("Pricing / availability", "价格 / 可用性")}>
                 {provider.tier}
               </span>
             )}

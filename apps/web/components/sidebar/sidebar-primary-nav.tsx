@@ -195,7 +195,7 @@ export function SidebarPrimaryNav() {
         event.stopPropagation();
         doRefresh();
       }}
-      title={t("sidebar.refresh")}
+      data-tip={t("sidebar.refresh")}
       aria-label={t("sidebar.refresh")}
     >
       {refreshDone ? (

@@ -122,7 +122,7 @@ export function ApplicationsPage() {
                     {!application.enabled && <span className={`${shared.badge} ${shared.badgeYellow}`}>{text("Disabled", "已禁用")}</span>}
                   </div>
                   <p className={styles.appMeta}>{application.id}</p>
-                  <p className={styles.source} title={application.source}>{text(`Source: ${application.source}`, `来源：${application.source}`)}</p>
+                  <p className={styles.source}>{text(`Source: ${application.source}`, `来源：${application.source}`)}</p>
                   <div className={styles.toggles}>
                     <label><Switch className={styles.switch} checked={application.enabled} disabled={busy} aria-label={text("Enabled", "已启用")} onCheckedChange={checked => update(application, { enabled: checked })} /><span aria-hidden>{text("Enabled", "已启用")}</span></label>
                     <label><Switch className={styles.switch} checked={!application.hidden} disabled={busy} aria-label={text("Show in new tab", "在新标签页显示")} onCheckedChange={checked => update(application, { hidden: !checked })} /><span aria-hidden>{text("Show in new tab", "在新标签页显示")}</span></label>

@@ -253,7 +253,6 @@ export function ProjectMenu({
         </div>
         <div
           className="px-[10px] pb-[4px] pt-[1px] text-[12px] text-[var(--text-secondary)]"
-          title={activeProject?.path || ""}
         >
           <div className="truncate">{activeProject?.name ?? "—"}</div>
           {activeProject?.path ? (
@@ -335,7 +334,7 @@ export function ProjectMenu({
           <div
             key={p.id}
             className={itemCls(false)}
-            title={
+            data-tip={
               unavailable
                 ? text(
                     "Folder unavailable — click to locate it",

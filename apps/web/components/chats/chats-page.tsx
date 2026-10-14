@@ -20,6 +20,7 @@ import styles from "./chats-page.module.css";
 import { SearchInput } from "@/components/ui/search-input";
 import { ManageEmptyState, ManageRow, managePageStyles as shared } from "@/components/ui/manage-page";
 import { useTranslation, type Locale } from "@/lib/i18n";
+import { parseAttachments } from "@/components/chat/messages/user-attachments";
 import { formatRelativeTime } from "@/lib/format-utils/format";
 import { pushPath } from "@/lib/shallow-nav";
 import { useSessionStore, type ConvSummary } from "@/lib/session-store";
@@ -31,6 +32,7 @@ import {
   bucketKey,
   bucketLabel,
   bucketSortKey,
+  displayTitle,
   labelFor,
 } from "@/components/sidebar/sessions-list/helpers";
 import {
@@ -318,6 +320,10 @@ function ChatRow({
   // Same label the sidebar renders: channel brand prefix, placeholder
   // titles resolved to the preview, "[attached: …]" markers stripped.
   const title = labelFor(conv, untitled);
+  // The second line is the latest question asked, so a row says what the
+  // chat is about now. An untitled chat already shows it as its name.
+  const latest = displayTitle(conv) && conv.preview ? parseAttachments(String(conv.preview)) : null;
+  const asked = latest ? latest.text.trim() || latest.attachments[0]?.filename || "" : "";
   // Shared management row: a real <button> to open, same anatomy as the
   // Projects > Chats list. The count slot is last activity — the same
   // timestamp the list sorts and buckets by, so the row's own time can't
@@ -326,9 +332,8 @@ function ChatRow({
     <ManageRow
       icon={<MessageCircleIcon size={16} />}
       name={title}
-      description={conv.id.slice(0, 12)}
+      description={asked || undefined}
       count={formatRelativeTime(activityTs(conv), locale)}
-      title={String(conv.id)}
       onClick={onClick}
     />
   );

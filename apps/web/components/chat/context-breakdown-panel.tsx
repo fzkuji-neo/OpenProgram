@@ -122,7 +122,7 @@ function SummaryBar({
           }}
           onPointerEnter={() => onHover(segment.index)}
           onPointerLeave={() => onHover(null)}
-          title={`${segment.label}: ${fmt(segment.tokens)}`}
+          data-tip={`${segment.label}: ${fmt(segment.tokens)}`}
         />
       ))}
       {window > 0 && free > 0 && (
@@ -139,7 +139,7 @@ function SummaryBar({
           }}
           onPointerEnter={() => onHover(rows.length)}
           onPointerLeave={() => onHover(null)}
-          title={`${freeLabel}: ${fmt(free)}`}
+          data-tip={`${freeLabel}: ${fmt(free)}`}
         />
       )}
     </div>
@@ -400,7 +400,7 @@ export function ContextBreakdownPanel({ sessionId, headId }: Props) {
               {rows.map((r, index) => (
                 <div
                   key={r.label}
-                  title={index === rows.length - 1 ? text(
+                  data-tip={index === rows.length - 1 ? text(
                     "The difference between the total input usage and locally classified estimates. It can change after a request or compaction.",
                     "总输入用量与本地分类估算之和的差额。请求完成或压缩后，这个差额可能变化。",
                   ) : undefined}

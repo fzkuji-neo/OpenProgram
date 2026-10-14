@@ -856,7 +856,7 @@ function StatusMarker({
       <span
         className="flex w-[14px] shrink-0 items-center justify-center gap-[2px]"
         aria-label={labels.working}
-        title={labels.working}
+        data-tip={labels.working}
       >
         {[0, 1, 2].map((i) => (
           <span
@@ -874,7 +874,7 @@ function StatusMarker({
       <span
         className="block size-[7px] shrink-0 rounded-full bg-[#ffd014]"
         aria-label={labels.needsInput}
-        title={labels.needsInput}
+        data-tip={labels.needsInput}
       />
     );
   }
@@ -884,7 +884,7 @@ function StatusMarker({
       <span
         className="block size-[7px] shrink-0 rounded-full bg-[#5aa6f2]"
         aria-label={labels.unread}
-        title={labels.unread}
+        data-tip={labels.unread}
       />
     );
   }

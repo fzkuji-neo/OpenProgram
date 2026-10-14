@@ -10,7 +10,7 @@ export function ProviderIcon({ id, size = 24 }: { id: string; size?: number }) {
   if (icon) {
     const url = `/images/providers/${icon.file}`;
     return (
-      <span className={styles.providerIcon} style={dimensions} title={id} aria-hidden="true">
+      <span className={styles.providerIcon} style={dimensions} aria-hidden="true">
         {icon.mono ? (
           <span style={{
             width: "100%", height: "100%", backgroundColor: "var(--text-primary)",
@@ -26,7 +26,7 @@ export function ProviderIcon({ id, size = 24 }: { id: string; size?: number }) {
     );
   }
   return (
-    <span className={styles.providerIconLetter} style={dimensions} title={id}>
+    <span className={styles.providerIconLetter} style={dimensions}>
       {(id[0] || "?").toUpperCase()}
     </span>
   );

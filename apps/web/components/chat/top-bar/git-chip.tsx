@@ -388,7 +388,7 @@ export function GitChip({
           {changes.files ? (
             <div
               className={itemCls(false)}
-              title={sessionId ? undefined : text("Send a message first to review changes.", "发送消息后才能审阅修改。")}
+              data-tip={sessionId ? undefined : text("Send a message first to review changes.", "发送消息后才能审阅修改。")}
               onClick={() => sessionId && (openReviewTab(sessionId, undefined, "workspace"), setOpen(false))}
             >
               <SolarIcon name="file-text" size={14} className="opacity-70" />
@@ -415,7 +415,7 @@ export function GitChip({
           <div className={GROUP_LABEL}>
             <span className="min-w-0 flex-1 truncate">{text("Branch", "分支")}</span>
             {mode === "worktree" ? (
-              <span className="shrink-0" title={text("This folder has uncommitted changes, so a branch opens in a new folder beside the repository; nothing here moves.", "这里有未提交的修改，所以分支会在仓库旁边的新目录里打开，这个目录的文件保持不动。")}>
+              <span className="shrink-0" data-tip={text("This folder has uncommitted changes, so a branch opens in a new folder beside the repository; nothing here moves.", "这里有未提交的修改，所以分支会在仓库旁边的新目录里打开，这个目录的文件保持不动。")}>
                 {text("opens in a new worktree", "在新 worktree 里打开")}
               </span>
             ) : null}
@@ -457,7 +457,7 @@ export function GitChip({
                 <div
                   key={b}
                   className={cn(itemCls(false), current && "cursor-default")}
-                  title={hint}
+                  data-tip={hint}
                   onClick={() => {
                     if (busy || current) return;
                     if (elsewhere) void moveToFolder(elsewhere.path);
@@ -486,7 +486,7 @@ export function GitChip({
 
           <div className={MENU_SEPARATOR} />
           {openPr ? (
-            <div className={itemCls(false)} title={openPr.title} onClick={() => openUrl(openPr.url)}>
+            <div className={itemCls(false)} data-tip={openPr.title} onClick={() => openUrl(openPr.url)}>
               <SolarIcon name="square-arrow-right-up" size={14} className="opacity-70" />
               <span className="min-w-0 flex-1 truncate">
                 {text(`View pull request #${openPr.number ?? ""}`, `查看 PR #${openPr.number ?? ""}`)}
@@ -495,7 +495,7 @@ export function GitChip({
           ) : (
             <div
               className={cn(itemCls(false), prBlocked && "pointer-events-auto cursor-default opacity-50")}
-              title={prBlocked ?? text("Pushes this branch and opens a PR from its commits.", "推送当前分支，并用它的提交创建 PR。")}
+              data-tip={prBlocked ?? text("Pushes this branch and opens a PR from its commits.", "推送当前分支，并用它的提交创建 PR。")}
               onClick={() => !prBlocked && !busy && void createPr()}
             >
               <SolarIcon name="git-pull-request" size={14} className="opacity-70" />

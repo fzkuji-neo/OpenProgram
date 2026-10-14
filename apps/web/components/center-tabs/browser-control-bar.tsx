@@ -194,7 +194,7 @@ export function BrowserControlBar({
 
   const actions = (
     <>
-      <span className={styles.browserControlStatus} title={shownStatus}>{shownStatus}</span>
+      <span className={styles.browserControlStatus}>{shownStatus}</span>
       {noticeOpen && noticeText ? (
         <span className={styles.browserControlNotice} role="status">
           {noticeText}

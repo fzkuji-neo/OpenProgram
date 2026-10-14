@@ -103,7 +103,7 @@ export const Connectivity = forwardRef<ConnectivityHandle, { providerId: string;
                 : styles.info
               )
             }
-            title={result.title}
+            data-tip={result.title}
             style={{ maxWidth: 480, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
           >
             {result.text}

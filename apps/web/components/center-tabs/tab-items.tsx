@@ -326,7 +326,7 @@ export function TabItem({
         if (closing) onExited(tab);
         else setEntering(false);
       }}
-      title={tab.kind === "file" ? tab.path : tab.kind === "web" ? tab.url : label}
+      data-tip={tab.kind === "file" ? tab.path : tab.kind === "web" ? tab.url : label}
       onClick={() => onActivate(tab)}
       onMouseEnter={() => iconRef.current?.startAnimation?.()}
       onMouseLeave={() => iconRef.current?.stopAnimation?.()}

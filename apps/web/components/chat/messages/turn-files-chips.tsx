@@ -408,7 +408,6 @@ export function TurnFilesChips({
           ) : historyNotice ? (
             <span
               className="turn-files-history-notice"
-              title={historyNotice}
               role="status"
             >
               {historyNotice}
