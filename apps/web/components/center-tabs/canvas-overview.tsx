@@ -356,17 +356,17 @@ export function CanvasOverview() {
     const source = pane ?? e.currentTarget.querySelector<HTMLElement>("[data-overview-mini]");
     if (!ids.length || !source) return;
     const pointerId = e.pointerId, start = { x: e.clientX, y: e.clientY };
-    let ghost: HTMLElement | null = null, grab = { x: 0, y: 0 }, k = 1;
-    const follow = (x: number, y: number) => { if (ghost) ghost.style.transform = `translate(${x - grab.x}px, ${y - grab.y}px) scale(${k})`; };
+    let ghost: HTMLElement | null = null, grab = { x: 0, y: 0 };
+    const follow = (x: number, y: number) => { if (ghost) ghost.style.transform = `translate(${x - grab.x}px, ${y - grab.y}px)`; };
     const move = (ev: PointerEvent) => {
       if (ev.pointerId !== pointerId) return;
       if (!ghost) {
         if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 6) return;
         pickedUp.current = true;
-        // The card itself, smaller, under the pointer where it was held.
+        // The card itself, at its own size as in Mission Control, under
+        // the pointer where it was held.
         const r = source.getBoundingClientRect();
-        k = Math.min(1, 240 / r.width);
-        grab = { x: (start.x - r.left) * k, y: (start.y - r.top) * k };
+        grab = { x: start.x - r.left, y: start.y - r.top };
         ghost = source.cloneNode(true) as HTMLElement;
         for (const node of [ghost, ...ghost.querySelectorAll<HTMLElement>("*")]) {
           node.removeAttribute("data-overview-pane");
@@ -379,7 +379,7 @@ export function CanvasOverview() {
         openOverview("drag", ids);
       }
       follow(ev.clientX, ev.clientY);
-      overviewDropAt(ev.clientX, ev.clientY);
+      ghost.toggleAttribute("data-over", overviewDropAt(ev.clientX, ev.clientY)?.action === "dock");
     };
     const finish = (drop: CanvasDrop | null) => {
       window.removeEventListener("pointermove", move);

@@ -226,11 +226,16 @@ button.card:focus-visible .mini {
 .ghost {
   z-index: 100002;
   pointer-events: none;
-  transition: none !important;
+  transition: opacity 120ms ease !important;
   will-change: transform;
   transform-origin: 0 0;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.22);
   opacity: 0.94;
+}
+/* Full size, the card would hide the half it merges into: over a card it
+   lets that half show through. Only opacity eases, never the position. */
+.ghost[data-over] {
+  opacity: 0.55;
 }
