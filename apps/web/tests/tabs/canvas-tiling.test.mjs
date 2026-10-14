@@ -278,6 +278,10 @@ test('browsing the overview: empty space is inert and there is no hint', async (
 test('browsing, a card can be picked up and dropped like a dragged tab', async () => {
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.match(view, /onPointerDown=\{e => pickUp\(e, card\)\}/);
+  assert.match(view, /<motion\.button key=\{card\.key\}[\s\S]*?layout=\{!landing\}/, 'cards move to new places on a spring when the grid changes');
+  assert.match(view, /const REFLOW: Transition = \{ type: "spring"/);
+  const css = await read('components/center-tabs/canvas-overview.module.css');
+  assert.doesNotMatch(css, /cardIn/, 'no CSS entrance: a mode switch would replay it');
   assert.match(view, /const ids = pane\?\.dataset\.overviewPane \? \[pane\.dataset\.overviewPane\] : leaves\(card\.root\)/, 'a pane of a split card comes up alone, otherwise the whole window');
   assert.match(view, /openOverview\("drag", ids\);/, 'the pick turns the overview into a drag one');
   assert.match(view, /if \(drop\?\.action === "dock"\) \{ holdOverviewLanding\(drop, ids\); commitCanvasDrop\(drop, ids\); return; \}/, 'a merge lands as from the strip');
