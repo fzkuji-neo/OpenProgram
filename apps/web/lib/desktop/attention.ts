@@ -12,15 +12,17 @@ import { translateText } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";
 import { displayTitle } from "@/components/sidebar/sessions-list/helpers";
 
-export type AttentionKind = "done" | "failed" | "needs_input" | "system_access";
+export type AttentionKind = "done" | "failed" | "needs_input" | "system_access" | "report";
 
 export interface AttentionEvent {
   kind: AttentionKind;
   sessionId: string;
   /** Stable per occurrence: the same event replayed by another frame keeps its key. */
   key: string;
-  /** What the agent asked, for needs_input. */
+  /** What the agent asked, for needs_input; the report title, for report. */
   detail?: string;
+  /** Overrides the conversation title, e.g. the always-on Agent's name. */
+  title?: string;
 }
 
 const MAX_SEEN = 500;
@@ -45,6 +47,8 @@ function bodyFor(event: AttentionEvent): string {
     }
     case "system_access":
       return translateText("Waiting for system access", "等待系统权限");
+    case "report":
+      return (event.detail || "").trim() || translateText("New report", "新的报告");
   }
 }
 
@@ -56,7 +60,7 @@ export function reportAttention(event: AttentionEvent): void {
   seen.add(event.key);
   attention.notify({
     key: event.key,
-    title: sessionTitle(event.sessionId),
+    title: event.title || sessionTitle(event.sessionId),
     body: bodyFor(event),
     sessionId: event.sessionId,
   });

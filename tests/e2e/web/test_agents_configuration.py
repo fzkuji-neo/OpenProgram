@@ -257,7 +257,7 @@ def test_agents_keyboard_memory_and_responsive_layout(agents_browser, width):
 
     page = agents_browser(width)
     tabs = page.get_by_role('tablist', name='Agent configuration')
-    expect(tabs.get_by_role('tab')).to_have_count(7)
+    expect(tabs.get_by_role('tab')).to_have_count(8)
     overview = tabs.get_by_role('tab', name='General', exact=True)
     overview.focus()
     page.keyboard.press('End')

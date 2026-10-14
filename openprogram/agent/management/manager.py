@@ -9,6 +9,7 @@ shape, simplified — we keep:
 
   id, name, description, revision, default, model (provider+id), thinking_effort, system_prompt,
   skills {disabled: []}, tools {disabled: []}, identity {name, mention_patterns},
+  always_on {enabled, goal, wake_minutes, research, autonomy},
   created_at, updated_at.
 
 Anything else the UI wants to surface can be added to the dataclass
@@ -119,6 +120,44 @@ def validate_memory_config(raw: object, *, partial: bool = False) -> dict[str, A
     return out
 
 
+ALWAYS_ON_FIELDS = ("enabled", "goal", "wake_minutes", "research", "autonomy")
+ALWAYS_ON_GOAL_MAX = 4000
+ALWAYS_ON_WAKE_RANGE = (5, 10080)
+
+
+def validate_always_on(raw: object, *, partial: bool = False) -> dict[str, Any]:
+    """Validate the always-on section; partial patches are merged before use."""
+    if not isinstance(raw, dict):
+        raise ValueError("always_on must be an object")
+    if set(raw) - set(ALWAYS_ON_FIELDS):
+        raise ValueError("always_on contains unsupported fields")
+    out: dict[str, Any] = {} if partial else {
+        "enabled": False, "goal": "", "wake_minutes": 60,
+        "research": True, "autonomy": "report",
+    }
+    for key in ("enabled", "research"):
+        if key in raw:
+            if not isinstance(raw[key], bool):
+                raise ValueError(f"always_on.{key} must be a boolean")
+            out[key] = raw[key]
+    if "goal" in raw:
+        goal = raw["goal"]
+        if not isinstance(goal, str) or len(goal) > ALWAYS_ON_GOAL_MAX:
+            raise ValueError(f"always_on.goal must be text of at most {ALWAYS_ON_GOAL_MAX} characters")
+        out["goal"] = goal.strip()
+    if "wake_minutes" in raw:
+        minutes = raw["wake_minutes"]
+        low, high = ALWAYS_ON_WAKE_RANGE
+        if isinstance(minutes, bool) or not isinstance(minutes, int) or not low <= minutes <= high:
+            raise ValueError(f"always_on.wake_minutes must be between {low} and {high}")
+        out["wake_minutes"] = minutes
+    if "autonomy" in raw:
+        if raw["autonomy"] not in {"report", "act"}:
+            raise ValueError("always_on.autonomy must be report or act")
+        out["autonomy"] = raw["autonomy"]
+    return out
+
+
 @dataclass
 class AgentSpec:
     """One agent record. Serialises round-trip to ``agent.json``."""
@@ -165,6 +204,7 @@ class AgentSpec:
     revision: int = 1
     memory: dict[str, Any] = field(default_factory=lambda: validate_memory_config({}))
     memory_policy_epoch: int = 1
+    always_on: dict[str, Any] = field(default_factory=lambda: validate_always_on({}))
 
     def to_dict(self) -> dict[str, Any]:
         out = asdict(self)
@@ -188,6 +228,7 @@ class AgentSpec:
             revision=int(raw.get("revision") or 1),
             memory=memory,
             memory_policy_epoch=memory_epoch,
+            always_on=validate_always_on(raw.get("always_on") or {}),
             default=bool(raw.get("default") or False),
             model=AgentModelRef(
                 provider=str(model.get("provider") or ""),
@@ -547,6 +588,8 @@ def duplicate(agent_id: str, *, target_id: str = "", name: str = "") -> AgentSpe
             "created_at": now,
             "updated_at": now,
             "memory_policy_epoch": 1,
+            # A copy never starts waking on its own.
+            "always_on": {**(raw.get("always_on") or {}), "enabled": False},
         })
         spec = AgentSpec.from_dict(raw)
         folder = agent_dir(candidate)

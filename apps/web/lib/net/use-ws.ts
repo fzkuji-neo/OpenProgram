@@ -880,6 +880,29 @@ export function useWS(): void {
         case "sessions_list":
           handleSessionsList((d ?? []) as never);
           return true;
+        case "always_on_report": {
+          const report = d?.report as { id?: unknown; session_id?: unknown; title?: unknown } | undefined;
+          const sid = report?.session_id;
+          if (typeof sid === "string" && sid && typeof report?.id === "string") {
+            void import("@/lib/desktop/attention").then(({ reportAttention }) => reportAttention({
+              kind: "report", sessionId: sid, key: `always-on-report:${report.id}`,
+              title: typeof d?.agent_name === "string" ? d.agent_name : undefined,
+              detail: typeof report.title === "string" ? report.title : undefined,
+            }));
+          }
+          if (typeof d?.agent_id === "string") {
+            const agentId = d.agent_id;
+            void import("@/lib/agents/always-on").then(({ notifyAlwaysOnChanged }) => notifyAlwaysOnChanged(agentId));
+          }
+          return true;
+        }
+        case "always_on_update": {
+          if (typeof d?.agent_id === "string") {
+            const agentId = d.agent_id;
+            void import("@/lib/agents/always-on").then(({ notifyAlwaysOnChanged }) => notifyAlwaysOnChanged(agentId));
+          }
+          return true;
+        }
         case "todos_update": {
           const sid = d?.session_id;
           if (typeof sid === "string" && sid) {

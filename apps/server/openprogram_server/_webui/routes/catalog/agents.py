@@ -19,6 +19,7 @@ _SESSION_SCOPES = {
 _THINKING_EFFORTS = {"", "minimal", "low", "medium", "high", "xhigh", "max"}
 _DAILY_RESET = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 _PATCH_FIELDS = {
+    "always_on",
     "name",
     "description",
     "memory",
@@ -111,6 +112,9 @@ def _validated_patch(raw: object) -> dict[str, Any]:
     if "memory" in raw:
         from openprogram.agent.management.manager import validate_memory_config
         out["memory"] = validate_memory_config(raw["memory"], partial=True)
+    if "always_on" in raw:
+        from openprogram.agent.management.manager import validate_always_on
+        out["always_on"] = validate_always_on(raw["always_on"], partial=True)
     if "name" in raw:
         out["name"] = _short_text(raw["name"], "name", required=True, limit=80)
     if "description" in raw:
@@ -296,6 +300,41 @@ def register(app: FastAPI) -> None:
             path = root / name
             files.append({"name": name, "path": str(path), "exists": path.is_file()})
         return JSONResponse(content={"path": str(root), "files": files})
+
+    @app.get("/api/agents/{agent_id}/always-on")
+    def get_always_on(agent_id: str):
+        from openprogram.agent import always_on
+
+        try:
+            status = always_on.status(agent_id)
+        except always_on.WakeRefused:
+            return JSONResponse(content={"error": "agent not found"}, status_code=404)
+        return JSONResponse(content={**status, "reports": always_on.reports(agent_id)})
+
+    @app.post("/api/agents/{agent_id}/always-on/wake")
+    def wake_always_on(agent_id: str):
+        from openprogram.agent import always_on
+        from openprogram.agent.management import manager as _agents
+
+        if _agents.get(agent_id) is None:
+            return JSONResponse(content={"error": "agent not found"}, status_code=404)
+        try:
+            result = always_on.wake(agent_id, reason="manual")
+        except always_on.WakeRefused as exc:
+            return JSONResponse(content={"error": str(exc)}, status_code=409)
+        except ValueError as exc:
+            return JSONResponse(content={"error": str(exc)}, status_code=409)
+        return JSONResponse(content=result)
+
+    @app.post("/api/agents/{agent_id}/always-on/home")
+    def open_always_on_home(agent_id: str):
+        from openprogram.agent import always_on
+
+        try:
+            session_id = always_on.home_session(agent_id)
+        except always_on.WakeRefused:
+            return JSONResponse(content={"error": "agent not found"}, status_code=404)
+        return JSONResponse(content={"session_id": session_id})
 
     @app.delete("/api/agents/{agent_id}")
     def delete_agent(agent_id: str):

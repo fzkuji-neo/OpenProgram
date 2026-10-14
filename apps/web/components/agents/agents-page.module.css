@@ -58,3 +58,19 @@
 @media(max-width:1100px){.agentPageHeader{flex-wrap:wrap;gap:8px 12px}.agentHeading{flex-basis:calc(100% - 84px)}.conversationActions{margin-left:48px}.agentPageHeader{position:relative;padding-right:48px}.moreMenu{position:absolute;right:16px;top:18px}.modeGrid{grid-template-columns:1fr}}
 @media(max-width:900px){.identityGrid,.formGrid,.modelSelection{grid-template-columns:1fr}.fullField{grid-column:auto}}
 @media(max-width:680px){.agentSplit{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}.agentNav{padding:10px 16px;border-right:0;border-bottom:1px solid var(--border)}.agentNav>.searchField,.agentList{display:none}.mobileAgentSelect{display:flex;align-items:center;gap:12px;font-size:var(--fs-base);color:var(--text-muted)}.mobileAgentSelect select{flex:1;min-width:0;height:var(--ui-button-h);padding:0 8px;border:1px solid var(--border);border-radius:var(--ui-button-radius);background:var(--bg-secondary);color:var(--text-primary);font-size:var(--fs-base)}.agentPageHeader{padding:14px 44px 14px 16px}.detailAvatar{width:28px;height:28px}.agentHeading{flex-basis:calc(100% - 42px)}.conversationActions{margin-left:0;gap:4px;flex-basis:100%}.conversationActions>button{padding:0 9px;font-size:var(--fs-sm)}.configTabsList{padding:0 16px;gap:20px}.editorBody{padding:20px 16px}.identityGrid,.formGrid,.modelSelection{grid-template-columns:1fr}.fullField{grid-column:auto}.modelSelection{gap:14px}.saveBar{padding:10px 12px;flex-wrap:wrap;justify-content:flex-end}.saveBar>span{flex-basis:100%}.scopeCard{align-items:flex-start;flex-direction:column}.catalogRow{grid-template-columns:minmax(0,1fr) auto}.catalogRow .requiredButton,.catalogRow .requiredActive{grid-column:1/-1;justify-self:start}.workspaceFile{grid-template-columns:22px minmax(0,1fr)}.workspaceFile button{grid-column:2;justify-self:start}.conflictLabels,.conflictValues{gap:8px}}
+
+/* Always-on tab: reuses the memory and workspace patterns above. */
+.modeGridTwo{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:14px}
+.dialogField .alwaysOnGoal{min-height:84px;resize:vertical;font-weight:400}
+.memoryFields>.formGrid{margin-top:16px}
+.alwaysOnSection{margin-top:20px}.alwaysOnSection h4{margin:0;color:var(--text-bright);font-size:var(--fs-base)}
+.alwaysOnStatus{margin-top:9px}.alwaysOnStatus .workspaceFile small{font-family:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alwaysOnReports{margin:9px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.alwaysOnReports>li{padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary)}
+.alwaysOnReports>li>div{display:flex;align-items:baseline;gap:10px}
+.alwaysOnReports strong{min-width:0;flex:1;color:var(--text-bright);font-size:var(--fs-base);font-weight:500;overflow-wrap:anywhere}
+.alwaysOnReports time{flex:none;color:var(--text-muted);font-size:var(--fs-sm)}
+.alwaysOnReports p{margin:6px 0 0;color:var(--text-primary);font-family:inherit;font-size:var(--fs-sm);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.alwaysOnReports ul{margin:6px 0 0;padding-left:16px;font-size:var(--fs-sm)}
+.alwaysOnReports a{color:var(--accent-blue);overflow-wrap:anywhere}
+@media (max-width:720px){.modeGridTwo{grid-template-columns:1fr}}

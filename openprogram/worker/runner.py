@@ -287,6 +287,18 @@ def run_foreground() -> int:
     except Exception as exc:  # noqa: BLE001
         print(f"[worker] scheduler failed to start: {exc}")
 
+    # Always-on Agents — wake each enabled Agent when its next wake is due.
+    try:
+        from openprogram.agent.always_on.ticker import start_in_worker as _start_always_on
+
+        if recovery_ready:
+            _start_always_on()
+            print("[worker] always-on Agents: running")
+        else:
+            print("[worker] always-on Agents: deferred by self-update recovery failure")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[worker] always-on Agents failed to start: {exc}")
+
     # Memory subsystem — nightly reorganisation + session-end writer.
     try:
         from openprogram.memory.scheduler import start_nightly_reorganizer
