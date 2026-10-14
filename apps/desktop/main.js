@@ -1231,10 +1231,11 @@ function registerWebTabIpc() {
     const [x, y] = win.getPosition();
     win.setPosition(Math.round(x + dx), Math.round(y + dy));
   });
-  // Window overview thumbnails: a snapshot of one region of this window's own
-  // page, given in CSS pixels. Only a window's main page may ask, and only
-  // for itself; the result is a small JPEG, never the full-size bitmap.
-  ipcMain.handle("window:capture-region", async (event, rect) => {
+  // A snapshot of one region of this window's own page, given in CSS pixels.
+  // Only a window's main page may ask, and only for itself. By default it is
+  // a small JPEG for the window overview; `full` keeps the display
+  // resolution, for a pane that animates out as a still image.
+  ipcMain.handle("window:capture-region", async (event, rect, options) => {
     const ctx = contextForSender(event);
     if (!ctx || event.sender !== ctx.win.webContents) return null;
     const values = [rect?.x, rect?.y, rect?.width, rect?.height];
@@ -1248,6 +1249,7 @@ function registerWebTabIpc() {
         height: Math.round(rect.height * zoom),
       });
       if (!image || image.isEmpty()) return null;
+      if (options?.full === true) return `data:image/jpeg;base64,${image.toJPEG(92).toString("base64")}`;
       const width = Math.min(image.getSize().width, 720);
       return `data:image/jpeg;base64,${image.resize({ width, quality: "good" }).toJPEG(82).toString("base64")}`;
     } catch (_error) {
