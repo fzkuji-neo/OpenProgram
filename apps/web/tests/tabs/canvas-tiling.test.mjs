@@ -160,7 +160,9 @@ test('a merge drop zooms the merged window out of the card it was dropped on', a
   assert.match(drag, /cleanup\(target\?\.drop\);/, 'a pane drop holds it too');
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.match(view, /const from = held\.panes\[id\] \?\? held\.dropped;/, 'the merge first moves every pane into its place in the card');
-  assert.match(view, /Promise\.allSettled\(settles\.map\(a => a\.finished\)\)\.then\(\(\) => \{[\s\S]*?growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) closeOverview\(\);/, 'then the card zooms');
+  assert.match(view, /for \(const a of settles\) a\.finish\(\);\s*growFrom\.current = mini\.getBoundingClientRect\(\);\s*if \(!zoomAt\(card\.key, "closing"\)\) closeOverview\(\);\s*\}, MERGE_MS \* ZOOM_AFTER\);/, 'then the card zooms, taking over from the settle\'s slow tail');
+  assert.match(view, /const key = held && contents\.includes\(landing!\) \? held\.cardKey : entry\.id;/, 'the landing card keeps its element, so its pictures do not blink');
+  assert.match(view, /<span key=\{p\.content \?\? p\.id\} className=\{styles\.pane\}/, 'and so do its panes');
   assert.match(view, /const from = growFrom\.current, to = el\?\.getBoundingClientRect\(\);/, 'the card grows from where it sat in the grid');
   assert.match(view, /void grow\.finished\.then\(closeOverview, closeOverview\);/, 'and the overview closes when it lands');
 });

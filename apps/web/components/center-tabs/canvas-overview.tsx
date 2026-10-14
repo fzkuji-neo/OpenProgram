@@ -26,7 +26,7 @@ const ZONE: Record<OverviewSide, React.CSSProperties> = {
 const GAP = 24, CAPTION = 26;
 const ZOOM_MS = 340, ZOOM_EASING = "cubic-bezier(.2, .8, .2, 1)";
 /** A merge first settles in its card, then the card zooms. */
-const MERGE_MS = 260;
+const MERGE_MS = 260, ZOOM_AFTER = 0.65;
 const ZOOM: Transition = { duration: ZOOM_MS / 1000, ease: [0.2, 0.8, 0.2, 1] };
 /** Every other layout change (a resize, the grid settling) just jumps. */
 const INSTANT: Transition = { duration: 0 };
@@ -183,9 +183,15 @@ export function CanvasOverview() {
       const contents = leaves(root).flatMap(p => p.content && byId.has(p.content) && !byId.get(p.content)!.canvasAnchor ? [p.content] : []);
       if (!contents.length) return [];
       const activateId = entry.kind === "group" && contents.includes(entry.group.focusedId) ? entry.group.focusedId : contents[0];
-      return [{ key: entry.id, targetId: contents[0], activateId, root, title: contents.map(name).join(" + ") }];
+      // A merge into a lone tab turns its strip entry into a split, which
+      // would mount a new card with new pictures (an <img> takes a frame to
+      // decode, so the card blinks). The landing card keeps the key the
+      // card it was dropped on had.
+      const held = landing ? overviewLandingFrom() : null;
+      const key = held && contents.includes(landing!) ? held.cardKey : entry.id;
+      return [{ key, targetId: contents[0], activateId, root, title: contents.map(name).join(" + ") }];
     });
-  }, [mode, sourceIds, tabs, groups, t, text]);
+  }, [mode, sourceIds, tabs, groups, landing, t, text]);
 
   const activeKey = cards.find(card => leaves(card.root).some(p => p.content === activeId))?.key;
   const frame = area.canvasWidth > 0 && area.canvasHeight > 0 ? { width: area.canvasWidth, height: area.canvasHeight } : { width: 1000, height: 625 };
@@ -258,13 +264,14 @@ export function CanvasOverview() {
         { transformOrigin: "0 0", transform: "none" },
       ], { duration: MERGE_MS, easing: ZOOM_EASING });
     });
-    let live = true;
-    void Promise.allSettled(settles.map(a => a.finished)).then(() => {
-      if (!live) return;
+    // The settle eases out, so its last third barely moves: the zoom takes
+    // over from there, with the panes put in their places first.
+    const timer = window.setTimeout(() => {
+      for (const a of settles) a.finish();
       growFrom.current = mini.getBoundingClientRect();
       if (!zoomAt(card.key, "closing")) closeOverview();
-    });
-    return () => { live = false; };
+    }, MERGE_MS * ZOOM_AFTER);
+    return () => window.clearTimeout(timer);
   }, [landing]);
   useLayoutEffect(() => {
     if (!landing || zoom?.phase !== "closing") return;
@@ -334,7 +341,7 @@ export function CanvasOverview() {
                   const tab: CenterTab | undefined = p.content ? byId.get(p.content) : undefined;
                   const shot = tab ? shots[tab.id] : undefined;
                   return (
-                    <span key={p.id} className={styles.pane} data-overview-pane={p.content ?? undefined} data-empty={!tab || undefined} data-shot={shot ? "" : undefined} style={{
+                    <span key={p.content ?? p.id} className={styles.pane} data-overview-pane={p.content ?? undefined} data-empty={!tab || undefined} data-shot={shot ? "" : undefined} style={{
                       left: (r.left + inset) * k, top: (r.top + inset) * k,
                       width: (r.width - inset * 2) * k, height: (r.height - inset * 2) * k,
                       borderRadius: split ? PANE_RADIUS * k : 0,
