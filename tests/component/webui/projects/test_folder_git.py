@@ -160,3 +160,37 @@ def test_ws_actions_echo_path_and_report_errors(repo: Path) -> None:
     assert status["data"]["status"]["branch"] == "main"
     assert switch["type"] == "git_switch_branch_result"
     assert switch["data"]["ok"] is False and switch["data"]["error"]
+
+
+def test_pr_checks_summary_counts_runs_and_statuses() -> None:
+    rollup = [
+        {"__typename": "CheckRun", "name": "unit", "status": "COMPLETED", "conclusion": "SUCCESS", "detailsUrl": "u1"},
+        {"__typename": "CheckRun", "name": "lint", "status": "COMPLETED", "conclusion": "FAILURE", "detailsUrl": "u2"},
+        {"__typename": "CheckRun", "name": "e2e", "status": "IN_PROGRESS", "conclusion": "", "detailsUrl": "u3"},
+        {"__typename": "CheckRun", "name": "docs", "status": "COMPLETED", "conclusion": "SKIPPED"},
+        {"__typename": "StatusContext", "context": "ci/legacy", "state": "ERROR", "targetUrl": "u4"},
+        {"__typename": "StatusContext", "context": "ci/queued", "state": "PENDING"},
+    ]
+    assert folder_git._checks_summary(rollup) == {
+        "total": 6, "passed": 2, "pending": 2, "failed_count": 2,
+        "failed": [{"name": "lint", "url": "u2"}, {"name": "ci/legacy", "url": "u4"}],
+    }
+    assert folder_git._checks_summary([]) is None
+    assert folder_git._checks_summary(None) is None
+
+
+def test_open_pr_reports_checks_from_gh(repo: Path, monkeypatch) -> None:
+    import types
+    payload = {"number": 7, "url": "https://example.test/pr/7", "state": "OPEN", "title": "T", "isDraft": False,
+               "statusCheckRollup": [{"__typename": "CheckRun", "name": "unit", "status": "COMPLETED", "conclusion": "FAILURE"}]}
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen["argv"] = argv
+        return types.SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
+
+    monkeypatch.setattr(folder_git.shutil, "which", lambda name: "/usr/bin/gh")
+    monkeypatch.setattr(folder_git.subprocess, "run", fake_run)
+    pr = folder_git._open_pr(str(repo), "feature")
+    assert "statusCheckRollup" in seen["argv"][-1]
+    assert pr["number"] == 7 and pr["checks"]["failed"] == [{"name": "unit", "url": None}]

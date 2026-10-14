@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { useBoundChat } from "./bound-chat";
 import { notifyGitChanged, useGitRepoClaim } from "./git-chip-registry";
 import { GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, MENU_TAG, itemCls } from "./menu-styles";
+import { checksLabel, fixChecksPrompt, type PrChecks } from "@/lib/git/pr-checks";
 
 /** A refusal from the worker, with the structured bits the menu acts on. */
 interface GitMenuError {
@@ -84,8 +85,13 @@ export interface GitFolderStatus {
   has_remote?: boolean;
   gh_available?: boolean;
   branches?: string[];
-  pr?: { number?: number; url: string; state?: string; title?: string; isDraft?: boolean } | null;
+  pr?: {
+    number?: number; url: string; state?: string; title?: string; isDraft?: boolean;
+    checks?: PrChecks | null;
+  } | null;
 }
+
+
 
 function baseName(path: string): string {
   const parts = path.split("/").filter(Boolean);
@@ -298,6 +304,14 @@ export function GitChip({
     setOpen(false);
   }
 
+  /** Ask the agent to fix the pull request's failing checks (not sent). */
+  function askAgentToFixChecks(pr: NonNullable<GitFolderStatus["pr"]>) {
+    const store = useSessionStore.getState();
+    store.setComposerInputFor(chatKey ?? store.activeChatKey, fixChecksPrompt(pr, text));
+    store.focusComposer();
+    setOpen(false);
+  }
+
   const allBranches = status?.branches ?? (status?.branch ? [status.branch] : []);
   const needle = query.trim().toLowerCase();
   const branches = needle ? allBranches.filter((b) => b.toLowerCase().includes(needle)) : allBranches;
@@ -502,6 +516,15 @@ export function GitChip({
               <span className="min-w-0 flex-1 truncate">{text("Create pull request", "创建 PR")}</span>
             </div>
           )}
+          {openPr?.checks ? (
+            <div className="git-menu-note" aria-live="polite">{checksLabel(openPr.checks, text)}</div>
+          ) : null}
+          {openPr?.checks?.failed_count ? (
+            <div className={itemCls(false)} onClick={() => askAgentToFixChecks(openPr)}>
+              <SolarIcon name="chat-round-dots" size={14} className="opacity-70" />
+              <span className="min-w-0 flex-1 truncate">{text("Fix failing checks with the agent…", "让 agent 修复未通过的检查…")}</span>
+            </div>
+          ) : null}
           {changes.files && !openPr ? (
             <div className={itemCls(false)} onClick={askAgentForPr}>
               <SolarIcon name="chat-round-dots" size={14} className="opacity-70" />
