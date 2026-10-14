@@ -208,10 +208,14 @@ button.card:focus-visible .mini {
 .hint[data-alone] {
   background: color-mix(in oklch, var(--accent-blue) 12%, var(--bg-primary));
 }
-/* A card picked up while browsing, following the pointer. */
+/* A card picked up while browsing, following the pointer. It is a copy
+   of the card's picture, which eases its transform on hover: the copy
+   must not, or it trails the pointer by that much. */
 .ghost {
   z-index: 100002;
   pointer-events: none;
+  transition: none !important;
+  will-change: transform;
   transform-origin: 0 0;
   border-radius: 12px;
   overflow: hidden;
