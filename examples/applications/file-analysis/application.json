@@ -1,6 +1,7 @@
 {
   "id": "example.file-analysis",
   "title": "File analysis",
+  "icon": "file-search",
   "version": "1.0.0",
   "ui": {
     "root": ".",

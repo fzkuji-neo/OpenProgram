@@ -4,6 +4,8 @@ export interface ApplicationDefinition {
   id: string;
   title: string;
   display_title?: string;
+  /** A glyph name from components/applications/application-glyph.tsx. */
+  icon?: string;
   digest: string;
   version: string;
   source: string;

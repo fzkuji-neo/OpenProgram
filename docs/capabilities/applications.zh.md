@@ -29,7 +29,7 @@ openprogram apps install /absolute/path/to/application --trust
 
 ## 应用定义与接口
 
-包根目录中的 `application.json` 定义稳定 `id`、`title`、`version`、`scope`（`global` 或 `project`）、`dataSchema`、`ui`、可选 `backend` 和 `operations`。完整 JSON 示例见[英文版](applications.md)。`ui.root` 相对包根目录，`ui.entry` 相对 UI 目录。Python 和私有配置应放在 UI 目录之外。
+包根目录中的 `application.json` 定义稳定 `id`、`title`、`version`、`scope`（`global` 或 `project`）、`dataSchema`、`ui`、可选 `icon`、`backend` 和 `operations`。完整 JSON 示例见[英文版](applications.md)。`icon` 指定新标签页、应用页和应用标签上显示的图标，可选 `calculator`, `book-open`, `file-search`, `file-text`, `notebook-pen`, `table`, `chart-column`, `database`, `image`, `music`, `video`, `map`, `calendar`, `globe`, `code`, `terminal`, `mail`, `message-square`, `list-checks`, `languages`, `pen-tool`, `palette`, `sigma`, `flask-conical`, `briefcase`, `bot`, `sparkles`；其他名字显示通用应用图标。`ui.root` 相对包根目录，`ui.entry` 相对 UI 目录。Python 和私有配置应放在 UI 目录之外。
 
 Python 后端的 `module:object` 入口导出操作字典。操作接收 `(input, context)`，同步或异步返回 JSON 值；输入输出使用 JSON Schema 校验。声明 `agent: true` 的操作可以由 Program 客户端调用。`backend.dependencies` 使用精确固定版本，例如 `package-name==1.2.3`。每个内容版本有自己的 Python 环境，同时使用已安装宿主框架及其依赖。安装时在独立进程中检查后端；列出应用不会导入代码。
 

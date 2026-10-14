@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { applicationRequest, type ApplicationDefinition } from "@/lib/net/applications";
 import { useApplicationLauncher } from "@/components/applications/use-application-launcher";
-import { AppWindow, FileText, MessageCirclePlus, TerminalSquare } from "lucide-react";
+import { FileText, MessageCirclePlus, TerminalSquare } from "lucide-react";
 
 import { useTranslation } from "@/lib/i18n";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import styles from "./center-tabs.module.css";
 import { BrowserGlyph } from "./browser-glyph";
+import { ApplicationGlyph } from "@/components/applications/application-glyph";
 
 export function NewTabPage() {
   const { text } = useTranslation();
@@ -60,7 +61,7 @@ export function NewTabPage() {
         </button>
         {applications.filter(application => application.enabled && !application.hidden).map(application => (
           <button key={application.id} type="button" className={styles.ntpCard} onClick={() => void launch(application)}>
-            <span className={styles.ntpGlyph} data-tone="files" aria-hidden="true"><AppWindow size={11} /></span>
+            <span className={styles.ntpGlyph} data-tone="files" aria-hidden="true"><ApplicationGlyph icon={application.icon} size={11} /></span>
             {application.display_title || application.title}
           </button>
         ))}

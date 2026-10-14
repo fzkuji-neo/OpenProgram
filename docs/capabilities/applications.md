@@ -54,6 +54,7 @@ Place `application.json` in the package root:
 {
   "id": "local.notes",
   "title": "Notes",
+  "icon": "notebook-pen",
   "version": "1.0.0",
   "scope": "global",
   "dataSchema": 1,
@@ -69,6 +70,9 @@ Place `application.json` in the package root:
   }
 }
 ```
+
+The optional `icon` names the glyph shown on the New tab page, the Applications
+page and the application's tab. Pick one of `calculator`, `book-open`, `file-search`, `file-text`, `notebook-pen`, `table`, `chart-column`, `database`, `image`, `music`, `video`, `map`, `calendar`, `globe`, `code`, `terminal`, `mail`, `message-square`, `list-checks`, `languages`, `pen-tool`, `palette`, `sigma`, `flask-conical`, `briefcase`, `bot`, `sparkles`; any other name shows the generic application glyph.
 
 `ui.root` is relative to the package; `ui.entry` is relative to that directory.
 Keep Python and private configuration outside `ui.root`. The optional backend

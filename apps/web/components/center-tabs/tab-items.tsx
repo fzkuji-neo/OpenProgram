@@ -1,6 +1,7 @@
 "use client";
 
 import { FileTypeIcon } from "@/components/files/file-type-icon";
+import { ApplicationTabGlyph } from "@/components/applications/application-glyph";
 
 /**
  * Strip tab presentation — the two components the strip maps over.
@@ -10,7 +11,7 @@ import { FileTypeIcon } from "@/components/files/file-type-icon";
  * not independently selectable from the strip.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AppWindow, Bookmark, CirclePlus, Download, FileText, History, TerminalSquare, X } from "lucide-react";
+import { Bookmark, CirclePlus, Download, FileText, History, TerminalSquare, X } from "lucide-react";
 
 import {
   ChromeIcon,
@@ -65,7 +66,7 @@ export function CompoundMemberIcon({ tab, animate }: { tab: CenterTab; animate: 
       {routePageIcon(tab.navigationRoute, 13) ?? (tab.kind === "session" ? (
         <MessageCircleIcon ref={iconRef} size={14} />
       ) : tab.kind === "application" ? (
-        <AppWindow size={14} />
+        <ApplicationTabGlyph appId={tab.applicationId} size={14} />
       ) : tab.kind === "file" ? (
         <FileTypeIcon name={tab.path ?? ""} size={14} />
       ) : tab.kind === "web" ? (
@@ -366,7 +367,7 @@ export function TabItem({
           {routePageIcon(tab.navigationRoute, 13) ?? (tab.kind === "session" ? (
             <MessageCircleIcon ref={iconRef} size={14} />
           ) : tab.kind === "application" ? (
-        <AppWindow size={14} />
+        <ApplicationTabGlyph appId={tab.applicationId} size={14} />
       ) : tab.kind === "file" ? (
             <FileTypeIcon name={tab.path ?? ""} size={14} />
           ) : tab.kind === "web" ? (

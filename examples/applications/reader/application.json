@@ -1,6 +1,7 @@
 {
   "id": "example.reader",
   "title": "Paper reader",
+  "icon": "book-open",
   "version": "1.0.0",
   "ui": {
     "root": ".",
