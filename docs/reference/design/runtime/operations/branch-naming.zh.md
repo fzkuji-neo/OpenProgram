@@ -132,6 +132,15 @@ branches: {
 `_RETITLE_AT_TURNS`（1/6/16/40）就触发 Stage 2。计数器存在本分支数据里，只属于这条分支：
 不用每次拉 `get_branch` 数 assistant，不用处理"回溯到岔点"的边界，也不受其他分支干扰。
 
+**条目跟着 tip 走。** 条目按 tip 存，而每一轮都会移动 tip，所以 `finalize_turn`
+先把本轮延伸的那个 tip 的条目挪到新 head 上
+（`openprogram/store/session/session_store/branches.py` 的 `carry_branch_entry`），再给
+计数器加一。被延伸的 tip 这样找：从新 head 往回，跨过本轮的用户消息（转向消息会
+多一条），停在第一个不是用户消息的节点，或开出这条分支的 spawn 根。分叉点在分叉
+之前就已经有另一个对话子节点，它身上的条目原地不动，分叉像任何新分支一样从空
+条目开始。没有这一步，每一轮都开一个新条目：用户起的名字和它的锁留在旧 tip 上，
+`turns` 永远过不了 1，Stage 2 于是每轮都重命名一次分支。
+
 > 与 session 的差异：session 是数轮（`titles.py:159` 拉 `get_messages` 数 assistant，且数
 > 的是全会话所有分支的回复）。分支用计数器，更快且不受其他分支影响。这更适合分支；
 > session 的数法不在本文范围内，保持原样。

@@ -151,6 +151,19 @@ belongs only to this branch: there is no need to pull `get_branch` and count
 assistant messages each time, no "backtrack to the fork point" edge case to handle,
 and no interference from other branches.
 
+**The entry follows the tip.** Entries are keyed by tip, and every turn moves
+the tip, so `finalize_turn` first moves the entry of the tip the turn extended
+onto the new head (`carry_branch_entry` in
+`openprogram/store/session/session_store/branches.py`), then bumps the counter.
+The extended tip is found by walking back from the new head through the turn's
+user messages (a steer adds a second one) to the first node that is not a user
+message, or to the spawn root that opened the branch. A fork point already had
+another conversation child before the fork, so whatever entry it holds stays
+where it is and the fork starts with a fresh entry, like any new branch. Without
+the carry every turn opened a fresh entry: the user's name and its lock stayed
+behind on the old tip, and `turns` never passed 1, so Stage 2 renamed the
+branch after every turn.
+
 > Difference from session: session counts turns (`titles.py:159` pulls `get_messages`
 > and counts assistant messages, across all branches of the whole session). Branches use
 > a counter, which is faster and unaffected by other branches. This is a better fit for

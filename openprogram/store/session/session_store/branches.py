@@ -414,6 +414,64 @@ class BranchesOperations:
         return int(merged.get("turns", 0))
 
 
+    def carry_branch_entry(self, session_id: str, head_msg_id: str) -> bool:
+        """Move the entry of the tip this turn extended onto ``head_msg_id``.
+
+        Entries are keyed by tip, and every turn moves the tip. Without
+        the carry each turn opened a fresh entry: a name the user gave
+        (and its lock) stayed behind on the old tip, and the branch's
+        own turn counter never got past 1, so Stage 2 renamed the
+        branch after every turn (branch-naming.md §4).
+
+        The extended tip is found by walking back from the new head
+        through this turn's user messages (a steer adds a second one)
+        to the first node that is not a user message, or to the spawn
+        root that opened the branch. A fork point already had another
+        conversation child before this turn, so its entry (if any)
+        belongs to the line that left it first and is left alone; the
+        fork starts with a fresh entry like any new branch.
+        """
+        pair = self._open(session_id)
+        if pair is None:
+            return False
+        git, idx = pair
+        named = idx.meta.get("branches") or {}
+        node = idx.nodes_by_id.get(head_msg_id)
+        if node is None or head_msg_id in named:
+            return False
+        source = None
+        seen: set[str] = set()
+        cur = shared._node_conv_predecessor(node)
+        while cur and cur not in seen:
+            seen.add(cur)
+            if cur in named:
+                source = cur
+                break
+            prev = idx.nodes_by_id.get(cur)
+            if prev is None or prev.role != shared.ROLE_USER:
+                break
+            cur = shared._node_conv_predecessor(prev)
+        if source is None:
+            return False
+        conv_kids = [
+            k for k in idx.children_by_predecessor.get(source, [])
+            if (kid := idx.nodes_by_id.get(k)) is not None
+            and kid.role in (shared.ROLE_USER, shared.ROLE_LLM)
+            and (kid.metadata or {}).get("display") not in ("root", "runtime")
+            and (kid.metadata or {}).get("function") != "attach"
+        ]
+        if len(conv_kids) > 1:
+            return False
+        with idx._lock:
+            branches = dict(idx.meta.get("branches") or {})
+            if head_msg_id in branches or source not in branches:
+                return False
+            branches[head_msg_id] = branches.pop(source)
+            idx.meta["branches"] = branches
+        self._persist_meta(git, idx)
+        return True
+
+
     def delete_branch_name(self, session_id: str, head_msg_id: str) -> None:
         pair = self._open(session_id)
         if pair is None:
