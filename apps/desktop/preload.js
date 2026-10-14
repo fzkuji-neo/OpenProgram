@@ -180,6 +180,14 @@ contextBridge.exposeInMainWorld("openprogramDesktop", {
       return () => ipcRenderer.removeListener("downloads:changed", listener);
     },
   },
+  attention: {
+    getPrefs: () => ipcRenderer.invoke("attention:get-prefs"),
+    setPrefs: (patch) => ipcRenderer.invoke("attention:set-prefs", patch),
+    onPrefs: (cb) => fanOut("attention:prefs", cb),
+    notify: (request) => ipcRenderer.send("attention:notify", request),
+    reportBusy: (busy) => ipcRenderer.send("attention:busy", Boolean(busy)),
+    onOpenSession: (cb) => fanOut("attention:open-session", cb),
+  },
   updates: {
     getState: () => ipcRenderer.invoke("updates:get-state"),
     check: () => ipcRenderer.invoke("updates:check"),

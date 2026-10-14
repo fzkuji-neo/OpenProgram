@@ -102,3 +102,7 @@ test("No element outside a control carries a native title", async () => {
   walk(root + "app");
   assert.deepEqual(found, []);
 });
+
+test("The execution strip adds no space under itself", () => {
+  assert.match(read("app/styles/chat/execution-strip.css"), /\.tl \{[^}]*margin: 6px 0 0;/);
+});

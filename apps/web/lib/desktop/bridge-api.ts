@@ -1,6 +1,6 @@
 // Desktop bridge api responsibilities.
 import "@/lib/net/ws-events";
-import type { DesktopBrowserDataApi, DesktopBrowserImportApi, DesktopDownloadsApi, DesktopHistoryApi, DesktopMainMenuApi, DesktopNativeMenuApi, DesktopTerminalApi, DesktopThemeApi, DesktopUpdateApi, DesktopWebTabApi } from "@/lib/desktop/desktop-bridge-types";
+import type { DesktopAttentionApi, DesktopBrowserDataApi, DesktopBrowserImportApi, DesktopDownloadsApi, DesktopHistoryApi, DesktopMainMenuApi, DesktopNativeMenuApi, DesktopTerminalApi, DesktopThemeApi, DesktopUpdateApi, DesktopWebTabApi } from "@/lib/desktop/desktop-bridge-types";
 import type { DesktopTabTransferApi } from "@/lib/desktop/desktop-transfer-types";
 
 
@@ -47,6 +47,8 @@ export interface DesktopBridge {
   /** Desktop-only download history and active download controls. */
   downloads?: DesktopDownloadsApi;
   updates: DesktopUpdateApi;
+  /** Notifications and keep-awake. Absent in shells older than this build. */
+  attention?: DesktopAttentionApi;
   /** Desktop-only, explicit import from a detected local browser profile. */
   browserImport?: DesktopBrowserImportApi;
   /** Desktop-only clearing of the built-in browser profile. */

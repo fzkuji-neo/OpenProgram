@@ -48,6 +48,8 @@ import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
 import { newSession } from "@/lib/runtime-bridge/conversations";
 import { completeTabRouteNavigation } from "@/lib/tabs/navigation/route";
 import { setNavigate } from "@/lib/navigate";
+import { startAttentionBridge } from "@/lib/desktop/attention";
+import { openSession } from "@/lib/tabs/open-session";
 import { setLastChatPath } from "@/lib/tabs/last-chat-path";
 import { enterExclusiveCoverageMode, renderHistoryGraph } from "@/lib/runtime-bridge/dag";
 import { initOverlayScrollbars } from "@/lib/runtime-bridge/scrollbar";
@@ -150,6 +152,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathnameRef = useRef(pathname);
   pathnameRef.current = pathname;
   const { t } = useTranslation();
+
+  // Desktop notifications open their session; keep-awake follows running sessions.
+  useEffect(() => startAttentionBridge(openSession), []);
 
   // Background route warm-up. After AppShell paints and the main
   // thread goes idle, prefetch each commonly-used route in priority

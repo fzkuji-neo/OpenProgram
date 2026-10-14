@@ -245,6 +245,21 @@ export interface DesktopUpdateState {
   error: string | null;
 }
 
+export interface DesktopAttentionPrefs {
+  notifications: boolean;
+  keepAwake: boolean;
+}
+
+/** Desktop notifications and keep-awake (desktop/attention-service.js). */
+export interface DesktopAttentionApi {
+  getPrefs(): Promise<DesktopAttentionPrefs>;
+  setPrefs(patch: Partial<DesktopAttentionPrefs>): Promise<DesktopAttentionPrefs>;
+  onPrefs(cb: (prefs: DesktopAttentionPrefs) => void): () => void;
+  notify(request: { key: string; title: string; body: string; sessionId: string }): void;
+  reportBusy(busy: boolean): void;
+  onOpenSession(cb: (sessionId: string) => void): () => void;
+}
+
 export interface DesktopUpdateApi {
   getState(): Promise<DesktopUpdateState | null>;
   check(): Promise<DesktopUpdateState | null>;

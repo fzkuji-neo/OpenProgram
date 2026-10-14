@@ -8,6 +8,8 @@ const {
   dialog,
   ipcMain: nativeIpcMain,
   powerMonitor,
+  powerSaveBlocker,
+  Notification,
   session,
   shell,
   nativeTheme,
@@ -28,6 +30,7 @@ const { ipcMain } = uiVerificationGuard;
 const { resolvePackagedWorker } = require("./packaged-runtime");
 const { useBrowserUserAgent } = require("./main/webtab-user-agent");
 const { DesktopUpdateService, desktopUpdateFetch } = require("./update-service");
+const { DesktopAttentionService } = require("./attention-service");
 const {
   killWindowsProcessTree,
   resolveTerminalCommand,
@@ -190,6 +193,61 @@ function registerUpdateIpc() {
   ipcMain.handle("updates:open-release", () => {
     const releaseUrl = desktopUpdates?.getState().release?.releaseUrl;
     return releaseUrl ? shell.openExternal(releaseUrl) : null;
+  });
+}
+
+function appDocumentWindow(sender) {
+  return BrowserWindow.getAllWindows().find((win) => !win.isDestroyed() && win.webContents === sender) || null;
+}
+
+// Notifications and keep-awake are reported by every app window; the
+// service collapses them into one notification and one power hold.
+function registerAttentionIpc() {
+  const attention = new DesktopAttentionService({
+    statePath: path.join(app.getPath("userData"), "attention-prefs.json"),
+    createNotification: (options) => new Notification(options),
+    notificationsSupported: () => Notification.isSupported(),
+    powerSaveBlocker,
+    isAppFocused: () => Boolean(BrowserWindow.getFocusedWindow()),
+    openSession: (senderId, sessionId) => {
+      const win = BrowserWindow.getAllWindows().find((candidate) =>
+        !candidate.isDestroyed() && candidate.webContents.id === senderId,
+      ) || BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed());
+      if (!win) return;
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+      if (sessionId) win.webContents.send("attention:open-session", sessionId);
+    },
+    emit: (prefs) => {
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send("attention:prefs", prefs);
+      }
+    },
+  });
+  const tracked = new Set();
+  const track = (sender) => {
+    if (tracked.has(sender.id)) return;
+    tracked.add(sender.id);
+    const id = sender.id;
+    sender.once("destroyed", () => {
+      tracked.delete(id);
+      attention.forgetSender(id);
+    });
+  };
+  ipcMain.handle("attention:get-prefs", () => attention.getPrefs());
+  ipcMain.handle("attention:set-prefs", (event, patch) => {
+    if (!appDocumentWindow(event.sender)) return attention.getPrefs();
+    return attention.setPrefs(patch);
+  });
+  ipcMain.on("attention:notify", (event, request) => {
+    if (!appDocumentWindow(event.sender)) return;
+    attention.notify(event.sender.id, request);
+  });
+  ipcMain.on("attention:busy", (event, busy) => {
+    if (!appDocumentWindow(event.sender)) return;
+    track(event.sender);
+    attention.reportBusy(event.sender.id, Boolean(busy));
   });
 }
 
@@ -1694,6 +1752,7 @@ registerSingleMainWindow({
     registerTabTransferIpc();
     registerOwnerAuthIpc();
     registerUpdateIpc();
+    registerAttentionIpc();
     registerNativeTitleBarIpc({ ipcMain, BrowserWindow, platform: process.platform, getChrome: () => currentChrome });
     ipcMain.on("theme:trace", (event, payload) => {
       // Only the app document can write diagnostics, not embedded websites.
