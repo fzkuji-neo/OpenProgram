@@ -6,9 +6,9 @@ import { motion, type Transition } from "framer-motion";
 import { topLevelTabs } from "@/lib/browser/web-page-management";
 import { canvasGeometry, canvasViewport, leaves, removePane, rowLayout, type LayoutNode } from "@/lib/tabs/canvas-layout";
 import { desktopBridge } from "@/lib/desktop/desktop-bridge";
-import { canvasDragging } from "@/lib/tabs/canvas-drag";
+import { canvasDragging, commitCanvasDrop, type CanvasDrop } from "@/lib/tabs/canvas-drag";
 import { captureVisiblePanes, captureWebTabs, forgetSnapshots, pruneSnapshots, restoreSnapshots, useWindowSnapshots } from "@/lib/tabs/window-snapshots";
-import { closeOverview, dismissOverview, openOverview, overviewLandingFrom, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
+import { browseOverview, closeOverview, dismissOverview, holdOverviewLanding, openOverview, overviewDropAt, overviewLandingFrom, setOverviewZoomOut, useCanvasOverview, type OverviewSide } from "@/lib/tabs/canvas-overview";
 import { centerTabStripEntries } from "@/lib/tabs/center-tab-groups";
 import { captureCanvasLanding, type CanvasEnter } from "@/lib/tabs/canvas-transition";
 import { useCenterTabs, type CenterTab } from "@/lib/tabs/center-tabs-store";
@@ -69,6 +69,10 @@ export function CanvasOverview() {
   const { mode, sourceIds, hover, label, landing, landed } = useCanvasOverview();
   const tabs = useCenterTabs(s => s.tabs), groups = useCenterTabs(s => s.groups), activeId = useCenterTabs(s => s.activeId);
   const rootRef = useRef<HTMLDivElement>(null);
+  // How this overview opened, kept until it closes.
+  const openedAs = useRef<"drag" | "browse" | null>(null);
+  if (!mode) openedAs.current = null;
+  else if (!openedAs.current) openedAs.current = mode;
   const [area, setArea] = useState({ width: 0, height: 0, canvasWidth: 0, canvasHeight: 0 });
 
   // Pinch in on the center area (or the strip) opens the overview, pinch
@@ -157,7 +161,9 @@ export function CanvasOverview() {
   useLayoutEffect(() => {
     const el = rootRef.current, canvas = el?.parentElement;
     if (!el || !canvas) return;
-    const measure = () => setArea({ width: el.clientWidth - 64, height: el.clientHeight - (mode === "drag" ? 112 : 64), canvasWidth: canvas.clientWidth, canvasHeight: canvas.clientHeight });
+    // Both modes keep the hint's room, so cards keep their size and place
+    // when a drag turns into browsing and back.
+    const measure = () => setArea({ width: el.clientWidth - 64, height: el.clientHeight - 112, canvasWidth: canvas.clientWidth, canvasHeight: canvas.clientHeight });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -214,7 +220,9 @@ export function CanvasOverview() {
     // A landing merge keeps its zoom: the merge itself widens the canvas
     // (a split's cards reach past the center card's edge), which changes
     // widthNow mid-zoom.
-    if (mode !== "browse") { entered.current = false; if (!landing) setZoom(null); return; }
+    // A drag overview needs no entry zoom, and one that turns into
+    // browsing (a drop on empty space) is already open.
+    if (mode !== "browse") { entered.current = mode === "drag"; if (!landing) setZoom(null); return; }
     if (entered.current || !widthNow) return;
     entered.current = true;
     if (zoomAt(activeKey, "out")) requestAnimationFrame(() => setZoom(z => z?.phase === "out" ? { ...z, phase: "in" } : z));
@@ -312,27 +320,87 @@ export function CanvasOverview() {
     return () => setOverviewZoomOut(null);
   }, [mode]);
 
+  // Browsing, any card can be picked up like a dragged tab: dropped on a
+  // card's side it merges (and the landing zoom follows, as from the
+  // strip), on empty space it stands on its own, and anything but a merge
+  // leaves the overview browsing. A pane of a split card comes up alone.
+  const pickedUp = useRef(false);
+  const pickUp = (e: React.PointerEvent<HTMLElement>, card: Card) => {
+    if (mode !== "browse" || e.button !== 0 || zoom?.phase === "closing") return;
+    const split = leaves(card.root).length > 1;
+    const pane = split ? (e.target as Element).closest<HTMLElement>("[data-overview-pane]") : null;
+    const ids = pane?.dataset.overviewPane ? [pane.dataset.overviewPane] : leaves(card.root).flatMap(p => p.content ? [p.content] : []);
+    const source = pane ?? e.currentTarget.querySelector<HTMLElement>("[data-overview-mini]");
+    if (!ids.length || !source) return;
+    const pointerId = e.pointerId, start = { x: e.clientX, y: e.clientY };
+    let ghost: HTMLElement | null = null, grab = { x: 0, y: 0 }, k = 1;
+    const follow = (x: number, y: number) => { if (ghost) ghost.style.transform = `translate(${x - grab.x}px, ${y - grab.y}px) scale(${k})`; };
+    const move = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      if (!ghost) {
+        if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 6) return;
+        pickedUp.current = true;
+        // The card itself, smaller, under the pointer where it was held.
+        const r = source.getBoundingClientRect();
+        k = Math.min(1, 240 / r.width);
+        grab = { x: (start.x - r.left) * k, y: (start.y - r.top) * k };
+        ghost = source.cloneNode(true) as HTMLElement;
+        for (const node of [ghost, ...ghost.querySelectorAll<HTMLElement>("*")]) {
+          node.removeAttribute("data-overview-pane");
+          node.removeAttribute("data-overview-mini");
+        }
+        ghost.classList.add(styles.ghost);
+        Object.assign(ghost.style, { position: "fixed", left: "0", top: "0", width: `${r.width}px`, height: `${r.height}px`, margin: "0" });
+        ghost.setAttribute("aria-hidden", "true");
+        document.body.append(ghost);
+        openOverview("drag", ids);
+      }
+      follow(ev.clientX, ev.clientY);
+      overviewDropAt(ev.clientX, ev.clientY);
+    };
+    const finish = (drop: CanvasDrop | null) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("keydown", key, true);
+      if (!ghost) return;
+      ghost.remove();
+      // The click that follows the release is not a pick.
+      window.setTimeout(() => { pickedUp.current = false; }, 0);
+      if (drop?.action === "dock") { holdOverviewLanding(drop, ids); commitCanvasDrop(drop, ids); return; }
+      if (drop?.action === "fill" && ids.length === 1 && split) commitCanvasDrop(drop, ids);
+      browseOverview();
+    };
+    const up = (ev: PointerEvent) => { if (ev.pointerId === pointerId) finish(ghost ? overviewDropAt(ev.clientX, ev.clientY) : null); };
+    const cancel = () => finish(null);
+    const key = (ev: KeyboardEvent) => { if (ev.key === "Escape" && ghost) { ev.preventDefault(); ev.stopImmediatePropagation(); finish(null); } };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    window.addEventListener("keydown", key, true);
+  };
+
   if (!mode) return null;
   const activeCard = cards.find(card => leaves(card.root).some(p => p.content === activeId))?.key;
   const aspect = aspectNow, cardWidth = widthNow, radius = centerRadius();
   // A card pictures the canvas viewport: each pane sits where it sits on
   // screen, so the zoom lands every pane on itself.
   const byId = new Map(tabs.map(tab => [tab.id, tab]));
-  const activate = (card: Card) => zoomOutTo(card);
-  // Only a drag says where it will land; browsing needs no instructions.
-  // A landing keeps the hint's room as it fades, or the grid would
-  // re-centre and jump at the release.
+  const activate = (card: Card) => { if (!pickedUp.current) zoomOutTo(card); };
+  // Only a drag says where it will land; browsing needs no instructions,
+  // but keeps the hint's room (as a landing does while it fades), so the
+  // grid never re-centres.
   const hint = mode === "drag"
     ? label || text("Drop on a window to merge · on empty space to open on its own · outside the window for a new window", "拖到某个窗口上合并 · 空白处单独打开 · 拖出窗口新开一个")
-    : null;
+    : "";
 
   return (
     <div
       ref={rootRef}
       className={styles.overview}
       data-canvas-overview={mode}
+      data-opened-as={openedAs.current ?? undefined}
       data-native-view-occluder="true"
-      data-alone={hover?.card === null || undefined}
       data-leaving={zoom?.phase === "closing" || undefined}
       data-landing={landing ? "" : undefined}
       role={mode === "browse" ? "dialog" : undefined}
@@ -396,12 +464,17 @@ export function CanvasOverview() {
             "data-zooming": zoom?.key === card.key || undefined,
             "data-split": leaves(card.root).length > 1 || undefined,
           };
-          return mode === "browse"
-            ? <button key={card.key} type="button" {...shared} aria-label={card.title} onClick={() => activate(card)}>{body}</button>
-            : <div key={card.key} {...shared}>{body}</div>;
+          // One element in both modes: a card turning from a drag target
+          // into a pickable one keeps its pictures.
+          return (
+            <button key={card.key} type="button" {...shared} aria-label={card.title}
+              tabIndex={mode === "browse" ? undefined : -1}
+              onPointerDown={e => pickUp(e, card)}
+              onClick={() => { if (mode === "browse") activate(card); }}>{body}</button>
+          );
         })}
       </div>
-      {hint && <div className={styles.hint} role="status" aria-live="polite">{hint}</div>}
+      <div className={styles.hint} role="status" aria-live="polite" data-idle={!hint || undefined} data-alone={(mode === "drag" && hover?.card === null) || undefined}>{hint || "\u00a0"}</div>
     </div>
   );
 }

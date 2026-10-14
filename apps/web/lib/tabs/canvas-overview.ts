@@ -42,12 +42,21 @@ export function closeOverview() {
  *  wait on the desktop shell; the zoom is a compositor animation and
  *  plays on through it. */
 export function holdOverviewLanding(drop: CanvasDrop, sourceIds: string[]): void {
-  if (useCanvasOverview.getState().mode !== "drag" || drop.action !== "dock") return;
+  if (useCanvasOverview.getState().mode !== "drag") return;
+  // Empty space: the tab stands on its own and the overview stays, now
+  // browsing, where any card can be picked up again. The dropped tab's
+  // card comes back once its drop commits (commitCanvasDrop).
+  if (drop.action === "fill") { useCanvasOverview.setState({ mode: "browse", hover: null, label: "" }); return; }
+  if (drop.action !== "dock") return;
   const card = document.querySelector<HTMLElement>(`[data-overview-target="${CSS.escape(drop.targetId)}"] [data-overview-mini]`);
   landingFrom = card && sourceIds.length ? { drop, sourceIds } : null;
   if (landingFrom) useCanvasOverview.setState({ hover: null, landing: drop.targetId, landed: false });
 }
 export const overviewHeld = () => landingFrom !== null;
+/** A drag picked up in the overview ended without a merge: browse on. */
+export function browseOverview(): void {
+  if (useCanvasOverview.getState().mode) useCanvasOverview.setState({ mode: "browse", sourceIds: [], hover: null, label: "" });
+}
 /** The merge is ready: the overview commits it once its zoom is done.
  *  False when no drop is landing, and the caller commits it now. */
 export function landOverview(apply: () => void): boolean {

@@ -12,19 +12,15 @@
   -webkit-user-select: none;
   outline: none;
 }
-.overview[data-canvas-overview="browse"] {
+/* Browsing opens by zooming, not fading; switching modes while open
+   (a drag picked up from a card, a drop on empty space) never fades it
+   again. */
+.overview[data-opened-as="browse"] {
   animation: none;
-}
-/* Browsing shows no hint, so the grid keeps the same margin below. */
-.overview[data-canvas-overview="browse"] .grid {
-  padding-bottom: 32px;
 }
 .overview[data-canvas-overview="browse"] .card:not([data-current]) {
   animation-delay: 70ms;
   animation-fill-mode: both;
-}
-.overview[data-alone] {
-  background: color-mix(in oklch, var(--accent-blue) 6%, var(--bg-secondary));
 }
 .grid {
   flex: 1;
@@ -207,4 +203,23 @@ button.card:focus-visible .mini {
 @media (prefers-reduced-motion: reduce) {
   .overview, .card { animation: none; }
   .mini, .zone { transition: none; }
+}
+
+/* Browsing keeps the hint's room so the cards never move between modes. */
+.hint[data-idle] {
+  visibility: hidden;
+}
+/* Over empty space the drop opens the tab on its own: the hint says so. */
+.hint[data-alone] {
+  background: color-mix(in oklch, var(--accent-blue) 12%, var(--bg-primary));
+}
+/* A card picked up while browsing, following the pointer. */
+.ghost {
+  z-index: 100002;
+  pointer-events: none;
+  transform-origin: 0 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.22);
+  opacity: 0.94;
 }

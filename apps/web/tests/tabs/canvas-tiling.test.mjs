@@ -150,7 +150,7 @@ test('dragging a tab or a pane opens the window overview; its cards keep their s
 
 test('a merge drop zooms the window out of its card, then both sides of the split move together', async () => {
   const overview = await read('lib/tabs/canvas-overview.ts');
-  assert.match(overview, /if \(useCanvasOverview\.getState\(\)\.mode !== "drag" \|\| drop\.action !== "dock"\) return;/, 'only a merge holds the overview');
+  assert.match(overview, /if \(drop\.action === "fill"\) \{ useCanvasOverview\.setState\(\{ mode: "browse", hover: null, label: "" \}\); return; \}\n  if \(drop\.action !== "dock"\) return;/, 'a drop on empty space browses on; only a merge lands');
   const strip = await read('components/center-tabs/use-tab-pointer-drag.ts');
   assert.ok(strip.indexOf('holdOverviewLanding(canvasDrop, prepared.subject.tabIds)') < strip.indexOf('const committed = dragCoordinator.commit();'), 'the strip holds it before the drag state clears');
   assert.match(overview, /if \(landingFrom\) useCanvasOverview\.setState\(\{ hover: null, landing: drop\.targetId, landed: false \}\);/, 'the landing starts at the release, before the merge commits');
@@ -267,5 +267,22 @@ test('a split window is one tab: its focused pane, a split mark and one close', 
 test('browsing the overview: empty space is inert and there is no hint', async () => {
   const view = await read('components/center-tabs/canvas-overview.tsx');
   assert.doesNotMatch(view, /dataset\.overviewGrid !== undefined\) dismissOverview\(\)/, 'a click between cards does not open a window');
-  assert.match(view, /const hint = mode === "drag"\n    \? label \|\| text\([\s\S]*?\)\n    : null;/, 'only a drag shows a hint');
+  assert.match(view, /const hint = mode === "drag"\n    \? label \|\| text\([\s\S]*?\)\n    : "";/, 'only a drag shows a hint');
+  assert.match(view, /data-idle=\{!hint \|\| undefined\}/, 'browsing keeps the hint\'s room, hidden');
+  assert.match(view, /height: el\.clientHeight - 112,/, 'both modes lay cards out in the same area');
+  const css = await read('components/center-tabs/canvas-overview.module.css');
+  assert.doesNotMatch(css, /\.overview\[data-alone\]/, 'empty space tints the hint, not the whole overview');
+  assert.match(css, /\.overview\[data-opened-as="browse"\] \{\n  animation: none;/, 'switching modes never fades the overview in again');
+});
+
+test('browsing, a card can be picked up and dropped like a dragged tab', async () => {
+  const view = await read('components/center-tabs/canvas-overview.tsx');
+  assert.match(view, /onPointerDown=\{e => pickUp\(e, card\)\}/);
+  assert.match(view, /const ids = pane\?\.dataset\.overviewPane \? \[pane\.dataset\.overviewPane\] : leaves\(card\.root\)/, 'a pane of a split card comes up alone, otherwise the whole window');
+  assert.match(view, /openOverview\("drag", ids\);/, 'the pick turns the overview into a drag one');
+  assert.match(view, /if \(drop\?\.action === "dock"\) \{ holdOverviewLanding\(drop, ids\); commitCanvasDrop\(drop, ids\); return; \}/, 'a merge lands as from the strip');
+  assert.match(view, /browseOverview\(\);\n    \};/, 'anything else browses on');
+  assert.match(view, /const activate = \(card: Card\) => \{ if \(!pickedUp\.current\) zoomOutTo\(card\); \};/, 'the release is not a click');
+  const drag = await read('lib/tabs/canvas-drag.ts');
+  assert.match(drag, /if \(useCanvasOverview\.getState\(\)\.mode === "browse"\) useCanvasOverview\.setState\(\{ sourceIds: \[\] \}\);/, 'a tab dropped on empty space gets its card back');
 });
