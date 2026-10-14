@@ -15,6 +15,8 @@ import { setCanvasAnimating } from "./canvas-drag";
  *  folds it up into its tab in the strip, anything else (a pane hidden by
  *  green or by Fill) fades under the panes that take its place. */
 export type CanvasExit = "close" | "minimize" | "behind";
+/** The side of the canvas a pane docked by a drop comes in from. */
+export type CanvasEnter = "left" | "right" | "top" | "bottom";
 
 const MOVE_MS = 300;
 const CLOSE_MS = 180;
@@ -46,7 +48,7 @@ const STALE_MS = 1500;
  *  nothing however heavy the pane is. */
 type Still = { image: HTMLImageElement; rect: DOMRect; at: number };
 type Ghost = { tabId: string; exit: CanvasExit; node: HTMLElement; rect: DOMRect; scroll: [number, number, number][]; still?: Still };
-type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit>; tabBoxes: Map<Element, DOMRect> };
+type Capture = { at: number; root: HTMLElement; rects: Map<string, DOMRect>; ghosts: Ghost[]; exits: Record<string, CanvasExit>; enters: Record<string, CanvasEnter>; tabBoxes: Map<Element, DOMRect> };
 
 let pending: Capture | null = null;
 const stills = new Map<string, Still>();
@@ -136,9 +138,24 @@ export function captureCanvasTransition(exits: Record<string, CanvasExit> = {}):
     ghosts.push({ tabId: id, exit: exits[id] ?? "behind", node, rect, scroll, still: fresh });
   }
   if (!rects.size) return;
+  begin(root, rects, ghosts, exits, {});
+}
+
+/** Record a layout change seen from somewhere other than the live canvas:
+ *  `rects` says where each staying pane starts (the overview's zoomed card
+ *  over the canvas), and the panes named in `enters` slide in from that
+ *  side as the others make room, the edge between them moving as one.
+ *  Nothing leaves: whatever the canvas showed before is covered. */
+export function captureCanvasLanding(rects: Map<string, DOMRect>, enters: Record<string, CanvasEnter>): void {
+  if (typeof document === "undefined" || reducedMotion()) return;
+  const root = canvasRoot();
+  if (root && rects.size) begin(root, rects, [], {}, enters);
+}
+
+function begin(root: HTMLElement, rects: Map<string, DOMRect>, ghosts: Ghost[], exits: Record<string, CanvasExit>, enters: Record<string, CanvasEnter>): void {
   const tabBoxes = new Map<Element, DOMRect>();
   for (const box of document.querySelectorAll('[role="tablist"] > *')) tabBoxes.set(box, box.getBoundingClientRect());
-  pending = { at: performance.now(), root, rects, ghosts, exits, tabBoxes };
+  pending = { at: performance.now(), root, rects, ghosts, exits, enters, tabBoxes };
   // Web panes start freezing to a snapshot now, so the native views are
   // still by the time the panes move.
   setCanvasAnimating(true);
@@ -379,9 +396,12 @@ export function playCanvasTransition(): void {
   for (const id of Object.keys(capture.exits)) if (now.has(id)) return;
   const moves: { el: HTMLElement; from: DOMRect; to: DOMRect }[] = [];
   const arrivals: HTMLElement[] = [];
+  const entries: { el: HTMLElement; side: CanvasEnter }[] = [];
   let changed = false;
   for (const [id, el] of now) {
     const from = capture.rects.get(id);
+    const side = capture.enters[id];
+    if (!from && side) { entries.push({ el, side }); changed = true; continue; }
     if (!from) { arrivals.push(el); changed = true; continue; }
     const to = el.getBoundingClientRect();
     if (moved(from, to)) { moves.push({ el, from, to }); changed = true; }
@@ -416,6 +436,21 @@ export function playCanvasTransition(): void {
   for (const [ghost, { tab, target, arrives }] of folds) {
     if (arrives) growTab(tab, capture.tabBoxes);
     genieFold(ghost, origin, root, tab, target, foldDelay);
+  }
+  for (const { el, side } of entries) {
+    // Laid out at its final size from the start, so nothing in it re-wraps:
+    // it slides in from the canvas edge, clipped there, while the panes
+    // beside it give up the room. Same timing as theirs, so the edge
+    // between them stays one edge.
+    const { width, height } = el.getBoundingClientRect();
+    const [shift, clip] = side === "right" ? [`translateX(${width}px)`, `inset(0 ${width}px 0 0)`]
+      : side === "left" ? [`translateX(${-width}px)`, `inset(0 0 0 ${width}px)`]
+      : side === "bottom" ? [`translateY(${height}px)`, `inset(0 0 ${height}px 0)`]
+      : [`translateY(${-height}px)`, `inset(${height}px 0 0 0)`];
+    animations.push(el.animate([
+      { transform: shift, clipPath: clip },
+      { transform: "none", clipPath: "inset(0 0 0 0)" },
+    ], { duration: MOVE_MS, easing: EASE }));
   }
   for (const el of arrivals) {
     animations.push(el.animate([

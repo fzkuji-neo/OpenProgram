@@ -11,17 +11,17 @@ import type { Rect } from "./canvas-layout";
 export type OverviewSide = "left" | "right" | "top" | "bottom";
 export type OverviewHover = { card: string; side: OverviewSide } | { card: null; side: null } | null;
 /** `landing`: the tab a drop is merging into; the overview zooms that
- *  window's card back over the canvas before it closes. The zoom starts at
- *  the release, drawing the merge ahead of time, and `landed` turns true
- *  once the merge has committed (it may wait on the desktop shell). */
+ *  window's card, as it is, back over the canvas from the release.
+ *  `landed` turns true once the merge is ready to commit (it may wait on
+ *  the desktop shell); it commits when the zoom is done, and the live
+ *  canvas then makes room for the docked tab. */
 type OverviewState = { mode: "drag" | "browse" | null; sourceIds: string[]; hover: OverviewHover; label: string; landing: string | null; landed: boolean };
 
 export const useCanvasOverview = create<OverviewState>(() => ({ mode: null, sourceIds: [], hover: null, label: "", landing: null, landed: false }));
 
 /** The drop being landed, held from the release until the overview closes;
- *  null when no drop is landing. The merged card keeps `cardKey`, the key
- *  of the card it was dropped on. */
-export type OverviewLanding = { cardKey: string; drop: CanvasDrop; sourceIds: string[] };
+ *  null when no drop is landing. `apply` is the merge, once it is ready. */
+export type OverviewLanding = { drop: CanvasDrop; sourceIds: string[]; apply?: () => void };
 let landingFrom: OverviewLanding | null = null;
 export const overviewLandingFrom = () => landingFrom;
 
@@ -30,26 +30,31 @@ export function openOverview(mode: "drag" | "browse", sourceIds: string[] = []) 
   if (s.mode === mode && s.sourceIds.join("\n") === sourceIds.join("\n")) return;
   useCanvasOverview.setState({ mode, sourceIds, hover: null, label: "" });
 }
+/** A held merge still commits when the overview closes early. */
 export function closeOverview() {
+  const apply = landingFrom?.apply;
   landingFrom = null;
   if (useCanvasOverview.getState().mode) useCanvasOverview.setState({ mode: null, sourceIds: [], hover: null, label: "", landing: null, landed: false });
+  apply?.();
 }
 /** A drop onto a card: keep the drag overview up past the end of the drag
- *  and start zooming the merged window out of the card at once. The merge
- *  itself may wait on the desktop shell and then costs a render; the zoom
- *  is a compositor animation, so neither holds it up. */
+ *  and start zooming that window out of its card at once. The merge may
+ *  wait on the desktop shell; the zoom is a compositor animation and
+ *  plays on through it. */
 export function holdOverviewLanding(drop: CanvasDrop, sourceIds: string[]): void {
   if (useCanvasOverview.getState().mode !== "drag" || drop.action !== "dock") return;
   const card = document.querySelector<HTMLElement>(`[data-overview-target="${CSS.escape(drop.targetId)}"] [data-overview-mini]`);
-  const cardKey = card?.closest<HTMLElement>("[data-overview-card]")?.dataset.overviewCard;
-  landingFrom = cardKey && sourceIds.length ? { cardKey, drop, sourceIds } : null;
+  landingFrom = card && sourceIds.length ? { drop, sourceIds } : null;
   if (landingFrom) useCanvasOverview.setState({ hover: null, label: "", landing: drop.targetId, landed: false });
 }
 export const overviewHeld = () => landingFrom !== null;
-/** The merge committed: zoom the window holding `tabId` out of its card. */
-export function landOverview(tabId: string): void {
-  if (!landingFrom) { closeOverview(); return; }
-  useCanvasOverview.setState({ sourceIds: [], hover: null, label: "", landing: tabId, landed: true });
+/** The merge is ready: the overview commits it once its zoom is done.
+ *  False when no drop is landing, and the caller commits it now. */
+export function landOverview(apply: () => void): boolean {
+  if (!landingFrom) { closeOverview(); return false; }
+  landingFrom.apply = apply;
+  useCanvasOverview.setState({ landed: true });
+  return true;
 }
 export const overviewOpen = () => useCanvasOverview.getState().mode !== null;
 /** The open overview zooms its window back before it closes; without one
