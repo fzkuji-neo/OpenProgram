@@ -271,6 +271,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
             "capabilities/workflows/research-agent.md",
             "capabilities/workflows/wiki-agent.md"]),
         ("Agents", "Agents", ["capabilities/agents.md"]),
+        ("Always-on Agents", "常驻 Agent", ["capabilities/always-on-agents.md"]),
         ("Memory", "记忆", ["capabilities/memory.md"]),
         ("Session goals", "会话目标", ["capabilities/goal.md"]),
         ("Agentic workflows", "Agentic 工作流", ["capabilities/agentic-workflow.md"]),
@@ -378,6 +379,7 @@ TAB_SECTIONS: dict[str, list[tuple[str, str, list[str]]]] = {
         ]),
         ('Runtime · Goals and recovery', '运行时 · 目标与恢复', [
             "reference/design/runtime/goal-and-recovery.html",
+            "reference/design/runtime/always-on-agents.md",
             "reference/design/runtime/agent-resource-governance.html",
             "reference/design/runtime/structured-generation-recovery.html",
             "reference/design/runtime/durable-tool-results.html",
@@ -705,6 +707,7 @@ PAGE_ORDER: dict[str, int] = {
     "capabilities/permissions.md": 10,
     "capabilities/lsp.md": 11,
     "capabilities/agents.md": 12,
+    "capabilities/always-on-agents.md": 12,
     "capabilities/memory.md": 12,
     "capabilities/goal.md": 12,
     "capabilities/agentic-workflow.md": 13,
@@ -787,6 +790,7 @@ PAGE_ORDER: dict[str, int] = {
     "reference/design/runtime/execution/control.html": 1005,
     "reference/design/runtime/durable-tool-results.html": 1005,
     "reference/design/runtime/goal-and-recovery.html": 1006,
+    "reference/design/runtime/always-on-agents.md": 1006,
     # Center tabs: authoritative tab/group/view state and split-layout design.
     "reference/design/ui/center-tabs-and-split-layout.html": 1009,
     "reference/design/ui/built-in-browser.html": 1010,

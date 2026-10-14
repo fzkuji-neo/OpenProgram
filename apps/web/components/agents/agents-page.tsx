@@ -12,6 +12,8 @@ import settingsStyles from "@/components/settings/settings-page.module.css";
 import { AgentButton, AgentListRow, AgentRoleIcon } from "./agent-controls";
 import { AdvancedPanel, ContextPanel, MemoryPanel, OverviewPanel } from "./agent-panels";
 import { CapabilityPanel } from "./agent-capabilities";
+import { AlwaysOnPanel } from "./always-on-panel";
+import { wakeMinutesValid } from "@/lib/agents/always-on";
 import { ModelPicker, selectedModel, useAgentModels, type ModelSelection } from "./model-picker";
 import { clone, configuration, normalizeAgent, trialConfiguration, TABS, type Agent, type TabId } from "./agent-types";
 import styles from "./agents-page.module.css";
@@ -54,7 +56,8 @@ export function AgentsPage() {
   const model = draft ? selectedModel(draft, models) : undefined;
   const effortInvalid = Boolean(draft?.thinking_effort && model && !model.thinking_levels?.includes(draft.thinking_effort));
   const formError = draft && !draft.name.trim() ? text("Enter an Agent name.", "请输入 Agent 名称。")
-    : effortInvalid && dirty ? text("Choose a supported thinking effort in General.", "请在常规分区选择支持的思考强度。") : "";
+    : effortInvalid && dirty ? text("Choose a supported thinking effort in General.", "请在常规分区选择支持的思考强度。")
+    : draft && !wakeMinutesValid(draft.always_on.wake_minutes) ? text("Enter a wake interval from 5 to 10080 minutes in Always-on.", "请在常驻分区填写 5 到 10080 分钟的唤醒间隔。") : "";
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
@@ -249,6 +252,7 @@ export function AgentsPage() {
             {(["programs", "skills", "mcp"] as const).map((kind) => <TabsContent className={styles.tabPanel} value={kind} key={kind}><CapabilityPanel kind={kind} draft={draft} update={updateDraft} text={text} /></TabsContent>)}
             <TabsContent className={styles.tabPanel} value="memory"><MemoryPanel draft={draft} update={updateDraft} text={text} /></TabsContent>
             <TabsContent className={styles.tabPanel} value="context"><ContextPanel draft={draft} update={updateDraft} text={text} /></TabsContent>
+            <TabsContent className={styles.tabPanel} value="always_on"><AlwaysOnPanel draft={draft} update={updateDraft} text={text} /></TabsContent>
             <TabsContent className={styles.tabPanel} value="advanced"><AdvancedPanel draft={draft} update={updateDraft} text={text} /></TabsContent>
           </fieldset></div>
         </Tabs>

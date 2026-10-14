@@ -103,3 +103,13 @@ test("outside the desktop shell nothing is reported", () => {
   assert.equal(notified.length, before);
   globalThis.window.openprogramDesktop = saved;
 });
+
+test("an always-on report notifies with the Agent's name and the report title", () => {
+  const before = notified.length;
+  attention.reportAttention({ kind: "report", sessionId: "s1", key: "always-on-report:r1", title: "Scout", detail: "Found two broken links" });
+  attention.reportAttention({ kind: "report", sessionId: "s1", key: "always-on-report:r1", title: "Scout", detail: "Found two broken links" });
+  assert.equal(notified.length, before + 1, "a report notifies once");
+  assert.equal(notified.at(-1).title, "Scout");
+  assert.equal(notified.at(-1).body, "Found two broken links");
+  assert.equal(notified.at(-1).sessionId, "s1");
+});

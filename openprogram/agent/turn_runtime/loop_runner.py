@@ -284,6 +284,11 @@ def resolve_agent_runtime(
     from openprogram.memory.policy import allowed as _memory_allowed
     from openprogram.programs.tools.knowledge.memory import MEMORY_TOOL_NAMES
     tools = [tool for tool in tools or [] if tool.name not in MEMORY_TOOL_NAMES or _memory_allowed(write=tool.name in {"memory_update", "memory_promote"})]
+    # Reports belong to an always-on Agent's home conversation.
+    if any(tool.name == "always_on_report" for tool in tools):
+        from openprogram.agent.always_on import agent_for_session
+        if agent_for_session(req.session_id) is None:
+            tools = [tool for tool in tools if tool.name != "always_on_report"]
     saved_legacy_goal = saved_runtime_contract is not None and any(
         tool["name"] == "goal" for tool in saved_runtime_contract["tools"]
     )

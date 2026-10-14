@@ -1,3 +1,5 @@
+import { ALWAYS_ON_DEFAULTS, type AlwaysOnConfig } from "@/lib/agents/always-on";
+
 export type ToolPolicy = {
   mode: "automatic" | "selected" | "none";
   preset?: string;
@@ -29,6 +31,7 @@ export type AgentConfigDTO = {
   session_scope: string;
   session_idle_minutes: number;
   session_daily_reset: string;
+  always_on: AlwaysOnConfig;
 };
 export type Agent = AgentConfigDTO & {
   id: string;
@@ -38,7 +41,7 @@ export type Agent = AgentConfigDTO & {
   updated_at: number;
 };
 export type Text = (english: string, chinese: string) => string;
-export type TabId = "overview" | "programs" | "skills" | "mcp" | "memory" | "context" | "advanced";
+export type TabId = "overview" | "programs" | "skills" | "mcp" | "memory" | "context" | "always_on" | "advanced";
 export const TABS: Array<{ id: TabId; en: string; zh: string }> = [
   { id: "overview", en: "General", zh: "常规" },
   { id: "programs", en: "Programs", zh: "程序" },
@@ -46,6 +49,7 @@ export const TABS: Array<{ id: TabId; en: string; zh: string }> = [
   { id: "mcp", en: "MCP", zh: "MCP" },
   { id: "memory", en: "Memory", zh: "长期记忆" },
   { id: "context", en: "Context", zh: "上下文" },
+  { id: "always_on", en: "Always-on", zh: "常驻" },
   { id: "advanced", en: "Advanced", zh: "高级" },
 ];
 export const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -55,6 +59,7 @@ export function normalizeAgent(raw: Agent): Agent {
     memory: raw.memory ?? { mode: "read_write", read_spaces: ["legacy_global"], write_space: "legacy_global", required: false },
     skills: { ...raw.skills, allowed: raw.skills?.allowed ?? [], disabled: raw.skills?.disabled ?? [], categories: raw.skills?.categories ?? [] },
     mcp: { ...raw.mcp, allowed: raw.mcp?.allowed ?? [], disabled: raw.mcp?.disabled ?? [], required: raw.mcp?.required ?? [] },
+    always_on: { ...ALWAYS_ON_DEFAULTS, ...raw.always_on },
   };
 }
 export function configuration(agent: Agent): AgentConfigDTO {
@@ -65,6 +70,7 @@ export function configuration(agent: Agent): AgentConfigDTO {
     identity: agent.identity, session_scope: agent.session_scope,
     session_idle_minutes: agent.session_idle_minutes,
     session_daily_reset: agent.session_daily_reset,
+    always_on: agent.always_on,
   });
 }
 export function policyMode(policy: GatePolicy): "all" | "selected" | "none" {

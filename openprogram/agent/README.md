@@ -51,6 +51,7 @@ The Runtime layer composes these to build whatever agent behavior is needed.
 
 ## Sub-packages
 
+- **`always_on/`** — Always-on Agents: a saved Agent that wakes on a schedule
 - **`compaction/`** — Context compaction for long agent sessions
 - **`dispatcher/`** — Compatibility imports for the shared Agent turn runtime
 - **`internals/`** — Agent package internals
