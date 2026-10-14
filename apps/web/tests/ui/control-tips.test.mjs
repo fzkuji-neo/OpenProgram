@@ -50,3 +50,7 @@ test("A tab on a management page wears that page's rail icon", () => {
   const icons = readFileSync(new URL("../../components/center-tabs/route-page-icon.tsx", import.meta.url), "utf8");
   for (const root of ["agents", "programs", "applications", "chats", "scheduler", "settings"]) assert.match(icons, new RegExp(`\\b${root}: \\w+`));
 });
+
+test("The transcript fades out under the pane's top edge", () => {
+  assert.match(read("app/styles/chat/transcript.css"), /\.chat-area \{[^}]*mask-image: linear-gradient\(to bottom, transparent 0, #000 28px\);/);
+});
