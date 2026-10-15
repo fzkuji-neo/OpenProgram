@@ -17,7 +17,7 @@ test("collapsed rails name their icons on hover, with no native title", () => {
 });
 
 test("inline code in a table cell keeps whole words", () => {
-  assert.match(read("app/styles/chat/bubbles.css"), /\.message-content :is\(th, td\) code \{ overflow-wrap: normal; \}/);
+  assert.match(read("app/styles/chat/bubbles.css"), /\.message-content :is\(th, td\) code \{[^}]*overflow-wrap: normal;\n\}/);
 });
 
 test("provider detail sections never share a React key", () => {
@@ -133,10 +133,17 @@ test("Reply markdown wears the Claude app's styles", () => {
   assert.match(bubbles, /\.message-content :is\(h1, h2, h3, h4, h5, h6\) \{[^}]*font-weight: 700;/);
   assert.match(bubbles, /\.message-content h1 \{ font-size: 1\.375rem; \}/);
   assert.match(bubbles, /\.message-content h2 \{ font-size: 1\.125rem; \}/);
-  // Tables: a hairline under each row, no grid, no fills; pulled up by their header inset.
-  assert.match(bubbles, /\.message-content th, \.message-content td \{[^}]*border: 0;[^}]*border-bottom: 0\.5px solid/);
-  assert.match(bubbles, /\.message-content th \{[^}]*background: transparent;[^}]*font-weight: 700;/);
-  assert.match(bubbles, /> table:not\(:first-child\) \{ margin-top: -11px; \}/);
+  // Tables, Codex's: the full column wide in a scroll wrapper, a hairline
+  // under each row but the last, quiet code chips; pulled in by their insets.
+  assert.match(bubbles, /\.message-content \.md-table \{ overflow-x: auto; \}/);
+  assert.match(bubbles, /\.message-content table \{[^}]*width: 100%;/);
+  assert.match(bubbles, /\.message-content th, \.message-content td \{[^}]*border: 0;[^}]*border-bottom: 1px solid/);
+  assert.match(bubbles, /\.message-content th \{[^}]*background: transparent;[^}]*font-weight: 600;/);
+  assert.match(bubbles, /\.message-content tbody tr:last-child td \{ border-bottom: 0; \}/);
+  assert.match(bubbles, /\.message-content :is\(th, td\) code \{[^}]*color: inherit;[^}]*box-shadow: inset 0 0 0 1px/);
+  assert.match(bubbles, /> \.md-table:not\(:first-child\) \{ margin-top: -9px; \}/);
+  assert.match(bubbles, /> \.md-table:not\(:last-child\) \{ margin-bottom: -13px; \}/);
+  assert.match(read("components/chat/messages/markdown.ts"), /replace\(\/<table>\/g, '<div class="md-table"><table>'\)/);
   // Inline code chip and the code card whose copy button shows on hover.
   assert.match(bubbles, /\.message-content code \{[^}]*border: 0\.5px solid[^}]*color: var\(--accent-red\);/);
   assert.match(bubbles, /\.md-code-head \.md-code-copy \{ opacity: 0;/);

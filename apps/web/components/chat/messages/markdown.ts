@@ -23,7 +23,7 @@ import {
 export function renderMarkdown(src: string): string {
   if (typeof window === "undefined") return escapeHtml(src);
   try {
-    return withCodeChrome(withA2ui(renderMd(markOpenA2uiFence(src))));
+    return withTableScroll(withCodeChrome(withA2ui(renderMd(markOpenA2uiFence(src)))));
   } catch {
     return escapeHtml(src);
   }
@@ -86,7 +86,7 @@ export function renderUserMarkdown(src: string): string {
   let out: string;
   try {
     out = '<span class="md-rendered">'
-      + withCodeChrome(sanitizeHtml(userMarked.parse(src, { async: false }) as string))
+      + withTableScroll(withCodeChrome(sanitizeHtml(userMarked.parse(src, { async: false }) as string)))
       + "</span>";
   } catch {
     out = escapeHtml(src);
@@ -94,6 +94,14 @@ export function renderUserMarkdown(src: string): string {
   if (userCache.size >= 500) userCache.delete(userCache.keys().next().value!);
   userCache.set(src, out);
   return out;
+}
+
+/** Wrap each table in its scroll container, so the table can span the
+ *  column (marked emits a bare <table>, and a table that scrolls itself
+ *  has to be display:block, which shrinks it to its content). */
+function withTableScroll(html: string): string {
+  if (!html.includes("<table")) return html;
+  return html.replace(/<table>/g, '<div class="md-table"><table>').replace(/<\/table>/g, "</table></div>");
 }
 
 const COPY_ICON =

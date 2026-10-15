@@ -471,7 +471,7 @@
 }
 .chat-stream-body > .chat-text > .md-rendered > p:has(> code) { padding-block: 3.8px 6.1px; }
 /* Inside a quote or a loose list item, blocks keep the same gap. */
-.message-content :is(blockquote, li) > * + :is(p, pre, .md-code, table, blockquote) { margin-top: var(--reply-gap); }
+.message-content :is(blockquote, li) > * + :is(p, pre, .md-code, .md-table, blockquote) { margin-top: var(--reply-gap); }
 .message-content ul, .message-content ol { padding-left: 32px; }
 .message-content li { padding-left: 8px; }
 .message-content li + li { margin-top: 4px; }
@@ -499,50 +499,64 @@
 .message-content a:hover { text-decoration: underline; }
 .message-content blockquote { margin: 0 0 0 8px; border-left: 4px solid color-mix(in srgb, var(--text-bright) 10%, transparent); padding: 0 0 0 16px; color: var(--text-secondary); }
 .message-content hr { margin: 0 6px; border: 0; border-top: 0.5px solid var(--border); }
-/* marked emits a bare <table> with no wrapper, so the table itself has
-   to be the scroll container: `display:block` makes overflow-x apply
-   (a `display:table` box ignores it and just widens the column, which
-   is what pushed the whole #chatArea into horizontal scroll). */
+/* Tables, the Codex app's: the full column wide, a hairline under each
+   row (a firmer one under the header, none under the last row), no grid
+   and no fills. The renderer wraps each table in .md-table, the scroll
+   container, so the table itself can span the column and still scroll
+   when its cells cannot fit. */
+.message-content .md-table { overflow-x: auto; }
 .message-content table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-  border-collapse: collapse;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
   margin: 0;
   font-size: 0.875rem;
-  line-height: 1.7;
+  line-height: 1.71429;
 }
-/* The Claude app's table: no grid and no fills, only a hairline under
-   each row — a firmer one under the bold header. Cells read left to
-   right and from the top, the way the text around them does. */
-/* With no rule on top, a table's visible top is its header text, ~11px
-   inside the box (cell padding plus leading); it gives that back so the
-   reply gap reads the same above a table as above anything else. */
-.message-content .md-rendered > table:not(:first-child) { margin-top: -11px; }
+/* With no rule on top, a table's visible top is its header text, inside
+   the cell padding; it gives that back (and, with no rule under the last
+   row, the bottom too) so the reply gap reads the same around a table as
+   around anything else. */
+.message-content .md-rendered > .md-table:not(:first-child) { margin-top: -9px; }
+.message-content .md-rendered > .md-table:not(:last-child) { margin-bottom: -13px; }
 .message-content th, .message-content td {
   border: 0;
-  border-bottom: 0.5px solid color-mix(in srgb, var(--text-bright) 14%, transparent);
-  padding: 8px 16px 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--text-bright) 9%, transparent);
+  padding: 10px 8px;
   text-align: start;
-  vertical-align: top;
   /* The table scrolls, so cells keep their natural width instead of
      inheriting the bubble's mid-token breaking. */
   overflow-wrap: normal;
 }
 .message-content th {
+  padding-block: 8px;
   background: transparent;
   color: var(--text-bright);
-  font-weight: 700;
-  border-bottom-color: color-mix(in srgb, var(--text-bright) 30%, transparent);
+  font-weight: 600;
+  line-height: 1.125rem;
+  border-bottom-color: color-mix(in srgb, var(--text-bright) 16%, transparent);
   /* A squeezed column never breaks a CJK heading between its characters
      ("宽表" stacked one per line); it still breaks at spaces. */
   word-break: keep-all;
 }
+.message-content :is(th, td):first-child { padding-inline-start: 0; }
+.message-content :is(th, td):last-child { padding-inline-end: 0; }
+.message-content tbody tr:last-child td { border-bottom: 0; }
 .message-content :is(th, td)[align="center"] { text-align: center; }
 .message-content :is(th, td)[align="right"] { text-align: end; }
-/* Inline code in a cell (a file name, an identifier) keeps whole too:
-   breaking it anywhere let the column shrink to a few letters. */
-.message-content :is(th, td) code { overflow-wrap: normal; }
+/* Code in a cell is Codex's quiet chip, in the text's own colour, and
+   keeps whole (breaking it anywhere let the column shrink to a few
+   letters). */
+.message-content :is(th, td) code {
+  color: inherit;
+  background: color-mix(in srgb, var(--text-bright) 5%, transparent);
+  border: 0;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-bright) 8%, transparent);
+  border-radius: 0.25rem;
+  padding: 1px 0.3rem;
+  font-weight: 500;
+  overflow-wrap: normal;
+}
 /* Footnotes (marked-footnote): a small number in the text, and the notes
    under a hairline at the end of the reply, a size down and secondary. */
 .message-content sup { position: relative; top: -0.5em; font-size: 0.75em; line-height: 0; vertical-align: baseline; }
