@@ -1,10 +1,15 @@
 import renderMathInElement from "katex/contrib/auto-render";
-import { marked as npmMarked } from "marked";
+import { marked as npmMarked, type MarkedExtension } from "marked";
+import markedFootnote from "marked-footnote";
 import { cjkEmphasis } from "../markdown/cjk-emphasis.ts";
 
 // The shared `marked` singleton (chat, memory, file previews) closes
 // `**bold**` in CJK prose the way readers expect; see cjk-emphasis.ts.
+// It also renders GFM footnotes (`[^1]`) instead of a dead link.
 npmMarked.use(cjkEmphasis);
+// Its types name the workspace root's older `marked`; the extension itself
+// works with any marked from 7 on.
+npmMarked.use(markedFootnote() as unknown as MarkedExtension);
 
 export function escHtml(s: unknown): string {
   if (typeof s !== "string") s = String(s ?? "");
