@@ -135,7 +135,7 @@ def _truncate_tool_outputs_for_wire(messages: list[dict]) -> list[dict]:
     return output
 
 
-def _annotate_spawn_origin(graph: list[dict]) -> None:
+def _annotate_spawn_origin(graph: list[dict], messages: list[dict] | None = None) -> None:
     """Attach ``spawned_from`` to each ``source=agent_spawn`` user msg
     that's the root of a sub-branch.
 
@@ -148,6 +148,12 @@ def _annotate_spawn_origin(graph: list[dict]) -> None:
     branch tip. Walk predecessor back from the tip to reach the
     sub-branch root. The attach node's own ``predecessor`` (= the main
     LLM reply that ran the task() tool) is the caller id we record.
+
+    A sub-branch root that no pointer reaches this way (a Job spawn's
+    pointer names no head, and the graph carries no pointer rows) still
+    records its spawning reply as ``caller``; that is the way back. Its
+    label comes from the Job's spawn card in ``messages``: the Job's
+    admission id ``<job_id>_user`` is the root.
     """
     by_id = {n.get("id"): n for n in graph if n.get("id")}
     # Build conv_children from predecessor
@@ -187,6 +193,94 @@ def _annotate_spawn_origin(graph: list[dict]) -> None:
             "caller_id": caller,
             "label": (attach.get("attach_label") or "").strip() or None,
         }
+    labels: dict[str, str] = {}
+    if messages:
+        from openprogram.webui.ws_actions.branch import (
+            _extract_attach_job_id,
+            _extract_attach_label,
+        )
+        for m in messages:
+            job_id = _extract_attach_job_id(m)
+            label = _extract_attach_label(m)
+            if job_id and label:
+                labels[f"{job_id}_user"] = label
+    for n in graph:
+        if (n.get("spawned_from") or n.get("source") != "agent_spawn"
+                or n.get("role") != "user" or n.get("predecessor")):
+            continue
+        caller = n.get("caller")
+        if caller and caller in by_id:
+            n["spawned_from"] = {
+                "caller_id": caller,
+                "label": labels.get(n.get("id") or "")
+                or (n.get("branch_name") or "").strip() or None,
+            }
+
+
+def _spawned_branch(head: str | None, messages: list[dict]) -> dict | None:
+    """Where a sub-agent branch came from, when the head is on one.
+
+    The transcript's way back (the sub-agent banner) needs the branch's
+    spawn root and the conversation it was spawned from. A bounded load
+    ships no graph, so the server names them: ``back_target`` is the
+    newest conversation tip below the spawning reply, the main view the
+    user left.
+    """
+    by_id = {m.get("id"): m for m in messages if m.get("id")}
+
+    def conversational(m: dict) -> bool:
+        return (
+            m.get("role") in ("user", "assistant")
+            and m.get("display") not in ("root", "runtime")
+            and not m.get("function")
+            and not isinstance(m.get("covers_ids"), list)
+        )
+
+    root, seen = by_id.get(head), set()
+    while root is not None and root.get("predecessor") in by_id and root.get("id") not in seen:
+        seen.add(root.get("id"))
+        root = by_id[root["predecessor"]]
+    caller = (root or {}).get("caller")
+    if (
+        root is None or root.get("source") != "agent_spawn"
+        or root.get("role") != "user" or caller not in by_id
+    ):
+        return None
+    children: dict[str, list[dict]] = {}
+    for m in messages:
+        parent = m.get("predecessor")
+        if parent and conversational(m):
+            children.setdefault(parent, []).append(m)
+
+    def stamp(m: dict) -> float:
+        value = m.get("created_at") or m.get("timestamp") or 0
+        return float(value) if isinstance(value, (int, float)) else 0.0
+
+    back, hops = caller, set()
+    while back in children and back not in hops:
+        hops.add(back)
+        back = max(children[back], key=stamp)["id"]
+    first_reply = next(
+        (m["id"] for m in children.get(root["id"], []) if m.get("role") == "assistant"),
+        None,
+    )
+    label = None
+    from openprogram.webui.ws_actions.branch import (
+        _extract_attach_job_id,
+        _extract_attach_label,
+    )
+    for m in messages:
+        job_id = _extract_attach_job_id(m)
+        if job_id and f"{job_id}_user" == root["id"]:
+            label = _extract_attach_label(m)
+            break
+    return {
+        "root_id": root["id"],
+        "caller_id": caller,
+        "back_target": back,
+        "first_reply": first_reply,
+        "label": label or (root.get("branch_name") or "").strip() or None,
+    }
 
 
 def _compaction_msg_ts(m: dict) -> float:
@@ -1178,7 +1272,7 @@ async def handle_load_session(ws, cmd: dict):
         # to the main-lane turn that produced it, so the frontend
         # can render a "Spawned from: <branch>" card at the top of
         # the sub branch (mirror of the AttachCard on main).
-        _annotate_spawn_origin(graph)
+        _annotate_spawn_origin(graph, raw_msgs)
         # Mirror the spawned_from annotation onto ``shown`` (what the
         # chat list renders), keyed by id.
         _spawn_by_id = {
@@ -1243,6 +1337,7 @@ async def handle_load_session(ws, cmd: dict):
                 **({"history": history} if history is not None else {}),
                 "graph": [] if getattr(ws, "_bounded_history", False) else graph,
                 "head_id": head,
+                "spawned_branch": _spawned_branch(head, raw_msgs),
                 "context_tree": tree_data,
                 "provider_info": _s._get_provider_info(session_id),
                 "context_stats": _stats or None,

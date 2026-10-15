@@ -50,10 +50,19 @@ export function SpawnedFromCard({ msg }: { msg: ChatMsg }) {
         anchor: sf.callerId,
       };
     }
+    // Back to the conversation the agent was spawned from, at its newest
+    // turn (the server names it with the load); the reload scrolls to the
+    // spawning reply.
+    const spawned = (runtimeState.conversations[sessionId] as
+      | { spawned_branch?: { root_id?: string; back_target?: string } | null }
+      | undefined)?.spawned_branch;
+    const target = spawned?.root_id === msg.id && spawned.back_target
+      ? spawned.back_target
+      : sf.callerId;
     wsSend({
       action: "checkout_branch",
       session_id: sessionId,
-      head_msg_id: sf.callerId,
+      head_msg_id: target,
     });
     wsSend({ action: "load_session", session_id: sessionId });
   }
@@ -84,7 +93,7 @@ export function SpawnedFromCard({ msg }: { msg: ChatMsg }) {
           onMouseEnter={() => switchIconRef.current?.startAnimation?.()}
           onMouseLeave={() => switchIconRef.current?.stopAnimation?.()}
           aria-label={text("Switch back to the calling turn", "切回调用它的回合")}
-          title={text("Switch back to the calling turn", "切回调用它的回合")}
+          data-tip={text("Switch back to the calling turn", "切回调用它的回合")}
         >
           {text("Switch", "切换")}
           <ArrowUpRightIcon ref={switchIconRef} size={14} />

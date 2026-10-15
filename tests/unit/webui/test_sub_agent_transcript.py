@@ -130,3 +130,45 @@ def test_a_finished_job_records_its_reply_as_branch_head():
     # A turn that raised leaves no result; its admitted reply id stands in.
     assert _turn_head_id(_Executions(), "j_b", None) == "j_b_user_reply"
     assert _turn_head_id(SimpleNamespace(), "j_c", None) is None
+
+
+def _spawn_rows():
+    rows = [
+        {"id": "u1", "role": "user", "predecessor": None, "timestamp": 1},
+        {"id": "a1", "role": "assistant", "predecessor": "u1", "timestamp": 2},
+        {"id": "card", "role": "assistant", "function": "attach", "caller": "a1",
+         "predecessor": None, "attach": {"job_id": "j_a", "label": "研究", "head_id": None}},
+        {"id": "u2", "role": "user", "predecessor": "a1", "timestamp": 5},
+        {"id": "a2", "role": "assistant", "predecessor": "u2", "timestamp": 6},
+        {"id": "j_a_user", "role": "user", "predecessor": "", "caller": "a1",
+         "source": "agent_spawn", "timestamp": 3},
+        {"id": "j_a_user_reply", "role": "assistant", "predecessor": "j_a_user",
+         "source": "agent_spawn", "timestamp": 4},
+    ]
+    return rows
+
+
+def test_a_sub_agent_branch_names_the_way_back_to_the_conversation():
+    from openprogram_server._webui.ws_actions.session import _spawned_branch
+
+    rows = _spawn_rows()
+    assert _spawned_branch("j_a_user_reply", rows) == {
+        "root_id": "j_a_user",
+        "caller_id": "a1",
+        # The newest turn below the spawning reply, not the reply itself.
+        "back_target": "a2",
+        "first_reply": "j_a_user_reply",
+        "label": "研究",
+    }
+    assert _spawned_branch("a2", rows) is None
+
+
+def test_a_job_branch_root_without_a_pointer_head_gets_its_spawn_origin():
+    from openprogram_server._webui.ws_actions.session import _annotate_spawn_origin
+
+    rows = _spawn_rows()
+    graph = [dict(row) for row in rows if row.get("function") != "attach"]
+    _annotate_spawn_origin(graph, rows)
+    by_id = {row["id"]: row for row in graph}
+    assert by_id["j_a_user"]["spawned_from"] == {"caller_id": "a1", "label": "研究"}
+    assert "spawned_from" not in by_id["u2"]

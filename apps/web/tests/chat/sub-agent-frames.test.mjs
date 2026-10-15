@@ -121,3 +121,15 @@ test("each turn with spawns shows the Sub-agents card", () => {
   assert.doesNotMatch(card, /Go to agent", "进入子代理"/);
   assert.doesNotMatch(card, /\btitle=/, "tips use data-tip, never a native title");
 });
+
+test("on a sub-agent branch the way back comes from the load, not the graph", () => {
+  // A bounded load ships graph: [], so the banner and the Spawned-from card
+  // read the server's spawned_branch and return to the conversation's
+  // newest turn rather than to the spawning reply.
+  const banner = readFileSync(new URL("../../components/chat/messages/agent-branch-banner.tsx", import.meta.url), "utf8");
+  assert.match(banner, /const spawned = conv\?\.spawned_branch;\n\s+if \(spawned !== undefined\) \{\n\s+if \(!spawned\) return null;/);
+  assert.match(banner, /backTarget: spawned\.back_target,/);
+  const card = readFileSync(new URL("../../components/chat/messages/spawned-from-card.tsx", import.meta.url), "utf8");
+  assert.match(card, /const target = spawned\?\.root_id === msg\.id && spawned\.back_target\n\s+\? spawned\.back_target\n\s+: sf\.callerId;/);
+  assert.doesNotMatch(card, /\btitle=\{/);
+});

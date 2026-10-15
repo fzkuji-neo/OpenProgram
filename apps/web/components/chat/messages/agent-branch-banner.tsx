@@ -58,11 +58,31 @@ function isConvRow(n: GraphRow): boolean {
   return n.role === "user" || n.role === "assistant";
 }
 
+interface SpawnedBranch {
+  root_id: string;
+  caller_id: string;
+  back_target: string;
+  first_reply?: string | null;
+  label?: string | null;
+}
+
 function computeBanner(sessionId: string | null): BannerInfo | null {
   if (!sessionId) return null;
   const conv = runtimeState.conversations[sessionId] as
-    | { graph?: GraphRow[]; head_id?: string }
+    | { graph?: GraphRow[]; head_id?: string; spawned_branch?: SpawnedBranch | null }
     | undefined;
+  // The server names the branch with every session load; a bounded load
+  // ships no graph to work it out from.
+  const spawned = conv?.spawned_branch;
+  if (spawned !== undefined) {
+    if (!spawned) return null;
+    return {
+      name: spawned.label?.trim() || spawned.root_id.slice(0, 8),
+      backTarget: spawned.back_target,
+      firstReply: spawned.first_reply || "",
+      spawnCaller: spawned.caller_id,
+    };
+  }
   const graph = conv?.graph;
   if (!Array.isArray(graph) || !graph.length) return null;
   const rows = (runtimeState._branchesByConv[sessionId] as
