@@ -129,10 +129,11 @@ def _release_default_agent_model() -> None:
 
 def _newest_session_model() -> Optional[tuple[str, str]]:
     from openprogram.agent.session_db import default_db
+    from openprogram.agent.session_model import read_session_chat_model
 
+    # Listing rows are summaries without the model pin; read each pin.
     for row in default_db().list_sessions(limit=200, include_archived=True):
-        provider = str(row.get("provider_override") or "").strip()
-        model = str(row.get("model_override") or "").strip()
+        provider, model = read_session_chat_model(row.get("id"))
         if provider and model:
             return provider, _bare(provider, model)
     return None
