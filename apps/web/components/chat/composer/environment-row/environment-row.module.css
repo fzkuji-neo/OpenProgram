@@ -124,9 +124,11 @@
 .envChips[data-compact="true"] :global(.status-badge),
 .envChips[data-compact="true"] :global(.workdir-add-badge),
 .envChips[data-compact="true"] :global(button.dag-hud-chip) {
-  min-width: 24px;
-  padding-left: 5px;
-  padding-right: 5px;
+  /* Icon-only chips are the same 28px circle as the icon pills under
+     the input box. */
+  min-width: 28px;
+  padding-left: 0;
+  padding-right: 0;
   gap: 0;
   justify-content: center;
 }
