@@ -474,9 +474,116 @@ way.
 
 - **Every session**: `core.md`, injected as a fenced `<memory-context>`
   block so recalled facts are never mistaken for the user talking now.
-- **Every turn**: whatever `search` finds for that message — a BM25
-  search over blocks and sources, top five, also fenced.
+- **Every turn**: whatever `search` finds for that message, ranked by the
+  recall method in Settings (five records by default), also fenced.
 - **On demand**: the `memory_*` tools.
+
+## Recall
+
+`memory.retrieval.method` picks how a turn's message is matched:
+
+| Method | What ranks |
+|---|---|
+| `agent` | Nothing automatic; the model reads memory with the tools when it wants to |
+| `bm25` | Keyword ranking over Topic blocks and, if enabled, Sources |
+| `embedding` | Cosine similarity with a local sentence-transformer |
+| `hybrid` | Both, merged |
+
+Hybrid recall asks each backend for five times the requested hits, turns
+each ranking into Reciprocal Rank Fusion scores (`1 / (60 + rank)`), and
+blends the two. Adding rank scores rather than raw scores is what makes the
+blend meaningful: a BM25 score and a cosine similarity have no common
+scale. A hit found by only one backend keeps its rank there, and every
+result says which backends found it (`matched_by`).
+
+`memory.retrieval.hybrid.weighting` sets the embedding ranking's share of
+the blend: `keyword` 0.3, `balanced` 0.5, `semantic` 0.7. `auto`, the
+default, uses 0.3 for a query that contains a date, a quoted phrase or a
+capitalised name after a lowercase word, and 0.5 otherwise. Such a query
+wants the literal words, which is what BM25 is good at and what an
+embedding blurs.
+
+`memory.retrieval.hybrid.file_boost`, on by default, lifts the best hit of
+each Topic file in proportion to how much of the fused score the file
+collects, up to a fifth of the top score. Several paragraphs of one file
+matching is evidence the file is the right subject, and without the lift a
+single lucky sentence elsewhere outranks it.
+
+## Project memory
+
+What a person prefers belongs everywhere they work; what one repository
+decided belongs to that repository. With `memory.layers.project` on, a
+conversation bound to a project reads two workspaces as one: the
+project's, at `<project>/.openprogram/memory`, and the personal one. The
+catch-all default project is the home folder rather than a project, so its
+conversations read personal memory only. `<project>/.openprogram/` is
+ignored by the project's own Git, and the project workspace keeps its own
+history, index and runtime directory like any other.
+
+Reads span both layers. Each layer ranks its own blocks with its own
+statistics, so scores are not comparable between them; recall interleaves
+the two rankings, project first at every rank, which keeps a small project
+from being buried under a large personal store. With two layers every
+path the tools return names its layer (`project:topics/api.md`,
+`personal:topics/me.md`); an unqualified path means the default layer.
+`memory_status` lists both layers and a combined revision
+(`project=… personal=…`), and `memory_update` takes the layer to write as
+`layer`. Core memory comes from both: the project's `core.md` first.
+
+A project with no memory yet adds no layer, and reading creates nothing in
+the project folder. The workspace is created by the first write to it.
+
+With `memory.layers.project_writes` also on, the background writer puts a
+project conversation into the project's memory instead of the personal
+one, and `memory_update` writes there unless told otherwise. A turn is
+written to one layer only. The written mark on a session node names the
+workspace that took it, and the writer counts a mark of either layer as
+written, so turning project writes on or off never copies a conversation
+into the other layer.
+
+The project layer follows the execution's memory policy: an execution whose
+memory is off reads no project memory, and only one allowed to write
+memory writes there. A policy with several read spaces visits them one by
+one; the project is read with the first of them only, so its hits are not
+repeated. The commit guard accepts the project workspace only while a
+write has selected it.
+
+The nightly reorganize, and `openprogram memory sleep`, cover every
+registered project whose memory exists on this machine.
+
+## Checking each write
+
+A write can land and still be useless: the fact went into a file nobody
+would look in, or under a heading that hides it. With
+`memory.writer.verify` on, every batch the writer commits is followed by a
+self-check:
+
+1. **Probe.** The model picks one concrete fact from the batch and returns,
+   as structured JSON, a question, the answer the conversation supports,
+   and the source references it rests on. A probe that cites a turn outside
+   the batch is rejected.
+2. **Retrieve.** A fresh run answers the question from a throwaway copy of
+   memory (without the runtime directory), so nothing it does can touch the
+   real workspace.
+3. **Judge.** The model decides whether that answer matches the expected
+   one.
+4. **Repair.** When it does not, a run reorganizes the real workspace with
+   the question, the expected answer and the failed retrieval trace in
+   hand, through the ordinary write transaction, and steps 2 and 3 run once
+   more.
+
+A structured reply that is missing or malformed is asked for again, up to
+three times. Verification never fails the write it follows: an error is
+logged as the outcome `error`. Each outcome (`passed`, `repaired`,
+`unrepaired`, `error`) is appended to `.scriptorium/verification.jsonl`,
+which keeps the latest 500, and the counts and latest outcome appear as
+`verification` in `memory_status`. A check costs at least three model calls
+and a repair three more, which is why it is off by default.
+
+Structured output is a contract of the writer's agent runtime: given an
+`output_schema`, `OpenProgramAgent` adds the schema to the system prompt
+and reads one JSON object back from the reply, bare, fenced or wrapped in a
+sentence, checking required fields and their JSON types.
 
 ## Tools
 
@@ -486,8 +593,8 @@ way.
 | `memory_grep` | Find an exact name, ID or phrase |
 | `memory_get` | Read a file, a section, or one block with its footnotes |
 | `memory_browse` | See what exists |
-| `memory_update` | Correct or add one thing, as a unified diff |
-| `memory_status` | Workspace size/revision plus writer outcome, last failure code and pending turns |
+| `memory_update` | Correct or add one thing: record changes, whole files or a unified diff; `layer` picks project or personal |
+| `memory_status` | Workspace size/revision plus writer outcome, last failure code, pending turns and verification counts; per layer in a project |
 
 There is no tool for "save this". Recording the conversation is the
 background writer's job. `memory_update` is for what the user asked to
@@ -534,11 +641,13 @@ openprogram/memory/           the memory subsystem
     local_backend.py          LocalMemoryBackend — the shipped implementation
     __init__.py               get_backend() / set_backend()
     store.py                  where memory lives; migration off the old layout
+    project_layer.py          a project's own memory: which, when, and routing writes to it
+    policy.py                 per-execution memory access and spaces
     scheduler.py              daemon thread, the 03:00 reorganize
     session_watcher.py        writes an idle session's remainder
-    writing.py                accumulate, write, reorganize
-    management/               the write transaction, staging, validation
-    retrieval/                BM25 and embedding search
+    writing.py                accumulate, write, verify, reorganize
+    management/               the write transaction, staging, validation, verification
+    retrieval/                BM25, embedding, hybrid fusion, layered reads
     markdown/                 the topic format
     prompts/                  what the writer is told
     runtime/                  node-mark migration, thresholds, derived views, writer status
@@ -711,9 +820,9 @@ Paired callers can use
 or byte-appending files; a call without persisted owner authority cannot
 rewrite or delete existing content.
 
-The background writer now uses `AgentSession` with the default chat agent's
-provider, model and credentials. `memory.writer.model` is a live writer-only
-override. Provider authentication and configuration failures retain
+The background writer now uses `AgentSession` with the default Agent's model,
+or the last used model when that Agent has none, and the matching
+credentials. `memory.writer.model` is a live writer-only override. Provider authentication and configuration failures retain
 `retryable=false`, so the idle watcher does not repeat them. With
 `memory.backend=none`, the disabled provider emits no memory system prompt or
 recall and performs no automatic writes or organization; memory schedulers,
@@ -751,3 +860,14 @@ resolution, managed writer tools, staging, transactional Topic installation,
 node markers and idle-watcher state. It also verifies that unavailable-model
 and lazy-credential failures are non-retryable and are skipped by the next
 watcher poll.
+
+Hybrid recall tuning, project memory and write verification are implemented,
+each behind its own setting: `memory.retrieval.hybrid.weighting` and
+`memory.retrieval.hybrid.file_boost` in `retrieval/fusion.py`,
+`memory.layers.project` and `memory.layers.project_writes` in
+`project_layer.py` with `retrieval/layers.py`, and `memory.writer.verify` in
+`management/verification.py`. Unit tests cover the fusion weights and file
+lift, layered reads and writes with their routing and written marks, core
+injection order, the nightly pass over project memory, structured-output
+parsing, and the probe–retrieve–judge–repair sequence. Project memory and
+verification are off by default.

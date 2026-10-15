@@ -19,6 +19,7 @@ from ..management.transaction import TransactionError, workspace_revision
 from ..workspace_layout import is_internal_path
 from ..markdown import parse_topic_tree
 from ..source_format import is_v2_source_path, scan_source_archive
+from .fusion import CANDIDATE_MULTIPLIER, embedding_weight, fuse
 
 DERIVED_DIRS = ("timeline",)
 DERIVED_FILES = ("recent_events.jsonl", "relations.json")
@@ -126,6 +127,7 @@ def status(
             relation_count = len(payload) if isinstance(payload, (list, dict)) else 0
         except ValueError:
             relation_count = 0
+    from ..management.verification import status as verification_status
     from ..runtime.writer_status import status as writer_status
 
     return {
@@ -154,6 +156,7 @@ def status(
             else embedding_available
         ),
         "writer": writer_status(root),
+        "verification": verification_status(root),
     }
 
 
@@ -388,7 +391,14 @@ def search(
     date_to: str | None = None,
     speaker: str | None = None,
     include_sources: bool = True,
+    hybrid_weighting: str | None = None,
+    file_boost: bool | None = None,
 ) -> dict[str, Any]:
+    """Rank blocks and sources for ``query``.
+
+    ``hybrid_weighting`` and ``file_boost`` tune ``method="hybrid"``; left
+    unset they come from the Memory settings.
+    """
     if method not in ("bm25", "embedding", "hybrid"):
         raise TransactionError(
             "INVALID_ARGUMENT", "method must be bm25, embedding or hybrid"
@@ -416,9 +426,11 @@ def search(
             root, query, capped, effective_prefix, date_from, date_to,
         )}
     index = _bm25_index(root)
+    # Hybrid ranks a wider pool than it returns, so fusion can reorder it.
+    pool = capped * CANDIDATE_MULTIPLIER if method == "hybrid" else capped
     hits = index.search(
         query,
-        top_k=capped,
+        top_k=pool,
         path_prefix=effective_prefix,
         date_from=date_from,
         date_to=date_to,
@@ -429,11 +441,25 @@ def search(
     if method == "bm25":
         return {"method": "bm25", "results": lexical}
     semantic = _embedding_search(
-        root, query, capped, effective_prefix, date_from, date_to,
+        root, query, pool, effective_prefix, date_from, date_to,
     )
+    if hybrid_weighting is None or file_boost is None:
+        from ..management.config import load_memory_config
+
+        config = load_memory_config()
+        if hybrid_weighting is None:
+            hybrid_weighting = config.hybrid_weighting
+        if file_boost is None:
+            file_boost = config.hybrid_file_boost
     return {
         "method": "hybrid",
-        "results": _fuse_ranked(lexical, semantic)[:capped],
+        "results": fuse(
+            lexical,
+            semantic,
+            embedding_share=embedding_weight(query, hybrid_weighting),
+            file_boost=file_boost,
+            top_k=capped,
+        ),
     }
 
 
@@ -507,28 +533,6 @@ def _clear_search_index_cache_for_tests() -> None:
     with _search_index_lock:
         _bm25_indexes.clear()
         _embedding_indexes.clear()
-
-
-def _fuse_ranked(*rankings: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    scores: dict[tuple[Any, ...], float] = {}
-    rows: dict[tuple[Any, ...], dict[str, Any]] = {}
-    first_rank: dict[tuple[Any, ...], int] = {}
-    for ranking in rankings:
-        for rank, row in enumerate(ranking, start=1):
-            key = (
-                row.get("event_id"), row.get("path"), row.get("line"),
-            )
-            rows.setdefault(key, row)
-            first_rank[key] = min(first_rank.get(key, rank), rank)
-            scores[key] = scores.get(key, 0.0) + 1.0 / (60 + rank)
-    ordered = sorted(
-        rows,
-        key=lambda key: (
-            -scores[key], first_rank[key], str(key[1]), int(key[2] or 0),
-            str(key[0]),
-        ),
-    )
-    return [{**rows[key], "final_score": scores[key]} for key in ordered]
 
 
 def _present(hit: dict[str, Any]) -> dict[str, Any]:

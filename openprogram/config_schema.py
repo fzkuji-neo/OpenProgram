@@ -640,14 +640,24 @@ SETTINGS: list[SettingSpec] = [
         key="memory.writer.model", path=("memory", "writer", "model"),
         group="Memory", label="Memory writer model", widget="text",
         apply=APPLY_LIVE, default="",
-        help="Empty uses the default chat agent's provider and model. Set "
-             "provider/model to override only background memory writing.",
+        help="Empty uses the default Agent's model, or the last used model "
+             "when that Agent has none. Set provider/model to choose the "
+             "model for background memory writing and organizing.",
     ),
     SettingSpec(
         key="memory.writer.enabled", path=("memory", "writer", "enabled"),
         group="Memory", label="Automatic writing", widget="toggle",
         apply=APPLY_LIVE, default=True,
         help="Turn completed conversations into Topic records in the background.",
+    ),
+    SettingSpec(
+        key="memory.writer.verify", path=("memory", "writer", "verify"),
+        group="Memory", label="Verify after writing", widget="toggle",
+        apply=APPLY_LIVE, default=False,
+        help="After a background write, ask a question about one fact it "
+             "recorded, search Memory for the answer, and repair the Topics "
+             "when the answer cannot be found. Costs several extra model "
+             "calls per write.",
     ),
     SettingSpec(
         key="memory.writer.trigger_tokens",
@@ -666,6 +676,24 @@ SETTINGS: list[SettingSpec] = [
         help="Retrieval used for automatic recall and Memory search.",
     ),
     SettingSpec(
+        key="memory.retrieval.hybrid.weighting",
+        path=("memory", "retrieval", "hybrid", "weighting"),
+        group="Memory", label="Hybrid weighting", widget="enum",
+        apply=APPLY_LIVE, default="auto",
+        choices=lambda: ["auto", "keyword", "balanced", "semantic"],
+        help="How hybrid recall weighs keywords against meaning. `auto` "
+             "favours keywords for queries with a date, a quoted phrase or "
+             "a name, and balances them otherwise.",
+    ),
+    SettingSpec(
+        key="memory.retrieval.hybrid.file_boost",
+        path=("memory", "retrieval", "hybrid", "file_boost"),
+        group="Memory", label="Favour well-matched Topics", widget="toggle",
+        apply=APPLY_LIVE, default=True,
+        help="In hybrid recall, raise the best paragraph of a Topic that "
+             "several matches come from.",
+    ),
+    SettingSpec(
         key="memory.retrieval.top_k",
         path=("memory", "retrieval", "top_k"),
         group="Memory", label="Recall depth", widget="number",
@@ -678,6 +706,21 @@ SETTINGS: list[SettingSpec] = [
         group="Memory", label="Search Source evidence", widget="toggle",
         apply=APPLY_LIVE, default=True,
         help="Include archived evidence alongside curated Topic records.",
+    ),
+    SettingSpec(
+        key="memory.layers.project", path=("memory", "layers", "project"),
+        group="Memory", label="Project memory", widget="toggle",
+        apply=APPLY_LIVE, default=False,
+        help="A conversation in a project also reads that project's own "
+             "Memory, kept in <project>/.openprogram/memory.",
+    ),
+    SettingSpec(
+        key="memory.layers.project_writes",
+        path=("memory", "layers", "project_writes"),
+        group="Memory", label="Write to project memory", widget="toggle",
+        apply=APPLY_LIVE, default=False,
+        help="With Project memory on, write what a project's conversations "
+             "record into that project's Memory instead of the personal one.",
     ),
     SettingSpec(
         key="memory.core.inject", path=("memory", "core", "inject"),

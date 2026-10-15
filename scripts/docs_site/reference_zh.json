@@ -101,7 +101,7 @@
   "Emit a stable JSON report": "输出稳定格式的 JSON 报告",
   "Emit shell autocompletion script (bash / zsh / powershell)": "输出 shell 自动补全脚本（bash / zsh / powershell）",
   "Empty means inherit or unlimited; non-empty values must be positive.": "空值表示继承或不限；非空值必须为正数。",
-  "Empty uses the default chat agent's provider and model. Set provider/model to override only background memory writing.": "空值使用默认聊天 Agent 的模型服务和模型。设置 provider/model 仅覆盖后台记忆写入使用的模型。",
+  "Empty uses the default Agent's model, or the last used model when that Agent has none. Set provider/model to choose the model for background memory writing and organizing.": "空值使用默认 Agent 的模型；该 Agent 没有模型时使用上次使用的模型。设置 provider/model 可指定后台记忆写入和整理使用的模型。",
   "Enable + spawn": "启用并启动",
   "Enable an installed plugin": "启用已安装的插件",
   "Env var to inject into the subprocess (repeatable)": "注入子进程的环境变量，可重复指定",
@@ -303,7 +303,7 @@
   "Removed: raw editing exposed stored secrets. Use add/rm or the MCP settings page.": "已移除：直接编辑会暴露已存密钥。请使用 add/rm 或 MCP 设置页。",
   "Render inline and preserve terminal scrollback.": "在终端内联显示，保留滚动历史。",
   "Render the TUI inline and preserve terminal scrollback.": "内联显示终端界面，保留滚动历史。",
-  "Reorganise topic files now, instead of waiting for tonight.": "立即整理主题文件，无需等待夜间任务。",
+  "Reorganise topic files now, project memory included, instead of waiting for tonight.": "立即整理主题文件（包括项目记忆），无需等待夜间任务。",
   "Replace an existing clean Workflow package after tests pass": "测试通过后替换已有且无未提交改动的 Workflow 包",
   "Replay a recording next start": "下次启动时回放录制",
   "Require JSON Schema output for a one-shot --print call; '-' reads stdin": "要求单次 --print 调用输出符合 JSON Schema 的结果；'-' 表示读取标准输入",
@@ -527,5 +527,10 @@
   "Voice": "语音",
   "Turns the composer microphone's recording into text. `auto` uses local whisper.cpp when its model is downloaded, then OpenAI, then Groq. `local` keeps audio on this computer (needs `brew install whisper-cpp`).": "把输入框麦克风的录音转成文字。`auto` 在本机 whisper.cpp 模型已下载时用它，否则依次用 OpenAI、Groq。`local` 让音频留在这台电脑上（需要 `brew install whisper-cpp`）。",
   "`auto` lets the engine detect the language of each phrase.": "`auto` 让识别服务自动识别每句话的语言。",
-  "Empty uses the engine's default: gpt-4o-mini-transcribe (OpenAI), whisper-large-v3-turbo (Groq), base (local). Applies only when an engine is chosen.": "留空使用识别服务的默认模型：gpt-4o-mini-transcribe（OpenAI）、whisper-large-v3-turbo（Groq）、base（本机）。只在选定了识别服务时生效。"
+  "Empty uses the engine's default: gpt-4o-mini-transcribe (OpenAI), whisper-large-v3-turbo (Groq), base (local). Applies only when an engine is chosen.": "留空使用识别服务的默认模型：gpt-4o-mini-transcribe（OpenAI）、whisper-large-v3-turbo（Groq）、base（本机）。只在选定了识别服务时生效。",
+  "After a background write, ask a question about one fact it recorded, search Memory for the answer, and repair the Topics when the answer cannot be found. Costs several extra model calls per write.": "后台写入后，针对这次记下的一条事实提一个问题，在 Memory 中检索答案；找不到时修复 Topic。每次写入会多花几次模型调用。",
+  "How hybrid recall weighs keywords against meaning. `auto` favours keywords for queries with a date, a quoted phrase or a name, and balances them otherwise.": "混合检索中关键词与语义的权重。`auto` 在查询含日期、引号短语或人名时偏向关键词，其余情况两者均衡。",
+  "In hybrid recall, raise the best paragraph of a Topic that several matches come from.": "混合检索时，若多条匹配来自同一个 Topic，提升该 Topic 中最匹配的段落。",
+  "A conversation in a project also reads that project's own Memory, kept in <project>/.openprogram/memory.": "项目中的对话还会读取该项目自己的 Memory，存放在 <project>/.openprogram/memory。",
+  "With Project memory on, write what a project's conversations record into that project's Memory instead of the personal one.": "开启项目记忆时，把项目对话记下的内容写入该项目的 Memory，而不是个人 Memory。"
 }

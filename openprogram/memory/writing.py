@@ -24,6 +24,7 @@ from typing import Any, TYPE_CHECKING
 from urllib.parse import quote
 
 from .backend import MemoryWriteFailureCode, WriteFailure
+from .project_layer import written_elsewhere
 from .management import load_memory_config, organize_topics
 from .management.agent import _run_agent
 from .management.api import render_writer_task
@@ -369,7 +370,10 @@ def _marked_ids(
     return {
         str(message.get("id"))
         for message in messages
-        if message.get("id") and message.get(WRITTEN_NODE_MARKER) == workspace_id
+        if message.get("id") and (
+            message.get(WRITTEN_NODE_MARKER) == workspace_id
+            or message.get(WRITTEN_NODE_MARKER) in written_elsewhere()
+        )
     }
 
 
@@ -414,9 +418,10 @@ def write_session(
     from openprogram.agent.session_db import default_db
     db = default_db()
     counter = _counter()
+    memory_config = load_memory_config()
     runtime = OnlineMemoryRuntime(
         root, token_counter=counter, token_threshold=token_threshold,
-        memory_config=load_memory_config(),
+        memory_config=memory_config,
     )
     marked_ids = _marked_ids(messages, workspace_id)
     pending = runtime.pending(records, marked_ids)
@@ -440,18 +445,28 @@ def write_session(
             ),
             "undated",
         )
+        turns = [(r.speaker_label, r.content) for r in batch]
+        refs = [r.source_id for r in batch]
         audit = _run_agent(
             space.memory_dir,
             agent=get_agent(),
             task=render_writer_task([{
                 "observation_date": observed,
-                "turns": [(r.speaker_label, r.content) for r in batch],
-                "refs": [r.source_id for r in batch],
+                "turns": turns,
+                "refs": refs,
             }], memory_dir=space.memory_dir),
             stage="write",
             allowed_new_source_refs={record.source_id for record in batch},
         )
-        return _changed_files(audit)
+        changed = _changed_files(audit)
+        if changed and memory_config.writer_verify:
+            from .management.verification import verify_after_write
+
+            changed = sorted({*changed, *verify_after_write(
+                space.memory_dir, agent=get_agent(),
+                observation_date=observed, turns=turns, refs=refs,
+            )})
+        return changed
 
     def mark(batch: tuple[SourceRecord, ...]) -> None:
         db.merge_node_metadata_batch(session_id, {
@@ -646,8 +661,9 @@ def write(session_id: str, messages=None, *, token_threshold: int, force=False):
         policies[key] = policy
     if not session_id:
         return _write_workspace(session_id, messages, token_threshold=token_threshold, force=force)
+    from .project_layer import write_target
     for policy in policies.values():
-        with scope(policy):
+        with scope(policy), write_target(session_id):
             left = _write_workspace(session_id, messages, token_threshold=token_threshold, force=force)
         if left is not None:
             return left

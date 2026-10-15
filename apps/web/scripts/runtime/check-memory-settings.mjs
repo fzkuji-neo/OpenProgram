@@ -62,7 +62,7 @@ assert.match(settings, /className=\{shared\.card\}/);
 assert.match(settings, /className=\{`\$\{shared\.row\}/);
 assert.equal(
   (settings.match(/<Switch[^>]+aria-label=/g) || []).length,
-  4,
+  8,
   "each Memory switch needs an accessible name",
 );
 assert.ok((settings.match(/disabled=\{controlsDisabled(?: \|\| retrieval === "agent")?\}/g) || []).length >= 9);

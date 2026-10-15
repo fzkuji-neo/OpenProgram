@@ -84,7 +84,7 @@ def _seconds_until(hour: int) -> float:
 
 
 def reorganize_spaces(*, model=None):
-    """Maintain the legacy workspace and existing writable Agent spaces."""
+    """Maintain the legacy workspace, writable Agent spaces and project Memory."""
     report = get_backend().reorganize(model=model)
     from openprogram.agent.management import manager
     from .policy import resolve, scope, space_path
@@ -96,4 +96,19 @@ def reorganize_spaces(*, model=None):
             continue
         with scope(policy, space='self'):
             get_backend().reorganize(model=model)
-    return report
+    projects = reorganize_projects(model=model)
+    return {**report, "projects": projects} if projects else report
+
+
+def reorganize_projects(*, model=None) -> dict:
+    """Reorganize each project's own memory; reports keyed by its folder."""
+    from . import project_layer
+    reports = {}
+    for root in project_layer.project_roots():
+        try:
+            with project_layer.use(root, write=True):
+                reports[str(root)] = get_backend().reorganize(model=model)
+        except Exception as exc:  # noqa: BLE001 - one project must not stop the rest
+            logger.warning("memory reorganize of a project failed: %s", exc)
+            reports[str(root)] = {"status": "failed", "error": str(exc)}
+    return reports

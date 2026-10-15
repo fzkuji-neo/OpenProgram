@@ -27,6 +27,11 @@ Writing happens in the background, not in the conversation: turns
 accumulate and are written once there is roughly 16k tokens' worth, and
 a nightly pass rewrites what has landed.
 
+Three features sit behind their own settings, all under `memory.*`:
+hybrid recall tuning (`retrieval.hybrid.*`), a project's own memory read
+beside the personal one (`layers.*`), and a self-check after each write
+(`writer.verify`). The design doc explains each.
+
 ## File map
 
 | Path | Role |
@@ -34,20 +39,28 @@ a nightly pass rewrites what has landed.
 | `store.py` | Where the workspace is; migration off the previous layout |
 | `backend.py` | `MemoryBackend` ABC and the `<memory-context>` fence |
 | `local_backend.py` | `LocalMemoryBackend` — the lifecycle hooks the agent runtime calls |
-| `writing.py` | Accumulate, write, reorganize |
-| `scheduler.py` | Daemon thread; the 03:00 reorganize |
+| `policy.py` | Per-execution memory access: modes, spaces, the commit guard |
+| `project_layer.py` | A project's own memory: which one, when it is read, routing writes to it |
+| `writing.py` | Accumulate, write, verify, reorganize |
+| `scheduler.py` | Daemon thread; the 03:00 reorganize of every space and project |
 | `session_watcher.py` | Writes a session's remainder once it goes idle |
-| `management/` | The write transaction: staging, validation, install |
-| `retrieval/` | BM25 and embedding search over the workspace |
+| `checkpoints.py` | Five-minute Git checkpoints for manual edits |
+| `references.py` | Stable references to Topic blocks, for the Scheduler |
+| `source_format.py` | Source archive locations and the v2 framing |
+| `workspace_layout.py` | Names the runtime owns inside a workspace |
+| `management/` | The write transaction (staging, validation, install) and write verification |
+| `retrieval/` | BM25, embedding and hybrid search; layered reads across workspaces |
 | `markdown/` | The topic format — blocks, footnotes, links |
-| `prompts/` | What the writer is told |
-| `runtime/` | Cursors, thresholds, derived views, legacy commitment migration parser |
+| `prompts/` | What the writer, the organizer and the verifier are told |
+| `runtime/` | Node marks, thresholds, derived views, writer status, legacy commitment migration parser |
 | `agent_runtime/` | The process that performs a write |
+| `index.py`, `journal.py`, `schema.py` | The previous layer's short-term store, kept only for the `wiki_agent` program |
 
 ## Working here
 
-The writer runs on the user's own login and default model, so nothing
-needs a separate API key. A write is transactional: it stages, validates
+The writer runs on the user's own login and on the default Agent's model,
+or the last used model when that Agent has none, so nothing needs a
+separate API key. A write is transactional: it stages, validates
 and installs, or it changes nothing.
 
 Two invariants worth knowing before editing:

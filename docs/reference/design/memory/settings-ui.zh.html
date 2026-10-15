@@ -463,16 +463,24 @@
             </div></section>
 
             <section class="settings-section"><h2>后台写入</h2><div class="settings-card">
-              <div class="setting-row"><div class="setting-label"><strong>写入模型</strong><span>除非在此选择已启用模型，否则使用默认聊天模型。</span></div><div class="setting-control"><select class="select" aria-label="写入模型"><option>默认聊天模型 · openai-codex/gpt-5.6-sol</option><option>MiniMax-M3</option></select><span class="status live">即时生效</span></div></div>
+              <div class="setting-row"><div class="setting-label"><strong>写入模型</strong><span>自动：使用默认 Agent 的模型；该 Agent 没有设模型时，使用上次使用的模型。也可以选择一个已启用模型。</span></div><div class="setting-control"><select class="select" aria-label="写入模型"><option>自动</option><option>MiniMax-M3</option></select><span class="status live">即时生效</span></div></div>
               <div class="setting-row"><div class="setting-label"><strong>自动写入</strong><span>在后台将已完成对话转为 Topic 记录。</span></div><div class="setting-control"><label class="switch"><input type="checkbox" checked aria-label="自动写入"><span class="switch-track"></span></label></div></div>
               <div class="setting-row"><div class="setting-label"><strong>写入频率</strong><span>控制后台写入前需积累的对话量。</span></div><div class="setting-control"><select class="select" aria-label="写入频率"><option>均衡 · 约 16K tokens</option><option>更频繁 · 约 8K tokens</option><option>更低频 · 约 32K tokens</option></select></div></div>
+              <div class="setting-row"><div class="setting-label"><strong>写入后校验</strong><span>每次写入后，就刚写入的内容提一个问题并检索；找不到答案时修复 Memory。每次写入会多几次模型调用。</span></div><div class="setting-control"><label class="switch"><input type="checkbox" aria-label="写入后校验"><span class="switch-track"></span></label></div></div>
             </div></section>
 
             <section class="settings-section"><h2>检索</h2><div class="settings-card">
               <div class="setting-row"><div class="setting-label"><strong>召回方式</strong><span>选择自动排序召回，或让 Agent 仅在需要时检查记忆。</span></div><div class="setting-control"><select class="select" aria-label="召回方式"><option>Agent · 按需</option><option>关键词 · BM25</option><option disabled>语义 · Embeddings（不可用）</option><option disabled>混合 · BM25 + Embeddings（不可用）</option></select><span class="status live">即时生效</span></div></div>
               <div class="setting-row"><div class="setting-label"><strong>Embedding 模型</strong><span>仅语义与混合检索需要。</span></div><div class="setting-control"><span class="status missing">未安装</span><button class="button">安装</button></div></div>
+              <div class="setting-row"><div class="setting-label"><strong>混合权重</strong><span>混合检索中关键词与语义匹配的比重。自动：查询含日期、引号短语或人名时偏向关键词。</span></div><div class="setting-control"><select class="select" aria-label="混合权重" disabled><option>自动</option><option>关键词优先 · 70 / 30</option><option>均衡 · 50 / 50</option><option>语义优先 · 30 / 70</option></select></div></div>
+              <div class="setting-row"><div class="setting-label"><strong>同主题加权</strong><span>混合检索时，多条匹配来自同一个 Topic 文件时提高它的排名。</span></div><div class="setting-control"><label class="switch"><input type="checkbox" checked disabled aria-label="同主题加权"><span class="switch-track"></span></label></div></div>
               <div class="setting-row"><div class="setting-label"><strong>召回深度</strong><span>添加到每轮的匹配记录上限。</span></div><div class="setting-control"><select class="select" aria-label="召回深度"><option>5 条记录</option><option>8 条记录</option><option>10 条记录</option></select></div></div>
               <div class="setting-row"><div class="setting-label"><strong>搜索 Source 证据</strong><span>在整理后的 Topic 记录之外，包含归档证据。</span></div><div class="setting-control"><label class="switch"><input type="checkbox" checked aria-label="搜索 Source 证据"><span class="switch-track"></span></label></div></div>
+            </div></section>
+
+            <section class="settings-section"><h2>项目记忆</h2><div class="settings-card">
+              <div class="setting-row"><div class="setting-label"><strong>项目记忆</strong><span>项目中的对话同时读取该项目自己的 Memory，存放在 &lt;项目&gt;/.openprogram/memory。</span></div><div class="setting-control"><label class="switch"><input type="checkbox" aria-label="项目记忆"><span class="switch-track"></span></label></div></div>
+              <div class="setting-row"><div class="setting-label"><strong>写入项目记忆</strong><span>把项目对话要记下的内容写入该项目的 Memory，而不是个人 Memory。</span></div><div class="setting-control"><label class="switch"><input type="checkbox" disabled aria-label="写入项目记忆"><span class="switch-track"></span></label></div></div>
             </div></section>
 
             <section class="settings-section"><h2>上下文与历史</h2><div class="settings-card">

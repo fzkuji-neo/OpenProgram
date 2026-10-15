@@ -1,0 +1,192 @@
+"""A project's own Memory, read beside the personal one.
+
+What a person prefers belongs everywhere they work; what one repository
+decided belongs to that repository. With ``memory.layers.project`` on, a
+conversation bound to a project reads two workspaces as one: the
+project's, at ``<project>/.openprogram/memory``, and the personal one.
+With ``memory.layers.project_writes`` also on, what such a conversation
+records lands in the project's workspace instead of the personal one.
+
+The project workspace is an ordinary memory workspace with its own git
+history, index and runtime directory. ``store.root()`` hands it out for the
+length of a ``use`` block, so every reader and writer that already asks
+``store`` for its workspace works on it unchanged.
+
+Access follows the execution's memory policy: an execution whose memory is
+off reads no project memory either, and only one allowed to write memory
+writes there.
+"""
+
+from __future__ import annotations
+
+import re
+from contextlib import contextmanager
+from contextvars import ContextVar
+from pathlib import Path
+from typing import Iterator
+
+from .management.config import load_memory_config
+
+PROJECT = "project"
+PERSONAL = "personal"
+
+_active: ContextVar[Path | None] = ContextVar("memory_project_root", default=None)
+# Workspace ids whose written-turn marker also counts as written for the
+# write in progress. A turn is written to one layer only: switching
+# project writes on or off must not copy a conversation into the other.
+_written_elsewhere: ContextVar[frozenset[str]] = ContextVar(
+    "memory_written_elsewhere", default=frozenset(),
+)
+_WORKSPACE_ID = re.compile(r"w-[0-9a-f]{8}")
+
+
+def active_root() -> Path | None:
+    """The project workspace a ``use`` block selected, if any."""
+    return _active.get()
+
+
+def written_elsewhere() -> frozenset[str]:
+    return _written_elsewhere.get()
+
+
+def project_root(session_id: str | None = None) -> Path | None:
+    """Where the session's project keeps its Memory.
+
+    None when the setting is off, the conversation has no project of its
+    own (the catch-all default project is the home folder, not a project),
+    or the project's folder is not on this machine.
+    """
+    if not load_memory_config().project_layer:
+        return None
+    if not session_id:
+        from openprogram.agent.run_control import get_current_session_id
+
+        session_id = get_current_session_id() or ""
+    if not session_id:
+        return None
+    try:
+        from openprogram.store.project.project_store import project_for_session
+
+        project = project_for_session(session_id)
+    except Exception:  # noqa: BLE001 - an unreadable registry means no project
+        return None
+    if project is None or project.is_default or not project.path:
+        return None
+    folder = Path(project.path).expanduser()
+    if not folder.is_dir():
+        return None
+    return (folder / ".openprogram" / "memory").resolve()
+
+
+def project_roots() -> list[Path]:
+    """Every registered project's Memory that exists on this machine."""
+    if not load_memory_config().project_layer:
+        return []
+    from openprogram.store.project.project_store import list_projects
+
+    roots = []
+    for project in list_projects():
+        if project.is_default or not project.path:
+            continue
+        root = Path(project.path).expanduser() / ".openprogram" / "memory"
+        if (root / "topics").is_dir():
+            roots.append(root.resolve())
+    return roots
+
+
+def _authorized(*, write: bool) -> bool:
+    from .policy import allowed, current
+
+    return current() is None or allowed(write=write)
+
+
+@contextmanager
+def use(root: Path, *, write: bool = False) -> Iterator[Path]:
+    """Make ``store.root()`` the project workspace for this block."""
+    from .policy import check, current
+
+    if current() is not None:
+        check(write=write)
+    token = _active.set(Path(root).resolve())
+    try:
+        yield Path(root).resolve()
+    finally:
+        _active.reset(token)
+
+
+def read_layers(session_id: str | None = None, *, personal: Path | None = None):
+    """The layers a read for this session spans, narrowest first.
+
+    ``personal`` is the personal workspace when the caller already holds
+    it; otherwise ``store`` provides the one this execution selects.
+    """
+    from . import store
+    from .policy import primary_read_space
+    from .retrieval.layers import Layer, LayeredMemory
+
+    personal = Layer(PERSONAL, Path(personal) if personal else store.ensure())
+    project = project_root(session_id)
+    # A policy with several read spaces reads each in turn; the project is
+    # read with the first of them only, so its hits are not repeated.
+    if (
+        project is None
+        or not (project / "topics").is_dir()
+        or not primary_read_space()
+        or not _authorized(write=False)
+    ):
+        return LayeredMemory([personal])
+    default = PROJECT if write_root(session_id) is not None else PERSONAL
+    return LayeredMemory([Layer(PROJECT, project), personal], default=default)
+
+
+def write_root(session_id: str | None = None) -> Path | None:
+    """The project workspace this session's writes land in, if any."""
+    if not load_memory_config().project_writes:
+        return None
+    root = project_root(session_id)
+    if root is None or not _authorized(write=True):
+        return None
+    return root
+
+
+def _existing_workspace_id(root: Path | None) -> str | None:
+    if root is None:
+        return None
+    from .workspace_layout import runtime_dir
+
+    try:
+        value = (runtime_dir(root) / "workspace-id").read_text(
+            encoding="utf-8",
+        ).strip()
+    except OSError:
+        return None
+    return value if _WORKSPACE_ID.fullmatch(value) else None
+
+
+@contextmanager
+def write_target(session_id: str) -> Iterator[Path | None]:
+    """Route this session's background writing to its layer.
+
+    Yields the project workspace when project writes apply, else None and
+    the personal workspace stays selected. Either way a turn already
+    written to the other layer counts as written.
+    """
+    from . import store
+
+    target = write_root(session_id)
+    if target is None:
+        other = _existing_workspace_id(project_root(session_id))
+        token = _written_elsewhere.set(frozenset({other} if other else ()))
+        try:
+            yield None
+        finally:
+            _written_elsewhere.reset(token)
+        return
+    personal_id = store.workspace_id()
+    with use(target, write=True):
+        store.ensure()
+        token = _written_elsewhere.set(frozenset({personal_id}))
+        try:
+            yield target
+        finally:
+            _written_elsewhere.reset(token)

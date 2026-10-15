@@ -29,6 +29,23 @@ logger = logging.getLogger(__name__)
 WRITE_TOKEN_THRESHOLD = 16_000
 
 
+def _core_block(root: Any) -> str:
+    """One workspace's ``core.md``, fenced; empty when it holds nothing."""
+    try:
+        text = (root / "core.md").read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return ""
+    except OSError as exc:
+        from .policy import require_or_empty
+        require_or_empty(exc)
+        return ""
+    # A bare heading is the empty state, not content worth injecting.
+    body = "\n".join(
+        line for line in text.splitlines() if not line.startswith("# ")
+    ).strip()
+    return fence_memory(text) if body else ""
+
+
 class LocalMemoryBackend(MemoryBackend):
     """File-based memory: sources + topics + core."""
 
@@ -43,7 +60,9 @@ class LocalMemoryBackend(MemoryBackend):
 
     # -- Reading --------------------------------------------------------
 
-    def system_prompt(self, *, tier: str | None = None) -> str:
+    def system_prompt(
+        self, *, tier: str | None = None, session_id: str = "",
+    ) -> str:
         """Core memory, injected into every session.
 
         ``core.md`` is rendered only from blocks whose evidence is
@@ -51,24 +70,28 @@ class LocalMemoryBackend(MemoryBackend):
         is accepted so the caller's resolved authority reaches the
         backend rather than being looked up again here; per-tier
         redaction of the block itself is not yet rendered.
+
+        In a project with project Memory on, the project's ``core.md``
+        comes first, then the personal one.
         """
         if not load_memory_config().core_inject:
             return ""
         from . import store
+        from .project_layer import read_layers
 
         try:
-            text = store.core().read_text(encoding="utf-8").strip()
-        except FileNotFoundError:
-            return ""
+            # ``root`` rather than ``ensure``: building a prompt should not be
+            # what initializes a workspace's Git history.
+            layers = read_layers(session_id, personal=store.root()).layers
         except OSError as exc:
             from .policy import require_or_empty
             require_or_empty(exc)
             return ""
-        # A bare heading is the empty state, not content worth injecting.
-        body = "\n".join(
-            line for line in text.splitlines() if not line.startswith("# ")
-        ).strip()
-        return fence_memory(text) if body else ""
+        blocks = [
+            block for block in (_core_block(layer.root) for layer in layers)
+            if block
+        ]
+        return "\n\n".join(blocks)
 
     def search(
         self,
@@ -110,14 +133,13 @@ class LocalMemoryBackend(MemoryBackend):
         ):
             return ""
         try:
-            from .retrieval import inspect
-            from . import store
+            from .project_layer import read_layers
 
             config = load_memory_config()
             if config.retrieval_method == "agent":
                 return ""
-            found = inspect.search(
-                store.ensure(), query,
+            found = read_layers(session_id).search(
+                query,
                 method=config.retrieval_method,
                 top_k=config.retrieval_top_k,
                 include_sources=config.retrieval_include_sources,
