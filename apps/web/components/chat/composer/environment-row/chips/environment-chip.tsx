@@ -120,7 +120,6 @@ export function EnvironmentChip() {
       <SolarIcon
         name={environmentIconName(env?.kind)}
         size={14}
-        motionPreset="none"
         style={{ color: iconColor }}
         aria-hidden="true"
       />
