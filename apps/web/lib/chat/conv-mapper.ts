@@ -161,6 +161,15 @@ function _readAttach(m: LegacyMsg): AttachMeta | undefined {
 }
 
 /** One key of the message's ``extra`` blob (object or JSON string). */
+/** The human sender a channel turn carries beside its text. */
+function readSpeaker(m: LegacyMsg): ChatMsg["speaker"] {
+  const row = m as { speaker_kind?: unknown; speaker_id?: unknown; speaker_display?: unknown };
+  if (row.speaker_kind !== "human") return undefined;
+  const id = typeof row.speaker_id === "string" && row.speaker_id ? row.speaker_id : undefined;
+  const display = typeof row.speaker_display === "string" && row.speaker_display ? row.speaker_display : undefined;
+  return id || display ? { id, display } : undefined;
+}
+
 function _readExtraField(m: LegacyMsg, key: string): unknown {
   const e = m.extra;
   if (e && typeof e === "object" && !Array.isArray(e)) return (e as Record<string, unknown>)[key];
@@ -258,6 +267,7 @@ export function convToChatMsgs(messages: LegacyMsg[]): ChatMsg[] {
         timestamp: ts,
         agentId: m.agent_id || undefined,
         source: typeof m.source === "string" ? m.source : undefined,
+        speaker: readSpeaker(m),
         steering: m.steering === true,
         calledBy: typeof m.predecessor === "string" ? m.predecessor : undefined,
         pastedElements: readPastedElements(_readExtraField(m, "text_elements")),

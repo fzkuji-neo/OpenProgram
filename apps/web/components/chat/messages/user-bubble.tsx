@@ -22,6 +22,7 @@ import { MessageEditor } from "./message-editor";
 import { renderUserMarkdown } from "./markdown";
 import { collapsePastedSpans, pasteSentinel } from "@/lib/chat/paste-elements";
 import { collapseSecrets, maskSecrets, secretParts, secretSentinel } from "@/lib/chat/secret-mask";
+import { channelName, isChannelSource, speakerName, stripLegacySpeakerLabel } from "@/lib/chat/channel-speaker";
 
 function escapeAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -81,9 +82,13 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
   // Pasted spans (Codex text_elements) show as one collapsed chip each
   // until the user expands them; the model always received the full text.
   const [pastesExpanded, setPastesExpanded] = useState(false);
+  // A channel message names its sender above the bubble, not in the text.
+  const channel = isChannelSource(msg.source) ? msg.source : null;
+  const content = channel ? stripLegacySpeakerLabel(msg.content, msg.speaker) : msg.content;
+  const sender = channel ? speakerName(msg.speaker) : "";
   const collapsed = !pastesExpanded && msg.pastedElements?.length
-    ? collapsePastedSpans(msg.content, msg.pastedElements)
-    : { content: msg.content, spans: [] as { label: string; text: string }[] };
+    ? collapsePastedSpans(content, msg.pastedElements)
+    : { content, spans: [] as { label: string; text: string }[] };
   const { attachments, text: proseText } = parseAttachments(collapsed.content);
   // Access tokens and private keys show masked, each with an eye button.
   const { content: cleanText, secrets } = collapseSecrets(proseText);
@@ -112,7 +117,7 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
          screen-reader users can step through the transcript turn by
          turn and hear who is speaking. */
       role="article"
-      aria-label={profile.name || text("User", "用户")}
+      aria-label={sender || profile.name || text("User", "用户")}
     >
       <div className="message-header" style={{ top: avatarTop }}>
         {/* "You" avatar + name — from the local user profile
@@ -128,6 +133,11 @@ export function UserBubble({ msg, sessionIdOverride }: { msg: ChatMsg; sessionId
         />
         <div className="message-sender">{profile.name || text("User", "用户")}</div>
       </div>
+      {channel && !editing ? (
+        <div className="user-channel-speaker">
+          {sender ? `${channelName(channel, text)} · ${sender}` : channelName(channel, text)}
+        </div>
+      ) : null}
       <div className="message-content">
         {editing ? (
           <MessageEditor msg={msg} sessionId={sessionId} onDone={() => setEditing(false)} />

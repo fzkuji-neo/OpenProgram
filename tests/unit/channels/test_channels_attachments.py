@@ -235,4 +235,4 @@ def test_base_passes_attachments_into_dispatch(
     ))
     assert seen["attachments"] and seen["attachments"][0]["type"] == "image"
     assert format_marker("x.png", img, 3, mime="image/png") in seen["user_text"]
-    assert seen["user_text"].startswith("[Bob (7)] look\n\n")
+    assert seen["user_text"].startswith("look\n\n")

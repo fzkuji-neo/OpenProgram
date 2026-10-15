@@ -138,16 +138,16 @@ By default sessions are also scoped per account (`session_scope: per-account-cha
 
 ### Who Said It
 
-When several people share one conversation — a Telegram group on the default `shared` setting, or any agent set to `session_scope: main` — every incoming message reaches the agent with its sender's name in front of it:
+When several people share one conversation — a Telegram group on the default `shared` setting, or any agent set to `session_scope: main` — every incoming message reaches the agent with its sender attached beside the text:
 
 ```
-[Ada (7391)] the budget is 50k
-[Bo (8022)] make it 80k
+{"speaker_kind":"human","speaker_id":"7391","speaker_display":"Ada","content":"the budget is 50k"}
+{"speaker_kind":"human","speaker_id":"8022","speaker_display":"Bo","content":"make it 80k"}
 ```
 
-The display name is what the platform shows, the number is the sender's platform id, which stays the same when someone renames themselves and separates two people who picked the same name. The agent reads the label as part of the message, so it answers the right person, and memory records each fact under the person who said it instead of under one anonymous "user". A display name is whatever its owner typed into the platform, so it is put on one line, capped at 64 characters, and its square brackets become round ones before it goes in front of the message.
+The display name is what the platform shows, the id is the sender's platform id, which stays the same when someone renames themselves and separates two people who picked the same name. The agent reads both, so it answers the right person, and memory records each fact under the person who said it instead of under one anonymous "user". A display name is whatever its owner typed into the platform, so it is put on one line, capped at 64 characters, and its square brackets become round ones. The message text itself is kept exactly as sent; a sender who types a name in brackets is not taken for that person.
 
-The label is added to messages from chat channels only, and it is on every one of them, direct messages included, because `session_scope: main` puts direct peers in a shared conversation too. Web, CLI and TUI turns are untouched. It is part of the message text, so you will see it quoted back in the web transcript.
+Every chat-channel message carries its sender, direct messages included, because `session_scope: main` puts direct peers in a shared conversation too. Web, CLI and TUI turns have none. In the web transcript a channel message shows its platform and sender on a small line above the bubble, such as `WeChat · Ada`; a WeChat sender has no nickname to show, so the line shortens the id to its first and last four characters.
 
 ### Telegram Group Behavior
 
