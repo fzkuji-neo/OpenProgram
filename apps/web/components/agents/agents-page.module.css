@@ -73,4 +73,5 @@
 .alwaysOnReports p{margin:6px 0 0;color:var(--text-primary);font-family:inherit;font-size:var(--fs-sm);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 .alwaysOnReports ul{margin:6px 0 0;padding-left:16px;font-size:var(--fs-sm)}
 .alwaysOnReports a{color:var(--accent-blue);overflow-wrap:anywhere}
+.alwaysOnReports .alwaysOnDeliveries{padding:0;list-style:none;color:var(--text-muted)}
 @media (max-width:720px){.modeGridTwo{grid-template-columns:1fr}}

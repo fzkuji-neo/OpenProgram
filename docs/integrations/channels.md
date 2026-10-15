@@ -203,3 +203,4 @@ Telegram sends images as photos and everything else as documents; Discord upload
 
 - [Design notes: channel subsystem](../reference/design/channels/design.md) — architecture and message flow
 - [Interfaces overview](../interfaces/README.md) — Web UI / TUI, where channel conversations also show up
+- [Always-on Agents](../capabilities/always-on-agents.md) — send an always-on Agent's reports to a channel conversation

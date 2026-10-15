@@ -8,7 +8,8 @@ from openprogram.programs._runtime import function
     name="always_on_report",
     description=(
         "Report a finding to the user from an always-on Agent's check-in. The user "
-        "gets a notification. Use once per check-in, only for something worth their "
+        "gets a notification, and the report is also sent to the channel "
+        "conversations chosen for this Agent. Use once per check-in, only for something worth their "
         "attention: a short title, the essentials in body, and any links."
     ),
     toolset=["always_on"],
@@ -24,4 +25,5 @@ def always_on_report(title: str, body: str = "", links: list[str] | None = None)
         row = report(sid, title, body, links)
     except ValueError as exc:
         return f"[always_on_report error] {exc}"
-    return f"Reported: {row['title']}"
+    sending = len(row.get("deliveries") or [])
+    return f"Reported: {row['title']}" + (f" (sending to {sending} channel conversation(s))" if sending else "")

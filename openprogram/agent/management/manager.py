@@ -9,7 +9,7 @@ shape, simplified — we keep:
 
   id, name, description, revision, default, model (provider+id), thinking_effort, system_prompt,
   skills {disabled: []}, tools {disabled: []}, identity {name, mention_patterns},
-  always_on {enabled, goal, wake_minutes, research, autonomy},
+  always_on {enabled, goal, wake_minutes, research, autonomy, channels},
   created_at, updated_at.
 
 Anything else the UI wants to surface can be added to the dataclass
@@ -120,9 +120,36 @@ def validate_memory_config(raw: object, *, partial: bool = False) -> dict[str, A
     return out
 
 
-ALWAYS_ON_FIELDS = ("enabled", "goal", "wake_minutes", "research", "autonomy")
+ALWAYS_ON_FIELDS = ("enabled", "goal", "wake_minutes", "research", "autonomy", "channels")
 ALWAYS_ON_GOAL_MAX = 4000
 ALWAYS_ON_WAKE_RANGE = (5, 10080)
+ALWAYS_ON_CHANNELS = ("telegram", "slack", "discord", "wechat")
+ALWAYS_ON_CHANNELS_MAX = 10
+
+
+def _always_on_channel_targets(raw: object) -> list[dict[str, str]]:
+    """Channel conversations that receive reports: (channel, account, peer)."""
+    if not isinstance(raw, list) or len(raw) > ALWAYS_ON_CHANNELS_MAX:
+        raise ValueError(f"always_on.channels must be a list of at most {ALWAYS_ON_CHANNELS_MAX} targets")
+    targets: list[dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for item in raw:
+        if not isinstance(item, dict) or set(item) - {"channel", "account_id", "peer_id", "label"}:
+            raise ValueError("always_on.channels entries need channel, account_id and peer_id")
+        channel, account, peer = (item.get(key) for key in ("channel", "account_id", "peer_id"))
+        label = item.get("label", "")
+        if channel not in ALWAYS_ON_CHANNELS:
+            raise ValueError(f"always_on.channels: unsupported channel {channel!r}")
+        if not all(isinstance(value, str) and value.strip() and len(value) <= 500 for value in (account, peer)):
+            raise ValueError("always_on.channels entries need an account_id and a peer_id")
+        if not isinstance(label, str):
+            raise ValueError("always_on.channels label must be text")
+        key = (channel, account.strip(), peer.strip())
+        if key in seen:
+            continue
+        seen.add(key)
+        targets.append({"channel": key[0], "account_id": key[1], "peer_id": key[2], "label": label.strip()[:200]})
+    return targets
 
 
 def validate_always_on(raw: object, *, partial: bool = False) -> dict[str, Any]:
@@ -133,7 +160,7 @@ def validate_always_on(raw: object, *, partial: bool = False) -> dict[str, Any]:
         raise ValueError("always_on contains unsupported fields")
     out: dict[str, Any] = {} if partial else {
         "enabled": False, "goal": "", "wake_minutes": 60,
-        "research": True, "autonomy": "report",
+        "research": True, "autonomy": "report", "channels": [],
     }
     for key in ("enabled", "research"):
         if key in raw:
@@ -155,6 +182,8 @@ def validate_always_on(raw: object, *, partial: bool = False) -> dict[str, Any]:
         if raw["autonomy"] not in {"report", "act"}:
             raise ValueError("always_on.autonomy must be report or act")
         out["autonomy"] = raw["autonomy"]
+    if "channels" in raw:
+        out["channels"] = _always_on_channel_targets(raw["channels"])
     return out
 
 

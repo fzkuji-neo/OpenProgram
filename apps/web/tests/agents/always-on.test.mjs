@@ -44,3 +44,15 @@ test("requests address the Agent's always-on endpoints", async () => {
     ["/api/agents/a%20b/always-on/home", "POST"],
   ]);
 });
+
+test("channel choices keep picked targets first and toggle by conversation", () => {
+  const bob = { channel: "telegram", account_id: "default", peer_id: "42", label: "Bob" };
+  const ops = { channel: "slack", account_id: "work", peer_id: "C1_U1", label: "#ops" };
+  const gone = { channel: "wechat", account_id: "default", peer_id: "wx1", label: "Old" };
+  assert.deepEqual(alwaysOn.channelChoices([gone], [bob, { ...gone, label: "renamed" }, ops]), [gone, bob, ops]);
+  const picked = alwaysOn.toggleChannelTarget([bob], ops, true);
+  assert.deepEqual(picked, [bob, ops]);
+  assert.deepEqual(alwaysOn.toggleChannelTarget(picked, { ...bob, label: "x" }, false), [ops]);
+  assert.deepEqual(alwaysOn.toggleChannelTarget([bob], bob, true), [bob]);
+  assert.equal(alwaysOn.ALWAYS_ON_DEFAULTS.channels.length, 0);
+});

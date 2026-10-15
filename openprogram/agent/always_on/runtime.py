@@ -241,13 +241,22 @@ def reports(agent_id: str, limit: int = 20) -> list[dict[str, Any]]:
 
 
 def report(session_id: str, title: str, body: str, links: Any = None) -> dict[str, Any]:
-    """Record a report from the home conversation and tell every client."""
+    """Record a report from the home conversation, tell every client, and
+    send it to the Agent's chosen channel conversations in the background."""
+    from . import delivery
+
     agent_id = agent_for_session(session_id)
     if agent_id is None:
         raise ValueError("always_on_report works only in an always-on Agent's home conversation")
-    row = store.add_report(agent_id, title=title, body=body, links=links, session_id=session_id)
     spec = _spec(agent_id)
+    name = spec.name or spec.id
+    targets = list((spec.always_on or {}).get("channels") or [])
+    row = store.add_report(agent_id, title=title, body=body, links=links, session_id=session_id,
+                           deliveries=delivery.pending(targets))
     _broadcast({"type": "always_on_report", "data": {
-        "agent_id": agent_id, "agent_name": spec.name or spec.id, "report": row,
+        "agent_id": agent_id, "agent_name": name, "report": row,
     }})
+    delivery.deliver(agent_id, name, row, on_done=lambda _row: _broadcast({
+        "type": "always_on_update", "data": {"agent_id": agent_id},
+    }))
     return row
