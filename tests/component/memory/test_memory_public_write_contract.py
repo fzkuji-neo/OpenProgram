@@ -181,3 +181,36 @@ def test_validation_rejection_does_not_call_trusted_callback(owned_memory):
     assert not ok
     assert calls == []
     assert _snapshot(root) == before
+
+
+def test_a_write_leaves_untouched_topics_unmodified(owned_memory):
+    """Only the topic a write changes gets a new modification time."""
+    import os
+
+    from openprogram.memory.management.transaction import staged_edit
+    from openprogram.memory.store import _ensure_git_history
+
+    root = owned_memory
+    other = root / "topics/other.md"
+    other.write_text(
+        "# Other\n\nA second fact.[^e-2a5d8b3c01] ^def67890\n\n"
+        "[^e-2a5d8b3c01]: Time: `2026-01-01`; Sources: [D1:1](../sources/D1.md#d1-1)\n"
+    )
+    _ensure_git_history(root)
+    old = 1_000_000_000
+    for path in (root / "topics").rglob("*.md"):
+        os.utime(path, (old, old))
+    other_text = other.read_text()
+
+    ok, message = staged_edit(
+        root,
+        lambda stage: (stage / "topics/note.md").write_text(
+            NOTE.replace("keeping", "updating")
+        ),
+    )
+
+    assert ok, message
+    assert "worth updating" in (root / "topics/note.md").read_text()
+    assert (root / "topics/note.md").stat().st_mtime != old
+    assert other.read_text() == other_text
+    assert other.stat().st_mtime == old

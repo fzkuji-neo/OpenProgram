@@ -51,7 +51,8 @@ def prune_empty_topic_file(path: Path) -> None:
     """Remove record-free sections and delete a Topic with no records."""
     if not path.is_file():
         return
-    lines = path.read_text(encoding="utf-8").splitlines()
+    original = path.read_text(encoding="utf-8")
+    lines = original.splitlines()
     defined = {
         match.group("id")
         for line in lines
@@ -89,7 +90,11 @@ def prune_empty_topic_file(path: Path) -> None:
             definition is not None and definition.group("id") in referenced
         ):
             kept.append(line)
-    path.write_text("\n".join(kept).rstrip() + "\n", encoding="utf-8")
+    pruned = "\n".join(kept).rstrip() + "\n"
+    # Every Topic passes through here on every write; rewriting an
+    # unchanged file would stamp the whole tree as just modified.
+    if pruned != original:
+        path.write_text(pruned, encoding="utf-8")
 
 
 class TopicNormalizationMixin:
