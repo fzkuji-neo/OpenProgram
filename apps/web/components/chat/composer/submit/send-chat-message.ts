@@ -322,6 +322,14 @@ export function sendChatMessage({
     payload.channel = channelChoice.channel;
     payload.account_id = channelChoice.account_id || "";
   }
+  // Environment picked on a draft: the first message pins it. The worker
+  // ignores it for a conversation that already has history.
+  const environmentChoice = useSessionStore.getState().composerSettingsBySession[
+    sessionId ?? "__new__"
+  ]?.environment;
+  if (environmentChoice) {
+    payload.environment_id = environmentChoice;
+  }
 
   try {
     ws.send(JSON.stringify(payload));

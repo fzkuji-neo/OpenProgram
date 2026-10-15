@@ -92,6 +92,8 @@ interface ChatAckData {
   status_version?: number;
   /** Effective permission mode the backend adopted for this turn. */
   permission_mode?: string;
+  /** Environment the conversation runs in (pinned on its first message). */
+  environment_id?: string | null;
   /** Set by a function dispatch (retry_function) whose top-level code node
    *  was pre-created on disk at dispatch time — lets us hydrate the
    *  transcript immediately instead of waiting for the first tree_update. */
@@ -160,6 +162,11 @@ export function wsHandleChatAck(data: ChatAckData): void {
         preview: preview || null,
         created_at: Date.now() / 1000,
       };
+    }
+    // The first message pinned the conversation's environment: record it
+    // so the composer chip locks to it.
+    if ("environment_id" in data) {
+      convs[sid].environment_id = data.environment_id || null;
     }
     // Keep the ACK boundary here as well as in the message reducer so a
     // direct handler call cannot clear a composer before backend acceptance.
@@ -477,6 +484,9 @@ interface SessionRow {
   updated_at?: number;
   channel?: string | null;
   account_id?: string | null;
+  /** Where the conversation runs (local / an SSH or Docker environment);
+   *  absent for conversations created before environments existed. */
+  environment_id?: string | null;
   peer?: string | null;
   peer_display?: string | null;
   source?: string | null;
@@ -515,6 +525,7 @@ export function handleSessionsList(data: SessionRow[]): void {
           updated_at: c.updated_at,
           channel: c.channel || null,
           account_id: c.account_id || null,
+          environment_id: c.environment_id || null,
           peer: c.peer || null,
           peer_display: c.peer_display || null,
           source: c.source || null,
@@ -533,6 +544,7 @@ export function handleSessionsList(data: SessionRow[]): void {
         }
         if ("channel" in c) convs[c.id].channel = c.channel || null;
         if ("account_id" in c) convs[c.id].account_id = c.account_id || null;
+        if ("environment_id" in c) convs[c.id].environment_id = c.environment_id || null;
         if ("peer" in c) convs[c.id].peer = c.peer || null;
         if ("peer_display" in c) convs[c.id].peer_display = c.peer_display || null;
         if ("preview" in c) convs[c.id].preview = c.preview || null;

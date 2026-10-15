@@ -120,6 +120,12 @@ openprogram --profile alice
 
 第二个实例怎么建，见 [多实例配置](../install/profiles.zh.md)。
 
+## 渠道与运行环境
+
+渠道决定会话的消息同步到哪里，不决定 agent 的工具在哪里运行；后者是会话的[运行环境](../capabilities/environments.zh.md)。从渠道进来的会话使用默认环境。
+
+在 Web 和 App 里，绑定了渠道的会话会在输入框上方显示渠道 chip，点它可以切换账号或断开。没有渠道的会话，打开输入框下方的 **+** 菜单，选 **渠道** 来绑定。
+
 ## 聊天如何映射到会话
 
 路由先决定哪个 **agent** 处理消息（bindings），再由 **session key** 决定落进哪通对话：

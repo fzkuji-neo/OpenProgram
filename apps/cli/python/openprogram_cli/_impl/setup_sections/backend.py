@@ -1,44 +1,49 @@
-"""Terminal exec backend section."""
-from __future__ import annotations
+"""Default environment section.
 
-from typing import Any
+Where new conversations run: this computer, an SSH host, or a Docker
+container. The full list is managed with ``openprogram environments``;
+this wizard step picks the default and can add one SSH or Docker
+environment on the way.
+"""
+from __future__ import annotations
 
 
 def run_backend_section() -> int:
-    """Where shell-style tools (bash, execute_code, ...) actually run.
-
-    Wizard surfaces local/docker/ssh so users can record intent; only
-    'local' is currently implemented at runtime.
-    """
-    from openprogram.setup import (
-        _choose_one,
-        _text,
-        read_config_with_revision,
-        update_config,
+    from openprogram.environments import (
+        EnvironmentError,
+        default_environment_id,
+        list_environments,
+        save_environment,
+        set_default_environment,
     )
-    cfg, revision = read_config_with_revision()
-    be = cfg.get("backend", {}) or {}
-    cur_terminal = be.get("terminal") or "local"
+    from openprogram.setup import _choose_one, _text
 
-    choices = ["local", "docker", "ssh"]
-    picked = _choose_one("Terminal backend:", choices, cur_terminal)
+    envs = list_environments()
+    choices = [env.id for env in envs] + ["+ add SSH host", "+ add Docker container"]
+    picked = _choose_one("Default environment for new conversations:",
+                         choices, default_environment_id())
     if picked is None:
         print("Cancelled.")
         return 1
-
-    entry: dict[str, Any] = {"terminal": picked}
-    if picked == "docker":
-        image = _text("Container image:", default=be.get("docker_image", "ubuntu:24.04"))
-        entry["docker_image"] = image or "ubuntu:24.04"
-    elif picked == "ssh":
-        host = _text("SSH host (user@host):", default=be.get("ssh_target", ""))
-        entry["ssh_target"] = host or ""
-    update_config(
-        lambda current: current.__setitem__("backend", entry),
-        expected_revision=revision,
-    )
-    print(f"Terminal backend: {picked}")
-    if picked != "local":
-        print("[info] Only the 'local' backend is currently implemented at "
-              "runtime. Your selection is stored for when other backends land.")
+    if picked.startswith("+ add"):
+        kind = "ssh" if "SSH" in picked else "docker"
+        env_id = _text("Environment id (lowercase, e.g. devbox):", default="")
+        payload = {"id": env_id or "", "kind": kind}
+        if kind == "ssh":
+            payload["ssh_target"] = _text("SSH host (user@host):", default="") or ""
+            payload["workdir"] = _text("Remote folder (blank = home):", default="") or ""
+        else:
+            payload["image"] = _text("Container image:", default="ubuntu:24.04") or ""
+        try:
+            picked = save_environment(payload).id
+        except EnvironmentError as exc:
+            print(f"[error] {exc}")
+            return 1
+    try:
+        set_default_environment(picked)
+    except EnvironmentError as exc:
+        print(f"[error] {exc}")
+        return 1
+    print(f"New conversations start in: {picked}")
+    print("Manage the list with `openprogram environments`.")
     return 0

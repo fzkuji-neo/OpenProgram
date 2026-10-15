@@ -10,6 +10,13 @@ def _cleanup_session_resources(session_id: str, conv: dict):
         state._follow_up_queues.pop(session_id, None)
     with state._running_tasks_lock:
         state._running_tasks.pop(session_id, None)
+    # A Docker environment's per-session container goes with the session.
+    try:
+        from openprogram.backend.docker import remove_session_containers
+        state.threading.Thread(target=remove_session_containers, args=(session_id,),
+                               daemon=True).start()
+    except Exception:
+        pass
 
 
 def _get_or_create_session(session_id: str = None,

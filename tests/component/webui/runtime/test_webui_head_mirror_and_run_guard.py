@@ -501,6 +501,8 @@ def test_handle_chat_starts_turn_when_ack_socket_is_gone(monkeypatch, tmp_path):
         lambda: types.SimpleNamespace(
             root_path=tmp_path,
             get_session=lambda sid: {"extra_meta": {"_user_titled": True}},
+            get_branch=lambda sid: [],
+            update_session=lambda sid, **fields: None,
             is_created=lambda sid: True,
         ),
     )

@@ -213,6 +213,23 @@ def tool_runtime_block(
         "Runtime tool context:",
         f"- Current working directory: {cwd}",
     ]
+    # Where tools act: a conversation picks its environment at creation.
+    try:
+        from openprogram.environments import current_environment
+        env = current_environment()
+    except Exception:
+        env = None
+    if env is not None and env.kind == "ssh":
+        lines.append(
+            f"- Environment: SSH host {env.ssh_target} ({env.name}). Shell "
+            "commands and file tools act on that remote machine, not on the "
+            "user's computer; paths are remote paths.")
+    elif env is not None and env.kind == "docker":
+        lines.append(
+            f"- Environment: Docker container from image {env.image} ({env.name}). "
+            "Shell commands run inside the container; the working directories "
+            "are mounted at the same paths, so file tools and commands see the "
+            "same files.")
     if additional_working_dirs:
         # 会话挂载的额外工作目录（additional-working-directories.md §3.4）：
         # 只扩模型认知与围栏白名单，不改变主 cwd。

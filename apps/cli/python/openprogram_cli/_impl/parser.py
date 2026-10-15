@@ -66,6 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
             "    skills          manage the SKILL.md registry\n"
             "    plugins         manage installed plugins\n"
             "    channels        chat-channel bots (Telegram, Discord, Slack, WeChat)\n"
+            "    environments    where conversations run (this computer, SSH, Docker)\n"
             "    memory          inspect / manage persistent memory\n"
             "    trash           list / restore recoverable local deletions\n"
             "    backup          snapshot / restore your profile state\n"
@@ -773,6 +774,38 @@ def build_parser() -> argparse.ArgumentParser:
     p_upgrade.add_argument("--json", action="store_true", help="Emit JSON")
     p_upgrade.add_argument("--check", action="store_true",
         help="Only report whether a stable update is available.")
+
+    # ---- environments -----------------------------------------------------
+    p_env = sub.add_parser("environments",
+        help="Manage where conversations run: this computer, an SSH host, "
+             "or a Docker container")
+    env_sub = p_env.add_subparsers(dest="environments_verb", metavar="verb")
+    env_sub.add_parser("list", help="List environments and mark the default")
+    p_env_add = env_sub.add_parser("add",
+        help="Add or replace an SSH or Docker environment")
+    p_env_add.add_argument("kind", choices=["ssh", "docker"],
+        help="Environment kind")
+    p_env_add.add_argument("id",
+        help="Short id: lowercase letters, digits, '-' or '_'")
+    p_env_add.add_argument("--name", default="",
+        help="Display name (default: the id)")
+    p_env_add.add_argument("--target", default="",
+        help="SSH only: user@host or a host from ~/.ssh/config")
+    p_env_add.add_argument("--workdir", default="",
+        help="SSH only: absolute remote folder new conversations start in "
+             "(default: the remote home)")
+    p_env_add.add_argument("--image", default="",
+        help="Docker only: image to start (default: ubuntu:24.04)")
+    p_env_add.add_argument("--default", action="store_true",
+        help="Also make it the default for new conversations")
+    p_env_rm = env_sub.add_parser("rm", help="Remove an environment")
+    p_env_rm.add_argument("id", help="Environment id")
+    p_env_default = env_sub.add_parser("default",
+        help="Set the environment new conversations start in")
+    p_env_default.add_argument("id", help="Environment id ('local' for this computer)")
+    p_env_test = env_sub.add_parser("test",
+        help="Check that an environment can run a command")
+    p_env_test.add_argument("id", help="Environment id")
 
     # ---- channels ---------------------------------------------------------
     p_channels = sub.add_parser("channels",

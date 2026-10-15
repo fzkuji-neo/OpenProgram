@@ -21,7 +21,8 @@ const COMPOSER_PARTS = [
   "modes/fn-form/use-function-dispatch.ts",
   "modes/fn-form/use-fn-form-submit.ts",
   "controls/controls-cluster.tsx",
-  "environment-row/chips/connection-status-chip.tsx",
+  "environment-row/chips/environment-chip.tsx",
+  "environment-row/chips/channel-chip.tsx",
   "attach/scoped-drop-overlay.tsx",
 ];
 

@@ -179,6 +179,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       "/settings/providers",
       "/memory",
       "/scheduler",
+      "/settings/environments",
       "/settings/channels",
       "/settings/search",
       "/mcp",

@@ -386,7 +386,7 @@ openprogram channels bindings
 
 | 入口 | 实现 |
 |---|---|
-| Topbar channel popover | `apps/web/components/chat/top-bar/channel-menu.tsx` |
+| 输入框渠道 chip（仅绑定时显示）与 "+" 菜单的渠道子菜单 | `apps/web/components/chat/composer/environment-row/chips/channel-chip.tsx`、`apps/web/components/chat/composer/controls/channel-submenu.tsx`；两者都读 `apps/web/components/chat/top-bar/channel-choices.ts` |
 | Health badge status API | `/api/channels/{platform}/{account_id}/status` 返回 alive/stale/unknown |
 | 本地 access 管理 | `apps/web/components/settings/channels/access-list.tsx` 调用仅限 loopback 的 `/api/channels/access` 查询、批准和撤销路由 |
 

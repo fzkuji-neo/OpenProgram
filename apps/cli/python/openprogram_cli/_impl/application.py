@@ -83,7 +83,7 @@ def _looks_like_tui_invocation(argv: list[str]) -> bool:
     fail quickly and ``run_cli_chat`` restores stdio before using Rich.
     """
     bypass_words = {
-        "agents", "sessions", "channels", "config", "permissions", "programs", "skills", "plugins", "doctor",
+        "agents", "sessions", "channels", "environments", "config", "permissions", "programs", "skills", "plugins", "doctor",
         "providers", "web", "resume", "init", "doctor", "browser",
         "worker", "update", "memory", "mcp", "trash", "backup",
         "recordings", "stop", "status", "restart", "upgrade", "help",
@@ -1001,6 +1001,10 @@ def main():
             from openprogram.worker import services as _services
             sys.exit(_services.uninstall())
         _need_subcommand(args._cmd_parser)
+
+    if args.command == "environments":
+        from openprogram.cli.commands.environments import dispatch
+        sys.exit(dispatch(args))
 
     if args.command == "channels":
         verb = getattr(args, "channels_verb", None)

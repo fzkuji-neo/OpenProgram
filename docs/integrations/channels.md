@@ -120,6 +120,12 @@ openprogram --profile alice
 
 See [Profiles](../install/profiles.md) for how a second instance is set up.
 
+## Channels and Environments
+
+A channel decides where a conversation's messages are mirrored. It does not decide where the agent's tools run; that is the conversation's [environment](../capabilities/environments.md). A conversation that arrives from a channel runs in the default environment.
+
+In Web and the App, a conversation that is bound to a channel shows a channel chip above the message box. Click it to switch account or disconnect. To bind a conversation that has no channel, open the **+** menu below the message box and choose **Channel**.
+
 ## How Chats Map to Sessions
 
 Routing decides which **agent** handles a message (bindings), then a **session key** decides which conversation it lands in:

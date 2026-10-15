@@ -8,6 +8,7 @@ import {
   Brain,
   MonitorCog,
   RadioTower,
+  Server,
   Search,
   SlidersHorizontal,
 } from "lucide-react";
@@ -17,7 +18,7 @@ import { useTranslation } from "@/lib/i18n";
 import { ChromeIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "../animated-icons";
 import { sidebarToggleClass } from "../sidebar/nav-classes";
 
-export type SettingsTab = "providers" | "usage" | "search" | "channels" | "browser" | "memory" | "general" | "system";
+export type SettingsTab = "providers" | "usage" | "search" | "environments" | "channels" | "browser" | "memory" | "general" | "system";
 
 function readSettingsNavOpen(): boolean {
   if (typeof window === "undefined") return true;
@@ -38,7 +39,7 @@ function readSettingsNavOpen(): boolean {
  * into URL-routed subpages so refresh/back-button persist the active
  * tab.
  *
- * Each subpage at /settings/{providers,search,channels,general}
+ * Each subpage at /settings/{providers,search,environments,channels,general}
  * renders one of these with the matching `active` prop and the
  * section component as `children`.
  */
@@ -76,6 +77,7 @@ export function SettingsTabsLayout({
   const active: SettingsTab = (() => {
     if (pathname.startsWith("/settings/usage")) return "usage";
     if (pathname.startsWith("/settings/search")) return "search";
+    if (pathname.startsWith("/settings/environments")) return "environments";
     if (pathname.startsWith("/settings/channels")) return "channels";
     if (pathname.startsWith("/settings/browser")) return "browser";
     if (pathname.startsWith("/settings/memory")) return "memory";
@@ -95,6 +97,7 @@ export function SettingsTabsLayout({
     { id: "memory" as const, href: "/settings/memory", label: t("settings.tab.memory"), Icon: Brain },
     { id: "search" as const, href: "/settings/search", label: t("settings.tab.search"), Icon: Search },
     { id: "browser" as const, href: "/settings/browser", label: t("settings.tab.browser"), Icon: ChromeIcon },
+    { id: "environments" as const, href: "/settings/environments", label: t("settings.tab.environments"), Icon: Server },
     { id: "channels" as const, href: "/settings/channels", label: t("settings.tab.channels"), Icon: RadioTower },
     { id: "usage" as const, href: "/settings/usage", label: t("settings.tab.usage"), Icon: ChartNoAxesColumn },
     { id: "system" as const, href: "/settings/system", label: t("settings.tab.system"), Icon: MonitorCog },

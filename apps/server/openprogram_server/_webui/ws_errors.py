@@ -57,6 +57,11 @@ _ACTION_SCOPES = {
     "list_session_aliases": "channel",
     "attach_session": "channel",
     "detach_session": "channel",
+    "list_environments": "settings",
+    "save_environment": "settings",
+    "delete_environment": "settings",
+    "set_default_environment": "settings",
+    "test_environment": "settings",
 }
 
 

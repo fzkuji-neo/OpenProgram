@@ -537,7 +537,6 @@ export function Composer({ sessionId: boundSessionId }: { sessionId?: string } =
       <EnvironmentRow
         sessionId={currentSessionId}
         toolsEnabled={toolsEnabled}
-        owningStatusId={bound === null}
         onToggleAccess={toggleTools}
         trailingControls={<div id="dagHudSlot" />}
       />

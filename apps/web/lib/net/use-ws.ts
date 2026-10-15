@@ -67,6 +67,7 @@ import {
 } from "@/lib/runtime-bridge/functions-panel";
 import { refreshStatusSource, setRunning, updateStatus } from "@/lib/runtime-bridge/ui";
 import { refreshChannelBadge } from "@/lib/runtime-bridge/conversations";
+import { onEnvironmentsMessage } from "@/lib/environments/store";
 import { loadExecutionCursors, recordExecutionCursor } from "@/lib/net/execution-cursor";
 import { pushStatusBadge } from "@/lib/tabs/top-bar-sync";
 import {
@@ -685,6 +686,9 @@ export function useWS(): void {
           return true;
         case "channel_accounts":
           onChannelAccountsMessage(d as never);
+          return true;
+        case "environments":
+          onEnvironmentsMessage(d);
           return true;
         case "branches_list":
           onBranchesListMessage(d as never);

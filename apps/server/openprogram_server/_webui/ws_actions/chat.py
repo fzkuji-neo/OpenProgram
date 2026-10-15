@@ -610,6 +610,23 @@ async def handle_chat(ws, cmd: dict):
             },
         }))
         return
+    # Environment pick for a brand-new conversation. Validated before any
+    # state changes; an existing conversation ignores it (environments are
+    # chosen once, at creation).
+    requested_environment = (cmd.get("environment_id") or "").strip() or None
+    if requested_environment is not None:
+        from openprogram.environments import get_environment
+        if get_environment(requested_environment) is None:
+            await ws.send_text(json.dumps({
+                "type": "chat_response", "data": {
+                    "type": "error", "code": "unknown_environment",
+                    "content": (f"Environment {requested_environment!r} no longer exists. "
+                                "Pick another one in the composer."),
+                    "session_id": session_id, "msg_id": str(uuid.uuid4())[:8],
+                    "retry_query": text,
+                },
+            }))
+            return
     if agent_invocation is not None:
         # A new Agent conversation starts from its configuration. Unrelated
         # composer defaults must not replace the Agent's effort or tools.
@@ -978,6 +995,9 @@ async def handle_chat(ws, cmd: dict):
         if not session_db.is_created(session_id):
             session_db.create_session(session_id, agent_id or _s._default_agent_id(),
                                       project_id=project_id)
+        from openprogram.environments import assign_new_session_environment
+        conv["environment_id"] = assign_new_session_environment(
+            session_db, session_id, requested_environment)
         if agent_invocation is not None:
             persist_agent_invocation(session_id, agent_invocation, conv)
         run_cfg = save_session_run_config(
@@ -1240,6 +1260,7 @@ async def handle_chat(ws, cmd: dict):
                 "execution_id": execution_id,
                 "status_version": _admission.status_version,
                 "permission_mode": effective_permission,
+                "environment_id": conv.get("environment_id"),
             },
         }))
     except Exception:

@@ -79,6 +79,16 @@ def execute(file_path: str, content: str | None = None,
     """
     if (content is None) == (source_path is None):
         return "Error: provide exactly one of content or source_path"
+    # An SSH conversation writes the remote disk. A staged local file
+    # would have to be uploaded, which this tool does not do remotely.
+    from ._remote import remote_target
+    _remote_fs = remote_target()
+    if _remote_fs is not None:
+        if source_path is not None:
+            return ("Error: source_path is not available in an SSH environment; "
+                    "write text content, or copy the file with bash (scp/rsync)")
+        from . import _remote
+        return _remote.write(_remote_fs, file_path, content or "")
     # Worktree-aware resolution: relative paths bind to the active
     # worktree root when one is set; absolute paths outside the
     # worktree get a soft warning but still proceed (D6).
