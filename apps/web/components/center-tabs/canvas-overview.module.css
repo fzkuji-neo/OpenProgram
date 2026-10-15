@@ -82,16 +82,12 @@ button.card:hover .mini,
   width: 100%;
 }
 /* The gap a dragged window leaves among the cards. Empty, as in Mission
-   Control; over it (a drop there opens the window on its own) it shows
-   where. */
+   Control: no frame even when a drop there would open the window on its
+   own (the hint says so). Only a window under the pointer shows a frame,
+   the half it would merge into. */
 .gap {
   display: block;
   width: 100%;
-  transition: background-color 120ms ease, box-shadow 120ms ease;
-}
-.card[data-overview-slot][data-hot] .gap {
-  background: color-mix(in oklch, var(--accent-blue) 8%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--accent-blue) 45%, transparent);
 }
 .overview[data-canvas-overview="browse"] .card[data-zooming] .caption {
   animation: captionIn 200ms 180ms both;

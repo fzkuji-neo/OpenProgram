@@ -420,11 +420,11 @@ export function CanvasOverview() {
     ? label || text("Drop on a window to merge · on empty space to open on its own · outside the window for a new window", "拖到某个窗口上合并 · 空白处单独打开 · 拖出窗口新开一个")
     : "";
 
-  // The gap is a card with nothing in it; over it the drop opens the
-  // window on its own, and it shows where.
+  // The gap is a card with nothing in it; a drop there opens the window
+  // on its own. It never wears a frame, as in Mission Control.
   const gapCard = (
     <motion.div key="overview-gap" className={styles.card} style={{ width: cardWidth || undefined }} aria-hidden="true"
-      data-overview-slot="" data-hot={(mode === "drag" && hover?.card === null) || undefined}
+      data-overview-slot=""
       layout={!landing} initial={false} transition={REFLOW}>
       <span className={styles.gap} style={{ aspectRatio: `${aspect}`, borderRadius: radius * (cardWidth ? cardWidth / frame.width : 1) }} />
       <span className={styles.caption}>{"\u00a0"}</span>
