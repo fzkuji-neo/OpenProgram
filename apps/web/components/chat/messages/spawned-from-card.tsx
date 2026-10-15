@@ -15,17 +15,18 @@ import type { ChatMsg } from "@/lib/session-store";
 
 import { useSessionStore } from "@/lib/session-store";
 import { useTranslation } from "@/lib/i18n";
-import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
+import { runtimeState } from "@/lib/runtime-bridge/state";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import {
   type AnimatedNavIconHandle,
   ArrowUpRightIcon,
 } from "@/components/animated-icons";
 
+/** Commands go out as they are; a `load_session` goes through the managed
+ *  session read, since the transcript applies only the reply to a read it
+ *  registered. */
 function wsSend(payload: unknown): void {
-  const sock = getSocket();
-  if (sock && sock.readyState === WebSocket.OPEN) {
-    sock.send(JSON.stringify(payload));
-  }
+  sendRuntimeCommand(payload);
 }
 
 export function SpawnedFromCard({ msg }: { msg: ChatMsg }) {

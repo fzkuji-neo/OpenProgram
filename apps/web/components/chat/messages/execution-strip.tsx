@@ -31,18 +31,18 @@ import {
   streamPreviewForNode,
 } from "@/lib/execution-stream";
 import { fetchFullToolOutput } from "@/lib/net/tool-output";
-import { getSocket } from "@/lib/runtime-bridge/state";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { LlmNodeContent } from "./llm-node-content";
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { MessageTimestamp } from "./message-actions";
 
 export { SPAWNING_TOOL_NAMES } from "./tool-group-summary";
 
+/** Commands go out as they are; a `load_session` goes through the managed
+ *  session read, since the transcript applies only the reply to a read it
+ *  registered. */
 function wsSend(payload: unknown): void {
-  const sock = getSocket();
-  if (sock && sock.readyState === WebSocket.OPEN) {
-    sock.send(JSON.stringify(payload));
-  }
+  sendRuntimeCommand(payload);
 }
 
 /** 高度过渡容器：grid 0fr↔1fr 动画，展开向下推、收起平滑抽走。
