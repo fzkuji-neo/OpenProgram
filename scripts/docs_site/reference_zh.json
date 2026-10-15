@@ -523,5 +523,9 @@
   "Environment id": "环境 ID",
   "Set the environment new conversations start in": "设置新会话使用的运行环境",
   "Environment id ('local' for this computer)": "环境 ID（'local' 表示这台电脑）",
-  "Check that an environment can run a command": "检查运行环境能否执行命令"
+  "Check that an environment can run a command": "检查运行环境能否执行命令",
+  "Voice": "语音",
+  "Turns the composer microphone's recording into text. `auto` uses local whisper.cpp when its model is downloaded, then OpenAI, then Groq. `local` keeps audio on this computer (needs `brew install whisper-cpp`).": "把输入框麦克风的录音转成文字。`auto` 在本机 whisper.cpp 模型已下载时用它，否则依次用 OpenAI、Groq。`local` 让音频留在这台电脑上（需要 `brew install whisper-cpp`）。",
+  "`auto` lets the engine detect the language of each phrase.": "`auto` 让识别服务自动识别每句话的语言。",
+  "Empty uses the engine's default: gpt-4o-mini-transcribe (OpenAI), whisper-large-v3-turbo (Groq), base (local). Applies only when an engine is chosen.": "留空使用识别服务的默认模型：gpt-4o-mini-transcribe（OpenAI）、whisper-large-v3-turbo（Groq）、base（本机）。只在选定了识别服务时生效。"
 }
