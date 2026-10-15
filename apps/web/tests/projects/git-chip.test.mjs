@@ -160,3 +160,35 @@ test('binary-only changes show a file count instead of +0 −0', async () => {
   assert.ok(pill.querySelector('.git-seg-dot.is-files'));
   await unmount();
 });
+
+test('an open pull request shows its checks and hands failing ones to the agent', async () => {
+  // Shape as folder_git._open_pr returned it for a real pull request.
+  const run = 'https://github.com/o/r/actions/runs/1/job/';
+  const pr = {
+    number: 14, url: 'https://github.com/o/r/pull/14', state: 'OPEN', title: 'build(deps): bump katex', isDraft: false,
+    checks: {
+      total: 20, passed: 13, pending: 0, failed_count: 7,
+      failed: ['integration', 'windows-core (windows-2025, x64)', 'windows-core (windows-11-vs2026-arm, arm64)',
+        'windows-desktop (windows-2025, x64)', 'windows-desktop (windows-11-vs2026-arm, arm64)', 'web', 'browser']
+        .map((name, i) => ({ name, url: `${run}${i}` })),
+    },
+  };
+  setup(() => ({ ...STATUS, pr }));
+  const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0, onUseFolder: () => {} })]);
+  const row = (label) => [...host.querySelectorAll('div')].find((el) => el.textContent.startsWith(label) && el.className.includes('cursor-pointer'));
+  assert.ok(row('View pull request #14'));
+  assert.equal(host.querySelector('.git-menu-note[aria-live="polite"]')?.textContent, 'Checks: 7 failing · 13 passed');
+  await act(async () => row('Fix failing checks with the agent').dispatchEvent(new Event('click', { bubbles: true })));
+  assert.match(globalThis.gitDraft, /^Pull request #14 \(https:\/\/github\.com\/o\/r\/pull\/14\) has failing CI checks: integration, windows-core/);
+  assert.match(globalThis.gitDraft, /browser\. Read their logs with gh/);
+  await unmount();
+});
+
+test('a pull request without failures offers no fix', async () => {
+  setup(() => ({ ...STATUS, pr: { number: 3, url: 'https://github.com/o/r/pull/3', state: 'OPEN',
+    checks: { total: 3, passed: 1, pending: 2, failed_count: 0, failed: [] } } }));
+  const { host, unmount } = await mount([h(GitChip, { path: '/repo', order: 0, onUseFolder: () => {} })]);
+  assert.equal(host.querySelector('.git-menu-note[aria-live="polite"]')?.textContent, 'Checks: 2 running · 1 passed');
+  assert.doesNotMatch(host.textContent, /Fix failing checks/);
+  await unmount();
+});
