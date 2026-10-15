@@ -19,7 +19,8 @@ import { useEffect, useRef, useState } from "react";
 import { surfaceOriginForChat } from "@/lib/desktop/desktop-bridge";
 import { formatUsageFooterLabel } from "@/lib/format-utils/format";
 import { renderMathIn } from "@/lib/format-utils/markdown";
-import { getSocket, runtimeState } from "@/lib/runtime-bridge/state";
+import { runtimeState } from "@/lib/runtime-bridge/state";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import {
   useSessionStore,
   type AgenticFunction,
@@ -39,11 +40,11 @@ import { ActionButton, MessageTimestamp, NavButton, SVG } from "./message-action
 import { renderMarkdown, useMarkdownReady } from "./markdown";
 import { runtimeAnswer, runtimeConclusion, runtimeSummaryLabel } from "./runtime-summary";
 
+/** Commands go out as they are; a `load_session` goes through the managed
+ *  session read, since the transcript applies only the reply to a read it
+ *  registered. */
 function wsSend(payload: unknown): boolean {
-  const sock = getSocket();
-  if (!sock || sock.readyState !== WebSocket.OPEN) return false;
-  sock.send(JSON.stringify(payload));
-  return true;
+  return sendRuntimeCommand(payload);
 }
 
 /** Move HEAD to a sibling version, then reload so the transcript shows

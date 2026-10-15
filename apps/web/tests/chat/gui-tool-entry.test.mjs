@@ -19,6 +19,7 @@ const mocks={
   '@/lib/execution-stream': 'export const useExecutionStreamStore=s=>s({byNodeId:{}}),streamPreviewForNode=()=>({});',
   '@/lib/net/tool-output': 'export const fetchFullToolOutput=(...args)=>globalThis.guiFetch(...args);',
   '@/lib/runtime-bridge/state': 'export const getSocket=()=>null;',
+  '@/lib/runtime-bridge/session-load': 'export const sendRuntimeCommand=()=>false;',
   './llm-node-content': 'export const LlmNodeContent=()=>null;',
   './markdown': 'export const renderMarkdown=t=>t,useMarkdownReady=()=>{};',
   './message-actions': 'export const MessageTimestamp=()=>null;',

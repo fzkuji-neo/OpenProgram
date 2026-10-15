@@ -22,7 +22,7 @@ import {
 } from "@/lib/chat/sub-agent-transcripts";
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
 import { useTranslation } from "@/lib/i18n";
-import { getSocket } from "@/lib/runtime-bridge/state";
+import { sendRuntimeCommand } from "@/lib/runtime-bridge/session-load";
 import { useSessionStore, type ChatMsg } from "@/lib/session-store";
 import { cn } from "@/lib/utils";
 
@@ -31,9 +31,11 @@ import { AssistantBubble } from "./assistant-bubble";
 const LIVE = new Set(["running", "pending", "queued"]);
 const TERMINAL = new Set(["completed", "errored", "failed", "cancelled"]);
 
+/** Commands go out as they are; a `load_session` goes through the managed
+ *  session read, since the transcript applies only the reply to a read it
+ *  registered. */
 function wsSend(payload: unknown): void {
-  const sock = getSocket();
-  if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(payload));
+  sendRuntimeCommand(payload);
 }
 
 type Agent = {
