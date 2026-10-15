@@ -109,10 +109,12 @@ export function itemCls(active: boolean, danger = false): string {
     // Claude 紧凑档：13px / 19px，上下 2.5px → 24px，左右 8px，图标与
     // 文字间 6px；行保持圆角"按钮"hover。侧栏列表行仍是 32。
     // 行首图标左移 3px：Solar 图标字形四周自带留白，不收的话看起来
-    // 比文字行缩进得多（用户反馈）。
+    // 比文字行缩进得多（用户反馈）。只认纯图标——svg 本身、只包一个
+    // svg 的 SolarIcon、或只包一个 SolarIcon 的 16px 槽；含文字的首段
+    // （模型名 + 能力图标）不动，否则正文会比分组标题更靠左。
     "flex min-h-[24px] shrink-0 cursor-pointer items-center gap-[6px] rounded-[6px] " +
     "px-[8px] py-[2.5px] text-[13px] leading-[19px] transition-colors duration-75 " +
-    "[&>:first-child:is(svg,:has(svg))]:-ms-[3px] ";
+    "[&>:first-child:is(svg,:has(>svg:only-child),:has(>:only-child>svg:only-child))]:-ms-[3px] ";
   if (danger) {
     return (
       base +
