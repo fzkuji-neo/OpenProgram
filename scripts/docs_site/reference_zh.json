@@ -394,7 +394,7 @@
   "Stop + mark disabled (config kept)": "停止并标记为禁用，保留配置",
   "Stop + respawn one server": "停止并重新启动一个服务器",
   "Stop the background OpenProgram service. The web UI stays reachable after you close the terminal until you run this.": "停止 OpenProgram 后台服务。关闭终端后网页仍可访问，直到执行此命令。",
-  "Stop the running worker (SIGTERM, escalates to SIGKILL).": "停止运行中的 worker，先发送 SIGTERM，必要时升级为 SIGKILL。",
+  "Stop the running worker; an installed service stays stopped until the next start or login.": "停止运行中的 worker；已安装的服务会一直停着，直到下次 start 或登录。",
   "Stop the running worker and start a fresh one.": "停止当前 worker 并启动新进程。",
   "Subagent session id to include in the merge (repeat for multiple)": "要合并的子 Agent 会话 ID，可重复指定",
   "Supply the API key non-interactively (scripts / agents). Implies --method api_key; skips the prompt. WARNING: visible in shell history and `ps` — prefer --api-key-stdin or an env var.": "非交互提供 API 密钥，供脚本或 Agent 使用。隐含 --method api_key 并跳过提示。注意：密钥会出现在 shell 历史和 `ps` 中，优先使用 --api-key-stdin 或环境变量。",
