@@ -6,7 +6,7 @@ import { FileTabPane } from "./file-tab-pane";
 import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import styles from "./persistent-file-panes.module.css";
 
-type FilePaneTab = { id: string; kind: string; projectId?: string; path?: string; readOnly?: boolean; fileSessionId?: string };
+type FilePaneTab = { id: string; kind: string; projectId?: string; path?: string; readOnly?: boolean; fileSessionId?: string; previewOwnerSessionId?: string };
 function documentKey(tab: FilePaneTab): string | null {
   if (tab.kind !== "file" || !tab.path) return null;
   return tab.readOnly && tab.fileSessionId ? `attachment:${tab.fileSessionId}:${tab.path}`
@@ -51,7 +51,7 @@ export function PersistentFilePanes({ tabs, activeFileIds, layouts }: { tabs: Fi
     // changes. A second native engine cannot acquire the same revision lease.
     return <div key={key} style={{ display: "contents" }}>
       <div data-file-pane-id={tab.id} data-page-surface="" className={layouts.get(tab.id)?.className} style={pane(tab.id, active.length > 0)}>
-        <FileTabPane projectId={tab.projectId || ""} path={tab.path} sessionId={tab.fileSessionId} readOnly={tab.readOnly} sectionNavigation={requests[tab.id] ? { request: requests[tab.id], consume: sequence => consume(tab.id, sequence) } : undefined} />
+        <FileTabPane projectId={tab.projectId || ""} path={tab.path} sessionId={tab.fileSessionId} readOnly={tab.readOnly} previewSessionId={tab.previewOwnerSessionId} sectionNavigation={requests[tab.id] ? { request: requests[tab.id], consume: sequence => consume(tab.id, sequence) } : undefined} />
       </div>
       {active.filter(alias => alias.id !== tab.id).map(alias => <div key={alias.id} data-file-pane-id={alias.id} data-page-surface="" className={layouts.get(alias.id)?.className} style={pane(alias.id, true)}>
         <div className={styles.duplicate}><FileTextIcon size={24} aria-hidden /><span>{text("This file is open in another pane.", "此文件已在另一栏打开。")}</span>

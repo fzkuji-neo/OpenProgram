@@ -73,6 +73,7 @@ import { isMovedByAnimation, isWebTabOccluded, measureWebTabBounds } from "@/lib
 import styles from "./center-tabs.module.css";
 import { webToolbarButton } from "./toolbar-button";
 import { BookmarksLibraryButton, BrowserMenu } from "./browser-controls";
+import { ViewSourceButton } from "./view-source-button";
 import { BookmarkBar } from "./bookmark-bar";
 import { AddressField, addressStarButton, ToolbarTip } from "./browser-chrome";
 import { ActionCueTravel, BrowserControlBar } from "./browser-control-bar";
@@ -728,6 +729,7 @@ function DesktopWebTabPane({
         >
           <BookmarkButton tabId={tabId} url={effectiveUrl} title={title || effectiveUrl} />
         </AddressField>
+        <ViewSourceButton tabId={tabId} url={effectiveUrl} />
         <BookmarksLibraryButton />
         <ToolbarTip label={text("Open in browser", "在浏览器中打开")}>
           <button

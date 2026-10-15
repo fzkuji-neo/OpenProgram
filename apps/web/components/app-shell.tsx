@@ -555,7 +555,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       );
     }
     if (tab.kind === "file" && tab.path && (tab.projectId || (tab.readOnly && tab.fileSessionId))) {
-      return <FileTabPane projectId={tab.projectId || ""} path={tab.path} sessionId={tab.fileSessionId} readOnly={tab.readOnly} />;
+      return <FileTabPane projectId={tab.projectId || ""} path={tab.path} sessionId={tab.fileSessionId} readOnly={tab.readOnly} previewSessionId={tab.previewOwnerSessionId} />;
     }
     if (tab.kind === "web") {
       return <WebTabPane tabId={tab.id} url={tab.url ?? ""} suspended={!liveWebIds.has(tab.id)} />;

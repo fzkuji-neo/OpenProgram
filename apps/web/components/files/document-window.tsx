@@ -10,6 +10,8 @@ import type { DocumentHistoryEntry, DocumentHistoryPage } from "@/lib/files/docu
 import styles from "./document-window.module.css";
 
 import { fileCapabilities } from "@/lib/documents/file-formats";
+import { canBrowseLocalFiles, isHtmlPath } from "@/lib/files/local-file-url";
+import { openHtmlPage, projectFileAbsolutePath } from "@/lib/files/open-html-page";
 import { rawFileUrl, absRawFileUrl } from "@/lib/files/files-shared";
 import { officeCapability } from "@/lib/documents/file-formats";
 import { convertOfficeDocument } from "@/lib/documents/office-editor";
@@ -22,8 +24,11 @@ import type { RasterEditorInstance } from "@/lib/documents/raster-editor";
 
 interface VersionPreview { blob: Blob; content?: string; version?: string; side?: "before" | "after"; disk?: boolean; }
 
-export function DocumentWindow({ projectId, path, sessionId, readOnly = false, sectionNavigation }: {
+export function DocumentWindow({ projectId, path, sessionId, readOnly = false, sectionNavigation, previewSessionId, onPageOpened }: {
   projectId: string; path: string; sessionId?: string; readOnly?: boolean; sectionNavigation?: FileSectionNavigation;
+  /** The chat this file previews for; an HTML page opens beside it. */
+  previewSessionId?: string;
+  onPageOpened?: () => void;
 }) {
   const { text } = useTranslation();
   const controller = useMemo(() => getOrCreateDocumentController({ projectId, path, sessionId, readOnly }),
@@ -107,6 +112,20 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
     await perform(async () => {
       await controller.refresh();
       selectionRequest.current++; setSelected(null); setUpdateError(null);
+    });
+  }
+
+  // HTML is a page: it renders in a browser tab, which loads its relative
+  // assets from disk. Saving first makes the page show these edits.
+  const isHtml = isHtmlPath(path);
+  const canOpenPage = isHtml && canBrowseLocalFiles();
+  async function openPage() {
+    await perform(async () => {
+      if (!readOnly && controller.hasLocalChanges()) await controller.flush();
+      const absolute = readOnly ? path : await projectFileAbsolutePath(projectId, path);
+      if (!absolute?.startsWith("/")) throw new Error(text("This file has no local disk path to open.", "这个文件没有可打开的本地路径。"));
+      openHtmlPage(absolute, previewSessionId);
+      onPageOpened?.();
     });
   }
 
@@ -227,7 +246,9 @@ export function DocumentWindow({ projectId, path, sessionId, readOnly = false, s
         <RefreshCwIcon ref={refreshIcon.ref} size={14} aria-hidden />{text("Refresh", "刷新")}
       </button>
       <button className={`${styles.button} ${mode === "preview" && !selected ? styles.active : ""}`}
-        aria-pressed={mode === "preview" && !selected} onClick={() => void showCurrent()}>{text("Preview", "预览")}</button>
+        aria-pressed={mode === "preview" && !selected} onClick={() => void showCurrent()}>{isHtml ? text("Source", "源代码") : text("Preview", "预览")}</button>
+      {canOpenPage && <button type="button" className={styles.button} disabled={state.restoring || state.renaming}
+        onClick={() => void openPage()}>{text("View page", "网页预览")}</button>}
       {!readOnly && (isText || (isOffice && office?.editable) || isRaster) && <button className={`${styles.button} ${mode === "edit" && !selected ? styles.active : ""}`}
         disabled={!state.snapshot || state.restoring || state.renaming} aria-pressed={mode === "edit" && !selected}
         onClick={() => { setSelected(null); setEditorOpened(true); setMode("edit"); }}>{text("Edit", "编辑")}</button>}
