@@ -88,7 +88,7 @@ def install() -> int:
                 return rc
 
     from openprogram.worker.lifecycle import current_worker_pid, stop_worker
-    if current_worker_pid() is not None and stop_worker() != 0:
+    if current_worker_pid() is not None and stop_worker(prefer_service=False) != 0:
         return 1
 
     with open(plist_file, "wb") as f:
@@ -106,6 +106,59 @@ def install() -> int:
     print("It is now running and will start automatically at login.")
     print("Check status:  openprogram worker status")
     return 0
+
+
+def start_if_installed() -> int | None:
+    """Start the managed service, or return ``None`` when none is installed.
+
+    Reinstalling rewrites ``ProgramArguments`` for the current runtime before
+    loading, so a start after an upgrade never relaunches an old interpreter.
+    """
+
+    if not _plist_path().is_file():
+        return None
+    return install()
+
+
+def stop_if_installed() -> int | None:
+    """Stop the launchd-owned worker without KeepAlive starting another.
+
+    Signalling the worker alone is not a stop: KeepAlive relaunches it at
+    once, and that new process would import whatever is on disk mid-upgrade.
+    Unloading the job stops it and keeps it stopped until the next load or
+    login.
+    """
+
+    plist_file = _plist_path()
+    if not plist_file.is_file():
+        return None
+    loaded, rc, msg = _loaded_state()
+    if loaded is None:
+        print(f"launchctl status failed (rc={rc}): {msg}")
+        return rc or 1
+    if loaded:
+        rc, msg = _launchctl("unload", str(plist_file))
+        if rc != 0:
+            print(f"launchctl unload failed (rc={rc}): {msg}")
+            return rc
+
+    # Wait out a worker that is still exiting, and stop a detached one an
+    # older CLI started beside the service. Bypass service dispatch to avoid
+    # recursing back into this function.
+    from openprogram.worker.lifecycle import current_worker_pid, stop_worker
+
+    if current_worker_pid() is not None:
+        return stop_worker(prefer_service=False)
+    print(f"openprogram worker stopped via launchd ({LABEL}).")
+    return 0
+
+
+def restart_if_installed() -> int | None:
+    """Refresh and restart an installed service using the current runtime."""
+
+    if not _plist_path().is_file():
+        return None
+    return install()
 
 
 def uninstall() -> int:

@@ -720,7 +720,7 @@ def build_parser() -> argparse.ArgumentParser:
     worker_sub.add_parser("start",
         help="Spawn a detached worker in the background and return.")
     worker_sub.add_parser("stop",
-        help="Stop the running worker (SIGTERM, escalates to SIGKILL).")
+        help="Stop the running worker; an installed service stays stopped until the next start or login.")
     worker_sub.add_parser("restart",
         help="Stop the running worker and start a fresh one.")
     worker_sub.add_parser("status",

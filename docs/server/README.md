@@ -12,7 +12,7 @@ For manual control, use the `openprogram worker` subcommands:
 openprogram worker start     # start a worker in the background and return
 openprogram worker run       # run in the foreground (blocking), for debugging; Ctrl-C to stop
 openprogram worker status    # running or not, PID, port, uptime
-openprogram worker stop      # stop (SIGTERM, escalating to SIGKILL if needed)
+openprogram worker stop      # stop (an installed service stays stopped until the next start or login)
 openprogram worker restart   # stop and start a fresh one
 ```
 
@@ -70,11 +70,13 @@ per-user Task Scheduler entry. Once installed, the worker starts automatically
 at login and restarts after a crash. `openprogram status` shows whether the
 service is installed.
 
-On Linux, `worker start`, `stop`, and `restart` continue to use the installed
-systemd user service instead of silently creating a detached replacement.
-`restart` also refreshes the generated unit from the active CLI runtime, so an
-immutable release upgrade does not keep launching the previous runtime.
-Each named [profile](../install/profiles.md) gets a distinct unit, so service
+On macOS and Linux, `worker start`, `stop`, and `restart` continue to use the
+installed launchd or systemd user service instead of silently creating a
+detached replacement. On macOS, `stop` unloads the launchd job, so the worker
+stays stopped until the next `start` or login instead of being relaunched by
+the crash restart. `start` and `restart` also refresh the generated plist or
+unit from the active CLI runtime, so an immutable release upgrade does not keep
+launching the previous runtime. On Linux, each named [profile](../install/profiles.md) gets a distinct unit, so service
 commands for one profile cannot stop or replace another profile's worker.
 
 ## Related pages

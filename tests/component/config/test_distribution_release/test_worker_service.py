@@ -26,11 +26,18 @@ def test_launchd_replacement_unloads_keepalive_before_stopping_worker(
     )
     monkeypatch.setattr(lifecycle, "current_worker_pid", lambda: 12345)
     monkeypatch.setattr(
-        lifecycle, "stop_worker", lambda: (events.append("stop") or 0)
+        lifecycle,
+        "stop_worker",
+        lambda **kwargs: (events.append(f"stop:{kwargs}") or 0),
     )
 
     assert launchd.install() == 0
-    assert events == ["launchctl:list", "launchctl:unload", "stop", "launchctl:load"]
+    assert events == [
+        "launchctl:list",
+        "launchctl:unload",
+        "stop:{'prefer_service': False}",
+        "launchctl:load",
+    ]
 
 
 
@@ -55,6 +62,83 @@ def test_launchd_replaces_an_unloaded_stale_plist(tmp_path: Path, monkeypatch) -
     assert launchd.install() == 0
     assert events == ["launchctl:list", "launchctl:load"]
     assert plist_path.is_file()
+
+
+
+def test_worker_stop_unloads_the_launchd_job_instead_of_signalling_it(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from openprogram.worker import lifecycle, services
+    from openprogram.worker.services import launchd
+
+    plist_path = tmp_path / "ai.openprogram.worker.plist"
+    plist_path.write_bytes(plistlib.dumps({"Label": launchd.LABEL}))
+    events: list[str] = []
+
+    def fake_launchctl(*args: str) -> tuple[int, str]:
+        events.append(f"launchctl:{args[0]}")
+        return 0, "loaded"
+
+    monkeypatch.setattr(services, "_backend", lambda: launchd)
+    monkeypatch.setattr(launchd, "_plist_path", lambda: plist_path)
+    monkeypatch.setattr(launchd, "_launchctl", fake_launchctl)
+    monkeypatch.setattr(lifecycle, "current_worker_pid", lambda: None)
+    monkeypatch.setattr(
+        lifecycle.os, "kill", lambda *args: events.append("kill"),
+    )
+
+    assert lifecycle.stop_worker() == 0
+    assert events == ["launchctl:list", "launchctl:unload"]
+    assert plist_path.is_file()
+
+
+
+def test_launchd_stop_then_stops_a_worker_still_holding_the_lock(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from openprogram.worker import lifecycle
+    from openprogram.worker.services import launchd
+
+    plist_path = tmp_path / "ai.openprogram.worker.plist"
+    plist_path.write_bytes(plistlib.dumps({"Label": launchd.LABEL}))
+    events: list[str] = []
+
+    def fake_launchctl(*args: str) -> tuple[int, str]:
+        events.append(f"launchctl:{args[0]}")
+        if args[0] == "list":
+            return 113, f'Could not find service "{launchd.LABEL}"'
+        return 0, ""
+
+    monkeypatch.setattr(launchd, "_plist_path", lambda: plist_path)
+    monkeypatch.setattr(launchd, "_launchctl", fake_launchctl)
+    monkeypatch.setattr(lifecycle, "current_worker_pid", lambda: 12345)
+    monkeypatch.setattr(
+        lifecycle,
+        "stop_worker",
+        lambda **kwargs: (events.append(f"stop:{kwargs}") or 0),
+    )
+
+    assert launchd.stop_if_installed() == 0
+    assert events == ["launchctl:list", "stop:{'prefer_service': False}"]
+
+
+
+def test_launchd_start_and_restart_reload_through_install(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from openprogram.worker.services import launchd
+
+    plist_path = tmp_path / "ai.openprogram.worker.plist"
+    monkeypatch.setattr(launchd, "_plist_path", lambda: plist_path)
+    monkeypatch.setattr(launchd, "install", lambda: 7)
+
+    assert launchd.start_if_installed() is None
+    assert launchd.stop_if_installed() is None
+    assert launchd.restart_if_installed() is None
+
+    plist_path.write_bytes(plistlib.dumps({"Label": launchd.LABEL}))
+    assert launchd.start_if_installed() == 7
+    assert launchd.restart_if_installed() == 7
 
 
 
