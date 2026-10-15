@@ -1055,6 +1055,9 @@ export function useWS(): void {
           }));
         }
         socket?.send(JSON.stringify({ action: "list_sessions", history_version: 2 }));
+        // Environment changes broadcast while disconnected were missed;
+        // the reply lands in the `environments` case below.
+        socket?.send(JSON.stringify({ action: "list_environments" }));
         if (runtimeState.currentSessionId) {
           clearTimeout(historyDeadline);
           historyDeadline = setTimeout(() => connectionRecovery.start(), 15_000);
