@@ -153,3 +153,16 @@ test("ongoing shell calls and background programs appear without opening an Agen
   }, [], [], {}, { calls: [{ id: "call", name: "bash", command: "sleep 30", started_at: 1, status: "running" }],
     items: [{id:"proc", command:"python worker.py", status:"running", started_at:1, backend_id:"local"}] });
 });
+
+test("Activity rows use a bare coloured glyph and a status dot, with no tile or frame", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(new URL("../../components/right-sidebar/running-panel.module.css", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("../../components/right-sidebar/running-panel.tsx", import.meta.url), "utf8");
+  const rule = (name) => (new RegExp(`\\.${name} \\{([^}]*)\\}`).exec(css) || [])[1] || "";
+  for (const name of ["glyph", "callBody", "callCommand"]) {
+    assert.doesNotMatch(rule(name), /background|border:|box-shadow/, `${name} draws no surface`);
+  }
+  assert.match(panel, /<SolarIcon name=\{name\} size=\{16\} motionPreset="none" \/>/);
+  assert.match(panel, /className=\{`indicator-dot sm \$\{DOT\[tone\]\}`\}/);
+  assert.doesNotMatch(panel, /<details/, "no native disclosure triangle");
+});
