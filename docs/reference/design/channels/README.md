@@ -4,3 +4,4 @@ Messaging channels — the structure of the channel layer and the requirements i
 
 - [`audit.md`](audit.md)
 - [`design.md`](design.md)
+- [`chat-bots.md`](chat-bots.md)
