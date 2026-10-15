@@ -29,3 +29,25 @@ def test_agent_runtime_cache_tracks_effort_and_inheritance(monkeypatch):
     assert inherited.thinking_level == "medium"
     assert inherited is not low
     assert len(built) == 3
+
+
+def test_agent_without_a_model_runs_on_the_last_used_model(monkeypatch):
+    built = []
+    monkeypatch.setattr(runtime_registry, "_cache", {})
+    monkeypatch.setattr(
+        runtime_registry, "_build_runtime",
+        lambda provider, model_id: built.append((provider, model_id)) or SimpleNamespace(),
+    )
+    monkeypatch.setattr(
+        "openprogram.providers.last_used.read_last_used_model",
+        lambda: ("openai", "gpt-x"),
+    )
+    runtime_registry.get_runtime_for(manager.AgentSpec(id="example"))
+    assert built == [("openai", "gpt-x")]
+
+
+def test_no_model_used_yet_is_an_error_not_a_guess():
+    import pytest
+
+    with pytest.raises(RuntimeError, match="No model has been used yet"):
+        runtime_registry._build_runtime("", "")

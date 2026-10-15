@@ -1,4 +1,4 @@
-"""Provider-settings invariants: default-model gating, stale-default
+"""Provider-settings invariants: last-used-model gating, stale-model
 clearing, toggle broadcasts, custom-provider add_mode.
 
 These nail the cross-module rules from commits 66cb7f73 / cb78dde1 /
@@ -30,6 +30,11 @@ def settings_client(monkeypatch):
     _rm = _s._runtime_management
     monkeypatch.setattr(_rm, "_chat_provider", "openai")
     monkeypatch.setattr(_rm, "_chat_model", "gpt-5.5")
+    # A new chat shows the last used model.
+    monkeypatch.setattr(
+        "openprogram.providers.last_used.read_last_used_model",
+        lambda: ("openai", "gpt-5.5"),
+    )
     monkeypatch.setattr(_rm, "_exec_provider", "openai")
     monkeypatch.setattr(_rm, "_exec_model", "gpt-5.5")
 
@@ -121,6 +126,11 @@ def test_clear_stale_defaults_clears_disabled_default(providers_client, monkeypa
     c, _rm, frames, updates = providers_client
     monkeypatch.setattr(_rm, "_chat_provider", "openai")
     monkeypatch.setattr(_rm, "_chat_model", "gpt-5.5")
+    # A new chat shows the last used model.
+    monkeypatch.setattr(
+        "openprogram.providers.last_used.read_last_used_model",
+        lambda: ("openai", "gpt-5.5"),
+    )
     monkeypatch.setattr(_rm, "_exec_provider", "openai")
     monkeypatch.setattr(_rm, "_exec_model", "gpt-5.5")
     # Disabling made the current default fall out of the enabled set.
@@ -142,6 +152,11 @@ def test_clear_stale_defaults_leaves_unrelated_default(providers_client, monkeyp
     c, _rm, frames, updates = providers_client
     monkeypatch.setattr(_rm, "_chat_provider", "openai")
     monkeypatch.setattr(_rm, "_chat_model", "gpt-5.5")
+    # A new chat shows the last used model.
+    monkeypatch.setattr(
+        "openprogram.providers.last_used.read_last_used_model",
+        lambda: ("openai", "gpt-5.5"),
+    )
     monkeypatch.setattr(_rm, "_exec_provider", "openai")
     monkeypatch.setattr(_rm, "_exec_model", "gpt-5.5")
     # The current default is still enabled — toggling an unrelated model

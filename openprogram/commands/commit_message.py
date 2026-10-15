@@ -271,11 +271,11 @@ def commit_message_builtin_handler(
     except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
         return {"text": f"Commit message generation failed: {exc}"}
 
-    from openprogram.providers.default_llm import build_default_llm
+    from openprogram.providers.background_llm import build_background_llm
 
-    llm = build_default_llm()
+    llm = build_background_llm()
     if llm is None:
-        return {"text": "Commit message generation unavailable: no default model is configured."}
+        return {"text": "Commit message generation unavailable: no model has been used yet."}
 
     status = _truncate(status, _MAX_STATUS_CHARS, "status")
     system = (

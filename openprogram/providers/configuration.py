@@ -27,7 +27,7 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 
 # ---------------------------------------------------------------------------
@@ -140,24 +140,13 @@ def _codex_select_model(ctx: dict) -> dict:
 
 
 def _codex_save(ctx: dict) -> dict:
-    config_dir = Path.home() / ".openprogram"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    config_path = config_dir / "config.json"
-
-    existing: dict[str, Any] = {}
-    if config_path.exists():
-        try:
-            existing = json.loads(config_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            existing = {}
+    from openprogram.providers.last_used import record_last_used_model
 
     model = ctx.get("model") or _CODEX_MODELS[0][0]
-    existing["default_provider"] = "openai-codex"
-    existing["default_model"] = model
-    config_path.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
+    record_last_used_model("openai-codex", model)
     return {
         "status": "ok",
-        "message": f"Saved {config_path}: default_provider=openai-codex, default_model={model}",
+        "message": f"New chats start on openai-codex/{model} until you pick another model.",
     }
 
 

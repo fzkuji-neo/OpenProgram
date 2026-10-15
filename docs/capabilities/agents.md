@@ -17,7 +17,7 @@ Choose **New Agent**, enter a name and choose a model, then edit its configurati
 
 Changes across sections share one draft. **Save** writes the complete configuration. Changing Agents or starting a destructive action offers Save, Discard or Cancel. Failed saves retain the draft. If another editor saved first, compare your draft with the latest version before choosing which to keep. Keeping your draft does not immediately overwrite the newer version; review it and save again.
 
-The model picker reads the provider catalog without changing another conversation's model. Inherit uses the current default model. An unavailable model or unsupported reasoning effort remains visible until you explicitly change it. Missing required MCP servers prevent execution before a model request.
+The model picker reads the provider catalog without changing another conversation's model. Last used model runs each conversation on the model you used most recently. An unavailable model or unsupported reasoning effort remains visible until you explicitly change it. Missing required MCP servers prevent execution before a model request.
 
 ## Specialist Agents
 

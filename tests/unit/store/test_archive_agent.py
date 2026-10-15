@@ -253,7 +253,7 @@ def test_auto_rename_writeback_keeps_archived(parent_turn, monkeypatch):
         return "older topic"
 
     monkeypatch.setattr(
-        "openprogram.providers.default_llm.build_default_llm",
+        "openprogram.providers.background_llm.build_background_llm",
         lambda: _llm_that_archives)
 
     titles.maybe_auto_name_branch(parent_turn, "p1", "a0")
@@ -279,7 +279,7 @@ def test_auto_rename_skips_archived_branch(parent_turn, monkeypatch):
         return "should not be used"
 
     monkeypatch.setattr(
-        "openprogram.providers.default_llm.build_default_llm", lambda: _llm)
+        "openprogram.providers.background_llm.build_background_llm", lambda: _llm)
 
     titles.maybe_auto_name_branch(parent_turn, "p1", "a0")
 

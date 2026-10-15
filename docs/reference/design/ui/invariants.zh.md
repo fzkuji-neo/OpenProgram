@@ -32,12 +32,13 @@ Provider 删除，后端必须经事件总线发 `agent_settings_changed`
 只在发起操作的那个标签页里本地刷新是不够的。新增会改变启用集合的入口
 （导入配置、批量操作、CLI 写配置……）时必须挂同一个广播。
 
-## 3. 禁用当前默认 = 清除默认，不是隐藏默认
+## 3. 禁用上次使用的模型 = 忘掉它，不是隐藏它
 
-默认模型存在三处：`_runtime_management` 的 chat 全局、exec 全局、默认
-agent 的 agent.json `model`。当前默认掉出启用集合时，三处必须**全部清
-空**（`_clear_stale_defaults`），由用户显式选下一个。只在展示层把它
-藏起来会留下僵尸默认：重新启用时它自动复活，禁用期间会话还在偷偷用它。
+没有默认模型。新会话使用上次使用的模型（config.json 的 `last_used_model`，
+`openprogram/providers/last_used.py`）；`_runtime_management` 的 chat 全局、
+exec 全局和默认 agent 的 agent.json `model` 跟随它。它掉出启用集合时，记录
+和这些跟随值必须**全部清空**（`_clear_stale_defaults`），由用户显式选下一个。
+只在展示层把它藏起来会留下僵尸：重新启用时它自动复活，禁用期间后台任务还在偷偷用它。
 
 ## 4. 前端 store 的"清除"必须可表达
 

@@ -14,8 +14,7 @@ minimal install still gets a usable wizard.
 
 Storage lives under ``~/.openprogram/config.json`` alongside the
 existing provider / api_keys config. Keys written here:
-    default_provider   str
-    default_model      str
+    last_used_model    {"provider": str, "model": str}
     tools.disabled     list[str]
     agent.thinking_effort  str  (low/medium/high/xhigh)
 """

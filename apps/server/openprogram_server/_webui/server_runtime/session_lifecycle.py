@@ -54,15 +54,16 @@ def _get_or_create_session(session_id: str = None,
                 or ((_sess or {}).get("agent_id") if isinstance(_sess, dict) else None)
                 or resolved_agent
             )
-            # New conversations copy the agent default, unless a draft
-            # picker left a one-shot pin. Existing rows keep their stored
-            # pin. Do not inherit the latest click onto a rehydrated thread.
-            from openprogram.agent.session_model import default_chat_model
+            # New conversations start on the Agent's own model or the last
+            # used one, unless a draft picker left a one-shot pin. Existing
+            # rows keep their stored pin. Do not inherit the latest click
+            # onto a rehydrated thread.
+            from openprogram.agent.session_model import new_session_chat_model
             _is_new = not isinstance(_sess, dict) or not _sess
             _inherit_prov = None
             _inherit_model = None
             if _is_new:
-                _inherit_prov, _inherit_model = default_chat_model(resolved_agent)
+                _inherit_prov, _inherit_model = new_session_chat_model(resolved_agent)
                 if state._user_pinned_provider and state._user_pinned_model:
                     _inherit_prov = state._user_pinned_provider
                     _inherit_model = state._user_pinned_model

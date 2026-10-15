@@ -10,9 +10,10 @@ logger = logging.getLogger(__name__)
 
 # 明显安全的只读/无副作用工具——auto 档直接放行，永不调 LLM。
 SAFE_AUTO_ALLOWLIST = frozenset({
-    "read", "read_file", "grep", "glob", "list", "list_files",
-    "web_search", "web_fetch", "tool_search", "todo",
-    "ask_user_question", "send_message", "sleep",
+    "read", "grep", "glob", "list",
+    "web_search", "web_fetch", "tool_search",
+    "todo_create", "todo_list", "todo_update",
+    "ask_user_question", "send_message",
     "enter_plan_mode", "exit_plan_mode",
     "memory_status", "memory_update",
     "memory_search", "memory_grep", "memory_get", "memory_browse",
@@ -34,8 +35,19 @@ class ReviewResult:
 MAX_REVIEW_BYTES = 64 * 1024
 
 
-async def auto_classify_tool(tool_name: str, args: dict, *, context: dict | None = None) -> ReviewResult:
-    """Return (blocked, reason). Never approve a truncated operation."""
+async def auto_classify_tool(
+    tool_name: str,
+    args: dict,
+    *,
+    context: dict | None = None,
+    session_id: str | None = None,
+) -> ReviewResult:
+    """Return (blocked, reason). Never approve a truncated operation.
+
+    The review runs on the conversation's own model, which is known to
+    work because the conversation is running on it, then on the last
+    used model. There is no separate classifier model to configure.
+    """
     try:
         serialized = json.dumps({"tool": tool_name, "arguments": args,
                                  "context": context or {}}, ensure_ascii=False)
@@ -45,41 +57,30 @@ async def auto_classify_tool(tool_name: str, args: dict, *, context: dict | None
         return ReviewResult(True, "分类器输入超过完整审查上限", "AUTO_CLASSIFIER_INPUT_TOO_LARGE")
     try:
         import time
-        from openprogram.providers.models import get_model
         from openprogram.providers.stream import complete_simple
         from openprogram.providers.types import (
             Context, UserMessage, SimpleStreamOptions,
         )
 
-        # Try configured candidates in order. One expired/unavailable
-        # subscription must not prevent another connected model from making
-        # the decision.
         models = []
 
-        def add(model):
-            if model is not None and all(existing is not model for existing in models):
+        def add(provider, model_id):
+            if not (provider and model_id):
+                return
+            try:
+                # The resolver the turn itself uses, so custom models work.
+                from openprogram.agent.internals._model_tools import resolve_model
+                model = resolve_model({}, f"{provider}/{model_id}")
+            except Exception:
+                return
+            if all(existing is not model for existing in models):
                 models.append(model)
 
-        add(get_model("xai-subscription", "grok-4.6"))
-        try:
-            from openprogram.providers.default_llm import _read_default_model
+        from openprogram.agent.session_model import read_session_chat_model
+        from openprogram.providers.last_used import read_last_used_model
 
-            pair = _read_default_model()
-            if pair:
-                add(get_model(pair[0], pair[1]))
-        except Exception:
-            pass
-        try:
-            from openprogram.agent.internals._model_tools import (
-                load_agent_profile,
-                resolve_model,
-            )
-
-            add(resolve_model(load_agent_profile("main"), None))
-        except Exception:
-            pass
-        add(get_model("anthropic", "claude-haiku-4-5-20251001"))
-        add(get_model("anthropic", "claude-sonnet-4-6"))
+        add(*read_session_chat_model(session_id))
+        add(*(read_last_used_model() or (None, None)))
         if not models:
             return ReviewResult(True, "分类器模型不可用", "AUTO_CLASSIFIER_UNAVAILABLE")
 

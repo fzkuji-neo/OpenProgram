@@ -38,7 +38,7 @@ rt = create_runtime(provider="openai-codex", model="gpt-5.5")
 检测优先级:
 
 1. 环境变量 `AGENTIC_PROVIDER` / `AGENTIC_MODEL`
-2. 配置文件(`~/.openprogram/config.json` → `default_provider` / `default_model`)
+2. 配置文件(`~/.openprogram/config.json` → `last_used_model`,上一次选择或发送消息时用的模型)
 3. 调用方环境(正在 Codex CLI 里跑 → 就用它)
 4. 可用 CLI 二进制(`codex` → `openai-codex`,`gemini` → `gemini-cli`)
 5. 已存的 API key(anthropic → openai → google)

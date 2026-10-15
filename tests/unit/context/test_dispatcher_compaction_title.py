@@ -144,7 +144,7 @@ def _install_title_runtime(
     runtime: _TitleRuntimeSpy,
 ) -> None:
     monkeypatch.setattr(
-        "openprogram.providers.default_llm._read_default_model",
+        "openprogram.providers.background_llm.background_model",
         lambda: ("openai", "stub"),
     )
     monkeypatch.setattr(
@@ -152,7 +152,7 @@ def _install_title_runtime(
         lambda **_kwargs: runtime,
     )
     monkeypatch.setattr(
-        "openprogram.providers.default_llm.build_default_llm",
+        "openprogram.providers.background_llm.build_background_llm",
         lambda: None,
     )
 
@@ -219,7 +219,7 @@ def test_llm_title_allows_one_structured_repair(
 
     runtime = Runtime(call=call, model="test")
     monkeypatch.setattr(
-        "openprogram.providers.default_llm._read_default_model",
+        "openprogram.providers.background_llm.background_model",
         lambda: ("openai", "configured-model"),
     )
 
@@ -253,7 +253,7 @@ def test_llm_title_does_not_log_provider_exception_bodies(
         close_error=RuntimeError(sentinel) if stage == "close" else None,
     )
     monkeypatch.setattr(
-        "openprogram.providers.default_llm._read_default_model",
+        "openprogram.providers.background_llm.background_model",
         lambda: ("openai", "stub"),
     )
 

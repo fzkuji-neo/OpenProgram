@@ -74,10 +74,10 @@ def prepare_agent_invocation(cmd: dict) -> dict | None:
         provider, model_id = (
             (server._user_pinned_provider, server._user_pinned_model)
             if server._user_pinned_provider and server._user_pinned_model
-            else (runtime._chat_provider, runtime._chat_model)
+            else runtime._last_used_chat_model()
         )
         if not runtime._default_is_enabled(provider, model_id):
-            raise AgentInvocationError('agent_model_unavailable', 'No enabled default model is configured. Choose a model before starting this conversation')
+            raise AgentInvocationError('agent_model_unavailable', 'No model has been used yet. Choose a model before starting this conversation')
         resolved_model = {'provider': provider, 'id': model_id}
     # Server-owned identity, timestamps and policy epoch cannot be supplied by
     # the renderer. The existing runtime still applies global capability gates.

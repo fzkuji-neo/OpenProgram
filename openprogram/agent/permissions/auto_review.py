@@ -54,7 +54,7 @@ async def prepare_review(agent_tool, req, call_id, args, *, operation_id=None):
                 "additional_working_directories": getattr(req, "additional_working_dirs", []),
                 "authority_tier": getattr(req, "authority_tier", None),
                 "file_preconditions": files,
-            })
+            }, session_id=getattr(req, "session_id", None))
             blocked, reason = verdict
             verdict = ReviewResult(blocked, reason, getattr(verdict, "code",
                 "AUTO_CLASSIFIER_DENY" if blocked else "AUTO_CLASSIFIER_ALLOW"))

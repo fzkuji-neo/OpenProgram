@@ -31,10 +31,8 @@ Return ONLY the title text, no quotes, no prefix, no explanation.
 
 ## 模型
 
-优先使用小模型，fallback 到默认模型：
-
-1. 配置了 `small_model` → 使用它（如 claude-haiku-4-5、gpt-4o-mini）
-2. 未配置 → `llm_bridge.build_default_llm()`（复用默认 agent 配置的 provider/model）
+使用上次使用的模型：`background_llm.build_background_llm()` 读 config.json 的
+`last_used_model`。没有使用过任何模型时不生成标题，保留首行占位名。目前还没有单独的 `small_model` 配置。
 
 ## 后处理
 
@@ -94,7 +92,7 @@ Return ONLY the title text, no quotes, no prefix, no explanation.
 
 | 来源 | 思路 | 我们是否采纳 |
 |------|------|--------------|
-| OpenCode | 专用小模型配置 `small_model`，标题/摘要等辅助任务不占主模型 | 采纳——配置 `small_model`，fallback 到默认模型 |
+| OpenCode | 专用小模型配置 `small_model`，标题/摘要等辅助任务不占主模型 | 采纳——配置 `small_model`，fallback 到上次使用的模型 |
 | OpenCode | `<think>` 标签清理，兼容推理模型 | 采纳——我们也支持 DeepSeek 等推理模型 |
 | OpenCode | 独立 prompt 文件，便于维护和多语言 | 不采纳——一个 prompt 常量足够，不需要文件管理 |
 | ChatGPT 用户诉求 | 手动标题锁定，绝不被自动覆盖 | 不采纳——我们允许用户随时用 LLM 重新生成，不锁定 |
@@ -104,7 +102,7 @@ Return ONLY the title text, no quotes, no prefix, no explanation.
 
 ## 未来扩展（不在当前范围）
 
-- **`small_model` 配置落地**：初期先用 `build_default_llm()`，后续加配置项让用户指定专用小模型
+- **`small_model` 配置落地**：目前用上次使用的模型（`build_background_llm()`），后续加配置项让用户指定专用小模型
 - **continuous 模式**：对话漂移后空闲阈值到达时重新生成标题（OpenCode 有此功能）
 - **branch name 生成**：同时生成 kebab-case slug（Claude Code 的 `teleport_generate_title`）
 - **程序化命名 API**：`PATCH /sessions/:id` REST 端点

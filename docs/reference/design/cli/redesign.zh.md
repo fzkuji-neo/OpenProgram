@@ -108,7 +108,7 @@ model、search 默认值、工具开关）是 `live`。在绑定时只读一次�
 |---|---|---|---|---|
 | | frontend 端口 | number | next-start | `ui.web_port` |
 | | 打开浏览器 | toggle | next-start | `ui.open_browser` |
-| Model | 默认模型 | picker | live | `default_provider` / `default_model` |
+| Model | 新会话的模型 | picker | live | `last_used_model` |
 | | thinking effort | picker | live | `agent.thinking_effort` |
 | Providers | key 状态 | status+action | live | `api_keys.*` |
 | Theme | 配色主题 | picker+preview | live | TUI 本地 `setTheme` |

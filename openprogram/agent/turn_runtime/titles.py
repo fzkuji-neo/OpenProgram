@@ -111,9 +111,9 @@ def _title_from_text(text: str) -> str:
 
 def _generate_llm_title(user_text: str, assistant_text: str) -> str | None:
     """Return a locally validated session title, or None on failure."""
-    from openprogram.providers.default_llm import _read_default_model
+    from openprogram.providers.background_llm import background_model
 
-    pair = _read_default_model()
+    pair = background_model()
     if pair is None:
         return None
     provider, model_id = pair
@@ -392,8 +392,8 @@ def maybe_auto_name_branch(db, session_id: str, head_id: str) -> None:
             return
         prompt = build_branch_name_prompt(chain)
 
-        from openprogram.providers.default_llm import build_default_llm
-        llm = build_default_llm()
+        from openprogram.providers.background_llm import build_background_llm
+        llm = build_background_llm()
         if llm is None:
             return
         try:
@@ -493,8 +493,13 @@ def trigger_compaction(session_id: str, agent_id: str = "main",
         }})
         return {"summary": "", "kept_count": len(history), "summary_id": ""}
 
+    from openprogram.agent.session_model import read_session_chat_model
+
     profile = _load_agent_profile(agent_id)
-    model = _resolve_model(profile, None)
+    # Summarise on the conversation's own model, like its turns.
+    pin_provider, pin_model = read_session_chat_model(session_id)
+    override = f"{pin_provider}/{pin_model}" if pin_provider and pin_model else None
+    model = _resolve_model(profile, override)
     engine = resolve_engine_for(profile)
 
     loop = asyncio.new_event_loop()

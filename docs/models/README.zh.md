@@ -39,7 +39,7 @@ openprogram providers setup      # 交互式：扫描现有凭据 → 登录 →
 - 机制：注册表（`openprogram/providers/enabled_models.py`）在启动时从配置文件读取每个 provider 下的模型行，构建运行时模型清单；改配置后重载生效。
 - 配置文件：`~/.openprogram/config.json`（使用 `--profile <name>` 时为 `~/.openprogram-<name>/config.json`）。每个 provider 记在 `providers.<id>` 下：`enabled` 开关和 `models` 下启用的模型行（含上下文窗口、价格等 spec）。手动添加的模型也存在同一清单里，标记 `source: "manual"`。
 - 启用途径：setup 向导勾选；Web UI 的 Settings → Providers 里浏览该 provider 的模型列表后勾选（Fetch 按钮重新拉取官方模型目录）；订阅类 provider 登录时自动启用默认模型集。一般不需要手改 config.json。
-- 默认模型：`default_provider` 和 `default_model` 两个顶层配置项决定新会话用哪个模型；界面里切换模型即更新。
+- 新会话的模型：没有默认模型。新会话使用你上一次选择或发送消息时用的模型，记录在顶层配置项 `last_used_model`。全新安装时没有记录，第一个会话需要先选择模型。禁用该模型会清除记录。没有所属会话的后台任务（命名、记忆写入、MCP sampling、Auto 权限审核）也使用这个模型。
 
 ## 本节其他页面
 

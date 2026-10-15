@@ -39,15 +39,16 @@ Refreshing only the tab that performed the action is not enough. Any
 new entry point that mutates the enabled set (config import, bulk ops,
 CLI writes, …) must hook the same broadcast.
 
-## 3. Disabling the current default CLEARS the default, not hides it
+## 3. Disabling the last used model FORGETS it, not hides it
 
-The default model lives in three places: the chat global and exec
-global in `_runtime_management`, and the default agent's `model` in
-agent.json. When the current default falls out of the enabled set, all
-three must be cleared (`_clear_stale_defaults`); the user picks the
-next model explicitly. Hiding it at display level leaves a zombie
-default: it resurrects on re-enable and keeps serving conversations
-while disabled.
+There is no default model. A new conversation starts on the last used
+model (`last_used_model` in config.json, `openprogram/providers/last_used.py`);
+the chat and exec globals in `_runtime_management` and the default
+agent's `model` in agent.json mirror it. When it falls out of the
+enabled set, the record and all mirrors are cleared
+(`_clear_stale_defaults`); the user picks the next model explicitly.
+Hiding it at display level leaves a zombie: it resurrects on re-enable
+and keeps serving background work while disabled.
 
 ## 4. The frontend store must be able to express "cleared"
 

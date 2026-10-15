@@ -121,11 +121,10 @@ def _load_provider_config() -> tuple[str, str] | None:
         import json
         with open(config_path, encoding="utf-8") as f:
             config = json.load(f)
-        provider = config.get("default_provider")
-        model = config.get("default_model")
-        if provider:
-            default_model = PROVIDERS.get(provider, {}).get("default_model")
-            return provider, model or default_model
+        from openprogram.providers.last_used import last_used_in_config
+        last = last_used_in_config(config)
+        if last:
+            return last
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
         pass
 
@@ -137,7 +136,7 @@ def detect_provider() -> tuple[str, str]:
 
     Detection priority:
       1. Env vars (AGENTIC_PROVIDER / AGENTIC_MODEL)
-      2. Config file (~/.openprogram/config.json → default_provider / default_model)
+      2. Config file (~/.openprogram/config.json → last_used_model)
       3. Caller environment (inside Claude Code? Codex? → use the same)
       4. Available CLI providers (claude → codex → gemini)
       5. AuthStore API keys (anthropic → openai → google)
@@ -351,7 +350,7 @@ def create_runtime(provider: str = None, model: str = None, **kwargs):
             if configured is None:
                 raise RuntimeError(
                     "Replay mode requires an explicit provider/model or a "
-                    "configured default_provider/default_model"
+                    "last used model"
                 )
             provider, detected_model = configured
             model = model or detected_model

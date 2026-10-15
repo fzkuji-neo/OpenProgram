@@ -78,7 +78,7 @@ chat-turn 错误事件塑造成 `{"type": "error", "content": "<string>"}` —�
 边界原样保留 `LLMError` 的 reason。
 
 端到端复现一个确定性的 provider 失败是麻烦的地方：前端发送的是它自己选中的模型
-而非 agent 默认模型，因此改 agent 模型并不会改变实际被触发的路径。要确认实时
+而非 agent 的模型，因此改 agent 模型并不会改变实际被触发的路径。要确认实时
 渲染，需要在选中的那个模型上制造一个可重复的失败 —— 过期的 key 对应 `auth`，
 或一个会 503 的 OpenRouter `:free` 模型对应 `provider`。
 

@@ -39,7 +39,7 @@ Configuring credentials does not by itself make models selectable. Each provider
 - Mechanism: the registry (`openprogram/providers/enabled_models.py`) reads each provider's model entries from the config file at startup and builds the runtime model list; config changes take effect on reload.
 - Config file: `~/.openprogram/config.json` (`~/.openprogram-<name>/config.json` when using `--profile <name>`). Each provider lives under `providers.<id>`: an `enabled` flag and the enabled model entries under `models` (spec rows with context window, pricing, and so on). Models added by hand are stored in the same list, tagged `source: "manual"`.
 - How to enable models: tick them in the setup wizard; browse the provider's model list under Settings → Providers in the Web UI and tick them there (the Fetch button re-pulls the official model catalog); subscription providers auto-enable a default model set on login. Editing config.json by hand is normally unnecessary.
-- Default model: the top-level `default_provider` and `default_model` config keys decide which model a new session uses; switching models in the UI updates them.
+- Model for new chats: there is no default model. A new conversation starts on the model you last picked or sent a message with, recorded as the top-level `last_used_model` config key. A fresh install has none, so the first conversation asks you to pick a model. Disabling that model clears the record. Titles, memory writes, MCP sampling and the Auto permission review run on the same model when they have no conversation of their own.
 
 ## Other pages in this section
 

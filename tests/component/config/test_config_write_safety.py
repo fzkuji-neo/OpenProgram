@@ -118,7 +118,7 @@ setup.update_config(update)
 import sys, time
 from pathlib import Path
 from openprogram import setup
-from openprogram.providers.storage import save_default_model
+from openprogram.providers.last_used import record_last_used_model
 read_started, update_started, release = map(Path, sys.argv[1:])
 real_read = setup._read_config
 real_update = setup.update_config
@@ -133,7 +133,7 @@ def observed_update(mutator, **kwargs):
     return real_update(mutator, **kwargs)
 setup._read_config = observed_read
 setup.update_config = observed_update
-save_default_model('openai', 'gpt-4.1')
+record_last_used_model('openai', 'gpt-4.1')
 """,
             os.fspath(provider_read),
             os.fspath(provider_update),
@@ -153,8 +153,7 @@ save_default_model('openai', 'gpt-4.1')
     assert provider_writer.wait(timeout=10) == 0
     assert json.loads(config.read_text(encoding="utf-8")) == {
         "api_keys": {"KEEP": "secret"},
-        "default_provider": "openai",
-        "default_model": "gpt-4.1",
+        "last_used_model": {"provider": "openai", "model": "gpt-4.1"},
     }
 
 
@@ -324,7 +323,7 @@ setup.update_config(update)
 import sys, time
 from pathlib import Path
 from openprogram import setup
-from openprogram.providers.storage import save_default_model
+from openprogram.providers.last_used import record_last_used_model
 read_started, update_started, release = map(Path, sys.argv[1:])
 real_read = setup._read_config
 real_update = setup.update_config
@@ -339,7 +338,7 @@ def observed_update(mutator, **kwargs):
     return real_update(mutator, **kwargs)
 setup._read_config = observed_read
 setup.update_config = observed_update
-save_default_model('openai', 'gpt-4.1')
+record_last_used_model('openai', 'gpt-4.1')
 """,
             os.fspath(provider_read),
             os.fspath(provider_update),
@@ -359,8 +358,7 @@ save_default_model('openai', 'gpt-4.1')
     assert provider_writer.wait(timeout=10) == 0
     assert json.loads(config.read_text(encoding="utf-8")) == {
         "api_keys": {"KEEP": "secret"},
-        "default_provider": "openai",
-        "default_model": "gpt-4.1",
+        "last_used_model": {"provider": "openai", "model": "gpt-4.1"},
     }
 
 

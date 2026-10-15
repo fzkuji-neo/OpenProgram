@@ -11,7 +11,7 @@ After the fix the CLI:
     placeholder and phase 2 (background, LLM) can rename later — the
     same hook the dispatcher's ``finalize_turn`` uses.
 
-These tests mock ``build_default_llm`` to None so the phase-2 daemon
+These tests mock ``build_background_llm`` to None so the phase-2 daemon
 thread no-ops; we assert phase-1 behavior synchronously.
 """
 from __future__ import annotations
@@ -47,7 +47,7 @@ def _stub_runtime_and_llm(monkeypatch: pytest.MonkeyPatch):
     # Phase-2 LLM unavailable → background thread no-ops, leaving the
     # phase-1 truncated title in place for a deterministic assertion.
     monkeypatch.setattr(
-        "openprogram.providers.default_llm.build_default_llm",
+        "openprogram.providers.background_llm.build_background_llm",
         lambda: None,
     )
 

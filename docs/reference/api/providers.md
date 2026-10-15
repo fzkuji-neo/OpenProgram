@@ -36,7 +36,7 @@ Returns a ready-to-use `Runtime`. `provider=None` (or `"auto"`) runs `detect_pro
 Detection priority:
 
 1. Environment variables `AGENTIC_PROVIDER` / `AGENTIC_MODEL`
-2. Config file (`~/.openprogram/config.json` → `default_provider` / `default_model`)
+2. Config file (`~/.openprogram/config.json` → `last_used_model`, the model last picked or sent with)
 3. Caller environment (running inside Codex CLI → use it)
 4. Available CLI binaries (`codex` → `openai-codex`, `gemini` → `gemini-cli`)
 5. Stored API keys (anthropic → openai → google)

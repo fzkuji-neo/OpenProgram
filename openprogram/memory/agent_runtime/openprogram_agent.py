@@ -26,9 +26,17 @@ def _default_model(override: str | None) -> Model:
         resolve_model,
     )
     from openprogram.agent.management import manager
+    from openprogram.providers.background_llm import background_model
 
     spec = manager.get_default()
     profile = load_agent_profile(spec.id if spec is not None else "main")
+    own = profile.get("model")
+    if isinstance(own, dict):
+        own = own.get("id") or own.get("model")
+    if not override and not own:
+        # No model of the Agent's own: write on the last used model.
+        pair = background_model()
+        override = f"{pair[0]}/{pair[1]}" if pair else None
     return resolve_model(profile, override)
 
 
@@ -77,7 +85,7 @@ def _turn_records(messages: list[Any]) -> list[dict[str, Any]]:
 
 
 class OpenProgramAgent:
-    """Run a detached AgentSession with the default chat-agent model."""
+    """Run a detached AgentSession on the default Agent's model, else the last used one."""
 
     def __init__(
         self,
