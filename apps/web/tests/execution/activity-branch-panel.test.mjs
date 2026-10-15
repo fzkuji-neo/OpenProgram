@@ -165,4 +165,6 @@ test("Activity rows use a bare coloured glyph and a status dot, with no tile or 
   assert.match(panel, /<SolarIcon name=\{name\} size=\{16\} motionPreset="none" \/>/);
   assert.match(panel, /className=\{`indicator-dot sm \$\{DOT\[tone\]\}`\}/);
   assert.doesNotMatch(panel, /<details/, "no native disclosure triangle");
+  // The ghost button fills itself while expanded; an open call row stays bare.
+  assert.match(css, /\.row\[aria-expanded="true"\]:not\(:hover\) \{ background: transparent; \}/);
 });
