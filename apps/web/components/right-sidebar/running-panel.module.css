@@ -8,6 +8,8 @@
    the right. No tile and no frame; hover is the only surface. */
 .row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; width: 100%; border: 0; border-radius: 9px; font: inherit; color: inherit; text-align: left; cursor: pointer; height: auto; min-height: var(--ui-button-h); justify-content: flex-start; font-weight: 400; line-height: 1.4; }
 .row:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
+/* An open call keeps no fill of its own; only hover marks the row. */
+.row[aria-expanded="true"]:not(:hover) { background: transparent; }
 .rowText { display: grid; gap: 1px; min-width: 0; flex: 1; }
 .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--text-bright); }
 .meta { margin: 0; color: var(--text-dim); font-size: var(--right-panel-meta-size, 12px); white-space: normal; overflow-wrap: anywhere; }
