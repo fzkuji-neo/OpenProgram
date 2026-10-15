@@ -409,6 +409,16 @@ the project name + an abbreviated workdir; clicking it goes to the project page.
    user sends a new message it forks a new branch on the DAG based on that
    commit.
 5. **Abstract memory builds on entity memory**, not the other way around.
+6. **The project registry is never lost to a failed read or a race.** The
+   worker, the CLI and agent subprocesses all read-modify-write
+   `projects.json`, so each change holds a cross-process file lock
+   (`<state>/projects/.locks/.projects-registry.lock`) for the whole
+   read-modify-write. A write goes to a unique temporary file and is published
+   by rename, so a reader sees either the old or the new file whole. A read
+   error raises instead of returning an empty registry, because the next write
+   would erase every project and session binding. A file that is not a JSON
+   object is moved aside as `projects.json.unreadable-<time>-<id>` for
+   recovery, and the registry starts over from empty.
 
 
 

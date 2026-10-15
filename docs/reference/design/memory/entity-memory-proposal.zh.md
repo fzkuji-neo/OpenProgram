@@ -391,6 +391,7 @@ session 可以独立存在 (没 project). 有 project 时, agent 修改文件触
 3. **Project-git 干净优先**: 用户 working tree 不能被 agent 污染. 有未提交改动时 agent 跳过 commit.
 4. **回溯不破坏 DAG**: checkout 是只读视图, 用户发新消息会基于该 commit 在 DAG 上 fork 新分支.
 5. **抽象记忆建立在实体记忆之上**, 而不是反过来.
+6. **项目注册表不会因读取失败或并发写入而丢失**. worker、CLI 和 agent 子进程都会读改写 `projects.json`, 所以每次修改在整个读改写期间持有跨进程文件锁 (`<state>/projects/.locks/.projects-registry.lock`). 写入先写到唯一的临时文件, 再用 rename 发布, 读的一方看到的要么是完整的旧文件, 要么是完整的新文件. 读取出错时直接报错, 不返回空注册表, 因为下一次写入会抹掉所有项目和会话绑定. 内容不是 JSON 对象的文件会被移到 `projects.json.unreadable-<时间>-<id>` 留作恢复, 注册表从空开始.
 
 
 
