@@ -40,6 +40,14 @@
      一致（见 execution-strip.css 的 .tl）：10px 加上两侧行高留白。 */
   margin-top: 10px;
 }
+/* 回复以卡片（代码卡、表格、引用、分隔线、报错卡）收尾时，卡片边框就是可见
+   边缘，没有正文那 3.5px 行高留白，补到 13.5px，两种收尾到按钮行一样远。 */
+.message.assistant:has(> .chat-stream-body > :last-child:is(
+    .turn-error,
+    .chat-text:has(> .md-rendered > :last-child:is(.md-code, pre, table, blockquote, hr))
+  )) > .message-actions-footer {
+  margin-top: 13.5px;
+}
 /* 时间戳自带 0 6px 内边距；行首那 6px 会让整排比正文右移，去掉。 */
 .message.assistant .message-actions-footer .message-timestamp {
   padding-left: 0;

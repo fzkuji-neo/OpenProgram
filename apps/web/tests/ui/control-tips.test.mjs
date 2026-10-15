@@ -103,16 +103,23 @@ test("No element outside a control carries a native title", async () => {
   assert.deepEqual(found, []);
 });
 
-test("A turn keeps one rhythm: strip → reply, code card → text, text → action row", () => {
-  assert.match(read("app/styles/chat/execution-strip.css"), /\.tl \{[^}]*margin: 6px 0 1\.5px;/);
-  assert.match(read("app/styles/chat/bubbles.css"), /\.message-content \.md-code \{[^}]*margin: 10px 0 12\.5px;/);
-  assert.match(read("app/styles/chat/message-actions.css"), /\.message\.assistant \.message-actions-footer \{[^}]*margin-top: 10px;/);
+test("A reply keeps one block rhythm: text, cards, headings, strip and action row", () => {
+  const bubbles = read("app/styles/chat/bubbles.css");
+  // text ↔ text 12px, text ↔ card 15.5px, card ↔ card 19px — ≈19px of empty space each.
+  assert.match(bubbles, /\.message-content p \{ margin: 0 0 12px; \}/);
+  assert.match(bubbles, /\.message-content \.md-code \{[^}]*margin: 15\.5px 0;/);
+  assert.match(bubbles, /\.message-content table \{[^}]*margin: 15\.5px 0;/);
+  assert.match(bubbles, /\+ :is\(\.md-code, pre, table, blockquote, hr\) \{ margin-top: 19px; \}/);
+  assert.match(bubbles, /\.message-content h1, \.message-content h2, \.message-content h3 \{ margin: 22px 0 6px;/);
+  assert.match(read("app/styles/chat/execution-strip.css"), /\.tl \{[^}]*margin: 7px 0 1px;/);
+  const actions = read("app/styles/chat/message-actions.css");
+  assert.match(actions, /\.message\.assistant \.message-actions-footer \{[^}]*margin-top: 10px;/);
+  // A card has no leading under its border, so the action row takes it back.
+  assert.match(actions, /\.turn-error,[\s\S]*?\)\)\s*\)\) > \.message-actions-footer \{\s*margin-top: 13\.5px;/);
 });
 
-test("A reply ending on a card keeps the action row as far away as one ending on text", () => {
-  // A card has no half-leading under its border, so it takes it back as margin.
-  assert.match(read("app/styles/chat/bubbles.css"),
-    /\.md-rendered > :last-child:is\(\.md-code, pre, table, blockquote\) \{\s*margin-bottom: 6px;/);
-  assert.match(read("app/styles/chat/bubbles.css"),
-    /\.chat-stream-body > \.turn-error:last-child \{ margin-bottom: 6px; \}/);
+test("Tables follow Obsidian's reading view: hairline grid, unfilled bold header", () => {
+  const bubbles = read("app/styles/chat/bubbles.css");
+  assert.match(bubbles, /\.message-content th, \.message-content td \{[^}]*border: 1px solid var\(--border\);[^}]*padding: 4px 8px;/);
+  assert.match(bubbles, /\.message-content th \{[^}]*background: transparent;[^}]*font-weight: 600;/);
 });
