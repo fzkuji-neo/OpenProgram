@@ -155,6 +155,8 @@ export interface CenterTabsState {
     options?: FileTabOptions,
   ) => void;
   openFilePreview: (sessionId: string, target: { projectId: string; path: string; readOnly?: boolean; section?: string }, automatic?: boolean) => boolean;
+  /** Open a local page (an HTML file's file:// URL) in a browser tab beside the chat. */
+  openPagePreview: (sessionId: string, target: { url: string; title: string }, automatic?: boolean) => boolean;
   /** Focus-or-create a web tab for `url` (must already be a valid
    *  http(s) URL — run user input through normalizeWebUrl first). */
   openWebTab: (url: string, agentRequest?: boolean) => void;

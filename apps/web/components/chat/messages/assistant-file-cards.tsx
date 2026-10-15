@@ -8,6 +8,8 @@ import { useCenterTabs } from "@/lib/tabs/center-tabs-store";
 import { useCurrentProject } from "@/lib/files/files-shared";
 import { collectFileOutputs, previewTarget, type FileOutput } from "@/lib/chat/file-outputs";
 import { fileCapabilities } from "@/lib/documents/file-formats";
+import { canBrowseLocalFiles, isHtmlPath } from "@/lib/files/local-file-url";
+import { openHtmlPage } from "@/lib/files/open-html-page";
 import type { ParsedAttachment } from "./user-attachments";
 import styles from "./assistant-file-cards.module.css";
 
@@ -25,7 +27,12 @@ export function AssistantFileCards({ msg, sessionId, attachments }: { msg: ChatM
   const focusedSessionId = useSessionStore(state => state.currentSessionId);
   const project = useCurrentProject({ sessionId: sessionId ?? null, chatKey: null });
   const files = useMemo(() => collectFileOutputs(msg.content || "", attachments), [msg.content, attachments]);
-  const open = (file: FileOutput, automatic = false) => sessionId && useCenterTabs.getState().openFilePreview(sessionId, previewTarget(file.path, project), automatic);
+  const open = (file: FileOutput, automatic = false) => {
+    if (!sessionId) return false;
+    // A web page opens as a page; its source stays one click away there.
+    if (isHtmlPath(file.path) && file.path.startsWith("/") && canBrowseLocalFiles()) return openHtmlPage(file.path, sessionId, automatic);
+    return useCenterTabs.getState().openFilePreview(sessionId, previewTarget(file.path, project), automatic);
+  };
   useEffect(() => {
     if (!sessionId || !msg.autoPreviewFiles || project === undefined) return;
     // Consume before attempting: switching back, hydration and remount cannot replay the request.

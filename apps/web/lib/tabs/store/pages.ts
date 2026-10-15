@@ -1,4 +1,4 @@
-import { filePreviewLayout, filePreviewId } from "../file-preview-layout";
+import { filePreviewLayout, filePreviewId, type FilePreviewTarget, type PagePreviewTarget } from "../file-preview-layout";
 import { findCenterTabGroup, normalizeCenterTabLayout } from "@/lib/tabs/center-tab-groups";
 import { documentControllers } from "@/lib/files/document-controller-registry";
 import { builtinTabId, fileTabId, nextBrowserHomeId, nextNtpId } from "@/lib/tabs/center-tab-ids";
@@ -12,33 +12,39 @@ import { commitCenterTabsState, focusOrCreate, independentTab } from "./core";
 import { requestFileSection } from "../file-section-requests";
 import type { CenterTab, CenterTabsState } from "./types";
 
-export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"], closedSessionAckTombstones: Set<string>): Pick<CenterTabsState, "openFilePreview" | "openFileTab" | "openBuiltinTab" | "openApplicationTab" | "openReviewTab" | "setTabDirty" | "setTabDagView" | "retargetFileTab" | "openNewTabPage" | "closeTab"> {
+export function pagesActions(set: StoreApi<CenterTabsState>["setState"], get: StoreApi<CenterTabsState>["getState"], closedSessionAckTombstones: Set<string>): Pick<CenterTabsState, "openFilePreview" | "openPagePreview" | "openFileTab" | "openBuiltinTab" | "openApplicationTab" | "openReviewTab" | "setTabDirty" | "setTabDagView" | "retargetFileTab" | "openNewTabPage" | "closeTab"> {
+  // Shared by file and page previews: both open beside their chat.
+  const openPreview = (sessionId: string, target: FilePreviewTarget | PagePreviewTarget, automatic: boolean, section?: string) => {
+    let opened = false;
+    set(state => {
+      if (automatic) {
+        const chat = state.tabs.find(tab => tab.kind === "session" && tab.sessionId === sessionId);
+        const group = chat && findCenterTabGroup(state.groups, chat.id);
+        if (group?.memberIds.some(id => {
+          const tab = state.tabs.find(item => item.id === id);
+          if (tab?.kind !== "file" || !tab.path) return false;
+          const key = tab.readOnly ? `attachment:${tab.fileSessionId}:${tab.path}` : `project:${tab.projectId}:${tab.path}`;
+          return documentControllers.get(key)?.canReplacePreview() === false;
+        })) return {};
+      }
+      const next = filePreviewLayout(state, sessionId, target, automatic);
+      if (!next) return {};
+      opened = true;
+      const committed = commitCenterTabsState(state, next);
+      if ("url" in target) return committed;
+      const destination = committed.tabs.find(tab => tab.id === filePreviewId(sessionId, target))!;
+      const sequence = (state.fileSectionSequence ?? 0) + 1;
+      return { ...committed, fileSectionSequence: sequence,
+        fileSectionRequests: requestFileSection(state.fileSectionRequests, destination, section, sequence) };
+    });
+    return opened;
+  };
   return {
     openFilePreview: (sessionId, target, automatic = false) => {
       const { section, ...fileTarget } = target;
-      let opened = false;
-      set(state => {
-        if (automatic) {
-          const chat = state.tabs.find(tab => tab.kind === "session" && tab.sessionId === sessionId);
-          const group = chat && findCenterTabGroup(state.groups, chat.id);
-          if (group?.memberIds.some(id => {
-            const tab = state.tabs.find(item => item.id === id);
-            if (tab?.kind !== "file" || !tab.path) return false;
-            const key = tab.readOnly ? `attachment:${tab.fileSessionId}:${tab.path}` : `project:${tab.projectId}:${tab.path}`;
-            return documentControllers.get(key)?.canReplacePreview() === false;
-          })) return {};
-        }
-        const next = filePreviewLayout(state, sessionId, fileTarget, automatic);
-        if (!next) return {};
-        opened = true;
-        const committed = commitCenterTabsState(state, next);
-        const destination = committed.tabs.find(tab => tab.id === filePreviewId(sessionId, fileTarget))!;
-        const sequence = (state.fileSectionSequence ?? 0) + 1;
-        return { ...committed, fileSectionSequence: sequence,
-          fileSectionRequests: requestFileSection(state.fileSectionRequests, destination, section, sequence) };
-      });
-      return opened;
+      return openPreview(sessionId, fileTarget, automatic, section);
     },
+    openPagePreview: (sessionId, target, automatic = false) => openPreview(sessionId, target, automatic),
     openFileTab: (projectId, path, options) =>
       set((s) => {
         const { section, ...fileOptions } = options ?? {};

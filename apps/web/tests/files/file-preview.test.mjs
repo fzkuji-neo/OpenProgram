@@ -44,3 +44,18 @@ test('background, dirty preview and user split do not accept automatic replaceme
   assert.equal(filePreviewLayout(state,'a',target,true),null);
   assert.deepEqual(filePreviewLayout(state,'a',target,false).groups,state.groups);
 });
+const { fileUrlFromPath, localPathFromUrl, isHtmlPath }=await import('../../lib/files/local-file-url.ts');
+test('an HTML output opens as a page beside its chat, in the same slot as file previews',()=>{
+  const url=fileUrlFromPath('/project/out/report #1.html');
+  assert.equal(url,'file:///project/out/report%20%231.html');
+  assert.equal(localPathFromUrl(url),'/project/out/report #1.html');
+  assert.equal(localPathFromUrl('https://a.test/x.html'),null);
+  assert.ok(isHtmlPath('/p/A.HTM')&&!isHtmlPath('/p/html'));
+  const file=filePreviewLayout(initial(),'a',target,true);
+  const page=filePreviewLayout(file,'a',{url,title:'report #1.html'},true);
+  assert.deepEqual(page.groups[0].visibleIds,['s:a',`w:${url}`]);
+  const tab=page.tabs.find(item=>item.id===`w:${url}`);
+  assert.equal(tab.kind,'web');assert.equal(tab.previewOwnerSessionId,'a');
+  const back=filePreviewLayout(page,'a',target,false);
+  assert.deepEqual(back.groups[0].visibleIds,['s:a','f:preview:a:p:report.pdf']);
+});

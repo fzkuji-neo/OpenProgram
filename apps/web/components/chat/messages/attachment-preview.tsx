@@ -81,6 +81,8 @@ export function AttachmentPreview({
             path={path}
             sessionId={capturedSessionId ?? undefined}
             readOnly
+            previewSessionId={capturedSessionId ?? undefined}
+            onPageOpened={onClose}
           />
         </div>
       </div>
