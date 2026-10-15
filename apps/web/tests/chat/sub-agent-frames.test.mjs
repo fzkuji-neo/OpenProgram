@@ -111,5 +111,10 @@ test("each turn with spawns shows the Sub-agents card", () => {
   const card = read("components/chat/messages/sub-agents-card.tsx");
   assert.match(card, /role="tablist"/);
   assert.match(card, /<AssistantBubble msg=\{msg\} sessionIdOverride=\{sessionId\} embedded \/>/);
+  // The jump goes to the agent's newest reply from its loaded branch; the
+  // spawn card's head is only a fallback (Job spawns written before it).
+  assert.match(card, /const target = current \? tips\[current\.key\] \|\| current\.headId : undefined;/);
+  assert.match(card, /head_msg_id: target/);
+  assert.match(card, /text\("Go to agent", "进入子代理"\)/);
   assert.doesNotMatch(card, /\btitle=/, "tips use data-tip, never a native title");
 });

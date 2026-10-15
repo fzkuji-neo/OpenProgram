@@ -114,3 +114,19 @@ def test_transcript_action_replies_without_moving_the_head(store):
     assert len(sent[0]["data"]["messages"]) == 4
     assert "error" in sent[1]["data"]
     assert store.get_session("p1").get("head_id") == head_before
+
+
+def test_a_finished_job_records_its_reply_as_branch_head():
+    from openprogram.agent.job.runner.shared import _turn_head_id
+    from openprogram.agent.turn_runtime.types import TurnResult
+
+    class _Executions:
+        def get_execution_input(self, job_id):
+            return SimpleNamespace(assistant_message_id=f"{job_id}_user_reply")
+
+    turn = TurnResult(final_text="", user_msg_id="j_a_user", assistant_msg_id="j_a_user_reply")
+    assert _turn_head_id(_Executions(), "j_a", turn) == "j_a_user_reply"
+    assert _turn_head_id(_Executions(), "j_a", SimpleNamespace(head_id="h1")) == "h1"
+    # A turn that raised leaves no result; its admitted reply id stands in.
+    assert _turn_head_id(_Executions(), "j_b", None) == "j_b_user_reply"
+    assert _turn_head_id(SimpleNamespace(), "j_c", None) is None

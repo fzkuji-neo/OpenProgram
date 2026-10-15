@@ -55,6 +55,11 @@ head. The server:
 3. returns that branch's user and assistant rows in branch order, not
    storage order. A reply placeholder can be written before its prompt.
 
+A finished Job records its reply as `head_id` on the Job and on its spawn
+card. The canonical driver returns the turn runner's `TurnResult`, which
+names that reply `assistant_msg_id`. A turn that raised returns no result,
+so the reply id the Job was admitted with is used.
+
 The client replaces the agent's rows with the loaded ones and keeps any
 live rows the load did not include. It reloads when a Job of the same
 agent reaches a terminal status.
@@ -63,8 +68,11 @@ agent reaches a terminal status.
 
 - **Header:** bot glyph, "N sub-agents", and a status note (running /
   failed / cancelled / done). When an agent is selected, the header also
-  shows Cancel (live Jobs only, through `execution.cancel`) and **Open
-  branch**, which checks out the agent's branch.
+  shows Cancel (live Jobs only, through `execution.cancel`) and **Go to
+  agent ↗**. That button checks out the agent's newest reply, so the main
+  view becomes the agent's conversation; the sub-agent branch banner there
+  leads back. The target is the tip from the loaded transcript, and falls
+  back to the spawn card's `head_id`.
 - **Tabs:** one per agent, each with a status dot and the agent's label.
   Clicking a tab selects it; clicking it again closes it. The card opens
   collapsed.

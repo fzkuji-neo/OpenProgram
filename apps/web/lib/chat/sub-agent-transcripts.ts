@@ -79,12 +79,13 @@ interface TranscriptReply {
 /**
  * Load an agent's whole branch (every turn sent to it) without moving the
  * session head. Live rows already on screen keep their newer progress.
+ * Resolves to the branch tip (the agent's newest reply), or null.
  */
 export async function loadSubAgentTranscript(
   sessionId: string,
   agentKey: string,
   source: { jobId?: string; headId?: string },
-): Promise<boolean> {
+): Promise<string | null> {
   const data = await wsRequest<TranscriptReply>(
     "load_sub_agent_transcript",
     { session_id: sessionId, job_id: source.jobId ?? "", head_id: source.headId ?? "" },
@@ -92,9 +93,10 @@ export async function loadSubAgentTranscript(
     { requestId: true },
     8000,
   );
-  if (!data || data.error || !Array.isArray(data.messages)) return false;
+  if (!data || data.error || !Array.isArray(data.messages)) return null;
   const messages = convToChatMsgs(data.messages as Parameters<typeof convToChatMsgs>[0]);
-  if (!messages.length) return true;
+  if (!messages.length) return null;
+  const tip = data.head_id || null;
   // A turn that started after the server read the branch stays at the end.
   const key = subAgentChatKey(sessionId, agentKey);
   const store = useSessionStore.getState();
@@ -104,7 +106,7 @@ export async function loadSubAgentTranscript(
     .map((id) => store.messagesById[id])
     .filter((message) => message !== undefined);
   store.setMessages(key, [...messages, ...newer]);
-  return true;
+  return tip;
 }
 
 /** `[task from …]` / `[message from …]` receipt line that send_message puts
