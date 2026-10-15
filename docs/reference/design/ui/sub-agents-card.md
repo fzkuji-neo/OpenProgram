@@ -67,15 +67,16 @@ agent reaches a terminal status.
 ## Card
 
 - **Header:** bot glyph, "N sub-agents", and a status note (running /
-  failed / cancelled / done). When an agent is selected, the header also
-  shows Cancel (live Jobs only, through `execution.cancel`) and **Go to
-  agent ↗**. That button checks out the agent's newest reply, so the main
-  view becomes the agent's conversation; the sub-agent branch banner there
-  leads back. The target is the tip from the loaded transcript, and falls
-  back to the spawn card's `head_id`.
-- **Tabs:** one per agent, each with a status dot and the agent's label.
-  Clicking a tab selects it; clicking it again closes it. The card opens
-  collapsed.
+  failed / cancelled / done). While the selected agent runs, the header
+  also shows Cancel (through `execution.cancel`).
+- **Tabs:** one pill per agent. The name, after its status dot, opens the
+  agent in the card; clicking it again closes it. The card opens
+  collapsed. A small round **↗** at the pill's right end, styled like the
+  address bar's open-in-browser button, shows that agent in the main view.
+  It checks out the agent's newest reply, and the sub-agent branch banner
+  there leads back. The target is the tip from the agent's loaded
+  transcript (loaded on click if needed), and falls back to the spawn
+  card's `head_id`.
 - **Body:** an inset well at most `min(520px, 60vh)` tall.
   - Each prompt is a raised mini card labelled *Task* or *Message*. It
     drops the `[task from …]` / `[message from …]` receipt line and is

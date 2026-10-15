@@ -40,14 +40,9 @@
   font-size: 12px;
   color: var(--text-muted);
 }
-.sub-agents-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-}
-/* Elevated Buttons: hover deepens the shadow, as on the file card. */
+/* Cancel, for the open agent while it runs. Hover deepens the elevated
+   Button's surface, as on the file card. */
+.sub-agents-action { margin-left: auto; flex: none; }
 .sub-agents-action:hover:not(:disabled) { background: var(--bg-input); color: var(--text-bright); }
 
 /* One tab per agent; the open one sits on the inset well's colour. */
@@ -60,22 +55,48 @@
 }
 .sub-agents-tab {
   flex: none;
-  max-width: 240px;
+  max-width: 260px;
   height: 30px;
   display: inline-flex;
   align-items: center;
+  padding: 0 4px 0 0;
+  border-radius: 9px;
+  color: var(--text-secondary);
+}
+.sub-agents-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sub-agents-tab[data-selected="1"] { background: var(--bg-primary); color: var(--text-bright); }
+/* The name opens the agent in the card; the round ↗ after it takes the
+   main view to the agent, like the address bar's open-in-browser button. */
+.sub-agents-tab-select {
+  min-width: 0;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 0 11px 0 8px;
+  padding: 0 4px 0 8px;
   border: 0;
   border-radius: 9px;
   background: transparent;
-  color: var(--text-secondary);
+  color: inherit;
   font: 13px/1 var(--font-sans);
   cursor: pointer;
 }
-.sub-agents-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
-.sub-agents-tab[aria-selected="true"] { background: var(--bg-primary); color: var(--text-bright); }
-.sub-agents-tab:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
+.sub-agents-tab-go {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.sub-agents-tab-go:hover { background: color-mix(in srgb, var(--text-primary) 10%, transparent); color: var(--text-bright); }
+.sub-agents-tab-select:focus-visible,
+.sub-agents-tab-go:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: -2px; }
 .sub-agents-tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sub-agents-tab .indicator-dot.is-cancelled { --dot-color: var(--text-muted); }
 

@@ -110,11 +110,14 @@ test("each turn with spawns shows the Sub-agents card", () => {
   assert.match(bubble, /const subAgentCards = \[\.\.\.attachFifo\];/, "copied before the timeline consumes the queue");
   const card = read("components/chat/messages/sub-agents-card.tsx");
   assert.match(card, /role="tablist"/);
+  assert.match(card, /role="tab"\n\s+className="sub-agents-tab-select"/);
   assert.match(card, /<AssistantBubble msg=\{msg\} sessionIdOverride=\{sessionId\} embedded \/>/);
   // The jump goes to the agent's newest reply from its loaded branch; the
   // spawn card's head is only a fallback (Job spawns written before it).
-  assert.match(card, /const target = current \? tips\[current\.key\] \|\| current\.headId : undefined;/);
+  assert.match(card, /const target = tips\[agent\.key\]\n\s+\|\| await loadSubAgentTranscript\(sessionId, agent\.key, \{ jobId: agent\.jobId, headId: agent\.headId \}\)\n\s+\|\| agent\.headId;/);
   assert.match(card, /head_msg_id: target/);
-  assert.match(card, /text\("Go to agent", "进入子代理"\)/);
+  // Each tab carries its own round ↗ beside the name, not a header button.
+  assert.match(card, /className="sub-agents-tab-select"[\s\S]*?className="sub-agents-tab-go"[\s\S]*?onClick=\{\(\) => void goTo\(agent\)\}/);
+  assert.doesNotMatch(card, /Go to agent", "进入子代理"/);
   assert.doesNotMatch(card, /\btitle=/, "tips use data-tip, never a native title");
 });
