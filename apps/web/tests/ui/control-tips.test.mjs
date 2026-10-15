@@ -108,3 +108,9 @@ test("A turn keeps one rhythm: strip → reply, code card → text, text → act
   assert.match(read("app/styles/chat/bubbles.css"), /\.message-content \.md-code \{[^}]*margin: 10px 0 12\.5px;/);
   assert.match(read("app/styles/chat/message-actions.css"), /\.message\.assistant \.message-actions-footer \{[^}]*margin-top: 10px;/);
 });
+
+test("A reply ending on a card keeps the action row as far away as one ending on text", () => {
+  // A card has no half-leading under its border, so it takes it back as margin.
+  assert.match(read("app/styles/chat/bubbles.css"),
+    /\.md-rendered > :last-child:is\(\.md-code, pre, table, blockquote\) \{\s*margin-bottom: 6px;/);
+});
