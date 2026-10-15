@@ -49,6 +49,8 @@ export function FileMenu({
         maxWidth: 480,
         maxHeight: 320,
         overflowY: "auto",
+        // Shared menu frame (top-bar/menu-styles.ts MENU_PANEL): 4px padding.
+        padding: 4,
         // Glass popover recipe (app/styles/base.css --glass-*).
         background: "var(--glass-surface)",
         WebkitBackdropFilter: "var(--glass-backdrop)",
@@ -58,14 +60,15 @@ export function FileMenu({
         boxShadow: "var(--glass-shadow)",
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         fontSize: 12,
+        lineHeight: "19px",
       }}
     >
       {loading && items.length === 0 ? (
-        <div style={{ padding: "6px 10px", color: "var(--text-muted)" }}>
+        <div style={{ padding: "2.5px 8px", color: "var(--text-muted)" }}>
           {text("Searching...", "搜索中...")}
         </div>
       ) : items.length === 0 ? (
-        <div style={{ padding: "6px 10px", color: "var(--text-muted)" }}>
+        <div style={{ padding: "2.5px 8px", color: "var(--text-muted)" }}>
           {query
             ? text(`No files match "${query}"`, `没有匹配“${query}”的文件`)
             : text("Type to search files", "输入以搜索文件")}
@@ -80,11 +83,15 @@ export function FileMenu({
               aria-selected={selected}
               onMouseEnter={() => onHover(i)}
               onClick={() => onPick(item)}
+              // Shared menu row (itemCls): 24px, 2.5px 8px, 6px radius,
+              // the keyboard pick tinted like hover.
               style={{
-                padding: "4px 10px",
+                minHeight: 24,
+                padding: "2.5px 8px",
+                borderRadius: 6,
                 cursor: "pointer",
-                background: selected ? "var(--bg-tertiary)" : "transparent",
-                color: selected ? "var(--text-primary)" : "var(--text-secondary)",
+                background: selected ? "var(--bg-hover)" : "transparent",
+                color: selected ? "var(--text-bright)" : "var(--text-primary)",
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
@@ -96,13 +103,14 @@ export function FileMenu({
               <span
                 aria-hidden
                 style={{
-                  width: item.is_dir ? 12 : 16,
+                  width: 16,
+                  justifyContent: "center",
                   display: "inline-flex",
                   flexShrink: 0,
                   color: "var(--text-muted)",
                 }}
               >
-                {item.is_dir ? <SolarIcon name="folder-with-files" size={12} /> : <FileTypeIcon name={item.path} />}
+                {item.is_dir ? <SolarIcon name="folder-with-files" size={16} /> : <FileTypeIcon name={item.path} />}
               </span>
               <span
                 style={{

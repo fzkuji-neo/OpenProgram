@@ -270,16 +270,16 @@
 }
 .git-seg-dot.is-files { background: var(--text-muted); }
 .git-menu-note {
-  padding: 2px 10px 4px;
+  padding: 2px 8px 4px;
   font-size: 12px;
   line-height: 17px;
   color: var(--text-muted);
 }
-/* Refusal card. Same inset as the rows (text at 10px), tinted, no native
+/* Refusal card. Same inset as the rows (text at 8px), tinted, no native
    disclosure widget: git's own output sits behind a plain text button. */
 .git-menu-error {
   margin: 4px 0 0;
-  padding: 7px 10px 8px;
+  padding: 7px 8px 8px;
   border-radius: 6px;
   font-size: 12px;
   line-height: 17px;

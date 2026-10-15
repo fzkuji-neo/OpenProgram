@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./custom-select.module.css";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
+import { CHECK_SLOT_PAD } from "@/components/chat/top-bar/menu-styles";
 
 export function CustomSelect<T extends string>({
   value,
@@ -63,7 +65,8 @@ export function CustomSelect<T extends string>({
                 setOpen(false);
               }}
             >
-              {o.label}
+              <span className="min-w-0 flex-1 truncate">{o.label}</span>
+              {o.value === value ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}
             </button>
           ))}
         </div>

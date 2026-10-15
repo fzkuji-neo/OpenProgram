@@ -25,9 +25,9 @@
 
 import { Fragment, useMemo, useRef, useState } from "react";
 import * as DM from "@radix-ui/react-dropdown-menu";
-import { Check, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
-import { MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { CHECK_SLOT_PAD, MENU_PANEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { useTranslation } from "@/lib/i18n";
 import { useSessionStore } from "@/lib/session-store";
 import {
@@ -43,6 +43,7 @@ import {
   type RecentsSort,
   type RecentsActivity,
 } from "@/lib/prefs/recents-view";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
 // Panel chrome = the canonical MENU_PANEL (the exact same frame as the
 // topbar dropdowns and the Recents ⋮ context menu — one shared style so
@@ -252,9 +253,9 @@ function Row<T extends string>({
                     </span>
                   ) : null}
                   {selected ? (
-                    <Check size={14} className="shrink-0" style={{ color: "var(--accent-orange)" }} />
+                    <MenuCheck />
                   ) : (
-                    <span className="w-[14px] shrink-0" />
+                    <span className={CHECK_SLOT_PAD} />
                   )}
                 </DM.Item>
               </Fragment>

@@ -8,10 +8,11 @@ import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/compon
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { HoverTip } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { MENU_PANEL, GROUP_LABEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
+import { CHECK_SLOT_PAD, MENU_PANEL, GROUP_LABEL, MENU_SEPARATOR, itemCls } from "@/components/chat/top-bar/menu-styles";
 import { useSidebarMenu, type SidebarMenuItem } from "@/components/sidebar/use-sidebar-menu";
 import { copyText } from "./explorer-header";
 import styles from "./files-panel.module.css";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
 const DEFAULT_SORT = "name:asc:folders:hidden:ignored";
 const SORT_PATTERN = /^(name|mtime|size|kind):(asc|desc):(folders|mixed):(hidden|visible):(ignored|tracked)$/;
@@ -48,7 +49,7 @@ export function FileSortMenu({ value, onChange }: { value: string; onChange: (va
     if (index === 0) updated[1] = next === "size" || next === "mtime" ? "desc" : "asc";
     onChange(updated.join(":"));
   };
-  const option = (index: number, key: string, label: string, alternate?: string) => <DropdownMenuItem key={key} role={alternate ? "menuitemcheckbox" : "menuitemradio"} aria-checked={fields[index] === key} className={`${itemCls(false)} outline-none data-[highlighted]:bg-bg-hover data-[highlighted]:text-text-bright`} onSelect={event => { event.preventDefault(); change(index, alternate && fields[index] === key ? alternate : key); }}><span className="flex-1">{label}</span>{fields[index] === key ? <Check size={14} /> : <span className="w-[14px]" />}</DropdownMenuItem>;
+  const option = (index: number, key: string, label: string, alternate?: string) => <DropdownMenuItem key={key} role={alternate ? "menuitemcheckbox" : "menuitemradio"} aria-checked={fields[index] === key} className={`${itemCls(false)} outline-none data-[highlighted]:bg-bg-hover data-[highlighted]:text-text-bright`} onSelect={event => { event.preventDefault(); change(index, alternate && fields[index] === key ? alternate : key); }}><span className="flex-1">{label}</span>{fields[index] === key ? <MenuCheck /> : <span className={CHECK_SLOT_PAD} />}</DropdownMenuItem>;
   return <DropdownMenu modal={false}><HoverTip label={text("Sort and display", "排序与显示")}><DropdownMenuTrigger asChild><button type="button" className={styles.iconBtn} aria-label={text("Sort and display", "排序与显示")}><ArrowDownWideNarrow /></button></DropdownMenuTrigger></HoverTip>
     <DropdownMenuContent align="start" className={`${MENU_PANEL} w-[240px]`}>
       <div role="group" aria-label={text("Sort by", "排序依据")}><div className={GROUP_LABEL}>{text("Sort by", "排序依据")}</div>

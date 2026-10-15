@@ -18,12 +18,13 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { Check, ChevronRight, Folder } from "lucide-react";
+import { ChevronRight, Folder } from "lucide-react";
 
 import { TabFavicon } from "@/components/center-tabs/tab-favicon";
 import { itemCls, MENU_PANEL, MENU_SEPARATOR } from "@/components/chat/top-bar/menu-styles";
 import { MenuOptionContent } from "@/components/ui/menu-option-content";
 import { isThemeId } from "@/lib/prefs/theme-pref";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
 interface ContextMenuItem {
   id: string;
@@ -87,7 +88,7 @@ function parseItems(raw: string | null): ContextMenuItem[] {
 }
 
 function ItemIcon({ item }: { item: ContextMenuItem }) {
-  if (item.checked) return <Check size={13} aria-hidden="true" />;
+  if (item.checked) return <MenuCheck />;
   if (item.icon === "folder") return <Folder size={13} fill="currentColor" aria-hidden="true" />;
   if (!item.iconUrl) return null;
   return <TabFavicon url={item.iconUrl} fallbackUrl={item.iconFallbackUrl} />;
@@ -112,7 +113,7 @@ function NestedMenuItems({ items, persistent = false }: { items: ContextMenuItem
             title={item.label}
           >
             {hasItemIcon(item) ? (
-              <span className="inline-flex w-[14px] shrink-0 items-center justify-center">
+              <span className="inline-flex w-[16px] shrink-0 items-center justify-center">
                 <ItemIcon item={item} />
               </span>
             ) : null}
@@ -147,7 +148,7 @@ function NestedMenuItems({ items, persistent = false }: { items: ContextMenuItem
           {item.description || typeof item.checked === "boolean" ? <MenuOptionContent
             label={item.label} description={item.description} checked={item.checked} /> : <>
           {hasItemIcon(item) ? (
-            <span className="inline-flex w-[14px] shrink-0 items-center justify-center">
+            <span className="inline-flex w-[16px] shrink-0 items-center justify-center">
               <ItemIcon item={item} />
             </span>
           ) : null}
@@ -391,7 +392,7 @@ function ContextMenuOverlayPage() {
             >
               {item.description ? <MenuOptionContent label={item.label} description={item.description} checked={item.checked} /> : <>
               {hasItemIcon(item) ? (
-                <span className="inline-flex w-[14px] shrink-0 items-center justify-center">
+                <span className="inline-flex w-[16px] shrink-0 items-center justify-center">
                   <ItemIcon item={item} />
                 </span>
               ) : null}

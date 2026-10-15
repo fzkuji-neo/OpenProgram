@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { FileTypeIcon } from "@/components/files/file-type-icon";
 import { FileViewer } from "@/components/files/file-viewer";
 
@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  CHECK_SLOT,
   CHECK_SLOT_PAD,
   MENU_ITEM_STATES,
   MENU_PANEL,
@@ -40,6 +39,7 @@ import { requestReviewDiff, requestRevertHunk } from "./use-review-diff";
 import { hunkRange, lineCommentText, type DiffLine, type ReviewHunk } from "./review-diff-rows.ts";
 import { appendToComposer } from "@/components/chat/messages/quote-to-chat";
 import { showToast } from "@/lib/format-utils/toast";
+import { MenuCheck } from "@/components/chat/top-bar/menu-check";
 
 /** What a Review pane last showed, by its source. A pane mounts again
  *  whenever its window comes back (a tab switch, a merge), and starting
@@ -495,7 +495,7 @@ const data = await requestReviewScope({
                 >
                   <span className="min-w-0 flex-1 truncate">{categoryLabels[value]}</span>
                   {category === value
-                    ? <Check size={14} className={CHECK_SLOT} aria-hidden="true" />
+                    ? <MenuCheck />
                     : <span className={CHECK_SLOT_PAD} />}
                 </DropdownMenuItem>
               ))}
@@ -612,7 +612,7 @@ const data = await requestReviewScope({
                             <em>−{file.removed ?? "—"}</em>
                           </span>
                           {file.path === selectedPath
-                            ? <Check size={14} className={CHECK_SLOT} aria-hidden="true" />
+                            ? <MenuCheck />
                             : <span className={CHECK_SLOT_PAD} />}
                         </DropdownMenuItem>
                       ))}
