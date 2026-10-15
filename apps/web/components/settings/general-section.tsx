@@ -41,13 +41,13 @@ import { CHECK_SLOT_PAD } from "@/components/chat/top-bar/menu-styles";
 
 const FONT_OPTIONS: FontKey[] = ["system", "inter", "serif", "mono"];
 
-type DropdownOption<T extends string> = {
+export type DropdownOption<T extends string> = {
   value: T;
   label: string;
   style?: CSSProperties;
 };
 
-function SettingsDropdown<T extends string>({
+export function SettingsDropdown<T extends string>({
   value,
   options,
   onChange,

@@ -100,6 +100,7 @@ const DICT = {
   "settings.tab.usage": { en: "Token Usage", zh: "Token 用量" },
   "settings.tab.search": { en: "Web Search", zh: "网页搜索" },
   "settings.tab.environments": { en: "Environments", zh: "运行环境" },
+  "settings.tab.voice": { en: "Voice", zh: "语音" },
   "settings.tab.channels": { en: "Channels", zh: "消息渠道" },
   "settings.tab.memory": { en: "Memory", zh: "记忆" },
   "settings.tab.permissions": { en: "Permissions", zh: "权限" },

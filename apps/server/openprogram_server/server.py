@@ -745,6 +745,10 @@ def create_app(*, owner_auth=None, port: int = 18100):
     from openprogram.webui.routes.settings import usage as _routes_usage
     _routes_usage.register(app)
 
+    # Voice input: speech to text for the composer microphone.
+    from openprogram.webui.routes.settings import voice as _routes_voice
+    _routes_voice.register(app)
+
     # Global running-work snapshot for the right-sidebar Running panel.
     from openprogram.webui.routes.execution import running as _routes_running
     _routes_running.register(app)
