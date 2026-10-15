@@ -816,12 +816,14 @@ canvas's left edge:
 | Tool | Key | Click on a node | Drag on empty canvas |
 |---|---|---|---|
 | Browse (hand, the default) | H | the node's own action (§11, §12) | pan |
-| Select (pointer) | V | select it; Shift/⌘ adds or removes | pan |
-| Box select | M | as Select | a rectangle; every node it touches is selected |
+| Select (pointer) | V | select it; Shift/⌘ adds or removes | a rectangle; every node it touches is selected |
 | Lasso | L | as Select | a free shape; every node it touches is selected |
 
-Space held turns any tool into the hand for the drag, and the middle mouse
-button always pans. A click on empty canvas clears the selection; Shift keeps
+Clicking and box-selecting are one tool, as in every drawing app: a press on
+a node picks it, a press on empty canvas starts a box. Under the selecting
+tools a drag on empty canvas therefore does not pan. Space held turns any tool
+into the hand for the drag, the middle mouse button always pans, and a
+trackpad scroll pans under every tool. A click on empty canvas clears the selection; Shift keeps
 it, and a Shift-drag adds to it. Under a selecting tool a double click does
 nothing, so fork & edit stays a browse gesture. These are fixed by design, not
 settings: touching selects (no enclose-only mode), and clicking a user circle
@@ -841,8 +843,12 @@ Selecting on the canvas takes keyboard focus from the composer, so Delete and
 Esc reach the selection rather than the draft.
 
 **The action bar.** While something is selected, a bar at the canvas's top
-right, beside the perspective controls, reads `N selected · Copy ID · Delete ·
-✕`. After a delete it reads `Deleted N nodes · Undo` for a few seconds.
+left reads `N selected | Copy ID · Delete · ✕`, with Delete in the danger
+colour. After a delete it reads `Deleted N nodes | Undo` for a few seconds.
+It sits on the rail's left edge rather than at the top right, which belongs to
+the pane's perspective controls. Rail and bar share one quiet surface: the
+input box's fill, a hairline edge and a light contact shadow. The current tool
+is marked with a neutral grey fill.
 
 **Deleting.** Delete or ⌫ deletes the selection at once, with no
 confirmation, and ⌘Z undoes it. The store

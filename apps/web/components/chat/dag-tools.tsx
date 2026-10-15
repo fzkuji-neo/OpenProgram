@@ -7,8 +7,9 @@
  * The rail runs down the canvas's left edge, one button per registered
  * tool (lib/runtime-bridge/dag/interaction/selection.ts owns what each
  * tool DOES; this file only gives it a face). The action bar appears at
- * the top right, beside the perspective controls, while something is
- * selected — and for a few seconds after a delete, as the way back.
+ * the top left, above the rail, while something is selected — and for a
+ * few seconds after a delete, as the way back. The top right belongs to
+ * the pane's perspective controls.
  */
 
 import { useSyncExternalStore } from "react";
@@ -17,7 +18,6 @@ import {
   Hand,
   Lasso,
   MousePointer2,
-  SquareDashed,
   Trash2,
   Undo2,
   X,
@@ -40,15 +40,12 @@ import {
   lastDeletion,
   undoDeletion,
 } from "@/lib/runtime-bridge/dag/interaction/node-delete";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 /** Each tool's face. A tool registered without one shows its id. */
 const FACES: Record<string, { Icon: LucideIcon; en: string; zh: string }> = {
   hand: { Icon: Hand, en: "Browse", zh: "浏览" },
-  pointer: { Icon: MousePointer2, en: "Select", zh: "点选" },
-  marquee: { Icon: SquareDashed, en: "Box select", zh: "框选" },
-  lasso: { Icon: Lasso, en: "Lasso select", zh: "套索" },
+  pointer: { Icon: MousePointer2, en: "Select — click, or drag a box", zh: "选择：单击或拖框" },
+  lasso: { Icon: Lasso, en: "Lasso", zh: "套索" },
 };
 
 function useCanvasTools(): number {
@@ -90,15 +87,15 @@ function DagSelectionBar() {
   const ids = selectedIds();
   const pending = deletionPending();
   const last = lastDeletion();
-  const chip = cn(buttonVariants({ variant: "elevated", size: "sm" }));
   if (!ids.length && !last) return null;
   if (!ids.length && last) {
     return (
-      <div className={`dag-select-bar ${chip}`} role="status">
+      <div className="dag-select-bar" role="status">
         <span className="dag-select-count">
           {text(`Deleted ${last.count} node${last.count === 1 ? "" : "s"}`,
             `已删除 ${last.count} 个节点`)}
         </span>
+        <span className="dag-select-sep" aria-hidden="true" />
         <button type="button" className="dag-select-act" disabled={pending}
           onClick={() => undoDeletion()} data-tip={text("Undo (⌘Z)", "撤销 (⌘Z)")}>
           <Undo2 size={14} strokeWidth={2} />
@@ -108,11 +105,12 @@ function DagSelectionBar() {
     );
   }
   return (
-    <div className={`dag-select-bar ${chip}`} role="toolbar"
+    <div className="dag-select-bar" role="toolbar"
       aria-label={text("Selection", "选择")}>
       <span className="dag-select-count">
         {text(`${ids.length} selected`, `已选 ${ids.length}`)}
       </span>
+      <span className="dag-select-sep" aria-hidden="true" />
       <button type="button" className="dag-select-act"
         data-tip={text("Copy node IDs", "复制节点 ID")}
         onClick={() => { void navigator.clipboard?.writeText(ids.join("\n")); }}>

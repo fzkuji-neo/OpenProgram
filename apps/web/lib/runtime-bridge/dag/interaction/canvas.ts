@@ -285,8 +285,8 @@ function wireGestures(host: HTMLElement): void {
   );
 
   // A drag on empty canvas is the active tool's (./selection.ts): a pan
-  // under hand and pointer — or under any tool while Space is held — a
-  // rubber band under marquee and lasso. A press that never moves is a
+  // under the hand — or under any tool while Space is held — a rubber
+  // band (rectangle or lasso) under the selecting tools. A press that never moves is a
   // click on empty canvas, which clears the selection — "never moves"
   // meaning less than CLICK_SLOP pixels, whatever the hand's jitter.
   const CLICK_SLOP = 3;
