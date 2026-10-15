@@ -67,6 +67,8 @@
      never defined; leading with it invalidated the whole declaration
      and first paint fell back to Times before the script caught up. */
   --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
+  /* The platform face (SF on macOS), for the +N −N pill as in the Claude app. */
+  --font-system: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Theme-owned primary colour family. The accent-orange names are legacy
      Custom CSS entry points, so keep them writable and derive semantic roles
@@ -86,6 +88,10 @@
   --text-dim: var(--text-secondary);
   --accent-green: #6e9b76;
   --accent-red: #c24e42;
+  /* +N / −N diff counts: the Claude app's git green and red, picked by
+     each theme's color-scheme. */
+  --git-added: light-dark(#1e9e3c, #32d74b);
+  --git-removed: light-dark(#cd2054, #ff2c56);
   --accent-yellow: #d4a346;
   --accent-purple: #a371f7;
   --accent-cyan: #3bc9db;

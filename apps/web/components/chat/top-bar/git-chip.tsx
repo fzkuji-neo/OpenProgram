@@ -375,8 +375,8 @@ export function GitChip({
             {hasLines ? (
               <>
                 <span className="diff-badge git-seg-badge">
-                  <span className="is-add">+{changes.insertions}</span>
-                  <span className="is-del">−{changes.deletions}</span>
+                  <span className="is-add"><span>+</span>{changes.insertions}</span>
+                  <span className="is-del"><span>−</span>{changes.deletions}</span>
                 </span>
                 <span className="git-seg-dot" aria-hidden="true" />
               </>
@@ -411,8 +411,8 @@ export function GitChip({
               </span>
               {hasLines ? (
                 <span className="diff-badge">
-                  <span className="is-add">+{changes.insertions}</span>
-                  <span className="is-del">−{changes.deletions}</span>
+                  <span className="is-add"><span>+</span>{changes.insertions}</span>
+                  <span className="is-del"><span>−</span>{changes.deletions}</span>
                 </span>
               ) : null}
             </div>

@@ -363,7 +363,7 @@ h2{font-size:16px;color:var(--accent-orange);margin:44px 0 4px;display:flex;gap:
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
-/* +N −N diff badge: green half, red half. */.change-summary-stat,.change-row-counts{column-gap:0;border-radius:6px;overflow:hidden}.change-summary-stat .add,.change-summary-stat .del,.change-row-counts .add,.change-row-counts .del{min-width:0;padding:0 6px;line-height:19px;font-weight:500}.change-summary-stat .add,.change-row-counts .add{background:color-mix(in oklch,var(--accent-green) 18%,transparent)}.change-summary-stat .del,.change-row-counts .del{background:color-mix(in oklch,var(--accent-red) 18%,transparent)}
+/* +N −N diff badge, the Claude app's DiffIndicator pill: green half, red half. */.change-summary-stat,.change-row-counts{--git-added:light-dark(#1e9e3c,#32d74b);--git-removed:light-dark(#cd2054,#ff2c56);height:18px;column-gap:0;border-radius:4.5px;overflow:hidden;font:500 11px/14px ui-sans-serif,-apple-system,sans-serif;font-variant-numeric:tabular-nums lining-nums}.change-summary-stat .add,.change-summary-stat .del,.change-row-counts .add,.change-row-counts .del{display:flex;align-items:center;min-width:0;padding:0 6px}.change-summary-stat .add,.change-row-counts .add{color:var(--git-added);background:color-mix(in srgb,var(--git-added) 20%,transparent)}.change-summary-stat .del,.change-row-counts .del{color:var(--git-removed);background:color-mix(in srgb,var(--git-removed) 20%,transparent)}
 </style>
 </head>
 <body>

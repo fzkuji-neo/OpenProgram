@@ -234,25 +234,25 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* +N −N as one small pill: green half, red half (same as the file card). */
+/* +N −N as one small pill: the file card's .turn-files-diff (Claude's
+   DiffIndicator), two tinted halves. */
 .diff-badge {
   display: inline-flex;
   flex-shrink: 0;
-  border-radius: 5px;
+  height: 18px;
+  border-radius: 4.5px;
   overflow: hidden;
-  font-size: 11.5px;
-  line-height: 17px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
+  font: 500 11px/14px var(--font-system);
+  font-variant-numeric: tabular-nums lining-nums;
 }
-.diff-badge > span { padding: 0 5px; }
+.diff-badge > span { display: flex; align-items: center; gap: 1px; padding: 0 6px; }
 .diff-badge .is-add {
-  color: var(--accent-green);
-  background: color-mix(in oklch, var(--accent-green) 18%, transparent);
+  color: var(--git-added);
+  background: color-mix(in srgb, var(--git-added) 20%, transparent);
 }
 .diff-badge .is-del {
-  color: var(--accent-red);
-  background: color-mix(in oklch, var(--accent-red) 18%, transparent);
+  color: var(--git-removed);
+  background: color-mix(in srgb, var(--git-removed) 20%, transparent);
 }
 /* The tightest row level swaps the badge for this half-green, half-red dot. */
 .git-seg-dot {
@@ -262,7 +262,7 @@
   margin-left: -6px;
   border-radius: 50%;
   opacity: 0;
-  background: linear-gradient(90deg, var(--accent-green) 50%, var(--accent-red) 50%);
+  background: linear-gradient(90deg, var(--git-added) 50%, var(--git-removed) 50%);
 }
 .diff-badge .is-files {
   color: var(--text-muted);

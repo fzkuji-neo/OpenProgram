@@ -161,8 +161,6 @@
   border-radius: 0;
 }
 .msg-rail-card .turn-files-row { padding: 1px 0; }
-.msg-rail-card .turn-files-file + .turn-files-file { border-top: none; }
-.msg-rail-card .turn-files-diff { padding: 4px 0 6px; border-top: none; }
 .msg-rail-card .turn-files-summary {
   padding: 0 0 3px;
   border-bottom: none;
