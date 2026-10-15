@@ -11,7 +11,8 @@ import { GLASS_SURFACE } from "@/lib/glass";
  *    10px radius = 6px row radius + 4px padding) · 4px padding ·
  *    width hugs content, 128–320px · scrolls past 60vh.
  *  Row (itemCls):      24px tall (2.5px + 19px line + 2.5px) · 6px
- *    radius · 0 8px padding · 13px/19px text · 6px icon↔label gap ·
+ *    radius · 0 8px padding · 13px/19px text · 6px icon↔label gap, a
+ *    leading icon pulled 3px left (Solar glyphs carry their own margin) ·
  *    hover = `--bg-hover` fill, the ONLY row tint (a selected row shows
  *    a right-aligned blue check, never a fill). danger = red text +
  *    faint red hover. Radix items add MENU_ITEM_STATES so keyboard
@@ -107,8 +108,11 @@ export function itemCls(active: boolean, danger = false): string {
   const base =
     // Claude 紧凑档：13px / 19px，上下 2.5px → 24px，左右 8px，图标与
     // 文字间 6px；行保持圆角"按钮"hover。侧栏列表行仍是 32。
+    // 行首图标左移 3px：Solar 图标字形四周自带留白，不收的话看起来
+    // 比文字行缩进得多（用户反馈）。
     "flex min-h-[24px] shrink-0 cursor-pointer items-center gap-[6px] rounded-[6px] " +
-    "px-[8px] py-[2.5px] text-[13px] leading-[19px] transition-colors duration-75 ";
+    "px-[8px] py-[2.5px] text-[13px] leading-[19px] transition-colors duration-75 " +
+    "[&>:first-child:is(svg,:has(svg))]:-ms-[3px] ";
   if (danger) {
     return (
       base +
