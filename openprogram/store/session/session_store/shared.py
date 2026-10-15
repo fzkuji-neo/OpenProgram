@@ -96,6 +96,7 @@ from ..placement import (
     iter_session_dirs,
     default_session_dir,
     nested_session_dir,
+    quarantine_dir,
     record_delete_intent,
     resolve_existing_dir,
     session_looks_present,

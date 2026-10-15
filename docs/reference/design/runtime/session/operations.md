@@ -18,17 +18,34 @@ When the process starts, SessionStore runs a one-time initialization:
    status left by a dead worker. Execution recovery is separate: the
    execution subsystem may resume durable checkpoint-backed operations through
    its own recovery path.
-4. Remove stale unarchived empty shells: a session older than one hour with
-   no `history/` directory is deleted. Archived sessions and sessions whose
-   location is unreachable or covered by a migration journal are retained.
+4. Clean up without losing data. The first meta write creates `history/`, so
+   a directory without it is damaged or foreign, never an abandoned draft. For
+   an unarchived summary row older than one hour:
+   - its directory has `history/` → kept;
+   - its directory is absent at the default placement and no layout holds the
+     session → only the summary row is dropped; project bindings and the
+     location map stay;
+   - its directory has `meta.json`, `.git` or `events.jsonl` but no
+     `history/` → kept in place with a warning;
+   - otherwise (a shell) → moved, under the session lock, to
+     `.quarantine/<session_id>-<time>/session/` with a `reason.json`, and
+     its summary row dropped. Directories outside the store root are never
+     moved.
+
+   Anything uncertain is retained: a row without `created_at`, an archived
+   or tombstoned session, an unreachable non-default placement, a migration
+   journal row in any stage other than `done` or `deleted`, an unreadable
+   migration journal (the whole pass is skipped), a busy session lock, or a
+   filesystem error. This pass never deletes files; `.quarantine` is kept
+   until someone removes it by hand.
 
 Startup does not expire archived sessions and does not enforce a session-count
 capacity limit. Explicitly archived sessions remain until the owner deletes
 them.
 
 Handling of half-broken sessions:
-- Has `meta.json` but no `history/` → an old unarchived shell is eligible for
-  deletion; a recent, archived, unreachable, or migrating session is retained.
+- Has `meta.json` but no `history/` → kept and listed (as an empty
+  conversation); it is removed only by an explicit delete.
 - Has `history/` but no `meta.json` → it cannot be rebuilt into the registry
   and is not exposed as a session.
 
@@ -62,7 +79,7 @@ Caller calls create_session(session_id, agent_id, source=..., ...)
 
 For the dispatcher and the channel handler, creation and writing the first message are atomic — `append_message` is called immediately after creation, so no empty shell is produced.
 
-`session_context` creates the session in `__enter__` (because the subsequent ContextVar loading needs a valid session). If it exits abnormally before writing any message, an empty shell is produced, which is handled by the startup cleanup.
+`session_context` creates the session in `__enter__` (because the subsequent ContextVar loading needs a valid session). If it exits abnormally before writing any message, the session stays as an empty conversation (it already has `meta.json` and `history/`) until someone deletes it.
 
 ---
 
@@ -118,8 +135,8 @@ The project's identity is its stable id; the path is a mutable attribute. Codex 
 3. **Opening a folder never auto-adopts copies.** Names, Git remotes, Git contents and leftover `.openprogram/sessions` markers do not prove continuity. Manual **Locate folder** may replace identity after showing the expected old path and revision, and it refuses a destination already owned by another project.
 
 Startup cleanup respects the same reality: a project-bound session whose
-recorded location is unreachable, or whose migration journal is active, is
-**not** treated as an empty shell. It is retained until location repair or
+recorded location is unreachable, or whose migration journal is not settled,
+is **not** treated as a shell. It is retained until location repair or
 migration resolves it.
 
 The composer's draft picker lists `path_missing` projects (clicking one opens the locate flow instead of selecting it), and the `/projects` page shows the warning with a "Locate folder…" action; neither surface silently hides a project whose folder moved.
@@ -284,7 +301,7 @@ Channel conversation naming is **exactly the same** as for ordinary conversation
 
 ### Empty conversations
 
-Creation and writing the first message are atomic, so empty conversations are not normally produced; should one occur, it is handled by startup cleanup or manual deletion. The naming layer does no special filtering for empty conversations.
+Creation and writing the first message are atomic, so empty conversations are not normally produced; should one occur, it stays until deleted manually; startup cleanup keeps it because it has `meta.json` and `history/`. The naming layer does no special filtering for empty conversations.
 
 ### User-initiated rename
 

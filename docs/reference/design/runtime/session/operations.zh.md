@@ -16,15 +16,27 @@
 3. 把所有 `status=running` 重置为 `idle`；这是修复死亡 worker 留下的
    session 列表状态。执行恢复是另一条路径：执行子系统可以通过自己的恢复流程
    继续持久化的 checkpoint 操作。
-4. 清理未归档的旧空壳：session 超过 1 小时且没有 `history/` 目录时删除。
-   已归档、路径暂时不可达或被迁移日志覆盖的 session 保留。
+4. 清理但不丢数据。第一次写 meta 就会建 `history/`，所以没有它的目录是
+   损坏或外来的，不会是被丢下的草稿。对未归档、超过 1 小时的摘要行：
+   - 目录里有 `history/` → 保留；
+   - 默认位置没有目录，且任何布局里都找不到该 session → 只删摘要行，
+     项目绑定和 location 映射不动；
+   - 目录里有 `meta.json`、`.git` 或 `events.jsonl` 但没有 `history/`
+     → 原地保留并记 warning；
+   - 其余（空壳）→ 在 session 锁下移到
+     `.quarantine/<session_id>-<时间>/session/`，附 `reason.json`，并删摘要行。
+     store 根目录之外的目录一律不移动。
+
+   拿不准的一律保留：没有 `created_at` 的行、已归档或有删除记录的 session、
+   不可达的非默认位置、迁移日志里阶段不是 `done` / `deleted` 的行、读不出的
+   迁移日志（整轮跳过）、session 锁被占用、文件系统报错。这一步从不删除文件；
+   `.quarantine` 保留到有人手动清理。
 
 启动时不会按时间删除归档 session，也没有 session 数量容量上限。显式归档的
 session 会一直保留，直到所有者删除。
 
 半残 session 的处理：
-- 有 `meta.json` 没 `history/` → 旧的未归档空壳可删除；最近创建、已归档、
-  不可达或迁移中的 session 保留。
+- 有 `meta.json` 没 `history/` → 保留并列出（显示为空对话），只有显式删除才会移除。
 - 有 `history/` 没 `meta.json` → 无法重建注册表，不对外暴露为 session。
 
 ---
@@ -57,7 +69,7 @@ session 会一直保留，直到所有者删除。
 
 dispatcher 和 channel handler 的创建与写入第一条消息是原子的——创建后立即 `append_message`，不会产生空壳。
 
-`session_context` 在 `__enter__` 时创建（因为后续 ContextVar 装载需要有效的 session），如果后续没写消息就异常退出，会产生空壳，由启动时清理处理。
+`session_context` 在 `__enter__` 时创建（因为后续 ContextVar 装载需要有效的 session），如果后续没写消息就异常退出，session 会作为空对话留下（它已有 `meta.json` 和 `history/`），直到有人删除。
 
 ---
 
@@ -250,7 +262,7 @@ channel 会话命名与普通会话**完全一样**，走同一套两阶段 LLM 
 
 ### 空会话
 
-创建即写第一条消息是原子的，正常不产生空会话；万一产生由启动清理或手动删除处理。命名层不对空会话做特殊过滤。
+创建即写第一条消息是原子的，正常不产生空会话；万一产生则保留到手动删除；启动清理因为它有 `meta.json` 和 `history/` 而保留它。命名层不对空会话做特殊过滤。
 
 ### 用户主动重命名
 
