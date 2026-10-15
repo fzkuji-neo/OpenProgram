@@ -8,7 +8,7 @@
  *
  * The dropdown follows the Claude selection-menu grammar: a "Mode"
  * GROUP_LABEL header, then the 5 permission tiers as plain itemCls rows
- * (13px, with an 11px muted description under the label) — a
+ * (13px, with a 12px muted description under the label) — a
  * right-aligned ink Check on the currently-selected tier only (hover
  * tint is the only row background; selection is never a filled row),
  * then the number shortcut hint in muted text (1/2/3/4; bypass has
@@ -46,7 +46,6 @@ import {
   type PermissionMode,
 } from "../composer/controls/use-permission-mode";
 import {
-  CHECK_SLOT,
   CHECK_SLOT_PAD,
   GROUP_LABEL,
   ITEM_DESC,
@@ -54,9 +53,11 @@ import {
   ITEM_TWO_LINE,
   MENU_PANEL,
   MENU_TAG,
+  MENU_TRAILING,
   SHORTCUT,
   itemCls,
 } from "./menu-styles";
+import { MenuCheck } from "./menu-check";
 
 export function PermissionBadge() {
   const { text } = useTranslation();
@@ -147,7 +148,7 @@ export function PermissionBadge() {
               <div
                 key={o.value}
                 // 选中不铺底色（hover 是唯一底色），选中态只靠右侧勾。
-                // 带描述的行是两行行（ITEM_TWO_LINE：3px 竖衬 → 40px）。
+                // 带描述的行是两行行（ITEM_TWO_LINE：2.5px / 4px 竖衬 → 40.5px）。
                 className={itemCls(false) + (o.description ? ` ${ITEM_TWO_LINE}` : "")}
                 onClick={() => pick(o.value)}
               >
@@ -164,13 +165,11 @@ export function PermissionBadge() {
                     <span className={ITEM_DESC}>{o.description}</span>
                   ) : null}
                 </span>
-                {/* Claude 实测顺序：勾在前、数字快捷键在最右
-                    （"Opus 4.8 ✓ 2"）。未选中留同宽占位保持数字列对齐。
-                    整列定高 18px 居中在标签行上——有描述的行 items-start，
-                    勾和数字才和其它菜单的单行勾落在同一基线。 */}
-                <span className="flex h-[18px] shrink-0 items-center gap-[8px]">
+                {/* Claude 顺序：勾在前、数字快捷键在最右。未选中留同宽
+                    占位保持数字列对齐；整列一行标题高，落在标题行上。 */}
+                <span className={MENU_TRAILING}>
                   {o.value === mode ? (
-                    <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} aria-hidden="true" />
+                    <MenuCheck />
                   ) : (
                     <span className={CHECK_SLOT_PAD} />
                   )}

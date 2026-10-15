@@ -296,7 +296,7 @@ export function WorkingDirChips() {
               </span>
             </div>
             {pickerError ? (
-              <div className="px-[10px] pb-[3px] pt-[4px] text-[11px] text-[var(--accent-orange)]" role="alert">
+              <div className="px-[8px] pb-[3px] pt-[4px] text-[11px] text-[var(--accent-orange)]" role="alert">
                 {pickerError}
               </div>
             ) : null}
