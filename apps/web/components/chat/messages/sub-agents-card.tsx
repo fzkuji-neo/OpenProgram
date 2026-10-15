@@ -7,11 +7,8 @@
  * reply. Same raised surface as the file-change and error cards.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowUpRight } from "lucide-react";
 
-import {
-  type AnimatedNavIconHandle,
-  ArrowUpRightIcon,
-} from "@/components/animated-icons";
 import { SolarIcon } from "@/components/solar-icons";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -190,7 +187,6 @@ export function SubAgentsCard({ cards, sessionId }: { cards: ChatMsg[]; sessionI
   const onTip = useCallback((key: string, tip: string) => {
     setTips((value) => (value[key] === tip ? value : { ...value, [key]: tip }));
   }, []);
-  const goIconRef = useRef<AnimatedNavIconHandle>(null);
   const agents = agentsOf(cards, text("Sub-agent", "子代理"));
   const current = agents.find((agent) => agent.key === selected) ?? null;
 
@@ -205,12 +201,23 @@ export function SubAgentsCard({ cards, sessionId }: { cards: ChatMsg[]; sessionI
     done ? text(`${done} done`, `${done} 个完成`) : "",
   ].filter(Boolean).join(" · ");
 
+  // Show the agent's own conversation in the main view: check out its newest
+  // reply (later messages to it move past the head its spawn card recorded).
+  // The sub-agent branch banner there leads back.
+  async function goTo(agent: Agent) {
+    const target = tips[agent.key]
+      || await loadSubAgentTranscript(sessionId, agent.key, { jobId: agent.jobId, headId: agent.headId })
+      || agent.headId;
+    if (!target) return;
+    wsSend({ action: "checkout_branch", session_id: sessionId, head_msg_id: target });
+    wsSend({ action: "load_session", session_id: sessionId });
+  }
+
   const attach = current?.card.attach;
   const cancelTarget = attach && LIVE.has(attach.status || "") && attach.execution_id
     && typeof attach.status_version === "number"
     ? { executionId: attach.execution_id, version: attach.status_version }
     : null;
-  const target = current ? tips[current.key] || current.headId : undefined;
 
   return (
     <div className="sub-agents-card" data-open={current ? "1" : "0"}>
@@ -222,59 +229,46 @@ export function SubAgentsCard({ cards, sessionId }: { cards: ChatMsg[]; sessionI
           {text(`${agents.length} sub-agent${agents.length === 1 ? "" : "s"}`, `${agents.length} 个子代理`)}
         </span>
         <span className="sub-agents-note">{note}</span>
-        {current ? (
-          <span className="sub-agents-actions">
-            {cancelTarget ? (
-              <button
-                type="button"
-                className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "sub-agents-action")}
-                onClick={() => wsSend({
-                  type: "execution.command",
-                  action: "execution.cancel",
-                  command_id: crypto.randomUUID(),
-                  execution_id: cancelTarget.executionId,
-                  expected_version: cancelTarget.version,
-                  payload: {},
-                } satisfies ExecutionCommand)}
-              >
-                {text("Cancel", "取消")}
-              </button>
-            ) : null}
-            {target ? (
-              <button
-                type="button"
-                className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "sub-agents-action")}
-                data-tip={text(
-                  "Open this agent's conversation; the banner there leads back",
-                  "打开这个子代理的对话；那里的横幅可以切回来",
-                )}
-                onMouseEnter={() => goIconRef.current?.startAnimation?.()}
-                onMouseLeave={() => goIconRef.current?.stopAnimation?.()}
-                onClick={() => {
-                  wsSend({ action: "checkout_branch", session_id: sessionId, head_msg_id: target });
-                  wsSend({ action: "load_session", session_id: sessionId });
-                }}
-              >
-                <span>{text("Go to agent", "进入子代理")}</span>
-                <ArrowUpRightIcon ref={goIconRef} size={14} />
-              </button>
-            ) : null}
-          </span>
+        {cancelTarget ? (
+          <button
+            type="button"
+            className={cn(buttonVariants({ variant: "elevated", size: "sm" }), "sub-agents-action")}
+            onClick={() => wsSend({
+              type: "execution.command",
+              action: "execution.cancel",
+              command_id: crypto.randomUUID(),
+              execution_id: cancelTarget.executionId,
+              expected_version: cancelTarget.version,
+              payload: {},
+            } satisfies ExecutionCommand)}
+          >
+            {text("Cancel", "取消")}
+          </button>
         ) : null}
       </div>
       <div className="sub-agents-tabs" role="tablist" aria-label={text("Sub-agents", "子代理")}>
         {agents.map((agent) => (
-          <button
-            type="button"
-            role="tab"
-            key={agent.key}
-            className="sub-agents-tab"
-            aria-selected={agent.key === selected}
-            onClick={() => setSelected((value) => (value === agent.key ? null : agent.key))}
-          >
-            <StatusDot status={agent.status} />
-            <span className="sub-agents-tab-name">{agent.name}</span>
-          </button>
+          <span key={agent.key} className="sub-agents-tab" data-selected={agent.key === selected ? "1" : "0"}>
+            <button
+              type="button"
+              role="tab"
+              className="sub-agents-tab-select"
+              aria-selected={agent.key === selected}
+              onClick={() => setSelected((value) => (value === agent.key ? null : agent.key))}
+            >
+              <StatusDot status={agent.status} />
+              <span className="sub-agents-tab-name">{agent.name}</span>
+            </button>
+            <button
+              type="button"
+              className="sub-agents-tab-go"
+              aria-label={text(`Go to ${agent.name}`, `进入${agent.name}`)}
+              data-tip={text("Go to this agent's conversation", "进入这个子代理的对话")}
+              onClick={() => void goTo(agent)}
+            >
+              <ArrowUpRight size={13} strokeWidth={2} aria-hidden="true" />
+            </button>
+          </span>
         ))}
       </div>
       {current ? (
