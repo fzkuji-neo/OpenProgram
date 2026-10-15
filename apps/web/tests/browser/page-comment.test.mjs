@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { pageCommentText, pickedElementName } from "../../lib/browser/page-comment.ts";
+import { commentChatKey, pageCommentText, pickedElementName } from "../../lib/browser/page-comment.ts";
 
 const pick = (fields) => ({
   id: "w:1", url: "https://example.com/a", title: "Example", tag: "button",
@@ -27,4 +27,12 @@ test("an untitled page falls back to its URL and an unnamed element to its tag",
   );
   assert.equal(pickedElementName(pick({})), "<button>");
   assert.equal(pickedElementName(pick({ label: "Close dialog" })), "Close dialog");
+});
+
+test("the comment goes to the first conversation that is still open", () => {
+  const open = new Set(["chat-b", "chat-c"]);
+  const isOpen = (key) => open.has(key);
+  assert.equal(commentChatKey([null, "chat-b", "chat-c"], isOpen), "chat-b");
+  assert.equal(commentChatKey(["chat-gone", undefined, "chat-c"], isOpen), "chat-c");
+  assert.equal(commentChatKey([null, undefined, "chat-gone"], isOpen), null);
 });

@@ -38,3 +38,14 @@ export function pageCommentText(pick: PickedElement, comment: string): string {
   ].filter(Boolean).join(" ");
   return `Comment on ${page}, element ${element}:\n${comment.trim()}`;
 }
+
+/** The conversation a page comment goes to: the one in focus, else the
+ *  one whose agent opened the page, else the one the user was last in.
+ *  Only a conversation that is still open counts. */
+export function commentChatKey(
+  candidates: readonly (string | null | undefined)[],
+  isOpen: (key: string) => boolean,
+): string | null {
+  for (const key of candidates) if (key && isOpen(key)) return key;
+  return null;
+}

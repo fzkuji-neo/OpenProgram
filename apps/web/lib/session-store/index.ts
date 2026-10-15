@@ -1145,3 +1145,20 @@ export function useMessageById(msgId: string): ChatMsg | undefined {
 }
 
 const EMPTY_IDS: string[] = [];
+
+// The conversation the user was last in, kept while a web page or a file
+// is in front, so an action taken there (a page comment) can still reach
+// that conversation's composer.
+let lastChatKey: string | null = null;
+{
+  const remember = (s: ConvState) => {
+    const key = s.activeChatKey ?? s.currentSessionId;
+    if (key) lastChatKey = key;
+  };
+  remember(useSessionStore.getState());
+  useSessionStore.subscribe(remember);
+}
+
+export function getLastChatKey(): string | null {
+  return lastChatKey;
+}
