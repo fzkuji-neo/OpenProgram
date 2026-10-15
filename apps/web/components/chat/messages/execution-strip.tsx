@@ -120,8 +120,8 @@ export function ExecutionStrip({
         {failedNote ? <span className="tl-fail">{failedNote}</span> : null}
         {hasBadge ? (
           <span className="turn-files-diff tl-diff">
-            <span className="turn-files-stat is-add">+{summary.added}</span>
-            <span className="turn-files-stat is-del">−{summary.removed}</span>
+            <span className="turn-files-stat is-add"><span>+</span>{summary.added}</span>
+            <span className="turn-files-stat is-del"><span>−</span>{summary.removed}</span>
           </span>
         ) : null}
         <span className="tl-chev" aria-hidden="true">›</span>

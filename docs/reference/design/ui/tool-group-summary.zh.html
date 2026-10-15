@@ -40,10 +40,10 @@ td code{white-space:nowrap}
 .tl-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tl-chev{font-size:11px;flex:none}
 .tl-fail{flex:none;font-size:13px;color:var(--accent-red)}
-.diff{display:inline-flex;border-radius:6px;overflow:hidden;flex:none}
-.diff span{padding:0 6px;font-size:12px;line-height:19px;font-weight:500;font-variant-numeric:tabular-nums}
-.diff .add{color:var(--accent-green);background:color-mix(in oklch,var(--accent-green) 18%,transparent)}
-.diff .del{color:var(--accent-red);background:color-mix(in oklch,var(--accent-red) 18%,transparent)}
+.diff{--git-added:light-dark(#1e9e3c,#32d74b);--git-removed:light-dark(#cd2054,#ff2c56);display:inline-flex;height:18px;border-radius:4.5px;overflow:hidden;flex:none;font:500 11px/14px ui-sans-serif,-apple-system,sans-serif;font-variant-numeric:tabular-nums lining-nums}
+.diff>span{display:flex;align-items:center;gap:1px;padding:0 6px}
+.diff .add{color:var(--git-added);background:color-mix(in srgb,var(--git-added) 20%,transparent)}
+.diff .del{color:var(--git-removed);background:color-mix(in srgb,var(--git-removed) 20%,transparent)}
 .shimmer{background:linear-gradient(90deg,var(--text-muted) 35%,var(--text-primary) 50%,var(--text-muted) 65%);
   background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
   animation:sweep 1.6s linear infinite}
