@@ -141,6 +141,19 @@ if (typeof document !== "undefined") {
       selectA2uiTab(tab);
       return;
     }
+    // A footnote link and its way back move within their own reply: every
+    // reply numbers its notes from 1, so a page-wide #footnote-1 could
+    // land in another one, and the hash would change the App's URL.
+    const note = typeof target?.closest === "function"
+      ? target.closest<HTMLAnchorElement>("a[data-footnote-ref], a[data-footnote-backref]")
+      : null;
+    if (note) {
+      event.preventDefault();
+      const id = note.getAttribute("href")?.slice(1) ?? "";
+      const dest = Array.from(note.closest(".md-rendered")?.querySelectorAll<HTMLElement>("[id]") ?? []).find(el => el.id === id);
+      dest?.scrollIntoView({ block: "center", behavior: "smooth" });
+      return;
+    }
     const btn = typeof target?.closest === "function" ? target.closest(".md-code-copy") : null;
     if (!btn) return;
     const code = btn.closest(".md-code")?.querySelector("pre")?.textContent ?? "";

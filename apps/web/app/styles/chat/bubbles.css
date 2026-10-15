@@ -483,6 +483,11 @@
 .message-content ul > li::marker { font-size: 0.7em; }
 .message-content li { margin: 0; }
 .message-content li > :is(ul, ol) { margin: 4px 0 0; }
+/* A task item's checkbox stands where its bullet would, the text in line
+   with the other items' (as on GitHub and in the Claude app). */
+.message-content li:has(> input[type="checkbox"]:first-child, > p:first-child > input[type="checkbox"]:first-child) { list-style: none; }
+.message-content li > input[type="checkbox"]:first-child,
+.message-content li > p:first-child > input[type="checkbox"]:first-child { margin: 0 0.5em 0 -1.4em; vertical-align: -0.1em; }
 /* Headings, the Claude app's: bold (Tailwind's preflight drops it) at
    22 / 18 / 16 / 16 / 14 / 14px. */
 .message-content :is(h1, h2, h3, h4, h5, h6) { color: var(--text-bright); font-weight: 700; line-height: 1.4; }
@@ -529,12 +534,22 @@
   color: var(--text-bright);
   font-weight: 700;
   border-bottom-color: color-mix(in srgb, var(--text-bright) 30%, transparent);
+  /* A squeezed column never breaks a CJK heading between its characters
+     ("宽表" stacked one per line); it still breaks at spaces. */
+  word-break: keep-all;
 }
 .message-content :is(th, td)[align="center"] { text-align: center; }
 .message-content :is(th, td)[align="right"] { text-align: end; }
 /* Inline code in a cell (a file name, an identifier) keeps whole too:
    breaking it anywhere let the column shrink to a few letters. */
 .message-content :is(th, td) code { overflow-wrap: normal; }
+/* Footnotes (marked-footnote): a small number in the text, and the notes
+   under a hairline at the end of the reply, a size down and secondary. */
+.message-content sup { position: relative; top: -0.5em; font-size: 0.75em; line-height: 0; vertical-align: baseline; }
+.message-content a[data-footnote-ref] { padding: 0 1px; }
+.message-content .footnotes { padding-top: 12px; border-top: 0.5px solid var(--border); font-size: 0.875rem; color: var(--text-secondary); }
+.message-content .footnotes li > p { margin: 0; }
+.message-content .footnotes .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .spinner {
   width: 16px;
