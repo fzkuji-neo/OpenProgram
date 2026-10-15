@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -38,6 +40,66 @@ def _default_model(override: str | None) -> Model:
         pair = background_model()
         override = f"{pair[0]}/{pair[1]}" if pair else None
     return resolve_model(profile, override)
+
+
+_JSON_TYPES = {
+    "string": str,
+    "boolean": bool,
+    "array": list,
+    "object": dict,
+    "integer": int,
+    "number": (int, float),
+}
+_FENCED = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
+
+
+def _schema_instruction(schema: dict[str, Any]) -> str:
+    return (
+        "Reply with exactly one JSON object and nothing else: no prose, "
+        "no code fence. It must match this JSON Schema:\n"
+        + json.dumps(schema, ensure_ascii=False)
+    )
+
+
+def _structured(text: str, schema: dict[str, Any]) -> dict[str, Any] | None:
+    """The JSON object a reply carries, if it matches the schema's shape.
+
+    The model is asked for bare JSON, but a fenced block or a sentence
+    around the object is common enough to accept. A reply that does not
+    parse, or misses a required field, is None; the caller asks again.
+    """
+    candidates = [text.strip()]
+    candidates += _FENCED.findall(text)
+    start, end = text.find("{"), text.rfind("}")
+    if 0 <= start < end:
+        candidates.append(text[start:end + 1])
+    for candidate in candidates:
+        try:
+            value = json.loads(candidate)
+        except ValueError:
+            continue
+        if isinstance(value, dict) and _matches(value, schema):
+            return value
+    return None
+
+
+def _matches(value: dict[str, Any], schema: dict[str, Any]) -> bool:
+    properties = schema.get("properties") or {}
+    for key in schema.get("required") or ():
+        if key not in value:
+            return False
+    for key, spec in properties.items():
+        if key not in value or not isinstance(spec, dict):
+            continue
+        expected = _JSON_TYPES.get(str(spec.get("type")))
+        if expected is None:
+            continue
+        item = value[key]
+        if expected is not bool and isinstance(item, bool):
+            return False
+        if not isinstance(item, expected):
+            return False
+    return True
 
 
 def _native_tool(definition: Any) -> AgentTool:
@@ -114,7 +176,7 @@ class OpenProgramAgent:
                 "max_budget_usd is not supported by the OpenProgram writer"
             )
         if output_schema is not None:
-            raise ValueError("structured output is not supported by the memory writer")
+            system_prompt = f"{system_prompt}\n\n{_schema_instruction(output_schema)}"
         resolved_cwd = Path(cwd).resolve()
         if not resolved_cwd.is_dir():
             raise ValueError(f"agent working directory does not exist: {resolved_cwd}")
@@ -166,7 +228,10 @@ class OpenProgramAgent:
         duration_ms = int((time.monotonic() - started) * 1000)
         return AgentResult(
             text=text,
-            structured_output=None,
+            structured_output=(
+                _structured(text, output_schema)
+                if output_schema is not None else None
+            ),
             num_turns=len(assistants),
             input_tokens=input_tokens,
             output_tokens=output_tokens,

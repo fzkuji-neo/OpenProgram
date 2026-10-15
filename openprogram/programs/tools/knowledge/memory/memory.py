@@ -8,6 +8,10 @@ fact the user asked it to remember right now.
 Everything is a file: ``topics/**/*.md`` is the editable semantic
 memory, ``sources/**`` the read-only evidence it cites, and
 ``timeline/`` a derived view rebuilt after every write.
+
+In a project with project Memory on, every read spans the project's
+workspace and the personal one, and paths name their layer
+(``project:topics/api.md``, ``personal:topics/me.md``).
 """
 
 from __future__ import annotations
@@ -15,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from contextlib import closing
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -52,6 +56,13 @@ MAX_SNIPPETS = 8
 
 def _root():
     return store.ensure()
+
+
+def _memory():
+    """The layers this conversation reads, as one memory."""
+    from openprogram.memory.project_layer import read_layers
+
+    return read_layers(personal=_root())
 
 
 def _fail(exc: TransactionError) -> str:
@@ -112,8 +123,8 @@ def memory_search(
                 "Ranked memory_search is disabled in Agent recall mode. "
                 "Use memory_browse, memory_get, or memory_grep when needed."
             )
-        found = inspect.search(
-            _root(), query, top_k=int(top_k or MAX_SNIPPETS),
+        found = _memory().search(
+            query, top_k=int(top_k or MAX_SNIPPETS),
             path_prefix=path_prefix or None,
             speaker=speaker or None,
             method=config.retrieval_method,
@@ -128,7 +139,7 @@ def memory_search(
     for hit in results:
         where = str(hit.get("path") or "?")
         block = hit.get("event_id")
-        source = where.startswith("sources/")
+        source = where.split(":", 1)[-1].startswith("sources/")
         suffix = ""
         if block:
             if source:
@@ -193,8 +204,8 @@ def memory_grep(
     if not (query or "").strip():
         return "memory_grep needs a query."
     try:
-        found = inspect.grep(
-            _root(), query, prefix=prefix or "",
+        found = _memory().grep(
+            query, prefix=prefix or "",
             case_sensitive=bool(case_sensitive),
         )
     except TransactionError as exc:
@@ -240,8 +251,8 @@ def memory_get(
     if not (path or "").strip():
         return "memory_get needs a path. Use `memory_browse` to see them."
     try:
-        found = inspect.read_file(
-            _root(), path, heading=heading or None,
+        found = _memory().read_file(
+            path, heading=heading or None,
             block_id=(block_id or None),
         )
     except TransactionError as exc:
@@ -274,7 +285,7 @@ BROWSE_SPEC: dict[str, Any] = {
 
 def memory_browse(prefix: str = "", **_: Any) -> str:
     try:
-        listing = inspect.list_files(_root(), prefix=prefix or "")
+        listing = _memory().list_files(prefix=prefix or "")
     except TransactionError as exc:
         return _fail(exc)
     files = listing.get("files", [])
@@ -412,6 +423,15 @@ UPDATE_SPEC: dict[str, Any] = {
                 "items": {"type": "object"},
             },
             "commit_message": {"type": "string"},
+            "layer": {
+                "type": "string",
+                "enum": ["project", "personal"],
+                "description": (
+                    "Only when memory_status lists layers: project for what "
+                    "belongs to this project, personal for what holds "
+                    "everywhere. Omit for the default layer it names."
+                ),
+            },
         },
         "required": ["base_revision"],
     },
@@ -425,6 +445,7 @@ def memory_update(
     memory_changes: list[dict[str, Any]] | None = None,
     sources: list[dict[str, Any]] | None = None,
     commit_message: str | None = None,
+    layer: str | None = None,
     **_: Any,
 ) -> str:
     if not (base_revision or "").strip():
@@ -451,11 +472,26 @@ def memory_update(
             if sources
             else None
         )
-        with closing(MemoryWorkspace(
-            _root(), config=load_memory_config(),
+        from openprogram.memory.project_layer import PROJECT, use
+
+        memory = _memory()
+        try:
+            target = memory.resolve(layer) if layer else memory.default
+        except ValueError as exc:
+            raise TransactionError("INVALID_ARGUMENT", str(exc)) from exc
+        if memory.single and layer == PROJECT:
+            raise TransactionError(
+                "INVALID_ARGUMENT",
+                "this conversation has no project memory",
+            )
+        with (
+            use(target.root, write=True)
+            if target.name == PROJECT else _no_layer()
+        ), closing(MemoryWorkspace(
+            target.root, config=load_memory_config(),
         )) as space:
             result = space.update(
-                base_revision=base_revision,
+                base_revision=memory.layer_revision(base_revision, target),
                 patch=patch or "",
                 changes=changes,
                 memory_changes=memory_changes,
@@ -470,6 +506,7 @@ def memory_update(
         return _fail(exc)
     return _dump({
         "ok": True,
+        **({} if memory.single else {"layer": target.name}),
         "revision": result.revision,
         "source_ids": result.source_ids,
         "block_ids": result.block_ids,
@@ -479,6 +516,11 @@ def memory_update(
         "git_committed": result.git_committed,
         "git_commit": result.git_commit,
     })
+
+
+@contextmanager
+def _no_layer():
+    yield
 
 
 # -- trust promotion -------------------------------------------------------
@@ -697,7 +739,9 @@ def memory_promote(source_id: str | None = None, **_: Any) -> str:
 STATUS_NAME = "memory_status"
 STATUS_DESC = (
     "Memory workspace identity, size, current revision, writer health, and "
-    "pending turn count. The revision is required by `memory_update`."
+    "pending turn count. The revision is required by `memory_update`. In a "
+    "project with its own memory it lists each layer and the layer writes "
+    "go to by default."
 )
 STATUS_SPEC: dict[str, Any] = {
     "name": STATUS_NAME, "description": STATUS_DESC,
@@ -708,7 +752,10 @@ STATUS_SPEC: dict[str, Any] = {
 def memory_status(**_: Any) -> str:
     try:
         root = _root()
-        return _dump(inspect.status(root))
+    except TransactionError as exc:
+        return _fail(exc)
+    try:
+        return _dump(_memory().status())
     except TransactionError as exc:
         return _fail(exc)
     except Exception:  # noqa: BLE001

@@ -900,12 +900,15 @@ def main():
         if verb == "edit":
             sys.exit(_memory_edit(_mstore.ensure(), args.path))
         if verb == "sleep":
+            from openprogram.memory.scheduler import reorganize_projects
             from openprogram.memory.writing import reorganize
             import json as _json
-            print(_json.dumps(
-                reorganize(model=getattr(args, "model", None)),
-                indent=2, ensure_ascii=False,
-            ))
+            model = getattr(args, "model", None)
+            report = reorganize(model=model)
+            projects = reorganize_projects(model=model)
+            if projects:
+                report = {**report, "projects": projects}
+            print(_json.dumps(report, indent=2, ensure_ascii=False))
             sys.exit(0)
         if verb == "backfill":
             from openprogram.memory.writing import backfill

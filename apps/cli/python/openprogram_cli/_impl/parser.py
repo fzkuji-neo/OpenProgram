@@ -687,7 +687,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Open a memory file in $EDITOR; the edit lands only if it validates.")
     p_med.add_argument("path", help="Path of the memory file to open")
     p_msleep = memory_sub.add_parser("sleep",
-        help="Reorganise topic files now, instead of waiting for tonight.")
+        help="Reorganise topic files now, project memory included, instead of waiting for tonight.")
     p_msleep.add_argument("--model", default=None,
         help="Model to reorganise with (default: whatever your own CLI uses)")
     p_mbackfill = memory_sub.add_parser("backfill",

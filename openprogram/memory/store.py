@@ -25,7 +25,8 @@ def root() -> Path:
 
     state = get_state_dir()
     from .policy import selected_root
-    path = selected_root() or state / "memory"
+    from .project_layer import active_root
+    path = active_root() or selected_root() or state / "memory"
     path.mkdir(parents=True, exist_ok=True)
     # ``get_state_dir`` protects the profile root when it creates it, but
     # this is the call that brings it into being on a fresh install — the

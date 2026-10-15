@@ -16,6 +16,17 @@ class MemoryConfig:
     retrieval_method: str = "bm25"
     retrieval_top_k: int = 5
     retrieval_include_sources: bool = True
+    # Hybrid recall: how much the embedding ranking counts against BM25,
+    # and whether several matches in one Topic lift that Topic's best one.
+    hybrid_weighting: str = "auto"
+    hybrid_file_boost: bool = True
+    # A conversation in a project also reads that project's own memory,
+    # and, when project_writes is on, its memories are written there.
+    project_layer: bool = False
+    project_writes: bool = False
+    # After a write, check that one fact from it can be recalled, and
+    # repair the Topics when it cannot.
+    writer_verify: bool = False
     core_inject: bool = True
 
     def __post_init__(self) -> None:
@@ -35,6 +46,19 @@ class MemoryConfig:
             raise ValueError("unsupported retrieval_method")
         if not 1 <= self.retrieval_top_k <= 10:
             raise ValueError("retrieval_top_k must be in 1..10")
+        if self.hybrid_weighting not in HYBRID_WEIGHTINGS:
+            raise ValueError("unsupported hybrid_weighting")
+
+
+# Share of the fused score given to the embedding ranking; BM25 gets the
+# rest. ``auto`` leans on keywords for queries with a date, a quoted
+# phrase or a proper name, and balances the two otherwise.
+HYBRID_WEIGHTINGS = {
+    "auto": None,
+    "keyword": 0.3,
+    "balanced": 0.5,
+    "semantic": 0.7,
+}
 
 
 def _section(parent: dict[str, Any], key: str) -> dict[str, Any]:
@@ -68,6 +92,11 @@ def _integer(
     return parsed if minimum <= parsed <= maximum else default
 
 
+def _flag(section: dict[str, Any], key: str, default: bool) -> bool:
+    value = section.get(key)
+    return value if isinstance(value, bool) else default
+
+
 def load_memory_config(config: dict[str, Any] | None = None) -> MemoryConfig:
     """Resolve live Memory settings, tolerating hand-edited invalid config."""
     if config is None:
@@ -81,6 +110,11 @@ def load_memory_config(config: dict[str, Any] | None = None) -> MemoryConfig:
     retrieval = _section(memory, "retrieval")
     core = _section(memory, "core")
     recent = _section(memory, "recent")
+    hybrid = _section(retrieval, "hybrid")
+    layers = _section(memory, "layers")
+    weighting = hybrid.get("weighting", "auto")
+    if not isinstance(weighting, str) or weighting not in HYBRID_WEIGHTINGS:
+        weighting = "auto"
     method = retrieval.get("method", "bm25")
     if not isinstance(method, str) or method not in {
         "agent", "bm25", "embedding", "hybrid",
@@ -106,6 +140,11 @@ def load_memory_config(config: dict[str, Any] | None = None) -> MemoryConfig:
             if isinstance(retrieval.get("include_sources"), bool)
             else True
         ),
+        hybrid_weighting=weighting,
+        hybrid_file_boost=_flag(hybrid, "file_boost", True),
+        project_layer=_flag(layers, "project", False),
+        project_writes=_flag(layers, "project_writes", False),
+        writer_verify=_flag(writer, "verify", False),
         core_inject=(
             core.get("inject")
             if isinstance(core.get("inject"), bool)

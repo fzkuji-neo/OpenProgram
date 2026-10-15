@@ -126,6 +126,35 @@ def test_the_stores_own_timestamp_survives_the_trip(
     )
 
 
+@pytest.mark.parametrize("verify", [False, True])
+def test_write_verification_follows_its_switch(
+    memory_root, written, monkeypatch, verify,
+):
+    """With ``memory.writer.verify`` on, a committed batch is checked back."""
+    from openprogram.memory import writing
+    from openprogram.memory.management import verification
+    from openprogram.memory.management.config import load_memory_config
+
+    monkeypatch.setattr(writing, "load_memory_config", lambda: load_memory_config(
+        {"memory": {"writer": {"verify": verify}}},
+    ))
+    checked = []
+
+    def _verify(memory_dir, *, refs, turns, **_):
+        checked.append((refs, turns))
+        return ["topics/repaired.md"]
+
+    monkeypatch.setattr(verification, "verify_after_write", _verify)
+    assert writing.write_session(
+        "verify", [_turn(0, "user", "the API uses gRPC")],
+        token_threshold=1, force=True,
+    )
+    if verify:
+        assert checked == [(["openprogram/verify/m0"], [("Owner (owner/local)", "the API uses gRPC")])]
+    else:
+        assert checked == []
+
+
 def test_writer_uses_trusted_speaker_header_and_preserves_body(
     memory_root, written,
 ):

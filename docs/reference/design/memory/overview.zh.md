@@ -258,9 +258,91 @@ BM25持久缓存格式是v8；旧缓存缺少当前speaker或trust字段，因�
 
 - **每个会话**：`core.md`，包在 `<memory-context>` 围栏里注入，这样回忆
   出来的事实不会被误当成用户此刻在说的话。
-- **每一轮**：`search` 针对这条消息找到的内容。对块和来源做 BM25
-  检索，取前五条，同样加围栏。
+- **每一轮**：`search` 针对这条消息找到的内容，按设置里的检索方法排序
+  （默认五条），同样加围栏。
 - **按需**：`memory_*` 工具。
+
+## 检索
+
+`memory.retrieval.method` 决定一轮消息怎么匹配：
+
+| 方法 | 排序方式 |
+|---|---|
+| `agent` | 不自动检索；模型需要时自己用工具读记忆 |
+| `bm25` | 对 Topic 块（开启时还有 Source）做关键词排序 |
+| `embedding` | 用本地 sentence-transformer 算余弦相似度 |
+| `hybrid` | 两者都跑，再合并 |
+
+混合检索让两个后端各取请求条数的五倍，把各自的排名换成 Reciprocal Rank
+Fusion 分数（`1 / (60 + 名次)`），再按比例相加。相加的是名次分而不是原始
+分，这样合并才有意义：BM25 分数和余弦相似度没有共同的刻度。只被一个后端
+找到的结果保留它在那边的名次，每条结果都标明是哪些后端找到的
+（`matched_by`）。
+
+`memory.retrieval.hybrid.weighting` 设定向量排名在合并里占的比重：
+`keyword` 0.3、`balanced` 0.5、`semantic` 0.7。默认的 `auto` 在查询含日期、
+引号短语或小写词后跟的大写人名时取 0.3，否则取 0.5。这类查询要的是字面
+上的词，正是 BM25 擅长、向量会冲淡的部分。
+
+`memory.retrieval.hybrid.file_boost` 默认开启：按每个 Topic 文件累计的合并
+分数比例，提升该文件里最好的那条结果，最多提升最高分的五分之一。同一个
+文件里有好几段都匹配，说明这个文件就是要找的主题；不做这个提升，别处
+一句碰巧相关的话就会排到它前面。
+
+## 项目记忆
+
+一个人偏好什么，在哪儿干活都适用；某个仓库做过什么决定，只属于那个仓库。
+开启 `memory.layers.project` 后，绑定到项目的对话会把两个工作区当成一份来
+读：项目自己的（`<项目>/.openprogram/memory`）和个人的。兜底的默认项目是
+主目录而不是项目，所以那里的对话只读个人记忆。`<项目>/.openprogram/` 被
+项目自己的 Git 忽略；项目工作区和其他工作区一样，有自己的历史、索引和
+运行时目录。
+
+读取跨两层。每一层用自己的统计给自己的块打分，分数在层之间不可比；召回
+把两份排名按名次交错，每个名次项目层在前，这样小项目不会被庞大的个人记忆
+淹没。有两层时，工具返回的每个路径都标出所在层（`project:topics/api.md`、
+`personal:topics/me.md`）；不带前缀的路径指默认层。`memory_status` 列出两层
+和一个合并版本号（`project=… personal=…`），`memory_update` 用 `layer` 参数
+指定写哪一层。核心记忆来自两层：项目的 `core.md` 在前。
+
+还没有记忆的项目不增加层，读取也不会在项目目录里创建任何东西。工作区在
+第一次写入时创建。
+
+同时开启 `memory.layers.project_writes` 后，后台写入器把项目对话写进项目
+记忆而不是个人记忆，`memory_update` 不另行指定时也写到那里。一轮只写进一层。
+会话节点上的已写标记记着接收它的工作区，写入器把任一层的标记都算作已写，
+所以打开或关闭项目写入都不会把对话复制到另一层。
+
+项目层遵守本次执行的记忆策略：记忆关闭的执行读不到项目记忆，只有允许写
+记忆的执行才会写到那里。有多个可读空间的策略会逐个访问它们；项目层只随
+第一个空间读一次，结果不会重复。提交守卫只在某次写入选中了项目工作区时
+才接受它。
+
+夜间重写和 `openprogram memory sleep` 会覆盖本机上所有已存在记忆的已注册
+项目。
+
+## 写入后校验
+
+写入成功了也可能没用：事实写进了没人会去看的文件，或者藏在某个标题下面。
+开启 `memory.writer.verify` 后，写入器每提交一批，都会跟一次自检：
+
+1. **出题。** 模型从这批对话里挑一个具体事实，以结构化 JSON 返回一个问题、
+   对话支持的答案，以及它依据的来源引用。引用了这批之外轮次的题会被拒绝。
+2. **检索。** 一次新的运行在记忆的临时副本（不含运行时目录）上回答这个
+   问题，它做什么都碰不到真实工作区。
+3. **判定。** 模型判断这个答案是否与预期答案一致。
+4. **修复。** 不一致时，再跑一次，带着问题、预期答案和失败的检索过程，
+   通过正常的写入事务整理真实工作区，然后第 2、3 步再跑一遍。
+
+结构化回复缺失或格式不对时会重新请求，最多三次。校验永远不会让它跟随的
+那次写入失败：出错时记为结果 `error`。每个结果（`passed`、`repaired`、
+`unrepaired`、`error`）追加到 `.scriptorium/verification.jsonl`，保留最近
+500 条；计数和最近一次结果以 `verification` 出现在 `memory_status` 里。一次
+校验至少三次模型调用，修复再加三次，所以默认关闭。
+
+结构化输出是写入器 agent 运行时的契约：给定 `output_schema` 时，
+`OpenProgramAgent` 把 schema 加进系统提示，再从回复里读出一个 JSON 对象
+（裸 JSON、代码块或夹在句子里都可以），并检查必填字段和它们的 JSON 类型。
 
 ## 工具
 
@@ -270,8 +352,8 @@ BM25持久缓存格式是v8；旧缓存缺少当前speaker或trust字段，因�
 | `memory_grep` | 找确切的名字、ID 或短语 |
 | `memory_get` | 读一个文件、一节，或带脚注的单个块 |
 | `memory_browse` | 看有什么 |
-| `memory_update` | 以 unified diff 更正或新增某一处 |
-| `memory_status` | 工作区规模与版本号，以及writer结果、最近失败原因码和待处理轮次 |
+| `memory_update` | 更正或新增某一处：记录级修改、整文件或 unified diff；`layer` 选项目层或个人层 |
+| `memory_status` | 工作区规模与版本号，以及writer结果、最近失败原因码、待处理轮次和校验计数；在项目里按层列出 |
 
 没有"保存这个"的工具。记录对话是后台写入器的职责。`memory_update` 是给
 两种情况用的：用户明确要求现在记住的事，以及模型看得出记错了的地方。
@@ -300,11 +382,13 @@ openprogram/memory/           记忆子系统
     local_backend.py          LocalMemoryBackend —— 随包提供的实现
     __init__.py               get_backend() / set_backend()
     store.py                  记忆位置；从旧布局的迁移
+    project_layer.py          项目自己的记忆：哪个、何时用、写入怎么路由过去
+    policy.py                 每次执行的记忆访问与空间
     scheduler.py              守护线程，03:00 重写
     session_watcher.py        写掉空闲会话剩下的部分
-    writing.py                累积、写入、整理
-    management/               写入事务、暂存、校验
-    retrieval/                BM25 与向量检索
+    writing.py                累积、写入、校验、整理
+    management/               写入事务、暂存、格式校验、写入后校验
+    retrieval/                BM25、向量、混合融合、分层读取
     markdown/                 topic 格式
     prompts/                  对写入模型说的话
     runtime/                  节点标记迁移、阈值、派生视图、writer状态
@@ -450,7 +534,7 @@ Topic block本身不携带独立信任，而是继承其引用Source的信任。
 直接跳过。paired可调用`memory_status`和`memory_update`，但工作区
 只允许其新建或按字节追加；缺少持久化owner字段时不能改写或删除已有内容。
 
-后台writer通过`AgentSession`沿用默认聊天agent的provider、模型和凭据，
+后台writer通过`AgentSession`使用默认Agent的模型（该Agent没有模型时用上次使用的模型）和对应凭据，
 `memory.writer.model`只覆盖writer模型且实时生效。provider返回的认证和配置错误保留
 `retryable=false`，不会进入闲置观察器的重复重试。`memory.backend=none`使用空provider，并在
 启动前停止记忆工具、系统提示、每轮召回、自动写入、夜间整理、闲置观察器和未配对群聊归档。
@@ -476,3 +560,12 @@ best-effort，位于记忆事务之外；状态文件失败不会改变Topic事�
 组合集成测试覆盖SessionDB、默认writer模型解析、managed writer工具、暂存事务、Topic安装、节点marker
 和idle watcher状态，并验证model unavailable与lazy credential失败不可重试、下一次watcher扫描会跳过。
 写入失败原因码是一个封闭枚举，受限writer阶段看不到Source归档。
+
+混合检索调参、项目记忆和写入后校验都已实现，各有独立设置：
+`memory.retrieval.hybrid.weighting` 与 `memory.retrieval.hybrid.file_boost`
+在 `retrieval/fusion.py`；`memory.layers.project` 与
+`memory.layers.project_writes` 在 `project_layer.py` 和 `retrieval/layers.py`；
+`memory.writer.verify` 在 `management/verification.py`。单元测试覆盖融合权重
+和同文件提升、分层读写及其路由与已写标记、核心记忆注入顺序、夜间重写覆盖
+项目记忆、结构化输出解析，以及出题—检索—判定—修复的流程。项目记忆和写入
+后校验默认关闭。

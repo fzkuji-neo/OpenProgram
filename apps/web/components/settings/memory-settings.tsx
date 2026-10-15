@@ -27,9 +27,14 @@ const KEYS = [
   "memory.writer.model",
   "memory.writer.enabled",
   "memory.writer.trigger_tokens",
+  "memory.writer.verify",
   "memory.retrieval.method",
   "memory.retrieval.top_k",
   "memory.retrieval.include_sources",
+  "memory.retrieval.hybrid.weighting",
+  "memory.retrieval.hybrid.file_boost",
+  "memory.layers.project",
+  "memory.layers.project_writes",
   "memory.core.inject",
   "memory.recent.limit",
 ] as const;
@@ -129,7 +134,8 @@ export function MemorySettings() {
   const writerModel = String(draft["memory.writer.model"] ?? "");
   const retrieval = String(draft["memory.retrieval.method"] ?? "bm25");
   const embeddingAvailable = memoryStatus?.embedding_available === true;
-  const writerLabel = writerModel || text("Default chat model", "默认聊天模型");
+  const writerLabel = writerModel || text("Automatic", "自动");
+  const projectMemory = Boolean(draft["memory.layers.project"]);
   const recallLabel = retrieval === "agent" ? "Agent" : retrieval === "bm25" ? "BM25" : retrieval === "embedding" ? text("Semantic", "语义") : text("Hybrid", "混合");
   const controlsDisabled = !settingsReady || saving || installing;
 
@@ -155,10 +161,10 @@ export function MemorySettings() {
         </SettingsSection>
 
         <SettingsSection title={text("Background writing", "后台写入")}>
-          <SettingsRow label={text("Writer model", "写入模型")} description={text("Uses the default chat model unless you select an enabled model.", "默认使用聊天模型，也可以选择一个已启用模型。") }>
+          <SettingsRow label={text("Writer model", "写入模型")} description={text("Automatic uses the default Agent's model, or the last used model when that Agent has none. You can also select an enabled model.", "自动：使用默认 Agent 的模型；该 Agent 没有设模型时，使用上次使用的模型。也可以选择一个已启用模型。") }>
             <Status live>{text("Live", "实时")}</Status>
             <select aria-label={text("Writer model", "写入模型")} disabled={controlsDisabled} className={styles.select} value={writerModel} onChange={(event) => update("memory.writer.model", event.target.value)}>
-              <option value="">{text("Default chat model", "默认聊天模型")}</option>
+              <option value="">{text("Automatic", "自动")}</option>
               {models.map((model) => <option key={`${model.provider}/${model.id}`} value={`${model.provider}/${model.id}`}>{model.name} · {model.provider}</option>)}
             </select>
           </SettingsRow>
@@ -171,6 +177,9 @@ export function MemorySettings() {
               <option value={16000}>{text("Balanced · about 16K tokens", "均衡 · 约 16K Token")}</option>
               <option value={32000}>{text("Less frequent · about 32K tokens", "较少 · 约 32K Token")}</option>
             </select>
+          </SettingsRow>
+          <SettingsRow label={text("Verify after writing", "写入后校验")} description={text("After each write, ask a question about what was written, look it up, and repair Memory when the answer is not found. Costs a few extra model calls per write.", "每次写入后，就刚写入的内容提一个问题并检索；找不到答案时修复 Memory。每次写入会多几次模型调用。") }>
+            <Switch aria-label={text("Verify after writing", "写入后校验")} disabled={controlsDisabled} checked={Boolean(draft["memory.writer.verify"])} onCheckedChange={(value) => update("memory.writer.verify", value)} />
           </SettingsRow>
         </SettingsSection>
 
@@ -188,6 +197,17 @@ export function MemorySettings() {
             <Status missing={memoryStatus !== null && !memoryStatus.failed && !embeddingAvailable}>{memoryStatus === null ? text("Checking…", "检查中…") : memoryStatus.failed ? text("Unavailable", "无法检查") : embeddingAvailable ? text("Available", "可用") : text("Not installed", "未安装")}</Status>
             {memoryStatus !== null && !memoryStatus.failed && !embeddingAvailable && <button className={styles.installButton} type="button" onClick={installEmbedding} disabled={saving || installing}>{installing ? text("Installing…", "安装中…") : text("Install · about 90 MB", "安装 · 约 90 MB")}</button>}
           </SettingsRow>
+          <SettingsRow label={text("Hybrid weighting", "混合权重")} description={text("How hybrid recall balances keyword and semantic matches. Automatic leans on keywords for dates, quoted phrases and names.", "混合检索中关键词与语义匹配的比重。自动：查询含日期、引号短语或人名时偏向关键词。") }>
+            <select aria-label={text("Hybrid weighting", "混合权重")} disabled={controlsDisabled || retrieval !== "hybrid"} className={styles.select} value={String(draft["memory.retrieval.hybrid.weighting"] ?? "auto")} onChange={(event) => update("memory.retrieval.hybrid.weighting", event.target.value)}>
+              <option value="auto">{text("Automatic", "自动")}</option>
+              <option value="keyword">{text("Keyword first · 70 / 30", "关键词优先 · 70 / 30")}</option>
+              <option value="balanced">{text("Balanced · 50 / 50", "均衡 · 50 / 50")}</option>
+              <option value="semantic">{text("Semantic first · 30 / 70", "语义优先 · 30 / 70")}</option>
+            </select>
+          </SettingsRow>
+          <SettingsRow label={text("Favour well-matched Topics", "同主题加权")} description={text("In hybrid recall, raise a Topic file that several matches come from.", "混合检索时，多条匹配来自同一个 Topic 文件时提高它的排名。") }>
+            <Switch aria-label={text("Favour well-matched Topics", "同主题加权")} disabled={controlsDisabled || retrieval !== "hybrid"} checked={Boolean(draft["memory.retrieval.hybrid.file_boost"])} onCheckedChange={(value) => update("memory.retrieval.hybrid.file_boost", value)} />
+          </SettingsRow>
           <SettingsRow label={text("Recall depth", "检索数量")} description={text("Maximum matching records added automatically to a turn.", "每个回合自动加入的最大匹配记录数。") }>
             <select aria-label={text("Recall depth", "检索数量")} disabled={controlsDisabled || retrieval === "agent"} className={styles.select} value={Number(draft["memory.retrieval.top_k"] ?? 5)} onChange={(event) => update("memory.retrieval.top_k", Number(event.target.value))}>
               {[3, 5, 8, 10].map((value) => <option key={value} value={value}>{value} {text("records", "条记录")}</option>)}
@@ -195,6 +215,15 @@ export function MemorySettings() {
           </SettingsRow>
           <SettingsRow label={text("Search Source evidence", "检索 Source 证据")} description={text("Include archived evidence alongside curated Topic records.", "在整理后的 Topic 记录之外同时检索归档证据。") }>
             <Switch aria-label={text("Search Source evidence", "检索 Source 证据")} disabled={controlsDisabled || retrieval === "agent"} checked={Boolean(draft["memory.retrieval.include_sources"])} onCheckedChange={(value) => update("memory.retrieval.include_sources", value)} />
+          </SettingsRow>
+        </SettingsSection>
+
+        <SettingsSection title={text("Project memory", "项目记忆")}>
+          <SettingsRow label={text("Project memory", "项目记忆")} description={text("A conversation in a project also reads that project's own Memory, kept in <project>/.openprogram/memory.", "项目中的对话同时读取该项目自己的 Memory，存放在 <项目>/.openprogram/memory。") }>
+            <Switch aria-label={text("Project memory", "项目记忆")} disabled={controlsDisabled} checked={projectMemory} onCheckedChange={(value) => update("memory.layers.project", value)} />
+          </SettingsRow>
+          <SettingsRow label={text("Write to project memory", "写入项目记忆")} description={text("Write what a project's conversations record into that project's Memory instead of the personal one.", "把项目对话要记下的内容写入该项目的 Memory，而不是个人 Memory。") }>
+            <Switch aria-label={text("Write to project memory", "写入项目记忆")} disabled={controlsDisabled || !projectMemory} checked={Boolean(draft["memory.layers.project_writes"])} onCheckedChange={(value) => update("memory.layers.project_writes", value)} />
           </SettingsRow>
         </SettingsSection>
 

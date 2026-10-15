@@ -7,14 +7,16 @@ edits.
     backend.py           the contract — MemoryBackend
     local_backend.py     the shipped implementation — LocalMemoryBackend
     store.py             where memory lives on disk
+    policy.py            per-execution memory access and spaces
+    project_layer.py     a project's own memory, read beside the personal one
     scheduler.py         when reorganizing runs (nightly)
     session_watcher.py   when a session goes idle
-    writing.py           accumulate, write, reorganize
-    management/          the write transaction: staging, validation, install
-    retrieval/           BM25 and embedding search over the workspace
+    writing.py           accumulate, write, verify, reorganize
+    management/          the write transaction and write verification
+    retrieval/           BM25, embedding and hybrid search; layered reads
     markdown/            the topic format — blocks, footnotes, links
-    prompts/             what the writer is told
-    runtime/             cursors, thresholds, derived views
+    prompts/             what the writer, organizer and verifier are told
+    runtime/             node marks, thresholds, derived views, writer status
     agent_runtime/       the process that performs a write
 
 The runtime never names an implementation. It calls ``get_backend()``,

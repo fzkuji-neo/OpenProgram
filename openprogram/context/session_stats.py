@@ -277,7 +277,7 @@ def compute_breakdown(
 
     # Memory files：只算真正**常驻进 system prompt** 的那块。
     # OpenProgram 的 memory 里只有 core.md 是 always-on block
-    # （memory/core.py），wiki/journal 是按需检索、不常驻，不该计入
+    # （项目记忆开启时还有项目的 core.md），topics/sources 按需检索、不常驻，不该计入
     # 当前 context（算全库会虚高到几十万 token）。对齐 Claude Code
     # 只列实际加载进 prompt 的 memory 文件。
     try:

@@ -169,6 +169,20 @@ def selected_root() -> Path | None:
     return space_path(policy, space)
 
 
+def primary_read_space() -> bool:
+    """Whether this read is the policy's first readable space.
+
+    A read that spans every space visits them one by one; what is read
+    once per execution rather than once per space, such as the project
+    layer, is read on the first visit only.
+    """
+    policy = current()
+    selected = _root.get()
+    if policy is None or selected is None or not policy.read_spaces:
+        return True
+    return selected == space_path(policy, policy.read_spaces[0])
+
+
 @contextmanager
 def commit_guard(root: Path):
     policy = current()
@@ -188,7 +202,9 @@ def commit_guard(root: Path):
                 yield
     with lock():
         check(write=True)
-        if Path(root).resolve() != space_path(policy, policy.write_space).resolve():
+        from .project_layer import active_root
+        target = Path(root).resolve()
+        if target != space_path(policy, policy.write_space).resolve() and target != active_root():
             raise MemoryPolicyError('Memory commit targets an unauthorized space')
         yield
 
