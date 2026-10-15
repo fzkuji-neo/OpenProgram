@@ -14,6 +14,7 @@ OpenProgram builds this from parts that already exist. An always-on Agent is an 
 | Wake schedule | `openprogram/agent/always_on/ticker.py`, a worker thread | Worker service startup |
 | Check-in turn | An ordinary turn with a read-only tool list | `CanonicalAgentAdapter`, `TurnRequest.tools_override` |
 | Reports | `always_on_report` tool, `reports.jsonl`, `always_on_report` frame | Desktop notification bridge |
+| Channel delivery | `openprogram/agent/always_on/delivery.py` | `channels.outbound.send_full`, bindings, channel sessions |
 | Learning | The Agent's own memory space | Memory policy and session-end extraction |
 | Rules | The home conversation's permission mode and rules | Permission rules, approval cards |
 
@@ -28,6 +29,7 @@ OpenProgram builds this from parts that already exist. An always-on Agent is an 
 | `wake_minutes` | int, 5–10080 | `60` | Interval between scheduled wakes |
 | `research` | bool | `true` | Run a check-in when no Goal is unfinished |
 | `autonomy` | `"report"` or `"act"` | `"report"` | Whether a check-in may start a Goal itself |
+| `channels` | list of `{channel, account_id, peer_id, label}`, at most 10 | `[]` | Channel conversations that also get each report |
 
 `validate_always_on()` in `agent/management/manager.py` normalizes the section the same way `validate_memory_config()` normalizes memory. Older `agent.json` files without the section load as disabled. Duplicating an Agent copies the section with `enabled` forced off, so a copy never starts waking unasked.
 
@@ -36,7 +38,7 @@ OpenProgram builds this from parts that already exist. An always-on Agent is an 
 Runtime state is kept apart from configuration so that wakes never bump the configuration revision or conflict with an open editor draft. It lives in `<agent dir>/always_on/`:
 
 - `state.json`: `home_session_id`, `applied_goal` (the objective text and Goal id last started from configuration), `last_wake` (`at`, `reason`, `outcome`, `detail`) and `next_wake_at`.
-- `reports.jsonl`: one report per line (`id`, `at`, `title`, `body`, `links`, `session_id`), trimmed to the newest 200.
+- `reports.jsonl`: one report per line (`id`, `at`, `title`, `body`, `links`, `session_id`, and `deliveries` when channels were picked), trimmed to the newest 200.
 
 Both files are written atomically under a per-Agent lock.
 
@@ -71,6 +73,19 @@ A check-in is an ordinary owner chat turn in the home conversation (source `web`
 
 `always_on_report(title, body, links)` is a tool in its own `always_on` toolset, outside the default set. `loop_runner` offers it only in a home conversation (checked with `agent_for_session()`) and removes it everywhere else; called outside one, it refuses. A report is appended to `reports.jsonl` and broadcast as an `always_on_report` frame. The desktop shell turns that frame into a system notification through the existing attention bridge (kind `report`, keyed by report id, shown only while no App window has focus). Clicking the notification opens the home conversation. The report also stays in the transcript as the tool call that produced it.
 
+## Channel delivery
+
+`always_on.channels` lists the channel conversations that also get each report. `channel` is one of `telegram`, `slack`, `discord` or `wechat`. `peer_id` is the target the channel transport expects: the same id channel sessions store, so a Slack or Discord target is the scoped `<channel>_<user>` id. `validate_always_on()` rejects unknown channels and empty ids and drops duplicates of one (channel, account, peer).
+
+The Always-on tab offers targets from `delivery.channel_targets()`, which the status route returns as `channel_targets`:
+
+- the Agent's channel conversations (session rows with `channel`, `account_id` and `peer_id`), labelled with the peer's display name;
+- the Agent's peer bindings. A binding without an account expands to every account of that channel.
+
+A binding to a whole channel or account names no peer, so it contributes nothing until someone talks to the Agent there.
+
+When the Agent has targets, `runtime.report()` saves the report with one `deliveries` row per target in status `sending` and broadcasts it as before. It then calls `delivery.deliver()`, which sends from a daemon thread so the tool returns at once. Retries and rate limits can take tens of seconds. The thread sends one Markdown message per target through `channels.outbound.send_full()`: the bold `<Agent name> · <title>`, the body, then the links as a list. The channel transport renders it per platform and splits long text. Each row becomes `sent`, or `failed` with the transport's `error_kind` and a one-line `detail`. An exception counts as `unknown`. The thread then writes the rows back with `store.update_report()` and broadcasts `always_on_update`, so an open Always-on tab refreshes. A failed send never removes the report or fails the tool.
+
 ## Learning from feedback
 
 The always-on Agent learns through its configured memory. With Memory set to **Read and write** on **This Agent**, the session-end writer extracts preferences and corrections from the home conversation into the Agent's own space, and every later turn reads them back. The Always-on tab says so when memory is not read-write; it never changes the memory setting itself.
@@ -86,16 +101,15 @@ What the Agent may do alone is the home conversation's permission mode plus the 
 ## Surfaces
 
 - **Agents → Always-on tab**: the configuration fields, plus a status block with the home conversation, last and next wake, **Wake now**, **Open conversation** and recent reports.
-- **HTTP**: `GET /api/agents/{id}/always-on` returns configuration, state and recent reports; `POST /api/agents/{id}/always-on/wake` wakes the Agent now; `POST /api/agents/{id}/always-on/home` returns the home conversation, creating it if needed. `PATCH /api/agents/{id}` accepts `always_on` like any other section.
-- **Python**: `openprogram.agent.always_on` exposes `wake()`, `status()`, `reports()` and `home_session()`.
+- **HTTP**: `GET /api/agents/{id}/always-on` returns configuration, state, recent reports and `channel_targets`; `POST /api/agents/{id}/always-on/wake` wakes the Agent now; `POST /api/agents/{id}/always-on/home` returns the home conversation, creating it if needed. `PATCH /api/agents/{id}` accepts `always_on` like any other section.
+- **Python**: `openprogram.agent.always_on` exposes `wake()`, `status()`, `reports()`, `home_session()` and `channel_targets()`.
 
 ## Implementation status
 
-Implemented: configuration, home conversation, wake decision, check-in, reports with desktop notifications, ticker, HTTP, Python API and the Always-on tab.
+Implemented: configuration, home conversation, wake decision, check-in, reports with desktop notifications, channel delivery, ticker, HTTP, Python API and the Always-on tab.
 
 Not implemented:
 
-- Delivering reports to a bound channel (Slack, Telegram and others). Reports are in-app only.
 - A dedicated cloud computer per Agent. Work runs on this machine with the conversation's working folder and sandbox.
 - Quiet hours and per-day wake windows.
 - Several always-on Agents coordinating as a team.

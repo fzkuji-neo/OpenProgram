@@ -49,6 +49,14 @@ If you delete the conversation, the next wake starts a new one.
 
 A report has a title, a short body and optional links. In the desktop App, each report shows a system notification while no App window has focus. Clicking it opens the Agent's conversation. The **Always-on** tab lists recent reports.
 
+## Send reports to channels
+
+Reports can also reach you on a [chat channel](../integrations/channels.md) (Telegram, Slack, Discord or WeChat). Under **Also send reports to**, check the conversations that should get each report as a message. Up to 10 can be picked.
+
+The list shows the channel conversations this Agent already has, plus the people and groups it is bound to with a peer binding (`openprogram channels bindings add <agent> --channel telegram --account <id> --peer <id>`). An Agent bound to a whole channel or account only lists the people who have talked to it.
+
+Each report is sent once to each picked conversation, after it is saved in the App. Under each report, the Always-on tab shows whether it was sent to each conversation. A failed send (for example, the account is signed out) is shown there. The report itself is kept.
+
 ## Status and Wake now
 
 The **Status** section of the Always-on tab shows:
@@ -65,7 +73,6 @@ The Agent improves through its memory. Set Memory to **Read and write** in the A
 
 ## Limits
 
-- Reports are delivered in the App only, not to Slack, Telegram or other channels.
 - Work runs on this computer, in the conversation's working folder and sandbox. The worker must be running for the Agent to wake.
 - There are no quiet hours; it wakes on its interval around the clock.
 - A duplicated Agent starts with always-on turned off.

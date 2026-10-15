@@ -2,10 +2,12 @@
 
 An always-on Agent keeps a standing goal, works on it as an ordinary chat
 Goal in one home conversation, does read-only check-ins while it has no
-unfinished Goal, and reports findings with ``always_on_report``.
+unfinished Goal, and reports findings with ``always_on_report``, in the
+App and to the channel conversations chosen for it.
 
 Design: docs/reference/design/runtime/always-on-agents.md
 """
+from .delivery import channel_targets
 from .runtime import (
     WakeRefused,
     agent_for_session,
@@ -17,6 +19,6 @@ from .runtime import (
 )
 
 __all__ = [
-    "WakeRefused", "agent_for_session", "home_session", "report",
+    "WakeRefused", "agent_for_session", "channel_targets", "home_session", "report",
     "reports", "status", "wake",
 ]

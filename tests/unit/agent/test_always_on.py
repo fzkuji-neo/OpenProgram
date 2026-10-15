@@ -5,7 +5,7 @@ import uuid
 
 import pytest
 
-from openprogram.agent.always_on import runtime, store, ticker
+from openprogram.agent.always_on import delivery, runtime, store, ticker
 from openprogram.agent.management import manager
 
 
@@ -62,7 +62,7 @@ def enable(agent_id, **config):
 def test_configuration_defaults_validation_and_duplicate(agent):
     spec = manager.get(agent)
     assert spec.always_on == {"enabled": False, "goal": "", "wake_minutes": 60,
-                              "research": True, "autonomy": "report"}
+                              "research": True, "autonomy": "report", "channels": []}
     assert manager.validate_always_on({"goal": "  watch CI  "}, partial=True) == {"goal": "watch CI"}
     for bad in ({"wake_minutes": 1}, {"wake_minutes": True}, {"autonomy": "always"},
                 {"enabled": "yes"}, {"goal": "x" * 4001}, {"unknown": 1}):
@@ -169,6 +169,113 @@ def test_reports_only_from_the_home_conversation(agent, world):
     assert runtime.reports(agent)[0]["id"] == row["id"]
     assert runtime.agent_for_session(sid) == agent
     assert runtime.agent_for_session("other") is None
+
+
+TELEGRAM = {"channel": "telegram", "account_id": "default", "peer_id": "42", "label": "Bob"}
+SLACK = {"channel": "slack", "account_id": "work", "peer_id": "C1_U1", "label": "#ops"}
+
+
+def test_channel_targets_are_validated_and_deduplicated():
+    out = manager.validate_always_on({"channels": [
+        {**TELEGRAM, "account_id": " default "}, TELEGRAM, {"channel": "slack", "account_id": "work", "peer_id": "C1_U1"},
+    ]}, partial=True)
+    assert out["channels"] == [TELEGRAM, {**SLACK, "label": ""}]
+    for bad in ([{"channel": "email", "account_id": "a", "peer_id": "b"}],
+                [{"channel": "telegram", "account_id": "a"}],
+                [{"channel": "telegram", "account_id": "", "peer_id": "b"}],
+                [{**TELEGRAM, "extra": 1}],
+                [{**TELEGRAM, "peer_id": str(index)} for index in range(11)],
+                "telegram"):
+        with pytest.raises(ValueError):
+            manager.validate_always_on({"channels": bad}, partial=True)
+
+
+def _capture_deliveries(monkeypatch):
+    threads = []
+    original = delivery.deliver
+
+    def deliver(*args, **kwargs):
+        thread = original(*args, **kwargs)
+        threads.append(thread)
+        return thread
+    monkeypatch.setattr(delivery, "deliver", deliver)
+    return threads
+
+
+def test_report_is_sent_to_picked_channels_and_failures_are_recorded(agent, world, monkeypatch):
+    from openprogram.channels import outbound
+    from openprogram.channels._transport import SendResult
+
+    enable(agent, channels=[TELEGRAM, SLACK])
+    sid = runtime.wake(agent)["session_id"]
+    sent = []
+
+    def send_full(channel, account_id, peer_id, text):
+        sent.append((channel, account_id, peer_id, text))
+        if channel == "slack":
+            raise RuntimeError("socket closed")
+        return SendResult.success("m1")
+    monkeypatch.setattr(outbound, "send_full", send_full)
+    threads = _capture_deliveries(monkeypatch)
+
+    row = runtime.report(sid, "CI is red", "main fails on test_x", ["https://ci.example/1"])
+    assert [item["status"] for item in row["deliveries"]] == ["sending", "sending"]
+    threads[0].join(5)
+    assert [item[:3] for item in sent] == [("telegram", "default", "42"), ("slack", "work", "C1_U1")]
+    assert sent[0][3] == "**Scout · CI is red**\n\nmain fails on test_x\n\n- https://ci.example/1"
+    saved = store.load_reports(agent)[0]["deliveries"]
+    assert saved[0] == {**TELEGRAM, "status": "sent"}
+    assert saved[1]["status"] == "failed" and saved[1]["error"] == "unknown"
+    assert "socket closed" in saved[1]["detail"]
+    assert world["calls"]["frames"][-1] == {"type": "always_on_update", "data": {"agent_id": agent}}
+
+
+def test_report_without_channels_stays_in_the_app(agent, world, monkeypatch):
+    from openprogram.channels import outbound
+
+    enable(agent)
+    sid = runtime.wake(agent)["session_id"]
+    monkeypatch.setattr(outbound, "send_full", lambda *args: pytest.fail("nothing to send"))
+    threads = _capture_deliveries(monkeypatch)
+    row = runtime.report(sid, "Quiet", "")
+    assert "deliveries" not in row and threads == [None]
+
+
+def test_channel_targets_come_from_conversations_and_peer_bindings(agent, monkeypatch):
+    from openprogram.agent import session_db
+    from openprogram.channels import bindings
+
+    rows = [
+        {"id": "s1", "channel": "telegram", "account_id": "default", "peer_id": "42", "peer_display": "Bob"},
+        {"id": "s2", "channel": "telegram", "account_id": "default", "peer_id": "42", "peer_display": "Bob"},
+        {"id": "s3", "source": "web"},
+        {"id": "s4", "channel": "email", "account_id": "x", "peer_id": "y"},
+    ]
+
+    class Db:
+        def list_sessions(self, *, agent_id, **_):
+            assert agent_id == agent
+            return rows
+    monkeypatch.setattr(session_db, "default_db", lambda: Db())
+    added = [
+        bindings.add(agent, {"channel": "slack", "account_id": "work", "peer": {"kind": "group", "id": "C1_U1"}}),
+        bindings.add(agent, {"channel": "telegram", "account_id": "default"}),
+    ]
+    try:
+        assert delivery.channel_targets(agent) == [
+            {"channel": "telegram", "account_id": "default", "peer_id": "42", "label": "Bob"},
+            {"channel": "slack", "account_id": "work", "peer_id": "C1_U1", "label": "C1_U1"},
+        ]
+    finally:
+        for row in added:
+            bindings.remove(row["id"])
+
+
+def test_update_report_merges_into_the_stored_row(agent):
+    row = store.add_report(agent, title="r", body="")
+    assert store.update_report(agent, row["id"], deliveries=[{"status": "sent"}])["deliveries"] == [{"status": "sent"}]
+    assert store.load_reports(agent)[0]["deliveries"] == [{"status": "sent"}]
+    assert store.update_report(agent, "missing", deliveries=[]) is None
 
 
 def test_reports_are_trimmed_newest_first(agent, monkeypatch):

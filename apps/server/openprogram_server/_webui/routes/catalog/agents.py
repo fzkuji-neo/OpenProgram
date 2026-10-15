@@ -309,7 +309,11 @@ def register(app: FastAPI) -> None:
             status = always_on.status(agent_id)
         except always_on.WakeRefused:
             return JSONResponse(content={"error": "agent not found"}, status_code=404)
-        return JSONResponse(content={**status, "reports": always_on.reports(agent_id)})
+        return JSONResponse(content={
+            **status,
+            "reports": always_on.reports(agent_id),
+            "channel_targets": always_on.channel_targets(agent_id),
+        })
 
     @app.post("/api/agents/{agent_id}/always-on/wake")
     def wake_always_on(agent_id: str):

@@ -89,7 +89,8 @@ def _clean_links(links: Any) -> list[str]:
 
 
 def add_report(agent_id: str, *, title: str, body: str, links: Any = None,
-               session_id: str | None = None) -> dict[str, Any]:
+               session_id: str | None = None,
+               deliveries: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     title = str(title or "").strip()
     if not title:
         raise ValueError("A report needs a title")
@@ -101,17 +102,34 @@ def add_report(agent_id: str, *, title: str, body: str, links: Any = None,
         "links": _clean_links(links),
         "session_id": session_id,
     }
+    if deliveries:
+        report["deliveries"] = deliveries
     with lock(agent_id):
-        path = directory(agent_id) / "reports.jsonl"
-        kept = list(reversed(load_reports(agent_id, MAX_REPORTS - 1)))
-        lines = [json.dumps(row, ensure_ascii=False) for row in [*kept, report]]
-        path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor, temporary = tempfile.mkstemp(prefix="reports.", dir=path.parent)
-        try:
-            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-                handle.write("\n".join(lines) + "\n")
-            os.replace(temporary, path)
-        finally:
-            if os.path.exists(temporary):
-                os.unlink(temporary)
+        _write_reports(agent_id, [*reversed(load_reports(agent_id, MAX_REPORTS - 1)), report])
     return report
+
+
+def update_report(agent_id: str, report_id: str, **changes: Any) -> dict[str, Any] | None:
+    """Merge ``changes`` into one stored report; None when it was trimmed away."""
+    with lock(agent_id):
+        rows = list(reversed(load_reports(agent_id, MAX_REPORTS)))
+        for row in rows:
+            if row.get("id") == report_id:
+                row.update(changes)
+                _write_reports(agent_id, rows)
+                return row
+    return None
+
+
+def _write_reports(agent_id: str, rows: list[dict[str, Any]]) -> None:
+    """Oldest first, one JSON object per line."""
+    path = directory(agent_id) / "reports.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix="reports.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows))
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)

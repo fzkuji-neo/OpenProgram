@@ -203,3 +203,4 @@ Telegram 图片走 photo、其余走 document；Discord 把文件连同 caption 
 
 - [设计笔记：channel 子系统](../reference/design/channels/design.zh.md)——架构与消息流
 - [界面总览](../interfaces/README.zh.md)——渠道对话同样出现在 Web UI / TUI
+- [常驻 Agent](../capabilities/always-on-agents.zh.md)——把常驻 Agent 的报告发到渠道会话
