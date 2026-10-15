@@ -295,7 +295,7 @@ test('browsing, a card can be picked up and dropped like a dragged tab', async (
   // window at that place in the strip.
   assert.match(view, /fit\(Math\.max\(1, cards\.length \+ \(gapAt < 0 \? 0 : 1\)\), area\.width/);
   assert.match(view, /const gapAt = mode && sourceIds\.length \? Math\.min\(slot \?\? home, cards\.length\) : -1;/);
-  assert.match(view, /data-overview-slot=""/);
+  assert.match(view, /data-overview-slot=""\n/, 'the gap wears no hover state');
   assert.match(view, /if \(drop\?\.action === "fill"\) commitCanvasDrop\(drop, ids\);/);
   const overview = await read('lib/tabs/canvas-overview.ts');
   assert.match(overview, /function laidOut\(el: HTMLElement/, 'the gap follows where cards are laid out, not where their spring has them');
@@ -305,6 +305,7 @@ test('browsing, a card can be picked up and dropped like a dragged tab', async (
   assert.match(drag, /if \(group && whole\) useCenterTabs\.getState\(\)\.moveGroup\(group\.id, drop\.before\);\n\s+else useCenterTabs\.getState\(\)\.moveTab\(sourceId, drop\.before\);/);
   const css = await read('components/center-tabs/canvas-overview.module.css');
   assert.doesNotMatch(css, /cardIn/, 'no CSS entrance: a mode switch would replay it');
+  assert.doesNotMatch(css, /\[data-overview-slot\]/, 'the gap never wears a frame, as in Mission Control');
   assert.match(css, /\.ghost \{[^}]*transition: opacity 120ms ease !important;/, 'the picked-up copy follows the pointer without easing');
   assert.match(css, /\.ghost\[data-over\] \{\n  opacity: 0\.55;/, 'over a card the full-size copy lets the merge half show');
   assert.match(view, /grab = \{ x: start\.x - r\.left, y: start\.y - r\.top \};/, 'the picked-up card keeps its size, as in Mission Control');
