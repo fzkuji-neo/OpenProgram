@@ -103,19 +103,22 @@ test("No element outside a control carries a native title", async () => {
   assert.deepEqual(found, []);
 });
 
-test("A reply keeps one block rhythm: text, cards, headings, strip and action row", () => {
+test("A reply keeps one block rhythm: a single gap between every block and every part", () => {
   const bubbles = read("app/styles/chat/bubbles.css");
-  // text ↔ text 12px, text ↔ card 15.5px, card ↔ card 19px — ≈19px of empty space each.
-  assert.match(bubbles, /\.message-content p \{ margin: 0 0 12px; \}/);
-  assert.match(bubbles, /\.message-content \.md-code \{[^}]*margin: 15\.5px 0;/);
-  assert.match(bubbles, /\.message-content table \{[^}]*margin: 15\.5px 0;/);
-  assert.match(bubbles, /\+ :is\(\.md-code, pre, table, blockquote, hr\) \{ margin-top: 19px; \}/);
-  assert.match(bubbles, /\.message-content h1, \.message-content h2, \.message-content h3 \{ margin: 22px 0 6px;/);
-  assert.match(read("app/styles/chat/execution-strip.css"), /\.tl \{[^}]*margin: 7px 0 1px;/);
-  const actions = read("app/styles/chat/message-actions.css");
-  assert.match(actions, /\.message\.assistant \.message-actions-footer \{[^}]*margin-top: 10px;/);
-  // A card has no leading under its border, so the action row takes it back.
-  assert.match(actions, /\.turn-error,[\s\S]*?\)\)\s*\)\) > \.message-actions-footer \{\s*margin-top: 13\.5px;/);
+  assert.match(bubbles, /\.message \{[^}]*--reply-gap: 12px;/);
+  // The markdown is one grid column; its blocks carry no margins of their own.
+  assert.match(bubbles, /\.message-content \.md-rendered \{[^}]*display: grid;[^}]*gap: var\(--reply-gap\);/);
+  assert.match(bubbles, /\.message-content \.md-rendered > \* \{ margin: 0; \}/);
+  // Headings alone: a gap more above, a third less below.
+  assert.match(bubbles, /> :is\(h1, h2, h3, h4, h5, h6\) \{\s*margin: var\(--reply-gap\) 0 calc\(var\(--reply-gap\) \/ -3\);/);
+  // No pairwise compensation is left anywhere.
+  for (const f of ["bubbles.css", "message-actions.css", "execution-strip.css", "stream-blocks.css"]) {
+    assert.doesNotMatch(read(`app/styles/chat/${f}`), /:has\(> \.md-rendered/);
+  }
+  assert.match(read("app/styles/chat/stream-blocks.css"), /\.chat-stream-body \{[^}]*gap: var\(--reply-gap, 12px\);/);
+  assert.match(read("app/styles/chat/execution-strip.css"), /\.tl \{[^}]*margin: 0;/);
+  assert.match(read("app/styles/chat/message-actions.css"),
+    /\.message\.assistant \.message-actions-footer \{[^}]*margin-top: var\(--reply-gap, 12px\);/);
 });
 
 test("Tables follow Obsidian's reading view: hairline grid, unfilled bold header", () => {
