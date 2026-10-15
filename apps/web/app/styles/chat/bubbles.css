@@ -82,6 +82,20 @@
   color: var(--text-bright);
 }
 
+/* A channel message (WeChat, Telegram…) names its platform and sender
+   on a quiet line above the bubble, since a group puts several people
+   in one conversation. */
+.message.user .user-channel-speaker {
+  margin: 0 calc(var(--avatar-gutter) + 4px) 4px 0;
+  max-width: 75%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-secondary);
+}
+
 .message.assistant {
   background: transparent;          /* no bubble — assistant text flows on the left */
 }

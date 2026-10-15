@@ -104,8 +104,8 @@
 <div class="wrap">
 
   <h1>发言人身份：记忆里谁说的</h1>
-  <p class="sub">一个agent可以被好几个人共用，共用同一份记忆工作区。当前渠道入口同时保留正文前缀，
-    并把可信的<code>speaker_id</code>/<code>speaker_display</code>作为独立字段写入消息节点。这页分三层：<b style="color:#e8a0aa">改之前是什么样</b>、
+  <p class="sub">一个agent可以被好几个人共用，共用同一份记忆工作区。当前渠道入口原样保留消息正文，
+    把可信的<code>speaker_id</code>/<code>speaker_display</code>作为独立字段传递：当前轮次的agent从输入信封读取，消息节点持久化保存。这页分三层：<b style="color:#e8a0aa">改之前是什么样</b>、
     <b style="color:#8fd2e0">references里八个框架各自怎么做</b>、<b style="color:#a3d69a">我们怎么做的</b>。
     第06到08节保留安全审查前的正文-only中间方案及其取舍记录；第09到12节说明替代它的双表示、
     source framing和按发言人过滤实现。
@@ -261,7 +261,7 @@
   <h2 id="chain"><span class="num">02</span>身份原本走到哪里断了</h2>
   <p class="lead">一条群消息进来，经过八站到达主题文件。改之前：显示名到达第七站，稳定id在第二站后不再传递，
     两个都没有进入第七站的<code>SourceRecord</code>。下面的图只记录改造前基线；当前实现把两个可信字段
-    传到第七站，同时保留正文前缀，最终链路见第11节。</p>
+    传到第七站，正文不做改动，最终链路见第11节。</p>
 
   <div class="card scroll">
   <svg viewBox="0 0 1160 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="身份字段在八站链路上的存活情况">
@@ -642,13 +642,13 @@
     </div>
     <p class="lsub">第06到08节记录安全审查前的正文-only中间方案：它采用hermes的正文形式和
       openclaw的<code>名字 (id)</code>标签，一度计划只修改两个文件。该方案不能提供可信过滤键，
-      也不能阻止正文标签建立错误身份，现已被第09到12节的双表示方案替代。最终实现保留正文前缀，
-      同时传递结构化speaker字段，并在source archive使用可信frame。</p>
+      也不能阻止正文标签建立错误身份，现已被第09到12节的双表示方案替代。最终实现保持正文原样，
+      单独传递结构化speaker字段，并在source archive使用可信frame。</p>
 
   <h2 id="plan"><span class="num">06</span>历史中间方案：一处前缀</h2>
   <p class="lead">本节描述已被替代的中间方案。它只在<code>base.py:_dispatch_and_reply</code>增加正文前缀；该位置同时持有
     <code>ch_msg.user_id</code>和<code>ch_msg.user_display</code>，而且是<code>dispatch_inbound</code>
-    的<b>唯一</b>调用点。最终实现仍在这里生成兼容前缀，但还会把两个值独立传给dispatcher。</p>
+    的<b>唯一</b>调用点。最终实现在同一位置读取这两个值并独立传给dispatcher，不往正文里加任何东西。</p>
 
   <div class="card scroll">
   <svg viewBox="0 0 1160 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="历史中间方案：只写一处正文前缀">
@@ -722,7 +722,7 @@
   <div class="legend">
     <b>为什么该方案被替代</b>：正文前缀可以让当前轮次的agent看到名字，但<code>_records()</code>若只读
     <code>role</code>就没有可信检索键；若从<code>content</code>反解析身份，发信人又能伪造该键。
-    最终实现保留前缀，同时让<code>_records()</code>只读取持久化的结构化speaker字段。
+    最终实现去掉了前缀：当前轮次的agent从JSON输入信封读取发信人，<code>_records()</code>只读取持久化的结构化speaker字段。
   </div>
 
   <h2 id="surface"><span class="num">07</span>历史中间方案的改动面</h2>
@@ -803,8 +803,8 @@
   </svg>
   </div>
   <div class="note">
-    <b>当前改动边界</b>：网页、命令行和TUI不经过<code>channels/base.py</code>，因此没有渠道前缀，
-    也不会合成speaker身份。渠道消息同时携带正文前缀和结构化字段；dispatcher、
+    <b>当前改动边界</b>：网页、命令行和TUI不经过<code>channels/base.py</code>，因此没有发信人，
+    也不会合成speaker身份。渠道消息在未改动的正文旁携带结构化字段；dispatcher、
     <code>SourceRecord</code>、writer/archive、BM25/inspect与<code>memory_search</code>都按第11节的
     最终契约处理。正文-only的两文件估算只作为历史设计记录保留。
   </div>
@@ -815,7 +815,7 @@
   <div class="dec" style="border-left-color:#2db3d5">
     <p class="q">A.身份放正文，还是放结构化字段</p>
     <p class="a">最终选择双表示，分别满足当前轮次可见性和记忆信任边界。</p>
-    <div class="opt copy"><span class="tag">保留</span><span class="txt"><b>正文前缀</b>。hermes是<code>f"[{user_name}] {text}"</code>（<code>run.py:7759-7765</code>），openclaw是<code>`${sender}: ${body}`</code>（<code>envelope.ts:214-219</code>）。当前轮次的agent只读<code>content</code>，因此兼容前缀继续存在。</span></div>
+    <div class="opt copy"><span class="tag">替换</span><span class="txt"><b>正文前缀</b>。hermes是<code>f"[{user_name}] {text}"</code>（<code>run.py:7759-7765</code>），openclaw是<code>`${sender}: ${body}`</code>（<code>envelope.ts:214-219</code>）。这里当前轮次的agent读取带<code>speaker_kind</code>、<code>speaker_id</code>、<code>speaker_display</code>和<code>content</code>的JSON输入信封（<code>authority.render_model_input</code>），所以正文不需要标签，网页记录显示的就是发信人打的字。</span></div>
     <div class="opt pick"><span class="tag">新增</span><span class="txt"><b>结构化字段独立传输</b>。<code>speaker_id</code>/<code>speaker_display</code>只来自渠道消息，writer和检索不从可伪造正文反解析新身份。</span></div>
   </div>
 

@@ -12,6 +12,7 @@ import {
   toggleChannelTarget, wakeAlwaysOn, wakeMinutesValid, WAKE_MINUTES_MAX, WAKE_MINUTES_MIN,
   type AlwaysOnChannelTarget, type AlwaysOnConfig, type AlwaysOnDelivery, type AlwaysOnStatus, type AlwaysOnWakeOutcome,
 } from "@/lib/agents/always-on";
+import { channelName } from "@/lib/chat/channel-speaker";
 import { AgentButton } from "./agent-controls";
 import type { Agent, Text } from "./agent-types";
 import styles from "./agents-page.module.css";
@@ -42,12 +43,6 @@ function goalStatusLabel(status: string, text: Text): string {
     impossible: text("Impossible", "无法完成"),
   };
   return labels[status] ?? status;
-}
-
-const CHANNEL_NAMES: Record<string, string> = { telegram: "Telegram", slack: "Slack", discord: "Discord", wechat: "WeChat" };
-
-function channelName(channel: string, text: Text): string {
-  return channel === "wechat" ? text("WeChat", "微信") : CHANNEL_NAMES[channel] ?? channel;
 }
 
 function targetLabel(target: AlwaysOnChannelTarget, text: Text): string {

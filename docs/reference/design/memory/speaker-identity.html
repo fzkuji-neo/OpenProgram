@@ -104,7 +104,7 @@
 <div class="wrap">
 
   <h1>Speaker identity: who said it in memory</h1>
-  <p class="sub">Several people can share one agent and one memory workspace. Channel entries currently retain a body prefix and also persist trusted<code>speaker_id</code>/<code>speaker_display</code> as independent fields on message nodes. This page has three layers:<b style="color:#e8a0aa">Before the change</b>,
+  <p class="sub">Several people can share one agent and one memory workspace. Channel entries keep the message body exactly as sent and carry trusted<code>speaker_id</code>/<code>speaker_display</code> as independent fields, which the live agent reads from its input envelope and message nodes persist. This page has three layers:<b style="color:#e8a0aa">Before the change</b>,
     <b style="color:#8fd2e0">How eight frameworks in references handle it</b>, <b style="color:#a3d69a">Our implementation</b>. Sections 06–08 retain the superseded body-only intermediate design and its tradeoffs before security review. Sections 09–12 describe the replacing dual representation, source framing, and speaker filtering. The prose specification is in<code>docs/reference/design/memory/overview.md</code>; the overall mechanism is in<code>architecture.html</code>.</p>
 
   <div class="toc">
@@ -246,7 +246,7 @@
   </div>
 
   <h2 id="chain"><span class="num">02</span>Where identity propagation originally stopped</h2>
-  <p class="lead">A group message passes through eight stages before reaching a topic file. Before the change, display names reached stage seven; stable IDs stopped after stage two. Neither entered stage seven’s<code>SourceRecord</code>. This diagram records only the pre-change baseline. The current implementation carries both trusted fields to stage seven while retaining the body prefix; section 11 shows the final path.</p>
+  <p class="lead">A group message passes through eight stages before reaching a topic file. Before the change, display names reached stage seven; stable IDs stopped after stage two. Neither entered stage seven’s<code>SourceRecord</code>. This diagram records only the pre-change baseline. The current implementation carries both trusted fields to stage seven and leaves the body untouched; section 11 shows the final path.</p>
 
   <div class="card scroll">
   <svg viewBox="0 0 1160 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Identity-field survival across eight stages">
@@ -613,10 +613,10 @@
       <span class="lchip">Layer three</span>
       <span class="ltitle">Our implementation</span>
     </div>
-    <p class="lsub">Sections 06–08 record the pre-security-review body-only intermediate design. It used hermes’s body form and openclaw’s<code>Name (id)</code> labels and initially planned to modify only two files. It could neither provide trusted filter keys nor prevent body labels from creating false identities, so sections 09–12 replace it with dual representation. The final implementation retains body prefixes, independently carries structured speaker fields, and uses trusted frames in source archives.</p>
+    <p class="lsub">Sections 06–08 record the pre-security-review body-only intermediate design. It used hermes’s body form and openclaw’s<code>Name (id)</code> labels and initially planned to modify only two files. It could neither provide trusted filter keys nor prevent body labels from creating false identities, so sections 09–12 replace it with dual representation. The final implementation leaves the body as sent, carries structured speaker fields on their own, and uses trusted frames in source archives.</p>
 
   <h2 id="plan"><span class="num">06</span>Historical intermediate design: one prefix</h2>
-  <p class="lead">This section describes the superseded intermediate design. It added a body prefix only in<code>base.py:_dispatch_and_reply</code>, where both <code>ch_msg.user_id</code> and<code>ch_msg.user_display</code> were available and which was the<code>dispatch_inbound</code> ’s<b>only</b>call site. The final implementation still generates the compatibility prefix here, but also passes both values independently to the dispatcher.</p>
+  <p class="lead">This section describes the superseded intermediate design. It added a body prefix only in<code>base.py:_dispatch_and_reply</code>, where both <code>ch_msg.user_id</code> and<code>ch_msg.user_display</code> were available and which was the<code>dispatch_inbound</code> ’s<b>only</b>call site. The final implementation reads both values at the same place and passes them independently to the dispatcher; it adds nothing to the body.</p>
 
   <div class="card scroll">
   <svg viewBox="0 0 1160 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Historical intermediate design: one body prefix">
@@ -688,7 +688,7 @@
   </svg>
   </div>
   <div class="legend">
-    <b>Why this design was replaced</b>: body prefixes show names to the current-turn agent, but if<code>_records()</code> reads only <code>role</code>, there is no trusted retrieval key. Parsing identity back from<code>content</code> lets senders forge that key. The final implementation retains prefixes while making<code>_records()</code> read only persisted structured speaker fields. </div>
+    <b>Why this design was replaced</b>: body prefixes show names to the current-turn agent, but if<code>_records()</code> reads only <code>role</code>, there is no trusted retrieval key. Parsing identity back from<code>content</code> lets senders forge that key. The final implementation drops the prefix: the current-turn agent reads the sender from the JSON input envelope, and<code>_records()</code> reads only persisted structured speaker fields. </div>
 
   <h2 id="surface"><span class="num">07</span>Historical intermediate change scope</h2>
   <p class="lead">This section retains the original scope comparison between structured fields and body-only transport. The two-file approach on the right was later replaced because its trust boundary was insufficient. Current implementation uses structured transport on the left, plus source framing and retrieval interfaces.</p>
@@ -767,7 +767,7 @@
   </svg>
   </div>
   <div class="note">
-    <b>Current change boundary</b>: Web, CLI, and TUI do not pass through<code>channels/base.py</code>, so they have no channel prefix and do not synthesize speaker identity. Channel messages carry both body prefixes and structured fields. Dispatcher, <code>SourceRecord</code>, writer/archive, BM25/inspect, and<code>memory_search</code> all follow section 11’s final contract. The body-only two-file estimate remains historical design evidence only. </div>
+    <b>Current change boundary</b>: Web, CLI, and TUI do not pass through<code>channels/base.py</code>, so they carry no speaker and do not synthesize speaker identity. Channel messages carry structured fields beside an unmodified body. Dispatcher, <code>SourceRecord</code>, writer/archive, BM25/inspect, and<code>memory_search</code> all follow section 11’s final contract. The body-only two-file estimate remains historical design evidence only. </div>
 
   <h2 id="decide"><span class="num">08</span>Tradeoffs and final correction</h2>
   <p class="lead">This section retains six decisions from the reference audit. A changed to dual representation after security review; the others still apply.</p>
@@ -775,7 +775,7 @@
   <div class="dec" style="border-left-color:#2db3d5">
     <p class="q">A. Identity in content or structured fields?</p>
     <p class="a">Final choice: dual representation for current-turn visibility and the memory trust boundary respectively.</p>
-    <div class="opt copy"><span class="tag">Retain</span><span class="txt"><b>body prefix</b>. hermes uses<code>f"[{user_name}] {text}"</code> (<code>run.py:7759-7765</code>); openclaw uses<code>`${sender}: ${body}`</code> (<code>envelope.ts:214-219</code>). The current-turn agent reads only<code>content</code>, so the compatibility prefix remains.</span></div>
+    <div class="opt copy"><span class="tag">Replace</span><span class="txt"><b>body prefix</b>. hermes uses<code>f"[{user_name}] {text}"</code> (<code>run.py:7759-7765</code>); openclaw uses<code>`${sender}: ${body}`</code> (<code>envelope.ts:214-219</code>). The current-turn agent here reads a JSON envelope with<code>speaker_kind</code>,<code>speaker_id</code>,<code>speaker_display</code> and<code>content</code> (<code>authority.render_model_input</code>), so the body needs no label and the web transcript shows what the sender typed.</span></div>
     <div class="opt pick"><span class="tag">Add</span><span class="txt"><b>independently transported structured fields</b>.<code>speaker_id</code>/<code>speaker_display</code> derived only from channel messages. Writers and retrieval never infer new identity from forgeable content.</span></div>
   </div>
 

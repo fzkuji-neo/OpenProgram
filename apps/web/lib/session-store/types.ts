@@ -178,6 +178,8 @@ export interface ChatMsg {
    *  can distinguish "real user typed" vs internal synthetic turns
    *  (job_followup, merge_turn, agent_spawn). */
   source?: string;
+  /** The person who sent a channel message (a group holds several). */
+  speaker?: { id?: string; display?: string };
   /** User message injected into an already-running agent turn. */
   steering?: boolean;
   /** Rendered at an ordered boundary inside this reply, not twice. */

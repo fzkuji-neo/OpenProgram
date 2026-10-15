@@ -53,26 +53,6 @@ def _one_line(value: str) -> str:
     return normalize_identity_header_part(value)
 
 
-def speaker_prefix(user_id: str, user_display: str) -> str:
-    """入站正文的发言人前缀 ``"[显示名 (id)] "``, 无身份可用时是空串.
-
-    一个群 (或 ``session_scope: main`` 的 agent) 把好几个人放进同一条
-    会话, 而消息本身只有 ``role: user``. 这个正文前缀只保留给模型可见
-    的兼容表示；可信 ``speaker_id`` / ``speaker_display`` 独立传递并持久
-    化，记忆写入禁止从正文前缀反推身份.
-
-    显示名读得出是谁, 但会改也会重名; id 不变但读不出是谁, 所以两个
-    都带上.
-    """
-    name = _one_line(user_display)
-    uid = _one_line(user_id)
-    if name and uid and name != uid:
-        label = f"{name} ({uid})"
-    else:
-        label = name or uid
-    return f"[{label}] " if label else ""
-
-
 @dataclass(frozen=True)
 class MessageHandle:
     """指向一条已发出去的消息 — 后续可以拿来 edit.
@@ -261,9 +241,8 @@ class Channel(abc.ABC):
         if ch_msg.quoted_text:
             user_text = _quoted_block(ch_msg.quoted_text) + "\n\n" + user_text
 
-        # 正文前缀是模型可见兼容副本；可信身份只走独立 speaker 字段，
-        # 下游不得从正文反推。
-        user_text = speaker_prefix(stable_sender_id, safe_display) + user_text
+        # 正文保持发信人原文；发言人只走独立 speaker 字段, 模型从
+        # 输入信封 (authority.render_model_input) 读, 网页从消息元数据读.
 
         from openprogram.channels._conversation import dispatch_inbound
         reply_text = dispatch_inbound(
