@@ -133,6 +133,21 @@ def test_disabling_the_last_used_model_forgets_it():
     assert "forget_last_used_model()" in body
 
 
+def test_newest_conversation_model_reads_each_pin(monkeypatch):
+    # Listing rows carry no model; the pin is read per conversation.
+    rows = [{"id": "a", "title": "no pin"}, {"id": "b"}, {"id": "c"}]
+    monkeypatch.setattr(
+        "openprogram.agent.session_db.default_db",
+        lambda: SimpleNamespace(list_sessions=lambda **_kw: rows),
+    )
+    pins = {"b": ("openai-codex", "openai-codex:gpt-x"), "c": ("deepseek", "flash")}
+    monkeypatch.setattr(
+        "openprogram.agent.session_model.read_session_chat_model",
+        lambda sid: pins.get(sid, (None, None)),
+    )
+    assert last_used._newest_session_model() == ("openai-codex", "gpt-x")
+
+
 def test_existing_install_adopts_newest_conversation_model(cfg_path, monkeypatch):
     released = []
     _write_cfg(cfg_path, default_provider="deepseek", default_model="deepseek-flash")
