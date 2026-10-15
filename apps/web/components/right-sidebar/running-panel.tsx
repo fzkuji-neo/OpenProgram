@@ -6,7 +6,9 @@ import { useExecutionDebugger } from "@/lib/execution/use-execution-debugger";
 import { useManagedProcesses } from "@/lib/execution/use-managed-processes";
 import { processIsActive, stopProcess, type ManagedProcess } from "@/lib/net/process-client";
 import type { ExecutionSnapshot } from "@/lib/execution/execution-debugger";
-import { ChevronRight, Bot, Terminal } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { SolarIcon, type SolarIconName } from "@/components/solar-icons";
+import { presentTool, type ToolTone } from "@/components/chat/messages/tool-presentation";
 import { SectionHeader } from "@/components/sidebar/section-header";
 import { Button } from "@/components/ui/button";
 import { DebuggerPanel } from "./debugger-panel";
@@ -14,6 +16,44 @@ import { SidebarNotice } from "./sidebar-notice";
 import { executionTitle, executionRequest, executionNeedsAttention, executionStatusLabel, shortTime, updatedTime } from "./debugger-presentation";
 import { activityBranches, type ActivityBranch } from "@/lib/execution/activity-branches";
 import styles from "./running-panel.module.css";
+
+/** Status colour of a row: attention, live, done, failed or ended quietly. */
+type Tone = "warn" | "run" | "ok" | "err" | "muted";
+
+const DOT: Record<Tone, string> = {
+  warn: "--warn", run: "--neutral pulse-opacity", ok: "--ok", err: "--err", muted: "is-muted",
+};
+
+function executionTone(item: ExecutionSnapshot, attention: boolean): Tone {
+  if (attention) return "warn";
+  if (["queued", "running", "pausing", "cancelling"].includes(item.status)) return "run";
+  if (item.status === "completed") return "ok";
+  if (["failed", "interrupted"].includes(item.status)) return "err";
+  return "muted";
+}
+
+function processTone(item: ManagedProcess): Tone {
+  if (["unknown", "lost"].includes(item.status)) return "warn";
+  if (["starting", "running", "stopping"].includes(item.status)) return "run";
+  if (["completed", "exited"].includes(item.status)) return "ok";
+  if (item.status === "failed") return "err";
+  return "muted";
+}
+
+/** The row's glyph: a bare Solar icon in its kind's colour, no tile. */
+function Glyph({ name, tone }: { name: SolarIconName; tone: ToolTone }) {
+  return <span className={styles.glyph} data-tone={tone} aria-hidden="true">
+    <SolarIcon name={name} size={16} motionPreset="none" />
+  </span>;
+}
+
+/** Status line: the shared indicator dot, then the words. */
+function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
+  return <span className={styles.status} data-tone={tone}>
+    <span className={`indicator-dot sm ${DOT[tone]}`} aria-hidden="true" />
+    <span className={styles.statusText}>{children}</span>
+  </span>;
+}
 
 
 /** One conversation-owned list; inspecting a row reuses the existing controls. */
@@ -25,6 +65,12 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   useEffect(() => { setSelection(null); }, [sessionId]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [openCalls, setOpenCalls] = useState<Set<string>>(new Set());
+  const toggleCall = (id: string) => setOpenCalls(previous => {
+    const next = new Set(previous);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   const toggle = (id: string) => setExpanded(previous => {
     const next = new Set(previous);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -84,9 +130,9 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
   }
   function programRow(item: ManagedProcess): ReactNode {
     return <Button variant="ghost" key={`process:${item.id}`} className={styles.row} onClick={() => { setSelection(item.id); setStopError(null); }}>
-      <Terminal size={16} className={styles.symbol} aria-hidden="true" />
+      <Glyph name="code-square" tone="shell" />
       <span className={styles.rowText}><span className={styles.name}>{programName(item)}</span>
-        <span className={styles.meta}>{processStatus(item)}</span>
+        <Status tone={processTone(item)}>{processStatus(item)}</Status>
       </span>
     </Button>;
   }
@@ -101,16 +147,16 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     return <div className={styles.branch} key={item.execution_id}>
       <div className={styles.agentRow}>
         <Button variant="ghost" className={styles.row} onClick={() => { state.selectExecution(item.execution_id); setSelection("agent"); }}>
-          <Bot size={16} className={styles.symbol} aria-hidden="true" />
+          <Glyph name="bot" tone="agent" />
           <span className={styles.rowText}>
-            <span className={styles.rowHeading}><span className={styles.name}>{title}</span>
-              {item.started_at != null && <time className={styles.started} dateTime={new Date(item.started_at * 1000).toISOString()} data-tip={updatedTime(item.started_at)} aria-label={updatedTime(item.started_at)}>{shortTime(item.started_at * 1000)}</time>}</span>
-            <span className={styles.meta}>{executionStatusLabel(item, text)}{descendants.length ? ` · ${descendants.length} ${text("branches", "分支")}` : ""}{owned.length ? ` · ${owned.length} ${text("programs", "程序")}${owned.some(processIsActive) ? ` (${owned.filter(processIsActive).length} ${text("active", "活动中")})` : ""}` : ""}{!executionNeedsAttention(item) && needsAttention(item) ? ` · ${text("Child needs attention", "子项需要处理")}` : ""}</span>
+            <span className={styles.name}>{title}</span>
+            <Status tone={executionTone(item, executionNeedsAttention(item))}>{executionStatusLabel(item, text)}{descendants.length ? ` · ${descendants.length} ${text("branches", "分支")}` : ""}{owned.length ? ` · ${owned.length} ${text("programs", "程序")}${owned.some(processIsActive) ? ` (${owned.filter(processIsActive).length} ${text("active", "活动中")})` : ""}` : ""}{!executionNeedsAttention(item) && needsAttention(item) ? ` · ${text("Child needs attention", "子项需要处理")}` : ""}</Status>
           </span>
+          {item.started_at != null && <time className={styles.started} dateTime={new Date(item.started_at * 1000).toISOString()} data-tip={updatedTime(item.started_at)} aria-label={updatedTime(item.started_at)}>{shortTime(item.started_at * 1000)}</time>}
         </Button>
         {expandable && <Button variant="ghost" size="icon" className={styles.expand} aria-expanded={open}
           aria-label={`${open ? text("Collapse", "折叠") : text("Expand", "展开")} ${title}`} onClick={() => toggle(item.execution_id)}>
-          <ChevronRight size={16} style={{ transform: open ? "rotate(90deg)" : undefined }} />
+          <ChevronRight size={14} className={styles.chevron} data-open={open ? "1" : "0"} />
         </Button>}
       </div>
       {expandable && open && <div className={ancestors.size < 4 ? styles.children : undefined}>
@@ -134,14 +180,17 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
     [...branch.executions].reverse().find(item => branch.execution_ids.includes(item.execution_id)) || branch.executions[0], 1, text);
   function branchRow(branch: ActivityBranch): ReactNode {
     const item = branchRepresentative(branch);
+    const attention = branchAttention(branch), live = branchActive(branch);
+    const tone: Tone = attention ? "warn" : live ? "run" : executionTone(item, false);
     return <Button variant="ghost" className={styles.row} key={branch.branch_id} onClick={() => {
       state.selectExecution(item.execution_id); setSelection(`branch:${branch.branch_id}`);
     }}>
-      <Bot size={16} className={styles.symbol} aria-hidden="true" />
+      <Glyph name="bot" tone="agent" />
       <span className={styles.rowText}><span className={styles.name}>{branchTitle(branch)}</span>
-        <span className={styles.meta}>{branchAttention(branch) ? text("Needs attention", "需要处理")
-          : branchActive(branch) ? text("Running", "正在运行") : executionStatusLabel(item, text)}</span>
+        <Status tone={tone}>{attention ? text("Needs attention", "需要处理")
+          : live ? text("Running", "正在运行") : executionStatusLabel(item, text)}</Status>
       </span>
+      <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
     </Button>;
   }
   if (!sessionId) return <SidebarNotice>{text("Select or start a conversation to view its Agents and programs.", "选择或开始一个会话，查看其中的 Agent 和程序。")}</SidebarNotice>;
@@ -174,7 +223,7 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {!item ? <SidebarNotice>{processes.stale ? text("Program details unavailable.", "暂时无法读取程序详情。") : text("Loading program…", "正在读取程序…")}</SidebarNotice> : <div className={styles.scroll}>
         <h3 className={styles.title}>{programName(item)}</h3><p className={styles.meta}>{processStatus(item)}</p>{item.status === "unknown" && <p className={styles.notice}>{text("The process supervisor is unavailable. This program is not confirmed to have exited; its record is retained.", "程序监督进程不可用，尚不能确认程序已退出，记录仍然保留。")}</p>}
         {item.execution_id && ids.has(item.execution_id) && <Button variant="ghost" className={styles.row} onClick={() => { state.selectExecution(item.execution_id!); setSelection("agent"); }}>
-          <Bot size={16} aria-hidden="true" /><span className={styles.rowText}><span className={styles.meta}>{text("Started by", "所属 Agent")}</span><span className={styles.name}>{executionTitle(state.executions.find(e => e.execution_id === item.execution_id)!, 1, text)}</span></span>
+          <Glyph name="bot" tone="agent" /><span className={styles.rowText}><span className={styles.meta}>{text("Started by", "所属 Agent")}</span><span className={styles.name}>{executionTitle(state.executions.find(e => e.execution_id === item.execution_id)!, 1, text)}</span></span>
         </Button>}
         <h4 className={styles.outputHeading}>{text("Command", "命令")}</h4>
         <pre className={styles.output}>{item.command}</pre>
@@ -219,12 +268,24 @@ export function RunningPanel({ active, sessionId }: { active: boolean; sessionId
       {!hasRead && !processes.stale && state.connection.state === "reconnecting" ? <SidebarNotice>{text("Loading…", "加载中…")}</SidebarNotice> : null}
       {liveCalls.length > 0 && <div className="group/sec">
         <SectionHeader name={text("Functions", "函数调用")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
-        {liveCalls.map(call => <details className={styles.liveCall} key={call.id}>
-          <summary><span className={styles.name}>{call.name}</span><span className={styles.meta}>{call.status === "running" ? text("Running", "正在运行") : text("Status needs confirmation", "状态待确认")}</span></summary>
-          {call.description && <p className={styles.meta}>{call.description}</p>}
-          <time className={styles.meta} dateTime={new Date(call.started_at * 1000).toISOString()}>{text("Started", "开始时间")} {updatedTime(call.started_at)}</time>
-          {call.command && <pre className={styles.output}>{call.command}</pre>}
-        </details>)}
+        {liveCalls.map(call => {
+          const view = presentTool(call.name, undefined, text);
+          const open = openCalls.has(call.id);
+          return <div className={styles.liveCall} key={call.id}>
+            <Button variant="ghost" className={styles.row} aria-expanded={open} onClick={() => toggleCall(call.id)}>
+              <Glyph name={view.icon} tone={view.tone} />
+              <span className={styles.rowText}><span className={styles.name}>{call.name}</span>
+                <Status tone={call.status === "running" ? "run" : "warn"}>{call.status === "running" ? text("Running", "正在运行") : text("Status needs confirmation", "状态待确认")}</Status>
+              </span>
+              <ChevronRight size={14} className={styles.chevron} data-open={open ? "1" : "0"} aria-hidden="true" />
+            </Button>
+            <div className={styles.callBody} hidden={!open}>
+              {call.description && <p className={styles.callText}>{call.description}</p>}
+              {call.command && <pre className={styles.callCommand}>{call.command}</pre>}
+              <time className={styles.meta} dateTime={new Date(call.started_at * 1000).toISOString()}>{text("Started", "开始时间")} {updatedTime(call.started_at)}</time>
+            </div>
+          </div>;
+        })}
       </div>}
       {liveProcesses.length > 0 && <div className="group/sec">
         <SectionHeader name={text("Running programs", "运行中的程序")} className={styles.sectionHeader} collapsible={false} collapsed={false} onToggle={() => {}} />
