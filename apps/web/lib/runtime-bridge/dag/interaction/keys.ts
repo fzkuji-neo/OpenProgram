@@ -3,8 +3,8 @@
  * Esc and ⌘Z. Active only while the graph is on screen and the keyboard
  * is not in a text field — typing "v" in the composer is a "v".
  *
- *   H / V / M / L    switch tool (hand, pointer, marquee, lasso — any
- *                    registered tool's ``key``)
+ *   H / V / L        switch tool (hand, select, lasso — any registered
+ *                    tool's ``key``)
  *   Delete / ⌫       delete the selection
  *   Esc              clear the selection
  *   ⌘Z / Ctrl+Z      undo the last delete in this session

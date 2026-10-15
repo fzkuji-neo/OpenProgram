@@ -1,23 +1,30 @@
 /* DAG 画布工具：左侧工具竖条、右上选择操作条、选中虚线框、框选/套索橡皮筋。
    对应来源：components/chat/dag-tools.tsx、lib/runtime-bridge/dag/interaction/selection.ts */
 
-/* The tool rail — a raised vertical pill on the canvas's left edge,
-   centred on the strip above the composer (the composer floats over
-   the bottom ~150px of the pane, canvas.ts COMPOSER_STRIP). Same raised
-   surface as the HUD chips (Button variant "elevated"). */
-.dag-tool-rail {
+/* The rail and the action bar share one surface: the input box's
+   fill, a hairline edge and the lightest contact shadow — quiet chrome
+   floating over the canvas, not raised buttons. */
+.dag-tool-rail,
+.dag-select-bar {
   position: absolute;
+  z-index: 3;
+  display: flex;
+  padding: 3px;
+  gap: 2px;
+  border: 0.5px solid var(--border-popover, var(--border-light));
+  border-radius: 10px;
+  background: var(--bg-input);
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 8%, transparent);
+}
+
+/* The tool rail — a vertical strip on the canvas's left edge, centred
+   on the strip above the composer (the composer floats over the bottom
+   ~150px of the pane, canvas.ts COMPOSER_STRIP). */
+.dag-tool-rail {
   left: 12px;
   top: calc((100% - 150px) / 2);
   transform: translateY(-50%);
-  z-index: 3;
-  display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px;
-  border-radius: 10px;
-  background: var(--bg-input);
-  box-shadow: var(--composer-shadow);
 }
 .dag-tool-btn {
   display: flex;
@@ -38,38 +45,41 @@
   color: var(--text-bright);
 }
 .dag-tool-btn[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--accent-primary, #4a7dfc) 16%, transparent);
-  color: var(--accent-primary, #4a7dfc);
+  background: var(--muted);
+  color: var(--foreground);
 }
 
-/* The selection action bar — top right, just left of the pane's
-   perspective controls (28px buttons at top 8 / right 12,
-   chat/center-pane.css .chat-view-controls). */
-.dag-select-bar.dag-select-bar {
-  position: absolute;
+/* The selection action bar — top left, on the rail's left edge. The
+   top right is the pane's perspective controls
+   (chat/center-pane.css .chat-view-controls). */
+.dag-select-bar {
   top: 8px;
-  right: 48px;
-  z-index: 3;
-  height: 28px;
-  gap: 2px;
-  padding: 0 3px 0 10px;
+  left: 12px;
+  align-items: center;
   font-size: 12px;
-  cursor: default;
+  color: var(--text-secondary);
 }
 .dag-select-count {
-  padding-right: 4px;
-  color: var(--text-secondary);
+  padding: 0 6px 0 7px;
+  color: var(--foreground);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+.dag-select-sep {
+  width: 0.5px;
+  height: 16px;
+  margin: 0 2px;
+  background: var(--border-popover, var(--border-light));
 }
 .dag-select-act {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 8px;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
   border: none;
-  border-radius: 999px;
+  border-radius: 7px;
   background: transparent;
   font: inherit;
   color: inherit;
@@ -78,19 +88,19 @@
 }
 .dag-select-act:hover:not(:disabled) {
   color: var(--foreground);
-  background: var(--muted);
+  background: var(--bg-hover);
 }
 .dag-select-act:disabled { opacity: 0.5; cursor: default; }
-.dag-select-act.dag-select-icon { width: 22px; padding: 0; justify-content: center; }
+.dag-select-act.dag-select-icon { width: 26px; padding: 0; justify-content: center; }
+.dag-select-danger { color: var(--destructive); }
 .dag-select-danger:hover:not(:disabled) {
   color: var(--destructive);
-  background: color-mix(in srgb, var(--destructive) 12%, transparent);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
 }
 
 /* Cursors follow the tool (selection.ts stamps data-dag-tool on the
    canvas host); a held Space is always the hand. */
 .history-body[data-dag-tool="pointer"] { cursor: default; }
-.history-body[data-dag-tool="marquee"],
 .history-body[data-dag-tool="lasso"] { cursor: crosshair; }
 .history-body.is-space-pan { cursor: grab; }
 .history-body.is-panning { cursor: grabbing; }

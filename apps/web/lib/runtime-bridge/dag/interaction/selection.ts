@@ -8,12 +8,14 @@
  *
  *   * hand    — browse. A click runs the node's own action (fold,
  *               double-click fork & edit); a drag pans. The default.
- *   * pointer — a click selects the node (Shift/⌘ adds or removes);
- *               a drag on empty canvas still pans.
- *   * marquee — a drag draws a rectangle; every node it touches is
- *               selected.
- *   * lasso   — a drag draws a free shape; every node it touches is
- *               selected.
+ *   * pointer — select. A click selects the node (Shift/⌘ adds or
+ *               removes); a drag on empty canvas draws a rectangle and
+ *               selects every node it touches.
+ *   * lasso   — a click as under select; a drag draws a free shape and
+ *               selects every node it touches.
+ *
+ * Under the selecting tools a drag no longer pans: Space + drag, the
+ * middle button, or a trackpad scroll does.
  *
  * Tools live in a registry so a new one (a note, an annotation) is one
  * ``registerTool`` call; the toolbar renders whatever is registered.
@@ -56,8 +58,7 @@ export function registerTool(tool: DagTool): void {
 }
 
 registerTool({ id: "hand", key: "h", selects: false, drag: "pan" });
-registerTool({ id: "pointer", key: "v", selects: true, drag: "pan" });
-registerTool({ id: "marquee", key: "m", selects: true, drag: "marquee" });
+registerTool({ id: "pointer", key: "v", selects: true, drag: "marquee" });
 registerTool({ id: "lasso", key: "l", selects: true, drag: "lasso" });
 
 export function dagTools(): readonly DagTool[] {

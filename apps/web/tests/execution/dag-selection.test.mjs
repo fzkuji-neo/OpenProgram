@@ -26,15 +26,19 @@ registerHooks({
 const sel = await import("../../lib/runtime-bridge/dag/interaction/selection.ts");
 const { deletionTargets } = await import("../../lib/runtime-bridge/dag/interaction/node-delete.ts");
 
-test("The four canvas tools are registered, hand first, each with its key", () => {
+test("Three canvas tools: browse, select (click or box) and lasso", () => {
   assert.deepEqual(sel.dagTools().map((t) => [t.id, t.key, t.drag]), [
     ["hand", "h", "pan"],
-    ["pointer", "v", "pan"],
-    ["marquee", "m", "marquee"],
+    ["pointer", "v", "marquee"],
     ["lasso", "l", "lasso"],
   ]);
   assert.equal(sel.activeTool().id, "hand");
   assert.equal(sel.activeTool().selects, false);
+});
+
+test("The selection bar sits top left, clear of the perspective controls", () => {
+  const css = readFileSync(new URL("../../app/styles/dag/tools.css", import.meta.url), "utf8");
+  assert.match(css, /\.dag-select-bar \{[^}]*top: 8px;[^}]*left: 12px;/);
 });
 
 test("A new tool is one registration away", () => {
