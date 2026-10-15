@@ -33,10 +33,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import subprocess
+import tempfile
 import threading
 import time
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
@@ -501,26 +504,82 @@ class ProjectGit:
 # Registry (projects.json)
 
 _reg_lock = threading.RLock()
+_reg_state = threading.local()
 _worktree_lock = threading.Lock()
 
 
+@contextmanager
+def _registry_transaction():
+    """Hold the registry for one read-modify-write.
+
+    The worker, the CLI and agent subprocesses all write ``projects.json``,
+    so a thread lock alone lets one process overwrite another's change. The
+    outermost entry in a thread also takes the cross-process file lock;
+    nested entries (``resolve_project`` calling ``_upsert``) reuse it.
+    """
+    with _reg_lock:
+        depth = getattr(_reg_state, "depth", 0)
+        if depth:
+            _reg_state.depth = depth + 1
+            try:
+                yield
+            finally:
+                _reg_state.depth = depth
+            return
+        from openprogram.store.session.session_lock import registry_file_lock
+        with registry_file_lock(projects_dir(), "projects-registry"):
+            _reg_state.depth = 1
+            try:
+                yield
+            finally:
+                _reg_state.depth = 0
+
+
 def _read_registry() -> dict[str, dict]:
+    """Read the registry; never report an unreadable one as empty.
+
+    An empty result is written back by the next change, which would erase
+    every project and session binding. A read error therefore raises, and
+    a file that is not a JSON object is moved aside for recovery first.
+    """
     p = _registry_path()
-    if not p.exists():
-        return {}
     try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else {}
-    except (OSError, json.JSONDecodeError):
+        text = p.read_text(encoding="utf-8")
+    except FileNotFoundError:
         return {}
+    except OSError as exc:
+        raise ProjectStoreError(f"cannot read project registry {p}: {exc}") from exc
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        data = None
+    if isinstance(data, dict):
+        return data
+    with _registry_transaction():
+        kept = p.with_name(f"{p.name}.unreadable-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}")
+        try:
+            p.replace(kept)
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            raise ProjectStoreError(f"cannot set aside unreadable project registry {p}: {exc}") from exc
+        else:
+            _log.error("project registry %s was not a JSON object; kept it as %s", p, kept)
+    return {}
 
 
 def _write_registry(reg: dict[str, dict]) -> None:
+    """Publish the whole registry by rename so a reader never sees half of it."""
     p = _registry_path()
-    tmp = p.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(reg, indent=2, ensure_ascii=False, default=str),
-                   encoding="utf-8")
-    tmp.replace(p)
+    fd, temporary = tempfile.mkstemp(prefix=f".{p.name}.", suffix=".tmp", dir=p.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            output.write(json.dumps(reg, indent=2, ensure_ascii=False, default=str))
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, p)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
 
 
 def _new_project_id() -> str:
@@ -556,12 +615,12 @@ def ensure_footprint_ignored(project_path: str | Path) -> None:
 
 
 def list_projects() -> list[Project]:
-    with _reg_lock:
+    with _registry_transaction():
         return [Project.from_dict(d) for d in _read_registry().values()]
 
 
 def get_project(project_id: str) -> Optional[Project]:
-    with _reg_lock:
+    with _registry_transaction():
         d = _read_registry().get(project_id)
         return Project.from_dict(d) if d else None
 
@@ -572,7 +631,7 @@ def _upsert(project: Project, *, capture_identity: bool = False, replace_identit
     Metadata edits and ordinary registry maintenance must not restamp
     folder identity onto a replacement folder at the same path.
     """
-    with _reg_lock:
+    with _registry_transaction():
         reg = _read_registry()
         if capture_identity and not project.is_default and project.path:
             from .identity import capture_directory_identity, read_marker
@@ -595,7 +654,7 @@ def _upsert(project: Project, *, capture_identity: bool = False, replace_identit
 
 
 def set_location_state(project_id: str, state: str, error: str = "") -> Optional[Project]:
-    with _reg_lock:
+    with _registry_transaction():
         reg = _read_registry()
         row = reg.get(project_id)
         if row is None:
@@ -635,7 +694,7 @@ def update_project(project_id: str, patch: dict) -> Project:
             if str(path) not in normalized:
                 normalized.append(str(path))
         values["source_folders"] = normalized
-    with _reg_lock:
+    with _registry_transaction():
         registry = _read_registry()
         if project_id not in registry:
             raise ValueError("unknown project")
@@ -750,7 +809,7 @@ def resolve_project(path: str | Path | None = None, *, name: str | None = None) 
     p = Path(path).expanduser()
     # The path/token decision and publication are one registry transaction.
     # Session relocation runs after releasing it so readers remain available.
-    with _reg_lock:
+    with _registry_transaction():
         existing = next((project for project in list_projects()
                          if not project.is_default and project.path
                          and Path(project.path).expanduser().resolve() == p.resolve()), None)
@@ -798,7 +857,7 @@ def relocate_project(
     p = Path(new_path).expanduser()
     if not p.is_dir():
         raise ProjectStoreError(f"not a directory: {new_path}")
-    with _reg_lock:
+    with _registry_transaction():
         proj = get_project(project_id)
         if proj is None:
             raise ProjectStoreError(f"unknown project: {project_id}")
@@ -854,7 +913,7 @@ def bind_session(session_id: str, project_id: str) -> None:
     """Record that ``session_id`` happened in ``project_id`` (reverse
     index on the project record). Idempotent.
     """
-    with _reg_lock:
+    with _registry_transaction():
         reg = _read_registry()
         d = reg.get(project_id)
         if d is None:
@@ -870,7 +929,7 @@ def bind_session(session_id: str, project_id: str) -> None:
 def unbind_session(session_id: str, project_id: Optional[str] = None) -> None:
     """从项目的反向索引里移除一个 session（删会话时调用，配对 bind_session）。
     project_id=None → 从所有项目移除（不必知道它归哪个项目）。"""
-    with _reg_lock:
+    with _registry_transaction():
         reg = _read_registry()
         changed = False
         for pid, d in reg.items():
@@ -889,7 +948,7 @@ def prune_sessions(alive_ids: set[str]) -> int:
     """把所有项目 session_ids 里不在 alive_ids 的孤立记录清掉，返回清理条数。
     修 882-bug：session_ids 曾只增不减，累积了大量已删会话的死引用。"""
     removed = 0
-    with _reg_lock:
+    with _registry_transaction():
         reg = _read_registry()
         changed = False
         for d in reg.values():
@@ -909,7 +968,7 @@ def prune_sessions(alive_ids: set[str]) -> int:
 
 def project_for_session(session_id: str) -> Optional[Project]:
     """Reverse lookup: which project owns this session, if any."""
-    with _reg_lock:
+    with _registry_transaction():
         for d in _read_registry().values():
             if session_id in (d.get("session_ids") or []):
                 return Project.from_dict(d)
@@ -940,7 +999,7 @@ __all__ = [
 
 def set_project_hidden(project_id: str, hidden: bool) -> Project:
     """Remove/restore a navigation entry; keep paths and session ownership."""
-    with _reg_lock:
+    with _registry_transaction():
         reg = _read_registry()
         if not isinstance(project_id, str) or project_id not in reg:
             raise ValueError("unknown project")
