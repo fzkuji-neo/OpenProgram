@@ -11,7 +11,6 @@ import {
   cloneElement,
   forwardRef,
   isValidElement,
-  useLayoutEffect,
   useRef,
   type ComponentPropsWithoutRef,
   type ElementRef,
@@ -28,11 +27,11 @@ import { useTranslation } from "@/lib/i18n";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  CHECK_SLOT,
   CHECK_SLOT_PAD,
   MENU_ITEM_STATES,
   itemCls,
 } from "../../top-bar/menu-styles";
+import { MenuCheck } from "../../top-bar/menu-check";
 
 /**
  * Drive an animated toolbar icon from its *container's* hover, so the
@@ -124,7 +123,7 @@ type PlusMenuRowProps = Omit<
 
 /**
  * One options-menu row: a radix DropdownMenuItem on the canonical
- * `itemCls` (24px · 13px · 6px radius · hover is the only tint) plus the
+ * `itemCls` (24px · 13px/19px · 6px radius · hover is the only tint) plus the
  * radix keyboard / disabled states. Layout is the shared grammar —
  * `[16px icon] label … trailing [check | pad]` — so labels and checks sit
  * in the same columns as the top-bar menus.
@@ -135,22 +134,6 @@ export const PlusMenuRow = forwardRef<ElementRef<typeof DropdownMenuItem>, PlusM
     ref,
   ) {
     const { node, onMouseEnter, onMouseLeave } = useHoverDrivenIcon(icon);
-    // The ✓ plays its pop-in exactly once — at the moment the item
-    // becomes checked (active: false → true). It does NOT animate on
-    // hover: attaching a ref puts the icon in "controlled" mode, so it no
-    // longer self-animates on its own hover, and we never drive it from
-    // the row's mouse handlers. Re-opening the menu on an already-checked
-    // item does not replay it (prevActive starts equal to active on mount,
-    // so the false→true edge isn't seen). useLayoutEffect fires before
-    // paint, so the path starts hidden instead of flashing fully-drawn.
-    const checkRef = useRef<AnimatedNavIconHandle>(null);
-    const prevActive = useRef(active);
-    useLayoutEffect(() => {
-      if (active && !prevActive.current) {
-        checkRef.current?.startAnimation?.();
-      }
-      prevActive.current = active;
-    }, [active]);
     return (
       <DropdownMenuItem
         ref={ref}
@@ -175,18 +158,11 @@ export const PlusMenuRow = forwardRef<ElementRef<typeof DropdownMenuItem>, PlusM
         ) : null}
         <span className="min-w-0 flex-1 truncate">{label}</span>
         {trailing}
-        {/* Grammar A: the selected row shows a 14px ink check; every
+        {/* Grammar A: the selected row shows the blue check; every
             other row reserves the column so right-side metadata (the
             Tools gear) stays aligned. */}
         {active ? (
-          <SolarIcon
-            ref={checkRef}
-            name="check-circle"
-            size={14}
-            motionPreset="pulse"
-            className={CHECK_SLOT}
-            aria-hidden="true"
-          />
+          <MenuCheck />
         ) : (
           <span className={CHECK_SLOT_PAD} />
         )}

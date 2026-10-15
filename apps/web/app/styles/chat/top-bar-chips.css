@@ -83,13 +83,13 @@
   border-color: color-mix(in srgb, var(--accent-orange) 35%, transparent);
 }
 .project-badge-missing .project-icon { opacity: 1; }
-/* The warning line at the top of the project menu. 10px inset = the
-   rows' text inset (itemCls px-[10px]), like every menu note. */
+/* The warning line at the top of the project menu. 8px inset = the
+   rows' text inset (itemCls px-[8px]), like every menu note. */
 .project-menu-missing {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  padding: 4px 10px 6px;
+  padding: 4px 8px 6px;
   font-size: 11px;
   line-height: 1.45;
   color: var(--accent-orange);
@@ -335,24 +335,29 @@
 /* The one tag for metadata inside a menu row or header (MENU_TAG in
    components/chat/top-bar/menu-styles.ts) — the git menu's "current" /
    "worktree", the channel menu's account alias, the permission menu's
-   "Recommended". 11px muted on a 9% foreground mix, 16px line, 0 6px;
-   same corner radius as the diff-badge it sits beside in the git menu.
+   "Recommended". Claude's xxs neutral badge: 16px tall, 0 4px, 4px
+   radius, 10px/500 secondary text on a 5% foreground mix.
    Lives next to the git-menu rules because that menu defined it first. */
 .menu-tag {
   flex-shrink: 0;
-  padding: 0 6px;
-  border-radius: 5px;
-  font-size: 11px;
-  line-height: 16px;
-  color: var(--text-muted);
-  background: color-mix(in oklch, var(--foreground) 9%, transparent);
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 13px;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  background: color-mix(in oklch, var(--foreground) 5%, transparent);
 }
 .git-menu-dim { color: var(--text-muted); }
-/* Search field spans the row width, text aligned to the rows' 10px inset. */
+/* Search field spans the row width, text aligned to the rows' 8px inset. */
 .git-menu-input {
   margin: 2px 0 4px;
   height: 26px;
-  padding: 0 10px;
+  padding: 0 8px;
   border: 0;
   border-radius: 6px;
   outline: none;

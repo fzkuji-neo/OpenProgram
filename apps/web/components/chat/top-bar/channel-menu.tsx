@@ -17,7 +17,6 @@ import { useTranslation } from "@/lib/i18n";
 import { SolarIcon } from "@/components/solar-icons";
 import { channelBrand, useChannelChoices } from "./channel-choices";
 import {
-  CHECK_SLOT,
   CHECK_SLOT_PAD,
   GROUP_LABEL,
   MENU_PANEL,
@@ -25,6 +24,7 @@ import {
   MENU_TAG,
   itemCls,
 } from "./menu-styles";
+import { MenuCheck } from "./menu-check";
 
 export function ChannelMenu({ onClose }: { onClose: () => void }) {
   const { text } = useTranslation();
@@ -43,7 +43,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
       <div className={itemCls(false)} onClick={() => choose("", "")}>
         <span className="flex-1 truncate">{text("Not connected", "不连接")}</span>
         {!cur.channel ? (
-          <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
+          <MenuCheck />
         ) : (
           <span className={CHECK_SLOT_PAD} />
         )}
@@ -74,7 +74,7 @@ export function ChannelMenu({ onClose }: { onClose: () => void }) {
                   {meta ? <span className={MENU_TAG}>{meta}</span> : null}
                 </span>
                 {active ? (
-                  <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
+                  <MenuCheck />
                 ) : (
                   <span className={CHECK_SLOT_PAD} />
                 )}

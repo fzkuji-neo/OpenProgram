@@ -38,6 +38,7 @@ import { useTranslation } from "@/lib/i18n";
 import { wsRequest } from "@/lib/net/ws-request";
 import { useBoundChat } from "./bound-chat";
 import { CHECK_SLOT, CHECK_SLOT_PAD, GROUP_LABEL, MENU_PANEL, MENU_SEPARATOR, itemCls } from "./menu-styles";
+import { MenuCheck } from "./menu-check";
 import { GitChip } from "./git-chip";
 import { FOLDER_PILL } from "./folder-pill";
 
@@ -240,7 +241,7 @@ export function ProjectMenu({
     ["missing", "replaced", "migrating", "pending", "error"].includes(locationState ?? "");
 
   const errorLine = err ? (
-    <div className="px-[10px] pb-[3px] pt-[1px] text-[11px] text-[var(--accent-orange)]">
+    <div className="px-[8px] pb-[3px] pt-[1px] text-[11px] text-[var(--accent-orange)]">
       {err}
     </div>
   ) : null;
@@ -252,7 +253,7 @@ export function ProjectMenu({
           {text("Main working directory", "主工作目录")}
         </div>
         <div
-          className="px-[10px] pb-[4px] pt-[1px] text-[12px] text-[var(--text-secondary)]"
+          className="px-[8px] pb-[4px] pt-[1px] text-[12px] text-[var(--text-secondary)]"
         >
           <div className="truncate">{activeProject?.name ?? "—"}</div>
           {activeProject?.path ? (
@@ -307,7 +308,7 @@ export function ProjectMenu({
             </div>
           </>
         ) : (
-          <div className="px-[10px] pb-[4px] text-[11px] text-[var(--text-secondary)] opacity-70">
+          <div className="px-[8px] pb-[4px] text-[11px] text-[var(--text-secondary)] opacity-70">
             {text(
               "Fixed for this conversation. Extra folders can still be added below.",
               "本会话已固定。仍可在下方添加额外目录。",
@@ -363,7 +364,7 @@ export function ProjectMenu({
                 aria-label={text("Folder unavailable", "目录不可用")}
               />
             ) : active ? (
-              <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
+              <MenuCheck />
             ) : (
               <span className={CHECK_SLOT_PAD} aria-hidden="true" />
             )}

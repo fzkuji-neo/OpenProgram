@@ -19,12 +19,12 @@ import { api } from "@/lib/net/api";
 import { updatePendingAgentModel } from "@/lib/agents/start-conversation";
 import { useTranslation } from "@/lib/i18n";
 import {
-  CHECK_SLOT,
   CHECK_SLOT_PAD,
   GROUP_LABEL,
   MENU_PANEL,
   itemCls,
 } from "./menu-styles";
+import { MenuCheck } from "./menu-check";
 import { SolarIcon } from "@/components/solar-icons";
 
 export function AgentSelector({
@@ -102,7 +102,7 @@ export function AgentSelector({
           stay as sub-section labels. */}
       <div className={GROUP_LABEL}>{text("Models", "模型")}</div>
       {(models ?? []).length === 0 ? (
-        <div className="px-[10px] py-[8px] text-[12px] text-text-muted">
+        <div className="px-[8px] py-[8px] text-[12px] text-text-muted">
           {t("agent.no_enabled_models")}{" "}
           <a
             href="/settings/providers"
@@ -141,7 +141,7 @@ export function AgentSelector({
                     ) : null}
                   </span>
                   {active ? (
-                    <SolarIcon motionPreset="none" name="check-circle" size={14} className={CHECK_SLOT} />
+                    <MenuCheck />
                   ) : (
                     <span className={CHECK_SLOT_PAD} />
                   )}
