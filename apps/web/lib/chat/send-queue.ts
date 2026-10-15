@@ -17,6 +17,7 @@
 
 import { create } from "zustand";
 import { loadPendingSteers, savePendingSteers } from "./pending-steer-storage";
+import { hasPendingFirstAck } from "./pending-user-text";
 import type { ChatAttachment } from "@/components/chat/composer/submit/send-chat-message";
 import { queuedMessagePayload, snapshotQueuedAttachments, type QueuedAttachments } from "./queued-attachments";
 import type { ExecutionCommand } from "@/lib/execution/execution-debugger";
@@ -224,6 +225,10 @@ export const useSendQueue = create<SendQueueState>((rawSet, get) => {
     if (["cancelled", "ended"].includes(head.steerError ?? "") || head.deliveryError || head.editing || head.injecting || head.steerCommand) return;
     // Still busy — the next running-task clear will call us again.
     if (useSessionStore.getState().runningTasks[sessionId]) return;
+    // The previous send has not been acknowledged yet. sendChatMessage would
+    // treat this one as a repeat of it and drop it, so wait: the ACK starts
+    // that turn, and its clear drains again.
+    if (hasPendingFirstAck(sessionId)) return;
     // Pop BEFORE sending: sendChatMessage re-enters the store (running
     // task, pending text) and a failed write re-queues at the head
     // below, so there is no window where the entry is both queued and
